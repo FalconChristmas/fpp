@@ -12,6 +12,7 @@
  */
 
 #include <atomic>
+#include <cstdint>
 #include "fpp-json-fwd.h"
 #include <condition_variable>
 #include "fpphttp_types.h"
@@ -79,6 +80,15 @@ public:
 
     const std::list<std::string>& getModelNames() const { return modelNames; };
 
+    // Bumped whenever the set of models changes -- a (re)load of
+    // model-overlays.json, an auto-created model appearing or going away, or a
+    // lazy xLights submodel being materialized on first reference. Lets
+    // /api/models answer a conditional request without serializing every model
+    // again. It deliberately does NOT cover a model's live state or running
+    // effect, so it must not be used for /api/overlays/models, which reports
+    // both.
+    uint64_t getModelsGeneration() const { return modelsGeneration; }
+
 private:
     class PixelOverlayModelHolder {
     public:
@@ -115,6 +125,7 @@ private:
     std::map<std::string, std::string> fonts;
     bool fontsLoaded = false;
     std::recursive_mutex modelsLock;
+    std::atomic<uint64_t> modelsGeneration{ 0 };
 
     void doOverlayModelEffects();
     std::thread* updateThread = nullptr;

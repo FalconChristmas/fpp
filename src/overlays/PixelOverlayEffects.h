@@ -11,6 +11,7 @@
  * included LICENSE.LGPL file.
  */
 
+#include <cstdint>
 #include <list>
 #include "fpp-json-fwd.h"
 #include <string>
@@ -93,6 +94,13 @@ public:
 
     static PixelOverlayEffect* GetPixelOverlayEffect(const std::string& name);
     static const std::list<std::string>& GetPixelOverlayEffects();
+
+    // Bumped whenever an effect is registered or unregistered. The described
+    // effect list is otherwise fixed: every list in it that varies at runtime
+    // (fonts, images) is declared as a contentListUrl the client fetches
+    // separately rather than inlined, so registration is the only thing that
+    // can change what /api/overlays/effects returns.
+    static uint64_t GetPixelOverlayEffectsGeneration();
 
     static void AddPixelOverlayEffect(PixelOverlayEffect* effect);
     static void RemovePixelOverlayEffect(PixelOverlayEffect* effect);

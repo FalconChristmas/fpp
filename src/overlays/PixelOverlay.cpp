@@ -157,6 +157,7 @@ void PixelOverlayManager::addModel(Json::Value config) {
     if (pmodel) {
         models[pmodel->getName()].model = pmodel;
         modelNames.push_back(pmodel->getName());
+        ++modelsGeneration;
         for (auto& l : models[pmodel->getName()].listeners) {
             l.second(pmodel);
         }
@@ -186,6 +187,7 @@ void PixelOverlayManager::loadModelMap() {
     }
     models.clear();
     modelNames.clear();
+    ++modelsGeneration;
     // Drop the lazy submodel index so a re-uploaded xlights-submodels.json is
     // picked up on the next reference.
     subModelConfigs.clear();
@@ -1147,8 +1149,19 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
     if (p1 == "models") {
         Json::Value result;
         bool empty = true;
+        std::string modelsVer;
         if (plen == 1) {
             std::unique_lock<std::recursive_mutex> lock(modelsLock);
+            // Read the generation under the same lock the build runs under, so
+            // the tag can never describe a model set newer than the body it
+            // goes out with. (The counter is monotonic, so even a torn read
+            // could only tag new content with an old version -- costing one
+            // extra 200 -- never the reverse, which is the direction that
+            // would serve stale content.)
+            modelsVer = std::to_string(modelsGeneration.load());
+            if (etagMatches(req, modelsVer)) {
+                return makeNotModifiedResponse(makeETagToken(req, modelsVer));
+            }
             bool simple = false;
             if (getRequestArg(req, "simple") == "true") {
                 simple = true;
@@ -1195,7 +1208,14 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
             }
         }
         if (empty && plen == 1) {
-            return makeStringResponse("[]", 200, "application/json");
+            return makeVersionedETagResponse(req, modelsVer, std::string("[]"));
+        } else if (plen == 1) {
+            // ~580 bytes per model, so this is the response that scales worst
+            // with a large show, and the model pickers on several pages fetch
+            // it more than once per load. It carries no live state -- that is
+            // /api/overlays/models -- so the model-set generation is a complete
+            // version for it.
+            return makeVersionedETagResponse(req, modelsVer, SaveJsonToString(result, ""));
         } else {
             std::string resultStr = SaveJsonToString(result, "");
             return makeStringResponse(resultStr, 200, "application/json");
@@ -1207,6 +1227,7 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
         std::string p5 = plen > 4 ? parts[4] : "";
         Json::Value result;
         bool etagable = false;
+        std::string versionedTag;
         if (p2 == "fonts") {
             for (auto& a : fonts) {
                 result.append(a.first);
@@ -1220,6 +1241,12 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
         } else if (p2 == "settings") {
             result["autoCreate"] = autoCreate;
         } else if (p2 == "models") {
+            // Deliberately a content hash rather than the model generation:
+            // this response carries isActive and effectRunning, which the
+            // generation does not track. Versioning it on the model set would
+            // report a stopped effect as still running. The hash still saves
+            // the transfer, which is what scales with the model count.
+            etagable = true;
             std::unique_lock<std::recursive_mutex> lock(modelsLock);
             bool hasModels = false;
             for (auto& mn : modelNames) {
@@ -1298,11 +1325,18 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
                 }
             }
         } else if (p2 == "effects") {
-            // The effect list is derived from what is registered plus what is
-            // on disk (fonts, images), so it changes rarely but not never --
-            // exactly the shape an ETag is for. ?full=true is ~350KB, and the
-            // UI asks for it on every page load.
-            etagable = true;
+            // Registration is the only thing that can change this: the font
+            // and image lists an effect references are declared as
+            // contentListUrls the client fetches separately, not inlined here.
+            // So the effect generation is a complete version, and unlike the
+            // content hash it was using this skips the build -- ?full=true is
+            // ~350KB of JSON, which is 0.9-3.4s of a single-core AM62x to
+            // serialize but only ~10KB to send once gzipped.
+            std::string effectsVer = std::to_string(PixelOverlayEffect::GetPixelOverlayEffectsGeneration());
+            if (etagMatches(req, effectsVer)) {
+                return makeNotModifiedResponse(makeETagToken(req, effectsVer));
+            }
+            versionedTag = effectsVer;
             if (p3 == "") {
                 bool fullResult = getRequestArg(req, "full") == "true";
                 for (auto& a : PixelOverlayEffect::GetPixelOverlayEffects()) {
@@ -1322,6 +1356,9 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
             result = getActiveOverlayEffects();
         }
         std::string resultStr = SaveJsonToString(result, "");
+        if (!versionedTag.empty()) {
+            return makeVersionedETagResponse(req, versionedTag, resultStr);
+        }
         if (etagable) {
             return makeETagResponse(req, resultStr);
         }
@@ -1924,6 +1961,7 @@ void PixelOverlayManager::removeAutoOverlayModel(const std::string& name) {
     if (pmodel && pmodel->isAutoCreated()) {
         modelNames.remove(name);
         models[name].model = nullptr;
+        ++modelsGeneration;
         for (auto& l : models[name].listeners) {
             l.second(nullptr);
         }

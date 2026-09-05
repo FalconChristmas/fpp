@@ -22,6 +22,7 @@
 #include <Magick++/TypeMetric.h>
 #include <magick/image.h>
 #include <algorithm>
+#include <atomic>
 #include <cmath> // std::ceil/std::lround in the image scaling helpers
 #include <cstdint>
 #include <cstdlib>
@@ -1215,6 +1216,7 @@ public:
     void add(PixelOverlayEffect* pe) {
         effects[pe->name] = pe;
         effectNames.push_back(pe->name);
+        ++generation;
     }
     void remove(PixelOverlayEffect* pe) {
         effects.erase(pe->name);
@@ -1222,6 +1224,7 @@ public:
         if (it != effectNames.end()) {
             effectNames.erase(it);
         }
+        ++generation;
     }
     PixelOverlayEffect* get(const std::string& n) {
         return effects[n];
@@ -1229,10 +1232,14 @@ public:
     const std::list<std::string>& names() const {
         return effectNames;
     }
+    uint64_t gen() const {
+        return generation;
+    }
 
 private:
     std::map<std::string, PixelOverlayEffect*> effects;
     std::list<std::string> effectNames;
+    std::atomic<uint64_t> generation{ 0 };
 };
 
 static PixelOverlayEffectHolder EFFECTS;
@@ -1243,6 +1250,10 @@ PixelOverlayEffect* PixelOverlayEffect::GetPixelOverlayEffect(const std::string&
 
 const std::list<std::string>& PixelOverlayEffect::GetPixelOverlayEffects() {
     return EFFECTS.names();
+}
+
+uint64_t PixelOverlayEffect::GetPixelOverlayEffectsGeneration() {
+    return EFFECTS.gen();
 }
 
 void PixelOverlayEffect::AddPixelOverlayEffect(PixelOverlayEffect* effect) {
