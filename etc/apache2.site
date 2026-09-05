@@ -330,8 +330,18 @@ ProxyPassReverse /fppdws ws://localhost:32322/fppdws
 <IfModule proxy_fcgi_module>
 # Need to make sure flushing from php-fpm will send the packets
 # back to the client immediately instead of waiting for the 16K
-# buffers to completely fill
-    <Proxy fcgi://localhost enablereuse=on flushpackets=on>
+# buffers to completely fill.
+#
+# enablereuse stays OFF.  With it on, each httpd thread keeps its own
+# persistent connection to php-fpm, and a connection is only served by the
+# child that accepted it.  MaxRequestWorkers is far larger than
+# pm.max_children (75 vs 25 on a Pi), so once 25 different httpd threads have
+# each opened a connection, every child is pinned to one of them for good and
+# no child ever returns to the accept queue.  Requests arriving on any further
+# thread then hang until ProxyTimeout -- 20 minutes below -- which is exactly
+# long enough for the whole UI to stop loading until php-fpm is restarted.
+# One connection per request costs a unix-socket connect and cannot wedge.
+    <Proxy fcgi://localhost enablereuse=off flushpackets=on>
     </Proxy>
 </IfModule>
 </IfModule>
