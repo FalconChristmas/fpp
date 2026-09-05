@@ -1112,9 +1112,16 @@ private:
             EEPROM = "/home/fpp/media/config/cape-eeprom.bin";
             if (!file_exists(EEPROM)) {
                 EEPROM = "";
-            } else {
-                printf("Using %s\n", EEPROM.c_str());
+                // No cape, same as the "Could not detect any cape" path above,
+                // so drop a cape overlay left from a previous boot the same way.
+                // Otherwise an eeprom that is present but unreadable keeps the
+                // old overlay applied forever, and the i2c addresses it binds
+                // then block rewriting the eeprom that would fix it.
+                fclose(file);
+                handleReboot(handleCapeOverlay("/home/fpp/media/"));
+                return;
             }
+            printf("Using %s\n", EEPROM.c_str());
         }
         fclose(file);
     }
