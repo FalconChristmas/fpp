@@ -15,6 +15,7 @@
 #include "fpp-json.h"
 
 #include "../Warnings.h" // WarningHolder -- needed directly for NOPCH builds
+#include "../common.h"   // SaveJsonToString -- needed directly for NOPCH builds
 
 #include <curl/curl.h>
 
