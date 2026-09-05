@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <?php
+// config.php defines $mediaDirectory, which the cape/channel-output pin
+// reservation below needs.  It has to be pulled in here rather than with the
+// rest of the includes in <head>: without it every path below resolved
+// relative to an empty string, so no pin was ever found to be reserved.
+require_once 'config.php';
 
 // Check for cape-inputs.json file to determine which GPIO pins are already in use
 $capeInputsFile = $mediaDirectory . '/tmp/cape-inputs.json';
@@ -170,6 +175,11 @@ if (is_dir($stringsDir)) {
     ?>
 
     <style>
+        /* Reserve the line so the row doesn't shift when a pin's details appear. */
+        #gpioModalPinInfo {
+            min-height: 1.2em;
+        }
+
         /* ── GPIO trigger cards ─────────────────────────────────────────────────────── */
         .gpio-trigger-card {
             border: 1px solid var(--bs-border-color);
@@ -554,6 +564,14 @@ if (is_dir($stringsDir)) {
             return null;
         }
 
+        // Header pin plus the gpiochip/line it drives, e.g. "P1-11 (0/17)", so the
+        // GPIO a pin maps to is visible while picking it rather than only after saving.
+        function pinLabel(n) {
+            var info = getPinInfo(n);
+            if (!info || info.gpioChip === undefined || info.gpioLine === undefined) return esc(n);
+            return esc(n) + ' (' + esc(info.gpioChip) + '/' + esc(info.gpioLine) + ')';
+        }
+
         function esc(s) { return $('<div>').text(String(s)).html(); }
 
         // ─── Delete ───────────────────────────────────────────────────────────────────
@@ -587,9 +605,15 @@ if (is_dir($stringsDir)) {
             // Pin selector
             var configured = gpioTriggers.map(function (x) { return x.pin; });
             var pinSel = $('#gpioModalPin').empty();
+            // A trigger saved before a cape claimed its pin keeps that pin as an option,
+            // flagged as reserved, so opening the trigger doesn't silently move it.
+            if (t.pin && availablePins.indexOf(t.pin) === -1) {
+                pinSel.append('<option value="' + esc(t.pin) + '" selected>' + pinLabel(t.pin) +
+                    ' — reserved: ' + esc(usedGpioPins[t.pin] || 'in use') + '</option>');
+            }
             $.each(availablePins, function (i, p) {
                 if (configured.indexOf(p) === -1 || p === t.pin)
-                    pinSel.append('<option value="' + esc(p) + '"' + (p === t.pin ? ' selected' : '') + '>' + esc(p) + '</option>');
+                    pinSel.append('<option value="' + esc(p) + '"' + (p === t.pin ? ' selected' : '') + '>' + pinLabel(p) + '</option>');
             });
 
             $('#gpioModalEnabled').prop('checked', t.enabled);
@@ -601,8 +625,12 @@ if (is_dir($stringsDir)) {
 
             // LED fields
             var ledSel = $('#gpioModalLedPin').empty().append('<option value="">None</option>');
+            if (t.ledPin && availablePins.indexOf(t.ledPin) === -1) {
+                ledSel.append('<option value="' + esc(t.ledPin) + '" selected>' + pinLabel(t.ledPin) +
+                    ' — reserved: ' + esc(usedGpioPins[t.ledPin] || 'in use') + '</option>');
+            }
             $.each(availablePins, function (i, p) {
-                ledSel.append('<option value="' + esc(p) + '"' + (p === t.ledPin ? ' selected' : '') + '>' + esc(p) + '</option>');
+                ledSel.append('<option value="' + esc(p) + '"' + (p === t.ledPin ? ' selected' : '') + '>' + pinLabel(p) + '</option>');
             });
             $('#gpioModalLedActiveHigh').val(t.ledActiveHigh ? 'true' : 'false');
             $('#gpioModalLedIdleMode').val(t.ledIdleMode);
@@ -635,6 +663,20 @@ if (is_dir($stringsDir)) {
             if (info && info.supportsPullUp) sel.append('<option value="gpio_pu">Pull Up</option>');
             if (info && info.supportsPullDown) sel.append('<option value="gpio_pd">Pull Down</option>');
             sel.val(cur) || sel.val('gpio');
+            updatePinInfoLabel(pinName);
+        }
+
+        function updatePinInfoLabel(pinName) {
+            var info = getPinInfo(pinName), lbl = $('#gpioModalPinInfo');
+            if (!info) { lbl.text(''); return; }
+            var parts = [];
+            if (info.gpioChip !== undefined && info.gpioLine !== undefined) {
+                parts.push('gpiochip' + info.gpioChip + ' line ' + info.gpioLine);
+            }
+            if (info.gpio !== undefined) parts.push('GPIO' + info.gpio);
+            if (!info.supportsPullUp && !info.supportsPullDown) parts.push('no internal pull');
+            if (usedGpioPins[pinName]) parts.push('reserved: ' + usedGpioPins[pinName]);
+            lbl.text(parts.join(' · '));
         }
 
         function toggleHoldSection() {
@@ -857,28 +899,29 @@ if (is_dir($stringsDir)) {
                                 <i class="fas fa-microchip"></i> Pin &amp; General Settings
                             </div>
                             <div class="row g-3">
-                                <div class="col-md-2">
-                                    <label class="form-label fw-semibold">GPIO Pin <?= helpTip('The GPIO input pin to monitor for signal changes. Only pins not reserved by capes or channel outputs are listed.') ?></label>
-                                    <select class="form-select" id="gpioModalPin"></select>
-                                </div>
-                                <div class="col-md-2 d-flex align-items-end pb-1">
-                                    <div class="form-check">
+                                <div class="col-md-auto d-flex align-items-center">
+                                    <div class="form-check mb-0">
                                         <input class="form-check-input" type="checkbox" id="gpioModalEnabled">
                                         <label class="form-check-label ms-1" for="gpioModalEnabled">Enabled <?= helpTip('When unchecked this trigger is loaded but never fires, letting you disable it temporarily without losing its configuration.') ?></label>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold">Description <?= helpTip('Optional label shown on the trigger card. Useful for identifying buttons by function, e.g. <em>Start show</em> or <em>Emergency stop</em>.') ?></label>
-                                    <input class="form-control" type="text" id="gpioModalDesc" maxlength="128"
-                                        placeholder="e.g. Start button">
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">GPIO Pin <?= helpTip('The GPIO input pin to monitor for signal changes. Each pin is listed with the gpiochip/line it maps to. Only pins not reserved by capes or channel outputs are listed.') ?></label>
+                                    <select class="form-select" id="gpioModalPin"></select>
+                                    <div class="form-text" id="gpioModalPinInfo"></div>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <label class="form-label fw-semibold">Pull Up / Down <?= helpTip('Configures the internal resistor on the pin.<br><strong>None</strong> – relies on an external pull resistor.<br><strong>Pull Up</strong> – pin reads HIGH at rest; pressing a button to GND produces a falling edge.<br><strong>Pull Down</strong> – pin reads LOW at rest; pressing a button to 3.3 V produces a rising edge.') ?></label>
                                     <select class="form-select" id="gpioModalMode">
                                         <option value="gpio">None / External Pull</option>
                                         <option value="gpio_pu">Pull Up</option>
                                         <option value="gpio_pd">Pull Down</option>
                                     </select>
+                                </div>
+                                <div class="col-md">
+                                    <label class="form-label fw-semibold">Description <?= helpTip('Optional label shown on the trigger card. Useful for identifying buttons by function, e.g. <em>Start show</em> or <em>Emergency stop</em>.') ?></label>
+                                    <input class="form-control" type="text" id="gpioModalDesc" maxlength="128"
+                                        placeholder="e.g. Start button">
                                 </div>
                             </div>
                         </div>
