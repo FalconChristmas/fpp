@@ -30,17 +30,7 @@ fi
 # Follows the symlink on installs where sites-enabled points at sites-available.
 cat /opt/fpp/etc/apache2.site > /etc/apache2/sites-enabled/000-default.conf
 
-# Gracefully reload apache config
-gracefullyReloadApacheConf
-
-# Children pinned by the old setting sit idle holding a connection, so a graceful
-# apache reload leaves them stuck until ProxyTimeout.  Reloading php-fpm retires
-# them now; reload rather than restart so the PHP request running this upgrade
-# (an update started from the web UI) is allowed to finish.
-FPMUNIT=$(systemctl list-units --type=service --state=active --no-legend 'php*-fpm.service' 2>/dev/null | awk '{print $1}' | head -1)
-if [ -n "${FPMUNIT}" ]; then
-    echo "  Reloading ${FPMUNIT} to release pinned workers"
-    ${SUDO} systemctl reload ${FPMUNIT}
-fi
-
-exit 0
+# Set the reboot flag so the new vhost is picked up.  Reloading apache or php-fpm
+# from here would cut the connection this upgrade's own output is streaming over
+# and hang the update.
+setSetting rebootFlag 1
