@@ -110,17 +110,33 @@ constexpr int PTP_DSCP                = 46;     // EF   -- PTP event/general mes
 // throttling (sched_rt_runtime_us, 95% by default) is the backstop.
 constexpr int SINK_RT_PRIORITY       = 80;
 
-// How much audio FlushSendPipelines() discards at a track boundary, to throw
-// away whatever was queued between the old track stopping and the new one
-// starting.  Expressed as a duration so it means the same thing at any
-// PipeWire quantum -- see the note on dropRemainingNs for what happened when
-// it was a buffer count instead.
+// How much audio FlushSendPipelines() discards at a track boundary.  Zero:
+// it discards nothing, and the mechanism is kept only so this can be raised
+// if some source ever does need it.
 //
-// It has to stay comfortably under the sink queue's depth (measured 55-77ms
-// in a long soak).  The queue drains during the gap and covers it, so the
-// wire keeps flowing and a receiver sees nothing at all; overshoot it and the
-// wire goes quiet for the difference.
-constexpr int SOURCE_FLUSH_MS        = 50;
+// The flush existed to throw away "stale audio queued between the old track
+// stopping and the new one starting", but pipewiresrc is a live source -- it
+// delivers the graph in real time and holds no backlog to discard.  There was
+// never anything stale there, so the drop only ever cut a hole in a stream
+// that was already continuous, and everything downstream was machinery built
+// to survive that hole: the drift probe reported it as a "source gap", the
+// silence fill patched the timeline over it, and the sink queue had to be
+// deep enough to cover it or a receiver heard the wire stop.
+//
+// Measured across track transitions, same box, same audio:
+//
+//   flush   source gaps   worst wire gap   worst tx jitter
+//   213ms   213-232ms         157.7ms          156.7ms
+//    50ms    23.2ms             6.13ms           5.18ms
+//     0ms    none (54          1.14ms           0.172ms
+//            transitions)
+//
+// At zero a transition is indistinguishable from steady state and clears the
+// 1ms AES67 recommends, not just the 17ms it requires.  It is also the only
+// setting where AES67 carries exactly what the local sound card carries, so
+// any artefact at a boundary is FPP's own audio rather than something this
+// path invented.
+constexpr int SOURCE_FLUSH_MS        = 0;
 
 // PTP (IEEE 1588) profile defaults
 constexpr int DEFAULT_PTP_DOMAIN     = 0;
