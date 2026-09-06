@@ -107,7 +107,7 @@ constexpr int MAX_SUPPORTED_CHANNELS = 8;
 //
 // A deeper pool does not substitute: sourceMinBuffers=64 on its own still left
 // 64% back-to-back. The copy does -- at 8 channels it restores clean pacing,
-// jitter inside the 1ms recommendation, and the full 20ms presentation lead.
+// jitter inside the 1ms recommendation, and the full presentation lead.
 //
 // Stereo keeps the zero-copy path, which is what the long soaks and the
 // hardware testing to date actually ran.  The copy is ~1.5MB/s at 8 channels.
@@ -658,12 +658,36 @@ struct AES67Config {
     // Transmit lead the splitClockDomains servo holds, in milliseconds.
     //
     // How far ahead of its own declared playout time each packet goes on the
-    // wire.  It must stay above the receiver's link offset plus network jitter
-    // or a conformant receiver discards everything and plays silence -- that is
-    // the -23.7ms failure that silenced a Yamaha MRX7-D in issue #2848.  It is
-    // also latency, so it should not be larger than it needs to be: 20ms clears
-    // a Dante/RAVENNA link offset (0.25-5ms typical) with a wide margin.
-    int targetLeadMs = 20;
+    // wire.  Bounded from both directions, and the window is narrower than it
+    // looks.
+    //
+    // Too small and the sender's own jitter eats the margin: a packet that
+    // slips past its playout time arrives late, and a conformant receiver
+    // discards it and plays silence -- that is the -23.7ms failure that
+    // silenced a Yamaha MRX7-D in issue #2848.
+    //
+    // Too large and the packet arrives before the receiver has anywhere to put
+    // it.  The lead has to be held in the receiver's playout buffer, and that
+    // buffer is sized by the device's link offset -- so the ceiling is set by
+    // the smallest buffer on the network, not by anything here.  The 20ms this
+    // used to default to was chosen against a Dante/RAVENNA link offset of
+    // 0.25-5ms "with a wide margin", which was the wrong reading: the margin is
+    // the buffer, and 20ms overruns it.  It survived a Brooklyn II, which has
+    // the depth to absorb it, and failed on the Ultimo-class receivers that do
+    // not -- reported as late and missing packets, on a stream whose payload,
+    // sequence, timestamps and pacing all measured clean.
+    //
+    // 3ms sits inside both bounds and is verified on both: Ultimo and Brooklyn
+    // II receiving the same stream, where 20ms worked only on the Brooklyn.  It
+    // still clears the sender's measured worst-case transmission lateness --
+    // 0.235ms at 1ms ptime over 180k packets, 0.64ms at 4ms -- by an order of
+    // magnitude.  What it no longer clears is a pacing thread that failed to
+    // reach SCHED_FIFO, which can transmit a whole ptime late; that already
+    // warns at pipeline start, and now it matters.
+    //
+    // Global, not per-instance: one lead for every stream on the box.  Raising
+    // it for a receiver with a deep buffer raises it for the shallow ones too.
+    int targetLeadMs = 3;
 
     // Mix a permanent silence source in with the captured audio.
     //
