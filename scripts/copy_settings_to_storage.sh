@@ -71,13 +71,21 @@ if [ "$DIRECTION" == "TOUSB" -o "$DIRECTION" == "FROMUSB" ]; then
     elif [[ "$FSTYPE" =~ "ext4" ]]; then
         mount -t ext4 -o noatime,nodiratime,nofail -- "/dev/$DEVICE" /tmp/smnt
     elif [[ "$FSTYPE" =~ "FAT" ]]; then
-        EXTRA_ARGS="--no-perms"
+        EXTRA_ARGS="--no-perms --no-owner --no-group --copy-links"
         mount -t auto -o noatime,nodiratime,exec,nofail,uid="$FPP_UID",gid="$FPP_GID" -- "/dev/$DEVICE" /tmp/smnt
     elif [[ "$FSTYPE" =~ "DOS" ]]; then
-        EXTRA_ARGS="--no-perms"
+        EXTRA_ARGS="--no-perms --no-owner --no-group --copy-links"
         mount -t auto -o noatime,nodiratime,exec,nofail,uid="$FPP_UID",gid="$FPP_GID" -- "/dev/$DEVICE" /tmp/smnt
     else
         mount -t ext4 -o noatime,nodiratime,nofail -- "/dev/$DEVICE" /tmp/smnt
+    fi
+    # Non-breaking mount validation: if mount failed (nofail still returns, but
+    # mountpoint not active), abort before rsync fills local /tmp (tmpfs) and
+    # causes rc=23 "No space left" / stranded files.
+    if ! mountpoint -q /tmp/smnt 2>/dev/null; then
+        echo "ERROR: Failed to mount /dev/$DEVICE to /tmp/smnt (FSTYPE=$FSTYPE)" >&2
+        rmdir -- /tmp/smnt 2>/dev/null || true
+        exit 1
     fi
 fi
 
@@ -170,7 +178,7 @@ elif [ "$DIRECTION" == "FROMREMOTE" ]; then
 
 fi
 
-EXTRA_ARGS="$EXTRA_ARGS -av --progress --info=name0 --human-readable --modify-window=1"
+EXTRA_ARGS="-av --progress --info=name0 --human-readable --modify-window=1 $EXTRA_ARGS"
 
 if [ "$COMPRESS" == "yes" ]; then
         REMOTE_COMPRESS=" -Dz "
@@ -273,8 +281,11 @@ for action in "$@"; do
 done
 
 if [ "$DIRECTION" == "TOUSB" -o "$DIRECTION" == "FROMUSB" ]; then
-    umount -- /tmp/smnt
-    rmdir -- /tmp/smnt
+    # Non-breaking cleanup: umount may race as busy when multiple USB jobs or
+    # file manager still holds /tmp/smnt; suppress noisy rmdir failure and try
+    # lazy unmount as fallback. Does not affect OVERALL_RC (backup success).
+    umount -- /tmp/smnt 2>/dev/null || umount -l -- /tmp/smnt 2>/dev/null || true
+    rmdir -- /tmp/smnt 2>/dev/null || true
 fi
 
 if [ "$DIRECTION" == "TOREMOTE" -o "$DIRECTION" == "FROMREMOTE" ]; then
