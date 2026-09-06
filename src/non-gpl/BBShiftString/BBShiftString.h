@@ -248,6 +248,9 @@ private:
     // any configured Falcon V5 (bidirectional) receivers after the
     // capability checks; V4 (send-only) chains do not set this
     bool m_hasBidirSR = false;
+    // the cape wires the enable line to PRU1 and we configured that pin;
+    // this also means PRU1 must be running, see Init()
+    bool m_usesEnablePin = false;
 
     void prepData(FrameData& d, unsigned char* channelData);
     void sendData(FrameData& d);

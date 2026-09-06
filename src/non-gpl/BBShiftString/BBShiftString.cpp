@@ -521,6 +521,15 @@ int BBShiftStringOutput::Init(Json::Value config) {
     }
     m_hasBidirSR = hasV5SR;
 
+    // On a cape that wires the receiver enable line to PRU1, that pin gates
+    // the whole differential bus, so it has to be configured whenever the
+    // cape has it - not just for Falcon receivers, and not just for smart
+    // receivers at all.  Left unconfigured, nothing downstream of it gets
+    // data, dumb strings included.  Configuring it also commits us to
+    // actually running PRU1 (see the maxStringLen bump below): the firmware
+    // parks the pin in its disabled state, so a halted PRU1 holds it there.
+    m_usesEnablePin = supportsV5Listeners;
+
     int curRecPort = -1;
     for (int x = 0; x < m_strings.size(); x++) {
         if (curRecPort == -1 && (m_strings[x]->smartReceiverType == PixelString::ReceiverType::FalconV5 ||
@@ -612,8 +621,9 @@ int BBShiftStringOutput::Init(Json::Value config) {
             }
         }
     }
-    if (hasV5SR && m_pru1.maxStringLen <= m_pru0.maxStringLen) {
-        // pru1 controls the reading mux pins so it has to output more pixels than pru0 so it knows pru0 is done
+    if (m_usesEnablePin && m_pru1.maxStringLen <= m_pru0.maxStringLen) {
+        // pru1 controls the enable/reading mux pins so it has to output more pixels
+        // than pru0 so it knows pru0 is done (and so it is started at all)
         m_pru1.maxStringLen = m_pru0.maxStringLen + 1;
     }
 
@@ -676,9 +686,9 @@ int BBShiftStringOutput::Init(Json::Value config) {
     m_pru1.formattedData = (uint8_t*)calloc(1, m_pru1.frameSize);
 #endif
 
-    if (supportsV5Listeners && hasV5SR) {
-        // if the cape supports v5 listeners, the enable pin needs to be
-        // configured or data won't be sent on port1 of each receiver
+    if (m_usesEnablePin) {
+        // without this the enable line stays unconfigured and nothing
+        // behind it - receiver port 1, dumb strings - gets data
         PinCapabilities::getPinByName(PRU1_ENABLE_PIN).configPin("pru1out", true, "BBShiftString-Enable");
     }
     if (hasFalconSR) {
@@ -923,7 +933,7 @@ int BBShiftStringOutput::Close(void) {
     for (auto& a : m_usedPins) {
         PinCapabilities::getPinByName(a.first).releasePin();
     }
-    if (supportsV5Listeners && m_hasBidirSR) {
+    if (m_usesEnablePin) {
         PinCapabilities::getPinByName(PRU1_ENABLE_PIN).releasePin();
     }
     return ChannelOutput::Close();
