@@ -88,6 +88,30 @@ constexpr const char* WARNING_RECV_FAILED = "AES67: audio receive stream failed 
 // separate settings and both have to be set -- the group builds the delay
 // chain that feeds this stream.
 constexpr int MAX_SUPPORTED_CHANNELS = 8;
+
+// Above this channel count pipewiresrc gets always-copy=true regardless of the
+// sourceBufferCopy setting.
+//
+// Zero-copy hands out PipeWire's own buffers, and one is only returned to the
+// pool once everything downstream has dropped its reference.  audiobuffersplit
+// fans a graph quantum into ~21 one-millisecond buffers, and past stereo it
+// holds them long enough that the source misses cycles: buffers reach udpsink
+// already past their PTS, so sync=true cannot pace what is already late and
+// sends back-to-back to catch up.  Measured, same box, same audio:
+//
+//   channels   payload   back-to-back   past the 1ms AES67 recommends
+//     2         288B        clean            0.0%
+//     4         576B        clean            0.0%
+//     6         864B          7%             5.6%
+//     8        1152B      32-50%            90.4%
+//
+// A deeper pool does not substitute: sourceMinBuffers=64 on its own still left
+// 64% back-to-back. The copy does -- at 8 channels it restores clean pacing,
+// jitter inside the 1ms recommendation, and the full 20ms presentation lead.
+//
+// Stereo keeps the zero-copy path, which is what the long soaks and the
+// hardware testing to date actually ran.  The copy is ~1.5MB/s at 8 channels.
+constexpr int MULTICHANNEL_NEEDS_BUFFER_COPY = 2;
 constexpr int DEFAULT_LATENCY_MS    = 10;
 
 // DSCP codepoints (AES67-2018 / AES-R16 QoS recommendations)
@@ -549,6 +573,10 @@ struct AES67Config {
     //
     // always-copy remains available for the case where something downstream
     // genuinely retains buffers, at the cost of a memcpy per buffer.
+    //
+    // Above stereo that case is real, so the pipeline turns the copy on by
+    // itself -- see MULTICHANNEL_NEEDS_BUFFER_COPY.  Setting this true forces
+    // it on at any channel count; it is never forced off.
     bool sourceBufferCopy = false;
     int sourceMinBuffers = 16;
 

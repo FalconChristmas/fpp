@@ -2099,6 +2099,28 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
     // AES67Config::nativeSourceRate.  audioresample below then does the
     // conversion, which is what it is there for.
     const int graphRate = m_config.nativeSourceRate ? PipeWireGraphRate() : 0;
+
+    // Multichannel needs the graph clocked at 48kHz.  Above stereo, PipeWire
+    // resampling every quantum into the 48kHz AES67 node delays buffer
+    // delivery enough that they reach udpsink already past their PTS, and
+    // sync=true cannot pace what is already late -- it sends back-to-back to
+    // catch up.  Measured at 8 channels on a 44.1kHz graph: 74% of packets
+    // back-to-back even with always-copy on; at 48kHz, clean, with jitter
+    // inside the 1ms AES67 recommends.  Stereo is unaffected either way.
+    //
+    // The graph rate follows the selected playback card's achieved rate (see
+    // FPPINIT_Audio), so this is not always the AudioFormat setting alone.
+    if (inst.channels > AES67::MULTICHANNEL_NEEDS_BUFFER_COPY) {
+        const int actualRate = PipeWireGraphRate();
+        if (actualRate > 0 && actualRate != AES67::AUDIO_RATE) {
+            LogWarn(VB_MEDIAOUT,
+                    "AES67 send [%d]: %d channels on a %dHz graph clock. "
+                    "Above stereo this paces badly -- the graph has to be %dHz. "
+                    "Set AudioFormat to 48kHz and use a playback card that runs "
+                    "at 48kHz, or keep this stream at 2 channels.\n",
+                    inst.id, inst.channels, actualRate, AES67::AUDIO_RATE);
+        }
+    }
     if (graphRate > 0 && graphRate != AES67::AUDIO_RATE) {
         LogInfo(VB_MEDIAOUT,
                 "AES67 send [%d]: taking source at graph rate %d, converting "
@@ -2108,7 +2130,10 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
 
     oss << "pipewiresrc name=pwsrc"
         << " min-buffers=" << m_config.sourceMinBuffers
-        << " always-copy=" << (m_config.sourceBufferCopy ? "true" : "false")
+        << " always-copy="
+        << ((m_config.sourceBufferCopy ||
+             inst.channels > AES67::MULTICHANNEL_NEEDS_BUFFER_COPY)
+                ? "true" : "false")
         << " "
         << ((graphRate > 0 && graphRate != AES67::AUDIO_RATE)
                 ? ("! audio/x-raw,rate=" + std::to_string(graphRate) + " ")
