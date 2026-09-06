@@ -345,7 +345,13 @@ struct AES67Config {
     //
     // Verified with scripts/aes67_verify, not yet against Dante or Yamaha
     // hardware.
-    bool sinkPacing = false;
+    // Default ON since 2026-09: this is the validated configuration, proven on
+    // a Pi 5 against a Yamaha MRX7-D / Brooklyn II grandmaster (2.5h and 5h50m
+    // continuous, follower mode, Dante Controller green) as well as a 4h soak
+    // here.  The four are not independent -- see the incoherence warnings in
+    // ParseConfig -- so they move together.  Only AES67 send pipelines are
+    // affected; a box with no AES67 instance sees no change.
+    bool sinkPacing = true;
     int sinkPacingMs = 40;
 
     // Reconcile the audio clock with the PTP clock by inserting or dropping
@@ -451,7 +457,13 @@ struct AES67Config {
     // branch after ten-odd minutes of playback and that is the next thing to
     // find -- it is very likely the original "sounds fine then goes fragmented"
     // report on #2848, which every fix so far has merely postponed.
-    bool driftResample = false;
+    // Default ON since 2026-09: this is the validated configuration, proven on
+    // a Pi 5 against a Yamaha MRX7-D / Brooklyn II grandmaster (2.5h and 5h50m
+    // continuous, follower mode, Dante Controller green) as well as a 4h soak
+    // here.  The four are not independent -- see the incoherence warnings in
+    // ParseConfig -- so they move together.  Only AES67 send pipelines are
+    // affected; a box with no AES67 instance sees no change.
+    bool driftResample = true;
 
     // Count bytes in at pipewiresrc and out at udpsink, and log both rates.
     //
@@ -561,7 +573,13 @@ struct AES67Config {
     // means the "graph takeover" that approach causes -- the sound cards moving
     // onto the PTP driver and being rate-matched -- is not a side effect to be
     // avoided.  It is the intended behaviour, and the point of a clock domain.
-    bool splitClockDomains = false;
+    // Default ON since 2026-09: this is the validated configuration, proven on
+    // a Pi 5 against a Yamaha MRX7-D / Brooklyn II grandmaster (2.5h and 5h50m
+    // continuous, follower mode, Dante Controller green) as well as a 4h soak
+    // here.  The four are not independent -- see the incoherence warnings in
+    // ParseConfig -- so they move together.  Only AES67 send pipelines are
+    // affected; a box with no AES67 instance sees no change.
+    bool splitClockDomains = true;
 
     // Transmit lead the splitClockDomains servo holds, in milliseconds.
     //
@@ -591,7 +609,13 @@ struct AES67Config {
     // +0.9ppm.  That was done in FPP's routing matrix and killed the audio, so
     // it belongs here in our own pipeline instead, where nothing else is
     // arbitrating the links.
-    bool sourceSilenceFloor = false;
+    // Default ON since 2026-09: this is the validated configuration, proven on
+    // a Pi 5 against a Yamaha MRX7-D / Brooklyn II grandmaster (2.5h and 5h50m
+    // continuous, follower mode, Dante Controller green) as well as a 4h soak
+    // here.  The four are not independent -- see the incoherence warnings in
+    // ParseConfig -- so they move together.  Only AES67 send pipelines are
+    // affected; a box with no AES67 instance sees no change.
+    bool sourceSilenceFloor = true;
 
     bool sourcePtpGroup = false;
     std::string sourcePtpGroupName = "pipewire.ptp0";
