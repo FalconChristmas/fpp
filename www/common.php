@@ -5068,4 +5068,36 @@ function fppSendContentCacheValidators($body)
     return fppSendCacheValidators(sprintf('%x-%s', strlen($body), substr(md5($body), 0, 16)));
 }
 
+/**
+ * Whether the gpiochip/line numbers behind a header pin are stable enough to show.
+ *
+ * They only mean something on the Pi, where the 40-pin header maps to a fixed set of
+ * SoC lines.  Everywhere else -- the BeagleBone family, and anything behind an i2c
+ * GPIO expander on any platform -- the chip index comes out of an asynchronous
+ * boot-time probe and can differ from one boot to the next, so a number in the UI is
+ * noise the user cannot act on.  Pin-by-pin filtering lives in GPIOPinLabel() and in
+ * fppPinHasGpioNumbers() on the JS side; this is just the platform half.
+ */
+function GPIOPlatformHasStablePinNumbers()
+{
+    global $settings;
+
+    return isset($settings['Platform']) && $settings['Platform'] == "Raspberry Pi";
+}
+
+/**
+ * Label a GPIO header pin for a dropdown, annotated with the chip/line it drives
+ * where that is meaningful (see GPIOPlatformHasStablePinNumbers()) and left as the
+ * bare pin name where it is not.
+ */
+function GPIOPinLabel($pin, $chip, $line)
+{
+    if (!GPIOPlatformHasStablePinNumbers() || !str_starts_with($pin, 'P1-') ||
+        $chip === null || $line === null) {
+        return $pin;
+    }
+
+    return $pin . " (GPIO " . $chip . "/" . $line . ")";
+}
+
 ?>

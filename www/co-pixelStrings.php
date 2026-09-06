@@ -576,7 +576,13 @@ function readCapes($cd, $capes)
         const portinx = +(portid.match(/(?:_)(\d+)$/) || [])[1]; //some rows don't have port label so get it from row id
         const protocol = row.find(".vsProtocol").val();
         const pxA = [pxAmps["null_" + protocol] || 0, pxAmps[protocol] || 0];
-        const hdr_name = (pins[portinx] || {}).hdr_pin, gpio_name = ((pins[portinx] || {}).gpio_info || {}).gpio;
+        const hdr_name = (pins[portinx] || {}).hdr_pin;
+        // Only annotate with the GPIO number where that number is stable and known --
+        // Pi P1 header pins.  Elsewhere gpio is absent from the pin info entirely, and
+        // string-concatenating it produced a literal "GPIOundefined".
+        const gpio_info = ((pins[portinx] || {}).gpio_info || {}).gpio;
+        const gpio_label = (fppPinHasGpioNumbers(hdr_name) && gpio_info !== undefined && gpio_info !== null)
+            ? "GPIO" + gpio_info + " on " : "";
         if (is_dpi) {
             //use on-screen values (might not be saved yet):
             let [numpx, maxA] = [0, 0];
@@ -597,13 +603,13 @@ function readCapes($cd, $capes)
             const cfg_fps = !numpx ? "" : //no output
                 (port_fps < 20) ? "OVERRUN" : //will cause frame overrun
                     (port_fps < 40) ? "as 20" : "as 40"; //TODO: add other fps if supported
-            details += `<b>Port ${portinx + 1} (${(gpio_name !== null) ? "GPIO" + gpio_name + " on " : ""}${hdr_name || "UNKNOWN PIN!"}):</b> ${plural(numpx)} pixel${plural()}, ${(frtime * 1e3).toFixed(3).replace(".000", "")} msec refresh${cfg_fps ? ` (config ${cfg_fps} fps)` : ""}, ${maxA.toFixed(1).replace(".0", "")} A max`;
+            details += `<b>Port ${portinx + 1} (${gpio_label}${hdr_name || "UNKNOWN PIN!"}):</b> ${plural(numpx)} pixel${plural()}, ${(frtime * 1e3).toFixed(3).replace(".000", "")} msec refresh${cfg_fps ? ` (config ${cfg_fps} fps)` : ""}, ${maxA.toFixed(1).replace(".0", "")} A max`;
         } else if (driver == 'BBShiftString') {
             details += `<b>Port ${portinx + 1}</b>`;
         } else {
             details += `<b>Port ${portinx + 1}`;
             if (hdr_name) {
-                details += ` (${(gpio_name !== null) ? "GPIO" + gpio_name + " on " : ""}${hdr_name || "UNKNOWN PIN!"})`;
+                details += ` (${gpio_label}${hdr_name || "UNKNOWN PIN!"})`;
             }
             details += '</b>';
         }

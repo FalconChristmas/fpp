@@ -99,6 +99,7 @@ if (isset($themeInfo["postFPPStyleSheet"])) {
     href="api/configfile/custom.css?ref=<?php echo filemtime($mediaDirectory . '/config/custom.css'); ?>">
 <? } ?>
 <script type="text/javascript" src="js/fpp.js?ref=<?php echo filemtime('js/fpp.js'); ?>"></script>
+<script type="text/javascript">fppShowPinGpioNumbers = <?php echo GPIOPlatformHasStablePinNumbers() ? 'true' : 'false'; ?>;</script>
 <?php
 // Pre-populate lastStatusJSON from the local API so the header renders
 // immediately on first page load instead of waiting for the AJAX call.

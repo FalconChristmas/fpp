@@ -593,7 +593,7 @@ function GetOptions_GPIOS($list)
         }
         if (!$hide) {
             if ($list) {
-                $ret[$gpio->pin] = $gpio->pin . " (GPIO " . $gpio->gpioChip . "/" . $gpio->gpioLine . ")";
+                $ret[$gpio->pin] = GPIOPinLabel($gpio->pin, $gpio->gpioChip ?? null, $gpio->gpioLine ?? null);
             } else {
                 $ret[] = $gpio;
             }

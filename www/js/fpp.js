@@ -14348,3 +14348,20 @@ function updateNavbarUpdateIndicator () {
 		$('#navbarUpdateAvail').hide();
 	}
 }
+
+/**
+ * Set by menuHead.inc from GPIOPlatformHasStablePinNumbers(): whether this platform's
+ * gpiochip/line numbering is fixed enough to put in front of a user.  On the
+ * BeagleBones -- and behind any i2c GPIO expander -- it is assigned by an
+ * asynchronous boot-time probe and can move between boots, so we show the header pin
+ * name alone.
+ */
+var fppShowPinGpioNumbers = fppShowPinGpioNumbers || false;
+
+/**
+ * Whether a header pin should be annotated with the GPIO it maps to.  Pi 40-pin
+ * header only; expander pins on a Pi carry the same boot-order caveat as the BBBs.
+ */
+function fppPinHasGpioNumbers(pin) {
+	return fppShowPinGpioNumbers && /^P1-/.test(String(pin));
+}

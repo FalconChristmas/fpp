@@ -1012,7 +1012,7 @@
         }
 
         if (!$hide) {
-            echo "GPIOPins.set('" . $pn . "', '" . $pn . " (GPIO " . $gpio["gpioChip"] . "/" . $gpio["gpioLine"] . ")');\n";
+            echo "GPIOPins.set('" . $pn . "', '" . GPIOPinLabel($pn, $gpio["gpioChip"] ?? null, $gpio["gpioLine"] ?? null) . "');\n";
         }
         echo "GPIOPinsByNumber.set(" . $gpio['gpioLine'] . ", '" . $gpio['pin'] . "');\n";
         if (isset($gpio['pwm'])) {
