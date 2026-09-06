@@ -3046,6 +3046,19 @@ static GstPadProbeReturn DropBufferProbe(GstPad* pad, GstPadProbeInfo* info, gpo
         remaining->store(0);
         return GST_PAD_PROBE_DROP;
     }
+
+    // Only drop a buffer that FITS in what is left, and stop otherwise.
+    // Buffers are whole graph quanta, so testing "is there budget left" and
+    // subtracting afterwards overshoots by up to a quantum every time: at the
+    // 21.333ms quantum of a Pi 5 at 48kHz, a 50ms budget took three buffers
+    // and cut 64.00ms.  A tester measured exactly that, and it put the gap
+    // back over the sink queue's depth, which is the one thing this must not
+    // do.  Stopping short instead is bounded by construction -- 42.67ms at
+    // that quantum, 46.44ms at 44.1kHz -- and never exceeds what was asked.
+    if ((GstClockTime)remaining->load() < dur) {
+        remaining->store(0);
+        return GST_PAD_PROBE_OK;
+    }
     remaining->fetch_sub((gint64)dur);
     return GST_PAD_PROBE_DROP;
 }
@@ -3068,12 +3081,19 @@ void AES67Manager::FlushSendPipelines() {
         // the calls happened to land within one window.  Log just the first,
         // since three identical lines per transition made this look like
         // three separate events in the logs testers sent back.
+        // Three call sites in GStreamerOut fire at a single track change.
+        // Re-arming the budget on each one lets a later call land mid-sequence
+        // and extend the drop: a tester saw transitions alternate between
+        // three and four quanta (64.00ms and 85.33ms) for one 50ms request.
+        // Ignore a call while a flush is still running, so one track change
+        // discards one budget's worth however many code paths announce it.
         const gint64 target = (gint64)AES67::SOURCE_FLUSH_MS * GST_MSECOND;
-        if (p.dropRemainingNs.load() <= 0) {
-            LogInfo(VB_MEDIAOUT,
-                    "AES67 send pipeline [%d]: discarding %dms of stale audio\n",
-                    p.instanceId, AES67::SOURCE_FLUSH_MS);
+        if (p.dropRemainingNs.load() > 0) {
+            continue;   // already flushing; probe is installed
         }
+        LogInfo(VB_MEDIAOUT,
+                "AES67 send pipeline [%d]: discarding up to %dms of stale audio\n",
+                p.instanceId, AES67::SOURCE_FLUSH_MS);
         p.dropRemainingNs.store(target);
 
         // Install the probe once; subsequent calls just reset the counter.
