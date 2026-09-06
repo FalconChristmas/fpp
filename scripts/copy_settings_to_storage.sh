@@ -79,6 +79,14 @@ if [ "$DIRECTION" == "TOUSB" -o "$DIRECTION" == "FROMUSB" ]; then
     else
         mount -t ext4 -o noatime,nodiratime,nofail -- "/dev/$DEVICE" /tmp/smnt
     fi
+    # Non-breaking mount validation: if mount failed (nofail still returns, but
+    # mountpoint not active), abort before rsync fills local /tmp (tmpfs) and
+    # causes rc=23 "No space left" / stranded files.
+    if ! mountpoint -q /tmp/smnt 2>/dev/null; then
+        echo "ERROR: Failed to mount /dev/$DEVICE to /tmp/smnt (FSTYPE=$FSTYPE)" >&2
+        rmdir -- /tmp/smnt 2>/dev/null || true
+        exit 1
+    fi
 fi
 
 if [ "$DIRECTION" == "TOUSB" ]; then
