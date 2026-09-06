@@ -555,6 +555,14 @@ int BBShiftStringOutput::Init(Json::Value config) {
             int pru = root["outputs"][x]["pru"].asInt();
             int pin = root["outputs"][x]["pin"].asInt();
             int pinIdx = root["outputs"][x]["index"].asInt();
+            if (pru < 0 || pru > 1) {
+                // m_dataPins/m_ctrlPins/m_pinNamesOverridden are all [2]; a
+                // cape pinout written for a different driver can name a pru
+                // outside that range and would index straight past them
+                LogErr(VB_CHANNELOUT, "Output %d names pru %d but only pru 0 and 1 exist\n", x, pru);
+                WarningHolder::AddWarning("BBShiftString: output " + std::to_string(x) + " names an invalid pru");
+                continue;
+            }
             if (pinIdx < 0 || pinIdx >= m_stringsPerPin) {
                 LogErr(VB_CHANNELOUT, "Output %d has shift stage index %d but the cape declares %d strings per pin\n",
                        x, pinIdx, m_stringsPerPin);
