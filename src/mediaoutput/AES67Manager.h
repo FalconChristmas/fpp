@@ -293,6 +293,29 @@ struct AES67Config {
     //   "master"   -- priority1 127: prefer to win the election.
     std::string ptpRole = "auto";
 
+    // Hold a sender idle until something in the audio graph actually feeds it.
+    //
+    // A send instance is a PipeWire *sink*: its pipewiresrc is created with
+    // node.autoconnect=false, so nothing links into it unless an Audio Output
+    // Group member names it as node.target.  With nothing linked the pipeline
+    // cannot preroll, and gst_element_set_state() sits there for 30 seconds
+    // before returning FAILURE -- per instance, on every Apply.  That is the
+    // chicken and egg a new instance walks straight into: it cannot be added
+    // to a group until it has been saved, and saving it costs half a minute
+    // of dead UI and a "stream failed to start" warning for a stream the user
+    // has not finished configuring yet.
+    //
+    // So when nothing feeds it, do not start it at all: the instance stays
+    // configured, ApplyConfig() returns promptly, GetStatus() reports it as
+    // waiting rather than failed, and the next apply -- which the Audio Output
+    // Groups page performs anyway, by restarting the stack -- starts it for
+    // real.  See GraphFeedsSendNode().
+    //
+    // Set false in pipewire-aes67-instances.json for a graph FPP did not
+    // generate (a hand-written PipeWire conf, or nodes linked by hand with
+    // pw-link), where the group config cannot answer the question.
+    bool requireGroupSource = true;
+
     // Diagnostic switches for the AES67 send path.  Both default on; set
     // either to false in pipewire-aes67-instances.json and hit Apply to take
     // that change out of the pipeline without rebuilding, which is what makes
@@ -866,6 +889,13 @@ public:
             // default.clock.rate does not tell you what this stream is fed,
             // because per-card and per-group rates sit in between.
             int sourceRate = 0;
+            // Configured and enabled, but deliberately not started because
+            // nothing in the audio graph feeds it -- see
+            // AES67Config::requireGroupSource.  Not an error: `note` carries
+            // the reason for the UI to render as guidance rather than a
+            // failure.
+            bool waitingForSource = false;
+            std::string note;
         };
         std::vector<PipelineStatus> pipelines;
         bool ptpSynced = false;
@@ -1092,6 +1122,14 @@ private:
     std::map<int, AES67Pipeline> m_sendPipelines;    // keyed by instance ID
     std::map<int, AES67Pipeline> m_recvPipelines;
     std::mutex m_pipelineMutex;
+
+    // Send instances ApplyConfig() chose not to start because nothing feeds
+    // them -- see AES67Config::requireGroupSource.  Instance ID to the reason,
+    // which is shown to the user, so phrase it as guidance rather than as an
+    // error.  Guarded by m_pipelineMutex alongside the pipeline maps, so a
+    // status reader sees the whole picture -- running, failed and waiting --
+    // under one lock.
+    std::map<int, std::string> m_deferredSenders;
 
     bool CreateSendPipeline(const AES67Instance& inst);
     bool CreateRecvPipeline(const AES67Instance& inst);

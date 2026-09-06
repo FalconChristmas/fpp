@@ -6276,13 +6276,19 @@ function SaveAES67Instances()
 // and GeneratePipeWireGroupsConfig() drops a member whose instance is disabled
 // ("# WARNING: Could not find PipeWire sinks for: aes67_1").
 //
-// Applying the instance without rebuilding leaves those two disagreeing: fppd
-// starts the send pipeline, but no filter chain targets its node, and the
-// pipeline uses node.autoconnect=false so it cannot preroll with nothing
-// feeding it.  gst_element_set_state() then blocks and returns FAILURE, which
-// surfaces only as "AES67: audio send stream failed to start" -- with no hint
-// that the audio groups are the thing that is stale.  A user enabling a stream
-// has no way to know they must also re-apply the audio groups, so do it here.
+// Applying the instance without rebuilding leaves those two disagreeing: the
+// group config still names a node fppd no longer creates, or no longer names
+// one it does.  A user enabling or renaming a stream has no way to know they
+// must also re-apply the audio groups, so do it here.
+//
+// fppd no longer tries to start a sender nothing feeds -- it checks the
+// generated group config first and holds the stream idle instead (see
+// GraphFeedsSendNode in AES67Manager.cpp).  That is what keeps an apply quick
+// while an instance is still being set up: the pipeline used to block for 30
+// seconds per unfed instance before failing with "audio send stream failed to
+// start", which a brand new instance always hit, because it cannot be added to
+// a group until it has been saved.  The rebuild below is still what starts the
+// stream for real once it has a group.
 //
 // Generation is pure, so compare first and only pay for the rebuild (which
 // restarts the PipeWire stack and fppd) when the graph actually changes.

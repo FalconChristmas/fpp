@@ -299,6 +299,8 @@ bool AES67Manager::LoadConfig() {
                           (Json::UInt64)kDefault.rateMatchToleranceNs)
             .asUInt64();
     cfg.adaptiveResample = root.get("adaptiveResample", false).asBool();
+    cfg.requireGroupSource =
+        root.get("requireGroupSource", kDefault.requireGroupSource).asBool();
 
     // A domain outside 0-127 is not representable in the PTP header; an
     // unknown role would silently fall through to the "auto" branch below,
@@ -438,6 +440,59 @@ static void ClearAES67PipelineWarnings(bool clearSend, bool clearRecv) {
     }
 }
 
+// Does the audio graph FPP generates actually feed this sender node?
+//
+// A send instance is a PipeWire sink with node.autoconnect=false, so the only
+// thing that ever links into it is an Audio Output Group member carrying
+// node.target = "<nodeName>".  Those group members are the whole of the answer,
+// and they live in the confs the group pages generate -- 97 for output groups
+// (which is also where Simple mode's synthetic group lands) and 96 for input
+// groups, both read by PipeWire at daemon startup.
+//
+// Asking the *running* graph instead cannot work, and not for want of a
+// parser: the node does not exist until the pipeline that creates it starts,
+// so there is nothing to look for until after the decision has been made.  The
+// generated conf is what PipeWire will link when the node does appear, which
+// makes it the only thing that can answer this in advance.
+//
+// A missing 97 conf means the group pages have never generated one, and this
+// then cannot tell "nothing feeds it" from "FPP does not manage this graph" --
+// so say fed and let the pipeline try, which is what every release before this
+// one did unconditionally.
+static bool GraphFeedsSendNode(const std::string& nodeName) {
+    static const char* confs[] = {
+        "/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf",
+        "/etc/pipewire/pipewire.conf.d/96-fpp-input-groups.conf"
+    };
+
+    if (GetFileContents(confs[0]).empty()) {
+        return true;
+    }
+
+    const std::string needle = "node.target";
+    for (const char* conf : confs) {
+        const std::string contents = GetFileContents(conf);
+        for (std::size_t t = contents.find(needle); t != std::string::npos;
+             t = contents.find(needle, t + 1)) {
+            // node.target = "<value>" -- take what is between the next two
+            // quotes and compare whole, so aes67_stream_1_send does not match
+            // a hypothetical aes67_stream_10_send.
+            std::size_t a = contents.find('"', t + needle.size());
+            if (a == std::string::npos) {
+                continue;
+            }
+            std::size_t b = contents.find('"', a + 1);
+            if (b == std::string::npos) {
+                continue;
+            }
+            if (contents.compare(a + 1, b - a - 1, nodeName) == 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool AES67Manager::ApplyConfig() {
     // Serialize against concurrent ApplyConfig()/Shutdown()/Cleanup() calls -
     // see m_applyMutex.  Without this, two callers can both get past the SAP
@@ -512,6 +567,9 @@ bool AES67Manager::ApplyConfig() {
     bool anySAP = false;
     bool sendFailed = false;
     bool recvFailed = false;
+    // Senders held idle because nothing feeds them -- published to
+    // m_deferredSenders below, once the whole pass has run.
+    std::map<int, std::string> deferred;
 
     for (const auto& inst : m_config.instances) {
         if (!inst.enabled) continue;
@@ -520,7 +578,19 @@ bool AES67Manager::ApplyConfig() {
         bool wantRecv = (inst.mode == "receive" || inst.mode == "both");
 
         if (wantSend) {
-            if (CreateSendPipeline(inst)) {
+            // Nothing feeds this sender, so starting it would cost 30 seconds
+            // of blocked apply and end in FAILURE.  Hold it instead -- see
+            // AES67Config::requireGroupSource.
+            const std::string nodeName = SafeNodeName(inst.name) + "_send";
+            if (m_config.requireGroupSource && !GraphFeedsSendNode(nodeName)) {
+                LogInfo(VB_MEDIAOUT,
+                        "AES67 send [%d] '%s': nothing in the audio graph feeds %s, "
+                        "holding the stream idle. Add it to an Audio Output Group "
+                        "and apply that config to start it.\n",
+                        inst.id, inst.name.c_str(), nodeName.c_str());
+                deferred[inst.id] =
+                    "Waiting for audio — not a member of any enabled Audio Output Group";
+            } else if (CreateSendPipeline(inst)) {
                 anySend = true;
             } else {
                 sendFailed = true;
@@ -540,9 +610,16 @@ bool AES67Manager::ApplyConfig() {
         }
     }
 
+    {
+        std::lock_guard<std::mutex> lock(m_pipelineMutex);
+        m_deferredSenders = std::move(deferred);
+    }
+
     // Every enabled pipeline of that kind started, so whatever raised the
     // warning last time has been dealt with.  Note this runs after the create
-    // calls that raise it, so a still-failing kind keeps its warning.
+    // calls that raise it, so a still-failing kind keeps its warning.  A held
+    // sender does not count as a failure -- nothing was attempted, and there
+    // is nothing wrong with the stream itself.
     ClearAES67PipelineWarnings(!sendFailed, !recvFailed);
 
     // Start the drift control loop if anything is sending on the PTP clock
@@ -3081,6 +3158,10 @@ void AES67Manager::StopAllPipelines() {
         std::lock_guard<std::mutex> lock(m_pipelineMutex);
         sendCopy.swap(m_sendPipelines);
         recvCopy.swap(m_recvPipelines);
+        // Nothing is configured to be running any more, so no sender is
+        // waiting for a source either.  ApplyConfig() refills this after its
+        // create pass; every other caller is a teardown.
+        m_deferredSenders.clear();
     }
 
     for (auto& [id, p] : sendCopy) {
@@ -4036,7 +4117,20 @@ void AES67Manager::SAPAnnounceLoop() {
         std::vector<uint8_t> announcePacket;
         std::vector<uint8_t> deletePacket;
     };
-    auto buildEntries = [this](const std::string& ptpClockId) -> std::vector<SAPEntry> {
+    // Senders held idle because nothing feeds them are not on the wire, so
+    // they must not be announced -- a receiver that subscribes to an announced
+    // stream carrying no packets has no way to tell that from a broken sender.
+    // Snapshotted here rather than read per announce: ApplyConfig() restarts
+    // this thread whenever the set can change.
+    std::set<int> heldSenders;
+    {
+        std::lock_guard<std::mutex> lock(m_pipelineMutex);
+        for (const auto& [id, d] : m_deferredSenders) {
+            heldSenders.insert(id);
+        }
+    }
+
+    auto buildEntries = [this, &heldSenders](const std::string& ptpClockId) -> std::vector<SAPEntry> {
         std::vector<SAPEntry> result;
 
         // Version the announcement by what is in it.  Building the bodies with
@@ -4046,6 +4140,7 @@ void AES67Manager::SAPAnnounceLoop() {
         for (const auto& inst : m_config.instances) {
             if (!inst.enabled || !inst.sapEnabled) continue;
             if (inst.mode != "send" && inst.mode != "both") continue;
+            if (heldSenders.count(inst.id)) continue;
             std::string sourceIP = GetInterfaceIP(inst.interface.empty() ?
                                                   m_config.ptpInterface : inst.interface);
             bodyKey += BuildSDP(inst, sourceIP, ptpClockId, 0);
@@ -4056,6 +4151,7 @@ void AES67Manager::SAPAnnounceLoop() {
             if (!inst.enabled) continue;
             if (!inst.sapEnabled) continue;
             if (inst.mode != "send" && inst.mode != "both") continue;
+            if (heldSenders.count(inst.id)) continue;
 
             std::string sourceIP = GetInterfaceIP(inst.interface.empty() ?
                                                   m_config.ptpInterface : inst.interface);
@@ -4670,6 +4766,26 @@ AES67Manager::Status AES67Manager::GetStatus() {
                 }
                 status.pipelines.push_back(ps);
             }
+
+            // Senders deliberately held idle.  Reported alongside the real
+            // pipelines rather than omitted: a stream the user enabled and
+            // cannot see anywhere reads as FPP having lost the config.
+            for (const auto& [id, reason] : m_deferredSenders) {
+                Status::PipelineStatus ps;
+                ps.instanceId = id;
+                ps.mode = "send";
+                ps.running = false;
+                ps.waitingForSource = true;
+                ps.note = reason;
+
+                for (const auto& inst : config.instances) {
+                    if (inst.id == id) {
+                        ps.name = inst.name;
+                        break;
+                    }
+                }
+                status.pipelines.push_back(ps);
+            }
         } else {
             // Could not acquire lock — return partial status
             Status::PipelineStatus ps;
@@ -4903,14 +5019,41 @@ std::vector<AES67Manager::TestResult> AES67Manager::RunSelfTest() {
                 : "Receive pipeline " + std::to_string(id) + " is NOT running: " + p.errorMessage;
             results.push_back(r);
         }
+
+        // Held senders have no pipeline to report on, and a configured stream
+        // that appears in no test at all reads as a lost config.  Passing:
+        // this is the state FPP intends for a sender nothing feeds, not a
+        // fault to chase.
+        for (const auto& [id, reason] : m_deferredSenders) {
+            TestResult r;
+            r.testName = "send_pipeline_" + std::to_string(id);
+            r.passed = true;
+            r.message = "Send stream " + std::to_string(id) + " is idle: " + reason;
+            results.push_back(r);
+        }
     }
 
     // Test 9: SAP announcer running
     {
+        // Nothing to announce is not a failure.  The announcer only runs when
+        // a sender is actually on the wire, so a receive-only box -- or one
+        // whose senders are all held idle waiting for an Audio Output Group --
+        // correctly has no announcer thread, and reporting that as a failed
+        // test sends the user looking for a fault that is not there.
+        bool anySendRunning = false;
+        {
+            std::lock_guard<std::mutex> lock(m_pipelineMutex);
+            anySendRunning = !m_sendPipelines.empty();
+        }
+        const bool running = m_sapAnnounceRunning.load();
+
         TestResult r;
         r.testName = "sap_announcer";
-        r.passed = m_sapAnnounceRunning.load();
-        r.message = r.passed ? "SAP announcer thread running" : "SAP announcer thread not running";
+        r.passed = running || !anySendRunning;
+        r.message = running
+            ? "SAP announcer thread running"
+            : (anySendRunning ? "SAP announcer thread not running"
+                              : "No SAP announcer needed — no send stream is running");
         results.push_back(r);
     }
 
@@ -5003,6 +5146,15 @@ HttpResponsePtr AES67Manager::render_GET(const HttpRequestPtr& req) {
             }
             if (!p.error.empty()) {
                 pj["error"] = p.error;
+            }
+            // Distinct from "error" on purpose: the UI renders a failure in
+            // red and this as guidance, so collapsing the two would put a
+            // brand new instance back in the alarming state this replaced.
+            if (p.waitingForSource) {
+                pj["waitingForSource"] = true;
+            }
+            if (!p.note.empty()) {
+                pj["note"] = p.note;
             }
             pipelines.append(pj);
         }
