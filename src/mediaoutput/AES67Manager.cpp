@@ -207,6 +207,41 @@ std::string AES67Manager::GetPtpInterface() {
     return m_config.ptpInterface;
 }
 
+// cfg80211 drivers expose phy80211, older wext drivers expose wireless/
+static bool IsWirelessInterface(const std::string& iface) {
+    std::string base = "/sys/class/net/" + iface;
+    return access((base + "/wireless").c_str(), F_OK) == 0 ||
+           access((base + "/phy80211").c_str(), F_OK) == 0;
+}
+
+// A blank ptpInterface used to be offered by the web page as "(Default)", but
+// nothing downstream can act on it: ptp4l is exec'd with -i "" and exits
+// immediately, and GetInterfaceIP("") returns whichever address getifaddrs
+// hands back first -- on a Wi-Fi equipped Pi often wlan0, which cannot hold a
+// PTP lock.  The page no longer offers the blank, but configs written by
+// older builds still carry one, so resolve it to a wired interface that has
+// an IPv4 address, preferring eth0.
+static std::string FirstWiredInterface() {
+    struct ifaddrs* addrs = nullptr;
+    if (getifaddrs(&addrs) != 0) {
+        return "eth0";
+    }
+
+    std::string first;
+    for (struct ifaddrs* ifa = addrs; ifa; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_addr || ifa->ifa_addr->sa_family != AF_INET) continue;
+        std::string name = ifa->ifa_name;
+        if (name == "lo" || IsWirelessInterface(name)) continue;
+        if (name == "eth0") {
+            first = name;
+            break;
+        }
+        if (first.empty()) first = name;
+    }
+    freeifaddrs(addrs);
+    return first.empty() ? "eth0" : first;
+}
+
 bool AES67Manager::LoadConfig() {
     Json::Value root;
     if (!LoadJsonFromFile(m_configPath, root, JsonRoot::Object)) {
@@ -229,6 +264,11 @@ bool AES67Manager::LoadConfig() {
     static const AES67Config kDefault;
     cfg.ptpEnabled = root.get("ptpEnabled", kDefault.ptpEnabled).asBool();
     cfg.ptpInterface = root.get("ptpInterface", kDefault.ptpInterface).asString();
+    if (cfg.ptpInterface.empty()) {
+        cfg.ptpInterface = FirstWiredInterface();
+        LogInfo(VB_MEDIAOUT, "AES67Manager: no PTP interface configured, using %s\n",
+                cfg.ptpInterface.c_str());
+    }
     cfg.ptpDomain = root.get("ptpDomain", kDefault.ptpDomain).asInt();
     cfg.ptpRole = root.get("ptpRole", kDefault.ptpRole).asString();
     cfg.ptpMediaClock = root.get("ptpMediaClock", kDefault.ptpMediaClock).asBool();

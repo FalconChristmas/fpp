@@ -224,8 +224,10 @@
                                     <label for="ptpInterfaceSelect">Network Interface:</label>
                                     <select class="form-select form-select-sm d-inline-block w-auto"
                                         id="ptpInterfaceSelect" onchange="UpdatePTPInterface(this.value)">
-                                        <option value="">(Default)</option>
                                     </select>
+                                    <img src="images/redesign/help-icon.svg" class="icon-help" data-bs-toggle="tooltip"
+                                        data-bs-html="true" data-bs-placement="auto"
+                                        title="The interface PTP runs on, and the source address for streams that do not name an interface of their own.  Only wired interfaces are listed: PTP needs deterministic latency and, where the NIC supports it, hardware timestamping, so Wi-Fi cannot hold sync.">
                                 </div>
                                 <div>
                                     <label for="ptpDomainInput">Domain:</label>
@@ -514,13 +516,35 @@
                 return $.getJSON('api/pipewire/aes67/interfaces')
                     .done(function (data) {
                         availableInterfaces = data || [];
-                        // Populate PTP interface dropdown
+                        // Populate PTP interface dropdown.  There is deliberately
+                        // no "(Default)" entry: a blank PTP interface reaches
+                        // ptp4l as -i "", which exits immediately, so the only
+                        // thing that choice ever did was leave the clock unsynced.
                         var sel = $('#ptpInterfaceSelect');
-                        sel.find('option:not(:first)').remove();
+                        sel.empty();
+                        if (!availableInterfaces.length) {
+                            sel.append('<option value="">(no wired interface found)</option>');
+                            return;
+                        }
                         for (var i = 0; i < availableInterfaces.length; i++) {
                             sel.append('<option value="' + EscapeAttr(availableInterfaces[i]) + '">' + EscapeHtml(availableInterfaces[i]) + '</option>');
                         }
                     });
+            }
+
+            /////////////////////////////////////////////////////////////////////////////
+            // The saved interface may be blank (written by a build that offered
+            // "(Default)") or name something that is no longer present.  Fall
+            // back to eth0, else the first wired interface, and write the result
+            // back into aes67Data so a Save stores what the page is showing.
+            // fppd applies the same eth0-then-first-wired fallback to a blank,
+            // so this mostly makes the choice visible rather than changing it.
+            function ResolvePTPInterface(iface) {
+                if (iface && availableInterfaces.indexOf(iface) !== -1)
+                    return iface;
+                if (availableInterfaces.indexOf('eth0') !== -1)
+                    return 'eth0';
+                return availableInterfaces.length ? availableInterfaces[0] : '';
             }
 
             /////////////////////////////////////////////////////////////////////////////
@@ -571,7 +595,8 @@
 
                         // Set PTP controls
                         $('#ptpEnabledCheck').prop('checked', aes67Data.ptpEnabled !== false);
-                        $('#ptpInterfaceSelect').val(aes67Data.ptpInterface || '');
+                        aes67Data.ptpInterface = ResolvePTPInterface(aes67Data.ptpInterface);
+                        $('#ptpInterfaceSelect').val(aes67Data.ptpInterface);
                         $('#ptpDomainInput').val(aes67Data.ptpDomain != null ? aes67Data.ptpDomain : 0);
                         $('#ptpRoleSelect').val(aes67Data.ptpRole || 'auto');
 
@@ -729,7 +754,7 @@
 
                 // Network Interface
                 html += '<div>';
-                html += '<label>Network Interface' + HelpIcon('The network interface to use for multicast traffic. Select the wired Ethernet interface for best results. Leave as Default to use the system primary route.') + '</label>';
+                html += '<label>Network Interface' + HelpIcon('The network interface carrying this stream\u2019s multicast traffic. Leave as Default to use the PTP interface selected at the top of the page, which is what most setups want. Only wired interfaces are listed \u2014 AES67 multicast is not usable over Wi-Fi.') + '</label>';
                 html += '<select class="form-select form-select-sm" onchange="UpdateField(' + index + ', \'interface\', this.value)">';
                 html += '<option value="">(Default)</option>';
                 for (var n = 0; n < availableInterfaces.length; n++) {

@@ -6548,16 +6548,32 @@ function GetAES67SDPFile()
 }
 
 // GET /api/pipewire/aes67/interfaces
+//
+// Wired interfaces only.  AES67 needs both PTP (which wants deterministic
+// latency and, ideally, hardware timestamping) and steady multicast; Wi-Fi
+// gives neither, so a wireless interface offered here would only ever be a
+// configuration that fails to sync.  The loopback and the AP-mode/tether
+// interfaces FPP itself brings up are dropped for the same reason.
 function GetAES67NetworkInterfaces()
 {
     $interfaces = array();
-    exec("ip -o link show | awk -F': ' '{print \$2}' | grep -v lo", $output);
-    if (!empty($output)) {
-        foreach ($output as $iface) {
-            $iface = trim($iface);
-            if (!empty($iface))
-                $interfaces[] = $iface;
-        }
+    exec("ip -o link show | awk -F': ' '{print \$2}'", $output);
+    foreach ($output as $iface) {
+        $iface = trim($iface);
+        // veth-style names come back as "eth0@if12"
+        $at = strpos($iface, '@');
+        if ($at !== false)
+            $iface = substr($iface, 0, $at);
+        if ($iface == '' || $iface == 'lo')
+            continue;
+        if (preg_match('/^(SoftAp|tether|can)/', $iface))
+            continue;
+        // sysfs is the reliable wireless test: cfg80211 drivers expose
+        // phy80211, older wext drivers expose wireless/
+        if (is_dir("/sys/class/net/" . $iface . "/wireless") ||
+            file_exists("/sys/class/net/" . $iface . "/phy80211"))
+            continue;
+        $interfaces[] = $iface;
     }
     return json($interfaces);
 }
