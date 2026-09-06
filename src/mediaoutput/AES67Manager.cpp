@@ -2050,6 +2050,17 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
     // corrected against is PTP.
     const bool driftControl = (ptpClock != nullptr) && m_config.adaptiveResample;
     const bool sinkPacing = m_config.sinkPacing;
+
+    // Caps above stereo must name the channel layout or nothing negotiates --
+    // see ChannelMaskFor().  Emitted into both caps filters below.
+    const guint64 mask = AES67::ChannelMaskFor(inst.channels);
+    const std::string chanMask =
+        mask ? (",channel-mask=(bitmask)0x" + [&] {
+                    char b[32];
+                    snprintf(b, sizeof(b), "%llx", (unsigned long long)mask);
+                    return std::string(b);
+                }())
+             : std::string();
     const bool rateMatch = m_config.rateMatch;
 #ifdef FPP_HAVE_SAMPLERATE
     const bool driftResample = m_config.driftResample && (ptpClock != nullptr);
@@ -2127,12 +2138,12 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         << (driftResample
                 ? ("! audio/x-raw,format=F32LE,rate=" +
                    std::to_string(AES67::AUDIO_RATE) + ",channels=" +
-                   std::to_string(inst.channels) +
+                   std::to_string(inst.channels) + chanMask +
                    " ! identity name=driftpoint ")
                 : "")
         << "! audioconvert "
         << "! audio/x-raw,format=S24BE,rate=" << AES67::AUDIO_RATE
-        << ",channels=" << inst.channels << " "
+        << ",channels=" << inst.channels << chanMask << " "
         // Re-block the audio into exactly one packet per buffer, on a timeline
         // aligned to sample boundaries.  pipewiresrc hands us whatever the graph
         // quantum produced, with timestamps that do not land on packet

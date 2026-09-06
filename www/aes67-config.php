@@ -711,24 +711,19 @@
 
                 // Channels
                 html += '<div>';
-                html += '<label>Audio Channels' + HelpIcon('AES67 allows up to 8 channels per stream, but FPP can only carry stereo to an AES67 stream today: the audio graph feeding it is fixed at 2 channels. Selecting more stops the stream starting at all, so the wider options are disabled until that is supported.') + '</label>';
+                html += '<label>Audio Channels' + HelpIcon('Number of audio channels in this AES67 stream, up to 8. The matching output group must be set to the same channel count -- that group builds the audio path feeding this stream. Above 2 channels the packet time is fixed at 1ms, since 4ms of multichannel audio will not fit in one packet.') + '</label>';
                 html += '<select class="form-select form-select-sm" onchange="UpdateChannels(' + index + ', parseInt(this.value))">';
-                // Anything above stereo fails caps negotiation against the
-                // stereo delay chain and the pipeline never produces a packet,
-                // so these are shown-but-disabled rather than removed -- a
-                // config saved with 8 still has to render as something.
                 var chOpts = [
                     { v: 2, l: '2 (Stereo)' }, { v: 4, l: '4' },
                     { v: 6, l: '6 (5.1)' }, { v: 8, l: '8 (7.1)' }
                 ];
                 var chVal = inst.channels || 2;
                 for (var c = 0; c < chOpts.length; c++) {
-                    var wide = chOpts[c].v > 2;
-                    html += '<option value="' + chOpts[c].v + '"' + (chVal === chOpts[c].v ? ' selected' : '') + (wide ? ' disabled' : '') + '>' + chOpts[c].l + (wide ? ' - not yet supported' : '') + '</option>';
+                    html += '<option value="' + chOpts[c].v + '"' + (chVal === chOpts[c].v ? ' selected' : '') + '>' + chOpts[c].l + '</option>';
                 }
                 html += '</select>';
                 if (chVal > 2) {
-                    html += '<div class="text-danger small mt-1">This stream is set to ' + chVal + ' channels, which FPP cannot carry - it will run as stereo. Select 2 (Stereo) to clear this.</div>';
+                    html += '<div class="text-warning small mt-1">Set the matching output group to ' + chVal + ' channels as well. If it is left narrower the stream still runs at ' + chVal + ' channels, but the extra channels carry silence.</div>';
                 }
                 html += '</div>';
 

@@ -70,24 +70,24 @@ constexpr int WARNING_ID_PIPELINE = 44;
 constexpr const char* WARNING_SEND_FAILED = "AES67: audio send stream failed to start";
 constexpr const char* WARNING_RECV_FAILED = "AES67: audio receive stream failed to start";
 
-// Multichannel is not wired up, and the failure is total rather than partial.
-// Every AES67 stream is fed through the delay filter-chain that FPPINIT_Audio
-// emits, and that chain is unconditionally stereo: two delay nodes,
-// audio.channels = 2, audio.position = [ FL FR ], stream.dont-remix = true.
-// It never reads this setting.  Ask the pipeline for 8 channels and caps
-// negotiation against that node fails outright -- "Internal data stream
-// error" on the bus and not one packet on the wire, verified by capture.
+// AES67 allows up to 8 channels per stream and FPP now carries all of them.
 //
-// The UI offered 2/4/6/8 against a graph that could only ever do 2, so any
-// user selecting more than stereo silently lost their stream.  Clamp here as
-// well as in the UI: a config that already stored 8 would otherwise stay dead
-// after an upgrade, and the person hitting it has no way to know why.
+// This sat at 2 for a while because anything above stereo produced "Internal
+// data stream error" and not one packet, which read as multichannel being
+// unimplemented.  It was one missing caps field: above stereo GStreamer needs
+// an explicit channel-mask or negotiation fails (see ChannelMaskFor).  The
+// PipeWire side was already channel-aware -- the delay chain emits one delay
+// node per channel with the right positions at any width.
 //
-// Raising this needs the delay chain to emit N nodes, the delay control path
-// in GStreamerOut to stop addressing them as delay_l/delay_r, the group
-// combine-stream to carry N positions, and the routing matrix to have
-// something to put in channels 3-8.
-constexpr int MAX_SUPPORTED_CHANNELS = 2;
+// Verified end to end at 8 channels, 1ms ptime, with an 8-channel source:
+// uniform 1152-byte payload, 1000 packets/s, all eight channels carrying
+// audio, media clock within 0.1 ppm of PTP, jitter inside the 1ms AES67
+// recommends.
+//
+// The stream's channel count and its output group's channel count are
+// separate settings and both have to be set -- the group builds the delay
+// chain that feeds this stream.
+constexpr int MAX_SUPPORTED_CHANNELS = 8;
 constexpr int DEFAULT_LATENCY_MS    = 10;
 
 // DSCP codepoints (AES67-2018 / AES-R16 QoS recommendations)
@@ -188,6 +188,29 @@ constexpr int MAX_RTP_PACKET_BYTES = 1440;
 // L24 is 3 bytes per sample per channel.
 inline int L24PayloadBytes(int ptime, int channels) {
     return ptime * (AUDIO_RATE / 1000) * channels * 3;
+}
+
+// GStreamer channel mask for an AES67 channel count.
+//
+// Above stereo, caps without a channel-mask do not negotiate: audioconvert
+// warns "Upstream caps contain no channel mask" and pipewiresrc's streaming
+// thread stops with not-negotiated (-4), surfacing only as "Internal data
+// stream error" on the bus and not one packet on the wire.  Mono and stereo
+// carry an implicit layout, which is why stereo worked and nothing above it
+// did -- and why this looked like multichannel being unimplemented rather
+// than one missing caps field.
+//
+// Bits are GstAudioChannelPosition values, and the layouts match what
+// FPPINIT_Audio emits for the delay chain (FL FR / FL FR RL RR / 5.1 / 7.1).
+inline guint64 ChannelMaskFor(int channels) {
+    switch (channels) {
+        case 1: return 0x1;                     // FL (mono is positionless, but harmless)
+        case 2: return 0x3;                     // FL FR
+        case 4: return 0x33;                    // FL FR RL RR
+        case 6: return 0x3F;                    // FL FR FC LFE RL RR
+        case 8: return 0xC3F;                   // FL FR FC LFE RL RR SL SR
+        default: return 0;                      // unknown: omit the field
+    }
 }
 
 // Valid AES67 ptimes
