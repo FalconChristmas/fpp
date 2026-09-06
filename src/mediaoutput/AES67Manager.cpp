@@ -19,6 +19,7 @@
 
 #include "AES67Manager.h"
 #include "GStreamerOut.h"
+#include "PipeWireGraphConfig.h"
 
 #ifdef HAS_AES67_GSTREAMER
 
@@ -440,59 +441,6 @@ static void ClearAES67PipelineWarnings(bool clearSend, bool clearRecv) {
     }
 }
 
-// Does the audio graph FPP generates actually feed this sender node?
-//
-// A send instance is a PipeWire sink with node.autoconnect=false, so the only
-// thing that ever links into it is an Audio Output Group member carrying
-// node.target = "<nodeName>".  Those group members are the whole of the answer,
-// and they live in the confs the group pages generate -- 97 for output groups
-// (which is also where Simple mode's synthetic group lands) and 96 for input
-// groups, both read by PipeWire at daemon startup.
-//
-// Asking the *running* graph instead cannot work, and not for want of a
-// parser: the node does not exist until the pipeline that creates it starts,
-// so there is nothing to look for until after the decision has been made.  The
-// generated conf is what PipeWire will link when the node does appear, which
-// makes it the only thing that can answer this in advance.
-//
-// A missing 97 conf means the group pages have never generated one, and this
-// then cannot tell "nothing feeds it" from "FPP does not manage this graph" --
-// so say fed and let the pipeline try, which is what every release before this
-// one did unconditionally.
-static bool GraphFeedsSendNode(const std::string& nodeName) {
-    static const char* confs[] = {
-        "/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf",
-        "/etc/pipewire/pipewire.conf.d/96-fpp-input-groups.conf"
-    };
-
-    if (GetFileContents(confs[0]).empty()) {
-        return true;
-    }
-
-    const std::string needle = "node.target";
-    for (const char* conf : confs) {
-        const std::string contents = GetFileContents(conf);
-        for (std::size_t t = contents.find(needle); t != std::string::npos;
-             t = contents.find(needle, t + 1)) {
-            // node.target = "<value>" -- take what is between the next two
-            // quotes and compare whole, so aes67_stream_1_send does not match
-            // a hypothetical aes67_stream_10_send.
-            std::size_t a = contents.find('"', t + needle.size());
-            if (a == std::string::npos) {
-                continue;
-            }
-            std::size_t b = contents.find('"', a + 1);
-            if (b == std::string::npos) {
-                continue;
-            }
-            if (contents.compare(a + 1, b - a - 1, nodeName) == 0) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
 bool AES67Manager::ApplyConfig() {
     // Serialize against concurrent ApplyConfig()/Shutdown()/Cleanup() calls -
     // see m_applyMutex.  Without this, two callers can both get past the SAP
@@ -582,7 +530,7 @@ bool AES67Manager::ApplyConfig() {
             // of blocked apply and end in FAILURE.  Hold it instead -- see
             // AES67Config::requireGroupSource.
             const std::string nodeName = SafeNodeName(inst.name) + "_send";
-            if (m_config.requireGroupSource && !GraphFeedsSendNode(nodeName)) {
+            if (m_config.requireGroupSource && !PipeWireGraphFeedsNode(nodeName)) {
                 LogInfo(VB_MEDIAOUT,
                         "AES67 send [%d] '%s': nothing in the audio graph feeds %s, "
                         "holding the stream idle. Add it to an Audio Output Group "

@@ -6283,8 +6283,8 @@ function SaveAES67Instances()
 //
 // fppd no longer tries to start a sender nothing feeds -- it checks the
 // generated group config first and holds the stream idle instead (see
-// GraphFeedsSendNode in AES67Manager.cpp).  That is what keeps an apply quick
-// while an instance is still being set up: the pipeline used to block for 30
+// PipeWireGraphFeedsNode in PipeWireGraphConfig.cpp).  That is what keeps an
+// apply quick while an instance is still being set up: the pipeline blocked 30
 // seconds per unfed instance before failing with "audio send stream failed to
 // start", which a brand new instance always hit, because it cannot be added to
 // a group until it has been saved.  The rebuild below is still what starts the
@@ -6675,7 +6675,10 @@ function ApplyOpusRTPInstances()
 
     // Same coupling as AES67: an Opus RTP instance being enabled, disabled or
     // renamed changes the opusrtp_*_send node a group member targets, and the
-    // send pipeline cannot start until a filter chain feeds it.
+    // send pipeline cannot start until a filter chain feeds it.  fppd holds a
+    // sender nothing feeds rather than blocking on it -- see the note above
+    // RebuildAudioGraphForSenderChange() -- so this is what starts the stream
+    // once it has a group.
     if (RebuildAudioGraphForSenderChange()) {
         return json(array(
             "status" => "OK",

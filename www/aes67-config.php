@@ -608,7 +608,7 @@
             // with no Audio Output Group member targeting it nothing ever links
             // in and the pipeline cannot preroll.  fppd checks the generated
             // group config before starting a sender and holds it idle when
-            // nothing targets it (GraphFeedsSendNode in AES67Manager.cpp) --
+            // nothing targets it (PipeWireGraphFeedsNode in PipeWireGraphConfig.cpp) --
             // otherwise gst_element_set_state() blocks for 30 seconds per
             // instance and ends in "audio send stream failed to start", which
             // is what every Apply used to cost while an instance was being set

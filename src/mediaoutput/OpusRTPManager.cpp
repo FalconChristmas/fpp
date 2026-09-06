@@ -19,6 +19,7 @@
 
 #include "OpusRTPManager.h"
 #include "GStreamerOut.h"
+#include "PipeWireGraphConfig.h"
 
 #ifdef HAS_OPUS_RTP_GSTREAMER
 
@@ -149,6 +150,9 @@ bool OpusRTPManager::LoadConfig() {
     // Filling m_config in place would let a status query on another thread
     // iterate the vector while push_back() reallocates it.
     OpusRTPConfig cfg;
+    static const OpusRTPConfig kDefault;
+    cfg.requireGroupSource =
+        root.get("requireGroupSource", kDefault.requireGroupSource).asBool();
 
     if (root.isMember("instances") && root["instances"].isArray()) {
         for (const auto& instJson : root["instances"]) {
@@ -244,6 +248,11 @@ bool OpusRTPManager::ApplyConfig() {
     }
 
     // Create pipelines for each enabled instance
+    //
+    // Senders held idle because nothing feeds them -- published to
+    // m_deferredSenders below, once the whole pass has run.
+    std::map<int, std::string> deferred;
+
     for (const auto& inst : m_config.instances) {
         if (!inst.enabled) continue;
 
@@ -251,12 +260,31 @@ bool OpusRTPManager::ApplyConfig() {
         bool wantRecv = (inst.mode == "receive" || inst.mode == "both");
 
         if (wantSend) {
-            CreateSendPipeline(inst);
+            // Nothing feeds this sender, so starting it would cost 30 seconds
+            // of blocked apply and end in FAILURE.  Hold it instead -- see
+            // OpusRTPConfig::requireGroupSource.
+            const std::string nodeName = SafeNodeName(inst.name) + "_send";
+            if (m_config.requireGroupSource && !PipeWireGraphFeedsNode(nodeName)) {
+                LogInfo(VB_MEDIAOUT,
+                        "Opus RTP send [%d] '%s': nothing in the audio graph feeds %s, "
+                        "holding the stream idle. Add it to an Audio Output Group "
+                        "and apply that config to start it.\n",
+                        inst.id, inst.name.c_str(), nodeName.c_str());
+                deferred[inst.id] =
+                    "Waiting for audio — not a member of any enabled Audio Output Group";
+            } else {
+                CreateSendPipeline(inst);
+            }
         }
 
         if (wantRecv) {
             CreateRecvPipeline(inst);
         }
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(m_pipelineMutex);
+        m_deferredSenders = std::move(deferred);
     }
 
     // Start watchdog thread
@@ -626,6 +654,10 @@ void OpusRTPManager::StopAllPipelines() {
         std::lock_guard<std::mutex> lock(m_pipelineMutex);
         sendCopy.swap(m_sendPipelines);
         recvCopy.swap(m_recvPipelines);
+        // Nothing is configured to be running any more, so no sender is
+        // waiting for a source either.  ApplyConfig() refills this after its
+        // create pass; every other caller is a teardown.
+        m_deferredSenders.clear();
     }
 
     for (auto& [id, p] : sendCopy) {
@@ -889,6 +921,26 @@ OpusRTPManager::Status OpusRTPManager::GetStatus() {
             }
             status.pipelines.push_back(ps);
         }
+
+        // Senders deliberately held idle.  Reported alongside the real
+        // pipelines rather than omitted: a stream the user enabled and cannot
+        // see anywhere reads as FPP having lost the config.
+        for (const auto& [id, reason] : m_deferredSenders) {
+            Status::PipelineStatus ps;
+            ps.instanceId = id;
+            ps.mode = "send";
+            ps.running = false;
+            ps.waitingForSource = true;
+            ps.note = reason;
+
+            for (const auto& inst : config.instances) {
+                if (inst.id == id) {
+                    ps.name = inst.name;
+                    break;
+                }
+            }
+            status.pipelines.push_back(ps);
+        }
     } else {
         Status::PipelineStatus ps;
         ps.instanceId = -1;
@@ -926,6 +978,15 @@ HttpResponsePtr OpusRTPManager::render_GET(const HttpRequestPtr& req) {
             pj["running"] = p.running;
             if (!p.error.empty()) {
                 pj["error"] = p.error;
+            }
+            // Distinct from "error" on purpose: the UI renders a failure in
+            // red and this as guidance, so collapsing the two would put a
+            // brand new instance back in the alarming state this replaced.
+            if (p.waitingForSource) {
+                pj["waitingForSource"] = true;
+            }
+            if (!p.note.empty()) {
+                pj["note"] = p.note;
             }
             pipelines.append(pj);
         }

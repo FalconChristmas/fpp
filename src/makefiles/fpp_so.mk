@@ -72,6 +72,7 @@ OBJECTS_fpp_so += \
 	mediaoutput/AudioSourceRegistry.o \
 	mediaoutput/AudioLevelMonitor.o \
 	mediaoutput/OpusRTPManager.o \
+	mediaoutput/PipeWireGraphConfig.o \
 	mediaoutput/GStreamerOut.o \
 	mediaoutput/StreamSlotManager.o \
 	mediaoutput/V4L2Device.o \

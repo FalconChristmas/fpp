@@ -106,11 +106,17 @@
         }
 
         .status-running {
-            background: #28a745;
+            background: var(--bs-success);
         }
 
         .status-stopped {
-            background: #dc3545;
+            background: var(--bs-danger);
+        }
+
+        /* A stream held idle until an Audio Output Group feeds it is doing
+           what it was configured to do, so it is not red. */
+        .status-idle {
+            background: var(--bs-warning);
         }
 
         .instance-settings .icon-help {
@@ -233,6 +239,17 @@
         <script>
             var opusData = { instances: [] };
             var availableInterfaces = [];
+            var audioGroups = [];
+            // Distinct from audioGroups.length: a box with no output groups at
+            // all still has to show the "nothing feeds this" notice, and until
+            // the request lands there is nothing to judge membership against.
+            var audioGroupsLoaded = false;
+            // Instance IDs fppd reports as held idle, from the status poll.
+            // The membership check below reads the saved groups JSON, which is
+            // not the same question: a member added to a group but not applied
+            // is in the JSON while the running graph still has no link for it.
+            // fppd reads the generated conf, so this is the authoritative half.
+            var waitingInstanceIds = {};
             var nextInstanceId = 1;
             var hasUnsavedChanges = false;
 
@@ -256,6 +273,7 @@
                 LoadInterfaces().then(function () {
                     LoadInstances();
                 });
+                LoadAudioGroups();
             });
 
             /////////////////////////////////////////////////////////////////////////////
@@ -291,32 +309,111 @@
                             $('#opusStatus').html(data.active
                                 ? '<span class="status-indicator status-stopped"></span>No Opus RTP streams running'
                                 : '');
+                            TrackWaitingInstances([]);
                             return;
                         }
 
                         var running = 0;
+                        var waiting = 0;
                         var errors = [];
                         for (var i = 0; i < pipelines.length; i++) {
                             if (pipelines[i].running)
                                 running++;
+                            else if (pipelines[i].waitingForSource)
+                                waiting++;
                             if (pipelines[i].error)
                                 errors.push(pipelines[i].name + ': ' + pipelines[i].error);
                         }
 
-                        var html = '<span class="status-indicator ' +
-                            (running === pipelines.length ? 'status-running' : 'status-stopped') +
-                            '"></span>' + running + ' of ' + pipelines.length + ' stream' +
-                            (pipelines.length !== 1 ? 's' : '') + ' running';
-                        if (errors.length > 0)
-                            html += ' <span class="text-danger">(' + EscapeHtml(errors.join('; ')) + ')</span>';
+                        // A stream held for want of an Audio Output Group is
+                        // doing what it was told to, so it must not colour the
+                        // indicator red -- it is counted and named separately
+                        // rather than folded into "not running".
+                        var started = pipelines.length - waiting;
+                        var html = '';
+                        if (started > 0) {
+                            html += '<span class="status-indicator ' +
+                                (running === started ? 'status-running' : 'status-stopped') +
+                                '"></span>' + running + ' of ' + started + ' stream' +
+                                (started !== 1 ? 's' : '') + ' running';
+                            if (errors.length > 0)
+                                html += ' <span class="text-danger">(' + EscapeHtml(errors.join('; ')) + ')</span>';
+                        }
+                        if (waiting > 0) {
+                            if (html !== '')
+                                html += ' &nbsp;|&nbsp; ';
+                            html += '<span class="status-indicator status-idle"></span>' +
+                                waiting + ' stream' + (waiting !== 1 ? 's' : '') +
+                                ' idle, waiting for an Audio Output Group';
+                        }
 
                         $('#opusStatus').html(html);
+                        TrackWaitingInstances(pipelines);
                     })
                     .fail(function () {
                         $('#opusStatus').html(
                             '<span class="status-indicator status-stopped"></span>Opus RTP status unavailable'
                         );
+                        // fppd is not answering, so what it last said about a
+                        // held stream is no longer something we know.
+                        TrackWaitingInstances([]);
                     });
+            }
+
+            /////////////////////////////////////////////////////////////////////////////
+            // A send instance is a PipeWire *sink* that something else has to
+            // feed.  Its pipewiresrc is created with node.autoconnect=false, so
+            // with no Audio Output Group member targeting it nothing ever links
+            // in and the pipeline cannot preroll.  fppd checks the generated
+            // group config before starting a sender and holds it idle when
+            // nothing targets it (PipeWireGraphFeedsNode in
+            // PipeWireGraphConfig.cpp) -- otherwise gst_element_set_state()
+            // blocks for 30 seconds per instance and ends in "audio send stream
+            // failed to start", which is what every Apply used to cost while an
+            // instance was being set up.  Groups reference the instance as
+            // cardId "opusrtp_<id>" (see GetPipeWireAudioCards), so the page can
+            // say the same thing before the user even applies.
+            function LoadAudioGroups() {
+                return $.getJSON('api/pipewire/audio/groups')
+                    .done(function (data) {
+                        audioGroups = (data && data.groups) ? data.groups : [];
+                        audioGroupsLoaded = true;
+                        RenderInstances();
+                    });
+            }
+
+            function InstanceHasAudioSource(inst) {
+                var cardId = 'opusrtp_' + inst.id;
+                for (var g = 0; g < audioGroups.length; g++) {
+                    if (audioGroups[g].enabled === false) continue;
+                    var members = audioGroups[g].members || [];
+                    for (var m = 0; m < members.length; m++) {
+                        if (members[m].cardId === cardId) return true;
+                    }
+                }
+                return false;
+            }
+
+            /////////////////////////////////////////////////////////////////////////////
+            // Re-render only when the held set actually changes.  The status
+            // poll runs every 10s and RenderInstances() rebuilds every card, so
+            // doing it unconditionally would drop focus out of a field the user
+            // is typing in twice a minute.
+            function TrackWaitingInstances(pipelines) {
+                var next = {};
+                for (var i = 0; i < pipelines.length; i++) {
+                    if (pipelines[i].waitingForSource)
+                        next[pipelines[i].instanceId] = pipelines[i].note || '';
+                }
+                var before = Object.keys(waitingInstanceIds).sort().join(',');
+                var after = Object.keys(next).sort().join(',');
+                waitingInstanceIds = next;
+                if (before !== after)
+                    RenderInstances();
+            }
+
+            function InstanceIsHeldIdle(inst) {
+                return Object.prototype.hasOwnProperty.call(waitingInstanceIds, inst.id);
             }
 
             /////////////////////////////////////////////////////////////////////////////
@@ -429,6 +526,43 @@
 
                 // Body
                 html += '<div class="instance-body">';
+
+                // Nothing feeds this sender -- see LoadAudioGroups().  Only
+                // meaningful once the groups have actually loaded, and only for
+                // an enabled sender: a disabled or receive-only instance has no
+                // sink to feed.
+                //
+                // This is information, not a warning.  fppd holds such a stream
+                // idle instead of trying to start it (see
+                // OpusRTPConfig::requireGroupSource), so Save & Apply here is
+                // safe and quick -- which it has to be, because an instance
+                // cannot be added to a group until it has been saved.
+                var isSender = (mode === 'send' || mode === 'both');
+                var notInGroup = audioGroupsLoaded && !InstanceHasAudioSource(inst);
+                var heldIdle = InstanceIsHeldIdle(inst);
+                if (inst.enabled && isSender && (notInGroup || heldIdle)) {
+                    html += '<div class="alert alert-info d-flex align-items-start gap-2 mb-3">' +
+                        '<i class="fas fa-info-circle mt-1"></i>' +
+                        '<div><b>Idle &mdash; nothing is routed to this stream yet.</b> ' +
+                        (notInGroup
+                            ? 'It is not a member of any enabled ' +
+                              '<a href="pipewire-audio.php">Audio Output Group</a>, so nothing feeds ' +
+                              '<code>' + nodeName + '_send</code> and FPP holds the stream rather ' +
+                              'than transmitting silence. Saving and applying now is fine &mdash; add ' +
+                              'it as a member of a group and apply the Audio Output Groups config, ' +
+                              'and the stream starts automatically.'
+                            // In a group on paper, but the running graph was
+                            // built before that member existed.  PipeWire only
+                            // reads its config at startup, so the group page
+                            // has to apply before anything feeds this node.
+                            : 'It is a member of an <a href="pipewire-audio.php">Audio Output ' +
+                              'Group</a>, but the running audio graph does not feed ' +
+                              '<code>' + nodeName + '_send</code> yet. Apply the Audio Output ' +
+                              'Groups config to rebuild the graph, and the stream starts.') +
+                        '</div>' +
+                        '</div>';
+                }
+
                 html += '<div class="instance-settings">';
 
                 // Stream Mode
