@@ -520,6 +520,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
         hasV5SR = false;
     }
     m_hasBidirSR = hasV5SR;
+    m_hasFalconSR = hasFalconSR;
 
     int curRecPort = -1;
     for (int x = 0; x < m_strings.size(); x++) {
@@ -676,9 +677,10 @@ int BBShiftStringOutput::Init(Json::Value config) {
     m_pru1.formattedData = (uint8_t*)calloc(1, m_pru1.frameSize);
 #endif
 
-    if (supportsV5Listeners && hasV5SR) {
+    if (supportsV5Listeners && hasFalconSR) {
         // if the cape supports v5 listeners, the enable pin needs to be
-        // configured or data won't be sent on port1 of each receiver
+        // configured or data won't be sent on port1 of each receiver.
+        // Gated on hasFalconSR, not hasV5SR: a V4 receiver needs the same pin.
         PinCapabilities::getPinByName(PRU1_ENABLE_PIN).configPin("pru1out", true, "BBShiftString-Enable");
     }
     if (hasFalconSR) {
@@ -923,7 +925,7 @@ int BBShiftStringOutput::Close(void) {
     for (auto& a : m_usedPins) {
         PinCapabilities::getPinByName(a.first).releasePin();
     }
-    if (supportsV5Listeners && m_hasBidirSR) {
+    if (supportsV5Listeners && m_hasFalconSR) {
         PinCapabilities::getPinByName(PRU1_ENABLE_PIN).releasePin();
     }
     return ChannelOutput::Close();

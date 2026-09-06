@@ -248,6 +248,10 @@ private:
     // any configured Falcon V5 (bidirectional) receivers after the
     // capability checks; V4 (send-only) chains do not set this
     bool m_hasBidirSR = false;
+    // any configured Falcon receiver, V4 or V5. The cape enable pin gates data
+    // to the receiver regardless of protocol version, so it must be configured
+    // and released on this rather than on m_hasBidirSR.
+    bool m_hasFalconSR = false;
 
     void prepData(FrameData& d, unsigned char* channelData);
     void sendData(FrameData& d);
