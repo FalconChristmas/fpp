@@ -5516,6 +5516,28 @@ function GetFPPStatus () {
 					message: 'FPPD Daemon is not running',
 					id: 1
 				});
+				// Additional warning when systemd has hit StartLimitBurst (too many restarts)
+				// Handles both cases: status already includes fppdRestartBlocked (from PHP's SystemGetStatus)
+				// and WebSocket status (lastStatusJSON) which does not — fetch via API in the latter case.
+				var checkBlocked = function(data) {
+					if (data && data.blocked) {
+						var s = parseInt(data.remainingSec) || 0;
+						var mins = Math.floor(s / 60);
+						var secs = s % 60;
+						var waitMsg = 'FPPD restart limit reached — please wait ' + (mins > 0 ? mins + 'm ' : '') + secs + 's before restarting';
+						var already = response.warnings.some(function(w){ return w.indexOf('restart limit') !== -1; });
+						if (!already) {
+							response.warnings.push(waitMsg);
+							response.warningInfo.push({message: waitMsg, id: 65});
+							updateWarnings(response);
+						}
+					}
+				};
+				if (response.fppdRestartBlocked && response.fppdRestartBlocked.blocked) {
+					checkBlocked(response.fppdRestartBlocked);
+				} else {
+					$.get('api/system/fppd/restartStatus').done(checkBlocked);
+				}
 			}
 			$.get('api/system/volume')
 				.done(function (data) {
