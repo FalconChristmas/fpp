@@ -19,7 +19,10 @@ DEFAULT_VALUES=(
     ["default-src"]="'self' http://www.w3.org"
     ["connect-src"]="'self' https://raw.githubusercontent.com https://ipapi.co https://kulplights.com https://www.kulplights.com https://hansonelectronics.com.au https://www.hansonelectronics.com.au https://wiredwatts.com https://www.wiredwatts.com https://fppstats.falconchristmas.com https://api.falconplayer.com https://api.github.com"
     ["object-src"]="'none' "
-    ["img-src"]="'self' blob: data: http://www.w3.org https://www.paypal.com https://www.paypalobjects.com"
+    # PayPal was here only for a 1x1 tracking pixel in the donate form, which is
+    # gone. The donate button is an inline SVG and the donate action is a plain
+    # form POST, so no PayPal image is loaded and nothing needs to be allowed.
+    ["img-src"]="'self' blob: data: http://www.w3.org"
     ["script-src"]="'self' 'unsafe-inline' 'unsafe-eval' https://api.falconplayer.com"
     ["style-src"]="'self' 'unsafe-inline'"
     # https://fonts.scalar.com: the Scalar API docs viewer (www/api/api.html)

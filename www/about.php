@@ -1800,8 +1800,6 @@
                                 </svg>
                                 Donate with PayPal
                             </button>
-                            <img alt="" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1"
-                                style="display:none;" />
                         </form>
                         <p class="fpp-donate-banner__footer">
                             <i class="fas fa-coffee"></i> It takes a lot of time, equipment, and coffee to power your shows!
