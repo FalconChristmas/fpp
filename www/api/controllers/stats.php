@@ -491,6 +491,17 @@ function stats_writePublishState($hash)
 
 /**
  * How often a device publishes when nothing about it has changed.
+ *
+ * This is a floor, not a ceiling: a device that changes publishes sooner.  It
+ * exists so that a box which never changes still reports in, because "this
+ * device is still alive" is one of the things the statistics are for -- without
+ * it a retired device and a stable one would look identical.
+ *
+ * fppd asks far more often than this (STATS_PUBLISH_ASK_HOURS, daily) and this
+ * side decides.  The two must not be equal: fppd's counter resets on restart, so
+ * if it matched this interval a box rebooting just before the interval elapsed
+ * would be told "not yet", spend its guard, and go quiet for nearly two
+ * intervals.
  */
 define('STATS_PUBLISH_INTERVAL_DAYS', 7);
 
@@ -533,10 +544,15 @@ function stats_publish_stats_file()
         $elapsed = time() - $lastPublish;
         $due = ($elapsed >= (STATS_PUBLISH_INTERVAL_DAYS * 24 * 60 * 60));
 
+        // Publish when the configuration moved, OR when the interval elapsed.
+        // The second half is the liveness beacon and is not optional: skipping
+        // it would make a device that never changes indistinguishable from one
+        // that was switched off for good.
         if ($unchanged && !$due) {
             return json(array(
                 "status" => "skipped",
-                "reason" => "configuration unchanged since last publish",
+                "reason" => "configuration unchanged, next periodic publish in "
+                    . max(0, (STATS_PUBLISH_INTERVAL_DAYS * 24 * 60 * 60) - $elapsed) . "s",
             ));
         }
     }
