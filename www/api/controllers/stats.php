@@ -147,18 +147,40 @@ function stats_network()
         // closed, which is the only safe default for a payload that leaves the
         // device.  Nothing here identifies a household or a network.
         if (isset($i['config']) && is_array($i['config'])) {
-            $allowed = array(
-                'PROTO',            // dhcp vs static
-                'HIDDEN',
-                'WPA3',
-                'BACKUPHIDDEN',
-                'BACKUPWPA3',
-                'IPFORWARDING',
-                'DHCPSERVER',
-                'DHCPPOOLSIZE',
-                'DHCPOFFSET',
-                'ROUTEMETRIC',
-            );
+            // Driven by www/interface-settings.json, which describes the
+            // interface config fields the same way settings.json describes the
+            // rest of FPP: a field is disclosed only where it declares
+            // "gatherStats": true.  scripts/generate_crash_report reads the same
+            // file, so the statistics payload and a crash report cannot drift on
+            // what an interface config may reveal.  Falls back to the inline list
+            // if the file is unreadable; both are allowlists, so either way a
+            // field nobody has classified stays on the device.
+            $allowed = array();
+            $fieldsFile = $settings['wwwDir'] . "/interface-settings.json";
+            if (is_readable($fieldsFile)) {
+                $meta = json_decode(file_get_contents($fieldsFile), true);
+                if (isset($meta['fields']) && is_array($meta['fields'])) {
+                    foreach ($meta['fields'] as $fieldName => $fieldMeta) {
+                        if (is_array($fieldMeta) && !empty($fieldMeta['gatherStats'])) {
+                            $allowed[] = $fieldName;
+                        }
+                    }
+                }
+            }
+            if (!count($allowed)) {
+                $allowed = array(
+                    'PROTO',            // dhcp vs static
+                    'HIDDEN',
+                    'WPA3',
+                    'BACKUPHIDDEN',
+                    'BACKUPWPA3',
+                    'IPFORWARDING',
+                    'DHCPSERVER',
+                    'DHCPPOOLSIZE',
+                    'DHCPOFFSET',
+                    'ROUTEMETRIC',
+                );
+            }
             $config = array();
             foreach ($allowed as $key) {
                 if (isset($i['config'][$key])) {

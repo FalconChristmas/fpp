@@ -1,0 +1,162 @@
+{
+	"comment": [
+		"Declarative metadata for the per-interface config files, config/interface.<name>.",
+		"Same shape and same vocabulary as settings.json, so the network configuration UI can",
+		"eventually be generated from this the way the rest of the settings pages are.",
+		"",
+		"Today two consumers read it, and they read one key:",
+		"",
+		"  \"gatherStats\": true  -- this field may leave the device.",
+		"",
+		"www/api/controllers/stats.php includes those fields in the statistics payload, and",
+		"scripts/generate_crash_report includes them in a crash report. Everything else is",
+		"withheld. That is an ALLOWLIST on purpose: a field added here without gatherStats is",
+		"withheld automatically, whereas a denylist would have to be remembered every time.",
+		"It has been got wrong before -- an earlier denylist covered PSK and SSID but not",
+		"BACKUPPSK and BACKUPSSID. Both consumers also fail closed if this file is missing.",
+		"",
+		"\"type\": \"password\" and \"pii\": true carry the same meaning as in settings.json and",
+		"mark why a field is withheld. They are documentation and belt-and-braces; the thing",
+		"that actually permits disclosure is gatherStats.",
+		"",
+		"Fields are those written by network_set_interface() in www/api/controllers/network.php."
+	],
+	"fields": {
+		"INTERFACE": {
+			"name": "INTERFACE",
+			"description": "Interface Name",
+			"tip": "Kernel name of the interface, for example eth0 or wlan0.",
+			"type": "text",
+			"readOnly": true
+		},
+		"PROTO": {
+			"name": "PROTO",
+			"description": "Address Assignment",
+			"tip": "Whether the interface takes its address from DHCP or uses a fixed one. A device on DHCP whose address changes while a show is running fails in ways that look nothing like a static misconfiguration, which is why this is the one addressing field included in reports.",
+			"type": "select",
+			"options": {
+				"DHCP": "dhcp",
+				"Static": "static"
+			},
+			"default": "dhcp",
+			"gatherStats": true
+		},
+		"ADDRESS": {
+			"name": "ADDRESS",
+			"description": "IP Address",
+			"tip": "Static IPv4 address for this interface.",
+			"type": "text",
+			"pii": true
+		},
+		"NETMASK": {
+			"name": "NETMASK",
+			"description": "Netmask",
+			"tip": "Subnet mask used with the static address.",
+			"type": "text",
+			"pii": true
+		},
+		"GATEWAY": {
+			"name": "GATEWAY",
+			"description": "Gateway",
+			"tip": "Default gateway used with the static address.",
+			"type": "text",
+			"pii": true
+		},
+		"DNS1": {
+			"name": "DNS1",
+			"description": "Primary DNS Server",
+			"type": "text",
+			"pii": true
+		},
+		"DNS2": {
+			"name": "DNS2",
+			"description": "Secondary DNS Server",
+			"type": "text",
+			"pii": true
+		},
+		"SSID": {
+			"name": "SSID",
+			"description": "WiFi Network Name",
+			"tip": "The name of a wireless network identifies a household on its own, so it is never included in statistics or crash reports.",
+			"type": "text",
+			"pii": true
+		},
+		"PSK": {
+			"name": "PSK",
+			"description": "WiFi Passphrase",
+			"type": "password"
+		},
+		"HIDDEN": {
+			"name": "HIDDEN",
+			"description": "Hidden Network",
+			"tip": "The network does not broadcast its SSID.",
+			"type": "checkbox",
+			"gatherStats": true
+		},
+		"WPA3": {
+			"name": "WPA3",
+			"description": "WPA3",
+			"tip": "Use WPA3 rather than WPA2 for this network.",
+			"type": "checkbox",
+			"gatherStats": true
+		},
+		"BACKUPSSID": {
+			"name": "BACKUPSSID",
+			"description": "Backup WiFi Network Name",
+			"type": "text",
+			"pii": true
+		},
+		"BACKUPPSK": {
+			"name": "BACKUPPSK",
+			"description": "Backup WiFi Passphrase",
+			"type": "password"
+		},
+		"BACKUPHIDDEN": {
+			"name": "BACKUPHIDDEN",
+			"description": "Backup Network Hidden",
+			"type": "checkbox",
+			"gatherStats": true
+		},
+		"BACKUPWPA3": {
+			"name": "BACKUPWPA3",
+			"description": "Backup Network WPA3",
+			"type": "checkbox",
+			"gatherStats": true
+		},
+		"IPFORWARDING": {
+			"name": "IPFORWARDING",
+			"description": "IP Forwarding",
+			"tip": "Forward traffic between this interface and the others.",
+			"type": "checkbox",
+			"gatherStats": true
+		},
+		"DHCPSERVER": {
+			"name": "DHCPSERVER",
+			"description": "Run DHCP Server",
+			"tip": "Hand out addresses on this interface.",
+			"type": "checkbox",
+			"gatherStats": true
+		},
+		"DHCPPOOLSIZE": {
+			"name": "DHCPPOOLSIZE",
+			"description": "DHCP Pool Size",
+			"tip": "How many addresses the DHCP server may hand out.",
+			"type": "number",
+			"gatherStats": true
+		},
+		"DHCPOFFSET": {
+			"name": "DHCPOFFSET",
+			"description": "DHCP Pool Offset",
+			"tip": "First address in the DHCP pool, as an offset into the subnet.",
+			"type": "number",
+			"gatherStats": true
+		},
+		"ROUTEMETRIC": {
+			"name": "ROUTEMETRIC",
+			"description": "Route Metric",
+			"tip": "Priority of this interface's default route; lower wins.",
+			"type": "number",
+			"gatherStats": true
+		}
+	}
+}
