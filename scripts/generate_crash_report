@@ -35,9 +35,148 @@ trap cleanup EXIT
 
 echo "Generating crash report in: $TEMP_DIR"
 
+# ---------------------------------------------------------------------------
+# Redaction
+#
+# The rule is driven by www/settings.json metadata, not by key name.
+#
+# Why not match on the name: the previous implementation matched
+# /password|passwd|pwd/ and so shipped `TetherPSK` (a Wi-Fi passphrase) and
+# `emailpass` (an SMTP password) in clear, because neither name contains any of
+# those words. Both are already declared "type": "password" in settings.json, so
+# metadata catches what no name pattern could.
+#
+# Keys ending in "Enable" are deliberately NOT redacted: they say only whether a
+# password is set, which crash triage wants, and they are not secrets. That
+# carve-out is decided on the key, via a line address, never on the value.
+# ---------------------------------------------------------------------------
+
+# Two declarations in settings.json drive this, and nothing here enumerates
+# settings by hand:
+#
+#   "type": "password"  -- a credential. Already used by the UI to mask the field.
+#   "pii": true         -- personal or household-identifying data that is not a
+#                          credential: coordinates, contact addresses, account
+#                          names, the kiosk URL.
+#   "piiPurpose": "..." -- PII that was collected FOR a specific purpose. A
+#                          consumer serving that purpose keeps it; every other
+#                          consumer still redacts it.
+#
+# `emailAddress` is the case that needs the third flag. Its tip reads "Email
+# address to contact you. In the case of FPP crashes, the developers may need to
+# contact you to help diagnose the cause of the crash. This email address would
+# only be used for that purpose." Redacting it from a crash report would defeat
+# the only reason it is collected.
+#
+# It is still redacted out of the bulk file copies below, and lifted into
+# contact.json instead, so it appears exactly once in the bundle and the bundle
+# says plainly what it is for. Every other consumer -- the statistics client
+# above all -- sees only `pii: true` and drops it.
+#
+# A setting inherits protection when it is declared, not when somebody remembers
+# to extend a list in a consumer. That is not hypothetical: the fallback list
+# below was written by hand from a grep and missed `gitHubPAT`, which the
+# metadata picks up for free.
+#
+# `pii` is read by the statistics client too, so the crash bundler and the stats
+# payload cannot drift apart on what counts as personal data.
+
+# Reached only when settings.json or python3 cannot be read. Deliberately short:
+# it is a floor, not a copy of the policy.
+CRASH_SECRET_KEYS_FALLBACK="MQTTPassword|TetherPSK|emailpass|gitHubPAT|osPassword|osPasswordVerify|password|passwordVerify|Latitude|Longitude|emailAddress|emailuser|emailserver|MQTTUsername"
+
+# What this consumer is for. Keys declaring this piiPurpose are carried
+# deliberately rather than redacted.
+CRASH_REPORT_PURPOSE="crash-report"
+
+build_secret_key_list() {
+    local settings_json="/opt/fpp/www/settings.json"
+    local keys=""
+    if [ -r "$settings_json" ] && command -v python3 >/dev/null 2>&1; then
+        keys=$(python3 -c '
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        data = json.load(f)["settings"]
+except Exception:
+    sys.exit(1)
+names = [k for k, v in data.items()
+         if isinstance(v, dict) and (v.get("type") == "password" or v.get("pii"))]
+# Longest first so an ERE alternation prefers the most specific match.
+names.sort(key=lambda n: (-len(n), n))
+print("|".join(n for n in names if n.isidentifier()))
+' "$settings_json" 2>/dev/null)
+    fi
+    if [ -z "$keys" ]; then
+        echo "$CRASH_SECRET_KEYS_FALLBACK"
+    else
+        echo "$keys"
+    fi
+}
+
+CRASH_SECRET_KEYS="$(build_secret_key_list)"
+
+# Redact stdin to stdout. Used for every file that leaves the device, so there
+# is exactly one copy of this policy rather than the six divergent ones this
+# replaced.
+redact_stream() {
+    sed -E \
+        `# 1. Known secret and PII settings keys, ini or JSON, quoted or bare.` \
+        -e "/[Ee]nable[[:space:]]*[:=]/! s/^([[:space:]]*\"?(${CRASH_SECRET_KEYS})\"?[[:space:]]*[:=][[:space:]]*).*\$/\1\"**REDACTED**\"/" \
+        -e "/[Ee]nable[[:space:]]*[:=]/! s/(\"(${CRASH_SECRET_KEYS})\"[[:space:]]*:[[:space:]]*)\"[^\"]*\"/\1\"**REDACTED**\"/g" \
+        `# 2. Name-shaped backstop for log lines and files with unknown keys.` \
+        -e '/[Ee]nable[[:space:]]*[:=]/! s/([a-zA-Z_.-]*([Pp]assword|[Pp]asswd|[Pp]wd|PSK|psk|[Pp]assphrase)[a-zA-Z_.-]*)([[:space:]]*[:=][[:space:]]*)"[^"]*"/\1\3"**REDACTED**"/g' \
+        -e "/[Ee]nable[[:space:]]*[:=]/! s/([a-zA-Z_.-]*([Pp]assword|[Pp]asswd|[Pp]wd|PSK|psk|[Pp]assphrase)[a-zA-Z_.-]*)([[:space:]]*[:=][[:space:]]*)'[^']*'/\1\3'**REDACTED**'/g" \
+        -e '/[Ee]nable[[:space:]]*[:=]/! s/([a-zA-Z_.-]*([Pp]assword|[Pp]asswd|[Pp]wd|PSK|psk|[Pp]assphrase)[a-zA-Z_.-]*)([[:space:]]*[:=][[:space:]]*)([^"\047[:space:]]+)/\1\3**REDACTED**/g' \
+        `# 3. Credentials embedded in URLs.` \
+        -e 's#(https?://)[^:/@[:space:]]+:[^@[:space:]]+@#\1**REDACTED**@#gI'
+}
+
+# Interface config fields that may leave the device. Declared in
+# www/interface-settings.json, which describes those files the way settings.json
+# describes the rest of FPP -- a field is disclosed only where it sets
+# "gatherStats": true. The statistics client reads the same file. Empty here
+# means filter_interface_config redacts the whole file.
+CRASH_INTERFACE_FIELDS=""
+if [ -r /opt/fpp/www/interface-settings.json ] && command -v python3 >/dev/null 2>&1; then
+    CRASH_INTERFACE_FIELDS=$(python3 -c '
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        fields = json.load(f).get("fields") or {}
+except Exception:
+    sys.exit(1)
+names = [k for k, v in fields.items()
+         if isinstance(v, dict) and v.get("gatherStats") and k.isidentifier()]
+print("|".join(sorted(names)))
+' /opt/fpp/www/interface-settings.json 2>/dev/null)
+fi
+
+# Emit only the allowlisted keys of an interface config. Anything not on the
+# list -- SSID, PSK, BACKUPPSK, addresses, and whatever is added next -- simply
+# never reaches the output file.
+filter_interface_config() {
+    local src="$1" dst="$2"
+    if [ -z "$CRASH_INTERFACE_FIELDS" ]; then
+        echo "**REDACTED INTERFACE CONFIG (no field allowlist available)**" > "$dst"
+        return
+    fi
+    {
+        echo "# Filtered: only fields on the shared allowlist are included."
+        grep -E "^[[:space:]]*(${CRASH_INTERFACE_FIELDS})[[:space:]]*=" "$src" 2>/dev/null
+    } > "$dst" || echo "**REDACTED INTERFACE CONFIG**" > "$dst"
+}
+
+# Copy a file through the redactor. Never falls back to an unredacted copy:
+# a failed redaction must drop the file, not ship it in clear.
+redact_copy() {
+    local src="$1" dst="$2"
+    redact_stream < "$src" > "$dst" 2>/dev/null || rm -f "$dst"
+}
+
+
 # Copy base crash log
 cp /tmp/fppd_crash.log "$TEMP_DIR/" 2>/dev/null || true
-cp fpp-info.json "$TEMP_DIR/" 2>/dev/null || true
 
 # Installed plugin versions.
 #
@@ -129,31 +268,97 @@ fi
 # identifiers. It ships further down, at the same level as logs/fppd.log.
 cp /tmp/fppd_crash_context.log "$TEMP_DIR/" 2>/dev/null || true
 
-# Include stats file if the user has opted in to stat collection (provides
-# additional contextual information about the crash)
-cp /tmp/fpp_stats.json "$TEMP_DIR/" 2>/dev/null || true
+# Contact address, if the user gave one.
+#
+# This ships at EVERY level, including "stack traces only". The field exists so
+# the developers can come back with a question about a crash, and a user who
+# filled it in and then chose the most conservative sending level was previously
+# uncontactable -- it only ever travelled inside the level 2 settings file, so
+# the one person who both wanted to help and wanted to share the least was the
+# one we could not reach.
+#
+# Driven by the piiPurpose declaration rather than by naming the key here, so a
+# second contact field later needs no change to this script.
+if command -v python3 >/dev/null 2>&1 && [ -r /opt/fpp/www/settings.json ]; then
+    python3 -c '
+import json, re, sys
 
-# Level 2+: Include settings
+settings_json, settings_file, purpose, out = sys.argv[1:5]
+try:
+    with open(settings_json) as f:
+        meta = json.load(f)["settings"]
+except Exception:
+    sys.exit(0)
+wanted = {k for k, v in meta.items()
+          if isinstance(v, dict) and v.get("piiPurpose") == purpose}
+if not wanted:
+    sys.exit(0)
+
+found = {}
+try:
+    with open(settings_file) as f:
+        for line in f:
+            m = re.match(r"\s*([A-Za-z0-9_]+)\s*=\s*(.*)", line)
+            if m and m.group(1) in wanted:
+                found[m.group(1)] = m.group(2).strip().strip("\"\x27")
+except Exception:
+    sys.exit(0)
+
+found = {k: v for k, v in found.items() if v}
+if found:
+    found["_purpose"] = purpose
+    with open(out, "w") as f:
+        json.dump(found, f, indent=2)
+' /opt/fpp/www/settings.json settings "$CRASH_REPORT_PURPOSE" "$TEMP_DIR/contact.json" 2>/dev/null || true
+fi
+
+# Level 2+: Include settings, and the two files that describe the host.
+#
+# fpp-info.json and the cached statistics payload used to be copied at every
+# level, which made "send stack traces only" untrue: fpp-info.json carries the
+# hostname, the LAN addresses and the user's own description of the box, and
+# fpp_stats.json is whatever the last statistics generation produced -- which
+# the Preview button creates as a side effect, on a box that may never have
+# opted in to sending statistics at all.
 if [ "$CRASH_LOG_LEVEL" -ge 2 ]; then
-    echo "Including settings (with passwords redacted)..."
+    echo "Including settings (with secrets redacted)..."
+
+    # fpp-info.json without the fields that name the host or its network. The
+    # build string and platform are the parts crash triage actually uses.
+    if [ -f fpp-info.json ]; then
+        if command -v python3 >/dev/null 2>&1; then
+            python3 -c '
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        info = json.load(f)
+except Exception:
+    sys.exit(1)
+if isinstance(info, dict):
+    for key in ("addresses", "hostname", "HostDescription"):
+        info.pop(key, None)
+with open(sys.argv[2], "w") as f:
+    json.dump(info, f, indent=2)
+' fpp-info.json "$TEMP_DIR/fpp-info.json" 2>/dev/null || rm -f "$TEMP_DIR/fpp-info.json"
+        else
+            # No python3: the file cannot be scrubbed, so it does not ship.
+            echo "  (skipping fpp-info.json: python3 unavailable to scrub it)"
+        fi
+    fi
+
+    # The cached statistics payload ships only where the user already agreed to
+    # send that same content to the statistics server.
+    if [ -f /tmp/fpp_stats.json ] && \
+       grep -qE '^[[:space:]]*statsPublish[[:space:]]*=[[:space:]]*"?Enabled"?[[:space:]]*$' settings 2>/dev/null; then
+        cp /tmp/fpp_stats.json "$TEMP_DIR/" 2>/dev/null || true
+    fi
     
     # Handle settings file (single file)
     if [ -f "settings" ]; then
         # Redact password fields - match any field containing "password", "passwd", or "pwd"
         # This catches: osPasswordVerify, systemPassword, mqtt_password, PWD, etc.
         # BUT excludes fields ending in "Enable" (e.g., osPasswordEnable, passwordEnable)
-        sed -E \
-            -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-            -e "/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-            -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-            -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-            -e "/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-            -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-            -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-            -e "/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-            -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-            "settings" > "$TEMP_DIR/settings" 2>/dev/null || \
-        cp "settings" "$TEMP_DIR/settings"
+        redact_copy "settings" "$TEMP_DIR/settings"
     fi
     
     # Handle settings directory (multiple files)
@@ -165,18 +370,7 @@ if [ "$CRASH_LOG_LEVEL" -ge 2 ]; then
                 
                 # Redact password fields - match any field containing "password", "passwd", or "pwd"
                 # BUT excludes fields ending in "Enable" (e.g., osPasswordEnable, passwordEnable)
-                sed -E \
-                    -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-                    -e "/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-                    -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-                    -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-                    -e "/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-                    -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-                    -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-                    -e "/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-                    -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-                    "$file" > "$TEMP_DIR/settings/$filename" 2>/dev/null || \
-                cp "$file" "$TEMP_DIR/settings/$filename"
+                redact_copy "$file" "$TEMP_DIR/settings/$filename"
             fi
         done
     fi
@@ -199,23 +393,26 @@ if [ "$CRASH_LOG_LEVEL" -ge 2 ]; then
                     
                     # Skip or redact files that commonly contain credentials
                     case "$filename" in
+                        interface.*)
+                            # Allowlisted keys only. These files hold the Wi-Fi
+                            # PSK and SSID -- including BACKUPPSK and BACKUPSSID,
+                            # which no password-shaped pattern matches -- and the
+                            # addresses, none of which may ship.
+                            #
+                            # But PROTO earns its place: a box on DHCP whose
+                            # address changes mid-show fails in ways that look
+                            # nothing like a static misconfiguration, and this is
+                            # where that gets diagnosed. The allowlist is shared
+                            # with the statistics client so the two cannot drift.
+                            # Fails closed -- no list, no file.
+                            filter_interface_config "$file" "$TEMP_DIR/config/$filename"
+                            ;;
                         *authorized_keys*|*id_rsa*|*id_dsa*|*.pem|*.key)
                             echo "**REDACTED SSH/KEY FILE**" > "$TEMP_DIR/config/$filename"
                             ;;
                         *)
-                            # Scrub passwords from other config files (except Enable flags)
-                            sed -E \
-                                -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-                                -e "/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-                                -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-                                -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-                                -e "/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-                                -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-                                -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-                                -e "/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-                                -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-                                "$file" > "$TEMP_DIR/config/$filename" 2>/dev/null || \
-                            cp "$file" "$TEMP_DIR/config/$filename"
+                            # Scrub secrets from other config files (except Enable flags)
+                            redact_copy "$file" "$TEMP_DIR/config/$filename"
                             ;;
                     esac
                 fi
@@ -229,39 +426,14 @@ if [ "$CRASH_LOG_LEVEL" -ge 2 ]; then
         # it is the same class of content (and often the same lines) as
         # fppd.log, so it ships only at this level and gets the same scrubbing.
         if [ -f /tmp/fppd_crash_log_ring.log ]; then
-            sed -E \
-                -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-                -e "/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-                -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-                -e 's#(https?://)[^:/@]+:[^@]+@#\1**REDACTED**@#gI' \
-                /tmp/fppd_crash_log_ring.log > "$TEMP_DIR/logs/fppd_crash_log_ring.log" 2>/dev/null || true
+            redact_copy /tmp/fppd_crash_log_ring.log "$TEMP_DIR/logs/fppd_crash_log_ring.log"
         fi
 
         if [ -f "logs/fppd.log" ]; then
-            sed -E \
-                -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-                -e "/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-                -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-                -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-                -e "/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-                -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-                -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-                -e "/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-                -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-                "logs/fppd.log" > "$TEMP_DIR/logs/fppd.log" 2>/dev/null || true
+            redact_copy "logs/fppd.log" "$TEMP_DIR/logs/fppd.log"
         fi
         if [ -f "logs/apache2-error.log" ]; then
-            sed -E \
-                -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-                -e "/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-                -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-                -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-                -e "/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-                -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-                -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-                -e "/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-                -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-                "logs/apache2-error.log" > "$TEMP_DIR/logs/apache2-error.log" 2>/dev/null || true
+            redact_copy "logs/apache2-error.log" "$TEMP_DIR/logs/apache2-error.log"
         fi
         
         # Playlists (scrub any embedded credentials in URLs)
@@ -270,9 +442,10 @@ if [ "$CRASH_LOG_LEVEL" -ge 2 ]; then
             for file in playlists/*; do
                 if [ -f "$file" ]; then
                     filename=$(basename "$file")
-                    # Redact credentials in URLs: http://user:pass@host -> http://**REDACTED**@host
-                    sed -E 's#(https?://)[^:/@]+:[^@]+@#\1**REDACTED**@#gI' "$file" > "$TEMP_DIR/playlists/$filename" 2>/dev/null || \
-                    cp "$file" "$TEMP_DIR/playlists/$filename"
+                    # Same redactor as everything else: it covers URL
+                    # credentials plus anything password-shaped that a playlist
+                    # entry's arguments might carry.
+                    redact_copy "$file" "$TEMP_DIR/playlists/$filename"
                 fi
             done
         fi
@@ -283,18 +456,7 @@ if [ "$CRASH_LOG_LEVEL" -ge 2 ]; then
             for file in /etc/fpp/*; do
                 if [ -f "$file" ]; then
                     filename=$(basename "$file")
-                    sed -E \
-                        -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-                        -e "/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-                        -e '/[a-zA-Z_]*[Pp]assword[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]assword[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-                        -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-                        -e "/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-                        -e '/[a-zA-Z_]*[Pp]asswd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]asswd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-                        -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)"[^"]+"/\1\2"**REDACTED**"/g' \
-                        -e "/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)'[^']+'/\1\2'**REDACTED**'/g" \
-                        -e '/[a-zA-Z_]*[Pp]wd[Ee]nable\s*[:=]/! s/([a-zA-Z_]*[Pp]wd[a-zA-Z_]*)(\s*[:=]\s*)([^"\047[:space:]]+)/\1\2**REDACTED**/g' \
-                        "$file" > "$TEMP_DIR/etc_fpp/$filename" 2>/dev/null || \
-                    cp "$file" "$TEMP_DIR/etc_fpp/$filename"
+                    redact_copy "$file" "$TEMP_DIR/etc_fpp/$filename"
                 fi
             done
         fi

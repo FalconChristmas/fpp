@@ -450,6 +450,10 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
         sigaction(SIGALRM, &almAct, nullptr);
         alarm(kCrashHandlerWatchdogSec);
     }
+    // Deliberately still 3, pending the opt-in UI (privacy consent screen +
+    // upgrade prompt). Drop to 0 in the same change that ships that UI -- a
+    // default that sends is only defensible while there is no way for the user
+    // to have answered the question.
     int crashLog = getSettingInt("ShareCrashData", 3);
 #ifndef PLATFORM_OSX
     LogErr(VB_ALL, "Crash handler called in thread %u:  signal=%d (SIG%s: %s) addr=%p si_code=%d\n",

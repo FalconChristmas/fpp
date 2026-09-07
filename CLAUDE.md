@@ -77,6 +77,29 @@ When designing HTML, CSS, or working within `www/`, read `.claude/FRONTEND-GUIDE
 - **Overlay models**: `config/model-overlays.json` — pixel grid definitions
 - **Command presets**: `config/commandPresets.json` — named command sequences with keyword replacement
 - **Settings**: `/media/settings` — key=value text file
-- **Web settings**: `www/settings.json` — declarative settings metadata with UI types and validation
+- **Web settings**: `www/settings.json` — declarative settings metadata with UI types and validation.
+  Two flags there mark data that must not leave the device, and are read by every consumer rather
+  than re-listed in each one:
+  - `"type": "password"` — a credential. Also masks the field in the UI.
+  - `"pii": true` — personal or household-identifying data that is not a credential (coordinates,
+    contact addresses, account names, kiosk URL).
+  - `"piiPurpose": "<purpose>"` — PII collected *for* a named purpose. A consumer serving that
+    purpose uses it deliberately; every other consumer still redacts it. Today the only value is
+    `"crash-report"`, on `emailAddress`: the field exists so developers can contact a user about
+    a crash, so `scripts/generate_crash_report` lifts it into `contact.json` (at every level,
+    including "stack traces only") while the statistics client still drops it.
+
+  `scripts/generate_crash_report` redacts `password`/`pii` when bundling a crash report, and the
+  statistics client omits them. **Mark new settings at the point of declaration** — a
+  consumer-side list drifts, and has: one hand-written copy was already missing `gitHubPAT`.
+- **Interface settings**: `www/interface-settings.json` — declarative metadata for
+  `config/interface.<name>`, in the same shape and vocabulary as `settings.json` (`description`,
+  `tip`, `type`, `options`, `default`, `gatherStats`, `pii`). Intended to drive the network
+  configuration UI the way `settings.json` drives the rest; today two consumers read one key from
+  it. A field is disclosed — to the statistics payload (`stats.php`) and to crash reports
+  (`scripts/generate_crash_report`) — **only where it declares `"gatherStats": true`**. Both
+  consumers fail closed if the file is unreadable. It is an allowlist on purpose: a field added
+  without `gatherStats` is withheld automatically. `SSID`, `PSK`, `BACKUPSSID`, `BACKUPPSK` and
+  the addresses stay off it.
 - **Cape configs**: `capes/` directory — JSON files with GPIO pin mappings, output channel definitions
 - **Audio**: `etc/asoundrc.*` — ALSA configurations (dmix, hdmi, plain, softvol)
