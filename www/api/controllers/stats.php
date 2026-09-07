@@ -19,6 +19,7 @@ function stats_generate($statsFile)
         "files" => 'stats_getFiles',
         "models" => 'stats_getModels',
         "multisync" => 'stats_getMultiSync',
+        "multisyncShape" => 'stats_getMultiSyncShape',
         "plugins" => 'stats_getPlugins',
         "schedule" => 'stats_getSchedule',
         "settings" => 'stats_getSettings',
@@ -123,18 +124,65 @@ function stats_get_last_file()
 function stats_network()
 {
     $rc = array();
-    $output = array();
 
-    exec("curl -s -m 2 https://github.com/FalconChristmas/fpp/blob/master/README.md", $output, $exitCode);
-    $rc['github_access'] = ($exitCode == 0 ? true : false);
-
+    // Statistics generation makes no outbound request.  This used to shell out to
+    // `curl https://github.com/...` for a `github_access` boolean, which meant the
+    // Preview button -- the one place a cautious user checks what would be sent
+    // before agreeing to send anything -- itself contacted a third party, on a box
+    // that may have statistics disabled entirely.  If an "can this box reach the
+    // internet" metric is wanted, it has to come from the update check, which
+    // already makes that request for its own reasons, not from here.
     $rc['wifi'] = json_decode(file_get_contents("http://localhost/api/network/wifi/strength"), true);
 
     $interfaces = json_decode(file_get_contents("http://localhost/api/network/interface"), true);
+    $anyV4 = false;
+    $anyV6 = false;
     foreach ($interfaces as $i) {
         $name = $i['ifname'];
         if (isset($i['operstate'])) {
             $rc['interfaces'][$name]['operstate'] = $i['operstate'];
+        }
+
+        // Which address families this interface actually carries.  Counted by
+        // SCOPE, not by family: an IPv6 link-local address (fe80::/10) is
+        // autoconfigured on every IPv6-capable interface whether or not the
+        // network carries any IPv6 at all, so "has an inet6 address" would read
+        // as near-100% dual-stack everywhere and measure nothing.  Only global
+        // and unique-local addresses say anything about deployment.
+        //
+        // No address is transmitted -- these are three booleans and an enum.
+        if (isset($i['addr_info']) && is_array($i['addr_info'])) {
+            $hasV4 = false;
+            $v6Scope = 'none';
+            foreach ($i['addr_info'] as $a) {
+                $family = isset($a['family']) ? $a['family'] : '';
+                $scope = isset($a['scope']) ? $a['scope'] : '';
+                if ($family === 'inet') {
+                    if ($scope === 'global') {
+                        $hasV4 = true;
+                    }
+                } else if ($family === 'inet6') {
+                    if ($scope === 'global') {
+                        // Distinguish a routable address from a ULA; both count
+                        // as deployed, but they are different deployments.
+                        $local = isset($a['local']) ? strtolower($a['local']) : '';
+                        $isUla = (strncmp($local, 'fc', 2) === 0 || strncmp($local, 'fd', 2) === 0);
+                        if ($isUla) {
+                            if ($v6Scope !== 'global') {
+                                $v6Scope = 'ula';
+                            }
+                        } else {
+                            $v6Scope = 'global';
+                        }
+                    } else if ($scope === 'link' && $v6Scope === 'none') {
+                        $v6Scope = 'linklocal';
+                    }
+                }
+            }
+            $rc['interfaces'][$name]['ipv4'] = $hasV4;
+            $rc['interfaces'][$name]['ipv6'] = $v6Scope;
+            $anyV4 = $anyV4 || $hasV4;
+            $anyV6 = $anyV6 || ($v6Scope === 'global' || $v6Scope === 'ula');
         }
         // This tested $rc -- the array being built -- rather than $i, so it could
         // never be true and has emitted nothing since it was written.
@@ -192,6 +240,11 @@ function stats_network()
             }
         }
     }
+
+    // Box-level rollup.  This is the IPv6 rollout number: it works on a
+    // standalone player, which the peer-derived view in stats_getMultiSync()
+    // cannot -- most shows have no discoverable peer at all.
+    $rc['stack'] = $anyV4 ? ($anyV6 ? 'dual' : 'v4') : ($anyV6 ? 'v6' : 'none');
 
     return $rc;
 }
@@ -455,6 +508,63 @@ function stats_getFiles()
  * @return void
  */
 /**
+ * Classifies a discovery address by family and SCOPE.
+ *
+ * Scope is the part that matters.  An IPv6 link-local address (fe80::/10) is
+ * autoconfigured on every IPv6-capable interface whether or not the network
+ * carries any IPv6, so counting "has an IPv6 address" would report near-100%
+ * dual-stack everywhere.  Only global and unique-local addresses indicate a
+ * deployment.  Nothing here is transmitted; only the derived counts are.
+ *
+ * @param string $addr peer address as discovery reported it
+ * @return string one of ipv4, ipv4-linklocal, ipv6-global, ipv6-ula,
+ *                ipv6-linklocal, ipv6-loopback, unknown
+ */
+function stats_addressClass($addr)
+{
+    $a = strtolower(trim((string) $addr));
+    if ($a === '') {
+        return 'unknown';
+    }
+    if (strpos($a, ':') === false) {
+        return (strncmp($a, '169.254.', 8) === 0) ? 'ipv4-linklocal' : 'ipv4';
+    }
+    if (strncmp($a, 'fe80', 4) === 0) {
+        return 'ipv6-linklocal';
+    }
+    if (strncmp($a, 'fc', 2) === 0 || strncmp($a, 'fd', 2) === 0) {
+        return 'ipv6-ula';
+    }
+    if ($a === '::1' || $a === '::') {
+        return 'ipv6-loopback';
+    }
+    return 'ipv6-global';
+}
+
+/**
+ * Reduces a device's address classes to the stack it is actually running.
+ *
+ * @param array $classes values from stats_addressClass()
+ * @return string v4, v6, dual or none
+ */
+function stats_stackOf($classes)
+{
+    $v4 = false;
+    $v6 = false;
+    foreach ($classes as $c) {
+        if ($c === 'ipv4') {
+            $v4 = true;
+        } else if ($c === 'ipv6-global' || $c === 'ipv6-ula') {
+            $v6 = true;
+        }
+    }
+    if ($v4 && $v6) {
+        return 'dual';
+    }
+    return $v6 ? 'v6' : ($v4 ? 'v4' : 'none');
+}
+
+/**
  * Derives a peer identifier for a device whose own UUID could not be read.
  *
  * Keyed on this host's UUID plus the peer address, so the same peer keeps the
@@ -500,92 +610,33 @@ function addMultiSyncUUID(&$data)
     if (!isset($data["systems"])) {
         return;
     }
-    $missing = array();
-    foreach ($data["systems"] as $system) {
-        if (!isset($system['uuid']) || !isValidSystemUUID($system['uuid'])) {
-            $missing[$system['address']] = array(
-                'typeId' => $system['typeId'],
-                // Kept so the fallback below can prefer a MAC-derived stand-in
-                // over a per-reporter hash.
-                'prior' => isset($system['uuid']) ? $system['uuid'] : '',
-            );
+
+    // This used to open an HTTP connection to every peer whose announced UUID
+    // was missing or malformed -- /api/fppd/status for FPP peers,
+    // /update/identity for Falcon controllers -- purely to fetch an identifier
+    // for the statistics upload.  That probing is gone: generating statistics
+    // should not put traffic on the LAN, and discovery already carries what is
+    // needed.  A peer with no usable UUID is identified from its MAC, which is
+    // stable across every player that can see it, and only falls back to a
+    // per-reporter hash when there is no MAC either.
+    foreach ($data["systems"] as &$system) {
+        if (isset($system['uuid']) && isValidSystemUUID($system['uuid'])) {
+            continue;
+        }
+        $prior = isset($system['uuid']) ? $system['uuid'] : '';
+        // A "MAC:" value is not an identity the device chose, which is why
+        // isValidSystemUUID() rejects it.  But it is the same value for a given
+        // device no matter which player reports it, and that is exactly what
+        // makes deduplicating a show possible.  localPeerIdentity() is salted
+        // with the reporting host, so two players describing one controller
+        // produce two unrelated rows -- use it only when there is no MAC.
+        if (stripos($prior, 'MAC:') === 0) {
+            $system['uuid'] = peerMacIdentity($prior);
+        } else {
+            $system['uuid'] = localPeerIdentity(isset($system['address']) ? $system['address'] : '');
         }
     }
-    // Find missing UUIDs
-    if (count($missing) > 0) {
-        $curlmulti = curl_multi_init();
-        $curls = array();
-        foreach ($missing as $ip => $info) {
-            $tid = $info['typeId'];
-            //IPv6 literals must be bracketed to be usable in a URL
-            $urlHost = fppUrlHost($ip);
-            if ($tid >= 160 && $tid < 170) {
-                $curl = curl_init("http://" . $urlHost . "/update/identity");
-            } else {
-                $curl = curl_init("http://" . $urlHost . "/api/fppd/status");
-            }
-            curl_setopt($curl, CURLOPT_FAILONERROR, true);
-            curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 500);
-            curl_setopt($curl, CURLOPT_TIMEOUT_MS, 3000);
-            $curls[$ip] = $curl;
-            curl_multi_add_handle($curlmulti, $curl);
-        }
-        $running = null;
-        do {
-            curl_multi_exec($curlmulti, $running);
-        } while ($running > 0);
-
-        foreach ($curls as $ip => $curl) {
-            $request_content = curl_multi_getcontent($curl);
-            $uuid = "";
-
-            if ($request_content !== false && $request_content !== null && $request_content !== "") {
-                $content = json_decode($request_content, true);
-                if (isset($content['uuid'])) {
-                    $uuid = $content['uuid'];
-                } else if (isset($content['id'])) {
-                    if (isset($content['hardware'])) {
-                        $uuid = $content['hardware'] . "-" . $content['id'];
-                    } else {
-                        $uuid = $content['id'];
-                    }
-                }
-            }
-
-            $resolved = isValidSystemUUID($uuid) ? $uuid : "";
-            if ($resolved === "") {
-                // A "MAC:" value is not an identity the device chose, which is
-                // why isValidSystemUUID() rejects it and why we ask the
-                // controller for a real one first.  But it is the same value
-                // for a given device no matter which player reports it, and
-                // that is exactly what makes deduplicating a show and drawing
-                // its network possible.  localPeerIdentity() is salted with the
-                // reporting host, so two players describing one controller
-                // produce two unrelated rows -- use it only when there is no
-                // MAC to fall back on.
-                $prior = $missing[$ip]['prior'];
-                $resolved = (stripos($prior, 'MAC:') === 0)
-                    ? peerMacIdentity($prior)
-                    : localPeerIdentity($ip);
-            }
-            $missing[$ip] = $resolved;
-            curl_multi_remove_handle($curlmulti, $curl);
-        }
-        curl_multi_close($curlmulti);
-
-        // Add them back
-        foreach ($data["systems"] as &$system) {
-            $ip = $system['address'];
-            if (!isset($system['uuid']) || !isValidSystemUUID($system['uuid'])) {
-                if (isset($missing[$ip])) {
-                    $system['uuid'] = $missing[$ip];
-                }
-            }
-        }
-        unset($system);
-    }
+    unset($system);
 }
 
 /**
@@ -594,8 +645,13 @@ function addMultiSyncUUID(&$data)
  *
  * @return array Array of per-system records with version, type, and UUID info.
  */
-function stats_getMultiSync()
+function stats_multiSyncCollect($injected = null)
 {
+    static $cached = null;
+    if ($injected === null && $cached !== null) {
+        return $cached;
+    }
+
     $mapping = array(
         "fppModeString" => "fppModeString",
         "channelRanges" => "channelRanges",
@@ -646,11 +702,49 @@ function stats_getMultiSync()
     // (contact details, no analytical value). The serial number is never
     // carried on the peer record at all.
 
-    $data = json_decode(file_get_contents("http://localhost/api/fppd/multiSyncSystems"), true);
-    $rc = array();
+    // $injected is for tests: the deduplication and address-family accounting
+    // are the parts worth exercising, and they should not need a running fppd.
+    $data = ($injected !== null)
+        ? $injected
+        : json_decode(file_get_contents("http://localhost/api/fppd/multiSyncSystems"), true);
+    $peers = array();
+    $shape = array("rows" => 0, "devices" => 0, "multiAddress" => 0,
+        "addressesPerDevice" => array(), "stacks" => array());
+
     if (isset($data["systems"])) {
         addMultiSyncUUID($data);
+
+        // Discovery reports one row per ADDRESS, not per device: a dual-stack
+        // box appears once on IPv4 and once on IPv6, a multi-homed one once per
+        // subnet, and the local host also on loopback.  Left alone that inflates
+        // every peer count -- on a modest network the raw row count runs close
+        // to twice the true device count.
+        //
+        // Collapse on uuid, and keep what the duplicate rows were saying:
+        // addressCount, the per-family counts, and the resulting stack.  No
+        // address is transmitted.  addressCount also lets a consumer recover the
+        // pre-deduplication row count, so counts recorded before this change
+        // stay comparable with counts recorded after it.
+        $byUuid = array();
+        $classes = array();
         foreach ($data["systems"] as $system) {
+            $uuid = isset($system['uuid']) ? $system['uuid'] : '';
+            $class = stats_addressClass(isset($system['address']) ? $system['address'] : '');
+            $shape["rows"]++;
+
+            if ($uuid === '') {
+                // No identity at all: cannot be deduplicated, keep the row.
+                $rec = array();
+                validateAndAdd($rec, $system, $mapping);
+                $peers[] = $rec;
+                continue;
+            }
+
+            $classes[$uuid][] = $class;
+            if (isset($byUuid[$uuid])) {
+                continue;
+            }
+
             $rec = array();
             validateAndAdd($rec, $system, $mapping);
 
@@ -666,10 +760,72 @@ function stats_getMultiSync()
                 $rec['capeInfo'] = stats_peerCapeRecord($system['capeInfo'], $capeInfoMapping);
             }
 
-            array_push($rc, $rec);
+            $byUuid[$uuid] = count($peers);
+            $peers[] = $rec;
         }
+
+        foreach ($classes as $uuid => $seen) {
+            $idx = $byUuid[$uuid];
+            $peers[$idx]['addressCount'] = count($seen);
+            $peers[$idx]['ipv4Count'] = count(array_filter($seen, function ($c) {
+                return $c === 'ipv4';
+            }));
+            $peers[$idx]['ipv6Count'] = count(array_filter($seen, function ($c) {
+                return $c === 'ipv6-global' || $c === 'ipv6-ula';
+            }));
+            $peers[$idx]['stack'] = stats_stackOf($seen);
+
+            $n = (string) count($seen);
+            if (!isset($shape["addressesPerDevice"][$n])) {
+                $shape["addressesPerDevice"][$n] = 0;
+            }
+            $shape["addressesPerDevice"][$n]++;
+            if (count($seen) > 1) {
+                $shape["multiAddress"]++;
+            }
+
+            $stack = $peers[$idx]['stack'];
+            if (!isset($shape["stacks"][$stack])) {
+                $shape["stacks"][$stack] = 0;
+            }
+            $shape["stacks"][$stack]++;
+        }
+        $shape["devices"] = count($peers);
     }
-    return $rc;
+
+    $result = array("peers" => $peers, "shape" => $shape);
+    if ($injected === null) {
+        $cached = $result;
+    }
+    return $result;
+}
+
+/**
+ * Collects a sanitized list of MultiSync peer systems, one entry per device
+ * rather than one per address.
+ *
+ * @return array Array of per-system records with version, type, UUID and the
+ *               address-family counts the deduplication derived.
+ */
+function stats_getMultiSync()
+{
+    $collected = stats_multiSyncCollect();
+    return $collected["peers"];
+}
+
+/**
+ * Shape of the MultiSync view: how many rows collapsed into how many devices,
+ * how many answered on more than one address, and the IPv4/IPv6 split.
+ *
+ * Counts only.  This is the peer-side view of IPv6 rollout; the box's own stack
+ * is in network.stack, and that is the one that works on a standalone player.
+ *
+ * @return array
+ */
+function stats_getMultiSyncShape()
+{
+    $collected = stats_multiSyncCollect();
+    return $collected["shape"];
 }
 
 /**
@@ -925,40 +1081,50 @@ function stats_getUUIDSource()
 }
 
 /**
- * Collects cape hardware information. If SendVendorSerial is enabled, the
- * serial number is included; otherwise it is omitted for privacy.
+ * Collects cape hardware information.
  *
- * @return array Cape info with type, id, name, designer, and vendor fields.
+ * The serial number and `cs` are never included, and this is no longer gated on
+ * SendVendorSerial -- that setting governs what goes to the cape vendor from the
+ * browser, which is what its description says.
+ *
+ * @return array Cape info with type, id, name, designer, verifiedKeyId and the
+ *               vendor name.
  */
 function stats_getCapeInfo()
 {
-    global $settings;
-    $rc = array("name" => "None");
-    if ($settings['SendVendorSerial'] == 1) {
-        $mapping = array(
-            "type" => "type",
-            "cs" => "cs",
-            "id" => "id",
-            "name" => "name",
-            "serialNumber" => "serialNumber",
-            "designer" => "designer",
-            "verifiedKeyId" => "verifiedKeyId",
-            "vendor" => "vendor"
-        );
-    } else {
-        $mapping = array(
-            "type" => "type",
-            "id" => "id",
-            "name" => "name",
-            "designer" => "designer",
-            "verifiedKeyId" => "verifiedKeyId",
-            "vendor" => "vendor"
-        );
-    }
+    // The cape serial and `cs` are not sent.  Together they are the per-unit key
+    // into a vendor's or the shop's order records, and no handler on the
+    // statistics server reads either -- so they were a join key to a purchase,
+    // collected for nothing.  They are also not what SendVendorSerial is about:
+    // that switch says "send cape serial numbers to vendors", and it used to
+    // silently govern this payload too.  It no longer does.
+    //
+    // verifiedKeyId stays.  It is the signing key id, one of a handful of values
+    // fixed by the compiled-in key table in CapeUtils, and removed outright when
+    // a signature does not verify -- so an EEPROM cannot put an arbitrary string
+    // here.  It is coarser than vendor.name, which is kept, and it is the only
+    // field that shows a cape signed by a key that does not match its claimed
+    // vendor, which is what licence-abuse detection needs.
+    $mapping = array(
+        "type" => "type",
+        "id" => "id",
+        "name" => "name",
+        "designer" => "designer",
+        "verifiedKeyId" => "verifiedKeyId",
+        "vendor" => "vendor"
+    );
 
+    $rc = array("name" => "None");
     $data = json_decode(file_get_contents("http://localhost/api/cape"), true);
     if (($data != false) && ((!isset($data['sendStats'])) || ($data['sendStats'] == 1))) {
         validateAndAdd($rc, $data, $mapping);
+        // Reduce the vendor block to the name, matching what peer cape records
+        // already carry.  The e-mail, logo URL and site add nothing to a chart,
+        // and across the corpus that block is where sole traders' personal names
+        // and one street address live.
+        if (isset($rc['vendor']) && is_array($rc['vendor'])) {
+            $rc['vendor'] = isset($rc['vendor']['name']) ? $rc['vendor']['name'] : '';
+        }
     }
 
     return $rc;
@@ -978,9 +1144,24 @@ function stats_getSettings()
     $safeSettings = array();
     $allSettings = json_decode(file_get_contents($settings['wwwDir'] . "/settings.json"), true);
     foreach ($allSettings['settings'] as $name => $config) {
-        if (isset($config['gatherStats']) && $config['gatherStats']) {
-            $safeSettings[$name] = $name;
+        if (!isset($config['gatherStats']) || !$config['gatherStats']) {
+            continue;
         }
+        // Declared sensitivity wins over gatherStats.  A setting marked
+        // "pii": true or "type": "password" never leaves the device, whatever
+        // else it says -- the same declarations scripts/generate_crash_report
+        // redacts on, so the two cannot drift on what counts as personal data.
+        //
+        // This deliberately does NOT extend to device names such as AudioOutput
+        // or ForceAudioId.  Those are hardware identifiers and the specific
+        // string is the point: it says which kernel module an image needs and
+        // which USB device to support.  Their problem was that the server
+        // republished raw values on a public endpoint, which is fixed there, not
+        // by withholding them here.
+        if (!empty($config['pii']) || (isset($config['type']) && $config['type'] === 'password')) {
+            continue;
+        }
+        $safeSettings[$name] = $name;
     }
 
     $fd = @fopen($settingsFile, "c+");
