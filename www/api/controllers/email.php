@@ -43,7 +43,15 @@ function SendTestEmail() {
     $result_code = 0;
     $tmpfname = tempnam("/tmp", "sendmail-stderr.txt");
 
-    system('echo "Email test from $(hostname)" | mail -s "Email test from $(hostname)" ' . $settings['emailtoemail'] . " 2> " . $tmpfname, $result_code); //capture stderr
+    $emailTo = isset($settings['emailtoemail']) ? trim($settings['emailtoemail']) : '';
+    // Non-breaking: keep sending even if format is unusual, but ensure it cannot inject shell commands.
+    // FILTER_VALIDATE_EMAIL would reject some exotic but valid addresses, so we only log and still use escapeshellarg.
+    if ($emailTo !== '' && filter_var($emailTo, FILTER_VALIDATE_EMAIL) === false) {
+        error_log("SendTestEmail: emailtoemail does not look like a valid email: " . $emailTo);
+    }
+    $toArg = escapeshellarg($emailTo);
+    $tmpArg = escapeshellarg($tmpfname);
+    system('echo "Email test from $(hostname)" | mail -s "Email test from $(hostname)" ' . $toArg . " 2> " . $tmpArg, $result_code); //capture stderr
 
     $result['Status'] = 'OK'; //maybe not; need to check ret code
     $result['Message'] = '';
