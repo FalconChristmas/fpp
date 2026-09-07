@@ -1153,6 +1153,86 @@ function network_add_interface()
 }
 
 /**
+ * Delete a network interface configuration
+ *
+ * Removes the saved configuration for `{interface}` -- `config/interface.<name>`
+ * plus any static-lease file and cached wifi scan. The generated
+ * `/etc/systemd/network/10-<name>.network` is left in place for `setupNetwork`
+ * to reap (it already removes any file it no longer needs, and disables the
+ * matching `wpa_supplicant@` unit), so follow this with
+ * `POST /api/network/interface/{interface}/apply` or a reboot for the deletion
+ * to take effect on the running system.
+ *
+ * Refuses to delete an interface backed by hardware that is currently present,
+ * or the interface this request arrived on: either would leave the box with an
+ * unmanaged NIC and no address, with no way to put it back from the UI.
+ *
+ * @route DELETE /api/network/interface/{interface}
+ * @response 200 Interface configuration deleted
+ * ```json
+ * {"status": "OK", "deleted": ["interface.eth9"], "restartNetwork": true}
+ * ```
+ * @response 400 Invalid interface name
+ * @response 404 No saved configuration for that interface
+ * @response 409 Interface is present hardware, or is serving this request
+ */
+function network_delete_interface()
+{
+    global $settings;
+
+    $interface = params('interface');
+
+    // IFNAMSIZ-1 characters, no '/' and no leading '.', so a name can never
+    // escape configDirectory.
+    if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]{0,14}$/', $interface)) {
+        status(400);
+        return json(array("status" => "ERROR: invalid interface name"));
+    }
+
+    $configDir = $settings['configDirectory'];
+    $cfgFile = $configDir . "/interface." . $interface;
+    if (!file_exists($cfgFile)) {
+        status(404);
+        return json(array("status" => "ERROR: no saved configuration for " . $interface));
+    }
+
+    if (network_interface_is_hardware($interface)) {
+        status(409);
+        return json(array("status" => "ERROR: " . $interface . " is a hardware interface that is present on this system. It can be reconfigured but not deleted. Unplug the adapter first if it is removable."));
+    }
+
+    // Last line of defence for an interface that is absent or virtual but is
+    // nonetheless carrying this session -- an adapter unplugged after the
+    // address came up, or a bridge. Deleting it would cut the request's own
+    // path back. Skipped when REMOTE_ADDR isn't a usable IPv4 (a proxy, IPv6),
+    // where the answer would be about the proxy rather than the client.
+    $remote = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
+    if (filter_var($remote, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        $route = trim(shell_exec("/sbin/ip -o route get " . escapeshellarg($remote) . " 2>/dev/null"));
+        if (preg_match('/\bdev\s+(\S+)/', $route, $m) && $m[1] === $interface) {
+            status(409);
+            return json(array("status" => "ERROR: " . $interface . " is serving this connection. Deleting it would disconnect you."));
+        }
+    }
+
+    $deleted = array();
+    foreach (array("interface." . $interface, "leases." . $interface) as $name) {
+        $path = $configDir . "/" . $name;
+        if (file_exists($path) && unlink($path)) {
+            $deleted[] = $name;
+        }
+    }
+    @unlink(network_wifi_scan_cache_file($interface));
+
+    if (!in_array("interface." . $interface, $deleted)) {
+        status(500);
+        return json(array("status" => "ERROR: could not delete configuration for " . $interface));
+    }
+
+    return json(array("status" => "OK", "deleted" => $deleted, "restartNetwork" => true));
+}
+
+/**
  * Set network interface configuration
  *
  * Updates the saved configuration for the specified `{interface}` but does

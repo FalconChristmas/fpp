@@ -3449,6 +3449,29 @@ function network_list_interfaces_array()
     return $interfaces;
 }
 
+/**
+ * True when $interface is backed by real hardware that is plugged in right now.
+ *
+ * A "device" symlink under /sys/class/net exists only for a hardware-backed
+ * interface: virtual devices (dummy, bridge, veth, tun) have none, and an
+ * interface that isn't present has no sysfs directory at all. Deliberately makes
+ * no attempt to separate onboard from USB -- on a Pi 3 / Pi Zero the *built-in*
+ * ethernet is itself a USB device, so a bus test would call the only NIC on the
+ * board removable.
+ *
+ * Used to decide whether an interface's FPP config may be deleted: deleting the
+ * config of a NIC that exists doesn't remove the NIC, it just stops FPP managing
+ * it, leaving it with no address after the next setupNetwork.
+ */
+function network_interface_is_hardware($interface)
+{
+    if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]{0,14}$/', $interface)) {
+        return false;
+    }
+    $dev = "/sys/class/net/" . $interface . "/device";
+    return is_link($dev) || file_exists($dev);
+}
+
 function network_list_interfaces_obj()
 {
     global $settings;

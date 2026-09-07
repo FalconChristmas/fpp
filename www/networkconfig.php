@@ -107,9 +107,20 @@
             return preg_replace("/:$/", "", $value);
         }, $interfaces);
 
+        // An interface's config may be deleted only when it has a saved config to
+        // delete AND it isn't hardware that is present right now -- deleting the
+        // config of a NIC that exists doesn't remove the NIC, it just leaves it
+        // unmanaged and address-less. Mirrors the rule DELETE
+        // /api/network/interface/{interface} enforces; the API is what actually
+        // refuses, this only keeps the button from offering an action that can't work.
+        $deletable = function ($iface) use ($configDirectory) {
+            return file_exists($configDirectory . "/interface." . $iface) && !network_interface_is_hardware($iface);
+        };
+
         foreach ($interfaces as $iface) {
             $ifaceChecked = $first ? " selected" : "";
-            echo "<option value='" . $iface . "'" . $ifaceChecked . ">" . $iface . "</option>";
+            $del = $deletable($iface) ? " data-deletable='1'" : "";
+            echo "<option value='" . $iface . "'" . $ifaceChecked . $del . ">" . $iface . "</option>";
             $first = 0;
         }
 
@@ -118,7 +129,8 @@
                 if (preg_match("/^interface\..*/", $interface_file)) {
                     $interface_file = preg_replace("/^interface\./", "", $interface_file);
                     if (array_search($interface_file, $interfaces) === false) {
-                        echo "<option value='" . $interface_file . "'>" . $interface_file . " (not detected)</option>";
+                        // Not present at all, so never hardware -- always deletable.
+                        echo "<option value='" . $interface_file . "' data-deletable='1'>" . $interface_file . " (not detected)</option>";
                     }
                 }
             }
@@ -920,6 +932,76 @@
             });
         }
 
+        // The Delete button is only live for an interface whose config can actually
+        // be removed: PopulateInterfaces marks those with data-deletable, using the
+        // same rule the API enforces (a saved config exists, and the interface isn't
+        // hardware that is present). Everything else -- eth0, wlan0, a plugged-in USB
+        // adapter -- can be reconfigured but not deleted, so the button stays disabled
+        // rather than offering an action the API would refuse.
+        function updateDeleteInterfaceButton() {
+            var $btn = $('#btnDeleteInterface');
+            if (!$btn.length) {
+                return;
+            }
+            var deletable = !!currentInterface &&
+                $('#selInterfaces option[value="' + currentInterface + '"]').attr('data-deletable') === '1';
+            $btn.prop('disabled', !deletable);
+            $btn.attr('title', deletable ?
+                'Remove the saved configuration for ' + currentInterface :
+                'Only interfaces that are not present on this system can be deleted. Present interfaces can be reconfigured instead.');
+        }
+
+        function DeleteInterface() {
+            var iface = currentInterface;
+            if (!iface) {
+                DialogError("No Interface Selected", "Please select an interface first");
+                return;
+            }
+            $('#deleteInterfaceName').text(iface);
+            DoModalDialog({
+                id: "deleteInterfaceDialog",
+                title: "Delete Interface",
+                body: $('#dialog-deleteinterface'),
+                class: 'modal-m',
+                backdrop: true,
+                keyboard: true,
+                buttons: {
+                    "Delete": {
+                        class: 'btn-danger', click: function () {
+                            CloseModalDialog("deleteInterfaceDialog");
+                            $.ajax({
+                                type: "DELETE",
+                                url: "api/network/interface/" + encodeURIComponent(iface),
+                                success: function () {
+                                    // Deliberately no location.reload(): rebuilding the tabs
+                                    // from the (now shortened) select keeps the Restart Network
+                                    // banner ShowNetworkApplyPrompt puts up, which a reload
+                                    // would throw away before the user could act on it.
+                                    $('#selInterfaces option[value="' + iface + '"]').remove();
+                                    currentInterface = '';
+                                    populateInterfaceTabs();
+                                    $.jGrowl(iface + " interface configuration deleted", { themeState: 'success' });
+                                    ShowNetworkApplyPrompt();
+                                },
+                                error: function (jqXHR) {
+                                    var msg = "Could not delete " + iface + ".";
+                                    try {
+                                        msg = JSON.parse(jqXHR.responseText).status;
+                                    } catch (e) { }
+                                    DialogError("Delete Interface", msg);
+                                }
+                            });
+                        }
+                    },
+                    "Cancel": {
+                        click: function () {
+                            CloseModalDialog("deleteInterfaceDialog");
+                        }
+                    }
+                }
+            });
+        }
+
         function CreatePersistentNames() {
             DoModalDialog({
                 id: "createPersistentDialog",
@@ -1058,12 +1140,14 @@
             if (currentInterface) {
                 loadInterfaceConfiguration(currentInterface);
             }
+            updateDeleteInterfaceButton();
         }
 
         function switchToInterface(iface) {
             if (currentInterface !== iface) {
                 currentInterface = iface;
                 loadInterfaceConfiguration(iface);
+                updateDeleteInterfaceButton();
             }
         }
 
@@ -1784,6 +1868,10 @@
                                                 <input name="btnAddInterface" type="button" class="buttons"
                                                     style="font-size: 12px; padding: 4px 8px; white-space: nowrap;"
                                                     value="Add New Interface" onClick="AddInterface();">
+                                                <input name="btnDeleteInterface" id="btnDeleteInterface" type="button"
+                                                    class="buttons btn-danger ms-2"
+                                                    style="font-size: 12px; padding: 4px 8px; white-space: nowrap;"
+                                                    value="Delete Interface" onClick="DeleteInterface();" disabled>
                                             <? } ?>
                                             <input name="btnSetInterface" type="button" class="buttons btn-success ms-2"
                                                 value="Update Interface" onClick="SaveNetworkConfig();">
@@ -1796,7 +1884,7 @@
                                 </div>
 
                                 <!-- Hidden select for backward compatibility -->
-                                <select id="selInterfaces" style="display: none;">
+                                <select id="selInterfaces" class="d-none">
                                     <?php PopulateInterfaces($uiLevel, $configDirectory); ?>
                                 </select>
 
@@ -2354,6 +2442,16 @@
                         <strong>Note: In FPP 10, interface names are no longer changed to
                             "enx&lt;mac&gt;" style names when persistent names are enabled &mdash; they
                             keep their existing eth0 / eth1 names.</strong>
+                    </div>
+                </div>
+                <div id="dialog-deleteinterface" title="Delete Interface" class="hidden">
+                    <p>Delete the saved FPP configuration for <strong id="deleteInterfaceName"></strong>?</p>
+                    <p>This removes the interface's settings, any static DHCP leases and any cached
+                        wifi scan for it. It does not remove hardware &mdash; only interfaces that are
+                        not currently present on this system can be deleted.</p>
+                    <div class="fpp-alert fpp-alert--warning fpp-alert--compact" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Restart Network (or reboot) afterwards to apply the change.</strong>
                     </div>
                 </div>
                 <div id="dialog-addinterface" title="Add New Interface" class="hidden">

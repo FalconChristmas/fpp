@@ -96,6 +96,7 @@ dispatch_get('/network/interface/:interface', 'network_get_interface');
 dispatch_get('/network/interface/add/:interface', 'network_add_interface');
 dispatch_post('/network/interface/:interface', 'network_set_interface');
 dispatch_post('/network/interface/:interface/apply', 'network_apply_interface');
+dispatch_delete('/network/interface/:interface', 'network_delete_interface');
 
 dispatch_delete('/network/presisentNames', 'network_persistentNames_delete');
 dispatch_post('/network/presisentNames', 'network_persistentNames_create');

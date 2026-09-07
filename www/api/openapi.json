@@ -143,6 +143,9 @@
     },
     {
       "name": "variables"
+    },
+    {
+      "name": "videoinput"
     }
   ],
   "paths": {
@@ -825,6 +828,28 @@
                   "type": "string",
                   "format": "binary"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cape/eeprom/vendors": {
+      "get": {
+        "tags": [
+          "cape"
+        ],
+        "summary": "Get the downloadable EEPROM lists of every known cape vendor",
+        "description": "Fetches the vendor index from fpp-data and then each vendor's own list, all server-side, so the browser makes one same-origin request.  Doing this from the browser needed every vendor host in the CSP connect-src AND sending CORS headers, and most vendor hosts do neither (issue seen with a vendor list hosted on the bare domain while the CSP carried the www. form).  The eeprom file itself was already downloaded server-side by upgradeCapeFirmware.",
+        "responses": {
+          "200": {
+            "description": "Vendor lists, each in the vendor's own file format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "{\"vendors\": [{\"name\": \"...\", \"url\": \"...\", \"capes\": {...}}], \"errors\": [\"...\"]}"
               }
             }
           }
@@ -4004,6 +4029,41 @@
           }
         }
       ],
+      "delete": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Delete a network interface configuration",
+        "description": "Removes the saved configuration for `{interface}` -- `config/interface.<name>` plus any static-lease file and cached wifi scan. The generated `/etc/systemd/network/10-<name>.network` is left in place for `setupNetwork` to reap (it already removes any file it no longer needs, and disables the matching `wpa_supplicant",
+        "responses": {
+          "200": {
+            "description": "Interface configuration deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "deleted": [
+                    "interface.eth9"
+                  ],
+                  "restartNetwork": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid interface name"
+          },
+          "404": {
+            "description": "No saved configuration for that interface"
+          },
+          "409": {
+            "description": "Interface is present hardware, or is serving this request"
+          }
+        }
+      },
       "get": {
         "tags": [
           "network"
@@ -4813,6 +4873,78 @@
         "responses": {
           "200": {
             "description": "Object with the `autoCreate` flag."
+          }
+        }
+      }
+    },
+    "/api/pipewire/aes67/sdp": {
+      "get": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Get the SDP session descriptions for the configured AES67 send streams",
+        "description": "Returns one entry per send instance, each carrying the RFC 4566 session description fppd is announcing for it.  Intended for handing a stream to a tool that cannot see FPP's SAP announcements -- Stream Monitor (https://aes67.app), VLC, or an analyser on another VLAN.",
+        "responses": {
+          "200": {
+            "description": "Session descriptions for every send instance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "streams": [
+                    {
+                      "instanceId": 1,
+                      "name": "AES67 Stream 1",
+                      "sessionName": "AES67 Stream 1",
+                      "enabled": true,
+                      "sapEnabled": true,
+                      "multicastIP": "239.69.0.1",
+                      "port": 5004,
+                      "channels": 2,
+                      "ptime": 4,
+                      "filename": "aes67_stream_1.sdp",
+                      "sdp": "v=0\r\n..."
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "fppd is not running, so there is no applied configuration to describe"
+          }
+        }
+      }
+    },
+    "/api/pipewire/aes67/sdp/{InstanceId}": {
+      "parameters": [
+        {
+          "name": "InstanceId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "pipewire"
+        ],
+        "summary": "Download one AES67 send stream as a .sdp file",
+        "description": "The same description as the endpoint above, served as application/sdp with a Content-Disposition filename so it can be saved and opened directly in VLC.  The web UI builds its download from the JSON; this exists so a stream can be pulled with curl from the machine running the monitor.",
+        "responses": {
+          "200": {
+            "description": "The .sdp file for that instance"
+          },
+          "404": {
+            "description": "No send instance with that id"
+          },
+          "503": {
+            "description": "fppd is not running"
           }
         }
       }
@@ -8118,6 +8250,33 @@
         }
       }
     },
+    "/api/system/fppd/restartStatus": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Get FPPD restart blocked status",
+        "description": "Returns whether FPPD is currently blocked from restarting due to systemd's StartLimitBurst (too many restarts in a short time) and how long to wait.",
+        "responses": {
+          "200": {
+            "description": "Restart blocked status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "blocked": true,
+                  "remainingSec": 87,
+                  "intervalSec": 200,
+                  "burst": 5
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/system/fppd/skipBootDelay": {
       "post": {
         "tags": [
@@ -8184,47 +8343,6 @@
                 },
                 "example": {
                   "status": "OK"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/system/fppd/restartStatus": {
-      "get": {
-        "tags": [
-          "system"
-        ],
-        "summary": "Get FPPD restart blocked status",
-        "description": "Returns whether FPPD is currently blocked from restarting due to systemd's StartLimitBurst (too many restarts in a short time) and how long to wait.",
-        "responses": {
-          "200": {
-            "description": "Restart blocked status",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "blocked": {
-                      "type": "boolean"
-                    },
-                    "remainingSec": {
-                      "type": "integer"
-                    },
-                    "intervalSec": {
-                      "type": "integer"
-                    },
-                    "burst": {
-                      "type": "integer"
-                    }
-                  }
-                },
-                "example": {
-                  "blocked": true,
-                  "remainingSec": 87,
-                  "intervalSec": 200,
-                  "burst": 5
                 }
               }
             }
@@ -8791,6 +8909,23 @@
           },
           "400": {
             "description": "Missing variable name in the path."
+          }
+        }
+      }
+    },
+    "/api/videoinput/preview": {
+      "get": {
+        "tags": [
+          "videoinput"
+        ],
+        "summary": "videoinput/preview",
+        "description": "Get a JPEG snapshot of a running video input source, for UI preview.",
+        "responses": {
+          "200": {
+            "description": "JPEG image of the most recent frame."
+          },
+          "503": {
+            "description": "Source is not running or produced no frame."
           }
         }
       }
