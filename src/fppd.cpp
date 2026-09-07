@@ -2040,13 +2040,18 @@ void PublishStatsForce(std::string reason) {
 }
 
 void PublishStatsBackground(std::string reason) {
-    // No need to publish more than once every 10 days if fppd is up that long
-    static auto lastPublish = std::chrono::system_clock::now() - std::chrono::hours(10 * 24);
+    // In-process rate limit only: it decides how often this daemon ASKS, not
+    // whether anything is sent.  The statistics route makes that call, because
+    // it is the side that can see the payload -- a restart publishes when the
+    // device's configuration signature has actually moved, and stays quiet when
+    // it has not.  That matters here because this counter resets on every
+    // restart, which is precisely how 91% of the stored corpus came to be
+    // restart records.
+    static auto lastPublish = std::chrono::system_clock::now() - std::chrono::hours(7 * 24);
     auto now_ts = std::chrono::system_clock::now();
     auto hours = std::chrono::duration_cast<std::chrono::hours>(now_ts - lastPublish);
 
-    // Check 10 days
-    if (hours.count() >= (10 * 24)) {
+    if (hours.count() >= (7 * 24)) {
         lastPublish = now_ts;
         if (getSetting("statsPublish") == "Enabled") {
             std::thread t(PublishStatsForce, reason);
@@ -2055,6 +2060,6 @@ void PublishStatsBackground(std::string reason) {
             LogInfo(VB_GENERAL, "Not Publishing statistics as mode is '%s'\n", getSetting("statsPublish").c_str());
         }
     } else {
-        LogDebug(VB_GENERAL, "PublishStats called, but not been 10 days yet.\n");
+        LogDebug(VB_GENERAL, "PublishStats called, but not been 7 days yet.\n");
     }
 }

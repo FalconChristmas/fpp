@@ -333,10 +333,213 @@ function stats_memory()
  * {"status": "OK", "uuid": "M2-xxxxxxxx-f67f-930d-56ee-7xxxxxxxxxx"}
  * ```
  */
+/**
+ * The parts of a statistics payload that describe how a device is CONFIGURED,
+ * as opposed to what it happens to be doing this second.
+ *
+ * This drives publish-on-change.  Everything excluded here is excluded because
+ * it moves on its own: CPU load, uptime, sensor temperatures, Wi-Fi signal,
+ * free memory, peer lastSeen timestamps.  If any of those were included the
+ * signature would differ on every boot, every restart would publish again, and
+ * nothing would report an error -- the fix would silently become the bug it
+ * replaced.
+ *
+ * It is an allowlist rather than everything-minus-a-denylist because the two
+ * fail in opposite directions.  A denylist that misses a new volatile field
+ * fails open and restores publish-on-every-restart; an allowlist that misses a
+ * new configuration field fails closed and delays that field's first report by
+ * at most the periodic interval.
+ *
+ * @param array $obj full payload from stats_generate()
+ * @return array the significant subset, canonically ordered
+ */
+function stats_significantSubset($obj)
+{
+    // Whole blocks that are configuration through and through.
+    $wholeBlocks = array(
+        'uuid', 'uuidSource', 'capeInfo', 'settings', 'plugins',
+        'outputProcessors', 'schedule', 'timezone', 'installAge', 'models',
+        'universe_input', 'output_panel', 'output_other',
+        'output_pixel_pi', 'output_pixel_bbb', 'output_pwm',
+    );
+    // Named keys from blocks that mix configuration with live state.
+    $partialBlocks = array(
+        'systemInfo' => array(
+            'platform', 'platformVariant', 'version', 'majorVersion',
+            'minorVersion', 'branch', 'osVersion', 'osRelease', 'Kernel',
+            'typeId', 'channelRanges', 'wifiInterfaceCount', 'fppdMode',
+        ),
+        // Deliberately not 'wifi' (signal levels move constantly).  The
+        // interface block itself is filtered below -- it is a map, not a list.
+        'network' => array('stack'),
+    );
+
+    $rc = array();
+    foreach ($wholeBlocks as $key) {
+        if (isset($obj[$key])) {
+            $rc[$key] = $obj[$key];
+        }
+    }
+    foreach ($partialBlocks as $block => $keys) {
+        if (!isset($obj[$block]) || !is_array($obj[$block])) {
+            continue;
+        }
+        foreach ($keys as $key) {
+            if (isset($obj[$block][$key])) {
+                $rc[$block][$key] = $obj[$block][$key];
+            }
+        }
+    }
+
+    // Per-interface: link state and address families are configuration; nothing
+    // else in there is.
+    if (isset($obj['network']['interfaces']) && is_array($obj['network']['interfaces'])) {
+        foreach ($obj['network']['interfaces'] as $name => $iface) {
+            foreach (array('operstate', 'ipv4', 'ipv6', 'config') as $key) {
+                if (isset($iface[$key])) {
+                    $rc['network']['interfaces'][$name][$key] = $iface[$key];
+                }
+            }
+        }
+    }
+
+    // output_e131 minus `targets`.  The rest of the block is read straight from
+    // co-universes.json, but `targets` splits destinations into discovered and
+    // undiscovered, which depends on what answered discovery this boot -- the
+    // same peer churn that keeps `multisync` out of here.
+    if (isset($obj['output_e131']) && is_array($obj['output_e131'])) {
+        foreach ($obj['output_e131'] as $key => $value) {
+            if ($key !== 'targets') {
+                $rc['output_e131'][$key] = $value;
+            }
+        }
+    }
+
+    // Deliberately absent, and each for a stated reason:
+    //   multisync, multisyncShape -- the peer set churns as other devices boot,
+    //     and at the start of a season every box on a show would see it move.
+    //   sequenceShape, files -- move whenever media is added, which is real but
+    //     frequent; the periodic publish picks them up.
+    //   memory, systemInfo.utilization/sensors/fppdUptimeSeconds, network.wifi
+    //     -- live state, different every second.
+    //   statsReason -- describes the upload, not the device.
+
+    stats_ksortRecursive($rc);
+    return $rc;
+}
+
+/**
+ * Sorts keys at every level so an unchanged configuration always serialises
+ * identically.  Without this a reordered map hashes differently and publishes
+ * for no reason.
+ */
+function stats_ksortRecursive(&$arr)
+{
+    if (!is_array($arr)) {
+        return;
+    }
+    foreach ($arr as &$v) {
+        stats_ksortRecursive($v);
+    }
+    unset($v);
+    // Only sort maps; reordering a list would change its meaning.
+    if (count($arr) && count(array_filter(array_keys($arr), 'is_string'))) {
+        ksort($arr);
+    }
+}
+
+/**
+ * Signature of the configuration described by a payload.
+ *
+ * @param array $obj full payload
+ * @return string 64 hex characters
+ */
+function stats_significantHash($obj)
+{
+    return hash('sha256', json_encode(stats_significantSubset($obj)));
+}
+
+/**
+ * Where the last publish's time and signature are remembered.
+ */
+function stats_publishStateFile()
+{
+    global $settings;
+    return $settings['configDirectory'] . "/stats_publish_state.json";
+}
+
+function stats_readPublishState()
+{
+    $f = stats_publishStateFile();
+    if (is_readable($f)) {
+        $state = json_decode(file_get_contents($f), true);
+        if (is_array($state)) {
+            return $state;
+        }
+    }
+    return array();
+}
+
+function stats_writePublishState($hash)
+{
+    $f = stats_publishStateFile();
+    @file_put_contents($f, json_encode(array(
+        "lastPublish" => time(),
+        "hash" => $hash,
+    )), LOCK_EX);
+}
+
+/**
+ * How often a device publishes when nothing about it has changed.
+ */
+define('STATS_PUBLISH_INTERVAL_DAYS', 7);
+
+/**
+ * Decides whether a publish is warranted, and publishes if so.
+ *
+ * fppd asks on start and then periodically.  Answering "yes" every time is what
+ * made 91% of the stored corpus restart records -- a timestamped power-on log
+ * per household that answers no question the project asks.  Answering "no" to
+ * every restart would be worse in the other direction: a cape swap, an output
+ * change or an upgrade would go unreported for a week while the stored record
+ * said something untrue.
+ *
+ * So the trigger is content.  A restart publishes when the configuration
+ * signature has moved, and stays quiet when it has not; a device that never
+ * changes still checks in on the periodic interval.
+ */
 function stats_publish_stats_file()
 {
     global $settings;
+    global $_GET;
+
+    // Consent gate.  This route is unauthenticated and CSRF-free by design, so
+    // without this a cross-origin form POST from any page the user visits would
+    // upload the payload after they had opted out.  The check used to live only
+    // in fppd.
+    if (!isset($settings['statsPublish']) || $settings['statsPublish'] !== 'Enabled') {
+        return json(array("status" => "disabled"));
+    }
+
+    $force = isset($_GET['force']) && $_GET['force'];
     $jsonString = stats_get_last_file();
+    $payload = json_decode($jsonString, true);
+    $hash = is_array($payload) ? stats_significantHash($payload) : '';
+
+    if (!$force) {
+        $state = stats_readPublishState();
+        $unchanged = ($hash !== '' && isset($state['hash']) && $state['hash'] === $hash);
+        $lastPublish = isset($state['lastPublish']) ? intval($state['lastPublish']) : 0;
+        $elapsed = time() - $lastPublish;
+        $due = ($elapsed >= (STATS_PUBLISH_INTERVAL_DAYS * 24 * 60 * 60));
+
+        if ($unchanged && !$due) {
+            return json(array(
+                "status" => "skipped",
+                "reason" => "configuration unchanged since last publish",
+            ));
+        }
+    }
 
     $ch = curl_init($settings['statsPublishUrl']);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -345,10 +548,19 @@ function stats_publish_stats_file()
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 800);
     curl_setopt($ch, CURLOPT_TIMEOUT_MS, 3000);
     // execute!
-    $response = json_decode(curl_exec($ch));
+    $raw = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $response = json_decode($raw);
 
     // close the connection, release resources used
     curl_close($ch);
+
+    // Only remember it if it actually landed, or a failed upload would suppress
+    // the retry for a week.
+    if ($raw !== false && $httpCode >= 200 && $httpCode < 300 && $hash !== '') {
+        stats_writePublishState($hash);
+    }
+
     return json($response);
 }
 
