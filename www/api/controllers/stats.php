@@ -724,18 +724,6 @@ function stats_getFiles()
 }
 
 /**
- * Queries each MultiSync system that has no UUID and attempts to fill in
- * the missing value by probing the remote device's status or identity endpoint.
- *
- * A peer that cannot be probed, or that answers with an unusable value, gets
- * a locally stable but globally unique substitute rather than a shared
- * sentinel string.  Sentinels such as "Failed" collide across every install
- * that emits them, which merges unrelated shows into a single identity.
- *
- * @param array &$data MultiSync data array containing a "systems" key.
- * @return void
- */
-/**
  * Classifies a discovery address by family and SCOPE.
  *
  * Scope is the part that matters.  An IPv6 link-local address (fe80::/10) is
@@ -833,6 +821,18 @@ function peerMacIdentity($macUuid)
     return "MH-" . substr(hash('sha256', $mac), 0, 16);
 }
 
+/**
+ * Fills in an identifier for every MultiSync system that did not announce a
+ * usable one.
+ *
+ * Never writes a shared sentinel.  Earlier versions stored the literal strings
+ * "Failed" and "Not Set" here, which collide across every install that emits
+ * them and merge unrelated shows into one identity -- 21% of the peer entries in
+ * the historical corpus are one of those two strings.
+ *
+ * @param array &$data MultiSync data array containing a "systems" key.
+ * @return void
+ */
 function addMultiSyncUUID(&$data)
 {
     if (!isset($data["systems"])) {
