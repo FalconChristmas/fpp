@@ -1070,7 +1070,10 @@ static CapeSettingAction capeMaySetSetting(const std::vector<std::string>& lines
     // already maximal. A ratchet against a bad baseline inherits the badness.
     // Art 25(2) asks for the protective value, not the incumbent one.
     if (proposed > 0) {
-        why = "it transmits, and this jurisdiction requires prior opt-in";
+        // Phrased without a subject: this reaches the boot log one setting at a
+        // time, and the setup wizard groups several settings under one reason.
+        // "it transmits" read wrong against a list of three.
+        why = "this jurisdiction requires prior opt-in before a device may transmit";
         return CapeSettingAction::Refuse;
     }
     return CapeSettingAction::Apply;

@@ -697,13 +697,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                 }
             }
 
-            var refusedKeys = [];
-            $.each(capeRefusals, function (key) { refusedKeys.push(key); });
-            if (refusedKeys.length > 0) {
+            // Group by reason rather than listing keys against the first one:
+            // several settings usually share a reason, and naming a reason that
+            // does not apply to every key listed is worse than saying nothing.
+            var byReason = {};
+            $.each(capeRefusals, function (key, why) {
+                if (!byReason[why]) { byReason[why] = []; }
+                byReason[why].push(key);
+            });
+            var parts = [];
+            $.each(byReason, function (why, keys) {
+                var list = keys.length > 1
+                    ? keys.slice(0, -1).join(', ') + ' and ' + keys[keys.length - 1]
+                    : keys[0];
+                parts.push('<b>' + list + '</b> ' + (keys.length > 1 ? 'were' : 'was') +
+                    ' not applied because ' + why + '.');
+            });
+            if (parts.length > 0) {
                 $('#capeRefusedNote').removeClass('d-none').html(
-                    'Your cape suggested a value for ' + refusedKeys.join(', ') +
-                    ', which was not applied: ' + capeRefusals[refusedKeys[0]] +
-                    '.  You can still set it yourself.');
+                    'Your cape suggested settings for this player.  ' + parts.join('  ') +
+                    '  You can still choose them yourself below.');
             } else {
                 $('#capeRefusedNote').addClass('d-none').html('');
             }
