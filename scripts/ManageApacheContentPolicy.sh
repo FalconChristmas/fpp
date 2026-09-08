@@ -16,7 +16,7 @@ JSON_FILE=$MEDIADIR"/config/csp_allowed_domains.json"
 # Default key values hard-coded to include in all configs
 declare -A DEFAULT_VALUES
 DEFAULT_VALUES=( 
-    ["default-src"]="'self' http://www.w3.org"
+    ["default-src"]="'self'"
     # No ipapi.co here on purpose: the timezone/geolocation lookup is fetched
     # by api/geoip (see api/controllers/geoip.php) and handed back from this
     # device, so the browser never contacts ipapi.co and never needed the
@@ -27,7 +27,7 @@ DEFAULT_VALUES=(
     # PayPal was here only for a 1x1 tracking pixel in the donate form, which is
     # gone. The donate button is an inline SVG and the donate action is a plain
     # form POST, so no PayPal image is loaded and nothing needs to be allowed.
-    ["img-src"]="'self' blob: data: http://www.w3.org"
+    ["img-src"]="'self' blob: data:"
     ["script-src"]="'self' 'unsafe-inline' 'unsafe-eval' https://api.falconplayer.com"
     ["style-src"]="'self' 'unsafe-inline'"
     # Local-only on purpose.  FPP controllers are often
