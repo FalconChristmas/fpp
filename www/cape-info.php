@@ -1017,7 +1017,27 @@ if (isset($settings["cape-info"])) {
                                                             } else if (($channelOutputDriver == 'BBB48String') || ($channelOutputDriver == 'DPIPixels') || ($channelOutputDriver == 'BBShiftString')) {
                                                                 echo "<tr><td><b>Licensed&nbsp;Outputs:</b></td><td>None, cape EEPROM is not signed.</td></tr>";
                                                             }
-                                                            if ($channelOutputDriver != '') {
+                                                            // The channel output driver is a fact about how THIS BOX is
+                                                            // configured to drive pixels, not about the cape -- it is read
+                                                            // from the pixel string config, which exists whether or not a
+                                                            // cape is involved and even when the output is disabled.  On a
+                                                            // cape that drives nothing (an audio/OLED/RTC hat declaring
+                                                            // "provides": []) attributing it here is simply wrong, and it
+                                                            // was: one reported "Output Driver: BBB48String" on a Pi.
+                                                            //
+                                                            // Licensed Outputs above is deliberately NOT gated the same
+                                                            // way: it describes the cape's own signature, which
+                                                            // getLicensedOutputs() applies to whatever driver the box does
+                                                            // run, so it stays meaningful for a cape with no outputs.
+                                                            $capeDrivesOutputs = true;
+                                                            if (isset($currentCapeInfo['provides']) && is_array($currentCapeInfo['provides'])) {
+                                                                // Absent means unknown, so keep reporting; an explicit list
+                                                                // that names no outputs means it really has none.
+                                                                $capeDrivesOutputs = count(array_intersect(
+                                                                    array('strings', 'panels', 'pwm'),
+                                                                    $currentCapeInfo['provides'])) > 0;
+                                                            }
+                                                            if ($channelOutputDriver != '' && $capeDrivesOutputs) {
                                                                 echo "<tr><td><b>Output&nbsp;Driver:</b></td><td>" . $channelOutputDriver . "</td></tr>";
                                                             }
                                                             if (((!isset($currentCapeInfo['verifiedKeyId'])) || ($currentCapeInfo['verifiedKeyId'] == 'fp')) && isset($currentCapeInfo['eepromLocation'])) {

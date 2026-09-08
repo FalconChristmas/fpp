@@ -144,12 +144,21 @@ function readCapes($cd, $capes)
         StreamURL('upgradeCapeFirmware.php?resetDefaults=true&filename=' + filename, 'InstallVirtualEEPROMText', 'InstallFirmwareDone', 'InstallFirmwareDone', 'GET', null, false, false);
     }
 
+    // Fallback driver for a cape that declares none of its own.
+    //
+    // BBB48String is a BeagleBone driver and libfpp-co-BBB48String.so is not
+    // built for the Pi, so falling back to it there wrote a config naming a
+    // driver that cannot load: ChannelOutputSetup has no remap for it, and an
+    // enabled output would fail with "Plugin NOT found for type: BBB48String".
+    // A Pi drives pixel strings with DPIPixels.
+    var DEFAULT_STRING_DRIVER = <?= json_encode($settings['Platform'] == 'Raspberry Pi' ? 'DPIPixels' : 'BBB48String') ?>;
+
     function MapPixelStringType(type) {
         var subType = GetPixelStringCapeFileNameForSubType(type);
         if (KNOWN_CAPES[subType] && KNOWN_CAPES[subType].driver) {
             return KNOWN_CAPES[subType].driver;
         }
-        return "BBB48String";
+        return DEFAULT_STRING_DRIVER;
     }
     function MapPixelStringSubType(type) {
         return type;
@@ -2745,7 +2754,7 @@ function readCapes($cd, $capes)
         var defaultData = {};
         defaultData.channelOutputs = [];
         var output = {};
-        output.type = 'BBB48String';
+        output.type = DEFAULT_STRING_DRIVER;
         <?
         if (isset($capes["F8-B"])) {
             echo 'output.subType = "F8-B";';
