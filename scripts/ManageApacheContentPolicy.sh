@@ -25,12 +25,10 @@ DEFAULT_VALUES=(
     ["img-src"]="'self' blob: data: http://www.w3.org"
     ["script-src"]="'self' 'unsafe-inline' 'unsafe-eval' https://api.falconplayer.com"
     ["style-src"]="'self' 'unsafe-inline'"
-    # https://fonts.scalar.com: the Scalar API docs viewer (www/api/api.html)
-    # loads its Inter/mono webfonts from there. Missing since Scalar was
-    # integrated (9bab76c81) -- confirmed live via 14 blocked font-src
-    # violations on /api/, silently falling back to the system font instead
-    # of erroring visibly.
-    ["font-src"]="'self' data: https://fonts.scalar.com"
+    # Local-only on purpose.  FPP controllers are often
+    # on isolated show networks with no route to the internet anyway, where an
+    # external font is a hang waiting to time out rather than a font.
+    ["font-src"]="'self' data:"
 )
 
 # local JSON template content

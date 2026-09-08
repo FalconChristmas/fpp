@@ -1,5 +1,0 @@
-- [Getting Started](getting-started.md)
-- [Advanced Usage](advanced-usage.md)
-- [Migration Guide](migration.md)
-- [Legacy V2 Docs](v2/)
-- [Visit Github Repo](https://github.com/zerodevx/zero-md)
