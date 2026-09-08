@@ -760,8 +760,9 @@
                 devWarn = '<div class="fpp-major-callout mb-2"><i class="fas fa-user-gear"></i>' +
                     '<span>Installing a plugin from a URL is intended for <b>plugin developers</b> ' +
                     'testing their own plugin while developing it. It runs <b>whatever code is found at that ' +
-                    'URL</b>, with full access to this device <b>and to anything else on the network FPP is ' +
-                    'connected to</b>. This is inherently dangerous. If you are not a developer, we recommend ' +
+                    'URL</b> as <b>root</b>, with full access to this device &mdash; including every ' +
+                    'setting, the privacy settings among them &mdash; <b>and to anything else on the ' +
+                    'network FPP is connected to</b>. This is inherently dangerous. If you are not a developer, we recommend ' +
                     'you <b>do not</b> install this ' +
                     'plugin.</span></div>';
             if (data && IsOfficialPlugin(data)) {
@@ -799,8 +800,9 @@
             if (!devWarn) {
                 body += '<div class="fpp-inline-warn mb-2"><i class="fas fa-exclamation-triangle"></i>' +
                     '<span>Installing <b>' + EscapeHtml(name) + '</b> runs ' +
-                    '<b>third-party, untrusted code</b> on your FPP. It has full access to this device <b>and to ' +
-                    'anything else on the network FPP is connected to</b>. This is inherently dangerous unless you ' +
+                    '<b>third-party, untrusted code</b> on your FPP <b>as root</b>. It can read and change ' +
+                    'any setting, including the privacy settings, <b>and reach anything else on the ' +
+                    'network FPP is connected to</b>. This is inherently dangerous unless you ' +
                     'trust the plugin\'s author. The FPP project <b>does not test, vet, or guarantee the quality or ' +
                     'safety</b> of plugins &mdash; install at your own risk, and only from authors you trust. The ' +
                     '<span class="badge text-bg-graceful"><i class="fas fa-certificate"></i> Official</span> badge marks ' +
@@ -2402,6 +2404,19 @@
             <div class="pageContent">
 
                 <div id="plugins" class="settings">
+
+                    <!-- BP-09. The install dialogs below cover third-party and
+                         URL-pasted plugins, but an Official plugin installs with no
+                         dialog at all, so the one fact that is true of EVERY plugin
+                         has to be stated somewhere that is always on screen. It is
+                         not a warning about any particular plugin and deliberately
+                         does not read like one. -->
+                    <div class="alert alert-secondary small py-2 mb-3" id="pluginPrivilegeNote">
+                        <i class="fas fa-circle-info"></i>
+                        Every plugin, official or not, runs with <b>root privileges</b> on this
+                        player &mdash; it can read and change any setting, including the privacy
+                        settings, and reach anything else on the network FPP is connected to.
+                    </div>
 
                     <div class='plugindiv'>
                         <!-- Desktop: tabs on the left, find box on the right of the same row.
