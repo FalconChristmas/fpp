@@ -968,6 +968,10 @@ static std::string inferJurisdiction(const std::vector<std::string>& lines, cons
     return best;
 }
 
+// Set only for a dry run, so the wizard can ask "what if the answer were X"
+// before the answer has been written anywhere.
+static std::string g_jurisdictionOverride;
+
 static bool priorOptInRequired(const std::vector<std::string>& lines) {
     Json::Value cfg;
     if (!LoadJsonFromFile(JURISDICTIONS_FILE, cfg, CapeJsonRoot::Object)) {
@@ -979,7 +983,8 @@ static bool priorOptInRequired(const std::vector<std::string>& lines) {
         return true;
     }
     bool dflt = cfg.get("priorOptInDefault", false).asBool();
-    std::string j = inferJurisdiction(lines, cfg);
+    std::string j = g_jurisdictionOverride.empty() ? inferJurisdiction(lines, cfg)
+                                                   : g_jurisdictionOverride;
     if (j.empty() || !cfg["jurisdictions"].isMember(j)) {
         return dflt;
     }
@@ -1014,9 +1019,19 @@ static bool transmitRank(const std::string& key, const std::string& value, int& 
 //   - always, if the key is not ranked telemetry
 //   - otherwise only where the jurisdiction permits a transmitting default, or
 //     where the proposed value transmits no more than the shipped default
-static bool capeMaySetSetting(const std::vector<std::string>& lines, const std::string& key,
-                              const std::string& value, bool strict, std::string& why,
-                              bool userRequestedReset = false) {
+// Three outcomes, not two. "Already set to something else" is worth saying out
+// loud -- the cape wanted one thing and the box has another. "Already set to
+// exactly this" is not: there is no conflict, nothing to change, and warning
+// about it just trains people to ignore the log.
+enum class CapeSettingAction {
+    Apply,
+    SkipUnchanged,
+    Refuse
+};
+
+static CapeSettingAction capeMaySetSetting(const std::vector<std::string>& lines, const std::string& key,
+                                           const std::string& value, bool strict, std::string& why,
+                                           bool userRequestedReset = false) {
     // Never-override protects the user from the CAPE deciding. It is not meant to
     // stop the user deciding: `fppcapedetect -force-defaults` is what the "reset
     // to defaults" action in the firmware-upgrade UI passes, so there the
@@ -1026,16 +1041,24 @@ static bool capeMaySetSetting(const std::vector<std::string>& lines, const std::
     // The telemetry ratchet below still applies either way. Asking to reset
     // defaults is not a jurisdiction changing, and Art 25(2) does not bend
     // because somebody clicked a button.
-    if (settingIsSet(lines, key) && !userRequestedReset) {
-        why = "the user has already set it";
-        return false;
+    if (settingIsSet(lines, key)) {
+        if (readSettingValue(lines, key) == value) {
+            // Nothing to do and nothing to report, whether or not a reset was
+            // asked for -- rewriting a value with itself would only mark the
+            // settings file dirty and cause a needless write.
+            return CapeSettingAction::SkipUnchanged;
+        }
+        if (!userRequestedReset) {
+            why = "the user has set it to something else";
+            return CapeSettingAction::Refuse;
+        }
     }
     int proposed = 0;
     if (!transmitRank(key, value, proposed)) {
-        return true;
+        return CapeSettingAction::Apply;
     }
     if (!strict) {
-        return true;
+        return CapeSettingAction::Apply;
     }
     // Under a prior-opt-in regime the only default a cape may set is one that
     // transmits nothing: rank 0.
@@ -1048,9 +1071,9 @@ static bool capeMaySetSetting(const std::vector<std::string>& lines, const std::
     // Art 25(2) asks for the protective value, not the incumbent one.
     if (proposed > 0) {
         why = "it transmits, and this jurisdiction requires prior opt-in";
-        return false;
+        return CapeSettingAction::Refuse;
     }
-    return true;
+    return CapeSettingAction::Apply;
 }
 
 class CapeInfo {
@@ -1541,7 +1564,8 @@ private:
                         // telemetry setting can mean transmitting MORE than the user
                         // had. Judge it exactly as a write of that default would be.
                         std::string why;
-                        if (!capeMaySetSetting(lines, v, "", strictPrivacy, why)) {
+                        if (capeMaySetSetting(lines, v, "", strictPrivacy, why) ==
+                            CapeSettingAction::Refuse) {
                             printf("CapeUtils: cape may not remove setting %s: %s\n",
                                    v.c_str(), why.c_str());
                             continue;
@@ -1563,7 +1587,14 @@ private:
                             // changes that -- it exists so a cape can refresh its
                             // OWN defaults, not to overrule the person using it.
                             std::string why;
-                            if (!capeMaySetSetting(lines, a, v, strictPrivacy, why, forceDefaults)) {
+                            CapeSettingAction action =
+                                capeMaySetSetting(lines, a, v, strictPrivacy, why, forceDefaults);
+                            if (action == CapeSettingAction::SkipUnchanged) {
+                                // Already exactly this. Silent: there is nothing to
+                                // change and nothing to disagree about.
+                                continue;
+                            }
+                            if (action == CapeSettingAction::Refuse) {
                                 printf("CapeUtils: cape may not set %s=%s: %s\n",
                                        a.c_str(), v.c_str(), why.c_str());
                                 continue;
@@ -2086,6 +2117,66 @@ CapeInfo* CapeUtils::initCapeInfo(bool ro, bool forceDefaults) {
 
 CapeUtils::CapeStatus CapeUtils::initCape(bool readOnly, bool forceDefaults) {
     return initCapeInfo(readOnly, forceDefaults)->capeStatus();
+}
+
+std::string CapeUtils::dryRunSettings(const std::string& jurisdiction) {
+    // Read-only construction already writes nothing -- no settings file, no boot
+    // config, no file copies, no CSP changes -- so the dry run is that path plus
+    // the defaultSettings evaluation the read-only path skips.
+    g_jurisdictionOverride = jurisdiction;
+    const Json::Value& info = initCapeInfo(true)->getCapeInfo();
+
+    std::vector<std::string> lines;
+    {
+        std::string line;
+        std::ifstream in("/home/fpp/media/settings");
+        while (std::getline(in, line)) {
+            if (!line.empty()) {
+                lines.push_back(line);
+            }
+        }
+    }
+    bool strict = priorOptInRequired(lines);
+
+    Json::Value out(Json::objectValue);
+    Json::Value settings(Json::objectValue);
+    Json::Value refused(Json::objectValue);
+    if (info.isMember("defaultSettings")) {
+        for (const auto& key : info["defaultSettings"].getMemberNames()) {
+            std::string value = info["defaultSettings"][key].asString();
+            std::string why;
+            // The same predicate a real run uses. Anything the user has already
+            // set is refused here exactly as it would be there, which is why a
+            // non-privacy default applied at boot does not come back: it is set.
+            switch (capeMaySetSetting(lines, key, value, strict, why)) {
+            case CapeSettingAction::Apply:
+                settings[key] = value;
+                break;
+            case CapeSettingAction::Refuse:
+                refused[key] = why;
+                break;
+            case CapeSettingAction::SkipUnchanged:
+                // Neither proposed nor refused: the box already holds exactly this
+                // value, so the wizard has nothing to offer and nothing to explain.
+                break;
+            }
+        }
+    }
+    out["jurisdiction"] = jurisdiction;
+    out["priorOptIn"] = strict;
+    out["settings"] = settings;
+    out["refused"] = refused;
+
+    g_jurisdictionOverride.clear();
+
+    // Compact, single line, and printed last. Cape detection writes progress to
+    // stdout throughout -- signature results, extracted files -- so a
+    // pretty-printed object would be interleaved with it and unparseable. One
+    // line means the caller can take the last non-empty line of output and be
+    // done, which is what the wizard's PHP wrapper does.
+    Json::StreamWriterBuilder wbuilder;
+    wbuilder["indentation"] = "";
+    return Json::writeString(wbuilder, out);
 }
 
 bool CapeUtils::hasFile(const std::string& path) {

@@ -36,6 +36,21 @@ public:
 
     CapeStatus initCape(bool readOnly = true, bool forceDefaults = false);
 
+    // Ask what an EEPROM's defaultSettings WOULD do under a given privacy
+    // jurisdiction, without doing any of it.
+    //
+    // The setup wizard needs this because cape detection runs at boot, before
+    // anyone has been asked where they are, so a cape's telemetry defaults are
+    // held rather than applied. Once the user answers, the wizard needs to know
+    // which of those are now permitted -- and it must find out without writing to
+    // the settings file, because nothing in that page is persisted until the user
+    // finishes it.
+    //
+    // Returns a JSON object of the settings a real run would apply. Anything the
+    // user has already set is absent, because a cape never overrides that.
+    // Writes nothing: no settings, no boot config, no file copies, no CSP.
+    std::string dryRunSettings(const std::string& jurisdiction);
+
     const Json::Value& getCapeInfo();
     bool hasFile(const std::string& path);
     std::vector<uint8_t> getFile(const std::string& path);

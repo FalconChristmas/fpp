@@ -21,6 +21,8 @@
 
 #include "CapeUtils.h"
 
+#include <string>
+
 int remove_recursive(const char* const path, bool removeThis = true) {
     DIR* const directory = opendir(path);
     if (directory) {
@@ -58,6 +60,8 @@ int main(int argc, char* argv[]) {
         bool readonly = false;
         bool noperms = false;
         bool forceDefaults = false;
+        bool dryRun = false;
+        std::string jurisdiction;
         for (int i = 1; i < argc; i++) {
             if (!strcmp(argv[i], "-ro")) {
                 readonly = true;
@@ -65,7 +69,25 @@ int main(int argc, char* argv[]) {
                 noperms = true;
             } else if (!strcmp(argv[i], "-force-defaults")) {
                 forceDefaults = true;
+            } else if (!strcmp(argv[i], "-dry-run") || !strcmp(argv[i], "-settings-only")) {
+                // Both spellings select the same thing: report what defaultSettings
+                // would do and change nothing. -settings-only names the part of a
+                // real run that is being simulated; -dry-run names the fact that it
+                // is a simulation.
+                dryRun = true;
+            } else if (!strncmp(argv[i], "-regime=", 8)) {
+                jurisdiction = argv[i] + 8;
             }
+        }
+
+        // The setup wizard's entry point. Cape detection runs at boot, before
+        // anyone has been asked where they are, so a cape's telemetry defaults are
+        // held. Once step one of the wizard is answered this reports which of them
+        // the answer permits -- without writing anything, because nothing in that
+        // page is persisted until the user finishes it.
+        if (dryRun) {
+            printf("%s\n", CapeUtils::INSTANCE.dryRunSettings(jurisdiction).c_str());
+            return 0;
         }
 
         // Clearing this is part of REGENERATING it, so it must not happen in a
