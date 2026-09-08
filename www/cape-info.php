@@ -25,22 +25,6 @@ if (!file_exists($eepromFile)) {
     $eepromFile = '';
 }
 
-// Test to see if FPP can get to the signing API
-$curl = curl_init("https://$APIhost/js/internetTest.js");
-curl_setopt($curl, CURLOPT_HEADER, 0);
-curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 5);
-curl_setopt($curl, CURLOPT_TIMEOUT, 5);
-curl_setopt($curl, CURLOPT_USERAGENT, getFPPVersion());
-curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
-$request_content = curl_exec($curl);
-$rc = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
-curl_close($curl);
-
-if ($rc != 200) {
-    $offlineMode = 1;
-}
-
 $capeHardwareType = "Cape/Hat";
 $currentCapeInfo = array();
 if (isset($settings["cape-info"])) {
@@ -169,6 +153,32 @@ if (isset($settings["cape-info"])) {
     }
 }
 
+// Can this device reach the signing API?
+//
+// Only asked when the signing UI is actually going to be drawn. This used to run
+// on EVERY view of this page, before anything about the cape had been read --
+// so a player whose cape needs no signing (any cape not on a licensed output
+// driver, and any cape signed with a vendor key) still announced itself to
+// api.falconplayer.com every time somebody opened the page to see which cape
+// they had. $offlineMode is read only from inside `if ($printSigningUI)` blocks,
+// so nothing else wanted the answer.
+if ($printSigningUI) {
+    $curl = curl_init("https://$APIhost/js/internetTest.js");
+    curl_setopt($curl, CURLOPT_HEADER, 0);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 5);
+    curl_setopt($curl, CURLOPT_TIMEOUT, 5);
+    curl_setopt($curl, CURLOPT_USERAGENT, getFPPVersion());
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+    $request_content = curl_exec($curl);
+    $rc = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    curl_close($curl);
+
+    if ($rc != 200) {
+        $offlineMode = 1;
+    }
+}
+
 ?>
 
 <head>
@@ -176,7 +186,6 @@ if (isset($settings["cape-info"])) {
     include 'common/menuHead.inc';
     ?>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <script language='Javascript' src='https://<?= $APIhost ?>/js/internetTest.js?ref=<?php echo time(); ?>'></script>
     <script language="Javascript">
         // Define API host for use in JavaScript
         var apiHost = '<?php echo $APIhost; ?>';
@@ -887,19 +896,41 @@ if (isset($settings["cape-info"])) {
             }
         }
 
+        // Is the signing API reachable from THIS BROWSER?
+        //
+        // The device could not reach it (that is the only way we get here), but
+        // the browser may well be able to: a show network with no route out,
+        // administered from a laptop that has one, is an ordinary layout and the
+        // online signing UI works fine through it.
+        //
+        // This used to load https://<host>/js/internetTest.js as a <script> and
+        // check for a global it defined -- which meant executing code from
+        // another host, on every view of this page, in an admin UI that has no
+        // authentication by default. A reachability test does not need to run
+        // anybody's code: a no-cors fetch resolves when the host answered and
+        // rejects when it did not, which is the same yes/no. It also moves the
+        // host from script-src to connect-src, where it already was.
         function TestInternet() {
-            // This variable is defined in https://api.FalconPlayer.com/js/internetTest.js included above
-            if (typeof theInternetIsUp === 'undefined') {
-                // Do nothing here
-            } else {
-                // Show the online version of the signing UI
-                $('.internetOnly').show();
-            }
+            fetch('https://<?= $APIhost ?>/js/internetTest.js?ref=' + Date.now(),
+                { mode: 'no-cors', cache: 'no-store' })
+                .then(function () {
+                    // Opaque response: we cannot read it, and do not need to.
+                    $('.internetOnly').show();
+                })
+                .catch(function () {
+                    // Unreachable from here either -- leave the online blocks
+                    // hidden and let the user take the Offline Signing tab.
+                });
         }
 
         $(document).ready(function () {
             GetDownloadableEEPROMList();
-            setTimeout(function () { TestInternet(); }, 100);
+            <?php if ($printSigningUI && $offlineMode) { ?>
+                // Only when the signing UI is drawn AND the device itself could
+                // not reach the API. Otherwise there is nothing for the answer
+                // to change, and the page contacts nobody.
+                TestInternet();
+            <?php } ?>
         });
 
     </script>

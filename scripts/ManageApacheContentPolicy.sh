@@ -32,7 +32,12 @@ DEFAULT_VALUES=(
     # gone. The donate button is an inline SVG and the donate action is a plain
     # form POST, so no PayPal image is loaded and nothing needs to be allowed.
     ["img-src"]="'self' blob: data:"
-    ["script-src"]="'self' 'unsafe-inline' 'unsafe-eval' https://api.falconplayer.com"
+    # api.falconplayer.com was here for one <script> on the Cape Info page, whose
+    # only job was to define a global so the page could tell whether the browser
+    # could reach the signing API. That is now a no-cors fetch against the same
+    # host, which needs connect-src (where it already is) and executes nothing --
+    # so the UI no longer runs third-party code, and this allowance is dead.
+    ["script-src"]="'self' 'unsafe-inline' 'unsafe-eval'"
     ["style-src"]="'self' 'unsafe-inline'"
     # Local-only on purpose.  FPP controllers are often
     # on isolated show networks with no route to the internet anyway, where an
