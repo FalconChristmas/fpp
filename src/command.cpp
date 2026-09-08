@@ -41,6 +41,7 @@
 #include "commands/Commands.h"
 #include "mediaoutput/MediaOutputBase.h"
 #include "mediaoutput/MediaOutputStatus.h"
+#include "mediaoutput/RTSPOutputManager.h"
 #include "mediaoutput/VideoInputManager.h"
 #include "mediaoutput/VideoOutputManager.h"
 #include "mediaoutput/mediaoutput.h"
@@ -219,6 +220,11 @@ char* ProcessCommand(char* command, char* response) {
     } else if (!strcmp(CommandStr, "reloadVideoInputs")) {
         VideoInputManager::Instance().Reload();
         snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Video inputs reloaded,,,,,,,,,,\n", getFPPmode(), COMMAND_SUCCESS);
+#ifdef HAS_RTSP_OUTPUT_GSTREAMER
+    } else if (!strcmp(CommandStr, "reloadRTSPOutputs")) {
+        RTSPOutputManager::INSTANCE.ApplyConfig();
+        snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,RTSP outputs reloaded,,,,,,,,,,\n", getFPPmode(), COMMAND_SUCCESS);
+#endif
     } else if (!strcmp(CommandStr, "SetSetting")) {
         char name[128];
 

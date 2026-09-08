@@ -831,6 +831,19 @@
 				"!MacOS"
 			]
 		},
+		"PipeWireRTSPOutputs": {
+			"name": "PipeWireRTSPOutputs",
+			"description": "RTSP Video Outputs",
+			"tip": "Serve a video output, with its audio, as an RTSP stream that a player opens by URL. Unlike the RTP network outputs, no SDP file has to be copied to the receiver. The server listens on every interface without a password, like FPP's other network media outputs.",
+			"type": "modal",
+			"modalUrl": "pipewire-rtsp-outputs.php?modal=1",
+			"icon": "fas fa-satellite-dish",
+			"buttonText": "Configure RTSP Outputs",
+			"modalTitle": "RTSP Video Outputs",
+			"platforms": [
+				"!MacOS"
+			]
+		},
 		"PipeWireVideoInputSources": {
 			"name": "PipeWireVideoInputSources",
 			"description": "Video Input Sources",

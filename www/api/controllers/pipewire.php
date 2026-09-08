@@ -6596,6 +6596,137 @@ function GetAES67NetworkInterfaces()
 //  OPUS RTP MULTI-INSTANCE API
 /////////////////////////////////////////////////////////////////////////////
 
+// ─── RTSP video output ────────────────────────────────────────────────────
+//
+// Config JSON: $mediaDirectory/config/pipewire-rtsp-outputs.json
+// Read by RTSPOutputManager (src/mediaoutput/RTSPOutputManager.cpp), which
+// serves each mount as a muxed RTSP stream.
+
+function RTSPOutputsConfigFile()
+{
+    global $settings;
+    return $settings['mediaDirectory'] . "/config/pipewire-rtsp-outputs.json";
+}
+
+// GET /api/pipewire/rtspoutputs
+function GetRTSPOutputs()
+{
+    $configFile = RTSPOutputsConfigFile();
+    if (file_exists($configFile)) {
+        $data = json_decode(file_get_contents($configFile), true);
+        if ($data !== null) {
+            return json($data);
+        }
+    }
+    return json(array("enabled" => false, "port" => 8554, "mounts" => array()));
+}
+
+// POST /api/pipewire/rtspoutputs
+function SaveRTSPOutputs()
+{
+    $configFile = RTSPOutputsConfigFile();
+
+    $parsed = json_decode(file_get_contents('php://input'), true);
+    if ($parsed === null) {
+        http_response_code(400);
+        return json(array("status" => "ERROR", "message" => "Invalid JSON"));
+    }
+    if (!isset($parsed['mounts']) || !is_array($parsed['mounts'])) {
+        http_response_code(400);
+        return json(array("status" => "ERROR", "message" => "Missing mounts array"));
+    }
+
+    $out = array(
+        'enabled' => isset($parsed['enabled']) ? (bool) $parsed['enabled'] : false,
+        'port' => isset($parsed['port']) ? intval($parsed['port']) : 8554,
+        'mounts' => array(),
+    );
+    if ($out['port'] < 1024 || $out['port'] > 65535) {
+        $out['port'] = 8554;
+    }
+
+    $nextId = 1;
+    $seenMounts = array();
+    foreach ($parsed['mounts'] as $m) {
+        $id = isset($m['id']) ? intval($m['id']) : $nextId;
+        if ($id >= $nextId) {
+            $nextId = $id + 1;
+        }
+
+        // Keep the mount path to characters that cannot change the meaning of
+        // the URL. fppd normalises this too -- it must not trust a config file
+        // it did not write -- but fixing it here means the UI shows the user
+        // the path they will actually get.
+        $mount = preg_replace('/[^a-zA-Z0-9\/_-]/', '', isset($m['mountPoint']) ? $m['mountPoint'] : '');
+        if ($mount === '' || $mount === '/') {
+            $mount = '/stream' . $id;
+        }
+        if ($mount[0] !== '/') {
+            $mount = '/' . $mount;
+        }
+        // Two mounts on one path would silently shadow each other.
+        if (in_array($mount, $seenMounts)) {
+            $mount = rtrim($mount, '/') . '_' . $id;
+        }
+        $seenMounts[] = $mount;
+
+        $enc = isset($m['videoEncoding']) ? $m['videoEncoding'] : 'h264';
+        if (!in_array($enc, array('h264', 'h265', 'mjpeg'))) {
+            $enc = 'h264';
+        }
+
+        $entry = array(
+            'id' => $id,
+            'name' => !empty($m['name']) ? $m['name'] : 'RTSP Output ' . $id,
+            'enabled' => isset($m['enabled']) ? (bool) $m['enabled'] : true,
+            'mountPoint' => $mount,
+            'sourceNode' => isset($m['sourceNode']) ? $m['sourceNode'] : '',
+            'width' => isset($m['width']) ? intval($m['width']) : 1280,
+            'height' => isset($m['height']) ? intval($m['height']) : 720,
+            'framerate' => isset($m['framerate']) ? intval($m['framerate']) : 30,
+            'videoEncoding' => $enc,
+            'videoBitrate' => isset($m['videoBitrate']) ? intval($m['videoBitrate']) : 4000,
+            'audioEnabled' => isset($m['audioEnabled']) ? (bool) $m['audioEnabled'] : false,
+            'audioBitrate' => isset($m['audioBitrate']) ? intval($m['audioBitrate']) : 128000,
+        );
+        // Generated, not user-editable: an Audio Output Group targets this
+        // name, so it has to stay stable and unique per mount.
+        $entry['audioNodeName'] = 'fpp_rtsp_audio_' . $id;
+
+        $out['mounts'][] = $entry;
+    }
+
+    file_put_contents($configFile, json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    return json(array("status" => "OK"));
+}
+
+// POST /api/pipewire/rtspoutputs/apply
+//
+// The config file is the interface: fppd re-reads it on this command, the way
+// the video input and output pages apply their own changes.
+function ApplyRTSPOutputs()
+{
+    @SendCommand("reloadRTSPOutputs");
+    return json(array("status" => "OK"));
+}
+
+// GET /api/pipewire/rtspoutputs/status
+//
+// Live state from fppd: whether the server actually bound its port, and what
+// each mount is serving. Distinct from the config above, which is only what
+// was last saved.
+function GetRTSPOutputsStatus()
+{
+    $result = @file_get_contents('http://localhost:32322/rtspoutput/status');
+    if ($result !== false) {
+        $data = json_decode($result, true);
+        if ($data !== null) {
+            return json($data);
+        }
+    }
+    return json(array("active" => false, "mounts" => array(), "unavailable" => true));
+}
+
 // GET /api/pipewire/opusrtp/instances
 function GetOpusRTPInstances()
 {

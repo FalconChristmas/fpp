@@ -232,6 +232,17 @@ CFLAGS+=$(OPTIMIZE_FLAGS) -pipe \
 ifneq ($(wildcard /usr/include/gstreamer-1.0/gst/gst.h),)
 GSTREAMER_CFLAGS := $(shell pkg-config --cflags gstreamer-1.0 gstreamer-app-1.0 gstreamer-net-1.0)
 GSTREAMER_LIBS := $(shell pkg-config --libs gstreamer-1.0 gstreamer-app-1.0 gstreamer-net-1.0)
+
+# gst-rtsp-server, for the RTSP video output.  RTSPOutputManager.cpp keys off
+# __has_include(<gst/rtsp-server/rtsp-server.h>), so the flags key off the same
+# header: without it the RTSP output compiles out and everything else builds
+# exactly as before.  Folded into GSTREAMER_* before they reach CFLAGS so the
+# include paths, which overlap almost entirely, are only added once.
+ifneq ($(wildcard /usr/include/gstreamer-1.0/gst/rtsp-server/rtsp-server.h),)
+GSTREAMER_CFLAGS += $(shell pkg-config --cflags-only-I gstreamer-rtsp-server-1.0)
+GSTREAMER_LIBS += $(shell pkg-config --libs gstreamer-rtsp-server-1.0)
+endif
+
 CFLAGS += $(GSTREAMER_CFLAGS)
 endif
 

@@ -665,6 +665,7 @@ install_base_packages() {
                       gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-pipewire \
                       gstreamer1.0-libav gstreamer1.0-gl gstreamer1.0-x \
                       libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-0 \
+                      libgstrtspserver-1.0-dev \
                       flex bison pkg-config libasound2-dev python3-setuptools libssl-dev libtool bsdextrautils iw rsyslog tzdata libsystemd-dev \
                       python3-pip yt-dlp"
 

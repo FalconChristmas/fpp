@@ -171,6 +171,10 @@ dispatch_get('/pipewire/aes67/interfaces', 'GetAES67NetworkInterfaces');
 dispatch_get('/pipewire/aes67/sdp', 'GetAES67SDP');
 dispatch_get('/pipewire/aes67/sdp/:InstanceId', 'GetAES67SDPFile');
 
+dispatch_get('/pipewire/rtspoutputs', 'GetRTSPOutputs');
+dispatch_get('/pipewire/rtspoutputs/status', 'GetRTSPOutputsStatus');
+dispatch_post('/pipewire/rtspoutputs/apply', 'ApplyRTSPOutputs');
+dispatch_post('/pipewire/rtspoutputs', 'SaveRTSPOutputs');
 dispatch_get('/pipewire/opusrtp/instances', 'GetOpusRTPInstances');
 dispatch_post('/pipewire/opusrtp/instances', 'SaveOpusRTPInstances');
 dispatch_post('/pipewire/opusrtp/apply', 'ApplyOpusRTPInstances');

@@ -82,6 +82,7 @@ extern volatile int runMainFPPDLoop;
 #include "mediaoutput/MediaOutputBase.h"
 #include "mediaoutput/MediaOutputStatus.h"
 #include "mediaoutput/OpusRTPManager.h"
+#include "mediaoutput/RTSPOutputManager.h"
 #include "mediaoutput/StreamSlotManager.h"
 #include "mediaoutput/mediaoutput.h"
 #include "overlays/PixelOverlay.h"
@@ -467,6 +468,22 @@ void APIServer::Init(void) {
     };
     app.registerHandler("/opusrtp", copyHandler(handleOpusRTP), {drogon::Get, drogon::Head});
     app.registerHandlerViaRegex("/opusrtp/.*", copyHandler(handleOpusRTP), {drogon::Get, drogon::Head});
+#endif
+
+#ifdef HAS_RTSP_OUTPUT_GSTREAMER
+    /**
+     * Get RTSP output status: whether the server is running, its port, and
+     * the URL and audio state of each configured mount.
+     *
+     * @route GET /api/rtspoutput
+     * @response 200 RTSP output status.
+     */
+    auto handleRTSPOutput = [](const HttpRequestPtr& req,
+                               std::function<void(const HttpResponsePtr&)>&& callback) {
+        callback(RTSPOutputManager::INSTANCE.render_GET(req));
+    };
+    app.registerHandler("/rtspoutput", copyHandler(handleRTSPOutput), {drogon::Get, drogon::Head});
+    app.registerHandlerViaRegex("/rtspoutput/.*", copyHandler(handleRTSPOutput), {drogon::Get, drogon::Head});
 #endif
 
 #ifdef HAS_AUDIO_LEVEL_MONITOR

@@ -85,6 +85,7 @@
 #include "commands/Commands.h"
 #include "mediaoutput/AES67Manager.h"
 #include "mediaoutput/OpusRTPManager.h"
+#include "mediaoutput/RTSPOutputManager.h"
 #include "mediaoutput/MediaOutputBase.h"
 #include "mediaoutput/MediaOutputStatus.h"
 #include "mediaoutput/VideoInputManager.h"
@@ -1114,6 +1115,12 @@ int main(int argc, char* argv[]) {
 #endif
     VideoInputManager::Instance().Init();
     VideoOutputManager::Instance().Init();
+#ifdef HAS_RTSP_OUTPUT_GSTREAMER
+    // After the video managers: the RTSP mounts read the intervideo channels
+    // those publish on, and its audio bridges want the PipeWire graph up.
+    RTSPOutputManager::INSTANCE.Init();
+    RTSPOutputManager::INSTANCE.ApplyConfig();
+#endif
     PixelOverlayManager::INSTANCE.Initialize();
     PingManager::INSTANCE.Initialize();
     WLEDAPIResponder::INSTANCE.Initialize();
@@ -1159,6 +1166,11 @@ int main(int argc, char* argv[]) {
     // discovery clients won't keep our entries cached for the TTL.
     MDNSManager::INSTANCE.Cleanup();
 
+#ifdef HAS_RTSP_OUTPUT_GSTREAMER
+    // Before the video managers it reads from, so no client is still being
+    // served off an intervideo channel that is about to go away.
+    RTSPOutputManager::INSTANCE.Shutdown();
+#endif
     VideoInputManager::Instance().Shutdown();
     VideoOutputManager::Instance().Shutdown();
 #ifdef HAS_AES67_GSTREAMER

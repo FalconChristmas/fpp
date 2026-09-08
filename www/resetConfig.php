@@ -116,6 +116,7 @@ $files['audiobackend'] = array(
     'config/pipewire-input-groups.conf',
     'config/pipewire-aes67-instances.json',
     'config/pipewire-opus-rtp-instances.json',
+    'config/pipewire-rtsp-outputs.json',
     'config/pipewire-video-groups.json',
     'config/pipewire-video-groups-simple.json',
     'config/pipewire-video-consumers.json',
