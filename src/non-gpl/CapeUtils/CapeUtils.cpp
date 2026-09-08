@@ -1015,8 +1015,18 @@ static bool transmitRank(const std::string& key, const std::string& value, int& 
 //   - otherwise only where the jurisdiction permits a transmitting default, or
 //     where the proposed value transmits no more than the shipped default
 static bool capeMaySetSetting(const std::vector<std::string>& lines, const std::string& key,
-                              const std::string& value, bool strict, std::string& why) {
-    if (settingIsSet(lines, key)) {
+                              const std::string& value, bool strict, std::string& why,
+                              bool userRequestedReset = false) {
+    // Never-override protects the user from the CAPE deciding. It is not meant to
+    // stop the user deciding: `fppcapedetect -force-defaults` is what the "reset
+    // to defaults" action in the firmware-upgrade UI passes, so there the
+    // overwrite is the thing that was asked for. Different actors, different
+    // answers.
+    //
+    // The telemetry ratchet below still applies either way. Asking to reset
+    // defaults is not a jurisdiction changing, and Art 25(2) does not bend
+    // because somebody clicked a button.
+    if (settingIsSet(lines, key) && !userRequestedReset) {
         why = "the user has already set it";
         return false;
     }
@@ -1512,6 +1522,20 @@ private:
                     // or an inference from the time zone until the user answers.
                     bool strictPrivacy = priorOptInRequired(lines);
 
+                    // removeSettings requires a signature; defaultSettings does not.
+                    //
+                    // The asymmetry is not arbitrary. defaultSettings only writes a key
+                    // that is absent, so the user is free to set it and keep it -- the
+                    // worst an unsigned cape achieves is choosing a default nobody had
+                    // chosen, which is what a default is. removeSettings deletes a value
+                    // the user may have set deliberately and restores FPP's shipped one,
+                    // which is a change nobody asked for; that wants provenance.
+                    if (!removes.empty() && !validSignature) {
+                        printf("CapeUtils: ignoring removeSettings from an unsigned EEPROM "
+                               "(%zu key(s)); removing a setting requires a valid signature\n",
+                               removes.size());
+                        removes.clear();
+                    }
                     for (auto& v : removes) {
                         // Removing a key restores FPP's shipped default, which for a
                         // telemetry setting can mean transmitting MORE than the user
@@ -1539,14 +1563,26 @@ private:
                             // changes that -- it exists so a cape can refresh its
                             // OWN defaults, not to overrule the person using it.
                             std::string why;
-                            if (!capeMaySetSetting(lines, a, v, strictPrivacy, why)) {
-                                if (!settingIsSet(lines, a) || !forceDefaults) {
-                                    printf("CapeUtils: cape may not set %s=%s: %s\n",
-                                           a.c_str(), v.c_str(), why.c_str());
-                                }
+                            if (!capeMaySetSetting(lines, a, v, strictPrivacy, why, forceDefaults)) {
+                                printf("CapeUtils: cape may not set %s=%s: %s\n",
+                                       a.c_str(), v.c_str(), why.c_str());
                                 continue;
                             }
-                            lines.push_back(a + " = \"" + v + "\"");
+                            // With -force-defaults an existing line is replaced rather
+                            // than duplicated; without it the key is absent by the
+                            // check above, so this only ever appends.
+                            bool replaced = false;
+                            for (int l = 0; l < lines.size(); l++) {
+                                std::size_t eq = lines[l].find('=');
+                                if (eq != std::string::npos && trim(lines[l].substr(0, eq)) == a) {
+                                    lines[l] = a + " = \"" + v + "\"";
+                                    replaced = true;
+                                    break;
+                                }
+                            }
+                            if (!replaced) {
+                                lines.push_back(a + " = \"" + v + "\"");
+                            }
                             settingsChanged = true;
                         }
                     }
