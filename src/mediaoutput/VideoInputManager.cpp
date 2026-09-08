@@ -185,6 +185,26 @@ static bool GstValueUsable(const std::string& value, const char* what,
     return true;
 }
 
+#ifdef HAS_GSTREAMER_VIDEO_INPUT
+// rtspsrc's "select-stream" signal: return FALSE to keep it from ever
+// SETUPing a given SDP media. decodebin downstream has a single sink pad,
+// so if rtspsrc creates pads for both a video and an audio track (common —
+// many cameras enable an audio input by default even with no mic attached),
+// decodebin can only link one of them and the other is left dangling. With
+// protocols=tcp, a dangling stream makes rtspsrc's own delivery loop push
+// into an unlinked pad and it tears the whole pipeline down with "Internal
+// data stream error ... reason not-linked". Rejecting non-video media here
+// stops rtspsrc from requesting it in the first place, so no pad is ever
+// left unconnected. FPP does not extract audio from rtspsrc sources today,
+// so this costs nothing currently offered.
+static gboolean RtspSelectVideoStreamOnly(GstElement*, guint, GstCaps* caps, gpointer) {
+    if (!caps) return TRUE;
+    GstStructure* s = gst_caps_get_structure(caps, 0);
+    const gchar* media = s ? gst_structure_get_string(s, "media") : nullptr;
+    return !media || g_strcmp0(media, "video") == 0;
+}
+#endif
+
 VideoInputManager& VideoInputManager::Instance() {
     static VideoInputManager instance;
     return instance;
@@ -511,7 +531,9 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
             return false;
         }
         // rtspsrc → decodebin handles codec negotiation (H.264, H.265, MJPEG, etc.)
-        srcElement = "rtspsrc location=" + GstQuote(source.uri)
+        // name=rtspvsrc lets us fetch the element below and reject any non-video
+        // media the SDP offers (see the select-stream connection further down).
+        srcElement = "rtspsrc name=rtspvsrc location=" + GstQuote(source.uri)
                    + " latency=" + std::to_string(source.latency)
                    + " protocols=tcp";
         useDecodebin = true;
@@ -731,6 +753,14 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
         LogWarn(VB_MEDIAOUT, "VideoInputManager: Pipeline warning for '%s': %s\n",
                 source.name.c_str(), error->message);
         g_error_free(error);
+    }
+
+    if (source.type == "rtspsrc") {
+        GstElement* rtspEl = gst_bin_get_by_name(GST_BIN(source.pipeline), "rtspvsrc");
+        if (rtspEl) {
+            g_signal_connect(rtspEl, "select-stream", G_CALLBACK(RtspSelectVideoStreamOnly), nullptr);
+            gst_object_unref(rtspEl);
+        }
     }
 
     // Video sink is intervideosink — no PipeWire configuration needed.
