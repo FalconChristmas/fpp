@@ -578,6 +578,7 @@
             html += '<option value="hdmi"' + (type === 'hdmi' ? ' selected' : '') + '>HDMI Display</option>';
             html += '<option value="overlay"' + (type === 'overlay' ? ' selected' : '') + '>Pixel Overlay</option>';
             html += '<option value="rtp"' + (type === 'rtp' ? ' selected' : '') + '>Network (RTP)</option>';
+            html += '<option value="rtsp"' + (type === 'rtsp' ? ' selected' : '') + '>Network (RTSP)</option>';
             html += '</select>';
             html += '</td>';
 
@@ -651,6 +652,15 @@
                     html += '<option value="raw"' + (enc === 'raw' ? ' selected' : '') + '>Raw (uncompressed)</option>';
                     html += '</select>';
                     break;
+
+                case 'rtsp':
+                    // Only the path: the host and port belong to the server,
+                    // which is configured once under RTSP Video Outputs.
+                    html += '<span class="text-muted">rtsp://&lt;host&gt;</span>';
+                    html += '<input type="text" class="form-control form-control-sm d-inline-block ms-1" style="width:160px;" value="' +
+                        EscapeAttr(member.mountPoint || '') + '" onchange="UpdateMemberField(' + gi + ',' + mi +
+                        ',\'mountPoint\',this.value)" placeholder="/live">';
+                    break;
             }
             return html;
         }
@@ -717,6 +727,39 @@
                         html += '<i class="fas fa-download"></i> SDP</a>';
                     } else {
                         html += '<span class="text-muted" style="font-size:0.85rem;">Save &amp; Apply to generate SDP file</span>';
+                    }
+                    break;
+
+                case 'rtsp':
+                    html += '<div class="d-flex gap-1 align-items-center flex-wrap">';
+                    html += '<input type="number" class="form-control form-control-sm" style="width:80px;" title="Width" value="' +
+                        (member.width || 1280) + '" onchange="UpdateMemberField(' + gi + ',' + mi + ',\'width\',parseInt(this.value))">';
+                    html += '<span>&times;</span>';
+                    html += '<input type="number" class="form-control form-control-sm" style="width:80px;" title="Height" value="' +
+                        (member.height || 720) + '" onchange="UpdateMemberField(' + gi + ',' + mi + ',\'height\',parseInt(this.value))">';
+                    html += '<input type="number" class="form-control form-control-sm" style="width:70px;" title="Frames per second" value="' +
+                        (member.framerate || 30) + '" onchange="UpdateMemberField(' + gi + ',' + mi + ',\'framerate\',parseInt(this.value))">';
+                    html += '<select class="form-select form-select-sm w-auto" title="Video encoding" onchange="UpdateMemberField(' + gi + ',' + mi + ',\'videoEncoding\',this.value)">';
+                    var venc = member.videoEncoding || 'h264';
+                    [['h264', 'H.264'], ['h265', 'H.265'], ['mjpeg', 'MJPEG']].forEach(function (e) {
+                        html += '<option value="' + e[0] + '"' + (venc === e[0] ? ' selected' : '') + '>' + e[1] + '</option>';
+                    });
+                    html += '</select>';
+                    html += '<input type="number" class="form-control form-control-sm" style="width:90px;" title="Video bitrate (kbps)" value="' +
+                        (member.videoBitrate || 4000) + '" onchange="UpdateMemberField(' + gi + ',' + mi + ',\'videoBitrate\',parseInt(this.value))">';
+                    html += '<div class="form-check mb-0 ms-1">';
+                    html += '<input type="checkbox" class="form-check-input" id="rtspAud_' + gi + '_' + mi + '"' +
+                        (member.audioEnabled ? ' checked' : '') + ' onchange="UpdateMemberField(' + gi + ',' + mi + ',\'audioEnabled\',this.checked)">';
+                    html += '<label class="form-check-label" for="rtspAud_' + gi + '_' + mi + '" title="Carry audio in the same stream">Audio</label>';
+                    html += '</div>';
+                    html += '</div>';
+                    if (member.audioEnabled && member.audioNodeName) {
+                        // Routing target for an Audio Output Group; without one
+                        // the stream still serves video.
+                        html += '<div class="mt-1"><span class="badge bg-info" title="Add this node to an Audio Output Group to feed the stream">' +
+                            EscapeAttr(member.audioNodeName) + '</span></div>';
+                    } else if (member.audioEnabled) {
+                        html += '<div class="mt-1"><small class="text-muted">Save &amp; Apply to create the audio node</small></div>';
                     }
                     break;
             }

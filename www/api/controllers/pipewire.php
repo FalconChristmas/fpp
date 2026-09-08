@@ -6609,16 +6609,21 @@ function RTSPOutputsConfigFile()
 }
 
 // GET /api/pipewire/rtspoutputs
+//
+// Server settings only. The streams themselves are Video Output Group members
+// -- a group owns its video source, so an RTSP stream inherits it rather than
+// naming it a second time where the two could drift apart.
 function GetRTSPOutputs()
 {
     $configFile = RTSPOutputsConfigFile();
     if (file_exists($configFile)) {
         $data = json_decode(file_get_contents($configFile), true);
         if ($data !== null) {
+            unset($data['mounts']);   // pre-restructure configs carried these
             return json($data);
         }
     }
-    return json(array("enabled" => false, "port" => 8554, "mounts" => array()));
+    return json(array("enabled" => false, "port" => 8554));
 }
 
 // POST /api/pipewire/rtspoutputs
@@ -6631,69 +6636,13 @@ function SaveRTSPOutputs()
         http_response_code(400);
         return json(array("status" => "ERROR", "message" => "Invalid JSON"));
     }
-    if (!isset($parsed['mounts']) || !is_array($parsed['mounts'])) {
-        http_response_code(400);
-        return json(array("status" => "ERROR", "message" => "Missing mounts array"));
-    }
 
     $out = array(
         'enabled' => isset($parsed['enabled']) ? (bool) $parsed['enabled'] : false,
         'port' => isset($parsed['port']) ? intval($parsed['port']) : 8554,
-        'mounts' => array(),
     );
     if ($out['port'] < 1024 || $out['port'] > 65535) {
         $out['port'] = 8554;
-    }
-
-    $nextId = 1;
-    $seenMounts = array();
-    foreach ($parsed['mounts'] as $m) {
-        $id = isset($m['id']) ? intval($m['id']) : $nextId;
-        if ($id >= $nextId) {
-            $nextId = $id + 1;
-        }
-
-        // Keep the mount path to characters that cannot change the meaning of
-        // the URL. fppd normalises this too -- it must not trust a config file
-        // it did not write -- but fixing it here means the UI shows the user
-        // the path they will actually get.
-        $mount = preg_replace('/[^a-zA-Z0-9\/_-]/', '', isset($m['mountPoint']) ? $m['mountPoint'] : '');
-        if ($mount === '' || $mount === '/') {
-            $mount = '/stream' . $id;
-        }
-        if ($mount[0] !== '/') {
-            $mount = '/' . $mount;
-        }
-        // Two mounts on one path would silently shadow each other.
-        if (in_array($mount, $seenMounts)) {
-            $mount = rtrim($mount, '/') . '_' . $id;
-        }
-        $seenMounts[] = $mount;
-
-        $enc = isset($m['videoEncoding']) ? $m['videoEncoding'] : 'h264';
-        if (!in_array($enc, array('h264', 'h265', 'mjpeg'))) {
-            $enc = 'h264';
-        }
-
-        $entry = array(
-            'id' => $id,
-            'name' => !empty($m['name']) ? $m['name'] : 'RTSP Output ' . $id,
-            'enabled' => isset($m['enabled']) ? (bool) $m['enabled'] : true,
-            'mountPoint' => $mount,
-            'sourceNode' => isset($m['sourceNode']) ? $m['sourceNode'] : '',
-            'width' => isset($m['width']) ? intval($m['width']) : 1280,
-            'height' => isset($m['height']) ? intval($m['height']) : 720,
-            'framerate' => isset($m['framerate']) ? intval($m['framerate']) : 30,
-            'videoEncoding' => $enc,
-            'videoBitrate' => isset($m['videoBitrate']) ? intval($m['videoBitrate']) : 4000,
-            'audioEnabled' => isset($m['audioEnabled']) ? (bool) $m['audioEnabled'] : false,
-            'audioBitrate' => isset($m['audioBitrate']) ? intval($m['audioBitrate']) : 128000,
-        );
-        // Generated, not user-editable: an Audio Output Group targets this
-        // name, so it has to stay stable and unique per mount.
-        $entry['audioNodeName'] = 'fpp_rtsp_audio_' . $id;
-
-        $out['mounts'][] = $entry;
     }
 
     file_put_contents($configFile, json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
@@ -8009,6 +7958,9 @@ function ApplyPipeWireVideoGroups($overrideData = null)
 
     // Build consumer config from enabled groups + members
     $consumerConfig = array();
+    // Mount paths are server-wide, so uniqueness is checked across every group,
+    // not within one.
+    $seenRtspMounts = array();
     $enabledGroupCount = 0;
 
     foreach ($data['videoOutputGroups'] as &$grp) {
@@ -8024,7 +7976,7 @@ function ApplyPipeWireVideoGroups($overrideData = null)
         $grp['pipeWireNodeName'] = "fpp_video_group_" . $grp['id'] . "_" . $groupSlug;
 
         $memberIdx = 0;
-        foreach ($grp['members'] as $member) {
+        foreach ($grp['members'] as $memberKey => $member) {
             $type = isset($member['type']) ? $member['type'] : '';
             if (empty($type))
                 continue;
@@ -8085,6 +8037,50 @@ function ApplyPipeWireVideoGroups($overrideData = null)
                     $entry['encoding'] = isset($member['encoding']) ? $member['encoding'] : 'h264';
                     $encLabel = strtoupper($entry['encoding']);
                     $entry['name'] = 'RTP ' . $entry['address'] . ':' . $entry['port'] . ' (' . $encLabel . ')';
+                    break;
+
+                case 'rtsp':
+                    // Only the path lives on the member: host and port belong
+                    // to the server, configured once under RTSP Video Outputs.
+                    // Keep it to characters that cannot change the meaning of
+                    // the URL. fppd normalises it too -- it must not trust a
+                    // config file it did not write -- but doing it here means
+                    // the UI shows the path the user will actually get.
+                    $mount = preg_replace('/[^a-zA-Z0-9\/_-]/', '', isset($member['mountPoint']) ? $member['mountPoint'] : '');
+                    if ($mount === '' || $mount === '/') {
+                        $mount = '/group' . $grp['id'] . '_m' . $memberIdx;
+                    }
+                    if ($mount[0] !== '/') {
+                        $mount = '/' . $mount;
+                    }
+                    // Two mounts on one path would silently shadow each other,
+                    // and mount paths are server-wide, not per group.
+                    if (in_array($mount, $seenRtspMounts)) {
+                        $mount = rtrim($mount, '/') . '_g' . $grp['id'] . 'm' . $memberIdx;
+                    }
+                    $seenRtspMounts[] = $mount;
+                    $entry['mountPoint'] = $mount;
+
+                    $venc = isset($member['videoEncoding']) ? $member['videoEncoding'] : 'h264';
+                    if (!in_array($venc, array('h264', 'h265', 'mjpeg'))) {
+                        $venc = 'h264';
+                    }
+                    $entry['videoEncoding'] = $venc;
+                    $entry['videoBitrate'] = isset($member['videoBitrate']) ? intval($member['videoBitrate']) : 4000;
+                    $entry['width'] = isset($member['width']) ? intval($member['width']) : 1280;
+                    $entry['height'] = isset($member['height']) ? intval($member['height']) : 720;
+                    $entry['framerate'] = isset($member['framerate']) ? intval($member['framerate']) : 30;
+                    $entry['audioEnabled'] = isset($member['audioEnabled']) ? (bool) $member['audioEnabled'] : false;
+                    $entry['audioBitrate'] = isset($member['audioBitrate']) ? intval($member['audioBitrate']) : 128000;
+                    // An Audio Output Group targets this name, so it has to be
+                    // stable and unique across every mount on the server.
+                    $entry['audioNodeName'] = 'fpp_rtsp_audio_' . $grp['id'] . '_' . $memberIdx;
+                    $entry['name'] = 'RTSP ' . $mount;
+                    // Write the generated values back onto the member ($grp is
+                    // taken by reference) so the group page can show which node
+                    // to route audio to, and the mount path as normalised.
+                    $grp['members'][$memberKey]['mountPoint'] = $mount;
+                    $grp['members'][$memberKey]['audioNodeName'] = $entry['audioNodeName'];
                     break;
 
                 default:
@@ -8148,6 +8144,9 @@ function ApplyPipeWireVideoGroups($overrideData = null)
 
     // Signal fppd to reload video consumer config
     @SendCommand("reloadVideoOutputs");
+    // The RTSP server's streams are group members too, and it reads the same
+    // consumer list, so it has to be told as well.
+    @SendCommand("reloadRTSPOutputs");
 
     return json(array(
         "status" => "OK",

@@ -38,6 +38,7 @@ RTSPOutputManager& RTSPOutputManager::INSTANCE = s_rtspOutputManager;
 
 RTSPOutputManager::RTSPOutputManager() {
     m_configPath = FPP_DIR_MEDIA("/config/pipewire-rtsp-outputs.json");
+    m_consumersPath = FPP_DIR_MEDIA("/config/pipewire-video-consumers.json");
 }
 
 RTSPOutputManager::~RTSPOutputManager() {
@@ -45,7 +46,22 @@ RTSPOutputManager::~RTSPOutputManager() {
 }
 
 std::string RTSPOutputMount::AudioChannel() const {
-    return "fpp_rtsp_a_" + std::to_string(id);
+    return audioNodeName + "_ch";
+}
+
+std::string RTSPOutputMount::ResolveSourceNode() const {
+    if (!sourceNode.empty()) {
+        return sourceNode;
+    }
+    if (!streamSlots.empty()) {
+        // A group aimed at a playback stream slot has no named input source.
+        // The slot's intervideo channel exists whether or not anything is
+        // playing, and intervideosrc holds the mount up on black until it is,
+        // which is what a client watching a stream between songs should see.
+        // Only the first slot can be served: one mount is one channel.
+        return "fppd_video_stream_" + std::to_string(streamSlots.front());
+    }
+    return "";
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -124,47 +140,86 @@ bool RTSPOutputManager::LoadConfig() {
     }
     fresh.requireGroupSource = root.get("requireGroupSource", true).asBool();
 
-    const Json::Value& mounts = root["mounts"];
-    if (mounts.isArray()) {
-        for (const auto& entry : mounts) {
-            RTSPOutputMount m;
-            m.id = entry.get("id", 0).asInt();
-            m.name = entry.get("name", "").asString();
-            m.enabled = entry.get("enabled", true).asBool();
-            m.mountPoint = NormaliseMountPoint(entry.get("mountPoint", "").asString(), m.id);
-            m.sourceNode = entry.get("sourceNode", "").asString();
-            m.width = entry.get("width", RTSPOutput::DEFAULT_WIDTH).asInt();
-            m.height = entry.get("height", RTSPOutput::DEFAULT_HEIGHT).asInt();
-            m.framerate = entry.get("framerate", RTSPOutput::DEFAULT_FRAMERATE).asInt();
-            m.videoEncoding = entry.get("videoEncoding", "h264").asString();
-            m.videoBitrate = entry.get("videoBitrate", RTSPOutput::DEFAULT_VIDEO_BITRATE).asInt();
-            m.audioEnabled = entry.get("audioEnabled", false).asBool();
-            m.audioNodeName = entry.get("audioNodeName", "").asString();
-            m.audioBitrate = entry.get("audioBitrate", RTSPOutput::DEFAULT_AUDIO_BITRATE).asInt();
-
-            if (m.sourceNode.empty()) {
-                LogWarn(VB_MEDIAOUT, "RTSPOutputManager: mount '%s' has no source node, skipping\n",
-                        m.name.c_str());
-                continue;
-            }
-            if (m.width <= 0 || m.height <= 0 || m.framerate <= 0) {
-                LogWarn(VB_MEDIAOUT, "RTSPOutputManager: mount '%s' has an invalid size/rate "
-                                     "(%dx%d@%d), using defaults\n",
-                        m.name.c_str(), m.width, m.height, m.framerate);
-                m.width = RTSPOutput::DEFAULT_WIDTH;
-                m.height = RTSPOutput::DEFAULT_HEIGHT;
-                m.framerate = RTSPOutput::DEFAULT_FRAMERATE;
-            }
-            if (m.audioEnabled && m.audioNodeName.empty()) {
-                m.audioNodeName = "fpp_rtsp_audio_" + std::to_string(m.id);
-            }
-            fresh.mounts.push_back(std::move(m));
-        }
-    }
+    LoadMounts(fresh);
 
     std::unique_lock<std::mutex> lock(m_configMutex);
     m_config = std::move(fresh);
     return true;
+}
+
+// Streams come from the Video Output Groups, flattened by the web UI into the
+// same consumer list VideoOutputManager reads. Taking them from there rather
+// than from our own config is the whole point: a group owns its video source,
+// so an RTSP stream inherits it instead of naming it a second time where the
+// two could drift apart -- and it picks up stream-slot groups for free.
+void RTSPOutputManager::LoadMounts(RTSPOutputConfig& cfg) {
+    if (!FileExists(m_consumersPath)) {
+        LogDebug(VB_MEDIAOUT, "RTSPOutputManager: no consumer config at %s\n", m_consumersPath.c_str());
+        return;
+    }
+    std::ifstream ifs(m_consumersPath);
+    if (!ifs.is_open()) {
+        LogWarn(VB_MEDIAOUT, "RTSPOutputManager: cannot open %s\n", m_consumersPath.c_str());
+        return;
+    }
+
+    Json::Value root;
+    Json::CharReaderBuilder builder;
+    std::string errors;
+    if (!Json::parseFromStream(builder, ifs, &root, &errors)) {
+        LogWarn(VB_MEDIAOUT, "RTSPOutputManager: consumer JSON parse error: %s\n", errors.c_str());
+        return;
+    }
+    if (!root.isArray()) {
+        return;
+    }
+
+    for (const auto& entry : root) {
+        if (entry.get("type", "").asString() != "rtsp") {
+            continue;
+        }
+        RTSPOutputMount m;
+        m.name = entry.get("name", "").asString();
+        m.mountPoint = NormaliseMountPoint(entry.get("mountPoint", "").asString(),
+                                           static_cast<int>(cfg.mounts.size() + 1));
+        m.sourceNode = entry.get("sourceNode", "").asString();
+        if (entry.isMember("streamSlots") && entry["streamSlots"].isArray()) {
+            for (const auto& sl : entry["streamSlots"]) {
+                m.streamSlots.push_back(sl.asInt());
+            }
+        }
+        m.width = entry.get("width", RTSPOutput::DEFAULT_WIDTH).asInt();
+        m.height = entry.get("height", RTSPOutput::DEFAULT_HEIGHT).asInt();
+        m.framerate = entry.get("framerate", RTSPOutput::DEFAULT_FRAMERATE).asInt();
+        m.videoEncoding = entry.get("videoEncoding", "h264").asString();
+        m.videoBitrate = entry.get("videoBitrate", RTSPOutput::DEFAULT_VIDEO_BITRATE).asInt();
+        m.audioEnabled = entry.get("audioEnabled", false).asBool();
+        m.audioNodeName = entry.get("audioNodeName", "").asString();
+        m.audioBitrate = entry.get("audioBitrate", RTSPOutput::DEFAULT_AUDIO_BITRATE).asInt();
+
+        if (m.ResolveSourceNode().empty()) {
+            // The group names neither a video source nor a stream slot, so
+            // there is no channel to read and the mount would serve nothing.
+            LogWarn(VB_MEDIAOUT, "RTSPOutputManager: '%s' has no video source, skipping\n",
+                    m.name.c_str());
+            continue;
+        }
+        if (m.width <= 0 || m.height <= 0 || m.framerate <= 0) {
+            LogWarn(VB_MEDIAOUT, "RTSPOutputManager: '%s' has an invalid size/rate (%dx%d@%d), "
+                                 "using defaults\n",
+                    m.name.c_str(), m.width, m.height, m.framerate);
+            m.width = RTSPOutput::DEFAULT_WIDTH;
+            m.height = RTSPOutput::DEFAULT_HEIGHT;
+            m.framerate = RTSPOutput::DEFAULT_FRAMERATE;
+        }
+        if (m.audioEnabled && m.audioNodeName.empty()) {
+            LogWarn(VB_MEDIAOUT, "RTSPOutputManager: '%s' wants audio but has no node name, "
+                                 "serving video only\n",
+                    m.name.c_str());
+            m.audioEnabled = false;
+        }
+        cfg.mounts.push_back(std::move(m));
+    }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -177,7 +232,7 @@ std::string RTSPOutputManager::BuildFactoryLaunch(const RTSPOutputMount& mount) 
     // publishes on, exactly as the HDMI and RTP consumers do.  timeout is the
     // same 5s the other consumers use -- it must not overflow gint64 once
     // converted to microseconds (see VideoOutputManager::StartConsumer).
-    oss << "( intervideosrc timeout=5000000000 channel=" << RtspGstQuote(mount.sourceNode)
+    oss << "( intervideosrc timeout=5000000000 channel=" << RtspGstQuote(mount.ResolveSourceNode())
         << " ! videoconvert ! videoscale ! videorate"
         << " ! video/x-raw,width=" << mount.width
         << ",height=" << mount.height
@@ -230,7 +285,7 @@ std::string RTSPOutputManager::BuildFactoryLaunch(const RTSPOutputMount& mount) 
 
 bool RTSPOutputManager::StartAudioBridge(const RTSPOutputMount& mount) {
     AudioBridge bridge;
-    bridge.mountId = mount.id;
+    bridge.mountPoint = mount.mountPoint;
     bridge.nodeName = mount.audioNodeName;
 
     if (m_config.requireGroupSource && !PipeWireGraphFeedsNode(mount.audioNodeName)) {
@@ -347,9 +402,6 @@ bool RTSPOutputManager::StartServer() {
     GstRTSPMountPoints* mounts = gst_rtsp_server_get_mount_points(m_server);
     int mounted = 0;
     for (const auto& mount : m_config.mounts) {
-        if (!mount.enabled) {
-            continue;
-        }
         std::string launch = BuildFactoryLaunch(mount);
         LogInfo(VB_MEDIAOUT, "RTSPOutputManager: mount %s -> %s\n",
                 mount.mountPoint.c_str(), launch.c_str());
@@ -459,7 +511,7 @@ bool RTSPOutputManager::ApplyConfig() {
     // its bridge is publishing, and a client can connect the moment the
     // server's socket is up.
     for (const auto& mount : m_config.mounts) {
-        if (mount.enabled && mount.audioEnabled) {
+        if (mount.audioEnabled) {
             StartAudioBridge(mount);
         }
     }
@@ -488,9 +540,9 @@ RTSPOutputManager::Status RTSPOutputManager::GetStatus() {
 
     for (const auto& mount : m_config.mounts) {
         Status::MountStatus ms;
-        ms.id = mount.id;
         ms.name = mount.name;
-        ms.enabled = mount.enabled;
+        ms.mountPoint = mount.mountPoint;
+        ms.enabled = true;
         ms.audioEnabled = mount.audioEnabled;
         ms.audioNodeName = mount.audioNodeName;
         // Host-relative on purpose: fppd does not know which of its addresses
@@ -498,7 +550,7 @@ RTSPOutputManager::Status RTSPOutputManager::GetStatus() {
         ms.url = "rtsp://<host>:" + std::to_string(m_config.port) + mount.mountPoint;
 
         for (const auto& b : m_audioBridges) {
-            if (b.mountId == mount.id && b.waitingForSource) {
+            if (b.mountPoint == mount.mountPoint && b.waitingForSource) {
                 ms.audioWaitingForSource = true;
                 ms.note = "Audio is waiting for an Audio Output Group to feed '" + mount.audioNodeName + "'. Video is unaffected.";
             }
@@ -526,8 +578,8 @@ HttpResponsePtr RTSPOutputManager::render_GET(const HttpRequestPtr& req) {
         Json::Value mounts(Json::arrayValue);
         for (const auto& m : st.mounts) {
             Json::Value mj;
-            mj["id"] = m.id;
             mj["name"] = m.name;
+            mj["mountPoint"] = m.mountPoint;
             mj["url"] = m.url;
             mj["enabled"] = m.enabled;
             mj["audioEnabled"] = m.audioEnabled;

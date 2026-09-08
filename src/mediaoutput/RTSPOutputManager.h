@@ -63,16 +63,20 @@ namespace RTSPOutput
 } // namespace RTSPOutput
 
 // One mount point on the server: rtsp://<host>:<port><mountPoint>
+//
+// Built from a Video Output Group member, not configured here. A group owns
+// the video source and fans it out to its members, so an RTSP stream picks up
+// whatever its group is showing -- the same source that group may also be
+// putting on HDMI. Only the settings specific to serving it live on the
+// member itself, exactly as the RTP member type carries address/port/encoding.
 struct RTSPOutputMount {
-    int id = 0;
     std::string name;
-    bool enabled = true;
     std::string mountPoint = "/live";
 
-    // intervideosrc channel to read, i.e. the pipeWireNodeName of a video
-    // input source or an fppd stream slot -- the same string the HDMI and RTP
-    // consumers use as their sourceNode.
+    // intervideosrc channel to read. Filled from the group's videoSource, or
+    // resolved from its stream slot -- see ResolveSourceNode().
     std::string sourceNode;
+    std::vector<int> streamSlots;
 
     int width = RTSPOutput::DEFAULT_WIDTH;
     int height = RTSPOutput::DEFAULT_HEIGHT;
@@ -82,26 +86,36 @@ struct RTSPOutputMount {
 
     bool audioEnabled = false;
     // PipeWire node.name the audio bridge publishes, so an Audio Output Group
-    // can be pointed at it in the mix bus UI.  Generated when left empty.
+    // can be pointed at it. Generated per group member by the web UI.
     std::string audioNodeName;
     int audioBitrate = RTSPOutput::DEFAULT_AUDIO_BITRATE;
 
     // interaudio channel carrying this mount's audio from the bridge pipeline
-    // to the RTSP media.  Derived from the id, never configured.
+    // to the RTSP media. Derived from audioNodeName, never configured.
     std::string AudioChannel() const;
+
+    // The channel to actually read. A group targeting a playback stream slot
+    // rather than a named input source has no videoSource, and its slot maps
+    // to a fixed intervideo channel (StreamSlotManager::GetVideoNodeName).
+    // Returns "" when neither is set, i.e. nothing to serve.
+    std::string ResolveSourceNode() const;
 };
 
+// Server-wide settings. The streams themselves are not here: they come from
+// the Video Output Groups, so that a source is chosen in exactly one place.
 struct RTSPOutputConfig {
     bool enabled = false;
     int port = RTSPOutput::DEFAULT_PORT;
-    std::vector<RTSPOutputMount> mounts;
 
     // Hold an audio bridge idle until something in the graph feeds it, for
     // exactly the reason OpusRTPConfig::requireGroupSource documents: the
     // bridge's pipewiresrc is created with node.autoconnect=false, so with
     // nothing linked in it cannot preroll and starting it burns 30 seconds
-    // before failing.  A mount whose audio is waiting still serves video.
+    // before failing. A mount whose audio is waiting still serves video.
     bool requireGroupSource = true;
+
+    // Populated from pipewire-video-consumers.json, not from the server config.
+    std::vector<RTSPOutputMount> mounts;
 };
 
 class RTSPOutputManager {
@@ -119,8 +133,8 @@ public:
 
     struct Status {
         struct MountStatus {
-            int id = 0;
             std::string name;
+            std::string mountPoint;
             std::string url;
             bool enabled = false;
             bool audioEnabled = false;
@@ -143,8 +157,14 @@ public:
 
 private:
     RTSPOutputConfig m_config;
+    // Server settings (enabled/port) only.
     std::string m_configPath;
+    // Where the streams come from: the flattened Video Output Group members
+    // that VideoOutputManager also reads, filtered to type "rtsp".
+    std::string m_consumersPath;
     bool LoadConfig();
+    /// Fill cfg.mounts from the Video Output Group members (type "rtsp").
+    void LoadMounts(RTSPOutputConfig& cfg);
 
     /// gst-launch description for one mount's GstRTSPMediaFactory.
     std::string BuildFactoryLaunch(const RTSPOutputMount& mount) const;
@@ -172,7 +192,7 @@ private:
     std::thread m_loopThread;
 
     struct AudioBridge {
-        int mountId = 0;
+        std::string mountPoint;
         std::string nodeName;
         GstElement* pipeline = nullptr;
         bool waitingForSource = false;
