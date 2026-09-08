@@ -6724,7 +6724,23 @@ function GetRTSPOutputsStatus()
             return json($data);
         }
     }
-    return json(array("active" => false, "mounts" => array(), "unavailable" => true));
+
+    // Separate "fppd is not answering at all" from "fppd answered, but has no
+    // RTSP endpoint". The second means a build without gst-rtsp-server, or an
+    // fppd predating this feature, and telling the user it is unreachable
+    // sends them to look at the wrong thing entirely. file_get_contents()
+    // populates $http_response_header even when it returns false on a 404, and
+    // leaves it unset when the connection itself failed.
+    $reason = "unreachable";
+    if (isset($http_response_header) && count($http_response_header) > 0) {
+        $reason = "unsupported";
+    }
+    return json(array(
+        "active" => false,
+        "mounts" => array(),
+        "unavailable" => true,
+        "reason" => $reason,
+    ));
 }
 
 // GET /api/pipewire/opusrtp/instances

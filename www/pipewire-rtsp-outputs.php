@@ -63,14 +63,18 @@
                             these streams.</small>
                     </div>
 
+                    <div id="statusNotes"></div>
+
                     <div id="mountList"></div>
 
                     <div class="d-flex gap-2 mt-3">
                         <button class="btn btn-outline-primary btn-sm" onclick="AddMount()">
                             <i class="fas fa-plus"></i> Add RTSP Output</button>
-                        <button class="btn btn-success btn-sm" onclick="SaveAndApply()">
+                        <button class="btn btn-success btn-sm" id="saveBtn" onclick="SaveAndApply()">
                             <i class="fas fa-save"></i> Save &amp; Apply</button>
                     </div>
+
+                    <div id="saveResult" class="mt-3"></div>
 
                 <?php } ?>
 
@@ -124,14 +128,33 @@
         function RefreshStatus() {
             $.getJSON('api/pipewire/rtspoutputs/status').done(function (st) {
                 var html;
-                if (st.unavailable) {
-                    html = '<span class="badge bg-secondary">fppd not reachable</span>';
+                if (st.unavailable && st.reason === 'unsupported') {
+                    // fppd answered but has no RTSP endpoint: built without
+                    // gst-rtsp-server, or it predates this feature.
+                    html = '<span class="badge bg-warning text-dark" title="fppd is running but has no RTSP ' +
+                        'endpoint - it was built without gst-rtsp-server, or predates this feature">' +
+                        'RTSP not available in fppd</span>';
+                } else if (st.unavailable) {
+                    html = '<span class="badge bg-secondary">fppd not running</span>';
                 } else if (st.active) {
-                    html = '<span class="badge bg-success">Server running</span>';
+                    html = '<span class="badge bg-success">Server running on port ' + (st.port || '') + '</span>';
                 } else {
                     html = '<span class="badge bg-secondary">Server stopped</span>';
                 }
                 $('#serverStatus').html(html);
+
+                // fppd is the only thing that knows an audio branch is still
+                // waiting for a source, so show what it says per mount.
+                var notes = '';
+                (st.mounts || []).forEach(function (m) {
+                    if (m.note) {
+                        notes += '<div class="alert alert-info py-2 mb-2"><small><i class="fas fa-info-circle"></i> ' +
+                            EscapeAttr(m.name) + ': ' + EscapeAttr(m.note) + '</small></div>';
+                    }
+                });
+                $('#statusNotes').html(notes);
+            }).fail(function () {
+                $('#serverStatus').html('<span class="badge bg-secondary">Status unavailable</span>');
             });
         }
 
@@ -239,6 +262,10 @@
             $('#mountList').html(html);
         }
 
+        function SetSaveResult(kind, html) {
+            $('#saveResult').html('<div class="alert alert-' + kind + ' py-2 mb-0">' + html + '</div>');
+        }
+
         function UpdateMount(i, field, value) {
             rtspConfig.mounts[i][field] = value;
             RenderMounts();
@@ -270,9 +297,14 @@
                 return m.enabled && !m.sourceNode;
             });
             if (missing.length > 0) {
-                alert('Each enabled RTSP output needs a video source.');
+                SetSaveResult('danger', '<i class="fas fa-times"></i> ' +
+                    'Each enabled RTSP output needs a video source.');
                 return;
             }
+
+            var $btn = $('#saveBtn');
+            $btn.prop('disabled', true);
+            SetSaveResult('info', '<i class="fas fa-spinner fa-spin"></i> Saving and applying...');
 
             $.ajax({
                 url: 'api/pipewire/rtspoutputs',
@@ -282,11 +314,24 @@
             }).done(function () {
                 // fppd re-reads the config file on this, the same way the
                 // video input and output pages apply their own changes.
-                $.post('api/pipewire/rtspoutputs/apply').always(function () {
+                $.post('api/pipewire/rtspoutputs/apply').done(function () {
+                    LoadConfig().always(function () {
+                        RefreshStatus();
+                        SetSaveResult('success', '<i class="fas fa-check"></i> Saved and applied.');
+                    });
+                }).fail(function () {
+                    // The config is on disk either way, so say so: the streams
+                    // will come up on the next fppd start even if this failed.
                     LoadConfig().always(RefreshStatus);
+                    SetSaveResult('warning', '<i class="fas fa-exclamation-triangle"></i> ' +
+                        'Saved, but fppd did not accept the reload. It will pick the ' +
+                        'configuration up when it next starts.');
                 });
-            }).fail(function () {
-                alert('Failed to save the RTSP output configuration.');
+            }).fail(function (xhr) {
+                SetSaveResult('danger', '<i class="fas fa-times"></i> Failed to save: ' +
+                    EscapeAttr((xhr && xhr.responseJSON && xhr.responseJSON.message) || 'unknown error'));
+            }).always(function () {
+                $btn.prop('disabled', false);
             });
         }
 
