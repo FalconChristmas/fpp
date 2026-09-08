@@ -1566,15 +1566,65 @@ private:
                     }
                     if (result.isMember("copyFiles")) {
                         // if the cape requires certain files copied into place (asoundrc for example)
-                        for (auto src : result["copyFiles"].getMemberNames()) {
-                            std::string target = result["copyFiles"][src].asString();
+                        //
+                        // The capability itself is legitimate and deliberately broad: a cape may
+                        // need to write outside the media directory, for instance an apt source in
+                        // /etc/apt/sources.list.d so a driver can be installed. What is constrained
+                        // here is provenance and one specific target, not paths in general.
+                        static const std::string MEDIA_DIR = "/home/fpp/media/";
+                        for (auto srcName : result["copyFiles"].getMemberNames()) {
+                            std::string src = srcName;
+                            std::string target = result["copyFiles"][srcName].asString();
+                            bool srcAbsolute = !src.empty() && src[0] == '/';
+                            bool targetAbsolute = !target.empty() && target[0] == '/';
 
-                            if (validSignature && (src[0] != '/')) {
+                            // No traversal in either direction. Nothing legitimate needs it, and
+                            // it is what makes the media-relative form below mean anything --
+                            // "../../etc/x" would otherwise walk straight out of it.
+                            if (src.find("..") != std::string::npos ||
+                                target.find("..") != std::string::npos) {
+                                printf("CapeUtils: refusing copyFiles entry with '..' in a path: %s -> %s\n",
+                                       src.c_str(), target.c_str());
+                                continue;
+                            }
+
+                            // An unsigned EEPROM may read only from FPP's own install tree. The
+                            // risk is which file is read, not that the path is absolute: the
+                            // shipped asoundrc pattern names /opt/fpp/etc/... and must keep
+                            // working, while /home/fpp/media/settings as a source would copy every
+                            // password on the box somewhere the web UI serves.
+                            if (srcAbsolute && !validSignature && src.rfind("/opt/fpp/", 0) != 0) {
+                                printf("CapeUtils: refusing copyFiles from %s: unsigned EEPROMs may "
+                                       "only copy from /opt/fpp/\n", src.c_str());
+                                continue;
+                            }
+                            if (validSignature && !srcAbsolute) {
                                 src = outputPath + "/" + src;
                             }
-                            if (target[0] != '/') {
-                                target = "/home/fpp/media/" + target;
+
+                            if (!targetAbsolute) {
+                                target = MEDIA_DIR + target;
+                            } else if (!validSignature && target.rfind(MEDIA_DIR, 0) != 0) {
+                                // Writing outside the media directory means things like adding a
+                                // package source, which installs arbitrary code as root. A signed
+                                // cape may do it; an unsigned one may not.
+                                printf("CapeUtils: refusing copyFiles to %s: writing outside %s "
+                                       "requires a valid signature\n", target.c_str(), MEDIA_DIR.c_str());
+                                continue;
                             }
+
+                            // The settings file is never a valid target, signed or not. Overwriting
+                            // it wholesale bypasses every rule applied to defaultSettings above --
+                            // never-override, the telemetry ratchet, the jurisdiction check -- and
+                            // does it silently. A cape that wants to set a setting has
+                            // defaultSettings, which is governed.
+                            if (target == MEDIA_DIR + "settings" ||
+                                target.rfind(MEDIA_DIR + "settings/", 0) == 0) {
+                                printf("CapeUtils: refusing copyFiles to the settings file; use "
+                                       "defaultSettings\n");
+                                continue;
+                            }
+
                             copyFile(src, target);
                             setFilePerms(target);
                         }
