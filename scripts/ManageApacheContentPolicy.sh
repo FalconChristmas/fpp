@@ -17,7 +17,12 @@ JSON_FILE=$MEDIADIR"/config/csp_allowed_domains.json"
 declare -A DEFAULT_VALUES
 DEFAULT_VALUES=( 
     ["default-src"]="'self' http://www.w3.org"
-    ["connect-src"]="'self' https://raw.githubusercontent.com https://ipapi.co https://kulplights.com https://www.kulplights.com https://hansonelectronics.com.au https://www.hansonelectronics.com.au https://wiredwatts.com https://www.wiredwatts.com https://fppstats.falconchristmas.com https://api.falconplayer.com https://api.github.com"
+    # No ipapi.co here on purpose: the timezone/geolocation lookup is fetched
+    # by api/geoip (see api/controllers/geoip.php) and handed back from this
+    # device, so the browser never contacts ipapi.co and never needed the
+    # allowance.  The generated header is rebuilt at every boot, so removing
+    # this needs no upgrade/ step of its own.
+    ["connect-src"]="'self' https://raw.githubusercontent.com https://kulplights.com https://www.kulplights.com https://hansonelectronics.com.au https://www.hansonelectronics.com.au https://wiredwatts.com https://www.wiredwatts.com https://fppstats.falconchristmas.com https://api.falconplayer.com https://api.github.com"
     ["object-src"]="'none' "
     # PayPal was here only for a 1x1 tracking pixel in the donate form, which is
     # gone. The donate button is an inline SVG and the donate action is a plain
