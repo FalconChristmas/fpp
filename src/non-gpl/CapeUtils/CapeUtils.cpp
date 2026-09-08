@@ -877,6 +877,156 @@ static std::map<std::string, std::string> CONFIG_EEPROM_UPGRADE_MAP = {
     { "BBB48String:PB16-EXP", "PB16" }
 };
 
+// ---------------------------------------------------------------------------
+// Privacy jurisdiction
+//
+// A cape may set a default where the user has not chosen one, but it may only
+// move a *telemetry* setting toward transmitting more where the jurisdiction
+// permits a transmitting default at all. Which jurisdictions those are lives in
+// etc/jurisdictions.json, read by both this and the PHP side, so the policy is
+// stated once rather than re-listed per consumer.
+//
+// Everything here fails toward the permissive side ONLY on a positive match.
+// An unreadable file, an unknown jurisdiction, or a value nobody has set yet
+// resolves through inferJurisdiction()/priorOptInRequired() rather than by
+// assuming.
+// ---------------------------------------------------------------------------
+static const std::string JURISDICTIONS_FILE = "/opt/fpp/etc/jurisdictions.json";
+
+// Value of a key in /home/fpp/media/settings, or "" when absent.
+// Matches on the exact key rather than a prefix: "statsPublish" must not be
+// satisfied by a line for "statsPublishUrl".
+static std::string readSettingValue(const std::vector<std::string>& lines, const std::string& key) {
+    for (const auto& line : lines) {
+        std::size_t eq = line.find('=');
+        if (eq == std::string::npos) {
+            continue;
+        }
+        std::string k = trim(line.substr(0, eq));
+        if (k != key) {
+            continue;
+        }
+        std::string v = trim(line.substr(eq + 1));
+        if (v.size() >= 2 && v.front() == '"' && v.back() == '"') {
+            v = v.substr(1, v.size() - 2);
+        }
+        return v;
+    }
+    return "";
+}
+
+// True when the key already has a value in the settings file. A cape never
+// overrides one, whatever it is and whatever the jurisdiction.
+static bool settingIsSet(const std::vector<std::string>& lines, const std::string& key) {
+    for (const auto& line : lines) {
+        std::size_t eq = line.find('=');
+        if (eq != std::string::npos && trim(line.substr(0, eq)) == key) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// The jurisdiction to judge by: the recorded answer, or -- when it has never
+// been answered -- an inference from the time zone, which every device already
+// has. The inference is used for this decision only and is never written back;
+// a real answer always wins. Longest prefix wins so Europe/London reads as UK
+// rather than falling into the shorter Europe/ entry.
+static std::string inferJurisdiction(const std::vector<std::string>& lines, const Json::Value& cfg) {
+    std::string recorded = readSettingValue(lines, "LegalJurisdiction");
+    if (!recorded.empty()) {
+        return recorded;
+    }
+    std::string tz = readSettingValue(lines, "TimeZone");
+    if (tz.empty() || !cfg.isMember("timezonePrefix")) {
+        return "";
+    }
+    std::string best;
+    std::string bestPrefix;
+    for (const auto& prefix : cfg["timezonePrefix"].getMemberNames()) {
+        if (tz.rfind(prefix, 0) == 0 && prefix.size() > bestPrefix.size()) {
+            bestPrefix = prefix;
+            best = cfg["timezonePrefix"][prefix].asString();
+        }
+    }
+    return best;
+}
+
+static bool priorOptInRequired(const std::vector<std::string>& lines) {
+    Json::Value cfg;
+    if (!LoadJsonFromFile(JURISDICTIONS_FILE, cfg, CapeJsonRoot::Object)) {
+        // No policy file: take the cautious branch. Refusing a permissive cape
+        // default is recoverable -- the user can still set it -- where wrongly
+        // allowing one is not.
+        printf("CapeUtils: %s unreadable, treating jurisdiction as requiring prior opt-in\n",
+               JURISDICTIONS_FILE.c_str());
+        return true;
+    }
+    bool dflt = cfg.get("priorOptInDefault", false).asBool();
+    std::string j = inferJurisdiction(lines, cfg);
+    if (j.empty() || !cfg["jurisdictions"].isMember(j)) {
+        return dflt;
+    }
+    return cfg["jurisdictions"][j].get("priorOptIn", dflt).asBool();
+}
+
+// Rank of a settings value on the "how much does this transmit" scale, from the
+// transmitRank map declared beside the setting in www/settings.json. Returns
+// false for anything unranked -- FetchVendorLogos has no rank because it is a
+// remote image rather than telemetry, and unranked keys are not subject to the
+// ratchet at all.
+static bool transmitRank(const std::string& key, const std::string& value, int& rank) {
+    static Json::Value settings;
+    static bool loaded = false;
+    if (!loaded) {
+        loaded = true;
+        LoadJsonFromFile("/opt/fpp/www/settings.json", settings, CapeJsonRoot::Object);
+    }
+    if (!settings.isMember("settings") || !settings["settings"].isMember(key)) {
+        return false;
+    }
+    const Json::Value& meta = settings["settings"][key];
+    if (!meta.isMember("transmitRank") || !meta["transmitRank"].isMember(value)) {
+        return false;
+    }
+    rank = meta["transmitRank"][value].asInt();
+    return true;
+}
+
+// May a cape set `key` to `value`?
+//   - never, if the user has already set it
+//   - always, if the key is not ranked telemetry
+//   - otherwise only where the jurisdiction permits a transmitting default, or
+//     where the proposed value transmits no more than the shipped default
+static bool capeMaySetSetting(const std::vector<std::string>& lines, const std::string& key,
+                              const std::string& value, bool strict, std::string& why) {
+    if (settingIsSet(lines, key)) {
+        why = "the user has already set it";
+        return false;
+    }
+    int proposed = 0;
+    if (!transmitRank(key, value, proposed)) {
+        return true;
+    }
+    if (!strict) {
+        return true;
+    }
+    // Under a prior-opt-in regime the only default a cape may set is one that
+    // transmits nothing: rank 0.
+    //
+    // Anchoring this to FPP's *shipped* default instead was the obvious reading
+    // and it is wrong. ShareCrashData ships at "3" -- the maximum-disclosure
+    // value, deliberately kept until the consent UI lands -- so a cape could set
+    // full crash reporting under EU rules simply because the baseline was
+    // already maximal. A ratchet against a bad baseline inherits the badness.
+    // Art 25(2) asks for the protective value, not the incumbent one.
+    if (proposed > 0) {
+        why = "it transmits, and this jurisdiction requires prior opt-in";
+        return false;
+    }
+    return true;
+}
+
 class CapeInfo {
 public:
     CapeInfo(bool ro, bool fd = false) :
@@ -1336,10 +1486,24 @@ private:
                 }
                 if (!readOnly) {
                     readSettingsFile(lines);
+                    // Whether this device is somewhere that requires asking before
+                    // transmitting. Resolved once: the recorded LegalJurisdiction,
+                    // or an inference from the time zone until the user answers.
+                    bool strictPrivacy = priorOptInRequired(lines);
+
                     for (auto& v : removes) {
-                        std::string found = "";
+                        // Removing a key restores FPP's shipped default, which for a
+                        // telemetry setting can mean transmitting MORE than the user
+                        // had. Judge it exactly as a write of that default would be.
+                        std::string why;
+                        if (!capeMaySetSetting(lines, v, "", strictPrivacy, why)) {
+                            printf("CapeUtils: cape may not remove setting %s: %s\n",
+                                   v.c_str(), why.c_str());
+                            continue;
+                        }
                         for (int l = 0; l < lines.size(); l++) {
-                            if (lines[l].find(v) == 0) {
+                            std::size_t eq = lines[l].find('=');
+                            if (eq != std::string::npos && trim(lines[l].substr(0, eq)) == v) {
                                 lines.erase(lines.begin() + l);
                                 settingsChanged = true;
                                 break;
@@ -1347,42 +1511,30 @@ private:
                         }
                     }
                     if (result.isMember("defaultSettings")) {
-                        std::map<std::string, std::string> defaults;
                         for (auto a : result["defaultSettings"].getMemberNames()) {
                             std::string v = result["defaultSettings"][a].asString();
-                            bool found = false;
-                            for (int l = 0; l < lines.size(); l++) {
-                                if (lines[l].find(a) == 0) {
-                                    found = true;
-                                    if (forceDefaults) {
-                                        // Replace existing setting with default value
-                                        lines[l] = a + " = \"" + v + "\"";
-                                        settingsChanged = true;
-                                    }
-                                    break;
+                            // A cape may set a default; it may never override a
+                            // value the user has chosen. forceDefaults no longer
+                            // changes that -- it exists so a cape can refresh its
+                            // OWN defaults, not to overrule the person using it.
+                            std::string why;
+                            if (!capeMaySetSetting(lines, a, v, strictPrivacy, why)) {
+                                if (!settingIsSet(lines, a) || !forceDefaults) {
+                                    printf("CapeUtils: cape may not set %s=%s: %s\n",
+                                           a.c_str(), v.c_str(), why.c_str());
                                 }
+                                continue;
                             }
-                            if (!found) {
-                                lines.push_back(a + " = \"" + v + "\"");
-                                settingsChanged = true;
-                            }
-                        }
-                    } else if (!hasSignature || !validSignature) {
-                        std::string v = "statsPublish";
-                        bool found = false;
-                        for (int l = 0; l < lines.size(); l++) {
-                            if (lines[l].find(v) == 0) {
-                                found = true;
-                                break;
-                            }
-                        }
-                        if (!found) {
-                            lines.push_back(v + " = \"Enabled\"");
+                            lines.push_back(a + " = \"" + v + "\"");
                             settingsChanged = true;
                         }
-                        if (result.isMember("sendStats")) {
-                            result.removeMember("sendStats");
-                        }
+                    }
+                    // The branch that used to switch statistics ON for an unsigned
+                    // EEPROM is gone. It fired precisely when the cape was least
+                    // trusted, wrote a transmitting value the user had never chosen,
+                    // and stripped the cape's own sendStats opt-out while doing it.
+                    if ((!hasSignature || !validSignature) && result.isMember("sendStats")) {
+                        result.removeMember("sendStats");
                     }
 
                     bool reboot = false;

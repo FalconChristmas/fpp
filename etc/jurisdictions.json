@@ -1,0 +1,87 @@
+{
+    "comment": [
+        "Privacy jurisdictions, and the one behaviour that depends on them.",
+        "",
+        "Consumers must not switch on the raw jurisdiction value. They ask a single",
+        "derived question -- does this jurisdiction require prior opt-in before a",
+        "device may transmit? -- and the answer lives here, in one file that both C++",
+        "(src/non-gpl/CapeUtils) and PHP (the setup wizard, the statistics client)",
+        "read. The same pattern as settings.json and interface-settings.json, and for",
+        "the same reason: a policy re-listed in each consumer drifts.",
+        "",
+        "'priorOptIn' is true only where a regime actually demands consent before",
+        "transmission. That is the EU/EEA (GDPR + ePrivacy) and the UK (UK GDPR +",
+        "PECR, functionally identical since 2020). It is deliberately NOT the rest of",
+        "the world: CCPA/CPRA is an opt-out regime for sale and sharing rather than",
+        "opt-in for telemetry, PIPEDA accepts implied consent for non-sensitive data,",
+        "and the Australian APPs very probably do not bind a project this size.",
+        "Applying EU mechanics to users those rules do not cover protects nobody and",
+        "makes FPP worse for them.",
+        "",
+        "'priorOptInDefault' is what an unrecognised value means. It is false: the",
+        "strict path is taken on a positive match, not by accident.",
+        "",
+        "'timezonePrefix' is used only when LegalJurisdiction has never been answered.",
+        "Every device already has a TimeZone, so an unanswered box in Europe still",
+        "gets the strict path while the rest of the fleet does not have to wait for a",
+        "prompt. The inference is never written to the settings file, and an actual",
+        "answer always wins over it.",
+        "",
+        "Prefix matching is LONGEST MATCH FIRST: 'Europe/London' must resolve to UK,",
+        "not to EU via the shorter 'Europe/' entry. Both are strict, so nothing",
+        "behaves differently today, but the inferred value should still be right.",
+        "",
+        "The Europe/ catch-all is deliberately over-inclusive: it pulls in Switzerland",
+        "and other non-EEA European zones, which then take the strict path they do not",
+        "strictly need. That is the safe direction for a guess, and it only ever",
+        "applies until the user answers.",
+        "",
+        "NOT represented here on purpose: US-CA. California's CCPA/CPRA would not",
+        "change what the privacy step does. California's SB-327 *is* relevant, but to",
+        "device credentials rather than to privacy, and the security step is uniform",
+        "everywhere precisely because that law and UK PSTI point the other way."
+    ],
+    "priorOptInDefault": false,
+    "jurisdictions": {
+        "EU": {
+            "description": "European Union / EEA",
+            "priorOptIn": true
+        },
+        "UK": {
+            "description": "United Kingdom",
+            "priorOptIn": true
+        },
+        "US": {
+            "description": "United States",
+            "priorOptIn": false
+        },
+        "CA": {
+            "description": "Canada",
+            "priorOptIn": false
+        },
+        "AU": {
+            "description": "Australia / New Zealand",
+            "priorOptIn": false
+        },
+        "OTHER": {
+            "description": "Elsewhere",
+            "priorOptIn": false
+        }
+    },
+    "timezonePrefix": {
+        "Europe/London": "UK",
+        "Europe/Belfast": "UK",
+        "Europe/Guernsey": "UK",
+        "Europe/Isle_of_Man": "UK",
+        "Europe/Jersey": "UK",
+        "Europe/": "EU",
+        "Atlantic/Canary": "EU",
+        "Atlantic/Madeira": "EU",
+        "Atlantic/Azores": "EU",
+        "Atlantic/Reykjavik": "EU",
+        "America/": "US",
+        "Canada/": "CA",
+        "Australia/": "AU",
+        "Pacific/Auckland": "AU"
+    }
+}
