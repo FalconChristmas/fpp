@@ -3151,11 +3151,19 @@
         }
 
         function showLogsRow(rowID) {
-            // Ensure child rows match parent striping color
-            if ($('#' + rowID).hasClass('odd'))
-                $('#' + rowID + '_logs').addClass('odd');
-
-            $('#' + rowID + '_logs').show();
+            // Ensure child rows match parent striping color - use getElementById for UUID safety
+            var parentEl = document.getElementById(rowID);
+            var logEl = document.getElementById(rowID + '_logs');
+            if (parentEl && logEl && parentEl.classList.contains('odd')) {
+                logEl.classList.add('odd');
+            }
+            if (logEl) {
+                logEl.style.display = '';
+                // Fallback for jQuery callers that check :visible
+                $(logEl).show();
+            } else {
+                $('#' + rowID + '_logs').show();
+            }
             rowSpanSet(rowID);
         }
 
@@ -3431,6 +3439,19 @@
         // ============================================================
 
         function changeBranch(rowID) {
+            var branch = $("#branchSelect").val();
+            var remote = $("#branchRemoteSelect").length ? $("#branchRemoteSelect").val() : 'origin';
+            if (!branch) {
+                $.jGrowl("No branch selected", { themeState: 'danger' });
+                return;
+            }
+            // Validate branch locally (same allow-list as www/changebranch.php:26) to surface error in log window
+            if (!/^[A-Za-z0-9_.\/-]+$/.test(branch) || branch.indexOf('..') !== -1 || branch[0] === '-') {
+                showLogsRow(rowID);
+                addLogsDivider(rowID);
+                $('#' + rowID + '_logText').val($('#' + rowID + '_logText').val() + "Invalid branch: " + branch + "\n");
+                return;
+            }
             streamCount++;
             EnableDisableStreamButtons();
 
@@ -3438,8 +3459,6 @@
             addLogsDivider(rowID);
 
             var ip = ipFromRowID(rowID);
-            var branch = $("#branchSelect").val();
-            var remote = $("#branchRemoteSelect").length ? $("#branchRemoteSelect").val() : 'origin';
             StreamURL('changeRemoteBranch.php?branch=' + encodeURIComponent(branch) + '&remote=' + encodeURIComponent(remote) + '&ip=' + ip, rowID + '_logText', 'actionDone', 'actionFailed');
         }
         async function reloadBranchSelect() {
@@ -3452,17 +3471,27 @@
             });
         }
         function changeBranchSelectedSystems() {
+            var branch = $("#branchSelect").val();
+            if (!branch) {
+                $.jGrowl("No branch selected", { themeState: 'danger' });
+                return;
+            }
+            var targets = [];
             $('input.remoteCheckbox').each(function () {
                 if ($(this).is(":checked")) {
                     var rowID = $(this).closest('tr').attr('id');
                     if ($('#' + rowID).hasClass('filtered')) {
                         return true;
                     }
-
                     $(this).prop('checked', false);
-                    changeBranch(rowID);
+                    targets.push(rowID);
                 }
             });
+            if (targets.length === 0) {
+                $.jGrowl("No remote FPP systems were selected", { themeState: 'danger' });
+                return;
+            }
+            targets.forEach(function (rowID) { changeBranch(rowID); });
         }
 
         // ============================================================
