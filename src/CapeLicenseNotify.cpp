@@ -17,6 +17,11 @@
 
 #include "CurlManager.h"
 #include "common.h"
+// Needed explicitly: fpp-pch.h stopped force-including jsoncpp, so under a
+// NOPCH build (DISTRIBUTED_COMPILE, i.e. distcc or nocc) every translation unit
+// that names Json:: has to ask for it. With the PCH it compiles either way,
+// which is exactly why the omission survived.
+#include "fpp-json.h"
 #include "log.h"
 #include "settings.h"
 
