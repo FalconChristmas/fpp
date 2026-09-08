@@ -186,22 +186,74 @@ static bool GstValueUsable(const std::string& value, const char* what,
 }
 
 #ifdef HAS_GSTREAMER_VIDEO_INPUT
+// Per-pipeline state behind the rtspsrc stream decisions below.
+//
+// Heap-allocated and owned by the signal closure -- freed by the
+// GClosureNotify when rtspsrc is finalised along with the pipeline -- rather
+// than living in the SourceInfo.  The pipeline outlives StartSource() and a
+// Reload can reallocate m_sources while it is still running, which is the
+// same hazard the run thread's copied-by-value locals guard against.
+struct RtspStreamFilter {
+    std::string sourceName;
+    bool videoSelected = false;
+};
+
 // rtspsrc's "select-stream" signal: return FALSE to keep it from ever
-// SETUPing a given SDP media. decodebin downstream has a single sink pad,
-// so if rtspsrc creates pads for both a video and an audio track (common —
-// many cameras enable an audio input by default even with no mic attached),
-// decodebin can only link one of them and the other is left dangling. With
-// protocols=tcp, a dangling stream makes rtspsrc's own delivery loop push
-// into an unlinked pad and it tears the whole pipeline down with "Internal
-// data stream error ... reason not-linked". Rejecting non-video media here
-// stops rtspsrc from requesting it in the first place, so no pad is ever
-// left unconnected. FPP does not extract audio from rtspsrc sources today,
-// so this costs nothing currently offered.
-static gboolean RtspSelectVideoStreamOnly(GstElement*, guint, GstCaps* caps, gpointer) {
-    if (!caps) return TRUE;
+// SETUPing a given SDP media.
+//
+// Every media rtspsrc sets up becomes one src pad, and every pad has to
+// reach a sink: an unlinked one makes rtspsrc's delivery loop tear the whole
+// pipeline down with "Internal data stream error ... reason not-linked",
+// which is fatal under protocols=tcp where all media share one connection.
+// decodebin downstream has a single sink pad, so exactly one media can be
+// accepted -- refuse the rest before they are ever requested.  Refusing here
+// rather than sinking the extra pads also means the camera never sends them,
+// so nothing is carried that we would only discard.
+//
+// Taking only the *first* video matters for cameras that advertise two video
+// media in a single SDP -- some offer H.264 and MJPEG as alternatives.  Main
+// and sub substreams are normally separate RTSP URLs and never reach here.
+static gboolean RtspSelectStream(GstElement*, guint idx, GstCaps* caps, gpointer userData) {
+    auto* filter = static_cast<RtspStreamFilter*>(userData);
+    if (!filter || !caps || gst_caps_get_size(caps) == 0) {
+        return TRUE;
+    }
+
     GstStructure* s = gst_caps_get_structure(caps, 0);
     const gchar* media = s ? gst_structure_get_string(s, "media") : nullptr;
-    return !media || g_strcmp0(media, "video") == 0;
+
+    // "media" carries the SDP m= line type and is always present in practice.
+    // An unlabelled media is treated as the video track rather than dropped,
+    // so a server we cannot classify still gets its one stream through.
+    if (!media || g_strcmp0(media, "video") == 0) {
+        if (filter->videoSelected) {
+            LogWarn(VB_MEDIAOUT, "VideoInputManager: '%s' SDP offers more than one video "
+                    "stream; keeping the first and ignoring media %u\n",
+                    filter->sourceName.c_str(), idx);
+            return FALSE;
+        }
+        filter->videoSelected = true;
+        return TRUE;
+    }
+
+    LogDebug(VB_MEDIAOUT, "VideoInputManager: '%s' ignoring SDP media %u (%s)\n",
+             filter->sourceName.c_str(), idx, media);
+    return FALSE;
+}
+
+// rtspsrc has finished creating pads for everything select-stream accepted.
+// A stream with no video media at all leaves the pipeline empty, which
+// otherwise surfaces only as "No frames" in the preview with nothing in the
+// log to explain it -- so name the actual cause here.
+static void RtspNoMorePads(GstElement*, gpointer userData) {
+    auto* filter = static_cast<RtspStreamFilter*>(userData);
+    if (!filter || filter->videoSelected) {
+        return;
+    }
+    LogErr(VB_MEDIAOUT, "VideoInputManager: '%s' RTSP stream offers no video track\n",
+           filter->sourceName.c_str());
+    WarningHolder::AddWarning(56, "Video input '" + filter->sourceName +
+                                      "': the RTSP stream contains no video track");
 }
 #endif
 
@@ -758,7 +810,14 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
     if (source.type == "rtspsrc") {
         GstElement* rtspEl = gst_bin_get_by_name(GST_BIN(source.pipeline), "rtspvsrc");
         if (rtspEl) {
-            g_signal_connect(rtspEl, "select-stream", G_CALLBACK(RtspSelectVideoStreamOnly), nullptr);
+            // Both handlers run on rtspsrc's own thread, one media at a time,
+            // so the shared state needs no locking.  "no-more-pads" carries
+            // the destroy notify that frees it, once, with the element.
+            auto* filter = new RtspStreamFilter{ source.name, false };
+            g_signal_connect(rtspEl, "select-stream", G_CALLBACK(RtspSelectStream), filter);
+            g_signal_connect_data(rtspEl, "no-more-pads", G_CALLBACK(RtspNoMorePads), filter,
+                                  [](gpointer d, GClosure*) { delete static_cast<RtspStreamFilter*>(d); },
+                                  GConnectFlags(0));
             gst_object_unref(rtspEl);
         }
     }
