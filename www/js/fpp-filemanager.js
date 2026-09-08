@@ -770,10 +770,16 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 	// The upload's byte transfer can hit 100% well before the server finishes
 	// writing/assembling the chunk and responds, which is what FilePond is
 	// actually still waiting on to consider the item done. Swap the label so
-	// that wait doesn't look like a stuck/frozen upload; FilePond overwrites
-	// this itself once the item actually completes (see 'processfile' below).
+	// that wait doesn't look like a stuck/frozen upload.
+	//
+	// Only relabel an item that is still processing. FilePond renders its view
+	// updates before it flushes the public event queue, so the final progress
+	// event (the one at 100%) is delivered *after* "Upload complete" has already
+	// been painted. Without the status check this handler overwrites that final
+	// label and nothing ever writes to the element again, leaving a finished
+	// upload reading "Saving to disk" forever.
 	pond.on('processfileprogress', (file, progress) => {
-		if (progress < 1) {
+		if (progress < 1 || file.status !== FilePond.FileStatus.PROCESSING) {
 			return;
 		}
 		var itemEl = document.getElementById('filepond--item-' + file.id);
