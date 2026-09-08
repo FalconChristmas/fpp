@@ -195,7 +195,9 @@ static bool GstValueUsable(const std::string& value, const char* what,
 // same hazard the run thread's copied-by-value locals guard against.
 struct RtspStreamFilter {
     std::string sourceName;
+    bool wantAudio = false;    // mirrors SourceInfo::audioEnabled
     bool videoSelected = false;
+    bool audioSelected = false;
 };
 
 // rtspsrc's "select-stream" signal: return FALSE to keep it from ever
@@ -205,10 +207,11 @@ struct RtspStreamFilter {
 // reach a sink: an unlinked one makes rtspsrc's delivery loop tear the whole
 // pipeline down with "Internal data stream error ... reason not-linked",
 // which is fatal under protocols=tcp where all media share one connection.
-// decodebin downstream has a single sink pad, so exactly one media can be
-// accepted -- refuse the rest before they are ever requested.  Refusing here
-// rather than sinking the extra pads also means the camera never sends them,
-// so nothing is carried that we would only discard.
+// The pipelines built below offer exactly one video branch, plus one audio
+// branch when audio extraction is enabled, so accept at most one media for
+// each and refuse the rest before they are ever requested.  Refusing here
+// rather than sinking the extra pads also means the camera never sends
+// them, so nothing is decoded or carried that we would only discard.
 //
 // Taking only the *first* video matters for cameras that advertise two video
 // media in a single SDP -- some offer H.264 and MJPEG as alternatives.  Main
@@ -224,8 +227,12 @@ static gboolean RtspSelectStream(GstElement*, guint idx, GstCaps* caps, gpointer
 
     // "media" carries the SDP m= line type and is always present in practice.
     // An unlabelled media is treated as the video track rather than dropped,
-    // so a server we cannot classify still gets its one stream through.
-    if (!media || g_strcmp0(media, "video") == 0) {
+    // so a server we cannot classify still gets its one stream through -- the
+    // same benefit-of-the-doubt the original video-only filter gave it.
+    const bool isVideo = !media || g_strcmp0(media, "video") == 0;
+    const bool isAudio = media && g_strcmp0(media, "audio") == 0;
+
+    if (isVideo) {
         if (filter->videoSelected) {
             LogWarn(VB_MEDIAOUT, "VideoInputManager: '%s' SDP offers more than one video "
                     "stream; keeping the first and ignoring media %u\n",
@@ -236,13 +243,18 @@ static gboolean RtspSelectStream(GstElement*, guint idx, GstCaps* caps, gpointer
         return TRUE;
     }
 
+    if (isAudio && filter->wantAudio && !filter->audioSelected) {
+        filter->audioSelected = true;
+        return TRUE;
+    }
+
     LogDebug(VB_MEDIAOUT, "VideoInputManager: '%s' ignoring SDP media %u (%s)\n",
-             filter->sourceName.c_str(), idx, media);
+             filter->sourceName.c_str(), idx, media ? media : "unlabelled");
     return FALSE;
 }
 
 // rtspsrc has finished creating pads for everything select-stream accepted.
-// A stream with no video media at all leaves the pipeline empty, which
+// A stream with no video media at all leaves the video branch empty, which
 // otherwise surfaces only as "No frames" in the preview with nothing in the
 // log to explain it -- so name the actual cause here.
 static void RtspNoMorePads(GstElement*, gpointer userData) {
@@ -254,6 +266,173 @@ static void RtspNoMorePads(GstElement*, gpointer userData) {
            filter->sourceName.c_str());
     WarningHolder::AddWarning(56, "Video input '" + filter->sourceName +
                                       "': the RTSP stream contains no video track");
+}
+
+// Route each rtspsrc pad to the branch matching its media type.
+//
+// Only needed for the audio+video pipeline.  gst_parse_launch's own delayed
+// linking drops its pad-added handler after the first pad it manages to link,
+// so it can satisfy exactly one branch and the second would be left dangling
+// -- the very failure this whole filter exists to prevent.
+static void RtspLinkPadToBranch(GstElement* src, GstPad* pad, gpointer userData) {
+    auto* filter = static_cast<RtspStreamFilter*>(userData);
+    if (!filter) {
+        return;
+    }
+    const std::string& name = filter->sourceName;
+
+    GstCaps* caps = gst_pad_get_current_caps(pad);
+    if (!caps) {
+        caps = gst_pad_query_caps(pad, nullptr);
+    }
+    const gchar* media = nullptr;
+    if (caps && gst_caps_get_size(caps) > 0) {
+        media = gst_structure_get_string(gst_caps_get_structure(caps, 0), "media");
+    }
+    const char* branch = (media && g_strcmp0(media, "audio") == 0) ? "adec" : "vdec";
+
+    GstObject* parent = gst_element_get_parent(src);
+    GstElement* dec = parent ? gst_bin_get_by_name(GST_BIN(parent), branch) : nullptr;
+    if (!dec) {
+        LogErr(VB_MEDIAOUT, "VideoInputManager: '%s' has no '%s' branch for RTSP media '%s'\n",
+               name.c_str(), branch, media ? media : "unlabelled");
+    } else {
+        GstPad* sinkPad = gst_element_get_static_pad(dec, "sink");
+        if (!sinkPad) {
+            LogErr(VB_MEDIAOUT, "VideoInputManager: '%s' branch '%s' has no sink pad\n",
+                   name.c_str(), branch);
+        } else if (gst_pad_is_linked(sinkPad)) {
+            // select-stream should have kept this from happening; if a server
+            // produces a second pad for a branch anyway, leaving it unlinked
+            // would kill the pipeline, so say so rather than fail silently.
+            LogWarn(VB_MEDIAOUT, "VideoInputManager: '%s' branch '%s' is already linked, "
+                    "ignoring extra RTSP media '%s'\n",
+                    name.c_str(), branch, media ? media : "unlabelled");
+        } else {
+            GstPadLinkReturn ret = gst_pad_link(pad, sinkPad);
+            if (ret != GST_PAD_LINK_OK) {
+                LogErr(VB_MEDIAOUT, "VideoInputManager: '%s' could not link RTSP media '%s' "
+                       "to '%s' (%d)\n", name.c_str(), media ? media : "unlabelled", branch, ret);
+            } else {
+                LogInfo(VB_MEDIAOUT, "VideoInputManager: '%s' linked RTSP media '%s' to '%s'\n",
+                        name.c_str(), media ? media : "unlabelled", branch);
+            }
+        }
+        if (sinkPad) {
+            gst_object_unref(sinkPad);
+        }
+        gst_object_unref(dec);
+    }
+    if (parent) {
+        gst_object_unref(parent);
+    }
+    if (caps) {
+        gst_caps_unref(caps);
+    }
+}
+#endif
+
+#ifdef HAS_GSTREAMER_VIDEO_INPUT
+// Publish a pipeline's "apwsink" pipewiresink as a PipeWire Audio/Source node
+// so the mix bus can route it, and attach the throughput probe used to spot
+// audio arriving faster or slower than real time.
+//
+// Shared by the YouTube (StartSourceWithAudio) and RTSP audio paths: both end
+// in the same named sink and want it configured identically apart from
+// branchMayStayEmpty, which is set when the source may carry no audio track.
+static void ConfigureAudioSourceSink(GstElement* pipeline, const std::string& audioNodeName,
+                                     const std::string& sourceName, bool branchMayStayEmpty) {
+    GstElement* apwsink = gst_bin_get_by_name(GST_BIN(pipeline), "apwsink");
+    if (apwsink) {
+        std::string audioNodeDesc = "FPP Audio Input: " + sourceName;
+
+        GstStructure* aprops = gst_structure_new("props",
+            "media.class", G_TYPE_STRING, "Audio/Source",
+            "node.name", G_TYPE_STRING, audioNodeName.c_str(),
+            "node.description", G_TYPE_STRING, audioNodeDesc.c_str(),
+            "node.autoconnect", G_TYPE_BOOLEAN, FALSE,
+            "node.always-process", G_TYPE_BOOLEAN, TRUE,
+            "node.latency", G_TYPE_STRING, "2048/48000",
+            "object.register", G_TYPE_STRING, "true",
+            NULL);
+        g_object_set(apwsink, "stream-properties", aprops, NULL);
+        gst_structure_free(aprops);
+
+        g_object_set(apwsink, "mode", PIPEWIRE_SINK_MODE_PROVIDE, NULL);
+        // sync=FALSE: provide mode crashes with sync=TRUE.
+        // The clocksync element upstream paces the audio at real-time instead.
+        g_object_set(apwsink, "sync", FALSE, NULL);
+
+        // An RTSP camera may turn out to advertise no audio at all, leaving this
+        // branch with nothing flowing through it.  async=FALSE keeps the sink out
+        // of the pipeline's preroll so an empty audio branch cannot stall the
+        // video branch's path to PLAYING.  The YouTube path already resolved a
+        // real audio URL before building the pipeline, so it keeps the default.
+        if (branchMayStayEmpty) {
+            g_object_set(apwsink, "async", FALSE, NULL);
+        }
+
+        // Add a throughput probe on pipewiresink's sink pad to measure
+        // how fast audio actually flows (vs expected real-time pace).
+        GstPad* sinkPad = gst_element_get_static_pad(apwsink, "sink");
+        if (sinkPad) {
+            struct ProbeData {
+                int64_t totalBytes;
+                int64_t startUs;
+                int64_t lastLogUs;
+                int64_t lastPtsNs;
+                int sampleRate;
+                int bytesPerFrame;
+            };
+            auto* pd = new ProbeData{0, 0, 0, 0, 48000, 8}; // default 2ch*F32LE=8 bpf
+            gst_pad_add_probe(sinkPad, GST_PAD_PROBE_TYPE_BUFFER,
+                [](GstPad* pad, GstPadProbeInfo* info, gpointer udata) -> GstPadProbeReturn {
+                    auto* d = static_cast<ProbeData*>(udata);
+                    GstBuffer* buf = GST_PAD_PROBE_INFO_BUFFER(info);
+                    if (d->startUs == 0) {
+                        d->startUs = g_get_monotonic_time();
+                        // Log actual negotiated caps
+                        GstCaps* caps = gst_pad_get_current_caps(pad);
+                        if (caps) {
+                            gchar* cs = gst_caps_to_string(caps);
+                            LogInfo(VB_MEDIAOUT, "Audio probe caps: %s\n", cs);
+                            // Extract bytes-per-frame from caps to fix calculation
+                            GstStructure* s = gst_caps_get_structure(caps, 0);
+                            const gchar* fmt = gst_structure_get_string(s, "format");
+                            int ch = 0; gst_structure_get_int(s, "channels", &ch);
+                            int bps = 2; // default S16LE
+                            if (fmt && (strcmp(fmt, "F32LE") == 0 || strcmp(fmt, "F32BE") == 0 ||
+                                        strcmp(fmt, "S32LE") == 0 || strcmp(fmt, "S32BE") == 0))
+                                bps = 4;
+                            else if (fmt && (strcmp(fmt, "F64LE") == 0 || strcmp(fmt, "F64BE") == 0))
+                                bps = 8;
+                            if (ch > 0) d->bytesPerFrame = ch * bps;
+                            g_free(cs);
+                            gst_caps_unref(caps);
+                        }
+                    }
+                    d->totalBytes += gst_buffer_get_size(buf);
+                    // Also track by PTS
+                    GstClockTime pts = GST_BUFFER_PTS(buf);
+                    if (GST_CLOCK_TIME_IS_VALID(pts)) d->lastPtsNs = pts;
+                    int64_t now = g_get_monotonic_time();
+                    if (now - d->lastLogUs >= 5000000) { // every 5s
+                        d->lastLogUs = now;
+                        double audioSecs = (double)d->totalBytes / (d->sampleRate * d->bytesPerFrame);
+                        double wallSecs = (double)(now - d->startUs) / 1000000.0;
+                        double ratio = wallSecs > 0 ? audioSecs / wallSecs : 0;
+                        double ptsSecs = (double)d->lastPtsNs / 1000000000.0;
+                        LogInfo(VB_MEDIAOUT, "Audio throughput: %.1fs audio in %.1fs wall (ratio=%.3f) bpf=%d pts=%.1fs\n",
+                                audioSecs, wallSecs, ratio, d->bytesPerFrame, ptsSecs);
+                    }
+                    return GST_PAD_PROBE_OK;
+                }, pd,
+                [](gpointer udata) { delete static_cast<ProbeData*>(udata); });
+            gst_object_unref(sinkPad);
+        }
+
+        gst_object_unref(apwsink);
+    }
 }
 #endif
 
@@ -564,6 +743,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
     std::string srcElement;
     bool useDecodebin = false;
     bool useUridecodebin = false;
+    bool useRtspAudio = false;
     if (source.type == "videotestsrc") {
         srcElement = "videotestsrc is-live=true";
         if (!source.pattern.empty()) {
@@ -583,12 +763,17 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
             return false;
         }
         // rtspsrc → decodebin handles codec negotiation (H.264, H.265, MJPEG, etc.)
-        // name=rtspvsrc lets us fetch the element below and reject any non-video
-        // media the SDP offers (see the select-stream connection further down).
+        // name=rtspvsrc lets us fetch the element below to filter which SDP
+        // media are set up at all (see the select-stream connection further
+        // down), and to route the resulting pads when audio is wanted too.
         srcElement = "rtspsrc name=rtspvsrc location=" + GstQuote(source.uri)
                    + " latency=" + std::to_string(source.latency)
                    + " protocols=tcp";
-        useDecodebin = true;
+        // With audio enabled the camera's audio track is kept and published as
+        // its own PipeWire source, which needs a second branch and so a
+        // different pipeline shape -- built below rather than by useDecodebin.
+        useRtspAudio = source.audioEnabled;
+        useDecodebin = !useRtspAudio;
     } else if (source.type == "urisrc") {
         if (source.uri.empty()) {
             LogWarn(VB_MEDIAOUT, "VideoInputManager: urisrc '%s' has no URI\n", source.name.c_str());
@@ -728,7 +913,33 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
                         + ",framerate=" + std::to_string(source.framerate) + "/1";
 
     std::string pipelineDesc;
-    if (useUridecodebin) {
+    if (useRtspAudio) {
+        // Two branches in ONE GstPipeline so both share a clock and base_time.
+        // Separate pipelines pace independently and drift apart, which is why
+        // StartSourceWithAudio() combines its branches the same way.
+        //
+        // rtspsrc's pads are deliberately left unlinked in this description:
+        // gst_parse_launch can only ever satisfy one of them, so
+        // RtspLinkPadToBranch() connects each pad to vdec or adec by media
+        // type once rtspsrc creates it.  Each decodebin therefore handles a
+        // single stream and its own dynamic src pad links normally.
+        pipelineDesc = srcElement
+            + " decodebin name=vdec"
+            + " ! videoconvert"
+            + " ! videoscale"
+            + " ! videorate"
+            + " ! " + capsStr
+            + " ! queue max-size-time=2000000000 max-size-buffers=0 max-size-bytes=0"
+            + " ! clocksync"
+            + " ! intervideosink sync=false channel=" + GstQuote(source.pipeWireNodeName)
+            + " decodebin name=adec"
+            + " ! audioconvert"
+            + " ! audioresample"
+            + " ! audio/x-raw,format=F32LE,rate=48000,channels=2,layout=interleaved"
+            + " ! queue max-size-time=5000000000 max-size-buffers=0 max-size-bytes=0"
+            + " ! clocksync"
+            + " ! pipewiresink name=apwsink";
+    } else if (useUridecodebin) {
         // uridecodebin already decodes — just convert/scale/queue to intervideosink.
         // videorate converts the stream's native framerate to the configured one.
         // clocksync paces bursty HLS delivery at real-time.
@@ -810,16 +1021,39 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
     if (source.type == "rtspsrc") {
         GstElement* rtspEl = gst_bin_get_by_name(GST_BIN(source.pipeline), "rtspvsrc");
         if (rtspEl) {
-            // Both handlers run on rtspsrc's own thread, one media at a time,
-            // so the shared state needs no locking.  "no-more-pads" carries
-            // the destroy notify that frees it, once, with the element.
-            auto* filter = new RtspStreamFilter{ source.name, false };
+            // Owned by the closure: the last handler to be disconnected frees
+            // it, which happens when rtspsrc is finalised with the pipeline.
+            // All three handlers run on rtspsrc's own thread, one media at a
+            // time, so the shared state needs no locking.
+            auto* filter = new RtspStreamFilter{ source.name, useRtspAudio, false, false };
             g_signal_connect(rtspEl, "select-stream", G_CALLBACK(RtspSelectStream), filter);
+            if (useRtspAudio) {
+                g_signal_connect(rtspEl, "pad-added", G_CALLBACK(RtspLinkPadToBranch), filter);
+            }
+            // "no-more-pads" is connected either way and carries the destroy
+            // notify that frees the shared state, so it outlives the handlers
+            // above and is released once with the element.
             g_signal_connect_data(rtspEl, "no-more-pads", G_CALLBACK(RtspNoMorePads), filter,
                                   [](gpointer d, GClosure*) { delete static_cast<RtspStreamFilter*>(d); },
                                   GConnectFlags(0));
             gst_object_unref(rtspEl);
         }
+    }
+
+    if (useRtspAudio) {
+        // Publish the camera's audio as its own PipeWire Audio/Source node.
+        // branchMayStayEmpty: unlike the YouTube path, nothing has confirmed
+        // the camera actually offers audio, and it may advertise none.
+        std::string audioNodeName = source.audioPipeWireNodeName;
+        if (audioNodeName.empty())
+            audioNodeName = source.pipeWireNodeName + "_audio";
+        ConfigureAudioSourceSink(source.pipeline, audioNodeName, source.name, true);
+
+        // Both branches pace against one clock rather than letting
+        // pipewiresink provide its own, matching StartSourceWithAudio().
+        GstClock* sysClock = gst_system_clock_obtain();
+        gst_pipeline_use_clock(GST_PIPELINE(source.pipeline), sysClock);
+        gst_object_unref(sysClock);
     }
 
     // Video sink is intervideosink — no PipeWire configuration needed.
@@ -1108,91 +1342,10 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
     source.audioPipeline = nullptr;
 
     // Configure audio pipewiresink as an Audio/Source in provide mode.
-    GstElement* apwsink = gst_bin_get_by_name(GST_BIN(source.pipeline), "apwsink");
-    if (apwsink) {
-        std::string audioNodeName = source.audioPipeWireNodeName;
-        if (audioNodeName.empty())
-            audioNodeName = source.pipeWireNodeName + "_audio";
-        std::string audioNodeDesc = "FPP Audio Input: " + source.name;
-
-        GstStructure* aprops = gst_structure_new("props",
-            "media.class", G_TYPE_STRING, "Audio/Source",
-            "node.name", G_TYPE_STRING, audioNodeName.c_str(),
-            "node.description", G_TYPE_STRING, audioNodeDesc.c_str(),
-            "node.autoconnect", G_TYPE_BOOLEAN, FALSE,
-            "node.always-process", G_TYPE_BOOLEAN, TRUE,
-            "node.latency", G_TYPE_STRING, "2048/48000",
-            "object.register", G_TYPE_STRING, "true",
-            NULL);
-        g_object_set(apwsink, "stream-properties", aprops, NULL);
-        gst_structure_free(aprops);
-
-        g_object_set(apwsink, "mode", PIPEWIRE_SINK_MODE_PROVIDE, NULL);
-        // sync=FALSE: provide mode crashes with sync=TRUE.
-        // clocksync element upstream paces HLS audio at real-time instead.
-        g_object_set(apwsink, "sync", FALSE, NULL);
-
-        // Add a throughput probe on pipewiresink's sink pad to measure
-        // how fast audio actually flows (vs expected real-time pace).
-        GstPad* sinkPad = gst_element_get_static_pad(apwsink, "sink");
-        if (sinkPad) {
-            struct ProbeData {
-                int64_t totalBytes;
-                int64_t startUs;
-                int64_t lastLogUs;
-                int64_t lastPtsNs;
-                int sampleRate;
-                int bytesPerFrame;
-            };
-            auto* pd = new ProbeData{0, 0, 0, 0, 48000, 8}; // default 2ch*F32LE=8 bpf
-            gst_pad_add_probe(sinkPad, GST_PAD_PROBE_TYPE_BUFFER,
-                [](GstPad* pad, GstPadProbeInfo* info, gpointer udata) -> GstPadProbeReturn {
-                    auto* d = static_cast<ProbeData*>(udata);
-                    GstBuffer* buf = GST_PAD_PROBE_INFO_BUFFER(info);
-                    if (d->startUs == 0) {
-                        d->startUs = g_get_monotonic_time();
-                        // Log actual negotiated caps
-                        GstCaps* caps = gst_pad_get_current_caps(pad);
-                        if (caps) {
-                            gchar* cs = gst_caps_to_string(caps);
-                            LogInfo(VB_MEDIAOUT, "Audio probe caps: %s\n", cs);
-                            // Extract bytes-per-frame from caps to fix calculation
-                            GstStructure* s = gst_caps_get_structure(caps, 0);
-                            const gchar* fmt = gst_structure_get_string(s, "format");
-                            int ch = 0; gst_structure_get_int(s, "channels", &ch);
-                            int bps = 2; // default S16LE
-                            if (fmt && (strcmp(fmt, "F32LE") == 0 || strcmp(fmt, "F32BE") == 0 ||
-                                        strcmp(fmt, "S32LE") == 0 || strcmp(fmt, "S32BE") == 0))
-                                bps = 4;
-                            else if (fmt && (strcmp(fmt, "F64LE") == 0 || strcmp(fmt, "F64BE") == 0))
-                                bps = 8;
-                            if (ch > 0) d->bytesPerFrame = ch * bps;
-                            g_free(cs);
-                            gst_caps_unref(caps);
-                        }
-                    }
-                    d->totalBytes += gst_buffer_get_size(buf);
-                    // Also track by PTS
-                    GstClockTime pts = GST_BUFFER_PTS(buf);
-                    if (GST_CLOCK_TIME_IS_VALID(pts)) d->lastPtsNs = pts;
-                    int64_t now = g_get_monotonic_time();
-                    if (now - d->lastLogUs >= 5000000) { // every 5s
-                        d->lastLogUs = now;
-                        double audioSecs = (double)d->totalBytes / (d->sampleRate * d->bytesPerFrame);
-                        double wallSecs = (double)(now - d->startUs) / 1000000.0;
-                        double ratio = wallSecs > 0 ? audioSecs / wallSecs : 0;
-                        double ptsSecs = (double)d->lastPtsNs / 1000000000.0;
-                        LogInfo(VB_MEDIAOUT, "Audio throughput: %.1fs audio in %.1fs wall (ratio=%.3f) bpf=%d pts=%.1fs\n",
-                                audioSecs, wallSecs, ratio, d->bytesPerFrame, ptsSecs);
-                    }
-                    return GST_PAD_PROBE_OK;
-                }, pd,
-                [](gpointer udata) { delete static_cast<ProbeData*>(udata); });
-            gst_object_unref(sinkPad);
-        }
-
-        gst_object_unref(apwsink);
-    }
+    std::string audioNodeName = source.audioPipeWireNodeName;
+    if (audioNodeName.empty())
+        audioNodeName = source.pipeWireNodeName + "_audio";
+    ConfigureAudioSourceSink(source.pipeline, audioNodeName, source.name, false);
 
     // Force the combined pipeline to use the system clock instead of
     // letting pipewiresink provide its own.  Both clocksync elements

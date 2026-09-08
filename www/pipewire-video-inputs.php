@@ -487,6 +487,27 @@
                 '</div></div>';
         }
 
+        // Audio extraction toggle, shared by the source types that can carry
+        // audio alongside video (YouTube/HLS URIs and RTSP cameras).  The hint
+        // differs per type, so it is passed in rather than branched on here.
+        function BuildAudioExtractionBlock(source, index, hint) {
+            var html = '<div class="row align-items-center mt-2">';
+            html += '<div class="col-auto"><label>Audio:</label></div>';
+            html += '<div class="col-auto">';
+            html += '<input type="checkbox" class="form-check-input" id="audioEn_' + index + '"' + (source.audioEnabled ? ' checked' : '') + ' onchange="ToggleAudioEnabled(' + index + ', this.checked)"> ';
+            html += '<label class="form-check-label fw-normal" for="audioEn_' + index + '">Extract audio from stream</label>';
+            html += '</div>';
+            if (source.audioEnabled) {
+                var audioNode = source.audioPipeWireNodeName || ('fpp_audio_src_' + source.id + '_' + EscapeNodeName(source.name || 'source'));
+                html += '<span class="badge bg-info pipewire-badge ms-2" title="PipeWire audio source node">' + EscapeAttr(audioNode) + '</span>';
+            }
+            html += '</div>';
+            if (source.audioEnabled) {
+                html += '<div class="row mt-1"><div class="col text-muted ps-5"><small>' + EscapeAttr(hint) + '</small></div></div>';
+            }
+            return html;
+        }
+
         // Device-level controls for a capture card / webcam.
         //
         // These are deliberately separate from the Resolution/FPS row: those
@@ -913,6 +934,8 @@
                     html += '<input type="number" class="form-control form-control-sm" style="width:90px;" value="' + (source.latency || 200) + '" onchange="UpdateSourceField(' + index + ',\'latency\',parseInt(this.value))" min="0" max="10000">';
                     html += '</div>';
                     html += '</div>';
+                    html += BuildAudioExtractionBlock(source, index,
+                        'Keeps the camera\'s audio track and publishes it as a separate PipeWire source node. Add it to an Audio Input Group to route it to an Output Group. Cameras that offer no audio track are unaffected.');
                     break;
 
                 case 'urisrc':
@@ -929,21 +952,8 @@
                     html += '</div>';
                     html += '<div class="col-auto text-muted"><small>YouTube URL, HTTP, HLS, or any GStreamer-supported URI</small></div>';
                     html += '</div>';
-                    // Audio extraction (YouTube only)
-                    html += '<div class="row align-items-center mt-2">';
-                    html += '<div class="col-auto"><label>Audio:</label></div>';
-                    html += '<div class="col-auto">';
-                    html += '<input type="checkbox" class="form-check-input" id="audioEn_' + index + '"' + (source.audioEnabled ? ' checked' : '') + ' onchange="ToggleAudioEnabled(' + index + ', this.checked)"> ';
-                    html += '<label class="form-check-label fw-normal" for="audioEn_' + index + '">Extract audio from stream</label>';
-                    html += '</div>';
-                    if (source.audioEnabled) {
-                        var audioNode = source.audioPipeWireNodeName || ('fpp_audio_src_' + source.id + '_' + EscapeNodeName(source.name || 'source'));
-                        html += '<span class="badge bg-info pipewire-badge ms-2" title="PipeWire audio source node">' + EscapeAttr(audioNode) + '</span>';
-                    }
-                    html += '</div>';
-                    if (source.audioEnabled) {
-                        html += '<div class="row mt-1"><div class="col text-muted" style="padding-left:5.5rem;"><small>Audio is extracted as a separate PipeWire source node. Add it to an Audio Input Group to route it to an Output Group.</small></div></div>';
-                    }
+                    html += BuildAudioExtractionBlock(source, index,
+                        'Audio is extracted as a separate PipeWire source node. Add it to an Audio Input Group to route it to an Output Group.');
                     break;
 
                 case 'rtpsrc':
