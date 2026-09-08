@@ -49,6 +49,13 @@ namespace RTSPOutput
 {
 
     constexpr int DEFAULT_PORT = 8554; // the IANA-registered RTSP alt port
+    // gst-rtsp-server's own default is 200ms of buffering inside each media.
+    // Our sources are live and already on this machine -- a camera, or a
+    // sequence being played -- so that much slack buys nothing and is felt
+    // directly as lag by whoever is watching. 40ms is a little over one frame
+    // at 25fps: enough to absorb jitter between the capture and encode threads
+    // without stacking up.
+    constexpr int DEFAULT_LATENCY_MS = 40;
     constexpr int DEFAULT_WIDTH = 1280;
     constexpr int DEFAULT_HEIGHT = 720;
     constexpr int DEFAULT_FRAMERATE = 30;
@@ -106,6 +113,9 @@ struct RTSPOutputMount {
 struct RTSPOutputConfig {
     bool enabled = false;
     int port = RTSPOutput::DEFAULT_PORT;
+    // Buffering inside each RTSP media, in milliseconds.  Lower means less
+    // delay for the viewer; too low and a jittery source drops frames.
+    int latencyMs = RTSPOutput::DEFAULT_LATENCY_MS;
 
     // Hold an audio bridge idle until something in the graph feeds it, for
     // exactly the reason OpusRTPConfig::requireGroupSource documents: the
@@ -146,6 +156,7 @@ public:
         };
         bool serverRunning = false;
         int port = 0;
+        int latencyMs = 0;
         std::vector<MountStatus> mounts;
     };
     Status GetStatus();

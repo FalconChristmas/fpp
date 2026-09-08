@@ -139,6 +139,12 @@ bool RTSPOutputManager::LoadConfig() {
         fresh.port = RTSPOutput::DEFAULT_PORT;
     }
     fresh.requireGroupSource = root.get("requireGroupSource", true).asBool();
+    fresh.latencyMs = root.get("latencyMs", RTSPOutput::DEFAULT_LATENCY_MS).asInt();
+    if (fresh.latencyMs < 0 || fresh.latencyMs > 5000) {
+        LogWarn(VB_MEDIAOUT, "RTSPOutputManager: latencyMs %d out of range, using %d\n",
+                fresh.latencyMs, RTSPOutput::DEFAULT_LATENCY_MS);
+        fresh.latencyMs = RTSPOutput::DEFAULT_LATENCY_MS;
+    }
 
     LoadMounts(fresh);
 
@@ -415,6 +421,9 @@ bool RTSPOutputManager::StartServer() {
         // The sources are live: never let a client's disconnect send EOS and
         // tear the shared media down under the others.
         gst_rtsp_media_factory_set_eos_shutdown(factory, FALSE);
+        // Without this each media keeps gst-rtsp-server's 200ms default, which
+        // a viewer feels as lag for no benefit on a live local source.
+        gst_rtsp_media_factory_set_latency(factory, m_config.latencyMs);
         gst_rtsp_mount_points_add_factory(mounts, mount.mountPoint.c_str(), factory);
         mounted++;
     }
@@ -537,6 +546,7 @@ RTSPOutputManager::Status RTSPOutputManager::GetStatus() {
 
     st.serverRunning = m_active.load();
     st.port = m_config.port;
+    st.latencyMs = m_config.latencyMs;
 
     for (const auto& mount : m_config.mounts) {
         Status::MountStatus ms;
@@ -574,6 +584,7 @@ HttpResponsePtr RTSPOutputManager::render_GET(const HttpRequestPtr& req) {
         Json::Value result;
         result["active"] = st.serverRunning;
         result["port"] = st.port;
+        result["latencyMs"] = st.latencyMs;
 
         Json::Value mounts(Json::arrayValue);
         for (const auto& m : st.mounts) {

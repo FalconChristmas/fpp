@@ -6644,6 +6644,10 @@ function SaveRTSPOutputs()
     if ($out['port'] < 1024 || $out['port'] > 65535) {
         $out['port'] = 8554;
     }
+    $out['latencyMs'] = isset($parsed['latencyMs']) ? intval($parsed['latencyMs']) : 40;
+    if ($out['latencyMs'] < 0 || $out['latencyMs'] > 5000) {
+        $out['latencyMs'] = 40;
+    }
 
     file_put_contents($configFile, json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     return json(array("status" => "OK"));

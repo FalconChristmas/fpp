@@ -60,11 +60,24 @@
                         <div class="col-auto">
                             <input type="number" class="form-control form-control-sm" id="rtspPort" min="1024" max="65535" value="8554">
                         </div>
+                        <div class="col-auto"><label class="form-label mb-0" for="rtspLatency">Buffering (ms):</label></div>
+                        <div class="col-auto">
+                            <input type="number" class="form-control form-control-sm" id="rtspLatency" min="0" max="5000" value="40"
+                                title="Buffering inside each stream. Lower means less delay for the viewer; too low and a jittery source drops frames.">
+                        </div>
                         <div class="col-auto" id="serverStatus"></div>
                         <div class="col-auto">
                             <button class="btn btn-success btn-sm" id="saveBtn" onclick="SaveAndApply()">
                                 <i class="fas fa-save"></i> Save &amp; Apply</button>
                         </div>
+                    </div>
+
+                    <div class="alert alert-secondary py-2">
+                        <small><i class="fas fa-info-circle"></i>
+                            Most of the delay a viewer sees is their own player's buffering, not this server's.
+                            VLC caches 1000&nbsp;ms of network input by default &mdash; lower it under
+                            Preferences &rarr; Input/Codecs &rarr; Network caching, or run
+                            <code>vlc --network-caching=200</code>, before tuning the value here.</small>
                     </div>
 
                     <div class="alert alert-secondary py-2">
@@ -111,6 +124,7 @@
                 rtspConfig = data || { enabled: false, port: 8554 };
                 $('#rtspEnabled').prop('checked', !!rtspConfig.enabled);
                 $('#rtspPort').val(rtspConfig.port || 8554);
+                $('#rtspLatency').val(rtspConfig.latencyMs != null ? rtspConfig.latencyMs : 40);
             });
         }
 
@@ -185,6 +199,8 @@
         function SaveAndApply() {
             rtspConfig.enabled = $('#rtspEnabled').is(':checked');
             rtspConfig.port = parseInt($('#rtspPort').val(), 10) || 8554;
+            var lat = parseInt($('#rtspLatency').val(), 10);
+            rtspConfig.latencyMs = isNaN(lat) ? 40 : lat;
 
             var $btn = $('#saveBtn');
             $btn.prop('disabled', true);
