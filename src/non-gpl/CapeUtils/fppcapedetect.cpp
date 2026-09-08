@@ -54,7 +54,6 @@ int remove_recursive(const char* const path, bool removeThis = true) {
 }
 
 int main(int argc, char* argv[]) {
-    remove_recursive("/home/fpp/media/tmp/", false);
     try {
         bool readonly = false;
         bool noperms = false;
@@ -68,13 +67,25 @@ int main(int argc, char* argv[]) {
                 forceDefaults = true;
             }
         }
+
+        // Clearing this is part of REGENERATING it, so it must not happen in a
+        // read-only run. The wipe used to sit above the argument loop, so
+        // `fppcapedetect -ro` deleted the live cape-info.json and then never
+        // wrote one back -- loadFiles() only copies the regenerated files out of
+        // the scratch directory when !readOnly. A box left in that state has no
+        // cape-info.json at all, which MultiSync (:714) and
+        // ManageApacheContentPolicy.sh (:92) both read.
+        if (!readonly) {
+            remove_recursive("/home/fpp/media/tmp/", false);
+        }
         CapeUtils::INSTANCE.initCape(readonly, forceDefaults);
         if (!noperms) {
             // getpwnam_r() is the thread-safe form of getpwnam().
             char pbuf[16384];
             struct passwd pwd;
             struct passwd* pwres = nullptr;
-            if (getpwnam_r("fpp", &pwd, pbuf, sizeof(pbuf), &pwres) == 0 && pwres) {
+            if (getpwnam_r("fpp", &pwd, pbuf, sizeof(pbuf), &pwres) == 0 && pwres &&
+                std::filesystem::is_directory("/home/fpp/media/tmp/")) {
                 for (const auto& entry : std::filesystem::directory_iterator("/home/fpp/media/tmp/")) {
                     chown(entry.path().c_str(), pwres->pw_uid, pwres->pw_gid);
                 }
