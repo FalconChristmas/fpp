@@ -15,6 +15,7 @@
 #include "Condition.h"
 #include "../Timers.h"
 #include "../common.h"
+#include "../fpp-json.h"
 #include "../log.h"
 
 #include "IfCommand.h"

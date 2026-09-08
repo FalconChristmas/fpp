@@ -20,6 +20,7 @@
 #include <chrono>
 #include <cmath>
 
+#include "../fpp-json.h"
 #include "common_mini.h"
 #include "log.h"
 

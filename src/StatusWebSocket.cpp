@@ -56,6 +56,7 @@
 #include "StatusWebSocket.h"
 #include "Warnings.h"
 #include "common.h" // GetCurrentFPPDStatus, SaveJsonToString
+#include "fpp-json.h"
 
 #include <mutex>
 #include <set>
