@@ -492,6 +492,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             $('#setupBackBtn').prop('disabled', !!msg || setupCurrentStep === 1);
         }
 
+        // What the password fields held when the page loaded, so an untouched
+        // pair can be told from a mistyped one.
+        //
+        // Setup is re-run after an fppOS update, where a password already chosen
+        // is rendered into its field while the "verify" box -- which is UI-only
+        // and never stored -- comes up empty. Comparing the two unconditionally
+        // then reported a mismatch on a screen the user had not touched, and
+        // there was no way past it but to retype a password they had already
+        // set. Only compare once something has actually been typed.
+        var passwordInitial = {};
+
+        function passwordPairChanged(key) {
+            return $('#' + key).val() !== (passwordInitial[key] || '') ||
+                $('#' + key + 'Verify').val() !== '';
+        }
+
         // Validation belongs to the step that owns the field.  Validating at
         // Finish instead would send someone back three steps to fix a typo.
         function validateSetupStep(n) {
@@ -542,7 +558,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                     alert('You must choose to either Enable or Disable the UI password.');
                     return false;
                 }
-                if (pwEnable === '1' && $('#password').val() !== $('#passwordVerify').val()) {
+                if (pwEnable === '1' && passwordPairChanged('password') &&
+                    $('#password').val() !== $('#passwordVerify').val()) {
                     alert('The UI password and its confirmation do not match.');
                     return false;
                 }
@@ -551,7 +568,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                         alert('You must choose to either use the default OS password or choose a custom password.');
                         return false;
                     }
-                    if ($('#osPasswordEnable').val() === '1' && $('#osPassword').val() !== $('#osPasswordVerify').val()) {
+                    if ($('#osPasswordEnable').val() === '1' && passwordPairChanged('osPassword') &&
+                        $('#osPassword').val() !== $('#osPasswordVerify').val()) {
                         alert('The OS password and its confirmation do not match.');
                         return false;
                     }
@@ -651,7 +669,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
         // ReadSettingFromFile() is the same question cape detection asks with
         // settingIsSet(): is this key literally present in the settings file?
         var answeredSettings = <?= json_encode(array_values(array_filter(
-            array('statsPublish', 'ShareCrashData', 'emailAddress', 'FetchVendorLogos', 'SendVendorSerial'),
+            array('statsPublish', 'ShareCrashData', 'emailAddress', 'FetchVendorLogos', 'SendVendorSerial',
+                'passwordEnable', 'osPasswordEnable'),
             function ($k) { return ReadSettingFromFile($k) !== false; }))) ?>;
 
         // Same question for the jurisdiction, asked the same way and for the same
@@ -1245,23 +1264,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             });
         }
 
-        $(document).ready(function () {
-            var selected = '';
-            if (!settings['passwordEnable'])
-                selected = 'selected';
-            $('#passwordEnable').prepend("<option value='' " + selected + ">-- Choose an Option --</option>");
-            if ($('#passwordEnable').val() == '1') {
-                $('.passwordEnableChild').show();
+        // Offer "-- Choose an Option --" only where the choice has not been made.
+        //
+        // The old test was `!settings[key]`, which re-asked anyone who had
+        // already answered: both of these settings spell their first option "0"
+        // -- "No Password (Default)" and "falcon (Default)" -- and "0" is falsy
+        // in JavaScript. Someone who had deliberately chosen no password was
+        // shown an unanswered dropdown and made to choose again on every re-run
+        // of setup. Same trap as ShareCrashData's "keep locally", and the same
+        // fix: ask the settings file whether the key is there.
+        function offerUnansweredChoice(key, childClass) {
+            var $e = $('#' + key);
+            if ($e.length === 0) {
+                return;
             }
+            if (!settingAnswered(key)) {
+                $e.prepend("<option value='' selected>-- Choose an Option --</option>");
+                $e.val('');
+            }
+            if ($e.val() == '1') {
+                $('.' + childClass).show();
+            }
+        }
 
+        $(document).ready(function () {
+            $.each(['password', 'osPassword'], function (i, k) {
+                passwordInitial[k] = $('#' + k).val() || '';
+            });
+            offerUnansweredChoice('passwordEnable', 'passwordEnableChild');
             <? if ($showOSSecurity) { ?>
-                selected = '';
-                if (!settings['osPasswordEnable'])
-                    selected = 'selected';
-                $('#osPasswordEnable').prepend("<option value='' " + selected + ">-- Choose an Option --</option>");
-                if ($('#osPasswordEnable').val() == '1') {
-                    $('.osPasswordEnableChild').show();
-                }
+                offerUnansweredChoice('osPasswordEnable', 'osPasswordEnableChild');
             <? } ?>
 
             UpdateChildSettingsVisibility();
