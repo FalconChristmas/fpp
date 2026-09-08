@@ -1538,6 +1538,45 @@ if (isset($settings["cape-info"])) {
         </div>
         <?php
         include 'common/footer.inc';
+
+        // A cape whose signature verifies but is not attached to identifiable
+        // hardware is reported to the vendor from the device and from here.  The
+        // browser half exists for a device with no route out that is administered
+        // from a laptop that has one -- an ordinary show-network layout, and the
+        // only case the device half cannot cover.  The request must therefore be
+        // made by the browser, not proxied through PHP.
+        //
+        // Returns "" for the common case of no cape, a cape bound to real
+        // hardware, hideExternalURLs, or a notification already delivered inside
+        // the repeat interval, so nothing below is emitted at all.
+        require_once 'capeLicense.inc';
+        $capeLicenseURL = capeLicenseDueURL($currentCapeInfo);
+        if ($capeLicenseURL != "") {
+            ?>
+            <script>
+                // After the page's own load event: an outbound request to a host
+                // that is unreachable (the normal state of an offline show box)
+                // must not hold up anything the user came here to see.
+                window.addEventListener('load', function () {
+                    var report = function (delivered) {
+                        fetch('api/cape/licenseCheck', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ delivered: delivered })
+                        });
+                    };
+                    // no-cors because vendor hosts do not send
+                    // Access-Control-Allow-Origin.  The response is opaque, which
+                    // is fine: what is being recorded is that the request reached
+                    // the vendor, and a rejected promise is the only thing that
+                    // says it did not.
+                    fetch(<?= json_encode($capeLicenseURL) ?>, { mode: 'no-cors', cache: 'no-store' })
+                        .then(function () { report(true); })
+                        .catch(function () { report(false); });
+                });
+            </script>
+            <?php
+        }
         ?>
     </div>
 </body>

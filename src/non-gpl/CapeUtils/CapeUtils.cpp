@@ -877,6 +877,22 @@ static std::map<std::string, std::string> CONFIG_EEPROM_UPGRADE_MAP = {
     { "BBB48String:PB16-EXP", "PB16" }
 };
 
+static const char* capeStatusName(CapeUtils::CapeStatus st) {
+    switch (st) {
+    case CapeUtils::CapeStatus::NOT_PRESENT:
+        return "NOT_PRESENT";
+    case CapeUtils::CapeStatus::CORRUPT:
+        return "CORRUPT";
+    case CapeUtils::CapeStatus::UNSIGNED:
+        return "UNSIGNED";
+    case CapeUtils::CapeStatus::SIGNED_GENERIC:
+        return "SIGNED_GENERIC";
+    case CapeUtils::CapeStatus::SIGNED:
+        return "SIGNED";
+    }
+    return "UNKNOWN";
+}
+
 // ---------------------------------------------------------------------------
 // Privacy jurisdiction
 //
@@ -1470,9 +1486,14 @@ private:
                     }
                 }
 
-                if (ORIGEEPROM.find("sys/bus/i2c") == std::string::npos && devsn == "" && validSignature) {
-                    removes.insert("FetchVendorLogos");
-                }
+                // A signature that verifies but is not bound to this hardware used
+                // to be reported by deleting the user's FetchVendorLogos choice, so
+                // that the page's logo <img> carried the serial to the vendor.  The
+                // goal was right and the mechanism was not: it overrode a privacy
+                // choice to smuggle out a request, it was silent, and a user who
+                // simply turned logos off defeated it.  The state is recorded as
+                // licenseCheck below and reported explicitly instead --
+                // src/CapeLicenseNotify.cpp and www/capeLicense.inc.
                 if (result["id"].asString() != "Unsupported" && result["id"].asString() != "Unknown") {
                     result["serialNumber"] = capesn;
                 }
@@ -1601,9 +1622,39 @@ private:
                         writeSettingsFile(lines);
                     }
                     if (result.isMember("vendor")) {
-                        processVendor(result["vendor"]);
+                        // A signature not bound to this hardware is reported to the
+                        // vendor from the browser as well as from the device, and
+                        // that request needs the vendor's host in connect-src as
+                        // well as img-src.  Nothing else does, so it is asked for
+                        // only in the state that uses it.
+                        processVendor(result["vendor"], capeStatus() == CapeUtils::CapeStatus::SIGNED_GENERIC);
                     }
                 }
+                // Publish how this cape verified. The enum has always existed but
+                // never left C++, so the only way anything downstream could tell a
+                // signed cape from one whose signature verifies but is not attached
+                // to identifiable hardware was to infer it. Name it plainly instead.
+                CapeUtils::CapeStatus st = capeStatus();
+                result["capeStatus"] = capeStatusName(st);
+
+                // SIGNED_GENERIC means the signature verified but the EEPROM is not
+                // on an i2c bus and carries no device serial -- what a signed image
+                // lifted off the hardware it was licensed to looks like. A cape
+                // bought from the store is on a real EEPROM or is locked to a board
+                // and lands in SIGNED, so it never reaches here.
+                //
+                // Detection is recorded, not acted on. Cape detect runs from fppinit
+                // before networking exists (the unit is ordered Before= the network
+                // targets), so anything that tried to notify anyone from this point
+                // would fail on every boot -- and fail silently, which is worse than
+                // not trying. The record is what the notifier reads once there is a
+                // network; see the plan item for the two transports.
+                if (st == CapeUtils::CapeStatus::SIGNED_GENERIC) {
+                    result["licenseCheck"] = "signed-not-on-hardware";
+                    printf("CapeUtils: cape signature verifies but is not bound to this hardware "
+                           "(no i2c EEPROM, no device serial) -- recording for the vendor\n");
+                }
+
                 Json::StreamWriterBuilder wbuilder;
                 std::string resultStr = Json::writeString(wbuilder, result);
                 put_file_contents(outputPath + "/tmp/cape-info.json", (const uint8_t*)resultStr.c_str(), resultStr.size());
@@ -1665,7 +1716,7 @@ private:
         csp.append(url);
         return true;
     }
-    void processVendor(const Json::Value& vendor) {
+    void processVendor(const Json::Value& vendor, bool allowConnect = false) {
         std::string url = vendor.isMember("url") ? vendor["url"].asString() : "";
         std::string imageUrl = vendor.isMember("image") ? vendor["image"].asString() : "";
         if (!imageUrl.empty()) {
@@ -1686,7 +1737,15 @@ private:
             csp["connect-src"] = Json::Value(Json::arrayValue);
             csp["object-src"] = Json::Value(Json::arrayValue);
         }
-        if (checkAddURL(url, csp["img-src"]) || checkAddURL(imageUrl, csp["img-src"])) {
+        // Both, not `||`: short-circuiting meant that whenever the site URL was
+        // new the logo URL was skipped, and only picked up on a later boot.
+        bool changed = checkAddURL(url, csp["img-src"]);
+        changed = checkAddURL(imageUrl, csp["img-src"]) || changed;
+        if (allowConnect) {
+            changed = checkAddURL(url, csp["connect-src"]) || changed;
+            changed = checkAddURL(imageUrl, csp["connect-src"]) || changed;
+        }
+        if (changed) {
             Json::StreamWriterBuilder wbuilder;
             std::string resultStr = Json::writeString(wbuilder, csp);
             put_file_contents("/home/fpp/media/config/csp_allowed_domains.json", (const uint8_t*)resultStr.c_str(), resultStr.size());

@@ -43,6 +43,7 @@ OBJECTS_fpp_so += \
     commands/VariableCommands.o \
     commands/IfCommand.o \
     commands/Condition.o \
+	CapeLicenseNotify.o \
 	common.o \
 	common_mini.o \
 	CurlManager.o \

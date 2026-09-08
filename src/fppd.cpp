@@ -55,6 +55,7 @@
 #include "mqtt.h"
 #include "settings.h"
 
+#include "CapeLicenseNotify.h"
 #include "CurlManager.h"
 #include "EPollManager.h"
 #include "Events.h"
@@ -1974,6 +1975,11 @@ void MainLoop(void) {
                 publishCounter = 3600;
                 publishReason = "normal";
             }
+            // A cape whose signature is not bound to this hardware is detected
+            // at boot, before there is a network to report it over.  This is the
+            // point where there is one.
+            MAIN_LOOP_PHASE("cape license notify");
+            CapeLicenseNotifyBackground();
             // also do the periodic work in the api server while idle
             MAIN_LOOP_PHASE("apiServer periodicWork");
             apiServer.periodicWork();

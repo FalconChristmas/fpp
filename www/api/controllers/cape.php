@@ -727,3 +727,46 @@ function GetCapePanelConfig()
     $js = json_decode(file_get_contents($fn));
     return json($js);
 }
+
+/**
+ * Record a browser-side cape licence notification
+ *
+ * A cape whose signature verifies but is not attached to identifiable hardware
+ * is reported to the cape vendor from the device and, because a device on a
+ * show network often has no route out while the laptop administering it does,
+ * from the browser when Cape Info is opened.  The page makes that request
+ * itself -- the point is to use the *browser's* network -- and posts the
+ * outcome here so the shared state file records it and neither transport
+ * repeats.  See www/capeLicense.inc.
+ *
+ * @route POST /api/cape/licenseCheck
+ * @response 200 Outcome recorded
+ * ```json
+ * {"status": "OK", "delivered": true}
+ * ```
+ * @response 404 This cape carries no licence-check marker
+ */
+function RecordCapeLicenseCheck()
+{
+    global $settings;
+
+    require_once dirname(dirname(__DIR__)) . '/capeLicense.inc';
+
+    $capeInfo = isset($settings['cape-info']) ? $settings['cape-info'] : array();
+    // Only a cape actually carrying the marker can write this state.  Without
+    // the check any POST to this route would record a delivery and silence the
+    // device-side retry for a week.
+    if (!is_array($capeInfo) || !isset($capeInfo['licenseCheck'])) {
+        http_response_code(404);
+        return json(array("status" => "no licenseCheck"));
+    }
+
+    $data = json_decode(file_get_contents('php://input'), true);
+    $delivered = is_array($data) && isset($data['delivered']) && $data['delivered'];
+
+    capeLicenseRecord($capeInfo, $delivered);
+    error_log('Cape signature verifies but is not bound to this hardware; vendor notification from the browser '
+        . ($delivered ? 'succeeded' : 'failed, will retry'));
+
+    return json(array("status" => "OK", "delivered" => $delivered));
+}

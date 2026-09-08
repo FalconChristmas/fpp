@@ -899,6 +899,34 @@
         }
       }
     },
+    "/api/cape/licenseCheck": {
+      "post": {
+        "tags": [
+          "cape"
+        ],
+        "summary": "Record a browser-side cape licence notification",
+        "description": "A cape whose signature verifies but is not attached to identifiable hardware is reported to the cape vendor from the device and, because a device on a show network often has no route out while the laptop administering it does, from the browser when Cape Info is opened.  The page makes that request itself -- the point is to use the *browser's* network -- and posts the outcome here so the shared state file records it and neither transport repeats.  See www/capeLicense.inc.",
+        "responses": {
+          "200": {
+            "description": "Outcome recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "delivered": true
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This cape carries no licence-check marker"
+          }
+        }
+      }
+    },
     "/api/cape/options": {
       "get": {
         "tags": [
