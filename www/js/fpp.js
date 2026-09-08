@@ -3621,12 +3621,60 @@ function RandomizePlaylistEntries () {
 	//    $('.playlistEntriesBody').sortable('refresh').sortable('refreshPositions');
 }
 
+/**
+ * Apply the settings a geoip lookup implies, for whichever of them this page
+ * actually shows.
+ *
+ * The lookup already knows the country, so both Lookup buttons fill in the rest
+ * of the locale rather than resolving the country and throwing it away. The
+ * mapping itself is server-side (api/geoip returns `fpp`), because it reads the
+ * same etc/locale and etc/jurisdictions.json data files the rest of FPP does.
+ *
+ * A value the lookup could not determine is absent, and its control is left
+ * alone - asserting a wrong answer is worse than leaving the default. A value
+ * the page does not show is skipped for the same reason. .change() is used so
+ * the page's own handler runs, which is what decides whether this is saved now
+ * or held until setup finishes.
+ */
+function ApplyGeoIPSettings (data) {
+	if (!data || !data.fpp) {
+		return;
+	}
+	$.each(data.fpp, function (key, value) {
+		var $e = $('#' + key.replace(/\./g, '\\.'));
+		if ($e.length === 0) {
+			return;
+		}
+		// For a dropdown, only set a value it actually offers - otherwise it
+		// silently keeps what it had and the page claims a lookup that did
+		// nothing. A non-select (a text field) has no such list to check.
+		if ($e.is('select') && $e.find("option[value='" + value + "']").length === 0) {
+			return;
+		}
+		$e.val(value).change();
+	});
+}
+
+/**
+ * Set a field from a lookup result, but only if the lookup actually returned
+ * one. A response missing the field would otherwise write `undefined` into the
+ * control, so a partial answer silently wiped a good value instead of leaving
+ * it alone.
+ */
+function SetFromGeoIP (selector, value) {
+	if (value === undefined || value === null || value === '') {
+		return;
+	}
+	$(selector).val(value).change();
+}
+
 function GetTimeZone () {
 	// Server-side proxy (api/geoip) - ipapi.co doesn't send
 	// Access-Control-Allow-Origin, so the browser can't call it directly.
-	$.get('api/geoip')
+	$.get('api/geoip' + GeoIPTestQuery())
 		.done(function (data) {
-			$('#TimeZone').val(data.timezone).change();
+			SetFromGeoIP('#TimeZone', data.timezone);
+			ApplyGeoIPSettings(data);
 		})
 		.fail(function () {
 			DialogError('Time Zone Lookup', 'Time Zone lookup failed.');
@@ -3634,14 +3682,35 @@ function GetTimeZone () {
 }
 
 function GetGeoLocation () {
-	$.get('api/geoip')
+	$.get('api/geoip' + GeoIPTestQuery())
 		.done(function (data) {
-			$('#Latitude').val(data.latitude).change();
-			$('#Longitude').val(data.longitude).change();
+			SetFromGeoIP('#Latitude', data.latitude);
+			SetFromGeoIP('#Longitude', data.longitude);
+			ApplyGeoIPSettings(data);
 		})
 		.fail(function () {
 			DialogError('GeoLocation Lookup', 'GeoLocation lookup failed.');
 		});
+}
+
+/**
+ * Diagnostic hook for the Lookup buttons.
+ *
+ * The country these resolve comes from the public IP, so the cases worth
+ * checking - an EU box, an EEA box, a country no holiday list claims - cannot
+ * be reached from wherever you are sitting, and the browser's location sensor
+ * is not involved at any point. Setting `fppGeoIPTestCountry` in the console
+ * makes the real buttons run the real mapping as if from there:
+ *
+ *   fppGeoIPTestCountry = 'DE'; GetGeoLocation();
+ *
+ * It is a window global with no UI and no persistence, so it is gone on reload.
+ */
+function GeoIPTestQuery () {
+	if (typeof window.fppGeoIPTestCountry === 'string' && window.fppGeoIPTestCountry !== '') {
+		return '?country=' + encodeURIComponent(window.fppGeoIPTestCountry);
+	}
+	return '';
 }
 
 function ViewLatLon () {

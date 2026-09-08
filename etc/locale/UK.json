@@ -1,5 +1,6 @@
 {
     "name": "UK",
+	"countryCodes": ["GB"],
     "holidays": [
         {
             "name": "Mothering Sunday",

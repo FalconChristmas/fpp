@@ -30,6 +30,7 @@ dispatch_get('/cape/eeprom/signingFile/:key/:order', 'GetSigningFile');
 dispatch_post('/cape/eeprom/signingData', 'PostSigningData');
 dispatch_post('/cape/licenseCheck', 'RecordCapeLicenseCheck');
 dispatch_get('/cape/options', 'GetCapeOptions');
+dispatch_get('/cape/defaults', 'GetCapeDefaultSettings');
 dispatch_get('/cape/eeprom/vendors', 'GetEEPROMVendorLists');
 dispatch_get('/cape/strings', 'GetCapeStringOptions');
 dispatch_get('/cape/panel', 'GetCapePanelOptions');

@@ -440,6 +440,20 @@ function GetOptions_Locale()
  *
  * @return string JSON object mapping RTC chip names to their driver identifiers.
  */
+/**
+ * Returns the legal-jurisdiction options, from etc/jurisdictions.json.
+ *
+ * Adding a region is a data change, not a code change -- which is the point of
+ * the policy living in one file that both this and CapeUtils read.
+ *
+ * @return string JSON object mapping region description to jurisdiction code.
+ */
+function GetOptions_LegalJurisdiction()
+{
+    require_once __DIR__ . '/../../jurisdiction.inc';
+    return json(jurisdictionOptions());
+}
+
 function GetOptions_RTC()
 {
     global $settings;
@@ -660,6 +674,8 @@ function GetOptions()
             return GetOptions_BBBLeds();
         case 'Locale':
             return GetOptions_Locale();
+        case 'LegalJurisdiction':
+            return GetOptions_LegalJurisdiction();
         case 'RTC':
             return GetOptions_RTC();
         case 'PlaylistVideoOutput':

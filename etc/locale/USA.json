@@ -1,5 +1,6 @@
 {
     "name": "USA",
+	"countryCodes": ["US"],
     "holidays": [
         {
             "name": "New Year's Day",

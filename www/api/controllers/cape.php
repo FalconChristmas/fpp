@@ -52,6 +52,93 @@ function GetCapeInfo()
 }
 
 /**
+ * Ask what the installed cape's defaultSettings WOULD do under a jurisdiction
+ *
+ * Cape detection runs from fppinit at boot, before anyone has been asked where
+ * they are, so a cape's telemetry defaults are held rather than applied.  By the
+ * time the setup wizard has that answer, detection has already run.  This lets
+ * the wizard re-ask the question without re-running detection for real -- which
+ * would write to the settings file mid-wizard and break the property the page
+ * depends on, that nothing is persisted until Finalize.
+ *
+ * Nothing is written.  The evaluation calls the same predicate a real run calls,
+ * so the answer cannot drift from what would actually happen.  A key the user
+ * has already set is absent from both lists; a key already holding exactly the
+ * proposed value is absent too, since there is nothing to offer and nothing to
+ * explain.
+ *
+ * @route GET /api/cape/defaults
+ * @queryParam regime string The jurisdiction code to evaluate under, from
+ *                           etc/jurisdictions.json.  Omitted means "use what the
+ *                           box has recorded or can infer".
+ * @response 200 What the cape would set, and what it would be refused
+ * ```json
+ * {
+ *   "jurisdiction": "US",
+ *   "priorOptIn": false,
+ *   "settings": {"LEDDisplayType": "7"},
+ *   "refused": {"statsPublish": "it transmits, and this jurisdiction requires prior opt-in"}
+ * }
+ * ```
+ */
+function GetCapeDefaultSettings()
+{
+    global $fppDir, $SUDO;
+
+    $regime = isset($_GET['regime']) ? $_GET['regime'] : '';
+    // Codes come from a fixed list in the policy file; anything else is a
+    // caller bug, and passing it through would only reach a lookup that misses.
+    if ($regime !== '' && !preg_match('/^[A-Za-z0-9_-]{1,32}$/', $regime)) {
+        http_response_code(400);
+        return json(array('Status' => 'Error', 'Message' => 'Invalid regime'));
+    }
+
+    $binary = $fppDir . '/src/fppcapedetect';
+    if (!is_executable($binary)) {
+        // No cape support built on this platform (macOS, container).  Nothing to
+        // offer is a correct answer here, not an error -- the wizard just has no
+        // cape defaults to merge.
+        return json(array('jurisdiction' => $regime, 'priorOptIn' => null,
+            'settings' => new stdClass(), 'refused' => new stdClass()));
+    }
+
+    // Reading the EEPROM needs root.  The dry run returns before every write
+    // path in fppcapedetect, so this cannot modify the box.
+    $cmd = $SUDO . ' ' . escapeshellarg($binary) . ' -settings-only -dry-run';
+    if ($regime !== '') {
+        $cmd .= ' ' . escapeshellarg('-regime=' . $regime);
+    }
+    $output = array();
+    exec($cmd . ' 2>/dev/null', $output);
+
+    // Detection writes progress to stdout throughout and the JSON is printed
+    // last on one line, so the last non-empty line is the answer.
+    $result = null;
+    for ($i = count($output) - 1; $i >= 0; $i--) {
+        $line = trim($output[$i]);
+        if ($line !== '') {
+            $result = json_decode($line, true);
+            break;
+        }
+    }
+    if (!is_array($result) || !isset($result['settings'])) {
+        http_response_code(500);
+        return json(array('Status' => 'Error', 'Message' => 'Cape detection returned no result'));
+    }
+
+    // json_decode turns an empty JSON object into an empty PHP array, which
+    // re-encodes as [] and would hand the caller a list where the contract says
+    // map.  Both of these are routinely empty -- a settled box proposes nothing
+    // and refuses nothing -- so this is the common case, not an edge one.
+    foreach (array('settings', 'refused') as $k) {
+        if (empty($result[$k])) {
+            $result[$k] = new stdClass();
+        }
+    }
+    return json($result);
+}
+
+/**
  * Get the downloadable EEPROM lists of every known cape vendor
  *
  * Fetches the vendor index from fpp-data and then each vendor's own list, all

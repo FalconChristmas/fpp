@@ -212,11 +212,13 @@
 			]
 		},
 		"initialSetup": {
-			"description": "Initial Setup",
+			"description": "Device",
 			"settings": [
 				"fppMode",
 				"HostName",
-				"InstalledCape"
+				"HostDescription",
+				"InstalledCape",
+				"uiLevel"
 			]
 		},
 		"initialSetup-privacy": {
@@ -230,12 +232,14 @@
 			]
 		},
 		"initialSetup-location": {
-			"description": "Location Setup",
+			"description": "Location",
 			"settings": [
 				"Locale",
 				"TimeZone",
 				"Latitude",
-				"Longitude"
+				"Longitude",
+				"WifiRegulatoryDomain",
+				"LegalJurisdiction"
 			]
 		},
 		"input": {
@@ -1850,9 +1854,9 @@
 		},
 		"Locale": {
 			"name": "Locale",
-			"description": "Locale",
+			"description": "Holiday List",
 			"gatherStats": true,
-			"tip": "The Locale is used to automatically configure some locale or region-specific functionality within FPP such as the list of Holidays included in the FPP Scheduler.",
+			"tip": "Which set of holidays the FPP Scheduler knows about, so a playlist can be scheduled on Thanksgiving or Boxing Day without working out the date every year.  This is all it does: it does not change the language, the time zone, or how dates, times and numbers are formatted anywhere in FPP.  Pick Global if you would rather the scheduler offered no country-specific holidays.",
 			"restart": 2,
 			"default": "Global",
 			"type": "select",

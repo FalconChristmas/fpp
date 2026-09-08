@@ -21,6 +21,24 @@
         "'priorOptInDefault' is what an unrecognised value means. It is false: the",
         "strict path is taken on a positive match, not by accident.",
         "",
+        "'countryCodes' is used only by the 'Lookup' buttons on the setup wizard's",
+        "locale step, which the user presses deliberately. A geoip lookup already",
+        "returns the country, so throwing it away and inferring from the time zone",
+        "instead would be strictly worse. It is a SEED, exactly like the timezone",
+        "inference: it fills the field in, the user sees it, and the user can change",
+        "it before anything is saved.",
+        "",
+        "The EU list is the 27 member states plus Iceland, Liechtenstein and Norway.",
+        "Those three are EEA rather than EU, the GDPR reaches them, and geoip",
+        "providers' 'in_eu' flags do NOT cover them -- which is exactly why the list",
+        "is written down here rather than delegated to whatever the lookup says.",
+        "The UK entry carries the Crown Dependencies for the same kind of reason.",
+        "",
+        "Note geoip resolves the PUBLIC IP, so it reports where the device reaches",
+        "the internet, not where the device is. For a value the user is shown and",
+        "can correct that is fine; it is not good enough to act on unattended, and",
+        "nothing does.",
+        "",
         "'timezonePrefix' is used only when LegalJurisdiction has never been answered.",
         "Every device already has a TimeZone, so an unanswered box in Europe still",
         "gets the strict path while the rest of the fleet does not have to wait for a",
@@ -45,22 +63,31 @@
     "jurisdictions": {
         "EU": {
             "description": "European Union / EEA",
+            "countryCodes": [
+                "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
+                "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK",
+                "SI", "ES", "SE", "IS", "LI", "NO"
+            ],
             "priorOptIn": true
         },
         "UK": {
             "description": "United Kingdom",
+            "countryCodes": ["GB", "GG", "JE", "IM"],
             "priorOptIn": true
         },
         "US": {
             "description": "United States",
+            "countryCodes": ["US"],
             "priorOptIn": false
         },
         "CA": {
             "description": "Canada",
+            "countryCodes": ["CA"],
             "priorOptIn": false
         },
         "AU": {
             "description": "Australia / New Zealand",
+            "countryCodes": ["AU", "NZ"],
             "priorOptIn": false
         },
         "OTHER": {
