@@ -51,6 +51,56 @@ function find_eeprom_offsets($data)
     return ['sig_offset' => $sigOffset, 'end_offset' => $dataLen];
 }
 
+// Mint a serial number for a cape whose EEPROM carries no identity of its own.
+//
+// A downloadable vendor image is one file written to every cape of that model,
+// so whatever serial it was built with is a SAMPLE, not this unit's identity --
+// every KulpLights and WiredWatts image carries one, and the two generic images
+// in capes/other/ show the shape (190517124410). Copying it verbatim onto a
+// blank EEPROM gives every cape built that way the same serial, which defeats
+// the one job a serial has.
+//
+// 'FPP-' + 12 hex is 16 bytes, exactly the field width. The prefix says plainly
+// that FPP generated this rather than a vendor assigning it, so a vendor
+// receiving one knows there is no order record behind it -- and it cannot be
+// confused with FPP-INTERNAL, which is compared by equality everywhere it is
+// used. 48 random bits: for a population in the hundreds of thousands the
+// chance of any collision is a few thousandths of a percent, where copying the
+// sample serial guarantees one.
+function mintCapeSerial()
+{
+    return 'FPP-' . strtoupper(bin2hex(random_bytes(6)));
+}
+
+// Blank the value of the 'cs' extra (a type 97 key/value record), in place and
+// without moving anything: the record keeps its length, so every offset after it
+// -- including the signature section and what the signature covers -- is
+// untouched. Returns the data; sets $cleared to whether there was one.
+function blankCapeChecksum($data, &$cleared)
+{
+    $cleared = false;
+    $pos = 58;
+    $dataLen = strlen($data);
+    while ($pos + 8 <= $dataLen) {
+        $len = intval(substr($data, $pos, 6));
+        if ($len == 0) {
+            break;
+        }
+        $flag = intval(substr($data, $pos + 6, 2));
+        if ($flag == 97 && $len >= 12) {
+            $key = trim(substr($data, $pos + 8, 12), "\0 \t\r\n");
+            if ($key === 'cs') {
+                $vOff = $pos + 8 + 12;
+                $vLen = $len - 12;
+                $data = substr_replace($data, str_repeat("\0", $vLen), $vOff, $vLen);
+                $cleared = true;
+            }
+        }
+        $pos += 8 + $len + ($flag < 50 ? 64 : 0);
+    }
+    return $data;
+}
+
 $eepromFile = "/sys/bus/i2c/devices/1-0050/eeprom";
 if (file_exists("/home/fpp/media/tmp/eeprom_location.txt")) {
     $eepromFile = file_get_contents("/home/fpp/media/tmp/eeprom_location.txt");
@@ -98,7 +148,62 @@ if ($oldheader != "FPP02") {
     //first 4 bytes are 0xFF, assume blank eeprom and just write what we have
     echo "Blank EEPROM, overwriting";
     fclose($olddata);
-    copy($newFirmwareFile, $eepromFile);
+
+    // This is the one place a cape gets its identity: the EEPROM was blank, so
+    // there is no existing serial to preserve (the upgrade path below keeps
+    // whatever the cape already had). Give it its own, unless the image says
+    // otherwise:
+    //
+    //   FPP-INTERNAL is special. It marks a virtual EEPROM -- FPP's own generic
+    //   images for a Pi's GPIO header, which is not a cape and has no per-unit
+    //   identity to record. cape-info.php keys the licensing display off that
+    //   exact value, so replacing it would change what the signing UI shows.
+    //
+    // A signed image is NOT an exception, though it looks like it should be.
+    // The signature is computed from the byte AFTER the signature section to the
+    // terminator (CapeUtils.cpp DoSignatureVerify captures ftell() on entry), so
+    // the 58-byte header holding the serial is outside it -- which is also why
+    // the upgrade path below rewrites the cape name and version at offsets 6-41
+    // and still expects the signature to verify. Rewriting the serial keeps a
+    // signed image valid, and skipping signed images would have skipped exactly
+    // the case this exists for: the real vendor images are signed AND carry a
+    // sample serial.
+    //
+    // Nor does it disturb a cape that is signed and bound to hardware: for
+    // those the serial comes from the signed section 96 record, which overrides
+    // the header (CapeUtils.cpp case 96).
+    $newData = file_get_contents($newFirmwareFile);
+    if ($newData === false) {
+        echo "\nERROR: could not read $newFirmwareFile\n";
+        return 1;
+    }
+    $imageSerial = trim(substr($newData, 42, 16), "\0 \t\r\n");
+    if ($imageSerial === 'FPP-INTERNAL') {
+        echo " (virtual EEPROM, keeping FPP-INTERNAL)\n";
+    } else {
+        $minted = mintCapeSerial();
+        $newData = substr_replace($newData, pack('a16', $minted), 42, 16);
+        echo "\nAssigned this cape its own serial number: $minted\n";
+        echo "  The image shipped with '$imageSerial', which is a sample carried by every\n";
+        echo "  cape flashed from it -- using it would give them all the same identity.\n";
+
+        // The vendor's checksum authenticates THEIR serial, so it cannot travel
+        // with a different one: sending the two together would fail the vendor's
+        // check and look like tampering rather than what it is. Blanked here.
+        // FPP cannot compute a replacement that means anything -- anything this
+        // (open source) script could generate, anyone could generate, so it
+        // would prove nothing about provenance. The 'FPP-' prefix is what tells
+        // a vendor there is no order record behind this serial.
+        $newData = blankCapeChecksum($newData, $cleared);
+        if ($cleared) {
+            echo "  The image's 'cs' checksum belonged to that sample serial and has been\n";
+            echo "  cleared, since it cannot vouch for a serial it was not computed over.\n";
+        }
+    }
+    if (file_put_contents($eepromFile, $newData) === false) {
+        echo "\nERROR: could not write $eepromFile\n";
+        return 1;
+    }
 
     if ($eepromFile == '/home/fpp/media/config/cape-eeprom.bin') {
         chown($eepromFile, 'fpp');
