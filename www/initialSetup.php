@@ -1237,6 +1237,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                                 "</div>";
                             PrintSettingGroup('initialSetup-location', '', $extraData, '', '', '', false);
                             ?>
+                            <!-- Raised only when the coordinates had to be derived from
+                                 the time zone, which is accurate to the zone and not to
+                                 the town.  These fields schedule shows at sunset, so an
+                                 approximation that big is worth a standing warning
+                                 rather than a dialog that gets dismissed. -->
+                            <div class="alert alert-warning small d-none" id="approxCoordsNote">
+                                Latitude and longitude were estimated from your time zone
+                                because this player could not reach the internet.  They can
+                                be out by enough to move sunset by up to an hour &mdash;
+                                worth correcting if you schedule anything at sunrise or sunset.
+                            </div>
                         </div>
 
                         <div class="setupStep d-none" data-step="2">

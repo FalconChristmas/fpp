@@ -3668,6 +3668,170 @@ function SetFromGeoIP (selector, value) {
 	$(selector).val(value).change();
 }
 
+/**
+ * What this BROWSER knows about where it is, without asking anyone.
+ *
+ * The device does the geoip lookup, so it fails on a player with no route to
+ * the internet - which is an ordinary show-network layout, and one where the
+ * laptop looking at the UI is online. This is the fallback for that.
+ *
+ * Both values are free: no permission prompt, no network request, no
+ * third-party host and so nothing to add to the CSP. They describe the machine
+ * running the browser rather than the player, which for a player being set up
+ * from a laptop on the same bench is the same place - and every value here is a
+ * suggestion the user can see and change before anything is saved.
+ *
+ * navigator.geolocation is deliberately NOT used, and cannot be: it is a secure
+ * context feature, FPP is served over plain HTTP on a LAN address, and Chrome
+ * answers "Only secure origins are allowed". So coordinates cannot be recovered
+ * this way and the caller has to say so rather than pretend.
+ */
+function BrowserLocaleHints () {
+	var hints = {};
+	try {
+		hints.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+	} catch (e) { /* older browser: just leave it out */ }
+	try {
+		// maximize() turns "en" into "en-Latn-US", which is how a language tag
+		// with no explicit region still yields one.
+		hints.country = new Intl.Locale(navigator.language).maximize().region;
+	} catch (e) {
+		// Fall back to the region subtag if there is one, e.g. "en-US" -> "US".
+		var m = /^[A-Za-z]+[-_]([A-Za-z]{2})\b/.exec(navigator.language || '');
+		if (m) { hints.country = m[1].toUpperCase(); }
+	}
+	return hints;
+}
+
+/**
+ * Fill in what we can when the device's own lookup failed.
+ *
+ * The country goes back to the device so the SAME server-side mapping runs
+ * against the same data files - the browser does not get its own copy of the
+ * rules. That request needs no internet on the device, so nolookup skips the
+ * timeout the caller has already waited out once.
+ */
+function GeoIPBrowserFallback (label, wantCoords) {
+	// Accurate path first: ask the geolocation service from HERE. The player
+	// could not, but this browser evidently reached the player and is very
+	// likely online. Only the setup page is allowed to do this (see the
+	// <Location> block in scripts/ManageApacheContentPolicy.sh), and it is worth
+	// the allowance because the offline alternative below is a whole zone wide.
+	$.ajax({url: 'https://ipapi.co/json/', dataType: 'json', timeout: 8000})
+		.done(function (remote) {
+			if (!remote || !remote.country_code) {
+				GeoIPLocalFallback(label, wantCoords);
+				return;
+			}
+			SetFromGeoIP('#TimeZone', remote.timezone);
+			SetFromGeoIP('#Latitude', remote.latitude);
+			SetFromGeoIP('#Longitude', remote.longitude);
+			// The mapping stays on the device, against the same data files.
+			$.get('api/geoip?nolookup=1&country=' + encodeURIComponent(remote.country_code))
+				.done(function (data) {
+					ApplyGeoIPSettings(data);
+					DialogOK(label, 'This player could not reach the internet, so its ' +
+						'location was looked up from this browser instead.');
+				})
+				.fail(function () { GeoIPLocalFallback(label, wantCoords); });
+		})
+		.fail(function () {
+			GeoIPLocalFallback(label, wantCoords);
+		});
+}
+
+/**
+ * Last resort: what this browser knows without asking anyone at all.
+ *
+ * Reached when the player has no internet AND the browser could not reach the
+ * geolocation service either - an isolated bench, or an extension blocking it.
+ *
+ * The coordinates here come from tzdata's zone.tab and are the TIME ZONE's
+ * reference city, which against real places is 30 to 80 minutes of sunset
+ * error. Since scheduling shows at sunset is what these fields are for, that is
+ * not something to fill in quietly: the caller says so, and the wizard leaves a
+ * standing warning next to the fields until they are corrected.
+ */
+/**
+ * Leave a standing warning beside the coordinates, because they were estimated
+ * from the time zone and can put sunset out by up to an hour.
+ *
+ * A dialog is not enough on its own: dismissing one is not the same as having
+ * fixed the value, and on the Settings page the value is saved the moment it is
+ * set. The warning stays until either field is edited.
+ *
+ * The setup wizard supplies its own #approxCoordsNote so it can place it within
+ * the step; anywhere else one is created next to the field.
+ */
+function FlagApproximateCoords () {
+	var $note = $('#approxCoordsNote');
+	if ($note.length === 0) {
+		var $anchor = $('#Longitude').closest('.row');
+		if ($anchor.length === 0) { $anchor = $('#Longitude').parent(); }
+		if ($anchor.length === 0) { return; }
+		$anchor.after(
+			"<div class='alert alert-warning small' id='approxCoordsNote'>" +
+			'Latitude and longitude were estimated from your time zone because this ' +
+			'player could not reach the internet.  They can be out by enough to move ' +
+			'sunset by up to an hour &mdash; worth correcting if you schedule anything ' +
+			'at sunrise or sunset.</div>');
+		$note = $('#approxCoordsNote');
+	}
+	$note.removeClass('d-none');
+	$('#Latitude, #Longitude').one('input change', function () {
+		$('#approxCoordsNote').addClass('d-none');
+	});
+}
+
+function GeoIPLocalFallback (label, wantCoords) {
+	var hints = BrowserLocaleHints();
+	SetFromGeoIP('#TimeZone', hints.timezone);
+
+	if (!hints.country && !hints.timezone) {
+		DialogError(label, 'Lookup failed, and this browser could not tell us anything about where it is either.');
+		return;
+	}
+
+	var q = 'api/geoip?nolookup=1';
+	// nolookup only takes effect with a country; without one there is nothing to
+	// map and the request exists purely to turn the time zone into coordinates.
+	q += '&country=' + encodeURIComponent(hints.country || 'ZZ');
+	if (hints.timezone) {
+		q += '&timezone=' + encodeURIComponent(hints.timezone);
+	}
+
+	$.get(q)
+		.done(function (data) {
+			ApplyGeoIPSettings(data);
+			// This succeeded, so say so plainly rather than through the error
+			// dialog. What the user needs to know is WHERE the answer came from,
+			// because it describes this browser rather than the player.
+			var note = 'This player could not reach the internet, so its location ' +
+				'was taken from this browser instead.';
+			if (data.fppCoordsFromTimeZone) {
+				note += '  <b>The coordinates are only the centre of your time zone, ' +
+					'which can put sunset out by up to an hour.</b>  Correct them ' +
+					'below if you schedule anything at sunrise or sunset.';
+				FlagApproximateCoords();
+			} else if (wantCoords) {
+				note += '  Latitude and longitude could not be filled in - enter ' +
+					'them below, or use Show On Map once you have.';
+			}
+			// A browser that reports a time zone but no region gets the location
+			// half and none of the region half. Saying "taken from this browser"
+			// and leaving those blank would be misleading, and the jurisdiction
+			// is a required answer.
+			if (!data.fpp || !data.fpp.LegalJurisdiction) {
+				note += '  This browser did not report which country it is in, so ' +
+					'the region settings were left for you to choose.';
+			}
+			DialogOK(label, note);
+		})
+		.fail(function () {
+			DialogError(label, 'Lookup failed and the fallback could not be applied.');
+		});
+}
+
 function GetTimeZone () {
 	// Server-side proxy (api/geoip) - ipapi.co doesn't send
 	// Access-Control-Allow-Origin, so the browser can't call it directly.
@@ -3677,7 +3841,7 @@ function GetTimeZone () {
 			ApplyGeoIPSettings(data);
 		})
 		.fail(function () {
-			DialogError('Time Zone Lookup', 'Time Zone lookup failed.');
+			GeoIPBrowserFallback('Time Zone Lookup', false);
 		});
 }
 
@@ -3689,7 +3853,7 @@ function GetGeoLocation () {
 			ApplyGeoIPSettings(data);
 		})
 		.fail(function () {
-			DialogError('GeoLocation Lookup', 'GeoLocation lookup failed.');
+			GeoIPBrowserFallback('Location Lookup', true);
 		});
 }
 

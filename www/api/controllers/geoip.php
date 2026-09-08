@@ -5,10 +5,15 @@ require_once(__DIR__ . "/../../config.php");
  * GeoIP lookup
  *
  * Server-side proxy for ipapi.co's IP geolocation lookup, used by the
- * Timezone/GeoLocation "Lookup"/"Detect" buttons on settings.php. ipapi.co
- * does not send Access-Control-Allow-Origin, so the browser can't call it
- * directly from FPP's UI (blocked by the Same Origin Policy) - PHP isn't
- * subject to that, so we fetch it here and hand back the same JSON.
+ * Timezone/GeoLocation "Lookup"/"Detect" buttons.
+ *
+ * It is fetched here rather than from the browser so that only the PLAYER's
+ * address is disclosed, and only when somebody presses the button -- and so
+ * that no third-party host has to appear in the CSP, which is where the rest of
+ * the UI has deliberately ended up.  (ipapi.co does send
+ * Access-Control-Allow-Origin: *, so a browser-side call is not blocked by CORS
+ * the way an older comment here claimed; connect-src is the only thing stopping
+ * it, and that is ours to decide rather than a technical obstacle.)
  *
  * The response also carries an `fpp` object naming the settings the lookup
  * implies, so the mapping lives in one place instead of being reimplemented in
@@ -22,11 +27,15 @@ require_once(__DIR__ . "/../../config.php");
  * which is the only way it is used.
  *
  * @route GET /api/geoip
- * @queryParam country string Two-letter code substituted for the one the lookup
- *                            would report, so the mapping can be exercised for a
- *                            region you are not in.  Diagnostic only -- it changes
- *                            what is suggested, never what is stored, and the
- *                            response is marked with `fppCountryOverride`.
+ * @queryParam country string Two-letter code supplied in place of the one the
+ *                            lookup would report -- used when the device has no
+ *                            internet but the browser does, and to exercise a
+ *                            region you are not in.  It changes what is
+ *                            suggested, never what is stored, and the response
+ *                            is marked with `fppCountryOverride`.
+ * @queryParam nolookup int   With `country`, skip the network lookup entirely and
+ *                            answer from local data.  For a caller whose own
+ *                            lookup already failed.
  * @response 200 ipapi.co's JSON response, plus the settings it implies
  * ```json
  * {"ip": "1.2.3.4", "city": "Adelaide", "region": "South Australia", "timezone": "Australia/Adelaide",
@@ -40,22 +49,42 @@ require_once(__DIR__ . "/../../config.php");
  */
 function GetGeoIP()
 {
-    // Diagnostic override.  The country normally comes from the caller's public
-    // IP, which makes the interesting cases -- an EU box, an EEA box, somewhere
-    // with no matching locale -- untestable from wherever you happen to be
-    // sitting, and unreachable through the browser's location sensor because
-    // this lookup never consults it.  ?country=XX substitutes the country and
-    // nothing else, so the real mapping runs over the real data files and the
-    // real fields fill in.  It changes only what is SUGGESTED; nothing is saved
-    // here, and the caller was always free to pick these values by hand.
+    // The country normally comes from the caller's public IP.  ?country=XX
+    // supplies it instead, for the two cases where the IP cannot:
+    //
+    //   - The device has no route to the internet but the browser does, which is
+    //     an ordinary show-network layout.  The browser knows its own region
+    //     without asking anyone (Intl), so it sends that and the mapping still
+    //     runs here, against the same data files.
+    //   - Testing a region you are not in, which is otherwise unreachable: the
+    //     browser's location sensor is never consulted on this path, and cannot
+    //     be anyway on a plain-HTTP LAN page.
+    //
+    // It changes only what is SUGGESTED.  Nothing is saved here, and the caller
+    // was always free to pick these values by hand.
     $override = isset($_GET['country']) ? strtoupper($_GET['country']) : '';
     if ($override !== '' && !preg_match('/^[A-Z]{2}$/', $override)) {
         http_response_code(400);
         return json(['error' => 'country must be a two-letter code']);
     }
 
+    // A caller that already knows the lookup will fail -- because its own just
+    // did -- should not wait out the timeout again to be told so.  The mapping
+    // is entirely local, so there is nothing to wait for.
+    $noLookup = $override !== '' && !empty($_GET['nolookup']);
+
+    // The browser's own time zone, for the offline fallback.  It is the one
+    // thing a browser knows about where it is without asking anyone -- no
+    // permission prompt, no network -- and it is enough to place the player
+    // roughly on the map.
+    $tzHint = isset($_GET['timezone']) ? $_GET['timezone'] : '';
+    if ($tzHint !== '' && !preg_match('#^[A-Za-z][A-Za-z0-9_+/-]{0,63}$#', $tzHint)) {
+        http_response_code(400);
+        return json(['error' => 'invalid timezone']);
+    }
+
     $data = false;
-    if (function_exists('curl_init')) {
+    if (!$noLookup && function_exists('curl_init')) {
         $ch = curl_init('https://ipapi.co/json/');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
@@ -88,7 +117,17 @@ function GetGeoIP()
         $j['fppCountryOverride'] = true;
     }
 
-    $j['fpp'] = GeoIPSuggestedSettings($j);
+    if ($tzHint !== '') {
+        $j['timezone'] = $tzHint;
+    }
+
+    $j['fpp'] = GeoIPSuggestedSettingsWithCoords($j);
+    if (isset($j['fpp']['Latitude']) && !isset($j['latitude'])) {
+        // Flagged outside `fpp`, which is strictly settings to apply: these
+        // coordinates are the time zone's reference city, and the caller should
+        // be able to say so rather than presenting them as a fix.
+        $j['fppCoordsFromTimeZone'] = true;
+    }
 
     header('Content-Type: application/json');
     echo json_encode($j);
@@ -134,6 +173,81 @@ function GeoIPSuggestedSettings($j)
     }
 
     return $out;
+}
+
+/**
+ * Everything the response implies, including coordinates where they had to be
+ * derived rather than looked up.
+ *
+ * Kept separate from GeoIPSuggestedSettings() so the mapping test harness keeps
+ * testing the country mapping on its own.  Real coordinates from the lookup
+ * always win: a zone's reference city is a fallback, not an improvement.
+ *
+ * @param array $j Decoded geoip response, possibly with a supplied timezone.
+ * @return array Setting name => value.
+ */
+function GeoIPSuggestedSettingsWithCoords($j)
+{
+    $out = GeoIPSuggestedSettings($j);
+
+    if (isset($j['latitude']) && $j['latitude'] !== '' && $j['latitude'] !== null) {
+        return $out;
+    }
+    $tz = isset($j['timezone']) ? $j['timezone'] : '';
+    $c = TimeZoneCoordinates($tz);
+    if (!empty($c)) {
+        $out['Latitude'] = (string) $c['latitude'];
+        $out['Longitude'] = (string) $c['longitude'];
+    }
+    return $out;
+}
+
+/**
+ * Approximate coordinates for an IANA time zone, from tzdata's own zone.tab.
+ *
+ * This is the offline half of the location lookup: the file ships with the
+ * operating system, so a player with no route to the internet can still turn a
+ * time zone into somewhere plausible on the map.  No network, no third party,
+ * nothing added to the CSP.
+ *
+ * The accuracy is what zone.tab offers, which is the zone's reference city, not
+ * the user's town -- good enough to stop the scheduler computing sunset for the
+ * shipped default location, and not good enough to leave uncorrected if the
+ * exact minute matters.  The caller says so.
+ *
+ * zone.tab's coordinates are ISO 6709 packed: +DDMM+DDDMM or +DDMMSS+DDDMMSS.
+ *
+ * @param string $tz IANA zone name, e.g. "America/New_York".
+ * @return array ['latitude' => float, 'longitude' => float] or empty if unknown.
+ */
+function TimeZoneCoordinates($tz)
+{
+    if ($tz === '' || strpos($tz, '..') !== false) {
+        return array();
+    }
+    $f = '/usr/share/zoneinfo/zone.tab';
+    if (!is_readable($f)) {
+        return array();
+    }
+    foreach (file($f) as $line) {
+        if ($line === '' || $line[0] === '#') {
+            continue;
+        }
+        $cols = preg_split('/\t+/', trim($line));
+        if (count($cols) < 3 || $cols[2] !== $tz) {
+            continue;
+        }
+        if (!preg_match('/^([+-])(\d{2})(\d{2})(\d{2})?([+-])(\d{3})(\d{2})(\d{2})?$/', $cols[1], $m)) {
+            return array();
+        }
+        $lat = $m[2] + $m[3] / 60 + (isset($m[4]) && $m[4] !== '' ? $m[4] / 3600 : 0);
+        $lon = $m[6] + $m[7] / 60 + (isset($m[8]) && $m[8] !== '' ? $m[8] / 3600 : 0);
+        return array(
+            'latitude' => round($m[1] === '-' ? -$lat : $lat, 4),
+            'longitude' => round($m[5] === '-' ? -$lon : $lon, 4),
+        );
+    }
+    return array();
 }
 
 /**

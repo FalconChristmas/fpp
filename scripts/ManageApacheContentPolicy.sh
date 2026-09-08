@@ -19,9 +19,13 @@ DEFAULT_VALUES=(
     ["default-src"]="'self'"
     # No ipapi.co here on purpose: the timezone/geolocation lookup is fetched
     # by api/geoip (see api/controllers/geoip.php) and handed back from this
-    # device, so the browser never contacts ipapi.co and never needed the
-    # allowance.  The generated header is rebuilt at every boot, so removing
-    # this needs no upgrade/ step of its own.
+    # device, so on every normal page the browser never contacts ipapi.co and
+    # never needed the allowance.  The generated header is rebuilt at every
+    # boot, so removing this needs no upgrade/ step of its own.
+    #
+    # The exception is the pages with the location "Lookup" buttons, where a
+    # player with no route to the internet cannot do the lookup at all; they get
+    # the allowance through a <LocationMatch> block below, and only there.
     ["connect-src"]="'self' https://raw.githubusercontent.com https://kulplights.com https://www.kulplights.com https://hansonelectronics.com.au https://www.hansonelectronics.com.au https://wiredwatts.com https://www.wiredwatts.com https://fppstats.falconchristmas.com https://api.falconplayer.com https://api.github.com"
     ["object-src"]="'none' "
     # PayPal was here only for a 1x1 tracking pixel in the donate form, which is
@@ -317,9 +321,36 @@ generate_csp() {
     CSP_HEADER=$(echo "$CSP_HEADER" | sed 's/^ *; *//; s/ *; *$//')
     # echo "Final CSP_HEADER: $CSP_HEADER"
 
+    # The pages carrying the location "Lookup" buttons are the only ones allowed
+    # to reach a geolocation service from the browser, and only because the
+    # alternative is worse.
+    #
+    # The lookup normally runs on the player (api/geoip), which discloses only
+    # the player's address and needs nothing here.  But a player on an isolated
+    # show network has no route out, and the fallback -- deriving coordinates
+    # from the browser's time zone via tzdata's zone.tab -- puts them at the
+    # zone's reference city.  Measured against real places that is 30 to 80
+    # minutes of sunset error (Minot ND against the America/Chicago reference
+    # is 80), and latitude and longitude exist here to schedule shows at
+    # sunset.  Wrong by an hour is not a usable answer.
+    #
+    # So on those pages only, the browser may ask directly.  It is scoped rather
+    # than added to the global connect-src: every other page keeps the tighter
+    # policy, and the allowance disappears with the page.
+    #
+    # Both pages that draw the buttons are listed.  settings-localization.php is
+    # the fragment that actually contains them, but it is loaded INTO
+    # settings.php, and a fetch is governed by the policy of the document that
+    # made it -- so settings.php is the one that has to carry the allowance.  It
+    # is named too, for a direct visit.
+    CSP_HEADER_LOOKUP=$(echo "$CSP_HEADER" | sed 's|\(connect-src [^;]*\)|\1 https://ipapi.co|')
+
     cat <<EOL > $FPPDIR/etc/apache2.csp
 <IfModule mod_headers.c>
     Header set Content-Security-Policy "$CSP_HEADER"
+    <LocationMatch "^/(initialSetup|settings|settings-localization)\.php\$">
+        Header set Content-Security-Policy "$CSP_HEADER_LOOKUP"
+    </LocationMatch>
 </IfModule>
 EOL
     echo "CSP header generated."
