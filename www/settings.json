@@ -2397,6 +2397,7 @@
 		},
 		"MultiSyncExtraRemotes": {
 			"name": "MultiSyncExtraRemotes",
+			"pii": true,
 			"description": "MultiSync Unicast Discovery IPs (CSV list)",
 			"tip": "FPP will send unicast MultiSync discovery messages to the IPs in this list to allow discovery of devices which are unable to be discovered via FPP's normal multicast discovery.  This may include systems on remote networks or connected to certain routers which do not pass multicast packets between wired and wireless interfaces.",
 			"level": 1,
