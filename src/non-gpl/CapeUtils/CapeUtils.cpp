@@ -985,7 +985,30 @@ static bool priorOptInRequired(const std::vector<std::string>& lines) {
     bool dflt = cfg.get("priorOptInDefault", false).asBool();
     std::string j = g_jurisdictionOverride.empty() ? inferJurisdiction(lines, cfg)
                                                    : g_jurisdictionOverride;
-    if (j.empty() || !cfg["jurisdictions"].isMember(j)) {
+    if (j.empty()) {
+        // Nothing recorded and nothing inferable: we do not know where this box
+        // is. That is the same state as an unreadable policy file above, and it
+        // gets the same cautious answer.
+        //
+        // It is NOT the same as priorOptInDefault, which answers a different
+        // question -- what an unrecognised jurisdiction VALUE means -- and is
+        // false on purpose, so that the strict path is taken on a positive match
+        // rather than by accident. Conflating the two made a fresh box
+        // permissive, because nothing writes TimeZone into the settings file:
+        // FPPINIT only reads it and the setup wizard is the first writer, so on
+        // first boot both keys are absent and detection ran before anyone had
+        // been asked anything. The PHP half disagreed, reading TimeZone from
+        // $settings where settings.json's Europe/London default had been merged
+        // in -- so the two halves of one policy answered differently on the same
+        // box, which is precisely what sharing jurisdictions.json was meant to
+        // prevent.
+        //
+        // The cost is bounded and is what the design always said should happen:
+        // a cape's transmitting default is HELD on first boot and offered again
+        // by the wizard once the user says where they are.
+        return true;
+    }
+    if (!cfg["jurisdictions"].isMember(j)) {
         return dflt;
     }
     return cfg["jurisdictions"][j].get("priorOptIn", dflt).asBool();

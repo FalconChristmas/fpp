@@ -73,16 +73,24 @@ function jurisdictionOptions()
  */
 function inferJurisdiction()
 {
-    global $settings;
-
-    if (!empty($settings['LegalJurisdiction'])) {
-        return $settings['LegalJurisdiction'];
+    // Deliberately the settings FILE, not $settings.
+    //
+    // $settings has settings.json's defaults merged in, and TimeZone defaults to
+    // Europe/London -- so on a box that has never been given one, this used to
+    // infer the UK and return strict while the C++ half, which reads the file,
+    // saw nothing and returned permissive. Two halves of one policy answering
+    // differently about the same box is exactly what sharing jurisdictions.json
+    // was supposed to make impossible. ReadSettingFromFile() is the same
+    // question readSettingValue() asks in CapeUtils.cpp.
+    $recorded = ReadSettingFromFile('LegalJurisdiction');
+    if ($recorded !== false && $recorded !== '') {
+        return $recorded;
     }
     $cfg = jurisdictionConfig();
-    if ($cfg === false || empty($settings['TimeZone']) || !isset($cfg['timezonePrefix'])) {
+    $tz = ReadSettingFromFile('TimeZone');
+    if ($cfg === false || $tz === false || $tz === '' || !isset($cfg['timezonePrefix'])) {
         return '';
     }
-    $tz = $settings['TimeZone'];
     $best = '';
     $bestPrefix = '';
     foreach ($cfg['timezonePrefix'] as $prefix => $code) {
@@ -110,7 +118,14 @@ function jurisdictionRequiresPriorOptIn($code = null)
     if ($code === null) {
         $code = inferJurisdiction();
     }
-    if ($code === '' || !isset($cfg['jurisdictions'][$code])) {
+    if ($code === '') {
+        // Nothing recorded and nothing inferable -- we do not know where this box
+        // is, which is the same state as an unreadable policy file above and gets
+        // the same cautious answer. Distinct from priorOptInDefault, which says
+        // what an unrecognised jurisdiction VALUE means and is false on purpose.
+        return true;
+    }
+    if (!isset($cfg['jurisdictions'][$code])) {
         return $dflt;
     }
     $j = $cfg['jurisdictions'][$code];
