@@ -3,6 +3,7 @@ $skipJSsettings = 1;
 require_once('common.php');
 require_once('jurisdiction.inc');
 require_once('privacyTable.inc');
+require_once('privacyConsent.inc');
 ?>
 <script src="js/fpp-privacy-table.js?ref=<?= filemtime('js/fpp-privacy-table.js'); ?>"></script>
 
@@ -20,6 +21,8 @@ PrintPrivacyTable('These were chosen during setup and can be changed here at any
 <div id='privacySaveStatus' class='smallText text-muted mt-1'></div>
 
 <script>
+    var PRIVACY_CONSENT_SETTINGS = <?= json_encode(privacyConsentSettings()) ?>;
+
     $(document).ready(function () {
         // Unlike the wizard, this page saves as you go: there is no Finish to
         // hold answers until.
@@ -61,12 +64,50 @@ PrintPrivacyTable('These were chosen during setup and can be changed here at any
                     },
                     complete: function () {
                         if (--pending === 0 && !failed) {
-                            $('#privacySaveStatus').text('Saved.');
+                            recordConsent(changed, values);
                         }
                     }
                 });
             });
         });
+
+        // Stamp the act, not just the value -- and stamp it here as well as in
+        // the wizard, because this is the page where people change their mind.
+        //
+        // Only what actually changed is stamped. Someone who turns crash reports
+        // off today has not re-affirmed anything about statistics, and dating
+        // their statistics consent to today would be a false record rather than a
+        // fresher one.
+        //
+        // A withdrawal is recorded exactly like a grant: Article 7(3) makes
+        // withdrawing as much of an act as consenting, and "they turned it off,
+        // on this date, here" is the half of the record people forget to keep.
+        function recordConsent(changed, values) {
+            var consented = {};
+            $.each(changed, function (i, k) {
+                if (PRIVACY_CONSENT_SETTINGS.indexOf(k) !== -1) {
+                    consented[k] = '' + values[k];
+                }
+            });
+            if ($.isEmptyObject(consented)) {
+                $('#privacySaveStatus').text('Saved.');
+                return;
+            }
+            $.ajax({
+                url: 'api/privacy/consent',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    via: 'settings',
+                    date: new Date().toISOString(),
+                    settings: consented
+                }),
+                success: function () { $('#privacySaveStatus').text('Saved.'); },
+                error: function () {
+                    $('#privacySaveStatus').text('Saved, but the consent record could not be updated.');
+                }
+            });
+        }
     });
 </script>
 

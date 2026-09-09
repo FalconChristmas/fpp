@@ -303,6 +303,9 @@ dispatch_post('/testmode', 'testMode_Set');
 
 dispatch_get('/time', 'GetTime');
 
+dispatch_get('/privacy/consent', 'GetConsent');
+dispatch_post('/privacy/consent', 'RecordConsent');
+
 // Load FPP's own controllers BEFORE any plugin's api.php.
 //
 // limonade normally defers this to autoload_controller() inside run(), which

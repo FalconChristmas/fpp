@@ -164,6 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
     require_once('jurisdiction.inc');
     require_once('privacyDisclosures.inc');
     require_once('privacyTable.inc');
+    require_once('privacyConsent.inc');
     include 'common/menuHead.inc';
 
     // Populates $settingInfos / $settingGroups. PrintSettingGroup() calls this
@@ -511,6 +512,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
 
         // Which generation of the disclosures these answers are given against.
         var PRIVACY_CONSENT_VERSION = <?= json_encode(PRIVACY_CONSENT_VERSION) ?>;
+        var PRIVACY_CONSENT_SETTINGS = <?= json_encode(privacyConsentSettings()) ?>;
 
         var setupCurrentStep = 1;
         var setupTotalSteps = 4;
@@ -935,13 +937,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
 
             recordPromptedSettings();
 
-            // The consent record. Written on every Finish, so it always describes
-            // the answers being saved in this same pass rather than an earlier
-            // one. The date comes from the browser deliberately: on a first boot
-            // the player may have no NTP yet and its own clock can be years out,
-            // while the machine being used to set it up is almost always right.
-            pendingSettings['privacyConsentVersion'] = '' + PRIVACY_CONSENT_VERSION;
-            pendingSettings['privacyConsentDate'] = new Date().toISOString();
+            // The consent record is NOT written here as settings. It is recorded
+            // through api/privacy/consent once the values themselves have saved
+            // (see recordConsentThen), so that the version, the text hash and the
+            // device id are stamped by the server rather than chosen by this
+            // page. What the browser does contribute is the clock: on a first
+            // boot the player may have no NTP yet and can be years out, while the
+            // machine being used to set it up is almost always right.
 
             var passwordEnable = $('#passwordEnable').val();
             if (passwordEnable == '1') {
@@ -1197,12 +1199,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                 savePut('HostName', filteredSettings['HostName'], true, done);
             }
 
+            // Record that these answers were given here, on this screen, against
+            // the disclosures this build shows -- the thing a value in the
+            // settings file cannot say for itself.
+            //
+            // Runs AFTER the values are saved, so the record can never describe a
+            // choice that failed to persist, and before the completion flag, so
+            // the single configuration backup captures it.
+            function recordConsentThen(done) {
+                if (failedSettings.length > 0) {
+                    done();
+                    return;
+                }
+                var consented = {};
+                $.each(PRIVACY_CONSENT_SETTINGS, function (i, key) {
+                    var v = pendingSettings.hasOwnProperty(key) ? pendingSettings[key] : settings[key];
+                    if (typeof v !== 'undefined' && v !== null) {
+                        consented[key] = '' + v;
+                    }
+                });
+                showSetupProgress('Recording your privacy choices...');
+                $.ajax({
+                    url: 'api/privacy/consent',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        via: 'wizard',
+                        date: new Date().toISOString(),
+                        settings: consented
+                    }),
+                    error: function () { failedSettings.push('privacy consent record'); },
+                    complete: done
+                });
+            }
+
             function startSaving() {
                 var afterOthers = function () {
                     saveOsPasswordThen(function () {
                         saveHostNameThen(function () {
                             saveSSHKeysThen(function () {
-                                saveRebootFlagThen(saveCompletionAndPasswords);
+                                saveRebootFlagThen(function () {
+                                    recordConsentThen(saveCompletionAndPasswords);
+                                });
                             });
                         });
                     });

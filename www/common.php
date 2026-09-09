@@ -196,14 +196,19 @@ function MissingSetupSettings()
         }
     }
 
-    // The consent record: which generation of the disclosures the answers were
-    // given against. Absent means never recorded; lower means the text has
-    // materially changed since, and an answer to the old text is not an answer
-    // to this one.
-    require_once __DIR__ . '/privacyDisclosures.inc';
-    $version = ReadSettingFromFile('privacyConsentVersion');
-    if ($version === false || intval($version) < PRIVACY_CONSENT_VERSION) {
-        $missing[] = 'privacyConsentVersion';
+    // The consent record. Values alone do not clear this: a value is a value,
+    // and what has to be re-askable is the act behind it.
+    //
+    //   absent/incomplete - never recorded.
+    //   stale-version     - consented to disclosures FPP no longer makes, so the
+    //                       answer is not an answer to what we say now.
+    //   other-device      - the record came from another player in a restored
+    //                       backup. The choices in it were made by somebody, on
+    //                       a screen the owner of THIS device never saw, so they
+    //                       are not this device's consent and it has to ask.
+    require_once __DIR__ . '/privacyConsent.inc';
+    if (PrivacyConsentShortfall() !== '') {
+        $missing[] = 'privacyConsent';
     }
 
     return $missing;
