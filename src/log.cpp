@@ -620,7 +620,7 @@ void SetSuppressDuplicateStdOut(bool suppress) {
 void SetLogFile(const char* filename, bool toStdOut) {
     std::unique_lock<std::recursive_timed_mutex> lock(logFileLock);
     closePersistentLogFile();
-    strcpy(logFileName, filename);
+    snprintf(logFileName, sizeof(logFileName), "%s", filename);
     logToStdOut = toStdOut;
 }
 
