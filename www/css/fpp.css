@@ -1082,6 +1082,16 @@ body.modal-open #scrollTopButton {
 	font-size: 1.5em;
 }
 
+#navbarPluginUpdateAvail {
+	display: none;
+	color: red;
+}
+
+#navbarPluginUpdateAvail a {
+	color: rgb(245, 136, 34);
+	font-size: 1.5em;
+}
+
 #divLEDPanelMatrices a.nav-link.active {
 	color: blue;
 }

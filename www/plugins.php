@@ -2152,6 +2152,16 @@
         // Re-select the tab the user was on before the last load. Called once the
         // plugin data is in so the Updates tab can run its update check.
         function RestoreTopTab() {
+            // Explicit deep link (e.g. plugins.php?tab=updates from the navbar
+            // plugin-update icon) wins over whatever tab the session was last
+            // left on, and becomes the new remembered tab going forward --
+            // ShowTopTab() persists it to sessionStorage same as a manual click.
+            var requested = new URLSearchParams(window.location.search).get('tab');
+            if (requested === 'installed' || requested === 'updates') {
+                ShowTopTab(requested);
+                return;
+            }
+
             var saved = '';
             try { saved = sessionStorage.getItem('pluginsTopTab') || ''; } catch (e) { }
             if (saved === 'installed' || saved === 'updates')

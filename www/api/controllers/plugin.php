@@ -2377,6 +2377,122 @@ function PluginHasUpdates($plugin)
 	return 0;
 }
 
+define('PLUGIN_UPDATES_CACHE_TTL', 6 * 60 * 60); // 6h shared per-box cache, same horizon as PLUGIN_GITHUB_STATS_TTL
+define('PLUGIN_UPDATES_MAX_REFRESH_PER_CALL', 1); // at most one live `git fetch` per call to this endpoint -- see below
+
+function PluginUpdatesCacheFile()
+{
+	global $settings;
+	$base = isset($settings['mediaDirectory']) ? $settings['mediaDirectory'] : '/home/fpp/media';
+	return $base . '/tmp/pluginUpdates.cache.json';
+}
+
+/**
+ * Aggregate check: does any installed plugin have an update available?
+ *
+ * Backed by a TTL cache (same shape/location convention as
+ * PluginGitHubStatsCacheFile()) so the navbar plugin-update icon can poll
+ * this on every page load for free almost always.
+ *
+ * PluginHasUpdates() itself is cheap (git log against already-fetched
+ * remote-tracking refs, no network) but only as fresh as the last `git
+ * fetch` for that plugin. This endpoint is what keeps those refs from
+ * going stale on their own: for any plugin whose cache entry is older than
+ * PLUGIN_UPDATES_CACHE_TTL, it runs one `git fetch` (the same network op
+ * CheckForPluginUpdates() does per-plugin) before recomputing the flag.
+ *
+ * Deliberately caps live refreshes to PLUGIN_UPDATES_MAX_REFRESH_PER_CALL
+ * per call -- unlike the GitHub stats cache (one HTTP call per miss), a
+ * stale plugin here costs a full `git fetch` subprocess, and every
+ * installed plugin can go stale at the same time (e.g. right after
+ * install, or after 6h idle). Refreshing all of them inline would make
+ * whichever page load hits that moment pay for every plugin's fetch
+ * serially. Capping to one spreads the refresh across subsequent polls
+ * instead, the same "quiet, one at a time" approach the Updates tab's own
+ * background pass already uses for this exact reason (see
+ * CheckPluginsForUpdates()'s comment above).
+ *
+ * @route GET /api/plugin/updatesAvailable
+ * @response 200 Aggregate update-available flag
+ * ```json
+ * {"updatesAvailable": true}
+ * ```
+ */
+function GetPluginUpdatesAvailable()
+{
+	global $settings, $SUDO;
+
+	$pluginDir = $settings['pluginDirectory'];
+	$plugins = array();
+	if ($dh = @opendir($pluginDir)) {
+		while (($file = readdir($dh)) !== false) {
+			if (
+				(!in_array($file, array('.', '..'))) &&
+				(is_dir($pluginDir . '/' . $file)) &&
+				(file_exists($pluginDir . '/' . $file . '/pluginInfo.json'))
+			) {
+				array_push($plugins, $file);
+			}
+		}
+		closedir($dh);
+	}
+
+	$cacheFile = PluginUpdatesCacheFile();
+	$cache = array();
+	if (file_exists($cacheFile)) {
+		$tmp = json_decode(@file_get_contents($cacheFile), true);
+		if (is_array($tmp)) $cache = $tmp;
+	}
+
+	$now = time();
+	$updatesAvailable = false;
+	$changed = false;
+	$refreshesLeft = PLUGIN_UPDATES_MAX_REFRESH_PER_CALL;
+
+	foreach ($plugins as $plugin) {
+		$stale = !isset($cache[$plugin]) || !is_array($cache[$plugin]) ||
+			!isset($cache[$plugin]['ts']) || (($now - (int)$cache[$plugin]['ts']) >= PLUGIN_UPDATES_CACHE_TTL);
+
+		if ($stale && $refreshesLeft > 0) {
+			$refreshesLeft--;
+			$fetchCmd = '(cd ' . escapeshellarg($pluginDir . '/' . $plugin) . ' && ' . $SUDO . ' git fetch)';
+			exec($fetchCmd);
+			$cache[$plugin] = array(
+				'hasUpdate' => PluginHasUpdates($plugin) ? true : false,
+				'ts' => $now,
+			);
+			$changed = true;
+		} elseif (!isset($cache[$plugin]) || !is_array($cache[$plugin])) {
+			// Never checked and out of refresh budget this call -- read whatever
+			// the cheap (no-fetch) check already knows rather than reporting
+			// nothing for a brand-new plugin until its turn comes up.
+			$cache[$plugin] = array(
+				'hasUpdate' => PluginHasUpdates($plugin) ? true : false,
+				'ts' => 0, // force a real refresh on a future call
+			);
+			$changed = true;
+		}
+
+		if (!empty($cache[$plugin]['hasUpdate'])) {
+			$updatesAvailable = true;
+		}
+	}
+
+	// Drop cache entries for plugins that are no longer installed.
+	foreach (array_keys($cache) as $repo) {
+		if (!in_array($repo, $plugins)) {
+			unset($cache[$repo]);
+			$changed = true;
+		}
+	}
+
+	if ($changed) {
+		@file_put_contents($cacheFile, json_encode($cache));
+	}
+
+	return json(array('updatesAvailable' => $updatesAvailable));
+}
+
 /**
  * Get setting from plugin
  *

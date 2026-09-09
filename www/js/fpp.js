@@ -130,6 +130,15 @@ var FPP_UPDATE_STATE = {
 	checked: false
 };
 
+// Global plugin-update state - used by the navbar plugin-update icon.
+// Populated from api/plugin/updatesAvailable, which is itself cache-backed
+// (see GetPluginUpdatesAvailable() server-side) so polling it here on every
+// page load is cheap.
+var FPP_PLUGIN_UPDATE_STATE = {
+	updatesAvailable: false,
+	checked: false
+};
+
 // Build "http://host" + path. IPv6 literals (contain ':') must be bracketed;
 // IPv4 and hostnames never contain ':' so they pass through unchanged.
 // No zone-id ("%eth0") handling on purpose: a link-local address can't be
@@ -14579,6 +14588,35 @@ function updateNavbarUpdateIndicator () {
 		$('#navbarUpdateAvail').show();
 	} else {
 		$('#navbarUpdateAvail').hide();
+	}
+}
+
+/**
+ * Poll api/plugin/updatesAvailable for the navbar plugin-update icon. Cheap
+ * to call on every page load -- the endpoint is TTL-cached server-side (see
+ * GetPluginUpdatesAvailable()) and only occasionally pays for a real
+ * `git fetch`, never more than one per call.
+ */
+function checkForPluginUpdates () {
+	$.get('api/plugin/updatesAvailable')
+		.done(function (data) {
+			FPP_PLUGIN_UPDATE_STATE.updatesAvailable = !!(data && data.updatesAvailable);
+			FPP_PLUGIN_UPDATE_STATE.checked = true;
+			updateNavbarPluginUpdateIndicator();
+		})
+		.fail(function () {
+			console.log('Failed to check for plugin updates via API');
+		});
+}
+
+/**
+ * Update the navbar plugin-update indicator based on FPP_PLUGIN_UPDATE_STATE
+ */
+function updateNavbarPluginUpdateIndicator () {
+	if (FPP_PLUGIN_UPDATE_STATE.updatesAvailable) {
+		$('#navbarPluginUpdateAvail').show();
+	} else {
+		$('#navbarPluginUpdateAvail').hide();
 	}
 }
 
