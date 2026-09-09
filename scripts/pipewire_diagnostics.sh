@@ -49,6 +49,8 @@ PW_SERVICES="fpp-pipewire fpp-wireplumber fpp-pipewire-pulse"
 
 # AES67's fixed media clock (AES67::AUDIO_RATE in src/mediaoutput/AES67Manager.h).
 AES67_RATE=48000
+# RTSPOutput::DEFAULT_PORT in src/mediaoutput/RTSPOutputManager.h.
+RTSP_DEFAULT_PORT=8554
 
 export PIPEWIRE_RUNTIME_DIR="${PW_RUNTIME}"
 export XDG_RUNTIME_DIR="${PW_RUNTIME}"
@@ -1364,25 +1366,69 @@ section_network() {
     fi
 
     hdr "RTSP outputs"
+    # The enable flag and port live in pipewire-rtsp-outputs.json, but the
+    # mounts do not: an RTSP stream is a *member of a Video Output Group*, so
+    # RTSPOutputManager::LoadMounts() reads pipewire-video-consumers.json and
+    # keeps the entries with type "rtsp".  Reading .streams[] out of the
+    # outputs file (as this check used to) looks for a key that never exists,
+    # so every device looked like it had no streams.
     rtspj="${CFGDIR}/pipewire-rtsp-outputs.json"
+    vconsj="${CFGDIR}/pipewire-video-consumers.json"
     if [ -f "${rtspj}" ] && have jq; then
         enabled=$(jq -r '.enabled // false' "${rtspj}" 2>/dev/null)
-        port=$(jq -r '.port // 8554' "${rtspj}" 2>/dev/null)
+        port=$(jq -r ".port // ${RTSP_DEFAULT_PORT}" "${rtspj}" 2>/dev/null)
         info "RTSP output enabled=${enabled} port=${port}"
-        jq -r "${JQ_ENABLED}"' .streams[]? | "       \(.name // "?")  mount=\(.mountPoint // "?")  enabled=\(enabled)"' \
-            "${rtspj}" 2>/dev/null
-        if [ "${enabled}" = "true" ]; then
-            if have ss && ss -lnt 2>/dev/null | grep -q ":${port} "; then
-                pass "Something is listening on RTSP port ${port}"
-                ss -lntp 2>/dev/null | grep ":${port} " | sed 's/^/       /'
-            else
-                fail "RTSP output is enabled but nothing is listening on port ${port}"
-                note "fppd hosts the RTSP server itself, so this means fppd is not"
-                note "running, or it could not bind the port (another service has"
-                note "it, or the port is below 1024).  Check fppd.log."
+
+        # LoadConfig() clamps an out-of-range port back to the default, so the
+        # listener is not where the file says it is.
+        if [ "${port}" -lt 1024 ] 2>/dev/null || [ "${port}" -gt 65535 ] 2>/dev/null; then
+            warn "Port ${port} is out of range; fppd falls back to ${RTSP_DEFAULT_PORT}"
+            port=${RTSP_DEFAULT_PORT}
+        fi
+
+        # A mount fppd will actually serve needs a video source: ResolveSourceNode()
+        # takes sourceNode or streamSlots, and a member with neither is logged
+        # and skipped -- which can empty the mount list even with members present.
+        rtspN=0
+        rtspSourced=0
+        if [ -f "${vconsj}" ]; then
+            rtspN=$(jq -r '[.[]? | select(.type == "rtsp")] | length' "${vconsj}" 2>/dev/null)
+            rtspSourced=$(jq -r '[.[]? | select(.type == "rtsp")
+                                 | select((.sourceNode // "") != ""
+                                          or ((.streamSlots // []) | length) > 0)] | length' \
+                          "${vconsj}" 2>/dev/null)
+            if [ "${rtspN:-0}" -gt 0 ] 2>/dev/null; then
+                jq -r '.[]? | select(.type == "rtsp")
+                       | "       \(.name // "?")  mount=\(.mountPoint // "(auto)")  source=\(if (.sourceNode // "") != "" then .sourceNode elif ((.streamSlots // []) | length) > 0 then "slots " + (.streamSlots | join(",")) else "NONE" end)  audio=\(.audioEnabled // false)"' \
+                    "${vconsj}" 2>/dev/null
             fi
-        else
+        fi
+
+        if [ "${enabled}" != "true" ]; then
             skip "RTSP output is disabled"
+        elif [ "${rtspN:-0}" -eq 0 ] 2>/dev/null; then
+            # Not a fault, and the commonest reason for a silent port: fppd
+            # returns from ApplyConfig() before StartServer() when the mount
+            # list is empty, logging "enabled but no mounts configured".
+            warn "RTSP output is enabled but no Video Output Group member serves it"
+            note "The server is only started once at least one RTSP mount exists,"
+            note "so nothing listening on port ${port} is expected here, not a fault."
+            note "Add an RTSP member to a Video Output Group to publish a stream."
+        elif [ "${rtspSourced:-0}" -eq 0 ] 2>/dev/null; then
+            fail "${rtspN} RTSP mount(s) exist but none names a video source"
+            note "fppd skips a mount with no sourceNode and no streamSlots, which"
+            note "leaves nothing to serve, so the server never starts."
+            note "Set the video source on the group those members belong to."
+        elif have ss && ss -lnt 2>/dev/null | grep -q ":${port} "; then
+            pass "Something is listening on RTSP port ${port}"
+            ss -lntp 2>/dev/null | grep ":${port} " | sed 's/^/       /'
+        elif ! pgrep -x fppd >/dev/null 2>&1; then
+            fail "Nothing is listening on RTSP port ${port} because fppd is not running"
+            note "fppd hosts the RTSP server itself."
+        else
+            fail "fppd is running with ${rtspSourced} servable mount(s) but port ${port} is not open"
+            note "The server could not bind - another service most likely has the"
+            note "port.  Check fppd.log for RTSPOutputManager lines."
         fi
     else
         skip "No RTSP output configuration on this device"
