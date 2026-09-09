@@ -311,16 +311,80 @@ section_services() {
     fi
 
     hdr "Recent service errors"
+    # Scope is the whole check.  The journal for these units survives reboots
+    # and goes back as far as it was configured to, so an unbounded grep
+    # reports failures from configurations that no longer exist: on the
+    # device this was written against, 55818 matching lines across weeks
+    # against 16 for the running instance.  The old -n 400 cap did not bound
+    # it either -- it only hid how far back the matches went.
+    #
+    # The boundary is the later of two events, because either one invalidates
+    # what came before it: the services starting (a restart replaces the
+    # process that logged) and the newest generated conf being written (a
+    # regenerated conf.d replaces the graph the messages were describing).
+    #
+    # Separately, a headless FPP always logs a few connect failures for things
+    # it deliberately does not have -- a session bus, a portal, jackdbus, a
+    # camera at /dev/video0.  Those are structural and permanent, so they are
+    # counted and named rather than listed as faults to act on.
     if have journalctl; then
-        errs=$(journalctl -u fpp-pipewire -u fpp-wireplumber -u fpp-pipewire-pulse \
-                   --no-pager -n 400 2>/dev/null |
-               grep -iE "error|fail|cannot|denied|refused|no such|timeout" |
-               grep -viE "no such file or directory: /proc" | tail -15)
-        if [ -n "${errs}" ]; then
-            warn "Errors in the service journal (most recent 15):"
-            echo "${errs}" | sed 's/^/       /'
+        # Earliest of the three, so every unit's current instance is covered.
+        boundary=""
+        for u in ${PW_SERVICES}; do
+            t=$(systemctl show -p ActiveEnterTimestamp --value "${u}" 2>/dev/null)
+            [ -z "${t}" ] && continue
+            e=$(date -d "${t}" +%s 2>/dev/null) || continue
+            [ -z "${e}" ] && continue
+            if [ -z "${boundary}" ] || [ "${e}" -lt "${boundary}" ] 2>/dev/null; then
+                boundary="${e}"
+            fi
+        done
+        boundaryWhy="the services started"
+        for d in "${PW_CONFD}" "${WP_CONFD}"; do
+            [ -d "${d}" ] || continue
+            for f in "${d}"/*.conf; do
+                [ -f "${f}" ] || continue
+                m=$(stat -c %Y "${f}" 2>/dev/null) || continue
+                if [ -n "${m}" ] && { [ -z "${boundary}" ] || [ "${m}" -gt "${boundary}" ] 2>/dev/null; }; then
+                    boundary="${m}"
+                    boundaryWhy="the configuration was last generated"
+                fi
+            done
+        done
+
+        # Structural on a headless player, not faults.  Kept out of the verdict
+        # but counted, so a genuinely new one is not hidden by being filtered.
+        benign="session bus|autolaunch a dbus-daemon|mod\.portal|jackdbus"
+        benign="${benign}|spa\.v4l2: Cannot open|no such file or directory: /proc"
+
+        if [ -n "${boundary}" ]; then
+            since="--since @${boundary}"
+            info "Looking at the journal since $(date -d "@${boundary}" '+%Y-%m-%d %H:%M:%S' 2>/dev/null) (${boundaryWhy})"
         else
-            pass "No errors in the recent service journal"
+            since="-n 400"
+            info "Service start time unknown - falling back to the last 400 journal lines"
+        fi
+
+        allErrs=$(journalctl -u fpp-pipewire -u fpp-wireplumber -u fpp-pipewire-pulse \
+                      --no-pager ${since} 2>/dev/null |
+                  grep -iE "error|fail|cannot|denied|refused|no such|timeout")
+        errs=$(echo "${allErrs}" | grep -viE "${benign}")
+        benignN=$(echo "${allErrs}" | grep -icE "${benign}")
+
+        if [ -n "${errs}" ]; then
+            errN=$(echo "${errs}" | grep -c .)
+            if [ "${errN}" -gt 15 ] 2>/dev/null; then
+                warn "${errN} error(s) in the service journal (most recent 15):"
+            else
+                warn "${errN} error(s) in the service journal:"
+            fi
+            echo "${errs}" | tail -15 | sed 's/^/       /'
+        else
+            pass "No service errors since ${boundaryWhy}"
+        fi
+        if [ "${benignN:-0}" -gt 0 ] 2>/dev/null; then
+            info "${benignN} more are the usual headless messages (no session bus,"
+            note "no portal, no jackdbus, no camera) and need no action."
         fi
     else
         skip "journalctl not available"
