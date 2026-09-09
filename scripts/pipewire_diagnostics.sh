@@ -70,6 +70,14 @@ hdr()  { echo; echo "--- $* ---"; }
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# True in the simple backend.  Several features -- input mixing, AES67, Opus
+# RTP, video output groups -- exist only in the advanced one, and their JSON
+# survives a switch to simple mode.  Any check that reads such a file has to
+# ask this first or it reports the previous mode's configuration as broken.
+simple_mode() {
+    [ "$(setting MediaBackend)" = "pipewire-simple" ]
+}
+
 # A setting out of $SETTINGSFILE, quotes stripped, empty if unset.
 setting() {
     [ -f "${SETTINGSFILE}" ] || return 0
@@ -526,7 +534,9 @@ section_config() {
         fail "Audio groups are configured but 97-fpp-audio-groups.conf was never generated"
         note "Open the Audio Output Groups page and press Save & Apply."
     fi
-    if [ -f "${CFGDIR}/pipewire-input-groups.json" ] && [ ! -f "${PW_CONFD}/96-fpp-input-groups.conf" ]; then
+    if simple_mode && [ -f "${CFGDIR}/pipewire-input-groups.json" ]; then
+        skip "Input groups configured for advanced mode - not generated in simple mode"
+    elif [ -f "${CFGDIR}/pipewire-input-groups.json" ] && [ ! -f "${PW_CONFD}/96-fpp-input-groups.conf" ]; then
         fail "Input groups are configured but 96-fpp-input-groups.conf was never generated"
         note "Open the Input Mixing page and press Save & Apply."
     fi
@@ -824,11 +834,53 @@ section_graph() {
     done < "${TMPDIR_DIAG}/declared-targets.txt"
     [ "${unresolved}" -eq 0 ] && pass "Every configured link target resolves to a real node"
 
+    hdr "Duplicate node names"
+    # Two nodes under one name is not cosmetic when both are ALSA adapters on
+    # the same PCM: the loser's snd_pcm_open() returns EBUSY, its node goes to
+    # error, and a stream that landed on it neither starts nor ends -- the
+    # client blocks in poll() forever.  FPP generates a WirePlumber rule to
+    # stop the *monitor* creating such a twin (50-fpp-suppress-alsa-dupes.conf,
+    # see ensureWirePlumberAlsaDupeSuppression in src/boot/FPPINIT_Audio.cpp),
+    # but that cannot catch two static declarations of the same name in two
+    # generated files -- which is what switching backend mode can leave behind.
+    # node.target naming such a pair is ambiguous on top of that.
+    if have jq && pw_dump; then
+        dupes=$(jq -r '.[] | select(.type == "PipeWire:Interface:Node")
+                       | .info.props["node.name"] // empty' "${PW_DUMP_FILE}" 2>/dev/null |
+                sort | uniq -d)
+        if [ -z "${dupes}" ]; then
+            pass "Every node in the graph has a unique name"
+        else
+            echo "${dupes}" | while read -r d; do
+                [ -z "${d}" ] && continue
+                nd=$(jq -r --arg d "${d}" '[.[] | select(.type == "PipeWire:Interface:Node")
+                          | select(.info.props["node.name"] == $d)] | length' \
+                     "${PW_DUMP_FILE}" 2>/dev/null)
+                echo "[FAIL] Node name '${d}' exists ${nd} times in the graph"
+                jq -r --arg d "${d}" '.[] | select(.type == "PipeWire:Interface:Node")
+                       | select(.info.props["node.name"] == $d)
+                       | "       id=\(.id) desc=\(.info.props["node.description"] // "-") dev=\(.info.props["api.alsa.path"] // "-") rate=\(.info.props["audio.rate"] // "-")"' \
+                    "${PW_DUMP_FILE}" 2>/dev/null
+                decl=$(grep -n "node\.name[[:space:]]*=[[:space:]]*\"${d}\"" \
+                       "${PW_CONFD}"/*.conf 2>/dev/null)
+                if [ -n "${decl}" ]; then
+                    echo "       Declared at:"
+                    echo "${decl}" | sed 's/^/         /' | sed 's/:[[:space:]]*node\.name.*//'
+                fi
+                echo "       Two adapters on one PCM: the second to open gets EBUSY and"
+                echo "       hangs whatever plays to it.  Remove the duplicate declaration,"
+                echo "       or regenerate the audio configuration from the FPP UI."
+            done
+        fi
+    else
+        skip "jq or pw-dump not available - cannot check for duplicate node names"
+    fi
+
     hdr "Configured audio output groups"
     # pipewire-simple and pipewire read different group files; the unused one
     # lingers from whenever that mode was last selected, so comparing it
     # against the graph would report groups that nothing is meant to create.
-    if [ "$(setting MediaBackend)" = "pipewire-simple" ]; then
+    if simple_mode; then
         groupFiles="${CFGDIR}/pipewire-audio-groups-simple.json"
     else
         groupFiles="${CFGDIR}/pipewire-audio-groups.json"
@@ -857,8 +909,16 @@ section_graph() {
     done
 
     hdr "Configured input groups (mix buses)"
+    # Input mixing exists only in the advanced backend (MediaBackend's children
+    # list PipeWireInputMixing under "pipewire", not "pipewire-simple"), and
+    # simple mode does not generate 96-fpp-input-groups.conf at all.  The JSON
+    # survives the mode switch though, so reading it regardless reports every
+    # group that mode used to have as missing from the graph.  Same stale-file
+    # trap the output-group check above already avoids.
     igj="${CFGDIR}/pipewire-input-groups.json"
-    if [ -f "${igj}" ] && have jq; then
+    if simple_mode; then
+        skip "Input mixing is an advanced-mode feature - not used in simple mode"
+    elif [ -f "${igj}" ] && have jq; then
         jq -r "${JQ_ENABLED}"' .inputGroups[]? | [(.name // "?"), (enabled|tostring), ((.members|length)|tostring)] | join("\u001f")' \
             "${igj}" 2>/dev/null |
         while IFS=$(printf '\037') read -r igname igenabled igmem; do
@@ -1316,8 +1376,13 @@ section_network() {
     echo "=== Network Audio & Video Outputs ==="
 
     hdr "AES67"
+    # AES67Manager::Init() returns early unless MediaBackend is "pipewire"
+    # (AES67Manager.cpp:102-110), so in simple mode none of this is running
+    # however the JSON is left configured.
     aesj="${CFGDIR}/pipewire-aes67-instances.json"
-    if [ -f "${aesj}" ] && have jq; then
+    if simple_mode; then
+        skip "AES67 is an advanced-mode feature - not started in simple mode"
+    elif [ -f "${aesj}" ] && have jq; then
         n=$(jq -r "${JQ_ENABLED}"' [.instances[]? | select(enabled)] | length' "${aesj}" 2>/dev/null)
         info "Enabled AES67 streams: ${n:-0}"
         jq -r "${JQ_ENABLED}"' .instances[]? | "       \(.name // "?")  ip=\(.multicastIP // "?")  ch=\(.channels // "?")  iface=\(if (.interface // "") == "" then "default route" else .interface end)  enabled=\(enabled)  sap=\((.sapEnabled != false))"' \
@@ -1512,8 +1577,11 @@ section_network() {
     fi
 
     hdr "Opus RTP"
+    # Same gate as AES67 (OpusRTPManager.cpp:66-74).
     opusj="${CFGDIR}/pipewire-opus-rtp-instances.json"
-    if [ -f "${opusj}" ] && have jq; then
+    if simple_mode; then
+        skip "Opus RTP is an advanced-mode feature - not started in simple mode"
+    elif [ -f "${opusj}" ] && have jq; then
         jq -r "${JQ_ENABLED}"' .instances[]? | "       \(.name // "?")  mode=\(.mode // "send")  dest=\(.destIP // .destination // "?"):\(.port // "?")  iface=\(.interface // "default")  enabled=\(enabled)"' \
             "${opusj}" 2>/dev/null
         n=$(jq -r "${JQ_ENABLED}"' [.instances[]? | select(enabled)] | length' "${opusj}" 2>/dev/null)
