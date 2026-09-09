@@ -99,15 +99,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             font-size: 0.875rem;
         }
         .fileCopyFields label { font-weight: 600; }
-        #privacyTable td, #privacyTable th { vertical-align: top; }
-        #privacyTable .privacyChoice { text-align: center; width: 7em; white-space: nowrap; }
-        #privacyTable tfoot td { border-top: 1px solid rgba(128,128,128,0.35); padding-top: 0.6em; }
-        #privacyTable tfoot .buttons { width: 100%; }
+        /* FPP's Bootstrap build ships no table rules at all, so these cells
+           would otherwise render at the browser's 1px default and the rows run
+           together.  Padding and the group rules below are the table's only
+           spacing. */
+        #privacyTable td, #privacyTable th { vertical-align: top; padding: 0.4rem 0.5rem; }
+        #privacyTable thead th { border-bottom: 1px solid var(--fpp-border); }
+        /* Each top-level disclosure opens a group; its indented "... and also"
+           children hang off it with no rule of their own. */
+        #privacyTable tbody tr[data-depth='0']:not(:first-child) td { border-top: 1px solid var(--fpp-border); }
+        /* .smallText is used in four places here and defined in no stylesheet,
+           so the secondary text was rendering at full body size.  Everything
+           read as equally important; this is what makes the label the label. */
+        .smallText { font-size: 0.875rem; }
+        /* Depth is otherwise carried by the indent alone: a rung of the ladder
+           was exactly as heavy as the disclosure it hangs off. */
+        #privacyTable tr[data-depth='1'] b { font-weight: 400; }
+        /* The description ran ~90 characters, and pushed the radios ~840px away
+           from the label they belong to.  Capping the text column pulls the
+           choice columns back towards what they answer. */
+        #privacyTable td:first-child { max-width: 34em; }
+        #privacyTable .privacyChoice { text-align: center; width: 6em; white-space: nowrap; }
+        /* Whole cell clickable, not just a 13px UA radio at the end of a long row. */
+        #privacyTable .privacyChoice label { display: block; padding: 0.15rem 0; cursor: pointer; }
+        #privacyTable .privacyChoice input[type='radio'] { width: 1.1rem; height: 1.1rem; cursor: pointer; }
+        #privacyTable tfoot td { border-top: 1px solid var(--fpp-border); padding-top: 0.6em; }
+        /* Rows still to answer, marked only once Next has been refused.  The
+           subtle tokens are defined per theme by Bootstrap, so this reads in
+           both light and dark without a theme-specific rule. */
+        #privacyTable tr.privacyUnanswered > td { background-color: var(--bs-warning-bg-subtle); }
+        #privacyTable tr.privacyUnanswered > td:first-child { box-shadow: inset 0.25rem 0 0 var(--bs-warning); }
+        #privacyTable tfoot .buttons { width: auto; }
         #privacyTable .privacyGoesTo { width: 14em; }
         #privacyTable tr.privacyBlocked { opacity: 0.5; }
         #privacyTable .privacyHelp { cursor: pointer; opacity: 0.7; }
         #privacyTable .privacyHelp:hover { opacity: 1; }
         #fcFlagsTable td { vertical-align: top; white-space: nowrap; }
+        /* Without the old "UI Password"/"OS Password" sub-headings there is
+           nothing between the two groups, so they read as one list. */
+        #osPasswordEnableRow { margin-top: 1rem; }
     </style>
     <?php
     include 'common/htmlMeta.inc';
@@ -545,9 +575,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                 // accepts what is shown -- which is a choice the user can see, not
                 // a default nobody was shown.
                 if (setupPriorOptIn && privacyUnanswered().length > 0) {
+                    privacyShowUnanswered = true;
+                    privacyMarkUnanswered();
                     $('#privacyRequiredNote').removeClass('d-none');
                     return false;
                 }
+                privacyShowUnanswered = false;
+                privacyMarkUnanswered();
                 $('#privacyRequiredNote').addClass('d-none');
                 privacyToPending();
                 return true;
@@ -772,6 +806,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
 
         // Which rows still have no answer.  A row locked by a denied parent is
         // answered by that denial, so it does not count as outstanding.
+        // Once Next has been refused, show WHICH rows the note is talking
+        // about, and let the marks clear one by one as they are answered - a
+        // banner alone does not say where to look in a table of eight rows.
+        var privacyShowUnanswered = false;
+
+        function privacyMarkUnanswered() {
+            $('#privacyTable tr.privacyRow').removeClass('privacyUnanswered');
+            if (!privacyShowUnanswered) { return; }
+            $.each(privacyUnanswered(), function (i, row) {
+                $("#privacyTable tr[data-row='" + row + "']").addClass('privacyUnanswered');
+            });
+        }
+
         function privacyUnanswered() {
             var out = [];
             $.each(PRIVACY_ROWS, function (row) {
@@ -1367,6 +1414,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                 var row = $(this).attr('name').replace(/^privacy_/, '');
                 privacyTouched[row] = true;
                 privacyApplyLadder(row);
+                // Answering a row clears its mark; clearing the last one takes
+                // the note with it rather than leaving a stale complaint.
+                privacyMarkUnanswered();
+                if (privacyShowUnanswered && privacyUnanswered().length === 0) {
+                    privacyShowUnanswered = false;
+                    $('#privacyRequiredNote').addClass('d-none');
+                }
             });
 
             // One popover at a time, so the disclosures cannot stack up on top of
@@ -1420,15 +1474,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                          is and how much is left, and does not navigate.  Jumping
                          forward would skip the validation that gates Next, and the
                          privacy step genuinely depends on the locale step's answer. -->
-                    <ul id="setupSteps" class="nav nav-pills mb-2">
-                        <li class="nav-item"><span class="nav-link setupStepTab" data-step="1">1. Location</span></li>
-                        <li class="nav-item"><span class="nav-link setupStepTab" data-step="2">2. Device</span></li>
-                        <li class="nav-item"><span class="nav-link setupStepTab" data-step="3">3. Privacy</span></li>
-                        <li class="nav-item"><span class="nav-link setupStepTab" data-step="4">4. Security</span></li>
+                    <ul id="setupSteps" class="nav nav-pills pageContent-tabs">
+                        <li class="nav-item"><span class="nav-link pe-none setupStepTab" data-step="1">1. Location</span></li>
+                        <li class="nav-item"><span class="nav-link pe-none setupStepTab" data-step="2">2. Device</span></li>
+                        <li class="nav-item"><span class="nav-link pe-none setupStepTab" data-step="3">3. Privacy</span></li>
+                        <li class="nav-item"><span class="nav-link pe-none setupStepTab" data-step="4">4. Security</span></li>
                     </ul>
-                    <hr>
-
-                    <div class='container-fluid'>
 
                         <div class="setupStep" data-step="1">
                             <p class="text-muted">Where this player is used.  The time zone and
@@ -1469,10 +1520,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                             <p>FPP is built by volunteers: statistics tell us how FPP is used and help us
                                 focus development where it matters most.  Please enable them so we can help
                                 you better.</p>
-                            <p class="text-muted">Statistics go to the FPP project's statistics server; crash
-                                reports to the FPP developers.  Each row says where it goes and the
-                                <i class="fas fa-question-circle"></i> says exactly what is sent.  You can
-                                change any of this later under Content Setup &rarr; Privacy.</p>
 
                             <div class="alert alert-warning small d-none" id="privacyRequiredNote">
                                 Please answer each of these before continuing.
@@ -1483,7 +1530,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                                  value, because the tiers are cumulative rather than
                                  independent (see the ladder handling in JS). -->
                             <div class="table-responsive">
-                            <table class="table table-sm privacyTable" id="privacyTable">
+                            <table class="privacyTable" id="privacyTable">
                                 <thead>
                                     <tr>
                                         <th></th>
@@ -1504,13 +1551,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                                             'Tells us which platforms and features to keep supporting, so yours is '
                                             . 'less likely to be dropped. '
                                             . "<a href='#' onClick='PreviewStatistics(); return false;'>Preview data</a>.", 0),
+                                        array('logos', 'Load cape logos from vendor website', 'Cape vendor', '', 0),
+                                        array('serial', '&hellip; and include your cape\'s serial number', '', '', 1),
+                                        // Last, because the e-mail field hangs off the deepest
+                                        // crash rung and looks orphaned mid-table.
                                         array('crash', 'Send crash reports',
                                             'FPP &amp; xLights developers,<br>AI service',
                                             'The only way most crashes are ever found.', 0),
                                         array('crash-settings', '&hellip; and include your settings', '', '', 1),
                                         array('crash-config', '&hellip; and include configuration and logs', '', '', 1),
-                                        array('logos', 'Load cape logos from vendor website', 'Cape vendor', '', 0),
-                                        array('serial', '&hellip; and include your cape\'s serial number', '', '', 1),
                                     );
 
                                     foreach ($rows as $r) {
@@ -1523,12 +1572,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                                         echo "<td$indent><b>$label</b>";
                                         echo " <i class='fas fa-question-circle privacyHelp' data-row='$id' title='Explain what this sends'></i>";
                                         if ($sub != '') {
-                                            echo "<div class='smallText'>$sub</div>";
+                                            echo "<div class='smallText text-muted'>$sub</div>";
                                         }
                                         echo "</td>";
-                                        echo "<td class='privacyGoesTo smallText'>$goesTo</td>";
-                                        echo "<td class='privacyChoice'><input type='radio' name='privacy_$id' value='allow'></td>";
-                                        echo "<td class='privacyChoice'><input type='radio' name='privacy_$id' value='deny'></td>";
+                                        echo "<td class='privacyGoesTo smallText text-muted'>$goesTo</td>";
+                                        echo "<td class='privacyChoice'><label><input type='radio' name='privacy_$id' value='allow'></label></td>";
+                                        echo "<td class='privacyChoice'><label><input type='radio' name='privacy_$id' value='deny'></label></td>";
                                         echo "</tr>";
 
                                         // The e-mail field belongs to the crash rows and is
@@ -1546,7 +1595,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                                 </tbody>
                                 <tfoot>
                                     <tr class="privacyAllRow">
-                                        <td class="text-muted smallText">You can change this at any time under Content Setup &rarr; Privacy.</td>
+                                        <td class="text-muted smallText">You can change this at any time under Status/Control &rarr; FPP Settings &rarr; Privacy.</td>
                                         <td></td>
                                         <td class="privacyChoice">
                                             <input type='button' class='buttons' value='Allow all' onClick='PrivacySetAll("allow");'>
@@ -1564,7 +1613,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
 
                         <div class="setupStep d-none" data-step="4">
                             <p class="text-muted">Who may use this player.</p>
-                            <b>UI Password</b><br>
+                            <b>Passwords</b><br>
                             <?
                             PrintSetting('passwordEnable');
                             ?>
@@ -1580,10 +1629,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                             PrintSetting('passwordVerify');
 
                             if ($showOSSecurity) {
-                                ?>
-
-                                <b>OS Password</b><br>
-                                <?
                                 PrintSetting('osPasswordEnable');
                                 ?>
                                 <div class='row osPasswordEnableChild' style='display: none;'>
@@ -1608,19 +1653,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                                  page, and pre-filled from the same place, so a box
                                  that already has keys shows them here rather than
                                  looking like it has none. -->
-                            <div id="sshKeysBlock" class="d-none mt-3">
+                            <div id="sshKeysBlock" class="d-none mt-4">
                                 <i class="fas fa-fw fa-graduation-cap fa-nbsp ui-level-1" title="Advanced Level Setting"></i>
                                 <b>SSH Keys</b> (root and fpp users)
                                 <img id="setupssh_img" title="Add optional SSH key(s) for passwordless SSH authentication." src="images/redesign/help-icon.svg" width=22 height=22>
                                 <span id="setupssh_tip" class="tooltip d-none">Add optional SSH key(s) for passwordless SSH authentication.</span><br>
-                                <textarea id='setupSSHKeys' style='width: 100%;' rows='8'><? echo htmlspecialchars(shell_exec('sudo cat /root/.ssh/authorized_keys 2>/dev/null')); ?></textarea>
+                                <textarea id='setupSSHKeys' class='w-100' rows='8'><? echo htmlspecialchars(shell_exec('sudo cat /root/.ssh/authorized_keys 2>/dev/null')); ?></textarea>
                                 <div class="smallText">Saved when setup is finished.</div>
                             </div>
                         </div>
 
-                    </div>
-
-                    <hr>
+                    <hr class="mt-4 mb-3">
                     <div class="d-flex gap-2 align-items-center">
                         <input type='button' id='setupBackBtn' class='buttons' value='Back' onClick='setupBack();'>
                         <input type='button' id='setupNextBtn' class='buttons btn-primary' value='Next' onClick='setupNext();'>
