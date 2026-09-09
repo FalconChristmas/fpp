@@ -123,6 +123,13 @@ function stats_get_last_file()
  */
 function stats_network()
 {
+    // Needed for $settings['wwwDir'] below. Without it $settings is a fresh
+    // local, $fieldsFile resolves to "/interface-settings.json", is_readable()
+    // fails and the inline fallback runs -- silently, because the fallback is a
+    // valid allowlist and the two lists happen to be identical. The shared-file
+    // property was fiction on this side until this line existed.
+    global $settings;
+
     $rc = array();
 
     // Statistics generation makes no outbound request.  This used to shell out to
@@ -216,6 +223,13 @@ function stats_network()
                 }
             }
             if (!count($allowed)) {
+                // Say so. This path is correct behaviour when the file is
+                // genuinely missing, and it is also what a bug in reading the
+                // file looks like -- those were indistinguishable, which is how
+                // a broken read survived: the payload stayed correct because
+                // the two lists agreed, so nothing ever looked wrong.
+                error_log("stats: $fieldsFile unreadable, using the built-in "
+                    . "interface field allowlist");
                 $allowed = array(
                     'PROTO',            // dhcp vs static
                     'HIDDEN',
