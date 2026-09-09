@@ -614,13 +614,33 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 			unset($decoded_backup_data);
 		}
 
-		//Locate the last underscore, this appears before the date/time in the filename
+		//Locate the last underscore, this appears before the date/time in the filename,
+		//and extract everything after it - that will be the date time in full.
 		$backup_date_time_pos = strrpos($backup_filename_clean, '_');
-		//Extract everything between this occurrence and the end of the string, this will be the date time in full
-		$backup_date_time_str = substr($backup_filename_clean, $backup_date_time_pos + 1);
-		//Date time created in this format date("YmdHis"), output it in this format date('D M d H:i:s T Y') so it's more human-readable
-		$backup_date_time = DateTime::createFromFormat("YmdHis", $backup_date_time_str)->format('D M d H:i:s Y');
-		$backup_date_time_unix = DateTime::createFromFormat("YmdHis", $backup_date_time_str)->format('U');
+		$backup_date_time_obj = false;
+		if ($backup_date_time_pos !== false) {
+			$backup_date_time_str = substr($backup_filename_clean, $backup_date_time_pos + 1);
+			//Insist on exactly the 14 digits we write, rather than letting
+			//createFromFormat() have a lenient go at whatever is there and hand back
+			//some other date.
+			if (preg_match('/^\d{14}$/', $backup_date_time_str)) {
+				$backup_date_time_obj = DateTime::createFromFormat('YmdHis', $backup_date_time_str);
+			}
+		}
+		//A .json in this directory whose name carries no timestamp - one copied in
+		//by hand, or renamed - used to be fatal here, because createFromFormat()
+		//returns false and ->format() on false is an Error.  That took out the whole
+		//listing, the Backups page with it, and every settings-change backup, since
+		//those prune through this same function.  Fall back to the file's own mtime:
+		//close enough to sort and display by, and it leaves the backup listed and
+		//restorable instead of hidden.
+		if ($backup_date_time_obj === false) {
+			$backup_date_time_obj = new DateTime('@' . ($backup_file_mtime !== false ? $backup_file_mtime : time()));
+			$backup_date_time_obj->setTimezone(new DateTimeZone(date_default_timezone_get()));
+		}
+		//Output it in this format date('D M d H:i:s T Y') so it's more human-readable
+		$backup_date_time = $backup_date_time_obj->format('D M d H:i:s Y');
+		$backup_date_time_unix = $backup_date_time_obj->format('U');
 
 		$json_config_backup_filenames_clean[$backup_filename_clean] = array('backup_alternative_location' => $backup_alternative,
 			'backup_filedirectory' => $backup_filepath,
