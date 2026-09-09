@@ -319,6 +319,87 @@
                 }
             }
         },
+        "MediaChecks": {
+            "grpDisplayTitle": "Media Health Checks",
+            "grpDescription": "Pass / fail checks across the PipeWire, WirePlumber and GStreamer media stack. Each check answers a question rather than printing state: every line is marked [PASS], [WARN], [FAIL], [INFO] or [SKIP], and every failure says what breaks and what to do about it. Start here, then use the Media Backend tab for the raw output behind an answer.",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "PWCheckServices": {
+                    "title": "Service & Runtime Health",
+                    "description": "Are the PipeWire, WirePlumber and PipeWire-Pulse services up, reachable and stable? Catches crash loops, missing sockets, lost realtime priority and recent service errors.",
+                    "cmd": "bash /opt/fpp/scripts/pipewire_diagnostics.sh services",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "PWCheckConfig": {
+                    "title": "Configuration Integrity",
+                    "description": "Is the deployed PipeWire configuration complete, parseable and the same as what the web pages last saved? Catches unapplied changes, corrupt JSON, syntax errors that make PipeWire silently drop a whole file, sample rate mismatches, and settings pointing at sinks that no longer exist.",
+                    "cmd": "bash /opt/fpp/scripts/pipewire_diagnostics.sh config",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "PWCheckGraph": {
+                    "title": "Graph vs Configuration",
+                    "description": "Does the running audio graph match what the configuration asks for? Compares every node FPP declares and every link target it names against the nodes PipeWire actually created, so a group that exists on screen but not in the graph is named outright.",
+                    "cmd": "bash /opt/fpp/scripts/pipewire_diagnostics.sh graph",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "PWCheckAlsa": {
+                    "title": "ALSA Hardware & Contention",
+                    "description": "Are the sound cards the audio groups reference actually present, unmuted, and not held by another process? Also checks that no group asks a card for more channels than it has.",
+                    "cmd": "bash /opt/fpp/scripts/pipewire_diagnostics.sh alsa",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "PWCheckGStreamer": {
+                    "title": "GStreamer Elements & Plugins",
+                    "description": "Are all the GStreamer elements FPP uses installed, and do the PipeWire plugin and daemon come from the same release? A mismatched pipewiresink plays every playlist silently with nothing logged, so it is checked explicitly.",
+                    "cmd": "bash /opt/fpp/scripts/pipewire_diagnostics.sh gstreamer",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "PWCheckNetwork": {
+                    "title": "Network Audio & Video Outputs",
+                    "description": "AES67, Opus RTP and RTSP output health: whether streams are fed by an output group, whether PTP is running, whether the bound interfaces exist, and whether the RTSP port is actually listening.",
+                    "cmd": "bash /opt/fpp/scripts/pipewire_diagnostics.sh network",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "PWCheckVideo": {
+                    "title": "Video Input & Output",
+                    "description": "Do the configured video input sources point at capture devices that exist, and do the video output consumers point at displays that are plugged in and sources that are still configured?",
+                    "cmd": "bash /opt/fpp/scripts/pipewire_diagnostics.sh video",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "PWCheckPerformance": {
+                    "title": "Latency, Clocking & Dropouts",
+                    "description": "Graph quantum and sample rate, xrun (dropout) counts, CPU load, and Raspberry Pi under-voltage or thermal throttling - the usual causes of crackling that is not a configuration fault.",
+                    "cmd": "bash /opt/fpp/scripts/pipewire_diagnostics.sh performance",
+                    "platforms": [
+                        "all"
+                    ]
+                },
+                "PWCheckSmoke": {
+                    "title": "End-to-end Pipeline Test",
+                    "description": "Runs real GStreamer pipelines at zero volume to prove the paths FPP uses can actually be built: playback to the default sink, playback to the configured sink, and capture from PipeWire. Also lists which audio formats have a decoder. Makes no sound.",
+                    "cmd": "bash /opt/fpp/scripts/pipewire_diagnostics.sh smoke",
+                    "platforms": [
+                        "all"
+                    ]
+                }
+            }
+        },
         "Media": {
             "grpDisplayTitle": "Media Backend",
             "grpDescription": "Set of tools for PipeWire and GStreamer media backend troubleshooting",
