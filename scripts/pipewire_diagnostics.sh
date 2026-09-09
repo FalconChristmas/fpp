@@ -70,12 +70,34 @@ hdr()  { echo; echo "--- $* ---"; }
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# True when $1 is this script or something it started.  Several checks here
+# open a card to probe it (aplay --dump-hw-params), so without this the run
+# finds its own children holding /dev/snd and reports them as foreign
+# processes stealing the device (issue #2934).
+own_process() {
+    p="$1"
+    i=0
+    while [ -n "${p}" ] && [ "${p}" -gt 1 ] 2>/dev/null && [ "${i}" -lt 20 ]; do
+        [ "${p}" = "$$" ] && return 0
+        p=$(awk '{print $4}' "/proc/${p}/stat" 2>/dev/null)
+        i=$((i+1))
+    done
+    return 1
+}
+
 # True in the simple backend.  Several features -- input mixing, AES67, Opus
 # RTP, video output groups -- exist only in the advanced one, and their JSON
 # survives a switch to simple mode.  Any check that reads such a file has to
 # ask this first or it reports the previous mode's configuration as broken.
 simple_mode() {
-    [ "$(setting MediaBackend)" = "pipewire-simple" ]
+    # Unset counts as simple: that is the documented default (settings.json)
+    # and what the code falls back to -- FPPINIT_Audio.cpp seeds the variable
+    # with "pipewire-simple" before getRawSetting() overwrites it.  A device
+    # that has never had the setting written is therefore running simple mode,
+    # and treating it as advanced made every advanced-only check read the
+    # leftover JSON and report the previous mode's config as broken.
+    b=$(setting MediaBackend)
+    [ -z "${b}" ] || [ "${b}" = "pipewire-simple" ]
 }
 
 # A setting out of $SETTINGSFILE, quotes stripped, empty if unset.
@@ -640,7 +662,7 @@ section_config() {
         pipewire|pipewire-simple)
             pass "MediaBackend = ${backend}" ;;
         "")
-            warn "MediaBackend is not set; FPP will default to pipewire-simple" ;;
+            info "MediaBackend is not set; FPP uses its default, pipewire-simple" ;;
         alsa)
             fail "MediaBackend = alsa, which has been retired"
             note "It is migrated to pipewire-simple on the next boot." ;;
@@ -881,6 +903,20 @@ section_graph() {
                 nd=$(jq -r --arg d "${d}" '[.[] | select(.type == "PipeWire:Interface:Node")
                           | select(.info.props["node.name"] == $d)] | length' \
                      "${PW_DUMP_FILE}" 2>/dev/null)
+                # Only ALSA sinks contending for one PCM carry the EBUSY hazard.
+                # Other stacks reuse a name legitimately: a Pi's bcm2835-isp
+                # publishes four v4l2_input nodes under one platform device, and
+                # calling that a fault sent people looking for an audio problem
+                # that does not exist (issue #2934).
+                alsaDupes=$(jq -r --arg d "${d}" '[.[] | select(.type == "PipeWire:Interface:Node")
+                              | select(.info.props["node.name"] == $d)
+                              | select(.info.props["api.alsa.path"] != null)] | length' \
+                            "${PW_DUMP_FILE}" 2>/dev/null)
+                if [ "${alsaDupes:-0}" -lt 2 ] 2>/dev/null; then
+                    echo "[INFO] Node name '${d}' is used by ${nd} nodes (not ALSA sinks - normal for"
+                    echo "       device stacks that publish several nodes per device)"
+                    continue
+                fi
                 echo "[FAIL] Node name '${d}' exists ${nd} times in the graph"
                 jq -r --arg d "${d}" '.[] | select(.type == "PipeWire:Interface:Node")
                        | select(.info.props["node.name"] == $d)
@@ -1167,11 +1203,18 @@ section_alsa() {
         if [ -n "${holders}" ]; then
             info "Processes holding ALSA devices:"
             echo "${holders}" | sed 's/^/       /'
-            others=$(fuser /dev/snd/pcm* /dev/snd/control* 2>/dev/null | tr ' ' '\n' | grep -E "^[0-9]+$" |
+            # Only the pcm nodes.  Holding a control node is not contention --
+            # anything reading a mixer has one open, and systemd itself shows up
+            # against /dev/snd/seq -- while a pcm node is the thing that makes
+            # PipeWire's open fail.  Own children are skipped because the probes
+            # in these very checks open a pcm to read its parameters.
+            others=$(fuser /dev/snd/pcm* 2>/dev/null | tr ' ' '\n' | grep -E "^[0-9]+$" |
                      while read -r p; do
+                         [ "${p}" = "1" ] && continue
+                         own_process "${p}" && continue
                          c=$(ps -o comm= -p "${p}" 2>/dev/null)
                          case "${c}" in
-                             pipewire|wireplumber|pipewire-pulse|"") ;;
+                             pipewire|wireplumber|pipewire-pulse|systemd|"") ;;
                              *) echo "${p} ${c}" ;;
                          esac
                      done)
@@ -1219,12 +1262,20 @@ section_alsa() {
             [ -z "${cardId}" ] && continue
             cardNum=$(sed -n "s/^ *\([0-9]*\) \[${cardId}[ ]*\].*/\1/p" /proc/asound/cards 2>/dev/null | head -1)
             [ -z "${cardNum}" ] && continue
-            maxCh=$(cat /proc/asound/card${cardNum}/pcm0p/sub0/hw_params 2>/dev/null |
-                    sed -n 's/^channels: *\([0-9]*\)/\1/p' | head -1)
+            # Only what the device advertises.  This used to prefer
+            # /proc/asound/cardN/pcm0p/sub0/hw_params, but that file holds the
+            # parameters the *current* opener negotiated, not the card's
+            # capability -- and one of this script's own aplay probes is often
+            # that opener.  aplay with no format given defaults to mono, so the
+            # check read back "1" and failed a perfectly good stereo card
+            # (issue #2934: every Pi with an onboard headphone jack).
+            maxCh=$(aplay -D "hw:${cardNum},0" --dump-hw-params /dev/zero 2>&1 |
+                    sed -n 's/^CHANNELS: *//p' | head -1 |
+                    tr -cs '0-9' ' ' | awk '{print $NF}')
             if [ -z "${maxCh}" ]; then
-                maxCh=$(aplay -D "hw:${cardNum},0" --dump-hw-params /dev/zero 2>&1 |
-                        sed -n 's/^CHANNELS: *//p' | head -1 |
-                        tr -cs '0-9' ' ' | awk '{print $NF}')
+                # Busy or refusing to open: the ALSA Hardware checks above cover
+                # that, and guessing a channel count here would be worse.
+                continue
             fi
             if [ -n "${maxCh}" ] && [ "${chans}" -gt "${maxCh}" ] 2>/dev/null; then
                 echo "[FAIL] '${gname}' asks card ${cardId} for ${chans} channels; it supports ${maxCh}"
@@ -1417,11 +1468,24 @@ section_gstreamer() {
     # rather than testing whether it printed anything.
     blOut=$(gst-inspect-1.0 -b 2>/dev/null)
     blCount=$(echo "${blOut}" | sed -n 's/^Total count: *\([0-9]*\) blacklisted.*/\1/p' | head -1)
-    if [ "${blCount:-0}" -gt 0 ] 2>/dev/null; then
-        warn "GStreamer has blacklisted ${blCount} plugin file(s):"
-        echo "${blOut}" | grep -v "^$" | head -20 | sed 's/^/       /'
+    # Plugins FPP never loads.  Debian ships them, their optional runtime is
+    # not installed, so they blacklist on a perfectly healthy player and there
+    # is nothing to fix -- libgstonnx wants ONNX Runtime for ML inference and
+    # nothing in FPP references it (issue #2934).  Named individually rather
+    # than counted away, so a blacklisted plugin FPP *does* use still warns.
+    blIgnore="libgstonnx"
+    blFiles=$(echo "${blOut}" | sed -n 's/^ *\(libgst[A-Za-z0-9_.-]*\.so\).*/\1/p')
+    blReal=$(echo "${blFiles}" | grep -vE "^(${blIgnore})\.so$" | grep -v '^$')
+    blBenign=$(echo "${blFiles}" | grep -cE "^(${blIgnore})\.so$")
+    if [ -n "${blReal}" ]; then
+        warn "GStreamer has blacklisted plugin file(s) FPP may need:"
+        echo "${blReal}" | sed 's/^/       /'
         note "A blacklisted plugin failed to load, so every element it provides"
         note "is missing.  Try: rm -rf /root/.cache/gstreamer-1.0 and retest."
+    elif [ "${blCount:-0}" -gt 0 ] 2>/dev/null; then
+        pass "No blacklisted GStreamer plugins that FPP uses"
+        info "${blCount} blacklisted file(s), all optional plugins FPP never loads:"
+        echo "${blFiles}" | sed 's/^/       /' | head -10
     else
         pass "No blacklisted GStreamer plugins"
     fi
