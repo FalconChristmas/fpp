@@ -1734,15 +1734,49 @@ section_smoke() {
         skip "PipeWireSinkName is not set - nothing specific to test"
     fi
 
-    hdr "Capture from pipewiresrc"
-    if timeout 20 gst-launch-1.0 -q pipewiresrc num-buffers=20 \
-            ! audioconvert ! fakesink \
-            > "${TMPDIR_DIAG}/smoke3.txt" 2>&1; then
-        pass "A capture pipeline read from PipeWire successfully"
+    hdr "Capture from PipeWire"
+    # The authoritative test is pw-record: it proves the daemon will hand a
+    # client real capture data.  A standalone "gst-launch pipewiresrc" probe
+    # used to stand in for this and was the wrong question twice over.  It
+    # reported a bare warning with no output (it times out rather than
+    # failing, so there was nothing to print), and its stated consequence was
+    # wrong: FPP's senders do not capture this way.  AES67Manager and
+    # OpusRTPManager build a pipewiresrc that is the *destination* -- it
+    # registers a node under a known name and the audio group's filter chain
+    # links into it via node.target -- deliberately NOT target-object (see the
+    # comment at AES67Manager.cpp:2078).  A probe that cannot resolve a target
+    # therefore says nothing about whether those senders work.
+    capNode=$(pw_setting default.audio.source | sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+    if [ -z "${capNode}" ] && have jq && pw_dump; then
+        capNode=$(jq -r '[.[] | select(.type=="PipeWire:Interface:Node")
+                          | .info.props | select(.["media.class"] == "Audio/Source")
+                          | .["node.name"]] | first // empty' \
+                  "${PW_DUMP_FILE}" 2>/dev/null)
+    fi
+
+    if ! have pw-record; then
+        skip "pw-record is not available - cannot test capture"
+    elif [ -z "${capNode}" ]; then
+        skip "No audio source node in the graph - nothing to capture from"
     else
-        warn "Could not capture from PipeWire"
-        sed 's/^/       /' "${TMPDIR_DIAG}/smoke3.txt" 2>/dev/null | head -8
-        note "Input mixing and network audio senders read through this path."
+        rm -f "${TMPDIR_DIAG}/capture.wav"
+        timeout 6 pw-record --target "${capNode}" "${TMPDIR_DIAG}/capture.wav" \
+            > "${TMPDIR_DIAG}/smoke3.txt" 2>&1
+        # pw-record is killed by the timeout, so its exit status is always
+        # failure; whether bytes landed in the file is the actual answer.
+        capBytes=0
+        if [ -f "${TMPDIR_DIAG}/capture.wav" ]; then
+            capBytes=$(wc -c < "${TMPDIR_DIAG}/capture.wav" 2>/dev/null)
+        fi
+        if [ "${capBytes:-0}" -gt 1024 ] 2>/dev/null; then
+            pass "Captured ${capBytes} bytes from ${capNode}"
+        else
+            warn "Could not capture from ${capNode}"
+            sed 's/^/       /' "${TMPDIR_DIAG}/smoke3.txt" 2>/dev/null | head -8
+            note "Audio input groups read through this path.  Check that the"
+            note "device is not held open by another program, and that it"
+            note "appears under Audio Input in the PipeWire settings."
+        fi
     fi
 
     hdr "Decoder availability"
