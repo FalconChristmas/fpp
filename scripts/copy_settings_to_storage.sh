@@ -72,10 +72,10 @@ if [ "$DIRECTION" == "TOUSB" -o "$DIRECTION" == "FROMUSB" ]; then
         mount -t ext4 -o noatime,nodiratime,nofail -- "/dev/$DEVICE" /tmp/smnt
     elif [[ "$FSTYPE" =~ "FAT" ]]; then
         EXTRA_ARGS="--no-perms --no-owner --no-group --copy-links"
-        mount -t auto -o noatime,nodiratime,exec,nofail,uid="$FPP_UID",gid="$FPP_GID" -- "/dev/$DEVICE" /tmp/smnt
+        mount -t auto -o noatime,nodiratime,exec,nofail,utf8,uid="$FPP_UID",gid="$FPP_GID" -- "/dev/$DEVICE" /tmp/smnt
     elif [[ "$FSTYPE" =~ "DOS" ]]; then
         EXTRA_ARGS="--no-perms --no-owner --no-group --copy-links"
-        mount -t auto -o noatime,nodiratime,exec,nofail,uid="$FPP_UID",gid="$FPP_GID" -- "/dev/$DEVICE" /tmp/smnt
+        mount -t auto -o noatime,nodiratime,exec,nofail,utf8,uid="$FPP_UID",gid="$FPP_GID" -- "/dev/$DEVICE" /tmp/smnt
     else
         mount -t ext4 -o noatime,nodiratime,nofail -- "/dev/$DEVICE" /tmp/smnt
     fi
