@@ -1357,6 +1357,28 @@
             return '<div class="ms-auto pluginGitHubStatsRow">' + badge + '</div>';
         }
 
+        // Public releases page for a GitHub-hosted plugin ('' when not GitHub-hosted).
+        // Reuses GitHubRepoOf() -- same owner/repo derivation the stats badge uses --
+        // but needs no fetch or uiLevel gate: it's a plain static link, not an API call.
+        function PluginReleaseNotesUrl(data) {
+            var repo = GitHubRepoOf(data);
+            return repo ? 'https://github.com/' + repo + '/releases' : '';
+        }
+
+        // Release-notes link, wrapped for inline placement at the right end of the
+        // action row alongside (or in place of) the GitHub stats badge -- same
+        // ms-auto pattern as GitHubStatsRowHtml, so the two cluster together at the
+        // trailing edge whether or not the stats badge is also present. Unlike the
+        // stats badge this is shown at every UI level: it's how the community finds
+        // out what changed without hunting down the plugin's repo.
+        function ReleaseNotesRowHtml(data) {
+            var url = PluginReleaseNotesUrl(data);
+            if (!url) return '';
+            return '<a class="ms-auto pluginReleaseNotesLink" href="' + EscapeAttr(url) +
+                '" target="_blank" rel="noopener noreferrer" title="Release notes">' +
+                '<i class="fas fa-file-lines"></i></a>';
+        }
+
         // Stamp the counts onto already-rendered cards (called once counts
         // arrive; cards rendered after that get the corner inline in LoadPlugin).
         // Only touches cards whose repo we have counts for -- cards without data
@@ -1704,6 +1726,8 @@
             };
             if (IsSafeHttpUrl(data.srcURL) && !sameLink(data.srcURL, data.homeURL)) body += '<a href="' + EscapeAttr(data.srcURL) + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none"><i class="fas fa-code"></i> <span class="text-decoration-underline">View Source</span></a>';
             if (IsSafeHttpUrl(data.bugURL)) body += '<a href="' + EscapeAttr(data.bugURL) + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none"><i class="fas fa-bug"></i> <span class="text-decoration-underline">Report a Bug</span></a>';
+            var releaseNotesUrl = PluginReleaseNotesUrl(data);
+            if (releaseNotesUrl) body += '<a href="' + EscapeAttr(releaseNotesUrl) + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none"><i class="fas fa-file-lines"></i> <span class="text-decoration-underline">Release Notes</span></a>';
             body += '</div>';
 
             var buttons = {};
@@ -1917,7 +1941,7 @@
             // closest() and stops there, same effect as the old inline
             // event.stopPropagation() without needing it on every button.
             html += '<div class="pluginCardActions d-flex flex-wrap gap-2 mt-2 align-items-center" data-plugin-action="none">' +
-                actions + GitHubStatsRowHtml(pluginGitHubRepos[data.repoName]) + '</div>';
+                actions + ReleaseNotesRowHtml(data) + GitHubStatsRowHtml(pluginGitHubRepos[data.repoName]) + '</div>';
             html += '</div></div></div>';
 
             if (installed) {
