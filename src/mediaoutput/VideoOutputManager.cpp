@@ -73,6 +73,30 @@ static void ApplyCropForFrameSize(GstElement* cropElem, const VideoCropRect& cro
     if (cropW < 2) cropW = 2;
     if (cropH < 2) cropH = 2;
 
+    // "fill": trim the region, centred, down to the display's shape so the
+    // aspect-preserving scale downstream covers the display with no bars.
+    // Done here rather than with an aspectratiocrop element so the whole crop
+    // stays one videocrop next to the sink, where it rides along as the DRM
+    // plane's source rectangle instead of copying every frame.
+    if (crop.targetAspect > 0.0) {
+        double regionAspect = (double)cropW / (double)cropH;
+        if (regionAspect > crop.targetAspect) {
+            // Region is wider than the display — trim the sides.
+            int fillW = evenDown(lround(cropH * crop.targetAspect));
+            if (fillW >= 2 && fillW < cropW) {
+                left += evenDown((cropW - fillW) / 2);
+                cropW = fillW;
+            }
+        } else if (regionAspect < crop.targetAspect) {
+            // Region is taller than the display — trim top and bottom.
+            int fillH = evenDown(lround(cropW / crop.targetAspect));
+            if (fillH >= 2 && fillH < cropH) {
+                top += evenDown((cropH - fillH) / 2);
+                cropH = fillH;
+            }
+        }
+    }
+
     g_object_set(cropElem,
                  "left", left,
                  "top", top,
@@ -130,9 +154,10 @@ static void AttachCropResolver(GstElement* cropElem, const VideoCropRect& crop) 
         gst_object_unref(sinkPad);
     }
 
-    LogInfo(VB_MEDIAOUT, "VideoOutputManager: '%s' shows source region %.1f%%,%.1f%% %.1f%%x%.1f%%\n",
+    LogInfo(VB_MEDIAOUT, "VideoOutputManager: '%s' shows source region %.1f%%,%.1f%% %.1f%%x%.1f%%%s\n",
             GST_ELEMENT_NAME(cropElem), crop.x * 100.0, crop.y * 100.0,
-            crop.width * 100.0, crop.height * 100.0);
+            crop.width * 100.0, crop.height * 100.0,
+            crop.targetAspect > 0.0 ? ", cropped to the display's shape (fill)" : "");
 }
 
 GstElement* VideoOutputManager::CreateCropElement(const VideoCropRect& crop,
@@ -157,6 +182,54 @@ GstElement* VideoOutputManager::CreateCropElement(const VideoCropRect& crop,
 
     AttachCropResolver(cropElem, crop);
     return cropElem;
+}
+
+std::vector<GstElement*> VideoOutputManager::CreateScaleElements(
+    const std::string& scaling, int displayWidth, int displayHeight,
+    const std::string& namePrefix) {
+    std::vector<GstElement*> elems;
+
+    // "fit" is what kmssink does unaided; "fill" is already handled by the
+    // crop's target aspect.  Neither needs an element, and adding one would
+    // only cost a CPU rescale of every frame.
+    if (scaling != "stretch")
+        return elems;
+
+    if (displayWidth <= 0 || displayHeight <= 0) {
+        LogWarn(VB_MEDIAOUT, "VideoOutputManager: '%s' asked for stretch but the display "
+                "size is unknown — showing it fitted instead\n", namePrefix.c_str());
+        return elems;
+    }
+
+    // add-borders=false is the whole point: with the output caps pinned to the
+    // display's exact size and square pixels, videoscale has no freedom left
+    // and scales non-uniformly rather than letterboxing.
+    GstElement* scale = gst_element_factory_make("videoscale", (namePrefix + "_scale").c_str());
+    GstElement* caps = gst_element_factory_make("capsfilter", (namePrefix + "_caps").c_str());
+    if (!scale || !caps) {
+        LogErr(VB_MEDIAOUT, "VideoOutputManager: videoscale/capsfilter unavailable for '%s' — "
+               "showing it fitted instead\n", namePrefix.c_str());
+        if (scale) gst_object_unref(scale);
+        if (caps) gst_object_unref(caps);
+        return elems;
+    }
+
+    g_object_set(scale, "add-borders", FALSE, NULL);
+
+    GstCaps* c = gst_caps_new_simple("video/x-raw",
+                                     "width", G_TYPE_INT, displayWidth,
+                                     "height", G_TYPE_INT, displayHeight,
+                                     "pixel-aspect-ratio", GST_TYPE_FRACTION, 1, 1,
+                                     NULL);
+    g_object_set(caps, "caps", c, NULL);
+    gst_caps_unref(c);
+
+    LogInfo(VB_MEDIAOUT, "VideoOutputManager: '%s' stretched to %dx%d (aspect ratio ignored)\n",
+            namePrefix.c_str(), displayWidth, displayHeight);
+
+    elems.push_back(scale);
+    elems.push_back(caps);
+    return elems;
 }
 #endif
 
@@ -255,6 +328,26 @@ void VideoOutputManager::Reload() {
                         shouldStartSAP = true;
                     StartConsumer(consumer);
                 }
+            }
+
+            // A consumer bound to a video input source is normally started by
+            // NotifyProducerReady, which the source fires once its pipeline has
+            // a first frame.  The stop above killed such a consumer while its
+            // source carried on running, and a source that never stopped will
+            // never fire that notification again — so without this the output
+            // stays dark after every Apply until fppd or the source restarts.
+            // That is what made a settings change look like it did nothing.
+            for (auto& consumer : m_consumers) {
+                if (consumer.sourceNode.empty() || consumer.running)
+                    continue;
+                if (!VideoInputManager::Instance().IsSourceRunning(consumer.sourceNode))
+                    continue;  // still deferred: its source will notify us
+                if (consumer.type == "rtp")
+                    shouldStartSAP = true;
+                LogInfo(VB_MEDIAOUT, "VideoOutputManager: Restarting consumer '%s' — source '%s' "
+                        "is already running, so no producer-ready notification is coming\n",
+                        consumer.name.c_str(), consumer.sourceNode.c_str());
+                StartConsumer(consumer);
             }
         }
     }
@@ -479,6 +572,7 @@ std::vector<VideoOutputManager::HdmiConsumerInfo> VideoOutputManager::GetHdmiCon
         info.width = c.width;
         info.height = c.height;
         info.crop = c.crop;
+        info.scaling = c.scaling.empty() ? "fit" : c.scaling;
 
         // The cardPath/connectorId stored in the config were captured when the
         // group was configured, but DRM card numbering is not stable across
@@ -503,8 +597,23 @@ std::vector<VideoOutputManager::HdmiConsumerInfo> VideoOutputManager::GetHdmiCon
             }
             if (live.connectorId > 0)
                 info.connectorId = live.connectorId;
+            // The stored size is the mode that was active when the group was
+            // saved; the display may have been re-plugged at another mode
+            // since, and for a connector that was down at save time it is 0.
+            // Both "fill" and "stretch" are defined against the real panel, so
+            // prefer what the connector reports now.
+            if (live.displayWidth > 0 && live.displayHeight > 0) {
+                info.width = live.displayWidth;
+                info.height = live.displayHeight;
+            }
         }
 #endif
+
+        // "fill" is expressed as a crop to the display's shape, so the single
+        // videocrop already next to the sink delivers it for free.  Without a
+        // known display size there is no shape to crop to, so it stays "fit".
+        if (info.scaling == "fill" && info.width > 0 && info.height > 0)
+            info.crop.targetAspect = (double)info.width / (double)info.height;
 
         if (skipConnectorIds.count(info.connectorId))
             continue;
@@ -525,6 +634,18 @@ VideoCropRect VideoOutputManager::GetHdmiCropForConnector(int streamSlot, int co
             return info.crop;
     }
     return VideoCropRect();
+}
+
+std::string VideoOutputManager::GetHdmiScalingForConnector(int streamSlot, int connectorId) const {
+    if (connectorId <= 0)
+        return "fit";
+
+    // Same no-lock, no-skip-list rationale as GetHdmiCropForConnector.
+    for (const auto& info : GetHdmiConsumers(streamSlot)) {
+        if (info.connectorId == connectorId)
+            return info.scaling;
+    }
+    return "fit";
 }
 
 void VideoOutputManager::StopConsumers() {
@@ -622,6 +743,13 @@ bool VideoOutputManager::LoadConfig() {
             ci.width = entry.get("width", 0).asInt();
             ci.height = entry.get("height", 0).asInt();
             ci.scaling = entry.get("scaling", "fit").asString();
+            // Anything else would silently land in the "not stretch, not fill"
+            // bucket and look like fit without saying so.
+            if (ci.scaling != "fit" && ci.scaling != "fill" && ci.scaling != "stretch") {
+                LogWarn(VB_MEDIAOUT, "VideoOutputManager: consumer '%s' has unknown scaling "
+                        "mode '%s' — using fit\n", ci.name.c_str(), ci.scaling.c_str());
+                ci.scaling = "fit";
+            }
             // Optional sub-region of the source, as fractions of the frame.
             // Absent (the common case) leaves the full-frame default.
             if (entry.isMember("crop") && entry["crop"].isObject()) {
@@ -922,8 +1050,9 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
     // cannot drive video graph cycles at rate=0).
     // timeout=5s — must not overflow gint64 when converted to microseconds
     // and added to g_get_monotonic_time(); UINT64_MAX caused spin-loop.
-    pipelineDesc = "intervideosrc timeout=5000000000 channel=" + consumer.sourceNode
-                 + " ! videoconvert ! videoscale ! ";
+    const std::string srcDesc = "intervideosrc timeout=5000000000 channel="
+                              + consumer.sourceNode + " ! videoconvert ! ";
+    pipelineDesc = srcDesc + "videoscale ! ";
 
     if (consumer.type == "hdmi") {
         if (consumer.connectorId <= 0 || consumer.cardPath.empty()) {
@@ -933,6 +1062,13 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
 
         // Check if the connector is actually connected before launching
         // a consumer pipeline — avoids wasted effort and error log noise.
+        // The mode reported here is also the authority on the display size:
+        // the values in the config are whatever was current when the group was
+        // saved, and are 0 for a connector that was down at the time.  "fill"
+        // and "stretch" are both defined against the real panel, so they need
+        // the live figures.
+        int dispW = consumer.width;
+        int dispH = consumer.height;
         if (!consumer.connector.empty()) {
             auto drmCheck = GStreamerOutput::ResolveDrmConnector(consumer.connector);
             if (!drmCheck.connected) {
@@ -940,6 +1076,10 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
                         "connector %s (id=%d) is not connected\n",
                         consumer.name.c_str(), consumer.connector.c_str(), consumer.connectorId);
                 return false;
+            }
+            if (drmCheck.displayWidth > 0 && drmCheck.displayHeight > 0) {
+                dispW = drmCheck.displayWidth;
+                dispH = drmCheck.displayHeight;
             }
         }
 
@@ -1009,6 +1149,31 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
         int fps = VideoInputManager::Instance().GetSourceFramerate(consumer.sourceNode);
         if (fps <= 0) fps = 30;  // fallback for on-demand consumers
 
+        // How the frame meets the panel.  kmssink scales whatever it is given
+        // up to the display preserving aspect ratio, and has no property to
+        // stop it doing so, which decides how each mode is reached:
+        //
+        //   fit     — kmssink's own behaviour; nothing to add.
+        //   fill    — hand kmssink a region already shaped like the display,
+        //             so its aspect-preserving scale covers the panel exactly.
+        //             Expressed as a target aspect on the crop, so the same
+        //             single videocrop does the region and the fill together.
+        //   stretch — the sink cannot do it, so the frame has to arrive at the
+        //             display's exact size: a real videoscale with borders off.
+        std::string scaling = consumer.scaling.empty() ? "fit" : consumer.scaling;
+        if (scaling != "fit" && (dispW <= 0 || dispH <= 0)) {
+            LogWarn(VB_MEDIAOUT, "VideoOutputManager: consumer '%s' asked for %s but the "
+                    "display size is unknown — showing it fitted instead\n",
+                    consumer.name.c_str(), scaling.c_str());
+            scaling = "fit";
+        }
+
+        // Idempotent, and derived from the size resolved above rather than the
+        // stored one, so a display that comes back at a different mode gets a
+        // correct fill on the next start.
+        consumer.crop.targetAspect = (scaling == "fill")
+                                   ? (double)dispW / (double)dispH : 0.0;
+
         // Showing a sub-region means the display size caps have to go: they
         // would make videoscale squeeze the whole source down to the panel
         // first, and the crop would then take half of an already-squashed
@@ -1028,15 +1193,49 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
                        consumer.name.c_str());
                 WarningHolder::AddWarning(31, "Video crop unavailable: videocrop element missing (install gstreamer1.0-plugins-good)");
                 cropping = false;
+                // Without the crop there is no region and no fill.  Say so, so
+                // the missing plugin does not read as a scaling bug.
+                consumer.crop.targetAspect = 0.0;
+                if (scaling == "fill") {
+                    LogWarn(VB_MEDIAOUT, "VideoOutputManager: consumer '%s' falls back to fit — "
+                            "fill needs videocrop\n", consumer.name.c_str());
+                    scaling = "fit";
+                }
             }
         }
 
-        if (consumer.width > 0 && consumer.height > 0 && !cropping) {
+        // Stretch keeps the display caps: they are what forces the non-uniform
+        // scale.  A region crop then has to be selected BEFORE that scale, at
+        // source resolution, or it would take its slice out of an already
+        // squashed frame — the same trap the comment above describes.  That
+        // costs the videocrop its metadata-only fast path, which stretch was
+        // paying for anyway with a full videoscale pass.
+        const bool stretching = (scaling == "stretch");
+
+        pipelineDesc = srcDesc;
+        if (cropping && stretching)
+            pipelineDesc += "videocrop name=vcrop ! ";
+        pipelineDesc += "videoscale";
+        if (stretching)
+            pipelineDesc += " add-borders=false";
+        pipelineDesc += " ! ";
+
+        if (stretching) {
+            // Guaranteed non-zero: an unknown display size already dropped the
+            // mode back to fit above.
+            pipelineDesc += "video/x-raw,width=" + std::to_string(dispW)
+                         + ",height=" + std::to_string(dispH)
+                         + ",pixel-aspect-ratio=1/1"
+                         + ",framerate=" + std::to_string(fps) + "/1 ! ";
+        } else if (consumer.width > 0 && consumer.height > 0 && !cropping) {
             pipelineDesc += "video/x-raw,width=" + std::to_string(consumer.width)
                          + ",height=" + std::to_string(consumer.height)
                          + ",pixel-aspect-ratio=1/1"
                          + ",framerate=" + std::to_string(fps) + "/1 ! ";
         } else {
+            // No size caps: kmssink scales the frame to the panel during
+            // scanout, for free and preserving aspect ratio — which is fit,
+            // and is also what makes the fill crop land correctly.
             pipelineDesc += "video/x-raw,framerate=" + std::to_string(fps) + "/1 ! ";
         }
 
@@ -1046,7 +1245,7 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
 
         // Immediately upstream of kmssink so the crop rides along as metadata
         // (the DRM plane's source rectangle) rather than copying every frame.
-        if (cropping)
+        if (cropping && !stretching)
             pipelineDesc += "videocrop name=vcrop ! ";
 
         // kmssink sync=true paces frame rendering by intervideosrc timestamps

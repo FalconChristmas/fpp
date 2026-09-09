@@ -47,9 +47,21 @@ struct VideoCropRect {
     double width = 1.0;
     double height = 1.0;
 
+    /// When > 0, the selected region is narrowed further -- centred -- until
+    /// its width:height matches this ratio.  That is how "fill" scaling is
+    /// expressed: crop the source to the display's shape so the
+    /// aspect-preserving scale that follows covers the display exactly, with
+    /// nothing letterboxed.  Resolved against the negotiated caps alongside
+    /// the fractions above, so it costs no extra element.  0 leaves the
+    /// region exactly as selected ("fit").
+    double targetAspect = 0.0;
+
     /// True when this selects the whole frame, i.e. no crop element is needed.
+    /// A target aspect always needs one: whether it actually trims anything
+    /// depends on the source resolution, which is not known until caps arrive.
     bool IsFullFrame() const {
-        return x <= 0.0 && y <= 0.0 && width >= 1.0 && height >= 1.0;
+        return targetAspect <= 0.0 &&
+               x <= 0.0 && y <= 0.0 && width >= 1.0 && height >= 1.0;
     }
 
     /// True when the values describe a usable region.  A zero/negative extent
@@ -97,6 +109,11 @@ public:
         int height = 0;
         int primaryPlaneId = -1; // DRM primary plane for this connector's CRTC
         VideoCropRect crop;      // region of the source this display shows
+        // "fit", "fill" or "stretch".  "fill" needs nothing here -- it is
+        // already folded into `crop` as a target aspect -- but "stretch" has
+        // to defeat the aspect-preserving scale kmssink always does, so the
+        // caller needs to know about it.  See CreateScaleElements.
+        std::string scaling = "fit";
     };
 
     /// Return HDMI consumer info for consumers that match the given stream
@@ -113,6 +130,11 @@ public:
     /// exactly as GetHdmiConsumers does.
     VideoCropRect GetHdmiCropForConnector(int streamSlot, int connectorId) const;
 
+    /// Scaling mode configured for the display on `connectorId`, "fit" if none.
+    /// Matches entries exactly as GetHdmiCropForConnector does, and for the
+    /// same reason: the primary display is a configured output too.
+    std::string GetHdmiScalingForConnector(int streamSlot, int connectorId) const;
+
 #ifdef HAS_GSTREAMER_VIDEO_OUTPUT
     /// Build a videocrop element that resolves `crop` against the negotiated
     /// caps at runtime.  Returns nullptr when the whole frame is selected (no
@@ -126,6 +148,28 @@ public:
     /// it silently falls back to a full per-frame copy.
     static GstElement* CreateCropElement(const VideoCropRect& crop,
                                          const std::string& name);
+
+    /// Elements needed upstream of kmssink to honour `scaling`, in link order.
+    ///
+    /// Empty for "fit" and "fill": kmssink always scales its input to the
+    /// display preserving aspect ratio, which IS "fit", and "fill" is reached
+    /// by handing it an already display-shaped region (VideoCropRect::
+    /// targetAspect) so that same scale covers the display exactly.  Both are
+    /// free -- the DRM plane does the scaling during scanout.
+    ///
+    /// "stretch" is the one mode the sink cannot express: kmssink has no
+    /// force-aspect-ratio property, so the frame has to arrive already at the
+    /// display's exact size.  That costs a real videoscale pass, and the
+    /// display size has to be known -- with displayWidth/Height <= 0 the mode
+    /// is dropped back to "fit" rather than guessed at.
+    ///
+    /// Place these AFTER any crop element (the region must be selected at
+    /// source resolution, before anything rescales the frame) and before the
+    /// sink.  The caller owns the floating refs.
+    static std::vector<GstElement*> CreateScaleElements(const std::string& scaling,
+                                                        int displayWidth,
+                                                        int displayHeight,
+                                                        const std::string& namePrefix);
 #endif
 
     /// Start all configured consumers targeting the given producer node.

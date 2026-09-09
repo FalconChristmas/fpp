@@ -626,6 +626,39 @@ static int GetPipeWireGraphRate() {
 // audioresample converted 44100 up to 48000 and PipeWire converted it straight
 // back down.
 // ──────────────────────────────────────────────────────────────────────────────
+// Add every element to `pipeline` and link them head to tail.  The kmssink
+// branches below vary in length -- a crop element appears only for an output
+// showing a sub-region, scaling elements only for a stretched one -- and
+// spelling out a gst_element_link_many() per combination does not scale past
+// the second optional element.
+static bool AddAndLinkChain(GstElement* pipeline, const std::vector<GstElement*>& chain) {
+    for (GstElement* e : chain)
+        gst_bin_add(GST_BIN(pipeline), e);
+    for (size_t i = 1; i < chain.size(); i++) {
+        if (!gst_element_link(chain[i - 1], chain[i]))
+            return false;
+    }
+    return true;
+}
+
+// The elements an HDMI output puts between its converter and its kmssink, in
+// link order.  A region crop has to come first: it selects from the source, so
+// anything that rescales the frame ahead of it would make it slice up an
+// already-resized picture.  Either list may be empty -- a plain fitted,
+// whole-frame output gets nothing at all, which is the common case.
+static std::vector<GstElement*> BuildHdmiScaleChain(const VideoCropRect& crop,
+                                                    const std::string& scaling,
+                                                    int displayWidth, int displayHeight,
+                                                    const std::string& namePrefix) {
+    std::vector<GstElement*> chain;
+    if (GstElement* cropElem = VideoOutputManager::CreateCropElement(crop, namePrefix + "_crop"))
+        chain.push_back(cropElem);
+    for (GstElement* e : VideoOutputManager::CreateScaleElements(scaling, displayWidth,
+                                                                 displayHeight, namePrefix))
+        chain.push_back(e);
+    return chain;
+}
+
 static int ChooseDecodeRate(int mediaRate, bool usePipeWire) {
     // Only PipeWire has a fixed graph rate to line up with.  With alsasink the
     // sink negotiates against the device directly and audioresample fills in
@@ -1462,23 +1495,25 @@ int GStreamerOutput::Start(int msTime) {
                 // Passthrough for HW-decoded NV12/DMA; required for software
                 // decode (I420 won't negotiate against the DRM plane).
                 GstElement* teeKmsConvert = gst_element_factory_make("videoconvert", "vteekmsconv");
-                // The primary display can be one half of a split too, so it
-                // takes a crop from the same config the consumers use.
-                GstElement* kmsCrop = VideoOutputManager::CreateCropElement(
-                    VideoOutputManager::Instance().GetHdmiCropForConnector(m_streamSlot, m_hdmiConnectorId),
-                    "vkmscrop");
-                gst_bin_add_many(GST_BIN(m_pipeline), kmsQueue, teeKmsConvert, m_kmssink, NULL);
+                // The primary display is a configured output like any other:
+                // it can be one half of a split, and it has its own scaling
+                // mode, both read from the same config the consumers use.
+                std::vector<GstElement*> kmsChain = { kmsQueue, teeKmsConvert };
+                for (GstElement* e : BuildHdmiScaleChain(
+                         VideoOutputManager::Instance().GetHdmiCropForConnector(m_streamSlot, m_hdmiConnectorId),
+                         VideoOutputManager::Instance().GetHdmiScalingForConnector(m_streamSlot, m_hdmiConnectorId),
+                         m_hdmiDisplayWidth, m_hdmiDisplayHeight, "vkms"))
+                    kmsChain.push_back(e);
+                kmsChain.push_back(m_kmssink);
+
+                if (!AddAndLinkChain(m_pipeline, kmsChain)) {
+                    LogErr(VB_MEDIAOUT, "GStreamer: Failed to link primary kmssink chain\n");
+                }
                 GstPad* teeSrc = gst_element_request_pad_simple(vtee, "src_%u");
                 GstPad* kmsQSink = gst_element_get_static_pad(kmsQueue, "sink");
                 gst_pad_link(teeSrc, kmsQSink);
                 gst_object_unref(teeSrc);
                 gst_object_unref(kmsQSink);
-                if (kmsCrop) {
-                    gst_bin_add(GST_BIN(m_pipeline), kmsCrop);
-                    gst_element_link_many(kmsQueue, teeKmsConvert, kmsCrop, m_kmssink, NULL);
-                } else {
-                    gst_element_link_many(kmsQueue, teeKmsConvert, m_kmssink, NULL);
-                }
                 LogDebug(VB_MEDIAOUT, "GStreamer: video tee active — kmssink direct, pipewiresink deferred\n");
             } else {
                 // No primary HDMI — vtee routes to deferred pipewiresink
@@ -1590,19 +1625,23 @@ int GStreamerOutput::Start(int msTime) {
                     // "not-negotiated".  See the direct-kmssink path below.
                     GstElement* dConvert = gst_element_factory_make("videoconvert", nullptr);
 
-                    // Optional crop, last before the sink so kmssink takes it
-                    // as the DRM plane's source rectangle (metadata only, no
-                    // per-frame copy).  This is what lets one decode of a
-                    // double-wide file feed a different half to each display.
-                    GstElement* dCrop = VideoOutputManager::CreateCropElement(
-                        hc.crop, "dcrop_" + std::to_string(resolvedConnId));
+                    // Crop and scaling for this output.  With nothing but a
+                    // crop it sits last before the sink, so kmssink takes it as
+                    // the DRM plane's source rectangle (metadata only, no
+                    // per-frame copy) -- that is what lets one decode of a
+                    // double-wide file feed a different half to each display,
+                    // and what makes "fill" free.  "stretch" adds a videoscale
+                    // behind it and does cost a copy.
+                    std::vector<GstElement*> dChain = { dQueue, dConvert };
+                    for (GstElement* e : BuildHdmiScaleChain(
+                             hc.crop, hc.scaling, hc.width, hc.height,
+                             "d_" + std::to_string(resolvedConnId)))
+                        dChain.push_back(e);
+                    dChain.push_back(dkmsSink);
 
-                    gst_bin_add_many(GST_BIN(m_pipeline), dQueue, dConvert, dkmsSink, NULL);
-                    if (dCrop) {
-                        gst_bin_add(GST_BIN(m_pipeline), dCrop);
-                        gst_element_link_many(dQueue, dConvert, dCrop, dkmsSink, NULL);
-                    } else {
-                        gst_element_link_many(dQueue, dConvert, dkmsSink, NULL);
+                    if (!AddAndLinkChain(m_pipeline, dChain)) {
+                        LogWarn(VB_MEDIAOUT, "GStreamer: failed to link kmssink chain for connector %d\n",
+                                resolvedConnId);
                     }
 
                     GstPad* teeSrc = gst_element_request_pad_simple(vtee, "src_%u");
@@ -1633,21 +1672,20 @@ int GStreamerOutput::Start(int msTime) {
             // Pi5 has no hardware H.264 decoder at all, so every H.264 video
             // takes the software path and HDMI output failed outright.
             GstElement* kmsConvert = gst_element_factory_make("videoconvert", "vkmsconv");
-            // A crop configured for this display still applies with no PipeWire
-            // routing -- a single-output split (one half shown, other discarded)
-            // is legitimate, and the setting shouldn't silently do nothing.
-            GstElement* kmsCrop = VideoOutputManager::CreateCropElement(
-                VideoOutputManager::Instance().GetHdmiCropForConnector(m_streamSlot, m_hdmiConnectorId),
-                "vkmscrop");
-            gst_bin_add_many(GST_BIN(m_pipeline), videoQueue, kmsConvert, m_kmssink, NULL);
-            bool linked = false;
-            if (kmsCrop) {
-                gst_bin_add(GST_BIN(m_pipeline), kmsCrop);
-                linked = gst_element_link_many(videoQueue, kmsConvert, kmsCrop, m_kmssink, NULL);
-            } else {
-                linked = gst_element_link_many(videoQueue, kmsConvert, m_kmssink, NULL);
-            }
-            if (!linked) {
+            // The crop and scaling configured for this display still apply with
+            // no PipeWire routing -- a single-output split (one half shown, the
+            // other discarded) is legitimate, and neither setting should
+            // silently do nothing just because nothing else is consuming the
+            // stream.
+            std::vector<GstElement*> kmsChain = { videoQueue, kmsConvert };
+            for (GstElement* e : BuildHdmiScaleChain(
+                     VideoOutputManager::Instance().GetHdmiCropForConnector(m_streamSlot, m_hdmiConnectorId),
+                     VideoOutputManager::Instance().GetHdmiScalingForConnector(m_streamSlot, m_hdmiConnectorId),
+                     m_hdmiDisplayWidth, m_hdmiDisplayHeight, "vkms"))
+                kmsChain.push_back(e);
+            kmsChain.push_back(m_kmssink);
+
+            if (!AddAndLinkChain(m_pipeline, kmsChain)) {
                 LogErr(VB_MEDIAOUT, "GStreamer HDMI: Failed to link video chain\n");
             }
         }
