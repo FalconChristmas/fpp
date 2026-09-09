@@ -476,6 +476,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
         // (see the settingsToOverride block below), so steps are pure
         // show/hide and Back costs nothing.  Only finishSetup() writes.
         // ---------------------------------------------------------------
+        // Every setting this page puts in front of the user, from the same groups
+        // the markup is generated from so the two cannot drift. Privacy is not
+        // here: privacyToPending() owns those, because its rows do not map one
+        // to one onto settings.
+        var WIZARD_SETTING_KEYS = <?= json_encode(array_values(array_merge(
+            $settingGroups['initialSetup-location']['settings'],
+            $settingGroups['initialSetup']['settings']
+        ))) ?>;
+
         var setupCurrentStep = 1;
         var setupTotalSteps = 4;
 
@@ -999,6 +1008,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             return false;
         }
 
+        // Record every setting the wizard showed, not only the ones touched.
+        //
+        // Only pendingSettings is saved, so a control the user looked at and
+        // accepted wrote nothing at all and the box carried on running the
+        // shipped default with no record that anyone had been asked. That is the
+        // same hole the privacy step had, and it bites hardest on TimeZone:
+        // nothing else writes it, so leaving it unrecorded is what let cape
+        // detection be unable to work out where a box was.
+        //
+        // "Shown it and left it" is an answer, and this is what records it.
+        function recordPromptedSettings() {
+            $.each(WIZARD_SETTING_KEYS, function (i, key) {
+                var $e = $('#' + key.replace(/\./g, '\\.'));
+                if ($e.length === 0) {
+                    // Not rendered here -- platform-gated, or hidden by a
+                    // checkFile like InstalledCape when a real cape is present.
+                    return;
+                }
+                var value;
+                if ($e.attr('type') === 'checkbox') {
+                    value = $e.is(':checked') ? ($e.data('checked-value') || '1')
+                                              : ($e.data('unchecked-value') || '0');
+                } else {
+                    value = $e.val();
+                }
+                if (value === null || value === undefined) {
+                    return;
+                }
+                pendingSettings[key] = value;
+                settings[key] = value;
+            });
+        }
+
         function finishSetup() {
             // Field-level validation is done by validateSetupStep(4) when leaving
             // the security step, so a typo is caught where it was made rather
@@ -1007,6 +1049,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             if (!validateSetupStep(4)) {
                 return;
             }
+
+            recordPromptedSettings();
 
             var passwordEnable = $('#passwordEnable').val();
             if (passwordEnable == '1') {

@@ -1,6 +1,31 @@
 <?
-// Switch to Initial Setup page if needed, but come back here when done
-if (((!isset($settings['initialSetup-02'])) || ($settings['initialSetup-02'] == '0')) && (basename($_SERVER['PHP_SELF']) != "initialSetup.php")) {
+// Switch to Initial Setup page if needed, but come back here when done.
+//
+// Two reasons to send someone there. The first is the original one: setup has
+// never been completed, tracked by initialSetup-02.
+//
+// The second is that the legal jurisdiction has never been answered. FPP has to
+// know whether a prior-opt-in regime applies before it can decide anything about
+// privacy defaults -- cape detection asks it at every boot, and the privacy step
+// is presented differently depending on the answer. Until it is recorded, both
+// halves fall back to the cautious branch, which is safe but means a box that
+// never visits this page is permanently treated as if it might be in the EU.
+// Asking once is better than guessing forever.
+//
+// Read from the settings FILE rather than $settings: $settings has settings.json
+// defaults merged in, so a default added to LegalJurisdiction later would
+// silently switch this gate off. That exact asymmetry is what made the C++ and
+// PHP jurisdiction halves disagree. The function_exists guard is because this
+// include runs before common.php on at least some pages.
+$fppNeedsSetup = (!isset($settings['initialSetup-02'])) || ($settings['initialSetup-02'] == '0');
+if (!$fppNeedsSetup) {
+    if (function_exists('ReadSettingFromFile')) {
+        $fppNeedsSetup = (ReadSettingFromFile('LegalJurisdiction') === false);
+    } else {
+        $fppNeedsSetup = empty($settings['LegalJurisdiction']);
+    }
+}
+if ($fppNeedsSetup && (basename($_SERVER['PHP_SELF']) != "initialSetup.php")) {
     echo "<meta http-equiv='refresh' content='0;url=initialSetup.php?redirect=" . preg_replace('/^\//', '', $_SERVER['PHP_SELF']) . "' />\n";
     exit(0);
 }
