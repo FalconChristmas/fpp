@@ -304,7 +304,7 @@ int DateStrToInt(const char* str) {
     int result = 0;
     char tmpStr[11];
 
-    strcpy(tmpStr, str);
+    snprintf(tmpStr, sizeof(tmpStr), "%s", str);
 
     result += atoi(str) * 10000;   // Year
     result += atoi(str + 5) * 100; // Month
