@@ -109,6 +109,79 @@ pw_dump() {
     [ "${PW_DUMP_STATE}" = "ok" ]
 }
 
+# The ALSA card behind a node name, or empty when it is not a card node.
+# Two spellings reach here: FPP's own "fpp_alsa_<cardId>" adapters, and
+# WirePlumber's "alsa_output.platform-<addr>.hdmi.*" for the nodes it creates
+# itself.  The second is the one nobody can read -- 107c706400 is a device
+# tree address, so the message has to resolve it or the reader cannot tell
+# which physical socket is being talked about.
+card_for_node() {
+    case "$1" in
+        fpp_alsa_*)
+            # FPP lowercases the card id when it builds the node name, but ALSA
+            # card ids are case sensitive: "hw:s3" is "No such device" where
+            # "hw:S3" is the Sound Blaster.  Recover the real spelling.
+            want="${1#fpp_alsa_}"
+            real=$(awk -F'[][]' '/^[[:space:]]*[0-9]+[[:space:]]*\[/ {gsub(/ /, "", $2); print $2}' \
+                   /proc/asound/cards 2>/dev/null |
+                   awk -v w="${want}" 'tolower($0) == tolower(w) {print; exit}')
+            echo "${real:-${want}}"
+            ;;
+        alsa_output.platform-*|alsa_input.platform-*)
+            addr=$(echo "$1" | sed -n 's/^alsa_\(output\|input\)\.platform-\([^.]*\)\..*/\2/p')
+            [ -z "${addr}" ] && return 0
+            for d in /sys/class/sound/card*; do
+                [ -e "${d}/device" ] || continue
+                case "$(readlink -f "${d}/device" 2>/dev/null)" in
+                    *"${addr}"*) cat "${d}/id" 2>/dev/null; return 0 ;;
+                esac
+            done
+            ;;
+    esac
+}
+
+# One line describing what a card is physically doing right now: whether a
+# display is attached (HDMI carries no audio without one) and whether the
+# device opens.  This is what turns "a node is missing" into something the
+# person standing next to the machine can act on.
+card_physical_state() {
+    cardId="$1"
+    [ -n "${cardId}" ] || return 0
+    cardNum=$(awk -v id="${cardId}" '$2 == "[" id' /proc/asound/cards 2>/dev/null | awk '{print $1}' | head -1)
+    [ -z "${cardNum}" ] &&
+        cardNum=$(grep -n "\[${cardId}[[:space:]]*\]" /proc/asound/cards 2>/dev/null |
+                  head -1 | sed 's/.*^//' | awk '{print $1}')
+    eld=""
+    if [ -n "${cardNum}" ]; then
+        for e in /proc/asound/card${cardNum}/eld*; do
+            [ -f "${e}" ] || continue
+            mon=$(sed -n 's/^monitor_name[[:space:]]*//p' "${e}" 2>/dev/null | head -1)
+            if [ -n "${mon}" ]; then
+                eld="a display is attached (${mon})"
+            else
+                eld="no display is attached - an HDMI socket with nothing in it"
+            fi
+            break
+        done
+    fi
+    # aplay --dump-hw-params always exits non-zero -- it prints the parameters
+    # and then refuses to install them -- so the output is the verdict, not the
+    # status.  Same test the ALSA Hardware section uses.
+    probe=$(timeout 3 aplay -D "hw:${cardId}" --dump-hw-params /dev/zero 2>&1)
+    if echo "${probe}" | grep -q "HW Params"; then
+        opens="the device opens right now"
+    elif echo "${probe}" | grep -qi "busy"; then
+        opens="the device is open and in use by something else"
+    else
+        opens="the device will not open"
+    fi
+    if [ -n "${eld}" ]; then
+        echo "${cardId}: ${eld}, and ${opens}"
+    else
+        echo "${cardId}: ${opens}"
+    fi
+}
+
 # Node names actually present in the running graph, one per line.
 graph_node_names() {
     pw_dump || return 1
@@ -669,10 +742,32 @@ section_graph() {
 
     hdr "Declared nodes that never appeared"
     missing=0
+    explained=0
     while read -r n; do
         [ -z "${n}" ] && continue
         if ! grep -qx "${n}" "${TMPDIR_DIAG}/graph-nodes.txt"; then
             fail "Declared but not in the graph: ${n}"
+            c=$(card_for_node "${n}")
+            if [ -n "${c}" ]; then
+                st=$(card_physical_state "${c}")
+                if [ -n "${st}" ]; then
+                    note "${st}"
+                    explained=$((explained+1))
+                fi
+                # The adapters in the generated conf are static context.objects,
+                # created once when the daemon reads the file.  A card that was
+                # not ready at that moment -- an HDMI display still negotiating
+                # is the usual one -- is skipped for the life of the daemon, so
+                # a device that opens now and has no node is a start-order
+                # problem, not a broken card.
+                case "${st}" in
+                    *"opens right now"*)
+                        note "It opens now but has no node, so it was not ready when"
+                        note "PipeWire read the config.  The generated adapters are"
+                        note "created once at start and are not retried, so this"
+                        note "clears with: sudo systemctl restart ${PW_SERVICES}" ;;
+                esac
+            fi
             missing=$((missing+1))
         fi
     done < "${TMPDIR_DIAG}/declared-nodes.txt"
@@ -680,12 +775,14 @@ section_graph() {
         pass "Every node the config declares exists in the graph"
     else
         note "${missing} node(s) the config asks for were never created."
-        note "For an fpp_alsa_* node this means the card would not open, so"
-        note "PipeWire skipped it (the generated adapters carry nofail, which"
-        note "is what stops one bad card taking the whole daemon down) -- the"
-        note "ALSA Hardware section names the device and the reason."
-        note "For anything else, check the service log for the matching"
-        note "module-filter-chain / module-combine-stream line."
+        if [ "${explained}" -lt "${missing}" ] 2>/dev/null; then
+            note "For an fpp_alsa_* node this means the card would not open, so"
+            note "PipeWire skipped it (the generated adapters carry nofail, which"
+            note "is what stops one bad card taking the whole daemon down) -- the"
+            note "ALSA Hardware section names the device and the reason."
+            note "For anything else, check the service log for the matching"
+            note "module-filter-chain / module-combine-stream line."
+        fi
     fi
 
     hdr "Link targets that cannot resolve"
@@ -703,8 +800,26 @@ section_graph() {
             continue
         fi
         fail "Target ${t} exists nowhere - the link that needs it cannot be made"
-        note "Usually the sound card behind it is unplugged, renamed, or held"
-        note "by another process.  Check the ALSA Hardware section."
+        c=$(card_for_node "${t}")
+        if [ -n "${c}" ]; then
+            st=$(card_physical_state "${c}")
+            [ -n "${st}" ] && note "${st}"
+            case "${st}" in
+                *"no display is attached"*)
+                    note "Nothing is plugged into that socket, so the card carries no"
+                    note "audio and WirePlumber creates no node for it.  Expected while"
+                    note "the socket is empty; remove the member from the group if it"
+                    note "is not going to be used." ;;
+                *"will not open"*)
+                    note "Check the ALSA Hardware section for why the device refuses." ;;
+                *"opens right now"*)
+                    note "The card opens, so the node should exist - restart the"
+                    note "PipeWire services to have it picked up." ;;
+            esac
+        else
+            note "Usually the sound card behind it is unplugged, renamed, or held"
+            note "by another process.  Check the ALSA Hardware section."
+        fi
         unresolved=$((unresolved+1))
     done < "${TMPDIR_DIAG}/declared-targets.txt"
     [ "${unresolved}" -eq 0 ] && pass "Every configured link target resolves to a real node"
