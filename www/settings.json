@@ -1589,6 +1589,7 @@
 		},
 		"FetchVendorLogos": {
 			"name": "FetchVendorLogos",
+			"transmitRank": { "0": 0, "1": 1 },
 			"description": "Fetch cape logos from vendors",
 			"gatherStats": true,
 			"tip": "Some capes/hats fetch the vendor logo from their website when using the FPP UI.  This discloses your IP address to the vendor.",
