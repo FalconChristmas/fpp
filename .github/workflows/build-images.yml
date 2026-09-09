@@ -606,8 +606,47 @@ jobs:
               --notes "$NOTES"
           fi
 
-          # 3. Upload/overwrite assets. Filenames are deterministic (fixed
-          # "nightly" version + fixed platform suffixes) so there are no orphans
-          # to prune; --clobber replaces each asset in place.
+          # 3. Upload/overwrite assets. The .img.zip and ccache names are
+          # deterministic (fixed "nightly" version + fixed platform suffix) so
+          # --clobber replaces those in place.
           echo "Uploading assets..."
           gh release upload nightly release-files/* --clobber
+
+          # 4. Prune superseded .fppos assets. Unlike the images, the squashfs
+          # name embeds the OS-version tag the build job passes as
+          # --os-version "$(date -u +%Y-%m)":
+          #     Pi64-nightly_2026-08.fppos  ->  Pi64-nightly_2026-09.fppos
+          # so on the 1st of each month --clobber uploads a NEW name and last
+          # month's asset is orphaned in the release forever (they had to be
+          # deleted by hand). Delete the stale ones here.
+          #
+          # Scoped deliberately: only platforms that produced a fresh .fppos in
+          # THIS run are pruned. A platform whose build failed uploaded nothing,
+          # so its previous .fppos is a deliberate carry-over (see the coverage
+          # report above) and must survive -- pruning by "not uploaded today"
+          # would delete exactly those.
+          echo "Pruning superseded .fppos assets..."
+          keep=""
+          plats=""
+          for f in release-files/*.fppos; do
+            n="$(basename "$f")"
+            keep="$keep|$n"
+            plats="$plats ${n%%-*}"
+          done
+          if [ -n "$plats" ]; then
+            for asset in $(gh release view nightly --json assets -q '.assets[].name'); do
+              case "$asset" in *.fppos) ;; *) continue ;; esac
+              case "|$keep|" in *"|$asset|"*) continue ;; esac
+              for p in $plats; do
+                if [ "${asset%%-*}" = "$p" ]; then
+                  echo "  deleting superseded asset: $asset"
+                  # Never fail the run over a prune: the nightly is already
+                  # published and correct at this point, and a stale extra
+                  # asset is cosmetic. Worst case it is pruned tomorrow.
+                  gh release delete-asset nightly "$asset" --yes || \
+                    echo "  WARNING: could not delete $asset; leaving it in place"
+                  break
+                fi
+              done
+            done
+          fi
