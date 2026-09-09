@@ -1121,7 +1121,7 @@ section_network() {
     if [ -f "${aesj}" ] && have jq; then
         n=$(jq -r "${JQ_ENABLED}"' [.instances[]? | select(enabled)] | length' "${aesj}" 2>/dev/null)
         info "Enabled AES67 streams: ${n:-0}"
-        jq -r "${JQ_ENABLED}"' .instances[]? | "       \(.name // "?")  ip=\(.multicastIP // "?")  ch=\(.channels // "?")  enabled=\(enabled)  sap=\((.sapEnabled != false))"' \
+        jq -r "${JQ_ENABLED}"' .instances[]? | "       \(.name // "?")  ip=\(.multicastIP // "?")  ch=\(.channels // "?")  iface=\(if (.interface // "") == "" then "default route" else .interface end)  enabled=\(enabled)  sap=\((.sapEnabled != false))"' \
             "${aesj}" 2>/dev/null
         if [ "${n:-0}" -gt 0 ] 2>/dev/null; then
             # An AES67 sender is a PipeWire sink with autoconnect off; only an
@@ -1182,20 +1182,82 @@ section_network() {
         # With one interface up the default route is the only place multicast
         # can go and no explicit route is needed.  With two it becomes a
         # coin flip, and AES67 leaving over Wi-Fi is a real failure mode.
+        #
+        # A stream that names an interface is exempt from all of that: the
+        # sender is built with multicast-iface=<iface> (IP_MULTICAST_IF), which
+        # the kernel honours ahead of the routing table.  Only streams that
+        # leave the interface blank follow the default route, so the route is
+        # only worth warning about when such a stream exists.
         upIfaces=$(ip -o link show up 2>/dev/null |
                    awk -F": " '{print $2}' | grep -vE "^(lo|docker|veth|br-)" | tr '\n' ' ')
         ifCount=$(echo "${upIfaces}" | wc -w)
         info "Interfaces up: ${upIfaces:-none}"
+
+        pinnedN=$(jq -r "${JQ_ENABLED}"' [.instances[]? | select(enabled)
+                        | select((.interface // "") != "")] | length' "${aesj}" 2>/dev/null)
+        unpinnedN=$(jq -r "${JQ_ENABLED}"' [.instances[]? | select(enabled)
+                        | select((.interface // "") == "")] | length' "${aesj}" 2>/dev/null)
+
+        if [ "${pinnedN:-0}" -gt 0 ] 2>/dev/null; then
+            info "Streams pinned to an interface (routing table does not apply):"
+            jq -r "${JQ_ENABLED}"' .instances[]? | select(enabled)
+                   | select((.interface // "") != "")
+                   | "\(.name // "?")\u001f\(.interface)"' "${aesj}" 2>/dev/null |
+            while IFS=$(printf '\037') read -r pname pif; do
+                if ip link show "${pif}" >/dev/null 2>&1; then
+                    echo "       ${pname} -> ${pif}"
+                else
+                    echo "[FAIL] AES67 stream '${pname}' is pinned to ${pif}, which does not exist"
+                    echo "       The sender cannot bind its socket and will not transmit."
+                fi
+            done
+        fi
+
+        # Suggest a real wired interface rather than a hardcoded eth0.
+        suggestIf=""
+        for i in ${upIfaces}; do
+            [ -d "/sys/class/net/${i}/wireless" ] && continue
+            suggestIf="${i}"
+            break
+        done
+        [ -z "${suggestIf}" ] && suggestIf=$(echo "${upIfaces}" | awk '{print $1}')
+        [ -z "${suggestIf}" ] && suggestIf="eth0"
+
         if ip route show 2>/dev/null | grep -q "^224.0.0.0/4"; then
             pass "An explicit route for 224.0.0.0/4 exists"
             ip route show 2>/dev/null | grep "^224.0.0.0/4" | sed 's/^/       /'
+        elif [ "${unpinnedN:-0}" -eq 0 ] 2>/dev/null && [ "${pinnedN:-0}" -gt 0 ] 2>/dev/null; then
+            pass "No explicit multicast route, but every enabled AES67 stream names its own interface"
+            note "The route table is not consulted for these streams."
         elif [ "${ifCount}" -gt 1 ] 2>/dev/null; then
-            warn "No explicit multicast route, and ${ifCount} interfaces are up"
-            note "Multicast follows the default route, so AES67 may be leaving"
-            note "over the wrong interface.  Pin it:"
-            note "  sudo ip route add 224.0.0.0/4 dev eth0"
+            warn "${unpinnedN:-0} AES67 stream(s) name no interface, and ${ifCount} interfaces are up"
+            jq -r "${JQ_ENABLED}"' .instances[]? | select(enabled)
+                   | select((.interface // "") == "") | "       \(.name // "?")"' "${aesj}" 2>/dev/null
+            note "Those streams follow the default route and may leave over the"
+            note "wrong interface.  Set the interface on the stream (Audio Output"
+            note "Groups -> AES67), or pin the route for everything:"
+            note "  sudo ip route add 224.0.0.0/4 dev ${suggestIf}"
         else
             pass "Multicast follows the only interface that is up"
+        fi
+
+        # The SAP announcer is a separate socket from the senders: it takes
+        # IP_MULTICAST_IF from the global PTP interface, never from the
+        # per-stream one.  Pinned senders with no PTP interface set therefore
+        # transmit correctly while their announcements go out the default route.
+        sapOn=$(jq -r "${JQ_ENABLED}"' [.instances[]? | select(enabled)
+                      | select((.sapEnabled != false))] | length' "${aesj}" 2>/dev/null)
+        sapIf=$(jq -r '.ptpInterface // ""' "${aesj}" 2>/dev/null)
+        [ "${sapIf}" = "null" ] && sapIf=""
+        if [ "${sapOn:-0}" -gt 0 ] 2>/dev/null && [ "${ifCount}" -gt 1 ] 2>/dev/null &&
+           [ -z "${sapIf}" ] && ! ip route show 2>/dev/null | grep -q "^224.0.0.0/4"; then
+            warn "SAP announcements are not pinned to an interface"
+            note "The announcer uses the PTP interface, which is unset, so SAP"
+            note "follows the default route even where the audio streams do not."
+            note "Receivers may not discover streams that are transmitting fine."
+            note "Set the PTP interface, or add the 224.0.0.0/4 route above."
+        elif [ "${sapOn:-0}" -gt 0 ] 2>/dev/null && [ -n "${sapIf}" ]; then
+            info "SAP announcements go out ${sapIf} (the PTP interface)"
         fi
         info "Multicast group memberships:"
         (netstat -gn 2>/dev/null || ip maddr show 2>/dev/null) | sed 's/^/       /' | head -25
