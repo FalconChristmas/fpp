@@ -406,9 +406,12 @@
         // end-to-end and fade the card that doesn't apply in the current state.
         //   recommended: 'fpp' | 'os' | null
         function setCoordinatedCards(recommended) {
+            // Until the update check has answered, "not recommended" only means
+            // "not known yet", so the FPP card is not faded on a verdict that has
+            // not been reached (the OS side can render first).
             $('#fppCard')
                 .toggleClass('is-recommended', recommended === 'fpp')
-                .toggleClass('is-disabled', recommended !== 'fpp');
+                .toggleClass('is-disabled', recommended !== 'fpp' && !updateCheckPending);
             $('#osCard')
                 .toggleClass('is-recommended', recommended === 'os')
                 .toggleClass('is-disabled', recommended !== 'os');
@@ -437,6 +440,10 @@
                 // Current major version is unsupported and no in-branch update is
                 // offered -- don't claim "up to date"; the only path is an OS upgrade.
                 $fpp.text('This version has reached End of Life. Upgrade the OS to a supported release.');
+            } else if (updateCheckPending) {
+                $fpp.text('Checking for available updates...');
+            } else if (updateCheckFailed) {
+                $fpp.text('Could not reach the update servers. Check the network connection and reload to try again.');
             } else {
                 $fpp.text('FPP is up to date. No new commits or releases available.');
             }
@@ -586,6 +593,15 @@
         }
 
         // Track what type of update is available
+        // The update check runs after the page has rendered and can take several
+        // seconds on a cold cache (every reboot, every upgrade), so nothing may
+        // commit to "up to date" until it has answered.  That premature verdict
+        // -- faded card, "Up to Date" button -- is what used to sit on screen
+        // until the user reloaded.
+        var updateCheckPending = true;
+        // api/system/updateStatus could not reach fppstats or the git remote.
+        // Its "no update" fields are then unknown, not a verdict.
+        var updateCheckFailed = false;
         var branchUpgradeData = null;
         var isMajorVersionUpgrade = false;
         var isEndOfLife = false;
@@ -593,17 +609,17 @@
         // the only action this card can offer is a rebuild of what's checked out.
         var needsRebuild = false;
 
-        function UpdateVersionInfo(testMode) {
-            // Replace any still-shimmering async placeholders with a neutral "--"
-            // so a failed/partial status response can't leave them animating forever.
-            function clearVersionSkeletons() {
-                $('#osVersionValue, #osReleaseValue, #kernelValue, #osCurrentVersionBadge').each(function () {
-                    if ($(this).find('.fpp-skeleton').length) {
-                        $(this).text('--');
-                    }
-                });
-            }
+        // Replace any still-shimmering async placeholders with a neutral "--"
+        // so a failed/partial status response can't leave them animating forever.
+        function clearVersionSkeletons() {
+            $('#osVersionValue, #osReleaseValue, #kernelValue, #osCurrentVersionBadge').each(function () {
+                if ($(this).find('.fpp-skeleton').length) {
+                    $(this).text('--');
+                }
+            });
+        }
 
+        function UpdateVersionInfo(testMode) {
             // Fetch system status for version info
             $.get('api/system/status', function (data) {
                 if (data.advancedView) {
@@ -658,8 +674,27 @@
             if (testMode) {
                 updateStatusUrl += '?test=' + testMode;
             }
+            fetchUpdateStatus(updateStatusUrl, true);
+        }
+
+        // Fetches the update status and renders the FPP card from it.  When the
+        // server reports it could not reach any update source (checked:false),
+        // the answer is retried once a few seconds later: a cold cache and a
+        // slow first fetch is the common case, and one retry usually lands the
+        // real answer without the user reloading.
+        var UPDATE_CHECK_RETRY_MS = 5000;
+
+        function fetchUpdateStatus(updateStatusUrl, retryOnFailure) {
             $.get(updateStatusUrl, function (updateData) {
                 if (updateData.status !== 'OK') return;
+
+                updateCheckPending = false;
+                updateCheckFailed = (updateData.checked === false);
+                if (updateCheckFailed && retryOnFailure) {
+                    setTimeout(function () {
+                        fetchUpdateStatus(updateStatusUrl, false);
+                    }, UPDATE_CHECK_RETRY_MS);
+                }
 
                 // Test mode: force OS upgrade available regardless of which
                 // FPP-update path we land in below.
@@ -826,7 +861,12 @@
                     $('#fppUpdateBanner').hide();
                     // Don't hide OS banner here - let checkUpgradeRecommendation() handle it
                     // based on whether osUpgradeAvailable is set
-                    setVersionStatusDot('fppVersionStatusBadge', 'ok', 'Up to Date');
+                    if (updateCheckFailed) {
+                        // No source answered, so this is "unknown", not "up to date".
+                        setVersionStatusDot('fppVersionStatusBadge', 'unknown', 'Check Failed');
+                    } else {
+                        setVersionStatusDot('fppVersionStatusBadge', 'ok', 'Up to Date');
+                    }
 
                     // When up to date: disable button for basic users, keep enabled for advanced
                     if (isAdvancedView) {
@@ -834,7 +874,7 @@
                         $('#fppUpdateButtonText').text('Update FPP Now');
                     } else {
                         $('#fppUpdateButton').prop('disabled', true);
-                        $('#fppUpdateButtonText').text('Up to Date');
+                        $('#fppUpdateButtonText').text(updateCheckFailed ? 'Check Failed' : 'Up to Date');
                     }
 
                     // Standard view
@@ -847,10 +887,13 @@
 
                 checkUpgradeRecommendation();
             }).fail(function () {
+                updateCheckPending = false;
+                updateCheckFailed = true;
                 setVersionStatusDot('fppVersionStatusBadge', 'unknown', 'Unknown');
                 // Don't leave placeholders shimmering forever if status can't be
                 // fetched -- fall back to the neutral "--" for any unresolved field.
                 clearVersionSkeletons();
+                checkUpgradeRecommendation();
             });
         }
 

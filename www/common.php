@@ -2889,7 +2889,13 @@ function check_fppstats_updates($latestReleaseVersion = null, $latestReleaseHasD
         'currentBranch' => $currentBranch,
         'localCommit' => $localCommit,
         'fppVersionFloat' => $fppVersionFloat,
-        'versionUnknown' => $versionUnknown
+        'versionUnknown' => $versionUnknown,
+        // Whether an update source actually answered.  false means neither
+        // fppstats nor the git remote could be reached (typically the first
+        // request after a reboot or an upgrade, when the /tmp cache is cold and
+        // the fetch timed out), so the "no update" fields above are unknown,
+        // not a verdict -- the UI must not present them as "up to date".
+        'checked' => true
     ];
 
     if ($versionUnknown) {
@@ -2920,7 +2926,9 @@ function check_fppstats_updates($latestReleaseVersion = null, $latestReleaseHasD
     if (!empty($fppstatsData)) {
         $data = json_decode($fppstatsData, true);
 
-        if (isset($data['branches']) && is_array($data['branches'])) {
+        if (!isset($data['branches']) || !is_array($data['branches'])) {
+            $result['checked'] = false;
+        } else {
             $latestNonMaster = '';
             $latestNonMasterEpoch = 0;
 
@@ -2978,6 +2986,7 @@ function check_fppstats_updates($latestReleaseVersion = null, $latestReleaseHasD
         // Fallback: fppstats unreachable
         $remoteGitVersion = get_remote_git_version();
         $result['remoteCommit'] = $remoteGitVersion;
+        $result['checked'] = (!empty($remoteGitVersion) && $remoteGitVersion !== 'Unknown');
 
         if (
             !empty($remoteGitVersion) && $remoteGitVersion !== 'Unknown' &&

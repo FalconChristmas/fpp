@@ -215,7 +215,8 @@ function ViewReleaseNotes()
  *   "localCommit": "ece480e86",
  *   "versionUnknown": false,
  *   "isEndOfLife": false,
- *   "latestMajorVersion": 9
+ *   "latestMajorVersion": 9,
+ *   "checked": true
  * }
  * ```
  */
@@ -426,7 +427,10 @@ function GetUpdateStatus()
         "localCommit" => $updateStatus['localCommit'],
         "versionUnknown" => $updateStatus['versionUnknown'],
         "isEndOfLife" => $isEndOfLife,
-        "latestMajorVersion" => $latestMajorVersion
+        "latestMajorVersion" => $latestMajorVersion,
+        // false when no update source answered: the "no update" fields are
+        // unknown rather than a verdict, and the client should retry.
+        "checked" => $updateStatus['checked']
     ));
 }
 
