@@ -453,11 +453,22 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
         sigaction(SIGALRM, &almAct, nullptr);
         alarm(kCrashHandlerWatchdogSec);
     }
-    // Deliberately still 3, pending the opt-in UI (privacy consent screen +
-    // upgrade prompt). Drop to 0 in the same change that ships that UI -- a
-    // default that sends is only defensible while there is no way for the user
-    // to have answered the question.
-    int crashLog = getSettingInt("ShareCrashData", 3);
+    // The value used only until the user has answered, which is now a short and
+    // bounded window: the setup wizard writes ShareCrashData on Finish whether
+    // it was touched or not, and menuHead.inc will not let a box reach the rest
+    // of the UI until the wizard has been through. After that this fallback is
+    // unreachable and the user's own choice applies.
+    //
+    // For that window, 1 -- stack traces only. It is the level that rests on
+    // legitimate interests rather than consent (GDPR Art 6(1)(f)): a crash
+    // stack, the build, the plugin list and the playlist state identify nobody,
+    // and items 4 and 6 made level 1 mean exactly that. 3 was indefensible as an
+    // unanswered default because it ships settings, configuration and logs, all
+    // of which carry personal data and therefore rest on consent. 0 would be
+    // wrong in the other direction: it forfeits data the project has a lawful
+    // basis to collect, and a crash on first boot is exactly the one nobody can
+    // reproduce later.
+    int crashLog = getSettingInt("ShareCrashData", 1);
 #ifndef PLATFORM_OSX
     LogErr(VB_ALL, "Crash handler called in thread %u:  signal=%d (SIG%s: %s) addr=%p si_code=%d\n",
            gettid(), s, safe(sigabbrev_np(s)), safe(sigdescr_np(s)),

@@ -1087,11 +1087,12 @@ static CapeSettingAction capeMaySetSetting(const std::vector<std::string>& lines
     // transmits nothing: rank 0.
     //
     // Anchoring this to FPP's *shipped* default instead was the obvious reading
-    // and it is wrong. ShareCrashData ships at "3" -- the maximum-disclosure
-    // value, deliberately kept until the consent UI lands -- so a cape could set
-    // full crash reporting under EU rules simply because the baseline was
-    // already maximal. A ratchet against a bad baseline inherits the badness.
-    // Art 25(2) asks for the protective value, not the incumbent one.
+    // and it is wrong. When that default was "3", the maximum-disclosure value,
+    // a cape could have set full crash reporting under EU rules simply because
+    // the baseline was already maximal. The unanswered default is 1 now, which
+    // makes the example less alarming and changes nothing about the rule: a
+    // ratchet against a baseline inherits whatever that baseline is, and 1 still
+    // transmits. Art 25(2) asks for the protective value, not the incumbent one.
     if (proposed > 0) {
         // Phrased without a subject: this reaches the boot log one setting at a
         // time, and the setup wizard groups several settings under one reason.
