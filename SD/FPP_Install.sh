@@ -2474,7 +2474,9 @@ configure_hostapd() {
 #     + systemd-zram-setup@zram0.service + dev-zram0.swap + rpi-zram-writeback)
 #     that handles zram setup automatically. Don't write zram-tools config
 #     on Pi -- it's read by a service we'd be disabling, and would just be
-#     dead clutter.
+#     dead clutter. We do pin its mechanism to plain zram, dropping the
+#     /var/swap loop device and the writeback timer that go with the stock
+#     "zram+file" default -- see configure_swap() below for why.
 #   - On BeagleBone (BBB / BB64) we drive zram via zram-tools, set up directly
 #     in fpp_postnetwork (FPPINIT startZRAMSwap) rather than at boot. zram isn't
 #     needed early and setting it up during the boot critical path just adds
@@ -2484,6 +2486,41 @@ configure_hostapd() {
 #     its vendor config below.
 configure_swap() {
     if [ "$FPPPLATFORM" == "Raspberry Pi" ]; then
+        # Drop rpi-swap's default "zram+file" mechanism for plain "zram".
+        #
+        # In zram+file, /var/swap is attached to a loop device and handed to
+        # zram0 as a WRITEBACK target -- it is not swapped on, so it adds no
+        # usable swap (see DiskBackedSwapKB in scripts/functions). What it does
+        # add is rpi-setup-loop@var-swap.service on the boot critical path:
+        # swap.target -> dev-zram0.swap -> systemd-zram-setup@zram0 ->
+        # rpi-setup-loop@var-swap, and sysinit.target is ordered after
+        # swap.target, so that one unit gates the entire boot.
+        #
+        # Its ExecStartPost, rpi-wait-backingfile-symlink, waits for udev's
+        # /dev/disk/by-backingfile/var-swap symlink with an inotify loop that
+        # arms its watch AFTER testing for the symlink. Lose that race -- the
+        # symlink lands in the gap, or udev unlinks and recreates it while
+        # re-processing loop0 -- and the script blocks on an event that will
+        # never come again. The unit is Type=oneshot, whose TimeoutStartSec
+        # defaults to infinity, so the boot hangs forever on
+        # "A start job is running for rpi-setup-loop@var-swap.service", with
+        # no console and no ssh. Only a power cycle clears it, and since it is
+        # a race it clears on the next boot, which makes it look sporadic.
+        #
+        # zram itself is unchanged: same generator, same sizing, same
+        # dev-zram0.swap. We only drop the writeback file we were not using --
+        # the image already deletes /var/swap -- and with it the loop unit.
+        # rpi-swap cleans up a leftover /var/swap itself under this mechanism,
+        # via rpi-remove-swap-file@, pulled in by multi-user.target well off
+        # the boot path.
+        if [ -f /etc/rpi/swap.conf ]; then
+            mkdir -p /etc/rpi/swap.conf.d
+            cat > /etc/rpi/swap.conf.d/10-fpp-zram-only.conf <<'SWAP_EOF'
+# Installed by FPP. See configure_swap() in SD/FPP_Install.sh.
+[Main]
+Mechanism=zram
+SWAP_EOF
+        fi
         # Just sysctl tuning; rpi-swap handles the actual zram device.
         echo "vm.swappiness=1" >> /etc/sysctl.d/10-swap.conf
         echo "vm.vfs_cache_pressure=90" >> /etc/sysctl.d/10-swap.conf
