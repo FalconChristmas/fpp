@@ -356,11 +356,19 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 		const tabTrigger = new bootstrap.Tab(triggerEl);
 
 		triggerEl.addEventListener('shown.bs.tab', event => {
-			// when the tab is selected update the url with the hash
-			window.location.hash = event.target.dataset.bsTarget;
+			// Record the tab in the url so it can be linked to and survives a
+			// reload. replaceState, not location.hash: assigning the hash is a
+			// navigation, so the browser scrolls the pane to the top of the
+			// viewport -- which takes the tab strip off the screen -- and it
+			// pushes a history entry for every tab click. Neither is wanted.
+			if (event.target.dataset.bsTarget) {
+				history.replaceState(null, '', event.target.dataset.bsTarget);
+			}
 			SetTablePageHeader_ZebraPin();
 			float_fppStickyThead();
-			scrollToTop();
+			// No scrollToTop() here. Selecting a tab should not move the page:
+			// the two together were fighting, the hash scrolling down and this
+			// scrolling to 0, and which one landed differed by browser.
 		});
 	});
 
@@ -372,11 +380,19 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 		const tabTrigger = new bootstrap.Tab(triggerEl);
 
 		triggerEl.addEventListener('shown.bs.tab', event => {
-			// when the tab is selected update the url with the hash
-			window.location.hash = event.target.dataset.bsTarget;
+			// Record the tab in the url so it can be linked to and survives a
+			// reload. replaceState, not location.hash: assigning the hash is a
+			// navigation, so the browser scrolls the pane to the top of the
+			// viewport -- which takes the tab strip off the screen -- and it
+			// pushes a history entry for every tab click. Neither is wanted.
+			if (event.target.dataset.bsTarget) {
+				history.replaceState(null, '', event.target.dataset.bsTarget);
+			}
 			SetTablePageHeader_ZebraPin();
 			float_fppStickyThead();
-			scrollToTop();
+			// No scrollToTop() here. Selecting a tab should not move the page:
+			// the two together were fighting, the hash scrolling down and this
+			// scrolling to 0, and which one landed differed by browser.
 		});
 	});
 }
