@@ -42,7 +42,7 @@
                         //Display group if relevant for current platform
                         if (count(array_intersect($troubleshootingCommandGroups[$commandGrpID]["platforms"], $target_platforms)) > 0) {
                             echo "<li class=\"nav-item\" role=\"presentation\">";
-                            echo "<button class=\"nav-link" . ($commandGrpID == array_key_first($troubleshootingCommandGroups) ? " active" : "") . "\" id=\"pills-" . $commandGrpID . "-tab\" data-bs-toggle=\"pill\" data-bs-target=\"#pills-" . $commandGrpID . "\" type=\"button\" role=\"tab\" aria-controls=\"pills-" . $commandGrpID . "\" aria-selected=\"true\">" . $troubleshootingCommandGroups[$commandGrpID]["grpDisplayTitle"] . "<span class=\"troubleshoot-tab-status\" id=\"tabstatus-" . $commandGrpID . "\"></span></button>";
+                            echo "<button class=\"nav-link" . ($commandGrpID == array_key_first($troubleshootingCommandGroups) ? " active" : "") . "\" id=\"pills-" . $commandGrpID . "-tab\" data-bs-toggle=\"pill\" data-bs-target=\"#pills-" . $commandGrpID . "\" type=\"button\" role=\"tab\" aria-controls=\"pills-" . $commandGrpID . "\" aria-selected=\"true\">" . $troubleshootingCommandGroups[$commandGrpID]["grpDisplayTitle"] . "<span class=\"text-nowrap\" id=\"tabstatus-" . $commandGrpID . "\"></span></button>";
                             echo "</li>";
                         }
                     }
@@ -56,7 +56,13 @@
                     foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
                         //Loop through groupings
                         //Display group if relevant for current platform
-                        ${'hotlinks-' . $commandGrpID} = "<div class=\"container\"><div class=\"row mb-3\">";
+                        // Packed to content width rather than a fixed column count.  A
+                        // grid forces one column width on every group, and these groups
+                        // have very different title lengths -- wide enough for "GStreamer
+                        // Elements & Plugins" plus its count badge left the short-named
+                        // groups sparse, and narrow enough for "Wired" wrapped the long
+                        // ones and pushed their badges onto a line of their own.
+                        ${'hotlinks-' . $commandGrpID} = "<div class=\"d-flex flex-wrap column-gap-4 row-gap-1 mb-3\">";
                         if (count(array_intersect($troubleshootingCommandGroups[$commandGrpID]["platforms"], $target_platforms)) > 0) {
                             echo "<div class=\"tab-pane fade\"  id=\"pills-" . $commandGrpID . "\" role=\"tabpanel\" aria-labelledby=\"pills-" . $commandGrpID . "-tab\">";
                             ?>
@@ -77,11 +83,14 @@
                                         $commandCmd = $commandID["cmd"];
                                         $commandDesc = $commandID["description"];
                                         $header = "header_" . $commandKey;
-                                        ${'hotlinks-' . $commandGrpID} .= "<div class=\"col-md-3\"><a href=\"#$header\">$commandTitle</a><span id=\"hotlinkstatus_$commandKey\"></span></div>";
+                                        // The badge is a flex sibling on the link's baseline, not
+                                        // inline text, so it cannot wrap away from its link; nowrap
+                                        // keeps a failure and warning pair together.
+                                        ${'hotlinks-' . $commandGrpID} .= "<div class=\"d-flex align-items-baseline\"><a href=\"#$header\">$commandTitle</a><span class=\"text-nowrap flex-shrink-0\" id=\"hotlinkstatus_$commandKey\"></span></div>";
                                         ?>
 
                                     <a class="troubleshoot-anchor" name="<? echo $header ?>">.</a>
-                                    <h3><? echo $commandTitle; ?><span id="<? echo ("status_" . $commandKey) ?>"></span>
+                                    <h3><? echo $commandTitle; ?><span class="text-nowrap" id="<? echo ("status_" . $commandKey) ?>"></span>
                                     </h3>
                                     <strong>Command Description: </strong><? echo $commandDesc; ?>
                                         <br><strong>Command: </strong><? echo $commandCmd; ?>
@@ -91,7 +100,7 @@
                                         <?
                                     }
                                 }
-                                ${'hotlinks-' . $commandGrpID} .= "</div></div>";
+                                ${'hotlinks-' . $commandGrpID} .= "</div>";
                                 ?>
                         </div>
                     </div>
