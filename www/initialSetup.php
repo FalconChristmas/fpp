@@ -507,6 +507,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             $settingGroups['initialSetup']['settings']
         ))) ?>;
 
+        // Which generation of the disclosures these answers are given against.
+        var PRIVACY_CONSENT_VERSION = <?= json_encode(PRIVACY_CONSENT_VERSION) ?>;
+
         var setupCurrentStep = 1;
         var setupTotalSteps = 4;
 
@@ -1073,6 +1076,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             }
 
             recordPromptedSettings();
+
+            // The consent record. Written on every Finish, so it always describes
+            // the answers being saved in this same pass rather than an earlier
+            // one. The date comes from the browser deliberately: on a first boot
+            // the player may have no NTP yet and its own clock can be years out,
+            // while the machine being used to set it up is almost always right.
+            pendingSettings['privacyConsentVersion'] = '' + PRIVACY_CONSENT_VERSION;
+            pendingSettings['privacyConsentDate'] = new Date().toISOString();
 
             var passwordEnable = $('#passwordEnable').val();
             if (passwordEnable == '1') {

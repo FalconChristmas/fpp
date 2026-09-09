@@ -195,6 +195,17 @@ function MissingSetupSettings()
             $missing[] = $k;
         }
     }
+
+    // The consent record: which generation of the disclosures the answers were
+    // given against. Absent means never recorded; lower means the text has
+    // materially changed since, and an answer to the old text is not an answer
+    // to this one.
+    require_once __DIR__ . '/privacyDisclosures.inc';
+    $version = ReadSettingFromFile('privacyConsentVersion');
+    if ($version === false || intval($version) < PRIVACY_CONSENT_VERSION) {
+        $missing[] = 'privacyConsentVersion';
+    }
+
     return $missing;
 }
 

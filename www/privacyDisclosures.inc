@@ -27,6 +27,19 @@
  * Keys match the row ids in the privacy table.
  */
 
+// Which generation of the privacy disclosures a consent record refers to.
+//
+// A recorded answer means "shown THIS text, answered THAT" -- so the answer is
+// only meaningful alongside the version of the text it was given against. A box
+// carrying a version lower than this one has consented to something FPP no
+// longer says, and MissingSetupSettings() sends it back through the wizard.
+//
+// BUMP THIS ONLY FOR A MATERIAL CHANGE: a new recipient, a new category of data,
+// a wider purpose. Bumping it re-prompts every player in the field, which is the
+// point when the substance changed and unjustified noise when it did not.
+// Rewording for clarity is not a bump.
+define('PRIVACY_CONSENT_VERSION', 1);
+
 function privacyDisclosures()
 {
     return array(
