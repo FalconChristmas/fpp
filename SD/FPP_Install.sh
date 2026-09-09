@@ -2003,6 +2003,9 @@ EOF
     # remove exim4 panic log so exim4 doesn't throw an alert about a non-zero log
     # file due to some odd error thrown during inital setup
     rm -f /var/log/exim4/paniclog
+    # FPP manages implicit-TLS for port 465 via /etc/exim4/conf.d/main/99_fpp_smarthost.
+    # The default smarthost here is ::587 (STARTTLS), so ensure no stale smtps macro ships in the image.
+    rm -f /etc/exim4/conf.d/main/99_fpp_smarthost
     #update config and restart exim
     update-exim4.conf
 
