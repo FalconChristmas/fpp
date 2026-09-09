@@ -163,6 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
     require_once('common.php');
     require_once('jurisdiction.inc');
     require_once('privacyDisclosures.inc');
+    require_once('privacyTable.inc');
     include 'common/menuHead.inc';
 
     // Populates $settingInfos / $settingGroups. PrintSettingGroup() calls this
@@ -204,6 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
     }
     ?>
     <script src="js/fpp-backup-filecopy.js?ref=<?= filemtime('js/fpp-backup-filecopy.js'); ?>"></script>
+    <script src="js/fpp-privacy-table.js?ref=<?= filemtime('js/fpp-privacy-table.js'); ?>"></script>
     <script>
         fppFileCopy.config = {
             direction: '#fileCopyDirection',
@@ -694,8 +696,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                 // table owns those, and privacyToPending() writes them.  Feed the
                 // cape's value in as the current value so it shows as the
                 // pre-filled answer where the jurisdiction permits one.
-                if (privacyCurrent.hasOwnProperty(key)) {
-                    privacyCurrent[key] = '' + value;
+                if (fppPrivacyTable.cfg && fppPrivacyTable.cfg.current.hasOwnProperty(key)) {
+                    fppPrivacyTable.cfg.current[key] = '' + value;
                     return;
                 }
                 pendingSettings[key] = value;
@@ -749,100 +751,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             return pendingSettings.hasOwnProperty(key) || answeredSettings.indexOf(key) !== -1;
         }
 
-        // The privacy table's rows, and how each maps onto a setting.
-        //
-        // Rows are DISCLOSURES, not settings, and the two do not line up one to
-        // one.  ShareCrashData is a single ordered value, so its three rows are a
-        // ladder: "include configuration and logs" necessarily includes "your
-        // settings", which necessarily includes the stack.  Drawn as three
-        // independent Allow/Deny pairs it could express states that do not exist,
-        // so the ladder is enforced here in both directions.
-        //
-        // Denying the crash rows writes 0 ("keep locally"), not -1: a report is
-        // written to the crashes folder either way, which is what the help text
-        // promises.  -1 is deliberately not reachable from this page.
-        var PRIVACY_ROWS = {
-            'stats':          { setting: 'statsPublish',     allow: 'Enabled', deny: 'Disabled' },
-            'crash':          { setting: 'ShareCrashData',   level: 1 },
-            'crash-settings': { setting: 'ShareCrashData',   level: 2, parent: 'crash' },
-            'crash-config':   { setting: 'ShareCrashData',   level: 3, parent: 'crash-settings' },
-            'logos':          { setting: 'FetchVendorLogos', allow: '1', deny: '0' },
-            'serial':         { setting: 'SendVendorSerial', allow: '1', deny: '0', parent: 'logos' }
-        };
-        var CRASH_ROWS = ['crash', 'crash-settings', 'crash-config'];
-
-        // What the box currently holds for each of these.  PHP's $settings has
-        // defaults merged in, so this is the effective value; answeredSettings
-        // above is what says whether it was ever actually chosen.
-        var privacyCurrent = <?= json_encode(array(
-            'statsPublish' => (string) ($settings['statsPublish'] ?? ''),
-            'ShareCrashData' => (string) ($settings['ShareCrashData'] ?? ''),
-            'FetchVendorLogos' => (string) ($settings['FetchVendorLogos'] ?? ''),
-            'SendVendorSerial' => (string) ($settings['SendVendorSerial'] ?? ''),
-            'emailAddress' => (string) ($settings['emailAddress'] ?? ''),
-        )) ?>;
-
-        // Rows the user has actually touched here.  privacyFromSettings() runs
-        // again every time step 1 is left, and must not discard an answer already
-        // given on step 3 and then navigated away from.
-        var privacyTouched = {};
-
-        function privacyAnsweredInFile(key) {
-            return answeredSettings.indexOf(key) !== -1;
-        }
-
-        var PRIVACY_HELP = <?= json_encode(privacyDisclosures()) ?>;
-
-        function privacyGet(row) {
-            return $("input[name='privacy_" + row + "']:checked").val() || '';
-        }
-        function privacySet(row, val) {
-            if (val === '') {
-                $("input[name='privacy_" + row + "']").prop('checked', false);
-            } else {
-                $("input[name='privacy_" + row + "'][value='" + val + "']").prop('checked', true);
-            }
-        }
-
-        // Enforce the ladder in both directions, then reflect it in the UI.
-        // Allowing a child allows its parents; denying a parent denies and
-        // disables its children, so an impossible combination cannot be reached
-        // by clicking rather than merely being rejected afterwards.
-        function privacyApplyLadder(changedRow) {
-            $.each(PRIVACY_ROWS, function (row, def) {
-                if (!def.parent) { return; }
-                if (changedRow === row && privacyGet(row) === 'allow') {
-                    // Walk up: every ancestor must be allowed for this to mean anything.
-                    var p = def.parent;
-                    while (p) {
-                        privacySet(p, 'allow');
-                        p = PRIVACY_ROWS[p].parent;
-                    }
-                }
+        // The table's behaviour lives in js/fpp-privacy-table.js, shared with the
+        // Privacy settings page. The wizard's only difference is what happens on
+        // a change: it holds the answer in pendingSettings until Finish, where
+        // that page saves immediately.
+        function privacyTableInit() {
+            fppPrivacyTable.init(<?= json_encode(PrivacyTableConfig(jurisdictionRequiresPriorOptIn())) ?>, function (values) {
+                $.each(values, function (k, v) {
+                    pendingSettings[k] = v;
+                    settings[k] = v;
+                });
             });
-            // Walk down: a denied parent forces its descendants denied and locks them.
-            $.each(PRIVACY_ROWS, function (row, def) {
-                if (!def.parent) { return; }
-                var blocked = false;
-                var p = def.parent;
-                while (p) {
-                    if (privacyGet(p) === 'deny') { blocked = true; break; }
-                    p = PRIVACY_ROWS[p].parent;
-                }
-                var $inputs = $("input[name='privacy_" + row + "']");
-                $inputs.prop('disabled', blocked);
-                $("tr[data-row='" + row + "']").toggleClass('privacyBlocked', blocked);
-                if (blocked) { privacySet(row, 'deny'); }
-            });
-            // The e-mail field is pointless until something is being sent.
-            $('#emailRow').toggleClass('d-none', privacyGet('crash') !== 'allow');
         }
 
-        // Which rows still have no answer.  A row locked by a denied parent is
-        // answered by that denial, so it does not count as outstanding.
-        // Once Next has been refused, show WHICH rows the note is talking
-        // about, and let the marks clear one by one as they are answered - a
-        // banner alone does not say where to look in a table of eight rows.
+        // Re-presented whenever the declared jurisdiction changes, since that
+        // decides whether the rows start unanswered.
+        function privacyApplyRegime() {
+            fppPrivacyTable.cfg.priorOptIn = setupPriorOptIn;
+            fppPrivacyTable.fromSettings();
+        }
+
+        // Record every privacy key, touched or not: only pendingSettings is
+        // saved, so a step whose defaults were accepted wholesale would otherwise
+        // write nothing and leave no record of the answer.
+        function privacyToPending() {
+            $.each(fppPrivacyTable.collect(), function (k, v) {
+                pendingSettings[k] = v;
+                settings[k] = v;
+            });
+        }
+
+        function privacyUnanswered() {
+            return fppPrivacyTable.unanswered();
+        }
+
+        // Highlighting the rows still outstanding, and whether to show it at all.
+        // Wizard-only: this page can refuse to continue, the Settings page cannot,
+        // so it stays here rather than in the shared module.
         var privacyShowUnanswered = false;
 
         function privacyMarkUnanswered() {
@@ -853,95 +798,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             });
         }
 
-        function privacyUnanswered() {
-            var out = [];
-            $.each(PRIVACY_ROWS, function (row) {
-                if ($("input[name='privacy_" + row + "']").prop('disabled')) { return; }
-                if (privacyGet(row) === '') { out.push(row); }
-            });
-            return out;
-        }
-
-        // Collapse the table back into settings values.
-        function privacyToPending() {
-            var stats = privacyGet('stats');
-            if (stats !== '') {
-                pendingSettings['statsPublish'] = PRIVACY_ROWS['stats'][stats];
-            }
-            // Deepest allowed rung wins; nothing allowed means 0, keep locally.
-            var level = 0;
-            $.each(CRASH_ROWS, function (i, row) {
-                if (privacyGet(row) === 'allow') { level = PRIVACY_ROWS[row].level; }
-            });
-            pendingSettings['ShareCrashData'] = '' + level;
-            $.each(['logos', 'serial'], function (i, row) {
-                var v = privacyGet(row);
-                if (v !== '') { pendingSettings[row === 'logos' ? 'FetchVendorLogos' : 'SendVendorSerial'] = PRIVACY_ROWS[row][v]; }
-            });
-            pendingSettings['emailAddress'] = $('#emailAddress').val() || '';
-            $.each(pendingSettings, function (k, v) { settings[k] = v; });
-        }
-
-        // Fill the table in from what the box holds.
-        //
-        // Under a prior-opt-in regime nothing is pre-selected and the step will
-        // not advance until each row is answered -- except "send crash reports",
-        // which may start allowed: sending a stack trace rests on legitimate
-        // interests (GDPR Art 6(1)(f)) rather than consent, and the tiers that do
-        // need consent are the two below it.  A row already answered in the
-        // settings file keeps its answer either way.
-        function privacyFromSettings() {
-            var crashLevel = parseInt(privacyCurrent['ShareCrashData'], 10);
-            if (isNaN(crashLevel)) { crashLevel = 0; }
-            var crashAnswered = privacyAnsweredInFile('ShareCrashData');
-
-            $.each(PRIVACY_ROWS, function (row, def) {
-                if (privacyTouched[row]) { return; }
-                // Deliberately the settings FILE, not pendingSettings: a cape's
-                // default is the vendor's suggestion, not the user's answer, so
-                // under a prior-opt-in regime the row still has to be asked.
-                var answered = privacyAnsweredInFile(def.setting);
-                if (setupPriorOptIn && !answered) {
-                    privacySet(row, row === 'crash' ? 'allow' : '');
-                    return;
-                }
-                if (def.level !== undefined) {
-                    if (!crashAnswered && !setupPriorOptIn) {
-                        // Never chosen, permissive regime: take the shipped default.
-                        privacySet(row, crashLevel >= def.level ? 'allow' : 'deny');
-                    } else {
-                        privacySet(row, crashLevel >= def.level ? 'allow' : 'deny');
-                    }
-                    return;
-                }
-                var cur = privacyCurrent[def.setting];
-                if (cur === def.allow) {
-                    privacySet(row, 'allow');
-                } else if (cur === def.deny) {
-                    privacySet(row, 'deny');
-                } else {
-                    // Neither, which is what statsPublish's shipped "Banner" is:
-                    // a prompt to decide later rather than a decision.  The table
-                    // has no third state and this branch is the permissive
-                    // regime, so it resolves to the shipped intent -- allow.
-                    // Leaving it blank would be worse than either answer: the
-                    // step would pass validation with nothing selected and
-                    // privacyToPending() would write no value at all, which is
-                    // precisely the "Finish writes nothing" hole this replaces.
-                    privacySet(row, 'allow');
-                }
-            });
-            $('#emailAddress').val(privacyCurrent['emailAddress'] || '');
-            privacyApplyLadder(null);
-        }
-
-        function PrivacySetAll(val) {
-            $.each(PRIVACY_ROWS, function (row) { privacySet(row, val); });
-            privacyApplyLadder(null);
-        }
-
         function applyPrivacyPresentation() {
-            privacyFromSettings();
+            privacyApplyRegime();
 
             // Group by reason rather than listing keys against the first one:
             // several settings usually share a reason, and naming a reason that
@@ -1485,29 +1343,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                 $lj.val('');
             }
 
-            // Ladder enforcement runs on every change, so an impossible
-            // combination cannot be clicked into existence.
+            privacyTableInit();
+
+            // Registered after init(), so the shared handler has already applied
+            // the ladder by the time this runs. Answering a row clears its mark;
+            // clearing the last one takes the note with it rather than leaving a
+            // stale complaint.
             $("input[name^='privacy_']").on('change', function () {
-                var row = $(this).attr('name').replace(/^privacy_/, '');
-                privacyTouched[row] = true;
-                privacyApplyLadder(row);
-                // Answering a row clears its mark; clearing the last one takes
-                // the note with it rather than leaving a stale complaint.
                 privacyMarkUnanswered();
                 if (privacyShowUnanswered && privacyUnanswered().length === 0) {
                     privacyShowUnanswered = false;
                     $('#privacyRequiredNote').addClass('d-none');
                 }
-            });
-
-            // One popover at a time, so the disclosures cannot stack up on top of
-            // each other. The text is the same content the Settings privacy tab
-            // will want, which is why it lives in privacyDisclosures.inc.
-            $('.privacyHelp').on('click', function (e) {
-                e.preventDefault();
-                var row = $(this).data('row');
-                var d = PRIVACY_HELP[row];
-                if (d) { DialogOK(d.title, d.body); }
             });
 
             $('#uiLevel').on('change', updateSSHKeysVisibility);
@@ -1602,88 +1449,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                                 Please answer each of these before continuing.
                             </div>
 
-                            <!-- One row per disclosure, not one per setting: "send crash
-                                 reports" is three rows against a single ShareCrashData
-                                 value, because the tiers are cumulative rather than
-                                 independent (see the ladder handling in JS). -->
-                            <div class="table-responsive">
-                            <table class="privacyTable" id="privacyTable">
-                                <thead>
-                                    <tr>
-                                        <th></th>
-                                        <th class="privacyGoesTo">Goes to</th>
-                                        <th class="privacyChoice">Allow</th>
-                                        <th class="privacyChoice">Deny</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php
-                                    require_once 'privacyDisclosures.inc';
-                                    $disclosures = privacyDisclosures();
-
-                                    // label, goesTo, extra classes, sub-row depth
-                                    $rows = array(
-                                        array('stats', 'Share usage statistics',
-                                            'FPP &amp; xLights developers',
-                                            'Tells us which platforms and features to keep supporting, so yours is '
-                                            . 'less likely to be dropped. '
-                                            . "<a href='#' onClick='PreviewStatistics(); return false;'>Preview data</a>.", 0),
-                                        array('logos', 'Load cape logos from vendor website', 'Cape vendor', '', 0),
-                                        array('serial', '&hellip; and include your cape\'s serial number', '', '', 1),
-                                        // Last, because the e-mail field hangs off the deepest
-                                        // crash rung and looks orphaned mid-table.
-                                        array('crash', 'Send crash reports',
-                                            'FPP &amp; xLights developers,<br>AI service',
-                                            'The only way most crashes are ever found.', 0),
-                                        array('crash-settings', '&hellip; and include your settings', '', '', 1),
-                                        array('crash-config', '&hellip; and include configuration and logs', '', '', 1),
-                                    );
-
-                                    foreach ($rows as $r) {
-                                        list($id, $label, $goesTo, $sub, $depth) = $r;
-                                        $help = isset($disclosures[$id])
-                                            ? htmlspecialchars($disclosures[$id]['title'] . "\n\n" . strip_tags(str_replace(array('</p>', '<br>'), "\n", $disclosures[$id]['body'])), ENT_QUOTES)
-                                            : '';
-                                        $indent = $depth ? " style='padding-left:2.2em'" : '';
-                                        echo "<tr class='privacyRow' data-row='$id' data-depth='$depth'>";
-                                        echo "<td$indent><b>$label</b>";
-                                        echo " <i class='fas fa-question-circle privacyHelp' data-row='$id' title='Explain what this sends'></i>";
-                                        if ($sub != '') {
-                                            echo "<div class='smallText text-muted'>$sub</div>";
-                                        }
-                                        echo "</td>";
-                                        echo "<td class='privacyGoesTo smallText text-muted'>$goesTo</td>";
-                                        echo "<td class='privacyChoice'><label><input type='radio' name='privacy_$id' value='allow'></label></td>";
-                                        echo "<td class='privacyChoice'><label><input type='radio' name='privacy_$id' value='deny'></label></td>";
-                                        echo "</tr>";
-
-                                        // The e-mail field belongs to the crash rows and is
-                                        // pointless until they are allowed, so it lives inside
-                                        // the ladder rather than after the table.
-                                        if ($id === 'crash-config') {
-                                            echo "<tr class='privacyRow d-none' id='emailRow'>";
-                                            echo "<td style='padding-left:2.2em'><b>E-mail address</b> <span class='text-muted'>(optional)</span>";
-                                            echo " <i class='fas fa-question-circle privacyHelp' data-row='email' title='Explain what this sends'></i></td>";
-                                            echo "<td colspan='3'><input type='text' id='emailAddress' size='40' maxlength='256' placeholder='you@example.com'></td>";
-                                            echo "</tr>";
-                                        }
-                                    }
-                                    ?>
-                                </tbody>
-                                <tfoot>
-                                    <tr class="privacyAllRow">
-                                        <td class="text-muted smallText">You can change this at any time under Status/Control &rarr; FPP Settings &rarr; Privacy.</td>
-                                        <td></td>
-                                        <td class="privacyChoice">
-                                            <input type='button' class='buttons' value='Allow all' onClick='PrivacySetAll("allow");'>
-                                        </td>
-                                        <td class="privacyChoice">
-                                            <input type='button' class='buttons' value='Deny all' onClick='PrivacySetAll("deny");'>
-                                        </td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                            </div>
+                            <?php
+                            // Shared with the Privacy settings page -- same rows, same
+                            // wording, same help, same ladder. See privacyTable.inc.
+                            PrintPrivacyTable('You can change this at any time under Status/Control &rarr; FPP Settings &rarr; Privacy.');
+                            ?>
 
                             <div class="alert alert-secondary small d-none" id="capeRefusedNote"></div>
                         </div>
