@@ -1011,12 +1011,26 @@ section_graph() {
         # An FPP group sink with nothing linked out of it is configured but
         # inert: it will accept audio and drop it on the floor.
         hdr "FPP sinks with no outgoing link"
+        # A group sink is a module-combine-stream, and a combine-stream never
+        # carries links on the sink node itself: for each member it creates a
+        # separate stream node called output.<sink>_<member> and the links hang
+        # off that.  Looking only at the sink's own id therefore reported every
+        # group in the graph as feeding nothing, however healthy -- the chain
+        # here is fpp_group_default -> output.fpp_group_default_fpp_fx_g1_s3 ->
+        # fpp_fx_g1_s3 -> fpp_fx_g1_s3_out -> fpp_alsa_s3, fully linked.
+        # A sink is orphaned only when neither it nor any of its member streams
+        # has an outgoing link.
         jq -r '
           [ .[] | select(.type == "PipeWire:Interface:Link") | .info["output-node-id"] ] as $outs
-          | [ .[] | select(.type == "PipeWire:Interface:Node")
-                  | select((.info.props["node.name"] // "") | startswith("fpp_group_") or startswith("fpp_input_"))
-                  | select( ([.id] | inside($outs)) | not )
-                  | .info.props["node.name"] ] | .[]' \
+          | [ .[] | select(.type == "PipeWire:Interface:Node") ] as $nodes
+          | $nodes[]
+          | select((.info.props["node.name"] // "") | startswith("fpp_group_") or startswith("fpp_input_"))
+          | . as $g | ($g.info.props["node.name"]) as $gn
+          | ( [$g.id]
+              + [ $nodes[] | select((.info.props["node.name"] // "")
+                                    | startswith("output." + $gn + "_")) | .id ] ) as $ids
+          | select( [ $ids[] | IN($outs[]) ] | any | not )
+          | $gn' \
             "${PW_DUMP_FILE}" 2>/dev/null > "${TMPDIR_DIAG}/orphans.txt"
         if [ -s "${TMPDIR_DIAG}/orphans.txt" ]; then
             warn "These FPP sinks feed nothing (fine if unused, silent if not):"
@@ -1701,6 +1715,12 @@ section_network() {
 
         if [ "${enabled}" != "true" ]; then
             skip "RTSP output is disabled"
+        elif [ "${rtspN:-0}" -eq 0 ] 2>/dev/null && simple_mode; then
+            # An RTSP mount is a member of a Video Output Group, and video
+            # output groups are an advanced-mode feature, so in simple mode
+            # there is no way to add one and nothing to report -- the enabled
+            # flag is just left over from the mode that could use it.
+            skip "RTSP output is enabled but its mounts are an advanced-mode feature"
         elif [ "${rtspN:-0}" -eq 0 ] 2>/dev/null; then
             # Not a fault, and the commonest reason for a silent port: fppd
             # returns from ApplyConfig() before StartServer() when the mount

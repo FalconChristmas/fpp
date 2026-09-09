@@ -5512,6 +5512,25 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                     $cidNorm = preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($cardId));
                     $adapterName = 'fpp_alsa_' . $cidNorm;
                     $cardNodeMap[$cardId] = $adapterName;
+                    // "No PipeWire sink for this card" does not mean no adapter
+                    // exists.  A card FPP owns statically in 95-fpp-alsa-sink.conf
+                    // has WirePlumber's device deliberately disabled for it
+                    // (50-fpp-suppress-alsa-dupes.conf, written by
+                    // ensureWirePlumberAlsaDupeSuppression in FPPINIT_Audio.cpp),
+                    // so the sink search above finds nothing and lands here --
+                    // and declaring our own would put two adapters on one PCM
+                    // under one node.name.  The loser's snd_pcm_open() then
+                    // returns EBUSY and hangs whatever played to it, which is
+                    // the very failure the suppression rule exists to prevent.
+                    //
+                    // Channels are not a reason to duplicate either: fppinit
+                    // regenerates the boot conf when its adapter has fewer
+                    // channels than the card needs (see the "adapter has N
+                    // channels but card needs M" path in FPPINIT_Audio.cpp), so
+                    // the boot node is kept adequate on that side.
+                    if (isset($bootAdapterChannels[$adapterName])) {
+                        continue;
+                    }
                     if (!isset($customAlsaAdaptersForUnresolved[$cardId])) {
                         // Detect channels from ALSA HW params.  A continuous
                         // range "[lo hi]" (e.g. bcm2835 onboard analog reports
