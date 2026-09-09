@@ -72,6 +72,11 @@ public:
     /// Returns the detected (or configured) fps, or 0 if not found.
     int GetSourceFramerate(const std::string& channelName) const;
 
+    /// True when the source publishing `channelName` has a live pipeline.
+    /// Lets a consumer that missed NotifyProducerReady -- because the source
+    /// was already up when the consumer was (re)configured -- start anyway.
+    bool IsSourceRunning(const std::string& channelName) const;
+
     /// Grab a single JPEG frame from a running source, for UI preview.
     ///
     /// Taps the source's intervideo channel with a short-lived

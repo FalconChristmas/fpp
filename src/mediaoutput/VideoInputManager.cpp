@@ -579,6 +579,15 @@ int VideoInputManager::GetSourceFramerate(const std::string& channelName) const 
     return 0;
 }
 
+bool VideoInputManager::IsSourceRunning(const std::string& channelName) const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    for (const auto& s : m_sources) {
+        if (s.pipeWireNodeName == channelName)
+            return s.running.load();
+    }
+    return false;
+}
+
 bool VideoInputManager::LoadConfig() {
     std::string configPath = FPP_DIR_MEDIA("/config/pipewire-video-input-sources-gen.json");
 
