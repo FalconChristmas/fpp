@@ -903,9 +903,16 @@ bool Bridge_HandleArtNetPoll(uint8_t* bridgeBuffer, long long packetTime) {
         if (hostname == "") {
             hostname = "FPP";
         }
-        strcpy(&buf[26], hostname.c_str()); // HOSTNAME?
-        strcpy(&buf[44], hostname.c_str()); // Description?
-        strcpy(&buf[108], "");              // Status?
+        // Zero the fields first so snprintf's truncation doesn't leave stale bytes
+        // from a previous packet, then bounded-copy.
+        memset(&buf[26], 0, 18);
+        memset(&buf[44], 0, 64);
+        memset(&buf[108], 0, 64);
+        // Bounded copy — HostName is user-controlled via /api/settings and could be up to 255 chars.
+        // Original strcpy could overflow buf[512] (18 bytes at 26, 64 bytes at 44). snprintf truncates safely.
+        snprintf(&buf[26], 18, "%s", hostname.c_str());  // HOSTNAME (18 bytes)
+        snprintf(&buf[44], 64, "%s", hostname.c_str());  // Description (64 bytes)
+        // buf[108] Status stays empty — memset already zeroed it, no snprintf needed
 
         buf[172] = 0;
         buf[173] = 4;
