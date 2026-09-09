@@ -82,12 +82,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
         // Note the restore MERGES: a jurisdiction already recorded is not
         // cleared by a backup that lacks one, so this only fires where there
         // genuinely is no answer.
-        $needsJurisdiction = (ReadSettingFromFile('LegalJurisdiction') === false);
+        $missing = MissingSetupSettings();
         $msg = 'Configuration restored successfully. A reboot is required for changes to take effect.';
-        if ($needsJurisdiction) {
-            $msg .= ' This backup does not say which privacy rules apply to this player, so setup will ask for that before continuing.';
+        if (count($missing)) {
+            $msg .= ' This backup does not answer everything FPP needs to know about privacy on this player'
+                . ' (' . implode(', ', $missing) . '), so setup will ask before continuing.';
         }
-        echo json_encode(['Status' => 'OK', 'Message' => $msg, 'NeedsJurisdiction' => $needsJurisdiction]);
+        echo json_encode(['Status' => 'OK', 'Message' => $msg, 'NeedsSetup' => (count($missing) > 0)]);
     } else {
         $errorMsg = is_array($result['message']) ? json_encode($result['message']) : $result['message'];
         echo json_encode(['Status' => 'Error', 'Message' => 'Restore failed: ' . $errorMsg]);
@@ -324,7 +325,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                             // configuration has no jurisdiction in it -- going to
                             // index.php would only be redirected here anyway, and
                             // the reload picks up the restored values.
-                            location.href = response.NeedsJurisdiction ? 'initialSetup.php' : 'index.php';
+                            location.href = response.NeedsSetup ? 'initialSetup.php' : 'index.php';
                         }, 500);
                     } else {
                         $('#uploadRestoreBtn').prop('disabled', false).html('<i class="fas fa-upload"></i> Upload & Restore');

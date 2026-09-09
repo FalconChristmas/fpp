@@ -156,6 +156,48 @@ function IsSimplePipeWireBackend($settingsArray = null)
     return ($mb === 'pipewire-simple');
 }
 
+/**
+ * Settings the setup wizard must have recorded, which are still missing.
+ *
+ * The jurisdiction plus the consent-bearing privacy settings. Read from the
+ * settings FILE, never $settings: $settings has settings.json defaults merged
+ * in, so every one of these would look answered when nobody had answered it --
+ * which is the whole failure this guards against.
+ *
+ * emailAddress is deliberately not required: it is optional contact detail, and
+ * "finish setup because you have not given an e-mail address" would be false.
+ *
+ * Safe to gate on. The privacy step renders all of these rows on every platform
+ * and Finish writes every one of them whether touched or not, so answering once
+ * always clears this.
+ *
+ * @return array Missing setting names, empty when nothing is outstanding.
+ */
+function MissingSetupSettings()
+{
+    global $settingGroups;
+
+    $required = array('LegalJurisdiction');
+    if (isset($settingGroups['initialSetup-privacy']['settings'])) {
+        foreach ($settingGroups['initialSetup-privacy']['settings'] as $k) {
+            if ($k !== 'emailAddress') {
+                $required[] = $k;
+            }
+        }
+    } else {
+        $required = array_merge($required,
+            array('statsPublish', 'ShareCrashData', 'FetchVendorLogos', 'SendVendorSerial'));
+    }
+
+    $missing = array();
+    foreach ($required as $k) {
+        if (ReadSettingFromFile($k) === false) {
+            $missing[] = $k;
+        }
+    }
+    return $missing;
+}
+
 function ReadSettingFromFile($settingName, $plugin = "")
 {
     global $settingsFile;

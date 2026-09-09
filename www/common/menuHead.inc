@@ -19,9 +19,17 @@
 // include runs before common.php on at least some pages.
 $fppNeedsSetup = (!isset($settings['initialSetup-02'])) || ($settings['initialSetup-02'] == '0');
 if (!$fppNeedsSetup) {
-    if (function_exists('ReadSettingFromFile')) {
-        $fppNeedsSetup = (ReadSettingFromFile('LegalJurisdiction') === false);
+    // Gating on the jurisdiction alone was not enough. Restoring a backup MERGES
+    // rather than replaces, so a box that already had a jurisdiction but restores
+    // a configuration carrying no privacy answers keeps the jurisdiction, passes
+    // the gate, and then runs on shipped defaults forever with nothing recorded
+    // and nothing left to ask it. MissingSetupSettings() in common.php is the one
+    // definition of what still needs answering; the restore handler uses the same
+    // one so the two cannot disagree.
+    if (function_exists('MissingSetupSettings')) {
+        $fppNeedsSetup = (count(MissingSetupSettings()) > 0);
     } else {
+        // This include runs before common.php on at least some pages.
         $fppNeedsSetup = empty($settings['LegalJurisdiction']);
     }
 }
