@@ -29,6 +29,7 @@
 #include <magick/magick.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <ctime>
@@ -1705,8 +1706,58 @@ static void StartMainLoopWatchdog() {
     std::thread(MainLoopWatchdog, warnSec, restartSec, shutdownSec).detach();
 }
 
+// How long to wait after statistics are switched on before the first upload.
+// Long enough that somebody who ticked the wrong box, or was looking around the
+// setup wizard, can put it back before anything is sent.
+#define STATS_OPT_IN_GRACE_SECONDS 120
+
+// Publish when the user turns statistics ON, rather than leaving them waiting
+// for the next scheduled ask.
+//
+// The main loop's ask is rate limited to once a day, and a box that booted with
+// statistics off has usually already spent that ask -- so somebody who enabled
+// them during setup could see nothing published for up to 24 hours, with no way
+// to tell whether it had worked. This makes the act of enabling the trigger.
+//
+// The grace period is the point of the delay: the setting is read AGAIN when the
+// timer fires, so switching it back off within the window cancels the upload
+// rather than merely delaying it. A generation counter means repeated toggling
+// leaves exactly one pending timer that acts, no matter how many were started.
+static std::atomic<uint64_t> statsOptInGeneration{ 0 };
+
+static void RegisterStatsOptInListener() {
+    registerSettingsListener("fppd-stats-optin", "statsPublish", [](const std::string& value) {
+        if (value != "Enabled") {
+            // Bumping the generation is what cancels a pending timer.
+            statsOptInGeneration++;
+            return;
+        }
+        uint64_t gen = ++statsOptInGeneration;
+        std::thread([gen]() {
+            std::this_thread::sleep_for(std::chrono::seconds(STATS_OPT_IN_GRACE_SECONDS));
+            if (statsOptInGeneration != gen) {
+                // LogInfo, not LogDebug: this and the check below are the two
+                // ways an opt-in ends in nothing being sent, and "nothing was
+                // sent and nothing was said" is indistinguishable from the timer
+                // never having been scheduled -- for someone reading the log to
+                // work out why, and for a test trying to prove the cancel path
+                // actually ran.
+                LogInfo(VB_GENERAL, "Statistics opt-in superseded by a later change, not publishing\n");
+                return;
+            }
+            if (getSetting("statsPublish") != "Enabled") {
+                LogInfo(VB_GENERAL, "Statistics were turned back off within %d seconds, not publishing\n",
+                        STATS_OPT_IN_GRACE_SECONDS);
+                return;
+            }
+            PublishStatsForce("Statistics enabled");
+        }).detach();
+    });
+}
+
 void MainLoop(void) {
     RegisterShutdownHandler(ShutdownFPPDCallback);
+    RegisterStatsOptInListener();
 
     PlaylistStatus prevFPPstatus = FPP_STATUS_IDLE;
     int sleepms = 50;
@@ -2086,12 +2137,28 @@ void PublishStatsBackground(std::string reason) {
     auto hours = std::chrono::duration_cast<std::chrono::hours>(now_ts - lastAsk);
 
     if (hours.count() >= STATS_PUBLISH_ASK_HOURS) {
-        lastAsk = now_ts;
-        if (getSetting("statsPublish") == "Enabled") {
+        std::string mode = getSetting("statsPublish");
+        if (mode == "Enabled") {
+            // Spend the budget only on a call that can actually do something.
+            // It used to be spent here unconditionally, which meant a box that
+            // booted with statistics off burned its one ask of the day on a
+            // branch that contacts nobody -- so a user who then turned them on
+            // during setup published nothing for up to 24 hours, unless a reboot
+            // happened to reset this static. Now the first tick after they opt
+            // in is the one that publishes.
+            lastAsk = now_ts;
             std::thread t(PublishStatsForce, reason);
             t.detach();
         } else {
-            LogInfo(VB_GENERAL, "Not Publishing statistics as mode is '%s'\n", getSetting("statsPublish").c_str());
+            // Not spending lastAsk means this branch is reached on every idle
+            // tick rather than daily, so the message needs its own limiter or it
+            // becomes a per-second log. The setting lookup itself is a cheap map
+            // read and is fine to repeat.
+            static auto lastLog = std::chrono::system_clock::now() - std::chrono::hours(STATS_PUBLISH_ASK_HOURS);
+            if (std::chrono::duration_cast<std::chrono::hours>(now_ts - lastLog).count() >= STATS_PUBLISH_ASK_HOURS) {
+                lastLog = now_ts;
+                LogInfo(VB_GENERAL, "Not Publishing statistics as mode is '%s'\n", mode.c_str());
+            }
         }
     } else {
         LogDebug(VB_GENERAL, "PublishStats called, but not time to ask yet.\n");
