@@ -3136,6 +3136,21 @@ function ApplyEmailConfig()
         return;
     }
 
+    // Debian Trixie split-config: transport 30_exim4-config_remote_smtp_smarthost
+    // honors .ifdef REMOTE_SMTP_SMARTHOST_PROTOCOL but ::465 no longer auto-defines it.
+    // FPP must set protocol = smtps for implicit-TLS on 465, and ensure 587/25 use plain smtp.
+    // Use dedicated conf.d/main/99_fpp_smarthost so we never clobber user's 00_local_macros.
+    $emailportInt = (int) $emailport;
+    $fppMacroStaged = $exim4Directory . '/99_fpp_smarthost';
+    $fppMacroLive = '/etc/exim4/conf.d/main/99_fpp_smarthost';
+    if ($emailportInt === 465) {
+        file_put_contents($fppMacroStaged, "REMOTE_SMTP_SMARTHOST_PROTOCOL=smtps\n");
+        exec("sudo mkdir -p /etc/exim4/conf.d/main && sudo cp " . escapeshellarg($fppMacroStaged) . " " . escapeshellarg($fppMacroLive));
+    } else {
+        @unlink($fppMacroStaged);
+        exec("sudo rm -f " . escapeshellarg($fppMacroLive));
+    }
+
     $exim4Conf = sprintf(
         "dc_eximconfig_configtype='smarthost'\n" .
         "dc_other_hostnames='%s'\n" .
