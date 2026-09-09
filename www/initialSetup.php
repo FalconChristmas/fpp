@@ -70,7 +70,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
     if (isset($result['success']) && $result['success']) {
         @WriteSettingToFile('initialSetup-02', '1');
         @WriteSettingToFile('rebootFlag', '1');
-        echo json_encode(['Status' => 'OK', 'Message' => 'Configuration restored successfully. A reboot is required for changes to take effect.']);
+
+        // A backup made before the legal jurisdiction existed -- or taken from a
+        // box that never answered it -- restores a configuration with no answer
+        // in it. The restore is still complete and initialSetup-02 stands: the
+        // only thing missing is the one question FPP cannot infer. Say so here
+        // so the caller can keep the user on this page instead of bouncing them
+        // to index.php and straight back again by way of the redirect in
+        // menuHead.inc.
+        //
+        // Note the restore MERGES: a jurisdiction already recorded is not
+        // cleared by a backup that lacks one, so this only fires where there
+        // genuinely is no answer.
+        $needsJurisdiction = (ReadSettingFromFile('LegalJurisdiction') === false);
+        $msg = 'Configuration restored successfully. A reboot is required for changes to take effect.';
+        if ($needsJurisdiction) {
+            $msg .= ' This backup does not say which privacy rules apply to this player, so setup will ask for that before continuing.';
+        }
+        echo json_encode(['Status' => 'OK', 'Message' => $msg, 'NeedsJurisdiction' => $needsJurisdiction]);
     } else {
         $errorMsg = is_array($result['message']) ? json_encode($result['message']) : $result['message'];
         echo json_encode(['Status' => 'Error', 'Message' => 'Restore failed: ' . $errorMsg]);
@@ -303,7 +320,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                         $('#restoreDialog').fppDialog('close');
                         Put('api/settings/initialSetup-02', false, '1');
                         setTimeout(function () {
-                            location.href = 'index.php';
+                            // Straight back to this page when the restored
+                            // configuration has no jurisdiction in it -- going to
+                            // index.php would only be redirected here anyway, and
+                            // the reload picks up the restored values.
+                            location.href = response.NeedsJurisdiction ? 'initialSetup.php' : 'index.php';
                         }, 500);
                     } else {
                         $('#uploadRestoreBtn').prop('disabled', false).html('<i class="fas fa-upload"></i> Upload & Restore');
