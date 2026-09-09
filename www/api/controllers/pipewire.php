@@ -18,6 +18,30 @@
 require_once '../commandsocket.php';
 
 /////////////////////////////////////////////////////////////////////////////
+// Every context.objects entry PipeWire creates is mandatory by default: if one
+// fails, the daemon aborts context creation and exits (234).  systemd restarts
+// it, and because fpp-pipewire.service sets StartLimitIntervalSec=0 it never
+// gives up -- so one un-openable object crash-loops the whole media stack
+// forever, taking audio, video routing, AES67, Opus RTP and RTSP with it.
+//
+// That is not hypothetical for the adapters below.  They are backed by real
+// hardware, which can be absent for reasons entirely outside FPP: a USB adapter
+// unplugged between boots, a card another process already holds, or -- the case
+// this was found on -- an HDMI monitor that is switched off, whose vc4 audio
+// device is still registered in /proc/asound/cards but returns ENOTSUPP on open
+// because the powered-down display supplies no ELD.  A show controller's HDMI
+// monitor being off is the normal state, not a fault.
+//
+// nofail makes such a failure skip just that object: the node is not created,
+// the reason is still logged, and everything else in the graph comes up.  The
+// missing node is then visible on the Troubleshooting page rather than being
+// inferred from a daemon that will not start.
+//
+// KEEP IN SYNC with kNoFailFlag in src/boot/FPPINIT_Audio.cpp, which generates
+// the same confs at boot.
+define('PW_NOFAIL_FLAG', 'flags = [ nofail ]');
+
+/////////////////////////////////////////////////////////////////////////////
 // Helper: the request body for a volume setter.
 // Normally these are reached as HTTP routes and read php://input, but they are
 // also called directly (with an explicit body) by SystemSetAudio() in
@@ -4480,6 +4504,7 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
             $conf .= "      monitor.channel-volumes = true\n";
             $conf .= "      monitor.passthrough = true\n";
             $conf .= "    }\n";
+            $conf .= "    " . PW_NOFAIL_FLAG . "\n";
             $conf .= "  }\n";
         }
         $conf .= "]\n\n";
@@ -5155,6 +5180,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
         $conf .= "      audio.position = [ FL FR ]\n";
         $conf .= "      monitor.channel-volumes = true\n";
         $conf .= "    }\n";
+        $conf .= "    " . PW_NOFAIL_FLAG . "\n";
         $conf .= "  }\n";
         $conf .= "]\n";
         if ($returnCardMap) {
@@ -5784,6 +5810,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
             $conf .= "      audio.channels = " . $info['channels'] . "\n";
             $conf .= "      audio.position = $posStr\n";
             $conf .= "    }\n";
+            $conf .= "    " . PW_NOFAIL_FLAG . "\n";
             $conf .= "  }\n";
             // Override cardNodeMap so filter-chain targets our multi-channel adapter
             $cardNodeMap[$cid] = $info['nodeName'];

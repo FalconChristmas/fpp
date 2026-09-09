@@ -595,9 +595,13 @@ section_graph() {
     if [ "${missing}" -eq 0 ]; then
         pass "Every node the config declares exists in the graph"
     else
-        note "${missing} node(s) the config asks for were never created.  The"
-        note "module that creates them failed to load - check the service log"
-        note "for the matching module-filter-chain / module-combine-stream line."
+        note "${missing} node(s) the config asks for were never created."
+        note "For an fpp_alsa_* node this means the card would not open, so"
+        note "PipeWire skipped it (the generated adapters carry nofail, which"
+        note "is what stops one bad card taking the whole daemon down) -- the"
+        note "ALSA Hardware section names the device and the reason."
+        note "For anything else, check the service log for the matching"
+        note "module-filter-chain / module-combine-stream line."
     fi
 
     hdr "Link targets that cannot resolve"
@@ -791,12 +795,37 @@ section_alsa() {
                 echo "[SKIP] '${gname}' member ${cardId} is a virtual output, not a card"
                 continue ;;
             esac
-            if grep -qE "^ *[0-9]+ \[${cardId}[ ]*\]" /proc/asound/cards 2>/dev/null; then
-                echo "[PASS] '${gname}' member card ${cardId} (${cardName}) is present"
-            else
+            if ! grep -qE "^ *[0-9]+ \[${cardId}[ ]*\]" /proc/asound/cards 2>/dev/null; then
                 echo "[FAIL] '${gname}' member card ${cardId} (${cardName}) is NOT present"
                 echo "       This member of the group is silent.  Reconnect the device,"
                 echo "       or remove the member from the group."
+                continue
+            fi
+            # Being registered is not the same as being usable.  An HDMI audio
+            # device stays in /proc/asound/cards while its monitor is powered
+            # off, and a card another process holds is registered too -- so ask
+            # the device itself whether it will open.
+            probe=$(timeout 3 aplay -D "hw:${cardId}" --dump-hw-params /dev/zero 2>&1)
+            if echo "${probe}" | grep -q "HW Params"; then
+                echo "[PASS] '${gname}' member card ${cardId} (${cardName}) is present and opens"
+            elif echo "${probe}" | grep -qi "busy"; then
+                # Busy is what a working card looks like while PipeWire has it.
+                echo "[PASS] '${gname}' member card ${cardId} (${cardName}) is present and in use"
+            else
+                why=$(echo "${probe}" | grep -i "open error" | sed 's/.*open error: //' | head -1)
+                echo "[FAIL] '${gname}' member card ${cardId} (${cardName}) is registered but will not open"
+                echo "       ALSA says: ${why:-unknown error}"
+                echo "       It is listed in /proc/asound/cards, so it looks present"
+                echo "       everywhere else, but nothing can play to it."
+                case "${why}" in
+                    *524*|*"not supported"*)
+                        echo "       Error 524 on an HDMI device means the display supplied no"
+                        echo "       audio capability (ELD).  The usual cause is a monitor that"
+                        echo "       is switched off or in standby: the cable still asserts"
+                        echo "       hotplug, so the connector reads as connected, but there is"
+                        echo "       no audio sink behind it.  Power the display on, or remove"
+                        echo "       this member from the group." ;;
+                esac
             fi
         done
     else

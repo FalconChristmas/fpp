@@ -604,6 +604,26 @@ static std::string alsaSinkConfUsbHeadroomTag(const std::set<std::string>& share
     return tag;
 }
 
+// Every context.objects entry PipeWire creates is mandatory by default: if one
+// fails, the daemon aborts context creation and exits (234).  systemd then
+// restarts it, and because fpp-pipewire.service sets StartLimitIntervalSec=0 it
+// never gives up -- so one un-openable object crash-loops the whole media stack
+// forever, taking audio, video routing, AES67, Opus RTP and RTSP with it.
+//
+// That is not hypothetical for the objects below.  They are backed by real
+// hardware, which can be absent for reasons entirely outside FPP: a USB adapter
+// unplugged between boots, a card another process already holds, or -- the case
+// this was found on -- an HDMI monitor that is switched off, whose vc4 audio
+// device is still registered in /proc/asound/cards but returns ENOTSUPP on open
+// because the powered-down display supplies no ELD.  A show controller's HDMI
+// monitor being off is the normal state, not a fault.
+//
+// nofail makes such a failure skip just that object: the node is not created,
+// the reason is still logged, and everything else in the graph comes up.  The
+// missing node is then visible on the Troubleshooting page rather than being
+// inferred from a daemon that will not start.
+static constexpr const char* kNoFailFlag = "flags = [ nofail ]";
+
 // Build the contents of 97-fpp-audio-groups.conf for the Simple-mode synthetic
 // group: a single 2-channel "Default" group whose one member is the selected
 // sound card.  This reproduces, byte-for-byte for the simple case, what
@@ -666,6 +686,7 @@ static std::string buildSimplePipeWireGroupsConf(int card, const std::string& cI
         c << "      audio.position = [ FL FR ]\n";
         c << "      monitor.channel-volumes = true\n";
         c << "    }\n";
+        c << "    " << kNoFailFlag << "\n";
         c << "  }\n";
         c << "]\n";
         return c.str();
@@ -732,6 +753,7 @@ static std::string buildSimplePipeWireGroupsConf(int card, const std::string& cI
         c << "      audio.channels = 2\n";
         c << "      audio.position = [ FL FR ]\n";
         c << "    }\n";
+        c << "    " << kNoFailFlag << "\n";
         c << "  }\n";
         c << "]\n\n";
     }
@@ -1917,6 +1939,7 @@ static void runAudioSetup(bool recoveryPass) {
                          << "      audio.channels = " << maxChannels << "\n"
                          << "      audio.position = " << posStr << "\n"
                          << "    }\n"
+                         << "    " << kNoFailFlag << "\n"
                          << "  }\n";
             bootAdapterCids.insert(cidNorm);
             // If this card has capture capability, also create an Audio/Source node.
@@ -1954,6 +1977,7 @@ static void runAudioSetup(bool recoveryPass) {
                              << "      audio.rate = 44100\n"
                              << "      audio.channels = " << capChannels << "\n"
                              << "    }\n"
+                             << "    " << kNoFailFlag << "\n"
                              << "  }\n";
             }
         }
