@@ -26,7 +26,11 @@ if (isset($_FILES['firmware']) && isset($_FILES['firmware']['tmp_name'])) {
 
     $fn = isset($_GET['filename']) ? $_GET['filename'] : $_POST['filename'];
 
-    if (preg_match('/^http/', $fn)) {
+    // Zero-risk traversal block: reject .. and null bytes without allow-list
+    if (strpos($fn, '..') !== false || strpos($fn, "\0") !== false) {
+        echo "Invalid filename: traversal not allowed\n";
+        $file = '';
+    } else if (preg_match('/^http/', $fn)) {
         $file = '/home/fpp/media/tmp/tmp-eeprom.bin';
         echo "Downloading $fn to $file \n\n";
         system("/usr/bin/wget -O " . escapeshellarg($file) . " " . escapeshellarg($fn) . " 2>&1");
@@ -38,15 +42,48 @@ if (isset($_FILES['firmware']) && isset($_FILES['firmware']['tmp_name'])) {
         }
         $unlink = 1;
     } else if (preg_match('/\/opt\/fpp\/capes/', $fn)) {
-        $file = $fn;
+        // Ensure the resolved path stays under /opt/fpp/capes
+        $realBase = realpath('/opt/fpp/capes');
+        $realPath = realpath($fn);
+        // realpath returns false if file doesn't exist yet — fall back to string prefix check
+        if ($realPath) {
+            if (!$realBase || strpos($realPath, $realBase) !== 0) {
+                echo "Invalid cape file path\n";
+                $file = '';
+            } else {
+                $file = $fn;
+            }
+        } else {
+            // File may not exist yet; ensure the string starts with the base and has no .. (already checked)
+            if (strpos($fn, '/opt/fpp/capes/') !== 0) {
+                echo "Invalid cape file path\n";
+                $file = '';
+            } else {
+                $file = $fn;
+            }
+        }
 
-        if (file_exists('/home/fpp/media/config/cape-eeprom.bin')) {
+        if ($file !== '' && file_exists('/home/fpp/media/config/cape-eeprom.bin')) {
             unlink('/home/fpp/media/config/co-bbbStrings.json');
             unlink('/home/fpp/media/config/co-pixelStrings.json');
         }
 
     } else {
-        $file = $uploadDirectory . '/' . $fn;
+        // For uploads, only allow a plain filename (no directory) to stay within uploadDirectory
+        $baseName = basename($fn);
+        if ($baseName !== $fn || $baseName === '' || strpos($baseName, '/') !== false || strpos($baseName, '\\') !== false) {
+            echo "Invalid filename\n";
+            $file = '';
+        } else {
+            $file = $uploadDirectory . '/' . $baseName;
+            // Extra containment: ensure parent dir is still uploadDirectory
+            $realBase = realpath($uploadDirectory);
+            $realParent = realpath(dirname($file));
+            if ($realBase && $realParent && strpos($realParent, $realBase) !== 0) {
+                echo "Invalid filename\n";
+                $file = '';
+            }
+        }
     }
 }
 

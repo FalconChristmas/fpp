@@ -49,6 +49,11 @@ function script_get()
 
     $dir = $settings['scriptDirectory'];
     $script = params('scriptName');
+    // Zero-risk traversal block: reject .., /, \, null — covers ../../etc/passwd without allow-list
+    if (strpos($script, '..') !== false || strpos($script, '/') !== false || strpos($script, '\\') !== false || strpos($script, "\0") !== false) {
+        http_response_code(400);
+        return json(array("status" => "Invalid scriptName"));
+    }
     $filename = $dir . '/' . $script;
 
     $header = "Content-type: text/plain";
@@ -75,6 +80,10 @@ function script_save()
 {
     global $settings;
     $scriptName = params("scriptName");
+    if (strpos($scriptName, '..') !== false || strpos($scriptName, '/') !== false || strpos($scriptName, '\\') !== false || strpos($scriptName, "\0") !== false) {
+        http_response_code(400);
+        return json(array("status" => "Invalid scriptName"));
+    }
     $json = strval(file_get_contents('php://input'));
     $content = json_decode($json, true);
     $filename = $settings['scriptDirectory'] . '/' . $scriptName;
@@ -124,7 +133,11 @@ function script_run()
     global $settings;
 
     $script = params('scriptName');
-    $curl = curl_init('http://localhost:32322/command/Run%20Script/' . $script);
+    if (strpos($script, '..') !== false || strpos($script, '/') !== false || strpos($script, '\\') !== false || strpos($script, "\0") !== false) {
+        http_response_code(400);
+        return json(array("status" => "Invalid scriptName"));
+    }
+    $curl = curl_init('http://localhost:32322/command/Run%20Script/' . rawurlencode($script));
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
