@@ -224,6 +224,7 @@ dispatch_post('/plugin/fetchInfo', 'FetchPluginInfoProxy');
 dispatch_get('/plugin/popularity', 'GetPluginPopularity'); // keep above /plugin/:RepoName
 dispatch_get('/plugin/githubStats', 'GetPluginGitHubStats'); // keep above /plugin/:RepoName
 dispatch_get('/plugin/source', 'GetPluginSource'); // keep above /plugin/:RepoName
+dispatch_get('/plugin/releaseNotes', 'GetPluginReleaseNotes'); // keep above /plugin/:RepoName
 dispatch_get('/plugin/:RepoName', 'GetPluginInfo');
 dispatch_get('/plugin/:RepoName/icon', 'PluginServeIcon');
 dispatch_get('/plugin/:RepoName/page', 'GetPluginPageUrl');
