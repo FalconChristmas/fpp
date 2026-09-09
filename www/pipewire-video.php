@@ -330,6 +330,23 @@
             return name.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
         }
 
+        function HelpIcon(text) {
+            return ' <img src="images/redesign/help-icon.svg" class="icon-help" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="auto" title="' + EscapeAttr(text) + '">';
+        }
+
+        // The group cards are rebuilt wholesale on every render, so any tooltip
+        // instance still bound to a discarded node has to be disposed first or
+        // Bootstrap leaks it and a stale popup can outlive its icon.
+        function InitTooltips() {
+            $('[data-bs-toggle="tooltip"]').each(function () {
+                var existing = bootstrap.Tooltip.getInstance(this);
+                if (existing) existing.dispose();
+            });
+            $('[data-bs-toggle="tooltip"]').each(function () {
+                new bootstrap.Tooltip(this);
+            });
+        }
+
         $(document).ready(function () {
             CheckPipeWireStatus();
             $.when(LoadTargets(), LoadVideoSources()).then(function () {
@@ -435,6 +452,13 @@
         // Render all group cards
         function RenderGroups() {
             var container = $('#groupsContainer');
+            // Dispose before emptying: a tooltip that is open at render time has
+            // its popup parented to <body>, so dropping the icon alone would
+            // strand it on screen with nothing left to close it.
+            container.find('[data-bs-toggle="tooltip"]').each(function () {
+                var existing = bootstrap.Tooltip.getInstance(this);
+                if (existing) existing.dispose();
+            });
             container.empty();
             container.append(UnsavedChangesBanner());
 
@@ -465,6 +489,8 @@
             for (var i = 0; i < videoGroups.videoOutputGroups.length; i++) {
                 container.append(RenderGroupCard(videoGroups.videoOutputGroups[i], i));
             }
+
+            InitTooltips();
         }
 
         /////////////////////////////////////////////////////////////////////////////
@@ -679,6 +705,16 @@
                     html += '<option value="fill"' + (scaling === 'fill' ? ' selected' : '') + '>Fill</option>';
                     html += '<option value="stretch"' + (scaling === 'stretch' ? ' selected' : '') + '>Stretch</option>';
                     html += '</select>';
+                    html += HelpIcon(
+                        '<b>How the video is scaled onto this display:</b><br><br>' +
+                        '<b>Fit</b> \u2014 scales the video until the whole frame fits on the display, ' +
+                        'keeping the original aspect ratio. Nothing is cropped; black bars fill the ' +
+                        'leftover space when the video and display shapes differ.<br><br>' +
+                        '<b>Fill</b> \u2014 scales the video until it covers the display, keeping the ' +
+                        'original aspect ratio. No black bars, but the overhanging edges are cropped.<br><br>' +
+                        '<b>Stretch</b> \u2014 stretches the video to the exact display size, ignoring ' +
+                        'aspect ratio. Nothing is cropped or letterboxed, but the picture is distorted ' +
+                        'when the shapes differ.');
 
                     // Region: which slice of the source lands on this display.
                     // Giving two displays opposite halves splits one video
