@@ -61,7 +61,7 @@ PrintSettingGroup('generalAudio');
         PrintSettingGroup('pipeWireAudio', '', '', 1, '', '', false);
         ?>
 
-        <h2>PipeWire Network Streams</h2>
+        <h2>PipeWire Audio Network Streams</h2>
 
         <?
         PrintSettingGroup('pipeWireStreams', '', '', 1, '', '', false);

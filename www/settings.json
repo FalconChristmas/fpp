@@ -156,7 +156,7 @@
 			]
 		},
 		"pipeWireStreams": {
-			"description": "PipeWire Network Streams",
+			"description": "PipeWire Audio Network Streams",
 			"settings": [
 				"PipeWireAES67Config",
 				"PipeWireOpusRTPConfig"
@@ -2826,7 +2826,13 @@
 		},
 		"ShareCrashData": {
 			"name": "ShareCrashData",
-			"transmitRank": { "-1": 0, "0": 0, "1": 1, "2": 2, "3": 3 },
+			"transmitRank": {
+				"-1": 0,
+				"0": 0,
+				"1": 1,
+				"2": 2,
+				"3": 3
+			},
 			"description": "Share Crash Data with FPP Developers",
 			"gatherStats": true,
 			"tip": "Create a crash report if fppd crashes, and send it to the FPP developers.  'Keep locally' still writes a full report to the crashes folder so you can look at it or submit it yourself, but sends nothing; 'Disabled' does not write one at all.  'Send stack traces only' sends the crash stack, the fault registers, the playlist position, the list of installed plugins and - if you gave one - the contact email address below, so we can ask you about it; it does not send this device's name, network addresses or settings.  The other options add settings and configuration files that help reproduce the problem; passwords, Wi-Fi passphrases, e-mail addresses and location are removed, and the network interface configuration is never included.",
@@ -2842,7 +2848,10 @@
 		},
 		"SendVendorSerial": {
 			"name": "SendVendorSerial",
-			"transmitRank": { "0": 0, "1": 1 },
+			"transmitRank": {
+				"0": 0,
+				"1": 1
+			},
 			"description": "Send cape serial numbers to vendors",
 			"gatherStats": true,
 			"tip": "Some capes/hats send an identifying serial number to the vendor each time you load the FPP UI.  The vendor can use this information to personally identify you.",
@@ -2901,7 +2910,11 @@
 		},
 		"statsPublish": {
 			"name": "statsPublish",
-			"transmitRank": { "Disabled": 0, "Banner": 0, "Enabled": 1 },
+			"transmitRank": {
+				"Disabled": 0,
+				"Banner": 0,
+				"Enabled": 1
+			},
 			"description": "Share Statistics",
 			"tip": "Configures if anonymous hardware and feature statistics are shared with the FPP Development team. (FPP must have access to the Internet.) A value of \"Banner\" will result in a prompt being displayed on the user's screen. Setting this to \"Enabled\" or \"Disabled\" removes the banner",
 			"level": 0,
