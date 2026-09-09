@@ -47,6 +47,9 @@ PW_CONFD="/etc/pipewire/pipewire.conf.d"
 WP_CONFD="/etc/wireplumber/wireplumber.conf.d"
 PW_SERVICES="fpp-pipewire fpp-wireplumber fpp-pipewire-pulse"
 
+# AES67's fixed media clock (AES67::AUDIO_RATE in src/mediaoutput/AES67Manager.h).
+AES67_RATE=48000
+
 export PIPEWIRE_RUNTIME_DIR="${PW_RUNTIME}"
 export XDG_RUNTIME_DIR="${PW_RUNTIME}"
 export PULSE_RUNTIME_PATH="${PW_RUNTIME}/pulse"
@@ -70,6 +73,21 @@ setting() {
     [ -f "${SETTINGSFILE}" ] || return 0
     sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" "${SETTINGSFILE}" 2>/dev/null |
         head -1 | sed -e 's/^"//' -e 's/"$//'
+}
+
+# One key out of PipeWire's settings metadata, empty if unreadable.  Cached
+# because the AES67 rate check and the performance section both want it and
+# pw-metadata costs a round trip to the daemon.
+PW_META_FILE="${TMPDIR_DIAG}/pw-metadata.txt"
+PW_META_STATE=""
+pw_setting() {
+    if [ -z "${PW_META_STATE}" ]; then
+        PW_META_STATE="done"
+        have pw-metadata &&
+            timeout 5 pw-metadata -n settings > "${PW_META_FILE}" 2>/dev/null
+    fi
+    [ -s "${PW_META_FILE}" ] || return 0
+    sed -n "s/.*key:'$1' value:'\([^']*\)'.*/\1/p" "${PW_META_FILE}" 2>/dev/null | head -1
 }
 
 # pw-dump once per run; every graph check reads the cached copy.  Without the
@@ -1178,6 +1196,53 @@ section_network() {
             skip "PTP is not enabled"
         fi
 
+        hdr "Graph clock rate (AES67)"
+        # AES67 is a 48 kHz interoperability profile: the payload format is
+        # fixed, so a sender never emits anything else.  A graph running at
+        # some other rate therefore does not fail -- PipeWire silently puts an
+        # adaptive resampler in front of the sender and it transmits valid
+        # 48 kHz audio.  That is worth naming rather than leaving to be
+        # inferred from a rate printed in another section: it costs CPU, adds
+        # latency, and undoes some of the point of a clock-locked stream.
+        aesN=$(jq -r "${JQ_ENABLED}"' [.instances[]? | select(enabled)] | length' "${aesj}" 2>/dev/null)
+        if [ "${aesN:-0}" -eq 0 ] 2>/dev/null; then
+            skip "No AES67 streams enabled"
+        else
+            gRate=$(pw_setting clock.rate)
+            gAllowed=$(pw_setting clock.allowed-rates)
+            if [ -z "${gRate}" ]; then
+                skip "Graph clock rate is not readable (pw-metadata unavailable)"
+            elif [ "${gRate}" = "${AES67_RATE}" ]; then
+                pass "Graph clock is ${gRate} Hz, matching AES67"
+            else
+                warn "Graph clock is ${gRate} Hz, but AES67 is ${AES67_RATE} Hz only"
+                note "The stream is still valid: PipeWire resamples into the sender."
+                note "It costs CPU and latency on a stream that exists to be clock-locked."
+                case "${gAllowed}" in
+                    *"${AES67_RATE}"*)
+                        note "${AES67_RATE} is in clock.allowed-rates, so the graph can switch to it." ;;
+                    "") ;;
+                    *)  note "${AES67_RATE} is NOT in clock.allowed-rates (${gAllowed}), so the"
+                        note "graph can never switch and the resampler is permanent." ;;
+                esac
+                # Which file wins is not the obvious one: conf.d is read in
+                # name order, so a higher-numbered generated file overrides the
+                # rate 90-fpp.conf asks for.  Printing the chain saves an
+                # editing session spent on a file that is being overridden.
+                rateFiles=$(grep -l "default\.clock\.rate" "${PW_CONFD}"/*.conf 2>/dev/null | sort)
+                if [ -n "${rateFiles}" ]; then
+                    note "default.clock.rate is set by, in the order conf.d reads them:"
+                    for rf in ${rateFiles}; do
+                        rv=$(sed -n 's/.*default\.clock\.rate[^0-9]*\([0-9][0-9]*\).*/\1/p' "${rf}" 2>/dev/null | head -1)
+                        echo "         $(basename "${rf}") = ${rv:-?}"
+                    done
+                    note "The last one listed wins."
+                fi
+                note "To change it: Audio Sample Rate on the Audio settings page, or"
+                note "the per-card rate in PipeWire Audio Groups in Advanced mode."
+            fi
+        fi
+
         hdr "Multicast routing (AES67 / SAP)"
         # With one interface up the default route is the only place multicast
         # can go and no explicit route is needed.  With two it becomes a
@@ -1495,18 +1560,48 @@ section_performance() {
     # An xrun is the graph missing its deadline: the audible symptom is a
     # click or a gap.  A non-zero and rising count is the difference between
     # 'audio is broken' and 'audio is fine but the Pi is overloaded'.
+    #
+    # pw-top's counts live in the ERR column, and are cumulative for the life
+    # of the node -- a node that glitched once while its links were being
+    # built carries that 1 forever.  So the total is reported per node, and
+    # the wording says to re-run rather than implying it is happening now.
+    # The column is located by header name: reading a fixed field number got
+    # WAIT ("852.3us" -> 8523) and reported gibberish totals in the thousands.
+    #
+    # -n 2 because pw-top's first pass is a priming snapshot that reports all
+    # zeros; only the last snapshot holds real measurements.
     if have pw-top; then
         if timeout 10 pw-top -b -n 2 > "${TMPDIR_DIAG}/pwtop.txt" 2>/dev/null &&
            [ -s "${TMPDIR_DIAG}/pwtop.txt" ]; then
-            tail -30 "${TMPDIR_DIAG}/pwtop.txt" | sed 's/^/       /'
-            xr=$(awk 'NR>1 {gsub(/[^0-9]/,"",$5); if ($5 != "" && $5+0 > 0) s+=$5} END {print s+0}' \
-                 "${TMPDIR_DIAG}/pwtop.txt" 2>/dev/null)
-            if [ "${xr:-0}" -eq 0 ] 2>/dev/null; then
+            # Display the final snapshot only; two stacked copies of the graph
+            # read as duplicate nodes.
+            awk '/^S +ID/ {buf = $0 "\n"; next} {buf = buf $0 "\n"} END {printf "%s", buf}' \
+                "${TMPDIR_DIAG}/pwtop.txt" 2>/dev/null | head -40 | sed 's/^/       /'
+
+            errs=$(awk '
+                /^S +ID/ { errcol = 0
+                           for (i = 1; i <= NF; i++) if ($i == "ERR") errcol = i
+                           delete seen; next }
+                errcol && $errcol ~ /^[0-9]+$/ && $errcol + 0 > 0 { seen[$NF] = $errcol + 0 }
+                END { for (k in seen) print seen[k], k }
+            ' "${TMPDIR_DIAG}/pwtop.txt" 2>/dev/null | sort -rn)
+            hasErrCol=$(awk '/^S +ID/ {for (i = 1; i <= NF; i++) if ($i == "ERR") {print "yes"; exit}}' \
+                        "${TMPDIR_DIAG}/pwtop.txt" 2>/dev/null)
+
+            if [ -z "${hasErrCol}" ]; then
+                skip "pw-top output has no ERR column - cannot count xruns"
+            elif [ -z "${errs}" ]; then
                 pass "No xruns reported"
             else
-                warn "${xr} xrun(s) reported - audio is dropping out"
-                note "Raise default.clock.quantum in ${PW_CONFD}/90-fpp.conf,"
-                note "or reduce what else is running during playback."
+                xr=$(echo "${errs}" | awk '{s += $1} END {print s+0}')
+                warn "${xr} xrun(s) counted since the graph started"
+                echo "${errs}" | awk '{printf "       %s  %s\n", $1, $2}'
+                note "These are lifetime totals per node, not a rate.  A handful"
+                note "picked up while links were being built is normal and needs"
+                note "no action; re-run this check to see whether they are still"
+                note "climbing while audio is playing."
+                note "If they are climbing: raise default.clock.quantum in"
+                note "${PW_CONFD}/90-fpp.conf, or reduce what else is running."
             fi
         else
             skip "pw-top produced no output (daemon not reachable)"
