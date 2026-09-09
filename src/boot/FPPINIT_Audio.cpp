@@ -2128,6 +2128,33 @@ static void runAudioSetup(bool recoveryPass) {
         printf("FPP - No sound card: audio config predates the null sink, regenerating\n");
         simpleConfigStale = true;
     }
+    // 97-fpp-audio-groups.conf and 95-fpp-alsa-sink.conf can end up declaring
+    // the same fpp_alsa_* node for the same card, and none of the tests above
+    // notice: they all ask about the *card*, which has not changed.
+    //
+    // buildSimplePipeWireGroupsConf() emits its own adapter only when the card
+    // had no boot adapter at the time (cardHasBootAdapter, from bootAdapterCids
+    // below).  That answer goes stale as soon as 95 is regenerated with the card
+    // present -- a USB card that enumerates after the first pass, or the
+    // recovery pass re-running this whole function -- and nothing re-runs the
+    // simple generator afterwards to hand ownership back.
+    //
+    // The result is two adapters on one PCM under one node.name.  That is the
+    // failure ensureWirePlumberAlsaDupeSuppression() exists to prevent from the
+    // WirePlumber side: the loser's snd_pcm_open() returns EBUSY, its node goes
+    // to error, and a stream that landed on it blocks in poll() forever.  The
+    // rule there cannot see this one, because both declarations are static.
+    //
+    // Self-limiting: the regenerated conf omits the adapter (the card now has a
+    // boot adapter), so this cannot hold on the following pass.
+    if (!simpleConfigStale && selCid != "Dummy" &&
+        bootAdapterCids.count(normalizeCardIdForNode(selCid)) > 0 &&
+        contains(GetFileContents("/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf"),
+                 "node.name = \"fpp_alsa_" + normalizeCardIdForNode(selCid) + "\"")) {
+        printf("FPP - Simple audio config duplicates the boot ALSA adapter for %s; regenerating\n",
+               selCid.c_str());
+        simpleConfigStale = true;
+    }
     if (usePipeWireBackend && !runningInDocker && mediaBackendLower == "pipewire-simple"
         && simpleConfigStale) {
         // The simple config is missing or points at an absent card (fresh flash,

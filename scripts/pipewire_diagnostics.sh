@@ -100,6 +100,21 @@ pw_setting() {
     sed -n "s/.*key:'$1' value:'\([^']*\)'.*/\1/p" "${PW_META_FILE}" 2>/dev/null | head -1
 }
 
+# The default-device metadata, which is a different metadata object from the
+# settings one above ("-n default" vs "-n settings") and holds the default sink
+# and source rather than the clock.
+PW_DEFAULT_FILE="${TMPDIR_DIAG}/pw-default.txt"
+PW_DEFAULT_STATE=""
+pw_default() {
+    if [ -z "${PW_DEFAULT_STATE}" ]; then
+        PW_DEFAULT_STATE="done"
+        have pw-metadata &&
+            timeout 5 pw-metadata -n default > "${PW_DEFAULT_FILE}" 2>/dev/null
+    fi
+    [ -s "${PW_DEFAULT_FILE}" ] || return 0
+    sed -n "s/.*key:'$1' value:'\([^']*\)'.*/\1/p" "${PW_DEFAULT_FILE}" 2>/dev/null | head -1
+}
+
 # pw-dump once per run; every graph check reads the cached copy.  Without the
 # timeout a down daemon hangs the whole page rather than failing a check.
 PW_DUMP_FILE="${TMPDIR_DIAG}/pw-dump.json"
@@ -690,12 +705,22 @@ section_config() {
             note "  sudo systemctl restart fpp-pipewire fpp-wireplumber fpp-pipewire-pulse"
         fi
     fi
-    # The generated sink conf records the rate it was built for; if that no
-    # longer matches the base conf the two were generated at different times.
+    # The two rates in that file are deliberately different things and are
+    # expected to disagree: the "# configured rate:" tag records what the
+    # AudioFormat setting *asked for*, while default.clock.rate records what the
+    # selected card's PCM actually clocks at.  A fixed-bit-clock cape refines the
+    # request upward -- an AM62x PCM5102A clocks no lower than 88200, so a 44100
+    # request lands on 88200 -- and the generator keeps both on purpose so a
+    # later boot can tell "the setting changed" from "the hardware refined it"
+    # (see alsaSinkConfRateTag() in src/boot/FPPINIT_Audio.cpp).  Reporting the
+    # difference as a fault sent the reader looking for a problem that is the
+    # design working.  Whether the graph is actually resampling is the check
+    # above, against the running clock.
     genRate=$(sed -n 's/^# configured rate: *\([0-9]*\).*/\1/p' \
               "${PW_CONFD}/95-fpp-alsa-sink.conf" 2>/dev/null | head -1)
     if [ -n "${genRate}" ] && [ -n "${sinkRate}" ] && [ "${genRate}" != "${sinkRate}" ]; then
-        warn "95-fpp-alsa-sink.conf says it was generated for ${genRate} but sets ${sinkRate}"
+        info "Audio Sample Rate asked for ${genRate}; the card clocks at ${sinkRate},"
+        note "which is what the graph is pinned to.  Expected - not a mismatch."
     fi
 
     hdr "ALSA compatibility shim"
@@ -1008,6 +1033,29 @@ section_graph() {
         timeout 5 wpctl status 2>/dev/null | grep -A2 -i "default" | sed 's/^/       /' | head -10
         defsink=$(timeout 5 wpctl status 2>/dev/null | grep -E "^\s+\*" | head -3)
         [ -n "${defsink}" ] && echo "${defsink}" | sed 's/^/       /'
+    fi
+    # WirePlumber keeps two of these: default.audio.sink is what the graph
+    # settled on, default.configured.audio.sink is the sticky preference a
+    # "set default" wrote.  Only the second survives the node it names being
+    # deleted, which is what switching backend mode does to every group sink of
+    # the mode being left.  The graph falls back and audio keeps working, so
+    # nothing complains -- until a node of that name exists again and silently
+    # takes the default back.
+    cfgSink=$(pw_default default.configured.audio.sink |
+              sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+    liveSink=$(pw_default default.audio.sink |
+               sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+    if [ -n "${cfgSink}" ]; then
+        if grep -qx "${cfgSink}" "${TMPDIR_DIAG}/graph-nodes.txt" 2>/dev/null; then
+            pass "The configured default sink (${cfgSink}) exists"
+        else
+            warn "The configured default sink '${cfgSink}' does not exist in the graph"
+            note "Left behind by a node that has since gone -- a backend mode"
+            note "switch or a removed group.  The graph is using ${liveSink:-a fallback}"
+            note "instead, so audio works, but a future node of that name would"
+            note "silently take the default back.  Clear it with:"
+            note "  wpctl set-default <id of the sink you want>"
+        fi
     fi
 
 }
