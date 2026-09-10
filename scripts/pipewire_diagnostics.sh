@@ -74,15 +74,35 @@ have() { command -v "$1" >/dev/null 2>&1; }
 # open a card to probe it (aplay --dump-hw-params), so without this the run
 # finds its own children holding /dev/snd and reports them as foreign
 # processes stealing the device (issue #2934).
+#
+# The variable names are deliberately private: POSIX sh has no locals, and the
+# device contention check calls this from inside a `while read -r p` loop.
+# Walking the tree in the caller's own "p" left it pointing at pid 1 by the
+# time the function returned, so every foreign holder read back as "systemd"
+# and was filed under "only the PipeWire stack has sound devices open" -- the
+# check could never report contention at all (issue #2934).
 own_process() {
-    p="$1"
-    i=0
-    while [ -n "${p}" ] && [ "${p}" -gt 1 ] 2>/dev/null && [ "${i}" -lt 20 ]; do
-        [ "${p}" = "$$" ] && return 0
-        p=$(awk '{print $4}' "/proc/${p}/stat" 2>/dev/null)
-        i=$((i+1))
+    _op_pid="$1"
+    _op_depth=0
+    while [ -n "${_op_pid}" ] && [ "${_op_pid}" -gt 1 ] 2>/dev/null && [ "${_op_depth}" -lt 20 ]; do
+        [ "${_op_pid}" = "$$" ] && return 0
+        _op_pid=$(awk '{print $4}' "/proc/${_op_pid}/stat" 2>/dev/null)
+        _op_depth=$((_op_depth+1))
     done
     return 1
+}
+
+# `aplay --dump-hw-params` output for one device.  Every probe goes through
+# here because of the timeout: --dump-hw-params prints the parameters and then
+# carries on to *play* the file, so on a card that accepts the raw stream --
+# the Pi's onboard headphone jack does -- an unguarded probe never returns.  It
+# plays /dev/zero forever, holding one of the card's PCM subdevices, and the
+# web request that started it hangs until Apache's ProxyTimeout (20 minutes).
+# Eight such leaks exhaust the eight bcm2835 headphone subdevices, after which
+# PipeWire cannot open the card at all and its fpp_alsa_* node retries
+# "Device or resource busy" for ever (issue #2934).
+hw_params_probe() {
+    timeout 3 aplay -D "$1" --dump-hw-params /dev/zero 2>&1
 }
 
 # True in the simple backend.  Several features -- input mixing, AES67, Opus
@@ -209,10 +229,10 @@ card_physical_state() {
             break
         done
     fi
-    # aplay --dump-hw-params always exits non-zero -- it prints the parameters
-    # and then refuses to install them -- so the output is the verdict, not the
-    # status.  Same test the ALSA Hardware section uses.
-    probe=$(timeout 3 aplay -D "hw:${cardId}" --dump-hw-params /dev/zero 2>&1)
+    # The output is the verdict, not the exit status: the probe is killed by
+    # its own timeout on a card that accepts the stream, so the status says
+    # nothing.  Same test the ALSA Hardware section uses.
+    probe=$(hw_params_probe "hw:${cardId}")
     if echo "${probe}" | grep -q "HW Params"; then
         opens="the device opens right now"
     elif echo "${probe}" | grep -qi "busy"; then
@@ -1181,7 +1201,7 @@ section_alsa() {
             # device stays in /proc/asound/cards while its monitor is powered
             # off, and a card another process holds is registered too -- so ask
             # the device itself whether it will open.
-            probe=$(timeout 3 aplay -D "hw:${cardId}" --dump-hw-params /dev/zero 2>&1)
+            probe=$(hw_params_probe "hw:${cardId}")
             if echo "${probe}" | grep -q "HW Params"; then
                 echo "[PASS] '${gname}' member card ${cardId} (${cardName}) is present and opens"
             elif echo "${probe}" | grep -qi "busy"; then
@@ -1228,19 +1248,32 @@ section_alsa() {
             # PipeWire's open fail.  Own children are skipped because the probes
             # in these very checks open a pcm to read its parameters.
             others=$(fuser /dev/snd/pcm* 2>/dev/null | tr ' ' '\n' | grep -E "^[0-9]+$" |
-                     while read -r p; do
-                         [ "${p}" = "1" ] && continue
-                         own_process "${p}" && continue
-                         c=$(ps -o comm= -p "${p}" 2>/dev/null)
-                         case "${c}" in
+                     while read -r pid; do
+                         [ "${pid}" = "1" ] && continue
+                         own_process "${pid}" && continue
+                         cmd=$(ps -o comm= -p "${pid}" 2>/dev/null)
+                         case "${cmd}" in
                              pipewire|wireplumber|pipewire-pulse|systemd|"") ;;
-                             *) echo "${p} ${c}" ;;
+                             *) echo "${pid} ${cmd} -- $(ps -o args= -p "${pid}" 2>/dev/null | cut -c1-70)" ;;
                          esac
                      done)
             if [ -n "${others}" ]; then
                 warn "Non-PipeWire processes have a sound device open:"
                 echo "${others}" | sed 's/^/       /'
                 note "PipeWire cannot open a card another process holds."
+                # A leftover --dump-hw-params probe is this script's own doing,
+                # from a release that ran it without a timeout: it plays
+                # /dev/zero for ever and never lets go of the subdevice.  Say so
+                # outright, because nothing about the process name suggests the
+                # audio system broke itself (issue #2934).
+                stale=$(echo "${others}" | grep -c -e "dump-hw-params" 2>/dev/null)
+                if [ "${stale:-0}" -gt 0 ] 2>/dev/null; then
+                    warn "${stale} of those are stale card probes left by an earlier"
+                    note "diagnostics run (aplay --dump-hw-params never exits on a card"
+                    note "that accepts the stream).  They are safe to kill:"
+                    note "    sudo pkill -f 'aplay -D hw:.*--dump-hw-params'"
+                    note "    sudo systemctl restart ${PW_SERVICES}"
+                fi
             else
                 pass "Only the PipeWire stack has sound devices open"
             fi
@@ -1288,7 +1321,7 @@ section_alsa() {
             # that opener.  aplay with no format given defaults to mono, so the
             # check read back "1" and failed a perfectly good stereo card
             # (issue #2934: every Pi with an onboard headphone jack).
-            maxCh=$(aplay -D "hw:${cardNum},0" --dump-hw-params /dev/zero 2>&1 |
+            maxCh=$(hw_params_probe "hw:${cardNum},0" |
                     sed -n 's/^CHANNELS: *//p' | head -1 |
                     tr -cs '0-9' ' ' | awk '{print $NF}')
             if [ -z "${maxCh}" ]; then
