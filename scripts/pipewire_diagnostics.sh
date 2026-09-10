@@ -2022,30 +2022,68 @@ section_performance() {
             awk '/^S +ID/ {buf = $0 "\n"; next} {buf = buf $0 "\n"} END {printf "%s", buf}' \
                 "${TMPDIR_DIAG}/pwtop.txt" 2>/dev/null | head -40 | sed 's/^/       /'
 
-            errs=$(awk '
+            # Keyed by node ID, not by name: a name repeats (every bare
+            # "gst-launch-1.0" client carries the same one), and keying on it
+            # silently dropped every node but the last of each name -- both from
+            # the per-node list and from the total.
+            #
+            # Split, because the two halves do not mean the same thing.  An xrun
+            # on an ALSA adapter (fpp_alsa_* / fpp_alsain_*) is the card missing
+            # its deadline: audible, and worth chasing.  An xrun on a client node
+            # means that client was late handing over a buffer, which the sink's
+            # own buffer usually absorbs inaudibly -- and those nodes are created
+            # per playback (see StreamSlotManager: a slot holds a GStreamerOutput
+            # only while it plays), so their counts belong to whichever instance
+            # happens to be alive right now.  Comparing them between runs reads
+            # as a trend that is really just a fresh node paying its start-up
+            # cost again, which is exactly how a looping file looks.
+            splitErrs=$(awk '
                 /^S +ID/ { errcol = 0
                            for (i = 1; i <= NF; i++) if ($i == "ERR") errcol = i
-                           delete seen; next }
-                errcol && $errcol ~ /^[0-9]+$/ && $errcol + 0 > 0 { seen[$NF] = $errcol + 0 }
-                END { for (k in seen) print seen[k], k }
-            ' "${TMPDIR_DIAG}/pwtop.txt" 2>/dev/null | sort -rn)
+                           delete seen; delete name; next }
+                errcol && $errcol ~ /^[0-9]+$/ && $errcol + 0 > 0 {
+                           seen[$2] = $errcol + 0; name[$2] = $NF }
+                END { for (k in seen)
+                          printf "%s %s %s\n",
+                                 (name[k] ~ /^fpp_alsa/ ? "dev" : "cli"),
+                                 seen[k], name[k] }
+            ' "${TMPDIR_DIAG}/pwtop.txt" 2>/dev/null)
+            devErrs=$(echo "${splitErrs}" | awk '$1 == "dev" {print $2, $3}' | sort -rn)
+            cliErrs=$(echo "${splitErrs}" | awk '$1 == "cli" {print $2, $3}' | sort -rn)
             hasErrCol=$(awk '/^S +ID/ {for (i = 1; i <= NF; i++) if ($i == "ERR") {print "yes"; exit}}' \
                         "${TMPDIR_DIAG}/pwtop.txt" 2>/dev/null)
 
             if [ -z "${hasErrCol}" ]; then
                 skip "pw-top output has no ERR column - cannot count xruns"
-            elif [ -z "${errs}" ]; then
+            elif [ -z "${devErrs}" ] && [ -z "${cliErrs}" ]; then
                 pass "No xruns reported"
             else
-                xr=$(echo "${errs}" | awk '{s += $1} END {print s+0}')
-                warn "${xr} xrun(s) counted since the graph started"
-                echo "${errs}" | awk '{printf "       %s  %s\n", $1, $2}'
-                note "These are lifetime totals per node, not a rate.  A handful"
-                note "picked up while links were being built is normal and needs"
-                note "no action; re-run this check to see whether they are still"
-                note "climbing while audio is playing."
-                note "If they are climbing: raise default.clock.quantum in"
-                note "${PW_CONFD}/90-fpp.conf, or reduce what else is running."
+                if [ -n "${devErrs}" ]; then
+                    xr=$(echo "${devErrs}" | awk '{s += $1} END {print s+0}')
+                    warn "${xr} xrun(s) on the audio device since the graph started"
+                    echo "${devErrs}" | awk '{printf "       %s  %s\n", $1, $2}'
+                    note "These nodes live until the PipeWire services restart, so"
+                    note "this total is comparable between runs: re-run while audio"
+                    note "is playing and see whether it has moved."
+                    note "If it is climbing: raise AudioPeriodSize (Audio settings)"
+                    note "or default.clock.quantum in ${PW_CONFD}/90-fpp.conf, or"
+                    note "reduce what else is running.  Note that both are counts of"
+                    note "frames, so a cape that refines the rate upward (a PCM5102A"
+                    note "asked for 44100 lands on 88200) gets half the wall-clock"
+                    note "margin from the same number."
+                else
+                    pass "No xruns on the audio device - nothing audible was dropped"
+                fi
+                if [ -n "${cliErrs}" ]; then
+                    xc=$(echo "${cliErrs}" | awk '{s += $1} END {print s+0}')
+                    info "${xc} xrun(s) on client nodes (context, not a fault)"
+                    echo "${cliErrs}" | awk '{printf "       %s  %s\n", $1, $2}'
+                    note "Playback nodes (fppd_stream_N) and short-lived client"
+                    note "pipelines are rebuilt per track, and a few xruns while a"
+                    note "node's links are being built are normal.  Each new"
+                    note "instance starts its own count, so these numbers are not"
+                    note "a trend and do not accumulate across tracks."
+                fi
             fi
         else
             skip "pw-top produced no output (daemon not reachable)"
