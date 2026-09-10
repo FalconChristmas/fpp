@@ -52,6 +52,11 @@ function PrintGitBranchOptions()
             $remote = 'newfeatures';
         } else if (strpos($settings['gitRemote'], 'origin') !== false) {
             $remote = 'origin';
+        } else if (isset($settings['gitHubUser']) && strtolower(trim($settings['gitRemote'])) === strtolower(trim($settings['gitHubUser'])) ) {
+            $remote = trim($settings['gitHubUser']);
+        } else if (!empty($settings['gitRemote']) && preg_match('/^[a-zA-Z0-9_-]+$/', $settings['gitRemote'])) {
+            // Custom fork remote (e.g. GitHub username) - use as-is after validation
+            $remote = $settings['gitRemote'];
         }
     }
 
@@ -141,124 +146,91 @@ function PrintGitBranchOptions()
         });
     }
 
-    function ChangeGitHubForkBranch(branch) {
-        if (!branch) {
-            return;
-        }
-        var user = $('#gitHubUser').val() || '';
-        user = user.trim();
-        if (!user) {
-            alert('GitHub user not set');
-            return;
-        }
-        // Reuse the same confirmation as ChangeGitBranch but indicate fork remote
-        if (confirm("Are you really sure you want to switch to the '" + branch + "' branch from your fork (" + user + "/fpp)?  This may take some time and it may not be fully compatible with this FPP OS version.  Click 'OK' to continue.")) {
-            location.href = 'changebranch.php?branch=' + encodeURIComponent(branch) + '&remote=' + encodeURIComponent(user);
-        } else {
-            $('#gitHubForkBranch').val('');
-        }
-    }
-
     function ReloadGitBranch() {
         var branch = $('#gitBranch').val();
         if (!branch) return;
         ChangeGitBranch(branch);
     }
 
-    function ReloadGitHubForkBranch() {
-        var branch = $('#gitHubForkBranch').val();
-        if (!branch) return; // Use Official Branches selected -> do nothing
-        ChangeGitHubForkBranch(branch);
-    }
-
     var currentGitBranch = "<?php echo addslashes($git_branch); ?>";
     var currentGitRemote = "<?php echo addslashes($git_branch_remote); ?>";
 
-    function loadGitHubForkBranches() {
+    function loadGitRemoteForkOption() {
         var user = $('#gitHubUser').val();
         var pat = $('#gitHubPAT').val();
+        var $remoteSel = $('#gitRemote');
+        // Remove any previous fork option to avoid duplicates / stale user
+        $remoteSel.find('option[data-fork="1"]').remove();
         if (!user || !pat || $.trim(user) === '' || $.trim(pat) === '') {
-            $('#gitHubForkBranchRow').hide();
+            var curVal = $remoteSel.val();
+            if (curVal && $remoteSel.find('option[value="' + curVal + '"]').length === 0) {
+                // Fork was selected but credentials cleared - fall back to origin
+                $remoteSel.val('origin');
+                reloadGitBranches('origin');
+            }
             return;
         }
         $.ajax({
             url: 'api/git/forkBranches',
             type: 'GET',
             success: function (data) {
-                if (data && data.hasFork && data.branches && data.branches.length > 0) {
-                    var $sel = $('#gitHubForkBranch');
-                    $sel.empty();
-                    $sel.append($('<option>').attr('value', '').prop('selected', true).text('Use Official Branches'));
-                    data.branches.forEach(function (branch) {
-                        $sel.append($('<option>').attr('value', branch).text(branch));
-                    });
-                    $('#gitHubForkRepoLabel').text(data.user + '/fpp');
-                    var tipText = "Switch to a branch from your fork (" + data.user + ") or use official branches.";
-                    $('#gitHubForkBranch_tip').attr('data-bs-title', tipText);
-                    var tipEl = document.getElementById('gitHubForkBranch_tip');
-                    if (tipEl && window.bootstrap && bootstrap.Tooltip) {
-                        var inst = bootstrap.Tooltip.getInstance(tipEl);
-                        if (inst) inst.dispose();
-                        new bootstrap.Tooltip(tipEl);
+                if (data && data.hasFork) {
+                    var label = 'GitHub User Fork (' + data.user + '/fpp)';
+                    var value = data.user;
+                    if ($remoteSel.find('option[value="' + value + '"]').length === 0) {
+                        $remoteSel.append($('<option>').attr('value', value).attr('data-fork', '1').text(label));
+                    } else {
+                        $remoteSel.find('option[value="' + value + '"]').attr('data-fork', '1').text(label);
                     }
-                    // Stay on the branch that was switched to instead of jumping back to Use Official Branches
-                    if (currentGitBranch && currentGitRemote && data.user && currentGitRemote.toLowerCase() === data.user.toLowerCase() && data.branches.indexOf(currentGitBranch) !== -1) {
-                        $sel.val(currentGitBranch);
+                    var savedRemote = $remoteSel.val();
+                    var shouldSelectFork = false;
+                    if (savedRemote && savedRemote.toLowerCase() === data.user.toLowerCase()) {
+                        shouldSelectFork = true;
+                    } else if (currentGitRemote && currentGitRemote.toLowerCase() === data.user.toLowerCase()) {
+                        shouldSelectFork = true;
+                        $remoteSel.val(value);
                     }
-                    $('#gitHubForkBranchRow').show();
-                } else if (data && data.hasFork) {
-                    // Fork exists but no branches (or all filtered) - still show dropdown with default only
-                    var $sel = $('#gitHubForkBranch');
-                    $sel.empty();
-                    $sel.append($('<option>').attr('value', '').prop('selected', true).text('Use Official Branches'));
-                    $('#gitHubForkRepoLabel').text(data.user + '/fpp');
-                    var tipText2 = "Switch to a branch from your fork (" + data.user + ") or use official branches.";
-                    $('#gitHubForkBranch_tip').attr('data-bs-title', tipText2);
-                    var tipEl2 = document.getElementById('gitHubForkBranch_tip');
-                    if (tipEl2 && window.bootstrap && bootstrap.Tooltip) {
-                        var inst2 = bootstrap.Tooltip.getInstance(tipEl2);
-                        if (inst2) inst2.dispose();
-                        new bootstrap.Tooltip(tipEl2);
+                    if (shouldSelectFork) {
+                        reloadGitBranches(value);
                     }
-                    if (currentGitBranch && currentGitRemote && data.user && currentGitRemote.toLowerCase() === data.user.toLowerCase()) {
-                        // Current branch is on this fork but has no listed branches (filtered) - keep default
-                    }
-                    $('#gitHubForkBranchRow').show();
                 } else {
-                    $('#gitHubForkBranchRow').hide();
+                    $remoteSel.find('option[data-fork="1"]').remove();
                 }
             },
             error: function () {
-                $('#gitHubForkBranchRow').hide();
+                $remoteSel.find('option[data-fork="1"]').remove();
             }
         });
     }
 
     $(document).ready(function () {
         reloadGitStatus();
-        loadGitHubForkBranches();
+        loadGitRemoteForkOption();
 
-        // Listen for changes to the git remote setting
+        // Listen for changes to the git remote setting - supports origin/newfeatures and fork user
         $('#gitRemote').on('change', function () {
-            var remote = $(this).val();
-            // Extract the remote name from the value (in case it contains description text)
-            if (remote.indexOf('newfeatures') !== -1) {
-                remote = 'newfeatures';
-            } else if (remote.indexOf('origin') !== -1) {
-                remote = 'origin';
+            var $opt = $(this).find('option:selected');
+            var remote;
+            if ($opt.attr('data-fork') === '1') {
+                remote = $opt.val();
+            } else {
+                remote = $(this).val();
+                if (remote.indexOf('newfeatures') !== -1) {
+                    remote = 'newfeatures';
+                } else if (remote.indexOf('origin') !== -1) {
+                    remote = 'origin';
+                }
             }
             reloadGitBranches(remote);
         });
 
-        // Reload fork branches when GitHub credentials change (saved via SetSetting)
-        // The inputs use onChange to call SetSetting; poll for a short time after change
+        // Reload fork option when GitHub credentials change (saved via SetSetting)
         var forkReloadTimer = null;
         function scheduleForkReload() {
             if (forkReloadTimer) clearTimeout(forkReloadTimer);
-            forkReloadTimer = setTimeout(loadGitHubForkBranches, 800);
+            forkReloadTimer = setTimeout(loadGitRemoteForkOption, 800);
         }
         $('#gitHubUser, #gitHubPAT').on('change blur', scheduleForkReload);
-        // Also observe after SetSetting completes - hook into the global SetSetting if available
         var origSetSetting = window.SetSetting;
         if (typeof origSetSetting === 'function') {
             window.SetSetting = function () {
@@ -287,21 +259,6 @@ function PrintGitBranchOptions()
     PrintSetting('DistributedCompile');
     PrintSetting('DistccHosts');
     ?>
-    <div class="row" id="gitHubForkBranchRow" style="display:none">
-        <div class='printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2 align-top'>
-            <div class="description"><i class='fas fa-fw fa-code fa-nbsp ui-level-3' title='Developer Level Setting'></i>GitHub Fork Branch:</div>
-        </div>
-        <div class='printSettingFieldCol col-md'>
-            <select id='gitHubForkBranch' onChange="ChangeGitHubForkBranch($('#gitHubForkBranch').val());">
-                <option value="" selected>Use Official Branches</option>
-            </select>
-            <a href="#" class="btn btn-sm btn-outline-secondary ms-2" title="Reload selected fork branch" onclick="ReloadGitHubForkBranch(); return false;"><i class="fas fa-sync-alt" aria-hidden="true"></i></a>
-            <span id="gitHubForkBranch_tip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="auto" data-bs-title="Switch to a branch from your fork or use official branches."><img id="gitHubForkBranch_img" src="images/redesign/help-icon.svg" class="icon-help" alt="help icon"></span>
-            <div class="callout callout-secondary mt-1">
-                <b>Note:</b> Shows branches from <code id="gitHubForkRepoLabel">your fork</code> on GitHub.
-            </div>
-        </div>
-    </div>
     <div class="row">
         <div class='printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2 align-top'>
             <div class="description"><i class='fas fa-fw fa-code fa-nbsp ui-level-3' title='Developer Level Setting'></i>Git Branch:</div>
@@ -309,7 +266,6 @@ function PrintGitBranchOptions()
         <div class='printSettingFieldCol col-md'>
             <select id='gitBranch'
                 onChange="ChangeGitBranch($('#gitBranch').val());"><? PrintGitBranchOptions(); ?></select>
-            <a href="#" class="btn btn-sm btn-outline-secondary ms-2" title="Reload selected branch" onclick="ReloadGitBranch(); return false;"><i class="fas fa-sync-alt" aria-hidden="true"></i></a>
             <? PrintToolTip('gitBranch'); ?>
             <div class="callout callout-danger mt-1">
                 <b>Note: </b>Changing branches may take a couple minutes to recompile and may not work if you have any
