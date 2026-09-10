@@ -192,8 +192,15 @@ function PrintGitBranchOptions()
                     data.branches.forEach(function (branch) {
                         $sel.append($('<option>').attr('value', branch).text(branch));
                     });
-                    $('#gitHubForkUserLabel').text(data.user);
                     $('#gitHubForkRepoLabel').text(data.user + '/fpp');
+                    var tipText = "Switch to a branch from your fork (" + data.user + ") or use official branches.";
+                    $('#gitHubForkBranch_tip').attr('data-bs-title', tipText);
+                    var tipEl = document.getElementById('gitHubForkBranch_tip');
+                    if (tipEl && window.bootstrap && bootstrap.Tooltip) {
+                        var inst = bootstrap.Tooltip.getInstance(tipEl);
+                        if (inst) inst.dispose();
+                        new bootstrap.Tooltip(tipEl);
+                    }
                     // Stay on the branch that was switched to instead of jumping back to Use Official Branches
                     if (currentGitBranch && currentGitRemote && data.user && currentGitRemote.toLowerCase() === data.user.toLowerCase() && data.branches.indexOf(currentGitBranch) !== -1) {
                         $sel.val(currentGitBranch);
@@ -204,8 +211,15 @@ function PrintGitBranchOptions()
                     var $sel = $('#gitHubForkBranch');
                     $sel.empty();
                     $sel.append($('<option>').attr('value', '').prop('selected', true).text('Use Official Branches'));
-                    $('#gitHubForkUserLabel').text(data.user);
                     $('#gitHubForkRepoLabel').text(data.user + '/fpp');
+                    var tipText2 = "Switch to a branch from your fork (" + data.user + ") or use official branches.";
+                    $('#gitHubForkBranch_tip').attr('data-bs-title', tipText2);
+                    var tipEl2 = document.getElementById('gitHubForkBranch_tip');
+                    if (tipEl2 && window.bootstrap && bootstrap.Tooltip) {
+                        var inst2 = bootstrap.Tooltip.getInstance(tipEl2);
+                        if (inst2) inst2.dispose();
+                        new bootstrap.Tooltip(tipEl2);
+                    }
                     if (currentGitBranch && currentGitRemote && data.user && currentGitRemote.toLowerCase() === data.user.toLowerCase()) {
                         // Current branch is on this fork but has no listed branches (filtered) - keep default
                     }
@@ -282,7 +296,7 @@ function PrintGitBranchOptions()
                 <option value="" selected>Use Official Branches</option>
             </select>
             <a href="#" class="btn btn-sm btn-outline-secondary ms-2" title="Reload selected fork branch" onclick="ReloadGitHubForkBranch(); return false;"><i class="fas fa-sync-alt" aria-hidden="true"></i></a>
-            <span class="small text-muted ms-2">Switch to a branch from your fork (<span id="gitHubForkUserLabel"></span>) or use official branches.</span>
+            <span id="gitHubForkBranch_tip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="auto" data-bs-title="Switch to a branch from your fork or use official branches."><img id="gitHubForkBranch_img" src="images/redesign/help-icon.svg" class="icon-help" alt="help icon"></span>
             <div class="callout callout-secondary mt-1">
                 <b>Note:</b> Shows branches from <code id="gitHubForkRepoLabel">your fork</code> on GitHub.
             </div>
