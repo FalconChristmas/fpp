@@ -13,11 +13,13 @@
  *     {
  *       "hash": "95ccb370e45272d8aed76aabfa55e60d489a8280",
  *       "author": "GithubUser1",
+ *       "date": "2024-03-14",
  *       "msg": "Use our SaveJsonToString() when generating MQTT warnings JSON message."
  *     },
  *     {
  *       "hash": "2fad5ad941baea49edaab834429343b42981bcc5",
  *       "author": "GithubUser2",
+ *       "date": "2024-03-12",
  *       "msg": "Move Playlist initialization into main() via Player::Init()"
  *     }
  *   ]
@@ -38,12 +40,14 @@ function GetGitOriginLog()
             continue;
         }
         $pos = strpos($line, "~~~~");
-        $elements = explode("~~~~", $line);
-        if ($pos > 0) {
+        // Limit the split so a "~~~~" inside the subject stays part of the message.
+        $elements = explode("~~~~", $line, 4);
+        if ($pos > 0 && count($elements) == 4) {
             $h = $elements[0];
             $a = $elements[1];
-            $msg = $elements[2];
-            $row = array("hash" => $h, "author" => $a, "msg" => $msg);
+            $d = $elements[2];
+            $msg = $elements[3];
+            $row = array("hash" => $h, "author" => $a, "date" => $d, "msg" => $msg);
             array_push($rows, $row);
         }
     }

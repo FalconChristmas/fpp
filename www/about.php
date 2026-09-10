@@ -570,7 +570,7 @@
         function GetGitOriginLog() {
             ShowLoadingModal('gitOriginLogModal', 'Pending Git Changes');
 
-            var emptyHtml = '<tr><td colspan="3" class="text-center">' +
+            var emptyHtml = '<tr><td colspan="4" class="text-center">' +
                 '<div class="alert alert-info mb-0">' +
                 '<i class="fas fa-info-circle"></i> ' +
                 'Unable to determine pending changes. This may occur when working with feature branches or forks. ' +
@@ -584,7 +584,8 @@
                 }
 
                 var html = buildGitLogTableHtml(data, {
-                    showDate: false,
+                    showDate: true,
+                    dateWidth: '110px',
                     emptyHtml: emptyHtml
                 });
 

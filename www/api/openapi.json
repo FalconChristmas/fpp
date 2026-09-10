@@ -3350,11 +3350,13 @@
                     {
                       "hash": "95ccb370e45272d8aed76aabfa55e60d489a8280",
                       "author": "GithubUser1",
+                      "date": "2024-03-14",
                       "msg": "Use our SaveJsonToString() when generating MQTT warnings JSON message."
                     },
                     {
                       "hash": "2fad5ad941baea49edaab834429343b42981bcc5",
                       "author": "GithubUser2",
+                      "date": "2024-03-12",
                       "msg": "Move Playlist initialization into main() via Player::Init()"
                     }
                   ]
