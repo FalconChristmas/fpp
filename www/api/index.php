@@ -44,6 +44,9 @@ dispatch_post('/channel/output/processors', 'channel_save_output_processors');
 dispatch_get('/channel/output/:file', 'channel_get_output');
 dispatch_post('/channel/output/:file', 'channel_save_output');
 
+dispatch_get('/crashes/uploadTarget', 'GetCrashUploadTarget'); // keep above crashes/upload/:file
+dispatch_post('/crashes/upload/:file', 'PostCrashUpload');
+
 dispatch_get('/configfile', 'GetConfigFileList');
 dispatch_get('/configfile/**', 'DownloadConfigFile');
 dispatch_post('/configfile/**', 'UploadConfigFile');
