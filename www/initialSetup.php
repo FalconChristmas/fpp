@@ -533,6 +533,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
         var setupPriorOptIn = <?= json_encode(jurisdictionRequiresPriorOptIn()) ?>;
 
         function showSetupStep(n) {
+            var moved = (setupCurrentStep !== n);
             setupCurrentStep = n;
             $('.setupStep').addClass('d-none');
             $('.setupStep[data-step="' + n + '"]').removeClass('d-none');
@@ -548,6 +549,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             // visibility is computed once at load - when their step was hidden.
             // Recompute on arrival or an enabled password shows no field.
             UpdateChildSettingsVisibility();
+
+            // On a small screen the Next button sits well below the fold, so the next
+            // step arrives scrolled to wherever the last one ended - on a short
+            // step that is past its bottom, showing nothing but whitespace.
+            // Only on an actual move, so the initial call cannot fight a
+            // browser restoring a scroll position on reload.
+            if (moved) {
+                window.scrollTo(0, 0);
+            }
         }
 
         function setupStepBusy(msg) {
