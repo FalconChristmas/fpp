@@ -636,7 +636,7 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
             if (crashLog >= 1) {
                 // Upload crash report
                 char uploadCmd[512];
-                snprintf(uploadCmd, sizeof(uploadCmd), "curl https://dankulp.com/crashUpload/index.php -F userfile=@%s", zfName);
+                snprintf(uploadCmd, sizeof(uploadCmd), "curl https://crashes.falconplayer.com/crashUpload/index.php -F userfile=@%s", zfName);
                 system(uploadCmd);
             }
         } else {

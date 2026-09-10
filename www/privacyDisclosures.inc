@@ -110,7 +110,7 @@ your logs, or the statistics payload above &mdash; nothing about your setup. It 
 to identify most crashes on its own. The file name carries the same device ID as the
 statistics above, so reports from this box are linkable to each other.</p>
 
-<p><b>Recipients:</b> a personal server run by one of the FPP developers (dankulp.com, in
+<p><b>Recipients:</b> a personal server run by one of the FPP developers (crashes.falconplayer.com, in
 the USA), used to diagnose the crash. Reports are read by the FPP and xLights developers.
 Crash reports are not published.</p>
 
