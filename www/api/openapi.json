@@ -3329,6 +3329,49 @@
         }
       }
     },
+    "/api/git/forkBranches": {
+      "get": {
+        "tags": [
+          "git"
+        ],
+        "summary": "Get fork branches",
+        "description": "Returns branches from the authenticated user's fork of FPP (github.com/<user>/fpp) if that fork exists. Probed via GitHub API using saved gitHubUser/gitHubPAT; returns hasFork false when no credentials, no fork, or GitHub unreachable. Falls back to local git remote <user> when offline. Used by Developer settings to offer a fork-branch switcher defaulting to Use Official Branches.",
+        "responses": {
+          "200": {
+            "description": "Fork branch list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "hasFork": {
+                      "type": "boolean"
+                    },
+                    "user": {
+                      "type": "string"
+                    },
+                    "branches": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "hasFork": true,
+                  "user": "jessica12ryan",
+                  "branches": [
+                    "master",
+                    "fixoverflow"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/git/originLog": {
       "get": {
         "tags": [
