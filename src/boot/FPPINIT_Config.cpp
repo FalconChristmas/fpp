@@ -1147,6 +1147,115 @@ static void capVC4CMAForBoard(std::string& content, bool& changed) {
 }
 #endif
 
+#ifdef PLATFORM_PI
+// The Pi 5 has a built-in RTC, and it wins rtc0 by probe order -- it registers
+// around 0.35s where an i2c RTC on a cape is not up until ~2.5s.  Whatever holds
+// rtc0 is what the kernel sets the system clock from (CONFIG_RTC_HCTOSYS_DEVICE
+// is "rtc0"), so on a board with no cell on the Pi's RTC header the clock is set
+// from an unset RTC early in boot and stays wrong until fpprtc runs seconds
+// later.  A cape that ships a pi5 overlay variant renumbering itself to rtc0
+// fixes the ordering, but the Pi's own RTC is still there reading 1970, and a
+// user who knows there is no battery is better off with it gone entirely.
+//
+// "dtparam=rtc=off" is a stock firmware override (the rtc entry in the Pi 5
+// DTB's __overrides__ maps to the rpi_rtc node's status), so this needs no
+// overlay of FPP's own -- just the line, under a [pi5] filter so that an SD card
+// moved to an earlier Pi does not draw an "Unknown dtparam" warning.
+//
+// The block is rewritten from the setting, which is what makes removal work:
+// clear the setting and the block goes with it.  Anything outside the markers is
+// left alone, and the block always closes with [all] so a later append does not
+// land inside the filter.
+//
+// It is rewritten IN PLACE, and created ahead of CapeUtils' cape-overlay-variant
+// block.  That block is managed by stripping it and re-appending it at EOF, so if
+// this one were written the same way the two would leapfrog: each boot one lands
+// after the other, both see a changed config.txt, and both ask for a reboot.
+// Since this runs in fppinit's "start" action -- before networking comes up --
+// that loop is a box that never reaches the network to be fixed.
+static const std::string PI_RTC_BLOCK_BEGIN = "# FPP Pi RTC - BEGIN (managed by fppinit, do not edit)";
+static const std::string PI_RTC_BLOCK_END = "# FPP Pi RTC - END";
+// Only the marker text, matched not written: CapeUtils owns that block.
+static const std::string CAPE_VARIANT_BLOCK_BEGIN = "# FPP Cape Overlay Variants - BEGIN";
+
+// Pure half: no file I/O, so it can be lifted out between the markers below and
+// exercised directly against sample config.txt text.  Edits `content` in place
+// and returns true if it changed anything.
+// --- BEGIN applyDisablePiRTCBlock ---
+static bool applyDisablePiRTCBlock(std::string& content, bool disable) {
+    const std::string orig = content;
+    std::string desired;
+    if (disable) {
+        desired = PI_RTC_BLOCK_BEGIN + "\n[pi5]\ndtparam=rtc=off\n[all]\n" + PI_RTC_BLOCK_END + "\n";
+    }
+
+    // Strip every copy written before -- more than one only from an interrupted
+    // write, and a truncated block (BEGIN with no END) cuts to end of file rather
+    // than leaving a marker the next run would nest inside.  Remember where the
+    // first one started: the replacement goes back THERE, not at EOF.  That is
+    // load bearing, see the note above on leapfrogging the cape variant block.
+    size_t at = std::string::npos;
+    size_t begin = content.find(PI_RTC_BLOCK_BEGIN);
+    while (begin != std::string::npos) {
+        if (at == std::string::npos) {
+            at = begin;
+        }
+        size_t end = content.find(PI_RTC_BLOCK_END, begin);
+        end = (end == std::string::npos) ? content.length()
+                                         : end + PI_RTC_BLOCK_END.length();
+        if (end < content.length() && content[end] == '\n') {
+            ++end;
+        }
+        content.erase(begin, end - begin);
+        begin = content.find(PI_RTC_BLOCK_BEGIN);
+    }
+
+    if (!desired.empty()) {
+        if (at == std::string::npos) {
+            // Creating it for the first time: go in AHEAD of the cape variant
+            // block so that block keeps the end of the file to itself.
+            at = content.find(CAPE_VARIANT_BLOCK_BEGIN);
+            if (at == std::string::npos) {
+                while (!content.empty() && content.back() == '\n') {
+                    content.pop_back();
+                }
+                content += "\n\n";
+                at = content.length();
+            } else {
+                desired += "\n";
+            }
+        }
+        content.insert(at, desired);
+    }
+    return content != orig;
+}
+// --- END applyDisablePiRTCBlock ---
+#endif
+
+// Reconcile config.txt with the DisablePiRTC setting.  Runs after DetectCape()
+// so a cape that ships DisablePiRTC in its defaultSettings takes effect on the
+// same boot it is first detected on -- that path reboots, since the setting only
+// means anything to the firmware.  The UI toggle calls this via `fppinit
+// setupPiRTC` with rebootIfChanged false: the setting is declared "reboot": 1, so
+// the user is already being prompted and should not have the box go down under
+// the save.
+void setupPiRTCConfig(bool rebootIfChanged) {
+#ifdef PLATFORM_PI
+    std::string content = GetFileContents("/boot/firmware/config.txt");
+    if (content.empty()) {
+        return;
+    }
+    if (applyDisablePiRTCBlock(content, getRawSettingInt("DisablePiRTC", 0) != 0)) {
+        PutFileContents("/boot/firmware/config.txt", content);
+        printf("FPP - Pi RTC configuration changed in config.txt\n");
+        if (rebootIfChanged) {
+            printf("\n\nRebooting to load new settings.\n\n");
+            exec("/usr/sbin/reboot");
+        }
+    }
+#endif
+}
+
 void setupChannelOutputs() {
 #ifdef PLATFORM_PI
     bool hasDPI = false;

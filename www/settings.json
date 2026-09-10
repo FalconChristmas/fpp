@@ -341,6 +341,7 @@
 				"ClockDate",
 				"ClockTime",
 				"piRTC",
+				"DisablePiRTC",
 				"ntpServer",
 				"UseNTPFromDHCP",
 				"TimeZone"
@@ -2652,6 +2653,23 @@
 			"reboot": 1,
 			"type": "select",
 			"optionsURL": "api/settings/RTC/options"
+		},
+		"DisablePiRTC": {
+			"name": "DisablePiRTC",
+			"description": "Disable Pi 5 Built-in RTC",
+			"gatherStats": true,
+			"tip": "The Pi 5 has a built-in RTC, but it only keeps time across a power cycle if a battery is fitted to the Pi's RTC header.  With no battery it still claims rtc0 and the system clock is set from it early in boot, before FPP can read the cape's clock.  If there is no battery on the Pi's header, disable it here so the cape's RTC is the only clock the system uses.",
+			"reboot": 1,
+			"default": 0,
+			"platforms": [
+				"Raspberry Pi"
+			],
+			"variants": {
+				"Raspberry Pi": [
+					"Pi 5"
+				]
+			},
+			"type": "checkbox"
 		},
 		"remoteIgnoreSync": {
 			"name": "remoteIgnoreSync",
