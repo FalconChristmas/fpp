@@ -746,18 +746,37 @@ section_config() {
     fi
 
     hdr "ALSA compatibility shim"
-    if [ -f /root/.asoundrc ] || [ -f "${FPPHOME:-/home/fpp}/.asoundrc" ]; then
-        for rc in /root/.asoundrc "${FPPHOME:-/home/fpp}/.asoundrc"; do
-            [ -f "${rc}" ] || continue
-            if grep -q "pipewire" "${rc}" 2>/dev/null; then
-                pass "${rc} routes ALSA clients into PipeWire"
-            else
-                warn "${rc} does not reference pipewire"
-                note "ALSA-only tools will open the card directly and lock out PipeWire."
-            fi
-        done
+    # ALSA resolves ~/.asoundrc from HOME, and everything in FPP's audio path
+    # runs as root -- fppd.service sets no User=, and fpp-pipewire,
+    # fpp-wireplumber and fpp-pipewire-pulse all set User=root.  So
+    # /root/.asoundrc is the only one of these files that decides whether FPP's
+    # own playback goes through PipeWire, and it is the only one FPP writes
+    # (setupAudio() in src/boot/FPPINIT_Audio.cpp, kept card-aligned by
+    # www/common.php).  Grade that one; anything in a user home is somebody
+    # else's file.
+    if [ -f /root/.asoundrc ]; then
+        if grep -q "pipewire" /root/.asoundrc 2>/dev/null; then
+            pass "/root/.asoundrc routes ALSA clients into PipeWire"
+        else
+            warn "/root/.asoundrc does not reference pipewire"
+            note "fppd and the PipeWire services all run as root, so this is the file"
+            note "that matters.  Regenerate it with:"
+            note "  sudo /opt/fpp/src/fppinit bootPre"
+        fi
     else
-        info "No .asoundrc found"
+        warn "/root/.asoundrc missing - FPP generates this at boot"
+        note "Without it an ALSA client opens the card directly instead of PipeWire."
+        note "Regenerate it with:"
+        note "  sudo /opt/fpp/src/fppinit bootPre"
+    fi
+    # FPP has never written this one; when it exists it came from the base OS
+    # image or the user.  It only applies to an ALSA tool run interactively as
+    # the fpp user, which is not a playback path, so it is not a fault.
+    userRc="${FPPHOME:-/home/fpp}/.asoundrc"
+    if [ -f "${userRc}" ] && ! grep -q "pipewire" "${userRc}" 2>/dev/null; then
+        info "${userRc} does not reference pipewire"
+        note "FPP does not use this file - playback runs as root against /root/.asoundrc."
+        note "Only an ALSA tool run interactively as the fpp user would bypass PipeWire."
     fi
     if [ -f /etc/pipewire/client.conf ]; then
         pass "/etc/pipewire/client.conf present"
