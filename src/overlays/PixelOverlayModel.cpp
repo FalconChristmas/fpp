@@ -1212,6 +1212,28 @@ void PixelOverlayModel::setRunningEffect(RunningEffect* ef, int32_t firstUpdateM
 bool PixelOverlayModel::applyEffect(const std::string& autoState, const std::string& effect, const std::vector<std::string>& args) {
     PixelOverlayEffect* pe = PixelOverlayEffect::GetPixelOverlayEffect(effect);
     if (pe) {
+        // Every effect indexes args[] positionally with no bounds check of its
+        // own, so a caller that supplies fewer than the effect declares walks
+        // off the end -- "Overlay Model Effect,<model>,Enabled,Text" with no
+        // further arguments is a one-line HTTP request that segfaults fppd in
+        // TextEffect::apply's args[0].  Validate once here, at the single point
+        // that dispatches to any effect, rather than bounds-checking every
+        // effect body.  The effect's own declared arg list is the authority,
+        // and trailing args marked optional may legitimately be omitted.
+        size_t required = 0;
+        size_t idx = 0;
+        for (const auto& a : pe->args) {
+            ++idx;
+            if (!a.optional) {
+                required = idx;
+            }
+        }
+        if (args.size() < required) {
+            LogErr(VB_CHANNELOUT,
+                   "Pixel Overlay effect '%s' needs at least %zu argument(s), %zu given -- ignoring\n",
+                   effect.c_str(), required, args.size());
+            return false;
+        }
         return pe->apply(this, autoState, args);
     }
     return false;
