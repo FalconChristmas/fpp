@@ -272,6 +272,7 @@ bool AES67Manager::LoadConfig() {
     }
     cfg.ptpDomain = root.get("ptpDomain", kDefault.ptpDomain).asInt();
     cfg.ptpRole = root.get("ptpRole", kDefault.ptpRole).asString();
+    cfg.ptpLockWaitMs = root.get("ptpLockWaitMs", kDefault.ptpLockWaitMs).asInt();
     cfg.ptpMediaClock = root.get("ptpMediaClock", kDefault.ptpMediaClock).asBool();
     cfg.sourcePacing = root.get("sourcePacing", kDefault.sourcePacing).asBool();
     cfg.sinkPacing = root.get("sinkPacing", kDefault.sinkPacing).asBool();
@@ -590,6 +591,12 @@ bool AES67Manager::ApplyConfig() {
         LogInfo(VB_MEDIAOUT, "AES67Manager: SAP receiver started\n");
     }
 
+    // The pipelines are anchored now, so this is where the step detector's
+    // reference belongs -- taking it here rather than at its first check means
+    // a clock that steps in the next 30 seconds is caught on that check
+    // instead of the one after it.
+    ResetPtpStepReference();
+
     m_active.store(true);
     LogInfo(VB_MEDIAOUT, "AES67Manager: Applied config — %d send, %d receive pipelines\n",
             (int)m_sendPipelines.size(), (int)m_recvPipelines.size());
@@ -657,7 +664,7 @@ bool AES67Manager::WritePtpConf(const std::string& path, bool hwTimestamping, bo
     std::ofstream conf(path);
     if (!conf.is_open()) {
         LogErr(VB_MEDIAOUT, "AES67Manager: Cannot write PTP config to %s\n", path.c_str());
-        WarningHolder::AddWarning(45, "AES67: could not write PTP configuration file");
+        WarningHolder::AddWarning(AES67::WARNING_ID_PTP, "AES67: could not write PTP configuration file");
         return false;
     }
 
@@ -721,7 +728,7 @@ bool AES67Manager::StartPtp4l(bool hwTimestamping, bool includeDscp) {
     pid_t pid = fork();
     if (pid < 0) {
         LogErr(VB_MEDIAOUT, "AES67Manager: fork() failed for ptp4l: %s\n", FPPstrerror(errno));
-        WarningHolder::AddWarning(45, "AES67: could not start the ptp4l clock-sync process");
+        WarningHolder::AddWarning(AES67::WARNING_ID_PTP, "AES67: could not start the ptp4l clock-sync process");
         return false;
     }
     if (pid == 0) {
@@ -760,7 +767,7 @@ bool AES67Manager::InitPTP() {
     // Check if ptp4l binary exists
     if (!FileExists("/usr/sbin/ptp4l")) {
         LogErr(VB_MEDIAOUT, "AES67Manager: ptp4l not found — install linuxptp package\n");
-        WarningHolder::AddWarning(45, "AES67: ptp4l not found — install the linuxptp package");
+        WarningHolder::AddWarning(AES67::WARNING_ID_PTP, "AES67: ptp4l not found — install the linuxptp package");
         return false;
     }
 
@@ -785,7 +792,7 @@ bool AES67Manager::InitPTP() {
 
             if (!StartPtp4l(false, false)) {
                 LogErr(VB_MEDIAOUT, "AES67Manager: ptp4l failed to start\n");
-                WarningHolder::AddWarning(45, "AES67: PTP clock sync (ptp4l) could not start on the configured interface");
+                WarningHolder::AddWarning(AES67::WARNING_ID_PTP, "AES67: PTP clock sync (ptp4l) could not start on the configured interface");
                 m_ptp4lPid = -1;
                 return false;
             }
@@ -818,6 +825,41 @@ bool AES67Manager::InitPTP() {
         m_ptpAnnounceRunning.store(true);
         m_ptpAnnounceThread = std::thread(&AES67Manager::PtpAnnounceListenLoop, this);
     }
+
+    // Do not let anything anchor to the clock until it has stopped moving.
+    //
+    // ptp4l being alive is not the same as the clock being right: as a
+    // follower the PHC free-runs until BMCA picks a grandmaster and the first
+    // measurement steps it, which on #2848 was 6.81 hours later than the value
+    // four streams had already anchored to.  See AES67::PTP_LOCK_OFFSET_NS.
+    //
+    // Timing out is not fatal -- the streams start anyway, because a box with
+    // no grandmaster on the domain yet should still come up and play -- but it
+    // does mean the anchors are provisional, so say so, and leave the step
+    // detector in CheckPtpWatchdog() to rebuild them when the clock does lock.
+    bool locked = false;
+    if (m_config.ptpLockWaitMs > 0) {
+        locked = WaitForPtpLock(m_config.ptpLockWaitMs);
+        if (!locked) {
+            LogWarn(VB_MEDIAOUT,
+                    "AES67Manager: PTP did not settle within %dms (state %s) — "
+                    "starting anyway; the RTP timelines will be re-anchored if "
+                    "the clock steps once it locks\n",
+                    m_config.ptpLockWaitMs, GetPtp4lState().c_str());
+            WarningHolder::AddWarning(AES67::WARNING_ID_PTP,
+                                      AES67::WARNING_PTP_NO_LOCK);
+        } else {
+            WarningHolder::RemoveWarning(AES67::WARNING_ID_PTP,
+                                         AES67::WARNING_PTP_NO_LOCK);
+        }
+    } else {
+        LogInfo(VB_MEDIAOUT,
+                "AES67Manager: ptpLockWaitMs is 0 — not waiting for PTP to "
+                "lock before anchoring the RTP timelines\n");
+    }
+    // With ptpMediaClock off nothing is anchored to PTP at all, so there is
+    // no anchor for a late lock to invalidate and the question does not apply.
+    m_ptpLockedAtStart.store(locked || !m_config.ptpMediaClock);
 
     m_ptpInitialized = true;
     LogInfo(VB_MEDIAOUT, "AES67Manager: PTP initialized — ptp4l PID %d on %s\n",
@@ -884,6 +926,17 @@ void AES67Manager::ShutdownPTP() {
         m_ptpConfPath.clear();
     }
     m_ptpInitialized = false;
+    m_ptpLockedAtStart.store(false);
+
+    // Nothing is anchored to PTP any more, so a banner saying the anchors are
+    // provisional describes streams that no longer exist.  InitPTP() raises it
+    // again if the next start still cannot reach a lock.
+    WarningHolder::RemoveWarning(AES67::WARNING_ID_PTP, AES67::WARNING_PTP_NO_LOCK);
+
+    {
+        std::lock_guard<std::mutex> lock(m_ptpStepMutex);
+        m_ptpMonotonicDeltaValid = false;
+    }
 
     std::lock_guard<std::mutex> lock(m_ptpCacheMutex);
     m_ptpCache = PtpQueryCache();
@@ -1047,6 +1100,122 @@ std::string AES67Manager::GetPtp4lState() {
     RefreshPtpCache();
     std::lock_guard<std::mutex> lock(m_ptpCacheMutex);
     return m_ptpCache.portState;
+}
+
+// Block until the PTP clock is one that will not step under the RTP anchors,
+// or until the caller's patience runs out.  See AES67::PTP_LOCK_OFFSET_NS for
+// what went wrong without this and why the offset -- not the port state -- is
+// the signal.
+//
+// Two outcomes count as settled:
+//
+//   MASTER / GRAND_MASTER -- we won the BMCA, so the PHC *is* the domain's
+//       time and there is nothing for ptp4l to step it towards.  Returns as
+//       soon as the election is decided rather than burning the whole cap,
+//       which matters because declaring yourself master takes announceReceipt-
+//       Timeout x the announce interval (3 x 2s here) of listening first.
+//
+//   SLAVE with a small offset from master -- ptp4l has measured against the
+//       grandmaster and the correction it needed has already been applied.
+//
+//   LISTENING with no grandmaster on the domain, once the cap has run out --
+//       there is nothing to be stepped towards, so the free-running PHC is as
+//       settled as it is going to get.  This one is deliberately only tested
+//       at the deadline: during the wait "no announce seen" and "no announce
+//       yet" look identical, and returning on it early would defeat the whole
+//       point on a follower whose grandmaster had not spoken yet.  It matters
+//       because a box that is about to become grandmaster spends
+//       announceReceiptTimeout x the announce interval -- 3 x 2s here --
+//       listening first, so a solo FPP would otherwise time out and cry wolf
+//       on every single boot.  Measured on a Pi 5 with nothing else on the
+//       domain: LISTENING throughout, gmPresent false throughout, and
+//       "assuming the grand master role" at t=7.46s -- well past the cap.
+//       UNCALIBRATED or a wide SLAVE offset at the
+//       deadline is the opposite case: a grandmaster is there and we have not
+//       caught up with it yet, which is exactly when the caller should worry.
+//
+// Everything else is not settled, and the caller decides what to do about it.
+bool AES67Manager::WaitForPtpLock(int timeoutMs) {
+    if (timeoutMs <= 0) {
+        return false;
+    }
+    // Every answer here comes from pmc.  Without it the wait can only ever
+    // time out, so spending the cap to find that out helps nobody -- say so
+    // once and carry on.  (linuxptp ships both binaries, and InitPTP() has
+    // already required ptp4l, so this is a broken install rather than an
+    // ordinary one.)
+    if (!FileExists(PMC_BINARY)) {
+        LogWarn(VB_MEDIAOUT,
+                "AES67Manager: %s is missing — cannot tell whether PTP has "
+                "locked, so not waiting for it\n", PMC_BINARY);
+        return false;
+    }
+    const auto start = std::chrono::steady_clock::now();
+    const auto deadline = start + std::chrono::milliseconds(timeoutMs);
+
+    std::string reported;
+    for (;;) {
+        if (!IsPtp4lRunning()) {
+            LogWarn(VB_MEDIAOUT,
+                    "AES67Manager: ptp4l exited while waiting for it to lock\n");
+            return false;
+        }
+
+        // force: the whole point is the live answer, and the cache is a second
+        // deep -- four polls of the same stale reading would just burn the cap.
+        RefreshPtpCache(true);
+        std::string portState;
+        int64_t offsetNs = 0;
+        bool gmPresent = false;
+        {
+            std::lock_guard<std::mutex> lock(m_ptpCacheMutex);
+            portState = m_ptpCache.portState;
+            offsetNs = m_ptpCache.offsetNs;
+            gmPresent = m_ptpCache.gmPresent;
+        }
+
+        // One line per transition, not per poll: this runs four times a second
+        // and the interesting thing is LISTENING -> UNCALIBRATED -> SLAVE.
+        if (portState != reported) {
+            reported = portState;
+            LogInfo(VB_MEDIAOUT, "AES67Manager: waiting for PTP — %s\n",
+                    portState.c_str());
+        }
+
+        const double waitedS = std::chrono::duration<double>(
+                                   std::chrono::steady_clock::now() - start).count();
+
+        if (IsGrandmasterPortState(portState)) {
+            LogInfo(VB_MEDIAOUT,
+                    "AES67Manager: PTP settled after %.1fs — this node is the "
+                    "grandmaster, so the clock is already the domain's time\n",
+                    waitedS);
+            return true;
+        }
+        const int64_t absOffset = offsetNs < 0 ? -offsetNs : offsetNs;
+        if (portState == "SLAVE" && absOffset < AES67::PTP_LOCK_OFFSET_NS) {
+            LogInfo(VB_MEDIAOUT,
+                    "AES67Manager: PTP settled after %.1fs — SLAVE, offset "
+                    "%+lldns\n", waitedS, (long long)offsetNs);
+            return true;
+        }
+
+        const auto now = std::chrono::steady_clock::now();
+        if (now >= deadline) {
+            if (portState == "LISTENING" && !gmPresent) {
+                LogInfo(VB_MEDIAOUT,
+                        "AES67Manager: no PTP grandmaster on domain %d after "
+                        "%.1fs — nothing to step this clock, carrying on\n",
+                        GetPtpDomain(), waitedS);
+                return true;
+            }
+            return false;
+        }
+        auto slice = std::chrono::milliseconds(AES67::PTP_LOCK_POLL_MS);
+        const auto left = std::chrono::duration_cast<std::chrono::milliseconds>(
+            deadline - now);
+        std::this_thread::sleep_for(std::min(slice, left));
+    }
 }
 
 // Queries the *actual* domain grandmaster via `pmc GET TIME_STATUS_NP` —
@@ -3459,9 +3628,72 @@ void AES67Manager::DriftControlLoop() {
     LogInfo(VB_MEDIAOUT, "AES67 drift control thread stopped\n");
 }
 
-void AES67Manager::CheckPtpWatchdog() {
+// PTP time minus CLOCK_MONOTONIC.  This is the quantity a send pipeline's RTP
+// anchor depends on: the anchor is a PTP instant frozen at build time, and the
+// pipeline that has to hit it runs on the graph clock, which is a system clock
+// like this one.  When the two move apart by more than drift, the anchor is
+// wrong by exactly that much.
+bool AES67Manager::PtpMonotonicDelta(int64_t& deltaNs) {
+    std::lock_guard<std::mutex> lock(m_ptpClockMutex);
+    if (!m_ptpClock) {
+        return false;
+    }
+    const GstClockTime ptpNow = gst_clock_get_time(m_ptpClock);
+    if (!GST_CLOCK_TIME_IS_VALID(ptpNow)) {
+        return false;
+    }
+    struct timespec ts;
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
+        return false;
+    }
+    deltaNs = (int64_t)ptpNow - (int64_t)GST_TIMESPEC_TO_TIME(ts);
+    return true;
+}
+
+void AES67Manager::ResetPtpStepReference() {
+    int64_t delta = 0;
+    const bool have = PtpMonotonicDelta(delta);
+    std::lock_guard<std::mutex> lock(m_ptpStepMutex);
+    m_ptpMonotonicDeltaNs = delta;
+    m_ptpMonotonicDeltaValid = have;
+}
+
+// True when the PTP clock has moved out from under the anchors since the last
+// sample.  Re-samples either way, so what it measures is always one watchdog
+// interval of movement rather than everything since the pipelines were built.
+bool AES67Manager::PtpClockStepped() {
+    int64_t delta = 0;
+    if (!PtpMonotonicDelta(delta)) {
+        // No PTP media clock, so nothing is anchored to PTP and there is
+        // nothing for a step to invalidate.
+        std::lock_guard<std::mutex> lock(m_ptpStepMutex);
+        m_ptpMonotonicDeltaValid = false;
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(m_ptpStepMutex);
+    const bool had = m_ptpMonotonicDeltaValid;
+    const int64_t previous = m_ptpMonotonicDeltaNs;
+    m_ptpMonotonicDeltaNs = delta;
+    m_ptpMonotonicDeltaValid = true;
+    if (!had) {
+        return false;
+    }
+    const int64_t moved = delta - previous;
+    const int64_t absMoved = moved < 0 ? -moved : moved;
+    if (absMoved < AES67::PTP_STEP_DETECT_NS) {
+        return false;
+    }
+    LogWarn(VB_MEDIAOUT,
+            "AES67 watchdog: PTP clock stepped %+.3f s — the RTP timelines are "
+            "anchored to where it used to be\n",
+            (double)moved / 1e9);
+    return true;
+}
+
+bool AES67Manager::CheckPtpWatchdog() {
     if (!m_config.ptpEnabled || !m_ptpInitialized) {
-        return;
+        return false;
     }
 
     if (!IsPtp4lRunning()) {
@@ -3474,9 +3706,20 @@ void AES67Manager::CheckPtpWatchdog() {
         } else {
             LogErr(VB_MEDIAOUT, "AES67 watchdog: ptp4l restart failed\n");
         }
-        return;
+        // A fresh ptp4l may have stepped the clock on its way back to lock, and
+        // the reference we were holding describes the old one either way.
+        ResetPtpStepReference();
+        return false;
     }
 
+    // A clock that locks *after* the pipelines were built breaks them exactly
+    // as the cold-boot race did (issue #2848): the grandmaster that boots
+    // slower than the Pi, or a BMCA changeover to a device on a different
+    // epoch.  rtpL24pay latches timestamp-offset on the segment, so there is
+    // no re-anchoring in place -- the only fix is to build them again, which
+    // is cheap and is what the under-delivery path already does 90 seconds
+    // later.  This just gets there without waiting for the symptom.
+    return PtpClockStepped();
 }
 
 bool AES67Manager::PollPipelinesWatchdog() {
@@ -4185,8 +4428,11 @@ void AES67Manager::SAPAnnounceLoop() {
         // Runs every SAP_ANNOUNCE_INTERVAL_S (30s) — fast enough to detect
         // silent failures without adding significant overhead.
         if (m_sapAnnounceRunning.load()) {
-            CheckPtpWatchdog();
-            if (PollPipelinesWatchdog()) {
+            // Evaluate both before deciding: PollPipelinesWatchdog() also
+            // drains each pipeline's bus, so short-circuiting past it would
+            // leave errors unread until the next pass.
+            const bool ptpStepped = CheckPtpWatchdog();
+            if (PollPipelinesWatchdog() || ptpStepped) {
                 // A full pipeline rebuild is needed.  We cannot call
                 // ApplyConfig() from this thread because ApplyConfig()
                 // joins m_sapAnnounceThread — which IS this thread — causing
@@ -4753,6 +4999,7 @@ AES67Manager::Status AES67Manager::GetStatus() {
 
         status.ptpPortState = IsPtp4lRunning() ? GetPtp4lState() : "not running";
         status.ptpIsGrandmaster = IsGrandmasterPortState(status.ptpPortState);
+        status.ptpLockedAtStart = m_ptpLockedAtStart.load();
 
         if (QueryPtp4lTimeStatus(gmPresent, gmId, offsetNs) && gmPresent && !gmId.empty()) {
             status.ptpSynced = true;
@@ -5117,6 +5364,7 @@ HttpResponsePtr AES67Manager::render_GET(const HttpRequestPtr& req) {
         ptp["grandmasterViaBoundary"] = st.ptpGrandmasterViaBoundary;
         ptp["portState"] = st.ptpPortState;
         ptp["isGrandmaster"] = st.ptpIsGrandmaster;
+        ptp["lockedAtStart"] = st.ptpLockedAtStart;
         ptp["enabled"] = st.ptpEnabled;
         ptp["domain"] = st.ptpDomain;
         ptp["role"] = st.ptpRole;

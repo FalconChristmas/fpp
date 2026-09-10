@@ -70,6 +70,13 @@ constexpr int WARNING_ID_PIPELINE = 44;
 constexpr const char* WARNING_SEND_FAILED = "AES67: audio send stream failed to start";
 constexpr const char* WARNING_RECV_FAILED = "AES67: audio receive stream failed to start";
 
+// Warning slot for the PTP daemon itself, kept separate from the pipeline one
+// so a clock problem and a stream problem do not overwrite each other.
+constexpr int WARNING_ID_PTP = 45;
+constexpr const char* WARNING_PTP_NO_LOCK =
+    "AES67: PTP did not reach a usable lock before the streams started — "
+    "audio may be mistimed until the clock settles";
+
 // AES67 allows up to 8 channels per stream and FPP now carries all of them.
 //
 // This sat at 2 for a while because anything above stereo produced "Internal
@@ -179,6 +186,82 @@ constexpr int PTP_CONVERGENCE_WINDOW_S   = 60;
 // TTL for the cached pmc query result.  /aes67/status is HTTP-facing and each
 // query forks a pmc process, so repeated hits must not fork per request.
 constexpr int PTP_QUERY_CACHE_MS         = 1000;
+
+// ─── Waiting for the PTP clock before anchoring anything to it ──────────────
+//
+// A send pipeline is anchored to PTP time exactly once, when it is built:
+// rtpL24pay latches "timestamp-offset" on the segment, so the RTP timeline
+// cannot be re-anchored in place afterwards (setting it from a probe on the
+// first buffer was measured to do nothing at all).  That makes it a hard
+// requirement that the clock read at build time is the clock the stream will
+// keep running on.
+//
+// On a cold boot it was not.  ptp4l was launched, confirmed alive 500ms later,
+// and PTP declared "initialized" -- and GetOrCreateMediaClock() only proves
+// the PHC can be *read*, which says nothing about whether it has been
+// disciplined.  As a follower it has not: the PHC free-runs from whatever the
+// NIC came up with, and ptp4l steps it to grandmaster time seconds later, on
+// entering SLAVE.  Everything anchored in between is anchored to a time base
+// that is about to jump.
+//
+// Reported on issue #2848 from a Pi 5 into a Yamaha MRX7-D, with the whole
+// sequence in the log:
+//
+//   11:34:37.306  PTP initialized -- media clock using PHC /dev/ptp0
+//   11:34:37.340  stream 1 RTP timeline anchored (timestamp-offset 3260165294)
+//   11:34:39      selected best master clock 001dc1.fffe.149b4a
+//   11:34:40      UNCALIBRATED -> SLAVE, then a first servo sample of
+//                 rms 1265019998642539520 -- the pre-step offset
+//   11:34:41      rms 1030ns          <- the PHC has now moved under the anchor
+//
+// The grandmaster's epoch was ~6.81 hours ahead of the Pi's PHC, so the four
+// streams declared a playout time 24,472 seconds in the past.  They were not
+// silent, which is what made it hard to see: aes67_verify measured 40.8
+// packets/s in correctly-spaced bursts separated by 6.5 second holes, a media
+// clock of 1857.83 samples/s (-961,298 ppm), and Dante red -- while
+// /aes67/status still reported 4/4 pipelines running and PTP synced.  The
+// watchdog rebuilt the stack 90 seconds later and everything was correct on
+// the first try, because by then the PHC was already disciplined.
+//
+// So: wait for the clock to settle before building anything on it.
+//
+// SLAVE alone is not the signal.  The log above shows the step arriving
+// *after* the transition, so a wait that stopped at SLAVE would still race it.
+// The offset from master is the signal, and reaching it means the step has
+// already happened.
+constexpr int64_t PTP_LOCK_OFFSET_NS     = 1000000;  // 1ms
+
+// How long InitPTP() will wait for that.  This blocks fppd's startup, so it is
+// deliberately short: it only runs on a box with AES67 enabled *and* PTP on,
+// and the measured lock on the reference hardware is 3.2s to SLAVE and ~4s to
+// microsecond offsets, which this covers with margin.  Timing out is not a
+// failure path -- the streams still start, and the step detector below picks
+// up a clock that locks later (a grandmaster that boots slower than the Pi is
+// an ordinary thing at a commissioning).  Set "ptpLockWaitMs" to 0 in
+// pipewire-aes67-instances.json to skip the wait entirely.
+constexpr int PTP_LOCK_WAIT_MS           = 5000;
+
+// Poll cadence for that wait.  Each poll forks two pmc queries, so 250ms is
+// 40 forks across the whole 5s cap in the worst case, and none at all once the
+// clock settles.  PTP_QUERY_CACHE_MS does not help here -- the wait needs the
+// live answer, not a second-old one -- so it queries with force.
+constexpr int PTP_LOCK_POLL_MS           = 250;
+
+// The step detector, for a clock that moves *after* the pipelines were built:
+// a grandmaster that appears late, or a BMCA changeover to a device on a
+// different epoch.  Both leave the anchor as wrong as the cold-boot race did,
+// and neither can be fixed in place -- so the watchdog rebuilds.
+//
+// Measured as the change in (PTP - CLOCK_MONOTONIC) between two watchdog
+// checks, which is the quantity the anchor actually depends on, so the test is
+// "did the anchor become wrong" rather than a proxy for it.  100ms sits in a
+// wide gap.  Below it: a free-running PHC against the Pi's own crystal, which
+// is the worst case since a disciplined one moves less -- measured on a Pi 5,
+// -1.581ms across a 30 second check interval (52.7ppm, in line with the ~56ppm
+// the drift loop corrects), so a 63x margin.  Above it: ptp4l is configured to
+// step anything at or above 1 second and slew everything below, so every step
+// it can make trips this.
+constexpr int64_t PTP_STEP_DETECT_NS     = 100000000;  // 100ms
 
 // PTP Announce listener.  No PTP management response carries the
 // grandmaster's IP address -- TIME_STATUS_NP names it only by clock identity
@@ -292,6 +375,12 @@ struct AES67Config {
     //   "follower" -- ptp4l slaveOnly: never becomes grandmaster.
     //   "master"   -- priority1 127: prefer to win the election.
     std::string ptpRole = "auto";
+
+    // How long InitPTP() waits for ptp4l to reach a settled clock before the
+    // send pipelines are anchored to it.  See AES67::PTP_LOCK_WAIT_MS for why
+    // the wait exists and why it is short; 0 skips it, which restores the
+    // pre-#2848 behaviour and is only useful for reproducing that failure.
+    int ptpLockWaitMs = AES67::PTP_LOCK_WAIT_MS;
 
     // Hold a sender idle until something in the audio graph actually feeds it.
     //
@@ -934,6 +1023,12 @@ public:
         bool ptpGrandmasterViaBoundary = false;
         std::string ptpPortState;    // ptp4l portState (MASTER/SLAVE/LISTENING/...)
         bool ptpIsGrandmaster = false;  // true when *we* hold the grandmaster role
+        // False when the current pipelines anchored their RTP timelines to a
+        // clock that had not settled, so the anchors may be wrong by however
+        // far it has moved since -- the failure on #2848, where every other
+        // field here read healthy while the wire was not.  True when the
+        // clock was settled, and also when nothing is anchored to PTP.
+        bool ptpLockedAtStart = false;
         // Copied out of m_config under m_configMutex so the HTTP handler can
         // render them without touching shared config itself.
         bool ptpEnabled = false;
@@ -1047,9 +1142,36 @@ private:
     // alive shortly afterwards.
     bool StartPtp4l(bool hwTimestamping, bool includeDscp);
 
-    // Restart ptp4l/phc2sys if they have died (link flap, OOM, manual kill).
-    // Called from the SAP threads alongside the pipeline watchdog.
-    void CheckPtpWatchdog();
+    // Block until ptp4l reports a clock that will not step under us, or until
+    // timeoutMs elapses.  Returns true if it settled.  See
+    // AES67::PTP_LOCK_OFFSET_NS for what "settled" means and why waiting for
+    // it is a precondition of anchoring anything to PTP.
+    bool WaitForPtpLock(int timeoutMs);
+
+    // Restart ptp4l/phc2sys if they have died (link flap, OOM, manual kill),
+    // and notice a PTP clock that has stepped out from under the pipelines'
+    // RTP anchors.  Returns true when the caller should rebuild everything.
+    // Called from the SAP announce loop alongside the pipeline watchdog.
+    bool CheckPtpWatchdog();
+
+    // Step detector state: (PTP - CLOCK_MONOTONIC) as it stood at the last
+    // sample.  ResetPtpStepReference() takes one when ApplyConfig() has
+    // finished building pipelines, so the first watchdog check 30s later can
+    // already catch a step; PtpClockStepped() compares and re-samples, so the
+    // comparison is only ever across one watchdog interval and steady drift
+    // between the two crystals never accumulates into a false positive.
+    // See AES67::PTP_STEP_DETECT_NS.
+    int64_t m_ptpMonotonicDeltaNs = 0;
+    bool m_ptpMonotonicDeltaValid = false;
+    std::mutex m_ptpStepMutex;
+    void ResetPtpStepReference();
+    bool PtpClockStepped();
+    // PTP minus CLOCK_MONOTONIC, or false when there is no PTP clock to read.
+    bool PtpMonotonicDelta(int64_t& deltaNs);
+
+    // Whether WaitForPtpLock() succeeded before the current pipelines were
+    // anchored.  Reported as ptp.lockedAtStart.
+    std::atomic<bool> m_ptpLockedAtStart{false};
 
     // Query the actual PTP grandmaster (may be a remote clock, not this node)
     // via `pmc GET TIME_STATUS_NP`.  Returns false if ptp4l isn't running or
