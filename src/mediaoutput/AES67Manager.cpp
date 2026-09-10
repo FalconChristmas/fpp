@@ -659,6 +659,71 @@ void AES67Manager::OnPipeWireReady() {
 // Absolute path so we do not depend on whatever PATH systemd handed fppd --
 // the ptp4l presence check below is absolute for the same reason.
 static const char* PMC_BINARY = "/usr/sbin/pmc";
+static const char* PTP4L_BINARY = "/usr/sbin/ptp4l";
+
+// Does this ptp4l understand the given config key?
+//
+// linuxptp 4.0 renamed slaveOnly to clientOnly (and masterOnly to serverOnly)
+// and kept the old spellings as deprecated aliases, which 4.2 announces on
+// every start: "option slaveOnly is deprecated, please use clientOnly
+// instead".  Neither spelling is safe to hard-code.  An unknown key is a hard
+// config-parse failure -- ptp4l exits before it does anything at all -- so
+// writing clientOnly takes PTP down entirely on a pre-4.0 install, while
+// writing slaveOnly is fine today but relies on an alias that has already
+// been announced as going away.
+//
+// Asking is better than either.  ptp4l parses its config file before it looks
+// at anything else, so a config carrying nothing but the key under test, run
+// with no -i, answers the question without starting PTP, touching the network
+// or opening a clock.  Measured on linuxptp 4.2:
+//
+//   clientOnly       -> "no interface specified"                       (255)
+//   notARealOption   -> "unknown option notARealOption at line 2 ..."  (254)
+//
+// The exit codes differ too, but the message is the part that is actually
+// documented behaviour, so that is what this reads.  Anything unexpected --
+// no output at all, ptp4l missing, popen failing -- is treated as "not
+// supported", which falls back to the spelling that works on every release
+// shipped so far rather than the one that only works on new ones.
+static bool Ptp4lSupportsOption(const std::string& option) {
+    struct PipeCloser {
+        void operator()(FILE* f) const { if (f) pclose(f); }
+    };
+    const std::string probePath = "/tmp/fpp-ptp4l-probe.conf";
+    {
+        std::ofstream probe(probePath);
+        if (!probe.is_open()) {
+            return false;
+        }
+        probe << "[global]\n" << option << "\t\t1\n";
+    }
+    std::string cmd = std::string(PTP4L_BINARY) + " -f " + probePath + " 2>&1";
+    std::string output;
+    {
+        std::unique_ptr<FILE, PipeCloser> pipe(popen(cmd.c_str(), "r"));
+        if (pipe) {
+            char buffer[256];
+            while (fgets(buffer, sizeof(buffer), pipe.get()) != nullptr) {
+                output += buffer;
+            }
+        }
+    }
+    unlink(probePath.c_str());
+
+    if (output.empty()) {
+        return false;
+    }
+    return output.find("unknown option") == std::string::npos;
+}
+
+// The spelling of the follower-role key this ptp4l accepts.  Probed once: the
+// binary does not change under a running fppd, and InitPTP() writes the config
+// up to three times per start.
+static const char* Ptp4lClientOnlyKey() {
+    static const char* key =
+        Ptp4lSupportsOption("clientOnly") ? "clientOnly" : "slaveOnly";
+    return key;
+}
 
 bool AES67Manager::WritePtpConf(const std::string& path, bool hwTimestamping, bool includeDscp) {
     std::ofstream conf(path);
@@ -684,7 +749,7 @@ bool AES67Manager::WritePtpConf(const std::string& path, bool hwTimestamping, bo
     conf << "[global]\n"
          << "domainNumber\t\t" << m_config.ptpDomain << "\n"
          << "twoStepFlag\t\t1\n"
-         << "slaveOnly\t\t" << (slaveOnly ? 1 : 0) << "\n"
+         << Ptp4lClientOnlyKey() << "\t\t" << (slaveOnly ? 1 : 0) << "\n"
          << "priority1\t\t" << priority1 << "\n"
          << "priority2\t\t128\n"
          << "clockClass\t\t248\n"
@@ -765,7 +830,7 @@ bool AES67Manager::InitPTP() {
     }
 
     // Check if ptp4l binary exists
-    if (!FileExists("/usr/sbin/ptp4l")) {
+    if (!FileExists(PTP4L_BINARY)) {
         LogErr(VB_MEDIAOUT, "AES67Manager: ptp4l not found — install linuxptp package\n");
         WarningHolder::AddWarning(AES67::WARNING_ID_PTP, "AES67: ptp4l not found — install the linuxptp package");
         return false;
@@ -5100,7 +5165,7 @@ std::vector<AES67Manager::TestResult> AES67Manager::RunSelfTest() {
     {
         TestResult r;
         r.testName = "ptp4l_binary";
-        r.passed = FileExists("/usr/sbin/ptp4l");
+        r.passed = FileExists(PTP4L_BINARY);
         r.message = r.passed ? "ptp4l binary found at /usr/sbin/ptp4l" : "ptp4l binary NOT found — install linuxptp package";
         results.push_back(r);
     }
