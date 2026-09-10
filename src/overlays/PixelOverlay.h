@@ -71,7 +71,21 @@ public:
     static uint32_t mapColor(const std::string& c);
 
     void addPeriodicUpdate(int32_t initialDelayMS, PixelOverlayModel* m);
+    // Takes the model out of the update schedule and stamps any update already
+    // in flight so it cannot requeue.  Does NOT wait for a running update to
+    // finish, and must not: setRunningEffect() calls this holding the model's
+    // effectLock, while an in-flight entry is registered *before*
+    // updateRunningEffects() acquires that same lock -- so waiting here would
+    // block the holder of effectLock on a thread that cannot proceed without
+    // it.  Waiting is also unnecessary from there: the caller holds effectLock,
+    // so nothing else is inside updateRunningEffects() on this model, and the
+    // stamp already prevents a stale requeue.
     void removePeriodicUpdate(PixelOverlayModel* m);
+    // As above, but also waits until no other thread is inside
+    // updateRunningEffects() on the model.  Only for a caller that is about to
+    // delete it (removeAutoOverlayModel()).  MUST NOT be called while holding
+    // effectLock or modelsLock -- see the note on the definition.
+    void removePeriodicUpdateAndWait(PixelOverlayModel* m);
     void resetChildParent(const std::string& name);
 
     Json::Value getModelsAsJson();
@@ -134,6 +148,47 @@ private:
     std::condition_variable threadCV;
     std::map<uint64_t, std::list<PixelOverlayModel*>> updates;
     std::list<PixelOverlayModel*> afterOverlayModels;
+
+    // Models currently inside updateRunningEffects().  Both callers (the
+    // FPP-OverlayME thread and doOverlays() on the channel output thread) take
+    // the model off `updates`/`afterOverlayModels` and then drop threadLock for
+    // the duration of the call, so removing it from those lists is not enough
+    // to make deleting it safe -- removeAutoOverlayModel() would free a model
+    // that a running effect is still writing into.  Everything that enters the
+    // call registers here first.
+    //
+    // `removed` is what makes the registry an invariant rather than a race.
+    // Waiting for the entry to disappear is NOT sufficient: the in-flight
+    // thread erases its entry and then requeues the model into
+    // `updates`/`afterOverlayModels` while still holding threadLock, so the
+    // waiter -- which cannot wake until that lock is released -- observes an
+    // empty registry and a model that has just been put back.  It then deletes
+    // a model the next tick will dereference.  Both removal variants instead
+    // stamp every matching entry, and runEffectUpdateLocked() reports
+    // EFFECT_DONE for a stamped entry so the caller never requeues.  Removal is
+    // then authoritative for a model that has already started, not only for one
+    // that has not -- which is also what lets setRunningEffect() strip the
+    // model safely without waiting at all.
+    //
+    // The stamp also fixes a pre-existing duplicate: setRunningEffect() removes
+    // and re-adds the model via addPeriodicUpdate(), and without the stamp the
+    // in-flight caller requeued it again on return, ticking it at twice its
+    // period until the next removal.
+    //
+    // `tid` scopes the wait in removePeriodicUpdateAndWait() to *other*
+    // threads.  Nothing reaches that variant from inside an update today, so it
+    // is not load-bearing, but it keeps the predicate honest if one ever does.
+    struct InFlight {
+        PixelOverlayModel* m;
+        std::thread::id tid;
+        bool removed = false;
+    };
+    std::list<InFlight> inFlightModels;
+    std::condition_variable inFlightCV;
+    // threadLock must be held.
+    void StampAndStripLocked(PixelOverlayModel* m);
+    void runEffectUpdateLocked(PixelOverlayModel* m, std::unique_lock<std::mutex>& l,
+                               int32_t* msOut);
 
     void loadFonts();
 

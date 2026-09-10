@@ -55,6 +55,15 @@ FBMatrixOutput::FBMatrixOutput(unsigned int startChannel,
 FBMatrixOutput::~FBMatrixOutput() {
     LogDebug(VB_CHANNELOUT, "FBMatrixOutput::~FBMatrixOutput()\n");
 
+    // Close() normally does this, but Init() can return failure after the
+    // listener is registered, and a failed output is deleted without a Close().
+    // A listener left pointing at a freed FBMatrixOutput is the very bug this
+    // is here to prevent, one level up.
+    if (!m_modelListenerName.empty()) {
+        PixelOverlayManager::INSTANCE.removeModelListener(modelName, m_modelListenerName);
+        m_modelListenerName.clear();
+    }
+
     if (buffer)
         delete[] buffer;
 }
@@ -124,6 +133,16 @@ int FBMatrixOutput::Init(Json::Value config) {
         }
     }
 
+    // Track the model rather than caching a bare pointer: an auto-created FB
+    // model is destroyed by removeAutoOverlayModel() whenever the outputs are
+    // reloaded, and the channel output thread can be inside PrepData()/
+    // SendData() at that moment.
+    m_modelListenerName = "FBMatrix" + std::to_string((uintptr_t)this);
+    PixelOverlayManager::INSTANCE.addModelListener(modelName, m_modelListenerName,
+        [this](PixelOverlayModel* m) {
+            std::lock_guard<std::mutex> lock(m_modelLock);
+            model = m;
+        });
     model = PixelOverlayManager::INSTANCE.getModel(modelName);
 
     if (!model) {
@@ -174,6 +193,14 @@ int FBMatrixOutput::Init(Json::Value config) {
  */
 int FBMatrixOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "FBMatrixOutput::Close()\n");
+    if (!m_modelListenerName.empty()) {
+        PixelOverlayManager::INSTANCE.removeModelListener(modelName, m_modelListenerName);
+        m_modelListenerName.clear();
+    }
+    {
+        std::lock_guard<std::mutex> lock(m_modelLock);
+        model = nullptr;
+    }
     if (!m_autoCreatedModelName.empty()) {
         PixelOverlayManager::INSTANCE.removeAutoOverlayModel(m_autoCreatedModelName);
     }
@@ -184,6 +211,10 @@ int FBMatrixOutput::Close(void) {
 }
 
 void FBMatrixOutput::PrepData(unsigned char* channelData) {
+    std::lock_guard<std::mutex> lock(m_modelLock);
+    if (!model || !buffer) {
+        return;
+    }
     channelData += m_startChannel;
 
     LogExcess(VB_CHANNELOUT, "FBMatrixOutput::SendData(%p)\n",
@@ -215,6 +246,10 @@ void FBMatrixOutput::PrepData(unsigned char* channelData) {
 }
 
 int FBMatrixOutput::SendData(unsigned char* channelData) {
+    std::lock_guard<std::mutex> lock(m_modelLock);
+    if (!model || !buffer) {
+        return m_channelCount;
+    }
     if (model->getState() == 0) {
         // Pass-through mode: the model isn't being driven by an active
         // overlay/effect, so push the current sequence channels into it
