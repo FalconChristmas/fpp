@@ -140,7 +140,7 @@
 			]
 		},
 		"simplePipeWireAudio": {
-			"description": "Simple PipeWire Audio",
+			"description": "Simple Audio",
 			"settings": [
 				"AudioOutput",
 				"AudioFormat",
@@ -179,7 +179,7 @@
 			]
 		},
 		"simplePipeWireVideo": {
-			"description": "Simple PipeWire Video",
+			"description": "Simple Video",
 			"settings": [
 				"VideoOutput",
 				"ForceHDMI",
@@ -663,7 +663,7 @@
 		"AudioFormat": {
 			"name": "AudioFormat",
 			"description": "Audio Sample Rate",
-			"tip": "The sample rate PipeWire's audio graph runs at.  Default lets FPP use 44100 unless the selected sound card clocks at something else.  The sample format (bit depth) is not set here; FPP probes the card and uses the widest format it can hold the rate in.  In PipeWire (Advanced) mode, per-card rates are configured in the PipeWire Audio Groups settings instead.",
+			"tip": "The sample rate PipeWire's audio graph runs at.  Default lets FPP use 44100 unless the selected sound card clocks at something else.  The sample format (bit depth) is not set here; FPP probes the card and uses the widest format it can hold the rate in.  In Advanced (Full PipeWire) mode, per-card rates are configured in the PipeWire Audio Groups settings instead.",
 			"gatherStats": true,
 			"level": 1,
 			"restart": 0,
@@ -680,7 +680,7 @@
 		"AudioPeriodSize": {
 			"name": "AudioPeriodSize",
 			"description": "Audio Period Size",
-			"tip": "The number of samples PipeWire hands to the sound card at a time (the graph quantum).  Smaller values lower latency, larger values are less likely to glitch on a busy player.  In PipeWire (Advanced) mode, per-card period sizes are configured in the PipeWire Audio Groups settings instead.",
+			"tip": "The number of samples PipeWire hands to the sound card at a time (the graph quantum).  Smaller values lower latency, larger values are less likely to glitch on a busy player.  In Advanced (Full PipeWire) mode, per-card period sizes are configured in the PipeWire Audio Groups settings instead.",
 			"gatherStats": true,
 			"level": 1,
 			"restart": 0,
@@ -741,15 +741,15 @@
 		"MediaBackend": {
 			"name": "MediaBackend",
 			"description": "Media Backend",
-			"tip": "Select how FPP handles audio and video playback. Simple PipeWire routes media through PipeWire and GStreamer with automatic single-card / single-display selection (recommended for most users). PipeWire (Advanced) exposes the full PipeWire stack with multi-device audio groups, video fan-out, AES67, and routing matrix.",
+			"tip": "Select how FPP handles audio and video playback. Simple Mode gives automatic single-card / single-display selection (recommended for most users). Advanced (Full PipeWire) exposes the full PipeWire stack with multi-device audio groups, video fan-out, AES67, and routing matrix.",
 			"gatherStats": true,
 			"restart": 0,
 			"reboot": 1,
 			"default": "pipewire-simple",
 			"type": "select",
 			"options": {
-				"Simple PipeWire": "pipewire-simple",
-				"PipeWire (Advanced)": "pipewire"
+				"Simple": "pipewire-simple",
+				"Advanced (Full PipeWire)": "pipewire"
 			},
 			"children": {
 				"pipewire": [
@@ -1589,7 +1589,10 @@
 		},
 		"FetchVendorLogos": {
 			"name": "FetchVendorLogos",
-			"transmitRank": { "0": 0, "1": 1 },
+			"transmitRank": {
+				"0": 0,
+				"1": 1
+			},
 			"description": "Fetch cape logos from vendors",
 			"gatherStats": true,
 			"tip": "Some capes/hats fetch the vendor logo from their website when using the FPP UI.  This discloses your IP address to the vendor.",
