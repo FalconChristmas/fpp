@@ -216,21 +216,35 @@ void AudioLevelMonitor::PollThread() {
 
                     const GstStructure* st = gst_message_get_structure(msg);
                     if (st && gst_structure_has_name(st, "level")) {
-                        // The level element reports per-channel values in a
-                        // GValueArray, not a GstValueArray -- they are
-                        // different types, and testing for the GStreamer one
-                        // silently matched nothing and left every meter at
-                        // zero. Both are accepted here so this keeps working
-                        // if that ever changes.
+                        // The level element historically reported per-channel
+                        // values as GValueArray (GLib) and newer GStreamer as
+                        // GstValueArray. Modern GLib deprecates GValueArray in
+                        // favour of GArray (G_TYPE_ARRAY), so check GArray first,
+                        // then GstValueArray, then fall back to GValueArray via
+                        // runtime lookup (avoids G_TYPE_VALUE_ARRAY deprecated
+                        // macro which triggers "Deprecated pre-processor symbol"
+                        // via _GLIB_GNUC_DO_PRAGMA(GCC warning) not suppressible
+                        // by -Wdeprecated-declarations).
                         const GValue* arr = gst_structure_get_value(st, "rms");
                         const GValue* v = nullptr;
-                        if (arr && G_VALUE_HOLDS(arr, G_TYPE_VALUE_ARRAY)) {
-                            GValueArray* va = (GValueArray*)g_value_get_boxed(arr);
-                            if (va && va->n_values > 0) {
-                                v = &va->values[0];
+                        if (arr && G_VALUE_HOLDS(arr, G_TYPE_ARRAY)) {
+                            GArray* va = (GArray*)g_value_get_boxed(arr);
+                            if (va && va->len > 0) {
+                                v = &g_array_index(va, GValue, 0);
                             }
                         } else if (arr && GST_VALUE_HOLDS_ARRAY(arr) && gst_value_array_get_size(arr) > 0) {
                             v = gst_value_array_get_value(arr, 0);
+                        } else if (arr) {
+                            static GType gvaType = 0;
+                            if (gvaType == 0) {
+                                gvaType = g_type_from_name("GValueArray");
+                            }
+                            if (gvaType != 0 && G_VALUE_HOLDS(arr, gvaType)) {
+                                GValueArray* va = (GValueArray*)g_value_get_boxed(arr);
+                                if (va && va->n_values > 0) {
+                                    v = &va->values[0];
+                                }
+                            }
                         }
                         if (v && G_VALUE_HOLDS_DOUBLE(v)) {
                             kv.second.rmsDb = g_value_get_double(v);
