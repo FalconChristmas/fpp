@@ -713,6 +713,15 @@ static bool writeCapeOverlayVariantBlock(const std::set<std::string>& filters) {
     free(data);
 
     std::string current = orig;
+    if (filters.empty() && current.find(CAPE_OVERLAY_VARIANT_BEGIN) == std::string::npos) {
+        // Nothing to write and nothing of ours to remove.  Returning here rather
+        // than falling into the rewrite below is not an optimisation: the trailing
+        // newline normalisation would rewrite an untouched config.txt on any box
+        // whose file ends in a blank line, and a changed config.txt is what makes
+        // cape detection reboot.  Every Pi with a cape that ships no variants would
+        // take one reboot for a cosmetic whitespace diff.
+        return false;
+    }
     // Strip any block we wrote before.  Tolerate a truncated block (BEGIN with no
     // END, from an interrupted write) by cutting to end of file rather than leaving
     // a marker behind that the next run would then nest a second block inside.
