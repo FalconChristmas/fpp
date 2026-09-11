@@ -712,9 +712,12 @@ function MakeJSONBackup()
 		// the backup page's form may still send one.  Refuse rather than return a
 		// complete backup to something that asked for a redacted one.  Restoring an
 		// existing protected backup is a separate path and still works.
+		//Only a caller asking to be PROTECTED is refused.  protectSensitive:false
+		//is asking for what it already gets, and 'protected' was never a field of
+		//this request at all -- refusing on its presence invented a compatibility
+		//surface that would one day reject a caller for a stray key.
 		if (is_array($input_data_decoded) &&
-			(array_key_exists('protectSensitive', $input_data_decoded) ||
-			 array_key_exists('protected', $input_data_decoded))) {
+			!empty($input_data_decoded['protectSensitive'])) {
 			http_response_code(400);
 			return json(array(
 				'success' => false,
