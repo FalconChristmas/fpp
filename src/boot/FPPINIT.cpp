@@ -473,12 +473,12 @@ int main(int argc, char* argv[]) {
         resetThermalSettings();
     } else if (action == "installKiosk") {
         installKiosk();
-        } else if (action == "setupPiRTC") {
-            // The UI's "reboot": 1 on DisablePiRTC prompts the user; don't reboot here.
-            setupPiRTCConfig(false);
-        } else if (action == "setupHDMICEC") {
-            // The UI's "reboot": 1 on DisableHDMICECInit prompts the user; don't reboot here.
-            setupHDMICECConfig(false);
+    } else if (action == "setupPiRTC") {
+        // The UI's "reboot": 1 on DisablePiRTC prompts the user; don't reboot here.
+        setupPiRTCConfig(false);
+    } else if (action == "setupHDMICEC") {
+        // The UI's "reboot": 1 on DisableHDMICECInit prompts the user; don't reboot here.
+        setupHDMICECConfig(false);
     } else if (action == "setupNetwork") {
         PutFileContents(networkSetupMut, "1");
         setupNetwork(true);
