@@ -44,6 +44,9 @@ dispatch_post('/channel/output/processors', 'channel_save_output_processors');
 dispatch_get('/channel/output/:file', 'channel_get_output');
 dispatch_post('/channel/output/:file', 'channel_save_output');
 
+dispatch_get('/crashes/uploadTarget', 'GetCrashUploadTarget'); // keep above crashes/upload/:file
+dispatch_post('/crashes/upload/:file', 'PostCrashUpload');
+
 dispatch_get('/configfile', 'GetConfigFileList');
 dispatch_get('/configfile/**', 'DownloadConfigFile');
 dispatch_post('/configfile/**', 'UploadConfigFile');
@@ -84,6 +87,7 @@ dispatch_get('/git/releases/sizes', 'GitOSReleaseSizes');
 dispatch_get('/git/reset', 'GitReset');
 dispatch_get('/git/status', 'GitStatus');
 dispatch_get('/git/branches', 'GitBranches');
+dispatch_get('/git/forkBranches', 'GitForkBranches');
 
 dispatch_get('/media', 'GetMedia');
 dispatch_get('/media/:MediaName/duration', 'GetMediaDuration');
@@ -303,6 +307,9 @@ dispatch_get('/testmode', 'testMode_Get');
 dispatch_post('/testmode', 'testMode_Set');
 
 dispatch_get('/time', 'GetTime');
+
+dispatch_get('/privacy/consent', 'GetConsent');
+dispatch_post('/privacy/consent', 'RecordConsent');
 
 // Load FPP's own controllers BEFORE any plugin's api.php.
 //

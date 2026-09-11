@@ -93,6 +93,7 @@ void checkConfigMigrations();
 void startZRAMSwap();
 void startDiskSwap();
 void setupChannelOutputs();
+void setupPiRTCConfig(bool rebootIfChanged = true);
 void handleRebootActions();
 
 // ---------------------------------------------------------------------------

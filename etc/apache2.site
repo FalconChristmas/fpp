@@ -165,8 +165,12 @@ ProxyPassReverse /fppdws ws://localhost:32322/fppdws
     # Enable rewriting
     RewriteEngine On
 
-    # Rewrite rule to route plugin requests
-    RewriteRule ^(.*)/(.*)$ /plugin.php?plugin=$1&file=$2&nopage=1 [NC,L,QSA,B]
+    # Split on the FIRST slash only: the plugin name is one path component and
+    # everything after it is the file, which may sit in a subdirectory
+    # (images/foo.png). A greedy '^(.*)/(.*)$' handed plugin.php a plugin of
+    # "myplugin/images", and its name allow-list rejects the slash, so every
+    # nested plugin asset 404d.
+    RewriteRule ^([^/]+)/(.+)$ /plugin.php?plugin=$1&file=$2&nopage=1 [NC,L,QSA,B]
 
     # CORS headers
     Header always set Access-Control-Allow-Origin "*"
@@ -188,8 +192,12 @@ ProxyPassReverse /fppdws ws://localhost:32322/fppdws
     # Enable mod_rewrite
     RewriteEngine On
 
-    # Rewrite plugin requests
-    RewriteRule ^(.*)/(.*)$ /plugin.php?plugin=$1&file=$2&nopage=1 [NC,L,QSA,B]
+    # Split on the FIRST slash only: the plugin name is one path component and
+    # everything after it is the file, which may sit in a subdirectory
+    # (images/foo.png). A greedy '^(.*)/(.*)$' handed plugin.php a plugin of
+    # "myplugin/images", and its name allow-list rejects the slash, so every
+    # nested plugin asset 404d.
+    RewriteRule ^([^/]+)/(.+)$ /plugin.php?plugin=$1&file=$2&nopage=1 [NC,L,QSA,B]
 
     # CORS headers
     Header always set Access-Control-Allow-Origin "*"
@@ -207,8 +215,12 @@ ProxyPassReverse /fppdws ws://localhost:32322/fppdws
     # Enable mod_rewrite
     RewriteEngine On
 
-    # Rewrite plugin requests
-    RewriteRule ^(.*)/(.*)$ /plugin.php?plugin=$1&file=$2&nopage=1 [NC,L,QSA,B]
+    # Split on the FIRST slash only: the plugin name is one path component and
+    # everything after it is the file, which may sit in a subdirectory
+    # (images/foo.png). A greedy '^(.*)/(.*)$' handed plugin.php a plugin of
+    # "myplugin/images", and its name allow-list rejects the slash, so every
+    # nested plugin asset 404d.
+    RewriteRule ^([^/]+)/(.+)$ /plugin.php?plugin=$1&file=$2&nopage=1 [NC,L,QSA,B]
 
     # CORS headers
     Header always set Access-Control-Allow-Origin "*"

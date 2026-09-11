@@ -6491,7 +6491,10 @@ function GetAES67Status()
         "pipelines" => array(),
         "ptp" => array(
             "synced" => false,
-            "offsetNs" => 0,
+            // null, not 0: an offset we could not ask for is unknown, and a
+            // zero here reads as a perfectly locked clock.  Matches what
+            // render_GET() sends when pmc gave no usable master_offset.
+            "offsetNs" => null,
             "grandmasterId" => "",
             "grandmasterAddress" => "",
             "grandmasterViaBoundary" => false,

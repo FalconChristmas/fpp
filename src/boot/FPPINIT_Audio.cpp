@@ -496,6 +496,21 @@ static std::string alsaSinkConfRateTag(int configuredRate) {
     return "# configured rate: " + std::to_string(configuredRate);
 }
 
+// Marker recording the AudioPeriodSize the conf was written with.
+//
+// Same job as alsaSinkConfRateTag(), for the same reason: perSize is consumed
+// only where the adapters are written, so without a tag to compare, changing
+// AudioPeriodSize left a conf that still declared the old api.alsa.period-size
+// and every boot logged "already match present cards; skipping probe".  The
+// setting read as applied in the UI while the graph never saw it.
+//
+// It cannot be read back off api.alsa.period-size: the capture adapters do not
+// carry one, and a plain search would find whichever sink adapter came first
+// rather than the value this boot would write.
+static std::string alsaSinkConfPeriodSizeTag(int perSize) {
+    return "# period size: " + std::to_string(perSize);
+}
+
 // Marker recording the cards the probe *considered*, which is not the same as
 // the cards it ended up writing an adapter for.
 //
@@ -1657,6 +1672,16 @@ static void runAudioSetup(bool recoveryPass) {
         printf("FPP - PipeWire: configured sample rate is now %d; regenerating\n", pipewireSampleRate);
         sinkConfStillValid = false;
     }
+    // Period size moves independently of everything above -- the card set, the
+    // rate and the group membership can all be unchanged while AudioPeriodSize
+    // has been retyped in the UI.  A conf written before the tag existed has no
+    // such line and re-probes once, which is correct: its period-size is
+    // whatever the old default was, not necessarily what the setting now says.
+    if (usePipeWireBackend && sinkConfStillValid &&
+        !contains(existingSinkConf, alsaSinkConfPeriodSizeTag(perSize) + "\n")) {
+        printf("FPP - PipeWire: configured period size is now %d; regenerating\n", perSize);
+        sinkConfStillValid = false;
+    }
     if (usePipeWireBackend && sinkConfStillValid) {
         printf("FPP - PipeWire: ALSA sink adapters already match present cards; skipping probe\n");
         // bootAdapterCids must still reflect the conf's adapters for the
@@ -2002,6 +2027,9 @@ static void runAudioSetup(bool recoveryPass) {
                  // What AudioFormat asked for, which default.clock.rate below no
                  // longer records once a cape refines it.  See alsaSinkConfRateTag().
                  << alsaSinkConfRateTag(pipewireSampleRate) << "\n"
+                 // What AudioPeriodSize asked for, which nothing else in the
+                 // file records.  See alsaSinkConfPeriodSizeTag().
+                 << alsaSinkConfPeriodSizeTag(perSize) << "\n"
                  // The cards considered, including any the probe then skipped as
                  // unusable.  See alsaSinkConfCardsTag().
                  << alsaSinkConfCardsTag(adapterCandidateCids) << "\n"

@@ -927,6 +927,16 @@ html .ui-button.ui-state-disabled:active {
 	padding-right: 4px;
 }
 
+/* "Help for This Page" at the top of the Help menu. Tinted with the theme's
+   primary-subtle tokens so it reads in light and dark mode. This cannot be
+   the bg-primary-subtle / text-primary-emphasis utilities: those are
+   !important and would defeat the menu's :hover/:focus highlight below, so
+   the tint is scoped to the resting state and the hover rule stays in charge. */
+#fppMenu .dropdown-item.help-for-page:not(:hover):not(:focus):not(:active) {
+	background-color: var(--bs-primary-bg-subtle);
+	color: var(--bs-primary-text-emphasis);
+}
+
 #fppMenu .dropdown-menu.dropdown-with-icons .dropdown-item .material-icons {
 	vertical-align: middle;
 	font-size: 24px;

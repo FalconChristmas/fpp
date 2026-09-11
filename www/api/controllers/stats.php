@@ -35,6 +35,7 @@ function stats_generate($statsFile)
         "timezone" => 'stats_timezone',
         "sequenceShape" => 'stats_getSequenceShape',
         "installAge" => 'stats_getInstallAge',
+        "consent" => 'stats_consent',
     );
 
     $obj = array();
@@ -123,6 +124,13 @@ function stats_get_last_file()
  */
 function stats_network()
 {
+    // Needed for $settings['wwwDir'] below. Without it $settings is a fresh
+    // local, $fieldsFile resolves to "/interface-settings.json", is_readable()
+    // fails and the inline fallback runs -- silently, because the fallback is a
+    // valid allowlist and the two lists happen to be identical. The shared-file
+    // property was fiction on this side until this line existed.
+    global $settings;
+
     $rc = array();
 
     // Statistics generation makes no outbound request.  This used to shell out to
@@ -216,6 +224,13 @@ function stats_network()
                 }
             }
             if (!count($allowed)) {
+                // Say so. This path is correct behaviour when the file is
+                // genuinely missing, and it is also what a bug in reading the
+                // file looks like -- those were indistinguishable, which is how
+                // a broken read survived: the payload stayed correct because
+                // the two lists agreed, so nothing ever looked wrong.
+                error_log("stats: $fieldsFile unreadable, using the built-in "
+                    . "interface field allowlist");
                 $allowed = array(
                     'PROTO',            // dhcp vs static
                     'HIDDEN',
@@ -357,7 +372,7 @@ function stats_significantSubset($obj)
 {
     // Whole blocks that are configuration through and through.
     $wholeBlocks = array(
-        'uuid', 'uuidSource', 'capeInfo', 'settings', 'plugins',
+        'uuid', 'uuidSource', 'capeInfo', 'settings', 'plugins', 'consent',
         'outputProcessors', 'schedule', 'timezone', 'installAge', 'models',
         'universe_input', 'output_panel', 'output_other',
         'output_pixel_pi', 'output_pixel_bbb', 'output_pwm',
@@ -1247,6 +1262,30 @@ function stats_getSequenceShape()
  *
  * @return array Install month as YYYY-MM, and whole months since.
  */
+/**
+ * The consent this upload is standing on.
+ *
+ * Article 7(1) puts the burden of demonstrating consent on the controller of the
+ * data, and for the statistics corpus that is us, not the player's owner. A
+ * record that only ever lives on somebody's SD card is one we cannot produce, so
+ * the payload carries its own justification: shown version N (text hash H), on
+ * this date, through this surface, they chose this.
+ *
+ * ONLY the statistics stamp. The player also holds stamps for crash reporting
+ * and for the vendor logo fetch, and those authorise other transmissions to
+ * other people -- shipping them here would be sending choices this upload has no
+ * business knowing, which is the same mistake in the opposite direction.
+ *
+ * Absent when nothing is recorded, rather than fabricated, because a fabricated
+ * consent record is worse than a missing one.
+ */
+function stats_consent()
+{
+    require_once __DIR__ . '/../../privacyConsent.inc';
+    $stamp = PrivacyConsentFor('statsPublish');
+    return $stamp === null ? array() : $stamp;
+}
+
 function stats_getInstallAge()
 {
     $rc = array();

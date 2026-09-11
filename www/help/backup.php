@@ -2,9 +2,10 @@
 
 <p><b>Backup</b> - Select which settings you want to backup, then hit download. A copy of the backup is also saved in the '/media/config' directory (ie. The USB stick with your sequences).</p>
 
-<p><b>Protect sensitive data</b> - Default checked, removes any sensitive data like passwords from the backup.
-    <br>Un-check this if you want to be able make an exact clone of settings to another FPP.
-    <br><b>NOTE:</b> The backup will include passwords in plaintext, you assume full responsibility for this file.</p>
+<p><b>What a backup contains</b> - Everything needed to restore this player, including passwords, the
+    WiFi passphrase and access tokens, in plain text. That is what makes it able to bring a box back.
+    Treat the file as you would the passwords themselves: do not attach it to a forum post or a bug
+    report.</p>
 
 <p><b>Restoration</b> - Restoration works the same way, Choose a area to restore, Choose the file json file. You may use the 'Full/All" backup you created and restore any setting from it. Eg restore the schedule only out of a full backup.</p>
 

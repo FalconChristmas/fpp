@@ -170,8 +170,6 @@ retrieveNetworkInterfaces();
 //Preserve some existing settings by default
 $keepMasterSlaveSettings = true;
 $keepNetworkSettings = true;
-//Encrypt/obfuscate passwords and other sensitive data
-$protectSensitiveData = true;
 //The final value is read from the uploaded file on restore, used to skip some parts of the restore operation
 $uploadData_IsProtected = true;
 
@@ -183,9 +181,6 @@ $restore_done = false;
 $network_settings_restored = false;
 $network_settings_restored_post_apply = array('wired_network' => "", 'wifi_network' => "");
 $network_settings_restored_applied_ips = array('wired_network' => array(), 'wifi_network' => array());
-
-//Array of settings by name/key name, that are considered sensitive/taboo
-$sensitive_data = array('emailpass', 'emailgpass', 'password', 'passwordVerify', 'osPassword', 'osPasswordVerify', 'MQTTPassword', 'secret');
 
 //Lookup arrays for what is a json and a ini file
 $known_json_config_files = array('channelInputs', 'universe_inputs', 'dmx_inputs', 'gpio-input', 'channelOutputs', 'commandPresets', 'outputProcessors', 'universes', 'pixel_strings', 'bbb_strings', 'pwm', 'led_panels', 'other', 'model-overlays');
@@ -213,12 +208,15 @@ if (isset($_POST['btnDownloadConfig'])) {
     /// BACKUP
     /////
     if (isset($_POST['backuparea']) && !empty($_POST['backuparea'])) {
-        if (isset($_POST['protectSensitive'])) {
-            $protectSensitiveData = true;
-        } else {
-            $protectSensitiveData = false;
-        }
-
+        //A stale protectSensitive here is ignored rather than refused.  The only
+        //thing that can still send it is a copy of this page loaded before the
+        //option was removed -- nothing else in the tree posts this form, and the
+        //remote-backup proxy forwards an empty body to four listing routes
+        //(ProxyBackupToRemote in api/controllers/backups.php).  So it is leftover
+        //markup from FPP's own UI, not a considered request, and the user who
+        //pressed Download wants a backup.  The API path refuses instead, because
+        //there a caller really did ask and would not otherwise know it got the
+        //opposite.
         //this value *SHOULD* directly match a key in $system_config_areas
         $area = $_POST['backuparea'];
 
@@ -440,37 +438,213 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
 }
 
 /**
- * Removes any sensitive data from the input array
+ * Read one of FPP's ini-style config files for a backup.
  *
- * @param $input_array
- * @return mixed
+ * Not parse_ini_string(): PHP's ini parser treats " as a string delimiter and
+ * strips it, so any value containing embedded quotes comes back mangled.  The
+ * settings file holds one -- privacyConsent, a JSON object written unquoted by
+ * WriteSettingToFile() -- and it was arriving in backups as
+ * {settings:{statsPublish:{value:Disabled...}}}, which json_decode() rejects.  A
+ * restore then wrote that back, ReadPrivacyConsent() got null from it, and
+ * PrivacyConsentShortfall() reported 'absent' instead of 'other-device' --
+ * losing both the audit trail and the reason the consent record is carried
+ * across a restore at all.
+ *
+ * custom_parse_ini_file() in common.php is FPP's own reader for these files,
+ * written for this exact limitation, and is what WriteSettingToFile() uses.
+ * Using it here makes the backup round-trip agree with how FPP reads and writes
+ * the file the rest of the time.
+ *
+ * @param string $config_filepath Path to the file.
+ * @return array Key => value, empty if the file is missing or unreadable.
  */
-function remove_sensitive_data($input_array)
+function ParseIniConfigForBackup($config_filepath)
 {
-    global $sensitive_data, $protectSensitiveData;
+    //The callers relied on file_get_contents() failing quietly for a file that
+    //is not there; custom_parse_ini_file() would warn on file().
+    if (!is_string($config_filepath) || $config_filepath === '' || !is_readable($config_filepath)) {
+        return array();
+    }
 
-    //Remove any sensitive data
-    if ($protectSensitiveData == true) {
-        //loop over the areas
+    $parsed_config = custom_parse_ini_file($config_filepath);
 
-        foreach ($input_array as $set_key => $data_arr) {
-            //If there is a sub array or an array in $data_arr, then loop into it
-            if (is_array($data_arr)) {
-                foreach ($data_arr as $key_name => $key_data) {
-                    if (in_array(strtolower($key_name), $sensitive_data) && is_string($key_name)) {
-                        $input_array[$set_key][$key_name] = '';
-                    }
-                }
-            } else {
-                //Else process keys in this array
-                if (in_array(strtolower($set_key), $sensitive_data) && is_string($set_key)) {
-                    $input_array[$set_key] = '';
-                }
-            }
+    return is_array($parsed_config) ? $parsed_config : array();
+}
+
+/**
+ * Setting keys that a backup written before "Protect Sensitive Data" was removed
+ * may have blanked.
+ *
+ * That option wrote '' over these keys, so in a backup carrying protected=true an
+ * empty value is ambiguous: it may be a redaction, or a setting the user
+ * genuinely cleared.  For these keys we read it as a redaction and leave this
+ * device's own value alone.  For every other key '' is a value the user chose and
+ * is restored.
+ *
+ * This is a closed historical fact, not a policy: it describes what the removed
+ * remove_sensitive_data() actually blanked, which is not the same question as
+ * what is sensitive.  Deriving it from the type="password" declarations looks
+ * tidier and is wrong -- those cover MQTTPassword, TetherPSK and gitHubPAT, which
+ * that redactor never blanked (its list was compared case-sensitively against a
+ * lowercased key, and the last two were not in the list at all).  Including them
+ * would make this refuse to restore a value the user really did clear.
+ *
+ * password is handled by the block above before it can reach here; it is listed
+ * for completeness of the historical record.
+ *
+ * The whole mechanism can go once FPP no longer restores backups written before
+ * "Protect Sensitive Data" was removed.
+ *
+ * @return array Key name => true, for use with array_key_exists().
+ */
+function GetRedactableSettingKeys()
+{
+    //Neither emailgpass nor secret is declared in settings.json at all, which is
+    //the other reason this cannot be derived from the declarations.
+    return array(
+        'emailpass' => true,
+        'emailgpass' => true,
+        'password' => true,
+        'secret' => true,
+    );
+}
+
+/**
+ * Is this backup one this same player made?
+ *
+ * The consent record is stamped with the device UUID when it is written, so a
+ * backup carrying a record that matches this device came from this device.  That
+ * is a rollback of the box's own state -- reflash the card, restore your own
+ * backup -- and nothing in it belongs to anybody else, so none of the exclusions
+ * below apply to it.  Without this, rebuilding a player from its own backup
+ * would drop its privacy answers and send its owner back through the setup
+ * wizard to re-answer questions they had already answered on that same box.
+ *
+ * Conservative in every uncertain direction: no record, an unreadable one, or one
+ * with no UUID all mean "not provably this device", and the exclusions apply.
+ * That includes every backup written before backup.php stopped reading these
+ * files with parse_ini_string(), whose consent record no longer decodes -- so
+ * until a player has taken a backup since, rebuilding it from its own backup
+ * still goes through the privacy step.
+ *
+ * @param array $restore_data Settings block from the backup being restored.
+ * @return bool True only when the backup's consent record names this device.
+ */
+function BackupIsFromThisDevice($restore_data)
+{
+    if (!is_array($restore_data) || !isset($restore_data['privacyConsent'])) {
+        return false;
+    }
+
+    $consent_record = json_decode($restore_data['privacyConsent'], true);
+    if (!is_array($consent_record) || empty($consent_record['uuid'])) {
+        return false;
+    }
+
+    //getSystemUUID() returns the literal "Unknown" when identity cannot be
+    //established, and RecordPrivacyConsent() stamps whatever it returns.  Two
+    //different identity-less players therefore both carry "Unknown", and
+    //comparing the strings would call one player's backup the other's own -
+    //turning off every exclusion below, including the FPP_UUID one.  Require a
+    //real identity on both sides before the comparison means anything.
+    $device_uuid = getSystemUUID();
+    if (!isValidSystemUUID($consent_record['uuid']) || !isValidSystemUUID($device_uuid)) {
+        return false;
+    }
+
+    return $consent_record['uuid'] === $device_uuid;
+}
+
+/**
+ * Settings a restore must not carry from the player the backup came from.
+ *
+ * The privacy step's answers are this device's record of what its owner was
+ * asked and agreed to.  They are not configuration and do not travel: a restored
+ * box answers the step itself.  Carrying statsPublish in particular would let a
+ * box transmit on a decision made by somebody else, since fppd starts publishing
+ * shortly after the setting flips to Enabled while the wizard is answered some
+ * time later.
+ *
+ * LegalJurisdiction is the frame those answers were given under and travels with
+ * them.  FPP_UUID is here for a different reason: scripts/get_uuid honours a
+ * developer-only FPP_UUID key, so a box that adopted the source's UUID would then
+ * validate the source's consent record as its own and defeat
+ * PrivacyConsentShortfall()'s other-device check silently.
+ *
+ * privacyConsent itself is deliberately NOT in this list.  It must restore: the
+ * other-device detection works by seeing the foreign record arrive, and stripping
+ * it degrades the shortfall to the weaker 'absent' and loses the audit trail.
+ *
+ * @return array Key name => true, for use with array_key_exists().
+ */
+function GetSettingsNotCarriedByRestore()
+{
+    global $settingGroups;
+    static $excluded_keys = null;
+
+    if ($excluded_keys !== null) {
+        return $excluded_keys;
+    }
+
+    $excluded_keys = array(
+        'LegalJurisdiction' => true,
+        'FPP_UUID' => true,
+
+        //Login credentials.  These are applied, not merely stored: ApplySetting()
+        //sends password to SetUIPassword(), which rewrites config/.htpasswd
+        //mid-request, and osPassword to SetOSPassword(), which runs chpasswd on
+        //the fpp account.  So restoring somebody else's backup locks you out of
+        //the web UI and SSH of the player in front of you, with their
+        //credentials.  passwordEnable rides along and can switch UI
+        //authentication off entirely.
+        //
+        //password was one of the four keys the removed redactor did blank, so
+        //excluding it here restores the behaviour that shipped before; osPassword
+        //it never matched, so that one is a fix.  A player restoring its own
+        //backup keeps all of them - see BackupIsFromThisDevice().
+        'password' => true,
+        'passwordVerify' => true,
+        'passwordEnable' => true,
+        'osPassword' => true,
+        'osPasswordVerify' => true,
+        'osPasswordEnable' => true,
+
+        //The address the restored player would send mail TO.  emailAddress is
+        //excluded below as part of the privacy group; this is the same person's
+        //inbox arriving by another route, and a player that mails the previous
+        //owner is not a working clone.  The relay credentials - emailserver,
+        //emailuser, emailpass - are configuration and do restore.
+        'emailtoemail' => true,
+    );
+
+    //Read the group rather than naming its members, so a sixth privacy setting
+    //added to settings.json is covered without touching this.  MissingSetupSettings()
+    //in common.php reads the same group -- but drops emailAddress, because
+    //"finish setup because you have not given an e-mail address" would be false.
+    //Here the opposite is wanted: emailAddress is the contact the privacy step
+    //collected for crash reports, it is answered on that screen, and it is the
+    //one the crash reporter lifts into contact.json - so it is part of the answer
+    //and goes with the rest of the group.
+    //
+    //This is not a claim that no e-mail address survives a restore.  The email
+    //area below restores emailuser, emailfromuser and emailtoemail, which may
+    //well be the same person's address, and deliberately so: that is mail server
+    //configuration and a clone needs it to send mail at all.  The distinction is
+    //purpose, not the value.
+    $privacy_group = array('statsPublish', 'ShareCrashData', 'FetchVendorLogos', 'SendVendorSerial', 'emailAddress');
+    if (isset($settingGroups['initialSetup-privacy']['settings']) &&
+        is_array($settingGroups['initialSetup-privacy']['settings']) &&
+        !empty($settingGroups['initialSetup-privacy']['settings'])) {
+        $privacy_group = $settingGroups['initialSetup-privacy']['settings'];
+    }
+
+    foreach ($privacy_group as $privacy_setting) {
+        if (is_string($privacy_setting) && $privacy_setting !== '') {
+            $excluded_keys[$privacy_setting] = true;
         }
     }
 
-    return $input_array;
+    return $excluded_keys;
 }
 
 /**
@@ -711,25 +885,71 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                         //get data out of nested array
                         $restore_data = $restore_area_data['system_settings'][0];
 
+                        //Restoring this player's own backup is a rollback of its own state,
+                        //so the privacy exclusions below do not apply to it.
+                        $restore_is_own_backup = BackupIsFromThisDevice($restore_data);
+
                         foreach ($restore_data as $setting_name => $setting_value) {
                             //Verify fields are UI-only confirmation values, never persisted directly.
                             if ($setting_name == "passwordVerify" || $setting_name == "osPasswordVerify") {
                                 continue;
                             }
 
+                            //The privacy step's answers, the jurisdiction they were given under,
+                            //the device identity that binds them and the credentials that let
+                            //somebody in belong to the player the backup came from.  This box
+                            //answers the step itself -- unless the backup is this box's own, in
+                            //which case they already are its answers.
+                            if (!$restore_is_own_backup &&
+                                array_key_exists($setting_name, GetSettingsNotCarriedByRestore())) {
+                                continue;
+                            }
+
+                            //privacyConsent is restorable on purpose: the other-device shortfall
+                            //works by seeing a foreign record arrive.  But a backup written before
+                            //backup.php stopped reading these files with parse_ini_string() carries
+                            //the record with its quotes stripped, and writing that over a record
+                            //that still decodes turns a real consent trail into an unreadable one --
+                            //degrading the shortfall to the weaker 'absent' and losing the audit
+                            //trail the record exists to provide.  Keep what is readable.
+                            if ($setting_name == "privacyConsent" &&
+                                json_decode((string) $setting_value, true) === null &&
+                                json_decode((string) ReadSettingFromFile('privacyConsent'), true) !== null) {
+                                continue;
+                            }
+
                             if ($setting_name == "password" || $setting_name == "osPassword") {
-                                //"Protect sensitive data" blanks the primary field but,
-                                //on backups made before that scrubbing covered the verify
-                                //field too, the real value may still be sitting in it.
-                                //Recover it from there rather than resetting to the default.
+                                //Redaction never matched the verify fields - the old list was
+                                //compared case-sensitively against a lowercased key, so
+                                //passwordVerify and osPasswordVerify always came through - and in
+                                //a protected backup the real value is still sitting in there.
+                                //Recover it rather than leaving the credential behind.
                                 $verify_key = ($setting_name == "password") ? "passwordVerify" : "osPasswordVerify";
                                 if ($setting_value == "" && !empty($restore_data[$verify_key])) {
                                     $setting_value = $restore_data[$verify_key];
                                 }
-                                //Don't clobber the device's existing password with a blank value.
+                                //Still blank: do not write it.  This one is not about redaction
+                                //and outlives it - SetOSPassword('') resets the fpp account to the
+                                //published default 'falcon' (common/settings.php:191-198), so an
+                                //empty value in an unprotected backup would weaken this box rather
+                                //than configure it.
                                 if ($setting_value == "") {
                                     continue;
                                 }
+                            }
+
+                            //A backup taken while "Protect sensitive data" existed carries ''
+                            //where a credential was blanked.  Writing that through clears a
+                            //working credential on this device: restoring one of the automatic
+                            //backups every box keeps wiped emailpass.  Leave what is already
+                            //here instead.  Only for keys redaction could have touched -
+                            //anywhere else '' is a value the user chose and must be restored.
+                            //
+                            //After the block above, so that a credential recoverable from its
+                            //verify field is restored rather than merely preserved.
+                            if ($uploadData_IsProtected == true && $setting_value === '' &&
+                                array_key_exists($setting_name, GetRedactableSettingKeys())) {
+                                continue;
                             }
 
                             //check if we can change it (default value is checked - true)
@@ -829,12 +1049,22 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                         //
                         WriteSettingToFile('emailfromuser', $email_from_user);
                         WriteSettingToFile('emailfromtext', $emailfromtext);
-                        WriteSettingToFile('emailtoemail', $emailtoemail);
 
-                        //Only save password and generate exim config if upload data is unprotected
-                        //meaning the password was included in the backup,
-                        //otherwise existing (valid) config may be overwritten
-                        if ($uploadData_IsProtected == false && $emailpass != "") {
+                        //This is a separate restore area, reached in its own pass, so the
+                        //settings loop's exclusions do not reach it and its local flag is not
+                        //in scope - ask again rather than depending on pass order.  The one
+                        //that matters here is the destination address: it belongs to whoever
+                        //made the backup, and a restored player mailing the previous owner is
+                        //not a working clone.
+                        if (BackupIsFromThisDevice($restore_data)) {
+                            WriteSettingToFile('emailtoemail', $emailtoemail);
+                        }
+
+                        //A redacted emailpass arrives empty and the settings loop above has
+                        //already declined to write it, so an empty value here means the backup
+                        //carries no password to apply - whether it was redacted or never set.
+                        //Either way there is nothing to configure exim with.
+                        if ($emailpass != "") {
                             WriteSettingToFile('emailpass', $emailpass);
                             //Update the email config in the global settings array,  so can call the function that sets up and  writes out exim4 config
                             $settings['emailserver'] = $restore_data['emailserver'];
@@ -1463,7 +1693,7 @@ function RestoreConfigFolderConfigs($restore_data)
  */
 function performBackup($area = "all", $allowDownload = true, $backupComment = "User Initiated Manual Backup", $backupTriggerSource = null)
 {
-    global $fpp_backup_format_version, $system_config_areas, $protectSensitiveData, $known_json_config_files, $known_ini_config_files;
+    global $fpp_backup_format_version, $system_config_areas, $known_json_config_files, $known_ini_config_files;
 
     //Toggle the flag to disallow the backup file to be downloaded by the browser
     if ($allowDownload === false) {
@@ -1513,7 +1743,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                                     if (in_array($sfi, $known_ini_config_files)) {
                                         //INI
                                         //parse ini properly
-                                        $backup_file_data = parse_ini_string(@file_get_contents($location_path));
+                                        $backup_file_data = ParseIniConfigForBackup($location_path);
                                     } else if (in_array($sfi, $known_json_config_files)) {
                                         //JSON
                                         //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
@@ -1535,7 +1765,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                                 if (in_array($sfi, $known_ini_config_files)) {
                                     //INI
                                     //parse ini properly
-                                    $backup_file_data = parse_ini_string(@file_get_contents($sfd['location']));
+                                    $backup_file_data = ParseIniConfigForBackup($sfd['location']);
                                 } else if (in_array($sfi, $known_json_config_files)) {
                                     //JSON
                                     //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
@@ -1561,12 +1791,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                             $file_data = array($backup_file_data);
                         }
 
-                        //Remove sensitive data
-                        if (!isset($config_data['binary']) || !$config_data['binary']) {
-                            $tmp_settings_data[$config_key][$sfi] = remove_sensitive_data($file_data);
-                        } else {
-                            $tmp_settings_data[$config_key][$sfi] = $file_data;
-                        }
+                        $tmp_settings_data[$config_key][$sfi] = $file_data;
                     }
                 } else {
                     if ($setting_file_to_backup !== false && file_exists($setting_file_to_backup)) {
@@ -1577,7 +1802,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                         if (in_array($config_key, $known_ini_config_files)) {
                             //INI
                             //parse ini properly
-                            $file_data = parse_ini_string(file_get_contents($setting_file_to_backup));
+                            $file_data = ParseIniConfigForBackup($setting_file_to_backup);
                         } else if (in_array($config_key, $known_json_config_files)) {
                             //JSON
                             //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
@@ -1588,12 +1813,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                             //all other files are std flat files, process them into an array by splitting at line breaks
                             $file_data = explode("\n", file_get_contents($setting_file_to_backup));
                         }
-                        //Remove sensitive data
-                        if (!isset($config_data['binary']) || !$config_data['binary']) {
-                            $tmp_settings_data[$config_key] = remove_sensitive_data($file_data);
-                        } else {
-                            $tmp_settings_data[$config_key] = $file_data;
-                        }
+                        $tmp_settings_data[$config_key] = $file_data;
                     }
                 }
                 //End for loop processing each individual "area" in order to get all areas
@@ -1622,7 +1842,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                                 if (in_array($sfi, $known_ini_config_files)) {
                                     //INI
                                     //parse ini properly
-                                    $backup_file_data = parse_ini_string(file_get_contents($location_path));
+                                    $backup_file_data = ParseIniConfigForBackup($location_path);
                                 } else if (in_array($sfi, $known_json_config_files)) {
                                     //JSON
                                     //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
@@ -1644,7 +1864,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                             if (in_array($sfi, $known_ini_config_files)) {
                                 //INI
                                 //parse ini properly
-                                $backup_file_data = parse_ini_string(file_get_contents($sfd['location']));
+                                $backup_file_data = ParseIniConfigForBackup($sfd['location']);
                             } else if (in_array($sfi, $known_json_config_files)) {
                                 //JSON
                                 //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
@@ -1668,17 +1888,12 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                         }
                         $file_data = array($backup_file_data);
                     }
-                    //Remove Sensitive data
-                    if (!isset($tmp_config_areas[$area]['binary']) || !$tmp_config_areas[$area]['binary']) {
-                        $tmp_settings_data[$area][$sfi] = remove_sensitive_data($file_data);
-                    } else {
-                        $tmp_settings_data[$area][$sfi] = $file_data;
-                    }
+                    $tmp_settings_data[$area][$sfi] = $file_data;
                 }
             } else {
                 if ($setting_file_to_backup !== false && file_exists($setting_file_to_backup)) {
                     if (in_array($area, $known_ini_config_files)) {
-                        $file_data = parse_ini_string(file_get_contents($setting_file_to_backup));
+                        $file_data = ParseIniConfigForBackup($setting_file_to_backup);
                     } else if (in_array($area, $known_json_config_files)) {
                         $file_data = json_decode(file_get_contents($setting_file_to_backup), true);
                     } else if (isset($tmp_config_areas[$area]['binary']) && $tmp_config_areas[$area]['binary']) {
@@ -1686,12 +1901,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                     } else {
                         $file_data = explode("\n", file_get_contents($setting_file_to_backup));
                     }
-                    //Remove sensitive data
-                    if (!isset($tmp_config_areas[$area]['binary']) || !$tmp_config_areas[$area]['binary']) {
-                        $tmp_settings_data[$area] = remove_sensitive_data($file_data);
-                    } else {
-                        $tmp_settings_data[$area] = $file_data;
-                    }
+                    $tmp_settings_data[$area] = $file_data;
                 }
             }
             //End individual / specific backup area processing
@@ -1725,21 +1935,19 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
  */
 function doBackupDownload($settings_data, $area)
 {
-    global $settings, $protectSensitiveData, $fpp_major_version, $fpp_backup_prompt_download, $fpp_backup_location, $backup_errors;
+    global $settings, $fpp_major_version, $fpp_backup_prompt_download, $fpp_backup_location, $backup_errors;
 
     if (!empty($settings_data)) {
-        //is sensitive data removed (selectively used on restore to skip some processes)
-        $settings_data['protected'] = $protectSensitiveData;
+        //Backups are complete: nothing is withheld from them.  The key stays in
+        //the format because restore reads it to recognise the older, redacted
+        //backups that are still sitting in config/backups on every box.
+        $settings_data['protected'] = false;
         //platform identifier
         $settings_data['platform'] = $settings['Platform'];
 
         //Once we have all the settings, process the array and dump it back to the user
         //filename
         $backup_fname = $settings['HostName'] . "_" . $area . "-backup_" . "v" . $fpp_major_version . "_";
-        //change filename if sensitive data is not protected
-        if ($protectSensitiveData == false) {
-            $backup_fname .= "unprotected_";
-        }
         $backup_fname_prefix = $backup_fname;
 
         //check to see fi the backup directory exists
@@ -3156,15 +3364,17 @@ if ($skipHTMLCodeOutput === false) {
                                                             <h2>Backup Configuration</h2>
                                                         </div>
                                                         <div class="row">
-                                                            <div class="col-md-4">
-                                                                <span>Protect sensitive data?</span>
-                                                            </div>
-                                                            <div class="col-md-8">
-                                                                <input id="dataProtect" name="protectSensitive"
-                                                                    type="checkbox" checked="true">
+                                                            <div class="col-12">
+                                                                <div class="callout callout-warning">
+                                                                    A backup contains everything needed to restore this
+                                                                    player, <b>including your passwords, WiFi passphrase
+                                                                    and access tokens, in plain text</b>. That is what
+                                                                    lets it bring a player back. Treat the file as you
+                                                                    would those credentials: do not attach it to a forum
+                                                                    post or a bug report.
+                                                                </div>
                                                             </div>
                                                         </div>
-
                                                         <div class="row">
                                                             <div class="col-md-4">
                                                                 <span class='jsonConfigUSB'>Copy Backups To Additional
@@ -3178,7 +3388,7 @@ if ($skipHTMLCodeOutput === false) {
                                                                     class='buttons refreshBackupDevicesList'
                                                                     onClick='GetBackupDevices();' value='Refresh List'>
                                                                 <img id="jsonConfigUSBUsage_img"
-                                                                    title="Specify an additional storage device where configuration backups will be copied to. Backups will first be saved to the config directory (<?php echo $settings['configDirectory'] . "/backups" ?>), and then copied to the alternative location."
+                                                                    title="Specify an additional storage device where configuration backups will be copied to. Backups will first be saved to the config directory (<?php echo $settings['configDirectory'] . "/backups" ?>), and then copied to the alternative location. Each copied backup carries this player's credentials in plain text, and a USB stick is not encrypted."
                                                                     src="images/redesign/help-icon.svg" class="icon-help">
                                                             </div>
                                                         </div>
@@ -3467,6 +3677,10 @@ if ($skipHTMLCodeOutput === false) {
                                                     configurations of the two systems do not match.</li>
                                                 <li class='copyBackups'>*Backing up Backups will copy all local backups to
                                                     the USB device.</li>
+                                                <li>Copying <b>Configuration</b> includes the settings file and the
+                                                    network configuration as they are, with passwords, the WiFi
+                                                    passphrase and access tokens in plain text. A USB stick is not
+                                                    encrypted, and a copy to a remote host is sent over plain rsync.</li>
                                             </ul>
 
                                         </div>
@@ -3476,19 +3690,6 @@ if ($skipHTMLCodeOutput === false) {
                             </div>
                         </div>
                     </div>
-                    <div id="dialogSensitiveDetails" title="Warning!" style="display:none">
-                        <p>Un-checking this box will disable protection (automatic removal) of sensitive data like
-                            passwords.
-                            <br>
-                            <b>ONLY</b> Un-check this if you want to be able make an exact clone of settings to another FPP.
-                            <br>
-                            <b>NOTE:</b> The backup will include passwords in plaintext, you assume full responsibility for
-                            this
-                            file.
-                            <br>
-                        </p>
-                    </div>
-
                     <div id="dialog_copyToUsb" title="Do You To Copy Existing Backups to USB?" style="display:none">
                         <p>Do you want to perform an initial copy of any existing backups on SD card to the chosen USB
                             device?.
@@ -3503,31 +3704,6 @@ if ($skipHTMLCodeOutput === false) {
                 </div>
             </div>
             <script>
-                $('#dataProtect').on("click", function () {
-                    var checked = $(this).is(':checked');
-                    if (!checked) {
-
-                        DoModalDialog({
-                            id: "dialogSensitiveDetails_Modal",
-                            title: "Sensitive Details Will Not Be Protected",
-                            width: 400,
-                            autoResize: true,
-                            closeOnEscape: false,
-                            backdrop: true,
-                            body: $('#dialogSensitiveDetails').html(),
-                            class: "",
-                            buttons: {
-                                "Ok": {
-                                    id: "dialog_copyToUsb_DoCopy",
-                                    click: function () {
-                                        CloseModalDialog("dialogSensitiveDetails_Modal");
-                                    }
-                                }
-                            }
-                        });
-                    }
-                });
-
                 // $("#tabs").tabs({cache: true, active: activeTabNumber, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
 
             </script>

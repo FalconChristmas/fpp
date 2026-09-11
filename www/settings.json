@@ -140,7 +140,7 @@
 			]
 		},
 		"simplePipeWireAudio": {
-			"description": "Simple PipeWire Audio",
+			"description": "Simple Audio",
 			"settings": [
 				"AudioOutput",
 				"AudioFormat",
@@ -179,7 +179,7 @@
 			]
 		},
 		"simplePipeWireVideo": {
-			"description": "Simple PipeWire Video",
+			"description": "Simple Video",
 			"settings": [
 				"VideoOutput",
 				"ForceHDMI",
@@ -341,6 +341,7 @@
 				"ClockDate",
 				"ClockTime",
 				"piRTC",
+				"DisablePiRTC",
 				"ntpServer",
 				"UseNTPFromDHCP",
 				"TimeZone"
@@ -663,7 +664,7 @@
 		"AudioFormat": {
 			"name": "AudioFormat",
 			"description": "Audio Sample Rate",
-			"tip": "The sample rate PipeWire's audio graph runs at.  Default lets FPP use 44100 unless the selected sound card clocks at something else.  The sample format (bit depth) is not set here; FPP probes the card and uses the widest format it can hold the rate in.  In PipeWire (Advanced) mode, per-card rates are configured in the PipeWire Audio Groups settings instead.",
+			"tip": "The sample rate PipeWire's audio graph runs at.  Default lets FPP use 44100 unless the selected sound card clocks at something else.  The sample format (bit depth) is not set here; FPP probes the card and uses the widest format it can hold the rate in.  In Advanced (Full PipeWire) mode, per-card rates are configured in the PipeWire Audio Groups settings instead.",
 			"gatherStats": true,
 			"level": 1,
 			"restart": 0,
@@ -680,7 +681,7 @@
 		"AudioPeriodSize": {
 			"name": "AudioPeriodSize",
 			"description": "Audio Period Size",
-			"tip": "The number of samples PipeWire hands to the sound card at a time (the graph quantum).  Smaller values lower latency, larger values are less likely to glitch on a busy player.  In PipeWire (Advanced) mode, per-card period sizes are configured in the PipeWire Audio Groups settings instead.",
+			"tip": "The number of samples PipeWire hands to the sound card at a time (the graph quantum).  Smaller values lower latency, larger values are less likely to glitch on a busy player.  In Advanced (Full PipeWire) mode, per-card period sizes are configured in the PipeWire Audio Groups settings instead.",
 			"gatherStats": true,
 			"level": 1,
 			"restart": 0,
@@ -741,15 +742,15 @@
 		"MediaBackend": {
 			"name": "MediaBackend",
 			"description": "Media Backend",
-			"tip": "Select how FPP handles audio and video playback. Simple PipeWire routes media through PipeWire and GStreamer with automatic single-card / single-display selection (recommended for most users). PipeWire (Advanced) exposes the full PipeWire stack with multi-device audio groups, video fan-out, AES67, and routing matrix.",
+			"tip": "Select how FPP handles audio and video playback. Simple Mode gives automatic single-card / single-display selection (recommended for most users). Advanced (Full PipeWire) exposes the full PipeWire stack with multi-device audio groups, video fan-out, AES67, and routing matrix.",
 			"gatherStats": true,
 			"restart": 0,
 			"reboot": 1,
 			"default": "pipewire-simple",
 			"type": "select",
 			"options": {
-				"Simple PipeWire": "pipewire-simple",
-				"PipeWire (Advanced)": "pipewire"
+				"Simple": "pipewire-simple",
+				"Advanced (Full PipeWire)": "pipewire"
 			},
 			"children": {
 				"pipewire": [
@@ -1589,6 +1590,10 @@
 		},
 		"FetchVendorLogos": {
 			"name": "FetchVendorLogos",
+			"transmitRank": {
+				"0": 0,
+				"1": 1
+			},
 			"description": "Fetch cape logos from vendors",
 			"gatherStats": true,
 			"tip": "Some capes/hats fetch the vendor logo from their website when using the FPP UI.  This discloses your IP address to the vendor.",
@@ -1711,7 +1716,7 @@
 			"name": "gitRemote",
 			"description": "Git Remote Repository",
 			"gatherStats": true,
-			"tip": "Select the git remote repository to use for branch selection. 'origin' is the main FPP repository, 'newfeatures' is for new feature testing.",
+			"tip": "Select the git remote repository to use for branch selection. 'FPP Releases' is the main FPP repository, 'FPP New Feature Testing' is for new feature testing. 'GitHub User Fork' is for user forks if valid GitHub credentials containing a fork is detected.",
 			"default": "origin",
 			"type": "select",
 			"options": {
@@ -1766,6 +1771,7 @@
 		},
 		"DistccHosts": {
 			"name": "DistccHosts",
+			"pii": true,
 			"description": "Compile Hosts",
 			"tip": "Space separated list of helper hosts. distcc: host[:port][/jobs][,options], e.g. 'myhelper:3632/6,lzo'. nocc: host[:port] (default port 43210), e.g. 'myhelper'. Not used for 'distcc + zeroconf' or 'nocc + mdns' (helpers are discovered via mDNS).",
 			"level": 3,
@@ -1785,6 +1791,7 @@
 		},
 		"HostDescription": {
 			"name": "HostDescription",
+			"pii": true,
 			"description": "Host description",
 			"tip": "Description of host",
 			"default": "FPP",
@@ -1794,6 +1801,7 @@
 		},
 		"HostName": {
 			"name": "HostName",
+			"pii": true,
 			"description": "Host Name",
 			"tip": "Host names must contain only letters, numbers, and hyphens and must begin with a letter or a number",
 			"reboot": 1,
@@ -2215,6 +2223,7 @@
 		},
 		"MQTTClientId": {
 			"name": "MQTTClientId",
+			"pii": true,
 			"description": "Client ID",
 			"tip": "If not set, one will be generated",
 			"restart": 2,
@@ -2224,6 +2233,7 @@
 		},
 		"MQTTHost": {
 			"name": "MQTTHost",
+			"pii": true,
 			"description": "Broker Host",
 			"tip": "Hostname or IP of your MQTT broker",
 			"restart": 2,
@@ -2278,6 +2288,7 @@
 		},
 		"MQTTPrefix": {
 			"name": "MQTTPrefix",
+			"pii": true,
 			"description": "Topic Prefix",
 			"tip": "Topic prefix to use when sending messages to the MQTT broker",
 			"restart": 2,
@@ -2287,6 +2298,7 @@
 		},
 		"MQTTSubscribe": {
 			"name": "MQTTSubscribe",
+			"pii": true,
 			"description": "Subscribe Topics",
 			"tip": "Subscribe to one or more additional MQTT topics (optional).  Use '#' (without the quotes) to subscribe to all topics from MQTT server.  Use 'smartthings/#' to subscribe to all topics starting with 'smartthings', or use an exact topic to subscribe to a single topic.  You can sepereate multiple topics with \";\"",
 			"restart": 2,
@@ -2497,6 +2509,7 @@
 		},
 		"ntpServer": {
 			"name": "ntpServer",
+			"pii": true,
 			"description": "Override default NTP Server",
 			"tip": "NTP server to sync time from. Leave blank to use falconplayer.pool.ntp.org. Every FPP also runs its own NTP server, so you can enter the IP of another FPP (or any NTP server) here to sync all controllers to one on the local network - useful when the internet path blocks NTP or one controller has a real-time clock.",
 			"level": 1,
@@ -2640,6 +2653,23 @@
 			"reboot": 1,
 			"type": "select",
 			"optionsURL": "api/settings/RTC/options"
+		},
+		"DisablePiRTC": {
+			"name": "DisablePiRTC",
+			"description": "Disable Pi 5 Built-in RTC",
+			"gatherStats": true,
+			"tip": "The Pi 5 has a built-in RTC, but it only keeps time across a power cycle if a battery is fitted to the Pi's RTC header.  With no battery it still claims rtc0 and the system clock is set from it early in boot, before FPP can read the cape's clock.  If there is no battery on the Pi's header, disable it here so the cape's RTC is the only clock the system uses.",
+			"reboot": 1,
+			"default": 0,
+			"platforms": [
+				"Raspberry Pi"
+			],
+			"variants": {
+				"Raspberry Pi": [
+					"Pi 5"
+				]
+			},
+			"type": "checkbox"
 		},
 		"remoteIgnoreSync": {
 			"name": "remoteIgnoreSync",
@@ -3038,6 +3068,7 @@
 		},
 		"TetherSSID": {
 			"name": "TetherSSID",
+			"pii": true,
 			"description": "Tethering SSID",
 			"tip": "SSID to use for FPP WiFi tethering.",
 			"type": "text",

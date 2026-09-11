@@ -427,6 +427,13 @@ function ApplySetting($setting, $value)
         case 'GPIOFan':
             SetGPIOFanProperties();
             break;
+        case 'DisablePiRTC':
+            // fppinit owns the config.txt block (it also reconciles it at boot for
+            // capes that ship DisablePiRTC in defaultSettings), so don't duplicate
+            // the edit here.  It won't reboot -- the setting is declared
+            // "reboot": 1, so the UI is already prompting for that.
+            exec("sudo " . $settings['fppDir'] . "/src/fppinit setupPiRTC", $output);
+            break;
         case 'screensaver':
             SetupScreenBlanking($value);
             break;

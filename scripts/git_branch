@@ -26,6 +26,17 @@ $SUDO git config --system --add safe.directory '*' 2>/dev/null || true
 
 echo "$0 running to switch branches to $1 from remote $REMOTE"
 
+# For fork remotes that were just added, refs may not exist yet - fetch first so
+# the show-ref check succeeds. Background git_fetch also uses runGitLocked, so
+# this fetch must be locked the same way.
+if [ "$REMOTE" != "origin" ] && [ "$REMOTE" != "newfeatures" ]; then
+	if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
+		runGitLocked "cd ${FPPDIR} && git fetch $REMOTE 2>&1 | head -20" || true
+	else
+		runGitLocked "cd ${FPPDIR} && sudo -u ${FPPUSER} git fetch $REMOTE 2>&1 | head -20" || true
+	fi
+fi
+
 CNT=`cd ${FPPDIR} && git show-ref | grep "refs/remotes/$REMOTE" | grep -i $1 | wc -l`
 if [ $CNT -eq 0 ]; then
 	echo "Invalid Branch Name: $1 for remote: $REMOTE"

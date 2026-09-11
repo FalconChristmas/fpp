@@ -438,6 +438,18 @@
                             parts.push('<span class="status-indicator status-stopped"></span>PTP not synced' +
                                 (ptp.portState ? ' (' + EscapeHtml(ptp.portState) + ')' : ''));
                         }
+                        // A stream anchors its RTP timeline to PTP once, when
+                        // it starts, and cannot re-anchor in place.  So "PTP
+                        // synced" now says nothing about whether the anchors
+                        // are right -- which is exactly how #2848 read as
+                        // entirely healthy while the wire was not.  The
+                        // watchdog rebuilds within a minute of the clock
+                        // stepping; this says why the audio went away.
+                        if (ptp.enabled !== false && running > 0 &&
+                            ptp.lockedAtStart === false) {
+                            parts.push('<span class="status-indicator status-idle"></span>' +
+                                'streams started before PTP settled — rebuilding when it does');
+                        }
 
                         var discovered = data.discoveredStreams || [];
                         if (discovered.length > 0) {

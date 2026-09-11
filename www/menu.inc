@@ -11,6 +11,11 @@ if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
 if (!isset($activeParentMenuItem)) {
     $activeParentMenuItem = "";
 }
+// True when www/help/<this page>.php exists, so the Help menu can advertise
+// page-specific (F1) help. See .claude/HELP-PAGES.md. Note: do not put a
+// title= on the Help nav link for this - SetupToolTips() turns any [title]
+// into data-bs-toggle="tooltip", which clobbers the dropdown toggle.
+$pageHasHelp = file_exists(__DIR__ . "/help/" . basename($_SERVER['PHP_SELF']));
 ?>
 <script type="text/javascript">
     var FPP_LOCAL_COMMIT = "<? echo get_local_git_version(); ?>";
@@ -463,12 +468,18 @@ function list_plugin_entries($menu)
                         </li>
 
                         <li class="nav-item dropdown <? echo $activeParentMenuItem == 'help' ? 'active' : ''; ?>">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLinkHelp" role="button"
+                            <a class="nav-link dropdown-toggle<?= $pageHasHelp ? ' has-page-help' : '' ?>" href="#" id="navbarDropdownMenuLinkHelp" role="button"
                                 data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                Help
+                                <?= $pageHasHelp ? '<i class="fas fa-question-circle text-primary"></i> ' : '' ?>Help
                             </a>
                             <div class="dropdown-menu dropdown-with-icons dropdown-menu-end"
                                 aria-labelledby="navbarDropdownMenuLinkHelp">
+                                <?php
+                                if ($pageHasHelp) {
+                                    echo "<a class='dropdown-item help-for-page fw-semibold' href='javascript:void(0)' onClick='DisplayHelp();'><i class='fas fa-question-circle'></i> Help for This Page <span class='badge bg-body text-primary-emphasis border border-primary-subtle fw-normal float-end ms-3'>F1</span></a>\n";
+                                    echo "<hr class='dropdown-divider'>\n";
+                                }
+                                ?>
                                 <a class="dropdown-item" href="about.php"><i class="fas fa-info-circle"></i> System Upgrade</a>
                                 <?php
                                 $eepromFile = "/home/fpp/media/tmp/eeprom.bin";
@@ -514,6 +525,16 @@ function list_plugin_entries($menu)
 
         </div>
         <script type="text/javascript">
-            setTimeout(checkForFppUpdate, 500); // Just so other things have time to load.
+            // Just so other things have time to load.  A page that needs the
+            // answer sooner (about.php) kicks the same check off itself, so skip
+            // it if one has already answered -- publishFppUpdateState() has
+            // already rendered this header from it.  One check, one answer, no
+            // two views disagreeing over which side of the server's cache
+            // refresh they landed on.
+            setTimeout(function () {
+                if (!FPP_UPDATE_STATE.answered) {
+                    checkForFppUpdate();
+                }
+            }, 500);
             setTimeout(checkForPluginUpdates, 700); // staggered behind the FPP update check above
         </script>
