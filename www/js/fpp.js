@@ -127,8 +127,28 @@ var FPP_UPDATE_STATE = {
 	versionUnknown: false,
 	isEndOfLife: false,
 	latestMajorVersion: 0,
-	checked: false
+	// An update source answered and the fields above are a verdict.
+	checked: false,
+	// The check ran but no source answered (offline, cold cache + timeout), so
+	// the "no update" fields above are unknown rather than "up to date".
+	checkFailed: false,
+	// The check has completed at least once, either way.  Consumers that render
+	// after the check may have missed the event, so they test this and render
+	// from the state directly instead of waiting for an event that already fired.
+	answered: false,
+	// Test mode only (?test=both|osonly): forces the OS card to show an upgrade.
+	forceOsUpgradeAvailable: false
 };
+
+// Serialises the update check.  Every consumer -- navbar icon, menu banner,
+// about.php's upgrade cards -- renders from FPP_UPDATE_STATE, so they cannot
+// disagree; each one issuing its own request could, because the server's
+// stale-while-revalidate cache hands the request that loses the recalc lock the
+// previous payload while the winner is still on the network (common.php's
+// file_cache()).  Two fetches half a second apart could therefore land on
+// opposite verdicts in the same page load.
+var _fppUpdateCheckInFlight = false;
+var FPP_UPDATE_CHECK_RETRY_MS = 5000;
 
 // Build "http://host" + path. IPv6 literals (contain ':') must be bracketed;
 // IPv4 and hostnames never contain ':' so they pass through unchanged.
@@ -14464,21 +14484,64 @@ function scrollToTop () {
 }
 
 /**
+ * Publish the current FPP_UPDATE_STATE to every consumer.
+ * Marks the check as answered first so a consumer that renders later (or that
+ * binds after the event fired) can pick the state up directly.
+ */
+function publishFppUpdateState () {
+	FPP_UPDATE_STATE.answered = true;
+	FPP_UPDATE_STATE.checkFailed = !FPP_UPDATE_STATE.checked;
+	updateNavbarUpdateIndicator();
+	$(document).trigger('fpp:updateStatusChanged', [FPP_UPDATE_STATE]);
+}
+
+/**
  * Uses the unified update status API to check for updates.
  * Updates global FPP_UPDATE_STATE and fires 'fpp:updateStatusChanged' event.
  * Supports test mode via URL param: ?test=branch|commit|both|uptodate
+ *
+ * This is the single update check for the page: concurrent callers are
+ * coalesced into the one request, so every view renders the same answer (see
+ * _fppUpdateCheckInFlight).  Callers that need a fresh answer after changing
+ * the installed version (an upgrade completing) can just call it again.
+ *
+ * @param retryOnFailure pass false to suppress the single automatic retry.
  */
-function checkForFppUpdate () {
+function checkForFppUpdate (retryOnFailure) {
+	if (_fppUpdateCheckInFlight) {
+		// Already checking -- the in-flight request publishes to everyone.
+		return;
+	}
+	_fppUpdateCheckInFlight = true;
+
+	var retry = retryOnFailure !== false;
 	var testMode = new URLSearchParams(window.location.search).get('test');
 	var apiUrl = 'api/system/updateStatus';
 	if (testMode) {
 		apiUrl += '?test=' + testMode;
 		console.log('Update check using test mode: ' + testMode);
 	}
+
+	// A check that reached no update source is retried once: a cold cache and a
+	// slow first fetch is the common case right after a reboot or an upgrade,
+	// and one retry usually lands the real answer without the user reloading.
+	function scheduleRetry () {
+		if (retry && !FPP_UPDATE_STATE.checked) {
+			setTimeout(function () {
+				checkForFppUpdate(false);
+			}, FPP_UPDATE_CHECK_RETRY_MS);
+		}
+	}
+
 	$.get(apiUrl)
 		.done(function (data) {
+			_fppUpdateCheckInFlight = false;
+
 			if (data.status !== 'OK') {
 				console.log('Update status API returned error');
+				FPP_UPDATE_STATE.checked = false;
+				publishFppUpdateState();
+				scheduleRetry();
 				return;
 			}
 
@@ -14495,13 +14558,14 @@ function checkForFppUpdate () {
 			FPP_UPDATE_STATE.versionUnknown = data.versionUnknown || false;
 			FPP_UPDATE_STATE.isEndOfLife = data.isEndOfLife || false;
 			FPP_UPDATE_STATE.latestMajorVersion = data.latestMajorVersion || 0;
-			FPP_UPDATE_STATE.checked = true;
+			FPP_UPDATE_STATE.forceOsUpgradeAvailable =
+				data.forceOsUpgradeAvailable || false;
+			// The API reports checked:false when no update source answered. Carry
+			// that through rather than assuming the response is a verdict.
+			FPP_UPDATE_STATE.checked = data.checked !== false;
 
-			// Update navbar indicator
-			updateNavbarUpdateIndicator();
-
-			// Fire event for other components (menu banner, upgrade page)
-			$(document).trigger('fpp:updateStatusChanged', [FPP_UPDATE_STATE]);
+			publishFppUpdateState();
+			scheduleRetry();
 		})
 		.fail(function () {
 			console.log('Failed to check for updates via API');
@@ -14515,16 +14579,21 @@ function checkForFppUpdate () {
 				FPP_BRANCH === 'Unknown'
 			) {
 				FPP_UPDATE_STATE.versionUnknown = true;
+				FPP_UPDATE_STATE.checked = false;
+				_fppUpdateCheckInFlight = false;
+				publishFppUpdateState();
 				return;
 			}
 
-			// Fallback to legacy fppstats check for navbar only
+			// Fallback to legacy fppstats check
 			const epochTimeMilliseconds = Date.now();
 			$.get(
 				'https://fppstats.falconchristmas.com/api/fpp_commits?v=' +
 					epochTimeMilliseconds
 			)
 				.done(function (data) {
+					_fppUpdateCheckInFlight = false;
+
 					let remote_commit = '';
 					let latest_non_master = '';
 					let latest_non_master_epoch = 0;
@@ -14574,13 +14643,16 @@ function checkForFppUpdate () {
 					FPP_UPDATE_STATE.localCommit = FPP_LOCAL_COMMIT;
 					FPP_UPDATE_STATE.checked = true;
 
-					updateNavbarUpdateIndicator();
-					$(document).trigger('fpp:updateStatusChanged', [FPP_UPDATE_STATE]);
+					publishFppUpdateState();
 				})
 				.fail(function () {
+					_fppUpdateCheckInFlight = false;
 					console.log(
 						'Failed to check for updates. Assuming no internet access'
 					);
+					FPP_UPDATE_STATE.checked = false;
+					publishFppUpdateState();
+					scheduleRetry();
 				});
 		});
 }

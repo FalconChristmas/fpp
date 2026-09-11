@@ -509,5 +509,15 @@ function list_plugin_entries($menu)
 
         </div>
         <script type="text/javascript">
-            setTimeout(checkForFppUpdate, 500); // Just so other things have time to load.
+            // Just so other things have time to load.  A page that needs the
+            // answer sooner (about.php) kicks the same check off itself, so skip
+            // it if one has already answered -- publishFppUpdateState() has
+            // already rendered this header from it.  One check, one answer, no
+            // two views disagreeing over which side of the server's cache
+            // refresh they landed on.
+            setTimeout(function () {
+                if (!FPP_UPDATE_STATE.answered) {
+                    checkForFppUpdate();
+                }
+            }, 500);
         </script>
