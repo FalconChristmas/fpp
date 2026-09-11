@@ -526,6 +526,107 @@ function RedactableSettingKeys()
 }
 
 /**
+ * Is this backup one this same player made?
+ *
+ * The consent record is stamped with the device UUID when it is written, so a
+ * backup carrying a record that matches this device came from this device.  That
+ * is a rollback of the box's own state -- reflash the card, restore your own
+ * backup -- and nothing in it belongs to anybody else, so none of the exclusions
+ * below apply to it.  Without this, rebuilding a player from its own backup
+ * would drop its privacy answers and send its owner back through the setup
+ * wizard to re-answer questions they had already answered on that same box.
+ *
+ * Conservative in every uncertain direction: no record, an unreadable one, or one
+ * with no UUID all mean "not provably this device", and the exclusions apply.
+ * That includes every backup written before backup.php stopped reading these
+ * files with parse_ini_string(), whose consent record no longer decodes -- so
+ * until a player has taken a backup since, rebuilding it from its own backup
+ * still goes through the privacy step.
+ *
+ * @param array $restore_data Settings block from the backup being restored.
+ * @return bool True only when the backup's consent record names this device.
+ */
+function BackupIsFromThisDevice($restore_data)
+{
+    if (!is_array($restore_data) || !isset($restore_data['privacyConsent'])) {
+        return false;
+    }
+
+    $consent_record = json_decode($restore_data['privacyConsent'], true);
+    if (!is_array($consent_record) || empty($consent_record['uuid'])) {
+        return false;
+    }
+
+    return $consent_record['uuid'] === getSystemUUID();
+}
+
+/**
+ * Settings a restore must not carry from the player the backup came from.
+ *
+ * The privacy step's answers are this device's record of what its owner was
+ * asked and agreed to.  They are not configuration and do not travel: a restored
+ * box answers the step itself.  Carrying statsPublish in particular would let a
+ * box transmit on a decision made by somebody else, since fppd starts publishing
+ * shortly after the setting flips to Enabled while the wizard is answered some
+ * time later.
+ *
+ * LegalJurisdiction is the frame those answers were given under and travels with
+ * them.  FPP_UUID is here for a different reason: scripts/get_uuid honours a
+ * developer-only FPP_UUID key, so a box that adopted the source's UUID would then
+ * validate the source's consent record as its own and defeat
+ * PrivacyConsentShortfall()'s other-device check silently.
+ *
+ * privacyConsent itself is deliberately NOT in this list.  It must restore: the
+ * other-device detection works by seeing the foreign record arrive, and stripping
+ * it degrades the shortfall to the weaker 'absent' and loses the audit trail.
+ *
+ * @return array Key name => true, for use with array_key_exists().
+ */
+function GetSettingsNotCarriedByRestore()
+{
+    global $settingGroups;
+    static $excluded_keys = null;
+
+    if ($excluded_keys !== null) {
+        return $excluded_keys;
+    }
+
+    $excluded_keys = array(
+        'LegalJurisdiction' => true,
+        'FPP_UUID' => true,
+    );
+
+    //Read the group rather than naming its members, so a sixth privacy setting
+    //added to settings.json is covered without touching this.  MissingSetupSettings()
+    //in common.php reads the same group -- but drops emailAddress, because
+    //"finish setup because you have not given an e-mail address" would be false.
+    //Here the opposite is wanted: emailAddress is the contact the privacy step
+    //collected for crash reports, it is answered on that screen, and it is the
+    //one the crash reporter lifts into contact.json - so it is part of the answer
+    //and goes with the rest of the group.
+    //
+    //This is not a claim that no e-mail address survives a restore.  The email
+    //area below restores emailuser, emailfromuser and emailtoemail, which may
+    //well be the same person's address, and deliberately so: that is mail server
+    //configuration and a clone needs it to send mail at all.  The distinction is
+    //purpose, not the value.
+    $privacy_group = array('statsPublish', 'ShareCrashData', 'FetchVendorLogos', 'SendVendorSerial', 'emailAddress');
+    if (isset($settingGroups['initialSetup-privacy']['settings']) &&
+        is_array($settingGroups['initialSetup-privacy']['settings']) &&
+        !empty($settingGroups['initialSetup-privacy']['settings'])) {
+        $privacy_group = $settingGroups['initialSetup-privacy']['settings'];
+    }
+
+    foreach ($privacy_group as $privacy_setting) {
+        if (is_string($privacy_setting) && $privacy_setting !== '') {
+            $excluded_keys[$privacy_setting] = true;
+        }
+    }
+
+    return $excluded_keys;
+}
+
+/**
  * Function to look after backup restorations
  * @param $restore_area String  Area to restore
  * @param $restore_area_data array  Area data as an array
@@ -763,9 +864,22 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                         //get data out of nested array
                         $restore_data = $restore_area_data['system_settings'][0];
 
+                        //Restoring this player's own backup is a rollback of its own state,
+                        //so the privacy exclusions below do not apply to it.
+                        $restore_is_own_backup = BackupIsFromThisDevice($restore_data);
+
                         foreach ($restore_data as $setting_name => $setting_value) {
                             //Verify fields are UI-only confirmation values, never persisted directly.
                             if ($setting_name == "passwordVerify" || $setting_name == "osPasswordVerify") {
+                                continue;
+                            }
+
+                            //The privacy step's answers, the jurisdiction they were given under and
+                            //the device identity that binds them belong to the player the backup
+                            //came from.  This box answers the step itself -- unless the backup is
+                            //this box's own, in which case they already are its answers.
+                            if (!$restore_is_own_backup &&
+                                array_key_exists($setting_name, GetSettingsNotCarriedByRestore())) {
                                 continue;
                             }
 
