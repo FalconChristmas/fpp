@@ -991,10 +991,13 @@ static void migrateMultiSyncDefaultToMulticast() {
     }
 }
 
-// Migrate DisableHDMICECInit to its new default (1) for existing
-// installs that have never saved the setting. Explicit 0 stays 0.
-// Idempotent; safe to re-run. Used by both upgrade/144 (normal
-// in-place upgrades) and checkConfigMigrations (FPPOS reflash).
+// Materialize DisableHDMICECInit=1 for installs that have never saved
+// the setting. Behavior is already controlled by the fallback in
+// setupHDMICECConfig (getRawSettingInt(...,1)) and the default in
+// www/settings.json (1), so this only persists the implicit default
+// to the settings file for tooling that reads raw. Explicit 0 stays 0.
+// Idempotent; safe to re-run. Paired with upgrade/144 for normal
+// in-place upgrades; this covers FPPOS reflash.
 static void migrateHDMICECDefault() {
     std::string existing;
     if (!getRawSetting("DisableHDMICECInit", existing)) {

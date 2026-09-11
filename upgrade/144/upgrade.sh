@@ -21,4 +21,21 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 if [ -z "$(getSetting DisableHDMICECInit)" ]; then
     setSetting DisableHDMICECInit 1
+    # Pre-seed the config.txt block so the next boot does not trigger
+    # the extra reboot that setupHDMICECConfig(rebootIfChanged=true) would
+    # otherwise do for every Pi. Idempotent and Pi-only.
+    BOOTCONF=""
+    if [ -f /boot/firmware/config.txt ]; then
+        BOOTCONF="/boot/firmware/config.txt"
+    elif [ -f /boot/config.txt ]; then
+        BOOTCONF="/boot/config.txt"
+    fi
+    if [ -n "$BOOTCONF" ] && ! grep -q "FPP HDMI CEC - BEGIN" "$BOOTCONF" 2>/dev/null; then
+        # Insert ahead of cape variant block if present, else append
+        if grep -q "FPP Cape Overlay Variants - BEGIN" "$BOOTCONF" 2>/dev/null; then
+            awk 'BEGIN{p=0} /FPP Cape Overlay Variants - BEGIN/ && p==0 {print "# FPP HDMI CEC - BEGIN (managed by fppinit, do not edit)"; print "[all]"; print "hdmi_ignore_cec_init=1"; print "[all]"; print "# FPP HDMI CEC - END"; print ""; p=1} {print}' "$BOOTCONF" > "${BOOTCONF}.tmp" && mv "${BOOTCONF}.tmp" "$BOOTCONF"
+        else
+            printf "\n# FPP HDMI CEC - BEGIN (managed by fppinit, do not edit)\n[all]\nhdmi_ignore_cec_init=1\n[all]\n# FPP HDMI CEC - END\n" >> "$BOOTCONF"
+        fi
+    fi
 fi
