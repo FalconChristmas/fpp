@@ -4628,6 +4628,15 @@ pre.testData,
 	-webkit-box-orient: vertical;
 	overflow: hidden;
 }
+/* Release-notes icon link in the card action row / detail modal footer */
+.pluginReleaseNotesLink {
+	color: var(--fpp-text-muted);
+	text-decoration: none;
+	font-size: 1rem;
+}
+.pluginReleaseNotesLink:hover {
+	color: var(--bs-link-color);
+}
 /* Popular Plugins: single horizontally-scrollable row (functional scroll
    boundary + fixed item width so flex children don't collapse; no Bootstrap
    utility covers a fixed rem width). Scroll is contained here so the page

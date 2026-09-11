@@ -6808,6 +6808,34 @@
         }
       }
     },
+    "/api/plugin/releaseNotes": {
+      "get": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Fetch a GitHub-hosted plugin's latest release, proxied server-side.",
+        "description": "Same idea as GitOSReleaseNotes() (FPP's own release-notes endpoint, hardcoded to FalconChristmas/fpp) but for an arbitrary plugin repo, and TTL-cached the same way PluginGitHubStatsCacheFile() is: GitHub's unauthenticated API rate limit is shared across every box calling in from behind the same NAT, and this keeps api.github.com out of the CSP the way every other third-party call in this file already does.",
+        "responses": {
+          "200": {
+            "description": "The repo's latest release (trimmed to the fields the UI uses)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "name": "v1.2.0",
+                  "tag_name": "v1.2.0",
+                  "published_at": "2026-01-01T00:00:00Z",
+                  "body": "...",
+                  "html_url": "https://github.com/owner/repo/releases/tag/v1.2.0"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/plugin/source": {
       "get": {
         "tags": [

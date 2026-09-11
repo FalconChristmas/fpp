@@ -2275,6 +2275,97 @@ function GetPluginGitHubStats()
 	return json(array('repos' => $result, 'source' => $source));
 }
 
+define('PLUGIN_RELEASE_NOTES_CACHE_TTL', 6 * 60 * 60); // 6h, same horizon as PLUGIN_GITHUB_STATS_TTL
+
+function PluginReleaseNotesCacheFile()
+{
+	global $settings;
+	$base = isset($settings['mediaDirectory']) ? $settings['mediaDirectory'] : '/home/fpp/media';
+	return $base . '/tmp/pluginReleaseNotes.cache.json';
+}
+
+/**
+ * Fetch a GitHub-hosted plugin's latest release, proxied server-side.
+ *
+ * Same idea as GitOSReleaseNotes() (FPP's own release-notes endpoint,
+ * hardcoded to FalconChristmas/fpp) but for an arbitrary plugin repo, and
+ * TTL-cached the same way PluginGitHubStatsCacheFile() is: GitHub's
+ * unauthenticated API rate limit is shared across every box calling in from
+ * behind the same NAT, and this keeps api.github.com out of the CSP the way
+ * every other third-party call in this file already does.
+ *
+ * @route GET /api/plugin/releaseNotes
+ * @response 200 The repo's latest release (trimmed to the fields the UI uses)
+ * ```json
+ * {"name": "v1.2.0", "tag_name": "v1.2.0", "published_at": "2026-01-01T00:00:00Z", "body": "...", "html_url": "https://github.com/owner/repo/releases/tag/v1.2.0"}
+ * ```
+ */
+function GetPluginReleaseNotes()
+{
+	$repo = isset($_GET['repo']) ? trim($_GET['repo']) : '';
+	if (!preg_match('#^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$#', $repo)) {
+		http_response_code(400);
+		return json(array('status' => 'ERROR', 'message' => 'Invalid repo'));
+	}
+
+	$cacheFile = PluginReleaseNotesCacheFile();
+	$cache = array();
+	if (file_exists($cacheFile)) {
+		$tmp = json_decode(@file_get_contents($cacheFile), true);
+		if (is_array($tmp)) $cache = $tmp;
+	}
+
+	$key = strtolower($repo);
+	$now = time();
+	if (isset($cache[$key]['ts']) && ($now - (int)$cache[$key]['ts']) < PLUGIN_RELEASE_NOTES_CACHE_TTL) {
+		if (!empty($cache[$key]['notFound'])) {
+			http_response_code(404);
+			return json(array('status' => 'ERROR', 'message' => 'No releases found'));
+		}
+		return json($cache[$key]['data']);
+	}
+
+	$curl = curl_init();
+	curl_setopt($curl, CURLOPT_URL, "https://api.github.com/repos/" . $repo . "/releases/latest");
+	curl_setopt($curl, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 6.2; WOW64; rv:17.0) Gecko/20100101 Firefox/17.0");
+	curl_setopt($curl, CURLOPT_FAILONERROR, true);
+	curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+	curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+	curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 4000);
+	$response = curl_exec($curl);
+	$httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+	curl_close($curl);
+
+	if ($response === false || $httpCode >= 400) {
+		$cache[$key] = array('notFound' => true, 'ts' => $now);
+		@file_put_contents($cacheFile, json_encode($cache));
+		http_response_code(404);
+		return json(array('status' => 'ERROR', 'message' => 'No releases found'));
+	}
+
+	$data = json_decode($response, true);
+	if ($data === null) {
+		http_response_code(502);
+		return json(array('status' => 'ERROR', 'message' => 'Invalid response from GitHub'));
+	}
+
+	// Only keep the fields the UI actually uses -- GitHub's release object
+	// carries a lot more (assets, author, reactions, ...) that would just
+	// bloat the cache file for no benefit here.
+	$trimmed = array(
+		'name' => isset($data['name']) ? $data['name'] : '',
+		'tag_name' => isset($data['tag_name']) ? $data['tag_name'] : '',
+		'published_at' => isset($data['published_at']) ? $data['published_at'] : '',
+		'body' => isset($data['body']) ? $data['body'] : '',
+		'html_url' => isset($data['html_url']) ? $data['html_url'] : '',
+	);
+
+	$cache[$key] = array('data' => $trimmed, 'ts' => $now);
+	@file_put_contents($cacheFile, json_encode($cache));
+
+	return json($trimmed);
+}
+
 /**
  * Fetch a pluginInfo.json on the browser's behalf
  *
