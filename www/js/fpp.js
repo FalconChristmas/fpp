@@ -7437,6 +7437,11 @@ function PopulatePlaylists (sequencesAlso, options) {
 } */
 
 function PlayPlaylist (Playlist, goToStatus = 0) {
+	if (!Playlist) {
+		$.jGrowl('No playlist selected', { themeState: 'detract' });
+		return;
+	}
+
 	// Check if UI-started playlists should be protected from schedule override
 	var scheduleProtected =
 		settings.hasOwnProperty('UIStartedPlaylistsProtected') &&
@@ -7447,14 +7452,25 @@ function PlayPlaylist (Playlist, goToStatus = 0) {
 		Playlist +
 		'/0/false/' +
 		(scheduleProtected ? 'true' : 'false');
-	$.get(url, function () {
-		if (goToStatus) location.href = 'index.php';
-		else $.jGrowl('Playlist Started', { themeState: 'success' });
-	});
+	$.get(url)
+		.done(function () {
+			if (goToStatus) location.href = 'index.php';
+			else $.jGrowl('Playlist Started', { themeState: 'success' });
+		})
+		.fail(function () {
+			DialogError('Command failed', 'Unable to start Playlist');
+		});
 }
 
 function StartPlaylistNow () {
 	var Playlist = $('#playlistSelect').val();
+	// The dropdown starts on the "-- Select Playlist or Sequence --" placeholder,
+	// whose value is empty. Posting that anyway used to come back 200 with nothing
+	// playing, so the toast below announced a playlist that never started.
+	if (!Playlist) {
+		$.jGrowl('Select a playlist or sequence first', { themeState: 'detract' });
+		return;
+	}
 	var repeat = $('#chkRepeat').is(':checked') ? true : false;
 	// Check if UI-started playlists should be protected from schedule override
 	var scheduleProtected =
