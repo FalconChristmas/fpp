@@ -170,8 +170,6 @@ retrieveNetworkInterfaces();
 //Preserve some existing settings by default
 $keepMasterSlaveSettings = true;
 $keepNetworkSettings = true;
-//Encrypt/obfuscate passwords and other sensitive data
-$protectSensitiveData = true;
 //The final value is read from the uploaded file on restore, used to skip some parts of the restore operation
 $uploadData_IsProtected = true;
 
@@ -183,9 +181,6 @@ $restore_done = false;
 $network_settings_restored = false;
 $network_settings_restored_post_apply = array('wired_network' => "", 'wifi_network' => "");
 $network_settings_restored_applied_ips = array('wired_network' => array(), 'wifi_network' => array());
-
-//Array of settings by name/key name, that are considered sensitive/taboo
-$sensitive_data = array('emailpass', 'emailgpass', 'password', 'passwordVerify', 'osPassword', 'osPasswordVerify', 'MQTTPassword', 'secret');
 
 //Lookup arrays for what is a json and a ini file
 $known_json_config_files = array('channelInputs', 'universe_inputs', 'dmx_inputs', 'gpio-input', 'channelOutputs', 'commandPresets', 'outputProcessors', 'universes', 'pixel_strings', 'bbb_strings', 'pwm', 'led_panels', 'other', 'model-overlays');
@@ -213,17 +208,24 @@ if (isset($_POST['btnDownloadConfig'])) {
     /// BACKUP
     /////
     if (isset($_POST['backuparea']) && !empty($_POST['backuparea'])) {
+        //"Protect sensitive data" is gone and a backup now always carries what it
+        //takes to restore the player.  A caller still asking for protection is
+        //refused rather than quietly handed a complete backup: silently ignoring
+        //the request would mislead it in precisely the way the option existed to
+        //prevent.  Restoring an older protected backup is unaffected - there are
+        //up to 60 of them in config/backups on every box and they must keep
+        //working.
         if (isset($_POST['protectSensitive'])) {
-            $protectSensitiveData = true;
+            $backup_error_string = "Protected backups are no longer supported. 'Protect sensitive data' has been removed: a backup now always contains the passwords, WiFi passphrase and tokens needed to restore this player. Re-submit without 'protectSensitive' to take one. Restoring an existing protected backup still works.";
+            $backup_errors[] = $backup_error_string;
+            error_log($backup_error_string);
         } else {
-            $protectSensitiveData = false;
+            //this value *SHOULD* directly match a key in $system_config_areas
+            $area = $_POST['backuparea'];
+
+            //Do the work to backup settings
+            performBackup($area, true);
         }
-
-        //this value *SHOULD* directly match a key in $system_config_areas
-        $area = $_POST['backuparea'];
-
-        //Do the work to backup settings
-        performBackup($area, true);
     }
 
 } else if (isset($_POST['btnRestoreConfig'])) {
@@ -437,40 +439,6 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
     //$restore_done is set if we got to actually call the function to restore data, if there was some sort of error with the data beforehand it will never get set
     //use this as a simple check so we can return other data (what errors we had)
     return !empty($restore_result) ? array('success' => true, 'message' => $restore_result) : array('success' => false, 'message' => $backup_errors);
-}
-
-/**
- * Removes any sensitive data from the input array
- *
- * @param $input_array
- * @return mixed
- */
-function remove_sensitive_data($input_array)
-{
-    global $sensitive_data, $protectSensitiveData;
-
-    //Remove any sensitive data
-    if ($protectSensitiveData == true) {
-        //loop over the areas
-
-        foreach ($input_array as $set_key => $data_arr) {
-            //If there is a sub array or an array in $data_arr, then loop into it
-            if (is_array($data_arr)) {
-                foreach ($data_arr as $key_name => $key_data) {
-                    if (in_array(strtolower($key_name), $sensitive_data) && is_string($key_name)) {
-                        $input_array[$set_key][$key_name] = '';
-                    }
-                }
-            } else {
-                //Else process keys in this array
-                if (in_array(strtolower($set_key), $sensitive_data) && is_string($set_key)) {
-                    $input_array[$set_key] = '';
-                }
-            }
-        }
-    }
-
-    return $input_array;
 }
 
 /**
@@ -1463,7 +1431,7 @@ function RestoreConfigFolderConfigs($restore_data)
  */
 function performBackup($area = "all", $allowDownload = true, $backupComment = "User Initiated Manual Backup", $backupTriggerSource = null)
 {
-    global $fpp_backup_format_version, $system_config_areas, $protectSensitiveData, $known_json_config_files, $known_ini_config_files;
+    global $fpp_backup_format_version, $system_config_areas, $known_json_config_files, $known_ini_config_files;
 
     //Toggle the flag to disallow the backup file to be downloaded by the browser
     if ($allowDownload === false) {
@@ -1561,12 +1529,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                             $file_data = array($backup_file_data);
                         }
 
-                        //Remove sensitive data
-                        if (!isset($config_data['binary']) || !$config_data['binary']) {
-                            $tmp_settings_data[$config_key][$sfi] = remove_sensitive_data($file_data);
-                        } else {
-                            $tmp_settings_data[$config_key][$sfi] = $file_data;
-                        }
+                        $tmp_settings_data[$config_key][$sfi] = $file_data;
                     }
                 } else {
                     if ($setting_file_to_backup !== false && file_exists($setting_file_to_backup)) {
@@ -1588,12 +1551,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                             //all other files are std flat files, process them into an array by splitting at line breaks
                             $file_data = explode("\n", file_get_contents($setting_file_to_backup));
                         }
-                        //Remove sensitive data
-                        if (!isset($config_data['binary']) || !$config_data['binary']) {
-                            $tmp_settings_data[$config_key] = remove_sensitive_data($file_data);
-                        } else {
-                            $tmp_settings_data[$config_key] = $file_data;
-                        }
+                        $tmp_settings_data[$config_key] = $file_data;
                     }
                 }
                 //End for loop processing each individual "area" in order to get all areas
@@ -1668,12 +1626,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                         }
                         $file_data = array($backup_file_data);
                     }
-                    //Remove Sensitive data
-                    if (!isset($tmp_config_areas[$area]['binary']) || !$tmp_config_areas[$area]['binary']) {
-                        $tmp_settings_data[$area][$sfi] = remove_sensitive_data($file_data);
-                    } else {
-                        $tmp_settings_data[$area][$sfi] = $file_data;
-                    }
+                    $tmp_settings_data[$area][$sfi] = $file_data;
                 }
             } else {
                 if ($setting_file_to_backup !== false && file_exists($setting_file_to_backup)) {
@@ -1686,12 +1639,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                     } else {
                         $file_data = explode("\n", file_get_contents($setting_file_to_backup));
                     }
-                    //Remove sensitive data
-                    if (!isset($tmp_config_areas[$area]['binary']) || !$tmp_config_areas[$area]['binary']) {
-                        $tmp_settings_data[$area] = remove_sensitive_data($file_data);
-                    } else {
-                        $tmp_settings_data[$area] = $file_data;
-                    }
+                    $tmp_settings_data[$area] = $file_data;
                 }
             }
             //End individual / specific backup area processing
@@ -1725,21 +1673,19 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
  */
 function doBackupDownload($settings_data, $area)
 {
-    global $settings, $protectSensitiveData, $fpp_major_version, $fpp_backup_prompt_download, $fpp_backup_location, $backup_errors;
+    global $settings, $fpp_major_version, $fpp_backup_prompt_download, $fpp_backup_location, $backup_errors;
 
     if (!empty($settings_data)) {
-        //is sensitive data removed (selectively used on restore to skip some processes)
-        $settings_data['protected'] = $protectSensitiveData;
+        //Backups are complete: nothing is withheld from them.  The key stays in
+        //the format because restore reads it to recognise the older, redacted
+        //backups that are still sitting in config/backups on every box.
+        $settings_data['protected'] = false;
         //platform identifier
         $settings_data['platform'] = $settings['Platform'];
 
         //Once we have all the settings, process the array and dump it back to the user
         //filename
         $backup_fname = $settings['HostName'] . "_" . $area . "-backup_" . "v" . $fpp_major_version . "_";
-        //change filename if sensitive data is not protected
-        if ($protectSensitiveData == false) {
-            $backup_fname .= "unprotected_";
-        }
         $backup_fname_prefix = $backup_fname;
 
         //check to see fi the backup directory exists
@@ -3157,16 +3103,6 @@ if ($skipHTMLCodeOutput === false) {
                                                         </div>
                                                         <div class="row">
                                                             <div class="col-md-4">
-                                                                <span>Protect sensitive data?</span>
-                                                            </div>
-                                                            <div class="col-md-8">
-                                                                <input id="dataProtect" name="protectSensitive"
-                                                                    type="checkbox" checked="true">
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="row">
-                                                            <div class="col-md-4">
                                                                 <span class='jsonConfigUSB'>Copy Backups To Additional
                                                                     Location:</span>
                                                             </div>
@@ -3476,19 +3412,6 @@ if ($skipHTMLCodeOutput === false) {
                             </div>
                         </div>
                     </div>
-                    <div id="dialogSensitiveDetails" title="Warning!" style="display:none">
-                        <p>Un-checking this box will disable protection (automatic removal) of sensitive data like
-                            passwords.
-                            <br>
-                            <b>ONLY</b> Un-check this if you want to be able make an exact clone of settings to another FPP.
-                            <br>
-                            <b>NOTE:</b> The backup will include passwords in plaintext, you assume full responsibility for
-                            this
-                            file.
-                            <br>
-                        </p>
-                    </div>
-
                     <div id="dialog_copyToUsb" title="Do You To Copy Existing Backups to USB?" style="display:none">
                         <p>Do you want to perform an initial copy of any existing backups on SD card to the chosen USB
                             device?.
@@ -3503,31 +3426,6 @@ if ($skipHTMLCodeOutput === false) {
                 </div>
             </div>
             <script>
-                $('#dataProtect').on("click", function () {
-                    var checked = $(this).is(':checked');
-                    if (!checked) {
-
-                        DoModalDialog({
-                            id: "dialogSensitiveDetails_Modal",
-                            title: "Sensitive Details Will Not Be Protected",
-                            width: 400,
-                            autoResize: true,
-                            closeOnEscape: false,
-                            backdrop: true,
-                            body: $('#dialogSensitiveDetails').html(),
-                            class: "",
-                            buttons: {
-                                "Ok": {
-                                    id: "dialog_copyToUsb_DoCopy",
-                                    click: function () {
-                                        CloseModalDialog("dialogSensitiveDetails_Modal");
-                                    }
-                                }
-                            }
-                        });
-                    }
-                });
-
                 // $("#tabs").tabs({cache: true, active: activeTabNumber, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
 
             </script>

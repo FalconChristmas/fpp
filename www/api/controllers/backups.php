@@ -695,7 +695,6 @@ function MakeJSONBackup()
 		   $skipHTMLCodeOutput,
 		   $system_config_areas, $known_json_config_files, $known_ini_config_files,
 		   $backup_errors, $backup_error_string, $backups_verbose_logging,
-		   $sensitive_data, $protectSensitiveData,
 		   $fpp_backup_format_version, $fpp_major_version, $fpp_backup_prompt_download,
 		   $fpp_backup_max_age, $fpp_backup_min_number_kept,
 		   $fpp_backup_location, $fpp_backup_location_alternate_drive;
@@ -709,6 +708,19 @@ function MakeJSONBackup()
 	$input_data_decoded = json_decode($input_data, true);
 
 	if (json_last_error() === JSON_ERROR_NONE) {
+		// This endpoint never accepted a protect flag, but a caller migrating off
+		// the backup page's form may still send one.  Refuse rather than return a
+		// complete backup to something that asked for a redacted one.  Restoring an
+		// existing protected backup is a separate path and still works.
+		if (is_array($input_data_decoded) &&
+			(array_key_exists('protectSensitive', $input_data_decoded) ||
+			 array_key_exists('protected', $input_data_decoded))) {
+			return json(array(
+				'success' => false,
+				'error' => "Protected backups are no longer supported. A backup now always contains the passwords, WiFi passphrase and tokens needed to restore this player. Omit 'protectSensitive' to take one. Restoring an existing protected backup still works.",
+			));
+		}
+
 		// JSON is valid, get comment and trigger source
 		$backup_comment = $input_data_decoded['backup_comment'];
 		$trigger_source = $input_data_decoded['trigger_source'];
@@ -817,7 +829,6 @@ function RestoreJsonBackup(){
 		   $backup_errors,$backup_error_string, $backups_verbose_logging,
 		   $keepMasterSlaveSettings, $keepNetworkSettings, $uploadData_IsProtected, $settings_restored,
 		   $network_settings_restored, $network_settings_restored_post_apply, $network_settings_restored_applied_ips,
-		   $sensitive_data, $protectSensitiveData,
 		   $fpp_backup_format_version, $fpp_major_version, $fpp_backup_prompt_download,
 		   $fpp_backup_max_age, $fpp_backup_min_number_kept,
 		   $fpp_backup_location, $fpp_backup_location_alternate_drive,
