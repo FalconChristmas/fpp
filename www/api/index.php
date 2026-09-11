@@ -87,6 +87,7 @@ dispatch_get('/git/releases/sizes', 'GitOSReleaseSizes');
 dispatch_get('/git/reset', 'GitReset');
 dispatch_get('/git/status', 'GitStatus');
 dispatch_get('/git/branches', 'GitBranches');
+dispatch_get('/git/forkBranches', 'GitForkBranches');
 
 dispatch_get('/media', 'GetMedia');
 dispatch_get('/media/:MediaName/duration', 'GetMediaDuration');
