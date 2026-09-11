@@ -37,21 +37,21 @@ global `helpPage` variable into the modal. `config.php` sets it by default to
 `DisplayHelp()` reads the active tab id (`settings-<name>-tab`) and loads
 `help/settings-<name>.php` instead. So the settings tabs map like this:
 
-| Settings tab id | Help file |
-| --- | --- |
-| `settings-playback-tab` | `help/settings-playback.php` |
-| `settings-av-tab` | `help/settings-av.php` |
+| Settings tab id             | Help file                        |
+| --------------------------- | -------------------------------- |
+| `settings-playback-tab`     | `help/settings-playback.php`     |
+| `settings-av-tab`           | `help/settings-av.php`           |
 | `settings-localization-tab` | `help/settings-localization.php` |
-| `settings-ui-tab` | `help/settings-ui.php` |
-| `settings-email-tab` | `help/settings-email.php` |
-| `settings-mqtt-tab` | `help/settings-mqtt.php` |
-| `settings-privacy-tab` | `help/settings-privacy.php` |
-| `settings-output-tab` | `help/settings-output.php` |
-| `settings-logs-tab` | `help/settings-logs.php` |
-| `settings-services-tab` | `help/settings-services.php` |
-| `settings-storage-tab` | `help/settings-storage.php` |
-| `settings-system-tab` | `help/settings-system.php` |
-| `settings-developer-tab` | `help/settings-developer.php` |
+| `settings-ui-tab`           | `help/settings-ui.php`           |
+| `settings-email-tab`        | `help/settings-email.php`        |
+| `settings-mqtt-tab`         | `help/settings-mqtt.php`         |
+| `settings-privacy-tab`      | `help/settings-privacy.php`      |
+| `settings-output-tab`       | `help/settings-output.php`       |
+| `settings-logs-tab`         | `help/settings-logs.php`         |
+| `settings-services-tab`     | `help/settings-services.php`     |
+| `settings-storage-tab`      | `help/settings-storage.php`      |
+| `settings-system-tab`       | `help/settings-system.php`       |
+| `settings-developer-tab`    | `help/settings-developer.php`    |
 
 **If you add a settings tab to `www/settings.php`, add the matching
 `help/settings-<name>.php`** — otherwise F1 on that tab shows only the generic
@@ -76,3 +76,6 @@ Most settings controls are declared in `www/settings.json` (and network ones in
 `www/interface-settings.json`) with a `description` and `tip`. Those are the
 inline hints; the `help/` file is the longer narrative. When you change a
 setting, check whether both need updating — they usually do.
+
+## If help page is missing
+If the help page is missing and you have just made a change - generate a new help page populated with key info for that page.  If its a tabbed page ensure a help page is created for each tab
