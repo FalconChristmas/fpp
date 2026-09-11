@@ -1621,11 +1621,16 @@
 			"name": "DisableHDMICECInit",
 			"description": "Prevent HDMI CEC At Boot",
 			"gatherStats": true,
-			"tip": "When enabled, adds hdmi_ignore_cec_init=1 to config.txt to suppress the initial CEC Active Source that wakes projectors/TVs at boot (e.g. after a power outage). CEC control via the CEC plugin still works.",
+			"tip": "When enabled, adds hdmi_ignore_cec_init=1 to config.txt to suppress the initial CEC Active Source that wakes projectors/TVs at boot (e.g. after a power outage). CEC control via the CEC plugin still works. Not applicable on Pi 5 (kernel KMS, no firmware HDMI).",
 			"reboot": 1,
 			"platforms": [
 				"Raspberry Pi"
 			],
+			"variants": {
+				"Raspberry Pi": [
+					"!Pi 5"
+				]
+			},
 			"type": "checkbox",
 			"default": "1"
 		},
