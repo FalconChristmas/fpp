@@ -119,7 +119,10 @@ HC_Warnings() {
             details=$(jq -c '.' "$WARNING_FILE" 2>/dev/null)
             echo "data: {\"id\":\"warnings\",\"label\":\"FPPD Warnings\",\"icon\":\"fa-exclamation-triangle\",\"status\":\"$status\",\"message\":\"$message\",\"details\":$details}"
             echo ""
-            WARN_COUNT=$((WARN_COUNT + 1))
+            if ! [[ "$CNT" =~ ^[0-9]+$ ]]; then
+                CNT=1
+            fi
+            WARN_COUNT=$((WARN_COUNT + CNT))
         fi
     fi
 }
