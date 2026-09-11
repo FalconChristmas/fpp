@@ -442,6 +442,56 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
 }
 
 /**
+ * Setting keys that a backup written before "Protect Sensitive Data" was removed
+ * may have blanked.
+ *
+ * That option wrote '' over a short list of keys, so in a backup carrying
+ * protected=true an empty value is ambiguous: it may be a redaction, or a
+ * setting the user genuinely cleared.  For these keys we read it as a redaction
+ * and leave this device's own value alone.  For every other key '' is a value
+ * the user chose and is restored.
+ *
+ * The four literals are what the removed remove_sensitive_data() actually
+ * blanked.  The declared password settings are unioned in so a backup written by
+ * a different FPP version, which may have blanked a different list, is still
+ * covered.
+ *
+ * This whole mechanism can go once FPP no longer restores backups written before
+ * "Protect Sensitive Data" was removed.
+ *
+ * @return array Key name => true, for use with array_key_exists().
+ */
+function RedactableSettingKeys()
+{
+    global $settings;
+    static $redactable_keys = null;
+
+    if ($redactable_keys !== null) {
+        return $redactable_keys;
+    }
+
+    //What the removed redactor blanked.  Neither emailgpass nor secret is
+    //declared in settings.json, so they have to be named here.
+    $redactable_keys = array(
+        'emailpass' => true,
+        'emailgpass' => true,
+        'password' => true,
+        'secret' => true,
+    );
+
+    $settings_metadata = json_decode(@file_get_contents($settings['wwwDir'] . "/settings.json"), true);
+    if (is_array($settings_metadata) && isset($settings_metadata['settings'])) {
+        foreach ($settings_metadata['settings'] as $setting_name => $setting_config) {
+            if (is_array($setting_config) && isset($setting_config['type']) && $setting_config['type'] === 'password') {
+                $redactable_keys[$setting_name] = true;
+            }
+        }
+    }
+
+    return $redactable_keys;
+}
+
+/**
  * Function to look after backup restorations
  * @param $restore_area String  Area to restore
  * @param $restore_area_data array  Area data as an array
@@ -686,18 +736,37 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                             }
 
                             if ($setting_name == "password" || $setting_name == "osPassword") {
-                                //"Protect sensitive data" blanks the primary field but,
-                                //on backups made before that scrubbing covered the verify
-                                //field too, the real value may still be sitting in it.
-                                //Recover it from there rather than resetting to the default.
+                                //Redaction never matched the verify fields - the old list was
+                                //compared case-sensitively against a lowercased key, so
+                                //passwordVerify and osPasswordVerify always came through - and in
+                                //a protected backup the real value is still sitting in there.
+                                //Recover it rather than leaving the credential behind.
                                 $verify_key = ($setting_name == "password") ? "passwordVerify" : "osPasswordVerify";
                                 if ($setting_value == "" && !empty($restore_data[$verify_key])) {
                                     $setting_value = $restore_data[$verify_key];
                                 }
-                                //Don't clobber the device's existing password with a blank value.
+                                //Still blank: do not write it.  This one is not about redaction
+                                //and outlives it - SetOSPassword('') resets the fpp account to the
+                                //published default 'falcon' (common/settings.php:191-198), so an
+                                //empty value in an unprotected backup would weaken this box rather
+                                //than configure it.
                                 if ($setting_value == "") {
                                     continue;
                                 }
+                            }
+
+                            //A backup taken while "Protect sensitive data" existed carries ''
+                            //where a credential was blanked.  Writing that through clears a
+                            //working credential on this device: restoring one of the automatic
+                            //backups every box keeps wiped emailpass.  Leave what is already
+                            //here instead.  Only for keys redaction could have touched -
+                            //anywhere else '' is a value the user chose and must be restored.
+                            //
+                            //After the block above, so that a credential recoverable from its
+                            //verify field is restored rather than merely preserved.
+                            if ($uploadData_IsProtected == true && $setting_value === '' &&
+                                array_key_exists($setting_name, RedactableSettingKeys())) {
+                                continue;
                             }
 
                             //check if we can change it (default value is checked - true)
@@ -799,10 +868,11 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                         WriteSettingToFile('emailfromtext', $emailfromtext);
                         WriteSettingToFile('emailtoemail', $emailtoemail);
 
-                        //Only save password and generate exim config if upload data is unprotected
-                        //meaning the password was included in the backup,
-                        //otherwise existing (valid) config may be overwritten
-                        if ($uploadData_IsProtected == false && $emailpass != "") {
+                        //A redacted emailpass arrives empty and the settings loop above has
+                        //already declined to write it, so an empty value here means the backup
+                        //carries no password to apply - whether it was redacted or never set.
+                        //Either way there is nothing to configure exim with.
+                        if ($emailpass != "") {
                             WriteSettingToFile('emailpass', $emailpass);
                             //Update the email config in the global settings array,  so can call the function that sets up and  writes out exim4 config
                             $settings['emailserver'] = $restore_data['emailserver'];
