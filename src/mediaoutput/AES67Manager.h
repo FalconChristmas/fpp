@@ -1013,6 +1013,10 @@ public:
         std::vector<PipelineStatus> pipelines;
         bool ptpSynced = false;
         int64_t ptpOffsetNs = 0;     // offset from PTP master
+        // False when pmc gave no usable master_offset, so ptpOffsetNs is a
+        // default rather than a measurement.  Reported as a null offsetNs
+        // rather than a zero that reads as a perfect lock.
+        bool ptpOffsetValid = false;
         std::string ptpGrandmasterId;
         // IP the grandmaster's Announce messages come from -- our own
         // interface address when we hold the role.  Empty when no Announce
@@ -1176,7 +1180,13 @@ private:
     // Query the actual PTP grandmaster (may be a remote clock, not this node)
     // via `pmc GET TIME_STATUS_NP`.  Returns false if ptp4l isn't running or
     // the query fails, leaving the out-params untouched.
-    bool QueryPtp4lTimeStatus(bool& gmPresent, std::string& gmIdentity, int64_t& offsetNs);
+    //
+    // offsetNs is only meaningful when offsetValid says so: a missing or
+    // malformed master_offset leaves it at zero, which is indistinguishable
+    // from a perfectly locked clock.  Ask for it anywhere the number is shown
+    // or acted on; the grandmaster identity alone does not need it.
+    bool QueryPtp4lTimeStatus(bool& gmPresent, std::string& gmIdentity, int64_t& offsetNs,
+                              bool* offsetValid = nullptr);
 
     // The AES67 media clock -- PTP time, shared by every send pipeline so they
     // all sit on one timeline.  Created on first use, released in Shutdown().

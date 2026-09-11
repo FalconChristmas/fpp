@@ -1120,7 +1120,14 @@ void AES67Manager::RefreshPtpCache(bool force) {
             ls >> val;
             fresh.gmPresent = (val == "true");
             fresh.gmPresentValid = (val == "true" || val == "false");
-            fresh.valid = fresh.gmPresentValid;
+            // Only ever raise validity here.  gmIdentity sets it too, and a
+            // malformed gmPresent must not retract what another field has
+            // already established -- pmc happens to print gmPresent first
+            // today, which is the only reason a plain assignment has not
+            // bitten anyone.
+            if (fresh.gmPresentValid) {
+                fresh.valid = true;
+            }
         } else if (key == "gmIdentity") {
             std::string val;
             ls >> val;
@@ -1185,22 +1192,29 @@ std::string AES67Manager::GetPtp4lState() {
 //
 //   SLAVE with a small offset from master -- ptp4l has measured against the
 //       grandmaster and the correction it needed has already been applied.
+//       Both halves have to be evidence rather than a default: a gmPresent
+//       that actually read "true" and a master_offset that actually parsed.
+//       A missing or malformed management field leaves the offset at zero,
+//       which is indistinguishable from a perfect lock -- and zero is exactly
+//       what #2848 settled on before the clock stepped 6.81 hours.
 //
 //   LISTENING with no grandmaster on the domain, once the cap has run out --
 //       there is nothing to be stepped towards, so the free-running PHC is as
-//       settled as it is going to get.  This one is deliberately only tested
-//       at the deadline: during the wait "no announce seen" and "no announce
-//       yet" look identical, and returning on it early would defeat the whole
-//       point on a follower whose grandmaster had not spoken yet.  It matters
-//       because a box that is about to become grandmaster spends
+//       settled as it is going to get.  "No grandmaster" means gmPresent was
+//       read and said false; a management query that failed outright says
+//       nothing about the domain and is not an answer.  This one is only
+//       tested at the deadline: during the wait "no announce seen" and "no
+//       announce yet" look identical, and returning on it early would defeat
+//       the whole point on a follower whose grandmaster had not spoken yet.
+//       It matters because a box that is about to become grandmaster spends
 //       announceReceiptTimeout x the announce interval -- 3 x 2s here --
 //       listening first, so a solo FPP would otherwise time out and cry wolf
 //       on every single boot.  Measured on a Pi 5 with nothing else on the
 //       domain: LISTENING throughout, gmPresent false throughout, and
 //       "assuming the grand master role" at t=7.46s -- well past the cap.
-//       UNCALIBRATED or a wide SLAVE offset at the
-//       deadline is the opposite case: a grandmaster is there and we have not
-//       caught up with it yet, which is exactly when the caller should worry.
+//       UNCALIBRATED or a wide SLAVE offset at the deadline is the opposite
+//       case: a grandmaster is there and we have not caught up with it yet,
+//       which is exactly when the caller should worry.
 //
 // Everything else is not settled, and the caller decides what to do about it.
 bool AES67Manager::WaitForPtpLock(int timeoutMs) {
@@ -1297,7 +1311,8 @@ bool AES67Manager::WaitForPtpLock(int timeoutMs) {
 // this is the remote/upstream clock ptp4l has selected via BMCA, which may
 // or may not be this node.  GetPTPClockId() (below) only ever returns this
 // node's own identity and must not be used to report "who is the master".
-bool AES67Manager::QueryPtp4lTimeStatus(bool& gmPresent, std::string& gmIdentity, int64_t& offsetNs) {
+bool AES67Manager::QueryPtp4lTimeStatus(bool& gmPresent, std::string& gmIdentity, int64_t& offsetNs,
+                                        bool* offsetValid) {
     if (!IsPtp4lRunning()) {
         return false;
     }
@@ -1310,6 +1325,9 @@ bool AES67Manager::QueryPtp4lTimeStatus(bool& gmPresent, std::string& gmIdentity
     gmPresent = m_ptpCache.gmPresent;
     gmIdentity = m_ptpCache.gmIdentity;
     offsetNs = m_ptpCache.offsetNs;
+    if (offsetValid) {
+        *offsetValid = m_ptpCache.offsetValid;
+    }
     return true;
 }
 
@@ -5071,15 +5089,17 @@ AES67Manager::Status AES67Manager::GetStatus() {
         bool gmPresent = false;
         std::string gmId;
         int64_t offsetNs = 0;
+        bool offsetValid = false;
 
         status.ptpPortState = IsPtp4lRunning() ? GetPtp4lState() : "not running";
         status.ptpIsGrandmaster = IsGrandmasterPortState(status.ptpPortState);
         status.ptpLockedAtStart = m_ptpLockedAtStart.load();
 
-        if (QueryPtp4lTimeStatus(gmPresent, gmId, offsetNs) && gmPresent && !gmId.empty()) {
+        if (QueryPtp4lTimeStatus(gmPresent, gmId, offsetNs, &offsetValid) && gmPresent && !gmId.empty()) {
             status.ptpSynced = true;
             status.ptpGrandmasterId = gmId;
-            status.ptpOffsetNs = offsetNs;
+            status.ptpOffsetNs = offsetValid ? offsetNs : 0;
+            status.ptpOffsetValid = offsetValid;
             GetGrandmasterAddress(gmId, status.ptpGrandmasterAddress,
                                   status.ptpGrandmasterViaBoundary);
         } else if (status.ptpIsGrandmaster) {
@@ -5092,6 +5112,7 @@ AES67Manager::Status AES67Manager::GetStatus() {
             status.ptpSynced = true;
             status.ptpGrandmasterId = GetPTPClockId();
             status.ptpOffsetNs = 0;
+            status.ptpOffsetValid = true;
             // Taken from the interface rather than the Announce listener: we
             // are the one clock whose address is known without hearing it.
             status.ptpGrandmasterAddress = GetInterfaceIP(GetPtpInterface());
@@ -5102,6 +5123,7 @@ AES67Manager::Status AES67Manager::GetStatus() {
             status.ptpSynced = false;
             status.ptpGrandmasterId = "";
             status.ptpOffsetNs = 0;
+            status.ptpOffsetValid = false;
         }
     }
 
@@ -5433,7 +5455,14 @@ HttpResponsePtr AES67Manager::render_GET(const HttpRequestPtr& req) {
         // PTP
         Json::Value ptp;
         ptp["synced"] = st.ptpSynced;
-        ptp["offsetNs"] = (Json::Int64)st.ptpOffsetNs;
+        // null, not 0, when pmc gave nothing usable -- a zero here is the
+        // same lie WaitForPtpLock() used to believe.  The UI already tests
+        // `typeof offsetNs === 'number'` and falls back to an em dash.
+        if (st.ptpOffsetValid) {
+            ptp["offsetNs"] = (Json::Int64)st.ptpOffsetNs;
+        } else {
+            ptp["offsetNs"] = Json::Value::null;
+        }
         ptp["grandmasterId"] = st.ptpGrandmasterId;
         ptp["grandmasterAddress"] = st.ptpGrandmasterAddress;
         ptp["grandmasterViaBoundary"] = st.ptpGrandmasterViaBoundary;
