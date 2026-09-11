@@ -442,6 +442,40 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
 }
 
 /**
+ * Read one of FPP's ini-style config files for a backup.
+ *
+ * Not parse_ini_string(): PHP's ini parser treats " as a string delimiter and
+ * strips it, so any value containing embedded quotes comes back mangled.  The
+ * settings file holds one -- privacyConsent, a JSON object written unquoted by
+ * WriteSettingToFile() -- and it was arriving in backups as
+ * {settings:{statsPublish:{value:Disabled...}}}, which json_decode() rejects.  A
+ * restore then wrote that back, ReadPrivacyConsent() got null from it, and
+ * PrivacyConsentShortfall() reported 'absent' instead of 'other-device' --
+ * losing both the audit trail and the reason the consent record is carried
+ * across a restore at all.
+ *
+ * custom_parse_ini_file() in common.php is FPP's own reader for these files,
+ * written for this exact limitation, and is what WriteSettingToFile() uses.
+ * Using it here makes the backup round-trip agree with how FPP reads and writes
+ * the file the rest of the time.
+ *
+ * @param string $config_filepath Path to the file.
+ * @return array Key => value, empty if the file is missing or unreadable.
+ */
+function ParseIniConfigForBackup($config_filepath)
+{
+    //The callers relied on file_get_contents() failing quietly for a file that
+    //is not there; custom_parse_ini_file() would warn on file().
+    if (!is_string($config_filepath) || $config_filepath === '' || !is_readable($config_filepath)) {
+        return array();
+    }
+
+    $parsed_config = custom_parse_ini_file($config_filepath);
+
+    return is_array($parsed_config) ? $parsed_config : array();
+}
+
+/**
  * Setting keys that a backup written before "Protect Sensitive Data" was removed
  * may have blanked.
  *
@@ -1551,7 +1585,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                                     if (in_array($sfi, $known_ini_config_files)) {
                                         //INI
                                         //parse ini properly
-                                        $backup_file_data = parse_ini_string(@file_get_contents($location_path));
+                                        $backup_file_data = ParseIniConfigForBackup($location_path);
                                     } else if (in_array($sfi, $known_json_config_files)) {
                                         //JSON
                                         //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
@@ -1573,7 +1607,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                                 if (in_array($sfi, $known_ini_config_files)) {
                                     //INI
                                     //parse ini properly
-                                    $backup_file_data = parse_ini_string(@file_get_contents($sfd['location']));
+                                    $backup_file_data = ParseIniConfigForBackup($sfd['location']);
                                 } else if (in_array($sfi, $known_json_config_files)) {
                                     //JSON
                                     //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
@@ -1610,7 +1644,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                         if (in_array($config_key, $known_ini_config_files)) {
                             //INI
                             //parse ini properly
-                            $file_data = parse_ini_string(file_get_contents($setting_file_to_backup));
+                            $file_data = ParseIniConfigForBackup($setting_file_to_backup);
                         } else if (in_array($config_key, $known_json_config_files)) {
                             //JSON
                             //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
@@ -1650,7 +1684,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                                 if (in_array($sfi, $known_ini_config_files)) {
                                     //INI
                                     //parse ini properly
-                                    $backup_file_data = parse_ini_string(file_get_contents($location_path));
+                                    $backup_file_data = ParseIniConfigForBackup($location_path);
                                 } else if (in_array($sfi, $known_json_config_files)) {
                                     //JSON
                                     //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
@@ -1672,7 +1706,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
                             if (in_array($sfi, $known_ini_config_files)) {
                                 //INI
                                 //parse ini properly
-                                $backup_file_data = parse_ini_string(file_get_contents($sfd['location']));
+                                $backup_file_data = ParseIniConfigForBackup($sfd['location']);
                             } else if (in_array($sfi, $known_json_config_files)) {
                                 //JSON
                                 //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
@@ -1701,7 +1735,7 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
             } else {
                 if ($setting_file_to_backup !== false && file_exists($setting_file_to_backup)) {
                     if (in_array($area, $known_ini_config_files)) {
-                        $file_data = parse_ini_string(file_get_contents($setting_file_to_backup));
+                        $file_data = ParseIniConfigForBackup($setting_file_to_backup);
                     } else if (in_array($area, $known_json_config_files)) {
                         $file_data = json_decode(file_get_contents($setting_file_to_backup), true);
                     } else if (isset($tmp_config_areas[$area]['binary']) && $tmp_config_areas[$area]['binary']) {
