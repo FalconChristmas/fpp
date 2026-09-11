@@ -541,7 +541,18 @@ function BackupIsFromThisDevice($restore_data)
         return false;
     }
 
-    return $consent_record['uuid'] === getSystemUUID();
+    //getSystemUUID() returns the literal "Unknown" when identity cannot be
+    //established, and RecordPrivacyConsent() stamps whatever it returns.  Two
+    //different identity-less players therefore both carry "Unknown", and
+    //comparing the strings would call one player's backup the other's own -
+    //turning off every exclusion below, including the FPP_UUID one.  Require a
+    //real identity on both sides before the comparison means anything.
+    $device_uuid = getSystemUUID();
+    if (!isValidSystemUUID($consent_record['uuid']) || !isValidSystemUUID($device_uuid)) {
+        return false;
+    }
+
+    return $consent_record['uuid'] === $device_uuid;
 }
 
 /**
@@ -578,6 +589,32 @@ function GetSettingsNotCarriedByRestore()
     $excluded_keys = array(
         'LegalJurisdiction' => true,
         'FPP_UUID' => true,
+
+        //Login credentials.  These are applied, not merely stored: ApplySetting()
+        //sends password to SetUIPassword(), which rewrites config/.htpasswd
+        //mid-request, and osPassword to SetOSPassword(), which runs chpasswd on
+        //the fpp account.  So restoring somebody else's backup locks you out of
+        //the web UI and SSH of the player in front of you, with their
+        //credentials.  passwordEnable rides along and can switch UI
+        //authentication off entirely.
+        //
+        //password was one of the four keys the removed redactor did blank, so
+        //excluding it here restores the behaviour that shipped before; osPassword
+        //it never matched, so that one is a fix.  A player restoring its own
+        //backup keeps all of them - see BackupIsFromThisDevice().
+        'password' => true,
+        'passwordVerify' => true,
+        'passwordEnable' => true,
+        'osPassword' => true,
+        'osPasswordVerify' => true,
+        'osPasswordEnable' => true,
+
+        //The address the restored player would send mail TO.  emailAddress is
+        //excluded below as part of the privacy group; this is the same person's
+        //inbox arriving by another route, and a player that mails the previous
+        //owner is not a working clone.  The relay credentials - emailserver,
+        //emailuser, emailpass - are configuration and do restore.
+        'emailtoemail' => true,
     );
 
     //Read the group rather than naming its members, so a sixth privacy setting
@@ -858,12 +895,26 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                                 continue;
                             }
 
-                            //The privacy step's answers, the jurisdiction they were given under and
-                            //the device identity that binds them belong to the player the backup
-                            //came from.  This box answers the step itself -- unless the backup is
-                            //this box's own, in which case they already are its answers.
+                            //The privacy step's answers, the jurisdiction they were given under,
+                            //the device identity that binds them and the credentials that let
+                            //somebody in belong to the player the backup came from.  This box
+                            //answers the step itself -- unless the backup is this box's own, in
+                            //which case they already are its answers.
                             if (!$restore_is_own_backup &&
                                 array_key_exists($setting_name, GetSettingsNotCarriedByRestore())) {
+                                continue;
+                            }
+
+                            //privacyConsent is restorable on purpose: the other-device shortfall
+                            //works by seeing a foreign record arrive.  But a backup written before
+                            //backup.php stopped reading these files with parse_ini_string() carries
+                            //the record with its quotes stripped, and writing that over a record
+                            //that still decodes turns a real consent trail into an unreadable one --
+                            //degrading the shortfall to the weaker 'absent' and losing the audit
+                            //trail the record exists to provide.  Keep what is readable.
+                            if ($setting_name == "privacyConsent" &&
+                                json_decode((string) $setting_value, true) === null &&
+                                json_decode((string) ReadSettingFromFile('privacyConsent'), true) !== null) {
                                 continue;
                             }
 
@@ -998,7 +1049,16 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                         //
                         WriteSettingToFile('emailfromuser', $email_from_user);
                         WriteSettingToFile('emailfromtext', $emailfromtext);
-                        WriteSettingToFile('emailtoemail', $emailtoemail);
+
+                        //This is a separate restore area, reached in its own pass, so the
+                        //settings loop's exclusions do not reach it and its local flag is not
+                        //in scope - ask again rather than depending on pass order.  The one
+                        //that matters here is the destination address: it belongs to whoever
+                        //made the backup, and a restored player mailing the previous owner is
+                        //not a working clone.
+                        if (BackupIsFromThisDevice($restore_data)) {
+                            WriteSettingToFile('emailtoemail', $emailtoemail);
+                        }
 
                         //A redacted emailpass arrives empty and the settings loop above has
                         //already declined to write it, so an empty value here means the backup
