@@ -1197,8 +1197,10 @@ private:
         std::chrono::steady_clock::time_point when{};
         bool valid = false;
         bool gmPresent = false;
+        bool gmPresentValid = false;
         std::string gmIdentity;
         int64_t offsetNs = 0;
+        bool offsetValid = false;
         std::string portState;
     };
     PtpQueryCache m_ptpCache;

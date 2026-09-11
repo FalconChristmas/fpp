@@ -1119,7 +1119,8 @@ void AES67Manager::RefreshPtpCache(bool force) {
             std::string val;
             ls >> val;
             fresh.gmPresent = (val == "true");
-            fresh.valid = true;
+            fresh.gmPresentValid = (val == "true" || val == "false");
+            fresh.valid = fresh.gmPresentValid;
         } else if (key == "gmIdentity") {
             std::string val;
             ls >> val;
@@ -1131,9 +1132,11 @@ void AES67Manager::RefreshPtpCache(bool force) {
             std::string val;
             ls >> val;
             try {
-                fresh.offsetNs = std::stoll(val);
+                size_t consumed = 0;
+                fresh.offsetNs = std::stoll(val, &consumed);
+                fresh.offsetValid = (consumed == val.size());
             } catch (...) {
-                // leave offsetNs at 0 on parse failure
+                fresh.offsetValid = false;
             }
         }
     }
@@ -1232,11 +1235,15 @@ bool AES67Manager::WaitForPtpLock(int timeoutMs) {
         std::string portState;
         int64_t offsetNs = 0;
         bool gmPresent = false;
+        bool gmPresentValid = false;
+        bool offsetValid = false;
         {
             std::lock_guard<std::mutex> lock(m_ptpCacheMutex);
             portState = m_ptpCache.portState;
             offsetNs = m_ptpCache.offsetNs;
             gmPresent = m_ptpCache.gmPresent;
+            gmPresentValid = m_ptpCache.gmPresentValid;
+            offsetValid = m_ptpCache.offsetValid;
         }
 
         // One line per transition, not per poll: this runs four times a second
@@ -1257,8 +1264,11 @@ bool AES67Manager::WaitForPtpLock(int timeoutMs) {
                     waitedS);
             return true;
         }
-        const int64_t absOffset = offsetNs < 0 ? -offsetNs : offsetNs;
-        if (portState == "SLAVE" && absOffset < AES67::PTP_LOCK_OFFSET_NS) {
+        // Missing/malformed management data is not a zero offset. Compare
+        // signed bounds directly so INT64_MIN cannot overflow on negation.
+        if (portState == "SLAVE" && gmPresentValid && gmPresent && offsetValid &&
+            offsetNs > -AES67::PTP_LOCK_OFFSET_NS &&
+            offsetNs < AES67::PTP_LOCK_OFFSET_NS) {
             LogInfo(VB_MEDIAOUT,
                     "AES67Manager: PTP settled after %.1fs — SLAVE, offset "
                     "%+lldns\n", waitedS, (long long)offsetNs);
@@ -1267,7 +1277,7 @@ bool AES67Manager::WaitForPtpLock(int timeoutMs) {
 
         const auto now = std::chrono::steady_clock::now();
         if (now >= deadline) {
-            if (portState == "LISTENING" && !gmPresent) {
+            if (portState == "LISTENING" && gmPresentValid && !gmPresent) {
                 LogInfo(VB_MEDIAOUT,
                         "AES67Manager: no PTP grandmaster on domain %d after "
                         "%.1fs — nothing to step this clock, carrying on\n",
