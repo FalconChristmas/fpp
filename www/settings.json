@@ -183,6 +183,7 @@
 			"settings": [
 				"VideoOutput",
 				"ForceHDMI",
+				"DisableHDMICECInit",
 				"EnableBBBHDMI",
 				"ForceHDMIResolution",
 				"ForceHDMIResolutionPort2",
@@ -1615,6 +1616,19 @@
 				"Raspberry Pi"
 			],
 			"type": "checkbox"
+		},
+		"DisableHDMICECInit": {
+			"name": "DisableHDMICECInit",
+			"description": "Prevent HDMI CEC At Boot",
+			"gatherStats": true,
+			"tip": "When enabled, adds hdmi_ignore_cec_init=1 to config.txt to suppress the initial CEC Active Source that wakes projectors/TVs at boot (e.g. after a power outage). CEC control via the CEC plugin still works.",
+			"reboot": 1,
+			"level": 1,
+			"platforms": [
+				"Raspberry Pi"
+			],
+			"type": "checkbox",
+			"default": "1"
 		},
 		"GPIOFan": {
 			"name": "GPIOFan",
