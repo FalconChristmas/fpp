@@ -479,50 +479,38 @@ function ParseIniConfigForBackup($config_filepath)
  * Setting keys that a backup written before "Protect Sensitive Data" was removed
  * may have blanked.
  *
- * That option wrote '' over a short list of keys, so in a backup carrying
- * protected=true an empty value is ambiguous: it may be a redaction, or a
- * setting the user genuinely cleared.  For these keys we read it as a redaction
- * and leave this device's own value alone.  For every other key '' is a value
- * the user chose and is restored.
+ * That option wrote '' over these keys, so in a backup carrying protected=true an
+ * empty value is ambiguous: it may be a redaction, or a setting the user
+ * genuinely cleared.  For these keys we read it as a redaction and leave this
+ * device's own value alone.  For every other key '' is a value the user chose and
+ * is restored.
  *
- * The four literals are what the removed remove_sensitive_data() actually
- * blanked.  The declared password settings are unioned in so a backup written by
- * a different FPP version, which may have blanked a different list, is still
- * covered.
+ * This is a closed historical fact, not a policy: it describes what the removed
+ * remove_sensitive_data() actually blanked, which is not the same question as
+ * what is sensitive.  Deriving it from the type="password" declarations looks
+ * tidier and is wrong -- those cover MQTTPassword, TetherPSK and gitHubPAT, which
+ * that redactor never blanked (its list was compared case-sensitively against a
+ * lowercased key, and the last two were not in the list at all).  Including them
+ * would make this refuse to restore a value the user really did clear.
  *
- * This whole mechanism can go once FPP no longer restores backups written before
+ * password is handled by the block above before it can reach here; it is listed
+ * for completeness of the historical record.
+ *
+ * The whole mechanism can go once FPP no longer restores backups written before
  * "Protect Sensitive Data" was removed.
  *
  * @return array Key name => true, for use with array_key_exists().
  */
-function RedactableSettingKeys()
+function GetRedactableSettingKeys()
 {
-    global $settings;
-    static $redactable_keys = null;
-
-    if ($redactable_keys !== null) {
-        return $redactable_keys;
-    }
-
-    //What the removed redactor blanked.  Neither emailgpass nor secret is
-    //declared in settings.json, so they have to be named here.
-    $redactable_keys = array(
+    //Neither emailgpass nor secret is declared in settings.json at all, which is
+    //the other reason this cannot be derived from the declarations.
+    return array(
         'emailpass' => true,
         'emailgpass' => true,
         'password' => true,
         'secret' => true,
     );
-
-    $settings_metadata = json_decode(@file_get_contents($settings['wwwDir'] . "/settings.json"), true);
-    if (is_array($settings_metadata) && isset($settings_metadata['settings'])) {
-        foreach ($settings_metadata['settings'] as $setting_name => $setting_config) {
-            if (is_array($setting_config) && isset($setting_config['type']) && $setting_config['type'] === 'password') {
-                $redactable_keys[$setting_name] = true;
-            }
-        }
-    }
-
-    return $redactable_keys;
 }
 
 /**
@@ -913,7 +901,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                             //After the block above, so that a credential recoverable from its
                             //verify field is restored rather than merely preserved.
                             if ($uploadData_IsProtected == true && $setting_value === '' &&
-                                array_key_exists($setting_name, RedactableSettingKeys())) {
+                                array_key_exists($setting_name, GetRedactableSettingKeys())) {
                                 continue;
                             }
 
