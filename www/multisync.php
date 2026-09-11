@@ -4348,6 +4348,7 @@
                 'FPP (BeagleBone)': 'FPP (BeagleBone)',
                 'FPP (Armbian)': 'FPP (Armbian)',
                 'FPP (MacOS)': 'FPP (MacOS)',
+                'Non-FPP (All)': 'Non-FPP (All)',
                 'Falcon': 'Falcon',
                 'FalconV4': 'FalconV4',
                 'ESPixelStick': 'ESPixelStick',
@@ -4369,6 +4370,12 @@
                     case 'fpp (beaglebone)': return isFPPBeagleBone(typeId);
                     case 'fpp (armbian)': return isFPPArmbian(typeId);
                     case 'fpp (macos)': return isFPPMac(typeId);
+                    // Everything that is not an FPP instance, including devices whose
+                    // type we could not identify (Unknown, 0x00).  Deliberately the
+                    // inverse of isFPP() rather than an OR of the individual
+                    // controller tests, so newly-supported device types are covered
+                    // without touching this list.
+                    case 'non-fpp (all)': return !isFPP(typeId);
                     case 'falcon': return isFalcon(typeId);
                     case 'falconv4': return isFalconV4(typeId);
                     case 'espixelstick': return isESPixelStick(typeId);
