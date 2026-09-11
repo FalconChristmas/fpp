@@ -8166,17 +8166,12 @@ function GetFPPDmode () {
 }
 
 var helpOpen = 0;
+var lastHelpPage = '';
 function HelpClosed () {
 	helpOpen = 0;
 }
 
 function DisplayHelp () {
-	if (helpOpen) {
-		CloseModalDialog('helpDialog');
-		helpOpen = 0;
-		return;
-	}
-
 	var tmpHelpPage = helpPage;
 	var tabs = $('#settingsManagerTabs li .active');
 
@@ -8191,6 +8186,18 @@ function DisplayHelp () {
 		if (tab != '') {
 			tmpHelpPage = 'help/settings-' + tab + '.php';
 		}
+	}
+
+	if (helpOpen) {
+		if (tmpHelpPage != lastHelpPage) {
+			$('#helpDialogText').load(tmpHelpPage);
+			lastHelpPage = tmpHelpPage;
+			helpPage = tmpHelpPage;
+			return;
+		}
+		CloseModalDialog('helpDialog');
+		helpOpen = 0;
+		return;
 	}
 	var options = {
 		id: 'helpDialog',
@@ -8207,6 +8214,7 @@ function DisplayHelp () {
 	DoModalDialog(options);
 
 	$('#helpDialogText').load(tmpHelpPage);
+	lastHelpPage = tmpHelpPage;
 	helpOpen = 1;
 }
 

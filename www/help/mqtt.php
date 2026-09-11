@@ -4,6 +4,9 @@ require_once '../config.php';
 <script>
     helpPage = "help/mqtt.php";
 </script>
+<div style="margin-bottom:12px;">
+    <a href="javascript:void(0)" class="btn btn-sm btn-outline-secondary" onClick="helpPage='help/settings-mqtt.php'; DisplayHelp(); return false;">&larr; Back to MQTT Settings</a>
+</div>
 <center><b>MQTT Integration</b></center>
 <hr>
 
