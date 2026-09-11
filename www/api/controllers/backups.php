@@ -715,6 +715,7 @@ function MakeJSONBackup()
 		if (is_array($input_data_decoded) &&
 			(array_key_exists('protectSensitive', $input_data_decoded) ||
 			 array_key_exists('protected', $input_data_decoded))) {
+			http_response_code(400);
 			return json(array(
 				'success' => false,
 				'error' => "Protected backups are no longer supported. A backup now always contains the passwords, WiFi passphrase and tokens needed to restore this player. Omit 'protectSensitive' to take one. Restoring an existing protected backup still works.",

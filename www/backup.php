@@ -208,24 +208,20 @@ if (isset($_POST['btnDownloadConfig'])) {
     /// BACKUP
     /////
     if (isset($_POST['backuparea']) && !empty($_POST['backuparea'])) {
-        //"Protect sensitive data" is gone and a backup now always carries what it
-        //takes to restore the player.  A caller still asking for protection is
-        //refused rather than quietly handed a complete backup: silently ignoring
-        //the request would mislead it in precisely the way the option existed to
-        //prevent.  Restoring an older protected backup is unaffected - there are
-        //up to 60 of them in config/backups on every box and they must keep
-        //working.
-        if (isset($_POST['protectSensitive'])) {
-            $backup_error_string = "Protected backups are no longer supported. 'Protect sensitive data' has been removed: a backup now always contains the passwords, WiFi passphrase and tokens needed to restore this player. Re-submit without 'protectSensitive' to take one. Restoring an existing protected backup still works.";
-            $backup_errors[] = $backup_error_string;
-            error_log($backup_error_string);
-        } else {
-            //this value *SHOULD* directly match a key in $system_config_areas
-            $area = $_POST['backuparea'];
+        //A stale protectSensitive here is ignored rather than refused.  The only
+        //thing that can still send it is a copy of this page loaded before the
+        //option was removed -- nothing else in the tree posts this form, and the
+        //remote-backup proxy forwards an empty body to four listing routes
+        //(ProxyBackupToRemote in api/controllers/backups.php).  So it is leftover
+        //markup from FPP's own UI, not a considered request, and the user who
+        //pressed Download wants a backup.  The API path refuses instead, because
+        //there a caller really did ask and would not otherwise know it got the
+        //opposite.
+        //this value *SHOULD* directly match a key in $system_config_areas
+        $area = $_POST['backuparea'];
 
-            //Do the work to backup settings
-            performBackup($area, true);
-        }
+        //Do the work to backup settings
+        performBackup($area, true);
     }
 
 } else if (isset($_POST['btnRestoreConfig'])) {
