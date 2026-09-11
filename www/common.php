@@ -276,6 +276,13 @@ function custom_parse_ini_file($filename)
             continue;
         }
 
+        // A line with no '=' is not a setting.  Without this, a hand-edited '#'
+        // comment or a stray line becomes a key with a null value -- which then
+        // gets written back out by WriteSettingToFile(), and carried into backups.
+        if (strpos($line, '=') === false) {
+            continue;
+        }
+
         // Split key and value
         list($key, $value) = explode('=', $line, 2);
         $key = trim($key);
