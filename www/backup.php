@@ -3308,6 +3308,18 @@ if ($skipHTMLCodeOutput === false) {
                                                             <h2>Backup Configuration</h2>
                                                         </div>
                                                         <div class="row">
+                                                            <div class="col-12">
+                                                                <div class="callout callout-warning">
+                                                                    A backup contains everything needed to restore this
+                                                                    player, <b>including your passwords, WiFi passphrase
+                                                                    and access tokens, in plain text</b>. That is what
+                                                                    lets it bring a player back. Treat the file as you
+                                                                    would those credentials: do not attach it to a forum
+                                                                    post or a bug report.
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row">
                                                             <div class="col-md-4">
                                                                 <span class='jsonConfigUSB'>Copy Backups To Additional
                                                                     Location:</span>
@@ -3320,7 +3332,7 @@ if ($skipHTMLCodeOutput === false) {
                                                                     class='buttons refreshBackupDevicesList'
                                                                     onClick='GetBackupDevices();' value='Refresh List'>
                                                                 <img id="jsonConfigUSBUsage_img"
-                                                                    title="Specify an additional storage device where configuration backups will be copied to. Backups will first be saved to the config directory (<?php echo $settings['configDirectory'] . "/backups" ?>), and then copied to the alternative location."
+                                                                    title="Specify an additional storage device where configuration backups will be copied to. Backups will first be saved to the config directory (<?php echo $settings['configDirectory'] . "/backups" ?>), and then copied to the alternative location. Each copied backup carries this player's credentials in plain text, and a USB stick is not encrypted."
                                                                     src="images/redesign/help-icon.svg" class="icon-help">
                                                             </div>
                                                         </div>
@@ -3609,6 +3621,10 @@ if ($skipHTMLCodeOutput === false) {
                                                     configurations of the two systems do not match.</li>
                                                 <li class='copyBackups'>*Backing up Backups will copy all local backups to
                                                     the USB device.</li>
+                                                <li>Copying <b>Configuration</b> includes the settings file and the
+                                                    network configuration as they are, with passwords, the WiFi
+                                                    passphrase and access tokens in plain text. A USB stick is not
+                                                    encrypted, and a copy to a remote host is sent over plain rsync.</li>
                                             </ul>
 
                                         </div>
