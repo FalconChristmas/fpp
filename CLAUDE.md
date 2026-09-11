@@ -71,6 +71,16 @@ External plugins (`/media/plugins/`) are compiled separately and link against FP
 
 When designing HTML, CSS, or working within `www/`, read `.claude/FRONTEND-GUIDELINES.md` before generating any markup.
 
+### In-app help pages
+
+`www/help/` holds the F1 help screens. They are hand-written prose about the controls on
+each page, so they go stale silently when a page changes — nothing breaks, the text just
+becomes wrong. **Whenever you add, remove, rename, or change the meaning of a user-facing
+control under `www/` (including a setting in `www/settings.json`), update the matching help
+file in the same change**, and add a new `help/settings-<name>.php` whenever you add a
+settings tab. Read `.claude/HELP-PAGES.md` for the page-to-help-file mapping and the
+conventions these files follow.
+
 ## Configuration Formats
 
 - **Channel outputs**: `config/channeloutputs.json` — output type, startChannel, channelCount, per-output config
