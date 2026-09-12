@@ -1,20 +1,35 @@
-<h3>Channel Output Configuration</h3>
+<h3>Channel Outputs</h3>
+<p>Channel Outputs tell FPP where to send the light data it plays. Each output is a block of channels that is sent to a specific controller or piece of hardware. Add an output group, choose its type, set which FPP channels it covers, and save. The page has several tabs — <b>E1.31 / DDP</b> for network controllers, <b>Pixel Strings</b> for directly attached pixels, <b>PWM</b> for dimmers, <b>LED Panels</b> for HUB75 matrices, and <b>Add Output Group</b> to create a new group.</p>
 
-<p><b>E1.31</b> - The E1.31 output can drive up to 512 universes over the Pi v2 B's ethernet network interface at 50ms timing or 128 universes on the original A/B/B+.  BeagleBone output should be similar to the Pi v2 B.</p>
+<h4>How the page works</h4>
+<ul>
+    <li><b>Tabs</b> — E1.31/DDP, Strings, PWM and LED Panels each show only outputs of that family. The active tab is highlighted; the content below matches the tab.</li>
+    <li><b>Add Output Group</b> (plus icon, top right of tabs) — Creates a new output group. You then pick its type from the dropdown that appears.</li>
+    <li><b>Enable</b> (per-output checkbox) — When unchecked the output is kept in the config but not sent. Useful for testing.</li>
+    <li><b>Start Channel</b> and <b>Channel Count</b> — Which FPP channels this output drives. Start is the first channel number (1-based). Count is how many consecutive channels are sent. The end channel is calculated and shown to help you avoid overlaps.</li>
+    <li><b>Type-specific fields</b> — Universes, IP addresses, serial ports, panel sizes, color orders, etc. Each type shows only its own fields. Tooltips (help icon) explain each field.</li>
+    <li><b>Save</b> (green) — Writes <code>api/configfile/channeloutputs.json</code> (path from <code>settings['channelOutputsJSON']</code>) and shows a growl. Validation checks for overlapping channels and missing required fields before saving.</li>
+    <li><b>Clone / Delete</b> — Duplicate a selected output to quickly make a similar one, or remove it. You must still Save after.</li>
+</ul>
 
-<p><b>DMX Open</b> - The DMX Open output can send DMX data out generic FTDI-based USB to RS485 dongles.  Other RS485 dongles may work if they support setting arbitrary bit rates.  Support should include the following dongles: Entec Open DMX, LOR, and D-Light along with generic FTDI-based USB to RS485 adapters.</p>
+<h4>Output types — what they do and when to use them</h4>
+<p>The descriptions and wiring tables below are retained from the original help because they remain the reference for directly attached hardware. For cape-based pixels, the cape itself determines the exact pinout — the tables show the underlying GPIO mapping FPP uses when no cape overrides it.</p>
 
-<p><b>DMX Pro</b> - The DMX Pro output can send DMX data out Entec-Pro compatible dongles.  This should include the following dongles: Entec-Pro, Lynx USB dongle w/ DMX firmware, DIYC RPM, DMXking.com, and DIYblinky.com.  If the dongle works using xLights DMX Pro output, it should work in the Falcon Player. </p>
+<p><b>E1.31</b> — The E1.31 output can drive up to 512 universes over the Pi v2 B's ethernet network interface at 50ms timing or 128 universes on the original A/B/B+. BeagleBone output should be similar to the Pi v2 B.</p>
 
-<p><b>RGBMatrix</b> - The RGBMatrix output can drive up to 36 of the HUB75 style 32x16 RGB LED Panels.  These panels may be wired directly to the Pi's GPIO header or an adapter board may be used to handle the wiring.  The RGBMatrix output uses librgbmatrix from Henner Zeller's rpi-rgb-led-matrix git repository to drive HUB75 panels connected to a Raspberry Pi.  If you wish to make your own board or manually connect a panel, the wiring pinout is available at <a href='https://github.com/hzeller/rpi-rgb-led-matrix/blob/master/wiring.md'>https://github.com/hzeller/rpi-rgb-led-matrix/blob/master/wiring.md</a>.</p>
+<p><b>DMX Open</b> — The DMX Open output can send DMX data out generic FTDI-based USB to RS485 dongles. Other RS485 dongles may work if they support setting arbitrary bit rates. Support should include the following dongles: Entec Open DMX, LOR, and D-Light along with generic FTDI-based USB to RS485 adapters.</p>
 
-<p><b>Pixelnet Open</b> - The Pixelnet Open output can send Pixelnet data (one 4096-channel universe) out generic FTDI-based USB to RS485 dongles.</p>
+<p><b>DMX Pro</b> — The DMX Pro output can send DMX data out Entec-Pro compatible dongles. This should include the following dongles: Entec-Pro, Lynx USB dongle w/ DMX firmware, DIYC RPM, DMXking.com, and DIYblinky.com. If the dongle works using xLights DMX Pro output, it should work in the Falcon Player.</p>
 
-<p><b>Pixelnet Lynx</b> - The Pixelnet Lynx output can send Pixelnet data (one 4096-channel universe) out the Lynx USB dongle w/ Pixelnet firmware.</p>
+<p><b>RGBMatrix</b> — The RGBMatrix output can drive up to 36 of the HUB75 style 32x16 RGB LED Panels. These panels may be wired directly to the Pi's GPIO header or an adapter board may be used to handle the wiring. The RGBMatrix output uses librgbmatrix from Henner Zeller's rpi-rgb-led-matrix git repository to drive HUB75 panels connected to a Raspberry Pi. If you wish to make your own board or manually connect a panel, the wiring pinout is available at <a href='https://github.com/hzeller/rpi-rgb-led-matrix/blob/master/wiring.md'>https://github.com/hzeller/rpi-rgb-led-matrix/blob/master/wiring.md</a>.</p>
 
-<p><b>Renard</b> - The Renard output can drive up to 4584 channels at the highest speeds using standard USB to serial dongles.</p>
+<p><b>Pixelnet Open</b> — The Pixelnet Open output can send Pixelnet data (one 4096-channel universe) out generic FTDI-based USB to RS485 dongles.</p>
 
-<p><b>SPI-WS2801</b> - The SPI-WS2801 output can drive one string of WS2801 pixels directly off the Raspberry Pi's SPI port.  The data, clock, and ground lines attach directly to the Pi while power for the pixels is injected from another source.</p>
+<p><b>Pixelnet Lynx</b> — The Pixelnet Lynx output can send Pixelnet data (one 4096-channel universe) out the Lynx USB dongle w/ Pixelnet firmware.</p>
+
+<p><b>Renard</b> — The Renard output can drive up to 4584 channels at the highest speeds using standard USB to serial dongles.</p>
+
+<p><b>SPI-WS2801</b> — The SPI-WS2801 output can drive one string of WS2801 pixels directly off the Raspberry Pi's SPI port. The data, clock, and ground lines attach directly to the Pi while power for the pixels is injected from another source.</p>
 <p>
 <center>
 <b>SPI-WS2801 Output Connections</b><br>
@@ -28,7 +43,7 @@
 </center>
 </p>
 
-<p><b>PiHat</b> - The PiHat output can drive two independent strings of WS281x pixels directly off the Raspberry Pi's GPIO ports.  The data and ground lines attach directly to the Pi while power for the pixels is injected from another source.  These strings are driven by the <b>DPIPixels</b> output described below.  <b>NOTE: This replaces the older RPIWS281X output, which required the onboard audio on the Pi to be disabled.  Existing RPIWS281X configurations are migrated automatically and the onboard audio now continues to work.</b></p>
+<p><b>PiHat</b> — The PiHat output can drive two independent strings of WS281x pixels directly off the Raspberry Pi's GPIO ports. The data and ground lines attach directly to the Pi while power for the pixels is injected from another source. These strings are driven by the <b>DPIPixels</b> output described below. <b>NOTE: This replaces the older RPIWS281X output, which required the onboard audio on the Pi to be disabled. Existing RPIWS281X configurations are migrated automatically and the onboard audio now continues to work.</b></p>
 <p>
 <center>
 <b>PiHat Output Connections</b><br>
@@ -42,7 +57,7 @@
 </center>
 </p>
 
-<p><b>spixels</b> - The spixels output can drive 16 independent strings of WS2801, APA102, LPD6803, or LPD8806 pixels directly off the Raspberry Pi's GPIO ports by emulating SPI outputs in software.  The data and ground lines attach directly to the Pi while power for the pixels is injected from another source.</b></p>
+<p><b>spixels</b> — The spixels output can drive 16 independent strings of WS2801, APA102, LPD6803, or LPD8806 pixels directly off the Raspberry Pi's GPIO ports by emulating SPI outputs in software. The data and ground lines attach directly to the Pi while power for the pixels is injected from another source.</b></p>
 <p>
 <center>
 <b>spixels Output Connections</b><br>
@@ -71,7 +86,7 @@
 </center>
 </p>
 
-<p><b>GPIO</b> - The GPIO outut can drive a single GPIO pin high or low based on a channel's value being zero (low) or non-zero (high).  This may be used to drive output relays or trigger other attached devices.</p>
+<p><b>GPIO</b> — The GPIO output can drive a single GPIO pin high or low based on a channel's value being zero (low) or non-zero (high). This may be used to drive output relays or trigger other attached devices.</p>
 <p>
 <center>
 <b>GPIO Pins available on the Pi model B and B+</b><br>
@@ -115,7 +130,7 @@
 </center>
 </p>
 
-<p><b>GPIO-595</b> - The GPIO-595 output can drive up to 16 daisy-chained 74HC595 Shift Register IC's using a set of 3 GPIO Output pins. See the table below for connection information. Pick one set of outputs 'GPIO 17-18-27' or 'GPIO 22-23-24', do not connect the 74HC595 to both sets of GPIO Pins.</p>
+<p><b>GPIO-595</b> — The GPIO-595 output can drive up to 16 daisy-chained 74HC595 Shift Register IC's using a set of 3 GPIO Output pins. See the table below for connection information. Pick one set of outputs 'GPIO 17-18-27' or 'GPIO 22-23-24', do not connect the 74HC595 to both sets of GPIO Pins.</p>
 <p>
 <center>
 <b>GPIO-595 Output Connections</b><br>
@@ -131,26 +146,34 @@
 </center>
 </p>
 
-<p><b>DPIPixels</b> - The DPIPixels Channel Output on the Raspberry Pi can drive up to 24 strings of LED pixels connected directly to the GPIO pins (a voltage shifter might also be needed since the GPIO pins are only 3.3V).  The number of pixels is determined by the frame rate and protocol.  For example, at 20 FPS over 1,600 WS281X pixels can be chained from each GPIO pin (each WS281X pixel takes 30 usec), allowing a Raspberry Pi to run close to 40K WS281x pixels at 20 FPS.  <a id="more-dpi-info" href="#">Click here to show/hide more info</a>.  <b>NOTE: The PiHat DPIPixels Channel Output is pin-compatible with the older RPIWS281X Channel Output but allows the onboard audio on the Pi to continue to function.</b><p>
-<p class="more-dpi-info">DPI redirects video output from the GPU onto selected GPIO pins.  The RPi GPU serves as a high-speed 24-bit parallel port dongle, repeatedly refreshing the LED pixels from a GPU framebuffer and off-loading time-critical I/O from the RPi general processor cores.</p>
+<p><b>DPIPixels</b> — The DPIPixels Channel Output on the Raspberry Pi can drive up to 24 strings of LED pixels connected directly to the GPIO pins (a voltage shifter might also be needed since the GPIO pins are only 3.3V). The number of pixels is determined by the frame rate and protocol. For example, at 20 FPS over 1,600 WS281X pixels can be chained from each GPIO pin (each WS281X pixel takes 30 usec), allowing a Raspberry Pi to run close to 40K WS281x pixels at 20 FPS. <a id="more-dpi-info" href="#">Click here to show/hide more info</a>. <b>NOTE: The PiHat DPIPixels Channel Output is pin-compatible with the older RPIWS281X Channel Output but allows the onboard audio on the Pi to continue to function.</b></p>
+<p class="more-dpi-info">DPI redirects video output from the GPU onto selected GPIO pins. The RPi GPU serves as a high-speed 24-bit parallel port dongle, repeatedly refreshing the LED pixels from a GPU framebuffer and off-loading time-critical I/O from the RPi general processor cores.</p>
 <p class="more-dpi-info">GPIO pins that are used for DPI are not available for other functions such as SPI, PMW, UART serial output, or sensors, but each GPIO can be configured individually for DPI so conflicts can be avoided - the tradeoff is fewer DPI Channel Outputs available for LED pixels.</p>
 <p class="more-dpi-info">
 <center class="more-dpi-info" NOTE="table won't hide without this">
 <b>DPI Output Connections</b><br>
 <table border="1" cellpadding="4" cellspacing="1" style="margin: 0 40px;">
 <tr><th>RPi Pins</th><th>Function</th><th>Notes</th></tr>
-<tr><td>GPIO 0 - 3</td><td>Normal function</td><td>DPI uses these pins for video CLK, EN, HSYNC and VSYNC signals, which are not useful for Channel Outputs.  These pins can be used for normal purposes.</td></tr>
+<tr><td>GPIO 0 - 3</td><td>Normal function</td><td>DPI uses these pins for video CLK, EN, HSYNC and VSYNC signals, which are not useful for Channel Outputs. These pins can be used for normal purposes.</td></tr>
 <tr><td style="white-space: nowrap;">GPIO 4 - 27</td><td style="white-space: nowrap;">Channel Outputs</td><td>GPIO 4 - 27 can optionally be used for pixel data or control signals. Otherwise, these pins are available for normal purposes.</td></tr>
-<tr><td>V+</td><td><em>Do not connect</em></td><td>The RPi power supply is not strong enough to run large numbers of LED pixels.  A separate power supply must be used.</td></tr>
+<tr><td>V+</td><td><em>Do not connect</em></td><td>The RPi power supply is not strong enough to run large numbers of LED pixels. A separate power supply must be used.</td></tr>
 <tr><td>Ground</td><td>Common</td><td>RPi ground must be connected to LED pixel ground to establish a common reference voltage.</td></tr>
 </table>
 </center>
 </p>
-<p class="more-dpi-info">DPI Channel Output in FPP currently only supports WS281X, but additional protocols might be added in future.  DPI could also be used for servo or DC dimmer control, but AC (phase angle) dimming is currently not possible directly from the GPIO pins because the RPi GPU is not synced to AC line voltage (an external controller with AC zero-cross detection would be needed).</p>
+<p class="more-dpi-info">DPI Channel Output in FPP currently only supports WS281X, but additional protocols might be added in future. DPI could also be used for servo or DC dimmer control, but AC (phase angle) dimming is currently not possible directly from the GPIO pins because the RPi GPU is not synced to AC line voltage (an external controller with AC zero-cross detection would be needed).</p>
+
+<h4>Tips for all outputs</h4>
+<ul>
+    <li>When using a cape or hat, let FPP auto-detect it — the <b>Channel Outputs</b> header shows which cape was found. Follow the cape vendor’s wiring for pixel ports; the tables above show the underlying SoC mapping when no cape overrides it.</li>
+    <li>Avoid channel overlaps unless you want two outputs to mirror each other. The Validation after Save warns about overlaps.</li>
+    <li>For network outputs (E1.31, DDP, ArtNet), put FPP and the controllers on the same subnet and verify with <b>Network Settings</b> that the IP and netmask are correct. Test with <b>Display Testing</b> to confirm lights respond.</li>
+    <li>Power injection is always separate from the Pi — never power large pixel strings from the Pi’s 5V pin.</li>
+</ul>
 
 <style>
 .back2top {
-        display: block; /*required for right-justify*/
+        display: block;
         margin-left: auto;
         margin-right: 0;
         z-index: 99;
@@ -162,8 +185,6 @@
         line-height: normal;
         border: none;
         opacity: 0.5;
-        maybe-todo-content: "\f077";
-        maybe-todo-font-family: FontAwesome;
     }
 .more-dpi-info {
         display: none;
@@ -172,21 +193,10 @@
     position: relative;
 }
 </style>
-
 <button type="button" class="back2top">Back to top</button>
-
 <script type="application/javascript">
 $(document).ready(function() {
-//.modal-body
-//.modal-content
-//.modal-dialog
-//use this one => #dialog-help
   $(".back2top").click(() => $("#dialog-help").animate({scrollTop: 0}, "slow"));
-  $(window).scroll(function(){
-  console.log("help scrolled ", $(this).scrollTop());
-      if ($(this).scrollTop() > 100) $('.back2top').fadeIn();
-      else $('.back2top').fadeOut();
-  });
   $("#more-dpi-info").click(() => $(".more-dpi-info").toggle({duration: 400}));
 });
 </script>
