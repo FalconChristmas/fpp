@@ -3372,6 +3372,39 @@
         }
       }
     },
+    "/api/git/pullRequests": {
+      "get": {
+        "tags": [
+          "git"
+        ],
+        "summary": "Get open pull requests",
+        "description": "Returns open pull requests on FalconChristmas/fpp via GitHub API (proxied). Used by Developer settings when Git Remote is Pull Requests – branch dropdown shows #NUM - USER.",
+        "responses": {
+          "200": {
+            "description": "Open PR list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  {
+                    "number": 1842,
+                    "title": "Fix pixel overlay race",
+                    "user": "pixelpilot123",
+                    "headRef": "fix/overlay-race",
+                    "headRepo": "pixelpilot123/fpp",
+                    "headSha": "abc123",
+                    "htmlUrl": "https://github.com/FalconChristmas/fpp/pull/1842",
+                    "draft": false
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/git/originLog": {
       "get": {
         "tags": [

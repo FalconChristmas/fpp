@@ -37,10 +37,20 @@ if [ "$REMOTE" != "origin" ] && [ "$REMOTE" != "newfeatures" ]; then
 	fi
 fi
 
-CNT=`cd ${FPPDIR} && git show-ref | grep "refs/remotes/$REMOTE" | grep -i $1 | wc -l`
-if [ $CNT -eq 0 ]; then
-	echo "Invalid Branch Name: $1 for remote: $REMOTE"
-	exit 1
+# Pull request refs are checked out as friendly local branches pr-<n>
+# (avoids slashes). They are fetched as +pull/<n>/head so force-pushes
+# are not rejected. Validation is after the fetch where possible so
+# `git_branch pr-123 origin` works standalone (changebranch.php pre-fetches
+# but a direct shell invocation would otherwise always fail).
+PR_LOCAL=""
+if echo "$1" | grep -qE '^pr-[0-9]+$'; then
+	PR_LOCAL="$1"
+else
+	CNT=`cd ${FPPDIR} && git show-ref | grep "refs/remotes/$REMOTE" | grep -i $1 | wc -l`
+	if [ $CNT -eq 0 ]; then
+		echo "Invalid Branch Name: $1 for remote: $REMOTE"
+		exit 1
+	fi
 fi
 
 echo "Stopping fppd"
@@ -53,7 +63,14 @@ echo "Switching git branch to $1 from remote $REMOTE"
 # Serialize the whole switch under the shared git repo lock so a background
 # git_fetch can't race on FETCH_HEAD / ref locks mid-switch. rebase onto the
 # tracking ref rather than a bare pull -- see runGitLocked in scripts/functions.
-if [ "x${FPPDIR}" = "x/opt/fpp" ]
+if [ -n "$PR_LOCAL" ]; then
+	PR_NUM=$(echo "$PR_LOCAL" | sed 's/^pr-//')
+	if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
+		runGitLocked "cd ${FPPDIR} && git clean -df && git reset --hard && git submodule foreach git reset --hard && git fetch $REMOTE +pull/${PR_NUM}/head:refs/remotes/${REMOTE}/pull/${PR_NUM}/head 2>&1 | head -20; git checkout -B $PR_LOCAL $REMOTE/pull/${PR_NUM}/head && git fetch --tags -f && git submodule sync && git submodule update --init"
+	else
+		runGitLocked "cd ${FPPDIR} && sudo -u ${FPPUSER} git clean -df && sudo -u ${FPPUSER} git reset --hard && sudo -u ${FPPUSER} git submodule foreach git reset --hard && sudo -u ${FPPUSER} git fetch $REMOTE +pull/${PR_NUM}/head:refs/remotes/${REMOTE}/pull/${PR_NUM}/head 2>&1 | head -20; sudo -u ${FPPUSER} git checkout -B $PR_LOCAL $REMOTE/pull/${PR_NUM}/head && sudo -u ${FPPUSER} git fetch --tags -f && sudo -u ${FPPUSER} git submodule sync && sudo -u ${FPPUSER} git submodule update --init"
+	fi
+elif [ "x${FPPDIR}" = "x/opt/fpp" ]
 then
 	runGitLocked "cd ${FPPDIR} && git clean -df && git reset --hard && git submodule foreach git reset --hard && git fetch $REMOTE && git checkout -B $1 $REMOTE/$1 && git rebase $REMOTE/$1 && git fetch --tags -f && git submodule sync && git submodule update --init"
 else

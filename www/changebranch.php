@@ -31,17 +31,59 @@ if (!preg_match('/^[A-Za-z0-9_.\/-]+$/', $rawBranch) || strpos($rawBranch, '..')
 }
 $branch = $rawBranch;
 $rawRemote = $_GET['remote'] ?? 'origin';
-if (!preg_match('/^[a-zA-Z0-9_-]+$/', $rawRemote)) {
+if ($rawRemote === 'pull-requests') {
+	// synthetic remote for PR mode – validated explicitly, not via regex
+} elseif (!preg_match('/^[a-zA-Z0-9_-]+$/', $rawRemote)) {
 	$rawRemote = 'origin';
 }
 $remote = $rawRemote;
+$prNumber = 0;
+if ($remote === 'pull-requests') {
+	if (isset($_GET['pr'])) {
+		$prNumber = intval($_GET['pr']);
+	} elseif (preg_match('#^pull/(\d+)/head$#', $branch, $m)) {
+		$prNumber = intval($m[1]);
+	} elseif (preg_match('#^pr-(\d+)$#', $branch, $m)) {
+		$prNumber = intval($m[1]);
+	}
+	if ($prNumber <= 0) {
+		http_response_code(400);
+		echo "Invalid PR number";
+		exit(0);
+	}
+}
+
+// Pull Requests synthetic remote – fetch pull/<num>/head from origin via lock
+$gitDir = escapeshellarg(dirname(dirname(__FILE__)) . "/.git");
+$prFetchDone = false;
+if ($remote === 'pull-requests') {
+	$mediaDirForLock = isset($settings['mediaDirectory']) ? $settings['mediaDirectory'] : (isset($mediaDirectory) ? $mediaDirectory : "/tmp");
+	$gitLock = escapeshellarg($mediaDirForLock . "/tmp/fpp-git-repo.lock");
+	$fetchInner = "git --git-dir=$gitDir fetch origin +pull/" . $prNumber . "/head:refs/remotes/origin/pull/" . $prNumber . "/head 2>&1";
+	if (is_executable("/usr/bin/flock")) {
+		exec("$SUDO flock -w 60 -x $gitLock bash -c " . escapeshellarg($fetchInner), $fetchOut, $fetchRet);
+	} else {
+		exec("$SUDO bash -c " . escapeshellarg($fetchInner), $fetchOut, $fetchRet);
+	}
+	foreach ($fetchOut as $line) {
+		echo htmlspecialchars($line) . "\n";
+	}
+	flush(); ob_flush();
+	$prFetchDone = true;
+	if ($fetchRet != 0) {
+		echo "Failed to fetch PR #$prNumber from origin\n";
+		// Let git_branch report error too, don't exit yet
+	}
+	// Local branch will be pr-<num>, tracking origin/pull/<num>/head
+	$branch = "pr-" . $prNumber;
+	$remote = "origin";
+}
 
 // If remote is a GitHub fork (matches saved gitHubUser), ensure the git remote exists
-$gitDir = escapeshellarg(dirname(dirname(__FILE__)) . "/.git");
 $isForkRemote = false;
 $forkUser = isset($settings['gitHubUser']) ? trim($settings['gitHubUser']) : '';
 $forkPat = isset($settings['gitHubPAT']) ? trim($settings['gitHubPAT']) : '';
-if ($remote !== 'origin' && $remote !== 'newfeatures') {
+if (!$prFetchDone && $remote !== 'origin' && $remote !== 'newfeatures' && $remote !== 'pull-requests') {
 	if ($forkUser !== '' && strtolower($remote) === strtolower($forkUser)) {
 		// normalize remote to the canonical saved username casing for git remote operations
 		$remote = $forkUser;
