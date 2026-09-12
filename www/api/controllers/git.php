@@ -376,6 +376,10 @@ function GitBranches()
 
     // Get the remote parameter from the query string, default to 'origin'
     $remote = isset($_GET['remote']) ? $_GET['remote'] : (isset($settings['gitRemote']) ? $settings['gitRemote'] : 'origin');
+    // Pull Requests is synthetic – not a real git remote; fall back to origin for branch listings
+    if ($remote === 'pull-requests') {
+        $remote = 'origin';
+    }
 
     // Validate remote name to prevent injection
     if (!preg_match('/^[a-zA-Z0-9_-]+$/', $remote)) {
@@ -611,5 +615,102 @@ function GitForkBranches()
     }
     sort($branches);
     return json(array('hasFork' => true, 'user' => $user, 'branches' => $branches));
+}
+
+/**
+ * Get open pull requests
+ *
+ * Returns open pull requests on FalconChristmas/fpp via GitHub API,
+ * proxied so the browser does not call api.github.com directly. Each
+ * entry contains the PR number, title, author, head ref/repo, and
+ * draft flag. The Developer settings page maps this to the Branch
+ * dropdown when Git Remote is Pull Requests (#NUM - USER).
+ *
+ * @route GET /api/git/pullRequests
+ * @response 200 Open PR list
+ * ```json
+ * [
+ *   {
+ *     "number": 1842,
+ *     "title": "Fix pixel overlay race",
+ *     "user": "pixelpilot123",
+ *     "headRef": "fix/overlay-race",
+ *     "headRepo": "pixelpilot123/fpp",
+ *     "headSha": "abc123",
+ *     "htmlUrl": "https://github.com/FalconChristmas/fpp/pull/1842",
+ *     "draft": false
+ *   }
+ * ]
+ * ```
+ */
+function GitPullRequests()
+{
+    global $settings;
+
+    $pat = isset($settings['gitHubPAT']) ? trim($settings['gitHubPAT']) : '';
+    if (preg_match('/[\r\n]/', $pat)) {
+        $pat = '';
+    }
+
+    $url = 'https://api.github.com/repos/FalconChristmas/fpp/pulls?state=open&per_page=100&sort=updated&direction=desc';
+
+    $ch = curl_init($url);
+    $headers = array('User-Agent: FPP', 'Accept: application/vnd.github.v3+json');
+    if ($pat !== '') {
+        $headers[] = 'Authorization: token ' . $pat;
+    }
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 4000);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_FAILONERROR, false);
+    $body = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($body === false || $code < 200 || $code >= 300) {
+        return json(array());
+    }
+
+    $data = json_decode($body, true);
+    if (!is_array($data)) {
+        return json(array());
+    }
+
+    $out = array();
+    foreach ($data as $pr) {
+        if (!isset($pr['number']) || !isset($pr['head'])) {
+            continue;
+        }
+        // head.repo can be null if fork deleted
+        $headRepo = '';
+        if (isset($pr['head']['repo']) && is_array($pr['head']['repo']) && isset($pr['head']['repo']['full_name'])) {
+            $headRepo = $pr['head']['repo']['full_name'];
+        }
+        $user = '';
+        if (isset($pr['user']['login'])) {
+            $user = $pr['user']['login'];
+        } elseif (isset($pr['head']['user']['login'])) {
+            $user = $pr['head']['user']['login'];
+        }
+        // Fallback to headRepo owner if user missing
+        if ($user === '' && $headRepo !== '' && strpos($headRepo, '/') !== false) {
+            $user = substr($headRepo, 0, strpos($headRepo, '/'));
+        }
+
+        $out[] = array(
+            'number' => intval($pr['number']),
+            'title' => isset($pr['title']) ? $pr['title'] : '',
+            'user' => $user,
+            'headRef' => isset($pr['head']['ref']) ? $pr['head']['ref'] : '',
+            'headRepo' => $headRepo,
+            'headSha' => isset($pr['head']['sha']) ? $pr['head']['sha'] : '',
+            'htmlUrl' => isset($pr['html_url']) ? $pr['html_url'] : ('https://github.com/FalconChristmas/fpp/pull/' . intval($pr['number'])),
+            'draft' => !empty($pr['draft'])
+        );
+    }
+
+    return json($out);
 }
 ?>

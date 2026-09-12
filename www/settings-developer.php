@@ -43,12 +43,24 @@ function PrintGitBranchOptions()
 {
     global $git_branch, $SUDO, $settings, $mediaDirectory;
 
+    // Pull Requests is synthetic – handled client-side via api/git/pullRequests
+    if (isset($settings['gitRemote']) && $settings['gitRemote'] === 'pull-requests') {
+        // Pre-fetch is done via GitHub API; server renders placeholder.
+        // Detect if we are already on a pr-* local branch and select it.
+        if (preg_match('/^pr-\d+$/', $git_branch)) {
+            echo "<option value='$git_branch' selected>$git_branch</option>\n";
+        }
+        return;
+    }
+
     $branches = array();
     // Get remote from settings, default to 'origin' if not set
     $remote = 'origin'; // default
     if (isset($settings['gitRemote'])) {
         // Handle both old and new format - extract remote name from value
-        if (strpos($settings['gitRemote'], 'newfeatures') !== false) {
+        if ($settings['gitRemote'] === 'pull-requests') {
+            $remote = 'origin';
+        } else if (strpos($settings['gitRemote'], 'newfeatures') !== false) {
             $remote = 'newfeatures';
         } else if (strpos($settings['gitRemote'], 'origin') !== false) {
             $remote = 'origin';
@@ -129,6 +141,10 @@ function PrintGitBranchOptions()
     }
 
     function reloadGitBranches(remote) {
+        if (remote === 'pull-requests') {
+            reloadPullRequests();
+            return;
+        }
         $.ajax({
             url: 'api/git/branches?remote=' + remote,
             type: 'GET',
@@ -139,6 +155,7 @@ function PrintGitBranchOptions()
                 branches.forEach(function (branch) {
                     $('#gitBranch').append('<option value="' + branch + '">' + branch + '</option>');
                 });
+                $('#prMeta').hide();
             },
             error: function (data) {
                 alert('Call to api/git/branches failed');
@@ -146,9 +163,62 @@ function PrintGitBranchOptions()
         });
     }
 
+    var prCache = [];
+    function formatPRLabel(pr) {
+        var label = '#' + pr.number + ' - ' + (pr.user || 'unknown');
+        if (pr.draft) label = '[Draft] ' + label;
+        if (label.length > 60) label = label.substring(0, 59) + '…';
+        return label;
+    }
+    function reloadPullRequests() {
+        $('#gitBranch').empty().append('<option value="" selected>Loading pull requests…</option>');
+        $('#prMeta').hide();
+        $.ajax({
+            url: 'api/git/pullRequests',
+            type: 'GET',
+            success: function (prs) {
+                prCache = Array.isArray(prs) ? prs : [];
+                $('#gitBranch').empty();
+                $('#gitBranch').append('<option value="" selected>-- Select Pull Request --</option>');
+                if (prCache.length === 0) {
+                    $('#gitBranch').append('<option value="" disabled>No open pull requests</option>');
+                    $('#prMeta').html('No open pull requests on FalconChristmas/fpp or GitHub unreachable.').show();
+                    return;
+                }
+                prCache.forEach(function (pr) {
+                    var val = 'pr-' + pr.number;
+                    var label = formatPRLabel(pr);
+                    var titleEsc = $('<div>').text(pr.title || '').html();
+                    $('#gitBranch').append('<option value="' + val + '" data-pr="' + pr.number + '" title="' + titleEsc + '">' + label + '</option>');
+                });
+            },
+            error: function () {
+                $('#gitBranch').empty().append('<option value="" selected>-- Select Pull Request --</option>');
+                $('#gitBranch').append('<option value="" disabled>Failed to load PRs</option>');
+                $('#prMeta').html('Failed to load pull requests from GitHub.').show();
+            }
+        });
+    }
+    function updatePRMeta() {
+        var val = $('#gitBranch').val();
+        var prNum = parseInt($('#gitBranch option:selected').attr('data-pr') || '0', 10);
+        var pr = null;
+        for (var i = 0; i < prCache.length; i++) { if (prCache[i].number === prNum) { pr = prCache[i]; break; } }
+        if (!pr) { $('#prMeta').hide(); return; }
+        var html = '<b>PR #' + pr.number + '</b> ' + (pr.draft ? '<span class="badge bg-secondary">Draft</span> ' : '') + $('<div>').text(pr.title || '').html() + ' by <b>' + $('<div>').text(pr.user || '').html() + '</b> – <code>' + $('<div>').text(pr.headRef || '').html() + '</code> <a href="' + pr.htmlUrl + '" target="_blank" rel="noopener">View on GitHub</a>';
+        $('#prMeta').html(html).show();
+    }
+
     function ReloadGitBranch() {
         var branch = $('#gitBranch').val();
         if (!branch) return;
+        // pull-requests mode needs pr number
+        if ($('#gitRemote').val() === 'pull-requests') {
+            var prNum = $('#gitBranch option:selected').attr('data-pr');
+            if (!prNum) return;
+            ChangeGitBranch(branch, prNum);
+            return;
+        }
         ChangeGitBranch(branch);
     }
 
@@ -205,9 +275,40 @@ function PrintGitBranchOptions()
 
     $(document).ready(function () {
         reloadGitStatus();
+        // If saved remote is Pull Requests, populate PR list immediately
+        if ($('#gitRemote').val() === 'pull-requests') {
+            reloadPullRequests();
+        }
         loadGitRemoteForkOption();
 
-        // Listen for changes to the git remote setting - supports origin/newfeatures and fork user
+        // Wrap ChangeGitBranch to handle PR mode (pull-requests synthetic remote)
+        var _origChangeGitBranch = window.ChangeGitBranch;
+        window.ChangeGitBranch = function (branch, prNum) {
+            var remote = $('#gitRemote').val() || 'origin';
+            if (remote === 'pull-requests') {
+                // branch is pr-<num>, extract number if not supplied
+                var num = prNum || (branch && branch.indexOf('pr-') === 0 ? branch.substring(3) : $('#gitBranch option:selected').attr('data-pr'));
+                if (!num) { alert('Select a pull request'); return; }
+                branch = 'pr-' + String(num).replace(/[^0-9]/g,'');
+                if (!branch || !confirm("Are you really sure you want to switch to PR #" + num + " ('" + branch + "') branch?  This may take some time and it may not be fully compatible with this FPP OS version.  Click 'OK' to continue.")) {
+                    location.reload(true); return;
+                }
+                location.href = 'changebranch.php?branch=' + encodeURIComponent(branch) + '&remote=pull-requests&pr=' + encodeURIComponent(num);
+                return;
+            }
+            if (typeof _origChangeGitBranch === 'function') return _origChangeGitBranch(branch);
+            // fallback
+            if (!branch || !confirm("Are you really sure you want to switch to the '" + branch + "' branch?  This may take some time and it may not be fully compatible with this FPP OS version.  Click 'OK' to continue.")) { location.reload(true); return; }
+            location.href = 'changebranch.php?branch=' + encodeURIComponent(branch) + '&remote=' + encodeURIComponent(remote);
+        };
+
+        // Keep branch meta in sync for PR mode
+        $('#gitBranch').on('change', function () {
+            if ($('#gitRemote').val() === 'pull-requests') updatePRMeta();
+            else $('#prMeta').hide();
+        });
+
+        // Listen for changes to the git remote setting - supports origin/newfeatures/fork/pull-requests
         $('#gitRemote').on('change', function () {
             var $opt = $(this).find('option:selected');
             var remote;
@@ -215,7 +316,10 @@ function PrintGitBranchOptions()
                 remote = $opt.val();
             } else {
                 remote = $(this).val();
-                if (remote.indexOf('newfeatures') !== -1) {
+                if (remote === 'pull-requests') {
+                    reloadPullRequests();
+                    return;
+                } else if (remote.indexOf('newfeatures') !== -1) {
                     remote = 'newfeatures';
                 } else if (remote.indexOf('origin') !== -1) {
                     remote = 'origin';
@@ -267,6 +371,7 @@ function PrintGitBranchOptions()
             <select id='gitBranch'
                 onChange="ChangeGitBranch($('#gitBranch').val());"><? PrintGitBranchOptions(); ?></select>
             <? PrintToolTip('gitBranch'); ?>
+            <div id="prMeta" class="callout callout-info mt-1" style="display:none"></div>
             <div class="callout callout-danger mt-1">
                 <b>Note: </b>Changing branches may take a couple minutes to recompile and may not work if you have any
                 modified source files.
