@@ -991,6 +991,20 @@ static void migrateMultiSyncDefaultToMulticast() {
     }
 }
 
+// Materialize DisableHDMICECInit=1 for installs that have never saved
+// the setting. Behavior is already controlled by the fallback in
+// setupHDMICECConfig (getRawSettingInt(...,1)) and the default in
+// www/settings.json (1), so this only persists the implicit default
+// to the settings file for tooling that reads raw. Explicit 0 stays 0.
+// Idempotent; safe to re-run. Paired with upgrade/144 for normal
+// in-place upgrades; this covers FPPOS reflash.
+static void migrateHDMICECDefault() {
+    std::string existing;
+    if (!getRawSetting("DisableHDMICECInit", existing)) {
+        setRawSetting("DisableHDMICECInit", "1");
+    }
+}
+
 // Config-state migrations that must survive an FPPOS reflash, gated on the
 // same /fppos_upgraded marker as checkInstallPackages() (touched by
 // upgradeOS-part2.sh, which is always sourced from the target image being
@@ -1003,6 +1017,7 @@ static void migrateMultiSyncDefaultToMulticast() {
 void checkConfigMigrations() {
     if (FileExists("/fppos_upgraded")) {
         migrateMultiSyncDefaultToMulticast();
+        migrateHDMICECDefault();
     }
 }
 
@@ -1248,6 +1263,79 @@ void setupPiRTCConfig(bool rebootIfChanged) {
     if (applyDisablePiRTCBlock(content, getRawSettingInt("DisablePiRTC", 0) != 0)) {
         PutFileContents("/boot/firmware/config.txt", content);
         printf("FPP - Pi RTC configuration changed in config.txt\n");
+        if (rebootIfChanged) {
+            printf("\n\nRebooting to load new settings.\n\n");
+            exec("/usr/sbin/reboot");
+        }
+    }
+#endif
+}
+
+#ifdef PLATFORM_PI
+// Suppress the initial CEC Active Source at boot that wakes projectors/TVs
+// (e.g. Epson L210SF, issue #2938). When enabled, adds hdmi_ignore_cec_init=1
+// to config.txt. Unlike hdmi_ignore_cec=1 this only suppresses the boot
+// broadcast — the CEC plugin can still power the display on/off on demand.
+//
+// Managed block pattern mirrors applyDisablePiRTCBlock above: strip every
+// prior copy (including truncated), remember first insertion point, and
+// re-insert ahead of the cape variant block to avoid leapfrog reboot loops.
+static const std::string HDMI_CEC_BLOCK_BEGIN = "# FPP HDMI CEC - BEGIN (managed by fppinit, do not edit)";
+static const std::string HDMI_CEC_BLOCK_END = "# FPP HDMI CEC - END";
+
+// --- BEGIN applyDisableHDMICECBlock ---
+static bool applyDisableHDMICECBlock(std::string& content, bool disable) {
+    const std::string orig = content;
+    std::string desired;
+    if (disable) {
+        desired = HDMI_CEC_BLOCK_BEGIN + "\n[all]\nhdmi_ignore_cec_init=1\n[all]\n" + HDMI_CEC_BLOCK_END + "\n";
+    }
+
+    size_t at = std::string::npos;
+    size_t begin = content.find(HDMI_CEC_BLOCK_BEGIN);
+    while (begin != std::string::npos) {
+        if (at == std::string::npos) {
+            at = begin;
+        }
+        size_t end = content.find(HDMI_CEC_BLOCK_END, begin);
+        end = (end == std::string::npos) ? content.length()
+                                         : end + HDMI_CEC_BLOCK_END.length();
+        if (end < content.length() && content[end] == '\n') {
+            ++end;
+        }
+        content.erase(begin, end - begin);
+        begin = content.find(HDMI_CEC_BLOCK_BEGIN);
+    }
+
+    if (!desired.empty()) {
+        if (at == std::string::npos) {
+            at = content.find(CAPE_VARIANT_BLOCK_BEGIN);
+            if (at == std::string::npos) {
+                while (!content.empty() && content.back() == '\n') {
+                    content.pop_back();
+                }
+                content += "\n\n";
+                at = content.length();
+            } else {
+                desired += "\n";
+            }
+        }
+        content.insert(at, desired);
+    }
+    return content != orig;
+}
+// --- END applyDisableHDMICECBlock ---
+#endif
+
+void setupHDMICECConfig(bool rebootIfChanged) {
+#ifdef PLATFORM_PI
+    std::string content = GetFileContents("/boot/firmware/config.txt");
+    if (content.empty()) {
+        return;
+    }
+    if (applyDisableHDMICECBlock(content, getRawSettingInt("DisableHDMICECInit", 1) != 0)) {
+        PutFileContents("/boot/firmware/config.txt", content);
+        printf("FPP - HDMI CEC configuration changed in config.txt\n");
         if (rebootIfChanged) {
             printf("\n\nRebooting to load new settings.\n\n");
             exec("/usr/sbin/reboot");
