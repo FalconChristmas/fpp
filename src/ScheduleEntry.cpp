@@ -107,6 +107,8 @@ ScheduleEntry::ScheduleEntry() :
     stopType(0),
     startTimeOffset(0),
     endTimeOffset(0),
+    startDateOffset(0),
+    endDateOffset(0),
     repeatInterval(0) {
 }
 
@@ -448,6 +450,81 @@ std::string ScheduleEntry::CheckHoliday(std::string date, int refYear) {
     return date;
 }
 
+/*
+ * Shift a YYYY-MM-DD date by a number of days.  Used to schedule relative to
+ * a floating holiday ("7 days before Thanksgiving") the same way
+ * startTimeOffset shifts a sunrise/sunset time.
+ *
+ * Holidays resolve to a yearless "0000-MM-DD" (see DateFromLocaleHoliday) and
+ * DateInRange() treats MMDD values as wrapping across Dec 31/Jan 1, so the
+ * arithmetic is done in a real year (refYear, else the current year, so leap
+ * days land where they should) and the result is stamped back to year 0.
+ * Anything DateStrToInt() rejects - an unresolved holiday name or the
+ * "0000-00-00" error sentinel - is passed through untouched.
+ */
+static std::string ApplyDateOffset(const std::string& date, int offsetDays, int refYear) {
+    if ((offsetDays == 0) || (date.length() != 10) || (DateStrToInt(date.c_str()) == 0))
+        return date;
+
+    int year = atoi(date.c_str());
+    int calcYear = year;
+    if (calcYear == 0) {
+        if (refYear != 0) {
+            calcYear = refYear;
+        } else {
+            time_t currTime = time(NULL);
+            struct tm now;
+            localtime_r(&currTime, &now);
+            calcYear = now.tm_year + 1900;
+        }
+    }
+
+    struct tm t = {};
+    t.tm_year = calcYear - 1900;
+    t.tm_mon = atoi(date.c_str() + 5) - 1;
+    t.tm_mday = atoi(date.c_str() + 8) + offsetDays;
+    if (timegm(&t) == (time_t)-1)
+        return date;
+
+    char str[11];
+    snprintf(str, sizeof(str), "%04d-%02d-%02d", year == 0 ? 0 : t.tm_year + 1900, t.tm_mon + 1, t.tm_mday);
+    return str;
+}
+
+/*
+ * Turn a schedule start/end date string (literal YYYY-MM-DD or holiday name)
+ * into a YYYY-MM-DD string.  The day offset only applies to holiday names.
+ *
+ * With no refYear, DateFromLocaleHoliday rolls a floating holiday forward to
+ * next year once this year's has passed.  That is fine for the bare holiday
+ * but wrong once an offset extends the range past it - "Diwali +7" reloaded
+ * the day after Diwali would anchor on next year's date and drop the rest of
+ * the window.  So with an offset we resolve explicitly in the current year,
+ * apply the offset, and only roll to next year if the *offset* date has passed.
+ */
+std::string ScheduleEntry::ResolveDate(const std::string& date, int offsetDays, int refYear) {
+    if (date.empty() || isdigit((unsigned char)date[0]))
+        return date;
+
+    if ((refYear != 0) || (offsetDays == 0))
+        return ApplyDateOffset(CheckHoliday(date, refYear), offsetDays, refYear);
+
+    time_t currTime = time(NULL);
+    struct tm now;
+    localtime_r(&currTime, &now);
+    int year = now.tm_year + 1900;
+    int today = ((now.tm_mon + 1) * 100) + now.tm_mday;
+
+    std::string resolved = ApplyDateOffset(CheckHoliday(date, year), offsetDays, year);
+    if (resolved.length() == 10) {
+        int mmdd = DateStrToInt(resolved.c_str());
+        // yearless (< 10000) and already behind us this year
+        if ((mmdd > 0) && (mmdd < 10000) && (mmdd < today))
+            resolved = ApplyDateOffset(CheckHoliday(date, year + 1), offsetDays, year + 1);
+    }
+    return resolved;
+}
+
 static void mapTimeString(const std::string& tm, int& h, int& m, int& s) {
     if (!ParseTimeString(tm, h, m, s)) {
         LogErr(VB_SCHEDULE, "Invalid time '%s' in schedule, using midnight\n", tm.c_str());
@@ -525,17 +602,13 @@ void ScheduleEntry::GetDateRangeForYear(int year, int& sDate, int& eDate) {
     sDate = startDate;
     eDate = endDate;
 
-    if (!startDateStr.empty() && !isdigit(startDateStr[0])) {
-        std::string resolved = CheckHoliday(startDateStr, year);
-        if (resolved.length() == 10)
-            sDate = DateStrToInt(resolved.c_str());
-    }
+    std::string resolved = ResolveDate(startDateStr, startDateOffset, year);
+    if (resolved.length() == 10)
+        sDate = DateStrToInt(resolved.c_str());
 
-    if (!endDateStr.empty() && !isdigit(endDateStr[0])) {
-        std::string resolved = CheckHoliday(endDateStr, year);
-        if (resolved.length() == 10)
-            eDate = DateStrToInt(resolved.c_str());
-    }
+    resolved = ResolveDate(endDateStr, endDateOffset, year);
+    if (resolved.length() == 10)
+        eDate = DateStrToInt(resolved.c_str());
 }
 
 int ScheduleEntry::DayIndexToMask(int dayIndex) {
@@ -880,11 +953,28 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
         }
     }
 
+    // The UI limits these to a year either way; keep API/hand-edited files
+    // honest too, clamping before the int64 -> int narrowing so huge values
+    // can't wrap into range.
+    auto dateOffsetFromJson = [&entry](const char* key) -> int {
+        if (!entry.isMember(key))
+            return 0;
+        Json::Value::LargestInt v = entry[key].isString() ? atoll(entry[key].asString().c_str()) : entry[key].asLargestInt();
+        if ((v < -366) || (v > 366)) {
+            LogErr(VB_SCHEDULE, "Invalid %s %lld in schedule, using 0\n", key, (long long)v);
+            WarningHolder::AddWarning(47, std::string("Schedule: ") + key + " out of range (-366..366)");
+            return 0;
+        }
+        return (int)v;
+    };
+    startDateOffset = dateOffsetFromJson("startDateOffset");
+    endDateOffset = dateOffsetFromJson("endDateOffset");
+
     if (!entry.isMember("startDate") || (entry["startDate"].asString() == "")) {
         entry["startDate"] = "2019-01-01";
     }
     startDateStr = entry["startDate"].asString();
-    std::string tempStr = CheckHoliday(startDateStr);
+    std::string tempStr = ResolveDate(startDateStr, startDateOffset);
 
     if (tempStr.length() == 10) {
         startDate = DateStrToInt(tempStr.c_str());
@@ -897,7 +987,7 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
         entry["endDate"] = "2099-12-31";
     }
     endDateStr = entry["endDate"].asString();
-    tempStr = CheckHoliday(endDateStr);
+    tempStr = ResolveDate(endDateStr, endDateOffset);
 
     if (tempStr.length() == 10) {
         endDate = DateStrToInt(tempStr.c_str());
@@ -939,8 +1029,10 @@ Json::Value ScheduleEntry::GetJson(void) {
     e["repeat"] = (int)repeat;
     e["repeatInterval"] = (int)repeatInterval;
     e["startDate"] = startDateStr;
+    e["startDateOffset"] = startDateOffset;
     e["startDateInt"] = startDate;
     e["endDate"] = endDateStr;
+    e["endDateOffset"] = endDateOffset;
     e["endDateInt"] = endDate;
     e["stopType"] = stopType;
     e["stopTypeStr"] =
