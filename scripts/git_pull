@@ -41,6 +41,19 @@ if curl --silent --head "${HTTPURL}" | grep -i "Content-Type: text/html; charset
     # -- unlike "git branch | grep '^\*'" it never returns "(HEAD detached...)".
     GITBRANCH=$(cd ${FPPDIR} && $SUDO git rev-parse --abbrev-ref HEAD 2>/dev/null)
 
+    # PR branches track origin/pull/<n>/head which is not covered by the
+    # default +refs/heads/*:refs/remotes/origin/* fetch refspec. Refresh
+    # it explicitly (forced) so `git rebase @{u}` sees the force-pushed
+    # head rather than rebasing onto a stale frozen ref.
+    if [[ "${GITBRANCH}" =~ ^pr-([0-9]+)$ ]]; then
+        PR_NUM="${BASH_REMATCH[1]}"
+        if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
+            runGitLocked "cd ${FPPDIR} && git fetch origin +pull/${PR_NUM}/head:refs/remotes/origin/pull/${PR_NUM}/head 2>&1 | head -20" || true
+        else
+            runGitLocked "cd ${FPPDIR} && sudo -u ${FPPUSER} git fetch origin +pull/${PR_NUM}/head:refs/remotes/origin/pull/${PR_NUM}/head 2>&1 | head -20" || true
+        fi
+    fi
+
     logStage "Fetching updates from branch ${GITBRANCH}"
 
     if [ "x${FPPDIR}" = "x/opt/fpp" ]

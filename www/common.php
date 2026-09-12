@@ -2821,6 +2821,14 @@ function get_remote_git_version()
 
                 // Try to get remote version from the tracking branch
                 $git_remote_version = exec("git --git-dir=" . $settings["fppDir"] . "/.git/ ls-remote -q -h $remote_name $remote_branch 2>/dev/null | awk '$1 > 0 { print substr(\$1,1,9)}'", $output, $return_val);
+                // PR branches track pull/<n>/head which is not under refs/heads/* – retry without -h
+                if ((empty($git_remote_version) || $return_val != 0) && (preg_match('/^(pr-\d+|pull\/\d+\/head)$/', $git_branch) || preg_match('/^pull\/\d+\/head$/', $remote_branch))) {
+                    $prRef = $remote_branch;
+                    if (preg_match('/^pr-(\d+)$/', $git_branch, $m)) {
+                        $prRef = "pull/" . $m[1] . "/head";
+                    }
+                    $git_remote_version = exec("git --git-dir=" . $settings["fppDir"] . "/.git/ ls-remote -q " . escapeshellarg($remote_name) . " " . escapeshellarg($prRef) . " 2>/dev/null | awk '$1 > 0 { print substr(\$1,1,9)}'", $output, $return_val);
+                }
                 if ($return_val != 0 || empty($git_remote_version)) {
                     // Fallback to origin
                     $git_remote_version = exec("git --git-dir=" . $settings["fppDir"] . "/.git/ ls-remote -q -h origin $git_branch 2>/dev/null | awk '$1 > 0 { print substr(\$1,1,9)}'", $output, $return_val);

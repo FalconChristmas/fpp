@@ -4237,6 +4237,38 @@ function UpgradeFPPVersion (newVersion) {
 }
 
 function ChangeGitBranch (newBranch) {
+	var remote = $('#gitRemote').val() || 'origin';
+	if (remote === 'pull-requests') {
+		var prNum = null;
+		// Prefer data-pr on selected option, fallback to parsing branch name
+		var selPr = $('#gitBranch option:selected').attr('data-pr');
+		if (selPr) prNum = selPr;
+		else if (newBranch && newBranch.indexOf('pr-') === 0) prNum = newBranch.substring(3);
+		else if (newBranch) {
+			var m = newBranch.match(/pull\/(\d+)\/head/);
+			if (m) prNum = m[1];
+		}
+		if (!prNum) {
+			alert('Select a pull request');
+			return;
+		}
+		newBranch = 'pr-' + String(prNum).replace(/[^0-9]/g, '');
+		if (
+			confirm(
+				"Are you really sure you want to switch to PR #" +
+					prNum +
+					" ('" +
+					newBranch +
+					"') branch?  This may take some time and it may not be fully compatible with this FPP OS version.  Click 'OK' to continue."
+			)
+		) {
+			location.href =
+				'changebranch.php?branch=' + encodeURIComponent(newBranch) + '&remote=pull-requests&pr=' + encodeURIComponent(prNum);
+		} else {
+			location.reload(true);
+		}
+		return;
+	}
 	if (
 		confirm(
 			"Are you really sure you want to switch to the '" +
@@ -4244,9 +4276,8 @@ function ChangeGitBranch (newBranch) {
 				"' branch?  This may take some time and it may not be fully compatible with this FPP OS version.  Click 'OK' to continue."
 		)
 	) {
-		var remote = $('#gitRemote').val() || 'origin';
 		location.href =
-			'changebranch.php?branch=' + newBranch + '&remote=' + remote;
+			'changebranch.php?branch=' + encodeURIComponent(newBranch) + '&remote=' + encodeURIComponent(remote);
 	} else {
 		location.reload(true);
 	}

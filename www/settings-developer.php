@@ -165,10 +165,10 @@ function PrintGitBranchOptions()
 
     var prCache = [];
     function formatPRLabel(pr) {
-        var label = '#' + pr.number + ' - ' + (pr.user || 'unknown');
-        if (pr.draft) label = '[Draft] ' + label;
-        if (label.length > 60) label = label.substring(0, 59) + '…';
-        return label;
+        var raw = '#' + pr.number + ' - ' + (pr.user || 'unknown');
+        if (pr.draft) raw = '[Draft] ' + raw;
+        if (raw.length > 60) raw = raw.substring(0, 59) + '…';
+        return $('<div>').text(raw).html();
     }
     function reloadPullRequests() {
         $('#gitBranch').empty().append('<option value="" selected>Loading pull requests…</option>');
@@ -205,7 +205,10 @@ function PrintGitBranchOptions()
         var pr = null;
         for (var i = 0; i < prCache.length; i++) { if (prCache[i].number === prNum) { pr = prCache[i]; break; } }
         if (!pr) { $('#prMeta').hide(); return; }
-        var html = '<b>PR #' + pr.number + '</b> ' + (pr.draft ? '<span class="badge bg-secondary">Draft</span> ' : '') + $('<div>').text(pr.title || '').html() + ' by <b>' + $('<div>').text(pr.user || '').html() + '</b> – <code>' + $('<div>').text(pr.headRef || '').html() + '</code> <a href="' + pr.htmlUrl + '" target="_blank" rel="noopener">View on GitHub</a>';
+        var safeUrl = $('<div>').text(pr.htmlUrl || '').html();
+        // Validate URL is github PR URL before using as href
+        if (!/^https:\/\/github\.com\/FalconChristmas\/fpp\/pull\/\d+/.test(pr.htmlUrl || '')) safeUrl = '#';
+        var html = '<b>PR #' + pr.number + '</b> ' + (pr.draft ? '<span class="badge bg-secondary">Draft</span> ' : '') + $('<div>').text(pr.title || '').html() + ' by <b>' + $('<div>').text(pr.user || '').html() + '</b> – <code>' + $('<div>').text(pr.headRef || '').html() + '</code> <a href="' + safeUrl + '" target="_blank" rel="noopener">View on GitHub</a>';
         $('#prMeta').html(html).show();
     }
 

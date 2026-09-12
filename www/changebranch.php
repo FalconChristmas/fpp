@@ -59,7 +59,7 @@ $prFetchDone = false;
 if ($remote === 'pull-requests') {
 	$mediaDirForLock = isset($settings['mediaDirectory']) ? $settings['mediaDirectory'] : (isset($mediaDirectory) ? $mediaDirectory : "/tmp");
 	$gitLock = escapeshellarg($mediaDirForLock . "/tmp/fpp-git-repo.lock");
-	$fetchInner = "git --git-dir=$gitDir fetch origin pull/" . $prNumber . "/head:refs/remotes/origin/pull/" . $prNumber . "/head 2>&1";
+	$fetchInner = "git --git-dir=$gitDir fetch origin +pull/" . $prNumber . "/head:refs/remotes/origin/pull/" . $prNumber . "/head 2>&1";
 	if (is_executable("/usr/bin/flock")) {
 		exec("$SUDO flock -w 60 -x $gitLock bash -c " . escapeshellarg($fetchInner), $fetchOut, $fetchRet);
 	} else {
