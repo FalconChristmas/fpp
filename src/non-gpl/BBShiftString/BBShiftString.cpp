@@ -1813,6 +1813,13 @@ void BBShiftStringOutput::setupFalconV5Support(const Json::Value& root, uint8_t*
             // and must have edges that are aligned.  Need to turn OFF the 2-4 ports during
             // the config packet
             p1->m_gpioCommands.clear();
+            if (sendOnly) {
+                // A V4 chain is never queried, but the packet phase is clocked out
+                // on every pin of the cape. Keep its port 1 off during that phase,
+                // as ports 2-4 already are, or a V4 receiver next to a V5 chain
+                // reads the V5 query packets as a chain break plus pixel data.
+                p1->m_gpioCommands.emplace_back(1, max, 0, 0);
+            }
             if (p2) {
                 p2->m_gpioCommands.clear();
                 p2->m_gpioCommands.emplace_back(2, max, 0, 0);
