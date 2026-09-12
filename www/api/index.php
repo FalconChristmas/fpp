@@ -232,6 +232,7 @@ dispatch_get('/plugin/source', 'GetPluginSource'); // keep above /plugin/:RepoNa
 dispatch_get('/plugin/:RepoName', 'GetPluginInfo');
 dispatch_get('/plugin/:RepoName/icon', 'PluginServeIcon');
 dispatch_get('/plugin/:RepoName/page', 'GetPluginPageUrl');
+dispatch_get('/plugin/:RepoName/privacy', 'GetPluginPrivacyStatus');
 dispatch_delete('/plugin/:RepoName', 'UninstallPlugin');
 dispatch_get('/plugin/:RepoName/settings/:SettingName', 'PluginGetSetting');
 dispatch_put('/plugin/:RepoName/settings/:SettingName', 'PluginSetSetting');
