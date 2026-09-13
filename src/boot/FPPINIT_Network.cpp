@@ -62,6 +62,16 @@ static int getIntFromMap(const std::map<std::string, std::string>& m, const std:
     }
     return def;
 }
+// Boolean flags in interface.<if> are written by the UI as "1" (checked) or
+// "" (unchecked); treat an API/hand-written "0"/"false" as off too rather than
+// as "non-empty, therefore on".
+static bool settingEnabled(const std::map<std::string, std::string>& m, const std::string& setting) {
+    auto it = m.find(setting);
+    if (it == m.end()) {
+        return false;
+    }
+    return !it->second.empty() && it->second != "0" && it->second != "false";
+}
 static std::string netmaskToSubnet(const std::string& nm) {
     const std::map<std::string, std::string> NETMASK2SUBNET = {
         { "255.255.255.252", "30" },
@@ -300,6 +310,8 @@ void setupNetwork(bool fullReload) {
                         hostapd = true;
                         addressLines.append("Address=192.168.8.1/24\n");
                     } else if (!interfaceSettings["SSID"].empty()) {
+                        bool wpa3 = settingEnabled(interfaceSettings, "WPA3");
+                        bool backupWpa3 = settingEnabled(interfaceSettings, "BACKUPWPA3");
                         std::string wpa = "ctrl_interface=/var/run/wpa_supplicant\nctrl_interface_group=0\nupdate_config=1\ncountry=";
                         wpa.append(WifiRegulatoryDomain);
                         // Protected Management Frames (802.11w) as a GLOBAL "optional"
@@ -318,7 +330,7 @@ void setupNetwork(bool fullReload) {
                         // This mirrors what NetworkManager does on stock Raspberry Pi
                         // OS.  GitHub issue #2953.
                         wpa.append("\npmf=1\n");
-                        if (!interfaceSettings["WPA3"].empty() || !interfaceSettings["BACKUPWPA3"].empty()) {
+                        if (wpa3 || backupWpa3) {
                             // 2 = hash-to-element AND hunting-and-pecking.  With 1 (H2E only)
                             // wpa_supplicant skips every BSS of an AP that lacks H2E ("skip -
                             // SAE H2E required, but not supported by the AP"), so the WPA3
@@ -330,12 +342,12 @@ void setupNetwork(bool fullReload) {
                             wpa.append("\"\n  psk=\"").append(interfaceSettings["PSK"]);
                         }
                         wpa.append("\"\n  key_mgmt=");
-                        if (!interfaceSettings["WPA3"].empty()) {
+                        if (wpa3) {
                             wpa.append("SAE WPA-PSK\n  sae_password=\"").append(interfaceSettings["PSK"]).append("\"");
                         } else {
                             wpa.append("WPA-PSK");
                         }
-                        if (!interfaceSettings["HIDDEN"].empty()) {
+                        if (settingEnabled(interfaceSettings, "HIDDEN")) {
                             wpa.append("\n  scan_ssid=1");
                         }
                         wpa.append("\n  priority=100\n}\n\n");
@@ -345,12 +357,12 @@ void setupNetwork(bool fullReload) {
                                 wpa.append("\"\n  psk=\"").append(interfaceSettings["BACKUPPSK"]);
                             }
                             wpa.append("\"\n  key_mgmt=");
-                            if (!interfaceSettings["BACKUPWPA3"].empty()) {
-                                wpa.append("SAE WPA-PSK\n  sae_password=\"").append(interfaceSettings["PSK"]).append("\"");
+                            if (backupWpa3) {
+                                wpa.append("SAE WPA-PSK\n  sae_password=\"").append(interfaceSettings["BACKUPPSK"]).append("\"");
                             } else {
                                 wpa.append("WPA-PSK");
                             }
-                            if (!interfaceSettings["BACKUPHIDDEN"].empty()) {
+                            if (settingEnabled(interfaceSettings, "BACKUPHIDDEN")) {
                                 wpa.append("\n  scan_ssid=1");
                             }
                             wpa.append("\n  priority=90\n}\n\n");
