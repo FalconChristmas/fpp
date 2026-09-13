@@ -318,8 +318,12 @@ void setupNetwork(bool fullReload) {
                         // This mirrors what NetworkManager does on stock Raspberry Pi
                         // OS.  GitHub issue #2953.
                         wpa.append("\npmf=1\n");
-                        if (!interfaceSettings["WPA3"].empty()) {
-                            wpa.append("sae_pwe=1\n");
+                        if (!interfaceSettings["WPA3"].empty() || !interfaceSettings["BACKUPWPA3"].empty()) {
+                            // 2 = hash-to-element AND hunting-and-pecking.  With 1 (H2E only)
+                            // wpa_supplicant skips every BSS of an AP that lacks H2E ("skip -
+                            // SAE H2E required, but not supported by the AP"), so the WPA3
+                            // checkbox could never connect to such an AP on any board.
+                            wpa.append("sae_pwe=2\n");
                         }
                         wpa.append("\nnetwork={\n  ssid=\"").append(interfaceSettings["SSID"]);
                         if (!interfaceSettings["PSK"].empty()) {
