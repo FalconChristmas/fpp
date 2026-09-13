@@ -25,7 +25,7 @@ require_once '../config.php';
 <tr><td>ready</td><td>1 when fppd starts, 0 when fppd stops. Has "last will" set to 0.</td><td>Yes</td></tr>
 <tr><td>version</td><td>Current full version of FPP software</td><td>Yes</td></tr>
 <tr><td>branch</td><td>Git branch currently in use</td><td>Yes</td></tr>
-<tr><td>status</td><td>Current player status: <code>idle</code> or <code>playing</code></td><td>No</td></tr>
+<tr><td>status</td><td>Current player status: <code>idle</code> or <code>playing</code></td><td>Yes</td></tr>
 <tr><td>warnings</td><td>JSON array of warning messages</td><td>Yes</td></tr>
 </tbody>
 </table>
