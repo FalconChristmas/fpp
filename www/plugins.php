@@ -749,10 +749,32 @@
             });
         }
 
+        // Plugins whose upgrade_plugin run ended with rc=2 -- the code was
+        // updated but the plugin's own fpp_upgrade.sh / fpp_install.sh failed
+        // -- read from the streamed log, since the re-check below cannot see
+        // it: the code is at the tip, so "update available" is gone. The
+        // "===== upgrade FINISH: <plugin> (rc=N) =====" line is written by
+        // startPluginLog's exit trap (scripts/common) on every run.
+        function UpdateAllScriptFailures() {
+            var outputArea = document.getElementById('pluginsProgressPopupText');
+            var failed = [];
+            if (!outputArea)
+                return failed;
+            var re = /===== upgrade FINISH: (\S+) \(rc=2\) =====/g;
+            var m;
+            while ((m = re.exec(outputArea.value)) !== null) {
+                if (updateAllAttempted.indexOf(m[1]) >= 0 && failed.indexOf(m[1]) < 0)
+                    failed.push(m[1]);
+            }
+            return failed;
+        }
+
         // After all upgrades have streamed, verify by re-checking each attempted
         // plugin: the upgrade endpoint streams output even on a logical failure, so
         // any plugin that STILL reports an update available did not update. Mirrors
-        // ReinstallFinish's re-query verification.
+        // ReinstallFinish's re-query verification. A plugin whose code updated but
+        // whose install script failed is not stale, so it is picked out of the
+        // streamed log instead (UpdateAllScriptFailures) and reported separately.
         function UpdateAllFinish() {
             var total = updateAllAttempted.length;
             CheckPluginsForUpdates(updateAllAttempted, function (plugin, hasUpdate) {
@@ -762,16 +784,22 @@
                     RowEl(plugin).removeClass('fppHasUpdate').find('.updatesAvailable').addClass('d-none');
                 }
             }, function (stillStale) {
-                var ok = total - stillStale.length;
+                var scriptFailed = UpdateAllScriptFailures().filter(function (p) { return stillStale.indexOf(p) < 0; });
+                var problems = stillStale.length + scriptFailed.length;
+                var ok = total - problems;
                 SetProgressDialogStatus('pluginsProgressPopup',
-                    stillStale.length ? ('Update All — ' + stillStale.length + ' may have failed, ' + ok + ' of ' + total + ' ok')
-                                      : ('Update All — complete (' + ok + ' of ' + total + ')'));
+                    problems ? ('Update All — ' + problems + ' with problems, ' + ok + ' of ' + total + ' ok')
+                             : ('Update All — complete (' + ok + ' of ' + total + ')'));
                 BatchQueueLog('\n===== Update complete: ' + ok + ' of ' + total + ' plugin(s) updated successfully =====\n');
                 if (stillStale.length)
                     BatchQueueLog('Still reporting an available update (may have failed): ' + stillStale.join(', ') + '\n');
+                if (scriptFailed.length)
+                    BatchQueueLog('Code updated, but the plugin\'s own install/upgrade script failed (see logs/fpp_plugin_manager.log): ' + scriptFailed.join(', ') + '\n');
                 BatchQueueLog('Reload the page to refresh the plugin list.\n');
                 if (stillStale.length)
                     $.jGrowl(stillStale.length + ' plugin(s) may not have updated', { themeState: 'warn' });
+                else if (scriptFailed.length)
+                    $.jGrowl(scriptFailed.length + ' plugin(s) updated but their install script failed', { themeState: 'warn' });
                 else
                     $.jGrowl('All ' + ok + ' plugin(s) updated successfully', { themeState: 'success' });
                 FilterPlugins();
