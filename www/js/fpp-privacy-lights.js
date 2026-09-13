@@ -739,10 +739,16 @@ var FPPPluginPrivacy = (function () {
 	 *
 	 * opts.prefix: id prefix so several strips can share a page.
 	 * opts.compact: dots with the state text as a title, for cards.
+	 * opts.from: an earlier result (the block the operator accepted) --
+	 *   "was / now" mode for the changed-disclosure dialog: a light whose
+	 *   colour, chip text or lines differ is opened whatever its colour and
+	 *   reads "Was: ... / Now: ...", with added lines marked + and removed
+	 *   ones struck through; unchanged lights render as at install.
 	 */
 	function stripHtml(result, opts) {
 		opts = opts || {};
 		var prefix = opts.prefix || "pp";
+		var changes = opts.from ? lightChanges(opts.from, result) : null;
 		var h = "";
 		if (opts.compact) {
 			var tip =
@@ -776,9 +782,10 @@ var FPPPluginPrivacy = (function () {
 		}
 		h +=
 			'<div class="d-flex flex-wrap gap-2 mt-2" role="group" aria-label="Privacy lights">';
-		result.lights.forEach(function (l) {
+		result.lights.forEach(function (l, i) {
 			var theme = LEVEL_THEME[l.level];
-			var open = l.level === "r" && l.declared;
+			var ch = changes ? changes[i] : null;
+			var open = (l.level === "r" && l.declared) || !!ch;
 			var id = prefix + "-" + l.id;
 			h +=
 				'<button type="button" class="pluginPrivacyChip badge rounded-pill border fw-semibold d-inline-flex align-items-center gap-1' +
@@ -806,16 +813,23 @@ var FPPPluginPrivacy = (function () {
 				'">' +
 				dotHtml(theme) +
 				esc(chipText(l)) +
-				(l.declared && l.level !== "r" ?
+				(ch ?
+					'<i class="fas fa-' +
+						(ch.direction === "better" ? "arrow-down" : ch.direction === "worse" ? "arrow-up" : "pen") +
+						' fa-xs" aria-hidden="true" title="' +
+						esc(ch.direction === "better" ? "Improved" : ch.direction === "worse" ? "Worse than before" : "Changed") +
+						'"></i>'
+				: l.declared && l.level !== "r" ?
 					'<i class="fas fa-caret-right fa-xs" aria-hidden="true"></i>'
 				:	"") +
 				"</button>";
 		});
 		h +=
 			'</div><ul class="list-unstyled d-flex flex-column gap-1 small mt-2 mb-2">';
-		result.lights.forEach(function (l) {
+		result.lights.forEach(function (l, i) {
 			var theme = LEVEL_THEME[l.level];
-			var open = l.level === "r" && l.declared;
+			var ch = changes ? changes[i] : null;
+			var open = (l.level === "r" && l.declared) || !!ch;
 			// d-none, not the hidden attribute: d-flex would outrank [hidden].
 			h +=
 				'<li id="' +
@@ -824,15 +838,85 @@ var FPPPluginPrivacy = (function () {
 				l.id +
 				'" class="d-flex gap-2 align-items-start' +
 				(open ? "" : " d-none") +
-				(open ? " text-danger-emphasis" : "") +
+				(l.level === "r" && l.declared ? " text-danger-emphasis" : "") +
 				'">' +
 				dotHtml(theme, "mt-1 text-" + theme + "-emphasis") +
 				"<span><b>" +
 				esc(l.name) +
 				(/\?$/.test(l.name) ? "" : ":") +
 				"</b> " +
-				lineHtml(l.entries) +
+				(ch ? changeLineHtml(ch) : lineHtml(l.entries)) +
 				"</span></li>";
+		});
+		return h + "</ul>";
+	}
+
+	// Worst-first order of a light's colour, for "better" / "worse".
+	var LEVEL_RANK = { n: 0, g: 1, a: 2, r: 3 };
+
+	// Per light, what differs between an earlier result and this one, or
+	// null when nothing does: the old and new chip text and colour, which
+	// lines were added, removed or kept, and the direction of the change.
+	function lightChanges(from, to) {
+		return to.lights.map(function (l, i) {
+			var o = from.lights[i];
+			var same =
+				o.level === l.level &&
+				chipText(o) === chipText(l) &&
+				o.entries.join("\n") === l.entries.join("\n");
+			if (same) return null;
+			var added = l.entries.filter(function (e) { return o.entries.indexOf(e) < 0; });
+			var removed = o.entries.filter(function (e) { return l.entries.indexOf(e) < 0; });
+			var kept = l.entries.filter(function (e) { return o.entries.indexOf(e) >= 0; });
+			var direction =
+				LEVEL_RANK[l.level] > LEVEL_RANK[o.level] ? "worse"
+				: LEVEL_RANK[l.level] < LEVEL_RANK[o.level] ? "better"
+				: "changed";
+			return {
+				id: l.id, name: l.name, direction: direction,
+				was: { text: chipText(o), level: o.level, declared: o.declared },
+				now: { text: chipText(l), level: l.level, declared: l.declared },
+				added: added, removed: removed, kept: kept,
+			};
+		});
+	}
+
+	// The opened line of a changed light: "Was:" and "Now:" chips, then the
+	// lines with + for added and a strike-through for removed. Unchanged
+	// lines stay plain so the reader sees what moved and what did not.
+	function changeLineHtml(ch) {
+		var pill = function (label, st) {
+			var theme = LEVEL_THEME[st.level];
+			return (
+				'<span class="badge rounded-pill border fw-semibold text-' + theme + "-emphasis bg-" + theme + "-subtle border-" + theme + '-subtle">' +
+				dotHtml(theme) + " " + esc(label) + " " + esc(st.text) + "</span>"
+			);
+		};
+		var h = '<span class="d-inline-flex flex-wrap gap-1 align-items-center mb-1">' + pill("Was:", ch.was) + " " + pill("Now:", ch.now) + "</span>";
+		var items = [];
+		ch.added.forEach(function (e) { items.push('<span class="fw-semibold" title="Added">+</span> ' + e); });
+		ch.removed.forEach(function (e) { items.push('<s class="text-secondary" title="No longer disclosed">' + e + "</s>"); });
+		ch.kept.forEach(function (e) { items.push(e); });
+		if (!ch.now.declared && !items.length) items.push(esc(UNDECLARED_LINE));
+		return h + lineHtml(items);
+	}
+
+	// One line under the headline in "was / now" mode naming the lights that
+	// changed and which way, worst first: "Sends data: was Sends when enabled,
+	// now Sends identifying data".
+	function changesSummaryHtml(from, to) {
+		var changes = lightChanges(from, to).filter(function (c) { return c; });
+		if (!changes.length) return "";
+		var rank = { worse: 0, changed: 1, better: 2 };
+		changes.sort(function (a, b) { return rank[a.direction] - rank[b.direction]; });
+		var h = '<ul class="small mb-2 mt-2 ps-3">';
+		changes.forEach(function (c) {
+			h +=
+				'<li class="mb-1"><b>' + esc(c.name) + (/\?$/.test(c.name) ? "" : ":") + "</b> was " +
+				'<span class="text-' + LEVEL_THEME[c.was.level] + '-emphasis">' + esc(c.was.text) + "</span>, now " +
+				'<span class="text-' + LEVEL_THEME[c.now.level] + '-emphasis fw-semibold">' + esc(c.now.text) + "</span>" +
+				(c.direction === "better" ? ' <span class="text-success-emphasis">(improved)</span>' : "") +
+				"</li>";
 		});
 		return h + "</ul>";
 	}
@@ -918,6 +1002,7 @@ var FPPPluginPrivacy = (function () {
 		evaluate: evaluate,
 		installButtonFor: installButtonFor,
 		stripHtml: stripHtml,
+		changesSummaryHtml: changesSummaryHtml,
 		headlineHtml: headlineHtml,
 		detailsHtml: detailsHtml,
 		bind: bind,

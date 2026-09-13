@@ -124,7 +124,8 @@
         // detail and privacy modals show them in full. A plugin loaded from a
         // pasted URL was never checked against its code for listing; its label
         // line says so.
-        var pluginPrivacyChanged = {};   // repoName -> true once an update check said the disclosure changed
+        var pluginPrivacyChanged = {};   // repoName -> true once an update check said the disclosure changed (what Update would land)
+        var pluginReinstallPrivacyChanged = {};   // same for what Reinstall would land (the versions[] branch/pin for this FPP)
 
         function PluginPrivacyResult(data) {
             return FPPPluginPrivacy.evaluate(data ? data.privacy : null,
@@ -142,14 +143,22 @@
         // Label line + headline + strip + lines + the author's summary and the
         // full declaration. Shared by the install dialog, the upgrade dialog and
         // the detail modal. Wording per fpp-plugin-Template PLUGIN_GUIDELINES.md §14.15.
-        function PrivacyBlockHtml(r, prefix) {
+        // from: the result of the block the operator accepted earlier, for the
+        // changed-disclosure dialog -- lights that differ open as "Was / Now"
+        // with their changed lines marked, and a list under the headline says
+        // which lights moved and which way (fpp-privacy-lights.js).
+        function PrivacyBlockHtml(r, prefix, from) {
             var h = r.declared
                 ? '<div class="small text-secondary mt-3 mb-1"><span class="fw-bold text-uppercase">Disclosed by the author</span> &middot; not verified by FPP</div>'
                 : '<div class="small text-secondary mt-3 mb-1"><span class="fw-bold text-uppercase">No disclosure</span> &middot; the author has not said what this plugin does with data</div>';
             if (r.unreviewed && r.declared)
                 h += '<div class="small text-secondary mb-1">Loaded from a URL, not from the plugin list: this disclosure was not reviewed for the plugin list.</div>';
             h += FPPPluginPrivacy.headlineHtml(r);
-            h += FPPPluginPrivacy.stripHtml(r, { prefix: prefix });
+            if (from) {
+                var changes = FPPPluginPrivacy.changesSummaryHtml(from, r);
+                if (changes) h += '<div class="small fw-semibold mt-2">What changed</div>' + changes;
+            }
+            h += FPPPluginPrivacy.stripHtml(r, { prefix: prefix, from: from || null });
             h += FPPPluginPrivacy.detailsHtml(r);
             return h;
         }
@@ -431,6 +440,7 @@
                     $('html,body').css('cursor', 'auto');
                     if (data.Status == 'OK') {
                         pluginPrivacyChanged[plugin] = !!data.privacyChanged;
+                        pluginReinstallPrivacyChanged[plugin] = !!data.reinstallPrivacyChanged;
                         if (data.updatesAvailable) {
                             RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
                             var $modal = $('#pluginDetailDialog');
@@ -499,6 +509,7 @@
                         }
                         var hasUpdate = !!data.updatesAvailable;
                         pluginPrivacyChanged[plugin] = !!data.privacyChanged;
+                        pluginReinstallPrivacyChanged[plugin] = !!data.reinstallPrivacyChanged;
                         if (hasUpdate) withUpdates.push(plugin);
                         onResult(plugin, hasUpdate);
                     },
@@ -560,6 +571,7 @@
                     success: function (data) {
                         if (!sweep.cancelled && data.Status == 'OK') {
                             pluginPrivacyChanged[plugin] = !!data.privacyChanged;
+                            pluginReinstallPrivacyChanged[plugin] = !!data.reinstallPrivacyChanged;
                             if (data.updatesAvailable)
                                 RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
                             else
@@ -660,27 +672,23 @@
                     $.jGrowl('All plugins are up to date', { themeState: 'success' });
                 return;
             }
-            // A plugin whose privacy declaration changed needs its own dialog
-            // (and the server refuses a blind upgrade of it anyway), so it is
-            // left out of the batch and named here.
+            // A plugin whose privacy disclosure changed gets its own dialog
+            // before the batch runs (the server refuses a blind upgrade of it
+            // anyway); the rest go straight through. Only plugins with a
+            // question are asked.
             var needsReview = withUpdates.filter(function (p) { return pluginPrivacyChanged[p]; });
-            var batch = withUpdates.filter(function (p) { return !pluginPrivacyChanged[p]; });
-            var body = '';
-            if (batch.length)
-                body += "Update the " + batch.length + " plugin(s) with an available update, one at a time?" +
-                    "<div class='small text-secondary mt-2'>" + EscapeHtml(batch.join(', ')) + "</div>";
+            var body = "Update the " + withUpdates.length + " plugin(s) with an available update, one at a time?" +
+                "<div class='small text-secondary mt-2'>" + EscapeHtml(withUpdates.join(', ')) + "</div>";
             if (needsReview.length)
                 body += "<div class='fpp-inline-warn mt-2'><i class='fas fa-shield-halved'></i><span>" +
-                    needsReview.length + " plugin(s) changed their privacy disclosure. Update " +
-                    (needsReview.length === 1 ? "it" : "each") + " from its own Update button to review the change first: " +
-                    "<b>" + EscapeHtml(needsReview.join(', ')) + "</b></span></div>";
+                    needsReview.length + " of them changed " + (needsReview.length === 1 ? "its" : "their") +
+                    " privacy disclosure, or " + (needsReview.length === 1 ? "has" : "have") + " not been reviewed yet; you will be asked about " + (needsReview.length === 1 ? "it" : "each one") +
+                    " before the updates run: <b>" + EscapeHtml(needsReview.join(', ')) + "</b></span></div>";
             var buttons = {};
-            if (batch.length) {
-                buttons["Update All"] = function () {
-                    CloseModalDialog("updateAllPluginsDialog");
-                    RunUpdateAll(batch);
-                };
-            }
+            buttons["Update All"] = function () {
+                CloseModalDialog("updateAllPluginsDialog");
+                ReviewThenUpdateAll(withUpdates, needsReview);
+            };
             buttons["Abort"] = function () { CloseModalDialog("updateAllPluginsDialog"); };
             DoModalDialog({
                 id: "updateAllPluginsDialog",
@@ -714,7 +722,7 @@
             outputArea.scrollTop = outputArea.scrollHeight;
         }
         // job: { label, verb, verbCap, showStatus, queue, total, done,
-        //        itemName(item), urlFor(item), method, dataFor(item)?, onDone() }
+        //        itemName(item), urlFor(item), method, methodFor(item)?, dataFor(item)?, onDone() }
         function RunBatchQueue(job) {
             batchJob = job;
             BatchQueueNext();
@@ -738,12 +746,64 @@
             // Chain to the next item on both success and failure so a single
             // failure does not strand the batch.
             StreamURL(job.urlFor(item), 'pluginsProgressPopupText', 'BatchQueueNext', 'BatchQueueNext',
-                job.method, data, data ? 'application/json' : null);
+                job.methodFor ? job.methodFor(item) : job.method, data, data ? 'application/json' : null);
         }
 
-        function RunUpdateAll(withUpdates) {
+        // Ask about each plugin whose disclosure changed, one dialog at a
+        // time, then run the batch. Accept includes the plugin with the new
+        // block posted as privacyAccepted; Cancel skips it (it stays at its
+        // current version, whose disclosure was accepted) and is named in
+        // the log. Nothing is updated until every question is answered.
+        var updateAllSkipped = [];
+        function ReviewThenUpdateAll(withUpdates, needsReview) {
+            var accepted = {};
+            var skipped = [];
+            var reviewNext = function (i) {
+                if (i >= needsReview.length) {
+                    var batch = withUpdates.filter(function (p) { return skipped.indexOf(p) < 0; });
+                    RunUpdateAll(batch, accepted, skipped);
+                    return;
+                }
+                var plugin = needsReview[i];
+                var position = needsReview.length > 1 ? (' (' + (i + 1) + ' of ' + needsReview.length + ')') : '';
+                $.ajax({
+                    url: 'api/plugin/' + plugin + '/privacy',
+                    dataType: 'json',
+                    success: function (st) {
+                        if (!st || st.Status !== 'OK' || !st.changed) {
+                            // Not readable, or not changed after all: the
+                            // server decides at upgrade time either way.
+                            reviewNext(i + 1);
+                            return;
+                        }
+                        ConfirmPrivacyChange(plugin, st, {
+                            id: 'confirmUpgradeDialog', prefix: 'up',
+                            verb: 'This update', button: 'Accept changes and update',
+                            note: 'Update All' + position + ': Cancel skips this plugin and leaves it at its current version.' + (i + 1 < needsReview.length ? ' Either way the next one follows.' : ''),
+                            onAccept: function () { accepted[plugin] = st.pending; reviewNext(i + 1); },
+                            onCancel: function () { skipped.push(plugin); reviewNext(i + 1); }
+                        });
+                    },
+                    error: function () { reviewNext(i + 1); }
+                });
+            };
+            reviewNext(0);
+        }
+
+        // accepted: repoName -> the block accepted in the dialog, posted with
+        // that plugin's upgrade; skipped: named in the log, not attempted.
+        function RunUpdateAll(withUpdates, accepted, skipped) {
+            accepted = accepted || {};
             updateAllAttempted = withUpdates.slice();
+            updateAllSkipped = (skipped || []).slice();
             DisplayProgressDialog("pluginsProgressPopup", "Update All Plugins");
+            if (updateAllSkipped.length)
+                BatchQueueLog('\nSkipped, left at the current version (privacy disclosure not accepted): ' + updateAllSkipped.join(', ') + '\n');
+            if (!withUpdates.length) {
+                BatchQueueLog('Nothing to update.\n');
+                ProgressDialogDone('pluginsProgressPopupText');
+                return;
+            }
             RunBatchQueue({
                 label: 'Update All',
                 verb: 'updating',
@@ -754,7 +814,11 @@
                 done: 0,
                 itemName: function (plugin) { return plugin; },
                 urlFor: function (plugin) { return 'api/plugin/' + plugin + '/upgrade?stream=true'; },
+                // An accepted disclosure travels in a POST body, as the single
+                // Update button sends it; the rest are the plain GET.
                 method: 'GET',
+                methodFor: function (plugin) { return Object.prototype.hasOwnProperty.call(accepted, plugin) ? 'POST' : 'GET'; },
+                dataFor: function (plugin) { return Object.prototype.hasOwnProperty.call(accepted, plugin) ? JSON.stringify({ privacyAccepted: accepted[plugin] }) : null; },
                 onDone: UpdateAllFinish
             });
         }
@@ -805,6 +869,8 @@
                     BatchQueueLog('Still reporting an available update (may have failed): ' + stillStale.join(', ') + '\n');
                 if (scriptFailed.length)
                     BatchQueueLog('Code updated, but the plugin\'s own install/upgrade script failed (see logs/fpp_plugin_manager.log): ' + scriptFailed.join(', ') + '\n');
+                if (updateAllSkipped.length)
+                    BatchQueueLog('Skipped (privacy disclosure not accepted, left at the current version): ' + updateAllSkipped.join(', ') + '\n');
                 BatchQueueLog('Reload the page to refresh the plugin list.\n');
                 if (stillStale.length)
                     $.jGrowl(stillStale.length + ' plugin(s) may not have updated', { themeState: 'warn' });
@@ -829,56 +895,117 @@
                 dataType: 'json',
                 success: function (st) {
                     if (st && st.Status === 'OK' && st.changed) {
-                        ConfirmAndUpgrade(plugin, st.pending);
+                        ConfirmPrivacyChange(plugin, st, {
+                            id: 'confirmUpgradeDialog', prefix: 'up',
+                            verb: 'This update', button: 'Accept changes and update',
+                            onAccept: function () { RunUpgradePlugin(plugin, { privacyAccepted: st.pending }); }
+                        });
                     } else {
                         RunUpgradePlugin(plugin, null);
                     }
                 },
+                // The server refuses a changed disclosure on its own, so a
+                // failed status call costs nothing but the nicer dialog.
                 error: function () { RunUpgradePlugin(plugin, null); }
             });
         }
 
-        function RunUpgradePlugin(plugin, acceptedPrivacy) {
+        // ack: null for a plain upgrade, else { privacyAccepted: <block or null> }
+        // -- an object, so that accepting a REMOVED disclosure (pending null)
+        // still posts a body.
+        function RunUpgradePlugin(plugin, ack) {
             var url = 'api/plugin/' + plugin + '/upgrade?stream=true';
             DisplayProgressDialog("pluginsProgressPopup", "Upgrade Plugin");
-            if (acceptedPrivacy !== null) {
+            if (ack !== null) {
                 StreamURL(url, 'pluginsProgressPopupText', 'ProgressDialogDone', 'ProgressDialogDone',
-                    'POST', JSON.stringify({ privacyAccepted: acceptedPrivacy }), 'application/json');
+                    'POST', JSON.stringify(ack), 'application/json');
             } else {
                 StreamURL(url, 'pluginsProgressPopupText', 'ProgressDialogDone', 'ProgressDialogDone');
             }
         }
 
-        function ConfirmAndUpgrade(plugin, pending) {
+        // The "disclosure changed" dialog shared by Update and Reinstall. st is
+        // the api/plugin/:RepoName/privacy result: st.pending is the block the
+        // operation would land, st.recorded says whether the operator has ever
+        // accepted one for this plugin -- a plugin installed before FPP kept
+        // the record has not "changed" anything, it just has not been reviewed.
+        // opts: id, prefix (chip id prefix), verb ("This update" /
+        // "Reinstalling"), button + onAccept; optional declineLabel + onDecline
+        // (a destructive choice such as Uninstall), noCancel (no Cancel button,
+        // no Esc/backdrop/X), onCancel, note (a line under the intro).
+        function ConfirmPrivacyChange(plugin, st, opts) {
             var i = FindPluginInfo(plugin);
             var data = (i >= 0) ? $.extend({}, pluginInfos[i]) : { repoName: plugin, name: plugin };
-            data.privacy = pending;
+            data.privacy = st.pending;
             var r = PluginPrivacyResult(data);
-            var body = '<div class="fpp-inline-warn mb-2"><i class="fas fa-shield-halved"></i><span>This update changes what ' +
-                '<b>' + EscapeHtml(data.name || plugin) + '</b> discloses about privacy. What follows is the author\'s new disclosure.</span></div>';
+            var name = '<b>' + EscapeHtml(data.name || plugin) + '</b>';
+            var intro, title;
+            if (!st.recorded) {
+                intro = 'You have not yet reviewed what ' + name + ' discloses about privacy. What follows is the author\'s disclosure for the version ' +
+                    (opts.verb === 'This reinstall' ? 'this reinstall installs.' : 'this update installs.');
+                title = 'Review the privacy disclosure of ' + EscapeHtml(data.name || plugin);
+            } else {
+                intro = opts.verb + ' changes what ' + name + ' discloses about privacy. What follows is the author\'s new disclosure.';
+                title = opts.verb + ' changes the privacy disclosure of ' + EscapeHtml(data.name || plugin);
+            }
+            var body = '<div class="fpp-inline-warn mb-2"><i class="fas fa-shield-halved"></i><span>' + intro + '</span></div>';
+            if (opts.note) body += '<div class="small text-secondary mb-2">' + EscapeHtml(opts.note) + '</div>';
             body += PluginTrustHtml(data);
-            body += PrivacyBlockHtml(r, 'up');
+            // With a record to compare against, show the change, not just the
+            // new block: st.accepted is what the operator said yes to.
+            var from = null;
+            if (st.recorded) {
+                var prevData = $.extend({}, data);
+                prevData.privacy = st.accepted;
+                from = PluginPrivacyResult(prevData);
+            }
+            body += PrivacyBlockHtml(r, opts.prefix, from);
             if (IsSafeHttpUrl(data.srcURL)) body += '<div class="small text-secondary mt-2"><i class="fas fa-code"></i> Source: ' +
                 '<a href="' + EscapeAttr(data.srcURL) + '" target="_blank" rel="noopener noreferrer">' + EscapeHtml(data.srcURL) + '</a></div>';
             var buttons = {};
-            buttons['Accept changes and upgrade'] = function () {
-                CloseModalDialog("confirmUpgradeDialog");
-                RunUpgradePlugin(plugin, pending === undefined ? null : pending);
-            };
-            buttons['Cancel'] = function () { CloseModalDialog("confirmUpgradeDialog"); };
+            var outcome = 'cancel';
+            buttons[opts.button] = function () { outcome = 'accept'; CloseModalDialog(opts.id); };
+            if (opts.onDecline) {
+                buttons[opts.declineLabel] = function () { outcome = 'decline'; CloseModalDialog(opts.id); };
+            }
+            if (!opts.noCancel) {
+                buttons['Cancel'] = function () { CloseModalDialog(opts.id); };
+            }
             DoModalDialog({
-                id: "confirmUpgradeDialog",
+                id: opts.id,
                 class: "modal-lg",
-                title: "This update changes the privacy disclosure of " + EscapeHtml(data.name || plugin),
+                title: title,
                 body: body,
-                backdrop: true,
-                keyboard: true,
+                backdrop: opts.noCancel ? 'static' : true,
+                keyboard: !opts.noCancel,
+                noClose: !!opts.noCancel,
                 buttons: buttons
             });
-            FPPPluginPrivacy.bind('confirmUpgradeDialog');
+            // DoModalDialog only ever disables the header X (noClose); the id
+            // is reused, so re-enable it for a dialog that may be cancelled.
+            $('#' + opts.id).find('#modalCloseButton').prop('disabled', !!opts.noCancel);
+            // The outcome is delivered from `hidden`, not from the click: the
+            // id is reused, and a batch that opened the next dialog before
+            // this one had finished fading out would see THIS dialog's hide
+            // event as the next one's.
+            $('#' + opts.id).one('hidden.bs.modal', function () {
+                if (outcome === 'accept') opts.onAccept();
+                else if (outcome === 'decline') opts.onDecline();
+                else if (opts.onCancel) opts.onCancel();
+            });
+            FPPPluginPrivacy.bind(opts.id);
         }
 
-        function InstallPlugin(plugin, branch, sha) {
+        // Severity order of installButtonFor's labels, worst last, so the
+        // dialog's button can take the worst across a plugin and its
+        // dependencies. Unknown text ranks lowest.
+        var INSTALL_BUTTON_ORDER = ['Install', 'Install anyway', 'Install, permanent changes', 'Install, sends data out',
+            'Install, opens FPP to internet', "Install, handles others' data", 'Install, black box included', 'Install, no disclosure'];
+        function InstallButtonRank(btn) { return INSTALL_BUTTON_ORDER.indexOf(btn.text); }
+
+        // depAccepted: repoName -> the block shown for each dependency plugin
+        // in the install dialog (null = no disclosure), or undefined.
+        function InstallPlugin(plugin, branch, sha, depAccepted) {
             var url = 'api/plugin?stream=true';
             var i = FindPluginInfo(plugin);
 
@@ -895,6 +1022,10 @@
             // whose pluginInfo.json is flagged as private, or which were
             // manually loaded via the credentialed proxy.
             pluginInfo['useCredentials'] = (pluginInfo.private || pluginInfoUseCredentials[plugin]) ? 1 : 0;
+            // What the install dialog showed (null = "no disclosure"), so the
+            // server records it only if the cloned copy says the same.
+            pluginInfo['privacyAccepted'] = pluginInfo.hasOwnProperty('privacy') ? pluginInfo.privacy : null;
+            pluginInfo['dependencyPrivacyAccepted'] = depAccepted || {};
 
             var postData = JSON.stringify(pluginInfo);
             DisplayProgressDialog("pluginsProgressPopup", "Install Plugin");
@@ -907,6 +1038,78 @@
         // no declaration can change, and under it are the six privacy lights FPP
         // computes from the plugin's own declaration. The URL-paste developer
         // warning and the RAM/CPU warning are unchanged and sit above both.
+        // Plugins that installing `plugin` would pull in as dependencies
+        // (ResolvePluginDependencies on the server): the listed plugins named
+        // in dependencies.plugins, top-level and on the versions[] entry this
+        // FPP would select, recursively, that are not installed. Each is
+        // returned once, in install order (dependencies before dependants).
+        // A name the list does not know is skipped, as the server skips it.
+        function DependencyPluginsToInstall(plugin) {
+            var out = [];
+            var seen = {};
+            seen[plugin] = true;
+            var walk = function (repo, depth) {
+                if (depth > 8) return;
+                var i = FindPluginInfo(repo);
+                if (i < 0) return;
+                var info = pluginInfos[i];
+                var names = [];
+                var add = function (deps) {
+                    if (deps && Array.isArray(deps.plugins))
+                        deps.plugins.forEach(function (n) { if (typeof n === 'string' && n !== '') names.push(n); });
+                };
+                add(info.dependencies);
+                if (Array.isArray(info.versions) && info.versions.length) {
+                    var sel = SelectPluginVersionIndices(info);
+                    var vi = (sel.compatible >= 0) ? sel.compatible : (sel.untested >= 0 ? sel.untested : 0);
+                    if (info.versions[vi]) add(info.versions[vi].dependencies);
+                }
+                names.forEach(function (n) {
+                    if (seen[n]) return;
+                    seen[n] = true;
+                    if (installedPlugins.indexOf(n) >= 0) return;
+                    if (FindPluginInfo(n) < 0) return;
+                    walk(n, depth + 1);
+                    out.push(n);
+                });
+            };
+            walk(plugin, 0);
+            return out;
+        }
+
+        // Installed plugins that depend on `repo`, directly or through another
+        // plugin (dependencies.plugins, top-level and on the selected
+        // versions[] entry, read from the cached pluginInfos). Uninstalling
+        // `repo` leaves them without something they need.
+        function InstalledDependantsOf(repo) {
+            var out = [];
+            var dependsOn = function (info, name) {
+                var hit = false;
+                var check = function (deps) {
+                    if (deps && Array.isArray(deps.plugins) && deps.plugins.indexOf(name) >= 0) hit = true;
+                };
+                check(info.dependencies);
+                if (Array.isArray(info.versions) && info.versions.length) {
+                    var sel = SelectPluginVersionIndices(info);
+                    var vi = (sel.compatible >= 0) ? sel.compatible : (sel.untested >= 0 ? sel.untested : 0);
+                    if (info.versions[vi]) check(info.versions[vi].dependencies);
+                }
+                return hit;
+            };
+            var walk = function (name) {
+                installedPlugins.forEach(function (p) {
+                    if (p === name || out.indexOf(p) >= 0) return;
+                    var i = FindPluginInfo(p);
+                    if (i >= 0 && dependsOn(pluginInfos[i], name)) {
+                        out.push(p);
+                        walk(p);
+                    }
+                });
+            };
+            walk(repo);
+            return out;
+        }
+
         function ConfirmAndInstall(plugin, branch, sha) {
             var i = FindPluginInfo(plugin);
             var data = (i >= 0) ? pluginInfos[i] : null;
@@ -945,13 +1148,34 @@
             // forces at least "Install anyway" in warning colour when the
             // finding-based label would be plainer.
             var btn = FPPPluginPrivacy.installButtonFor(r);
+            // Dependency plugins are installed in the same operation with no
+            // dialog of their own, so each one's disclosure is shown here, as
+            // its own section, and the button reflects the worst of them all.
+            // What is shown is posted with the install as
+            // dependencyPrivacyAccepted so the server can record each one.
+            var deps = data ? DependencyPluginsToInstall(plugin) : [];
+            var depAccepted = {};
+            deps.forEach(function (dep, n) {
+                var di = FindPluginInfo(dep);
+                var dinfo = pluginInfos[di];
+                depAccepted[dep] = dinfo.hasOwnProperty('privacy') ? dinfo.privacy : null;
+                var dr = PluginPrivacyResult(dinfo);
+                body += '<hr><div class="fw-bold mb-2"><i class="fas fa-puzzle-piece"></i> Also installs <b>' + EscapeHtml(dinfo.name || dep) + '</b>' +
+                    ' <span class="fw-normal text-secondary">(a plugin this one depends on)</span></div>';
+                body += PluginTrustHtml(dinfo);
+                body += PrivacyBlockHtml(dr, 'cd' + n);
+                if (IsSafeHttpUrl(dinfo.srcURL)) body += '<div class="small text-secondary mt-2"><i class="fas fa-code"></i> Source: ' +
+                    '<a href="' + EscapeAttr(dinfo.srcURL) + '" target="_blank" rel="noopener noreferrer">' + EscapeHtml(dinfo.srcURL) + '</a></div>';
+                var dbtn = FPPPluginPrivacy.installButtonFor(dr);
+                if (InstallButtonRank(dbtn) > InstallButtonRank(btn)) btn = dbtn;
+            });
             if ((devWarn || resWarn) && btn.text === 'Install') btn = { text: 'Install anyway', cls: 'btn-warning' };
             var buttons = {};
             buttons[btn.text] = {
                 class: btn.cls,
                 click: function () {
                     CloseModalDialog("confirmInstallDialog");
-                    InstallPlugin(plugin, branch, sha);
+                    InstallPlugin(plugin, branch, sha, depAccepted);
                 }
             };
             buttons['Cancel'] = function () { CloseModalDialog("confirmInstallDialog"); };
@@ -1048,6 +1272,8 @@
         // dialog, batch queue, re-verify) is identical.
         var reinstallAttempted = [];   // repo names we intend to reinstall
         var reinstallSkipped = [];     // requested plugins with no cached info
+        var reinstallHeldBack = [];    // could not be checked; left installed
+        var reinstallDeclined = [];    // new disclosure not accepted in Reinstall All; uninstalled, not reinstalled
 
         // Build the install POST body for an installed plugin from its cached
         // pluginInfo.json, or null if we have no cached info to rebuild it from
@@ -1065,6 +1291,16 @@
                 info['infoURL'] = pluginInfoURLs[repo]; // else backend uses the repo's own pluginInfo.json
             info['useCredentials'] = (info.private || pluginInfoUseCredentials[repo]) ? 1 : 0;
             return info;
+        }
+
+        // True when the post-FPPOS flag names this plugin (or is boot's "1",
+        // before the server has turned it into names): it is dead as it is
+        // until reinstalled, so a single-card Reinstall may not be cancelled.
+        function PluginPendingAfterOS(plugin) {
+            var v = (settings['pluginReinstallNeededAfterOS'] || '').trim();
+            if (v === '') return false;
+            if (v === '1') return true;
+            return v.split(',').map(function (x) { return x.trim(); }).indexOf(plugin) >= 0;
         }
 
         function ReinstallAllPlugins() {
@@ -1085,6 +1321,152 @@
         // status-line prefix, so it reads e.g. "Reinstall Plugin — uninstalling 1
         // of 1" for a single plugin vs "Reinstall All Plugins — uninstalling 3 of 8".
         function RunReinstall(repos, label) {
+            // A reinstall lands the versions[] branch tip, so it is an upgrade
+            // by another route: check every plugin first, then ask about each
+            // changed disclosure in turn -- Accept queues it with the new
+            // block, "Uninstall instead" removes it, Cancel only on a single
+            // card that is not waiting for a post-FPPOS reinstall -- and only
+            // then uninstall anything. A plugin whose check FAILED is left as
+            // it is: the uninstall is destructive and the clone needs the same
+            // network the check did.
+            if (!repos.length)
+                return;
+            // A single plugin with no cached pluginInfo cannot be rebuilt into
+            // an install body (RunReinstallPhases would skip it), so say so now
+            // rather than after a fetch and possibly a disclosure dialog.
+            if (repos.length === 1 && !BuildReinstallInfo(repos[0])) {
+                $.jGrowl('Cannot reinstall ' + EscapeHtml(repos[0]) + ': its plugin info is not available. Nothing was changed.', { themeState: 'warn', sticky: true });
+                return;
+            }
+            CancelBackgroundUpdateCheck();
+            $('html,body').css('cursor', 'wait');
+            $.jGrowl('Checking ' + (repos.length === 1 ? EscapeHtml(repos[0]) : repos.length + ' plugins') + ' for changes...', { themeState: 'detract', life: 4000 });
+            var checked = {};
+            CheckPluginsForUpdates(repos, function (plugin) { checked[plugin] = true; }, function () {
+                $('html,body').css('cursor', 'auto');
+                var unchecked = repos.filter(function (r) { return !checked[r]; });
+                var toReview = repos.filter(function (r) { return checked[r] && pluginReinstallPrivacyChanged[r]; });
+                var ready = repos.filter(function (r) { return checked[r] && !pluginReinstallPrivacyChanged[r]; });
+                var accepted = {};
+                var declined = [];
+                var single = (repos.length === 1);
+                if (single && unchecked.length) {
+                    // Nothing has been touched yet, so a stop here is a plain
+                    // notice, not a progress log to close and reload from.
+                    $.jGrowl('Could not check ' + EscapeHtml(repos[0]) + ' for changes (is the player online?). Nothing was changed.', { themeState: 'warn', sticky: true });
+                    return;
+                }
+                var finish = function () {
+                    RunReinstallPhases(ready, label, accepted, declined, unchecked);
+                };
+                // Ask about the plugins whose disclosure changed, in order.
+                var reviewNext = function (i) {
+                    if (i >= toReview.length) {
+                        finish();
+                        return;
+                    }
+                    var plugin = toReview[i];
+                    var position = toReview.length > 1 ? (' (' + (i + 1) + ' of ' + toReview.length + ')') : '';
+                    var last = (i + 1 >= toReview.length);
+                    // Already taken down with a plugin it depends on: no question.
+                    if (declined.indexOf(plugin) >= 0) {
+                        reviewNext(i + 1);
+                        return;
+                    }
+                    // Plugins in this batch that depend on this one go with it
+                    // if it is uninstalled -- said before the choice, not after.
+                    var dependants = InstalledDependantsOf(plugin).filter(function (d) { return (single || repos.indexOf(d) >= 0) && declined.indexOf(d) < 0; });
+                    var depWarn = dependants.length ? (' Uninstalling it also uninstalls ' + dependants.map(function (d) { var k = FindPluginInfo(d); return (k >= 0 && pluginInfos[k].name) ? pluginInfos[k].name : d; }).join(', ') + ', which ' + (dependants.length === 1 ? 'depends' : 'depend') + ' on it.') : '';
+                    $.ajax({
+                        // target=reinstall: the block of the versions[] branch
+                        // and pin a fresh clone lands, not origin/<current>
+                        url: 'api/plugin/' + plugin + '/privacy?target=reinstall',
+                        dataType: 'json',
+                        success: function (st) {
+                            if (!st || st.Status !== 'OK') {
+                                unchecked.push(plugin);
+                                reviewNext(i + 1);
+                                return;
+                            }
+                            if (!st.changed) {
+                                ready.push(plugin);
+                                reviewNext(i + 1);
+                                return;
+                            }
+                            // Cancel (leave the plugin as it is) exists only on
+                            // the single-card path and only when the plugin is
+                            // not waiting for a post-FPPOS reinstall: after a
+                            // reflash it is dead as it is, so the choice is
+                            // accept or uninstall, as in Reinstall All.
+                            var mustDecide = !single || PluginPendingAfterOS(plugin);
+                            ConfirmPrivacyChange(plugin, st, {
+                                id: 'confirmReinstallDialog', prefix: 'ri',
+                                verb: 'This reinstall', button: 'Accept and reinstall' + (single ? '' : ' this plugin'),
+                                declineLabel: 'Uninstall instead',
+                                noCancel: mustDecide,
+                                note: (!single ? ('Reinstall All' + position + ': accept to reinstall, or uninstall instead \u2014 after an FPP OS upgrade a plugin that is not reinstalled no longer works as it is.' + (last ? '' : ' Either way the next plugin follows.'))
+                                    : (mustDecide ? 'After the FPP OS upgrade this plugin no longer works as it is: accept to reinstall it, or uninstall it instead.'
+                                                  : 'Accept to reinstall, uninstall the plugin instead, or Cancel to leave it as it is.')) + depWarn,
+                                onAccept: function () {
+                                    accepted[plugin] = st.pending;
+                                    ready.push(plugin);
+                                    reviewNext(i + 1);
+                                },
+                                onDecline: function () {
+                                    declined.push(plugin);
+                                    dependants.forEach(function (d) {
+                                        if (declined.indexOf(d) < 0) declined.push(d);
+                                        ready = ready.filter(function (r) { return r !== d; });
+                                        delete accepted[d];
+                                    });
+                                    reviewNext(i + 1);
+                                },
+                                onCancel: single ? function () { reviewNext(i + 1); } : null
+                            });
+                        },
+                        error: function () {
+                            unchecked.push(plugin);
+                            reviewNext(i + 1);
+                        }
+                    });
+                };
+                if (single && !toReview.length) {
+                    finish();
+                    return;
+                }
+                if (single) {
+                    // The operator pressed Reinstall on one card: Uninstall
+                    // instead is a plain uninstall; Cancel leaves it alone.
+                    var origFinish = finish;
+                    finish = function () {
+                        if (unchecked.length) {
+                            $.jGrowl('Could not read the privacy disclosure of ' + EscapeHtml(repos[0]) + '. Nothing was changed.', { themeState: 'warn', sticky: true });
+                            return;
+                        }
+                        if (declined.length) {
+                            // Also anything installed that depends on it; the
+                            // dialog said so. Uninstall queue only, nothing reinstalled.
+                            InstalledDependantsOf(repos[0]).forEach(function (d) { if (declined.indexOf(d) < 0) declined.push(d); });
+                            RunReinstallPhases([], 'Uninstall Plugin', {}, declined, []);
+                            return;
+                        }
+                        if (!ready.length) {
+                            $.jGrowl('Reinstall cancelled. Nothing was changed.', { themeState: 'detract', life: 4000 });
+                            return;
+                        }
+                        origFinish();
+                    };
+                }
+                reviewNext(0);
+            });
+        }
+
+        // acceptedPrivacy: repoName -> the block the operator just accepted in
+        // the dialog, posted as privacyAccepted so the server records it once
+        // the clone confirms it. declined: plugins the operator chose not to
+        // accept a changed disclosure for -- uninstalled, not reinstalled.
+        // unchecked: plugins whose update check failed -- left installed.
+        function RunReinstallPhases(repos, label, acceptedPrivacy, declined, unchecked) {
             // Phase 0: capture the install POST body for every plugin BEFORE
             // removing anything, since uninstalling drops entries from
             // installedPlugins / the DOM. Only plugins we can rebuild an install
@@ -1093,22 +1475,38 @@
             var installQueue = [];
             reinstallAttempted = [];
             reinstallSkipped = [];
+            reinstallHeldBack = unchecked;
+            reinstallDeclined = declined;
             repos.forEach(function (repo) {
                 var info = BuildReinstallInfo(repo);
                 if (!info) {
                     reinstallSkipped.push(repo); // no cached info -> can't rebuild the install body
                     return;
                 }
+                // What the operator has seen for this plugin: the block just
+                // accepted in the dialog, else the installed copy's (the check
+                // above said it matches the accepted record).
+                info.privacyAccepted = Object.prototype.hasOwnProperty.call(acceptedPrivacy, repo) ?
+                    acceptedPrivacy[repo] : (info.hasOwnProperty('privacy') ? info.privacy : null);
                 installQueue.push(info);
                 reinstallAttempted.push(repo);
             });
 
-            if (reinstallAttempted.length === 0) {
-                $.jGrowl('No reinstallable plugins found (plugin info unavailable)', { themeState: 'detract' });
+            DisplayProgressDialog("pluginsProgressPopup", label);
+            if (declined.length) {
+                BatchQueueLog('\nRemoving, not reinstalling (privacy disclosure not accepted): ' + declined.join(', ') + '\n');
+            }
+            if (unchecked.length) {
+                BatchQueueLog('\nLeft installed as they are (could not be checked for changes \u2014 is the player online?): ' + unchecked.join(', ') + '\n');
+            }
+            if (reinstallAttempted.length === 0 && declined.length === 0) {
+                if (unchecked.length)
+                    $.jGrowl('Nothing reinstalled: ' + unchecked.length + ' plugin(s) could not be checked (is the player online?)', { themeState: 'warn', sticky: true });
+                else
+                    BatchQueueLog('No reinstallable plugins found (plugin info unavailable).\n');
+                ProgressDialogDone('pluginsProgressPopupText');
                 return;
             }
-
-            DisplayProgressDialog("pluginsProgressPopup", label);
             if (reinstallSkipped.length) {
                 BatchQueueLog('\nSkipping ' + reinstallSkipped.length +
                     ' plugin(s) with no available plugin info (left installed): ' +
@@ -1119,8 +1517,8 @@
                 verb: 'uninstalling',
                 verbCap: 'Uninstalling',
                 showStatus: true,
-                queue: reinstallAttempted.slice(),
-                total: reinstallAttempted.length,
+                queue: reinstallAttempted.concat(declined),
+                total: reinstallAttempted.length + declined.length,
                 done: 0,
                 itemName: function (plugin) { return plugin; },
                 urlFor: function (plugin) { return 'api/plugin/' + plugin + '?stream=true'; },
@@ -1161,11 +1559,13 @@
                     // The post-FPPOS-upgrade flag is the server's: each plugin
                     // drops off it as it is reinstalled or uninstalled
                     // (PluginReinstallPendingSync), and fppd drops its warning
-                    // when the list is empty. A plugin that was not reinstalled
-                    // is still on it, so the prompt persists for a retry.
+                    // when the list is empty. An unchecked plugin is still on
+                    // it, so the prompt persists for a retry.
+                    var held = (reinstallHeldBack.length ? (', ' + reinstallHeldBack.length + ' not checked') : '') +
+                               (reinstallDeclined.length ? (', ' + reinstallDeclined.length + ' removed') : '');
                     SetProgressDialogStatus('pluginsProgressPopup',
-                        failed.length ? (label + ' — ' + failed.length + ' failed, ' + ok + ' of ' + reinstallAttempted.length + ' ok')
-                                      : (label + ' — complete (' + ok + ' of ' + reinstallAttempted.length + ')'));
+                        failed.length ? (label + ' — ' + failed.length + ' failed, ' + ok + ' of ' + reinstallAttempted.length + ' ok' + held)
+                                      : (label + ' — complete (' + ok + ' of ' + reinstallAttempted.length + held + ')'));
                     BatchQueueLog('\n===== Reinstall complete: ' + ok + ' of ' +
                         reinstallAttempted.length + ' plugin(s) reinstalled successfully =====\n');
                     if (failed.length) {
@@ -1176,9 +1576,19 @@
                         BatchQueueLog('Skipped (no plugin info, left installed): ' +
                             reinstallSkipped.join(', ') + '\n');
                     }
+                    if (reinstallHeldBack.length) {
+                        BatchQueueLog('Left installed as they were (could not be checked): ' +
+                            reinstallHeldBack.join(', ') + '\n');
+                    }
+                    if (reinstallDeclined.length) {
+                        BatchQueueLog('Removed (privacy disclosure not accepted): ' +
+                            reinstallDeclined.join(', ') + '\n');
+                    }
                     BatchQueueLog('Reload the page to refresh the plugin list.\n');
                     if (failed.length)
                         $.jGrowl(failed.length + ' plugin(s) failed to reinstall', { themeState: 'danger' });
+                    else if (reinstallHeldBack.length || reinstallDeclined.length)
+                        $.jGrowl(ok + ' plugin(s) reinstalled' + held, { themeState: 'warn' });
                     else
                         $.jGrowl('All ' + ok + ' plugin(s) reinstalled successfully', { themeState: 'success' });
                     ProgressDialogDone('pluginsProgressPopupText');

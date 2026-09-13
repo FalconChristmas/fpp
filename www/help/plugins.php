@@ -37,11 +37,19 @@
 <p>Click a card to see its lights and full disclosure without installing anything. Use it to see what an
     installed plugin says about itself, or to compare plugins before choosing one.</p>
 
-<h4>Updates</h4>
+<h4>Updates and reinstalls</h4>
 <p>When a plugin update changes its disclosure, FPP shows you the new one before updating and asks you
-    to accept it. <b>Update All</b> leaves those plugins alone and tells you which ones to update from their
-    own <b>Update</b> button, so you see the change first. A change only to the author's summary or notes,
-    with the rest of the disclosure the same, is updated without asking.</p>
+    to accept it. <b>Update All</b> asks the same question for each such plugin before any update runs;
+    the others go straight through. Cancel skips that plugin and leaves it at its current version. A change
+    only to the author's summary or notes, with the rest of the disclosure the same, is updated without
+    asking.</p>
+<p><b>Reinstall</b> asks the same question, because a reinstall fetches the plugin's current code: accept
+    and reinstall, uninstall instead, or cancel and leave the plugin as it is. After an FPP OS upgrade the
+    plugin no longer works as it is, so until it has been reinstalled the choice is only accept or uninstall.
+    <b>Reinstall All</b> asks about each changed plugin in turn before anything is removed, with those two
+    choices.
+    A plugin installed before FPP kept a record of accepted disclosures is asked about once. A plugin that
+    cannot be checked, for example because the player is offline, is left as it is.</p>
 
 <h4>Other buttons on a card</h4>
 <ul>
