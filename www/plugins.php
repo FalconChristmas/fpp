@@ -473,7 +473,7 @@
         // UpdateAllFinish's post-upgrade recheck: POSTs api/plugin/<name>/updates
         // for every plugin in pluginList in parallel, and calls onComplete once
         // every request has settled (success or error). onResult(plugin, hasUpdate)
-        // fires per successful check so callers can drive their own row UI;
+        // fires per successful check (Status OK) so callers can drive their own row UI;
         // onComplete(withUpdates, anyError) fires once with the aggregate result.
         function CheckPluginsForUpdates(pluginList, onResult, onComplete) {
             var checked = 0;
@@ -490,8 +490,15 @@
                     type: 'POST',
                     dataType: 'json',
                     success: function (data) {
-                        var hasUpdate = (data.Status == 'OK' && data.updatesAvailable);
-                        if (data.Status == 'OK') pluginPrivacyChanged[plugin] = !!data.privacyChanged;
+                        // A failed fetch comes back as Status:Error with HTTP 200;
+                        // that is an error for onResult's purposes too (Reinstall
+                        // relies on "no result" meaning "not checked").
+                        if (data.Status != 'OK') {
+                            anyError = true;
+                            return;
+                        }
+                        var hasUpdate = !!data.updatesAvailable;
+                        pluginPrivacyChanged[plugin] = !!data.privacyChanged;
                         if (hasUpdate) withUpdates.push(plugin);
                         onResult(plugin, hasUpdate);
                     },
@@ -636,18 +643,21 @@
                 if (hasUpdate) {
                     RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
                 }
-            }, function (withUpdates) {
-                UpdateAllChecksDone(withUpdates);
+            }, function (withUpdates, anyError) {
+                UpdateAllChecksDone(withUpdates, anyError);
             });
         }
 
-        function UpdateAllChecksDone(withUpdates) {
+        function UpdateAllChecksDone(withUpdates, anyError) {
             $('html,body').css('cursor', 'auto');
             $('#updateAllBtn').prop('disabled', false);
             SetCheckForUpdatesBusy(false);
             FilterPlugins();
             if (withUpdates.length === 0) {
-                $.jGrowl('All plugins are up to date', { themeState: 'success' });
+                if (anyError)
+                    $.jGrowl('Could not check every plugin for updates (is the player online?)', { themeState: 'warn' });
+                else
+                    $.jGrowl('All plugins are up to date', { themeState: 'success' });
                 return;
             }
             // A plugin whose privacy declaration changed needs its own dialog
