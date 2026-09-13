@@ -1059,11 +1059,9 @@
 
         function ReinstallAllPlugins() {
             if (installedPlugins.length === 0) {
+                // Nothing to reinstall; the server cleared the post-FPPOS flag
+                // on page load (PluginReinstallPendingSync) if it was set.
                 $.jGrowl('No plugins installed', { themeState: 'detract' });
-                // Nothing to reinstall, so clear the post-FPPOS-upgrade flag --
-                // otherwise a box with no plugins keeps nagging forever since
-                // this early-return path never reaches ReinstallFinish().
-                SetSetting('pluginReinstallNeededAfterOS', '', 0, 0, true);
                 return;
             }
             RunReinstall(installedPlugins.slice(), 'Reinstall All Plugins');
@@ -1150,13 +1148,11 @@
                     installedPlugins = data;
                     var failed = reinstallAttempted.filter(function (r) { return data.indexOf(r) < 0; });
                     var ok = reinstallAttempted.length - failed.length;
-                    // A clean reinstall clears the post-FPPOS-upgrade flag; fppd
-                    // is watching the settings file and will drop the associated
-                    // "plugins must be reinstalled" warning. Leave it set if any
-                    // plugin failed so the prompt persists for a retry.
-                    if (failed.length === 0) {
-                        SetSetting('pluginReinstallNeededAfterOS', '', 0, 0, true);
-                    }
+                    // The post-FPPOS-upgrade flag is the server's: each plugin
+                    // drops off it as it is reinstalled or uninstalled
+                    // (PluginReinstallPendingSync), and fppd drops its warning
+                    // when the list is empty. A plugin that was not reinstalled
+                    // is still on it, so the prompt persists for a retry.
                     SetProgressDialogStatus('pluginsProgressPopup',
                         failed.length ? (label + ' — ' + failed.length + ' failed, ' + ok + ' of ' + reinstallAttempted.length + ' ok')
                                       : (label + ' — complete (' + ok + ' of ' + reinstallAttempted.length + ')'));
@@ -1186,10 +1182,8 @@
 
         function ShowReinstallAllPluginsPopup() {
             if (installedPlugins.length === 0) {
+                // The server cleared the post-FPPOS flag on page load if it was set.
                 $.jGrowl('No plugins installed', { themeState: 'detract' });
-                // Nothing to reinstall, so clear the post-FPPOS-upgrade flag --
-                // otherwise a box with no plugins keeps nagging forever.
-                SetSetting('pluginReinstallNeededAfterOS', '', 0, 0, true);
                 return;
             }
             DoModalDialog({
@@ -1238,9 +1232,7 @@
         // The post-FPPOS-upgrade warning's Fix button links here with
         // ?action=reinstallAll; pop the Reinstall All confirmation automatically.
         // Gated on the pluginReinstallNeededAfterOS setting (still set only while a
-        // reinstall is actually needed): a successful Reinstall All clears it, so
-        // the location.reload() the progress dialog performs on close will NOT
-        // re-open the confirmation. Also guarded to at most once per page load.
+        // reinstall is actually needed) and guarded to at most once per page load.
         var autoReinstallHandled = false;
         function MaybeAutoOpenReinstallAll() {
             if (autoReinstallHandled)
@@ -1248,6 +1240,12 @@
             var params = new URLSearchParams(window.location.search);
             if (params.get('action') === 'reinstallAll' && settings['pluginReinstallNeededAfterOS']) {
                 autoReinstallHandled = true;
+                // Drop the parameter from the address: the progress dialog's
+                // Close reloads the page, and when a plugin was left as it
+                // was (its check failed) the flag stays set, so the confirm
+                // would otherwise pop again and redo every plugin.
+                params.delete('action');
+                history.replaceState(null, '', window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash);
                 ShowReinstallAllPluginsPopup();
             }
         }

@@ -694,6 +694,50 @@ function CleanupPartialPluginInstall($plugin, $linkName = null)
 	exec($SUDO . " rm -rf " . escapeshellarg($settings['pluginDirectory'] . '/' . $plugin));
 }
 
+// Installed plugin directory names (those with a pluginInfo.json).
+function InstalledPluginNames()
+{
+	global $settings;
+	$plugins = array();
+	$dir = $settings['pluginDirectory'];
+	if ($dh = opendir($dir)) {
+		while (($file = readdir($dh)) !== false) {
+			if (!in_array($file, array('.', '..')) && is_dir($dir . '/' . $file) && file_exists($dir . '/' . $file . '/pluginInfo.json')) {
+				$plugins[] = $file;
+			}
+		}
+		closedir($dh);
+	}
+	sort($plugins);
+	return $plugins;
+}
+
+// The post-FPPOS-upgrade flag doubles as the list of plugins still to be
+// reinstalled. Boot sets pluginReinstallNeededAfterOS to "1" (src/boot/
+// FPPINIT_Config.cpp); the first sync here turns that into the names of
+// every plugin installed at that moment, and each plugin drops off the list
+// as it is reinstalled or uninstalled ($done). When the list is empty the
+// setting is cleared, which is what fppd watches to drop its warning -- it
+// only ever tests the value for non-empty, so the list form changes nothing
+// there. A single Reinstall of one plugin therefore no longer clears the
+// warning while others are still stale.
+function PluginReinstallPendingSync($done = null)
+{
+	$v = trim((string) ReadSettingFromFile('pluginReinstallNeededAfterOS'));
+	if ($v === '') {
+		return;
+	}
+	$installed = InstalledPluginNames();
+	$pending = ($v === '1') ? $installed : array_filter(array_map('trim', explode(',', $v)));
+	$pending = array_values(array_filter($pending, function ($p) use ($installed, $done) {
+		return $p !== $done && in_array($p, $installed);
+	}));
+	$new = implode(',', $pending);
+	if ($new !== $v) {
+		WriteSettingToFile('pluginReinstallNeededAfterOS', $new);
+	}
+}
+
 /**
  * Get all plugins
  *
@@ -707,24 +751,9 @@ function CleanupPartialPluginInstall($plugin, $linkName = null)
  */
 function GetInstalledPlugins()
 {
-	global $settings;
-	$plugins = array();
-
-	$dir = $settings['pluginDirectory'];
-
-	if ($dh = opendir($dir)) {
-		while (($file = readdir($dh)) !== false) {
-			if (
-				(!in_array($file, array('.', '..'))) &&
-				(is_dir($dir . '/' . $file)) &&
-				(file_exists($dir . '/' . $file . '/pluginInfo.json'))
-			) {
-				array_push($plugins, $file);
-			}
-		}
-	}
-
-	return json($plugins);
+	// Page load: seed or prune the post-FPPOS reinstall list (see above).
+	PluginReinstallPendingSync();
+	return json(InstalledPluginNames());
 }
 
 /**
@@ -1035,6 +1064,8 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0)
 	// $pluginInfo is the posted body, not the clone's own copy -- so that is
 	// what the upgrade path diffs against (see PluginPrivacyChanged()).
 	RecordPluginPrivacyAccepted($repoName, PluginPrivacyBlock($pluginInfo), $sha);
+	// Freshly built on this OS: no longer waiting for a post-FPPOS reinstall.
+	PluginReinstallPendingSync($repoName);
 	return true;
 }
 
@@ -1632,6 +1663,7 @@ function UninstallPlugin()
 
 		if ($return_val == 0) {
 			ForgetPluginPrivacyAccepted($plugin);
+			PluginReinstallPendingSync($plugin);
 			if (isset($stream) && $stream != "false") {
 				if (!$unloaded['ok']) {
 					return "\nUninstalled, but fppd still has it loaded (" . $unloaded['message'] . ") - restart FPPD to finish.\nDone\n";
@@ -1764,9 +1796,15 @@ function UpgradePlugin()
 	if (isset($stream) && $stream != "false") {
 		DisableOutputBuffering();
 		system($cmd, $return_val);
+		if ($return_val == 0) {
+			PluginReinstallPendingSync($plugin); // rebuilt on this OS
+		}
 		return "\nDone\n";
 	}
 	exec($cmd, $output, $return_val);
+	if ($return_val == 0) {
+		PluginReinstallPendingSync($plugin); // rebuilt on this OS
+	}
 
 	// upgrade_plugin's exit code says which phase failed: 1 = the code was
 	// not updated (pull and its reset fallback failed, or still behind

@@ -426,9 +426,11 @@ void PluginManager::loadUserPlugins() {
         LogWarn(VB_PLUGIN, "Couldn't open the directory %s: (%d): %s\n", FPP_DIR_PLUGIN("").c_str(), errno, FPPstrerror(errno));
     }
 
-    // After an FPPOS reflash the boot code sets pluginReinstallNeededAfterOS if
-    // plugins were present; surface the reinstall prompt, and keep it in sync if
-    // the flag is cleared (by a successful Reinstall All) while fppd is running.
+    // After an FPPOS reflash the boot code sets pluginReinstallNeededAfterOS to
+    // "1" if plugins were present. The Plugin Manager turns that into the list
+    // of plugins still to reinstall and clears it once every one has been
+    // reinstalled or uninstalled; only non-empty matters here. Surface the
+    // reinstall prompt, and keep it in sync while fppd is running.
     static bool reinstallListenerRegistered = false;
     if (!reinstallListenerRegistered) {
         reinstallListenerRegistered = true;
