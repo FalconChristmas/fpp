@@ -6865,6 +6865,30 @@
         }
       }
     },
+    "/api/plugin/updatesAvailable": {
+      "get": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Aggregate check: does any installed plugin have an update available?",
+        "description": "Backed by a TTL cache (same shape/location convention as PluginGitHubStatsCacheFile()) so the navbar plugin-update icon can poll this on every page load for free almost always. PluginHasUpdates() itself is cheap (git log against already-fetched remote-tracking refs, no network) but only as fresh as the last `git fetch` for that plugin. This endpoint is what keeps those refs from going stale on their own: for any plugin whose cache entry is older than PLUGIN_UPDATES_CACHE_TTL, it runs one `git fetch` (the same network op CheckForPluginUpdates() does per-plugin) before recomputing the flag. Deliberately caps live refreshes to PLUGIN_UPDATES_MAX_REFRESH_PER_CALL per call -- unlike the GitHub stats cache (one HTTP call per miss), a stale plugin here costs a full `git fetch` subprocess, and every installed plugin can go stale at the same time (e.g. right after install, or after 6h idle). Refreshing all of them inline would make whichever page load hits that moment pay for every plugin's fetch serially. Capping to one spreads the refresh across subsequent polls instead, the same \"quiet, one at a time\" approach the Updates tab's own background pass already uses for this exact reason (see CheckPluginsForUpdates()'s comment above).",
+        "responses": {
+          "200": {
+            "description": "Aggregate update-available flag",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "updatesAvailable": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/plugin/{RepoName}": {
       "parameters": [
         {

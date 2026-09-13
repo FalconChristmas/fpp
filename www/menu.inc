@@ -93,6 +93,11 @@ function list_plugin_entries($menu)
                     <i class="fa-solid fa-download" id="navbarUpdateAvailIcon"></i>
                 </a>
             </div>
+            <div id="navbarPluginUpdateAvail">
+                &nbsp;<a href="plugins.php?tab=updates" role="button">
+                    <i class="fa-solid fa-puzzle-piece" id="navbarPluginUpdateAvailIcon" title="Plugin updates available"></i>
+                </a>
+            </div>
         </div>
 
     </div>
@@ -531,4 +536,5 @@ function list_plugin_entries($menu)
                     checkForFppUpdate();
                 }
             }, 500);
+            setTimeout(checkForPluginUpdates, 700); // staggered behind the FPP update check above
         </script>
