@@ -463,9 +463,9 @@ function list_plugin_entries($menu)
                         </li>
 
                         <li class="nav-item dropdown <? echo $activeParentMenuItem == 'help' ? 'active' : ''; ?>">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLinkHelp" role="button"
+                            <li class="nav-item dropdown <? echo $activeParentMenuItem == 'help' ? 'active' : ''; ?>">
                                 data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                Help
+                                <?= $pageHasHelp ? '<i class="fas fa-question-circle text-primary"></i> ' : '' ?>Help
                             </a>
                             <div class="dropdown-menu dropdown-with-icons dropdown-menu-end"
                                 aria-labelledby="navbarDropdownMenuLinkHelp">
