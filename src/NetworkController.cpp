@@ -666,8 +666,36 @@ void NetworkController::DetectHinksPixController(Detection* st) {
     typeStr = "HinksPix";
     systemMode = BRIDGE_MODE;
 
-    DumpControllerInfo();
-    st->matched();
+    // The status page renders its firmware info via JS/AJAX, so it never
+    // shows up in the initial HTML fetch above. xLights identifies these
+    // controllers via the same endpoint (src-core/controllers/HinksPix.cpp):
+    // each of MCPU/PCPU/ECPU/WEB is a 3-char prefix ("MS_"/"PS_"/"EZ_"/"WF_")
+    // followed by a bare build number, not a dotted version -- so majorVersion
+    // is that build number directly and there is no separate minor version.
+    st->fetch(buildHttpURL(st->ip, "/XLights_BoardInfo.cgi"), [this, st](bool ok, const std::string& resp) {
+        Json::Value v;
+        if (ok && LoadJsonFromString(resp, v, JsonRoot::Object) && JsonHas(v, "MCPU")) {
+            auto stripPrefix = [](const std::string& s) {
+                return s.size() > 3 ? s.substr(3) : s;
+            };
+            std::string mcpu = stripPrefix(v["MCPU"].asString());
+            majorVersion = atoi(mcpu.c_str());
+
+            version = "MAIN:" + mcpu;
+            if (JsonHas(v, "PCPU")) {
+                version += ",POWER:" + stripPrefix(v["PCPU"].asString());
+            }
+            if (JsonHas(v, "ECPU")) {
+                version += ",WIFI:" + stripPrefix(v["ECPU"].asString());
+            }
+            if (JsonHas(v, "WEB")) {
+                version += ",WEB:" + stripPrefix(v["WEB"].asString());
+            }
+        }
+
+        DumpControllerInfo();
+        st->matched();
+    });
 }
 
 void NetworkController::DetectDIYLEDExpressController(Detection* st) {

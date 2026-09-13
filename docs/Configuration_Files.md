@@ -55,8 +55,10 @@ startTimeOffset - Start Time Offset, Used mostly with Dawn/Dusk Timing
 endTime         - Schedule End Time
 endTimeOffset   - Schedule End Offset, Used mostly with Dawn/Dusk Timing
 repeat          - 0 or 1 to repeat playlist during the scheduled time slot
-startDate       - Schedule Start Date
-endDate         - Schedule End Date
+startDate       - Schedule Start Date (YYYY-MM-DD or a holiday shortName such as "Thanksgiving")
+startDateOffset - Days added to startDate when it is a holiday name (negative = before)
+endDate         - Schedule End Date (YYYY-MM-DD or a holiday shortName)
+endDateOffset   - Days added to endDate when it is a holiday name (negative = before)
 stopType        - 0 - Graceful, Play until End of Sequence
 1 - Hard Start, Stop immediately.
 2 - Graceful Loop, Play through All Playlist Sequences, then stop.
@@ -76,7 +78,9 @@ stopType        - 0 - Graceful, Play until End of Sequence
         "endTimeOffset": 0,
         "repeat": 1,
         "startDate": "2020-12-31",
+        "startDateOffset": 0,
         "endDate": "2020-12-31",
+        "endDateOffset": 0,
         "stopType": 0
     }
 ]

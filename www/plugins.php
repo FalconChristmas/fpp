@@ -22,6 +22,9 @@
 
     include 'common/menuHead.inc';
     ?>
+    <!-- The privacy lights: colour rules and markup for the six chips, kept in
+         their own file so the rule table can be read on its own. -->
+    <script src="js/fpp-privacy-lights.js?ref=<?= filemtime('js/fpp-privacy-lights.js'); ?>"></script>
     <script>
         var installedPlugins = [];
         var pluginInfos = [];
@@ -111,6 +114,66 @@
         // don't need to know the fields moved off the versions[] entry.
         function PluginResourceVerdict(data) {
             return EvalPluginResources(data);
+        }
+
+        // --- Plugin privacy lights ---
+        // The six chips (Sends data, Collects data, Camera & mic, Remote access,
+        // System changes, Can it be checked?) come from the plugin's own `privacy`
+        // block, coloured by FPP per the table in js/fpp-privacy-lights.js. Every
+        // install dialog shows them, every card carries them as dots, and the
+        // detail and privacy modals show them in full. A plugin loaded from a
+        // pasted URL was never checked against its code for listing; its label
+        // line says so.
+        var pluginPrivacyChanged = {};   // repoName -> true once an update check said the disclosure changed
+
+        function PluginPrivacyResult(data) {
+            return FPPPluginPrivacy.evaluate(data ? data.privacy : null,
+                { unreviewed: !!(data && manuallyLoadedPlugins[data.repoName]) });
+        }
+
+        // Card action row: the six lights as dots, in the trailing ms-auto cluster
+        // with the GitHub stats badge (same placement as GitHubStatsRowHtml).
+        // Clicking the card opens the detail modal with the lights in full.
+        function PrivacyRowHtml(data) {
+            return '<span class="ms-auto d-inline-flex align-items-center small">' +
+                FPPPluginPrivacy.stripHtml(PluginPrivacyResult(data), { compact: true }) + '</span>';
+        }
+
+        // Label line + headline + strip + lines + the author's summary and the
+        // full declaration. Shared by the install dialog, the upgrade dialog and
+        // the detail modal. Wording per fpp-plugin-Template PLUGIN_GUIDELINES.md §14.15.
+        function PrivacyBlockHtml(r, prefix) {
+            var h = r.declared
+                ? '<div class="small text-secondary mt-3 mb-1"><span class="fw-bold text-uppercase">Disclosed by the author</span> &middot; not verified by FPP</div>'
+                : '<div class="small text-secondary mt-3 mb-1"><span class="fw-bold text-uppercase">No disclosure</span> &middot; the author has not said what this plugin does with data</div>';
+            if (r.unreviewed && r.declared)
+                h += '<div class="small text-secondary mb-1">Loaded from a URL, not from the plugin list: this disclosure was not reviewed for the plugin list.</div>';
+            h += FPPPluginPrivacy.headlineHtml(r);
+            h += FPPPluginPrivacy.stripHtml(r, { prefix: prefix });
+            h += FPPPluginPrivacy.detailsHtml(r);
+            return h;
+        }
+
+        // The callout no declaration can change. Official (FalconChristmas org)
+        // plugins get the same slot with a quieter message; everything else gets
+        // the danger colour and the plugin's verifiable source owner by name.
+        // Bootstrap subtle/emphasis tokens rather than .alert-danger: FPP's
+        // Bootstrap build repaints .alert-danger solid red with white text
+        // (fpp-bootstrap-5-3.css), which the author link cannot sit on.
+        function PluginTrustHtml(data) {
+            if (data && IsOfficialPlugin(data))
+                return '<div class="d-flex gap-2 align-items-start p-2 mb-2 rounded border bg-success-subtle border-success-subtle text-success-emphasis"><i class="fas fa-circle-check mt-1"></i><div>' +
+                    '<p class="fw-bold mb-1">Maintained by the FPP project &mdash; but it still runs as root.</p>' +
+                    '<p class="mb-0">It can read and change any setting, including the privacy settings, and reach anything else on the network FPP is connected to.</p></div></div>';
+            var author = PluginAuthorHtml(data) || EscapeHtml((data && data.author) ? data.author : 'the author');
+            return '<div class="d-flex gap-2 align-items-start p-2 mb-2 rounded border bg-danger-subtle border-danger-subtle text-danger-emphasis"><i class="fas fa-triangle-exclamation mt-1"></i><div>' +
+                '<p class="fw-bold mb-1">Warning: this plugin is untrusted third-party code that will run on your FPP as root.</p>' +
+                '<p class="mb-0">It can read and change any setting, including the privacy settings, reach anything else on the ' +
+                'network FPP is connected to, and do anything at all once installed &mdash; including things not listed below. ' +
+                'This is inherently dangerous. The FPP project does not test, vet, or guarantee the quality or safety of plugins. ' +
+                'Install at your own risk, and only if you trust <b>' + author + '</b>. Plugins marked ' +
+                '<span class="badge text-bg-graceful"><i class="fas fa-certificate"></i> Official</span> are maintained by the FPP team; this one is not.</p>' +
+                '</div></div>';
         }
 
         function PluginIsInstalled(plugin) {
@@ -367,6 +430,7 @@
                 success: function (data) {
                     $('html,body').css('cursor', 'auto');
                     if (data.Status == 'OK') {
+                        pluginPrivacyChanged[plugin] = !!data.privacyChanged;
                         if (data.updatesAvailable) {
                             RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
                             var $modal = $('#pluginDetailDialog');
@@ -427,6 +491,7 @@
                     dataType: 'json',
                     success: function (data) {
                         var hasUpdate = (data.Status == 'OK' && data.updatesAvailable);
+                        if (data.Status == 'OK') pluginPrivacyChanged[plugin] = !!data.privacyChanged;
                         if (hasUpdate) withUpdates.push(plugin);
                         onResult(plugin, hasUpdate);
                     },
@@ -487,6 +552,7 @@
                     dataType: 'json',
                     success: function (data) {
                         if (!sweep.cancelled && data.Status == 'OK') {
+                            pluginPrivacyChanged[plugin] = !!data.privacyChanged;
                             if (data.updatesAvailable)
                                 RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
                             else
@@ -584,23 +650,36 @@
                 $.jGrowl('All plugins are up to date', { themeState: 'success' });
                 return;
             }
+            // A plugin whose privacy declaration changed needs its own dialog
+            // (and the server refuses a blind upgrade of it anyway), so it is
+            // left out of the batch and named here.
+            var needsReview = withUpdates.filter(function (p) { return pluginPrivacyChanged[p]; });
+            var batch = withUpdates.filter(function (p) { return !pluginPrivacyChanged[p]; });
+            var body = '';
+            if (batch.length)
+                body += "Update the " + batch.length + " plugin(s) with an available update, one at a time?" +
+                    "<div class='small text-secondary mt-2'>" + EscapeHtml(batch.join(', ')) + "</div>";
+            if (needsReview.length)
+                body += "<div class='fpp-inline-warn mt-2'><i class='fas fa-shield-halved'></i><span>" +
+                    needsReview.length + " plugin(s) changed their privacy disclosure. Update " +
+                    (needsReview.length === 1 ? "it" : "each") + " from its own Update button to review the change first: " +
+                    "<b>" + EscapeHtml(needsReview.join(', ')) + "</b></span></div>";
+            var buttons = {};
+            if (batch.length) {
+                buttons["Update All"] = function () {
+                    CloseModalDialog("updateAllPluginsDialog");
+                    RunUpdateAll(batch);
+                };
+            }
+            buttons["Abort"] = function () { CloseModalDialog("updateAllPluginsDialog"); };
             DoModalDialog({
                 id: "updateAllPluginsDialog",
                 class: "modal-lg",
                 title: "Update All Plugins",
-                body: "Update the " + withUpdates.length + " plugin(s) with an available update, one at a time?" +
-                    "<div class='small text-secondary mt-2'>" + withUpdates.join(', ') + "</div>",
+                body: body,
                 backdrop: true,
                 keyboard: true,
-                buttons: {
-                    "Update All": function () {
-                        CloseModalDialog("updateAllPluginsDialog");
-                        RunUpdateAll(withUpdates);
-                    },
-                    Abort: function () {
-                        CloseModalDialog("updateAllPluginsDialog");
-                    }
-                }
+                buttons: buttons
             });
         }
 
@@ -700,10 +779,65 @@
             });
         }
 
+        // Ask the server whether the incoming declaration differs from the one
+        // accepted at install (sends, collects, sensors, remoteAccess,
+        // systemChanges or closedCode); if so, the install dialog comes back with
+        // the NEW block and the upgrade POSTs it as accepted. The server refuses an upgrade that
+        // skips this, so a failed status query falls through to a plain attempt
+        // rather than silently proceeding.
         function UpgradePlugin(plugin) {
+            $.ajax({
+                url: 'api/plugin/' + plugin + '/privacy',
+                dataType: 'json',
+                success: function (st) {
+                    if (st && st.Status === 'OK' && st.changed) {
+                        ConfirmAndUpgrade(plugin, st.pending);
+                    } else {
+                        RunUpgradePlugin(plugin, null);
+                    }
+                },
+                error: function () { RunUpgradePlugin(plugin, null); }
+            });
+        }
+
+        function RunUpgradePlugin(plugin, acceptedPrivacy) {
             var url = 'api/plugin/' + plugin + '/upgrade?stream=true';
             DisplayProgressDialog("pluginsProgressPopup", "Upgrade Plugin");
-            StreamURL(url, 'pluginsProgressPopupText', 'ProgressDialogDone', 'ProgressDialogDone');
+            if (acceptedPrivacy !== null) {
+                StreamURL(url, 'pluginsProgressPopupText', 'ProgressDialogDone', 'ProgressDialogDone',
+                    'POST', JSON.stringify({ privacyAccepted: acceptedPrivacy }), 'application/json');
+            } else {
+                StreamURL(url, 'pluginsProgressPopupText', 'ProgressDialogDone', 'ProgressDialogDone');
+            }
+        }
+
+        function ConfirmAndUpgrade(plugin, pending) {
+            var i = FindPluginInfo(plugin);
+            var data = (i >= 0) ? $.extend({}, pluginInfos[i]) : { repoName: plugin, name: plugin };
+            data.privacy = pending;
+            var r = PluginPrivacyResult(data);
+            var body = '<div class="fpp-inline-warn mb-2"><i class="fas fa-shield-halved"></i><span>This update changes what ' +
+                '<b>' + EscapeHtml(data.name || plugin) + '</b> discloses about privacy. What follows is the author\'s new disclosure.</span></div>';
+            body += PluginTrustHtml(data);
+            body += PrivacyBlockHtml(r, 'up');
+            if (IsSafeHttpUrl(data.srcURL)) body += '<div class="small text-secondary mt-2"><i class="fas fa-code"></i> Source: ' +
+                '<a href="' + EscapeAttr(data.srcURL) + '" target="_blank" rel="noopener noreferrer">' + EscapeHtml(data.srcURL) + '</a></div>';
+            var buttons = {};
+            buttons['Accept changes and upgrade'] = function () {
+                CloseModalDialog("confirmUpgradeDialog");
+                RunUpgradePlugin(plugin, pending === undefined ? null : pending);
+            };
+            buttons['Cancel'] = function () { CloseModalDialog("confirmUpgradeDialog"); };
+            DoModalDialog({
+                id: "confirmUpgradeDialog",
+                class: "modal-lg",
+                title: "This update changes the privacy disclosure of " + EscapeHtml(data.name || plugin),
+                body: body,
+                backdrop: true,
+                keyboard: true,
+                buttons: buttons
+            });
+            FPPPluginPrivacy.bind('confirmUpgradeDialog');
         }
 
         function InstallPlugin(plugin, branch, sha) {
@@ -729,11 +863,12 @@
             StreamURL(url, 'pluginsProgressPopupText', 'ProgressDialogDone', 'ProgressDialogDone', 'POST', postData, 'application/json');
         }
 
-        // Gate before InstallPlugin: Official plugins (FalconChristmas org)
-        // install directly; third-party/community plugins pop a confirmation first
-        // so the user acknowledges they are installing code from outside the FPP
-        // project, which runs with full access to their system. Applies at all UI
-        // levels and to every install entry point (cards, popular strip, modal).
+        // Gate before InstallPlugin, on every install entry point (cards, popular
+        // strip, detail modal) at every UI level. EVERY install shows the dialog,
+        // official plugins included: the trust callout at the top is the one fact
+        // no declaration can change, and under it are the six privacy lights FPP
+        // computes from the plugin's own declaration. The URL-paste developer
+        // warning and the RAM/CPU warning are unchanged and sit above both.
         function ConfirmAndInstall(plugin, branch, sha) {
             var i = FindPluginInfo(plugin);
             var data = (i >= 0) ? pluginInfos[i] : null;
@@ -747,16 +882,9 @@
             // Pasting a plugininfo.json URL is a developer workflow (testing a plugin
             // mid-development, often from a branch/fork that isn't in the plugin list at
             // all yet) -- not a general install path. Shown regardless of the
-            // resolved plugin's official/third-party status, and forces a
-            // confirmation dialog even for an Official-org plugin that would
-            // otherwise auto-install below.
+            // resolved plugin's official/third-party status.
             var devWarn = '';
             if (manuallyLoadedPlugins[plugin])
-                // Standalone warning for the URL-paste path: when this fires on a
-                // non-official plugin it REPLACES the third-party warning below rather
-                // than stacking with it (see the non-official branch), so it needs to
-                // cover the device/network-access risk on its own, not just point at
-                // who should be using this install method.
                 devWarn = '<div class="fpp-major-callout mb-2"><i class="fas fa-user-gear"></i>' +
                     '<span>Installing a plugin from a URL is intended for <b>plugin developers</b> ' +
                     'testing their own plugin while developing it. It runs <b>whatever code is found at that ' +
@@ -765,68 +893,40 @@
                     'network FPP is connected to</b>. This is inherently dangerous. If you are not a developer, we recommend ' +
                     'you <b>do not</b> install this ' +
                     'plugin.</span></div>';
-            if (data && IsOfficialPlugin(data)) {
-                // Official plugins install directly unless they exceed device resources
-                // or were loaded via the developer URL-paste path.
-                if (!resWarn && !devWarn) {
-                    InstallPlugin(plugin, branch, sha);
-                    return;
-                }
-                DoModalDialog({
-                    id: "confirmInstallDialog",
-                    class: "modal-lg",
-                    title: "Install this plugin?",
-                    body: devWarn + resWarn,
-                    backdrop: true,
-                    keyboard: true,
-                    buttons: {
-                        "Install anyway": function () {
-                            CloseModalDialog("confirmInstallDialog");
-                            InstallPlugin(plugin, branch, sha);
-                        },
-                        Cancel: function () {
-                            CloseModalDialog("confirmInstallDialog");
-                        }
-                    }
-                });
-                return;
-            }
-            var name = (data && data.name) ? data.name : plugin;
+            var official = !!(data && IsOfficialPlugin(data));
             var src = (data && data.srcURL) ? data.srcURL : '';
             var body = devWarn + resWarn;
-            // devWarn already covers the untrusted-code/device-and-network-access risk
-            // on its own (see its comment above) -- don't also stack this box on top of
-            // it and say the same thing twice.
-            if (!devWarn) {
-                body += '<div class="fpp-inline-warn mb-2"><i class="fas fa-exclamation-triangle"></i>' +
-                    '<span>Installing <b>' + EscapeHtml(name) + '</b> runs ' +
-                    '<b>third-party, untrusted code</b> on your FPP <b>as root</b>. It can read and change ' +
-                    'any setting, including the privacy settings, <b>and reach anything else on the ' +
-                    'network FPP is connected to</b>. This is inherently dangerous unless you ' +
-                    'trust the plugin\'s author. The FPP project <b>does not test, vet, or guarantee the quality or ' +
-                    'safety</b> of plugins &mdash; install at your own risk, and only from authors you trust. The ' +
-                    '<span class="badge text-bg-graceful"><i class="fas fa-certificate"></i> Official</span> badge marks ' +
-                    'plugins maintained by the FPP team (this plugin is not one of them).</span></div>';
-            }
-            if (IsSafeHttpUrl(src)) body += '<div class="small text-secondary"><i class="fas fa-code"></i> Source: ' +
+            body += PluginTrustHtml(data || { repoName: plugin, name: plugin });
+            var r = PluginPrivacyResult(data || { repoName: plugin });
+            body += PrivacyBlockHtml(r, 'ci');
+            if (IsSafeHttpUrl(src)) body += '<div class="small text-secondary mt-2"><i class="fas fa-code"></i> Source: ' +
                 '<a href="' + EscapeAttr(src) + '" target="_blank" rel="noopener noreferrer">' + EscapeHtml(src) + '</a></div>';
+            // Button text and colour from the worst finding in the declaration
+            // (guidelines §14.15: "Install", "Install anyway", "Install, black box
+            // included", ...). A pasted URL or a device that is too small still
+            // forces at least "Install anyway" in warning colour when the
+            // finding-based label would be plainer.
+            var btn = FPPPluginPrivacy.installButtonFor(r);
+            if ((devWarn || resWarn) && btn.text === 'Install') btn = { text: 'Install anyway', cls: 'btn-warning' };
+            var buttons = {};
+            buttons[btn.text] = {
+                class: btn.cls,
+                click: function () {
+                    CloseModalDialog("confirmInstallDialog");
+                    InstallPlugin(plugin, branch, sha);
+                }
+            };
+            buttons['Cancel'] = function () { CloseModalDialog("confirmInstallDialog"); };
             DoModalDialog({
                 id: "confirmInstallDialog",
                 class: "modal-lg",
-                title: "Install third-party plugin?",
+                title: official ? "Install this plugin?" : "Install third-party plugin?",
                 body: body,
                 backdrop: true,
                 keyboard: true,
-                buttons: {
-                    Install: function () {
-                        CloseModalDialog("confirmInstallDialog");
-                        InstallPlugin(plugin, branch, sha);
-                    },
-                    Cancel: function () {
-                        CloseModalDialog("confirmInstallDialog");
-                    }
-                }
+                buttons: buttons
             });
+            FPPPluginPrivacy.bind('confirmInstallDialog');
         }
 
         function UninstallPlugin(plugin) {
@@ -1705,6 +1805,10 @@
             if (IsSafeHttpUrl(data.srcURL) && !sameLink(data.srcURL, data.homeURL)) body += '<a href="' + EscapeAttr(data.srcURL) + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none"><i class="fas fa-code"></i> <span class="text-decoration-underline">View Source</span></a>';
             if (IsSafeHttpUrl(data.bugURL)) body += '<a href="' + EscapeAttr(data.bugURL) + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none"><i class="fas fa-bug"></i> <span class="text-decoration-underline">Report a Bug</span></a>';
             body += '</div>';
+            // The same privacy block the install dialog shows, so what a plugin
+            // declares is one tap away from its card at any time, not only at
+            // install. Lines open on tap here too.
+            body += PrivacyBlockHtml(PluginPrivacyResult(data), 'dt');
 
             var buttons = {};
             if (installed) {
@@ -1745,6 +1849,7 @@
             pluginDetailDialogRepo = repo;
 
             DoModalDialog({ id: 'pluginDetailDialog', class: 'modal-lg', title: titleIcon + EscapeHtml(data.name), body: body, backdrop: true, keyboard: true, footer: detailStats, buttons: buttons });
+            FPPPluginPrivacy.bind('pluginDetailDialog');
         }
 
         // Category name/icon for a plugin, validated against the loaded taxonomy so
@@ -1917,7 +2022,7 @@
             // closest() and stops there, same effect as the old inline
             // event.stopPropagation() without needing it on every button.
             html += '<div class="pluginCardActions d-flex flex-wrap gap-2 mt-2 align-items-center" data-plugin-action="none">' +
-                actions + GitHubStatsRowHtml(pluginGitHubRepos[data.repoName]) + '</div>';
+                actions + PrivacyRowHtml(data) + GitHubStatsRowHtml(pluginGitHubRepos[data.repoName]) + '</div>';
             html += '</div></div></div>';
 
             if (installed) {

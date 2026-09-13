@@ -3372,6 +3372,39 @@
         }
       }
     },
+    "/api/git/pullRequests": {
+      "get": {
+        "tags": [
+          "git"
+        ],
+        "summary": "Get open pull requests",
+        "description": "Returns open pull requests on FalconChristmas/fpp via GitHub API (proxied). Used by Developer settings when Git Remote is Pull Requests – branch dropdown shows #NUM - USER.",
+        "responses": {
+          "200": {
+            "description": "Open PR list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  {
+                    "number": 1842,
+                    "title": "Fix pixel overlay race",
+                    "user": "pixelpilot123",
+                    "headRef": "fix/overlay-race",
+                    "headRepo": "pixelpilot123/fpp",
+                    "headSha": "abc123",
+                    "htmlUrl": "https://github.com/FalconChristmas/fpp/pull/1842",
+                    "draft": false
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/git/originLog": {
       "get": {
         "tags": [
@@ -6957,6 +6990,48 @@
                   "url": "plugin.php?plugin=fpp-matrixtools&page=status.php",
                   "page": "status.php",
                   "found": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/plugin/{RepoName}/privacy": {
+      "parameters": [
+        {
+          "name": "RepoName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Privacy disclosure status for an installed plugin",
+        "description": "What the operator accepted at install, what the next upgrade would land (from the fetched upstream tip, else the listing, else the installed file), and whether the two differ in the keys that re-show the install dialog: the whole block minus `summary` and `other` (sends, collects, sensors, remoteAccess, systemChanges, closedCode); keys outside that list are ignored. Reads the already-fetched upstream tip; call `POST /plugin/{RepoName}/updates` first to fetch. An upgrade whose declaration changed is refused unless the request body carries `{\"privacyAccepted\": <the pending block>}`.",
+        "responses": {
+          "200": {
+            "description": "Privacy status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "changed": true,
+                  "recorded": false,
+                  "accepted": null,
+                  "pending": {
+                    "sends": [],
+                    "remoteAccess": "none"
+                  },
+                  "source": "upstream"
                 }
               }
             }

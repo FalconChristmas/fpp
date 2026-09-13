@@ -1716,12 +1716,13 @@
 			"name": "gitRemote",
 			"description": "Git Remote Repository",
 			"gatherStats": true,
-			"tip": "Select the git remote repository to use for branch selection. 'FPP Releases' is the main FPP repository, 'FPP New Feature Testing' is for new feature testing. 'GitHub User Fork' is for user forks if valid GitHub credentials containing a fork is detected.",
+			"tip": "Select the git remote repository to use for branch selection. 'FPP Releases' is the main FPP repository, 'FPP New Feature Testing' is for new feature testing. 'GitHub User Fork' is for user forks if valid GitHub credentials containing a fork is detected. 'Pull Requests' lists open pull requests on FalconChristmas/fpp; the branch dropdown then shows PRs by number and author.",
 			"default": "origin",
 			"type": "select",
 			"options": {
 				"FPP Releases": "origin",
-				"FPP New Feature Testing": "newfeatures"
+				"FPP New Feature Testing": "newfeatures",
+				"Pull Requests": "pull-requests"
 			},
 			"level": 3
 		},

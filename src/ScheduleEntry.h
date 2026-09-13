@@ -74,6 +74,7 @@ public:
     // and rolling forward to the next one once the date has passed.
     std::string DateFromLocaleHoliday(Json::Value& holiday, int refYear = 0);
     std::string CheckHoliday(std::string date, int refYear = 0);
+    std::string ResolveDate(const std::string& date, int offsetDays, int refYear = 0);
 
     int LoadFromJson(Json::Value& entry);
 
@@ -131,6 +132,8 @@ public:
 
     int startTimeOffset;
     int endTimeOffset;
+    int startDateOffset; // days, applied only when startDate is a holiday name
+    int endDateOffset;   // days, applied only when endDate is a holiday name
     std::string startTimeStr;
     std::string endTimeStr;
     std::string startDateStr;

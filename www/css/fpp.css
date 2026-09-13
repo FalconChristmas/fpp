@@ -1998,6 +1998,13 @@ table.fppStickyTheadTable thead.Zebra_Pin td {
 	background-color: var(--fpp-thead-bg) !important;
 }
 
+/* jQuery UI sets the datepicker z-index inline to (input z-index + 1), which
+   is ~1 for a table-cell input, so the popup slid under the floatThead clone
+   (zIndex 990 in fpp.js). Keep it above the sticky header but below modals. */
+.ui-datepicker {
+	z-index: 1000 !important;
+}
+
 .tblheader {
 	text-align: center;
 }
