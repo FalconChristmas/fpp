@@ -30,11 +30,41 @@ else ifneq ($(findstring arm,$(PI_TARGET_TRIPLE)),)
 else
     RF24_CCFLAGS := -Ofast
 endif
-RF24_CCFLAGS += -Wno-parentheses -Wno-unused-value -Wno-misleading-indentation
+RF24_CCFLAGS += -Wno-parentheses -Wno-unused-value -Wno-misleading-indentation -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
+
+# RF24 driver selection — SPIDEV is the upstream default (nRF24/RF24#971) and
+# fixes Pi5/RP1 + kernel 6.18 strict pinmux + /dev/mem issues. Keep soname
+# librf24-bcm.so forever for plugin ABI compat (may change later). The
+# FalconChristmas/RF24 fork is currently BCM-only (utility/SPIDEV missing);
+# when it gains SPIDEV support this will automatically use it. Override with
+# `make RF24_DRIVER=RPi` to force BCM for testing.
+RF24_DRIVER ?= SPIDEV
+# Detect whether the checked-out fork actually has SPIDEV sources
+ifneq (,$(wildcard ../external/RF24/utility/SPIDEV/spi.cpp))
+    RF24_HAS_SPIDEV := 1
+else
+    RF24_HAS_SPIDEV := 0
+endif
+ifeq ($(RF24_DRIVER),SPIDEV)
+    ifeq ($(RF24_HAS_SPIDEV),1)
+        RF24_ACTUAL_DRIVER := SPIDEV
+        RF24_CCFLAGS += -DFPP_SPIDEV
+        CXXFLAGS_channeloutput/SPInRF24L01.o += -DFPP_SPIDEV
+    else
+        $(warning RF24: SPIDEV requested but utility/SPIDEV missing in FalconChristmas/RF24 fork — falling back to RPi/BCM build. Sync fork with upstream nRF24/RF24 to enable SPIDEV.)
+        RF24_ACTUAL_DRIVER := RPi
+    endif
+else
+    RF24_ACTUAL_DRIVER := $(RF24_DRIVER)
+endif
 
 ../external/RF24/librf24-bcm.so: ../external/RF24/.git $(PCH_FILE)
-	@echo "Building RF24 library"
-	@CC="ccache gcc" CXX="ccache g++" $(MAKE) -C ../external/RF24/ CCFLAGS="$(RF24_CCFLAGS)"
+	@echo "Building RF24 library (driver: $(RF24_ACTUAL_DRIVER), requested: $(RF24_DRIVER))"
+	@if [ "$(RF24_ACTUAL_DRIVER)" = "SPIDEV" ]; then \
+		CC="ccache gcc" CXX="ccache g++" $(MAKE) -C ../external/RF24/ CCFLAGS="$(RF24_CCFLAGS)" DRIVER=SPIDEV LIB=librf24-bcm; \
+	else \
+		CC="ccache gcc" CXX="ccache g++" $(MAKE) -C ../external/RF24/ CCFLAGS="$(RF24_CCFLAGS)"; \
+	fi
 	@ln -sf librf24-bcm.so.1.0 ../external/RF24/librf24-bcm.so.1
 	@ln -sf librf24-bcm.so.1 ../external/RF24/librf24-bcm.so
 
