@@ -34,8 +34,9 @@
     that date a plugin without one is shown in red.</p>
 
 <h4>Checking a plugin without installing</h4>
-<p>Click a card to see its lights and full disclosure without installing anything. Use it to see what an
-    installed plugin says about itself, or to compare plugins before choosing one.</p>
+<p>Click a card to see its lights and the author's disclosure without installing anything. Use it to see
+    what an installed plugin says about itself, or to compare plugins before choosing one. In Developer UI
+    mode the disclosure as the author wrote it is also shown under <i>Full disclosure</i>.</p>
 
 <h4>Updates and reinstalls</h4>
 <p>When a plugin update changes its disclosure, FPP shows you the new one before updating and asks you
@@ -47,7 +48,8 @@
     and reinstall, uninstall instead, or cancel and leave the plugin as it is. After an FPP OS upgrade the
     plugin no longer works as it is, so until it has been reinstalled the choice is only accept or uninstall.
     <b>Reinstall All</b> asks about each changed plugin in turn before anything is removed, with those two
-    choices.
+    choices. When more than one plugin needs an answer, <b>Reinstall All</b> and <b>Update All</b> first show
+    a screen saying which plugins will be asked about, then one screen per plugin.
     A plugin installed before FPP kept a record of accepted disclosures is asked about once. A plugin that
     cannot be checked, for example because the player is offline, is left as it is.</p>
 

@@ -1135,7 +1135,9 @@
         // (ResolvePluginDependencies on the server): the listed plugins named
         // in dependencies.plugins, top-level and on the versions[] entry this
         // FPP would select, recursively, that are not installed. Each is
-        // returned once, in install order (dependencies before dependants).
+        // returned once as {repo, via} -- via being the plugin that named it,
+        // `plugin` itself for a direct dependency -- in the order the dialog
+        // lists them: direct dependencies first, then what they need.
         // A name the list does not know is skipped, as the server skips it.
         function DependencyPluginsToInstall(plugin) {
             var out = [];
@@ -1162,8 +1164,8 @@
                     seen[n] = true;
                     if (installedPlugins.indexOf(n) >= 0) return;
                     if (FindPluginInfo(n) < 0) return;
+                    out.push({ repo: n, via: repo });
                     walk(n, depth + 1);
-                    out.push(n);
                 });
             };
             walk(plugin, 0);
@@ -1248,13 +1250,18 @@
             // dependencyPrivacyAccepted so the server can record each one.
             var deps = data ? DependencyPluginsToInstall(plugin) : [];
             var depAccepted = {};
-            deps.forEach(function (dep, n) {
+            deps.forEach(function (d, n) {
+                var dep = d.repo;
                 var di = FindPluginInfo(dep);
                 var dinfo = pluginInfos[di];
                 depAccepted[dep] = dinfo.hasOwnProperty('privacy') ? dinfo.privacy : null;
                 var dr = PluginPrivacyResult(dinfo);
+                // Name the plugin that needs it when that is not the one
+                // being installed: a dependency of a dependency.
+                var vi = FindPluginInfo(d.via);
+                var viaName = (d.via === plugin) ? 'this one' : ((vi >= 0 && pluginInfos[vi].name) ? pluginInfos[vi].name : d.via);
                 body += '<hr><div class="fw-bold mb-2"><i class="fas fa-puzzle-piece"></i> Also installs <b>' + EscapeHtml(dinfo.name || dep) + '</b>' +
-                    ' <span class="fw-normal text-secondary">(a plugin this one depends on)</span></div>';
+                    ' <span class="fw-normal text-secondary">(a plugin ' + EscapeHtml(viaName) + ' depends on)</span></div>';
                 body += PluginTrustHtml(dinfo);
                 body += PrivacyBlockHtml(dr, 'cd' + n);
                 if (IsSafeHttpUrl(dinfo.srcURL)) body += '<div class="small text-secondary mt-2"><i class="fas fa-code"></i> Source: ' +
