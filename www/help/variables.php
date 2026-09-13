@@ -4,25 +4,25 @@
 
 <h4>Search and sorting</h4>
 <ul>
-    <li><b>Search variables</b> (text, top) — Instant, case-insensitive substring filter on <b>Name</b> across all three tables. Typed text highlights matches; when nothing matches a “No matches for …” row appears. The filter is reapplied after each 3-second auto-refresh so it survives updates.</li>
-    <li><b>Sortable headers</b> — Click <b>Name</b>, <b>Value</b> or <b>Last Updated</b> in any table to sort that table. Click again to toggle ascending ↔ descending. The arrow (▲/▼) shows the active column and direction. Sorting is numeric-aware (“2” before “10”) and otherwise alphabetical.</li>
-    <li><b>Responsive layout</b> — On narrow screens (&lt;768 px) the <b>Value</b> column is hidden and an eye icon is forced on every row — tap the eye to view the full value. On very wide screens (≥1800 px) Name and Value columns expand to 700 px. Truncation limits adapt to the breakpoint: mobile shows 22 topic chars, normal shows 44 value / 42 name chars, wide shows 80/78.</li>
+    <li><b>Search variables</b> — Type part of a name to filter all three tables as you type (case doesn’t matter). The filter stays applied while the tables refresh.</li>
+    <li><b>Sortable headers</b> — Click <b>Name</b>, <b>Value</b> or <b>Last Updated</b> to sort that table; click again to reverse. The arrow shows the current column and direction. Numbers sort as numbers (“2” before “10”).</li>
+    <li><b>Responsive layout</b> — Name and Value share the width the screen has to offer; text that doesn’t fit is shortened with <code>…</code> rather than wrapped, so each row stays one line. On phones the <b>Value</b> column is hidden and the eye icon appears on every row — tap it to view the value.</li>
 </ul>
 
 <h4>User Variables</h4>
-<p>Values you create yourself via the <b>Set Variable</b> command (triggered directly, from a GPIO input, scheduler entry, the <code>api/variables</code> API, or a <a href="recurringtasks.php">Recurring Task</a>). Table columns, left to right:</p>
+<p>Values you set yourself with the <b>Set Variable</b> command — run directly, from a GPIO input, a scheduler entry, the API, or a <a href="recurringtasks.php">Recurring Task</a>. Columns, left to right:</p>
 <ul>
-    <li><b>Name</b> (fixed 380/700 px, <code>text-nowrap</code>, overflow hidden) — Rendered as <code>code</code>; long names are tail-truncated with a leading <code>…</code> keeping the meaningful tail (e.g. <code>…/temperature</code>) and the full name in a hover tooltip. The most distinguishing part is the tail, so truncation keeps it.</li>
-    <li><b>Copy button</b> (40 px, dedicated column) — Copies the full name to the clipboard; briefly swaps the copy icon to a green check. Every row has one.</li>
-    <li><b>Value</b> (fixed 380/700 px) — One-line preview, already capped by the backend (<code>kInlineValueMaxBytes ≈ 200</code>). If the value exceeds the display cap it is tail-truncated with <code>…</code> plus a muted <code>(N bytes)</code> note; hover shows the truncated preview. Server-truncated values never show inline text beyond the byte count — use <b>View</b> for the full value. Mobile hides this column entirely.</li>
-    <li><b>View (eye)</b> (46 px) — Shows only when the value is clipped (server-truncated or longer than the display cap) or on mobile where the Value column is hidden. Clicking fetches the current exact value via <code>GET api/variables/{name}</code> (fresh, not the cached table preview) and opens a dialog with the full text, wrap-enabled. The dialog offers <b>Copy to Clipboard</b> and <b>Close</b>. The row’s cached preview may be stale by the time you click, which is why View re-fetches.</li>
-    <li><b>Last Updated</b> (110 px) — Compact single-unit form: <code>8s</code>, <code>5m</code>, <code>3h</code>, <code>2d</code>, or <code>never</code> when never set. Recomputed every 3 seconds.</li>
-    <li><b>Storage</b> (100 px, User table only) — Icon plus two buttons: save icon <b>Persisted</b> (blue, survives <code>fppd</code> restart, stored on disk) vs memory icon <b>In-memory only</b> (gray, lost on restart). Then <b>Clear</b> (eraser) — resets the value (removes persisted copy) but keeps the row — and <b>Delete</b> (trash, red) — removes the variable entirely (recreatable via Set Variable). Both confirm before acting and use <code>POST/DELETE api/variables/{name}</code>.</li>
-    <li><b>Empty state</b> — “No variables defined yet.” when none exist; “Error loading variables.” on fetch failure.</li>
+    <li><b>Name</b> — Long names are shortened from the start with a leading <code>…</code>, keeping the meaningful tail (e.g. <code>…/temperature</code>); hover a shortened name for the full text. The most distinguishing part is the tail, so truncation keeps it.</li>
+    <li><b>Copy</b> — Copies the full name to the clipboard, ready to paste into <code>%VAR:name%</code>. The icon briefly turns into a green check to confirm.</li>
+    <li><b>Value</b> — A one-line preview. A value that doesn’t fit is shortened with <code>…</code>; hover it to see more. Large values show only their first part plus a <code>(N bytes)</code> size note — use <b>View</b> for the whole thing. Phones hide this column.</li>
+    <li><b>View (eye)</b> — Appears only when the value on screen is shortened, and on every row on phones. Opens a dialog with the complete, up-to-the-moment value and a <b>Copy to Clipboard</b> button.</li>
+    <li><b>Last Updated</b> — How long ago the value last changed: <code>8s</code>, <code>5m</code>, <code>3h</code>, <code>2d</code>, or <code>never</code>.</li>
+    <li><b>Storage</b> — A blue save icon means the value is <b>persisted</b> (kept across an FPP restart); a gray memory icon means <b>in-memory only</b> (gone after a restart). Whether a variable persists is chosen in the Set Variable command.</li>
+    <li><b>Clear</b> (eraser) — Empties the value but keeps the variable in the list. <b>Delete</b> (red trash) — Removes it entirely; Set Variable can recreate it later. Both ask for confirmation.</li>
 </ul>
 
 <h4>FPP Read-only Variables</h4>
-<p>Computed by <code>ComputeFppStatusVariables()</code> in <code>Variables.cpp</code>; you cannot write them. Same Name/copy/Value/View/Last Updated columns as above, but no Storage column. Each Name is prefixed with an info icon whose tooltip shows its fixed meaning (keep in sync with that C++ function):</p>
+<p>Live values FPP maintains about itself — you can read them anywhere a User Variable can be read, but not change them. Same columns as above without Storage. Hover the info icon beside a name for its meaning:</p>
 <ul>
     <li><b>fpp_status</b> — Numeric status code: 0 idle, 1 playing, 2–4 stopping variants, 5 paused.</li>
     <li><b>fpp_status_name</b> — Text status: idle, playing, playing media, playing background, stopping gracefully / after loop / now, or paused. “playing media/background” means a stream slot is active outside a playlist (Play Media, PSA, background music) while the numeric status stays idle.</li>
@@ -52,11 +52,11 @@
 </ul>
 
 <h4>MQTT Read-only Variables</h4>
-<p>Mirrored from the MQTT broker cache (<code>GET api/variables?mqtt=true</code>). Same columns as FPP. When empty the table shows: “No MQTT messages cached yet. Go to <a href='settings-mqtt.php'>MQTT Settings</a> to connect to a broker and subscribe to a topic (or <code>#</code> for everything) — any topic this device receives a message on will appear here.” These are the same values the <code>api/fppd/mqtt/cache</code> endpoint and playlist branching can read. Only live, writable User Variables (not <code>fpp_</code>/MQTT) are suggested as a Recurring Task’s <b>Result Variable</b> target for the same reason.</p>
+<p>The most recent message received on each MQTT topic this player is subscribed to, named by topic. Read-only, like the FPP variables. If the table is empty, go to <a href='settings-mqtt.php'>MQTT Settings</a> to connect to a broker and subscribe to a topic (or <code>#</code> for everything). Because these are read-only, a Recurring Task’s <b>Result Variable</b> can only target a User Variable.</p>
 
 <h4>Tips</h4>
 <ul>
     <li>Keep names short and without spaces so <code>%VAR:name%</code> stays readable when pasted into other pages.</li>
-    <li>On mobile, rely on the eye icon — the Value column is intentionally hidden and the eye is the only way to see the value.</li>
-    <li>Tables refresh automatically every 3 seconds and on breakpoint crossings; no manual Reload needed.</li>
+    <li>On a phone, tap the eye icon to see a value — the Value column is hidden to make room for names.</li>
+    <li>Tables refresh themselves every few seconds; there is no Reload button to press.</li>
 </ul>
