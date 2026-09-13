@@ -140,26 +140,32 @@
                 FPPPluginPrivacy.stripHtml(PluginPrivacyResult(data), { compact: true }) + '</span>';
         }
 
-        // Label line + headline + strip + lines + the author's summary and the
-        // full declaration. Shared by the install dialog, the upgrade dialog and
-        // the detail modal. Wording per fpp-plugin-Template PLUGIN_GUIDELINES.md §14.15.
+        // Label line, the author's summary, FPP's headline, the strip and its
+        // lines, then the author's `other` text; the block as written is
+        // behind "Full disclosure" in Developer UI mode only. Shared by the
+        // install dialog, the upgrade dialog and the detail modal. Wording per
+        // fpp-plugin-Template PLUGIN_GUIDELINES.md §14.15.
         // from: the result of the block the operator accepted earlier, for the
         // changed-disclosure dialog -- lights that differ open as "Was / Now"
         // with their changed lines marked, and a list under the headline says
         // which lights moved and which way (fpp-privacy-lights.js).
         function PrivacyBlockHtml(r, prefix, from) {
             var h = r.declared
-                ? '<div class="small text-secondary mt-3 mb-1"><span class="fw-bold text-uppercase">Disclosed by the author</span> &middot; not verified by FPP</div>'
-                : '<div class="small text-secondary mt-3 mb-1"><span class="fw-bold text-uppercase">No disclosure</span> &middot; the author has not said what this plugin does with data</div>';
+                ? '<div class="small text-secondary mb-1"><span class="fw-bold text-uppercase">Disclosed by the author</span> &middot; not verified by FPP</div>'
+                : '<div class="small text-secondary mb-1"><span class="fw-bold text-uppercase">No disclosure</span> &middot; the author has not said what this plugin does with data</div>';
             if (r.unreviewed && r.declared)
                 h += '<div class="small text-secondary mb-1">Loaded from a URL, not from the plugin list: this disclosure was not reviewed for the plugin list.</div>';
-            h += FPPPluginPrivacy.headlineHtml(r);
+            h += FPPPluginPrivacy.summaryHtml(r);
+            // The headline of a declared block is its worst chip's text
+            // again, and the open red line under that says it a third time:
+            // only an undeclared block needs it, to say why the row is grey.
+            if (!r.declared) h += FPPPluginPrivacy.headlineHtml(r);
             if (from) {
                 var changes = FPPPluginPrivacy.changesSummaryHtml(from, r);
                 if (changes) h += '<div class="small fw-semibold mt-2">What changed</div>' + changes;
             }
             h += FPPPluginPrivacy.stripHtml(r, { prefix: prefix, from: from || null });
-            h += FPPPluginPrivacy.detailsHtml(r);
+            h += FPPPluginPrivacy.detailsHtml(r, { raw: uiLevel >= 3 });
             return h;
         }
 
@@ -183,6 +189,56 @@
                 'Install at your own risk, and only if you trust <b>' + author + '</b>. Plugins marked ' +
                 '<span class="badge text-bg-graceful"><i class="fas fa-certificate"></i> Official</span> are maintained by the FPP team; this one is not.</p>' +
                 '</div></div>';
+        }
+
+        // The reminder for a plugin that is already installed: the operator
+        // saw PluginTrustHtml when they installed it, so an update or reinstall
+        // dialog says it in one line and leaves the room to the disclosure.
+        function PluginTrustLineHtml(data) {
+            return '<div class="small text-secondary mb-2"><i class="fas fa-triangle-exclamation"></i> ' +
+                (data && IsOfficialPlugin(data) ? 'Maintained by the FPP project, but it still runs as root.' :
+                    'Third-party code that runs as root: it can do anything on this player, including things not listed below.') + '</div>';
+        }
+
+        // The first screen of a Reinstall All / Update All that has more than
+        // one disclosure to ask about: what is about to happen, the root
+        // warning once, and the plugins in the order they will be asked. Each
+        // plugin's own screen then carries only its disclosure.
+        // opts: title, lead (what accept/decline do), plugins, button,
+        // onStart, onCancel (omit for a review that must be walked).
+        function ReviewIntroDialog(opts) {
+            var id = 'privacyReviewIntroDialog';
+            var body = '<p>' + opts.lead + '</p>';
+            body += '<div class="d-flex gap-2 align-items-start p-2 mb-2 rounded border bg-danger-subtle border-danger-subtle text-danger-emphasis"><i class="fas fa-triangle-exclamation mt-1"></i><div>' +
+                '<p class="fw-bold mb-1">Plugins are third-party code that runs on your FPP as root.</p>' +
+                '<p class="mb-0">A plugin can read and change any setting, including the privacy settings, reach anything else on the network FPP is connected to, ' +
+                'and do anything at all once installed &mdash; including things its disclosure does not list. The FPP project does not test, vet, or ' +
+                'guarantee plugins; what follows is each author\'s own statement, not verified by FPP.</p></div></div>';
+            body += '<div class="fw-semibold">You will be asked about, in this order:</div><ol class="mb-0">';
+            opts.plugins.forEach(function (p) {
+                var k = FindPluginInfo(p);
+                body += '<li>' + EscapeHtml((k >= 0 && pluginInfos[k].name) ? pluginInfos[k].name : p) + '</li>';
+            });
+            body += '</ol>';
+            var started = false;
+            var buttons = {};
+            buttons[opts.button] = { class: 'btn-primary', click: function () { started = true; CloseModalDialog(id); } };
+            if (opts.onCancel) buttons['Cancel'] = function () { CloseModalDialog(id); };
+            DoModalDialog({
+                id: id,
+                class: 'modal-lg',
+                title: opts.title,
+                body: body,
+                backdrop: opts.onCancel ? true : 'static',
+                keyboard: !!opts.onCancel,
+                noClose: !opts.onCancel,
+                buttons: buttons
+            });
+            $('#' + id).find('#modalCloseButton').prop('disabled', !opts.onCancel);
+            $('#' + id).one('hidden.bs.modal', function () {
+                if (started) opts.onStart();
+                else if (opts.onCancel) opts.onCancel();
+            });
         }
 
         function PluginIsInstalled(plugin) {
@@ -779,7 +835,8 @@
                         ConfirmPrivacyChange(plugin, st, {
                             id: 'confirmUpgradeDialog', prefix: 'up',
                             verb: 'This update', button: 'Accept changes and update',
-                            note: 'Update All' + position + ': Cancel skips this plugin and leaves it at its current version.' + (i + 1 < needsReview.length ? ' Either way the next one follows.' : ''),
+                            position: position, chained: chained,
+                            note: chained ? null : 'Cancel skips this plugin and leaves it at its current version.',
                             onAccept: function () { accepted[plugin] = st.pending; reviewNext(i + 1); },
                             onCancel: function () { skipped.push(plugin); reviewNext(i + 1); }
                         });
@@ -787,7 +844,22 @@
                     error: function () { reviewNext(i + 1); }
                 });
             };
-            reviewNext(0);
+            // More than one to ask about: say what is coming once, then ask.
+            var chained = needsReview.length > 1;
+            if (!chained) {
+                reviewNext(0);
+                return;
+            }
+            ReviewIntroDialog({
+                title: 'Update All: review ' + needsReview.length + ' privacy disclosures',
+                lead: needsReview.length + ' of the plugins with an update have changed what they disclose about privacy, or have a disclosure you have not reviewed yet. ' +
+                    'You will see each one in turn: <b>Accept</b> updates that plugin, <b>Cancel</b> skips it and leaves it at its current version. ' +
+                    'The other ' + (withUpdates.length - needsReview.length) + ' update without asking.',
+                plugins: needsReview,
+                button: 'Start',
+                onStart: function () { reviewNext(0); },
+                onCancel: function () { $.jGrowl('Update All cancelled. Nothing was changed.', { themeState: 'detract' }); }
+            });
         }
 
         // accepted: repoName -> the block accepted in the dialog, posted with
@@ -940,21 +1012,42 @@
             var r = PluginPrivacyResult(data);
             var name = '<b>' + EscapeHtml(data.name || plugin) + '</b>';
             var intro, title;
-            if (!st.recorded) {
-                intro = 'You have not yet reviewed what ' + name + ' discloses about privacy. What follows is the author\'s disclosure for the version ' +
-                    (opts.verb === 'This reinstall' ? 'this reinstall installs.' : 'this update installs.');
+            var lands = (opts.verb === 'This reinstall' ? 'this reinstall installs.' : 'this update installs.');
+            // A plugin that had no disclosure when it was accepted, and has
+            // one now, is read as a first disclosure, not as a change from
+            // "nothing declared": every light would show as changed and say
+            // nothing useful.
+            var firstDisclosure = !st.recorded || !st.accepted;
+            // A first look needs no sentence: the title says what this is,
+            // and the block is headed "Disclosed by the author".
+            if (firstDisclosure) {
+                intro = '';
                 title = 'Review the privacy disclosure of ' + EscapeHtml(data.name || plugin);
+            } else if (!st.pending) {
+                // Had one, and the version being landed has none: say that
+                // plainly rather than "the author's new disclosure".
+                intro = 'The version ' + lands.replace(/\.$/, '') + ' has no privacy disclosure: the author no longer says what ' + name +
+                    ' does with data. What you accepted before is shown struck through.';
+                title = opts.verb + ' removes the privacy disclosure of ' + EscapeHtml(data.name || plugin);
             } else {
-                intro = opts.verb + ' changes what ' + name + ' discloses about privacy. What follows is the author\'s new disclosure.';
+                intro = opts.verb + ' changes what ' + name + ' discloses about privacy. This is the author\'s new disclosure.';
                 title = opts.verb + ' changes the privacy disclosure of ' + EscapeHtml(data.name || plugin);
             }
-            var body = '<div class="fpp-inline-warn mb-2"><i class="fas fa-shield-halved"></i><span>' + intro + '</span></div>';
+            // In a chained review the intro screen said what these are, so
+            // each screen is titled by the plugin: "Projector Control (1 of 5)".
+            if (opts.chained) title = EscapeHtml(data.name || plugin);
+            if (opts.position) title += ' ' + opts.position;
+            // Plain text, not a callout: the title has said it already, and
+            // the coloured things on this screen should all be findings.
+            var body = intro ? '<p class="mb-2"><i class="fas fa-shield-halved text-secondary"></i> ' + intro + '</p>' : '';
             if (opts.note) body += '<div class="small text-secondary mb-2">' + EscapeHtml(opts.note) + '</div>';
-            body += PluginTrustHtml(data);
+            // The root warning was on the intro screen of a chained review,
+            // and in full when the plugin was installed: one line here.
+            if (!opts.chained) body += PluginTrustLineHtml(data);
             // With a record to compare against, show the change, not just the
             // new block: st.accepted is what the operator said yes to.
             var from = null;
-            if (st.recorded) {
+            if (!firstDisclosure) {
                 var prevData = $.extend({}, data);
                 prevData.privacy = st.accepted;
                 from = PluginPrivacyResult(prevData);
@@ -1404,9 +1497,13 @@
                                 verb: 'This reinstall', button: 'Accept and reinstall' + (single ? '' : ' this plugin'),
                                 declineLabel: 'Uninstall instead',
                                 noCancel: mustDecide,
-                                note: (!single ? ('Reinstall All' + position + ': accept to reinstall, or uninstall instead \u2014 after an FPP OS upgrade a plugin that is not reinstalled no longer works as it is.' + (last ? '' : ' Either way the next plugin follows.'))
+                                position: position, chained: chained,
+                                // The chained screens were told on the intro
+                                // screen what the buttons do; a single one
+                                // is told here.
+                                note: ((chained ? '' : !single ? 'Accept to reinstall, or uninstall instead \u2014 after an FPP OS upgrade a plugin that is not reinstalled no longer works as it is.'
                                     : (mustDecide ? 'After the FPP OS upgrade this plugin no longer works as it is: accept to reinstall it, or uninstall it instead.'
-                                                  : 'Accept to reinstall, uninstall the plugin instead, or Cancel to leave it as it is.')) + depWarn,
+                                                  : 'Accept to reinstall, uninstall the plugin instead, or Cancel to leave it as it is.')) + depWarn).trim() || null,
                                 onAccept: function () {
                                     accepted[plugin] = st.pending;
                                     ready.push(plugin);
@@ -1434,6 +1531,25 @@
                     finish();
                     return;
                 }
+                // More than one to ask about: say what is coming once, then
+                // ask. Nothing has been touched, but a Reinstall All after an
+                // FPP OS upgrade has no way back, so no Cancel.
+                var chained = toReview.length > 1;
+                var start = function () {
+                    if (!chained) {
+                        reviewNext(0);
+                        return;
+                    }
+                    ReviewIntroDialog({
+                        title: 'Reinstall All: review ' + toReview.length + ' privacy disclosures',
+                        lead: toReview.length + ' of your installed plugins have changed what they disclose about privacy, or have a disclosure you have not reviewed yet. ' +
+                            'You will see each one in turn: <b>Accept</b> reinstalls that plugin, <b>Uninstall instead</b> removes it. After an FPP OS upgrade a plugin that is not reinstalled no longer works as it is.' +
+                            (ready.length ? ' The other ' + ready.length + ' reinstall without asking.' : ''),
+                        plugins: toReview,
+                        button: 'Start',
+                        onStart: function () { reviewNext(0); }
+                    });
+                };
                 if (single) {
                     // The operator pressed Reinstall on one card: Uninstall
                     // instead is a plain uninstall; Cancel leaves it alone.
@@ -1457,7 +1573,7 @@
                         origFinish();
                     };
                 }
-                reviewNext(0);
+                start();
             });
         }
 

@@ -2252,6 +2252,13 @@ function PluginPrivacyChanged($plugin, $fetch = false, &$pending = null, &$accep
 	list($pending, $source) = PluginPendingPrivacy($plugin, $fetch, $target);
 	$all = ReadPluginPrivacyAccepted();
 	$accepted = (isset($all[$plugin]) && array_key_exists('privacy', $all[$plugin])) ? $all[$plugin]['privacy'] : null;
+	// Only the target version's own pluginInfo.json can say a disclosure
+	// was removed. No block from a fallback copy (the listing's cache may
+	// predate the block; the installed file is not the target) against a
+	// recorded one is "cannot tell", not "the author took it back".
+	if ($pending === null && $accepted !== null && $source !== 'upstream') {
+		return false;
+	}
 	return PluginPrivacyMaterial($pending) !== PluginPrivacyMaterial($accepted);
 }
 

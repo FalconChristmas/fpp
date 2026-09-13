@@ -699,6 +699,15 @@ var FPPPluginPrivacy = (function () {
 	// before the deadline.
 	var LEVEL_THEME = { g: "success", a: "warning", r: "danger", n: "secondary" };
 
+	// Bootstrap classes for a chip or line in a theme. Green is drawn in
+	// the body's own muted colour, not Bootstrap's success green: colour on
+	// the screen then means "look here", and a row of greens is quiet.
+	function themeClasses(theme) {
+		if (theme === "success")
+			return { text: "text-body-secondary", bg: "bg-body-tertiary", border: "border-secondary-subtle" };
+		return { text: "text-" + theme + "-emphasis", bg: "bg-" + theme + "-subtle", border: "border-" + theme + "-subtle" };
+	}
+
 	// The coloured dot: a Font Awesome circle in currentColor. Green is
 	// hollow (the author's word, not a tick), amber and red are filled, and
 	// grey is a question mark so "nothing declared" does not look like a green.
@@ -773,7 +782,7 @@ var FPPPluginPrivacy = (function () {
 						'<i class="' +
 						(filled ? "fas" : "far") +
 						" fa-circle fa-2xs " +
-						(filled ? "text-" + theme + "-emphasis" : "text-" + theme) +
+						themeClasses(theme).text +
 						'"' +
 						title +
 						"></i>";
@@ -788,14 +797,8 @@ var FPPPluginPrivacy = (function () {
 			var open = (l.level === "r" && l.declared) || !!ch;
 			var id = prefix + "-" + l.id;
 			h +=
-				'<button type="button" class="pluginPrivacyChip badge rounded-pill border fw-semibold d-inline-flex align-items-center gap-1' +
-				" text-" +
-				theme +
-				"-emphasis bg-" +
-				theme +
-				"-subtle border-" +
-				theme +
-				'-subtle"' +
+				'<button type="button" class="pluginPrivacyChip badge rounded-pill border fw-semibold d-inline-flex align-items-center gap-1 ' +
+				themeClasses(theme).text + " " + themeClasses(theme).bg + " " + themeClasses(theme).border + '"' +
 				' data-light="' +
 				l.id +
 				'" data-level="' +
@@ -840,7 +843,7 @@ var FPPPluginPrivacy = (function () {
 				(open ? "" : " d-none") +
 				(l.level === "r" && l.declared ? " text-danger-emphasis" : "") +
 				'">' +
-				dotHtml(theme, "mt-1 text-" + theme + "-emphasis") +
+				dotHtml(theme, "mt-1 " + themeClasses(theme).text) +
 				"<span><b>" +
 				esc(l.name) +
 				(/\?$/.test(l.name) ? "" : ":") +
@@ -868,8 +871,12 @@ var FPPPluginPrivacy = (function () {
 			var added = l.entries.filter(function (e) { return o.entries.indexOf(e) < 0; });
 			var removed = o.entries.filter(function (e) { return l.entries.indexOf(e) < 0; });
 			var kept = l.entries.filter(function (e) { return o.entries.indexOf(e) >= 0; });
+			// Grey ranks lowest, but a light that went from declared to not
+			// declared has not improved -- the author stopped saying. Either
+			// side undeclared is a change, never better or worse.
 			var direction =
-				LEVEL_RANK[l.level] > LEVEL_RANK[o.level] ? "worse"
+				!o.declared || !l.declared ? "changed"
+				: LEVEL_RANK[l.level] > LEVEL_RANK[o.level] ? "worse"
 				: LEVEL_RANK[l.level] < LEVEL_RANK[o.level] ? "better"
 				: "changed";
 			return {
@@ -881,23 +888,20 @@ var FPPPluginPrivacy = (function () {
 		});
 	}
 
-	// The opened line of a changed light: "Was:" and "Now:" chips, then the
-	// lines with + for added and a strike-through for removed. Unchanged
-	// lines stay plain so the reader sees what moved and what did not.
+	// The opened line of a changed light: the lines with + for added and a
+	// strike-through for removed. Unchanged lines stay plain so the reader
+	// sees what moved and what did not. Which way the light went is said
+	// once, in changesSummaryHtml, and by the arrow on the chip -- not
+	// repeated here.
 	function changeLineHtml(ch) {
-		var pill = function (label, st) {
-			var theme = LEVEL_THEME[st.level];
-			return (
-				'<span class="badge rounded-pill border fw-semibold text-' + theme + "-emphasis bg-" + theme + "-subtle border-" + theme + '-subtle">' +
-				dotHtml(theme) + " " + esc(label) + " " + esc(st.text) + "</span>"
-			);
-		};
-		var h = '<span class="d-inline-flex flex-wrap gap-1 align-items-center mb-1">' + pill("Was:", ch.was) + " " + pill("Now:", ch.now) + "</span>";
+		var h = "";
 		var items = [];
-		ch.added.forEach(function (e) { items.push('<span class="fw-semibold" title="Added">+</span> ' + e); });
+		// A light that is no longer declared has nothing added: its one
+		// line is the plain "not disclosed" sentence, then the struck lines.
+		if (!ch.now.declared) items.push(esc(UNDECLARED_LINE));
+		else ch.added.forEach(function (e) { items.push('<span class="fw-semibold" title="Added">+</span> ' + e); });
 		ch.removed.forEach(function (e) { items.push('<s class="text-secondary" title="No longer disclosed">' + e + "</s>"); });
 		ch.kept.forEach(function (e) { items.push(e); });
-		if (!ch.now.declared && !items.length) items.push(esc(UNDECLARED_LINE));
 		return h + lineHtml(items);
 	}
 
@@ -905,30 +909,43 @@ var FPPPluginPrivacy = (function () {
 	// changed and which way, worst first: "Sends data: was Sends when enabled,
 	// now Sends identifying data".
 	function changesSummaryHtml(from, to) {
+		// The whole block gone: one line, not six "now not disclosed".
+		if (from.declared && !to.declared)
+			return (
+				'<ul class="small mb-2 mt-2 ps-3"><li class="mb-1"><b>Disclosure removed:</b> the author no longer says what this plugin does with data. ' +
+				"What was disclosed before is struck through below.</li></ul>"
+			);
 		var changes = lightChanges(from, to).filter(function (c) { return c; });
 		if (!changes.length) return "";
 		var rank = { worse: 0, changed: 1, better: 2 };
 		changes.sort(function (a, b) { return rank[a.direction] - rank[b.direction]; });
 		var h = '<ul class="small mb-2 mt-2 ps-3">';
 		changes.forEach(function (c) {
-			h +=
-				'<li class="mb-1"><b>' + esc(c.name) + (/\?$/.test(c.name) ? "" : ":") + "</b> was " +
-				'<span class="text-' + LEVEL_THEME[c.was.level] + '-emphasis">' + esc(c.was.text) + "</span>, now " +
-				'<span class="text-' + LEVEL_THEME[c.now.level] + '-emphasis fw-semibold">' + esc(c.now.text) + "</span>" +
-				(c.direction === "better" ? ' <span class="text-success-emphasis">(improved)</span>' : "") +
-				"</li>";
+			h += '<li class="mb-1"><b>' + esc(c.name) + (/\?$/.test(c.name) ? "" : ":") + "</b> ";
+			// Same finding, different detail under it: say that, not
+			// "was X, now X".
+			if (c.was.text === c.now.text)
+				h += "still " + '<span class="' + themeClasses(LEVEL_THEME[c.now.level]).text + ' fw-semibold">' + esc(c.now.text) + "</span>, the details changed";
+			else
+				h +=
+					"was " + '<span class="' + themeClasses(LEVEL_THEME[c.was.level]).text + '">' + esc(c.was.text) + "</span>, now " +
+					'<span class="' + themeClasses(LEVEL_THEME[c.now.level]).text + ' fw-semibold">' + esc(c.now.text) + "</span>" +
+					(c.direction === "better" ? ' <span class="text-success-emphasis">(improved)</span>' : "");
+			h += "</li>";
 		});
 		return h + "</ul>";
 	}
 
-	// The one-line headline over the strip, tinted by the worst finding, with
-	// FPP's explainer under it when the rule has one.
+	// The one-line headline over the strip, a left rule in the colour of the
+	// worst finding, with FPP's explainer under it when the rule has one. A
+	// rule rather than a filled box: the dialogs stack this under other
+	// callouts, and one more tinted block is one more thing to look at.
 	function headlineHtml(result) {
 		var theme = LEVEL_THEME[result.headline.level];
 		var h =
-			'<div class="p-2 rounded bg-' +
+			'<div class="ps-2 border-start border-3 border-' +
 			theme +
-			"-subtle text-" +
+			" text-" +
 			theme +
 			'-emphasis">' +
 			'<div class="d-flex gap-2 align-items-center fw-semibold">' +
@@ -940,23 +957,28 @@ var FPPPluginPrivacy = (function () {
 		return h + "</div>";
 	}
 
-	// The author's summary, then "Full declaration": the free-text `other`
-	// and the block as written, so nothing the author declared is hidden
-	// even when this FPP does not render a key.
-	function detailsHtml(result) {
+	// The author's summary on its own, above the headline: their plain
+	// sentence about what the plugin does comes before FPP's verdict on it.
+	function summaryHtml(result) {
+		if (!result.declared || !result.summary) return "";
+		return '<p class="mb-2">' + esc(result.summary) + "</p>";
+	}
+
+	// After the lines: the free-text `other`, so nothing the author declared
+	// is hidden even when this FPP does not render a key, and -- only when
+	// opts.raw -- "Full disclosure", the block as written, for people who
+	// want to see the JSON (the page shows it in Developer UI mode).
+	function detailsHtml(result, opts) {
 		if (!result.declared) return "";
 		var h = "";
-		if (result.summary)
-			h += '<p class="small mb-2">' + esc(result.summary) + "</p>";
-		var json = JSON.stringify(result.raw, null, 2);
-		h +=
-			'<details class="small"><summary class="link-primary">Full disclosure</summary>';
 		if (result.other)
-			h += '<p class="mt-1 mb-1"><b>Other:</b> ' + esc(result.other) + "</p>";
-		h +=
-			'<pre class="mt-1 mb-0 overflow-auto"><code>' +
-			esc(json) +
-			"</code></pre></details>";
+			h += '<p class="small mb-2"><b>Other:</b> ' + esc(result.other) + "</p>";
+		if (opts && opts.raw)
+			h +=
+				'<details class="small"><summary class="link-primary">Full disclosure</summary>' +
+				'<pre class="mt-1 mb-0 overflow-auto"><code>' +
+				esc(JSON.stringify(result.raw, null, 2)) +
+				"</code></pre></details>";
 		return h;
 	}
 
@@ -1004,6 +1026,7 @@ var FPPPluginPrivacy = (function () {
 		stripHtml: stripHtml,
 		changesSummaryHtml: changesSummaryHtml,
 		headlineHtml: headlineHtml,
+		summaryHtml: summaryHtml,
 		detailsHtml: detailsHtml,
 		bind: bind,
 	};
