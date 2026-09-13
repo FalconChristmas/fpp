@@ -1905,57 +1905,118 @@ function PluginPrivacyMaterial($privacy)
 	return json_encode(PluginPrivacyCanonical($m));
 }
 
-function ReadPluginPrivacyAccepted()
+// The record is device-scoped, like the privacyConsent record
+// (www/privacyConsent.inc, BackupIsFromThisDevice in backup.php): the file
+// carries the UUID of the player that wrote it and is honoured only on that
+// player. A backup restored onto another player therefore does not carry
+// its acceptances -- nobody was shown those disclosures on this device --
+// and the first Reinstall All asks about each plugin once, as a fresh
+// install would. Identity-less players (getSystemUUID() "Unknown") honour
+// only a file that is equally identity-less: the same rule privacyConsent
+// applies, and the one class of backup that cannot be told apart anyway.
+function PluginPrivacyRecordIsForThisDevice($fileUuid)
+{
+	$device = getSystemUUID();
+	if (isValidSystemUUID($fileUuid) && isValidSystemUUID($device)) {
+		return $fileUuid === $device;
+	}
+	return !isValidSystemUUID($fileUuid) && !isValidSystemUUID($device);
+}
+
+// Reads the record file into [status, plugins]: status 'none' (no file),
+// 'ok' (this player's file), 'foreign' (another player's UUID), 'bad'
+// (unreadable). Callers that only want the entries use ReadPluginPrivacyAccepted().
+function LoadPluginPrivacyAccepted()
 {
 	$file = PluginPrivacyAcceptedFile();
 	if (!file_exists($file)) {
-		return array();
+		return array('none', array());
 	}
-	$all = json_decode(file_get_contents($file), true);
-	return is_array($all) ? $all : array();
+	$all = json_decode((string) @file_get_contents($file), true);
+	if (!is_array($all) || !isset($all['plugins']) || !is_array($all['plugins'])) {
+		return array('bad', array());
+	}
+	if (!PluginPrivacyRecordIsForThisDevice(isset($all['uuid']) ? $all['uuid'] : '')) {
+		return array('foreign', array());
+	}
+	return array('ok', $all['plugins']);
 }
 
-function WritePluginPrivacyAccepted($all)
+function ReadPluginPrivacyAccepted()
+{
+	list(, $plugins) = LoadPluginPrivacyAccepted();
+	return $plugins;
+}
+
+// Applies $change (a function on the plugins array returning the new one)
+// under an exclusive lock, so two requests -- a Reinstall All install and a
+// second tab's update check -- cannot lose each other's entry. A file that is
+// not this player's (another UUID) or cannot be read is never overwritten:
+// it is moved aside as <file>.<foreign|bad>.bak first and logged, so nothing
+// anyone accepted anywhere disappears silently.
+function UpdatePluginPrivacyAccepted($change)
 {
 	$file = PluginPrivacyAcceptedFile();
-	$json = json_encode($all, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+	$lock = @fopen($file . '.lock', 'c');
+	if ($lock) {
+		flock($lock, LOCK_EX);
+	}
+	list($status, $plugins) = LoadPluginPrivacyAccepted();
+	if ($status === 'foreign' || $status === 'bad') {
+		$aside = $file . '.' . $status . '.bak';
+		@rename($file, $aside);
+		error_log("pluginPrivacyAccepted.json was $status; moved to $aside and started afresh");
+	}
+	$plugins = $change($plugins);
+	$json = json_encode(array('uuid' => getSystemUUID(), 'plugins' => $plugins), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 	// Write-then-rename so a crash mid-write cannot leave a truncated file
 	// that reads as "nothing accepted for anything".
 	$tmp = $file . '.tmp';
-	if (@file_put_contents($tmp, $json) === false) {
-		return false;
+	$ok = (@file_put_contents($tmp, $json) !== false);
+	if ($ok) {
+		@chmod($tmp, 0664);
+		$ok = @rename($tmp, $file);
 	}
-	@chmod($tmp, 0664);
-	return @rename($tmp, $file);
+	if ($lock) {
+		flock($lock, LOCK_UN);
+		fclose($lock);
+	}
+	return $ok;
 }
 
 /**
  * Remember the block the operator accepted for $repoName. $privacy may be
  * null: "installed with nothing declared" is itself the accepted state, and
  * is what later distinguishes a plugin that gains a declaration (dialog) from
- * one installed before this record existed (also dialog, once).
+ * one installed before this record existed (also dialog, once). $sha is the
+ * commit the block was accepted from -- informational; on upgrade it is the
+ * fetched tip, recorded before the pull, so it is not "what is installed".
  */
 function RecordPluginPrivacyAccepted($repoName, $privacy, $sha = '')
 {
 	if (!is_string($repoName) || $repoName === '') {
 		return;
 	}
-	$all = ReadPluginPrivacyAccepted();
-	$all[$repoName] = array(
-		'privacy' => $privacy,
-		'sha' => is_string($sha) ? $sha : '',
-		'acceptedAt' => gmdate('c'),
-	);
-	WritePluginPrivacyAccepted($all);
+	UpdatePluginPrivacyAccepted(function ($all) use ($repoName, $privacy, $sha) {
+		$all[$repoName] = array(
+			'privacy' => $privacy,
+			'sha' => is_string($sha) ? $sha : '',
+			'acceptedAt' => gmdate('c'),
+		);
+		return $all;
+	});
 }
 
 function ForgetPluginPrivacyAccepted($repoName)
 {
-	$all = ReadPluginPrivacyAccepted();
-	if (isset($all[$repoName])) {
-		unset($all[$repoName]);
-		WritePluginPrivacyAccepted($all);
+	list($status, $all) = LoadPluginPrivacyAccepted();
+	if ($status !== 'ok' || !isset($all[$repoName])) {
+		return; // nothing of ours to forget; a foreign/bad file is left for the next write to move aside
 	}
+	UpdatePluginPrivacyAccepted(function ($all) use ($repoName) {
+		unset($all[$repoName]);
+		return $all;
+	});
 }
 
 // The declaration the next upgrade would land, as [block, source]. Read from

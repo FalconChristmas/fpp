@@ -93,6 +93,7 @@ $system_config_areas = array(
         'file' => array(
             'system_settings' => array('type' => 'file', 'location' => $settingsFile),
             'commandPresets' => array('type' => 'file', 'location' => $settings['configDirectory'] . "/commandPresets.json"),
+            'pluginPrivacyAccepted' => array('type' => 'file', 'location' => $settings['configDirectory'] . "/pluginPrivacyAccepted.json"),
             'proxies' => array('type' => 'file', 'location' => $settings['configDirectory'] . "/proxies"),
             'email' => array('type' => 'file', 'location' => false),
             'timezone' => array('type' => 'function', 'location' => array('backup' => 'ReadTimeZone', 'restore' => '')), //We'll handle restore ourselves
@@ -183,7 +184,7 @@ $network_settings_restored_post_apply = array('wired_network' => "", 'wifi_netwo
 $network_settings_restored_applied_ips = array('wired_network' => array(), 'wifi_network' => array());
 
 //Lookup arrays for what is a json and a ini file
-$known_json_config_files = array('channelInputs', 'universe_inputs', 'dmx_inputs', 'gpio-input', 'channelOutputs', 'commandPresets', 'outputProcessors', 'universes', 'pixel_strings', 'bbb_strings', 'pwm', 'led_panels', 'other', 'model-overlays');
+$known_json_config_files = array('channelInputs', 'universe_inputs', 'dmx_inputs', 'gpio-input', 'channelOutputs', 'commandPresets', 'pluginPrivacyAccepted', 'outputProcessors', 'universes', 'pixel_strings', 'bbb_strings', 'pwm', 'led_panels', 'other', 'model-overlays');
 $known_ini_config_files = array('settings', 'system_settings', 'network', 'wired', 'wifi');
 
 //Remove BBB Strings from the system areas if we're on a Pi or any other platform that isn't a BBB
@@ -1001,6 +1002,26 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                         $save_result = false;
                     } else {
                         $save_result = true;
+                    }
+                }
+
+                //PLUGIN PRIVACY ACCEPTANCE RESTORE. The record names the player
+                //that wrote it and is honoured only there (ReadPluginPrivacyAccepted
+                //in api/controllers/plugin.php). Only this player's own backup is
+                //restored: another player's acceptances would be ignored anyway,
+                //and writing them here would throw away the ones made on this
+                //player. A foreign backup is reported as not restored.
+                if ($restore_areas_idx == "pluginPrivacyAccepted") {
+                    $restore_data = $restore_area_data['pluginPrivacyAccepted'][0];
+                    $system_settings_data = isset($restore_area_data['system_settings'][0]) ? $restore_area_data['system_settings'][0] : null;
+                    if (is_array($restore_data) && isset($restore_data['plugins']) && is_array($restore_data['plugins'])
+                        && BackupIsFromThisDevice($system_settings_data)) {
+                        $settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = true;
+                        $filepath = $settings['configDirectory'] . "/pluginPrivacyAccepted.json";
+                        $save_result = (file_put_contents($filepath, prettyPrintJSON(json_encode($restore_data))) !== false);
+                    } else {
+                        $settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = false;
+                        $save_result = false; // not this player's backup (or no usable record): this player's record is kept
                     }
                 }
 

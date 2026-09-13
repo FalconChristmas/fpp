@@ -409,3 +409,36 @@ updated or uninstalled, and clears the line when none is left. fppd shows the
 "plugins must be reinstalled" warning while the line is non-empty. The Plugins
 page will not let a plugin named here be left as it is: its Reinstall dialog
 offers only reinstall or uninstall.
+
+## Plugin Privacy Acceptance File
+
+```
+/home/fpp/media/config/pluginPrivacyAccepted.json
+```
+
+Written by the Plugin Manager when the operator installs or updates a plugin
+after seeing its `privacy` disclosure (the `privacy` block of the plugin's
+`pluginInfo.json`). `uuid` is the identity of the player that wrote the file;
+the record is honoured only on that player (a backup restored elsewhere is
+ignored, and the first Reinstall All there asks about each plugin once).
+`plugins` has one entry per plugin, keyed by repoName: the block that was
+shown and accepted, the commit it came from, and when. A `null` block means
+the plugin was installed with no disclosure. FPP compares the block an update
+or reinstall would land against this entry and asks again when the material
+keys differ; a plugin with no entry is asked once. Entries are removed with
+the plugin on uninstall; the file is removed by a reset of the plugins area
+and carried by the settings area of a backup.
+
+```
+{
+    "uuid": "6ba176e7-da7f-49f4-8b27-edb5bd9ff616",
+    "plugins": {
+        "fpp-BigButtons": {
+            "privacy": { "summary": "...", "sends": [], "collects": [], "sensors": [],
+                         "remoteAccess": "none", "systemChanges": [], "closedCode": false, "other": "..." },
+            "sha": "d25a93c4bcba470566f12255ae9dc32a22968459",
+            "acceptedAt": "2026-09-12T13:48:55+00:00"
+        }
+    }
+}
+```
