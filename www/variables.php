@@ -12,130 +12,164 @@
     <style>
         /* Three independent <table>s below need their Name/Topic and Value
            columns to land at identical pixel x-offsets so the eye can track
-           straight down the page - no Bootstrap utility does cross-table
-           fixed-width alignment (its w-* classes are %-of-own-table, and
-           these tables have different trailing column counts: the User
-           table has extra Storage/Actions columns the other two don't).
-           Fixed px widths on the two shared leading columns solves it: since
-           every table is the same overall width (Bootstrap's .table is
-           width:100%), and Name/Value get identical widths everywhere, the
-           Last Updated column also starts at the same offset in all three,
-           even though its own trailing width differs per table. */
+           straight down the page. They have different trailing column
+           counts (the User table has an extra Storage/Actions column the
+           other two don't), so every fixed column gets an explicit width
+           that sums to the same 296px in all three tables, and Name/Value
+           are left auto: under table-layout:fixed the auto columns split
+           what's left equally, and since every table is width:100% of the
+           same container that's the same pixel width everywhere. (WebKit
+           treats calc() on a <col> as auto anyway, so auto is the portable
+           spelling of "(100% - 296px) / 2".)
+           Widths are relative on purpose: the previous fixed px widths let
+           the table outgrow the page on tablets, and iOS Safari then sizes
+           its layout viewport to the overflowing document, so the navbar
+           collapse and other viewport media queries stopped applying on
+           this page only (#2956). */
         .variables-aligned-table { table-layout: fixed; width: 100%; }
-        .variables-aligned-table .varcol-name { width: 380px; }
         .variables-aligned-table .varcol-copy { width: 40px; }
-        .variables-aligned-table .varcol-value { width: 380px; }
         .variables-aligned-table .varcol-eye { width: 46px; }
         .variables-aligned-table .varcol-updated { width: 110px; }
         .variables-aligned-table .varcol-storage { width: 100px; }
-        /* table-layout:fixed enforces column widths but doesn't clip
-           overflowing cell content on its own (.text-nowrap only stops
-           wrapping) - without this, a value cell's appended "(N bytes)" note
-           can render past its column and visually collide with the next
-           (eye icon) column. */
-        .variables-aligned-table td.text-nowrap { overflow: hidden; }
+        /* Tables without a Storage/Actions column: Last Updated absorbs
+           its 100px so the fixed columns sum to 296px in every table. */
+        .variables-aligned-table .varcol-updated-wide { width: 210px; }
+        /* The cells clip their own content with an ellipsis (flex +
+           .text-truncate) so the row stays one line at any width;
+           min-width:0 lets a flex item shrink below its content width,
+           which is what makes text-overflow kick in. */
+        .variables-aligned-table .varcell { display: flex; align-items: center; min-width: 0; }
+        .variables-aligned-table .varcell > .text-truncate { flex: 1 1 auto; min-width: 0; }
+        .variables-aligned-table .varcell > .varnote { flex: 0 0 auto; }
+        /* Names/topics truncate from the START, not the end - for MQTT
+           topics the distinguishing part is the tail (.../state,
+           .../temperature) while the prefix repeats across dozens of
+           sibling rows. direction:rtl puts the ellipsis on the left; the
+           left-to-right marks (U+200E) flanking the text stop the bidi
+           algorithm from moving leading/trailing punctuation (a trailing
+           "/" or ":") to the wrong end. They're pseudo-content so they
+           never end up in a copy/paste of the name. */
+        .variables-aligned-table .varname { direction: rtl; text-align: left; }
+        .variables-aligned-table .varname::before,
+        .variables-aligned-table .varname::after { content: "\200E"; }
+        /* The View (eye) button is rendered on every row and toggled by
+           UpdateVariableEyeButtons() to only show where the value on screen
+           is actually clipped. visibility (not display) so the column
+           keeps its width and nothing shifts as rows gain/lose the eye. */
+        .variables-aligned-table .variableEyeHidden { visibility: hidden; }
 
-        /* Mobile: the fixed 380px Name+Value columns alone are wider than
-           the whole viewport. Fall back to natural sizing and hide the
-           Value column outright - visibility:collapse is the correct tool
-           for hiding a <col> (unlike display:none on a <td>, it removes the
-           column from the table's layout instead of leaving a blank gap),
-           so the row reflows to just Name/Topic + the eye icon (forced on
-           for every row via JS at this breakpoint, see VariableBreakpoint())
-           + Last Updated (+ Storage/Actions on the User table). */
+        /* Mobile: the row can't fit both a readable Name and a Value. Fall
+           back to natural sizing and hide the Value column outright (its
+           cells, not visibility:collapse on the <col> - Safari doesn't
+           support collapse on columns), so the row reflows to just
+           Name/Topic + the eye icon (forced on for every row here, since
+           it's the only way left to see a value at all) + Last Updated
+           (+ Storage/Actions on the User table). */
         @media (max-width: 767.98px) {
             .variables-aligned-table { table-layout: auto; }
             .variables-aligned-table .varcol-name,
             .variables-aligned-table .varcol-copy,
             .variables-aligned-table .varcol-eye,
             .variables-aligned-table .varcol-updated,
+            .variables-aligned-table .varcol-updated-wide,
             .variables-aligned-table .varcol-storage { width: auto; }
-            .variables-aligned-table .varcol-value { visibility: collapse; }
-        }
-
-        /* Wide screens: don't clip content just because a narrower screen
-           would have needed to - both the column width and the JS
-           character-truncation caps (VariableBreakpoint() below) scale up
-           together at this breakpoint. */
-        @media (min-width: 1800px) {
-            .variables-aligned-table .varcol-name { width: 700px; }
-            .variables-aligned-table .varcol-value { width: 700px; }
+            .variables-aligned-table th:nth-child(3),
+            .variables-aligned-table td:nth-child(3) { display: none; }
+            .variables-aligned-table .variableEyeHidden { visibility: visible; }
+            .variables-aligned-table .varcell > .text-truncate { max-width: 40vw; }
         }
     </style>
     <script>
 
-        // Mirrors the <style> media query breakpoints above - the JS
-        // character-truncation caps and the "always show the eye icon" mobile
-        // behavior need to move in lockstep with the column widths those
-        // queries set, or truncation stops matching what the column can
-        // actually fit. 'mobile' hides the Value column via CSS entirely
-        // (visibility:collapse), so its valueChars doesn't matter, but
-        // topicChars still does (Name/Topic stays visible) and forceEye
-        // makes every row's eye icon show, since it's the only way left to
-        // see a value at all.
-        // topicChars leaves headroom below what the fixed-width column could
-        // otherwise fit - the Name cell is overflow:hidden (see .text-nowrap
-        // rule above), so text sized to fill the column exactly would clip.
-        // The copy button itself lives in its own dedicated varcol-copy
-        // column (RenderCopyButton), not appended inline after the name, so
-        // it lands at the same x-offset on every row regardless of name
-        // length.
-        var VARIABLE_BREAKPOINTS = {
-            mobile: { valueChars: 0, topicChars: 22, forceEye: true },
-            normal: { valueChars: 44, topicChars: 42, forceEye: false },
-            wide: { valueChars: 80, topicChars: 78, forceEye: false }
-        };
-        function VariableBreakpoint() {
-            var w = window.innerWidth;
-            if (w < 768) {
-                return VARIABLE_BREAKPOINTS.mobile;
-            }
-            if (w >= 1800) {
-                return VARIABLE_BREAKPOINTS.wide;
-            }
-            return VARIABLE_BREAKPOINTS.normal;
-        }
-
         // Value cells stay one line regardless of how long the (already-short,
-        // backend-capped) value is. A value large enough to be server-truncated
-        // doesn't print any of its content inline at all - just a byte count -
-        // hover it for a preview (title tooltip, up to the 200-byte server cap)
-        // or click View (its own column, see RenderEyeCell) for the exact
-        // current full value. Capped short enough to fit the Value column's
-        // one line on its own - truncate the text first rather than let the
-        // browser wrap it.
-        function RenderValueCell(value, truncatedOnServer, size, maxChars) {
-            if (maxChars <= 0) {
-                return ''; // mobile - the whole column is CSS-hidden, eye icon is the only way to view
-            }
+        // backend-capped) value is - CSS clips to the column with an ellipsis
+        // (see .varcell). A value large enough to be server-truncated shows
+        // its capped preview plus a byte count; hover a clipped cell for the
+        // preview text, or click View (its own column, see RenderEyeCell)
+        // for the exact current full value.
+        function RenderValueCell(value, truncatedOnServer, size) {
             var esc = $('<div>').text(value).html();
-            // Both branches below are "clipped" the same way visually - only
-            // whether a byte count is appended differs, so a value doesn't
-            // flip between "shows a text preview" and "shows nothing but a
-            // count" depending on which side of the 200-byte server cutoff
-            // it happens to fall on.
-            if (value.length > maxChars) {
-                var shownFull = $('<div>').text(value.slice(0, maxChars)).html();
-                var titleSuffix = truncatedOnServer ? '&hellip;' : '';
-                var sizeNote = truncatedOnServer ? " <span class='text-muted'>(" + size + " bytes)</span>" : '';
-                return "<span title='" + esc + titleSuffix + "'>" + shownFull + "&hellip;</span>" + sizeNote;
-            }
-            return "<code>" + esc + "</code>";
+            var escAttr = esc.replace(/'/g, '&#39;');
+            var titleSuffix = truncatedOnServer ? '&hellip;' : '';
+            var sizeNote = truncatedOnServer ? "<span class='varnote text-muted ms-1'>(" + size + " bytes)</span>" : '';
+            return "<div class='varcell'><code class='text-truncate varvalue' data-full='" + escAttr + titleSuffix + "'>" + esc + "</code>" + sizeNote + "</div>";
         }
 
         // The eye/View button gets its own unlabeled column (rather than
         // being appended inline after the value text) so it always lands at
-        // the same x-offset down the page - only shown when the cell's
-        // display is actually clipped (server-truncated, or just longer than
-        // the client-side display cap), or forceEye is set (mobile - the
-        // Value column itself is hidden there, so the eye is the only way
-        // left to see any value regardless of length).
-        function RenderEyeCell(name, value, truncatedOnServer, maxChars, forceEye) {
-            if (!forceEye && !truncatedOnServer && value.length <= maxChars) {
-                return '';
-            }
-            var escName = name.replace(/"/g, '&quot;');
-            return "<button type='button' class='buttons btn-sm' title='View' onclick='ViewVariable(\"" + escName + "\");'><i class='fas fa-eye'></i></button>";
+        // the same x-offset down the page. It's rendered on every row and
+        // starts hidden unless the value is server-truncated (never fully
+        // visible inline); UpdateVariableEyeButtons() then reveals it on
+        // rows whose value is clipped at the current column width, and the
+        // mobile CSS forces it visible everywhere (the Value column itself
+        // is hidden there).
+        function RenderEyeCell(name, truncatedOnServer) {
+            var hidden = truncatedOnServer ? '' : ' variableEyeHidden';
+            return "<button type='button' class='buttons btn-sm variableEyeBtn" + hidden + "' data-name=\"" + EscapeVariableAttr(name) + "\" " +
+                "data-server-truncated='" + (truncatedOnServer ? 1 : 0) + "' title='View'><i class='fas fa-eye'></i></button>";
+        }
+
+        // Row action buttons are delegated (not inline onclick="") so the
+        // name comes from a data-* attribute the browser decodes for us -
+        // safe for any name containing quotes or JS syntax, which an
+        // inline onclick string is not (an attribute-escaped quote is
+        // decoded back before the JS parser sees it). MQTT topics are
+        // externally supplied, so this isn't hypothetical.
+        function EscapeVariableAttr(name) {
+            return $('<div>').text(name).html().replace(/"/g, '&quot;');
+        }
+        $(document).on('click', '.variableEyeBtn', function () {
+            ViewVariable($(this).attr('data-name'));
+        });
+        $(document).on('click', '.variableClearBtn', function () {
+            ClearVariable($(this).attr('data-name'));
+        });
+        $(document).on('click', '.variableDeleteBtn', function () {
+            DeleteVariable($(this).attr('data-name'));
+        });
+
+        // Measures each row's rendered name and value against their columns:
+        // shows the View button only where the value is actually clipped,
+        // and gives a clipped cell a hover title with the full text. Runs
+        // after every table (re)render and, debounced, on resize - the
+        // columns are relative widths so what fits changes continuously.
+        // The full text is kept in data-full rather than rendered as a
+        // title= up front: SetupToolTips() (re-run every 3s by the FPP
+        // table refresh) turns every [title] on the page into a Bootstrap
+        // tooltip, so titling every cell would mean hundreds of tooltip
+        // instances rebuilt on each refresh.
+        function UpdateVariableEyeButtons() {
+            $('.variables-aligned-table tbody tr[data-name]:not(.d-none)').each(function () {
+                var $row = $(this);
+                var valueClipped = false;
+                $row.find('.varname, .varvalue').each(function () {
+                    // Integer scrollWidth vs. fractional layout width: a 1px
+                    // tolerance keeps sub-pixel overflow from counting.
+                    var clipped = this.scrollWidth > this.getBoundingClientRect().width + 1;
+                    if (this.classList.contains('varvalue')) {
+                        valueClipped = clipped;
+                    }
+                    if (clipped && !this.title && !this.getAttribute('data-bs-toggle')) {
+                        this.title = this.getAttribute('data-full');
+                    } else if (!clipped) {
+                        // Un-clipped (wider window): drop the title, and the
+                        // Bootstrap tooltip if SetupToolTips() already made one.
+                        var inst = bootstrap.Tooltip.getInstance(this);
+                        if (inst) {
+                            inst.dispose();
+                            this.removeAttribute('data-bs-toggle');
+                            this.removeAttribute('data-bs-tooltip-title');
+                            this.removeAttribute('data-bs-original-title');
+                            this.removeAttribute('aria-label');
+                        }
+                        this.removeAttribute('title');
+                    }
+                });
+                var $btn = $row.find('.variableEyeBtn');
+                if ($btn.length && $btn.attr('data-server-truncated') !== '1') {
+                    $btn.toggleClass('variableEyeHidden', !valueClipped);
+                }
+            });
         }
 
         // Brief inline feedback (swap the icon to a checkmark for a moment)
@@ -153,22 +187,19 @@
             }, 1000);
         });
 
-        // Truncates from the START, not the end, when over maxChars - for
-        // MQTT topics the meaningful/distinguishing part is usually the
-        // tail (.../state, .../temperature), while the prefix repeats
-        // across dozens of sibling rows and just adds noise when scanning.
-        // Full name is still in the title tooltip, still searchable/
-        // sortable underneath. The copy button lives in its own dedicated
-        // column (RenderCopyButton/varcol-copy) rather than inline after
-        // the name, so it lands at the same x-offset on every row
-        // regardless of name length.
-        function RenderNameCell(name, maxChars) {
+        // Truncates from the START, not the end, when the name doesn't fit
+        // (CSS - see .varname) - for MQTT topics the meaningful/
+        // distinguishing part is usually the tail (.../state,
+        // .../temperature), while the prefix repeats across dozens of
+        // sibling rows and just adds noise when scanning. Full name is in
+        // the title tooltip, still searchable/sortable underneath. Optional
+        // leading markup (the FPP table's description icon) sits in the
+        // same flex row so it isn't pushed around by the truncation.
+        function RenderNameCell(name, prefixHtml) {
             var esc = $('<div>').text(name).html();
-            if (name.length <= maxChars) {
-                return "<code>" + esc + "</code>";
-            }
-            var tail = $('<div>').text(name.slice(-maxChars)).html();
-            return "<code title='" + esc + "'>&hellip;" + tail + "</code>";
+            var escAttr = esc.replace(/'/g, '&#39;');
+            return "<div class='varcell'>" + (prefixHtml || '') +
+                "<code class='text-truncate varname' data-full='" + escAttr + "'>" + esc + "</code></div>";
         }
 
         // Every row gets a copy button, regardless of table - names get
@@ -210,6 +241,9 @@
                         "No matches for \"" + $('<div>').text(term).html() + "\".</td></tr>").appendTo($tbody);
                 }
             });
+            // Rows hidden by the filter measure as 0 wide, so re-check the
+            // eye buttons only after visibility is settled.
+            UpdateVariableEyeButtons();
         }
 
         // Per-table sort state, applied client-side to the already-fetched
@@ -304,12 +338,31 @@
             }
         }
 
+        // The tables refresh every 3s (LoadAllVariableTables' setInterval
+        // below) and SetupToolTips() converts every title= on the page -
+        // the row buttons, the FPP info icons, clipped cells - into a
+        // Bootstrap tooltip whose floating bubble lives outside the
+        // trigger element. If a refresh empties a tbody while one is
+        // showing, its trigger is gone but the bubble is never told to
+        // hide - it's orphaned on screen until the page reloads - and
+        // Bootstrap's instance map keeps the detached rows alive. Dispose
+        // the old rows' instances before every rebuild.
+        function DisposeVariableTooltips($tbody) {
+            $tbody.find('[data-bs-toggle="tooltip"]').each(function () {
+                var inst = bootstrap.Tooltip.getInstance(this);
+                if (inst) {
+                    inst.dispose();
+                }
+            });
+        }
+
         function LoadVariablesTable() {
             $.ajax({
                 dataType: 'json',
                 url: 'api/variables',
                 success: function (data) {
                     var $tbody = $('#variablesTableBody');
+                    DisposeVariableTooltips($tbody);
                     $tbody.empty();
                     var names = SortNames(Object.keys(data || {}), data, 'user');
                     if (!names.length) {
@@ -318,25 +371,24 @@
                         );
                         return;
                     }
-                    var bp = VariableBreakpoint();
                     $.each(names, function (i, name) {
                         var v = data[name];
                         var persistIcon = v.persist
                             ? "<i class='fas fa-save text-info' title='Persisted - survives an fppd restart'></i>"
                             : "<i class='fas fa-memory text-muted' title='In-memory only - lost on an fppd restart'></i>";
-                        var escName = name.replace(/"/g, '&quot;');
-                        var valueCell = RenderValueCell(v.value, v.truncated, v.size, bp.valueChars);
-                        var eyeCell = RenderEyeCell(name, v.value, v.truncated, bp.valueChars, bp.forceEye);
+                        var attrName = EscapeVariableAttr(name);
+                        var valueCell = RenderValueCell(v.value, v.truncated, v.size);
+                        var eyeCell = RenderEyeCell(name, v.truncated);
                         var row =
                             "<tr>" +
-                            "<td class='text-nowrap'>" + RenderNameCell(name, bp.topicChars) + "</td>" +
+                            "<td>" + RenderNameCell(name) + "</td>" +
                             "<td class='text-center'>" + RenderCopyButton(name) + "</td>" +
-                            "<td class='ps-4 text-nowrap'>" + valueCell + "</td>" +
+                            "<td class='ps-4'>" + valueCell + "</td>" +
                             "<td class='text-center'>" + eyeCell + "</td>" +
                             "<td>" + FormatVariableTimestamp(v.lastUpdated) + "</td>" +
                             "<td class='text-center text-nowrap'>" + persistIcon + " " +
-                            "<button type='button' class='buttons btn-sm' title='Clear (reset value)' onclick='ClearVariable(\"" + escName + "\");'><i class='fas fa-eraser'></i></button> " +
-                            "<button type='button' class='buttons btn-sm' title='Delete (remove entirely)' onclick='DeleteVariable(\"" + escName + "\");'><i class='fas fa-trash text-danger'></i></button>" +
+                            "<button type='button' class='buttons btn-sm variableClearBtn' data-name=\"" + attrName + "\" title='Clear (reset value)'><i class='fas fa-eraser'></i></button> " +
+                            "<button type='button' class='buttons btn-sm variableDeleteBtn' data-name=\"" + attrName + "\" title='Delete (remove entirely)'><i class='fas fa-trash text-danger'></i></button>" +
                             "</td>" +
                             "</tr>";
                         $(row).attr('data-name', name.toLowerCase()).appendTo($tbody);
@@ -466,41 +518,26 @@
                 url: 'api/variables?fpp=true',
                 success: function (data) {
                     var $tbody = $('#fppVariablesTableBody');
-                    // This table refreshes every 3s (LoadAllVariableTables'
-                    // setInterval below) and SetupToolTips() converts each
-                    // info icon's title into a Bootstrap tooltip, whose
-                    // floating bubble lives outside the trigger element. If a
-                    // refresh empties $tbody while one is showing, its
-                    // trigger is gone but the bubble is never told to hide -
-                    // it's orphaned on screen until the page reloads. Dispose
-                    // any live instances on the old rows first so this can't
-                    // happen.
-                    $tbody.find('[data-bs-toggle="tooltip"]').each(function () {
-                        var inst = bootstrap.Tooltip.getInstance(this);
-                        if (inst) {
-                            inst.dispose();
-                        }
-                    });
+                    DisposeVariableTooltips($tbody);
                     $tbody.empty();
                     var names = SortNames(Object.keys(data || {}), data, 'fpp');
                     if (!names.length) {
                         $tbody.append("<tr><td colspan='5' class='text-muted'>None available.</td></tr>");
                         return;
                     }
-                    var bp = VariableBreakpoint();
                     $.each(names, function (i, name) {
                         var v = data[name];
-                        var valueCell = RenderValueCell(v.value, v.truncated, v.size, bp.valueChars);
-                        var eyeCell = RenderEyeCell(name, v.value, v.truncated, bp.valueChars, bp.forceEye);
+                        var valueCell = RenderValueCell(v.value, v.truncated, v.size);
+                        var eyeCell = RenderEyeCell(name, v.truncated);
                         var desc = FPP_VARIABLE_DESCRIPTIONS[name];
                         var descIcon = desc
-                            ? "<i class='fas fa-info-circle text-muted me-1' title='" + $('<div>').text(desc).html().replace(/'/g, '&#39;') + "'></i>"
+                            ? "<i class='fas fa-info-circle text-muted me-1 flex-shrink-0' title='" + $('<div>').text(desc).html().replace(/'/g, '&#39;') + "'></i>"
                             : '';
                         var row =
                             "<tr>" +
-                            "<td class='text-nowrap'>" + descIcon + RenderNameCell(name, bp.topicChars) + "</td>" +
+                            "<td>" + RenderNameCell(name, descIcon) + "</td>" +
                             "<td class='text-center'>" + RenderCopyButton(name) + "</td>" +
-                            "<td class='ps-4 text-nowrap'>" + valueCell + "</td>" +
+                            "<td class='ps-4'>" + valueCell + "</td>" +
                             "<td class='text-center'>" + eyeCell + "</td>" +
                             "<td>" + FormatVariableTimestamp(v.lastUpdated) + "</td>" +
                             "</tr>";
@@ -529,6 +566,7 @@
                 url: 'api/variables?mqtt=true',
                 success: function (data) {
                     var $tbody = $('#mqttVariablesTableBody');
+                    DisposeVariableTooltips($tbody);
                     $tbody.empty();
                     var names = SortNames(Object.keys(data || {}), data, 'mqtt');
                     if (!names.length) {
@@ -540,16 +578,15 @@
                         );
                         return;
                     }
-                    var bp = VariableBreakpoint();
                     $.each(names, function (i, name) {
                         var v = data[name];
-                        var valueCell = RenderValueCell(v.value, v.truncated, v.size, bp.valueChars);
-                        var eyeCell = RenderEyeCell(name, v.value, v.truncated, bp.valueChars, bp.forceEye);
+                        var valueCell = RenderValueCell(v.value, v.truncated, v.size);
+                        var eyeCell = RenderEyeCell(name, v.truncated);
                         var row =
                             "<tr>" +
-                            "<td class='align-top text-nowrap'>" + RenderNameCell(name, bp.topicChars) + "</td>" +
+                            "<td class='align-top'>" + RenderNameCell(name) + "</td>" +
                             "<td class='align-top text-center'>" + RenderCopyButton(name) + "</td>" +
-                            "<td class='ps-4 align-top text-nowrap'>" + valueCell + "</td>" +
+                            "<td class='ps-4 align-top'>" + valueCell + "</td>" +
                             "<td class='align-top text-center'>" + eyeCell + "</td>" +
                             "<td class='align-top'>" + FormatVariableTimestamp(v.lastUpdated) + "</td>" +
                             "</tr>";
@@ -582,20 +619,13 @@
             // these fresh automatically without a manual Refresh.
             setInterval(LoadAllVariableTables, 3000);
 
-            // Re-render (not just re-fetch) on a real breakpoint crossing,
-            // not every resize pixel - the truncation caps and forced-eye
-            // behavior in VariableBreakpoint() only change at those points.
-            var lastVariableBreakpoint = VariableBreakpoint();
+            // Columns are relative widths, so which values fit changes
+            // continuously with the window - re-measure (no re-fetch) after
+            // the resize settles.
             var variableResizeTimer = null;
             $(window).on('resize', function () {
                 clearTimeout(variableResizeTimer);
-                variableResizeTimer = setTimeout(function () {
-                    var bp = VariableBreakpoint();
-                    if (bp !== lastVariableBreakpoint) {
-                        lastVariableBreakpoint = bp;
-                        LoadAllVariableTables();
-                    }
-                }, 250);
+                variableResizeTimer = setTimeout(UpdateVariableEyeButtons, 250);
             });
         }
 
@@ -625,13 +655,14 @@
                     <span class="input-group-text"><i class="fas fa-search"></i></span>
                     <input type="text" id="variableSearchBox" class="form-control" placeholder="Search variables">
                 </div>
-                <h5 class="fw-semibold mb-1 mt-2">User Variables</h5>
+                <h5 class="fw-semibold mb-1 mt-2" id="userVariablesHead">User Variables</h5>
                 <div class="text-muted mb-2">
                     Values you set yourself with the <b>Set Variable</b> command, triggered directly,
                     from a GPIO input, a scheduler entry, the API, or (for data fetched
                     from outside FPP, like a weather API) a
                     <a href="recurringtasks.php">Recurring Task</a>.
                 </div>
+                <div class="fppTableContents" role="region" aria-labelledby="userVariablesHead" tabindex="0">
                 <table class="table table-striped variables-aligned-table">
                     <colgroup>
                         <col class="varcol-name"><col class="varcol-copy"><col class="varcol-value"><col class="varcol-eye"><col class="varcol-updated"><col class="varcol-storage">
@@ -652,11 +683,13 @@
                         </tr>
                     </tbody>
                 </table>
+                </div>
 
-                <h5 class="fw-semibold mb-1 mt-2">FPP Read-only Variables</h5>
+                <h5 class="fw-semibold mb-1 mt-2" id="fppVariablesHead">FPP Read-only Variables</h5>
+                <div class="fppTableContents" role="region" aria-labelledby="fppVariablesHead" tabindex="0">
                 <table class="table table-striped variables-aligned-table">
                     <colgroup>
-                        <col class="varcol-name"><col class="varcol-copy"><col class="varcol-value"><col class="varcol-eye"><col>
+                        <col class="varcol-name"><col class="varcol-copy"><col class="varcol-value"><col class="varcol-eye"><col class="varcol-updated-wide">
                     </colgroup>
                     <thead>
                         <tr>
@@ -673,12 +706,13 @@
                         </tr>
                     </tbody>
                 </table>
+                </div>
 
-                <h5 class="fw-semibold mb-1 mt-2">MQTT Read-only Variables</h5>
-                <div class="table-responsive">
+                <h5 class="fw-semibold mb-1 mt-2" id="mqttVariablesHead">MQTT Read-only Variables</h5>
+                <div class="fppTableContents" role="region" aria-labelledby="mqttVariablesHead" tabindex="0">
                     <table class="table table-striped variables-aligned-table">
                         <colgroup>
-                            <col class="varcol-name"><col class="varcol-copy"><col class="varcol-value"><col class="varcol-eye"><col>
+                            <col class="varcol-name"><col class="varcol-copy"><col class="varcol-value"><col class="varcol-eye"><col class="varcol-updated-wide">
                         </colgroup>
                         <thead>
                             <tr>
