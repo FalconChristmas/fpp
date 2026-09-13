@@ -73,23 +73,42 @@ do
 	fi
 done
 
-if [ "x${post_pull_script}" != "x" ]; then
-	echo "Running ${post_pull_script}"
-	$SUDO FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src ${post_pull_script}
-	return_val=$?
-fi
-
-# Never report success if the repo did not actually advance to upstream. Without
-# this, a failed git update followed by a succeeding install script (rc=0) would
-# masquerade as a successful upgrade while the plugin stays behind and keeps
-# showing "update available" (bug-upgrade-silent-noop). Best-effort: relies on a
+# Never treat the git phase as done if HEAD did not reach upstream, even when
+# the pull returned 0: otherwise the plugin stays behind and keeps showing
+# "update available" (bug-upgrade-silent-noop). Best-effort: relies on a
 # current origin ref, which the pull/fetch above refreshed on the network-OK paths.
-if [ -n "${BRANCH}" ] && [ "${BRANCH}" != "HEAD" ]; then
+git_rc=$return_val
+if [ $git_rc -eq 0 ] && [ -n "${BRANCH}" ] && [ "${BRANCH}" != "HEAD" ]; then
 	behind=$(cd "${PLUGINPATH}" && $SUDO git rev-list --count "HEAD..origin/${BRANCH}" 2>/dev/null)
 	if [ -n "${behind}" ] && [ "${behind}" -gt 0 ] 2>/dev/null; then
-		echo "ERROR: ${PLUGIN} is still ${behind} commit(s) behind origin/${BRANCH} after upgrade"
-		return_val=1
+		echo "ERROR: ${PLUGIN} is still ${behind} commit(s) behind origin/${BRANCH} after pull"
+		git_rc=1
 	fi
 fi
 
-exit $return_val
+# The git phase and the script phase are reported separately: a post-pull
+# script that fails (an apt conflict, a build error) must not read as "could
+# not pull", and a pull that failed must not be hidden by a script that ran
+# fine on the old code. The script only runs once the code has actually
+# advanced. Exit codes: 1 = the code was not updated, 2 = the code was
+# updated but the plugin's own script failed (2 is also bash's own "misuse"
+# code; the FINISH line in the log carries the rc either way).
+script_rc=0
+if [ $git_rc -ne 0 ]; then
+	[ -n "${post_pull_script}" ] && echo "Skipping ${post_pull_script}: the code was not updated"
+elif [ -n "${post_pull_script}" ]; then
+	echo "Running ${post_pull_script}"
+	$SUDO FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src ${post_pull_script}
+	script_rc=$?
+fi
+
+if [ $git_rc -ne 0 ]; then
+	if [ -n "${BRANCH}" ] && [ "${BRANCH}" != "HEAD" ]; then src="origin/${BRANCH}"; else src="upstream (detached HEAD)"; fi
+	echo "ERROR: could not update the code of ${PLUGIN} from ${src}; see above"
+	exit 1
+fi
+if [ $script_rc -ne 0 ]; then
+	echo "ERROR: the code of ${PLUGIN} was updated to $(cd "${PLUGINPATH}" && $SUDO git rev-parse --short HEAD 2>/dev/null), but its $(basename "${post_pull_script}") failed (rc=${script_rc}); see above"
+	exit 2
+fi
+exit 0

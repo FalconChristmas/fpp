@@ -1768,12 +1768,19 @@ function UpgradePlugin()
 	}
 	exec($cmd, $output, $return_val);
 
+	// upgrade_plugin's exit code says which phase failed: 1 = the code was
+	// not updated (pull and its reset fallback failed, or still behind
+	// origin), 2 = the code was updated but the plugin's own
+	// fpp_upgrade.sh / fpp_install.sh returned non-zero. The two need
+	// different next steps, so they get different messages.
 	if ($return_val == 0) {
 		$result['Status'] = 'OK';
 		$result['Message'] = '';
 	} else {
 		$result['Status'] = 'Error';
-		$result['Message'] = 'Could not run git pull for plugin ' . $plugin;
+		$result['Message'] = ($return_val == 2)
+			? "Plugin $plugin was updated, but its install/upgrade script failed; see logs/fpp_plugin_manager.log"
+			: "Could not update plugin $plugin from its repository; see logs/fpp_plugin_manager.log";
 	}
 
 	return json($result);
