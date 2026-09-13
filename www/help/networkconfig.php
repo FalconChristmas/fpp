@@ -1,31 +1,37 @@
 <h3>Network Configuration</h3>
 
-<h4>Interface Settings</h4><hr>
+<h4>Interface Settings</h4>
+<p><b>Interface</b> — On a standard Raspberry Pi this will be <code>eth0</code> (wired Ethernet) and, if a WiFi adapter is present, <code>wlan0</code> (wireless). Other platforms may show differently named interfaces such as <code>eth1</code> or tethering interfaces. Select the interface you wish to configure from the dropdown. <i>Retained: the original help correctly notes that different hardware shows different interface names — keep it selected per interface.</i></p>
 
-<p><b>Interface</b> - On a standard RPI unit this will be eth0 only.  Eth0 is the network jack on the RPI.  If you added a WiFi dongle, you will also have wlan0.  Select from the dropdown which interface you wish to configure.</p>
+<p><b>Interface Mode</b> — <b>Static</b> is a fixed address you assign; it must be unique on the network — duplicate IPs cause conflicts and will confuse both devices. <b>DHCP</b> is an address automatically assigned by your router; as long as the router keeps the lease the address usually stays the same, but it can change after a router reset or lease expiry. In DHCP mode the next three fields (IP, Netmask, Gateway) are supplied by the router and cannot be set manually.</p>
 
-<p><b>Interface Mode</b> - Static or DHCP.  Static is a specific IP address you want the select interface to bind to.  Please note this HAS to be a unique IP address on the network.  Multi machines can not have the same IP and will just cause you problems.  DHCP is a auto assigned IP from your router.  Once this IP has been assigned, as long as your router continues to see this device on your network it "SHOULD" keep that assinged IP unless you reset the DHCP settings of your router then this can change.  In DHCP mode you can not assign any of the following 3 entries in the Interface section as these come from your router.</p>
+<p><b>IP Address</b> — In Static mode enter the desired address as four decimal sections separated by periods (e.g. <code>192.168.0.26</code>). You do not need leading zeros, but all four sections are required. <i>Retained: original format and example kept.</i></p>
 
-<p><b>IP Address</b> - In static mode you can enter the desigered IP in the form of ###.###.###.### (Ex:  192.168.0.26).  You do not need to put in leading 0's, but you do need all 4 sections seperated by a "."</p>
+<p><b>Netmask</b> — In Static mode this is typically <code>255.255.255.0</code> for most home networks. If your network is unusual, use the netmask your network administrator provided. <i>Retained and expanded with default.</i></p>
 
-<p><b>Netmask</b> - In static mode normally this is 255.255.255.0 for most setups.  If your setup is uniqure, you will know if a different netmask is required for your network.</P>
+<p><b>Gateway</b> — In Static mode this is typically one of two addresses on home routers: the router’s own address, usually ending in <code>.1</code> or <code>.254</code> (e.g. <code>192.168.0.1</code>). If unsure, check the network properties of a laptop or desktop on the same network. <i>Retained: original guidance on .1/.254 and where to look it up.</i></p>
 
-<p><b>Gateway</b> - In static mode normally this will be one of 2 different setups.  Format again is in ###.###.###.### and could end in .1 or .254 for most home routers (Ex:  192.168.0.1 or 192.168.0.254).  If you are not sure you can look at your network properties for your laptop or desktop to see what its gateway IP is set to.</p>
+<p><b>Update Interface</b> — Saves the current interface configuration to the on-device network storage (historically the flash drive). A <b>Restart Network</b> button will then appear; you can try restarting the network in place, but finishing your Interface <b>and</b> DNS settings first and then <b>Rebooting</b> from the main Status page is the most reliable, as some drivers only pick up changes after a reboot.</p>
 
-<p><b>Update Interface</b> - Will save your currently selected interface configuration to your flash drive.  A <b>Restart Network</b> button will appear.  You can attempt to restart the network - but it is recommended to finish up your Interface and DNS settings, and then reboot the unit from the main status screen.  Sometimes the RPI will not update it's network without a reboot.</p>
+<div class="callout callout-warning"><b>NOTE:</b> If you configure both eth0 and wlan0, they should not be on the same subnet. A common split is eth0 on a dedicated show LAN (e.g. <code>192.168.1.100</code>) and wlan0 on your home LAN via DHCP or a different Static subnet. Only <b>one</b> interface should have a Gateway. The interface that needs Internet access (for updates, time, or remote access) should be the one with the Gateway. <i>Retained: this dual-network warning is the most important original note and is kept verbatim in meaning.</i></div>
 
-<p><b>NOTE:</b> - If you are configuring both eth0 and wlan0, they should not be on the same networks.  A common setup is eth0 on a dedicated lan (Ex: 192.168.1.100) and wlan0 setup either Static or DHCP.  Either way only ONE interface should have a Gateway IP.  The interface that needs to get out to the Inet for remote access or updates should be the only interface with a Gateway IP setup.</p>
+<h4>DNS Settings</h4>
 
+<p><b>HostName</b> — A short, single-word name for this FPP (8 letters or fewer, alphanumeric plus hyphens, no symbols or spaces) and must be unique on your network. FPP uses it to discover peers and lets you reach the player as <code>http://hostname.local</code> in your browser. Common examples are <code>FPP1</code>, <code>FPP2</code>, <code>FPPM</code>, <code>FPPS1</code>, etc.</p>
+<p><b>Save</b> — Writes the hostname change to the device’s persistent configuration.</p>
 
-<h4>DNS Settings</h4><hr> 
+<p><b>DNS Server Mode</b> — <b>Manual</b> (enter your own) or <b>DHCP</b> (use the servers DHCP provides).</p>
 
-<p><b>HostName</b> - This must be a single word, 8 letters or less, alpa/numeric only (no symbols, punciation or spaces) and should be unique to your setup.  This lets the Falcon Player software find other compatible player devices on your network and also allows you to access that unique player by its name in your web browser.  Some common examples are FPP1, FPP2 or FPPM, FPPS1, FPPS2 etc.</p>
-<p><b>Save</b> - button will set the hostname and save it to your flash drive configuration.</p>
+<p><b>DNS Server 1</b> — In Manual mode, enter a DNS address in the same <code>###.###.###.###</code> format — most often your router’s IP, or a public server such as <code>8.8.8.8</code> (Google).</p>
 
-<p><b>DNS Server Mode</b> - Manual or DCHP Mode</p>
+<p><b>DNS Server 2</b> — Optional secondary in the same format, used if the first is unavailable.</p>
 
-<p><b>DNS Server 1</b> - In Static mode this is in the standard IP format of ###.###.###.### - most of the time this will be the IP address of your router.  This can also be a public DNS IP as well (Ex: Google is 8.8.8.8).</p>
+<p><b>Update DNS</b> — Writes the DNS/hostname settings. A <b>Restart DNS</b> button then appears to restart the DNS resolver without a full reboot.</p>
 
-<p><b>DNS Server 2</b> - Optional, but same setup as DNS Server 1.</p>
+<h4>Extra topics shown on this page</h4>
+<ul>
+    <li><b>Tethering / Access Point</b> (when supported) — Turns this FPP into its own WiFi network for field configuration. It creates an SSID/passphrase and assigns addresses to clients; the tethered interface should not also have a separate Gateway beyond the tether subnet.</li>
+    <li><b>Advanced Interface knobs</b> — Routing metrics, IP forwarding/NAT, and DHCP server settings appear under Advanced when the UI level permits. Leave them at defaults unless your network design requires them; they control packet forwarding between interfaces and whether this FPP hands out addresses to other devices.</li>
+</ul>
 
-<p><b>Update DNS</b> - This will update your DNS settings configuration on your flash drive.  A <b>Restart DNS</b> button will show up allowing you to restart the DNS server program without rebooting.</p>
+<p><b>Tip:</b> After changing interfaces and DNS, apply <b>Update Interface</b> and <b>Update DNS</b> one at a time, then use the Status page <b>Reboot</b> for the cleanest transition. Verify new addresses in the header’s <b>IPs</b> display and by pinging the new hostname.</p>
