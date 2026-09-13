@@ -30,6 +30,14 @@
 
 #ifdef USENRF
 #include "RF24.h"
+// SPIDEV driver uses Hz (e.g. 8000000), BCM driver uses BCM2835_SPI_SPEED_8MHZ enum (4).
+// Keep wiring hard-coded on CE=GPIO22/P1_15, CSN=GPIO7/P1_26, bus spidev0.0 — no JSON change.
+// FPP_SPIDEV is set via -DFPP_SPIDEV when RF24 is built with DRIVER=SPIDEV (see modules.mk).
+#ifdef FPP_SPIDEV
+#define FPP_RF24_SPI_SPEED 8000000
+#else
+#define FPP_RF24_SPI_SPEED BCM2835_SPI_SPEED_8MHZ
+#endif
 #else
 #include "stdint.h"
 
@@ -41,6 +49,7 @@
 #define RPI_V2_GPIO_P1_24 3
 #define RPI_V2_GPIO_P1_26 7
 #define BCM2835_SPI_SPEED_8MHZ 4
+#define FPP_RF24_SPI_SPEED BCM2835_SPI_SPEED_8MHZ
 #define RF24_CRC_16 5
 #define RF24_PA_MAX 6
 
@@ -146,7 +155,7 @@ int SPInRF24L01Output::Init(Json::Value config) {
         return 0;
     }
 
-    RF24* radio = new RF24(RPI_V2_GPIO_P1_15, RPI_V2_GPIO_P1_26, BCM2835_SPI_SPEED_8MHZ);
+    RF24* radio = new RF24(RPI_V2_GPIO_P1_15, RPI_V2_GPIO_P1_26, FPP_RF24_SPI_SPEED);
     if (!radio) {
         LogErr(VB_CHANNELOUT, "Failed to create our radio instance, unable to continue!\n");
         WarningHolder::AddWarning(40, "nRF24 radio output: could not create radio instance");
