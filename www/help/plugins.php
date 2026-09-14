@@ -58,7 +58,9 @@
     choices. When more than one plugin needs an answer, <b>Reinstall All</b> and <b>Update All</b> first show
     a screen saying which plugins will be asked about, then one screen per plugin.
     A plugin installed before FPP kept a record of accepted disclosures is asked about once. A plugin that
-    cannot be checked, for example because the player is offline, is left as it is.</p>
+    cannot be checked, for example because the player is offline, is left as it is. If only the installed
+    copy's origin has gone (its branch was renamed or the repository moved) but the plugin list still points
+    at it, the check says so: <b>Update</b> cannot run for that plugin, and <b>Reinstall</b> clones it afresh.</p>
 
 <h4>Other buttons on a card</h4>
 <ul>

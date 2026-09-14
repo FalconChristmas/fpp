@@ -563,9 +563,21 @@
             var withUpdates = [];
             var anyError = false;
             pluginList.forEach(function (plugin) {
+                // The listing's clone URL rides along: when the installed
+                // clone's own origin can no longer be fetched (branch renamed
+                // or deleted, repo moved) the server tries the reinstall
+                // target there instead, so Reinstall can still re-clone it.
+                var body = {};
+                var pi = FindPluginInfo(plugin);
+                if (pi >= 0 && pluginInfos[pi].srcURL) {
+                    body.srcURL = pluginInfos[pi].srcURL;
+                    body.useCredentials = (pluginInfos[pi].private || pluginInfoUseCredentials[plugin]) ? 1 : 0;
+                }
                 $.ajax({
                     url: 'api/plugin/' + plugin + '/updates',
                     type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(body),
                     dataType: 'json',
                     success: function (data) {
                         // A failed fetch comes back as Status:Error with HTTP 200;
@@ -574,6 +586,11 @@
                         if (data.Status != 'OK') {
                             anyError = true;
                             return;
+                        }
+                        if (data.originUnreachable) {
+                            // Checked, but only the reinstall target answered:
+                            // an upgrade is impossible, a Reinstall is the fix.
+                            $.jGrowl(EscapeHtml(plugin) + ': the installed copy can no longer fetch from where it was cloned. Update cannot run; use Reinstall to clone it afresh.', { themeState: 'warn', sticky: true });
                         }
                         var hasUpdate = !!data.updatesAvailable;
                         pluginPrivacyChanged[plugin] = !!data.privacyChanged;

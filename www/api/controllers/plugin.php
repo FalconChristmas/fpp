@@ -1883,10 +1883,18 @@ function UninstallPlugin()
  * the plugin directory and checking for any unmerged commits.
  *
  * @route POST /api/plugin/{RepoName}/updates
+ * @body {"srcURL": "https://github.com/owner/repo.git", "useCredentials": 0} (optional: the
+ *       listing's clone URL, tried when the installed clone's own origin cannot be fetched)
  * @response 200 Update check result
  * ```json
  * {"Status": "OK", "Message": "", "updatesAvailable": 1, "privacyChanged": false, "reinstallPrivacyChanged": false, "reinstallTarget": {"branch": "master", "sha": ""}}
  * ```
+ *
+ * `originUnreachable` (true only when present): the installed clone could not
+ * fetch from its origin but the reinstall target was reachable at `srcURL`, so
+ * a Reinstall will work while an upgrade cannot.  `updatesAvailable` is 0 and
+ * `privacyChanged` false in that case: nothing was learned about the
+ * checked-out branch.
  *
  * `privacyChanged`: the block `…/upgrade` would land (origin/<checked-out
  * branch>) differs materially from the accepted one, or nothing is accepted.
@@ -1926,12 +1934,89 @@ function CheckForPluginUpdates()
 		// versions[] choice, SelectPluginVersionEntry), for the page to post
 		// back so both sides mean the same commit.
 		$result['reinstallTarget'] = array('branch' => $tBranch, 'sha' => $tSha);
-	} else {
-		$result['Status'] = 'Error';
-		$result['Message'] = 'Could not run git fetch for plugin ' . $plugin;
+		return json($result);
 	}
 
+	// The installed clone cannot fetch from its origin.  That is either the
+	// network (nothing can be done, and a reinstall that uninstalls first
+	// would leave nothing behind) or this clone's origin alone: the branch it
+	// was cloned --single-branch from was renamed or deleted, or the repo
+	// moved.  A fresh clone from the listing's URL works in the second case,
+	// and that is exactly what Reinstall does -- but the page only reinstalls
+	// plugins whose check succeeded, so such a plugin was stuck installed and
+	// broken, and after an FPP OS upgrade stayed on the reinstall list with
+	// fppd's warning up for good.  Tell the two apart by fetching the
+	// reinstall target from the URL a reinstall would clone, into the same
+	// origin/<branch> ref the reinstall-side privacy diff reads.
+	list($tBranch, $tSha) = PluginReinstallTarget($plugin);
+	if ($tBranch !== '' && PluginFetchReinstallTargetByURL($plugin, $tBranch, PluginUpdateCheckSrcURL())) {
+		$result['Status'] = 'OK';
+		// Nothing about the checked-out branch could be learned; it is the
+		// origin that is gone, so an upgrade (git pull) cannot happen either.
+		$result['updatesAvailable'] = 0;
+		$result['privacyChanged'] = false;
+		$result['originUnreachable'] = true;
+		$result['Message'] = 'The installed copy of ' . $plugin . ' can no longer fetch from where it was cloned; Reinstall will clone it afresh.';
+		$result['reinstallPrivacyChanged'] = PluginPrivacyChanged($plugin, false, $p, $a, $src, 'reinstall');
+		$result['reinstallTarget'] = array('branch' => $tBranch, 'sha' => $tSha);
+		return json($result);
+	}
+
+	$result['Status'] = 'Error';
+	$result['Message'] = 'Could not run git fetch for plugin ' . $plugin;
 	return json($result);
+}
+
+// The clone URL the page posts with an update check ({"srcURL": ..,
+// "useCredentials": ..} -- the listing's URL for the plugin, i.e. what a
+// Reinstall would clone), with GitHub credentials injected when asked for.
+// '' when absent or not a GitHub URL: the only place it is used is as a git
+// remote, and IsGitHubURL() is the same gate the install path applies.
+function PluginUpdateCheckSrcURL()
+{
+	$body = '';
+	$fp = fopen('php://input', 'r');
+	if ($fp) {
+		while ($d = fread($fp, 1024 * 16)) {
+			$body .= $d;
+		}
+		fclose($fp);
+	}
+	$req = json_decode($body, true);
+	if (!is_array($req)) {
+		return '';
+	}
+	$url = isset($req['srcURL']) && is_string($req['srcURL']) ? trim($req['srcURL']) : '';
+	if ($url === '' || !IsGitHubURL($url) || filter_var($url, FILTER_VALIDATE_URL) === false) {
+		return '';
+	}
+	if (!empty($req['useCredentials'])) {
+		$injected = InjectGitHubCredentials($url);
+		if ($injected !== false) {
+			$url = $injected;
+		}
+	}
+	return $url;
+}
+
+// Fetch refs/heads/<branch> of $url into refs/remotes/origin/<branch> of the
+// installed clone, bypassing the clone's own (possibly dead) origin URL.
+// Populates the same ref PluginPendingPrivacy(.., 'reinstall') reads.  $url ''
+// falls back to the clone's origin, which is only useful when the branch,
+// not the URL, is what --single-branch could not see.
+function PluginFetchReinstallTargetByURL($plugin, $branch, $url)
+{
+	global $settings, $SUDO;
+	$dir = $settings['pluginDirectory'] . '/' . $plugin;
+	if (!preg_match('/^[A-Za-z0-9_.-]+$/', $plugin) || !is_dir($dir) ||
+		$branch === '' || !preg_match('/^[A-Za-z0-9_.\/-]+$/', $branch) || strpos($branch, '..') !== false) {
+		return false;
+	}
+	$remote = ($url !== '') ? escapeshellarg($url) : 'origin';
+	exec('cd ' . escapeshellarg($dir) . ' && ' . $SUDO . ' timeout 60 git fetch ' . $remote . ' ' .
+		escapeshellarg('+refs/heads/' . $branch . ':refs/remotes/origin/' . $branch) . ' 2>/dev/null', $o, $rv);
+	unset($o);
+	return $rv == 0;
 }
 
 /**
