@@ -79,7 +79,8 @@
 
 <?php
 $tabId = "Playback";
-if (isset($_GET['tab'])) {
+// ?tab[]=x would hand array_key_exists() an array and fatal the page.
+if (isset($_GET['tab']) && is_string($_GET['tab'])) {
     $tabId = $_GET['tab'];
 }
 $storageUILevel = 1;
@@ -305,15 +306,9 @@ $id = 0;
             <?php include 'common/footer.inc'; ?>
 
             <script>
-                var activeTabNumber =
-                    <?php
-
-                    if (!array_key_exists($tabId, $tabIDs)) {
-                        print $tabId;
-                    } else {
-                        print $tabIDs[$tabId];
-                    }
-                    ?>;
+                // Only ever an integer: ?tab= is user input and this lands
+                // inside a <script>, so an unknown tab falls back to the first.
+                var activeTabNumber = <?php print array_key_exists($tabId, $tabIDs) ? (int) $tabIDs[$tabId] : 0; ?>;
                 
                 var tabIDs = <?php echo json_encode($tabIDs); ?>;
 if(location.hash){
