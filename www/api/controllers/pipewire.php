@@ -945,7 +945,7 @@ function PipeWireProbeFormatRate($alsaPath, $pwFmt, $rate, $channels)
 
 /////////////////////////////////////////////////////////////////////////////
 // Pick the widest PCM format in $fmtLine that costs no sample rate relative to
-// the universally-safe S16LE fallback.
+// S16LE when the card supports it.
 //
 // The question is NOT "does this format hold the rate we asked for".  A card can
 // be unable to deliver the requested rate in ANY format -- an AM62x PCM5102A cape
@@ -969,19 +969,25 @@ function PipeWireBestFormatForRate($fmtLine, $alsaPath, $rate, $channels)
     }
     if (!$anyWider)
         return 'S16LE';
-    // The rate to beat. If this cannot be established (device busy, probe timed
-    // out) there is nothing to compare against, so decline to widen: a needlessly
-    // narrow format costs only bit depth, a wrongly wide one costs all audio.
-    $baselineRate = PipeWireProbeFormatRate($alsaPath, 'S16LE', $rate, $channels);
-    if ($baselineRate <= 0)
+    $hasS16 = strpos($fmtLine, 'S16_LE') !== false;
+    // If an advertised S16 baseline cannot be established, decline to widen.
+    // Cards that do not advertise S16 must use one of their real formats.
+    $baselineRate = $hasS16
+        ? PipeWireProbeFormatRate($alsaPath, 'S16LE', $rate, $channels)
+        : 0;
+    if ($hasS16 && $baselineRate <= 0)
         return 'S16LE';
+    $advertisedFallback = '';
     foreach ($wider as $alsaName => $pwName) {
         if (strpos($fmtLine, $alsaName) === false)
             continue;
-        if (PipeWireProbeFormatRate($alsaPath, $pwName, $rate, $channels) >= $baselineRate)
+        $advertisedFallback = $pwName;
+        $achievedRate = PipeWireProbeFormatRate($alsaPath, $pwName, $rate, $channels);
+        if ((!$hasS16 && $achievedRate > 0) ||
+            ($hasS16 && $achievedRate >= $baselineRate))
             return $pwName;
     }
-    return 'S16LE';
+    return $hasS16 ? 'S16LE' : $advertisedFallback;
 }
 
 /////////////////////////////////////////////////////////////////////////////
