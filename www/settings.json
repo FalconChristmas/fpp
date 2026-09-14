@@ -3234,6 +3234,19 @@
 			"max": 65535,
 			"level": 2
 		},
+		"FalconV5QueryInterval": {
+			"name": "FalconV5QueryInterval",
+			"description": "Falcon V5 Receiver Query Interval",
+			"tip": "Frames between smart-receiver query packets on BeagleBone capes with Falcon V5 receivers. 1 (the default) queries whenever a packet slot is free, roughly every other frame. Long strings at high frame rates leave no room for the query and the receiver's reply: at ~740+ pixels per port at 40fps the reply is read incomplete and shows up as phantom eFuse trips and dropped frames. Raising this to 40 sends one query per second at 40fps and reads the reply one frame later; the ports' current readings then update about once a second. Only touch this if you see eFUSE Triggered events that a port snapshot does not confirm.",
+			"restart": 1,
+			"reboot": 0,
+			"default": "1",
+			"type": "number",
+			"min": 1,
+			"max": 200,
+			"level": 2,
+			"children": {}
+		},
 		"TimeZone": {
 			"name": "TimeZone",
 			"description": "Time Zone",
