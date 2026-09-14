@@ -598,6 +598,7 @@
 
         result += nRFSpeedSelect(nRFSpeeds, config.speed);
         result += "Channel: <input class='channel' type='text' size=4 maxlength=4 value='" + config.channel + "'>";
+        result += "<br><span class='text-danger'><b>Deprecated:</b> SPI-nRF24L01 output will be removed in FPP 11.</span>";
 
         return result;
     }
@@ -1075,7 +1076,7 @@
             // Legacy SPI types (Raspberry Pi only)
             if (category == "SPI") {
                 if (Object.keys(SPIDevices).length > 0) {
-                    types.push({ value: "SPI-nRF24L01", label: "SPI-nRF24L01" });
+                    types.push({ value: "SPI-nRF24L01", label: "SPI-nRF24L01 (Deprecated)" });
                     types.push({ value: "MAX7219Matrix", label: "MAX7219 Matrix" });
                 }
             }
