@@ -37,6 +37,16 @@
         }
 
         function reloadSettingsPage() {
+            // A reloadUI setting reloads the page.  Carry the search term across
+            // that one reload only: it is consumed on load, so a plain visit or a
+            // ?tab= link never opens in the search view.
+            try {
+                var term = ($('#settingsSearch').val() || '').trim();
+                if (term !== '') {
+                    sessionStorage.setItem('fppSettingsSearch',
+                        JSON.stringify({ term: term, help: $('#settingsSearchHelp').is(':checked') }));
+                }
+            } catch (e) { }
             location.reload();
         }
 
@@ -499,11 +509,6 @@ if(location.hash){
                     var $manager = $('#settingsManager');
                     var $panes = $('#settingsManagerTabsContent .tab-pane');
 
-                    try {
-                        sessionStorage.setItem(settingsSearchStorageKey,
-                            JSON.stringify({ term: rawTerm, help: includeHelp }));
-                    } catch (e) { }
-
                     clearSettingsSearchMarkup();
 
                     if (term === '') {
@@ -607,9 +612,11 @@ if(location.hash){
                     }
                 }).observe(document.getElementById('settingsManagerTabsContent'),
                     { attributes: true, attributeFilter: ['style'], subtree: true });
-                // Survive the reload a reloadUI setting triggers.
+                // Survive the reload a reloadUI setting triggers (one-shot, see
+                // reloadSettingsPage): read it and drop it in the same step.
                 try {
                     var saved = JSON.parse(sessionStorage.getItem(settingsSearchStorageKey) || 'null');
+                    sessionStorage.removeItem(settingsSearchStorageKey);
                     if (saved && saved.term) {
                         $('#settingsSearch').val(saved.term);
                         $('#settingsSearchHelp').prop('checked', !!saved.help);
