@@ -172,9 +172,9 @@ reports carry no contact details.</p>",
         'logos' => array(
             'title' => 'Load cape logos from vendor website',
             'body' => "
-<p><b>Every time you open the Cape Info page your browser contacts your cape maker's web
-server, which tells that company your IP address, when you looked, and that you are using
-their product.</b></p>
+<p><b>Every page of the FPP interface shows your cape maker's logo in the header, and each
+time a page loads your browser fetches it from that company's web server. That tells them
+your IP address, when you were using FPP, and that you are using their product.</b></p>
 
 <p><b>Recipients:</b> whichever cape vendor made your hardware. They are separate
 businesses from the FPP project, and what they keep is up to them.</p>
