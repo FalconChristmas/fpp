@@ -359,6 +359,22 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
             }
         }
     }
+
+    // channelData is exactly channelCount bytes, but a custom model's node
+    // numbers come straight from the config and can address well past it.
+    // Every setData()/doOverlay() indexes channelData through channelMap, so
+    // enforce the bound once here rather than at each use.
+    int outOfRange = 0;
+    for (auto& ch : channelMap) {
+        if (ch != FPPD_OFF_CHANNEL && ch >= (uint32_t)channelCount) {
+            ch = FPPD_OFF_CHANNEL;
+            outOfRange++;
+        }
+    }
+    if (outOfRange) {
+        LogWarn(VB_CHANNELOUT, "Overlay model '%s': %d node channel(s) exceed the model's %d channels and were disabled\n",
+                name.c_str(), outOfRange, channelCount);
+    }
 }
 PixelOverlayModel::~PixelOverlayModel() {
     if (channelData) {
