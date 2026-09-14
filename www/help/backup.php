@@ -24,6 +24,7 @@
     <li><b>Keep Existing Master/Slave Settings</b> (default checked) — When checked, the restore does not overwrite this system’s Master/Slave (Player/Remote) role. Leave checked when cloning a config to another box so you do not accidentally turn a Player into a Remote or vice versa. <i>Retained: original note kept; the file still uses the historic label even though the modern mode is Player/Remote.</i></li>
     <li><b>Keep Network Settings</b> (default checked) — When checked, the restore keeps the current network (IPs, gateway, DNS, hostname). Leave checked when cloning so the target does not steal the donor’s address. <i>Retained: original note kept.</i></li>
     <li><b>Restore</b> (button) — Applies the chosen area from the chosen file, merges it into the live config, and shows success/failure toasts. After restore, reboot or restart FPPD if the affected subsystem requires it (the page will suggest it).</li>
+    <li><b>What a restore keeps back</b> — A backup this player made itself restores completely. A backup from a different player restores everything except that player's privacy answers, its identity and its logins (web UI and OS passwords, and the address it sent mail to), so restoring somebody else's file cannot lock you out of the box in front of you. A backup that does not say which player made it (one written by an older FPP, or before the privacy step was answered) keeps the logins but not the privacy answers, so the box asks the privacy step again.</li>
 </ul>
 
 <h4>Restore Existing Backups (table of on-device backups)</h4>
