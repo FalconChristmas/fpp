@@ -959,7 +959,21 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
     auto dateOffsetFromJson = [&entry](const char* key) -> int {
         if (!entry.isMember(key))
             return 0;
-        Json::Value::LargestInt v = entry[key].isString() ? atoll(entry[key].asString().c_str()) : entry[key].asLargestInt();
+        const Json::Value& e = entry[key];
+        Json::Value::LargestInt v;
+        if (e.isNull()) {
+            return 0;
+        } else if (e.isString()) {
+            v = atoll(e.asString().c_str());
+        } else if (e.isIntegral()) {
+            // asLargestInt() throws on an object, array or non-integral
+            // double; a bad value in schedule.json must not abort fppd.
+            v = e.asLargestInt();
+        } else {
+            LogErr(VB_SCHEDULE, "Invalid %s in schedule (not a number), using 0\n", key);
+            WarningHolder::AddWarning(47, std::string("Schedule: ") + key + " is not a number");
+            return 0;
+        }
         if ((v < -366) || (v > 366)) {
             LogErr(VB_SCHEDULE, "Invalid %s %lld in schedule, using 0\n", key, (long long)v);
             WarningHolder::AddWarning(47, std::string("Schedule: ") + key + " out of range (-366..366)");
