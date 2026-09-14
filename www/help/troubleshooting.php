@@ -21,7 +21,7 @@
     <li><b>Output</b> — A <code>&lt;pre id="command_{key}"&gt;</code> initially showing a spinner and <i>Loading…</i>. Once fetched, the raw text replaces it. The text is built from <b>Text nodes</b> (never <code>innerHTML</code>) so angle brackets like <code>&lt;unavailable&gt;</code> or <code>&lt;node&gt;</code> in tool output are not parsed as HTML and do not vanish.</li>
 </ul>
 
-<h4>Verdict highlighting — retained and expanded</h4>
+<h4>Verdict highlighting</h4>
 <p>The scripts mark verdicts with a leading <code>[PASS]</code> / <code>[WARN]</code> / <code>[FAIL]</code> / <code>[INFO]</code> / <code>[SKIP]</code>. Plain-state commands carry no markers and render unchanged. Only on-screen decoration is added; the support bundle keeps the exact original bytes.</p>
 <ul>
     <li><b>Marker lines</b> — <code>[FAIL]</code> → red subtle background + bold, <code>[WARN]</code> → amber subtle + bold, <code>[PASS]</code> → green, <code>[INFO]/[SKIP]</code> → muted. Indented lines directly under a <code>FAIL</code>/<code>WARN</code> are tinted the same color but without the band, so the “what to do” stays visually attached. Section headers like <code>=== Section ===</code> / <code>--- Section ---</code> are bold, and <code>Result: …</code> is bold and colored by the overall worst verdict for that command.</li>

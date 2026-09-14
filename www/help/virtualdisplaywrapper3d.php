@@ -42,10 +42,10 @@
     <li><b>Combine multiple:</b> <code>?standalone=true&amp;zoom=0.8&amp;brightness=2.5&amp;ambientLight=0.3&amp;holidayMode=true</code></li>
 </ul>
 
-<h4>Setup prerequisites — retained important notes</h4>
+<h4>Setup prerequisites</h4>
 <ul>
-    <li><b>If the 3D display is not working</b>, add the <b>HTTP Virtual Display</b> Channel Output on the <b>Other</b> tab of <b>Channel Outputs</b>. Upload the pixel map from xLights via FPP Connect by ticking <b>Models</b> for this device — it is saved as <code>virtualdisplaymap</code> in FPP’s configuration directory. <i>Retained verbatim in meaning.</i></li>
-    <li><b>Tilted trees warning:</b> If tree models appear tilted or off-vertical, recreate those trees in the <b>current version of xLights</b>. Older xLights generated tree data with alignment inaccuracies; only a fresh generation and export will correct the geometry FPP receives. <i>Retained.</i></li>
+    <li><b>If the 3D display is not working</b>, add the <b>HTTP Virtual Display</b> Channel Output on the <b>Other</b> tab of <b>Channel Outputs</b>. Upload the pixel map from xLights via FPP Connect by ticking <b>Models</b> for this device — it is saved as <code>virtualdisplaymap</code> in FPP’s configuration directory.</li>
+    <li><b>Tilted trees warning:</b> If tree models appear tilted or off-vertical, recreate those trees in the <b>current version of xLights</b>. Older xLights generated tree data with alignment inaccuracies; only a fresh generation and export will correct the geometry FPP receives.</li>
 </ul>
 
 <h4>Upload 3D Object Files</h4>

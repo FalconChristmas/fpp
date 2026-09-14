@@ -13,7 +13,7 @@
 </ul>
 
 <h4>Output types — what they do and when to use them</h4>
-<p>The descriptions and wiring tables below are retained from the original help because they remain the reference for directly attached hardware. For cape-based pixels, the cape itself determines the exact pinout — the tables show the underlying GPIO mapping FPP uses when no cape overrides it.</p>
+<p>The descriptions and wiring tables below are the reference for directly attached hardware. For cape-based pixels, the cape itself determines the exact pinout — the tables show the underlying GPIO mapping FPP uses when no cape overrides it.</p>
 
 <p><b>E1.31</b> — The E1.31 output can drive up to 512 universes over the Pi v2 B's ethernet network interface at 50ms timing or 128 universes on the original A/B/B+. BeagleBone output should be similar to the Pi v2 B.</p>
 

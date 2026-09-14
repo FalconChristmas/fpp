@@ -1,10 +1,9 @@
 <h3>FPP Backups</h3>
-<p>This page creates, downloads and restores backups of the FPP configuration, and can also copy raw files or OS images to other FPPs. Backups are JSON snapshots stored in two places at once: <code>config/backups → /home/fpp/media/config/backups</code> (on the media/flash drive that travels with your sequences) and, optionally, a second copy on an additional USB device you nominate. <b>What a backup contains:</b> everything needed to restore this player, including passwords, the WiFi passphrase and access tokens, in plain text. That is what makes it able to bring a box back. Treat the file as you would the passwords themselves: do not attach it to a forum post or a bug report. <i>Retained: this warning is the most important original note and is kept verbatim in meaning.</i></p>
+<p>This page creates, downloads and restores backups of the FPP configuration, and can also copy raw files or OS images to other FPPs. Backups are JSON snapshots stored in two places at once: <code>config/backups → /home/fpp/media/config/backups</code> (on the media/flash drive that travels with your sequences) and, optionally, a second copy on an additional USB device you nominate. <b>What a backup contains:</b> everything needed to restore this player, including passwords, the WiFi passphrase and access tokens, in plain text. That is what makes it able to bring a box back. Treat the file as you would the passwords themselves: do not attach it to a forum post or a bug report.</p>
 
 <h4>Backup Configuration</h4>
 <ul>
-    <li><b>Areas to back up</b> — Checkboxes for groups such as <b>Settings</b>, <b>Network</b>, <b>Channel Outputs</b>, <b>Playlists</b>, <b>Sequences</b>, <b>Universes</b>, <b>Schedule</b>, and <b>All</b>. Select which settings you want to backup, then hit download. A copy is also saved in <code>/media/config</code> (the USB stick with your sequences). <i>Retained: original Backup sentence kept.</i></li>
-    <li><b>Protect sensitive data</b> (default checked) — Removes passwords/keys before writing the file. Uncheck only when you intend an exact clone on a box you control — then the file contains credentials in plain text and you assume responsibility for it.</li>
+    <li><b>Areas to back up</b> — Checkboxes for groups such as <b>Settings</b>, <b>Network</b>, <b>Channel Outputs</b>, <b>Playlists</b>, <b>Sequences</b>, <b>Universes</b>, <b>Schedule</b>, and <b>All</b>. Select which settings you want to backup, then hit download. A copy is also saved in <code>/media/config</code> (the USB stick with your sequences).</li>
     <li><b>Download Backup</b> — Creates the JSON and triggers a browser download. The same file is also left in <code>config/backups</code> for later restore without re-uploading. Filename encodes area and date.</li>
 </ul>
 
@@ -19,10 +18,10 @@
 
 <h4>Restore Configuration</h4>
 <ul>
-    <li><b>Restore area</b> (dropdown) — Choose a single area to restore (e.g. Channel Outputs) or <b>All</b>. Restoration works the same way as backup: choose an area to restore, choose the JSON file. You may use the full/All backup and restore only one area from it — for example restore the schedule only out of a full backup. <i>Retained: original Restoration sentence kept.</i></li>
+    <li><b>Restore area</b> (dropdown) — Choose a single area to restore (e.g. Channel Outputs) or <b>All</b>. Restoration works the same way as backup: choose an area to restore, choose the JSON file. You may use the full/All backup and restore only one area from it — for example restore the schedule only out of a full backup.</li>
     <li><b>Restore file</b> (file picker) — Select the JSON you previously downloaded or that already lives in <code>config/backups</code>. The file can be a full backup even when you are restoring a single area — only that area is applied; the rest is ignored.</li>
-    <li><b>Keep Existing Master/Slave Settings</b> (default checked) — When checked, the restore does not overwrite this system’s Master/Slave (Player/Remote) role. Leave checked when cloning a config to another box so you do not accidentally turn a Player into a Remote or vice versa. <i>Retained: original note kept; the file still uses the historic label even though the modern mode is Player/Remote.</i></li>
-    <li><b>Keep Network Settings</b> (default checked) — When checked, the restore keeps the current network (IPs, gateway, DNS, hostname). Leave checked when cloning so the target does not steal the donor’s address. <i>Retained: original note kept.</i></li>
+    <li><b>Keep Existing Master/Slave Settings</b> (default checked) — When checked, the restore does not overwrite this system’s Master/Slave (Player/Remote) role. Leave checked when cloning a config to another box so you do not accidentally turn a Player into a Remote or vice versa.</li>
+    <li><b>Keep Network Settings</b> (default checked) — When checked, the restore keeps the current network (IPs, gateway, DNS, hostname). Leave checked when cloning so the target does not steal the donor’s address.</li>
     <li><b>Restore</b> (button) — Applies the chosen area from the chosen file, merges it into the live config, and shows success/failure toasts. After restore, reboot or restart FPPD if the affected subsystem requires it (the page will suggest it).</li>
     <li><b>What a restore keeps back</b> — A backup this player made itself restores completely. A backup from a different player restores everything except that player's privacy answers, its identity and its logins (web UI and OS passwords, and the address it sent mail to), so restoring somebody else's file cannot lock you out of the box in front of you. A backup that does not say which player made it (one written by an older FPP, or before the privacy step was answered) keeps the logins but not the privacy answers, so the box asks the privacy step again.</li>
 </ul>
@@ -42,7 +41,6 @@
 
 <h4>Tips</h4>
 <ul>
-    <li>Always keep <b>Protect sensitive data</b> checked unless you are doing an immediate clone on a private network.</li>
     <li>Use the <b>Alternative Storage</b> copy to keep a second physical copy on a USB stick that stays with the show — but remember it is plain text and not encrypted.</li>
     <li>When cloning to another FPP, leave both <b>Keep Existing Master/Slave</b> and <b>Keep Network Settings</b> checked so the target keeps its own role and address.</li>
 </ul>

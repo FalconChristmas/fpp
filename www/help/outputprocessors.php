@@ -13,7 +13,7 @@
     <li><b>Output Type Details</b> — Dynamic fields that change with Type (see per-type below). All channel fields accept 1-based FPP channel numbers (stored as 0-based internally).</li>
 </ul>
 
-<h4>Processor types — retained reference with details</h4>
+<h4>Processor types</h4>
 
 <h5>Channel Remaps</h5>
 <p>Allows output channels to be remapped onto other channels before being sent out to controllers.</p>
