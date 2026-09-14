@@ -3733,6 +3733,79 @@ function gitBaseDirectory()
     return dirname(dirname(__FILE__));
 }
 
+/**
+ * The two URLs the UI may hand to a cape vendor: the landing page behind the
+ * logo, and the logo image itself.  Both pages that draw a vendor logo
+ * (menu.inc on every page, cape-info.php) used to build these separately and
+ * drifted: the link carried the serial on SendVendorSerial alone while the
+ * image needed FetchVendorLogos too, so the privacy text ("denying the logo
+ * denies this too") was false for the link.  One builder, one rule:
+ *
+ *   - nothing is built unless FetchVendorLogos == 1;
+ *   - the serial, cape id and cs go on both URLs only when SendVendorSerial
+ *     is also 1, url-encoded -- every value here comes from the EEPROM;
+ *   - hideExternalURLs blanks the link (nothing to click); the image is
+ *     still fetched by the browser from the vendor on every page that shows
+ *     it, which is what the privacy text says.
+ *
+ * $forHeader selects the image: the page header uses header_cape_image when the
+ * EEPROM declares one (a separate, header-sized image -- 1fe9c75ef), falling
+ * back to vendor.image; Cape Info always shows vendor.image.
+ *
+ * Returns array('landing' => href or '', 'image' => remote image URL or '',
+ * 'sendSerial' => bool).  Callers must still escape for their context.
+ */
+function CapeVendorUrls($capeInfo, $settings, $forHeader = false)
+{
+    $out = array('landing' => '', 'image' => '', 'sendSerial' => false);
+    if (!is_array($capeInfo) || !isset($capeInfo['vendor']) || !is_array($capeInfo['vendor'])) {
+        return $out;
+    }
+    if (!isset($settings['FetchVendorLogos']) || $settings['FetchVendorLogos'] != 1) {
+        return $out;
+    }
+    $vendor = $capeInfo['vendor'];
+
+    $landing = isset($vendor['landingPage']) ? $vendor['landingPage'] : (isset($vendor['url']) ? $vendor['url'] : '');
+    $image = isset($vendor['image']) ? $vendor['image'] : '';
+    if ($forHeader && isset($capeInfo['header_cape_image'])) {
+        $image = $capeInfo['header_cape_image'];
+    }
+
+    // Only http(s) leaves the box.  A javascript: or data: URL from a hostile
+    // EEPROM must not reach an href or the fetcher.
+    $isWeb = function ($u) {
+        return is_string($u) && preg_match('#^https?://#i', $u) === 1;
+    };
+    if (!$isWeb($landing)) {
+        $landing = '';
+    }
+    if (!$isWeb($image)) {
+        $image = '';
+    }
+
+    $out['sendSerial'] = isset($settings['SendVendorSerial']) && $settings['SendVendorSerial'] == 1;
+    if ($out['sendSerial']) {
+        $q = 'sn=' . urlencode(isset($capeInfo['serialNumber']) ? $capeInfo['serialNumber'] : '')
+            . '&id=' . urlencode(isset($capeInfo['id']) ? $capeInfo['id'] : '');
+        if (isset($capeInfo['cs']) && $capeInfo['cs'] != '') {
+            $q .= '&cs=' . urlencode($capeInfo['cs']);
+        }
+        if ($landing != '') {
+            $landing .= (strpos($landing, '?') === false ? '?' : '&') . $q;
+        }
+        if ($image != '') {
+            $image .= (strpos($image, '?') === false ? '?' : '&') . $q;
+        }
+    }
+    if (!empty($settings['hideExternalURLs'])) {
+        $landing = '';
+    }
+    $out['landing'] = $landing;
+    $out['image'] = $image;
+    return $out;
+}
+
 function getSystemUUID()
 {
     global $fppDir;

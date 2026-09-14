@@ -139,38 +139,17 @@ function list_plugin_entries($menu)
             }
             echo "<span class='overlay' id='powerPlaceHolder' style='z-index: 100;  position:absolute; left: 5px; top: 5px;'></span>";
             echo "</div>";
-            if (
-                isset($settings['cape-info']) && isset($settings['cape-info']['vendor']) && (isset($settings['cape-info']['vendor']['image']) || isset($settings['cape-info']['header_cape_image']))
-                && $settings['FetchVendorLogos'] == 1
-            ) {
-                $landing = $settings['cape-info']['vendor']['url'];
-                if (isset($settings['cape-info']['vendor']['landingPage'])) {
-                    $landing = $settings['cape-info']['vendor']['landingPage'];
-                }
-
-                isset($settings['cape-info']['header_cape_image']) ?
-                    $image_url = $settings['cape-info']['header_cape_image'] :
-                    $image_url = $settings['cape-info']['vendor']['image'];
-
-                if ($settings['SendVendorSerial'] == 1) {
-                    $iurl = $image_url . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
-                } else {
-                    $iurl = $image_url;
-                }
-
-                if ($settings['SendVendorSerial'] == 1) {
-                    $landing = $landing . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
-                }
-                if (isset($settings['cape-info']['cs']) && $settings['cape-info']['cs'] != "" && $settings['SendVendorSerial'] == 1) {
-                    $iurl = $iurl . "&cs=" . $settings['cape-info']['cs'];
-                }
-                if ($settings['hideExternalURLs']) {
-                    $landing = "";
-                }
+            $capeVendorUrls = CapeVendorUrls(isset($settings['cape-info']) ? $settings['cape-info'] : array(), $settings, true);
+            if ($capeVendorUrls['image'] != '') {
+                // One builder decides when the serial goes on these URLs (see
+                // CapeVendorUrls).  json_encode / htmlspecialchars, not a bare
+                // echo: every part of these URLs comes from the EEPROM.
+                $landing = $capeVendorUrls['landing'];
+                $iurl = $capeVendorUrls['image'];
                 ?>
                 <div class="capeVendor">
                     <div class="capeVendorLogo">
-                        <a href="<? echo $landing; ?>" id="capeVendorLink" target="capeVendor"></a>
+                        <a href="<? echo htmlspecialchars($landing, ENT_QUOTES); ?>" id="capeVendorLink" target="capeVendor"></a>
                         <script>
                             // Load the vendor logo only after the page's own load
                             // event: an <img> in the markup would hold that event
@@ -183,7 +162,7 @@ function list_plugin_entries($menu)
                             // Access-Control-Allow-Origin (most don't) still works.
                             // Failure is silent by design: no logo, nothing else.
                             (function () {
-                                const url = '<? echo $iurl; ?>';
+                                const url = <? echo json_encode($iurl); ?>;
                                 const load = function () {
                                     const img = new Image();
                                     img.onload = function () {
