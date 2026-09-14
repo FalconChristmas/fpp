@@ -12,17 +12,3 @@ require_once('common.php');
     PrintSettingGroup('regionallocation', $extraData);
     ?>
 </div>
-
-<script>
-    $(document).ready(function () {
-        var statusTimeout = null;
-        function UpdateCurrentTime() {
-            if ($('#settings-time-tab').hasClass('active')) {
-                $.get('api/time', function (data) {
-                    $('#currentTime').html(data.time);
-                });
-            }
-        }
-        statusTimeout = setInterval(UpdateCurrentTime, 1000);
-    });
-</script>

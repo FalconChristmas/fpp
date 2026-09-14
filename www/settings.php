@@ -29,10 +29,9 @@
         }
 
         function handleSettingsVisibilityChange() {
-            if (isHidden() && statusTimeout != null) {
-                clearTimeout(statusTimeout);
-                statusTimeout = null;
-            } else {
+            if (isHidden()) {
+                StopCurrentTime();
+            } else if (ClockWanted()) {
                 UpdateCurrentTime();
             }
         }
@@ -54,17 +53,31 @@
             });
         }
 
-        var statusTimeout = null;
-        function UpdateCurrentTime(once = false) {
-            if (statusTimeout != null) {
-                clearTimeout(statusTimeout);
-                statusTimeout = null;
-            }
+        // Not 'statusTimeout': that is fpp.js's global for the header status poll.
+        var clockTimeout = null;
 
+        // The clock only runs while the Localization tab is showing.  Checked
+        // again when each api/time reply arrives, because a tab switch or a
+        // hidden page can happen while the request is in flight and there is
+        // no pending timer to cancel at that moment.
+        function ClockWanted() {
+            return !isHidden() && $('#settings-localization-tab').hasClass('active');
+        }
+
+        function StopCurrentTime() {
+            if (clockTimeout != null) {
+                clearTimeout(clockTimeout);
+                clockTimeout = null;
+            }
+        }
+
+        function UpdateCurrentTime() {
+            StopCurrentTime();
             $.get('api/time', function (data) {
                 $('#currentTime').html(data.time);
-                if (!once)
-                    statusTimeout = setTimeout(UpdateCurrentTime, 1000);
+                if (ClockWanted() && clockTimeout == null) {
+                    clockTimeout = setTimeout(UpdateCurrentTime, 1000);
+                }
             });
         }
 
@@ -669,12 +682,12 @@ if(location.hash){
                     if (tab) {
                         loadSettingsTab(tab.tabName, tab.$tabContent, afterSettingsTabLoad);
                     }
-                    if (($(this).attr("href") == '#settings-localization') &&
-                        ($(this).parent().hasClass('active'))) {
+                    // (The old check for .active on the <li> was never true
+                    // under Bootstrap 5, so the clock never started.)
+                    if ($(this).attr("href") == '#settings-localization') {
                         UpdateCurrentTime();
-                    } else if (statusTimeout != null) {
-                        clearTimeout(statusTimeout);
-                        statusTimeout = null;
+                    } else {
+                        StopCurrentTime();
                     }
                 });
 
@@ -683,6 +696,12 @@ if(location.hash){
                         if (tab.tabNumber == activeTabNumber) {
                             loadSettingsTab(tab.tabName, tab.$tabContent, function () {
                                 afterSettingsTabLoad();
+                                // shown.bs.tab never fires for the initially
+                                // active tab, so start the clock here (unless the
+                                // user already clicked away while it loaded).
+                                if (tab.tabName == 'settings-localization' && ClockWanted()) {
+                                    UpdateCurrentTime();
+                                }
                                 $.each(tabs, function (i, other) {
                                     loadSettingsTab(other.tabName, other.$tabContent, afterSettingsTabLoad);
                                 });
@@ -703,71 +722,6 @@ if(location.hash){
                     setTimeout(startSettingsTabLoading, 0);
                 }
                 
-                // $.when.apply( undefined, tabRequests ).then(function() {
-                //    $('#settingsManagerTabsContent>.spinner-border').hide();
-                //     $.each(tabElements,function(i,$tabContent){
-                //         if(i==activeTabNumber){
-                //             $tabContent.addClass('show active');
-                //         }
-                
-                //     });
-                //     $('#settingsManagerTabs .nav-link').eq(activeTabNumber).addClass('active');
-                //     $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
-                //         if ($(this).attr("href") == '#settings-time') {
-                //             UpdateCurrentTime();
-                //         } else if (statusTimeout != null) {
-                //             clearTimeout(statusTimeout);
-                //             statusTimeout = null;
-                //         }
-                //     });
-                //     UpdateChildSettingsVisibility();
-                //     InitializeTimeInputs();
-                //     InitializeDateInputs();
-                // });
-                /*
-                var currentLoadingTab = 0;
-                $("#tabs").tabs( {
-                    cache: true,
-                    active: activeTabNumber,
-                    spinner: "",
-                    fx: {
-                        opacity: 'toggle',
-                        height: 'toggle'
-                    },
-                    activate: function(event, ui) {
-                        $('.ui-tooltip').hide();
-                        if (ui.newTab.find("a").attr("href") == 'settings-localization.php') {
-                            UpdateCurrentTime();
-                    } else if (statusTimeout != null) {
-            clearTimeout(statusTimeout);
-                    statusTimeout = null;
-       
- }
-    },
-    beforeLoad: function(event, ui) {
-        if ($(ui.panel).html()) {
-            event.preventDefault(); // don't reload
-        }
-    },
-    load: function(event, ui) {
-        UpdateChildSettingsVisibility();
-        InitializeTimeInputs();
-        InitializeDateInputs();
-
-        currentLoadingTab++;
-        if (currentLoadingTab < $('#tabs').find('li').length) {
-            $('#tabs').tabs('load', currentLoadingTab);
-        }
-    }
-});
-
-*/
-/* $( function() {
-    SetupToolTips();
-}); */
-/*
-$('#tabs').show();
-*/
 </script>
 
 </div>
