@@ -345,10 +345,14 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 	//Relies on the page doing so in an inline script (before DOMContentLoaded).
 	if (!location.hash) {
 		const triggerFirstTabEl = $('[role="tablist"] li:visible a').first()[0];
-		if (triggerFirstTabEl &&
-			$(triggerFirstTabEl).closest('[role="tablist"]').find('.nav-link.active').length === 0) {
-			bootstrap.Tab.getOrCreateInstance(triggerFirstTabEl).show();
-			//setup sticky on first page load
+		if (triggerFirstTabEl) {
+			if ($(triggerFirstTabEl).closest('[role="tablist"]').find('.nav-link.active').length === 0) {
+				bootstrap.Tab.getOrCreateInstance(triggerFirstTabEl).show();
+			}
+			//setup sticky on first page load. Outside the show() guard above: a
+			//page that pre-marks its active tab (channeloutputs.php, settings.php
+			//?tab=) still needs its sticky headers floated, and nothing else does
+			//that until a tab is switched or the viewport changes.
 			setTimeout(function () {
 				SetTablePageHeader_ZebraPin();
 				float_fppStickyThead();
