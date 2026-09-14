@@ -5065,3 +5065,10 @@ pre.testData,
 	min-width: 0;
 	max-width: 100%;
 }
+
+/* Settings page search (settings.php).  Elements pruned out of the results
+   need a dedicated hide class so clearing the search can strip it without
+   touching any d-none the page itself owns. */
+#settingsManager .settingsSearchHide {
+	display: none !important;
+}
