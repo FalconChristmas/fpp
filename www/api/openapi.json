@@ -6694,7 +6694,7 @@
           "plugin"
         ],
         "summary": "Install plugin",
-        "description": "Install a new plugin. The request body is a `pluginInfo.json` structure with `branch` and `sha` fields added to specify which branch and commit to install.\n\n`privacyAccepted` (optional, null allowed) is the privacy block the caller showed the operator, the same field `POST /plugin/{RepoName}/upgrade` takes. When it matches the block in the cloned copy (sends, collects, sensors, remoteAccess, systemChanges, closedCode) that block is recorded as accepted in config/pluginPrivacyAccepted.json; when it does not -- the listing is behind the repository, or the selected version pins an older commit -- the install still goes ahead and nothing is recorded, so the next update check reports `privacyChanged` and the Plugins page shows the installed block. A body without the field records nothing.",
+        "description": "Install a new plugin. The request body is a `pluginInfo.json` structure with `branch` and `sha` fields added to specify which branch and commit to install.\n\n`privacyAccepted` (optional, null allowed) is the privacy block the caller showed the operator, the same field `POST /plugin/{RepoName}/upgrade` takes. After the clone and before any dependency or the plugin's own install script it is compared with the cloned copy's block (sends, collects, sensors, remoteAccess, systemChanges, closedCode, other): when they differ -- the listing is behind the repository, or the selected version pins an older commit -- the install is refused, the clone removed, and the reply is `{Status: \"Error\", Code: \"PrivacyMismatch\", privacyChanged: true, plugin, pending}` with `pending` the cloned block, so the caller can show it and post again with it as `privacyAccepted` (streaming: the same object follows on one line starting `@@PRIVACY-PENDING@@`). When they match, the block is recorded as accepted in config/pluginPrivacyAccepted.json once its dependencies are in place, before the plugin's own install script runs. A body without the field is compared the same way with the block recorded for that plugin by an earlier install, if any (the record survives an uninstall); with no record either, the install goes ahead and nothing is recorded, so the next update check reports `privacyChanged`. A dependency plugin named in `dependencyPrivacyAccepted` is gated the same way; with that map present, a dependency plugin not in it (declared only in the cloned copy) is refused before it is cloned, `pending` being its listed block. Without the map, dependencies are installed as before.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -6717,7 +6717,7 @@
                   "privacyAccepted": {
                     "type": "object",
                     "nullable": true,
-                    "description": "The privacy block the caller showed the operator (the `privacy` object of pluginInfo.json), or null when the dialog said \"no disclosure\". Recorded as accepted only if it matches the cloned copy's block in the material keys (sends, collects, sensors, remoteAccess, systemChanges, closedCode). Omit to record nothing."
+                    "description": "The privacy block the caller showed the operator (the `privacy` object of pluginInfo.json), or null when the dialog said \"no disclosure\". The install is refused (Code PrivacyMismatch) unless it matches the cloned copy's block in the material keys (sends, collects, sensors, remoteAccess, systemChanges, closedCode, other); recorded as accepted once its dependencies are in place. Omit to compare with the earlier record for this plugin, if any."
                   },
                   "dependencyPrivacyAccepted": {
                     "type": "object",
@@ -6725,7 +6725,7 @@
                       "type": "object",
                       "nullable": true
                     },
-                    "description": "repoName -> the privacy block the dialog showed for each dependency plugin this install pulls in (null = no disclosure). Each is recorded the same way as `privacyAccepted` when that plugin is installed as a dependency."
+                    "description": "repoName -> the privacy block the dialog showed for each dependency plugin this install pulls in (null = no disclosure). Each is gated and recorded the same way as `privacyAccepted` when that plugin is installed as a dependency; a dependency plugin not in the map is refused before it is cloned. Omit to install dependencies ungated, as before."
                   }
                 }
               },
@@ -6742,11 +6742,43 @@
         },
         "responses": {
           "200": {
-            "description": "Plugin installed",
+            "description": "Plugin installed, or refused. Refused on privacy grounds: `{\"Status\": \"Error\", \"Code\": \"PrivacyMismatch\", \"Message\": \"...\", \"privacyChanged\": true, \"plugin\": \"fpp-x\", \"pending\": {...}}` -- `plugin` is the plugin (or dependency plugin) whose block must be reviewed and `pending` that block (null = no disclosure). The same shape `POST /api/plugin/{RepoName}/upgrade` returns for its refusal.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "Status": {
+                      "type": "string",
+                      "enum": [
+                        "OK",
+                        "Error"
+                      ]
+                    },
+                    "Message": {
+                      "type": "string"
+                    },
+                    "Code": {
+                      "type": "string",
+                      "enum": [
+                        "PrivacyMismatch"
+                      ],
+                      "description": "Present only on a privacy refusal, so a script can tell it from any other error without parsing `Message`. The same field on `POST /api/plugin` and `POST /api/plugin/{RepoName}/upgrade`."
+                    },
+                    "privacyChanged": {
+                      "type": "boolean",
+                      "description": "true on a privacy refusal."
+                    },
+                    "plugin": {
+                      "type": "string",
+                      "description": "On a privacy refusal: the plugin (for an install, possibly a dependency plugin) whose block must be reviewed."
+                    },
+                    "pending": {
+                      "type": "object",
+                      "nullable": true,
+                      "description": "On a privacy refusal: the block to review (null = no disclosure); post it back as `privacyAccepted` to proceed."
+                    }
+                  }
                 },
                 "example": {
                   "Status": "OK",
@@ -7041,7 +7073,7 @@
           "plugin"
         ],
         "summary": "Privacy disclosure status for an installed plugin",
-        "description": "What the operator accepted at install, what the next upgrade would land (from the fetched upstream tip, else the listing, else the installed file), and whether the two differ in the keys that re-show the install dialog: the whole block minus `summary` and `other` (sends, collects, sensors, remoteAccess, systemChanges, closedCode); keys outside that list are ignored. Reads the already-fetched upstream tip; call `POST /plugin/{RepoName}/updates` first to fetch. An upgrade whose declaration changed is refused unless the request body carries `{\"privacyAccepted\": <the pending block>}`. `?target=reinstall` diffs the block a Reinstall would land instead (the versions[] branch and pinned sha selected for this FPP, which after an FPP major upgrade may differ from the checked-out branch).",
+        "description": "What the operator accepted at install, what the next upgrade would land (from the fetched upstream tip, else the listing, else the installed file), and whether the two differ in the keys that re-show the install dialog: the whole block minus `summary` (sends, collects, sensors, remoteAccess, systemChanges, closedCode, and `other` -- trimmed, \"none\" read as empty); keys outside that list are ignored. Reads the already-fetched upstream tip; call `POST /plugin/{RepoName}/updates` first to fetch. An upgrade whose declaration changed is refused unless the request body carries `{\"privacyAccepted\": <the pending block>}`. `?target=reinstall` diffs the block a Reinstall would land instead (the versions[] branch and pinned sha selected for this FPP, which after an FPP major upgrade may differ from the checked-out branch) and adds `reinstallTarget: {branch, sha}`, the server's selection, which the Plugins page posts back as the install's `branch` and `sha` so the block diffed and the commit cloned are the same one.",
         "responses": {
           "200": {
             "description": "Privacy status",
@@ -7176,7 +7208,7 @@
           "plugin"
         ],
         "summary": "Check plugin for updates",
-        "description": "Check plugin `{RepoName}` for available updates by running `git fetch` in the plugin directory and checking for any unmerged commits. Also reports `privacyChanged` (the block `\u2026/upgrade` would land differs materially from the accepted one, or nothing is accepted) and `reinstallPrivacyChanged` (the same for the block a Reinstall would land: the versions[] branch and pin for this FPP, fetched here as well when it is not the checked-out branch).",
+        "description": "Check plugin `{RepoName}` for available updates by running `git fetch` in the plugin directory and checking for any unmerged commits. Also reports `privacyChanged` (the block `\u2026/upgrade` would land differs materially from the accepted one, or nothing is accepted) and `reinstallPrivacyChanged` (the same for the block a Reinstall would land: the versions[] branch and pin for this FPP, fetched here as well when it is not the checked-out branch), and `reinstallTarget: {branch, sha}`, that branch and pin -- the server's versions[] selection, which a Reinstall posts back as `branch`/`sha`.",
         "responses": {
           "200": {
             "description": "Update check result",
@@ -7190,7 +7222,11 @@
                   "Message": "",
                   "updatesAvailable": 1,
                   "privacyChanged": false,
-                  "reinstallPrivacyChanged": false
+                  "reinstallPrivacyChanged": false,
+                  "reinstallTarget": {
+                    "branch": "master",
+                    "sha": ""
+                  }
                 }
               }
             }
@@ -7214,14 +7250,46 @@
           "plugin"
         ],
         "summary": "Update plugin",
-        "description": "Pull in git updates for plugin `{RepoName}`. Supports an optional `?stream=true` query parameter for streaming output.",
+        "description": "Pull in git updates for plugin `{RepoName}`. Supports an optional `?stream=true` query parameter for streaming output. Refused when the block the upgrade would land differs materially from the accepted one (or nothing is accepted for this plugin): the reply is then `{Status: \"Error\", Code: \"PrivacyMismatch\", privacyChanged: true, plugin, pending}` -- the same shape as `POST /api/plugin`'s refusal -- and nothing is changed; POST `privacyAccepted` (below) to proceed. Also refused, without `Code`, when `git fetch` fails (offline).",
         "responses": {
           "200": {
-            "description": "Plugin upgraded",
+            "description": "Plugin upgraded, or refused",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "Status": {
+                      "type": "string",
+                      "enum": [
+                        "OK",
+                        "Error"
+                      ]
+                    },
+                    "Message": {
+                      "type": "string"
+                    },
+                    "Code": {
+                      "type": "string",
+                      "enum": [
+                        "PrivacyMismatch"
+                      ],
+                      "description": "Present only on a privacy refusal, so a script can tell it from any other error without parsing `Message`. The same field on `POST /api/plugin` and `POST /api/plugin/{RepoName}/upgrade`."
+                    },
+                    "privacyChanged": {
+                      "type": "boolean",
+                      "description": "true on a privacy refusal."
+                    },
+                    "plugin": {
+                      "type": "string",
+                      "description": "On a privacy refusal: the plugin (for an install, possibly a dependency plugin) whose block must be reviewed."
+                    },
+                    "pending": {
+                      "type": "object",
+                      "nullable": true,
+                      "description": "On a privacy refusal: the block to review (null = no disclosure); post it back as `privacyAccepted` to proceed."
+                    }
+                  }
                 },
                 "example": {
                   "Status": "OK",
@@ -7237,7 +7305,7 @@
           "plugin"
         ],
         "summary": "Update plugin, acknowledging a changed privacy disclosure",
-        "description": "Same as GET, with a body. When the block the upgrade would land differs materially from the accepted one (see GET /api/plugin/{RepoName}/privacy) the upgrade is refused unless `privacyAccepted` matches that pending block; on success the block is recorded as accepted.",
+        "description": "Same as GET, with a body. When the block the upgrade would land differs materially from the accepted one (see GET /api/plugin/{RepoName}/privacy) the upgrade is refused unless `privacyAccepted` matches that pending block. The pull fast-forwards to the ref the check just fetched (no second fetch), and the block is recorded as accepted afterwards, from the installed copy, only once the code has landed; if what landed is not what was accepted (a push in between) the record is dropped and the next check asks again.",
         "requestBody": {
           "required": false,
           "content": {
@@ -7269,16 +7337,60 @@
         },
         "responses": {
           "200": {
-            "description": "Plugin upgraded, or refused",
+            "description": "Plugin upgraded, or refused. Refused on privacy grounds: `{\"Status\": \"Error\", \"Code\": \"PrivacyMismatch\", \"Message\": \"...\", \"privacyChanged\": true, \"plugin\": \"fpp-x\", \"pending\": {...}}`, the same shape as `POST /api/plugin`'s refusal; `pending` is the block to review (null = no disclosure). Streaming (`?stream=true`) prints the readable `ERROR:` line only -- no `@@PRIVACY-PENDING@@` marker, unlike an install.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "Status": {
+                      "type": "string",
+                      "enum": [
+                        "OK",
+                        "Error"
+                      ]
+                    },
+                    "Message": {
+                      "type": "string"
+                    },
+                    "Code": {
+                      "type": "string",
+                      "enum": [
+                        "PrivacyMismatch"
+                      ],
+                      "description": "Present only on a privacy refusal, so a script can tell it from any other error without parsing `Message`. The same field on `POST /api/plugin` and `POST /api/plugin/{RepoName}/upgrade`."
+                    },
+                    "privacyChanged": {
+                      "type": "boolean",
+                      "description": "true on a privacy refusal."
+                    },
+                    "plugin": {
+                      "type": "string",
+                      "description": "On a privacy refusal: the plugin (for an install, possibly a dependency plugin) whose block must be reviewed."
+                    },
+                    "pending": {
+                      "type": "object",
+                      "nullable": true,
+                      "description": "On a privacy refusal: the block to review (null = no disclosure); post it back as `privacyAccepted` to proceed."
+                    }
+                  }
                 },
                 "example": {
                   "Status": "Error",
+                  "Code": "PrivacyMismatch",
                   "Message": "The privacy disclosure of 'fpp-x' has changed since it was installed. Review it on the Plugins page and press Update there.",
-                  "privacyChanged": true
+                  "privacyChanged": true,
+                  "plugin": "fpp-x",
+                  "pending": {
+                    "summary": "...",
+                    "sends": [],
+                    "collects": [],
+                    "sensors": [],
+                    "remoteAccess": "none",
+                    "systemChanges": [],
+                    "closedCode": false,
+                    "other": "none"
+                  }
                 }
               }
             }

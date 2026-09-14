@@ -35,8 +35,22 @@ BRANCH=$(cd "${PLUGINPATH}" && $SUDO git rev-parse --abbrev-ref HEAD 2>/dev/null
 # and upstream mode changes still land.
 $SUDO git -C "${PLUGINPATH}" config core.fileMode false
 
-# Fast path: a plain pull works when the working tree is clean.
-(cd "${PLUGINPATH}" && $SUDO git pull)
+# Fast path: a plain pull works when the working tree is clean. When the
+# caller has just fetched (the Plugin Manager sets FPP_PLUGIN_NO_FETCH=1
+# after reading origin/<branch>'s pluginInfo.json for the privacy check, and
+# FPP_PLUGIN_TARGET_SHA to the commit it read), fast-forward to that exact
+# commit instead of fetching again, so what was compared is what lands; a
+# push in between waits for the next check. origin/<branch> is the fallback
+# for a caller that set only the first variable.
+TARGET="origin/${BRANCH}"
+if [ -n "${FPP_PLUGIN_TARGET_SHA}" ]; then
+	TARGET="${FPP_PLUGIN_TARGET_SHA}"
+fi
+if [ "x${FPP_PLUGIN_NO_FETCH}" = "x1" ] && [ -n "${BRANCH}" ] && [ "${BRANCH}" != "HEAD" ]; then
+	(cd "${PLUGINPATH}" && $SUDO git merge --ff-only "${TARGET}")
+else
+	(cd "${PLUGINPATH}" && $SUDO git pull)
+fi
 return_val=$?
 
 # Recovery: a plugin whose install script edits its own tracked files (e.g.
@@ -48,10 +62,14 @@ return_val=$?
 # untracked/media paths and in git history -- both are preserved by this.
 if [ $return_val -ne 0 ]; then
 	if [ -n "${BRANCH}" ] && [ "${BRANCH}" != "HEAD" ]; then
-		echo "git pull failed, retrying with fetch + reset --hard origin/${BRANCH}"
+		if [ "x${FPP_PLUGIN_NO_FETCH}" = "x1" ]; then
+			echo "git merge failed, retrying with reset --hard ${TARGET}"
+		else
+			echo "git pull failed, retrying with fetch + reset --hard ${TARGET}"
+		fi
 		(cd "${PLUGINPATH}" \
-			&& $SUDO git fetch \
-			&& $SUDO git reset --hard "origin/${BRANCH}" \
+			&& { [ "x${FPP_PLUGIN_NO_FETCH}" = "x1" ] || $SUDO git fetch; } \
+			&& $SUDO git reset --hard "${TARGET}" \
 			&& $SUDO git clean -fd)
 		return_val=$?
 	else
@@ -77,11 +95,15 @@ done
 # the pull returned 0: otherwise the plugin stays behind and keeps showing
 # "update available" (bug-upgrade-silent-noop). Best-effort: relies on a
 # current origin ref, which the pull/fetch above refreshed on the network-OK paths.
+# Measured against TARGET, not origin/<branch>: when the caller handed us a sha,
+# a fetch that lands in between (the background update check, a second tab)
+# moves origin/<branch> past it and must not turn a correct fast-forward into
+# an error.
 git_rc=$return_val
 if [ $git_rc -eq 0 ] && [ -n "${BRANCH}" ] && [ "${BRANCH}" != "HEAD" ]; then
-	behind=$(cd "${PLUGINPATH}" && $SUDO git rev-list --count "HEAD..origin/${BRANCH}" 2>/dev/null)
+	behind=$(cd "${PLUGINPATH}" && $SUDO git rev-list --count "HEAD..${TARGET}" 2>/dev/null)
 	if [ -n "${behind}" ] && [ "${behind}" -gt 0 ] 2>/dev/null; then
-		echo "ERROR: ${PLUGIN} is still ${behind} commit(s) behind origin/${BRANCH} after pull"
+		echo "ERROR: ${PLUGIN} is still ${behind} commit(s) behind ${TARGET} after pull"
 		git_rc=1
 	fi
 fi

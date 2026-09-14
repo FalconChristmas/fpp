@@ -126,6 +126,7 @@
         // line says so.
         var pluginPrivacyChanged = {};   // repoName -> true once an update check said the disclosure changed (what Update would land)
         var pluginReinstallPrivacyChanged = {};   // same for what Reinstall would land (the versions[] branch/pin for this FPP)
+        var pluginReinstallTarget = {};   // repoName -> {branch, sha} a Reinstall clones: the server's versions[] choice, posted back as is
 
         function PluginPrivacyResult(data) {
             return FPPPluginPrivacy.evaluate(data ? data.privacy : null,
@@ -162,6 +163,16 @@
             if (!r.declared) h += FPPPluginPrivacy.headlineHtml(r);
             if (from) {
                 var changes = FPPPluginPrivacy.changesSummaryHtml(from, r);
+                // `other` is material too (support access, payments, self-
+                // update live there): a change to it alone re-prompts, so it
+                // gets its own was / now line. result.other is already
+                // trimmed with "none" read as empty, as the server compares it.
+                if (r.declared && from.declared && (from.other || '') !== (r.other || '')) {
+                    var otherLine = '<li class="mb-1"><b>Other:</b> ' +
+                        (from.other ? 'was <s class="text-secondary">' + EscapeHtml(from.other) + '</s>, ' : 'was not disclosed, ') +
+                        (r.other ? 'now <span class="fw-semibold">' + EscapeHtml(r.other) + '</span>' : 'now nothing') + '</li>';
+                    changes = changes ? changes.replace(/<\/ul>\s*$/, otherLine + '</ul>') : '<ul class="small mb-2 mt-2 ps-3">' + otherLine + '</ul>';
+                }
                 if (changes) h += '<div class="small fw-semibold mt-2">What changed</div>' + changes;
             }
             h += FPPPluginPrivacy.stripHtml(r, { prefix: prefix, from: from || null });
@@ -497,6 +508,7 @@
                     if (data.Status == 'OK') {
                         pluginPrivacyChanged[plugin] = !!data.privacyChanged;
                         pluginReinstallPrivacyChanged[plugin] = !!data.reinstallPrivacyChanged;
+                        if (data.reinstallTarget) pluginReinstallTarget[plugin] = data.reinstallTarget;
                         if (data.updatesAvailable) {
                             RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
                             var $modal = $('#pluginDetailDialog');
@@ -566,6 +578,7 @@
                         var hasUpdate = !!data.updatesAvailable;
                         pluginPrivacyChanged[plugin] = !!data.privacyChanged;
                         pluginReinstallPrivacyChanged[plugin] = !!data.reinstallPrivacyChanged;
+                        if (data.reinstallTarget) pluginReinstallTarget[plugin] = data.reinstallTarget;
                         if (hasUpdate) withUpdates.push(plugin);
                         onResult(plugin, hasUpdate);
                     },
@@ -628,6 +641,7 @@
                         if (!sweep.cancelled && data.Status == 'OK') {
                             pluginPrivacyChanged[plugin] = !!data.privacyChanged;
                             pluginReinstallPrivacyChanged[plugin] = !!data.reinstallPrivacyChanged;
+                            if (data.reinstallTarget) pluginReinstallTarget[plugin] = data.reinstallTarget;
                             if (data.updatesAvailable)
                                 RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
                             else
@@ -1007,6 +1021,9 @@
         // no Esc/backdrop/X), onCancel, note (a line under the intro).
         function ConfirmPrivacyChange(plugin, st, opts) {
             var i = FindPluginInfo(plugin);
+            // A dependency the server refused is named as the plugin list
+            // files it, which is not always its repoName.
+            if (i < 0) i = FindListedPluginInfo(plugin);
             var data = (i >= 0) ? $.extend({}, pluginInfos[i]) : { repoName: plugin, name: plugin };
             data.privacy = st.pending;
             var r = PluginPrivacyResult(data);
@@ -1036,7 +1053,7 @@
             // In a chained review the intro screen said what these are, so
             // each screen is titled by the plugin: "Projector Control (1 of 5)".
             if (opts.chained) title = EscapeHtml(data.name || plugin);
-            if (opts.position) title += ' ' + opts.position;
+            if (opts.position) title += opts.position;
             // Plain text, not a callout: the title has said it already, and
             // the coloured things on this screen should all be findings.
             var body = intro ? '<p class="mb-2"><i class="fas fa-shield-halved text-secondary"></i> ' + intro + '</p>' : '';
@@ -1096,9 +1113,15 @@
             'Install, opens FPP to internet', "Install, handles others' data", 'Install, black box included', 'Install, no disclosure'];
         function InstallButtonRank(btn) { return INSTALL_BUTTON_ORDER.indexOf(btn.text); }
 
+        // The last install request, so a refusal can be answered with the
+        // same request plus the block just reviewed (InstallStreamDone).
+        var lastInstallRequest = null;
+
         // depAccepted: repoName -> the block shown for each dependency plugin
         // in the install dialog (null = no disclosure), or undefined.
-        function InstallPlugin(plugin, branch, sha, depAccepted) {
+        // accepted: the block shown for the plugin itself; undefined = the
+        // cached pluginInfo's block, which is what the install dialog shows.
+        function InstallPlugin(plugin, branch, sha, depAccepted, accepted) {
             var url = 'api/plugin?stream=true';
             var i = FindPluginInfo(plugin);
 
@@ -1115,14 +1138,82 @@
             // whose pluginInfo.json is flagged as private, or which were
             // manually loaded via the credentialed proxy.
             pluginInfo['useCredentials'] = (pluginInfo.private || pluginInfoUseCredentials[plugin]) ? 1 : 0;
-            // What the install dialog showed (null = "no disclosure"), so the
-            // server records it only if the cloned copy says the same.
-            pluginInfo['privacyAccepted'] = pluginInfo.hasOwnProperty('privacy') ? pluginInfo.privacy : null;
+            // What the install dialog showed (null = "no disclosure"): the
+            // server installs only if the cloned copy says the same, and
+            // records it; otherwise it refuses and hands the cloned block
+            // back for review (InstallStreamDone).
+            pluginInfo['privacyAccepted'] = (accepted !== undefined) ? accepted
+                : (pluginInfo.hasOwnProperty('privacy') ? pluginInfo.privacy : null);
             pluginInfo['dependencyPrivacyAccepted'] = depAccepted || {};
+            lastInstallRequest = { plugin: plugin, branch: branch, sha: sha,
+                depAccepted: pluginInfo['dependencyPrivacyAccepted'], accepted: pluginInfo['privacyAccepted'] };
 
             var postData = JSON.stringify(pluginInfo);
+            // A refusal can come back before the progress dialog has finished
+            // opening (a local clone is quick), and a modal still opening
+            // cannot be closed: InstallStreamDone waits for `shown` then.
+            installProgressShown = false;
+            installProgressPending = null;
             DisplayProgressDialog("pluginsProgressPopup", "Install Plugin");
-            StreamURL(url, 'pluginsProgressPopupText', 'ProgressDialogDone', 'ProgressDialogDone', 'POST', postData, 'application/json');
+            $('#pluginsProgressPopup').one('shown.bs.modal', function () {
+                installProgressShown = true;
+                if (installProgressPending) { var f = installProgressPending; installProgressPending = null; f(); }
+            });
+            StreamURL(url, 'pluginsProgressPopupText', 'InstallStreamDone', 'InstallStreamDone', 'POST', postData, 'application/json');
+        }
+        var installProgressShown = false;
+        var installProgressPending = null;
+
+        // After an install has streamed. A refusal on privacy grounds -- the
+        // cloned copy's block is not the one the dialog showed (a pinned
+        // version, a listing behind the repository), or a dependency the
+        // dialog did not show -- ends the stream with one marked line
+        // carrying the block to review (PluginPrivacyRefuse in
+        // api/controllers/plugin.php). Nothing was installed. Take the line
+        // out of the log, close the progress dialog, show the block, and on
+        // Accept post the same install again with that block as accepted.
+        function InstallStreamDone(textId) {
+            var outputArea = document.getElementById(textId);
+            var req = lastInstallRequest;
+            var refusal = null;
+            var m = outputArea ? outputArea.value.match(/^@@PRIVACY-PENDING@@ (.*)$/m) : null;
+            if (m) {
+                try { refusal = JSON.parse(m[1]); } catch (e) { refusal = null; }
+                outputArea.value = outputArea.value.replace(/^@@PRIVACY-PENDING@@ .*\n?/mg, '');
+            }
+            if (!refusal || !refusal.plugin || !req) {
+                ProgressDialogDone(textId);
+                return;
+            }
+            var repo = refusal.plugin;
+            var ofParent = (repo === req.plugin);
+            // The parent is named by repoName, a dependency as the plugin
+            // list files it (the name the server resolved it by).
+            var nameOf = function (r) { var k = ofParent ? FindPluginInfo(r) : FindListedPluginInfo(r); return (k >= 0 && pluginInfos[k].name) ? pluginInfos[k].name : r; };
+            // What the server would answer for it: a block not yet reviewed.
+            var st = { Status: 'OK', changed: true, recorded: false, accepted: null, pending: refusal.pending };
+            var review = function () {
+                ConfirmPrivacyChange(repo, st, {
+                    id: 'confirmInstallChangedDialog', prefix: 'ic',
+                    verb: 'This install', button: 'Accept and install',
+                    note: ofParent
+                        ? 'The version being installed has a different privacy disclosure from the one shown before (the listing may be behind the repository, or this version is pinned). Nothing has been installed yet.'
+                        : nameOf(repo) + ' is needed by ' + nameOf(req.plugin) + ' and was not shown before. Nothing has been installed yet.',
+                    onAccept: function () {
+                        var dep = $.extend({}, req.depAccepted);
+                        var accepted = req.accepted;
+                        if (ofParent) accepted = refusal.pending; else dep[repo] = refusal.pending;
+                        InstallPlugin(req.plugin, req.branch, req.sha, dep, accepted);
+                    },
+                    onCancel: function () { $.jGrowl('Install cancelled. Nothing was installed.', { themeState: 'detract', life: 4000 }); }
+                });
+            };
+            var closeThenReview = function () {
+                $('#pluginsProgressPopup').one('hidden.bs.modal', review);
+                CloseModalDialog('pluginsProgressPopup');
+            };
+            if (installProgressShown) closeThenReview();
+            else installProgressPending = closeThenReview;
         }
 
         // Gate before InstallPlugin, on every install entry point (cards, popular
@@ -1137,15 +1228,20 @@
         // FPP would select, recursively, that are not installed. Each is
         // returned once as {repo, via} -- via being the plugin that named it,
         // `plugin` itself for a direct dependency -- in the order the dialog
-        // lists them: direct dependencies first, then what they need.
-        // A name the list does not know is skipped, as the server skips it.
+        // lists them: direct dependencies first, then what they need. `repo`
+        // is the name as declared, which is how the server looks it up and
+        // the key it accepts in dependencyPrivacyAccepted; `plugin` itself
+        // is a repoName. A dependency is resolved as the server resolves it
+        // (FindListedPluginInfo); a name the list does not know is skipped,
+        // as the server skips it. Installed under the declared name or under
+        // its own repoName counts as installed, as it does on the server.
         function DependencyPluginsToInstall(plugin) {
             var out = [];
             var seen = {};
             seen[plugin] = true;
             var walk = function (repo, depth) {
                 if (depth > 8) return;
-                var i = FindPluginInfo(repo);
+                var i = (depth === 0) ? FindPluginInfo(repo) : FindListedPluginInfo(repo);
                 if (i < 0) return;
                 var info = pluginInfos[i];
                 var names = [];
@@ -1163,7 +1259,9 @@
                     if (seen[n]) return;
                     seen[n] = true;
                     if (installedPlugins.indexOf(n) >= 0) return;
-                    if (FindPluginInfo(n) < 0) return;
+                    var k = FindListedPluginInfo(n);
+                    if (k < 0) return;
+                    if (pluginInfos[k].repoName && installedPlugins.indexOf(pluginInfos[k].repoName) >= 0) return;
                     out.push({ repo: n, via: repo });
                     walk(n, depth + 1);
                 });
@@ -1180,8 +1278,12 @@
             var out = [];
             var dependsOn = function (info, name) {
                 var hit = false;
+                // A dependant declares the dependency by its plugin-list
+                // name, which can differ from the repoName it is installed
+                // under (FPP-Plugin-TwilioControl vs TwilioControl).
+                var listKey = pluginListKeyOf[name] || name;
                 var check = function (deps) {
-                    if (deps && Array.isArray(deps.plugins) && deps.plugins.indexOf(name) >= 0) hit = true;
+                    if (deps && Array.isArray(deps.plugins) && (deps.plugins.indexOf(name) >= 0 || deps.plugins.indexOf(listKey) >= 0)) hit = true;
                 };
                 check(info.dependencies);
                 if (Array.isArray(info.versions) && info.versions.length) {
@@ -1205,23 +1307,41 @@
             return out;
         }
 
-        function ConfirmAndInstall(plugin, branch, sha) {
-            var i = FindPluginInfo(plugin);
-            var data = (i >= 0) ? pluginInfos[i] : null;
-            var res = data ? PluginResourceVerdict(data) : { exceeds: false };
+        // Everything an install asks the operator to accept, for the install
+        // dialog and the detail modal alike: the root callout, the plugin's
+        // block and source line, then one section per dependency plugin that
+        // the install will bring in (DependencyPluginsToInstall), each with
+        // its own callout, block and source. Returns
+        //   html:        the markup;
+        //   btn:         {text, cls} for the Install button, the worst finding
+        //                across the plugin and its dependencies (guidelines
+        //                §14.15: "Install", "Install anyway", "Install, black
+        //                box included", ...). A pasted URL, a device that is
+        //                too small, or a version not updated for this FPP
+        //                forces at least "Install anyway" in warning colour
+        //                when the finding-based label would be plainer;
+        //   depAccepted: repoName -> the block shown for each dependency
+        //                (null = no disclosure), posted with the install as
+        //                dependencyPrivacyAccepted so the server can record
+        //                each one. The plugin's own block is what
+        //                InstallPlugin posts by default (the cached pluginInfo).
+        // Dependency plugins are installed in the same operation with no
+        // dialog of their own, which is why their disclosures are here.
+        // prefix: id prefix for the strips (dependencies get prefix + 'd' + n).
+        function InstallDisclosureHtml(plugin, data, prefix) {
+            var html = '';
             // Resource warning is orthogonal to trust: it applies to Official plugins too.
-            var resWarn = '';
+            var res = data ? PluginResourceVerdict(data) : { exceeds: false };
             if (res.exceeds)
-                resWarn = '<div class="fpp-major-callout mb-2"><i class="fas fa-microchip"></i>' +
+                html += '<div class="fpp-major-callout mb-2"><i class="fas fa-microchip"></i>' +
                     '<span><b>Not enough RAM/CPU.</b> ' + res.title +
                     ' Installing it anyway may degrade or disrupt your show.</span></div>';
             // Pasting a plugininfo.json URL is a developer workflow (testing a plugin
             // mid-development, often from a branch/fork that isn't in the plugin list at
             // all yet) -- not a general install path. Shown regardless of the
             // resolved plugin's official/third-party status.
-            var devWarn = '';
             if (manuallyLoadedPlugins[plugin])
-                devWarn = '<div class="fpp-major-callout mb-2"><i class="fas fa-user-gear"></i>' +
+                html += '<div class="fpp-major-callout mb-2"><i class="fas fa-user-gear"></i>' +
                     '<span>Installing a plugin from a URL is intended for <b>plugin developers</b> ' +
                     'testing their own plugin while developing it. It runs <b>whatever code is found at that ' +
                     'URL</b> as <b>root</b>, with full access to this device &mdash; including every ' +
@@ -1229,53 +1349,57 @@
                     'network FPP is connected to</b>. This is inherently dangerous. If you are not a developer, we recommend ' +
                     'you <b>do not</b> install this ' +
                     'plugin.</span></div>';
-            var official = !!(data && IsOfficialPlugin(data));
-            var src = (data && data.srcURL) ? data.srcURL : '';
-            var body = devWarn + resWarn;
-            body += PluginTrustHtml(data || { repoName: plugin, name: plugin });
+            html += PluginTrustHtml(data || { repoName: plugin, name: plugin });
             var r = PluginPrivacyResult(data || { repoName: plugin });
-            body += PrivacyBlockHtml(r, 'ci');
-            if (IsSafeHttpUrl(src)) body += '<div class="small text-secondary mt-2"><i class="fas fa-code"></i> Source: ' +
+            html += PrivacyBlockHtml(r, prefix);
+            var src = (data && data.srcURL) ? data.srcURL : '';
+            if (IsSafeHttpUrl(src)) html += '<div class="small text-secondary mt-2"><i class="fas fa-code"></i> Source: ' +
                 '<a href="' + EscapeAttr(src) + '" target="_blank" rel="noopener noreferrer">' + EscapeHtml(src) + '</a></div>';
-            // Button text and colour from the worst finding in the declaration
-            // (guidelines §14.15: "Install", "Install anyway", "Install, black box
-            // included", ...). A pasted URL or a device that is too small still
-            // forces at least "Install anyway" in warning colour when the
-            // finding-based label would be plainer.
             var btn = FPPPluginPrivacy.installButtonFor(r);
-            // Dependency plugins are installed in the same operation with no
-            // dialog of their own, so each one's disclosure is shown here, as
-            // its own section, and the button reflects the worst of them all.
-            // What is shown is posted with the install as
-            // dependencyPrivacyAccepted so the server can record each one.
             var deps = data ? DependencyPluginsToInstall(plugin) : [];
             var depAccepted = {};
             deps.forEach(function (d, n) {
                 var dep = d.repo;
-                var di = FindPluginInfo(dep);
+                var di = FindListedPluginInfo(dep);
                 var dinfo = pluginInfos[di];
                 depAccepted[dep] = dinfo.hasOwnProperty('privacy') ? dinfo.privacy : null;
                 var dr = PluginPrivacyResult(dinfo);
                 // Name the plugin that needs it when that is not the one
                 // being installed: a dependency of a dependency.
-                var vi = FindPluginInfo(d.via);
+                var vi = (d.via === plugin) ? FindPluginInfo(d.via) : FindListedPluginInfo(d.via);
                 var viaName = (d.via === plugin) ? 'this one' : ((vi >= 0 && pluginInfos[vi].name) ? pluginInfos[vi].name : d.via);
-                body += '<hr><div class="fw-bold mb-2"><i class="fas fa-puzzle-piece"></i> Also installs <b>' + EscapeHtml(dinfo.name || dep) + '</b>' +
+                html += '<hr><div class="fw-bold mb-2 pluginInstallDependency"><i class="fas fa-puzzle-piece"></i> Also installs <b>' + EscapeHtml(dinfo.name || dep) + '</b>' +
                     ' <span class="fw-normal text-secondary">(a plugin ' + EscapeHtml(viaName) + ' depends on)</span></div>';
-                body += PluginTrustHtml(dinfo);
-                body += PrivacyBlockHtml(dr, 'cd' + n);
-                if (IsSafeHttpUrl(dinfo.srcURL)) body += '<div class="small text-secondary mt-2"><i class="fas fa-code"></i> Source: ' +
+                html += PluginTrustHtml(dinfo);
+                html += PrivacyBlockHtml(dr, prefix + 'd' + n);
+                if (IsSafeHttpUrl(dinfo.srcURL)) html += '<div class="small text-secondary mt-2"><i class="fas fa-code"></i> Source: ' +
                     '<a href="' + EscapeAttr(dinfo.srcURL) + '" target="_blank" rel="noopener noreferrer">' + EscapeHtml(dinfo.srcURL) + '</a></div>';
                 var dbtn = FPPPluginPrivacy.installButtonFor(dr);
                 if (InstallButtonRank(dbtn) > InstallButtonRank(btn)) btn = dbtn;
             });
-            if ((devWarn || resWarn) && btn.text === 'Install') btn = { text: 'Install anyway', cls: 'btn-warning' };
+            // The card says "Install anyway" for a version not updated for
+            // this FPP release, and for a device under the plugin's declared
+            // minimums; the dialogs say at least that too. A pasted URL is a
+            // developer path and gets the same.
+            var sel = (data && Array.isArray(data.versions) && data.versions.length) ? SelectPluginVersionIndices(data) : { compatible: 0, untested: -1 };
+            var forceAnyway = !!manuallyLoadedPlugins[plugin] || (data && PluginResourceVerdict(data).exceeds) ||
+                (sel.compatible < 0 && sel.untested >= 0);
+            if (forceAnyway && btn.text === 'Install') btn = { text: 'Install anyway', cls: 'btn-warning' };
+            return { html: html, btn: btn, depAccepted: depAccepted };
+        }
+
+        function ConfirmAndInstall(plugin, branch, sha) {
+            var i = FindPluginInfo(plugin);
+            var data = (i >= 0) ? pluginInfos[i] : null;
+            var official = !!(data && IsOfficialPlugin(data));
+            var d = InstallDisclosureHtml(plugin, data, 'ci');
+            var body = d.html;
             var buttons = {};
-            buttons[btn.text] = {
-                class: btn.cls,
+            buttons[d.btn.text] = {
+                class: d.btn.cls,
                 click: function () {
                     CloseModalDialog("confirmInstallDialog");
-                    InstallPlugin(plugin, branch, sha, depAccepted);
+                    InstallPlugin(plugin, branch, sha, d.depAccepted);
                 }
             };
             buttons['Cancel'] = function () { CloseModalDialog("confirmInstallDialog"); };
@@ -1378,15 +1502,26 @@
         // Build the install POST body for an installed plugin from its cached
         // pluginInfo.json, or null if we have no cached info to rebuild it from
         // (repo was never loaded this session -- can't safely reinstall it).
+        // The branch and sha are the server's choice (reinstallTarget from the
+        // update check every reinstall starts with, or from ?target=reinstall):
+        // the block it diffed and the commit it clones are then the same one.
+        // The page's own selection is only a fallback for a plugin never checked.
         function BuildReinstallInfo(repo) {
             var i = FindPluginInfo(repo);
             if (i < 0) return null;
             var info = JSON.parse(JSON.stringify(pluginInfos[i])); // copy, don't mutate cache
-            var sel = SelectPluginVersionIndices(info);
-            var idx = sel.compatible >= 0 ? sel.compatible : (sel.untested >= 0 ? sel.untested : 0);
-            var v = info.versions[idx];
-            info['branch'] = (v.branch && v.branch !== '') ? v.branch : 'master';
-            info['sha'] = v.sha || '';
+            var t = pluginReinstallTarget[repo];
+            if (t && t.branch) {
+                info['branch'] = t.branch;
+                info['sha'] = t.sha || '';
+            } else {
+                if (!Array.isArray(info.versions) || !info.versions.length) return null;
+                var sel = SelectPluginVersionIndices(info);
+                var idx = sel.compatible >= 0 ? sel.compatible : (sel.untested >= 0 ? sel.untested : 0);
+                var v = info.versions[idx];
+                info['branch'] = (v.branch && v.branch !== '') ? v.branch : 'master';
+                info['sha'] = v.sha || '';
+            }
             if (pluginInfoURLs[repo])
                 info['infoURL'] = pluginInfoURLs[repo]; // else backend uses the repo's own pluginInfo.json
             info['useCredentials'] = (info.private || pluginInfoUseCredentials[repo]) ? 1 : 0;
@@ -1488,6 +1623,7 @@
                                 reviewNext(i + 1);
                                 return;
                             }
+                            if (st.reinstallTarget) pluginReinstallTarget[plugin] = st.reinstallTarget;
                             if (!st.changed) {
                                 ready.push(plugin);
                                 reviewNext(i + 1);
@@ -1614,6 +1750,25 @@
                 installQueue.push(info);
                 reinstallAttempted.push(repo);
             });
+            // A plugin in the batch that another one depends on is cloned as
+            // that one's dependency when it comes up first: what was seen for
+            // it travels with every install body in the batch, so the server
+            // has it either way. A listed dependency that is not installed
+            // (uninstalled since) goes in with the block the page has for it,
+            // as it would have been shown at install. A dependency declared
+            // only in the cloned copy was never shown: the server refuses it
+            // (the parent is then reported as failed, with the reason in the
+            // log, and can be installed again from its card).
+            var batchShown = {};
+            installQueue.forEach(function (info) {
+                DependencyPluginsToInstall(info.repoName).forEach(function (d) {
+                    var k = FindListedPluginInfo(d.repo);
+                    if (k >= 0 && !Object.prototype.hasOwnProperty.call(batchShown, d.repo))
+                        batchShown[d.repo] = pluginInfos[k].hasOwnProperty('privacy') ? pluginInfos[k].privacy : null;
+                });
+            });
+            installQueue.forEach(function (info) { batchShown[info.repoName] = info.privacyAccepted; });
+            installQueue.forEach(function (info) { info.dependencyPrivacyAccepted = batchShown; });
 
             DisplayProgressDialog("pluginsProgressPopup", label);
             if (declined.length) {
@@ -1672,6 +1827,11 @@
         // output (the install endpoint streams "Done" even on a logical failure).
         // Any plugin we attempted but that is now missing is reported as failed.
         function ReinstallFinish(label) {
+            // A privacy refusal in the batch (a dependency only the clone
+            // declares, or a race) streamed its block on a marked line for
+            // InstallStreamDone; here the readable line above it is enough.
+            var ta = document.getElementById('pluginsProgressPopupText');
+            if (ta) ta.value = ta.value.replace(/^@@PRIVACY-PENDING@@ .*\n?/mg, '');
             $.ajax({
                 url: 'api/plugin',
                 dataType: 'json',
@@ -1800,6 +1960,18 @@
             }
 
             return -1;
+        }
+
+        // A dependency plugin, by the name another plugin declares it under:
+        // resolved as the server does (ResolvePluginInfoByName), by the name
+        // the plugin list files it under first, then by repoName. The two
+        // differ for some plugins (FPP-Plugin-TwilioControl / TwilioControl).
+        function FindListedPluginInfo(name) {
+            for (var i = 0; i < pluginInfos.length; i++) {
+                if (pluginInfos[i].repoName && pluginListKeyOf[pluginInfos[i].repoName] === name)
+                    return i;
+            }
+            return FindPluginInfo(name);
         }
 
         // Selects a plugin's card by exact element id via getElementById rather than
@@ -2374,10 +2546,15 @@
             if (IsSafeHttpUrl(data.srcURL) && !sameLink(data.srcURL, data.homeURL)) body += '<a href="' + EscapeAttr(data.srcURL) + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none"><i class="fas fa-code"></i> <span class="text-decoration-underline">View Source</span></a>';
             if (IsSafeHttpUrl(data.bugURL)) body += '<a href="' + EscapeAttr(data.bugURL) + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none"><i class="fas fa-bug"></i> <span class="text-decoration-underline">Report a Bug</span></a>';
             body += '</div>';
-            // The same privacy block the install dialog shows, so what a plugin
-            // declares is one tap away from its card at any time, not only at
-            // install. Lines open on tap here too.
-            body += PrivacyBlockHtml(PluginPrivacyResult(data), 'dt');
+            // What a plugin declares is one tap away from its card at any
+            // time, not only at install. Lines open on tap here too. For a
+            // plugin that can be installed from here this is the whole of
+            // what the install dialog would show -- the root callout, the
+            // block, and a section per dependency plugin the install brings
+            // in -- so its Install button installs without a second screen.
+            var canInstall = !installed && (compatibleVersion >= 0 || untestedVersion >= 0);
+            var disclosure = canInstall ? InstallDisclosureHtml(repo, data, 'dt') : null;
+            body += '<div class="mt-2">' + (disclosure ? disclosure.html : PrivacyBlockHtml(PluginPrivacyResult(data), 'dt')) + '</div>';
 
             var buttons = {};
             if (installed) {
@@ -2387,21 +2564,17 @@
                 buttons['Check for Update'] = { id: 'pluginDetailCheckBtn', class: 'btn-outline-success', click: function () { CheckPluginForUpdates(repo); } };
                 buttons['Reinstall'] = { class: 'btn-outline-warning', click: function () { CloseModalDialog('pluginDetailDialog'); ShowReinstallPluginPopup(repo, data.name); } };
                 buttons['Uninstall'] = { class: 'btn-outline-danger', click: function () { CloseModalDialog('pluginDetailDialog'); ShowUninstallPluginPopup(repo, data.name); } };
-            } else if (compatibleVersion >= 0 || untestedVersion >= 0) {
+            } else if (canInstall) {
                 var idx = compatibleVersion < 0 ? untestedVersion : compatibleVersion;
-                // Match the card's wording: "Install anyway" when the only available
-                // version has not been updated for this FPP release, OR it doesn't meet
-                // this device's declared minimums.
-                var installLabel = (compatibleVersion < 0 && untestedVersion >= 0) || PluginResourceVerdict(data).exceeds
-                    ? 'Install anyway' : 'Install';
-                var installClick = function () { CloseModalDialog('pluginDetailDialog'); ConfirmAndInstall(repo, data.versions[idx].branch, data.versions[idx].sha); };
-                // Match the card: doesn't meet this device's minimums wins regardless
-                // of compat/untested status.
-                if (PluginResourceVerdict(data).exceeds) {
-                    buttons[installLabel] = { click: installClick, class: 'btn-danger' };
-                } else {
-                    buttons[installLabel] = installClick;
-                }
+                // The button the install dialog would have shown (same text
+                // and colour, worst finding across plugin and dependencies),
+                // and the same post: the block above is what is accepted, and
+                // the server's check, refusal and record are as for the
+                // dialog (InstallPlugin, InstallStreamDone).
+                buttons[disclosure.btn.text] = {
+                    class: disclosure.btn.cls,
+                    click: function () { CloseModalDialog('pluginDetailDialog'); InstallPlugin(repo, data.versions[idx].branch, data.versions[idx].sha, disclosure.depAccepted); }
+                };
             }
             buttons['Close'] = function () { CloseModalDialog('pluginDetailDialog'); };
 
@@ -2664,18 +2837,20 @@
                         dataType: 'json',
                         success: function (data) {
                             $('html,body').css('cursor', 'auto');
+                            // A pluginInfo.json's own repoName is not always the
+                            // name it is listed under in pluginList.json (e.g.
+                            // "TwilioControl" vs "FPP-Plugin-TwilioControl"), and
+                            // the plugin list name is the only one the server can look
+                            // an icon up by, or resolve a dependency by. Record the
+                            // pairing, for installed plugins too (a dependency
+                            // declared by its listed name is then seen as installed).
+                            if (data && data.repoName)
+                                pluginListKeyOf[data.repoName] = pluginList[index][0];
                             if (data && data.repoName && PluginIsInstalled(data.repoName)) {
                                 return;
                             }
                             if (pluginList[index] && pluginList[index].length > 2 && pluginList[index][2])
                                 data.__category = pluginList[index][2];
-                            // A pluginInfo.json's own repoName is not always the
-                            // name it is listed under in pluginList.json (e.g.
-                            // "TwilioControl" vs "FPP-Plugin-TwilioControl"), and
-                            // the plugin list name is the only one the server can look
-                            // an icon up by. Record the pairing.
-                            if (data && data.repoName)
-                                pluginListKeyOf[data.repoName] = pluginList[index][0];
                             LoadPlugin(data);
                             FilterPlugins();
 
