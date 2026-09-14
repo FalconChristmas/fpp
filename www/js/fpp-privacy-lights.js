@@ -9,10 +9,12 @@
  * Turns the `privacy` block of a pluginInfo.json into the six lights the
  * install dialog and the plugin detail modal show as chips, and the plugin
  * cards as dots: Sends data, Collects data, Camera & mic, Remote access,
- * System changes and Can it be checked?. Each chip is green, amber or red,
+ * System changes and Can it be checked?. Each chip is green, amber or red
+ * (a coloured dot before the label; only a red chip is tinted as a whole),
  * and its text states the finding ("Sends when enabled") rather than naming
  * the light, so a row of greens needs no legend; only an undeclared chip,
- * which has no finding, names its light ("Sends data: not declared").
+ * which has no finding, names its light ("Sends data: not declared") and
+ * carries a hollow dot.
  *
  * The colour is computed HERE, from the declaration, never chosen by the
  * author. The table that decides it is RULES below, one entry per cell of
@@ -26,10 +28,13 @@
  * the `other` line, all escaped.
  *
  * Tolerance: a declaration is self-described and may come from a newer FPP
- * than this one. Anything missing is treated as empty, a wrongly typed value
- * is treated as empty or false, unknown keys are ignored, and nothing here
- * ever refuses a block. Strict validation lives in the fpp-data listing
- * check, not in the player.
+ * than this one. Unknown keys are ignored, unknown values are shown as
+ * written, and nothing here ever refuses a block. A key that is missing or
+ * of the wrong type is not a statement, though: that light is "not
+ * disclosed" (grey), never green, and a block with none of the six keys is
+ * undeclared -- the same line the server draws (PluginPrivacyMaterial in
+ * api/controllers/plugin.php). Strict validation lives in the fpp-data
+ * listing check, not in the player.
  *
  * Plain script, no dependencies: plugins.php loads it before its own inline
  * code.
@@ -98,22 +103,32 @@ var FPPPluginPrivacy = (function () {
 
 	// Guidelines: a `to` that contains a dotted domain is a hostname; anything
 	// else is an operator-entered phrase ("your MQTT broker") or a broadcast.
-	var HOST_RE = /\b[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}\b/i;
-	// Guidelines: a `what` that names a hardware identifier.
+	// A name whose last label is a reserved LAN suffix (projector.local,
+	// nas.lan) or a file extension (remotes.json) is not on the internet.
+	var HOST_RE =
+		/\b[a-z0-9-]+(\.[a-z0-9-]+)*\.(?!(?:local|localhost|localdomain|lan|home|internal|arpa|json|txt|csv|log|conf|cfg|ini|php|py|sh|js|html|xml|yaml|yml|db)\b)[a-z]{2,}\b(?!\.[a-z0-9-])/i;
+	// An IPv4 literal, and the ranges that are not the internet: loopback,
+	// RFC1918, link-local, multicast and "this host".
+	var IPV4_RE = /\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b/g;
+	function isPrivateIp(a, b) {
+		return (
+			a === 0 || a === 10 || a === 127 || a >= 224 ||
+			(a === 172 && b >= 16 && b <= 31) ||
+			(a === 192 && b === 168) ||
+			(a === 169 && b === 254)
+		);
+	}
+	// Guidelines: a `what` that names a hardware identifier, in its qualified
+	// form only -- "serial port" and "the playlist uuid" identify nobody.
 	var HW_ID_RE =
-		/\b(serial( number)?|mac( address)?|uuid|hardware id|hwid|hw id)\b/i;
+		/\b(serial numbers?|cpu serial|mac addresse?s?|hardware ids?|hwid|hw id|device ids?|(?:device|player|device's|player's) uuids?)\b/i;
 
-	var VISITOR_ABOUT = { visitors: 1, "passers-by": 1 };
-	var ALWAYS_RED_ABOUT = { "third-parties": 1, performers: 1 };
+	var OTHERS_ABOUT = { visitors: 1, "passers-by": 1, "third-parties": 1, performers: 1 };
 	var TRACKING_TYPES = { "face-tracking": 1, "body-tracking": 1 };
+	var RECORDING_TYPES = { camera: 1, microphone: 1, "face-tracking": 1, "body-tracking": 1 };
 	var REMOTE_AMBER = { lan: 1, "internet-authenticated": 1 };
 	var REMOTE_RED = { "internet-open": 1, "exposes-fpp": 1, tunnel: 1 };
-	var SYSTEM_RED_KINDS = {
-		"package-source": 1,
-		tunnel: 1,
-		"reads-core-credentials": 1,
-		privilege: 1,
-	};
+	var PERMANENT_KINDS = { "package-source": 1, tunnel: 1 };
 
 	// Guidelines: the fixed pieces of the detail lines.
 	var ABOUT_LABEL = {
@@ -208,9 +223,74 @@ var FPPPluginPrivacy = (function () {
 	function isHostname(to) {
 		return HOST_RE.test(to);
 	}
+	// An IPv6 literal, bare or in brackets (with or without a port), that is
+	// not loopback, unspecified, link-local, unique-local, multicast or an
+	// IPv4-mapped private address. A token is an IPv6 literal when it is hex
+	// groups and colons with either "::" or all eight groups, so a clock
+	// time ("10:30:00") is not one.
+	function isPublicIp6(token) {
+		var t = token.replace(/^https?:\/\//i, "");
+		var m = /^\[([0-9a-f:.]+)\]/i.exec(t);
+		t = (m ? m[1] : t).toLowerCase();
+		if (!/^[0-9a-f:.]+$/.test(t) || (t.match(/:/g) || []).length < 2) return false;
+		var halves = t.split("::");
+		if (halves.length > 2) return false;
+		var groups = t.split(/::?/).filter(function (g) { return g; });
+		var v4 = /(\d{1,3})\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/.exec(t);
+		if (v4) groups.push("");   // the dotted tail counts as two groups
+		if (halves.length === 2 ? groups.length > 7 : groups.length !== 8) return false;
+		if (t === "::" || t === "::1") return false;
+		if (/^fe[89ab]/.test(t) || /^f[cd]/.test(t) || /^ff/.test(t)) return false;
+		if (v4 && /^::ffff:/.test(t)) return !isPrivateIp(Number(v4[1]), Number(v4[2]));
+		return true;
+	}
+	// Guidelines: a `to` is on the internet when it names a hostname (above)
+	// or a public IP literal. A LAN name, a private address or an
+	// operator-entered phrase is not.
+	function isInternet(to) {
+		if (isHostname(to)) return true;
+		var m;
+		IPV4_RE.lastIndex = 0;
+		while ((m = IPV4_RE.exec(to))) {
+			if (!isPrivateIp(Number(m[1]), Number(m[2]))) return true;
+		}
+		return to.split(/[\s,;()"']+/).some(isPublicIp6);
+	}
+	// A `to` that names a device on the operator's own network: a name with a
+	// reserved LAN suffix (projector.local, nas.lan), localhost, or an IP
+	// literal that isInternet() did not accept (private IPv4, link-local or
+	// unique-local IPv6). A phrase ("your MQTT broker", "anyone in FM range",
+	// "the developer's own server") is not.
+	var LAN_NAME_RE = /\b(?:[a-z0-9-]+\.)+(?:local|localhost|localdomain|lan|home|internal|arpa)\b|\blocalhost\b/i;
+	var IP6ISH_RE = /^\[?[0-9a-f:.]*:[0-9a-f:.]*:[0-9a-f:.]*\]?(?::\d+)?$/i;
+	function isLocalDevice(to) {
+		if (isInternet(to)) return false;
+		if (LAN_NAME_RE.test(to)) return true;
+		IPV4_RE.lastIndex = 0;
+		if (IPV4_RE.test(to)) return true;
+		return to.split(/[\s,;()"']+/).some(function (t) {
+			return IP6ISH_RE.test(t.replace(/^https?:\/\//i, ""));
+		});
+	}
+	// A send whose `what` is the operator's browser's address: the page makes
+	// the browser load a file (a CDN script, a font, a badge) from that host.
+	// The Template tells authors to write exactly "your browser's address".
+	var BROWSER_LOAD_RE = /\byour browser\b/i;
+	function isBrowserLoad(s) {
+		return BROWSER_LOAD_RE.test(s.what);
+	}
 
-	// Fill in every key so the rules below never test for presence. Wrong
-	// types become empty; unknown keys are dropped.
+	// A scalar key (remoteAccess, closedCode) is present when it holds a
+	// value of some kind; null and a nested object are not values.
+	function scalar(v) {
+		return v != null && typeof v !== "object";
+	}
+
+	// Fill in every key so the rules below never test for presence, and
+	// record in `has` (by light id) which keys the author actually wrote:
+	// a missing or wrongly typed key is filled with empty so the rules run,
+	// but it is not a statement, so decide() never turns it green. Unknown
+	// keys are dropped.
 	function normalise(privacy) {
 		var src = obj(privacy);
 		var p = {
@@ -218,10 +298,18 @@ var FPPPluginPrivacy = (function () {
 			sends: [],
 			collects: [],
 			sensors: [],
-			remoteAccess: lower(src.remoteAccess) || "none",
+			remoteAccess: scalar(src.remoteAccess) ? lower(src.remoteAccess) || "none" : "none",
 			systemChanges: [],
 			closedCode: truthy(src.closedCode),
 			other: str(src.other).trim(),
+			has: {
+				send: Array.isArray(src.sends),
+				collect: Array.isArray(src.collects),
+				camera: Array.isArray(src.sensors),
+				remote: scalar(src.remoteAccess),
+				system: Array.isArray(src.systemChanges),
+				code: scalar(src.closedCode),
+			},
 		};
 		arr(src.sends).forEach(function (s) {
 			s = obj(s);
@@ -271,23 +359,65 @@ var FPPPluginPrivacy = (function () {
 				},
 			},
 			{
-				// an always-on send to a hostname
+				// an always-on send to the internet (a hostname or a public
+				// IP). A browser-side page asset (what: "your browser's
+				// address") is not the plugin sending: it has its own amber
+				// rule below and is tested out of the two internet rules
 				level: "r",
 				label: "Sends to the internet on its own",
 				test: function (p) {
 					return p.sends.some(function (s) {
-						return s.alwaysOn && isHostname(s.to);
+						return s.alwaysOn && isInternet(s.to) && !isBrowserLoad(s);
 					});
 				},
 			},
 			{
-				// over plain http:// to a hostname (unencrypted on a LAN address
-				// is ordinary for projectors, brokers and players: amber below)
+				// over plain http:// to the internet (unencrypted on a LAN
+				// address is ordinary for projectors, brokers and players:
+				// amber below)
 				level: "r",
 				label: "Sends unencrypted to the internet",
 				test: function (p) {
 					return p.sends.some(function (s) {
-						return /^http:\/\//i.test(s.to) && isHostname(s.to);
+						return /^http:\/\//i.test(s.to) && isInternet(s.to) && !isBrowserLoad(s);
+					});
+				},
+			},
+			{
+				// the operator's browser loads a file from a host (a CDN
+				// script, a font, a badge): the host sees the browser's
+				// address, not data the plugin holds, so amber whatever
+				// alwaysOn says, named after the first such host
+				level: "a",
+				label: function (p) {
+					var s = p.sends.filter(isBrowserLoad)[0];
+					return "Your browser loads files from " + (unhttp(s.to) || "a web host");
+				},
+				test: function (p) {
+					return p.sends.some(isBrowserLoad);
+				},
+			},
+			{
+				// an always-on send to a LAN name or a private address: local
+				// traffic is never red, but "Sends when enabled" would be
+				// false, so it has its own text
+				level: "a",
+				label: "Sends on its own to a device on your network",
+				test: function (p) {
+					return p.sends.some(function (s) {
+						return s.alwaysOn && isLocalDevice(s.to);
+					});
+				},
+			},
+			{
+				// an always-on send to any other phrase (an address the
+				// operator enters, a broadcast, a named server, the device
+				// itself): the `to` fragment on the line says who
+				level: "a",
+				label: "Sends on its own",
+				test: function (p) {
+					return p.sends.some(function (s) {
+						return s.alwaysOn;
 					});
 				},
 			},
@@ -301,20 +431,13 @@ var FPPPluginPrivacy = (function () {
 		],
 		collect: [
 			{
-				// visitors or passers-by with no time limit
+				// about anyone but the operator or their household (visitors,
+				// passers-by, third parties, performers) with no time limit --
+				// retention is the one thing an author can add to leave red
 				level: "r",
 				test: function (p) {
 					return p.collects.some(function (c) {
-						return VISITOR_ABOUT.hasOwnProperty(c.about) && c.keptDays === null;
-					});
-				},
-			},
-			{
-				// third parties or performers
-				level: "r",
-				test: function (p) {
-					return p.collects.some(function (c) {
-						return ALWAYS_RED_ABOUT.hasOwnProperty(c.about);
+						return OTHERS_ABOUT.hasOwnProperty(c.about) && c.keptDays === null;
 					});
 				},
 			},
@@ -328,11 +451,11 @@ var FPPPluginPrivacy = (function () {
 		],
 		camera: [
 			{
-				// stored
+				// a camera, microphone or tracker, stored
 				level: "r",
 				test: function (p) {
 					return p.sensors.some(function (s) {
-						return s.stored;
+						return s.stored && RECORDING_TYPES.hasOwnProperty(s.type);
 					});
 				},
 			},
@@ -355,7 +478,18 @@ var FPPPluginPrivacy = (function () {
 				},
 			},
 			{
-				// any other sensor (presence, RFID, GPIO input), not stored
+				// any other sensor (presence, RFID, GPIO input), stored: a
+				// button log is kept, but nobody is recorded
+				level: "a",
+				label: "Sensor readings kept",
+				test: function (p) {
+					return p.sensors.some(function (s) {
+						return s.stored;
+					});
+				},
+			},
+			{
+				// any other sensor, not stored
 				level: "a",
 				label: "Uses a sensor, not stored",
 				test: function (p) {
@@ -390,11 +524,33 @@ var FPPPluginPrivacy = (function () {
 		],
 		system: [
 			{
-				// package-source, tunnel, reads-core-credentials or privilege
+				// package-source or tunnel: what these leave behind outlives
+				// the plugin
 				level: "r",
 				test: function (p) {
 					return p.systemChanges.some(function (c) {
-						return SYSTEM_RED_KINDS.hasOwnProperty(c.kind);
+						return PERMANENT_KINDS.hasOwnProperty(c.kind);
+					});
+				},
+			},
+			{
+				// reads-core-credentials
+				level: "r",
+				label: "Reads FPP's credentials",
+				test: function (p) {
+					return p.systemChanges.some(function (c) {
+						return c.kind === "reads-core-credentials";
+					});
+				},
+			},
+			{
+				// privilege: a sudoers rule or a group membership is red, but
+				// not "permanent" -- some are undone by a restart
+				level: "r",
+				label: "Grants extra privileges",
+				test: function (p) {
+					return p.systemChanges.some(function (c) {
+						return c.kind === "privilege";
 					});
 				},
 			},
@@ -426,13 +582,18 @@ var FPPPluginPrivacy = (function () {
 		],
 	};
 
+	// A finding (amber, red) stands on whatever keys are present; green is
+	// the author's statement that there is nothing, so it needs the light's
+	// own key to have been written -- otherwise the light is undeclared.
 	function decide(id, p) {
 		var rules = RULES[id];
 		for (var i = 0; i < rules.length; i++) {
-			if (rules[i].test(p))
-				return { level: rules[i].level, label: rules[i].label };
+			if (rules[i].test(p)) {
+				var label = rules[i].label;
+				return { level: rules[i].level, label: typeof label === "function" ? label(p) : label };
+			}
 		}
-		return { level: "g" };
+		return { level: p.has[id] ? "g" : "n" };
 	}
 
 	// One entry of a detail line: bold key fact + italic muted tag on the
@@ -559,6 +720,10 @@ var FPPPluginPrivacy = (function () {
 		);
 	}
 
+	// The lights the any-amber headline step reads, in display order; Sends
+	// has its own step before it.
+	var AMBER_HEADLINE_ORDER = ["collect", "camera", "remote", "system", "code"];
+
 	// Headline, by the published rule (guidelines), first match wins. Red
 	// headlines state the finding; the amber and green ones are attributed
 	// to the author. `byId` maps light id -> level, `labelById` -> chip text.
@@ -574,11 +739,18 @@ var FPPPluginPrivacy = (function () {
 		if (byId.remote === "r")
 			return { text: "Can be reached from the internet", level: "r" };
 		if (byId.send === "r") return { text: labelById.send, level: "r" };
-		if (byId.system === "r")
-			return { text: "Changes this device permanently", level: "r" };
+		if (byId.system === "r") return { text: labelById.system, level: "r" };
+		// A light with no key: nothing the author says about the rest can
+		// stand for the whole.
+		if (
+			LIGHTS.some(function (L) {
+				return byId[L.id] === "n";
+			})
+		)
+			return { text: "Not everything is disclosed", level: "n" };
 		if (p.sends.length) {
 			var allLocal = p.sends.every(function (s) {
-				return !isHostname(s.to);
+				return !isInternet(s.to);
 			});
 			return {
 				text:
@@ -588,12 +760,22 @@ var FPPPluginPrivacy = (function () {
 				level: "a",
 			};
 		}
+		// Any other amber light: its own chip text, so a LAN listener or a
+		// camera never reads "runs on this device only".
+		for (var i = 0; i < AMBER_HEADLINE_ORDER.length; i++) {
+			var id = AMBER_HEADLINE_ORDER[i];
+			if (byId[id] === "a") return { text: labelById[id], level: "a" };
+		}
 		return { text: "Author says it runs on this device only", level: "g" };
 	}
 
 	// YYYY-MM-DD of the player's current local date, comparable as a string.
+	// Built by hand: toLocaleDateString("en-CA") depends on the ICU data the
+	// browser ships, and a WebView without that locale returns "1/1/2027".
 	function todayString() {
-		return new Date().toLocaleDateString("en-CA");
+		var d = new Date();
+		function two(n) { return (n < 10 ? "0" : "") + n; }
+		return d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate());
 	}
 
 	/**
@@ -604,20 +786,26 @@ var FPPPluginPrivacy = (function () {
 	 * label line says so.
 	 *
 	 * Each light carries `entries` (HTML, one per declared item) beside
-	 * `label` and `level`.
+	 * `label` and `level`. `declared` on the result is the block as a whole
+	 * (an object with at least one of the six keys, as the server counts
+	 * it); `declared` on a light is its own key -- a light whose key is
+	 * missing is grey "not disclosed" inside a declared block, whatever the
+	 * date.
 	 * Returns { declared, unreviewed, lights[], headline, red, summary,
 	 *           other, raw, normalised }.
 	 */
 	function evaluate(privacy, opts) {
 		opts = opts || {};
-		var declared = !!(
-			privacy &&
+		var p = normalise(privacy);
+		var declared =
+			!!privacy &&
 			typeof privacy === "object" &&
-			!Array.isArray(privacy)
-		);
+			!Array.isArray(privacy) &&
+			LIGHTS.some(function (L) {
+				return p.has[L.id];
+			});
 		var overdue =
 			!declared && todayString() >= PRIVACY_DECLARATION_REQUIRED_FROM;
-		var p = normalise(privacy);
 		var lights = [];
 		var byId = {};
 		var labelById = {};
@@ -625,7 +813,8 @@ var FPPPluginPrivacy = (function () {
 		LIGHTS.forEach(function (L) {
 			var d = declared ? decide(L.id, p) : { level: overdue ? "r" : "n" };
 			var level = d.level;
-			var label = declared ? d.label || L[level] : UNDECLARED_LABEL;
+			var lit = declared && level !== "n";
+			var label = lit ? d.label || L[level] : UNDECLARED_LABEL;
 			byId[L.id] = level;
 			labelById[L.id] = label;
 			if (declared && level === "r") red = true;
@@ -634,8 +823,8 @@ var FPPPluginPrivacy = (function () {
 				name: L.name,
 				level: level,
 				label: label,
-				entries: declared ? lineFor(L.id, p) : [esc(UNDECLARED_LINE)],
-				declared: declared,
+				entries: lit ? lineFor(L.id, p) : [esc(UNDECLARED_LINE)],
+				declared: lit,
 			});
 		});
 		var headline;
@@ -670,7 +859,9 @@ var FPPPluginPrivacy = (function () {
 		var anyAmber = false;
 		result.lights.forEach(function (l) {
 			byId[l.id] = l.level;
-			if (l.level === "a") anyAmber = true;
+			// A light with no key ranks with amber: not the red "no
+			// disclosure" of a missing block, not the green of a full one.
+			if (l.level === "a" || l.level === "n") anyAmber = true;
 		});
 		if (!result.declared)
 			return { text: "Install, no disclosure", cls: "btn-danger" };
@@ -699,18 +890,40 @@ var FPPPluginPrivacy = (function () {
 	// before the deadline.
 	var LEVEL_THEME = { g: "success", a: "warning", r: "danger", n: "secondary" };
 
-	// Bootstrap classes for a chip or line in a theme. Green is drawn in
-	// the body's own muted colour, not Bootstrap's success green: colour on
-	// the screen then means "look here", and a row of greens is quiet.
+	// Bootstrap classes for a line or a change summary in a theme. Green is
+	// drawn in the body's own muted colour, not Bootstrap's success green:
+	// colour on the screen then means "look here", and a row of greens is
+	// quiet.
 	function themeClasses(theme) {
 		if (theme === "success")
 			return { text: "text-body-secondary", bg: "bg-body-tertiary", border: "border-secondary-subtle" };
 		return { text: "text-" + theme + "-emphasis", bg: "bg-" + theme + "-subtle", border: "border-" + theme + "-subtle" };
 	}
 
-	// The coloured dot: a Font Awesome circle in currentColor. Green is
-	// hollow (the author's word, not a tick), amber and red are filled, and
-	// grey is a question mark so "nothing declared" does not look like a green.
+	// Classes for a chip: only a red chip keeps the tinted background,
+	// coloured border and coloured text. Amber, green and grey chips are the
+	// same neutral pill, and the dot before the label (stateDotHtml) carries
+	// the state, so a strip reads as one row with the reds standing out.
+	function chipClasses(theme) {
+		if (theme === "danger") return themeClasses(theme);
+		return { text: "text-body-secondary", bg: "bg-body-tertiary", border: "border-secondary-subtle" };
+	}
+
+	// The state dot before a chip's label and its line: an 8px Font Awesome
+	// circle (fa-2xs on the chip's .8em text) in the state's emphasis colour,
+	// filled for green, amber and red, hollow (border only) for grey --
+	// "nothing declared" is an empty slot, not a colour.
+	function stateDotHtml(theme, extra) {
+		var cls = extra ? " " + extra : "";
+		if (theme === "secondary")
+			return '<i class="far fa-circle fa-2xs text-secondary' + cls + '" aria-hidden="true"></i>';
+		return '<i class="fas fa-circle fa-2xs text-' + theme + '-emphasis' + cls + '" aria-hidden="true"></i>';
+	}
+
+	// The coloured dot of the compact card strip: a Font Awesome circle in
+	// currentColor. Green is hollow (the author's word, not a tick), amber
+	// and red are filled, and grey is a question mark so "nothing declared"
+	// does not look like a green. (Chips and their lines use stateDotHtml.)
 	function dotHtml(theme, extra) {
 		var cls = extra ? " " + extra : "";
 		if (theme === "secondary")
@@ -761,9 +974,9 @@ var FPPPluginPrivacy = (function () {
 		var h = "";
 		if (opts.compact) {
 			var tip =
-				result.declared ?
-					"Author's disclosure: " + result.headline.text
-				:	"No disclosure";
+				!result.declared ? "No disclosure"
+				: result.headline.level === "n" ? result.headline.text
+				: "Author's disclosure: " + result.headline.text;
 			h +=
 				'<span class="d-inline-flex align-items-center gap-1" title="' +
 				esc(tip) +
@@ -798,7 +1011,7 @@ var FPPPluginPrivacy = (function () {
 			var id = prefix + "-" + l.id;
 			h +=
 				'<button type="button" class="pluginPrivacyChip badge rounded-pill border fw-semibold d-inline-flex align-items-center gap-1 ' +
-				themeClasses(theme).text + " " + themeClasses(theme).bg + " " + themeClasses(theme).border + '"' +
+				chipClasses(theme).text + " " + chipClasses(theme).bg + " " + chipClasses(theme).border + '"' +
 				' data-light="' +
 				l.id +
 				'" data-level="' +
@@ -814,7 +1027,7 @@ var FPPPluginPrivacy = (function () {
 				' title="' +
 				esc(l.name) +
 				'">' +
-				dotHtml(theme) +
+				stateDotHtml(theme) +
 				esc(chipText(l)) +
 				(ch ?
 					'<i class="fas fa-' +
@@ -843,7 +1056,7 @@ var FPPPluginPrivacy = (function () {
 				(open ? "" : " d-none") +
 				(l.level === "r" && l.declared ? " text-danger-emphasis" : "") +
 				'">' +
-				dotHtml(theme, "mt-1 " + themeClasses(theme).text) +
+				stateDotHtml(theme, "mt-1") +
 				"<span><b>" +
 				esc(l.name) +
 				(/\?$/.test(l.name) ? "" : ":") +

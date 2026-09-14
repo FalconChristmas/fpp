@@ -26,6 +26,10 @@
 <p>Remember that the lights come from what the author wrote. FPP does not check the plugin's code against
     its disclosure, and a green light is the author's word, not a test result. The lights describe what the
     author says the plugin does; they do not limit what it can do.</p>
+<p>If a plugin keeps information about your visitors or passers-by - phone numbers, messages, votes,
+    camera images - the headline reads <i>Handles other people's data</i>. Whether a plugin keeps such
+    information or only passes it on to a service, what happens to it is your responsibility, not the
+    author's or FPP's.</p>
 
 <h4>Plugins with no privacy disclosure</h4>
 <p>If the author has not written a disclosure, every light reads <i>not disclosed</i> and the install button
@@ -36,14 +40,17 @@
 <h4>Checking a plugin without installing</h4>
 <p>Click a card to see its lights and the author's disclosure without installing anything. Use it to see
     what an installed plugin says about itself, or to compare plugins before choosing one. In Developer UI
-    mode the disclosure as the author wrote it is also shown under <i>Full disclosure</i>.</p>
+    mode the disclosure as the author wrote it is also shown under <i>Full disclosure</i>. For a plugin that
+    is not installed, this screen shows everything the install screen would - the root warning, the
+    disclosure, and the disclosure of any other plugin it depends on and would install with it - and its
+    <b>Install</b> button installs straight away; what is on the screen is what you are accepting.</p>
 
 <h4>Updates and reinstalls</h4>
 <p>When a plugin update changes its disclosure, FPP shows you the new one before updating and asks you
     to accept it. <b>Update All</b> asks the same question for each such plugin before any update runs;
     the others go straight through. Cancel skips that plugin and leaves it at its current version. A change
-    only to the author's summary or notes, with the rest of the disclosure the same, is updated without
-    asking.</p>
+    only to the author's summary sentence, with the rest of the disclosure the same, is updated without
+    asking; a change to anything else, the author's notes included, asks.</p>
 <p><b>Reinstall</b> asks the same question, because a reinstall fetches the plugin's current code: accept
     and reinstall, uninstall instead, or cancel and leave the plugin as it is. After an FPP OS upgrade the
     plugin no longer works as it is, so until it has been reinstalled the choice is only accept or uninstall.
@@ -58,6 +65,8 @@
     <li><b>Open</b> - Opens the plugin's own page, if it has one.</li>
     <li><b>Reinstall</b> - Removes and reinstalls the plugin. Try this after an FPP upgrade, or when a plugin
         has stopped working.</li>
-    <li><b>Uninstall</b> - Removes the plugin. Anything it leaves behind on the player is listed under
-        <b>System changes</b> in its privacy disclosure.</li>
+    <li><b>Uninstall</b> - Removes the plugin. Its privacy disclosure says what it changed outside its own
+        files under <b>System changes</b>, and what it stored and where under <b>Collects data</b>; whether
+        the uninstall undoes those is up to the plugin, so check the disclosure's notes and the listed
+        locations afterwards.</li>
 </ul>
