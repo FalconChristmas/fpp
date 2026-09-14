@@ -1058,18 +1058,23 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                 //in api/controllers/plugin.php). Only this player's own backup is
                 //restored: another player's acceptances would be ignored anyway,
                 //and writing them here would throw away the ones made on this
-                //player. A foreign backup is reported as not restored.
+                //player. A foreign backup that carries a record is reported as
+                //not restored; a backup with no record at all (every backup made
+                //before the record existed) is skipped silently. The results
+                //renderer only reports a sub-area that has an ATTEMPT key, so
+                //that key is set only when there was something to attempt.
                 if ($restore_areas_idx == "pluginPrivacyAccepted") {
-                    $restore_data = $restore_area_data['pluginPrivacyAccepted'][0];
+                    $restore_data = isset($restore_area_data['pluginPrivacyAccepted'][0]) ? $restore_area_data['pluginPrivacyAccepted'][0] : null;
                     $system_settings_data = isset($restore_area_data['system_settings'][0]) ? $restore_area_data['system_settings'][0] : null;
-                    if (is_array($restore_data) && isset($restore_data['plugins']) && is_array($restore_data['plugins'])
-                        && BackupIsFromThisDevice($system_settings_data)) {
-                        $settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = true;
-                        $filepath = $settings['configDirectory'] . "/pluginPrivacyAccepted.json";
-                        $save_result = (file_put_contents($filepath, prettyPrintJSON(json_encode($restore_data))) !== false);
-                    } else {
-                        $settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = false;
-                        $save_result = false; // not this player's backup (or no usable record): this player's record is kept
+                    if (is_array($restore_data) && isset($restore_data['plugins']) && is_array($restore_data['plugins'])) {
+                        if (BackupIsFromThisDevice($system_settings_data)) {
+                            $settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = true;
+                            $filepath = $settings['configDirectory'] . "/pluginPrivacyAccepted.json";
+                            $save_result = (file_put_contents($filepath, prettyPrintJSON(json_encode($restore_data))) !== false);
+                        } else {
+                            $settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = false;
+                            $save_result = false; // not this player's backup: this player's record is kept
+                        }
                     }
                 }
 
