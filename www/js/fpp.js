@@ -340,10 +340,13 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 		checkScrollTopButton();
 	};
 
-	//show first visible tab (if no tab specified in url)
+	//show first visible tab (if no tab specified in url), unless the page has
+	//already marked one active in that tablist itself, e.g. settings.php?tab=MQTT.
+	//Relies on the page doing so in an inline script (before DOMContentLoaded).
 	if (!location.hash) {
 		const triggerFirstTabEl = $('[role="tablist"] li:visible a').first()[0];
-		if (triggerFirstTabEl) {
+		if (triggerFirstTabEl &&
+			$(triggerFirstTabEl).closest('[role="tablist"]').find('.nav-link.active').length === 0) {
 			bootstrap.Tab.getOrCreateInstance(triggerFirstTabEl).show();
 			//setup sticky on first page load
 			setTimeout(function () {
