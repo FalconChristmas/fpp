@@ -59,12 +59,37 @@ stopFppdForRebuild
 echo "Cleaning up any compiled binaries"
 cleanCompiledBinaries
 
+# A PR ref lives under refs/remotes/<remote>/pull/<n>/head, which the default
+# +refs/heads/*:refs/remotes/<remote>/* refspec does not cover, so the
+# background git_fetch (-p) and the Developer page's "git remote prune" delete
+# it and @{u} goes missing until the next git_pull re-fetches it. Register a
+# refspec for just that PR so every fetch keeps it and force-updates it; drop
+# any such refspec again when switching to an ordinary branch.
+setPullRefspec() {
+	# $1 = PR number or empty to clear
+	for r in $(cd ${FPPDIR} && git remote); do
+		if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
+			(cd ${FPPDIR} && git config --unset-all remote.$r.fetch '^\+refs/pull/' 2>/dev/null || true)
+		else
+			(cd ${FPPDIR} && sudo -u ${FPPUSER} git config --unset-all remote.$r.fetch '^\+refs/pull/' 2>/dev/null || true)
+		fi
+	done
+	if [ -n "$1" ]; then
+		if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
+			(cd ${FPPDIR} && git config --add remote.$REMOTE.fetch "+refs/pull/$1/head:refs/remotes/${REMOTE}/pull/$1/head")
+		else
+			(cd ${FPPDIR} && sudo -u ${FPPUSER} git config --add remote.$REMOTE.fetch "+refs/pull/$1/head:refs/remotes/${REMOTE}/pull/$1/head")
+		fi
+	fi
+}
+
 echo "Switching git branch to $1 from remote $REMOTE"
 # Serialize the whole switch under the shared git repo lock so a background
 # git_fetch can't race on FETCH_HEAD / ref locks mid-switch. rebase onto the
 # tracking ref rather than a bare pull -- see runGitLocked in scripts/functions.
 if [ -n "$PR_LOCAL" ]; then
 	PR_NUM=$(echo "$PR_LOCAL" | sed 's/^pr-//')
+	setPullRefspec "$PR_NUM"
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
 		runGitLocked "cd ${FPPDIR} && git clean -df && git reset --hard && git submodule foreach git reset --hard && git fetch $REMOTE +pull/${PR_NUM}/head:refs/remotes/${REMOTE}/pull/${PR_NUM}/head 2>&1 | head -20; git checkout -B $PR_LOCAL $REMOTE/pull/${PR_NUM}/head && git fetch --tags -f && git submodule sync && git submodule update --init"
 	else
@@ -72,8 +97,10 @@ if [ -n "$PR_LOCAL" ]; then
 	fi
 elif [ "x${FPPDIR}" = "x/opt/fpp" ]
 then
+	setPullRefspec ""
 	runGitLocked "cd ${FPPDIR} && git clean -df && git reset --hard && git submodule foreach git reset --hard && git fetch $REMOTE && git checkout -B $1 $REMOTE/$1 && git rebase $REMOTE/$1 && git fetch --tags -f && git submodule sync && git submodule update --init"
 else
+	setPullRefspec ""
 	runGitLocked "cd ${FPPDIR} && sudo -u ${FPPUSER} git clean -df && sudo -u ${FPPUSER} git reset --hard && sudo -u ${FPPUSER} git submodule foreach git reset --hard && sudo -u ${FPPUSER} git fetch $REMOTE && sudo -u ${FPPUSER} git checkout -B $1 $REMOTE/$1 && sudo -u ${FPPUSER} git rebase $REMOTE/$1 && sudo -u ${FPPUSER} git fetch --tags -f && sudo -u ${FPPUSER} git submodule sync && sudo -u ${FPPUSER} git submodule update --init"
 fi
 

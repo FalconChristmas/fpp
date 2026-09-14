@@ -47,6 +47,16 @@ if curl --silent --head "${HTTPURL}" | grep -i "Content-Type: text/html; charset
     # head rather than rebasing onto a stale frozen ref.
     if [[ "${GITBRANCH}" =~ ^pr-([0-9]+)$ ]]; then
         PR_NUM="${BASH_REMATCH[1]}"
+        # git_branch registers a fetch refspec for the PR so prune keeps the
+        # ref; a box that switched before that existed has none, so add it.
+        PR_REFSPEC="+refs/pull/${PR_NUM}/head:refs/remotes/origin/pull/${PR_NUM}/head"
+        if ! (cd ${FPPDIR} && git config --get-all remote.origin.fetch | grep -qxF "${PR_REFSPEC}"); then
+            if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
+                (cd ${FPPDIR} && git config --add remote.origin.fetch "${PR_REFSPEC}")
+            else
+                (cd ${FPPDIR} && sudo -u ${FPPUSER} git config --add remote.origin.fetch "${PR_REFSPEC}")
+            fi
+        fi
         if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
             runGitLocked "cd ${FPPDIR} && git fetch origin +pull/${PR_NUM}/head:refs/remotes/origin/pull/${PR_NUM}/head 2>&1 | head -20" || true
         else
