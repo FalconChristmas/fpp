@@ -3013,7 +3013,7 @@ function readCapes($cd, $capes)
                         </select>
                     </div>
                 </div>
-                <div class="col-md-auto form-inline mr-auto">
+                <div class="col-md-auto form-inline">
                     <div id="BBPixelTiming">
                         <b>Pixel Timing:</b>
                         <select id='PixelStringPixelTiming'>
@@ -3028,11 +3028,12 @@ function readCapes($cd, $capes)
                     </div>
                 </div>
 
-                <div class="col-md-auto form-inline d-flex align-items-center">
-                    <small id="pixelStringMaxFPS" class="text-muted"></small>
+                <!-- Elastic: see .pixelStringHeaderNote in fpp.css. -->
+                <div class="col-auto form-inline d-flex align-items-center justify-content-end pixelStringHeaderNote">
+                    <small id="pixelStringMaxFPS" class="text-muted text-end"></small>
                 </div>
 
-                <div class="col-md-auto form-inline">
+                <div class="col-md-auto form-inline ms-auto">
                     <div id="PixelTestPatternDiv">
                         <b>Testing:</b>
                         <select id='PixelTestPatternType' class='form-select d-inline-block w-auto align-middle ms-1' onchange='SetPixelTestPattern();'>
