@@ -2215,11 +2215,24 @@
             return '<div class="ms-auto pluginGitHubStatsRow">' + badge + '</div>';
         }
 
+        // Whether/how the Plugin Manager offers this plugin's release notes --
+        // author-declared via `releaseNotesStyle` in pluginInfo.json (see
+        // PLUGININFO_FORMAT.md), not inferred from whether the repo happens to be
+        // on GitHub. Most plugins have no tagged GitHub Releases at all, so
+        // gating on "is this GitHub-hosted" (the original approach here) meant
+        // showing an icon that was a dead end for almost every plugin. Explicit
+        // opt-in means: no icon for a plugin that hasn't declared a style, and no
+        // upfront round trip needed to find that out ahead of render time.
+        function PluginReleaseNotesStyle(data) {
+            var style = data && data.releaseNotesStyle;
+            return (style === 'gitRelease' || style === 'gitHistory' || style === 'script') ? style : 'none';
+        }
+
         // Release-notes trigger, wrapped for inline placement at the right end of
         // the action row alongside (or in place of) the GitHub stats badge -- same
         // ms-auto pattern as GitHubStatsRowHtml, so the two cluster together at the
-        // trailing edge whether or not the stats badge is also present. '' when the
-        // plugin isn't GitHub-hosted (GitHubRepoOf() can't derive an owner/repo).
+        // trailing edge whether or not the stats badge is also present. '' when
+        // the plugin hasn't opted into a releaseNotesStyle.
         // Shown at every UI level: unlike the stats badge this needs no upfront API
         // call (ShowPluginReleaseNotes fetches on click), so there's no rate-limit
         // reason to gate it behind Advanced/Developer.
@@ -2227,7 +2240,7 @@
         // ShowPluginReleaseNotes) via the card's existing data-plugin-action
         // delegated click handler, same as the Install/Update/Uninstall buttons.
         function ReleaseNotesRowHtml(data) {
-            if (!GitHubRepoOf(data)) return '';
+            if (PluginReleaseNotesStyle(data) === 'none') return '';
             return '<a href="javascript:void(0)" role="button" class="ms-auto pluginReleaseNotesLink" ' +
                 'data-plugin-action="releaseNotes" data-repo="' + EscapeAttr(data.repoName) + '" title="Release notes">' +
                 '<i class="fas fa-file-lines"></i></a>';
@@ -2267,15 +2280,60 @@
             return '<p>' + body + '</p>';
         }
 
-        // Fetch and show a plugin's latest GitHub release in a modal -- same shape
-        // as about.php's OS-release-notes flow (loading spinner, then patch
-        // .modal-body once the proxied api/plugin/releaseNotes call resolves).
+        // releaseNotesStyle: gitRelease renderer.
+        function RenderGitReleaseNotes(release, ghRepo) {
+            var html = '';
+            if (release.published_at) {
+                var date = new Date(release.published_at);
+                html += '<p class="text-muted"><i class="fas fa-calendar"></i> Published: ' + date.toLocaleDateString() + '</p>';
+            }
+            html += release.body
+                ? '<div class="release-notes-body">' + PluginMarkdownToSafeHtml(release.body) + '</div>'
+                : '<p class="text-muted">No release notes text was provided for this release.</p>';
+            if (IsSafeHttpUrl(release.html_url)) {
+                html += '<div class="mt-3"><a href="' + EscapeAttr(release.html_url) + '" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary">' +
+                    '<i class="fas fa-external-link-alt"></i> View Full Release on GitHub</a></div>';
+            }
+            return html;
+        }
+
+        // releaseNotesStyle: gitHistory renderer -- same commit-row shape
+        // changelog.php uses for FPP's own history, just without the "Current"
+        // highlight (there's no local commit to compare against here, only what
+        // the update would bring in).
+        function RenderGitHistoryReleaseNotes(release) {
+            if (!release.commits || !release.commits.length) {
+                return '<p class="text-muted">No new commits were found.</p>';
+            }
+            var html = '<table class="table table-sm"><thead><tr><th width="80px">Commit</th><th>Message</th></tr></thead><tbody>';
+            release.commits.forEach(function (c) {
+                html += '<tr><td><code>' + EscapeHtml(c.hash) + '</code></td><td>' + EscapeHtml(c.subject) +
+                    '<div class="text-muted small">' + EscapeHtml(c.author) + ' &middot; ' + EscapeHtml(c.date) + '</div></td></tr>';
+            });
+            html += '</tbody></table>';
+            return html;
+        }
+
+        // releaseNotesStyle: script renderer -- plain text from the plugin's own
+        // scripts/fpp_releasenotes.sh, HTML-escaped and line-wrapped. Never
+        // interpreted as markdown/HTML, same reasoning as PluginMarkdownToSafeHtml:
+        // a plugin's own script output shouldn't be able to inject markup either.
+        function RenderScriptReleaseNotes(release) {
+            if (!release.text) {
+                return '<p class="text-muted">No release notes text was returned.</p>';
+            }
+            return '<pre class="release-notes-body">' + EscapeHtml(release.text) + '</pre>';
+        }
+
+        // Fetch and show a plugin's release notes in a modal, in whichever style
+        // it declared (see PluginReleaseNotesStyle) -- same shape as about.php's
+        // OS-release-notes flow (loading spinner, then patch .modal-body once
+        // api/plugin/{RepoName}/releaseNotes resolves).
         function ShowPluginReleaseNotes(repo) {
             var i = FindPluginInfo(repo);
             if (i < 0) return;
             var data = pluginInfos[i];
-            var ghRepo = GitHubRepoOf(data);
-            if (!ghRepo) return;
+            if (PluginReleaseNotesStyle(data) === 'none') return;
 
             // This link also lives inside the plugin detail modal, so a click there
             // would otherwise stack a second Bootstrap modal on top of it. Close it
@@ -2296,29 +2354,30 @@
                 backdrop: true
             });
 
+            var ghRepo = GitHubRepoOf(data);
+
             $.ajax({
-                url: 'api/plugin/releaseNotes?repo=' + encodeURIComponent(ghRepo),
+                url: 'api/plugin/' + encodeURIComponent(repo) + '/releaseNotes',
                 dataType: 'json',
                 success: function (release) {
-                    var html = '';
-                    if (release.published_at) {
-                        var date = new Date(release.published_at);
-                        html += '<p class="text-muted"><i class="fas fa-calendar"></i> Published: ' + date.toLocaleDateString() + '</p>';
-                    }
-                    html += release.body
-                        ? '<div class="release-notes-body">' + PluginMarkdownToSafeHtml(release.body) + '</div>'
-                        : '<p class="text-muted">No release notes text was provided for this release.</p>';
-                    if (IsSafeHttpUrl(release.html_url)) {
-                        html += '<div class="mt-3"><a href="' + EscapeAttr(release.html_url) + '" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary">' +
-                            '<i class="fas fa-external-link-alt"></i> View Full Release on GitHub</a></div>';
+                    var html;
+                    if (release.style === 'gitHistory') {
+                        html = RenderGitHistoryReleaseNotes(release);
+                    } else if (release.style === 'script') {
+                        html = RenderScriptReleaseNotes(release);
+                    } else {
+                        html = RenderGitReleaseNotes(release, ghRepo);
                     }
                     $('#pluginReleaseNotesModal .modal-body').html(html);
                 },
                 error: function () {
                     var html = '<div class="fpp-alert fpp-alert--warning" style="display: block;">' +
-                        '<div><i class="fas fa-info-circle"></i> <strong>No GitHub releases found for this plugin.</strong></div>' +
-                        '<div class="mt-3"><a href="https://github.com/' + EscapeAttr(ghRepo) + '/releases" target="_blank" rel="noopener noreferrer" class="fpp-btn fpp-btn--outline">' +
-                        '<i class="fas fa-external-link-alt"></i> Browse on GitHub</a></div></div>';
+                        '<div><i class="fas fa-info-circle"></i> <strong>No release notes are available for this plugin right now.</strong></div>';
+                    if (ghRepo) {
+                        html += '<div class="mt-3"><a href="https://github.com/' + EscapeAttr(ghRepo) + '/releases" target="_blank" rel="noopener noreferrer" class="fpp-btn fpp-btn--outline">' +
+                            '<i class="fas fa-external-link-alt"></i> Browse on GitHub</a></div>';
+                    }
+                    html += '</div>';
                     $('#pluginReleaseNotesModal .modal-body').html(html);
                 }
             });
@@ -2671,7 +2730,7 @@
             };
             if (IsSafeHttpUrl(data.srcURL) && !sameLink(data.srcURL, data.homeURL)) body += '<a href="' + EscapeAttr(data.srcURL) + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none"><i class="fas fa-code"></i> <span class="text-decoration-underline">View Source</span></a>';
             if (IsSafeHttpUrl(data.bugURL)) body += '<a href="' + EscapeAttr(data.bugURL) + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none"><i class="fas fa-bug"></i> <span class="text-decoration-underline">Report a Bug</span></a>';
-            if (GitHubRepoOf(data)) body += '<a href="javascript:void(0)" role="button" class="text-decoration-none" data-plugin-action="releaseNotes" data-repo="' + EscapeAttr(repo) + '"><i class="fas fa-file-lines"></i> <span class="text-decoration-underline">Release Notes</span></a>';
+            if (PluginReleaseNotesStyle(data) !== 'none') body += '<a href="javascript:void(0)" role="button" class="text-decoration-none" data-plugin-action="releaseNotes" data-repo="' + EscapeAttr(repo) + '"><i class="fas fa-file-lines"></i> <span class="text-decoration-underline">Release Notes</span></a>';
             body += '</div>';
             // What a plugin declares is one tap away from its card at any
             // time, not only at install. Lines open on tap here too. For a
