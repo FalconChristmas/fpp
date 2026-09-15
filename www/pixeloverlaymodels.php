@@ -133,6 +133,13 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                         'PixelCount' => isset($g['PixelCount']) ? (int) $g['PixelCount'] : 0,
                         'Width' => isset($g['Width']) ? (int) $g['Width'] : 0,
                         'Height' => isset($g['Height']) ? (int) $g['Height'] : 0,
+                        // A model whose buffer axes already mean something --
+                        // see PixelOverlayModel::getBufferStyle(). Listed apart
+                        // from the xLights groups below, because "a group of
+                        // models" and "a polar view of one" are different kinds
+                        // of thing to drive even though both are channelgrid Subs.
+                        'BufferStyle' => isset($g['BufferStyle']) ? $g['BufferStyle'] : '',
+                        'SourceName' => isset($g['PolarSourceName']) ? $g['PolarSourceName'] : '',
                     ];
                 }
                 echo "xlightsModelGroups = " . json_encode($glist) . ";\n";
@@ -154,11 +161,19 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
             });
         }
 
+        function isPolarBuffer(g) {
+            return (g.BufferStyle || '') === 'polar';
+        }
+
         function renderModelGroups() {
+            renderPolarBuffers();
             var $tbody = $('#modelGroupsTable tbody');
             var html = "";
+            var shown = 0;
             for (var i = 0; i < xlightsModelGroups.length; i++) {
                 var g = xlightsModelGroups[i];
+                if (isPolarBuffer(g)) continue;
+                shown++;
                 var fx = overlayEffectByName[g.Name];
                 var fxCell = fx
                     ? "<span style='color:#4caf50;'><i class='fas fa-circle' style='font-size:0.6em;vertical-align:middle;'></i> " + fx + "</span>"
@@ -173,8 +188,39 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                     + "</tr>";
             }
             $tbody.html(html);
-            $('#modelGroupsCount').text("(" + xlightsModelGroups.length + ")");
-            $('#modelGroupsSection').show();
+            $('#modelGroupsCount').text("(" + shown + ")");
+            if (shown > 0) {
+                $('#modelGroupsSection').show();
+            }
+        }
+
+        // Models declaring BufferStyle "polar": their X/Y are radius and angle
+        // rather than wiring order, so the useful columns are the polar shape
+        // and what they are a view OF, not a member count.
+        function renderPolarBuffers() {
+            var rows = (xlightsModelGroups || []).filter(isPolarBuffer);
+            if (rows.length == 0) {
+                return;
+            }
+            var html = "";
+            for (var i = 0; i < rows.length; i++) {
+                var g = rows[i];
+                var fx = overlayEffectByName[g.Name];
+                var fxCell = fx
+                    ? "<span style='color:#4caf50;'><i class='fas fa-circle' style='font-size:0.6em;vertical-align:middle;'></i> " + fx + "</span>"
+                    : "<span style='color:#666;'>&mdash;</span>";
+                html += "<tr>"
+                    + "<td style='text-align:left;'>" + g.DisplayName + "</td>"
+                    + "<td style='text-align:left;'><code style='font-size:0.85em;'>" + (g.SourceName || "&mdash;") + "</code></td>"
+                    + "<td style='text-align:center;'>" + g.PixelCount + "</td>"
+                    + "<td style='text-align:center;'>" + g.Width + " x " + g.Height + "</td>"
+                    + "<td><code style='font-size:0.85em;'>" + g.Name + "</code></td>"
+                    + "<td style='text-align:center;'>" + fxCell + "</td>"
+                    + "</tr>";
+            }
+            $('#polarBuffersTable tbody').html(html);
+            $('#polarBuffersCount').text("(" + rows.length + ")");
+            $('#polarBuffersSection').show();
         }
 
         // Fetch a model's per-pixel preview coordinates ([[x,y,z],...]) on
@@ -1125,6 +1171,37 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                                         <th>Members</th>
                                         <th>Pixels</th>
                                         <th>Buffer</th>
+                                        <th>Overlay Model Name</th>
+                                        <th>Running Effect</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="polarBuffersSection" style="display:none;">
+                    <div class="row tableHeader">
+                        <div class="col-md">
+                            <h2>Polar Buffers <span id="polarBuffersCount"
+                                    style="font-size:0.6em;color:#9b59b6;"></span></h2>
+                            <p style="font-size:0.85em;color:#aaa;margin:0;">Models declaring
+                                <code>BufferStyle: "polar"</code> &mdash; their buffer axes are radius and angle
+                                rather than wiring order, so an ordinary Horizontal sweep radiates from the centre
+                                and a Vertical one rotates around it. They paint the same channels as the target
+                                they are a view of, so driving both at once is last-writer-wins.</p>
+                        </div>
+                    </div>
+                    <div class='fppTableWrapper fppTableWrapperAsTable'>
+                        <div class='fppTableContents fppFThScrollContainer' tabindex="0">
+                            <table id="polarBuffersTable" class="fppSelectableRowTable fppStickyTheadTable">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align:left;">Name</th>
+                                        <th style="text-align:left;">View Of</th>
+                                        <th>Pixels</th>
+                                        <th><span title="rings x sectors">Buffer</span></th>
                                         <th>Overlay Model Name</th>
                                         <th>Running Effect</th>
                                     </tr>

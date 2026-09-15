@@ -12,6 +12,7 @@
  */
 
 #include <list>
+#include <map>
 #include "fpp-json.h"
 #include <memory>
 #include <mutex>
@@ -19,6 +20,7 @@
 #include <vector>
 
 #include "../AtomicSharedPtr.h"
+#include "PolarBufferMap.h"
 
 class RunningEffect;
 
@@ -67,6 +69,16 @@ public:
     const std::string& getName() const { return name; };
     const std::string& getType() const { return type; };
 
+    // How this model's BUFFER is laid out, when it is not the plain
+    // wiring-order rectangle. Read from the model definition's "BufferStyle"
+    // and reported in toJson(), so a producer (an xLights bridge script, a
+    // plugin) can declare a model whose axes already mean something and the UI
+    // can group and label it accordingly rather than filing it under whatever
+    // file it happened to arrive in. Empty for an ordinary model.
+    //
+    // Known values: "" (ordinary) and "polar" (x/y are radius and angle).
+    const std::string& getBufferStyle() const { return bufferStyle; }
+
     int getWidth() const { return width; }
     int getHeight() const { return height; }
     void getSize(int& w, int& h) const {
@@ -78,6 +90,19 @@ public:
     virtual void setState(const PixelOverlayState& state);
 
     virtual void doOverlay(uint8_t* channels);
+
+    // A polar (radius x angle) view of this model's buffer, for the Radial/
+    // Angular buffer mappings. Built on first use from the model's geometry in
+    // config/virtualdisplaymap and cached; the result is owned by the model.
+    //
+    // Returns nullptr whenever a polar layout cannot be built -- no layout file
+    // (a player that has never used xLights), this model absent from it, or too
+    // little geometry. Callers MUST fall back to the ordinary buffer mapping,
+    // never treat it as an error.
+    //
+    // Not thread safe against itself: call it from the command path that starts
+    // an effect, never from the channel output thread.
+    const PolarBufferMap* getPolarMap(PolarMode mode);
 
     int getStartChannel() const;
     int getChannelCount() const;
@@ -160,10 +185,32 @@ protected:
     void setValue(uint8_t v, int startChannel = -1, int endChannel = -1);
     bool flushChildren(uint8_t* dst);
 
+    // The 0-based ABSOLUTE output channel a channelData offset ends up on, or
+    // FPPD_OFF_CHANNEL. A plain model owns a contiguous range so it is just an
+    // addition; a submodel or group scatters, so those override this. Used only
+    // to join buffer cells to their position in the virtual display map.
+    virtual uint32_t outputChannelForData(uint32_t dataOffset) const;
+
+    // Cached polar views, keyed by mode AND the layout file's mtime.
+    //
+    // One entry per key, never replaced or erased: a running effect holds a
+    // bare pointer into this for its lifetime, so rebuilding in place would
+    // dangle it. std::map node addresses are stable across inserts, which is
+    // the property relied on. An entry with valid() == false records
+    // "tried, cannot" so a model with no geometry costs one attempt.
+    //
+    // The mtime in the key is what makes a re-upload from xLights take effect:
+    // a model that already built a map would otherwise keep its stale layout
+    // until fppd restarted. A superseded entry is left behind rather than
+    // erased (a few KB, only when the layout actually changes mid-run) because
+    // an effect may still be pointing at it.
+    std::map<std::pair<PolarMode, long long>, PolarBufferMap> polarMaps;
+
     Json::Value config;
     std::string name;
     std::string type;
     int width, height;
+    std::string bufferStyle;
     PixelOverlayState state;
     int startChannel;
     int channelCount;

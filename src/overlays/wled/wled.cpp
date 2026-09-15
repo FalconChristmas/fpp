@@ -457,18 +457,42 @@ WS2812FXExt::WS2812FXExt(PixelOverlayModel* m, int map, int b,
                          uint32_t c1, uint32_t c2, uint32_t c3,
                          uint8_t custom1, uint8_t custom2, uint8_t custom3,
                          int check1, int check2, int check3,
-                         const std::string& text) :
+                         const std::string& text,
+                         const PolarMode polarMode) :
     WS2812FX(), model(m), mapping(map), brightness(b) {
     WS2812FXExt::pushCurrent(this);
-    if (m->getWidth() > 1 && m->getHeight() > 1) {
-        isMatrix = true;
+
+    // A Radial/Angular mapping asks the model for a polar view of its buffer.
+    // It can decline -- no xLights layout on this player, this model missing
+    // from it, too little geometry -- and then this behaves as Horizontal,
+    // which is what an unrecognised mapping has always done.
+    if (polarMode != PolarMode::None) {
+        polar = m->getPolarMap(polarMode);
+        if (polar == nullptr) {
+            mapping = 0;
+        }
     }
+
     Panel p;
-    if (mapping == 0 || mapping == 2) {
+    if (polar) {
+        // The segment IS the polar buffer: x = radius, y = angle (or the other
+        // way round for the Angular modes). getLength() below must agree with
+        // this or effects index past the LUT.
+        _segments.push_back(Segment(0, polar->width, 0, polar->height));
+        p.width = polar->width;
+        p.height = polar->height;
+        isMatrix = polar->width > 1 && polar->height > 1;
+    } else if (mapping == 0 || mapping == 2) {
+        if (m->getWidth() > 1 && m->getHeight() > 1) {
+            isMatrix = true;
+        }
         _segments.push_back(Segment(0, m->getWidth(), 0, m->getHeight()));
         p.width = m->getWidth();
         p.height = m->getHeight();
     } else {
+        if (m->getWidth() > 1 && m->getHeight() > 1) {
+            isMatrix = true;
+        }
         _segments.push_back(Segment(0, m->getHeight(), 0, m->getWidth()));
         p.width = m->getHeight();
         p.height = m->getWidth();
@@ -600,14 +624,41 @@ uint8_t Bus::getAutoWhiteMode() const {
 }
 
 int Bus::getLength() const {
+    // Must match the Segment the WS2812FXExt constructor built, or an effect
+    // walks off the end of the LUT.
+    if (currentStrip->polar) {
+        return (int)currentStrip->polar->indexToCell.size();
+    }
     if (currentStrip->model) {
         return currentStrip->model->getWidth() * currentStrip->model->getHeight();
     }
     return 1;
 }
-uint32_t Bus::getPixelColor(int i) const {
-    int x, y;
+/*
+ * Turn a WLED linear index into a buffer cell of the current model.
+ *
+ * With a polar mapping this is one LUT lookup -- cheaper than the div/mod pair
+ * the ordinary mappings need -- because the ORDER of the LUT already encodes
+ * the layout. Returns false for a polar cell no pixel occupies; polar binning
+ * is inherently sparse and those cells simply are not painted.
+ */
+static inline bool busPixelXY(int i, int& x, int& y) {
     int w = currentStrip->model->getWidth();
+
+    if (currentStrip->polar) {
+        const PolarBufferMap* pm = currentStrip->polar;
+        if (i < 0 || (size_t)i >= pm->indexToCell.size()) {
+            return false;
+        }
+        uint32_t cell = pm->indexToCell[i];
+        if (cell == PolarBufferMap::Empty) {
+            return false;
+        }
+        x = cell % w;
+        y = cell / w;
+        return true;
+    }
+
     int h = currentStrip->model->getHeight();
     int mapping = currentStrip->mapping;
     if (mapping == 1 || mapping == 3) {
@@ -623,6 +674,14 @@ uint32_t Bus::getPixelColor(int i) const {
     }
     if (mapping == 3) {
         x = w - x - 1;
+    }
+    return true;
+}
+
+uint32_t Bus::getPixelColor(int i) const {
+    int x = 0, y = 0;
+    if (!busPixelXY(i, x, y)) {
+        return 0;
     }
 
     int r, g, b, wh;
@@ -630,23 +689,9 @@ uint32_t Bus::getPixelColor(int i) const {
     return (wh << 24) | (r << 16) | (g << 8) | b;
 }
 void Bus::setPixelColor(int i, uint32_t c) {
-    int x, y;
-    int w = currentStrip->model->getWidth();
-    int h = currentStrip->model->getHeight();
-    int mapping = currentStrip->mapping;
-    if (mapping == 1 || mapping == 3) {
-        y = i % h;
-        x = i / h;
-    } else {
-        x = i % w;
-        y = i / w;
-    }
-
-    if (mapping == 2) {
-        y = h - y - 1;
-    }
-    if (mapping == 3) {
-        x = w - x - 1;
+    int x = 0, y = 0;
+    if (!busPixelXY(i, x, y)) {
+        return;
     }
     int r = R(c);
     int g = G(c);

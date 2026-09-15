@@ -12,6 +12,9 @@
 
 #include "fpp-pch.h"
 
+#include <sys/stat.h>
+#include <unordered_map>
+
 #include "fpp-json.h"
 
 #if __has_include(<sys/posix_shm.h>)
@@ -118,6 +121,10 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
     replaceAll(name, "/", "_");
     startChannel = config["StartChannel"].asInt();
     startChannel--; // need to be 0 based
+
+    if (config.isMember("BufferStyle")) {
+        bufferStyle = config["BufferStyle"].asString();
+    }
     channelCount = config["ChannelCount"].asInt();
     int strings = config["StringCount"].asInt();
     int sps = config["StrandsPerString"].asInt();
@@ -559,6 +566,93 @@ bool PixelOverlayModel::flushChildren(uint8_t* dst) {
         }
     }
     return true;
+}
+
+// A plain model owns one contiguous output range, so its channelData offset is
+// simply relative to where that range starts (doOverlay() below memcpy's the
+// whole thing to &channels[startChannel]).
+uint32_t PixelOverlayModel::outputChannelForData(uint32_t dataOffset) const {
+    return static_cast<uint32_t>(startChannel) + dataOffset;
+}
+
+/*
+ * Build (once) the polar view of this model's buffer.
+ *
+ * The join runs buffer cell -> channelData offset -> absolute output channel ->
+ * position, because the virtual display map is keyed by absolute channel and
+ * every model type can already say which channel one of its buffer cells ends
+ * up on (outputChannelForData, overridden by the scattering subclasses).
+ *
+ * Any failure returns nullptr and is remembered, so a model with no geometry
+ * costs one attempt rather than one per effect start.
+ */
+const PolarBufferMap* PixelOverlayModel::getPolarMap(PolarMode mode) {
+    if (mode == PolarMode::None) {
+        return nullptr;
+    }
+    // Rebuild when the layout has been re-uploaded since the map was built.
+    struct stat vst;
+    long long layoutVersion = 0;
+    if (stat(FPP_DIR_CONFIG("/virtualdisplaymap").c_str(), &vst) == 0) {
+        layoutVersion = (long long)vst.st_mtime;
+    }
+    auto key = std::make_pair(mode, layoutVersion);
+
+    auto cached = polarMaps.find(key);
+    if (cached != polarMaps.end()) {
+        return cached->second.valid() ? &cached->second : nullptr;
+    }
+    PolarBufferMap& polarMap = polarMaps[key];
+
+    std::vector<std::pair<uint32_t, std::pair<float, float>>> vdm;
+    if (!LoadVirtualDisplayPositions(vdm)) {
+        LogDebug(VB_CHANNELOUT,
+                 "No config/virtualdisplaymap; polar buffer mapping unavailable for %s\n",
+                 name.c_str());
+        return nullptr;
+    }
+    std::unordered_map<uint32_t, std::pair<float, float>> pos(vdm.begin(), vdm.end());
+
+    std::vector<PolarPixel> pixels;
+    pixels.reserve(static_cast<size_t>(width) * height);
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int off = (y * width + x) * bytesPerPixel;
+            if (off < 0 || off >= (int)channelMap.size()) {
+                continue;
+            }
+            uint32_t cd = channelMap[off];
+            if (cd == FPPD_OFF_CHANNEL) {
+                continue; // a hole in the buffer
+            }
+            uint32_t ch = outputChannelForData(cd);
+            if (ch == FPPD_OFF_CHANNEL) {
+                continue;
+            }
+            auto it = pos.find(ch);
+            if (it == pos.end()) {
+                continue; // this node was never exported to the layout
+            }
+            pixels.push_back({ it->second.first, it->second.second,
+                               static_cast<uint32_t>(y * width + x) });
+        }
+    }
+
+    if (pixels.size() < 2) {
+        LogDebug(VB_CHANNELOUT,
+                 "Model %s has %zu positioned pixels; polar buffer mapping unavailable\n",
+                 name.c_str(), pixels.size());
+        return nullptr;
+    }
+
+    polarMap = BuildPolarBufferMap(pixels, mode);
+    if (!polarMap.valid()) {
+        LogDebug(VB_CHANNELOUT, "Could not build a polar buffer for %s\n", name.c_str());
+        return nullptr;
+    }
+    LogDebug(VB_CHANNELOUT, "Polar buffer for %s: %d x %d from %zu positioned pixels\n",
+             name.c_str(), polarMap.width, polarMap.height, pixels.size());
+    return &polarMap;
 }
 
 void PixelOverlayModel::doOverlay(uint8_t* channels) {
