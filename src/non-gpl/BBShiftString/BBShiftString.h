@@ -19,6 +19,7 @@
 #include <thread>
 #include <vector>
 
+#include "../../pru/BBShiftStringDefs.hp"
 #include "../FalconV5Support/FalconV5Support.h"
 #include "channeloutput/ChannelOutput.h"
 #include "channeloutput/PixelString.h"
@@ -49,8 +50,13 @@ typedef struct {
     volatile uint32_t response;
 
     uint32_t buffer[4]; // need a bit of a buffer
-    uint16_t commandTable[3578];
+    uint16_t commandTable[BBSS_COMMAND_TABLE_ENTRIES];
 } __attribute__((__packed__)) BBShiftStringData;
+
+// GPIOCommand::channelOffset value for a command that applies between the two
+// packets of a two packet FalconV5 frame rather than at a data byte position.
+// Larger than any real offset so it sorts last in the command table build.
+constexpr int GPIO_CMD_AFTER_FIRST_PACKET = 0x7FFFFFFF;
 
 class BBShiftStringOutput : public ChannelOutput {
 public:
@@ -295,4 +301,14 @@ private:
 
     void setupFalconV5Support(const Json::Value& root, uint8_t* memLoc);
     void encodeFalconV5Packet(std::vector<std::array<uint8_t, 64>>& packets, uint8_t* memLocPru0, uint8_t* memLocPru1);
+
+    // The packet phase is clocked out on every pin of the cape at once, so a
+    // send-only (V4) chain is on the bus for every packet frame the V5 chains
+    // need, not just its own config frames.  Its slot must carry a valid V4
+    // config packet in every one of them: an all-zero slot is a framed packet
+    // with a token the receiver does not know, and a V4 receiver is specified
+    // to get its config packet regularly after a data frame anyway.  The
+    // encoded packet is cached per chain and stamped into every frame.
+    std::vector<std::pair<int, std::array<uint8_t, 64>>> m_sendOnlyConfigPackets;
+    void applySendOnlyConfigPackets(std::vector<std::array<uint8_t, 64>>& packets);
 };

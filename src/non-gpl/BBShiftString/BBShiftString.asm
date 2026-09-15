@@ -189,6 +189,7 @@ DISABLE_SEND .macro
 #include "FalconUtils.asm"
 #include "FalconPRUDefs.hp"
 #include "SMEMRing.hp"
+#include "BBShiftStringDefs.hp"
 
 /** Register map */
 
@@ -461,6 +462,21 @@ FALCONV5_LOOP?:
 DONE_FALCONV5_LOOP?:
     QBBC  DO_FALCONV5_LISTNER?, data_flags, 2
     CLR data_flags, data_flags, 2
+    // Second packet of a pair.  A send-only (V4) chain has had its config
+    // packet in the first one and its line must go low now, not carry the
+    // packet again, so reload the masks the ARM parked for this point (the
+    // end-of-frame masks with those chain heads cleared).  Everything else
+    // is unchanged by the reload.
+    LDI  tmpReg1, BBSS_PACKET2_MASKS_OFFSET
+#ifdef SHIFT16
+    LBCO &OUTPUT_MASKS, CONST_PRUDRAM, tmpReg1, 16
+    XOUT MASK_HI_BANK, &OUTPUT_MASKS, 16
+    ADD  tmpReg1, tmpReg1, 16
+    LBCO &OUTPUT_MASKS, CONST_PRUDRAM, tmpReg1, 16
+    XOUT MASK_LOW_BANK, &OUTPUT_MASKS, 16
+#else
+    LBCO &OUTPUT_MASKS, CONST_PRUDRAM, tmpReg1, 16
+#endif
     OUTPUT_HIGH
     TOGGLE_LATCH
     SLEEPNS 70000, tmpReg1, 0
