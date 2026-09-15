@@ -81,7 +81,7 @@ var FPPPluginPrivacy = (function () {
 			id: "remote",
 			name: "Remote access",
 			g: "No remote access disclosed",
-			a: "Remote access, off by default",
+			a: "Listens for connections",
 			r: "Can be reached from the internet",
 		},
 		{
@@ -126,7 +126,6 @@ var FPPPluginPrivacy = (function () {
 	var OTHERS_ABOUT = { visitors: 1, "passers-by": 1, "third-parties": 1, performers: 1 };
 	var TRACKING_TYPES = { "face-tracking": 1, "body-tracking": 1 };
 	var RECORDING_TYPES = { camera: 1, microphone: 1, "face-tracking": 1, "body-tracking": 1 };
-	var REMOTE_AMBER = { lan: 1, "internet-authenticated": 1 };
 	var REMOTE_RED = { "internet-open": 1, "exposes-fpp": 1, tunnel: 1 };
 	var PERMANENT_KINDS = { "package-source": 1, tunnel: 1 };
 
@@ -141,7 +140,7 @@ var FPPPluginPrivacy = (function () {
 	};
 	var REMOTE_LINE = {
 		none: "Author says no way in from outside this device.",
-		lan: "Listens on your network, off until you enable it.",
+		lan: "Listens on your network.",
 		"internet-authenticated": "Can be reached from the internet with a login.",
 		"internet-open": "Can be reached from the internet with no login.",
 		"exposes-fpp": "Puts FPP's own pages on the internet.",
@@ -176,6 +175,9 @@ var FPPPluginPrivacy = (function () {
 		code: "Author says everything that runs is in the repository or comes from a public package source such as apt, pip or npm.",
 	};
 	var UNDECLARED_LINE = "The author has not disclosed this.";
+	// Under "Can it be checked?" when a `download` system change exists: the
+	// download itself is listed under System changes, not repeated here.
+	var DOWNLOAD_LINE = "Installs extra software from a public source; see System changes.";
 	var UNDECLARED_EXPLAIN =
 		"Every FPP plugin has been required to describe what it does with data since 1 January 2027. This one has not.";
 	var BLACK_BOX_EXPLAIN =
@@ -506,14 +508,24 @@ var FPPPluginPrivacy = (function () {
 				},
 			},
 			{
-				// lan or internet-authenticated
+				// lan: a listener that only the operator's own network can reach
 				level: "a",
+				label: "Listens on your network",
 				test: function (p) {
-					return REMOTE_AMBER.hasOwnProperty(p.remoteAccess);
+					return p.remoteAccess === "lan";
+				},
+			},
+			{
+				// internet-authenticated: reachable from outside, behind a login;
+				// one notch below the red "Can be reached from the internet"
+				level: "a",
+				label: "Reachable from the internet, with a login",
+				test: function (p) {
+					return p.remoteAccess === "internet-authenticated";
 				},
 			},
 			// A value this FPP does not know is a declaration of something, so
-			// it is never shown as "none".
+			// it is never shown as "none": the light's generic amber text.
 			{
 				// an unknown remoteAccess value
 				level: "a",
@@ -694,12 +706,15 @@ var FPPPluginPrivacy = (function () {
 			case "code":
 				if (p.closedCode)
 					out.push("Includes software whose source is not available.");
-				p.systemChanges.forEach(function (c) {
-					// The author's line already says what is downloaded ("downloads
-					// and builds ..."); prefixing "Downloads" doubled the verb.
-					if (c.kind === "download")
-						out.push(esc(cap(c.what || "Downloads extra software")) + ".");
-				});
+				// A download is listed in full under System changes; repeating
+				// the author's line here read as a rendering fault. This light is
+				// about provenance, so it says why it is amber and points across.
+				if (
+					p.systemChanges.some(function (c) {
+						return c.kind === "download";
+					})
+				)
+					out.push(esc(DOWNLOAD_LINE));
 				break;
 		}
 		if (!out.length) out.push(esc(GREEN_LINE[id]));
