@@ -4172,11 +4172,11 @@ function ViewReleaseNotes (version) {
 
 	$.get('api/system/releaseNotes/' + version)
 		.done(function (data) {
-			// version is without 'v' prefix (for GitHub API), but UpgradeFPPVersion needs 'v' prefix (for git)
-			var gitVersion = version.startsWith('v') ? version : 'v' + version;
+			// UpgradeFPPVersion normalizes the 'v' prefix itself, so pass the
+			// version through as-is (unprefixed, the form the GitHub API uses).
 			$('#releaseNotesText').html(
 				'<center><input onClick=\'UpgradeFPPVersion("' +
-					gitVersion +
+					version +
 					"\");' type='button' class='buttons' value='Upgrade'></center>" +
 					"<pre style='white-space: pre-wrap; word-wrap: break-word;'>" +
 					data.body +
@@ -4192,6 +4192,11 @@ function VersionUpgradeDone (id) {
 	$('#fppUpgradeCloseDialogButton').prop('disabled', false);
 }
 function UpgradeFPPVersion (newVersion) {
+	// Callers pass either '10.1' (the GitHub release/tag form) or 'v10.1' (the
+	// git branch form). Normalize here, once, at the single point that builds
+	// the git ref -- prepending 'v' unconditionally produced 'vv10.1', which
+	// upgrade_FPP then failed to check out, leaving the branch unchanged.
+	var version = String(newVersion).replace(/^v+/, '');
 	if (
 		confirm(
 			'Do you wish to upgrade the Falcon Player?\n\nClick "OK" to continue.\n\nThe system will automatically reboot to complete the upgrade.\nThis can take a long time,  20-30 minutes on slower devices.'
@@ -4201,7 +4206,7 @@ function UpgradeFPPVersion (newVersion) {
 
 		var opts = {
 			id: 'upgradeFPPDialog',
-			title: 'Upgrading to FPP v' + newVersion,
+			title: 'Upgrading to FPP v' + version,
 			body: "<textarea class='w-100' style='height: 55vh; min-height: 200px;' disabled id='upgradeFPPDialogText'>Starting upgrade....</textarea>",
 			class: 'modal-dialog-scrollable',
 			backdrop: 'static',
@@ -4236,7 +4241,7 @@ function UpgradeFPPVersion (newVersion) {
 
 		DoModalDialog(opts);
 		StreamURL(
-			'upgradefpp.php?version=v' + newVersion,
+			'upgradefpp.php?version=v' + version,
 			'upgradeFPPDialogText',
 			'VersionUpgradeDone'
 		);
