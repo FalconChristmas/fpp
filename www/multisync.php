@@ -1543,6 +1543,10 @@
                             } else if (data.advancedView.hasOwnProperty('Variant') && (data.advancedView.Variant != '')) {
                                 variantTxt = data.advancedView.Variant;
                             }
+                            // Keep the raw strings on the row in sync with the cell we
+                            // just rebuilt; platformSorter() sorts on them.
+                            item._platformInit = platformTxt;
+                            item._variantInit = variantTxt;
                             item.platform = "<span id='" + rowID + "_platform'>" + platformTxt + "</span>" +
                                 "<br><small id='" + rowID + "_variant'>" + variantTxt + "</small>" +
                                 (item._capeHtml || '') +
@@ -4033,6 +4037,7 @@
                                         <th data-field="ipaddress" data-sortable="true" data-filter-control="input"
                                             data-sorter="ipSorter">IP Address</th>
                                         <th data-field="platform" data-sortable="true" data-filter-control="select"
+                                            data-sorter="platformSorter"
                                             data-filter-data="var:platformFilterOptions"
                                             data-filter-custom-search="platformFilterSearch">Platform</th>
                                         <th data-field="mode" data-sortable="true" data-filter-control="select"
@@ -4309,6 +4314,28 @@
                 var nameB = (rowB && rowB._hostname) ? rowB._hostname : String(b).replace(/<[^>]*>/g, ' ');
                 // numeric so pi2 sorts ahead of pi10, base so case is ignored
                 return nameA.trim().localeCompare(nameB.trim(), undefined, { numeric: true, sensitivity: 'base' });
+            };
+
+            // Custom Platform sorter for Bootstrap Table.
+            // Same trap as the hostname column: the cell is HTML that opens with
+            // "<span id='<rowID>_platform'>", and rowID is derived from the system's
+            // UUID, so a plain string sort compares UUIDs and leaves the platforms
+            // interleaved.  Sort on the raw platform/variant strings kept on the row,
+            // falling back to the tag-stripped cell text.  See issue #2962.
+            window.platformSorter = function (a, b, rowA, rowB) {
+                function key(raw, row) {
+                    if (row && (row._platformInit || row._variantInit)) {
+                        return (row._platformInit || '') + ' ' + (row._variantInit || '');
+                    }
+                    // Strip the hidden typeId/version spans before falling back so
+                    // they cannot leak into the comparison.
+                    return String(raw).replace(/<span class='hidden[\s\S]*$/, '')
+                                      .replace(/<[^>]*>/g, ' ');
+                }
+                var keyA = key(a, rowA);
+                var keyB = key(b, rowB);
+                // numeric so "Pi 2" sorts ahead of "Pi 10", base so case is ignored
+                return keyA.trim().localeCompare(keyB.trim(), undefined, { numeric: true, sensitivity: 'base' });
             };
 
             // Custom IP sorter for Bootstrap Table - numeric IP comparison
