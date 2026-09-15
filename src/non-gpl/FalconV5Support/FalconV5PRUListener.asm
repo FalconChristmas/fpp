@@ -41,6 +41,7 @@
 #define smemLocReg      r23
 #define treg1           r24
 #define treg2           r25
+#define capturesReg     r26   // windows completed, published at offset 8
 
 
 #define BYTES_PER_STORE 32
@@ -62,11 +63,14 @@
 	SBCO	&r0, C4, 4, 4
 #endif    
 
-    // Make sure the command and length cleared at start
+    // Make sure the command, length, capture count and busy flag are
+    // cleared at start
 	LDI 	r1, 0x0
 	LDI 	r2, 0x0
 	LDI 	r3, 0x0
-	SBCO	&r1, CONST_PRUDRAM, 0, 12
+	LDI 	r4, 0x0
+	SBCO	&r1, CONST_PRUDRAM, 0, 16
+    LDI     capturesReg, 0
 
     LDI32   smemLocReg, 0x00010000
 
@@ -81,16 +85,24 @@ IDLE_LOOP:
     XIN     10, &enableReg, 8
     QBNE    IDLE_LOOP, enableReg, 1
 
-    // we are now enabled, start trying to get data
-    // reset the length
+    // we are now enabled, start trying to get data.  The length is kept in
+    // a register for the whole window and only published, with the capture
+    // count, once the string PRU closes the window: the ARM reads on its own
+    // frame clock, and at long string lengths that tick lands inside the
+    // window, so a live count handed it a partial reply that decoded as
+    // phantom eFuse trips.  The busy flag at offset 12 is up from here until
+    // the publish below: the ARM checks it on both sides of its copy, since
+    // a window that opens while the ARM is still reading the previous
+    // capture overwrites the buffer under it.
     LDI     lengthReg, 0
-    SBCO    &lengthReg, CONST_PRUDRAM, 4, 4
+    LDI     treg1, 1
+    SBCO    &treg1, CONST_PRUDRAM, 12, 4
 
     // grab the current values and loop until something changes
     MOV     data_reg.b0, r31.b0
 WAIT_FOR_DATA:
     XIN     10, &enableReg, 8
-    QBNE    IDLE_LOOP, enableReg, 1
+    QBNE    WINDOW_DONE, enableReg, 1
     QBEQ    WAIT_FOR_DATA, data_reg.b0, r31.b0
     MOV     data_reg.b1, r31.b0;
     RESET_PRU_CLOCK treg1, treg2
@@ -115,16 +127,26 @@ BIT_LOOP:
         SBBO    &data_reg, smemLocReg, lengthReg, BYTES_PER_STORE
 DONE_DATA_STORE
     ADD     lengthReg, lengthReg, BYTES_PER_STORE
-    SBCO    &lengthReg, CONST_PRUDRAM, 4, 4
 
     //check for exit
     XIN     10, &enableReg, 8
-    QBNE    IDLE_LOOP, enableReg, 1
+    QBNE    WINDOW_DONE, enableReg, 1
 
     //reset counter
     LDI     r1.b0, &data_reg
     //next set of bit
     JMP     BIT_LOOP
+
+WINDOW_DONE:
+    // publish the complete capture: length first, then the count the ARM
+    // polls, so a changed count always comes with the length that goes with
+    // it, then drop the busy flag
+    SBCO    &lengthReg, CONST_PRUDRAM, 4, 4
+    ADD     capturesReg, capturesReg, 1
+    SBCO    &capturesReg, CONST_PRUDRAM, 8, 4
+    LDI     treg1, 0
+    SBCO    &treg1, CONST_PRUDRAM, 12, 4
+    JMP     IDLE_LOOP
 
 EXIT:
 	// Send notification to Host for program completion

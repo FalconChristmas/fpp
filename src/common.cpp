@@ -185,7 +185,17 @@ int CheckForHostSpecificFile(const std::string& hostname, std::string& filename)
 int CheckForHostSpecificFile(const char* hostname, char* filename) {
     std::string f = filename;
     if (CheckForHostSpecificFile(hostname, f)) {
-        strcpy(filename, f.c_str());
+        // In-tree callers pass a 2048-byte tmpFilename (Sequence.cpp). Clamp to
+        // that size to avoid overflowing a smaller plugin-provided buffer while
+        // preserving the original strcpy semantics for fitting names. Truncation
+        // is treated as "no host file" so the caller keeps the original name.
+        constexpr size_t kSafeLimit = 2048;
+        if (f.size() >= kSafeLimit) {
+            LogErr(VB_SEQUENCE, "Host-specific filename too long (%zu >= %zu), keeping %s\n",
+                   f.size(), kSafeLimit, filename);
+            return 0;
+        }
+        snprintf(filename, kSafeLimit, "%s", f.c_str());
         return 1;
     }
     return 0;
@@ -195,7 +205,7 @@ char* FindInterfaceForIP(char* ip) {
     int family, s, n;
     char host[NI_MAXHOST];
     char interfaceIP[16];
-    static char interface[10] = "";
+    static char interface[IFNAMSIZ] = "";
 
     if (getifaddrs(&ifaddr) == -1) {
         LogErr(VB_SETTING, "Error getting interfaces list: %s\n",
@@ -217,7 +227,7 @@ char* FindInterfaceForIP(char* ip) {
             }
 
             if (!strcmp(host, ip)) {
-                strcpy(interface, ifa->ifa_name);
+                snprintf(interface, sizeof(interface), "%s", ifa->ifa_name);
                 freeifaddrs(ifaddr);
                 return interface;
             }

@@ -666,8 +666,41 @@ void NetworkController::DetectHinksPixController(Detection* st) {
     typeStr = "HinksPix";
     systemMode = BRIDGE_MODE;
 
-    DumpControllerInfo();
-    st->matched();
+    // The status page renders its firmware info via JS/AJAX, so it never
+    // shows up in the initial HTML fetch above. xLights identifies these
+    // controllers via the same endpoint (src-core/controllers/HinksPix.cpp):
+    // each of MCPU/PCPU/ECPU/WEB is a 3-char prefix ("MS_"/"PS_"/"EZ_"/"WF_")
+    // followed by a bare build number, not a dotted version -- so majorVersion
+    // is that build number directly and there is no separate minor version.
+    st->fetch(buildHttpURL(st->ip, "/XLights_BoardInfo.cgi"), [this, st](bool ok, const std::string& resp) {
+        // JsonString(), not asString(): jsoncpp throws on a non-string value
+        // and this callback runs on the CurlManager thread with nothing to
+        // catch it, so an odd reply from the device would take fppd down.
+        Json::Value v;
+        std::string mcpuRaw;
+        if (ok && LoadJsonFromString(resp, v, JsonRoot::Object) && !(mcpuRaw = JsonString(v, "MCPU")).empty()) {
+            auto stripPrefix = [](const std::string& s) {
+                return s.size() > 3 ? s.substr(3) : s;
+            };
+            std::string mcpu = stripPrefix(mcpuRaw);
+            majorVersion = atoi(mcpu.c_str());
+
+            version = "MAIN:" + mcpu;
+            std::string s;
+            if (!(s = JsonString(v, "PCPU")).empty()) {
+                version += ",POWER:" + stripPrefix(s);
+            }
+            if (!(s = JsonString(v, "ECPU")).empty()) {
+                version += ",WIFI:" + stripPrefix(s);
+            }
+            if (!(s = JsonString(v, "WEB")).empty()) {
+                version += ",WEB:" + stripPrefix(s);
+            }
+        }
+
+        DumpControllerInfo();
+        st->matched();
+    });
 }
 
 void NetworkController::DetectDIYLEDExpressController(Detection* st) {

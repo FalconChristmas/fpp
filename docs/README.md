@@ -8,6 +8,7 @@
 - [Remote FPP Debugging with VS Code](./FPP-with-vs-code.md) - Describes how to use VSCode on a laptop for developing FPP on a BBB or PI.
 - [FSEQ_Sequence_File_Format.txt](./FSEQ_Sequence_File_Format.txt) - Describes the format of the `.fseq` file format.
 - [MQTT.md](./MQTT.md) - Describes the topics supported by FPP for communicating via MQTT.
+- [Privacy Legitimate Interests Assessment](./Privacy_Legitimate_Interests_Assessment.md) - Records the Art 6(1)(f) basis FPP relies on for level 1 crash reports, and why the higher tiers rest on consent instead.
 - [DeveloperNotes.md](./DeveloperNotes.md) - Various developer topics including ASan, Valgrind, CCache, etc...
 - [WarningHandling.md](./WarningHandling.md) - Describes the warning framework and the steps required to define, set and display warning
 - [ApacheContentSecurityPolicy.md](./ApacheContentSecurityPolicy.md) - Describes the Apache2 CSP mechanism for trusting domains

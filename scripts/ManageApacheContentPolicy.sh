@@ -26,7 +26,7 @@ DEFAULT_VALUES=(
     # The exception is the pages with the location "Lookup" buttons, where a
     # player with no route to the internet cannot do the lookup at all; they get
     # the allowance through a <LocationMatch> block below, and only there.
-    ["connect-src"]="'self' https://raw.githubusercontent.com https://kulplights.com https://www.kulplights.com https://hansonelectronics.com.au https://www.hansonelectronics.com.au https://wiredwatts.com https://www.wiredwatts.com https://fppstats.falconchristmas.com https://api.falconplayer.com https://api.github.com"
+    ["connect-src"]="'self' https://raw.githubusercontent.com https://kulplights.com https://www.kulplights.com https://hansonelectronics.com.au https://www.hansonelectronics.com.au https://wiredwatts.com https://www.wiredwatts.com https://fppstats.falconchristmas.com https://api.falconplayer.com https://crashes.falconplayer.com https://api.github.com"
     ["object-src"]="'none' "
     # PayPal was here only for a 1x1 tracking pixel in the donate form, which is
     # gone. The donate button is an inline SVG and the donate action is a plain

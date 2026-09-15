@@ -350,7 +350,7 @@ void BBBPinCapabilities::releasePin() const {
     GPIODCapabilities::releasePin();
     if (FileExists("/usr/bin/pinctrl") && name[0] == 'P' && (name[2] == '_' || name[2] == '-')) {
         char pinName[16];
-        strcpy(pinName, name.c_str());
+        snprintf(pinName, sizeof(pinName), "%s", name.c_str());
         if (pinName[2] == '-') {
             pinName[2] = '_';
         }
@@ -372,7 +372,7 @@ int BBBPinCapabilities::configPin(const std::string& m,
 
     char pinName[16];
     char dir_name[256];
-    strcpy(pinName, name.c_str());
+    snprintf(pinName, sizeof(pinName), "%s", name.c_str());
     if (pinName[2] == '-') {
         pinName[2] = '_';
     }

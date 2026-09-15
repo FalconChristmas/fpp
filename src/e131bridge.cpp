@@ -914,21 +914,36 @@ bool Bridge_HandleArtNetPoll(uint8_t* bridgeBuffer, long long packetTime) {
         snprintf(&buf[44], 64, "%s", hostname.c_str());  // Description (64 bytes)
         // buf[108] Status stays empty — memset already zeroed it, no snprintf needed
 
+        // ArtPollReply: advertise the ArtNet input universes actually configured.
+        // Previously this was hardcoded to 4 ports on universe 0 (all SwIn 0),
+        // so a controller polling FPP always saw universe 0 regardless of
+        // Settings > Channel Inputs (issue #2927). Populate from InputUniverses
+        // where type is ArtNet. Non-breaking: packet stays 240 bytes, IP/port/
+        // version/hostname unchanged — only the 16 universe-advertising bytes
+        // (172-193) now reflect configuration. Capped at 4 ports per spec.
+        std::vector<uint32_t> artNetUniverses;
+        {
+            std::lock_guard<std::mutex> lg(universesStructureLock);
+            for (auto &ue : InputUniverses) {
+                if (ue.type == ARTNET_TYPE_BROADCAST || ue.type == ARTNET_TYPE_UNICAST) {
+                    artNetUniverses.push_back(ue.universe);
+                }
+            }
+        }
+        int numPorts = std::min<int>((int)artNetUniverses.size(), 4);
+        // Preserve historical big-endian NumPorts encoding (0,4 = 4 ports).
         buf[172] = 0;
-        buf[173] = 4;
-        buf[174] = 0xc0;
-        buf[175] = 0xc0;
-        buf[176] = 0xc0;
-        buf[177] = 0xc0;
-
-        buf[178] = 0x0; // input
-        buf[179] = 0x0;
-        buf[180] = 0x0;
-        buf[181] = 0x0;
-        buf[182] = 0x0; // output
-        buf[183] = 0x0;
-        buf[184] = 0x0;
-        buf[185] = 0x0;
+        buf[173] = (char)numPorts;
+        for (int i = 0; i < 4; ++i) {
+            bool active = (i < numPorts);
+            buf[174 + i] = active ? (char)0xc0 : 0; // PortTypes: DMX512
+            buf[178 + i] = active ? (char)0x08 : 0; // GoodInput: port enabled
+            buf[182 + i] = 0;                        // GoodOutput: no ArtNet outputs
+            // SwIn: low 8 bits of PortAddress (exact for 0-255, best-effort >255,
+            // far better than always-0). SwOut unused (bridge is input-only).
+            buf[186 + i] = active ? (char)(artNetUniverses[i] & 0xFF) : 0;
+            buf[190 + i] = 0;
+        }
 
         char addressBuf[128];
         // get all the addresses

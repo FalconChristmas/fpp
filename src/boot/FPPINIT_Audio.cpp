@@ -404,7 +404,7 @@ static const std::pair<const char*, const char*> kPcmFormatNames[] = {
 };
 
 // ALSA's spelling of a single PCM format -> PipeWire's. Anything unrecognised
-// (an exotic or big-endian format) becomes S16LE, which every card supports.
+// (an exotic or big-endian format) uses the legacy S16LE fallback.
 static std::string pipewireFormatName(const std::string& alsaFmt) {
     for (const auto& [alsaName, pwName] : kPcmFormatNames) {
         if (alsaFmt == alsaName) {
@@ -415,7 +415,7 @@ static std::string pipewireFormatName(const std::string& alsaFmt) {
 }
 
 // Pick the widest PCM format the card advertises that costs no sample rate
-// relative to the universally-safe S16LE fallback.
+// relative to S16LE when the card supports it.
 //
 // The question is NOT "does this format hold the rate we asked for".  A card can
 // be unable to deliver the requested rate in ANY format -- an AM62x PCM5102A cape
@@ -439,24 +439,32 @@ static std::string bestFormatForRate(const std::string& fmtLine, const std::stri
     if (!anyWider) {
         return "S16LE";
     }
-    // The rate to beat. If this cannot be established (device busy, probe timed
-    // out) there is nothing to compare against, so decline to widen: a needlessly
-    // narrow format costs only bit depth, a wrongly wide one costs all audio.
-    const int baselineRate = achievedRateForFormat(alsaPath, "S16LE", rate, channels);
-    if (baselineRate <= 0) {
+    const bool hasS16 = fmtLine.find("S16_LE") != std::string::npos;
+    // The rate to beat when S16 is available. If that advertised baseline cannot
+    // be established (device busy, probe timed out), decline to widen: a
+    // needlessly narrow format costs only bit depth, a wrongly wide one costs all
+    // audio. Cards that do not advertise S16 must use one of their real formats.
+    const int baselineRate = hasS16
+                                 ? achievedRateForFormat(alsaPath, "S16LE", rate, channels)
+                                 : 0;
+    if (hasS16 && baselineRate <= 0) {
         return "S16LE";
     }
+    std::string advertisedFallback;
     // Stop before the last entry: S16LE is the fallback, already probed above.
     for (size_t i = 0; i + 1 < std::size(kPcmFormatNames); ++i) {
         const auto& [alsaName, pwName] = kPcmFormatNames[i];
         if (fmtLine.find(alsaName) == std::string::npos) {
             continue;
         }
-        if (achievedRateForFormat(alsaPath, pwName, rate, channels) >= baselineRate) {
+        advertisedFallback = pwName;
+        const int achievedRate = achievedRateForFormat(alsaPath, pwName, rate, channels);
+        if ((!hasS16 && achievedRate > 0) ||
+            (hasS16 && achievedRate >= baselineRate)) {
             return pwName;
         }
     }
-    return "S16LE";
+    return hasS16 ? "S16LE" : advertisedFallback;
 }
 
 // Version of the rules the ALSA probe below applies when it derives an adapter
@@ -475,7 +483,7 @@ static std::string bestFormatForRate(const std::string& fmtLine, const std::stri
 //
 // Bump this whenever the probe can produce a different conf for unchanged
 // hardware.  Costs one extra probe on the first boot after the upgrade.
-static constexpr int kAlsaSinkConfGeneration = 7;
+static constexpr int kAlsaSinkConfGeneration = 8;
 
 static std::string alsaSinkConfGenerationTag() {
     return "# FPP ALSA sink adapters (generation " + std::to_string(kAlsaSinkConfGeneration) + ")";
@@ -494,6 +502,21 @@ static std::string alsaSinkConfGenerationTag() {
 // fixed 44100, so a plain search finds the wrong one on a card with a mic.
 static std::string alsaSinkConfRateTag(int configuredRate) {
     return "# configured rate: " + std::to_string(configuredRate);
+}
+
+// Marker recording the AudioPeriodSize the conf was written with.
+//
+// Same job as alsaSinkConfRateTag(), for the same reason: perSize is consumed
+// only where the adapters are written, so without a tag to compare, changing
+// AudioPeriodSize left a conf that still declared the old api.alsa.period-size
+// and every boot logged "already match present cards; skipping probe".  The
+// setting read as applied in the UI while the graph never saw it.
+//
+// It cannot be read back off api.alsa.period-size: the capture adapters do not
+// carry one, and a plain search would find whichever sink adapter came first
+// rather than the value this boot would write.
+static std::string alsaSinkConfPeriodSizeTag(int perSize) {
+    return "# period size: " + std::to_string(perSize);
 }
 
 // Marker recording the cards the probe *considered*, which is not the same as
@@ -697,7 +720,7 @@ static std::string buildSimplePipeWireGroupsConf(int card, const std::string& cI
         // loaded after 95-fpp-alsa-sink.conf is generated, so it never gets a
         // node there). Create the adapter inline so the filter-chain/combine
         // playback has a real sink to target. Detect the best PCM format the
-        // device advertises, defaulting to the universally-safe S16LE.
+        // device advertises, using S16LE only when no PCM format is available.
         // Capture the advertised format list here, but defer choosing one until
         // alsaPath is resolved below: the rate-holding probe has to open the
         // device we will actually configure (hw: or sysdefault:), not a guess.
@@ -1657,6 +1680,16 @@ static void runAudioSetup(bool recoveryPass) {
         printf("FPP - PipeWire: configured sample rate is now %d; regenerating\n", pipewireSampleRate);
         sinkConfStillValid = false;
     }
+    // Period size moves independently of everything above -- the card set, the
+    // rate and the group membership can all be unchanged while AudioPeriodSize
+    // has been retyped in the UI.  A conf written before the tag existed has no
+    // such line and re-probes once, which is correct: its period-size is
+    // whatever the old default was, not necessarily what the setting now says.
+    if (usePipeWireBackend && sinkConfStillValid &&
+        !contains(existingSinkConf, alsaSinkConfPeriodSizeTag(perSize) + "\n")) {
+        printf("FPP - PipeWire: configured period size is now %d; regenerating\n", perSize);
+        sinkConfStillValid = false;
+    }
     if (usePipeWireBackend && sinkConfStillValid) {
         printf("FPP - PipeWire: ALSA sink adapters already match present cards; skipping probe\n");
         // bootAdapterCids must still reflect the conf's adapters for the
@@ -1849,7 +1882,7 @@ static void runAudioSetup(bool recoveryPass) {
             // A wider format only counts if the card can still reach the target
             // rate in it — fixed-bit-clock I2S cards advertise S32_LE but reach
             // it only at half the rate (see bestFormatForRate).
-            std::string audioFormat = "S16LE"; // safe default all cards support
+            std::string audioFormat = "S16LE"; // legacy fallback when no PCM format is found
             std::smatch fmtMatch;
             if (paramsFromLiveDevice) {
                 // The single format in /proc is not an advertisement, it is what
@@ -2002,6 +2035,9 @@ static void runAudioSetup(bool recoveryPass) {
                  // What AudioFormat asked for, which default.clock.rate below no
                  // longer records once a cape refines it.  See alsaSinkConfRateTag().
                  << alsaSinkConfRateTag(pipewireSampleRate) << "\n"
+                 // What AudioPeriodSize asked for, which nothing else in the
+                 // file records.  See alsaSinkConfPeriodSizeTag().
+                 << alsaSinkConfPeriodSizeTag(perSize) << "\n"
                  // The cards considered, including any the probe then skipped as
                  // unusable.  See alsaSinkConfCardsTag().
                  << alsaSinkConfCardsTag(adapterCandidateCids) << "\n"

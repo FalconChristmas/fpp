@@ -3,10 +3,10 @@ The FPPD process (the operational brain of FPP) crashed. FPP normally restarts i
 
 **Find the crash report:** open the [File Manager](../../filemanager.php) and select the **Crash Reports** tab. Each crash is saved there as a `.zip` (in `<media>/crashes/`) with passwords redacted, and is helpful when asking for support. The `fppd.log` will also show the error leading up to the crash.
 
-**Make sure the crash report is submitted:** when FPP catches a crash it automatically uploads the report to the FPP developers (keyed to this device's **System UUID**) so it can be diagnosed. For it to succeed:
+**Make sure the crash report is submitted:** when FPP catches a crash it automatically uploads the report to the FPP developers (keyed to this device's **System UUID**) so it can be diagnosed. If **Share Crash Data** is set to *Keep locally, do not send*, nothing is sent automatically — the report is still written, and **Upload and Delete** on the Crash Reports tab is how you send one when you choose to. For an automatic upload to succeed:
 
-1. The device must have **working internet access** at the time of the crash. If it was offline, the report is still saved locally — open the **Crash Reports** tab in the [File Manager](../../filemanager.php), download the `.zip`, and share it manually with a developer.
-2. Uploads are rate-limited — if several crashes happen in quick succession, only the first is sent automatically; grab the rest from the Crash Reports tab if needed.
+1. The device must have **working internet access** at the time of the crash. If it was offline, the report is still saved locally — open the **Crash Reports** tab in the [File Manager](../../filemanager.php), select it, and press **Upload and Delete** to send it now. If the player still has no route to the internet but the computer you are browsing from does, your browser sends it instead. Anything that cannot be confirmed as delivered is kept on the player so you can try again.
+2. Uploads are rate-limited — if several crashes happen in quick succession, only the first is sent automatically. Send the rest with **Upload and Delete** on the Crash Reports tab.
 3. For more useful reports, set **Share Statistics** to **Enabled** on the [System](../../settings.php#settings-system) settings page — when enabled, anonymous hardware/feature stats are bundled with the crash report to give the developers extra context.
 4. When asking for help, reference the **crash report file name** (it contains your platform, FPP version, and System UUID) so the developers can locate your uploaded report.
 
@@ -17,4 +17,4 @@ Common causes:
 3. **Wrong controller type in xLights** — e.g. selecting an F series instead of a K series controller (or vice versa). Configure xLights correctly, then open the [System](../../settings.php#settings-system) settings page and use **Reset FPP Config** to reset the Channel Outputs, then re-upload from xLights. The **Reset FPP Config** button is only shown when **User Interface Level** (near the top of the System page) is set to **Advanced** or higher.
 4. **Missing or corrupt `fppd` binary** — can happen after a failed upgrade; re-run the FPP upgrade/install.
 
-If crashes persist, attach the crash report when reporting the issue to the FPP community.
+If crashes persist, attach the crash report when reporting the issue to the FPP community — or send it straight from the **Crash Reports** tab with **Upload and Delete**, and quote the file name.

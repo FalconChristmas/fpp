@@ -63,6 +63,8 @@ error_reporting(E_ALL);
                 data.stopType = 0;
                 data.endTimeOffset = 0;
                 data.startTimeOffset = 0;
+                data.endDateOffset = 0;
+                data.startDateOffset = 0;
 
                 if (settings['fppMode'] == 'player')
                     data.type = 'playlist';
@@ -169,6 +171,8 @@ error_reporting(E_ALL);
 
             if (data.endTimeOffset != null) row.find('.schEndTimeOffset').val(data.endTimeOffset);
             if (data.startTimeOffset != null) row.find('.schStartTimeOffset').val(data.startTimeOffset);
+            if (data.endDateOffset != null) row.find('.schEndDateOffset').val(data.endDateOffset);
+            if (data.startDateOffset != null) row.find('.schStartDateOffset').val(data.startDateOffset);
 
             row.find('.schRepeat').val(data.repeat);
             row.find('.schStopType').val(data.stopType);
@@ -265,11 +269,17 @@ error_reporting(E_ALL);
             if (startDate != '') {
                 row.find('.schStartDate').hide();
                 row.find('.holStartDate').show();
+                row.find('.startDateOffset').show();
+            } else {
+                row.find('.startDateOffset').hide();
             }
             var endDate = row.find('.schEndDate').val().replace(/[-0-9]/g, '');
             if (endDate != '') {
                 row.find('.schEndDate').hide();
                 row.find('.holEndDate').show();
+                row.find('.endDateOffset').show();
+            } else {
+                row.find('.endDateOffset').hide();
             }
 
             var re = new RegExp(/(dawn|sunrise|sunset|dusk)/i);
@@ -372,6 +382,7 @@ error_reporting(E_ALL);
                                     $(input).val('Christmas');
                                     $(input).parent().find('.holidays').val('Christmas');
                                     $(input).parent().find('.holidays').show();
+                                    $(input).parent().find('.dateOffset').show();
                                 }
                             }).appendTo(buttonPane).addClass("ui-datepicker-clear ui-state-default ui-priority-primary ui-corner-all");
 
@@ -511,6 +522,12 @@ error_reporting(E_ALL);
                 if (!isHoliday) {
                     $(item).val(MAXYEAR + "-12-31");
                 }
+                $(item).parent().find('.dateOffset').toggle(isHoliday);
+                if (!isHoliday)
+                    $(item).parent().find('.dateOffset input').val(0);
+            } else {
+                $(item).parent().find('.dateOffset').hide();
+                $(item).parent().find('.dateOffset input').val(0);
             }
         }
 
@@ -526,9 +543,12 @@ error_reporting(E_ALL);
                 $(item).hide();
                 $(item).parent().find('.date').show();
                 $(item).parent().find('.date').datepicker('setDate', new Date());
+                $(item).parent().find('.dateOffset').hide();
+                $(item).parent().find('.dateOffset input').val(0);
             } else {
                 $(item).parent().find('.date').val($(item).val());
                 $(item).parent().find('.date').hide();
+                $(item).parent().find('.dateOffset').show();
             }
         }
 
@@ -828,7 +848,9 @@ error_reporting(E_ALL);
 
             e.repeat = parseInt($(item).find('.schRepeat').val());
             e.startDate = $(item).find('.schStartDate').val();
+            e.startDateOffset = parseInt($(item).find('.schStartDateOffset').val()) || 0;
             e.endDate = $(item).find('.schEndDate').val();
+            e.endDateOffset = parseInt($(item).find('.schEndDateOffset').val()) || 0;
             e.stopType = parseInt($(item).find('.schStopType').val());
 
             if (schType == 'command') {
@@ -1137,9 +1159,17 @@ error_reporting(E_ALL);
                                     </td>
                                     <td class='center'><input class='schEnable' type='checkbox' /></td>
                                     <td><input class='date schStartDate' type='text' size='9'
-                                            onChange='DateChanged(this);' /></td>
+                                            onChange='DateChanged(this);' />
+                                        <span class='offset dateOffset startDateOffset'><br><input
+                                                class='schStartDateOffset' type='number' size='4' value='0'
+                                                min='-366' max='366'>days</span>
+                                    </td>
                                     <td><input class='date schEndDate' type='text' size='9'
-                                            onChange='DateChanged(this);' /></td>
+                                            onChange='DateChanged(this);' />
+                                        <span class='offset dateOffset endDateOffset'><br><input
+                                                class='schEndDateOffset' type='number' size='4' value='0'
+                                                min='-366' max='366'>days</span>
+                                    </td>
                                     <td><select class='schDay' onChange='ScheduleDaysSelectChanged(this);'>
                                             <option value='7'>Everyday</option>
                                             <option value='0'>Sunday</option>

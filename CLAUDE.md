@@ -71,6 +71,27 @@ External plugins (`/media/plugins/`) are compiled separately and link against FP
 
 When designing HTML, CSS, or working within `www/`, read `.claude/FRONTEND-GUIDELINES.md` before generating any markup.
 
+### In-app help pages
+
+`www/help/` holds the F1 help screens. They are hand-written prose about the controls on
+each page, so they go stale silently when a page changes — nothing breaks, the text just
+becomes wrong. **Whenever you add, remove, rename, or change the meaning of a user-facing
+control under `www/` (including a setting in `www/settings.json`), update the matching help
+file in the same change**, and add a new `help/settings-<name>.php` whenever you add a
+settings tab. Read `.claude/HELP-PAGES.md` for the page-to-help-file mapping and the
+conventions these files follow.
+
+## fppd Warnings
+
+Warnings (`WarningHolder::AddWarning`) drive the banner shown across the top of every
+web page. There is no expiry unless you ask for one and no dismiss button, so a warning
+that is raised and never retracted stays on screen until fppd restarts — and
+`RemoveWarning()` matches on the id **and the exact message text**, so a retyped message
+at the remove site silently clears nothing. **Whenever you add a warning, decide in the
+same change how it comes down**: a timeout, a matching removal on the recovery path, or a
+documented decision that it is permanent. Read `.claude/WARNINGS.md` before adding or
+changing one.
+
 ## Configuration Formats
 
 - **Channel outputs**: `config/channeloutputs.json` — output type, startChannel, channelCount, per-output config

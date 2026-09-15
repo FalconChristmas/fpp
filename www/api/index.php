@@ -44,6 +44,9 @@ dispatch_post('/channel/output/processors', 'channel_save_output_processors');
 dispatch_get('/channel/output/:file', 'channel_get_output');
 dispatch_post('/channel/output/:file', 'channel_save_output');
 
+dispatch_get('/crashes/uploadTarget', 'GetCrashUploadTarget'); // keep above crashes/upload/:file
+dispatch_post('/crashes/upload/:file', 'PostCrashUpload');
+
 dispatch_get('/configfile', 'GetConfigFileList');
 dispatch_get('/configfile/**', 'DownloadConfigFile');
 dispatch_post('/configfile/**', 'UploadConfigFile');
@@ -84,6 +87,8 @@ dispatch_get('/git/releases/sizes', 'GitOSReleaseSizes');
 dispatch_get('/git/reset', 'GitReset');
 dispatch_get('/git/status', 'GitStatus');
 dispatch_get('/git/branches', 'GitBranches');
+dispatch_get('/git/forkBranches', 'GitForkBranches');
+dispatch_get('/git/pullRequests', 'GitPullRequests');
 
 dispatch_get('/media', 'GetMedia');
 dispatch_get('/media/:MediaName/duration', 'GetMediaDuration');
@@ -228,6 +233,7 @@ dispatch_get('/plugin/releaseNotes', 'GetPluginReleaseNotes'); // keep above /pl
 dispatch_get('/plugin/:RepoName', 'GetPluginInfo');
 dispatch_get('/plugin/:RepoName/icon', 'PluginServeIcon');
 dispatch_get('/plugin/:RepoName/page', 'GetPluginPageUrl');
+dispatch_get('/plugin/:RepoName/privacy', 'GetPluginPrivacyStatus');
 dispatch_delete('/plugin/:RepoName', 'UninstallPlugin');
 dispatch_get('/plugin/:RepoName/settings/:SettingName', 'PluginGetSetting');
 dispatch_put('/plugin/:RepoName/settings/:SettingName', 'PluginSetSetting');
@@ -303,6 +309,9 @@ dispatch_get('/testmode', 'testMode_Get');
 dispatch_post('/testmode', 'testMode_Set');
 
 dispatch_get('/time', 'GetTime');
+
+dispatch_get('/privacy/consent', 'GetConsent');
+dispatch_post('/privacy/consent', 'RecordConsent');
 
 // Load FPP's own controllers BEFORE any plugin's api.php.
 //

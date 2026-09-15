@@ -378,7 +378,7 @@
                 $mediaBackendLabel = array(
                     'alsa' => 'Hardware Direct',
                     'pipewire-simple' => 'Simple PipeWire',
-                    'pipewire' => 'PipeWire (Advanced)'
+                    'pipewire' => 'Advanced (Full PipeWire)'
                 );
                 $mbDisplay = isset($mediaBackendLabel[$mediaBackend]) ? $mediaBackendLabel[$mediaBackend] : ucfirst($mediaBackend);
                 if ($mediaBackend !== 'pipewire') {
@@ -388,7 +388,8 @@
                         <h4>Advanced PipeWire Required</h4>
                         <p>Audio Output Groups require the Advanced PipeWire backend.<br>
                             Currently using: <strong><?= htmlspecialchars($mbDisplay) ?></strong></p>
-                        <p>Change to PipeWire (Advanced) in <a href="settings.php?tab=Audio%2FVideo">FPP Settings &rarr;
+                        <p>Change to Advanced (Full PipeWire) in <a href="settings.php?tab=Audio%2FVideo">FPP Settings
+                                &rarr;
                                 Audio/Video</a>,
                             then return here to configure audio groups.</p>
                     </div>

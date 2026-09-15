@@ -2,6 +2,7 @@
 #define _FILE_OFFSET_BITS 64
 #define __STDC_FORMAT_MACROS
 
+#include <cerrno>
 #include <cstring>
 #include <memory>
 #include <vector>
@@ -350,7 +351,13 @@ FSEQFile::FSEQFile(const std::string& fn) :
         m_memoryBuffer.reserve(1024 * 1024);
     } else {
         m_seqFile = fopen((const char*)fn.c_str(), "wb");
-        flock(fileno(m_seqFile), LOCK_EX);
+        if (m_seqFile) {
+            flock(fileno(m_seqFile), LOCK_EX);
+        } else {
+            // createFSEQFile() checks m_seqFile and returns nullptr; the
+            // caller is expected to handle that, so only log here.
+            LogErr(VB_SEQUENCE, "Error creating FSEQ file (%s), fopen returned NULL: %s\n", fn.c_str(), strerror(errno));
+        }
     }
 }
 

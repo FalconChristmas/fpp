@@ -812,7 +812,7 @@ do_partition() {
 }
 
 do_format() {
-    banner "Formatting /dev/${DEVICE}"
+    banner "Formatting /dev/${DEVICE} (zeroing inode tables, this can take a few minutes)"
     "profile_${PROFILE}_format"
     sync
     udevadm settle 2>/dev/null || sleep 2
@@ -830,7 +830,7 @@ do_mount() {
 }
 
 do_copy() {
-    banner "Copying the root filesystem"
+    banner "Copying the root filesystem (longest step, please wait)"
 
     local excludes=(
         '--exclude=/dev/*'
@@ -856,13 +856,17 @@ do_copy() {
         excludes+=( "--exclude=${SRC_BOOT_DIR}" )
     fi
 
-    rsync -aAXxH --delete "${excludes[@]}" / "${DSTROOT}/"
+    # -v with line-buffered output: this is the longest phase by far and the web
+    # dialog streams stdout, so without it the user sees the banner above and then
+    # nothing for many minutes -- which reads as a hang.  --outbuf=L is required
+    # because stdout is a pipe here, and rsync otherwise block-buffers -v output.
+    rsync -aAXxHv --outbuf=L --delete "${excludes[@]}" / "${DSTROOT}/"
 
     if [ "${SRC_BOOT_SEPARATE}" = "y" ]; then
         banner "Copying the boot filesystem (${SRC_BOOT_DIR})"
         # No -A/-X and a 2-second window: the destination is FAT, which has no ACLs
         # or xattrs and stores timestamps at 2-second granularity.
-        rsync -rltD --delete --modify-window=2 \
+        rsync -rltDv --outbuf=L --delete --modify-window=2 \
             "${SRC_BOOT_DIR}/" "${DSTROOT}${DST_BOOT_DIR}/"
     fi
 

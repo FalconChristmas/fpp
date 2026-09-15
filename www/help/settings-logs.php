@@ -1,33 +1,28 @@
-<center>
-<b>Log Levels</b><br>
-<table border='1' cellpadding='4' cellspacing='1'>
-<tr><th>Level</th><th>Description</th></tr>
-<tr><td>Warn</td><td>Errors and warnings</td></tr>
-<tr><td>Info</td><td>Informational logs about state of the system.</td></tr>
-<tr><td>Debug</td><td>The Debug level generates verbose logs useful for debugging issues or configurations.  This should not be enabled during normal use unless you are trying to track down an issue.</td></tr>
-<tr><td>Excessive</td><td>The Excessive level generates very detailed logs which are excessive enough to affect performance.  Turning on Excessive level logging may cause parts of FPP to not function properly due to the excessive amount of logging.  It is normally only used in specific cases with specific Log Masks configured.</td></tr>
-</table>
-<br>
-<b>Log Masks</b><br>
-<table border='1' cellpadding='4' cellspacing='1'>
-<tr><th>Mask</th><th>Description</th></tr>
-<tr><td>ALL</td><td>The ALL meta-value enables all debug logs at the selected level.  This can be very verbose and is normally only recommended at the Warn or Info levels.</td></tr>
-<tr><td>Most</td><td>The Most meta-value enables all debug logs except for Channel Data.</td></tr>
-<tr><td>Channel Data</td><td>Log every time that channel data is sent out to controllers</td></tr>
-<tr><td>Channel Outputs</td><td>Log info about the Channel Outputs themselves</td></tr>
-<tr><td>Commands</td><td>Log received commands and their replies</td></tr>
-<tr><td>Control Interface</td><td>Log info from the remote control interface</td></tr>
-<tr><td>E1.31 Bridge</td><td>Log info about E1.31 bridge mode</td></tr>
-<tr><td>Effects</td><td>Log info about Effects sequences</td></tr>
-<tr><td>Events</td><td>Log info about Events triggered</td></tr>
-<tr><td>General</td><td>General log info for miscellaneous areas of FPP</td></tr>
-<tr><td>GPIO</td><td>Log GPIO Input events</td></tr>
-<tr><td>Media Outputs</td><td>Log info about the media players that FPP uses.</td></tr>
-<tr><td>MultiSync</td><td>Log info when syncing playback on multiple Pi's</td></tr>
-<tr><td>Playlists</td><td>Log info when parsing playlists</td></tr>
-<tr><td>Plugins</td><td>Plugin log info</td></tr>
-<tr><td>Scheduler</td><td>Log info when scheduling playlists</td></tr>
-<tr><td>Sequence Parser</td><td>Log info when playing sequences</td></tr>
-<tr><td>Settings</td><td>Log info when parsing or applying settings</td></tr>
-</table>
-</center>
+<h3>Logging</h3>
+<p>Choose how much detail FPP writes to its logs. The defaults are fine for a normal show. Turn detail up only when diagnosing a problem, then turn it back down — excessive logging can slow playback and fill storage.</p>
+
+<div class="callout callout-warning"><b>Recommended for production:</b> <b>Info</b> on every category except Channel Data.</div>
+
+<h4>Log Levels (16 dropdowns → one per area)</h4>
+<p>Each dropdown controls one subsystem. Choices for every dropdown: <b>Errors Only</b> (<code>error</code>), <b>Warn</b>, <b>Info</b>, <b>Debug</b>, <b>Excessive</b>. Defaults to <code>info</code>. Excessive is very noisy and can affect performance — only use on request.</p>
+<ul>
+    <li><b>General</b> — Core miscellaneous messages.</li>
+    <li><b>ChannelOut</b> — Channel testing and overlay data flow.</li>
+    <li><b>ChannelData</b> — Lowest-level serial/LOR data sends. Extremely chatty — bulk “make all Info” intentionally leaves this one alone.</li>
+    <li><b>Command</b> — Commands and their replies (REST, scheduler, MQTT, GPIO-triggered).</li>
+    <li><b>Control</b> — Control interface / MQTT input handling.</li>
+    <li><b>E131Bridge</b> — E1.31/DDP bridge input.</li>
+    <li><b>Effect</b> — Effects engine.</li>
+    <li><b>GPIO</b> — GPIO input/output events.</li>
+    <li><b>HTTP</b> — fppd REST API (HTTP) traffic.</li>
+    <li><b>MediaOut</b> — Audio and video output.</li>
+    <li><b>Playlist</b> — Playlist parsing and sequencing.</li>
+    <li><b>Plugin</b> — Plugin management.</li>
+    <li><b>Schedule</b> — Scheduler decisions.</li>
+    <li><b>Settings</b> — Settings parsing/applying.</li>
+    <li><b>Sequence</b> — Sequence file parsing.</li>
+    <li><b>Sync</b> — MultiSync between Player and Remotes.</li>
+</ul>
+
+<h4>Bulk Change</h4>
+<p>Buttons under the table set <i>all levels at once except Channel Data</i> to: <b>Errors Only</b>, <b>Warn</b>, <b>Info</b>, <b>Debug</b>, or <b>Excessive</b>. This does not save them — each button changes the dropdown values, which auto-save on change individually. Use it to quickly make the whole log “more talkative” while intentionally leaving channel data at Info.</p>

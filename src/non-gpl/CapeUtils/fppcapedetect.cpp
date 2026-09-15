@@ -101,6 +101,26 @@ int main(int argc, char* argv[]) {
             remove_recursive("/home/fpp/media/tmp/", false);
         }
         CapeUtils::INSTANCE.initCape(readonly, forceDefaults);
+
+        // fppoled keeps a copy of the cape image on the root fs so it can put
+        // the logo up before detection has run (it snapshots media/tmp before
+        // the wipe above, at ExecStartPre).  Keep that copy in step here too:
+        // an EEPROM that is blank or whose header does not match produces no
+        // cape-image.xbm at all, and the copy is what OLEDPage::readCapeImage()
+        // falls back to in exactly that case -- so without this a re-detect
+        // leaves the OLED showing the logo of a cape that is no longer there.
+        // Only on a run that regenerated media/tmp: a -ro run copies nothing
+        // out, so its "no image" means nothing about the hardware.
+        if (!readonly) {
+            std::error_code ec;
+            if (std::filesystem::is_regular_file("/home/fpp/media/tmp/cape-image.xbm")) {
+                std::filesystem::copy_file("/home/fpp/media/tmp/cape-image.xbm",
+                                           "/var/tmp/cape-image.xbm",
+                                           std::filesystem::copy_options::overwrite_existing, ec);
+            } else {
+                std::filesystem::remove("/var/tmp/cape-image.xbm", ec);
+            }
+        }
         if (!noperms) {
             // getpwnam_r() is the thread-safe form of getpwnam().
             char pbuf[16384];

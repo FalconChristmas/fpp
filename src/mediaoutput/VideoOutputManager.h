@@ -349,6 +349,10 @@ private:
                                                bool isDeletion = false);
 
     /// Start/stop the SAP multicast announcer thread.
+    ///
+    /// Both MUST be called with m_mutex NOT held: they join m_sapThread, and
+    /// SAPAnnounceLoop() takes m_mutex, so joining under it deadlocks. Every
+    /// call site already does this deliberately.
     void StartSAPAnnouncer();
     void StopSAPAnnouncer();
 
@@ -357,6 +361,18 @@ private:
 
     std::thread m_sapThread;
     std::atomic<bool> m_sapRunning{false};
+    /// Serializes the announcer's lifecycle (m_sapThread + m_sapRunning as a
+    /// pair). Deliberately NOT m_mutex: SAPAnnounceLoop() takes m_mutex, and
+    /// Stop joins that thread, so the two must stay separate -- which is also
+    /// why the call sites all sit outside m_mutex. SAPAnnounceLoop() never
+    /// takes this lock, so there is no cycle.
+    ///
+    /// m_sapRunning alone was not enough: it was tested and set as two steps
+    /// from unsynchronized threads (a detached GStreamer start thread reaching
+    /// StartConsumers(), and the command/API thread reaching Reload()), so two
+    /// callers could both pass the check and both assign m_sapThread --
+    /// assigning over a joinable std::thread calls std::terminate().
+    std::mutex m_sapLock;
 
 #ifdef HAS_GSTREAMER_VIDEO_OUTPUT
     /// Appsink callback for overlay consumers (runs on GStreamer streaming thread).

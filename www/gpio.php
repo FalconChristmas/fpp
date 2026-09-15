@@ -879,7 +879,7 @@ if (is_dir($stringsDir)) {
                     <div class="alert alert-info py-2 mb-3">
                         <i class="fas fa-info-circle"></i>
                         <strong><?php echo count($usedGpioPins); ?> pin(s)</strong> reserved by cape:
-                        <span class="text-muted"><?php echo implode(', ', array_keys($usedGpioPins)); ?></span>
+                        <span class="font-monospace"><?php echo implode(', ', array_keys($usedGpioPins)); ?></span>
                     </div>
                 <?php endif; ?>
 

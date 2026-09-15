@@ -62,6 +62,16 @@ static int getIntFromMap(const std::map<std::string, std::string>& m, const std:
     }
     return def;
 }
+// Boolean flags in interface.<if> are written by the UI as "1" (checked) or
+// "" (unchecked); treat an API/hand-written "0"/"false" as off too rather than
+// as "non-empty, therefore on".
+static bool settingEnabled(const std::map<std::string, std::string>& m, const std::string& setting) {
+    auto it = m.find(setting);
+    if (it == m.end()) {
+        return false;
+    }
+    return !it->second.empty() && it->second != "0" && it->second != "false";
+}
 static std::string netmaskToSubnet(const std::string& nm) {
     const std::map<std::string, std::string> NETMASK2SUBNET = {
         { "255.255.255.252", "30" },
@@ -300,40 +310,62 @@ void setupNetwork(bool fullReload) {
                         hostapd = true;
                         addressLines.append("Address=192.168.8.1/24\n");
                     } else if (!interfaceSettings["SSID"].empty()) {
+                        bool wpa3 = settingEnabled(interfaceSettings, "WPA3");
+                        bool backupWpa3 = settingEnabled(interfaceSettings, "BACKUPWPA3");
                         std::string wpa = "ctrl_interface=/var/run/wpa_supplicant\nctrl_interface_group=0\nupdate_config=1\ncountry=";
                         wpa.append(WifiRegulatoryDomain);
-                        if (!interfaceSettings["WPA3"].empty()) {
-                            wpa.append("\nsae_pwe=1\n");
+                        // Protected Management Frames (802.11w) as a GLOBAL "optional"
+                        // (pmf=1), never as a per-network ieee80211w=1.  The difference
+                        // matters: for the global default wpa_supplicant checks whether
+                        // the driver advertises a BIP cipher and silently skips PMF if
+                        // not, but a per-network ieee80211w is honoured blindly.  The
+                        // brcmfmac firmware on the Pi Zero W (BCM43430; the Pi 3B shares
+                        // the chip) has no MFP support, so with ieee80211w=1 it negotiated
+                        // PMF with any PMF-capable AP (most Wi-Fi 6 routers), failed to
+                        // install the IGTK ("WPA: Failed to configure IGTK to the driver")
+                        // and dropped an otherwise-good association - looked like a bad
+                        // password.  On boards whose driver does advertise a BIP cipher
+                        // (BCM43455, rtw88, ...) nothing changes: SAE still negotiates
+                        // PMF and WPA2 APs set to PMF-required still work.
+                        // This mirrors what NetworkManager does on stock Raspberry Pi
+                        // OS.  GitHub issue #2953.
+                        wpa.append("\npmf=1\n");
+                        if (wpa3 || backupWpa3) {
+                            // 2 = hash-to-element AND hunting-and-pecking.  With 1 (H2E only)
+                            // wpa_supplicant skips every BSS of an AP that lacks H2E ("skip -
+                            // SAE H2E required, but not supported by the AP"), so the WPA3
+                            // checkbox could never connect to such an AP on any board.
+                            wpa.append("sae_pwe=2\n");
                         }
-                        wpa.append("\n\nnetwork={\n  ssid=\"").append(interfaceSettings["SSID"]);
+                        wpa.append("\nnetwork={\n  ssid=\"").append(interfaceSettings["SSID"]);
                         if (!interfaceSettings["PSK"].empty()) {
                             wpa.append("\"\n  psk=\"").append(interfaceSettings["PSK"]);
                         }
                         wpa.append("\"\n  key_mgmt=");
-                        if (!interfaceSettings["WPA3"].empty()) {
+                        if (wpa3) {
                             wpa.append("SAE WPA-PSK\n  sae_password=\"").append(interfaceSettings["PSK"]).append("\"");
                         } else {
                             wpa.append("WPA-PSK");
                         }
-                        if (!interfaceSettings["HIDDEN"].empty()) {
+                        if (settingEnabled(interfaceSettings, "HIDDEN")) {
                             wpa.append("\n  scan_ssid=1");
                         }
-                        wpa.append("\n  priority=100\n  ieee80211w=1\n}\n\n");
+                        wpa.append("\n  priority=100\n}\n\n");
                         if (!interfaceSettings["BACKUPSSID"].empty() && interfaceSettings["BACKUPSSID"] != "\"\"") {
                             wpa.append("\nnetwork={\n  ssid=\"").append(interfaceSettings["BACKUPSSID"]);
                             if (!interfaceSettings["BACKUPPSK"].empty()) {
                                 wpa.append("\"\n  psk=\"").append(interfaceSettings["BACKUPPSK"]);
                             }
                             wpa.append("\"\n  key_mgmt=");
-                            if (!interfaceSettings["BACKUPWPA3"].empty()) {
-                                wpa.append("SAE WPA-PSK\n  sae_password=\"").append(interfaceSettings["PSK"]).append("\"");
+                            if (backupWpa3) {
+                                wpa.append("SAE WPA-PSK\n  sae_password=\"").append(interfaceSettings["BACKUPPSK"]).append("\"");
                             } else {
                                 wpa.append("WPA-PSK");
                             }
-                            if (!interfaceSettings["BACKUPHIDDEN"].empty()) {
+                            if (settingEnabled(interfaceSettings, "BACKUPHIDDEN")) {
                                 wpa.append("\n  scan_ssid=1");
                             }
-                            wpa.append("\n  priority=90\n  ieee80211w=1\n}\n\n");
+                            wpa.append("\n  priority=90\n}\n\n");
                         }
                         filesNeeded["/etc/wpa_supplicant/wpa_supplicant-" + interface + ".conf"] = wpa;
                         // Queue these unconditionally rather than gating them on

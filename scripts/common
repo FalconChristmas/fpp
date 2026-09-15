@@ -71,7 +71,7 @@ export FPPUSER
 export FPPGROUP
 export FPPPLATFORM
 export PATH=${PATHDIRS}:${PATH}
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${FPPDIR}/external/RF24:${FPPDIR}/lib:${FPPDIR}/src
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}:${FPPDIR}/external/RF24:${FPPDIR}/lib:${FPPDIR}/src
 
 SUDO=${SUDO:-sudo -E}
 export SRCDIR="${FPPDIR}/src"
@@ -469,7 +469,7 @@ gracefullyReloadApacheConf() {
 #
 # Example: /opt/fpp/scripts/common setSetting Key Value
 BASENAME=$(basename -- $0)
-if [ "${BASENAME}" = "common" -a -n "$1" ]
+if [ "${BASENAME}" = "common" -a -n "${1:-}" ]
 then
     $@
 fi

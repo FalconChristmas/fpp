@@ -62,6 +62,11 @@ Physical port/pin management with eFuse protection, current monitoring, pixel co
 
 Warning system with timeouts, listener callbacks, persistence to file. Used for power supply warnings, hardware issues, etc.
 
+Warnings have no expiry unless one is requested and cannot be dismissed from the UI, so
+one that is never retracted persists until fppd restarts. `RemoveWarning()` matches the id
+*and* the exact message text. See [WARNINGS.md](WARNINGS.md) before adding or changing a
+warning.
+
 ## HTTP API (`src/httpAPI.h/cpp`)
 
 RESTful API on port 32322 (localhost only). Player status, playlist control, effects, log levels, GPIO, output config, schedule, MultiSync stats, E1.31 byte counters.

@@ -241,7 +241,7 @@ int main(int argc, char* argv[]) {
             // dup2 replaces that fd before we print anything, so this capture
             // still works even though the parent shell redirected us away.
             teeOutput(logFile, "fppinit", "Audio", getpid());
-        } else if (action == "configureBBB" || action == "applyThermal" || action == "resetThermal" || action == "installKiosk") {
+        } else if (action == "configureBBB" || action == "applyThermal" || action == "resetThermal" || action == "installKiosk" || action == "setupPiRTC") {
             // Same gap as setupNetwork: invoked directly via PHP exec(), output
             // otherwise lives only in that request's $output/HTTP response.
             teeOutput(logFile, "fppinit", "Config", getpid());
@@ -280,6 +280,9 @@ int main(int argc, char* argv[]) {
         setupApache();
         DetectCape();
         setupTimezone();
+        // After DetectCape() above, so a cape shipping DisablePiRTC in its
+        // defaultSettings is honoured on the boot it is first detected on.
+        setupPiRTCConfig();
         int reboot = getRawSettingInt("rebootFlag", 0);
         if (reboot && !needReboot) {
             printf("FPP - Clearing reboot flags\n");
@@ -469,6 +472,9 @@ int main(int argc, char* argv[]) {
         resetThermalSettings();
     } else if (action == "installKiosk") {
         installKiosk();
+    } else if (action == "setupPiRTC") {
+        // The UI's "reboot": 1 on DisablePiRTC prompts the user; don't reboot here.
+        setupPiRTCConfig(false);
     } else if (action == "setupNetwork") {
         PutFileContents(networkSetupMut, "1");
         setupNetwork(true);

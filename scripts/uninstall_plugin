@@ -12,15 +12,23 @@ fi
 
 startPluginLog uninstall "$1"
 
+# Pass FPPDIR/SRCDIR through sudo as environment assignments AND as trailing
+# arguments, matching install_plugin/upgrade_plugin. The args-only form never
+# set them as env vars, and the Plugin Manager exports SUDO="sudo" (no -E,
+# sudoers env_reset) which strips the exported FPPDIR, so an uninstall script
+# doing `source ${FPPDIR}/scripts/common` got "/scripts/common: No such file"
+# -- and one running under `set -u` (fpp-live-follow) aborted outright with
+# "FPPDIR: unbound variable" before removing its service/proxy config. The
+# trailing args stay for plugins that parse them.
 if [ -x "${PLUGINDIR}/$1/scripts/fpp_uninstall.sh" ]
 then
 	echo "Running fpp_uninstall.sh script for $1"
-	$SUDO ${PLUGINDIR}/$1/scripts/fpp_uninstall.sh FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
+	$SUDO FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src ${PLUGINDIR}/$1/scripts/fpp_uninstall.sh FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
 else
 	if [ -x "${PLUGINDIR}/$1/fpp_uninstall.sh" ]
 	then
 		echo "Running fpp_uninstall.sh script for $1"
-		$SUDO ${PLUGINDIR}/$1/fpp_uninstall.sh FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
+		$SUDO FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src ${PLUGINDIR}/$1/fpp_uninstall.sh FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
 	fi
 fi
 

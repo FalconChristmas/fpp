@@ -184,7 +184,7 @@
                 $mediaBackendLabel = array(
                     'alsa' => 'Hardware Direct',
                     'pipewire-simple' => 'Simple PipeWire',
-                    'pipewire' => 'PipeWire (Advanced)'
+                    'pipewire' => 'Advanced (Full PipeWire)'
                 );
                 $mbDisplay = isset($mediaBackendLabel[$mediaBackend]) ? $mediaBackendLabel[$mediaBackend] : ucfirst($mediaBackend);
                 if ($mediaBackend !== 'pipewire') {
@@ -194,7 +194,8 @@
                         <h4>Advanced PipeWire Required</h4>
                         <p>Video Input Sources require the Advanced PipeWire backend.<br>
                             Currently using: <strong><?= htmlspecialchars($mbDisplay) ?></strong></p>
-                        <p>Change to PipeWire (Advanced) in <a href="settings.php?tab=Audio%2FVideo">FPP Settings &rarr;
+                        <p>Change to Advanced (Full PipeWire) in <a href="settings.php?tab=Audio%2FVideo">FPP Settings
+                                &rarr;
                                 Audio/Video</a>,
                             then return here to configure video input sources.</p>
                     </div>
@@ -562,8 +563,8 @@
 
             html += '<div class="row"><div class="col-auto">';
             html += '<small class="text-muted">Locks the camera\'s exposure to whole cycles of the mains supply. ' +
-                    'Rolling bands or a pulsing brightness under artificial lighting nearly always means this is set ' +
-                    'for the wrong region &mdash; changing the FPS above will not fix it.</small>';
+                'Rolling bands or a pulsing brightness under artificial lighting nearly always means this is set ' +
+                'for the wrong region &mdash; changing the FPS above will not fix it.</small>';
             html += '</div></div>';
 
             // Only offered when the camera actually implements the control;
@@ -586,13 +587,13 @@
                 html += '<div class="col-auto' + (expMode === 'manual' ? '' : ' d-none') + '" id="shutterGroup_' + index + '">';
                 html += '<label class="me-1">Shutter:</label>';
                 html += '<input type="number" class="form-control form-control-sm d-inline-block w-auto" value="' + shutterMs + '" ' +
-                        'onchange="UpdateShutterMs(' + index + ',this.value)" min="0.1" max="1000" step="0.1"> ms';
+                    'onchange="UpdateShutterMs(' + index + ',this.value)" min="0.1" max="1000" step="0.1"> ms';
                 html += '</div>';
                 html += '</div>';
 
                 html += '<div class="row' + (expMode === 'manual' ? '' : ' d-none') + '" id="shutterHint_' + index + '"><div class="col-auto">';
                 html += '<small class="text-muted">Use 10 ms (or any multiple) under 50 Hz mains, 8.33 ms under 60 Hz. ' +
-                        'A fixed shutter also stops the picture breathing as the lighting state changes mid-show.</small>';
+                    'A fixed shutter also stops the picture breathing as the lighting state changes mid-show.</small>';
                 html += '</div></div>';
 
                 html += '<div class="row align-items-center mt-2">';
@@ -711,8 +712,8 @@
             var src = FindSourceById(id);
             if (src && src.type === 'videotestsrc') {
                 url += '&pattern=' + encodeURIComponent(src.pattern || 'smpte') +
-                       '&srcw=' + (parseInt(src.width, 10) || 320) +
-                       '&srch=' + (parseInt(src.height, 10) || 240);
+                    '&srcw=' + (parseInt(src.width, 10) || 320) +
+                    '&srch=' + (parseInt(src.height, 10) || 240);
             }
             var probe = new Image();
 
@@ -732,7 +733,7 @@
                 var elapsed = Date.now() - started;
                 pace.rtt = pace.rtt ? (pace.rtt * 0.7 + elapsed * 0.3) : elapsed;
                 pace.targetMs = Math.min(PREVIEW_MAX_MS,
-                                         Math.max(PREVIEW_TARGET_MS, Math.round(pace.rtt * 1.1)));
+                    Math.max(PREVIEW_TARGET_MS, Math.round(pace.rtt * 1.1)));
 
                 // Fixed period, not a fixed gap: the time already spent
                 // fetching comes out of the wait, so the spacing stays even.
@@ -744,7 +745,7 @@
                 $('#videoPreviewImg' + id).addClass('d-none');
                 $('#videoPreviewMsg' + id).removeClass('d-none text-muted').addClass('text-danger')
                     .html('<small><i class="fas fa-exclamation-triangle"></i> No frames. ' +
-                          'Check the device is connected, then Save &amp; Apply and retry.</small>');
+                        'Check the device is connected, then Save &amp; Apply and retry.</small>');
                 // Nothing learned about pacing from a failure -- start clean
                 // when frames come back.
                 pace.rtt = 0;
@@ -1181,6 +1182,6 @@
             $('#applyOverlay').hide();
         }
     </script>
-</body>
+    </body>
 
 </html>

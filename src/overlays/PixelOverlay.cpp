@@ -380,9 +380,10 @@ void PixelOverlayManager::doOverlays(uint8_t* channels) {
     while (!afterOverlayModels.empty()) {
         PixelOverlayModel* m = afterOverlayModels.front();
         afterOverlayModels.pop_front();
-        l.unlock();
-        m->updateRunningEffects();
-        l.lock();
+        // Pop and mark in flight under one hold of threadLock: dropping the
+        // lock with the model owned by neither the list nor the in-flight set
+        // is the window removeAutoOverlayModel() used to delete it in.
+        runEffectUpdateLocked(m, l, nullptr);
     }
 }
 
@@ -1967,7 +1968,10 @@ void PixelOverlayManager::removeAutoOverlayModel(const std::string& name) {
         }
         lock.unlock();
 
-        removePeriodicUpdate(pmodel);
+        // The only caller that actually deletes the model, so the only one
+        // that needs to wait for a running update to finish.  modelsLock was
+        // released above, which this variant requires.
+        removePeriodicUpdateAndWait(pmodel);
         std::unique_lock<std::recursive_mutex> alock(activeModelsLock);
         activeModels.remove(pmodel);
         alock.unlock();
@@ -2008,25 +2012,35 @@ void PixelOverlayManager::doOverlayModelEffects() {
         if (!updates.empty()) {
             uint64_t curTime = GetTimeMS();
             while (!updates.empty() && updates.begin()->first <= curTime) {
-                std::list<PixelOverlayModel*> models = updates.begin()->second;
+                // Drain the due batch one model at a time while holding
+                // threadLock rather than snapshotting the whole list and
+                // erasing the map entry up front.  A snapshot survives
+                // removePeriodicUpdate() -- it only edits `updates` -- so a
+                // model removed (and freed) part way through the batch was
+                // still run afterwards.  Leaving the remainder in the map
+                // makes that removal authoritative for every model that has
+                // not started yet, and runEffectUpdateLocked() covers the one
+                // that has.
                 uint64_t startTime = updates.begin()->first;
-                updates.erase(updates.begin());
-                l.unlock();
-
-                for (auto m : models) {
-                    int32_t ms = m->updateRunningEffects();
-                    if (ms != 0) {
-                        l.lock();
-                        if (ms > 0) {
-                            uint64_t t = startTime + ms;
-                            updates[t].push_back(m);
-                        } else {
-                            afterOverlayModels.push_back(m);
-                        }
-                        l.unlock();
+                while (!updates.empty() && updates.begin()->first == startTime &&
+                       !updates.begin()->second.empty()) {
+                    PixelOverlayModel* m = updates.begin()->second.front();
+                    updates.begin()->second.pop_front();
+                    int32_t ms = 0;
+                    runEffectUpdateLocked(m, l, &ms);
+                    if (ms > 0) {
+                        uint64_t t = startTime + ms;
+                        updates[t].push_back(m);
+                    } else if (ms < 0) {
+                        afterOverlayModels.push_back(m);
                     }
                 }
-                l.lock();
+                // Requeues above may have re-created the entry at a later time;
+                // only drop it when this batch really is empty.
+                if (!updates.empty() && updates.begin()->first == startTime &&
+                    updates.begin()->second.empty()) {
+                    updates.erase(updates.begin());
+                }
                 curTime = GetTimeMS();
             }
             if (!updates.empty()) {
@@ -2036,12 +2050,96 @@ void PixelOverlayManager::doOverlayModelEffects() {
         threadCV.wait_for(l, std::chrono::milliseconds(waitTime));
     }
 }
-void PixelOverlayManager::removePeriodicUpdate(PixelOverlayModel* m) {
-    std::unique_lock<std::mutex> l(threadLock);
+// Runs updateRunningEffects() on `m` with threadLock dropped, marking the model
+// in flight for the duration so removePeriodicUpdateAndWait() cannot let it be
+// freed underneath the call.  `l` must own threadLock on entry and does again on exit.
+// threadLock must be held.  Marks every in-flight update of `m` as removed so
+// it reports EFFECT_DONE instead of requeueing, and takes `m` out of both
+// schedules.
+void PixelOverlayManager::StampAndStripLocked(PixelOverlayModel* m) {
+    for (auto& e : inFlightModels) {
+        if (e.m == m) {
+            e.removed = true;
+        }
+    }
     for (auto& a : updates) {
         a.second.remove(m);
     }
     afterOverlayModels.remove(m);
+}
+
+void PixelOverlayManager::runEffectUpdateLocked(PixelOverlayModel* m,
+                                                std::unique_lock<std::mutex>& l,
+                                                int32_t* msOut) {
+    const auto self = std::this_thread::get_id();
+    inFlightModels.push_back({ m, self, false });
+    l.unlock();
+    int32_t ms = m->updateRunningEffects();
+    l.lock();
+    bool removed = false;
+    for (auto it = inFlightModels.begin(); it != inFlightModels.end(); ++it) {
+        if (it->m == m && it->tid == self) {
+            removed = it->removed;
+            inFlightModels.erase(it);
+            break;
+        }
+    }
+    inFlightCV.notify_all();
+    if (msOut) {
+        // A stamped entry means the model has been taken out of the schedule
+        // and may be about to be deleted.  Report EFFECT_DONE so the caller
+        // does not requeue it -- requeuing here, under the same threadLock hold
+        // that a waiting deleter needs to wake, is exactly how a removed model
+        // came back to life and got dereferenced after the free.
+        *msOut = removed ? 0 : ms;
+    }
+}
+
+// Stamp-and-strip, non-blocking.  See the header for why this must never wait:
+// setRunningEffect() reaches here holding the model's effectLock, and an
+// in-flight entry is registered before updateRunningEffects() takes that lock.
+void PixelOverlayManager::removePeriodicUpdate(PixelOverlayModel* m) {
+    std::unique_lock<std::mutex> l(threadLock);
+    StampAndStripLocked(m);
+}
+
+// Strips the model from the schedule and does not return until no *other*
+// thread is inside updateRunningEffects() on it, so removeAutoOverlayModel()
+// can delete it.
+//
+// NOTE: this blocks, and must not be called with effectLock or modelsLock held.
+//  * effectLock: an in-flight entry is registered before updateRunningEffects()
+//    acquires effectLock, so a waiter holding it would be waiting on a thread
+//    that needs it -- a hard deadlock, and a silent one (fppd keeps answering
+//    /api/fppd/status).  That is why setRunningEffect() gets the non-blocking
+//    variant above.
+//  * modelsLock: removeAutoOverlayModel() unlocks before calling in, but
+//    modelsLock is recursive, so a future caller that already held it one level
+//    up would only drop to depth 1 and run this wait under the lock -- and an
+//    in-flight effect that needs modelsLock (PixelOverlayModelSub resolving a
+//    parent) would deadlock against it.
+void PixelOverlayManager::removePeriodicUpdateAndWait(PixelOverlayModel* m) {
+    std::unique_lock<std::mutex> l(threadLock);
+    // Stamp first: the stamp is what stops runEffectUpdateLocked()'s caller
+    // putting the model back into the schedule after the wait below is already
+    // satisfiable.  The in-flight thread erases its entry and then requeues
+    // while still holding threadLock, so a waiter -- which cannot wake until
+    // that lock is released -- would otherwise observe an empty registry and a
+    // model that has just been put back, and delete it anyway.
+    StampAndStripLocked(m);
+    inFlightCV.wait(l, [this, m]() {
+        auto self = std::this_thread::get_id();
+        for (const auto& e : inFlightModels) {
+            if (e.m == m && e.tid != self) {
+                return false;
+            }
+        }
+        return true;
+    });
+    // Belt and suspenders.  The stamp should have prevented any requeue while
+    // we waited; strip again so the model is gone from the schedule even if
+    // some future path finds another way to put it back.
+    StampAndStripLocked(m);
 }
 
 void PixelOverlayManager::addPeriodicUpdate(int32_t initialDelayMS, PixelOverlayModel* m) {

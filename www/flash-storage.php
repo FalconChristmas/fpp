@@ -41,7 +41,9 @@ if (isset($_GET['reboot']) && $_GET['reboot'] === 'true') {
     $extra .= ' --reboot';
 }
 
-$command = "sudo TERM=vt100 /opt/fpp/SD/flash_storage.sh -y " . $mode . $extra . " " . escapeshellarg($device) . " 2>&1";
+// stdbuf keeps the script's own echo/banner output line-buffered into the pipe so
+// each phase shows up in the dialog as it starts, rather than in 4KB bursts.
+$command = "sudo TERM=vt100 stdbuf --output=L --error=L /opt/fpp/SD/flash_storage.sh -y " . $mode . $extra . " " . escapeshellarg($device) . " 2>&1";
 
 echo "==================================================================================\n";
 echo "Command: $command\n";

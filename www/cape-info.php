@@ -1102,44 +1102,35 @@ if ($printSigningUI) {
                                                             <table class='tblAbout'>
                                                                 <tr>
                                                                     <td><b>Vendor&nbsp;Name:</b></td>
-                                                                    <td><? echo $currentCapeInfo['vendor']['name'] ?></td>
+                                                                    <td><? echo htmlspecialchars($currentCapeInfo['vendor']['name']) ?></td>
                                                                 </tr>
                                                                 <?php
+                                                                // Every value in this block comes from the EEPROM, so each
+                                                                // one is escaped for where it lands.  The link and the logo
+                                                                // URL come from CapeVendorUrls(), the one place that decides
+                                                                // when the serial goes with them.
+                                                                $h = function ($v) {
+                                                                    return htmlspecialchars((string) $v, ENT_QUOTES);
+                                                                };
+                                                                $vendorUrls = CapeVendorUrls($currentCapeInfo, $settings);
+                                                                $landing = $vendorUrls['landing'];
                                                                 if (isset($currentCapeInfo['vendor']['url'])) {
                                                                     $url = $currentCapeInfo['vendor']['url'];
-                                                                    $landing = $url;
-                                                                    if (isset($currentCapeInfo['vendor']['landingPage'])) {
-                                                                        $landing = $currentCapeInfo['vendor']['landingPage'];
-                                                                    }
-                                                                    if ($settings['SendVendorSerial'] == 1) {
-                                                                        $landing = $landing . "?sn=" . $currentCapeInfo['serialNumber'] . "&id=" . $currentCapeInfo['id'];
-                                                                    }
-                                                                    if (isset($currentCapeInfo['cs']) && $currentCapeInfo['cs'] != "" && $settings['SendVendorSerial'] == 1) {
-                                                                        $landing = $landing . "&cs=" . $currentCapeInfo['cs'];
-                                                                    }
-                                                                    if ($settings['hideExternalURLs']) {
-                                                                        $landing = "";
-                                                                    }
-                                                                    echo "<tr><td><b>Vendor&nbsp;URL:</b></td><td><a href=\"" . $landing . "\">" . $url . "</a></td></tr>";
+                                                                    echo "<tr><td><b>Vendor&nbsp;URL:</b></td><td><a href=\"" . $h($landing) . "\">" . $h($url) . "</a></td></tr>";
                                                                 }
                                                                 if (isset($currentCapeInfo['vendor']['phone'])) {
-                                                                    echo "<tr><td><b>Phone&nbsp;Number:</b></td><td>" . $currentCapeInfo['vendor']['phone'] . "</td></tr>";
+                                                                    echo "<tr><td><b>Phone&nbsp;Number:</b></td><td>" . $h($currentCapeInfo['vendor']['phone']) . "</td></tr>";
                                                                 }
                                                                 if (isset($currentCapeInfo['vendor']['email']) && !$settings['hideExternalURLs']) {
-                                                                    echo "<tr><td><b>E-mail:</b></td><td><a href=\"mailto:" . $currentCapeInfo['vendor']['email'] . "\">" . $currentCapeInfo['vendor']['email'] . "</td></tr>";
+                                                                    echo "<tr><td><b>E-mail:</b></td><td><a href=\"mailto:" . $h($currentCapeInfo['vendor']['email']) . "\">" . $h($currentCapeInfo['vendor']['email']) . "</a></td></tr>";
                                                                 }
                                                                 if (isset($currentCapeInfo['vendor']['forum']) && !$settings['hideExternalURLs']) {
-                                                                    echo "<tr><td><b>Support Forum:</b></td><td><a href=\"" . $currentCapeInfo['vendor']['forum'] . "\">" . $currentCapeInfo['vendor']['forum'] . "</td></tr>";
+                                                                    $forum = $currentCapeInfo['vendor']['forum'];
+                                                                    $forumHref = preg_match('#^https?://#i', $forum) ? $forum : '';
+                                                                    echo "<tr><td><b>Support Forum:</b></td><td><a href=\"" . $h($forumHref) . "\">" . $h($forum) . "</a></td></tr>";
                                                                 }
-                                                                if (isset($currentCapeInfo['vendor']['image']) && $settings['FetchVendorLogos']) {
-                                                                    $iurl = $currentCapeInfo['vendor']['image'];
-                                                                    if ($settings['SendVendorSerial'] == 1) {
-                                                                        $iurl = $currentCapeInfo['vendor']['image'] . "?sn=" . $currentCapeInfo['serialNumber'] . "&id=" . $currentCapeInfo['id'];
-                                                                    }
-                                                                    if (isset($currentCapeInfo['cs']) && $currentCapeInfo['cs'] != "" && $settings['SendVendorSerial'] == 1) {
-                                                                        $iurl = $iurl . "&cs=" . $currentCapeInfo['cs'];
-                                                                    }
-                                                                    echo "<tr><td colspan=\"2\"><a href=\"" . $landing . "\"><img style='max-height: 90px; max-width: 300px;' src=\"" . $iurl . "\" ></a></td></tr>";
+                                                                if ($vendorUrls['image'] != '') {
+                                                                    echo "<tr><td colspan=\"2\"><a href=\"" . $h($landing) . "\"><img style='max-height: 90px; max-width: 300px;' src=\"" . $h($vendorUrls['image']) . "\" alt=\"Cape Logo\"></a></td></tr>";
                                                                 }
                                                                 ?>
                                                             </table>

@@ -11,6 +11,7 @@
  * included LICENSE.GPL file.
  */
 
+#include <mutex>
 #include <string>
 #include "fpp-json-fwd.h"
 #include <vector>
@@ -35,7 +36,15 @@ public:
 
 private:
     std::string modelName;
+    // Guarded by m_modelLock.  PixelOverlayManager owns the model and deletes
+    // it when the overlay is removed (removeAutoOverlayModel(), which a
+    // channel-output reload reaches through another FBMatrix Init()/Close()),
+    // so a raw pointer captured in Init() goes stale under the running output
+    // thread.  The manager's model listener nulls this before the delete, and
+    // the lock is what makes "nulled" and "not in use" the same instant.
     PixelOverlayModel* model = nullptr;
+    std::mutex m_modelLock;
+    std::string m_modelListenerName;
     std::string m_autoCreatedModelName;
     std::string m_autoCreatedFBModelName;
 

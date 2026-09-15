@@ -1882,6 +1882,9 @@ std::vector<uint8_t> VideoOutputManager::BuildSAPPacket(const std::string& sourc
 }
 
 void VideoOutputManager::StartSAPAnnouncer() {
+    // Serialize with StopSAPAnnouncer() and with any other Start. The flag on
+    // its own was a test-then-set across two unsynchronized threads.
+    std::lock_guard<std::mutex> lock(m_sapLock);
     if (m_sapRunning.load())
         return;
 
@@ -1896,14 +1899,26 @@ void VideoOutputManager::StartSAPAnnouncer() {
     if (!hasRtp)
         return;
 
+    // Never assign over a joinable thread -- that is an unconditional
+    // std::terminate(). Stop() below always leaves this non-joinable, so this
+    // only fires if some future path exits the loop another way; joining a
+    // finished thread is cheap and keeps the invariant local to the assignment.
+    if (m_sapThread.joinable())
+        m_sapThread.join();
+
     m_sapRunning = true;
     m_sapThread = std::thread(&VideoOutputManager::SAPAnnounceLoop, this);
 }
 
 void VideoOutputManager::StopSAPAnnouncer() {
-    if (!m_sapRunning.load())
-        return;
-
+    std::lock_guard<std::mutex> lock(m_sapLock);
+    // No early-out on the flag. It used to return without joining when the
+    // flag read false, which is exactly the state a Start/Stop race leaves
+    // behind: Stop clears the flag and finds the thread not yet assigned, Start
+    // then assigns it, and the object stays joinable with the loop already
+    // exiting -- so the *next* Start assigned over a joinable thread and
+    // terminated. Clearing and joining unconditionally is idempotent and
+    // leaves m_sapThread non-joinable on every path.
     m_sapRunning = false;
     if (m_sapThread.joinable())
         m_sapThread.join();

@@ -42,3 +42,42 @@ people are encouraged to package multiple files into either zip or tar.gz
 files and use the 1 or 2 codes to add them to the eeprom.
 
 
+
+
+Device tree overlays
+--------------------
+
+A cape may ship a device tree overlay for FPP to install and reference from
+the boot configuration.  The file lives in the eeprom under "tmp/" and is
+named per platform:
+
+  tmp/fpp-cape-overlay-rpi.dtb     Raspberry Pi
+  tmp/fpp-cape-overlay-bbb.dtb     BeagleBone Black
+  tmp/fpp-cape-overlay-bb64.dtb    64 bit BeagleBone
+
+On the Pi, that base overlay may be accompanied by any number of board
+specific variants:
+
+  tmp/fpp-cape-overlay-rpi-<filter>.dtb
+
+<filter> is a config.txt conditional filter, for example "pi5", "pi4",
+"pi02" or "cm4".  Each variant is installed as
+/boot/firmware/overlays/fpp-cape-overlay-<filter>.dtbo and applied only on
+boards matching that filter, after the base overlay.
+
+The reason for the split is that the firmware resolves an overlay all or
+nothing.  If any fragment references a symbol that does not exist in the
+board's own device tree, the ENTIRE overlay is discarded, not just that
+fragment -- and the only evidence is a "Failed to resolve overlay" line in
+/proc/device-tree/chosen/user-warnings, long after fppcapedetect has already
+reported the cape as found.  A fragment that disables rpi_rtc, say, is
+perfectly valid on a Pi 5 and fatal to the whole overlay on a Pi 4, taking
+the cape's codec and i2c devices down with it.  Anything that depends on a
+symbol not present on every supported board belongs in a variant, leaving a
+base overlay that resolves everywhere.
+
+FPP owns this end to end: the variants present in the eeprom are the ones
+installed, and the corresponding block in config.txt is rewritten from that
+set on every detection.  A variant that a cape stops shipping -- or that
+belonged to a previously installed cape -- has both its .dtbo and its
+config.txt lines removed.  Do not hand-edit the marked block.

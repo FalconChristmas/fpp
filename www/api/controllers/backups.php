@@ -614,13 +614,33 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 			unset($decoded_backup_data);
 		}
 
-		//Locate the last underscore, this appears before the date/time in the filename
+		//Locate the last underscore, this appears before the date/time in the filename,
+		//and extract everything after it - that will be the date time in full.
 		$backup_date_time_pos = strrpos($backup_filename_clean, '_');
-		//Extract everything between this occurrence and the end of the string, this will be the date time in full
-		$backup_date_time_str = substr($backup_filename_clean, $backup_date_time_pos + 1);
-		//Date time created in this format date("YmdHis"), output it in this format date('D M d H:i:s T Y') so it's more human-readable
-		$backup_date_time = DateTime::createFromFormat("YmdHis", $backup_date_time_str)->format('D M d H:i:s Y');
-		$backup_date_time_unix = DateTime::createFromFormat("YmdHis", $backup_date_time_str)->format('U');
+		$backup_date_time_obj = false;
+		if ($backup_date_time_pos !== false) {
+			$backup_date_time_str = substr($backup_filename_clean, $backup_date_time_pos + 1);
+			//Insist on exactly the 14 digits we write, rather than letting
+			//createFromFormat() have a lenient go at whatever is there and hand back
+			//some other date.
+			if (preg_match('/^\d{14}$/', $backup_date_time_str)) {
+				$backup_date_time_obj = DateTime::createFromFormat('YmdHis', $backup_date_time_str);
+			}
+		}
+		//A .json in this directory whose name carries no timestamp - one copied in
+		//by hand, or renamed - used to be fatal here, because createFromFormat()
+		//returns false and ->format() on false is an Error.  That took out the whole
+		//listing, the Backups page with it, and every settings-change backup, since
+		//those prune through this same function.  Fall back to the file's own mtime:
+		//close enough to sort and display by, and it leaves the backup listed and
+		//restorable instead of hidden.
+		if ($backup_date_time_obj === false) {
+			$backup_date_time_obj = new DateTime('@' . ($backup_file_mtime !== false ? $backup_file_mtime : time()));
+			$backup_date_time_obj->setTimezone(new DateTimeZone(date_default_timezone_get()));
+		}
+		//Output it in this format date('D M d H:i:s T Y') so it's more human-readable
+		$backup_date_time = $backup_date_time_obj->format('D M d H:i:s Y');
+		$backup_date_time_unix = $backup_date_time_obj->format('U');
 
 		$json_config_backup_filenames_clean[$backup_filename_clean] = array('backup_alternative_location' => $backup_alternative,
 			'backup_filedirectory' => $backup_filepath,
@@ -675,7 +695,6 @@ function MakeJSONBackup()
 		   $skipHTMLCodeOutput,
 		   $system_config_areas, $known_json_config_files, $known_ini_config_files,
 		   $backup_errors, $backup_error_string, $backups_verbose_logging,
-		   $sensitive_data, $protectSensitiveData,
 		   $fpp_backup_format_version, $fpp_major_version, $fpp_backup_prompt_download,
 		   $fpp_backup_max_age, $fpp_backup_min_number_kept,
 		   $fpp_backup_location, $fpp_backup_location_alternate_drive;
@@ -689,6 +708,23 @@ function MakeJSONBackup()
 	$input_data_decoded = json_decode($input_data, true);
 
 	if (json_last_error() === JSON_ERROR_NONE) {
+		// This endpoint never accepted a protect flag, but a caller migrating off
+		// the backup page's form may still send one.  Refuse rather than return a
+		// complete backup to something that asked for a redacted one.  Restoring an
+		// existing protected backup is a separate path and still works.
+		//Only a caller asking to be PROTECTED is refused.  protectSensitive:false
+		//is asking for what it already gets, and 'protected' was never a field of
+		//this request at all -- refusing on its presence invented a compatibility
+		//surface that would one day reject a caller for a stray key.
+		if (is_array($input_data_decoded) &&
+			!empty($input_data_decoded['protectSensitive'])) {
+			http_response_code(400);
+			return json(array(
+				'success' => false,
+				'error' => "Protected backups are no longer supported. A backup now always contains the passwords, WiFi passphrase and tokens needed to restore this player. Omit 'protectSensitive' to take one. Restoring an existing protected backup still works.",
+			));
+		}
+
 		// JSON is valid, get comment and trigger source
 		$backup_comment = $input_data_decoded['backup_comment'];
 		$trigger_source = $input_data_decoded['trigger_source'];
@@ -797,7 +833,6 @@ function RestoreJsonBackup(){
 		   $backup_errors,$backup_error_string, $backups_verbose_logging,
 		   $keepMasterSlaveSettings, $keepNetworkSettings, $uploadData_IsProtected, $settings_restored,
 		   $network_settings_restored, $network_settings_restored_post_apply, $network_settings_restored_applied_ips,
-		   $sensitive_data, $protectSensitiveData,
 		   $fpp_backup_format_version, $fpp_major_version, $fpp_backup_prompt_download,
 		   $fpp_backup_max_age, $fpp_backup_min_number_kept,
 		   $fpp_backup_location, $fpp_backup_location_alternate_drive,

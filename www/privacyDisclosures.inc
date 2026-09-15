@@ -27,6 +27,19 @@
  * Keys match the row ids in the privacy table.
  */
 
+// Which generation of the privacy disclosures a consent record refers to.
+//
+// A recorded answer means "shown THIS text, answered THAT" -- so the answer is
+// only meaningful alongside the version of the text it was given against. A box
+// carrying a version lower than this one has consented to something FPP no
+// longer says, and MissingSetupSettings() sends it back through the wizard.
+//
+// BUMP THIS ONLY FOR A MATERIAL CHANGE: a new recipient, a new category of data,
+// a wider purpose. Bumping it re-prompts every player in the field, which is the
+// point when the substance changed and unjustified noise when it did not.
+// Rewording for clarity is not a bump.
+define('PRIVACY_CONSENT_VERSION', 1);
+
 function privacyDisclosures()
 {
     return array(
@@ -97,7 +110,7 @@ your logs, or the statistics payload above &mdash; nothing about your setup. It 
 to identify most crashes on its own. The file name carries the same device ID as the
 statistics above, so reports from this box are linkable to each other.</p>
 
-<p><b>Recipients:</b> a personal server run by one of the FPP developers (dankulp.com, in
+<p><b>Recipients:</b> a personal server run by one of the FPP developers (crashes.falconplayer.com, in
 the USA), used to diagnose the crash. Reports are read by the FPP and xLights developers.
 Crash reports are not published.</p>
 
@@ -159,9 +172,9 @@ reports carry no contact details.</p>",
         'logos' => array(
             'title' => 'Load cape logos from vendor website',
             'body' => "
-<p><b>Every time you open the Cape Info page your browser contacts your cape maker's web
-server, which tells that company your IP address, when you looked, and that you are using
-their product.</b></p>
+<p><b>Every page of the FPP interface shows your cape maker's logo in the header, and each
+time a page loads your browser fetches it from that company's web server. That tells them
+your IP address, when you were using FPP, and that you are using their product.</b></p>
 
 <p><b>Recipients:</b> whichever cape vendor made your hardware. They are separate
 businesses from the FPP project, and what they keep is up to them.</p>

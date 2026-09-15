@@ -237,7 +237,7 @@
                     ?>
                     <div class="alsa-warning">
                         <p>The Routing Matrix requires the Advanced PipeWire backend with Input Groups configured.<br>
-                            <a href="settings.php?tab=Audio%2FVideo">Enable PipeWire (Advanced)</a> first,
+                            <a href="settings.php?tab=Audio%2FVideo">Enable Advanced (Full PipeWire)</a> first,
                             then <a href="pipewire-input-mixing.php">configure input groups</a>.
                         </p>
                     </div>

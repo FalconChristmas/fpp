@@ -1,11 +1,35 @@
 name: Build and Publish Docker
 
+# Every ref that triggers a push here publishes a PERMANENT tag to Docker Hub
+# (the merge job below turns the per-arch digests into a named manifest), so the
+# trigger doubles as the registry's retention policy. It is deliberately narrow:
+#
+#   master          -> :latest
+#   vX.Y branches   -> :vX.Y   (a rolling image tracking a release branch)
+#   release tags    -> :X.Y.Z  (an immutable image for a release)
+#
+# Anything else -- feature branches, work-in-progress, one-off backup tags --
+# is built on demand via workflow_dispatch instead. Branch builds still work
+# exactly as before (the Dockerfile clones FPPBRANCH=github.ref_name and
+# docker/metadata-action still emits the branch-named tag); picking the branch
+# in "Use workflow from" is simply opt-in now. Before this, `branches: "**"`
+# plus `tags: "*"` meant every pushed ref of any shape earned a Docker Hub tag
+# forever, which is how a handful of merged feature branches and a stray local
+# backup tag ended up published there.
 on:
   push:
     branches:
-      - "**"
+      - master
+      # Release branches carry a "v" prefix (v10.1); tags do not (10.1).
+      - "v[0-9]*"
+    # Same shape as the on.push.tags filter in build-images.yml: release tags
+    # start with a digit, which already excludes the lightweight 'nightly' tag
+    # the nightly job moves onto the master tip. `!*-master` drops the
+    # X.x-master branch-point markers (10.x-master), which are history
+    # bookmarks rather than something anyone would run.
     tags:
-      - "*"
+      - "[0-9]*"
+      - "!*-master"
     paths-ignore:
       - "docs/**"
       - "*.md"

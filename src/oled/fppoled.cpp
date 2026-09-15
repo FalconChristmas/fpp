@@ -88,8 +88,17 @@ int main(int argc, char* argv[]) {
                 unlink("/home/fpp/media/tmp/cape_detect_done");
                 count++;
             }
+            // The /var/tmp copy is a cache of the media/tmp one, kept so the
+            // cape logo can go up before cape detection has run.  It has to be
+            // removed when there is no image to cache, not just skipped:
+            // detection produces no cape-image.xbm when the EEPROM is blank or
+            // its header does not match, so a "copy if it exists" alone leaves
+            // the previous cape's logo on the display forever -- readCapeImage()
+            // falls back to /var/tmp precisely when media/tmp has none.
             if (FileExists("/home/fpp/media/tmp/cape-image.xbm")) {
                 CopyFileContents("/home/fpp/media/tmp/cape-image.xbm", "/var/tmp/cape-image.xbm");
+            } else {
+                unlink("/var/tmp/cape-image.xbm");
             }
             return 0;
         }

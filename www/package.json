@@ -16,7 +16,6 @@
     "gulp-plumber": "^1.2.1",
     "gulp-postcss": "^10.0.0",
     "gulp-sass": "^5.1.0",
-    "gulp-sourcemaps": "^3.0.0",
     "gulp-touch-fd": "^2.0.0",
     "postcss": "^8.5.23",
     "sass": "^1.83.0",
@@ -28,7 +27,7 @@
   },
   "overrides": {
     "postcss": "^8.5.23",
-    "brace-expansion": "^1.1.16",
+    "brace-expansion": "^1.1.18",
     "socket.io-parser": "^4.2.7",
     "yaml": "^2.9.0",
     "sass": {

@@ -70,12 +70,54 @@ hdr()  { echo; echo "--- $* ---"; }
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# True when $1 is this script or something it started.  Several checks here
+# open a card to probe it (aplay --dump-hw-params), so without this the run
+# finds its own children holding /dev/snd and reports them as foreign
+# processes stealing the device (issue #2934).
+#
+# The variable names are deliberately private: POSIX sh has no locals, and the
+# device contention check calls this from inside a `while read -r p` loop.
+# Walking the tree in the caller's own "p" left it pointing at pid 1 by the
+# time the function returned, so every foreign holder read back as "systemd"
+# and was filed under "only the PipeWire stack has sound devices open" -- the
+# check could never report contention at all (issue #2934).
+own_process() {
+    _op_pid="$1"
+    _op_depth=0
+    while [ -n "${_op_pid}" ] && [ "${_op_pid}" -gt 1 ] 2>/dev/null && [ "${_op_depth}" -lt 20 ]; do
+        [ "${_op_pid}" = "$$" ] && return 0
+        _op_pid=$(awk '{print $4}' "/proc/${_op_pid}/stat" 2>/dev/null)
+        _op_depth=$((_op_depth+1))
+    done
+    return 1
+}
+
+# `aplay --dump-hw-params` output for one device.  Every probe goes through
+# here because of the timeout: --dump-hw-params prints the parameters and then
+# carries on to *play* the file, so on a card that accepts the raw stream --
+# the Pi's onboard headphone jack does -- an unguarded probe never returns.  It
+# plays /dev/zero forever, holding one of the card's PCM subdevices, and the
+# web request that started it hangs until Apache's ProxyTimeout (20 minutes).
+# Eight such leaks exhaust the eight bcm2835 headphone subdevices, after which
+# PipeWire cannot open the card at all and its fpp_alsa_* node retries
+# "Device or resource busy" for ever (issue #2934).
+hw_params_probe() {
+    timeout 3 aplay -D "$1" --dump-hw-params /dev/zero 2>&1
+}
+
 # True in the simple backend.  Several features -- input mixing, AES67, Opus
 # RTP, video output groups -- exist only in the advanced one, and their JSON
 # survives a switch to simple mode.  Any check that reads such a file has to
 # ask this first or it reports the previous mode's configuration as broken.
 simple_mode() {
-    [ "$(setting MediaBackend)" = "pipewire-simple" ]
+    # Unset counts as simple: that is the documented default (settings.json)
+    # and what the code falls back to -- FPPINIT_Audio.cpp seeds the variable
+    # with "pipewire-simple" before getRawSetting() overwrites it.  A device
+    # that has never had the setting written is therefore running simple mode,
+    # and treating it as advanced made every advanced-only check read the
+    # leftover JSON and report the previous mode's config as broken.
+    b=$(setting MediaBackend)
+    [ -z "${b}" ] || [ "${b}" = "pipewire-simple" ]
 }
 
 # A setting out of $SETTINGSFILE, quotes stripped, empty if unset.
@@ -187,10 +229,10 @@ card_physical_state() {
             break
         done
     fi
-    # aplay --dump-hw-params always exits non-zero -- it prints the parameters
-    # and then refuses to install them -- so the output is the verdict, not the
-    # status.  Same test the ALSA Hardware section uses.
-    probe=$(timeout 3 aplay -D "hw:${cardId}" --dump-hw-params /dev/zero 2>&1)
+    # The output is the verdict, not the exit status: the probe is killed by
+    # its own timeout on a card that accepts the stream, so the status says
+    # nothing.  Same test the ALSA Hardware section uses.
+    probe=$(hw_params_probe "hw:${cardId}")
     if echo "${probe}" | grep -q "HW Params"; then
         opens="the device opens right now"
     elif echo "${probe}" | grep -qi "busy"; then
@@ -640,7 +682,7 @@ section_config() {
         pipewire|pipewire-simple)
             pass "MediaBackend = ${backend}" ;;
         "")
-            warn "MediaBackend is not set; FPP will default to pipewire-simple" ;;
+            info "MediaBackend is not set; FPP uses its default, pipewire-simple" ;;
         alsa)
             fail "MediaBackend = alsa, which has been retired"
             note "It is migrated to pipewire-simple on the next boot." ;;
@@ -724,18 +766,37 @@ section_config() {
     fi
 
     hdr "ALSA compatibility shim"
-    if [ -f /root/.asoundrc ] || [ -f "${FPPHOME:-/home/fpp}/.asoundrc" ]; then
-        for rc in /root/.asoundrc "${FPPHOME:-/home/fpp}/.asoundrc"; do
-            [ -f "${rc}" ] || continue
-            if grep -q "pipewire" "${rc}" 2>/dev/null; then
-                pass "${rc} routes ALSA clients into PipeWire"
-            else
-                warn "${rc} does not reference pipewire"
-                note "ALSA-only tools will open the card directly and lock out PipeWire."
-            fi
-        done
+    # ALSA resolves ~/.asoundrc from HOME, and everything in FPP's audio path
+    # runs as root -- fppd.service sets no User=, and fpp-pipewire,
+    # fpp-wireplumber and fpp-pipewire-pulse all set User=root.  So
+    # /root/.asoundrc is the only one of these files that decides whether FPP's
+    # own playback goes through PipeWire, and it is the only one FPP writes
+    # (setupAudio() in src/boot/FPPINIT_Audio.cpp, kept card-aligned by
+    # www/common.php).  Grade that one; anything in a user home is somebody
+    # else's file.
+    if [ -f /root/.asoundrc ]; then
+        if grep -q "pipewire" /root/.asoundrc 2>/dev/null; then
+            pass "/root/.asoundrc routes ALSA clients into PipeWire"
+        else
+            warn "/root/.asoundrc does not reference pipewire"
+            note "fppd and the PipeWire services all run as root, so this is the file"
+            note "that matters.  Regenerate it with:"
+            note "  sudo /opt/fpp/src/fppinit bootPre"
+        fi
     else
-        info "No .asoundrc found"
+        warn "/root/.asoundrc missing - FPP generates this at boot"
+        note "Without it an ALSA client opens the card directly instead of PipeWire."
+        note "Regenerate it with:"
+        note "  sudo /opt/fpp/src/fppinit bootPre"
+    fi
+    # FPP has never written this one; when it exists it came from the base OS
+    # image or the user.  It only applies to an ALSA tool run interactively as
+    # the fpp user, which is not a playback path, so it is not a fault.
+    userRc="${FPPHOME:-/home/fpp}/.asoundrc"
+    if [ -f "${userRc}" ] && ! grep -q "pipewire" "${userRc}" 2>/dev/null; then
+        info "${userRc} does not reference pipewire"
+        note "FPP does not use this file - playback runs as root against /root/.asoundrc."
+        note "Only an ALSA tool run interactively as the fpp user would bypass PipeWire."
     fi
     if [ -f /etc/pipewire/client.conf ]; then
         pass "/etc/pipewire/client.conf present"
@@ -881,6 +942,20 @@ section_graph() {
                 nd=$(jq -r --arg d "${d}" '[.[] | select(.type == "PipeWire:Interface:Node")
                           | select(.info.props["node.name"] == $d)] | length' \
                      "${PW_DUMP_FILE}" 2>/dev/null)
+                # Only ALSA sinks contending for one PCM carry the EBUSY hazard.
+                # Other stacks reuse a name legitimately: a Pi's bcm2835-isp
+                # publishes four v4l2_input nodes under one platform device, and
+                # calling that a fault sent people looking for an audio problem
+                # that does not exist (issue #2934).
+                alsaDupes=$(jq -r --arg d "${d}" '[.[] | select(.type == "PipeWire:Interface:Node")
+                              | select(.info.props["node.name"] == $d)
+                              | select(.info.props["api.alsa.path"] != null)] | length' \
+                            "${PW_DUMP_FILE}" 2>/dev/null)
+                if [ "${alsaDupes:-0}" -lt 2 ] 2>/dev/null; then
+                    echo "[INFO] Node name '${d}' is used by ${nd} nodes (not ALSA sinks - normal for"
+                    echo "       device stacks that publish several nodes per device)"
+                    continue
+                fi
                 echo "[FAIL] Node name '${d}' exists ${nd} times in the graph"
                 jq -r --arg d "${d}" '.[] | select(.type == "PipeWire:Interface:Node")
                        | select(.info.props["node.name"] == $d)
@@ -1126,7 +1201,7 @@ section_alsa() {
             # device stays in /proc/asound/cards while its monitor is powered
             # off, and a card another process holds is registered too -- so ask
             # the device itself whether it will open.
-            probe=$(timeout 3 aplay -D "hw:${cardId}" --dump-hw-params /dev/zero 2>&1)
+            probe=$(hw_params_probe "hw:${cardId}")
             if echo "${probe}" | grep -q "HW Params"; then
                 echo "[PASS] '${gname}' member card ${cardId} (${cardName}) is present and opens"
             elif echo "${probe}" | grep -qi "busy"; then
@@ -1167,18 +1242,38 @@ section_alsa() {
         if [ -n "${holders}" ]; then
             info "Processes holding ALSA devices:"
             echo "${holders}" | sed 's/^/       /'
-            others=$(fuser /dev/snd/pcm* /dev/snd/control* 2>/dev/null | tr ' ' '\n' | grep -E "^[0-9]+$" |
-                     while read -r p; do
-                         c=$(ps -o comm= -p "${p}" 2>/dev/null)
-                         case "${c}" in
-                             pipewire|wireplumber|pipewire-pulse|"") ;;
-                             *) echo "${p} ${c}" ;;
+            # Only the pcm nodes.  Holding a control node is not contention --
+            # anything reading a mixer has one open, and systemd itself shows up
+            # against /dev/snd/seq -- while a pcm node is the thing that makes
+            # PipeWire's open fail.  Own children are skipped because the probes
+            # in these very checks open a pcm to read its parameters.
+            others=$(fuser /dev/snd/pcm* 2>/dev/null | tr ' ' '\n' | grep -E "^[0-9]+$" |
+                     while read -r pid; do
+                         [ "${pid}" = "1" ] && continue
+                         own_process "${pid}" && continue
+                         cmd=$(ps -o comm= -p "${pid}" 2>/dev/null)
+                         case "${cmd}" in
+                             pipewire|wireplumber|pipewire-pulse|systemd|"") ;;
+                             *) echo "${pid} ${cmd} -- $(ps -o args= -p "${pid}" 2>/dev/null | cut -c1-70)" ;;
                          esac
                      done)
             if [ -n "${others}" ]; then
                 warn "Non-PipeWire processes have a sound device open:"
                 echo "${others}" | sed 's/^/       /'
                 note "PipeWire cannot open a card another process holds."
+                # A leftover --dump-hw-params probe is this script's own doing,
+                # from a release that ran it without a timeout: it plays
+                # /dev/zero for ever and never lets go of the subdevice.  Say so
+                # outright, because nothing about the process name suggests the
+                # audio system broke itself (issue #2934).
+                stale=$(echo "${others}" | grep -c -e "dump-hw-params" 2>/dev/null)
+                if [ "${stale:-0}" -gt 0 ] 2>/dev/null; then
+                    warn "${stale} of those are stale card probes left by an earlier"
+                    note "diagnostics run (aplay --dump-hw-params never exits on a card"
+                    note "that accepts the stream).  They are safe to kill:"
+                    note "    sudo pkill -f 'aplay -D hw:.*--dump-hw-params'"
+                    note "    sudo systemctl restart ${PW_SERVICES}"
+                fi
             else
                 pass "Only the PipeWire stack has sound devices open"
             fi
@@ -1219,12 +1314,20 @@ section_alsa() {
             [ -z "${cardId}" ] && continue
             cardNum=$(sed -n "s/^ *\([0-9]*\) \[${cardId}[ ]*\].*/\1/p" /proc/asound/cards 2>/dev/null | head -1)
             [ -z "${cardNum}" ] && continue
-            maxCh=$(cat /proc/asound/card${cardNum}/pcm0p/sub0/hw_params 2>/dev/null |
-                    sed -n 's/^channels: *\([0-9]*\)/\1/p' | head -1)
+            # Only what the device advertises.  This used to prefer
+            # /proc/asound/cardN/pcm0p/sub0/hw_params, but that file holds the
+            # parameters the *current* opener negotiated, not the card's
+            # capability -- and one of this script's own aplay probes is often
+            # that opener.  aplay with no format given defaults to mono, so the
+            # check read back "1" and failed a perfectly good stereo card
+            # (issue #2934: every Pi with an onboard headphone jack).
+            maxCh=$(hw_params_probe "hw:${cardNum},0" |
+                    sed -n 's/^CHANNELS: *//p' | head -1 |
+                    tr -cs '0-9' ' ' | awk '{print $NF}')
             if [ -z "${maxCh}" ]; then
-                maxCh=$(aplay -D "hw:${cardNum},0" --dump-hw-params /dev/zero 2>&1 |
-                        sed -n 's/^CHANNELS: *//p' | head -1 |
-                        tr -cs '0-9' ' ' | awk '{print $NF}')
+                # Busy or refusing to open: the ALSA Hardware checks above cover
+                # that, and guessing a channel count here would be worse.
+                continue
             fi
             if [ -n "${maxCh}" ] && [ "${chans}" -gt "${maxCh}" ] 2>/dev/null; then
                 echo "[FAIL] '${gname}' asks card ${cardId} for ${chans} channels; it supports ${maxCh}"
@@ -1417,11 +1520,24 @@ section_gstreamer() {
     # rather than testing whether it printed anything.
     blOut=$(gst-inspect-1.0 -b 2>/dev/null)
     blCount=$(echo "${blOut}" | sed -n 's/^Total count: *\([0-9]*\) blacklisted.*/\1/p' | head -1)
-    if [ "${blCount:-0}" -gt 0 ] 2>/dev/null; then
-        warn "GStreamer has blacklisted ${blCount} plugin file(s):"
-        echo "${blOut}" | grep -v "^$" | head -20 | sed 's/^/       /'
+    # Plugins FPP never loads.  Debian ships them, their optional runtime is
+    # not installed, so they blacklist on a perfectly healthy player and there
+    # is nothing to fix -- libgstonnx wants ONNX Runtime for ML inference and
+    # nothing in FPP references it (issue #2934).  Named individually rather
+    # than counted away, so a blacklisted plugin FPP *does* use still warns.
+    blIgnore="libgstonnx"
+    blFiles=$(echo "${blOut}" | sed -n 's/^ *\(libgst[A-Za-z0-9_.-]*\.so\).*/\1/p')
+    blReal=$(echo "${blFiles}" | grep -vE "^(${blIgnore})\.so$" | grep -v '^$')
+    blBenign=$(echo "${blFiles}" | grep -cE "^(${blIgnore})\.so$")
+    if [ -n "${blReal}" ]; then
+        warn "GStreamer has blacklisted plugin file(s) FPP may need:"
+        echo "${blReal}" | sed 's/^/       /'
         note "A blacklisted plugin failed to load, so every element it provides"
         note "is missing.  Try: rm -rf /root/.cache/gstreamer-1.0 and retest."
+    elif [ "${blCount:-0}" -gt 0 ] 2>/dev/null; then
+        pass "No blacklisted GStreamer plugins that FPP uses"
+        info "${blCount} blacklisted file(s), all optional plugins FPP never loads:"
+        echo "${blFiles}" | sed 's/^/       /' | head -10
     else
         pass "No blacklisted GStreamer plugins"
     fi
@@ -1939,30 +2055,68 @@ section_performance() {
             awk '/^S +ID/ {buf = $0 "\n"; next} {buf = buf $0 "\n"} END {printf "%s", buf}' \
                 "${TMPDIR_DIAG}/pwtop.txt" 2>/dev/null | head -40 | sed 's/^/       /'
 
-            errs=$(awk '
+            # Keyed by node ID, not by name: a name repeats (every bare
+            # "gst-launch-1.0" client carries the same one), and keying on it
+            # silently dropped every node but the last of each name -- both from
+            # the per-node list and from the total.
+            #
+            # Split, because the two halves do not mean the same thing.  An xrun
+            # on an ALSA adapter (fpp_alsa_* / fpp_alsain_*) is the card missing
+            # its deadline: audible, and worth chasing.  An xrun on a client node
+            # means that client was late handing over a buffer, which the sink's
+            # own buffer usually absorbs inaudibly -- and those nodes are created
+            # per playback (see StreamSlotManager: a slot holds a GStreamerOutput
+            # only while it plays), so their counts belong to whichever instance
+            # happens to be alive right now.  Comparing them between runs reads
+            # as a trend that is really just a fresh node paying its start-up
+            # cost again, which is exactly how a looping file looks.
+            splitErrs=$(awk '
                 /^S +ID/ { errcol = 0
                            for (i = 1; i <= NF; i++) if ($i == "ERR") errcol = i
-                           delete seen; next }
-                errcol && $errcol ~ /^[0-9]+$/ && $errcol + 0 > 0 { seen[$NF] = $errcol + 0 }
-                END { for (k in seen) print seen[k], k }
-            ' "${TMPDIR_DIAG}/pwtop.txt" 2>/dev/null | sort -rn)
+                           delete seen; delete name; next }
+                errcol && $errcol ~ /^[0-9]+$/ && $errcol + 0 > 0 {
+                           seen[$2] = $errcol + 0; name[$2] = $NF }
+                END { for (k in seen)
+                          printf "%s %s %s\n",
+                                 (name[k] ~ /^fpp_alsa/ ? "dev" : "cli"),
+                                 seen[k], name[k] }
+            ' "${TMPDIR_DIAG}/pwtop.txt" 2>/dev/null)
+            devErrs=$(echo "${splitErrs}" | awk '$1 == "dev" {print $2, $3}' | sort -rn)
+            cliErrs=$(echo "${splitErrs}" | awk '$1 == "cli" {print $2, $3}' | sort -rn)
             hasErrCol=$(awk '/^S +ID/ {for (i = 1; i <= NF; i++) if ($i == "ERR") {print "yes"; exit}}' \
                         "${TMPDIR_DIAG}/pwtop.txt" 2>/dev/null)
 
             if [ -z "${hasErrCol}" ]; then
                 skip "pw-top output has no ERR column - cannot count xruns"
-            elif [ -z "${errs}" ]; then
+            elif [ -z "${devErrs}" ] && [ -z "${cliErrs}" ]; then
                 pass "No xruns reported"
             else
-                xr=$(echo "${errs}" | awk '{s += $1} END {print s+0}')
-                warn "${xr} xrun(s) counted since the graph started"
-                echo "${errs}" | awk '{printf "       %s  %s\n", $1, $2}'
-                note "These are lifetime totals per node, not a rate.  A handful"
-                note "picked up while links were being built is normal and needs"
-                note "no action; re-run this check to see whether they are still"
-                note "climbing while audio is playing."
-                note "If they are climbing: raise default.clock.quantum in"
-                note "${PW_CONFD}/90-fpp.conf, or reduce what else is running."
+                if [ -n "${devErrs}" ]; then
+                    xr=$(echo "${devErrs}" | awk '{s += $1} END {print s+0}')
+                    warn "${xr} xrun(s) on the audio device since the graph started"
+                    echo "${devErrs}" | awk '{printf "       %s  %s\n", $1, $2}'
+                    note "These nodes live until the PipeWire services restart, so"
+                    note "this total is comparable between runs: re-run while audio"
+                    note "is playing and see whether it has moved."
+                    note "If it is climbing: raise AudioPeriodSize (Audio settings)"
+                    note "or default.clock.quantum in ${PW_CONFD}/90-fpp.conf, or"
+                    note "reduce what else is running.  Note that both are counts of"
+                    note "frames, so a cape that refines the rate upward (a PCM5102A"
+                    note "asked for 44100 lands on 88200) gets half the wall-clock"
+                    note "margin from the same number."
+                else
+                    pass "No xruns on the audio device - nothing audible was dropped"
+                fi
+                if [ -n "${cliErrs}" ]; then
+                    xc=$(echo "${cliErrs}" | awk '{s += $1} END {print s+0}')
+                    info "${xc} xrun(s) on client nodes (context, not a fault)"
+                    echo "${cliErrs}" | awk '{printf "       %s  %s\n", $1, $2}'
+                    note "Playback nodes (fppd_stream_N) and short-lived client"
+                    note "pipelines are rebuilt per track, and a few xruns while a"
+                    note "node's links are being built are normal.  Each new"
+                    note "instance starts its own count, so these numbers are not"
+                    note "a trend and do not accumulate across tracks."
+                fi
             fi
         else
             skip "pw-top produced no output (daemon not reachable)"

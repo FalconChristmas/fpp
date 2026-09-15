@@ -11,6 +11,11 @@ if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
 if (!isset($activeParentMenuItem)) {
     $activeParentMenuItem = "";
 }
+// True when www/help/<this page>.php exists, so the Help menu can advertise
+// page-specific (F1) help. See .claude/HELP-PAGES.md. Note: do not put a
+// title= on the Help nav link for this - SetupToolTips() turns any [title]
+// into data-bs-toggle="tooltip", which clobbers the dropdown toggle.
+$pageHasHelp = file_exists(__DIR__ . "/help/" . basename($_SERVER['PHP_SELF']));
 ?>
 <script type="text/javascript">
     var FPP_LOCAL_COMMIT = "<? echo get_local_git_version(); ?>";
@@ -134,38 +139,17 @@ function list_plugin_entries($menu)
             }
             echo "<span class='overlay' id='powerPlaceHolder' style='z-index: 100;  position:absolute; left: 5px; top: 5px;'></span>";
             echo "</div>";
-            if (
-                isset($settings['cape-info']) && isset($settings['cape-info']['vendor']) && (isset($settings['cape-info']['vendor']['image']) || isset($settings['cape-info']['header_cape_image']))
-                && $settings['FetchVendorLogos'] == 1
-            ) {
-                $landing = $settings['cape-info']['vendor']['url'];
-                if (isset($settings['cape-info']['vendor']['landingPage'])) {
-                    $landing = $settings['cape-info']['vendor']['landingPage'];
-                }
-
-                isset($settings['cape-info']['header_cape_image']) ?
-                    $image_url = $settings['cape-info']['header_cape_image'] :
-                    $image_url = $settings['cape-info']['vendor']['image'];
-
-                if ($settings['SendVendorSerial'] == 1) {
-                    $iurl = $image_url . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
-                } else {
-                    $iurl = $image_url;
-                }
-
-                if ($settings['SendVendorSerial'] == 1) {
-                    $landing = $landing . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
-                }
-                if (isset($settings['cape-info']['cs']) && $settings['cape-info']['cs'] != "" && $settings['SendVendorSerial'] == 1) {
-                    $iurl = $iurl . "&cs=" . $settings['cape-info']['cs'];
-                }
-                if ($settings['hideExternalURLs']) {
-                    $landing = "";
-                }
+            $capeVendorUrls = CapeVendorUrls(isset($settings['cape-info']) ? $settings['cape-info'] : array(), $settings, true);
+            if ($capeVendorUrls['image'] != '') {
+                // One builder decides when the serial goes on these URLs (see
+                // CapeVendorUrls).  json_encode / htmlspecialchars, not a bare
+                // echo: every part of these URLs comes from the EEPROM.
+                $landing = $capeVendorUrls['landing'];
+                $iurl = $capeVendorUrls['image'];
                 ?>
                 <div class="capeVendor">
                     <div class="capeVendorLogo">
-                        <a href="<? echo $landing; ?>" id="capeVendorLink" target="capeVendor"></a>
+                        <a href="<? echo htmlspecialchars($landing, ENT_QUOTES); ?>" id="capeVendorLink" target="capeVendor"></a>
                         <script>
                             // Load the vendor logo only after the page's own load
                             // event: an <img> in the markup would hold that event
@@ -178,7 +162,7 @@ function list_plugin_entries($menu)
                             // Access-Control-Allow-Origin (most don't) still works.
                             // Failure is silent by design: no logo, nothing else.
                             (function () {
-                                const url = '<? echo $iurl; ?>';
+                                const url = <? echo json_encode($iurl); ?>;
                                 const load = function () {
                                     const img = new Image();
                                     img.onload = function () {
@@ -458,12 +442,18 @@ function list_plugin_entries($menu)
                         </li>
 
                         <li class="nav-item dropdown <? echo $activeParentMenuItem == 'help' ? 'active' : ''; ?>">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLinkHelp" role="button"
+                            <a class="nav-link dropdown-toggle<?= $pageHasHelp ? ' has-page-help' : '' ?>" href="#" id="navbarDropdownMenuLinkHelp" role="button"
                                 data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                Help
+                                <?= $pageHasHelp ? '<i class="fas fa-question-circle text-primary"></i> ' : '' ?>Help
                             </a>
                             <div class="dropdown-menu dropdown-with-icons dropdown-menu-end"
                                 aria-labelledby="navbarDropdownMenuLinkHelp">
+                                <?php
+                                if ($pageHasHelp) {
+                                    echo "<a class='dropdown-item help-for-page fw-semibold' href='javascript:void(0)' onClick='DisplayHelp();'><i class='fas fa-question-circle'></i> Help for This Page <span class='badge bg-body text-primary-emphasis border border-primary-subtle fw-normal float-end ms-3'>F1</span></a>\n";
+                                    echo "<hr class='dropdown-divider'>\n";
+                                }
+                                ?>
                                 <a class="dropdown-item" href="about.php"><i class="fas fa-info-circle"></i> System Upgrade</a>
                                 <?php
                                 $eepromFile = "/home/fpp/media/tmp/eeprom.bin";
@@ -509,5 +499,15 @@ function list_plugin_entries($menu)
 
         </div>
         <script type="text/javascript">
-            setTimeout(checkForFppUpdate, 500); // Just so other things have time to load.
+            // Just so other things have time to load.  A page that needs the
+            // answer sooner (about.php) kicks the same check off itself, so skip
+            // it if one has already answered -- publishFppUpdateState() has
+            // already rendered this header from it.  One check, one answer, no
+            // two views disagreeing over which side of the server's cache
+            // refresh they landed on.
+            setTimeout(function () {
+                if (!FPP_UPDATE_STATE.answered) {
+                    checkForFppUpdate();
+                }
+            }, 500);
         </script>

@@ -59,6 +59,41 @@ void FPPOLEDUtils::cleanup() {
 
 static const std::string EMPTY_STRING = "";
 
+// gpio.json "rising"/"falling" entries were a single command object in FPP 9
+// ({ "command": ..., "args": [...] }) and are an array of command objects in
+// FPP 10 ([ { "command": ... }, ... ], possibly empty). Indexing an array value
+// with a string key throws Json::LogicError and aborts fppoled, so look the
+// navigation command up in a way that tolerates both shapes. Returns the argument
+// of the first "OLED Navigation" command on the edge that has one, or "" if none.
+static std::string findOLEDNavAction(const Json::Value& entry, const char* edge) {
+    if (!JsonHas(entry, edge)) {
+        return "";
+    }
+    const Json::Value& v = entry[edge];
+    auto navArg = [](const Json::Value& cmd) -> std::string {
+        if (!cmd.isObject() || JsonString(cmd, "command") != "OLED Navigation") {
+            return "";
+        }
+        const Json::Value& args = cmd["args"];
+        if (args.isArray() && !args.empty() && args[0].isConvertibleTo(Json::stringValue)) {
+            return args[0].asString();
+        }
+        return "";
+    };
+    if (v.isObject()) {
+        return navArg(v);
+    }
+    if (v.isArray()) {
+        for (Json::ArrayIndex i = 0; i < v.size(); i++) {
+            std::string a = navArg(v[i]);
+            if (!a.empty()) {
+                return a;
+            }
+        }
+    }
+    return "";
+}
+
 FPPOLEDUtils::InputAction::~InputAction() {
     for (auto& a : actions) {
         delete a;
@@ -166,7 +201,7 @@ bool FPPOLEDUtils::parseInputActionFromGPIO(const std::string& file) {
         Json::Value root;
         if (LoadJsonFromFile(file, root, JsonRoot::Array)) {
             for (int x = 0; x < root.size(); x++) {
-                if (!root[x]["enabled"].asBool()) {
+                if (!root[x].isObject() || !root[x]["enabled"].asBool()) {
                     continue;
                 }
                 std::string edge = "";
@@ -176,20 +211,18 @@ bool FPPOLEDUtils::parseInputActionFromGPIO(const std::string& file) {
                     mode = "gpio";
                 }
                 std::string pinName = root[x]["pin"].asString();
-                std::string fallingAction = "";
-                std::string risingAction = "";
-                if (root[x].isMember("falling") && root[x]["falling"]["command"].asString() == "OLED Navigation") {
+                std::string fallingAction = findOLEDNavAction(root[x], "falling");
+                std::string risingAction = findOLEDNavAction(root[x], "rising");
+                if (!fallingAction.empty()) {
                     edge = "falling";
-                    fallingAction = root[x]["falling"]["args"][0].asString();
                     setInputFlag(fallingAction);
                 }
-                if (root[x].isMember("rising") && root[x]["rising"]["command"].asString() == "OLED Navigation") {
+                if (!risingAction.empty()) {
                     if (edge == "falling") {
                         edge = "both";
                     } else {
                         edge = "rising";
                     }
-                    risingAction = root[x]["rising"]["args"][0].asString();
                     setInputFlag(risingAction);
                 }
                 if (edge != "") {
@@ -363,16 +396,17 @@ static std::set<std::string> collectConfiguredGpioPins() {
             }
         }
     }
-    // gpio.json: [ { "enabled", "pin", "rising"/"falling":{"command":"OLED Navigation"} } ]
+    // gpio.json: [ { "enabled", "pin", "rising"/"falling": [ {"command":"OLED Navigation","args":[..]} ] } ]
+    // (FPP 9 wrote a single command object instead of an array; findOLEDNavAction accepts both)
     root = Json::Value();
     if (FileExists("/home/fpp/media/config/gpio.json") &&
         LoadJsonFromFile("/home/fpp/media/config/gpio.json", root, JsonRoot::Array)) {
         for (int x = 0; x < root.size(); x++) {
-            if (!root[x]["enabled"].asBool()) {
+            if (!root[x].isObject() || !root[x]["enabled"].asBool()) {
                 continue;
             }
-            bool nav = (root[x].isMember("falling") && root[x]["falling"]["command"].asString() == "OLED Navigation") ||
-                       (root[x].isMember("rising") && root[x]["rising"]["command"].asString() == "OLED Navigation");
+            bool nav = !findOLEDNavAction(root[x], "falling").empty() ||
+                       !findOLEDNavAction(root[x], "rising").empty();
             if (!nav) {
                 continue;
             }

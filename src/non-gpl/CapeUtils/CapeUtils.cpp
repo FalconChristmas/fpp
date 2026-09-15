@@ -410,6 +410,39 @@ static void disableOutputs(Json::Value& disables) {
     }
     return "";
 }
+// Is this directive already present in the boot config as a line of its own?
+//
+// A plain substring search used to stand in for this, and it stops being correct
+// the moment one directive is a prefix of another: "dtoverlay=fpp-cape-overlay"
+// is a substring of "dtoverlay=fpp-cape-overlay-pi5", so a config.txt carrying
+// only a variant line looked like it already had the base overlay and the base
+// line was never written.  The cape then boots with its board specific fragments
+// and nothing else, which is a worse failure than having no overlay at all.
+// Surrounding whitespace is tolerated because the old behaviour tolerated an
+// indented line; a longer directive on the same line is not.
+static bool configContainsDirective(const std::string& config, const std::string& directive) {
+    if (directive.empty()) {
+        return false;
+    }
+    for (size_t pos = config.find(directive); pos != std::string::npos;
+         pos = config.find(directive, pos + 1)) {
+        size_t b = pos;
+        while (b > 0 && (config[b - 1] == ' ' || config[b - 1] == '\t')) {
+            --b;
+        }
+        if (b != 0 && config[b - 1] != '\n') {
+            continue;
+        }
+        size_t e = pos + directive.length();
+        while (e < config.length() && (config[e] == ' ' || config[e] == '\t' || config[e] == '\r')) {
+            ++e;
+        }
+        if (e == config.length() || config[e] == '\n') {
+            return true;
+        }
+    }
+    return false;
+}
 static bool processBootConfig(Json::Value& bootConfig) {
 #if defined(PLATFORM_PI)
     const std::string fileName = findBootConfigFile("config.txt");
@@ -448,8 +481,7 @@ static bool processBootConfig(Json::Value& bootConfig) {
     if (bootConfig.isMember("append")) {
         for (int x = 0; x < bootConfig["append"].size(); x++) {
             std::string v = bootConfig["append"][x].asString();
-            size_t pos = current.find(v);
-            if (pos == std::string::npos) {
+            if (!configContainsDirective(current, v)) {
                 // If not  found then append it
                 printf("Adding config option: %s\n", v.c_str());
                 current += "\n";
@@ -612,11 +644,226 @@ bool setFilePerms(const std::string& filename) {
     setOwnerGroup(filename);
     return true;
 }
+#if defined(PLATFORM_PI)
+// A cape EEPROM ships a base device tree overlay as fpp-cape-overlay-rpi.dtb.  It
+// may also ship board specific variants named fpp-cape-overlay-rpi-<filter>.dtb,
+// where <filter> is a config.txt conditional filter -- "pi5", "pi4", "pi02", "cm4"
+// and so on.  Each variant is installed as fpp-cape-overlay-<filter>.dtbo and
+// referenced from a block that this code owns end to end:
+//
+//     # FPP Cape Overlay Variants - BEGIN (managed by fppcapedetect, do not edit)
+//     [pi5]
+//     dtoverlay=fpp-cape-overlay-pi5
+//     [all]
+//     # FPP Cape Overlay Variants - END
+//
+// The point of the variants is that a symbol a fragment references has to exist in
+// the base DTB or the firmware discards the WHOLE overlay, not just that fragment
+// -- a Pi 5 only node such as rpi_rtc in an otherwise portable overlay leaves a Pi 4
+// with no codec, no RTC and no i2s, and the only trace is a dterror in
+// /proc/device-tree/chosen/user-warnings.  Splitting the board specific fragments
+// out into a filtered overlay keeps the base resolvable everywhere.
+//
+// The block is rewritten wholesale from the variants actually present, which is what
+// makes removal work: swap in a cape that ships no pi5 variant, and the previous
+// cape's [pi5] line has to go with it or the firmware fails to resolve an overlay
+// that is no longer on disk.  Anything outside the markers is left untouched, and
+// the block always closes with [all] so a later append (this file's own bootConfig
+// handling appends at EOF) does not land inside somebody's filter.
+static const std::string CAPE_OVERLAY_VARIANT_BEGIN = "# FPP Cape Overlay Variants - BEGIN (managed by fppcapedetect, do not edit)";
+static const std::string CAPE_OVERLAY_VARIANT_END = "# FPP Cape Overlay Variants - END";
+static const std::string CAPE_OVERLAY_SRC_PREFIX = "fpp-cape-overlay-rpi-";
+static const std::string CAPE_OVERLAY_SRC_SUFFIX = ".dtb";
+static const std::string CAPE_OVERLAY_VARIANT_PREFIX = "fpp-cape-overlay-";
+static const std::string CAPE_OVERLAY_VARIANT_SUFFIX = ".dtbo";
+
+static const std::string& capeOverlayDir() {
+    static const std::string dir = file_exists("/boot/firmware/overlays") ? "/boot/firmware/overlays/" : "/boot/overlays/";
+    return dir;
+}
+
+// config.txt filter names are [pi5], [board-type=0x10], [HDMI:1] and similar.  This
+// is deliberately a strict allowlist rather than a blocklist: the name arrives from
+// an EEPROM as part of a filename and is written verbatim into config.txt and into a
+// path under /boot, so a newline or a slash in it would be a way to inject boot
+// configuration or to write outside the overlays directory.
+static bool isValidOverlayFilter(const std::string& f) {
+    if (f.empty() || f.length() > 64) {
+        return false;
+    }
+    for (char c : f) {
+        if (!(std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-' ||
+              c == '.' || c == '+' || c == ':' || c == '=')) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Rewrite (or drop) the managed block so it names exactly the given filters.
+// Returns true if config.txt actually changed.
+static bool writeCapeOverlayVariantBlock(const std::set<std::string>& filters) {
+    const std::string configFile = findBootConfigFile("config.txt");
+    if (configFile.empty()) {
+        return false;
+    }
+    int len = 0;
+    char* data = (char*)get_file_contents(configFile, len);
+    std::string orig(data, len);
+    free(data);
+
+    std::string current = orig;
+    if (filters.empty() && current.find(CAPE_OVERLAY_VARIANT_BEGIN) == std::string::npos) {
+        // Nothing to write and nothing of ours to remove.  Returning here rather
+        // than falling into the rewrite below is not an optimisation: the trailing
+        // newline normalisation would rewrite an untouched config.txt on any box
+        // whose file ends in a blank line, and a changed config.txt is what makes
+        // cape detection reboot.  Every Pi with a cape that ships no variants would
+        // take one reboot for a cosmetic whitespace diff.
+        return false;
+    }
+    // Strip any block we wrote before.  Tolerate a truncated block (BEGIN with no
+    // END, from an interrupted write) by cutting to end of file rather than leaving
+    // a marker behind that the next run would then nest a second block inside.
+    size_t begin = current.find(CAPE_OVERLAY_VARIANT_BEGIN);
+    while (begin != std::string::npos) {
+        size_t end = current.find(CAPE_OVERLAY_VARIANT_END, begin);
+        end = (end == std::string::npos) ? current.length()
+                                         : end + CAPE_OVERLAY_VARIANT_END.length();
+        if (end < current.length() && current[end] == '\n') {
+            ++end;
+        }
+        current.erase(begin, end - begin);
+        begin = current.find(CAPE_OVERLAY_VARIANT_BEGIN);
+    }
+    while (!current.empty() && current.back() == '\n') {
+        current.pop_back();
+    }
+    current += "\n";
+
+    if (!filters.empty()) {
+        current += "\n" + CAPE_OVERLAY_VARIANT_BEGIN + "\n";
+        for (const auto& f : filters) {
+            current += "[" + f + "]\n";
+            current += "dtoverlay=" + CAPE_OVERLAY_VARIANT_PREFIX + f + "\n";
+        }
+        current += "[all]\n";
+        current += CAPE_OVERLAY_VARIANT_END + "\n";
+    }
+
+    if (current == orig) {
+        return false;
+    }
+    put_file_contents(configFile, (const uint8_t*)current.c_str(), current.length());
+    return true;
+}
+
+// Install the board specific overlays this cape ships and remove the ones it does
+// not, then point config.txt at exactly that set.  srcDir empty means "no cape",
+// which clears everything.
+// The variants a cape ships, as filter name -> source path.  srcDir empty or
+// missing means "no cape", which is a legitimate answer of none.
+static std::map<std::string, std::string> collectCapeOverlayVariants(const std::string& srcDir) {
+    std::map<std::string, std::string> variants;
+    if (srcDir.empty() || !file_exists(srcDir)) {
+        return variants;
+    }
+    std::error_code ec;
+    for (const auto& entry : std::filesystem::directory_iterator(srcDir, ec)) {
+        const std::string name = entry.path().filename().string();
+        if (name.rfind(CAPE_OVERLAY_SRC_PREFIX, 0) != 0 ||
+            name.length() <= CAPE_OVERLAY_SRC_PREFIX.length() + CAPE_OVERLAY_SRC_SUFFIX.length() ||
+            name.compare(name.length() - CAPE_OVERLAY_SRC_SUFFIX.length(),
+                         CAPE_OVERLAY_SRC_SUFFIX.length(), CAPE_OVERLAY_SRC_SUFFIX) != 0) {
+            continue;
+        }
+        const std::string filter = name.substr(CAPE_OVERLAY_SRC_PREFIX.length(),
+                                               name.length() - CAPE_OVERLAY_SRC_PREFIX.length() - CAPE_OVERLAY_SRC_SUFFIX.length());
+        if (!isValidOverlayFilter(filter)) {
+            printf("CapeUtils: ignoring cape overlay variant with invalid filter name: %s\n", name.c_str());
+            continue;
+        }
+        // "default" is the stock overlay this code falls back to, and "all" would
+        // just be the base overlay under another name.  Neither may be a variant.
+        if (filter == "default" || filter == "all") {
+            printf("CapeUtils: ignoring reserved cape overlay variant: %s\n", name.c_str());
+            continue;
+        }
+        variants[filter] = entry.path().string();
+    }
+    return variants;
+}
+
+static bool syncCapeOverlayVariants(const std::string& srcDir) {
+    std::set<std::string> filters;
+    bool changed = false;
+
+    for (const auto& [filter, src] : collectCapeOverlayVariants(srcDir)) {
+        const std::string target = capeOverlayDir() + CAPE_OVERLAY_VARIANT_PREFIX + filter + CAPE_OVERLAY_VARIANT_SUFFIX;
+        filters.insert(filter);
+
+        int slen = 0;
+        int tlen = 0;
+        uint8_t* sd = get_file_contents(src, slen);
+        uint8_t* td = file_exists(target) ? get_file_contents(target, tlen) : nullptr;
+        if (td == nullptr || slen != tlen || memcmp(sd, td, slen) != 0) {
+            printf("Installing cape overlay variant [%s]\n", filter.c_str());
+            copyFile(src, target);
+            changed = true;
+        }
+        free(sd);
+        free(td);
+    }
+
+    // Drop variants left behind by a previous cape.  Only files matching the name we
+    // generate are considered, and the shipped default is never one of them.
+    std::error_code ec;
+    for (const auto& entry : std::filesystem::directory_iterator(capeOverlayDir(), ec)) {
+        const std::string name = entry.path().filename().string();
+        if (name.rfind(CAPE_OVERLAY_VARIANT_PREFIX, 0) != 0 ||
+            name.length() <= CAPE_OVERLAY_VARIANT_PREFIX.length() + CAPE_OVERLAY_VARIANT_SUFFIX.length() ||
+            name.compare(name.length() - CAPE_OVERLAY_VARIANT_SUFFIX.length(),
+                         CAPE_OVERLAY_VARIANT_SUFFIX.length(), CAPE_OVERLAY_VARIANT_SUFFIX) != 0) {
+            continue;
+        }
+        const std::string filter = name.substr(CAPE_OVERLAY_VARIANT_PREFIX.length(),
+                                               name.length() - CAPE_OVERLAY_VARIANT_PREFIX.length() - CAPE_OVERLAY_VARIANT_SUFFIX.length());
+        if (filter == "default" || filters.find(filter) != filters.end()) {
+            continue;
+        }
+        printf("Removing stale cape overlay variant [%s]\n", filter.c_str());
+        unlink(entry.path().string().c_str());
+        changed = true;
+    }
+
+    // config.txt is the authority on what is actually applied, so a change here
+    // counts even when every .dtbo on disk already happened to be correct.
+    changed |= writeCapeOverlayVariantBlock(filters);
+    return changed;
+}
+#endif
+
+// Whether two files both exist and hold identical bytes.  Overlays are a couple
+// of KB, so comparing them outright is simpler than tracking versions.
+static bool filesIdentical(const std::string& a, const std::string& b) {
+    int alen = 0;
+    int blen = 0;
+    uint8_t* ad = file_exists(a) ? get_file_contents(a, alen) : nullptr;
+    uint8_t* bd = file_exists(b) ? get_file_contents(b, blen) : nullptr;
+    bool same = ad != nullptr && bd != nullptr && alen == blen && memcmp(ad, bd, alen) == 0;
+    free(ad);
+    free(bd);
+    return same;
+}
+
 static void restoreDefaultCapeOverlay() {
 #if defined(PLATFORM_BB64)
     copyFile("/boot/firmware/overlays/fpp-cape-overlay-default.dtb", "/boot/firmware/overlays/fpp-cape-overlay.dtb");
 #elif defined(PLATFORM_PI)
     copyFile("/boot/firmware/overlays/fpp-cape-overlay-default.dtbo", "/boot/firmware/overlays/fpp-cape-overlay.dtbo");
+    // Back to the stock overlay means back to no variants; leaving a [pi5] line
+    // pointing at the last cape's .dtbo would fail to resolve on the next boot.
+    syncCapeOverlayVariants("");
 #elif defined(PLATFORM_BBB)
     copyFile("/lib/firmware/fpp-cape-overlay-default.dtb", "/lib/firmware/fpp-cape-overlay.dtb");
 #endif
@@ -625,12 +872,15 @@ static bool handleCapeOverlay(const std::string& outputPath) {
 #ifdef PLATFORM_BB64
     static const std::string src = outputPath + "/tmp/fpp-cape-overlay-bb64.dtb";
     static const std::string target = "/boot/firmware/overlays/fpp-cape-overlay.dtb";
+    static const std::string defaultOverlay = "/boot/firmware/overlays/fpp-cape-overlay-default.dtb";
 #elif defined(PLATFORM_BBB)
     static const std::string src = outputPath + "/tmp/fpp-cape-overlay-bbb.dtb";
     static const std::string target = "/lib/firmware/fpp-cape-overlay.dtb";
+    static const std::string defaultOverlay = "/lib/firmware/fpp-cape-overlay-default.dtb";
 #elif defined(PLATFORM_PI)
     static const std::string src = outputPath + "/tmp/fpp-cape-overlay-rpi.dtb";
     static const std::string target = "/boot/firmware/overlays/fpp-cape-overlay.dtbo";
+    static const std::string defaultOverlay = "/boot/firmware/overlays/fpp-cape-overlay-default.dtbo";
     // FPP 9.x has the param in config.txt set wrong for the RPi, so we need to check for that and if it's wrong then we need to flip it to the correct one
     const std::string configFile = findBootConfigFile("config.txt");
     if (!configFile.empty()) {
@@ -638,7 +888,7 @@ static bool handleCapeOverlay(const std::string& outputPath) {
         char* data = (char*)get_file_contents(configFile, len);
         std::string configData(data, len);
         free(data);
-        if (configData.find("dtoverlay=fpp-cape-overlay") == std::string::npos) {
+        if (!configContainsDirective(configData, "dtoverlay=fpp-cape-overlay")) {
             // not found, need to add it
             printf("Adding dtoverlay=fpp-cape-overlay to config.txt\n");
             if (configData.find("dtparam=fpp-cape-overlay") != std::string::npos) {
@@ -646,7 +896,11 @@ static bool handleCapeOverlay(const std::string& outputPath) {
                 size_t pos = configData.find("dtparam=fpp-cape-overlay");
                 configData.replace(pos, strlen("dtparam=fpp-cape-overlay"), "dtoverlay=fpp-cape-overlay"); 
             } else {
-                configData += "\ndtoverlay=fpp-cape-overlay\n";
+                // [all] first: this appends at end of file, and whatever section
+                // the file happens to end in is inherited.  A config.txt whose
+                // last section is a board filter would otherwise scope the cape's
+                // own overlay to that board and leave every other Pi with no cape.
+                configData += "\n[all]\ndtoverlay=fpp-cape-overlay\n";
             }
             put_file_contents(configFile, (const uint8_t*)configData.c_str(), configData.size());
         }
@@ -656,33 +910,52 @@ static bool handleCapeOverlay(const std::string& outputPath) {
 #else
     static const std::string src = "";
     static const std::string target = "";
+    static const std::string defaultOverlay = "";
 #endif
-    static const std::string overlay = "/proc/device-tree/chosen/overlays/fpp-cape-overlay";
-    if (!src.empty() && file_exists(src)) {
-        int slen = 0;
-        int tlen = 0;
-        uint8_t* sd = get_file_contents(src, slen);
-        uint8_t* td = get_file_contents(target, tlen);
-        if (slen != tlen || memcmp(sd, td, slen) != 0) {
+    bool changed = false;
+    bool haveBase = !src.empty() && file_exists(src);
+#if defined(PLATFORM_PI)
+    // A cape whose overlay is entirely board specific ships variants and no
+    // portable base.  That is still a cape with an overlay, and must not fall
+    // through to the "no cape, restore the default" branch below.
+    const std::string variantDir = outputPath + "/tmp";
+    const bool haveVariants = !collectCapeOverlayVariants(variantDir).empty();
+#else
+    const bool haveVariants = false;
+#endif
+    if (haveBase) {
+        if (!filesIdentical(src, target)) {
             copyFile(src, target);
-            free(sd);
-            free(td);
-            return true;
+            changed = true;
         }
-        free(sd);
-        free(td);
-    } else if (!overlay.empty() && file_exists(overlay)) {
-        int len = 0;
-        char* c = (char*)get_file_contents(overlay, len);
-        if (strcmp(c, "DEFAULT_CAPE_OVERLAY") != 0) {
-            // not the default cape overlay, need to flip back to default
+    } else if (!haveVariants) {
+        // The cape brings no overlay, so the shipped default belongs here.  Ask
+        // whether what is installed already IS the default by comparing the two
+        // files (which also clears any variants the old cape installed).
+        //
+        // Not by reading /proc/device-tree/chosen/overlays/fpp-cape-overlay, as
+        // this did before: that node exists only when an overlay actually
+        // RESOLVED.  A stale overlay left behind by a previous cape that cannot
+        // resolve on this board -- a fragment referencing a Pi 5 only symbol, on
+        // a Pi 4 -- creates no such node, so it was indistinguishable from "no
+        // cape overlay applied" and the restore was skipped.  The one state that
+        // cannot recover by itself was the one state never repaired, on every
+        // boot, indefinitely.
+        if (!filesIdentical(target, defaultOverlay) && file_exists(defaultOverlay)) {
             restoreDefaultCapeOverlay();
-            free(c);
-            return true;
+            changed = true;
         }
-        free(c);
     }
-    return false;
+#if defined(PLATFORM_PI)
+    if (haveBase || haveVariants) {
+        // Board specific companions to the base overlay.  Outside the compare
+        // above because it has to run even when the base overlay is already up to
+        // date -- the variants change independently of it.  Skipped when neither
+        // is present, since restoreDefaultCapeOverlay() has already cleared them.
+        changed |= syncCapeOverlayVariants(variantDir);
+    }
+#endif
+    return changed;
 }
 
 #ifdef PLATFORM_BBB
@@ -985,7 +1258,30 @@ static bool priorOptInRequired(const std::vector<std::string>& lines) {
     bool dflt = cfg.get("priorOptInDefault", false).asBool();
     std::string j = g_jurisdictionOverride.empty() ? inferJurisdiction(lines, cfg)
                                                    : g_jurisdictionOverride;
-    if (j.empty() || !cfg["jurisdictions"].isMember(j)) {
+    if (j.empty()) {
+        // Nothing recorded and nothing inferable: we do not know where this box
+        // is. That is the same state as an unreadable policy file above, and it
+        // gets the same cautious answer.
+        //
+        // It is NOT the same as priorOptInDefault, which answers a different
+        // question -- what an unrecognised jurisdiction VALUE means -- and is
+        // false on purpose, so that the strict path is taken on a positive match
+        // rather than by accident. Conflating the two made a fresh box
+        // permissive, because nothing writes TimeZone into the settings file:
+        // FPPINIT only reads it and the setup wizard is the first writer, so on
+        // first boot both keys are absent and detection ran before anyone had
+        // been asked anything. The PHP half disagreed, reading TimeZone from
+        // $settings where settings.json's Europe/London default had been merged
+        // in -- so the two halves of one policy answered differently on the same
+        // box, which is precisely what sharing jurisdictions.json was meant to
+        // prevent.
+        //
+        // The cost is bounded and is what the design always said should happen:
+        // a cape's transmitting default is HELD on first boot and offered again
+        // by the wizard once the user says where they are.
+        return true;
+    }
+    if (!cfg["jurisdictions"].isMember(j)) {
         return dflt;
     }
     return cfg["jurisdictions"][j].get("priorOptIn", dflt).asBool();
@@ -1064,11 +1360,12 @@ static CapeSettingAction capeMaySetSetting(const std::vector<std::string>& lines
     // transmits nothing: rank 0.
     //
     // Anchoring this to FPP's *shipped* default instead was the obvious reading
-    // and it is wrong. ShareCrashData ships at "3" -- the maximum-disclosure
-    // value, deliberately kept until the consent UI lands -- so a cape could set
-    // full crash reporting under EU rules simply because the baseline was
-    // already maximal. A ratchet against a bad baseline inherits the badness.
-    // Art 25(2) asks for the protective value, not the incumbent one.
+    // and it is wrong. When that default was "3", the maximum-disclosure value,
+    // a cape could have set full crash reporting under EU rules simply because
+    // the baseline was already maximal. The unanswered default is 1 now, which
+    // makes the example less alarming and changes nothing about the rule: a
+    // ratchet against a baseline inherits whatever that baseline is, and 1 still
+    // transmits. Art 25(2) asks for the protective value, not the incumbent one.
     if (proposed > 0) {
         // Phrased without a subject: this reaches the boot log one setting at a
         // time, and the setup wizard groups several settings under one reason.

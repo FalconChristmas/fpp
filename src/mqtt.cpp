@@ -258,7 +258,10 @@ int MosquittoClient::Init(const std::string& username, const std::string& passwo
 }
 
 /*
- *
+ * Publish to an absolute topic.  Note the parameter order is (retain, qos);
+ * the Publish() overloads below must pass them through in that order.
+ * This signature is used directly by plugins (e.g. fpp-HomeAssistant) and
+ * must not change.
  */
 int MosquittoClient::PublishRaw(const std::string& topic, const std::string& msg, const bool retain, const int qos) {
     LogDebug(VB_CONTROL, "Publishing message '%s' on topic '%s'\n", msg.c_str(), topic.c_str());
@@ -284,20 +287,24 @@ int MosquittoClient::PublishRaw(const std::string& topic, const std::string& msg
     return 1;
 }
 
+// Two-argument overloads used by Events::Publish() and by plugins.
+//
+// Everything published through here is retained (QoS 1).  Historically the
+// four-argument overloads below passed retain/qos to PublishRaw() in the wrong
+// order, which had the effect of retaining every message regardless of the
+// flag requested.  Consumers such as Home Assistant depend on that: retained
+// state topics (status, playlist/*, fppd_status, plugin light/switch state...)
+// are what let a subscriber recover the current state on (re)connect instead
+// of showing "unknown" until the next change.  Keep retaining state topics so
+// fixing the argument order does not change what is stored on the broker.
 bool MosquittoClient::Publish(const std::string& topic, const std::string& data) {
-    if (topic == "version" || topic == "branch" || topic == "warnings") {
-        return Publish(topic, data, true, 1);
-    }
-    return Publish(topic, data, false, 1);
+    return Publish(topic, data, true, 1);
 }
 bool MosquittoClient::Publish(const std::string& topic, const int value) {
-    if (topic == MQTT_READY_TOPIC_NAME) {
-        if (value) {
-            SetReady();
-        }
-        return Publish(topic, value, true, 1);
+    if (topic == MQTT_READY_TOPIC_NAME && value) {
+        SetReady();
     }
-    return Publish(topic, value, false, 1);
+    return Publish(topic, value, true, 1);
 }
 
 /*
@@ -306,7 +313,7 @@ bool MosquittoClient::Publish(const std::string& topic, const int value) {
 int MosquittoClient::Publish(const std::string& subTopic, const std::string& msg, const bool retain, const int qos) {
     std::string topic = m_baseTopic + "/" + subTopic;
 
-    return PublishRaw(topic, msg, qos, retain);
+    return PublishRaw(topic, msg, retain, qos);
 }
 
 /*
@@ -316,7 +323,7 @@ int MosquittoClient::Publish(const std::string& subTopic, const int value, const
     std::string topic = m_baseTopic + "/" + subTopic;
     std::string msg = std::to_string(value);
 
-    return PublishRaw(topic, msg, qos, retain);
+    return PublishRaw(topic, msg, retain, qos);
 }
 
 /*

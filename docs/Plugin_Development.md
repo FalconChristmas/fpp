@@ -54,7 +54,10 @@ could otherwise happen:
 
 - **Your plugin is updated on its own** (Plugin Manager "Update"): `upgrade_plugin`
   runs `scripts/fpp_upgrade.sh` if you have one, otherwise falls back to re-running
-  `scripts/fpp_install.sh` — either way, your build step runs again.
+  `scripts/fpp_install.sh` — either way, your build step runs again. The script only
+  runs once the code has actually advanced to upstream (a failed pull skips it), and
+  a non-zero exit from it is reported as its own error ("updated, but its install/upgrade script
+  failed", exit 2) rather than as a git failure.
 - **FPP core itself is upgraded**: `compileBinaries()` (`scripts/functions`), called
   from the core upgrade path, loops every directory under `plugins/` that has a
   root `Makefile` and rebuilds it (`make -C <plugin> SRCDIR=$SRCDIR`) *before*

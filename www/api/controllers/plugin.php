@@ -684,7 +684,10 @@ function GetPluginSource()
 }
 
 // Removes a partially-installed plugin directory (and any linkName symlink) so a
-// refused/failed install does not leave a half-installed plugin behind.
+// refused/failed install does not leave a half-installed plugin behind. The
+// privacy record is left alone: it is written only once an install has
+// passed its gates (InstallPluginFromInfo), so whatever is on file predates
+// this attempt and is still what the operator accepted.
 function CleanupPartialPluginInstall($plugin, $linkName = null)
 {
 	global $settings, $SUDO;
@@ -692,6 +695,96 @@ function CleanupPartialPluginInstall($plugin, $linkName = null)
 		exec($SUDO . " rm -f " . escapeshellarg($settings['pluginDirectory'] . '/' . $linkName));
 	}
 	exec($SUDO . " rm -rf " . escapeshellarg($settings['pluginDirectory'] . '/' . $plugin));
+}
+
+// Refuse an install or upgrade on privacy grounds: the block the operator
+// would be landing is not the one they accepted (or none was shown for a
+// dependency). Logged under $op and echoed as a readable line; when
+// streaming an install, the block itself is then streamed on one marked line
+// (PLUGIN_PRIVACY_PENDING_MARK) so the Plugins page can open the review
+// dialog for it and post the install again with that block as accepted
+// ($marker; the upgrade stream carries no marker -- the page asks
+// GET …/privacy before an upgrade and its progress dialog would show the
+// line verbatim). The JSON (non-streaming) reply is the same shape for both
+// endpoints, built by PluginPrivacyRefusalReply() from
+// $GLOBALS['PLUGIN_PRIVACY_REFUSAL'].
+define('PLUGIN_PRIVACY_PENDING_MARK', '@@PRIVACY-PENDING@@');
+$GLOBALS['PLUGIN_PRIVACY_REFUSAL'] = null;
+function PluginPrivacyRefuse($repoName, $pending, $msg, $stream, $op = 'install', $marker = true)
+{
+	PluginLog($op, $repoName, "refused: " . preg_replace('/\s+/', ' ', trim($msg)));
+	if ($GLOBALS['PLUGIN_PRIVACY_REFUSAL'] === null) {
+		$GLOBALS['PLUGIN_PRIVACY_REFUSAL'] = array('plugin' => $repoName, 'pending' => $pending);
+	}
+	if (PluginStreaming($stream)) {
+		echo "\nERROR: " . $msg . "\n";
+		if ($marker) {
+			echo PLUGIN_PRIVACY_PENDING_MARK . ' ' . json_encode(array('plugin' => $repoName, 'pending' => $pending), JSON_UNESCAPED_SLASHES) . "\n";
+		}
+		flush();
+	}
+}
+
+// The JSON reply for a refusal PluginPrivacyRefuse() recorded: one shape
+// for POST /plugin and POST /plugin/{RepoName}/upgrade (openapi.json). `plugin`
+// is the plugin (or dependency plugin) whose block must be reviewed, `pending`
+// that block (null = no disclosure); `Code` lets a script tell this refusal
+// from any other error without parsing `Message`.
+function PluginPrivacyRefusalReply($msg)
+{
+	$ref = $GLOBALS['PLUGIN_PRIVACY_REFUSAL'];
+	return array(
+		'Status' => 'Error',
+		'Code' => 'PrivacyMismatch',
+		'Message' => $msg,
+		'privacyChanged' => true,
+		'plugin' => is_array($ref) ? $ref['plugin'] : null,
+		'pending' => is_array($ref) ? $ref['pending'] : null,
+	);
+}
+
+// Installed plugin directory names (those with a pluginInfo.json).
+function InstalledPluginNames()
+{
+	global $settings;
+	$plugins = array();
+	$dir = $settings['pluginDirectory'];
+	if ($dh = opendir($dir)) {
+		while (($file = readdir($dh)) !== false) {
+			if (!in_array($file, array('.', '..')) && is_dir($dir . '/' . $file) && file_exists($dir . '/' . $file . '/pluginInfo.json')) {
+				$plugins[] = $file;
+			}
+		}
+		closedir($dh);
+	}
+	sort($plugins);
+	return $plugins;
+}
+
+// The post-FPPOS-upgrade flag doubles as the list of plugins still to be
+// reinstalled. Boot sets pluginReinstallNeededAfterOS to "1" (src/boot/
+// FPPINIT_Config.cpp); the first sync here turns that into the names of
+// every plugin installed at that moment, and each plugin drops off the list
+// as it is reinstalled or uninstalled ($done). When the list is empty the
+// setting is cleared, which is what fppd watches to drop its warning -- it
+// only ever tests the value for non-empty, so the list form changes nothing
+// there. A single Reinstall of one plugin therefore no longer clears the
+// warning while others are still stale.
+function PluginReinstallPendingSync($done = null)
+{
+	$v = trim((string) ReadSettingFromFile('pluginReinstallNeededAfterOS'));
+	if ($v === '') {
+		return;
+	}
+	$installed = InstalledPluginNames();
+	$pending = ($v === '1') ? $installed : array_filter(array_map('trim', explode(',', $v)));
+	$pending = array_values(array_filter($pending, function ($p) use ($installed, $done) {
+		return $p !== $done && in_array($p, $installed);
+	}));
+	$new = implode(',', $pending);
+	if ($new !== $v) {
+		WriteSettingToFile('pluginReinstallNeededAfterOS', $new);
+	}
 }
 
 /**
@@ -707,24 +800,9 @@ function CleanupPartialPluginInstall($plugin, $linkName = null)
  */
 function GetInstalledPlugins()
 {
-	global $settings;
-	$plugins = array();
-
-	$dir = $settings['pluginDirectory'];
-
-	if ($dh = opendir($dir)) {
-		while (($file = readdir($dh)) !== false) {
-			if (
-				(!in_array($file, array('.', '..'))) &&
-				(is_dir($dir . '/' . $file)) &&
-				(file_exists($dir . '/' . $file . '/pluginInfo.json'))
-			) {
-				array_push($plugins, $file);
-			}
-		}
-	}
-
-	return json($plugins);
+	// Page load: seed or prune the post-FPPOS reinstall list (see above).
+	PluginReinstallPendingSync();
+	return json(InstalledPluginNames());
 }
 
 /**
@@ -734,11 +812,48 @@ function GetInstalledPlugins()
  * with `branch` and `sha` fields added to specify which branch and commit
  * to install.
  *
+ * The structure is NOT validated against a schema here, on purpose. FPP reads
+ * the keys it knows (repoName, srcURL, versions, dependencies, privacy, ...)
+ * and carries everything else through untouched, so a pluginInfo.json written
+ * for a newer FPP -- a key this release has never heard of, an unknown key
+ * inside `privacy` -- installs on this one. The Plugins page renders the
+ * parts it understands and ignores the rest (the full block is still shown
+ * as written). Strict validation lives in the fpp-data listing check
+ * (`.github/schema/pluginInfo.schema.json`), where a mistake is a rejected
+ * pull request rather than a plugin nobody can install. Keep it that way: any
+ * check added here must be on a key FPP acts on, never on the set of keys.
+ *
+ * `privacyAccepted` (optional, null allowed) is the privacy block the caller
+ * showed the operator, the same field `POST /plugin/{RepoName}/upgrade` takes.
+ * After the clone, before any dependency or the plugin's own install script,
+ * it is compared with the cloned copy's block (sends, collects, sensors,
+ * remoteAccess, systemChanges, closedCode): when they differ -- the listing is
+ * behind the repository, or the selected version pins an older commit -- the
+ * install is refused, the clone removed, and the reply carries
+ * `Code: "PrivacyMismatch"` and `pending` (the cloned block) so the caller can
+ * show it and post again with it as `privacyAccepted`. A body without the
+ * field is compared with the block recorded for that plugin from an earlier
+ * install, if there is one (the record survives an uninstall), and refused
+ * the same way when they differ; with no record either, it installs and
+ * records nothing, so the next update check reports `privacyChanged`.
+ * The block is recorded once the dependencies are in place, just before the
+ * plugin's own install script runs.
+ * `dependencyPrivacyAccepted` (optional) is a map repoName -> block or null
+ * for the dependency plugins the dialog also showed; each is gated and
+ * recorded the same way when that plugin is installed as a dependency of
+ * this one, and a dependency not in the map -- declared only in the cloned
+ * copy -- is refused before it is cloned (`pending` is then its listed
+ * block). Without the map, dependencies are installed as before.
+ *
  * @route POST /api/plugin
  * @body {"repoName": "fpp-matrixtools", "name": "MatrixTools", "author": "Chris Pinkham (CaptainMurdoch)", "srcURL": "https://github.com/cpinkham/fpp-matrixtools.git", "branch": "master", "sha": ""}
  * @response 200 Plugin installed
  * ```json
  * {"Status": "OK", "Message": ""}
+ * ```
+ * Refused on privacy grounds:
+ * ```json
+ * {"Status": "Error", "Code": "PrivacyMismatch", "Message": "…", "privacyChanged": true, "plugin": "fpp-matrixtools", "pending": {"sends": [], "remoteAccess": "none"}}
  * ```
  */
 function InstallPlugin()
@@ -771,6 +886,14 @@ function InstallPlugin()
 	$plugin = $pluginInfo['repoName'];
 
 	if (file_exists($settings['pluginDirectory'] . '/' . $plugin)) {
+		// Already pulled in as a dependency earlier in a Reinstall All batch:
+		// record the block the operator accepted if it is what is on disk.
+		if (array_key_exists('privacyAccepted', $pluginInfo)) {
+			$installed = PluginPrivacyBlock(PluginInstalledInfo($plugin));
+			if (PluginPrivacyMaterial($pluginInfo['privacyAccepted']) === PluginPrivacyMaterial($installed)) {
+				RecordPluginPrivacyAccepted($plugin, $installed, PluginInstalledSha($plugin));
+			}
+		}
 		if ($streaming) {
 			DisableOutputBuffering();
 			echo "The (" . $plugin . ") plugin is already installed\n";
@@ -788,13 +911,28 @@ function InstallPlugin()
 	// $visited guards against dependency cycles (A depends on B depends on A)
 	// across the recursive install below.
 	$visited = array();
-	$ok = InstallPluginFromInfo($pluginInfo, $visited, $stream, 0);
+	// The blocks the install dialog showed for the dependency plugins this
+	// install pulls in (repoName -> block or null), handed down to each one's
+	// own InstallPluginFromInfo through ResolvePluginDependencies. null when
+	// the request did not carry the field (a script, an old page): then a
+	// dependency is installed as before; with the field, a dependency the
+	// dialog did not show is refused (ResolvePluginDependencies).
+	$depShown = (isset($pluginInfo['dependencyPrivacyAccepted']) && is_array($pluginInfo['dependencyPrivacyAccepted']))
+		? $pluginInfo['dependencyPrivacyAccepted'] : null;
+	$ok = InstallPluginFromInfo($pluginInfo, $visited, $stream, 0, $depShown);
 
 	if ($streaming) {
 		return "\nDone\n";
 	}
 	$result['Status'] = $ok ? 'OK' : 'Error';
 	$result['Message'] = $ok ? '' : 'Could not properly install plugin';
+	// Refused on privacy grounds (PluginPrivacyRefuse): say which plugin and
+	// hand back the block to review, as POST …/upgrade does.
+	if (!$ok && is_array($GLOBALS['PLUGIN_PRIVACY_REFUSAL'])) {
+		$result = PluginPrivacyRefusalReply(($GLOBALS['PLUGIN_PRIVACY_REFUSAL']['plugin'] === $plugin)
+			? "The privacy disclosure of '$plugin' is not the one that was accepted. Review it on the Plugins page and install again."
+			: "'$plugin' depends on '" . $GLOBALS['PLUGIN_PRIVACY_REFUSAL']['plugin'] . "', whose privacy disclosure was not accepted. Review it on the Plugins page and install again.");
+	}
 	return json($result);
 }
 
@@ -805,7 +943,7 @@ function InstallPlugin()
  * $visited set (cycle guard) and a depth cap. Output is streamed to the client
  * when $stream is truthy. Returns true on success.
  */
-function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0)
+function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $depShown = null)
 {
 	global $settings, $fppDir, $SUDO;
 
@@ -965,6 +1103,36 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0)
 		return false;
 	}
 
+	// Privacy gate, before dependencies and the install script: what the
+	// cloned copy declares must be what the operator accepted -- the block
+	// the request carries (the dialog just showed it), else the block on
+	// record from an earlier install of this plugin (a reinstall from a
+	// script or an old page). Anything else is refused, the clone removed,
+	// and the cloned block handed back for review (PluginPrivacyRefuse).
+	// A request with neither -- a fresh install from a script -- goes ahead
+	// and records nothing, so the next update check asks. The record itself
+	// is written once the dependencies are in, just before the install script.
+	$installedBlock = PluginPrivacyBlock($data);
+	$accepted = false;
+	$acceptedFrom = '';
+	if (array_key_exists('privacyAccepted', $pluginInfo)) {
+		$accepted = $pluginInfo['privacyAccepted'];
+		$acceptedFrom = 'the Plugins page showed';
+	} else {
+		$record = ReadPluginPrivacyAccepted();
+		if (isset($record[$repoName]) && array_key_exists('privacy', $record[$repoName])) {
+			$accepted = $record[$repoName]['privacy'];
+			$acceptedFrom = 'was accepted when it was installed before';
+		}
+	}
+	$recordBlock = ($acceptedFrom !== '');
+	if ($recordBlock && PluginPrivacyMaterial($accepted) !== PluginPrivacyMaterial($installedBlock)) {
+		PluginPrivacyRefuse($repoName, $installedBlock,
+			"the privacy disclosure in this version of '$plugin' is not the one that $acceptedFrom (the listing may be behind the repository, or this version is pinned). Not installed: review it on the Plugins page and install again.\nRemoving the partial install of '$plugin'.", $stream);
+		CleanupPartialPluginInstall($plugin);
+		return false;
+	}
+
 	// Install is going ahead: commit the fetched pluginInfo.json + linkName.
 	$linkName = null;
 	if ($fetchedInfo !== null) {
@@ -980,13 +1148,22 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0)
 	// required dependency cannot be installed, refuse and clean up rather than
 	// run the plugin's install script against missing prerequisites.
 	if ($deps !== null) {
-		if (!ResolvePluginDependencies($deps, $repoName, $visited, $stream, $depth)) {
+		if (!ResolvePluginDependencies($deps, $repoName, $visited, $stream, $depth, $depShown)) {
 			// Same trap as the package gate above: the clone's own rc=0 block is
 			// already in the log, and the cleanup below removes the plugin. Say so.
 			PluginEchoLog('install', $repoName, "\nERROR: refusing to complete install of '$plugin' -- a required dependency could not be installed.\nRemoving the partial install of '$plugin'.\n", $stream);
 			CleanupPartialPluginInstall($plugin, $linkName);
 			return false;
 		}
+	}
+
+	// The code that is about to run is on disk and is what was accepted (the
+	// gate above), its dependencies are in place: record it now, from the
+	// installed copy, before a script that can take minutes -- the plugin is
+	// installed whether or not that script succeeds, and a browser that
+	// gives up waiting must not leave an accepted install unrecorded.
+	if ($recordBlock) {
+		RecordPluginPrivacyAccepted($repoName, $installedBlock, PluginInstalledSha($plugin));
 	}
 
 	// Finally, run the plugin's own install script. It was deferred above (via
@@ -1007,7 +1184,11 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0)
 
 	// The only statement that the operation as a whole succeeded -- the wrapper
 	// scripts only ever report on their own phase.
-	PluginEchoLog('install', $repoName, "\nInstalled plugin '$plugin'.\n", $stream);
+	if ($return_val != 0) {
+		PluginEchoLog('install', $repoName, "\nInstalled plugin '$plugin', but its install script failed (rc=$return_val); see logs/fpp_plugin_manager.log.\n", $stream);
+	} else {
+		PluginEchoLog('install', $repoName, "\nInstalled plugin '$plugin'.\n", $stream);
+	}
 	// Now that the plugin's install script has built or fetched whatever it
 	// needs, ask fppd to pick it up. Dependency plugins come through here too,
 	// so each is loaded as it finishes.
@@ -1020,6 +1201,8 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0)
 	// call, so each one is judged on where it actually came from rather than
 	// inheriting anything from the plugin that pulled it in.
 	RecordPluginInstallSource($repoName, $origSrcURL);
+	// Freshly built on this OS: no longer waiting for a post-FPPOS reinstall.
+	PluginReinstallPendingSync($repoName);
 	return true;
 }
 
@@ -1033,7 +1216,15 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0)
  * plugin) could not be installed, so the caller can refuse the whole install;
  * script-repository entries are treated as soft.
  */
-function ResolvePluginDependencies($deps, $ownerRepo, &$visited, $stream, $depth)
+// $depShown: repoName -> the privacy block the install dialog showed for that
+// dependency (or null), from the top-level request; see InstallPlugin(). null
+// when the request carried no such map (a script, an old page): dependency
+// plugins are then installed without one. With a map, a dependency plugin
+// that is not in it was never shown -- the cloned copy declares a dependency
+// the listing's copy (what the dialog was built from) does not, or a
+// different versions[] entry was selected -- and is refused before it is
+// cloned, with its listed block as the one to review.
+function ResolvePluginDependencies($deps, $ownerRepo, &$visited, $stream, $depth, $depShown = null)
 {
 	global $settings, $fppDir, $SUDO;
 	$streaming = PluginStreaming($stream);
@@ -1164,12 +1355,32 @@ function ResolvePluginDependencies($deps, $ownerRepo, &$visited, $stream, $depth
 				PluginEchoLog('install', $ownerRepo, "\nERROR: could not resolve dependency plugin '$depName' from pluginList.json (skipping).\n", $stream);
 				continue;
 			}
+			// A listed name that is not the plugin's repoName (its directory):
+			// installed under the latter is installed.
+			$depDir = (isset($depInfo['repoName']) && is_string($depInfo['repoName'])) ? $depInfo['repoName'] : $depName;
+			if ($depDir !== $depName && file_exists($settings['pluginDirectory'] . '/' . escapeshellcmd($depDir))) {
+				$visited[$depName] = true;
+				continue;
+			}
+			if ($depShown !== null && !array_key_exists($depName, $depShown) && !array_key_exists($depDir, $depShown)) {
+				PluginPrivacyRefuse($depName, PluginPrivacyBlock($depInfo),
+					"'$ownerRepo' depends on the plugin '$depName', whose privacy disclosure was not shown with this install. Not installed: review it on the Plugins page and install again.", $stream);
+				$ok = false;
+				break;
+			}
 			$ver = SelectPluginVersion($depInfo);
 			if ($ver !== null) {
 				$depInfo['branch'] = $ver['branch'];
 				$depInfo['sha'] = $ver['sha'];
 			}
-			if (!InstallPluginFromInfo($depInfo, $visited, $stream, $depth + 1)) {
+			// $depInfo is the author's listing JSON verbatim: only what the
+			// install dialog showed may be recorded, never a key the author
+			// put there.
+			unset($depInfo['privacyAccepted'], $depInfo['dependencyPrivacyAccepted']);
+			if ($depShown !== null) {
+				$depInfo['privacyAccepted'] = array_key_exists($depName, $depShown) ? $depShown[$depName] : $depShown[$depDir];
+			}
+			if (!InstallPluginFromInfo($depInfo, $visited, $stream, $depth + 1, $depShown)) {
 				PluginEchoLog('install', $ownerRepo, "\nERROR: dependency plugin '$depName' could not be installed.\n", $stream);
 				$ok = false;
 			}
@@ -1225,6 +1436,15 @@ function SelectPluginVersion($pluginInfo)
  * versions[] entry instead of just branch/sha, so callers can also read a
  * per-version 'dependencies' block (see MergePluginDependencies()). Returns
  * null if $pluginInfo has no versions[] array.
+ *
+ * This is THE rule for which versions[] entry FPP installs, for every path:
+ * a dependency plugin, the clone-time re-selection, and a Reinstall
+ * (PluginReinstallTarget, handed to the page as `reinstallTarget` by the
+ * update check and by GET …/privacy?target=reinstall, so the page posts the
+ * branch and sha the server chose rather than choosing again). The page's
+ * SelectPluginVersionIndices mirrors it for the cards, and must keep the
+ * same three steps: the last compatible entry, else the last "untested"
+ * one (an open-ended entry for an older major), else the first entry.
  */
 function SelectPluginVersionEntry($pluginInfo)
 {
@@ -1233,24 +1453,40 @@ function SelectPluginVersionEntry($pluginInfo)
 		return null;
 	}
 	$triplet = getFPPVersionTriplet();
+	$curMajor = (int) explode('.', $triplet)[0];
 	$versions = $pluginInfo['versions'];
 	$compatible = -1;
+	$untested = -1;
 	foreach ($versions as $i => $v) {
-		$min = isset($v['minFPPVersion']) ? $v['minFPPVersion'] : '0';
-		$max = isset($v['maxFPPVersion']) ? $v['maxFPPVersion'] : '';
+		$min = isset($v['minFPPVersion']) ? (string) $v['minFPPVersion'] : '0';
+		$max = isset($v['maxFPPVersion']) ? (string) $v['maxFPPVersion'] : '';
 		$openMax = ($max === '0' || $max === '0.0' || $max === '');
+		// The documented rule (fpp-plugin-Template PLUGININFO_FORMAT.md,
+		// maxFPPVersion) and the page's SelectPluginVersionIndices: an open
+		// max is open only within the major named by minFPPVersion; on a
+		// newer major it is capped at the previous major's .999 (untested).
+		if ($openMax) {
+			$minMajor = (int) explode('.', $min)[0];
+			if ($minMajor !== $curMajor) {
+				$max = ($curMajor - 1) . '.999';
+				$openMax = false;
+				$untested = $i; // the page's "Not updated for FPP N" entry
+			}
+		}
 		$platformsOk = true;
 		if (isset($v['platforms']) && is_array($v['platforms'])) {
 			$platformsOk = isset($settings['Platform']) && in_array($settings['Platform'], $v['platforms']);
 		}
 		$minOk = (ComparePluginFPPVersions($min, $triplet) <= 0);
-		$maxOk = $openMax || (ComparePluginFPPVersions($max, $triplet) > 0);
+		$maxOk = $openMax || (ComparePluginFPPVersions($max, $triplet) >= 0);
 		if ($minOk && $maxOk && $platformsOk) {
-			$compatible = $i; // last matching entry wins, matching the JS logic
+			$compatible = $i; // last matching entry wins, as on the page
 		}
 	}
 	if ($compatible < 0) {
-		$compatible = 0; // fall back to first entry so the dependency still installs
+		// The page offers "Install anyway" on the untested entry; failing
+		// that, the first entry so the dependency still installs.
+		$compatible = ($untested >= 0) ? $untested : 0;
 	}
 	return $versions[$compatible];
 }
@@ -1616,6 +1852,8 @@ function UninstallPlugin()
 		}
 
 		if ($return_val == 0) {
+			MarkPluginPrivacyUninstalled($plugin);
+			PluginReinstallPendingSync($plugin);
 			if (isset($stream) && $stream != "false") {
 				if (!$unloaded['ok']) {
 					return "\nUninstalled, but fppd still has it loaded (" . $unloaded['message'] . ") - restart FPPD to finish.\nDone\n";
@@ -1645,10 +1883,27 @@ function UninstallPlugin()
  * the plugin directory and checking for any unmerged commits.
  *
  * @route POST /api/plugin/{RepoName}/updates
+ * @body {"srcURL": "https://github.com/owner/repo.git", "useCredentials": 0} (optional: the
+ *       listing's clone URL, tried when the installed clone's own origin cannot be fetched)
  * @response 200 Update check result
  * ```json
- * {"Status": "OK", "Message": "", "updatesAvailable": 1}
+ * {"Status": "OK", "Message": "", "updatesAvailable": 1, "privacyChanged": false, "reinstallPrivacyChanged": false, "reinstallTarget": {"branch": "master", "sha": ""}}
  * ```
+ *
+ * `originUnreachable` (true only when present): the installed clone could not
+ * fetch from its origin but the reinstall target was reachable at `srcURL`, so
+ * a Reinstall will work while an upgrade cannot.  `updatesAvailable` is 0 and
+ * `privacyChanged` false in that case: nothing was learned about the
+ * checked-out branch.
+ *
+ * `privacyChanged`: the block `…/upgrade` would land (origin/<checked-out
+ * branch>) differs materially from the accepted one, or nothing is accepted.
+ * `reinstallPrivacyChanged`: the same for the block a Reinstall would land
+ * (the versions[] branch and pin for this FPP) -- differs from the former
+ * only for plugins with one branch per FPP major or a pinned sha.
+ * `reinstallTarget`: that branch and sha (sha '' when unpinned; branch ''
+ * when the installed pluginInfo.json has no usable versions[]), the entry
+ * the server selects; a Reinstall posts these back.
  */
 function CheckForPluginUpdates()
 {
@@ -1664,12 +1919,104 @@ function CheckForPluginUpdates()
 		$result['Status'] = 'OK';
 		$result['Message'] = '';
 		$result['updatesAvailable'] = PluginHasUpdates($plugin);
-	} else {
-		$result['Status'] = 'Error';
-		$result['Message'] = 'Could not run git fetch for plugin ' . $plugin;
+		// The fetch above has just brought origin/<branch> up to date, so
+		// this reads the incoming declaration without a second fetch.
+		// Not gated on updatesAvailable: no record is "changed" too.
+		$result['privacyChanged'] = PluginPrivacyChanged($plugin, false);
+		// Reinstall lands the versions[] branch, which --single-branch keeps
+		// the fetch above from seeing; fetch and diff it too.
+		list($tBranch, $tSha) = PluginReinstallTarget($plugin);
+		if ($tBranch !== '' && $tBranch !== PluginCurrentBranch($plugin)) {
+			PluginFetchBranch($plugin, $tBranch);
+		}
+		$result['reinstallPrivacyChanged'] = PluginPrivacyChanged($plugin, false, $p, $a, $src, 'reinstall');
+		// The branch and sha that Reinstall would clone (the server's
+		// versions[] choice, SelectPluginVersionEntry), for the page to post
+		// back so both sides mean the same commit.
+		$result['reinstallTarget'] = array('branch' => $tBranch, 'sha' => $tSha);
+		return json($result);
 	}
 
+	// The installed clone cannot fetch from its origin.  That is either the
+	// network (nothing can be done, and a reinstall that uninstalls first
+	// would leave nothing behind) or this clone's origin alone: the branch it
+	// was cloned --single-branch from was renamed or deleted, or the repo
+	// moved.  A fresh clone from the listing's URL works in the second case,
+	// and that is exactly what Reinstall does -- but the page only reinstalls
+	// plugins whose check succeeded, so such a plugin was stuck installed and
+	// broken, and after an FPP OS upgrade stayed on the reinstall list with
+	// fppd's warning up for good.  Tell the two apart by fetching the
+	// reinstall target from the URL a reinstall would clone, into the same
+	// origin/<branch> ref the reinstall-side privacy diff reads.
+	list($tBranch, $tSha) = PluginReinstallTarget($plugin);
+	if ($tBranch !== '' && PluginFetchReinstallTargetByURL($plugin, $tBranch, PluginUpdateCheckSrcURL())) {
+		$result['Status'] = 'OK';
+		// Nothing about the checked-out branch could be learned; it is the
+		// origin that is gone, so an upgrade (git pull) cannot happen either.
+		$result['updatesAvailable'] = 0;
+		$result['privacyChanged'] = false;
+		$result['originUnreachable'] = true;
+		$result['Message'] = 'The installed copy of ' . $plugin . ' can no longer fetch from where it was cloned; Reinstall will clone it afresh.';
+		$result['reinstallPrivacyChanged'] = PluginPrivacyChanged($plugin, false, $p, $a, $src, 'reinstall');
+		$result['reinstallTarget'] = array('branch' => $tBranch, 'sha' => $tSha);
+		return json($result);
+	}
+
+	$result['Status'] = 'Error';
+	$result['Message'] = 'Could not run git fetch for plugin ' . $plugin;
 	return json($result);
+}
+
+// The clone URL the page posts with an update check ({"srcURL": ..,
+// "useCredentials": ..} -- the listing's URL for the plugin, i.e. what a
+// Reinstall would clone), with GitHub credentials injected when asked for.
+// '' when absent or not a GitHub URL: the only place it is used is as a git
+// remote, and IsGitHubURL() is the same gate the install path applies.
+function PluginUpdateCheckSrcURL()
+{
+	$body = '';
+	$fp = fopen('php://input', 'r');
+	if ($fp) {
+		while ($d = fread($fp, 1024 * 16)) {
+			$body .= $d;
+		}
+		fclose($fp);
+	}
+	$req = json_decode($body, true);
+	if (!is_array($req)) {
+		return '';
+	}
+	$url = isset($req['srcURL']) && is_string($req['srcURL']) ? trim($req['srcURL']) : '';
+	if ($url === '' || !IsGitHubURL($url) || filter_var($url, FILTER_VALIDATE_URL) === false) {
+		return '';
+	}
+	if (!empty($req['useCredentials'])) {
+		$injected = InjectGitHubCredentials($url);
+		if ($injected !== false) {
+			$url = $injected;
+		}
+	}
+	return $url;
+}
+
+// Fetch refs/heads/<branch> of $url into refs/remotes/origin/<branch> of the
+// installed clone, bypassing the clone's own (possibly dead) origin URL.
+// Populates the same ref PluginPendingPrivacy(.., 'reinstall') reads.  $url ''
+// falls back to the clone's origin, which is only useful when the branch,
+// not the URL, is what --single-branch could not see.
+function PluginFetchReinstallTargetByURL($plugin, $branch, $url)
+{
+	global $settings, $SUDO;
+	$dir = $settings['pluginDirectory'] . '/' . $plugin;
+	if (!preg_match('/^[A-Za-z0-9_.-]+$/', $plugin) || !is_dir($dir) ||
+		$branch === '' || !preg_match('/^[A-Za-z0-9_.\/-]+$/', $branch) || strpos($branch, '..') !== false) {
+		return false;
+	}
+	$remote = ($url !== '') ? escapeshellarg($url) : 'origin';
+	exec('cd ' . escapeshellarg($dir) . ' && ' . $SUDO . ' timeout 60 git fetch ' . $remote . ' ' .
+		escapeshellarg('+refs/heads/' . $branch . ':refs/remotes/origin/' . $branch) . ' 2>/dev/null', $o, $rv);
+	unset($o);
+	return $rv == 0;
 }
 
 /**
@@ -1684,6 +2031,10 @@ function CheckForPluginUpdates()
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
+ * Refused on privacy grounds (the same shape as POST /api/plugin):
+ * ```json
+ * {"Status": "Error", "Code": "PrivacyMismatch", "Message": "…", "privacyChanged": true, "plugin": "fpp-matrixtools", "pending": {"sends": [], "remoteAccess": "none"}}
+ * ```
  */
 function UpgradePlugin()
 {
@@ -1692,6 +2043,63 @@ function UpgradePlugin()
 
 	$plugin = params('RepoName');
 	$stream = $_REQUEST['stream'];
+	$streaming = isset($stream) && $stream != "false";
+
+	// A change to what the plugin declares about sends, collects, sensors,
+	// remote access, system changes or closed code re-shows the install
+	// dialog. The Plugins page asks api/plugin/:RepoName/privacy first and
+	// POSTs the block it showed as {"privacyAccepted": ...}; this is the
+	// backstop for every other caller (Update All, a script, an old page), so
+	// an upgrade can never carry a new declaration past the operator unseen.
+	// Same fetch-then-read the update check does; upgrade_plugin is then told
+	// not to fetch again (FPP_PLUGIN_NO_FETCH) but to fast-forward to the
+	// exact sha just read (FPP_PLUGIN_TARGET_SHA), so what is compared is
+	// what lands even if a push arrives in between. The
+	// record is written afterwards, from the block on disk, once the pull has
+	// succeeded (below) -- never for a version that did not land.
+	$pending = null;
+	$accepted = null;
+	$GLOBALS['PLUGIN_FETCH_OK'] = false;
+	$GLOBALS['PLUGIN_FETCHED_SHA'] = '';
+	$changed = PluginPrivacyChanged($plugin, true, $pending, $accepted);
+	if (!$GLOBALS['PLUGIN_FETCH_OK']) {
+		// Before the privacy gate 'git pull' failed loudly here; with the
+		// fetch moved up front the same failure must not become a silent
+		// fast-forward to the old ref plus a root install script.
+		$msg = "Could not fetch updates for '$plugin' (offline, or the repository is unreachable). Nothing was changed.\n";
+		PluginLog('upgrade', $plugin, "refused: git fetch failed");
+		if ($streaming) {
+			DisableOutputBuffering();
+			echo $msg;
+			return "\nDone\n";
+		}
+		$result['Status'] = 'Error';
+		$result['Message'] = trim($msg);
+		return json($result);
+	}
+	if ($changed) {
+		$body = '';
+		$fp = fopen('php://input', 'r');
+		while ($d = fread($fp, 1024 * 16)) {
+			$body .= $d;
+		}
+		fclose($fp);
+		$req = json_decode($body, true);
+		$offered = (is_array($req) && array_key_exists('privacyAccepted', $req)) ? $req['privacyAccepted'] : false;
+		if ($offered === false || PluginPrivacyMaterial($offered) !== PluginPrivacyMaterial($pending)) {
+			// Same refusal and reply shape as an install (PluginPrivacyRefuse,
+			// PluginPrivacyRefusalReply); the stream carries no marker.
+			$msg = "The privacy disclosure of '$plugin' has changed since it was installed. Review it on the Plugins page and press Update there.";
+			if ($streaming) {
+				DisableOutputBuffering();
+			}
+			PluginPrivacyRefuse($plugin, $pending, $msg, $stream, 'upgrade', false);
+			if ($streaming) {
+				return "\nDone\n";
+			}
+			return json(PluginPrivacyRefusalReply($msg));
+		}
+	}
 
 	// The git pull (plus its git-clean retry) and the plugin's optional
 	// post-pull script (fpp_upgrade.sh, else fpp_install.sh -- for plugins
@@ -1703,24 +2111,527 @@ function UpgradePlugin()
 	// uses (the same way UninstallPlugin invokes uninstall_plugin).
 	$cmd = 'export SUDO=' . escapeshellarg($SUDO)
 		. '; export PLUGINDIR=' . escapeshellarg($settings['pluginDirectory'])
+		. '; export FPP_PLUGIN_NO_FETCH=1'
+		. '; export FPP_PLUGIN_TARGET_SHA=' . escapeshellarg($GLOBALS['PLUGIN_FETCHED_SHA'])
 		. '; ' . escapeshellarg($fppDir . '/scripts/upgrade_plugin')
 		. ' ' . escapeshellarg($plugin);
 
 	if (isset($stream) && $stream != "false") {
 		DisableOutputBuffering();
 		system($cmd, $return_val);
+		if ($return_val == 0) {
+			PluginReinstallPendingSync($plugin); // rebuilt on this OS
+		}
+		PluginRecordUpgradedPrivacy($plugin, $return_val, $changed, $pending, $stream);
 		return "\nDone\n";
 	}
 	exec($cmd, $output, $return_val);
+	if ($return_val == 0) {
+		PluginReinstallPendingSync($plugin); // rebuilt on this OS
+	}
+	PluginRecordUpgradedPrivacy($plugin, $return_val, $changed, $pending, $stream);
 
+	// upgrade_plugin's exit code says which phase failed: 1 = the code was
+	// not updated (pull and its reset fallback failed, or still behind
+	// origin), 2 = the code was updated but the plugin's own
+	// fpp_upgrade.sh / fpp_install.sh returned non-zero. The two need
+	// different next steps, so they get different messages.
 	if ($return_val == 0) {
 		$result['Status'] = 'OK';
 		$result['Message'] = '';
 	} else {
 		$result['Status'] = 'Error';
-		$result['Message'] = 'Could not run git pull for plugin ' . $plugin;
+		$result['Message'] = ($return_val == 2)
+			? "Plugin $plugin was updated, but its install/upgrade script failed; see logs/fpp_plugin_manager.log"
+			: "Could not update plugin $plugin from its repository; see logs/fpp_plugin_manager.log";
 	}
 
+	return json($result);
+}
+
+// After upgrade_plugin: rc 0 or 2 means the code landed (2: its own script
+// failed), so record what is on disk now -- provided it is what the operator
+// accepted ($pending after the gate above; the existing record when nothing
+// had changed). A push between the fetch and the fast-forward can land a
+// block nobody saw: then the record is dropped and the next check asks. On
+// rc 1 nothing landed and nothing is recorded.
+function PluginRecordUpgradedPrivacy($plugin, $rc, $changed, $pending, $stream)
+{
+	if ($rc != 0 && $rc != 2) {
+		return;
+	}
+	$landed = PluginPrivacyBlock(PluginInstalledInfo($plugin));
+	if ($changed) {
+		$expected = $pending;
+	} else {
+		$all = ReadPluginPrivacyAccepted();
+		if (!isset($all[$plugin]) || !array_key_exists('privacy', $all[$plugin])) {
+			return; // nothing accepted, nothing pending: leave it that way
+		}
+		$expected = $all[$plugin]['privacy'];
+	}
+	if (PluginPrivacyMaterial($landed) === PluginPrivacyMaterial($expected)) {
+		RecordPluginPrivacyAccepted($plugin, $landed, PluginInstalledSha($plugin));
+	} else {
+		ForgetPluginPrivacyAccepted($plugin);
+		PluginEchoLog('upgrade', $plugin, "\nThe privacy disclosure of '$plugin' that was installed is not the one that was accepted (the repository changed between the check and the update). FPP will ask about it at the next update check.\n", $stream);
+	}
+}
+
+// --- Plugin privacy disclosure ----------------------------------------
+// A pluginInfo.json may carry a `privacy` block (fpp-data schema; format and
+// colouring rules in fpp-plugin-Template's PLUGININFO_FORMAT.md and
+// PLUGIN_GUIDELINES.md §14.15): what the plugin sends,
+// keeps, senses, listens on, changes and whether all of its code can be
+// checked. The Plugins page turns it into the six coloured lights
+// (js/fpp-privacy-lights.js). The server's part is small and deliberately
+// tolerant:
+//
+//   - read the block out of any pluginInfo without caring what else is in it
+//     or in the block (PluginPrivacyBlock);
+//   - remember the block the operator saw when they pressed Install
+//     (RecordPluginPrivacyAccepted), in config/ so a backup carries it;
+//   - on upgrade, compare the incoming block's MATERIAL keys -- the whole
+//     block minus `summary`: sends, collects, sensors, remoteAccess,
+//     systemChanges, closedCode and the free-text `other` (where support
+//     access, payments, self-update and the like are declared) -- against
+//     the accepted one (PluginPrivacyChanged) so a plugin that starts
+//     talking to somebody new re-shows the dialog, while a reworded summary
+//     does not. Keys outside that list, known or unknown, are ignored by
+//     the diff. Whether a block is DECLARED at all is judged on the six
+//     light keys only: an `other`-only block says nothing material.
+//
+// Nothing here rejects a block. An empty, absent or oddly shaped block is
+// "nothing declared", never "invalid".
+
+define('PLUGIN_PRIVACY_ACCEPTED_FILE', 'pluginPrivacyAccepted.json');
+$GLOBALS['PLUGIN_PRIVACY_LIGHT_KEYS'] = array('sends', 'collects', 'sensors', 'remoteAccess', 'systemChanges', 'closedCode');
+$GLOBALS['PLUGIN_PRIVACY_MATERIAL_KEYS'] = array_merge($GLOBALS['PLUGIN_PRIVACY_LIGHT_KEYS'], array('other'));
+
+function PluginPrivacyAcceptedFile()
+{
+	global $settings;
+	return $settings['configDirectory'] . '/' . PLUGIN_PRIVACY_ACCEPTED_FILE;
+}
+
+// The `privacy` block of a decoded pluginInfo, or null when there is none.
+// An object with keys FPP has never seen is still a block: the unknown keys
+// ride along (the page ignores them but shows the block as written).
+function PluginPrivacyBlock($info)
+{
+	if (!is_array($info) || !isset($info['privacy']) || !is_array($info['privacy'])) {
+		return null;
+	}
+	return $info['privacy'];
+}
+
+// Recursively key-sorts so two blocks that say the same thing in a different
+// order encode the same. Lists keep their order: a reordered sends list is a
+// change nobody is harmed by seeing again.
+function PluginPrivacyCanonical($v)
+{
+	if (is_array($v)) {
+		$isList = (count($v) === 0) || array_keys($v) === range(0, count($v) - 1);
+		$out = array();
+		foreach ($v as $k => $item) {
+			$out[$k] = PluginPrivacyCanonical($item);
+		}
+		if (!$isList) {
+			ksort($out, SORT_STRING);
+		}
+		return $out;
+	}
+	return $v;
+}
+
+// The part of a block a change to which re-shows the dialog, as one
+// comparable string; null when there is no block. Keys the block does not
+// have are simply absent, so a block that gains a new material key counts as
+// changed (it says something it did not say before) and one that gains a
+// key FPP has never heard of does not.
+function PluginPrivacyMaterial($privacy)
+{
+	if (!is_array($privacy)) {
+		return null;
+	}
+	$m = array();
+	$lights = 0;
+	foreach ($GLOBALS['PLUGIN_PRIVACY_MATERIAL_KEYS'] as $k) {
+		if (!array_key_exists($k, $privacy)) {
+			continue;
+		}
+		if ($k === 'other') {
+			// Free text: whitespace and "none" (the page shows neither)
+			// are not a change; anything else is compared as written.
+			$other = is_string($privacy[$k]) ? trim($privacy[$k]) : '';
+			if ($other !== '' && strtolower($other) !== 'none') {
+				$m[$k] = $other;
+			}
+			continue;
+		}
+		$m[$k] = $privacy[$k];
+		$lights++;
+	}
+	// `"privacy": {}`, a summary-only or an `other`-only block says nothing
+	// material: the same as no block, per the section comment above.
+	if ($lights === 0) {
+		return null;
+	}
+	return json_encode(PluginPrivacyCanonical($m));
+}
+
+// The installed copy's pluginInfo.json, decoded, or null.
+function PluginInstalledInfo($plugin)
+{
+	global $settings;
+	$f = $settings['pluginDirectory'] . '/' . $plugin . '/pluginInfo.json';
+	if (!preg_match('/^[A-Za-z0-9_.-]+$/', $plugin) || !file_exists($f)) {
+		return null;
+	}
+	$info = json_decode(file_get_contents($f), true);
+	return is_array($info) ? $info : null;
+}
+
+// HEAD of the installed plugin, for the record; '' when unreadable.
+function PluginInstalledSha($plugin)
+{
+	global $settings;
+	$dir = $settings['pluginDirectory'] . '/' . $plugin;
+	return trim((string) shell_exec('cd ' . escapeshellarg($dir) . ' && git rev-parse HEAD 2>/dev/null'));
+}
+
+// The record is device-scoped, like the privacyConsent record
+// (www/privacyConsent.inc, BackupIsFromThisDevice in backup.php): the file
+// carries the UUID of the player that wrote it and is honoured only on that
+// player. A backup restored onto another player therefore does not carry
+// its acceptances -- nobody was shown those disclosures on this device --
+// and the first Reinstall All asks about each plugin once, as a fresh
+// install would. Identity-less players (getSystemUUID() "Unknown") honour
+// only a file that is equally identity-less: the same rule privacyConsent
+// applies, and the one class of backup that cannot be told apart anyway.
+function PluginPrivacyRecordIsForThisDevice($fileUuid)
+{
+	$device = getSystemUUID();
+	if (isValidSystemUUID($fileUuid) && isValidSystemUUID($device)) {
+		return $fileUuid === $device;
+	}
+	return !isValidSystemUUID($fileUuid) && !isValidSystemUUID($device);
+}
+
+// Reads the record file into [status, plugins]: status 'none' (no file),
+// 'ok' (this player's file), 'foreign' (another player's UUID), 'bad'
+// (unreadable). Callers that only want the entries use ReadPluginPrivacyAccepted().
+function LoadPluginPrivacyAccepted()
+{
+	$file = PluginPrivacyAcceptedFile();
+	if (!file_exists($file)) {
+		return array('none', array());
+	}
+	$all = json_decode((string) @file_get_contents($file), true);
+	if (!is_array($all) || !isset($all['plugins']) || !is_array($all['plugins'])) {
+		return array('bad', array());
+	}
+	if (!PluginPrivacyRecordIsForThisDevice(isset($all['uuid']) ? $all['uuid'] : '')) {
+		return array('foreign', array());
+	}
+	// One malformed entry (a hand edit, a bad restore) must not fatal every
+	// reader with a TypeError on $entry['privacy']; drop it, keep the rest.
+	$plugins = array();
+	foreach ($all['plugins'] as $name => $entry) {
+		if (is_array($entry)) {
+			$plugins[$name] = $entry;
+		}
+	}
+	return array('ok', $plugins);
+}
+
+function ReadPluginPrivacyAccepted()
+{
+	list(, $plugins) = LoadPluginPrivacyAccepted();
+	return $plugins;
+}
+
+// Applies $change (a function on the plugins array returning the new one)
+// under an exclusive lock, so two requests -- a Reinstall All install and a
+// second tab's update check -- cannot lose each other's entry. A file that is
+// not this player's (another UUID) or cannot be read is never overwritten:
+// it is moved aside as <file>.<foreign|bad>.bak first and logged, so nothing
+// anyone accepted anywhere disappears silently.
+function UpdatePluginPrivacyAccepted($change)
+{
+	$file = PluginPrivacyAcceptedFile();
+	$lock = @fopen($file . '.lock', 'c');
+	if ($lock) {
+		flock($lock, LOCK_EX);
+	}
+	list($status, $plugins) = LoadPluginPrivacyAccepted();
+	if ($status === 'foreign' || $status === 'bad') {
+		$aside = $file . '.' . $status . '.bak';
+		@rename($file, $aside);
+		error_log("pluginPrivacyAccepted.json was $status; moved to $aside and started afresh");
+	}
+	$plugins = $change($plugins);
+	$json = json_encode(array('uuid' => getSystemUUID(), 'plugins' => $plugins), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+	// Write-then-rename so a crash mid-write cannot leave a truncated file
+	// that reads as "nothing accepted for anything".
+	$tmp = $file . '.tmp';
+	$ok = (@file_put_contents($tmp, $json) !== false);
+	if ($ok) {
+		@chmod($tmp, 0664);
+		$ok = @rename($tmp, $file);
+	}
+	if ($lock) {
+		flock($lock, LOCK_UN);
+		fclose($lock);
+	}
+	return $ok;
+}
+
+/**
+ * Remember the block the operator accepted for $repoName. $privacy may be
+ * null: "installed with nothing declared" is itself the accepted state, and
+ * is what later distinguishes a plugin that gains a declaration (dialog) from
+ * one installed before this record existed (also dialog, once). $sha is the
+ * commit the block was read from -- informational: HEAD of the installed
+ * copy, since install and upgrade both record once the code is on disk.
+ */
+function RecordPluginPrivacyAccepted($repoName, $privacy, $sha = '')
+{
+	if (!is_string($repoName) || $repoName === '') {
+		return;
+	}
+	UpdatePluginPrivacyAccepted(function ($all) use ($repoName, $privacy, $sha) {
+		$all[$repoName] = array(
+			'privacy' => $privacy,
+			'sha' => is_string($sha) ? $sha : '',
+			'acceptedAt' => gmdate('c'),
+		);
+		return $all;
+	});
+}
+
+// Uninstall keeps the record, stamped: a reinstall from a script or an old
+// page (POST /plugin without privacyAccepted) is then still checked against
+// what was accepted, and an install from the page with the same block is a
+// no-op on the record. Records of plugins gone for 90 days are dropped here.
+function MarkPluginPrivacyUninstalled($repoName)
+{
+	list($status, $all) = LoadPluginPrivacyAccepted();
+	if ($status !== 'ok' || !isset($all[$repoName])) {
+		return;
+	}
+	UpdatePluginPrivacyAccepted(function ($all) use ($repoName) {
+		$all[$repoName]['uninstalledAt'] = gmdate('c');
+		$cutoff = time() - 90 * 86400;
+		foreach ($all as $name => $entry) {
+			$gone = isset($entry['uninstalledAt']) ? strtotime((string) $entry['uninstalledAt']) : false;
+			if ($gone !== false && $gone < $cutoff) {
+				unset($all[$name]);
+			}
+		}
+		return $all;
+	});
+}
+
+function ForgetPluginPrivacyAccepted($repoName)
+{
+	list($status, $all) = LoadPluginPrivacyAccepted();
+	if ($status !== 'ok' || !isset($all[$repoName])) {
+		return; // nothing of ours to forget; a foreign/bad file is left for the next write to move aside
+	}
+	UpdatePluginPrivacyAccepted(function ($all) use ($repoName) {
+		unset($all[$repoName]);
+		return $all;
+	});
+}
+
+// Where a Reinstall of $plugin would land, as [branch, sha]: the versions[]
+// entry the installed pluginInfo.json selects for THIS FPP
+// (SelectPluginVersionEntry; the page's BuildReinstallInfo posts what this
+// returns), branch 'master' when unset, sha '' when unpinned. After an FPP major upgrade this is often a different branch
+// from the one checked out -- five listed plugins keep one branch per major
+// -- which is exactly when Reinstall All is asked for.
+function PluginReinstallTarget($plugin)
+{
+	global $settings;
+	$infoFile = $settings['pluginDirectory'] . '/' . $plugin . '/pluginInfo.json';
+	if (!file_exists($infoFile)) {
+		return array('', '');
+	}
+	$entry = SelectPluginVersionEntry(json_decode(file_get_contents($infoFile), true));
+	if (!is_array($entry)) {
+		return array('', '');
+	}
+	$branch = (isset($entry['branch']) && is_string($entry['branch']) && $entry['branch'] !== '') ? $entry['branch'] : 'master';
+	$sha = (isset($entry['sha']) && is_string($entry['sha'])) ? $entry['sha'] : '';
+	if (!preg_match('/^[A-Za-z0-9_.\/-]+$/', $branch) || !preg_match('/^([a-fA-F0-9]{4,40})?$/', $sha)) {
+		return array('', '');
+	}
+	return array($branch, $sha);
+}
+
+// The checked-out branch of an installed plugin, '' when detached or unreadable.
+function PluginCurrentBranch($plugin)
+{
+	global $settings;
+	$dir = $settings['pluginDirectory'] . '/' . $plugin;
+	$branch = trim((string) shell_exec('cd ' . escapeshellarg($dir) . ' && git rev-parse --abbrev-ref HEAD 2>/dev/null'));
+	return ($branch !== '' && $branch !== 'HEAD' && preg_match('/^[A-Za-z0-9_.\/-]+$/', $branch)) ? $branch : '';
+}
+
+// Bring origin/<branch> up to date for a branch other than the checked-out
+// one. Plugins are cloned --single-branch, so a plain `git fetch` only
+// refreshes the current branch's remote ref; the explicit refspec fetches
+// the other branch into the same origin/ namespace without changing the
+// clone's configuration.
+function PluginFetchBranch($plugin, $branch)
+{
+	global $settings, $SUDO;
+	$dir = $settings['pluginDirectory'] . '/' . $plugin;
+	if ($branch === '' || !preg_match('/^[A-Za-z0-9_.\/-]+$/', $branch)) {
+		return false;
+	}
+	exec('cd ' . escapeshellarg($dir) . ' && ' . $SUDO . ' git fetch origin ' . escapeshellarg('refs/heads/' . $branch . ':refs/remotes/origin/' . $branch) . ' 2>/dev/null', $o, $rv);
+	unset($o);
+	return $rv == 0;
+}
+
+// The declaration the next upgrade would land, as [block, source]. Read from
+// the fetched upstream tip when the repo ships its own pluginInfo.json (the
+// authoritative copy after a pull), else from the listing's copy, else from
+// the installed file. $fetch runs `git fetch` first; the update check has
+// usually just done that, so its callers pass false.
+//
+// $target is 'upgrade' (default: origin/<checked-out branch>, what `git
+// pull` lands) or 'reinstall' (the versions[] branch and pin for this FPP,
+// what a fresh clone lands -- see PluginReinstallTarget). The two differ
+// only for plugins that keep one branch per FPP major, or pin a sha.
+function PluginPendingPrivacy($plugin, $fetch = false, $target = 'upgrade')
+{
+	global $settings, $SUDO;
+	$dir = $settings['pluginDirectory'] . '/' . $plugin;
+	if (!preg_match('/^[A-Za-z0-9_.-]+$/', $plugin) || !is_dir($dir)) {
+		return array(null, 'none');
+	}
+	$branch = PluginCurrentBranch($plugin);
+	$rev = '';
+	if ($target === 'reinstall') {
+		list($tBranch, $tSha) = PluginReinstallTarget($plugin);
+		if ($tBranch !== '') {
+			if ($fetch && $tBranch !== $branch) {
+				PluginFetchBranch($plugin, $tBranch);
+			}
+			$branch = $tBranch;
+			$rev = $tSha;
+		}
+	}
+	if ($fetch) {
+		exec('cd ' . escapeshellarg($dir) . ' && ' . $SUDO . ' git fetch 2>/dev/null', $o, $rv);
+		unset($o);
+		// UpgradePlugin reads both: a failed fetch (offline) must refuse
+		// rather than fast-forward to whatever stale ref is here, and the
+		// sha read now is what upgrade_plugin is told to land, so a push
+		// between this read and the merge cannot slip past the gate.
+		$GLOBALS['PLUGIN_FETCH_OK'] = ($rv === 0);
+		$GLOBALS['PLUGIN_FETCHED_SHA'] = ($branch !== '')
+			? trim((string) shell_exec('cd ' . escapeshellarg($dir) . ' && git rev-parse --verify -q ' . escapeshellarg('origin/' . $branch) . ' 2>/dev/null'))
+			: '';
+	}
+	if ($branch !== '') {
+		// A pinned sha is what the clone checks out; it is normally an
+		// ancestor of the fetched branch. Fall back to the branch tip if
+		// the object is not here (a pin on a commit never fetched).
+		$json = '';
+		if ($rev !== '') {
+			$json = shell_exec('cd ' . escapeshellarg($dir) . ' && git show ' . escapeshellarg($rev . ':pluginInfo.json') . ' 2>/dev/null');
+		}
+		if (!is_string($json) || $json === '') {
+			$json = shell_exec('cd ' . escapeshellarg($dir) . ' && git show ' . escapeshellarg('origin/' . $branch . ':pluginInfo.json') . ' 2>/dev/null');
+		}
+		if (is_string($json) && $json !== '') {
+			$info = json_decode($json, true);
+			if (is_array($info)) {
+				return array(PluginPrivacyBlock($info), 'upstream');
+			}
+		}
+	}
+	$listed = GetListedPluginInfo($plugin);
+	if (is_array($listed)) {
+		return array(PluginPrivacyBlock($listed), 'listing');
+	}
+	$infoFile = $dir . '/pluginInfo.json';
+	if (file_exists($infoFile)) {
+		return array(PluginPrivacyBlock(json_decode(file_get_contents($infoFile), true)), 'installed');
+	}
+	return array(null, 'none');
+}
+
+/**
+ * True when the block the next upgrade would land differs materially from
+ * the one the operator accepted. A plugin installed before FPP kept this
+ * record has no accepted block, so the first upgrade that carries any
+ * declaration shows the dialog once and records it.
+ */
+function PluginPrivacyChanged($plugin, $fetch = false, &$pending = null, &$accepted = null, &$source = null, $target = 'upgrade')
+{
+	list($pending, $source) = PluginPendingPrivacy($plugin, $fetch, $target);
+	$all = ReadPluginPrivacyAccepted();
+	$accepted = (isset($all[$plugin]) && array_key_exists('privacy', $all[$plugin])) ? $all[$plugin]['privacy'] : null;
+	// Only the target version's own pluginInfo.json can say a disclosure
+	// was removed. No block from a fallback copy (the listing's cache may
+	// predate the block; the installed file is not the target) against a
+	// recorded one is "cannot tell", not "the author took it back".
+	if ($pending === null && $accepted !== null && $source !== 'upstream') {
+		return false;
+	}
+	return PluginPrivacyMaterial($pending) !== PluginPrivacyMaterial($accepted);
+}
+
+/**
+ * Privacy disclosure status for an installed plugin
+ *
+ * What the operator accepted at install, what the next upgrade would land,
+ * and whether the two differ in a way that re-shows the install dialog.
+ * Reads the already-fetched upstream tip; call `POST /plugin/{RepoName}/updates`
+ * first to fetch. `?target=reinstall` diffs the block a Reinstall would land
+ * (the versions[] branch and pin selected for this FPP) instead of the one
+ * `…/upgrade` would (origin/<checked-out branch>), and adds
+ * `reinstallTarget: {branch, sha}`, the server's choice, for the page to post.
+ *
+ * @route GET /api/plugin/{RepoName}/privacy
+ * @response 200 Privacy status
+ * ```json
+ * {"Status": "OK", "changed": true, "recorded": false, "accepted": null, "pending": {"sends": [], "remoteAccess": "none"}, "source": "upstream"}
+ * ```
+ */
+function GetPluginPrivacyStatus()
+{
+	global $settings;
+	$plugin = params('RepoName');
+	if (!preg_match('/^[A-Za-z0-9_.-]+$/', $plugin) || !is_dir($settings['pluginDirectory'] . '/' . $plugin)) {
+		return json(array('Status' => 'Error', 'Message' => 'Plugin is not installed'));
+	}
+	$target = (isset($_GET['target']) && $_GET['target'] === 'reinstall') ? 'reinstall' : 'upgrade';
+	$pending = null;
+	$accepted = null;
+	$source = null;
+	$changed = PluginPrivacyChanged($plugin, false, $pending, $accepted, $source, $target);
+	$all = ReadPluginPrivacyAccepted();
+	$result = array(
+		'Status' => 'OK',
+		'target' => $target,
+		'changed' => $changed,
+		'recorded' => isset($all[$plugin]),
+		'accepted' => $accepted,
+		'pending' => $pending,
+		'source' => $source,
+	);
+	if ($target === 'reinstall') {
+		// The commit the block is from, for the page to post back (see
+		// CheckForPluginUpdates's reinstallTarget).
+		list($tBranch, $tSha) = PluginReinstallTarget($plugin);
+		$result['reinstallTarget'] = array('branch' => $tBranch, 'sha' => $tSha);
+	}
 	return json($result);
 }
 
