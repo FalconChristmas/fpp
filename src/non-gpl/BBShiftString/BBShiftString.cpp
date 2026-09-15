@@ -740,6 +740,23 @@ int BBShiftStringOutput::Init(Json::Value config) {
 #endif
     }
 
+    if (falconV5Support && m_frameTimeUs > 0) {
+        // A query frame costs every pin the packet phase and the listen
+        // window on top of the pixel data: 69us of lead-in, 57 bytes of 10
+        // cells at 1130ns, 35us of listener lead-in and a window of 500us,
+        // extended by 1.7ms when the receiver answers - about 2.9ms with a
+        // receiver on the chain.  Spread over the frames that carry one so
+        // the ceiling (and the warning) is honest for a receiver config: at
+        // 768px per port and 40fps the string data alone fits, the queries
+        // do not, and without this term the drops came with no warning.
+        float share = falconV5Support->queryFrameShare();
+        if (share > 0.0f) {
+            m_frameTimeUs += (int)(2900.0f * share);
+            LogInfo(VB_CHANNELOUT, "BBShiftString: FalconV5 queries on %.0f%% of frames -> %.1fms/frame, sustainable ceiling ~%.4g fps\n",
+                    share * 100.0f, m_frameTimeUs / 1000.0, 1000000.0 / m_frameTimeUs);
+        }
+    }
+
     // flag the virtual strings whose channel map is a plain run so prepData
     // can walk the channel data directly instead of through the map
     m_vsAffine.resize(m_strings.size());
@@ -1437,9 +1454,9 @@ void BBShiftStringOutput::checkFrameRateBudget(float rate) {
         return;
     }
     float ceiling = 1000000.0f / m_frameTimeUs;
-    // 5% grace: covers the overhead constant's own uncertainty (the receiver
-    // packet share of the 1700us is config-dependent) and keeps a config a
-    // hair past budget - absorbed invisibly by the back-pressure gate - quiet
+    // 5% grace: covers the overhead constants' own uncertainty and keeps a
+    // config a hair past budget - absorbed invisibly by the back-pressure
+    // gate - quiet
     if (rate > ceiling * 1.05f) {
         char buf[192];
         snprintf(buf, sizeof(buf),

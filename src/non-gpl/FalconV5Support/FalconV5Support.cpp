@@ -58,7 +58,12 @@ public:
 typedef struct {
     // 0xFFFF to abort
     volatile uint32_t command;
+    // bytes captured in the last completed listen window.  Written by the
+    // listener only when the string PRU closes the window, never while a
+    // capture is in progress; 'captures' is bumped right after it, so a
+    // changed count means a new, complete length is there to read.
     volatile uint32_t length;
+    volatile uint32_t captures;
 } __attribute__((__packed__)) FalconV5PRUData;
 
 class PRUControl {
@@ -198,8 +203,33 @@ static uint8_t readByte(uint8_t* data, int& pos) {
     return ret;
 }
 
+float FalconV5Support::queryFrameShare() const {
+    if (!pru) {
+        return 0.0f;
+    }
+    int receivers = 0;
+    for (auto c : maxCount) {
+        receivers += c;
+    }
+    if (receivers == 0) {
+        return 0.0f;
+    }
+    return (float)receivers / (float)(receivers + maxCount.size());
+}
+
 void FalconV5Support::processListenerData() {
     if (pru) {
+        // only a completed window is read: the listener publishes the length
+        // and bumps the capture count when the string PRU closes the window,
+        // and the count is read first so a new count always pairs with the
+        // complete length.  Reading the live length here used to hand the
+        // decoder a partial reply whenever a frame tick landed inside the
+        // window (long strings at high frame rates).
+        uint32_t captures = pru->pruData->captures;
+        if (captures == lastCaptures) {
+            return;
+        }
+        lastCaptures = captures;
         uint32_t len = pru->pruData->length;
         // if (len) {
         //     printDataBuf(len, pru->data);
@@ -241,7 +271,6 @@ void FalconV5Support::processListenerData() {
                 }
             }
         }
-        pru->pruData->length = 0;
     }
 }
 

@@ -73,6 +73,12 @@ public:
 
     bool generateDynamicPacket(std::vector<std::array<uint8_t, 64>>& packets, bool& listen);
 
+    // fraction of frames that carry a query packet and open a listen window
+    // once the receivers are being polled: each mux cycles through its
+    // receivers one frame at a time and then idles one frame; 0 without
+    // listeners or queryable chains
+    float queryFrameShare() const;
+
     void sendCountPixelPackets();
 
 private:
@@ -80,6 +86,7 @@ private:
     std::list<FalconV5Listener*> listeners;
     std::list<const PinCapabilities*> muxPins;
     PRUControl* pru = nullptr;
+    uint32_t lastCaptures = 0;
 
     std::vector<std::map<int, std::list<ReceiverChain*>>> queryData;
     std::vector<int> maxCount;
