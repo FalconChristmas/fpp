@@ -225,6 +225,13 @@ private:
     bool hasStrings() const { return m_pru0.maxStringLen || m_pru1.maxStringLen; }
 
     uint32_t m_curFrame = 0;
+    // frames between FalconV5 query packets (setting FalconV5QueryInterval,
+    // 1 = whenever a config slot is free, the stock cadence), whether one is
+    // owed (see PrepData()), and the frame whose output carried the last one
+    // (the frame after it arrives inside the response window, see SendData())
+    uint32_t m_v5QueryInterval = 1;
+    bool m_v5QueryDue = false;
+    uint32_t m_v5LastQueryFrame = 0;
     uint32_t m_licensedOutputs = 0;
 
     // back-pressure gate accounting, touched only on the output thread.

@@ -551,6 +551,14 @@ int BBShiftStringOutput::Init(Json::Value config) {
     }
     m_hasBidirSR = hasV5SR;
 
+    int qi = getSettingInt("FalconV5QueryInterval", 1);
+    m_v5QueryInterval = qi < 1 ? 1 : qi;
+    m_v5QueryDue = false;
+    m_v5LastQueryFrame = 0;
+    if (m_v5QueryInterval > 1) {
+        LogInfo(VB_CHANNELOUT, "BBShiftString: FalconV5 query packets spaced one per %u frames\n", m_v5QueryInterval);
+    }
+
     // On a cape that wires the receiver enable line to PRU1, that pin gates
     // the whole differential bus, so it has to be configured whenever the
     // cape has it - not just for Falcon receivers, and not just for smart
@@ -1341,7 +1349,22 @@ void BBShiftStringOutput::PrepData(unsigned char* channelData) {
     prepData(m_pru1, channelData);
     m_testCycle = -1;
 
-    if (m_pru1.curV5ConfigPacket > FIRST_LOOPING_CONFIG_PACKET && falconV5Support && m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket] == nullptr) {
+    // A query frame costs every pin of the cape the packet phase plus the
+    // response window (~0.75ms + up to ~2.2ms) on top of the pixel data.
+    // At the stock cadence - a query whenever a config slot is free, i.e.
+    // every other frame - that averages ~1.4ms per frame, more than the
+    // slack a 768px string leaves at 40fps, so the back-pressure gate ends
+    // up dropping frames.  A single query frame is absorbed: the lag it
+    // leaves is repaid by the per-frame slack before the next one, as long
+    // as they are spaced far enough apart.  FalconV5QueryInterval is that
+    // spacing in frames; the flag is sticky so a due query that finds its
+    // slot taken (config re-send) or hits a mux-change wait is sent on the
+    // next free frame rather than lost.  Config and number packets are
+    // untouched.
+    if (m_v5QueryInterval > 1 && (m_curFrame % m_v5QueryInterval) == 0) {
+        m_v5QueryDue = true;
+    }
+    if ((m_v5QueryInterval <= 1 || m_v5QueryDue) && m_pru1.curV5ConfigPacket > FIRST_LOOPING_CONFIG_PACKET && falconV5Support && m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket] == nullptr) {
         std::vector<std::array<uint8_t, 64>> packets;
         packets.resize(m_strings.size());
         for (auto& p : packets) {
@@ -1362,6 +1385,7 @@ void BBShiftStringOutput::PrepData(unsigned char* channelData) {
             m_pru1.dynamicPacketInfo->listen = listen;
             m_pru0.v5_config_packets[m_pru0.curV5ConfigPacket] = m_pru0.dynamicPacketInfo;
             m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket] = m_pru1.dynamicPacketInfo;
+            m_v5QueryDue = false;
         }
     }
 
@@ -1494,7 +1518,18 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
     }
 
     if (falconV5Support) {
-        falconV5Support->processListenerData();
+        // At long string lengths the frame after a query frame arrives while
+        // the firmware is still inside the receiver's response window (768px
+        // at 40fps: the next tick lands ~1.2ms into the ~2.2ms window).
+        // Reading the listener buffer then hands the decoder a partial
+        // reply, which on this rig decoded into four simultaneous phantom
+        // eFuse trips per burst.  With spaced queries nothing else touches
+        // the buffer before the next query, so wait one more frame.  At the
+        // stock cadence (interval 1) a query goes out every other frame and
+        // the read cannot move, so that path is left as it was.
+        if (m_v5QueryInterval <= 1 || m_curFrame != m_v5LastQueryFrame + 1) {
+            falconV5Support->processListenerData();
+        }
     }
 
 #ifndef PLATFORM_BBB
@@ -1633,6 +1668,7 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
             c |= m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket]->getCommandFlags();
             if (m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket] == m_pru1.dynamicPacketInfo) {
                 m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket] = nullptr;
+                m_v5LastQueryFrame = m_curFrame;
             }
         }
         if (m_pru1.outputStringLen != m_pru1.maxStringLen) {
