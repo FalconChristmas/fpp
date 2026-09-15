@@ -63,11 +63,13 @@
 	SBCO	&r0, C4, 4, 4
 #endif    
 
-    // Make sure the command, length and capture count cleared at start
+    // Make sure the command, length, capture count and busy flag are
+    // cleared at start
 	LDI 	r1, 0x0
 	LDI 	r2, 0x0
 	LDI 	r3, 0x0
-	SBCO	&r1, CONST_PRUDRAM, 0, 12
+	LDI 	r4, 0x0
+	SBCO	&r1, CONST_PRUDRAM, 0, 16
     LDI     capturesReg, 0
 
     LDI32   smemLocReg, 0x00010000
@@ -88,8 +90,13 @@ IDLE_LOOP:
     // count, once the string PRU closes the window: the ARM reads on its own
     // frame clock, and at long string lengths that tick lands inside the
     // window, so a live count handed it a partial reply that decoded as
-    // phantom eFuse trips.
+    // phantom eFuse trips.  The busy flag at offset 12 is up from here until
+    // the publish below: the ARM checks it on both sides of its copy, since
+    // a window that opens while the ARM is still reading the previous
+    // capture overwrites the buffer under it.
     LDI     lengthReg, 0
+    LDI     treg1, 1
+    SBCO    &treg1, CONST_PRUDRAM, 12, 4
 
     // grab the current values and loop until something changes
     MOV     data_reg.b0, r31.b0
@@ -132,10 +139,13 @@ DONE_DATA_STORE
 
 WINDOW_DONE:
     // publish the complete capture: length first, then the count the ARM
-    // polls, so a changed count always comes with the length that goes with it
+    // polls, so a changed count always comes with the length that goes with
+    // it, then drop the busy flag
     SBCO    &lengthReg, CONST_PRUDRAM, 4, 4
     ADD     capturesReg, capturesReg, 1
     SBCO    &capturesReg, CONST_PRUDRAM, 8, 4
+    LDI     treg1, 0
+    SBCO    &treg1, CONST_PRUDRAM, 12, 4
     JMP     IDLE_LOOP
 
 EXIT:

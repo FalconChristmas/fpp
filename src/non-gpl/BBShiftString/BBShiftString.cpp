@@ -1765,6 +1765,12 @@ void BBShiftStringOutput::runPumpThread() {
         if (m_pru1.pru && m_pru1.ring.attached()) {
             p |= pumpFrameData(m_pru1);
         }
+        if (falconV5Support) {
+            // take a finished receiver reply out of the listener's shared RAM
+            // as soon as it is published, before the next listen window can
+            // overwrite it; the output thread decodes it on its next frame
+            falconV5Support->stageListenerData();
+        }
         if (!p) {
             struct timespec ts = { 0, 500000 };
             nanosleep(&ts, nullptr);

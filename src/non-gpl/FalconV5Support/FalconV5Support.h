@@ -18,6 +18,8 @@
 #include "fpp-json-fwd.h"
 #include <list>
 #include <map>
+#include <mutex>
+#include <vector>
 
 class PixelString;
 class FalconV5Listener;
@@ -69,6 +71,15 @@ public:
     void addListeners(const Json::Value& config);
     void setCurrentMux(int i);
 
+    // Copies a newly published listener capture out of the PRU shared RAM
+    // into a staging buffer.  Safe to call from any thread, meant to be
+    // called often (the string driver's pump thread polls it every few
+    // hundred microseconds) so the capture is taken well before the next
+    // listen window can overwrite it; processListenerData() also calls it
+    // for platforms without a pump thread.
+    void stageListenerData();
+    // Decodes the staged capture (if any) and delivers the receiver status
+    // to the OutputMonitor.  Output thread only.
     void processListenerData();
 
     bool generateDynamicPacket(std::vector<std::array<uint8_t, 64>>& packets, bool& listen);
@@ -87,6 +98,15 @@ private:
     std::list<const PinCapabilities*> muxPins;
     PRUControl* pru = nullptr;
     uint32_t lastCaptures = 0;
+    uint32_t tornCaptures = 0;
+    // staged capture: stageListenerData() fills stageBuf under stageLock,
+    // processListenerData() swaps it with workBuf under the lock and decodes
+    // workBuf outside it
+    std::mutex stageLock;
+    std::vector<uint8_t> stageBuf;
+    std::vector<uint8_t> workBuf;
+    uint32_t stageLen = 0;
+    bool stageValid = false;
 
     std::vector<std::map<int, std::list<ReceiverChain*>>> queryData;
     std::vector<int> maxCount;
