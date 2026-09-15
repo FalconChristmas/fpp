@@ -55,7 +55,7 @@ function Reboot() {
 
 	echo "Command: $command\n";
 	echo "----------------------------------------------------------------------------------\n";
-    system($command);
+    system($command, $upgradeStatus);
 	echo "\n";
 if (!$wrapped) {
 ?>
@@ -68,6 +68,10 @@ if (!$wrapped) {
 <?
 } else {
     echo "----------------------------------------------------------------------------------\n";
-    echo "Upgrade complete.  Please reboot.\n";
+    if ($upgradeStatus !== 0) {
+        echo "Upgrade FAILED (exit code " . $upgradeStatus . ").  See the errors above.\n";
+    } else {
+        echo "Upgrade complete.  Please reboot.\n";
+    }
 }
 ?>

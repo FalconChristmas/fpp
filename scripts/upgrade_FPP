@@ -46,21 +46,34 @@ echo "Switching git branch to $1"
 # onto the tracking ref (@{u}) rather than a bare "git pull" -- the latter
 # rebases off FETCH_HEAD and can abort with "Cannot rebase onto multiple
 # branches." See runGitLocked in scripts/functions.
+# A failed switch used to be invisible: runGitLocked's status was discarded, so
+# a bad ref (a malformed version string, a branch that doesn't exist) rebuilt
+# the tree in place and still reported "Upgrade complete", leaving the user on
+# the old branch with no indication why. Record the failure instead. We do NOT
+# bail out here -- cleanCompiledBinaries above has already removed the binaries,
+# so the rebuild below still has to run or the device is left with no fppd --
+# but the error is printed prominently and the script exits non-zero.
+GITSWITCHOK=1
 if [ "x${FPPDIR}" = "x/opt/fpp" ]
 then
-	runGitLocked "cd ${FPPDIR} && git submodule foreach git reset --hard && git checkout $1 && git fetch && git rebase @{u}"
+	runGitLocked "cd ${FPPDIR} && git submodule foreach git reset --hard && git checkout $1 && git fetch && git rebase @{u}" || GITSWITCHOK=0
     if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
         cd ${FPPDIR} && $SUDO git submodule sync && $SUDO git submodule update --init
     fi
 
     $SUDO ${SCRIPTDIR}/upgrade_config
 else
-	runGitLocked "cd ${FPPDIR} && sudo -u ${FPPUSER} git submodule foreach git reset --hard && sudo -u ${FPPUSER} git checkout $1 && sudo -u ${FPPUSER} git fetch && sudo -u ${FPPUSER} git rebase @{u}"
+	runGitLocked "cd ${FPPDIR} && sudo -u ${FPPUSER} git submodule foreach git reset --hard && sudo -u ${FPPUSER} git checkout $1 && sudo -u ${FPPUSER} git fetch && sudo -u ${FPPUSER} git rebase @{u}" || GITSWITCHOK=0
     if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
         cd ${FPPDIR} && sudo -u ${FPPUSER} git submodule sync && sudo -u ${FPPUSER} git submodule update --init
     fi
 
     sudo -u ${FPPUSER} ${SCRIPTDIR}/upgrade_config
+fi
+
+if [ "${GITSWITCHOK}" != "1" ]; then
+    echo "ERROR: could not switch ${FPPDIR} to '$1'.  The version was NOT changed."
+    echo "ERROR: rebuilding on the current branch so the device stays usable."
 fi
 
 
@@ -91,4 +104,9 @@ rm -f /tmp/cache_local_git_version.cache /tmp/cache_local_git_commit_date.cache 
 # fppstats.falconchristmas.com (up to ~5s on a slow/unreachable host), and
 # nothing needs to see the outcome here, so this is fire-and-forget.
 /usr/bin/curl -s -o /dev/null http://localhost/api/system/updateStatus &
+
+if [ "${GITSWITCHOK}" != "1" ]; then
+    echo "ERROR: upgrade to '$1' FAILED -- still on branch $(cd ${FPPDIR} && git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+    exit 1
+fi
 
