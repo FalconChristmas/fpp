@@ -442,6 +442,23 @@ static void ClearAES67PipelineWarnings(bool clearSend, bool clearRecv) {
     }
 }
 
+// Retract the "PTP could not start" warnings.  Mirrors
+// ClearAES67PipelineWarnings() above, and exists for the same reason: these
+// have no timeout either, so the only thing that ever takes one back is a call
+// like this one.  Without it a user who installed linuxptp, freed the
+// interface or fixed the config path was still told PTP could not start, for
+// as long as fppd stayed up.
+//
+// Called once ptp4l is confirmed running, and again on the way down -- a
+// daemon that is not running cannot be failing to start, and InitPTP() raises
+// whichever of these still applies on the next attempt.
+static void ClearAES67PtpStartWarnings() {
+    WarningHolder::RemoveWarning(AES67::WARNING_ID_PTP, AES67::WARNING_PTP_NOT_INSTALLED);
+    WarningHolder::RemoveWarning(AES67::WARNING_ID_PTP, AES67::WARNING_PTP_CONF_WRITE);
+    WarningHolder::RemoveWarning(AES67::WARNING_ID_PTP, AES67::WARNING_PTP_SPAWN_FAILED);
+    WarningHolder::RemoveWarning(AES67::WARNING_ID_PTP, AES67::WARNING_PTP_START_FAILED);
+}
+
 bool AES67Manager::ApplyConfig() {
     // Serialize against concurrent ApplyConfig()/Shutdown()/Cleanup() calls -
     // see m_applyMutex.  Without this, two callers can both get past the SAP
@@ -729,7 +746,7 @@ bool AES67Manager::WritePtpConf(const std::string& path, bool hwTimestamping, bo
     std::ofstream conf(path);
     if (!conf.is_open()) {
         LogErr(VB_MEDIAOUT, "AES67Manager: Cannot write PTP config to %s\n", path.c_str());
-        WarningHolder::AddWarning(AES67::WARNING_ID_PTP, "AES67: could not write PTP configuration file");
+        WarningHolder::AddWarning(AES67::WARNING_ID_PTP, AES67::WARNING_PTP_CONF_WRITE);
         return false;
     }
 
@@ -793,7 +810,7 @@ bool AES67Manager::StartPtp4l(bool hwTimestamping, bool includeDscp) {
     pid_t pid = fork();
     if (pid < 0) {
         LogErr(VB_MEDIAOUT, "AES67Manager: fork() failed for ptp4l: %s\n", FPPstrerror(errno));
-        WarningHolder::AddWarning(AES67::WARNING_ID_PTP, "AES67: could not start the ptp4l clock-sync process");
+        WarningHolder::AddWarning(AES67::WARNING_ID_PTP, AES67::WARNING_PTP_SPAWN_FAILED);
         return false;
     }
     if (pid == 0) {
@@ -832,7 +849,7 @@ bool AES67Manager::InitPTP() {
     // Check if ptp4l binary exists
     if (!FileExists(PTP4L_BINARY)) {
         LogErr(VB_MEDIAOUT, "AES67Manager: ptp4l not found — install linuxptp package\n");
-        WarningHolder::AddWarning(AES67::WARNING_ID_PTP, "AES67: ptp4l not found — install the linuxptp package");
+        WarningHolder::AddWarning(AES67::WARNING_ID_PTP, AES67::WARNING_PTP_NOT_INSTALLED);
         return false;
     }
 
@@ -857,12 +874,17 @@ bool AES67Manager::InitPTP() {
 
             if (!StartPtp4l(false, false)) {
                 LogErr(VB_MEDIAOUT, "AES67Manager: ptp4l failed to start\n");
-                WarningHolder::AddWarning(AES67::WARNING_ID_PTP, "AES67: PTP clock sync (ptp4l) could not start on the configured interface");
+                WarningHolder::AddWarning(AES67::WARNING_ID_PTP, AES67::WARNING_PTP_START_FAILED);
                 m_ptp4lPid = -1;
                 return false;
             }
         }
     }
+
+    // ptp4l is up, so none of the four "PTP could not start" warnings describes
+    // anything current any more -- including one raised by an earlier attempt
+    // on this same call, since the cascade above retries with weaker options.
+    ClearAES67PtpStartWarnings();
 
     // phc2sys is deliberately NOT started.
     //
@@ -911,11 +933,9 @@ bool AES67Manager::InitPTP() {
                     "starting anyway; the RTP timelines will be re-anchored if "
                     "the clock steps once it locks\n",
                     m_config.ptpLockWaitMs, GetPtp4lState().c_str());
-            WarningHolder::AddWarning(AES67::WARNING_ID_PTP,
-                                      AES67::WARNING_PTP_NO_LOCK);
+            RaisePtpNoLockWarning();
         } else {
-            WarningHolder::RemoveWarning(AES67::WARNING_ID_PTP,
-                                         AES67::WARNING_PTP_NO_LOCK);
+            ClearPtpNoLockWarning();
         }
     } else {
         LogInfo(VB_MEDIAOUT,
@@ -995,8 +1015,10 @@ void AES67Manager::ShutdownPTP() {
 
     // Nothing is anchored to PTP any more, so a banner saying the anchors are
     // provisional describes streams that no longer exist.  InitPTP() raises it
-    // again if the next start still cannot reach a lock.
-    WarningHolder::RemoveWarning(AES67::WARNING_ID_PTP, AES67::WARNING_PTP_NO_LOCK);
+    // again if the next start still cannot reach a lock -- and likewise for the
+    // start failures, which cannot be true of a daemon we have just stopped.
+    ClearPtpNoLockWarning();
+    ClearAES67PtpStartWarnings();
 
     {
         std::lock_guard<std::mutex> lock(m_ptpStepMutex);
@@ -1177,12 +1199,17 @@ std::string AES67Manager::GetPtp4lState() {
     return m_ptpCache.portState;
 }
 
-// Block until the PTP clock is one that will not step under the RTP anchors,
-// or until the caller's patience runs out.  See AES67::PTP_LOCK_OFFSET_NS for
-// what went wrong without this and why the offset -- not the port state -- is
-// the signal.
+// Is the PTP clock one that will not step under the RTP anchors?  See
+// AES67::PTP_LOCK_OFFSET_NS for what went wrong without asking this and why
+// the offset -- not the port state -- is the signal.
 //
-// Two outcomes count as settled:
+// Two callers: WaitForPtpLock() spins on it before the anchors are built, and
+// ReviewPtpNoLockWarning() asks it again afterwards, so that a clock which
+// settles late is noticed rather than left described by a warning nobody
+// retracts.  One definition, so the two cannot disagree about what "settled"
+// means.
+//
+// Three outcomes count as settled:
 //
 //   MASTER / GRAND_MASTER -- we won the BMCA, so the PHC *is* the domain's
 //       time and there is nothing for ptp4l to step it towards.  Returns as
@@ -1217,6 +1244,52 @@ std::string AES67Manager::GetPtp4lState() {
 //       which is exactly when the caller should worry.
 //
 // Everything else is not settled, and the caller decides what to do about it.
+// The third outcome is returned as its own value rather than folded into
+// "settled" precisely because of the deadline caveat above: only a caller that
+// knows it has waited long enough may accept it.
+AES67Manager::PtpSettleState AES67Manager::PtpSettledNow(std::string* portStateOut,
+                                                         int64_t* offsetNsOut) {
+    // force: the whole point is the live answer, and the cache is a second
+    // deep -- four polls of the same stale reading would just burn the cap.
+    RefreshPtpCache(true);
+    std::string portState;
+    int64_t offsetNs = 0;
+    bool gmPresent = false;
+    bool gmPresentValid = false;
+    bool offsetValid = false;
+    {
+        std::lock_guard<std::mutex> lock(m_ptpCacheMutex);
+        portState = m_ptpCache.portState;
+        offsetNs = m_ptpCache.offsetNs;
+        gmPresent = m_ptpCache.gmPresent;
+        gmPresentValid = m_ptpCache.gmPresentValid;
+        offsetValid = m_ptpCache.offsetValid;
+    }
+    if (portStateOut) {
+        *portStateOut = portState;
+    }
+    if (offsetNsOut) {
+        *offsetNsOut = offsetNs;
+    }
+
+    if (IsGrandmasterPortState(portState)) {
+        return PtpSettleState::Grandmaster;
+    }
+    // Missing/malformed management data is not a zero offset. Compare
+    // signed bounds directly so INT64_MIN cannot overflow on negation.
+    if (portState == "SLAVE" && gmPresentValid && gmPresent && offsetValid &&
+        offsetNs > -AES67::PTP_LOCK_OFFSET_NS &&
+        offsetNs < AES67::PTP_LOCK_OFFSET_NS) {
+        return PtpSettleState::SlaveLocked;
+    }
+    if (portState == "LISTENING" && gmPresentValid && !gmPresent) {
+        return PtpSettleState::NoGrandmasterYet;
+    }
+    return PtpSettleState::NotSettled;
+}
+
+// Block on PtpSettledNow() above until it says the clock has settled, or until
+// the caller's patience runs out.  Returns true if it settled.
 bool AES67Manager::WaitForPtpLock(int timeoutMs) {
     if (timeoutMs <= 0) {
         return false;
@@ -1243,22 +1316,9 @@ bool AES67Manager::WaitForPtpLock(int timeoutMs) {
             return false;
         }
 
-        // force: the whole point is the live answer, and the cache is a second
-        // deep -- four polls of the same stale reading would just burn the cap.
-        RefreshPtpCache(true);
         std::string portState;
         int64_t offsetNs = 0;
-        bool gmPresent = false;
-        bool gmPresentValid = false;
-        bool offsetValid = false;
-        {
-            std::lock_guard<std::mutex> lock(m_ptpCacheMutex);
-            portState = m_ptpCache.portState;
-            offsetNs = m_ptpCache.offsetNs;
-            gmPresent = m_ptpCache.gmPresent;
-            gmPresentValid = m_ptpCache.gmPresentValid;
-            offsetValid = m_ptpCache.offsetValid;
-        }
+        const PtpSettleState settled = PtpSettledNow(&portState, &offsetNs);
 
         // One line per transition, not per poll: this runs four times a second
         // and the interesting thing is LISTENING -> UNCALIBRATED -> SLAVE.
@@ -1271,18 +1331,14 @@ bool AES67Manager::WaitForPtpLock(int timeoutMs) {
         const double waitedS = std::chrono::duration<double>(
                                    std::chrono::steady_clock::now() - start).count();
 
-        if (IsGrandmasterPortState(portState)) {
+        if (settled == PtpSettleState::Grandmaster) {
             LogInfo(VB_MEDIAOUT,
                     "AES67Manager: PTP settled after %.1fs — this node is the "
                     "grandmaster, so the clock is already the domain's time\n",
                     waitedS);
             return true;
         }
-        // Missing/malformed management data is not a zero offset. Compare
-        // signed bounds directly so INT64_MIN cannot overflow on negation.
-        if (portState == "SLAVE" && gmPresentValid && gmPresent && offsetValid &&
-            offsetNs > -AES67::PTP_LOCK_OFFSET_NS &&
-            offsetNs < AES67::PTP_LOCK_OFFSET_NS) {
+        if (settled == PtpSettleState::SlaveLocked) {
             LogInfo(VB_MEDIAOUT,
                     "AES67Manager: PTP settled after %.1fs — SLAVE, offset "
                     "%+lldns\n", waitedS, (long long)offsetNs);
@@ -1291,7 +1347,7 @@ bool AES67Manager::WaitForPtpLock(int timeoutMs) {
 
         const auto now = std::chrono::steady_clock::now();
         if (now >= deadline) {
-            if (portState == "LISTENING" && gmPresentValid && !gmPresent) {
+            if (settled == PtpSettleState::NoGrandmasterYet) {
                 LogInfo(VB_MEDIAOUT,
                         "AES67Manager: no PTP grandmaster on domain %d after "
                         "%.1fs — nothing to step this clock, carrying on\n",
@@ -3749,6 +3805,15 @@ void AES67Manager::ResetPtpStepReference() {
     std::lock_guard<std::mutex> lock(m_ptpStepMutex);
     m_ptpMonotonicDeltaNs = delta;
     m_ptpMonotonicDeltaValid = have;
+
+    // Same sample, different job: this one is the fixed point
+    // ReviewPtpNoLockWarning() measures total drift against, so it is taken
+    // once here -- where the anchors it describes have just been built -- and
+    // never re-taken while the warning stands.
+    if (m_ptpNoLockWarned.load()) {
+        m_ptpNoLockBaselineNs = delta;
+        m_ptpNoLockBaselineValid = have;
+    }
 }
 
 // True when the PTP clock has moved out from under the anchors since the last
@@ -3784,6 +3849,103 @@ bool AES67Manager::PtpClockStepped() {
     return true;
 }
 
+// The banner, the flag the watchdog gates on, and the baseline it measures
+// against all describe one fact, so they are set and cleared in one place.
+//
+// The baseline is not taken here.  InitPTP() runs before any pipeline exists,
+// so the media clock has not been opened yet and PtpMonotonicDelta() has
+// nothing to read; ResetPtpStepReference() seeds it instead, at the point
+// ApplyConfig() has finished anchoring everything, which is the moment the
+// baseline is supposed to describe.
+void AES67Manager::RaisePtpNoLockWarning() {
+    {
+        std::lock_guard<std::mutex> lock(m_ptpStepMutex);
+        m_ptpNoLockBaselineValid = false;
+    }
+    m_ptpNoLockWarned.store(true);
+    WarningHolder::AddWarning(AES67::WARNING_ID_PTP, AES67::WARNING_PTP_NO_LOCK);
+}
+
+void AES67Manager::ClearPtpNoLockWarning() {
+    m_ptpNoLockWarned.store(false);
+    {
+        std::lock_guard<std::mutex> lock(m_ptpStepMutex);
+        m_ptpNoLockBaselineValid = false;
+    }
+    WarningHolder::RemoveWarning(AES67::WARNING_ID_PTP, AES67::WARNING_PTP_NO_LOCK);
+}
+
+// WARNING_PTP_NO_LOCK says the RTP timelines were anchored to a clock that had
+// not settled yet.  That stops being true on its own: ptp4l commonly reaches
+// SLAVE with a usable offset a few seconds after ptpLockWaitMs ran out.
+// Nothing used to notice -- the warning has no timeout, ShutdownPTP() was the
+// only thing that retracted it, and PtpClockStepped() below only asks for a
+// rebuild on a jump of PTP_STEP_DETECT_NS or more *within one watchdog
+// interval*.  A clock that settles by slewing moves far less than that per
+// interval, so the banner and the "rebuilding when it does" badge outlived the
+// problem all the way to the next fppd restart.  That is what the user sees on
+// an ordinary boot where the grandmaster is simply slower to appear than the
+// five-second cap allows.
+//
+// Settling is not on its own enough to retract it, though: the anchors are
+// still where InitPTP() left them, so what matters is how far the clock has
+// travelled since.  Measured against the baseline taken when the warning went
+// up -- see m_ptpNoLockBaselineNs for why the step detector's own reference
+// cannot answer this.
+//
+//   moved less than a step  -> the anchors turned out fine; retract.
+//   moved a step or more    -> they did not; ask for the rebuild, which
+//                              retracts the warning via ShutdownPTP().
+//
+// Returns true when the caller should rebuild.
+bool AES67Manager::ReviewPtpNoLockWarning() {
+    if (!m_ptpNoLockWarned.load()) {
+        return false;
+    }
+
+    std::string portState;
+    const PtpSettleState settled = PtpSettledNow(&portState);
+    // NoGrandmasterYet counts as an answer here.  Unlike WaitForPtpLock(),
+    // this runs at least a watchdog interval after the wait gave up, which is
+    // long past the point where "no announce seen" and "no announce yet" stop
+    // looking the same.
+    if (settled == PtpSettleState::NotSettled) {
+        return false;
+    }
+
+    int64_t delta = 0;
+    const bool haveDelta = PtpMonotonicDelta(delta);
+    int64_t baseline = 0;
+    bool haveBaseline = false;
+    {
+        std::lock_guard<std::mutex> lock(m_ptpStepMutex);
+        baseline = m_ptpNoLockBaselineNs;
+        haveBaseline = m_ptpNoLockBaselineValid;
+    }
+
+    if (haveDelta && haveBaseline) {
+        const int64_t moved = delta - baseline;
+        const int64_t absMoved = moved < 0 ? -moved : moved;
+        if (absMoved >= AES67::PTP_STEP_DETECT_NS) {
+            LogWarn(VB_MEDIAOUT,
+                    "AES67 watchdog: PTP has settled (%s) but moved %+.3f s "
+                    "getting there — the RTP timelines are anchored to where it "
+                    "used to be\n",
+                    portState.c_str(), (double)moved / 1e9);
+            return true;
+        }
+    }
+
+    LogInfo(VB_MEDIAOUT,
+            "AES67 watchdog: PTP has settled (%s) close to where the streams "
+            "were anchored — clearing the provisional-anchor warning\n",
+            portState.c_str());
+    ClearPtpNoLockWarning();
+    // The badge this drives promises a rebuild that is no longer coming.
+    m_ptpLockedAtStart.store(true);
+    return false;
+}
+
 bool AES67Manager::CheckPtpWatchdog() {
     if (!m_config.ptpEnabled || !m_ptpInitialized) {
         return false;
@@ -3812,7 +3974,14 @@ bool AES67Manager::CheckPtpWatchdog() {
     // no re-anchoring in place -- the only fix is to build them again, which
     // is cheap and is what the under-delivery path already does 90 seconds
     // later.  This just gets there without waiting for the symptom.
-    return PtpClockStepped();
+    if (PtpClockStepped()) {
+        return true;
+    }
+
+    // No step, but the clock may still have quietly settled since the streams
+    // started -- in which case a warning is standing that nothing else will
+    // ever take down.
+    return ReviewPtpNoLockWarning();
 }
 
 bool AES67Manager::PollPipelinesWatchdog() {

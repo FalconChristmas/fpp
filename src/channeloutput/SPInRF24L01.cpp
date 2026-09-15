@@ -116,6 +116,9 @@ SPInRF24L01Output::~SPInRF24L01Output() {
 }
 
 int SPInRF24L01Output::Init(Json::Value config) {
+    // Deprecated in FPP 10, scheduled for removal in FPP 11 (GitHub #2937)
+    LogWarn(VB_CHANNELOUT, "SPI-nRF24L01 output is deprecated and will be removed in FPP 11\n");
+
     int chanNum = -1;
     rf24_datarate_e ss = RF24_250KBPS;
     if (config.isMember("speed")) {

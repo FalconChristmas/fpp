@@ -93,6 +93,7 @@ $system_config_areas = array(
         'file' => array(
             'system_settings' => array('type' => 'file', 'location' => $settingsFile),
             'commandPresets' => array('type' => 'file', 'location' => $settings['configDirectory'] . "/commandPresets.json"),
+            'pluginPrivacyAccepted' => array('type' => 'file', 'location' => $settings['configDirectory'] . "/pluginPrivacyAccepted.json"),
             'proxies' => array('type' => 'file', 'location' => $settings['configDirectory'] . "/proxies"),
             'email' => array('type' => 'file', 'location' => false),
             'timezone' => array('type' => 'function', 'location' => array('backup' => 'ReadTimeZone', 'restore' => '')), //We'll handle restore ourselves
@@ -183,7 +184,7 @@ $network_settings_restored_post_apply = array('wired_network' => "", 'wifi_netwo
 $network_settings_restored_applied_ips = array('wired_network' => array(), 'wifi_network' => array());
 
 //Lookup arrays for what is a json and a ini file
-$known_json_config_files = array('channelInputs', 'universe_inputs', 'dmx_inputs', 'gpio-input', 'channelOutputs', 'commandPresets', 'outputProcessors', 'universes', 'pixel_strings', 'bbb_strings', 'pwm', 'led_panels', 'other', 'model-overlays');
+$known_json_config_files = array('channelInputs', 'universe_inputs', 'dmx_inputs', 'gpio-input', 'channelOutputs', 'commandPresets', 'pluginPrivacyAccepted', 'outputProcessors', 'universes', 'pixel_strings', 'bbb_strings', 'pwm', 'led_panels', 'other', 'model-overlays');
 $known_ini_config_files = array('settings', 'system_settings', 'network', 'wired', 'wifi');
 
 //Remove BBB Strings from the system areas if we're on a Pi or any other platform that isn't a BBB
@@ -520,25 +521,45 @@ function GetRedactableSettingKeys()
  * would drop its privacy answers and send its owner back through the setup
  * wizard to re-answer questions they had already answered on that same box.
  *
- * Conservative in every uncertain direction: no record, an unreadable one, or one
- * with no UUID all mean "not provably this device", and the exclusions apply.
- * That includes every backup written before backup.php stopped reading these
- * files with parse_ini_string(), whose consent record no longer decodes -- so
- * until a player has taken a backup since, rebuilding it from its own backup
- * still goes through the privacy step.
+ * Three answers, because two would be wrong in one direction or the other:
+ *
+ *   'own'     - the record decodes (or can be recovered, below) and names this
+ *               device.  Nothing is withheld; the restore is a rollback.
+ *   'foreign' - the record names a different, real device.  Its privacy
+ *               answers, identity AND its login credentials stay with it: they
+ *               are applied, not merely stored (see GetSettingsNotCarriedByRestore),
+ *               and restoring them locks the operator out of the box in front
+ *               of them with somebody else's password.
+ *   'unknown' - no record, or one that names nobody.  The privacy answers and
+ *               identity are still withheld (this box answers the step itself,
+ *               which costs one pass through the wizard), but credentials and
+ *               the mail destination are carried, as every release before the
+ *               provenance check did.  Treating "unknown" as "foreign" here
+ *               turned off web authentication on every player rebuilt from a
+ *               backup its own earlier release had written: those carry the
+ *               consent record with its quotes stripped by parse_ini_string(),
+ *               and every automatic backup on every upgraded box is one.
+ *
+ * A quote-stripped record cannot be decoded, but its uuid can still be read
+ * out of it ("...,uuid:M1-abcdef...}"), so a same-box backup from an earlier
+ * release is recognised as 'own' rather than merely 'unknown'.
  *
  * @param array $restore_data Settings block from the backup being restored.
- * @return bool True only when the backup's consent record names this device.
+ * @return string 'own', 'foreign' or 'unknown'.
  */
-function BackupIsFromThisDevice($restore_data)
+function BackupProvenance($restore_data)
 {
     if (!is_array($restore_data) || !isset($restore_data['privacyConsent'])) {
-        return false;
+        return 'unknown';
     }
 
-    $consent_record = json_decode($restore_data['privacyConsent'], true);
-    if (!is_array($consent_record) || empty($consent_record['uuid'])) {
-        return false;
+    $backup_uuid = '';
+    $consent_record = json_decode((string) $restore_data['privacyConsent'], true);
+    if (is_array($consent_record)) {
+        $backup_uuid = isset($consent_record['uuid']) && is_string($consent_record['uuid']) ? $consent_record['uuid'] : '';
+    } elseif (preg_match('/(?:^|[{,])\s*"?uuid"?\s*:\s*"?([^",}\s]+)/', (string) $restore_data['privacyConsent'], $m)) {
+        //parse_ini_string() stripped the quotes; the value is still there.
+        $backup_uuid = $m[1];
     }
 
     //getSystemUUID() returns the literal "Unknown" when identity cannot be
@@ -547,12 +568,24 @@ function BackupIsFromThisDevice($restore_data)
     //comparing the strings would call one player's backup the other's own -
     //turning off every exclusion below, including the FPP_UUID one.  Require a
     //real identity on both sides before the comparison means anything.
+    if ($backup_uuid === '' || !isValidSystemUUID($backup_uuid)) {
+        return 'unknown';
+    }
     $device_uuid = getSystemUUID();
-    if (!isValidSystemUUID($consent_record['uuid']) || !isValidSystemUUID($device_uuid)) {
-        return false;
+    if (!isValidSystemUUID($device_uuid)) {
+        return 'unknown';
     }
 
-    return $consent_record['uuid'] === $device_uuid;
+    return ($backup_uuid === $device_uuid) ? 'own' : 'foreign';
+}
+
+/**
+ * True only when the backup provably came from this device.  For the settings
+ * loop's three-way decision use BackupProvenance() directly.
+ */
+function BackupIsFromThisDevice($restore_data)
+{
+    return BackupProvenance($restore_data) === 'own';
 }
 
 /**
@@ -575,7 +608,13 @@ function BackupIsFromThisDevice($restore_data)
  * other-device detection works by seeing the foreign record arrive, and stripping
  * it degrades the shortfall to the weaker 'absent' and loses the audit trail.
  *
- * @return array Key name => true, for use with array_key_exists().
+ * Each key maps to the tier that decides when it is withheld (see
+ * BackupProvenance): 'identity' is withheld unless the backup is provably this
+ * device's own; 'credential' is withheld only when it provably belongs to a
+ * different device.  Callers that only need "is it in the list" can still use
+ * array_key_exists().
+ *
+ * @return array Key name => 'identity' | 'credential'.
  */
 function GetSettingsNotCarriedByRestore()
 {
@@ -587,8 +626,8 @@ function GetSettingsNotCarriedByRestore()
     }
 
     $excluded_keys = array(
-        'LegalJurisdiction' => true,
-        'FPP_UUID' => true,
+        'LegalJurisdiction' => 'identity',
+        'FPP_UUID' => 'identity',
 
         //Login credentials.  These are applied, not merely stored: ApplySetting()
         //sends password to SetUIPassword(), which rewrites config/.htpasswd
@@ -601,20 +640,22 @@ function GetSettingsNotCarriedByRestore()
         //password was one of the four keys the removed redactor did blank, so
         //excluding it here restores the behaviour that shipped before; osPassword
         //it never matched, so that one is a fix.  A player restoring its own
-        //backup keeps all of them - see BackupIsFromThisDevice().
-        'password' => true,
-        'passwordVerify' => true,
-        'passwordEnable' => true,
-        'osPassword' => true,
-        'osPasswordVerify' => true,
-        'osPasswordEnable' => true,
+        //backup keeps all of them, and so does one restoring a backup of unknown
+        //provenance - see BackupProvenance() for why "unknown" must not count as
+        //"foreign" here.
+        'password' => 'credential',
+        'passwordVerify' => 'credential',
+        'passwordEnable' => 'credential',
+        'osPassword' => 'credential',
+        'osPasswordVerify' => 'credential',
+        'osPasswordEnable' => 'credential',
 
         //The address the restored player would send mail TO.  emailAddress is
         //excluded below as part of the privacy group; this is the same person's
         //inbox arriving by another route, and a player that mails the previous
         //owner is not a working clone.  The relay credentials - emailserver,
         //emailuser, emailpass - are configuration and do restore.
-        'emailtoemail' => true,
+        'emailtoemail' => 'credential',
     );
 
     //Read the group rather than naming its members, so a sixth privacy setting
@@ -640,7 +681,7 @@ function GetSettingsNotCarriedByRestore()
 
     foreach ($privacy_group as $privacy_setting) {
         if (is_string($privacy_setting) && $privacy_setting !== '') {
-            $excluded_keys[$privacy_setting] = true;
+            $excluded_keys[$privacy_setting] = 'identity';
         }
     }
 
@@ -886,8 +927,11 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                         $restore_data = $restore_area_data['system_settings'][0];
 
                         //Restoring this player's own backup is a rollback of its own state,
-                        //so the privacy exclusions below do not apply to it.
-                        $restore_is_own_backup = BackupIsFromThisDevice($restore_data);
+                        //so the privacy exclusions below do not apply to it.  One of
+                        //unknown provenance keeps its credentials but not its privacy
+                        //answers; see BackupProvenance().
+                        $restore_provenance = BackupProvenance($restore_data);
+                        $not_carried = GetSettingsNotCarriedByRestore();
 
                         foreach ($restore_data as $setting_name => $setting_value) {
                             //Verify fields are UI-only confirmation values, never persisted directly.
@@ -900,9 +944,14 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                             //somebody in belong to the player the backup came from.  This box
                             //answers the step itself -- unless the backup is this box's own, in
                             //which case they already are its answers.
-                            if (!$restore_is_own_backup &&
-                                array_key_exists($setting_name, GetSettingsNotCarriedByRestore())) {
-                                continue;
+                            if (array_key_exists($setting_name, $not_carried)) {
+                                //Anything not explicitly a credential is treated as identity,
+                                //the stricter tier.
+                                $tier = $not_carried[$setting_name];
+                                if (($tier !== 'credential' && $restore_provenance !== 'own') ||
+                                    ($tier === 'credential' && $restore_provenance === 'foreign')) {
+                                    continue;
+                                }
                             }
 
                             //privacyConsent is restorable on purpose: the other-device shortfall
@@ -1004,6 +1053,31 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                     }
                 }
 
+                //PLUGIN PRIVACY ACCEPTANCE RESTORE. The record names the player
+                //that wrote it and is honoured only there (ReadPluginPrivacyAccepted
+                //in api/controllers/plugin.php). Only this player's own backup is
+                //restored: another player's acceptances would be ignored anyway,
+                //and writing them here would throw away the ones made on this
+                //player. A foreign backup that carries a record is reported as
+                //not restored; a backup with no record at all (every backup made
+                //before the record existed) is skipped silently. The results
+                //renderer only reports a sub-area that has an ATTEMPT key, so
+                //that key is set only when there was something to attempt.
+                if ($restore_areas_idx == "pluginPrivacyAccepted") {
+                    $restore_data = isset($restore_area_data['pluginPrivacyAccepted'][0]) ? $restore_area_data['pluginPrivacyAccepted'][0] : null;
+                    $system_settings_data = isset($restore_area_data['system_settings'][0]) ? $restore_area_data['system_settings'][0] : null;
+                    if (is_array($restore_data) && isset($restore_data['plugins']) && is_array($restore_data['plugins'])) {
+                        if (BackupIsFromThisDevice($system_settings_data)) {
+                            $settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = true;
+                            $filepath = $settings['configDirectory'] . "/pluginPrivacyAccepted.json";
+                            $save_result = (file_put_contents($filepath, prettyPrintJSON(json_encode($restore_data))) !== false);
+                        } else {
+                            $settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = false;
+                            $save_result = false; // not this player's backup: this player's record is kept
+                        }
+                    }
+                }
+
                 //EMAIL SETTING RESTORATION
                 if ($restore_areas_idx == "email") {
                     //get data out of nested array
@@ -1055,8 +1129,9 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                         //in scope - ask again rather than depending on pass order.  The one
                         //that matters here is the destination address: it belongs to whoever
                         //made the backup, and a restored player mailing the previous owner is
-                        //not a working clone.
-                        if (BackupIsFromThisDevice($restore_data)) {
+                        //not a working clone.  Withheld only from a provably foreign backup,
+                        //like the other credentials (BackupProvenance).
+                        if (BackupProvenance($restore_data) !== 'foreign') {
                             WriteSettingToFile('emailtoemail', $emailtoemail);
                         }
 

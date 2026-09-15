@@ -20,6 +20,24 @@
 #include "PlaylistCommands.h"
 #include "Scheduler.h"
 
+// A playlist name is the one argument every command in this file needs, and an
+// empty one is never a playlist: it is a UI that posted with nothing selected,
+// or a %VAR:name% that resolved to nothing.  CommandManager's missing-argument
+// check (invokeCommand(), Commands.cpp) only catches an argument that is not
+// there at all - an explicit "" still reaches run() and gets treated as a name.
+// That is how "Start Playlist At Item" with an empty name matched the (equally
+// empty) name of the playlist the scheduler thought should be running, deferred
+// to the scheduler, started nothing, and still returned success, leaving the web
+// UI to report "Playlist Started" with the player sitting idle (issue #2944).
+static std::unique_ptr<Command::Result> MissingPlaylistName(const std::vector<std::string>& args,
+                                                            const std::string& command) {
+    if (args.empty() || args[0].empty()) {
+        LogWarn(VB_COMMAND, "Ignoring \"%s\" - no playlist name was given\n", command.c_str());
+        return std::make_unique<Command::ErrorResult>("\"" + command + "\" requires a playlist name");
+    }
+    return nullptr;
+}
+
 StopPlaylistCommand::StopPlaylistCommand() :
     Command("Stop Now") {
 }
@@ -81,13 +99,12 @@ StartPlaylistCommand::StartPlaylistCommand() :
     args.push_back(CommandArg("scheduleProtected", "bool", "Protected from Schedule Override", true).setDefaultValue("false"));
 }
 std::unique_ptr<Command::Result> StartPlaylistCommand::run(const std::vector<std::string>& args) {
+    if (auto missing = MissingPlaylistName(args, name)) {
+        return missing;
+    }
     bool r = false;
     bool iNR = false;
     bool scheduleProtected = false;
-    if (args.empty()) {
-        LogWarn(VB_COMMAND, "Ignoring StartPlaylistCommand as no Playlist was supplied\n");
-        return std::make_unique<Command::Result>("Playlist is a requirement argument");
-    }
     if (args.size() > 1) {
         r = args[1] == "true" || args[1] == "1";
     }
@@ -126,6 +143,9 @@ TogglePlaylistCommand::TogglePlaylistCommand() :
                        .setDefaultValue("Gracefully"));
 }
 std::unique_ptr<Command::Result> TogglePlaylistCommand::run(const std::vector<std::string>& args) {
+    if (auto missing = MissingPlaylistName(args, name)) {
+        return missing;
+    }
     bool r = false;
     std::string stopType = "Gracefully";
     if (args.size() > 1) {
@@ -174,12 +194,12 @@ StartPlaylistAtCommand::StartPlaylistAtCommand() :
     args.push_back(CommandArg("scheduleProtected", "bool", "Protected from Schedule Override", true).setDefaultValue("false"));
 }
 std::unique_ptr<Command::Result> StartPlaylistAtCommand::run(const std::vector<std::string>& args) {
+    if (auto missing = MissingPlaylistName(args, name)) {
+        return missing;
+    }
     bool r = false;
     bool scheduleProtected = false;
 
-    if (args.empty()) {
-        return std::make_unique<Command::ErrorResult>("Playlist is a requirement argument");
-    }
     int idx = 1;
     if (args.size() > 1) {
         idx = std::atoi(args[1].c_str());
@@ -245,6 +265,9 @@ StartPlaylistAtRandomCommand::StartPlaylistAtRandomCommand() :
                                 "prevents it from running again."));
 }
 std::unique_ptr<Command::Result> StartPlaylistAtRandomCommand::run(const std::vector<std::string>& args) {
+    if (auto missing = MissingPlaylistName(args, name)) {
+        return missing;
+    }
     bool r = false;
     bool iNR = false;
     if (args.size() > 1) {
@@ -284,6 +307,9 @@ InsertPlaylistCommand::InsertPlaylistCommand() :
                                 "prevents it from running again."));
 }
 std::unique_ptr<Command::Result> InsertPlaylistCommand::run(const std::vector<std::string>& args) {
+    if (auto missing = MissingPlaylistName(args, name)) {
+        return missing;
+    }
     int start = -1;
     int end = -1;
     bool iNR = false;
@@ -314,6 +340,9 @@ InsertPlaylistImmediate::InsertPlaylistImmediate() :
                                 "prevents it from running again."));
 }
 std::unique_ptr<Command::Result> InsertPlaylistImmediate::run(const std::vector<std::string>& args) {
+    if (auto missing = MissingPlaylistName(args, name)) {
+        return missing;
+    }
     int start = -1;
     int end = -1;
     bool iNR = false;
@@ -339,6 +368,9 @@ InsertRandomItemFromPlaylistCommand::InsertRandomItemFromPlaylistCommand() :
     args.push_back(CommandArg("immediate", "bool", "Immediate", true).setDefaultValue("false"));
 }
 std::unique_ptr<Command::Result> InsertRandomItemFromPlaylistCommand::run(const std::vector<std::string>& args) {
+    if (auto missing = MissingPlaylistName(args, name)) {
+        return missing;
+    }
     bool immediate = false;
     if (args.size() > 1) {
         immediate = args[1] == "true" || args[1] == "1";

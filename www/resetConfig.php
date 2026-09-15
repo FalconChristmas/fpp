@@ -85,6 +85,9 @@ $files['logs'] = array(
 );
 $files['plugins'] = array(
     'plugins/*',
+    // the privacy disclosures accepted for the plugins above; meaningless
+    // without them, and a fresh install must show each disclosure again
+    'config/pluginPrivacyAccepted.json',
 );
 $files['pluginConfigs'] = array(
     'config/plugin.*',

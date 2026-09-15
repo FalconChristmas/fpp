@@ -116,20 +116,38 @@ print("|".join(n for n in names if n.isidentifier()))
 
 CRASH_SECRET_KEYS="$(build_secret_key_list)"
 
+# Name-shaped backstop for files whose keys settings.json cannot know about
+# (plugin configs, logs, playlists). LOOSE tokens match anywhere in a key;
+# TIGHT tokens are substrings of ordinary words (path, author, keyframe,
+# passthrough) so they count only when no lowercase letter follows. Cases are
+# spelled out rather than using sed's I flag: under I, [A-Z] also matches
+# lowercase and the "followed by uppercase" boundary collapses. \x27 is the
+# apostrophe -- \047 inside a bracket expression is the four characters \ 0 4 7.
+CRASH_BACKSTOP_LOOSE='[Pp]assword|PASSWORD|[Pp]asswd|PASSWD|[Pp]assphrase|PASSPHRASE|[Pp]asscode|PASSCODE|[Pp]wd|PWD|[Pp]sk|PSK|[Ss]ecret|SECRET|[Tt]oken|TOKEN|[Cc]redential|CREDENTIAL'
+CRASH_BACKSTOP_TIGHT='([Pp]ass|[Kk]ey|[Aa]uth|[Pp]at)([^a-z"\x27[:space:]:=][A-Za-z0-9_.-]*)?|(PASS|KEY|AUTH|PAT)([^A-Za-z"\x27[:space:]:=][A-Za-z0-9_.-]*)?'
+# Key plus separator (optional closing quote, whitespace, : or =) as ONE group
+# so the substitutions only ever need \1.
+CRASH_BACKSTOP_KEY="([A-Za-z0-9_.-]*((${CRASH_BACKSTOP_LOOSE})[A-Za-z0-9_.-]*|(${CRASH_BACKSTOP_TIGHT}))\"?[[:space:]]*[:=][[:space:]]*)"
+
+# Lines whose FIRST key ends in Enable are left alone (see above). Anchored to
+# the line start: a compact single-line JSON object with an ...Enable key in it
+# must still have its other keys redacted.
+CRASH_ENABLE_LINE='^[[:space:]]*"?[A-Za-z0-9_.-]*[Ee]nable"?[[:space:]]*[:=]'
+
 # Redact stdin to stdout. Used for every file that leaves the device, so there
 # is exactly one copy of this policy rather than the six divergent ones this
 # replaced.
 redact_stream() {
     sed -E \
         `# 1. Known secret and PII settings keys, ini or JSON, quoted or bare.` \
-        -e "/[Ee]nable[[:space:]]*[:=]/! s/^([[:space:]]*\"?(${CRASH_SECRET_KEYS})\"?[[:space:]]*[:=][[:space:]]*).*\$/\1\"**REDACTED**\"/" \
-        -e "/[Ee]nable[[:space:]]*[:=]/! s/(\"(${CRASH_SECRET_KEYS})\"[[:space:]]*:[[:space:]]*)\"[^\"]*\"/\1\"**REDACTED**\"/g" \
-        `# 2. Name-shaped backstop for log lines and files with unknown keys.` \
-        -e '/[Ee]nable[[:space:]]*[:=]/! s/([a-zA-Z_.-]*([Pp]assword|[Pp]asswd|[Pp]wd|PSK|psk|[Pp]assphrase)[a-zA-Z_.-]*)([[:space:]]*[:=][[:space:]]*)"[^"]*"/\1\3"**REDACTED**"/g' \
-        -e "/[Ee]nable[[:space:]]*[:=]/! s/([a-zA-Z_.-]*([Pp]assword|[Pp]asswd|[Pp]wd|PSK|psk|[Pp]assphrase)[a-zA-Z_.-]*)([[:space:]]*[:=][[:space:]]*)'[^']*'/\1\3'**REDACTED**'/g" \
-        -e '/[Ee]nable[[:space:]]*[:=]/! s/([a-zA-Z_.-]*([Pp]assword|[Pp]asswd|[Pp]wd|PSK|psk|[Pp]assphrase)[a-zA-Z_.-]*)([[:space:]]*[:=][[:space:]]*)([^"\047[:space:]]+)/\1\3**REDACTED**/g' \
-        `# 3. Credentials embedded in URLs.` \
-        -e 's#(https?://)[^:/@[:space:]]+:[^@[:space:]]+@#\1**REDACTED**@#gI'
+        -e "/${CRASH_ENABLE_LINE}/! s/^([[:space:]]*\"?(${CRASH_SECRET_KEYS})\"?[[:space:]]*[:=][[:space:]]*).*\$/\1\"**REDACTED**\"/" \
+        -e "/${CRASH_ENABLE_LINE}/! s/(\"(${CRASH_SECRET_KEYS})\"[[:space:]]*:[[:space:]]*)\"[^\"]*\"/\1\"**REDACTED**\"/g" \
+        `# 2. Name-shaped backstop: double-quoted, single-quoted and bare values.` \
+        -e "/${CRASH_ENABLE_LINE}/! s/${CRASH_BACKSTOP_KEY}\"[^\"]*\"/\1\"**REDACTED**\"/g" \
+        -e "/${CRASH_ENABLE_LINE}/! s/${CRASH_BACKSTOP_KEY}'[^']*'/\1'**REDACTED**'/g" \
+        -e "/${CRASH_ENABLE_LINE}/! s/${CRASH_BACKSTOP_KEY}([^\"'[:space:]]+)/\1**REDACTED**/g" \
+        `# 3. Credentials embedded in URLs, any scheme (https, rtsp, mqtt, smb...).` \
+        -e 's#([a-z][a-z0-9+.-]*://)[^:/@[:space:]]+:[^@[:space:]]+@#\1**REDACTED**@#gI'
 }
 
 # Interface config fields that may leave the device. Declared in
@@ -172,6 +190,19 @@ filter_interface_config() {
 redact_copy() {
     local src="$1" dst="$2"
     redact_stream < "$src" > "$dst" 2>/dev/null || rm -f "$dst"
+}
+
+# Copy a file through the redactor if it is text, else leave a one-line stub in
+# its place. The redactor is line-oriented and passes a binary through
+# untouched, so anything with a NUL in its first 8 KiB (SQLite, gzip, images)
+# is replaced by its size. The triager still sees the file existed.
+redact_copy_or_stub() {
+    local src="$1" dst="$2"
+    if [ "$(head -c 8192 "$src" | tr -d '\000' | wc -c)" -eq "$(head -c 8192 "$src" | wc -c)" ]; then
+        redact_copy "$src" "$dst"
+    else
+        echo "**OMITTED: binary file, $(wc -c < "$src") bytes**" > "$dst"
+    fi
 }
 
 
@@ -410,9 +441,17 @@ with open(sys.argv[2], "w") as f:
                         *authorized_keys*|*id_rsa*|*id_dsa*|*.pem|*.key)
                             echo "**REDACTED SSH/KEY FILE**" > "$TEMP_DIR/config/$filename"
                             ;;
-                        *)
-                            # Scrub secrets from other config files (except Enable flags)
+                        cape-eeprom.bin)
+                            # The one binary FPP itself keeps here. Handled
+                            # exactly as before.
                             redact_copy "$file" "$TEMP_DIR/config/$filename"
+                            ;;
+                        *)
+                            # Everything else FPP writes here is text. Plugins
+                            # also keep SQLite databases and the like here;
+                            # those are stubbed, text is scrubbed (except
+                            # Enable flags).
+                            redact_copy_or_stub "$file" "$TEMP_DIR/config/$filename"
                             ;;
                     esac
                 fi

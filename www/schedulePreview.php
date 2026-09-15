@@ -48,47 +48,58 @@ if (file_exists($userHolidaysFile)) {
     }
 }
 
-function checkIfHoliday($item, $wrap = false)
+// Holiday name for the occurrence's start or end date (with its " +7 days"
+// / " -1 day" offset when the entry has one), or '' when this occurrence
+// isn't anchored on a holiday.  $field limits the check to 'startDate' or
+// 'endDate'; by default the end date wins when both match, as the calendar
+// labels only want one name.
+function checkIfHoliday($item, $wrap = false, $field = '')
 {
     global $data;
     global $settings;
 
     $schEntry = $data['schedule']['entries'][$item['id']];
     $holiday = '';
+    $matched = '';
     if (
+        ($field != 'endDate') &&
         (($schEntry['startDateInt'] < 10000 && $schEntry['startDateInt'] == ($item['startDateInt'] % 10000)) ||
             ($schEntry['startDateInt'] == $item['startDateInt'])) &&
-        (!preg_match('/^[0-9]/', $data['schedule']['entries'][$item['id']]['startDate']))
+        (!preg_match('/^[0-9]/', $schEntry['startDate']))
     ) {
-        $holiday = $data['schedule']['entries'][$item['id']]['startDate'];
+        $holiday = $schEntry['startDate'];
+        $matched = 'startDate';
     }
 
     if (
+        ($field != 'startDate') &&
         (($schEntry['endDateInt'] < 10000 && $schEntry['endDateInt'] == ($item['endDateInt'] % 10000)) ||
             ($schEntry['endDateInt'] == $item['endDateInt'])) &&
-        (!preg_match('/^[0-9]/', $data['schedule']['entries'][$item['id']]['endDate']))
+        (!preg_match('/^[0-9]/', $schEntry['endDate']))
     ) {
-        $holiday = $data['schedule']['entries'][$item['id']]['endDate'];
+        $holiday = $schEntry['endDate'];
+        $matched = 'endDate';
     }
 
-    if (
-        ($holiday != '') &&
-        (isset($settings['locale'])) &&
-        (isset($settings['locale']['holidays']))
-    ) {
+    if ($holiday == '') {
+        return '';
+    }
+
+    if (isset($settings['locale']['holidays'])) {
         for ($h = 0; $h < count($settings['locale']['holidays']); $h++) {
             if ($holiday == $settings['locale']['holidays'][$h]['shortName']) {
-                if ($wrap) {
-                    return ' (' . $settings['locale']['holidays'][$h]['name'] . ')';
-                } else {
-                    return $settings['locale']['holidays'][$h]['name'];
-                }
+                $holiday = $settings['locale']['holidays'][$h]['name'];
+                break;
             }
-
         }
     }
 
-    return $holiday;
+    $key = $matched . 'Offset';
+    if (isset($schEntry[$key]) && $schEntry[$key] != 0) {
+        $holiday .= (($schEntry[$key] > 0) ? ' +' : ' ') . $schEntry[$key] . ' ' . ((abs($schEntry[$key]) > 1) ? 'days' : 'day');
+    }
+
+    return $wrap ? ' (' . $holiday . ')' : $holiday;
 }
 
 function getItemInfo($item)
@@ -107,7 +118,7 @@ function getItemInfo($item)
     if (preg_match('/^[0-9]/', $sch['startDate'])) {
         $info .= $sch['startDate'];
     } else {
-        $info .= checkIfHoliday($item);
+        $info .= checkIfHoliday($item, false, 'startDate');
     }
     $info .= '<br>';
 
@@ -115,7 +126,7 @@ function getItemInfo($item)
     if (preg_match('/^[0-9]/', $sch['endDate'])) {
         $info .= $sch['endDate'];
     } else {
-        $info .= checkIfHoliday($item);
+        $info .= checkIfHoliday($item, false, 'endDate');
     }
     $info .= '<br>';
 

@@ -77,6 +77,22 @@ constexpr const char* WARNING_PTP_NO_LOCK =
     "AES67: PTP did not reach a usable lock before the streams started — "
     "audio may be mistimed until the clock settles";
 
+// The ways PTP can fail to come up at all.  Every one of these describes
+// something the user can fix without restarting fppd -- install linuxptp, free
+// the interface, make the config path writable -- so every one of them has to
+// be retractable, or the banner goes on naming a problem that has already been
+// solved.  InitPTP() retracts all four once ptp4l is confirmed running and
+// ShutdownPTP() retracts them on the way down; a still-failing start raises
+// them again.
+constexpr const char* WARNING_PTP_NOT_INSTALLED =
+    "AES67: ptp4l not found — install the linuxptp package";
+constexpr const char* WARNING_PTP_CONF_WRITE =
+    "AES67: could not write PTP configuration file";
+constexpr const char* WARNING_PTP_SPAWN_FAILED =
+    "AES67: could not start the ptp4l clock-sync process";
+constexpr const char* WARNING_PTP_START_FAILED =
+    "AES67: PTP clock sync (ptp4l) could not start on the configured interface";
+
 // AES67 allows up to 8 channels per stream and FPP now carries all of them.
 //
 // This sat at 2 for a while because anything above stereo produced "Internal
@@ -1146,6 +1162,29 @@ private:
     // alive shortly afterwards.
     bool StartPtp4l(bool hwTimestamping, bool includeDscp);
 
+    // What one poll of ptp4l says about whether the clock will still move
+    // under anything anchored to it.  See the comment above PtpSettledNow()
+    // in the .cpp for what each outcome means and why the offset, rather than
+    // the port state, is the signal.
+    enum class PtpSettleState {
+        NotSettled,        // still converging, or the query told us nothing
+        Grandmaster,       // we hold the role -- the PHC is the domain's time
+        SlaveLocked,       // measured against the GM, correction already applied
+        NoGrandmasterYet,  // LISTENING and gmPresent actually read false
+    };
+
+    // One poll of the above.  Factored out of WaitForPtpLock() so the watchdog
+    // can ask the same question later without a second copy of the answer to
+    // drift out of step with this one.  portState and offsetNs, when given,
+    // receive the readings the verdict was reached on, for logging.
+    //
+    // NoGrandmasterYet is deliberately not folded into "settled" here: while
+    // the initial wait is still running, "no announce seen" and "no announce
+    // yet" look identical, so only a caller that knows it has waited long
+    // enough may treat it as an answer.
+    PtpSettleState PtpSettledNow(std::string* portState = nullptr,
+                                 int64_t* offsetNs = nullptr);
+
     // Block until ptp4l reports a clock that will not step under us, or until
     // timeoutMs elapses.  Returns true if it settled.  See
     // AES67::PTP_LOCK_OFFSET_NS for what "settled" means and why waiting for
@@ -1157,6 +1196,20 @@ private:
     // RTP anchors.  Returns true when the caller should rebuild everything.
     // Called from the SAP announce loop alongside the pipeline watchdog.
     bool CheckPtpWatchdog();
+
+    // Retract WARNING_PTP_NO_LOCK once the clock it complains about has
+    // settled -- or ask for a rebuild, if settling moved the clock far enough
+    // that the anchors really are wrong.  Called from CheckPtpWatchdog();
+    // returns true when the caller should rebuild.
+    bool ReviewPtpNoLockWarning();
+
+    // Raise/retract WARNING_PTP_NO_LOCK.  Nothing else should touch that
+    // warning directly: the banner and the m_ptpNoLockWarned flag have to move
+    // together, or the watchdog either never reviews a warning that is up or
+    // reviews one that is not.  (The baseline is seeded separately, by
+    // ResetPtpStepReference() -- see there.)
+    void RaisePtpNoLockWarning();
+    void ClearPtpNoLockWarning();
 
     // Step detector state: (PTP - CLOCK_MONOTONIC) as it stood at the last
     // sample.  ResetPtpStepReference() takes one when ApplyConfig() has
@@ -1173,8 +1226,30 @@ private:
     // PTP minus CLOCK_MONOTONIC, or false when there is no PTP clock to read.
     bool PtpMonotonicDelta(int64_t& deltaNs);
 
-    // Whether WaitForPtpLock() succeeded before the current pipelines were
-    // anchored.  Reported as ptp.lockedAtStart.
+    // WARNING_PTP_NO_LOCK bookkeeping.  m_ptpNoLockWarned says the banner is
+    // up; the baseline is (PTP - CLOCK_MONOTONIC) as it stood when it went up,
+    // which is the clock the pipelines were about to anchor to.
+    //
+    // The step detector's own reference cannot answer this question: it
+    // re-samples on every pass, so it only ever sees one watchdog interval's
+    // worth of movement, and a clock that slews half a second into lock over
+    // ten minutes moves ~28ms per interval and never trips it.  This baseline
+    // is the one that does not move, so total distance travelled since the
+    // anchors were built can be measured against it.
+    //
+    // Guarded by m_ptpStepMutex, except the atomic flag.
+    std::atomic<bool> m_ptpNoLockWarned{false};
+    int64_t m_ptpNoLockBaselineNs = 0;
+    bool m_ptpNoLockBaselineValid = false;
+
+    // Whether the current pipelines' RTP anchors can be trusted: false while
+    // they are known to have been built against a clock that had not settled.
+    // Set by InitPTP() from the WaitForPtpLock() result, and cleared again by
+    // ReviewPtpNoLockWarning() if the clock settles close enough to where the
+    // anchors were placed that they turned out fine after all.  Reported as
+    // ptp.lockedAtStart, which drives the "streams started before PTP settled"
+    // badge -- so it has to stop being false whenever the warning does, or the
+    // page keeps promising a rebuild that is no longer coming.
     std::atomic<bool> m_ptpLockedAtStart{false};
 
     // Query the actual PTP grandmaster (may be a remote clock, not this node)

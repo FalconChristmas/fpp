@@ -480,23 +480,6 @@ fi
 export LANG=en_US.UTF-8
 
 apt-get update
-# rcn-ee/bbbio's gpiod postinst has a buggy guard: it tests
-#   getent passwd gpio-monitor   (a typo -- no such user)
-# and then unconditionally runs \`useradd ... gpio-manager\`, which aborts with
-# exit 9 on UPGRADE because gpio-manager already exists in the base image. That
-# kills \`apt-get upgrade\` mid-run. Catch that one failure, drop the stale user,
-# and let dpkg reconfigure gpiod (its postinst recreates gpio-manager) so the
-# upgrade completes. Remove once bbbio ships a fixed gpiod.
-if ! apt-get -y upgrade; then
-    echo "FPP - apt upgrade failed; applying gpiod gpio-manager workaround"
-    userdel gpio-manager 2>/dev/null || true
-    dpkg --configure -a
-    apt-get -y upgrade
-fi
-apt-get -y install wget ca-certificates locales
-locale-gen en_US.UTF-8 || true
-update-locale LANG=en_US.UTF-8 || true
-export LC_ALL=en_US.UTF-8
 
 # Strip stock bloat per README.BB64. Filter to installed packages so missing
 # ones don't abort under set -e.
@@ -525,6 +508,29 @@ if [ -n "\$BB_PURGE_INSTALLED" ]; then
 fi
 
 rm -rf /opt/bb-code-server /opt/vsx-examples
+
+# Upgrade only AFTER the purge above: the rcn-ee image ships with ~1.4GB free
+# and is not grown, and upgrading bb-code-server alone needs ~700MB of
+# transient space (new copy unpacked alongside the old one). Upgrading first
+# ran the rootfs out of space once a Debian point release landed.
+#
+# rcn-ee/bbbio's gpiod postinst has a buggy guard: it tests
+#   getent passwd gpio-monitor   (a typo -- no such user)
+# and then unconditionally runs \`useradd ... gpio-manager\`, which aborts with
+# exit 9 on UPGRADE because gpio-manager already exists in the base image. That
+# kills \`apt-get upgrade\` mid-run. Catch that one failure, drop the stale user,
+# and let dpkg reconfigure gpiod (its postinst recreates gpio-manager) so the
+# upgrade completes. Remove once bbbio ships a fixed gpiod.
+if ! apt-get -y upgrade; then
+    echo "FPP - apt upgrade failed; applying gpiod gpio-manager workaround"
+    userdel gpio-manager 2>/dev/null || true
+    dpkg --configure -a
+    apt-get -y upgrade
+fi
+apt-get -y install wget ca-certificates locales
+locale-gen en_US.UTF-8 || true
+update-locale LANG=en_US.UTF-8 || true
+export LC_ALL=en_US.UTF-8
 
 cd /root
 /root/FPP_Install.sh --img --yes --branch ${FPPBRANCH} ${INSTALLER_EXTRA_ARGS}

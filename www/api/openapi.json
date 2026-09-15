@@ -3471,6 +3471,39 @@
         }
       }
     },
+    "/api/git/pullRequests": {
+      "get": {
+        "tags": [
+          "git"
+        ],
+        "summary": "Get open pull requests",
+        "description": "Returns open pull requests on FalconChristmas/fpp via GitHub API, proxied so the browser does not call api.github.com directly. Each entry contains the PR number, title, author, head ref/repo, and draft flag. The Developer settings page maps this to the Branch dropdown when Git Remote is Pull Requests (#NUM - USER).",
+        "responses": {
+          "200": {
+            "description": "Open PR list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  {
+                    "number": 1842,
+                    "title": "Fix pixel overlay race",
+                    "user": "pixelpilot123",
+                    "headRef": "fix/overlay-race",
+                    "headRepo": "pixelpilot123/fpp",
+                    "headSha": "abc123",
+                    "htmlUrl": "https://github.com/FalconChristmas/fpp/pull/1842",
+                    "draft": false
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/git/releases/notes/{tag}": {
       "parameters": [
         {
@@ -6722,7 +6755,7 @@
           "plugin"
         ],
         "summary": "Install plugin",
-        "description": "Install a new plugin. The request body is a `pluginInfo.json` structure with `branch` and `sha` fields added to specify which branch and commit to install.",
+        "description": "Install a new plugin. The request body is a `pluginInfo.json` structure with `branch` and `sha` fields added to specify which branch and commit to install. The structure is NOT validated against a schema here, on purpose. FPP reads the keys it knows (repoName, srcURL, versions, dependencies, privacy, ...) and carries everything else through untouched, so a pluginInfo.json written for a newer FPP -- a key this release has never heard of, an unknown key inside `privacy` -- installs on this one. The Plugins page renders the parts it understands and ignores the rest (the full block is still shown as written). Strict validation lives in the fpp-data listing check (`.github/schema/pluginInfo.schema.json`), where a mistake is a rejected pull request rather than a plugin nobody can install. Keep it that way: any check added here must be on a key FPP acts on, never on the set of keys. `privacyAccepted` (optional, null allowed) is the privacy block the caller showed the operator, the same field `POST /plugin/{RepoName}/upgrade` takes. After the clone, before any dependency or the plugin's own install script, it is compared with the cloned copy's block (sends, collects, sensors, remoteAccess, systemChanges, closedCode): when they differ -- the listing is behind the repository, or the selected version pins an older commit -- the install is refused, the clone removed, and the reply carries `Code: \"PrivacyMismatch\"` and `pending` (the cloned block) so the caller can show it and post again with it as `privacyAccepted`. A body without the field is compared with the block recorded for that plugin from an earlier install, if there is one (the record survives an uninstall), and refused the same way when they differ; with no record either, it installs and records nothing, so the next update check reports `privacyChanged`. The block is recorded once the dependencies are in place, just before the plugin's own install script runs. `dependencyPrivacyAccepted` (optional) is a map repoName -> block or null for the dependency plugins the dialog also showed; each is gated and recorded the same way when that plugin is installed as a dependency of this one, and a dependency not in the map -- declared only in the cloned copy -- is refused before it is cloned (`pending` is then its listed block). Without the map, dependencies are installed as before.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -7049,6 +7082,48 @@
         }
       }
     },
+    "/api/plugin/{RepoName}/privacy": {
+      "parameters": [
+        {
+          "name": "RepoName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Privacy disclosure status for an installed plugin",
+        "description": "What the operator accepted at install, what the next upgrade would land, and whether the two differ in a way that re-shows the install dialog. Reads the already-fetched upstream tip; call `POST /plugin/{RepoName}/updates` first to fetch. `?target=reinstall` diffs the block a Reinstall would land (the versions[] branch and pin selected for this FPP) instead of the one `\u2026/upgrade` would (origin/<checked-out branch>), and adds `reinstallTarget: {branch, sha}`, the server's choice, for the page to post.",
+        "responses": {
+          "200": {
+            "description": "Privacy status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "changed": true,
+                  "recorded": false,
+                  "accepted": null,
+                  "pending": {
+                    "sends": [],
+                    "remoteAccess": "none"
+                  },
+                  "source": "upstream"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/plugin/{RepoName}/settings/{SettingName}": {
       "parameters": [
         {
@@ -7142,6 +7217,16 @@
         ],
         "summary": "Check plugin for updates",
         "description": "Check plugin `{RepoName}` for available updates by running `git fetch` in the plugin directory and checking for any unmerged commits.",
+        "requestBody": {
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              },
+              "example": "{\"srcURL\": \"https://github.com/owner/repo.git\", \"useCredentials\": 0} (optional: the"
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Update check result",
@@ -7153,7 +7238,13 @@
                 "example": {
                   "Status": "OK",
                   "Message": "",
-                  "updatesAvailable": 1
+                  "updatesAvailable": 1,
+                  "privacyChanged": false,
+                  "reinstallPrivacyChanged": false,
+                  "reinstallTarget": {
+                    "branch": "master",
+                    "sha": ""
+                  }
                 }
               }
             }

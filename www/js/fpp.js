@@ -349,12 +349,19 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 		checkScrollTopButton();
 	};
 
-	//show first visible tab (if no tab specified in url)
+	//show first visible tab (if no tab specified in url), unless the page has
+	//already marked one active in that tablist itself, e.g. settings.php?tab=MQTT.
+	//Relies on the page doing so in an inline script (before DOMContentLoaded).
 	if (!location.hash) {
 		const triggerFirstTabEl = $('[role="tablist"] li:visible a').first()[0];
 		if (triggerFirstTabEl) {
-			bootstrap.Tab.getOrCreateInstance(triggerFirstTabEl).show();
-			//setup sticky on first page load
+			if ($(triggerFirstTabEl).closest('[role="tablist"]').find('.nav-link.active').length === 0) {
+				bootstrap.Tab.getOrCreateInstance(triggerFirstTabEl).show();
+			}
+			//setup sticky on first page load. Outside the show() guard above: a
+			//page that pre-marks its active tab (channeloutputs.php, settings.php
+			//?tab=) still needs its sticky headers floated, and nothing else does
+			//that until a tab is switched or the viewport changes.
 			setTimeout(function () {
 				SetTablePageHeader_ZebraPin();
 				float_fppStickyThead();
@@ -4174,11 +4181,11 @@ function ViewReleaseNotes (version) {
 
 	$.get('api/system/releaseNotes/' + version)
 		.done(function (data) {
-			// version is without 'v' prefix (for GitHub API), but UpgradeFPPVersion needs 'v' prefix (for git)
-			var gitVersion = version.startsWith('v') ? version : 'v' + version;
+			// UpgradeFPPVersion normalizes the 'v' prefix itself, so pass the
+			// version through as-is (unprefixed, the form the GitHub API uses).
 			$('#releaseNotesText').html(
 				'<center><input onClick=\'UpgradeFPPVersion("' +
-					gitVersion +
+					version +
 					"\");' type='button' class='buttons' value='Upgrade'></center>" +
 					"<pre style='white-space: pre-wrap; word-wrap: break-word;'>" +
 					data.body +
@@ -4194,6 +4201,11 @@ function VersionUpgradeDone (id) {
 	$('#fppUpgradeCloseDialogButton').prop('disabled', false);
 }
 function UpgradeFPPVersion (newVersion) {
+	// Callers pass either '10.1' (the GitHub release/tag form) or 'v10.1' (the
+	// git branch form). Normalize here, once, at the single point that builds
+	// the git ref -- prepending 'v' unconditionally produced 'vv10.1', which
+	// upgrade_FPP then failed to check out, leaving the branch unchanged.
+	var version = String(newVersion).replace(/^v+/, '');
 	if (
 		confirm(
 			'Do you wish to upgrade the Falcon Player?\n\nClick "OK" to continue.\n\nThe system will automatically reboot to complete the upgrade.\nThis can take a long time,  20-30 minutes on slower devices.'
@@ -4203,7 +4215,7 @@ function UpgradeFPPVersion (newVersion) {
 
 		var opts = {
 			id: 'upgradeFPPDialog',
-			title: 'Upgrading to FPP v' + newVersion,
+			title: 'Upgrading to FPP v' + version,
 			body: "<textarea class='w-100' style='height: 55vh; min-height: 200px;' disabled id='upgradeFPPDialogText'>Starting upgrade....</textarea>",
 			class: 'modal-dialog-scrollable',
 			backdrop: 'static',
@@ -4238,7 +4250,7 @@ function UpgradeFPPVersion (newVersion) {
 
 		DoModalDialog(opts);
 		StreamURL(
-			'upgradefpp.php?version=v' + newVersion,
+			'upgradefpp.php?version=v' + version,
 			'upgradeFPPDialogText',
 			'VersionUpgradeDone'
 		);
@@ -4246,6 +4258,38 @@ function UpgradeFPPVersion (newVersion) {
 }
 
 function ChangeGitBranch (newBranch) {
+	var remote = $('#gitRemote').val() || 'origin';
+	if (remote === 'pull-requests') {
+		var prNum = null;
+		// Prefer data-pr on selected option, fallback to parsing branch name
+		var selPr = $('#gitBranch option:selected').attr('data-pr');
+		if (selPr) prNum = selPr;
+		else if (newBranch && newBranch.indexOf('pr-') === 0) prNum = newBranch.substring(3);
+		else if (newBranch) {
+			var m = newBranch.match(/pull\/(\d+)\/head/);
+			if (m) prNum = m[1];
+		}
+		if (!prNum) {
+			alert('Select a pull request');
+			return;
+		}
+		newBranch = 'pr-' + String(prNum).replace(/[^0-9]/g, '');
+		if (
+			confirm(
+				"Are you really sure you want to switch to PR #" +
+					prNum +
+					" ('" +
+					newBranch +
+					"') branch?  This may take some time and it may not be fully compatible with this FPP OS version.  Click 'OK' to continue."
+			)
+		) {
+			location.href =
+				'changebranch.php?branch=' + encodeURIComponent(newBranch) + '&remote=pull-requests&pr=' + encodeURIComponent(prNum);
+		} else {
+			location.reload(true);
+		}
+		return;
+	}
 	if (
 		confirm(
 			"Are you really sure you want to switch to the '" +
@@ -4253,9 +4297,8 @@ function ChangeGitBranch (newBranch) {
 				"' branch?  This may take some time and it may not be fully compatible with this FPP OS version.  Click 'OK' to continue."
 		)
 	) {
-		var remote = $('#gitRemote').val() || 'origin';
 		location.href =
-			'changebranch.php?branch=' + newBranch + '&remote=' + remote;
+			'changebranch.php?branch=' + encodeURIComponent(newBranch) + '&remote=' + encodeURIComponent(remote);
 	} else {
 		location.reload(true);
 	}
@@ -7446,6 +7489,11 @@ function PopulatePlaylists (sequencesAlso, options) {
 } */
 
 function PlayPlaylist (Playlist, goToStatus = 0) {
+	if (!Playlist) {
+		$.jGrowl('No playlist selected', { themeState: 'detract' });
+		return;
+	}
+
 	// Check if UI-started playlists should be protected from schedule override
 	var scheduleProtected =
 		settings.hasOwnProperty('UIStartedPlaylistsProtected') &&
@@ -7456,14 +7504,25 @@ function PlayPlaylist (Playlist, goToStatus = 0) {
 		Playlist +
 		'/0/false/' +
 		(scheduleProtected ? 'true' : 'false');
-	$.get(url, function () {
-		if (goToStatus) location.href = 'index.php';
-		else $.jGrowl('Playlist Started', { themeState: 'success' });
-	});
+	$.get(url)
+		.done(function () {
+			if (goToStatus) location.href = 'index.php';
+			else $.jGrowl('Playlist Started', { themeState: 'success' });
+		})
+		.fail(function () {
+			DialogError('Command failed', 'Unable to start Playlist');
+		});
 }
 
 function StartPlaylistNow () {
 	var Playlist = $('#playlistSelect').val();
+	// The dropdown starts on the "-- Select Playlist or Sequence --" placeholder,
+	// whose value is empty. Posting that anyway used to come back 200 with nothing
+	// playing, so the toast below announced a playlist that never started.
+	if (!Playlist) {
+		$.jGrowl('Select a playlist or sequence first', { themeState: 'detract' });
+		return;
+	}
 	var repeat = $('#chkRepeat').is(':checked') ? true : false;
 	// Check if UI-started playlists should be protected from schedule override
 	var scheduleProtected =

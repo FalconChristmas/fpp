@@ -35,8 +35,22 @@ BRANCH=$(cd "${PLUGINPATH}" && $SUDO git rev-parse --abbrev-ref HEAD 2>/dev/null
 # and upstream mode changes still land.
 $SUDO git -C "${PLUGINPATH}" config core.fileMode false
 
-# Fast path: a plain pull works when the working tree is clean.
-(cd "${PLUGINPATH}" && $SUDO git pull)
+# Fast path: a plain pull works when the working tree is clean. When the
+# caller has just fetched (the Plugin Manager sets FPP_PLUGIN_NO_FETCH=1
+# after reading origin/<branch>'s pluginInfo.json for the privacy check, and
+# FPP_PLUGIN_TARGET_SHA to the commit it read), fast-forward to that exact
+# commit instead of fetching again, so what was compared is what lands; a
+# push in between waits for the next check. origin/<branch> is the fallback
+# for a caller that set only the first variable.
+TARGET="origin/${BRANCH}"
+if [ -n "${FPP_PLUGIN_TARGET_SHA}" ]; then
+	TARGET="${FPP_PLUGIN_TARGET_SHA}"
+fi
+if [ "x${FPP_PLUGIN_NO_FETCH}" = "x1" ] && [ -n "${BRANCH}" ] && [ "${BRANCH}" != "HEAD" ]; then
+	(cd "${PLUGINPATH}" && $SUDO git merge --ff-only "${TARGET}")
+else
+	(cd "${PLUGINPATH}" && $SUDO git pull)
+fi
 return_val=$?
 
 # Recovery: a plugin whose install script edits its own tracked files (e.g.
@@ -48,10 +62,14 @@ return_val=$?
 # untracked/media paths and in git history -- both are preserved by this.
 if [ $return_val -ne 0 ]; then
 	if [ -n "${BRANCH}" ] && [ "${BRANCH}" != "HEAD" ]; then
-		echo "git pull failed, retrying with fetch + reset --hard origin/${BRANCH}"
+		if [ "x${FPP_PLUGIN_NO_FETCH}" = "x1" ]; then
+			echo "git merge failed, retrying with reset --hard ${TARGET}"
+		else
+			echo "git pull failed, retrying with fetch + reset --hard ${TARGET}"
+		fi
 		(cd "${PLUGINPATH}" \
-			&& $SUDO git fetch \
-			&& $SUDO git reset --hard "origin/${BRANCH}" \
+			&& { [ "x${FPP_PLUGIN_NO_FETCH}" = "x1" ] || $SUDO git fetch; } \
+			&& $SUDO git reset --hard "${TARGET}" \
 			&& $SUDO git clean -fd)
 		return_val=$?
 	else
@@ -73,23 +91,46 @@ do
 	fi
 done
 
-if [ "x${post_pull_script}" != "x" ]; then
-	echo "Running ${post_pull_script}"
-	$SUDO FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src ${post_pull_script}
-	return_val=$?
-fi
-
-# Never report success if the repo did not actually advance to upstream. Without
-# this, a failed git update followed by a succeeding install script (rc=0) would
-# masquerade as a successful upgrade while the plugin stays behind and keeps
-# showing "update available" (bug-upgrade-silent-noop). Best-effort: relies on a
+# Never treat the git phase as done if HEAD did not reach upstream, even when
+# the pull returned 0: otherwise the plugin stays behind and keeps showing
+# "update available" (bug-upgrade-silent-noop). Best-effort: relies on a
 # current origin ref, which the pull/fetch above refreshed on the network-OK paths.
-if [ -n "${BRANCH}" ] && [ "${BRANCH}" != "HEAD" ]; then
-	behind=$(cd "${PLUGINPATH}" && $SUDO git rev-list --count "HEAD..origin/${BRANCH}" 2>/dev/null)
+# Measured against TARGET, not origin/<branch>: when the caller handed us a sha,
+# a fetch that lands in between (the background update check, a second tab)
+# moves origin/<branch> past it and must not turn a correct fast-forward into
+# an error.
+git_rc=$return_val
+if [ $git_rc -eq 0 ] && [ -n "${BRANCH}" ] && [ "${BRANCH}" != "HEAD" ]; then
+	behind=$(cd "${PLUGINPATH}" && $SUDO git rev-list --count "HEAD..${TARGET}" 2>/dev/null)
 	if [ -n "${behind}" ] && [ "${behind}" -gt 0 ] 2>/dev/null; then
-		echo "ERROR: ${PLUGIN} is still ${behind} commit(s) behind origin/${BRANCH} after upgrade"
-		return_val=1
+		echo "ERROR: ${PLUGIN} is still ${behind} commit(s) behind ${TARGET} after pull"
+		git_rc=1
 	fi
 fi
 
-exit $return_val
+# The git phase and the script phase are reported separately: a post-pull
+# script that fails (an apt conflict, a build error) must not read as "could
+# not pull", and a pull that failed must not be hidden by a script that ran
+# fine on the old code. The script only runs once the code has actually
+# advanced. Exit codes: 1 = the code was not updated, 2 = the code was
+# updated but the plugin's own script failed (2 is also bash's own "misuse"
+# code; the FINISH line in the log carries the rc either way).
+script_rc=0
+if [ $git_rc -ne 0 ]; then
+	[ -n "${post_pull_script}" ] && echo "Skipping ${post_pull_script}: the code was not updated"
+elif [ -n "${post_pull_script}" ]; then
+	echo "Running ${post_pull_script}"
+	$SUDO FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src ${post_pull_script}
+	script_rc=$?
+fi
+
+if [ $git_rc -ne 0 ]; then
+	if [ -n "${BRANCH}" ] && [ "${BRANCH}" != "HEAD" ]; then src="origin/${BRANCH}"; else src="upstream (detached HEAD)"; fi
+	echo "ERROR: could not update the code of ${PLUGIN} from ${src}; see above"
+	exit 1
+fi
+if [ $script_rc -ne 0 ]; then
+	echo "ERROR: the code of ${PLUGIN} was updated to $(cd "${PLUGINPATH}" && $SUDO git rev-parse --short HEAD 2>/dev/null), but its $(basename "${post_pull_script}") failed (rc=${script_rc}); see above"
+	exit 2
+fi
+exit 0

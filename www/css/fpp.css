@@ -2008,6 +2008,13 @@ table.fppStickyTheadTable thead.Zebra_Pin td {
 	background-color: var(--fpp-thead-bg) !important;
 }
 
+/* jQuery UI sets the datepicker z-index inline to (input z-index + 1), which
+   is ~1 for a table-cell input, so the popup slid under the floatThead clone
+   (zIndex 990 in fpp.js). Keep it above the sticky header but below modals. */
+.ui-datepicker {
+	z-index: 1000 !important;
+}
+
 .tblheader {
 	text-align: center;
 }
@@ -5067,4 +5074,29 @@ pre.testData,
 	flex: 1 1 14rem;
 	min-width: 0;
 	max-width: 100%;
+}
+
+/* Settings page search (settings.php).  Elements pruned out of the results
+   need a dedicated hide class so clearing the search can strip it without
+   touching any d-none the page itself owns. */
+#settingsManager .settingsSearchHide {
+	display: none !important;
+}
+
+/* String cape header row (co-pixelStrings.php).
+   The max-FPS note is the only elastic item in the row, so it absorbs the
+   leftover width and keeps the Testing control pinned to the right edge.
+   Once the row gets tight the note drops to a line of its own rather than
+   shoving Testing onto a second line ahead of it. */
+.pixelStringHeaderNote {
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+@media (max-width: 1399.98px) {
+	.pixelStringHeaderNote {
+		order: 1;
+		flex: 0 0 100%;
+		max-width: 100%;
+	}
 }
