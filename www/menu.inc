@@ -536,5 +536,21 @@ function list_plugin_entries($menu)
                     checkForFppUpdate();
                 }
             }, 500);
+            <?php
+            // Cheap existence check -- skip scheduling the poll at all on a box
+            // with no plugins installed, rather than hitting the endpoint every
+            // page load just to learn the aggregate is trivially false.
+            $anyPluginsInstalled = false;
+            if (isset($pluginDirectory) && is_dir($pluginDirectory)) {
+                foreach (glob($pluginDirectory . '/*/pluginInfo.json') as $infoFile) {
+                    $anyPluginsInstalled = true;
+                    break;
+                }
+            }
+            if ($anyPluginsInstalled) {
+                ?>
             setTimeout(checkForPluginUpdates, 700); // staggered behind the FPP update check above
+                <?php
+            }
+            ?>
         </script>

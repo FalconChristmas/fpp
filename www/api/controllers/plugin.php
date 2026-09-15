@@ -1020,6 +1020,12 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0)
 	// call, so each one is judged on where it actually came from rather than
 	// inheriting anything from the plugin that pulled it in.
 	RecordPluginInstallSource($repoName, $origSrcURL);
+
+	// A plugin installed under a name that still has a stale updates-cache
+	// entry (reinstalled outside UninstallPlugin's own drop, or a dependency
+	// chain) should not inherit an old hasUpdate flag.
+	UpdatePluginUpdatesCacheEntry($repoName, null);
+
 	return true;
 }
 
@@ -1616,6 +1622,11 @@ function UninstallPlugin()
 		}
 
 		if ($return_val == 0) {
+			// Drop the cache entry outright, not just mark it not-updatable: a
+			// plugin reinstalled under this same name later should start clean
+			// rather than inherit whatever this one's flag happened to be.
+			UpdatePluginUpdatesCacheEntry($plugin, null);
+
 			if (isset($stream) && $stream != "false") {
 				if (!$unloaded['ok']) {
 					return "\nUninstalled, but fppd still has it loaded (" . $unloaded['message'] . ") - restart FPPD to finish.\nDone\n";
@@ -1664,6 +1675,12 @@ function CheckForPluginUpdates()
 		$result['Status'] = 'OK';
 		$result['Message'] = '';
 		$result['updatesAvailable'] = PluginHasUpdates($plugin);
+		// Write this on-demand result back into the shared cache so the navbar
+		// plugin-update icon can't disagree with what this tab just found.
+		UpdatePluginUpdatesCacheEntry($plugin, array(
+			'hasUpdate' => $result['updatesAvailable'] ? true : false,
+			'ts' => time(),
+		));
 	} else {
 		$result['Status'] = 'Error';
 		$result['Message'] = 'Could not run git fetch for plugin ' . $plugin;
@@ -1709,6 +1726,11 @@ function UpgradePlugin()
 	if (isset($stream) && $stream != "false") {
 		DisableOutputBuffering();
 		system($cmd, $return_val);
+		if ($return_val == 0) {
+			// A just-upgraded plugin is current as of right now; don't leave the
+			// navbar icon lit on a pre-upgrade cache entry for up to 6h.
+			UpdatePluginUpdatesCacheEntry($plugin, array('hasUpdate' => false, 'ts' => time()));
+		}
 		return "\nDone\n";
 	}
 	exec($cmd, $output, $return_val);
@@ -1716,6 +1738,7 @@ function UpgradePlugin()
 	if ($return_val == 0) {
 		$result['Status'] = 'OK';
 		$result['Message'] = '';
+		UpdatePluginUpdatesCacheEntry($plugin, array('hasUpdate' => false, 'ts' => time()));
 	} else {
 		$result['Status'] = 'Error';
 		$result['Message'] = 'Could not run git pull for plugin ' . $plugin;
@@ -2377,8 +2400,32 @@ function PluginHasUpdates($plugin)
 	return 0;
 }
 
+// TTL cache (same shape/location convention as PluginGitHubStatsCacheFile())
+// so the navbar plugin-update icon can poll GetPluginUpdatesAvailable() on
+// every page load for free almost always. PluginHasUpdates() checks
+// already-fetched remote-tracking refs (cheap, no network of its own) but
+// also runs the plugin's optional scripts/fpp_update_check.sh, which may do
+// its own network I/O -- so "cheap" only holds until a plugin opts into that
+// script. Freshness otherwise comes from `git fetch`, gated behind the same
+// 1s connectivity probe get_remote_git_version() uses (www/common.php), and
+// capped at PLUGIN_UPDATES_MAX_REFRESH_PER_CALL live fetches per call so a
+// page load never pays for every installed plugin's fetch serially -- the
+// same "quiet, one at a time" approach CheckPluginsForUpdates() (the Updates
+// tab's own background pass) already uses for this exact reason. A plugin
+// whose most recent fetch failed (offline box, or a real network hiccup)
+// gets PLUGIN_UPDATES_RETRY_TTL instead of the full TTL, so an outage costs
+// minutes of stale icon state rather than hours.
+//
+// The cache is also updated directly -- not just by this endpoint's own TTL
+// refresh -- by UpgradePlugin() (clears the flag on a successful upgrade),
+// UninstallPlugin() (drops the entry so a later reinstall starts clean), and
+// InstallPluginFromInfo() (drops any stale entry a freshly-installed plugin
+// might inherit), plus CheckForPluginUpdates() (the Updates tab's own
+// on-demand check) writes its result back here too, so the navbar icon and
+// the Updates tab can't disagree.
 define('PLUGIN_UPDATES_CACHE_TTL', 6 * 60 * 60); // 6h shared per-box cache, same horizon as PLUGIN_GITHUB_STATS_TTL
-define('PLUGIN_UPDATES_MAX_REFRESH_PER_CALL', 1); // at most one live `git fetch` per call to this endpoint -- see below
+define('PLUGIN_UPDATES_RETRY_TTL', 5 * 60); // shorter TTL after a failed fetch attempt
+define('PLUGIN_UPDATES_MAX_REFRESH_PER_CALL', 1); // at most one live `git fetch` per call to this endpoint
 
 function PluginUpdatesCacheFile()
 {
@@ -2387,30 +2434,54 @@ function PluginUpdatesCacheFile()
 	return $base . '/tmp/pluginUpdates.cache.json';
 }
 
+function ReadPluginUpdatesCache($cacheFile)
+{
+	if (!file_exists($cacheFile)) {
+		return array();
+	}
+	$data = @file_get_contents($cacheFile);
+	if ($data === false) {
+		return array();
+	}
+	$decoded = json_decode($data, true);
+	return is_array($decoded) ? $decoded : array();
+}
+
+function WritePluginUpdatesCache($cacheFile, $cache)
+{
+	// Write then rename so a concurrent reader never sees a half-written file.
+	$tmp = $cacheFile . '.' . getmypid() . '.tmp';
+	if (@file_put_contents($tmp, json_encode($cache)) !== false) {
+		@rename($tmp, $cacheFile);
+	}
+}
+
+// Locked read-modify-write against a single cache entry. Used by the
+// install/upgrade/uninstall success paths and by CheckForPluginUpdates() so
+// they never race GetPluginUpdatesAvailable()'s own refresh pass and never
+// write a torn file out from under it. Pass $entry = null to drop the entry
+// entirely (uninstall, or a fresh install clearing anything stale).
+function UpdatePluginUpdatesCacheEntry($plugin, $entry)
+{
+	$cacheFile = PluginUpdatesCacheFile();
+	$lock = @fopen($cacheFile . '.lock', 'c');
+	if ($lock === false) {
+		return; // best-effort; a missed update just waits out the TTL
+	}
+	flock($lock, LOCK_EX);
+	$cache = ReadPluginUpdatesCache($cacheFile);
+	if ($entry === null) {
+		unset($cache[$plugin]);
+	} else {
+		$cache[$plugin] = $entry;
+	}
+	WritePluginUpdatesCache($cacheFile, $cache);
+	flock($lock, LOCK_UN);
+	fclose($lock);
+}
+
 /**
- * Aggregate check: does any installed plugin have an update available?
- *
- * Backed by a TTL cache (same shape/location convention as
- * PluginGitHubStatsCacheFile()) so the navbar plugin-update icon can poll
- * this on every page load for free almost always.
- *
- * PluginHasUpdates() itself is cheap (git log against already-fetched
- * remote-tracking refs, no network) but only as fresh as the last `git
- * fetch` for that plugin. This endpoint is what keeps those refs from
- * going stale on their own: for any plugin whose cache entry is older than
- * PLUGIN_UPDATES_CACHE_TTL, it runs one `git fetch` (the same network op
- * CheckForPluginUpdates() does per-plugin) before recomputing the flag.
- *
- * Deliberately caps live refreshes to PLUGIN_UPDATES_MAX_REFRESH_PER_CALL
- * per call -- unlike the GitHub stats cache (one HTTP call per miss), a
- * stale plugin here costs a full `git fetch` subprocess, and every
- * installed plugin can go stale at the same time (e.g. right after
- * install, or after 6h idle). Refreshing all of them inline would make
- * whichever page load hits that moment pay for every plugin's fetch
- * serially. Capping to one spreads the refresh across subsequent polls
- * instead, the same "quiet, one at a time" approach the Updates tab's own
- * background pass already uses for this exact reason (see
- * CheckPluginsForUpdates()'s comment above).
+ * Do any installed plugins have an update available?
  *
  * @route GET /api/plugin/updatesAvailable
  * @response 200 Aggregate update-available flag
@@ -2438,31 +2509,70 @@ function GetPluginUpdatesAvailable()
 	}
 
 	$cacheFile = PluginUpdatesCacheFile();
-	$cache = array();
-	if (file_exists($cacheFile)) {
-		$tmp = json_decode(@file_get_contents($cacheFile), true);
-		if (is_array($tmp)) $cache = $tmp;
+
+	// Non-blocking: if another request (another open tab, another kiosk) is
+	// already refreshing, serve the existing cache as-is rather than queue up
+	// behind it holding a php-fpm worker, and rather than both spawning a
+	// `git fetch` for the same plugin at the same TTL boundary. Same pattern
+	// as GetPluginHeaderIndicators() in pluginHeaders.php.
+	$lock = @fopen($cacheFile . '.lock', 'c');
+	if ($lock === false || !flock($lock, LOCK_EX | LOCK_NB)) {
+		if ($lock !== false) {
+			fclose($lock);
+		}
+		$cache = ReadPluginUpdatesCache($cacheFile);
+		$updatesAvailable = false;
+		foreach ($plugins as $plugin) {
+			if (!empty($cache[$plugin]['hasUpdate'])) {
+				$updatesAvailable = true;
+				break;
+			}
+		}
+		return json(array('updatesAvailable' => $updatesAvailable));
 	}
+
+	$cache = ReadPluginUpdatesCache($cacheFile);
 
 	$now = time();
 	$updatesAvailable = false;
 	$changed = false;
 	$refreshesLeft = PLUGIN_UPDATES_MAX_REFRESH_PER_CALL;
+	$haveConnectivity = null; // computed at most once per call, only if actually needed
 
 	foreach ($plugins as $plugin) {
-		$stale = !isset($cache[$plugin]) || !is_array($cache[$plugin]) ||
-			!isset($cache[$plugin]['ts']) || (($now - (int)$cache[$plugin]['ts']) >= PLUGIN_UPDATES_CACHE_TTL);
+		$entry = (isset($cache[$plugin]) && is_array($cache[$plugin])) ? $cache[$plugin] : null;
+		$ttl = (!empty($entry['fetchFailed'])) ? PLUGIN_UPDATES_RETRY_TTL : PLUGIN_UPDATES_CACHE_TTL;
+		$stale = $entry === null || !isset($entry['ts']) || (($now - (int)$entry['ts']) >= $ttl);
 
 		if ($stale && $refreshesLeft > 0) {
 			$refreshesLeft--;
-			$fetchCmd = '(cd ' . escapeshellarg($pluginDir . '/' . $plugin) . ' && ' . $SUDO . ' git fetch)';
-			exec($fetchCmd);
+
+			if ($haveConnectivity === null) {
+				// Same 1s-ping-before-network-op gate get_remote_git_version() uses
+				// (www/common.php): an offline show box shouldn't hold a php-fpm
+				// worker on a DNS timeout for every plugin it tries to check.
+				exec('ping -q -c 1 -W 1 8.8.8.8 > /dev/null 2>&1', $pingOutput, $pingReturn);
+				unset($pingOutput);
+				$haveConnectivity = ($pingReturn == 0);
+			}
+
+			if ($haveConnectivity) {
+				$fetchCmd = 'timeout 20 bash -c ' . escapeshellarg(
+					'cd ' . escapeshellarg($pluginDir . '/' . $plugin) . ' && ' . $SUDO . ' git fetch'
+				) . ' >/dev/null 2>&1';
+				exec($fetchCmd, $fetchOutput, $fetchReturn);
+				unset($fetchOutput);
+			} else {
+				$fetchReturn = 1;
+			}
+
 			$cache[$plugin] = array(
 				'hasUpdate' => PluginHasUpdates($plugin) ? true : false,
 				'ts' => $now,
+				'fetchFailed' => ($fetchReturn != 0),
 			);
 			$changed = true;
-		} elseif (!isset($cache[$plugin]) || !is_array($cache[$plugin])) {
+		} elseif ($entry === null) {
 			// Never checked and out of refresh budget this call -- read whatever
 			// the cheap (no-fetch) check already knows rather than reporting
 			// nothing for a brand-new plugin until its turn comes up.
@@ -2487,8 +2597,11 @@ function GetPluginUpdatesAvailable()
 	}
 
 	if ($changed) {
-		@file_put_contents($cacheFile, json_encode($cache));
+		WritePluginUpdatesCache($cacheFile, $cache);
 	}
+
+	flock($lock, LOCK_UN);
+	fclose($lock);
 
 	return json(array('updatesAvailable' => $updatesAvailable));
 }

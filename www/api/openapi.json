@@ -37,6 +37,9 @@
       "name": "configfile"
     },
     {
+      "name": "crashes"
+    },
+    {
       "name": "dir"
     },
     {
@@ -103,6 +106,9 @@
       "name": "plugin"
     },
     {
+      "name": "privacy"
+    },
+    {
       "name": "proxies"
     },
     {
@@ -116,6 +122,9 @@
     },
     {
       "name": "remotes"
+    },
+    {
+      "name": "rtspoutput"
     },
     {
       "name": "schedule"
@@ -659,6 +668,37 @@
                 },
                 "example": {
                   "id": "No Cape!"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cape/defaults": {
+      "get": {
+        "tags": [
+          "cape"
+        ],
+        "summary": "Ask what the installed cape's defaultSettings WOULD do under a jurisdiction",
+        "description": "Cape detection runs from fppinit at boot, before anyone has been asked where they are, so a cape's telemetry defaults are held rather than applied.  By the time the setup wizard has that answer, detection has already run.  This lets the wizard re-ask the question without re-running detection for real -- which would write to the settings file mid-wizard and break the property the page depends on, that nothing is persisted until Finalize. Nothing is written.  The evaluation calls the same predicate a real run calls, so the answer cannot drift from what would actually happen.  A key the user has already set is absent from both lists; a key already holding exactly the proposed value is absent too, since there is nothing to offer and nothing to explain.",
+        "responses": {
+          "200": {
+            "description": "What the cape would set, and what it would be refused",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "jurisdiction": "US",
+                  "priorOptIn": false,
+                  "settings": {
+                    "LEDDisplayType": "7"
+                  },
+                  "refused": {
+                    "statsPublish": "it transmits, and this jurisdiction requires prior opt-in"
+                  }
                 }
               }
             }
@@ -1614,6 +1654,34 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/crashes/upload/<file>": {
+      "post": {
+        "tags": [
+          "crashes"
+        ],
+        "summary": "Upload one locally-kept crash report from the player itself.",
+        "description": "Deliberately does NOT delete on success.  The caller deletes, through the existing file API, only after this reports the upload actually landed -- deleting the only copy of a crash report on an unverified \"probably sent\" is how the evidence disappears.",
+        "responses": {
+          "200": {
+            "description": "{\"Status\":\"OK\"|\"Error\", ...}"
+          }
+        }
+      }
+    },
+    "/api/crashes/uploadTarget": {
+      "get": {
+        "tags": [
+          "crashes"
+        ],
+        "summary": "crashes/uploadTarget",
+        "description": "Where a browser should post a report it fetched from this player.",
+        "responses": {
+          "200": {
+            "description": "Success"
           }
         }
       }
@@ -3265,10 +3333,10 @@
           "geoip"
         ],
         "summary": "GeoIP lookup",
-        "description": "Server-side proxy for ipapi.co's IP geolocation lookup, used by the Timezone/GeoLocation \"Lookup\"/\"Detect\" buttons on settings.php. ipapi.co does not send Access-Control-Allow-Origin, so the browser can't call it directly from FPP's UI (blocked by the Same Origin Policy) - PHP isn't subject to that, so we fetch it here and hand back the same JSON.",
+        "description": "Server-side proxy for ipapi.co's IP geolocation lookup, used by the Timezone/GeoLocation \"Lookup\"/\"Detect\" buttons. It is fetched here rather than from the browser so that only the PLAYER's address is disclosed, and only when somebody presses the button -- and so that no third-party host has to appear in the CSP, which is where the rest of the UI has deliberately ended up.  (ipapi.co does send Access-Control-Allow-Origin: *, so a browser-side call is not blocked by CORS the way an older comment here claimed; connect-src is the only thing stopping it, and that is ours to decide rather than a technical obstacle.) The response also carries an `fpp` object naming the settings the lookup implies, so the mapping lives in one place instead of being reimplemented in the browser.  Every one of them is a SEED: the buttons fill the fields in, the user sees the result and can change it, and nothing is saved until they finish setup.  Any field the lookup cannot determine is simply absent, so the caller leaves that control alone rather than asserting a wrong answer. Note geoip resolves the PUBLIC IP: it says where the device reaches the internet, not where the device is.  Fine for something shown and correctable, which is the only way it is used.",
         "responses": {
           "200": {
-            "description": "ipapi.co's JSON response, passed through unmodified",
+            "description": "ipapi.co's JSON response, plus the settings it implies",
             "content": {
               "application/json": {
                 "schema": {
@@ -3280,7 +3348,14 @@
                   "region": "South Australia",
                   "timezone": "Australia/Adelaide",
                   "latitude": -34.9,
-                  "longitude": 138.6
+                  "longitude": 138.6,
+                  "country_code": "AU",
+                  "in_eu": false,
+                  "fpp": {
+                    "Locale": "Global",
+                    "LegalJurisdiction": "AU",
+                    "WifiRegulatoryDomain": "AU"
+                  }
                 }
               }
             }
@@ -3335,35 +3410,21 @@
           "git"
         ],
         "summary": "Get fork branches",
-        "description": "Returns branches from the authenticated user's fork of FPP (github.com/<user>/fpp) if that fork exists. Probed via GitHub API using saved gitHubUser/gitHubPAT; returns hasFork false when no credentials, no fork, or GitHub unreachable. Falls back to local git remote <user> when offline. Used by Developer settings to offer a fork-branch switcher defaulting to Use Official Branches.",
+        "description": "Returns branches from the authenticated user's fork of FPP (github.com/<user>/fpp) if that fork exists. Used by the Developer settings page to offer a \"switch to fork branch\" dropdown. The fork is probed via the GitHub API using the saved gitHubUser / gitHubPAT credentials; an unreachable GitHub or a missing repo returns hasFork false rather than an error.",
         "responses": {
           "200": {
             "description": "Fork branch list",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "hasFork": {
-                      "type": "boolean"
-                    },
-                    "user": {
-                      "type": "string"
-                    },
-                    "branches": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
-                  }
+                  "type": "object"
                 },
                 "example": {
                   "hasFork": true,
-                  "user": "jessica12ryan",
+                  "user": "myuser",
                   "branches": [
                     "master",
-                    "fixoverflow"
+                    "my-feature"
                   ]
                 }
               }
@@ -6837,8 +6898,8 @@
         "tags": [
           "plugin"
         ],
-        "summary": "Aggregate check: does any installed plugin have an update available?",
-        "description": "Backed by a TTL cache (same shape/location convention as PluginGitHubStatsCacheFile()) so the navbar plugin-update icon can poll this on every page load for free almost always. PluginHasUpdates() itself is cheap (git log against already-fetched remote-tracking refs, no network) but only as fresh as the last `git fetch` for that plugin. This endpoint is what keeps those refs from going stale on their own: for any plugin whose cache entry is older than PLUGIN_UPDATES_CACHE_TTL, it runs one `git fetch` (the same network op CheckForPluginUpdates() does per-plugin) before recomputing the flag. Deliberately caps live refreshes to PLUGIN_UPDATES_MAX_REFRESH_PER_CALL per call -- unlike the GitHub stats cache (one HTTP call per miss), a stale plugin here costs a full `git fetch` subprocess, and every installed plugin can go stale at the same time (e.g. right after install, or after 6h idle). Refreshing all of them inline would make whichever page load hits that moment pay for every plugin's fetch serially. Capping to one spreads the refresh across subsequent polls instead, the same \"quiet, one at a time\" approach the Updates tab's own background pass already uses for this exact reason (see CheckPluginsForUpdates()'s comment above).",
+        "summary": "plugin/updatesAvailable",
+        "description": "Do any installed plugins have an update available?",
         "responses": {
           "200": {
             "description": "Aggregate update-available flag",
@@ -7131,6 +7192,30 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/privacy/consent": {
+      "get": {
+        "tags": [
+          "privacy"
+        ],
+        "summary": "privacy/consent",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "privacy"
+        ],
+        "summary": "privacy/consent",
+        "responses": {
+          "200": {
+            "description": "Success"
           }
         }
       }
@@ -7449,6 +7534,20 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/rtspoutput": {
+      "get": {
+        "tags": [
+          "rtspoutput"
+        ],
+        "summary": "rtspoutput",
+        "description": "Get RTSP output status: whether the server is running, its port, and the URL and audio state of each configured mount.",
+        "responses": {
+          "200": {
+            "description": "RTSP output status."
           }
         }
       }
@@ -8708,7 +8807,8 @@
                   "localCommit": "ece480e86",
                   "versionUnknown": false,
                   "isEndOfLife": false,
-                  "latestMajorVersion": 9
+                  "latestMajorVersion": 9,
+                  "checked": true
                 }
               }
             }
