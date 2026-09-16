@@ -1318,7 +1318,11 @@ void setupHDMICECConfig(bool rebootIfChanged) {
     if (content.empty()) {
         return;
     }
-    if (applyDisableHDMICECBlock(content, getRawSettingInt("DisableHDMICECInit", 0) != 0)) {
+    // Pi 5 has no firmware HDMI path (RP1/KMS), so hdmi_ignore_cec_init is
+    // ignored. Never write the block on Pi 5; this also cleans up a stale
+    // block left from when the setting previously defaulted to on.
+    bool want = !isPi5() && getRawSettingInt("DisableHDMICECInit", 0) != 0;
+    if (applyDisableHDMICECBlock(content, want)) {
         PutFileContents("/boot/firmware/config.txt", content);
         printf("FPP - HDMI CEC configuration changed in config.txt\n");
         if (rebootIfChanged) {
