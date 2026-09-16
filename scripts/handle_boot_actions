@@ -19,8 +19,10 @@ function HandleSettings()
         ApplySetting("ForceHDMIResolution", $settings["ForceHDMIResolution"]);
     if (array_key_exists("ForceHDMIResolutionPort2", $settings))
         ApplySetting("ForceHDMIResolutionPort2", $settings["ForceHDMIResolutionPort2"]);
-    if (array_key_exists("GPIOFan", $settings))
-        ApplySetting("GPIOFan", $settings["GPIOFan"]);
+    // Unconditional: when the setting is absent SetGPIOFanProperties() removes
+    // the config.txt line, which is how a cape that took over its own fan gets
+    // the old one cleaned up.  Guarding on the key being present would leave it.
+    ApplySetting("GPIOFan", $settings["GPIOFan"] ?? "");
     if (array_key_exists("Kiosk", $settings))
         ApplySetting("Kiosk", $settings["Kiosk"]);
     if (array_key_exists("EnableBBBHDMI", $settings))

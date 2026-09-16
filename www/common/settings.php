@@ -290,7 +290,22 @@ function ApplyServiceSetting($setting, $value, $now)
 function SetGPIOFanProperties()
 {
     global $settings;
+    $configFile = GetDirSetting('boot') . "/config.txt";
+    if (!file_exists($configFile)) {
+        return;
+    }
     $fanOn = ReadSettingFromFile('GPIOFan');
+    // Absent is not the same as "0".  "0" means a fan is fitted and switched
+    // off, and leaves the line behind commented out.  Absent means no fan is
+    // ours to manage -- a cape that drives its own from a board specific
+    // overlay removes the setting via removeSettings -- so the line we manage
+    // goes with it, or that cape's fan and this one both declare a cooling
+    // device on the same pin.  Any "dtoverlay=gpio-fan" line counts as ours:
+    // the rewrite below already claims every one it finds.
+    if ($fanOn === false) {
+        exec("sudo sed -i -e '/^#\\?dtoverlay=gpio-fan/d' " . escapeshellarg($configFile));
+        return;
+    }
     // The overlay wants millidegrees.  Multiply rather than appending "000":
     // the setting is degrees C to one decimal place so that whole degrees F
     // survive the conversion both ways (see PutSetting() in
@@ -302,7 +317,7 @@ function SetGPIOFanProperties()
     if ($fanOn == '0') {
         $pfx = "#";
     }
-    $contents = file_get_contents(GetDirSetting('boot') . "/config.txt");
+    $contents = file_get_contents($configFile);
     if (strpos($contents, "dtoverlay=gpio-fan") === false) {
         $contents = $contents . "\n";
         exec("echo \"\" | sudo tee -a " . GetDirSetting('boot') . "/config.txt");
