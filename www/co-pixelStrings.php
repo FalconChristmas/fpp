@@ -115,9 +115,9 @@ function readCapes($cd, $capes)
 
     function InstallFirmwareDone() {
         var txt = $('#InstallVirtualEEPROMText').val();
-        if (txt.includes("Cape does not match new firmware")) {
-            var arrayOfLines = txt.match(/[^\r\n]+/g);
-            var msg = "Are you sure you want to install the virtual firmware for cape:\n" + arrayOfLines[2] + "\n\nWith the virtual firmware for: \n" + arrayOfLines[3] + "\n";
+        var mismatch = ParseCapeFirmwareMismatch(txt);
+        if (mismatch) {
+            var msg = "Are you sure you want to install the virtual firmware for cape:\n" + mismatch.cape + "\n\nWith the virtual firmware for:\n" + mismatch.firmware + "\n";
             if (confirm(msg)) {
                 var filename = $('#virtualEEPROM').val();
                 $('#upgradeText').html('');
