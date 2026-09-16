@@ -18,6 +18,9 @@
 #include <fstream>
 #include <unordered_map>
 
+#include "log.h"
+#include "settings.h"
+
 #include "PolarBufferMap.h"
 
 namespace {
