@@ -295,14 +295,27 @@ function SetGPIOFanProperties()
         return;
     }
     $fanOn = ReadSettingFromFile('GPIOFan');
+
+    // A cape that declares its own fan hides GPIOFan, and hiding it is the cape
+    // saying it owns that hardware -- so FPP must not also write its overlay
+    // line, whatever value happens to be stored.
+    //
+    // The cape's removeSettings cannot be relied on to have cleared it first.
+    // That check is settingIsSet(), which only asks whether the key is present,
+    // so a value an EARLIER eeprom's defaultSettings wrote looks exactly like one
+    // the user chose deliberately, and the removal is refused to protect a choice
+    // nobody made.  Every board that ran the previous eeprom therefore still has
+    // GPIOFan set, which is exactly the population that must not end up with the
+    // cape's fan and this one both declaring a cooling device on one pin.
+    $capeOwnsFan = isset($settings["cape-info"]["hide"]["settings"]) &&
+        in_array("GPIOFan", $settings["cape-info"]["hide"]["settings"]);
+
     // Absent is not the same as "0".  "0" means a fan is fitted and switched
-    // off, and leaves the line behind commented out.  Absent means no fan is
-    // ours to manage -- a cape that drives its own from a board specific
-    // overlay removes the setting via removeSettings -- so the line we manage
-    // goes with it, or that cape's fan and this one both declare a cooling
-    // device on the same pin.  Any "dtoverlay=gpio-fan" line counts as ours:
-    // the rewrite below already claims every one it finds.
-    if ($fanOn === false) {
+    // off, and leaves the line behind commented out.  Absent, or owned by the
+    // cape, means no fan here is ours to manage and the line goes with it.  Any
+    // line-anchored "dtoverlay=gpio-fan" counts as ours: the rewrite below
+    // already claims every one it finds and forces it to gpiopin=14.
+    if ($fanOn === false || $capeOwnsFan) {
         exec("sudo sed -i -e '/^#\\?dtoverlay=gpio-fan/d' " . escapeshellarg($configFile));
         return;
     }
