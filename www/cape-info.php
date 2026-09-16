@@ -247,9 +247,9 @@ if ($printSigningUI) {
 
         function RestoreFirmwareDone() {
             var txt = $('#RestoreEEPROMText').val();
-            if (txt.includes("Cape does not match new firmware")) {
-                var arrayOfLines = txt.match(/[^\r\n]+/g);
-                var msg = "Are you sure you want to replace the firmware for cape:\n" + arrayOfLines[1] + "\n\nWith the firmware for: \n" + arrayOfLines[2] + "\n";
+            var mismatch = ParseCapeFirmwareMismatch(txt);
+            if (mismatch) {
+                var msg = "Are you sure you want to replace the firmware for cape:\n" + mismatch.cape + "\n\nWith the firmware for:\n" + mismatch.firmware + "\n";
                 if (confirm(msg)) {
                     var filename = $('#backupFile').val();
                     var resetDefaults = $('#resetDefaultsConfig').is(':checked') ? '&resetDefaults=true' : '';
@@ -273,9 +273,9 @@ if ($printSigningUI) {
 
         function UpgradeFirmwareDone() {
             var txt = $('#UpgradeEEPROMText').val();
-            if (txt.includes("Cape does not match new firmware")) {
-                var arrayOfLines = txt.match(/[^\r\n]+/g);
-                var msg = "Are you sure you want to replace the firmware for cape:\n" + arrayOfLines[2] + "\n\nWith the firmware for: \n" + arrayOfLines[3] + "\n";
+            var mismatch = ParseCapeFirmwareMismatch(txt);
+            if (mismatch) {
+                var msg = "Are you sure you want to replace the firmware for cape:\n" + mismatch.cape + "\n\nWith the firmware for:\n" + mismatch.firmware + "\n";
                 if (confirm(msg)) {
                     var eepromFile = $('#eepromVendorCapeVersions').val();
                     let firmware = document.getElementById("firmware").files[0];
