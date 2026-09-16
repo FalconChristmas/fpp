@@ -35,7 +35,7 @@
 
 <h4>PipeWire Audio (Advanced only)</h4>
 <ul>
-    <li><b>Configure Input Mixing (Mix Buses)</b> (button) — Mix multiple sources (FPP streams, ALSA line-in, AES67 receives) into input groups before routing.</li>
+    <li><b>Configure Input Mixing (Mix Buses)</b> (button) — Mix multiple sources (FPP streams, ALSA line-in, AES67, Opus RTP and VBAN receives) into input groups before routing.</li>
     <li><b>Configure Output Audio Groups</b> (button) — Combine multiple sound cards into virtual sinks with per-card volume/EQ/channel mapping.</li>
 </ul>
 
@@ -43,6 +43,7 @@
 <ul>
     <li><b>Configure AES67 Instances</b> (button) — Pro-audio over IP; each instance becomes a virtual sound card on the network.</li>
     <li><b>Configure Opus RTP Instances</b> (button) — Compressed audio over WiFi/wired using Opus codec — good for wireless or where AES67 is costly.</li>
+    <li><b>Configure VBAN Streams</b> (button) — Uncompressed audio to and from Voicemeeter and the VB-Audio tools. A received stream becomes a PipeWire source you can use in Input Mixing or as the WLED Sound Reactive Source; a sent stream becomes a sink an Output Group can feed. Applying a change restarts PipeWire.</li>
 </ul>
 
 <h4>PipeWire Video (Advanced only)</h4>

@@ -384,6 +384,7 @@
         var availableCards = [];
         var availableAES67Instances = [];
         var availableOpusRTPInstances = [];
+        var availableVBANInstances = [];
         var availablePWSources = [];  // Audio-enabled video inputs + plugin-published sources
 
         // ─── Init ──────────────────────────────────────────────────────
@@ -421,8 +422,9 @@
             var p5 = $.get('/api/pipewire/video/input-sources');
             var p6 = $.get('/api/pipewire/opusrtp/instances');
             var p7 = $.get('/api/pipewire/audio/plugin-sources');
+            var p8 = $.get('/api/pipewire/vban/instances');
 
-            $.when(p1, p2, p3, p4, p5, p6, p7).done(function (r1, r2, r3, r4, r5, r6, r7) {
+            $.when(p1, p2, p3, p4, p5, p6, p7, p8).done(function (r1, r2, r3, r4, r5, r6, r7, r8) {
                 inputGroups = r1[0];
                 if (!inputGroups || !inputGroups.inputGroups) {
                     inputGroups = { inputGroups: [] };
@@ -434,6 +436,8 @@
                 availableAES67Instances = (aesData && aesData.instances) ? aesData.instances : [];
                 var opusData = r6[0];
                 availableOpusRTPInstances = (opusData && opusData.instances) ? opusData.instances : [];
+                var vbanData = r8[0];
+                availableVBANInstances = (vbanData && vbanData.instances) ? vbanData.instances : [];
                 // Extract audio-enabled video input sources
                 var viData = r5[0];
                 availablePWSources = [];
@@ -653,6 +657,7 @@
             html += '<option value="pw_source"' + (type === 'pw_source' ? ' selected' : '') + '>PipeWire Source</option>';
             html += '<option value="aes67_receive"' + (type === 'aes67_receive' ? ' selected' : '') + '>AES67 Receive</option>';
             html += '<option value="opus_rtp_receive"' + (type === 'opus_rtp_receive' ? ' selected' : '') + '>Opus RTP Receive</option>';
+            html += '<option value="vban_receive"' + (type === 'vban_receive' ? ' selected' : '') + '>VBAN Receive</option>';
             html += '</select></td>';
 
             // Source selector
@@ -749,7 +754,7 @@
                     });
                     html += '</select>';
                 } else {
-                    html += '<span style="color:#6c757d;font-size:0.85rem;">' +
+                    html += '<span class="text-body-secondary small">' +
                         'No AES67 receive instances. <a href="aes67-config.php">Configure AES67</a></span>';
                 }
             } else if (type === 'opus_rtp_receive') {
@@ -768,8 +773,30 @@
                     });
                     html += '</select>';
                 } else {
-                    html += '<span style="color:#6c757d;font-size:0.85rem;">' +
+                    html += '<span class="text-body-secondary small">' +
                         'No Opus RTP receive instances. <a href="opus-rtp-config.php">Configure Opus RTP</a></span>';
+                }
+            } else if (type === 'vban_receive') {
+                // "both" counts as a receiver here: the instance publishes a
+                // receive node as well as a send node, and it is the receive
+                // side an input group can take as a member.
+                var vbanRecvInstances = availableVBANInstances.filter(function (inst) {
+                    return (inst.mode === 'receive' || inst.mode === 'both') && inst.enabled;
+                });
+                if (vbanRecvInstances.length > 0) {
+                    html += '<select class="form-select form-select-sm w-auto" ' +
+                        'onchange="UpdateMemberField(' + groupIdx + ',' + memberIdx + ',\'instanceId\',this.value)">';
+                    html += '<option value="">-- Select VBAN receive --</option>';
+                    vbanRecvInstances.forEach(function (inst) {
+                        var sel = (mbr.instanceId == inst.id) ? ' selected' : '';
+                        html += '<option value="' + inst.id + '"' + sel + '>' +
+                            EscapeHtml(inst.name || 'VBAN Receive ' + inst.id) +
+                            ' (' + inst.channels + 'ch)</option>';
+                    });
+                    html += '</select>';
+                } else {
+                    html += '<span class="text-body-secondary small">' +
+                        'No VBAN receive streams. <a href="vban-config.php">Configure VBAN</a></span>';
                 }
             }
             html += '</td>';
