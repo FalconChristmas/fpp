@@ -178,8 +178,7 @@ public:
         }
         p->inputSamples.fill(0);
         for (int i = 0; i < numSamples; i++) {
-            float f = data[start + i] / 32768.0f;
-            p->inputSamples[i] = data[start + i];
+            p->inputSamples[i] = data[start + i] / 32768.0f;
         }
     }
 
@@ -250,8 +249,13 @@ public:
                 numSamples = NUM_SAMPLES;
             }
             inputSamples.fill(0);
+            // Normalize S16 to +/-1.0. computeAudioFrame() assumes that range
+            // -- the "Playing Media" tap feeds it F32LE samples already scaled
+            // that way. Handing it raw int16 puts every value 32768x too high,
+            // which pins volumeSmth and all 16 FFT bins at 255 and stops
+            // samplePeak ever firing, so reactive effects sit flat.
             for (int i = 0; i < numSamples; i++) {
-                inputSamples[i] = data[start + i];
+                inputSamples[i] = data[start + i] / 32768.0f;
             }
             gst_buffer_unmap(buffer, &map);
         }
