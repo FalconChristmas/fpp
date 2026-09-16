@@ -1136,7 +1136,7 @@ uint16_t mode_running_random(void) {
   uint16_t PRNG16 = SEGENV.aux0;
 
   unsigned z = it % zoneSize;
-  bool nzone = (!z && it != SEGENV.aux1);
+  bool nzone = (!z && (it & 0xFFFF) != SEGENV.aux1);
   for (int i=SEGLEN-1; i >= 0; i--) {
     if (nzone || z >= zoneSize) {
       unsigned lastrand = PRNG16 >> 8;
@@ -1155,7 +1155,7 @@ uint16_t mode_running_random(void) {
     z++;
   }
 
-  SEGENV.aux1 = it;
+  SEGENV.aux1 = it & 0xFFFF;
   return FRAMETIME;
 }
 static const char _data_FX_MODE_RUNNING_RANDOM[] PROGMEM = "Stream@!,Zone size;;!";
@@ -6849,7 +6849,7 @@ uint16_t mode_gravcenter_base(unsigned mode) {
   uint8_t gravity = 8 - SEGMENT.speed/32;
   int offset = 1;
   if(mode == 2) offset = 0;  // Gravimeter
-  if (tempsamp >= gravcen->topLED) gravcen->topLED = tempsamp-offset;
+  if (tempsamp >= gravcen->topLED + offset) gravcen->topLED = tempsamp-offset;
   else if (gravcen->gravityCounter % gravity == 0) gravcen->topLED--;
   
   if(mode == 1) {  //Gravcentric
