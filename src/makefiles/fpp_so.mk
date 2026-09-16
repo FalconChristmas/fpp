@@ -95,6 +95,7 @@ OBJECTS_fpp_so += \
 	overlays/PixelOverlayModelFB.o \
 	overlays/PixelOverlayModelSub.o \
 	overlays/PolarBufferMap.o \
+	overlays/TextColorizer.o \
     overlays/WLEDEffects.o \
     overlays/wled/colors.o \
     overlays/wled/FX.o \

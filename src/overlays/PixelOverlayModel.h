@@ -174,6 +174,13 @@ public:
     bool applyEffect(const std::string& autoState, const std::string& effect, const std::vector<std::string>& args);
     void setRunningEffect(RunningEffect* r, int32_t firstUpdateMS);
 
+    // Retire the running effect WITHOUT clearing what it last drew.  This is
+    // the "nothing takes over" case setRunningEffect() cannot express, and the
+    // Text effect needs it: a still, centred message writes its pixels
+    // directly, so an effect left repainting from an earlier run (a scroll, or
+    // an animated colour mode) would paint straight back over it.
+    void clearRunningEffect();
+
     std::recursive_mutex& getRunningEffectMutex() { return effectLock; }
     RunningEffect* getRunningEffect() const { return runningEffect; } // make sure you have the mutex locked
     int32_t updateRunningEffects();

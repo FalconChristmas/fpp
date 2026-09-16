@@ -1615,6 +1615,39 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                             args.push_back(std::to_string(pps));
                             args.push_back("0");
                             args.push_back(msg);
+
+                            // Optional colour-treatment arguments, in the order
+                            // the Text effect declares them after Text.  They
+                            // are positional, so a body that sets a later one
+                            // without an earlier one still has to push the
+                            // earlier one's default -- which is what the loop
+                            // does, stopping as soon as nothing further is
+                            // named so a body that mentions none of them sends
+                            // the same ten arguments it always has.
+                            static const struct {
+                                const char* key;
+                                const char* dflt;
+                            } TEXT_COLOR_ARGS[] = {
+                                { "ColorMode", "Single" },
+                                { "Palette", "Custom" },
+                                { "NumColors", "2" },
+                                { "Color2", "#0000FF" },
+                                { "Color3", "#00FF00" },
+                                { "Color4", "#FFFF00" },
+                                { "Color5", "#FF00FF" },
+                                { "ColorSpeed", "0" }
+                            };
+                            int lastNamed = -1;
+                            for (int ci = 0; ci < (int)(sizeof(TEXT_COLOR_ARGS) / sizeof(TEXT_COLOR_ARGS[0])); ci++) {
+                                if (root.isMember(TEXT_COLOR_ARGS[ci].key)) {
+                                    lastNamed = ci;
+                                }
+                            }
+                            for (int ci = 0; ci <= lastNamed; ci++) {
+                                const char* key = TEXT_COLOR_ARGS[ci].key;
+                                args.push_back(root.isMember(key) ? root[key].asString()
+                                                                  : TEXT_COLOR_ARGS[ci].dflt);
+                            }
                             lock.unlock();
                             LogDebug(VB_COMMAND, "PixelOverlay HTTP API from %s running \"Overlay Model Effect\" on model \"%s\"\n", getEffectiveClientIP(req).c_str(), p3.c_str());
                             CommandManager::INSTANCE.run("Overlay Model Effect", args);

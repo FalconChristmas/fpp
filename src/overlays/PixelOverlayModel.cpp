@@ -1319,6 +1319,15 @@ void PixelOverlayModel::setRunningEffect(RunningEffect* ef, int32_t firstUpdateM
     PixelOverlayManager::INSTANCE.addPeriodicUpdate(firstUpdateMS, this);
 }
 
+void PixelOverlayModel::clearRunningEffect() {
+    std::unique_lock<std::recursive_mutex> l(effectLock);
+    if (runningEffect) {
+        delete runningEffect;
+        runningEffect = nullptr;
+        PixelOverlayManager::INSTANCE.removePeriodicUpdate(this);
+    }
+}
+
 bool PixelOverlayModel::applyEffect(const std::string& autoState, const std::string& effect, const std::vector<std::string>& args) {
     PixelOverlayEffect* pe = PixelOverlayEffect::GetPixelOverlayEffect(effect);
     if (pe) {
