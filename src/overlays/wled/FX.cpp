@@ -3184,6 +3184,56 @@ static uint16_t mode_shimmer() {
 }
 static const char _data_FX_MODE_SHIMMER[] PROGMEM = "Shimmer@Speed,Interval,Size,Granular,Flow,Zebra,Reverse,Sporadic;Fx,Bg,Cx;!;1;pal=15,sx=220,ix=10,c2=0,c3=0";
 
+
+/////////////////////////
+//    Copy Segment     //
+/////////////////////////
+// Mirrors another segment into this one, with optional hue/saturation/value adjustment.
+// Ported from upstream WLED. Note: upstream reads either the source segment's own pixel
+// buffer or the global (last rendered frame) buffer depending on check2. This fork has no
+// per-segment buffers -- Segment::getPixelColor* already reads the shared strip buffer --
+// so both paths resolve to the same source here and check2 has no visible effect. The
+// option is kept so the mode data stays in step with upstream.
+uint16_t mode_copy_segment(void) {
+  const unsigned sourceid = SEGMENT.custom3;
+  if (sourceid >= strip().getSegmentsNum() || sourceid == strip().getCurrSegmentId()) { // invalid source
+    SEGMENT.fadeToBlackBy(5); // fade out
+    return FRAMETIME;
+  }
+  Segment& sourcesegment = strip().getSegment(sourceid);
+  if (!sourcesegment.isActive()) return FRAMETIME;
+
+  uint32_t color;
+  if (sourcesegment.is2D()) { // 2D source; copying 2D to 1D takes the first row (or column if 'Switch axis' is set)
+    const unsigned vH = SEGMENT.vHeight();
+    const unsigned vW = SEGMENT.vWidth();
+    for (unsigned y = 0; y < vH; y++) {
+      for (unsigned x = 0; x < vW; x++) {
+        unsigned sx = x; // source coordinates
+        unsigned sy = y;
+        if (SEGMENT.check1) std::swap(sx, sy); // flip axis
+        sourcesegment.setDrawDimensions(); // address the source segment
+        color = sourcesegment.getPixelColorXY(sx, sy);
+        adjust_color(color, SEGMENT.intensity, SEGMENT.custom1, SEGMENT.custom2); // hue shift, sat change, value change
+        SEGMENT.setDrawDimensions(); // back to this segment
+        SEGMENT.setPixelColorXY(x, y, color);
+      }
+    }
+  } else { // 1D source, can be expanded into 2D
+    const unsigned vL = SEGMENT.vLength();
+    for (unsigned i = 0; i < vL; i++) {
+      sourcesegment.setDrawDimensions();
+      color = sourcesegment.getPixelColor(i);
+      adjust_color(color, SEGMENT.intensity, SEGMENT.custom1, SEGMENT.custom2);
+      SEGMENT.setDrawDimensions();
+      SEGMENT.setPixelColor(i, color);
+    }
+  }
+
+  return FRAMETIME;
+}
+static const char _data_FX_MODE_COPY[] PROGMEM = "Copy Segment@,Color shift,Lighten,Brighten,ID,Axis(2D),FullStack(last frame);;;12;ix=0,c1=0,c2=0,c3=0";
+
 /*
  * Color Clouds (ported from upstream WLED)
  * Soft, drifting cloud-like colors driven by 2D perlin noise.
@@ -7594,6 +7644,7 @@ uint16_t mode_2DGEQ(void) { // By Will Tatam. Code reduction by Ewoud Wijma.
   if (!strip().isMatrix || !SEGMENT.is2D()) return mode_static(); // not a 2D set-up
 
   const int NUM_BANDS = map(SEGMENT.custom1, 0, 255, 1, 16);
+  const int CENTER_BIN = map(SEGMENT.custom3, 0, 31, 0, 15);
   const int cols = SEG_W;
   const int rows = SEG_H;
 
@@ -7615,8 +7666,14 @@ uint16_t mode_2DGEQ(void) { // By Will Tatam. Code reduction by Ewoud Wijma.
   if ((fadeoutDelay <= 1 ) || ((SEGENV.call % fadeoutDelay) == 0)) SEGMENT.fadeToBlackBy(SEGMENT.speed);
 
   for (int x=0; x < cols; x++) {
-    uint8_t  band       = map(x, 0, cols, 0, NUM_BANDS);
-    if (NUM_BANDS < 16) band = map(band, 0, NUM_BANDS - 1, 0, 15); // always use full range. comment out this line to get the previous behaviour.
+    int band = map(x, 0, cols, 0, NUM_BANDS);
+    if (NUM_BANDS < 16) {
+        int startBin = constrain(CENTER_BIN - NUM_BANDS/2, 0, 15 - NUM_BANDS + 1);
+        if (NUM_BANDS <= 1)
+          band = CENTER_BIN; // map() does not work for single band
+        else
+          band = map(band, 0, NUM_BANDS - 1, startBin, startBin + NUM_BANDS - 1);
+    }
     band = constrain(band, 0, 15);
     unsigned colorIndex = band * 17;
     int barHeight  = map(fftResult[band], 0, 255, 0, rows); // do not subtract -1 from rows here
@@ -7638,7 +7695,7 @@ uint16_t mode_2DGEQ(void) { // By Will Tatam. Code reduction by Ewoud Wijma.
 
   return FRAMETIME;
 } // mode_2DGEQ()
-static const char _data_FX_MODE_2DGEQ[] PROGMEM = "GEQ@Fade speed,Ripple decay,# of bands,,,Color bars;!,,Peaks;!;2f;c1=255,c2=64,pal=11,si=0"; // Beatsin
+static const char _data_FX_MODE_2DGEQ[] PROGMEM = "GEQ@Fade speed,Ripple decay,# of bands,,Bin,Color bars;!,,Peaks;!;2f;c1=255,c2=64,pal=11,si=0,c3=0"; // Beatsin
 
 
 /////////////////////////
@@ -9346,6 +9403,108 @@ uint16_t mode_particleblobs(void) {
   return FRAMETIME;
 }
 static const char _data_FX_MODE_PARTICLEBLOBS[] PROGMEM = "PS Blobs@Speed,Blobs,Size,Life,Blur,Wobble,Collide,Pulsate;;!;2v;sx=30,ix=64,c1=200,c2=130,c3=0,o3=1";
+
+/////////////////////////
+//    PS Galaxy        //
+/////////////////////////
+// Spiral galaxy with an emitter moving around, particles spiral into the center.
+// Also has a starfield mode where particles fly outwards from the center.
+// Ported from upstream WLED. By DedeHai (Damian Schneider)
+uint16_t mode_particlegalaxy(void) {
+  ParticleSystem2D *PartSys = nullptr;
+  PSsettings2D sourcesettings;
+  sourcesettings.asByte = 0b00001100; // PS settings for bounceY, bounceY used for source movement (it always bounces whereas particles do not)
+  if (SEGMENT.call == 0) { // initialization
+    if (!initParticleSystem2D(PartSys, 1, 0, true)) // init using 1 source and advanced particle settings
+      return mode_static(); // allocation failed or not 2D
+    PartSys->sources[0].source.vx = -4; // will collide with wall and get random bounce direction
+    PartSys->sources[0].source.x =  PartSys->maxX >> 1; // start in the center
+    PartSys->sources[0].source.y =  PartSys->maxY >> 1;
+    PartSys->sources[0].sourceFlags.perpetual = true; //source does not age
+    PartSys->sources[0].maxLife = 4000; // lifetime in frames
+    PartSys->sources[0].minLife = 800;
+    PartSys->sources[0].source.hue = hw_random16(); // start with random color
+    PartSys->setWallHardness(255);  //bounce forever
+    PartSys->setWallRoughness(200); //randomize wall bounce
+  }
+  else {
+    PartSys = reinterpret_cast<ParticleSystem2D *>(SEGENV.data); // if not first call, just set the pointer to the PS
+  }
+  if (PartSys == nullptr)
+    return mode_static(); // something went wrong, no data!
+  // Particle System settings
+  PartSys->updateSystem(); // update system properties (dimensions and data pointers)
+  uint8_t particlesize = SEGMENT.custom1;
+  PartSys->setParticleSize(particlesize); // set size globally
+  PartSys->setMotionBlur(250 * SEGMENT.check3); // adds trails to single/quad pixel particles, no effect if size > 1
+
+  if ((SEGMENT.call % ((33 - SEGMENT.custom3) >> 1)) == 0) // change hue of emitted particles
+    PartSys->sources[0].source.hue+=2;
+
+  if (hw_random8() < (10 + (SEGMENT.intensity >> 1))) // 5%-55% chance to emit a particle in this frame
+    PartSys->sprayEmit(PartSys->sources[0]);
+
+  if ((SEGMENT.call & 0x3) == 0) // every 4th frame, move the emitter
+    PartSys->particleMoveUpdate(PartSys->sources[0].source, PartSys->sources[0].sourceFlags, &sourcesettings);
+
+  // move alive particles in a spiral motion (or almost straight in fast starfield mode)
+  int32_t centerx = PartSys->maxX >> 1; // center of matrix in subpixel coordinates
+  int32_t centery = PartSys->maxY >> 1;
+  if (SEGMENT.check2) { // starfield mode
+    PartSys->setKillOutOfBounds(true);
+    PartSys->sources[0].var = 7; // emiting variation
+    PartSys->sources[0].source.x =  centerx; // set emitter to center
+    PartSys->sources[0].source.y =  centery;
+  }
+  else {
+    PartSys->setKillOutOfBounds(false);
+    PartSys->sources[0].var = 1; // emiting variation
+  }
+  for (uint32_t i = 0; i < PartSys->usedParticles; i++) { //check all particles
+    if (PartSys->particles[i].ttl == 0) continue; //skip dead particles
+    // (dx/dy): vector pointing from particle to center
+    int32_t dx = centerx - PartSys->particles[i].x;
+    int32_t dy = centery - PartSys->particles[i].y;
+    //speed towards center:
+    int32_t distance = sqrt32_bw(dx * dx + dy * dy); // absolute distance to center
+    if (distance < 20) distance = 20; // avoid division by zero, keep a minimum
+    int32_t speedfactor;
+    if (SEGMENT.check2) { // starfield mode
+      speedfactor = 1 + (1 + (SEGMENT.speed >> 1)) * distance; // speed increases towards edge
+      //apply velocity
+      PartSys->particles[i].x += (-speedfactor * dx) / 400000 - (dy >> 6);
+      PartSys->particles[i].y += (-speedfactor * dy) / 400000 + (dx >> 6);
+    }
+    else {
+      speedfactor = 2 + (((50 + SEGMENT.speed) << 6) / distance); // speed increases towards center
+      // rotate clockwise
+      int32_t tempVx = (-speedfactor * dy); // speed is orthogonal to center vector
+      int32_t tempVy =  (speedfactor * dx);
+      //add speed towards center to make particles spiral in
+      int vxc = (dx << 9) / (distance - 19); // subtract value from distance to make the pull-in force a bit stronger (helps on faster speeds)
+      int vyc = (dy << 9) / (distance - 19);
+      //apply velocity
+      PartSys->particles[i].x += (tempVx + vxc) / 1024; // note: cannot use bit shift as that causes asymmetric rounding
+      PartSys->particles[i].y += (tempVy + vyc) / 1024;
+
+      if (distance < 128) { // close to center
+        if (PartSys->particles[i].ttl > 3)
+          PartSys->particles[i].ttl -= 4; //age fast
+        PartSys->particles[i].sat = distance << 1; // turn white towards center
+      }
+    }
+    if(SEGMENT.custom3 == 31) // color by age but mapped to 1024 as particles have a long life, since age is random, this gives more or less random colors
+      PartSys->particles[i].hue = PartSys->particles[i].ttl >> 2;
+    else if(SEGMENT.custom3 == 0) // color by distance
+      PartSys->particles[i].hue = map(distance, 20, (PartSys->maxX + PartSys->maxY) >> 2, 0, 180); // color by distance to center
+  }
+
+  PartSys->update(); // update and render
+
+  return FRAMETIME;
+}
+static const char _data_FX_MODE_PARTICLEGALAXY[] PROGMEM = "PS Galaxy@!,!,Size,,Color,,Starfield,Trace;;!;2;pal=59,sx=80,c1=1,c3=4";
+
 #endif //WLED_DISABLE_PARTICLESYSTEM2D
 #endif // WLED_DISABLE_2D
 
@@ -10921,6 +11080,7 @@ void WS2812FX::setupEffectData() {
   addEffect(FX_MODE_MULTI_COMET, &mode_multi_comet, _data_FX_MODE_MULTI_COMET);  
   addEffect(FX_MODE_ROLLINGBALLS, &rolling_balls, _data_FX_MODE_ROLLINGBALLS);
   addEffect(FX_MODE_SHIMMER, &mode_shimmer, _data_FX_MODE_SHIMMER);
+  addEffect(FX_MODE_COPY, &mode_copy_segment, _data_FX_MODE_COPY);
   addEffect(FX_MODE_COLORCLOUDS, &mode_ColorClouds, _data_FX_MODE_COLORCLOUDS);
   addEffect(FX_MODE_PACMAN, &mode_pacman, _data_FX_MODE_PACMAN);
   addEffect(FX_MODE_SLOW_TRANSITION, &mode_slow_transition, _data_FX_MODE_SLOW_TRANSITION);
@@ -11049,6 +11209,7 @@ void WS2812FX::setupEffectData() {
   addEffect(FX_MODE_PARTICLECENTERGEQ, &mode_particlecenterGEQ, _data_FX_MODE_PARTICLECIRCULARGEQ);
   addEffect(FX_MODE_PARTICLEGHOSTRIDER, &mode_particleghostrider, _data_FX_MODE_PARTICLEGHOSTRIDER);
   addEffect(FX_MODE_PARTICLEBLOBS, &mode_particleblobs, _data_FX_MODE_PARTICLEBLOBS);
+  addEffect(FX_MODE_PARTICLEGALAXY, &mode_particlegalaxy, _data_FX_MODE_PARTICLEGALAXY);
 #endif // WLED_DISABLE_PARTICLESYSTEM2D
 #endif // WLED_DISABLE_2D
 
