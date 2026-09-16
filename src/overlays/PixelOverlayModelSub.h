@@ -28,6 +28,13 @@ public:
 
     void resetParent();
 
+protected:
+    // Grid submodels and groups SCATTER: a buffer cell lands on an arbitrary
+    // parent/member channel rather than at a fixed offset from a start channel,
+    // so the base class's contiguous assumption does not hold. Both scatter
+    // tables are indexed by channelData slot, which is what this receives.
+    uint32_t outputChannelForData(uint32_t dataOffset) const override;
+
 private:
     bool foundParent();
 

@@ -577,7 +577,8 @@ section_config() {
     fi
 
     hdr "Generated configuration"
-    for f in "${PW_CONFD}/95-fpp-alsa-sink.conf" \
+    for f in "${PW_CONFD}/94-fpp-vban.conf" \
+             "${PW_CONFD}/95-fpp-alsa-sink.conf" \
              "${PW_CONFD}/96-fpp-input-groups.conf" \
              "${PW_CONFD}/97-fpp-audio-groups.conf"; do
         if [ -f "${f}" ]; then
@@ -590,6 +591,16 @@ section_config() {
     if [ -f "${CFGDIR}/pipewire-audio-groups.json" ] && [ ! -f "${PW_CONFD}/97-fpp-audio-groups.conf" ]; then
         fail "Audio groups are configured but 97-fpp-audio-groups.conf was never generated"
         note "Open the Audio Output Groups page and press Save & Apply."
+    fi
+    # An all-disabled VBAN config generates no conf on purpose, so only an
+    # enabled instance with no conf is a real finding.
+    if [ -f "${CFGDIR}/pipewire-vban-instances.json" ] && [ ! -f "${PW_CONFD}/94-fpp-vban.conf" ]; then
+        if grep -q '"enabled": *true' "${CFGDIR}/pipewire-vban-instances.json" 2>/dev/null; then
+            fail "VBAN streams are enabled but 94-fpp-vban.conf was never generated"
+            note "Open the VBAN page and press Save & Apply."
+        else
+            skip "VBAN streams configured but all disabled - no conf expected"
+        fi
     fi
     if simple_mode && [ -f "${CFGDIR}/pipewire-input-groups.json" ]; then
         skip "Input groups configured for advanced mode - not generated in simple mode"
@@ -637,6 +648,8 @@ section_config() {
                 "${PW_CONFD}/97-fpp-audio-groups.conf" "Audio output groups"
     check_drift "${CFGDIR}/pipewire-input-groups.conf" \
                 "${PW_CONFD}/96-fpp-input-groups.conf" "Input groups"
+    check_drift "${CFGDIR}/pipewire-vban.conf" \
+                "${PW_CONFD}/94-fpp-vban.conf" "VBAN streams"
 
     # A conf newer than the daemon's start means it was written after the
     # daemon read it; the daemon is running the previous revision.
@@ -807,6 +820,20 @@ section_config() {
 }
 
 #############################################################################
+# Is a declared node actually in the graph?
+#
+# module-loopback never creates a node under the bare node.name it is given:
+# it creates the pair "input.<name>" and "output.<name>".  Every input group
+# member is such a loopback (ALSA capture, PipeWire source, AES67, Opus RTP and
+# VBAN receives alike), so matching only the bare name reported every one of
+# them as a missing node.
+node_in_graph() {
+    grep -Fqx "$1" "${TMPDIR_DIAG}/graph-nodes.txt" \
+        || grep -Fqx "input.$1" "${TMPDIR_DIAG}/graph-nodes.txt" \
+        || grep -Fqx "output.$1" "${TMPDIR_DIAG}/graph-nodes.txt"
+}
+
+#############################################################################
 section_graph() {
     echo "=== PipeWire Graph vs Configuration ==="
     echo
@@ -841,7 +868,7 @@ section_graph() {
     explained=0
     while read -r n; do
         [ -z "${n}" ] && continue
-        if ! grep -qx "${n}" "${TMPDIR_DIAG}/graph-nodes.txt"; then
+        if ! node_in_graph "${n}"; then
             fail "Declared but not in the graph: ${n}"
             c=$(card_for_node "${n}")
             if [ -n "${c}" ]; then

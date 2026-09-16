@@ -278,7 +278,8 @@ void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& p
 
     // need to use pru->memcpyToPRU so we'll use a temporary here
     // and it also needs to be 64 byte aligned
-    const int maxEntries = (int)(sizeof(d.pruData->commandTable) / sizeof(uint16_t));
+    // the tail of the table is the between-packets mask slot, see BBShiftStringDefs.hp
+    const int maxEntries = BBSS_COMMAND_TABLE_ENTRIES - BBSS_PACKET2_MASKS_ENTRIES;
     // one record is the mask halves plus the two byte offset that introduces
     // the next one; 9 entries at 8 deep, 17 at 16 deep
     const int entriesPerRecord = 1 + 4 * nRegs;
@@ -298,6 +299,10 @@ void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& p
 
     auto i = sizes.begin();
     while (i != sizes.end()) {
+        if (i->first == GPIO_CMD_AFTER_FIRST_PACKET) {
+            // not a data byte position; applied to the parked masks below
+            break;
+        }
         uint16_t min = i->first & 0xFFFF;
         if (min <= d.maxStringLen) {
             // the table lives in the PRU's data RAM, just below the ring
@@ -340,6 +345,33 @@ void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& p
     int len = (curCommandTable) * 2;
     len += 64 - (len % 64);
     d.pru->memcpyToPRU((uint8_t*)&d.pruData->commandTable[0], (uint8_t*)&commandTable[0], len);
+
+    // Park the masks the firmware loads in the packet phase (after the first
+    // packet, or for the whole phase of a listen frame): the end-of-frame
+    // masks (r45 has every record applied), less the send-only chain heads,
+    // whose line goes low after their config packet and never carries a
+    // second packet or precedes the bus turnaround.  Always written, so the
+    // load is harmless when no such chain exists.
+    auto p2 = sizes.find(GPIO_CMD_AFTER_FIRST_PACKET);
+    if (p2 != sizes.end()) {
+        for (auto& t : p2->second) {
+            auto [y, x, cmd, inverted] = t;
+            int reg = (x / 4);
+            int breg = x % 4;
+            uint8_t mask = 0x1 << y;
+            if ((cmd.type != 0) != inverted) {
+                r45[reg].b[breg] |= mask;
+            } else {
+                r45[reg].b[breg] &= ~mask;
+            }
+        }
+    }
+    curCommandTable = 0;
+    emitMasks();
+    // one mask set is 2 * stringsPerPin bytes, the slot is 2 * ENTRIES bytes
+    static_assert(2 * MAX_STRINGS_PER_PIN <= 2 * BBSS_PACKET2_MASKS_ENTRIES, "between-packets mask slot too small");
+    d.pru->memcpyToPRU((uint8_t*)&d.pruData->commandTable[BBSS_COMMAND_TABLE_ENTRIES - BBSS_PACKET2_MASKS_ENTRIES],
+                       (uint8_t*)&commandTable[0], curCommandTable * 2);
     free(buffer);
 }
 
@@ -708,6 +740,23 @@ int BBShiftStringOutput::Init(Json::Value config) {
         m_fv5PacketMem = (uint8_t*)calloc(1, (size_t)128 * 1024 * (m_stringsPerPin / 8));
         setupFalconV5Support(root, m_fv5PacketMem);
 #endif
+    }
+
+    if (falconV5Support && m_frameTimeUs > 0) {
+        // A query frame costs every pin the packet phase and the listen
+        // window on top of the pixel data: 69us of lead-in, 57 bytes of 10
+        // cells at 1130ns, 35us of listener lead-in and a window of 500us,
+        // extended by 1.7ms when the receiver answers - about 2.9ms with a
+        // receiver on the chain.  Spread over the frames that carry one so
+        // the ceiling (and the warning) is honest for a receiver config: at
+        // 768px per port and 40fps the string data alone fits, the queries
+        // do not, and without this term the drops came with no warning.
+        float share = falconV5Support->queryFrameShare();
+        if (share > 0.0f) {
+            m_frameTimeUs += (int)(2900.0f * share);
+            LogInfo(VB_CHANNELOUT, "BBShiftString: FalconV5 queries on %.0f%% of frames -> %.1fms/frame, sustainable ceiling ~%.4g fps\n",
+                    share * 100.0f, m_frameTimeUs / 1000.0, 1000000.0 / m_frameTimeUs);
+        }
     }
 
     // flag the virtual strings whose channel map is a plain run so prepData
@@ -1302,6 +1351,7 @@ void BBShiftStringOutput::PrepData(unsigned char* channelData) {
         }
         bool listen = false;
         if (falconV5Support->generateDynamicPacket(packets, listen)) {
+            applySendOnlyConfigPackets(packets);
             if (m_pru0.dynamicPacketInfo == &m_pru0.dynamicPacketInfo1) {
                 m_pru0.dynamicPacketInfo = &m_pru0.dynamicPacketInfo2;
                 m_pru1.dynamicPacketInfo = &m_pru1.dynamicPacketInfo2;
@@ -1406,9 +1456,9 @@ void BBShiftStringOutput::checkFrameRateBudget(float rate) {
         return;
     }
     float ceiling = 1000000.0f / m_frameTimeUs;
-    // 5% grace: covers the overhead constant's own uncertainty (the receiver
-    // packet share of the 1700us is config-dependent) and keeps a config a
-    // hair past budget - absorbed invisibly by the back-pressure gate - quiet
+    // 5% grace: covers the overhead constants' own uncertainty and keeps a
+    // config a hair past budget - absorbed invisibly by the back-pressure
+    // gate - quiet
     if (rate > ceiling * 1.05f) {
         char buf[192];
         snprintf(buf, sizeof(buf),
@@ -1717,6 +1767,12 @@ void BBShiftStringOutput::runPumpThread() {
         if (m_pru1.pru && m_pru1.ring.attached()) {
             p |= pumpFrameData(m_pru1);
         }
+        if (falconV5Support) {
+            // take a finished receiver reply out of the listener's shared RAM
+            // as soon as it is published, before the next listen window can
+            // overwrite it; the output thread decodes it on its next frame
+            falconV5Support->stageListenerData();
+        }
         if (!p) {
             struct timespec ts = { 0, 500000 };
             nanosleep(&ts, nullptr);
@@ -1799,8 +1855,15 @@ void BBShiftStringOutput::encodeFalconV5Packet(std::vector<std::array<uint8_t, 6
     }
 }
 
+void BBShiftStringOutput::applySendOnlyConfigPackets(std::vector<std::array<uint8_t, 64>>& packets) {
+    for (auto& [port, packet] : m_sendOnlyConfigPackets) {
+        packets[port] = packet;
+    }
+}
+
 void BBShiftStringOutput::setupFalconV5Support(const Json::Value& root, uint8_t* memLoc) {
     falconV5Support = new FalconV5Support();
+    m_sendOnlyConfigPackets.clear();
     if (supportsV5Listeners && m_hasBidirSR) {
         falconV5Support->addListeners(root["falconV5ListenerConfig"]);
     }
@@ -1831,6 +1894,13 @@ void BBShiftStringOutput::setupFalconV5Support(const Json::Value& root, uint8_t*
             // and must have edges that are aligned.  Need to turn OFF the 2-4 ports during
             // the config packet
             p1->m_gpioCommands.clear();
+            if (sendOnly) {
+                // a V4 chain gets its config packet in the packet frames that
+                // end in the frame's low reset, and its line goes low right
+                // after it; in a frame that opens a listen window the line
+                // stays low for the whole packet phase
+                p1->m_gpioCommands.emplace_back(1, GPIO_CMD_AFTER_FIRST_PACKET, 0, 0);
+            }
             if (p2) {
                 p2->m_gpioCommands.clear();
                 p2->m_gpioCommands.emplace_back(2, max, 0, 0);
@@ -1865,12 +1935,16 @@ void BBShiftStringOutput::setupFalconV5Support(const Json::Value& root, uint8_t*
             for (auto& rc : falconV5Support->getReceiverChains()) {
                 int port = rc->getPixelStrings()[0]->m_portNumber;
                 if (x > 0 && rc->isSendOnly()) {
-                    // V4 receivers only get the config packet
+                    // V4 receivers never get number/fuse/query packets; their
+                    // slot in those frames is filled by applySendOnlyConfigPackets
                     continue;
                 }
                 any = true;
                 if (x == 0) {
                     rc->generateConfigPacket(&packets[port][0]);
+                    if (rc->isSendOnly()) {
+                        m_sendOnlyConfigPackets.emplace_back(port, packets[port]);
+                    }
                 } else if (x == 1) {
                     rc->generateNumberPackets(&packets[port][0], &packets2[port][0]);
                 } else if (x == 2) {
@@ -1879,6 +1953,10 @@ void BBShiftStringOutput::setupFalconV5Support(const Json::Value& root, uint8_t*
             }
             if (!any) {
                 continue;
+            }
+            if (x > 0) {
+                applySendOnlyConfigPackets(packets);
+                applySendOnlyConfigPackets(packets2);
             }
             if (m_pru0.v5_config_packets[idx] == nullptr) {
                 m_pru0.v5_config_packets[idx] = new FalconV5PacketInfo(len, memLoc, listen);

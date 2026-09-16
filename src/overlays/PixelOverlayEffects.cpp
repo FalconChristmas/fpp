@@ -41,6 +41,7 @@
 
 #include "PixelOverlay.h"
 #include "PixelOverlayModel.h"
+#include "TextColorizer.h"
 #include "WLEDEffects.h"
 
 #include "PixelOverlayEffects.h"
@@ -746,6 +747,336 @@ public:
     long long endTimeMS = 0;
 };
 
+// ---------------------------------------------------------------------------
+// Text colour treatment
+//
+// The Text effect originally drew its message in one flat fill colour, and it
+// still does exactly that whenever ColorMode is "Single" -- the default, and
+// what every command, preset, cue and MQTT topic written before these
+// arguments existed resolves to.  Any other mode takes a second path: the
+// message is rendered ONCE as a white-on-black coverage mask and the colour is
+// painted through that mask by TextColorizer.  Keeping the render and the
+// colouring apart is what makes an animated mode affordable -- a repaint is one
+// pass over the mask, not another trip through the font rasteriser.
+// ---------------------------------------------------------------------------
+
+/** Longest line the per-letter bands are measured glyph by glyph. */
+static constexpr size_t MAX_MEASURED_GLYPHS = 160;
+/** Repaint interval for an animated still (centred) block of text. */
+static constexpr int32_t TEXT_COLOR_FRAME_MS = 25;
+/** ColorSpeed that means one full palette cycle per second. */
+static constexpr double TEXT_COLOR_SPEED_PER_CYCLE = 20.0;
+
+/** Everything the Text effect's colour arguments resolve to. */
+struct TextColorSpec {
+    TextColor::Mode mode = TextColor::Mode::Single;
+    TextColor::Palette palette;
+    int colorSpeed = 0; ///< 0 holds a still frame
+    uint32_t seed = 0;  ///< fixes the Random modes' shuffle for one application
+
+    /** True when the painted result changes over time, so it needs repainting. */
+    bool animated() const {
+        return colorSpeed > 0 && TextColor::IsAnimated(mode);
+    }
+    /** True for the original one-fill-colour path. */
+    bool plain() const {
+        return mode == TextColor::Mode::Single;
+    }
+};
+
+/**
+ * Animation position for a spec, wrapped into [0, 1).
+ *
+ * ColorSpeed 20 is one full palette cycle per second, so the argument's 1..100
+ * range runs from a slow drift up to five cycles a second.
+ */
+static double textColorPhase(const TextColorSpec& spec, long long startMS) {
+    if (!spec.animated()) {
+        return 0.0;
+    }
+    double cycles = ((double)(GetTimeMS() - startMS) / 1000.0) *
+                    ((double)spec.colorSpeed / TEXT_COLOR_SPEED_PER_CYCLE);
+    return cycles - std::floor(cycles);
+}
+
+/**
+ * Collapse a rendered RGB frame to an 8-bit coverage mask.  The colour modes
+ * draw the glyphs white on black, so the brightest channel IS the coverage the
+ * font rasteriser produced, anti-aliased edges included.
+ */
+static void rgbToCoverageMask(const uint8_t* rgb, size_t pixels, uint8_t* mask) {
+    for (size_t i = 0; i < pixels; ++i) {
+        const uint8_t* p = rgb + i * 3;
+        mask[i] = std::max({ p[0], p[1], p[2] });
+    }
+}
+
+static Magick::Color magickColor(int r, int g, int b) {
+    return Magick::Color(Magick::Color::scaleDoubleToQuantum(r / 255.0),
+                         Magick::Color::scaleDoubleToQuantum(g / 255.0),
+                         Magick::Color::scaleDoubleToQuantum(b / 255.0));
+}
+
+/** Split on newlines, always yielding at least one (possibly empty) line. */
+static std::vector<std::string> splitTextLines(const std::string& msg) {
+    std::vector<std::string> lines;
+    size_t last = 0;
+    for (size_t x = 0; x < msg.length(); x++) {
+        if (msg[x] == '\n') {
+            lines.push_back(msg.substr(last, x - last));
+            last = x + 1;
+        }
+    }
+    lines.push_back(msg.substr(last));
+    return lines;
+}
+
+static bool isTextSpace(char c) {
+    return c == ' ' || c == '\t' || c == '\r';
+}
+
+static std::string trimTextLine(const std::string& s) {
+    size_t b = 0;
+    size_t e = s.size();
+    while (b < e && isTextSpace(s[b])) {
+        ++b;
+    }
+    while (e > b && isTextSpace(s[e - 1])) {
+        --e;
+    }
+    return s.substr(b, e - b);
+}
+
+/** Byte offsets of each UTF-8 character boundary, including 0 and size(). */
+static std::vector<size_t> utf8Boundaries(const std::string& s) {
+    std::vector<size_t> b;
+    b.push_back(0);
+    size_t i = 0;
+    while (i < s.size()) {
+        unsigned char c = (unsigned char)s[i];
+        size_t len = 1;
+        if ((c & 0xE0) == 0xC0) {
+            len = 2;
+        } else if ((c & 0xF0) == 0xE0) {
+            len = 3;
+        } else if ((c & 0xF8) == 0xF0) {
+            len = 4;
+        }
+        i = std::min(s.size(), i + len);
+        b.push_back(i);
+    }
+    return b;
+}
+
+static bool boundaryIsSpace(const std::string& s, const std::vector<size_t>& bounds, size_t k) {
+    return (bounds[k + 1] - bounds[k]) == 1 && isTextSpace(s[bounds[k]]);
+}
+
+/**
+ * Cumulative text width at every character boundary of `line`.
+ *
+ * One fontTypeMetrics() call per character is the only way to get this out of
+ * GraphicsMagick, so a long line is divided evenly instead: per-letter bands on
+ * a hundred-character banner are decorative rather than exact, and a hundred
+ * font passes on a Pi are not worth the difference.
+ */
+static std::vector<double> measurePrefixWidths(Magick::Image& img, const std::string& line,
+                                               const std::vector<size_t>& bounds) {
+    size_t n = bounds.size() - 1;
+    std::vector<double> prefix(n + 1, 0.0);
+    if (n == 0) {
+        return prefix;
+    }
+    Magick::TypeMetric tm;
+    img.fontTypeMetrics(line, &tm);
+    double total = tm.textWidth();
+
+    if (n > MAX_MEASURED_GLYPHS) {
+        for (size_t k = 0; k <= n; ++k) {
+            prefix[k] = total * (double)k / (double)n;
+        }
+        return prefix;
+    }
+    for (size_t k = 1; k < n; ++k) {
+        img.fontTypeMetrics(line.substr(0, bounds[k]), &tm);
+        prefix[k] = tm.textWidth();
+    }
+    prefix[n] = total;
+    // A prefix that ends in a space measures trimmed, which would run the ramp
+    // backwards; forcing it monotonic keeps a span from inverting.
+    for (size_t k = 1; k <= n; ++k) {
+        prefix[k] = std::max(prefix[k], prefix[k - 1]);
+    }
+    return prefix;
+}
+
+/**
+ * Work out the ink box and, for the modes that need them, the span rectangles
+ * a Per Letter / Per Word / Per Line mode paints through.
+ *
+ * Lines and their extents come from the rendered PIXELS rather than the font:
+ * runs of rows holding ink are the lines, and each line's first and last lit
+ * column bound it.  Only the one thing pixels cannot answer -- where inside a
+ * line one letter ends and the next begins -- is measured with font metrics,
+ * and even that is rescaled onto the line's real ink extent, so a centring or
+ * side-bearing discrepancy cannot walk the bands off the glyphs.
+ */
+static TextColor::Layout buildTextLayout(const uint8_t* mask, int w, int h,
+                                         Magick::Image& img,
+                                         const std::vector<std::string>& lines,
+                                         TextColor::Mode mode) {
+    TextColor::Layout layout;
+    if (!TextColor::InkBounds(mask, w, h, layout)) {
+        return layout; // nothing rendered; Colorize handles the empty case
+    }
+    if (!TextColor::NeedsLetterSpans(mode) && !TextColor::NeedsWordSpans(mode) &&
+        !TextColor::NeedsLineSpans(mode)) {
+        return layout;
+    }
+
+    auto runs = TextColor::InkRowRuns(mask, w, h);
+    if (runs.empty()) {
+        return layout;
+    }
+
+    if (TextColor::NeedsLineSpans(mode)) {
+        int idx = 0;
+        for (const auto& r : runs) {
+            layout.spans.push_back({ idx++, layout.x, layout.x + layout.w, r.first, r.second + 1 });
+        }
+        layout.spanCount = idx;
+        return layout;
+    }
+
+    // Letters and words have to be matched back to the source line that drew
+    // them.  Blank lines contribute no ink, so they are dropped first.
+    std::vector<std::string> inked;
+    for (const auto& l : lines) {
+        std::string t = trimTextLine(l);
+        if (!t.empty()) {
+            inked.push_back(t);
+        }
+    }
+    if (inked.size() != runs.size()) {
+        // Adjacent lines whose ascenders and descenders touch merge into one
+        // run.  Rather than guess at the pairing, hand back no spans at all:
+        // Colorize paints a gradient instead, which still shows the palette.
+        return layout;
+    }
+
+    int idx = 0;
+    for (size_t li = 0; li < inked.size(); ++li) {
+        int y0 = runs[li].first;
+        int y1 = runs[li].second + 1;
+        int ix0 = 0;
+        int ix1 = 0;
+        if (!TextColor::InkColumnExtent(mask, w, h, y0, y1, ix0, ix1)) {
+            continue;
+        }
+
+        const std::string& line = inked[li];
+        std::vector<size_t> bounds = utf8Boundaries(line);
+        std::vector<double> prefix;
+        try {
+            prefix = measurePrefixWidths(img, line, bounds);
+        } catch (...) {
+            // A font that will not report metrics leaves the spans short;
+            // Colorize falls back to a gradient rather than painting a partly
+            // banded line.
+            layout.spans.clear();
+            layout.spanCount = 0;
+            return layout;
+        }
+        double total = prefix.back();
+        if (total <= 0.0) {
+            continue;
+        }
+        double scale = (double)(ix1 - ix0 + 1) / total;
+
+        size_t nchars = bounds.size() - 1;
+        size_t k = 0;
+        while (k < nchars) {
+            size_t end = k + 1;
+            if (TextColor::NeedsWordSpans(mode)) {
+                while (end < nchars && !boundaryIsSpace(line, bounds, end)) {
+                    ++end;
+                }
+            }
+            // Absorb the following run of spaces so consecutive spans tile with
+            // no gap - an anti-aliased edge that bleeds past its own glyph then
+            // still lands on a span rather than on the fallback colour.
+            size_t ext = end;
+            while (ext < nchars && boundaryIsSpace(line, bounds, ext)) {
+                ++ext;
+            }
+            int sx0 = ix0 + (int)std::lround(prefix[k] * scale);
+            int sx1 = ix0 + (int)std::lround(prefix[ext] * scale);
+            if (sx1 <= sx0) {
+                sx1 = sx0 + 1;
+            }
+            layout.spans.push_back({ idx++, sx0, sx1, y0, y1 });
+            k = ext;
+        }
+    }
+    layout.spanCount = std::max(1, idx);
+    return layout;
+}
+
+/**
+ * Repaints a still (Position: Center) block of text through an animated colour
+ * mode.  The glyphs never move, so the coverage mask is built once by the
+ * effect and every frame after that is a pass over it - no font work and no
+ * GraphicsMagick call at all.
+ */
+class TextColorAnimationEffect : public RunningEffect {
+public:
+    TextColorAnimationEffect(PixelOverlayModel* m) :
+        RunningEffect(m) {
+    }
+    const std::string& name() const override {
+        static std::string NAME = "Text";
+        return NAME;
+    }
+    virtual int32_t update() override {
+        if (endTimeMS && GetTimeMS() >= endTimeMS) {
+            // The same two-step teardown StopRunningEffect performs: blank the
+            // model, let one output cycle push that out, and only then drop the
+            // state we auto-enabled.
+            model->clearOverlayBuffer();
+            model->flushOverlayBuffer();
+            if (stopped) {
+                if (disableWhenDone) {
+                    model->setState(PixelOverlayState(PixelOverlayState::PixelState::Disabled));
+                }
+                return EFFECT_DONE;
+            }
+            stopped = true;
+            return EFFECT_AFTER_NEXT_OUTPUT;
+        }
+        paint();
+        return TEXT_COLOR_FRAME_MS;
+    }
+    void paint() {
+        if (mask.empty() || rgb.size() != mask.size() * 3) {
+            return;
+        }
+        TextColor::Colorize(mask.data(), width, height, layout, spec.mode, spec.palette,
+                            textColorPhase(spec, startMS), true, spec.seed, rgb.data());
+        setModelDataFromRGB(model, rgb.data());
+    }
+
+    std::vector<uint8_t> mask;
+    std::vector<uint8_t> rgb;
+    TextColor::Layout layout;
+    TextColorSpec spec;
+    int width = 0;
+    int height = 0;
+    long long startMS = 0;
+    long long endTimeMS = 0;
+    bool disableWhenDone = false;
+    bool stopped = false;
+};
+
 class TextEffect : public PixelOverlayEffect {
 public:
     TextEffect() :
@@ -762,7 +1093,71 @@ public:
         // msg as the last argument.  Thus, this allows all of the above to be topic paths, but the text to be
         // sent in the payload
         args.push_back(CommandArg("Text", "string", "Text").setAdjustable());
+
+        // ---- colour treatment -------------------------------------------
+        // Deliberately AFTER Text, even though the form reads better with them
+        // next to Color.  Effect arguments are positional: every saved preset,
+        // playlist entry, cue and MQTT topic naming this effect carries exactly
+        // the eight arguments above IN THAT ORDER, and the MQTT convention of
+        // putting the message in the payload works by appending it as the last
+        // argument of a topic that carried the other seven.  Inserting anything
+        // ahead of Text silently re-points all of them.  Appended and optional,
+        // they are simply absent for those callers and resolve to "Single",
+        // which is the behaviour this effect always had.
+        args.push_back(CommandArg("ColorMode", "string", "Color Mode", true)
+                           .setContentList(TextColor::ModeNames())
+                           .setDefaultValue("Single")
+                           .setSection("Color Effects")
+                           .setChildren(colorModeChildren())
+                           .setHelp("<ul class='mb-0 ps-3 text-start'>"
+                                    "<li><b>Single</b>: the whole message in Color.</li>"
+                                    "<li><b>Gradient</b>: blend across the text, horizontally, "
+                                    "vertically or corner to corner.</li>"
+                                    "<li><b>Per Letter / Word / Line</b>: step through the palette, "
+                                    "one colour per letter, word or line.</li>"
+                                    "<li><b>Random Letter / Word</b>: as above but shuffled.</li>"
+                                    "<li><b>Sparkle</b>: glitter the letters with bright flecks.</li>"
+                                    "<li><b>Chase</b>: run a bright highlight along the text.</li>"
+                                    "</ul>Sparkle and Chase need a Color Speed above 0 to move."));
+        args.push_back(CommandArg("Palette", "string", "Palette", true)
+                           .setContentList(TextColor::PaletteNames())
+                           .setDefaultValue("Custom")
+                           .setSection("Color Effects")
+                           .setHelp("Where the colours come from. <b>Custom</b> uses Color plus the "
+                                    "extra colours below; <b>Rainbow</b> sweeps the whole hue circle; "
+                                    "the rest are ready-made sets."));
+        args.push_back(CommandArg("NumColors", "range", "Num Colors", true)
+                           .setRange(1, 5)
+                           .setDefaultValue("2")
+                           .setSection("Color Effects")
+                           .setHelp("How many colours the Custom palette uses, counting Color as the "
+                                    "first. Ignored by the named palettes."));
+        args.push_back(CommandArg("Color2", "color", "Color 2", true).setDefaultValue("#0000FF").setSection("Color Effects"));
+        args.push_back(CommandArg("Color3", "color", "Color 3", true).setDefaultValue("#00FF00").setSection("Color Effects"));
+        args.push_back(CommandArg("Color4", "color", "Color 4", true).setDefaultValue("#FFFF00").setSection("Color Effects"));
+        args.push_back(CommandArg("Color5", "color", "Color 5", true).setDefaultValue("#FF00FF").setSection("Color Effects"));
+        args.push_back(CommandArg("ColorSpeed", "range", "Color Speed", true)
+                           .setRange(0, 100)
+                           .setDefaultValue("0")
+                           .setSection("Color Effects")
+                           .setHelp("How fast the colours move through the text. 0 holds a still "
+                                    "frame; 20 is one full pass a second. Scrolling text animates its "
+                                    "colours on the scroll's own frame rate, so a very low Scroll "
+                                    "Speed also makes the colour change step."));
     }
+
+    /** Which arguments are only worth showing once a colour mode is chosen. */
+    static std::map<std::string, std::vector<std::string>> colorModeChildren() {
+        static const std::vector<std::string> SHOWN = {
+            "Palette", "NumColors", "Color2", "Color3", "Color4", "Color5", "ColorSpeed"
+        };
+        std::map<std::string, std::vector<std::string>> m;
+        for (const auto& n : TextColor::ModeNames()) {
+            m[n] = (n == "Single") ? std::vector<std::string>() : SHOWN;
+        }
+        return m;
+    }
+
     class TextMovementEffect : public ImageMovementEffect {
     public:
         TextMovementEffect(PixelOverlayModel* m) :
@@ -773,6 +1168,27 @@ public:
             static std::string NAME = "Text";
             return NAME;
         }
+
+        /**
+         * Scrolling already re-blits every frame, so an animated colour mode
+         * only has to repaint the glyph buffer first.  colorMask is empty for
+         * Single (and for a still colour mode), in which case imageData is what
+         * doText() painted once and nothing here touches it.
+         */
+        virtual int32_t update() override {
+            if (imageData && !colorMask.empty() && colorSpec.animated()) {
+                TextColor::Colorize(colorMask.data(), imageDataCols, imageDataRows, colorLayout,
+                                    colorSpec.mode, colorSpec.palette,
+                                    textColorPhase(colorSpec, colorStartMS), true,
+                                    colorSpec.seed, imageData);
+            }
+            return ImageMovementEffect::update();
+        }
+
+        std::vector<uint8_t> colorMask;
+        TextColor::Layout colorLayout;
+        TextColorSpec colorSpec;
+        long long colorStartMS = 0;
     };
 
     void doText(PixelOverlayModel* m,
@@ -784,7 +1200,8 @@ public:
                 const std::string& position,
                 int pixelsPerSecond,
                 const std::string& autoEnable,
-                int duration) {
+                int duration,
+                const TextColorSpec& colorSpec) {
         bool disableWhenDone = false;
         PixelOverlayState st(autoEnable);
         if ((st.getState() != PixelOverlayState::PixelState::Disabled) && (m->getState().getState() == PixelOverlayState::PixelState::Disabled)) {
@@ -819,70 +1236,108 @@ public:
         image->fontPointsize(fontSize);
         image->antiAlias(antialias);
 
+        std::vector<std::string> lines = splitTextLines(normalizedMsg);
         int maxWid = 0;
         int totalHi = 0;
-
-        int last = 0;
-        for (int x = 0; x < normalizedMsg.length(); x++) {
-            if (normalizedMsg[x] == '\n') {
-                std::string newM = normalizedMsg.substr(last, x - last);
-                Magick::TypeMetric metrics;
-                image->fontTypeMetrics(newM, &metrics);
-                maxWid = std::max(maxWid, (int)metrics.textWidth());
-                totalHi += (int)metrics.textHeight();
-                last = x + 1;
-            }
-        }
-        std::string newM = normalizedMsg.substr(last);
+        // Left holding the LAST line's metrics, which is what the Top to Bottom
+        // start position below is measured from.
         Magick::TypeMetric metrics;
-        image->fontTypeMetrics(newM, &metrics);
-        maxWid = std::max(maxWid, (int)metrics.textWidth());
-        totalHi += (int)metrics.textHeight();
+        for (const auto& line : lines) {
+            image->fontTypeMetrics(line, &metrics);
+            maxWid = std::max(maxWid, (int)metrics.textWidth());
+            totalHi += (int)metrics.textHeight();
+        }
 
         // Empty text (or text consisting only of newlines) measures as zero width,
         // which would make the scrolling branch below construct an invalid image.
         maxWid = std::max(maxWid, 1);
         totalHi = std::max(totalHi, 1);
 
+        // Single draws straight in its fill colour, exactly as this effect
+        // always has; every other mode draws white and is painted afterwards.
+        const bool plainColor = colorSpec.plain();
+        Magick::Color fill = plainColor ? magickColor(r, g, b) : magickColor(255, 255, 255);
+
         if (position == "Centered" || position == "Center") {
+            // Before anything is drawn: a still frame is written straight to the
+            // model, so a repainting Text effect from an earlier run has to go
+            // first or it simply paints back over us.
+            retireRunningTextEffect(m);
+
             image->magick("RGB");
             // one shot, just draw the text and return
-            double rr = r;
-            double rg = g;
-            double rb = b;
-            rr /= 255.0f;
-            rg /= 255.0f;
-            rb /= 255.0f;
-
-            image->fillColor(Magick::Color(Magick::Color::scaleDoubleToQuantum(rr),
-                                           Magick::Color::scaleDoubleToQuantum(rg),
-                                           Magick::Color::scaleDoubleToQuantum(rb)));
+            image->fillColor(fill);
             image->antiAlias(antialias);
             image->strokeAntiAlias(antialias);
             image->annotate(normalizedMsg, Magick::CenterGravity);
             Magick::Blob blob;
             image->write(&blob);
 
-            setModelDataFromRGB(m, (const uint8_t*)blob.data());
-
-            if (disableWhenDone) {
-                int nd = 25;
-                if (duration > 0) {
-                    nd = duration * 1000;
+            if (plainColor) {
+                setModelDataFromRGB(m, (const uint8_t*)blob.data());
+                if (disableWhenDone) {
+                    int nd = 25;
+                    if (duration > 0) {
+                        nd = duration * 1000;
+                    }
+                    m->setRunningEffect(new StopRunningEffect(m, "Text", disableWhenDone), nd);
                 }
-                m->setRunningEffect(new StopRunningEffect(m, "Text", disableWhenDone), nd);
+                delete image;
+                return;
             }
+
+            int w = m->getWidth();
+            int h = m->getHeight();
+            size_t pixels = (size_t)w * h;
+            if (blob.length() < pixels * 3) {
+                // magick("RGB") + depth(8) should always give exactly this, but
+                // the mask pass reads every byte of it, so short-changing it
+                // would be an out-of-bounds read rather than a stretched image.
+                LogErr(VB_CHANNELOUT, "Text Overlay Effect - rendered %zu bytes, expected %zu\n",
+                       blob.length(), pixels * 3);
+                delete image;
+                return;
+            }
+            std::vector<uint8_t> mask(pixels);
+            rgbToCoverageMask((const uint8_t*)blob.data(), pixels, mask.data());
+            TextColor::Layout layout = buildTextLayout(mask.data(), w, h, *image, lines, colorSpec.mode);
             delete image;
+
+            std::vector<uint8_t> rgb(pixels * 3);
+            TextColor::Colorize(mask.data(), w, h, layout, colorSpec.mode, colorSpec.palette,
+                                0.0, colorSpec.animated(), colorSpec.seed, rgb.data());
+
+            if (!colorSpec.animated()) {
+                setModelDataFromRGB(m, rgb.data());
+                if (disableWhenDone) {
+                    int nd = 25;
+                    if (duration > 0) {
+                        nd = duration * 1000;
+                    }
+                    m->setRunningEffect(new StopRunningEffect(m, "Text", disableWhenDone), nd);
+                }
+                return;
+            }
+
+            TextColorAnimationEffect* ef = new TextColorAnimationEffect(m);
+            ef->mask = std::move(mask);
+            ef->rgb = std::move(rgb);
+            ef->layout = std::move(layout);
+            ef->spec = colorSpec;
+            ef->width = w;
+            ef->height = h;
+            ef->startMS = GetTimeMS();
+            ef->disableWhenDone = disableWhenDone;
+            // Duration bounds an auto-enabled run only, which is the rule the
+            // still centred path has always followed - without auto-enable the
+            // text stays up until something else replaces it.
+            if (disableWhenDone) {
+                ef->endTimeMS = ef->startMS + (duration > 0 ? (long long)duration * 1000 : 25);
+            }
+            m->setRunningEffect(ef, 1);
         } else {
             delete image;
             // movement
-            double rr = r;
-            double rg = g;
-            double rb = b;
-            rr /= 255.0f;
-            rg /= 255.0f;
-            rb /= 255.0f;
-
             Magick::Image image2(Magick::Geometry(maxWid, totalHi), Magick::Color("black"));
             image2.quiet(true);
             image2.depth(8);
@@ -890,9 +1345,7 @@ public:
             image2.fontPointsize(fontSize);
             image2.antiAlias(antialias);
 
-            image2.fillColor(Magick::Color(Magick::Color::scaleDoubleToQuantum(rr),
-                                           Magick::Color::scaleDoubleToQuantum(rg),
-                                           Magick::Color::scaleDoubleToQuantum(rb)));
+            image2.fillColor(fill);
             image2.antiAlias(antialias);
             image2.strokeAntiAlias(antialias);
             image2.annotate(normalizedMsg, Magick::CenterGravity);
@@ -914,6 +1367,24 @@ public:
                 return;
             }
 
+            int cols = image2.columns();
+            int rows = image2.rows();
+            std::vector<uint8_t> mask;
+            TextColor::Layout layout;
+            if (!plainColor) {
+                mask.resize((size_t)cols * rows);
+                rgbToCoverageMask(newData, mask.size(), mask.data());
+                layout = buildTextLayout(mask.data(), cols, rows, image2, lines, colorSpec.mode);
+                TextColor::Colorize(mask.data(), cols, rows, layout, colorSpec.mode,
+                                    colorSpec.palette, 0.0, colorSpec.animated(),
+                                    colorSpec.seed, newData);
+                if (!colorSpec.animated()) {
+                    // Nothing will repaint, so the mask is dead weight in the
+                    // running effect - imageData already holds the final pixels.
+                    mask.clear();
+                }
+            }
+
             std::unique_lock<std::recursive_mutex> lock(m->getRunningEffectMutex());
             TextMovementEffect* ef = dynamic_cast<TextMovementEffect*>(m->getRunningEffect());
             if (ef == nullptr) {
@@ -924,19 +1395,102 @@ public:
             ef->speed = pixelsPerSecond;
             ef->disableWhenDone = disableWhenDone;
             ef->direction = position;
-            int32_t t = 1000 / pixelsPerSecond;
+            // Scroll Speed's range starts at 0, and this is the same SIGFPE
+            // ImageMovementEffect::update() already had to guard against - the
+            // first tick was being scheduled here, before that guard ever ran.
+            int32_t t = 1000 / std::max(1, pixelsPerSecond);
             if (t == 0) {
                 t = 1;
             }
             uint8_t* old = ef->imageData;
             ef->imageData = newData;
-            ef->imageDataCols = image2.columns();
-            ef->imageDataRows = image2.rows();
+            ef->imageDataCols = cols;
+            ef->imageDataRows = rows;
+            ef->colorMask = std::move(mask);
+            ef->colorLayout = std::move(layout);
+            ef->colorSpec = colorSpec;
+            ef->colorStartMS = GetTimeMS();
             ef->copyImageData(ef->x, ef->y);
             m->setRunningEffect(ef, t);
             lock.unlock();
             free(old);
         }
+    }
+
+    /**
+     * Drop a Text effect that is still REPAINTING, leaving whatever it last
+     * drew on the model, so a still centred message is not immediately painted
+     * over by a scroll or an animated colour mode left over from an earlier
+     * run.
+     *
+     * A pending StopRunningEffect is deliberately left alone even though it is
+     * also named "Text": it is what returns an auto-enabled model to Disabled,
+     * and cancelling it would strand the model enabled.  Anything else on the
+     * model - an Image scroll, a WLED effect - is likewise left to finish on
+     * its own terms.
+     */
+    static void retireRunningTextEffect(PixelOverlayModel* m) {
+        // effectLock is recursive, and clearRunningEffect() takes it the same
+        // way setRunningEffect() does, so holding it across the check keeps the
+        // decision and the removal atomic.
+        std::unique_lock<std::recursive_mutex> lock(m->getRunningEffectMutex());
+        RunningEffect* cur = m->getRunningEffect();
+        if (dynamic_cast<TextMovementEffect*>(cur) != nullptr ||
+            dynamic_cast<TextColorAnimationEffect*>(cur) != nullptr) {
+            m->clearRunningEffect();
+        }
+    }
+
+    /** args[i] when it was supplied and is not blank, otherwise `dflt`. */
+    static std::string argOr(const std::vector<std::string>& args, size_t i, const char* dflt) {
+        if (i < args.size() && !args[i].empty()) {
+            return args[i];
+        }
+        return dflt;
+    }
+
+    /**
+     * PixelOverlayManager::mapColor() throws on anything it cannot parse.  The
+     * colour arguments can arrive straight off an MQTT topic path or a
+     * hand-written preset, so a typo must not unwind out through the command
+     * dispatcher.
+     */
+    static uint32_t safeMapColor(const std::string& c, uint32_t dflt) {
+        try {
+            return PixelOverlayManager::mapColor(c);
+        } catch (...) {
+            return dflt;
+        }
+    }
+
+    /**
+     * Arguments 8 and up are the colour treatment and are all optional: a
+     * caller that stops at Text lands on Single with the one Color, which is
+     * this effect's original behaviour.
+     */
+    static TextColorSpec parseColorSpec(const std::vector<std::string>& args, uint32_t baseColor) {
+        // Color2..Color5, matching the declared defaults so an MQTT topic that
+        // names a mode but no extra colours still gets a usable palette.
+        static const char* COLOR_NAMES[] = { "#0000FF", "#00FF00", "#FFFF00", "#FF00FF" };
+        static const uint32_t COLOR_VALUES[] = { 0x0000FF, 0x00FF00, 0xFFFF00, 0xFF00FF };
+        TextColorSpec spec;
+        spec.mode = TextColor::ParseMode(argOr(args, 8, "Single"));
+        if (spec.plain()) {
+            spec.palette.colors.push_back(baseColor);
+            return spec;
+        }
+        int numColors = std::clamp(std::atoi(argOr(args, 10, "2").c_str()), 1, 5);
+        std::vector<uint32_t> custom;
+        custom.push_back(baseColor);
+        for (int i = 1; i < numColors; ++i) {
+            custom.push_back(safeMapColor(argOr(args, 10 + i, COLOR_NAMES[i - 1]), COLOR_VALUES[i - 1]));
+        }
+        spec.palette = TextColor::BuildPalette(argOr(args, 9, "Custom"), custom);
+        spec.colorSpeed = std::clamp(std::atoi(argOr(args, 15, "0").c_str()), 0, 100);
+        // One seed per application, so the Random modes hold their shuffle for
+        // as long as the text is up instead of re-rolling on every repaint.
+        spec.seed = (uint32_t)GetTimeMS();
+        return spec;
     }
 
     virtual bool apply(PixelOverlayModel* model, const std::string& autoEnable, const std::vector<std::string>& args) override {
@@ -969,7 +1523,8 @@ public:
                position,
                pps,
                autoEnable,
-               duration);
+               duration,
+               parseColorSpec(args, cint));
         return true;
     }
 };

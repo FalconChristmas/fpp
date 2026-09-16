@@ -58,7 +58,20 @@ public:
 typedef struct {
     // 0xFFFF to abort
     volatile uint32_t command;
+    // bytes captured in the last completed listen window.  Written by the
+    // listener only when the string PRU closes the window, never while a
+    // capture is in progress; 'captures' is bumped right after it, so a
+    // changed count means a new, complete length is there to read.
     volatile uint32_t length;
+    volatile uint32_t captures;
+    // 1 from the moment a listen window opens until the capture is published.
+    // The ARM reads it before and after copying the buffer: a window can open
+    // while the ARM is still reading the previous capture (the frame tick
+    // lands inside the next window whenever a frame overran its period), and
+    // the listener then overwrites the buffer from the start, splicing the
+    // new reply's head onto the old reply's tail.  Two replies scrambled with
+    // different random keys decode into garbage that still parses.
+    volatile uint32_t busy;
 } __attribute__((__packed__)) FalconV5PRUData;
 
 class PRUControl {
@@ -198,50 +211,115 @@ static uint8_t readByte(uint8_t* data, int& pos) {
     return ret;
 }
 
+float FalconV5Support::queryFrameShare() const {
+    if (!pru) {
+        return 0.0f;
+    }
+    int receivers = 0;
+    for (auto c : maxCount) {
+        receivers += c;
+    }
+    if (receivers == 0) {
+        return 0.0f;
+    }
+    return (float)receivers / (float)(receivers + maxCount.size());
+}
+
+void FalconV5Support::stageListenerData() {
+    if (!pru) {
+        return;
+    }
+    // The listener publishes the length and bumps the capture count only
+    // when the string PRU closes the window, and holds 'busy' from the
+    // moment a window opens until then.  A window can open while we are
+    // still copying the previous capture (the frame tick lands inside the
+    // next window whenever a frame overran its period), and the listener
+    // then overwrites the buffer from the start, splicing the new reply's
+    // head onto the old reply's tail - two replies scrambled with different
+    // random keys, which decode into garbage that still parses.  So: count
+    // first, copy, then busy and count again; anything that moved means the
+    // copy is a splice and is dropped.  The next query repeats the question.
+    // both the pump thread and the output thread may call this
+    std::unique_lock<std::mutex> lock(stageLock);
+    uint32_t busy0 = pru->pruData->busy;
+    uint32_t captures = pru->pruData->captures;
+    if (captures == lastCaptures) {
+        return;
+    }
+    lastCaptures = captures;
+    uint32_t len = pru->pruData->length;
+    // the listener stops storing at its shared RAM reservation; on the
+    // AM62x the string PRU's ring starts immediately above it
+    if (len > SMEM_RING_LISTENER_BYTES) {
+        len = SMEM_RING_LISTENER_BYTES;
+    }
+    if (!len) {
+        return;
+    }
+    if (stageBuf.size() < SMEM_RING_LISTENER_BYTES + 8) {
+        stageBuf.resize(SMEM_RING_LISTENER_BYTES + 8);
+        workBuf.resize(SMEM_RING_LISTENER_BYTES + 8);
+    }
+    // the copy rounds up past len, and the PRU keeps counting even
+    // after it stops storing, so leave room for the overshoot
+    pru->pru->memcpyToPRU(&stageBuf[0], pru->data, (len + 8) & 0xFFFFFFFC);
+    uint32_t busy1 = pru->pruData->busy;
+    uint32_t captures2 = pru->pruData->captures;
+    if (busy0 || busy1 || captures2 != captures) {
+        lastCaptures = captures2;
+        ++tornCaptures;
+        LogExcess(VB_CHANNELOUT, "FalconV5: listener capture %u overwritten while being read, dropped (%u so far)\n", captures, tornCaptures);
+        return;
+    }
+    stageLen = len;
+    stageValid = true;
+}
+
 void FalconV5Support::processListenerData() {
-    if (pru) {
-        uint32_t len = pru->pruData->length;
-        // if (len) {
-        //     printDataBuf(len, pru->data);
-        // }
-        // the listener stops storing at its shared RAM reservation; on the
-        // AM62x the string PRU's ring starts immediately above it
-        if (len > SMEM_RING_LISTENER_BYTES) {
-            len = SMEM_RING_LISTENER_BYTES;
+    if (!pru) {
+        return;
+    }
+    // no pump thread polling for us (AM335x), or it has not looked yet
+    stageListenerData();
+    uint32_t len = 0;
+    {
+        std::unique_lock<std::mutex> lock(stageLock);
+        if (!stageValid) {
+            return;
         }
-        if (len) {
-            // the copy rounds up past len, and the PRU keeps counting even
-            // after it stops storing, so leave room for the overshoot
-            uint8_t buf[SMEM_RING_LISTENER_BYTES + 8];
-            pru->pru->memcpyToPRU(buf, pru->data, (len + 8) & 0xFFFFFFFC);
-            for (auto& l : listeners) {
-                uint8_t data[SMEM_RING_LISTENER_BYTES + 8];
-                uint8_t packet[1024];
-                maskBit(len, l->offset, buf, data);
-                int pidx = 0;
-                int pos = 0;
-                while (pos < len) {
-                    packet[pidx++] = readByte(data, pos);
-                }
-                if (pidx > 1) {
-                    // printf("L: %d\n", l->offset);
-                    // printDataBuf(len, data);
-                    // printDataBuf(pidx, packet);
-                    Json::Value json;
-                    if (pidx != 0 && decodeFalconV5Packet(packet, json)) {
-                        int port = json["port"].asInt();
-                        // printf("Port:  %d   Index: %d\n", port, json["index"].asInt());
-                        // printf("%s\n", SaveJsonToString(json, "  ").c_str());
-                        for (auto& rc : receiverChains) {
-                            if (rc->getPixelStrings()[0]->m_portNumber == port) {
-                                rc->handleQueryResponse(json);
-                            }
-                        }
+        std::swap(stageBuf, workBuf);
+        len = stageLen;
+        stageValid = false;
+    }
+    uint8_t* buf = &workBuf[0];
+    for (auto& l : listeners) {
+        // readByte() walks up to a byte cell past 'len' while finishing the
+        // last byte, so the sample buffer carries a zeroed tail for it
+        uint8_t data[SMEM_RING_LISTENER_BYTES + 64];
+        uint8_t packet[1024];
+        maskBit(len, l->offset, buf, data);
+        memset(data + len, 0, 64);
+        int pidx = 0;
+        int pos = 0;
+        while (pos < len) {
+            packet[pidx++] = readByte(data, pos);
+        }
+        if (pidx > 1) {
+            // printf("L: %d\n", l->offset);
+            // printDataBuf(len, data);
+            // printDataBuf(pidx, packet);
+            Json::Value json;
+            if (pidx != 0 && decodeFalconV5Packet(packet, json)) {
+                int port = json["port"].asInt();
+                // printf("Port:  %d   Index: %d\n", port, json["index"].asInt());
+                // printf("%s\n", SaveJsonToString(json, "  ").c_str());
+                for (auto& rc : receiverChains) {
+                    if (rc->getPixelStrings()[0]->m_portNumber == port) {
+                        rc->handleQueryResponse(json);
                     }
                 }
             }
         }
-        pru->pruData->length = 0;
     }
 }
 

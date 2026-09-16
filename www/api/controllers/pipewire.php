@@ -945,7 +945,7 @@ function PipeWireProbeFormatRate($alsaPath, $pwFmt, $rate, $channels)
 
 /////////////////////////////////////////////////////////////////////////////
 // Pick the widest PCM format in $fmtLine that costs no sample rate relative to
-// the universally-safe S16LE fallback.
+// S16LE when the card supports it.
 //
 // The question is NOT "does this format hold the rate we asked for".  A card can
 // be unable to deliver the requested rate in ANY format -- an AM62x PCM5102A cape
@@ -969,19 +969,25 @@ function PipeWireBestFormatForRate($fmtLine, $alsaPath, $rate, $channels)
     }
     if (!$anyWider)
         return 'S16LE';
-    // The rate to beat. If this cannot be established (device busy, probe timed
-    // out) there is nothing to compare against, so decline to widen: a needlessly
-    // narrow format costs only bit depth, a wrongly wide one costs all audio.
-    $baselineRate = PipeWireProbeFormatRate($alsaPath, 'S16LE', $rate, $channels);
-    if ($baselineRate <= 0)
+    $hasS16 = strpos($fmtLine, 'S16_LE') !== false;
+    // If an advertised S16 baseline cannot be established, decline to widen.
+    // Cards that do not advertise S16 must use one of their real formats.
+    $baselineRate = $hasS16
+        ? PipeWireProbeFormatRate($alsaPath, 'S16LE', $rate, $channels)
+        : 0;
+    if ($hasS16 && $baselineRate <= 0)
         return 'S16LE';
+    $advertisedFallback = '';
     foreach ($wider as $alsaName => $pwName) {
         if (strpos($fmtLine, $alsaName) === false)
             continue;
-        if (PipeWireProbeFormatRate($alsaPath, $pwName, $rate, $channels) >= $baselineRate)
+        $advertisedFallback = $pwName;
+        $achievedRate = PipeWireProbeFormatRate($alsaPath, $pwName, $rate, $channels);
+        if ((!$hasS16 && $achievedRate > 0) ||
+            ($hasS16 && $achievedRate >= $baselineRate))
             return $pwName;
     }
-    return 'S16LE';
+    return $hasS16 ? 'S16LE' : $advertisedFallback;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1415,6 +1421,53 @@ function GetPipeWireAudioCards()
                     "opusrtpInstanceId" => $inst['id'],
                     "destIP" => isset($inst['destIP']) ? $inst['destIP'] : '',
                     "port" => isset($inst['port']) ? $inst['port'] : 5005
+                );
+            }
+        }
+    }
+
+    // --- Also include VBAN virtual sinks as selectable cards ---
+    // Only the send direction produces a sink; a receive-only instance is an
+    // Audio/Source and belongs to the Input Mixing page instead.
+    $vbanFile = $settings['mediaDirectory'] . "/config/pipewire-vban-instances.json";
+    if (file_exists($vbanFile)) {
+        $vbanData = json_decode(file_get_contents($vbanFile), true);
+        if ($vbanData && isset($vbanData['instances']) && is_array($vbanData['instances'])) {
+            foreach ($vbanData['instances'] as $inst) {
+                if (!isset($inst['enabled']) || !$inst['enabled'])
+                    continue;
+                $mode = isset($inst['mode']) ? $inst['mode'] : 'receive';
+                if ($mode !== 'send' && $mode !== 'both')
+                    continue;
+
+                $sinkNodeName = VBANNodeName($inst['name'], 'send');
+                $instChannels = isset($inst['channels']) ? intval($inst['channels']) : 2;
+
+                $pwNodeName = '';
+                $sinkSearch = array();
+                exec($SUDO . " " . $pwEnv . " pactl list sinks short 2>/dev/null | grep " . escapeshellarg($sinkNodeName), $sinkSearch);
+                if (!empty($sinkSearch)) {
+                    $sp = preg_split('/\s+/', trim($sinkSearch[0]));
+                    if (count($sp) >= 2)
+                        $pwNodeName = $sp[1];
+                }
+
+                $cards[] = array(
+                    "cardNum" => -1,
+                    "cardId" => 'vban_' . $inst['id'],
+                    "cardName" => $inst['name'] . ' (VBAN Send)',
+                    "device" => 0,
+                    "deviceName" => "VBAN Sink",
+                    "channels" => $instChannels,
+                    "mixerControls" => array(),
+                    "alsaPath" => "",
+                    "byPath" => "",
+                    "byId" => "",
+                    "pwNodeName" => !empty($pwNodeName) ? $pwNodeName : $sinkNodeName,
+                    "isVBAN" => true,
+                    "vbanInstanceId" => $inst['id'],
+                    "destIP" => isset($inst['destIP']) ? $inst['destIP'] : '',
+                    "port" => isset($inst['port']) ? $inst['port'] : 6980
                 );
             }
         }
@@ -4903,6 +4956,38 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
                 }
                 if (empty($sourceTarget))
                     continue;
+            } elseif ($mbrType === 'vban_receive') {
+                $vbanInstId = isset($mbr['instanceId']) ? intval($mbr['instanceId']) : 0;
+                if ($vbanInstId <= 0)
+                    continue;
+                // Resolve instance ID to the node.name GenerateVBANConfig()
+                // gives the receive stream.  Both sides derive it from the
+                // instance name through VBANNodeName(), so a rename that has
+                // not been applied yet resolves to a node that is not in the
+                // graph -- the same way the Opus and AES67 members behave.
+                $vbanCfgFile = $settings['mediaDirectory'] . "/config/pipewire-vban-instances.json";
+                $sourceTarget = '';
+                if (file_exists($vbanCfgFile)) {
+                    $vbanCfg = json_decode(file_get_contents($vbanCfgFile), true);
+                    if ($vbanCfg && isset($vbanCfg['instances'])) {
+                        foreach ($vbanCfg['instances'] as $vi) {
+                            if (isset($vi['id']) && intval($vi['id']) === $vbanInstId && !empty($vi['enabled'])) {
+                                $vMode = isset($vi['mode']) ? $vi['mode'] : 'receive';
+                                if ($vMode !== 'receive' && $vMode !== 'both')
+                                    break;
+                                $sourceTarget = VBANNodeName($vi['name'], 'recv');
+                                if (empty($mbrName)) {
+                                    $mbrName = $vi['name'] . ' (VBAN)';
+                                    $loopbackName = "fpp_loopback_ig{$groupId}_" . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($mbrName));
+                                    $loopbackDesc = "$mbrName → $groupName";
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (empty($sourceTarget))
+                    continue;
             } else {
                 continue;
             }
@@ -5394,6 +5479,30 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                 }
                 if (!isset($cardNodeMap[$cardId])) {
                     $unresolvedCards[] = $cardId . " (Opus RTP instance not found or disabled)";
+                }
+                continue;
+            }
+
+            // VBAN virtual sinks: cardId starts with "vban_"
+            if (strpos($cardId, 'vban_') === 0) {
+                $vbanFile = $settings['mediaDirectory'] . "/config/pipewire-vban-instances.json";
+                if (file_exists($vbanFile)) {
+                    $vbanJson = json_decode(file_get_contents($vbanFile), true);
+                    if ($vbanJson && isset($vbanJson['instances'])) {
+                        $vbanInstId = intval(str_replace('vban_', '', $cardId));
+                        foreach ($vbanJson['instances'] as $vi) {
+                            if (isset($vi['id']) && intval($vi['id']) === $vbanInstId && isset($vi['enabled']) && $vi['enabled']) {
+                                $vMode = isset($vi['mode']) ? $vi['mode'] : 'receive';
+                                if ($vMode !== 'send' && $vMode !== 'both')
+                                    break;
+                                $cardNodeMap[$cardId] = VBANNodeName($vi['name'], 'send');
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (!isset($cardNodeMap[$cardId])) {
+                    $unresolvedCards[] = $cardId . " (VBAN instance not found, disabled, or not a sender)";
                 }
                 continue;
             }
@@ -6491,7 +6600,10 @@ function GetAES67Status()
         "pipelines" => array(),
         "ptp" => array(
             "synced" => false,
-            "offsetNs" => 0,
+            // null, not 0: an offset we could not ask for is unknown, and a
+            // zero here reads as a perfectly locked clock.  Matches what
+            // render_GET() sends when pmc gave no usable master_offset.
+            "offsetNs" => null,
             "grandmasterId" => "",
             "grandmasterAddress" => "",
             "grandmasterViaBoundary" => false,
@@ -6880,6 +6992,542 @@ function GetOpusRTPNetworkInterfaces()
 // Config JSON: $mediaDirectory/config/pipewire-opus-rtp-instances.json
 // Apply: POST /api/command {"command":"Opus RTP Apply"} → fppd rebuilds GStreamer pipelines
 // Status: GET /api/pipewire/opusrtp/status → queries OpusRTPManager in fppd
+
+/////////////////////////////////////////////////////////////////////////////
+// VBAN (VB-Audio Network) send/receive
+//
+// Unlike AES67 and Opus RTP -- which fppd drives with GStreamer pipelines --
+// VBAN has no GStreamer element, so it is carried by PipeWire's own
+// module-vban-recv / module-vban-send.  Those are declared in a conf file that
+// PipeWire reads at daemon start, which makes this the same shape as the input
+// groups config rather than the AES67/Opus managers: write 94-fpp-vban.conf,
+// cache a copy in the media dir so it survives reboot, restart the stack.
+//
+// 94 comes before 96-fpp-input-groups.conf and 97-fpp-audio-groups.conf on
+// purpose: a receive node has to exist in the graph before an input group tries
+// to link it, and a send node before an output group targets it.
+//
+// Node naming, matching the aes67_*/opusrtp_* convention the group pages
+// already resolve:  vban_<slug>_recv (Audio/Source), vban_<slug>_send (Audio/Sink).
+
+/////////////////////////////////////////////////////////////////////////////
+// Helper: PipeWire-safe node slug for a VBAN instance name.
+function VBANSlug($name)
+{
+    $slug = preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower(trim($name)));
+    return $slug === '' ? 'instance' : $slug;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Helper: node.name for an instance, per direction ("recv" or "send").
+function VBANNodeName($name, $direction)
+{
+    return 'vban_' . VBANSlug($name) . '_' . $direction;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// GET /api/pipewire/vban/instances
+function GetVBANInstances()
+{
+    global $settings;
+    $configFile = $settings['mediaDirectory'] . "/config/pipewire-vban-instances.json";
+    if (file_exists($configFile)) {
+        $data = json_decode(file_get_contents($configFile), true);
+        if ($data !== null) {
+            return json($data);
+        }
+    }
+    return json(array("instances" => array()));
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// POST /api/pipewire/vban/instances
+function SaveVBANInstances()
+{
+    global $settings;
+    $configFile = $settings['mediaDirectory'] . "/config/pipewire-vban-instances.json";
+
+    $raw = file_get_contents('php://input');
+    $parsed = json_decode($raw, true);
+    if ($parsed === null) {
+        http_response_code(400);
+        return json(array("status" => "ERROR", "message" => "Invalid JSON"));
+    }
+    if (!isset($parsed['instances']) || !is_array($parsed['instances'])) {
+        http_response_code(400);
+        return json(array("status" => "ERROR", "message" => "Missing instances array"));
+    }
+
+    $nextId = 1;
+    foreach ($parsed['instances'] as &$inst) {
+        if (!isset($inst['id']) || intval($inst['id']) <= 0) {
+            $inst['id'] = $nextId;
+        }
+        if ($inst['id'] >= $nextId) {
+            $nextId = $inst['id'] + 1;
+        }
+        if (empty($inst['name']))
+            $inst['name'] = 'VBAN Instance ' . $inst['id'];
+        if (empty($inst['mode']))
+            $inst['mode'] = 'receive';
+        // VBAN's default port for both directions.  Voicemeeter uses it too.
+        if (empty($inst['port']))
+            $inst['port'] = 6980;
+        if (empty($inst['channels']))
+            $inst['channels'] = 2;
+        if (empty($inst['sampleRate']))
+            $inst['sampleRate'] = 48000;
+        if (empty($inst['format']))
+            $inst['format'] = 'S16LE';
+        // Blank streamName on a receiver means "accept whatever arrives".
+        if (!isset($inst['streamName']))
+            $inst['streamName'] = '';
+        if (!isset($inst['sourceIP']))
+            $inst['sourceIP'] = '0.0.0.0';
+        if (!isset($inst['destIP']))
+            $inst['destIP'] = '';
+        if (!isset($inst['interface']))
+            $inst['interface'] = '';
+        // The jitter buffer has two opposing failure modes, so neither extreme
+        // is safe:
+        //
+        //  - Too small and ordinary arrival jitter underruns it.  Voicemeeter
+        //    emits VBAN in bursts (~5 packets every ~12ms at 103 samples
+        //    each), so measured p99 inter-arrival is ~17ms; below about 40ms
+        //    that starts to bite.
+        //  - Too large and every *reordered* packet costs more.  This module
+        //    has no reorder window: a VBAN frame counter that goes backwards
+        //    makes it resync, and a resync discards the whole buffer.  So on a
+        //    path that reorders, the silence per incident is the buffer size.
+        //    Measured on one such link -- same incident rate either way, since
+        //    reordering is a property of the network:
+        //      200ms -> 8.9% of the audio lost, in 199ms gaps
+        //       60ms -> 2.5% of the audio lost, in 59ms gaps
+        //
+        // 100 is the module's own default and sits clear of both.  Lower it
+        // toward 60 when the path reorders, raise it when arrival is erratic.
+        if (!isset($inst['latency']))
+            $inst['latency'] = 100;
+        if (!isset($inst['ttl']))
+            $inst['ttl'] = 1;
+        if (!isset($inst['dscp']))
+            $inst['dscp'] = 34;
+        if (!isset($inst['enabled']))
+            $inst['enabled'] = true;
+    }
+    unset($inst);
+
+    // Two senders pointed at the same destination IP+port would interleave two
+    // different streams into one VBAN endpoint, which the receiver cannot
+    // demultiplex.  Receivers are free to share a port -- GenerateVBANConfig()
+    // folds them into a single socket keyed by stream name -- so only senders
+    // are checked here.
+    $seenSend = array();
+    foreach ($parsed['instances'] as $inst) {
+        if (empty($inst['enabled']))
+            continue;
+        $mode = $inst['mode'];
+        if ($mode !== 'send' && $mode !== 'both')
+            continue;
+        $key = strtolower(trim($inst['destIP'])) . ':' . intval($inst['port']);
+        if (isset($seenSend[$key])) {
+            http_response_code(400);
+            return json(array(
+                "status" => "ERROR",
+                "message" => "Instances '" . $seenSend[$key] . "' and '" . $inst['name'] .
+                    "' both send to " . $key . ". Use a different port or destination for one of them."
+            ));
+        }
+        $seenSend[$key] = $inst['name'];
+    }
+
+    // Two receivers sharing a port must be told apart by VBAN stream name; a
+    // blank name means "match anything" and would swallow the other's audio.
+    $seenRecvPort = array();
+    foreach ($parsed['instances'] as $inst) {
+        if (empty($inst['enabled']))
+            continue;
+        $mode = $inst['mode'];
+        if ($mode !== 'receive' && $mode !== 'both')
+            continue;
+        $port = intval($inst['port']);
+        $sname = trim($inst['streamName']);
+        if (!isset($seenRecvPort[$port])) {
+            $seenRecvPort[$port] = array();
+        }
+        foreach ($seenRecvPort[$port] as $prevName => $prevStream) {
+            if ($prevStream === '' || $sname === '' || strcasecmp($prevStream, $sname) === 0) {
+                http_response_code(400);
+                return json(array(
+                    "status" => "ERROR",
+                    "message" => "Receive instances '" . $prevName . "' and '" . $inst['name'] .
+                        "' both listen on port " . $port . " and their stream names do not distinguish them. " .
+                        "Give each a different VBAN stream name, or move one to another port."
+                ));
+            }
+        }
+        $seenRecvPort[$port][$inst['name']] = $sname;
+    }
+
+    file_put_contents($configFile, json_encode($parsed, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+    // Trigger a JSON Configuration Backup
+    GenerateBackupViaAPI('PipeWire VBAN instances were modified.');
+
+    return json(array("status" => "OK", "data" => $parsed));
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Build the contents of 94-fpp-vban.conf from the instance list.
+//
+// Receivers are grouped by the socket they need (bind address, port and
+// interface) because one module-vban-recv owns that socket.  VBAN multiplexes
+// several streams onto one port and tells them apart by the 16-byte stream
+// name in each packet header, so a shared port is normal rather than a
+// conflict -- the grouped module gets one stream.rules entry per instance and
+// PipeWire creates a separate node for each as its name appears on the wire.
+function GenerateVBANConfig($instances)
+{
+    $conf = "# Auto-generated by FPP - VBAN (VB-Audio Network) streams\n";
+    $conf .= "# Do not edit manually - managed via FPP UI\n";
+    $conf .= "# Loaded before 96-fpp-input-groups.conf and 97-fpp-audio-groups.conf\n";
+    $conf .= "# so VBAN nodes exist before the groups that link them are created.\n";
+    $conf .= "\n";
+    $conf .= "context.modules = [\n";
+
+    $emitted = 0;
+
+    // --- Receivers, grouped by socket ---
+    $recvGroups = array();
+    foreach ($instances as $inst) {
+        if (empty($inst['enabled']))
+            continue;
+        $mode = isset($inst['mode']) ? $inst['mode'] : 'receive';
+        if ($mode !== 'receive' && $mode !== 'both')
+            continue;
+
+        $sourceIP = trim(isset($inst['sourceIP']) ? $inst['sourceIP'] : '');
+        if ($sourceIP === '')
+            $sourceIP = '0.0.0.0';
+        $port = intval(isset($inst['port']) ? $inst['port'] : 6980);
+        $iface = trim(isset($inst['interface']) ? $inst['interface'] : '');
+        $key = $sourceIP . '|' . $port . '|' . $iface;
+
+        if (!isset($recvGroups[$key])) {
+            $recvGroups[$key] = array(
+                'sourceIP' => $sourceIP,
+                'port' => $port,
+                'interface' => $iface,
+                // The socket's jitter buffer is shared, so the most tolerant
+                // instance on it wins -- a lower one cannot be honoured
+                // separately and would only starve its neighbour.
+                'latency' => 0,
+                'members' => array()
+            );
+        }
+        $lat = intval(isset($inst['latency']) ? $inst['latency'] : 200);
+        if ($lat > $recvGroups[$key]['latency'])
+            $recvGroups[$key]['latency'] = $lat;
+        $recvGroups[$key]['members'][] = $inst;
+    }
+
+    foreach ($recvGroups as $grp) {
+        $conf .= "  # VBAN Receive: " . implode(', ', array_map(function ($m) {
+            return $m['name'];
+        }, $grp['members'])) . "\n";
+        $conf .= "  { name = libpipewire-module-vban-recv\n";
+        $conf .= "    args = {\n";
+        $conf .= "      source.ip = " . $grp['sourceIP'] . "\n";
+        $conf .= "      source.port = " . $grp['port'] . "\n";
+        $conf .= "      sess.latency.msec = " . ($grp['latency'] > 0 ? $grp['latency'] : 200) . "\n";
+        if ($grp['interface'] !== '') {
+            $conf .= "      local.ifname = \"" . $grp['interface'] . "\"\n";
+        }
+        $conf .= "      stream.rules = [\n";
+
+        // A blank stream name matches anything, so it has to be emitted after
+        // every named rule or it would claim their packets first.
+        $ordered = array();
+        $catchAll = array();
+        foreach ($grp['members'] as $m) {
+            if (trim(isset($m['streamName']) ? $m['streamName'] : '') === '') {
+                $catchAll[] = $m;
+            } else {
+                $ordered[] = $m;
+            }
+        }
+        foreach (array_merge($ordered, $catchAll) as $m) {
+            $sname = trim(isset($m['streamName']) ? $m['streamName'] : '');
+            $nodeName = VBANNodeName($m['name'], 'recv');
+            $chans = intval(isset($m['channels']) ? $m['channels'] : 2);
+            $positions = PipeWireChannelPositions($chans);
+            // "~.*" is a regex match in PipeWire's rule syntax; a bare name is
+            // an exact match on the stream name carried in the VBAN header.
+            $match = ($sname === '') ? '"~.*"' : '"' . $sname . '"';
+            $conf .= "        { matches = [ { sess.name = " . $match . " } ]\n";
+            $conf .= "          actions = {\n";
+            $conf .= "            create-stream = {\n";
+            $conf .= "              node.name = \"" . $nodeName . "\"\n";
+            $conf .= "              node.description = \"" . str_replace('"', '', $m['name']) . " (VBAN Receive)\"\n";
+            $conf .= "              media.class = \"Audio/Source\"\n";
+            $conf .= "              audio.position = [ " . implode(' ', $positions) . " ]\n";
+            $conf .= "            }\n";
+            $conf .= "          }\n";
+            $conf .= "        }\n";
+            $emitted++;
+        }
+        $conf .= "      ]\n";
+        $conf .= "    }\n";
+        $conf .= "  }\n";
+    }
+
+    // --- Senders, one module each ---
+    foreach ($instances as $inst) {
+        if (empty($inst['enabled']))
+            continue;
+        $mode = isset($inst['mode']) ? $inst['mode'] : 'receive';
+        if ($mode !== 'send' && $mode !== 'both')
+            continue;
+
+        $destIP = trim(isset($inst['destIP']) ? $inst['destIP'] : '');
+        if ($destIP === '')
+            continue;
+        $port = intval(isset($inst['port']) ? $inst['port'] : 6980);
+        $chans = intval(isset($inst['channels']) ? $inst['channels'] : 2);
+        $rate = intval(isset($inst['sampleRate']) ? $inst['sampleRate'] : 48000);
+        $format = isset($inst['format']) ? $inst['format'] : 'S16LE';
+        $iface = trim(isset($inst['interface']) ? $inst['interface'] : '');
+        $nodeName = VBANNodeName($inst['name'], 'send');
+        $positions = PipeWireChannelPositions($chans);
+        // The stream name the far end matches on.  VBAN caps it at 16 bytes.
+        $sname = trim(isset($inst['streamName']) ? $inst['streamName'] : '');
+        if ($sname === '')
+            $sname = substr('FPP' . $inst['id'], 0, 16);
+
+        $conf .= "  # VBAN Send: " . $inst['name'] . "\n";
+        $conf .= "  { name = libpipewire-module-vban-send\n";
+        $conf .= "    args = {\n";
+        $conf .= "      destination.ip = " . $destIP . "\n";
+        $conf .= "      destination.port = " . $port . "\n";
+        if ($iface !== '') {
+            $conf .= "      local.ifname = \"" . $iface . "\"\n";
+        }
+        $conf .= "      sess.name = \"" . substr(str_replace('"', '', $sname), 0, 16) . "\"\n";
+        $conf .= "      audio.format = " . $format . "\n";
+        $conf .= "      audio.rate = " . $rate . "\n";
+        $conf .= "      audio.channels = " . $chans . "\n";
+        $conf .= "      audio.position = [ " . implode(' ', $positions) . " ]\n";
+        $conf .= "      net.ttl = " . intval(isset($inst['ttl']) ? $inst['ttl'] : 1) . "\n";
+        $conf .= "      net.dscp = " . intval(isset($inst['dscp']) ? $inst['dscp'] : 34) . "\n";
+        $conf .= "      stream.props = {\n";
+        $conf .= "        node.name = \"" . $nodeName . "\"\n";
+        $conf .= "        node.description = \"" . str_replace('"', '', $inst['name']) . " (VBAN Send)\"\n";
+        $conf .= "        media.class = \"Audio/Sink\"\n";
+        // Same contract as the AES67 and Opus senders: nothing feeds this node
+        // until an Audio Output Group member names it as node.target, so it
+        // must not grab whatever happens to be playing.
+        $conf .= "        node.autoconnect = false\n";
+        $conf .= "      }\n";
+        $conf .= "    }\n";
+        $conf .= "  }\n";
+        $emitted++;
+    }
+
+    $conf .= "]\n";
+
+    if ($emitted === 0) {
+        return '';
+    }
+    return $conf;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// POST /api/pipewire/vban/apply
+// Regenerates 94-fpp-vban.conf and restarts the PipeWire stack.
+//
+// PipeWire reads context.modules only at daemon start, so unlike the AES67 and
+// Opus apply paths -- which signal fppd to rebuild GStreamer pipelines in
+// place -- there is no way to add or remove a VBAN stream without the restart.
+function ApplyVBANInstances($skipRestart = false)
+{
+    global $settings, $SUDO;
+
+    $configFile = $settings['mediaDirectory'] . "/config/pipewire-vban-instances.json";
+    $confPath = "/etc/pipewire/pipewire.conf.d/94-fpp-vban.conf";
+    $cachedConf = $settings['mediaDirectory'] . "/config/pipewire-vban.conf";
+
+    $conf = '';
+    if (file_exists($configFile)) {
+        $data = json_decode(file_get_contents($configFile), true);
+        if ($data !== null && isset($data['instances']) && is_array($data['instances'])) {
+            $conf = GenerateVBANConfig($data['instances']);
+        }
+    }
+
+    // Nothing enabled -- drop the conf entirely rather than leaving an empty
+    // context.modules block for PipeWire to parse.
+    if ($conf === '') {
+        $had = file_exists($confPath) || file_exists($cachedConf);
+        if (file_exists($confPath)) {
+            exec($SUDO . " rm -f " . escapeshellarg($confPath));
+        }
+        if (file_exists($cachedConf)) {
+            unlink($cachedConf);
+        }
+        if ($had && !$skipRestart) {
+            StopFppdPlaybackSafe();
+            RestartPipeWireStack();
+            return json(array("status" => "OK", "message" => "VBAN streams cleared, PipeWire restarted"));
+        }
+        return json(array("status" => "OK", "message" => "No VBAN streams configured"));
+    }
+
+    // Skip the restart when the generated graph is byte-identical to what
+    // PipeWire already loaded -- the restart cascade is expensive and a save
+    // that changed only a disabled instance should not cost an audio dropout.
+    $unchanged = ($conf === @file_get_contents($confPath));
+
+    exec($SUDO . " /bin/mkdir -p /etc/pipewire/pipewire.conf.d");
+    $tmpFile = tempnam(sys_get_temp_dir(), 'fpp_pw_vban_');
+    file_put_contents($tmpFile, $conf);
+    exec($SUDO . " cp " . escapeshellarg($tmpFile) . " " . escapeshellarg($confPath));
+    exec($SUDO . " chmod 644 " . escapeshellarg($confPath));
+    unlink($tmpFile);
+
+    // Cache a copy so FPPINIT_Audio can restore it on the next boot.
+    file_put_contents($cachedConf, $conf);
+
+    if ($unchanged || $skipRestart) {
+        return json(array(
+            "status" => "OK",
+            "message" => $unchanged ? "VBAN configuration unchanged" : "VBAN configuration written"
+        ));
+    }
+
+    StopFppdPlaybackSafe();
+    RestartPipeWireStack();
+
+    return json(array(
+        "status" => "OK",
+        "message" => "VBAN configuration applied and PipeWire restarted"
+    ));
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// GET /api/pipewire/vban/status
+//
+// Reports, per configured instance, whether its node is actually in the graph.
+// For a receiver the module only creates the node once a matching stream name
+// has arrived, so a configured-but-absent node is the normal way "nothing is
+// being sent to us" looks -- the UI says so rather than calling it an error.
+function GetVBANStatus()
+{
+    global $settings;
+
+    $configFile = $settings['mediaDirectory'] . "/config/pipewire-vban-instances.json";
+    $result = array("instances" => array(), "active" => false);
+
+    if (!file_exists($configFile)) {
+        return json($result);
+    }
+    $data = json_decode(file_get_contents($configFile), true);
+    if ($data === null || !isset($data['instances'])) {
+        return json($result);
+    }
+
+    $nodes = GetPipeWireNodeMap();
+
+    foreach ($data['instances'] as $inst) {
+        $mode = isset($inst['mode']) ? $inst['mode'] : 'receive';
+        $entry = array(
+            "id" => isset($inst['id']) ? $inst['id'] : 0,
+            "name" => isset($inst['name']) ? $inst['name'] : '',
+            "mode" => $mode,
+            "enabled" => !empty($inst['enabled']),
+            "directions" => array()
+        );
+
+        $dirs = array();
+        if ($mode === 'receive' || $mode === 'both')
+            $dirs[] = 'recv';
+        if ($mode === 'send' || $mode === 'both')
+            $dirs[] = 'send';
+
+        foreach ($dirs as $dir) {
+            $nodeName = VBANNodeName($inst['name'], $dir);
+            $present = isset($nodes[$nodeName]);
+            if ($present) {
+                $result['active'] = true;
+            }
+            $entry['directions'][] = array(
+                "direction" => $dir,
+                "nodeName" => $nodeName,
+                "present" => $present,
+                "state" => $present ? $nodes[$nodeName] : '',
+                "detail" => $present
+                    ? ''
+                    : (empty($inst['enabled'])
+                        ? 'Instance is disabled'
+                        : ($dir === 'recv'
+                            ? 'Waiting for a matching VBAN stream to arrive'
+                            : 'Sender not started - check the PipeWire conf was applied'))
+            );
+        }
+
+        $result['instances'][] = $entry;
+    }
+
+    return json($result);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Helper: map of node.name => node state for every node in the live graph.
+// Cached for the life of the request -- the status endpoint asks about several
+// nodes and the graph cannot change underneath a single response.
+function GetPipeWireNodeMap()
+{
+    global $SUDO;
+    static $map = null;
+
+    if ($map !== null) {
+        return $map;
+    }
+
+    $map = array();
+    $env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp";
+    $raw = shell_exec($SUDO . " " . $env . " pw-dump 2>/dev/null");
+    $objects = $raw ? json_decode($raw, true) : null;
+    if (!is_array($objects)) {
+        return $map;
+    }
+    foreach ($objects as $obj) {
+        if (!isset($obj['type']) || $obj['type'] !== 'PipeWire:Interface:Node') {
+            continue;
+        }
+        $props = isset($obj['info']['props']) ? $obj['info']['props'] : null;
+        if (!$props || !isset($props['node.name'])) {
+            continue;
+        }
+        $map[$props['node.name']] = isset($obj['info']['state']) ? $obj['info']['state'] : 'unknown';
+    }
+    return $map;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// GET /api/pipewire/vban/interfaces
+function GetVBANNetworkInterfaces()
+{
+    $interfaces = array();
+    exec("ip -o link show | awk -F': ' '{print \$2}' | grep -v lo", $output);
+    if (!empty($output)) {
+        foreach ($output as $iface) {
+            $iface = trim($iface);
+            if (!empty($iface))
+                $interfaces[] = $iface;
+        }
+    }
+    return json($interfaces);
+}
 
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/pipewire/graph

@@ -1,11 +1,17 @@
 #############################################################################
 # Update rpi-imager/rpi-imager_falcon_player.json from a published release.
 #
-# Manual only (workflow_dispatch). Downloads each platform's .img.zip asset
-# from a GitHub release, computes the four hash/size fields Raspberry Pi
-# Imager needs (compressed zip size+sha256, and the raw .img's extracted
-# size+sha256), updates the matching entry in the JSON, and opens a PR --
-# it never pushes straight to master.
+# Runs automatically when a release is published, and can also be dispatched
+# by hand (to re-do a release, or to pick a specific tag). Downloads each
+# platform's .img.zip asset from a GitHub release, computes the four
+# hash/size fields Raspberry Pi Imager needs (compressed zip size+sha256,
+# and the raw .img's extracted size+sha256), updates the matching entry in
+# the JSON, and opens a PR -- it never pushes straight to master.
+#
+# The automatic trigger is `release: published`, not a tag push: build-images.yml
+# attaches all four .img.zip assets to a DRAFT release, and the maintainer
+# publishes it afterwards. So by the time `published` fires the assets are
+# already uploaded -- whereas a tag push fires ~2 hours before they exist.
 #
 # Only platforms that already have an entry in the JSON are updated (Pi,
 # BBB/PB, BB64/PB2 as of this writing). A release asset with no matching
@@ -22,6 +28,8 @@
 name: Update RPi Imager JSON
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       tag:
@@ -45,16 +53,32 @@ permissions:
 jobs:
   resolve:
     runs-on: ubuntu-latest
+    # On the `release` event, only act on real release tags on the main repo.
+    # Tags in this repo are exactly three shapes (see build-images.yml's
+    # on.push.tags): version tags (10.1, 10.0-beta5), the "X.x-master"
+    # branch-point markers, and the rolling "nightly". Excluding the latter
+    # two leaves only version tags. Nightly matters even though it is
+    # normally only *edited* (which doesn't fire `published`): the nightly
+    # job re-creates it from scratch if it ever goes missing, and a nightly
+    # image must never reach rpi-imager. A manual workflow_dispatch is always
+    # allowed through, so a one-off tag shape can still be done by hand.
+    if: >-
+      github.event_name != 'release' ||
+      (github.repository == 'FalconChristmas/fpp' &&
+       github.event.release.tag_name != 'nightly' &&
+       !endsWith(github.event.release.tag_name, '-master'))
     env:
       GH_TOKEN: ${{ github.token }}
+      # Empty on a manual dispatch with no tag typed -> "newest published".
+      INPUT_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
     outputs:
       tag: ${{ steps.release.outputs.tag }}
     steps:
       - name: Resolve release
         id: release
         run: |
-          if [ -n "${{ inputs.tag }}" ]; then
-            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${{ inputs.tag }}" > release.json
+          if [ -n "$INPUT_TAG" ]; then
+            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${INPUT_TAG}" > release.json
           else
             # /releases/latest excludes prereleases entirely by GitHub's own
             # definition -- that hid 10.0-beta (published, prerelease=true)
@@ -69,7 +93,7 @@ jobs:
 
           TAG=$(jq -r '.tag_name' release.json)
           if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
-            echo "::error::Could not resolve a release (tag input: '${{ inputs.tag }}')." >&2
+            echo "::error::Could not resolve a release (tag input: '${INPUT_TAG}')." >&2
             exit 1
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"

@@ -159,7 +159,8 @@
 			"description": "PipeWire Audio Network Streams",
 			"settings": [
 				"PipeWireAES67Config",
-				"PipeWireOpusRTPConfig"
+				"PipeWireOpusRTPConfig",
+				"PipeWireVBANConfig"
 			]
 		},
 		"pipeWireVideo": {
@@ -320,7 +321,6 @@
 			"description": "System Settings",
 			"settings": [
 				"GPIOFan",
-				"GPIOFanTemperature",
 				"DisableHDMICECInit",
 				"LEDDisplayType",
 				"bootDelay",
@@ -762,6 +762,7 @@
 					"PipeWireVideoInputSources",
 					"PipeWireAES67Config",
 					"PipeWireOpusRTPConfig",
+					"PipeWireVBANConfig",
 					"PipeWireGraph"
 				],
 				"pipewire-simple": [
@@ -882,6 +883,19 @@
 			"icon": "fas fa-wifi",
 			"buttonText": "Configure Opus RTP Instances",
 			"modalTitle": "Opus RTP Audio Streaming Instances",
+			"platforms": [
+				"!MacOS"
+			]
+		},
+		"PipeWireVBANConfig": {
+			"name": "PipeWireVBANConfig",
+			"description": "VBAN Audio Streaming",
+			"tip": "Send and receive uncompressed audio over the local network using VBAN, the protocol spoken by Voicemeeter and the VB-Audio tools. A received stream becomes a PipeWire source you can route in Input Mixing or use as the WLED Sound Reactive Source.",
+			"type": "modal",
+			"modalUrl": "vban-config.php?modal=1",
+			"icon": "fas fa-network-wired",
+			"buttonText": "Configure VBAN Streams",
+			"modalTitle": "VBAN Audio Streaming",
 			"platforms": [
 				"!MacOS"
 			]
@@ -1644,11 +1658,6 @@
 			"platforms": [
 				"Raspberry Pi"
 			],
-			"children": {
-				"1": [
-					"GPIOFanTemperature"
-				]
-			},
 			"type": "checkbox"
 		},
 		"GPIOFanTemperature": {
@@ -1734,12 +1743,13 @@
 			"name": "gitRemote",
 			"description": "Git Remote Repository",
 			"gatherStats": true,
-			"tip": "Select the git remote repository to use for branch selection. 'origin' is the main FPP repository, 'newfeatures' is for new feature testing.",
+			"tip": "Select the git remote repository to use for branch selection. 'FPP Releases' is the main FPP repository, 'FPP New Feature Testing' is for new feature testing. 'GitHub User Fork' is for user forks if valid GitHub credentials containing a fork is detected. 'Pull Requests' lists open pull requests on FalconChristmas/fpp; the branch dropdown then shows PRs by number and author.",
 			"default": "origin",
 			"type": "select",
 			"options": {
 				"FPP Releases": "origin",
-				"FPP New Feature Testing": "newfeatures"
+				"FPP New Feature Testing": "newfeatures",
+				"Pull Requests": "pull-requests"
 			},
 			"level": 3
 		},

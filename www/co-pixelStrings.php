@@ -115,9 +115,9 @@ function readCapes($cd, $capes)
 
     function InstallFirmwareDone() {
         var txt = $('#InstallVirtualEEPROMText').val();
-        if (txt.includes("Cape does not match new firmware")) {
-            var arrayOfLines = txt.match(/[^\r\n]+/g);
-            var msg = "Are you sure you want to install the virtual firmware for cape:\n" + arrayOfLines[2] + "\n\nWith the virtual firmware for: \n" + arrayOfLines[3] + "\n";
+        var mismatch = ParseCapeFirmwareMismatch(txt);
+        if (mismatch) {
+            var msg = "Are you sure you want to install the virtual firmware for cape:\n" + mismatch.cape + "\n\nWith the virtual firmware for:\n" + mismatch.firmware + "\n";
             if (confirm(msg)) {
                 var filename = $('#virtualEEPROM').val();
                 $('#upgradeText').html('');
@@ -3013,7 +3013,7 @@ function readCapes($cd, $capes)
                         </select>
                     </div>
                 </div>
-                <div class="col-md-auto form-inline mr-auto">
+                <div class="col-md-auto form-inline">
                     <div id="BBPixelTiming">
                         <b>Pixel Timing:</b>
                         <select id='PixelStringPixelTiming'>
@@ -3028,11 +3028,12 @@ function readCapes($cd, $capes)
                     </div>
                 </div>
 
-                <div class="col-md-auto form-inline d-flex align-items-center">
-                    <small id="pixelStringMaxFPS" class="text-muted"></small>
+                <!-- Elastic: see .pixelStringHeaderNote in fpp.css. -->
+                <div class="col-auto form-inline d-flex align-items-center justify-content-end pixelStringHeaderNote">
+                    <small id="pixelStringMaxFPS" class="text-muted text-end"></small>
                 </div>
 
-                <div class="col-md-auto form-inline">
+                <div class="col-md-auto form-inline ms-auto">
                     <div id="PixelTestPatternDiv">
                         <b>Testing:</b>
                         <select id='PixelTestPatternType' class='form-select d-inline-block w-auto align-middle ms-1' onchange='SetPixelTestPattern();'>

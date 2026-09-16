@@ -180,6 +180,7 @@ inline uint32_t colorFromRgbw(byte* rgbw) { return uint32_t((byte(rgbw[3]) << 24
 void hsv2rgb(const CHSV32& hsv, uint32_t& rgb);
 void colorHStoRGB(uint16_t hue, byte sat, byte* rgb);
 void rgb2hsv(const uint32_t rgb, CHSV32& hsv);
+void adjust_color(uint32_t& rgb, int32_t hueShift, int32_t satChange, int32_t valueChange);
 inline CHSV rgb2hsv(const CRGB c) { CHSV32 hsv; rgb2hsv((uint32_t((byte(c.r) << 16) | (byte(c.g) << 8) | (byte(c.b)))), hsv); return CHSV(hsv); } // CRGB to hsv
 void colorKtoRGB(uint16_t kelvin, byte* rgb);
 void colorCTtoRGB(uint16_t mired, byte* rgb); //white spectrum to rgb

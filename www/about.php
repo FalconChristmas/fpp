@@ -620,7 +620,12 @@
             });
         }
 
-        function UpdateVersionInfo(testMode) {
+        // Refreshes the version rows and the FPP upgrade card.  The update
+        // status itself comes from the one shared check in fpp.js, never from a
+        // request of our own -- see requestFppUpdateStatus().
+        //   forceRefresh: re-run the update check rather than re-rendering the
+        //   answer already published (after an upgrade changes the installed version).
+        function UpdateVersionInfo(forceRefresh) {
             // Fetch system status for version info
             $.get('api/system/status', function (data) {
                 if (data.advancedView) {
@@ -670,232 +675,239 @@
                 clearVersionSkeletons();
             }).fail(clearVersionSkeletons);
 
-            // Fetch unified update status
-            var updateStatusUrl = 'api/system/updateStatus';
-            if (testMode) {
-                updateStatusUrl += '?test=' + testMode;
-            }
-            fetchUpdateStatus(updateStatusUrl, true);
+            requestFppUpdateStatus(forceRefresh);
         }
 
-        // Fetches the update status and renders the FPP card from it.  When the
-        // server reports it could not reach any update source (checked:false),
-        // the answer is retried once a few seconds later: a cold cache and a
-        // slow first fetch is the common case, and one retry usually lands the
-        // real answer without the user reloading.
-        var UPDATE_CHECK_RETRY_MS = 5000;
+        // Drives the update check through fpp.js's shared FPP_UPDATE_STATE
+        // instead of fetching api/system/updateStatus ourselves.  That endpoint
+        // is served from a stale-while-revalidate cache (common.php's
+        // file_cache()): while one request is out on the network refreshing it,
+        // every other request is handed the *previous* payload.  Two fetches a
+        // few hundred milliseconds apart -- this card's and the navbar icon's --
+        // could therefore land on opposite verdicts in a single page load, which
+        // is what made this page say "Up to Date" under a lit update icon.  One
+        // check, one answer, every view rendering the same object.
+        //   forceRefresh: re-run the check even if it already answered (after an
+        //   upgrade completes, the previous answer describes the old version).
+        function requestFppUpdateStatus(forceRefresh) {
+            if (typeof checkForFppUpdate !== 'function') {
+                return;
+            }
+            if (!forceRefresh && FPP_UPDATE_STATE.answered) {
+                // Already answered this page load (the navbar check got there
+                // first) -- render what every other view is already showing.
+                renderUpdateStatus(FPP_UPDATE_STATE);
+                return;
+            }
+            // Coalesces with any check already in flight; the result reaches us
+            // through fpp:updateStatusChanged either way.
+            checkForFppUpdate();
+        }
 
-        function fetchUpdateStatus(updateStatusUrl, retryOnFailure) {
-            $.get(updateStatusUrl, function (updateData) {
-                if (updateData.status !== 'OK') return;
+        // Every published update check re-renders this card, so it always agrees
+        // with the navbar icon and the menu banner.
+        $(document).on('fpp:updateStatusChanged', function (e, state) {
+            renderUpdateStatus(state);
+        });
 
-                updateCheckPending = false;
-                updateCheckFailed = (updateData.checked === false);
-                if (updateCheckFailed && retryOnFailure) {
-                    setTimeout(function () {
-                        fetchUpdateStatus(updateStatusUrl, false);
-                    }, UPDATE_CHECK_RETRY_MS);
-                }
+        // Renders the FPP upgrade card from a published FPP_UPDATE_STATE.
+        function renderUpdateStatus(updateData) {
+            updateCheckPending = false;
+            // checked:false means no update source answered, so the "no
+            // update" fields are unknown rather than a verdict.  fpp.js
+            // schedules the retry for everyone.
+            updateCheckFailed = (updateData.checked === false);
 
-                // Test mode: force OS upgrade available regardless of which
-                // FPP-update path we land in below.
-                if (updateData.forceOsUpgradeAvailable) {
-                    osUpgradeAvailable = true;
-                    forceOsUpgradeTest = true;
-                }
+            // Test mode: force OS upgrade available regardless of which
+            // FPP-update path we land in below.
+            if (updateData.forceOsUpgradeAvailable) {
+                osUpgradeAvailable = true;
+                forceOsUpgradeTest = true;
+            }
 
-                var isAdvancedView = settings['uiLevel'] && (parseInt(settings['uiLevel']) >= 1);
+            var isAdvancedView = settings['uiLevel'] && (parseInt(settings['uiLevel']) >= 1);
 
-                // With no local version there is nothing to compare against, so the
-                // per-uiLevel version rows are replaced by a single rebuild row.
-                needsRebuild = updateData.versionUnknown || false;
+            // With no local version there is nothing to compare against, so the
+            // per-uiLevel version rows are replaced by a single rebuild row.
+            needsRebuild = updateData.versionUnknown || false;
 
-                if (needsRebuild) {
-                    $('#fppVersionStandard').hide();
-                    $('#fppVersionAdvanced').hide();
-                } else if (isAdvancedView) {
-                    $('#fppVersionStandard').hide();
-                    $('#fppVersionAdvanced').show();
-                } else {
-                    $('#fppVersionStandard').show();
-                    $('#fppVersionAdvanced').hide();
-                }
-                $('#fppVersionRebuild').toggle(needsRebuild);
+            if (needsRebuild) {
+                $('#fppVersionStandard').hide();
+                $('#fppVersionAdvanced').hide();
+            } else if (isAdvancedView) {
+                $('#fppVersionStandard').hide();
+                $('#fppVersionAdvanced').show();
+            } else {
+                $('#fppVersionStandard').show();
+                $('#fppVersionAdvanced').hide();
+            }
+            $('#fppVersionRebuild').toggle(needsRebuild);
 
-                // Hide all standard view states
-                $('#fppVersionStandardBranchUpgrade, #fppVersionStandardCommitUpdate, #fppVersionStandardCurrent').hide();
-                // Reset the major-version callout; re-shown only on the major path below.
-                $('#fppMajorCallout').hide();
+            // Hide all standard view states
+            $('#fppVersionStandardBranchUpgrade, #fppVersionStandardCommitUpdate, #fppVersionStandardCurrent').hide();
+            // Reset the major-version callout; re-shown only on the major path below.
+            $('#fppMajorCallout').hide();
 
-                // Check for End of Life status
-                isEndOfLife = updateData.isEndOfLife || false;
-                if (isEndOfLife) {
-                    $('#eolCurrentVersion').text('v<?= getFPPMajorVersion() ?>');
-                    $('#eolLatestVersion').text('v' + updateData.latestMajorVersion);
-                    $('#eolBanner').show();
-                } else {
-                    $('#eolBanner').hide();
-                }
+            // Check for End of Life status
+            isEndOfLife = updateData.isEndOfLife || false;
+            if (isEndOfLife) {
+                $('#eolCurrentVersion').text('v<?= getFPPMajorVersion() ?>');
+                $('#eolLatestVersion').text('v' + updateData.latestMajorVersion);
+                $('#eolBanner').show();
+            } else {
+                $('#eolBanner').hide();
+            }
 
-                if (needsRebuild) {
-                    // FPP has never been built here (or the tree was cleaned), so
-                    // there is no version to upgrade *from*. Offer the rebuild that
-                    // actually fixes this box instead of an unverifiable "upgrade".
-                    branchUpgradeData = null;
-                    fppUpdateAvailable = false;
-                    isMajorVersionUpgrade = false;
+            if (needsRebuild) {
+                // FPP has never been built here (or the tree was cleaned), so
+                // there is no version to upgrade *from*. Offer the rebuild that
+                // actually fixes this box instead of an unverifiable "upgrade".
+                branchUpgradeData = null;
+                fppUpdateAvailable = false;
+                isMajorVersionUpgrade = false;
 
+                $('#fppUpdateBanner').hide();
+                setVersionStatusDot('fppVersionStatusBadge', 'required', 'Rebuild Required');
+
+                $('#fppUpdateButton').prop('disabled', false);
+                $('#fppUpdateButtonText').text('Rebuild FPP');
+
+            } else if (updateData.branchUpgradeAvailable) {
+                // Branch upgrade available - takes priority
+                branchUpgradeData = updateData;
+                fppUpdateAvailable = true;
+
+                isMajorVersionUpgrade = updateData.isMajorVersionUpgrade || false;
+
+                if (isMajorVersionUpgrade) {
+                    // Major version upgrades REQUIRE OS upgrade
+                    $('#fppMajorCallout').show();
                     $('#fppUpdateBanner').hide();
-                    setVersionStatusDot('fppVersionStatusBadge', 'required', 'Rebuild Required');
 
-                    $('#fppUpdateButton').prop('disabled', false);
-                    $('#fppUpdateButtonText').text('Rebuild FPP');
-
-                } else if (updateData.branchUpgradeAvailable) {
-                    // Branch upgrade available - takes priority
-                    branchUpgradeData = updateData;
-                    fppUpdateAvailable = true;
-
-                    isMajorVersionUpgrade = updateData.isMajorVersionUpgrade || false;
-
-                    if (isMajorVersionUpgrade) {
-                        // Major version upgrades REQUIRE OS upgrade
-                        $('#fppMajorCallout').show();
-                        $('#fppUpdateBanner').hide();
-
-                        // Show OS banner (amber = the recommended path)
-                        $('#osUpdateBanner')
-                            .removeClass('fpp-banner--success')
-                            .addClass('fpp-banner--warning')
-                            .show();
-                        $('#osUpdateBanner .fpp-banner__title').text('FPP ' + updateData.branchUpgradeVersion + ' Available - OS Upgrade Required');
-                        $('#osUpdateBanner .fpp-banner__message').html(
-                            'A new major version of FPP is available! Major version upgrades require a fresh OS image. ' +
-                            'Please <a href="backup.php">backup your configuration</a> first, then select the matching OS image below.'
-                        );
-                        $('#osUpdateBanner .fpp-banner__icon i').removeClass('fa-exclamation-triangle').addClass('fa-arrow-circle-up');
-
-                        setVersionStatusDot('fppVersionStatusBadge', 'required', 'OS Upgrade Required');
-                        // Signal that OS upgrade path should be used
-                        osUpgradeAvailable = true;
-
-                        // Standard view: show that OS upgrade is needed
-                        $('#fppVersionStandardBranchUpgrade').show();
-                        $('#fppTargetVersion').text('FPP ' + updateData.branchUpgradeVersion);
-                        // Add visual indication that this requires OS upgrade
-                        setVersionStatusDot('fppStandardBranchDot', 'required', 'Requires OS Upgrade');
-
-                        // Advanced view
-                        $('#fppVersionIndicator').show();
-                        $('#fppVersionCurrent').hide();
-                        $('#remoteGitShort').text(updateData.branchUpgradeTarget);
-                        $('#commitCount').parent().hide();
-
-                        // Disable FPP update button as users must use OS upgrade
-                        $('#fppUpdateButton').prop('disabled', true);
-                        $('#fppUpdateButtonText').text('Use OS Upgrade');
-                    } else {
-                        // Minor version branch upgrade
-                        $('#fppUpdateBanner').show();
-                        setVersionStatusDot('fppVersionStatusBadge', 'update', 'Upgrade Available');
-
-                        // Standard view: show branch upgrade
-                        $('#fppVersionStandardBranchUpgrade').show();
-                        $('#fppTargetVersion').text('FPP ' + updateData.branchUpgradeVersion);
-                        // Reset the shared dot (major path sets it to "Requires OS Upgrade").
-                        setVersionStatusDot('fppStandardBranchDot', 'update', 'Update available');
-
-                        $('#fppVersionIndicator')
-                            .attr('onclick', 'HandleFPPUpdate();')
-                            .attr('title', 'Click to see release notes')
-                            .show();
-                        $('#fppVersionIndicator .fpp-version-indicator__label')
-                            .html('<i class="fas fa-file-alt"></i> Click to see release notes');
-                        $('#fppVersionCurrent').hide();
-                        $('#remoteGitShort').text(updateData.branchUpgradeTarget);
-
-                        // Update button text for branch upgrade
-                        $('#fppUpdateButton').prop('disabled', false);
-                        $('#fppUpdateButtonText').text('Upgrade to ' + updateData.branchUpgradeTarget);
-                    }
-
-                } else if (updateData.commitUpdateAvailable) {
-                    // Commit update available (same version, new commits)
-                    branchUpgradeData = null;
-                    fppUpdateAvailable = true;
-                    isMajorVersionUpgrade = false;
-
-                    $('#remoteGitShort').text(updateData.remoteCommit.substring(0, 9));
-                    $('#fppUpdateBanner').show();
-                    setVersionStatusDot('fppVersionStatusBadge', 'update', 'Update Available');
-
-                    // Standard view: show commit update (no version arrow)
-                    $('#fppVersionStandardCommitUpdate').show();
-
-                    // Advanced view:  commit updates show git log
-                    $('#fppVersionIndicator')
-                        .attr('onclick', 'GetGitOriginLog();')
-                        .attr('title', 'Click to preview changes')
+                    // Show OS banner (amber = the recommended path)
+                    $('#osUpdateBanner')
+                        .removeClass('fpp-banner--success')
+                        .addClass('fpp-banner--warning')
                         .show();
-                    $('#fppVersionCurrent').hide();
+                    $('#osUpdateBanner .fpp-banner__title').text('FPP ' + updateData.branchUpgradeVersion + ' Available - OS Upgrade Required');
+                    $('#osUpdateBanner .fpp-banner__message').html(
+                        'A new major version of FPP is available! Major version upgrades require a fresh OS image. ' +
+                        'Please <a href="backup.php">backup your configuration</a> first, then select the matching OS image below.'
+                    );
+                    $('#osUpdateBanner .fpp-banner__icon i').removeClass('fa-exclamation-triangle').addClass('fa-arrow-circle-up');
 
-                    // Fetch commit count and update label
-                    getGitCommitCount(function (count) {
-                        if (count > 0) {
-                            $('#commitCount').text(count);
-                            $('#commitCountStandard').text(count);
-                            $('#fppVersionIndicator .fpp-version-indicator__label')
-                                .html('<i class="fas fa-search"></i> ' + count + ' changes behind');
-                        }
-                    });
+                    setVersionStatusDot('fppVersionStatusBadge', 'required', 'OS Upgrade Required');
+                    // Signal that OS upgrade path should be used
+                    osUpgradeAvailable = true;
 
-                    // Button text for commit update
-                    $('#fppUpdateButton').prop('disabled', false);
-                    $('#fppUpdateButtonText').text('Update FPP Now');
-
-                } else {
-                    // Up to date
-                    branchUpgradeData = null;
-                    fppUpdateAvailable = false;
-                    isMajorVersionUpgrade = false;
-
-                    $('#fppUpdateBanner').hide();
-                    // Don't hide OS banner here - let checkUpgradeRecommendation() handle it
-                    // based on whether osUpgradeAvailable is set
-                    if (updateCheckFailed) {
-                        // No source answered, so this is "unknown", not "up to date".
-                        setVersionStatusDot('fppVersionStatusBadge', 'unknown', 'Check Failed');
-                    } else {
-                        setVersionStatusDot('fppVersionStatusBadge', 'ok', 'Up to Date');
-                    }
-
-                    // When up to date: disable button for basic users, keep enabled for advanced
-                    if (isAdvancedView) {
-                        $('#fppUpdateButton').prop('disabled', false);
-                        $('#fppUpdateButtonText').text('Update FPP Now');
-                    } else {
-                        $('#fppUpdateButton').prop('disabled', true);
-                        $('#fppUpdateButtonText').text(updateCheckFailed ? 'Check Failed' : 'Up to Date');
-                    }
-
-                    // Standard view
-                    $('#fppVersionStandardCurrent').show();
+                    // Standard view: show that OS upgrade is needed
+                    $('#fppVersionStandardBranchUpgrade').show();
+                    $('#fppTargetVersion').text('FPP ' + updateData.branchUpgradeVersion);
+                    // Add visual indication that this requires OS upgrade
+                    setVersionStatusDot('fppStandardBranchDot', 'required', 'Requires OS Upgrade');
 
                     // Advanced view
-                    $('#fppVersionIndicator').hide();
-                    $('#fppVersionCurrent').show();
+                    $('#fppVersionIndicator').show();
+                    $('#fppVersionCurrent').hide();
+                    $('#remoteGitShort').text(updateData.branchUpgradeTarget);
+                    $('#commitCount').parent().hide();
+
+                    // Disable FPP update button as users must use OS upgrade
+                    $('#fppUpdateButton').prop('disabled', true);
+                    $('#fppUpdateButtonText').text('Use OS Upgrade');
+                } else {
+                    // Minor version branch upgrade
+                    $('#fppUpdateBanner').show();
+                    setVersionStatusDot('fppVersionStatusBadge', 'update', 'Upgrade Available');
+
+                    // Standard view: show branch upgrade
+                    $('#fppVersionStandardBranchUpgrade').show();
+                    $('#fppTargetVersion').text('FPP ' + updateData.branchUpgradeVersion);
+                    // Reset the shared dot (major path sets it to "Requires OS Upgrade").
+                    setVersionStatusDot('fppStandardBranchDot', 'update', 'Update available');
+
+                    $('#fppVersionIndicator')
+                        .attr('onclick', 'HandleFPPUpdate();')
+                        .attr('title', 'Click to see release notes')
+                        .show();
+                    $('#fppVersionIndicator .fpp-version-indicator__label')
+                        .html('<i class="fas fa-file-alt"></i> Click to see release notes');
+                    $('#fppVersionCurrent').hide();
+                    $('#remoteGitShort').text(updateData.branchUpgradeTarget);
+
+                    // Update button text for branch upgrade
+                    $('#fppUpdateButton').prop('disabled', false);
+                    $('#fppUpdateButtonText').text('Upgrade to ' + updateData.branchUpgradeTarget);
                 }
 
-                checkUpgradeRecommendation();
-            }).fail(function () {
-                updateCheckPending = false;
-                updateCheckFailed = true;
-                setVersionStatusDot('fppVersionStatusBadge', 'unknown', 'Unknown');
-                // Don't leave placeholders shimmering forever if status can't be
-                // fetched -- fall back to the neutral "--" for any unresolved field.
-                clearVersionSkeletons();
-                checkUpgradeRecommendation();
-            });
+            } else if (updateData.commitUpdateAvailable) {
+                // Commit update available (same version, new commits)
+                branchUpgradeData = null;
+                fppUpdateAvailable = true;
+                isMajorVersionUpgrade = false;
+
+                $('#remoteGitShort').text(updateData.remoteCommit.substring(0, 9));
+                $('#fppUpdateBanner').show();
+                setVersionStatusDot('fppVersionStatusBadge', 'update', 'Update Available');
+
+                // Standard view: show commit update (no version arrow)
+                $('#fppVersionStandardCommitUpdate').show();
+
+                // Advanced view:  commit updates show git log
+                $('#fppVersionIndicator')
+                    .attr('onclick', 'GetGitOriginLog();')
+                    .attr('title', 'Click to preview changes')
+                    .show();
+                $('#fppVersionCurrent').hide();
+
+                // Fetch commit count and update label
+                getGitCommitCount(function (count) {
+                    if (count > 0) {
+                        $('#commitCount').text(count);
+                        $('#commitCountStandard').text(count);
+                        $('#fppVersionIndicator .fpp-version-indicator__label')
+                            .html('<i class="fas fa-search"></i> ' + count + ' changes behind');
+                    }
+                });
+
+                // Button text for commit update
+                $('#fppUpdateButton').prop('disabled', false);
+                $('#fppUpdateButtonText').text('Update FPP Now');
+
+            } else {
+                // Up to date
+                branchUpgradeData = null;
+                fppUpdateAvailable = false;
+                isMajorVersionUpgrade = false;
+
+                $('#fppUpdateBanner').hide();
+                // Don't hide OS banner here - let checkUpgradeRecommendation() handle it
+                // based on whether osUpgradeAvailable is set
+                if (updateCheckFailed) {
+                    // No source answered, so this is "unknown", not "up to date".
+                    setVersionStatusDot('fppVersionStatusBadge', 'unknown', 'Check Failed');
+                } else {
+                    setVersionStatusDot('fppVersionStatusBadge', 'ok', 'Up to Date');
+                }
+
+                // When up to date: disable button for basic users, keep enabled for advanced
+                if (isAdvancedView) {
+                    $('#fppUpdateButton').prop('disabled', false);
+                    $('#fppUpdateButtonText').text('Update FPP Now');
+                } else {
+                    $('#fppUpdateButton').prop('disabled', true);
+                    $('#fppUpdateButtonText').text(updateCheckFailed ? 'Check Failed' : 'Up to Date');
+                }
+
+                // Standard view
+                $('#fppVersionStandardCurrent').show();
+
+                // Advanced view
+                $('#fppVersionIndicator').hide();
+                $('#fppVersionCurrent').show();
+            }
+
+            checkUpgradeRecommendation();
         }
 
         // Handle FPP update button click - route to appropriate action
@@ -937,7 +949,9 @@
 
         function FPPUpgradeDone() {
             EnableModalDialogCloseButton("fppUpgrade");
-            UpdateVersionInfo();
+            // The installed version just changed, so the answer already published
+            // describes the old one -- force a fresh check rather than re-render it.
+            UpdateVersionInfo(true);
         }
 
         function PopulateOSSelect() {
@@ -1121,7 +1135,7 @@
 
         function OSUpgradeDone() {
             EnableModalDialogCloseButton("osUpgrade");
-            UpdateVersionInfo();
+            UpdateVersionInfo(true);
         }
 
         function DownloadOS() {
@@ -1370,7 +1384,7 @@
         var upgradeTestMode = new URLSearchParams(window.location.search).get('test');
 
         $(document).ready(function () {
-            UpdateVersionInfo(upgradeTestMode);
+            UpdateVersionInfo();
             PopulateOSSelect();
             initFaqAccordion();
 

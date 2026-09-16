@@ -87,6 +87,8 @@ dispatch_get('/git/releases/sizes', 'GitOSReleaseSizes');
 dispatch_get('/git/reset', 'GitReset');
 dispatch_get('/git/status', 'GitStatus');
 dispatch_get('/git/branches', 'GitBranches');
+dispatch_get('/git/forkBranches', 'GitForkBranches');
+dispatch_get('/git/pullRequests', 'GitPullRequests');
 
 dispatch_get('/media', 'GetMedia');
 dispatch_get('/media/:MediaName/duration', 'GetMediaDuration');
@@ -183,6 +185,12 @@ dispatch_post('/pipewire/opusrtp/instances', 'SaveOpusRTPInstances');
 dispatch_post('/pipewire/opusrtp/apply', 'ApplyOpusRTPInstances');
 dispatch_get('/pipewire/opusrtp/status', 'GetOpusRTPStatus');
 dispatch_get('/pipewire/opusrtp/interfaces', 'GetOpusRTPNetworkInterfaces');
+
+dispatch_get('/pipewire/vban/instances', 'GetVBANInstances');
+dispatch_post('/pipewire/vban/instances', 'SaveVBANInstances');
+dispatch_post('/pipewire/vban/apply', 'ApplyVBANInstances');
+dispatch_get('/pipewire/vban/status', 'GetVBANStatus');
+dispatch_get('/pipewire/vban/interfaces', 'GetVBANNetworkInterfaces');
 dispatch_get('/pipewire/graph', 'GetPipeWireGraph');
 
 // PipeWire control facade — clean, ID-addressed, live-state 3rd-party API
@@ -230,6 +238,7 @@ dispatch_get('/plugin/source', 'GetPluginSource'); // keep above /plugin/:RepoNa
 dispatch_get('/plugin/:RepoName', 'GetPluginInfo');
 dispatch_get('/plugin/:RepoName/icon', 'PluginServeIcon');
 dispatch_get('/plugin/:RepoName/page', 'GetPluginPageUrl');
+dispatch_get('/plugin/:RepoName/privacy', 'GetPluginPrivacyStatus');
 dispatch_delete('/plugin/:RepoName', 'UninstallPlugin');
 dispatch_get('/plugin/:RepoName/settings/:SettingName', 'PluginGetSetting');
 dispatch_put('/plugin/:RepoName/settings/:SettingName', 'PluginSetSetting');

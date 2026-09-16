@@ -1,0 +1,24 @@
+#ifndef __BBSHIFTSTRING_DEFS_HP__
+#define __BBSHIFTSTRING_DEFS_HP__
+
+/*
+ * Layout constants shared between BBShiftString.cpp and BBShiftString.asm.
+ * The .asm side goes through cpp, so this file only contains #defines.
+ *
+ * The GPIO command table starts at COMMANDTABLE_OFFSET (32) in the PRU data
+ * RAM and holds BBSS_COMMAND_TABLE_ENTRIES 16 bit words.  The last
+ * BBSS_PACKET2_MASKS_ENTRIES words of it are not part of the sequential
+ * table: they hold one set of output masks (16 bytes at 8 strings per pin,
+ * 32 at 16): the end-of-frame masks with the send-only (V4) chain heads
+ * cleared.  The firmware loads it once the first packet of a FalconV5
+ * packet frame has gone out, so a V4 chain's config packet is followed by
+ * a low line and never by a second packet, and at the start of the packet
+ * phase of a frame that opens a listen window, where those heads stay low
+ * for the whole phase: the window ends in the bus turnaround, which idles
+ * high, and a V4 receiver that has just taken a packet reads that as data.
+ */
+#define BBSS_COMMAND_TABLE_ENTRIES 3578
+#define BBSS_PACKET2_MASKS_ENTRIES 16
+#define BBSS_PACKET2_MASKS_OFFSET (32 + 2 * (BBSS_COMMAND_TABLE_ENTRIES - BBSS_PACKET2_MASKS_ENTRIES))
+
+#endif

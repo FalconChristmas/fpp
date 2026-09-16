@@ -276,6 +276,13 @@ function custom_parse_ini_file($filename)
             continue;
         }
 
+        // A line with no '=' is not a setting.  Without this, a hand-edited '#'
+        // comment or a stray line becomes a key with a null value -- which then
+        // gets written back out by WriteSettingToFile(), and carried into backups.
+        if (strpos($line, '=') === false) {
+            continue;
+        }
+
         // Split key and value
         list($key, $value) = explode('=', $line, 2);
         $key = trim($key);
@@ -2814,6 +2821,14 @@ function get_remote_git_version()
 
                 // Try to get remote version from the tracking branch
                 $git_remote_version = exec("git --git-dir=" . $settings["fppDir"] . "/.git/ ls-remote -q -h $remote_name $remote_branch 2>/dev/null | awk '$1 > 0 { print substr(\$1,1,9)}'", $output, $return_val);
+                // PR branches track pull/<n>/head which is not under refs/heads/* – retry without -h
+                if ((empty($git_remote_version) || $return_val != 0) && (preg_match('/^(pr-\d+|pull\/\d+\/head)$/', $git_branch) || preg_match('/^pull\/\d+\/head$/', $remote_branch))) {
+                    $prRef = $remote_branch;
+                    if (preg_match('/^pr-(\d+)$/', $git_branch, $m)) {
+                        $prRef = "pull/" . $m[1] . "/head";
+                    }
+                    $git_remote_version = exec("git --git-dir=" . $settings["fppDir"] . "/.git/ ls-remote -q " . escapeshellarg($remote_name) . " " . escapeshellarg($prRef) . " 2>/dev/null | awk '$1 > 0 { print substr(\$1,1,9)}'", $output, $return_val);
+                }
                 if ($return_val != 0 || empty($git_remote_version)) {
                     // Fallback to origin
                     $git_remote_version = exec("git --git-dir=" . $settings["fppDir"] . "/.git/ ls-remote -q -h origin $git_branch 2>/dev/null | awk '$1 > 0 { print substr(\$1,1,9)}'", $output, $return_val);
@@ -3716,6 +3731,79 @@ function is_valid_domain_name($domain_name)
 function gitBaseDirectory()
 {
     return dirname(dirname(__FILE__));
+}
+
+/**
+ * The two URLs the UI may hand to a cape vendor: the landing page behind the
+ * logo, and the logo image itself.  Both pages that draw a vendor logo
+ * (menu.inc on every page, cape-info.php) used to build these separately and
+ * drifted: the link carried the serial on SendVendorSerial alone while the
+ * image needed FetchVendorLogos too, so the privacy text ("denying the logo
+ * denies this too") was false for the link.  One builder, one rule:
+ *
+ *   - nothing is built unless FetchVendorLogos == 1;
+ *   - the serial, cape id and cs go on both URLs only when SendVendorSerial
+ *     is also 1, url-encoded -- every value here comes from the EEPROM;
+ *   - hideExternalURLs blanks the link (nothing to click); the image is
+ *     still fetched by the browser from the vendor on every page that shows
+ *     it, which is what the privacy text says.
+ *
+ * $forHeader selects the image: the page header uses header_cape_image when the
+ * EEPROM declares one (a separate, header-sized image -- 1fe9c75ef), falling
+ * back to vendor.image; Cape Info always shows vendor.image.
+ *
+ * Returns array('landing' => href or '', 'image' => remote image URL or '',
+ * 'sendSerial' => bool).  Callers must still escape for their context.
+ */
+function CapeVendorUrls($capeInfo, $settings, $forHeader = false)
+{
+    $out = array('landing' => '', 'image' => '', 'sendSerial' => false);
+    if (!is_array($capeInfo) || !isset($capeInfo['vendor']) || !is_array($capeInfo['vendor'])) {
+        return $out;
+    }
+    if (!isset($settings['FetchVendorLogos']) || $settings['FetchVendorLogos'] != 1) {
+        return $out;
+    }
+    $vendor = $capeInfo['vendor'];
+
+    $landing = isset($vendor['landingPage']) ? $vendor['landingPage'] : (isset($vendor['url']) ? $vendor['url'] : '');
+    $image = isset($vendor['image']) ? $vendor['image'] : '';
+    if ($forHeader && isset($capeInfo['header_cape_image'])) {
+        $image = $capeInfo['header_cape_image'];
+    }
+
+    // Only http(s) leaves the box.  A javascript: or data: URL from a hostile
+    // EEPROM must not reach an href or the fetcher.
+    $isWeb = function ($u) {
+        return is_string($u) && preg_match('#^https?://#i', $u) === 1;
+    };
+    if (!$isWeb($landing)) {
+        $landing = '';
+    }
+    if (!$isWeb($image)) {
+        $image = '';
+    }
+
+    $out['sendSerial'] = isset($settings['SendVendorSerial']) && $settings['SendVendorSerial'] == 1;
+    if ($out['sendSerial']) {
+        $q = 'sn=' . urlencode(isset($capeInfo['serialNumber']) ? $capeInfo['serialNumber'] : '')
+            . '&id=' . urlencode(isset($capeInfo['id']) ? $capeInfo['id'] : '');
+        if (isset($capeInfo['cs']) && $capeInfo['cs'] != '') {
+            $q .= '&cs=' . urlencode($capeInfo['cs']);
+        }
+        if ($landing != '') {
+            $landing .= (strpos($landing, '?') === false ? '?' : '&') . $q;
+        }
+        if ($image != '') {
+            $image .= (strpos($image, '?') === false ? '?' : '&') . $q;
+        }
+    }
+    if (!empty($settings['hideExternalURLs'])) {
+        $landing = '';
+    }
+    $out['landing'] = $landing;
+    $out['image'] = $image;
+    return $out;
 }
 
 function getSystemUUID()

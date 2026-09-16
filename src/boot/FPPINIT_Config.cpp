@@ -1014,9 +1014,10 @@ void checkInstallPackages() {
         // rejected at dlopen, and any rootfs artifacts a plugin's fpp_install.sh
         // dropped are gone. If plugins are present, set a persisted flag so fppd
         // can raise a (non-dismissible) warning prompting the user to Reinstall
-        // All. The Plugin Manager clears the flag once a reinstall succeeds. Set
-        // independent of the apt result below; a retry next boot just rewrites the
-        // same value.
+        // All. The Plugin Manager turns "1" into the list of plugins still to
+        // reinstall and clears it once every one has been reinstalled or
+        // uninstalled. Set independent of the apt result below; a retry next boot
+        // just rewrites the same value.
         if (anyPluginsInstalled()) {
             setRawSetting("pluginReinstallNeededAfterOS", "1");
         }

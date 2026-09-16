@@ -843,6 +843,19 @@ static bool syncCapeOverlayVariants(const std::string& srcDir) {
 }
 #endif
 
+// Whether two files both exist and hold identical bytes.  Overlays are a couple
+// of KB, so comparing them outright is simpler than tracking versions.
+static bool filesIdentical(const std::string& a, const std::string& b) {
+    int alen = 0;
+    int blen = 0;
+    uint8_t* ad = file_exists(a) ? get_file_contents(a, alen) : nullptr;
+    uint8_t* bd = file_exists(b) ? get_file_contents(b, blen) : nullptr;
+    bool same = ad != nullptr && bd != nullptr && alen == blen && memcmp(ad, bd, alen) == 0;
+    free(ad);
+    free(bd);
+    return same;
+}
+
 static void restoreDefaultCapeOverlay() {
 #if defined(PLATFORM_BB64)
     copyFile("/boot/firmware/overlays/fpp-cape-overlay-default.dtb", "/boot/firmware/overlays/fpp-cape-overlay.dtb");
@@ -859,12 +872,15 @@ static bool handleCapeOverlay(const std::string& outputPath) {
 #ifdef PLATFORM_BB64
     static const std::string src = outputPath + "/tmp/fpp-cape-overlay-bb64.dtb";
     static const std::string target = "/boot/firmware/overlays/fpp-cape-overlay.dtb";
+    static const std::string defaultOverlay = "/boot/firmware/overlays/fpp-cape-overlay-default.dtb";
 #elif defined(PLATFORM_BBB)
     static const std::string src = outputPath + "/tmp/fpp-cape-overlay-bbb.dtb";
     static const std::string target = "/lib/firmware/fpp-cape-overlay.dtb";
+    static const std::string defaultOverlay = "/lib/firmware/fpp-cape-overlay-default.dtb";
 #elif defined(PLATFORM_PI)
     static const std::string src = outputPath + "/tmp/fpp-cape-overlay-rpi.dtb";
     static const std::string target = "/boot/firmware/overlays/fpp-cape-overlay.dtbo";
+    static const std::string defaultOverlay = "/boot/firmware/overlays/fpp-cape-overlay-default.dtbo";
     // FPP 9.x has the param in config.txt set wrong for the RPi, so we need to check for that and if it's wrong then we need to flip it to the correct one
     const std::string configFile = findBootConfigFile("config.txt");
     if (!configFile.empty()) {
@@ -894,8 +910,8 @@ static bool handleCapeOverlay(const std::string& outputPath) {
 #else
     static const std::string src = "";
     static const std::string target = "";
+    static const std::string defaultOverlay = "";
 #endif
-    static const std::string overlay = "/proc/device-tree/chosen/overlays/fpp-cape-overlay";
     bool changed = false;
     bool haveBase = !src.empty() && file_exists(src);
 #if defined(PLATFORM_PI)
@@ -908,26 +924,27 @@ static bool handleCapeOverlay(const std::string& outputPath) {
     const bool haveVariants = false;
 #endif
     if (haveBase) {
-        int slen = 0;
-        int tlen = 0;
-        uint8_t* sd = get_file_contents(src, slen);
-        uint8_t* td = file_exists(target) ? get_file_contents(target, tlen) : nullptr;
-        if (td == nullptr || slen != tlen || memcmp(sd, td, slen) != 0) {
+        if (!filesIdentical(src, target)) {
             copyFile(src, target);
             changed = true;
         }
-        free(sd);
-        free(td);
-    } else if (!haveVariants && !overlay.empty() && file_exists(overlay)) {
-        int len = 0;
-        char* c = (char*)get_file_contents(overlay, len);
-        if (strcmp(c, "DEFAULT_CAPE_OVERLAY") != 0) {
-            // not the default cape overlay, need to flip back to default
-            // (which also clears any variants the old cape installed)
+    } else if (!haveVariants) {
+        // The cape brings no overlay, so the shipped default belongs here.  Ask
+        // whether what is installed already IS the default by comparing the two
+        // files (which also clears any variants the old cape installed).
+        //
+        // Not by reading /proc/device-tree/chosen/overlays/fpp-cape-overlay, as
+        // this did before: that node exists only when an overlay actually
+        // RESOLVED.  A stale overlay left behind by a previous cape that cannot
+        // resolve on this board -- a fragment referencing a Pi 5 only symbol, on
+        // a Pi 4 -- creates no such node, so it was indistinguishable from "no
+        // cape overlay applied" and the restore was skipped.  The one state that
+        // cannot recover by itself was the one state never repaired, on every
+        // boot, indefinitely.
+        if (!filesIdentical(target, defaultOverlay) && file_exists(defaultOverlay)) {
             restoreDefaultCapeOverlay();
             changed = true;
         }
-        free(c);
     }
 #if defined(PLATFORM_PI)
     if (haveBase || haveVariants) {

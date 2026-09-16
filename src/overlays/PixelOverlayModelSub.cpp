@@ -207,6 +207,27 @@ void PixelOverlayModelSub::resetParent() {
     PixelOverlayModel::setState(PixelOverlayState(PixelOverlayState::Disabled));
 }
 
+uint32_t PixelOverlayModelSub::outputChannelForData(uint32_t dataOffset) const {
+    if (!gridMode) {
+        // A rectangular submodel is a contiguous window of its parent, which
+        // the base class's arithmetic already describes correctly.
+        return PixelOverlayModel::outputChannelForData(dataOffset);
+    }
+    int slot = dataOffset / channelsPerNode;
+    if (channelGridMode) {
+        // A cell may feed several member pixels; they are one buffer cell and
+        // therefore one position, so the first is the representative one.
+        if (slot < 0 || slot >= (int)outputCells.size() || outputCells[slot].empty()) {
+            return FPPD_OFF_CHANNEL;
+        }
+        return outputCells[slot][0];
+    }
+    if (slot < 0 || slot >= (int)outputMap.size()) {
+        return FPPD_OFF_CHANNEL;
+    }
+    return outputMap[slot];
+}
+
 void PixelOverlayModelSub::doOverlay(uint8_t* channels) {
     if (PixelOverlayModel::overlayBufferIsDirty())
         flushOverlayBuffer();

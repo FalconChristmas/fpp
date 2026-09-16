@@ -127,8 +127,28 @@ var FPP_UPDATE_STATE = {
 	versionUnknown: false,
 	isEndOfLife: false,
 	latestMajorVersion: 0,
-	checked: false
+	// An update source answered and the fields above are a verdict.
+	checked: false,
+	// The check ran but no source answered (offline, cold cache + timeout), so
+	// the "no update" fields above are unknown rather than "up to date".
+	checkFailed: false,
+	// The check has completed at least once, either way.  Consumers that render
+	// after the check may have missed the event, so they test this and render
+	// from the state directly instead of waiting for an event that already fired.
+	answered: false,
+	// Test mode only (?test=both|osonly): forces the OS card to show an upgrade.
+	forceOsUpgradeAvailable: false
 };
+
+// Serialises the update check.  Every consumer -- navbar icon, menu banner,
+// about.php's upgrade cards -- renders from FPP_UPDATE_STATE, so they cannot
+// disagree; each one issuing its own request could, because the server's
+// stale-while-revalidate cache hands the request that loses the recalc lock the
+// previous payload while the winner is still on the network (common.php's
+// file_cache()).  Two fetches half a second apart could therefore land on
+// opposite verdicts in the same page load.
+var _fppUpdateCheckInFlight = false;
+var FPP_UPDATE_CHECK_RETRY_MS = 5000;
 
 // Build "http://host" + path. IPv6 literals (contain ':') must be bracketed;
 // IPv4 and hostnames never contain ':' so they pass through unchanged.
@@ -320,12 +340,19 @@ function common_PageLoad_PostDOMLoad_ActionsSetup () {
 		checkScrollTopButton();
 	};
 
-	//show first visible tab (if no tab specified in url)
+	//show first visible tab (if no tab specified in url), unless the page has
+	//already marked one active in that tablist itself, e.g. settings.php?tab=MQTT.
+	//Relies on the page doing so in an inline script (before DOMContentLoaded).
 	if (!location.hash) {
 		const triggerFirstTabEl = $('[role="tablist"] li:visible a').first()[0];
 		if (triggerFirstTabEl) {
-			bootstrap.Tab.getOrCreateInstance(triggerFirstTabEl).show();
-			//setup sticky on first page load
+			if ($(triggerFirstTabEl).closest('[role="tablist"]').find('.nav-link.active').length === 0) {
+				bootstrap.Tab.getOrCreateInstance(triggerFirstTabEl).show();
+			}
+			//setup sticky on first page load. Outside the show() guard above: a
+			//page that pre-marks its active tab (channeloutputs.php, settings.php
+			//?tab=) still needs its sticky headers floated, and nothing else does
+			//that until a tab is switched or the viewport changes.
 			setTimeout(function () {
 				SetTablePageHeader_ZebraPin();
 				float_fppStickyThead();
@@ -630,6 +657,52 @@ function CloseModalDialog (id) {
 	const myModal = bootstrap.Modal.getInstance(document.getElementById(id));
 	myModal.hide();
 }
+/**
+ * Pull the old cape and the new firmware out of a failed upgradeCapeFirmware run.
+ *
+ * scripts/upgradeCapeFirmware reports a mismatch as three consecutive lines:
+ *
+ *     Cape does not match new firmware.
+ *     Cape: <name>   Version: <version>
+ *     Firmware: <name>   Version: <version>
+ *
+ * Found by their own prefixes rather than by absolute line number.  The callers
+ * used to index the whole output at a fixed offset, which held only while that
+ * report was the entire output -- the upgrade path streams wget's download log
+ * ahead of it, so those offsets landed in the middle of "Resolving ..." and the
+ * confirmation asked the user to approve replacing one hostname with another.
+ *
+ * Returns {cape, firmware}, or null when both lines are not present -- in which
+ * case the caller must NOT offer to force the flash.
+ */
+function ParseCapeFirmwareMismatch(txt) {
+    var lines = (txt || '').match(/[^\r\n]+/g) || [];
+    var start = -1;
+    for (var i = 0; i < lines.length; i++) {
+        if (lines[i].indexOf('Cape does not match new firmware') !== -1) {
+            start = i;
+            break;
+        }
+    }
+    if (start < 0) {
+        return null;
+    }
+    var cape = '';
+    var firmware = '';
+    for (var j = start + 1; j < lines.length && j <= start + 3; j++) {
+        var line = lines[j].trim();
+        if (cape === '' && line.indexOf('Cape:') === 0) {
+            cape = line;
+        } else if (firmware === '' && line.indexOf('Firmware:') === 0) {
+            firmware = line;
+        }
+    }
+    if (cape === '' || firmware === '') {
+        return null;
+    }
+    return { cape: cape, firmware: firmware };
+}
+
 function EnableModalDialogCloseButton (id) {
 	$('#' + id)
 		.find('#modalCloseButton')
@@ -4145,11 +4218,11 @@ function ViewReleaseNotes (version) {
 
 	$.get('api/system/releaseNotes/' + version)
 		.done(function (data) {
-			// version is without 'v' prefix (for GitHub API), but UpgradeFPPVersion needs 'v' prefix (for git)
-			var gitVersion = version.startsWith('v') ? version : 'v' + version;
+			// UpgradeFPPVersion normalizes the 'v' prefix itself, so pass the
+			// version through as-is (unprefixed, the form the GitHub API uses).
 			$('#releaseNotesText').html(
 				'<center><input onClick=\'UpgradeFPPVersion("' +
-					gitVersion +
+					version +
 					"\");' type='button' class='buttons' value='Upgrade'></center>" +
 					"<pre style='white-space: pre-wrap; word-wrap: break-word;'>" +
 					data.body +
@@ -4165,6 +4238,11 @@ function VersionUpgradeDone (id) {
 	$('#fppUpgradeCloseDialogButton').prop('disabled', false);
 }
 function UpgradeFPPVersion (newVersion) {
+	// Callers pass either '10.1' (the GitHub release/tag form) or 'v10.1' (the
+	// git branch form). Normalize here, once, at the single point that builds
+	// the git ref -- prepending 'v' unconditionally produced 'vv10.1', which
+	// upgrade_FPP then failed to check out, leaving the branch unchanged.
+	var version = String(newVersion).replace(/^v+/, '');
 	if (
 		confirm(
 			'Do you wish to upgrade the Falcon Player?\n\nClick "OK" to continue.\n\nThe system will automatically reboot to complete the upgrade.\nThis can take a long time,  20-30 minutes on slower devices.'
@@ -4174,7 +4252,7 @@ function UpgradeFPPVersion (newVersion) {
 
 		var opts = {
 			id: 'upgradeFPPDialog',
-			title: 'Upgrading to FPP v' + newVersion,
+			title: 'Upgrading to FPP v' + version,
 			body: "<textarea class='w-100' style='height: 55vh; min-height: 200px;' disabled id='upgradeFPPDialogText'>Starting upgrade....</textarea>",
 			class: 'modal-dialog-scrollable',
 			backdrop: 'static',
@@ -4209,7 +4287,7 @@ function UpgradeFPPVersion (newVersion) {
 
 		DoModalDialog(opts);
 		StreamURL(
-			'upgradefpp.php?version=v' + newVersion,
+			'upgradefpp.php?version=v' + version,
 			'upgradeFPPDialogText',
 			'VersionUpgradeDone'
 		);
@@ -4217,6 +4295,38 @@ function UpgradeFPPVersion (newVersion) {
 }
 
 function ChangeGitBranch (newBranch) {
+	var remote = $('#gitRemote').val() || 'origin';
+	if (remote === 'pull-requests') {
+		var prNum = null;
+		// Prefer data-pr on selected option, fallback to parsing branch name
+		var selPr = $('#gitBranch option:selected').attr('data-pr');
+		if (selPr) prNum = selPr;
+		else if (newBranch && newBranch.indexOf('pr-') === 0) prNum = newBranch.substring(3);
+		else if (newBranch) {
+			var m = newBranch.match(/pull\/(\d+)\/head/);
+			if (m) prNum = m[1];
+		}
+		if (!prNum) {
+			alert('Select a pull request');
+			return;
+		}
+		newBranch = 'pr-' + String(prNum).replace(/[^0-9]/g, '');
+		if (
+			confirm(
+				"Are you really sure you want to switch to PR #" +
+					prNum +
+					" ('" +
+					newBranch +
+					"') branch?  This may take some time and it may not be fully compatible with this FPP OS version.  Click 'OK' to continue."
+			)
+		) {
+			location.href =
+				'changebranch.php?branch=' + encodeURIComponent(newBranch) + '&remote=pull-requests&pr=' + encodeURIComponent(prNum);
+		} else {
+			location.reload(true);
+		}
+		return;
+	}
 	if (
 		confirm(
 			"Are you really sure you want to switch to the '" +
@@ -4224,9 +4334,8 @@ function ChangeGitBranch (newBranch) {
 				"' branch?  This may take some time and it may not be fully compatible with this FPP OS version.  Click 'OK' to continue."
 		)
 	) {
-		var remote = $('#gitRemote').val() || 'origin';
 		location.href =
-			'changebranch.php?branch=' + newBranch + '&remote=' + remote;
+			'changebranch.php?branch=' + encodeURIComponent(newBranch) + '&remote=' + encodeURIComponent(remote);
 	} else {
 		location.reload(true);
 	}
@@ -7417,6 +7526,11 @@ function PopulatePlaylists (sequencesAlso, options) {
 } */
 
 function PlayPlaylist (Playlist, goToStatus = 0) {
+	if (!Playlist) {
+		$.jGrowl('No playlist selected', { themeState: 'detract' });
+		return;
+	}
+
 	// Check if UI-started playlists should be protected from schedule override
 	var scheduleProtected =
 		settings.hasOwnProperty('UIStartedPlaylistsProtected') &&
@@ -7427,14 +7541,25 @@ function PlayPlaylist (Playlist, goToStatus = 0) {
 		Playlist +
 		'/0/false/' +
 		(scheduleProtected ? 'true' : 'false');
-	$.get(url, function () {
-		if (goToStatus) location.href = 'index.php';
-		else $.jGrowl('Playlist Started', { themeState: 'success' });
-	});
+	$.get(url)
+		.done(function () {
+			if (goToStatus) location.href = 'index.php';
+			else $.jGrowl('Playlist Started', { themeState: 'success' });
+		})
+		.fail(function () {
+			DialogError('Command failed', 'Unable to start Playlist');
+		});
 }
 
 function StartPlaylistNow () {
 	var Playlist = $('#playlistSelect').val();
+	// The dropdown starts on the "-- Select Playlist or Sequence --" placeholder,
+	// whose value is empty. Posting that anyway used to come back 200 with nothing
+	// playing, so the toast below announced a playlist that never started.
+	if (!Playlist) {
+		$.jGrowl('Select a playlist or sequence first', { themeState: 'detract' });
+		return;
+	}
 	var repeat = $('#chkRepeat').is(':checked') ? true : false;
 	// Check if UI-started playlists should be protected from schedule override
 	var scheduleProtected =
@@ -8166,17 +8291,12 @@ function GetFPPDmode () {
 }
 
 var helpOpen = 0;
+var lastHelpPage = '';
 function HelpClosed () {
 	helpOpen = 0;
 }
 
 function DisplayHelp () {
-	if (helpOpen) {
-		CloseModalDialog('helpDialog');
-		helpOpen = 0;
-		return;
-	}
-
 	var tmpHelpPage = helpPage;
 	var tabs = $('#settingsManagerTabs li .active');
 
@@ -8191,6 +8311,18 @@ function DisplayHelp () {
 		if (tab != '') {
 			tmpHelpPage = 'help/settings-' + tab + '.php';
 		}
+	}
+
+	if (helpOpen) {
+		if (tmpHelpPage != lastHelpPage) {
+			$('#helpDialogText').load(tmpHelpPage);
+			lastHelpPage = tmpHelpPage;
+			helpPage = tmpHelpPage;
+			return;
+		}
+		CloseModalDialog('helpDialog');
+		helpOpen = 0;
+		return;
 	}
 	var options = {
 		id: 'helpDialog',
@@ -8207,6 +8339,7 @@ function DisplayHelp () {
 	DoModalDialog(options);
 
 	$('#helpDialogText').load(tmpHelpPage);
+	lastHelpPage = tmpHelpPage;
 	helpOpen = 1;
 }
 
@@ -14456,21 +14589,64 @@ function scrollToTop () {
 }
 
 /**
+ * Publish the current FPP_UPDATE_STATE to every consumer.
+ * Marks the check as answered first so a consumer that renders later (or that
+ * binds after the event fired) can pick the state up directly.
+ */
+function publishFppUpdateState () {
+	FPP_UPDATE_STATE.answered = true;
+	FPP_UPDATE_STATE.checkFailed = !FPP_UPDATE_STATE.checked;
+	updateNavbarUpdateIndicator();
+	$(document).trigger('fpp:updateStatusChanged', [FPP_UPDATE_STATE]);
+}
+
+/**
  * Uses the unified update status API to check for updates.
  * Updates global FPP_UPDATE_STATE and fires 'fpp:updateStatusChanged' event.
  * Supports test mode via URL param: ?test=branch|commit|both|uptodate
+ *
+ * This is the single update check for the page: concurrent callers are
+ * coalesced into the one request, so every view renders the same answer (see
+ * _fppUpdateCheckInFlight).  Callers that need a fresh answer after changing
+ * the installed version (an upgrade completing) can just call it again.
+ *
+ * @param retryOnFailure pass false to suppress the single automatic retry.
  */
-function checkForFppUpdate () {
+function checkForFppUpdate (retryOnFailure) {
+	if (_fppUpdateCheckInFlight) {
+		// Already checking -- the in-flight request publishes to everyone.
+		return;
+	}
+	_fppUpdateCheckInFlight = true;
+
+	var retry = retryOnFailure !== false;
 	var testMode = new URLSearchParams(window.location.search).get('test');
 	var apiUrl = 'api/system/updateStatus';
 	if (testMode) {
 		apiUrl += '?test=' + testMode;
 		console.log('Update check using test mode: ' + testMode);
 	}
+
+	// A check that reached no update source is retried once: a cold cache and a
+	// slow first fetch is the common case right after a reboot or an upgrade,
+	// and one retry usually lands the real answer without the user reloading.
+	function scheduleRetry () {
+		if (retry && !FPP_UPDATE_STATE.checked) {
+			setTimeout(function () {
+				checkForFppUpdate(false);
+			}, FPP_UPDATE_CHECK_RETRY_MS);
+		}
+	}
+
 	$.get(apiUrl)
 		.done(function (data) {
+			_fppUpdateCheckInFlight = false;
+
 			if (data.status !== 'OK') {
 				console.log('Update status API returned error');
+				FPP_UPDATE_STATE.checked = false;
+				publishFppUpdateState();
+				scheduleRetry();
 				return;
 			}
 
@@ -14487,13 +14663,14 @@ function checkForFppUpdate () {
 			FPP_UPDATE_STATE.versionUnknown = data.versionUnknown || false;
 			FPP_UPDATE_STATE.isEndOfLife = data.isEndOfLife || false;
 			FPP_UPDATE_STATE.latestMajorVersion = data.latestMajorVersion || 0;
-			FPP_UPDATE_STATE.checked = true;
+			FPP_UPDATE_STATE.forceOsUpgradeAvailable =
+				data.forceOsUpgradeAvailable || false;
+			// The API reports checked:false when no update source answered. Carry
+			// that through rather than assuming the response is a verdict.
+			FPP_UPDATE_STATE.checked = data.checked !== false;
 
-			// Update navbar indicator
-			updateNavbarUpdateIndicator();
-
-			// Fire event for other components (menu banner, upgrade page)
-			$(document).trigger('fpp:updateStatusChanged', [FPP_UPDATE_STATE]);
+			publishFppUpdateState();
+			scheduleRetry();
 		})
 		.fail(function () {
 			console.log('Failed to check for updates via API');
@@ -14507,16 +14684,21 @@ function checkForFppUpdate () {
 				FPP_BRANCH === 'Unknown'
 			) {
 				FPP_UPDATE_STATE.versionUnknown = true;
+				FPP_UPDATE_STATE.checked = false;
+				_fppUpdateCheckInFlight = false;
+				publishFppUpdateState();
 				return;
 			}
 
-			// Fallback to legacy fppstats check for navbar only
+			// Fallback to legacy fppstats check
 			const epochTimeMilliseconds = Date.now();
 			$.get(
 				'https://fppstats.falconchristmas.com/api/fpp_commits?v=' +
 					epochTimeMilliseconds
 			)
 				.done(function (data) {
+					_fppUpdateCheckInFlight = false;
+
 					let remote_commit = '';
 					let latest_non_master = '';
 					let latest_non_master_epoch = 0;
@@ -14566,13 +14748,16 @@ function checkForFppUpdate () {
 					FPP_UPDATE_STATE.localCommit = FPP_LOCAL_COMMIT;
 					FPP_UPDATE_STATE.checked = true;
 
-					updateNavbarUpdateIndicator();
-					$(document).trigger('fpp:updateStatusChanged', [FPP_UPDATE_STATE]);
+					publishFppUpdateState();
 				})
 				.fail(function () {
+					_fppUpdateCheckInFlight = false;
 					console.log(
 						'Failed to check for updates. Assuming no internet access'
 					);
+					FPP_UPDATE_STATE.checked = false;
+					publishFppUpdateState();
+					scheduleRetry();
 				});
 		});
 }

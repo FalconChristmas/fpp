@@ -614,6 +614,8 @@ typedef struct Segment {
     inline static void     modeBlend(bool blend)           { _modeBlend = blend; }
     inline static bool     getmodeBlend(void)              { return _modeBlend; }
     #endif
+    // point the static draw dimensions at this segment, so the pixel accessors address it
+    inline void setDrawDimensions() const { Segment::_vWidth = virtualWidth(); Segment::_vHeight = virtualHeight(); Segment::_vLength = virtualLength(); }
     inline static unsigned vLength()                       { return Segment::_vLength; }
     inline static unsigned vWidth()                        { return Segment::_vWidth; }
     inline static unsigned vHeight()                       { return Segment::_vHeight; }
