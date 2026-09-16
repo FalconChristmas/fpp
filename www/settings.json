@@ -320,7 +320,6 @@
 			"description": "System Settings",
 			"settings": [
 				"GPIOFan",
-				"GPIOFanTemperature",
 				"LEDDisplayType",
 				"bootDelay",
 				"FPP_UUID"
@@ -1626,11 +1625,6 @@
 			"platforms": [
 				"Raspberry Pi"
 			],
-			"children": {
-				"1": [
-					"GPIOFanTemperature"
-				]
-			},
 			"type": "checkbox"
 		},
 		"GPIOFanTemperature": {
