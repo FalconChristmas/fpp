@@ -991,20 +991,6 @@ static void migrateMultiSyncDefaultToMulticast() {
     }
 }
 
-// Materialize DisableHDMICECInit=1 for installs that have never saved
-// the setting. Behavior is already controlled by the fallback in
-// setupHDMICECConfig (getRawSettingInt(...,1)) and the default in
-// www/settings.json (1), so this only persists the implicit default
-// to the settings file for tooling that reads raw. Explicit 0 stays 0.
-// Idempotent; safe to re-run. Paired with upgrade/144 for normal
-// in-place upgrades; this covers FPPOS reflash.
-static void migrateHDMICECDefault() {
-    std::string existing;
-    if (!getRawSetting("DisableHDMICECInit", existing)) {
-        setRawSetting("DisableHDMICECInit", "1");
-    }
-}
-
 // Config-state migrations that must survive an FPPOS reflash, gated on the
 // same /fppos_upgraded marker as checkInstallPackages() (touched by
 // upgradeOS-part2.sh, which is always sourced from the target image being
@@ -1017,7 +1003,6 @@ static void migrateHDMICECDefault() {
 void checkConfigMigrations() {
     if (FileExists("/fppos_upgraded")) {
         migrateMultiSyncDefaultToMulticast();
-        migrateHDMICECDefault();
     }
 }
 
@@ -1333,7 +1318,7 @@ void setupHDMICECConfig(bool rebootIfChanged) {
     if (content.empty()) {
         return;
     }
-    if (applyDisableHDMICECBlock(content, getRawSettingInt("DisableHDMICECInit", 1) != 0)) {
+    if (applyDisableHDMICECBlock(content, getRawSettingInt("DisableHDMICECInit", 0) != 0)) {
         PutFileContents("/boot/firmware/config.txt", content);
         printf("FPP - HDMI CEC configuration changed in config.txt\n");
         if (rebootIfChanged) {
