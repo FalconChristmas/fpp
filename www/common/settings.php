@@ -434,6 +434,11 @@ function ApplySetting($setting, $value)
             // "reboot": 1, so the UI is already prompting for that.
             exec("sudo " . $settings['fppDir'] . "/src/fppinit setupPiRTC", $output);
             break;
+        case 'DisableHDMICECInit':
+            // fppinit owns the config.txt block. The setting is declared
+            // "reboot": 1, so the UI already prompts for reboot.
+            exec("sudo " . $settings['fppDir'] . "/src/fppinit setupHDMICEC", $output);
+            break;
         case 'screensaver':
             SetupScreenBlanking($value);
             break;
