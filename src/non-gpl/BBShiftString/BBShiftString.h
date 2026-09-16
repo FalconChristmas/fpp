@@ -53,8 +53,9 @@ typedef struct {
     uint16_t commandTable[BBSS_COMMAND_TABLE_ENTRIES];
 } __attribute__((__packed__)) BBShiftStringData;
 
-// GPIOCommand::channelOffset value for a command that applies between the two
-// packets of a two packet FalconV5 frame rather than at a data byte position.
+// GPIOCommand::channelOffset value for a command that applies in the FalconV5
+// packet phase rather than at a data byte position: once the first packet has
+// gone out, and for the whole phase in a frame that opens a listen window.
 // Larger than any real offset so it sorts last in the command table build.
 constexpr int GPIO_CMD_AFTER_FIRST_PACKET = 0x7FFFFFFF;
 

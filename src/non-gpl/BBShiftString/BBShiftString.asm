@@ -414,11 +414,38 @@ LOAD_MASKS .macro cmdOffset
 #endif
 
 
+// Load the mask set the ARM parks at the tail of the command table: the
+// end-of-frame masks with the send-only (V4) chain heads cleared.  Every
+// other line is unchanged by the load, and the next frame starts from the
+// command table again.
+LOAD_PARKED_MASKS .macro
+    LDI  tmpReg1, BBSS_PACKET2_MASKS_OFFSET
+#ifdef SHIFT16
+    LBCO &OUTPUT_MASKS, CONST_PRUDRAM, tmpReg1, 16
+    XOUT MASK_HI_BANK, &OUTPUT_MASKS, 16
+    ADD  tmpReg1, tmpReg1, 16
+    LBCO &OUTPUT_MASKS, CONST_PRUDRAM, tmpReg1, 16
+    XOUT MASK_LOW_BANK, &OUTPUT_MASKS, 16
+#else
+    LBCO &OUTPUT_MASKS, CONST_PRUDRAM, tmpReg1, 16
+#endif
+    .endm
+
 OUTPUT_FALCONV5_PACKET .macro
     .newblock
     QBBC  DONE_FALCONV5?, data_flags, 1
 
 START_FALCONV5?:
+    // A frame that opens a listen window ends its packet phase in the bus
+    // turnaround, where nothing drives the pair and the receivers bias it
+    // to idle high.  A V4 receiver that has just taken a config packet
+    // reads that as data on the chain head's port, so in these frames the
+    // send-only chain heads sit low for the whole packet phase instead, as
+    // ports 2-4 of every chain already do.  They get their config packet
+    // from the packet frames that end in the frame's own low reset.
+    QBBC  NO_LISTEN_MUTE?, data_flags, 3
+    LOAD_PARKED_MASKS
+NO_LISTEN_MUTE?:
     OUTPUT_LOW
     TOGGLE_LATCH
 	SLEEPNS	15300, tmpReg1, 0
@@ -460,23 +487,14 @@ FALCONV5_LOOP?:
         SUB     data_len, data_len, 1
         JMP FALCONV5_LOOP?
 DONE_FALCONV5_LOOP?:
+    // The first packet is out.  A send-only (V4) chain has had its config
+    // packet and its line goes low from here: it must not carry the second
+    // packet of a pair.  (In a listen frame the heads were muted above and
+    // this load changes nothing.)
+    LOAD_PARKED_MASKS
     QBBC  DO_FALCONV5_LISTNER?, data_flags, 2
     CLR data_flags, data_flags, 2
-    // Second packet of a pair.  A send-only (V4) chain has had its config
-    // packet in the first one and its line must go low now, not carry the
-    // packet again, so reload the masks the ARM parked for this point (the
-    // end-of-frame masks with those chain heads cleared).  Everything else
-    // is unchanged by the reload.
-    LDI  tmpReg1, BBSS_PACKET2_MASKS_OFFSET
-#ifdef SHIFT16
-    LBCO &OUTPUT_MASKS, CONST_PRUDRAM, tmpReg1, 16
-    XOUT MASK_HI_BANK, &OUTPUT_MASKS, 16
-    ADD  tmpReg1, tmpReg1, 16
-    LBCO &OUTPUT_MASKS, CONST_PRUDRAM, tmpReg1, 16
-    XOUT MASK_LOW_BANK, &OUTPUT_MASKS, 16
-#else
-    LBCO &OUTPUT_MASKS, CONST_PRUDRAM, tmpReg1, 16
-#endif
+    // second packet of a pair: hold the line high between them
     OUTPUT_HIGH
     TOGGLE_LATCH
     SLEEPNS 70000, tmpReg1, 0
