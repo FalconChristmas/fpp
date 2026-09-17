@@ -127,6 +127,7 @@ private:
         int panelType = 0;
         int dataLayout = 0;
         bool pwmDirectRow = false;
+        bool pwmShiftRow = false;
         bool outputByRow = false;
         bool outputBlankData = false;
         bool sharedPRUSS = false;
@@ -191,6 +192,11 @@ private:
     // PWM panels: drive the row lines with a direct binary row number
     // instead of the DP32020A style row shift register
     bool m_pwmDirectRow = false;
+    // FM6373 family only: the opposite opt-in.  That family shipped with the
+    // direct binary row number as its only transport, so it stays the default
+    // there and the shift register has to be asked for explicitly - see
+    // sendPWMConfig().
+    bool m_pwmShiftRow = false;
     // FM6373: next config sequence word for the per-frame rotating refresh
     int m_pwmSeqIdx = 0;
     // the pins this cape muxed to the PRU (only these are released on

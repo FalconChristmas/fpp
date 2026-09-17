@@ -779,6 +779,10 @@ BBShiftPanelManager::PanelParams BBShiftPanelManager::parsePanelParams(const Jso
     // program drives the row lines: Direct Row Select = binary row number
     // on SEL0-4, anything else = the DP32020A style row shift register
     p.pwmDirectRow = (p.addressingMode == ADDRESSING_MODE_DIRECT);
+    // ...and for the FM6373 family the reverse, because direct row select is
+    // what that family has always done: only an explicit ABC Shift selection
+    // switches it to the token shift register (GH #2955).
+    p.pwmShiftRow = (p.addressingMode == ADDRESSING_MODE_ABC_SHIFT);
     if (p.panelType == PANEL_TYPE_FM6363C) {
         // the UI moved FM6363C from the addressing dropdown to the panel
         // type dropdown; internally it stays the PWM addressing mode (old
@@ -933,6 +937,7 @@ bool BBShiftPanelManager::adoptPanelParams(const PanelParams& p) {
     m_panelType = p.panelType;
     m_dataLayout = p.dataLayout;
     m_pwmDirectRow = p.pwmDirectRow;
+    m_pwmShiftRow = p.pwmShiftRow;
     m_colorDepth = p.colorDepth;
     m_outputByRow = p.outputByRow;
     m_outputBlankData = p.outputBlankData;
@@ -2144,15 +2149,22 @@ void BBShiftPanelManager::setupGCLKConfig() {
         return;
     }
     if (pwmChipSeqFor(m_addressingMode)) {
-        // FM6373 family: single OE pulse per row, direct row select (the
-        // only transport implemented for this family; the DP32019B boards
-        // use it).  kingdo9 gives ICND1065L and SM16380SH the same OE style,
-        // so they run this scan too.  Brightness comes from the chip's config
-        // registers, not the blanking time.  [2] = opener pulse width us,
-        // [3] = row period us (~128 DCLKs at the data clock rate, so the scan
-        // rate is about the same while uploading and while free-running
-        // between frames)
-        pwmPru->data_ram[1] = 3;
+        // FM6373 family: single OE pulse per row.  kingdo9 gives ICND1065L
+        // and SM16380SH the same OE style, so they run this scan too.
+        // Brightness comes from the chip's config registers, not the blanking
+        // time.  [2] = opener pulse width us, [3] = row period us (~128 DCLKs
+        // at the data clock rate, so the scan rate is about the same while
+        // uploading and while free-running between frames)
+        //
+        // Row transport: the DP32019B boards this family was written against
+        // put a binary row number on SEL0-4, and that stayed the only choice
+        // here for a while.  Some ICND1065L panels instead wire A/B/C to a
+        // token shift register with D/E grounded (GH #2955), which is the
+        // only way to reach more scan rows than the SEL lines can count.
+        // Direct stays the default so those existing boards are untouched;
+        // bit 0 clear picks the shift register and only an explicit ABC Shift
+        // addressing selection does that.
+        pwmPru->data_ram[1] = 2 | (m_pwmShiftRow ? 0 : 1);
         pwmPru->data_ram[2] = 2;
         pwmPru->data_ram[3] = 20;
         return;
