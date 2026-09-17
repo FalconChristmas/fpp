@@ -500,24 +500,34 @@ static void findFonts(const std::string& dir, std::map<std::string, std::string>
     dp = opendir(dir.c_str());
     if (dp != NULL) {
         while ((ep = readdir(dp))) {
-            char* dot = strstr(ep->d_name, ".");
-            // No dot means no extension — skip
-            if (!dot) {
-                continue;
-            }
-            int location = dot - ep->d_name;
-
-            // We're one of ".", "..", or hidden, so let's skip
-            if (location == 0) {
+            // ".", ".." and hidden entries all start with a dot.
+            //
+            // This used to be done by requiring a dot ANYWHERE in the name and
+            // rejecting one at position 0, which quietly made the recursion
+            // below dead code: every font on the system lives in a directory
+            // named for its family -- truetype/liberation, truetype/noto,
+            // truetype/lato, truetype/dejavu -- and not one of those names
+            // contains a dot, so each was skipped before it could be recursed
+            // into. The only fonts that ever reached the map were the .pfb
+            // files sitting flat in /usr/share/fonts/X11/Type1, which is why
+            // the overlay Font list offered 35 URW faces and none of the
+            // several hundred TrueType fonts actually installed.
+            if (ep->d_name[0] == '.') {
                 continue;
             }
 
             struct stat statbuf;
             std::string dname = dir;
             dname += ep->d_name;
-            lstat(dname.c_str(), &statbuf);
+            if (lstat(dname.c_str(), &statbuf) != 0) {
+                // Raced with a delete, or we cannot stat it; either way there is
+                // nothing to classify. Checked because the fields were
+                // previously read whether or not the call succeeded.
+                continue;
+            }
             if (S_ISLNK(statbuf.st_mode)) {
-                // symlink, skip
+                // symlink, skip -- fontconfig trees are full of them, and
+                // following them is how a scan ends up in a loop
                 continue;
             } else if (S_ISDIR(statbuf.st_mode)) {
                 findFonts(dname + "/", fonts);
