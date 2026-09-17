@@ -67,7 +67,7 @@ FPPBRANCH=${FPPBRANCH:-"master"}
 # user-supplied --os-version so the .img / .fppos filenames match what's
 # baked into the image itself).
 FPPIMAGEVER=${FPPIMAGEVER:-"2026-09"}
-FPPCFGVER="144"
+FPPCFGVER="145"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -1170,7 +1170,11 @@ dtoverlay=miniuart-bt
 # set just carved ~180MB out of usable RAM. Unset lets the firmware pick its
 # own default (64 below 1GB, 76 at 1GB and above), which is what we want.
 [pi5]
-dtparam=uart0=on
+# uart0 enabled with nothing muxed onto the header -- see
+# capes/drivers/pi/fpp-uart0-nopins.dts.  "dtparam=uart0=on" would claim
+# GPIO14 and GPIO15 at boot, and under strict pinmux FPP could never take
+# either back for a cape's own use.
+dtoverlay=fpp-uart0-nopins
 [pi02]
 dtparam=audio=off
 hdmi_force_hotplug=1

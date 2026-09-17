@@ -1,0 +1,38 @@
+/*
+ * Pi 5: give FPP a uart0 device without letting it claim any header pin.
+ *
+ * On a Pi 4 and earlier the primary UART is not muxed onto GPIO14/15 by
+ * default, yet /dev/ttyAMA0 exists -- so FPP mixes the pin itself when a
+ * serial output is configured (PiGPIOUtils configPin(), mode "uart", which
+ * runs "pinctrl set <gpio> <alt>").  Anything not being used for serial stays
+ * an ordinary GPIO, which is how a cape can put a button on GPIO15 and DMX on
+ * GPIO14 at the same time.  The BeagleBone capes work the same way: the device
+ * is enabled in the device tree with nothing muxed, and pins are claimed at
+ * runtime.
+ *
+ * A Pi 5 needs uart0 turned on explicitly or there is no ttyAMA0 at all, and
+ * the obvious "dtparam=uart0=on" enables the device AND muxes both GPIO14 and
+ * GPIO15 at boot.  Since kernel 6.18 enabled strict pinmux for pinctrl-rp1
+ * that claim is final: gpiod requests against either pin fail, and FPP's
+ * runtime "pinctrl set" cannot take them back, because the pinctrl driver
+ * reasserts the claim.  Nor can the pin be reclaimed by unbinding the owner
+ * the way an i2c or spi pin can -- the PL011 driver publishes no unbind
+ * attribute at all.
+ *
+ * So enable uart0 pointing at an empty pin group.  The device probes,
+ * /dev/ttyAMA0 appears, no header pin is claimed, and a Pi 5 behaves like
+ * every other board FPP supports.
+ */
+
+/dts-v1/;
+/plugin/;
+
+&rp1_gpio {
+    fpp_uart0_nopins: fpp_uart0_nopins {
+    };
+};
+
+&rp1_uart0 {
+    pinctrl-0 = <&fpp_uart0_nopins>;
+    status = "okay";
+};
