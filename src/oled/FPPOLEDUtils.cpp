@@ -350,7 +350,18 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                                 pinCap.configPin("gpio", false, buttonaction);
 
                                 action->actions.push_back(new FPPOLEDUtils::InputAction::Action(buttonaction, 0, 0, 100000, pinCap.ptr()));
+                                // Record which navigation buttons exist, exactly as the
+                                // one-pin-per-button branch below does.  Menus that need a
+                                // full Up/Down/Back/Enter set (the Network config pages)
+                                // are hidden when this isn't done, so a cape whose buttons
+                                // hang off an expander would silently lose them.
+                                setInputFlag(buttonaction);
                             }
+                        }
+                        if (action->file == -1) {
+                            // No interrupt line: the buttons are still readable via
+                            // getValue() on each expander line, but only if we poll.
+                            needsPolling = true;
                         }
                     } else if (action->file == -1) {
                         needsPolling = true;
@@ -492,6 +503,8 @@ void FPPOLEDUtils::run() {
     }
 
     OLEDPage::SetHas4DirectionControls((inputFlags & 0x0F) == 0x0F);
+    LogInfo(VB_GPIO, "Input flags: 0x%02X   (Up/Down/Back/Enter all present: %s)\n",
+            inputFlags, OLEDPage::Has4DirectionControls() ? "yes" : "no");
 
     statusPage = new FPPStatusOLEDPage();
     OLEDPage::SetCurrentPage(statusPage);
