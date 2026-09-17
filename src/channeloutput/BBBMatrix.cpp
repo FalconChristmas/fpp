@@ -677,15 +677,10 @@ int BBBMatrix::Init(Json::Value config) {
 
     if (!m_singlePRU) {
         m_pruCopy = new BBBPru(pru ? 0 : 1);
-        m_pruCopy->clearPRUMem(m_pruCopy->data_ram, 24);
     }
 
     m_pru = new BBBPru(pru);
     m_pruData = (BBBPruMatrixData*)m_pru->data_ram;
-    m_pru->clearPRUMem(m_pru->data_ram, sizeof(BBBPruMatrixData));
-    m_pruData->address_dma = m_pru->ddr_addr + m_dataOffset;
-    m_pruData->command = 0;
-    m_pruData->response = 0;
 
     if (!m_singlePRU) {
         if (!m_pruCopy->run("/tmp/FalconMatrixPRUCpy.out")) {
@@ -699,6 +694,18 @@ int BBBMatrix::Init(Json::Value config) {
         WarningHolder::AddWarning(20, "BBBMatrix: Unable to start PRU. May require a reboot.");
         return 0;
     }
+
+    // Nothing may touch the PRU memories before run() has started the core.
+    // The PRUSS is only clocked once its firmware is loaded and running, so an
+    // earlier access is dropped at best and aborts the process at worst - and
+    // run() clears the whole data RAM as its last step anyway, so a write made
+    // before it could never have survived.  The sibling PRU outputs
+    // (BBB48String, BBBSerial, BBShiftString, BBShiftPanel) all order it this
+    // way; this one did not, which is why a board whose PRUSS was left
+    // unpowered segfaulted here instead of reporting the error above.
+    m_pruData->address_dma = m_pru->ddr_addr + m_dataOffset;
+    m_pruData->command = 0;
+    m_pruData->response = 0;
 
     GammaLUT::BuildForColorDepth(gammaCurve, GammaLUT::ParseConfig(config, 2.2f), m_colorDepth);
 
