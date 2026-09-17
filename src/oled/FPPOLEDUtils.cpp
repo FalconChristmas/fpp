@@ -157,6 +157,22 @@ FPPOLEDUtils::InputAction* FPPOLEDUtils::configureGPIOPin(const std::string& pin
 
     pin.configPin(mode, false, nameDesc);
 
+    // configPin() warns and carries on when the line request fails, which it does
+    // for a pin the kernel has handed to a peripheral -- under strict pinmux that
+    // is permanent for, say, a button sharing GPIO15 with an enabled uart0.  Such
+    // a pin cannot be read: getValue() returns a flat 0, and for an active-low
+    // input 0 is "pressed", so registering it would fire the action continuously.
+    //
+    // This is NOT the same as having no event file.  An expander line with no
+    // interrupt has no fd and is polled through getValue(), which is a working
+    // path and must keep working; the question here is only whether the line was
+    // ever acquired.
+    if (!pin.isAcquired()) {
+        LogWarn(VB_GPIO, "Skipping input %s: the line could not be acquired, so it cannot be read\n",
+                pinName.c_str());
+        return nullptr;
+    }
+
     InputAction* action = new InputAction();
     action->pin = pinName;
     action->mode = mode;
