@@ -8317,8 +8317,11 @@ function HelpClosed () {
 function DisplayHelp () {
 	var tmpHelpPage = helpPage;
 	var tabs = $('#settingsManagerTabs li .active');
+	var isErrorReportHelp = typeof errorReportOpen !== 'undefined' && errorReportOpen;
 
-	if (helpPage == 'help/settings.php' && tabs.length == 1) {
+	if (isErrorReportHelp) {
+		tmpHelpPage = 'help/errorReport.php';
+	} else if (helpPage == 'help/settings.php' && tabs.length == 1) {
 		var id = tabs.first().attr('id');
 		const re = /settings-(.*)-tab/;
 		var tab = '';
@@ -8335,7 +8338,19 @@ function DisplayHelp () {
 		if (tmpHelpPage != lastHelpPage) {
 			$('#helpDialogText').load(tmpHelpPage);
 			lastHelpPage = tmpHelpPage;
-			helpPage = tmpHelpPage;
+			if (!isErrorReportHelp) helpPage = tmpHelpPage;
+			// Bring help dialog to front when invoked from Error Report
+			if (isErrorReportHelp) {
+				setTimeout(function () {
+					var helpEl = document.getElementById('helpDialog');
+					if (helpEl) {
+						helpEl.style.zIndex = '1060';
+						// Ensure backdrop is also above Error Report backdrop
+						var backdrops = document.querySelectorAll('.modal-backdrop');
+						if (backdrops.length) backdrops[backdrops.length - 1].style.zIndex = '1059';
+					}
+				}, 10);
+			}
 			return;
 		}
 		CloseModalDialog('helpDialog');
@@ -8358,7 +8373,19 @@ function DisplayHelp () {
 
 	$('#helpDialogText').load(tmpHelpPage);
 	lastHelpPage = tmpHelpPage;
+	if (!isErrorReportHelp) helpPage = tmpHelpPage;
 	helpOpen = 1;
+	// When Error Report is open, ensure Help appears above it
+	if (isErrorReportHelp) {
+		setTimeout(function () {
+			var helpEl = document.getElementById('helpDialog');
+			if (helpEl) {
+				helpEl.style.zIndex = '1060';
+				var backdrops = document.querySelectorAll('.modal-backdrop');
+				if (backdrops.length) backdrops[backdrops.length - 1].style.zIndex = '1059';
+			}
+		}, 10);
+	}
 }
 
 var errorReportPreviewCache = null;
