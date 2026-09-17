@@ -1528,6 +1528,18 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
             // submodel that GET could see perfectly well.
             auto m = getModelLocked(p3);
             if (m) {
+                // One line per overlay control action so the crash-time log
+                // ring can show what last changed a model.  "pixel" and "data"
+                // are deliberately excluded: those are the frame-rate paths
+                // (see docs/PixelOverlayBulkData.md), and a line each would
+                // fill all 256 ring slots in well under a second.  "data"
+                // logs its own line on VB_CHANNELOUT, which the ring skips
+                // for exactly this reason.
+                if (p4 != "pixel" && p4 != "data") {
+                    LogDebug(VB_COMMAND, "PUT /api/overlays/model/%s/%s from %s\n",
+                             m->getName().c_str(), p4.c_str(),
+                             getEffectiveClientIP(req).c_str());
+                }
                 if (p4 == "state") {
                     Json::Value root;
                     if (LoadJsonFromString(std::string(getRequestContent(req)), root)) {
@@ -1665,6 +1677,10 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                 return makeStringResponse("Model Not found " + p3, 404);
             }
         } else if (p2 == "range") {
+            // Same reasoning as the model branch above; a range PUT is a
+            // one-shot control action, not a per-frame one.
+            LogDebug(VB_COMMAND, "PUT /api/overlays/range/%s/%s from %s\n",
+                     p3.c_str(), p4.c_str(), getEffectiveClientIP(req).c_str());
             int val = -1;
             bool deleteAll = false;
             if (p4 == "") {
