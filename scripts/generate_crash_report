@@ -290,9 +290,13 @@ if [ -f /tmp/fppd_crash.log ] && [ -x /opt/fpp/scripts/symbolize_crash_frames.py
     [ -s "$TEMP_DIR/fppd_crash_addr2line.log" ] || rm -f "$TEMP_DIR/fppd_crash_addr2line.log"
 fi
 
-# Playlist state and fault registers at the crash. Included at every level:
-# these are bare scalars (section sizes, register values) that identify
-# nothing, and they are what makes a bare stack actionable.
+# Playlist state, main-loop phase, fault registers and the module map at the
+# crash. Included at every level: these are bare scalars (section sizes,
+# register values), one of our own string literals, and load addresses with the
+# library paths they came from -- none of which identifies anyone, and they are
+# what makes a bare stack actionable. The map matters even when gdb produced a
+# symbolized stack: a frame gdb could not resolve or unwind past is only
+# recoverable afterwards if the load addresses travelled with it.
 #
 # The retained log ring is deliberately NOT copied here -- it is log content,
 # and FPP's logs carry host names, LAN addresses and discovered-device

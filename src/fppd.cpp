@@ -540,10 +540,26 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
         int cfd = open("/tmp/fppd_crash_context.log", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
         if (cfd >= 0) {
             PlaylistDumpCrashState(cfd);
+            // The last call the main loop entered.  A pointer to a string
+            // literal (see SetMainLoopPhase), so reading it here is
+            // signal-safe, and it is the only record of what the main thread
+            // was doing that survives a stack gdb cannot fully unwind.
+            safeWrite(cfd, "Main loop phase: ");
+            safeWrite(cfd, GetMainLoopPhase());
+            safeWrite(cfd, "\n");
             // Written even when gdb succeeded: gdb reports the registers of
             // the thread it happens to unwind, not necessarily the faulting
             // one, and this costs nothing.
             safeWriteFaultRegisters(cfd, ctx);
+            // Also written even when gdb succeeded, and this is the half that
+            // was missing: gdb resolves what it can and leaves everything else
+            // as a bare address, and a frame it fails to unwind past is simply
+            // lost.  Without the load addresses none of those can be recovered
+            // afterwards -- with them, any address in the dump maps back to a
+            // function with addr2line against the matching build.  Addresses
+            // and library paths only, so it belongs with the registers rather
+            // than with the log ring.
+            safeWriteModuleMap(cfd);
             close(cfd);
         }
         int rfd = open("/tmp/fppd_crash_log_ring.log", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
