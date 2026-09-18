@@ -72,6 +72,13 @@
 #define   SEL1_2     ((1 << SEL2_PIN) | (1 << SEL1_PIN))
 #define   SEL0_1_2   ((1 << SEL2_PIN) | (1 << SEL1_PIN) | (1 << SEL0_PIN))
 #define   SEL0_1     ((1 << SEL1_PIN) | (1 << SEL0_PIN))
+// A = clock, C = data, B left alone.  This is what the ABC Shift addressing
+// mode means everywhere else in this driver (see ROW_ADDR_SHIFT in
+// BBShiftPanel.asm, where C carries the data and B only exists to hand the
+// inverted copy to AB Shift panels at the same time).
+#define   SEL0_ONLY  (1 << SEL0_PIN)
+#define   SEL2_ONLY  (1 << SEL2_PIN)
+#define   SEL0_2     ((1 << SEL2_PIN) | (1 << SEL0_PIN))
 
 ONE_PULSE .macro
 	.newblock
@@ -258,22 +265,28 @@ FM_NOWRAP:
 	QBEQ	EXIT, enable.b0, 0xFF
 	JMP		FM_ROWLOOP
 
-// Token shift row driver for this family (A = row clock, B = blanking held
-// through the transition, C = data), same transport the DP3364 scan uses:
-// inject the token on the first row of the pass, then clock it along one
-// position per row.  Panels wired this way ground D/E, so the SEL lines
-// cannot carry a row number at all.
+// Token shift row driver for this family: inject the token on the first row
+// of the pass, then clock it along one position per row.  Panels wired this
+// way ground D/E, so the SEL lines cannot carry a row number at all.
+//
+// A = row clock, C = data, and B is deliberately left low.  The DP3364 scan
+// runs the same transport but holds B high through the transition, because on
+// a DP32020A that line is a blanking input.  It is not one in general - the
+// RUL5258 boards that prompted this (GH #2955) use B as an active-high blank
+// and must not see it pulsed once per row - and driving it is not part of what
+// ABC Shift means elsewhere in this driver either.  A panel that does want a
+// blanking pulse here needs its own addressing mode, not this one.
 FM_SHIFTROW:
-	LDI		r30, SEL1_ONLY
+	LDI		r30, 0
 	SLEEPNS	135, r10, 3
 	QBNE	FM_NOTOKEN, curRowNum, 0
-	LDI		r30, SEL1_2
+	LDI		r30, SEL2_ONLY
 	SLEEPNS	135, r10, 4
-	LDI		r30, SEL0_1_2
+	LDI		r30, SEL0_2
 	SLEEPNS	135, r10, 5
 	JMP		FM_TOKENDONE
 FM_NOTOKEN:
-	LDI		r30, SEL0_1
+	LDI		r30, SEL0_ONLY
 	SLEEPNS	135, r10, 6
 FM_TOKENDONE:
 	LDI		r30, 0
