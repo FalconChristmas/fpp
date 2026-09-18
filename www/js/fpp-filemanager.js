@@ -141,7 +141,14 @@ function GetFiles (dir, extraParams) {
 			data.files.forEach(function (f) {
 				var detail = f.sizeHuman;
 				if ('playtimeSeconds' in f) {
-					detail = f.playtimeSeconds;
+					// null: the server had no cached duration for this file.
+					// Show a placeholder and let LoadMediaDurations() fill it
+					// in, rather than making the whole listing wait on an
+					// ffprobe per file (minutes after a bulk upload).
+					detail =
+						f.playtimeSeconds === null ?
+							"<span class='durationPending text-muted'>…</span>"
+						:	f.playtimeSeconds;
 				}
 
 				var thumbSize = 0;
@@ -247,9 +254,112 @@ function GetFiles (dir, extraParams) {
 				// Lazily fetch the per-sequence fps (server-cached) and fill in
 				// the FPS column afterwards, without blocking the initial list.
 				LoadSequenceFPS();
+			} else if (dir == 'Music' || dir == 'Videos') {
+				LoadMediaDurations(dir);
 			}
 		}
 	});
+}
+
+// Same layout as human_playtime() in common.php so lazily filled cells match
+// the cached ones already in the column.
+function HumanPlaytime (seconds) {
+	var pad = function (n) {
+		return (n < 10 ? '0' : '') + n;
+	};
+	var h = Math.floor(seconds / 3600);
+	return (
+		(h > 0 ? pad(h) + 'h:' : '') +
+		pad(Math.floor(seconds / 60) % 60) +
+		'm:' +
+		pad(Math.floor(seconds) % 60) +
+		's'
+	);
+}
+
+// Fetches the duration for every Music/Videos file the listing came back
+// without one (playtimeSeconds === null, i.e. not in the server cache yet).
+// Each request probes one file and writes it into the server cache, so the
+// next listing arrives complete. Requests run one at a time, matching the
+// serial ffprobe the listing itself used to do, so a bulk upload never has a
+// Pi running several probes at once. Follows LoadSequenceFPS() for how the
+// table is updated: through the Bootstrap Table data model once it is
+// initialized, or the raw cells while its tab is still hidden.
+function LoadMediaDurations (dir) {
+	var pending = (fileData[dir] || []).filter(function (f) {
+		return f.playtimeSeconds === null;
+	});
+	if (pending.length == 0) {
+		return;
+	}
+
+	var decoder = document.createElement('textarea');
+	var decode = function (s) {
+		decoder.innerHTML = s;
+		return decoder.value.trim();
+	};
+
+	var setDuration = function (name, text) {
+		var $table = $('#tbl' + dir);
+		var initialized = !!(
+			$table.closest('.bootstrap-table').length ||
+			$table.data('bootstrap.table')
+		);
+		if (initialized) {
+			var rows = $table.bootstrapTable('getData');
+			for (var r = 0; r < rows.length; r++) {
+				if (
+					rows[r].filename !== undefined &&
+					decode(rows[r].filename) == name
+				) {
+					// reinit:false patches just this <td>; updateRow would
+					// re-render the whole body for every file that comes
+					// back, which yanks the page scroll to the top each time.
+					$table.bootstrapTable('updateCell', {
+						index: r,
+						field: 'duration',
+						value: text,
+						reinit: false
+					});
+					break;
+				}
+			}
+		} else {
+			$table.find('tbody tr').each(function () {
+				var $row = $(this);
+				if (decode($row.find('td.fileName').html()) == name) {
+					$row.find('td.fileExtraInfo').text(text);
+					return false;
+				}
+			});
+		}
+	};
+
+	var next = function () {
+		var f = pending.shift();
+		if (!f) {
+			return;
+		}
+		$.ajax({
+			dataType: 'json',
+			url: 'api/media/' + encodeURIComponent(f.name) + '/duration',
+			success: function (resp) {
+				var d = resp && resp[f.name] ? resp[f.name].duration : null;
+				if (typeof d == 'number' && d >= 0) {
+					f.playtimeSeconds = HumanPlaytime(d);
+				} else {
+					f.playtimeSeconds = 'Unknown';
+				}
+				setDuration(f.name, f.playtimeSeconds);
+			},
+			error: function () {
+				f.playtimeSeconds = 'Unknown';
+				setDuration(f.name, f.playtimeSeconds);
+			},
+			complete: next
+		});
+	};
+	next();
 }
 
 function GetAllFiles () {
