@@ -166,6 +166,23 @@ function GetFiles (dir, extraParams) {
 
 				if (dir == 'Images' && thumbSize > 0) {
 					if (!isDir) {
+						// No thumbnail for an empty file: the request would
+						// only fetch nothing and render a broken image.
+						var thumb = '';
+						if (parseInt(f.sizeBytes) > 0) {
+							thumb =
+								"<img style='display: block; max-width: " +
+								thumbSize +
+								'px; max-height: ' +
+								thumbSize +
+								"px; width: auto; height: auto;' src='api/file/" +
+								dir +
+								'/' +
+								f.name +
+								"' onClick=\"ViewImage('" +
+								f.name +
+								"');\" />";
+						}
 						tableRow =
 							"<tr class='fileDetails' id='fileDetail_" +
 							i +
@@ -173,17 +190,9 @@ function GetFiles (dir, extraParams) {
 							f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') +
 							"</td><td class='fileExtraInfo'>" +
 							detail +
-							"</td><td><img style='display: block; max-width: " +
-							thumbSize +
-							'px; max-height: ' +
-							thumbSize +
-							"px; width: auto; height: auto;' src='api/file/" +
-							dir +
-							'/' +
-							f.name +
-							"' onClick=\"ViewImage('" +
-							f.name +
-							"');\" /></td><td class ='fileTime'>" +
+							'</td><td>' +
+							thumb +
+							"</td><td class ='fileTime'>" +
 							f.mtime +
 							'</td></tr>';
 					} else {
