@@ -357,6 +357,7 @@
 				"disableUIPopoverAlerts",
 				"fileManagerThumbnailSize",
 				"fileManagerTableFilter",
+				"fileManagerHideEmptyTabs",
 				"gpioHideCapePins"
 			]
 		},
@@ -1553,6 +1554,19 @@
 			"tip": "This setting allows filtering to be turned on in FileManager.",
 			"level": 1,
 			"default": "1",
+			"type": "checkbox",
+			"checkedValue": "1",
+			"uncheckedValue": "0",
+			"exposedAsJSToPages": [
+				"filemanager"
+			]
+		},
+		"fileManagerHideEmptyTabs": {
+			"name": "fileManagerHideEmptyTabs",
+			"description": "File Manager Hide Empty Tabs",
+			"tip": "Hide File Manager tabs that contain no files. A tab reappears once a file of that type is uploaded.",
+			"level": 1,
+			"default": "0",
 			"type": "checkbox",
 			"checkedValue": "1",
 			"uncheckedValue": "0",

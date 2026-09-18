@@ -11,6 +11,7 @@
     <li><b>Disable UI Popover Event Alerts</b> (checkbox, Advanced) — Hides popover alerts in the top-right. These give feedback on events; disable only in special cases. Reloads UI.</li>
     <li><b>File Manager Thumbnail Size</b> (dropdown, Advanced) — Max size of image previews in File Manager. Options: Disabled, 25, 50, 75, 100, 125, 150, 175, 200 pixels. Keeps aspect ratio.</li>
     <li><b>File Manager Enable Filter</b> (checkbox, Advanced) — Adds a filter/search box to the File Manager tables.</li>
+    <li><b>File Manager Hide Empty Tabs</b> (checkbox, Advanced) — Hides File Manager tabs that have no files in them. A tab reappears once a file of that type is uploaded; the tab you are on is never hidden.</li>
     <li><b>Hide Cape Controlled GPIO Pins</b> (checkbox, Advanced) — Hides pins the current cape uses from the GPIO page so you do not accidentally reassign them.</li>
 </ul>
 

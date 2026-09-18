@@ -250,6 +250,7 @@ function GetFiles (dir, extraParams) {
 		complete: function () {
 			SetupTableSorter('tbl' + dir);
 			UpdateFileCount(dir);
+			UpdateTabVisibility(dir);
 			if (dir == 'Sequences') {
 				// Lazily fetch the per-sequence fps (server-cached) and fill in
 				// the FPS column afterwards, without blocking the initial list.
@@ -542,6 +543,30 @@ function UpdateFileCount ($dir) {
 			.removeClass('text-bg-success')
 			.addClass('text-bg-secondary');
 	}
+}
+
+// Hide a tab whose directory has nothing in it when the
+// fileManagerHideEmptyTabs setting is on. The active tab is left alone so
+// its pane never ends up orphaned; if the last file on it is deleted the
+// tab goes away on the next page load. Uploads re-list every directory, so
+// a hidden tab comes back as soon as it has a file.
+function UpdateTabVisibility (dir) {
+	var $pane = $('#tbl' + dir).closest('.tab-pane');
+	if (!$pane.length) {
+		return;
+	}
+	var $tab = $('#fileManagerTabs a[href="#' + $pane.attr('id') + '"]').parent();
+	var hide =
+		settings.fileManagerHideEmptyTabs == '1' &&
+		(fileData[dir] || []).length == 0 &&
+		!$pane.hasClass('active');
+	$tab.toggleClass('d-none', hide);
+}
+
+function FileManagerHideEmptyTabsToggled () {
+	Object.keys(fileData).forEach(function (dir) {
+		UpdateTabVisibility(dir);
+	});
 }
 
 function FileManagerFilterToggled () {

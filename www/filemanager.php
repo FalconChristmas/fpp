@@ -854,6 +854,7 @@
                     </div>
                     <div id="tablefilterChk" class="mt-3">
                         <?php PrintSetting('fileManagerTableFilter', 'FileManagerFilterToggled'); ?>
+                        <?php PrintSetting('fileManagerHideEmptyTabs', 'FileManagerHideEmptyTabsToggled'); ?>
                     </div>
                 </div>
                 <div id="overlay">

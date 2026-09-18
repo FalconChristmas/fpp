@@ -1,5 +1,5 @@
 <h3>File Manager</h3>
-<p>File Manager is where you see, upload, preview and organize everything FPP plays or stores. Files are grouped into tabs across the top. Click a tab to show that kind of file. Tables can be sorted by clicking column headers and filtered when the <i>Enable Filter</i> option is on in <code>Settings → UI</code>. Counts and total size for the current tab appear at the top right of each section.</p>
+<p>File Manager is where you see, upload, preview and organize everything FPP plays or stores. Files are grouped into tabs across the top. Click a tab to show that kind of file. Tables can be sorted by clicking column headers and filtered when the <i>Enable Filter</i> option is on in <code>Settings → UI</code>. Tabs with no files can be hidden with <i>Hide Empty Tabs</i> (also in <code>Settings → UI</code>); both switches are repeated at the bottom of this page. Counts and total size for the current tab appear at the top right of each section.</p>
 
 <h4>Uploading</h4>
 <ul>
