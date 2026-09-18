@@ -5591,7 +5591,7 @@ function GetFiles (dir) {
 
 				var tableRow = '';
 				if (dir == 'Images' && thumbSize > 0) {
-					if (parseInt(f.sizeBytes) > 0) {
+					if (f.isDirectory !== true) {
 						tableRow =
 							"<tr class='fileDetails' id='fileDetail_" +
 							i +

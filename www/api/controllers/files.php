@@ -256,6 +256,7 @@ function GetFilesHelper($dirName, $prefix = '')
                 $current["mtime"] = date('m/d/y  h:i A', $mTime);
                 $current["sizeBytes"] = 0;
                 $current["sizeHuman"] = 'Directory';
+                $current["isDirectory"] = true;
 
                 $entries = array($current);
 
@@ -358,6 +359,8 @@ function GetFilesHelper($dirName, $prefix = '')
  *   ]
  * }
  * ```
+ * Subdirectories are listed with `"isDirectory": true`, `sizeBytes` 0 and
+ * `sizeHuman` "Directory".
  */
 function GetFiles()
 {

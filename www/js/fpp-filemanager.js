@@ -160,8 +160,12 @@ function GetFiles (dir, extraParams) {
 				}
 
 				var tableRow = '';
+				// Directories are flagged by the API; a zero-byte file is
+				// still a file (and must keep its single-file actions).
+				var isDir = f.isDirectory === true;
+
 				if (dir == 'Images' && thumbSize > 0) {
-					if (parseInt(f.sizeBytes) > 0) {
+					if (!isDir) {
 						tableRow =
 							"<tr class='fileDetails' id='fileDetail_" +
 							i +
@@ -196,7 +200,7 @@ function GetFiles (dir, extraParams) {
 					}
 				} else {
 					var extraClass = 'fileDetails';
-					if (f.sizeBytes == 0) {
+					if (isDir) {
 						extraClass += ' fileIsDirectory';
 					}
 
@@ -206,7 +210,7 @@ function GetFiles (dir, extraParams) {
 					var fpsCell = '';
 					if (dir == 'Sequences') {
 						var fpsVal = '';
-						if (f.sizeBytes != 0) {
+						if (!isDir) {
 							fpsVal =
 								sequenceFpsCache[f.name] !== undefined
 									? sequenceFpsCache[f.name]
