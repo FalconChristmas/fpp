@@ -169,8 +169,6 @@ function GetFiles (dir, extraParams) {
 							f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') +
 							"</td><td class='fileExtraInfo'>" +
 							detail +
-							"</td><td class ='fileTime'>" +
-							f.mtime +
 							"</td><td><img style='display: block; max-width: " +
 							thumbSize +
 							'px; max-height: ' +
@@ -181,7 +179,9 @@ function GetFiles (dir, extraParams) {
 							f.name +
 							"' onClick=\"ViewImage('" +
 							f.name +
-							'\');" /></td></tr>';
+							"');\" /></td><td class ='fileTime'>" +
+							f.mtime +
+							'</td></tr>';
 					} else {
 						tableRow =
 							"<tr class='fileDetails fileIsDirectory' id='fileDetail_" +
@@ -190,9 +190,9 @@ function GetFiles (dir, extraParams) {
 							f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') +
 							"</td><td class='fileExtraInfo'>" +
 							detail +
-							"</td><td class ='fileTime'>" +
+							"</td><td>Subdir</td><td class ='fileTime'>" +
 							f.mtime +
-							'</td><td>Subdir</td></tr>';
+							'</td></tr>';
 					}
 				} else {
 					var extraClass = 'fileDetails';
@@ -214,6 +214,12 @@ function GetFiles (dir, extraParams) {
 						}
 						fpsCell =
 							"<td class='fileFPS' align='right'>" + fpsVal + '</td>';
+					}
+					// Images reach this branch when thumbnails are disabled;
+					// the table still has a Thumbnail column, so emit an empty
+					// cell or the date shifts under the wrong header.
+					if (dir == 'Images') {
+						fpsCell = '<td></td>';
 					}
 
 					tableRow =
