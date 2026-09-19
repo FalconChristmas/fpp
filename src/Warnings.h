@@ -72,6 +72,11 @@ public:
     static void RemoveWarning(int id, const std::string& w, const std::string& plugin = "");
     static void RemoveAllWarnings();
 
+    // Recompute the "A Log Level is set to Debug/Excessive" warnings from the
+    // current logger levels.  Call after any change to log levels, whatever
+    // path it came in on (settings page, REST API, command socket).
+    static void UpdateLogLevelWarnings();
+
     static void AddWarningListener(WarningListener* l);
     static void RemoveWarningListener(WarningListener* l);
 

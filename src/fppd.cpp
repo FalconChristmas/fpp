@@ -1929,11 +1929,7 @@ void MainLoop(void) {
 
     LogInfo(VB_GENERAL, "Starting main processing loop\n");
 
-    int lowestLogLevel = FPPLogger::INSTANCE.MinimumLogLevel();
-    if (lowestLogLevel == LOG_EXCESSIVE)
-        WarningHolder::AddWarning(2, EXCESSIVE_LOG_LEVEL_WARNING);
-    else if (lowestLogLevel == LOG_DEBUG)
-        WarningHolder::AddWarning(3, DEBUG_LOG_LEVEL_WARNING);
+    WarningHolder::UpdateLogLevelWarnings();
 
     int idleCount = 0;
 

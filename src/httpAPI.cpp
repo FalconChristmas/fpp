@@ -1356,6 +1356,7 @@ HttpResponsePtr PlayerResource::render_POST(const HttpRequestPtr& req) {
             for (FPPLoggerInstance* logger : FPPLogger::INSTANCE.allInstances()) {
                 setSetting("LogLevel_" + logger->name, LogLevelToString(logger->level), true);
             }
+            WarningHolder::UpdateLogLevelWarnings();
             SetOKResult(result, "Log Level Updated");
         } else {
             SetErrorResult(result, 400, "Invalid or unrecognized log level: " + url);
