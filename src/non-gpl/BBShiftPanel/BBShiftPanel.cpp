@@ -219,26 +219,8 @@ constexpr int SM16380SH_SEQ_LEN = 32;
 // change with the scan rate on these chips, so a table is only really valid
 // for the geometry it came from; where a second capture is known the closest
 // one is used instead of stretching the default.
-struct PWMChipSeqVariant {
-    int scan;
-    const uint16_t* r;
-    const uint16_t* g;
-    const uint16_t* b;
-};
-
-struct PWMChipSeq {
-    const uint16_t* r;
-    const uint16_t* g;
-    const uint16_t* b;
-    int len;
-    int slots;          // 5, or 6 for a chip with an extra pre-commit word
-    uint16_t extraWord; // that word; only read when slots == 6
-    bool midLatch;      // send the 11 clock LAT burst
-    uint8_t scanReg;    // register address holding the scan row count
-    int defaultScan;    // scan rate the tables above were captured at
-    const PWMChipSeqVariant* variants;
-    int variantCount;
-};
+// PWMChipSeq / PWMChipSeqVariant are declared in BBShiftPanel.h so the
+// manager can hold an imported profile by value.
 
 static const PWMChipSeq* pwmChipSeqFor(int addressingMode) {
     // Scan count: every profile in the kingdo9 catalog puts (rows - 1) in the
@@ -783,6 +765,46 @@ BBShiftPanelManager::PanelParams BBShiftPanelManager::parsePanelParams(const Jso
     // what that family has always done: only an explicit ABC Shift selection
     // switches it to the token shift register (GH #2955).
     p.pwmShiftRow = (p.addressingMode == ADDRESSING_MODE_ABC_SHIFT);
+
+    // An imported PWM register profile (see www/co-ledPanels.php).  The UI
+    // resolves a catalog entry down to its three word lists and stores them
+    // here, so the config is self contained and survives a backup/restore
+    // without the file it came from.  Anything malformed is dropped with a
+    // warning rather than half applied - the built-in table is a working
+    // fallback, a truncated upload is not.
+    if (config.isMember("panelRegisters")) {
+        const Json::Value& pr = config["panelRegisters"];
+        static const char* KEYS[3] = { "r", "g", "b" };
+        std::vector<uint16_t> words[3];
+        bool ok = true;
+        for (int c = 0; c < 3 && ok; c++) {
+            if (!pr.isMember(KEYS[c]) || !pr[KEYS[c]].isArray() || pr[KEYS[c]].empty()) {
+                ok = false;
+                break;
+            }
+            for (const auto& w : pr[KEYS[c]]) {
+                // accept both the catalog's bare hex ("025f") and a number
+                unsigned long v = w.isString() ? strtoul(w.asString().c_str(), nullptr, 16)
+                                               : (unsigned long)w.asUInt();
+                if (v > 0xFFFF) {
+                    ok = false;
+                    break;
+                }
+                words[c].push_back((uint16_t)v);
+            }
+        }
+        if (ok && (words[0].size() != words[1].size() || words[0].size() != words[2].size())) {
+            ok = false;
+        }
+        if (ok) {
+            for (int c = 0; c < 3; c++) {
+                p.regProfile[c] = std::move(words[c]);
+            }
+            p.regProfileName = pr.isMember("profile") ? pr["profile"].asString() : "imported";
+        } else {
+            LogWarn(VB_CHANNELOUT, "BBShiftPanel: ignoring malformed panelRegisters profile; using the built-in table\n");
+        }
+    }
     if (p.panelType == PANEL_TYPE_FM6363C) {
         // the UI moved FM6363C from the addressing dropdown to the panel
         // type dropdown; internally it stays the PWM addressing mode (old
@@ -938,6 +960,7 @@ bool BBShiftPanelManager::adoptPanelParams(const PanelParams& p) {
     m_dataLayout = p.dataLayout;
     m_pwmDirectRow = p.pwmDirectRow;
     m_pwmShiftRow = p.pwmShiftRow;
+    buildRegisterProfile(p);
     m_colorDepth = p.colorDepth;
     m_outputByRow = p.outputByRow;
     m_outputBlankData = p.outputBlankData;
@@ -1213,7 +1236,7 @@ int BBShiftPanelManager::StartPRU() {
     if (isPWMPanel()) {
         // b0 = chip family, b1 = register slot count, b2 = middle LAT burst
         // length (0 = skip it).  Only the FM6373 family reads b1/b2.
-        if (const PWMChipSeq* seq = pwmChipSeqFor(m_addressingMode)) {
+        if (const PWMChipSeq* seq = activePWMSeq()) {
             addrCfg = 1 | ((uint32_t)seq->slots << 8) | ((seq->midLatch ? 11u : 0u) << 16);
         } else if (m_addressingMode == ADDRESSING_MODE_DP3364) {
             // The DP3364S upload is the same shape as the FM6373 one with a
@@ -1754,7 +1777,7 @@ void BBShiftPanelManager::publishFrame() {
         // Send the command to setup the registers
         pruData->numBlocks = rowLen / 16;
         pruData->numRows = numRows;
-        if (const PWMChipSeq* seq = pwmChipSeqFor(m_addressingMode)) {
+        if (const PWMChipSeq* seq = activePWMSeq()) {
             // rotate the config sequence one word per frame as a continuous
             // refresh; the vsync is part of the FM6373 register upload so
             // PWM_COMMAND_SYNC is not set for this family
@@ -1903,7 +1926,7 @@ void BBShiftPanelManager::setupPWMRegisters() {
         return;
     }
 
-    if (const PWMChipSeq* seq = pwmChipSeqFor(m_addressingMode)) {
+    if (const PWMChipSeq* seq = activePWMSeq()) {
         // FM6373 family: the per-frame words are the 0x00AA/0x01AA
         // write-enable pair, one word of the config register sequence, an
         // optional chip specific word, and the 0x0055/0x0155 commit pair (see
@@ -1922,7 +1945,10 @@ void BBShiftPanelManager::setupPWMRegisters() {
         idx = outputRegData(idx, odata, 0x0155, 0x0155, 0x0155, m_numOutputSlots);
         pru->memcpyToPRU((uint8_t*)&pruData->registers[0], &odata[0], idx);
 
-        bool haveScan = ((int)numRows == seq->defaultScan);
+        // An imported profile was picked for this panel deliberately, so it
+        // is the authority on its own scan rate and the built-in capture's
+        // rate says nothing about it.
+        bool haveScan = m_haveProfile || ((int)numRows == seq->defaultScan);
         for (int v = 0; v < seq->variantCount && !haveScan; v++) {
             haveScan = (seq->variants[v].scan == (int)numRows);
         }
@@ -2038,6 +2064,54 @@ void BBShiftPanelManager::setupPWMRegisters() {
                              : "memory");
 }
 
+// Adopt an imported register profile, if the config carried one and this chip
+// is one whose upload grammar we drive from a PWMChipSeq.  The grammar itself
+// (slot count, extra word, middle LAT burst, which register holds the scan
+// count) is a property of the chip, not of the capture, so it is taken from
+// the built-in entry and only the word lists are replaced.
+void BBShiftPanelManager::buildRegisterProfile(const PanelParams& p) {
+    m_haveProfile = false;
+    m_profName.clear();
+    for (int c = 0; c < 3; c++) {
+        m_profWords[c].clear();
+    }
+    if (p.regProfile[0].empty()) {
+        return;
+    }
+    const PWMChipSeq* base = pwmChipSeqFor(m_addressingMode);
+    if (!base) {
+        // FM6353C/FM6363C drive their registers from a different code path
+        // that has no PWMChipSeq to override, and the catalog stores those
+        // two as the "fixed" payload type rather than "rgb".
+        LogWarn(VB_CHANNELOUT, "BBShiftPanel: a register profile was configured but this panel type does not use one; ignoring it\n");
+        return;
+    }
+    for (int c = 0; c < 3; c++) {
+        m_profWords[c] = p.regProfile[c];
+    }
+    m_profSeq = *base;
+    m_profSeq.r = m_profWords[0].data();
+    m_profSeq.g = m_profWords[1].data();
+    m_profSeq.b = m_profWords[2].data();
+    m_profSeq.len = (int)m_profWords[0].size();
+    // numRows is not known yet here (computeGeometry runs later), so the
+    // scan-mismatch warning is suppressed at its own site via m_haveProfile
+    // rather than by faking a defaultScan.
+    m_profSeq.variants = nullptr;
+    m_profSeq.variantCount = 0;
+    m_haveProfile = true;
+    m_profName = p.regProfileName;
+    LogInfo(VB_CHANNELOUT, "BBShiftPanel: using imported register profile '%s' (%d words per color)\n",
+            m_profName.c_str(), m_profSeq.len);
+}
+
+const PWMChipSeq* BBShiftPanelManager::activePWMSeq() const {
+    if (m_haveProfile) {
+        return &m_profSeq;
+    }
+    return pwmChipSeqFor(m_addressingMode);
+}
+
 void BBShiftPanelManager::writeFM6373SeqWord(int idx) {
     // rewrite the rotating register slot (slot 3 of 5) with sequence word
     // idx.  Only safe while no register upload is in flight: called from
@@ -2045,7 +2119,7 @@ void BBShiftPanelManager::writeFM6373SeqWord(int idx) {
     // uploading frame data, which never reads the register slots, and the
     // previous REGISTERS upload completed before that DATA was dispatched)
     // and from the serialized init loop in setupPWMRegisters.
-    const PWMChipSeq* seq = pwmChipSeqFor(m_addressingMode);
+    const PWMChipSeq* seq = activePWMSeq();
     const uint16_t* sr = seq->r;
     const uint16_t* sg = seq->g;
     const uint16_t* sb = seq->b;
@@ -2148,7 +2222,7 @@ void BBShiftPanelManager::setupGCLKConfig() {
         pwmPru->data_ram[4] = (DP3364_SEQ_R[1] & 0x7F) + 1;
         return;
     }
-    if (pwmChipSeqFor(m_addressingMode)) {
+    if (activePWMSeq()) {
         // FM6373 family: single OE pulse per row.  kingdo9 gives ICND1065L
         // and SM16380SH the same OE style, so they run this scan too.
         // Brightness comes from the chip's config registers, not the blanking
