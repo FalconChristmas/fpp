@@ -164,6 +164,11 @@ private:
         // in the log.  See BBShiftPanel::buildRegisterProfile().
         std::vector<uint16_t> regProfile[3];
         std::string regProfileName;
+        // FM6373 family OE timing, in DCLK periods (the reference
+        // implementation's units) except the row period, which is in us
+        int oeClkLength = 0;        // 0 = keep the historical 600ns pulse
+        int oeFirstClkLength = 0;   // 0 = keep the historical 2us opener
+        int oeRowPeriodUs = 20;
     };
     static PanelParams parsePanelParams(const Json::Value& config, const Json::Value& capeConfig);
 
@@ -239,6 +244,9 @@ private:
     PWMChipSeq m_profSeq{};
     bool m_haveProfile = false;
     std::string m_profName;
+    int m_oeClkLength = 0;
+    int m_oeFirstClkLength = 0;
+    int m_oeRowPeriodUs = 20;
     void buildRegisterProfile(const PanelParams& p);
     const PWMChipSeq* activePWMSeq() const;
     // the pins this cape muxed to the PRU (only these are released on

@@ -456,6 +456,9 @@
         ["LEDPanelsStartCorner", "invertedData"],
         ["LEDPanelsRowAddressType", "panelRowAddressType"],
         ["LEDPanelsType", "panelType"],
+        ["LEDPanelsOEClkLength", "panelOEClkLength"],
+        ["LEDPanelsOEFirstClkLength", "panelOEFirstClkLength"],
+        ["LEDPanelsOERowPeriodUs", "panelOERowPeriodUs"],
         ["LEDPanelInterleave", "panelInterleave"],
         ["LEDPanelDataLayout", "panelDataLayout"],
         ["LEDPanelsOutputByRow", "panelOutputOrder", val => val ? 1 : 0],
@@ -1707,6 +1710,20 @@
         if (mp?.panelRegisters?.r?.length) {
             config.panelRegisters = mp.panelRegisters;
         }
+
+        // OE timing overrides.  Left out of the config entirely when blank so
+        // fppd keeps the timing it has always emitted for this family.
+        [["LEDPanelsOEClkLength", "panelOEClkLength"],
+         ["LEDPanelsOEFirstClkLength", "panelOEFirstClkLength"],
+         ["LEDPanelsOERowPeriodUs", "panelOERowPeriodUs"]].forEach(([cls, key]) => {
+            const v = matrixDiv.find('.' + cls).val();
+            if (v !== undefined && v !== null && String(v).trim() !== "") {
+                const n = parseInt(v);
+                if (!isNaN(n) && n > 0) {
+                    config[key] = n;
+                }
+            }
+        });
 
         if (matrixDiv.find('.LEDPanelInterleave').length > 0) {
             var rat = matrixDiv.find('.LEDPanelInterleave').val();
@@ -3917,6 +3934,16 @@
                              one.  This imports a profile from a capture catalog instead.
                              Only the chips whose registers FPP uploads from a word list
                              (see pwmChipSeqFor in BBShiftPanel.cpp) can take one. -->
+                        <div class="row PWMRegProfileRow" style="display:none;">
+                            <div class="printSettingLabelCol col-md-2 col-lg-2"><b>PWM OE Timing:</b></div>
+                            <div class="printSettingFieldCol col-md-10 col-lg-10">
+                                OE pulse <input type="number" class="LEDPanelsOEClkLength" min="0" max="255" step="1" style="width:6em;" placeholder="4">
+                                &nbsp;opener <input type="number" class="LEDPanelsOEFirstClkLength" min="0" max="255" step="1" style="width:6em;" placeholder="12">
+                                <span style="opacity:0.75;">&nbsp;(DCLK periods; blank = FPP default)</span>
+                                &nbsp;row period <input type="number" class="LEDPanelsOERowPeriodUs" min="1" max="255" step="1" style="width:6em;" placeholder="20">
+                                <span style="opacity:0.75;">&nbsp;&micro;s</span>
+                            </div>
+                        </div>
                         <div class="row PWMRegProfileRow" style="display:none;">
                             <div class="printSettingLabelCol col-md-2 col-lg-2"><b>PWM Register Profile:</b></div>
                             <div class="printSettingFieldCol col-md-10 col-lg-10">

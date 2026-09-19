@@ -766,6 +766,32 @@ BBShiftPanelManager::PanelParams BBShiftPanelManager::parsePanelParams(const Jso
     // switches it to the token shift register (GH #2955).
     p.pwmShiftRow = (p.addressingMode == ADDRESSING_MODE_ABC_SHIFT);
 
+    // OE timing for the FM6373 family, in the reference implementation's units
+    // (DCLK periods) so its published values can be used directly.  0/absent
+    // keeps the default.
+    if (config.isMember("panelOEClkLength")) {
+        p.oeClkLength = config["panelOEClkLength"].asInt();
+    }
+    if (config.isMember("panelOEFirstClkLength")) {
+        p.oeFirstClkLength = config["panelOEFirstClkLength"].asInt();
+    }
+    if (config.isMember("panelOERowPeriodUs")) {
+        p.oeRowPeriodUs = config["panelOERowPeriodUs"].asInt();
+    }
+    // 0 means "unset", and unset must reproduce exactly what this emitted
+    // before these knobs existed - a 600ns pulse and a 2us opener - rather
+    // than the reference's defaults, which convert to slightly different
+    // values and would quietly retime every existing panel of this family.
+    if (p.oeClkLength < 0 || p.oeClkLength > 255) {
+        p.oeClkLength = 0;
+    }
+    if (p.oeFirstClkLength < 0 || p.oeFirstClkLength > 255) {
+        p.oeFirstClkLength = 0;
+    }
+    if (p.oeRowPeriodUs < 1 || p.oeRowPeriodUs > 255) {
+        p.oeRowPeriodUs = 20;
+    }
+
     // An imported PWM register profile (see www/co-ledPanels.php).  The UI
     // resolves a catalog entry down to its three word lists and stores them
     // here, so the config is self contained and survives a backup/restore
@@ -960,6 +986,9 @@ bool BBShiftPanelManager::adoptPanelParams(const PanelParams& p) {
     m_dataLayout = p.dataLayout;
     m_pwmDirectRow = p.pwmDirectRow;
     m_pwmShiftRow = p.pwmShiftRow;
+    m_oeClkLength = p.oeClkLength;
+    m_oeFirstClkLength = p.oeFirstClkLength;
+    m_oeRowPeriodUs = p.oeRowPeriodUs;
     buildRegisterProfile(p);
     m_colorDepth = p.colorDepth;
     m_outputByRow = p.outputByRow;
@@ -2239,8 +2268,23 @@ void BBShiftPanelManager::setupGCLKConfig() {
         // bit 0 clear picks the shift register and only an explicit ABC Shift
         // addressing selection does that.
         pwmPru->data_ram[1] = 2 | (m_pwmShiftRow ? 0 : 1);
-        pwmPru->data_ram[2] = 2;
-        pwmPru->data_ram[3] = 20;
+        // OE timing.  The reference implementation denominates these in DCLK
+        // periods rather than in time, and they are the first thing its users
+        // tune on a panel that will not light, so take DCLK counts here too
+        // and convert.  The defaults are its defaults (oe_clk_length 4,
+        // first_oe_clk_length 12), which at either data clock rate land on
+        // about the fixed 600ns / 2us this used to emit.
+        int dclk = m_numOutputSlots == 16 ? DCLK_NS_16 : DCLK_NS_8;
+        pwmPru->data_ram[2] = m_oeFirstClkLength
+                                  ? std::clamp((m_oeFirstClkLength * dclk + 999) / 1000, 1, 255)
+                                  : 2;
+        pwmPru->data_ram[3] = m_oeRowPeriodUs;
+        // byte 5 is in 100ns units; see oeWidth in BBShiftPanel_gclk.asm
+        pwmPru->data_ram[5] = m_oeClkLength
+                                  ? std::clamp((m_oeClkLength * dclk + 99) / 100, 1, 255)
+                                  : 6;
+        LogDebug(VB_CHANNELOUT, "BBShiftPanel: OE pulse %d (100ns units), opener %dus, row period %dus (DCLK %dns)\n",
+                 pwmPru->data_ram[5], pwmPru->data_ram[2], pwmPru->data_ram[3], dclk);
         return;
     }
     pwmPru->data_ram[1] = m_pwmDirectRow ? 1 : 0;

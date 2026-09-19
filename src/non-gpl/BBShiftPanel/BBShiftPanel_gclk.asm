@@ -64,6 +64,12 @@
 // DP3364S scan only
 #define numGroups	r24.b0
 #define curGroup	r25.b0
+// FM6373 scan only: the per-row OE pulse width in 100ns units, from data RAM
+// byte 5 (0 -> 6, i.e. the 600ns this used to emit unconditionally).  The
+// reference implementation denominates this in DCLK periods rather than time
+// and it is the first thing its users tune on a panel that will not light, so
+// the ARM converts a DCLK count into these units - see setupGCLKConfig().
+#define oeWidth		r24.b1
 
 
 #define   CLK_HI	 (1 << GCLK_PIN)
@@ -167,6 +173,10 @@ _LOOP:
 	LDI		rowConfig.b2, 78
 	LDI		rowConfig.b3, 74
 HAVEPULSECFG:
+	LBCO	&oeWidth, CONST_PRUDRAM, 5, 1
+	QBNE	HAVEOEWIDTH, oeWidth, 0
+	LDI		oeWidth, 6
+HAVEOEWIDTH:
 
 	QBEQ	FOUR_PULSES, enable.b0, 1
 	QBBS	FM6373_SCAN, rowConfig.b1, 1
@@ -249,7 +259,12 @@ FM_ROWLOOP:
 FM_ROWSET:
 	SLEEPNS	135, r10, 4
 	SET		r30, r30, GCLK_PIN
-	SLEEPNS	600, r10, 5
+	// curBright is free here; it is reloaded with the row period below
+	MOV		curBright, oeWidth
+FM_OEHIGH:
+	SLEEPNS	100, r10, 3
+	SUB		curBright, curBright, 1
+	QBNE	FM_OEHIGH, curBright, 0
 	CLR		r30, r30, GCLK_PIN
 	MOV		curBright, rowConfig.b3
 FM_ROWWAIT:

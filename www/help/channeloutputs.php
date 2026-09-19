@@ -32,6 +32,14 @@
 </ul>
 <p>Applying a profile only stages it — <b>Save</b> writes it into the output config and restarts the output. The chosen values are stored in the configuration itself, so they survive a backup and restore without the catalog file. <b>Use Built-in</b> removes the imported profile and goes back to FPP's own table. A profile whose three colour lists are not all the same length is rejected, and fppd falls back to the built-in table (with a warning in the log) rather than half-applying it.</p>
 
+<p><b>PWM OE Timing</b> (LED Panels, BeagleBone capes) — Appears alongside the register profile, for the same three chips. These panels are advanced one display row at a time by a pulse on the OE line, and a chip that does not see a pulse it likes simply never lights. The reference implementation for these chips measures both pulses in <b>DCLK periods</b> rather than in time, so the same units are used here and its published values can be entered directly.</p>
+<ul>
+    <li><b>OE pulse</b> — Width of the per-row pulse, in DCLK periods. The reference default is 4.</li>
+    <li><b>opener</b> — Width of the single longer pulse sent when the scan restarts, in DCLK periods. The reference default is 12.</li>
+    <li><b>row period</b> — How long each row is held, in microseconds.</li>
+</ul>
+<p>Leave a field blank to keep what FPP has always emitted for this family (a 600ns pulse, a 2&micro;s opener and a 20&micro;s row period), which is what existing panels are running. A DCLK period is about 194ns with 16 outputs and 109ns with 8, so the converted value depends on the cape as well as the number entered; the resulting pulse widths are logged at startup. If a panel stays dark with a correct register profile, widening the OE pulse is the usual next thing to try.</p>
+
 <p><b>Note:</b> vendor receiving-card files (NovaStar <code>.rcfgx</code>, ColorLight <code>.rcvbp</code>, Linsn <code>.RCG</code>) cannot be used here. Those files identify the driver chip and scan settings but do not contain the register values themselves — the receiving card holds its own table for each chip, the same way FPP does.</p>
 
 <p><b>Pixelnet Open</b> — The Pixelnet Open output can send Pixelnet data (one 4096-channel universe) out generic FTDI-based USB to RS485 dongles.</p>
