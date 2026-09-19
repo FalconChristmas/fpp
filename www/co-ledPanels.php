@@ -895,6 +895,9 @@
         if (panelMatrixID === undefined) {
             panelMatrixID = GetCurrentActiveMatrixPanelID();
         }
+        if (typeof PWMProfileVisibility === "function") {
+            PWMProfileVisibility(panelMatrixID);
+        }
         <? if (strpos($settings['SubPlatform'], 'PocketBeagle2') !== false) { ?>
             var value = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelsRowAddressType`).val());
             var panelType = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelsType`).val() || 0);
@@ -1306,6 +1309,202 @@
 
 
 
+    //////////////////////////////////////////////////////////////////////
+    // PWM register profiles
+    //
+    // Parsing happens here in the browser rather than on the player: the
+    // catalog never has to be uploaded or stored, and only the handful of
+    // words actually chosen end up in the config.
+    //
+    // Catalog format (kingdo9 .profiles):
+    //   line 1   RGBMATRIX_SPWM_PROFILES_V4 <tab> panel <tab> rgb|fixed <tab> count
+    //   line n   name <tab> source <tab> scan-types <tab> payload
+    //   rgb payload: slot|R-words|G-words|B-words, 4 hex digits, no 0x
+    // Only the "rgb" type is usable - fppd drives the "fixed" chips (FM6353C,
+    // FM6363C) from a different path with no word list to replace.
+
+    // panelType -> the catalog this chip's profiles live in
+    const PWM_PROFILE_CHIPS = { 5: "fm6373", 7: "icnd1065l", 8: "sm16380sh" };
+
+    var PWMCatalogs = {};   // panelMatrixID -> parsed catalog
+
+    function ParseSPWMCatalog(text) {
+        const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+        if (!lines.length) throw "file is empty";
+        const hdr = lines[0].split("\t");
+        if (!hdr[0].startsWith("RGBMATRIX_SPWM_PROFILES")) {
+            throw "not a .profiles catalog (bad header)";
+        }
+        const cat = { panel: (hdr[1] || "").trim(), type: (hdr[2] || "").trim(), profiles: [] };
+        for (let i = 1; i < lines.length; i++) {
+            const f = lines[i].split("\t");
+            if (f.length < 4) continue;
+            const pr = ParseSPWMPayload(f[3]);
+            if (pr) {
+                pr.name = f[0].trim();
+                pr.source = f[1].trim();
+                pr.scans = f[2].trim();
+                cat.profiles.push(pr);
+            }
+        }
+        if (!cat.profiles.length) throw "no usable rgb profiles in this catalog";
+        return cat;
+    }
+
+    // slot|R|G|B -> {slot, r, g, b}; returns null for anything else (the
+    // "fixed" payload type uses ; separated groups and lands here too)
+    function ParseSPWMPayload(payload) {
+        if (!payload) return null;
+        const parts = payload.trim().split("|");
+        if (parts.length !== 4) return null;
+        const slot = parseInt(parts[0], 10);
+        if (!(slot >= 1 && slot <= 6)) return null;
+        const words = [];
+        for (let c = 1; c <= 3; c++) {
+            const w = parts[c].split(",").map(x => x.trim()).filter(x => x.length);
+            if (!w.length || !w.every(x => /^[0-9a-fA-F]{1,4}$/.test(x))) return null;
+            words.push(w.map(x => x.toLowerCase().padStart(4, "0")));
+        }
+        if (words[0].length !== words[1].length || words[0].length !== words[2].length) return null;
+        return { slot: slot, r: words[0], g: words[1], b: words[2] };
+    }
+
+    function PWMProfileMsg(panelMatrixID, msg, bad) {
+        $(`#panelMatrix${panelMatrixID} .PWMRegProfileMsg`)
+            .css("color", bad ? "#b00" : "#070").html(msg);
+    }
+
+    // Repopulate the dropdown from the loaded catalog, preferring profiles
+    // captured at this panel's scan rate - that is the axis most likely to
+    // matter, and 400+ entries is unusable unfiltered.
+    function PWMProfileFillSelect(panelMatrixID) {
+        const mp = channelOutputsLookup?.LEDPanelMatrices?.["panelMatrix" + panelMatrixID];
+        const cat = PWMCatalogs[panelMatrixID];
+        const $sel = $(`#panelMatrix${panelMatrixID} .PWMRegProfileSelect`);
+        $sel.empty();
+        if (!cat) {
+            $sel.append('<option value="">(load a catalog above)</option>');
+            return;
+        }
+        const scan = parseInt(mp?.panelScan || 0);
+        const tag = "Scan_" + scan;
+        const match = cat.profiles.filter(p => p.scans.split(/[,\s]+/).includes(tag));
+        const rest = cat.profiles.filter(p => !p.scans.split(/[,\s]+/).includes(tag));
+        const add = (list, label) => {
+            if (!list.length) return;
+            const $g = $(`<optgroup label="${label}">`);
+            list.forEach(p => {
+                const i = cat.profiles.indexOf(p);
+                $g.append(`<option value="${i}">${p.name} &mdash; ${p.source}</option>`);
+            });
+            $sel.append($g);
+        };
+        add(match, `Captured at 1/${scan} (${match.length})`);
+        add(rest, `Other scan rates (${rest.length})`);
+        $(`#panelMatrix${panelMatrixID} .PWMRegProfileCount`).html(
+            `&nbsp;${cat.panel}: ${cat.profiles.length} profiles, ${match.length} at 1/${scan}`);
+    }
+
+    function PWMProfileApply(panelMatrixID, prof, name) {
+        const mp = channelOutputsLookup?.LEDPanelMatrices?.["panelMatrix" + panelMatrixID];
+        if (!mp) return;
+        mp.panelRegisters = { profile: name, slot: prof.slot, r: prof.r, g: prof.g, b: prof.b };
+        PWMProfileRefresh(panelMatrixID);
+        PWMProfileMsg(panelMatrixID,
+            `Applied <b>${name}</b> (${prof.r.length} words per color). Save to send it to the panel.`, false);
+        SetRestartFlag(2);
+    }
+
+    function PWMProfileRefresh(panelMatrixID) {
+        const mp = channelOutputsLookup?.LEDPanelMatrices?.["panelMatrix" + panelMatrixID];
+        const pr = mp?.panelRegisters;
+        const $n = $(`#panelMatrix${panelMatrixID} .PWMRegProfileName`);
+        if (pr && pr.r && pr.r.length) {
+            $n.html(`<b>${pr.profile || "imported"}</b> (${pr.r.length} words/color)`);
+        } else {
+            $n.html("Built-in default");
+        }
+    }
+
+    // Shown only for the chips whose registers fppd uploads from a word list
+    function PWMProfileVisibility(panelMatrixID) {
+        const t = parseInt($(`#panelMatrix${panelMatrixID} .LEDPanelsType`).val() || 0);
+        const $row = $(`#panelMatrix${panelMatrixID} .PWMRegProfileRow`);
+        if (PWM_PROFILE_CHIPS[t]) {
+            $row.show();
+            PWMProfileRefresh(panelMatrixID);
+        } else {
+            $row.hide();
+        }
+    }
+
+    function PWMProfileBind(panelMatrixID) {
+        const root = `#panelMatrix${panelMatrixID} `;
+        $(root + ".PWMRegProfileToggle").off("click").on("click", function () {
+            $(root + ".PWMRegProfilePanel").toggle();
+        });
+        $(root + ".PWMRegProfileClear").off("click").on("click", function () {
+            const mp = channelOutputsLookup?.LEDPanelMatrices?.["panelMatrix" + panelMatrixID];
+            if (mp) { delete mp.panelRegisters; }
+            PWMProfileRefresh(panelMatrixID);
+            PWMProfileMsg(panelMatrixID, "Back to the built-in table. Save to apply.", false);
+            SetRestartFlag(2);
+        });
+        $(root + ".PWMRegProfileFile").off("change").on("change", function (e) {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            const rd = new FileReader();
+            rd.onload = function () {
+                try {
+                    const cat = ParseSPWMCatalog(rd.result);
+                    const t = parseInt($(root + ".LEDPanelsType").val() || 0);
+                    PWMCatalogs[panelMatrixID] = cat;
+                    PWMProfileFillSelect(panelMatrixID);
+                    const want = PWM_PROFILE_CHIPS[t];
+                    if (want && cat.panel && cat.panel.toLowerCase() !== want) {
+                        PWMProfileMsg(panelMatrixID,
+                            `Loaded, but this catalog is for <b>${cat.panel}</b> and the panel type is set to <b>${want}</b>.`, true);
+                    } else {
+                        PWMProfileMsg(panelMatrixID, `Loaded ${cat.profiles.length} profiles.`, false);
+                    }
+                } catch (err) {
+                    PWMCatalogs[panelMatrixID] = null;
+                    PWMProfileFillSelect(panelMatrixID);
+                    PWMProfileMsg(panelMatrixID, "Could not read that file: " + err, true);
+                }
+            };
+            rd.readAsText(file);
+        });
+        $(root + ".PWMRegProfileApplySel").off("click").on("click", function () {
+            const cat = PWMCatalogs[panelMatrixID];
+            const v = $(root + ".PWMRegProfileSelect").val();
+            if (!cat || v === "" || v === null) {
+                PWMProfileMsg(panelMatrixID, "Load a catalog and pick a profile first.", true);
+                return;
+            }
+            const p = cat.profiles[parseInt(v)];
+            PWMProfileApply(panelMatrixID, p, p.name);
+        });
+        $(root + ".PWMRegProfileApplyPaste").off("click").on("click", function () {
+            const txt = ($(root + ".PWMRegProfilePaste").val() || "").trim();
+            if (!txt) {
+                PWMProfileMsg(panelMatrixID, "Paste a profile line or payload first.", true);
+                return;
+            }
+            // a whole catalog line (name/source/scans/payload) or a bare payload
+            const f = txt.split("\t");
+            const payload = f.length >= 4 ? f[3] : txt;
+            const p = ParseSPWMPayload(payload);
+            if (!p) {
+                PWMProfileMsg(panelMatrixID,
+                    "That is not an rgb profile payload. Expected <tt>slot|R-words|G-words|B-words</tt> " +
+                    "with equal word counts - the ; separated \"fixed\" type is not supported.", true);
+                return;
+            }
+            PWMProfileApply(panelMatrixID, p, f.length >= 4 ? f[0].trim() : "pasted");
+        });
+    }
+
     function InitializeLEDPanelMatrix(panelMatrixID) {
         if (verboseDebug) {
             console.trace("InitializeLEDPanelMatrix called with panelMatrixID: " + panelMatrixID);
@@ -1365,6 +1564,9 @@
             if (mp.LEDPanelMatrixName != "") {
                 $(`#matrixPanelTab${panelMatrixID} a`).html(mp.LEDPanelMatrixName);
             }
+
+            PWMProfileBind(panelMatrixID);
+            PWMProfileRefresh(panelMatrixID);
 
             PanelSubtypeChanged(panelMatrixID);
             // UpdateLegacyLEDPanelLayout(panelMatrixID);
@@ -1498,6 +1700,12 @@
         if (matrixDiv.find('.LEDPanelsType').length > 0) {
             var rat = matrixDiv.find('.LEDPanelsType').val();
             config.panelType = parseInt(rat);
+        }
+
+        // An imported PWM register profile, if one was applied.  Kept whole
+        // rather than rebuilt from the UI: it is data, not a control.
+        if (mp?.panelRegisters?.r?.length) {
+            config.panelRegisters = mp.panelRegisters;
         }
 
         if (matrixDiv.find('.LEDPanelInterleave').length > 0) {
@@ -3700,6 +3908,44 @@
                             <div class="printSettingFieldCol col-md-4 col-lg-4"></div>
                         <? } ?>
                     </div>
+
+                    <? if ($panelCapesDriver == "BBShiftPanel") { ?>
+                        <!-- PWM driver chips take a block of configuration registers.  FPP
+                             carries one captured profile per chip, but the profile a panel
+                             actually needs depends on its row driver IC and pixel pitch as
+                             well as its scan rate, so a panel can be dark on the built-in
+                             one.  This imports a profile from a capture catalog instead.
+                             Only the chips whose registers FPP uploads from a word list
+                             (see pwmChipSeqFor in BBShiftPanel.cpp) can take one. -->
+                        <div class="row PWMRegProfileRow" style="display:none;">
+                            <div class="printSettingLabelCol col-md-2 col-lg-2"><b>PWM Register Profile:</b></div>
+                            <div class="printSettingFieldCol col-md-10 col-lg-10">
+                                <span class="PWMRegProfileName">Built-in default</span>
+                                &nbsp;<button type="button" class="buttons btn-outline-success PWMRegProfileToggle">Import&hellip;</button>
+                                <button type="button" class="buttons btn-outline-danger PWMRegProfileClear">Use Built-in</button>
+                                <div class="PWMRegProfilePanel" style="display:none; margin-top:8px; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                                    <div>
+                                        <b>Catalog file</b> (a <tt>.profiles</tt> capture catalog):
+                                        <input type="file" class="PWMRegProfileFile" accept=".profiles,text/plain">
+                                        <span class="PWMRegProfileCount"></span>
+                                    </div>
+                                    <div style="margin-top:6px;">
+                                        <select class="form-select PWMRegProfileSelect" style="max-width:40em; display:inline-block;">
+                                            <option value="">(load a catalog above)</option>
+                                        </select>
+                                        <button type="button" class="buttons PWMRegProfileApplySel">Apply Selected</button>
+                                    </div>
+                                    <div style="margin-top:6px;">
+                                        <b>Or paste a single profile</b> (a catalog line, or just its
+                                        <tt>slot|R|G|B</tt> payload):<br>
+                                        <textarea class="PWMRegProfilePaste" rows="3" style="width:100%; font-family:monospace;"></textarea>
+                                        <button type="button" class="buttons PWMRegProfileApplyPaste">Apply Pasted</button>
+                                    </div>
+                                    <div class="PWMRegProfileMsg" style="margin-top:6px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    <? } ?>
 
                     <div class="row">
                         <div class="printSettingLabelCol col-md-2 col-lg-2"><b>Default Panel Color Order (C-Def):</b>

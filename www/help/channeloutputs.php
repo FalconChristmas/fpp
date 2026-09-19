@@ -23,6 +23,17 @@
 
 <p><b>RGBMatrix</b> — The RGBMatrix output can drive up to 36 of the HUB75 style 32x16 RGB LED Panels. These panels may be wired directly to the Pi's GPIO header or an adapter board may be used to handle the wiring. The RGBMatrix output uses librgbmatrix from Henner Zeller's rpi-rgb-led-matrix git repository to drive HUB75 panels connected to a Raspberry Pi. If you wish to make your own board or manually connect a panel, the wiring pinout is available at <a href='https://github.com/hzeller/rpi-rgb-led-matrix/blob/master/wiring.md'>https://github.com/hzeller/rpi-rgb-led-matrix/blob/master/wiring.md</a>.</p>
 
+<p><b>PWM Register Profile</b> (LED Panels, BeagleBone capes) — Some HUB75 panels use a driver chip that does its own PWM (FM6373 / DP32019B, ICND1065L, SM16380SH). Those chips have to be sent a block of configuration registers before they will light, and the correct values depend on the panel's row driver IC and pixel pitch as well as its scan rate — not just on the chip. FPP carries one captured profile per chip, so a panel built around a different row driver can stay completely dark even though everything else is set correctly. If that happens, this field lets you supply the right register values instead.</p>
+
+<p>The field only appears once <b>LED Panel Type</b> is set to one of those three chips, and shows <i>Built-in default</i> until you import something. Click <b>Import…</b> for two ways to supply a profile:</p>
+<ul>
+    <li><b>Catalog file</b> — Load a <code>.profiles</code> capture catalog. The file is read in your browser and is not uploaded or stored on the player. The dropdown then lists the profiles it contains, with those captured at your panel's scan rate grouped first; each is labelled with the chip, row driver and pitch it was captured from. Pick one and click <b>Apply Selected</b>. Catalogs for these chips can hold several hundred entries, so working down the ones matching your scan rate is the practical approach.</li>
+    <li><b>Paste</b> — Paste a single profile, either a whole catalog line or just its <code>slot|R-words|G-words|B-words</code> payload, and click <b>Apply Pasted</b>. Use this when a supplier sends you one profile rather than a catalog.</li>
+</ul>
+<p>Applying a profile only stages it — <b>Save</b> writes it into the output config and restarts the output. The chosen values are stored in the configuration itself, so they survive a backup and restore without the catalog file. <b>Use Built-in</b> removes the imported profile and goes back to FPP's own table. A profile whose three colour lists are not all the same length is rejected, and fppd falls back to the built-in table (with a warning in the log) rather than half-applying it.</p>
+
+<p><b>Note:</b> vendor receiving-card files (NovaStar <code>.rcfgx</code>, ColorLight <code>.rcvbp</code>, Linsn <code>.RCG</code>) cannot be used here. Those files identify the driver chip and scan settings but do not contain the register values themselves — the receiving card holds its own table for each chip, the same way FPP does.</p>
+
 <p><b>Pixelnet Open</b> — The Pixelnet Open output can send Pixelnet data (one 4096-channel universe) out generic FTDI-based USB to RS485 dongles.</p>
 
 <p><b>Pixelnet Lynx</b> — The Pixelnet Lynx output can send Pixelnet data (one 4096-channel universe) out the Lynx USB dongle w/ Pixelnet firmware.</p>
