@@ -6926,6 +6926,30 @@
         }
       }
     },
+    "/api/plugin/updatesAvailable": {
+      "get": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "plugin/updatesAvailable",
+        "description": "Do any installed plugins have an update available?",
+        "responses": {
+          "200": {
+            "description": "Aggregate update-available flag",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "updatesAvailable": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/plugin/{RepoName}": {
       "parameters": [
         {
