@@ -7100,6 +7100,45 @@
         }
       }
     },
+    "/api/plugin/{RepoName}/releaseNotes": {
+      "parameters": [
+        {
+          "name": "RepoName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "plugin/{RepoName}/releaseNotes",
+        "description": "Show a plugin's release notes, in whichever form it declared via `releaseNotesStyle` in its `pluginInfo.json` (see PLUGININFO_FORMAT.md): `gitRelease` (latest GitHub Release), `gitHistory` (commits not yet pulled, read from the plugin's own clone -- no GitHub API call, works for any git-hosted plugin whether or not it tags releases), or `script` (runs the plugin's own scripts/fpp_releasenotes.sh). `none` or absent: 404, nothing to show -- the Plugin Manager doesn't offer the icon in that case either, this is just the server-side half of that gate.",
+        "responses": {
+          "200": {
+            "description": "Shape depends on `style`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "style": "gitRelease",
+                  "name": "v1.2.0",
+                  "tag_name": "v1.2.0",
+                  "published_at": "2026-01-01T00:00:00Z",
+                  "body": "...",
+                  "html_url": "https://github.com/owner/repo/releases/tag/v1.2.0"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/plugin/{RepoName}/settings/{SettingName}": {
       "parameters": [
         {
