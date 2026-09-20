@@ -4,9 +4,66 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 . ${BINDIR}/common
 
+# Run the plugin's optional post-pull script (upgrade first, then install), same
+# resolution order the PHP controller used. Returns the script's rc; 0 if the
+# plugin has no such script. Needs PLUGIN / PLUGINPATH set.
+findPluginPostPullScript() {
+	for cand in \
+		"${PLUGINDIR}/${PLUGIN}/scripts/fpp_upgrade.sh" \
+		"${PLUGINDIR}/${PLUGIN}/scripts/fpp_install.sh" \
+		"${PLUGINDIR}/${PLUGIN}/fpp_install.sh"
+	do
+		if [ -f "$cand" ]; then
+			echo "$cand"
+			return
+		fi
+	done
+}
+
+runPluginPostPullScript() {
+	local script
+	script=$(findPluginPostPullScript)
+	[ -z "${script}" ] && return 0
+	echo "Running ${script}"
+	$SUDO FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src ${script}
+	local rc=$?
+	if [ $rc -ne 0 ]; then
+		echo "ERROR: the code of ${PLUGIN} was updated to $(cd "${PLUGINPATH}" && $SUDO git rev-parse --short HEAD 2>/dev/null), but its $(basename "${script}") failed (rc=${rc}); see above"
+	fi
+	return $rc
+}
+
+# --run-upgrade-script <plugin>
+#   Run ONLY the plugin's post-pull script against code that has already been
+#   updated. The Plugin Manager pulls with FPP_SKIP_UPGRADE_SCRIPT=1 so it can
+#   reconcile the plugin's declared dependencies (a version that adds an apt
+#   package needs it installed before fpp_upgrade.sh runs) and then calls back
+#   here for this deferred phase -- the same split install_plugin has with
+#   FPP_SKIP_INSTALL_SCRIPT / --run-install-script, and for the same reason:
+#   going through startPluginLog is what gets the phase into
+#   ${LOGDIR}/fpp_plugin_manager.log.
+if [ "x$1" = "x--run-upgrade-script" ]
+then
+	if [ "x$2" = "x" ]
+	then
+		echo "USAGE: $0 --run-upgrade-script PLUGINNAME"
+		exit 1
+	fi
+	startPluginLog upgrade "$2"
+	PLUGIN="$2"
+	PLUGINPATH="${PLUGINDIR}/${PLUGIN}"
+	if [ ! -d "${PLUGINPATH}" ]; then
+		echo "ERROR: plugin ${PLUGIN} is not installed (${PLUGINPATH})"
+		exit 1
+	fi
+	runPluginPostPullScript
+	exit $?
+fi
+
 if [ "x$1" = "x" ]
 then
 	echo "USAGE: $0 PLUGINNAME"
+	echo "       $0 --run-upgrade-script PLUGINNAME"
 	exit 1
 fi
 
@@ -77,19 +134,6 @@ if [ $return_val -ne 0 ]; then
 	fi
 fi
 
-# Run the plugin's optional post-pull script (upgrade first, then install), same
-# resolution order the PHP controller used.
-post_pull_script=""
-for cand in \
-	"${PLUGINDIR}/${PLUGIN}/scripts/fpp_upgrade.sh" \
-	"${PLUGINDIR}/${PLUGIN}/scripts/fpp_install.sh" \
-	"${PLUGINDIR}/${PLUGIN}/fpp_install.sh"
-do
-	if [ -f "$cand" ]; then
-		post_pull_script="$cand"
-		break
-	fi
-done
 
 # Never treat the git phase as done if HEAD did not reach upstream, even when
 # the pull returned 0: otherwise the plugin stays behind and keeps showing
@@ -117,10 +161,13 @@ fi
 # code; the FINISH line in the log carries the rc either way).
 script_rc=0
 if [ $git_rc -ne 0 ]; then
-	[ -n "${post_pull_script}" ] && echo "Skipping ${post_pull_script}: the code was not updated"
-elif [ -n "${post_pull_script}" ]; then
-	echo "Running ${post_pull_script}"
-	$SUDO FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src ${post_pull_script}
+	skipped=$(findPluginPostPullScript)
+	[ -n "${skipped}" ] && echo "Skipping ${skipped}: the code was not updated"
+elif [ "x${FPP_SKIP_UPGRADE_SCRIPT}" = "x1" ]; then
+	# Caller reconciles dependencies, then calls back with --run-upgrade-script.
+	:
+else
+	runPluginPostPullScript
 	script_rc=$?
 fi
 
@@ -130,7 +177,6 @@ if [ $git_rc -ne 0 ]; then
 	exit 1
 fi
 if [ $script_rc -ne 0 ]; then
-	echo "ERROR: the code of ${PLUGIN} was updated to $(cd "${PLUGINPATH}" && $SUDO git rev-parse --short HEAD 2>/dev/null), but its $(basename "${post_pull_script}") failed (rc=${script_rc}); see above"
 	exit 2
 fi
 exit 0

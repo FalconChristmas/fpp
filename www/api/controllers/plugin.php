@@ -1157,6 +1157,11 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 		}
 	}
 
+	// A reinstall that kept its packages (keepPackages=1 on the uninstall
+	// half) still holds claims from the previous version; release the ones
+	// this version no longer declares. No-op on a fresh install.
+	ReleaseUndeclaredPackageClaims($repoName, DeclaredPackages($deps), 'install', $stream);
+
 	// The code that is about to run is on disk and is what was accepted (the
 	// gate above), its dependencies are in place: record it now, from the
 	// installed copy, before a script that can take minutes -- the plugin is
@@ -1224,7 +1229,7 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 // the listing's copy (what the dialog was built from) does not, or a
 // different versions[] entry was selected -- and is refused before it is
 // cloned, with its listed block as the one to review.
-function ResolvePluginDependencies($deps, $ownerRepo, &$visited, $stream, $depth, $depShown = null)
+function ResolvePluginDependencies($deps, $ownerRepo, &$visited, $stream, $depth, $depShown = null, $op = 'install')
 {
 	global $settings, $fppDir, $SUDO;
 	$streaming = PluginStreaming($stream);
@@ -1232,12 +1237,23 @@ function ResolvePluginDependencies($deps, $ownerRepo, &$visited, $stream, $depth
 
 	// --- packages (apt) ---
 	if (isset($deps['packages']) && is_array($deps['packages']) && count($deps['packages'])) {
-		if ($streaming) {
-			echo "\n=== Installing package dependencies for $ownerRepo ===\n";
-			flush();
+		// packages.inc.php echoes progress; only into a stream, never a JSON body.
+		PackagesSetStreaming($streaming, $ownerRepo);
+		PluginEchoLog($op, $ownerRepo, "\n=== " . ($op === 'upgrade' ? 'Checking' : 'Installing') . " package dependencies for $ownerRepo ===\n", $stream);
+		// Refresh package lists once for the whole batch -- but only if
+		// something actually needs installing. An upgrade or reinstall of a
+		// plugin whose packages are all present would otherwise pay for an
+		// 'apt-get update' (and its retries) for nothing.
+		$missing = false;
+		foreach ($deps['packages'] as $pkg) {
+			if (ValidPackageName($pkg) && !PackageIsInstalled($pkg)) {
+				$missing = true;
+				break;
+			}
 		}
-		// Refresh package lists once for the whole batch.
-		AptGetUpdate();
+		if ($missing) {
+			AptGetUpdate();
+		}
 		foreach ($deps['packages'] as $pkg) {
 			if (is_string($pkg) && $pkg !== '') {
 				if (!InstallSystemPackage($pkg, $ownerRepo, false)) {
@@ -1761,9 +1777,13 @@ function PluginServeIcon()
 /**
  * Uninstall plugin
  *
- * Uninstall plugin {RepoName}.
+ * Uninstall plugin {RepoName}. Releases the plugin's claims on its apt
+ * package dependencies (a package is apt-removed once nothing else needs
+ * it) unless ?keepPackages=1, which the reinstall flow passes so the
+ * install that follows can reuse them.
  *
  * @route DELETE /api/plugin/{RepoName}
+ * @param keepPackages query 1 to leave package claims in place (reinstall)
  * @response 200 Plugin uninstalled
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -1821,19 +1841,6 @@ function UninstallPlugin()
 			if (isset($data['linkName']))
 				exec("rm " . $settings['pluginDirectory'] . "/" . $data['linkName'], $output, $return_val);
 
-			// Drop this plugin's claim on any packages it declared as
-			// dependencies. A package is only apt-removed once nothing else
-			// (the user or another plugin) still requires it.
-			if (isset($data['dependencies']['packages']) && is_array($data['dependencies']['packages'])) {
-				if (isset($stream) && $stream != "false") {
-					DisableOutputBuffering();
-				}
-				foreach ($data['dependencies']['packages'] as $pkg) {
-					if (is_string($pkg) && $pkg !== '') {
-						RemoveSystemPackageRequester($pkg, $plugin);
-					}
-				}
-			}
 		}
 
 		// Unload first: the files are about to be deleted, and a plugin left
@@ -2074,6 +2081,92 @@ function PluginFetchReinstallTargetByURL($plugin, $branch, $url)
  * {"Status": "Error", "Code": "PrivacyMismatch", "Message": "…", "privacyChanged": true, "plugin": "fpp-matrixtools", "pending": {"sends": [], "remoteAccess": "none"}}
  * ```
  */
+// The apt packages a dependency block declares, as a flat list of names.
+function DeclaredPackages($deps)
+{
+	$declared = array();
+	if ($deps !== null && isset($deps['packages']) && is_array($deps['packages'])) {
+		foreach ($deps['packages'] as $p) {
+			if (is_string($p) && $p !== '') {
+				$declared[] = $p;
+			}
+		}
+	}
+	return $declared;
+}
+
+// Drop the plugin's claim on every package it holds in the manifest but no
+// longer declares (a package is apt-removed only once nothing else needs it).
+// Runs after an upgrade, and after the install half of a reinstall that kept
+// its packages, so a version that stops needing a package releases it. A
+// fresh install holds no claims and this is a no-op.
+function ReleaseUndeclaredPackageClaims($plugin, $declared, $op, $stream)
+{
+	PackagesSetStreaming(PluginStreaming($stream), $plugin);
+	$stale = array();
+	foreach (LoadUserPackages() as $pkg => $reqs) {
+		if (!in_array($plugin, $reqs) || in_array($pkg, $declared)) {
+			continue;
+		}
+		// A dependency the install pulled in is "declared" through its parent:
+		// it stays as long as any parent is still declared, and goes with the
+		// parent's batch when the parent is dropped.
+		if (count(array_intersect(PackageVia($pkg), $declared))) {
+			continue;
+		}
+		$stale[] = $pkg;
+	}
+	if (count($stale)) {
+		PluginEchoLog($op, $plugin, "\nNo longer declared by '$plugin': " . implode(', ', $stale) . ".\n", $stream);
+		ReleasePackageClaims($stale, $plugin);
+	}
+}
+
+// After a plugin's code has changed under an existing install (upgrade):
+// make its dependencies match what the version now on disk declares.
+// Packages this version no longer lists lose the plugin's claim; everything
+// it now lists goes through the same ResolvePluginDependencies() an install
+// uses, so a newly declared apt/python/script/plugin dependency is installed
+// before the plugin's own upgrade script runs against it. Packages already
+// present are left alone. Returns false if a newly declared dependency could
+// not be installed.
+function ReconcilePluginDependencies($plugin, $op, $stream)
+{
+	global $settings;
+	$infoFile = $settings['pluginDirectory'] . '/' . $plugin . '/pluginInfo.json';
+	$info = file_exists($infoFile) ? json_decode(file_get_contents($infoFile), true) : null;
+	if (!is_array($info)) {
+		return true;
+	}
+	$deps = MergePluginDependencies(
+		isset($info['dependencies']) ? $info['dependencies'] : null,
+		SelectPluginVersionEntry($info)
+	);
+	ReleaseUndeclaredPackageClaims($plugin, DeclaredPackages($deps), $op, $stream);
+	if ($deps === null) {
+		return true;
+	}
+	// A newly declared dependency PLUGIN is not installed from here: that
+	// would go through InstallPluginFromInfo with no privacy block shown or
+	// recorded, and an upgrade must never carry a new plugin past the
+	// operator unseen. Say so and leave it to the Plugins page.
+	if (isset($deps['plugins']) && is_array($deps['plugins']) && count($deps['plugins'])) {
+		$names = array();
+		foreach ($deps['plugins'] as $d) {
+			$n = is_array($d) ? ($d['repoName'] ?? '') : $d;
+			if (is_string($n) && $n !== '' && !file_exists($settings['pluginDirectory'] . '/' . $n)) {
+				$names[] = $n;
+			}
+		}
+		if (count($names)) {
+			PluginEchoLog($op, $plugin, "\n'$plugin' now depends on plugin(s) not installed here: " . implode(', ', $names) . ". Install them from the Plugins page.\n", $stream);
+		}
+		unset($deps['plugins']);
+	}
+	$visited = array();
+	return ResolvePluginDependencies($deps, $plugin, $visited, $stream, 0, null, $op);
+}
+
 function UpgradePlugin()
 {
 	global $settings, $SUDO, $_REQUEST, $fppDir;
@@ -2147,27 +2240,46 @@ function UpgradePlugin()
 	// failed upgrade is diagnosable from the log viewer / Support Zip instead of
 	// the git-pull output vanishing. PLUGINDIR/SUDO are exported to match the values PHP
 	// uses (the same way UninstallPlugin invokes uninstall_plugin).
-	$cmd = 'export SUDO=' . escapeshellarg($SUDO)
+	// The script phase is deferred (FPP_SKIP_UPGRADE_SCRIPT) so the plugin's
+	// declared dependencies can be reconciled against the version that just
+	// landed first: a release that adds an apt package needs it installed
+	// before fpp_upgrade.sh runs, and one that drops a package should release
+	// FPP's claim on it. Same split as install (FPP_SKIP_INSTALL_SCRIPT).
+	$envPrefix = 'export SUDO=' . escapeshellarg($SUDO)
 		. '; export PLUGINDIR=' . escapeshellarg($settings['pluginDirectory'])
 		. '; export FPP_PLUGIN_NO_FETCH=1'
 		. '; export FPP_PLUGIN_TARGET_SHA=' . escapeshellarg($GLOBALS['PLUGIN_FETCHED_SHA'])
-		. '; ' . escapeshellarg($fppDir . '/scripts/upgrade_plugin')
-		. ' ' . escapeshellarg($plugin);
+		. '; export FPP_SKIP_UPGRADE_SCRIPT=1; ';
+	$cmd = $envPrefix . escapeshellarg($fppDir . '/scripts/upgrade_plugin') . ' ' . escapeshellarg($plugin);
+	$runCmd = $envPrefix . escapeshellarg($fppDir . '/scripts/upgrade_plugin')
+		. ' --run-upgrade-script ' . escapeshellarg($plugin);
 
-	if (isset($stream) && $stream != "false") {
+	if ($streaming) {
 		DisableOutputBuffering();
 		system($cmd, $return_val);
-		if ($return_val == 0) {
-			PluginReinstallPendingSync($plugin); // rebuilt on this OS
-		}
-		PluginRecordUpgradedPrivacy($plugin, $return_val, $changed, $pending, $stream);
-		return "\nDone\n";
+	} else {
+		exec($cmd, $output, $return_val);
 	}
-	exec($cmd, $output, $return_val);
+	if ($return_val == 0) {
+		if (!ReconcilePluginDependencies($plugin, 'upgrade', $stream)) {
+			PluginEchoLog('upgrade', $plugin, "\nERROR: the code of '$plugin' was updated, but a dependency it now declares could not be installed; its upgrade script was not run.\n", $stream);
+			$return_val = 2;
+		} else if ($streaming) {
+			system($runCmd, $return_val);
+		} else {
+			exec($runCmd, $output, $return_val);
+		}
+		if ($return_val != 0) {
+			$return_val = 2; // the code landed; only the script phase failed
+		}
+	}
 	if ($return_val == 0) {
 		PluginReinstallPendingSync($plugin); // rebuilt on this OS
 	}
 	PluginRecordUpgradedPrivacy($plugin, $return_val, $changed, $pending, $stream);
+	if ($streaming) {
+		return "\nDone\n";
+	}
 
 	// upgrade_plugin's exit code says which phase failed: 1 = the code was
 	// not updated (pull and its reset fallback failed, or still behind
