@@ -32,6 +32,15 @@
 </ul>
 <p>Applying a profile only stages it — <b>Save</b> writes it into the output config and restarts the output. The chosen values are stored in the configuration itself, so they survive a backup and restore without the catalog file. <b>Use Built-in</b> removes the imported profile and goes back to FPP's own table. A profile whose three colour lists are not all the same length is rejected, and fppd falls back to the built-in table (with a warning in the log) rather than half-applying it.</p>
 
+<p><b>PWM Register Upload</b> (LED Panels, BeagleBone capes) — Also alongside the register profile. Before a PWM chip will accept its configuration registers it has to see a specific pattern of LAT (latch) pulses, and a chip that does not recognise the pattern ignores the registers entirely — in which case changing the register profile has no effect at all, which is the symptom to watch for. FPP sends three LAT bursts followed by the register words, and these fields set the lengths, all counted in data clocks:</p>
+<ul>
+    <li><b>vsync</b> — The first burst. Default 3.</li>
+    <li><b>mid</b> — A second burst that only some chips in the family expect. Default 11; set it to <b>0</b> to skip it entirely.</li>
+    <li><b>pre</b> — The burst immediately before the register words. Default 14.</li>
+    <li><b>spacer</b> — The LAT-low gap after each burst and after each register word. Default 8; <b>0</b> emits no gap, which is what the reference implementation for these chips does.</li>
+</ul>
+<p>Leave them blank for FPP's defaults (3 / 11 / 14 / 8). Published captures show these varying per chip and per burst, so if a panel refuses its registers — profile changes making no difference is the clue — this is worth sweeping before trying more profiles.</p>
+
 <p><b>PWM OE Timing</b> (LED Panels, BeagleBone capes) — Appears alongside the register profile, for the same three chips. These panels are advanced one display row at a time by a pulse on the OE line, and a chip that does not see a pulse it likes simply never lights. The reference implementation for these chips measures both pulses in <b>DCLK periods</b> rather than in time, so the same units are used here and its published values can be entered directly.</p>
 <ul>
     <li><b>OE pulse</b> — Width of the per-row pulse, in DCLK periods. The reference default is 4.</li>

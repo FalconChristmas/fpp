@@ -456,6 +456,10 @@
         ["LEDPanelsStartCorner", "invertedData"],
         ["LEDPanelsRowAddressType", "panelRowAddressType"],
         ["LEDPanelsType", "panelType"],
+        ["LEDPanelsRegVsyncClocks", "panelRegVsyncClocks"],
+        ["LEDPanelsRegMidClocks", "panelRegMidClocks"],
+        ["LEDPanelsRegPreClocks", "panelRegPreClocks"],
+        ["LEDPanelsRegSpacerClocks", "panelRegSpacerClocks"],
         ["LEDPanelsOEClkLength", "panelOEClkLength"],
         ["LEDPanelsOEFirstClkLength", "panelOEFirstClkLength"],
         ["LEDPanelsOERowPeriodUs", "panelOERowPeriodUs"],
@@ -1713,13 +1717,19 @@
 
         // OE timing overrides.  Left out of the config entirely when blank so
         // fppd keeps the timing it has always emitted for this family.
-        [["LEDPanelsOEClkLength", "panelOEClkLength"],
+        [["LEDPanelsRegVsyncClocks", "panelRegVsyncClocks"],
+         ["LEDPanelsRegMidClocks", "panelRegMidClocks"],
+         ["LEDPanelsRegPreClocks", "panelRegPreClocks"],
+         ["LEDPanelsRegSpacerClocks", "panelRegSpacerClocks"],
+         ["LEDPanelsOEClkLength", "panelOEClkLength"],
          ["LEDPanelsOEFirstClkLength", "panelOEFirstClkLength"],
          ["LEDPanelsOERowPeriodUs", "panelOERowPeriodUs"]].forEach(([cls, key]) => {
             const v = matrixDiv.find('.' + cls).val();
             if (v !== undefined && v !== null && String(v).trim() !== "") {
                 const n = parseInt(v);
-                if (!isNaN(n) && n > 0) {
+                // mid and spacer are meaningfully zero (skip the burst / emit
+                // no gap), so only reject a negative
+                if (!isNaN(n) && n >= 0) {
                     config[key] = n;
                 }
             }
@@ -3934,6 +3944,16 @@
                              one.  This imports a profile from a capture catalog instead.
                              Only the chips whose registers FPP uploads from a word list
                              (see pwmChipSeqFor in BBShiftPanel.cpp) can take one. -->
+                        <div class="row PWMRegProfileRow" style="display:none;">
+                            <div class="printSettingLabelCol col-md-2 col-lg-2"><b>PWM Register Upload:</b></div>
+                            <div class="printSettingFieldCol col-md-10 col-lg-10">
+                                vsync <input type="number" class="LEDPanelsRegVsyncClocks" min="1" max="255" step="1" style="width:5em;" placeholder="3">
+                                &nbsp;mid <input type="number" class="LEDPanelsRegMidClocks" min="0" max="255" step="1" style="width:5em;" placeholder="11">
+                                &nbsp;pre <input type="number" class="LEDPanelsRegPreClocks" min="1" max="255" step="1" style="width:5em;" placeholder="14">
+                                &nbsp;spacer <input type="number" class="LEDPanelsRegSpacerClocks" min="0" max="255" step="1" style="width:5em;" placeholder="8">
+                                <span style="opacity:0.75;">&nbsp;(LAT clocks; mid 0 skips it, spacer 0 = no gap)</span>
+                            </div>
+                        </div>
                         <div class="row PWMRegProfileRow" style="display:none;">
                             <div class="printSettingLabelCol col-md-2 col-lg-2"><b>PWM OE Timing:</b></div>
                             <div class="printSettingFieldCol col-md-10 col-lg-10">

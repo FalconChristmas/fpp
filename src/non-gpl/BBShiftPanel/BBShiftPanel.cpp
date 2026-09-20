@@ -778,6 +778,36 @@ BBShiftPanelManager::PanelParams BBShiftPanelManager::parsePanelParams(const Jso
     if (config.isMember("panelOERowPeriodUs")) {
         p.oeRowPeriodUs = config["panelOERowPeriodUs"].asInt();
     }
+
+    // FM6373 family register upload grammar.  A spacer of 0 is meaningful, so
+    // these carry their historical values as defaults rather than using 0 as
+    // an "unset" marker the way the OE knobs do.
+    if (config.isMember("panelRegVsyncClocks")) {
+        p.regVsyncClocks = config["panelRegVsyncClocks"].asInt();
+    }
+    if (config.isMember("panelRegMidClocks")) {
+        p.regMidClocks = config["panelRegMidClocks"].asInt();
+    }
+    if (config.isMember("panelRegPreClocks")) {
+        p.regPreClocks = config["panelRegPreClocks"].asInt();
+    }
+    if (config.isMember("panelRegSpacerClocks")) {
+        p.regSpacerClocks = config["panelRegSpacerClocks"].asInt();
+    }
+    // a burst of 0 clocks would hang the firmware's loop; only the middle
+    // burst may be skipped, and only the spacer may legitimately be 0
+    if (p.regVsyncClocks < 1 || p.regVsyncClocks > 255) {
+        p.regVsyncClocks = 3;
+    }
+    if (p.regMidClocks < 0 || p.regMidClocks > 255) {
+        p.regMidClocks = 11;
+    }
+    if (p.regPreClocks < 1 || p.regPreClocks > 255) {
+        p.regPreClocks = 14;
+    }
+    if (p.regSpacerClocks < 0 || p.regSpacerClocks > 255) {
+        p.regSpacerClocks = 8;
+    }
     // 0 means "unset", and unset must reproduce exactly what this emitted
     // before these knobs existed - a 600ns pulse and a 2us opener - rather
     // than the reference's defaults, which convert to slightly different
@@ -989,6 +1019,10 @@ bool BBShiftPanelManager::adoptPanelParams(const PanelParams& p) {
     m_oeClkLength = p.oeClkLength;
     m_oeFirstClkLength = p.oeFirstClkLength;
     m_oeRowPeriodUs = p.oeRowPeriodUs;
+    m_regVsyncClocks = p.regVsyncClocks;
+    m_regMidClocks = p.regMidClocks;
+    m_regPreClocks = p.regPreClocks;
+    m_regSpacerClocks = p.regSpacerClocks;
     buildRegisterProfile(p);
     m_colorDepth = p.colorDepth;
     m_outputByRow = p.outputByRow;
@@ -1281,6 +1315,23 @@ int BBShiftPanelManager::StartPRU() {
         addrCfg = (uint32_t)(m_addressingMode & 0xFF) | (((uint32_t)numRows) << 8);
     }
     *(volatile uint32_t*)(pru->data_ram + ADDR_CONFIG_OFFSET) = addrCfg;
+    // The FM6373 family upload grammar, in the word after the chip config:
+    // the three LAT burst lengths and the LAT-low spacer between them.  These
+    // were fixed at 3/11/14 with a uniform 8 clock spacer, which is not what
+    // the captures for every chip in the family show - the spacer in
+    // particular varies per chip and per burst - so a panel that will not take
+    // the registers has something to sweep.  0 in the middle burst skips it,
+    // and 0 in the spacer emits no gap at all, which is what the reference
+    // implementation does.
+    if (isPWMPanel()) {
+        uint32_t g = ((uint32_t)(m_regVsyncClocks & 0xFF)) |
+                     ((uint32_t)(m_regMidClocks & 0xFF) << 8) |
+                     ((uint32_t)(m_regPreClocks & 0xFF) << 16) |
+                     ((uint32_t)(m_regSpacerClocks & 0xFF) << 24);
+        *(volatile uint32_t*)(pru->data_ram + ADDR_CONFIG_OFFSET + 4) = g;
+        LogDebug(VB_CHANNELOUT, "BBShiftPanel: register upload grammar vsync=%d mid=%d pre=%d spacer=%d\n",
+                 m_regVsyncClocks, m_regMidClocks, m_regPreClocks, m_regSpacerClocks);
+    }
     __sync_synchronize();
     // Both panel types are fed through a ring in the PRU shared memory (see
     // SMEMRing.hp); attach() must happen after run() since the firmware load

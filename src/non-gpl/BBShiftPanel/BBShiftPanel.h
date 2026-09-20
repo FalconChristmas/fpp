@@ -169,6 +169,11 @@ private:
         int oeClkLength = 0;        // 0 = keep the historical 600ns pulse
         int oeFirstClkLength = 0;   // 0 = keep the historical 2us opener
         int oeRowPeriodUs = 20;
+        // FM6373 family register upload grammar, in DCLK clocks
+        int regVsyncClocks = 3;
+        int regMidClocks = 11;   // 0 skips the middle burst
+        int regPreClocks = 14;
+        int regSpacerClocks = 8; // 0 is valid: emit no gap at all
     };
     static PanelParams parsePanelParams(const Json::Value& config, const Json::Value& capeConfig);
 
@@ -247,6 +252,10 @@ private:
     int m_oeClkLength = 0;
     int m_oeFirstClkLength = 0;
     int m_oeRowPeriodUs = 20;
+    int m_regVsyncClocks = 3;
+    int m_regMidClocks = 11;
+    int m_regPreClocks = 14;
+    int m_regSpacerClocks = 8;
     void buildRegisterProfile(const PanelParams& p);
     const PWMChipSeq* activePWMSeq() const;
     // the pins this cape muxed to the PRU (only these are released on
