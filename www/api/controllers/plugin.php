@@ -1247,7 +1247,7 @@ function ResolvePluginDependencies($deps, $ownerRepo, &$visited, $stream, $depth
 					// "a required dependency could not be installed" refusal --
 					// naming the symptom but never the cause. Logged rather than
 					// echoed: the caller already saw the apt output above.
-					PluginLog('install', $ownerRepo, "ERROR: failed to install required package '$pkg' (apt output above in the install dialog)");
+					PluginLog($op, $ownerRepo, "ERROR: failed to install required package '$pkg' (apt output above)");
 					$ok = false;
 				}
 			}
@@ -1290,10 +1290,10 @@ function ResolvePluginDependencies($deps, $ownerRepo, &$visited, $stream, $depth
 				unset($o);
 			}
 			if ($rc !== 0) {
-				PluginLog('install', $ownerRepo, "ERROR: 'pip install --break-system-packages' failed for one or more Python package dependencies (exit $rc)");
+				PluginLog($op, $ownerRepo, "ERROR: 'pip install --break-system-packages' failed for one or more Python package dependencies (exit $rc)");
 				$ok = false;
 			} else {
-				PluginLog('install', $ownerRepo, "Installed Python package dependencies: " . implode(', ', $pyPkgs));
+				PluginLog($op, $ownerRepo, "Installed Python package dependencies: " . implode(', ', $pyPkgs));
 			}
 		}
 	}
@@ -1308,12 +1308,12 @@ function ResolvePluginDependencies($deps, $ownerRepo, &$visited, $stream, $depth
 			if (!is_string($entry) || strpos($entry, '/') === false) {
 				// A declared dependency silently not satisfied -- same class as the
 				// unresolvable-dependency-plugin case below, so log it too.
-				PluginEchoLog('install', $ownerRepo, "\nSkipping malformed script dependency '$entry' (expected 'Category/file').\n", $stream);
+				PluginEchoLog($op, $ownerRepo, "\nSkipping malformed script dependency '$entry' (expected 'Category/file').\n", $stream);
 				continue;
 			}
 			list($category, $file) = explode('/', $entry, 2);
 			if (!preg_match('#^[A-Za-z0-9._ -]+$#', $category) || !preg_match('#^[A-Za-z0-9._ /-]+$#', $file)) {
-				PluginEchoLog('install', $ownerRepo, "\nSkipping script dependency with unsafe characters: '$entry'.\n", $stream);
+				PluginEchoLog($op, $ownerRepo, "\nSkipping script dependency with unsafe characters: '$entry'.\n", $stream);
 				continue;
 			}
 			if ($streaming) {
@@ -1352,7 +1352,7 @@ function ResolvePluginDependencies($deps, $ownerRepo, &$visited, $stream, $depth
 			}
 			$depInfo = ResolvePluginInfoByName($depName);
 			if ($depInfo === null) {
-				PluginEchoLog('install', $ownerRepo, "\nERROR: could not resolve dependency plugin '$depName' from pluginList.json (skipping).\n", $stream);
+				PluginEchoLog($op, $ownerRepo, "\nERROR: could not resolve dependency plugin '$depName' from pluginList.json (skipping).\n", $stream);
 				continue;
 			}
 			// A listed name that is not the plugin's repoName (its directory):
@@ -1381,7 +1381,7 @@ function ResolvePluginDependencies($deps, $ownerRepo, &$visited, $stream, $depth
 				$depInfo['privacyAccepted'] = array_key_exists($depName, $depShown) ? $depShown[$depName] : $depShown[$depDir];
 			}
 			if (!InstallPluginFromInfo($depInfo, $visited, $stream, $depth + 1, $depShown)) {
-				PluginEchoLog('install', $ownerRepo, "\nERROR: dependency plugin '$depName' could not be installed.\n", $stream);
+				PluginEchoLog($op, $ownerRepo, "\nERROR: dependency plugin '$depName' could not be installed.\n", $stream);
 				$ok = false;
 			}
 		}
@@ -1843,13 +1843,51 @@ function UninstallPlugin()
 		// needs a restart to fully take hold.
 		$unloaded = FPPDPluginLifecycle($plugin, 'unload');
 
+		// PLUGINDIR/SUDO exported on both paths so the wrapper resolves the same
+		// directory PHP does (the streaming path used to rely on scripts/common's
+		// defaults).
+		$uninstallCmd = 'export SUDO=' . escapeshellarg($SUDO)
+			. '; export PLUGINDIR=' . escapeshellarg($settings['pluginDirectory'])
+			. '; ' . escapeshellarg($fppDir . '/scripts/uninstall_plugin') . ' ' . escapeshellarg($plugin);
 		if (isset($stream) && $stream != "false") {
 			DisableOutputBuffering();
-			system("$fppDir/scripts/uninstall_plugin $plugin", $return_val);
+			system($uninstallCmd, $return_val);
 		} else {
-			exec("export SUDO=\"" . $SUDO . "\"; export PLUGINDIR=\"" . $settings['pluginDirectory'] . "\"; $fppDir/scripts/uninstall_plugin $plugin", $output, $return_val);
+			exec($uninstallCmd, $output, $return_val);
 			unset($output);
 		}
+
+		// Drop this plugin's claim on every package it holds in the manifest
+		// (declared at any level -- top-level or a versions[] entry -- or
+		// left over from an older version). A package is only apt-removed
+		// once nothing else (the user or another plugin) still requires it.
+		// Done AFTER the plugin's own fpp_uninstall.sh has run: that script may
+		// well use one of the packages the plugin declared.
+		// The reinstall flow passes keepPackages=1: the install that
+		// follows leaves already-present packages alone and releases any
+		// claim the new version no longer declares, so nothing is removed
+		// and re-downloaded for no reason.
+		// Only once the plugin is really gone: a wrapper failure leaves it on
+		// disk, and it still needs its packages.
+		$keepPackages = isset($_REQUEST['keepPackages']) && $_REQUEST['keepPackages'] == '1';
+		if (!$keepPackages && $return_val == 0) {
+			$claimed = array();
+			foreach (LoadUserPackages() as $pkg => $reqs) {
+				if (in_array($plugin, $reqs)) {
+					$claimed[] = $pkg;
+				}
+			}
+			if (count($claimed)) {
+				if (PluginStreaming($stream)) {
+					DisableOutputBuffering();
+				}
+				PluginEchoLog('uninstall', $plugin, "\n=== Releasing package dependencies for $plugin ===\n", $stream);
+				// packages.inc.php echoes progress; only into a stream, never a JSON body.
+				PackagesSetStreaming(PluginStreaming($stream), $plugin);
+				ReleasePackageClaims($claimed, $plugin);
+			}
+		}
+
 
 		if ($return_val == 0) {
 			MarkPluginPrivacyUninstalled($plugin);

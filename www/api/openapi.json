@@ -6942,7 +6942,28 @@
           "plugin"
         ],
         "summary": "Uninstall plugin",
-        "description": "Uninstall plugin {RepoName}.",
+        "description": "Uninstall plugin {RepoName}. Releases the plugin's claims on its apt package dependencies -- the packages it declared and the ones their install pulled in -- and apt-removes whatever nothing else still needs, unless `keepPackages=1`, which the reinstall flow passes so the install that follows can reuse them.",
+        "parameters": [
+          {
+            "name": "keepPackages",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["1"]
+            },
+            "description": "Leave the plugin's package claims in place (reinstall flow)."
+          },
+          {
+            "name": "stream",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "When set (and not \"false\"), progress is streamed as text instead of a JSON reply."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Plugin uninstalled",

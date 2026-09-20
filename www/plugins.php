@@ -1816,7 +1816,13 @@
                 total: reinstallAttempted.length + declined.length,
                 done: 0,
                 itemName: function (plugin) { return plugin; },
-                urlFor: function (plugin) { return 'api/plugin/' + plugin + '?stream=true'; },
+                // A plugin about to be reinstalled keeps its apt packages across
+                // the uninstall (the install half reconciles them); one whose new
+                // disclosure was declined is really being uninstalled.
+                urlFor: function (plugin) {
+                    return 'api/plugin/' + plugin + '?stream=true'
+                        + (reinstallAttempted.indexOf(plugin) !== -1 ? '&keepPackages=1' : '');
+                },
                 method: 'DELETE',
                 onDone: function () { RunReinstallInstallPhase(installQueue, label); }
             });
