@@ -2510,6 +2510,15 @@
               "type": "boolean"
             },
             "description": "When `1`, return a flat array of filenames instead of the default object envelope"
+          },
+          {
+            "name": "maxdepth",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Limit recursion depth (default: unlimited)"
           }
         ],
         "responses": {
@@ -6991,7 +7000,9 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["1"]
+              "enum": [
+                "1"
+              ]
             },
             "description": "Leave the plugin's package claims in place (reinstall flow)."
           },

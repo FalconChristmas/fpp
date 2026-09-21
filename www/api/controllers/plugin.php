@@ -1778,12 +1778,14 @@ function PluginServeIcon()
  * Uninstall plugin
  *
  * Uninstall plugin {RepoName}. Releases the plugin's claims on its apt
- * package dependencies (a package is apt-removed once nothing else needs
- * it) unless ?keepPackages=1, which the reinstall flow passes so the
- * install that follows can reuse them.
+ * package dependencies -- the packages it declared and the ones their install
+ * pulled in -- and apt-removes whatever nothing else still needs, unless
+ * `keepPackages=1`, which the reinstall flow passes so the install that
+ * follows can reuse them.
  *
  * @route DELETE /api/plugin/{RepoName}
- * @param keepPackages query 1 to leave package claims in place (reinstall)
+ * @param '1' keepPackages Leave the plugin's package claims in place (reinstall flow).
+ * @param string stream When set (and not "false"), progress is streamed as text instead of a JSON reply.
  * @response 200 Plugin uninstalled
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -2067,8 +2069,13 @@ function PluginFetchReinstallTargetByURL($plugin, $branch, $url)
 /**
  * Update plugin
  *
- * Pull in git updates for plugin `{RepoName}`. Supports an optional
- * `?stream=true` query parameter for streaming output.
+ * Pull in git updates for plugin {RepoName}. Before the plugin's own
+ * fpp_upgrade.sh (or fpp_install.sh) runs, its declared dependencies are
+ * reconciled against the new version: newly declared apt, Python and script
+ * dependencies are installed, and package claims the new version no longer
+ * declares are released (apt-removed once nothing else needs them). A newly
+ * declared dependency plugin is reported, not installed -- the operator has to
+ * see its privacy disclosure on the Plugins page. Supports ?stream=true.
  *
  * @route GET /api/plugin/{RepoName}/upgrade
  * @route POST /api/plugin/{RepoName}/upgrade
