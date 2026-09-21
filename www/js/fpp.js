@@ -14765,6 +14765,17 @@ function checkForPluginUpdates () {
 }
 
 /**
+ * StreamURL doneCallback/errorCallback for a single-plugin upgrade: runs the
+ * normal ProgressDialogDone, then re-polls the navbar icon immediately
+ * rather than leaving it showing whatever was true before the upgrade until
+ * the next full page load.
+ */
+function PluginUpgradeStreamDone (id) {
+	ProgressDialogDone(id);
+	checkForPluginUpdates();
+}
+
+/**
  * Update the navbar plugin-update indicator based on FPP_PLUGIN_UPDATE_STATE
  */
 function updateNavbarPluginUpdateIndicator () {

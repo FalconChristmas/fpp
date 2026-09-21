@@ -518,14 +518,12 @@ function list_plugin_entries($menu)
             <?php
             // Cheap existence check -- skip scheduling the poll at all on a box
             // with no plugins installed, rather than hitting the endpoint every
-            // page load just to learn the aggregate is trivially false.
-            $anyPluginsInstalled = false;
-            if (isset($pluginDirectory) && is_dir($pluginDirectory)) {
-                foreach (glob($pluginDirectory . '/*/pluginInfo.json') as $infoFile) {
-                    $anyPluginsInstalled = true;
-                    break;
-                }
-            }
+            // page load just to learn the aggregate is trivially false. Cast to
+            // bool rather than foreach-ing the result: glob() returns false (not
+            // an empty array) on a read error, which a foreach over it warns on
+            // under PHP 8.
+            $anyPluginsInstalled = isset($pluginDirectory) && is_dir($pluginDirectory)
+                && (bool) glob($pluginDirectory . '/*/pluginInfo.json');
             if ($anyPluginsInstalled) {
                 ?>
             setTimeout(checkForPluginUpdates, 700); // staggered behind the FPP update check above

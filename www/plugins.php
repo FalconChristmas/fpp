@@ -983,6 +983,7 @@
                     $.jGrowl('All ' + ok + ' plugin(s) updated successfully', { themeState: 'success' });
                 FilterPlugins();
                 ProgressDialogDone('pluginsProgressPopupText');
+                checkForPluginUpdates(); // refresh the navbar icon now, not on next page load
             });
         }
 
@@ -1020,10 +1021,10 @@
             var url = 'api/plugin/' + plugin + '/upgrade?stream=true';
             DisplayProgressDialog("pluginsProgressPopup", "Upgrade Plugin");
             if (ack !== null) {
-                StreamURL(url, 'pluginsProgressPopupText', 'ProgressDialogDone', 'ProgressDialogDone',
+                StreamURL(url, 'pluginsProgressPopupText', 'PluginUpgradeStreamDone', 'PluginUpgradeStreamDone',
                     'POST', JSON.stringify(ack), 'application/json');
             } else {
-                StreamURL(url, 'pluginsProgressPopupText', 'ProgressDialogDone', 'ProgressDialogDone');
+                StreamURL(url, 'pluginsProgressPopupText', 'PluginUpgradeStreamDone', 'PluginUpgradeStreamDone');
             }
         }
 
