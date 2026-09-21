@@ -1,9 +1,9 @@
-# ASan (Address Sanitizer) and TSan (Thread Sanitizer)
+# ASan (Address Sanitizer), TSan (Thread Sanitizer) and UBSan (Undefined Behavior Sanitizer)
 
-FPP can be built with [ASan](https://github.com/google/sanitizers/wiki/addresssanitizer)/[TSan](https://github.com/google/sanitizers/wiki/threadsanitizercppmanual)
-support, but as these are sanitizer modes, they are **not recommended** for production. Building in
-this manner will consume significantly more memory and is only recommended for 64-bit platforms with
-significant RAM access, such as Docker on Linux.
+FPP can be built with [ASan](https://github.com/google/sanitizers/wiki/addresssanitizer)/[TSan](https://github.com/google/sanitizers/wiki/threadsanitizercppmanual)/[UBSan](https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html)
+support, but as these are sanitizer modes, they are **not recommended** for production. ASan and TSan
+consume significantly more memory and are only recommended for 64-bit platforms with significant RAM,
+such as Docker on Linux. UBSan is far cheaper and runs comfortably on any of the boards.
 
 To build with these modes:
 `make asan`
@@ -12,13 +12,36 @@ or
 
 `make tsan`
 
+or
+
+`make ubsan`
+
 Highly recommended to perform a `make clean` before building the first time.
+
+## ASan does not run on the 4K-page arm64 kernels
+
+The Pi images boot a 4K-page arm64 kernel built with `CONFIG_ARM64_VA_BITS_39`, which caps user
+addresses at `0x8000000000`. The sanitizer runtime's allocator base (`0x500000000000`) is above that
+ceiling and is fixed when the runtime library itself is built, so an `asan` binary aborts immediately
+at startup with:
+
+```
+AddressSanitizer: CHECK failed: sanitizer_allocator_primary64.h "((kSpaceBeg)) == ((address_range.Init(...)))" (0x500000000000, 0xfffffffffffffff4)
+```
+
+This is the *allocator*, not the shadow, so the usual shadow-mapping workarounds
+(`-mllvm -asan-mapping-scale=N`, `-asan-force-dynamic-shadow=1`) change nothing; `-fsanitize=leak`
+and `-fsanitize=hwaddress` fail the same way. Getting ASan back would require a 16K-page kernel
+(47-bit VA) or a compiler-rt built with `SANITIZER_AARCH64_VMA=39`. On those boards use `make tsan`,
+`make ubsan`, or Valgrind instead. x86_64 and the 32-bit BeagleBones are unaffected.
 
 # Valgrind
 
-The version of Valgrind that is installable via apt-get is way too old (over 8 years old)
-and will not really work for FPP on arm.   Many false positives occur, bunch of unhandled syscalls,
-etc...   Building a more recent version of Valgrind from source is required:
+Valgrind works on the 4K-page arm64 kernels where ASan cannot run, so it is the practical way to
+chase heap overflows and use-after-frees on those boards. Current Debian ships a recent enough
+Valgrind that `apt-get install valgrind` is fine. On older distributions the packaged version may be
+years out of date, producing many false positives and unhandled syscalls on arm; in that case build
+from source instead:
 
 Grab the current release from https://valgrind.org/downloads/current.html
 Extract to a directory in /opt, run "./configure" and then "make ; make install"
