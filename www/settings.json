@@ -159,7 +159,8 @@
 			"description": "PipeWire Audio Network Streams",
 			"settings": [
 				"PipeWireAES67Config",
-				"PipeWireOpusRTPConfig"
+				"PipeWireOpusRTPConfig",
+				"PipeWireVBANConfig"
 			]
 		},
 		"pipeWireVideo": {
@@ -320,7 +321,6 @@
 			"description": "System Settings",
 			"settings": [
 				"GPIOFan",
-				"GPIOFanTemperature",
 				"LEDDisplayType",
 				"bootDelay",
 				"FPP_UUID"
@@ -357,6 +357,7 @@
 				"disableUIPopoverAlerts",
 				"fileManagerThumbnailSize",
 				"fileManagerTableFilter",
+				"fileManagerHideEmptyTabs",
 				"gpioHideCapePins"
 			]
 		},
@@ -761,6 +762,7 @@
 					"PipeWireVideoInputSources",
 					"PipeWireAES67Config",
 					"PipeWireOpusRTPConfig",
+					"PipeWireVBANConfig",
 					"PipeWireGraph"
 				],
 				"pipewire-simple": [
@@ -881,6 +883,19 @@
 			"icon": "fas fa-wifi",
 			"buttonText": "Configure Opus RTP Instances",
 			"modalTitle": "Opus RTP Audio Streaming Instances",
+			"platforms": [
+				"!MacOS"
+			]
+		},
+		"PipeWireVBANConfig": {
+			"name": "PipeWireVBANConfig",
+			"description": "VBAN Audio Streaming",
+			"tip": "Send and receive uncompressed audio over the local network using VBAN, the protocol spoken by Voicemeeter and the VB-Audio tools. A received stream becomes a PipeWire source you can route in Input Mixing or use as the WLED Sound Reactive Source.",
+			"type": "modal",
+			"modalUrl": "vban-config.php?modal=1",
+			"icon": "fas fa-network-wired",
+			"buttonText": "Configure VBAN Streams",
+			"modalTitle": "VBAN Audio Streaming",
 			"platforms": [
 				"!MacOS"
 			]
@@ -1546,6 +1561,19 @@
 				"filemanager"
 			]
 		},
+		"fileManagerHideEmptyTabs": {
+			"name": "fileManagerHideEmptyTabs",
+			"description": "File Manager Hide Empty Tabs",
+			"tip": "Hide File Manager tabs that contain no files. A tab reappears once a file of that type is uploaded.",
+			"level": 1,
+			"default": "0",
+			"type": "checkbox",
+			"checkedValue": "1",
+			"uncheckedValue": "0",
+			"exposedAsJSToPages": [
+				"filemanager"
+			]
+		},
 		"gpioHideCapePins": {
 			"name": "gpioHideCapePins",
 			"description": "Hide Cape Controlled GPIO Pins",
@@ -1626,11 +1654,6 @@
 			"platforms": [
 				"Raspberry Pi"
 			],
-			"children": {
-				"1": [
-					"GPIOFanTemperature"
-				]
-			},
 			"type": "checkbox"
 		},
 		"GPIOFanTemperature": {

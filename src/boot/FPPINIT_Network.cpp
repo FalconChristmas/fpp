@@ -142,6 +142,41 @@ static std::string CreateHostAPDConfig(const std::string& interface) {
 
     return content;
 }
+// The [DHCPServer] block for the tethering AP.  The pool comes from
+// config/interface.<iface> (the DHCP Pool Offset / Size fields on the Network
+// page) whenever that file exists: maybeEnableTethering() rewrites this
+// .network file *after* setupNetwork() has already generated it from the
+// interface config, so hardcoding the pool here silently reverted whatever the
+// user had configured -- a box set to offset 100 kept handing out addresses
+// from .10 because the second write won.  10/100 remains the default for a
+// board that has no interface config at all (fresh install, no /config dir).
+static void AppendTetherDHCPServerSection(std::string& content, const std::string& interface) {
+    int offset = 10;
+    int poolSize = 100;
+    const std::string interfaceConfigFile = FPP_MEDIA_DIR + "/config/interface." + interface;
+    if (FileExists(interfaceConfigFile)) {
+        auto interfaceSettings = loadSettingsFile(interfaceConfigFile);
+        offset = getIntFromMap(interfaceSettings, "DHCPOFFSET", offset);
+        poolSize = getIntFromMap(interfaceSettings, "DHCPPOOLSIZE", poolSize);
+    }
+    // PersistLeases=yes is already the default on Debian 13/trixie (systemd
+    // >= 256, via systemd-networkd-persistent-storage.service); set explicitly
+    // here for clarity and so behavior doesn't silently depend on an OS-level
+    // default we don't control. Harmlessly ignored as an unknown key on older
+    // systemd (verified: an unrecognized [DHCPServer] key logs a warning but
+    // doesn't break parsing).
+    content.append("[DHCPServer]\n"
+                   "PersistLeases=yes\n"
+                   "PoolOffset=")
+        .append(std::to_string(offset))
+        .append("\nPoolSize=")
+        .append(std::to_string(poolSize))
+        .append("\nEmitDNS=no\n\n");
+    if (FileExists(FPP_MEDIA_DIR + "/config/leases." + interface)) {
+        content.append(GetFileContents(FPP_MEDIA_DIR + "/config/leases." + interface));
+        content.append("\n");
+    }
+}
 static void unblockWifi() {
     if (FileExists("/usr/sbin/rfkill")) {
         exec("/usr/sbin/rfkill unblock wifi");
@@ -455,8 +490,8 @@ void setupNetwork(bool fullReload) {
                         content.append("EmitDNS=yes\nDNS=").append(dnsSettings["DNS1"]).append("\n");
                     }
                     content.append("\n");
-                    if (FileExists(FPP_MEDIA_DIR + "config/leases." + interface)) {
-                        content.append(GetFileContents(FPP_MEDIA_DIR + "config/leases." + interface));
+                    if (FileExists(FPP_MEDIA_DIR + "/config/leases." + interface)) {
+                        content.append(GetFileContents(FPP_MEDIA_DIR + "/config/leases." + interface));
                     }
                     content.append("\n");
                 }
@@ -477,21 +512,7 @@ void setupNetwork(bool fullReload) {
                                                "DHCP=no\n"
                                                "Address=192.168.8.1/24\n"
                                                "DHCPServer=yes\n\n");
-        // PersistLeases=yes is already the default on Debian 13/trixie (systemd
-        // >= 256, via systemd-networkd-persistent-storage.service); set explicitly
-        // here for clarity and so behavior doesn't silently depend on an OS-level
-        // default we don't control. Harmlessly ignored as an unknown key on older
-        // systemd (verified: an unrecognized [DHCPServer] key logs a warning but
-        // doesn't break parsing).
-        content.append("[DHCPServer]\n"
-                       "PersistLeases=yes\n"
-                       "PoolOffset=10\n"
-                       "PoolSize=100\n"
-                       "EmitDNS=no\n\n");
-        if (FileExists(FPP_MEDIA_DIR + "config/leases." + tetherInterface)) {
-            content.append(GetFileContents(FPP_MEDIA_DIR + "config/leases." + tetherInterface));
-        }
-        content.append("\n");
+        AppendTetherDHCPServerSection(content, tetherInterface);
         filesNeeded["/etc/systemd/network/10-" + tetherInterface + ".network"] = content;
         hostapd = true;
     }
@@ -1423,17 +1444,7 @@ void maybeEnableTethering() {
                                                "Address=192.168.8.1/24\n"
                                                "DHCPServer=yes\n\n");
 
-        // PersistLeases=yes is already the default on Debian 13/trixie (systemd
-        // >= 256, via systemd-networkd-persistent-storage.service); set explicitly
-        // here for clarity and so behavior doesn't silently depend on an OS-level
-        // default we don't control. Harmlessly ignored as an unknown key on older
-        // systemd (verified: an unrecognized [DHCPServer] key logs a warning but
-        // doesn't break parsing).
-        content.append("[DHCPServer]\n"
-                       "PersistLeases=yes\n"
-                       "PoolOffset=10\n"
-                       "PoolSize=100\n"
-                       "EmitDNS=no\n\n");
+        AppendTetherDHCPServerSection(content, tetherInterface);
         PutFileContents("/etc/systemd/network/10-" + tetherInterface + ".network", content);
         unblockWifi();
         exec("/usr/bin/systemctl reload-or-restart systemd-networkd.service");

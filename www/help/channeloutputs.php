@@ -10,6 +10,7 @@
     <li><b>Type-specific fields</b> — Universes, IP addresses, serial ports, panel sizes, color orders, etc. Each type shows only its own fields. Tooltips (help icon) explain each field.</li>
     <li><b>Save</b> (green) — Writes <code>api/configfile/channeloutputs.json</code> (path from <code>settings['channelOutputsJSON']</code>) and shows a growl. Validation checks for overlapping channels and missing required fields before saving.</li>
     <li><b>Clone / Delete</b> — Duplicate a selected output to quickly make a similar one, or remove it. You must still Save after.</li>
+    <li><b>Clone String</b> (Pixel Strings tab) — Copies the selected string's settings down (or up) onto the following ports, renumbering the description and stepping the start channel on for each copy. The button only appears once you click a string row to select it. It offers the number of ports left to fill as the default; enter a negative number to clone upwards. Ports belonging to an expansion set to <i>None</i> are hidden and are not counted or written to. Save afterwards as usual.</li>
 </ul>
 
 <h4>Output types — what they do and when to use them</h4>
@@ -22,6 +23,34 @@
 <p><b>DMX Pro</b> — The DMX Pro output can send DMX data out Entec-Pro compatible dongles. This should include the following dongles: Entec-Pro, Lynx USB dongle w/ DMX firmware, DIYC RPM, DMXking.com, and DIYblinky.com. If the dongle works using xLights DMX Pro output, it should work in the Falcon Player.</p>
 
 <p><b>RGBMatrix</b> — The RGBMatrix output can drive up to 36 of the HUB75 style 32x16 RGB LED Panels. These panels may be wired directly to the Pi's GPIO header or an adapter board may be used to handle the wiring. The RGBMatrix output uses librgbmatrix from Henner Zeller's rpi-rgb-led-matrix git repository to drive HUB75 panels connected to a Raspberry Pi. If you wish to make your own board or manually connect a panel, the wiring pinout is available at <a href='https://github.com/hzeller/rpi-rgb-led-matrix/blob/master/wiring.md'>https://github.com/hzeller/rpi-rgb-led-matrix/blob/master/wiring.md</a>.</p>
+
+<p><b>PWM Register Profile</b> (LED Panels, BeagleBone capes) — Some HUB75 panels use a driver chip that does its own PWM (FM6373 / DP32019B, ICND1065L, SM16380SH). Those chips have to be sent a block of configuration registers before they will light, and the correct values depend on the panel's row driver IC and pixel pitch as well as its scan rate — not just on the chip. FPP carries one captured profile per chip, so a panel built around a different row driver can stay completely dark even though everything else is set correctly. If that happens, this field lets you supply the right register values instead.</p>
+
+<p>The field only appears once <b>LED Panel Type</b> is set to one of those three chips, and shows <i>Built-in default</i> until you import something. Click <b>Import…</b> for two ways to supply a profile:</p>
+<ul>
+    <li><b>Catalog file</b> — Load a <code>.profiles</code> capture catalog. The file is read in your browser and is not uploaded or stored on the player. The dropdown then lists the profiles it contains, with those captured at your panel's scan rate grouped first; each is labelled with the chip, row driver and pitch it was captured from. Pick one and click <b>Apply Selected</b>. Catalogs for these chips can hold several hundred entries, so working down the ones matching your scan rate is the practical approach.</li>
+    <li><b>Paste</b> — Paste a single profile, either a whole catalog line or just its <code>slot|R-words|G-words|B-words</code> payload, and click <b>Apply Pasted</b>. Use this when a supplier sends you one profile rather than a catalog.</li>
+</ul>
+<p>Applying a profile only stages it — <b>Save</b> writes it into the output config and restarts the output. The chosen values are stored in the configuration itself, so they survive a backup and restore without the catalog file. <b>Use Built-in</b> removes the imported profile and goes back to FPP's own table. A profile whose three colour lists are not all the same length is rejected, and fppd falls back to the built-in table (with a warning in the log) rather than half-applying it.</p>
+
+<p><b>PWM Register Upload</b> (LED Panels, BeagleBone capes) — Also alongside the register profile. Before a PWM chip will accept its configuration registers it has to see a specific pattern of LAT (latch) pulses, and a chip that does not recognise the pattern ignores the registers entirely — in which case changing the register profile has no effect at all, which is the symptom to watch for. FPP sends three LAT bursts followed by the register words, and these fields set the lengths, all counted in data clocks:</p>
+<ul>
+    <li><b>vsync</b> — The first burst. Default 3.</li>
+    <li><b>mid</b> — A second burst that only some chips in the family expect. Default 11; set it to <b>0</b> to skip it entirely.</li>
+    <li><b>pre</b> — The burst immediately before the register words. Default 14.</li>
+    <li><b>spacer</b> — The LAT-low gap after each burst and after each register word. Default 8; <b>0</b> emits no gap, which is what the reference implementation for these chips does.</li>
+</ul>
+<p>Leave them blank for FPP's defaults (3 / 11 / 14 / 8). Published captures show these varying per chip and per burst, so if a panel refuses its registers — profile changes making no difference is the clue — this is worth sweeping before trying more profiles.</p>
+
+<p><b>PWM OE Timing</b> (LED Panels, BeagleBone capes) — Appears alongside the register profile, for the same three chips. These panels are advanced one display row at a time by a pulse on the OE line, and a chip that does not see a pulse it likes simply never lights. The reference implementation for these chips measures both pulses in <b>DCLK periods</b> rather than in time, so the same units are used here and its published values can be entered directly.</p>
+<ul>
+    <li><b>OE pulse</b> — Width of the per-row pulse, in DCLK periods. The reference default is 4.</li>
+    <li><b>opener</b> — Width of the single longer pulse sent when the scan restarts, in DCLK periods. The reference default is 12.</li>
+    <li><b>row period</b> — How long each row is held, in microseconds.</li>
+</ul>
+<p>Leave a field blank to keep what FPP has always emitted for this family (a 600ns pulse, a 2&micro;s opener and a 20&micro;s row period), which is what existing panels are running. A DCLK period is about 194ns with 16 outputs and 109ns with 8, so the converted value depends on the cape as well as the number entered; the resulting pulse widths are logged at startup. If a panel stays dark with a correct register profile, widening the OE pulse is the usual next thing to try.</p>
+
+<p><b>Note:</b> vendor receiving-card files (NovaStar <code>.rcfgx</code>, ColorLight <code>.rcvbp</code>, Linsn <code>.RCG</code>) cannot be used here. Those files identify the driver chip and scan settings but do not contain the register values themselves — the receiving card holds its own table for each chip, the same way FPP does.</p>
 
 <p><b>Pixelnet Open</b> — The Pixelnet Open output can send Pixelnet data (one 4096-channel universe) out generic FTDI-based USB to RS485 dongles.</p>
 

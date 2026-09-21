@@ -500,6 +500,44 @@ if [ -f /etc/default/locale ]; then
 fi
 export LANG=en_US.UTF-8
 
+#############################################################################
+# Block the BeagleBoard archive's stock kernel from ever being installed.
+#
+# FPP replaces the kernel with its own PRU/cape-patched build (see the kernel
+# step at the end of this script). A stock bone kernel must never land on top
+# of it: its postinst runs zz-uenv_txt, which rewrites /boot/uEnv.txt's
+# uname_r, so whichever kernel is installed LAST wins the boot no matter what
+# FPP put there.
+#
+# This is not hypothetical -- it shipped as issue #2966. In the 10.1 release
+# build the base image carried 6.18.48-bone52 while the archive had moved on
+# to 6.18.52-bone54. "apt-get upgrade" correctly kept bbb.io-kernel-6.18-bone
+# back (upgrade never installs new packages), but the later "apt-get remove
+# --autoremove bbb.io-kernel-tasks" IS allowed to install, so it resolved that
+# pending upgrade, pulled in linux-image-6.18.52-bone54 and repointed uEnv.txt
+# at it. Every 10.1 BBB image therefore booted a kernel with no PRU patches
+# (CONFIG_PRU_REMOTEPROC=m behind a wkup_m3 dependency instead of =y) and no
+# PRU-driven cape could start.
+#
+# The window is open whenever the archive is newer than the base image, which
+# is most of the time -- the nightlies only pass because rcn-ee happened to
+# have caught up. The pin closes it for good, and stays in the shipped image
+# on purpose: an on-device "apt upgrade" hits exactly the same trap.
+#############################################################################
+mkdir -p /etc/apt/preferences.d
+cat > /etc/apt/preferences.d/fpp-kernel-pin <<'PIN_EOF'
+# Managed by FPP (SD/build-image-bbb.sh). FPP runs its own PRU-patched kernel;
+# installing a stock bone kernel rewrites /boot/uEnv.txt and stops every
+# PRU-driven cape from working. Do not remove.
+Package: linux-image-*-bone* linux-headers-*-bone*
+Pin: release *
+Pin-Priority: -1
+
+Package: bbb.io-kernel-* bbb.io-headers-*
+Pin: release *
+Pin-Priority: -1
+PIN_EOF
+
 apt-get update
 # rcn-ee/bbbio's gpiod postinst has a buggy guard: it tests
 #   getent passwd gpio-monitor   (a typo -- no such user)
@@ -606,43 +644,94 @@ RESOLV_EOF
 
 #############################################################################
 # Install FPP-patched kernel.
-# Done AS THE VERY LAST STEP of the chroot install, after FPP_Install.sh
-# has finished all of its apt activity. Earlier ordering (before the
-# installer) let FPP_Install.sh's apt-get install silently reinstate a
-# stock kernel via package dependencies (bbb.io-kernel-tasks et al),
-# shipping images with the wrong kernel.
-# uname -r returns the host kernel under qemu, so we identify the OLD
-# kernel by snapshotting /lib/modules instead.
+#
+# Done AS THE VERY LAST STEP of the chroot install, after FPP_Install.sh has
+# finished all of its apt activity -- earlier ordering let FPP_Install.sh's
+# apt-get install silently reinstate a stock kernel via package dependencies
+# (bbb.io-kernel-tasks et al), shipping images with the wrong kernel.
+#
+# "Last step" alone was not enough, which is how #2966 shipped: the apt calls
+# IN THIS BLOCK reinstated a stock kernel after the FPP one was already in
+# place, and its postinst repointed /boot/uEnv.txt at itself. So this block:
+#   * leans on the apt pin written at the top of this script, which stops any
+#     stock kernel from being installed at all;
+#   * takes the kernel version from the .deb instead of guessing it by sorting
+#     /lib/modules (uname -r returns the HOST kernel under qemu);
+#   * purges every non-FPP kernel by RE-SCANNING /lib/modules after all apt
+#     activity rather than from a snapshot taken before it -- a snapshot
+#     cannot see a kernel that apt installs later, and that is precisely the
+#     one that got left behind;
+#   * writes /boot/uEnv.txt itself, last, and fails the build if the image
+#     would boot anything other than the FPP kernel.
 #############################################################################
 if [ "${SKIP_KERNEL_UPDATE}" != "1" ] && [ -f "/root/${FPP_KERNEL_DEB}" ]; then
     echo "FPP - Installing FPP-patched kernel ${FPP_KERNEL_VER}"
-    OLD_KERNELS=\$(ls -1 /lib/modules/ 2>/dev/null || true)
+
+    # The package name carries the kernel version proper
+    # ("linux-image-7.1.6-fpp17" -> "7.1.6-fpp17"); FPP_KERNEL_VER also
+    # carries the deb revision, so it cannot be used as-is.
+    FPP_KV=\$(dpkg-deb -f "/root/${FPP_KERNEL_DEB}" Package 2>/dev/null | sed 's/^linux-image-//') || true
+    if [ -z "\$FPP_KV" ]; then
+        echo "ERROR: could not read the kernel version out of ${FPP_KERNEL_DEB}" >&2
+        exit 1
+    fi
 
     dpkg -i "/root/${FPP_KERNEL_DEB}"
     rm -f "/root/${FPP_KERNEL_DEB}"
 
-    # bbb.io-kernel-tasks pulls in stock kernels via apt; remove it before
-    # we purge old kernels so they don't get reinstalled.
+    # bbb.io-kernel-tasks exists only to drag stock kernels in via apt.
     apt-get remove -y --purge --autoremove bbb.io-kernel-tasks 2>/dev/null || true
 
-    NEW_KV=\$(ls -1 /lib/modules/ 2>/dev/null | sort -V | tail -n1)
-    if [ -z "\$NEW_KV" ]; then
-        echo "ERROR: no kernel in /lib/modules after dpkg -i" >&2
+    if [ ! -d "/lib/modules/\$FPP_KV" ]; then
+        echo "ERROR: /lib/modules/\$FPP_KV missing after dpkg -i" >&2
         exit 1
     fi
-    echo "FPP - New kernel: \$NEW_KV"
+    echo "FPP - New kernel: \$FPP_KV"
 
-    for OLD_KV in \$OLD_KERNELS; do
-        [ "\$OLD_KV" = "\$NEW_KV" ] && continue
-        echo "FPP - Removing old kernel modules: \$OLD_KV"
-        rm -rf "/lib/modules/\$OLD_KV"
-        rm -rf "/boot/dtbs/\$OLD_KV"
-        # Best-effort apt removal of stock linux-image / -headers for OLD_KV
+    for OLD_KV in \$(ls -1 /lib/modules/ 2>/dev/null || true); do
+        [ "\$OLD_KV" = "\$FPP_KV" ] && continue
+        echo "FPP - Removing old kernel: \$OLD_KV"
         apt-get remove -y --purge --autoremove "linux-image-\$OLD_KV" 2>/dev/null || true
         apt-get remove -y --purge --autoremove "linux-headers-\$OLD_KV" 2>/dev/null || true
+        rm -rf "/lib/modules/\$OLD_KV"
+        rm -rf "/boot/dtbs/\$OLD_KV"
+        rm -f "/boot/vmlinuz-\$OLD_KV" "/boot/System.map-\$OLD_KV" "/boot/config-\$OLD_KV"
     done
+
+    # The bbb.io-* metapackages are what pull a stock kernel back in on the
+    # next apt run. Enumerated via dpkg-query because apt-get treats an
+    # unmatched name as a REGEX, where "bbb.io-kernel-*" would not mean what
+    # it looks like it means.
+    BBIO_KERNEL_PKGS=\$(dpkg-query -W -f='\${Package}\n' 'bbb.io-kernel-*' 'bbb.io-headers-*' 2>/dev/null | tr '\n' ' ') || true
+    if [ -n "\$BBIO_KERNEL_PKGS" ]; then
+        apt-get remove -y --purge --autoremove \$BBIO_KERNEL_PKGS 2>/dev/null || true
+    fi
+
     rm -rf /boot/initrd.img*
-    
+
+    # Whoever writes /boot/uEnv.txt last wins the boot, and that is not
+    # necessarily us -- a kernel postinst/postrm anywhere above may have had
+    # the final say. Assert it rather than assume it. Only the uname_r line is
+    # touched; FPP_Install.sh owns the overlay and cmdline entries.
+    if grep -q '^uname_r=' /boot/uEnv.txt; then
+        sed -i "s|^uname_r=.*|uname_r=\$FPP_KV|" /boot/uEnv.txt
+    else
+        echo "uname_r=\$FPP_KV" >> /boot/uEnv.txt
+    fi
+
+    BOOT_KV=\$(sed -n 's/^uname_r=//p' /boot/uEnv.txt)
+    STRAY_KV=\$(ls -1 /lib/modules/ 2>/dev/null | grep -v "^\$FPP_KV\\\$" || true)
+    if [ "\$BOOT_KV" != "\$FPP_KV" ] || [ -n "\$STRAY_KV" ]; then
+        echo "ERROR: this image would not boot the FPP kernel" >&2
+        echo "       uEnv.txt uname_r : \$BOOT_KV (want \$FPP_KV)" >&2
+        echo "       stray kernels    : \$STRAY_KV" >&2
+        exit 1
+    fi
+    echo "FPP - /boot/uEnv.txt boots \$FPP_KV"
+
+    # Handed to the host-side gate that runs once the chroot exits.
+    echo "\$FPP_KV" > /tmp/fpp-installed-kernel
+
     # Remove the blacklist of the rtw88 drivers as we don't have the out-of-tree drivers
     # as part of our kernel
     rm -f /etc/modprobe.d/rtw88.conf
@@ -676,6 +765,36 @@ chmod +x "$ROOT_MNT/tmp/fpp-chroot-install.sh"
 chroot "$ROOT_MNT" /tmp/fpp-chroot-install.sh
 
 rm -f "$ROOT_MNT/tmp/fpp-chroot-install.sh"
+
+#############################################################################
+# 5a. Gate: the image must boot FPP's kernel.
+#
+# The chroot step asserts this too, but repeat it from out here so a
+# regression cannot hide behind a chroot step that was skipped, exited early,
+# or had its output swallowed. Issue #2966 shipped a BBB image whose
+# /boot/uEnv.txt pointed at a stock kernel with no PRU patches; this is the
+# check that should have failed that build instead of releasing it.
+#############################################################################
+if [ "$SKIP_KERNEL_UPDATE" != "1" ]; then
+    KERNEL_STAMP="$ROOT_MNT/tmp/fpp-installed-kernel"
+    EXPECT_KV="$(cat "$KERNEL_STAMP" 2>/dev/null || true)"
+    rm -f "$KERNEL_STAMP"
+
+    BOOT_KV="$(sed -n 's/^uname_r=//p' "$ROOT_MNT/boot/uEnv.txt" 2>/dev/null || true)"
+
+    MOD_DIR="$ROOT_MNT/usr/lib/modules"
+    [ -d "$MOD_DIR" ] || MOD_DIR="$ROOT_MNT/lib/modules"
+    STRAY_KV="$(ls -1 "$MOD_DIR" 2>/dev/null | grep -v "^${EXPECT_KV}\$" || true)"
+
+    if [ -z "$EXPECT_KV" ] || [ "$BOOT_KV" != "$EXPECT_KV" ] || [ -n "$STRAY_KV" ]; then
+        echo "ERROR: image does not boot the FPP kernel -- refusing to ship it." >&2
+        echo "       expected kernel  : ${EXPECT_KV:-<chroot installed none>}" >&2
+        echo "       uEnv.txt uname_r : ${BOOT_KV:-<none>}" >&2
+        echo "       stray kernels    : ${STRAY_KV:-none}" >&2
+        exit 1
+    fi
+    echo "[5a/8] Kernel check OK: image boots ${EXPECT_KV}"
+fi
 
 #############################################################################
 # 5b. Capture the populated ccache so the workflow can attach it to the

@@ -839,18 +839,146 @@ static bool runAptGet(const std::vector<std::string>& args) {
     return WIFEXITED(status) && WEXITSTATUS(status) == 0;
 }
 
+// A package name apt takes as one package and never as an option: Debian
+// policy characters, 2-255 long, optional ":arch". The PHP side validates the
+// same way before writing the list, but the file is hand-editable and
+// restorable from a backup, and every name here becomes root apt-get argv --
+// a leading '-' would be an apt option. Hand-rolled rather than std::regex so
+// it cannot throw. Apt's other trap, an unanchored regex fallback for a name
+// containing '.' that no longer exists, is closed by packageKnownToApt().
+static bool validPackageName(const std::string& n) {
+    if (n.size() < 2 || n.size() > 255) {
+        return false;
+    }
+    size_t colon = n.find(':');
+    std::string base = n.substr(0, colon);
+    auto lowerAlnum = [](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'); };
+    if (base.size() < 2 || !lowerAlnum(base.front()) || (!lowerAlnum(base.back()) && base.back() != '+')) {
+        return false;
+    }
+    for (char c : base) {
+        if (!lowerAlnum(c) && c != '+' && c != '.' && c != '-') {
+            return false;
+        }
+    }
+    if (colon != std::string::npos) {
+        std::string arch = n.substr(colon + 1);
+        if (arch.empty()) {
+            return false;
+        }
+        for (char c : arch) {
+            if (!lowerAlnum(c) && c != '-') {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// Whether apt's lists know this exact name. 'apt-get install' falls back to
+// an unanchored regex for an unknown name containing '.', so a versioned
+// name that vanished in the new release (libfoo1.2) could select something
+// else entirely; 'apt-cache pkgnames' lists exact names only, one per line
+// (--all-names so a virtual package name apt can install is not refused).
+// The name has passed validPackageName() (no shell characters), so the
+// usual execAndReturn() is fine here.
+static bool packageKnownToApt(const std::string& name) {
+    std::string base = name.substr(0, name.find(':'));
+    std::string out;
+    try {
+        out = execAndReturn("apt-cache --all-names pkgnames " + base);
+    } catch (const std::exception&) {
+        return true; // can't check: let apt decide, as before
+    }
+    return ("\n" + out).find("\n" + base + "\n") != std::string::npos;
+}
+
 // Extract a package name from a userpackages.json entry. Supports both the
 // legacy schema (a bare string) and the ownership schema
-// ({"package": "name", "requestedBy": [...]} written by the PHP package
-// helpers). Returns "" when the entry carries no usable package name.
+// ({"package": "name", "requestedBy": [...], "via": [...]} written by the PHP
+// package helpers). Returns "" when the entry carries no usable package name,
+// and for an entry with a non-empty "via": that is a dependency some other
+// entry's install pulled in, and its parent's install re-pulls it under
+// whatever the new OS calls it -- replaying the recorded (often versioned)
+// name would fail on every boot once the release renames it.
 static std::string packageNameFromJson(const Json::Value& item) {
     if (item.isString()) {
         return item.asString();
     }
-    if (item.isObject() && item.isMember("package") && item["package"].isString()) {
+    if (JsonHas(item, "package") && item["package"].isString()) {
+        if (JsonHas(item, "via") && item["via"].isArray() && !item["via"].empty()) {
+            return "";
+        }
         return item["package"].asString();
     }
     return "";
+}
+
+// Reads the user package list into $out: size-capped so a runaway file
+// cannot exhaust a small board's memory before it is even parsed, every name
+// validated, duplicates dropped. Returns false when the file is missing or
+// unusable -- nothing to replay, and nothing a retry would fix. jsoncpp's
+// parser throws on input nested past its stack limit; the caller catches.
+static bool readUserPackages(const std::string& filePath, std::vector<std::string>& out) {
+    std::error_code ec;
+    auto size = std::filesystem::file_size(filePath, ec);
+    if (ec) {
+        if (ec == std::errc::no_such_file_or_directory) {
+            printf("No user package list at %s, nothing to install\n", filePath.c_str());
+        } else {
+            printf("Error: user package list %s: %s; skipping\n", filePath.c_str(), ec.message().c_str());
+        }
+        return false;
+    }
+    if (size > 4 * 1024 * 1024) {
+        printf("Error: user package list is %ju bytes; refusing to process it\n", (uintmax_t)size);
+        return false;
+    }
+    Json::Value root;
+    if (!LoadJsonFromString(GetFileContents(filePath), root, JsonRoot::Array)) {
+        // Malformed or wrong-shaped; won't fix itself on retry. The loader has
+        // already said what was wrong with it.
+        printf("Error: user package list %s is not usable; skipping\n", filePath.c_str());
+        return false;
+    }
+    // A real list is tens of entries. Beyond this the de-dup below and the
+    // one-apt-call-per-name loop after it are minutes of boot.
+    if (root.size() > 1000) {
+        printf("Error: user package list has %u entries; refusing to process it\n", root.size());
+        return false;
+    }
+    int rejected = 0;
+    std::string firstRejected;
+    for (const auto& item : root) {
+        std::string pkg = packageNameFromJson(item);
+        if (pkg.empty()) {
+            continue;
+        }
+        if (!validPackageName(pkg)) {
+            if (rejected++ == 0) {
+                // Printable ASCII only, truncated: this goes to the boot log.
+                for (char c : pkg.substr(0, 64)) {
+                    firstRejected += (c >= 0x20 && c < 0x7f) ? c : '?';
+                }
+            }
+            continue;
+        }
+        bool seen = false;
+        for (const auto& have : out) {
+            if (have == pkg) {
+                seen = true;
+                break;
+            }
+        }
+        if (!seen) {
+            out.push_back(pkg);
+        }
+    }
+    if (rejected) {
+        printf("Skipping %d invalid package name(s) in user package list (first: '%s')\n",
+               rejected, firstRejected.c_str());
+    }
+    return true;
 }
 
 // Returns true if there is nothing to do or every package installed; false only
@@ -858,36 +986,19 @@ static std::string packageNameFromJson(const Json::Value& item) {
 // DPkg::Lock::Timeout option lets apt wait for a concurrent install at boot
 // instead of failing immediately.
 bool installPackagesFromJson(const std::string& filePath) {
-    std::ifstream file(filePath, std::ifstream::binary);
-    if (!file) {
-        // No user package list -> nothing to install, don't keep retrying.
-        printf("No user package list at %s, nothing to install\n", filePath.c_str());
-        return true;
-    }
-
-    Json::Value root;
-    Json::CharReaderBuilder reader;
-    std::string errs;
-
-    if (!Json::parseFromStream(reader, file, &root, &errs)) {
-        // Malformed config won't fix itself on retry; consume the trigger.
-        printf("Error: Failed to parse JSON - %s\n", errs.c_str());
-        return true;
-    }
-
-    if (!root.isArray()) {
-        printf("Error: JSON is not an array\n");
-        return true;
-    }
-
-    bool anyPackages = false;
-    for (const auto& item : root) {
-        if (!packageNameFromJson(item).empty()) {
-            anyPackages = true;
-            break;
+    std::vector<std::string> packages;
+    try {
+        if (!readUserPackages(filePath, packages)) {
+            return true;
         }
+    } catch (const std::exception& e) {
+        // jsoncpp throws Json::RuntimeError on a file nested deeper than its
+        // stack limit (a 1001-character "[[[[" file). This is fppinit: a bad
+        // list must never take boot down.
+        printf("Error: user package list could not be processed (%s); skipping\n", e.what());
+        return true;
     }
-    if (!anyPackages) {
+    if (packages.empty()) {
         return true;
     }
 
@@ -916,14 +1027,17 @@ bool installPackagesFromJson(const std::string& filePath) {
     }
 
     bool allOk = true;
-    for (const auto& item : root) {
-        std::string pkg = packageNameFromJson(item);
-        if (!pkg.empty()) {
-            printf("Installing: %s\n", pkg.c_str());
-            if (!runAptGet({ "-o", "DPkg::Lock::Timeout=60", "install", "-y", pkg })) {
-                printf("Warning: Package installation failed for %s\n", pkg.c_str());
-                allOk = false;
-            }
+    for (const auto& pkg : packages) {
+        if (!packageKnownToApt(pkg)) {
+            // Renamed or dropped in the new release. Not retryable, and not
+            // something to hand to apt's regex fallback.
+            printf("Warning: no package named %s in the new OS; skipping\n", pkg.c_str());
+            continue;
+        }
+        printf("Installing: %s\n", pkg.c_str());
+        if (!runAptGet({ "-o", "DPkg::Lock::Timeout=60", "install", "-y", pkg })) {
+            printf("Warning: Package installation failed for %s\n", pkg.c_str());
+            allOk = false;
         }
     }
     return allOk;

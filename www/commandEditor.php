@@ -188,23 +188,36 @@
 
     function ldLoadOverlayTypes(cb) {
         if (_ldOverlayTypes) { cb(_ldOverlayTypes); return; }
-        var t = { sub: {}, grp: {} };
+        var t = { sub: {}, grp: {}, polar: {} };
         // Settle BOTH requests (via .always + a counter) before classifying, so
         // a missing file (404) on either one doesn't short-circuit the other.
         // Absent submodel/group JSON simply leaves its set empty — no error.
         var pending = 2;
         var done = function () { if (--pending === 0) { _ldOverlayTypes = t; cb(t); } };
-        $.get('api/configfile/xlights-submodels.json')
+        // cache:false on both -- these files are rewritten whenever models are
+        // re-uploaded from xLights or a polar buffer is built, and a browser
+        // serving a stale copy silently misclassifies everything it describes
+        // (a polar buffer filed under Model Groups, a new submodel as a model).
+        $.ajax({ url: 'api/configfile/xlights-submodels.json', dataType: 'json', cache: false })
             .done(function (d) { ((d && d.submodels) || []).forEach(function (s) { if (s.Name) t.sub[ldNorm(s.Name)] = 1; }); })
             .always(done);
-        $.get('api/configfile/xlights-modelgroups.json')
-            .done(function (d) { ((d && d.modelgroups) || []).forEach(function (g) { if (g.Name) t.grp[ldNorm(g.Name)] = 1; }); })
+        $.ajax({ url: 'api/configfile/xlights-modelgroups.json', dataType: 'json', cache: false })
+            .done(function (d) { ((d && d.modelgroups) || []).forEach(function (g) {
+                if (!g.Name) return;
+                // BufferStyle is core's field (PixelOverlayModel::getBufferStyle):
+                // a polar buffer lives in the group file but is not a group, and
+                // filing it under "Model Groups" hides it from anyone looking for
+                // one. See the Polar Buffers section on pixeloverlaymodels.php.
+                if (g.BufferStyle === 'polar') { t.polar[ldNorm(g.Name)] = 1; }
+                else { t.grp[ldNorm(g.Name)] = 1; }
+            }); })
             .always(done);
     }
 
     function ldOverlayType(name) {
         if (!_ldOverlayTypes) return 'model';
         var n = ldNorm(name);
+        if (_ldOverlayTypes.polar[n]) return 'polar';
         if (_ldOverlayTypes.grp[n]) return 'group';
         if (_ldOverlayTypes.sub[n]) return 'submodel';
         return 'model';
@@ -236,15 +249,39 @@
                     try { ReloadContentList(window.location.hostname, $sel); } catch (e) {}
                 }
 
-                // Snapshot the full option set with its type once populated.
-                var all = [];
-                $sel.children('option').each(function () {
-                    var v = $(this).attr('value');
-                    var special = (v === '' || v === '--All Models--');
-                    all.push({ value: v, label: $(this).text(), special: special,
-                               type: special ? 'model' : ldOverlayType(v) });
+                // Build the master list from the content-list URL directly
+                // rather than from the <option> elements in the DOM.
+                //
+                // Reading the DOM couples this to exactly when fpp.js finished
+                // populating the select, and the first filter pass then REPLACES
+                // those options -- so a snapshot taken a moment too early is
+                // permanently short, and every Type view but the default comes
+                // up empty with only the already-selected value surviving
+                // (ldApplyOverlayFilter always keeps those). Fetching the list
+                // is the same request fpp.js just made, served from cache, and
+                // it cannot race.
+                $.ajax({
+                    dataType: 'json',
+                    url: String($sel.data('contentlisturl') || ''),
+                    async: false,
+                    success: function (data) {
+                        var all = [];
+                        if ($sel.data('allowblanks')) {
+                            all.push({ value: '', label: '', special: true, type: 'model' });
+                        }
+                        $.each(data, function (k, v) {
+                            var value = Array.isArray(data) ? v : k;
+                            var label = Array.isArray(data) ? v : v;
+                            var special = (value === '' || value === '--All Models--');
+                            all.push({ value: value, label: label, special: special,
+                                       type: special ? 'model' : ldOverlayType(value) });
+                        });
+                        $sel.data('ldAll', all);
+                    }
                 });
-                $sel.data('ldAll', all);
+                if (!($sel.data('ldAll') || []).length) {
+                    return;   // could not load the list; leave the stock picker alone
+                }
                 ldBuildFilterBar($sel);
                 ldApplyOverlayFilter($sel);
             });
@@ -269,6 +306,7 @@
             + "<option value='model'>Models</option>"
             + "<option value='submodel'>Submodels</option>"
             + "<option value='group'>Model Groups</option>"
+            + "<option value='polar'>Polar Buffers</option>"
             + "<option value='all'>All</option>"
             + "</select>"
             + "<input type='text' class='ldSearchFilter' placeholder='filter…' style='flex:1;min-width:80px;'>"
@@ -305,6 +343,15 @@
                  + (selSet[o.value] ? ' selected' : '') + '>' + ldEsc(o.label) + '</option>';
         });
         $sel.html(html);
+
+        // A multistring picker is DISPLAYED as a checkbox list mirroring this
+        // <select>, which is itself hidden (fpp.js SyncMultistringChecks, issue
+        // #2733). Rewriting the options alone therefore changes nothing on
+        // screen -- the Type and text filters appear to do nothing at all.
+        // Rebuild the mirror whenever the option set changes.
+        if ($sel.attr('data-multistring') === '1' && typeof SyncMultistringChecks === 'function') {
+            SyncMultistringChecks($sel[0]);
+        }
     }
 </script>
 

@@ -152,6 +152,15 @@ void PixelOverlayManager::addModel(Json::Value config) {
         pmodel = new PixelOverlayModelSub(config);
     }
 
+    if (pmodel && !pmodel->isValid()) {
+        // Its channel data could not be allocated, so every accessor on it
+        // would index a null pointer.  Drop it; the warning is already up.
+        LogErr(VB_CHANNELOUT, "PixelOverlayManager::addModel() - could not allocate memory for model %s\n",
+               pmodel->getName().c_str());
+        delete pmodel;
+        pmodel = nullptr;
+    }
+
     std::unique_lock<std::recursive_mutex> lock(modelsLock);
     bool wasEmpty = models.empty();
     if (pmodel) {
@@ -500,24 +509,34 @@ static void findFonts(const std::string& dir, std::map<std::string, std::string>
     dp = opendir(dir.c_str());
     if (dp != NULL) {
         while ((ep = readdir(dp))) {
-            char* dot = strstr(ep->d_name, ".");
-            // No dot means no extension — skip
-            if (!dot) {
-                continue;
-            }
-            int location = dot - ep->d_name;
-
-            // We're one of ".", "..", or hidden, so let's skip
-            if (location == 0) {
+            // ".", ".." and hidden entries all start with a dot.
+            //
+            // This used to be done by requiring a dot ANYWHERE in the name and
+            // rejecting one at position 0, which quietly made the recursion
+            // below dead code: every font on the system lives in a directory
+            // named for its family -- truetype/liberation, truetype/noto,
+            // truetype/lato, truetype/dejavu -- and not one of those names
+            // contains a dot, so each was skipped before it could be recursed
+            // into. The only fonts that ever reached the map were the .pfb
+            // files sitting flat in /usr/share/fonts/X11/Type1, which is why
+            // the overlay Font list offered 35 URW faces and none of the
+            // several hundred TrueType fonts actually installed.
+            if (ep->d_name[0] == '.') {
                 continue;
             }
 
             struct stat statbuf;
             std::string dname = dir;
             dname += ep->d_name;
-            lstat(dname.c_str(), &statbuf);
+            if (lstat(dname.c_str(), &statbuf) != 0) {
+                // Raced with a delete, or we cannot stat it; either way there is
+                // nothing to classify. Checked because the fields were
+                // previously read whether or not the call succeeded.
+                continue;
+            }
             if (S_ISLNK(statbuf.st_mode)) {
-                // symlink, skip
+                // symlink, skip -- fontconfig trees are full of them, and
+                // following them is how a scan ends up in a loop
                 continue;
             } else if (S_ISDIR(statbuf.st_mode)) {
                 findFonts(dname + "/", fonts);
@@ -1528,6 +1547,18 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
             // submodel that GET could see perfectly well.
             auto m = getModelLocked(p3);
             if (m) {
+                // One line per overlay control action so the crash-time log
+                // ring can show what last changed a model.  "pixel" and "data"
+                // are deliberately excluded: those are the frame-rate paths
+                // (see docs/PixelOverlayBulkData.md), and a line each would
+                // fill all 256 ring slots in well under a second.  "data"
+                // logs its own line on VB_CHANNELOUT, which the ring skips
+                // for exactly this reason.
+                if (p4 != "pixel" && p4 != "data") {
+                    LogDebug(VB_COMMAND, "PUT /api/overlays/model/%s/%s from %s\n",
+                             m->getName().c_str(), p4.c_str(),
+                             getEffectiveClientIP(req).c_str());
+                }
                 if (p4 == "state") {
                     Json::Value root;
                     if (LoadJsonFromString(std::string(getRequestContent(req)), root)) {
@@ -1615,6 +1646,39 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                             args.push_back(std::to_string(pps));
                             args.push_back("0");
                             args.push_back(msg);
+
+                            // Optional colour-treatment arguments, in the order
+                            // the Text effect declares them after Text.  They
+                            // are positional, so a body that sets a later one
+                            // without an earlier one still has to push the
+                            // earlier one's default -- which is what the loop
+                            // does, stopping as soon as nothing further is
+                            // named so a body that mentions none of them sends
+                            // the same ten arguments it always has.
+                            static const struct {
+                                const char* key;
+                                const char* dflt;
+                            } TEXT_COLOR_ARGS[] = {
+                                { "ColorMode", "Single" },
+                                { "Palette", "Custom" },
+                                { "NumColors", "2" },
+                                { "Color2", "#0000FF" },
+                                { "Color3", "#00FF00" },
+                                { "Color4", "#FFFF00" },
+                                { "Color5", "#FF00FF" },
+                                { "ColorSpeed", "0" }
+                            };
+                            int lastNamed = -1;
+                            for (int ci = 0; ci < (int)(sizeof(TEXT_COLOR_ARGS) / sizeof(TEXT_COLOR_ARGS[0])); ci++) {
+                                if (root.isMember(TEXT_COLOR_ARGS[ci].key)) {
+                                    lastNamed = ci;
+                                }
+                            }
+                            for (int ci = 0; ci <= lastNamed; ci++) {
+                                const char* key = TEXT_COLOR_ARGS[ci].key;
+                                args.push_back(root.isMember(key) ? root[key].asString()
+                                                                  : TEXT_COLOR_ARGS[ci].dflt);
+                            }
                             lock.unlock();
                             LogDebug(VB_COMMAND, "PixelOverlay HTTP API from %s running \"Overlay Model Effect\" on model \"%s\"\n", getEffectiveClientIP(req).c_str(), p3.c_str());
                             CommandManager::INSTANCE.run("Overlay Model Effect", args);
@@ -1623,7 +1687,9 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                     }
                 } else if (p4 == "mmap") {
                     // Force mmap the overlay buffer so external programs can have access to it
-                    m->getOverlayBuffer();
+                    if (!m->getOverlayBuffer()) {
+                        return makeStringResponse("{ \"Status\": \"ERROR\", \"Message\": \"Could not allocate the overlay buffer\"}", 500);
+                    }
                     return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
                 } else {
                     return makeStringResponse("Model Command Not found " + p4, 404);
@@ -1632,6 +1698,10 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                 return makeStringResponse("Model Not found " + p3, 404);
             }
         } else if (p2 == "range") {
+            // Same reasoning as the model branch above; a range PUT is a
+            // one-shot control action, not a per-frame one.
+            LogDebug(VB_COMMAND, "PUT /api/overlays/range/%s/%s from %s\n",
+                     p3.c_str(), p4.c_str(), getEffectiveClientIP(req).c_str());
             int val = -1;
             bool deleteAll = false;
             if (p4 == "") {

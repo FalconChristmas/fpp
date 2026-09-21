@@ -12,7 +12,11 @@
 
 #include "fpp-pch.h"
 
+#include <sys/stat.h>
+#include <unordered_map>
+
 #include "fpp-json.h"
+#include "Warnings.h"
 
 #if __has_include(<sys/posix_shm.h>)
 #include <sys/posix_shm.h>
@@ -74,38 +78,88 @@ static const char* ChannelDataOrder(int channelsPerNode) {
     }
 }
 
-static uint8_t* createChannelDataMemory(const std::string& dataName, uint32_t size) {
+// Both of a model's buffers (the channel data and the overlay buffer) are
+// allocated the same way and with the same fallbacks, so they share this.
+//
+// The buffer is shared memory when it can be, because external programs read
+// it; when it cannot be, a private anonymous mapping is just as good to us.
+// Each step is checked, and the caller is told which one won so it can release
+// the buffer the way it was allocated -- munmap() on a malloc()ed pointer is
+// not a no-op.
+//
+// Returns nullptr only if every allocator failed, which means the box is out of
+// memory. Callers must handle that: a model with no buffer draws nothing, which
+// is survivable, and the alternative here used to be a wild write through a
+// null pointer.
+static uint8_t* createModelMemory(const std::string& dataName, uint32_t size, bool& mapped) {
+    mapped = true;
+    if (size < 8) {
+        // cannot mmap 0 size which some models happen to have
+        size = 8;
+    }
+
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
     int f = shm_open(dataName.c_str(), O_RDWR | O_CREAT, mode);
-    int flags = MAP_SHARED;
-    if (f == -1) {
-        LogWarn(VB_CHANNELOUT, "Could not create shared memory block for %s:  %s\n", dataName.c_str(), FPPstrerror(errno));
-        // we couldn't create the shared memory block.  Most of the time,
-        // we are fine with non-shared memory and this at least prevents a crash
-        flags = MAP_ANON;
-    } else {
+    if (f != -1) {
         int rc = ftruncate(f, size);
         if (rc == -1) {
             // if ftruncate fails, we need to completely reset
             close(f);
             shm_unlink(dataName.c_str());
             f = shm_open(dataName.c_str(), O_RDWR | O_CREAT, mode);
-            ftruncate(f, size);
+            if (f != -1 && ftruncate(f, size) == -1) {
+                close(f);
+                f = -1;
+            }
         }
     }
-    if (size < 8) {
-        // cannot mmap 0 size which some models happen to have
-        size = 8;
-    }
-    uint8_t* channelData = (uint8_t*)mmap(0, size, PROT_READ | PROT_WRITE, flags, f, 0);
-    if (channelData == MAP_FAILED) {
-        // mmap is failing, but we need channelData so just do malloc
-        channelData = (uint8_t*)malloc(size);
-    }
-    if (f != -1) {
+    if (f == -1) {
+        LogWarn(VB_CHANNELOUT, "Could not create shared memory block for %s:  %s\n",
+                dataName.c_str(), FPPstrerror(errno));
+    } else {
+        uint8_t* data = (uint8_t*)mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, f, 0);
         close(f);
+        if (data != MAP_FAILED) {
+            return data;
+        }
+        LogWarn(VB_CHANNELOUT, "Could not mmap shared memory for %s:  %s\n",
+                dataName.c_str(), FPPstrerror(errno));
+        shm_unlink(dataName.c_str());
     }
-    return channelData;
+
+    // Private memory instead: external programs lose their view of this model,
+    // but fppd itself works normally.  MAP_ANON has to be paired with one of
+    // MAP_PRIVATE/MAP_SHARED -- on its own mmap() returns EINVAL, so for as
+    // long as that pairing was missing this fallback could not succeed and
+    // every failure here landed on the unchecked malloc() below.
+    uint8_t* data = (uint8_t*)mmap(0, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+    if (data != MAP_FAILED) {
+        return data;
+    }
+
+    mapped = false;
+    data = (uint8_t*)malloc(size);
+    if (data) {
+        // mmap() hands back zeroed pages and callers rely on that; malloc() does not.
+        memset(data, 0, size);
+    } else {
+        LogErr(VB_CHANNELOUT, "Out of memory allocating %u bytes for %s\n", size, dataName.c_str());
+    }
+    return data;
+}
+
+// The shm name for a model buffer, shortened where the system's limit demands it.
+static std::string modelMemoryName(const std::string& prefix, const std::string& shortPrefix,
+                                   const std::string& name) {
+    if (PSHMNAMLEN > 48) {
+        return prefix + name;
+    }
+    // system doesn't allow very long shared memory names, we'll use a shortened form
+    std::string n = shortPrefix + name;
+    if (n.size() > PSHMNAMLEN) {
+        n = n.substr(0, PSHMNAMLEN);
+    }
+    return n;
 }
 
 PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
@@ -118,6 +172,10 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
     replaceAll(name, "/", "_");
     startChannel = config["StartChannel"].asInt();
     startChannel--; // need to be 0 based
+
+    if (config.isMember("BufferStyle")) {
+        bufferStyle = config["BufferStyle"].asString();
+    }
     channelCount = config["ChannelCount"].asInt();
     int strings = config["StringCount"].asInt();
     int sps = config["StrandsPerString"].asInt();
@@ -175,15 +233,11 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
         }
     }
 
-    std::string dataName = "/FPP-Model-Data-" + name;
-    if (PSHMNAMLEN <= 48) {
-        // system doesn't allow very long shared memory names, we'll use a shortened form
-        dataName = "/FPPMD-" + name;
-        if (dataName.size() > PSHMNAMLEN) {
-            dataName = dataName.substr(0, PSHMNAMLEN);
-        }
+    channelData = createModelMemory(modelMemoryName("/FPP-Model-Data-", "/FPPMD-", name),
+                                    channelCount, channelDataMapped);
+    if (!channelData) {
+        WarningHolder::AddWarning(WARNING_ID_MODEL_MEMORY, MODEL_MEMORY_WARNING);
     }
-    channelData = createChannelDataMemory(dataName, channelCount);
 
     if (orientation == "V" || orientation == "vertical") {
         channelMap.resize(width * height * bytesPerPixel);
@@ -378,28 +432,20 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
 }
 PixelOverlayModel::~PixelOverlayModel() {
     if (channelData) {
-        munmap(channelData, channelCount);
-        std::string dataName = "/FPP-Model-Data-" + name;
-        if (PSHMNAMLEN <= 48) {
-            // system doesn't allow very long shared memory names, we'll use a shortened form
-            dataName = "/FPPMD-" + name;
-            if (dataName.size() > PSHMNAMLEN) {
-                dataName = dataName.substr(0, PSHMNAMLEN);
-            }
+        if (channelDataMapped) {
+            munmap(channelData, std::max(channelCount, 8));
+            shm_unlink(modelMemoryName("/FPP-Model-Data-", "/FPPMD-", name).c_str());
+        } else {
+            free(channelData);
         }
-        shm_unlink(dataName.c_str());
     }
     if (overlayBufferData) {
-        munmap(overlayBufferData, width * height * bytesPerPixel + sizeof(OverlayBufferData));
-        std::string overlayBufferName = "/FPP-Model-Overlay-Buffer-" + name;
-        if (PSHMNAMLEN <= 48) {
-            // system doesn't allow very long shared memory names, we'll use a shortened form
-            overlayBufferName = "/FPPMB-" + name;
-            if (overlayBufferName.size() > PSHMNAMLEN) {
-                overlayBufferName = overlayBufferName.substr(0, PSHMNAMLEN);
-            }
+        if (overlayBufferMapped) {
+            munmap(overlayBufferData, width * height * bytesPerPixel + sizeof(OverlayBufferData));
+            shm_unlink(modelMemoryName("/FPP-Model-Overlay-Buffer-", "/FPPMB-", name).c_str());
+        } else {
+            free(overlayBufferData);
         }
-        shm_unlink(overlayBufferName.c_str());
     }
     auto snapshot = children.load();
     if (snapshot) {
@@ -559,6 +605,93 @@ bool PixelOverlayModel::flushChildren(uint8_t* dst) {
         }
     }
     return true;
+}
+
+// A plain model owns one contiguous output range, so its channelData offset is
+// simply relative to where that range starts (doOverlay() below memcpy's the
+// whole thing to &channels[startChannel]).
+uint32_t PixelOverlayModel::outputChannelForData(uint32_t dataOffset) const {
+    return static_cast<uint32_t>(startChannel) + dataOffset;
+}
+
+/*
+ * Build (once) the polar view of this model's buffer.
+ *
+ * The join runs buffer cell -> channelData offset -> absolute output channel ->
+ * position, because the virtual display map is keyed by absolute channel and
+ * every model type can already say which channel one of its buffer cells ends
+ * up on (outputChannelForData, overridden by the scattering subclasses).
+ *
+ * Any failure returns nullptr and is remembered, so a model with no geometry
+ * costs one attempt rather than one per effect start.
+ */
+const PolarBufferMap* PixelOverlayModel::getPolarMap(PolarMode mode) {
+    if (mode == PolarMode::None) {
+        return nullptr;
+    }
+    // Rebuild when the layout has been re-uploaded since the map was built.
+    struct stat vst;
+    long long layoutVersion = 0;
+    if (stat(FPP_DIR_CONFIG("/virtualdisplaymap").c_str(), &vst) == 0) {
+        layoutVersion = (long long)vst.st_mtime;
+    }
+    auto key = std::make_pair(mode, layoutVersion);
+
+    auto cached = polarMaps.find(key);
+    if (cached != polarMaps.end()) {
+        return cached->second.valid() ? &cached->second : nullptr;
+    }
+    PolarBufferMap& polarMap = polarMaps[key];
+
+    std::vector<std::pair<uint32_t, std::pair<float, float>>> vdm;
+    if (!LoadVirtualDisplayPositions(vdm)) {
+        LogDebug(VB_CHANNELOUT,
+                 "No config/virtualdisplaymap; polar buffer mapping unavailable for %s\n",
+                 name.c_str());
+        return nullptr;
+    }
+    std::unordered_map<uint32_t, std::pair<float, float>> pos(vdm.begin(), vdm.end());
+
+    std::vector<PolarPixel> pixels;
+    pixels.reserve(static_cast<size_t>(width) * height);
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int off = (y * width + x) * bytesPerPixel;
+            if (off < 0 || off >= (int)channelMap.size()) {
+                continue;
+            }
+            uint32_t cd = channelMap[off];
+            if (cd == FPPD_OFF_CHANNEL) {
+                continue; // a hole in the buffer
+            }
+            uint32_t ch = outputChannelForData(cd);
+            if (ch == FPPD_OFF_CHANNEL) {
+                continue;
+            }
+            auto it = pos.find(ch);
+            if (it == pos.end()) {
+                continue; // this node was never exported to the layout
+            }
+            pixels.push_back({ it->second.first, it->second.second,
+                               static_cast<uint32_t>(y * width + x) });
+        }
+    }
+
+    if (pixels.size() < 2) {
+        LogDebug(VB_CHANNELOUT,
+                 "Model %s has %zu positioned pixels; polar buffer mapping unavailable\n",
+                 name.c_str(), pixels.size());
+        return nullptr;
+    }
+
+    polarMap = BuildPolarBufferMap(pixels, mode);
+    if (!polarMap.valid()) {
+        LogDebug(VB_CHANNELOUT, "Could not build a polar buffer for %s\n", name.c_str());
+        return nullptr;
+    }
+    LogDebug(VB_CHANNELOUT, "Polar buffer for %s: %d x %d from %zu positioned pixels\n",
+             name.c_str(), polarMap.width, polarMap.height, pixels.size());
+    return &polarMap;
 }
 
 void PixelOverlayModel::doOverlay(uint8_t* channels) {
@@ -773,6 +906,9 @@ bool PixelOverlayModel::blitOverlayBuffer(const uint8_t* src, int srcW, int srcH
 
     const int bpp = bytesPerPixel;
     uint8_t* buf = getOverlayBuffer();
+    if (!buf) {
+        return false;
+    }
     for (int y = 0; y < ch; y++) {
         const uint8_t* s = src + (((size_t)(sy + y) * srcW) + sx) * srcBpp;
         uint8_t* d = buf + ((size_t)(dy + y) * width + dx) * bpp;
@@ -974,49 +1110,35 @@ void PixelOverlayModel::setBufferIsDirty(bool dirty) {
 
 uint8_t* PixelOverlayModel::getOverlayBuffer() {
     if (!overlayBufferData) {
-        std::string overlayBufferName = "/FPP-Model-Overlay-Buffer-" + name;
-        if (PSHMNAMLEN <= 48) {
-            // system doesn't allow very long shared memory names, we'll use a shortened form
-            overlayBufferName = "/FPPMB-" + name;
-            if (overlayBufferName.size() > PSHMNAMLEN) {
-                overlayBufferName = overlayBufferName.substr(0, PSHMNAMLEN);
-            }
+        uint32_t size = width * height * bytesPerPixel + sizeof(OverlayBufferData);
+        overlayBufferData = (OverlayBufferData*)createModelMemory(
+            modelMemoryName("/FPP-Model-Overlay-Buffer-", "/FPPMB-", name), size, overlayBufferMapped);
+        if (!overlayBufferData) {
+            // Nothing left to hand back. Callers check, because the alternative
+            // was dereferencing this null a few instructions from here.
+            WarningHolder::AddWarning(WARNING_ID_MODEL_MEMORY, MODEL_MEMORY_WARNING);
+            return nullptr;
         }
-
-        mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
-        int f = shm_open(overlayBufferName.c_str(), O_RDWR | O_CREAT, mode);
-        int size = width * height * bytesPerPixel + sizeof(OverlayBufferData);
-        int flags = MAP_SHARED;
-        if (f == -1) {
-            LogWarn(VB_CHANNELOUT, "Could not create shared memory for overlay buffer %s: %s\n", name.c_str(), FPPstrerror(errno));
-            flags = MAP_ANON;
-        } else {
-            ftruncate(f, size);
-        }
-        overlayBufferData = (OverlayBufferData*)mmap(0, size, PROT_READ | PROT_WRITE, flags, f, 0);
-        if (overlayBufferData == MAP_FAILED) {
-            LogWarn(VB_CHANNELOUT, "Could not mmap overlay buffer for %s, using malloc\n", name.c_str());
-            overlayBufferData = (OverlayBufferData*)malloc(size);
-        }
-        memset(overlayBufferData, 0, size);
         overlayBufferData->width = width;
         overlayBufferData->height = height;
         overlayBufferData->flags = (bytesPerPixel << 8); // store bytesPerPixel in bits 8-15
-        if (f != -1) {
-            close(f);
-        }
     }
     return overlayBufferData->data;
 }
 
 void PixelOverlayModel::clearOverlayBuffer() {
-    memset(getOverlayBuffer(), 0, width * height * bytesPerPixel);
+    if (uint8_t* buf = getOverlayBuffer()) {
+        memset(buf, 0, width * height * bytesPerPixel);
+    }
 }
 void PixelOverlayModel::fillOverlayBuffer(int r, int g, int b) {
     fillOverlayBuffer(r, g, b, 0);
 }
 void PixelOverlayModel::fillOverlayBuffer(int r, int g, int b, int w) {
     uint8_t* data = getOverlayBuffer();
+    if (!data) {
+        return;
+    }
     for (int p = 0; p < (width * height); p++) {
         data[0] = r;
         data[1] = g;
@@ -1037,6 +1159,9 @@ void PixelOverlayModel::setOverlayPixelValue(int x, int y, int r, int g, int b, 
     }
     int idx = y * width * bytesPerPixel + x * bytesPerPixel;
     uint8_t* buf = getOverlayBuffer();
+    if (!buf) {
+        return;
+    }
     buf[idx++] = r;
     buf[idx++] = g;
     buf[idx++] = b;
@@ -1060,6 +1185,10 @@ void PixelOverlayModel::getOverlayPixelValue(int x, int y, int& r, int& g, int& 
     }
     int idx = y * width * bytesPerPixel + x * bytesPerPixel;
     uint8_t* buf = getOverlayBuffer();
+    if (!buf) {
+        r = g = b = w = 0;
+        return;
+    }
     r = buf[idx++];
     g = buf[idx++];
     b = buf[idx++];
@@ -1067,7 +1196,9 @@ void PixelOverlayModel::getOverlayPixelValue(int x, int y, int& r, int& g, int& 
 }
 
 void PixelOverlayModel::flushOverlayBuffer() {
-    setData(getOverlayBuffer());
+    if (uint8_t* buf = getOverlayBuffer()) {
+        setData(buf);
+    }
     setOverlayBufferDirty(false);
 }
 
@@ -1076,8 +1207,9 @@ bool PixelOverlayModel::overlayBufferIsDirty() {
 }
 
 void PixelOverlayModel::setOverlayBufferDirty(bool dirty) {
-    getOverlayBuffer();
-
+    if (!getOverlayBuffer()) {
+        return;
+    }
     if (dirty)
         overlayBufferData->flags |= 0x1;
     else
@@ -1088,6 +1220,9 @@ void PixelOverlayModel::setOverlayBufferScaledData(uint8_t* data, int w, int h) 
     float ydiff = (float)h / (float)height;
     float xdiff = (float)w / (float)width;
     uint8_t* buf = getOverlayBuffer();
+    if (!buf) {
+        return;
+    }
 
     float newy = 0.0f;
     float newx = 0.0f;
@@ -1223,6 +1358,15 @@ void PixelOverlayModel::setRunningEffect(RunningEffect* ef, int32_t firstUpdateM
     }
     runningEffect = ef;
     PixelOverlayManager::INSTANCE.addPeriodicUpdate(firstUpdateMS, this);
+}
+
+void PixelOverlayModel::clearRunningEffect() {
+    std::unique_lock<std::recursive_mutex> l(effectLock);
+    if (runningEffect) {
+        delete runningEffect;
+        runningEffect = nullptr;
+        PixelOverlayManager::INSTANCE.removePeriodicUpdate(this);
+    }
 }
 
 bool PixelOverlayModel::applyEffect(const std::string& autoState, const std::string& effect, const std::vector<std::string>& args) {

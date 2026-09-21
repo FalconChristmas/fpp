@@ -186,7 +186,8 @@ function files_rename()
 /**
  * Builds the file listing for a directory. Supports `?nameOnly=1` for a flat
  * name array, otherwise returns an array of file detail objects. For `music`
- * and `video` directories, playtime metadata is appended from `ffprobe`.
+ * and `video` directories, playtime is appended from the duration cache (null
+ * when not yet cached; the client fetches it lazily).
  *
  * @param string $dirName Absolute path to the directory to scan.
  * @param string $prefix  Optional prefix to prepend to each returned filename.
@@ -255,6 +256,7 @@ function GetFilesHelper($dirName, $prefix = '')
                 $current["mtime"] = date('m/d/y  h:i A', $mTime);
                 $current["sizeBytes"] = 0;
                 $current["sizeHuman"] = 'Directory';
+                $current["isDirectory"] = true;
 
                 $entries = array($current);
 
@@ -286,26 +288,27 @@ function GetFilesHelper($dirName, $prefix = '')
 
             if (strpos(strtolower($dirName), "music") !== false || strpos(strtolower($dirName), "video") !== false) {
 
-                //Check the cache first
+                // Cache only -- never probe here.  A cold cache after a bulk
+                // upload used to run ffprobe serially for every file before
+                // returning anything, so the Audio tab sat blank for minutes.
+                // A null playtime tells the file manager to fetch it lazily
+                // via /api/media/:name/duration, which populates the cache.
                 $cache_duration = media_duration_cache($fileName, null, $Size);
-                //cache duration will be null if not in cache, then retrieve it
-                if ($cache_duration == null) {
-
+                if ($cache_duration === null && strpos($fileName, '/') !== false) {
+                    // Files in subdirectories can't be reached through
+                    // /media/:MediaName/duration (the route doesn't take
+                    // slashes), so probe those inline as before.  Subdirs
+                    // aren't a supported layout, so this stays rare.
                     $resp = GetMetaDataFromFFProbe($fileName);
-
-                    //cache it
                     if (isset($resp['format']['duration'])) {
-                        media_duration_cache($fileName, $resp['format']['duration'], $Size);
+                        $cache_duration = $resp['format']['duration'];
+                        media_duration_cache($fileName, $cache_duration, $Size);
                     }
-
-                } else {
-                    $resp['format']['duration'] = $cache_duration;
                 }
-
-                if (isset($resp['format']['duration'])) {
-                    $current["playtimeSeconds"] = human_playtime($resp['format']['duration']);
+                if ($cache_duration !== null) {
+                    $current["playtimeSeconds"] = human_playtime($cache_duration);
                 } else {
-                    $current["playtimeSeconds"] = "Unknown";
+                    $current["playtimeSeconds"] = null;
                 }
 
             }
@@ -336,6 +339,11 @@ function GetFilesHelper($dirName, $prefix = '')
  *
  * @route GET /api/files/{DirName}
  * @param bool nameOnly When `1`, return a flat array of filenames instead of the default object envelope
+ * @param int maxdepth Limit recursion depth (default: unlimited)
+ *
+ * For `music` and `video`, `playtimeSeconds` is the human-readable duration
+ * from the duration cache, or `null` when the file has not been probed yet;
+ * `GET /api/media/{MediaName}/duration` probes it and fills the cache.
  * @response 200 Listing of files
  * ```json
  * {
@@ -351,6 +359,8 @@ function GetFilesHelper($dirName, $prefix = '')
  *   ]
  * }
  * ```
+ * Subdirectories are listed with `"isDirectory": true`, `sizeBytes` 0 and
+ * `sizeHuman` "Directory".
  */
 function GetFiles()
 {
@@ -1481,7 +1491,8 @@ function PostFile()
 
 /**
  * Appends a file detail entry to a list array. Includes name, mtime, size,
- * and (for `music`/`video` directories) playtime metadata from the `ffprobe` cache.
+ * and (for `music`/`video` directories) playtime from the duration cache
+ * (null when not yet cached).
  *
  * @param array  &$list    The list to append the file entry to.
  * @param string $dirName  Absolute path to the directory containing the file.
@@ -1504,26 +1515,12 @@ function GetFileInfo(&$list, $dirName, $fileName, $prefix = '')
 
     if (strpos(strtolower($dirName), "music") !== false || strpos(strtolower($dirName), "video") !== false) {
 
-        //Check the cache first
+        // Cache only; see GetFilesHelper() for why we never probe here.
         $cache_duration = media_duration_cache($fileName, null, $filesize);
-        //cache duration will be null if not in cache, then retrieve it
-        if ($cache_duration == null) {
-
-            $resp = GetMetaDataFromFFProbe($fileName);
-
-            //cache it
-            if (isset($resp['format']['duration'])) {
-                media_duration_cache($fileName, $resp['format']['duration'], $filesize);
-            }
-
+        if ($cache_duration !== null) {
+            $current["playtimeSeconds"] = human_playtime($cache_duration);
         } else {
-            $resp['format']['duration'] = $cache_duration;
-        }
-
-        if (isset($resp['format']['duration'])) {
-            $current["playtimeSeconds"] = human_playtime($resp['format']['duration']);
-        } else {
-            $current["playtimeSeconds"] = "Unknown";
+            $current["playtimeSeconds"] = null;
         }
 
     }

@@ -157,6 +157,22 @@ FPPOLEDUtils::InputAction* FPPOLEDUtils::configureGPIOPin(const std::string& pin
 
     pin.configPin(mode, false, nameDesc);
 
+    // configPin() warns and carries on when the line request fails, which it does
+    // for a pin the kernel has handed to a peripheral -- under strict pinmux that
+    // is permanent for, say, a button sharing GPIO15 with an enabled uart0.  Such
+    // a pin cannot be read: getValue() returns a flat 0, and for an active-low
+    // input 0 is "pressed", so registering it would fire the action continuously.
+    //
+    // This is NOT the same as having no event file.  An expander line with no
+    // interrupt has no fd and is polled through getValue(), which is a working
+    // path and must keep working; the question here is only whether the line was
+    // ever acquired.
+    if (!pin.isAcquired()) {
+        LogWarn(VB_GPIO, "Skipping input %s: the line could not be acquired, so it cannot be read\n",
+                pinName.c_str());
+        return nullptr;
+    }
+
     InputAction* action = new InputAction();
     action->pin = pinName;
     action->mode = mode;
@@ -334,7 +350,18 @@ bool FPPOLEDUtils::parseInputActions(const std::string& file) {
                                 pinCap.configPin("gpio", false, buttonaction);
 
                                 action->actions.push_back(new FPPOLEDUtils::InputAction::Action(buttonaction, 0, 0, 100000, pinCap.ptr()));
+                                // Record which navigation buttons exist, exactly as the
+                                // one-pin-per-button branch below does.  Menus that need a
+                                // full Up/Down/Back/Enter set (the Network config pages)
+                                // are hidden when this isn't done, so a cape whose buttons
+                                // hang off an expander would silently lose them.
+                                setInputFlag(buttonaction);
                             }
+                        }
+                        if (action->file == -1) {
+                            // No interrupt line: the buttons are still readable via
+                            // getValue() on each expander line, but only if we poll.
+                            needsPolling = true;
                         }
                     } else if (action->file == -1) {
                         needsPolling = true;
@@ -476,6 +503,8 @@ void FPPOLEDUtils::run() {
     }
 
     OLEDPage::SetHas4DirectionControls((inputFlags & 0x0F) == 0x0F);
+    LogInfo(VB_GPIO, "Input flags: 0x%02X   (Up/Down/Back/Enter all present: %s)\n",
+            inputFlags, OLEDPage::Has4DirectionControls() ? "yes" : "no");
 
     statusPage = new FPPStatusOLEDPage();
     OLEDPage::SetCurrentPage(statusPage);

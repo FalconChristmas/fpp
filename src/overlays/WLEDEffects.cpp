@@ -19,6 +19,7 @@
 #include "PixelOverlay.h"
 #include "PixelOverlayModel.h"
 #include "WLEDEffects.h"
+#include "PolarBufferMap.h"
 
 #include "wled/wled.h"
 
@@ -156,8 +157,19 @@ public:
     };
 };
 
-static std::array<std::string_view, 4> BUFFERMAPS{
-    "Horizontal", "Vertical", "Horizontal Flipped", "Vertical Flipped"
+// APPEND ONLY, NEVER REORDER. The index of a value here is what reaches
+// Bus::setPixelColor, and the NAMES are persisted in sequences, cue files and
+// plugin configs. Reordering would silently repaint every saved show.
+//
+// The four Radial/Angular entries lay the buffer out in POLAR order (radius and
+// angle) using the model's geometry from config/virtualdisplaymap; see
+// PolarBufferMap.h. A player with no xLights layout cannot build one, and a
+// build that predates these names will not match them -- both cases land on
+// index >= size(), which fails every mapping test below and behaves as
+// Horizontal, exactly as an unrecognised value always has.
+static std::array<std::string_view, 8> BUFFERMAPS{
+    "Horizontal", "Vertical", "Horizontal Flipped", "Vertical Flipped",
+    "Radial Out", "Radial In", "Angular CW", "Angular CCW"
 };
 
 static std::vector<std::string_view> fillPalettes() {
@@ -420,6 +432,7 @@ public:
                 switch (argMap[x]) {
                 case ArgMapping::Mapping:
                     mapping = std::find(BUFFERMAPS.begin(), BUFFERMAPS.end(), std::string_view(args[x])) - BUFFERMAPS.begin();
+                    mappingName = args[x];
                     break;
                 case ArgMapping::Brightness:
                     brightness = parseInt(args[x]);
@@ -482,7 +495,8 @@ public:
                                    mode, speed, intensity, p,
                                    color1, color2, color3,
                                    custom1, custom2, custom3,
-                                   check1, check2, check3, text);
+                                   check1, check2, check3, text,
+                                   PolarModeFromName(mappingName));
             WS2812FXExt::popCurrent();
         }
         virtual ~RawWLEDEffectInternal() {
@@ -567,6 +581,7 @@ public:
         int check2 = 0;
         int check3 = 0;
         std::string text;
+        std::string mappingName;
 
         WS2812FXExt* wled;
         const std::vector<ArgMapping> argMap;

@@ -414,8 +414,8 @@
                                                 <tr>
                                                     <th data-field="filename">File</th>
                                                     <th data-field="size">Size</th>
-                                                    <th data-field="dateModified">Date Modified</th>
                                                     <th data-field="thumbnail">Thumbnail</th>
+                                                    <th data-field="dateModified">Date Modified</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -854,6 +854,7 @@
                     </div>
                     <div id="tablefilterChk" class="mt-3">
                         <?php PrintSetting('fileManagerTableFilter', 'FileManagerFilterToggled'); ?>
+                        <?php PrintSetting('fileManagerHideEmptyTabs', 'FileManagerHideEmptyTabsToggled'); ?>
                     </div>
                 </div>
                 <div id="overlay">

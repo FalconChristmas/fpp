@@ -263,6 +263,23 @@ void hsv2rgb(const CHSV32& hsv, uint32_t& rgb) // convert HSV (16bit hue) to RGB
   }
 }
 
+// shift hue and change saturation/value of a colour in place, used by "Copy Segment"
+// note: the W channel is carried through untouched, the HSV round trip only covers RGB
+void adjust_color(uint32_t& rgb, int32_t hueShift, int32_t satChange, int32_t valueChange) {
+  if ((rgb & 0x00FFFFFF) == 0 && valueChange <= 0) return; // black and no value change -> stays black
+  const uint32_t w = rgb & 0xFF000000;
+  CHSV32 hsv;
+  rgb2hsv(rgb, hsv);
+  hsv.h += (hueShift << 8); // hue is 16 bits, shift is 8
+  int32_t s = (int32_t)hsv.s + satChange;
+  int32_t v = (int32_t)hsv.v + valueChange;
+  hsv.s = s < 0 ? 0 : (s > 255 ? 255 : s);
+  hsv.v = v < 0 ? 0 : (v > 255 ? 255 : v);
+  uint32_t out;
+  hsv2rgb(hsv, out);
+  rgb = (out & 0x00FFFFFF) | w;
+}
+
 void rgb2hsv(const uint32_t rgb, CHSV32& hsv) // convert RGB to HSV (16bit hue), much more accurate and faster than fastled version
 {
     hsv.raw = 0;

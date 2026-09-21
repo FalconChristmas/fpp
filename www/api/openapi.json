@@ -2510,6 +2510,15 @@
               "type": "boolean"
             },
             "description": "When `1`, return a flat array of filenames instead of the default object envelope"
+          },
+          {
+            "name": "maxdepth",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Limit recursion depth (default: unlimited)"
           }
         ],
         "responses": {
@@ -6066,6 +6075,47 @@
         }
       }
     },
+    "/api/playlist/repeat/{Repeat}": {
+      "parameters": [
+        {
+          "name": "Repeat",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "playlist"
+        ],
+        "summary": "Set playlist repeat on or off",
+        "description": "Turn repeat on or off for the running playlist without starting, stopping or restarting it - the API equivalent of the Repeat checkbox in the web UI. `{Repeat}` may be `true`/`false` or `1`/`0`.  The new setting is read when the playlist reaches the end of its current loop, and is reflected immediately in `repeat_mode` from `GET /api/fppd/status`. Repeat belongs to a playlist that is actually running, so this returns `{\"Status\": \"Error\"}` when the player is idle, when `{Repeat}` is not one of `true`/`false`/`1`/`0`, or when fppd cannot be reached; use the repeat flag on `GET /api/playlist/{PlaylistName}/start/{Repeat}` to start a playlist repeating.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Repeat state changed, or `Status` is `Error` with the reason in `Message`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": "Repeat Enabled"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/playlist/{PlaylistName}": {
       "parameters": [
         {
@@ -6966,7 +7016,30 @@
           "plugin"
         ],
         "summary": "Uninstall plugin",
-        "description": "Uninstall plugin {RepoName}.",
+        "description": "Uninstall plugin {RepoName}. Releases the plugin's claims on its apt package dependencies -- the packages it declared and the ones their install pulled in -- and apt-removes whatever nothing else still needs, unless `keepPackages=1`, which the reinstall flow passes so the install that follows can reuse them.",
+        "parameters": [
+          {
+            "name": "keepPackages",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "description": "Leave the plugin's package claims in place (reinstall flow)."
+          },
+          {
+            "name": "stream",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "When set (and not \"false\"), progress is streamed as text instead of a JSON reply."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Plugin uninstalled",
@@ -7268,7 +7341,7 @@
           "plugin"
         ],
         "summary": "Update plugin",
-        "description": "Pull in git updates for plugin `{RepoName}`. Supports an optional `?stream=true` query parameter for streaming output.",
+        "description": "Pull in git updates for plugin {RepoName}. Before the plugin's own fpp_upgrade.sh (or fpp_install.sh) runs, its declared dependencies are reconciled against the new version: newly declared apt, Python and script dependencies are installed, and package claims the new version no longer declares are released (apt-removed once nothing else needs them). A newly declared dependency plugin is reported, not installed -- the operator has to see its privacy disclosure on the Plugins page. Supports ?stream=true.",
         "responses": {
           "200": {
             "description": "Plugin upgraded",

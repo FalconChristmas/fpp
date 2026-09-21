@@ -564,13 +564,13 @@ void Segment::drawCircle(uint16_t cx, uint16_t cy, uint8_t radius, uint32_t col,
         setPixelColorXY(cx + dx, cy + dy, col);
         setPixelColorXY(cx + dy, cy + dx, col);
     }
-      x++;
       if (d > 0) {
-        y--;
         d += 4 * (x - y) + 10;
+        y--;
       } else {
         d += 4 * x + 6;
       }
+      x++;
     }
     _colorScaled = false;
   }
@@ -586,10 +586,13 @@ void Segment::fillCircle(uint16_t cx, uint16_t cy, uint8_t radius, uint32_t col,
   // pre-scale color for all pixels
   col = color_fade(col, _segBri);
   _colorScaled = true;
+  // (r+0.5)^2 = r*r + r + 0.25; use the exact radius for a "soft" circle so the
+  // fill stays inside the anti-aliased edge drawn above by Wu's algorithm
+  const int radius2 = soft ? radius * radius : radius * radius + radius;
   // fill it
   for (int y = -radius; y <= radius; y++) {
     for (int x = -radius; x <= radius; x++) {
-      if (x * x + y * y <= radius * radius &&
+      if (x * x + y * y < radius2 &&
           int(cx)+x >= 0 && int(cy)+y >= 0 &&
           int(cx)+x < vW && int(cy)+y < vH)
         setPixelColorXY(cx + x, cy + y, col);

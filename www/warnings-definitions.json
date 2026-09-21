@@ -130,7 +130,7 @@
         },
         {
             "id": 16,
-            "Title": "Smart Receiver Warning",
+            "Title": "Pixel Output Port Problem",
             "HelpTxt": "",
             "HelpPageType": "md",
             "WarningGroup": "Output_Warnings"

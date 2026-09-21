@@ -309,27 +309,26 @@ public:
             system(buf);
             return GPIODCapabilities::configPin("gpio_od", false, desc);
         }
-        // "no" is a releasePin()-only sentinel meaning "leave this pin alone on
-        // release" (used for PWM-capable pins like P1-35/GPIO19 on Pi5, so a blind
-        // reset doesn't clobber an active PWM alt-function). It must NOT be treated
-        // like the real I2C alt-function sentinels "a0"/"a3" here -- doing so skips
-        // GPIODCapabilities::configPin() entirely, so lastBias/lastDesc never get
-        // set and the subsequent requestEventFile() request comes up with no pull-up
-        // bias and a bare consumer name. That's what made the OLED HAT's Down button
-        // (P1-35) come up floating/unresponsive specifically on Pi5.
+        // Pins whose resetMode is an alt-function sentinel ("a0"/"a3" -- the
+        // i2c/uart/spi header pins the device tree hands to a peripheral) come out of
+        // reset muxed away from GPIO, so push the pad back to the gpio function with
+        // pinctrl first.  (gpio_pu/gpio_pd are left out: pinctrl's bare direction set
+        // carries no bias, and those pins are fine going straight to the request.)
         //
-        // gpio_pu/gpio_pd must never take this shortcut, on any platform: it's a
-        // bare direction-only pinctrl call with no bias support, so a pin whose
-        // resetMode still has the "a0"/"a3" class default (i.e. nobody called
-        // setResetMode() for it) silently comes up floating despite the caller
-        // explicitly asking for a pull-up/down. Plain "gpio" has no bias to lose,
-        // so it's the only mode allowed to keep the fast path here.
+        // This must NOT return early.  A gpio* mode only becomes usable once
+        // GPIODCapabilities::configPin() has requested the line: without a live
+        // request setValue()/getValue() are silent no-ops and requestEventFile() has
+        // no lastBias/lastDesc to work from.  Returning here instead is a bug that has
+        // now surfaced three times -- P1-35/GPIO19 floating on Pi5 (the "no" sentinel,
+        // #2768), pull-up/down inputs coming up floating on any pin left at the
+        // class-default "a0", and a plain "gpio" OUTPUT on P1-10/GPIO15 (uart0 RX,
+        // which some Pi capes use as a port enable pin) muxing correctly but never
+        // driving, leaving that port permanently dark (#2979).
         if (startsWith(mode, "gpio") && mode != "gpio_pu" && mode != "gpio_pd" &&
             (resetMode == "a0" || resetMode == "a3")) {
             char buf[256];
             snprintf(buf, 256, "/usr/bin/pinctrl set %d %s", gpio, directionOut ? "op" : "ip");
             system(buf);
-            return 0;
         }
 
         if (mode == "pwm" || mode == "uart") {

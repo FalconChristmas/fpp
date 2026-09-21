@@ -308,6 +308,39 @@ LE_FOR_CLOCKS .macro clocks
     CLR r30, r30, DCLK_PIN
 	.endm	
 	
+// Register-operand forms of the two macros above, for the parts of the
+// FM6373 register upload whose clock counts are configurable.  scratch is
+// clobbered.  A LOOP with a count of 0 does not terminate, so both guard it:
+// LE_FOR_CLOCKS_REG already emits one clock before the loop, so it skips when
+// the count is 1, and LOW_FOR_CLOCKS_REG skips the whole thing at 0 (which is
+// a value the reference implementation actually uses).
+LE_FOR_CLOCKS_REG .macro reg, scratch
+	.newblock
+    CLR     r30, r30, OCLR_PIN
+    OUTPUT_EMPTY_PIXEL_SETLE
+    LDI     scratch, 0
+    MOV     scratch.b0, reg
+    QBEQ    DONELE?, scratch, 1
+    SUB     scratch, scratch, 1
+    LOOP  DONELE?, scratch
+        OUTPUT_EMPTY_PIXEL
+DONELE?:
+    SET     r30, r30, OCLR_PIN
+	.endm
+
+LOW_FOR_CLOCKS_REG .macro reg, scratch
+    .newblock
+    LDI     scratch, 0
+    MOV     scratch.b0, reg
+    QBEQ    SKIPLOW?, scratch, 0
+    CLR     r30, r30, OCLR_PIN
+	LOOP  DONELOW?, scratch
+        OUTPUT_PIXEL_CLRLE
+DONELOW?:
+    SET     r30, r30, OCLR_PIN
+SKIPLOW?:
+    .endm
+
 LOW_FOR_CLOCKS .macro clocks
     .newblock
     CLR     r30, r30, OCLR_PIN
@@ -1075,14 +1108,24 @@ REG5_LAST:
 // panel takes the registers but comes up wrong.
 OUTPUT_REGISTERS_FM6373:
     .newblock
-	LE_FOR_CLOCKS_NO_CLR 3
-    LOW_FOR_CLOCKS 8
-    QBEQ    FMREGS_NOMID, r26.b2, 0
-	LE_FOR_CLOCKS_NO_CLR 11
-    LOW_FOR_CLOCKS 8
+    // r27 = the upload grammar, written by the ARM next to the chip config:
+    //   b0 = vsync LAT burst clocks, b1 = middle burst (0 skips it),
+    //   b2 = the burst before the words, b3 = the LAT-low spacer after each
+    // A zero word means an ARM that predates these knobs, so fall back to the
+    // values this used to emit unconditionally.
+    LDI     tmpReg1, PWM_CHIP_CONFIG_OFFSET + 4
+    LBCO    &r27, CONST_PRUDRAM, tmpReg1, 4
+    QBNE    FMREGS_HAVEGRAMMAR, r27, 0
+    LDI32   r27, 0x080E0B03
+FMREGS_HAVEGRAMMAR:
+	LE_FOR_CLOCKS_REG r27.b0, tmpReg1
+    LOW_FOR_CLOCKS_REG r27.b3, tmpReg1
+    QBEQ    FMREGS_NOMID, r27.b1, 0
+	LE_FOR_CLOCKS_REG r27.b1, tmpReg1
+    LOW_FOR_CLOCKS_REG r27.b3, tmpReg1
 FMREGS_NOMID:
-	LE_FOR_CLOCKS_NO_CLR 14
-    LOW_FOR_CLOCKS 8
+	LE_FOR_CLOCKS_REG r27.b2, tmpReg1
+    LOW_FOR_CLOCKS_REG r27.b3, tmpReg1
 
     // every word latches identically (LE for the last 5 clocks), so one loop
     // walks the register slots; r24 = slot offset, r25.b0 = count
@@ -1100,7 +1143,7 @@ FMREG_CHAIN:
 FMREG_CHAINLAST:
     DO_REG_LAST_5_R     r24
     CLEAR_DATA_PINS
-    LOW_FOR_CLOCKS 8
+    LOW_FOR_CLOCKS_REG r27.b3, tmpReg1
 #ifdef OUTPUTS16
     ADD     r24, r24, 192
 #else

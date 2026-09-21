@@ -701,7 +701,7 @@ bool SetLogLevel(const char* newLevel) {
     } else if (!strcmp(newLevel, "info")) {
         FPPLogger::INSTANCE.SetAllLevel(LOG_INFO);
     } else if (!strcmp(newLevel, "excess")) {
-        FPPLogger::INSTANCE.SetAllLevel(LOG_INFO);
+        FPPLogger::INSTANCE.SetAllLevel(LOG_EXCESSIVE);
     } else if (!strcmp(newLevel, "error")) {
         FPPLogger::INSTANCE.SetAllLevel(LOG_ERR);
     } else {

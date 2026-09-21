@@ -346,10 +346,12 @@ void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& p
     len += 64 - (len % 64);
     d.pru->memcpyToPRU((uint8_t*)&d.pruData->commandTable[0], (uint8_t*)&commandTable[0], len);
 
-    // Park the masks the firmware reloads between the two packets of a two
-    // packet frame: the end-of-frame masks (r45 has every record applied),
-    // less the send-only chain heads that must not see the second packet.
-    // Always written, so the reload is harmless when no such chain exists.
+    // Park the masks the firmware loads in the packet phase (after the first
+    // packet, or for the whole phase of a listen frame): the end-of-frame
+    // masks (r45 has every record applied), less the send-only chain heads,
+    // whose line goes low after their config packet and never carries a
+    // second packet or precedes the bus turnaround.  Always written, so the
+    // load is harmless when no such chain exists.
     auto p2 = sizes.find(GPIO_CMD_AFTER_FIRST_PACKET);
     if (p2 != sizes.end()) {
         for (auto& t : p2->second) {
@@ -1893,8 +1895,10 @@ void BBShiftStringOutput::setupFalconV5Support(const Json::Value& root, uint8_t*
             // the config packet
             p1->m_gpioCommands.clear();
             if (sendOnly) {
-                // a V4 chain gets its config packet in the first packet of a
-                // two packet frame and its line goes low for the second
+                // a V4 chain gets its config packet in the packet frames that
+                // end in the frame's low reset, and its line goes low right
+                // after it; in a frame that opens a listen window the line
+                // stays low for the whole packet phase
                 p1->m_gpioCommands.emplace_back(1, GPIO_CMD_AFTER_FIRST_PACKET, 0, 0);
             }
             if (p2) {

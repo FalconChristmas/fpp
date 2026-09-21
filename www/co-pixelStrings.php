@@ -115,9 +115,9 @@ function readCapes($cd, $capes)
 
     function InstallFirmwareDone() {
         var txt = $('#InstallVirtualEEPROMText').val();
-        if (txt.includes("Cape does not match new firmware")) {
-            var arrayOfLines = txt.match(/[^\r\n]+/g);
-            var msg = "Are you sure you want to install the virtual firmware for cape:\n" + arrayOfLines[2] + "\n\nWith the virtual firmware for: \n" + arrayOfLines[3] + "\n";
+        var mismatch = ParseCapeFirmwareMismatch(txt);
+        if (mismatch) {
+            var msg = "Are you sure you want to install the virtual firmware for cape:\n" + mismatch.cape + "\n\nWith the virtual firmware for:\n" + mismatch.firmware + "\n";
             if (confirm(msg)) {
                 var filename = $('#virtualEEPROM').val();
                 $('#upgradeText').html('');
@@ -195,6 +195,38 @@ function readCapes($cd, $capes)
 
     var maxVirtualStringsPerOutput = 100;
     var selectedPixelStringRowId = "NothingSelected";
+
+    // 'Clone String' only does anything with a string row selected, so the button
+    // stays hidden until one is.  Route every change of the selection through here
+    // so the button can never be left showing with nothing selected.
+    function setSelectedPixelStringRow(id) {
+        if (!id || !$('#' + id).length) {
+            id = "NothingSelected";
+        }
+        selectedPixelStringRowId = id;
+        $('#cloneStringButton').toggle(id != "NothingSelected");
+    }
+
+    function clearSelectedPixelStringRow() {
+        $('#PixelString tr').removeClass('selectedEntry');
+        setSelectedPixelStringRow("NothingSelected");
+    }
+
+    // Re-check the selection after rows have been removed or hidden underneath it.
+    function revalidateSelectedPixelStringRow() {
+        var row = $('#' + selectedPixelStringRowId);
+        if (!row.length || row.css('display') == 'none') {
+            clearSelectedPixelStringRow();
+        }
+    }
+
+    // Rows belonging to an expansion that is turned off are hidden rather than
+    // removed, so anything walking the table for clonable strings has to skip them.
+    // (Checking the row's own display keeps this working while the table itself is
+    // in a hidden tab.)
+    function isClonableStringRow(tRow) {
+        return (tRow.find('.vsPixelCount').length != 0) && (tRow.css('display') != 'none');
+    }
 
     function pixelOutputTableHeader() {
         var result = "";
@@ -408,6 +440,8 @@ function readCapes($cd, $capes)
 
         // FIXME, do we need to do anything else other than this?
         tr.remove();
+
+        revalidateSelectedPixelStringRow();
     }
 
     function addVirtualString(item) {
@@ -530,7 +564,7 @@ function readCapes($cd, $capes)
             nextRow.addClass('selectedEntry');
             updateRowEndChannel(nextRow);
 
-            selectedPixelStringRowId = nextRow.attr('id');
+            setSelectedPixelStringRow(nextRow.attr('id'));
 
             sanityCheckOutputs();
         }
@@ -654,15 +688,19 @@ function readCapes($cd, $capes)
 
     function cloneSelectedString() {
         var row = $('#' + selectedPixelStringRowId);
+        if (!row.length) {
+            alert('Select the string to clone from first.');
+            return;
+        }
         var rowCount = row.parent().find('tr').length;
         var curRow = row.closest("tr")[0].rowIndex - 1;
         var rowsAbove = 0;
         var rowsBelow = 0;
 
         // Calculate how many rows actually have string data on them
-        for (r = 0; r < rowCount; r++) {
+        for (var r = 0; r < rowCount; r++) {
             var tRow = row.parent().find('tr').eq(r);
-            if (tRow.find('.vsPixelCount').length != 0) {
+            if (isClonableStringRow(tRow)) {
                 if (r < curRow)
                     rowsAbove--;
                 else if (r > curRow)
@@ -691,6 +729,14 @@ function readCapes($cd, $capes)
         var sDescription = row.find('.vsDescription').val() || "";
         var sStartChannel = parseInt(row.find('.vsStartChannel').val()) || 1;
         var sPixelCount = parseInt(row.find('.vsPixelCount').val()) || 0;
+        // Channels each clone consumes, the same way the End Channel column and
+        // setPixelStringsStartChannelOnNextRow() work it out - it is not always 3
+        // per pixel (RGBW is 4) and grouping packs several pixels into one set.
+        var sGroupCount = parseInt(row.find('.vsGroupCount').val()) || 1;
+        if (sGroupCount == 0) {
+            sGroupCount = 1;
+        }
+        var sChannelsPerString = ((row.find('.vsColorOrder').val() || "RGB").length * sPixelCount) / sGroupCount;
         var startValue = parseInt((sDescription.match(/(\d+)$/) || ['1'])[0] || '0') + 1;
         var highValue = (mult * clones) + startValue - 1;
 
@@ -708,9 +754,9 @@ function readCapes($cd, $capes)
         row.find('.vsDescription').val(sDescription + (pad + (startValue - 1)).slice(-pad.length));
 
         var actRow = curRow + mult;
-        for (i = 0; i < Math.abs(clones) && (actRow >= 0) && (actRow < rowCount);) {
+        for (var i = 0; i < Math.abs(clones) && (actRow >= 0) && (actRow < rowCount);) {
             var tRow = row.parent().find('tr').eq(actRow);
-            if (tRow.find('.vsPixelCount').length != 0) {
+            if (isClonableStringRow(tRow)) {
                 var max = tRow.find('.vsPixelCount').attr('max');
                 var label = tRow.find('.vsPortLabel').html().replace(')', '');
                 if (max < sPixelCount) {
@@ -721,7 +767,7 @@ function readCapes($cd, $capes)
                 setRowData(tRow,
                     row.find('.vsProtocol').val(),
                     sDescription + (pad + (i + startValue)).slice(-pad.length),
-                    sStartChannel + (sPixelCount * 3 * (i + 1)),
+                    sStartChannel + (sChannelsPerString * (i + 1)),
                     sPixelCount,
                     row.find('.vsGroupCount').val(),
                     row.find('.vsReverse').val(),
@@ -1631,6 +1677,7 @@ function readCapes($cd, $capes)
                     $('#' + type + '_Output_0_' + (port + x) + '_0').show();
                 }
             }
+            revalidateSelectedPixelStringRow();
 
         } else {
             //going to differential, need to add receiver type selections
@@ -1851,6 +1898,7 @@ function readCapes($cd, $capes)
                     $('#PixelStringTimingGroup').val(grp);
 
                     $('#PixelString tbody').html("");
+                    clearSelectedPixelStringRow();
 
                     var outputCount = GetPixelStringRows();
                     var sourceOutputCount = output.outputCount;
@@ -2070,10 +2118,10 @@ function readCapes($cd, $capes)
                         $('#PixelString tr').removeClass('selectedEntry');
                         if ($(this).find('.vsPixelCount').length != 0) {
                             $(this).addClass('selectedEntry');
-                            selectedPixelStringRowId = $(this).attr('id');
+                            setSelectedPixelStringRow($(this).attr('id'));
                             //selected_string_details($(this)); //output.outputs, selectedPixelStringRowId);
                         } else {
-                            selectedPixelStringRowId = "NothingSelected";
+                            setSelectedPixelStringRow("NothingSelected");
                         }
                     });
                     setTimeout(function () {
@@ -2915,7 +2963,7 @@ function readCapes($cd, $capes)
                     if (isset($settings['cape-info'])) {
 
                         echo "<input type='button' class='buttons' onClick='loadPixelStringOutputs();' value='Revert'>\n";
-                        echo "<input type='button' class='buttons' onClick='cloneSelectedString();' value='Clone String'>\n";
+                        echo "<input type='button' id='cloneStringButton' class='buttons' style='display: none;' onClick='cloneSelectedString();' value='Clone String'>\n";
                         if (file_exists($mediaDirectory . "/upload/xlights_rgbeffects.xml")) {
                             echo "<input type='button' class='buttons' onClick='importStrings();' value='Import Strings'>\n";
                         }

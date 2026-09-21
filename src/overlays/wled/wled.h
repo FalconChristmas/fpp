@@ -92,6 +92,7 @@ inline uint64_t micros() {
 #include "FX.h"
 
 class PixelOverlayModel;
+#include "../PolarBufferMap.h"
 
 typedef uint8_t fract8;
 typedef uint16_t fract16;
@@ -241,12 +242,16 @@ public:
                 uint32_t c1, uint32_t c2, uint32_t c3,
                 uint8_t custom1, uint8_t custom2, uint8_t custom3,
                 int check1, int check2, int check3,
-                const std::string& text);
+                const std::string& text,
+                const PolarMode polarMode = PolarMode::None);
     ~WS2812FXExt();
 
     bool setEffectConfig(uint8_t m, uint8_t s, uint8_t i, uint8_t p);
     PixelOverlayModel* model = nullptr;
     int mapping = 0;
+    // Non-null when a Radial/Angular mapping resolved to a real layout. Owned
+    // by the model, which outlives the effect. Null means "use `mapping`".
+    const PolarBufferMap* polar = nullptr;
     int brightness = 127;
 
     static void pushCurrent(WS2812FXExt* e);

@@ -73,7 +73,10 @@ Small monochrome display support for SBCs. Drivers: SSD1306 (128x32/64 I2C), I2C
 
 ## Web API (`www/api/controllers/`)
 
-PHP-based REST API using Limonade micro-framework. 24 controllers, 150+ endpoints. Full docs in `www/api/endpoints.json`.
+PHP-based REST API using Limonade micro-framework. 31 controllers, 230+ endpoints. The OpenAPI spec is
+`www/api/openapi.json`, generated from `@route`-tagged PHPDoc blocks in the controllers by
+`python3 www/api/tools/generate_openapi.py` and served by Scalar at `GET /api/` on a running instance —
+so endpoint docs are edited in the controller docblocks, never in the spec. See `www/api/README.md`.
 
 | Controller | Key Endpoints |
 | --- | --- |

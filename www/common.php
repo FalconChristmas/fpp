@@ -2152,51 +2152,52 @@ function get_sequence_file_info($mediaName)
 function media_duration_cache($media, $duration_seconds = null, $filesize = null)
 {
     global $settings;
-    $config_dir = $settings['configDirectory'];
-    $cache_file = "media_durations.cache";
-    $file_path = $config_dir . "/" . $cache_file;
+    $file_path = $settings['configDirectory'] . "/media_durations.cache";
     $time = 86400 * 30; //seconds - cache for 24hrs * 30days
-    $duration_cache = array();
-    $return_duration = null;
 
-    if (!file_exists($file_path) || (time() - filemtime($file_path) > $time)) {
-        // cache doesn't exist or expired so lets create it and insert our media entry
-        if ($duration_seconds !== null) {
-            //put the media duration into the cache, but only if it isn't null
-            $duration_cache[$media] = array('filesize' => $filesize, 'duration' => $duration_seconds);
+    $decode = function ($raw) {
+        if ($raw === false || $raw === '') {
+            return array();
+        }
+        $cache = json_decode($raw, true);
+        return is_array($cache) ? $cache : array();
+    };
 
-            $return_duration = $duration_seconds;
-            file_put_contents($file_path, json_encode($duration_cache, JSON_PRETTY_PRINT), LOCK_EX);
+    if ($duration_seconds === null) {
+        // Lookup only. No lock: a torn read fails to decode and reads as a
+        // miss, which the caller handles by probing.
+        if (!file_exists($file_path) || (time() - filemtime($file_path) > $time)) {
+            return null;
         }
-    } else {
-        //else cache exists and is valid, replaces/append duration to it
-        $duration_cache = file_get_contents($file_path);
-        if ($duration_cache !== false && !empty($duration_cache)) {
-            $duration_cache = json_decode($duration_cache, true);
-            if ($duration_cache === null) {
-                //failed to decode json, reset the cache
-                $duration_cache = array();
-                unlink($file_path);
-            }
-        } else {
-            // file exists but failed to read it or it's empty, reset the cache
-            $duration_cache = array();
-            unlink($file_path);
+        $cache = $decode(file_get_contents($file_path));
+        //if file sizes are the same - then it's the same file
+        if (array_key_exists($media, $cache) && $cache[$media]['filesize'] == $filesize) {
+            return $cache[$media]['duration'];
         }
-        //if file hashes are the same - then it's the same file
-        if (array_key_exists($media, $duration_cache) && $duration_cache[$media]['filesize'] == $filesize) {
-            //Key exists, then return the cached duration
-            $return_duration = $duration_cache[$media]['duration'];
-        } else if ($duration_seconds !== null) {
-            //put the media duration into the cache, but only if it isn't null
-            $duration_cache[$media] = array('filesize' => $filesize, 'duration' => $duration_seconds);
-            $return_duration = $duration_seconds;
-
-            file_put_contents($file_path, json_encode($duration_cache, JSON_PRETTY_PRINT), LOCK_EX);
-        }
+        return null;
     }
 
-    return $return_duration;
+    // Store. Read-modify-write under an exclusive lock. Concurrent callers
+    // (two browsers on the file manager, the playlist editor) each did an
+    // unlocked read/write and clobbered each other's entries: 70 files
+    // probed 3 at a time left 13 in the cache.
+    $fp = fopen($file_path, 'c+');
+    if ($fp === false) {
+        return $duration_seconds;
+    }
+    if (flock($fp, LOCK_EX)) {
+        $expired = (time() - filemtime($file_path) > $time);
+        $cache = $expired ? array() : $decode(stream_get_contents($fp));
+        $cache[$media] = array('filesize' => $filesize, 'duration' => $duration_seconds);
+        ftruncate($fp, 0);
+        rewind($fp);
+        fwrite($fp, json_encode($cache, JSON_PRETTY_PRINT));
+        fflush($fp);
+        flock($fp, LOCK_UN);
+    }
+    fclose($fp);
+
+    return $duration_seconds;
 }
 
 /**

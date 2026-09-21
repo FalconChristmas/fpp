@@ -17,8 +17,9 @@ cd src && make
 # Build targets
 make              # default optimized build (-O3, -g1 on master)
 make debug        # debug build (-g -DDEBUG)
-make asan         # address sanitizer build
+make asan         # address sanitizer build (does NOT run on 4K-page arm64 kernels)
 make tsan         # thread sanitizer build
+make ubsan        # undefined behavior sanitizer build
 
 # Clean
 make clean        # remove all build artifacts

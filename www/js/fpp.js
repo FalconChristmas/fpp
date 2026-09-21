@@ -666,6 +666,52 @@ function CloseModalDialog (id) {
 	const myModal = bootstrap.Modal.getInstance(document.getElementById(id));
 	myModal.hide();
 }
+/**
+ * Pull the old cape and the new firmware out of a failed upgradeCapeFirmware run.
+ *
+ * scripts/upgradeCapeFirmware reports a mismatch as three consecutive lines:
+ *
+ *     Cape does not match new firmware.
+ *     Cape: <name>   Version: <version>
+ *     Firmware: <name>   Version: <version>
+ *
+ * Found by their own prefixes rather than by absolute line number.  The callers
+ * used to index the whole output at a fixed offset, which held only while that
+ * report was the entire output -- the upgrade path streams wget's download log
+ * ahead of it, so those offsets landed in the middle of "Resolving ..." and the
+ * confirmation asked the user to approve replacing one hostname with another.
+ *
+ * Returns {cape, firmware}, or null when both lines are not present -- in which
+ * case the caller must NOT offer to force the flash.
+ */
+function ParseCapeFirmwareMismatch(txt) {
+    var lines = (txt || '').match(/[^\r\n]+/g) || [];
+    var start = -1;
+    for (var i = 0; i < lines.length; i++) {
+        if (lines[i].indexOf('Cape does not match new firmware') !== -1) {
+            start = i;
+            break;
+        }
+    }
+    if (start < 0) {
+        return null;
+    }
+    var cape = '';
+    var firmware = '';
+    for (var j = start + 1; j < lines.length && j <= start + 3; j++) {
+        var line = lines[j].trim();
+        if (cape === '' && line.indexOf('Cape:') === 0) {
+            cape = line;
+        } else if (firmware === '' && line.indexOf('Firmware:') === 0) {
+            firmware = line;
+        }
+    }
+    if (cape === '' || firmware === '') {
+        return null;
+    }
+    return { cape: cape, firmware: firmware };
+}
+
 function EnableModalDialogCloseButton (id) {
 	$('#' + id)
 		.find('#modalCloseButton')
@@ -5554,7 +5600,7 @@ function GetFiles (dir) {
 
 				var tableRow = '';
 				if (dir == 'Images' && thumbSize > 0) {
-					if (parseInt(f.sizeBytes) > 0) {
+					if (f.isDirectory !== true) {
 						tableRow =
 							"<tr class='fileDetails' id='fileDetail_" +
 							i +

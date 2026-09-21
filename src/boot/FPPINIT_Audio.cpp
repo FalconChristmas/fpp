@@ -2273,6 +2273,8 @@ static void runAudioSetup(bool recoveryPass) {
     const std::string groupsConfDest = "/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf";
     const std::string igConfCache = FPP_MEDIA_DIR + "/config/pipewire-input-groups.conf";
     const std::string igConfDest = "/etc/pipewire/pipewire.conf.d/96-fpp-input-groups.conf";
+    const std::string vbanConfCache = FPP_MEDIA_DIR + "/config/pipewire-vban.conf";
+    const std::string vbanConfDest = "/etc/pipewire/pipewire.conf.d/94-fpp-vban.conf";
     bool hasGroupsConfig = false;
     // Track whether the effective PipeWire config actually changes from what it
     // already loaded at boot. PipeWire (fpp-pipewire.service) starts during boot
@@ -2309,6 +2311,24 @@ static void runAudioSetup(bool recoveryPass) {
         if (!FileExists(igConfDest) || GetFileContents(igConfCache) != GetFileContents(igConfDest)) {
             printf("FPP - Restoring PipeWire input groups config\n");
             exec("/bin/cp " + igConfCache + " " + igConfDest);
+            audioConfigChanged = true;
+        }
+    }
+
+    // VBAN streams are PipeWire modules declared in 94-fpp-vban.conf, numbered
+    // below the group confs so a received source and a send sink both exist
+    // before 96/97 try to link them.  Restore it the same way, and drop a stale
+    // dest when the cache is gone so deleting every VBAN stream does not leave
+    // the modules loading forever.
+    if (usePipeWireBackend && !runningInDocker) {
+        if (FileExists(vbanConfCache)) {
+            if (!FileExists(vbanConfDest) || GetFileContents(vbanConfCache) != GetFileContents(vbanConfDest)) {
+                printf("FPP - Restoring PipeWire VBAN config\n");
+                exec("/bin/cp " + vbanConfCache + " " + vbanConfDest);
+                audioConfigChanged = true;
+            }
+        } else if (FileExists(vbanConfDest)) {
+            unlink(vbanConfDest.c_str());
             audioConfigChanged = true;
         }
     }

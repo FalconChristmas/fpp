@@ -185,6 +185,12 @@ dispatch_post('/pipewire/opusrtp/instances', 'SaveOpusRTPInstances');
 dispatch_post('/pipewire/opusrtp/apply', 'ApplyOpusRTPInstances');
 dispatch_get('/pipewire/opusrtp/status', 'GetOpusRTPStatus');
 dispatch_get('/pipewire/opusrtp/interfaces', 'GetOpusRTPNetworkInterfaces');
+
+dispatch_get('/pipewire/vban/instances', 'GetVBANInstances');
+dispatch_post('/pipewire/vban/instances', 'SaveVBANInstances');
+dispatch_post('/pipewire/vban/apply', 'ApplyVBANInstances');
+dispatch_get('/pipewire/vban/status', 'GetVBANStatus');
+dispatch_get('/pipewire/vban/interfaces', 'GetVBANNetworkInterfaces');
 dispatch_get('/pipewire/graph', 'GetPipeWireGraph');
 
 // PipeWire control facade — clean, ID-addressed, live-state 3rd-party API
@@ -221,6 +227,13 @@ dispatch_get('/playlist/:PlaylistName/start/:Repeat/:ScheduleProtected', 'playli
 dispatch_post('/playlist/:PlaylistName', 'playlist_update');
 dispatch_delete('/playlist/:PlaylistName', 'playlist_delete');
 dispatch_post('/playlist/:PlaylistName/:SectionName/item', 'PlaylistSectionInsertItem');
+// Must stay BELOW the /playlist/:PlaylistName routes.  limonade compiles a
+// trailing ':param' to an OPTIONAL group, so this pattern also matches the
+// two-segment '/playlist/repeat' and '/playlist/repeat/start' - registered
+// first it would shadow both for anyone with a playlist actually named
+// "repeat".  Below them, only a genuine '/playlist/repeat/<value>' (which no
+// earlier route matches) reaches it.
+dispatch_get('/playlist/repeat/:Repeat', 'playlist_repeat');
 
 dispatch_get('/plugin/headerIndicators', 'GetPluginHeaderIndicators');
 dispatch_get('/plugin', 'GetInstalledPlugins');

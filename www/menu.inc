@@ -15,7 +15,13 @@ if (!isset($activeParentMenuItem)) {
 // page-specific (F1) help. See .claude/HELP-PAGES.md. Note: do not put a
 // title= on the Help nav link for this - SetupToolTips() turns any [title]
 // into data-bs-toggle="tooltip", which clobbers the dropdown toggle.
-$pageHasHelp = file_exists(__DIR__ . "/help/" . basename($_SERVER['PHP_SELF']));
+// A plugin page (plugin.php?plugin=X&page=Y) keeps its help at <plugin>/help/Y;
+// this must match how config.php builds helpPage and plugin.php serves it.
+$pageFile = basename($_SERVER['PHP_SELF']);
+$pageHasHelp = file_exists(__DIR__ . "/help/" . $pageFile);
+if ($pageFile == 'plugin.php' && !empty($pluginName) && !empty($_GET['page']) && is_string($_GET['page'])) {
+    $pageHasHelp = ($p = pluginRealPath($pluginDirectory, $pluginName, 'help/' . $_GET['page'])) !== null && is_file($p);
+}
 ?>
 <script type="text/javascript">
     var FPP_LOCAL_COMMIT = "<? echo get_local_git_version(); ?>";

@@ -270,6 +270,7 @@ void CommandManager::Init() {
 #endif
     addCategorizedCommand(new PlaylistPauseCommand(), "Playlist", 0);
     addCategorizedCommand(new PlaylistResumeCommand(), "Playlist", 0);
+    addCategorizedCommand(new SetPlaylistRepeatCommand(), "Playlist", 0);
     addCategorizedCommand(new TriggerPresetCommand(), "Events", 0);
     addCategorizedCommand(new TriggerPresetInFutureCommand(), "Events", 1);
     addCategorizedCommand(new TriggerPresetSlotCommand(), "Events", 1);

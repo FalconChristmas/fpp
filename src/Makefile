@@ -86,6 +86,8 @@ asan: all
 
 tsan: all
 
+ubsan: all
+
 local: $(TARGETS)
 
 fppversion.c: fppversion.sh

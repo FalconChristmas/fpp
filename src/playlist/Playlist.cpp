@@ -876,7 +876,10 @@ void Playlist::SwitchToLeadOut(void) {
  *
  */
 int Playlist::Start(void) {
-    LogDebug(VB_PLAYLIST, "Playlist::Start()\n");
+    // Name it here rather than leaving that to the per-entry Init() lines
+    // below: this is the line the crash-time log ring is read from first, and
+    // "which playlist" is the question it is read to answer.
+    LogDebug(VB_PLAYLIST, "Playlist::Start(%s)\n", GetPlaylistName().c_str());
 
     PlaylistTransitionGuard guard;
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
