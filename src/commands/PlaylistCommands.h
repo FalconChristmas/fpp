@@ -95,3 +95,9 @@ public:
     PlaylistResumeCommand();
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
+
+class SetPlaylistRepeatCommand : public Command {
+public:
+    SetPlaylistRepeatCommand();
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
+};

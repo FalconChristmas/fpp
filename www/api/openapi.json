@@ -6066,6 +6066,47 @@
         }
       }
     },
+    "/api/playlist/repeat/{Repeat}": {
+      "parameters": [
+        {
+          "name": "Repeat",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "playlist"
+        ],
+        "summary": "Set playlist repeat on or off",
+        "description": "Turn repeat on or off for the running playlist without starting, stopping or restarting it - the API equivalent of the Repeat checkbox in the web UI. `{Repeat}` may be `true`/`false` or `1`/`0`.  The new setting is read when the playlist reaches the end of its current loop, and is reflected immediately in `repeat_mode` from `GET /api/fppd/status`. Repeat belongs to a playlist that is actually running, so this returns `{\"Status\": \"Error\"}` when the player is idle, when `{Repeat}` is not one of `true`/`false`/`1`/`0`, or when fppd cannot be reached; use the repeat flag on `GET /api/playlist/{PlaylistName}/start/{Repeat}` to start a playlist repeating.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Repeat state changed, or `Status` is `Error` with the reason in `Message`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": "Repeat Enabled"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/playlist/{PlaylistName}": {
       "parameters": [
         {

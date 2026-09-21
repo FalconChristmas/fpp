@@ -381,6 +381,10 @@ int Player::GetRepeat() {
     return PlaylistSnapshot()->GetRepeat();
 }
 
+void Player::SetRepeat(int repeat) {
+    PlaylistSnapshot()->SetRepeat(repeat);
+}
+
 int Player::GetStopMethod() {
     return stopMethod;
 }

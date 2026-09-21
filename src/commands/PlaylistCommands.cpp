@@ -398,3 +398,29 @@ std::unique_ptr<Command::Result> PlaylistResumeCommand::run(const std::vector<st
     Player::INSTANCE.Resume();
     return std::make_unique<Command::Result>("Playlist Restarted");
 }
+
+SetPlaylistRepeatCommand::SetPlaylistRepeatCommand() :
+    Command("Set Playlist Repeat", "Turns repeat on or off for the running playlist.  Nothing is started, stopped or restarted; the new setting is read when the playlist reaches the end of its current loop.") {
+    args.push_back(CommandArg("repeat", "bool", "Repeat").setDefaultValue("true"));
+}
+std::unique_ptr<Command::Result> SetPlaylistRepeatCommand::run(const std::vector<std::string>& args) {
+    bool repeat = true;
+    if (args.size()) {
+        repeat = args[0] == "true" || args[0] == "1";
+    }
+
+    // Repeat is a property of a *running* playlist, and only there.  The idle
+    // playlist has been Cleanup()ed back to repeat=0, Play() reloads the value
+    // from the playlist file and then overwrites it with whatever the start
+    // command passed, and GetCurrentStatus() reports a hard-coded "0" while
+    // idle.  Setting it now would therefore report success, never show up in
+    // /api/fppd/status, and be thrown away by the next start - so refuse
+    // instead of lying about it (issue #2971).
+    if (Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) {
+        LogWarn(VB_COMMAND, "Ignoring \"Set Playlist Repeat\" - no playlist is running\n");
+        return std::make_unique<Command::ErrorResult>("No playlist is running; pass the repeat flag to \"Start Playlist\" instead");
+    }
+
+    Player::INSTANCE.SetRepeat(repeat ? 1 : 0);
+    return std::make_unique<Command::Result>(repeat ? "Repeat Enabled" : "Repeat Disabled");
+}
