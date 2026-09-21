@@ -152,6 +152,15 @@ void PixelOverlayManager::addModel(Json::Value config) {
         pmodel = new PixelOverlayModelSub(config);
     }
 
+    if (pmodel && !pmodel->isValid()) {
+        // Its channel data could not be allocated, so every accessor on it
+        // would index a null pointer.  Drop it; the warning is already up.
+        LogErr(VB_CHANNELOUT, "PixelOverlayManager::addModel() - could not allocate memory for model %s\n",
+               pmodel->getName().c_str());
+        delete pmodel;
+        pmodel = nullptr;
+    }
+
     std::unique_lock<std::recursive_mutex> lock(modelsLock);
     bool wasEmpty = models.empty();
     if (pmodel) {
@@ -1678,7 +1687,9 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                     }
                 } else if (p4 == "mmap") {
                     // Force mmap the overlay buffer so external programs can have access to it
-                    m->getOverlayBuffer();
+                    if (!m->getOverlayBuffer()) {
+                        return makeStringResponse("{ \"Status\": \"ERROR\", \"Message\": \"Could not allocate the overlay buffer\"}", 500);
+                    }
                     return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
                 } else {
                     return makeStringResponse("Model Command Not found " + p4, 404);

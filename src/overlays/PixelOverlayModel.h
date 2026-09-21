@@ -22,6 +22,14 @@
 #include "../AtomicSharedPtr.h"
 #include "PolarBufferMap.h"
 
+// Raised when a model's channel data or overlay buffer cannot be allocated at
+// all -- shared memory, an anonymous mapping and malloc() all failed, which
+// means the box is out of memory.  Deliberately permanent: nothing rechecks the
+// allocation, and the model stays unusable until fppd restarts.
+constexpr int WARNING_ID_MODEL_MEMORY = 64;
+constexpr const char* MODEL_MEMORY_WARNING =
+    "Out of memory allocating pixel overlay model buffers - some models will not display";
+
 class RunningEffect;
 
 class PixelOverlayState {
@@ -149,6 +157,11 @@ public:
     void setBufferIsDirty(bool dirty = true);
     bool needRefresh();
 
+    // False when the model's channel data could not be allocated at all.  Such
+    // a model has no storage behind any of its accessors, so the manager drops
+    // it rather than registering one that cannot be indexed.
+    bool isValid() const { return channelData != nullptr; }
+
     // The overlay buffer is a full continuous width*height*bytesPerPixel buffer
     // that can be used to construct the frame as a full RGB(W) image prior to
     // flushing to the channelData.  The overlay buffer is also mmapped so
@@ -236,6 +249,13 @@ protected:
         uint8_t data[4];
     } __attribute__((__packed__));
     OverlayBufferData* overlayBufferData;
+
+    // How each buffer was allocated, so the destructor releases it the same
+    // way.  munmap() on a malloc()ed pointer either fails outright or, if the
+    // allocation happened to be page aligned, unmaps memory the allocator still
+    // believes it owns.
+    bool overlayBufferMapped = true;
+    bool channelDataMapped = true;
 
     std::recursive_mutex effectLock;
     RunningEffect* runningEffect;

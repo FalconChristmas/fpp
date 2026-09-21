@@ -223,7 +223,9 @@ int VirtualDisplayOutput::SendData(unsigned char* channelData) {
     }
     m_model->setBufferIsDirty(true);
     if (m_model->getState() == 0) {
-        m_model->doOverlay(m_model->getOverlayBuffer());
+        if (uint8_t* buf = m_model->getOverlayBuffer()) {
+            m_model->doOverlay(buf);
+        }
     }
     return m_channelCount;
 }

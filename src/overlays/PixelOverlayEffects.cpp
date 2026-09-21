@@ -629,6 +629,10 @@ public:
             int h, w;
             model->getSize(w, h);
             int bpp = model->getBytesPerPixel();
+            uint8_t* overlayBuf = model->getOverlayBuffer();
+            if (!overlayBuf) {
+                return;
+            }
             for (int y = 0; y < imageDataRows; ++y) {
                 int ny = yoff + y;
                 if (ny < 0 || ny >= h) {
@@ -637,7 +641,7 @@ public:
 
                 // imageData is always RGB (3 bytes per pixel)
                 uint8_t* src = imageData + (y * imageDataCols * 3);
-                uint8_t* dst = model->getOverlayBuffer() + (ny * w * bpp);
+                uint8_t* dst = overlayBuf + (ny * w * bpp);
                 int pixelsToCopy = imageDataCols;
 
                 if (xoff < 0) {
