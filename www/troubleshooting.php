@@ -169,7 +169,7 @@
              */
             pre.textContent = '';
 
-            var counts = { FAIL: 0, WARN: 0, PASS: 0 };
+            var counts = { FAIL: 0, WARN: 0, PASS: 0, SKIP: 0 };
             var lines = String(data).split('\n');
             // Severity of the verdict whose explanation the indented lines
             // below it belong to, so the "what to do about it" text stays
@@ -240,6 +240,15 @@
                 var passed = counts.PASS + ' passed';
                 html += '<span class="badge text-bg-success ms-2" title="' + passed + '">' +
                     (compact ? counts.PASS : passed) + '</span>';
+            } else if (!html && counts.SKIP > 0) {
+                // Every check skipped: the section had nothing that applies to
+                // this device - Network Audio on a simple-mode box with no
+                // AES67, Opus or RTSP configured skips all three.  With no
+                // badge at all that reads as "never ran", so say so in a
+                // neutral colour rather than claiming a pass nothing earned.
+                var skipped = 'nothing to check';
+                html += '<span class="badge text-bg-secondary ms-2" title="' + skipped + '">' +
+                    (compact ? '-' : skipped) + '</span>';
             }
             return html;
         }
@@ -260,11 +269,12 @@
             if (!pane) {
                 return;
             }
-            var totals = { FAIL: 0, WARN: 0, PASS: 0 };
+            var totals = { FAIL: 0, WARN: 0, PASS: 0, SKIP: 0 };
             pane.querySelectorAll('pre[data-troubleshoot-fail]').forEach(function (pre) {
                 totals.FAIL += parseInt(pre.dataset.troubleshootFail, 10) || 0;
                 totals.WARN += parseInt(pre.dataset.troubleshootWarn, 10) || 0;
                 totals.PASS += parseInt(pre.dataset.troubleshootPass, 10) || 0;
+                totals.SKIP += parseInt(pre.dataset.troubleshootSkip, 10) || 0;
             });
             setTroubleshootBadge('tabstatus-' + commandGrpID, totals, true);
         }
@@ -279,6 +289,7 @@
             pre.dataset.troubleshootFail = counts.FAIL;
             pre.dataset.troubleshootWarn = counts.WARN;
             pre.dataset.troubleshootPass = counts.PASS;
+            pre.dataset.troubleshootSkip = counts.SKIP;
 
             setTroubleshootBadge('status_' + commandKey, counts, false);
             setTroubleshootBadge('hotlinkstatus_' + commandKey, counts, true);

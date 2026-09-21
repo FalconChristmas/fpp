@@ -1122,6 +1122,13 @@ section_graph() {
         # fpp_fx_g1_s3 -> fpp_fx_g1_s3_out -> fpp_alsa_s3, fully linked.
         # A sink is orphaned only when neither it nor any of its member streams
         # has an outgoing link.
+        #
+        # One group sink is terminal on purpose: with no sound card selected
+        # (AudioOutput=Dummy) FPPINIT_Audio.cpp builds fpp_group_default as a
+        # support.null-audio-sink, so that media playback still has a sink to
+        # drive sequence timing while the graph parks when idle.  Nothing is
+        # meant to be linked out of it -- it *is* the end of the chain -- so it
+        # is reported as configured, not as a fault.
         jq -r '
           [ .[] | select(.type == "PipeWire:Interface:Link") | .info["output-node-id"] ] as $outs
           | [ .[] | select(.type == "PipeWire:Interface:Node") ] as $nodes
@@ -1132,11 +1139,26 @@ section_graph() {
               + [ $nodes[] | select((.info.props["node.name"] // "")
                                     | startswith("output." + $gn + "_")) | .id ] ) as $ids
           | select( [ $ids[] | IN($outs[]) ] | any | not )
-          | $gn' \
-            "${PW_DUMP_FILE}" 2>/dev/null > "${TMPDIR_DIAG}/orphans.txt"
+          | (if ($g.info.props["factory.name"] // "") == "support.null-audio-sink"
+             then "null" else "orphan" end) + "\u001f" + $gn' \
+            "${PW_DUMP_FILE}" 2>/dev/null > "${TMPDIR_DIAG}/unlinked.txt"
+        sed -n 's/^null\x1f//p' "${TMPDIR_DIAG}/unlinked.txt" \
+            > "${TMPDIR_DIAG}/nullsinks.txt"
+        sed -n 's/^orphan\x1f//p' "${TMPDIR_DIAG}/unlinked.txt" \
+            > "${TMPDIR_DIAG}/orphans.txt"
+        if [ -s "${TMPDIR_DIAG}/nullsinks.txt" ]; then
+            info "No sound card is configured, so these sinks are null sinks:"
+            sed 's/^/       /' "${TMPDIR_DIAG}/nullsinks.txt"
+            note "A null sink is the end of the chain by design: it keeps media"
+            note "playback (and so sequence timing) running with nothing to play"
+            note "to.  Having no outgoing link is correct, not a fault.  Select a"
+            note "sound card under Audio Output to make it feed real hardware."
+        fi
         if [ -s "${TMPDIR_DIAG}/orphans.txt" ]; then
             warn "These FPP sinks feed nothing (fine if unused, silent if not):"
             sed 's/^/       /' "${TMPDIR_DIAG}/orphans.txt"
+        elif [ -s "${TMPDIR_DIAG}/nullsinks.txt" ]; then
+            pass "Every FPP group sink is linked out or is a null sink"
         else
             pass "Every FPP group sink has at least one outgoing link"
         fi
@@ -1203,7 +1225,14 @@ section_alsa() {
     # A group member names an ALSA card id.  If that card is gone - unplugged
     # USB adapter, HDMI display asleep - the member is configured against
     # nothing and its share of the group is silent.
-    if [ "$(setting MediaBackend)" = "pipewire-simple" ]; then
+    # simple_mode(), not a bare compare against the setting: MediaBackend is
+    # unset on a device that has never switched mode, and that is simple (see
+    # simple_mode()).  Comparing the raw value sent those devices down the
+    # advanced branch, where the leftover pipewire-audio-groups.json still
+    # named the member cards of whatever was configured before -- a BeagleBone
+    # running simple mode off a PCM5102a cape was told its 'Main Output'
+    # member card Dummy was missing, from a file nothing generates a conf from.
+    if simple_mode; then
         gj="${CFGDIR}/pipewire-audio-groups-simple.json"
     else
         gj="${CFGDIR}/pipewire-audio-groups.json"
@@ -1214,12 +1243,17 @@ section_alsa() {
             "${gj}" 2>/dev/null | sort -u |
         while IFS=$(printf '\037') read -r gname cardId cardName; do
             [ -z "${cardId}" ] && continue
+            # The simple-mode group file records only cardId, so the friendly
+            # name is empty there and every line read "card S3 ()".
+            if [ -n "${cardName}" ]; then
+                cardName=" (${cardName})"
+            fi
             case "${cardId}" in aes67*|opus*|rtsp*|fpp_*) 
                 echo "[SKIP] '${gname}' member ${cardId} is a virtual output, not a card"
                 continue ;;
             esac
             if ! grep -qE "^ *[0-9]+ \[${cardId}[ ]*\]" /proc/asound/cards 2>/dev/null; then
-                echo "[FAIL] '${gname}' member card ${cardId} (${cardName}) is NOT present"
+                echo "[FAIL] '${gname}' member card ${cardId}${cardName} is NOT present"
                 echo "       This member of the group is silent.  Reconnect the device,"
                 echo "       or remove the member from the group."
                 continue
@@ -1230,13 +1264,13 @@ section_alsa() {
             # the device itself whether it will open.
             probe=$(hw_params_probe "hw:${cardId}")
             if echo "${probe}" | grep -q "HW Params"; then
-                echo "[PASS] '${gname}' member card ${cardId} (${cardName}) is present and opens"
+                echo "[PASS] '${gname}' member card ${cardId}${cardName} is present and opens"
             elif echo "${probe}" | grep -qi "busy"; then
                 # Busy is what a working card looks like while PipeWire has it.
-                echo "[PASS] '${gname}' member card ${cardId} (${cardName}) is present and in use"
+                echo "[PASS] '${gname}' member card ${cardId}${cardName} is present and in use"
             else
                 why=$(echo "${probe}" | grep -i "open error" | sed 's/.*open error: //' | head -1)
-                echo "[FAIL] '${gname}' member card ${cardId} (${cardName}) is registered but will not open"
+                echo "[FAIL] '${gname}' member card ${cardId}${cardName} is registered but will not open"
                 echo "       ALSA says: ${why:-unknown error}"
                 echo "       It is listed in /proc/asound/cards, so it looks present"
                 echo "       everywhere else, but nothing can play to it."
