@@ -1010,10 +1010,16 @@ static std::map<std::string, std::string> GetConfiguredOutputRanges() {
                 }
                 std::string address = u["address"].asString();
                 uint32_t count = u["channelCount"].asUInt();
-                if (address.empty() || count == 0) {
+                uint32_t start = u["startChannel"].asUInt();
+                if (address.empty() || count == 0 || start == 0) {
                     continue;
                 }
-                byAddress[address].emplace_back(u["startChannel"].asUInt(), count);
+                // channelRanges is a zero-based convention everywhere else --
+                // see the GetRequiredChannelRange() implementations, which all
+                // report (startChannel - 1).  The universes in co-universes.json
+                // store the user-facing one-based start channel, so convert here
+                // or every backfilled remote is reported one channel high.
+                byAddress[address].emplace_back(start - 1, count);
             }
         }
     }
