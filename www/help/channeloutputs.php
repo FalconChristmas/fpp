@@ -3,7 +3,7 @@
 
 <h4>How the page works</h4>
 <ul>
-    <li><b>Tabs</b> — E1.31/DDP, Strings, PWM and LED Panels each show only outputs of that family. The active tab is highlighted; the content below matches the tab.</li>
+    <li><b>Tabs</b> — E1.31/DDP, Strings, PWM and LED Panels each show only outputs of that family. The active tab is highlighted; the content below matches the tab. The page opens on the tab that matches the detected cape — a pixel cape opens on its Pixel Strings tab, a panel-only cape (OctoPlus, PocketScroller) on its LED Panels tab. With no cape detected, it opens on E1.31/DDP.</li>
     <li><b>Add Output Group</b> (plus icon, top right of tabs) — Creates a new output group. You then pick its type from the dropdown that appears.</li>
     <li><b>Enable</b> (per-output checkbox) — When unchecked the output is kept in the config but not sent. Useful for testing.</li>
     <li><b>Start Channel</b> and <b>Channel Count</b> — Which FPP channels this output drives. Start is the first channel number (1-based). Count is how many consecutive channels are sent. The end channel is calculated and shown to help you avoid overlaps.</li>

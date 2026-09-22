@@ -130,6 +130,13 @@
             $currentCapeInfo["name"]
         );
     }
+    // What the cape itself declares it drives, captured before the UI-level
+    // augmentation below adds "all"/"udp" to the list. Used to pick which tab
+    // opens by default - see $defaultTabType where the tabs are emitted.
+    $capeProvides = array();
+    if (isset($currentCapeInfo['provides']) && is_array($currentCapeInfo['provides'])) {
+        $capeProvides = $currentCapeInfo['provides'];
+    }
     if (!isset($currentCapeInfo['provides'])) {
         $currentCapeInfo['provides'][] = "all";
     } else if (isset($settings["showAllOptions"]) && $settings["showAllOptions"] == 1) {
@@ -425,14 +432,48 @@
                             $e131TabStyle = "";
                         }
                     }
-                    if ($e131TabStyle == "") {
-                        $e131TabStyleActive = "active";
-                    } else if ($stringTabStyle == "") {
-                        $stringTabStyleActive = "active";
-                    } else if ($lpTabStyle == "") {
-                        $lpTabStyleActive = "active";
+
+                    // The Pixel Strings tab is only emitted on hardware that can drive
+                    // strings directly, independently of whether the cape allows it.
+                    $stringTabAvailable = $settings['BeaglePlatform'] || $settings['Platform'] == "Raspberry Pi" ||
+                        ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"));
+
+                    // Open on the tab that matches what the cape actually drives rather
+                    // than always landing on E1.31: a string cape opens on Pixel Strings,
+                    // a panel-only cape (OctoPlus, PocketScroller, ...) on LED Panels.
+                    // A cape that declares "all", or no cape at all, keeps E1.31.
+                    $defaultTabType = 'UDP';
+                    if (!in_array('all', $capeProvides)) {
+                        if (in_array('strings', $capeProvides)) {
+                            // Capes providing both lead with strings - they are pixel
+                            // outputs first and panels second.
+                            $defaultTabType = 'strings';
+                        } else if (in_array('panels', $capeProvides)) {
+                            $defaultTabType = 'panels';
+                        }
                     }
+
+                    $tabVisible = array(
+                        'UDP' => $e131TabStyle == "",
+                        'strings' => $stringTabStyle == "" && $stringTabAvailable,
+                        'panels' => $lpTabStyle == "",
+                    );
+                    // Fall back through the page's original order if the preferred tab
+                    // is hidden, so something is always selected.
+                    foreach (array($defaultTabType, 'UDP', 'strings', 'panels') as $t) {
+                        if ($tabVisible[$t]) {
+                            $defaultTabType = $t;
+                            break;
+                        }
+                    }
+
+                    $e131TabStyleActive = $defaultTabType == 'UDP' ? "active" : "";
+                    $stringTabStyleActive = $defaultTabType == 'strings' ? "active" : "";
+                    $lpTabStyleActive = $defaultTabType == 'panels' ? "active" : "";
                     ?>
+                    <script>
+                        currentTabType = '<?= $defaultTabType ?>';
+                    </script>
                     <div class="d-flex align-items-end flex-wrap mb-3" style="border-bottom: 1px solid var(--fpp-border)">
                         <ul class="nav nav-pills pageContent-tabs flex-grow-1 border-bottom-0 mb-0" id="channelOutputTabs" role="tablist">
                             <li class="nav-item <?= $e131TabStyle ?>" id="tab-e131-LI" role="presentation">
@@ -445,10 +486,7 @@
 
                             <?
 
-                            if (
-                                $settings['BeaglePlatform'] || $settings['Platform'] == "Raspberry Pi" ||
-                                ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))
-                            ) {
+                            if ($stringTabAvailable) {
                                 $stringTabText = "Pixel Strings";
                                 if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
                                     if (isset($currentCapeInfo["labels"]) && isset($currentCapeInfo["labels"]["strings"])) {
@@ -522,13 +560,9 @@
 
                     <!-- --------------------------------------------------------------------- -->
                     <?
-                    if ($e131TabStyle == "") {
-                        $e131TabStyleActive = "show active";
-                    } else if ($stringTabStyle == "") {
-                        $stringTabStyleActive = "show active";
-                    } else if ($lpTabStyle == "") {
-                        $lpTabStyleActive = "show active";
-                    }
+                    $e131TabStyleActive = $defaultTabType == 'UDP' ? "show active" : "";
+                    $stringTabStyleActive = $defaultTabType == 'strings' ? "show active" : "";
+                    $lpTabStyleActive = $defaultTabType == 'panels' ? "show active" : "";
                     ?>
 
                     <div id="channelOutputTabsContent" class="tab-content">
@@ -539,10 +573,7 @@
 
                         <?
 
-                        if (
-                            $settings['BeaglePlatform'] || $settings['Platform'] == "Raspberry Pi" ||
-                            ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))
-                        ) {
+                        if ($stringTabAvailable) {
                             ?>
                             <div class="tab-pane fade <?= $stringTabStyleActive ?>" id="stringTab" role="tabpanel"
                                 aria-labelledby="stringTab-tab">
