@@ -15,6 +15,7 @@
 #include "fpp-json-fwd.h"
 #include <atomic>
 #include <list>
+#include <mutex>
 
 #define TWINKLY_PORT 7777
 
@@ -36,7 +37,17 @@ public:
     Json::Value callRestAPI(bool isPost, const std::string& path, const std::string& body);
     void verifyToken();
     void authenticate();
-    void applyAuthToken(const std::string& token);
+
+    // Stages a freshly issued token for the output thread to pick up. Returns
+    // false if it could not be decoded, in which case nothing was changed.
+    bool applyAuthToken(const std::string& token);
+
+    // Ends an authentication attempt and starts the one that arrived while it
+    // was running, if any.
+    void finishAuth();
+
+    std::string getAuthToken();
+    void setAuthToken(const std::string& token);
 
     int port = 1;
     int portCount = 1;
@@ -46,8 +57,16 @@ public:
     struct iovec* twinklyIovecs = nullptr;
     uint8_t** twinklyBuffers = nullptr;
 
-    uint8_t authTokenBytes[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-    std::string authToken = "";
-    uint32_t reauthCount = 0;
+    // The authentication chain runs on the main loop (CurlManager/Timers) while
+    // PrepareData(), StartingOutput() and StoppingOutput() run on the channel
+    // output thread, so everything they share is either guarded by authLock or
+    // an atomic.
+    std::mutex authLock;
+    uint8_t authTokenBytes[8] = { 0, 0, 0, 0, 0, 0, 0, 0 }; // staged token, guarded by authLock
+    std::string authToken = "";                             // guarded by authLock
+    uint32_t reauthCount = 0;                               // output thread only
     std::atomic<bool> authInFlight{ false };
+    std::atomic<bool> authPending{ false };   // a request came in while one was in flight
+    std::atomic<bool> tokenPending{ false };  // a staged token is waiting for the output thread
+    std::atomic<bool> outputStarted{ false }; // false once StoppingOutput() has run
 };

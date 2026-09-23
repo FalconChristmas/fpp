@@ -103,9 +103,25 @@ void TwinklyOutputData::GetRequiredChannelRange(int& min, int& max) {
 
 void TwinklyOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& msgs) {
     if (valid && active) {
+        if (tokenPending) {
+            // A new token is waiting.  It is copied into the packet headers here
+            // rather than from the curl callback that fetched it: the headers are
+            // handed to the sending threads as iovecs and are only safe to touch
+            // from this thread, which UDPOutput::PrepData() calls holding
+            // socketMutex.  Writing them from the main loop could put half of an
+            // old token and half of a new one on the wire.
+            std::unique_lock<std::mutex> lk(authLock);
+            for (int x = 0; x < portCount; x++) {
+                memcpy(&twinklyBuffers[x][1], authTokenBytes, TOKEN_LEN);
+            }
+            tokenPending = false;
+        }
+
         reauthCount++;
         if (reauthCount > MAXPACKETS) {
-            // need to re-authenticate or lights will stop eventually
+            // need to re-authenticate or lights will stop eventually.  If this
+            // attempt fails, the periodic verifyToken() will retry within
+            // TWINKLY_TOKEN_VALIDATE_TIME rather than waiting another MAXPACKETS.
             reauthCount = 0;
             authenticate();
         }
@@ -147,32 +163,79 @@ void TwinklyOutputData::PrepareData(unsigned char* channelData, UDPOutputMessage
 }
 
 void TwinklyOutputData::StartingOutput() {
+    outputStarted = true;
     authenticate();
     Timers::INSTANCE.addPeriodicTimer("Twinkly" + ipAddress, TWINKLY_TOKEN_VALIDATE_TIME * 1000, [this]() {
         verifyToken();
     });
 }
 void TwinklyOutputData::StoppingOutput() {
-    callRestAPI(true, "xled/v1/led/mode", "{\"mode\": \"off\"}");
-    authToken = "";
+    // Clear this first.  An authentication chain may be part way through on the
+    // main loop; without it, the chain would finish after we are done here and
+    // put the device back into "rt" mode with nothing left to send it frames.
+    outputStarted = false;
     Timers::INSTANCE.stopPeriodicTimer("Twinkly" + ipAddress);
+    callRestAPI(true, "xled/v1/led/mode", "{\"mode\": \"off\"}");
+    setAuthToken("");
 }
-void TwinklyOutputData::applyAuthToken(const std::string& token) {
+
+std::string TwinklyOutputData::getAuthToken() {
+    std::unique_lock<std::mutex> lk(authLock);
+    return authToken;
+}
+void TwinklyOutputData::setAuthToken(const std::string& token) {
+    std::unique_lock<std::mutex> lk(authLock);
+    authToken = token;
+}
+
+bool TwinklyOutputData::applyAuthToken(const std::string& token) {
     std::vector<uint8_t> decoded = base64Decode(token);
     if (decoded.empty()) {
-        return;
+        return false;
     }
-    authToken = token;
-    reauthCount = 0;
     int len = std::min(TOKEN_LEN, (int)decoded.size());
+    std::unique_lock<std::mutex> lk(authLock);
+    authToken = token;
+    // A short token leaves the rest of the header zeroed rather than carrying
+    // bytes of the previous one.
+    memset(authTokenBytes, 0, TOKEN_LEN);
     memcpy(authTokenBytes, &decoded[0], len);
-    for (int x = 0; x < portCount; x++) {
-        memcpy(&twinklyBuffers[x][1], &decoded[0], len);
+    lk.unlock();
+    tokenPending = true;
+    return true;
+}
+
+void TwinklyOutputData::finishAuth() {
+    authInFlight = false;
+    if (authPending.exchange(false) && outputStarted) {
+        authenticate();
+    }
+}
+
+// The xled API reports failures in the body, not the status line: a rejected
+// token comes back as HTTP 200 with {"code":1102}, so the response code on its
+// own never shows an error.
+static bool xledCallSucceeded(int rc, const std::string& resp) {
+    if (rc != 200) {
+        return false;
+    }
+    try {
+        Json::Value v = LoadJsonFromString(resp);
+        return v["code"].asInt() == 1000;
+    } catch (std::exception& ex) {
+        return false;
     }
 }
 
 void TwinklyOutputData::authenticate() {
+    if (!outputStarted) {
+        return;
+    }
     if (authInFlight.exchange(true)) {
+        // One is already running.  Remember this one instead of dropping it:
+        // the in-flight attempt may be about to fail, or may have been started
+        // before a stop/start cycle invalidated what it is fetching.
+        authPending = true;
         return;
     }
 
@@ -183,6 +246,10 @@ void TwinklyOutputData::authenticate() {
         base + "login", "POST",
         "{\"challenge\": \"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\"}", jsonHeaders,
         [this, base](int rc, const std::string& resp) {
+            if (!outputStarted) {
+                finishAuth();
+                return;
+            }
             std::string token;
             if (rc == 200) {
                 try {
@@ -194,42 +261,58 @@ void TwinklyOutputData::authenticate() {
             }
             if (token.empty()) {
                 LogWarn(VB_CHANNELOUT, "Twinkly %s: login failed (http %d), will retry\n", ipAddress.c_str(), rc);
-                authInFlight = false;
+                finishAuth();
                 return;
             }
-            applyAuthToken(token);
+            if (!applyAuthToken(token)) {
+                LogWarn(VB_CHANNELOUT, "Twinkly %s: could not decode the authentication token, will retry\n", ipAddress.c_str());
+                finishAuth();
+                return;
+            }
 
-            const std::list<std::string> authHeader = { "X-Auth-Token: " + authToken };
-            CurlManager::INSTANCE.add(base + "verify", "GET", "", authHeader, [this, base](int, const std::string&) {
+            // The token is carried explicitly through the chain rather than read
+            // back off the member: another attempt may replace it in between.
+            // POST is what every shipping release has used to verify - some units
+            // answer a GET here too, but not all firmware routes it.
+            const std::list<std::string> authHeader = { "X-Auth-Token: " + token };
+            CurlManager::INSTANCE.add(base + "verify", "POST", "", authHeader, [this, base, token](int rc, const std::string& resp) {
+                if (!outputStarted) {
+                    finishAuth();
+                    return;
+                }
+                if (!xledCallSucceeded(rc, resp)) {
+                    // Carrying on would put the device into "rt" with a token it
+                    // has not accepted, and every frame after that is dropped.
+                    LogWarn(VB_CHANNELOUT, "Twinkly %s: token was not verified (http %d), will retry\n", ipAddress.c_str(), rc);
+                    finishAuth();
+                    return;
+                }
                 const std::list<std::string> modeHeaders = { "Accept: application/json",
                                                              "Content-Type: application/json",
-                                                             "X-Auth-Token: " + authToken };
+                                                             "X-Auth-Token: " + token };
                 CurlManager::INSTANCE.add(base + "led/mode", "POST", "{\"mode\": \"rt\"}", modeHeaders,
-                                          [this](int, const std::string&) {
-                                              authInFlight = false;
+                                          [this](int rc, const std::string& resp) {
+                                              if (!xledCallSucceeded(rc, resp)) {
+                                                  LogWarn(VB_CHANNELOUT, "Twinkly %s: could not switch to realtime mode (http %d)\n", ipAddress.c_str(), rc);
+                                              }
+                                              finishAuth();
                                           });
             });
         });
 }
 void TwinklyOutputData::verifyToken() {
+    if (!outputStarted) {
+        return;
+    }
     std::string url = "http://" + ipAddress + "/xled/v1/verify";
     std::list<std::string> extraHeaders;
-    std::string xat = "X-Auth-Token: " + authToken;
+    std::string xat = "X-Auth-Token: " + getAuthToken();
     extraHeaders.push_back(xat);
-    CurlManager::INSTANCE.add(url, "GET", "", extraHeaders, [this](int rc, const std::string& resp) {
-        if (rc != 200) {
-            // no answer, or token was rejected. Retry async
-            authenticate();
-            return;
-        }
+    CurlManager::INSTANCE.add(url, "POST", "", extraHeaders, [this](int rc, const std::string& resp) {
         // printf("%d:  %s\n", rc, resp.c_str());
-        try {
-            Json::Value v = LoadJsonFromString(resp);
-            if (v["code"].asInt() != 1000) {
-                authenticate();
-            }
-        } catch (std::exception& ex) {
-            //ignore this time around, next time hopefully will work
+        if (!xledCallSucceeded(rc, resp)) {
+            // no answer, or the token was rejected. Retry async
+            authenticate();
         }
     });
 }
@@ -260,8 +343,9 @@ Json::Value TwinklyOutputData::callRestAPI(bool isPost, const std::string& path,
         headers = curl_slist_append(headers, "Accept: application/json");
         headers = curl_slist_append(headers, "Content-Type: application/json");
     }
-    if (authToken != "") {
-        const std::string at = "X-Auth-Token: " + authToken;
+    const std::string token = getAuthToken();
+    if (token != "") {
+        const std::string at = "X-Auth-Token: " + token;
         headers = curl_slist_append(headers, at.c_str());
     }
     if (headers) {
@@ -294,11 +378,10 @@ Json::Value TwinklyOutputData::callRestAPI(bool isPost, const std::string& path,
     try {
         return LoadJsonFromString(resp);
     } catch (std::exception& ex) {
-        //not sure what to do here.  The only call that uses the return is the authentication
-        //so we'll return an empty json and hope that is good enough
+        // not sure what to do here.  The only call that uses the return is the authentication
+        // so we'll return an empty json and hope that is good enough
         return Json::Value();
     }
-
 }
 
 void TwinklyOutputData::DumpConfig() {
