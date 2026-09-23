@@ -321,18 +321,27 @@ function list_plugin_entries($menu)
             <div id='unsupportedBrowser' class="alert alert-danger">FPP will not work with this browser. Chrome,
                 Firefox, or
                 Edge is strongly recommended.</div>
-            <div id='rebootFlag' class="alert detract"><span class='inlineBlock'>Base configuration has changed. Reboot
-                    Required</span><span class='inlineBlock'><input name="btnReboot" onClick="Reboot();" type="button"
-                        class="buttons btn-outline-light" value="Reboot">
-                    <?
-                    if (basename($_SERVER['PHP_SELF']) == "developer.php") {
-                        ?>
-                        <input type='button' class="buttons btn-outline-light" value='Clear' onClick='ClearRebootFlag();'>
+            <?
+            // Not offered where no reboot is pending or possible: on macOS FPP is
+            // not what owns the machine's boot, nothing consumes or clears the
+            // flag, and the button would restart the developer's desktop.
+            if ($settings['Platform'] != 'MacOS') {
+                ?>
+                <div id='rebootFlag' class="alert detract"><span class='inlineBlock'>Base configuration has changed. Reboot
+                        Required</span><span class='inlineBlock'><input name="btnReboot" onClick="Reboot();" type="button"
+                            class="buttons btn-outline-light" value="Reboot">
                         <?
-                    }
-                    ?>
-                </span>
-            </div>
+                        if (basename($_SERVER['PHP_SELF']) == "developer.php") {
+                            ?>
+                            <input type='button' class="buttons btn-outline-light" value='Clear' onClick='ClearRebootFlag();'>
+                            <?
+                        }
+                        ?>
+                    </span>
+                </div>
+                <?
+            }
+            ?>
 
 
             <nav id="fppMenu" class="navbar navbar-expand-lg navbar-dark">

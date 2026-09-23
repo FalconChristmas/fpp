@@ -642,6 +642,17 @@ if (!isset($settings['rebootFlag'])) {
     $settings['rebootFlag'] = 0;
 }
 
+// A reboot flag is a request to something that runs at boot: FPPINIT reads it,
+// reboots and clears it.  That never happens on macOS, so a flag raised there --
+// by a restore, an upgrade script, or an older wizard -- stays raised for good,
+// with the banner, the "See Alert" scroll button and api/system/status all
+// reporting a reboot that nothing is ever going to perform or retract.  fpp.js
+// already refuses to raise one there (SetRebootFlag); this applies the same rule
+// to a value that is already in the file.
+if ($settings['Platform'] == 'MacOS') {
+    $settings['rebootFlag'] = 0;
+}
+
 $settings['hideExternalURLs'] = false;
 $localIps = array('127.0.0.1', "::1");
 
