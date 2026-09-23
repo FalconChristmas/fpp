@@ -14,6 +14,7 @@
 
 #include "fpp-json.h"
 
+#include "EPollManager.h"
 #include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
 
 #include <arpa/inet.h>
@@ -946,6 +947,8 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local) {
         return "DIYLEDExpress";
     case kSysTypeWLED:
         return "WLED";
+    case kSysTypeTwinkly:
+        return "Twinkly";
     default:
         return "Unknown System Type";
     }
@@ -1153,6 +1156,7 @@ void MultiSync::ResetSyncStats() {
 void MultiSync::Discover() {
     Ping(1);
     PerformHTTPDiscovery();
+    PerformTwinklyDiscovery();
 }
 
 void MultiSync::PerformHTTPDiscovery() {
@@ -1241,6 +1245,108 @@ void MultiSync::PerformHTTPDiscovery() {
         if (!subnets.empty()) {
             DiscoverViaHTTP(subnets, exacts);
         }
+    }
+}
+
+// Twinkly's own discovery protocol: a short datagram to UDP 5555, to which every
+// light on the segment replies with its address and name.  One broadcast
+// enumerates all of them, with none of the per-address cost of an HTTP sweep -
+// which matters here because they cannot be found any other way.  They publish
+// nothing over mDNS or SSDP and their embedded server answers "/" with a 404, so
+// a light that is not already a configured channel output is otherwise invisible.
+//
+// Nothing here (or in the detector this hands off to) authenticates.  That is
+// deliberate: a Twinkly keeps exactly ONE verified token, so logging in would
+// invalidate the token a running Twinkly channel output is streaming with.
+#define TWINKLY_DISCOVERY_PORT 5555
+static const char TWINKLY_DISCOVERY_MSG[] = { 0x01, 'd', 'i', 's', 'c', 'o', 'v', 'e', 'r' };
+
+bool MultiSync::OpenTwinklyDiscoverySocket() {
+    if (m_twinklyDiscoverySock >= 0) {
+        return true;
+    }
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) {
+        LogWarn(VB_SYNC, "Could not open Twinkly discovery socket: %s\n", FPPstrerror(errno));
+        return false;
+    }
+    int broadcast = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
+        LogWarn(VB_SYNC, "Could not set SO_BROADCAST for Twinkly discovery: %s\n", FPPstrerror(errno));
+        close(sock);
+        return false;
+    }
+    m_twinklyDiscoverySock = sock;
+    std::function<bool(int)> f = [this](int i) {
+        return ProcessTwinklyDiscoveryReplies();
+    };
+    EPollManager::INSTANCE.addFileDescriptor(m_twinklyDiscoverySock, f);
+    return true;
+}
+
+void MultiSync::PerformTwinklyDiscovery() {
+    if (!OpenTwinklyDiscoverySocket()) {
+        return;
+    }
+    {
+        std::unique_lock<std::mutex> lock(m_httpProbeLock);
+        m_twinklyDiscoverySeen.clear();
+    }
+
+    std::unique_lock<std::mutex> lock(m_socketLock);
+    for (auto& a : m_interfaces) {
+        struct sockaddr_in bda;
+        memset((void*)&bda, 0, sizeof(struct sockaddr_in));
+        bda.sin_family = AF_INET;
+        bda.sin_port = htons(TWINKLY_DISCOVERY_PORT);
+        bda.sin_addr.s_addr = a.second.broadcastAddress;
+
+        if (sendto(m_twinklyDiscoverySock, TWINKLY_DISCOVERY_MSG, sizeof(TWINKLY_DISCOVERY_MSG), 0,
+                   (struct sockaddr*)&bda, sizeof(struct sockaddr_in)) < 0) {
+            LogDebug(VB_SYNC, "Could not send Twinkly discovery on %s: %s\n",
+                     a.second.interfaceName.c_str(), FPPstrerror(errno));
+        }
+    }
+}
+
+// A reply is the device's own address (4 bytes, least significant first), then
+// "OK", then its name.  The source address of the datagram is what gets probed
+// rather than that embedded copy: it is the address that actually answered, and
+// so the one we have to talk to.  The payload is only inspected far enough to
+// be reasonably sure this is a light rather than something else listening on
+// 5555 -- the HTTP detector is what confirms it.
+//
+// Always returns false: a true return from an EPollManager callback is fppd's
+// signal that bridge data is ready to push out, which this is not.
+bool MultiSync::ProcessTwinklyDiscoveryReplies() {
+    char buf[256];
+    while (true) {
+        struct sockaddr_in src;
+        memset(&src, 0, sizeof(src));
+        socklen_t slen = sizeof(src);
+        ssize_t len = recvfrom(m_twinklyDiscoverySock, buf, sizeof(buf), MSG_DONTWAIT,
+                               (struct sockaddr*)&src, &slen);
+        if (len <= 0) {
+            return false;
+        }
+        if (len < 7 || buf[4] != 'O' || buf[5] != 'K') {
+            continue;
+        }
+        char ipStr[INET_ADDRSTRLEN] = { 0 };
+        if (!inet_ntop(AF_INET, &src.sin_addr, ipStr, sizeof(ipStr))) {
+            continue;
+        }
+        std::string address(ipStr);
+        {
+            std::unique_lock<std::mutex> lock(m_httpProbeLock);
+            if (!m_twinklyDiscoverySeen.insert(address).second) {
+                // the lights answer each broadcast more than once
+                continue;
+            }
+        }
+        LogInfo(VB_SYNC, "Twinkly device answered discovery at %s\n", address.c_str());
+        // Not under any lock: this queues an HTTP probe and can complete inline.
+        PingSingleRemoteViaHTTP(address);
     }
 }
 
@@ -1349,7 +1455,15 @@ void MultiSync::PumpHTTPDiscovery() {
             // case -- there is no status line to report -- and is equally good;
             // rc == 0 with nothing is a transfer that never connected.  This is
             // the same accept/reject the CURLcode-based version made.
-            if (rc == 200 || (rc == 0 && !resp.empty())) {
+            //
+            // An `exact` address is one that was configured rather than swept
+            // for - a channel output's destination, or an entry the user typed -
+            // so anything that answered at all is worth identifying.  Twinkly
+            // lights need that: they have no web UI and serve a 404 at "/", and
+            // only a follow-up call to their own API says what they are.  The
+            // broad sweep stays 200-only, so a subnet full of unrelated devices
+            // that 404 does not drag the whole detector chain through each one.
+            if (rc == 200 || (rc == 0 && !resp.empty()) || (exact && !resp.empty())) {
                 LogDebug(VB_SYNC, "IP %s completed with code %d\n", ip.c_str(), rc);
                 DiscoverIPViaHTTP(ip, resp, exact);
                 return; // DiscoverIPViaHTTP() releases the slot
@@ -2532,6 +2646,12 @@ void MultiSync::ShutdownSync(void) {
     if (m_controlSock >= 0) {
         close(m_controlSock);
         m_controlSock = -1;
+    }
+
+    if (m_twinklyDiscoverySock >= 0) {
+        EPollManager::INSTANCE.removeFileDescriptor(m_twinklyDiscoverySock);
+        close(m_twinklyDiscoverySock);
+        m_twinklyDiscoverySock = -1;
     }
 
     if (m_receiveSock >= 0) {

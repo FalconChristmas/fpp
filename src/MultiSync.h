@@ -119,6 +119,7 @@ typedef enum systemType {
     kSysTypeESPixelStickESP32 = 0xC3,
     kSysTypeBaldrick = 0xC4,
     kSysTypeNonMultiSyncCapable = 0xF0,
+    kSysTypeTwinkly = 0xFA,
     kSysTypeWLED = 0xFB,
     kSysTypeDIYLEDExpress = 0xFC,
     kSysTypeHinksPix = 0xFD,
@@ -462,6 +463,15 @@ private:
 
     void PerformHTTPDiscovery(void);
     void DiscoverViaHTTP(const std::set<std::string>& ips, const std::set<std::string>& exacts);
+
+    // Twinkly lights answer neither mDNS nor SSDP, and serve a 404 at "/", so
+    // they are invisible to the mDNS listener and are dropped by the HTTP subnet
+    // scan before any detector sees them.  They do answer a short UDP broadcast
+    // on port 5555, which is the only way to find one that has not been
+    // configured as a channel output.  See PerformTwinklyDiscovery().
+    bool OpenTwinklyDiscoverySocket();
+    void PerformTwinklyDiscovery();
+    bool ProcessTwinklyDiscoveryReplies();
     void DiscoverIPViaHTTP(const std::string& ip, const std::string& html, bool allowUnknown = false);
 
     // Both HTTP probe paths are queue-and-pump rather than fire-everything:
@@ -512,6 +522,11 @@ private:
     int m_broadcastSock;
     int m_controlSock;
     int m_receiveSock;
+    // Sends the Twinkly discovery broadcast and receives the replies.  They come
+    // back to the port the request went out from, so this stays on an ephemeral
+    // port and never binds 5555.  Registered with EPollManager, so replies are
+    // handled on the main loop.
+    int m_twinklyDiscoverySock = -1;
 
     // Guards the one-shot listener teardown in ShutdownSync(); see the comment
     // there for why the second call has to be a no-op.
@@ -625,6 +640,10 @@ private:
     int m_httpPingsInFlight = 0;
     std::deque<std::pair<std::string, bool>> m_httpDiscoveryQueue; // address, isExact
     int m_httpDiscoveriesInFlight = 0;
+    // Addresses already handed to an HTTP probe by the current Twinkly sweep.
+    // The lights answer each broadcast more than once.  Guarded by
+    // m_httpProbeLock, like the queues above.
+    std::set<std::string> m_twinklyDiscoverySeen;
 
     std::recursive_mutex m_statsLock;
     std::map<std::string, MultiSyncStats*> m_syncStats;
