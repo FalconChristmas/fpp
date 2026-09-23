@@ -901,6 +901,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                 return !empty($settingInfos[$k]['reboot']);
             }))) ?>;
 
+        // What every wizard control held when the page opened, so "we showed it
+        // to you" can be told apart from "you changed it".  Filled at ready and
+        // therefore before any cape defaults are merged, so a value the cape
+        // proposes still counts as a change.
+        var originalSettingValues = {};
+
         // Nothing in the wizard reboots: a box must not restart out from under
         // someone who is still setting it up, and savePut() deliberately does not
         // raise the flags the way fpp.js does.  But a change that needs a reboot
@@ -911,11 +917,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
         // cannot.
         function needsReboot() {
             for (var i = 0; i < rebootSettings.length; i++) {
-                if (pendingSettings.hasOwnProperty(rebootSettings[i])) {
+                var key = rebootSettings[i];
+                if (!pendingSettings.hasOwnProperty(key)) {
+                    continue;
+                }
+                // Being pending is not the same as being changed.
+                // recordPromptedSettings() deliberately records every control the
+                // wizard showed, answered or not, so testing only for presence
+                // asked for a reboot at the end of every setup -- including on a
+                // platform where the only reboot-flagged control on the page is
+                // one nobody touched.
+                if (!originalSettingValues.hasOwnProperty(key) ||
+                    '' + pendingSettings[key] !== '' + originalSettingValues[key]) {
                     return true;
                 }
             }
             return false;
+        }
+
+        // What a wizard control currently holds, or null when it is not on the
+        // page at all -- platform-gated, or hidden by a checkFile like
+        // InstalledCape when a real cape is present.
+        function readWizardSetting(key) {
+            var $e = $('#' + key.replace(/\./g, '\\.'));
+            if ($e.length === 0) {
+                return null;
+            }
+            var value;
+            if ($e.attr('type') === 'checkbox') {
+                value = $e.is(':checked') ? ($e.data('checked-value') || '1')
+                                          : ($e.data('unchecked-value') || '0');
+            } else {
+                value = $e.val();
+            }
+            return (value === null || value === undefined) ? null : value;
         }
 
         // Record every setting the wizard showed, not only the ones touched.
@@ -930,20 +965,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
         // "Shown it and left it" is an answer, and this is what records it.
         function recordPromptedSettings() {
             $.each(WIZARD_SETTING_KEYS, function (i, key) {
-                var $e = $('#' + key.replace(/\./g, '\\.'));
-                if ($e.length === 0) {
-                    // Not rendered here -- platform-gated, or hidden by a
-                    // checkFile like InstalledCape when a real cape is present.
-                    return;
-                }
-                var value;
-                if ($e.attr('type') === 'checkbox') {
-                    value = $e.is(':checked') ? ($e.data('checked-value') || '1')
-                                              : ($e.data('unchecked-value') || '0');
-                } else {
-                    value = $e.val();
-                }
-                if (value === null || value === undefined) {
+                var value = readWizardSetting(key);
+                if (value === null) {
                     return;
                 }
                 pendingSettings[key] = value;
@@ -1344,6 +1367,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             UpdateChildSettingsVisibility();
             setupDropZone();
 
+            $.each(WIZARD_SETTING_KEYS, function (i, key) {
+                var value = readWizardSetting(key);
+                if (value !== null) {
+                    originalSettingValues[key] = value;
+                }
+            });
+
             // Override all auto-generated onChange handlers to track changes instead of saving immediately
             // List of all settings on this page
             var settingsToOverride = [
@@ -1470,9 +1500,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
 
                         <div class="setupStep" data-step="1">
                             <p class="text-muted">Where this player is used.  The time zone and
-                                coordinates drive the scheduler's sunrise and sunset times, the holiday
+                                coordinates drive the scheduler's sunrise and sunset times<?
+                                // The regulatory domain is applied at boot by FPP's own network
+                                // setup, which does not exist on a platform where FPP is not the
+                                // thing configuring the WiFi -- so the control is not shown there
+                                // and neither is the sentence describing it.
+                                if ($settings["Platform"] != "MacOS") { ?>, the holiday
                                 list gives it the dates of named holidays, and the regulatory domain
-                                decides which WiFi channels the adapter may use.</p>
+                                decides which WiFi channels the adapter may use<? } else { ?>, and the
+                                holiday list gives it the dates of named holidays<? } ?>.</p>
                             <?
                             $extraData = "<div class='form-actions'>";
                             if ($settings["Platform"] != "MacOS") {

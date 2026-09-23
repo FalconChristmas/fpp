@@ -513,6 +513,9 @@
 		"WifiRegulatoryDomain": {
 			"name": "WifiRegulatoryDomain",
 			"description": "WIFI Regulatory Domain",
+			"platforms": [
+				"!MacOS"
+			],
 			"tip": "The regulatory domain controls the frequencies/channels that WIFI adapaters are allowed to use.",
 			"comment": "list from https://www.arubanetworks.com/techdocs/InstantWenger_Mobile/Advanced/Content/Instant%20User%20Guide%20-%20volumes/Country_Codes_List.htm#regulatory_domain_3737302751_1017918",
 			"gatherStats": true,
