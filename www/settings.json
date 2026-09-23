@@ -1652,7 +1652,7 @@
 			"name": "DisableHDMICECInit",
 			"description": "Prevent HDMI CEC at Boot",
 			"gatherStats": true,
-			"tip": "When enabled, adds hdmi_ignore_cec_init=1 to config.txt to suppress the initial CEC Active Source that wakes projectors/TVs at boot (e.g. after a power outage). CEC control via the CEC plugin still works. Not applicable on Pi 5 (kernel KMS, no firmware HDMI).",
+			"tip": "Adds hdmi_ignore_cec_init=1 to config.txt, suppressing the CEC \"Active Source\" broadcast the Pi firmware sends at boot.  That broadcast is what wakes a TV or projector out of standby and switches it to the Pi's input after a power cut, so enabling this gives that up: FPP never sends CEC itself, and a display left in standby will stay dark until someone picks up its remote.  Only enable it if you would rather the display did not come on by itself.  A plain monitor is unaffected either way, since it wakes on signal rather than on CEC.  Note that a display asleep at boot may also drop hot plug detect, in which case HDMI audio is unavailable and FPP falls back to another audio output.  Not applicable on Pi 5 (kernel KMS, no firmware HDMI).",
 			"reboot": 1,
 			"platforms": [
 				"Raspberry Pi"
