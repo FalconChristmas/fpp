@@ -13,6 +13,7 @@
 
 #include "UDPOutput.h"
 #include "fpp-json-fwd.h"
+#include <atomic>
 #include <list>
 
 #define TWINKLY_PORT 7777
@@ -35,6 +36,7 @@ public:
     Json::Value callRestAPI(bool isPost, const std::string& path, const std::string& body);
     void verifyToken();
     void authenticate();
+    void applyAuthToken(const std::string& token);
 
     int port = 1;
     int portCount = 1;
@@ -47,4 +49,5 @@ public:
     uint8_t authTokenBytes[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
     std::string authToken = "";
     uint32_t reauthCount = 0;
+    std::atomic<bool> authInFlight{ false };
 };
