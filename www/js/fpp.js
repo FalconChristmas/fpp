@@ -9819,6 +9819,268 @@ function EscapeHtml (s) {
 	return $('<div>').text(String(s == null ? '' : s)).html();
 }
 
+// Small whitelisting markdown renderer for text FPP doesn't control: GitHub
+// release bodies, FPP's own (about.php) and plugins' (plugins.php). Every
+// character of the source is HTML-escaped; only a fixed set of tags is ever
+// emitted, and a link only for an http(s) URL. Covers what release notes
+// use -- headings, paragraphs, nested bullet/numbered lists, blockquotes,
+// tables, fenced and inline code, bold/italic/strikethrough, [text](url) and
+// bare URLs -- not full CommonMark. Single newlines render as line breaks,
+// the way GitHub shows release bodies.
+//
+// The input is untrusted, so the work per line is bounded: no regex
+// lookbehind (older Safari can't parse it, which would take all of fpp.js
+// down), no pattern that backtracks badly on one long line, very long lines
+// get no inline formatting, and tables are capped.
+function MarkdownToSafeHtml (md) {
+	var MAX_SOURCE = 200000; // GitHub caps a release body at 125,000 characters
+	var MAX_INLINE_LINE = 4000;
+	var MAX_TABLE_COLS = 32;
+	var MAX_TABLE_ROWS = 500;
+	var cellBudget = 20000; // across every table in the document
+
+	var esc = function (s) {
+		return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+	};
+	var safeUrl = function (u) {
+		try {
+			var p = new URL(u);
+			return (p.protocol === 'http:' || p.protocol === 'https:') ? p.href : '';
+		} catch (e) {
+			return '';
+		}
+	};
+	var anchor = function (href) {
+		return '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">';
+	};
+	// Trailing punctuation isn't part of a bare URL, except a ')' that closes
+	// a '(' inside it (https://en.wikipedia.org/wiki/Foo_(bar)).
+	var splitUrlTrail = function (url) {
+		var opens = url.split('(').length - 1, closes = url.split(')').length - 1;
+		var end = url.length;
+		while (end > 0 && '.,;:!?)]\'"'.indexOf(url.charAt(end - 1)) >= 0) {
+			if (url.charAt(end - 1) === ')') {
+				if (opens >= closes) break;
+				closes--;
+			}
+			end--;
+		}
+		return [url.slice(0, end), url.slice(end)];
+	};
+	// labelTokens: rendering a link's own label (where another link can't
+	// nest), sharing the enclosing line's tokens so a code span already
+	// pulled out of the label comes back.
+	var inline = function (text, labelTokens) {
+		if (text.length > MAX_INLINE_LINE) return esc(text);
+		// Code spans and links are pulled out first, as opaque tokens, so the
+		// emphasis rules can't reach into them (a_b_c in a URL or an
+		// identifier stays as written).
+		var tokens = labelTokens || [];
+		var keep = function (html) {
+			tokens.push(html);
+			return '\u0000' + (tokens.length - 1) + '\u0000';
+		};
+		if (!labelTokens) text = text.replace(/\u0000/g, '');
+		text = text.replace(/(`+)([^`]|[^`].*?[^`])\1(?!`)/g, function (m, ticks, code) {
+			return keep('<code>' + esc(code.trim()) + '</code>');
+		});
+		if (!labelTokens) {
+			text = text.replace(/\[([^\[\]]+)\]\(\s*<?([^\s()<>]+(?:\([^\s()<>]*\)[^\s()<>]*)*)>?(?:\s+"[^"]*")?\s*\)/g, function (m, label, url) {
+				var href = safeUrl(url);
+				return href ? keep(anchor(href) + inline(label, tokens) + '</a>') : label;
+			});
+			text = text.replace(/\bhttps?:\/\/[^\s<>\u0000]+/g, function (m) {
+				var parts = splitUrlTrail(m);
+				var href = safeUrl(parts[0]);
+				return href ? keep(anchor(href) + esc(parts[0]) + '</a>') + parts[1] : m;
+			});
+		}
+		text = esc(text)
+			.replace(/\*\*(\S|\S.*?\S)\*\*/g, '<strong>$1</strong>')
+			.replace(/(^|[^A-Za-z0-9_])__(\S|\S.*?\S)__(?![A-Za-z0-9_])/g, '$1<strong>$2</strong>')
+			.replace(/(^|[^*])\*([^\s*]|[^\s*][^*]*?[^\s*])\*(?!\*)/g, '$1<em>$2</em>')
+			.replace(/(^|[^A-Za-z0-9_])_([^\s_]|[^\s_][^_]*?[^\s_])_(?![A-Za-z0-9_])/g, '$1<em>$2</em>')
+			.replace(/~~(\S|\S.*?\S)~~/g, '<del>$1</del>');
+		return text.replace(/\u0000(\d+)\u0000/g, function (m, i) {
+			return tokens[+i];
+		});
+	};
+	var renderList = function (items) {
+		var html = '', stack = [];
+		items.forEach(function (it) {
+			while (stack.length && stack[stack.length - 1].indent > it.indent) {
+				html += '</li></' + stack.pop().type + '>';
+			}
+			var top = stack[stack.length - 1];
+			if (top && top.indent === it.indent && top.type !== it.type) {
+				html += '</li></' + stack.pop().type + '>';
+				top = stack[stack.length - 1];
+			}
+			if (!top || it.indent > top.indent) {
+				html += '<' + it.type + '>';
+				stack.push({ indent: it.indent, type: it.type });
+			} else {
+				html += '</li>';
+			}
+			html += '<li>' + inline(it.text);
+		});
+		while (stack.length) html += '</li></' + stack.pop().type + '>';
+		return html;
+	};
+	// GFM table cells: outer pipes optional, \| is a literal pipe.
+	var cells = function (row) {
+		row = row.trim();
+		if (row.charAt(0) === '|') row = row.slice(1);
+		if (row.charAt(row.length - 1) === '|' && row.charAt(row.length - 2) !== '\\') row = row.slice(0, -1);
+		var out = [], cur = '';
+		for (var k = 0; k < row.length; k++) {
+			var ch = row.charAt(k);
+			if (ch === '\\' && row.charAt(k + 1) === '|') {
+				cur += '|';
+				k++;
+			} else if (ch === '|') {
+				out.push(cur.trim());
+				cur = '';
+			} else {
+				cur += ch;
+			}
+		}
+		out.push(cur.trim());
+		return out;
+	};
+	var isTableSep = function (line) {
+		return /^[\s|:-]+$/.test(line) && line.indexOf('-') >= 0 && cells(line).every(function (c) {
+			return /^:?-+:?$/.test(c);
+		});
+	};
+	// HTML comments (release templates are full of them) go, but not inside
+	// a fenced code block, where they're content.
+	var stripComments = function (lines) {
+		var out = [], fence = null, inComment = false;
+		lines.forEach(function (line) {
+			if (fence) {
+				out.push(line);
+				if (line.trim().indexOf(fence) === 0) fence = null;
+				return;
+			}
+			var fm = !inComment && line.match(/^\s*(`{3,}|~{3,})/);
+			if (fm) {
+				fence = fm[1];
+				out.push(line);
+				return;
+			}
+			var kept = '', rest = line, k;
+			while (rest.length) {
+				if (inComment) {
+					k = rest.indexOf('-->');
+					if (k < 0) break;
+					rest = rest.slice(k + 3);
+					inComment = false;
+				} else {
+					k = rest.indexOf('<!--');
+					if (k < 0) {
+						kept += rest;
+						break;
+					}
+					kept += rest.slice(0, k);
+					rest = rest.slice(k + 4);
+					inComment = true;
+				}
+			}
+			// A line that was all comment disappears, rather than turning
+			// into a blank line that splits a paragraph.
+			if (kept.trim() !== '' || line.trim() === '') out.push(kept);
+		});
+		return out;
+	};
+
+	var lines = stripComments(String(md == null ? '' : md).slice(0, MAX_SOURCE).replace(/\r\n?/g, '\n').split('\n'));
+	var out = [], para = [], quote = [], items = [];
+	var flush = function () {
+		if (para.length) out.push('<p>' + para.map(function (l) { return inline(l); }).join('<br>') + '</p>');
+		if (quote.length) out.push('<blockquote class="border-start ps-3 text-muted">' + quote.map(function (l) { return inline(l); }).join('<br>') + '</blockquote>');
+		if (items.length) out.push(renderList(items));
+		para = []; quote = []; items = [];
+	};
+	for (var i = 0; i < lines.length; i++) {
+		var line = lines[i], m;
+		if ((m = line.match(/^\s*(`{3,}|~{3,})/))) {
+			flush();
+			var fence = m[1], code = [];
+			for (i++; i < lines.length && lines[i].trim().indexOf(fence) !== 0; i++) code.push(lines[i]);
+			out.push('<pre><code>' + esc(code.join('\n')) + '</code></pre>');
+		} else if (line.indexOf('|') >= 0 && i + 1 < lines.length && isTableSep(lines[i + 1])) {
+			flush();
+			var head = cells(line).slice(0, Math.min(MAX_TABLE_COLS, Math.max(cellBudget, 1)));
+			cellBudget -= head.length;
+			var align = cells(lines[i + 1]).map(function (c) {
+				return /^:.*:$/.test(c) ? ' class="text-center"' : (/:$/.test(c) ? ' class="text-end"' : '');
+			});
+			var t = '<table class="table table-sm"><thead><tr>';
+			head.forEach(function (c, k) { t += '<th' + (align[k] || '') + '>' + inline(c) + '</th>'; });
+			t += '</tr></thead><tbody>';
+			var rows = 0;
+			for (i += 2; i < lines.length && lines[i].indexOf('|') >= 0 && !/^\s*$/.test(lines[i]); i++) {
+				if (++rows > MAX_TABLE_ROWS || cellBudget < head.length) continue;
+				cellBudget -= head.length;
+				var row = cells(lines[i]);
+				t += '<tr>';
+				for (var k = 0; k < head.length; k++) t += '<td' + (align[k] || '') + '>' + inline(row[k] || '') + '</td>';
+				t += '</tr>';
+			}
+			i--;
+			out.push(t + '</tbody></table>');
+		} else if (/^\s*$/.test(line)) {
+			// A blank line ends a paragraph or quote; a list carries on if
+			// the next non-blank line is another item.
+			if (items.length) {
+				var j = i + 1;
+				while (j < lines.length && /^\s*$/.test(lines[j])) j++;
+				if (j < lines.length && /^\s*([-*+]|\d+[.)])\s/.test(lines[j])) {
+					i = j - 1; // skip the whole blank run at once
+					continue;
+				}
+			}
+			flush();
+		} else if ((m = line.match(/^ {0,3}(#{1,6})(?:\s(.*))?$/))) {
+			// Trailing "#"s close a heading only after whitespace; trimmed by
+			// hand, since the regex for it backtracks on long lines.
+			flush();
+			var h = (m[2] || '').trim(), e = h.length;
+			while (e > 0 && h.charAt(e - 1) === '#') e--;
+			if (e === 0 || /\s/.test(h.charAt(e - 1))) h = h.slice(0, e).trim();
+			var level = Math.min(m[1].length + 2, 5); // h3-h5, the .fpp-release-notes scale
+			out.push('<h' + level + '>' + inline(h) + '</h' + level + '>');
+		} else if (/^ {0,3}[-*_][-*_\s]*$/.test(line) && /^(-{3,}|\*{3,}|_{3,})$/.test(line.replace(/\s/g, ''))) {
+			flush();
+			out.push('<hr>');
+		} else if ((m = line.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/))) {
+			if (para.length || quote.length) {
+				var keepItems = items;
+				items = [];
+				flush();
+				items = keepItems;
+			}
+			items.push({
+				indent: m[1].replace(/\t/g, '    ').length,
+				type: /\d/.test(m[2]) ? 'ol' : 'ul',
+				text: m[3].replace(/^\[([ xX])\]\s+/, function (x, c) { return c === ' ' ? '☐ ' : '☑ '; })
+			});
+		} else if ((m = line.match(/^ {0,3}>\s?(.*)$/))) {
+			if (para.length || items.length) flush();
+			quote.push(m[1]);
+		} else if (items.length && /^\s+\S/.test(line)) {
+			items[items.length - 1].text += ' ' + line.trim();
+		} else {
+			if (items.length || quote.length) flush();
+			para.push(line.trim());
+		}
+	}
+	flush();
+	return out.join('');
+}
+
 // Recursively builds a color-coded HTML one-line summary of the whole tree,
 // shown above the Check section and reused for the outer preset/task row
 // list's summary (FillInCommandTemplate) so neither place shows raw JSON.

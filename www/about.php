@@ -1217,59 +1217,33 @@
                 success: function (release) {
                     var html = '<div style=\"max-height: 70vh; overflow-y: auto;\">';
 
+                    html += '<div class=\"fpp-release-notes\">';
                     if (release.name) {
-                        html += '<h4>' + release.name + '</h4>';
+                        html += '<h3 class=\"mt-0\">' + EscapeHtml(release.name) + '</h3>';
                     }
 
                     if (release.published_at) {
                         var date = new Date(release.published_at);
-                        html += '<p class=\"text-muted\"><i class=\"fas fa-calendar\"></i> Published: ' + date.toLocaleDateString() + '</p>';
+                        if (!isNaN(date.getTime())) {
+                            html += '<p class=\"text-muted\"><i class=\"fas fa-calendar\"></i> Published: ' + date.toLocaleDateString() + '</p>';
+                        }
                     }
 
                     if (release.body) {
-                        // Convert markdown to HTML
-                        var body = release.body
-                            // Escape HTML
-                            .replace(/&/g, '&amp;')
-                            .replace(/</g, '&lt;')
-                            .replace(/>/g, '&gt;')
-                            // Headers
-                            .replace(/^### (.+)$/gm, '<h5>$1</h5>')
-                            .replace(/^## (.+)$/gm, '<h4>$1</h4>')
-                            .replace(/^# (.+)$/gm, '<h3>$1</h3>')
-                            // Bold
-                            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                            .replace(/__(.+?)__/g, '<strong>$1</strong>')
-                            // Italic
-                            .replace(/\*(.+?)\*/g, '<em>$1</em>')
-                            .replace(/_(.+?)_/g, '<em>$1</em>')
-                            // Code blocks
-                            .replace(/```(.+?)```/gs, '<pre><code>$1</code></pre>')
-                            .replace(/`(.+?)`/g, '<code>$1</code>')
-                            // Links
-                            .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank">$1</a>')
-                            // Line breaks and paragraphs
-                            .replace(/\n\n/g, '</p><p>')
-                            .replace(/\n/g, '<br>');
-
-                        // Wrap lists in ul tags
-                        body = body.replace(/(<br>)?- (.+?)(<br>|<\/p>)/g, function (match, br1, content, br2) {
-                            return '<li>' + content + '</li>';
-                        });
-                        body = body.replace(/(<li>.*?<\/li>)+/g, function (match) {
-                            return '<ul>' + match + '</ul>';
-                        });
-
-                        html += '<div class=\"release-notes-body\"><p>' + body + '</p></div>';
+                        // Shared whitelisting converter (js/fpp.js)
+                        html += MarkdownToSafeHtml(release.body);
                     } else {
                         html += '<p class=\"text-muted\">No release notes available for this version.</p>';
                     }
-
-                    html += '<div class=\"mt-3\">';
-                    html += '<a href=\"' + release.html_url + '\" target=\"_blank\" class=\"btn btn-outline-primary\">';
-                    html += '<i class=\"fas fa-external-link-alt\"></i> View Full Release on GitHub';
-                    html += '</a>';
                     html += '</div>';
+
+                    if (/^https:\/\/github\.com\//.test(release.html_url || '')) {
+                        html += '<div class=\"mt-3\">';
+                        html += '<a href=\"' + EscapeHtml(release.html_url).replace(/"/g, '&quot;') + '\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"btn btn-outline-primary\">';
+                        html += '<i class=\"fas fa-external-link-alt\"></i> View Full Release on GitHub';
+                        html += '</a>';
+                        html += '</div>';
+                    }
                     html += '</div>';
 
                     $('#osReleaseNotesModal .modal-body').html(html);
