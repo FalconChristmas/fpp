@@ -3343,6 +3343,251 @@ function GetPluginGitHubStats()
 	return json(array('repos' => $result, 'source' => $source));
 }
 
+define('PLUGIN_RELEASE_NOTES_CACHE_TTL', 6 * 60 * 60); // 6h, same horizon as PLUGIN_GITHUB_STATS_TTL
+
+function PluginReleaseNotesCacheFile()
+{
+	global $settings;
+	$base = isset($settings['mediaDirectory']) ? $settings['mediaDirectory'] : '/home/fpp/media';
+	return $base . '/tmp/pluginReleaseNotes.cache.json';
+}
+
+// Same idea as GitHubRepoOf() in plugins.php's JS, but server-side: parse an
+// installed plugin's own srcURL into "owner/repo" for the GitHub API. Kept
+// server-side (rather than trusting a client-supplied repo param, the old
+// design) so GetPluginReleaseNotes() only ever talks to the repo its own
+// installed pluginInfo.json actually points at.
+function PluginGitHubRepoOf($pluginInfo)
+{
+	$url = isset($pluginInfo['srcURL']) ? $pluginInfo['srcURL'] : '';
+	if ($url === '') {
+		return '';
+	}
+	$parts = parse_url($url);
+	if (!$parts || !isset($parts['host']) || strtolower($parts['host']) !== 'github.com' || !isset($parts['path'])) {
+		return '';
+	}
+	$seg = array_values(array_filter(explode('/', $parts['path']), function ($s) {
+		return $s !== '';
+	}));
+	if (count($seg) < 2) {
+		return '';
+	}
+	$repo = preg_replace('/\.git$/i', '', $seg[1]);
+	return strtolower($seg[0] . '/' . $repo);
+}
+
+// Read an installed plugin's own pluginInfo.json off disk, or null. Shared by
+// every releaseNotes style below so each one is judged on what the plugin
+// actually ships, not on anything a client could claim about it.
+function ReadInstalledPluginInfo($plugin)
+{
+	global $settings;
+	$infoFile = $settings['pluginDirectory'] . '/' . $plugin . '/pluginInfo.json';
+	if (!file_exists($infoFile)) {
+		return null;
+	}
+	$data = json_decode(@file_get_contents($infoFile), true);
+	return is_array($data) ? $data : null;
+}
+
+function PluginReleaseNotesStyleOf($pluginInfo)
+{
+	$style = isset($pluginInfo['releaseNotesStyle']) ? $pluginInfo['releaseNotesStyle'] : 'none';
+	return in_array($style, array('gitRelease', 'gitHistory', 'script'), true) ? $style : 'none';
+}
+
+/**
+ * Show a plugin's release notes, in whichever form it declared via
+ * `releaseNotesStyle` in its `pluginInfo.json` (see PLUGININFO_FORMAT.md):
+ * `gitRelease` (latest GitHub Release), `gitHistory` (commits not yet
+ * pulled, read from the plugin's own clone -- no GitHub API call, works
+ * for any git-hosted plugin whether or not it tags releases), or `script`
+ * (runs the plugin's own scripts/fpp_releasenotes.sh). `none` or absent:
+ * 404, nothing to show -- the Plugin Manager doesn't offer the icon in
+ * that case either, this is just the server-side half of that gate.
+ *
+ * @route GET /api/plugin/{RepoName}/releaseNotes
+ * @response 200 Shape depends on `style`
+ * ```json
+ * {"style": "gitRelease", "name": "v1.2.0", "tag_name": "v1.2.0", "published_at": "2026-01-01T00:00:00Z", "body": "...", "html_url": "https://github.com/owner/repo/releases/tag/v1.2.0"}
+ * ```
+ */
+function GetPluginReleaseNotes()
+{
+	$plugin = params('RepoName');
+	$pluginInfo = ReadInstalledPluginInfo($plugin);
+	if ($pluginInfo === null) {
+		http_response_code(404);
+		return json(array('status' => 'ERROR', 'message' => 'Plugin is not installed'));
+	}
+
+	$style = PluginReleaseNotesStyleOf($pluginInfo);
+	switch ($style) {
+		case 'gitRelease':
+			return PluginReleaseNotesFromGitHub($plugin, $pluginInfo);
+		case 'gitHistory':
+			return PluginReleaseNotesFromGitHistory($plugin, $pluginInfo);
+		case 'script':
+			return PluginReleaseNotesFromScript($plugin, $pluginInfo);
+		default:
+			http_response_code(404);
+			return json(array('status' => 'ERROR', 'message' => 'This plugin has no release notes'));
+	}
+}
+
+// releaseNotesStyle: gitRelease -- latest GitHub Release, proxied and cached
+// server-side. Same idea as GitOSReleaseNotes() (FPP's own release-notes
+// endpoint, hardcoded to FalconChristmas/fpp) but for an arbitrary plugin
+// repo: GitHub's unauthenticated API rate limit is shared across every box
+// calling in from behind the same NAT, and this keeps api.github.com out of
+// the CSP the way every other third-party call in this file already does.
+function PluginReleaseNotesFromGitHub($plugin, $pluginInfo)
+{
+	$repo = PluginGitHubRepoOf($pluginInfo);
+	if ($repo === '') {
+		http_response_code(404);
+		return json(array('status' => 'ERROR', 'message' => 'No GitHub repo could be determined for this plugin'));
+	}
+
+	$cacheFile = PluginReleaseNotesCacheFile();
+	$cache = array();
+	if (file_exists($cacheFile)) {
+		$tmp = json_decode(@file_get_contents($cacheFile), true);
+		if (is_array($tmp)) $cache = $tmp;
+	}
+
+	$key = $repo; // already lowercased by PluginGitHubRepoOf()
+	$now = time();
+	if (isset($cache[$key]['ts']) && ($now - (int)$cache[$key]['ts']) < PLUGIN_RELEASE_NOTES_CACHE_TTL) {
+		if (!empty($cache[$key]['notFound'])) {
+			http_response_code(404);
+			return json(array('status' => 'ERROR', 'message' => 'No releases found'));
+		}
+		return json($cache[$key]['data']);
+	}
+
+	$curl = curl_init();
+	curl_setopt($curl, CURLOPT_URL, "https://api.github.com/repos/" . $repo . "/releases/latest");
+	curl_setopt($curl, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 6.2; WOW64; rv:17.0) Gecko/20100101 Firefox/17.0");
+	curl_setopt($curl, CURLOPT_FAILONERROR, true);
+	curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+	curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+	curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 4000);
+	$response = curl_exec($curl);
+	$httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+	curl_close($curl);
+
+	if ($response === false || $httpCode >= 400) {
+		$cache[$key] = array('notFound' => true, 'ts' => $now);
+		@file_put_contents($cacheFile, json_encode($cache));
+		http_response_code(404);
+		return json(array('status' => 'ERROR', 'message' => 'No releases found'));
+	}
+
+	$data = json_decode($response, true);
+	if ($data === null) {
+		http_response_code(502);
+		return json(array('status' => 'ERROR', 'message' => 'Invalid response from GitHub'));
+	}
+
+	// Only keep the fields the UI actually uses -- GitHub's release object
+	// carries a lot more (assets, author, reactions, ...) that would just
+	// bloat the cache file for no benefit here.
+	$trimmed = array(
+		'style' => 'gitRelease',
+		'name' => isset($data['name']) ? $data['name'] : '',
+		'tag_name' => isset($data['tag_name']) ? $data['tag_name'] : '',
+		'published_at' => isset($data['published_at']) ? $data['published_at'] : '',
+		'body' => isset($data['body']) ? $data['body'] : '',
+		'html_url' => isset($data['html_url']) ? $data['html_url'] : '',
+	);
+
+	$cache[$key] = array('data' => $trimmed, 'ts' => $now);
+	@file_put_contents($cacheFile, json_encode($cache));
+
+	return json($trimmed);
+}
+
+// releaseNotesStyle: gitHistory -- the commits between the installed clone's
+// HEAD and origin/<branch>, read directly from the plugin's own repo. No
+// GitHub API call (works the same for a non-GitHub git host), and no live
+// `git fetch` here either -- this rides whatever origin/<branch> the last
+// PluginHasUpdates()/CheckForPluginUpdates() pass already brought in, the
+// same "cheap, already-fetched refs" assumption PluginHasUpdates() itself
+// makes. Same delimited log format changelog.php uses for FPP's own commit
+// history, capped well short of a wall of history for what is meant to
+// answer "what's in this update", not serve as a full log viewer.
+define('PLUGIN_RELEASE_HISTORY_MAX_COMMITS', 50);
+
+function PluginReleaseNotesFromGitHistory($plugin, $pluginInfo)
+{
+	global $settings;
+
+	$branch = PluginCurrentBranch($plugin);
+	if ($branch === '') {
+		http_response_code(404);
+		return json(array('status' => 'ERROR', 'message' => 'Could not determine this plugin\'s branch'));
+	}
+
+	$dir = $settings['pluginDirectory'] . '/' . $plugin;
+	$logFormat = '%h%x1f%an%x1f%ai%x1f%s';
+	$cmd = 'cd ' . escapeshellarg($dir)
+		. ' && git log --pretty=format:' . escapeshellarg($logFormat)
+		. ' HEAD..' . escapeshellarg('origin/' . $branch)
+		. ' | head -' . PLUGIN_RELEASE_HISTORY_MAX_COMMITS;
+	exec($cmd, $lines, $return_val);
+
+	$commits = array();
+	foreach ($lines as $line) {
+		$parts = explode("\x1f", $line);
+		if (count($parts) !== 4) {
+			continue;
+		}
+		$commits[] = array(
+			'hash' => $parts[0],
+			'author' => $parts[1],
+			'date' => $parts[2],
+			'subject' => $parts[3],
+		);
+	}
+
+	if (empty($commits)) {
+		http_response_code(404);
+		return json(array('status' => 'ERROR', 'message' => 'No new commits found'));
+	}
+
+	return json(array('style' => 'gitHistory', 'branch' => $branch, 'commits' => $commits));
+}
+
+// releaseNotesStyle: script -- for a plugin whose update-worthy changes
+// aren't in the git log at all (see scripts/fpp_update_check.sh's own
+// doc comment on PluginHasUpdates() -- components like Pulshmesh/FPPMon
+// that live outside the git repo). Runs scripts/fpp_releasenotes.sh with
+// the same FPPDIR/SRCDIR environment fpp_update_check.sh gets, and returns
+// its stdout as plain text -- never interpreted as markdown/HTML, so a
+// plugin's own script output can't inject markup any more than a GitHub
+// release body can (PluginMarkdownToSafeHtml HTML-escapes first; plain
+// script output goes through the same escaping on the way to the page).
+function PluginReleaseNotesFromScript($plugin, $pluginInfo)
+{
+	global $settings, $fppDir;
+
+	$script = $settings['pluginDirectory'] . '/' . $plugin . '/scripts/fpp_releasenotes.sh';
+	if (!file_exists($script)) {
+		http_response_code(404);
+		return json(array('status' => 'ERROR', 'message' => 'This plugin has no scripts/fpp_releasenotes.sh'));
+	}
+
+	exec('FPPDIR=' . escapeshellarg($fppDir) . ' SRCDIR=' . escapeshellarg($fppDir . '/src') . ' ' . escapeshellarg($script), $lines, $return_val);
+	if ($return_val != 0 || empty($lines)) {
+		http_response_code(404);
+		return json(array('status' => 'ERROR', 'message' => 'No release notes text was returned'));
+	}
+
+	return json(array('style' => 'script', 'text' => implode("\n", $lines)));
+}
+
 /**
  * Fetch a pluginInfo.json on the browser's behalf
  *
