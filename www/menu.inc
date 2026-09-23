@@ -235,8 +235,25 @@ function list_plugin_entries($menu)
                     <?
                 }
             }
-            $freeSpace = disk_free_space($mediaDirectory);
-            if ($freeSpace < 50000000) {
+            // A media directory that is not there is not the same as one that is
+            // nearly full, and it used to be reported as one: disk_free_space()
+            // warns and returns false on a missing path, and false < 50000000 is
+            // true -- so the page printed a PHP warning and then blamed the disk.
+            // It is worth saying out loud either way. Everything FPP persists
+            // lives under this path, so while it is missing nothing saves: not a
+            // setting, not a playlist, not an upload.
+            if (!is_dir($mediaDirectory)) {
+                ?>
+                <div class="alert alert-danger"><b>WARNING:</b> the media directory <?= $mediaDirectory ?> does not
+                    exist. Nothing can be saved -- settings, playlists and uploads will all fail. It is set by
+                    <?= $fppDir ?>/www/media_root.txt.</div>
+                <?
+            } else if (!is_writable($mediaDirectory)) {
+                ?>
+                <div class="alert alert-danger"><b>WARNING:</b> the media directory <?= $mediaDirectory ?> is not
+                    writable. Settings, playlists and uploads will fail to save.</div>
+                <?
+            } else if (disk_free_space($mediaDirectory) < 50000000) {
                 ?>
                 <div class="alert alert-danger"><b>WARNING:</b> <?= $mediaDirectory ?> is running low on space. Problems may
                     occur
