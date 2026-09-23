@@ -98,7 +98,16 @@ function GetCapeDefaultSettings()
         // No cape support built on this platform (macOS, container).  Nothing to
         // offer is a correct answer here, not an error -- the wizard just has no
         // cape defaults to merge.
-        return json(array('jurisdiction' => $regime, 'priorOptIn' => null,
+        //
+        // The jurisdiction question is not the cape's, though: it is answered by
+        // etc/jurisdictions.json, whose PHP half needs no cape to answer it.
+        // Returning null left the caller on whatever it had assumed, which for
+        // the setup wizard is the cautious "prior opt-in required" -- so on a
+        // player with no cape binary, step 3 came up entirely unanswered even
+        // after declaring a jurisdiction that requires no such thing.
+        require_once __DIR__ . '/../../jurisdiction.inc';
+        return json(array('jurisdiction' => $regime,
+            'priorOptIn' => jurisdictionRequiresPriorOptIn($regime === '' ? null : $regime),
             'settings' => new stdClass(), 'refused' => new stdClass()));
     }
 

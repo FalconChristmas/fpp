@@ -531,6 +531,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
         // detection cannot disagree; seeded here for the case where the user
         // never touches step 1.
         var setupPriorOptIn = <?= json_encode(jurisdictionRequiresPriorOptIn()) ?>;
+        // The same answer for every jurisdiction on offer, so step 1's choice can
+        // be applied without a round trip and without depending on cape detection
+        // being present and succeeding.  Same policy file, read by the same PHP.
+        var PRIVACY_PRIOR_OPT_IN = <?= json_encode(jurisdictionPriorOptInMap()) ?>;
 
         function showSetupStep(n) {
             var moved = (setupCurrentStep !== n);
@@ -676,6 +680,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             if (regime !== '') {
                 pendingSettings['LegalJurisdiction'] = regime;
                 settings['LegalJurisdiction'] = regime;
+            }
+            // Settle the regime's own rule here rather than waiting on the cape
+            // endpoint.  That endpoint answers the same question from the same
+            // policy file, but only where a cape binary exists to ask it: on a
+            // player without one it answered null, and on a detection failure it
+            // does not answer at all.  Either way setupPriorOptIn kept the
+            // cautious value it was seeded with before anyone had declared a
+            // jurisdiction, so step 3 came up with every row unanswered in a
+            // jurisdiction that requires no prior opt-in.
+            if (PRIVACY_PRIOR_OPT_IN.hasOwnProperty(regime)) {
+                setupPriorOptIn = PRIVACY_PRIOR_OPT_IN[regime];
             }
             setupStepBusy('Checking cape defaults...');
             $.ajax({
