@@ -106,7 +106,8 @@ void TwinklyOutputData::PrepareData(unsigned char* channelData, UDPOutputMessage
         reauthCount++;
         if (reauthCount > MAXPACKETS) {
             // need to re-authenticate or lights will stop eventually
-            StartingOutput();
+            reauthCount = 0;
+            authenticate();
         }
 
         int start = 0;
@@ -156,24 +157,59 @@ void TwinklyOutputData::StoppingOutput() {
     authToken = "";
     Timers::INSTANCE.stopPeriodicTimer("Twinkly" + ipAddress);
 }
-void TwinklyOutputData::authenticate() {
-    Json::Value r = callRestAPI(true, "xled/v1/login", "{\"challenge\": \"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\"}");
-    try {
-        std::string at = r.isMember("authentication_token") ? r["authentication_token"].asString() : "";
-        if (at != "") {
-            authToken = at;
-            reauthCount = 0;
-            std::vector<uint8_t> at = base64Decode(authToken);
-            memcpy(authTokenBytes, &at[0], std::min(TOKEN_LEN, (int)at.size()));
-            for (int x = 0; x < portCount; x++) {
-                memcpy(&twinklyBuffers[x][1], &at[0], std::min(TOKEN_LEN, (int)at.size()));
-            }
-            callRestAPI(true, "xled/v1/verify", "");
-            callRestAPI(true, "xled/v1/led/mode", "{\"mode\": \"rt\"}");
-        }
-    } catch (std::exception& ex) {
-        //not much we can do other than try authenticating again later
+void TwinklyOutputData::applyAuthToken(const std::string& token) {
+    std::vector<uint8_t> decoded = base64Decode(token);
+    if (decoded.empty()) {
+        return;
     }
+    authToken = token;
+    reauthCount = 0;
+    int len = std::min(TOKEN_LEN, (int)decoded.size());
+    memcpy(authTokenBytes, &decoded[0], len);
+    for (int x = 0; x < portCount; x++) {
+        memcpy(&twinklyBuffers[x][1], &decoded[0], len);
+    }
+}
+
+void TwinklyOutputData::authenticate() {
+    if (authInFlight.exchange(true)) {
+        return;
+    }
+
+    const std::string base = "http://" + ipAddress + "/xled/v1/";
+    const std::list<std::string> jsonHeaders = { "Accept: application/json", "Content-Type: application/json" };
+
+    CurlManager::INSTANCE.add(
+        base + "login", "POST",
+        "{\"challenge\": \"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\"}", jsonHeaders,
+        [this, base](int rc, const std::string& resp) {
+            std::string token;
+            if (rc == 200) {
+                try {
+                    Json::Value v = LoadJsonFromString(resp);
+                    token = v.isMember("authentication_token") ? v["authentication_token"].asString() : "";
+                } catch (std::exception& ex) {
+                    // fall through with an empty token and try again next cycle
+                }
+            }
+            if (token.empty()) {
+                LogWarn(VB_CHANNELOUT, "Twinkly %s: login failed (http %d), will retry\n", ipAddress.c_str(), rc);
+                authInFlight = false;
+                return;
+            }
+            applyAuthToken(token);
+
+            const std::list<std::string> authHeader = { "X-Auth-Token: " + authToken };
+            CurlManager::INSTANCE.add(base + "verify", "GET", "", authHeader, [this, base](int, const std::string&) {
+                const std::list<std::string> modeHeaders = { "Accept: application/json",
+                                                             "Content-Type: application/json",
+                                                             "X-Auth-Token: " + authToken };
+                CurlManager::INSTANCE.add(base + "led/mode", "POST", "{\"mode\": \"rt\"}", modeHeaders,
+                                          [this](int, const std::string&) {
+                                              authInFlight = false;
+                                          });
+            });
+        });
 }
 void TwinklyOutputData::verifyToken() {
     std::string url = "http://" + ipAddress + "/xled/v1/verify";
@@ -181,16 +217,19 @@ void TwinklyOutputData::verifyToken() {
     std::string xat = "X-Auth-Token: " + authToken;
     extraHeaders.push_back(xat);
     CurlManager::INSTANCE.add(url, "GET", "", extraHeaders, [this](int rc, const std::string& resp) {
-        if (rc == 200) {
-            // printf("%d:  %s\n", rc, resp.c_str());
-            try {
-                Json::Value v = LoadJsonFromString(resp);
-                if (v["code"].asInt() != 1000) {
-                    authenticate();
-                }
-            } catch (std::exception& ex) {
-                //ignore this time around, next time hopefully will work
+        if (rc != 200) {
+            // no answer, or token was rejected. Retry async
+            authenticate();
+            return;
+        }
+        // printf("%d:  %s\n", rc, resp.c_str());
+        try {
+            Json::Value v = LoadJsonFromString(resp);
+            if (v["code"].asInt() != 1000) {
+                authenticate();
             }
+        } catch (std::exception& ex) {
+            //ignore this time around, next time hopefully will work
         }
     });
 }
@@ -241,14 +280,16 @@ Json::Value TwinklyOutputData::callRestAPI(bool isPost, const std::string& path,
     status = curl_easy_perform(curl);
     if (status != CURLE_OK) {
         LogErr(VB_GENERAL, "curl_easy_perform() failed: %s\n", curl_easy_strerror(status));
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers);
         return Json::Value();
     }
 
     // printf("%s:   %s\n", url.c_str(), resp.c_str());
     LogDebug(VB_GENERAL, "%s %s resp: %s\n", isPost ? "POST" : "GET", url.c_str(), resp.c_str());
 
-    curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
+    curl_slist_free_all(headers);
 
     try {
         return LoadJsonFromString(resp);
