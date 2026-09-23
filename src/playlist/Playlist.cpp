@@ -948,6 +948,15 @@ int Playlist::Start(void) {
         int pos = m_sectionPosition;
         QueuePlaylistNotification([info, action, sec, pos]() {
             PluginManager::INSTANCE.playlistCallback(info, action, sec, pos);
+            if (action == "start") {
+                // "playing" is sent as each subsequent item begins, so without
+                // this the first item is the only one never announced that way
+                // - and a plugin listening for "playing" waits until item two,
+                // or forever on a single-item playlist. The two are not
+                // alternatives: "start" means the playlist began, "playing"
+                // means an item is playing, and at item zero both are true.
+                PluginManager::INSTANCE.playlistCallback(info, "playing", sec, pos);
+            }
         });
     }
     Events::Publish("status", PlaylistStatusToString(m_status));
@@ -1460,16 +1469,24 @@ int Playlist::Process(void) {
         // idle transitions (Process() stops running once the player goes
         // idle, so a drain only here could strand them).
 
-        {
-            Json::Value info = GetInfo();
-            std::string sec = m_currentSectionStr;
-            int pos = m_sectionPosition;
-            QueuePlaylistNotification([info, sec, pos]() {
-                PluginManager::INSTANCE.playlistCallback(info, "playing", sec, pos);
-            });
+        // Only if we are still playing.  Several of the branches above end the
+        // playlist via SetIdle(), which queues the "stop" callback and resets
+        // the section to "New" - falling through to here then told every plugin
+        // "playing" immediately after "stop", for a section that isn't running.
+        // Plugins that key powering hardware up off "playing" turned it right
+        // back on at the end of a show.
+        if (m_status != FPP_STATUS_IDLE) {
+            {
+                Json::Value info = GetInfo();
+                std::string sec = m_currentSectionStr;
+                int pos = m_sectionPosition;
+                QueuePlaylistNotification([info, sec, pos]() {
+                    PluginManager::INSTANCE.playlistCallback(info, "playing", sec, pos);
+                });
+            }
+            Events::Publish("playlist/section/status", m_currentSectionStr);
+            Events::Publish("playlist/sectionPosition/status", m_sectionPosition);
         }
-        Events::Publish("playlist/section/status", m_currentSectionStr);
-        Events::Publish("playlist/sectionPosition/status", m_sectionPosition);
     }
 
     return 1;
@@ -1751,6 +1768,10 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
 
             m_sectionPosition = 0;
             SetPosition(position);
+            // Deliberate here, unlike the call at the end of this function:
+            // this branch is a jump inside a playlist that is already running
+            // (possibly stopping gracefully), so normalising to PLAYING is what
+            // makes Start() report "playing" rather than "start".
             m_status = FPP_STATUS_PLAYLIST_PLAYING;
             Start();
             return 1;
@@ -1822,7 +1843,15 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
 
     m_stopAtPos = tmpEndPos;
 
-    m_status = FPP_STATUS_PLAYLIST_PLAYING;
+    // Deliberately not setting m_status here. Start() tells a fresh start from
+    // a restart by reading m_status before it flips to PLAYING, and it sets
+    // PLAYING itself a few lines in. Setting it first made that read always say
+    // PLAYING, so the playlist callback reported "playing" even when the player
+    // had been idle - which made "start" unreachable in player mode, the only
+    // other site that sends it being the remote-mode fake in mediaoutput.cpp.
+    // Plugins that key on the documented "start" action therefore never ran.
+    // This call is made holding m_playlistMutex, so no other thread can observe
+    // the window before Start() sets the status.
     int result = Start();
 
     if (result == 1) {
