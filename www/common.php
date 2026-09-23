@@ -2529,14 +2529,13 @@ function file_cache($cache_name, $data_function, $cache_time = 90, $grace_time =
     return $data;
 }
 
-// Cache directory that survives a reboot, for file_cache()'s $cache_dir. Lives
-// under the media directory so it is on writable storage and is cleared by the
-// "Caches" area of a config reset (resetConfig.php's 'tmp/*'), which is the
-// behaviour a user pressing Reset Caches expects.
+// Cache directory that survives a reboot, for file_cache()'s $cache_dir.
+// media/cache, not media/tmp: fppinit empties media/tmp at every boot on
+// cape-detect builds. Cleared by Reset Caches (resetConfig.php's 'cache/*').
 function file_cache_dir_persistent()
 {
     global $settings;
-    $dir = $settings['mediaDirectory'] . '/tmp';
+    $dir = $settings['mediaDirectory'] . '/cache';
     return is_dir($dir) ? $dir : '/tmp';
 }
 
