@@ -7188,8 +7188,8 @@
         "tags": [
           "plugin"
         ],
-        "summary": "plugin/{RepoName}/releaseNotes",
-        "description": "Show a plugin's release notes, in whichever form it declared via `releaseNotesStyle` in its `pluginInfo.json` (see PLUGININFO_FORMAT.md): `gitRelease` (latest GitHub Release), `gitHistory` (commits not yet pulled, read from the plugin's own clone -- no GitHub API call, works for any git-hosted plugin whether or not it tags releases), or `script` (runs the plugin's own scripts/fpp_releasenotes.sh). `none` or absent: 404, nothing to show -- the Plugin Manager doesn't offer the icon in that case either, this is just the server-side half of that gate.",
+        "summary": "Get a plugin's release notes",
+        "description": "In whichever form the plugin declared via `releaseNotesStyle` in its `pluginInfo.json` (see the Template's PLUGININFO_FORMAT.md). Installed plugins only; the style is read from the pluginInfo.json the next update would land, else the installed one. - `gitRelease`: the latest GitHub Release of the `srcURL` repo (GitHub only; offered as `none` otherwise), proxied and cached for 6h, using the configured GitHub token when there is one. `release` is null when the repo has no Release; `stale` is true when GitHub could not be reached and an older cached copy is served. - `gitHistory`: `pending` is what Update would pull in (HEAD..origin/<branch> as of the last update check), `installed` the most recent installed commits. Both are empty-safe; being up to date is not an error. - `script`: the stdout of the plugin's installed `scripts/fpp_releasenotes.sh` (15s timeout, 64 KiB cap), as plain text; offered as `none` until the script is installed. 404 when the plugin is not installed, declares no release notes, or its repo isn't visible to GitHub's API; 502 when GitHub or the plugin's script failed. Errors carry `Status`/`Message`.",
         "responses": {
           "200": {
             "description": "Shape depends on `style`",
@@ -7199,12 +7199,17 @@
                   "type": "object"
                 },
                 "example": {
+                  "Status": "OK",
                   "style": "gitRelease",
-                  "name": "v1.2.0",
-                  "tag_name": "v1.2.0",
-                  "published_at": "2026-01-01T00:00:00Z",
-                  "body": "...",
-                  "html_url": "https://github.com/owner/repo/releases/tag/v1.2.0"
+                  "release": {
+                    "name": "v1.2.0",
+                    "tag_name": "v1.2.0",
+                    "published_at": "2026-01-01T00:00:00Z",
+                    "body": "...",
+                    "html_url": "https://github.com/owner/repo/releases/tag/v1.2.0"
+                  },
+                  "releasesUrl": "https://github.com/owner/repo/releases",
+                  "stale": false
                 }
               }
             }

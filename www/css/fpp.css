@@ -4635,15 +4635,6 @@ pre.testData,
 	-webkit-box-orient: vertical;
 	overflow: hidden;
 }
-/* Release-notes icon link in the card action row / detail modal footer */
-.pluginReleaseNotesLink {
-	color: var(--fpp-text-muted);
-	text-decoration: none;
-	font-size: 1rem;
-}
-.pluginReleaseNotesLink:hover {
-	color: var(--bs-link-color);
-}
 /* releaseNotesStyle: script -- plain-text release notes, wrapped rather than
    scrolling horizontally like a code block would. */
 pre.release-notes-body {

@@ -65,6 +65,11 @@
 <h4>Other buttons on a card</h4>
 <ul>
     <li><b>Open</b> - Opens the plugin's own page, if it has one.</li>
+    <li><b>Release notes</b> (<i class="fas fa-file-lines"></i>, next to the privacy lights, and as a link in
+        the plugin's details) - Shows what has changed in an installed plugin, in the form its author chose:
+        the plugin's latest release on GitHub, the list of changes that <b>Update</b> would bring in followed by
+        the changes already installed, or notes the plugin writes itself. Only installed plugins whose author
+        has set this up show the icon. The list of changes is only as fresh as the last check for updates.</li>
     <li><b>Reinstall</b> - Removes and reinstalls the plugin. Try this after an FPP upgrade, or when a plugin
         has stopped working.</li>
     <li><b>Uninstall</b> - Removes the plugin. Its privacy disclosure says what it changed outside its own
