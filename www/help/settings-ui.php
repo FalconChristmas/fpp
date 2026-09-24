@@ -17,11 +17,11 @@
 
 <h4>UI Password</h4>
 <ul>
-    <li><b>UI password</b> (dropdown) — <b>No Password</b> (default) = open. <b>Enter a Password</b> = enables HTTP basic auth. The username is always <code>admin</code>. Choosing “Enter a Password” reveals the next three fields and a dedicated <b>Save UI Password</b> button.</li>
+    <li><b>UI password</b> (dropdown) — <b>No Password</b> (default) = open. <b>Enter a Password</b> = enables HTTP basic auth. The username is always <code>admin</code>. Choosing “Enter a Password” reveals the next three fields and a dedicated <b>Save UI Password</b> button. Switching a protected FPP back to “No Password” removes the password immediately and reloads the page — no Save click needed.</li>
     <li><b>Username</b> (display) — Fixed to <code>admin</code> when password protection is enabled.</li>
     <li><b>Password</b> (password) — The UI password. Must be retyped below. Used by the browser and by xLights FPP Connect.</li>
     <li><b>Verify Password</b> (password) — Retype the same password to confirm.</li>
-    <li><b>Save UI Password</b> (button) — Saves password first, then the enable flag, then reloads the page so the browser re-authenticates. Status text shows “Not applied yet”, “Saving…”, “Applying…”, or errors. You will be prompted for <code>admin</code> + new password after saving. <b>Caution:</b> forgetting this password locks you out until reset via console.</li>
+    <li><b>Save UI Password</b> (button) — Saves password first, then the enable flag, then reloads the page so the browser re-authenticates. Status text shows “Not applied yet”, “Saving…”, “Applying…”, or errors. You will be prompted for <code>admin</code> + the new password after saving. <b>Caution:</b> forgetting this password locks you out until reset via console.</li>
 </ul>
 
 <h4>UI Colors</h4>
