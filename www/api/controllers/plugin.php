@@ -691,8 +691,12 @@ function GetPluginSource()
 function CleanupPartialPluginInstall($plugin, $linkName = null)
 {
 	global $settings, $SUDO;
-	if (is_string($linkName) && $linkName !== '') {
-		exec($SUDO . " rm -f " . escapeshellarg($settings['pluginDirectory'] . '/' . $linkName));
+	// linkName is the author's: only a plain file name, and only our own symlink.
+	if (is_string($linkName) && sanitizeFilename($linkName) === $linkName) {
+		$linkPath = $settings['pluginDirectory'] . '/' . $linkName;
+		if (is_link($linkPath) && readlink($linkPath) === $plugin) {
+			unlink($linkPath);
+		}
 	}
 	exec($SUDO . " rm -rf " . escapeshellarg($settings['pluginDirectory'] . '/' . $plugin));
 }
@@ -1139,8 +1143,15 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 		file_put_contents($infoFile, $fetchedInfo);
 		if (isset($data['linkName'])) {
 			$linkName = $data['linkName'];
-			exec("cd " . $settings['pluginDirectory'] . " && ln -s " . $plugin . " " . escapeshellarg($linkName), $o, $rv);
-			unset($o);
+			// Only a plain file name, never over an existing file.
+			if (!is_string($linkName) || sanitizeFilename($linkName) !== $linkName) {
+				PluginEchoLog('install', $repoName, "\nIgnoring linkName '" . (is_string($linkName) ? $linkName : '') . "': not a plain file name.\n", $stream);
+			} else {
+				$linkPath = $settings['pluginDirectory'] . '/' . $linkName;
+				if (!file_exists($linkPath) && !is_link($linkPath)) {
+					symlink($plugin, $linkPath);
+				}
+			}
 		}
 	}
 
@@ -1854,8 +1865,13 @@ function UninstallPlugin()
 
 			$data = json_decode($info, true);
 
-			if (isset($data['linkName']))
-				exec("rm " . $settings['pluginDirectory'] . "/" . $data['linkName'], $output, $return_val);
+			// linkName is the author's: only a plain file name, and only our own symlink.
+			if (isset($data['linkName']) && is_string($data['linkName']) && sanitizeFilename($data['linkName']) === $data['linkName']) {
+				$linkPath = $settings['pluginDirectory'] . '/' . $data['linkName'];
+				if (is_link($linkPath) && readlink($linkPath) === $plugin) {
+					unlink($linkPath);
+				}
+			}
 
 		}
 
