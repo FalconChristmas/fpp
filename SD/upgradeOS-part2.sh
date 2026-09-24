@@ -228,13 +228,20 @@ echo
 # but different content via xattrs/ACLs). Use globs so we don't hard-code
 # package versions that drift with each OS release, and TRIPLE so this
 # works on both armhf and aarch64.
+#
+# --remove-destination: unlink the old file and create a new one, never write
+# into the existing inode. fppd, php-fpm and friends have these libraries
+# mapped; opening them O_TRUNC makes the kernel discard every process's
+# private (relocated) pages, which then refault as raw file bytes. The next
+# dlopen() in fppd walks the loader's link map, reads the library's
+# now-unrelocated .dynamic and faults on a near-null soname pointer.
 force_copy_libs() {
     local pattern
     for pattern in "$@"; do
         local src
         for src in usr/lib/${TRIPLE}/${pattern}; do
             [ -e "$src" ] || continue
-            cp -af "$src" "mnt/$src"
+            cp -af --remove-destination "$src" "mnt/$src"
         done
     done
 }

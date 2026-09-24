@@ -168,6 +168,17 @@ echo "BootActions = \"settings\"" >> /home/fpp/media/settings
 #but the caps (getcap) might be different
 rm -f /bin/ping
 
+# part2 runs from the .fppos image, and images built before part2 learned
+# --remove-destination force-copy a few libraries over the live root with a
+# plain "cp -af", which writes into the inode running processes have mapped.
+# Give each one a fresh inode first (copy + atomic rename) so that copy lands
+# in a file nothing has mapped.
+for f in /usr/lib/*/libzip.so.* /usr/lib/*/libfribidi.so.* /usr/lib/*/libbrotlicommon.so.*; do
+    if [ -f "$f" ] && [ ! -L "$f" ]; then
+        cp -a "$f" "$f.fppos-tmp" && mv -f "$f.fppos-tmp" "$f"
+    fi
+done
+
 logStage "Preparing filesystems"
 echo "Mounting filesystems for copy"
 mount -o bind / /mnt/mnt
