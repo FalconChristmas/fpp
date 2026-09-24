@@ -22,6 +22,7 @@
 #include <inttypes.h>
 #include <map>
 #include <mutex>
+#include <stdexcept>
 #include <stdint.h>
 #include <thread>
 #include <unistd.h>
@@ -212,39 +213,57 @@ constexpr std::string FIRMWARE_PREFIX = "am62x";
 static bool FAKE_PRU = !FileExists("/sys/class/remoteproc/remoteproc0/state");
 #endif
 
-static void initPrus() {
-    const int mem_fd = open("/dev/mem", O_RDWR);
+static void releasePrus() {
+    if (ddr_mem_loc) {
+        munmap(ddr_mem_loc, ddr_filelen);
+        ddr_mem_loc = nullptr;
+    }
+    if (base_memory_location) {
+        munmap(base_memory_location, PRUSS_MMAP_SIZE);
+        base_memory_location = nullptr;
+    }
+    if (PRUSS_SRAM_BASE) {
+        munmap(PRUSS_SRAM_BASE, PRUSS_SRAM_SIZE);
+        PRUSS_SRAM_BASE = nullptr;
+    }
+    if (PRUSS_M4RAM_BASE) {
+        munmap(PRUSS_M4RAM_BASE, PRUSS_M4RAM_SIZE);
+        PRUSS_M4RAM_BASE = nullptr;
+    }
+}
 
+// mmap() reports failure as MAP_FAILED, not nullptr; normalise so the rest of
+// this file can keep testing the pointers for null, and keep the first errno.
+static uint8_t* mapOrNull(size_t len, int flags, int fd, off_t off, int& err) {
+    void* p = mmap(0, len, PROT_WRITE | PROT_READ, flags, fd, off);
+    if (p == MAP_FAILED) {
+        if (!err) {
+            err = errno;
+        }
+        return nullptr;
+    }
+    return (uint8_t*)p;
+}
+
+// Returns 0, or the errno of the first thing that failed.  On failure nothing
+// is left mapped.
+static int initPrus() {
+    int err = 0;
+    int mem_fd = -1;
     if (!FAKE_PRU) {
-        base_memory_location = (uint8_t*)mmap(0,
-                                              PRUSS_MMAP_SIZE,
-                                              PROT_WRITE | PROT_READ,
-                                              MAP_SHARED,
-                                              mem_fd,
-                                              PRUSS_MMAP_BASE);
+        mem_fd = open("/dev/mem", O_RDWR | O_CLOEXEC);
+        if (mem_fd < 0) {
+            return errno;
+        }
+        base_memory_location = mapOrNull(PRUSS_MMAP_SIZE, MAP_SHARED, mem_fd, PRUSS_MMAP_BASE, err);
         if (PRUSS_SRAM_SIZE > 0) {
-            PRUSS_SRAM_BASE = (uint8_t*)mmap(0,
-                                             PRUSS_SRAM_SIZE,
-                                             PROT_WRITE | PROT_READ,
-                                             MAP_SHARED,
-                                             mem_fd,
-                                             PRUSS_SRAM_GLOBAL);
+            PRUSS_SRAM_BASE = mapOrNull(PRUSS_SRAM_SIZE, MAP_SHARED, mem_fd, PRUSS_SRAM_GLOBAL, err);
         }
         if (PRUSS_M4RAM_SIZE > 0) {
-            PRUSS_M4RAM_BASE = (uint8_t*)mmap(0,
-                                              PRUSS_M4RAM_SIZE,
-                                              PROT_WRITE | PROT_READ,
-                                              MAP_SHARED,
-                                              mem_fd,
-                                              PRUSS_M4RAM_GLOBAL);
+            PRUSS_M4RAM_BASE = mapOrNull(PRUSS_M4RAM_SIZE, MAP_SHARED, mem_fd, PRUSS_M4RAM_GLOBAL, err);
         }
     } else {
-        base_memory_location = (uint8_t*)mmap(0,
-                                              PRUSS_MMAP_SIZE,
-                                              PROT_WRITE | PROT_READ,
-                                              MAP_PRIVATE | MAP_ANONYMOUS,
-                                              0,
-                                              0);
+        base_memory_location = mapOrNull(PRUSS_MMAP_SIZE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0, err);
     }
 
     uint32_t ddr_addr = DDR_ADDR;
@@ -253,25 +272,23 @@ static void initPrus() {
     if (ddr_mem_loc == nullptr && !FAKE_PRU) {
         ddr_phy_mem_loc = ddr_addr;
         ddr_filelen = ddr_sizeb;
-        ddr_mem_loc = (uint8_t*)mmap(0,
-                                     ddr_filelen,
-                                     PROT_WRITE | PROT_READ,
-                                     MAP_SHARED,
-                                     mem_fd,
-                                     ddr_addr);
-        madvise(ddr_mem_loc, ddr_filelen, MADV_HUGEPAGE);
+        ddr_mem_loc = mapOrNull(ddr_filelen, MAP_SHARED, mem_fd, ddr_addr, err);
+        if (ddr_mem_loc) {
+            madvise(ddr_mem_loc, ddr_filelen, MADV_HUGEPAGE);
+        }
     } else if (ddr_addr == 0 || FAKE_PRU) {
         // just malloc some memory so we don't crash
         ddr_phy_mem_loc = ddr_addr;
         ddr_filelen = ddr_sizeb;
-        ddr_mem_loc = (uint8_t*)mmap(0,
-                                     ddr_filelen,
-                                     PROT_WRITE | PROT_READ,
-                                     MAP_PRIVATE | MAP_ANONYMOUS,
-                                     0,
-                                     0);
+        ddr_mem_loc = mapOrNull(ddr_filelen, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0, err);
     }
-    close(mem_fd);
+    if (mem_fd >= 0) {
+        close(mem_fd);
+    }
+    if (err) {
+        releasePrus();
+        return err;
+    }
 
     prus[0].pru_num = 0;
     prus[1].pru_num = 1;
@@ -303,12 +320,22 @@ static void initPrus() {
     }
     __asm__ __volatile__("" ::
                              : "memory");
+    return 0;
 }
 
 BBBPru::BBBPru(int pru, bool mapShared, bool mapOther) :
     pru_num(pru) {
     if (prussUseCount == 0) {
-        initPrus();
+        if (int err = initPrus()) {
+            // Nothing is mapped and prussUseCount is untouched, so no
+            // destructor work is owed.  Output Init() runs inside the channel
+            // output loader's try/catch, which logs this, raises its own
+            // (reload-cleared) warning and drops the output -- instead of
+            // memset()ing through MAP_FAILED as this used to.
+            std::string msg = std::string("could not map PRU memory: ") + FPPstrerror(err);
+            LogErr(VB_CHANNELOUT, "BBBPru: %s\n", msg.c_str());
+            throw std::runtime_error(msg);
+        }
     }
     prussUseCount++;
 
@@ -347,22 +374,7 @@ BBBPru::BBBPru(int pru, bool mapShared, bool mapOther) :
 BBBPru::~BBBPru() {
     prussUseCount--;
     if (prussUseCount == 0) {
-        if (ddr_mem_loc) {
-            munmap(ddr_mem_loc, ddr_filelen);
-            ddr_mem_loc = nullptr;
-        }
-        if (base_memory_location) {
-            munmap(base_memory_location, PRUSS_MMAP_SIZE);
-            base_memory_location = nullptr;
-        }
-        if (PRUSS_SRAM_BASE) {
-            munmap(PRUSS_SRAM_BASE, PRUSS_SRAM_SIZE);
-            PRUSS_SRAM_BASE = nullptr;
-        }
-        if (PRUSS_M4RAM_BASE) {
-            munmap(PRUSS_M4RAM_BASE, PRUSS_M4RAM_SIZE);
-            PRUSS_M4RAM_BASE = nullptr;
-        }
+        releasePrus();
     }
 }
 
