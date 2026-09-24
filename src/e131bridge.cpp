@@ -62,16 +62,19 @@
 // "never looked up" state above. Internal to the UniverseCache.
 #define BRIDGE_UNIVERSE_NOT_FOUND 0xFFFFFE
 
-struct sockaddr_in addr;
-socklen_t addrlen;
+// File-local: libfpp.so is linked with default visibility, so a generic
+// exported name like `addr` is bound through the GOT and resolves to the
+// first definition in the process's global scope, not necessarily this one.
+static struct sockaddr_in addr;
+static socklen_t addrlen;
 
-int bridgeSock = -1;
-int ddpSock = -1;
-std::atomic<int> artnetSock = -1;
-volatile bool artnetSocketAsInput = false;
+static int bridgeSock = -1;
+static int ddpSock = -1;
+static std::atomic<int> artnetSock = -1;
+static volatile bool artnetSocketAsInput = false;
 
-long long last_packet_time = GetTimeMS();
-long long expireOffSet = 1000; // expire after 1 second
+static long long last_packet_time = GetTimeMS();
+static long long expireOffSet = 1000; // expire after 1 second
 
 // When true, the bridge tracks the active source per universe and prefers
 // the highest-priority sender. For E1.31 the priority comes from the packet
@@ -128,15 +131,15 @@ static inline bool EvaluateSource(UniverseEntry& entry,
 
 #define MAX_MSG 64
 #define BUFSIZE 1500
-struct mmsghdr msgs[MAX_MSG];
-struct iovec iovecs[MAX_MSG];
-uint8_t buffers[MAX_MSG][BUFSIZE + 1];
-struct sockaddr_in inAddress[MAX_MSG];
+static struct mmsghdr msgs[MAX_MSG];
+static struct iovec iovecs[MAX_MSG];
+static uint8_t buffers[MAX_MSG][BUFSIZE + 1];
+static struct sockaddr_in inAddress[MAX_MSG];
 
-unsigned int UniverseCache[65536];
+static unsigned int UniverseCache[65536];
 
-std::vector<UniverseEntry> InputUniverses;
-int InputUniverseCount;
+static std::vector<UniverseEntry> InputUniverses;
+static int InputUniverseCount;
 
 // DMX serial inputs live apart from the UDP universe list. The UDP reload
 // path rebuilds InputUniverses from scratch, so anything else stored in that
