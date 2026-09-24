@@ -65,6 +65,29 @@ function PluginSweepDueList($maxAge, $retryAge)
     return array_keys($due);
 }
 
+// Record a verdict, and log it only if it differs from what was recorded
+// before: this log is also the install/upgrade history and goes in the
+// support zip, so a plugin that fails for a lasting reason (a private
+// repository) must not add a line every pass.
+function PluginSweepRecord($plugin, $updates, $error, $since = 0)
+{
+    $state = PluginUpdateStateRead();
+    $prev = isset($state['plugins'][$plugin]) ? $state['plugins'][$plugin] : array();
+    $prevUpdates = array_key_exists('updates', $prev) ? $prev['updates'] : 'none';
+    $prevError = isset($prev['error']) ? (string) $prev['error'] : '';
+    PluginUpdateStateSet($plugin, $updates, $error, 'sweep', $since);
+    if ($prevUpdates === $updates && $prevError === (string) $error) {
+        return;
+    }
+    if ($updates === null) {
+        PluginLog('update-check', $plugin, "could not check -- $error");
+    } else if ($updates) {
+        PluginLog('update-check', $plugin, 'update available');
+    } else if ($prevUpdates === true) {
+        PluginLog('update-check', $plugin, 'up to date');
+    }
+}
+
 // Fetch one plugin and record its verdict, failures included (so it does not
 // stay first in line). Returns 'skipped' (lock held elsewhere), 'fetch-failed',
 // 'fetched', or 'no-fetch' (not a clone).
@@ -76,7 +99,7 @@ function PluginSweepOne($plugin)
     if (!is_dir($dir . '/.git')) {
         // Nothing to fetch, but still record an answer, or it stays oldest for ever.
         list($updates, $error) = PluginUpdateVerdict($plugin);
-        PluginUpdateStateSet($plugin, $updates, $error, 'sweep');
+        PluginSweepRecord($plugin, $updates, $error);
         return 'no-fetch';
     }
 
@@ -97,19 +120,11 @@ function PluginSweepOne($plugin)
     // action on the plugin lands in that gap.
     fclose($lock);
     if ($rv != 0) {
-        $reason = PluginFetchFailureReason($output, $rv);
-        PluginUpdateStateSet($plugin, null, $reason, 'sweep', $since);
-        PluginLog('update-check', $plugin, "could not check -- $reason");
+        PluginSweepRecord($plugin, null, PluginFetchFailureReason($output, $rv), $since);
         return 'fetch-failed';
     }
     list($updates, $error) = PluginUpdateVerdict($plugin);
-    PluginUpdateStateSet($plugin, $updates, $error, 'sweep', $since);
-    // Log only news: this log is also the install/upgrade history.
-    if ($updates === null) {
-        PluginLog('update-check', $plugin, "could not check -- $error");
-    } else if ($updates) {
-        PluginLog('update-check', $plugin, 'update available');
-    }
+    PluginSweepRecord($plugin, $updates, $error, $since);
     return 'fetched';
 }
 
@@ -125,7 +140,6 @@ $retryAge = $force ? 0 : PLUGIN_UPDATE_SWEEP_RETRY;
 $prevSweep = PluginUpdateStateRead()['sweep'];
 
 PluginUpdateStateRecordSweep('in-progress', '', $trigger, true);
-SweepLog('===== update check START =====');
 
 $deadline = time() + PLUGIN_UPDATE_SWEEP_MAX_RUNTIME;
 $done = 0;
@@ -202,5 +216,10 @@ if ($outOfTime) {
     $retryAfter = PLUGIN_UPDATE_SWEEP_INTERVAL;
 }
 PluginUpdateStateRecordSweep($result, $message, $trigger, false, $retryAfter);
-SweepLog('===== update check FINISH (' . $done . ' checked, ' . $failed . ' could not be) =====');
+// One line per pass that did something; a pass with nothing due is silent.
+if ($done > 0) {
+    SweepLog('checked ' . $done . ' plugin' . ($done == 1 ? '' : 's')
+        . ($failed ? (', ' . $failed . ' could not be checked') : '')
+        . ($result === 'offline' ? ' (offline)' : '') . ($outOfTime ? ' (ran out of time)' : ''));
+}
 exit(0);

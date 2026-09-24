@@ -1207,8 +1207,10 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 	// inheriting anything from the plugin that pulled it in.
 	RecordPluginInstallSource($repoName, $origSrcURL);
 
-	// install_plugin may reset to a pinned sha: ask rather than assume up to date.
-	list($u, $e) = PluginUpdateVerdict($repoName);
+	// install_plugin may reset to a pinned sha: ask rather than assume up to
+	// date. Git only: the plugin's own update-check script (networked, up to
+	// two minutes) has no place inside an install stream; the sweep runs it.
+	list($u, $e) = PluginGitUpdateVerdict($repoName);
 	PluginUpdateStateSet($repoName, $u, $e, 'install');
 
 	// Freshly built on this OS: no longer waiting for a post-FPPOS reinstall.
@@ -2199,7 +2201,9 @@ function PluginFetchFailureReason($output, $rv = 0, $timeout = PLUGIN_GIT_FETCH_
 		|| stripos($text, 'Network is unreachable') !== false) {
 		return 'the player could not reach the repository host; it may be offline';
 	}
-	if (stripos($text, 'cannot lock ref') !== false || stripos($text, 'Unable to create') !== false) {
+	// git's message for a concurrent fetch. Not "Unable to create" on its own:
+	// that is also what a full disk or a permission problem says.
+	if (stripos($text, 'cannot lock ref') !== false) {
 		return 'another check was fetching this plugin at the same time; it will be retried';
 	}
 	// Redact tokens embedded in the remote URL: this reaches the UI and the support zip.
@@ -2396,6 +2400,12 @@ function UpgradePlugin()
 	// still held after the wait means a check is mid-fetch on this plugin:
 	// refuse plainly rather than fetch against it and report git's ref-lock
 	// error as the upgrade's failure.
+	if ($streaming && PluginFetchLock($plugin, false, $busy) === false && $busy) {
+		// Someone (a sweep, a check) is fetching this plugin now: say so before
+		// the wait below, or the progress popup sits blank for up to 30 s.
+		DisableOutputBuffering();
+		echo "Waiting for another check of $plugin to finish...\n";
+	}
 	$fetchLock = PluginFetchLock($plugin, true, $lockHeld);
 	if ($lockHeld) {
 		$msg = "Could not update '$plugin': another check of this plugin is still running; try again in a moment. Nothing was changed.\n";
@@ -2883,7 +2893,8 @@ function PluginFetchBranch($plugin, $branch)
 {
 	global $settings, $SUDO;
 	$dir = $settings['pluginDirectory'] . '/' . $plugin;
-	if ($branch === '' || !preg_match('/^[A-Za-z0-9_.\/-]+$/', $branch)) {
+	// Same set PluginCurrentBranch() accepts, or a branch could pass one and fail the other.
+	if ($branch === '' || !preg_match('/^[A-Za-z0-9_.\/+@-]+$/', $branch)) {
 		return false;
 	}
 	exec(PluginGitFetchCmd($dir, 'origin ' . escapeshellarg('refs/heads/' . $branch . ':refs/remotes/origin/' . $branch)), $o, $rv);
