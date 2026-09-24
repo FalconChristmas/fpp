@@ -1484,14 +1484,19 @@ bool UDPOutput::InitNetwork() {
 
 void UDPOutput::StartingOutput() {
     for (auto a : outputs) {
-        if (a->valid && a->active) {
+        if (a->valid && a->active && !a->started) {
+            a->started = true;
             a->StartingOutput();
         }
     }
 }
 void UDPOutput::StoppingOutput() {
+    // Every output that was started is stopped, whether or not it is still
+    // valid: one whose ping failed mid-show would otherwise keep whatever
+    // StartingOutput() set up (Twinkly's token timer) past its own deletion.
     for (auto a : outputs) {
-        if (a->valid && a->active) {
+        if (a->started) {
+            a->started = false;
             a->StoppingOutput();
         }
     }

@@ -89,6 +89,13 @@ TwinklyOutputData::TwinklyOutputData(const Json::Value& config) :
     }
 }
 TwinklyOutputData::~TwinklyOutputData() {
+    // The token timer captures this. StoppingOutput() normally removes it, but
+    // the timer must never outlive the object whatever path deleted it. Only
+    // while still started: the name is per address, so once stopped it may
+    // belong to a replacement output for the same device.
+    if (outputStarted) {
+        Timers::INSTANCE.stopPeriodicTimer("Twinkly" + ipAddress);
+    }
     for (int x = 0; x < portCount; x++) {
         free(twinklyBuffers[x]);
     }
