@@ -6976,6 +6976,73 @@
         }
       }
     },
+    "/api/plugin/updateStatus": {
+      "get": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Plugin update status",
+        "description": "What is known about plugin updates, read from a file; starts a background refresh when the answer is a few hours old. `unchecked`/`errors` are plugins with no verdict and why. `sweep.result` is `in-progress` while a check runs (`done` of `total` so far); poll until it is not.",
+        "responses": {
+          "200": {
+            "description": "Plugin update status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "updatesAvailable": true,
+                  "plugins": [
+                    "fpp-node-red"
+                  ],
+                  "unchecked": [],
+                  "errors": {},
+                  "installed": 3,
+                  "checked": true,
+                  "lastCheck": 1758600000,
+                  "stale": false,
+                  "sweep": {
+                    "finishedAt": 1758600000,
+                    "result": "ok",
+                    "message": "",
+                    "trigger": "background",
+                    "done": 0,
+                    "total": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/plugin/updateStatus/refresh": {
+      "post": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Check every plugin for updates now",
+        "description": "Starts the background check of every installed plugin (the same one that runs off page loads, but every plugin regardless of age) and returns at once. Poll `GET /api/plugin/updateStatus` until `sweep.result` is no longer `in-progress`. `started` is false when one was already running.",
+        "responses": {
+          "200": {
+            "description": "Started, or already running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "started": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/plugin/{RepoName}": {
       "parameters": [
         {
@@ -7038,7 +7105,7 @@
           "plugin"
         ],
         "summary": "Get plugin information",
-        "description": "Get `pluginInfo.json` for installed plugin `{RepoName}`. An additional `updatesAvailable` field indicates whether the plugin has commits that have been fetched but not yet merged.",
+        "description": "Get `pluginInfo.json` for installed plugin `{RepoName}`. An additional `updatesAvailable` field is 1 when the last update check (background or `POST /api/plugin/{RepoName}/updates`) found an update, 0 otherwise.",
         "responses": {
           "200": {
             "description": "Plugin information",
@@ -7309,7 +7376,7 @@
           "plugin"
         ],
         "summary": "Check plugin for updates",
-        "description": "Check plugin `{RepoName}` for available updates by running `git fetch` in the plugin directory and checking for any unmerged commits.",
+        "description": "Check plugin `{RepoName}` for available updates: `git fetch` in the plugin directory, then the checked-out branch against origin (a pinned sha respected) and the plugin's own `scripts/fpp_update_check.sh` if it has one. The verdict is written to the shared update state the navbar reads.",
         "requestBody": {
           "content": {
             "text/plain": {
@@ -7332,6 +7399,8 @@
                   "Status": "OK",
                   "Message": "",
                   "updatesAvailable": 1,
+                  "unchecked": false,
+                  "reason": "",
                   "privacyChanged": false,
                   "reinstallPrivacyChanged": false,
                   "reinstallTarget": {

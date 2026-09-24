@@ -1206,6 +1206,11 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 	// call, so each one is judged on where it actually came from rather than
 	// inheriting anything from the plugin that pulled it in.
 	RecordPluginInstallSource($repoName, $origSrcURL);
+
+	// install_plugin may reset to a pinned sha: ask rather than assume up to date.
+	list($u, $e) = PluginUpdateVerdict($repoName);
+	PluginUpdateStateSet($repoName, $u, $e, 'install');
+
 	// Freshly built on this OS: no longer waiting for a post-FPPOS reinstall.
 	PluginReinstallPendingSync($repoName);
 	return true;
@@ -1581,8 +1586,8 @@ function ComparePluginFPPVersions($a, $b)
  * Get plugin information
  *
  * Get `pluginInfo.json` for installed plugin `{RepoName}`. An additional
- * `updatesAvailable` field indicates whether the plugin has commits that
- * have been fetched but not yet merged.
+ * `updatesAvailable` field is 1 when the last update check (background or
+ * `POST /api/plugin/{RepoName}/updates`) found an update, 0 otherwise.
  *
  * @route GET /api/plugin/{RepoName}
  * @response 200 Plugin information
@@ -1615,7 +1620,10 @@ function GetPluginInfo()
 		$json = file_get_contents($infoFile);
 		$result = json_decode($json, true);
 		$result['Status'] = 'OK';
-		$result['updatesAvailable'] = PluginHasUpdates($plugin);
+		// Saved verdict, not a live check: the page asks for every plugin at once.
+		$state = PluginUpdateStateRead();
+		$result['updatesAvailable'] = (isset($state['plugins'][$plugin]['updates'])
+			&& $state['plugins'][$plugin]['updates'] === true) ? 1 : 0;
 
 		$iconFile = $settings['pluginDirectory'] . '/' . $plugin . '/icon.png';
 		$result['hasIcon'] = file_exists($iconFile) || !empty($result['iconURL']);
@@ -1903,6 +1911,8 @@ function UninstallPlugin()
 
 
 		if ($return_val == 0) {
+			PluginUpdateStateForget($plugin);
+
 			MarkPluginPrivacyUninstalled($plugin);
 			PluginReinstallPendingSync($plugin);
 			if (isset($stream) && $stream != "false") {
@@ -1930,16 +1940,24 @@ function UninstallPlugin()
 /**
  * Check plugin for updates
  *
- * Check plugin `{RepoName}` for available updates by running `git fetch` in
- * the plugin directory and checking for any unmerged commits.
+ * Check plugin `{RepoName}` for available updates: `git fetch` in the plugin
+ * directory, then the checked-out branch against origin (a pinned sha
+ * respected) and the plugin's own `scripts/fpp_update_check.sh` if it has one.
+ * The verdict is written to the shared update state the navbar reads.
  *
  * @route POST /api/plugin/{RepoName}/updates
  * @body {"srcURL": "https://github.com/owner/repo.git", "useCredentials": 0} (optional: the
  *       listing's clone URL, tried when the installed clone's own origin cannot be fetched)
  * @response 200 Update check result
  * ```json
- * {"Status": "OK", "Message": "", "updatesAvailable": 1, "privacyChanged": false, "reinstallPrivacyChanged": false, "reinstallTarget": {"branch": "master", "sha": ""}}
+ * {"Status": "OK", "Message": "", "updatesAvailable": 1, "unchecked": false, "reason": "", "privacyChanged": false, "reinstallPrivacyChanged": false, "reinstallTarget": {"branch": "master", "sha": ""}}
  * ```
+ *
+ * `unchecked` true: the fetch worked but there is no verdict (detached HEAD,
+ * no tracking ref, the plugin's own check gave no answer); `reason` says why
+ * and `Message` carries it with the plugin name. Treat it as a failed check,
+ * never as up to date. A failed fetch is `Status: "Error"` with the same
+ * `reason`/`Message`.
  *
  * `originUnreachable` (true only when present): the installed clone could not
  * fetch from its origin but the reinstall target was reachable at `srcURL`, so
@@ -1956,6 +1974,65 @@ function UninstallPlugin()
  * when the installed pluginInfo.json has no usable versions[]), the entry
  * the server selects; a Reinstall posts these back.
  */
+// How long a user's check or upgrade waits for another fetch of the same
+// plugin to end before it gives up on the lock. Not tied to the fetch timeout:
+// on timing out a check reads the other fetch's answer and an upgrade refuses
+// with "try again"; neither fetches against the held lock.
+define('PLUGIN_FETCH_LOCK_WAIT', 30);
+
+function PluginFetchLockFile($plugin)
+{
+	global $settings;
+	return $settings['mediaDirectory'] . '/cache/plugin-fetch-' . $plugin . '.lock';
+}
+
+/**
+ * Serialise fetches of one plugin clone: concurrent fetches fail on the ref lock
+ * and would read as "could not check". Users wait up to PLUGIN_FETCH_LOCK_WAIT;
+ * the sweep ($blocking = false) does not wait. Returns the handle, or false with
+ * $timedOut telling an unwritable lock (go ahead unlocked: refusing to check
+ * would be worse than racing) from a lock still held (the caller decides).
+ * Released when the returned handle is closed or goes out of scope.
+ */
+function PluginFetchLock($plugin, $blocking = true, &$timedOut = false)
+{
+	global $settings;
+	$timedOut = false;
+	if (!preg_match('/^[A-Za-z0-9_.-]+$/', $plugin)) {
+		return false;
+	}
+	$dir = $settings['mediaDirectory'] . '/cache';
+	if (!is_dir($dir)) {
+		@mkdir($dir, 0775, true);
+	}
+	// media/cache, not .git: archive installs have none, and it may be root-owned.
+	$fd = @fopen(PluginFetchLockFile($plugin), 'c');
+	if ($fd === false) {
+		// Unwritable clone: nothing to serialise against that we could fix
+		// here, and refusing to check would be worse than racing.
+		return false;
+	}
+	if (!$blocking) {
+		if (!flock($fd, LOCK_EX | LOCK_NB)) {
+			fclose($fd);
+			$timedOut = true;
+			return false;
+		}
+		return $fd;
+	}
+	// Polled: flock() has no timeout, and a stuck fetch must not hold up the page.
+	$deadline = microtime(true) + PLUGIN_FETCH_LOCK_WAIT;
+	do {
+		if (flock($fd, LOCK_EX | LOCK_NB)) {
+			return $fd;
+		}
+		usleep(100000);
+	} while (microtime(true) < $deadline);
+	fclose($fd);
+	$timedOut = true;
+	return false;
+}
+
 // Hard cap on one fetch, plus a stall detector (below 1000 B/s for STALL_SECONDS):
 // a remote that goes quiet must not hold a php-fpm worker indefinitely.
 define('PLUGIN_GIT_FETCH_TIMEOUT', 60);
@@ -1993,12 +2070,44 @@ function CheckForPluginUpdates()
 		return json($result);
 	}
 
-	exec(PluginGitFetchCmd($settings['pluginDirectory'] . '/' . $plugin, '', true), $output, $return_val);
+	// Held until return; released when $fetchLock goes out of scope.
+	$waitedFrom = time();
+	$fetchLock = PluginFetchLock($plugin, true, $lockHeld);
+	if ($lockHeld) {
+		// Another fetch of this plugin (a sweep, an upgrade) has held the lock
+		// for the whole wait. If it has recorded an answer since we started
+		// waiting, that is the answer: the refs are as fresh as our own fetch
+		// would make them. Otherwise say so rather than fetch against it.
+		$state = PluginUpdateStateRead();
+		$e = isset($state['plugins'][$plugin]) ? $state['plugins'][$plugin] : null;
+		if (!is_array($e) || !array_key_exists('updates', $e) || (int) $e['checkedAt'] < $waitedFrom) {
+			$result['Status'] = 'Error';
+			$result['reason'] = 'another check of this plugin is still running; try again in a moment';
+			$result['Message'] = 'Could not check ' . $plugin . ': ' . $result['reason'];
+			return json($result);
+		}
+		$output = array();
+		$return_val = 0;
+	} else {
+		exec(PluginGitFetchCmd($settings['pluginDirectory'] . '/' . $plugin, '', true), $output, $return_val);
+	}
 
 	if ($return_val == 0) {
 		$result['Status'] = 'OK';
 		$result['Message'] = '';
-		$result['updatesAvailable'] = PluginHasUpdates($plugin);
+		// The verdict, not the boolean: "could not check" must not become "up to date".
+		list($updates, $error) = PluginUpdateVerdict($plugin);
+		$result['updatesAvailable'] = ($updates === true) ? 1 : 0;
+		// Fetched fine but no verdict (detached HEAD, no tracking ref, ...):
+		// the page must treat this like a failed check, not "no updates".
+		$result['unchecked'] = ($updates === null);
+		$result['reason'] = ($updates === null) ? $error : '';
+		if ($updates === null) {
+			$result['Message'] = 'Could not check ' . $plugin . ': ' . $error;
+		}
+		// The freshest thing anyone knows, so write it through: the navbar then
+		// reads the same answer as the row this check is about to mark.
+		PluginUpdateStateSet($plugin, $updates, $error, 'check');
 		// The fetch above has just brought origin/<branch> up to date, so
 		// this reads the incoming declaration without a second fetch.
 		// Not gated on updatesAvailable: no record is "changed" too.
@@ -2036,6 +2145,8 @@ function CheckForPluginUpdates()
 		$result['updatesAvailable'] = 0;
 		$result['privacyChanged'] = false;
 		$result['originUnreachable'] = true;
+		// Nothing learned about the checked-out branch: could not check, not up to date.
+		PluginUpdateStateSet($plugin, null, 'the installed copy can no longer fetch from where it was cloned; Reinstall clones it afresh', 'check');
 		$result['Message'] = 'The installed copy of ' . $plugin . ' can no longer fetch from where it was cloned; Reinstall will clone it afresh.';
 		$result['reinstallPrivacyChanged'] = PluginPrivacyChanged($plugin, false, $p, $a, $src, 'reinstall');
 		$result['reinstallTarget'] = array('branch' => $tBranch, 'sha' => $tSha);
@@ -2048,6 +2159,7 @@ function CheckForPluginUpdates()
 	// plugin name, for a caller that is already naming the plugin itself.
 	$result['reason'] = $reason;
 	$result['Message'] = 'Could not check ' . $plugin . ': ' . $reason;
+	PluginUpdateStateSet($plugin, null, $reason, 'check');
 	return json($result);
 }
 
@@ -2280,6 +2392,23 @@ function UpgradePlugin()
 	$accepted = null;
 	$GLOBALS['PLUGIN_FETCH_OK'] = false;
 	$GLOBALS['PLUGIN_FETCHED_SHA'] = '';
+	// Keep a sweep's fetch from failing this upgrade's fetch and pull. A lock
+	// still held after the wait means a check is mid-fetch on this plugin:
+	// refuse plainly rather than fetch against it and report git's ref-lock
+	// error as the upgrade's failure.
+	$fetchLock = PluginFetchLock($plugin, true, $lockHeld);
+	if ($lockHeld) {
+		$msg = "Could not update '$plugin': another check of this plugin is still running; try again in a moment. Nothing was changed.\n";
+		PluginLog('upgrade', $plugin, "refused: another check holds the fetch lock");
+		if ($streaming) {
+			DisableOutputBuffering();
+			echo $msg;
+			return "\nDone\n";
+		}
+		$result['Status'] = 'Error';
+		$result['Message'] = trim($msg);
+		return json($result);
+	}
 	$changed = PluginPrivacyChanged($plugin, true, $pending, $accepted);
 	if (!$GLOBALS['PLUGIN_FETCH_OK']) {
 		// Before the privacy gate 'git pull' failed loudly here; with the
@@ -2365,6 +2494,12 @@ function UpgradePlugin()
 		PluginReinstallPendingSync($plugin); // rebuilt on this OS
 	}
 	PluginRecordUpgradedPrivacy($plugin, $return_val, $changed, $pending, $stream);
+	// rc 0 and 2 both mean the code landed. Before the streaming return: the UI always streams.
+	if ($return_val != 1) {
+		// The refs were fetched moments ago, so this is a local read.
+		list($u, $e) = PluginUpdateVerdict($plugin);
+		PluginUpdateStateSet($plugin, $u, $e, 'upgrade');
+	}
 	if ($streaming) {
 		return "\nDone\n";
 	}
@@ -3745,7 +3880,7 @@ function PluginReleaseNotesGitLog($dir, $range, $max)
 // releaseNotesStyle: gitHistory -- read straight from the plugin's own clone:
 // no GitHub API call, works for any git host. No live `git fetch` either; it
 // rides the origin/<branch> the last update check fetched, like
-// PluginHasUpdates(). The installed history is always included, so an
+// PluginUpdateVerdict(). The installed history is always included, so an
 // up-to-date plugin still shows what its latest changes were.
 function PluginReleaseNotesFromGitHistory($plugin)
 {
@@ -4010,42 +4145,574 @@ function FetchPluginInfoProxy()
 	return json($decoded);
 }
 
+// How long a plugin's own scripts/fpp_update_check.sh gets before it is killed.
+// A bound on a hung script, not a budget: in the sweep nobody waits and the
+// fetch lock is already released, and the one foreground caller is the detail
+// dialog's Check for Update, which the user asked for. Long enough for a
+// manifest or asset fetch on a Pi Zero over marginal WiFi at nice 19 during a
+// show; the sweep's 10-minute cap and resume cover the worst case.
+define('PLUGIN_UPDATE_CHECK_SCRIPT_TIMEOUT', 120);
+
 /**
- * Checks whether the installed plugin has updates available: commits that
- * have been fetched but not yet merged into the local branch, or — for
- * plugins that distribute artifacts outside of git (e.g. prebuilt binaries
- * attached to a release) — updates reported by the plugin's own optional
- * update-check script.
+ * Whether an installed plugin has an update: array($updates, $error), with
+ * $updates null and $error the reason when no answer was reached. Unchecked must
+ * never read as up to date.
  *
- * A plugin may provide scripts/fpp_update_check.sh. It is run with
- * FPPDIR/SRCDIR set (like fpp_install.sh); the last line of its stdout must
- * be "1" if an update is available or "0" if not. A non-zero exit status
- * means "could not check" and is ignored. The script's answer is OR'd with
- * the git check, so repo commits are still detected for such plugins.
+ * A plugin may provide scripts/fpp_update_check.sh. It is run with FPPDIR/SRCDIR
+ * set (like fpp_install.sh); the last line of its stdout must be "1" if an update
+ * is available or "0" if not. A non-zero exit status means "could not check".
+ * Its answer is OR'd with the git check, so repo commits are still detected.
  *
- * @param string $plugin Plugin directory name (repo name).
- * @return int 1 if updates are available, 0 otherwise.
+ * Runs the plugin's own fpp_update_check.sh (arbitrary, often networked code),
+ * also for archive installs where it is the only check, so never call this from
+ * GetPluginUpdateStatus(), which every page polls.
  */
-function PluginHasUpdates($plugin)
+function PluginUpdateVerdict($plugin)
 {
-	global $settings, $fppDir;
-	$output = '';
+	global $settings;
 
-	$cmd = '(cd ' . $settings['pluginDirectory'] . '/' . $plugin . ' && git log $(git rev-parse --abbrev-ref HEAD)..origin/$(git rev-parse --abbrev-ref HEAD))';
-	exec($cmd, $output, $return_val);
-
-	if (($return_val == 0) && !empty($output))
-		return 1;
-
-	$check_script = $settings['pluginDirectory'] . '/' . $plugin . '/scripts/fpp_update_check.sh';
-	if (file_exists($check_script)) {
-		unset($output);
-		exec("FPPDIR=" . $fppDir . " SRCDIR=" . $fppDir . "/src " . $check_script, $output, $return_val);
-		if (($return_val == 0) && !empty($output) && (trim(end($output)) == '1'))
-			return 1;
+	list($updates, $error) = PluginGitUpdateVerdict($plugin);
+	if ($updates === true) {
+		return array(true, '');
 	}
 
-	return 0;
+	// Last line "1" from the plugin's own script means an update (e.g. release binaries).
+	$dir = $settings['pluginDirectory'] . '/' . $plugin;
+	$script = $dir . '/scripts/fpp_update_check.sh';
+	if (!file_exists($script)) {
+		return array($updates, $error);
+	}
+	list($srv, $text, , $timedOut) = PluginRunScriptBounded($script, $dir, PLUGIN_UPDATE_CHECK_SCRIPT_TIMEOUT);
+	if ($srv === 0) {
+		$lines = array_values(array_filter(array_map('trim', explode("\n", $text)), 'strlen'));
+		$answer = empty($lines) ? '' : end($lines);
+		if ($answer === '1') {
+			return array(true, '');
+		}
+		if ($answer !== '0') {
+			// Exit 0 but no 1 or 0 on the last line (empty output, a curl
+			// message): not an answer. Without a clone that leaves no verdict;
+			// with one, git's stands and the oddity is kept for the support zip.
+			$why = ($answer === '') ? 'it printed nothing' : ('its last line was "' . substr($answer, 0, 40) . '", not 1 or 0');
+			if (!is_dir($dir . '/.git') || $updates === null) {
+				return array(null, trim($error . ($error !== '' ? '; ' : '') . 'the plugin\'s own update check gave no answer (' . $why . ')'));
+			}
+			return array(false, 'the plugin\'s own update check gave no answer (' . $why . '); git says up to date');
+		}
+		// Without a clone the script is the whole check, so its "0" is the
+		// answer. With one, git's own verdict (or lack of one) stands.
+		if (!is_dir($dir . '/.git')) {
+			return array(false, '');
+		}
+		return array($updates, $error);
+	}
+	// `timeout` kills the script before the read loop gives up on it, so a
+	// timed-out script usually comes back as 124 (TERM) or 137 (KILL).
+	if ($timedOut || $srv === 124 || $srv === 137) {
+		$why = 'it did not finish in ' . PLUGIN_UPDATE_CHECK_SCRIPT_TIMEOUT . ' seconds';
+	} else if ($srv === null) {
+		$why = 'it could not be started';
+	} else {
+		$why = 'it exited ' . $srv;
+	}
+	if ($updates === null) {
+		return array(null, $error . '; the plugin\'s own update check did not run either (' . $why . ')');
+	}
+	// The script failing doesn't undo git's answer; record it for the Updates tab.
+	return array(false, 'the plugin\'s own update check did not run (' . $why . '); git says up to date');
+}
+
+/**
+ * A clone installed at a pinned versions[] sha is behind its branch on purpose.
+ * The pin comes from the fetched branch's pluginInfo.json (the installed copy is
+ * AT the pin and cannot name itself). false: HEAD is the pin; true: the pin moved
+ * past HEAD; null: not pinned, or HEAD is not behind the pin (a downgrade), so
+ * the ordinary branch comparison applies.
+ */
+function PluginPinnedVerdict($plugin, $branch)
+{
+	global $settings;
+
+	$dir = $settings['pluginDirectory'] . '/' . $plugin;
+	$cd = 'cd ' . escapeshellarg($dir) . ' && ';
+	$incoming = json_decode((string) shell_exec($cd . 'git show ' . escapeshellarg('origin/' . $branch . ':pluginInfo.json') . ' 2>/dev/null'), true);
+	$entry = is_array($incoming) ? SelectPluginVersionEntry($incoming) : null;
+	if (!is_array($entry)) {
+		return null;
+	}
+	$pinBranch = (isset($entry['branch']) && is_string($entry['branch']) && $entry['branch'] !== '') ? $entry['branch'] : 'master';
+	$pinSha = (isset($entry['sha']) && is_string($entry['sha'])) ? $entry['sha'] : '';
+	if ($pinBranch !== $branch || !preg_match('/^[a-fA-F0-9]{4,40}$/', $pinSha)) {
+		return null;
+	}
+	$head = trim((string) shell_exec($cd . 'git rev-parse --verify -q HEAD 2>/dev/null'));
+	$pin = trim((string) shell_exec($cd . 'git rev-parse --verify -q ' . escapeshellarg($pinSha . '^{commit}') . ' 2>/dev/null'));
+	if ($head === '' || $pin === '') {
+		return null;
+	}
+	if ($pin === $head) {
+		return false;
+	}
+	exec($cd . 'git merge-base --is-ancestor ' . escapeshellarg($head) . ' ' . escapeshellarg($pin) . ' 2>/dev/null', $o, $rv);
+	return ($rv === 0) ? true : null;
+}
+
+// The git half of PluginUpdateVerdict(): local refs only, never plugin code.
+function PluginGitUpdateVerdict($plugin)
+{
+	global $settings;
+
+	$dir = $settings['pluginDirectory'] . '/' . $plugin;
+	if (!is_dir($dir . '/.git')) {
+		return array(null, 'not a git checkout (installed from an archive?)');
+	}
+	$branch = PluginCurrentBranch($plugin, $why);
+	if ($branch == '') {
+		// Detached HEAD: upgrade_plugin cannot move it, so there is no verdict.
+		return array(null, $why);
+	}
+	$remote = 'origin/' . $branch;
+	unset($output);
+	exec('cd ' . escapeshellarg($dir) . ' && git rev-parse --verify --quiet ' . escapeshellarg($remote) . ' 2>/dev/null', $output, $rv);
+	if ($rv != 0) {
+		return array(null, 'no remote-tracking ref for ' . $remote . ' (never fetched)');
+	}
+
+	$pinned = PluginPinnedVerdict($plugin, $branch);
+	if ($pinned !== null) {
+		return array($pinned, '');
+	}
+
+	unset($output);
+	exec('cd ' . escapeshellarg($dir) . ' && git log --oneline ' . escapeshellarg($branch . '..' . $remote) . ' 2>/dev/null', $output, $rv);
+	if ($rv != 0) {
+		return array(null, 'git log ' . $branch . '..' . $remote . ' failed');
+	}
+	return array(!empty($output), '');
+}
+
+// ---------------------------------------------------------------------------
+// Plugin update state: one JSON file of per-plugin verdicts, written by the
+// sweep, user checks and install/upgrade/uninstall, and only read by
+// GetPluginUpdateStatus(). That read side is polled by every page, so it must
+// never fetch, exec or take a blocking lock (file_cache() takes a blocking
+// LOCK_EX while rebuilding, which is why it is not used here).
+define('PLUGIN_UPDATE_STATE_VERSION', 1);
+// Past this age the UI says how old "no updates" is instead of presenting it as current.
+define('PLUGIN_UPDATE_STALE_SECONDS', 24 * 60 * 60);
+// How long after a completed sweep the next page load starts another.
+define('PLUGIN_UPDATE_SWEEP_INTERVAL', 3 * 60 * 60);
+// After a sweep that could reach nothing or ran out of time, the next one is
+// due on this shorter clock instead. The sweep records which applies (retryAt).
+define('PLUGIN_UPDATE_SWEEP_RETRY', 15 * 60);
+// Longest a sweep may run before it leaves the rest for next time; also how
+// long a start with no finish is believed before it is treated as a dead run
+// (php-fpm restart, power cut) and another is started.
+define('PLUGIN_UPDATE_SWEEP_MAX_RUNTIME', 10 * 60);
+
+// media/cache, not media/tmp (wiped at every boot) or config/ (swept into backups).
+function PluginUpdateStateFile()
+{
+	global $settings;
+	return $settings['mediaDirectory'] . '/cache/plugin_updates.json';
+}
+
+// An empty, valid state. Also what a missing or corrupt file reads as: this is
+// only ever a cache of what was learned, so losing it costs one sweep.
+function PluginUpdateStateEmpty()
+{
+	return array(
+		'version' => PLUGIN_UPDATE_STATE_VERSION,
+		'sweep' => array('startedAt' => 0, 'finishedAt' => 0, 'retryAt' => 0, 'retryAfter' => 0, 'result' => '', 'message' => '',
+			'lastResult' => '', 'lastMessage' => '', 'trigger' => '', 'done' => 0, 'total' => 0),
+		'plugins' => array(),
+	);
+}
+
+function PluginUpdateStateRead()
+{
+	$f = PluginUpdateStateFile();
+	if (!file_exists($f)) {
+		return PluginUpdateStateEmpty();
+	}
+	$json = @file_get_contents($f);
+	$state = ($json === false) ? null : json_decode($json, true);
+	if (!is_array($state) || !isset($state['plugins']) || !is_array($state['plugins'])) {
+		return PluginUpdateStateEmpty();
+	}
+	if (!isset($state['sweep']) || !is_array($state['sweep'])) {
+		$state['sweep'] = PluginUpdateStateEmpty()['sweep'];
+	}
+	if (!isset($state['version']) || (int) $state['version'] !== PLUGIN_UPDATE_STATE_VERSION) {
+		// Written by a different layout of this file. It is only ever a cache
+		// of what was learned, so start again rather than guess at the shape.
+		return PluginUpdateStateEmpty();
+	}
+	return $state;
+}
+
+// Written via a temp file and rename so a reader never sees it half-written.
+function PluginUpdateStateWrite($state)
+{
+	$f = PluginUpdateStateFile();
+	$dir = dirname($f);
+	if (!is_dir($dir)) {
+		@mkdir($dir, 0775, true);
+	}
+	$state['version'] = PLUGIN_UPDATE_STATE_VERSION;
+	$tmp = $f . '.' . getmypid() . '.tmp';
+	if (@file_put_contents($tmp, json_encode($state, JSON_PRETTY_PRINT)) === false) {
+		@unlink($tmp);
+		return false;
+	}
+	@chmod($tmp, 0664);
+	if (!@rename($tmp, $f)) {
+		@unlink($tmp);
+		return false;
+	}
+	return true;
+}
+
+// Read-modify-write under an exclusive lock, held only across the read and the write.
+function PluginUpdateStateUpdate($fn)
+{
+	$lock = PluginUpdateStateFile() . '.lock';
+	$dir = dirname($lock);
+	if (!is_dir($dir)) {
+		@mkdir($dir, 0775, true);
+	}
+	$fd = @fopen($lock, 'c');
+	if ($fd === false) {
+		return false; // unwritable media: nothing to record, nothing to break
+	}
+	@chmod($lock, 0664);
+	flock($fd, LOCK_EX);
+	$state = PluginUpdateStateRead();
+	$changed = $fn($state);
+	$ok = $changed ? PluginUpdateStateWrite($state) : true;
+	flock($fd, LOCK_UN);
+	fclose($fd);
+	return $ok;
+}
+
+/**
+ * Record one plugin's verdict (true/false/null, as PluginUpdateVerdict() returns);
+ * $source ('sweep', 'check', 'upgrade', 'install') is kept for the support zip.
+ *
+ * $since: when the caller's fetch began. The sweep drops the fetch lock before
+ * computing its verdict (the plugin's own script can take minutes), so an upgrade
+ * or hand check can land in that gap; a verdict older than what is already
+ * recorded is then discarded rather than written over the fresher one.
+ */
+function PluginUpdateStateSet($plugin, $updates, $error = '', $source = 'check', $since = 0)
+{
+	PluginUpdateStateUpdate(function (&$state) use ($plugin, $updates, $error, $source, $since) {
+		if ($since > 0 && isset($state['plugins'][$plugin]['checkedAt'])
+			&& (int) $state['plugins'][$plugin]['checkedAt'] >= $since
+			&& isset($state['plugins'][$plugin]['source'])
+			&& $state['plugins'][$plugin]['source'] !== $source) {
+			return false;
+		}
+		$entry = array(
+			'updates' => ($updates === null) ? null : (bool) $updates,
+			'checkedAt' => time(),
+			'error' => (string) $error,
+			'source' => $source,
+		);
+		// A failed check must not silently retract "update available": an
+		// offline reboot would otherwise put the icon out until the next
+		// successful check. Carry the last real verdict (and when it was
+		// reached) until a check answers again.
+		if ($updates === null && isset($state['plugins'][$plugin]) && is_array($state['plugins'][$plugin])) {
+			$prev = $state['plugins'][$plugin];
+			if (isset($prev['updates']) && $prev['updates'] === true) {
+				$entry['lastKnown'] = true;
+				$entry['lastKnownAt'] = (int) (isset($prev['checkedAt']) ? $prev['checkedAt'] : 0);
+			} else if (!empty($prev['lastKnown'])) {
+				$entry['lastKnown'] = true;
+				$entry['lastKnownAt'] = (int) (isset($prev['lastKnownAt']) ? $prev['lastKnownAt'] : 0);
+			}
+		}
+		$state['plugins'][$plugin] = $entry;
+		return true;
+	});
+}
+
+function PluginUpdateStateForget($plugin)
+{
+	if (preg_match('/^[A-Za-z0-9_.-]+$/', $plugin)) {
+		@unlink(PluginFetchLockFile($plugin));
+	}
+	PluginUpdateStateUpdate(function (&$state) use ($plugin) {
+		if (!isset($state['plugins'][$plugin])) {
+			return false;
+		}
+		unset($state['plugins'][$plugin]);
+		return true;
+	});
+}
+
+/**
+ * Record how a sweep went (ok, partial, offline, or in-progress when $starting),
+ * for the support zip and for PluginUpdateSweepDue(). A finishing record sets
+ * retryAt = now + $retryAfter: when the next page load may start another.
+ * Returns false when the state file could not be written.
+ */
+function PluginUpdateStateRecordSweep($result, $message = '', $trigger = 'background', $starting = false, $retryAfter = PLUGIN_UPDATE_SWEEP_INTERVAL)
+{
+	return PluginUpdateStateUpdate(function (&$state) use ($result, $message, $trigger, $starting, $retryAfter) {
+		// Rebuilt from the known keys, not merged: a key an earlier layout
+		// wrote must not ride along in the file for ever.
+		$prev = is_array($state['sweep']) ? $state['sweep'] : array();
+		$state['sweep'] = array(
+			'startedAt' => $starting ? time() : (int) (isset($prev['startedAt']) ? $prev['startedAt'] : 0),
+			'finishedAt' => $starting ? (int) (isset($prev['finishedAt']) ? $prev['finishedAt'] : 0) : time(),
+			'retryAt' => $starting ? (int) (isset($prev['retryAt']) ? $prev['retryAt'] : 0) : time() + (int) $retryAfter,
+			// Kept so the next offline pass can back off from it.
+			'retryAfter' => $starting ? (int) (isset($prev['retryAfter']) ? $prev['retryAfter'] : 0) : (int) $retryAfter,
+			'result' => $result,
+			'message' => (string) $message,
+			// The last FINISHED result, kept through the in-progress record so
+			// the script can back off from it and keep it when a pass checks
+			// nothing. (The endpoint writes in-progress before the script runs.)
+			'lastResult' => $starting
+				? ((isset($prev['result']) && $prev['result'] !== 'in-progress' && $prev['result'] !== '')
+					? (string) $prev['result'] : (string) (isset($prev['lastResult']) ? $prev['lastResult'] : ''))
+				: (string) $result,
+			'lastMessage' => $starting
+				? ((isset($prev['result']) && $prev['result'] !== 'in-progress' && $prev['result'] !== '')
+					? (string) (isset($prev['message']) ? $prev['message'] : '') : (string) (isset($prev['lastMessage']) ? $prev['lastMessage'] : ''))
+				: (string) $message,
+			'trigger' => $trigger,
+			// How far a running sweep has got, for the Updates tab's progress line.
+			'done' => 0,
+			'total' => $starting ? (int) (isset($prev['total']) ? $prev['total'] : 0) : 0,
+		);
+		return true;
+	});
+}
+
+// The running sweep's progress: $done of $total plugins so far.
+function PluginUpdateStateRecordSweepProgress($done, $total)
+{
+	PluginUpdateStateUpdate(function (&$state) use ($done, $total) {
+		$state['sweep']['done'] = (int) $done;
+		$state['sweep']['total'] = (int) $total;
+		return true;
+	});
+}
+
+// Whether a page load should start a sweep, from the last one's record.
+// A running (or recently started) sweep counts as not due.
+function PluginUpdateSweepRunning($sweep)
+{
+	$sweep = is_array($sweep) ? $sweep : array();
+	if (!isset($sweep['result']) || $sweep['result'] !== 'in-progress') {
+		return false;
+	}
+	$startedAt = (int) (isset($sweep['startedAt']) ? $sweep['startedAt'] : 0);
+	return $startedAt <= time() && (time() - $startedAt) <= PLUGIN_UPDATE_SWEEP_MAX_RUNTIME;
+}
+
+function PluginUpdateSweepDue($sweep)
+{
+	$sweep = is_array($sweep) ? $sweep : array();
+	$startedAt = (int) (isset($sweep['startedAt']) ? $sweep['startedAt'] : 0);
+	$retryAt = (int) (isset($sweep['retryAt']) ? $sweep['retryAt'] : 0);
+	// Written under a clock that has since been set back (RTC-less Pi, date
+	// typed by hand): a record from the future would otherwise hold off every
+	// sweep for as long as the error was. Same rule as the per-plugin one.
+	if ($startedAt > time() || $retryAt > time() + PLUGIN_UPDATE_SWEEP_INTERVAL) {
+		return true;
+	}
+	if (isset($sweep['result']) && $sweep['result'] === 'in-progress') {
+		// Running, or started and never finished (killed): believe it for
+		// the maximum runtime, then treat it as dead.
+		return (time() - $startedAt) > PLUGIN_UPDATE_SWEEP_MAX_RUNTIME;
+	}
+	// Never run (retryAt 0), or the last one said when the next may start.
+	return time() >= $retryAt;
+}
+
+// Start the background refresh when the last sweep's record says one is due.
+function PluginUpdateMaybeSweep($state)
+{
+	if (!PluginUpdateSweepDue(isset($state['sweep']) ? $state['sweep'] : null)) {
+		return false;
+	}
+	return PluginUpdateStartSweep('background');
+}
+
+/**
+ * Spawn the sweep script, detached, like PluginWarmListDetached(). The
+ * in-progress record written here is the claim, so the next page load sees a
+ * fresh start and does not spawn another; two loads that race past that are
+ * settled by the child's flock -n. setsid so a php-fpm restart does not kill
+ * it. $trigger 'manual' (Check for Updates) re-checks every plugin, however
+ * fresh. Returns true if one was started.
+ */
+function PluginUpdateStartSweep($trigger)
+{
+	global $fppDir;
+
+	$script = $fppDir . '/scripts/plugin_update_check.php';
+	if (!file_exists($script)) {
+		return false;
+	}
+	if (!PluginUpdateStateRecordSweep('in-progress', '', $trigger, true)) {
+		// Unwritable (or root-owned) media/cache: with no claim every page load
+		// would fork a child that cannot record anything either, so do nothing,
+		// and say so at most once a day.
+		$warned = sys_get_temp_dir() . '/fpp-plugin-update-state.warned';
+		if (!file_exists($warned) || (time() - filemtime($warned)) > 24 * 60 * 60) {
+			@touch($warned);
+			error_log('plugin update check: cannot write ' . PluginUpdateStateFile() . '; background checks disabled');
+		}
+		return false;
+	}
+
+	// The whole child at the back of the CPU and IO queues, not just its git
+	// fetches: it also runs git log and each plugin's own update script.
+	$inner = 'nice -n 19 ' . (PluginHaveCommand('ionice') ? 'ionice -c2 -n7 ' : '') . 'php ' . escapeshellarg($script)
+		. ($trigger === 'manual' ? ' --force' : '');
+	if (is_executable('/bin/flock') || is_executable('/usr/bin/flock')) {
+		$inner = 'flock -n ' . escapeshellarg(PluginUpdateStateFile() . '.sweep.lock') . ' -c ' . escapeshellarg($inner);
+	}
+	if (is_executable('/bin/setsid') || is_executable('/usr/bin/setsid')) {
+		$inner = 'setsid ' . $inner;
+	}
+	exec($inner . ' > /dev/null 2>&1 &');
+	return true;
+}
+
+/**
+ * Plugin update status
+ *
+ * What is known about plugin updates, read from a file; starts a background refresh when the answer is a few hours old. `unchecked`/`errors` are plugins with no verdict and why. `sweep.result` is `in-progress` while a check runs (`done` of `total` so far); poll until it is not.
+ *
+ * @route GET /api/plugin/updateStatus
+ * @response 200 Plugin update status
+ * ```json
+ * {"status": "OK", "updatesAvailable": true, "plugins": ["fpp-node-red"], "unchecked": [], "errors": {}, "installed": 3, "checked": true, "lastCheck": 1758600000, "stale": false, "sweep": {"finishedAt": 1758600000, "result": "ok", "message": "", "trigger": "background", "done": 0, "total": 0}}
+ * ```
+ */
+function GetPluginUpdateStatus()
+{
+	$installed = InstalledPluginNames();
+	$state = PluginUpdateStateRead();
+	if (!empty($installed) && PluginUpdateMaybeSweep($state)) {
+		$state = PluginUpdateStateRead(); // now says in-progress; the page polls until it isn't
+	}
+
+	$withUpdates = array();
+	$unchecked = array();
+	$errors = array();
+	$newestCheck = 0;
+	$oldestCheck = null;
+	foreach ($installed as $plugin) {
+		$e = isset($state['plugins'][$plugin]) ? $state['plugins'][$plugin] : null;
+		if (!is_array($e) || !array_key_exists('updates', $e)) {
+			$unchecked[] = $plugin;
+			continue;
+		}
+		// A future timestamp means the clock moved (RTC-less Pis): treat as never checked.
+		$at = (int) (isset($e['checkedAt']) ? $e['checkedAt'] : 0);
+		if ($at > time()) {
+			// The sweep picks it up first for the same reason (it reads as
+			// the oldest), so this lasts until the next background pass.
+			$unchecked[] = $plugin;
+			continue;
+		}
+		if ($e['updates'] === null) {
+			// Not a check for lastCheck/stale purposes: an all-failed sweep must
+			// not read as "checked just now".
+			$unchecked[] = $plugin;
+			if (!empty($e['error'])) {
+				$errors[$plugin] = $e['error'];
+			}
+			// Still flagged: an update was waiting the last time a check
+			// answered, and nothing since has said otherwise. It is in both
+			// lists on purpose: the icon stays lit, the tab says why it is
+			// not current.
+			if (!empty($e['lastKnown'])) {
+				$withUpdates[] = $plugin;
+				$errors[$plugin] = (isset($errors[$plugin]) ? $errors[$plugin] : 'could not be checked')
+					. '; an update was waiting when it was last checked';
+			}
+			continue;
+		}
+		$newestCheck = max($newestCheck, $at);
+		$oldestCheck = ($oldestCheck === null) ? $at : min($oldestCheck, $at);
+		// A verdict can carry an error too (the plugin's own script failed but
+		// git answered); that stays in the state file for the Support Zip.
+		if ($e['updates']) {
+			$withUpdates[] = $plugin;
+		}
+	}
+
+	// Missing keys: the file is only ever advisory, and a hand-edited or
+	// half-written one must not warn on the hottest endpoint in the feature.
+	$sweep = array_merge(PluginUpdateStateEmpty()['sweep'], $state['sweep']);
+	$sweep = array(
+		'finishedAt' => (int) $sweep['finishedAt'],
+		'result' => (string) $sweep['result'],
+		'message' => (string) $sweep['message'],
+		'trigger' => (string) $sweep['trigger'],
+		'done' => (int) $sweep['done'],
+		'total' => (int) $sweep['total'],
+	);
+	$startedAt = (int) (isset($state['sweep']['startedAt']) ? $state['sweep']['startedAt'] : 0);
+	if ($sweep['result'] === 'in-progress'
+		&& ($startedAt > time() || (time() - $startedAt) > PLUGIN_UPDATE_SWEEP_MAX_RUNTIME)) {
+		// Started, never finished: the child was killed (php-fpm restart, power
+		// cut). Saying "checking now" for ever is worse than saying nothing.
+		$sweep['result'] = '';
+		$sweep['message'] = '';
+	}
+
+	return json(array(
+		'status' => 'OK',
+		'updatesAvailable' => !empty($withUpdates),
+		'plugins' => $withUpdates,
+		'unchecked' => $unchecked,
+		// Objects even when empty: json_encode would otherwise emit [] for an
+		// empty PHP array, and the contract says these are name->reason maps.
+		'errors' => (object) $errors,
+		'installed' => count($installed),
+		// False means nothing at all is known, so "no updates" is not a verdict.
+		'checked' => ($newestCheck > 0),
+		// The OLDEST answer, so one hand-checked plugin cannot make stale ones look fresh.
+		'lastCheck' => ($oldestCheck === null) ? 0 : $oldestCheck,
+		'stale' => ($oldestCheck === null) || ($oldestCheck == 0)
+			|| ((time() - $oldestCheck) > PLUGIN_UPDATE_STALE_SECONDS),
+		'sweep' => $sweep,
+	));
+}
+
+/**
+ * Check every plugin for updates now
+ *
+ * Starts the background check of every installed plugin (the same one that runs off page loads, but every plugin regardless of age) and returns at once. Poll `GET /api/plugin/updateStatus` until `sweep.result` is no longer `in-progress`. `started` is false when one was already running.
+ *
+ * @route POST /api/plugin/updateStatus/refresh
+ * @response 200 Started, or already running
+ * ```json
+ * {"status": "OK", "started": true}
+ * ```
+ */
+function RefreshPluginUpdateStatus()
+{
+	if (empty(InstalledPluginNames())) {
+		return json(array('status' => 'OK', 'started' => false, 'message' => 'no plugins installed'));
+	}
+	$state = PluginUpdateStateRead();
+	if (PluginUpdateSweepRunning($state['sweep'])) {
+		return json(array('status' => 'OK', 'started' => false, 'message' => 'a check is already running'));
+	}
+	if (!PluginUpdateStartSweep('manual')) {
+		return json(array('status' => 'ERROR', 'started' => false, 'message' => 'could not start the check; see the FPP log'));
+	}
+	return json(array('status' => 'OK', 'started' => true));
 }
 
 /**

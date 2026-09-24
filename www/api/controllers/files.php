@@ -1121,6 +1121,8 @@ function ZipConfigs($zip)
         "config/model-overlays.json",
         "config/outputprocessors.json",
         "config/schedule.json",
+        // Plugin-update verdicts, reasons and the last sweep (tokens already redacted).
+        "cache/plugin_updates.json",
         "settings",
         "universes",
         "fpp-info.json",
