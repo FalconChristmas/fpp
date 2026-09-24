@@ -3205,6 +3205,19 @@
         // Re-select the tab the user was on before the last load. Called once the
         // plugin data is in so the Updates tab can run its update check.
         function RestoreTopTab() {
+            // A ?tab= deep link (the navbar icon) wins, and is remembered from then on.
+            var requested = new URLSearchParams(window.location.search).get('tab');
+            if (requested === 'installed' || requested === 'updates') {
+                ShowTopTab(requested);
+                // Drop it from the URL, or a reload would keep returning to this tab.
+                try {
+                    var url = new URL(window.location.href);
+                    url.searchParams.delete('tab');
+                    history.replaceState(null, '', url.pathname + url.search + url.hash);
+                } catch (e) { }
+                return;
+            }
+
             var saved = '';
             try { saved = sessionStorage.getItem('pluginsTopTab') || ''; } catch (e) { }
             if (saved === 'installed' || saved === 'updates')

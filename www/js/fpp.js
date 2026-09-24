@@ -150,6 +150,49 @@ var FPP_UPDATE_STATE = {
 var _fppUpdateCheckInFlight = false;
 var FPP_UPDATE_CHECK_RETRY_MS = 5000;
 
+// Plugin-update state, the sibling of FPP_UPDATE_STATE: filled from
+// api/plugin/updateStatus (a file read; the checking happens in the background).
+var FPP_PLUGIN_UPDATE_STATE = {
+	updatesAvailable: false,
+	// Installed plugins with an update waiting.
+	plugins: [],
+	// Installed plugins with no verdict: never checked, or the last check
+	// failed. Never to be presented as "up to date".
+	unchecked: [],
+	// plugin name -> why it could not be checked.
+	errors: {},
+	installed: 0,
+	// Something is known. False means nothing has ever been checked.
+	checked: false,
+	// Epoch of the oldest verdict, and whether it is old enough to say so.
+	lastCheck: 0,
+	stale: true,
+	// The last check (background or Check for Updates): its result, and while
+	// it runs ('in-progress'), how far it has got.
+	sweep: { finishedAt: 0, result: '', message: '', trigger: '', done: 0, total: 0 },
+	// Answered at least once this page load; late consumers test this rather
+	// than wait for an event that already fired.
+	answered: false,
+	// The request itself failed (fppd/apache trouble, not a cold cache).
+	checkFailed: false
+};
+
+// One status read at a time, so two can't straddle a write and disagree.
+var _pluginUpdateCheckInFlight = false;
+// A read was asked for while one was in flight, and that one may have read the
+// file before the write the caller is asking about: read once more after it.
+var _pluginUpdateCheckAgain = false;
+// Callers waiting for the answer of the read that settles (see checkForPluginUpdates).
+var _pluginUpdateCheckWaiters = [];
+// While a check is running on the server, re-read on this clock until it ends.
+var PLUGIN_UPDATE_POLL_MS = 3000;
+var _pluginUpdatePollTimer = null;
+// A read that fails while a check is running is retried this many times
+// before "could not read" is published: one dropped request must not end the
+// page's following of a sweep that is still running on the server.
+var PLUGIN_UPDATE_POLL_RETRIES = 5;
+var _pluginUpdatePollRetriesLeft = PLUGIN_UPDATE_POLL_RETRIES;
+
 // Build "http://host" + path. IPv6 literals (contain ':') must be bracketed;
 // IPv4 and hostnames never contain ':' so they pass through unchanged.
 // No zone-id ("%eth0") handling on purpose: a link-local address can't be
@@ -15043,6 +15086,200 @@ function updateNavbarUpdateIndicator () {
 	} else {
 		$('#navbarUpdateAvail').hide();
 	}
+}
+
+/**
+ * Read the plugin-update status and publish it. Cheap: the server reads one file.
+ * No retry: a failed request publishes "not checked", never "up to date".
+ *
+ * onDone(state), if given, runs once the read that settles has published: a
+ * read asked for mid-flight is re-run, so the caller's own write is seen.
+ * While the server says a check is running, this re-reads itself every few
+ * seconds until it ends, so the icon, rows and status line follow it live.
+ */
+function checkForPluginUpdates (onDone) {
+	if (typeof onDone === 'function') {
+		_pluginUpdateCheckWaiters.push(onDone);
+	}
+	if (_pluginUpdateCheckInFlight) {
+		_pluginUpdateCheckAgain = true;
+		return;
+	}
+	_pluginUpdateCheckInFlight = true;
+
+	var finished = function () {
+		_pluginUpdateCheckInFlight = false;
+		if (_pluginUpdateCheckAgain) {
+			_pluginUpdateCheckAgain = false;
+			checkForPluginUpdates();
+			return;
+		}
+		var waiters = _pluginUpdateCheckWaiters;
+		_pluginUpdateCheckWaiters = [];
+		waiters.forEach(function (fn) { fn(FPP_PLUGIN_UPDATE_STATE); });
+		if (_pluginUpdatePollTimer) {
+			clearTimeout(_pluginUpdatePollTimer);
+			_pluginUpdatePollTimer = null;
+		}
+		if (!FPP_PLUGIN_UPDATE_STATE.checkFailed && FPP_PLUGIN_UPDATE_STATE.sweep.result === 'in-progress') {
+			_pluginUpdatePollTimer = setTimeout(function () {
+				_pluginUpdatePollTimer = null;
+				checkForPluginUpdates();
+			}, PLUGIN_UPDATE_POLL_MS);
+		}
+	};
+	$.get('api/plugin/updateStatus')
+		.done(function (data) {
+			if (!applyPluginUpdateStatus(data)) {
+				FPP_PLUGIN_UPDATE_STATE.checkFailed = true;
+			}
+			_pluginUpdatePollRetriesLeft = PLUGIN_UPDATE_POLL_RETRIES;
+			publishPluginUpdateState();
+			finished();
+		})
+		.fail(function () {
+			console.log('Failed to read plugin update status via API');
+			var wasRunning = !FPP_PLUGIN_UPDATE_STATE.checkFailed && FPP_PLUGIN_UPDATE_STATE.sweep.result === 'in-progress';
+			if (wasRunning && _pluginUpdatePollRetriesLeft > 0) {
+				// Keep the last good (in-progress) state and try again on the
+				// poll clock; waiters stay queued until a read lands.
+				_pluginUpdatePollRetriesLeft--;
+				_pluginUpdateCheckInFlight = false;
+				if (_pluginUpdatePollTimer) {
+					clearTimeout(_pluginUpdatePollTimer);
+				}
+				_pluginUpdatePollTimer = setTimeout(function () {
+					_pluginUpdatePollTimer = null;
+					checkForPluginUpdates();
+				}, PLUGIN_UPDATE_POLL_MS);
+				return;
+			}
+			FPP_PLUGIN_UPDATE_STATE.checkFailed = true;
+			publishPluginUpdateState();
+			finished();
+		});
+}
+
+/**
+ * Check every plugin for updates now: asks the server to run its check (the
+ * same sequential, low-priority one that runs in the background) and follows it
+ * with checkForPluginUpdates() until it ends. onDone(state) then runs with the
+ * result; onStart(started, message) reports whether one was started or was
+ * already running (either way the poll follows it).
+ */
+function requestPluginUpdateCheck (onDone, onStart) {
+	$.post('api/plugin/updateStatus/refresh')
+		.done(function (data) {
+			var ok = data && data.status === 'OK';
+			if (typeof onStart === 'function') {
+				onStart(ok && !!data.started, (data && data.message) || '');
+			}
+			if (!ok) {
+				if (typeof onDone === 'function') onDone(null);
+				return;
+			}
+			waitForPluginUpdateCheck(onDone);
+		})
+		.fail(function () {
+			if (typeof onStart === 'function') onStart(false, 'could not reach FPP');
+			if (typeof onDone === 'function') onDone(null);
+		});
+}
+
+// Read until the server's check is no longer running, then onDone(state).
+function waitForPluginUpdateCheck (onDone) {
+	var settle = function (state) {
+		if (!state.checkFailed && state.sweep.result === 'in-progress') {
+			// Still running: ride the poll checkForPluginUpdates() has queued
+			// rather than start a read of our own.
+			_pluginUpdateCheckWaiters.push(settle);
+			return;
+		}
+		if (typeof onDone === 'function') onDone(state);
+	};
+	checkForPluginUpdates(settle);
+}
+
+// Copy an updateStatus response into FPP_PLUGIN_UPDATE_STATE; false if it isn't one.
+function applyPluginUpdateStatus (data) {
+	if (!data || data.status !== 'OK') {
+		return false;
+	}
+	FPP_PLUGIN_UPDATE_STATE.checkFailed = false;
+	FPP_PLUGIN_UPDATE_STATE.updatesAvailable = !!data.updatesAvailable;
+	FPP_PLUGIN_UPDATE_STATE.plugins = Array.isArray(data.plugins) ? data.plugins : [];
+	FPP_PLUGIN_UPDATE_STATE.unchecked = Array.isArray(data.unchecked) ? data.unchecked : [];
+	FPP_PLUGIN_UPDATE_STATE.errors = (data.errors && typeof data.errors === 'object') ? data.errors : {};
+	FPP_PLUGIN_UPDATE_STATE.installed = data.installed || 0;
+	FPP_PLUGIN_UPDATE_STATE.checked = !!data.checked;
+	FPP_PLUGIN_UPDATE_STATE.lastCheck = data.lastCheck || 0;
+	FPP_PLUGIN_UPDATE_STATE.stale = !!data.stale;
+	var sweep = (data.sweep && typeof data.sweep === 'object') ? data.sweep : {};
+	FPP_PLUGIN_UPDATE_STATE.sweep = {
+		finishedAt: sweep.finishedAt || 0,
+		result: sweep.result || '',
+		message: sweep.message || '',
+		trigger: sweep.trigger || '',
+		done: sweep.done || 0,
+		total: sweep.total || 0
+	};
+	return true;
+}
+
+// Publish FPP_PLUGIN_UPDATE_STATE to every consumer.
+function publishPluginUpdateState () {
+	FPP_PLUGIN_UPDATE_STATE.answered = true;
+	updateNavbarPluginUpdateIndicator();
+	$(document).trigger('fpp:pluginUpdateStatusChanged', [FPP_PLUGIN_UPDATE_STATE]);
+}
+
+// StreamURL callback for a single-plugin upgrade: the server has written the
+// new verdict, so re-read it for the icon.
+function PluginUpgradeStreamDone (id) {
+	ProgressDialogDone(id);
+	checkForPluginUpdates();
+}
+
+// How old the plugin-update answer is ("3 hours ago"), or '' if never checked.
+function pluginUpdateCheckedAgo () {
+	var ts = FPP_PLUGIN_UPDATE_STATE.lastCheck;
+	if (!ts) {
+		return '';
+	}
+	var secs = Math.max(0, Math.floor(Date.now() / 1000) - ts);
+	if (secs < 90) return 'just now';
+	var mins = Math.round(secs / 60);
+	if (mins < 60) return mins + ' minute' + (mins == 1 ? '' : 's') + ' ago';
+	var hours = Math.round(secs / 3600);
+	if (hours < 48) return hours + ' hour' + (hours == 1 ? '' : 's') + ' ago';
+	var days = Math.round(secs / 86400);
+	return days + ' days ago';
+}
+
+/**
+ * Update the navbar plugin-update icon. It only means "an update is waiting",
+ * so it stays hidden when nothing is known; "could not check" is explained on
+ * the Updates tab.
+ */
+function updateNavbarPluginUpdateIndicator () {
+	if (!FPP_PLUGIN_UPDATE_STATE.updatesAvailable) {
+		$('#navbarPluginUpdateAvail').hide();
+		return;
+	}
+	var names = FPP_PLUGIN_UPDATE_STATE.plugins || [];
+	var title = names.length
+		? 'Plugin update' + (names.length > 1 ? 's' : '') + ' available: ' + names.join(', ')
+		: 'Plugin updates available';
+	var unchecked = (FPP_PLUGIN_UPDATE_STATE.unchecked || []).length;
+	if (unchecked) {
+		title += ' (' + unchecked + ' could not be checked)';
+	}
+	var ago = pluginUpdateCheckedAgo();
+	if (ago) {
+		title += ' - checked ' + ago;
+	}
+	$('#navbarPluginUpdateAvailIcon').attr('title', title);
+	$('#navbarPluginUpdateAvail').show();
 }
 
 /**

@@ -15,6 +15,7 @@
      --fpp-danger-dark,  --fpp-danger-light                        (use var(--bs-danger)  for the base)
      --fpp-info,    --fpp-info-light,   --fpp-info-text
      --fpp-gray
+     --fpp-header-attention                                        (header update icons; not themed)
 
    Colors — text / backgrounds / borders:
      --fpp-text-primary, --fpp-text-secondary, --fpp-text-muted, --fpp-text-light
@@ -62,6 +63,9 @@
 	/* Between success and warning -- a "pass" still worth a second look
 	   (e.g. Community Plugins: not an error, but not FPP-team-reviewed either). */
 	--fpp-caution: #7a9a1e;
+	/* Header update icons: the FPP amber (7.1:1 on the #171720 header;
+	   --bs-warning is glaring at 1.5em). Not themed: the header is dark in both modes. */
+	--fpp-header-attention: #f58822;
 
 	/* Neutral Colors - Text */
 	--fpp-text-primary: #333;

@@ -99,6 +99,11 @@ function list_plugin_entries($menu)
                     <i class="fa-solid fa-download" id="navbarUpdateAvailIcon"></i>
                 </a>
             </div>
+            <div id="navbarPluginUpdateAvail">
+                &nbsp;<a href="plugins.php?tab=updates" role="button">
+                    <i class="fa-solid fa-puzzle-piece" id="navbarPluginUpdateAvailIcon"></i>
+                </a>
+            </div>
         </div>
 
     </div>
@@ -542,4 +547,12 @@ function list_plugin_entries($menu)
                     checkForFppUpdate();
                 }
             }, 500);
+            // Same shape for the plugin-update icon: a file read on the server,
+            // skipped if a page (plugins.php) already asked. The offset from the
+            // check above is only so the two don't start in the same tick.
+            setTimeout(function () {
+                if (!FPP_PLUGIN_UPDATE_STATE.answered) {
+                    checkForPluginUpdates();
+                }
+            }, 700);
         </script>

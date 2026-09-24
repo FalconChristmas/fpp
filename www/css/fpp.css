@@ -1082,13 +1082,15 @@ body.modal-open #scrollTopButton {
 	box-shadow: none;
 }
 
-#navbarUpdateAvail {
+#navbarUpdateAvail,
+#navbarPluginUpdateAvail {
 	display: none;
-	color: red;
 }
 
-#navbarUpdateAvail a {
-	color: rgb(245, 136, 34);
+#navbarUpdateAvail a,
+#navbarPluginUpdateAvail a {
+	/* A token, not an rgb() literal (rule 3); see its definition. */
+	color: var(--fpp-header-attention);
 	font-size: 1.5em;
 }
 
