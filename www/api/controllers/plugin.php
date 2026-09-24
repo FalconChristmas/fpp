@@ -1956,15 +1956,44 @@ function UninstallPlugin()
  * when the installed pluginInfo.json has no usable versions[]), the entry
  * the server selects; a Reinstall posts these back.
  */
+// Hard cap on one fetch, plus a stall detector (below 1000 B/s for STALL_SECONDS):
+// a remote that goes quiet must not hold a php-fpm worker indefinitely.
+define('PLUGIN_GIT_FETCH_TIMEOUT', 60);
+define('PLUGIN_GIT_FETCH_STALL_SECONDS', 15);
+
+/**
+ * Bounded, prompt-free `git fetch $args` (already shell-escaped) in $dir. `env`
+ * goes after $SUDO so the variables survive it; $keepStderr keeps git's message
+ * for PluginFetchFailureReason().
+ */
+function PluginGitFetchCmd($dir, $args = '', $keepStderr = false, $opts = array())
+{
+	global $SUDO;
+	$timeout = isset($opts['timeout']) ? (int) $opts['timeout'] : PLUGIN_GIT_FETCH_TIMEOUT;
+	// In front of git, not the whole command: `nice cd` exits 127 and skips the fetch.
+	$prio = !empty($opts['background']) ? ('nice -n 19 ' . (PluginHaveCommand('ionice') ? 'ionice -c2 -n7 ' : '')) : '';
+	// No `timeout` (macOS): the stall detector is then the only bound.
+	$limit = PluginHaveCommand('timeout') ? (' timeout -k 5 ' . $timeout) : '';
+	return 'cd ' . escapeshellarg($dir) . ' && ' . $SUDO . ' ' . $prio .
+		'env GIT_TERMINAL_PROMPT=0 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=' . PLUGIN_GIT_FETCH_STALL_SECONDS .
+		$limit . ' git fetch' . ($args !== '' ? ' ' . $args : '') .
+		($keepStderr ? ' 2>&1' : ' 2>/dev/null');
+}
+
 function CheckForPluginUpdates()
 {
 	global $settings, $SUDO;
 	$result = array();
 
 	$plugin = params('RepoName');
+	if (!preg_match('/^[A-Za-z0-9_.-]+$/', $plugin) || !file_exists($settings['pluginDirectory'] . '/' . $plugin . '/pluginInfo.json')) {
+		$result['Status'] = 'Error';
+		$result['reason'] = 'not installed';
+		$result['Message'] = 'Could not check ' . $plugin . ': not installed';
+		return json($result);
+	}
 
-	$cmd = '(cd ' . $settings['pluginDirectory'] . '/' . $plugin . ' && ' . $SUDO . ' git fetch)';
-	exec($cmd, $output, $return_val);
+	exec(PluginGitFetchCmd($settings['pluginDirectory'] . '/' . $plugin, '', true), $output, $return_val);
 
 	if ($return_val == 0) {
 		$result['Status'] = 'OK';
@@ -2014,8 +2043,57 @@ function CheckForPluginUpdates()
 	}
 
 	$result['Status'] = 'Error';
-	$result['Message'] = 'Could not run git fetch for plugin ' . $plugin;
+	$reason = PluginFetchFailureReason($output, $return_val);
+	// Message is the whole sentence; reason is the same thing without the
+	// plugin name, for a caller that is already naming the plugin itself.
+	$result['reason'] = $reason;
+	$result['Message'] = 'Could not check ' . $plugin . ': ' . $reason;
 	return json($result);
+}
+
+/**
+ * Turn a failed fetch into a reason the user can act on ("needs a token", not
+ * "check the WiFi"); anything unrecognised quotes git's first line.
+ *
+ * @param array $output Combined stdout+stderr of the failed fetch.
+ * @param int $rv Its exit status; 124/137 mean the timeout fired.
+ * @param int $timeout The timeout the fetch ran with, for the message.
+ * @return string A reason, for the Updates tab and the state file.
+ */
+function PluginFetchFailureReason($output, $rv = 0, $timeout = PLUGIN_GIT_FETCH_TIMEOUT)
+{
+	$text = is_array($output) ? implode("\n", $output) : (string) $output;
+	if ($rv == 124 || $rv == 137) {
+		return 'the repository did not respond within ' . $timeout . ' seconds';
+	}
+	if (stripos($text, 'terminal prompts disabled') !== false
+		|| stripos($text, 'could not read Username') !== false
+		|| stripos($text, 'Authentication failed') !== false
+		|| stripos($text, 'Permission denied (publickey)') !== false
+		|| preg_match('/returned error: 40[13]\b/', $text)) {
+		// A fetch only uses credentials already in the clone's origin; the
+		// token from Settings > Developer is applied at clone time.
+		return 'this repository needs credentials; add a GitHub token on the Developer tab of Settings (UI Level: Developer) and Reinstall with Use Credentials, or use an ssh remote';
+	}
+	if (stripos($text, 'Repository not found') !== false
+		|| stripos($text, 'does not appear to be a git repository') !== false
+		|| preg_match('/returned error: 404\b/', $text)) {
+		return 'the repository could not be found; it may have moved, been renamed, or been made private';
+	}
+	if (stripos($text, 'Could not resolve host') !== false
+		|| stripos($text, 'unable to access') !== false
+		|| stripos($text, 'Connection timed out') !== false
+		|| stripos($text, 'Could not connect') !== false
+		|| stripos($text, 'Network is unreachable') !== false) {
+		return 'the player could not reach the repository host; it may be offline';
+	}
+	if (stripos($text, 'cannot lock ref') !== false || stripos($text, 'Unable to create') !== false) {
+		return 'another check was fetching this plugin at the same time; it will be retried';
+	}
+	// Redact tokens embedded in the remote URL: this reaches the UI and the support zip.
+	$first = trim((string) strtok($text, "\n"));
+	$first = preg_replace('#([a-z][a-z0-9+.-]*://)[^/\s@]+@#i', '$1***@', $first);
+	return ($first !== '') ? ('git fetch failed: ' . $first) : 'git fetch failed';
 }
 
 // The clone URL the page posts with an update check ({"srcURL": ..,
@@ -2064,8 +2142,7 @@ function PluginFetchReinstallTargetByURL($plugin, $branch, $url)
 		return false;
 	}
 	$remote = ($url !== '') ? escapeshellarg($url) : 'origin';
-	exec('cd ' . escapeshellarg($dir) . ' && ' . $SUDO . ' timeout 60 git fetch ' . $remote . ' ' .
-		escapeshellarg('+refs/heads/' . $branch . ':refs/remotes/origin/' . $branch) . ' 2>/dev/null', $o, $rv);
+	exec(PluginGitFetchCmd($dir, $remote . ' ' . escapeshellarg('+refs/heads/' . $branch . ':refs/remotes/origin/' . $branch)), $o, $rv);
 	unset($o);
 	return $rv == 0;
 }
@@ -2631,13 +2708,35 @@ function PluginReinstallTarget($plugin)
 	return array($branch, $sha);
 }
 
-// The checked-out branch of an installed plugin, '' when detached or unreadable.
-function PluginCurrentBranch($plugin)
+// The checked-out branch of an installed plugin, or '' when there is none:
+// detached HEAD, a branch name this code will not put in a shell command, or
+// git itself failing (corrupt clone, "dubious ownership"). Since '' covers all
+// three, $why receives a one-line reason the caller can show ("not on a branch
+// (detached HEAD)"); it is '' on success. Callers that only want the branch
+// pass nothing.
+function PluginCurrentBranch($plugin, &$why = null)
 {
 	global $settings;
 	$dir = $settings['pluginDirectory'] . '/' . $plugin;
-	$branch = trim((string) shell_exec('cd ' . escapeshellarg($dir) . ' && git rev-parse --abbrev-ref HEAD 2>/dev/null'));
-	return ($branch !== '' && $branch !== 'HEAD' && preg_match('/^[A-Za-z0-9_.\/-]+$/', $branch)) ? $branch : '';
+	unset($output);
+	exec('cd ' . escapeshellarg($dir) . ' && git rev-parse --abbrev-ref HEAD 2>&1', $output, $rv);
+	if ($rv != 0) {
+		// "dubious ownership", a corrupt repository: not a detached HEAD.
+		$first = isset($output[0]) ? trim($output[0]) : '';
+		$why = 'git could not read the checked-out branch' . ($first !== '' ? ' (' . $first . ')' : '');
+		return '';
+	}
+	$branch = isset($output[0]) ? trim($output[0]) : '';
+	if ($branch === '' || $branch === 'HEAD') {
+		$why = 'not on a branch (detached HEAD)';
+		return '';
+	}
+	if (!preg_match('/^[A-Za-z0-9_.\/+@-]+$/', $branch)) {
+		$why = 'unsupported branch name ' . $branch;
+		return '';
+	}
+	$why = '';
+	return $branch;
 }
 
 // Bring origin/<branch> up to date for a branch other than the checked-out
@@ -2652,7 +2751,7 @@ function PluginFetchBranch($plugin, $branch)
 	if ($branch === '' || !preg_match('/^[A-Za-z0-9_.\/-]+$/', $branch)) {
 		return false;
 	}
-	exec('cd ' . escapeshellarg($dir) . ' && ' . $SUDO . ' git fetch origin ' . escapeshellarg('refs/heads/' . $branch . ':refs/remotes/origin/' . $branch) . ' 2>/dev/null', $o, $rv);
+	exec(PluginGitFetchCmd($dir, 'origin ' . escapeshellarg('refs/heads/' . $branch . ':refs/remotes/origin/' . $branch)), $o, $rv);
 	unset($o);
 	return $rv == 0;
 }
@@ -2687,7 +2786,7 @@ function PluginPendingPrivacy($plugin, $fetch = false, $target = 'upgrade')
 		}
 	}
 	if ($fetch) {
-		exec('cd ' . escapeshellarg($dir) . ' && ' . $SUDO . ' git fetch 2>/dev/null', $o, $rv);
+		exec(PluginGitFetchCmd($dir), $o, $rv);
 		unset($o);
 		// UpgradePlugin reads both: a failed fetch (offline) must refuse
 		// rather than fast-forward to whatever stale ref is here, and the
