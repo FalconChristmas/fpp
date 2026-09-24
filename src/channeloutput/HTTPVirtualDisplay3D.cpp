@@ -534,11 +534,9 @@ void HTTPVirtualDisplay3DOutput::PrepData(unsigned char* channelData) {
         b = b >> 2;
 
         // For 3D mode: Send ALL non-black pixels every frame
+        // 3D sends pixel indexes, not buffer positions, and never reads
+        // m_virtualDisplay back, so there is nothing to cache here.
         if (r != 0 || g != 0 || b != 0 || forceBlackUpdate) {
-            m_virtualDisplay[m_pixels[i].r] = r;
-            m_virtualDisplay[m_pixels[i].g] = g;
-            m_virtualDisplay[m_pixels[i].b] = b;
-
             // Pack RGB into 32-bit key for fast hash lookup
             uint32_t colorKey = (r << 16) | (g << 8) | b;
             
