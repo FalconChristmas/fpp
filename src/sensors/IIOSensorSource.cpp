@@ -224,9 +224,18 @@ void IIOSensorSource::enable(int id) {
             close(f);
         }
     } else {
+        // enable() is called once per consumer, not once per channel: every
+        // port's current monitor enables its channel again on each channel
+        // output reload, and a MuxSensorSource enables the same underlying
+        // channel for every port it multiplexes.  Opening unconditionally
+        // overwrote the previous descriptor without closing it, leaking one
+        // fd per call until fppd hit EMFILE.
+        if (id < 0 || id >= (int)channelMapping.size() || channelMapping[id] >= 0) {
+            return;
+        }
         char buf[256];
         snprintf(buf, 256, "/sys/bus/iio/devices/iio:device%d/in_voltage%d_raw", iioDevNumber, id);
-        channelMapping[id] = open(buf, O_RDONLY);
+        channelMapping[id] = open(buf, O_RDONLY | O_CLOEXEC);
     }
 }
 
