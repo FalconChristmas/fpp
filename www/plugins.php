@@ -44,7 +44,6 @@
         var pluginCategoryOf = {};        // lowercased pluginList name -> category name
         var activeCategorySlug = 'all';
         var activeTopTab = 'available';
-        var updatesCheckedOnce = false;
         // Both feed UpdatePopularStripVisibility(): the strip is hidden during a search
         // (the results grid is the answer then) and whenever it has nothing to show.
         var popularStripHasCards = false;
@@ -304,9 +303,8 @@
                     // (plugins.php?action=reinstallAll): now that installedPlugins
                     // and pluginInfos are loaded, pop the Reinstall All confirm.
                     MaybeAutoOpenReinstallAll();
-                    // Everything is rendered and interactive; refresh the Updates
-                    // tab count for real, quietly, in the background.
-                    BackgroundCheckForUpdates();
+                    // Mark the rows from what the navbar's status read knows so far.
+                    ApplyPluginUpdateStateToRows(FPP_PLUGIN_UPDATE_STATE);
                 },
                 error: function () {
                     alert('Error, failed to get pluginList.json');
@@ -480,9 +478,17 @@
 
         // Busy state for the "Check for Update" button in the plugin detail
         // modal: disabled with a spinning wheel / "Checking for Updates" label
-        // while the per-plugin check runs, mirroring SetCheckForUpdatesBusy on the
+        // while the per-plugin check runs, mirroring SetPluginCheckButtonsBusy on the
         // Updates tab. No-ops when the button doesn't exist (dialog closed).
+        // A running full check greys it too (SweepInProgress): the server would
+        // make this check wait on the plugin's fetch lock for up to 30 s.
+        var detailCheckInFlight = false;
+        function SweepInProgress() {
+            return !FPP_PLUGIN_UPDATE_STATE.checkFailed && FPP_PLUGIN_UPDATE_STATE.sweep.result === 'in-progress';
+        }
         function SetDetailCheckBusy(plugin, busy) {
+            detailCheckInFlight = busy;
+            busy = busy || SweepInProgress();
             var $btn = $('#pluginDetailCheckBtn');
             if (!$btn.length) return;
             if (busy) {
@@ -505,11 +511,22 @@
                 dataType: 'json',
                 success: function (data) {
                     $('html,body').css('cursor', 'auto');
-                    if (data.Status == 'OK') {
+                    if (data.Status == 'OK' && (data.unchecked || data.originUnreachable)) {
+                        // Fetched, but git could not say (detached HEAD, no
+                        // tracking ref), or only the reinstall target answered:
+                        // not "no updates".
+                        SetDetailCheckBusy(plugin, false);
+                        checkForPluginUpdates();
+                        $.jGrowl(EscapeHtml(data.Message || ('Could not check ' + plugin)), { themeState: 'warn', sticky: true });
+                    } else if (data.Status == 'OK') {
                         pluginPrivacyChanged[plugin] = !!data.privacyChanged;
                         pluginReinstallPrivacyChanged[plugin] = !!data.reinstallPrivacyChanged;
                         if (data.reinstallTarget) pluginReinstallTarget[plugin] = data.reinstallTarget;
+                        // The server wrote the verdict through: re-read so the
+                        // navbar icon and the Updates tab follow this check too.
+                        checkForPluginUpdates();
                         if (data.updatesAvailable) {
+                            detailCheckInFlight = false; // the button is replaced, not un-busied
                             RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
                             var $modal = $('#pluginDetailDialog');
                             if ($modal.length && $modal.is(':visible')) {
@@ -547,20 +564,24 @@
             });
         }
 
-        // Shared by CheckAllPluginsForUpdates, UpdateAllPlugins's pre-check, and
-        // UpdateAllFinish's post-upgrade recheck: POSTs api/plugin/<name>/updates
-        // for every plugin in pluginList in parallel, and calls onComplete once
-        // every request has settled (success or error). onResult(plugin, hasUpdate)
-        // fires per successful check (Status OK) so callers can drive their own row UI;
-        // onComplete(withUpdates, anyError) fires once with the aggregate result.
+        // Used by Reinstall for the plugins the user picked: POSTs
+        // api/plugin/<name>/updates for each in parallel (it also learns the
+        // reinstall target and whether the privacy disclosure changed), and
+        // calls onComplete once every request has settled. onResult(plugin,
+        // hasUpdate) fires per successful check; onComplete(withUpdates,
+        // anyError, failed, failReasons) fires once, failReasons mapping each
+        // failed plugin to the server's reason. Checking every plugin is the
+        // server's job (Check for Updates / the background check), not this.
         function CheckPluginsForUpdates(pluginList, onResult, onComplete) {
             var checked = 0;
             var total = pluginList.length;
             if (total === 0) {
-                onComplete([], false);
+                onComplete([], false, [], {});
                 return;
             }
             var withUpdates = [];
+            var failed = [];
+            var failReasons = {};
             var anyError = false;
             pluginList.forEach(function (plugin) {
                 // The listing's clone URL rides along: when the installed
@@ -583,8 +604,13 @@
                         // A failed fetch comes back as Status:Error with HTTP 200;
                         // that is an error for onResult's purposes too (Reinstall
                         // relies on "no result" meaning "not checked").
-                        if (data.Status != 'OK') {
+                        // Likewise a fetch that worked but gave no verdict
+                        // (unchecked): "could not check" must never count as
+                        // up to date.
+                        if (data.Status != 'OK' || data.unchecked) {
                             anyError = true;
+                            failed.push(plugin);
+                            failReasons[plugin] = data.reason || 'the check could not be run';
                             return;
                         }
                         if (data.originUnreachable) {
@@ -601,84 +627,44 @@
                     },
                     error: function () {
                         anyError = true;
+                        failed.push(plugin);
+                        // This browser could not reach FPP -- not the same as FPP
+                        // being unable to reach the repository.
+                        failReasons[plugin] = 'this browser could not reach FPP to run the check; the connection may have dropped';
                     },
                     complete: function () {
                         checked++;
-                        if (checked === total) onComplete(withUpdates, anyError);
+                        if (checked === total) {
+                            // Each check wrote through; re-read so the navbar and
+                            // the rows agree.
+                            checkForPluginUpdates();
+                            onComplete(withUpdates, anyError, failed, failReasons);
+                        }
                     }
                 });
             });
         }
 
-        // Quiet background pass over the installed plugins so the Updates tab
-        // count reflects a real (fetch-based) check without anyone pressing
-        // "Check for Updates" -- the page-load render only knows about commits
-        // that some earlier fetch already pulled down, so the tab's [0] was
-        // asserting "no updates" from stale information.
-        //
-        // Deliberately different from CheckPluginsForUpdates: one request at a
-        // time, not a parallel fan-out. Each check runs a git fetch server-side,
-        // and N of those at once would occupy the PHP worker pool exactly when
-        // the user might be clicking Install. No cursor, no button locking, no
-        // growls -- rows and the tab count just correct themselves as answers
-        // arrive. The explicit Check/Update All buttons cancel the sweep (they
-        // are about to redo the same work in parallel anyway); a failed check
-        // is skipped silently since offline boxes hit this on every page load.
-        var bgUpdateSweep = null; // non-null while a background sweep is running
-
-        function CancelBackgroundUpdateCheck() {
-            if (bgUpdateSweep) {
-                bgUpdateSweep.cancelled = true;
-                bgUpdateSweep = null;
-            }
+        // Mark the rows from the shared update state. Plugins with no verdict
+        // keep whatever the page last learned.
+        function ApplyPluginUpdateStateToRows(state) {
+            if (!state || !state.answered || state.checkFailed || installedPlugins.length === 0) return;
+            var withUpdates = state.plugins || [];
+            var unchecked = state.unchecked || [];
+            installedPlugins.forEach(function (plugin) {
+                if (withUpdates.indexOf(plugin) >= 0)
+                    RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
+                else if (unchecked.indexOf(plugin) < 0)
+                    RowEl(plugin).removeClass('fppHasUpdate').find('.updatesAvailable').addClass('d-none');
+            });
+            FilterPlugins();
         }
 
-        function BackgroundCheckForUpdates() {
-            if (bgUpdateSweep || installedPlugins.length === 0)
-                return;
-            var sweep = { cancelled: false };
-            bgUpdateSweep = sweep;
-            var queue = installedPlugins.slice();
-
-            function finish() {
-                if (bgUpdateSweep === sweep)
-                    bgUpdateSweep = null;
-            }
-            function next() {
-                if (sweep.cancelled || queue.length === 0) {
-                    finish();
-                    return;
-                }
-                var plugin = queue.shift();
-                $.ajax({
-                    url: 'api/plugin/' + plugin + '/updates',
-                    type: 'POST',
-                    dataType: 'json',
-                    success: function (data) {
-                        if (!sweep.cancelled && data.Status == 'OK') {
-                            pluginPrivacyChanged[plugin] = !!data.privacyChanged;
-                            pluginReinstallPrivacyChanged[plugin] = !!data.reinstallPrivacyChanged;
-                            if (data.reinstallTarget) pluginReinstallTarget[plugin] = data.reinstallTarget;
-                            if (data.updatesAvailable)
-                                RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
-                            else
-                                RowEl(plugin).removeClass('fppHasUpdate');
-                            FilterPlugins();
-                        }
-                        next();
-                    },
-                    error: function () {
-                        next();
-                    }
-                });
-            }
-            next();
-        }
-
-        // Toggle the "Check for Updates" button between its idle and busy states.
-        // Busy: disabled with a spinning wheel and "Checking for Updates" label.
-        // Idle: enabled with the sync icon and "Check for Updates" label.
-        function SetCheckForUpdatesBusy(busy) {
+        // Check for Updates and Update All are one server-side check apart:
+        // while it runs (from either button, or in the background) both wait.
+        // The single-plugin Update button stays live; the server serialises
+        // a check and an upgrade of the same plugin itself.
+        function SetPluginCheckButtonsBusy(busy) {
             var $btn = $('#checkAllUpdatesBtn');
             if (busy) {
                 $btn.prop('disabled', true);
@@ -687,33 +673,36 @@
                 $btn.prop('disabled', false);
                 $btn.html('<i class="fas fa-sync-alt"></i> Check for Updates');
             }
+            $('#updateAllBtn').prop('disabled', busy);
         }
 
+        // Check for Updates: the server runs its check of every plugin (one at a
+        // time, low priority: the same one that runs in the background) and the
+        // page follows it. The rows, the status line and the navbar icon update
+        // as it goes, via fpp:pluginUpdateStatusChanged; this only adds the growl.
         function CheckAllPluginsForUpdates() {
             if (installedPlugins.length === 0) {
                 $.jGrowl('No plugins installed', { themeState: 'detract' });
                 return;
             }
-            CancelBackgroundUpdateCheck();
-
-            $('html,body').css('cursor', 'wait');
-            SetCheckForUpdatesBusy(true);
-
-            CheckPluginsForUpdates(installedPlugins, function (plugin, hasUpdate) {
-                if (hasUpdate) {
-                    RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
+            SetPluginCheckButtonsBusy(true);
+            requestPluginUpdateCheck(function (state) {
+                if (!state || state.checkFailed) {
+                    $.jGrowl('Could not check for plugin updates: the check could not be started or its result could not be read', { themeState: 'warn' });
+                    SetPluginCheckButtonsBusy(false);
+                    return;
                 }
-            }, function (withUpdates, anyError) {
-                $('html,body').css('cursor', 'auto');
-                SetCheckForUpdatesBusy(false);
-                if (anyError) {
-                    $.jGrowl('Completed checking plugins (some checks failed)', { themeState: 'warn' });
-                } else if (withUpdates.length > 0) {
-                    $.jGrowl('Found updates for ' + withUpdates.length + ' plugin(s)', { themeState: 'success' });
-                } else {
-                    $.jGrowl('All plugins are up to date', { themeState: 'success' });
-                }
-                FilterPlugins();
+                // One neutral summary that the check has finished. The reasons
+                // for anything that could not be checked are on the Updates tab
+                // already; a warning here would repeat on every check for a
+                // plugin that fails for a lasting reason (a private repository).
+                var failed = (state.unchecked || []).filter(function (p) { return state.errors && state.errors[p]; });
+                var actionable = ActionableUpdates(state);
+                var parts = [];
+                parts.push(actionable.length ? (actionable.length + ' update' + (actionable.length > 1 ? 's' : '') + ' available') : 'no updates');
+                if (failed.length) parts.push(failed.length + ' could not be checked');
+                $.jGrowl('Checked ' + state.installed + ' plugin' + (state.installed == 1 ? '' : 's') + ': ' + parts.join(', '),
+                    { themeState: failed.length ? 'detract' : 'success' });
             });
         }
 
@@ -725,45 +714,68 @@
         // All queue + progress-dialog + verify-by-recheck pattern.
         var updateAllAttempted = [];
 
-        // Entry point (toolbar button). Runs a fresh update check across all
-        // installed plugins first so the user does not have to click "Check All for
-        // Updates" beforehand, then confirms and upgrades those with updates.
+        // Entry point (toolbar button). Has the server check every installed
+        // plugin first, so the user does not have to press Check for Updates
+        // beforehand, then confirms and upgrades those with an update.
         function UpdateAllPlugins() {
             if (installedPlugins.length === 0) {
                 $.jGrowl('No plugins installed', { themeState: 'detract' });
                 return;
             }
-            CancelBackgroundUpdateCheck();
-            $('html,body').css('cursor', 'wait');
-            $('#updateAllBtn').prop('disabled', true);
-            SetCheckForUpdatesBusy(true);
-
-            CheckPluginsForUpdates(installedPlugins, function (plugin, hasUpdate) {
-                if (hasUpdate) {
-                    RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
+            SetPluginCheckButtonsBusy(true);
+            requestPluginUpdateCheck(function (state) {
+                if (!state || state.checkFailed) {
+                    SetPluginCheckButtonsBusy(false);
+                    $.jGrowl('Could not check for plugin updates: the check could not be started or its result could not be read', { themeState: 'warn' });
+                    return;
                 }
-            }, function (withUpdates, anyError) {
-                UpdateAllChecksDone(withUpdates, anyError);
+                var failed = (state.unchecked || []).filter(function (p) { return state.errors && state.errors[p]; });
+                UpdateAllChecksDone(ActionableUpdates(state), failed.length > 0, failed);
             });
         }
 
-        function UpdateAllChecksDone(withUpdates, anyError) {
-            $('html,body').css('cursor', 'auto');
-            $('#updateAllBtn').prop('disabled', false);
-            SetCheckForUpdatesBusy(false);
+        // Plugins with an update that can actually be applied now. A plugin
+        // whose last check failed keeps its earlier "update available" for the
+        // icon, but is also in unchecked: Update would refuse it, so leave it out.
+        function ActionableUpdates(state) {
+            var unchecked = state.unchecked || [];
+            return (state.plugins || []).filter(function (p) { return unchecked.indexOf(p) < 0; });
+        }
+
+        // Which of these plugins would show a privacy dialog on upgrade: asks
+        // api/plugin/<name>/privacy for each (a local read), then cb(names).
+        function FindPrivacyReviewNeeded(plugins, cb) {
+            var needs = [];
+            var left = plugins.length;
+            if (!left) { cb(needs); return; }
+            plugins.forEach(function (plugin) {
+                $.ajax({ url: 'api/plugin/' + plugin + '/privacy', dataType: 'json' })
+                    .done(function (st) { if (st && st.Status === 'OK' && st.changed) needs.push(plugin); })
+                    .always(function () { if (--left === 0) cb(plugins.filter(function (p) { return needs.indexOf(p) >= 0; })); });
+            });
+        }
+
+        function UpdateAllChecksDone(withUpdates, anyError, failed) {
             FilterPlugins();
             if (withUpdates.length === 0) {
-                if (anyError)
-                    $.jGrowl('Could not check every plugin for updates (is the player online?)', { themeState: 'warn' });
-                else
-                    $.jGrowl('All plugins are up to date', { themeState: 'success' });
+                // Same neutral summary as Check for Updates; the Updates tab has
+                // the reasons. Not a warning: a plugin that fails for a lasting
+                // reason would otherwise warn on every press.
+                var n = (failed || []).length;
+                $.jGrowl('Nothing to update' + (n ? ' (' + n + ' could not be checked)' : ': all plugins are up to date'),
+                    { themeState: n ? 'detract' : 'success' });
                 return;
             }
             // A plugin whose privacy disclosure changed gets its own dialog
             // before the batch runs (the server refuses a blind upgrade of it
             // anyway); the rest go straight through. Only plugins with a
             // question are asked.
-            var needsReview = withUpdates.filter(function (p) { return pluginPrivacyChanged[p]; });
+            FindPrivacyReviewNeeded(withUpdates, function (needsReview) {
+                UpdateAllConfirm(withUpdates, needsReview);
+            });
+        }
+
+        function UpdateAllConfirm(withUpdates, needsReview) {
             var body = "Update the " + withUpdates.length + " plugin(s) with an available update, one at a time?" +
                 "<div class='small text-secondary mt-2'>" + EscapeHtml(withUpdates.join(', ')) + "</div>";
             if (needsReview.length)
@@ -952,15 +964,12 @@
         // ReinstallFinish's re-query verification. A plugin whose code updated but
         // whose install script failed is not stale, so it is picked out of the
         // streamed log instead (UpdateAllScriptFailures) and reported separately.
+        // Each upgrade wrote its own verdict through as it finished, so one
+        // status read is the verification: still listed means still stale.
         function UpdateAllFinish() {
             var total = updateAllAttempted.length;
-            CheckPluginsForUpdates(updateAllAttempted, function (plugin, hasUpdate) {
-                if (hasUpdate) {
-                    RowEl(plugin).addClass('fppHasUpdate').find('.updatesAvailable').removeClass('d-none');
-                } else {
-                    RowEl(plugin).removeClass('fppHasUpdate').find('.updatesAvailable').addClass('d-none');
-                }
-            }, function (stillStale) {
+            checkForPluginUpdates(function (state) {
+                var stillStale = updateAllAttempted.filter(function (p) { return (state.plugins || []).indexOf(p) >= 0; });
                 var scriptFailed = UpdateAllScriptFailures().filter(function (p) { return stillStale.indexOf(p) < 0; });
                 var problems = stillStale.length + scriptFailed.length;
                 var ok = total - problems;
@@ -1020,10 +1029,10 @@
             var url = 'api/plugin/' + plugin + '/upgrade?stream=true';
             DisplayProgressDialog("pluginsProgressPopup", "Upgrade Plugin");
             if (ack !== null) {
-                StreamURL(url, 'pluginsProgressPopupText', 'ProgressDialogDone', 'ProgressDialogDone',
+                StreamURL(url, 'pluginsProgressPopupText', 'PluginUpgradeStreamDone', 'PluginUpgradeStreamDone',
                     'POST', JSON.stringify(ack), 'application/json');
             } else {
-                StreamURL(url, 'pluginsProgressPopupText', 'ProgressDialogDone', 'ProgressDialogDone');
+                StreamURL(url, 'pluginsProgressPopupText', 'PluginUpgradeStreamDone', 'PluginUpgradeStreamDone');
             }
         }
 
@@ -1590,11 +1599,10 @@
                 $.jGrowl('Cannot reinstall ' + EscapeHtml(repos[0]) + ': its plugin info is not available. Nothing was changed.', { themeState: 'warn', sticky: true });
                 return;
             }
-            CancelBackgroundUpdateCheck();
             $('html,body').css('cursor', 'wait');
             $.jGrowl('Checking ' + (repos.length === 1 ? EscapeHtml(repos[0]) : repos.length + ' plugins') + ' for changes...', { themeState: 'detract', life: 4000 });
             var checked = {};
-            CheckPluginsForUpdates(repos, function (plugin) { checked[plugin] = true; }, function () {
+            CheckPluginsForUpdates(repos, function (plugin) { checked[plugin] = true; }, function (withUpdates, anyError, failed, failReasons) {
                 $('html,body').css('cursor', 'auto');
                 var unchecked = repos.filter(function (r) { return !checked[r]; });
                 var toReview = repos.filter(function (r) { return checked[r] && pluginReinstallPrivacyChanged[r]; });
@@ -1605,11 +1613,14 @@
                 if (single && unchecked.length) {
                     // Nothing has been touched yet, so a stop here is a plain
                     // notice, not a progress log to close and reload from.
-                    $.jGrowl('Could not check ' + EscapeHtml(repos[0]) + ' for changes (is the player online?). Nothing was changed.', { themeState: 'warn', sticky: true });
+                    // Say what actually failed: a missing token is not an offline player.
+                    var why = (failReasons && failReasons[repos[0]]) ? failReasons[repos[0]] : 'the check could not be run';
+                    $.jGrowl('Could not check ' + EscapeHtml(repos[0]) + ' for changes: ' + EscapeHtml(why)
+                        + '. Nothing was changed.', { themeState: 'warn', sticky: true });
                     return;
                 }
                 var finish = function () {
-                    RunReinstallPhases(ready, label, accepted, declined, unchecked);
+                    RunReinstallPhases(ready, label, accepted, declined, unchecked, failReasons || {});
                 };
                 // Ask about the plugins whose disclosure changed, in order.
                 var reviewNext = function (i) {
@@ -1742,7 +1753,7 @@
         // the clone confirms it. declined: plugins the operator chose not to
         // accept a changed disclosure for -- uninstalled, not reinstalled.
         // unchecked: plugins whose update check failed -- left installed.
-        function RunReinstallPhases(repos, label, acceptedPrivacy, declined, unchecked) {
+        function RunReinstallPhases(repos, label, acceptedPrivacy, declined, unchecked, uncheckedReasons) {
             // Phase 0: capture the install POST body for every plugin BEFORE
             // removing anything, since uninstalling drops entries from
             // installedPlugins / the DOM. Only plugins we can rebuild an install
@@ -1792,11 +1803,18 @@
                 BatchQueueLog('\nRemoving, not reinstalling (privacy disclosure not accepted): ' + declined.join(', ') + '\n');
             }
             if (unchecked.length) {
-                BatchQueueLog('\nLeft installed as they are (could not be checked for changes \u2014 is the player online?): ' + unchecked.join(', ') + '\n');
+                // One line per plugin with its own reason: this is a log, so
+                // there is room to say why rather than guess at the network.
+                BatchQueueLog('\nLeft installed as they are (could not be checked for changes):\n');
+                unchecked.forEach(function (p) {
+                    var why = (uncheckedReasons && uncheckedReasons[p]) ? uncheckedReasons[p] : 'the check could not be run';
+                    BatchQueueLog('  ' + p + ' \u2014 ' + why + '\n');
+                });
             }
             if (reinstallAttempted.length === 0 && declined.length === 0) {
                 if (unchecked.length)
-                    $.jGrowl('Nothing reinstalled: ' + unchecked.length + ' plugin(s) could not be checked (is the player online?)', { themeState: 'warn', sticky: true });
+                    $.jGrowl('Nothing reinstalled: could not check ' + EscapeHtml(NamePluginList(unchecked))
+                        + ' - see the log above for why', { themeState: 'warn', sticky: true });
                 else
                     BatchQueueLog('No reinstallable plugins found (plugin info unavailable).\n');
                 ProgressDialogDone('pluginsProgressPopupText');
@@ -2796,6 +2814,7 @@
 
             DoModalDialog({ id: 'pluginDetailDialog', class: 'modal-lg', title: titleIcon + EscapeHtml(data.name), body: body, backdrop: true, keyboard: true, footer: detailStats, buttons: buttons });
             FPPPluginPrivacy.bind('pluginDetailDialog');
+            if (installed && SweepInProgress()) SetDetailCheckBusy(repo, false); // greyed until the full check ends
         }
 
         // Category name/icon for a plugin, validated against the loaded taxonomy so
@@ -3195,15 +3214,110 @@
             $('#pane-available').toggleClass('d-none', name !== 'available');
             $('#pane-manage').toggleClass('d-none', name === 'available');
             $('#manageHeading').html(name === 'updates' ? '<i class="fas fa-arrow-alt-circle-up text-secondary"></i> Updates Available' : '<i class="fas fa-check-circle text-secondary"></i> Installed Plugins');
-            if (name === 'updates' && !updatesCheckedOnce && installedPlugins.length > 0) {
-                updatesCheckedOnce = true;
-                CheckAllPluginsForUpdates();
+            if (name === 'updates') {
+                // Render now: the answer, "Checking...", or "not checked yet".
+                RenderPluginUpdateStatusLine(FPP_PLUGIN_UPDATE_STATE);
+                if (!FPP_PLUGIN_UPDATE_STATE.answered) checkForPluginUpdates();
+            } else {
+                $('#pluginUpdateStatusLine').addClass('d-none');
             }
             FilterPlugins();
         }
 
         // Re-select the tab the user was on before the last load. Called once the
         // plugin data is in so the Updates tab can run its update check.
+        // Render on every publish (same contract as FPP_UPDATE_STATE on about.php).
+        $(document).on('fpp:pluginUpdateStatusChanged', function (e, state) {
+            SetPluginCheckButtonsBusy(!state.checkFailed && state.sweep.result === 'in-progress');
+            // The detail dialog's own check, if one is running, keeps its button busy.
+            if (!detailCheckInFlight) SetDetailCheckBusy(null, false);
+            RenderPluginUpdateStatusLine(state);
+            ApplyPluginUpdateStateToRows(state);
+        });
+
+        // Plugin names short enough for a growl; the reasons live on the Updates tab.
+        function NamePluginList(names, cap) {
+            cap = cap || 3;
+            var shown = names.slice(0, cap).join(', ');
+            return (names.length > cap) ? (shown + ', and ' + (names.length - cap) + ' more') : shown;
+        }
+
+        function RenderPluginUpdateStatusLine(state) {
+            var $line = $('#pluginUpdateStatusLine');
+            if (activeTopTab !== 'updates') {
+                $line.addClass('d-none');
+                return;
+            }
+            var unchecked = state.unchecked || [];
+            // No verdict is either a failed check (it has a reason) or not checked yet.
+            var failed = unchecked.filter(function (p) { return state.errors && state.errors[p]; });
+            var pending = unchecked.filter(function (p) { return !(state.errors && state.errors[p]); });
+            var ago = pluginUpdateCheckedAgo();
+            var lastChecked = ago ? ' Last checked ' + ago + '.' : '';
+            // Summary, then failures one per row, then why a background check has not run.
+            var html = '';
+
+            // A check is running on the server: show progress, not last time's answer.
+            if (!state.checkFailed && state.sweep.result === 'in-progress') {
+                var progress = (state.sweep.total > 1)
+                    ? ' (' + Math.min(state.sweep.done + 1, state.sweep.total) + ' of ' + state.sweep.total + ')'
+                    : '';
+                $line.html('<div class="fw-semibold"><i class="fas fa-spinner fa-spin me-2"></i>Checking each installed plugin for updates'
+                    + progress + '...</div>').removeClass('d-none');
+                return;
+            }
+
+            var summary;
+            if (state.checkFailed) {
+                summary = 'Could not read the plugin update status from this player.';
+            } else if (!state.checked) {
+                // Nothing has a verdict: either never checked, or every check failed.
+                summary = !state.installed
+                    ? 'No plugins installed.'
+                    : (failed.length
+                        ? 'None of the installed plugins could be checked.'
+                        : 'Plugin updates have not been checked yet on this player.');
+            } else if (state.plugins.length) {
+                summary = state.plugins.length + ' update' + (state.plugins.length > 1 ? 's' : '')
+                    + ' available.' + lastChecked;
+            } else if (unchecked.length && unchecked.length === state.installed) {
+                summary = failed.length
+                    ? 'None of the installed plugins could be checked.'
+                    : 'Plugin updates have not been checked yet on this player.';
+            } else {
+                summary = 'No updates found' + (ago ? ' as of ' + ago : '') + '.';
+            }
+            html += '<div class="fw-semibold">' + summary + '</div>';
+
+            if (failed.length) {
+                html += '<div class="mt-2">Could not check ' + failed.length + ' plugin'
+                    + (failed.length > 1 ? 's' : '') + ', so ' + (failed.length > 1 ? 'they are' : 'it is')
+                    + ' not known to be up to date:</div>';
+                html += '<ul class="mb-0 mt-1 ps-4">';
+                failed.forEach(function (p) {
+                    html += '<li><b>' + EscapeHtml(p) + '</b> - ' + EscapeHtml(state.errors[p]) + '</li>';
+                });
+                html += '</ul>';
+            }
+            // When nothing has been checked, the summary above already says so.
+            if (pending.length && state.checked) {
+                html += '<div class="mt-2">Not checked yet: ' + EscapeHtml(NamePluginList(pending, 5)) + '.</div>';
+            }
+
+            // Why a background check has not run recently, when we know.
+            var note = '';
+            if (state.sweep && state.sweep.result === 'offline') {
+                note = 'The last background check could not reach any plugin repository.';
+            } else if (state.checked && state.stale) {
+                note = 'Use <b>Check for Updates</b> for a current answer.';
+            }
+            if (note !== '') {
+                html += '<div class="mt-2 text-secondary">' + note + '</div>';
+            }
+
+            $line.html(html).removeClass('d-none');
+        }
+
         function RestoreTopTab() {
             // A ?tab= deep link (the navbar icon) wins, and is remembered from then on.
             var requested = new URLSearchParams(window.location.search).get('tab');
@@ -3288,8 +3402,6 @@
                 $(this).toggleClass('d-none', !vis);
                 if (vis) installedVisible++;
             });
-            if (activeTopTab === 'updates') $('#noUpdatesHint').toggleClass('d-none', installedVisible > 0);
-            else $('#noUpdatesHint').addClass('d-none');
 
             // Incompatible cards -- same search matching as Available/Installed,
             // so the section doesn't sit there unfiltered (and misleadingly
@@ -3620,6 +3732,7 @@
                                     </button>
                                 </div>
                             </div>
+                            <div id="pluginUpdateStatusLine" class="mb-3 d-none"></div>
                             <div id='installedPlugins'>
                                 <div id='installedGrid' class="row row-cols-1 row-cols-md-2 row-cols-xxl-3 g-3"></div>
                             </div>
@@ -3627,7 +3740,6 @@
                                 <i class="fas fa-search"></i> No installed plugins match
                                 "<b class="fppNoResultsTerm"></b>". <span id="noInstalledCrossRef"></span>
                             </div>
-                            <div id="noUpdatesHint" class="text-secondary d-none">No updates found. Use <b>Check for Updates</b> to refresh.</div>
                         </div>
                     </div>
 

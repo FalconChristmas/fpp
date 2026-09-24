@@ -61,6 +61,17 @@
     cannot be checked, for example because the player is offline, is left as it is. If only the installed
     copy's origin has gone (its branch was renamed or the repository moved) but the plugin list still points
     at it, the check says so: <b>Update</b> cannot run for that plugin, and <b>Reinstall</b> clones it afresh.</p>
+<p>When a plugin has an update waiting, a puzzle piece (<i class="fa-solid fa-puzzle-piece"></i>) appears in
+    the header of every page; hover it to see which plugins, or click it to open the <b>Updates</b> tab. FPP
+    rechecks in the background, one plugin at a time at low priority, when someone opens the web interface
+    and the answer is a few hours old, so it may take a few hours to notice a new release.
+    <b>Check for Updates</b> runs that same check on every plugin now, and <b>Update All</b> runs it before
+    updating; while it runs, the <b>Updates</b> tab shows its progress and both buttons wait for it. The tab
+    also says how old the answer is.</p>
+<p>A plugin FPP could not check - for example its repository needs a token or has moved, or the player is
+    offline - is listed on the <b>Updates</b> tab with the reason, never as up to date. If an update had
+    already been found for it, it stays marked until a check answers again. Failed checks are retried
+    sooner than the usual few hours, less often each time while the player stays offline.</p>
 
 <h4>Other buttons on a card</h4>
 <ul>
