@@ -23,6 +23,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <set>
 #include <stdio.h>
@@ -47,6 +48,15 @@
 #include "Plugins.h"
 
 PluginManager PluginManager::INSTANCE;
+
+// mChannelDataPlugins is the one plugin registry walked off the main loop: the
+// channel output thread calls modifySequenceData()/modifyChannelData() every
+// frame, while a runtime load or unload edits the list on the main loop and an
+// unload then deletes the plugin. The output thread holds this across its whole
+// walk, so once detachPlugin() has taken it and dropped a plugin, no frame is
+// still inside that plugin's code and it is safe to destroy. File-static rather
+// than a member so PluginManager's layout is unchanged for plugins.
+static std::mutex channelDataPluginsLock;
 
 namespace FPPPlugins
 {
@@ -797,6 +807,7 @@ void PluginManager::addPlugin(FPPPlugins::Plugin* p) {
     }
     FPPPlugin::ChannelDataPlugin* cdp = dynamic_cast<FPPPlugin::ChannelDataPlugin*>(p);
     if (cdp) {
+        std::lock_guard<std::mutex> lock(channelDataPluginsLock);
         mChannelDataPlugins.push_back(cdp);
     }
     FPPPlugin::APIProviderPlugin* app = dynamic_cast<FPPPlugin::APIProviderPlugin*>(p);
@@ -827,11 +838,13 @@ void PluginManager::unregisterApis() {
     }
 }
 void PluginManager::modifySequenceData(int ms, uint8_t* seqData) {
+    std::lock_guard<std::mutex> lock(channelDataPluginsLock);
     for (auto a : mChannelDataPlugins) {
         a->modifySequenceData(ms, seqData);
     }
 }
 void PluginManager::modifyChannelData(int ms, uint8_t* seqData) {
+    std::lock_guard<std::mutex> lock(channelDataPluginsLock);
     for (auto a : mChannelDataPlugins) {
         a->modifyChannelData(ms, seqData);
     }
@@ -933,7 +946,10 @@ void PluginManager::detachPlugin(FPPPlugins::Plugin* plugin) {
     };
     drop(mPlaylistPlugins);
     drop(mChannelOutputPlugins);
-    drop(mChannelDataPlugins);
+    {
+        std::lock_guard<std::mutex> lock(channelDataPluginsLock);
+        drop(mChannelDataPlugins);
+    }
     drop(mAPIProviderPlugins);
     for (auto it = mPlugins.begin(); it != mPlugins.end(); ++it) {
         if (*it == plugin) {
