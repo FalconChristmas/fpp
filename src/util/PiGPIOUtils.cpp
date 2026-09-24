@@ -377,7 +377,9 @@ public:
         return false;
     }
     virtual void setPWMValue(int valueNS) const override {
-        if (pwm != -1) {
+        // dutyFile is only opened by a setupPWM() that succeeded; every caller
+        // (the GPIO output, the ExtGPIO command) reaches here regardless.
+        if (pwm != -1 && dutyFile) {
             fprintf(dutyFile, "%d", valueNS);
             fflush(dutyFile);
         }
