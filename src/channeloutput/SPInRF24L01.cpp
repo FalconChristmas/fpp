@@ -130,7 +130,7 @@ int SPInRF24L01Output::Init(Json::Value config) {
         } else if (i == 2) {
             ss = RF24_2MBPS;
         } else {
-            LogErr(VB_CHANNELOUT, "Invalid speed '%s' from config\n", i);
+            LogErr(VB_CHANNELOUT, "Invalid speed %d from config\n", i);
             WarningHolder::AddWarning(40, "nRF24 radio output: invalid speed in configuration");
             return 0;
         }
