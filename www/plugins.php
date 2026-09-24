@@ -938,18 +938,22 @@
             });
         }
 
-        // Plugins whose upgrade_plugin run ended with rc=2 -- the code was
-        // updated but the plugin's own fpp_upgrade.sh / fpp_install.sh failed
-        // -- read from the streamed log, since the re-check below cannot see
-        // it: the code is at the tip, so "update available" is gone. The
-        // "===== upgrade FINISH: <plugin> (rc=N) =====" line is written by
-        // startPluginLog's exit trap (scripts/common) on every run.
+        // Plugins whose upgrade_plugin run ended with a non-zero rc other
+        // than a failed pull -- the code was updated but the plugin's own
+        // fpp_upgrade.sh / fpp_install.sh failed -- read from the streamed
+        // log, since the re-check below cannot see it: the code is at the
+        // tip, so "update available" is gone. upgrade_plugin exits 2 for that
+        // on its main path but passes the script's own status through on the
+        // post-pull path (--run-upgrade-script), so any non-zero rc counts; a
+        // failed pull (rc=1) is excluded by the caller, since that plugin is
+        // still stale. The "===== upgrade FINISH: <plugin> (rc=N) =====" line
+        // is written by startPluginLog's exit trap (scripts/common) on every run.
         function UpdateAllScriptFailures() {
             var outputArea = document.getElementById('pluginsProgressPopupText');
             var failed = [];
             if (!outputArea)
                 return failed;
-            var re = /===== upgrade FINISH: (\S+) \(rc=2\) =====/g;
+            var re = /===== upgrade FINISH: (\S+) \(rc=([1-9][0-9]*)\) =====/g;
             var m;
             while ((m = re.exec(outputArea.value)) !== null) {
                 if (updateAllAttempted.indexOf(m[1]) >= 0 && failed.indexOf(m[1]) < 0)
