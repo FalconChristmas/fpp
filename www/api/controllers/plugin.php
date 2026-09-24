@@ -3676,29 +3676,28 @@ function PluginReleaseNotesFromGitHistory($plugin)
 	));
 }
 
-// releaseNotesStyle: script -- for a plugin whose update-worthy changes
-// aren't git commits (components fetched by scripts/fpp_update_check.sh /
-// fpp_upgrade.sh). Runs scripts/fpp_releasenotes.sh as the web user with the
-// FPPDIR/SRCDIR environment fpp_update_check.sh gets, a hard timeout and an
-// output cap, and returns its stdout as plain text -- never markup.
-function PluginReleaseNotesFromScript($plugin)
+// macOS has no coreutils/util-linux: use timeout, setsid and ionice only where present.
+function PluginHaveCommand($name)
 {
-	global $settings, $fppDir;
-
-	$dir = $settings['pluginDirectory'] . '/' . $plugin;
-	$script = $dir . '/scripts/fpp_releasenotes.sh';
-	if (!file_exists($script)) {
-		return PluginReleaseNotesError(404, 'This plugin declares script release notes but has no scripts/fpp_releasenotes.sh');
+	static $have = array();
+	if (!isset($have[$name])) {
+		$have[$name] = false;
+		foreach (array('/usr/bin', '/bin', '/usr/sbin', '/sbin', '/usr/local/bin', '/opt/homebrew/bin') as $d) {
+			if (is_executable($d . '/' . $name)) {
+				$have[$name] = true;
+				break;
+			}
+		}
 	}
+	return $have[$name];
+}
 
-	// setsid makes the script (via `timeout`) a process group of its own, so
-	// it and anything it left running can be killed together. The read loop
-	// has its own wall-clock deadline and stops once the script has exited:
-	// a background child still holding stdout open must not keep this
-	// request (and a PHP worker) waiting.
-	// A deliberate environment, not getenv(): under php-fpm that includes the
-	// request's FastCGI variables (HTTP_AUTHORIZATION and every other request
-	// header), which are none of the plugin's business.
+// Built, not inherited: under php-fpm getenv() carries the request's headers,
+// HTTP_AUTHORIZATION included.
+function PluginScriptEnv()
+{
+	global $fppDir;
+
 	$env = array('FPPDIR' => $fppDir, 'SRCDIR' => $fppDir . '/src');
 	foreach (array('PATH', 'HOME', 'USER', 'LANG', 'LC_ALL') as $k) {
 		$v = getenv($k, true);
@@ -3709,27 +3708,53 @@ function PluginReleaseNotesFromScript($plugin)
 	if (!isset($env['PATH'])) {
 		$env['PATH'] = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 	}
-	$started = microtime(true);
+	return $env;
+}
+
+/**
+ * Run a plugin script with a hard deadline and a clean environment, capturing at
+ * most $maxBytes of stdout. Returns array($rc, $stdout, $truncated, $timedOut);
+ * $rc is null if it could not start or the read loop gave up, 124/137 if
+ * `timeout` fired. setsid lets the whole process group be killed, so a leftover
+ * child holding stdout cannot pin a php-fpm worker.
+ *
+ * $keep 'tail': keep the last $maxBytes (fpp_update_check.sh's answer is its
+ * last line). 'head': keep the first $maxBytes and stop (release notes).
+ */
+function PluginRunScriptBounded($script, $dir, $timeout, $maxBytes = 8192, $keep = 'tail')
+{
+	$argv = array();
+	$group = PluginHaveCommand('setsid');
+	if ($group) {
+		$argv[] = 'setsid';
+	}
+	if (PluginHaveCommand('timeout')) {
+		array_push($argv, 'timeout', '-k', '2', (string) $timeout);
+	}
+	// Without `timeout` (macOS) the read loop's deadline below is the bound.
+	$argv[] = $script;
 	$proc = @proc_open(
-		array('setsid', 'timeout', '-k', '2', (string) PLUGIN_RELEASE_NOTES_SCRIPT_TIMEOUT, $script),
+		$argv,
 		array(0 => array('file', '/dev/null', 'r'), 1 => array('pipe', 'w'), 2 => array('file', '/dev/null', 'w')),
-		$pipes, $dir, $env);
+		$pipes, $dir, PluginScriptEnv());
 	if (!is_resource($proc)) {
-		return PluginReleaseNotesError(502, 'Could not run the plugin\'s release notes script');
+		return array(null, '', false, false);
 	}
 	$status = proc_get_status($proc);
 	$pid = (int) $status['pid'];
 	stream_set_blocking($pipes[1], false);
-	$deadline = microtime(true) + PLUGIN_RELEASE_NOTES_SCRIPT_TIMEOUT + 3;
+
+	$deadline = microtime(true) + $timeout + 3;
+	$head = ($keep === 'head');
 	$text = '';
+	$rc = null;
 	$truncated = false;
 	$timedOut = false;
-	$rv = null;
-	$read = function () use (&$pipes, &$text, &$truncated) {
-		while (!$truncated && ($chunk = fread($pipes[1], 8192)) !== false && $chunk !== '') {
+	$read = function () use (&$pipes, &$text, &$truncated, $maxBytes, $head) {
+		while (!($head && $truncated) && ($chunk = fread($pipes[1], 4096)) !== false && $chunk !== '') {
 			$text .= $chunk;
-			if (strlen($text) > PLUGIN_RELEASE_NOTES_MAX_TEXT) {
-				$text = substr($text, 0, PLUGIN_RELEASE_NOTES_MAX_TEXT);
+			if (strlen($text) > $maxBytes) {
+				$text = $head ? substr($text, 0, $maxBytes) : substr($text, -$maxBytes);
 				$truncated = true;
 			}
 		}
@@ -3740,34 +3765,64 @@ function PluginReleaseNotesFromScript($plugin)
 		$e = null;
 		if (@stream_select($r, $w, $e, 0, 200000)) {
 			$read();
-			if (!$truncated && feof($pipes[1])) {
-				usleep(100000); // stdout closed, script still running: don't spin
+			if (!($head && $truncated) && feof($pipes[1])) {
+				// stdout is closed but the script has not exited yet: select()
+				// would return immediately from here on, so don't spin.
+				usleep(100000);
 			}
 		}
-		if ($truncated) {
+		if ($head && $truncated) {
 			break;
 		}
 		$status = proc_get_status($proc);
 		if (!$status['running']) {
 			$read(); // whatever it wrote just before exiting
-			$rv = $status['signaled'] ? 128 + (int) $status['termsig'] : (int) $status['exitcode'];
+			$rc = $status['signaled'] ? 128 + (int) $status['termsig'] : (int) $status['exitcode'];
 			break;
 		}
 		if (microtime(true) > $deadline) {
 			$timedOut = true;
-			break;
+			break; // the kill below deals with it; $rc stays null
 		}
 	}
 	if ($pid > 0) {
+		// With setsid the script leads its own process group, so the whole
+		// group goes; without it, only the script itself can be named.
+		$target = $group ? -$pid : $pid;
 		if (function_exists('posix_kill')) {
-			@posix_kill(-$pid, 9);
+			@posix_kill($target, 9);
 		} else {
-			exec('kill -KILL -- -' . $pid . ' 2>/dev/null');
+			exec('kill -KILL -- ' . $target . ' 2>/dev/null');
 		}
 	}
 	fclose($pipes[1]);
 	proc_close($proc);
+	return array($rc, $text, $truncated, $timedOut);
+}
 
+// releaseNotesStyle: script -- for a plugin whose update-worthy changes
+// aren't git commits (components fetched by scripts/fpp_update_check.sh /
+// fpp_upgrade.sh). Runs scripts/fpp_releasenotes.sh as the web user with the
+// same minimal environment as fpp_update_check.sh (PluginScriptEnv()), a hard
+// timeout and an output cap, and returns its stdout as plain text -- never markup.
+function PluginReleaseNotesFromScript($plugin)
+{
+	global $settings;
+
+	$dir = $settings['pluginDirectory'] . '/' . $plugin;
+	$script = $dir . '/scripts/fpp_releasenotes.sh';
+	if (!file_exists($script)) {
+		return PluginReleaseNotesError(404, 'This plugin declares script release notes but has no scripts/fpp_releasenotes.sh');
+	}
+
+	// 'head': for release notes the cap is a real end of text, worth reporting.
+	$started = microtime(true);
+	list($rv, $text, $truncated, $timedOut) = PluginRunScriptBounded(
+		$script, $dir, PLUGIN_RELEASE_NOTES_SCRIPT_TIMEOUT, PLUGIN_RELEASE_NOTES_MAX_TEXT, 'head');
+
+	if ($rv === null && !$truncated && !$timedOut) {
+		return PluginReleaseNotesError(502, 'Could not run the plugin\'s release notes script');
+	}
 	if (!$truncated) {
 		// 124: `timeout` fired; 137: the script ignored SIGTERM and was
 		// killed 2s later (`timeout` re-raises that SIGKILL on itself). A
