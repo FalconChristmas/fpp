@@ -123,7 +123,6 @@
         // detail and privacy modals show them in full. A plugin loaded from a
         // pasted URL was never checked against its code for listing; its label
         // line says so.
-        var pluginPrivacyChanged = {};   // repoName -> true once an update check said the disclosure changed (what Update would land)
         var pluginReinstallPrivacyChanged = {};   // same for what Reinstall would land (the versions[] branch/pin for this FPP)
         var pluginReinstallTarget = {};   // repoName -> {branch, sha} a Reinstall clones: the server's versions[] choice, posted back as is
 
@@ -519,7 +518,6 @@
                         checkForPluginUpdates();
                         $.jGrowl(EscapeHtml(data.Message || ('Could not check ' + plugin)), { themeState: 'warn', sticky: true });
                     } else if (data.Status == 'OK') {
-                        pluginPrivacyChanged[plugin] = !!data.privacyChanged;
                         pluginReinstallPrivacyChanged[plugin] = !!data.reinstallPrivacyChanged;
                         if (data.reinstallTarget) pluginReinstallTarget[plugin] = data.reinstallTarget;
                         // The server wrote the verdict through: re-read so the
@@ -619,7 +617,6 @@
                             $.jGrowl(EscapeHtml(plugin) + ': the installed copy can no longer fetch from where it was cloned. Update cannot run; use Reinstall to clone it afresh.', { themeState: 'warn', sticky: true });
                         }
                         var hasUpdate = !!data.updatesAvailable;
-                        pluginPrivacyChanged[plugin] = !!data.privacyChanged;
                         pluginReinstallPrivacyChanged[plugin] = !!data.reinstallPrivacyChanged;
                         if (data.reinstallTarget) pluginReinstallTarget[plugin] = data.reinstallTarget;
                         if (hasUpdate) withUpdates.push(plugin);

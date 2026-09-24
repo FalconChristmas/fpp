@@ -714,11 +714,14 @@ function CleanupPartialPluginInstall($plugin, $linkName = null)
 // $GLOBALS['PLUGIN_PRIVACY_REFUSAL'].
 define('PLUGIN_PRIVACY_PENDING_MARK', '@@PRIVACY-PENDING@@');
 $GLOBALS['PLUGIN_PRIVACY_REFUSAL'] = null;
-function PluginPrivacyRefuse($repoName, $pending, $msg, $stream, $op = 'install', $marker = true)
+// $reason is 'mismatch' (a block was accepted, and this is not it) or
+// 'notAccepted' (nothing was accepted for this plugin with the request or
+// before); it goes out as the reply's `reason`.
+function PluginPrivacyRefuse($repoName, $pending, $msg, $stream, $op = 'install', $marker = true, $reason = 'mismatch')
 {
 	PluginLog($op, $repoName, "refused: " . preg_replace('/\s+/', ' ', trim($msg)));
 	if ($GLOBALS['PLUGIN_PRIVACY_REFUSAL'] === null) {
-		$GLOBALS['PLUGIN_PRIVACY_REFUSAL'] = array('plugin' => $repoName, 'pending' => $pending);
+		$GLOBALS['PLUGIN_PRIVACY_REFUSAL'] = array('plugin' => $repoName, 'pending' => $pending, 'reason' => $reason);
 	}
 	if (PluginStreaming($stream)) {
 		echo "\nERROR: " . $msg . "\n";
@@ -733,13 +736,15 @@ function PluginPrivacyRefuse($repoName, $pending, $msg, $stream, $op = 'install'
 // for POST /plugin and POST /plugin/{RepoName}/upgrade (openapi.json). `plugin`
 // is the plugin (or dependency plugin) whose block must be reviewed, `pending`
 // that block (null = no disclosure); `Code` lets a script tell this refusal
-// from any other error without parsing `Message`.
+// from any other error without parsing `Message`, and `reason` says which kind
+// it is: 'notAccepted' (post `pending` back as accepted) or 'mismatch'.
 function PluginPrivacyRefusalReply($msg)
 {
 	$ref = $GLOBALS['PLUGIN_PRIVACY_REFUSAL'];
 	return array(
 		'Status' => 'Error',
 		'Code' => 'PrivacyMismatch',
+		'reason' => is_array($ref) ? $ref['reason'] : 'mismatch',
 		'Message' => $msg,
 		'privacyChanged' => true,
 		'plugin' => is_array($ref) ? $ref['plugin'] : null,
@@ -838,8 +843,9 @@ function GetInstalledPlugins()
  * show it and post again with it as `privacyAccepted`. A body without the
  * field is compared with the block recorded for that plugin from an earlier
  * install, if there is one (the record survives an uninstall), and refused
- * the same way when they differ; with no record either, it installs and
- * records nothing, so the next update check reports `privacyChanged`.
+ * the same way when they differ; with no record either, a plugin that
+ * declares a block is refused the same way (`pending` is the cloned block,
+ * to post back as `privacyAccepted`), and only a plugin with no block installs.
  * The block is recorded once the dependencies are in place, just before the
  * plugin's own install script runs.
  * `dependencyPrivacyAccepted` (optional) is a map repoName -> block or null
@@ -847,7 +853,11 @@ function GetInstalledPlugins()
  * recorded the same way when that plugin is installed as a dependency of
  * this one, and a dependency not in the map -- declared only in the cloned
  * copy -- is refused before it is cloned (`pending` is then its listed
- * block). Without the map, dependencies are installed as before.
+ * block). Without the map, a dependency plugin that declares a block is
+ * refused the same way, and one with no block installs.
+ * A refusal's `reason` is `notAccepted` when nothing was accepted for that
+ * plugin (post `pending` back to accept it) and `mismatch` when the accepted
+ * block is not the one that would land.
  *
  * @route POST /api/plugin
  * @body {"repoName": "fpp-matrixtools", "name": "MatrixTools", "author": "Chris Pinkham (CaptainMurdoch)", "srcURL": "https://github.com/cpinkham/fpp-matrixtools.git", "branch": "master", "sha": ""}
@@ -857,7 +867,7 @@ function GetInstalledPlugins()
  * ```
  * Refused on privacy grounds:
  * ```json
- * {"Status": "Error", "Code": "PrivacyMismatch", "Message": "…", "privacyChanged": true, "plugin": "fpp-matrixtools", "pending": {"sends": [], "remoteAccess": "none"}}
+ * {"Status": "Error", "Code": "PrivacyMismatch", "reason": "mismatch", "Message": "…", "privacyChanged": true, "plugin": "fpp-matrixtools", "pending": {"sends": [], "remoteAccess": "none"}}
  * ```
  */
 function InstallPlugin()
@@ -918,9 +928,9 @@ function InstallPlugin()
 	// The blocks the install dialog showed for the dependency plugins this
 	// install pulls in (repoName -> block or null), handed down to each one's
 	// own InstallPluginFromInfo through ResolvePluginDependencies. null when
-	// the request did not carry the field (a script, an old page): then a
-	// dependency is installed as before; with the field, a dependency the
-	// dialog did not show is refused (ResolvePluginDependencies).
+	// the request did not carry the field (a script, an old page), which
+	// counts as none shown: a dependency the dialog did not show is refused
+	// unless it declares no block (ResolvePluginDependencies).
 	$depShown = (isset($pluginInfo['dependencyPrivacyAccepted']) && is_array($pluginInfo['dependencyPrivacyAccepted']))
 		? $pluginInfo['dependencyPrivacyAccepted'] : null;
 	$ok = InstallPluginFromInfo($pluginInfo, $visited, $stream, 0, $depShown);
@@ -934,8 +944,10 @@ function InstallPlugin()
 	// hand back the block to review, as POST …/upgrade does.
 	if (!$ok && is_array($GLOBALS['PLUGIN_PRIVACY_REFUSAL'])) {
 		$result = PluginPrivacyRefusalReply(($GLOBALS['PLUGIN_PRIVACY_REFUSAL']['plugin'] === $plugin)
-			? "The privacy disclosure of '$plugin' is not the one that was accepted. Review it on the Plugins page and install again."
-			: "'$plugin' depends on '" . $GLOBALS['PLUGIN_PRIVACY_REFUSAL']['plugin'] . "', whose privacy disclosure was not accepted. Review it on the Plugins page and install again.");
+			? (($GLOBALS['PLUGIN_PRIVACY_REFUSAL']['reason'] === 'notAccepted')
+				? "The privacy disclosure of '$plugin' was not accepted with this request. Review it on the Plugins page, or post `pending` back as privacyAccepted to accept it."
+				: "The privacy disclosure of '$plugin' is not the one that was accepted. Review it on the Plugins page and install again.")
+			: "'$plugin' depends on '" . $GLOBALS['PLUGIN_PRIVACY_REFUSAL']['plugin'] . "', whose privacy disclosure was not accepted. Review it on the Plugins page, or post it in dependencyPrivacyAccepted to accept it.");
 	}
 	return json($result);
 }
@@ -1113,9 +1125,12 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 	// record from an earlier install of this plugin (a reinstall from a
 	// script or an old page). Anything else is refused, the clone removed,
 	// and the cloned block handed back for review (PluginPrivacyRefuse).
-	// A request with neither -- a fresh install from a script -- goes ahead
-	// and records nothing, so the next update check asks. The record itself
-	// is written once the dependencies are in, just before the install script.
+	// A request with neither -- a fresh install from a script -- is refused
+	// the same way when the plugin declares anything: the reply carries the
+	// block, and a caller that means to accept it posts it back as
+	// privacyAccepted, as the Plugins page does. Only a plugin with no block
+	// at all installs without one. The record itself is written once the
+	// dependencies are in, just before the install script.
 	$installedBlock = PluginPrivacyBlock($data);
 	$accepted = false;
 	$acceptedFrom = '';
@@ -1130,6 +1145,12 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 		}
 	}
 	$recordBlock = ($acceptedFrom !== '');
+	if (!$recordBlock && $installedBlock !== null) {
+		PluginPrivacyRefuse($repoName, $installedBlock,
+			"the privacy disclosure of '$plugin' was not accepted with this request. Not installed: review it on the Plugins page, or post it back as privacyAccepted to accept it.\nRemoving the partial install of '$plugin'.", $stream, 'install', true, 'notAccepted');
+		CleanupPartialPluginInstall($plugin);
+		return false;
+	}
 	if ($recordBlock && PluginPrivacyMaterial($accepted) !== PluginPrivacyMaterial($installedBlock)) {
 		PluginPrivacyRefuse($repoName, $installedBlock,
 			"the privacy disclosure in this version of '$plugin' is not the one that $acceptedFrom (the listing may be behind the repository, or this version is pinned). Not installed: review it on the Plugins page and install again.\nRemoving the partial install of '$plugin'.", $stream);
@@ -1241,12 +1262,12 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
  */
 // $depShown: repoName -> the privacy block the install dialog showed for that
 // dependency (or null), from the top-level request; see InstallPlugin(). null
-// when the request carried no such map (a script, an old page): dependency
-// plugins are then installed without one. With a map, a dependency plugin
-// that is not in it was never shown -- the cloned copy declares a dependency
-// the listing's copy (what the dialog was built from) does not, or a
-// different versions[] entry was selected -- and is refused before it is
-// cloned, with its listed block as the one to review.
+// when the request carried no such map (a script, an old page), which counts
+// as an empty one for any dependency that declares a block. A dependency
+// plugin that is not in the map was never shown -- the cloned copy declares a
+// dependency the listing's copy (what the dialog was built from) does not, a
+// different versions[] entry was selected, or the caller sent no map -- and is
+// refused before it is cloned, with its listed block as the one to review.
 function ResolvePluginDependencies($deps, $ownerRepo, &$visited, $stream, $depth, $depShown = null, $op = 'install')
 {
 	global $settings, $fppDir, $SUDO;
@@ -1396,9 +1417,10 @@ function ResolvePluginDependencies($deps, $ownerRepo, &$visited, $stream, $depth
 				$visited[$depName] = true;
 				continue;
 			}
-			if ($depShown !== null && !array_key_exists($depName, $depShown) && !array_key_exists($depDir, $depShown)) {
+			$depSeen = is_array($depShown) && (array_key_exists($depName, $depShown) || array_key_exists($depDir, $depShown));
+			if (!$depSeen && ($depShown !== null || PluginPrivacyBlock($depInfo) !== null)) {
 				PluginPrivacyRefuse($depName, PluginPrivacyBlock($depInfo),
-					"'$ownerRepo' depends on the plugin '$depName', whose privacy disclosure was not shown with this install. Not installed: review it on the Plugins page and install again.", $stream);
+					"'$ownerRepo' depends on the plugin '$depName', whose privacy disclosure was not shown with this install. Not installed: review it on the Plugins page and install again.", $stream, 'install', true, 'notAccepted');
 				$ok = false;
 				break;
 			}
@@ -1412,7 +1434,10 @@ function ResolvePluginDependencies($deps, $ownerRepo, &$visited, $stream, $depth
 			// put there.
 			unset($depInfo['privacyAccepted'], $depInfo['dependencyPrivacyAccepted']);
 			if ($depShown !== null) {
-				$depInfo['privacyAccepted'] = array_key_exists($depName, $depShown) ? $depShown[$depName] : $depShown[$depDir];
+				// Prefer the repoName key: a refusal of the dependency itself is
+				// keyed by it, so that is what the page's retry adds; the listing
+				// name's entry is the listed block that was refused.
+				$depInfo['privacyAccepted'] = array_key_exists($depDir, $depShown) ? $depShown[$depDir] : $depShown[$depName];
 			}
 			if (!InstallPluginFromInfo($depInfo, $visited, $stream, $depth + 1, $depShown)) {
 				PluginEchoLog($op, $ownerRepo, "\nERROR: dependency plugin '$depName' could not be installed.\n", $stream);
@@ -2298,7 +2323,7 @@ function PluginFetchReinstallTargetByURL($plugin, $branch, $url)
  * ```
  * Refused on privacy grounds (the same shape as POST /api/plugin):
  * ```json
- * {"Status": "Error", "Code": "PrivacyMismatch", "Message": "…", "privacyChanged": true, "plugin": "fpp-matrixtools", "pending": {"sends": [], "remoteAccess": "none"}}
+ * {"Status": "Error", "Code": "PrivacyMismatch", "reason": "mismatch", "Message": "…", "privacyChanged": true, "plugin": "fpp-matrixtools", "pending": {"sends": [], "remoteAccess": "none"}}
  * ```
  */
 // The apt packages a dependency block declares, as a flat list of names.
@@ -2467,7 +2492,9 @@ function UpgradePlugin()
 			if ($streaming) {
 				DisableOutputBuffering();
 			}
-			PluginPrivacyRefuse($plugin, $pending, $msg, $stream, 'upgrade', false);
+			$record = ReadPluginPrivacyAccepted();
+			PluginPrivacyRefuse($plugin, $pending, $msg, $stream, 'upgrade', false,
+				isset($record[$plugin]) ? 'mismatch' : 'notAccepted');
 			if ($streaming) {
 				return "\nDone\n";
 			}
