@@ -2009,7 +2009,7 @@ function UninstallPlugin()
  * checked-out branch.
  *
  * `privacyChanged`: the block `…/upgrade` would land (origin/<checked-out
- * branch>) differs materially from the accepted one, or nothing is accepted.
+ * branch>, or its versions[] pin) differs materially from the accepted one, or nothing is accepted.
  * `reinstallPrivacyChanged`: the same for the block a Reinstall would land
  * (the versions[] branch and pin for this FPP) -- differs from the former
  * only for plugins with one branch per FPP major or a pinned sha.
@@ -2307,7 +2307,9 @@ function PluginFetchReinstallTargetByURL($plugin, $branch, $url)
 /**
  * Update plugin
  *
- * Pull in git updates for plugin {RepoName}. Before the plugin's own
+ * Pull in git updates for plugin {RepoName}: the checked-out branch's tip,
+ * or, when the versions[] entry for this FPP pins a sha the clone has not
+ * passed, that sha and no further. Before the plugin's own
  * fpp_upgrade.sh (or fpp_install.sh) runs, its declared dependencies are
  * reconciled against the new version: newly declared apt, Python and script
  * dependencies are installed, and package claims the new version no longer
@@ -2946,13 +2948,14 @@ function PluginFetchBranch($plugin, $branch)
 }
 
 // The declaration the next upgrade would land, as [block, source]. Read from
-// the fetched upstream tip when the repo ships its own pluginInfo.json (the
+// the fetched upstream tip (or pin) when the repo ships its own pluginInfo.json (the
 // authoritative copy after a pull), else from the listing's copy, else from
 // the installed file. $fetch runs `git fetch` first; the update check has
 // usually just done that, so its callers pass false.
 //
 // $target is 'upgrade' (default: origin/<checked-out branch>, what `git
-// pull` lands) or 'reinstall' (the versions[] branch and pin for this FPP,
+// pull` lands, or its versions[] pin while the clone is at or behind it)
+// or 'reinstall' (the versions[] branch and pin for this FPP,
 // what a fresh clone lands -- see PluginReinstallTarget). The two differ
 // only for plugins that keep one branch per FPP major, or pin a sha.
 function PluginPendingPrivacy($plugin, $fetch = false, $target = 'upgrade')
@@ -2977,24 +2980,37 @@ function PluginPendingPrivacy($plugin, $fetch = false, $target = 'upgrade')
 	if ($fetch) {
 		exec(PluginGitFetchCmd($dir), $o, $rv);
 		unset($o);
+		$GLOBALS['PLUGIN_FETCH_OK'] = ($rv === 0);
+	}
+	// An upgrade of a clone sitting at (or behind) its versions[] pin moves
+	// only as far as the pin, the same rule PluginPinnedVerdict() gives the
+	// update check; past the pin (a downgrade) the branch tip applies.
+	$upgradePin = '';
+	if ($target === 'upgrade' && $branch !== '' && PluginPinnedVerdict($plugin, $branch, $upgradePin) !== null) {
+		$rev = $upgradePin;
+	}
+	if ($fetch) {
 		// UpgradePlugin reads both: a failed fetch (offline) must refuse
 		// rather than fast-forward to whatever stale ref is here, and the
 		// sha read now is what upgrade_plugin is told to land, so a push
 		// between this read and the merge cannot slip past the gate.
-		$GLOBALS['PLUGIN_FETCH_OK'] = ($rv === 0);
-		$GLOBALS['PLUGIN_FETCHED_SHA'] = ($branch !== '')
-			? trim((string) shell_exec('cd ' . escapeshellarg($dir) . ' && git rev-parse --verify -q ' . escapeshellarg('origin/' . $branch) . ' 2>/dev/null'))
-			: '';
+		$GLOBALS['PLUGIN_FETCHED_SHA'] = ($target === 'upgrade' && $rev !== '') ? $rev
+			: (($branch !== '')
+				? trim((string) shell_exec('cd ' . escapeshellarg($dir) . ' && git rev-parse --verify -q ' . escapeshellarg('origin/' . $branch) . ' 2>/dev/null'))
+				: '');
 	}
 	if ($branch !== '') {
 		// A pinned sha is what the clone checks out; it is normally an
 		// ancestor of the fetched branch. Fall back to the branch tip if
-		// the object is not here (a pin on a commit never fetched).
+		// the object is not here (a pin on a commit never fetched) -- but
+		// not for an upgrade pin, which is resolved here: a pinned commit
+		// with no pluginInfo.json of its own lands without one, so the
+		// tip's block is not what lands (the copies below are closer).
 		$json = '';
 		if ($rev !== '') {
 			$json = shell_exec('cd ' . escapeshellarg($dir) . ' && git show ' . escapeshellarg($rev . ':pluginInfo.json') . ' 2>/dev/null');
 		}
-		if (!is_string($json) || $json === '') {
+		if ((!is_string($json) || $json === '') && $upgradePin === '') {
 			$json = shell_exec('cd ' . escapeshellarg($dir) . ' && git show ' . escapeshellarg('origin/' . $branch . ':pluginInfo.json') . ' 2>/dev/null');
 		}
 		if (is_string($json) && $json !== '') {
@@ -3041,10 +3057,11 @@ function PluginPrivacyChanged($plugin, $fetch = false, &$pending = null, &$accep
  *
  * What the operator accepted at install, what the next upgrade would land,
  * and whether the two differ in a way that re-shows the install dialog.
- * Reads the already-fetched upstream tip; call `POST /plugin/{RepoName}/updates`
- * first to fetch. `?target=reinstall` diffs the block a Reinstall would land
- * (the versions[] branch and pin selected for this FPP) instead of the one
- * `…/upgrade` would (origin/<checked-out branch>), and adds
+ * Reads the already-fetched upstream tip (or versions[] pin); call
+ * `POST /plugin/{RepoName}/updates` first to fetch. `?target=reinstall` diffs
+ * the block a Reinstall would land (the versions[] branch and pin selected for
+ * this FPP) instead of the one `…/upgrade` would (origin/<checked-out branch>,
+ * or its pin while the clone is at or behind it), and adds
  * `reinstallTarget: {branch, sha}`, the server's choice, for the page to post.
  *
  * @route GET /api/plugin/{RepoName}/privacy
@@ -3668,7 +3685,16 @@ function PluginGitHubRepoOf($pluginInfo)
 	return (preg_match('#^[a-z0-9_.-]+/[a-z0-9_.-]+$#', $repo) && !preg_match('#(^|/)\.\.?(/|$)#', $repo)) ? $repo : '';
 }
 
-// The pluginInfo.json the next update would land (origin/<branch>, as of the
+// What Update would land on $branch, as a git revision: its versions[] pin
+// while the clone is at or behind it (PluginPinnedVerdict), else
+// origin/<branch> as of the last fetch.
+function PluginUpgradeRev($plugin, $branch)
+{
+	$pin = '';
+	return (PluginPinnedVerdict($plugin, $branch, $pin) !== null) ? $pin : 'origin/' . $branch;
+}
+
+// The pluginInfo.json the next update would land (PluginUpgradeRev, as of the
 // last fetch), falling back to the installed copy. Release notes describe the
 // incoming update, so its declaration wins: a plugin that adds (or changes)
 // releaseNotesStyle gets the link for the very update that introduces it.
@@ -3678,7 +3704,7 @@ function PluginReleaseNotesInfo($plugin, $installedInfo)
 	$branch = PluginCurrentBranch($plugin);
 	if ($branch !== '') {
 		$json = shell_exec('cd ' . escapeshellarg($settings['pluginDirectory'] . '/' . $plugin)
-			. ' && git show ' . escapeshellarg('origin/' . $branch . ':pluginInfo.json') . ' 2>/dev/null');
+			. ' && git show ' . escapeshellarg(PluginUpgradeRev($plugin, $branch) . ':pluginInfo.json') . ' 2>/dev/null');
 		if (is_string($json) && $json !== '') {
 			$info = json_decode($json, true);
 			if (is_array($info)) {
@@ -3742,8 +3768,8 @@ function PluginReleaseNotesError($code, $message)
  *   configured GitHub token when there is one. `release` is null when the
  *   repo has no Release; `stale` is true when GitHub could not be reached and
  *   an older cached copy is served.
- * - `gitHistory`: `pending` is what Update would pull in (HEAD..origin/<branch>
- *   as of the last update check), `installed` the most recent installed
+ * - `gitHistory`: `pending` is what Update would pull in (HEAD..origin/<branch>,
+ *   or HEAD..the versions[] pin for a pinned plugin, as of the last update check), `installed` the most recent installed
  *   commits. Both are empty-safe; being up to date is not an error.
  * - `script`: the stdout of the plugin's installed
  *   `scripts/fpp_releasenotes.sh` (15s timeout, 64 KiB cap), as plain text;
@@ -3934,7 +3960,7 @@ function PluginReleaseNotesGitLog($dir, $range, $max)
 // releaseNotesStyle: gitHistory -- read straight from the plugin's own clone:
 // no GitHub API call, works for any git host. No live `git fetch` either; it
 // rides the origin/<branch> the last update check fetched, like
-// PluginUpdateVerdict(). The installed history is always included, so an
+// PluginUpdateVerdict(), and stops at a versions[] pin as Update does. The installed history is always included, so an
 // up-to-date plugin still shows what its latest changes were.
 function PluginReleaseNotesFromGitHistory($plugin)
 {
@@ -3945,7 +3971,7 @@ function PluginReleaseNotesFromGitHistory($plugin)
 	$pending = array();
 	$pendingCount = 0;
 	if ($branch !== '') {
-		$range = 'HEAD..origin/' . $branch;
+		$range = 'HEAD..' . PluginUpgradeRev($plugin, $branch);
 		$pending = PluginReleaseNotesGitLog($dir, $range, PLUGIN_RELEASE_HISTORY_MAX_COMMITS);
 		$pendingCount = (int) trim((string) shell_exec('git -C ' . escapeshellarg($dir)
 			. ' rev-list --no-merges --count ' . escapeshellarg($range) . ' -- 2>/dev/null'));
@@ -4281,27 +4307,20 @@ function PluginUpdateVerdict($plugin)
  * The pin comes from the fetched branch's pluginInfo.json (the installed copy is
  * AT the pin and cannot name itself). false: HEAD is the pin; true: the pin moved
  * past HEAD; null: not pinned, or HEAD is not behind the pin (a downgrade), so
- * the ordinary branch comparison applies.
+ * the ordinary branch comparison applies. $pin receives the pin's commit id
+ * ('' when not pinned), so a caller that lands it need not look it up again.
  */
-function PluginPinnedVerdict($plugin, $branch)
+function PluginPinnedVerdict($plugin, $branch, &$pin = null)
 {
 	global $settings;
 
-	$dir = $settings['pluginDirectory'] . '/' . $plugin;
-	$cd = 'cd ' . escapeshellarg($dir) . ' && ';
-	$incoming = json_decode((string) shell_exec($cd . 'git show ' . escapeshellarg('origin/' . $branch . ':pluginInfo.json') . ' 2>/dev/null'), true);
-	$entry = is_array($incoming) ? SelectPluginVersionEntry($incoming) : null;
-	if (!is_array($entry)) {
+	$pin = PluginPinnedSha($plugin, $branch);
+	if ($pin === '') {
 		return null;
 	}
-	$pinBranch = (isset($entry['branch']) && is_string($entry['branch']) && $entry['branch'] !== '') ? $entry['branch'] : 'master';
-	$pinSha = (isset($entry['sha']) && is_string($entry['sha'])) ? $entry['sha'] : '';
-	if ($pinBranch !== $branch || !preg_match('/^[a-fA-F0-9]{4,40}$/', $pinSha)) {
-		return null;
-	}
+	$cd = 'cd ' . escapeshellarg($settings['pluginDirectory'] . '/' . $plugin) . ' && ';
 	$head = trim((string) shell_exec($cd . 'git rev-parse --verify -q HEAD 2>/dev/null'));
-	$pin = trim((string) shell_exec($cd . 'git rev-parse --verify -q ' . escapeshellarg($pinSha . '^{commit}') . ' 2>/dev/null'));
-	if ($head === '' || $pin === '') {
+	if ($head === '') {
 		return null;
 	}
 	if ($pin === $head) {
@@ -4309,6 +4328,27 @@ function PluginPinnedVerdict($plugin, $branch)
 	}
 	exec($cd . 'git merge-base --is-ancestor ' . escapeshellarg($head) . ' ' . escapeshellarg($pin) . ' 2>/dev/null', $o, $rv);
 	return ($rv === 0) ? true : null;
+}
+
+// The full commit id the fetched origin/<branch>'s pluginInfo.json pins this
+// FPP's versions[] entry to, or '' when that entry is on another branch, has
+// no sha, or names a commit this clone does not have.
+function PluginPinnedSha($plugin, $branch)
+{
+	global $settings;
+
+	$cd = 'cd ' . escapeshellarg($settings['pluginDirectory'] . '/' . $plugin) . ' && ';
+	$incoming = json_decode((string) shell_exec($cd . 'git show ' . escapeshellarg('origin/' . $branch . ':pluginInfo.json') . ' 2>/dev/null'), true);
+	$entry = is_array($incoming) ? SelectPluginVersionEntry($incoming) : null;
+	if (!is_array($entry)) {
+		return '';
+	}
+	$pinBranch = (isset($entry['branch']) && is_string($entry['branch']) && $entry['branch'] !== '') ? $entry['branch'] : 'master';
+	$pinSha = (isset($entry['sha']) && is_string($entry['sha'])) ? $entry['sha'] : '';
+	if ($pinBranch !== $branch || !preg_match('/^[a-fA-F0-9]{4,40}$/', $pinSha)) {
+		return '';
+	}
+	return trim((string) shell_exec($cd . 'git rev-parse --verify -q ' . escapeshellarg($pinSha . '^{commit}') . ' 2>/dev/null'));
 }
 
 // The git half of PluginUpdateVerdict(): local refs only, never plugin code.

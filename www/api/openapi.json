@@ -7214,7 +7214,7 @@
           "plugin"
         ],
         "summary": "Privacy disclosure status for an installed plugin",
-        "description": "What the operator accepted at install, what the next upgrade would land, and whether the two differ in a way that re-shows the install dialog. Reads the already-fetched upstream tip; call `POST /plugin/{RepoName}/updates` first to fetch. `?target=reinstall` diffs the block a Reinstall would land (the versions[] branch and pin selected for this FPP) instead of the one `\u2026/upgrade` would (origin/<checked-out branch>), and adds `reinstallTarget: {branch, sha}`, the server's choice, for the page to post.",
+        "description": "What the operator accepted at install, what the next upgrade would land, and whether the two differ in a way that re-shows the install dialog. Reads the already-fetched upstream tip (or versions[] pin); call `POST /plugin/{RepoName}/updates` first to fetch. `?target=reinstall` diffs the block a Reinstall would land (the versions[] branch and pin selected for this FPP) instead of the one `\u2026/upgrade` would (origin/<checked-out branch>, or its pin while the clone is at or behind it), and adds `reinstallTarget: {branch, sha}`, the server's choice, for the page to post.",
         "responses": {
           "200": {
             "description": "Privacy status",
@@ -7256,7 +7256,7 @@
           "plugin"
         ],
         "summary": "Get a plugin's release notes",
-        "description": "In whichever form the plugin declared via `releaseNotesStyle` in its `pluginInfo.json` (see the Template's PLUGININFO_FORMAT.md). Installed plugins only; the style is read from the pluginInfo.json the next update would land, else the installed one. - `gitRelease`: the latest GitHub Release of the `srcURL` repo (GitHub only; offered as `none` otherwise), proxied and cached for 6h, using the configured GitHub token when there is one. `release` is null when the repo has no Release; `stale` is true when GitHub could not be reached and an older cached copy is served. - `gitHistory`: `pending` is what Update would pull in (HEAD..origin/<branch> as of the last update check), `installed` the most recent installed commits. Both are empty-safe; being up to date is not an error. - `script`: the stdout of the plugin's installed `scripts/fpp_releasenotes.sh` (15s timeout, 64 KiB cap), as plain text; offered as `none` until the script is installed. 404 when the plugin is not installed, declares no release notes, or its repo isn't visible to GitHub's API; 502 when GitHub or the plugin's script failed. Errors carry `Status`/`Message`.",
+        "description": "In whichever form the plugin declared via `releaseNotesStyle` in its `pluginInfo.json` (see the Template's PLUGININFO_FORMAT.md). Installed plugins only; the style is read from the pluginInfo.json the next update would land, else the installed one. - `gitRelease`: the latest GitHub Release of the `srcURL` repo (GitHub only; offered as `none` otherwise), proxied and cached for 6h, using the configured GitHub token when there is one. `release` is null when the repo has no Release; `stale` is true when GitHub could not be reached and an older cached copy is served. - `gitHistory`: `pending` is what Update would pull in (HEAD..origin/<branch>, or HEAD..the versions[] pin for a pinned plugin, as of the last update check), `installed` the most recent installed commits. Both are empty-safe; being up to date is not an error. - `script`: the stdout of the plugin's installed `scripts/fpp_releasenotes.sh` (15s timeout, 64 KiB cap), as plain text; offered as `none` until the script is installed. 404 when the plugin is not installed, declares no release notes, or its repo isn't visible to GitHub's API; 502 when GitHub or the plugin's script failed. Errors carry `Status`/`Message`.",
         "responses": {
           "200": {
             "description": "Shape depends on `style`",
@@ -7430,7 +7430,7 @@
           "plugin"
         ],
         "summary": "Update plugin",
-        "description": "Pull in git updates for plugin {RepoName}. Before the plugin's own fpp_upgrade.sh (or fpp_install.sh) runs, its declared dependencies are reconciled against the new version: newly declared apt, Python and script dependencies are installed, and package claims the new version no longer declares are released (apt-removed once nothing else needs them). A newly declared dependency plugin is reported, not installed -- the operator has to see its privacy disclosure on the Plugins page. Supports ?stream=true.",
+        "description": "Pull in git updates for plugin {RepoName}: the checked-out branch's tip, or, when the versions[] entry for this FPP pins a sha the clone has not passed, that sha and no further. Before the plugin's own fpp_upgrade.sh (or fpp_install.sh) runs, its declared dependencies are reconciled against the new version: newly declared apt, Python and script dependencies are installed, and package claims the new version no longer declares are released (apt-removed once nothing else needs them). A newly declared dependency plugin is reported, not installed -- the operator has to see its privacy disclosure on the Plugins page. Supports ?stream=true.",
         "responses": {
           "200": {
             "description": "Plugin upgraded",

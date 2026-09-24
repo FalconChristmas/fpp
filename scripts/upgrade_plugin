@@ -94,7 +94,8 @@ $SUDO git -C "${PLUGINPATH}" config core.fileMode false
 
 # Fast path: a plain pull works when the working tree is clean. When the
 # caller has just fetched (the Plugin Manager sets FPP_PLUGIN_NO_FETCH=1
-# after reading origin/<branch>'s pluginInfo.json for the privacy check, and
+# after reading origin/<branch>'s pluginInfo.json -- or, for a clone at or
+# behind its versions[] pin, the pinned commit's -- for the privacy check, and
 # FPP_PLUGIN_TARGET_SHA to the commit it read), fast-forward to that exact
 # commit instead of fetching again, so what was compared is what lands; a
 # push in between waits for the next check. origin/<branch> is the fallback
@@ -172,7 +173,7 @@ else
 fi
 
 if [ $git_rc -ne 0 ]; then
-	if [ -n "${BRANCH}" ] && [ "${BRANCH}" != "HEAD" ]; then src="origin/${BRANCH}"; else src="upstream (detached HEAD)"; fi
+	if [ -n "${BRANCH}" ] && [ "${BRANCH}" != "HEAD" ]; then src="${TARGET}"; else src="upstream (detached HEAD)"; fi
 	echo "ERROR: could not update the code of ${PLUGIN} from ${src}; see above"
 	exit 1
 fi
