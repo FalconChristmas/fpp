@@ -57,8 +57,8 @@ export XDG_RUNTIME_DIR="${PW_RUNTIME}"
 export PULSE_RUNTIME_PATH="${PW_RUNTIME}/pulse"
 export PIPEWIRE_CONFIG_DIR="/etc/pipewire"
 
-TMPDIR_DIAG=$(mktemp -d /tmp/fpp-pwdiag.XXXXXX 2>/dev/null) || TMPDIR_DIAG="/tmp"
-trap 'rm -rf "${TMPDIR_DIAG}" 2>/dev/null' EXIT
+TMPDIR_DIAG=$(mktemp -d /tmp/fpp-pwdiag.XXXXXX 2>/dev/null) || { echo "[FAIL] cannot create temp directory in /tmp"; exit 1; }
+trap 'rm -rf "${TMPDIR_DIAG:?}" 2>/dev/null' EXIT
 
 pass() { echo "[PASS] $*"; }
 warn() { echo "[WARN] $*"; }
