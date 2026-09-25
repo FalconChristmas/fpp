@@ -325,8 +325,13 @@ std::string FSEQFile::getMediaFilename(const std::string& fn) {
 std::string FSEQFile::getMediaFilename() const {
     for (auto& a : m_variableHeaders) {
         if (a.code[0] == 'm' && a.code[1] == 'f') {
-            const char* d = (const char*)&a.getData()[0];
-            return d;
+            const auto& data = a.getData();
+            if (data.empty()) {
+                continue;
+            }
+            const char* d = (const char*)data.data();
+            size_t len = strnlen(d, data.size());
+            return std::string(d, len);
         }
     }
     return "";

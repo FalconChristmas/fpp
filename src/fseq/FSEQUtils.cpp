@@ -222,12 +222,19 @@ int main(int argc, char* argv[]) {
                             }
                         }
                         if (allAscii) {
+                            const auto& vd = head.getData();
+                            if (vd.empty()) {
+                                continue;
+                            }
+                            const char* raw = (const char*)vd.data();
+                            size_t vlen = strnlen(raw, vd.size());
+                            std::string vs(raw, vlen);
                             if (!first) {
                                 printf(", ");
                             } else {
                                 first = false;
                             }
-                            printf("\"%c%c\": \"%s\"", head.code[0], head.code[1], escape(buf, (const char*)&head.getData()[0]));
+                            printf("\"%c%c\": \"%s\"", head.code[0], head.code[1], escape(buf, vs.c_str()));
                         } else {
                             if (!first) {
                                 printf(", ");
