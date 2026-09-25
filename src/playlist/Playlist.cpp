@@ -631,12 +631,18 @@ int Playlist::Load(const std::string& filename) {
             if (src && !src->getVariableHeaders().empty()) {
                 for (auto& head : src->getVariableHeaders()) {
                     if ((head.code[0] == 'm') && (head.code[1] == 'f')) {
-                        if (strchr((char*)&head.getData()[0], '/')) {
-                            mediaName = (char*)(strrchr((char*)&head.getData()[0], '/') + 1);
-                        } else if (strchr((char*)&head.getData()[0], '\\')) {
-                            mediaName = (char*)(strrchr((char*)&head.getData()[0], '\\') + 1);
+                        const auto& data = head.getData();
+                        if (data.empty()) {
+                            continue;
+                        }
+                        const char* d = (const char*)data.data();
+                        size_t len = strnlen(d, data.size());
+                        std::string raw(d, len);
+                        size_t pos = raw.find_last_of("/\\");
+                        if (pos == std::string::npos) {
+                            mediaName = raw;
                         } else {
-                            mediaName = (const char*)&head.getData()[0];
+                            mediaName = raw.substr(pos + 1);
                         }
                         std::string tmpMedia = sanitizeMediaName(mediaName);
                         if (tmpMedia == "") {
