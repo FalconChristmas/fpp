@@ -201,6 +201,15 @@ TRIPLE=$(dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || gcc -dumpmachine 
 rm -f mnt/bin/ping
 rm -f mnt/lib/${TRIPLE}/librtmp.so.1
 rm -f mnt/usr/bin/dc mnt/usr/bin/bc mnt/usr/bin/hardlink mnt/usr/bin/lua5*
+# mp3gain kept the same upstream version (1.6.2-2) across the bookworm ->
+# trixie move while libmpg123 broke ABI under it (1.31.x -> 1.32.x plus the
+# 64-bit time_t rename libmpg123-0 -> libmpg123-0t64), so an upgraded box can
+# keep a stale binary that dies with "undefined symbol: mpg123_decode_frame"
+# (issues #2873, #2986). Force both sides to be re-copied from the image.
+# Both spellings: bookworm and earlier kept a real /lib, trixie uses merged
+# usr where /lib is a symlink to /usr/lib.
+rm -f mnt/usr/bin/mp3gain
+rm -f mnt/usr/lib/${TRIPLE}/libmpg123.so.* mnt/lib/${TRIPLE}/libmpg123.so.*
 
 SKIPFPP=""
 if [ -f /mnt/home/fpp/media/tmp/keepOptFPP ]
