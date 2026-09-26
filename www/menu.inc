@@ -519,6 +519,7 @@ function list_plugin_entries($menu)
                                     Check</a>
                                 <a class="dropdown-item" href="troubleshooting.php"><i class="fas fa-code"></i>
                                     Troubleshooting Commands</a>
+                                <a class="dropdown-item" href="javascript:void(0)" onClick="DisplayErrorReportDialog();"><i class="fas fa-bug"></i> Error Report <span class="badge bg-body text-primary-emphasis border border-primary-subtle fw-normal float-end ms-3">F8</span></a>
 <?                                $baseLink = $_SERVER['HTTP_HOST'];
                                 if (isset($_SERVER['HTTP_X_FORWARDED_HOST'])) {
                                     $baseLink = $_SERVER['HTTP_X_FORWARDED_HOST'] . '/proxy/' . $_SERVER['SERVER_ADDR'];

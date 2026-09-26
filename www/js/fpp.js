@@ -1132,6 +1132,24 @@ function handleKeypress (e) {
 	if (e.keyCode == 112) {
 		e.preventDefault();
 		DisplayHelp();
+	} else if (e.keyCode == 119) {
+		// F8 — Error Report bundle (toggle)
+		var t = e.target;
+		// Check typing in input/textarea/select or any contenteditable ancestor
+		var isTyping = false;
+		if (t) {
+			var el = t;
+			while (el) {
+				if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable) {
+					isTyping = true;
+					break;
+				}
+				el = el.parentElement;
+			}
+		}
+		if (isTyping && !e.ctrlKey && !e.shiftKey) return;
+		e.preventDefault();
+		DisplayErrorReportDialog();
 	}
 }
 class SwipeHandler {
@@ -8342,8 +8360,11 @@ function HelpClosed () {
 function DisplayHelp () {
 	var tmpHelpPage = helpPage;
 	var tabs = $('#settingsManagerTabs li .active');
+	var isErrorReportHelp = typeof errorReportOpen !== 'undefined' && errorReportOpen;
 
-	if (helpPage == 'help/settings.php' && tabs.length == 1) {
+	if (isErrorReportHelp) {
+		tmpHelpPage = 'help/errorReport.php';
+	} else if (helpPage == 'help/settings.php' && tabs.length == 1) {
 		var id = tabs.first().attr('id');
 		const re = /settings-(.*)-tab/;
 		var tab = '';
@@ -8360,7 +8381,19 @@ function DisplayHelp () {
 		if (tmpHelpPage != lastHelpPage) {
 			$('#helpDialogText').load(tmpHelpPage);
 			lastHelpPage = tmpHelpPage;
-			helpPage = tmpHelpPage;
+			if (!isErrorReportHelp) helpPage = tmpHelpPage;
+			// Bring help dialog to front when invoked from Error Report
+			if (isErrorReportHelp) {
+				setTimeout(function () {
+					var helpEl = document.getElementById('helpDialog');
+					if (helpEl) {
+						helpEl.style.zIndex = '1060';
+						// Ensure backdrop is also above Error Report backdrop
+						var backdrops = document.querySelectorAll('.modal-backdrop');
+						if (backdrops.length) backdrops[backdrops.length - 1].style.zIndex = '1059';
+					}
+				}, 10);
+			}
 			return;
 		}
 		CloseModalDialog('helpDialog');
@@ -8383,7 +8416,306 @@ function DisplayHelp () {
 
 	$('#helpDialogText').load(tmpHelpPage);
 	lastHelpPage = tmpHelpPage;
+	if (!isErrorReportHelp) helpPage = tmpHelpPage;
 	helpOpen = 1;
+	// When Error Report is open, ensure Help appears above it
+	if (isErrorReportHelp) {
+		setTimeout(function () {
+			var helpEl = document.getElementById('helpDialog');
+			if (helpEl) {
+				helpEl.style.zIndex = '1060';
+				var backdrops = document.querySelectorAll('.modal-backdrop');
+				if (backdrops.length) backdrops[backdrops.length - 1].style.zIndex = '1059';
+			}
+		}, 10);
+	}
+}
+
+var errorReportPreviewCache = null;
+var errorReportLastBundle = null;
+
+var errorReportOpen = false;
+var erCurrentStep = 1;
+function ErrorReportClosed () {
+	errorReportOpen = false;
+	erCurrentStep = 1;
+}
+function ErShowStep (n) {
+	erCurrentStep = n;
+	for (var i = 1; i <= 3; i++) {
+		var el = document.getElementById('erStep' + i);
+		if (el) el.classList.toggle('d-none', i !== n);
+		var badge = document.getElementById('erStepBadge' + i);
+		if (badge) {
+			badge.className = i === n ? 'badge bg-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' : i < n ? 'badge bg-success rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' : 'badge bg-secondary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0';
+			badge.innerHTML = i < n ? '<i class="fas fa-check" style="font-size:0.6rem;"></i>' : i;
+		}
+	}
+	var nextBtn = document.getElementById('errorReportNextBtn');
+	if (nextBtn) {
+		if (n === 3) {
+			nextBtn.innerHTML = '<i class="fas fa-download me-1"></i> Download Error Report';
+			nextBtn.className = 'btn btn-success';
+		} else {
+			nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right ms-1"></i>';
+			nextBtn.className = 'btn btn-success';
+		}
+	}
+	var vital = document.getElementById('errorReportVital');
+	if (vital && n === 1) {
+		// ensure vital is visible when returning to step 1
+	}
+}
+function ErNext () {
+	if (erCurrentStep < 3) {
+		ErShowStep(erCurrentStep + 1);
+	} else {
+		GenerateErrorReportBundle();
+	}
+}
+function DisplayErrorReportDialog () {
+	// Toggle like DisplayHelp — second F8 closes
+	if (errorReportOpen) {
+		var inst = bootstrap.Modal.getInstance(document.getElementById('errorReportDialog'));
+		if (inst) inst.hide();
+		else CloseModalDialog('errorReportDialog');
+		return;
+	}
+	errorReportOpen = true;
+	erCurrentStep = 1;
+	var bodyHtml =
+		"<div id='errorReportDialogBody'>" +
+		"<div class='alert alert-light border d-flex gap-3 align-items-start small mb-3 py-3'>" +
+		"<i class='fas fa-life-ring text-primary fs-5 mt-1 flex-shrink-0'></i>" +
+		"<div><div class='fw-semibold'>Need help with FPP?</div><div class='text-muted mt-1 lh-sm'>This tool builds a tidy, privacy-safe <b>.zip</b> you can attach to a GitHub issue. It’s best when something isn’t working as expected and you want the developers or community to see what your system looks like — without sharing secrets. Nothing is uploaded automatically; you choose what to send.</div></div>" +
+		"</div>" +
+		// Step 1 — Basic Info (always included, expanded)
+		"<div id='erStep1' class='er-step card mb-3 border'>" +
+		"<div class='card-header bg-body-tertiary py-2 d-flex align-items-center gap-2'>" +
+		"<span id='erStepBadge1' class='badge bg-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' style='width:22px;height:22px;font-size:0.7rem;'>1</span>" +
+		"<span class='fw-semibold small'>Basic Info</span>" +
+		"<span class='badge bg-success-subtle text-success-emphasis border fw-normal ms-auto'>Always included</span>" +
+		"</div>" +
+		"<div class='card-body p-3'>" +
+		"<div class='alert alert-info border-0 bg-info-subtle py-2 px-3 small d-flex gap-2 align-items-start mb-3'><i class='fas fa-circle-info mt-1 flex-shrink-0'></i><div><span class='fw-semibold'>What’s in here?</span> The essentials to understand your setup — FPP version, platform, OS, cape and plugin list. Private details like hostname and network addresses are stripped before the zip is even made, and <code>fpp-info.json</code> is scrubbed.</div></div>" +
+		"<div class='small text-muted mb-2'>Below is what will be included from <b>this device</b> (preview):</div>" +
+		"<div id='errorReportVital'><div class='d-flex align-items-center gap-2 text-muted small'><i class='fas fa-spinner fa-spin'></i> Loading system info…</div></div>" +
+		"<div class='small text-muted mt-3 d-flex gap-2 align-items-center'><i class='fas fa-shield-halved text-success'></i><span>Everything below is already privacy-checked — no passwords or Wi-Fi keys in this section.</span></div>" +
+		"</div>" +
+		"</div>" +
+		// Step 2 — Choose Files
+		"<div id='erStep2' class='er-step card mb-3 border d-none'>" +
+		"<div class='card-header bg-body-tertiary py-2 d-flex align-items-center gap-2'>" +
+		"<span id='erStepBadge2' class='badge bg-secondary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' style='width:22px;height:22px;font-size:0.7rem;'>2</span>" +
+		"<span class='fw-semibold small'>Choose Files</span>" +
+		"<span class='small text-muted ms-1'>— select what to add</span>" +
+		"</div>" +
+		"<div class='card-body p-3'>" +
+		"<div class='form-check mb-3'>" +
+		"<input class='form-check-input' type='checkbox' id='erIncludeSettings' checked>" +
+		"<label class='form-check-label small fw-semibold ms-1' for='erIncludeSettings'>Settings</label>" +
+		"<div class='small text-muted ms-4 ps-1'>Configuration without secrets — redacted.</div>" +
+		"</div>" +
+		"<div class='form-check mb-3'>" +
+		"<input class='form-check-input' type='checkbox' id='erIncludeFppdLog' checked>" +
+		"<label class='form-check-label small fw-semibold ms-1' for='erIncludeFppdLog'>Recent log <span class='badge bg-body-secondary border fw-normal ms-1'>last 5,000 lines</span></label>" +
+		"<div class='small text-muted ms-4 ps-1'>fppd.log — usually where the clue is. Also redacted.</div>" +
+		"</div>" +
+		"<div class='form-check mb-3'>" +
+		"<input class='form-check-input' type='checkbox' id='erIncludeSysLogs'>" +
+		"<label class='form-check-label small fw-semibold ms-1' for='erIncludeSysLogs'>System logs</label>" +
+		"<div class='small text-muted ms-4 ps-1'>apache2-error.log and boot log. For startup issues.</div>" +
+		"</div>" +
+		"<div class='form-check mb-3'>" +
+		"<input class='form-check-input' type='checkbox' id='erIncludeNet'>" +
+		"<label class='form-check-label small fw-semibold ms-1' for='erIncludeNet'>Network <span class='badge bg-success-subtle text-success-emphasis border fw-normal ms-1'>safe fields only</span></label>" +
+		"<div class='small text-muted ms-4 ps-1'>Only PROTO and HIDDEN — SSID and PSK are never included.</div>" +
+		"</div>" +
+		"<div class='form-check mb-3'>" +
+		"<input class='form-check-input' type='checkbox' id='erIncludeConfig'>" +
+		"<label class='form-check-label small fw-semibold ms-1' for='erIncludeConfig'>Config files</label>" +
+		"<div class='small text-muted ms-4 ps-1'>All of config — redacted, binaries omitted. Can be large.</div>" +
+		"</div>" +
+		"<div class='form-check mb-0'>" +
+		"<input class='form-check-input' type='checkbox' id='erIncludePlaylists'>" +
+		"<label class='form-check-label small fw-semibold ms-1' for='erIncludePlaylists'>Playlists</label>" +
+		"<div class='small text-muted ms-4 ps-1'>Also scrubbed.</div>" +
+		"</div>" +
+		"<div class='small text-muted mt-3 d-flex gap-2 align-items-start'><i class='fas fa-circle-info text-primary mt-1 flex-shrink-0'></i><span>Defaults are fine for most reports.</span></div>" +
+		"</div>" +
+		"</div>" +
+		// Step 3 — Download Report
+		"<div id='erStep3' class='er-step card border d-none'>" +
+		"<div class='card-header bg-body-tertiary py-2 d-flex align-items-center gap-2'>" +
+		"<span id='erStepBadge3' class='badge bg-secondary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' style='width:22px;height:22px;font-size:0.7rem;'>3</span>" +
+		"<span class='fw-semibold small'>Download Report</span>" +
+		"<span class='badge bg-body-secondary border fw-normal ms-auto small'>You’re almost done</span>" +
+		"</div>" +
+		"<div class='card-body p-3'>" +
+		"<p class='small text-muted mb-3'>We’ll build the .zip <b>on your FPP</b> and download it to your computer or phone. The file is usually small (a few KB to a couple MB) and easy to share.</p>" +
+		"<div id='errorReportStatus' class='mb-3'></div>" +
+		"<div id='errorReportDownloadArea' class='d-none'>" +
+		"<div class='alert alert-success py-2 d-flex gap-2 align-items-start mb-3'>" +
+		"<i class='fas fa-file-zipper mt-1 flex-shrink-0'></i>" +
+		"<div class='flex-grow-1 min-w-0'>" +
+		"<div class='fw-semibold small' id='errorReportDownloadTitle'>Ready</div>" +
+		"<div class='small' id='errorReportDownloadText'></div>" +
+		"<div class='small text-muted mt-1' id='errorReportManifest'></div>" +
+		"</div>" +
+		"</div>" +
+		"<div class='border rounded bg-body-tertiary p-3 small'>" +
+		"<div class='fw-semibold mb-2'><i class='fab fa-github me-1'></i> How to post on GitHub (about a minute)</div>" +
+		"<ol class='mb-2 ps-3' style='line-height:1.5;'>" +
+		"<li>Click <b>Open GitHub</b> at the bottom-left — it opens <code>FalconChristmas/fpp</code> issues in a new tab.</li>" +
+		"<li>Click <b>New issue</b> and choose <b>Bug report</b>. Fill in what happened and what you expected.</li>" +
+		"<li>Drag the downloaded <code>error-report-*.zip</code> from your Downloads onto the issue description — or click <i>attach files</i> and select it. GitHub accepts up to 25 MB.</li>" +
+		"<li>Hit <b>Submit new issue</b> — the FPP team will have the context they need to help.</li>" +
+		"</ol>" +
+		"<div class='small text-muted d-flex gap-2 align-items-start mt-2'><i class='fas fa-lightbulb text-warning mt-1 flex-shrink-0'></i><span><b>Tip:</b> If the download didn’t start, click the blue link above. You can also open the zip first to double-check what’s inside — it’s just a normal zip.</span></div>" +
+		"</div>" +
+		"</div>" +
+		"<div class='small text-muted d-flex gap-2 align-items-start mt-2'><i class='fas fa-lock text-success mt-1 flex-shrink-0'></i><span>Still private — the zip was scrubbed on your FPP. Secrets show as <code>**REDACTED**</code>.</span></div>" +
+		"</div>" +
+		"</div>" +
+		"</div>";
+
+	DoModalDialog({
+		id: 'errorReportDialog',
+		title: 'Error Report',
+		body: bodyHtml,
+		class: 'modal-dialog-scrollable',
+		backdrop: true,
+		keyboard: true,
+		close: ErrorReportClosed,
+		buttons: {
+			'Open GitHub': {
+				id: 'errorReportOpenGHBtn',
+				class: 'btn-outline-secondary me-auto',
+				click: function () {
+					window.open(
+						'https://github.com/FalconChristmas/fpp/issues/new?template=bug_report.md',
+						'_blank',
+						'noopener'
+					);
+				}
+			},
+			'Next': {
+				id: 'errorReportNextBtn',
+				class: 'btn-success',
+				click: function () {
+					ErNext();
+				}
+			},
+			Close: function () {
+				CloseModalDialog('errorReportDialog');
+			}
+		}
+	});
+
+	ErShowStep(1);
+
+	$.get('api/errorReport/preview')
+		.done(function (data) {
+			errorReportPreviewCache = data;
+			var av = (data && data.advancedView) || {};
+			var version = EscapeHtml(av.Version || data.version || 'Unknown');
+			var platform = av.Platform ? EscapeHtml(av.Platform) : '';
+			var variant = av.Variant ? EscapeHtml(av.Variant) : '';
+			var os = av.OSVersion ? EscapeHtml(av.OSVersion) : '';
+			var kernel = av.Kernel ? EscapeHtml(av.Kernel) : '';
+			var mode = av.Mode ? EscapeHtml(av.Mode) : '';
+			var branch = data.branch ? EscapeHtml(data.branch) : '';
+			var hasData = version !== 'Unknown' || platform || os;
+			var html = '';
+			if (hasData) {
+				html =
+					"<div class='small'>" +
+					"<div class='row g-2 mb-2'>" +
+					"<div class='col-sm-6'><span class='text-muted'>FPP Version:</span> <span class='fw-semibold'>" + version + "</span></div>" +
+					"<div class='col-sm-6'><span class='text-muted'>Branch:</span> <span class='fw-semibold'>" + (branch || '—') + "</span></div>" +
+					"<div class='col-sm-6'><span class='text-muted'>Platform:</span> <span class='fw-semibold'>" + (platform ? platform + (variant ? " (" + variant + ")" : "") : '—') + "</span></div>" +
+					"<div class='col-sm-6'><span class='text-muted'>Mode:</span> <span class='fw-semibold'>" + (mode || '—') + "</span></div>" +
+					"<div class='col-sm-6'><span class='text-muted'>OS:</span> <span class='fw-semibold'>" + (os || '—') + "</span></div>" +
+					"<div class='col-sm-6'><span class='text-muted'>Kernel:</span> <span class='fw-semibold'>" + (kernel || '—') + "</span></div>" +
+					"</div>" +
+					"<div class='border-top pt-2 mt-2 d-flex gap-2 small'><span class='text-muted flex-shrink-0'>Plugins:</span><span class='text-truncate'>" + (data.plugins && data.plugins.length ? EscapeHtml(data.plugins.join(', ')) : "<span class='text-muted'>None</span>") + "</span></div>" +
+					"<div class='small text-muted mt-2'><i class='fas fa-shield-halved me-1'></i>Hostname and network addresses are stripped. cape-info.json is included when available.</div>" +
+					"</div>";
+			} else {
+				html = "<div class='small text-muted'>Will include fpp-info.json, plugins.json and cape-info.json (hostname and addresses stripped).</div>";
+			}
+			$('#errorReportVital').html(html);
+		})
+		.fail(function () {
+			$('#errorReportVital').html(
+				"<div class='small text-muted'>Will include fpp-info.json and plugin list. Hostname and addresses are stripped.</div>"
+			);
+		});
+}
+
+function GenerateErrorReportBundle () {
+	var $btn = $('#errorReportNextBtn');
+	if (!$btn.length) $btn = $('#errorReportDownloadBtn');
+	var $status = $('#errorReportStatus');
+	var $area = $('#errorReportDownloadArea');
+	$btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Building…');
+	$status.html(
+		'<div class="alert alert-secondary py-2 small d-flex gap-2 align-items-center mb-2"><div class="spinner-border spinner-border-sm text-primary flex-shrink-0" role="status"><span class="visually-hidden">Loading…</span></div><span>Building report — scrubbing secrets and zipping…</span></div>'
+	);
+	$area.addClass('d-none');
+	var payload = {
+		includeSettings: $('#erIncludeSettings').is(':checked'),
+		includeFppdLog: $('#erIncludeFppdLog').is(':checked'),
+		includeSysLogs: $('#erIncludeSysLogs').is(':checked'),
+		includeNet: $('#erIncludeNet').is(':checked'),
+		includeConfig: $('#erIncludeConfig').is(':checked'),
+		includePlaylists: $('#erIncludePlaylists').is(':checked')
+	};
+	$.ajax({
+		url: 'api/errorReport/create',
+		method: 'POST',
+		contentType: 'application/json',
+		data: JSON.stringify(payload),
+		dataType: 'json'
+	})
+		.done(function (data) {
+			if (data.Status !== 'OK') {
+				$status.html(
+					'<div class="alert alert-danger py-2 small mb-0">' + EscapeHtml(data.Message || 'Failed to build report. Please try again.') + '</div>'
+				);
+				return;
+			}
+			errorReportLastBundle = data;
+			var sizeKb = Math.round((data.size || 0) / 1024);
+			var sizeLabel = sizeKb >= 1024 ? (sizeKb / 1024).toFixed(1) + ' MB' : sizeKb + ' KB';
+			$status.html('<div class="alert alert-success py-2 small mb-0"><i class="fas fa-check me-1"></i> Report built.</div>');
+			$('#errorReportDownloadTitle').text('Ready — ' + sizeLabel);
+			$('#errorReportDownloadText').html(
+				'<a href="' + EscapeHtml(data.zipUrl) + "\" download><i class='fas fa-download me-1'></i>" + EscapeHtml(data.file) + '</a>'
+			);
+			$('#errorReportManifest').text(
+				(data.manifest && data.manifest.length ? data.manifest.join(', ') : 'vital info') + ' · ' + sizeLabel
+			);
+			$area.removeClass('d-none');
+			window.location = data.zipUrl;
+		})
+		.fail(function (xhr) {
+			var msg = 'Failed to build report. Please try again.';
+			try {
+				var j = JSON.parse(xhr.responseText);
+				if (j.Message) msg = j.Message;
+			} catch (e) {
+				if (xhr.status === 0) msg = 'Could not reach your FPP. Check your connection.';
+			}
+			$status.html('<div class="alert alert-danger py-2 small mb-0">' + EscapeHtml(msg) + '</div>');
+		})
+		.always(function () {
+			if (erCurrentStep === 3) {
+				$btn.prop('disabled', false).html('<i class="fas fa-download me-1"></i> Download Error Report');
+			} else {
+				$btn.prop('disabled', false).html('Next <i class="fas fa-arrow-right ms-1"></i>');
+			}
+		});
 }
 
 function GetGitOriginLog () {

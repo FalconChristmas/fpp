@@ -47,6 +47,10 @@ dispatch_post('/channel/output/:file', 'channel_save_output');
 dispatch_get('/crashes/uploadTarget', 'GetCrashUploadTarget'); // keep above crashes/upload/:file
 dispatch_post('/crashes/upload/:file', 'PostCrashUpload');
 
+dispatch_get('/errorReport/preview', 'GetErrorReportPreview');
+dispatch_post('/errorReport/create', 'PostErrorReportCreate');
+dispatch_get('/errorReport/download/:file', 'GetErrorReportDownload');
+
 dispatch_get('/configfile', 'GetConfigFileList');
 dispatch_get('/configfile/**', 'DownloadConfigFile');
 dispatch_post('/configfile/**', 'UploadConfigFile');
