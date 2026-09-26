@@ -1292,17 +1292,28 @@ static bool priorOptInRequired(const std::vector<std::string>& lines) {
 // false for anything unranked -- FetchVendorLogos has no rank because it is a
 // remote image rather than telemetry, and unranked keys are not subject to the
 // ratchet at all.
-static bool transmitRank(const std::string& key, const std::string& value, int& rank) {
+static const Json::Value& settingMeta(const std::string& key) {
     static Json::Value settings;
     static bool loaded = false;
+    static const Json::Value none;
     if (!loaded) {
         loaded = true;
         LoadJsonFromFile("/opt/fpp/www/settings.json", settings, CapeJsonRoot::Object);
     }
     if (!settings.isMember("settings") || !settings["settings"].isMember(key)) {
-        return false;
+        return none;
     }
-    const Json::Value& meta = settings["settings"][key];
+    return settings["settings"][key];
+}
+
+// A setting governs what the device discloses if it declares a transmitRank map --
+// that map exists precisely to say how much each of its values transmits.
+static bool settingIsPrivacyGoverned(const std::string& key) {
+    return settingMeta(key).isMember("transmitRank");
+}
+
+static bool transmitRank(const std::string& key, const std::string& value, int& rank) {
+    const Json::Value& meta = settingMeta(key);
     if (!meta.isMember("transmitRank") || !meta["transmitRank"].isMember(value)) {
         return false;
     }
@@ -1324,6 +1335,29 @@ enum class CapeSettingAction {
     SkipUnchanged,
     Refuse
 };
+
+// Whether a signed cape may retire a setting outright.
+//
+// This deliberately does NOT ask whether the value is already set.  A removal's
+// precondition is that it IS set -- routing removes through the never-override rule
+// that guards defaultSettings made every removal of a real value refuse, which is
+// every removal that could have done anything, so removeSettings could only ever
+// clear a key whose value was the empty string.  The signature the caller has
+// already checked is what authorizes a removal; that is the whole reason removes
+// require one and defaults do not.
+//
+// What a cape may not retire is a setting that governs what the device discloses.
+// Removing one restores FPP's shipped default, and those defaults transmit -- so a
+// cape could raise disclosure simply by deleting the user's answer.  Whether it
+// would happen to raise it on this box is not the test: a cape has no business
+// deciding that question at all.
+static bool capeMayRemoveSetting(const std::string& key, std::string& why) {
+    if (settingIsPrivacyGoverned(key)) {
+        why = "it controls what this device transmits";
+        return false;
+    }
+    return true;
+}
 
 static CapeSettingAction capeMaySetSetting(const std::vector<std::string>& lines, const std::string& key,
                                            const std::string& value, bool strict, std::string& why,
@@ -1860,12 +1894,8 @@ private:
                         removes.clear();
                     }
                     for (auto& v : removes) {
-                        // Removing a key restores FPP's shipped default, which for a
-                        // telemetry setting can mean transmitting MORE than the user
-                        // had. Judge it exactly as a write of that default would be.
                         std::string why;
-                        if (capeMaySetSetting(lines, v, "", strictPrivacy, why) ==
-                            CapeSettingAction::Refuse) {
+                        if (!capeMayRemoveSetting(v, why)) {
                             printf("CapeUtils: cape may not remove setting %s: %s\n",
                                    v.c_str(), why.c_str());
                             continue;

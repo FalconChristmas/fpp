@@ -164,10 +164,24 @@ endif
 	ifeq '$(FPPDEBUG)' '1'
 	    OPTIMIZE_FLAGS=-g -DDEBUG -Wno-psabi
 	endif
+    # NOTE: the asan target does not RUN on the Pi images. They boot kernel8.img,
+    # a 4K-page arm64 kernel built with CONFIG_ARM64_VA_BITS_39, so the user
+    # address ceiling is 0x8000000000. compiler-rt's allocator base
+    # (0x500000000000) sits above it and is fixed when the sanitizer runtime
+    # itself is built, so every asan binary dies at startup with
+    #   sanitizer_allocator_primary64.h "kSpaceBeg == address_range.Init(...)"
+    # This is the ALLOCATOR, not the shadow: -mllvm -asan-mapping-scale=N and
+    # -asan-force-dynamic-shadow=1 change nothing (verified with both g++ and
+    # clang), and -fsanitize=hwaddress and -fsanitize=leak fail the same way.
+    # Fixing it needs a 16K-page kernel (VA 47) or a compiler-rt built with
+    # SANITIZER_AARCH64_VMA=39. On those boards use tsan, ubsan, or valgrind
+    # instead; x86_64 and the 32-bit BBBs are unaffected.
     asan: OPTIMIZE_FLAGS=-g -O1 -Wno-psabi -fsanitize=address -fno-omit-frame-pointer
     asan: LDFLAGS+=-fsanitize=address
     tsan: OPTIMIZE_FLAGS=-g -O1 -Wno-psabi -fsanitize=thread -fno-omit-frame-pointer
     tsan: LDFLAGS+=-fsanitize=thread
+    ubsan: OPTIMIZE_FLAGS=-g -O1 -Wno-psabi -fsanitize=undefined -fno-omit-frame-pointer
+    ubsan: LDFLAGS+=-fsanitize=undefined
     CXXFLAGS += -std=gnu++23
 else
     OPTIMIZE_FLAGS=-O3
@@ -179,6 +193,8 @@ else
     asan: LDFLAGS+=-fsanitize=address
     tsan: OPTIMIZE_FLAGS=-g -O1 -fsanitize=thread -fno-omit-frame-pointer
     tsan: LDFLAGS+=-fsanitize=thread
+    ubsan: OPTIMIZE_FLAGS=-g -O1 -fsanitize=undefined -fno-omit-frame-pointer
+    ubsan: LDFLAGS+=-fsanitize=undefined
     CXXFLAGS += -std=c++20
 endif
 

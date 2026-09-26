@@ -342,9 +342,18 @@ public:
         PingTarget* t = new PingTarget(target, timeout, callback);
         if (t->valid) {
             t->callback = callback;
+            // The send has to happen under the same lock that publishes the
+            // target, not after it.  A one-shot target (period == 0) is owned
+            // by the ping loop the moment it is in `targets`: the loop matches
+            // the reply -- or simply times it out, which it can do before this
+            // thread has sent anything at all, since startTime is set by the
+            // constructor above -- fires the callback, removes it and deletes
+            // it.  Releasing the lock first therefore raced the delete, and
+            // sendPing() then read the freed target (confirmed under ASan:
+            // 64-byte read in sendto of a region freed by the ping thread).
+            // The periodic path below already sends while holding the lock.
             std::unique_lock<std::mutex> lock(targetLock);
             targets.push_back(t);
-            lock.unlock();
             sendPing(t);
         } else {
             delete t;

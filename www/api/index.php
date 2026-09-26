@@ -46,6 +46,8 @@ dispatch_post('/channel/output/:file', 'channel_save_output');
 
 dispatch_get('/crashes/uploadTarget', 'GetCrashUploadTarget'); // keep above crashes/upload/:file
 dispatch_post('/crashes/upload/:file', 'PostCrashUpload');
+dispatch_post('/crashes/report', 'PostCrashReport');
+dispatch_get('/crashes/disclosures', 'GetCrashDisclosures');
 
 dispatch_get('/errorReport/preview', 'GetErrorReportPreview');
 dispatch_post('/errorReport/create', 'PostErrorReportCreate');
@@ -231,6 +233,13 @@ dispatch_get('/playlist/:PlaylistName/start/:Repeat/:ScheduleProtected', 'playli
 dispatch_post('/playlist/:PlaylistName', 'playlist_update');
 dispatch_delete('/playlist/:PlaylistName', 'playlist_delete');
 dispatch_post('/playlist/:PlaylistName/:SectionName/item', 'PlaylistSectionInsertItem');
+// Must stay BELOW the /playlist/:PlaylistName routes.  limonade compiles a
+// trailing ':param' to an OPTIONAL group, so this pattern also matches the
+// two-segment '/playlist/repeat' and '/playlist/repeat/start' - registered
+// first it would shadow both for anyone with a playlist actually named
+// "repeat".  Below them, only a genuine '/playlist/repeat/<value>' (which no
+// earlier route matches) reaches it.
+dispatch_get('/playlist/repeat/:Repeat', 'playlist_repeat');
 
 dispatch_get('/plugin/headerIndicators', 'GetPluginHeaderIndicators');
 dispatch_get('/plugin', 'GetInstalledPlugins');
@@ -239,10 +248,13 @@ dispatch_post('/plugin/fetchInfo', 'FetchPluginInfoProxy');
 dispatch_get('/plugin/popularity', 'GetPluginPopularity'); // keep above /plugin/:RepoName
 dispatch_get('/plugin/githubStats', 'GetPluginGitHubStats'); // keep above /plugin/:RepoName
 dispatch_get('/plugin/source', 'GetPluginSource'); // keep above /plugin/:RepoName
+dispatch_get('/plugin/updateStatus', 'GetPluginUpdateStatus'); // keep above /plugin/:RepoName
+dispatch_post('/plugin/updateStatus/refresh', 'RefreshPluginUpdateStatus'); // keep above /plugin/:RepoName
 dispatch_get('/plugin/:RepoName', 'GetPluginInfo');
 dispatch_get('/plugin/:RepoName/icon', 'PluginServeIcon');
 dispatch_get('/plugin/:RepoName/page', 'GetPluginPageUrl');
 dispatch_get('/plugin/:RepoName/privacy', 'GetPluginPrivacyStatus');
+dispatch_get('/plugin/:RepoName/releaseNotes', 'GetPluginReleaseNotes');
 dispatch_delete('/plugin/:RepoName', 'UninstallPlugin');
 dispatch_get('/plugin/:RepoName/settings/:SettingName', 'PluginGetSetting');
 dispatch_put('/plugin/:RepoName/settings/:SettingName', 'PluginSetSetting');

@@ -1,5 +1,5 @@
-# Smart Receiver Warning
-A smart receiver or cape reported a problem with one of its outputs. The message names the affected port. There are two common causes:
+# Pixel Output Port Problem
+A cape or smart receiver reported a problem with one of its pixel output ports. The message names the affected port. There are two common causes:
 
 **Pixel count mismatch** ("configured for X pixels but Y pixels detected")
 1. Compare the configured pixel count for that port with the strings actually connected.

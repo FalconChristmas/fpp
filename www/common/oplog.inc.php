@@ -82,6 +82,9 @@ function OpLog($logFile, $op, $target, $msg)
 	$dir = OpLogDir();
 	$stamp = date('Y-m-d H:i:s') . ' [' . OpLogPrefixField($op) . ' ' . OpLogPrefixField($target) . '] ';
 	$out = '';
+	// dpkg runs on a pty under apt, so its lines arrive CRLF; the \r handling
+	// below would otherwise keep only the "" after the last \r and drop them.
+	$msg = str_replace("\r\n", "\n", $msg);
 	// Echoed messages are wrapped in blank lines for readability in the progress
 	// dialog; those carry no meaning in a timestamped log, so skip them rather
 	// than emit bare-prefix lines.

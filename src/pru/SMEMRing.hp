@@ -24,11 +24,43 @@
  * shared RAM; when both PRUs stream (e.g. panels on one PRU and
  * BBShiftString pixels on the other) each gets half via the SPLIT defines.
  *
- * Note: keep the PRU cores in VBUSP-sync mode (ICSSM CFG CORE_SYNC(0x3C)=1,
- * 250MHz).  Running the cores async on the 333MHz core clock moves the
- * shared RAM behind the clock-domain crossing and each ring read gains
- * ~150ns, which costs more than the faster core saves (measured 87Hz vs
- * 104Hz on a 64 panel load).
+ * Note: the shared RAM is NOT behind the async clock-domain crossing that
+ * makes external memory so expensive when the cores run on the 333MHz core
+ * clock instead of VBUSP-synchronous ICLK (ICSSM CFG CORE_SYNC(0x3C)=0 vs 1).
+ * Measured both ways: a 48 byte ring read is 15 cycles and a 64 byte read 19
+ * cycles in EITHER mode, so the ring simply rides the faster core - 60.1ns ->
+ * 45.1ns and 76.1ns -> 57.1ns.  Only DDR pays the crossing: a 32 byte LBBO
+ * goes 77.5 -> 748 cycles (310ns -> 2244ns, 7.2x).  ARM stores into the ring
+ * are unaffected too (561 -> 595 MB/s).  End to end on an 8-bit panel load the
+ * refresh scales with the clock, 108.1Hz -> 144.2Hz at 64 panels with zero
+ * ring starvation.
+ *
+ * That makes 333MHz attractive for ring-fed outputs, but it is NOT just a
+ * matter of setting the bit, and the measurements above are not on their own
+ * a reason to.
+ *
+ * The biggest caveat is the panels themselves, not the SoC.  A faster core
+ * shortens every hand-placed NOP in the panel firmware by 25%, and several of
+ * those NOPs are not clock-rate padding - they are edge rise/fall and setup
+ * margin, added deliberately to cure ghosting seen on real panels.  Running
+ * the same instruction sequence 33% faster drives the HUB75 lines faster than
+ * some panels can follow, so this needs re-validating on real hardware (and
+ * on several panel types) before it can ship, not just a refresh number.
+ *
+ * The mux is also PRUSS-wide, so switching it is not a per-output decision:
+ * every driver that reads DDR from the PRU (BBB48String, BBBMatrix) takes the
+ * 7x hit, and every driver with ns-denominated timing depends on NS2CLK() in
+ * FalconPRUDefs.hp, which is hard-coded to 250MHz.
+ *
+ * Both BBShiftPanel paths read only this ring, PWM included - but the PWM
+ * panels have nothing to gain, because their frame rate is paced by the
+ * panel's own free-running PWM engine rather than by PRU shift speed (ring
+ * throughput measures identical at both clocks).  What they do have is
+ * BBShiftPanel_gclk.asm, whose GCLK is hand-tuned integer-cycle NOP padding
+ * (ONE_PULSE = 10 cycles = 40ns = 25MHz), and 40ns is not representable at
+ * 3ns granularity.  So the sane gate is the configured output set: 333MHz for
+ * shift panels and ring-fed strings, 250MHz whenever a PWM panel type or a
+ * DDR-reading driver is present.
  */
 
 /* PRU-side address of the shared RAM */

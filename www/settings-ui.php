@@ -17,6 +17,11 @@ require_once 'common.php';
 //
 // Instead the fields are staged as they change and applied together, in order
 // (password first, enable last), by SaveUIPasswordSettings() with no timeout.
+//
+// Turning the password OFF has neither problem - there is no password to write
+// first, and it goes through the same no-timeout path - so switching the
+// dropdown back to 'No Password' applies at once rather than waiting for the
+// Save button, which is hidden along with the password fields (issue #2985).
 function MarkUIPasswordDirty() {
     $('#uiPasswordSaveStatus')
         .removeClass('text-muted')
@@ -57,6 +62,14 @@ function SaveUIPasswordSettings() {
     function saveFailed(key) {
         $btn.prop('disabled', false);
         SetUIPasswordStatus('');
+        if (enable == '0') {
+            // Put the dropdown back to what is still live so choosing
+            // 'No Password' again retries the disable.
+            $('#passwordEnable').val(livePasswordEnable);
+            settings['passwordEnable'] = livePasswordEnable;
+            window['UpdatepasswordEnableChildren'](0);
+            $('.passwordEnableChild').show();
+        }
         DialogError('Save Setting', 'Failed to save ' + key + ' setting.');
     }
 
@@ -94,11 +107,17 @@ function SaveUIPasswordSettings() {
             error: function () { saveFailed('password'); }
         });
     } else {
+        $.jGrowl('Disabling the UI password...', { themeState: 'success' });
         applyPasswordEnable();
     }
 }
 
+// The enable flag as loaded, i.e. what is live.
+var livePasswordEnable = '0';
+
 $( document ).ready(function() {
+    livePasswordEnable = $('#passwordEnable').val();
+
     if ($('#passwordEnable').val() == '1') {
         $('.passwordEnableChild').show();
     } else {
@@ -120,6 +139,14 @@ $( document ).ready(function() {
                     $('.passwordEnableChild').show();
                 } else {
                     $('.passwordEnableChild').hide();
+
+                    if (livePasswordEnable == '1') {
+                        SaveUIPasswordSettings();
+                    } else {
+                        // Backed out of enabling before saving; nothing to apply.
+                        SetUIPasswordStatus('');
+                    }
+                    return;
                 }
             }
 

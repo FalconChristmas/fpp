@@ -1658,13 +1658,105 @@
         }
       }
     },
+    "/api/crashes/disclosures": {
+      "get": {
+        "tags": [
+          "crashes"
+        ],
+        "summary": "The crash rows of Settings > Privacy, to show before sending a crash report",
+        "description": "The same labels, \"goes to\" and sub-captions as the privacy table, with each row's text, plus the e-mail row when an address is set, so the two cannot drift.  `item` is the label as a short \"includes\" phrase and `goesTo` the recipients as one line, both derived from the table's own wording.  All text fields are HTML: insert them as markup, not text.",
+        "responses": {
+          "200": {
+            "description": "Rows in table order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "goesTo": "FPP &amp; xLights developers and AI service",
+                  "rows": [
+                    {
+                      "id": "crash",
+                      "label": "Send crash reports",
+                      "item": "crash reports",
+                      "goesTo": "FPP &amp; xLights developers,<br>AI service",
+                      "sub": "...",
+                      "depth": 0,
+                      "body": "<p>...</p>"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/crashes/report": {
+      "post": {
+        "tags": [
+          "crashes"
+        ],
+        "summary": "Build a crash report now, for the user to look at and then send",
+        "description": "fppd builds a full report (settings, configuration and logs, level 3) named like a crash report with a -manual suffix, and keeps it in the crashes folder (two manual reports at most). Nothing is sent: the user can download it from `GET /api/file/Crashes/<File>` to see what it holds, then send it with `POST /api/crashes/upload/<File>`, which needs their consent. `client` names the calling app in fppd.log. A build takes seconds on a fast player and can take a few minutes on a Pi Zero or BeagleBone. One build a minute, counted from the start of the last one. Error `Code`s: bad-request, busy, rate-limited, build-failed, unavailable.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "client": "My App"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Report built",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "File": "fpp-Pi-10.0-M1-abc-2026-09-25_10-00-00-manual.zip",
+                  "Size": 123456
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/crashes/upload/<file>": {
       "post": {
         "tags": [
           "crashes"
         ],
         "summary": "Upload one locally-kept crash report from the player itself.",
-        "description": "Deliberately does NOT delete on success.  The caller deletes, through the existing file API, only after this reports the upload actually landed -- deleting the only copy of a crash report on an unverified \"probably sent\" is how the evidence disappears.",
+        "description": "Deliberately does NOT delete on success.  The caller deletes, through the existing file API, only after this reports the upload actually landed -- deleting the only copy of a crash report on an unverified \"probably sent\" is how the evidence disappears. A -manual.zip report (built by `POST /api/crashes/report`) needs a JSON body of `{\"consent\": true}`. Before sending it, show the user FPP's disclosures for crash reports, settings, configuration and logs, and e-mail address (the crash, crash-settings, crash-config and email rows in www/privacyDisclosures.inc, shown under Settings > Privacy), and tell them this report is at the \"configuration and logs\" level and is sent even if their saved crash report setting is \"Keep locally, do not send\" or Disabled. If the player cannot reach the server (`CanRetryFromBrowser`), the browser can post the file itself to the `url` and `field` that `GET /api/crashes/uploadTarget` returns. Error `Code`: consent-required (a -manual.zip report without `{\"consent\":true}`).",
+        "x-badges": [
+          {
+            "name": "USER CONSENT REQUIRED",
+            "color": "#b25e00"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "consent": true
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "{\"Status\":\"OK\"|\"Error\", ...}"
@@ -2510,6 +2602,15 @@
               "type": "boolean"
             },
             "description": "When `1`, return a flat array of filenames instead of the default object envelope"
+          },
+          {
+            "name": "maxdepth",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Limit recursion depth (default: unlimited)"
           }
         ],
         "responses": {
@@ -6066,6 +6167,47 @@
         }
       }
     },
+    "/api/playlist/repeat/{Repeat}": {
+      "parameters": [
+        {
+          "name": "Repeat",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "playlist"
+        ],
+        "summary": "Set playlist repeat on or off",
+        "description": "Turn repeat on or off for the running playlist without starting, stopping or restarting it - the API equivalent of the Repeat checkbox in the web UI. `{Repeat}` may be `true`/`false` or `1`/`0`.  The new setting is read when the playlist reaches the end of its current loop, and is reflected immediately in `repeat_mode` from `GET /api/fppd/status`. Repeat belongs to a playlist that is actually running, so this returns `{\"Status\": \"Error\"}` when the player is idle, when `{Repeat}` is not one of `true`/`false`/`1`/`0`, or when fppd cannot be reached; use the repeat flag on `GET /api/playlist/{PlaylistName}/start/{Repeat}` to start a playlist repeating.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Repeat state changed, or `Status` is `Error` with the reason in `Message`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": "Repeat Enabled"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/playlist/{PlaylistName}": {
       "parameters": [
         {
@@ -6755,7 +6897,7 @@
           "plugin"
         ],
         "summary": "Install plugin",
-        "description": "Install a new plugin. The request body is a `pluginInfo.json` structure with `branch` and `sha` fields added to specify which branch and commit to install. The structure is NOT validated against a schema here, on purpose. FPP reads the keys it knows (repoName, srcURL, versions, dependencies, privacy, ...) and carries everything else through untouched, so a pluginInfo.json written for a newer FPP -- a key this release has never heard of, an unknown key inside `privacy` -- installs on this one. The Plugins page renders the parts it understands and ignores the rest (the full block is still shown as written). Strict validation lives in the fpp-data listing check (`.github/schema/pluginInfo.schema.json`), where a mistake is a rejected pull request rather than a plugin nobody can install. Keep it that way: any check added here must be on a key FPP acts on, never on the set of keys. `privacyAccepted` (optional, null allowed) is the privacy block the caller showed the operator, the same field `POST /plugin/{RepoName}/upgrade` takes. After the clone, before any dependency or the plugin's own install script, it is compared with the cloned copy's block (sends, collects, sensors, remoteAccess, systemChanges, closedCode): when they differ -- the listing is behind the repository, or the selected version pins an older commit -- the install is refused, the clone removed, and the reply carries `Code: \"PrivacyMismatch\"` and `pending` (the cloned block) so the caller can show it and post again with it as `privacyAccepted`. A body without the field is compared with the block recorded for that plugin from an earlier install, if there is one (the record survives an uninstall), and refused the same way when they differ; with no record either, it installs and records nothing, so the next update check reports `privacyChanged`. The block is recorded once the dependencies are in place, just before the plugin's own install script runs. `dependencyPrivacyAccepted` (optional) is a map repoName -> block or null for the dependency plugins the dialog also showed; each is gated and recorded the same way when that plugin is installed as a dependency of this one, and a dependency not in the map -- declared only in the cloned copy -- is refused before it is cloned (`pending` is then its listed block). Without the map, dependencies are installed as before.",
+        "description": "Install a new plugin. The request body is a `pluginInfo.json` structure with `branch` and `sha` fields added to specify which branch and commit to install. The structure is NOT validated against a schema here, on purpose. FPP reads the keys it knows (repoName, srcURL, versions, dependencies, privacy, ...) and carries everything else through untouched, so a pluginInfo.json written for a newer FPP -- a key this release has never heard of, an unknown key inside `privacy` -- installs on this one. The Plugins page renders the parts it understands and ignores the rest (the full block is still shown as written). Strict validation lives in the fpp-data listing check (`.github/schema/pluginInfo.schema.json`), where a mistake is a rejected pull request rather than a plugin nobody can install. Keep it that way: any check added here must be on a key FPP acts on, never on the set of keys. `privacyAccepted` (optional, null allowed) is the privacy block the caller showed the operator, the same field `POST /plugin/{RepoName}/upgrade` takes. After the clone, before any dependency or the plugin's own install script, it is compared with the cloned copy's block (sends, collects, sensors, remoteAccess, systemChanges, closedCode): when they differ -- the listing is behind the repository, or the selected version pins an older commit -- the install is refused, the clone removed, and the reply carries `Code: \"PrivacyMismatch\"` and `pending` (the cloned block) so the caller can show it and post again with it as `privacyAccepted`. A body without the field is compared with the block recorded for that plugin from an earlier install, if there is one (the record survives an uninstall), and refused the same way when they differ; with no record either, a plugin that declares a block is refused the same way (`pending` is the cloned block, to post back as `privacyAccepted`), and only a plugin with no block installs. The block is recorded once the dependencies are in place, just before the plugin's own install script runs. `dependencyPrivacyAccepted` (optional) is a map repoName -> block or null for the dependency plugins the dialog also showed; each is gated and recorded the same way when that plugin is installed as a dependency of this one, and a dependency not in the map -- declared only in the cloned copy -- is refused before it is cloned (`pending` is then its listed block). Without the map, a dependency plugin that declares a block is refused the same way, and one with no block installs. A refusal's `reason` is `notAccepted` when nothing was accepted for that plugin (post `pending` back to accept it) and `mismatch` when the accepted block is not the one that would land.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -6926,6 +7068,73 @@
         }
       }
     },
+    "/api/plugin/updateStatus": {
+      "get": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Plugin update status",
+        "description": "What is known about plugin updates, read from a file; starts a background refresh when the answer is a few hours old. `unchecked`/`errors` are plugins with no verdict and why. `sweep.result` is `in-progress` while a check runs (`done` of `total` so far); poll until it is not.",
+        "responses": {
+          "200": {
+            "description": "Plugin update status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "updatesAvailable": true,
+                  "plugins": [
+                    "fpp-node-red"
+                  ],
+                  "unchecked": [],
+                  "errors": {},
+                  "installed": 3,
+                  "checked": true,
+                  "lastCheck": 1758600000,
+                  "stale": false,
+                  "sweep": {
+                    "finishedAt": 1758600000,
+                    "result": "ok",
+                    "message": "",
+                    "trigger": "background",
+                    "done": 0,
+                    "total": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/plugin/updateStatus/refresh": {
+      "post": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Check every plugin for updates now",
+        "description": "Starts the background check of every installed plugin (the same one that runs off page loads, but every plugin regardless of age) and returns at once. Poll `GET /api/plugin/updateStatus` until `sweep.result` is no longer `in-progress`. `started` is false when one was already running.",
+        "responses": {
+          "200": {
+            "description": "Started, or already running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "started": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/plugin/{RepoName}": {
       "parameters": [
         {
@@ -6942,7 +7151,30 @@
           "plugin"
         ],
         "summary": "Uninstall plugin",
-        "description": "Uninstall plugin {RepoName}.",
+        "description": "Uninstall plugin {RepoName}. Releases the plugin's claims on its apt package dependencies -- the packages it declared and the ones their install pulled in -- and apt-removes whatever nothing else still needs, unless `keepPackages=1`, which the reinstall flow passes so the install that follows can reuse them.",
+        "parameters": [
+          {
+            "name": "keepPackages",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "description": "Leave the plugin's package claims in place (reinstall flow)."
+          },
+          {
+            "name": "stream",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "When set (and not \"false\"), progress is streamed as text instead of a JSON reply."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Plugin uninstalled",
@@ -6965,7 +7197,7 @@
           "plugin"
         ],
         "summary": "Get plugin information",
-        "description": "Get `pluginInfo.json` for installed plugin `{RepoName}`. An additional `updatesAvailable` field indicates whether the plugin has commits that have been fetched but not yet merged.",
+        "description": "Get `pluginInfo.json` for installed plugin `{RepoName}`. An additional `updatesAvailable` field is 1 when the last update check (background or `POST /api/plugin/{RepoName}/updates`) found an update, 0 otherwise.",
         "responses": {
           "200": {
             "description": "Plugin information",
@@ -7074,7 +7306,7 @@
           "plugin"
         ],
         "summary": "Privacy disclosure status for an installed plugin",
-        "description": "What the operator accepted at install, what the next upgrade would land, and whether the two differ in a way that re-shows the install dialog. Reads the already-fetched upstream tip; call `POST /plugin/{RepoName}/updates` first to fetch. `?target=reinstall` diffs the block a Reinstall would land (the versions[] branch and pin selected for this FPP) instead of the one `\u2026/upgrade` would (origin/<checked-out branch>), and adds `reinstallTarget: {branch, sha}`, the server's choice, for the page to post.",
+        "description": "What the operator accepted at install, what the next upgrade would land, and whether the two differ in a way that re-shows the install dialog. Reads the already-fetched upstream tip (or versions[] pin); call `POST /plugin/{RepoName}/updates` first to fetch. `?target=reinstall` diffs the block a Reinstall would land (the versions[] branch and pin selected for this FPP) instead of the one `\u2026/upgrade` would (origin/<checked-out branch>, or its pin while the clone is at or behind it), and adds `reinstallTarget: {branch, sha}`, the server's choice, for the page to post.",
         "responses": {
           "200": {
             "description": "Privacy status",
@@ -7093,6 +7325,50 @@
                     "remoteAccess": "none"
                   },
                   "source": "upstream"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/plugin/{RepoName}/releaseNotes": {
+      "parameters": [
+        {
+          "name": "RepoName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Get a plugin's release notes",
+        "description": "In whichever form the plugin declared via `releaseNotesStyle` in its `pluginInfo.json` (see the Template's PLUGININFO_FORMAT.md). Installed plugins only; the style is read from the pluginInfo.json the next update would land, else the installed one. - `gitRelease`: the latest GitHub Release of the `srcURL` repo (GitHub only; offered as `none` otherwise), proxied and cached for 6h, using the configured GitHub token when there is one. `release` is null when the repo has no Release; `stale` is true when GitHub could not be reached and an older cached copy is served. - `gitHistory`: `pending` is what Update would pull in (HEAD..origin/<branch>, or HEAD..the versions[] pin for a pinned plugin, as of the last update check), `installed` the most recent installed commits. Both are empty-safe; being up to date is not an error. - `script`: the stdout of the plugin's installed `scripts/fpp_releasenotes.sh` (15s timeout, 64 KiB cap), as plain text; offered as `none` until the script is installed. 404 when the plugin is not installed, declares no release notes, or its repo isn't visible to GitHub's API; 502 when GitHub or the plugin's script failed. Errors carry `Status`/`Message`.",
+        "responses": {
+          "200": {
+            "description": "Shape depends on `style`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "style": "gitRelease",
+                  "release": {
+                    "name": "v1.2.0",
+                    "tag_name": "v1.2.0",
+                    "published_at": "2026-01-01T00:00:00Z",
+                    "body": "...",
+                    "html_url": "https://github.com/owner/repo/releases/tag/v1.2.0"
+                  },
+                  "releasesUrl": "https://github.com/owner/repo/releases",
+                  "stale": false
                 }
               }
             }
@@ -7192,7 +7468,7 @@
           "plugin"
         ],
         "summary": "Check plugin for updates",
-        "description": "Check plugin `{RepoName}` for available updates by running `git fetch` in the plugin directory and checking for any unmerged commits.",
+        "description": "Check plugin `{RepoName}` for available updates: `git fetch` in the plugin directory, then the checked-out branch against origin (a pinned sha respected) and the plugin's own `scripts/fpp_update_check.sh` if it has one. The verdict is written to the shared update state the navbar reads.",
         "requestBody": {
           "content": {
             "text/plain": {
@@ -7215,6 +7491,8 @@
                   "Status": "OK",
                   "Message": "",
                   "updatesAvailable": 1,
+                  "unchecked": false,
+                  "reason": "",
                   "privacyChanged": false,
                   "reinstallPrivacyChanged": false,
                   "reinstallTarget": {
@@ -7244,7 +7522,7 @@
           "plugin"
         ],
         "summary": "Update plugin",
-        "description": "Pull in git updates for plugin `{RepoName}`. Supports an optional `?stream=true` query parameter for streaming output.",
+        "description": "Pull in git updates for plugin {RepoName}: the checked-out branch's tip, or, when the versions[] entry for this FPP pins a sha the clone has not passed, that sha and no further. Before the plugin's own fpp_upgrade.sh (or fpp_install.sh) runs, its declared dependencies are reconciled against the new version: newly declared apt, Python and script dependencies are installed, and package claims the new version no longer declares are released (apt-removed once nothing else needs them). A newly declared dependency plugin is reported, not installed -- the operator has to see its privacy disclosure on the Plugins page. Supports ?stream=true.",
         "responses": {
           "200": {
             "description": "Plugin upgraded",

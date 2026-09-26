@@ -69,6 +69,32 @@ typedef struct {
 
 class BBShiftPanelOutput;
 
+// One captured register profile for a PWM driver chip: the per-colour word
+// lists plus the grammar needed to upload them.  The built-in tables live in
+// BBShiftPanel.cpp; an imported profile (see BBShiftPanelManager::
+// buildRegisterProfile) fills the same shape so nothing downstream has to
+// know where the words came from.
+struct PWMChipSeqVariant {
+    int scan;
+    const uint16_t* r;
+    const uint16_t* g;
+    const uint16_t* b;
+};
+
+struct PWMChipSeq {
+    const uint16_t* r;
+    const uint16_t* g;
+    const uint16_t* b;
+    int len;
+    int slots;          // 5, or 6 for a chip with an extra pre-commit word
+    uint16_t extraWord; // that word; only read when slots == 6
+    bool midLatch;      // send the 11 clock LAT burst
+    uint8_t scanReg;    // register address holding the scan row count
+    int defaultScan;    // scan rate the tables above were captured at
+    const PWMChipSeqVariant* variants;
+    int variantCount;
+};
+
 // The PRUSS drives every panel output on the cape as ONE frame: a single
 // buffer whose byte lanes are the cape's data pins, one stride schedule, one
 // shared memory ring, one pair of PRU cores.  So several LED Panel Matrix
@@ -127,10 +153,27 @@ private:
         int panelType = 0;
         int dataLayout = 0;
         bool pwmDirectRow = false;
+        bool pwmShiftRow = false;
         bool outputByRow = false;
         bool outputBlankData = false;
         bool sharedPRUSS = false;
         std::string panelInterleave;
+        // An imported PWM register profile, replacing the chip's built-in
+        // table.  regProfile[0..2] are the R/G/B word lists (equal length,
+        // empty when nothing was imported) and regProfileName identifies it
+        // in the log.  See BBShiftPanel::buildRegisterProfile().
+        std::vector<uint16_t> regProfile[3];
+        std::string regProfileName;
+        // FM6373 family OE timing, in DCLK periods (the reference
+        // implementation's units) except the row period, which is in us
+        int oeClkLength = 0;        // 0 = keep the historical 600ns pulse
+        int oeFirstClkLength = 0;   // 0 = keep the historical 2us opener
+        int oeRowPeriodUs = 20;
+        // FM6373 family register upload grammar, in DCLK clocks
+        int regVsyncClocks = 3;
+        int regMidClocks = 11;   // 0 skips the middle burst
+        int regPreClocks = 14;
+        int regSpacerClocks = 8; // 0 is valid: emit no gap at all
     };
     static PanelParams parsePanelParams(const Json::Value& config, const Json::Value& capeConfig);
 
@@ -191,8 +234,30 @@ private:
     // PWM panels: drive the row lines with a direct binary row number
     // instead of the DP32020A style row shift register
     bool m_pwmDirectRow = false;
+    // FM6373 family only: the opposite opt-in.  That family shipped with the
+    // direct binary row number as its only transport, so it stays the default
+    // there and the shift register has to be asked for explicitly - see
+    // sendPWMConfig().
+    bool m_pwmShiftRow = false;
     // FM6373: next config sequence word for the per-frame rotating refresh
     int m_pwmSeqIdx = 0;
+    // An imported register profile replacing the chip's built-in table.  The
+    // word lists are owned here because m_profSeq points into them, so the
+    // two must not be copied apart.  activePWMSeq() hands out &m_profSeq once
+    // m_haveProfile is set, and the built-in table otherwise.
+    std::vector<uint16_t> m_profWords[3];
+    PWMChipSeq m_profSeq{};
+    bool m_haveProfile = false;
+    std::string m_profName;
+    int m_oeClkLength = 0;
+    int m_oeFirstClkLength = 0;
+    int m_oeRowPeriodUs = 20;
+    int m_regVsyncClocks = 3;
+    int m_regMidClocks = 11;
+    int m_regPreClocks = 14;
+    int m_regSpacerClocks = 8;
+    void buildRegisterProfile(const PanelParams& p);
+    const PWMChipSeq* activePWMSeq() const;
     // the pins this cape muxed to the PRU (only these are released on
     // Close - a combo cape may leave pins for another driver to own)
     std::vector<std::string> m_configuredPins;

@@ -321,6 +321,7 @@
 			"description": "System Settings",
 			"settings": [
 				"GPIOFan",
+				"DisableHDMICECInit",
 				"LEDDisplayType",
 				"bootDelay",
 				"FPP_UUID"
@@ -357,6 +358,7 @@
 				"disableUIPopoverAlerts",
 				"fileManagerThumbnailSize",
 				"fileManagerTableFilter",
+				"fileManagerHideEmptyTabs",
 				"gpioHideCapePins"
 			]
 		},
@@ -512,6 +514,9 @@
 		"WifiRegulatoryDomain": {
 			"name": "WifiRegulatoryDomain",
 			"description": "WIFI Regulatory Domain",
+			"platforms": [
+				"!MacOS"
+			],
 			"tip": "The regulatory domain controls the frequencies/channels that WIFI adapaters are allowed to use.",
 			"comment": "list from https://www.arubanetworks.com/techdocs/InstantWenger_Mobile/Advanced/Content/Instant%20User%20Guide%20-%20volumes/Country_Codes_List.htm#regulatory_domain_3737302751_1017918",
 			"gatherStats": true,
@@ -1560,6 +1565,19 @@
 				"filemanager"
 			]
 		},
+		"fileManagerHideEmptyTabs": {
+			"name": "fileManagerHideEmptyTabs",
+			"description": "File Manager Hide Empty Tabs",
+			"tip": "Hide File Manager tabs that contain no files. A tab reappears once a file of that type is uploaded.",
+			"level": 1,
+			"default": "0",
+			"type": "checkbox",
+			"checkedValue": "1",
+			"uncheckedValue": "0",
+			"exposedAsJSToPages": [
+				"filemanager"
+			]
+		},
 		"gpioHideCapePins": {
 			"name": "gpioHideCapePins",
 			"description": "Hide Cape Controlled GPIO Pins",
@@ -1629,6 +1647,23 @@
 				"Raspberry Pi"
 			],
 			"type": "checkbox"
+		},
+		"DisableHDMICECInit": {
+			"name": "DisableHDMICECInit",
+			"description": "Prevent HDMI CEC at Boot",
+			"gatherStats": true,
+			"tip": "Adds hdmi_ignore_cec_init=1 to config.txt, suppressing the CEC \"Active Source\" broadcast the Pi firmware sends at boot.  That broadcast is what wakes a TV or projector out of standby and switches it to the Pi's input after a power cut, so enabling this gives that up: FPP never sends CEC itself, and a display left in standby will stay dark until someone picks up its remote.  Only enable it if you would rather the display did not come on by itself.  A plain monitor is unaffected either way, since it wakes on signal rather than on CEC.  Note that a display asleep at boot may also drop hot plug detect, in which case HDMI audio is unavailable and FPP falls back to another audio output.  Not applicable on Pi 5 (kernel KMS, no firmware HDMI).",
+			"reboot": 1,
+			"platforms": [
+				"Raspberry Pi"
+			],
+			"variants": {
+				"Raspberry Pi": [
+					"!Pi 5"
+				]
+			},
+			"type": "checkbox",
+			"default": "0"
 		},
 		"GPIOFan": {
 			"name": "GPIOFan",

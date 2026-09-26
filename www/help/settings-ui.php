@@ -11,16 +11,17 @@
     <li><b>Disable UI Popover Event Alerts</b> (checkbox, Advanced) — Hides popover alerts in the top-right. These give feedback on events; disable only in special cases. Reloads UI.</li>
     <li><b>File Manager Thumbnail Size</b> (dropdown, Advanced) — Max size of image previews in File Manager. Options: Disabled, 25, 50, 75, 100, 125, 150, 175, 200 pixels. Keeps aspect ratio.</li>
     <li><b>File Manager Enable Filter</b> (checkbox, Advanced) — Adds a filter/search box to the File Manager tables.</li>
+    <li><b>File Manager Hide Empty Tabs</b> (checkbox, Advanced) — Hides File Manager tabs that have no files in them. A tab reappears once a file of that type is uploaded; the tab you are on is never hidden.</li>
     <li><b>Hide Cape Controlled GPIO Pins</b> (checkbox, Advanced) — Hides pins the current cape uses from the GPIO page so you do not accidentally reassign them.</li>
 </ul>
 
 <h4>UI Password</h4>
 <ul>
-    <li><b>UI password</b> (dropdown) — <b>No Password</b> (default) = open. <b>Enter a Password</b> = enables HTTP basic auth. The username is always <code>admin</code>. Choosing “Enter a Password” reveals the next three fields and a dedicated <b>Save UI Password</b> button.</li>
+    <li><b>UI password</b> (dropdown) — <b>No Password</b> (default) = open. <b>Enter a Password</b> = enables HTTP basic auth. The username is always <code>admin</code>. Choosing “Enter a Password” reveals the next three fields and a dedicated <b>Save UI Password</b> button. Switching a protected FPP back to “No Password” removes the password immediately and reloads the page — no Save click needed.</li>
     <li><b>Username</b> (display) — Fixed to <code>admin</code> when password protection is enabled.</li>
     <li><b>Password</b> (password) — The UI password. Must be retyped below. Used by the browser and by xLights FPP Connect.</li>
     <li><b>Verify Password</b> (password) — Retype the same password to confirm.</li>
-    <li><b>Save UI Password</b> (button) — Saves password first, then the enable flag, then reloads the page so the browser re-authenticates. Status text shows “Not applied yet”, “Saving…”, “Applying…”, or errors. You will be prompted for <code>admin</code> + new password after saving. <b>Caution:</b> forgetting this password locks you out until reset via console.</li>
+    <li><b>Save UI Password</b> (button) — Saves password first, then the enable flag, then reloads the page so the browser re-authenticates. Status text shows “Not applied yet”, “Saving…”, “Applying…”, or errors. You will be prompted for <code>admin</code> + the new password after saving. <b>Caution:</b> forgetting this password locks you out until reset via console.</li>
 </ul>
 
 <h4>UI Colors</h4>

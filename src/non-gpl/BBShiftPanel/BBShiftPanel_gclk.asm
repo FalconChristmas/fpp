@@ -64,6 +64,12 @@
 // DP3364S scan only
 #define numGroups	r24.b0
 #define curGroup	r25.b0
+// FM6373 scan only: the per-row OE pulse width in 100ns units, from data RAM
+// byte 5 (0 -> 6, i.e. the 600ns this used to emit unconditionally).  The
+// reference implementation denominates this in DCLK periods rather than time
+// and it is the first thing its users tune on a panel that will not light, so
+// the ARM converts a DCLK count into these units - see setupGCLKConfig().
+#define oeWidth		r24.b1
 
 
 #define   CLK_HI	 (1 << GCLK_PIN)
@@ -72,6 +78,13 @@
 #define   SEL1_2     ((1 << SEL2_PIN) | (1 << SEL1_PIN))
 #define   SEL0_1_2   ((1 << SEL2_PIN) | (1 << SEL1_PIN) | (1 << SEL0_PIN))
 #define   SEL0_1     ((1 << SEL1_PIN) | (1 << SEL0_PIN))
+// A = clock, C = data, B left alone.  This is what the ABC Shift addressing
+// mode means everywhere else in this driver (see ROW_ADDR_SHIFT in
+// BBShiftPanel.asm, where C carries the data and B only exists to hand the
+// inverted copy to AB Shift panels at the same time).
+#define   SEL0_ONLY  (1 << SEL0_PIN)
+#define   SEL2_ONLY  (1 << SEL2_PIN)
+#define   SEL0_2     ((1 << SEL2_PIN) | (1 << SEL0_PIN))
 
 ONE_PULSE .macro
 	.newblock
@@ -160,6 +173,10 @@ _LOOP:
 	LDI		rowConfig.b2, 78
 	LDI		rowConfig.b3, 74
 HAVEPULSECFG:
+	LBCO	&oeWidth, CONST_PRUDRAM, 5, 1
+	QBNE	HAVEOEWIDTH, oeWidth, 0
+	LDI		oeWidth, 6
+HAVEOEWIDTH:
 
 	QBEQ	FOUR_PULSES, enable.b0, 1
 	QBBS	FM6373_SCAN, rowConfig.b1, 1
@@ -169,7 +186,12 @@ HAVEPULSECFG:
 	LDI		curRowNum, 0
 	LOOP  DONELOOPS, enable.b0
 		DOBRIGHTLOOP
-		QBNE	DIRECTROWSEL, rowConfig.b1, 0
+		// bit 0, not the whole byte: b1 is a bit field (bit 1 selects the
+		// FM6373 scan, bit 2 the DP3364 one) and only ever holds 0 or 1 by
+		// the time control reaches here, so testing the byte happens to work
+		// today and would silently force direct row select the moment
+		// another flag bit is added.
+		QBBS	DIRECTROWSEL, rowConfig.b1, 0
 		// DP32020A style row shift register: inject the token on the first
 		// row of each pass, then clock it along one position per row
 		LDI		r30, SEL1_ONLY
@@ -229,10 +251,20 @@ FM_OPENHIGH:
 FM_NOOPENER:
 	LDI		curRowNum, 0
 FM_ROWLOOP:
+	// bit 0 set (the default for this family) = binary row number on SEL0-4;
+	// clear = the token shift row driver below.  The shift case is out of
+	// line so the direct path costs only this one branch.
+	QBBC	FM_SHIFTROW, rowConfig.b1, 0
 	LSL		r30, curRowNum, SEL0_PIN
+FM_ROWSET:
 	SLEEPNS	135, r10, 4
 	SET		r30, r30, GCLK_PIN
-	SLEEPNS	600, r10, 5
+	// curBright is free here; it is reloaded with the row period below
+	MOV		curBright, oeWidth
+FM_OEHIGH:
+	SLEEPNS	100, r10, 3
+	SUB		curBright, curBright, 1
+	QBNE	FM_OEHIGH, curBright, 0
 	CLR		r30, r30, GCLK_PIN
 	MOV		curBright, rowConfig.b3
 FM_ROWWAIT:
@@ -247,6 +279,33 @@ FM_NOWRAP:
 	QBEQ	_RESETLOOP, enable.b0, 0
 	QBEQ	EXIT, enable.b0, 0xFF
 	JMP		FM_ROWLOOP
+
+// Token shift row driver for this family: inject the token on the first row
+// of the pass, then clock it along one position per row.  Panels wired this
+// way ground D/E, so the SEL lines cannot carry a row number at all.
+//
+// A = row clock, C = data, and B is deliberately left low.  The DP3364 scan
+// runs the same transport but holds B high through the transition, because on
+// a DP32020A that line is a blanking input.  It is not one in general - the
+// RUL5258 boards that prompted this (GH #2955) use B as an active-high blank
+// and must not see it pulsed once per row - and driving it is not part of what
+// ABC Shift means elsewhere in this driver either.  A panel that does want a
+// blanking pulse here needs its own addressing mode, not this one.
+FM_SHIFTROW:
+	LDI		r30, 0
+	SLEEPNS	135, r10, 3
+	QBNE	FM_NOTOKEN, curRowNum, 0
+	LDI		r30, SEL2_ONLY
+	SLEEPNS	135, r10, 4
+	LDI		r30, SEL0_2
+	SLEEPNS	135, r10, 5
+	JMP		FM_TOKENDONE
+FM_NOTOKEN:
+	LDI		r30, SEL0_ONLY
+	SLEEPNS	135, r10, 6
+FM_TOKENDONE:
+	LDI		r30, 0
+	JMP		FM_ROWSET
 
 // DP3364S scan (datasheet section 10.6): the chip makes its own GCLK from an
 // internal PLL, so this side only advances the row and strobes ROW once per

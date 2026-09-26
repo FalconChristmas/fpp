@@ -1096,7 +1096,8 @@ function finalizeStatusJson($obj)
     }
 
     if (is_dir($settings['mediaDirectory'] . "/crashes")) {
-        $num = count(glob($settings['mediaDirectory'] . "/crashes/*.zip"));
+        // -manual.zip reports were asked for (POST /api/crashes/report), not crashes
+        $num = count(preg_grep('/-manual\.zip$/', glob($settings['mediaDirectory'] . "/crashes/*.zip") ?: array(), PREG_GREP_INVERT));
         if ($num > 0) {
             $plural = 's';
             $verb = 'are';
@@ -1110,10 +1111,11 @@ function finalizeStatusJson($obj)
             // "disabled" (-1), and telling them those will be uploaded is wrong
             // in both cases.
             if (intval($settings['ShareCrashData']) <= 0) {
-                $crWarning = "There $verb $num <a href='filemanager.php#tab-crashes'>crash report$plural</a> available, please submit to FPP developers or delete.";
+                $crWarning = "There $verb $num <a href='filemanager.php#tab-crashes'>crash report$plural</a> available. Send or delete them in the File Manager.";
             } else {
+                // fppd uploads once, at the crash, and keeps the file either way
                 $crWarning = "There $verb $num <a href='filemanager.php#tab-crashes'>crash report$plural</a> available. " .
-                    "This system is configured to automatically upload these to the FPP developers, you may delete the old reports at any time.";
+                    "This system sends crash reports automatically when they are written, so they may already have been sent; you may delete them in the File Manager.";
             }
             $obj["warnings"][] = $crWarning;
             $wi["message"] = $crWarning;

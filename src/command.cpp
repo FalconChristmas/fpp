@@ -191,13 +191,7 @@ char* ProcessCommand(char* command, char* response) {
             snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Log Level Updated,%s,%s,,,,,,,,,\n",
                      getFPPmode(), COMMAND_SUCCESS, s, s2);
 
-            WarningHolder::RemoveWarning(2, EXCESSIVE_LOG_LEVEL_WARNING);
-            WarningHolder::RemoveWarning(3, DEBUG_LOG_LEVEL_WARNING);
-            int lowestLogLevel = FPPLogger::INSTANCE.MinimumLogLevel();
-            if (lowestLogLevel == LOG_EXCESSIVE)
-                WarningHolder::AddWarning(2, EXCESSIVE_LOG_LEVEL_WARNING);
-            else if (lowestLogLevel == LOG_DEBUG)
-                WarningHolder::AddWarning(3, DEBUG_LOG_LEVEL_WARNING);
+            WarningHolder::UpdateLogLevelWarnings();
         } else {
             snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Error Updating Log Level,%s,%s,,,,,,,,,\n",
                      getFPPmode(), COMMAND_FAILED, s, s2);

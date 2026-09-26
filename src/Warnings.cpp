@@ -205,6 +205,15 @@ void WarningHolder::RemoveWarning(int id, const std::string& w, const std::strin
         }
     }
 }
+void WarningHolder::UpdateLogLevelWarnings() {
+    RemoveWarning(2, EXCESSIVE_LOG_LEVEL_WARNING);
+    RemoveWarning(3, DEBUG_LOG_LEVEL_WARNING);
+    int lowestLogLevel = FPPLogger::INSTANCE.MinimumLogLevel();
+    if (lowestLogLevel == LOG_EXCESSIVE)
+        AddWarning(2, EXCESSIVE_LOG_LEVEL_WARNING);
+    else if (lowestLogLevel == LOG_DEBUG)
+        AddWarning(3, DEBUG_LOG_LEVEL_WARNING);
+}
 void WarningHolder::RemoveAllWarnings() {
     std::unique_lock<std::shared_mutex> lock(warningsLock);
     warnings.clear();

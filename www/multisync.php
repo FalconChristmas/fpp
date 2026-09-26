@@ -312,6 +312,8 @@
             SANDEVICES:    new Set([0xFF]),
             // 0xA0–0xAF  (160–175)
             GENIUS:        new Set(Array.from({ length: 16 },  function (_, i) { return i + 0xA0; })),
+            // 0xFA = 250
+            TWINKLY:       new Set([0xFA]),
             // 0xFB = 251
             WLED:          new Set([0xFB]),
             // 0xC4 = 196
@@ -334,6 +336,7 @@
         function isSanDevices(typeId)     { return isDeviceType(typeId, 'SANDEVICES'); }
         function isGenius(typeId)         { return isDeviceType(typeId, 'GENIUS'); }
         function isWLED(typeId)           { return isDeviceType(typeId, 'WLED'); }
+        function isTwinkly(typeId)        { return isDeviceType(typeId, 'TWINKLY'); }
         function isBaldrick(typeId)       { return isDeviceType(typeId, 'BALDRICK'); }
 
         // ============================================================
@@ -734,9 +737,13 @@
          * that address.
          */
         function buildHostnameCell(ctx) {
-            var hostTxt = (!isWLED(ctx.typeId) && (fppConfig.hideExternalURLs || ctx.local || ctx.ip == ctx.hostname))
-                ? ctx.hostname
-                : "<a target='host_" + ctx.ip + "' href='" + wrapUrlWithProxy(ctx.ip, "/") + "'>" + ctx.hostname + "</a>";
+            // A Twinkly has no web UI of any kind - its server answers "/" with a
+            // 404 - so linking the name there is always a dead end.
+            var name = msEscape(ctx.hostname);
+            var hostTxt = (isTwinkly(ctx.typeId) ||
+                           (!isWLED(ctx.typeId) && (fppConfig.hideExternalURLs || ctx.local || ctx.ip == ctx.hostname)))
+                ? name
+                : "<a target='host_" + ctx.ip + "' href='" + wrapUrlWithProxy(ctx.ip, "/") + "'>" + name + "</a>";
 
             return "<span class='reorder-grip'><i class='rowGripIcon fpp-icon-grip'></i></span>" +
                    "<span id='fpp_" + ctx.ip.replace(/\./g, '_') + "_hostname'" + ctx.spanStyle + ">" + hostTxt + "</span>" +
@@ -4382,6 +4389,7 @@
                 'Genius': 'Genius',
                 'SanDevices': 'SanDevices',
                 'WLED': 'WLED',
+                'Twinkly': 'Twinkly',
                 'Unknown': 'Unknown'
             };
             window.platformFilterSearch = function (text, value, field, data) {
@@ -4409,6 +4417,7 @@
                     case 'genius': return isGenius(typeId);
                     case 'sandevices': return isSanDevices(typeId);
                     case 'wled': return isWLED(typeId);
+                    case 'twinkly': return isTwinkly(typeId);
                     case 'unknown': return isUnknownController(typeId);
                     default: return true;
                 }

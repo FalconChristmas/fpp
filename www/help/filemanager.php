@@ -1,5 +1,5 @@
 <h3>File Manager</h3>
-<p>File Manager is where you see, upload, preview and organize everything FPP plays or stores. Files are grouped into tabs across the top. Click a tab to show that kind of file. Tables can be sorted by clicking column headers and filtered when the <i>Enable Filter</i> option is on in <code>Settings → UI</code>. Counts and total size for the current tab appear at the top right of each section.</p>
+<p>File Manager is where you see, upload, preview and organize everything FPP plays or stores. Files are grouped into tabs across the top. Click a tab to show that kind of file. Tables can be sorted by clicking column headers and filtered when the <i>Enable Filter</i> option is on in <code>Settings → UI</code>. Tabs with no files can be hidden with <i>Hide Empty Tabs</i> (also in <code>Settings → UI</code>); both switches are repeated at the bottom of this page. Counts and total size for the current tab appear at the top right of each section.</p>
 
 <h4>Uploading</h4>
 <ul>
@@ -88,10 +88,10 @@
 </ul>
 
 <h5>Crash Reports</h5>
-<p>Generated when <code>fppd</code> crashes, if crash reporting is enabled in <code>Settings → Privacy</code>.</p>
+<p>Generated when <code>fppd</code> crashes, if crash reporting is enabled in <code>Settings → Privacy</code>, or made on request (the name ends in <code>-manual</code>).</p>
 <ul>
     <li><b>Download</b> — Save reports to your computer for sharing.</li>
-    <li><b>Upload and Delete</b> — Sends the selected reports to the FPP developers, then removes them from this player. Use this when you want to help diagnose a crash.</li>
+    <li><b>Upload and Delete</b> — Sends the selected reports, then removes them from this player. The confirmation shows who receives them and what they contain. Use this when you want to help diagnose a crash.</li>
     <li><b>Delete</b> — Discards reports without sending.</li>
 </ul>
 

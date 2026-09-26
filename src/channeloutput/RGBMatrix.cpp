@@ -43,13 +43,36 @@ FPPPlugins::Plugin* createPlugin() {
 }
 }
 
-static std::map<std::string, int> HAT_MAX_CHAINS = {
-    { "regular-pi1", 2 },
-    { "adafruit-hat", 1 },
-    { "adafruit-hat-pwm", 1 },
-    { "classic-pi1", 1 },
-    { "compute-module", 6 }
-};
+// The library's own pin-mapping table.  Framebuffer's constructor abort()s when
+// a mapping is asked for more parallel chains than it has pins for, so the
+// limit has to be checked against the same table before handing it options --
+// a hand-kept copy here had already drifted (it said regular-pi1 had 2).
+#include "../lib/hardware-mapping.h"
+
+// Mirrors Framebuffer::InitHardwareMapping(): 0 for an unknown mapping name,
+// otherwise the number of parallel chains the mapping has data pins for.
+static int MaxParallelChains(const char* name) {
+    if (name == nullptr || *name == '\0') {
+        name = "regular";
+    }
+    for (const HardwareMapping* h = matrix_hardware_mappings; h->name; ++h) {
+        if (strcasecmp(h->name, name) != 0) {
+            continue;
+        }
+        if (h->max_parallel_chains) {
+            return h->max_parallel_chains;
+        }
+        int n = 0;
+        n += (h->p0_r1 | h->p0_g1 | h->p0_r2 | h->p0_g2) ? 1 : 0;
+        n += (h->p1_r1 | h->p1_g1 | h->p1_r2 | h->p1_g2) ? 1 : 0;
+        n += (h->p2_r1 | h->p2_g1 | h->p2_r2 | h->p2_g2) ? 1 : 0;
+        n += (h->p3_r1 | h->p3_g1 | h->p3_r2 | h->p3_g2) ? 1 : 0;
+        n += (h->p4_r1 | h->p4_g1 | h->p4_r2 | h->p4_g2) ? 1 : 0;
+        n += (h->p5_r1 | h->p5_g1 | h->p5_r2 | h->p5_g2) ? 1 : 0;
+        return n;
+    }
+    return 0;
+}
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -267,13 +290,17 @@ int RGBMatrixOutput::Init(Json::Value config) {
         }
     }
 
-    if (HAT_MAX_CHAINS.find(options.hardware_mapping) != HAT_MAX_CHAINS.end()) {
-        int maxChains = HAT_MAX_CHAINS[options.hardware_mapping];
-        if (options.chain_length > maxChains) {
-            LogWarn(VB_CHANNELOUT, "The %s pinout supports a maximum of %d chains.\n",
-                    options.hardware_mapping, maxChains);
-            return 0;
-        }
+    // parallel is the number of outputs (chains) in use; chain_length is the
+    // panels on each and is not limited by the pinout.
+    int maxParallel = MaxParallelChains(options.hardware_mapping);
+    if (maxParallel == 0) {
+        LogErr(VB_CHANNELOUT, "Unknown LED panel wiring pinout '%s'\n", options.hardware_mapping);
+        return 0;
+    }
+    if (options.parallel > maxParallel) {
+        LogErr(VB_CHANNELOUT, "The %s pinout supports %d output%s, but panels are assigned to %d\n",
+               options.hardware_mapping, maxParallel, maxParallel > 1 ? "s" : "", options.parallel);
+        return 0;
     }
 
     m_rgbmatrix = RGBMatrix::CreateFromOptions(options, runtimeOptions);

@@ -141,7 +141,14 @@ function GetFiles (dir, extraParams) {
 			data.files.forEach(function (f) {
 				var detail = f.sizeHuman;
 				if ('playtimeSeconds' in f) {
-					detail = f.playtimeSeconds;
+					// null: the server had no cached duration for this file.
+					// Show a placeholder and let LoadMediaDurations() fill it
+					// in, rather than making the whole listing wait on an
+					// ffprobe per file (minutes after a bulk upload).
+					detail =
+						f.playtimeSeconds === null ?
+							"<span class='durationPending text-muted'>…</span>"
+						:	f.playtimeSeconds;
 				}
 
 				var thumbSize = 0;
@@ -153,8 +160,29 @@ function GetFiles (dir, extraParams) {
 				}
 
 				var tableRow = '';
+				// Directories are flagged by the API; a zero-byte file is
+				// still a file (and must keep its single-file actions).
+				var isDir = f.isDirectory === true;
+
 				if (dir == 'Images' && thumbSize > 0) {
-					if (parseInt(f.sizeBytes) > 0) {
+					if (!isDir) {
+						// No thumbnail for an empty file: the request would
+						// only fetch nothing and render a broken image.
+						var thumb = '';
+						if (parseInt(f.sizeBytes) > 0) {
+							thumb =
+								"<img style='display: block; max-width: " +
+								thumbSize +
+								'px; max-height: ' +
+								thumbSize +
+								"px; width: auto; height: auto;' src='api/file/" +
+								dir +
+								'/' +
+								f.name +
+								"' onClick=\"ViewImage('" +
+								f.name +
+								"');\" />";
+						}
 						tableRow =
 							"<tr class='fileDetails' id='fileDetail_" +
 							i +
@@ -162,19 +190,11 @@ function GetFiles (dir, extraParams) {
 							f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') +
 							"</td><td class='fileExtraInfo'>" +
 							detail +
+							'</td><td>' +
+							thumb +
 							"</td><td class ='fileTime'>" +
 							f.mtime +
-							"</td><td><img style='display: block; max-width: " +
-							thumbSize +
-							'px; max-height: ' +
-							thumbSize +
-							"px; width: auto; height: auto;' src='api/file/" +
-							dir +
-							'/' +
-							f.name +
-							"' onClick=\"ViewImage('" +
-							f.name +
-							'\');" /></td></tr>';
+							'</td></tr>';
 					} else {
 						tableRow =
 							"<tr class='fileDetails fileIsDirectory' id='fileDetail_" +
@@ -183,13 +203,13 @@ function GetFiles (dir, extraParams) {
 							f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') +
 							"</td><td class='fileExtraInfo'>" +
 							detail +
-							"</td><td class ='fileTime'>" +
+							"</td><td>Subdir</td><td class ='fileTime'>" +
 							f.mtime +
-							'</td><td>Subdir</td></tr>';
+							'</td></tr>';
 					}
 				} else {
 					var extraClass = 'fileDetails';
-					if (f.sizeBytes == 0) {
+					if (isDir) {
 						extraClass += ' fileIsDirectory';
 					}
 
@@ -199,7 +219,7 @@ function GetFiles (dir, extraParams) {
 					var fpsCell = '';
 					if (dir == 'Sequences') {
 						var fpsVal = '';
-						if (f.sizeBytes != 0) {
+						if (!isDir) {
 							fpsVal =
 								sequenceFpsCache[f.name] !== undefined
 									? sequenceFpsCache[f.name]
@@ -207,6 +227,12 @@ function GetFiles (dir, extraParams) {
 						}
 						fpsCell =
 							"<td class='fileFPS' align='right'>" + fpsVal + '</td>';
+					}
+					// Images reach this branch when thumbnails are disabled;
+					// the table still has a Thumbnail column, so emit an empty
+					// cell or the date shifts under the wrong header.
+					if (dir == 'Images') {
+						fpsCell = '<td></td>';
 					}
 
 					tableRow =
@@ -243,13 +269,117 @@ function GetFiles (dir, extraParams) {
 		complete: function () {
 			SetupTableSorter('tbl' + dir);
 			UpdateFileCount(dir);
+			UpdateTabVisibility(dir);
 			if (dir == 'Sequences') {
 				// Lazily fetch the per-sequence fps (server-cached) and fill in
 				// the FPS column afterwards, without blocking the initial list.
 				LoadSequenceFPS();
+			} else if (dir == 'Music' || dir == 'Videos') {
+				LoadMediaDurations(dir);
 			}
 		}
 	});
+}
+
+// Same layout as human_playtime() in common.php so lazily filled cells match
+// the cached ones already in the column.
+function HumanPlaytime (seconds) {
+	var pad = function (n) {
+		return (n < 10 ? '0' : '') + n;
+	};
+	var h = Math.floor(seconds / 3600);
+	return (
+		(h > 0 ? pad(h) + 'h:' : '') +
+		pad(Math.floor(seconds / 60) % 60) +
+		'm:' +
+		pad(Math.floor(seconds) % 60) +
+		's'
+	);
+}
+
+// Fetches the duration for every Music/Videos file the listing came back
+// without one (playtimeSeconds === null, i.e. not in the server cache yet).
+// Each request probes one file and writes it into the server cache, so the
+// next listing arrives complete. Requests run one at a time, matching the
+// serial ffprobe the listing itself used to do, so a bulk upload never has a
+// Pi running several probes at once. Follows LoadSequenceFPS() for how the
+// table is updated: through the Bootstrap Table data model once it is
+// initialized, or the raw cells while its tab is still hidden.
+function LoadMediaDurations (dir) {
+	var pending = (fileData[dir] || []).filter(function (f) {
+		return f.playtimeSeconds === null;
+	});
+	if (pending.length == 0) {
+		return;
+	}
+
+	var decoder = document.createElement('textarea');
+	var decode = function (s) {
+		decoder.innerHTML = s;
+		return decoder.value.trim();
+	};
+
+	var setDuration = function (name, text) {
+		var $table = $('#tbl' + dir);
+		var initialized = !!(
+			$table.closest('.bootstrap-table').length ||
+			$table.data('bootstrap.table')
+		);
+		if (initialized) {
+			var rows = $table.bootstrapTable('getData');
+			for (var r = 0; r < rows.length; r++) {
+				if (
+					rows[r].filename !== undefined &&
+					decode(rows[r].filename) == name
+				) {
+					// reinit:false patches just this <td>; updateRow would
+					// re-render the whole body for every file that comes
+					// back, which yanks the page scroll to the top each time.
+					$table.bootstrapTable('updateCell', {
+						index: r,
+						field: 'duration',
+						value: text,
+						reinit: false
+					});
+					break;
+				}
+			}
+		} else {
+			$table.find('tbody tr').each(function () {
+				var $row = $(this);
+				if (decode($row.find('td.fileName').html()) == name) {
+					$row.find('td.fileExtraInfo').text(text);
+					return false;
+				}
+			});
+		}
+	};
+
+	var next = function () {
+		var f = pending.shift();
+		if (!f) {
+			return;
+		}
+		$.ajax({
+			dataType: 'json',
+			url: 'api/media/' + encodeURIComponent(f.name) + '/duration',
+			success: function (resp) {
+				var d = resp && resp[f.name] ? resp[f.name].duration : null;
+				if (typeof d == 'number' && d >= 0) {
+					f.playtimeSeconds = HumanPlaytime(d);
+				} else {
+					f.playtimeSeconds = 'Unknown';
+				}
+				setDuration(f.name, f.playtimeSeconds);
+			},
+			error: function () {
+				f.playtimeSeconds = 'Unknown';
+				setDuration(f.name, f.playtimeSeconds);
+			},
+			complete: next
+		});
+	};
+	next();
 }
 
 function GetAllFiles () {
@@ -434,6 +564,30 @@ function UpdateFileCount ($dir) {
 	}
 }
 
+// Hide a tab whose directory has nothing in it when the
+// fileManagerHideEmptyTabs setting is on. The active tab is left alone so
+// its pane never ends up orphaned; if the last file on it is deleted the
+// tab goes away on the next page load. Uploads re-list every directory, so
+// a hidden tab comes back as soon as it has a file.
+function UpdateTabVisibility (dir) {
+	var $pane = $('#tbl' + dir).closest('.tab-pane');
+	if (!$pane.length) {
+		return;
+	}
+	var $tab = $('#fileManagerTabs a[href="#' + $pane.attr('id') + '"]').parent();
+	var hide =
+		settings.fileManagerHideEmptyTabs == '1' &&
+		(fileData[dir] || []).length == 0 &&
+		!$pane.hasClass('active');
+	$tab.toggleClass('d-none', hide);
+}
+
+function FileManagerHideEmptyTabsToggled () {
+	Object.keys(fileData).forEach(function (dir) {
+		UpdateTabVisibility(dir);
+	});
+}
+
 function FileManagerFilterToggled () {
 	var value = settings.fileManagerTableFilter == '1';
 	var $t = $('#fileManager').find('table');
@@ -526,7 +680,21 @@ function ButtonHandler (table, button) {
 		if (crashRows.length == 0) {
 			return;
 		}
-		UploadAndDeleteCrashReports(table, crashRows);
+		var files = crashRows
+			.map(function () {
+				return $(this).find('td:first').text();
+			})
+			.get();
+		UploadAndDeleteCrashReports(files, {
+			onDeleted: function (file) {
+				crashRows
+					.filter(function () {
+						return $(this).find('td:first').text() === file;
+					})
+					.remove();
+				UpdateFileCount(table);
+			}
+		});
 	} else if (button == 'deleteConfig') {
 		// Developer-mode Config tab: confirm before deleting since these are
 		// FPP's internal configuration files.
@@ -1199,217 +1367,3 @@ function SetupTableSorter (tableName) {
 	}
 }
 
-/*
- * Submitting crash reports that were kept on the player.
- *
- * fppd writes a report for every crash but only uploads it when ShareCrashData
- * is 1 or higher. At "Keep locally, do not send" the report is still written --
- * at the fullest level -- so the operator can submit it by hand; this is that,
- * without the download-and-email round trip.
- *
- * Two routes to the same endpoint, because the player and the browser are not
- * always on the same side of a working internet connection:
- *
- *   1. Ask the player to post it (POST /api/crashes/upload/<file>). Normal case.
- *   2. If the player says it could not reach the server, fetch the zip from the
- *      player and post it from the browser instead. That covers the common show
- *      network: players on an isolated switch, laptop on Wi-Fi with a route out.
- *
- * The file is only deleted once an upload is CONFIRMED. Anything that reports
- * "sent, unconfirmed" is kept -- deleting the only copy of a crash report on a
- * maybe is how the evidence is lost.
- */
-function UploadAndDeleteCrashReports (table, rows) {
-	var files = [];
-	rows.each(function () {
-		files.push($(this).find('td:first').text());
-	});
-
-	var plural = files.length > 1 ? 's' : '';
-	var listHtml =
-		'<ul>' +
-		files
-			.map(function (f) {
-				return '<li>' + f.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</li>';
-			})
-			.join('') +
-		'</ul>';
-
-	DisplayConfirmationDialog(
-		'confirmUploadCrash',
-		'Upload Crash Report' + plural,
-		'Send the following crash report' +
-			plural +
-			' to the FPP developers, then delete ' +
-			(files.length > 1 ? 'them' : 'it') +
-			' from this player?' +
-			listHtml +
-			'<p>A report kept locally is the full bundle: the crash stack and fault ' +
-			'registers, this player&rsquo;s settings, and its configuration files and ' +
-			'logs. Passwords, Wi-Fi passphrases and location were already removed when ' +
-			'the report was written, and the network interface configuration is never ' +
-			'included.</p>' +
-			'<p>If this player cannot reach the internet, your browser will be asked to ' +
-			'send the report instead. Anything that cannot be confirmed as delivered is ' +
-			'kept on the player.</p>',
-		function () {
-			UploadCrashReportsSequentially(table, rows.toArray(), 0, {
-				uploaded: 0,
-				unconfirmed: 0,
-				failed: []
-			});
-		}
-	);
-}
-
-// One at a time: these are multi-megabyte zips and a player on a slow uplink
-// should not be asked to run several at once.
-function UploadCrashReportsSequentially (table, rowArray, idx, tally) {
-	if (idx >= rowArray.length) {
-		ReportCrashUploadResults(tally);
-		return;
-	}
-
-	var row = rowArray[idx];
-	var file = $(row).find('td:first').text();
-	var next = function () {
-		UploadCrashReportsSequentially(table, rowArray, idx + 1, tally);
-	};
-
-	$.ajax({
-		url: 'api/crashes/upload/' + encodeURIComponent(file),
-		type: 'POST',
-		dataType: 'json'
-	})
-		.done(function (data) {
-			if (data && data.Status == 'OK') {
-				tally.uploaded++;
-				DeleteFile(table, row, file, true);
-				next();
-			} else if (data && data.CanRetryFromBrowser) {
-				UploadCrashReportViaBrowser(table, row, file, tally, next);
-			} else {
-				tally.failed.push(
-					file + ' (' + (data && data.Message ? data.Message : 'upload failed') + ')'
-				);
-				next();
-			}
-		})
-		.fail(function () {
-			// The API call itself did not complete, so we have no word either way
-			// on whether the player has a route out. Try the browser.
-			UploadCrashReportViaBrowser(table, row, file, tally, next);
-		});
-}
-
-/*
- * Browser fallback: pull the zip from the player (same origin) and post it to
- * the crash server ourselves. For a player on an isolated show network whose
- * operator's laptop has a route out.
- *
- * On confirmation, and why there is only ever ONE send attempt:
- *
- * A FormData POST is a CORS "simple request" -- multipart/form-data is a
- * safelisted Content-Type and we set no custom headers -- so the browser sends
- * it without a preflight and the bytes reach the server either way. Whether we
- * may read the *response* depends on the server's Access-Control-Allow-Origin;
- * crashes.falconplayer.com sends one (players live on unguessable LAN
- * addresses, so it is a wildcard), which is what lets this confirm a delivery
- * and then delete.
- *
- * A rejection therefore means we could not read an answer -- most likely no
- * route out, but possibly a connection dropped after the bytes left. We cannot
- * tell, and re-sending to find out would duplicate a report that may already
- * have arrived. So a rejection is never retried: it is reported as "sent,
- * unconfirmed" and the file stays on the player.
- */
-function UploadCrashReportViaBrowser (table, row, file, tally, next) {
-	$.ajax({ url: 'api/crashes/uploadTarget', dataType: 'json' })
-		.done(function (target) {
-			if (!target || !target.url) {
-				tally.failed.push(file + ' (no upload target configured)');
-				next();
-				return;
-			}
-
-			var reportUrl =
-				'api/file/Crashes/' + encodeURIComponent(file).replaceAll('%2F', '/');
-
-			fetch(reportUrl)
-				.then(function (resp) {
-					if (!resp.ok) {
-						throw new Error('could not read the report from this player');
-					}
-					return resp.blob();
-				})
-				.then(function (blob) {
-					var form = new FormData();
-					form.append(target.field || 'userfile', blob, file);
-					return fetch(target.url, { method: 'POST', body: form });
-				})
-				.then(function (resp) {
-					if (resp.ok) {
-						tally.uploaded++;
-						DeleteFile(table, row, file, true);
-					} else {
-						tally.failed.push(file + ' (server returned HTTP ' + resp.status + ')');
-					}
-					next();
-				})
-				.catch(function () {
-					// Either the response was not readable from this origin (the
-					// upload still happened) or the browser has no route out (it did
-					// not). We cannot tell the two apart, and re-sending to find out
-					// would duplicate a report that already arrived. Keep the file and
-					// say plainly that delivery is unconfirmed.
-					tally.unconfirmed++;
-					next();
-				});
-		})
-		.fail(function () {
-			tally.failed.push(file + ' (could not read the upload target)');
-			next();
-		});
-}
-
-function ReportCrashUploadResults (tally) {
-	var parts = [];
-	if (tally.uploaded > 0) {
-		parts.push(
-			'<p>' +
-				tally.uploaded +
-				' report' +
-				(tally.uploaded > 1 ? 's were' : ' was') +
-				' uploaded and removed from this player.</p>'
-		);
-	}
-	if (tally.unconfirmed > 0) {
-		parts.push(
-			'<p>' +
-				tally.unconfirmed +
-				' report' +
-				(tally.unconfirmed > 1 ? 's were' : ' was') +
-				' sent from your browser, but no delivery confirmation came back, so ' +
-				(tally.unconfirmed > 1 ? 'they have' : 'it has') +
-				' been kept on the player. Check your browser&rsquo;s internet ' +
-				'connection; if the report did arrive, sending it again is harmless.</p>'
-		);
-	}
-	if (tally.failed.length > 0) {
-		parts.push(
-			'<p>The following could not be uploaded and have been kept:</p><ul>' +
-				tally.failed
-					.map(function (f) {
-						return '<li>' + f.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</li>';
-					})
-					.join('') +
-				'</ul>'
-		);
-	}
-
-	if (tally.failed.length > 0) {
-		DialogError('Crash Report Upload', parts.join(''));
-	} else {
-		DialogOK('Crash Report Upload', parts.join(''));
-	}
-}

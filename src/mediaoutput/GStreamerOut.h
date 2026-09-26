@@ -20,6 +20,7 @@
 #include <gst/app/gstappsink.h>
 #include <array>
 #include <atomic>
+#include <condition_variable>
 #include <list>
 #include <memory>
 #include <mutex>
@@ -229,20 +230,40 @@ private:
     // to it either runs to completion before that clear or sees nullptr and
     // returns.  Old pipelines keep their own (already cleared) guard, so a
     // restarted output is never reached through a stale connection.
+    //
+    // The bus sync handler runs on streaming threads too, and gets the same
+    // guard -- but it does not hold `mtx` while it works.  It registers itself
+    // in `busInFlight` instead, and Close() waits for that to drain after
+    // clearing `self`.  Holding the lock across a handler would let one
+    // streaming thread block another inside GStreamer.  `mtx` is recursive
+    // because OnNoMorePads changes element state while holding it, and the
+    // resulting bus messages reach BusSyncHandler on that same thread.
     struct CallbackGuard {
-        std::mutex mtx;
+        std::recursive_mutex mtx;
         GStreamerOutput* self = nullptr;
+        int busInFlight = 0;
+        std::condition_variable_any busIdle;
     };
     std::shared_ptr<CallbackGuard> m_cbGuard;
     // Connects pad-added (and optionally no-more-pads) on `decoder`, passing a
     // guard reference as the closure data.  Takes no ref on `decoder`.
     void ConnectPadSignals(GstElement* decoder, bool wantNoMorePads);
     static void ReleaseCallbackGuard(gpointer data, GClosure* closure);
+    // GDestroyNotify for the guard reference handed to gst_bus_set_sync_handler.
+    static void ReleaseBusCallbackGuard(gpointer data);
     // Resolves the closure data back to a live output.  Returns nullptr (with
     // `lock` left unlocked) once the owning Close() has run.
     static GStreamerOutput* LockCallbackGuard(gpointer userData,
                                               std::shared_ptr<CallbackGuard>& guard,
-                                              std::unique_lock<std::mutex>& lock);
+                                              std::unique_lock<std::recursive_mutex>& lock);
+    // Keeps the output alive for one BusSyncHandler call.  `self` is nullptr
+    // once Close() has run; otherwise Close() blocks until this is destroyed.
+    struct BusCallbackScope {
+        explicit BusCallbackScope(gpointer userData);
+        ~BusCallbackScope();
+        std::shared_ptr<CallbackGuard> guard;
+        GStreamerOutput* self = nullptr;
+    };
     static void OnPadAdded(GstElement* element, GstPad* pad, gpointer userData);
     static void OnNoMorePads(GstElement* element, gpointer userData);
     GstElement* m_audioChain = nullptr;    // audio sub-bin for pad linking

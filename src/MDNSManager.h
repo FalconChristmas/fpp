@@ -13,9 +13,9 @@
 
 #include <functional>
 #include <map>
+#include <mutex>
 #include <set>
 #include <string>
-#include <mutex>
 
 class MDNSManager {
 public:
@@ -38,31 +38,44 @@ public:
     int registerCallback(std::function<void(const std::string&)>&& callback);
     void removeCallback(int id);
 
-    // Helper used by Avahi callbacks (public so static C callbacks can call)
-    // isWled is true when the host was discovered via the _wled._tcp browser,
-    // in which case it is probed over HTTP rather than the FPP ping protocol.
+    // Helpers used by the active backend's C callbacks (public so static
+    // callbacks can reach them).  isWled is true when the host was discovered
+    // via the _wled._tcp browser, in which case it is probed over HTTP rather
+    // than the FPP ping protocol.
     void HandleResolveIP(const std::string& ip, bool isWled = false);
     void SetServiceBrowser(void* sb);
     void SetWLEDServiceBrowser(void* sb);
-    void RegisterService(void* client);  // register local _fppd._udp service
-    void PickAlternativeServiceName();    // pick new name on collision
+    void RegisterService(void* client); // register local _fppd._udp service
+    void PickAlternativeServiceName();  // pick new name on collision
 
-    // Client liveness, driven from the Avahi client state callback.
-    void NoteClientRunning();   // connected: clear the retry state and the warning
-    void NoteClientDown();      // disconnected: start/continue the reconnect retries
+    // Client liveness, driven from the backend's client state callback.  Only
+    // Avahi has a client that can go away; the Bonjour backend leaves these
+    // empty.
+    void NoteClientRunning(); // connected: clear the retry state and the warning
+    void NoteClientDown();    // disconnected: start/continue the reconnect retries
+
+    const std::string& ServiceName() const { return m_serviceName; }
+    void SetServiceName(const std::string& name) { m_serviceName = name; }
 
 private:
-    // Set once Initialize() has built the poll adapter.  It does NOT mean there is a
-    // live connection to avahi-daemon - that is m_avahiClient, which comes and goes.
+    // Defined by exactly one of MDNSBackendAvahi.cpp / MDNSBackendBonjour.cpp,
+    // or by the no-op pair in MDNSManager.cpp when the platform has neither.
+    void StartBackend();
+    void StopBackend();
+
+    // Set once the backend has started.  It does NOT mean there is a live
+    // connection to a daemon - for Avahi that is m_client, which comes and goes.
     bool m_running = false;
 
     // Avahi's client never reconnects: once avahi-daemon goes away the client is
     // dead for good and a new one has to be built.  These drive that retry, and hold
     // off the "is avahi-daemon running?" warning until the outage looks real rather
-    // than like the daemon restarting or the machine shutting down.
+    // than like the daemon restarting or the machine shutting down.  Bonjour has
+    // no equivalent failure -- mDNSResponder is part of the OS -- so its backend
+    // leaves them alone.
     int m_reconnectTimerFd = -1;
     std::function<bool(int)> m_reconnectCallback;
-    long long m_clientDownSinceMS = 0;  // 0 == client is up
+    long long m_clientDownSinceMS = 0; // 0 == client is up
     int m_reconnectDelayMS = 0;
     bool StartAvahiClient();
     void ScheduleClientReconnect();
@@ -77,10 +90,15 @@ private:
     // Service name (may be modified on collision)
     std::string m_serviceName;
 
-    // Avahi objects (opaque pointers) - only used in implementation
-    void* m_avahiPoll = nullptr;     // custom AvahiPoll adapter
-    void* m_avahiClient = nullptr;
-    void* m_serviceBrowser = nullptr;       // browser for _fppd._udp
-    void* m_wledServiceBrowser = nullptr;   // browser for _wled._tcp
-    void* m_entryGroup = nullptr;    // for registering local service
+    // Backend-owned handles.  Only the active backend file touches these, and
+    // what they point at is that backend's business: AvahiPoll*, AvahiClient*,
+    // AvahiServiceBrowser* and AvahiEntryGroup* for Avahi; DNSServiceRef for
+    // Bonjour.  m_backendState is for whatever else a backend needs to keep --
+    // Bonjour hangs its list of in-flight resolves there.
+    void* m_pollAdapter = nullptr;        // Avahi only: custom AvahiPoll adapter
+    void* m_client = nullptr;             // connection to the mDNS daemon
+    void* m_serviceBrowser = nullptr;     // browser for _fppd._udp
+    void* m_wledServiceBrowser = nullptr; // browser for _wled._tcp
+    void* m_entryGroup = nullptr;         // the locally advertised services
+    void* m_backendState = nullptr;       // backend's own bookkeeping
 };

@@ -108,8 +108,18 @@
 // Address for the Constant table Programmable Pointer Register 1(CTPPR_1)
 #define CTPPR_1         0x2202C
 
-// For now, we run the AM62x PRU's at 250Mhz because DDR latency is too 
+// For now, we run the AM62x PRU's at 250Mhz because DDR latency is too
 // high when running at 333Mhz.   Issue is known at TI, no solution yet.
+// (Measured: a 32 byte LBBO from DDR costs 77.5 cycles synchronous to VBUSP
+// and 748 cycles on the async 333MHz core clock.  The PRU's own data RAM and
+// the shared RAM are NOT affected - identical cycle counts either way - so an
+// output whose data path is entirely SMEM, such as the BBShiftPanel shift
+// path, gains the full 33%.  See SMEMRing.hp.)
+//
+// These two must track the core clock: at 333MHz they become 3 and (ns)/3.
+// Anything that switches the clock has to rebuild every ns-denominated PRU
+// program.  Note SLEEPNS packs NS2CLK(ns/2) into a 16 bit LDI, so the longest
+// sleeps in BBShiftString.asm (500000ns) overflow at /3 and need LDI32.
 #define NSPERCLK  4
 #define NS2CLK(ns) ((ns) / 4)
 

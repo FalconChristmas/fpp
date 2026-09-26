@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <climits>
+#include <list>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -124,8 +125,12 @@ void Timers::stopPeriodicTimer(const std::string& name) {
 }
 
 void Timers::fireTimersInternal(long long t) {
-    std::list<TimerInfo*> toFire;
-    std::list<TimerInfo*> toDelete;
+    // Callbacks run with the lock released (they add and stop timers), so they
+    // must not run out of a TimerInfo that is still in the list: a
+    // stopPeriodicTimer() from another thread deletes it, and a periodic timer
+    // that stops or re-adds itself from its own callback destroys or replaces
+    // the std::function that is executing. Fire private copies instead.
+    std::list<TimerInfo> toFire;
 
     std::unique_lock<std::mutex> l(lock);
     int m = timers.size();
@@ -133,22 +138,20 @@ void Timers::fireTimersInternal(long long t) {
     for (int x = 0; x < m; ++x) {
         auto a = timers[x];
         if (a && (a->fireTimeMS <= t)) {
-            toFire.push_back(a);
             if (a->periodicRate) {
                 a->fireTimeMS = GetTimeMS() + a->periodicRate;
+                toFire.push_back(*a);
             } else {
-                toDelete.push_back(a);
+                toFire.push_back(std::move(*a));
+                delete a;
                 timers[x] = nullptr;
             }
         }
     }
     l.unlock();
     for (auto& a : toFire) {
-        fireTimer(a);
+        fireTimer(&a);
         fired = true;
-    }
-    for (auto a : toDelete) {
-        delete a;
     }
     if (fired) {
         l.lock();

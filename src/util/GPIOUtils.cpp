@@ -481,6 +481,22 @@ int GPIODCapabilities::requestEventFile(bool risingEdge, bool fallingEdge) const
     return fd;
 }
 
+// A line the kernel handed to a peripheral cannot be requested at all, and under
+// the strict pinmux of kernel 6.18 that is now permanent for some pins.  Say so
+// plainly, rather than leaving callers to infer it from a value that is really
+// just the "could not read" default.
+bool GPIODCapabilities::isAcquired() const {
+#ifdef HASGPIOD
+#ifdef IS_GPIOD_CXX_V2
+    return request != nullptr;
+#else
+    return line.is_requested();
+#endif
+#else
+    return false;
+#endif
+}
+
 bool GPIODCapabilities::getValue() const {
 #ifdef HASGPIOD
     if (lastRequestType == 1 && !openDrain) { // push-pull OUTPUT: value is what we drove

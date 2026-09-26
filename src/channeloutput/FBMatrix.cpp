@@ -141,6 +141,18 @@ int FBMatrixOutput::Init(Json::Value config) {
     PixelOverlayManager::INSTANCE.addModelListener(modelName, m_modelListenerName,
         [this](PixelOverlayModel* m) {
             std::lock_guard<std::mutex> lock(m_modelLock);
+            // buffer is sized for the model we saw in Init(), and SendData()
+            // hands it to model->setData(), which copies the *model's*
+            // width * height worth of bytes out of it.  A model re-created
+            // under the same name with other dimensions (a second
+            // VirtualMatrix on the same device, whose Init() replaces
+            // "FB - <device>") would turn that into a heap over-read, so only
+            // follow a replacement that still matches this output.
+            if (m && (m->getWidth() != width || m->getHeight() != height)) {
+                LogWarn(VB_CHANNELOUT, "FBMatrix: model '%s' is now %dx%d, this output is %dx%d; detaching\n",
+                        modelName.c_str(), m->getWidth(), m->getHeight(), width, height);
+                m = nullptr;
+            }
             model = m;
         });
     model = PixelOverlayManager::INSTANCE.getModel(modelName);

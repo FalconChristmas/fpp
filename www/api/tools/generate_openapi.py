@@ -162,11 +162,22 @@ def parse_docblocks(php_source):
             type_map = {'int': 'integer', 'integer': 'integer',
                         'bool': 'boolean', 'boolean': 'boolean',
                         'float': 'number', 'number': 'number'}
+            # PHPDoc literal-string types ('1', or a union like 'a'|'b') carry
+            # the accepted values, not just the kind -- so emit them as an
+            # OpenAPI enum. Without this the spec can only say "some string",
+            # and a hand-written enum in openapi.json is silently dropped the
+            # next time the file is regenerated.
+            literals = re.findall(r"^'([^']*)'$|'([^']*)'", php_type)
+            if literals and re.fullmatch(r"'[^']*'(?:\|'[^']*')*", php_type):
+                values = [a or b for a, b in literals]
+                schema = {'type': 'string', 'enum': values}
+            else:
+                schema = {'type': type_map.get(php_type.lower(), 'string')}
             params.append({
                 'name':        pname,
                 'in':          'query',
                 'required':    False,
-                'schema':      {'type': type_map.get(php_type.lower(), 'string')},
+                'schema':      schema,
                 'description': pdesc or None,
             })
 

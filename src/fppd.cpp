@@ -422,6 +422,51 @@ static void safeWriteModuleMap(int fd) {
 #endif
 }
 
+// No allocation: the crash handler calls this
+static bool IsManualCrashReport(const char* path) {
+    size_t len = strlen(path);
+    return len >= 11 && strcmp(path + len - 11, "-manual.zip") == 0;
+}
+
+// crashes/fpp-<type>-<version>-<uuid>-<time><suffix>.zip, relative to the media directory
+static void CrashReportName(char* zfName, size_t zfLen, const char* suffix) {
+    char tbuffer[32];
+    time_t rawtime;
+    time(&rawtime);
+    struct tm timeinfo;
+    localtime_r(&rawtime, &timeinfo);
+    strftime(tbuffer, sizeof(tbuffer), "%Y-%m-%d_%H-%M-%S", &timeinfo);
+#ifdef PLATFORM_ARMBIAN
+    char sysType[] = "Armbian";
+#elif defined(PLATFORM_BBB)
+    char sysType[] = "BBB";
+#elif defined(PLATFORM_BB64)
+    char sysType[] = "BB64";
+#elif defined(PLATFORM_PI)
+    char sysType[] = "Pi";
+#elif defined(PLATFORM_OSX)
+    char sysType[] = "MacOS";
+#elif defined(PLATFORM_DOCKER)
+    char sysType[] = "Docker";
+#elif defined(PLATFORM_DEBIAN)
+    char sysType[] = "Debian";
+#else
+    char sysType[] = "Unknown";
+#endif
+    std::string SystemUUID = getSetting("SystemUUID", "unknown");
+    char safeUUID[64];
+    unsigned int uuidLen = 0;
+    for (const char* p = SystemUUID.c_str(); *p != '\0' && uuidLen < sizeof(safeUUID) - 1; ++p) {
+        unsigned char c = *p;
+        bool safe = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '-' || c == '_' || c == '.';
+        if (safe) {
+            safeUUID[uuidLen++] = c;
+        }
+    }
+    safeUUID[uuidLen] = '\0';
+    snprintf(zfName, zfLen, "crashes/fpp-%s-%s-%s-%s%s.zip", sysType, getFPPVersion(), safeUUID, tbuffer, suffix);
+}
+
 static void handleCrash(int s, siginfo_t* si, void* ctx) {
     static volatile bool inCrashHandler = false;
     if (inCrashHandler) {
@@ -540,10 +585,26 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
         int cfd = open("/tmp/fppd_crash_context.log", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
         if (cfd >= 0) {
             PlaylistDumpCrashState(cfd);
+            // The last call the main loop entered.  A pointer to a string
+            // literal (see SetMainLoopPhase), so reading it here is
+            // signal-safe, and it is the only record of what the main thread
+            // was doing that survives a stack gdb cannot fully unwind.
+            safeWrite(cfd, "Main loop phase: ");
+            safeWrite(cfd, GetMainLoopPhase());
+            safeWrite(cfd, "\n");
             // Written even when gdb succeeded: gdb reports the registers of
             // the thread it happens to unwind, not necessarily the faulting
             // one, and this costs nothing.
             safeWriteFaultRegisters(cfd, ctx);
+            // Also written even when gdb succeeded, and this is the half that
+            // was missing: gdb resolves what it can and leaves everything else
+            // as a bare address, and a frame it fails to unwind past is simply
+            // lost.  Without the load addresses none of those can be recovered
+            // afterwards -- with them, any address in the dump maps back to a
+            // function with addr2line against the matching build.  Addresses
+            // and library paths only, so it belongs with the registers rather
+            // than with the log ring.
+            safeWriteModuleMap(cfd);
             close(cfd);
         }
         int rfd = open("/tmp/fppd_crash_log_ring.log", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
@@ -564,6 +625,10 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
         bool hasRecent = false;
         for (const auto& entry : std::filesystem::directory_iterator(cdir)) {
             filenames.insert(entry.path());
+            // Reports the user asked for are not crashes (see ManualCrashReportCallback)
+            if (IsManualCrashReport(entry.path().c_str())) {
+                continue;
+            }
             auto ftime = entry.last_write_time();
             std::chrono::system_clock::time_point stm;
 #if defined(PLATFORM_OSX)
@@ -590,42 +655,8 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
         }
 
         if (!hasRecent) {
-            char tbuffer[32];
-            time_t rawtime;
-            time(&rawtime);
-            struct tm timeinfo;
-            localtime_r(&rawtime, &timeinfo);
-            strftime(tbuffer, sizeof(tbuffer), "%Y-%m-%d_%H-%M-%S", &timeinfo);
-#ifdef PLATFORM_ARMBIAN
-            char sysType[] = "Armbian";
-#elif defined(PLATFORM_BBB)
-            char sysType[] = "BBB";
-#elif defined(PLATFORM_BB64)
-            char sysType[] = "BB64";
-#elif defined(PLATFORM_PI)
-            char sysType[] = "Pi";
-#elif defined(PLATFORM_OSX)
-            char sysType[] = "MacOS";
-#elif defined(PLATFORM_DOCKER)
-            char sysType[] = "Docker";
-#elif defined(PLATFORM_DEBIAN)
-            char sysType[] = "Debian";
-#else
-            char sysType[] = "Unknown";
-#endif
             char zfName[256];
-            std::string SystemUUID = getSetting("SystemUUID", "unknown");
-            char safeUUID[64];
-            unsigned int uuidLen = 0;
-            for (const char* p = SystemUUID.c_str(); *p != '\0' && uuidLen < sizeof(safeUUID) - 1; ++p) {
-                unsigned char c = *p;
-                bool safe = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '-' || c == '_' || c == '.';
-                if (safe) {
-                    safeUUID[uuidLen++] = c;
-                }
-            }
-            safeUUID[uuidLen] = '\0';
-            snprintf(zfName, sizeof(zfName), "crashes/fpp-%s-%s-%s-%s.zip", sysType, getFPPVersion(), safeUUID, tbuffer);
+            CrashReportName(zfName, sizeof(zfName), "");
 
             // Use script to generate crash report with passwords redacted
             char scriptCmd[512];
@@ -680,6 +711,98 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
         WarningHolder::WriteWarningsFile();
         exit(-1);
     }
+}
+
+// A report the user asked for (POST /api/crashes/report), not a crash: level 3,
+// named -manual.  Built in media/tmp/manual-crash, as zip's temp file in
+// crashes/ would look like a recent crash to handleCrash.  No gdb stack:
+// attaching pauses fppd.
+static std::string ManualCrashReportCallback(std::string& error) {
+    static std::mutex lock;
+    static std::chrono::steady_clock::time_point last;
+    static bool built = false;
+    std::unique_lock<std::mutex> l(lock, std::try_to_lock);
+    if (!l.owns_lock()) {
+        error = "busy";
+        return "";
+    }
+    if (built && std::chrono::steady_clock::now() - last < std::chrono::seconds(60)) {
+        error = "rate-limited";
+        return "";
+    }
+    // Counted from the start, so failed or timed-out builds are limited too
+    last = std::chrono::steady_clock::now();
+    built = true;
+
+    std::string mediaDir = getFPPMediaDir();
+    char name[256];
+    CrashReportName(name, sizeof(name), "-manual");
+    // A truncated name would not end -manual.zip; a quote would break the command
+    if (!IsManualCrashReport(name) || mediaDir.find('\'') != std::string::npos) {
+        error = "build-failed";
+        return "";
+    }
+    std::string base = name + strlen("crashes/");
+    std::string tmpDir = mediaDir + "/tmp/manual-crash";
+    std::string tmpPath = tmpDir + "/" + base;
+    std::string cdir = mediaDir + "/crashes";
+    std::string path = cdir + "/" + base;
+
+    // Only this builds in tmpDir, so anything there was left by a build that
+    // fppd restarting or crashing cut short (the zip, zip's temp file and the
+    // script's working directory)
+    std::error_code ec;
+    std::filesystem::remove_all(tmpDir, ec);
+    mkdir(tmpDir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    SetFilePerms(tmpDir, true);
+
+    // "manual" leaves out the last crash's /tmp files.  A hung script would hold
+    // the lock until fppd restarts.  Four minutes lets a Pi Zero on a slow SD card
+    // finish; the timeout also answers inside PHP's 270s.
+    std::string cmd = getFPPDDir("/scripts/generate_crash_report") + " 3 '" + tmpPath + "' manual";
+    if (FileExists("/usr/bin/timeout")) {
+        cmd = "/usr/bin/timeout -k 10 240 " + cmd;
+    }
+    system(cmd.c_str());
+
+    struct stat st;
+    if (stat(tmpPath.c_str(), &st) != 0 || st.st_size == 0) {
+        unlink(tmpPath.c_str());
+        error = "build-failed";
+        return "";
+    }
+
+    mkdir(cdir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    SetFilePerms(cdir, true);
+    // media/tmp may be on another filesystem, so fall back to copy and delete
+    ec.clear();
+    std::filesystem::rename(tmpPath, path, ec);
+    if (ec) {
+        ec.clear();
+        std::filesystem::copy_file(tmpPath, path, ec);
+        unlink(tmpPath.c_str());
+        if (ec) {
+            unlink(path.c_str());
+            error = "build-failed";
+            return "";
+        }
+    }
+    // Keep at most two manual reports, counting the new one.  Pruned after the
+    // move so a failed move does not also lose the previous report.
+    std::set<std::string> manual;
+    ec.clear();
+    for (std::filesystem::directory_iterator it(cdir, ec), end; !ec && it != end; it.increment(ec)) {
+        if (IsManualCrashReport(it->path().c_str())) {
+            manual.insert(it->path());
+        }
+    }
+    manual.erase(path);
+    while (manual.size() > 1) {
+        unlink(manual.begin()->c_str());
+        manual.erase(manual.begin());
+    }
+    SetFilePerms(path);
+    return base;
 }
 
 bool setupExceptionHandlers() {
@@ -1768,6 +1891,7 @@ static void RegisterStatsOptInListener() {
 
 void MainLoop(void) {
     RegisterShutdownHandler(ShutdownFPPDCallback);
+    RegisterManualCrashReportHandler(ManualCrashReportCallback);
     RegisterStatsOptInListener();
 
     PlaylistStatus prevFPPstatus = FPP_STATUS_IDLE;
@@ -1913,11 +2037,7 @@ void MainLoop(void) {
 
     LogInfo(VB_GENERAL, "Starting main processing loop\n");
 
-    int lowestLogLevel = FPPLogger::INSTANCE.MinimumLogLevel();
-    if (lowestLogLevel == LOG_EXCESSIVE)
-        WarningHolder::AddWarning(2, EXCESSIVE_LOG_LEVEL_WARNING);
-    else if (lowestLogLevel == LOG_DEBUG)
-        WarningHolder::AddWarning(3, DEBUG_LOG_LEVEL_WARNING);
+    WarningHolder::UpdateLogLevelWarnings();
 
     int idleCount = 0;
 

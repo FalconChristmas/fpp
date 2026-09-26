@@ -430,6 +430,17 @@ FSEQFile::FSEQFile(const std::string& fn, FILE* file, const std::vector<uint8_t>
         m_seqChannelCount = read4ByteUInt(&header[10]);
         m_seqNumFrames = read4ByteUInt(&header[14]);
         m_seqStepTime = header[18];
+        // The step time is one unvalidated byte out of the file, and every
+        // consumer divides by it: a truncated or zero-filled header yields 0
+        // and the first "which frame are we on?" division traps (SIGFPE on
+        // x86_64, __aeabi_idiv0 on 32-bit ARM) and takes fppd down from the
+        // playlist's main loop.  Clamp it here, at the single point it enters
+        // the program, rather than guarding each divide.
+        if (m_seqStepTime <= 0) {
+            LogErr(VB_SEQUENCE, "Invalid FSEQ file %s: step time %d, using %dms\n",
+                   m_filename.c_str(), m_seqStepTime, FSEQ_DEFAULT_STEP_TIME);
+            m_seqStepTime = FSEQ_DEFAULT_STEP_TIME;
+        }
     }
 }
 FSEQFile::~FSEQFile() {

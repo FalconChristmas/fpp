@@ -133,6 +133,29 @@ function jurisdictionRequiresPriorOptIn($code = null)
 }
 
 /**
+ * code => does that jurisdiction require prior opt-in, for every jurisdiction
+ * the policy file declares.
+ *
+ * The setup wizard has to answer this for a jurisdiction the user has picked but
+ * not saved, and it must be able to answer it on its own.  api/cape/defaults
+ * answers the same question from the same file, but only where a cape binary
+ * exists to ask and only when detection succeeds, so it cannot be the wizard's
+ * only source for it.
+ */
+function jurisdictionPriorOptInMap()
+{
+    $cfg = jurisdictionConfig();
+    $out = array();
+    if ($cfg === false) {
+        return $out;
+    }
+    foreach ($cfg['jurisdictions'] as $code => $j) {
+        $out[$code] = jurisdictionRequiresPriorOptIn($code);
+    }
+    return $out;
+}
+
+/**
  * The jurisdiction a country code falls under.
  *
  * Used by the setup wizard's "Lookup" buttons, which the user presses

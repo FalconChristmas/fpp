@@ -900,6 +900,68 @@ function playlist_start_repeat_protected()
 }
 
 /**
+ * Set playlist repeat on or off
+ *
+ * Turn repeat on or off for the running playlist without starting, stopping or
+ * restarting it - the API equivalent of the Repeat checkbox in the web UI.
+ * `{Repeat}` may be `true`/`false` or `1`/`0`.  The new setting is read when
+ * the playlist reaches the end of its current loop, and is reflected
+ * immediately in `repeat_mode` from `GET /api/fppd/status`.
+ *
+ * Repeat belongs to a playlist that is actually running, so this returns
+ * `{"Status": "Error"}` when the player is idle, when `{Repeat}` is not one of
+ * `true`/`false`/`1`/`0`, or when fppd cannot be reached; use the repeat flag
+ * on `GET /api/playlist/{PlaylistName}/start/{Repeat}` to start a playlist
+ * repeating.
+ *
+ * @badge "FPP REQUIRED" critical
+ * @route GET /api/playlist/repeat/{Repeat}
+ * @response 200 Repeat state changed, or `Status` is `Error` with the reason in `Message`
+ * ```json
+ * {"Status": "OK", "Message": "Repeat Enabled"}
+ * ```
+ */
+function playlist_repeat()
+{
+    $repeat = strtolower(urldecode(params('Repeat')));
+
+    if ($repeat === 'true' || $repeat === '1') {
+        $repeat = 'true';
+    } elseif ($repeat === 'false' || $repeat === '0') {
+        $repeat = 'false';
+    } else {
+        return json(array(
+            'Status' => 'Error',
+            'Message' => "Repeat must be one of true, false, 1 or 0.",
+        ));
+    }
+
+    // Deliberately no CURLOPT_FAILONERROR here.  fppd answers a refused command
+    // with a 500 carrying the reason, and "no playlist is running" is a routine
+    // answer for this endpoint rather than a fault - FAILONERROR would throw
+    // that body away and hand the caller an empty response instead.
+    $curl = curl_init('http://localhost:32322/command/Set%20Playlist%20Repeat/' . $repeat);
+    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
+    $request_content = curl_exec($curl);
+    $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    curl_close($curl);
+
+    if ($request_content === false) {
+        return json(array(
+            'Status' => 'Error',
+            'Message' => 'Unable to contact fppd.',
+        ));
+    }
+
+    return json(array(
+        'Status' => ($httpCode == 200) ? 'OK' : 'Error',
+        'Message' => trim($request_content),
+    ));
+}
+
+/**
  * Pause currently running playlist
  *
  * Pause the currently running playlist.

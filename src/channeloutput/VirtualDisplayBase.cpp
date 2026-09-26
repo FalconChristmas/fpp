@@ -173,6 +173,7 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
     
     // Use set for O(log n) duplicate checking instead of O(n) linear search
     std::set<std::tuple<int, int, int>> seenPixels;
+    int offscreen = 0;
 
     while ((read = getline(&line, &len, file)) != -1) {
         if ((!line) || (!read) || (read == 1))
@@ -243,8 +244,26 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
 
             customR = customG = customB = 0;
 
-            ys = (m_height - (y * m_scale + rowOffset) - 1);
-            xs = x * m_scale + colOffset;
+            // The map is written by the exporter and not trusted: a model with
+            // no defined layout position arrives as INT_MIN, and pushing that
+            // through the scale into an int is undefined and lands the pixel
+            // gigabytes outside m_virtualDisplay.  Everything that later
+            // indexes the buffer through r/g/b (HTTPVirtualDisplay::PrepData,
+            // DrawPixel) relies on the offsets being in range, so enforce that
+            // here, in double, before converting.
+            double fys = m_height - (y * m_scale + rowOffset) - 1;
+            double fxs = x * m_scale + colOffset;
+            if (!(fxs > -1.0 && fxs < m_width && fys > -1.0 && fys < m_height)) {
+                offscreen++;
+                if (!m_allowDuplicatePixels) {
+                    continue;
+                }
+                // 3D mode addresses pixels by their index in the file, so the
+                // entry must stay; it never touches the 2D buffer.
+                fxs = fys = 0;
+            }
+            ys = (int)fys;
+            xs = (int)fxs;
             s = (ys * m_width + xs) * m_bytesPerPixel;
 
             if (m_colorOrder == "RGB") {
@@ -320,6 +339,11 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
                 m_pixels.push_back({ x, y, z, xs, ys, zs, ch, r, g, b, BPP, customR, customG, customB, vpc });
             }
         }
+    }
+
+    if (offscreen) {
+        LogWarn(VB_CHANNELOUT, "Virtual Display: %d pixel(s) in %s lie outside the %dx%d preview and were skipped\n",
+                offscreen, virtualDisplayMapFilename.c_str(), m_width, m_height);
     }
 
     LoadBackgroundImage();
@@ -473,25 +497,28 @@ void VirtualDisplayBaseOutput::DrawPixels(unsigned char* channelData) {
                 b *= 3;
             }
 
-            if (pixel.y < (m_width - 1))
+            // Neighbours are bounded by the pixel's buffer position (xs/ys),
+            // not its layout coordinates: +/-m_bytesPerPixel moves along the
+            // row, +/-stride moves between rows.
+            if (pixel.xs < (m_width - 1))
                 DrawPixel(pixel.r + m_bytesPerPixel,
                           pixel.g + m_bytesPerPixel,
                           pixel.b + m_bytesPerPixel,
                           r, g, b);
 
-            if (pixel.y > 0)
+            if (pixel.xs > 0)
                 DrawPixel(pixel.r - m_bytesPerPixel,
                           pixel.g - m_bytesPerPixel,
                           pixel.b - m_bytesPerPixel,
                           r, g, b);
 
-            if (pixel.x > 0)
+            if (pixel.ys < (m_height - 1))
                 DrawPixel(pixel.r + stride,
                           pixel.g + stride,
                           pixel.b + stride,
                           r, g, b);
 
-            if (pixel.x < (m_height - 1))
+            if (pixel.ys > 0)
                 DrawPixel(pixel.r - stride,
                           pixel.g - stride,
                           pixel.b - stride,

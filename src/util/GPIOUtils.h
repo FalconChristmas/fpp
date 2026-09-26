@@ -70,6 +70,14 @@ public:
     virtual bool getValue() const = 0;
     virtual void setValue(bool i) const = 0;
 
+    // Whether configPin() actually got hold of the line.  getValue() has to be
+    // callable from paths that are not exception safe, so a pin it could not
+    // acquire reads a flat 0 rather than reporting an error -- and for an
+    // active-low input, 0 is "pressed".  A caller that would otherwise sit in a
+    // polling loop on a pin the kernel owns should ask this first and leave the
+    // input alone.  Providers that cannot fail to acquire say so by default.
+    virtual bool isAcquired() const { return true; }
+
     virtual bool setupPWM(int maxValueNS = 25500) const = 0;
     virtual void setPWMValue(int valueNS) const = 0;
 
@@ -150,6 +158,7 @@ public:
                           const std::string& desc = "") const override;
     virtual bool getValue() const override;
     virtual void setValue(bool i) const override;
+    virtual bool isAcquired() const override;
 
     virtual bool supportsPullUp() const override;
     virtual bool supportsPullDown() const override;

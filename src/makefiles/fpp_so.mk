@@ -85,6 +85,8 @@ OBJECTS_fpp_so += \
  	NetworkMonitor.o \
 	ping.o \
 	MDNSManager.o \
+	MDNSBackendAvahi.o \
+	MDNSBackendBonjour.o \
 	WLEDAPIResponder.o \
 	WLEDAudioSync.o \
 	Player.o \

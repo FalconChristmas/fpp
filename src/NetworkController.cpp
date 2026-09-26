@@ -90,6 +90,11 @@ public:
             &NetworkController::DetectDIYLEDExpressController,
             &NetworkController::DetectExperienceController,
             &NetworkController::DetectWLEDController,
+            // Last: a Twinkly has no web UI to recognise, so its detector can
+            // only key off the 404 its server returns for "/" and then ask the
+            // device.  Anything with a real page of its own has been claimed by
+            // now, so that weak signature costs nothing.
+            &NetworkController::DetectTwinklyController,
         };
         if (step >= (sizeof(STEPS) / sizeof(STEPS[0]))) {
             finish(nullptr);
@@ -942,6 +947,89 @@ void NetworkController::DetectWLEDController(Detection* st) {
             }
         }
         st->matched();
+    });
+}
+
+// Twinkly lights serve no web UI at all -- "/" is a 404 -- so unlike every other
+// vendor here there is no page to read.  The 404 body is the only thing the HTML
+// can offer, and it is just a pre-filter; the device's own API settles it.
+//
+// Nothing below authenticates, and that is a requirement rather than an
+// accident.  A Twinkly holds exactly ONE verified token: a second login+verify
+// silently invalidates the first, which would cost a running Twinkly channel
+// output the token it is streaming with and blank the lights until its next
+// periodic check.  Both endpoints used here answer without a token, so detection
+// can run as often as discovery does without disturbing an output.
+void NetworkController::DetectTwinklyController(Detection* st) {
+    if (st->html.find("This URI does not exist") == std::string::npos) {
+        st->noMatch();
+        return;
+    }
+
+    st->fetch(buildHttpURL(st->ip, "/xled/v1/gestalt"), [this, st](bool ok, const std::string& resp) {
+        if (!ok) {
+            st->noMatch();
+            return;
+        }
+        Json::Value v;
+        LoadJsonFromString(resp, v, JsonRoot::Object);
+        if (v["product_name"].asString() != "Twinkly") {
+            st->noMatch();
+            return;
+        }
+
+        vendor = "Twinkly";
+        vendorURL = "https://www.twinkly.com";
+        typeId = kSysTypeTwinkly;
+        systemMode = BRIDGE_MODE;
+
+        hostname = v["device_name"].asString();
+        if (hostname.empty()) {
+            hostname = ip;
+        }
+        // product_code is the model as printed on the box, e.g. "TWS600STP".
+        typeStr = v["product_code"].asString();
+        if (typeStr.empty()) {
+            typeStr = "Twinkly";
+        }
+
+        // These report a real UUID of their own.  Prefer it over the MAC-derived
+        // stand-in: MultiSync treats a MAC: identity as provisional precisely so
+        // a device's own can replace it.
+        std::string id = v["uuid"].asString();
+        if (!id.empty()) {
+            uuid = id;
+        } else {
+            std::string mac = NormalizeMacAddress(v.get("mac", "").asString());
+            if (!mac.empty()) {
+                uuid = MAC_UUID_PREFIX + mac;
+            }
+        }
+
+        // The channel range is deliberately left alone.  gestalt reports how
+        // many LEDs the string has, but not where the user mapped it, and a
+        // range without a start channel would be worse than none.  MultiSync
+        // backfills it from the configured output instead.
+
+        st->fetch(buildHttpURL(st->ip, "/xled/v1/fw/version"), [this, st](bool ok2, const std::string& resp2) {
+            // Firmware version is a nicety; the device is identified either way.
+            if (ok2) {
+                Json::Value fw;
+                LoadJsonFromString(resp2, fw, JsonRoot::Object);
+                version = fw["version"].asString();
+                if (version != "") {
+                    std::size_t verDot = version.find(".");
+                    if (verDot != std::string::npos) {
+                        majorVersion = atoi(version.substr(0, verDot).c_str());
+                        std::size_t verDot2 = version.find(".", verDot + 1);
+                        if (verDot2 != std::string::npos) {
+                            minorVersion = atoi(version.substr(verDot + 1, verDot2 - (verDot + 1)).c_str());
+                        }
+                    }
+                }
+            }
+            st->matched();
+        });
     });
 }
 

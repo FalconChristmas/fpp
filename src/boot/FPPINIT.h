@@ -94,6 +94,7 @@ void startZRAMSwap();
 void startDiskSwap();
 void setupChannelOutputs();
 void setupPiRTCConfig(bool rebootIfChanged = true);
+void setupHDMICECConfig(bool rebootIfChanged = true);
 void handleRebootActions();
 
 // ---------------------------------------------------------------------------

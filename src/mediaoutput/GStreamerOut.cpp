@@ -1840,8 +1840,12 @@ int GStreamerOutput::Start(int msTime) {
     m_bus = gst_element_get_bus(m_pipeline);
 
     // Install sync handler for autonomous bus message processing
-    // This allows GStreamer playback to work without external Process() calls
-    gst_bus_set_sync_handler(m_bus, BusSyncHandler, this, nullptr);
+    // This allows GStreamer playback to work without external Process() calls.
+    // It runs on streaming threads, so it gets the lifetime guard rather than
+    // `this`; the bus drops that reference once no call is in flight.
+    gst_bus_set_sync_handler(m_bus, BusSyncHandler,
+                             new std::shared_ptr<CallbackGuard>(m_cbGuard),
+                             ReleaseBusCallbackGuard);
 
     // Force the pipeline to use GstSystemClock instead of auto-selecting
     // the PipeWire clock.  The PipeWire clock (provided by the audio
@@ -2995,7 +2999,26 @@ void GStreamerOutput::ProcessMessages() {
 }
 
 GstBusSyncReply GStreamerOutput::BusSyncHandler(GstBus* bus, GstMessage* msg, gpointer userData) {
-    GStreamerOutput* self = static_cast<GStreamerOutput*>(userData);
+    // Everything this handler doesn't act on passes straight through without
+    // touching the output.  Of the state changes, only the pipeline's own
+    // matter -- it is the one source on its bus with no parent.
+    switch (GST_MESSAGE_TYPE(msg)) {
+    case GST_MESSAGE_EOS:
+    case GST_MESSAGE_ERROR:
+        break;
+    case GST_MESSAGE_STATE_CHANGED:
+        if (!GST_MESSAGE_SRC(msg) || GST_OBJECT_PARENT(GST_MESSAGE_SRC(msg)))
+            return GST_BUS_PASS;
+        break;
+    default:
+        return GST_BUS_PASS;
+    }
+
+    // An EOS or error marks the output idle below, and the playlist can then
+    // destroy it from the main thread while this call is still running.  The
+    // scope holds Close() off until the call returns.
+    BusCallbackScope scope(userData);
+    GStreamerOutput* self = scope.self;
     if (!self)
         return GST_BUS_PASS;
 
@@ -3175,11 +3198,14 @@ int GStreamerOutput::Close(void) {
     // Close() nulls m_audioChain/m_videoChain and drops our pipeline ref -- and
     // after ~GStreamerOutput frees the object outright.  Clearing `self` under
     // the guard lock both blocks until any in-flight callback finishes and
-    // makes every later one a no-op.
+    // makes every later one a no-op.  The bus sync handler doesn't hold the
+    // lock while it runs, so wait for it separately.
     if (m_cbGuard) {
         {
-            std::lock_guard<std::mutex> lock(m_cbGuard->mtx);
+            std::unique_lock<std::recursive_mutex> lock(m_cbGuard->mtx);
             m_cbGuard->self = nullptr;
+            auto guard = m_cbGuard;
+            guard->busIdle.wait(lock, [&guard] { return guard->busInFlight == 0; });
         }
         m_cbGuard.reset();
     }
@@ -3704,6 +3730,30 @@ void GStreamerOutput::ReleaseCallbackGuard(gpointer data, GClosure* closure) {
     delete static_cast<std::shared_ptr<CallbackGuard>*>(data);
 }
 
+void GStreamerOutput::ReleaseBusCallbackGuard(gpointer data) {
+    delete static_cast<std::shared_ptr<CallbackGuard>*>(data);
+}
+
+GStreamerOutput::BusCallbackScope::BusCallbackScope(gpointer userData) {
+    auto* held = static_cast<std::shared_ptr<CallbackGuard>*>(userData);
+    if (!held || !*held)
+        return;
+    std::lock_guard<std::recursive_mutex> lock((*held)->mtx);
+    if (!(*held)->self)
+        return;
+    guard = *held;
+    self = guard->self;
+    guard->busInFlight++;
+}
+
+GStreamerOutput::BusCallbackScope::~BusCallbackScope() {
+    if (!guard)
+        return;
+    std::lock_guard<std::recursive_mutex> lock(guard->mtx);
+    if (--guard->busInFlight == 0)
+        guard->busIdle.notify_all();
+}
+
 void GStreamerOutput::ConnectPadSignals(GstElement* decoder, bool wantNoMorePads) {
     if (!decoder || !m_cbGuard)
         return;
@@ -3722,12 +3772,12 @@ void GStreamerOutput::ConnectPadSignals(GstElement* decoder, bool wantNoMorePads
 
 GStreamerOutput* GStreamerOutput::LockCallbackGuard(gpointer userData,
                                                     std::shared_ptr<CallbackGuard>& guard,
-                                                    std::unique_lock<std::mutex>& lock) {
+                                                    std::unique_lock<std::recursive_mutex>& lock) {
     auto* held = static_cast<std::shared_ptr<CallbackGuard>*>(userData);
     if (!held || !*held)
         return nullptr;
     guard = *held;
-    lock = std::unique_lock<std::mutex>(guard->mtx);
+    lock = std::unique_lock<std::recursive_mutex>(guard->mtx);
     if (!guard->self) {
         // Close() already ran: the pipeline this callback belongs to is being
         // (or has been) torn down and every member below is stale.
@@ -3739,7 +3789,7 @@ GStreamerOutput* GStreamerOutput::LockCallbackGuard(gpointer userData,
 
 void GStreamerOutput::OnPadAdded(GstElement* element, GstPad* pad, gpointer userData) {
     std::shared_ptr<CallbackGuard> guard;
-    std::unique_lock<std::mutex> guardLock;
+    std::unique_lock<std::recursive_mutex> guardLock;
     GStreamerOutput* self = LockCallbackGuard(userData, guard, guardLock);
     if (!self)
         return;
@@ -3808,7 +3858,7 @@ void GStreamerOutput::OnPadAdded(GstElement* element, GstPad* pad, gpointer user
 
 void GStreamerOutput::OnNoMorePads(GstElement* element, gpointer userData) {
     std::shared_ptr<CallbackGuard> guard;
-    std::unique_lock<std::mutex> guardLock;
+    std::unique_lock<std::recursive_mutex> guardLock;
     GStreamerOutput* self = LockCallbackGuard(userData, guard, guardLock);
     if (!self)
         return;

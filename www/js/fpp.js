@@ -150,6 +150,49 @@ var FPP_UPDATE_STATE = {
 var _fppUpdateCheckInFlight = false;
 var FPP_UPDATE_CHECK_RETRY_MS = 5000;
 
+// Plugin-update state, the sibling of FPP_UPDATE_STATE: filled from
+// api/plugin/updateStatus (a file read; the checking happens in the background).
+var FPP_PLUGIN_UPDATE_STATE = {
+	updatesAvailable: false,
+	// Installed plugins with an update waiting.
+	plugins: [],
+	// Installed plugins with no verdict: never checked, or the last check
+	// failed. Never to be presented as "up to date".
+	unchecked: [],
+	// plugin name -> why it could not be checked.
+	errors: {},
+	installed: 0,
+	// Something is known. False means nothing has ever been checked.
+	checked: false,
+	// Epoch of the oldest verdict, and whether it is old enough to say so.
+	lastCheck: 0,
+	stale: true,
+	// The last check (background or Check for Updates): its result, and while
+	// it runs ('in-progress'), how far it has got.
+	sweep: { finishedAt: 0, result: '', message: '', trigger: '', done: 0, total: 0 },
+	// Answered at least once this page load; late consumers test this rather
+	// than wait for an event that already fired.
+	answered: false,
+	// The request itself failed (fppd/apache trouble, not a cold cache).
+	checkFailed: false
+};
+
+// One status read at a time, so two can't straddle a write and disagree.
+var _pluginUpdateCheckInFlight = false;
+// A read was asked for while one was in flight, and that one may have read the
+// file before the write the caller is asking about: read once more after it.
+var _pluginUpdateCheckAgain = false;
+// Callers waiting for the answer of the read that settles (see checkForPluginUpdates).
+var _pluginUpdateCheckWaiters = [];
+// While a check is running on the server, re-read on this clock until it ends.
+var PLUGIN_UPDATE_POLL_MS = 3000;
+var _pluginUpdatePollTimer = null;
+// A read that fails while a check is running is retried this many times
+// before "could not read" is published: one dropped request must not end the
+// page's following of a sweep that is still running on the server.
+var PLUGIN_UPDATE_POLL_RETRIES = 5;
+var _pluginUpdatePollRetriesLeft = PLUGIN_UPDATE_POLL_RETRIES;
+
 // Build "http://host" + path. IPv6 literals (contain ':') must be bracketed;
 // IPv4 and hostnames never contain ':' so they pass through unchanged.
 // No zone-id ("%eth0") handling on purpose: a link-local address can't be
@@ -5609,7 +5652,7 @@ function GetFiles (dir) {
 
 				var tableRow = '';
 				if (dir == 'Images' && thumbSize > 0) {
-					if (parseInt(f.sizeBytes) > 0) {
+					if (f.isDirectory !== true) {
 						tableRow =
 							"<tr class='fileDetails' id='fileDetail_" +
 							i +
@@ -9115,6 +9158,357 @@ function DeleteFile (dir, row, file, silent = false) {
 		});
 }
 
+/*
+ * Submitting crash reports that were kept on the player.
+ *
+ * fppd writes a report for every crash but only uploads it when ShareCrashData
+ * is 1 or higher. At "Keep locally, do not send" the report is still written --
+ * at the fullest level -- so the operator can submit it by hand; this is that,
+ * without the download-and-email round trip.
+ *
+ * Two routes to the same endpoint, because the player and the browser are not
+ * always on the same side of a working internet connection:
+ *
+ *   1. Ask the player to post it (POST /api/crashes/upload/<file>). Normal case.
+ *   2. If the player says it could not reach the server, fetch the zip from the
+ *      player and post it from the browser instead. That covers the common show
+ *      network: players on an isolated switch, laptop on Wi-Fi with a route out.
+ *
+ * The file is only deleted once an upload is CONFIRMED. Anything that reports
+ * "sent, unconfirmed" is kept -- deleting the only copy of a crash report on a
+ * maybe is how the evidence is lost.
+ *
+ * Here rather than in the file manager so any page can offer it. files are
+ * report names in crashes/; options.onDeleted(file) runs after each confirmed
+ * upload is deleted, options.onDone(tally) after the results are shown, or
+ * options.onDone(null) if the user closes the dialog without sending.
+ */
+function UploadAndDeleteCrashReports (files, options) {
+	options = options || {};
+	// The crash rows of Settings > Privacy, as the privacy page shows them
+	$.ajax({ url: 'api/crashes/disclosures', dataType: 'json' })
+		.done(function (data) {
+			ShowCrashUploadDialog(files, options, data && data.rows ? data.rows : [], data && data.goesTo);
+		})
+		.fail(function () {
+			ShowCrashUploadDialog(files, options, [], '');
+		});
+}
+
+// Each item's (?) shows its Settings > Privacy text in a popover: hover to
+// read, click or tap to keep it open.
+function ShowCrashUploadDialog (files, options, disclosures, goesTo) {
+	// No "and" before the last item: labels such as "configuration and logs"
+	// already have one.  Each item keeps its (?) and comma on the same line.
+	var last = disclosures.length - 1;
+	var disclosureHtml = disclosures.length
+		? '<p>' + (files.length > 1 ? 'They include: ' : 'It includes: ') +
+			disclosures
+			.map(function (d, i) {
+				return (
+					'<span class="text-nowrap"><b>' +
+					d.item +
+					'</b> <i class="fas fa-question-circle crashDisclosureHelp" ' +
+					'tabindex="0" role="button" ' +
+					'aria-label="Explain what this sends" data-idx="' +
+					i +
+					'"></i>' +
+					(i === last ? '.' : ',') +
+					'</span>'
+				);
+			})
+			.join(' ') +
+			'</p>'
+		: '<p>See <a href="settings.php#settings-privacy" target="_blank">Settings ' +
+			'&rsaquo; Privacy</a> for what reports contain and who receives them.</p>';
+
+	var plural = files.length > 1 ? 's' : '';
+	var listHtml =
+		'<ul>' +
+		files
+			.map(function (f) {
+				return '<li>' + f.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</li>';
+			})
+			.join('') +
+		'</ul>';
+	var isManual = function (f) {
+		return /-manual\.zip$/.test(f);
+	};
+	var anyManual = files.some(isManual);
+	var sending = false;
+	var allManual = anyManual && files.every(isManual);
+
+	DisplayConfirmationDialog(
+		'confirmUploadCrash',
+		'Send ' + (allManual ? 'Manual ' : '') + 'Crash Report' + plural,
+		'Send the following crash report' +
+			plural +
+			(goesTo ? ' to <b>' + goesTo + '</b>' : '') +
+			', then delete ' +
+			(files.length > 1 ? 'them' : 'it') +
+			' from this player?' +
+			listHtml +
+			disclosureHtml +
+			(allManual
+				? '<p>' +
+					(files.length > 1 ? 'These reports were' : 'This report was') +
+					' made on request, so ' +
+					(files.length > 1 ? 'they have' : 'it has') +
+					' no crash stack or crash-time playlist state. ' +
+					(files.length > 1 ? 'They are' : 'It is') +
+					' sent even if your crash report setting is &ldquo;Keep locally, do ' +
+					'not send&rdquo; or Disabled.</p>'
+				: anyManual
+					? '<p>A report whose name ends in -manual was made on request, so it ' +
+						'has no crash stack or crash-time playlist state, and is sent even ' +
+						'if your crash report setting is &ldquo;Keep locally, do not ' +
+						'send&rdquo; or Disabled.</p>'
+					: '') +
+			(allManual
+				? ''
+				: '<p>A report written after a crash includes only what the crash report ' +
+					'setting allowed at the time.</p>') +
+			'<p>If this player can&rsquo;t send ' +
+			(files.length > 1 ? 'them' : 'it') +
+			', your browser will, without asking again. Anything not confirmed as ' +
+			'delivered stays on the player.</p>',
+		function () {
+			sending = true;
+			UploadCrashReportsSequentially(files, 0, {
+				uploaded: 0,
+				unconfirmed: 0,
+				failed: []
+			}, options);
+		}
+	);
+
+	// Inside the dialog so they scroll and close with it
+	var $dlg = $('#confirmUploadCrash');
+	$dlg.find('.crashDisclosureHelp').each(function () {
+		var d = disclosures[$(this).data('idx')];
+		new bootstrap.Popover(this, {
+			title: d.item.charAt(0).toUpperCase() + d.item.slice(1),
+			content: d.body,
+			html: true,
+			trigger: 'hover focus',
+			// Whichever side has more room: up to the top of the window, or
+			// down to Yes and No
+			placement: function (tip, el) {
+				var r = el.getBoundingClientRect();
+				var below = $dlg.find('.modal-footer')[0].getBoundingClientRect().top - r.bottom;
+				return r.top > below ? 'top' : 'bottom';
+			},
+			fallbackPlacements: [],
+			container: $dlg[0],
+			customClass: 'crash-disclosure-popover'
+		});
+	});
+	// The dialog is reused, so handlers from an earlier call (a double click
+	// opens it twice) are removed first; only this call's run
+	$dlg.off('.crashUpload');
+	// Keep a popover inside that room, so one kept open by a click covers
+	// neither Yes and No nor runs off the top; its text scrolls instead
+	$dlg.on('shown.bs.popover.crashUpload', '.crashDisclosureHelp', function () {
+		var popover = bootstrap.Popover.getInstance(this);
+		var tip = popover.tip;
+		var body = tip.querySelector('.popover-body');
+		var over =
+			tip.getAttribute('data-popper-placement') === 'top'
+				? 8 - tip.getBoundingClientRect().top
+				: tip.getBoundingClientRect().bottom -
+					($dlg.find('.modal-footer')[0].getBoundingClientRect().top - 8);
+		if (over > 0) {
+			body.style.maxHeight = Math.max(body.offsetHeight - over, 80) + 'px';
+			popover.update();
+		}
+	});
+	// Once the dialog has finished closing: a popover still fading out when
+	// disposed throws when its fade ends
+	$dlg.one('hidden.bs.modal.crashUpload', function () {
+		$dlg.find('.crashDisclosureHelp').each(function () {
+			var p = bootstrap.Popover.getInstance(this);
+			if (p) {
+				p.dispose();
+			}
+		});
+		// Closed without Yes: nothing was sent
+		if (!sending && options.onDone) {
+			options.onDone(null);
+		}
+	});
+}
+
+// One at a time: these are multi-megabyte zips and a player on a slow uplink
+// should not be asked to run several at once.
+function UploadCrashReportsSequentially (files, idx, tally, options) {
+	if (idx >= files.length) {
+		ReportCrashUploadResults(tally);
+		if (options.onDone) {
+			options.onDone(tally);
+		}
+		return;
+	}
+
+	var file = files[idx];
+	var next = function () {
+		UploadCrashReportsSequentially(files, idx + 1, tally, options);
+	};
+
+	// The user agreed in the confirmation dialog; -manual reports require it
+	$.ajax({
+		url: 'api/crashes/upload/' + encodeURIComponent(file),
+		type: 'POST',
+		contentType: 'application/json',
+		data: JSON.stringify({ consent: true }),
+		dataType: 'json'
+	})
+		.done(function (data) {
+			if (data && data.Status == 'OK') {
+				tally.uploaded++;
+				DeleteUploadedCrashReport(file, options, next);
+			} else if (data && data.CanRetryFromBrowser) {
+				UploadCrashReportViaBrowser(file, tally, next, options);
+			} else {
+				tally.failed.push(
+					file + ' (' + (data && data.Message ? data.Message : 'upload failed') + ')'
+				);
+				next();
+			}
+		})
+		.fail(function () {
+			// The API call itself did not complete, so we have no word either way
+			// on whether the player has a route out. Try the browser.
+			UploadCrashReportViaBrowser(file, tally, next, options);
+		});
+}
+
+/*
+ * Browser fallback: pull the zip from the player (same origin) and post it to
+ * the crash server ourselves. For a player on an isolated show network whose
+ * operator's laptop has a route out.
+ *
+ * On confirmation, and why there is only ever ONE send attempt:
+ *
+ * A FormData POST is a CORS "simple request" -- multipart/form-data is a
+ * safelisted Content-Type and we set no custom headers -- so the browser sends
+ * it without a preflight and the bytes reach the server either way. Whether we
+ * may read the *response* depends on the server's Access-Control-Allow-Origin;
+ * crashes.falconplayer.com sends one (players live on unguessable LAN
+ * addresses, so it is a wildcard), which is what lets this confirm a delivery
+ * and then delete.
+ *
+ * A rejection therefore means we could not read an answer -- most likely no
+ * route out, but possibly a connection dropped after the bytes left. We cannot
+ * tell, and re-sending to find out would duplicate a report that may already
+ * have arrived. So a rejection is never retried: it is reported as "sent,
+ * unconfirmed" and the file stays on the player.
+ */
+function UploadCrashReportViaBrowser (file, tally, next, options) {
+	$.ajax({ url: 'api/crashes/uploadTarget', dataType: 'json' })
+		.done(function (target) {
+			if (!target || !target.url) {
+				tally.failed.push(file + ' (no upload target configured)');
+				next();
+				return;
+			}
+
+			var reportUrl =
+				'api/file/Crashes/' + encodeURIComponent(file).replaceAll('%2F', '/');
+
+			fetch(reportUrl)
+				.then(function (resp) {
+					if (!resp.ok) {
+						throw new Error('could not read the report from this player');
+					}
+					return resp.blob();
+				})
+				.then(function (blob) {
+					var form = new FormData();
+					form.append(target.field || 'userfile', blob, file);
+					return fetch(target.url, { method: 'POST', body: form });
+				})
+				.then(function (resp) {
+					if (resp.ok) {
+						tally.uploaded++;
+						DeleteUploadedCrashReport(file, options, next);
+					} else {
+						tally.failed.push(file + ' (server returned HTTP ' + resp.status + ')');
+						next();
+					}
+				})
+				.catch(function () {
+					// Either the response was not readable from this origin (the
+					// upload still happened) or the browser has no route out (it did
+					// not). We cannot tell the two apart, and re-sending to find out
+					// would duplicate a report that already arrived. Keep the file and
+					// say plainly that delivery is unconfirmed.
+					tally.unconfirmed++;
+					next();
+				});
+		})
+		.fail(function () {
+			tally.failed.push(file + ' (could not read the upload target)');
+			next();
+		});
+}
+
+// Quietly, like the rest of the upload: a report that stays is only kept, not
+// lost.  next runs once the delete has finished, so onDeleted comes before onDone.
+function DeleteUploadedCrashReport (file, options, next) {
+	$.ajax({
+		url: 'api/file/Crashes/' + encodeURIComponent(file).replaceAll('%2F', '/'),
+		type: 'DELETE'
+	})
+		.done(function (data) {
+			if (data && data.status == 'OK' && options.onDeleted) {
+				options.onDeleted(file);
+			}
+		})
+		.always(next);
+}
+
+function ReportCrashUploadResults (tally) {
+	var parts = [];
+	if (tally.uploaded > 0) {
+		parts.push(
+			'<p>' +
+				tally.uploaded +
+				' report' +
+				(tally.uploaded > 1 ? 's were' : ' was') +
+				' sent and removed from this player.</p>'
+		);
+	}
+	if (tally.unconfirmed > 0) {
+		parts.push(
+			'<p>' +
+				tally.unconfirmed +
+				' report' +
+				(tally.unconfirmed > 1 ? 's were' : ' was') +
+				' sent from your browser, but no delivery confirmation came back, so ' +
+				(tally.unconfirmed > 1 ? 'they have' : 'it has') +
+				' been kept on the player. Check your browser&rsquo;s internet ' +
+				'connection; if the report did arrive, sending it again is harmless.</p>'
+		);
+	}
+	if (tally.failed.length > 0) {
+		parts.push(
+			'<p>The following could not be sent and have been kept:</p><ul>' +
+				tally.failed
+					.map(function (f) {
+						return '<li>' + f.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</li>';
+					})
+					.join('') +
+				'</ul>'
+		);
+	}
+
+	if (tally.failed.length > 0) {
+		DialogError('Send Crash Report', parts.join(''));
+	} else {
+		DialogOK('Send Crash Report', parts.join(''));
+	}
+}
+
 function SetupSelectableTableRow (info) {
 	$('#' + info.tableName + ' > tbody').on(
 		'mousedown',
@@ -10149,6 +10543,268 @@ function RefreshConditionFormula (id) {
 // attribute context, kept separate rather than merged in here.
 function EscapeHtml (s) {
 	return $('<div>').text(String(s == null ? '' : s)).html();
+}
+
+// Small whitelisting markdown renderer for text FPP doesn't control: GitHub
+// release bodies, FPP's own (about.php) and plugins' (plugins.php). Every
+// character of the source is HTML-escaped; only a fixed set of tags is ever
+// emitted, and a link only for an http(s) URL. Covers what release notes
+// use -- headings, paragraphs, nested bullet/numbered lists, blockquotes,
+// tables, fenced and inline code, bold/italic/strikethrough, [text](url) and
+// bare URLs -- not full CommonMark. Single newlines render as line breaks,
+// the way GitHub shows release bodies.
+//
+// The input is untrusted, so the work per line is bounded: no regex
+// lookbehind (older Safari can't parse it, which would take all of fpp.js
+// down), no pattern that backtracks badly on one long line, very long lines
+// get no inline formatting, and tables are capped.
+function MarkdownToSafeHtml (md) {
+	var MAX_SOURCE = 200000; // GitHub caps a release body at 125,000 characters
+	var MAX_INLINE_LINE = 4000;
+	var MAX_TABLE_COLS = 32;
+	var MAX_TABLE_ROWS = 500;
+	var cellBudget = 20000; // across every table in the document
+
+	var esc = function (s) {
+		return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+	};
+	var safeUrl = function (u) {
+		try {
+			var p = new URL(u);
+			return (p.protocol === 'http:' || p.protocol === 'https:') ? p.href : '';
+		} catch (e) {
+			return '';
+		}
+	};
+	var anchor = function (href) {
+		return '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">';
+	};
+	// Trailing punctuation isn't part of a bare URL, except a ')' that closes
+	// a '(' inside it (https://en.wikipedia.org/wiki/Foo_(bar)).
+	var splitUrlTrail = function (url) {
+		var opens = url.split('(').length - 1, closes = url.split(')').length - 1;
+		var end = url.length;
+		while (end > 0 && '.,;:!?)]\'"'.indexOf(url.charAt(end - 1)) >= 0) {
+			if (url.charAt(end - 1) === ')') {
+				if (opens >= closes) break;
+				closes--;
+			}
+			end--;
+		}
+		return [url.slice(0, end), url.slice(end)];
+	};
+	// labelTokens: rendering a link's own label (where another link can't
+	// nest), sharing the enclosing line's tokens so a code span already
+	// pulled out of the label comes back.
+	var inline = function (text, labelTokens) {
+		if (text.length > MAX_INLINE_LINE) return esc(text);
+		// Code spans and links are pulled out first, as opaque tokens, so the
+		// emphasis rules can't reach into them (a_b_c in a URL or an
+		// identifier stays as written).
+		var tokens = labelTokens || [];
+		var keep = function (html) {
+			tokens.push(html);
+			return '\u0000' + (tokens.length - 1) + '\u0000';
+		};
+		if (!labelTokens) text = text.replace(/\u0000/g, '');
+		text = text.replace(/(`+)([^`]|[^`].*?[^`])\1(?!`)/g, function (m, ticks, code) {
+			return keep('<code>' + esc(code.trim()) + '</code>');
+		});
+		if (!labelTokens) {
+			text = text.replace(/\[([^\[\]]+)\]\(\s*<?([^\s()<>]+(?:\([^\s()<>]*\)[^\s()<>]*)*)>?(?:\s+"[^"]*")?\s*\)/g, function (m, label, url) {
+				var href = safeUrl(url);
+				return href ? keep(anchor(href) + inline(label, tokens) + '</a>') : label;
+			});
+			text = text.replace(/\bhttps?:\/\/[^\s<>\u0000]+/g, function (m) {
+				var parts = splitUrlTrail(m);
+				var href = safeUrl(parts[0]);
+				return href ? keep(anchor(href) + esc(parts[0]) + '</a>') + parts[1] : m;
+			});
+		}
+		text = esc(text)
+			.replace(/\*\*(\S|\S.*?\S)\*\*/g, '<strong>$1</strong>')
+			.replace(/(^|[^A-Za-z0-9_])__(\S|\S.*?\S)__(?![A-Za-z0-9_])/g, '$1<strong>$2</strong>')
+			.replace(/(^|[^*])\*([^\s*]|[^\s*][^*]*?[^\s*])\*(?!\*)/g, '$1<em>$2</em>')
+			.replace(/(^|[^A-Za-z0-9_])_([^\s_]|[^\s_][^_]*?[^\s_])_(?![A-Za-z0-9_])/g, '$1<em>$2</em>')
+			.replace(/~~(\S|\S.*?\S)~~/g, '<del>$1</del>');
+		return text.replace(/\u0000(\d+)\u0000/g, function (m, i) {
+			return tokens[+i];
+		});
+	};
+	var renderList = function (items) {
+		var html = '', stack = [];
+		items.forEach(function (it) {
+			while (stack.length && stack[stack.length - 1].indent > it.indent) {
+				html += '</li></' + stack.pop().type + '>';
+			}
+			var top = stack[stack.length - 1];
+			if (top && top.indent === it.indent && top.type !== it.type) {
+				html += '</li></' + stack.pop().type + '>';
+				top = stack[stack.length - 1];
+			}
+			if (!top || it.indent > top.indent) {
+				html += '<' + it.type + '>';
+				stack.push({ indent: it.indent, type: it.type });
+			} else {
+				html += '</li>';
+			}
+			html += '<li>' + inline(it.text);
+		});
+		while (stack.length) html += '</li></' + stack.pop().type + '>';
+		return html;
+	};
+	// GFM table cells: outer pipes optional, \| is a literal pipe.
+	var cells = function (row) {
+		row = row.trim();
+		if (row.charAt(0) === '|') row = row.slice(1);
+		if (row.charAt(row.length - 1) === '|' && row.charAt(row.length - 2) !== '\\') row = row.slice(0, -1);
+		var out = [], cur = '';
+		for (var k = 0; k < row.length; k++) {
+			var ch = row.charAt(k);
+			if (ch === '\\' && row.charAt(k + 1) === '|') {
+				cur += '|';
+				k++;
+			} else if (ch === '|') {
+				out.push(cur.trim());
+				cur = '';
+			} else {
+				cur += ch;
+			}
+		}
+		out.push(cur.trim());
+		return out;
+	};
+	var isTableSep = function (line) {
+		return /^[\s|:-]+$/.test(line) && line.indexOf('-') >= 0 && cells(line).every(function (c) {
+			return /^:?-+:?$/.test(c);
+		});
+	};
+	// HTML comments (release templates are full of them) go, but not inside
+	// a fenced code block, where they're content.
+	var stripComments = function (lines) {
+		var out = [], fence = null, inComment = false;
+		lines.forEach(function (line) {
+			if (fence) {
+				out.push(line);
+				if (line.trim().indexOf(fence) === 0) fence = null;
+				return;
+			}
+			var fm = !inComment && line.match(/^\s*(`{3,}|~{3,})/);
+			if (fm) {
+				fence = fm[1];
+				out.push(line);
+				return;
+			}
+			var kept = '', rest = line, k;
+			while (rest.length) {
+				if (inComment) {
+					k = rest.indexOf('-->');
+					if (k < 0) break;
+					rest = rest.slice(k + 3);
+					inComment = false;
+				} else {
+					k = rest.indexOf('<!--');
+					if (k < 0) {
+						kept += rest;
+						break;
+					}
+					kept += rest.slice(0, k);
+					rest = rest.slice(k + 4);
+					inComment = true;
+				}
+			}
+			// A line that was all comment disappears, rather than turning
+			// into a blank line that splits a paragraph.
+			if (kept.trim() !== '' || line.trim() === '') out.push(kept);
+		});
+		return out;
+	};
+
+	var lines = stripComments(String(md == null ? '' : md).slice(0, MAX_SOURCE).replace(/\r\n?/g, '\n').split('\n'));
+	var out = [], para = [], quote = [], items = [];
+	var flush = function () {
+		if (para.length) out.push('<p>' + para.map(function (l) { return inline(l); }).join('<br>') + '</p>');
+		if (quote.length) out.push('<blockquote class="border-start ps-3 text-muted">' + quote.map(function (l) { return inline(l); }).join('<br>') + '</blockquote>');
+		if (items.length) out.push(renderList(items));
+		para = []; quote = []; items = [];
+	};
+	for (var i = 0; i < lines.length; i++) {
+		var line = lines[i], m;
+		if ((m = line.match(/^\s*(`{3,}|~{3,})/))) {
+			flush();
+			var fence = m[1], code = [];
+			for (i++; i < lines.length && lines[i].trim().indexOf(fence) !== 0; i++) code.push(lines[i]);
+			out.push('<pre><code>' + esc(code.join('\n')) + '</code></pre>');
+		} else if (line.indexOf('|') >= 0 && i + 1 < lines.length && isTableSep(lines[i + 1])) {
+			flush();
+			var head = cells(line).slice(0, Math.min(MAX_TABLE_COLS, Math.max(cellBudget, 1)));
+			cellBudget -= head.length;
+			var align = cells(lines[i + 1]).map(function (c) {
+				return /^:.*:$/.test(c) ? ' class="text-center"' : (/:$/.test(c) ? ' class="text-end"' : '');
+			});
+			var t = '<table class="table table-sm"><thead><tr>';
+			head.forEach(function (c, k) { t += '<th' + (align[k] || '') + '>' + inline(c) + '</th>'; });
+			t += '</tr></thead><tbody>';
+			var rows = 0;
+			for (i += 2; i < lines.length && lines[i].indexOf('|') >= 0 && !/^\s*$/.test(lines[i]); i++) {
+				if (++rows > MAX_TABLE_ROWS || cellBudget < head.length) continue;
+				cellBudget -= head.length;
+				var row = cells(lines[i]);
+				t += '<tr>';
+				for (var k = 0; k < head.length; k++) t += '<td' + (align[k] || '') + '>' + inline(row[k] || '') + '</td>';
+				t += '</tr>';
+			}
+			i--;
+			out.push(t + '</tbody></table>');
+		} else if (/^\s*$/.test(line)) {
+			// A blank line ends a paragraph or quote; a list carries on if
+			// the next non-blank line is another item.
+			if (items.length) {
+				var j = i + 1;
+				while (j < lines.length && /^\s*$/.test(lines[j])) j++;
+				if (j < lines.length && /^\s*([-*+]|\d+[.)])\s/.test(lines[j])) {
+					i = j - 1; // skip the whole blank run at once
+					continue;
+				}
+			}
+			flush();
+		} else if ((m = line.match(/^ {0,3}(#{1,6})(?:\s(.*))?$/))) {
+			// Trailing "#"s close a heading only after whitespace; trimmed by
+			// hand, since the regex for it backtracks on long lines.
+			flush();
+			var h = (m[2] || '').trim(), e = h.length;
+			while (e > 0 && h.charAt(e - 1) === '#') e--;
+			if (e === 0 || /\s/.test(h.charAt(e - 1))) h = h.slice(0, e).trim();
+			var level = Math.min(m[1].length + 2, 5); // h3-h5, the .fpp-release-notes scale
+			out.push('<h' + level + '>' + inline(h) + '</h' + level + '>');
+		} else if (/^ {0,3}[-*_][-*_\s]*$/.test(line) && /^(-{3,}|\*{3,}|_{3,})$/.test(line.replace(/\s/g, ''))) {
+			flush();
+			out.push('<hr>');
+		} else if ((m = line.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/))) {
+			if (para.length || quote.length) {
+				var keepItems = items;
+				items = [];
+				flush();
+				items = keepItems;
+			}
+			items.push({
+				indent: m[1].replace(/\t/g, '    ').length,
+				type: /\d/.test(m[2]) ? 'ol' : 'ul',
+				text: m[3].replace(/^\[([ xX])\]\s+/, function (x, c) { return c === ' ' ? '☐ ' : '☑ '; })
+			});
+		} else if ((m = line.match(/^ {0,3}>\s?(.*)$/))) {
+			if (para.length || items.length) flush();
+			quote.push(m[1]);
+		} else if (items.length && /^\s+\S/.test(line)) {
+			items[items.length - 1].text += ' ' + line.trim();
+		} else {
+			if (items.length || quote.length) flush();
+			para.push(line.trim());
+		}
+	}
+	flush();
+	return out.join('');
 }
 
 // Recursively builds a color-coded HTML one-line summary of the whole tree,
@@ -15113,6 +15769,200 @@ function updateNavbarUpdateIndicator () {
 	} else {
 		$('#navbarUpdateAvail').hide();
 	}
+}
+
+/**
+ * Read the plugin-update status and publish it. Cheap: the server reads one file.
+ * No retry: a failed request publishes "not checked", never "up to date".
+ *
+ * onDone(state), if given, runs once the read that settles has published: a
+ * read asked for mid-flight is re-run, so the caller's own write is seen.
+ * While the server says a check is running, this re-reads itself every few
+ * seconds until it ends, so the icon, rows and status line follow it live.
+ */
+function checkForPluginUpdates (onDone) {
+	if (typeof onDone === 'function') {
+		_pluginUpdateCheckWaiters.push(onDone);
+	}
+	if (_pluginUpdateCheckInFlight) {
+		_pluginUpdateCheckAgain = true;
+		return;
+	}
+	_pluginUpdateCheckInFlight = true;
+
+	var finished = function () {
+		_pluginUpdateCheckInFlight = false;
+		if (_pluginUpdateCheckAgain) {
+			_pluginUpdateCheckAgain = false;
+			checkForPluginUpdates();
+			return;
+		}
+		var waiters = _pluginUpdateCheckWaiters;
+		_pluginUpdateCheckWaiters = [];
+		waiters.forEach(function (fn) { fn(FPP_PLUGIN_UPDATE_STATE); });
+		if (_pluginUpdatePollTimer) {
+			clearTimeout(_pluginUpdatePollTimer);
+			_pluginUpdatePollTimer = null;
+		}
+		if (!FPP_PLUGIN_UPDATE_STATE.checkFailed && FPP_PLUGIN_UPDATE_STATE.sweep.result === 'in-progress') {
+			_pluginUpdatePollTimer = setTimeout(function () {
+				_pluginUpdatePollTimer = null;
+				checkForPluginUpdates();
+			}, PLUGIN_UPDATE_POLL_MS);
+		}
+	};
+	$.get('api/plugin/updateStatus')
+		.done(function (data) {
+			if (!applyPluginUpdateStatus(data)) {
+				FPP_PLUGIN_UPDATE_STATE.checkFailed = true;
+			}
+			_pluginUpdatePollRetriesLeft = PLUGIN_UPDATE_POLL_RETRIES;
+			publishPluginUpdateState();
+			finished();
+		})
+		.fail(function () {
+			console.log('Failed to read plugin update status via API');
+			var wasRunning = !FPP_PLUGIN_UPDATE_STATE.checkFailed && FPP_PLUGIN_UPDATE_STATE.sweep.result === 'in-progress';
+			if (wasRunning && _pluginUpdatePollRetriesLeft > 0) {
+				// Keep the last good (in-progress) state and try again on the
+				// poll clock; waiters stay queued until a read lands.
+				_pluginUpdatePollRetriesLeft--;
+				_pluginUpdateCheckInFlight = false;
+				if (_pluginUpdatePollTimer) {
+					clearTimeout(_pluginUpdatePollTimer);
+				}
+				_pluginUpdatePollTimer = setTimeout(function () {
+					_pluginUpdatePollTimer = null;
+					checkForPluginUpdates();
+				}, PLUGIN_UPDATE_POLL_MS);
+				return;
+			}
+			FPP_PLUGIN_UPDATE_STATE.checkFailed = true;
+			publishPluginUpdateState();
+			finished();
+		});
+}
+
+/**
+ * Check every plugin for updates now: asks the server to run its check (the
+ * same sequential, low-priority one that runs in the background) and follows it
+ * with checkForPluginUpdates() until it ends. onDone(state) then runs with the
+ * result; onStart(started, message) reports whether one was started or was
+ * already running (either way the poll follows it).
+ */
+function requestPluginUpdateCheck (onDone, onStart) {
+	$.post('api/plugin/updateStatus/refresh')
+		.done(function (data) {
+			var ok = data && data.status === 'OK';
+			if (typeof onStart === 'function') {
+				onStart(ok && !!data.started, (data && data.message) || '');
+			}
+			if (!ok) {
+				if (typeof onDone === 'function') onDone(null);
+				return;
+			}
+			waitForPluginUpdateCheck(onDone);
+		})
+		.fail(function () {
+			if (typeof onStart === 'function') onStart(false, 'could not reach FPP');
+			if (typeof onDone === 'function') onDone(null);
+		});
+}
+
+// Read until the server's check is no longer running, then onDone(state).
+function waitForPluginUpdateCheck (onDone) {
+	var settle = function (state) {
+		if (!state.checkFailed && state.sweep.result === 'in-progress') {
+			// Still running: ride the poll checkForPluginUpdates() has queued
+			// rather than start a read of our own.
+			_pluginUpdateCheckWaiters.push(settle);
+			return;
+		}
+		if (typeof onDone === 'function') onDone(state);
+	};
+	checkForPluginUpdates(settle);
+}
+
+// Copy an updateStatus response into FPP_PLUGIN_UPDATE_STATE; false if it isn't one.
+function applyPluginUpdateStatus (data) {
+	if (!data || data.status !== 'OK') {
+		return false;
+	}
+	FPP_PLUGIN_UPDATE_STATE.checkFailed = false;
+	FPP_PLUGIN_UPDATE_STATE.updatesAvailable = !!data.updatesAvailable;
+	FPP_PLUGIN_UPDATE_STATE.plugins = Array.isArray(data.plugins) ? data.plugins : [];
+	FPP_PLUGIN_UPDATE_STATE.unchecked = Array.isArray(data.unchecked) ? data.unchecked : [];
+	FPP_PLUGIN_UPDATE_STATE.errors = (data.errors && typeof data.errors === 'object') ? data.errors : {};
+	FPP_PLUGIN_UPDATE_STATE.installed = data.installed || 0;
+	FPP_PLUGIN_UPDATE_STATE.checked = !!data.checked;
+	FPP_PLUGIN_UPDATE_STATE.lastCheck = data.lastCheck || 0;
+	FPP_PLUGIN_UPDATE_STATE.stale = !!data.stale;
+	var sweep = (data.sweep && typeof data.sweep === 'object') ? data.sweep : {};
+	FPP_PLUGIN_UPDATE_STATE.sweep = {
+		finishedAt: sweep.finishedAt || 0,
+		result: sweep.result || '',
+		message: sweep.message || '',
+		trigger: sweep.trigger || '',
+		done: sweep.done || 0,
+		total: sweep.total || 0
+	};
+	return true;
+}
+
+// Publish FPP_PLUGIN_UPDATE_STATE to every consumer.
+function publishPluginUpdateState () {
+	FPP_PLUGIN_UPDATE_STATE.answered = true;
+	updateNavbarPluginUpdateIndicator();
+	$(document).trigger('fpp:pluginUpdateStatusChanged', [FPP_PLUGIN_UPDATE_STATE]);
+}
+
+// StreamURL callback for a single-plugin upgrade: the server has written the
+// new verdict, so re-read it for the icon.
+function PluginUpgradeStreamDone (id) {
+	ProgressDialogDone(id);
+	checkForPluginUpdates();
+}
+
+// How old the plugin-update answer is ("3 hours ago"), or '' if never checked.
+function pluginUpdateCheckedAgo () {
+	var ts = FPP_PLUGIN_UPDATE_STATE.lastCheck;
+	if (!ts) {
+		return '';
+	}
+	var secs = Math.max(0, Math.floor(Date.now() / 1000) - ts);
+	if (secs < 90) return 'just now';
+	var mins = Math.round(secs / 60);
+	if (mins < 60) return mins + ' minute' + (mins == 1 ? '' : 's') + ' ago';
+	var hours = Math.round(secs / 3600);
+	if (hours < 48) return hours + ' hour' + (hours == 1 ? '' : 's') + ' ago';
+	var days = Math.round(secs / 86400);
+	return days + ' days ago';
+}
+
+/**
+ * Update the navbar plugin-update icon. It only means "an update is waiting",
+ * so it stays hidden when nothing is known; "could not check" is explained on
+ * the Updates tab.
+ */
+function updateNavbarPluginUpdateIndicator () {
+	if (!FPP_PLUGIN_UPDATE_STATE.updatesAvailable) {
+		$('#navbarPluginUpdateAvail').hide();
+		return;
+	}
+	var names = FPP_PLUGIN_UPDATE_STATE.plugins || [];
+	var title = names.length
+		? 'Plugin update' + (names.length > 1 ? 's' : '') + ' available: ' + names.join(', ')
+		: 'Plugin updates available';
+	var unchecked = (FPP_PLUGIN_UPDATE_STATE.unchecked || []).length;
+	if (unchecked) {
+		title += ' (' + unchecked + ' could not be checked)';
+	}
+	var ago = pluginUpdateCheckedAgo();
+	if (ago) {
+		title += ' - checked ' + ago;
+	}
+	$('#navbarPluginUpdateAvailIcon').attr('title', title);
+	$('#navbarPluginUpdateAvail').show();
 }
 
 /**

@@ -571,6 +571,27 @@ void APIServer::Init(void) {
     };
     app.registerHandler("/internal/pluginApiRoutes", copyHandler(handlePluginApiRoutes), {drogon::Get, drogon::Head});
 
+    // Builds a -manual crash report for POST /api/crashes/report.  The build
+    // runs off the event loop.
+    app.registerHandler("/internal/crashReport", [](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& callback) {
+        std::thread([callback = std::move(callback)]() {
+            Json::Value result;
+            std::string error;
+            std::string file = BuildManualCrashReport(error);
+            if (file.empty()) {
+                result["Status"] = "ERROR";
+                result["Code"] = error;
+            } else {
+                result["Status"] = "OK";
+                result["File"] = file;
+            }
+            // fppd may have stopped drogon while the report was building
+            if (drogon::app().isRunning()) {
+                callback(makeStringResponse(SaveJsonToString(result), 200, "application/json"));
+            }
+        }).detach();
+    }, {drogon::Post});
+
     /**
      * Load or unload a plugin without restarting fppd, so installing a plugin can
      * take effect and uninstalling one can stop having effect mid-show.
@@ -899,8 +920,14 @@ void APIServer::Init(void) {
  *
  */
 void LogRequest(const HttpRequestPtr& req) {
-    LogDebug(VB_HTTP, "API Req: %s%s from %s\n", req->path().c_str(),
-             req->query().c_str(), getEffectiveClientIP(req).c_str());
+    // LOG_EXCESSIVE, not LOG_DEBUG: /fppd/status is polled about once a second
+    // by fppoled, the web UI and anything else watching the player, so at debug
+    // these three lines are a steady 3/sec.  They never reach fppd.log at the
+    // default level, but the crash-time log ring keeps everything <= LOG_DEBUG
+    // (CrashLogRingWillCapture), and 256 slots of status polling is all a crash
+    // report was left with - roughly 85 seconds of nothing.  See log.cpp.
+    LogExcess(VB_HTTP, "API Req: %s%s from %s\n", req->path().c_str(),
+              req->query().c_str(), getEffectiveClientIP(req).c_str());
 }
 
 /*
@@ -1099,7 +1126,8 @@ HttpResponsePtr PlayerResource::render_GET(const HttpRequestPtr& req) {
     if (endsWith(url, "/"))
         url = url.substr(0, url.length() - 1);
 
-    LogDebug(VB_HTTP, "URL: %s %s\n", url.c_str(), req->query().c_str());
+    // LOG_EXCESSIVE for the same reason as LogRequest() above.
+    LogExcess(VB_HTTP, "URL: %s %s\n", url.c_str(), req->query().c_str());
 
     // Keep IF statement in alphabetical order
     if (url == "effects") {
@@ -1349,6 +1377,7 @@ HttpResponsePtr PlayerResource::render_POST(const HttpRequestPtr& req) {
             for (FPPLoggerInstance* logger : FPPLogger::INSTANCE.allInstances()) {
                 setSetting("LogLevel_" + logger->name, LogLevelToString(logger->level), true);
             }
+            WarningHolder::UpdateLogLevelWarnings();
             SetOKResult(result, "Log Level Updated");
         } else {
             SetErrorResult(result, 400, "Invalid or unrecognized log level: " + url);
@@ -1519,7 +1548,8 @@ void PlayerResource::GetLogSettings(Json::Value& result) {
  *
  */
 void PlayerResource::GetCurrentStatus(Json::Value& result) {
-    LogDebug(VB_HTTP, "API - Getting fppd status\n");
+    // LOG_EXCESSIVE for the same reason as LogRequest() above.
+    LogExcess(VB_HTTP, "API - Getting fppd status\n");
     GetCurrentFPPDStatus(result);
 }
 

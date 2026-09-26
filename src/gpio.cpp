@@ -53,6 +53,11 @@ public:
         const PinCapabilities& p = PinCapabilities::getPinByName(n);
         if (p.ptr()) {
             p.configPin();
+            // setValue() on a line that was never acquired is a silent no-op, so
+            // without this the command reports OK for a pin it never drove.
+            if (!p.isAcquired()) {
+                return std::make_unique<Command::ErrorResult>("Pin " + n + " could not be acquired; it is in use by another driver");
+            }
             if (v == "On" || v == "on" || v == "true" || v == "True" || v == "1") {
                 p.setValue(true);
                 GPIOManager::INSTANCE.fppCommandLastValue[n] = true;
@@ -321,6 +326,23 @@ HttpResponsePtr GPIOManager::render_POST(const HttpRequestPtr& req) {
                 // Configure the pin for output
                 pin.configPin("gpio", true, "GPIO Output");
 
+                // configPin() only warns when the line request fails, and setValue()
+                // on an unacquired line is a silent no-op that still updates the
+                // cached value -- so without this the request answers 200 "set
+                // successfully" for a pin it never drove, and the GET above then
+                // reports the cached value back as though it had taken.
+                if (!pin.isAcquired()) {
+                    Json::Value errorResult;
+                    errorResult["pin"] = pinName;
+                    errorResult["Status"] = "ERROR";
+                    errorResult["respCode"] = 409;
+                    errorResult["Message"] = "GPIO pin " + pinName + " could not be acquired; it is in use by another driver";
+
+                    LogWarn(VB_HTTP, "POST /api/gpio/%s: line not acquired, refusing to report success\n", pinName.c_str());
+                    std::string errorStr = SaveJsonToString(errorResult);
+                    return makeStringResponse(errorStr, 409, "application/json");
+                }
+
                 // Set the value (convert to boolean)
                 bool value = data["value"].asBool() || (data["value"].isInt() && data["value"].asInt() != 0);
                 pin.setValue(value);
@@ -472,6 +494,20 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
                                        !state->holdActions.empty();
                     if (hasAnyAction) {
                         state->pin->configPin(mode, false, "GPIO Input");
+
+                        // configPin() only warns when the line request fails, which
+                        // it does for a pin the kernel has given to a peripheral --
+                        // under strict pinmux that is permanent. getValue() then
+                        // returns a flat 0 forever, so the input is polled every
+                        // main loop and can never change: silently dead, with
+                        // nothing but a warning to say why. Say so once, plainly,
+                        // and do not spend a poll slot on it.
+                        if (!state->pin->isAcquired()) {
+                            LogWarn(VB_GPIO, "GPIO Input %s: the line could not be acquired, so it cannot be read - input disabled\n",
+                                    pin.c_str());
+                            delete state;
+                            continue;
+                        }
 
                         addState(state);
                         enabledCount++;

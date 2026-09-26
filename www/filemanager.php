@@ -414,8 +414,8 @@
                                                 <tr>
                                                     <th data-field="filename">File</th>
                                                     <th data-field="size">Size</th>
-                                                    <th data-field="dateModified">Date Modified</th>
                                                     <th data-field="thumbnail">Thumbnail</th>
+                                                    <th data-field="dateModified">Date Modified</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -723,7 +723,7 @@
                                         <input onclick="ButtonHandler('Crashes', 'uploadAndDelete');"
                                             class="disableButtons noDirButton singleCrashesButton multiCrashesButton"
                                             type="button" value="Upload and Delete"
-                                            title="Send the selected crash report(s) to the FPP developers, then delete them from this player." />
+                                            title="Send the selected crash report(s), then delete them from this player." />
                                         <input onclick="ButtonHandler('Crashes', 'delete');"
                                             class="disableButtons singleCrashesButton multiCrashesButton" type="button"
                                             value="Delete" />
@@ -854,6 +854,7 @@
                     </div>
                     <div id="tablefilterChk" class="mt-3">
                         <?php PrintSetting('fileManagerTableFilter', 'FileManagerFilterToggled'); ?>
+                        <?php PrintSetting('fileManagerHideEmptyTabs', 'FileManagerHideEmptyTabsToggled'); ?>
                     </div>
                 </div>
                 <div id="overlay">

@@ -103,6 +103,11 @@ public:
 
     int failCount;
 
+    // Set while StartingOutput() is owed its StoppingOutput().  valid can change
+    // at runtime (a failed ping clears it), so it cannot say which outputs were
+    // started; UDPOutput pairs the two calls through this instead.
+    bool started = false;
+
     UDPOutputData(UDPOutputData const&) = delete;
     void operator=(UDPOutputData const& x) = delete;
 

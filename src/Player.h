@@ -52,6 +52,7 @@ public:
     std::string GetPlaylistName();
     PlaylistStatus GetStatus();
     int GetRepeat();
+    void SetRepeat(int repeat);
     std::time_t GetOrigStartTime() { return origStartTime; }
     std::time_t GetOrigStopTime() { return origStopTime; }
     std::time_t GetStartTime() { return startTime; }

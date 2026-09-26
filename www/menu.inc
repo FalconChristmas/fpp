@@ -15,7 +15,13 @@ if (!isset($activeParentMenuItem)) {
 // page-specific (F1) help. See .claude/HELP-PAGES.md. Note: do not put a
 // title= on the Help nav link for this - SetupToolTips() turns any [title]
 // into data-bs-toggle="tooltip", which clobbers the dropdown toggle.
-$pageHasHelp = file_exists(__DIR__ . "/help/" . basename($_SERVER['PHP_SELF']));
+// A plugin page (plugin.php?plugin=X&page=Y) keeps its help at <plugin>/help/Y;
+// this must match how config.php builds helpPage and plugin.php serves it.
+$pageFile = basename($_SERVER['PHP_SELF']);
+$pageHasHelp = file_exists(__DIR__ . "/help/" . $pageFile);
+if ($pageFile == 'plugin.php' && !empty($pluginName) && !empty($_GET['page']) && is_string($_GET['page'])) {
+    $pageHasHelp = ($p = pluginRealPath($pluginDirectory, $pluginName, 'help/' . $_GET['page'])) !== null && is_file($p);
+}
 ?>
 <script type="text/javascript">
     var FPP_LOCAL_COMMIT = "<? echo get_local_git_version(); ?>";
@@ -91,6 +97,11 @@ function list_plugin_entries($menu)
             <div id="navbarUpdateAvail">
                 &nbsp;<a href="about.php" role="button">
                     <i class="fa-solid fa-download" id="navbarUpdateAvailIcon"></i>
+                </a>
+            </div>
+            <div id="navbarPluginUpdateAvail">
+                &nbsp;<a href="plugins.php?tab=updates" role="button">
+                    <i class="fa-solid fa-puzzle-piece" id="navbarPluginUpdateAvailIcon"></i>
                 </a>
             </div>
         </div>
@@ -229,8 +240,25 @@ function list_plugin_entries($menu)
                     <?
                 }
             }
-            $freeSpace = disk_free_space($mediaDirectory);
-            if ($freeSpace < 50000000) {
+            // A media directory that is not there is not the same as one that is
+            // nearly full, and it used to be reported as one: disk_free_space()
+            // warns and returns false on a missing path, and false < 50000000 is
+            // true -- so the page printed a PHP warning and then blamed the disk.
+            // It is worth saying out loud either way. Everything FPP persists
+            // lives under this path, so while it is missing nothing saves: not a
+            // setting, not a playlist, not an upload.
+            if (!is_dir($mediaDirectory)) {
+                ?>
+                <div class="alert alert-danger"><b>WARNING:</b> the media directory <?= $mediaDirectory ?> does not
+                    exist. Nothing can be saved -- settings, playlists and uploads will all fail. It is set by
+                    <?= $fppDir ?>/www/media_root.txt.</div>
+                <?
+            } else if (!is_writable($mediaDirectory)) {
+                ?>
+                <div class="alert alert-danger"><b>WARNING:</b> the media directory <?= $mediaDirectory ?> is not
+                    writable. Settings, playlists and uploads will fail to save.</div>
+                <?
+            } else if (disk_free_space($mediaDirectory) < 50000000) {
                 ?>
                 <div class="alert alert-danger"><b>WARNING:</b> <?= $mediaDirectory ?> is running low on space. Problems may
                     occur
@@ -298,18 +326,27 @@ function list_plugin_entries($menu)
             <div id='unsupportedBrowser' class="alert alert-danger">FPP will not work with this browser. Chrome,
                 Firefox, or
                 Edge is strongly recommended.</div>
-            <div id='rebootFlag' class="alert detract"><span class='inlineBlock'>Base configuration has changed. Reboot
-                    Required</span><span class='inlineBlock'><input name="btnReboot" onClick="Reboot();" type="button"
-                        class="buttons btn-outline-light" value="Reboot">
-                    <?
-                    if (basename($_SERVER['PHP_SELF']) == "developer.php") {
-                        ?>
-                        <input type='button' class="buttons btn-outline-light" value='Clear' onClick='ClearRebootFlag();'>
+            <?
+            // Not offered where no reboot is pending or possible: on macOS FPP is
+            // not what owns the machine's boot, nothing consumes or clears the
+            // flag, and the button would restart the developer's desktop.
+            if ($settings['Platform'] != 'MacOS') {
+                ?>
+                <div id='rebootFlag' class="alert detract"><span class='inlineBlock'>Base configuration has changed. Reboot
+                        Required</span><span class='inlineBlock'><input name="btnReboot" onClick="Reboot();" type="button"
+                            class="buttons btn-outline-light" value="Reboot">
                         <?
-                    }
-                    ?>
-                </span>
-            </div>
+                        if (basename($_SERVER['PHP_SELF']) == "developer.php") {
+                            ?>
+                            <input type='button' class="buttons btn-outline-light" value='Clear' onClick='ClearRebootFlag();'>
+                            <?
+                        }
+                        ?>
+                    </span>
+                </div>
+                <?
+            }
+            ?>
 
 
             <nav id="fppMenu" class="navbar navbar-expand-lg navbar-dark">
@@ -511,4 +548,12 @@ function list_plugin_entries($menu)
                     checkForFppUpdate();
                 }
             }, 500);
+            // Same shape for the plugin-update icon: a file read on the server,
+            // skipped if a page (plugins.php) already asked. The offset from the
+            // check above is only so the two don't start in the same tick.
+            setTimeout(function () {
+                if (!FPP_PLUGIN_UPDATE_STATE.answered) {
+                    checkForPluginUpdates();
+                }
+            }, 700);
         </script>
