@@ -13,6 +13,7 @@
     <li><b>File Manager Enable Filter</b> (checkbox, Advanced) — Adds a filter/search box to the File Manager tables.</li>
     <li><b>File Manager Hide Empty Tabs</b> (checkbox, Advanced) — Hides File Manager tabs that have no files in them. A tab reappears once a file of that type is uploaded; the tab you are on is never hidden.</li>
     <li><b>Hide Cape Controlled GPIO Pins</b> (checkbox, Advanced) — Hides pins the current cape uses from the GPIO page so you do not accidentally reassign them.</li>
+    <li><b>Hide Network Output Tab</b> (checkbox, Advanced) — Hides the <b>E1.31 / ArtNet / DDP / KiNet</b> tab on the Channel Outputs page. Meant for controllers that drive local strings or panels only, with no pixel data leaving the network interface. The tab reappears by itself whenever a universe output is enabled, and <b>Display all hardware options/settings</b> overrides this either way. Only hides the tab — a configured output is never disabled. Defaults to off.</li>
 </ul>
 
 <h4>UI Password</h4>

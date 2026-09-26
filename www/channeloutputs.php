@@ -154,6 +154,43 @@
         // update provides with additional stuff computed above
         $settings['cape-info']["provides"] = $currentCapeInfo["provides"];
     }
+
+    // User preference to hide the E1.31/ArtNet/DDP/KiNet tab on controllers that
+    // drive local outputs only. Two things deliberately keep the tab visible:
+    //   - "Display all hardware options/settings" is the documented escape hatch
+    //     for revealing everything, so it wins.
+    //   - An enabled universe output. Hiding the tab out from under a live E1.31
+    //     or DDP output would strand it, so the preference is simply ignored
+    //     while one is configured. Read from co-universes.json, which is where
+    //     postUniverseJSON() in fpp.js persists this tab's state.
+    // Only "udp" is withdrawn from provides here; forcing $e131TabStyle back to
+    // hidden further down also covers the catch-all branches that would otherwise
+    // re-show the tab for a cape that declares nothing useful.
+    $hideNetworkOutputTab = false;
+    if (isset($settings['hideNetworkOutputTab']) && $settings['hideNetworkOutputTab'] == 1
+            && !(isset($settings['showAllOptions']) && $settings['showAllOptions'] == 1)) {
+        $hideNetworkOutputTab = true;
+        $networkOutputInUse = false;
+        if (isset($settings['universeOutputs']) && file_exists($settings['universeOutputs'])) {
+            $universesJSON = json_decode(file_get_contents($settings['universeOutputs']), true);
+            if (isset($universesJSON['enabled']) && $universesJSON['enabled']) {
+                $networkOutputInUse = true;
+            }
+            if (!$networkOutputInUse && isset($universesJSON['universes']) && is_array($universesJSON['universes'])) {
+                foreach ($universesJSON['universes'] as $universe) {
+                    if (isset($universe['active']) && $universe['active']) {
+                        $networkOutputInUse = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if ($networkOutputInUse) {
+            $hideNetworkOutputTab = false;
+        } else {
+            $currentCapeInfo['provides'] = array_values(array_diff($currentCapeInfo['provides'], array("udp")));
+        }
+    }
     ?>
 
     <script language="Javascript">
@@ -431,6 +468,13 @@
                         ) {
                             $e131TabStyle = "";
                         }
+                    }
+
+                    // Last word on the network tab, after the provides logic above has
+                    // had its say. See $hideNetworkOutputTab for why this is not
+                    // folded into the branches.
+                    if ($hideNetworkOutputTab) {
+                        $e131TabStyle = " hidden";
                     }
 
                     // The Pixel Strings tab is only emitted on hardware that can drive
