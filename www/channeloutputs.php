@@ -163,9 +163,10 @@
     //     or DDP output would strand it, so the preference is simply ignored
     //     while one is configured. Read from co-universes.json, which is where
     //     postUniverseJSON() in fpp.js persists this tab's state.
-    // Only "udp" is withdrawn from provides here; forcing $e131TabStyle back to
-    // hidden further down also covers the catch-all branches that would otherwise
-    // re-show the tab for a cape that declares nothing useful.
+    // "udp" is deliberately left in the cape's provides list. Withdrawing it would
+    // also un-reveal the LED Panels tab, because that branch reveals both at once,
+    // and hiding the panels tab is not what this preference is about. The tab is
+    // suppressed where it is rendered instead, further down.
     $hideNetworkOutputTab = false;
     if (isset($settings['hideNetworkOutputTab']) && $settings['hideNetworkOutputTab'] == 1
             && !(isset($settings['showAllOptions']) && $settings['showAllOptions'] == 1)) {
@@ -187,8 +188,6 @@
         }
         if ($networkOutputInUse) {
             $hideNetworkOutputTab = false;
-        } else {
-            $currentCapeInfo['provides'] = array_values(array_diff($currentCapeInfo['provides'], array("udp")));
         }
     }
     ?>
@@ -471,8 +470,9 @@
                     }
 
                     // Last word on the network tab, after the provides logic above has
-                    // had its say. See $hideNetworkOutputTab for why this is not
-                    // folded into the branches.
+                    // had its say. Applying it here rather than by editing provides
+                    // keeps every other tab exactly as the cape decided - see
+                    // $hideNetworkOutputTab.
                     if ($hideNetworkOutputTab) {
                         $e131TabStyle = " hidden";
                     }
