@@ -1561,7 +1561,13 @@ function RestoreScripts($file_names)
 
     if (!empty($file_names)) {
         foreach ($file_names as $filename) {
-            exec("$SUDO $fppDir/scripts/restoreScript $filename");
+            // Filenames come from inside the uploaded backup: stay in the
+            // scripts dir (restoreScript enforces this too) and keep the arg
+            // a single shell word.
+            if (basename($filename) !== $filename) {
+                continue;
+            }
+            exec($SUDO . " " . escapeshellarg($fppDir . "/scripts/restoreScript") . " " . escapeshellarg($filename));
         }
     }
 }
