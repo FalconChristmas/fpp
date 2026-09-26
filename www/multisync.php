@@ -243,6 +243,7 @@
         const wledPoller    = new AutoRefreshController();
         const geniusPoller  = new AutoRefreshController();
         const baldrickPoller = new AutoRefreshController();
+        const jboardsPoller = new AutoRefreshController();
 
         var unavailables = [];
         var reorderModeActive = false;
@@ -318,6 +319,8 @@
             WLED:          new Set([0xFB]),
             // 0xC4 = 196
             BALDRICK:      new Set([0xC4]),
+            // 0xC5 = 197
+            JBOARDS:       new Set([0xC5]),
         };
 
         function isDeviceType(typeId, category) {
@@ -338,6 +341,7 @@
         function isWLED(typeId)           { return isDeviceType(typeId, 'WLED'); }
         function isTwinkly(typeId)        { return isDeviceType(typeId, 'TWINKLY'); }
         function isBaldrick(typeId)       { return isDeviceType(typeId, 'BALDRICK'); }
+        function isJBoards(typeId)        { return isDeviceType(typeId, 'JBOARDS'); }
 
         // ============================================================
         // SECTION: Utilities
@@ -1800,6 +1804,7 @@
             var wledIpAddresses = [];
             var geniusIpAddresses = [];
             var baldrickIpAddresses = [];
+            var jboardsIpAddresses = [];
             var espIpAddresses = [];
             var falconV4Addresses = [];
             var falconV3Addresses = [];
@@ -1938,7 +1943,7 @@
                     // poll slot (and its action buttons, via _dataIp) onto it.
                     if (ipLocalityScore(ip, localIps) > ipLocalityScore(mergeItem._dataIp, localIps)) {
                         swapPollAddress([fppIpAddresses, wledIpAddresses, geniusIpAddresses,
-                                         baldrickIpAddresses, espIpAddresses,
+                                         baldrickIpAddresses, jboardsIpAddresses, espIpAddresses,
                                          falconV4Addresses, falconV3Addresses],
                                         mergeItem._dataIp, ip);
                         mergeItem._dataIp = ip;
@@ -2134,12 +2139,15 @@
                     geniusIpAddresses.push(ip);
                 } else if (isBaldrick(data[i].typeId)) {
                     baldrickIpAddresses.push(ip);
+                } else if (isJBoards(data[i].typeId)) {
+                    jboardsIpAddresses.push(ip);
                 }
             }
             getFPPSystemStatus(fppIpAddresses, false);
             getWLEDControllerStatus(wledIpAddresses, false);
             getGeniusControllerStatus(geniusIpAddresses, false);
             getBaldrickControllerStatus(baldrickIpAddresses, false);
+            getJBoardsControllerStatus(jboardsIpAddresses, false);
             for (var ei = 0; ei < espIpAddresses.length; ei++) {
                 getESPixelStickBridgeStatus(espIpAddresses[ei]);
             }
@@ -2826,6 +2834,78 @@
         }
 
         // ============================================================
+        // SECTION: JBoards polling
+        // ============================================================
+
+        async function getJBoardsControllerStatus(ipAddresses, refreshing = false) {
+            ips = "";
+            if (Array.isArray(ipAddresses)) {
+                jboardsPoller.cancel();
+                ipAddresses.forEach(function (entry) {
+                    ips += "&ip[]=" + entry;
+                });
+            } else {
+                ips = "&ip[]=" + ipAddresses;
+            }
+            if (ips == "") {
+                return;
+            }
+            try {
+                const r = await fetch("api/system/status?type=JBoards" + ips);
+                const alldata = await r.json();
+                var $tbl = $('#fppSystemsTable');
+                Object.entries(alldata).forEach(function (entry) {
+                    var ip = entry[0], data = entry[1];
+                    if (data == null || data == "" || data == "null" || !data.state) {
+                        return;
+                    }
+                    var uf = formatUptime(data.uptimeSeconds);
+
+                    var u = "<table class='multiSyncVerboseTable'>";
+                    u += '<tr><td><small class="text-muted">UP:</small></td><td><span title="since ' + uf.since + '">' + uf.short + '</span></td></tr>';
+                    u += "</table>";
+
+                    var rowId = hostRows[ip.replace(/\./g, '_')];
+                    var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
+                    if (!item) return;
+
+                    item.utilization = u;
+                    if (data.model && item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
+                        item.hostname = item.hostname.replace(
+                            "class='hostDescriptionSM'></small>",
+                            "class='hostDescriptionSM'>" + msEscape(data.model) + "</small>"
+                        );
+                    }
+
+                    var status = data.state.charAt(0).toUpperCase() + data.state.slice(1);
+                    var elapsed = "";
+                    if (data.state == 'playing' || data.state == 'paused') {
+                        var files = [];
+                        if (data.playlist) files.push(msEscape(data.playlist));
+                        if (data.sequence) files.push(msEscape(data.sequence));
+                        if (files.length) {
+                            status += ":<br>" + files.join("<br>");
+                        }
+                        if (data.durationSeconds > 0) {
+                            elapsed = SecondsToHuman(data.elapsedSeconds);
+                        }
+                    }
+                    item.status = status;
+                    item.elapsed = elapsed;
+
+                    if (data.firmwareVersion) {
+                        item.version = msEscape(data.firmwareVersion);
+                    }
+                });
+                safeInitBody($tbl);
+            } finally {
+                if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked") && !isUserInteracting()) {
+                    jboardsPoller.schedule(() => getJBoardsControllerStatus(ipAddresses, true));
+                }
+            }
+        }
+
+        // ============================================================
         // SECTION: Refresh orchestration
         // ============================================================
 
@@ -2835,11 +2915,12 @@
             wledPoller.cancel();
             geniusPoller.cancel();
             baldrickPoller.cancel();
+            jboardsPoller.cancel();
         }
 
         function RefreshStats() {
             var $tbl = $('#fppSystemsTable');
-            var ips = [], gips = [], wips = [], bips = [], fv3ips = [], fv4ips = [];
+            var ips = [], gips = [], wips = [], bips = [], jips = [], fv3ips = [], fv4ips = [];
             var seenRows = {};
 
             Object.keys(hostRows).forEach(function (key) {
@@ -2872,6 +2953,8 @@
                     gips.push(ip);
                 } else if (isBaldrick(typeId)) {
                     bips.push(ip);
+                } else if (isJBoards(typeId)) {
+                    jips.push(ip);
                 }
             });
 
@@ -2879,6 +2962,7 @@
             getGeniusControllerStatus(gips, true);
             getWLEDControllerStatus(wips, true);
             getBaldrickControllerStatus(bips, true);
+            getJBoardsControllerStatus(jips, true);
             getFalconControllerStatus(fv3ips, fv4ips, true);
         }
 
@@ -4390,6 +4474,7 @@
                 'SanDevices': 'SanDevices',
                 'WLED': 'WLED',
                 'Twinkly': 'Twinkly',
+                'JBoards': 'JBoards',
                 'Unknown': 'Unknown'
             };
             window.platformFilterSearch = function (text, value, field, data) {
@@ -4418,6 +4503,7 @@
                     case 'sandevices': return isSanDevices(typeId);
                     case 'wled': return isWLED(typeId);
                     case 'twinkly': return isTwinkly(typeId);
+                    case 'jboards': return isJBoards(typeId);
                     case 'unknown': return isUnknownController(typeId);
                     default: return true;
                 }
