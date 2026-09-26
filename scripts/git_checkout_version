@@ -8,7 +8,7 @@ BINDIR=$(cd $(dirname $0) && pwd)
 if [ "x$1" = "x" ]
 then
     echo "USAGE: $0 SHA1_HASH"
-    exit
+    exit 1
 fi
 
 # Unified upgrade logging -> logs/fpp_system_upgrades.log (a version checkout is an
@@ -17,7 +17,10 @@ startUpgradeLog "fpp-version-checkout" "$1"
 
 VERS=$1
 
-cd ${FPPDIR}/src
+# Mirror the allow-list in www/gitCheckoutVersion.php (letters, numbers, _, ., -, / only, no .. or leading -).
+case "${VERS}" in ""|-*|*..*|*[!A-Za-z0-9_./-]*) echo "ERROR: Invalid version '${VERS}'"; exit 1 ;; esac
+
+cd "${FPPDIR}/src" || exit 1
 
 echo "Current Info:"
 
@@ -30,6 +33,8 @@ then
     echo "${BRANCH}" > /home/fpp/media/tmp/gitbranch
 else
     BRANCH=$(cat /home/fpp/media/tmp/gitbranch)
+    # Same allow-list as VERS above; the file is world-writable scratch.
+    case "${BRANCH}" in ""|-*|*..*|*[!A-Za-z0-9_./-]*) echo "ERROR: Invalid branch '${BRANCH}'"; exit 1 ;; esac
     echo "Previous Branch: ${BRANCH}"
     echo "Current SHA1  : ${SHA1}"
 fi
@@ -50,22 +55,22 @@ else
 fi
 
 # Is this version already in our local clone
-DIFF=$(git show ${VERS} 2> /dev/null)
+DIFF=$(git show "${VERS}" 2> /dev/null)
 
 if [ "x${DIFF}" = "x" ]
 then
     # we need to fetch to find this version (a checkout of a specific SHA
     # follows, so a fetch -- not a rebasing pull -- is all that is needed here)
     echo "${VERS} not found, running 'git fetch' to sync with origin repository"
-    runGitLocked "cd ${FPPDIR} && git fetch -p -P && git fetch --tags -f"
+    runGitLocked "cd \"${FPPDIR}\" && git fetch -p -P && git fetch --tags -f"
 fi
 
-DIFF=$(git show ${VERS} 2> /dev/null)
+DIFF=$(git show "${VERS}" 2> /dev/null)
 
 if [ "x${DIFF}" = "x" ]
 then
     echo "ERROR: Unable to find git SHA1 ${VERS}"
-    exit
+    exit 1
 fi
 
 echo "======================================================================"
@@ -75,10 +80,13 @@ then
     echo "Pulling in latest changes"
     # rebase onto the branch's upstream tracking ref rather than a bare pull
     # (see runGitLocked in scripts/functions).
-    runGitLocked "cd ${FPPDIR} && git checkout ${BRANCH} && git fetch && git rebase @{u}"
+    # NOTE: no `--` after checkout here on purpose -- everything after `--`
+    # would be treated as a path, not a branch. VERS/BRANCH are allow-listed
+    # above (no leading `-`, no spaces), so option injection is impossible.
+    runGitLocked "cd \"${FPPDIR}\" && git checkout \"${BRANCH}\" && git fetch && git rebase @{u}"
 else
     echo "Checking out SHA1 ${VERS}"
-    ${SUDO} git checkout ${VERS}
+    ${SUDO} git checkout "${VERS}"
 fi
 
 ${SUDO} git branch -a | grep "^\*"

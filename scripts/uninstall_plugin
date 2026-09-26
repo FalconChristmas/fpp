@@ -10,6 +10,12 @@ then
 	exit 1
 fi
 
+case "$1" in ""|"."|".."|*/*)
+	echo "Invalid plugin name: $1"
+	exit 1
+	;;
+esac
+
 startPluginLog uninstall "$1"
 
 # Pass FPPDIR/SRCDIR through sudo as environment assignments AND as trailing
@@ -23,15 +29,16 @@ startPluginLog uninstall "$1"
 if [ -x "${PLUGINDIR}/$1/scripts/fpp_uninstall.sh" ]
 then
 	echo "Running fpp_uninstall.sh script for $1"
-	$SUDO FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src ${PLUGINDIR}/$1/scripts/fpp_uninstall.sh FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
+	$SUDO FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src "${PLUGINDIR}/$1/scripts/fpp_uninstall.sh" FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
 else
 	if [ -x "${PLUGINDIR}/$1/fpp_uninstall.sh" ]
 	then
 		echo "Running fpp_uninstall.sh script for $1"
-		$SUDO FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src ${PLUGINDIR}/$1/fpp_uninstall.sh FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
+		$SUDO FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src "${PLUGINDIR}/$1/fpp_uninstall.sh" FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
 	fi
 fi
 
 echo "Uninstalling plugin $1"
-cd ${PLUGINDIR} && [ -d $1 ] && $SUDO rm -rf $1
+cd "${PLUGINDIR}" || exit 1
+[ -d "$1" ] && $SUDO rm -rf -- "$1"
 

@@ -27,7 +27,18 @@ logStage() {
 # back to plain stdout rather than failing a flash over a log file.
 LOGFILE=/home/fpp/media/logs/fpp_system_upgrades.log
 FPPDLOG=/home/fpp/media/logs/fppd.log
-OPTARGET=$(/usr/bin/basename $1)
+case "$1" in
+    /home/fpp/media/upload/*) ;;
+    *)
+        echo "Refusing to upgrade from unexpected image path: $1"
+        exit 1
+        ;;
+esac
+if [ ! -f "$1" ]; then
+    echo "Image file not found: $1"
+    exit 1
+fi
+OPTARGET=$(/usr/bin/basename -- "$1")
 LOGGING=false
 if [ -d /home/fpp/media/logs ] && [ -w /home/fpp/media/logs ]; then
     LOGGING=true
@@ -69,9 +80,9 @@ trap '__rc=$?; if [ "${LOGGING}" = "true" ]; then printf "%(%Y-%m-%d %H:%M:%S)T 
 
 logStage "Verifying image"
 
-FPPOS=`/usr/bin/basename $1`
-GITHUBSIZE=`curl -fsSL http://127.0.0.1/api/git/releases/sizes | grep ${FPPOS} | awk -F, '{print $2}'`
-OURSIZE=`/usr/bin/stat -c %s $1`
+FPPOS=`/usr/bin/basename -- "$1"`
+GITHUBSIZE=`curl -fsSL http://127.0.0.1/api/git/releases/sizes | grep -F -- "${FPPOS}" | awk -F, '{print $2}'`
+OURSIZE=`/usr/bin/stat -c %s -- "$1"`
 
 # Locate the boot partition, if there is a separate one.  `mount -o bind /` below
 # is NOT recursive, so anything mounted under / is invisible through that bind and
@@ -103,7 +114,7 @@ else
   then
     echo "Download size seems too small. Our size: $OURSIZE, Github size: $GITHUBSIZE deleting $1"
     echo "Please try to download the fppos again"
-    rm $1
+    rm -f -- "$1"
     exit 1;
   else
     echo "fppos size matches Github, continuing"
@@ -135,7 +146,7 @@ else
   echo "Could not determine free space on root filesystem, continuing"
 fi
 
-mount $1 /mnt
+mount -- "$1" /mnt
 
 ORIGTYPE=$(</etc/fpp/platform)
 NEWTYPE=$(</mnt/etc/fpp/platform)
