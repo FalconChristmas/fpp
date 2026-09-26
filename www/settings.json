@@ -359,7 +359,8 @@
 				"fileManagerThumbnailSize",
 				"fileManagerTableFilter",
 				"fileManagerHideEmptyTabs",
-				"gpioHideCapePins"
+				"gpioHideCapePins",
+				"hideNetworkOutputTab"
 			]
 		},
 		"uiColors": {
@@ -1590,6 +1591,16 @@
 			"exposedAsJSToPages": [
 				"gpio"
 			]
+		},
+		"hideNetworkOutputTab": {
+			"name": "hideNetworkOutputTab",
+			"description": "Hide Network Output Tab",
+			"tip": "Hide the 'E1.31 / ArtNet / DDP / KiNet' tab on the Channel Outputs page. Intended for controllers that drive local pixel strings or panels only, with no pixel data leaving the network interface. The tab reappears automatically if a universe output is enabled, and 'Display all hardware options/settings' overrides this either way. This only hides the tab - it never disables a configured output.",
+			"level": 1,
+			"default": "0",
+			"type": "checkbox",
+			"checkedValue": "1",
+			"uncheckedValue": "0"
 		},
 		"FPP_UUID": {
 			"name": "FPP_UUID",
