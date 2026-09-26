@@ -6,14 +6,28 @@ BINDIR=$(cd $(dirname $0) && pwd)
 . ${BINDIR}/functions
 
 FILE="$1"
+
+# FILE comes from backup.php RestoreScripts(), keyed off filenames inside the
+# uploaded backup -- i.e. attacker-influenced in a crafted backup. Restrict to
+# a bare filename so ../ can never escape MEDIADIR/scripts.
+case "${FILE}" in ""|"."|".."|*/*)
+    echo "Invalid script name: ${FILE}"
+    exit 1
+    ;;
+esac
 SCRIPT="${MEDIADIR}/scripts/${FILE}"
+[ -f "${SCRIPT}" ] || exit 0
+
+# mktemp instead of a fixed /var/tmp path: the fixed name was symlink-squattable
+# and concurrent restores clobbered each other.
+ACTIONS=$(mktemp /var/tmp/installactions.XXXXXX) || exit 1
+trap 'rm -f "${ACTIONS}"' EXIT
 
 # Grab out any Install Actions defined in the script and execute them
-grep "^# InstallAction:" ${SCRIPT} | sed -e "s/.*InstallAction: //" > /var/tmp/installactions.sh
+grep "^# InstallAction:" "${SCRIPT}" | sed -e "s/.*InstallAction: //" > "${ACTIONS}"
 
-if [ -s /var/tmp/installactions.sh ]
+if [ -s "${ACTIONS}" ]
 then
-	/bin/bash /var/tmp/installactions.sh
+	/bin/bash "${ACTIONS}"
 fi
-rm /var/tmp/installactions.sh
 
