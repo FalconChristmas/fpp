@@ -23,8 +23,26 @@ MuxSensorSource::MuxSensorSource(Json::Value& config) :
     source = Sensors::INSTANCE.getSensorSource(sourcename);
     channelsPerMux = config["channels"].asInt();
     muxCount = config["muxCount"].asInt();
+    if (channelsPerMux <= 0 || muxCount <= 0) {
+        // User-editable sensors.json: a zero/negative value would divide by
+        // zero in enable()/getValue(). Fail creation instead -- addSensorSources
+        // warns and drops sources where isOK() is false.
+        LogErr(VB_GENERAL, "MuxSensorSource '%s' has invalid channels (%d) or muxCount (%d), ignoring\n",
+               getID().c_str(), (int)channelsPerMux, (int)muxCount);
+        source = nullptr;
+        return;
+    }
     for (int x = 0; x < config["muxPins"].size(); x++) {
-        pins.push_back(PinCapabilities::getPinByName(config["muxPins"][x].asString()).ptr());
+        const PinCapabilities& pc = PinCapabilities::getPinByName(config["muxPins"][x].asString());
+        if (pc.ptr() == nullptr) {
+            // Unknown pin name yields the null pin (ptr() == nullptr); using it
+            // below would crash. Fail creation the same way as above.
+            LogErr(VB_GENERAL, "MuxSensorSource '%s' references unknown pin '%s', ignoring\n",
+                   getID().c_str(), config["muxPins"][x].asString().c_str());
+            source = nullptr;
+            return;
+        }
+        pins.push_back(pc.ptr());
     }
     for (auto p : pins) {
         p->configPin("gpio", true, sourcename + "-Mux");
@@ -106,6 +124,9 @@ void MuxSensorSource::setGroupPins() {
     }
 }
 void MuxSensorSource::lockToGroup(int i) {
+    if (!source) {
+        return;
+    }
     if (i >= 0 && i < muxCount) {
         lockedToGroup = true;
         if (curMux != i) {
@@ -149,7 +170,7 @@ void MuxSensorSource::update(bool forceInstant) {
     }
 }
 void MuxSensorSource::enable(int id) {
-    if (!source) {
+    if (!source || channelsPerMux <= 0 || id < 0) {
         return;
     }
 
@@ -165,6 +186,9 @@ void MuxSensorSource::enable(int id) {
     values[id] = 0;
 }
 int32_t MuxSensorSource::getValue(int id) {
+    if (id < 0 || (size_t)id >= values.size()) {
+        return 0;
+    }
     if (id < enabled.size() && enabled[id] && !current[id]) {
         int i = id / channelsPerMux;
         if (i == curMux) {
