@@ -1,0 +1,43 @@
+/*
+ * Give FPP a spidev on SPI1 without letting it claim any header pin.
+ *
+ * Every base tree FPP boots on (bcm2710, bcm2711, bcm2712) leaves spi1
+ * disabled, so /dev/spidev1.0 does not exist on a stock image at all.  The
+ * stock "dtoverlay=spi1-1cs" that would enable it also muxes GPIO19/20/21
+ * and takes a chip-select GPIO for the kernel at boot, and under strict
+ * pinmux (kernel 6.18, pinctrl-rp1) those claims are final: nothing FPP does
+ * at runtime can hand the pins back to a cape that wants them for a button
+ * or a pixel string.  It is the same trap fpp-uart0-nopins avoids for uart0.
+ *
+ * So enable spi1 with nothing muxed: an explicitly empty default pin state,
+ * as the BeagleBone base overlay gives its spi0/spi1 (and fpp-uart0-nopins
+ * its uart0), so no pin is touched even if a future base tree gives spi1 one.
+ * The data pins are muxed at runtime only by whoever calls PiGPIOUtils
+ * configPin("spi") on P1-35/38/40.  There is no cs-gpios either: the SPI core
+ * would request those lines when the controller probes and FPP could never
+ * take them back, so that caller drives its own chip select from userspace,
+ * the way MAX7219Matrix does, which also lifts the two-chips-per-bus limit of
+ * the native CE lines.
+ *
+ * No &aux fragment: on the bcm2835 family SPI1 is part of the aux block, which
+ * the base tree leaves enabled (no status property) and the image's
+ * miniuart-bt line turns on regardless; on the bcm2712 "aux" points at a dummy
+ * node and SPI1 is the RP1's own.  One overlay, loaded under [all].
+ */
+
+/dts-v1/;
+/plugin/;
+
+&spi1 {
+    #address-cells = <1>;
+    #size-cells = <0>;
+    pinctrl-names = "default";
+    pinctrl-0 = <>;
+    status = "okay";
+
+    spidev@0 {
+        compatible = "spidev";
+        reg = <0>;
+        spi-max-frequency = <125000000>;
+    };
+};

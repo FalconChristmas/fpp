@@ -1133,6 +1133,11 @@ EOF
 # Enable SPI in device tree, but keep the cs pins free
 dtparam=spi=on
 dtoverlay=spi0-0cs
+# SPI1 enabled with nothing muxed onto the header and no chip select taken --
+# see capes/drivers/pi/fpp-spi1-nopins.dts.  Its data pins are muxed only by
+# whoever calls configPin("spi") on P1-35/38/40, which also drives its own
+# chip select from userspace.
+dtoverlay=fpp-spi1-nopins
 
 # Enable PCIe for NVME storage (Gen2 is the Pi 5's certified speed; Gen3
 # is an overclock that some NVMe HATs/drives fail to train reliably at)

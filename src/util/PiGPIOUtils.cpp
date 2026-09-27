@@ -241,6 +241,14 @@ public:
         uartMode = um;
         return *this;
     }
+    // The pin is a data line (MISO/MOSI/SCLK) of SPI bus b when muxed to alt.  Only
+    // for a bus the device tree enables with no pins claimed (fpp-spi1-nopins), the
+    // same way setUART() pairs with fpp-uart0-nopins.
+    PiGPIODCapabilities& setSPI(int b, const std::string& alt) {
+        spiBus = b;
+        spiMode = alt;
+        return *this;
+    }
     virtual void releasePin() const override {
         char buf[256];
         if (dpiConfigured) {
@@ -267,6 +275,25 @@ public:
         // see https://datasheets.raspberrypi.com/rp1/rp1-peripherals.pdf
         // 1-3: https://elinux.org/RPi_BCM2835_GPIOs
         // 4/5: https://elinux.org/RPi_BCM2711_GPIOs
+
+        // A data line of a bus the device tree enables with no pins claimed
+        // (fpp-spi1-nopins), so the spi controller never owns it here.  Anything
+        // else holding the pin -- i2s on P1-35/38/40 under an audio overlay, say
+        // -- has to let go before a "pinctrl set" to the SPI alt sticks, and a
+        // pin that cannot be freed is refused rather than half-muxed.
+        if (mode == "spi") {
+            if (spiBus == -1) {
+                LogWarn(VB_GPIO, "Pin %s has no SPI function\n", name.c_str());
+                return -1;
+            }
+            if (!releasePinFromKernelDriver(gpio, name, "SPI")) {
+                return -1;
+            }
+            char buf[256];
+            snprintf(buf, 256, "/usr/bin/pinctrl set %d %s", gpio, spiMode.c_str());
+            system(buf);
+            return 0;
+        }
 
         // Under strict pinmux a pin the device tree handed to a peripheral has to be
         // reclaimed from that driver before any gpiod request on it can succeed, and
@@ -442,6 +469,8 @@ public:
     std::string resetMode = "a0";
     mutable bool dpiConfigured = false; // muxed for DPI; released as output-low, see releasePin()
     std::string uartMode;
+    int spiBus = -1; // logical SPI bus this pin is a data line of, -1 if none
+    std::string spiMode;
 };
 int PiGPIODCapabilities::pinctrlRpiChip = -1;
 std::string PiGPIODCapabilities::pinctrlRpiChipName;
@@ -450,6 +479,8 @@ static std::vector<PiGPIODCapabilities> PI_PINS;
 void PiGPIOPinProvider::Init() {
     std::string ipOrNo = isPi5() ? "no" : "ip";
     std::string i2c = isPi5() ? "a3" : "a0";
+    // SPI1 sits on the I2S pins; RP1 puts it on alt0 where the older SoCs use alt4
+    std::string spi1 = isPi5() ? "a0" : "a4";
     PI_PINS.push_back(PiGPIODCapabilities("P1-3", 2).setResetMode(i2c));
     PI_PINS.push_back(PiGPIODCapabilities("P1-5", 3).setResetMode(i2c));
     PI_PINS.push_back(PiGPIODCapabilities("P1-7", 4));
@@ -473,11 +504,11 @@ void PiGPIOPinProvider::Init() {
     PI_PINS.push_back(PiGPIODCapabilities("P1-31", 6).setResetMode("ip"));
     PI_PINS.push_back(PiGPIODCapabilities("P1-32", 12).setResetMode("ip").setPwm(0, 0));
     PI_PINS.push_back(PiGPIODCapabilities("P1-33", 13).setResetMode("ip"));
-    PI_PINS.push_back(PiGPIODCapabilities("P1-35", 19).setResetMode(ipOrNo).setPwm(0, 1));
+    PI_PINS.push_back(PiGPIODCapabilities("P1-35", 19).setResetMode(ipOrNo).setPwm(0, 1).setSPI(1, spi1));
     PI_PINS.push_back(PiGPIODCapabilities("P1-36", 16).setResetMode(ipOrNo));
     PI_PINS.push_back(PiGPIODCapabilities("P1-37", 26).setResetMode("ip"));
-    PI_PINS.push_back(PiGPIODCapabilities("P1-38", 20).setResetMode(ipOrNo));
-    PI_PINS.push_back(PiGPIODCapabilities("P1-40", 21).setResetMode(ipOrNo));
+    PI_PINS.push_back(PiGPIODCapabilities("P1-38", 20).setResetMode(ipOrNo).setSPI(1, spi1));
+    PI_PINS.push_back(PiGPIODCapabilities("P1-40", 21).setResetMode(ipOrNo).setSPI(1, spi1));
 
     PiFacePinCapabilities::Init();
 }
