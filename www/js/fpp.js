@@ -8696,8 +8696,12 @@ function ErBuildCrashReport () {
 			var sizeLabel = sizeKb >= 1024 ? (sizeKb / 1024).toFixed(1) + ' MB' : sizeKb + ' KB';
 			$status.html('<div class="alert alert-success py-2 small mb-0"><i class="fas fa-check me-1"></i> Report built.</div>');
 			$('#errorReportDownloadTitle').text('Ready — ' + sizeLabel);
+			// Filename as plain body text (not a link): dark mode renders all
+			// links gray (#adb5bd, fpp-dark.css), which washes out a 70-char
+			// filename. text-body is near-white on dark, near-black on light.
+			// The download action is a separate explicit button below it.
 			$('#errorReportDownloadText').html(
-				'<a class="alert-link text-break" href="api/file/Crashes/' + encodeURIComponent(erReportFile) + '"><i class="fas fa-download me-1"></i>' + EscapeHtml(erReportFile) + '</a>'
+				'<span class="d-block bg-body text-body border rounded px-2 py-2 mt-1 text-break"><i class="fas fa-file-zipper me-1"></i><a class="fw-semibold text-body text-decoration-underline" href="api/file/Crashes/' + encodeURIComponent(erReportFile) + '">' + EscapeHtml(erReportFile) + '</a></span>'
 			);
 			$('#errorReportManifest').text('Settings, configuration and logs · ' + sizeLabel);
 			$area.removeClass('d-none');
