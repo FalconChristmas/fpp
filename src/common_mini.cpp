@@ -639,20 +639,49 @@ std::string GetFileContents(const std::string& filename) {
 }
 
 bool PutFileContents(const std::string& filename, const std::string& str) {
-    FILE* fd = fopen(filename.c_str(), "w");
-    if (fd != nullptr) {
-        flock(fileno(fd), LOCK_EX);
-        if (!str.empty()) {
-            fwrite(&str[0], str.size(), 1, fd);
-        }
-        flock(fileno(fd), LOCK_UN);
-        fclose(fd);
-        SetFilePerms(filename);
-        return true;
+    // Lock before truncating and write unbuffered, so a LOCK_SH reader never
+    // sees the file empty or half written.
+    int fd = open(filename.c_str(), O_WRONLY | O_CREAT, 0666);
+    if (fd == -1) {
+        fprintf(stderr, "ERROR: Unable to open %s for writing.\n", filename.c_str());
+        return false;
     }
-    fprintf(stderr, "ERROR: Unable to open %s for writing.\n", filename.c_str());
-
-    return false;
+    while (flock(fd, LOCK_EX) == -1 && errno == EINTR) {
+    }
+    // Only regular files can be truncated; device nodes and FIFOs are just written.
+    bool ok = true;
+    int err = 0;
+    struct stat st;
+    if (fstat(fd, &st) == 0 && S_ISREG(st.st_mode) && ftruncate(fd, 0) != 0) {
+        ok = false;
+        err = errno;
+    }
+    const char* p = str.data();
+    size_t left = str.size();
+    while (ok && left > 0) {
+        ssize_t n = write(fd, p, left);
+        if (n < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            ok = false;
+            err = errno;
+        } else if (n == 0) {
+            // A sysfs store() returning 0 makes no progress; don't spin on it.
+            ok = false;
+            err = EIO;
+        } else {
+            p += n;
+            left -= n;
+        }
+    }
+    flock(fd, LOCK_UN);
+    close(fd);
+    SetFilePerms(filename);
+    if (!ok) {
+        fprintf(stderr, "ERROR: Unable to write %s: %s\n", filename.c_str(), strerror(err));
+    }
+    return ok;
 }
 bool CopyFileContents(const std::string& srcFile, const std::string& destFile) {
     int input, output;
