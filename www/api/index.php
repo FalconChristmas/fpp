@@ -50,8 +50,6 @@ dispatch_post('/crashes/report', 'PostCrashReport');
 dispatch_get('/crashes/disclosures', 'GetCrashDisclosures');
 
 dispatch_get('/errorReport/preview', 'GetErrorReportPreview');
-dispatch_post('/errorReport/create', 'PostErrorReportCreate');
-dispatch_get('/errorReport/download/:file', 'GetErrorReportDownload');
 
 dispatch_get('/configfile', 'GetConfigFileList');
 dispatch_get('/configfile/**', 'DownloadConfigFile');
