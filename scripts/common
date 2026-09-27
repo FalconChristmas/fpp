@@ -378,10 +378,12 @@ getSetting() {
     SETTING=$1
     if [ -f "${CFGFILE}" ]; then
         if [ -f "/usr/bin/flock" ]; then
+            # Shared and waiting, so a PHP or fppd reader doesn't make this
+            # return an empty value.  Read anyway on timeout.
             exec {FD}<$CFGFILE
-            flock -n ${FD} || exit 1
+            flock -s -w 5 ${FD} || echo "getSetting: ${CFGFILE} still locked after 5s, reading ${SETTING} anyway" >&2
             grep -i --binary-files=text "^${SETTING}\s*=.*" ${CFGFILE} | sed -E -e "s/^${SETTING}\s*=\s*(.*)/\1/" -e 's/"//g'
-            flock -u ${FD}
+            exec {FD}<&-
         else
             grep -i --binary-files=text "^${SETTING}\s*=.*" ${CFGFILE} | sed -E -e "s/^${SETTING}\s*=\s*(.*)/\1/" -e 's/"//g'
         fi
@@ -409,8 +411,9 @@ setSetting() {
     
     if [ -f "${CFGFILE}" ]; then
         if [ -f "/usr/bin/flock" ]; then
+            # Wait rather than fail: callers run this directly.  Write anyway on timeout.
             exec {FD}<$CFGFILE
-            flock -n ${FD} || exit 1
+            flock -x -w 5 ${FD} || echo "setSetting: ${CFGFILE} still locked after 5s, writing ${SETTING} anyway" >&2
         fi
         OLD=$(getSettingLocked $SETTING)
         if [ "x${OLD}" != "x" ]; then
@@ -425,7 +428,7 @@ setSetting() {
             sed -i 's/\x0//g' ${CFGFILE}
         fi
         if [ -f "/usr/bin/flock" ]; then
-            flock -u ${FD}
+            exec {FD}<&-
         fi
     fi
 }
