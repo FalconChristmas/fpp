@@ -1345,7 +1345,9 @@
         "VirtualDisplay": { label: "Virtuals" },
         "SPI": { label: "SPI" },
         "PWM": { label: "PWM" },
-        "ControlSignal": { label: "Control Signal" }
+        "ControlSignal": { label: "Control Signal" },
+        // Types not in typeToCategoryMap, e.g. a plugin's output: only Active, Start and Count editable here
+        "Misc": { label: "Misc" }
     };
 
     var typeToCategoryMap = {
