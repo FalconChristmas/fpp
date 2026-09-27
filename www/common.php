@@ -786,7 +786,10 @@ function LoadPluginSettings($pluginName)
         $fd = @fopen($pluginConfigFile, "r");
         if ($fd) {
             flock($fd, LOCK_SH);
-            $pluginSettings = parse_ini_file($pluginConfigFile);
+            // Not parse_ini_file(): it strips embedded '"' from the JSON values
+            // WriteSettingToFile() stores unquoted, and fails the whole file on
+            // a syntax error.
+            $pluginSettings = custom_parse_ini_file($pluginConfigFile);
             flock($fd, LOCK_UN);
             fclose($fd);
         }

@@ -8,7 +8,7 @@ echo ($pluginConfigFile);
 if (file_exists($pluginConfigFile)) {
     $fd = @fopen($pluginConfigFile, "c+");
     flock($fd, LOCK_SH);
-    $pluginSettings = parse_ini_file($pluginConfigFile);
+    $pluginSettings = custom_parse_ini_file($pluginConfigFile);
     flock($fd, LOCK_UN);
     fclose($fd);
 
