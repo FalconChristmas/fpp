@@ -8432,7 +8432,6 @@ function DisplayHelp () {
 }
 
 var errorReportPreviewCache = null;
-var errorReportLastBundle = null;
 
 var errorReportOpen = false;
 var erCurrentStep = 1;
@@ -8496,6 +8495,19 @@ function ErShowStep (n) {
 	}
 	ErUpdateNextBtn();
 }
+// Keep build progress visible: the dialog scrolls (modal-dialog-scrollable),
+// so on short screens the status would otherwise sit below the fold with no
+// indication anything is happening. Scroll the modal body to the status area.
+function ErScrollToStatus () {
+	var dlg = document.getElementById('errorReportDialog');
+	var status = document.getElementById('errorReportStatus');
+	if (!dlg || !status) return;
+	var body = dlg.querySelector('.modal-body');
+	if (!body || typeof $ === 'undefined') return;
+	var $body = $(body);
+	var target = $(status).offset().top - $body.offset().top + $body.scrollTop() - 12;
+	$body.animate({ scrollTop: target }, 200);
+}
 function ErNext () {
 	if (erBuilding || erSending) return;
 	if (erCurrentStep === 1) {
@@ -8526,26 +8538,26 @@ function DisplayErrorReportDialog () {
 	erCurrentStep = 1;
 	var bodyHtml =
 		"<div id='errorReportDialogBody'>" +
-		"<div class='alert alert-light border d-flex gap-3 align-items-start small mb-3 py-3'>" +
-		"<i class='fas fa-life-ring text-primary fs-5 mt-1 flex-shrink-0'></i>" +
-		"<div><div class='fw-semibold'>Need help with FPP?</div><div class='text-muted mt-1 lh-sm'>Use this tool when something isn’t working and you’d like the developers to take a look. It builds a diagnostic report on this FPP — you review it and choose whether to send it. Nothing is sent until you confirm.</div></div>" +
+		"<div class='alert alert-light border d-flex gap-2 align-items-start mb-2 py-2'>" +
+		"<i class='fas fa-life-ring text-primary mt-1 flex-shrink-0'></i>" +
+		"<div class='text-muted'>When something isn’t working, build a diagnostic report on this FPP, review it, then choose whether to send it. Nothing is sent until you confirm.</div>" +
 		"</div>" +
 		// Step 1 — Build Report
 		"<div id='erStep1' class='er-step card mb-3 border'>" +
 		"<div class='card-header bg-body-tertiary py-2 d-flex align-items-center gap-2'>" +
 		"<span id='erStepBadge1' class='badge bg-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' style='width:22px;height:22px;font-size:0.7rem;'>1</span>" +
-		"<span class='fw-semibold small'>Build Report</span>" +
+		"<span class='fw-semibold'>Build Report</span>" +
 		"</div>" +
 		"<div class='card-body p-3'>" +
-		"<p class='small text-muted mb-3'>The report is built <b>on your FPP</b> and covers settings, configuration and logs. A build takes seconds on a fast player and can take a few minutes on a Pi Zero or BeagleBone — please be patient.</p>" +
-		"<div id='errorReportStatus' class='mb-3'></div>" +
+		"<p class='text-muted mb-2'>The report is built <b>on your FPP</b> and covers settings, configuration and logs. A build takes seconds on a fast player and can take a few minutes on a Pi Zero or BeagleBone.</p>" +
+		"<div id='errorReportStatus' class='mb-2'></div>" +
 		"<div id='errorReportDownloadArea' class='d-none'>" +
 		"<div class='alert alert-success py-2 d-flex gap-2 align-items-start mb-0'>" +
 		"<i class='fas fa-file-zipper mt-1 flex-shrink-0'></i>" +
 		"<div class='flex-grow-1 min-w-0'>" +
-		"<div class='fw-semibold small' id='errorReportDownloadTitle'>Ready</div>" +
-		"<div class='small' id='errorReportDownloadText'></div>" +
-		"<div class='small mt-1' id='errorReportManifest'></div>" +
+		"<div class='fw-semibold' id='errorReportDownloadTitle'>Ready</div>" +
+		"<div id='errorReportDownloadText'></div>" +
+		"<div class='text-muted mt-1' id='errorReportManifest'></div>" +
 		"</div>" +
 		"</div>" +
 		"</div>" +
@@ -8555,12 +8567,12 @@ function DisplayErrorReportDialog () {
 		"<div id='erStep2' class='er-step card mb-3 border d-none'>" +
 		"<div class='card-header bg-body-tertiary py-2 d-flex align-items-center gap-2'>" +
 		"<span id='erStepBadge2' class='badge bg-secondary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' style='width:22px;height:22px;font-size:0.7rem;'>2</span>" +
-		"<span class='fw-semibold small'>Review & Send</span>" +
+		"<span class='fw-semibold'>Review & Send</span>" +
 		"</div>" +
 		"<div class='card-body p-3'>" +
-		"<div class='small text-muted mb-2'>This is what will be sent from <b>this device</b>:</div>" +
-		"<div id='errorReportVital'><div class='d-flex align-items-center gap-2 text-muted small'><i class='fas fa-spinner fa-spin'></i> Loading system info…</div></div>" +
-		"<ul class='small text-muted mt-2 mb-2 ps-3'>" +
+		"<div class='text-muted mb-2'>This is what will be sent from <b>this device</b>:</div>" +
+		"<div id='errorReportVital'><div class='d-flex align-items-center gap-2 text-muted'><i class='fas fa-spinner fa-spin'></i> Loading system info…</div></div>" +
+		"<ul class='text-muted mt-2 mb-2 ps-3'>" +
 		"<li>System information (version, platform, OS, plugin list)</li>" +
 		"<li>Settings and configuration</li>" +
 		"<li>Logs</li>" +
@@ -8573,12 +8585,12 @@ function DisplayErrorReportDialog () {
 		"<div id='erStep3' class='er-step card border d-none'>" +
 		"<div class='card-header bg-body-tertiary py-2 d-flex align-items-center gap-2'>" +
 		"<span id='erStepBadge3' class='badge bg-secondary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' style='width:22px;height:22px;font-size:0.7rem;'>3</span>" +
-		"<span class='fw-semibold small'>GitHub Issue</span>" +
+		"<span class='fw-semibold'>GitHub Issue</span>" +
 		"<span class='badge bg-body-secondary border fw-normal ms-auto small'>You’re almost done</span>" +
 		"</div>" +
 		"<div class='card-body p-3'>" +
-		"<p class='small text-muted mb-3'>Reference the sent report on GitHub so the developers can find it.</p>" +
-		"<div class='border rounded bg-body-tertiary p-3 small'>" +
+		"<p class='text-muted mb-3'>Reference the sent report on GitHub so the developers can find it.</p>" +
+		"<div class='border rounded bg-body-tertiary p-3'>" +
 		"<div class='fw-semibold mb-2'><i class='fab fa-github me-1'></i> How to post (about a minute)</div>" +
 		"<ol class='mb-0 ps-3' style='line-height:1.5;'>" +
 		"<li>Click <b>Open GitHub</b> at the bottom-left — the issue form opens with the report filename, FPP version and platform already filled in.</li>" +
@@ -8636,7 +8648,7 @@ function DisplayErrorReportDialog () {
 			var html = '';
 			if (hasData) {
 				html =
-					"<div class='small'>" +
+					"<div>" +
 					"<div class='row g-2 mb-2'>" +
 					"<div class='col-sm-6'><span class='text-muted'>FPP Version:</span> <span class='fw-semibold'>" + version + "</span></div>" +
 					"<div class='col-sm-6'><span class='text-muted'>Branch:</span> <span class='fw-semibold'>" + (branch || '—') + "</span></div>" +
@@ -8645,7 +8657,7 @@ function DisplayErrorReportDialog () {
 					"<div class='col-sm-6'><span class='text-muted'>OS:</span> <span class='fw-semibold'>" + (os || '—') + "</span></div>" +
 					"<div class='col-sm-6'><span class='text-muted'>Kernel:</span> <span class='fw-semibold'>" + (kernel || '—') + "</span></div>" +
 					"</div>" +
-					"<div class='border-top pt-2 mt-2 d-flex gap-2 small'><span class='text-muted flex-shrink-0'>Plugins:</span><span class='text-truncate'>" + (data.plugins && data.plugins.length ? EscapeHtml(data.plugins.join(', ')) : "<span class='text-muted'>None</span>") + "</span></div>" +
+					"<div class='border-top pt-2 mt-2 d-flex gap-2'><span class='text-muted flex-shrink-0'>Plugins:</span><span class='text-truncate'>" + (data.plugins && data.plugins.length ? EscapeHtml(data.plugins.join(', ')) : "<span class='text-muted'>None</span>") + "</span></div>" +
 					"</div>";
 			} else {
 				html = "<div class='small text-muted'>System information, plugin list and cape info.</div>";
@@ -8666,8 +8678,9 @@ function ErBuildCrashReport () {
 	var $status = $('#errorReportStatus');
 	var $area = $('#errorReportDownloadArea');
 	$status.html(
-		'<div class="alert alert-secondary py-2 small d-flex gap-2 align-items-center mb-2"><div class="spinner-border spinner-border-sm text-primary flex-shrink-0" role="status"><span class="visually-hidden">Loading…</span></div><span>Building report on your FPP — this can take a few minutes on slow players. Please wait…</span></div>'
+		'<div class="alert alert-secondary py-2 d-flex gap-2 align-items-center mb-2"><div class="spinner-border spinner-border-sm text-primary flex-shrink-0" role="status"><span class="visually-hidden">Loading…</span></div><span>Building report on your FPP — this can take a few minutes on slow players. Please wait…</span></div>'
 	);
+	ErScrollToStatus();
 	$area.addClass('d-none');
 	$.ajax({
 		url: 'api/crashes/report',
@@ -8686,7 +8699,8 @@ function ErBuildCrashReport () {
 				else if (code === 'build-failed') msg = 'The report build failed on the player. Please try again, or check Troubleshooting.';
 				else if (code === 'unavailable') msg = 'fppd did not respond. If fppd is stopped, start it and try again.';
 				else if (code === 'bad-request') msg = 'Bad request — please reload the page and try again.';
-				$status.html('<div class="alert alert-danger py-2 small mb-0">' + EscapeHtml(msg) + '</div>');
+			$status.html('<div class="alert alert-danger py-2 mb-0">' + EscapeHtml(msg) + '</div>');
+			ErScrollToStatus();
 				return;
 			}
 			erReportFile = data.File;
@@ -8694,7 +8708,8 @@ function ErBuildCrashReport () {
 			erReportSent = false;
 			var sizeKb = Math.round(erReportSize / 1024);
 			var sizeLabel = sizeKb >= 1024 ? (sizeKb / 1024).toFixed(1) + ' MB' : sizeKb + ' KB';
-			$status.html('<div class="alert alert-success py-2 small mb-0"><i class="fas fa-check me-1"></i> Report built.</div>');
+			$status.html('<div class="alert alert-success py-2 mb-0"><i class="fas fa-check me-1"></i> Report built.</div>');
+			ErScrollToStatus();
 			$('#errorReportDownloadTitle').text('Ready — ' + sizeLabel);
 			// Filename as plain body text (not a link): dark mode renders all
 			// links gray (#adb5bd, fpp-dark.css), which washes out a 70-char
@@ -8717,7 +8732,8 @@ function ErBuildCrashReport () {
 				if (textStatus === 'timeout') msg = 'The build timed out (slow players can take a few minutes). Please check File Manager › Crashes and try again.';
 				else if (xhr.status === 0) msg = 'Could not reach your FPP. Check your connection.';
 			}
-			$status.html('<div class="alert alert-danger py-2 small mb-0">' + EscapeHtml(msg) + '</div>');
+			$status.html('<div class="alert alert-danger py-2 mb-0">' + EscapeHtml(msg) + '</div>');
+			ErScrollToStatus();
 		})
 		.always(function () {
 			erBuilding = false;
@@ -8730,24 +8746,24 @@ function ErSendCrashReport () {
 	ErUpdateNextBtn();
 	var $sendStatus = $('#errorReportSendStatus');
 	$sendStatus.html(
-		'<div class="alert alert-secondary py-2 small d-flex gap-2 align-items-center mb-0"><div class="spinner-border spinner-border-sm text-primary flex-shrink-0" role="status"><span class="visually-hidden">Loading…</span></div><span>Sending — you will be asked to confirm first…</span></div>'
+		'<div class="alert alert-secondary py-2 d-flex gap-2 align-items-center mb-0"><div class="spinner-border spinner-border-sm text-primary flex-shrink-0" role="status"><span class="visually-hidden">Loading…</span></div><span>Sending — you will be asked to confirm first…</span></div>'
 	);
 	UploadAndDeleteCrashReports([erReportFile], {
 		onDone: function (tally) {
 			erSending = false;
 			if (tally === null) {
-				$sendStatus.html('<div class="alert alert-secondary py-2 small mb-0">Cancelled — nothing was sent. The report is still on the player; you can send it later from File Manager › Crashes.</div>');
+				$sendStatus.html('<div class="alert alert-secondary py-2 mb-0">Cancelled — nothing was sent. The report is still on the player; you can send it later from File Manager › Crashes.</div>');
 				ErUpdateNextBtn();
 				return;
 			}
 			if (tally && tally.uploaded > 0) {
 				erReportSent = true;
-				$sendStatus.html('<div class="alert alert-success py-2 small mb-0"><i class="fas fa-check me-1"></i> Report sent and deleted from the player.</div>');
+				$sendStatus.html('<div class="alert alert-success py-2 mb-0"><i class="fas fa-check me-1"></i> Report sent and deleted from the player.</div>');
 				ErUpdateNextBtn();
 				ErShowStep(3);
 			} else {
 				var detail = tally && tally.failed && tally.failed.length ? ' (' + tally.failed.join('; ').substring(0, 200) + ')' : '';
-				$sendStatus.html('<div class="alert alert-danger py-2 small mb-0">' + EscapeHtml('Send did not complete' + detail + '. The report stays on the player; try again or download it from File Manager › Crashes.') + '</div>');
+				$sendStatus.html('<div class="alert alert-danger py-2 mb-0">' + EscapeHtml('Send did not complete' + detail + '. The report stays on the player; try again or download it from File Manager › Crashes.') + '</div>');
 				ErUpdateNextBtn();
 			}
 		},
@@ -8782,11 +8798,6 @@ function ErOpenGitHubPrefilled () {
 		'noopener'
 	);
 }
-// Legacy entry point kept for any external callers; now routes to crash backend.
-function GenerateErrorReportBundle () {
-	ErBuildCrashReport();
-}
-
 function GetGitOriginLog () {
 	DoModalDialog({
 		id: 'GitOriginLogView',
