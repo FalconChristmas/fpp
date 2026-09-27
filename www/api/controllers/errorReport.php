@@ -15,7 +15,7 @@
 /**
  * Get Error Report preview data
  *
- * Returns the vital system information shown in Step 1 of the Error Report wizard (FPP version, platform, OS, plugins, etc.). Hostname and network addresses are already stripped.
+ * Returns the vital system information shown in Step 2 of the Error Report wizard (FPP version, platform, OS, plugins, etc.). See Settings › Privacy for what reports contain.
  *
  * @route GET /api/errorReport/preview
  * @response 200 Preview data

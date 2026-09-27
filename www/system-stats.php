@@ -733,6 +733,14 @@ if (isset($_GET['cpu'])) {
                     <div class="card-body">
                         <div id='healthCheckOutput'></div>
                         <div id="healthRecoveryActions" class="fpp-health-recovery d-none"></div>
+                        <div class="mt-2 small text-muted">Need help with these results?
+                            <button type="button" class="btn btn-outline-secondary btn-sm ms-2"
+                                onclick="DisplayErrorReportDialog();"
+                                title="Builds a diagnostic report on this FPP and helps you send it, then reference it on a GitHub issue.">
+                                <i class="fas fa-bug me-1"></i>Error Report <span
+                                    class="badge bg-body text-primary-emphasis border fw-normal ms-1">F8</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 

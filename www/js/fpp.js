@@ -8452,23 +8452,35 @@ function ErrorReportClosed () {
 }
 function ErUpdateNextBtn () {
 	var nextBtn = document.getElementById('errorReportNextBtn');
-	if (!nextBtn) return;
-	if (erCurrentStep < 3) {
-		nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right ms-1"></i>';
-		nextBtn.className = 'btn btn-success';
-		nextBtn.disabled = false;
-	} else if (!erReportFile) {
-		nextBtn.innerHTML = '<i class="fas fa-hammer me-1"></i> Build Report';
-		nextBtn.className = 'btn btn-success';
-		nextBtn.disabled = erBuilding;
-	} else if (!erReportSent) {
-		nextBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> Send Report';
-		nextBtn.className = 'btn btn-success';
-		nextBtn.disabled = erSending;
-	} else {
-		nextBtn.innerHTML = '<i class="fas fa-check me-1"></i> Done';
-		nextBtn.className = 'btn btn-success';
-		nextBtn.disabled = false;
+	if (nextBtn) {
+		if (erCurrentStep === 1) {
+			if (!erReportFile) {
+				nextBtn.innerHTML = '<i class="fas fa-hammer me-1"></i> Build Report';
+				nextBtn.disabled = erBuilding;
+			} else {
+				nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right ms-1"></i>';
+				nextBtn.disabled = false;
+			}
+			nextBtn.className = 'btn btn-success';
+		} else if (erCurrentStep === 2) {
+			if (!erReportSent) {
+				nextBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> Send Report';
+				nextBtn.disabled = erSending || !erReportFile;
+			} else {
+				nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right ms-1"></i>';
+				nextBtn.disabled = false;
+			}
+			nextBtn.className = 'btn btn-success';
+		} else {
+			nextBtn.innerHTML = '<i class="fas fa-check me-1"></i> Done';
+			nextBtn.className = 'btn btn-success';
+			nextBtn.disabled = false;
+		}
+	}
+	// Open GitHub is only useful once a report exists to reference
+	var ghBtn = document.getElementById('errorReportOpenGHBtn');
+	if (ghBtn) {
+		ghBtn.classList.toggle('d-none', !(erCurrentStep === 3 && erReportFile));
 	}
 }
 function ErShowStep (n) {
@@ -8486,12 +8498,18 @@ function ErShowStep (n) {
 }
 function ErNext () {
 	if (erBuilding || erSending) return;
-	if (erCurrentStep < 3) {
-		ErShowStep(erCurrentStep + 1);
-	} else if (!erReportFile) {
-		ErBuildCrashReport();
-	} else if (!erReportSent) {
-		ErSendCrashReport();
+	if (erCurrentStep === 1) {
+		if (!erReportFile) {
+			ErBuildCrashReport();
+		} else {
+			ErShowStep(2);
+		}
+	} else if (erCurrentStep === 2) {
+		if (!erReportSent) {
+			if (erReportFile) ErSendCrashReport();
+		} else {
+			ErShowStep(3);
+		}
 	} else {
 		CloseModalDialog('errorReportDialog');
 	}
@@ -8510,70 +8528,64 @@ function DisplayErrorReportDialog () {
 		"<div id='errorReportDialogBody'>" +
 		"<div class='alert alert-light border d-flex gap-3 align-items-start small mb-3 py-3'>" +
 		"<i class='fas fa-life-ring text-primary fs-5 mt-1 flex-shrink-0'></i>" +
-		"<div><div class='fw-semibold'>Need help with FPP?</div><div class='text-muted mt-1 lh-sm'>This tool builds a tidy, privacy-safe <b>.zip</b> you can attach to a GitHub issue. It’s best when something isn’t working as expected and you want the developers or community to see what your system looks like — without sharing secrets. Nothing is uploaded automatically; you choose what to send.</div></div>" +
+		"<div><div class='fw-semibold'>Need help with FPP?</div><div class='text-muted mt-1 lh-sm'>Use this tool when something isn’t working and you’d like the developers to take a look. It builds a diagnostic report on this FPP — you review it and choose whether to send it. Nothing is sent until you confirm.</div></div>" +
 		"</div>" +
-		// Step 1 — Basic Info (always included, expanded)
+		// Step 1 — Build Report
 		"<div id='erStep1' class='er-step card mb-3 border'>" +
 		"<div class='card-header bg-body-tertiary py-2 d-flex align-items-center gap-2'>" +
 		"<span id='erStepBadge1' class='badge bg-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' style='width:22px;height:22px;font-size:0.7rem;'>1</span>" +
-		"<span class='fw-semibold small'>Basic Info</span>" +
-		"<span class='badge bg-success-subtle text-success-emphasis border fw-normal ms-auto'>Always included</span>" +
+		"<span class='fw-semibold small'>Build Report</span>" +
 		"</div>" +
 		"<div class='card-body p-3'>" +
-		"<div class='alert alert-info border-0 bg-info-subtle py-2 px-3 small d-flex gap-2 align-items-start mb-3'><i class='fas fa-circle-info mt-1 flex-shrink-0'></i><div><span class='fw-semibold'>What’s in here?</span> The essentials to understand your setup — FPP version, platform, OS, cape and plugin list. Private details like hostname and network addresses are stripped before the zip is even made, and <code>fpp-info.json</code> is scrubbed.</div></div>" +
-		"<div class='small text-muted mb-2'>Below is what will be included from <b>this device</b> (preview):</div>" +
-		"<div id='errorReportVital'><div class='d-flex align-items-center gap-2 text-muted small'><i class='fas fa-spinner fa-spin'></i> Loading system info…</div></div>" +
-		"<div class='small text-muted mt-3 d-flex gap-2 align-items-center'><i class='fas fa-shield-halved text-success'></i><span>Everything below is already privacy-checked — no passwords or Wi-Fi keys in this section.</span></div>" +
-		"</div>" +
-		"</div>" +
-		// Step 2 — Review (fixed level-3 crash report, no selection)
-		"<div id='erStep2' class='er-step card mb-3 border d-none'>" +
-		"<div class='card-header bg-body-tertiary py-2 d-flex align-items-center gap-2'>" +
-		"<span id='erStepBadge2' class='badge bg-secondary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' style='width:22px;height:22px;font-size:0.7rem;'>2</span>" +
-		"<span class='fw-semibold small'>Review</span>" +
-		"<span class='small text-muted ms-1'>— full report, same every time</span>" +
-		"</div>" +
-		"<div class='card-body p-3'>" +
-		"<div class='small text-muted mb-2'>The report is always built at the full “configuration and logs” level by fppd — there is nothing to select. It contains:</div>" +
-		"<ul class='small mb-2 ps-3'>" +
-		"<li>Settings (redacted, secrets become <code>**REDACTED**</code>)</li>" +
-		"<li>Configuration (interface files allowlisted, binaries stubbed)</li>" +
-		"<li>Logs (fppd.log, apache2-error.log, boot log, crash ring)</li>" +
-		"<li>Vital info (fpp-info.json scrubbed, plugins, cape-info)</li>" +
-		"</ul>" +
-		"<div class='small text-muted d-flex gap-2 align-items-start'><i class='fas fa-shield-halved text-success mt-1 flex-shrink-0'></i><span>You will see exactly what it sends and confirm before anything leaves this player. See <a href='settings.php#settings-privacy' target='_blank' rel='noopener'>Settings &rsaquo; Privacy</a> for who receives reports.</span></div>" +
-		"</div>" +
-		"</div>" +
-		// Step 3 — Build, Send & GitHub (crash-report backend)
-		"<div id='erStep3' class='er-step card border d-none'>" +
-		"<div class='card-header bg-body-tertiary py-2 d-flex align-items-center gap-2'>" +
-		"<span id='erStepBadge3' class='badge bg-secondary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' style='width:22px;height:22px;font-size:0.7rem;'>3</span>" +
-		"<span class='fw-semibold small'>Build, Send & GitHub</span>" +
-		"<span class='badge bg-body-secondary border fw-normal ms-auto small'>You’re almost done</span>" +
-		"</div>" +
-		"<div class='card-body p-3'>" +
-		"<p class='small text-muted mb-3'>We’ll build the report <b>on your FPP</b> (level 3: settings, configuration and logs). A build takes seconds on a fast player and can take a few minutes on a Pi Zero or BeagleBone — please be patient. Nothing is sent until you confirm.</p>" +
+		"<p class='small text-muted mb-3'>The report is built <b>on your FPP</b> and covers settings, configuration and logs. A build takes seconds on a fast player and can take a few minutes on a Pi Zero or BeagleBone — please be patient.</p>" +
 		"<div id='errorReportStatus' class='mb-3'></div>" +
 		"<div id='errorReportDownloadArea' class='d-none'>" +
-		"<div class='alert alert-success py-2 d-flex gap-2 align-items-start mb-3'>" +
+		"<div class='alert alert-success py-2 d-flex gap-2 align-items-start mb-0'>" +
 		"<i class='fas fa-file-zipper mt-1 flex-shrink-0'></i>" +
 		"<div class='flex-grow-1 min-w-0'>" +
 		"<div class='fw-semibold small' id='errorReportDownloadTitle'>Ready</div>" +
 		"<div class='small' id='errorReportDownloadText'></div>" +
-		"<div class='small text-muted mt-1' id='errorReportManifest'></div>" +
+		"<div class='small mt-1' id='errorReportManifest'></div>" +
 		"</div>" +
 		"</div>" +
+		"</div>" +
+		"</div>" +
+		"</div>" +
+		// Step 2 — Review & Send
+		"<div id='erStep2' class='er-step card mb-3 border d-none'>" +
+		"<div class='card-header bg-body-tertiary py-2 d-flex align-items-center gap-2'>" +
+		"<span id='erStepBadge2' class='badge bg-secondary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' style='width:22px;height:22px;font-size:0.7rem;'>2</span>" +
+		"<span class='fw-semibold small'>Review & Send</span>" +
+		"</div>" +
+		"<div class='card-body p-3'>" +
+		"<div class='small text-muted mb-2'>This is what will be sent from <b>this device</b>:</div>" +
+		"<div id='errorReportVital'><div class='d-flex align-items-center gap-2 text-muted small'><i class='fas fa-spinner fa-spin'></i> Loading system info…</div></div>" +
+		"<ul class='small text-muted mt-2 mb-2 ps-3'>" +
+		"<li>System information (version, platform, OS, plugin list)</li>" +
+		"<li>Settings and configuration</li>" +
+		"<li>Logs</li>" +
+		"</ul>" +
+		"<div class='small text-muted d-flex gap-2 align-items-start'><i class='fas fa-circle-info text-primary mt-1 flex-shrink-0'></i><span>See <a href='settings.php#settings-privacy' target='_blank' rel='noopener'>Settings &rsaquo; Privacy</a> for what reports contain and who receives them. You confirm before anything is sent — if this player has no internet, your browser sends it instead, and the file is deleted from the player once delivery is confirmed.</span></div>" +
+		"<div id='errorReportSendStatus' class='mt-3'></div>" +
+		"</div>" +
+		"</div>" +
+		// Step 3 — GitHub Issue
+		"<div id='erStep3' class='er-step card border d-none'>" +
+		"<div class='card-header bg-body-tertiary py-2 d-flex align-items-center gap-2'>" +
+		"<span id='erStepBadge3' class='badge bg-secondary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' style='width:22px;height:22px;font-size:0.7rem;'>3</span>" +
+		"<span class='fw-semibold small'>GitHub Issue</span>" +
+		"<span class='badge bg-body-secondary border fw-normal ms-auto small'>You’re almost done</span>" +
+		"</div>" +
+		"<div class='card-body p-3'>" +
+		"<p class='small text-muted mb-3'>Reference the sent report on GitHub so the developers can find it.</p>" +
 		"<div class='border rounded bg-body-tertiary p-3 small'>" +
-		"<div class='fw-semibold mb-2'><i class='fab fa-github me-1'></i> How to post on GitHub (about a minute)</div>" +
-		"<ol class='mb-2 ps-3' style='line-height:1.5;'>" +
-		"<li>Click <b>Send Report</b> (green button) — you’ll see what it sends and confirm. If this player has no internet, your browser sends it instead. The file is deleted from the player once delivery is confirmed.</li>" +
-		"<li>Click <b>Open GitHub</b> at the bottom-left — it opens <code>FalconChristmas/fpp</code> issues with the filename, FPP version and platform already filled in.</li>" +
-		"<li>Click <b>New issue</b> and choose <b>Bug report</b>. Fill in what happened and what you expected.</li>" +
-		"<li>Hit <b>Submit new issue</b> and mention the sent report filename so developers can find it. You can also download a copy from the link above first to double-check — it’s just a normal zip.</li>" +
+		"<div class='fw-semibold mb-2'><i class='fab fa-github me-1'></i> How to post (about a minute)</div>" +
+		"<ol class='mb-0 ps-3' style='line-height:1.5;'>" +
+		"<li>Click <b>Open GitHub</b> at the bottom-left — the issue form opens with the report filename, FPP version and platform already filled in.</li>" +
+		"<li>Choose <b>Bug report</b>. Fill in what happened and what you expected.</li>" +
+		"<li>Hit <b>Submit new issue</b>.</li>" +
 		"</ol>" +
 		"</div>" +
-		"</div>" +
-		"<div class='small text-muted d-flex gap-2 align-items-start mt-2'><i class='fas fa-lock text-success mt-1 flex-shrink-0'></i><span>Still private — the zip was scrubbed on your FPP. Secrets show as <code>**REDACTED**</code>.</span></div>" +
 		"</div>" +
 		"</div>" +
 		"</div>";
@@ -8634,16 +8646,15 @@ function DisplayErrorReportDialog () {
 					"<div class='col-sm-6'><span class='text-muted'>Kernel:</span> <span class='fw-semibold'>" + (kernel || '—') + "</span></div>" +
 					"</div>" +
 					"<div class='border-top pt-2 mt-2 d-flex gap-2 small'><span class='text-muted flex-shrink-0'>Plugins:</span><span class='text-truncate'>" + (data.plugins && data.plugins.length ? EscapeHtml(data.plugins.join(', ')) : "<span class='text-muted'>None</span>") + "</span></div>" +
-					"<div class='small text-muted mt-2'><i class='fas fa-shield-halved me-1'></i>Hostname and network addresses are stripped. cape-info.json is included when available.</div>" +
 					"</div>";
 			} else {
-				html = "<div class='small text-muted'>Will include fpp-info.json, plugins.json and cape-info.json (hostname and addresses stripped).</div>";
+				html = "<div class='small text-muted'>System information, plugin list and cape info.</div>";
 			}
 			$('#errorReportVital').html(html);
 		})
 		.fail(function () {
 			$('#errorReportVital').html(
-				"<div class='small text-muted'>Will include fpp-info.json and plugin list. Hostname and addresses are stripped.</div>"
+				"<div class='small text-muted'>System information and plugin list.</div>"
 			);
 		});
 }
@@ -8686,9 +8697,9 @@ function ErBuildCrashReport () {
 			$status.html('<div class="alert alert-success py-2 small mb-0"><i class="fas fa-check me-1"></i> Report built.</div>');
 			$('#errorReportDownloadTitle').text('Ready — ' + sizeLabel);
 			$('#errorReportDownloadText').html(
-				'<a href="api/file/Crashes/' + encodeURIComponent(erReportFile) + '"><i class="fas fa-download me-1"></i>' + EscapeHtml(erReportFile) + '</a>'
+				'<a class="alert-link text-break" href="api/file/Crashes/' + encodeURIComponent(erReportFile) + '"><i class="fas fa-download me-1"></i>' + EscapeHtml(erReportFile) + '</a>'
 			);
-			$('#errorReportManifest').text('Full level-3 crash report (settings, configuration and logs) · ' + sizeLabel);
+			$('#errorReportManifest').text('Settings, configuration and logs · ' + sizeLabel);
 			$area.removeClass('d-none');
 		})
 		.fail(function (xhr, textStatus) {
@@ -8713,22 +8724,28 @@ function ErSendCrashReport () {
 	if (!erReportFile || erSending) return;
 	erSending = true;
 	ErUpdateNextBtn();
+	var $sendStatus = $('#errorReportSendStatus');
+	$sendStatus.html(
+		'<div class="alert alert-secondary py-2 small d-flex gap-2 align-items-center mb-0"><div class="spinner-border spinner-border-sm text-primary flex-shrink-0" role="status"><span class="visually-hidden">Loading…</span></div><span>Sending — you will be asked to confirm first…</span></div>'
+	);
 	UploadAndDeleteCrashReports([erReportFile], {
 		onDone: function (tally) {
 			erSending = false;
 			if (tally === null) {
-				$('#errorReportStatus').html('<div class="alert alert-secondary py-2 small mb-0">Cancelled — nothing was sent. The report is still on the player; you can send it later from File Manager › Crashes.</div>');
+				$sendStatus.html('<div class="alert alert-secondary py-2 small mb-0">Cancelled — nothing was sent. The report is still on the player; you can send it later from File Manager › Crashes.</div>');
 				ErUpdateNextBtn();
 				return;
 			}
 			if (tally && tally.uploaded > 0) {
 				erReportSent = true;
-				$('#errorReportStatus').html('<div class="alert alert-success py-2 small mb-0"><i class="fas fa-check me-1"></i> Report sent and deleted from the player. Now open GitHub to reference it.</div>');
+				$sendStatus.html('<div class="alert alert-success py-2 small mb-0"><i class="fas fa-check me-1"></i> Report sent and deleted from the player.</div>');
+				ErUpdateNextBtn();
+				ErShowStep(3);
 			} else {
 				var detail = tally && tally.failed && tally.failed.length ? ' (' + tally.failed.join('; ').substring(0, 200) + ')' : '';
-				$('#errorReportStatus').html('<div class="alert alert-danger py-2 small mb-0">' + EscapeHtml('Send did not complete' + detail + '. The report stays on the player; try again or download it from File Manager › Crashes.') + '</div>');
+				$sendStatus.html('<div class="alert alert-danger py-2 small mb-0">' + EscapeHtml('Send did not complete' + detail + '. The report stays on the player; try again or download it from File Manager › Crashes.') + '</div>');
+				ErUpdateNextBtn();
 			}
-			ErUpdateNextBtn();
 		},
 		onDeleted: function () {
 			// File Manager row cleanup only applies on that page; no-op here.
@@ -8736,6 +8753,7 @@ function ErSendCrashReport () {
 	});
 }
 function ErOpenGitHubPrefilled () {
+	if (!erReportFile) return;
 	var d = errorReportPreviewCache || {};
 	var av = (d && d.advancedView) || {};
 	var version = av.Version || d.version || 'Unknown';
