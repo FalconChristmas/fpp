@@ -637,6 +637,9 @@ int Playlist::Load(const std::string& filename) {
                         }
                         const char* d = (const char*)data.data();
                         size_t len = strnlen(d, data.size());
+                        if (len == 0) {
+                            continue;
+                        }
                         std::string raw(d, len);
                         size_t pos = raw.find_last_of("/\\");
                         if (pos == std::string::npos) {
