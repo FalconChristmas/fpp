@@ -934,7 +934,11 @@ function DisplayProgressDialog (id, title) {
 		}
 	});
 }
-function DisplayConfirmationDialog (id, title, body, yesFunction) {
+function DisplayConfirmationDialog (id, title, body, yesFunction, yesClass) {
+	var onYes = function () {
+		CloseModalDialog(id);
+		yesFunction();
+	};
 	DoModalDialog({
 		id: id,
 		class: 'modal-m',
@@ -943,10 +947,7 @@ function DisplayConfirmationDialog (id, title, body, yesFunction) {
 		body: body,
 		title: title,
 		buttons: {
-			Yes: function () {
-				CloseModalDialog(id);
-				yesFunction();
-			},
+			Yes: yesClass ? { click: onYes, class: yesClass } : onYes,
 			No: function () {
 				CloseModalDialog(id);
 			}
