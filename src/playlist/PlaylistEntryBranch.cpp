@@ -238,7 +238,7 @@ int PlaylistEntryBranch::Process(void) {
                 SetNext(1);
             else
                 SetNext(0);
-        } else if (m_sDaySecond >= 0) {
+        } else if (m_eDaySecond >= 0) {
             if (daySecond < m_eDaySecond)
                 SetNext(1);
             else
@@ -246,7 +246,13 @@ int PlaylistEntryBranch::Process(void) {
         } else { // Just compare minutes & seconds
             int hourSecond = (now.tm_min * 60) + now.tm_sec;
 
-            if ((hourSecond >= m_sHourSecond) && (hourSecond < m_eHourSecond))
+            if (m_sHourSecond > m_eHourSecond) {
+                // The window runs past the top of the hour, e.g. :50 to :10
+                if ((hourSecond >= m_sHourSecond) || (hourSecond < m_eHourSecond))
+                    SetNext(1);
+                else
+                    SetNext(0);
+            } else if ((hourSecond >= m_sHourSecond) && (hourSecond < m_eHourSecond))
                 SetNext(1);
             else
                 SetNext(0);

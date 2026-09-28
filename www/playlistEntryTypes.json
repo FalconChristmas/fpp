@@ -40,7 +40,7 @@
 			"endTime": {
 				"name": "endTime",
 				"description": "End Time",
-				"help": "End of the time window that counts as True.",
+				"help": "End of the time window that counts as True. An End Time earlier than the Start Time runs past midnight, so 22:00 to 02:00 is True overnight.",
 				"type": "time",
 				"optional": false,
 				"simpleUI": true
