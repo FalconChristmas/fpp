@@ -163,7 +163,7 @@ void dispatchPluginApi(const HttpRequestPtr& req, std::function<void(const HttpR
         SlotPtr slot = findSlot(req->path());
         if (!slot) {
             dispatchLock.unlock();
-            callback(drogon::HttpResponse::newNotFoundResponse(req));
+            callback(drogon::HttpResponse::newNotFoundResponse());
             return;
         }
         fn = slot->handler;
