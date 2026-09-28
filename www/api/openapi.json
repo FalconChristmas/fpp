@@ -49,6 +49,9 @@
       "name": "email"
     },
     {
+      "name": "errorReport"
+    },
+    {
       "name": "events"
     },
     {
@@ -1940,6 +1943,44 @@
                 "example": {
                   "Status": "OK",
                   "Message": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/errorReport/preview": {
+      "get": {
+        "tags": [
+          "errorReport"
+        ],
+        "summary": "Get Error Report preview data",
+        "description": "Returns the vital system information shown in Step 2 of the Error Report wizard (FPP version, platform, OS, plugins, etc.). See Settings \u203a Privacy for what reports contain.",
+        "responses": {
+          "200": {
+            "description": "Preview data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "advancedView": {
+                    "Version": "8.5",
+                    "Platform": "Raspberry Pi",
+                    "Variant": "Pi 4"
+                  },
+                  "fppInfo": {
+                    "Version": "8.5"
+                  },
+                  "plugins": [
+                    "plugin1"
+                  ],
+                  "cape": {},
+                  "version": "8.5-123-gabc",
+                  "branch": "master"
                 }
               }
             }

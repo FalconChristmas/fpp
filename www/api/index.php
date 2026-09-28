@@ -49,6 +49,8 @@ dispatch_post('/crashes/upload/:file', 'PostCrashUpload');
 dispatch_post('/crashes/report', 'PostCrashReport');
 dispatch_get('/crashes/disclosures', 'GetCrashDisclosures');
 
+dispatch_get('/errorReport/preview', 'GetErrorReportPreview');
+
 dispatch_get('/configfile', 'GetConfigFileList');
 dispatch_get('/configfile/**', 'DownloadConfigFile');
 dispatch_post('/configfile/**', 'UploadConfigFile');

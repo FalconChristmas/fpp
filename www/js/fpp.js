@@ -1132,6 +1132,24 @@ function handleKeypress (e) {
 	if (e.keyCode == 112) {
 		e.preventDefault();
 		DisplayHelp();
+	} else if (e.keyCode == 119) {
+		// F8 — Error Report bundle (toggle)
+		var t = e.target;
+		// Check typing in input/textarea/select or any contenteditable ancestor
+		var isTyping = false;
+		if (t) {
+			var el = t;
+			while (el) {
+				if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable) {
+					isTyping = true;
+					break;
+				}
+				el = el.parentElement;
+			}
+		}
+		if (isTyping && !e.ctrlKey && !e.shiftKey) return;
+		e.preventDefault();
+		DisplayErrorReportDialog();
 	}
 }
 class SwipeHandler {
@@ -8342,8 +8360,11 @@ function HelpClosed () {
 function DisplayHelp () {
 	var tmpHelpPage = helpPage;
 	var tabs = $('#settingsManagerTabs li .active');
+	var isErrorReportHelp = typeof errorReportOpen !== 'undefined' && errorReportOpen;
 
-	if (helpPage == 'help/settings.php' && tabs.length == 1) {
+	if (isErrorReportHelp) {
+		tmpHelpPage = 'help/errorReport.php';
+	} else if (helpPage == 'help/settings.php' && tabs.length == 1) {
 		var id = tabs.first().attr('id');
 		const re = /settings-(.*)-tab/;
 		var tab = '';
@@ -8360,7 +8381,19 @@ function DisplayHelp () {
 		if (tmpHelpPage != lastHelpPage) {
 			$('#helpDialogText').load(tmpHelpPage);
 			lastHelpPage = tmpHelpPage;
-			helpPage = tmpHelpPage;
+			if (!isErrorReportHelp) helpPage = tmpHelpPage;
+			// Bring help dialog to front when invoked from Error Report
+			if (isErrorReportHelp) {
+				setTimeout(function () {
+					var helpEl = document.getElementById('helpDialog');
+					if (helpEl) {
+						helpEl.style.zIndex = '1060';
+						// Ensure backdrop is also above Error Report backdrop
+						var backdrops = document.querySelectorAll('.modal-backdrop');
+						if (backdrops.length) backdrops[backdrops.length - 1].style.zIndex = '1059';
+					}
+				}, 10);
+			}
 			return;
 		}
 		CloseModalDialog('helpDialog');
@@ -8383,9 +8416,388 @@ function DisplayHelp () {
 
 	$('#helpDialogText').load(tmpHelpPage);
 	lastHelpPage = tmpHelpPage;
+	if (!isErrorReportHelp) helpPage = tmpHelpPage;
 	helpOpen = 1;
+	// When Error Report is open, ensure Help appears above it
+	if (isErrorReportHelp) {
+		setTimeout(function () {
+			var helpEl = document.getElementById('helpDialog');
+			if (helpEl) {
+				helpEl.style.zIndex = '1060';
+				var backdrops = document.querySelectorAll('.modal-backdrop');
+				if (backdrops.length) backdrops[backdrops.length - 1].style.zIndex = '1059';
+			}
+		}, 10);
+	}
 }
 
+var errorReportPreviewCache = null;
+
+var errorReportOpen = false;
+var erCurrentStep = 1;
+var erReportFile = null;
+var erReportSize = 0;
+var erReportSent = false;
+var erBuilding = false;
+var erSending = false;
+function ErrorReportClosed () {
+	errorReportOpen = false;
+	erCurrentStep = 1;
+	erReportFile = null;
+	erReportSize = 0;
+	erReportSent = false;
+	erBuilding = false;
+	erSending = false;
+}
+function ErUpdateNextBtn () {
+	var nextBtn = document.getElementById('errorReportNextBtn');
+	if (nextBtn) {
+		if (erCurrentStep === 1) {
+			if (!erReportFile) {
+				nextBtn.innerHTML = '<i class="fas fa-hammer me-1"></i> Build Report';
+				nextBtn.disabled = erBuilding;
+			} else {
+				nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right ms-1"></i>';
+				nextBtn.disabled = false;
+			}
+			nextBtn.className = 'btn btn-success';
+		} else if (erCurrentStep === 2) {
+			if (!erReportSent) {
+				nextBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> Send Report';
+				nextBtn.disabled = erSending || !erReportFile;
+			} else {
+				nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right ms-1"></i>';
+				nextBtn.disabled = false;
+			}
+			nextBtn.className = 'btn btn-success';
+		} else {
+			nextBtn.innerHTML = '<i class="fas fa-check me-1"></i> Done';
+			nextBtn.className = 'btn btn-success';
+			nextBtn.disabled = false;
+		}
+	}
+	// Open GitHub is only useful once a report exists to reference
+	var ghBtn = document.getElementById('errorReportOpenGHBtn');
+	if (ghBtn) {
+		ghBtn.classList.toggle('d-none', !(erCurrentStep === 3 && erReportFile));
+	}
+}
+function ErShowStep (n) {
+	erCurrentStep = n;
+	for (var i = 1; i <= 3; i++) {
+		var el = document.getElementById('erStep' + i);
+		if (el) el.classList.toggle('d-none', i !== n);
+		var badge = document.getElementById('erStepBadge' + i);
+		if (badge) {
+			badge.className = i === n ? 'badge bg-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' : i < n ? 'badge bg-success rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' : 'badge bg-secondary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0';
+			badge.innerHTML = i < n ? '<i class="fas fa-check" style="font-size:0.6rem;"></i>' : i;
+		}
+	}
+	ErUpdateNextBtn();
+}
+// Keep build progress visible: the dialog scrolls (modal-dialog-scrollable),
+// so on short screens the status would otherwise sit below the fold with no
+// indication anything is happening. Scroll the modal body to the status area.
+function ErScrollToStatus () {
+	var dlg = document.getElementById('errorReportDialog');
+	var status = document.getElementById('errorReportStatus');
+	if (!dlg || !status) return;
+	var body = dlg.querySelector('.modal-body');
+	if (!body || typeof $ === 'undefined') return;
+	var $body = $(body);
+	var target = $(status).offset().top - $body.offset().top + $body.scrollTop() - 12;
+	$body.animate({ scrollTop: target }, 200);
+}
+function ErNext () {
+	if (erBuilding || erSending) return;
+	if (erCurrentStep === 1) {
+		if (!erReportFile) {
+			ErBuildCrashReport();
+		} else {
+			ErShowStep(2);
+		}
+	} else if (erCurrentStep === 2) {
+		if (!erReportSent) {
+			if (erReportFile) ErSendCrashReport();
+		} else {
+			ErShowStep(3);
+		}
+	} else {
+		CloseModalDialog('errorReportDialog');
+	}
+}
+function DisplayErrorReportDialog () {
+	// Toggle like DisplayHelp — second F8 closes
+	if (errorReportOpen) {
+		var inst = bootstrap.Modal.getInstance(document.getElementById('errorReportDialog'));
+		if (inst) inst.hide();
+		else CloseModalDialog('errorReportDialog');
+		return;
+	}
+	errorReportOpen = true;
+	erCurrentStep = 1;
+	var bodyHtml =
+		"<div id='errorReportDialogBody'>" +
+		"<div class='alert alert-light border d-flex gap-2 align-items-start mb-2 py-2'>" +
+		"<i class='fas fa-life-ring text-primary mt-1 flex-shrink-0'></i>" +
+		"<div class='text-muted'>When something isn’t working, build a diagnostic report on this FPP, review it, then choose whether to send it. Nothing is sent until you confirm.</div>" +
+		"</div>" +
+		// Step 1 — Build Report
+		"<div id='erStep1' class='er-step card mb-3 border'>" +
+		"<div class='card-header bg-body-tertiary py-2 d-flex align-items-center gap-2'>" +
+		"<span id='erStepBadge1' class='badge bg-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' style='width:22px;height:22px;font-size:0.7rem;'>1</span>" +
+		"<span class='fw-semibold'>Build Report</span>" +
+		"</div>" +
+		"<div class='card-body p-3'>" +
+		"<p class='text-muted mb-2'>The report is built <b>on your FPP</b> and covers settings, configuration and logs. A build takes seconds on a fast player and can take a few minutes on a Pi Zero or BeagleBone.</p>" +
+		"<div id='errorReportStatus' class='mb-2'></div>" +
+		"<div id='errorReportDownloadArea' class='d-none'>" +
+		"<div class='alert alert-success py-2 d-flex gap-2 align-items-start mb-0'>" +
+		"<i class='fas fa-file-zipper mt-1 flex-shrink-0'></i>" +
+		"<div class='flex-grow-1 min-w-0'>" +
+		"<div class='fw-semibold' id='errorReportDownloadTitle'>Ready</div>" +
+		"<div id='errorReportDownloadText'></div>" +
+		"<div class='text-muted mt-1' id='errorReportManifest'></div>" +
+		"</div>" +
+		"</div>" +
+		"</div>" +
+		"</div>" +
+		"</div>" +
+		// Step 2 — Review & Send
+		"<div id='erStep2' class='er-step card mb-3 border d-none'>" +
+		"<div class='card-header bg-body-tertiary py-2 d-flex align-items-center gap-2'>" +
+		"<span id='erStepBadge2' class='badge bg-secondary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' style='width:22px;height:22px;font-size:0.7rem;'>2</span>" +
+		"<span class='fw-semibold'>Review & Send</span>" +
+		"</div>" +
+		"<div class='card-body p-3'>" +
+		"<div class='text-muted mb-2'>This is what will be sent from <b>this device</b>:</div>" +
+		"<div id='errorReportVital'><div class='d-flex align-items-center gap-2 text-muted'><i class='fas fa-spinner fa-spin'></i> Loading system info…</div></div>" +
+		"<ul class='text-muted mt-2 mb-2 ps-3'>" +
+		"<li>System information (version, platform, OS, plugin list)</li>" +
+		"<li>Settings and configuration</li>" +
+		"<li>Logs</li>" +
+		"</ul>" +
+		"<div class='small text-muted d-flex gap-2 align-items-start'><i class='fas fa-circle-info text-primary mt-1 flex-shrink-0'></i><span>See <a href='settings.php#settings-privacy' target='_blank' rel='noopener'>Settings &rsaquo; Privacy</a> for what reports contain and who receives them. You confirm before anything is sent — if this player has no internet, your browser sends it instead, and the file is deleted from the player once delivery is confirmed.</span></div>" +
+		"<div id='errorReportSendStatus' class='mt-3'></div>" +
+		"</div>" +
+		"</div>" +
+		// Step 3 — GitHub Issue
+		"<div id='erStep3' class='er-step card border d-none'>" +
+		"<div class='card-header bg-body-tertiary py-2 d-flex align-items-center gap-2'>" +
+		"<span id='erStepBadge3' class='badge bg-secondary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' style='width:22px;height:22px;font-size:0.7rem;'>3</span>" +
+		"<span class='fw-semibold'>GitHub Issue</span>" +
+		"<span class='badge bg-body-secondary border fw-normal ms-auto small'>You’re almost done</span>" +
+		"</div>" +
+		"<div class='card-body p-3'>" +
+		"<p class='text-muted mb-3'>Reference the sent report on GitHub so the developers can find it.</p>" +
+		"<div class='border rounded bg-body-tertiary p-3'>" +
+		"<div class='fw-semibold mb-2'><i class='fab fa-github me-1'></i> How to post (about a minute)</div>" +
+		"<ol class='mb-0 ps-3' style='line-height:1.5;'>" +
+		"<li>Click <b>Open GitHub</b> at the bottom-left — the issue form opens with the report filename, FPP version and platform already filled in.</li>" +
+		"<li>Choose <b>Bug report</b>. Fill in what happened and what you expected.</li>" +
+		"<li>Hit <b>Submit new issue</b>.</li>" +
+		"</ol>" +
+		"</div>" +
+		"</div>" +
+		"</div>" +
+		"</div>";
+
+	DoModalDialog({
+		id: 'errorReportDialog',
+		title: 'Error Report',
+		body: bodyHtml,
+		class: 'modal-dialog-scrollable',
+		backdrop: true,
+		keyboard: true,
+		close: ErrorReportClosed,
+		buttons: {
+			'Open GitHub': {
+				id: 'errorReportOpenGHBtn',
+				class: 'btn-outline-secondary me-auto',
+				click: function () {
+					ErOpenGitHubPrefilled();
+				}
+			},
+			'Next': {
+				id: 'errorReportNextBtn',
+				class: 'btn-success',
+				click: function () {
+					ErNext();
+				}
+			},
+			Close: function () {
+				CloseModalDialog('errorReportDialog');
+			}
+		}
+	});
+
+	ErShowStep(1);
+
+	$.get('api/errorReport/preview')
+		.done(function (data) {
+			errorReportPreviewCache = data;
+			var av = (data && data.advancedView) || {};
+			var version = EscapeHtml(av.Version || data.version || 'Unknown');
+			var platform = av.Platform ? EscapeHtml(av.Platform) : '';
+			var variant = av.Variant ? EscapeHtml(av.Variant) : '';
+			var os = av.OSVersion ? EscapeHtml(av.OSVersion) : '';
+			var kernel = av.Kernel ? EscapeHtml(av.Kernel) : '';
+			var mode = av.Mode ? EscapeHtml(av.Mode) : '';
+			var branch = data.branch ? EscapeHtml(data.branch) : '';
+			var hasData = version !== 'Unknown' || platform || os;
+			var html = '';
+			if (hasData) {
+				html =
+					"<div>" +
+					"<div class='row g-2 mb-2'>" +
+					"<div class='col-sm-6'><span class='text-muted'>FPP Version:</span> <span class='fw-semibold'>" + version + "</span></div>" +
+					"<div class='col-sm-6'><span class='text-muted'>Branch:</span> <span class='fw-semibold'>" + (branch || '—') + "</span></div>" +
+					"<div class='col-sm-6'><span class='text-muted'>Platform:</span> <span class='fw-semibold'>" + (platform ? platform + (variant ? " (" + variant + ")" : "") : '—') + "</span></div>" +
+					"<div class='col-sm-6'><span class='text-muted'>Mode:</span> <span class='fw-semibold'>" + (mode || '—') + "</span></div>" +
+					"<div class='col-sm-6'><span class='text-muted'>OS:</span> <span class='fw-semibold'>" + (os || '—') + "</span></div>" +
+					"<div class='col-sm-6'><span class='text-muted'>Kernel:</span> <span class='fw-semibold'>" + (kernel || '—') + "</span></div>" +
+					"</div>" +
+					"<div class='border-top pt-2 mt-2 d-flex gap-2'><span class='text-muted flex-shrink-0'>Plugins:</span><span class='text-truncate'>" + (data.plugins && data.plugins.length ? EscapeHtml(data.plugins.join(', ')) : "<span class='text-muted'>None</span>") + "</span></div>" +
+					"</div>";
+			} else {
+				html = "<div class='small text-muted'>System information, plugin list and cape info.</div>";
+			}
+			$('#errorReportVital').html(html);
+		})
+		.fail(function () {
+			$('#errorReportVital').html(
+				"<div class='small text-muted'>System information and plugin list.</div>"
+			);
+		});
+}
+
+function ErBuildCrashReport () {
+	if (erBuilding) return;
+	erBuilding = true;
+	ErUpdateNextBtn();
+	var $status = $('#errorReportStatus');
+	var $area = $('#errorReportDownloadArea');
+	$status.html(
+		'<div class="alert alert-secondary py-2 d-flex gap-2 align-items-center mb-2"><div class="spinner-border spinner-border-sm text-primary flex-shrink-0" role="status"><span class="visually-hidden">Loading…</span></div><span>Building report on your FPP — this can take a few minutes on slow players. Please wait…</span></div>'
+	);
+	ErScrollToStatus();
+	$area.addClass('d-none');
+	$.ajax({
+		url: 'api/crashes/report',
+		method: 'POST',
+		contentType: 'application/json',
+		data: JSON.stringify({ client: 'F8 Error Report' }),
+		dataType: 'json',
+		timeout: 280000
+	})
+		.done(function (data) {
+			if (!data || data.Status !== 'OK' || !data.File) {
+				var code = data && data.Code ? data.Code : '';
+				var msg = data && data.Message ? data.Message : 'Failed to build report. Please try again.';
+				if (code === 'busy') msg = 'A report build is already running. Please wait a moment and try again.';
+				else if (code === 'rate-limited') msg = 'Only one build per minute is allowed. Please wait and try again.';
+				else if (code === 'build-failed') msg = 'The report build failed on the player. Please try again, or check Troubleshooting.';
+				else if (code === 'unavailable') msg = 'fppd did not respond. If fppd is stopped, start it and try again.';
+				else if (code === 'bad-request') msg = 'Bad request — please reload the page and try again.';
+			$status.html('<div class="alert alert-danger py-2 mb-0">' + EscapeHtml(msg) + '</div>');
+			ErScrollToStatus();
+				return;
+			}
+			erReportFile = data.File;
+			erReportSize = data.Size || 0;
+			erReportSent = false;
+			var sizeKb = Math.round(erReportSize / 1024);
+			var sizeLabel = sizeKb >= 1024 ? (sizeKb / 1024).toFixed(1) + ' MB' : sizeKb + ' KB';
+			$status.html('<div class="alert alert-success py-2 mb-0"><i class="fas fa-check me-1"></i> Report built.</div>');
+			ErScrollToStatus();
+			$('#errorReportDownloadTitle').text('Ready — ' + sizeLabel);
+			// Filename as plain body text (not a link): dark mode renders all
+			// links gray (#adb5bd, fpp-dark.css), which washes out a 70-char
+			// filename. text-body is near-white on dark, near-black on light.
+			// The download action is a separate explicit button below it.
+			$('#errorReportDownloadText').html(
+				'<span class="d-block bg-body text-body border rounded px-2 py-2 mt-1 text-break"><i class="fas fa-file-zipper me-1"></i><a class="fw-semibold text-body text-decoration-underline" href="api/file/Crashes/' + encodeURIComponent(erReportFile) + '">' + EscapeHtml(erReportFile) + '</a></span>'
+			);
+			$('#errorReportManifest').text('Settings, configuration and logs · ' + sizeLabel);
+			$area.removeClass('d-none');
+		})
+		.fail(function (xhr, textStatus) {
+			var msg = 'Failed to build report. Please try again.';
+			try {
+				var j = JSON.parse(xhr.responseText);
+				if (j && j.Message) msg = j.Message;
+				if (j && j.Code === 'busy') msg = 'A report build is already running. Please wait a moment and try again.';
+				else if (j && j.Code === 'rate-limited') msg = 'Only one build per minute is allowed. Please wait and try again.';
+			} catch (e) {
+				if (textStatus === 'timeout') msg = 'The build timed out (slow players can take a few minutes). Please check File Manager › Crashes and try again.';
+				else if (xhr.status === 0) msg = 'Could not reach your FPP. Check your connection.';
+			}
+			$status.html('<div class="alert alert-danger py-2 mb-0">' + EscapeHtml(msg) + '</div>');
+			ErScrollToStatus();
+		})
+		.always(function () {
+			erBuilding = false;
+			ErUpdateNextBtn();
+		});
+}
+function ErSendCrashReport () {
+	if (!erReportFile || erSending) return;
+	erSending = true;
+	ErUpdateNextBtn();
+	var $sendStatus = $('#errorReportSendStatus');
+	$sendStatus.html(
+		'<div class="alert alert-secondary py-2 d-flex gap-2 align-items-center mb-0"><div class="spinner-border spinner-border-sm text-primary flex-shrink-0" role="status"><span class="visually-hidden">Loading…</span></div><span>Sending — you will be asked to confirm first…</span></div>'
+	);
+	UploadAndDeleteCrashReports([erReportFile], {
+		onDone: function (tally) {
+			erSending = false;
+			if (tally === null) {
+				$sendStatus.html('<div class="alert alert-secondary py-2 mb-0">Cancelled — nothing was sent. The report is still on the player; you can send it later from File Manager › Crashes.</div>');
+				ErUpdateNextBtn();
+				return;
+			}
+			if (tally && tally.uploaded > 0) {
+				erReportSent = true;
+				$sendStatus.html('<div class="alert alert-success py-2 mb-0"><i class="fas fa-check me-1"></i> Report sent and deleted from the player.</div>');
+				ErUpdateNextBtn();
+				ErShowStep(3);
+			} else {
+				var detail = tally && tally.failed && tally.failed.length ? ' (' + tally.failed.join('; ').substring(0, 200) + ')' : '';
+				$sendStatus.html('<div class="alert alert-danger py-2 mb-0">' + EscapeHtml('Send did not complete' + detail + '. The report stays on the player; try again or download it from File Manager › Crashes.') + '</div>');
+				ErUpdateNextBtn();
+			}
+		},
+		onDeleted: function () {
+			// File Manager row cleanup only applies on that page; no-op here.
+		}
+	});
+}
+function ErOpenGitHubPrefilled () {
+	if (!erReportFile) return;
+	var d = errorReportPreviewCache || {};
+	var av = (d && d.advancedView) || {};
+	var version = av.Version || d.version || 'Unknown';
+	var platform = av.Platform ? av.Platform + (av.Variant ? ' (' + av.Variant + ')' : '') : '';
+	var file = erReportFile || '';
+	var title = file ? 'Error report ' + file : 'FPP Error Report';
+	var lines = [];
+	lines.push('**FPP Version and Hardware**:');
+	lines.push('FPP ' + version + (platform ? ' on ' + platform : ''));
+	if (file) lines.push('');
+	if (file) lines.push('**Report file**: ' + file + ' (sent via crash upload)');
+	lines.push('');
+	lines.push('**Describe the bug and Steps to reproduce**:');
+	lines.push('');
+	lines.push('**Expected behavior**:');
+	lines.push('');
+	lines.push('**Additional context**:');
+	var body = lines.join('\n');
+	window.open(
+		'https://github.com/FalconChristmas/fpp/issues/new?template=bug_report.md&title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body),
+		'_blank',
+		'noopener'
+	);
+}
 function GetGitOriginLog () {
 	DoModalDialog({
 		id: 'GitOriginLogView',
