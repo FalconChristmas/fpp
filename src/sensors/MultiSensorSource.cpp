@@ -56,6 +56,9 @@ void MultiSensorSource::update(bool forceInstant) {
     }
 }
 void MultiSensorSource::enable(int id) {
+    if (id < 0) {
+        return;
+    }
     for (int x = 0; x < sources.size(); x++) {
         if (id < channels[x]) {
             sources[x]->enable(id);
@@ -65,6 +68,9 @@ void MultiSensorSource::enable(int id) {
     }
 }
 int32_t MultiSensorSource::getValue(int id) {
+    if (id < 0) {
+        return 0;
+    }
     for (int x = 0; x < sources.size(); x++) {
         if (id < channels[x]) {
             return sources[x]->getValue(id);
