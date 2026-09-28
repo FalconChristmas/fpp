@@ -1858,6 +1858,26 @@ function Delete (url, async, data, silent = false) {
 	return PostPutHelper(url, async, data, silent, 'DELETE');
 }
 
+// The file-backed API routes -- config files, channel output configs and the
+// settings metadata -- used to answer an unchanged refetch with a 304 that
+// carried a one-year max-age. A browser copies a 304's headers onto the copy it
+// has stored, so from then on it served that copy for a year without asking,
+// and a Save from the page wrote the stale config back over whatever xLights,
+// fppd or a plugin had put there since. The server now marks those responses
+// no-cache, but it cannot reach an entry a browser already believes is fresh:
+// the browser never asks. Reading these routes under a unique URL steps around
+// any such entry, and they are small and served on the LAN, so revalidating
+// them was never worth the risk of a stale read.
+var gblUncachedApiRoutes = /(^|\/)api\/(configfile|channel\/output)\/|(^|\/)api\/settings(\?|#|$)/;
+if (typeof $ !== 'undefined' && $.ajaxPrefilter) {
+	$.ajaxPrefilter(function (options) {
+		if ((options.type || 'GET').toUpperCase() === 'GET' &&
+			gblUncachedApiRoutes.test(options.url || '')) {
+			options.cache = false;
+		}
+	});
+}
+
 function Get (url, async, silent = false) {
 	var result = {};
 

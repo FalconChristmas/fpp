@@ -873,7 +873,9 @@ select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(
 
   async function loadPresets(){
     try {
-      presetCache = await fetchJSON('/api/configfile/commandPresets.json');
+      // Always ask the server: save round-trips this whole file, so a stale
+      // cached copy here would overwrite presets added since.
+      presetCache = await fetchJSON('/api/configfile/commandPresets.json', { cache: 'no-cache' });
       if (!presetCache || typeof presetCache !== 'object' || !Array.isArray(presetCache.commands)) {
         presetCache = { commands: [] };
       }
