@@ -469,8 +469,18 @@ if ($fd) {
         $key = trim($split[0]);
         $value = trim($split[1]);
 
-        if (!json_object_validate($value)) {
-            $value = preg_replace("/\"/", "", $value);
+        // Stored values are usually plain strings wrapped in one pair of
+        // quotes (added by WriteSettingToFile), which are stripped here.
+        // Values that are JSON objects or arrays keep their quotes: objects
+        // are stored bare, while arrays are stored wrapped in one outer pair
+        // (e.g. the keyBindings setting), so only that outer pair is removed.
+        if (!json_object_validate($value) && !json_array_validate($value)) {
+            $inner = remove_outer_quotes($value);
+            if ($inner !== $value && (json_object_validate($inner) || json_array_validate($inner))) {
+                $value = $inner;
+            } else {
+                $value = preg_replace("/\"/", "", $value);
+            }
         }
 
         if ($key != "") {

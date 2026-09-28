@@ -32,3 +32,13 @@
     <li><b>Color Pair 3-A / 3-B</b> (color pickers) — Another nested-table palette. Default #E9BEED / #DA92E1.</li>
     <li><b>Color Pair 4-A / 4-B</b> (color pickers) — Yet another nested-table palette. Default #FCEFBB / #F9E077.</li>
 </ul>
+
+<h4>Keyboard Shortcuts</h4>
+<p>System shortcuts work on every page and cannot be changed. Custom shortcuts work on every page too, and are stored in the <code>keyBindings</code> setting.</p>
+<ul>
+    <li><b>Configure Key Bindings</b> (button) — Opens a dialog listing the system shortcuts (<b>F1</b> help, <b>F2</b> Settings, <b>F8</b> Error Reporting, <b>Esc</b> close) and your custom shortcuts.</li>
+    <li><b>Keys</b> — Click the field, then press the combination. Combinations must use <b>Ctrl</b> or <b>Alt</b> with another key, or be an unused function key (<b>F3</b>–<b>F7</b>, <b>F9</b>–<b>F12</b>); <b>F1</b>/<b>F2</b>/<b>F8</b> are reserved system shortcuts and rejected on save. <b>Esc</b> cancels recording, <b>Backspace</b> clears the field.</li>
+    <li><b>Action type</b> — <b>Command preset</b> triggers one of your presets by name; <b>FPP command</b> runs any command with the arguments you enter; <b>Page</b> opens an FPP page. For a complex command, save it as a preset on the Command Presets page first and bind the preset, so the full argument editors are available.</li>
+    <li><b>Test (play button)</b> — Runs that row's action immediately without pressing the keys.</li>
+    <li><b>Save shortcuts</b> (button, in the dialog) — Validates for empty keys, reserved keys and duplicates, then saves. Shortcuts apply on every page once saved; there is nothing to restart.</li>
+</ul>
