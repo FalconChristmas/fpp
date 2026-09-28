@@ -2100,7 +2100,7 @@
                     "<tr><td>Log:</td><td width='100%'><textarea id='" + rowID + "_logText' style='width: 100%;' rows='8' disabled></textarea></td></tr>" +
                     "<tr><td></td><td><div class='right' id='" + rowID + "_doneButtons' style='display: none;'>" +
                     "<input type='button' class='buttons' value='Restart FPPD' onClick='restartSystem(\"" + rowID + "\");' style='float: left;'>" +
-                    "<input type='button' class='buttons' value='Reboot' onClick='rebootRemoteFPP(\"" + rowID + "\", \"" + ip + "\");' style='float: left;'>" +
+                    "<input type='button' class='buttons' value='Reboot' onClick='rebootSystem(\"" + rowID + "\");' style='float: left;'>" +
                     "<input type='button' class='buttons' value='Close Log' onClick='$(\"#" + rowID + "_logs\").hide(); rowSpanSet(\"" + rowID + "\");'>" +
                     "</div></td></tr></table></td></tr>"
                 );

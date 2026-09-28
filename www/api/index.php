@@ -284,7 +284,7 @@ dispatch_get('/sequence/:SequenceName', 'GetSequence');
 dispatch_get('/sequence/:SequenceName/meta', 'GetSequenceMetaData');
 dispatch_get('/sequence/:SequenceName/start/:startSecond', 'GetSequenceStart');
 dispatch_post('/sequence/:SequenceName', 'PostSequence');
-dispatch_delete('/sequence/:SequenceName', 'DeleteSequence');
+dispatch_delete('/sequence/:SequenceName', 'DeleteSequences');
 
 dispatch_post('/schedule/reload', 'ReloadSchedule');
 dispatch_get('/schedule', 'GetSchedule');
