@@ -250,7 +250,7 @@
                                             value="Rename" />
                                         <input onclick="ButtonHandler('Sequences', 'delete');"
                                             class="disableButtons singleSequencesButton multiSequencesButton"
-                                            type="button" value="Delete" />
+                                            type="button" value="Delete" data-btn-enabled-class="btn-hover-danger" />
                                     </div>
                                     <div class="note"><strong>CTRL+Click to select multiple items. SHIFT+Click can be
                                             used to select a range of items.</strong></div>
@@ -316,7 +316,7 @@
                                             class="disableButtons singleMusicButton" type="button" value="Rename" />
                                         <input onclick="ButtonHandler('Music', 'delete');" id="btnDeleteMusic"
                                             class="disableButtons singleMusicButton multiMusicButton" type="button"
-                                            value="Delete" />
+                                            value="Delete" data-btn-enabled-class="btn-hover-danger" />
                                     </div>
                                     <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
                                 </div>
@@ -378,7 +378,7 @@
                                             class="disableButtons singleVideosButton" type="button" value="Rename" />
                                         <input onclick="ButtonHandler('Videos', 'delete');"
                                             class="disableButtons singleVideosButton multiVideosButton" type="button"
-                                            value="Delete" />
+                                            value="Delete" data-btn-enabled-class="btn-hover-danger" />
                                     </div>
                                     <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
                                 </div>
@@ -436,7 +436,7 @@
                                             class="disableButtons singleImagesButton" type="button" value="Rename" />
                                         <input onclick="ButtonHandler('Images', 'delete');"
                                             class="disableButtons singleImagesButton multiImagesButton" type="button"
-                                            value="Delete" />
+                                            value="Delete" data-btn-enabled-class="btn-hover-danger" />
                                     </div>
                                     <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
                                 </div>
@@ -492,7 +492,7 @@
                                             class="disableButtons singleEffectsButton" type="button" value="Rename" />
                                         <input onclick="ButtonHandler('Effects', 'delete');"
                                             class="disableButtons singleEffectsButton multiEffectsButton" type="button"
-                                            value="Delete" />
+                                            value="Delete" data-btn-enabled-class="btn-hover-danger" />
                                     </div>
                                     <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
                                 </div>
@@ -559,7 +559,7 @@
                                             class="disableButtons singleScriptsButton" type="button" value="Rename" />
                                         <input onclick="ButtonHandler('Scripts', 'delete');"
                                             class="disableButtons singleScriptsButton multiScriptsButton" type="button"
-                                            value="Delete" />
+                                            value="Delete" data-btn-enabled-class="btn-hover-danger" />
                                     </div>
                                     <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
                                 </div>
@@ -622,7 +622,7 @@
                                             type="button" value="Download" />
                                         <input onclick="ButtonHandler('Logs', 'delete');"
                                             class="disableButtons singleLogsButton multiLogsButton" type="button"
-                                            value="Delete" />
+                                            value="Delete" data-btn-enabled-class="btn-hover-danger" />
                                     </div>
                                     <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
                                 </div>
@@ -675,7 +675,7 @@
                                             class="disableButtons singleUploadsButton" type="button" value="Rename" />
                                         <input onclick="ButtonHandler('Uploads', 'delete');"
                                             class="disableButtons singleUploadsButton multiUploadsButton" type="button"
-                                            value="Delete" />
+                                            value="Delete" data-btn-enabled-class="btn-hover-danger" />
                                     </div>
                                     <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
                                 </div>
@@ -722,11 +722,11 @@
                                             type="button" value="Download" />
                                         <input onclick="ButtonHandler('Crashes', 'uploadAndDelete');"
                                             class="disableButtons noDirButton singleCrashesButton multiCrashesButton"
-                                            type="button" value="Upload and Delete"
-                                            title="Send the selected crash report(s) to the FPP developers, then delete them from this player." />
+                                            type="button" value="Upload and Delete" data-btn-enabled-class="btn-hover-danger"
+                                            title="Send the selected crash report(s), then delete them from this player." />
                                         <input onclick="ButtonHandler('Crashes', 'delete');"
                                             class="disableButtons singleCrashesButton multiCrashesButton" type="button"
-                                            value="Delete" />
+                                            value="Delete" data-btn-enabled-class="btn-hover-danger" />
                                     </div>
                                     <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
 
@@ -778,7 +778,7 @@
                                             type="button" value="Download" />
                                         <input onclick="ButtonHandler('Backups', 'delete');"
                                             class="disableButtons singleBackupsButton multiBackupsButton" type="button"
-                                            value="Delete" />
+                                            value="Delete" data-btn-enabled-class="btn-hover-danger" />
                                     </div>
                                     <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
 
@@ -838,7 +838,7 @@
                                                 type="button" value="Download" />
                                             <input onclick="ButtonHandler('Config', 'deleteConfig');"
                                                 class="disableButtons noDirButton singleConfigButton multiConfigButton"
-                                                type="button" value="Delete" />
+                                                type="button" value="Delete" data-btn-enabled-class="btn-hover-danger" />
                                         </div>
                                         <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
                                     </div>

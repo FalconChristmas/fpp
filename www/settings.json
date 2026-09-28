@@ -2843,7 +2843,7 @@
 			"level": 1,
 			"gatherStats": true,
 			"restart": 0,
-			"reboot": 0,
+			"reboot": 1,
 			"checkedValue": "1",
 			"uncheckedValue": "0",
 			"default": "0",

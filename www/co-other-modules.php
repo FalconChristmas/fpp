@@ -286,7 +286,12 @@
     <?
     $hasSPI = false;
     foreach (scandir("/dev/") as $fileName) {
-        if (preg_match("/^spidev[0-9]/", $fileName)) {
+        // GenericSPI and SPIws2801 drive /dev/spidev0.x only (SPIUtils).  On a Pi
+        // any other spidev -- fpp-spi1-nopins's spidev1.0, whose pins nothing
+        // muxes until a plugin calls configPin("spi"), or the Pi 5's spidev10.0
+        // -- would be offered and then fail to start.
+        if (preg_match("/^spidev[0-9]/", $fileName) &&
+            ($settings['Platform'] != "Raspberry Pi" || preg_match("/^spidev0\./", $fileName))) {
             echo "SPIDevices['$fileName'] = '$fileName';\n";
             $hasSPI = true;
         }
@@ -1340,7 +1345,9 @@
         "VirtualDisplay": { label: "Virtuals" },
         "SPI": { label: "SPI" },
         "PWM": { label: "PWM" },
-        "ControlSignal": { label: "Control Signal" }
+        "ControlSignal": { label: "Control Signal" },
+        // Types not in typeToCategoryMap, e.g. a plugin's output: only Active, Start and Count editable here
+        "Misc": { label: "Misc" }
     };
 
     var typeToCategoryMap = {

@@ -17,6 +17,9 @@
     <li><b>Clear</b> deselects everything. Most action buttons are disabled until a selection exists; single-item actions like Play/View enable only when one file is selected.</li>
 </ul>
 
+<h4>Deleting files</h4>
+<p>Delete buttons turn red when you hover over them. Clicking <b>Delete</b> opens a confirmation dialog that lists the selected file(s) — check the names before confirming, as deleting cannot be undone.</p>
+
 <h4>Tabs and their controls</h4>
 
 <h5>Sequences — .fseq files</h5>
@@ -28,7 +31,7 @@
     <li><b>Add To Playlist</b> — Adds the selected sequence(s) to a playlist you pick.</li>
     <li><b>Download</b> — Saves copies to your computer. Works on multiple selections.</li>
     <li><b>Rename</b> (single) — Changes the filename on the device.</li>
-    <li><b>Delete</b> — Permanently removes the selected files.</li>
+    <li><b>Delete</b> — Permanently removes the selected files after a confirmation dialog lists what will be deleted.</li>
 </ul>
 
 <h5>Audio — .mp3 / .ogg / .m4a / .flac / .aac / .wav / .m4p</h5>
@@ -88,10 +91,10 @@
 </ul>
 
 <h5>Crash Reports</h5>
-<p>Generated when <code>fppd</code> crashes, if crash reporting is enabled in <code>Settings → Privacy</code>.</p>
+<p>Generated when <code>fppd</code> crashes, if crash reporting is enabled in <code>Settings → Privacy</code>, or made on request (the name ends in <code>-manual</code>).</p>
 <ul>
     <li><b>Download</b> — Save reports to your computer for sharing.</li>
-    <li><b>Upload and Delete</b> — Sends the selected reports to the FPP developers, then removes them from this player. Use this when you want to help diagnose a crash.</li>
+    <li><b>Upload and Delete</b> — Sends the selected reports, then removes them from this player. The confirmation shows who receives them and what they contain. Use this when you want to help diagnose a crash.</li>
     <li><b>Delete</b> — Discards reports without sending.</li>
 </ul>
 

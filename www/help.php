@@ -52,6 +52,11 @@
                                         href="https://github.com/FalconChristmas/fpp/issues" target="_blank"
                                         rel="noopener noreferrer"><i class="fas fa-bug"></i> Need to log a bug? - Issue
                                         Tracker <i class="fas fa-external-link-alt external-link"></i></a></li>
+                                <li><a href="javascript:void(0);" onClick="DisplayErrorReportDialog();"><i
+                                            class="fas fa-file-archive"></i> Something not working? Build and send an
+                                        Error Report <span
+                                            class="badge bg-body text-primary-emphasis border border-primary-subtle fw-normal ms-1">F8</span></a>
+                                </li>
                             </ul>
                         </div>
                     </div>

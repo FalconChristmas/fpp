@@ -279,5 +279,11 @@ void registerPluginApi(const std::string& path, PluginApiHandler handler,
 // registered, and safe to call twice.
 void unregisterPluginApi(const std::string& path);
 
+// FPP-internal. installPluginApiRouter() hooks the registry into drogon; fppd
+// calls it once, before app().run(). listPluginApiRoutes() returns the armed
+// paths, a family registration listed as "<path>/.*".
+void installPluginApiRouter();
+std::vector<std::pair<std::string, drogon::HttpMethod>> listPluginApiRoutes();
+
 } // namespace FPPPlugins
 

@@ -49,6 +49,9 @@
       "name": "email"
     },
     {
+      "name": "errorReport"
+    },
+    {
       "name": "events"
     },
     {
@@ -1658,13 +1661,105 @@
         }
       }
     },
+    "/api/crashes/disclosures": {
+      "get": {
+        "tags": [
+          "crashes"
+        ],
+        "summary": "The crash rows of Settings > Privacy, to show before sending a crash report",
+        "description": "The same labels, \"goes to\" and sub-captions as the privacy table, with each row's text, plus the e-mail row when an address is set, so the two cannot drift.  `item` is the label as a short \"includes\" phrase and `goesTo` the recipients as one line, both derived from the table's own wording.  All text fields are HTML: insert them as markup, not text.",
+        "responses": {
+          "200": {
+            "description": "Rows in table order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "goesTo": "FPP &amp; xLights developers and AI service",
+                  "rows": [
+                    {
+                      "id": "crash",
+                      "label": "Send crash reports",
+                      "item": "crash reports",
+                      "goesTo": "FPP &amp; xLights developers,<br>AI service",
+                      "sub": "...",
+                      "depth": 0,
+                      "body": "<p>...</p>"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/crashes/report": {
+      "post": {
+        "tags": [
+          "crashes"
+        ],
+        "summary": "Build a crash report now, for the user to look at and then send",
+        "description": "fppd builds a full report (settings, configuration and logs, level 3) named like a crash report with a -manual suffix, and keeps it in the crashes folder (two manual reports at most). Nothing is sent: the user can download it from `GET /api/file/Crashes/<File>` to see what it holds, then send it with `POST /api/crashes/upload/<File>`, which needs their consent. `client` names the calling app in fppd.log. A build takes seconds on a fast player and can take a few minutes on a Pi Zero or BeagleBone. One build a minute, counted from the start of the last one. Error `Code`s: bad-request, busy, rate-limited, build-failed, unavailable.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "client": "My App"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Report built",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "File": "fpp-Pi-10.0-M1-abc-2026-09-25_10-00-00-manual.zip",
+                  "Size": 123456
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/crashes/upload/<file>": {
       "post": {
         "tags": [
           "crashes"
         ],
         "summary": "Upload one locally-kept crash report from the player itself.",
-        "description": "Deliberately does NOT delete on success.  The caller deletes, through the existing file API, only after this reports the upload actually landed -- deleting the only copy of a crash report on an unverified \"probably sent\" is how the evidence disappears.",
+        "description": "Deliberately does NOT delete on success.  The caller deletes, through the existing file API, only after this reports the upload actually landed -- deleting the only copy of a crash report on an unverified \"probably sent\" is how the evidence disappears. A -manual.zip report (built by `POST /api/crashes/report`) needs a JSON body of `{\"consent\": true}`. Before sending it, show the user FPP's disclosures for crash reports, settings, configuration and logs, and e-mail address (the crash, crash-settings, crash-config and email rows in www/privacyDisclosures.inc, shown under Settings > Privacy), and tell them this report is at the \"configuration and logs\" level and is sent even if their saved crash report setting is \"Keep locally, do not send\" or Disabled. If the player cannot reach the server (`CanRetryFromBrowser`), the browser can post the file itself to the `url` and `field` that `GET /api/crashes/uploadTarget` returns. Error `Code`: consent-required (a -manual.zip report without `{\"consent\":true}`).",
+        "x-badges": [
+          {
+            "name": "USER CONSENT REQUIRED",
+            "color": "#b25e00"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "consent": true
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "{\"Status\":\"OK\"|\"Error\", ...}"
@@ -1848,6 +1943,44 @@
                 "example": {
                   "Status": "OK",
                   "Message": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/errorReport/preview": {
+      "get": {
+        "tags": [
+          "errorReport"
+        ],
+        "summary": "Get Error Report preview data",
+        "description": "Returns the vital system information shown in Step 2 of the Error Report wizard (FPP version, platform, OS, plugins, etc.). See Settings \u203a Privacy for what reports contain.",
+        "responses": {
+          "200": {
+            "description": "Preview data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "advancedView": {
+                    "Version": "8.5",
+                    "Platform": "Raspberry Pi",
+                    "Variant": "Pi 4"
+                  },
+                  "fppInfo": {
+                    "Version": "8.5"
+                  },
+                  "plugins": [
+                    "plugin1"
+                  ],
+                  "cape": {},
+                  "version": "8.5-123-gabc",
+                  "branch": "master"
                 }
               }
             }

@@ -23,9 +23,9 @@
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
                     <h2 class="mb-0">Troubleshooting Commands</h2>
                     <button type="button" class="btn btn-outline-secondary btn-sm"
-                        onclick="DownloadZip('Logs', this, 'Generating Support Bundle…');"
-                        title="Downloads a zip containing FPP logs, configuration and the output of the troubleshooting commands on this page. Attach this to a support request. Takes around 10 seconds to build.">
-                        <i class="fas fa-file-archive me-1"></i>Download Support Bundle (Logs / Config / Troubleshooting)
+                        onclick="DisplayErrorReportDialog();"
+                        title="Builds a diagnostic report on this FPP and helps you send it, then reference it on a GitHub issue.">
+                        <i class="fas fa-bug me-1"></i>Download Logs / Open Error Report
                     </button>
                 </div>
 

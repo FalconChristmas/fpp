@@ -13,6 +13,6 @@
 <ul>
     <li><b>Kiosk Start URL</b> (text, pii) — URL shown on the Pi’s HDMI output when kiosk is active. Default = main FPP page (<code>http://localhost/</code>). Example: Big Buttons plugin at <code>http://localhost/plugin.php?_menu=status&amp;plugin=fpp-BigButtons&amp;page=bigbuttons.php&amp;nopage=1</code>.</li>
     <li><b>Kiosk Screen DPMS Timeout</b> (number, 0–600 seconds) — Seconds until the HDMI display is powered off via DPMS. Any touch wakes it.</li>
-    <li><b>Rotate Kiosk if using Raspberry Pi Touch Display 2 7-inch</b> (checkbox, Raspberry Pi) — Applies the rotation workaround for that panel.</li>
+    <li><b>Rotate Kiosk if using Raspberry Pi Touch Display 2 7-inch</b> (checkbox, Raspberry Pi) — Rotates that panel to landscape, touchscreen included. The panel is found automatically on whichever DSI connector it is plugged into. Takes effect after a reboot.</li>
     <li><b>Enable Kiosk / Disable Kiosk</b> (button) — Installing enables Chrome + supporting packages (~400–470 MB) on the HDMI port so a keyboard/mouse on the Pi’s USB can configure FPP locally. Disabling restores normal Player mode. Both show a progress dialog and set the <i>Reboot Required</i> flag when done.</li>
 </ul>

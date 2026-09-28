@@ -149,16 +149,15 @@ void SettingsConfig::Init() {
             uuid_fp = popen(getFPPDDir("/scripts/get_uuid").c_str(), "r");
             if (uuid_fp == NULL) {
                 LogWarn(VB_SETTING, "Couldn't execute get_uuid\n");
-            }
-            if (fgets(temp_uuid, sizeof(temp_uuid), uuid_fp) != NULL) {
-                int pos = strlen(temp_uuid) - 1;
-                // Strip newline
-                if ('\n' == temp_uuid[pos]) {
-                    temp_uuid[pos] = '\0';
+            } else {
+                if (fgets(temp_uuid, sizeof(temp_uuid), uuid_fp) != NULL) {
+                    int pos = strlen(temp_uuid) - 1;
+                    // Strip newline
+                    if (pos >= 0 && '\n' == temp_uuid[pos]) {
+                        temp_uuid[pos] = '\0';
+                    }
+                    settings["SystemUUID"] = std::string(temp_uuid);
                 }
-                settings["SystemUUID"] = std::string(temp_uuid);
-            }
-            if (uuid_fp != NULL) {
                 pclose(uuid_fp);
             }
         }

@@ -962,6 +962,18 @@ void RegisterShutdownHandler(const std::function<void(bool)> hook) {
     SHUTDOWN_HOOK = hook;
 }
 
+static std::function<std::string(std::string&)> MANUAL_CRASH_REPORT_HOOK;
+std::string BuildManualCrashReport(std::string& error) {
+    if (!MANUAL_CRASH_REPORT_HOOK) {
+        error = "unavailable";
+        return "";
+    }
+    return MANUAL_CRASH_REPORT_HOOK(error);
+}
+void RegisterManualCrashReportHandler(const std::function<std::string(std::string&)> hook) {
+    MANUAL_CRASH_REPORT_HOOK = hook;
+}
+
 static std::atomic<const char*> MAIN_LOOP_PHASE_STR{ "startup" };
 void SetMainLoopPhase(const char* phase) {
     MAIN_LOOP_PHASE_STR.store(phase, std::memory_order_relaxed);

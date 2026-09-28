@@ -89,7 +89,14 @@ startPluginLog install "$1"
 SAFE_URL=$(echo "$2" | sed -E 's#(https?://)[^/@[:space:]]+@#\1#')
 
 echo "Installing plugin $1"
-cd ${PLUGINDIR} && $SUDO git clone --single-branch --branch $3 $2 $1
+# Mirror the allow-lists in www/api/controllers/plugin.php: plugin names are
+# alphanumerics plus _ . -, branches add / -- no .. anywhere.
+case "$1" in ""|"."|".."|*[!A-Za-z0-9_.-]*|*..*) echo "Invalid plugin name: $1"; exit 1 ;; esac
+case "$3" in ""|-*|*..*|*[!A-Za-z0-9_./-]*) echo "Invalid branch: $3"; exit 1 ;; esac
+cd "${PLUGINDIR}" || exit 1
+# NOTE: `--branch="$3"` (= form) so a branch starting with `-` is a value, not
+# an option; `--` ends option parsing so URL/target can't inject options either.
+$SUDO git clone --single-branch --branch="$3" -- "$2" "$1"
 rc=$?
 if [ $rc -ne 0 ]; then
     echo "======================================================================================="
@@ -120,12 +127,18 @@ $SUDO git -C "${PLUGINDIR}/$1" config core.fileMode false
 
 if [ "x$4" != "x" ]
 then
-    (cd $1 && $SUDO git reset --hard $4)
+    # Pinned SHAs are hex, 4-40 chars (mirrors plugin.php). Anything else is
+    # refused rather than handed to `git reset --hard` as a possible option.
+    if printf '%s' "$4" | grep -Eq '^[0-9a-fA-F]{4,40}$'; then
+        (cd "$1" && $SUDO git reset --hard "$4")
+    else
+        echo "Invalid SHA1 pin: $4 -- skipping reset"
+    fi
 fi
 
 
 if [ "${FPPPLATFORM}" != "MacOS" ]; then
-    $SUDO chown -R fpp:fpp $1
+    $SUDO chown -R fpp:fpp "$1"
 fi
 
 normalizePluginScriptModes "$1"

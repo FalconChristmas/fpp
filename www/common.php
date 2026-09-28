@@ -590,23 +590,41 @@ function DeleteSettingFromFile($settingName, $plugin = "")
     }
 
     $fd = @fopen($filename, "c+");
+    if ($fd === false) {
+        $fd = RepairConfigFileOwnership($filename) ? @fopen($filename, "c+") : false;
+        if ($fd === false) {
+            error_log("DeleteSettingFromFile: cannot open '$filename' for writing; '$settingName' was NOT removed.");
+            return false;
+        }
+    }
     flock($fd, LOCK_EX);
-    $tmpSettings = parse_ini_file($filename);
+    // Parse and write exactly as WriteSettingToFile() does: the stock
+    // parse_ini_file() strips embedded '"' and corrupts JSON values.
+    $tmpSettings = custom_parse_ini_file($filename);
     if (isset($tmpSettings[$settingName])) {
         unset($tmpSettings[$settingName]);
         $settingsStr = "";
         foreach ($tmpSettings as $key => $value) {
-            if (json_validate(($value))) {
-                $value = preg_replace('/\s+/', '', $value);
+            if (json_object_validate(($value))) {
+                $value = remove_outer_quotes($value);
                 $settingsStr .= $key . " = " . $value . "\n";
             } else {
                 $settingsStr .= $key . " = \"" . $value . "\"\n";
             }
         }
-        file_put_contents($filename, $settingsStr);
+        if (@file_put_contents($filename, $settingsStr) === false) {
+            error_log("DeleteSettingFromFile: write to '$filename' failed; '$settingName' was NOT removed.");
+            flock($fd, LOCK_UN);
+            fclose($fd);
+            return false;
+        }
+    }
+    if ($plugin == "") {
+        unset($settings[$settingName]);
     }
     flock($fd, LOCK_UN);
     fclose($fd);
+    return true;
 }
 
 function IfSettingEqualPrint($setting, $value, $print, $pluginName = "", $defaultValue = "")
@@ -768,7 +786,10 @@ function LoadPluginSettings($pluginName)
         $fd = @fopen($pluginConfigFile, "r");
         if ($fd) {
             flock($fd, LOCK_SH);
-            $pluginSettings = parse_ini_file($pluginConfigFile);
+            // Not parse_ini_file(): it strips embedded '"' from the JSON values
+            // WriteSettingToFile() stores unquoted, and fails the whole file on
+            // a syntax error.
+            $pluginSettings = custom_parse_ini_file($pluginConfigFile);
             flock($fd, LOCK_UN);
             fclose($fd);
         }

@@ -46,6 +46,10 @@ dispatch_post('/channel/output/:file', 'channel_save_output');
 
 dispatch_get('/crashes/uploadTarget', 'GetCrashUploadTarget'); // keep above crashes/upload/:file
 dispatch_post('/crashes/upload/:file', 'PostCrashUpload');
+dispatch_post('/crashes/report', 'PostCrashReport');
+dispatch_get('/crashes/disclosures', 'GetCrashDisclosures');
+
+dispatch_get('/errorReport/preview', 'GetErrorReportPreview');
 
 dispatch_get('/configfile', 'GetConfigFileList');
 dispatch_get('/configfile/**', 'DownloadConfigFile');
@@ -280,7 +284,7 @@ dispatch_get('/sequence/:SequenceName', 'GetSequence');
 dispatch_get('/sequence/:SequenceName/meta', 'GetSequenceMetaData');
 dispatch_get('/sequence/:SequenceName/start/:startSecond', 'GetSequenceStart');
 dispatch_post('/sequence/:SequenceName', 'PostSequence');
-dispatch_delete('/sequence/:SequenceName', 'DeleteSequence');
+dispatch_delete('/sequence/:SequenceName', 'DeleteSequences');
 
 dispatch_post('/schedule/reload', 'ReloadSchedule');
 dispatch_get('/schedule', 'GetSchedule');

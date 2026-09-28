@@ -1,10 +1,4 @@
 #!/usr/bin/bash
-SETTINGS_FILE="/home/fpp/media/settings"
-XORG_FILE="/usr/share/X11/xorg.conf.d/40-libinput.conf"
-IDENTIFIER='Identifier "libinput touchscreen catchall"'
-OPTION_KEY='TransformationMatrix'
-OPTION_LINE='        Option "TransformationMatrix" "0 1 0 -1 0 1 0 0 1"'
-
 BINDIR=$(cd $(dirname $0) && pwd)
 . ${BINDIR}/common
 # The page the kiosk shows comes from the KioskUrl setting.  fppinit's
@@ -74,38 +68,99 @@ setxkbmap -option terminate:ctrl_alt_bksp
 sed -i 's/"exited_cleanly":false/"exited_cleanly":true/' ~/.config/chromium/'Local State'
 sed -i 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"[^"]\+"/"exit_type":"Normal"/' ~/.config/chromium/Default/Preferences
 
-# Rotate screen only if rotatescreen = "1"
-# Guard: Check to see if rotate screen disabled
-if ! grep -qE '^[[:space:]]*KioskRotate[[:space:]]*=[[:space:]]*"1"' "$SETTINGS_FILE"; then
-    fppdLogLine "Kiosk" "Rotate screen disabled – leaving display normal"
+# --- Raspberry Pi Touch Display 2 rotation ---
+# The touch transform is applied live with xinput rather than written to an
+# xorg.conf.d file: this script runs inside an X server that has already read
+# its config, so a file written here would only take effect on the NEXT start
+# and the first boot after enabling Rotate would leave touch unrotated.
+ROTATE_MODE="720x1280"
+CTM="Coordinate Transformation Matrix"
+HAVE_XINPUT=0
+if command -v xinput > /dev/null 2>&1; then
+    HAVE_XINPUT=1
+fi
+
+# Older versions put the matrix into the shared 40-libinput.conf, where it
+# applies to every touchscreen whether Rotate is on or not.  Remove it once
+# xinput can take over -- but not before: a kiosk installed before xinput was
+# a dependency relies on that line, and removing it without xinput present
+# would silently leave its touch unrotated.
+LEGACY_XORG_FILE="/usr/share/X11/xorg.conf.d/40-libinput.conf"
+LEGACY_IDENTIFIER='Identifier "libinput touchscreen catchall"'
+LEGACY_OPTION_KEY='TransformationMatrix'
+LEGACY_REMOVED=0
+LEGACY_KEPT=0
+if [ -f "$LEGACY_XORG_FILE" ] && sed -n "/$LEGACY_IDENTIFIER/,/EndSection/{
+        /Option[[:space:]]\+\"$LEGACY_OPTION_KEY\"/p
+    }" "$LEGACY_XORG_FILE" | grep -q .; then
+    if [ "$HAVE_XINPUT" == "1" ]; then
+        fppdLogLine "Kiosk" "Removing legacy TransformationMatrix from $LEGACY_XORG_FILE"
+        ESC_LEGACY_IDENTIFIER=$(printf '%s\n' "$LEGACY_IDENTIFIER" | sed 's/[.[\*^$(){}+?|]/\\&/g')
+        sudo sed -i "/$ESC_LEGACY_IDENTIFIER/,/EndSection/{/Option[[:space:]]\+\"$LEGACY_OPTION_KEY\"/d}" "$LEGACY_XORG_FILE"
+        LEGACY_REMOVED=1
+    else
+        fppdLogLine "Kiosk" "WARNING: xinput not installed - leaving legacy TransformationMatrix in $LEGACY_XORG_FILE"
+        LEGACY_KEPT=1
+    fi
+fi
+
+# The touchscreen's XInput device, found by udev's touchscreen classification
+# rather than any one panel's device name.
+find_touchscreen_xinput_id() {
+    local ev id node
+    for ev in /dev/input/event*; do
+        udevadm info -q property -n "$ev" 2>/dev/null | grep -q '^ID_INPUT_TOUCHSCREEN=1' || continue
+        for id in $(xinput list --id-only 2>/dev/null); do
+            node=$(xinput list-props "$id" 2>/dev/null | sed -n 's/.*Device Node.*"\(.*\)"/\1/p')
+            [ "$node" == "$ev" ] || continue
+            xinput list-props "$id" 2>/dev/null | grep -q "$CTM" && { echo "$id"; return 0; }
+        done
+    done
+    return 1
+}
+
+KIOSK_ROTATE=$(getSetting KioskRotate)
+if [ "x$KIOSK_ROTATE" != "x1" ]; then
+    # Each kiosk start is a fresh X server, so there is normally nothing to
+    # undo -- and resetting the matrix unconditionally would clobber one the
+    # user configured for some other panel.  The exception is the legacy line
+    # removed above: this X server already loaded it at startup.
+    if [ "$LEGACY_REMOVED" == "1" ]; then
+        TOUCH_ID=$(find_touchscreen_xinput_id)
+        if [ -n "$TOUCH_ID" ]; then
+            fppdLogLine "Kiosk" "Resetting touch rotation left by the legacy TransformationMatrix"
+            xinput set-prop "$TOUCH_ID" "$CTM" 1 0 0 0 1 0 0 0 1
+        fi
+    fi
     $CHROMIUM_BIN --disable-infobars --kiosk "$KIOSK_URL"
     exit 0
 fi
 
-fppdLogLine "Kiosk" "Rotate screen is enabled"
-
-# Guard: checks to see if TransformationMatrix already exists in the file, if not there then add it
-if sed -n "/$IDENTIFIER/,/EndSection/ {
-        /Option[[:space:]]\+\"$OPTION_KEY\"/p
-    }" "$XORG_FILE" | grep -q .; then
-    fppdLogLine "Kiosk" "TransformationMatrix already present – no changes to file made"
-    xrandr --output DSI-1 --mode 720x1280 --rate 60 --rotate right
+# The panel is whichever connected DSI output offers the portrait panel mode;
+# requiring the mode also keeps the touch transform off any other display.
+ROTATE_OUTPUT=$(xrandr 2>/dev/null | awk -v mode="$ROTATE_MODE" '
+        $0 !~ /^[[:space:]]/ { out = ($1 ~ /^DSI/ && $2 == "connected") ? $1 : ""; next }
+        out != "" && $1 == mode { print out; exit }
+    ')
+if [ -z "$ROTATE_OUTPUT" ]; then
+    fppdLogLine "Kiosk" "WARNING: no connected DSI output reports mode $ROTATE_MODE - skipping rotation"
     $CHROMIUM_BIN --disable-infobars --kiosk "$KIOSK_URL"
     exit 0
+fi
+
+if [ "$LEGACY_KEPT" == "1" ]; then
+    fppdLogLine "Kiosk" "Rotating $ROTATE_OUTPUT; touch rotation comes from the legacy TransformationMatrix"
+elif [ "$HAVE_XINPUT" != "1" ]; then
+    fppdLogLine "Kiosk" "WARNING: xinput not installed - rotating $ROTATE_OUTPUT but not its touchscreen"
 else
-
-fppdLogLine "Kiosk" "Begin of touchscreen file edit"
-#sudo sed -i '/Identifier "libinput touchscreen catchall"/,/EndSection/{
-#    /EndSection/i\        Option "TransformationMatrix" "0 1 0 -1 0 1 0 0 1"
-#}' /usr/share/X11/xorg.conf.d/40-libinput.conf
-
-ESC_IDENTIFIER=$(printf '%s\n' "$IDENTIFIER" | sed 's/[.[\*^$(){}+?|]/\\&/g')
-sudo sed -i "/$ESC_IDENTIFIER/,/EndSection/{/EndSection/i\\
-$OPTION_LINE
-}" "$XORG_FILE"
+    TOUCH_ID=$(find_touchscreen_xinput_id)
+    if [ -z "$TOUCH_ID" ]; then
+        fppdLogLine "Kiosk" "WARNING: no touchscreen input device found - rotating $ROTATE_OUTPUT only"
+    else
+        fppdLogLine "Kiosk" "Rotating $ROTATE_OUTPUT and touch device $TOUCH_ID"
+        xinput set-prop "$TOUCH_ID" "$CTM" 0 1 0 -1 0 1 0 0 1
+    fi
 fi
 
-# Rotate display then launch Chromium
-xrandr --output DSI-1 --mode 720x1280 --rate 60 --rotate right
-fppdLogLine "Kiosk" "Last Launch Chromium Section after ediing touchscreen file"
+xrandr --output "$ROTATE_OUTPUT" --mode "$ROTATE_MODE" --rate 60 --rotate right
 $CHROMIUM_BIN --disable-infobars --kiosk "$KIOSK_URL"

@@ -186,6 +186,10 @@ void RestartFPPDResumingPlaylist();
 bool RestartShouldResumePlaylist();
 void RegisterShutdownHandler(const std::function<void(bool)> hook);
 
+// Builds a -manual crash report; returns its name in crashes/, or "" and sets error
+std::string BuildManualCrashReport(std::string& error);
+void RegisterManualCrashReportHandler(const std::function<std::string(std::string&)> hook);
+
 // Breadcrumb for the main-loop stall watchdog (issue #2727): the last call the
 // fppd main loop entered.  Pass a string literal (or any string with static
 // storage) -- the watchdog thread reads the pointer while the main loop is

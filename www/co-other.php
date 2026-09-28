@@ -737,6 +737,7 @@
 
         var startDisabled = "";
         var countDisabled = "";
+        var keepOriginal = false;
 
         let output_module = output_modules.find(obj => obj.typeName == type);
 
@@ -751,7 +752,7 @@
             countDisabled = " disabled='disabled'";
         }
 
-        var typeFriendlyName = type;
+        var typeFriendlyName = EscapeHtml(type);
         if (output_module != undefined) {
             typeFriendlyName = output_module.typeFriendlyName;
             if (output_module._fixedStart) {
@@ -778,7 +779,7 @@
 
         newRow += "></td>" +
             "<td class='type' style='vertical-align:top'>" + typeFriendlyName +
-            "<input class='type' type='hidden' name='type' value='" + type + "'></td>" +
+            "<input class='type' type='hidden' name='type'></td>" +
             "<td style='vertical-align:top'><input class='start' type=number min=1 max=" + FPPD_MAX_CHANNELS +
             " value='" + output.startChannel + "'" + startDisabled + "></td>" +
             "<td style='vertical-align:top'><input class='count' type=number min=1 max=" + maxChannel +
@@ -806,14 +807,22 @@
             newRow += USBRelayConfig(output);
         } else if (output_module != undefined) {
             newRow += output_module.PopulateHTMLRow(output);
+        } else {
+            keepOriginal = true;
+            newRow += "<span class='text-body-secondary'>Configured outside this page</span>";
         }
 
         newRow += "</td></tr>";
 
         $('#' + tableId + ' > tbody').append(newRow);
+        var $newRow = $('#' + tableId + ' > tbody > tr').last();
+        $newRow.find('input.type').val(type);
+
+        if (keepOriginal)
+            $newRow.data('original', output);
 
         if (output_module != undefined)
-            output_module.RowAdded($('#' + tableId + ' > tbody > tr').last());
+            output_module.RowAdded($newRow);
     }
 
     /////////////////////////////////////////////////////////////////////////////
@@ -1006,6 +1015,9 @@
                         return;
                     }
                     maxChannels = output_module.maxChannels;
+                } else if ($this.data('original')) {
+                    // No editor for this type: keep the rest of its config
+                    config = Object.assign({}, $this.data('original'), config);
                 }
 
                 outputs.push(config);
