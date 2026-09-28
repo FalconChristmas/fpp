@@ -18,7 +18,7 @@
 </ul>
 
 <h4>Deleting files</h4>
-<p>Delete buttons are shown in red. Clicking <b>Delete</b> opens a confirmation dialog that lists the selected file(s) — check the names before confirming, as deleting cannot be undone.</p>
+<p>Delete buttons turn red when you hover over them. Clicking <b>Delete</b> opens a confirmation dialog that lists the selected file(s) — check the names before confirming, as deleting cannot be undone.</p>
 
 <h4>Tabs and their controls</h4>
 

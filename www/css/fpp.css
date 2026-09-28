@@ -1753,6 +1753,18 @@ body.is-loading.show-loading-skeleton #schedulerInfo .labelValue:before {
 	color: var(--bs-danger);
 }
 
+/* Destructive actions (e.g. Delete) look like any other button until
+   hovered, so the warning shows without the button standing out on the page.
+   Applied via data-btn-enabled-class so disabled buttons never pick it up;
+   hover-capable devices only, so a tap doesn't leave the button stuck red. */
+@media (hover: hover) {
+	.buttons.btn-hover-danger:hover {
+		color: var(--bs-white);
+		background-color: var(--bs-danger);
+		border-color: var(--bs-danger);
+	}
+}
+
 .playlistEditorBackButton .fa-grip-horizontal {
 	color: var(--bs-danger);
 }
