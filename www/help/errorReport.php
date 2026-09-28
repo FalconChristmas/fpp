@@ -1,6 +1,6 @@
 <h3>Error Report (F8)</h3>
 <p>
-    Press <b>F8</b> on any page (or use the <b>Error Report</b> button on the Get Help or Troubleshooting pages)
+    Press <b>F8</b> (<b>Fn+F8</b> on a Mac) on any page (or use the <b>Error Report</b> button on the Get Help or Troubleshooting pages)
     when something isn’t working and you’d like the developers to take a look.
     The tool builds a diagnostic report <b>on your FPP</b> via <code>POST /api/crashes/report</code>
     (<code>{"client":"F8 Error Report"}</code>), then helps you send it. Nothing is sent until you review and confirm it.
@@ -23,6 +23,8 @@
 </ol>
 <h4>Keys</h4>
 <ul>
-    <li><b>F8</b> — open/close Error Report. Ignored when typing in an input/textarea/select.</li>
+    <li><b>F8</b> — open/close Error Report. On a Mac hold <b>Fn</b> and press <b>F8</b>: F8 on its own is the Play/Pause media key and never reaches the browser (unless “Use F1, F2, etc. keys as standard function keys” is turned on in macOS Keyboard settings). Ignored when typing in an input/textarea/select.</li>
     <li><b>F1</b> — help (shows this page on top of the wizard). <b>ESC</b> — close modal.</li>
 </ul>
+<h4>Closing part-way through</h4>
+<p>Before a report has been built, closing the window (the X, <b>Close</b>, <b>ESC</b>, <b>F8</b> or a click outside it) just closes it. Once a report is being built, or has been built but not sent, closing asks first: <b>Delete Report</b> deletes that report from the player and closes the wizard (a build still running is deleted as soon as it finishes); <b>Keep Working</b> returns you to where you were. While a report is being sent the window stays open until the send finishes. After it has been sent, the report is already gone from the player and the window closes without asking.</p>

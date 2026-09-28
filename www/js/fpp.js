@@ -360,6 +360,8 @@ function common_PageLoad_DOM_Setup () {
 function common_PageLoad_PostDOMLoad_ActionsSetup () {
 	$(document).on('click', '.navbar-toggler', ToggleMenu);
 	$(document).on('keydown', handleKeypress);
+	// Show the Error Report shortcut as this keyboard needs it (Fn+F8 on a Mac)
+	$('.errorReportKeyLabel').text(ErrorReportKeyLabel());
 
 	// Handling touch
 	if (hasTouch == true) {
@@ -1135,12 +1137,24 @@ function DisplayConfirmationDialog (id, title, body, yesFunction) {
 	};
 })(jQuery);
 
+// On a Mac the top row sends media keys by default -- F8 alone is Play/Pause
+// and never reaches the page -- so the Error Report shortcut there is Fn+F8.
+function IsMacPlatform () {
+	var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+	return /mac/i.test(p);
+}
+function ErrorReportKeyLabel () {
+	return IsMacPlatform() ? 'Fn+F8' : 'F8';
+}
+
 function handleKeypress (e) {
 	if (e.keyCode == 112) {
 		e.preventDefault();
 		DisplayHelp();
-	} else if (e.keyCode == 119) {
-		// F8 — Error Report bundle (toggle)
+	} else if (e.key === 'F8' || e.keyCode == 119) {
+		// F8 (Fn+F8 on a Mac) — Error Report bundle (toggle).  Holding the key
+		// down would otherwise open and close it over and over.
+		if (e.repeat) return;
 		var t = e.target;
 		// Check typing in input/textarea/select or any contenteditable ancestor
 		var isTyping = false;
@@ -8389,7 +8403,7 @@ function DisplayHelp () {
 			$('#helpDialogText').load(tmpHelpPage);
 			lastHelpPage = tmpHelpPage;
 			if (!isErrorReportHelp) helpPage = tmpHelpPage;
-			if (isErrorReportHelp) RaiseHelpAboveErrorReport();
+			if (isErrorReportHelp) RaiseAboveErrorReport('helpDialog');
 			return;
 		}
 		CloseModalDialog('helpDialog');
@@ -8414,16 +8428,16 @@ function DisplayHelp () {
 	lastHelpPage = tmpHelpPage;
 	if (!isErrorReportHelp) helpPage = tmpHelpPage;
 	helpOpen = 1;
-	if (isErrorReportHelp) RaiseHelpAboveErrorReport();
+	if (isErrorReportHelp) RaiseAboveErrorReport('helpDialog');
 }
 
-// Help opened on top of the Error Report wizard: put it, and its backdrop,
-// above the wizard's
-function RaiseHelpAboveErrorReport () {
+// A dialog opened on top of the Error Report wizard (Help, the cancel
+// confirmation): put it, and its backdrop, above the wizard's
+function RaiseAboveErrorReport (id) {
 	setTimeout(function () {
-		var helpEl = document.getElementById('helpDialog');
-		if (helpEl) {
-			helpEl.style.zIndex = '1060';
+		var el = document.getElementById(id);
+		if (el) {
+			el.style.zIndex = '1060';
 			var backdrops = document.querySelectorAll('.modal-backdrop');
 			if (backdrops.length) backdrops[backdrops.length - 1].style.zIndex = '1059';
 		}
@@ -8447,10 +8461,14 @@ var erSending = false;
 // null until the fetch settles: that click is the user's consent, so it stays
 // disabled until they have had the disclosures in front of them.
 var erDisclosures = null;
-// Bumped on every open, so a build or send still running from a wizard that
-// was closed does not write into the next one
+// Bumped on every open and close, so a build or send still running from a
+// wizard that was closed does not write into the next one
 var erSession = 0;
+// The session whose build was cancelled while still running: its report is
+// deleted as soon as the build hands back the filename
+var erDiscardSession = -1;
 function ErrorReportClosed () {
+	erSession++;
 	errorReportOpen = false;
 	erCurrentStep = 1;
 	erMaxStep = 1;
@@ -8460,6 +8478,70 @@ function ErrorReportClosed () {
 	erBuilding = false;
 	erSending = false;
 	erDisclosures = null;
+}
+// Once a report exists on the player (or is being built) and has not been
+// sent, closing the wizard means throwing that report away, so ask first.
+function ErNeedsCancelConfirm () {
+	return erBuilding || erSending || (!!erReportFile && !erReportSent);
+}
+function ErDeleteReport (file) {
+	$.ajax({
+		url: 'api/file/Crashes/' + encodeURIComponent(file).replaceAll('%2F', '/'),
+		type: 'DELETE'
+	});
+}
+function ErConfirmCancel () {
+	// A send is quick and must not have its file deleted underneath it; the
+	// window can close once it finishes
+	if (erSending) {
+		ErScrollTo(document.getElementById('errorReportSendStatus'));
+		return;
+	}
+	if ($('#errorReportCancelConfirm').hasClass('show')) return;
+	var discard = false;
+	DoModalDialog({
+		id: 'errorReportCancelConfirm',
+		title: 'Cancel Error Report?',
+		class: 'modal-m',
+		backdrop: true,
+		keyboard: true,
+		body: erBuilding
+			? '<p class="mb-0">A report is still being built on this player. Cancel it? It has not been sent, and it will be deleted from the player as soon as the build finishes.</p>'
+			: '<p>This report has not been sent. Cancelling deletes it from the player:</p>' +
+				'<p class="mb-0 fw-semibold text-break">' + EscapeHtml(erReportFile) + '</p>',
+		buttons: {
+			'Delete Report': {
+				class: 'btn-danger',
+				click: function () {
+					discard = true;
+					CloseModalDialog('errorReportCancelConfirm');
+				}
+			},
+			'Keep Working': {
+				class: 'btn-outline-secondary',
+				click: function () {
+					CloseModalDialog('errorReportCancelConfirm');
+				}
+			}
+		}
+	});
+	RaiseAboveErrorReport('errorReportCancelConfirm');
+	// Close the wizard only once the confirmation has finished closing, so the
+	// two modals are not animating out together
+	$('#errorReportCancelConfirm')
+		.off('hidden.bs.modal.erCancel')
+		.one('hidden.bs.modal.erCancel', function () {
+			if (!discard || !errorReportOpen) return;
+			if (erBuilding) {
+				erDiscardSession = erSession;
+			} else if (erReportFile && !erReportSent) {
+				ErDeleteReport(erReportFile);
+			}
+			// Nothing left to protect, so the close goes straight through
+			erBuilding = false;
+			erReportFile = null;
+			CloseModalDialog('errorReportDialog');
+		});
 }
 function ErSizeLabel (bytes) {
 	var kb = Math.round(bytes / 1024);
@@ -8685,7 +8767,6 @@ function DisplayErrorReportDialog () {
 		class: 'modal-dialog-scrollable',
 		backdrop: true,
 		keyboard: true,
-		close: ErrorReportClosed,
 		buttons: {
 			Next: {
 				id: 'errorReportNextBtn',
@@ -8708,6 +8789,17 @@ function DisplayErrorReportDialog () {
 	});
 
 	var $dlg = $('#errorReportDialog');
+	// Every way out -- X, Close, a click outside, ESC, F8 again -- comes
+	// through here.  Before a report exists it just closes; after, it asks.
+	$dlg.off('.erGuard').on('hide.bs.modal.erGuard', function (e) {
+		if (e.target !== this) return;
+		if (ErNeedsCancelConfirm()) {
+			e.preventDefault();
+			ErConfirmCancel();
+			return;
+		}
+		ErrorReportClosed();
+	});
 	$dlg.off('click.erCopy').on('click.erCopy', '.erCopyFileBtn', function () {
 		var $icon = $(this).find('i');
 		var done = function () {
@@ -8791,7 +8883,13 @@ function ErBuildCrashReport () {
 		timeout: 280000
 	})
 		.done(function (data) {
-			if (session !== erSession) return;
+			if (session !== erSession) {
+				// Cancelled while it was building: nobody wants this report
+				if (session === erDiscardSession && data && data.File) {
+					ErDeleteReport(data.File);
+				}
+				return;
+			}
 			erBuilding = false;
 			if (!data || data.Status !== 'OK' || !data.File) {
 				var code = data && data.Code ? data.Code : '';

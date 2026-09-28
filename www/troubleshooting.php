@@ -24,8 +24,9 @@
                     <h2 class="mb-0">Troubleshooting Commands</h2>
                     <button type="button" class="btn btn-outline-secondary btn-sm"
                         onclick="DisplayErrorReportDialog();"
-                        title="Builds a diagnostic report on this FPP and helps you send it, then reference it on a GitHub issue.">
+                        title="Builds a diagnostic report on this FPP and helps you send it, then reference it on a GitHub issue. Shortcut: F8 (Fn+F8 on a Mac).">
                         <i class="fas fa-bug me-1"></i>Download Logs / Open Error Report
+                        <span class="badge bg-body text-primary-emphasis border border-primary-subtle fw-normal ms-1 errorReportKeyLabel">F8</span>
                     </button>
                 </div>
 
