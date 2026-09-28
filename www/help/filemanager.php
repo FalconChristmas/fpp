@@ -17,6 +17,9 @@
     <li><b>Clear</b> deselects everything. Most action buttons are disabled until a selection exists; single-item actions like Play/View enable only when one file is selected.</li>
 </ul>
 
+<h4>Deleting files</h4>
+<p>Delete buttons are shown in red. Clicking <b>Delete</b> opens a confirmation dialog that lists the selected file(s) — check the names before confirming, as deleting cannot be undone.</p>
+
 <h4>Tabs and their controls</h4>
 
 <h5>Sequences — .fseq files</h5>
@@ -28,7 +31,7 @@
     <li><b>Add To Playlist</b> — Adds the selected sequence(s) to a playlist you pick.</li>
     <li><b>Download</b> — Saves copies to your computer. Works on multiple selections.</li>
     <li><b>Rename</b> (single) — Changes the filename on the device.</li>
-    <li><b>Delete</b> — Permanently removes the selected files.</li>
+    <li><b>Delete</b> — Permanently removes the selected files after a confirmation dialog lists what will be deleted.</li>
 </ul>
 
 <h5>Audio — .mp3 / .ogg / .m4a / .flac / .aac / .wav / .m4p</h5>
