@@ -1,6 +1,6 @@
 #!/bin/bash
 #####################################
-# Upgrade 146: Reinstall mp3gain if an OS upgrade left it broken
+# Upgrade 147: Reinstall mp3gain if an OS upgrade left it broken
 #
 # In-place OS upgrades from FPP 8/9 (pre-trixie) to FPP 10 (Debian 13
 # trixie) can leave a stale mp3gain binary on disk: trixie moved libmpg123
@@ -22,7 +22,7 @@
 BINDIR=$(cd $(dirname $0) && pwd)
 . ${BINDIR}/../../scripts/common
 
-echo "FPP - Upgrade 146: Reinstall mp3gain if broken by the OS upgrade"
+echo "FPP - Upgrade 147: Reinstall mp3gain if broken by the OS upgrade"
 
 if [ "${FPPPLATFORM}" = "MacOS" ]; then
     echo "  Skipping on MacOS"
