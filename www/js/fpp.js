@@ -8517,9 +8517,12 @@ function DisplayHelp () {
 	var tmpHelpPage = helpPage;
 	var tabs = $('#settingsManagerTabs li .active');
 	var isErrorReportHelp = typeof errorReportOpen !== 'undefined' && errorReportOpen;
+	var isKeyBindingsHelp = $('#keyBindingsDlg').is(':visible');
 
 	if (isErrorReportHelp) {
 		tmpHelpPage = 'help/errorReport.php';
+	} else if (isKeyBindingsHelp) {
+		tmpHelpPage = 'help/keybindings.php';
 	} else if (helpPage == 'help/settings.php' && tabs.length == 1) {
 		var id = tabs.first().attr('id');
 		const re = /settings-(.*)-tab/;
@@ -8537,14 +8540,15 @@ function DisplayHelp () {
 		if (tmpHelpPage != lastHelpPage) {
 			$('#helpDialogText').load(tmpHelpPage);
 			lastHelpPage = tmpHelpPage;
-			if (!isErrorReportHelp) helpPage = tmpHelpPage;
+			if (!isErrorReportHelp && !isKeyBindingsHelp) helpPage = tmpHelpPage;
 			// Bring help dialog to front when invoked from Error Report
-			if (isErrorReportHelp) {
+			// or the Key Bindings dialog
+			if (isErrorReportHelp || isKeyBindingsHelp) {
 				setTimeout(function () {
 					var helpEl = document.getElementById('helpDialog');
 					if (helpEl) {
 						helpEl.style.zIndex = '1060';
-						// Ensure backdrop is also above Error Report backdrop
+						// Ensure backdrop is also above the underlying dialog backdrop
 						var backdrops = document.querySelectorAll('.modal-backdrop');
 						if (backdrops.length) backdrops[backdrops.length - 1].style.zIndex = '1059';
 					}
@@ -8572,10 +8576,10 @@ function DisplayHelp () {
 
 	$('#helpDialogText').load(tmpHelpPage);
 	lastHelpPage = tmpHelpPage;
-	if (!isErrorReportHelp) helpPage = tmpHelpPage;
+	if (!isErrorReportHelp && !isKeyBindingsHelp) helpPage = tmpHelpPage;
 	helpOpen = 1;
-	// When Error Report is open, ensure Help appears above it
-	if (isErrorReportHelp) {
+	// When Error Report or the Key Bindings dialog is open, ensure Help appears above it
+	if (isErrorReportHelp || isKeyBindingsHelp) {
 		setTimeout(function () {
 			var helpEl = document.getElementById('helpDialog');
 			if (helpEl) {

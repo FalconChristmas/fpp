@@ -42,3 +42,5 @@
     <li><b>Test (play button)</b> — Runs that row's action immediately without pressing the keys.</li>
     <li><b>Save shortcuts</b> (button, in the dialog) — Validates for empty keys, reserved keys and duplicates, then saves. Shortcuts apply on every page once saved; there is nothing to restart.</li>
 </ul>
+
+<p><b>More detail:</b> For the full dialog reference, see <a href='javascript:void(0)' onClick="helpPage='help/keybindings.php'; DisplayHelp();">Help &rarr; Keyboard Shortcuts</a>.</p>
