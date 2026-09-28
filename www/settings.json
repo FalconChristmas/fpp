@@ -314,7 +314,8 @@
 			"settings": [
 				"KioskUrl",
 				"KioskTimeout",
-				"KioskRotate"
+				"KioskRotate",
+				"KioskRotateOutput"
 			]
 		},
 		"system": {
@@ -2848,6 +2849,24 @@
 			"uncheckedValue": "0",
 			"default": "0",
 			"type": "checkbox",
+			"platforms": [
+				"Raspberry Pi"
+			]
+		},
+		"KioskRotateOutput": {
+			"name": "KioskRotateOutput",
+			"description": "Touch Display 2 Connector",
+			"tip": "Which DSI connector the Raspberry Pi Touch Display 2 is plugged into. Only used when Rotate Kiosk is enabled above.",
+			"level": 1,
+			"gatherStats": true,
+			"restart": 0,
+			"reboot": 0,
+			"default": "DSI-1",
+			"type": "select",
+			"options": {
+				"DSI-1": "DSI-1",
+				"DSI-2": "DSI-2"
+			},
 			"platforms": [
 				"Raspberry Pi"
 			]
