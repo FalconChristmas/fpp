@@ -14,29 +14,36 @@
 // its own translation unit so that fpphttp.h avoids pulling in the heavy
 // <drogon/HttpAppFramework.h> header everywhere.
 //
+// Plugin routes are not drogon routes
+// -----------------------------------
+// Drogon's route table is frozen once app().run() starts: registering a handler
+// after that asserts (and, in a build without asserts, mutates the router's maps
+// unlocked under the I/O threads and never compiles regex routes). Plugins are
+// loaded at runtime -- an install or reinstall does unload + load without
+// restarting fppd -- so a plugin path that was not registered before run() can
+// never become a drogon route.
+//
+// So no plugin path is ever handed to drogon. installPluginApiRouter() installs
+// one drogon default handler before run(); drogon calls it for any request that
+// none of FPP's own routes matched, and it looks the path up in the registry
+// below on every request. Registering, re-arming and disarming a plugin path are
+// then just registry edits, safe at any time.
+//
 // Safe plugin unregistration
 // --------------------------
-// Drogon has no route removal API. To allow plugins to be unloaded (and
-// replaced) without leaving dangling function pointers in the router, the
-// drogon route for a path is registered once, ever, and belongs to FPP. What it
-// dispatches to is a slot owned by this file:
-//
-//   shared_ptr<RouteSlot> slot  <- shared by the drogon lambda and the registry
-//
-// The lambda re-reads the slot on every invocation. While a plugin is live the
-// slot names its handler and the call is dispatched. Once disarmed the path
-// answers 410 Gone instead of crashing, and arming the slot again -- from a
-// reinstalled or newly built copy of the plugin -- puts the same route back to
-// work. Nothing about that depends on the plugin's .so still being the one that
-// registered it.
+// A registered path owns a slot. While a plugin is live the slot names its
+// handler and the call is dispatched. Once disarmed the path answers 410 Gone
+// instead of crashing, and arming the slot again -- from a reinstalled or newly
+// built copy of the plugin -- puts the same path back to work. Nothing about
+// that depends on the plugin's .so still being the one that registered it.
 //
 // The handler is the plugin's own std::function: its code and captured state
 // live in the plugin's .so, so disarming must *destroy* it, not merely forget
 // it. See disarmSlots() for the ordering that makes that safe.
 //
 // The registry maps path string -> slot, so register and unregister calls, from
-// any generation of a plugin, find the same slot. Slots are never erased: the
-// drogon route that captured one outlives every plugin.
+// any generation of a plugin, find the same slot. Slots are never erased, so a
+// path that was ever registered keeps answering 410 rather than 404.
 
 // HttpAppFramework.h must come before fpphttp.h: fpphttp.h undefines LOG_DEBUG
 // (to avoid a conflict with FPP's log.h), but drogon's orm/Field.h uses LOG_DEBUG
@@ -49,6 +56,8 @@
 #include <mutex>
 #include <shared_mutex>
 #include <string>
+#include <utility>
+#include <vector>
 
 // ---------------------------------------------------------------------------
 // Route registry
@@ -56,20 +65,21 @@
 
 namespace {
 
-// What one path dispatches to. Owned by this file and never destroyed, because
-// the drogon route that captured it cannot be unregistered.
+// What one path dispatches to.
 struct RouteSlot {
-    // Drogon-native API (FPPPlugins::registerPluginApi). Guarded by
-    // s_registryMutex; held by shared_ptr so a dispatch can keep it alive for
-    // the length of the call without blocking the registry.
+    // Guarded by s_registryMutex; held by shared_ptr so a dispatch can keep it
+    // alive for the length of the call without blocking the registry.
     std::shared_ptr<FPPPlugins::PluginApiHandler> handler;
-    // Whether the one-and-only drogon route for this path has been created.
-    bool routeRegistered = false;
+    std::vector<drogon::HttpMethod> methods;
+    std::string path; // as registered, for listing; lookups use the normalized key
 };
 using SlotPtr = std::shared_ptr<RouteSlot>;
 
 std::mutex s_registryMutex;
-std::map<std::string, SlotPtr> s_registry;
+// Keyed by normalizedPath(). s_exact holds every registered path; s_family holds
+// the family=true ones again, matching any subpath "<path>/...".
+std::map<std::string, SlotPtr> s_exact;
+std::map<std::string, SlotPtr> s_family;
 
 // Held shared for the duration of a dispatch into plugin code, and exclusively
 // by the disarm paths once the slot has been cleared.  Clearing the slot alone
@@ -82,69 +92,89 @@ std::map<std::string, SlotPtr> s_registry;
 // does that.)
 std::shared_mutex s_dispatchMutex;
 
-// The regex key that family=true registrations use for subpaths of 'path'.
-std::string familyKey(const std::string& path) {
-    std::string base = path;
-    if (!base.empty() && base.back() == '/')
-        base.pop_back();
-    return base + "/.*";
+// Drogon matched routes case-insensitively and ignoring a trailing '/', and
+// plugin paths were drogon routes before, so lookups keep those rules.
+std::string normalizedPath(const std::string& path) {
+    std::string p = path;
+    for (auto& c : p) {
+        c = (char)tolower((unsigned char)c);
+    }
+    while (p.size() > 1 && p.back() == '/') {
+        p.pop_back();
+    }
+    return p;
 }
 
-SlotPtr getOrCreateSlot(const std::string& path, bool* needsRoute = nullptr) {
-    std::lock_guard<std::mutex> lock(s_registryMutex);
-    auto& slot = s_registry[path];
+void armSlot(std::map<std::string, SlotPtr>& table, const std::string& key, const std::string& path,
+             const std::shared_ptr<FPPPlugins::PluginApiHandler>& fn,
+             const std::vector<drogon::HttpMethod>& methods) {
+    auto& slot = table[key];
     if (!slot) {
         slot = std::make_shared<RouteSlot>();
     }
-    // Report (and latch) route creation under the same lock that publishes the
-    // slot, so two plugins racing to register one path can't both create it.
-    if (needsRoute) {
-        *needsRoute = !slot->routeRegistered;
-        slot->routeRegistered = true;
-    }
-    return slot;
+    slot->handler = fn;
+    slot->methods = methods;
+    slot->path = path;
 }
 
-// The one handler ever registered with drogon for a path. Re-reads the slot on
-// every request, so it serves whichever plugin currently owns the path -- or
-// answers 410 when nobody does.
-using Dispatcher = std::function<void(const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&&)>;
-
-Dispatcher makeDispatcher(const SlotPtr& slot) {
-    return [slot](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& callback) {
-        // Declared first so it is released LAST: the handler copy below must be
-        // gone before a concurrent disarm is allowed to proceed, otherwise the
-        // last reference to the plugin's callable could be dropped -- running
-        // its destructor -- after the .so was unmapped.
-        std::shared_lock<std::shared_mutex> dispatchLock(s_dispatchMutex);
-
-        std::shared_ptr<FPPPlugins::PluginApiHandler> fn;
-        {
-            std::lock_guard<std::mutex> lock(s_registryMutex);
-            fn = slot->handler;
+// The slot for a request path: an exact registration first, else the longest
+// family registration it lies under. Caller holds s_registryMutex.
+SlotPtr findSlot(const std::string& reqPath) {
+    std::string p = normalizedPath(reqPath);
+    auto it = s_exact.find(p);
+    if (it != s_exact.end()) {
+        return it->second;
+    }
+    for (;;) {
+        auto slash = p.rfind('/');
+        if (slash == std::string::npos || slash == 0) {
+            return nullptr;
         }
-        if (fn) {
-            (*fn)(req, std::move(callback));
+        p.resize(slash);
+        auto f = s_family.find(p);
+        if (f != s_family.end()) {
+            return f->second;
+        }
+    }
+}
+
+bool methodAllowed(const std::vector<drogon::HttpMethod>& methods, drogon::HttpMethod m) {
+    for (auto a : methods) {
+        // Drogon answered HEAD from a route's GET handler; keep doing that.
+        if (a == m || (m == drogon::Head && a == drogon::Get)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// The drogon default handler: every request no FPP route matched lands here.
+void dispatchPluginApi(const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& callback) {
+    // Declared first so it is released LAST: the handler copy below must be
+    // gone before a concurrent disarm is allowed to proceed, otherwise the
+    // last reference to the plugin's callable could be dropped -- running
+    // its destructor -- after the .so was unmapped.
+    std::shared_lock<std::shared_mutex> dispatchLock(s_dispatchMutex);
+
+    std::shared_ptr<FPPPlugins::PluginApiHandler> fn;
+    bool allowed = false;
+    {
+        std::lock_guard<std::mutex> lock(s_registryMutex);
+        SlotPtr slot = findSlot(req->path());
+        if (!slot) {
+            dispatchLock.unlock();
+            callback(drogon::HttpResponse::newNotFoundResponse(req));
             return;
         }
-        callback(makeStringResponse("Plugin not loaded", 410, "text/plain"));
-    };
-}
-
-// Creates the drogon route for a path if this is the first registration of it.
-void ensureRoute(const std::string& path, const SlotPtr& slot, bool needsRoute,
-                 const std::vector<drogon::HttpMethod>& methods, bool asRegex) {
-    if (!needsRoute) {
-        return; // already routed; the slot is what changed
+        fn = slot->handler;
+        allowed = methodAllowed(slot->methods, req->method());
     }
-    // registerHandler takes constraints, not methods; HttpConstraint converts
-    // implicitly from HttpMethod so the vector converts element-wise.
-    std::vector<drogon::internal::HttpConstraint> constraints(methods.begin(), methods.end());
-    auto& app = drogon::app();
-    if (asRegex) {
-        app.registerHandlerViaRegex(path, makeDispatcher(slot), constraints);
+    if (!fn) {
+        callback(makeStringResponse("Plugin not loaded", 410, "text/plain"));
+    } else if (!allowed) {
+        callback(makeStringResponse("Method Not Allowed", 405, "text/plain"));
     } else {
-        app.registerHandler(path, makeDispatcher(slot), constraints);
+        (*fn)(req, std::move(callback));
     }
 }
 
@@ -152,13 +182,14 @@ void ensureRoute(const std::string& path, const SlotPtr& slot, bool needsRoute,
 // request is inside plugin code, then destroys the plugin-owned callables.
 // Destroy-then-return is the whole contract: the caller is entitled to dlclose()
 // the moment this returns.
-void disarmSlots(const std::vector<std::string>& paths) {
+void disarmSlots(const std::string& path) {
     std::vector<std::shared_ptr<FPPPlugins::PluginApiHandler>> extracted;
     {
         std::lock_guard<std::mutex> lock(s_registryMutex);
-        for (const auto& p : paths) {
-            auto it = s_registry.find(p);
-            if (it == s_registry.end()) {
+        std::string key = normalizedPath(path);
+        for (auto* table : { &s_exact, &s_family }) {
+            auto it = table->find(key);
+            if (it == table->end()) {
                 continue;
             }
             // Clear first, so requests arriving now bail at the empty slot
@@ -176,35 +207,50 @@ void disarmSlots(const std::vector<std::string>& paths) {
 
 namespace FPPPlugins {
 
+void installPluginApiRouter() {
+    drogon::app().setDefaultHandler(dispatchPluginApi);
+}
+
+std::vector<std::pair<std::string, drogon::HttpMethod>> listPluginApiRoutes() {
+    std::vector<std::pair<std::string, drogon::HttpMethod>> routes;
+    std::lock_guard<std::mutex> lock(s_registryMutex);
+    for (auto* table : { &s_exact, &s_family }) {
+        for (auto& [key, slot] : *table) {
+            if (!slot->handler) {
+                continue;
+            }
+            std::string path = slot->path;
+            if (table == &s_family) {
+                while (path.size() > 1 && path.back() == '/') {
+                    path.pop_back();
+                }
+                path += "/.*";
+            }
+            for (auto m : slot->methods) {
+                routes.emplace_back(path, m);
+            }
+        }
+    }
+    return routes;
+}
+
 void registerPluginApi(const std::string& path, PluginApiHandler handler,
                        const std::vector<drogon::HttpMethod>& methods, bool family) {
     auto fn = std::make_shared<PluginApiHandler>(std::move(handler));
+    std::string key = normalizedPath(path);
 
-    bool needsRoute = false;
-    SlotPtr slot = getOrCreateSlot(path, &needsRoute);
-    {
-        std::lock_guard<std::mutex> lock(s_registryMutex);
-        slot->handler = fn;
-    }
-    ensureRoute(path, slot, needsRoute, methods, false);
-
+    std::lock_guard<std::mutex> lock(s_registryMutex);
+    armSlot(s_exact, key, path, fn, methods);
     if (family) {
-        std::string key = familyKey(path);
-        bool subNeedsRoute = false;
-        SlotPtr subSlot = getOrCreateSlot(key, &subNeedsRoute);
-        {
-            std::lock_guard<std::mutex> lock(s_registryMutex);
-            subSlot->handler = fn;
-        }
-        ensureRoute(key, subSlot, subNeedsRoute, methods, true);
+        armSlot(s_family, key, path, fn, methods);
     }
 }
 
 void unregisterPluginApi(const std::string& path) {
-    // Always disarm the family key too, whether or not it was registered:
+    // Always disarm the family slot too, whether or not it was registered:
     // forgetting it there would leave a second live reference to the plugin's
     // handler, which is exactly the dangling pointer this API exists to prevent.
-    disarmSlots({ path, familyKey(path) });
+    disarmSlots(path);
 }
 
 } // namespace FPPPlugins
