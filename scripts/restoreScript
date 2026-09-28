@@ -11,12 +11,33 @@ FILE="$1"
 # uploaded backup -- i.e. attacker-influenced in a crafted backup. Restrict to
 # a bare filename so ../ can never escape MEDIADIR/scripts.
 case "${FILE}" in ""|"."|".."|*/*)
-    echo "Invalid script name: ${FILE}"
+    printf '%s\n' "Invalid script name: ${FILE}"
     exit 1
     ;;
 esac
 SCRIPT="${MEDIADIR}/scripts/${FILE}"
 [ -f "${SCRIPT}" ] || exit 0
+
+# A bare name can still point outside via a symlink planted in the scripts
+# dir. Resolve and verify containment (best-effort: if neither resolver
+# exists, the bare-name check above still holds). Plain realpath (no -m:
+# macOS/BSD realpath has no --canonicalize-missing) works here because the
+# [ -f ] check above guarantees the path exists.
+if command -v realpath >/dev/null 2>&1 && RESOLVED=$(realpath "${SCRIPT}" 2>/dev/null) && BASE_REAL=$(realpath "${MEDIADIR}/scripts" 2>/dev/null); then
+    case "${RESOLVED}" in "${BASE_REAL}/"*) ;; *)
+        printf '%s\n' "Invalid script name: ${FILE}"
+        exit 1
+        ;;
+    esac
+elif command -v readlink >/dev/null 2>&1 && readlink -f / >/dev/null 2>&1; then
+    RESOLVED=$(readlink -f "${SCRIPT}" 2>/dev/null) || exit 0
+    BASE_REAL=$(readlink -f "${MEDIADIR}/scripts" 2>/dev/null) || exit 0
+    case "${RESOLVED}" in "${BASE_REAL}/"*) ;; *)
+        printf '%s\n' "Invalid script name: ${FILE}"
+        exit 1
+        ;;
+    esac
+fi
 
 # mktemp instead of a fixed /var/tmp path: the fixed name was symlink-squattable
 # and concurrent restores clobbered each other.
@@ -24,7 +45,9 @@ ACTIONS=$(mktemp /var/tmp/installactions.XXXXXX) || exit 1
 trap 'rm -f "${ACTIONS}"' EXIT
 
 # Grab out any Install Actions defined in the script and execute them
-grep "^# InstallAction:" "${SCRIPT}" | sed -e "s/.*InstallAction: //" > "${ACTIONS}"
+# Trailing -- keeps a dash-prefixed filename from being parsed as options
+# (single -- only: BSD/macOS grep treats a second -- as a filename).
+grep "^# InstallAction:" -- "${SCRIPT}" | sed -e "s/.*InstallAction: //" > "${ACTIONS}"
 
 if [ -s "${ACTIONS}" ]
 then
