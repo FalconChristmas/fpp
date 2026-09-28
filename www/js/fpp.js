@@ -10340,9 +10340,9 @@ var CONDITION_SOURCE_HELP = {
 		'<li>MQTT variable: Name = "mqtt-homeassistant/sensor/outside_temperature/state", Is = equal to, Value = "20"</li>' +
 		'</ul>' +
 		'Tip: every dedicated Source below (Time, Day, Player Status, etc.) is really just a shortcut for one of the read-only fpp_ variables on the Variables page - anything not listed as its own Source (fpp_volume, fpp_warning_count, and more) is still reachable this way, by name.',
-	Time: 'Compares the current wall-clock time (HH:MM). Example: Is = greater than, Value = "18:00" (after 6pm).',
-	Day: 'Compares today’s day of the week. Example: Is = equal to, Value = "Saturday".',
-	Month: 'Compares the current month. Example: Is = equal to, Value = "December".',
+	Time: 'Compares the current wall-clock time (HH:MM, 24 hour). Example: Is = greater than, Value = "18:00" (after 6pm). Is = between, Value = "22:00,02:00" runs past midnight.',
+	Day: 'Compares today’s day of the week, in order Sunday to Saturday. Example: Is = equal to, Value = "Saturday". Is = between, Value = "Friday,Sunday" wraps round to cover the weekend.',
+	Month: 'Compares the current month, in order January to December. Example: Is = equal to, Value = "December". Is = between, Value = "November,January" wraps round the new year.',
 	'GPIO Pin': 'Reads a GPIO pin’s current value.' +
 		'<ul class="mb-1 ps-3">' +
 		'<li>Uses the pin’s last commanded output value, falling back to its live input reading if it hasn’t been commanded</li>' +
