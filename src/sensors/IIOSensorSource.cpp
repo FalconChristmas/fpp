@@ -215,6 +215,9 @@ void IIOSensorSource::update(bool forceInstant, bool fromSelect) {
     }
 }
 void IIOSensorSource::enable(int id) {
+    if (id < 0) {
+        return;
+    }
     if (usingBuffers) {
         char buf[256];
         snprintf(buf, 256, "/sys/bus/iio/devices/iio:device%d/scan_elements/in_voltage%d_en", iioDevNumber, id);
@@ -240,8 +243,8 @@ void IIOSensorSource::enable(int id) {
 }
 
 int32_t IIOSensorSource::getValue(int id) {
-    if (id >= values.size()) {
+    if (id < 0 || (size_t)id >= values.size()) {
         return 0;
     }
-    return values[id];
+    return values[(size_t)id];
 };
