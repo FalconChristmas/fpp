@@ -16,6 +16,8 @@
 #include <cstdint>
 #include <thread>
 
+#include "../log.h"
+
 #include "MuxSensorSource.h"
 
 // Bounds for user-editable sensors.json. The largest realistic mux is a
