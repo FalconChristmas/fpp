@@ -1312,7 +1312,11 @@ int BBShiftPanelManager::StartPRU() {
             addrCfg = 0;
         }
     } else {
-        addrCfg = (uint32_t)(m_addressingMode & 0xFF) | (((uint32_t)numRows) << 8);
+        // b2 = row shift chain length: the ABC shift firmware clocks one
+        // bit per panel row, since panels can daisy chain a row driver per
+        // band of scan rows
+        addrCfg = (uint32_t)(m_addressingMode & 0xFF) | (((uint32_t)numRows) << 8) |
+                  (((uint32_t)std::min(m_panelHeight, 255)) << 16);
     }
     *(volatile uint32_t*)(pru->data_ram + ADDR_CONFIG_OFFSET) = addrCfg;
     // The FM6373 family upload grammar, in the word after the chip config:

@@ -40,8 +40,9 @@
 // Must match BBShiftPanel.cpp.
 #define PANEL_INIT_OFFSET 0x1E00
 // data RAM offset of the addressing config (u32: b0 = row address type,
-// b1 = scan rows), written by the ARM after the firmware starts, before the
-// ring config handshake.  Must match BBShiftPanel.cpp.
+// b1 = scan rows, b2 = row shift chain length), written by the ARM after the
+// firmware starts, before the ring config handshake.  Must match
+// BBShiftPanel.cpp.
 #define ADDR_CONFIG_OFFSET 0x1DF8
 
 #define SEL0_PIN    11
@@ -87,6 +88,7 @@
 // clocked into an external row-select shift register (see ROW_ADDR_SHIFT)
 #define addrMode    r29.b0
 #define addrRows    r29.b1
+#define addrChain   r29.b2
 
 #define DATA_BYTE   r30.b0
 
@@ -576,17 +578,38 @@ DOSETADDRESS:
 // panel types that do not have binary address inputs.  Ported from the
 // rpi-rgb-led-matrix RowAddressSetter classes:
 //   mode 1: A = clock, B = data, active row bit LOW, shift scan-rows bits
-//   mode 3: A = clock, C = data, active row bit HIGH, shift scan-rows bits
+//   mode 3: A = clock, C = data, active row bit HIGH, shift the whole row
+//           chain (the panel height), the row bit repeated every scan rows.
+//           Panels that daisy chain one row driver per band of scan rows
+//           need every bit of it: shifting only one band leaves each band
+//           one row behind the one before it.  A single driver shared by
+//           every band keeps just the last band's worth, which is the same
+//           pattern, so this is also what those panels see.
 //   mode 4 (SM5266P): C = enable, B = data, A = clock; shift 8 bits with
 //           the (row mod 8) bit HIGH, then D/E directly select the bank
 // The display is off and the panel latch low when this runs (row tail).
-// curAddress holds the row number; clobbers tmpReg1.b1, tmpReg2.b2/b3.
+// curAddress holds the row number; clobbers tmpReg1.b1-b3, tmpReg2.b2/b3.
 ROW_ADDR_SHIFT:
     QBEQ ROWADDR_MODE4, addrMode, 4
-    // modes 1/3: the active position is (rows - 1 - row)
+    // modes 1/3: the active position in each band is (rows - 1 - row)
     SUB  tmpReg1.b1, addrRows, 1
     SUB  tmpReg1.b1, tmpReg1.b1, curAddress
-    LDI  tmpReg2.b2, 0
+    // bits to clock: one band for mode 1, the whole chain for mode 3 (an
+    // unset or short chain length falls back to one band)
+    MOV  tmpReg1.b3, addrRows
+    QBNE ROWADDR_LEN, addrMode, 3
+    QBGT ROWADDR_LEN, addrChain, addrRows
+    MOV  tmpReg1.b3, addrChain
+    // ~1us for the column drivers to go dark first: the very first clock
+    // walks the row bit onto the next row, and the tail of the old data
+    // shows there as a faint copy of each pixel on the next row scanned
+    LDI  tmpReg2.b3, 125
+ROWADDR_PREDLY:
+    SUB  tmpReg2.b3, tmpReg2.b3, 1
+    QBNE ROWADDR_PREDLY, tmpReg2.b3, 0
+ROWADDR_LEN:
+    LDI  tmpReg2.b2, 0                       // position within the band
+    LDI  tmpReg1.b2, 0                       // bits clocked
 ROWADDR_SHIFTLOOP:
     CLR  r30, r30, SEL0_PIN
     QBEQ ROWADDR_ACTIVE, tmpReg2.b2, tmpReg1.b1
@@ -603,15 +626,22 @@ ROWADDR_CLK:
     SET  r30, r30, SEL0_PIN
     ADDR_DELAY
     ADD  tmpReg2.b2, tmpReg2.b2, 1
-    QBNE ROWADDR_SHIFTLOOP, tmpReg2.b2, addrRows
-    // final clock pulse: mode 1 ends low->high, mode 3 high->low
+    QBNE ROWADDR_NOWRAP, tmpReg2.b2, addrRows
+    LDI  tmpReg2.b2, 0
+ROWADDR_NOWRAP:
+    ADD  tmpReg1.b2, tmpReg1.b2, 1
+    QBNE ROWADDR_SHIFTLOOP, tmpReg1.b2, tmpReg1.b3
+    // mode 1 gives one more rising edge; mode 3 only returns the clock low.
+    // rpi's mode 3 tail is SetBits(clock) then ClearBits(clock), and the
+    // clock is already high there, so it clocks exactly the bits it sent - an
+    // extra edge copies the last bit into two rows and drops the first row.
+    QBEQ ROWADDR_M3TAIL, addrMode, 3
     CLR  r30, r30, SEL0_PIN
     ADDR_DELAY
     SET  r30, r30, SEL0_PIN
-    QBNE ROWADDR_DONE, addrMode, 3
-    ADDR_DELAY
+    JMP  r23.w0
+ROWADDR_M3TAIL:
     CLR  r30, r30, SEL0_PIN
-ROWADDR_DONE:
     JMP  r23.w0
 
 ROWADDR_MODE4:
