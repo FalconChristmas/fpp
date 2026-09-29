@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <cstring> // strnlen -- needed directly for NOPCH builds
 #include <functional>
 #include <time.h>
 

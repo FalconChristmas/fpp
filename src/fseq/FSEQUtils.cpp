@@ -1,7 +1,6 @@
 
 #include <getopt.h>
 #include <inttypes.h>
-#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -209,6 +208,10 @@ std::string getFPPDDir(const std::string& path) {
 }
 int main(int argc, char* argv[]) {
     int idx = parseArguments(argc, argv);
+    if (idx >= argc) {
+        usage(argv[0]);
+        return 1;
+    }
     if (verbose) {
         SetLogLevel("debug");
     } else {
