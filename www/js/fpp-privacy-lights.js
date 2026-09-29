@@ -10,8 +10,8 @@
  * install dialog and the plugin detail modal show as chips, and the plugin
  * cards as dots: Sends data, Collects data, Camera & mic, Remote access,
  * System changes and Can it be checked?. Each chip is green, amber or red
- * (a coloured dot before the label; only a red chip is tinted as a whole),
- * and its text states the finding ("Sends when enabled") rather than naming
+ * (a coloured dot before the label on an otherwise neutral pill -- the
+ * lights inform, they are not warnings), and its text states the finding ("Sends when enabled") rather than naming
  * the light, so a row of greens needs no legend; only an undeclared chip,
  * which has no finding, names its light ("Sends data: not declared") and
  * carries a hollow dot.
@@ -864,37 +864,6 @@ var FPPPluginPrivacy = (function () {
 		};
 	}
 
-	/**
-	 * The install button for a result (guidelines): text and Bootstrap class
-	 * from the worst finding, same priority as the headline. The caller
-	 * still forces "Install anyway"/btn-warning when its own warnings fire.
-	 */
-	function installButtonFor(result) {
-		var byId = {};
-		var anyAmber = false;
-		result.lights.forEach(function (l) {
-			byId[l.id] = l.level;
-			// A light with no key ranks with amber: not the red "no
-			// disclosure" of a missing block, not the green of a full one.
-			if (l.level === "a" || l.level === "n") anyAmber = true;
-		});
-		if (!result.declared)
-			return { text: "Install, no disclosure", cls: "btn-danger" };
-		if (byId.code === "r")
-			return { text: "Install, black box included", cls: "btn-danger" };
-		if (byId.collect === "r" || byId.camera === "r")
-			return { text: "Install, handles others' data", cls: "btn-danger" };
-		if (byId.remote === "r")
-			return { text: "Install, opens FPP to internet", cls: "btn-danger" };
-		if (byId.send === "r")
-			return { text: "Install, sends data out", cls: "btn-danger" };
-		if (byId.system === "r")
-			return { text: "Install, permanent changes", cls: "btn-danger" };
-		if (anyAmber || result.normalised.sends.length)
-			return { text: "Install anyway", cls: "btn-warning" };
-		return { text: "Install", cls: "btn-success" };
-	}
-
 	// ---- Rendering ---------------------------------------------------------
 	//
 	// Bootstrap 5.3 utilities only (see .claude/FRONTEND-GUIDELINES.md): every
@@ -915,13 +884,24 @@ var FPPPluginPrivacy = (function () {
 		return { text: "text-" + theme + "-emphasis", bg: "bg-" + theme + "-subtle", border: "border-" + theme + "-subtle" };
 	}
 
-	// Classes for a chip: only a red chip keeps the tinted background,
-	// coloured border and coloured text. Amber, green and grey chips are the
-	// same neutral pill, and the dot before the label (stateDotHtml) carries
-	// the state, so a strip reads as one row with the reds standing out.
-	function chipClasses(theme) {
-		if (theme === "danger") return themeClasses(theme);
+	// Classes for a chip: every chip is the same neutral pill, and the dot
+	// before the label (stateDotHtml) carries the state. A red finding is
+	// information about the plugin, not a warning to the operator, so it is
+	// not painted as one.
+	function chipClasses() {
 		return { text: "text-body-secondary", bg: "bg-body-tertiary", border: "border-secondary-subtle" };
+	}
+
+	// Plain text of a line's entries (which are HTML, the author's parts
+	// already escaped), for a chip's tooltip. DOMParser neither runs scripts
+	// nor loads images, unlike innerHTML on a detached element.
+	function entriesText(entries) {
+		var text = entries.map(function (e) {
+			var body = new DOMParser().parseFromString(e, "text/html").body;
+			body.querySelectorAll("br").forEach(function (br) { br.replaceWith(" - "); });
+			return body.textContent.trim();
+		});
+		return text.length === 1 ? text[0] : "\u2022 " + text.join("\n\u2022 ");
 	}
 
 	// The state dot before a chip's label and its line: an 8px Font Awesome
@@ -969,18 +949,19 @@ var FPPPluginPrivacy = (function () {
 	}
 
 	/**
-	 * The strip of six chips plus the lines under them. Red lines are always
-	 * open; amber and green open on tap (aria-expanded drives it, see bind())
-	 * and carry a caret that turns down while open. Undeclared chips, grey or
-	 * red, have no line to open.
+	 * The strip of six chips. A chip's line -- what the author declared under
+	 * that light -- is its tooltip, and is listed in full under "Full
+	 * disclosure" (detailsHtml); tapping a chip opens that section at its
+	 * line (bind()), which is the path on a phone, where there is no hover.
 	 *
-	 * opts.prefix: id prefix so several strips can share a page.
+	 * opts.prefix: id prefix so several strips can share a page; detailsHtml
+	 *   must be given the same one.
 	 * opts.compact: dots with the state text as a title, for cards.
 	 * opts.from: an earlier result (the block the operator accepted) --
-	 *   "was / now" mode for the changed-disclosure dialog: a light whose
-	 *   colour, chip text or lines differ is opened whatever its colour and
-	 *   reads "Was: ... / Now: ...", with added lines marked + and removed
-	 *   ones struck through; unchanged lights render as at install.
+	 *   "was / now" mode for the changed-disclosure dialog: the lines of the
+	 *   lights whose colour, chip text or lines differ are listed open under
+	 *   the strip, with added lines marked + and removed ones struck through.
+	 *   That is the point of the dialog; unchanged lights stay chips only.
 	 */
 	function stripHtml(result, opts) {
 		opts = opts || {};
@@ -1018,29 +999,20 @@ var FPPPluginPrivacy = (function () {
 			return h + "</span>";
 		}
 		h +=
-			'<div class="d-flex flex-wrap gap-2 mt-2" role="group" aria-label="Privacy lights">';
+			'<div class="d-flex flex-wrap gap-2 mt-2 mb-2" role="group" aria-label="Privacy lights">';
 		result.lights.forEach(function (l, i) {
 			var theme = LEVEL_THEME[l.level];
 			var ch = changes ? changes[i] : null;
-			var open = (l.level === "r" && l.declared) || !!ch;
-			var id = prefix + "-" + l.id;
+			var tip = l.name + (/\?$/.test(l.name) ? " " : ": ") + entriesText(l.entries);
 			h +=
 				'<button type="button" class="pluginPrivacyChip badge rounded-pill border fw-semibold d-inline-flex align-items-center gap-1 ' +
 				chipClasses(theme).text + " " + chipClasses(theme).bg + " " + chipClasses(theme).border + '"' +
-				' data-light="' +
+				' data-target="' +
+				prefix +
+				"-fd-" +
 				l.id +
-				'" data-level="' +
-				l.level +
-				'" data-declared="' +
-				(l.declared ? "1" : "0") +
-				'"' +
-				' aria-expanded="' +
-				(open ? "true" : "false") +
-				'" aria-controls="' +
-				id +
-				'"' +
-				' title="' +
-				esc(l.name) +
+				'" title="' +
+				esc(tip) +
 				'">' +
 				stateDotHtml(theme) +
 				esc(chipText(l)) +
@@ -1050,36 +1022,35 @@ var FPPPluginPrivacy = (function () {
 						' fa-xs" aria-hidden="true" title="' +
 						esc(ch.direction === "better" ? "Improved" : ch.direction === "worse" ? "Worse than before" : "Changed") +
 						'"></i>'
-				: l.declared && l.level !== "r" ?
-					'<i class="fas fa-caret-right fa-xs" aria-hidden="true"></i>'
 				:	"") +
 				"</button>";
 		});
-		h +=
-			'</div><ul class="list-unstyled d-flex flex-column gap-1 small mt-2 mb-2">';
-		result.lights.forEach(function (l, i) {
-			var theme = LEVEL_THEME[l.level];
-			var ch = changes ? changes[i] : null;
-			var open = (l.level === "r" && l.declared) || !!ch;
-			// d-none, not the hidden attribute: d-flex would outrank [hidden].
-			h +=
-				'<li id="' +
-				prefix +
-				"-" +
-				l.id +
-				'" class="d-flex gap-2 align-items-start' +
-				(open ? "" : " d-none") +
-				(l.level === "r" && l.declared ? " text-danger-emphasis" : "") +
-				'">' +
-				stateDotHtml(theme, "mt-1") +
-				"<span><b>" +
-				esc(l.name) +
-				(/\?$/.test(l.name) ? "" : ":") +
-				"</b> " +
-				(ch ? changeLineHtml(ch) : lineHtml(l.entries)) +
-				"</span></li>";
-		});
-		return h + "</ul>";
+		h += "</div>";
+		if (changes && changes.some(function (c) { return c; })) {
+			h += '<ul class="list-unstyled d-flex flex-column gap-1 small mb-2">';
+			result.lights.forEach(function (l, i) {
+				if (!changes[i]) return;
+				h += lightLineHtml(l, changeLineHtml(changes[i]));
+			});
+			h += "</ul>";
+		}
+		return h;
+	}
+
+	// One light's line: its state dot, its name and what was declared.
+	function lightLineHtml(l, body, id) {
+		return (
+			"<li" +
+			(id ? ' id="' + id + '"' : "") +
+			' class="d-flex gap-2 align-items-start">' +
+			stateDotHtml(LEVEL_THEME[l.level], "mt-1") +
+			"<span><b>" +
+			esc(l.name) +
+			(/\?$/.test(l.name) ? "" : ":") +
+			"</b> " +
+			body +
+			"</span></li>"
+		);
 	}
 
 	// Worst-first order of a light's colour, for "better" / "worse".
@@ -1192,57 +1163,54 @@ var FPPPluginPrivacy = (function () {
 		return '<p class="mb-2">' + esc(result.summary) + "</p>";
 	}
 
-	// After the lines: the free-text `other`, so nothing the author declared
-	// is hidden even when this FPP does not render a key, and -- only when
-	// opts.raw -- "Full disclosure", the block as written, for people who
-	// want to see the JSON (the page shows it in Developer UI mode).
+	// "Full disclosure", collapsed under the strip: every light's line, the
+	// free-text `other` (so nothing the author declared is hidden even when
+	// this FPP does not render a key), and -- only when opts.raw -- the block
+	// as written, for people who want to see the JSON (the page shows it in
+	// Developer UI mode). opts.prefix must match the strip's, so a chip tap
+	// can open it at that chip's line.
 	function detailsHtml(result, opts) {
 		if (!result.declared) return "";
-		var h = "";
+		opts = opts || {};
+		var prefix = opts.prefix || "pp";
+		var h =
+			'<details id="' + prefix + '-fd" class="small mb-2"><summary class="link-primary">Full disclosure</summary>' +
+			'<ul class="list-unstyled d-flex flex-column gap-1 mt-2 mb-2">';
+		result.lights.forEach(function (l) {
+			h += lightLineHtml(l, lineHtml(l.entries), prefix + "-fd-" + l.id);
+		});
+		h += "</ul>";
 		if (result.other)
-			h += '<p class="small mb-2"><b>Other:</b> ' + esc(result.other) + "</p>";
-		if (opts && opts.raw)
+			h += '<p class="mb-2"><b>Other:</b> ' + esc(result.other) + "</p>";
+		if (opts.raw)
 			h +=
-				'<details class="small"><summary class="link-primary">Full disclosure</summary>' +
+				'<details><summary class="link-primary">As written by the author</summary>' +
 				'<pre class="mt-1 mb-0 overflow-auto"><code>' +
 				esc(JSON.stringify(result.raw, null, 2)) +
 				"</code></pre></details>";
-		return h;
+		return h + "</details>";
 	}
 
-	// Chip tap toggles its line. Red lines stay open (the chip is still
-	// focusable so screen readers read the same text). Hover is left to the
-	// title attribute; a phone has no hover, so tap is the primary path.
+	// A chip tap opens "Full disclosure" at that chip's line. Hover is left
+	// to the title attribute; a phone has no hover, so tap is its path.
 	function bind(container) {
 		var root =
 			typeof container === "string" ?
 				document.getElementById(container)
 			:	container;
 		if (!root) return;
-		var chips = root.querySelectorAll(".pluginPrivacyChip[aria-controls]");
+		var chips = root.querySelectorAll(".pluginPrivacyChip[data-target]");
 		for (var i = 0; i < chips.length; i++) {
 			(function (chip) {
 				if (chip.dataset.ppBound) return;
 				chip.dataset.ppBound = "1";
 				chip.addEventListener("click", function (e) {
 					e.stopPropagation();
-					var line = document.getElementById(
-						chip.getAttribute("aria-controls"),
-					);
-					if (!line || chip.dataset.declared !== "1") return;
-					if (chip.dataset.level === "r") {
-						line.classList.remove("d-none");
-						chip.setAttribute("aria-expanded", "true");
-						return;
-					}
-					var open = chip.getAttribute("aria-expanded") === "true";
-					chip.setAttribute("aria-expanded", open ? "false" : "true");
-					line.classList.toggle("d-none", open);
-					var caret = chip.querySelector(".fa-caret-right, .fa-caret-down");
-					if (caret) {
-						caret.classList.toggle("fa-caret-right", open);
-						caret.classList.toggle("fa-caret-down", !open);
-					}
+					var line = document.getElementById(chip.dataset.target);
+					if (!line) return;
+					var details = line.closest("details");
+					if (details) details.open = true;
+					line.scrollIntoView({ block: "nearest", behavior: "smooth" });
 				});
 			})(chips[i]);
 		}
@@ -1250,7 +1218,6 @@ var FPPPluginPrivacy = (function () {
 
 	return {
 		evaluate: evaluate,
-		installButtonFor: installButtonFor,
 		stripHtml: stripHtml,
 		changesSummaryHtml: changesSummaryHtml,
 		headlineHtml: headlineHtml,

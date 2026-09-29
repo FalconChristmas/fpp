@@ -1,11 +1,10 @@
 <h3>Plugins</h3>
-<p>Plugins add features to FPP. They are written and published by other people, and the FPP project does
-    not test, vet or guarantee their quality or safety. <b>Every plugin runs as root: once installed it has
-    full control of this player</b>. It can read and change every setting, including the privacy settings,
-    reach anything on the network this player is connected to, and do anything at all, whether or not its
-    privacy disclosure mentions it. This is inherently dangerous. Install a plugin at your own risk, and only if
-    you trust the person who wrote it. Plugins marked <b>Official</b> are maintained by the FPP project, and
-    still run as root with the same access.</p>
+<p>Plugins add features to FPP. They are written and published by their own authors, and the FPP project
+    does not review or test them. Every plugin runs with full access to this player: it can read and change any
+    setting and reach anything on the network this player is connected to. Install plugins from authors you
+    trust. Plugins marked <b>Official</b> are maintained by the FPP project.</p>
+<p>The first time you install a plugin, FPP shows a short note saying this and asks you to continue. It is
+    shown once per player, and once more after each major FPP upgrade.</p>
 
 <h4>The six privacy lights</h4>
 <p>Each plugin's author fills in a short privacy disclosure, and FPP turns it into six coloured lights. They
@@ -19,31 +18,34 @@
     <li><b>System changes</b> - Does it change the player itself, beyond its own files?</li>
     <li><b>Can it be checked?</b> - Is all of its code somewhere anyone can look at it?</li>
 </ul>
-<p><b>Green</b> means the author says there is nothing to report under that heading. <b>Amber</b> means
-    there is something you should know; tap the chip to read it. <b>Red</b> means read the line before you
-    install. A line above the lights sums up the worst finding, and the install button says what you are
-    agreeing to, for example <i>Install anyway</i> or <i>Install, opens FPP to internet</i>.</p>
+<p><b>Green</b> means the author says there is nothing to report under that heading. <b>Amber</b> and
+    <b>red</b> describe something the plugin does that you may want to know about, such as sending data to an
+    online service or including code whose source is not published. Hover a light to read what the author
+    wrote about it, or tap it to open <b>Full disclosure</b>, which lists every light's details together with
+    any other notes from the author.</p>
 <p>Remember that the lights come from what the author wrote. FPP does not check the plugin's code against
     its disclosure, and a green light is the author's word, not a test result. The lights describe what the
     author says the plugin does; they do not limit what it can do.</p>
 <p>If a plugin keeps information about your visitors or passers-by - phone numbers, messages, votes,
-    camera images - the headline reads <i>Handles other people's data</i>. Whether a plugin keeps such
+    camera images - its <i>Collects data</i> or <i>Camera &amp; mic</i> light is red. Whether a plugin keeps such
     information or only passes it on to a service, what happens to it is your responsibility, not the
     author's or FPP's.</p>
 
 <h4>Plugins with no privacy disclosure</h4>
-<p>If the author has not written a disclosure, every light reads <i>not disclosed</i> and the install button
-    says <i>Install, no disclosure</i>. Nothing is known about what the plugin does with data; treat it as
+<p>If the author has not written a disclosure, every light reads <i>not disclosed</i>. Nothing is known about what the plugin does with data; treat it as
     unknown rather than safe. Every plugin will be required to have a disclosure from 1 January 2027, and from
     that date a plugin without one is shown in red.</p>
 
 <h4>Checking a plugin without installing</h4>
 <p>Click a card to see its lights and the author's disclosure without installing anything. Use it to see
     what an installed plugin says about itself, or to compare plugins before choosing one. In Developer UI
-    mode the disclosure as the author wrote it is also shown under <i>Full disclosure</i>. For a plugin that
-    is not installed, this screen shows everything the install screen would - the root warning, the
-    disclosure, and the disclosure of any other plugin it depends on and would install with it - and its
-    <b>Install</b> button installs straight away; what is on the screen is what you are accepting.</p>
+    mode <i>Full disclosure</i> also shows the disclosure exactly as the author wrote it. For a plugin that
+    is not installed, this screen shows everything the install screen would - the disclosure, and the
+    disclosure of any other plugin it depends on and would install with it - and its <b>Install</b> button
+    installs straight away; what is on the screen is what you are accepting.</p>
+<p>The <b>Install</b> button reads <i>Install anyway</i> when the plugin has not been updated for this
+    version of FPP, needs more memory or CPU than this player has, or was loaded from a URL. The privacy
+    lights do not change it.</p>
 
 <h4>Updates and reinstalls</h4>
 <p>When a plugin update changes its disclosure, FPP shows you the new one before updating and asks you
