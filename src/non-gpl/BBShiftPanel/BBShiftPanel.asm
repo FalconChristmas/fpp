@@ -610,16 +610,27 @@ ROWADDR_PREDLY:
 ROWADDR_LEN:
     LDI  tmpReg2.b2, 0                       // position within the band
     LDI  tmpReg1.b2, 0                       // bits clocked
+    // Only the clock and that mode's data line move, as in rpi: mode 1
+    // leaves C low and mode 3 leaves B low.  A panel is free to use the
+    // other line for something else.
+    CLR  r30, r30, SEL1_PIN
+    CLR  r30, r30, SEL2_PIN
 ROWADDR_SHIFTLOOP:
     CLR  r30, r30, SEL0_PIN
     QBEQ ROWADDR_ACTIVE, tmpReg2.b2, tmpReg1.b1
-    // inactive bit: mode 1 = HIGH, mode 3 = LOW
+    // inactive bit: mode 1 = B HIGH, mode 3 = C LOW
+    QBEQ ROWADDR_INACT3, addrMode, 3
     SET  r30, r30, SEL1_PIN
+    QBA  ROWADDR_CLK
+ROWADDR_INACT3:
     CLR  r30, r30, SEL2_PIN
     QBA  ROWADDR_CLK
 ROWADDR_ACTIVE:
-    // active bit: mode 1 = LOW, mode 3 = HIGH
+    // active bit: mode 1 = B LOW, mode 3 = C HIGH
+    QBEQ ROWADDR_ACT3, addrMode, 3
     CLR  r30, r30, SEL1_PIN
+    QBA  ROWADDR_CLK
+ROWADDR_ACT3:
     SET  r30, r30, SEL2_PIN
 ROWADDR_CLK:
     ADDR_DELAY
