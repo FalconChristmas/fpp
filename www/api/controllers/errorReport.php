@@ -4,7 +4,7 @@
  *
  * Step 2 of the wizard (Review & Send) shows vital system info from this endpoint.
  * Report building and sending go through the crash-report backend:
- * POST /api/crashes/report, then SendCrashReports() in fpp.js.
+ * POST /api/crashes/report, then UploadAndDeleteCrashReports() in fpp.js.
  * (The old custom errorReport/create + download bundler was removed to avoid
  * a second, divergent redaction/bundling pipeline.)
  */

@@ -360,8 +360,6 @@ function common_PageLoad_DOM_Setup () {
 function common_PageLoad_PostDOMLoad_ActionsSetup () {
 	$(document).on('click', '.navbar-toggler', ToggleMenu);
 	$(document).on('keydown', handleKeypress);
-	// Show the Error Report shortcut as this keyboard needs it (Fn+F8 on a Mac)
-	$('.errorReportKeyLabel').text(ErrorReportKeyLabel());
 
 	// Handling touch
 	if (hasTouch == true) {
@@ -1137,23 +1135,13 @@ function DisplayConfirmationDialog (id, title, body, yesFunction) {
 	};
 })(jQuery);
 
-// On a Mac the top row sends media keys by default -- F8 alone is Play/Pause
-// and never reaches the page -- so the Error Report shortcut there is Fn+F8.
-function IsMacPlatform () {
-	var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
-	return /mac/i.test(p);
-}
-function ErrorReportKeyLabel () {
-	return IsMacPlatform() ? 'Fn+F8' : 'F8';
-}
-
 function handleKeypress (e) {
 	if (e.keyCode == 112) {
 		e.preventDefault();
 		DisplayHelp();
-	} else if (e.key === 'F8' || e.keyCode == 119) {
-		// F8 (Fn+F8 on a Mac) — Error Report bundle (toggle).  Holding the key
-		// down would otherwise open and close it over and over.
+	} else if (e.keyCode == 119) {
+		// F8 — Error Report bundle (toggle).  Holding the key down would
+		// otherwise open and close it over and over.
 		if (e.repeat) return;
 		var t = e.target;
 		// Check typing in input/textarea/select or any contenteditable ancestor
@@ -8403,7 +8391,7 @@ function DisplayHelp () {
 			$('#helpDialogText').load(tmpHelpPage);
 			lastHelpPage = tmpHelpPage;
 			if (!isErrorReportHelp) helpPage = tmpHelpPage;
-			if (isErrorReportHelp) RaiseAboveErrorReport('helpDialog');
+			if (isErrorReportHelp) RaiseHelpAboveErrorReport();
 			return;
 		}
 		CloseModalDialog('helpDialog');
@@ -8428,16 +8416,16 @@ function DisplayHelp () {
 	lastHelpPage = tmpHelpPage;
 	if (!isErrorReportHelp) helpPage = tmpHelpPage;
 	helpOpen = 1;
-	if (isErrorReportHelp) RaiseAboveErrorReport('helpDialog');
+	if (isErrorReportHelp) RaiseHelpAboveErrorReport();
 }
 
-// A dialog opened on top of the Error Report wizard (Help, the cancel
-// confirmation): put it, and its backdrop, above the wizard's
-function RaiseAboveErrorReport (id) {
+// Help opened on top of the Error Report wizard: put it, and its backdrop,
+// above the wizard's
+function RaiseHelpAboveErrorReport () {
 	setTimeout(function () {
-		var el = document.getElementById(id);
-		if (el) {
-			el.style.zIndex = '1060';
+		var helpEl = document.getElementById('helpDialog');
+		if (helpEl) {
+			helpEl.style.zIndex = '1060';
 			var backdrops = document.querySelectorAll('.modal-backdrop');
 			if (backdrops.length) backdrops[backdrops.length - 1].style.zIndex = '1059';
 		}
@@ -8457,16 +8445,9 @@ var erReportSize = 0;
 var erReportSent = false;
 var erBuilding = false;
 var erSending = false;
-// The crash rows of Settings > Privacy, shown in step 2 above Send Report.
-// null until the fetch settles: that click is the user's consent, so it stays
-// disabled until they have had the disclosures in front of them.
-var erDisclosures = null;
 // Bumped on every open and close, so a build or send still running from a
 // wizard that was closed does not write into the next one
 var erSession = 0;
-// The session whose build was cancelled while still running: its report is
-// deleted as soon as the build hands back the filename
-var erDiscardSession = -1;
 function ErrorReportClosed () {
 	erSession++;
 	errorReportOpen = false;
@@ -8477,113 +8458,38 @@ function ErrorReportClosed () {
 	erReportSent = false;
 	erBuilding = false;
 	erSending = false;
-	erDisclosures = null;
-}
-// Once a report exists on the player (or is being built) and has not been
-// sent, closing the wizard means throwing that report away, so ask first.
-function ErNeedsCancelConfirm () {
-	return erBuilding || erSending || (!!erReportFile && !erReportSent);
-}
-function ErDeleteReport (file) {
-	$.ajax({
-		url: 'api/file/Crashes/' + encodeURIComponent(file).replaceAll('%2F', '/'),
-		type: 'DELETE'
-	});
-}
-function ErConfirmCancel () {
-	// A send is quick and must not have its file deleted underneath it; the
-	// window can close once it finishes
-	if (erSending) {
-		ErScrollTo(document.getElementById('errorReportSendStatus'));
-		return;
-	}
-	if ($('#errorReportCancelConfirm').hasClass('show')) return;
-	var discard = false;
-	DoModalDialog({
-		id: 'errorReportCancelConfirm',
-		title: 'Cancel Error Report?',
-		class: 'modal-m',
-		backdrop: true,
-		keyboard: true,
-		body: erBuilding
-			? '<p class="mb-0">A report is still being built on this player. Cancel it? It has not been sent, and it will be deleted from the player as soon as the build finishes.</p>'
-			: '<p>This report has not been sent. Cancelling deletes it from the player:</p>' +
-				'<p class="mb-0 fw-semibold text-break">' + EscapeHtml(erReportFile) + '</p>',
-		buttons: {
-			'Delete Report': {
-				class: 'btn-danger',
-				click: function () {
-					discard = true;
-					CloseModalDialog('errorReportCancelConfirm');
-				}
-			},
-			'Keep Working': {
-				class: 'btn-outline-secondary',
-				click: function () {
-					CloseModalDialog('errorReportCancelConfirm');
-				}
-			}
-		}
-	});
-	RaiseAboveErrorReport('errorReportCancelConfirm');
-	// Close the wizard only once the confirmation has finished closing, so the
-	// two modals are not animating out together
-	$('#errorReportCancelConfirm')
-		.off('hidden.bs.modal.erCancel')
-		.one('hidden.bs.modal.erCancel', function () {
-			if (!discard || !errorReportOpen) return;
-			if (erBuilding) {
-				erDiscardSession = erSession;
-			} else if (erReportFile && !erReportSent) {
-				ErDeleteReport(erReportFile);
-			}
-			// Nothing left to protect, so the close goes straight through
-			erBuilding = false;
-			erReportFile = null;
-			CloseModalDialog('errorReportDialog');
-		});
 }
 function ErSizeLabel (bytes) {
 	var kb = Math.round(bytes / 1024);
 	return kb >= 1024 ? (kb / 1024).toFixed(1) + ' MB' : kb + ' KB';
 }
-function ErSpinnerHtml () {
-	return '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>';
-}
-function ErUpdateFooter () {
+function ErUpdateNextBtn () {
 	var nextBtn = document.getElementById('errorReportNextBtn');
 	if (nextBtn) {
-		var html = '';
-		var disabled = false;
 		if (erCurrentStep === 1) {
-			if (erBuilding) {
-				html = ErSpinnerHtml() + ' Building…';
-				disabled = true;
-			} else if (!erReportFile) {
-				html = '<i class="fas fa-hammer me-1"></i> Build Report';
+			if (!erReportFile) {
+				nextBtn.innerHTML = '<i class="fas fa-hammer me-1"></i> Build Report';
+				nextBtn.disabled = erBuilding;
 			} else {
-				html = 'Next <i class="fas fa-arrow-right ms-1"></i>';
+				nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right ms-1"></i>';
+				nextBtn.disabled = false;
 			}
 		} else if (erCurrentStep === 2) {
-			if (erSending) {
-				html = ErSpinnerHtml() + ' Sending…';
-				disabled = true;
-			} else if (!erReportSent) {
-				html = '<i class="fas fa-paper-plane me-1"></i> Send Report';
-				disabled = !erReportFile || erDisclosures === null;
+			if (!erReportSent) {
+				nextBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> Send Report';
+				nextBtn.disabled = erSending || !erReportFile;
 			} else {
-				html = 'Next <i class="fas fa-arrow-right ms-1"></i>';
+				nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right ms-1"></i>';
+				nextBtn.disabled = false;
 			}
 		}
-		nextBtn.innerHTML = html;
-		nextBtn.disabled = disabled;
 		nextBtn.classList.toggle('d-none', erCurrentStep === 3);
 	}
 	// Step 3 is about posting the issue, so there Open GitHub is the green
 	// default, between Done and Close
 	['errorReportDoneBtn', 'errorReportOpenGHBtn'].forEach(function (id) {
 		var btn = document.getElementById(id);
-		if (btn) btn.classList.toggle('d-none', erCurrentStep !== 3);
+		if (btn) btn.classList.toggle('d-none', !(erCurrentStep === 3 && erReportFile));
 	});
 }
 function ErShowStep (n) {
@@ -8616,7 +8522,7 @@ function ErShowStep (n) {
 	}
 	$('#erStepSummary1').text(erReportFile ? 'Built · ' + ErSizeLabel(erReportSize) : '');
 	$('#erStepSummary2').text(erReportSent ? 'Sent' : '');
-	ErUpdateFooter();
+	ErUpdateNextBtn();
 	if (n === 3) $('#errorReportOpenGHBtn').trigger('focus');
 }
 // A finished step's header reopens it; a step not reached yet stays shut
@@ -8626,7 +8532,7 @@ function ErGoToStep (n) {
 }
 // Keep progress visible: the dialog scrolls (modal-dialog-scrollable), so on
 // short screens a status line would otherwise sit below the fold with no sign
-// that anything is happening.
+// that anything is happening. Scroll the modal body to it.
 function ErScrollTo (el) {
 	var dlg = document.getElementById('errorReportDialog');
 	if (!dlg || !el) return;
@@ -8646,7 +8552,7 @@ function ErNext () {
 		}
 	} else if (erCurrentStep === 2) {
 		if (!erReportSent) {
-			ErSendCrashReport();
+			if (erReportFile) ErSendCrashReport();
 		} else {
 			ErShowStep(3);
 		}
@@ -8677,37 +8583,18 @@ function ErFileNameHtml (asLink) {
 	// deleted from the player, so it is no longer a download link.
 	var name = EscapeHtml(erReportFile || '');
 	return (
-		"<span class='d-flex align-items-center gap-2 bg-body text-body border rounded px-2 py-1'>" +
+		"<span class='d-flex align-items-center gap-2 bg-body text-body border rounded px-2 py-1 mt-1'>" +
 		"<i class='fas fa-file-zipper flex-shrink-0'></i>" +
 		(asLink
-			? "<a class='fw-semibold text-body text-decoration-underline text-break flex-grow-1' href='api/file/Crashes/" + encodeURIComponent(erReportFile || '') + "' title='Download to inspect it first'>" + name + "</a>"
+			? "<a class='fw-semibold text-body text-decoration-underline text-break flex-grow-1' href='api/file/Crashes/" + encodeURIComponent(erReportFile || '') + "'>" + name + "</a>"
 			: "<span class='fw-semibold text-break flex-grow-1'>" + name + "</span>") +
 		"<button type='button' class='btn btn-sm btn-outline-secondary flex-shrink-0 erCopyFileBtn' title='Copy file name' aria-label='Copy file name'><i class='fas fa-copy'></i></button>" +
 		"</span>"
 	);
 }
 function ErRenderFileNames () {
-	$('#errorReportFile').html(erReportFile ? ErFileNameHtml(!erReportSent) + "<div class='small text-muted mt-1'>Settings, configuration and logs · " + ErSizeLabel(erReportSize) + (erReportSent ? '' : ' · click the name to download it and look inside') + "</div>" : '');
+	$('#errorReportDownloadText').html(erReportFile ? ErFileNameHtml(!erReportSent) : '');
 	$('#errorReportSentFile').html(erReportFile ? ErFileNameHtml(false) : '');
-}
-// What the send endpoint asks to be shown before a -manual report goes out:
-// who gets it, the crash rows of Settings > Privacy, that it is sent whatever
-// the saved crash report setting says, and the browser fallback.
-function ErRenderDisclosures (rows, goesTo) {
-	erDisclosures = rows;
-	$('#errorReportDisclosures').html(
-		'<p class="mb-2"><b>Send Report</b> sends this report' +
-			(goesTo ? ' to <b>' + goesTo + '</b>' : '') +
-			', then deletes it from this player.</p>' +
-			CrashDisclosureListHtml(rows, false) +
-			'<p class="mb-2">It was made on request, so it has no crash stack or crash-time ' +
-			'playlist state, and it is sent even if your crash report setting is ' +
-			'&ldquo;Keep locally, do not send&rdquo; or Disabled.</p>' +
-			'<p class="mb-0">If this player can&rsquo;t reach the internet, your browser sends it ' +
-			'instead. Anything not confirmed as delivered stays on the player.</p>'
-	);
-	WireCrashDisclosurePopovers($('#errorReportDialog'), rows);
-	ErUpdateFooter();
 }
 function DisplayErrorReportDialog () {
 	// Toggle like DisplayHelp — second F8 closes
@@ -8719,40 +8606,59 @@ function DisplayErrorReportDialog () {
 	}
 	ErrorReportClosed();
 	errorReportOpen = true;
-	var session = ++erSession;
+	var session = erSession;
 	var bodyHtml =
 		"<div id='errorReportDialogBody'>" +
 		"<div class='alert alert-light border d-flex gap-2 align-items-start mb-3 py-2'>" +
 		"<i class='fas fa-life-ring text-primary mt-1 flex-shrink-0'></i>" +
-		"<div class='text-muted'>When something isn’t working, build a diagnostic report on this FPP, review it, send it, then point the developers to it on GitHub. Nothing leaves this player until you click <b>Send Report</b>.</div>" +
+		"<div class='text-muted'>When something isn’t working, build a diagnostic report on this FPP, review it, then choose whether to send it. Nothing is sent until you confirm.</div>" +
 		"</div>" +
 		"<div id='erSteps'>" +
+		// Step 1 — Build Report
 		ErStepHtml(
 			1,
 			'Build Report',
 			"<p class='text-muted mb-2'>The report is built <b>on your FPP</b> and covers settings, configuration and logs. A build takes seconds on a fast player and can take a few minutes on a Pi Zero or BeagleBone.</p>" +
-				"<div id='errorReportStatus'></div>"
+				"<div id='errorReportStatus' class='mb-2'></div>" +
+				"<div id='errorReportDownloadArea' class='d-none'>" +
+				"<div class='alert alert-success py-2 d-flex gap-2 align-items-start mb-0'>" +
+				"<i class='fas fa-file-zipper mt-1 flex-shrink-0'></i>" +
+				"<div class='flex-grow-1 min-w-0'>" +
+				"<div class='fw-semibold' id='errorReportDownloadTitle'>Ready</div>" +
+				"<div id='errorReportDownloadText'></div>" +
+				"<div class='text-muted mt-1' id='errorReportManifest'></div>" +
+				"</div>" +
+				"</div>" +
+				"</div>"
 		) +
+		// Step 2 — Review & Send
 		ErStepHtml(
 			2,
 			'Review &amp; Send',
-			"<div id='errorReportFile' class='mb-3'></div>" +
-				"<div class='text-muted mb-2'>System information that goes with it:</div>" +
-				"<div id='errorReportVital' class='mb-3'><div class='d-flex align-items-center gap-2 text-muted'>" + ErSpinnerHtml() + " Loading system info…</div></div>" +
-				"<div id='errorReportDisclosures' class='border-top pt-3'><div class='d-flex align-items-center gap-2 text-muted'>" + ErSpinnerHtml() + " Loading what is sent…</div></div>" +
+			"<div class='text-muted mb-2'>This is what will be sent from <b>this device</b>:</div>" +
+				"<div id='errorReportVital'><div class='d-flex align-items-center gap-2 text-muted'><i class='fas fa-spinner fa-spin'></i> Loading system info…</div></div>" +
+				"<ul class='text-muted mt-2 mb-2 ps-3'>" +
+				"<li>System information (version, platform, OS, plugin list)</li>" +
+				"<li>Settings and configuration</li>" +
+				"<li>Logs</li>" +
+				"</ul>" +
+				"<div class='small text-muted d-flex gap-2 align-items-start'><i class='fas fa-circle-info text-primary mt-1 flex-shrink-0'></i><span>See <a href='settings.php#settings-privacy' target='_blank' rel='noopener'>Settings &rsaquo; Privacy</a> for what reports contain and who receives them. You confirm before anything is sent — if this player has no internet, your browser sends it instead, and the file is deleted from the player once delivery is confirmed.</span></div>" +
 				"<div id='errorReportSendStatus' class='mt-3'></div>"
 		) +
+		// Step 3 — GitHub Issue
 		ErStepHtml(
 			3,
 			'GitHub Issue',
-			"<div class='alert alert-success py-2 d-flex gap-2 align-items-center'><i class='fas fa-check flex-shrink-0'></i><span>Report sent and deleted from the player.</span></div>" +
-				"<p class='text-muted mb-2'>Reference it on GitHub so the developers can find it:</p>" +
+			"<p class='text-muted mb-2'>Reference the sent report on GitHub so the developers can find it:</p>" +
 				"<div id='errorReportSentFile' class='mb-3'></div>" +
+				"<div class='border rounded bg-body-tertiary p-3'>" +
+				"<div class='fw-semibold mb-2'><i class='fab fa-github me-1'></i> How to post (about a minute)</div>" +
 				"<ol class='mb-0 ps-3'>" +
 				"<li>Click <b>Open GitHub</b> — the issue form opens with the report filename, FPP version and platform already filled in.</li>" +
 				"<li>Choose <b>Bug report</b>. Fill in what happened and what you expected.</li>" +
-				"<li>Hit <b>Submit new issue</b>, then come back and click <b>Done</b>.</li>" +
-				"</ol>"
+				"<li>Hit <b>Submit new issue</b>.</li>" +
+				"</ol>" +
+				"</div>"
 		) +
 		"</div>" +
 		"</div>";
@@ -8767,6 +8673,7 @@ function DisplayErrorReportDialog () {
 		class: 'modal-dialog-scrollable',
 		backdrop: true,
 		keyboard: true,
+		close: ErrorReportClosed,
 		buttons: {
 			Next: {
 				id: 'errorReportNextBtn',
@@ -8789,26 +8696,14 @@ function DisplayErrorReportDialog () {
 	});
 
 	var $dlg = $('#errorReportDialog');
-	// Every way out -- X, Close, a click outside, ESC, F8 again -- comes
-	// through here.  Before a report exists it just closes; after, it asks.
-	$dlg.off('.erGuard').on('hide.bs.modal.erGuard', function (e) {
-		if (e.target !== this) return;
-		if (ErNeedsCancelConfirm()) {
-			e.preventDefault();
-			ErConfirmCancel();
-			return;
-		}
-		ErrorReportClosed();
-	});
 	$dlg.off('click.erCopy').on('click.erCopy', '.erCopyFileBtn', function () {
 		var $icon = $(this).find('i');
-		var done = function () {
+		CopyTextToClipboard(erReportFile || '', $dlg).then(function () {
 			$icon.attr('class', 'fas fa-check text-success');
 			setTimeout(function () {
 				$icon.attr('class', 'fas fa-copy');
 			}, 1500);
-		};
-		CopyTextToClipboard(erReportFile || '', $dlg).then(done, function () {});
+		});
 	});
 
 	ErShowStep(1);
@@ -8851,29 +8746,20 @@ function DisplayErrorReportDialog () {
 				"<div class='small text-muted'>System information and plugin list.</div>"
 			);
 		});
-
-	// Fetched up front so step 2 is ready the moment the build finishes
-	$.ajax({ url: 'api/crashes/disclosures', dataType: 'json' })
-		.done(function (data) {
-			if (session !== erSession) return;
-			ErRenderDisclosures(data && data.rows ? data.rows : [], data && data.goesTo ? data.goesTo : '');
-		})
-		.fail(function () {
-			if (session !== erSession) return;
-			ErRenderDisclosures([], '');
-		});
 }
 
 function ErBuildCrashReport () {
 	if (erBuilding) return;
 	var session = erSession;
 	erBuilding = true;
-	ErUpdateFooter();
+	ErUpdateNextBtn();
 	var $status = $('#errorReportStatus');
+	var $area = $('#errorReportDownloadArea');
 	$status.html(
-		'<div class="alert alert-secondary py-2 d-flex gap-2 align-items-center mb-0"><div class="spinner-border spinner-border-sm text-primary flex-shrink-0" role="status"><span class="visually-hidden">Loading…</span></div><span>Building report on your FPP — this can take a few minutes on slow players. Please wait…</span></div>'
+		'<div class="alert alert-secondary py-2 d-flex gap-2 align-items-center mb-2"><div class="spinner-border spinner-border-sm text-primary flex-shrink-0" role="status"><span class="visually-hidden">Loading…</span></div><span>Building report on your FPP — this can take a few minutes on slow players. Please wait…</span></div>'
 	);
 	ErScrollTo($status[0]);
+	$area.addClass('d-none');
 	$.ajax({
 		url: 'api/crashes/report',
 		method: 'POST',
@@ -8883,14 +8769,7 @@ function ErBuildCrashReport () {
 		timeout: 280000
 	})
 		.done(function (data) {
-			if (session !== erSession) {
-				// Cancelled while it was building: nobody wants this report
-				if (session === erDiscardSession && data && data.File) {
-					ErDeleteReport(data.File);
-				}
-				return;
-			}
-			erBuilding = false;
+			if (session !== erSession) return;
 			if (!data || data.Status !== 'OK' || !data.File) {
 				var code = data && data.Code ? data.Code : '';
 				var msg = data && data.Message ? data.Message : 'Failed to build report. Please try again.';
@@ -8906,15 +8785,18 @@ function ErBuildCrashReport () {
 			erReportFile = data.File;
 			erReportSize = data.Size || 0;
 			erReportSent = false;
-			$status.html('<div class="alert alert-success py-2 mb-0"><i class="fas fa-check me-1"></i> Report built — ' + EscapeHtml(ErSizeLabel(erReportSize)) + '.</div>');
+			var sizeLabel = ErSizeLabel(erReportSize);
+			$status.html('<div class="alert alert-success py-2 mb-0"><i class="fas fa-check me-1"></i> Report built.</div>');
+			$('#errorReportDownloadTitle').text('Ready — ' + sizeLabel);
 			ErRenderFileNames();
-			// Nothing else to do on this step, so go straight on to the review
-			ErShowStep(2);
-			ErScrollTo(document.getElementById('erStep2'));
+			$('#errorReportManifest').text('Settings, configuration and logs · ' + sizeLabel);
+			$area.removeClass('d-none');
+			// Stay on this step: the user checks what was built, then Next
+			ErShowStep(1);
+			ErScrollTo($status[0]);
 		})
 		.fail(function (xhr, textStatus) {
 			if (session !== erSession) return;
-			erBuilding = false;
 			var msg = 'Failed to build report. Please try again.';
 			try {
 				var j = JSON.parse(xhr.responseText);
@@ -8930,42 +8812,47 @@ function ErBuildCrashReport () {
 		})
 		.always(function () {
 			if (session !== erSession) return;
-			ErUpdateFooter();
+			erBuilding = false;
+			ErUpdateNextBtn();
 		});
 }
-// Send Report is the consent: the disclosures are on screen right above it in
-// step 2, so there is no second Yes/No dialog on top of the wizard.
 function ErSendCrashReport () {
-	if (!erReportFile || erSending || erDisclosures === null) return;
+	if (!erReportFile || erSending) return;
 	var session = erSession;
 	erSending = true;
-	ErUpdateFooter();
+	ErUpdateNextBtn();
 	var $sendStatus = $('#errorReportSendStatus');
 	$sendStatus.html(
-		'<div class="alert alert-secondary py-2 d-flex gap-2 align-items-center mb-0"><div class="spinner-border spinner-border-sm text-primary flex-shrink-0" role="status"><span class="visually-hidden">Loading…</span></div><span>Sending…</span></div>'
+		'<div class="alert alert-secondary py-2 d-flex gap-2 align-items-center mb-0"><div class="spinner-border spinner-border-sm text-primary flex-shrink-0" role="status"><span class="visually-hidden">Loading…</span></div><span>Sending — you will be asked to confirm first…</span></div>'
 	);
-	ErScrollTo($sendStatus[0]);
-	SendCrashReports([erReportFile], {
-		quiet: true,
+	UploadAndDeleteCrashReports([erReportFile], {
 		onDone: function (tally) {
 			if (session !== erSession) return;
 			erSending = false;
-			if (tally.uploaded > 0) {
-				erReportSent = true;
-				$sendStatus.empty();
-				ErRenderFileNames();
-				ErShowStep(3);
-				ErScrollTo(document.getElementById('erStep3'));
+			if (tally === null) {
+				$sendStatus.html('<div class="alert alert-secondary py-2 mb-0">Cancelled — nothing was sent. The report is still on the player; you can send it later from File Manager › Crashes.</div>');
+				ErUpdateNextBtn();
 				return;
 			}
-			if (tally.unconfirmed > 0) {
+			if (tally && tally.uploaded > 0) {
+				erReportSent = true;
+				$sendStatus.html('<div class="alert alert-success py-2 mb-0"><i class="fas fa-check me-1"></i> Report sent and deleted from the player.</div>');
+				ErRenderFileNames();
+				ErShowStep(3);
+				return;
+			}
+			if (tally && tally.unconfirmed > 0) {
+				// Not a failure: the browser posted it but could not read the answer
 				$sendStatus.html('<div class="alert alert-warning py-2 mb-0">Your browser sent the report, but no delivery confirmation came back, so it has been kept on the player. Check your browser&rsquo;s internet connection and try again &mdash; if it did arrive, sending it again is harmless.</div>');
 			} else {
-				var detail = tally.failed.length ? ' (' + tally.failed.join('; ').substring(0, 200) + ')' : '';
+				var detail = tally && tally.failed && tally.failed.length ? ' (' + tally.failed.join('; ').substring(0, 200) + ')' : '';
 				$sendStatus.html('<div class="alert alert-danger py-2 mb-0">' + EscapeHtml('Send did not complete' + detail + '. The report stays on the player; try again or download it from File Manager › Crashes.') + '</div>');
 			}
-			ErUpdateFooter();
+			ErUpdateNextBtn();
 			ErScrollTo($sendStatus[0]);
+		},
+		onDeleted: function () {
+			// File Manager row cleanup only applies on that page; no-op here.
 		}
 	});
 }
@@ -9472,23 +9359,15 @@ function UploadAndDeleteCrashReports (files, options) {
 		});
 }
 
-// The crash rows of Settings > Privacy (GET api/crashes/disclosures) as one
-// "It includes: ..." line.  Shared by the send dialog and the F8 Error Report
-// wizard so the two cannot say different things.
-function CrashDisclosureListHtml (disclosures, multiple) {
-	if (!disclosures.length) {
-		return (
-			'<p>See <a href="settings.php#settings-privacy" target="_blank">Settings ' +
-			'&rsaquo; Privacy</a> for what reports contain and who receives them.</p>'
-		);
-	}
+// Each item's (?) shows its Settings > Privacy text in a popover: hover to
+// read, click or tap to keep it open.
+function ShowCrashUploadDialog (files, options, disclosures, goesTo) {
 	// No "and" before the last item: labels such as "configuration and logs"
 	// already have one.  Each item keeps its (?) and comma on the same line.
 	var last = disclosures.length - 1;
-	return (
-		'<p>' +
-		(multiple ? 'They include: ' : 'It includes: ') +
-		disclosures
+	var disclosureHtml = disclosures.length
+		? '<p>' + (files.length > 1 ? 'They include: ' : 'It includes: ') +
+			disclosures
 			.map(function (d, i) {
 				return (
 					'<span class="text-nowrap"><b>' +
@@ -9503,70 +9382,9 @@ function CrashDisclosureListHtml (disclosures, multiple) {
 				);
 			})
 			.join(' ') +
-		'</p>'
-	);
-}
-
-// Each item's (?) shows its Settings > Privacy text in a popover: hover to
-// read, click or tap to keep it open.  $dlg is the modal holding the list.
-function WireCrashDisclosurePopovers ($dlg, disclosures) {
-	// The dialog is reused, so handlers from an earlier call (a double click
-	// opens it twice) are removed first; only this call's run
-	$dlg.off('.crashDisclosure');
-	$dlg.find('.crashDisclosureHelp').each(function () {
-		var d = disclosures[$(this).data('idx')];
-		new bootstrap.Popover(this, {
-			title: d.item.charAt(0).toUpperCase() + d.item.slice(1),
-			content: d.body,
-			html: true,
-			trigger: 'hover focus',
-			// Whichever side has more room: up to the top of the window, or
-			// down to the footer buttons
-			placement: function (tip, el) {
-				var r = el.getBoundingClientRect();
-				var below = $dlg.find('.modal-footer')[0].getBoundingClientRect().top - r.bottom;
-				return r.top > below ? 'top' : 'bottom';
-			},
-			fallbackPlacements: [],
-			container: $dlg[0],
-			customClass: 'crash-disclosure-popover'
-		});
-	});
-	// Keep a popover inside that room, so one kept open by a click covers
-	// neither the footer buttons nor runs off the top; its text scrolls instead
-	$dlg.on('shown.bs.popover.crashDisclosure', '.crashDisclosureHelp', function () {
-		var popover = bootstrap.Popover.getInstance(this);
-		var tip = popover.tip;
-		var body = tip.querySelector('.popover-body');
-		var over =
-			tip.getAttribute('data-popper-placement') === 'top'
-				? 8 - tip.getBoundingClientRect().top
-				: tip.getBoundingClientRect().bottom -
-					($dlg.find('.modal-footer')[0].getBoundingClientRect().top - 8);
-		if (over > 0) {
-			body.style.maxHeight = Math.max(body.offsetHeight - over, 80) + 'px';
-			popover.update();
-		}
-	});
-	// Once the dialog has finished closing: a popover still fading out when
-	// disposed throws when its fade ends
-	$dlg.one('hidden.bs.modal.crashDisclosure', function () {
-		$dlg.find('.crashDisclosureHelp').each(function () {
-			var p = bootstrap.Popover.getInstance(this);
-			if (p) {
-				p.dispose();
-			}
-		});
-	});
-}
-
-// Start a send the user has already agreed to, having seen the disclosures.
-function SendCrashReports (files, options) {
-	UploadCrashReportsSequentially(files, 0, { uploaded: 0, unconfirmed: 0, failed: [] }, options || {});
-}
-
-function ShowCrashUploadDialog (files, options, disclosures, goesTo) {
-	var disclosureHtml = CrashDisclosureListHtml(disclosures, files.length > 1);
+			'</p>'
+		: '<p>See <a href="settings.php#settings-privacy" target="_blank">Settings ' +
+			'&rsaquo; Privacy</a> for what reports contain and who receives them.</p>';
 
 	var plural = files.length > 1 ? 's' : '';
 	var listHtml =
@@ -9620,16 +9438,63 @@ function ShowCrashUploadDialog (files, options, disclosures, goesTo) {
 			'delivered stays on the player.</p>',
 		function () {
 			sending = true;
-			SendCrashReports(files, options);
+			UploadCrashReportsSequentially(files, 0, {
+				uploaded: 0,
+				unconfirmed: 0,
+				failed: []
+			}, options);
 		}
 	);
 
 	// Inside the dialog so they scroll and close with it
 	var $dlg = $('#confirmUploadCrash');
-	WireCrashDisclosurePopovers($dlg, disclosures);
-	// The dialog is reused, so handlers from an earlier call are removed first
+	$dlg.find('.crashDisclosureHelp').each(function () {
+		var d = disclosures[$(this).data('idx')];
+		new bootstrap.Popover(this, {
+			title: d.item.charAt(0).toUpperCase() + d.item.slice(1),
+			content: d.body,
+			html: true,
+			trigger: 'hover focus',
+			// Whichever side has more room: up to the top of the window, or
+			// down to Yes and No
+			placement: function (tip, el) {
+				var r = el.getBoundingClientRect();
+				var below = $dlg.find('.modal-footer')[0].getBoundingClientRect().top - r.bottom;
+				return r.top > below ? 'top' : 'bottom';
+			},
+			fallbackPlacements: [],
+			container: $dlg[0],
+			customClass: 'crash-disclosure-popover'
+		});
+	});
+	// The dialog is reused, so handlers from an earlier call (a double click
+	// opens it twice) are removed first; only this call's run
 	$dlg.off('.crashUpload');
+	// Keep a popover inside that room, so one kept open by a click covers
+	// neither Yes and No nor runs off the top; its text scrolls instead
+	$dlg.on('shown.bs.popover.crashUpload', '.crashDisclosureHelp', function () {
+		var popover = bootstrap.Popover.getInstance(this);
+		var tip = popover.tip;
+		var body = tip.querySelector('.popover-body');
+		var over =
+			tip.getAttribute('data-popper-placement') === 'top'
+				? 8 - tip.getBoundingClientRect().top
+				: tip.getBoundingClientRect().bottom -
+					($dlg.find('.modal-footer')[0].getBoundingClientRect().top - 8);
+		if (over > 0) {
+			body.style.maxHeight = Math.max(body.offsetHeight - over, 80) + 'px';
+			popover.update();
+		}
+	});
+	// Once the dialog has finished closing: a popover still fading out when
+	// disposed throws when its fade ends
 	$dlg.one('hidden.bs.modal.crashUpload', function () {
+		$dlg.find('.crashDisclosureHelp').each(function () {
+			var p = bootstrap.Popover.getInstance(this);
+			if (p) {
+				p.dispose();
+			}
+		});
 		// Closed without Yes: nothing was sent
 		if (!sending && options.onDone) {
 			options.onDone(null);
@@ -9639,12 +9504,9 @@ function ShowCrashUploadDialog (files, options, disclosures, goesTo) {
 
 // One at a time: these are multi-megabyte zips and a player on a slow uplink
 // should not be asked to run several at once.
-// options.quiet skips the results dialog, for a caller that shows the tally itself.
 function UploadCrashReportsSequentially (files, idx, tally, options) {
 	if (idx >= files.length) {
-		if (!options.quiet) {
-			ReportCrashUploadResults(tally);
-		}
+		ReportCrashUploadResults(tally);
 		if (options.onDone) {
 			options.onDone(tally);
 		}
@@ -9656,7 +9518,7 @@ function UploadCrashReportsSequentially (files, idx, tally, options) {
 		UploadCrashReportsSequentially(files, idx + 1, tally, options);
 	};
 
-	// The user agreed after seeing the disclosures; -manual reports require it
+	// The user agreed in the confirmation dialog; -manual reports require it
 	$.ajax({
 		url: 'api/crashes/upload/' + encodeURIComponent(file),
 		type: 'POST',

@@ -55,7 +55,7 @@
                                 <li><a href="javascript:void(0);" onClick="DisplayErrorReportDialog();"><i
                                             class="fas fa-file-archive"></i> Something not working? Build and send an
                                         Error Report <span
-                                            class="badge bg-body text-primary-emphasis border border-primary-subtle fw-normal ms-1 errorReportKeyLabel">F8</span></a>
+                                            class="badge bg-body text-primary-emphasis border border-primary-subtle fw-normal ms-1">F8</span></a>
                                 </li>
                             </ul>
                         </div>
