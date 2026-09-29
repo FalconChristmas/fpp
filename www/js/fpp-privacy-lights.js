@@ -864,6 +864,14 @@ var FPPPluginPrivacy = (function () {
 		};
 	}
 
+	// Kept for pages outside FPP that load this file from the FPP repository
+	// (fpp-data's plugin preview and privacy builder). The Install button no
+	// longer follows the lights, so every result gets the plain button; the
+	// caller still forces "Install anyway" for its own non-privacy warnings.
+	function installButtonFor() {
+		return { text: "Install", cls: "btn-success" };
+	}
+
 	// ---- Rendering ---------------------------------------------------------
 	//
 	// Bootstrap 5.3 utilities only (see .claude/FRONTEND-GUIDELINES.md): every
@@ -1218,6 +1226,7 @@ var FPPPluginPrivacy = (function () {
 
 	return {
 		evaluate: evaluate,
+		installButtonFor: installButtonFor,
 		stripHtml: stripHtml,
 		changesSummaryHtml: changesSummaryHtml,
 		headlineHtml: headlineHtml,
