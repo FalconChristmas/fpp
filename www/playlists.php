@@ -383,7 +383,8 @@
                 }
 
                 var $playlistClass = playList.valid ? 'class="card-title"' :
-                    'class="card-title playlist-warning" title="' + playList.messages.join(' ') + '"';
+                    'class="card-title playlist-warning" title="' +
+                    EscapeHtml(playList.messages.join('\n')).replace(/"/g, '&quot;').replace(/\n/g, '&#10;') + '"';
                 var $playlistCardHeading = $('<h3 ' + $playlistClass + '>' + $playlistName + '</h3>');
                 var $playlistCardDescription = $('<div class="text-center"/><p class="card-text mb-2 text-muted">' +
                     $playlistDescription + '</p></div>');

@@ -2541,32 +2541,23 @@ function psiExtraMediaBadge (entry) {
 	);
 }
 
-function GetPlaylistRowHTML (ID, entry, editMode, invalidNames = {}) {
+function GetPlaylistRowHTML (ID, entry, editMode, entryIssues = []) {
 	var HTML = '';
 	var rowNum = ID + 1;
 
+	// entryIssues: problems /api/playlists/validate found with this entry
 	var warningClass = '';
 	var warningTitle = '';
-	if (entry.type == 'sequence' && entry.sequenceName && invalidNames[entry.sequenceName]) {
+	if (entryIssues.length) {
 		warningClass = ' playlistRowWarning';
-		warningTitle = ' title="Missing sequence: ' + entry.sequenceName.replace(/'/g, '&#39;') + '"';
-	} else if (entry.type == 'both') {
-		if (entry.sequenceName && invalidNames[entry.sequenceName]) {
-			warningClass = ' playlistRowWarning';
-			warningTitle = ' title="Missing sequence: ' + entry.sequenceName.replace(/'/g, '&#39;') + '"';
-		} else if (entry.mediaName && invalidNames[entry.mediaName]) {
-			warningClass = ' playlistRowWarning';
-			warningTitle = ' title="Missing media: ' + entry.mediaName.replace(/'/g, '&#39;') + '"';
-		}
-	} else if (entry.type == 'media' && entry.mediaName && invalidNames[entry.mediaName]) {
-		warningClass = ' playlistRowWarning';
-		warningTitle = ' title="Missing media: ' + entry.mediaName.replace(/'/g, '&#39;') + '"';
-	} else if (entry.type == 'playlist' && entry.name && invalidNames[entry.name]) {
-		warningClass = ' playlistRowWarning';
-		warningTitle = ' title="Missing playlist: ' + entry.name.replace(/'/g, '&#39;') + '"';
-	} else if (entry.type == 'image' && entry.imagePath && invalidNames[entry.imagePath]) {
-		warningClass = ' playlistRowWarning';
-		warningTitle = ' title="Missing image: ' + entry.imagePath.replace(/'/g, '&#39;') + '"';
+		warningTitle =
+			' title="' +
+			entryIssues
+				.map(function (m) {
+					return EscapeHtml(m).replace(/"/g, '&quot;');
+				})
+				.join('&#10;') +
+			'"';
 	}
 
 	if (editMode) {
@@ -2780,31 +2771,57 @@ function PlaylistNameOK (name) {
 	return 1;
 }
 
+// Groups a /api/playlists/validate result's issues by entry, keyed
+// "<section>:<index>", for PopulatePlaylistDetails().
+function PlaylistIssuesByEntry (playlist) {
+	var issues = {};
+	(playlist.issues || []).forEach(function (issue) {
+		if (issue.index < 0) return;
+		var key = issue.section + ':' + issue.index;
+		(issues[key] = issues[key] || []).push(issue.message);
+	});
+	return issues;
+}
+
+// Re-applies validation warnings to the rows already on screen, after a save
+// has re-run /api/playlists/validate.  Rows are in saved order, so a row's
+// position in its section is the index the issues refer to.
+function RefreshPlaylistRowWarnings (name) {
+	var playlist = playListArray.find(function (p) {
+		return p.name == name;
+	});
+	var issues = playlist ? PlaylistIssuesByEntry(playlist) : {};
+	['leadIn', 'mainPlaylist', 'leadOut'].forEach(function (section) {
+		var idPart = section.charAt(0).toUpperCase() + section.slice(1);
+		$('#tblPlaylist' + idPart)
+			.children('tr.playlistRow')
+			.each(function (i, row) {
+				var entryIssues = issues[section + ':' + i] || [];
+				$(row).find('.playlistEntryWarningIcon').remove();
+				if (entryIssues.length) {
+					$(row).addClass('playlistRowWarning').attr('title', entryIssues.join('\n'));
+					$(row)
+						.find('.psiHeader .entryType')
+						.before("<span class='playlistEntryWarningIcon'>&#x26a0;</span>");
+				} else {
+					$(row).removeClass('playlistRowWarning').removeAttr('title');
+				}
+			});
+	});
+}
+
 function LoadPlaylistDetails (name) {
 	$.get('api/playlist/' + name)
 		.done(function (data) {
-			var invalidNames = {};
+			var issues = {};
 			for (var i = 0; i < playListArray.length; i++) {
 				if (playListArray[i].name == name) {
-					var msgs = playListArray[i].messages;
-					for (var m = 0; m < msgs.length; m++) {
-						var msg = msgs[m];
-						var match;
-						if ((match = msg.match(/^Invalid Sequence (.+)$/))) {
-							invalidNames[match[1]] = true;
-						} else if ((match = msg.match(/^Invalid mediaName (.+)$/))) {
-							invalidNames[match[1]] = true;
-						} else if ((match = msg.match(/^Invalid Playlist (.+)$/))) {
-							invalidNames[match[1]] = true;
-						} else if ((match = msg.match(/^Invalid Image (.+)$/))) {
-							invalidNames[match[1]] = true;
-						}
-					}
+					issues = PlaylistIssuesByEntry(playListArray[i]);
 					break;
 				}
 			}
 			setTimeout(function () {
-				PopulatePlaylistDetails(data, 1, name, invalidNames);
+				PopulatePlaylistDetails(data, 1, name, issues);
 			}, 0);
 		})
 		.fail(function () {
@@ -3741,7 +3758,11 @@ function SavePlaylistAs (name, options, callback) {
 				'.playlistSelectedEntry'
 			).length;
 
-			PopulateLists();
+			PopulateLists({
+				onPlaylistArrayLoaded: function () {
+					RefreshPlaylistRowWarnings(name);
+				}
+			});
 			EnableButtonClass('playlistEditButton');
 
 			if (rowSelected) {
@@ -8094,7 +8115,7 @@ function UpdatePlaylistHeaderDetailVisibility () {
 	});
 }
 
-function PopulatePlaylistDetails (data, editMode, name = '', invalidNames = {}) {
+function PopulatePlaylistDetails (data, editMode, name = '', issues = {}) {
 	var innerHTML = '';
 	var entries = 0;
 	gblPlaylistDetailsEditMode = editMode ? 1 : 0;
@@ -8112,7 +8133,12 @@ function PopulatePlaylistDetails (data, editMode, name = '', invalidNames = {}) 
 			let sectionData = data[sections[s]];
 			innerHTML = '';
 			for (var i = 0; i < sectionData.length; i++) {
-				innerHTML += GetPlaylistRowHTML(entries, sectionData[i], editMode, invalidNames);
+				innerHTML += GetPlaylistRowHTML(
+					entries,
+					sectionData[i],
+					editMode,
+					issues[sections[s] + ':' + i] || []
+				);
 				entries++;
 			}
 			$('#tblPlaylist' + idPart).html(innerHTML);
