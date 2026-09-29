@@ -14185,6 +14185,83 @@ function FillInCommandTemplate (row, data) {
 
 	row.find('.cmdTmplTooltipIcon').attr('data-bs-original-title', tip);
 	row.find('.cmdTmplTooltipIcon').tooltip();
+
+	QueueCommandTemplateValidation(row);
+}
+
+// Checks FPP commands ({command, args, multisyncCommand, multisyncHosts})
+// with /api/validate/commands.  The callback gets one array of problem
+// descriptions per command, in order; all empty if the check itself fails.
+function ValidateCommands (cmds, callback) {
+	var none = cmds.map(function () {
+		return [];
+	});
+	if (!cmds.length) {
+		callback(none);
+		return;
+	}
+	$.ajax({
+		url: 'api/validate/commands',
+		type: 'POST',
+		contentType: 'application/json',
+		data: JSON.stringify(cmds),
+		dataType: 'json',
+		success: function (data) {
+			callback(Array.isArray(data) ? data : none);
+		},
+		error: function () {
+			callback(none);
+		}
+	});
+}
+
+// Rows filled in by FillInCommandTemplate in one pass -- a page load, or a
+// single edit -- are checked together in one request, and each row shows a
+// warning icon listing its problems.
+var gblCommandTemplateRowsToValidate = [];
+var gblCommandTemplateValidateSeq = 0;
+function QueueCommandTemplateValidation (row) {
+	if (!gblCommandTemplateRowsToValidate.length) {
+		setTimeout(function () {
+			var rows = gblCommandTemplateRowsToValidate.filter(function (r) {
+				return $.contains(document.documentElement, r[0]);
+			});
+			gblCommandTemplateRowsToValidate = [];
+			// A row edited again before its answer arrives keeps only the newer one.
+			var seq = ++gblCommandTemplateValidateSeq;
+			rows.forEach(function (r) {
+				r.data('cmdTmplValidateSeq', seq);
+			});
+			ValidateCommands(
+				rows.map(function (r) {
+					return GetCommandTemplateData(r);
+				}),
+				function (results) {
+					rows.forEach(function (r, i) {
+						if (r.data('cmdTmplValidateSeq') == seq) {
+							SetCommandTemplateWarning(r, results[i] || []);
+						}
+					});
+				}
+			);
+		}, 0);
+	}
+	if (
+		!gblCommandTemplateRowsToValidate.some(function (r) {
+			return r[0] === $(row)[0];
+		})
+	) {
+		gblCommandTemplateRowsToValidate.push($(row));
+	}
+}
+
+function SetCommandTemplateWarning (row, problems) {
+	row.find('.cmdTmplWarning').remove();
+	if (problems.length) {
+		$("<span class='cmdTmplWarning'>&#x26a0;</span>")
+			.attr('title', problems.join('\n'))
+			.insertAfter(row.find('.cmdTmplCommand').first());
+	}
 }
 
 function RunCommandJSON (cmdJSON) {

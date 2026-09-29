@@ -92,207 +92,6 @@ function updatePlaylistInfo(&$playlist)
 }
 
 /**
- * Commands that fppd no longer has, and what replaced each one.  A playlist
- * saved on an older FPP still carries these names; fppd skips the entry at
- * play time with nothing but a transient warning, so validation calls them
- * out by name.
- */
-function playlistRemovedCommands()
-{
-    return array(
-        "Remote Trigger Command Preset" => "Trigger Command Preset",
-        "Remote Trigger Command Preset Slot" => "Trigger Command Preset Slot",
-        "Remote Effect Start" => "Effect Start",
-        "Remote FSEQ Effect Start" => "FSEQ Effect Start",
-        "Remote Effect Stop" => "Effect Stop",
-        "Remote Playlist Start" => "Start Playlist",
-        "Remote Run Script" => "Run Script",
-    );
-}
-
-/**
- * Builds the lookup state shared by every playlist checked in one validation
- * pass: the known playlists, the command descriptions from fppd, and the
- * command preset names.
- *
- * `commands` is null when fppd could not be reached; command entries are then
- * not checked rather than all being reported as unknown.
- *
- * @return array Validation context, passed by reference to the validators.
- */
-function playlistValidationContext()
-{
-    global $settings;
-
-    $playlists = array();
-    if ($d = opendir($settings['playlistDirectory'])) {
-        while (($file = readdir($d)) !== false) {
-            if (preg_match('/\.json$/', $file)) {
-                $playlists[preg_replace('/\.json$/', '', $file)] = true;
-            }
-        }
-        closedir($d);
-    }
-
-    $commands = null;
-    $curl = curl_init('http://127.0.0.1:32322/commands');
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 1000);
-    curl_setopt($curl, CURLOPT_TIMEOUT_MS, 3000);
-    $body = curl_exec($curl);
-    $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    curl_close($curl);
-    if ($body !== false && $status == 200) {
-        $list = json_decode($body, true);
-        if (is_array($list)) {
-            $commands = array();
-            foreach ($list as $c) {
-                if (isset($c['name'])) {
-                    $commands[$c['name']] = $c;
-                }
-            }
-        }
-    }
-
-    $presets = array();
-    $presetFile = $settings['configDirectory'] . '/commandPresets.json';
-    if (file_exists($presetFile)) {
-        $data = json_decode(file_get_contents($presetFile), true);
-        if (isset($data['commands']) && is_array($data['commands'])) {
-            foreach ($data['commands'] as $p) {
-                if (isset($p['name'])) {
-                    $presets[$p['name']] = true;
-                }
-            }
-        }
-    }
-
-    return array(
-        'playlists' => $playlists,
-        'commands' => $commands,
-        'presets' => $presets,
-        'results' => array(), // playlist name => validation result, memoized
-        'active' => array(),  // playlists being validated, for cycle detection
-    );
-}
-
-/**
- * True when $name is a file (or, with $allowDir, a directory) under $dir.
- * Names may carry a sub-directory, as sequences in sub-folders do.
- */
-function playlistFileExists($dir, $name, $allowDir = false)
-{
-    if ($name === '') {
-        return false;
-    }
-    $path = (substr($name, 0, 1) == '/') ? $name : $dir . '/' . $name;
-    return is_file($path) || ($allowDir && is_dir($path));
-}
-
-/**
- * Media is looked up the way fppd does: an absolute path as given, otherwise
- * the music directory and then the video directory.
- */
-function playlistMediaExists($name)
-{
-    global $settings;
-    if (substr($name, 0, 1) == '/') {
-        return is_file($name);
-    }
-    return playlistFileExists($settings['musicDirectory'], $name) ||
-        playlistFileExists($settings['videoDirectory'], $name);
-}
-
-/**
- * Checks a command and its arguments, the way a playlist "command" entry
- * would run it.
- *
- * @param array $cmd  Entry holding `command`, `args` and optionally `multisyncCommand`.
- * @param array $ctx  Validation context from playlistValidationContext().
- * @return array Problem descriptions; empty when the command looks runnable.
- */
-function validatePlaylistCommand($cmd, &$ctx)
-{
-    global $settings;
-    $rc = array();
-
-    $name = isset($cmd['command']) ? $cmd['command'] : '';
-    if ($name === '') {
-        return array("No command selected");
-    }
-
-    // A multisync command is only sent to the remotes (fppd does not run it
-    // locally), so it names things on those hosts that need not exist here.
-    if (!empty($cmd['multisyncCommand'])) {
-        return $rc;
-    }
-    if ($ctx['commands'] === null) {
-        return $rc;
-    }
-
-    if (!isset($ctx['commands'][$name])) {
-        $removed = playlistRemovedCommands();
-        if (isset($removed[$name])) {
-            $rc[] = "Command '$name' was removed in FPP 10; use '" . $removed[$name] .
-                "' with the Multisync option instead";
-        } else {
-            $rc[] = "Unknown command '$name' (it may come from a plugin that is not installed)";
-        }
-        return $rc;
-    }
-
-    $argDefs = isset($ctx['commands'][$name]['args']) ? $ctx['commands'][$name]['args'] : array();
-    $args = (isset($cmd['args']) && is_array($cmd['args'])) ? array_values($cmd['args']) : array();
-    for ($i = 0; $i < count($argDefs) && $i < count($args); $i++) {
-        $def = $argDefs[$i];
-        // Arguments after a subcommand depend on which subcommand was chosen.
-        if (isset($def['type']) && $def['type'] == 'subcommand') {
-            break;
-        }
-        if (!isset($def['contentListUrl']) || !is_scalar($args[$i])) {
-            continue;
-        }
-        $value = (string) $args[$i];
-        // Empty means "not set"; %...% is substituted when the command runs.
-        if ($value === '' || strpos($value, '%') !== false) {
-            continue;
-        }
-        $label = isset($def['description']) ? $def['description'] : $def['name'];
-        $missing = false;
-        switch ($def['contentListUrl']) {
-            case 'api/playlists':
-                $missing = !isset($ctx['playlists'][$value]);
-                break;
-            case 'api/playlists/playable':
-                $missing = !isset($ctx['playlists'][$value]) &&
-                    !(preg_match('/\.fseq$/i', $value) && playlistFileExists($settings['sequenceDirectory'], $value));
-                break;
-            case 'api/sequence':
-                $missing = !playlistFileExists($settings['sequenceDirectory'], $value) &&
-                    !playlistFileExists($settings['sequenceDirectory'], $value . '.fseq');
-                break;
-            case 'api/effects':
-                $missing = !playlistFileExists($settings['effectDirectory'], $value) &&
-                    !playlistFileExists($settings['effectDirectory'], $value . '.eseq');
-                break;
-            case 'api/media':
-                $missing = !playlistMediaExists($value);
-                break;
-            case 'api/scripts':
-                $missing = !playlistFileExists($settings['scriptDirectory'], $value);
-                break;
-            case 'api/commandPresets?names=true':
-                $missing = !isset($ctx['presets'][$value]);
-                break;
-        }
-        if ($missing) {
-            $rc[] = "Command '$name': $label '$value' not found";
-        }
-    }
-    return $rc;
-}
-
-/**
  * Checks a sub-playlist reference, recursing into the named playlist.
  *
  * @return array Problem descriptions for the reference.
@@ -345,7 +144,7 @@ function validatePlaylistEntry($e, &$ctx)
             $seq = $str('sequenceName');
             if ($seq === '') {
                 $rc[] = "No sequence selected";
-            } else if (!playlistFileExists($settings['sequenceDirectory'], $seq)) {
+            } else if (!validationFileExists($settings['sequenceDirectory'], $seq)) {
                 $rc[] = "Sequence '$seq' not found";
             }
             if ($type == 'sequence') {
@@ -361,7 +160,7 @@ function validatePlaylistEntry($e, &$ctx)
                     if ($type == 'media') {
                         $rc[] = "No media selected";
                     }
-                } else if (!playlistMediaExists($media)) {
+                } else if (!validationMediaExists($media)) {
                     $rc[] = "Media '$media' not found";
                 }
             }
@@ -377,7 +176,7 @@ function validatePlaylistEntry($e, &$ctx)
                 }
             }
             foreach ($extra as $m) {
-                if (!playlistMediaExists($m)) {
+                if (!validationMediaExists($m)) {
                     $rc[] = "Extra media '$m' not found";
                 }
             }
@@ -396,7 +195,7 @@ function validatePlaylistEntry($e, &$ctx)
             $img = $str('imagePath');
             if ($img === '') {
                 $rc[] = "No image selected";
-            } else if (!playlistFileExists($settings['imageDirectory'], rtrim($img, '/'), true)) {
+            } else if (!validationFileExists($settings['imageDirectory'], rtrim($img, '/'), true)) {
                 $rc[] = "Image '$img' not found";
             }
             break;
@@ -404,12 +203,12 @@ function validatePlaylistEntry($e, &$ctx)
             $script = $str('scriptName');
             if ($script === '') {
                 $rc[] = "No script selected";
-            } else if (!playlistFileExists($settings['scriptDirectory'], $script)) {
+            } else if (!validationFileExists($settings['scriptDirectory'], $script)) {
                 $rc[] = "Script '$script' not found";
             }
             break;
         case 'command':
-            $rc = validatePlaylistCommand($e, $ctx);
+            $rc = validateFPPCommand($e, $ctx);
             break;
         case 'dynamic':
             $sub = $str('subType');
@@ -545,7 +344,7 @@ function playlistIssueText($issue)
  */
 function playlist_list_validate()
 {
-    $ctx = playlistValidationContext();
+    $ctx = validationContext();
     $playlists = array_keys($ctx['playlists']);
     sort($playlists);
 

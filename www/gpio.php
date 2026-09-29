@@ -470,6 +470,34 @@ if (is_dir($stringsDir)) {
                 return;
             }
             $.each(gpioTriggers, function (i, t) { c.append(buildTriggerCard(i, t)); });
+            markTriggerCommandProblems();
+        }
+
+        // Flags commands that would fail when an enabled trigger fires (a
+        // command that no longer exists, a missing playlist/preset/script...).
+        var triggerValidateSeq = 0;
+        function markTriggerCommandProblems() {
+            var cmds = [], keys = [];
+            var seq = ++triggerValidateSeq; // the list may be re-rendered before the answer arrives
+            $.each(gpioTriggers, function (i, t) {
+                if (!t.enabled) return;
+                $.each(['rising', 'falling', 'hold'], function (j, edge) {
+                    $.each(t[edge], function (n, c) {
+                        // Read by fppoled, not fppd, so fppd does not list it.
+                        if (c.command == 'OLED Navigation') return;
+                        cmds.push(c);
+                        keys.push(i + ':' + edge + ':' + n);
+                    });
+                });
+            });
+            ValidateCommands(cmds, function (results) {
+                if (seq != triggerValidateSeq) return;
+                $.each(results, function (k, problems) {
+                    if (!problems.length) return;
+                    $('#gpioTriggerList [data-cmd-key="' + keys[k] + '"]').append(
+                        $("<span class='cmdTmplWarning'>&#x26a0;</span>").attr('title', problems.join('\n')));
+                });
+            });
         }
 
         function buildTriggerCard(idx, t) {
@@ -504,13 +532,13 @@ if (is_dir($stringsDir)) {
                 '</div>'
             );
 
-            var risingHtml = previewCmds(t.rising);
-            var fallingHtml = previewCmds(t.falling);
+            var risingHtml = previewCmds(t.rising, idx + ':rising');
+            var fallingHtml = previewCmds(t.falling, idx + ':falling');
             var holdHtml = '';
             if (t.holdTime > 0 && t.hold.length) {
                 holdHtml = '<div class="mt-2 pt-2" style="border-top:1px solid var(--bs-border-color)">' +
                     '<div class="gpio-section-label"><i class="fas fa-hand-paper text-info"></i> Hold (' + t.holdTime + 'ms)</div>' +
-                    previewCmds(t.hold) + '</div>';
+                    previewCmds(t.hold, idx + ':hold') + '</div>';
             }
 
             card.append(
@@ -530,11 +558,11 @@ if (is_dir($stringsDir)) {
             return card;
         }
 
-        function previewCmds(cmds) {
+        function previewCmds(cmds, keyPrefix) {
             if (!cmds || !cmds.length) return '<div class="gpio-empty-text">No commands</div>';
             var html = '<ul class="gpio-cmd-list">';
             $.each(cmds, function (i, c) {
-                html += '<li><span class="gpio-cmd-badge">' + esc(cmdSummary(c)) + '</span></li>';
+                html += '<li data-cmd-key="' + keyPrefix + ':' + i + '"><span class="gpio-cmd-badge">' + esc(cmdSummary(c)) + '</span></li>';
             });
             return html + '</ul>';
         }

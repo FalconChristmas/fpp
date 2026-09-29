@@ -405,6 +405,7 @@ error_reporting(E_ALL);
             var isValid = true;
 
             // Remove previous warnings
+            $(row).find('.schPlaylistWarning').remove();
             $(row).find('.schPlaylist').removeClass('inputWarning');
             $(row).find('.schSequence').removeClass('inputWarning');
             $(row).find('.cmdTmplCommand').removeClass('inputWarning');
@@ -414,6 +415,16 @@ error_reporting(E_ALL);
                 if (!playlistVal || playlistVal === '' || playlistVal === 'null') {
                     $(row).find('.schPlaylist').addClass('inputWarning');
                     isValid = false;
+                } else {
+                    // A playlist that exists but would not play cleanly is
+                    // flagged (from /api/playlists/validate) but still savable.
+                    var pl = playListArray.find(function (p) { return p.name == playlistVal; });
+                    if (pl && !pl.valid) {
+                        $(row).find('.schPlaylist').addClass('inputWarning');
+                        $("<span class='schPlaylistWarning cmdTmplWarning'>&#x26a0;</span>")
+                            .attr('title', 'This playlist has problems:\n' + pl.messages.join('\n'))
+                            .insertAfter($(row).find('.schPlaylist'));
+                    }
                 }
             } else if (schType == 'sequence') {
                 var sequenceVal = $(row).find('.schSequence').val();

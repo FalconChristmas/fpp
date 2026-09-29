@@ -1863,7 +1863,8 @@ body.is-loading.show-loading-skeleton #schedulerInfo .labelValue:before {
 .playlistRowWarning {
 	background-color: var(--bs-warning-bg-subtle) !important;
 }
-.playlistEntryWarningIcon {
+.playlistEntryWarningIcon,
+.cmdTmplWarning {
 	color: var(--bs-warning);
 	font-family: 'Font Awesome 5 Free';
 	font-weight: 900;
