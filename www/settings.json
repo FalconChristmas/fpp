@@ -2838,8 +2838,8 @@
 		},
 		"KioskRotate": {
 			"name": "KioskRotate",
-			"description": "Rotate Kiosk if using Raspberry Pi Touch Display 2 7inch",
-			"tip": "Click here if you have Raspberry Pi Touch Display 2",
+			"description": "Rotate Kiosk if using Raspberry Pi Touch Display 2",
+			"tip": "Click here if you have a Raspberry Pi Touch Display 2 (5-inch or 7-inch)",
 			"level": 1,
 			"gatherStats": true,
 			"restart": 0,
