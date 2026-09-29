@@ -325,8 +325,16 @@ std::string FSEQFile::getMediaFilename(const std::string& fn) {
 std::string FSEQFile::getMediaFilename() const {
     for (auto& a : m_variableHeaders) {
         if (a.code[0] == 'm' && a.code[1] == 'f') {
-            const char* d = (const char*)&a.getData()[0];
-            return d;
+            const auto& data = a.getData();
+            if (data.empty()) {
+                continue;
+            }
+            const char* d = (const char*)data.data();
+            size_t len = strnlen(d, data.size());
+            if (len == 0) {
+                continue;
+            }
+            return std::string(d, len);
         }
     }
     return "";
@@ -518,7 +526,7 @@ void FSEQFile::VariableHeader::loadData() const {
     uint64_t currentPos = fseqFile->tell();
     fseqFile->seek(offset, SEEK_SET);
     data.resize(length);
-    fseqFile->read(&data[0], length);
+    fseqFile->read(data.data(), length);
     fseqFile->seek(currentPos, SEEK_SET);
 }
 
@@ -585,7 +593,7 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int read
             }
 
             vheader.resizeData(dataLength);
-            memcpy(&vheader.getData()[0], &header[readIndex], dataLength);
+            memcpy(vheader.getData().data(), &header[readIndex], dataLength);
 
             LogDebug(VB_SEQUENCE, "Variable Header: Code %c%c, Length: %d, Extended: %s, ExtDataOffset: %" PRIu64 "\n", vheader.code[0], vheader.code[1], vheader.getDataLength(), vheader.extendedData ? "Yes" : "No", vheader.getExtDataOffset());
 
@@ -677,7 +685,9 @@ void V1FSEQFile::writeHeader() {
         write2ByteUInt(&header[writePos], len);
         header[writePos + 2] = a.code[0];
         header[writePos + 3] = a.code[1];
-        memcpy(&header[writePos + 4], &data[0], data.size());
+        if (!data.empty()) {
+            memcpy(&header[writePos + 4], data.data(), data.size());
+        }
         writePos += len;
     }
 
@@ -886,7 +896,9 @@ public:
                     uint64_t curEnd = tell();
                     auto& h = m_file->getVariableHeaders()[x];
                     auto& data = h.getData();
-                    write(&data[0], data.size());
+                    if (!data.empty()) {
+                        write(data.data(), data.size());
+                    }
                     size_t cur = tell();
                     uint64_t off = m_variableHeaderOffsets[x];
                     seek(off, SEEK_SET);
@@ -2164,7 +2176,9 @@ void V2FSEQFile::writeHeader() {
         } else {
             auto& data = a.getData();
             m_handler->m_variableHeaderOffsets[idx] = 0;
-            memcpy(&header[writePos], &data[0], data.size());
+            if (!data.empty()) {
+                memcpy(&header[writePos], data.data(), data.size());
+            }
             writePos += data.size();
         }
         ++idx;
