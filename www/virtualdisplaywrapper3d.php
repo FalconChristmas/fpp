@@ -257,6 +257,9 @@
                     labelIdle: `<b class="fs-5">Drag & Drop 3D Asset Files or Click to Select</b><br><br><span class="btn btn-primary filepond--label-action text-decoration-none">Select Files</span><br><br><small>Supported: .obj, .mtl, .png, .jpg, .jpeg</small>`,
                     server: {
                         url: 'api/file/virtualdisplay_assets',
+                        // Same Safari/WebKit PATCH stall workaround as the file
+                        // manager (FalconChristmas/fpp#3013): chunks as POST.
+                        patch: { method: 'POST' },
                         process: {
                             method: 'POST',
                             withCredentials: false,
@@ -272,7 +275,10 @@
                     },
                     credits: false,
                     chunkUploads: true,
-                    chunkSize: 1024 * 1024 * 64,
+                    // Same Safari/WebKit multi-chunk stall workaround as the
+                    // file manager (FalconChristmas/fpp#3013): keep uploads
+                    // to a single chunk.
+                    chunkSize: 1024 * 1024 * 1500,
                     chunkForce: true,
                     maxParallelUploads: 3,
                     labelTapToUndo: 'Tap to Close',

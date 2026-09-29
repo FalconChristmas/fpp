@@ -1315,11 +1315,20 @@ function emulated_fseek_for_big_files($fp, $pos)
  */
 function PatchFile()
 {
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Chunk transport is POST, not PATCH: Safari/WebKit stalls on sequential
+    // PATCH bodies (first 64MB chunk saved, second never completes; see
+    // pqina/filepond#1059, FalconChristmas/fpp#3013). FilePond is configured
+    // below to send chunks as POST carrying Upload-Offset/Length/Name, so a
+    // POST *without* Upload-Offset is the transfer-init, anything else is a
+    // chunk. PATCH is still accepted the same way for old cached pages.
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_SERVER['HTTP_UPLOAD_OFFSET'])) {
         return uniqid("", true);
     }
-    $status = "OK";
     $dirName = params("DirName");
+    if (!isset($_SERVER['HTTP_UPLOAD_NAME']) || !isset($_SERVER['HTTP_UPLOAD_OFFSET']) || !isset($_SERVER['HTTP_UPLOAD_LENGTH'])) {
+        http_response_code(400);
+        return json(["status" => "Missing upload headers"]);
+    }
     $fileName = $_SERVER['HTTP_UPLOAD_NAME'];
     if (!preg_match("//u", $fileName)) {
         $fileName = iconv("ISO-8859-1", 'UTF-8//TRANSLIT', $fileName);
@@ -1331,32 +1340,59 @@ function PatchFile()
     if ($dir == "") { http_response_code(400); return json(["status"=>"Invalid Directory"]); }
     if (strpos($fileName, '..') !== false || strpos($fileName, '/') !== false || strpos($fileName, '\\') !== false) { http_response_code(400); return json(["status"=>"Invalid filename"]); }
     $fullPath = FilesValidatePathOrFail($dir, $fileName, true);
-    if ($offset == 0) {
+    // A large chunk plus the final full-file assembly (a GB-scale copy on
+    // slow SD) can exceed php's default max_execution_time, which would kill
+    // the final request mid-copy and wedge the upload at 100%. Upload requests
+    // already have ProxyTimeout 1200 on the Apache side; don't let PHP die
+    // first. Likewise finish the assembly even if the browser disconnects.
+    @set_time_limit(0);
+    @ignore_user_abort(true);
+    if (bccomp((string)$offset, "0", 0) == 0) {
         //for the first chunk, clear out any existing patches
         $patch = glob($fullPath . '.patch.*');
-        foreach ($patch as $fn) {
-            unlink($fn);
+        if ($patch !== false) {
+            foreach ($patch as $fn) {
+                unlink($fn);
+            }
         }
     }
 
-    $patch_handle = fopen('php://input', 'rb');
-    if ($offset != 0 && file_exists($fullPath . '.patch.0')) {
-        $fileLen = real_filesize($fullPath . ".patch.0");
-        if (bccomp($fileLen, $offset) == 0) {
-            //it's the next patch, we can append the data instead of
-            //attempting to create a bunch of patch files to then
-            //have to spend time coping over later
-            file_put_contents($fullPath . '.patch.0', $patch_handle, FILE_APPEND | LOCK_EX);
-        } else {
-            file_put_contents($fullPath . '.patch.' . $offset, $patch_handle, LOCK_EX);
+    // Stream php://input to the patch file in bounded buffers instead of
+    // file_put_contents($path, $resource) so a huge single chunk never sits
+    // fully in PHP memory and write failures are detected per-chunk.
+    $appendToBase = (bccomp((string)$offset, "0", 0) != 0 && file_exists($fullPath . '.patch.0')
+        && bccomp((string)real_filesize($fullPath . ".patch.0"), (string)$offset, 0) == 0);
+    $outPath = $appendToBase ? ($fullPath . '.patch.0') : ($fullPath . '.patch.' . $offset);
+    $inHandle = fopen('php://input', 'rb');
+    $writeOk = false;
+    if ($inHandle !== false) {
+        $outHandle = fopen($outPath, $appendToBase ? 'ab' : 'wb');
+        if ($outHandle !== false) {
+            if (flock($outHandle, LOCK_EX)) {
+                $writeOk = true;
+                while (!feof($inHandle)) {
+                    $buf = fread($inHandle, 1048576);
+                    if ($buf === false) { $writeOk = false; break; }
+                    if ($buf === '') { break; }
+                    if (fwrite($outHandle, $buf) === false) { $writeOk = false; break; }
+                }
+                fflush($outHandle);
+                flock($outHandle, LOCK_UN);
+            }
+            fclose($outHandle);
         }
-    } else {
-        file_put_contents($fullPath . '.patch.' . $offset, $patch_handle, LOCK_EX);
+        fclose($inHandle);
     }
-    fclose($patch_handle);
+    if (!$writeOk) {
+        http_response_code(500);
+        return json(array("status" => "failed", "file" => $fileName, "dir" => $dirName, "error" => "Could not write upload chunk"));
+    }
 
     $size = 0;
     $patch = glob($fullPath . '.patch.*');
+    if ($patch === false) {
+        $patch = array();
+    }
     foreach ($patch as $fn) {
         $fileLen = real_filesize($fn);
         $size = bcadd($size, $fileLen, 0);
@@ -1365,21 +1401,27 @@ function PatchFile()
         $offsets = array();
         // write patches to file
         foreach ($patch as $fn) {
-            // get offset from fn
-            list($dir, $offset) = explode($fileName . '.patch.', $fn, 2);
-            array_push($offsets, $offset);
+            // get offset from fn (do not reuse $dir/$offset: $dir is the
+            // destination directory needed below for CallPluginFileUploaded)
+            list($patchPrefix, $patchOffset) = explode($fileName . '.patch.', $fn, 2);
+            array_push($offsets, $patchOffset);
         }
         //sort by offset so we can just continuously write and not have to seek
         usort($offsets, "bccomp");
 
         // create output file
         $file_handle = false;
+        $assembledPath = $fullPath;
         // write patches to file
-        foreach ($offsets as $offset) {
+        foreach ($offsets as $patchOffset) {
             // apply patch
-            if (bccomp($offset, 0) == 0) {
+            if (bccomp($patchOffset, 0) == 0) {
                 if (file_exists($fullPath)) {
                     $file_handle = fopen($fullPath, 'r+b');
+                    if ($file_handle === false) {
+                        http_response_code(500);
+                        return json(array("status" => "failed", "file" => $fileName, "dir" => $dirName, "size" => $size, "error" => "Could not open file for writing"));
+                    }
                     $wouldBlock = false;
                     if (flock($file_handle, LOCK_EX | LOCK_NB, $wouldBlock)) {
                         ftruncate($file_handle, 0);
@@ -1389,35 +1431,82 @@ function PatchFile()
                             http_response_code(500);
                             return json(array("status" => "failed", "file" => $fileName, "dir" => $dirName, "size" => $size, "error" => "Could not lock file for writing"));
                         }
-                        $file_handle = fopen($fullPath . '.replace', 'w+b');
+                        $assembledPath = $fullPath . '.replace';
+                        $file_handle = fopen($assembledPath, 'w+b');
+                        if ($file_handle === false) {
+                            http_response_code(500);
+                            return json(array("status" => "failed", "file" => $fileName, "dir" => $dirName, "size" => $size, "error" => "Could not open file for writing"));
+                        }
                         flock($file_handle, LOCK_EX);
                     }
                 } else {
                     error_log("Creating new file $fullPath");
                     // create empty file
                     $file_handle = fopen($fullPath, 'w+b');
+                    if ($file_handle === false) {
+                        http_response_code(500);
+                        return json(array("status" => "failed", "file" => $fileName, "dir" => $dirName, "size" => $size, "error" => "Could not create file"));
+                    }
                     flock($file_handle, LOCK_EX);
                 }
             }
-            $patch_handle = fopen($fullPath . '.patch.' . $offset, 'rb');
-            while (!feof($patch_handle)) {
-                $read = fread($patch_handle, 128 * 1024);
-                fwrite($file_handle, $read);
+            $patch_handle = fopen($fullPath . '.patch.' . $patchOffset, 'rb');
+            if ($patch_handle !== false) {
+                while (!feof($patch_handle)) {
+                    $read = fread($patch_handle, 128 * 1024);
+                    if ($read === false) { break; }
+                    if ($read === '') { break; }
+                    if ($file_handle !== false) {
+                        fwrite($file_handle, $read);
+                    }
+                }
+                fclose($patch_handle);
             }
-            fclose($patch_handle);
-            unlink($fullPath . '.patch.' . $offset);
+            unlink($fullPath . '.patch.' . $patchOffset);
         }
 
         // done with file
-        flock($file_handle, LOCK_UN);
-        fclose($file_handle);
+        if ($file_handle !== false) {
+            flock($file_handle, LOCK_UN);
+            fclose($file_handle);
+            // Patches are already unlinked above, so a short copy (disk full,
+            // SD error) must not report success: the bytes are unrecoverable
+            // except by re-upload, and FilePond will retry on a 500.
+            clearstatcache(true, $assembledPath);
+            $finalSize = @real_filesize($assembledPath);
+            if (!is_numeric($finalSize) || bccomp((string)$finalSize, (string)$size, 0) != 0) {
+                http_response_code(500);
+                return json(array("status" => "failed", "file" => $fileName, "dir" => $dirName, "size" => $size, "error" => "Assembled file size mismatch"));
+            }
+        }
 
         if ($dirName != "upload" && $dirName != "uploads") {
             // uploads to the upload directory will have this called during MoveFile
             CallPluginFileUploaded($dir, $fileName);
         }
     }
-    return json(array("status" => $status, "file" => $fileName, "dir" => $dirName, "size" => $size));
+    // Safari (WebKit) on macOS 26 hangs on multi-chunk uploads: chunk #1 is
+    // saved, then nothing further arrives (see pqina/filepond#1059 and
+    // FalconChristmas/fpp#3013; leftovers were always exactly one 64MB
+    // chunk). The frontend therefore uses a ~1.5GB chunkSize so realistic
+    // files go up in a single chunk. FilePond ignores the chunk body (only
+    // the 2xx status matters), so answer with an empty body plus the
+    // TUS-style Upload-Offset header: nothing to compress, nothing to frame,
+    // nothing for WebKit to stall on. Do NOT set Content-Length by hand
+    // here: limonade prepends any collected notices to the echoed output,
+    // so a hand-computed length can mismatch the actual bytes and desync
+    // the keep-alive connection for the next chunk.
+    error_log("[fpp-upload] " . $_SERVER['REQUEST_METHOD'] . " dir=" . $dirName . " file=" . $fileName
+        . " offset=" . $offset . " length=" . $length . " assembled=" . $size);
+    http_response_code(200);
+    send_header('Upload-Offset: ' . $size);
+    send_header('Cache-Control: no-store');
+    // Force a fresh connection per chunk: this also defeats the stale
+    // keep-alive reuse class of WebKit bugs (Safari reusing a closed
+    // connection without retrying). One extra handshake per chunk is noise
+    // next to a hundreds-of-MB body.
+    send_header('Connection: close');
+    return "";
 }
 
 /**

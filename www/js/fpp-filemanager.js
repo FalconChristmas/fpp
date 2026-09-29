@@ -971,11 +971,30 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 
 	const pond = FilePond.create(document.querySelector('#filepondInput'), {
 		labelIdle: `<b class="fs-5">Drag & Drop or Select Files to upload</b><br><br><span class="btn btn-primary filepond--label-action text-decoration-none">Select Files</span><br>`,
-		server: 'api/file/upload',
+		// Chunks go as POST, not PATCH: Safari/WebKit stalls on sequential
+		// PATCH bodies (chunk #1 saved, chunk #2 never completes;
+		// FalconChristmas/fpp#3013, pqina/filepond#1059). The server tells
+		// init-POSTs apart from chunk-POSTs by the Upload-Offset header.
+		server: {
+			url: 'api/file/upload',
+			patch: { method: 'POST' }
+		},
 		credits: false,
 		chunkUploads: true,
-		chunkSize: 1024 * 1024 * 64,
+		// Safari/WebKit never sends chunk #2 of a multi-chunk upload (first
+		// 64MB saved server-side, nothing further arrives; see
+		// FalconChristmas/fpp#3013, pqina/filepond#1059, and the matching
+		// filebrowser Tus report). Single-chunk uploads complete fine, so
+		// keep every realistic file in one chunk. Must stay comfortably
+		// under post_max_size (1999M in www/.user.ini) so the single POST
+		// body is never discarded by PHP. Files larger than this still
+		// chunk (and still stall on Safari), but those never worked either.
+		chunkSize: 1024 * 1024 * 1500,
 		chunkForce: true,
+		// Retry a failed chunk before surfacing an error: a transient 500
+		// (e.g. SD stall while writing a chunk) otherwise leaves the item
+		// looking hung (FalconChristmas/fpp#3013).
+		chunkRetryDelays: [500, 1000, 3000],
 		maxParallelUploads: 3,
 		labelTapToUndo: 'Tap to Close'
 	});
@@ -1003,10 +1022,22 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 	});
 
 	pond.on('processfile', (error, file) => {
+		if (error) {
+			console.error('Upload error: ' + file.filename, error);
+			$.jGrowl('Upload error: ' + file.filename + ': ' + (error.main || error), {
+				themeState: 'danger'
+			});
+			return;
+		}
 		console.log('Process file: ' + file.filename);
 		moveFile(file.filename, function () {
 			GetAllFiles();
 		});
+	});
+
+	pond.on('error', (error, file) => {
+		console.error('FilePond error:', error);
+		$.jGrowl('Upload error: ' + (error.main || error), { themeState: 'danger' });
 	});
 
 	$('#fileManager').tabs({
