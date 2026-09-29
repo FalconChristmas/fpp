@@ -111,13 +111,18 @@ fi
 # fetched once and reused for both the node lookup and the CTM check.
 find_touchscreen_xinput_ids() {
     local ev id node props
+    local ids
+    ids=$(xinput list --id-only 2>/dev/null)
     for ev in /dev/input/event*; do
         udevadm info -q property -n "$ev" 2>/dev/null | grep -q '^ID_INPUT_TOUCHSCREEN=1' || continue
-        for id in $(xinput list --id-only 2>/dev/null); do
+        for id in $ids; do
             props=$(xinput list-props "$id" 2>/dev/null)
             node=$(printf '%s\n' "$props" | sed -n 's/.*Device Node.*"\(.*\)"/\1/p')
             [ "$node" == "$ev" ] || continue
+            # A given event node maps to exactly one xinput device, so once
+            # it's found there's nothing left to check for this ev.
             printf '%s\n' "$props" | grep -q "$CTM" && echo "$id"
+            break
         done
     done
 }
