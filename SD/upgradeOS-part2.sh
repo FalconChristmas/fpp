@@ -211,6 +211,69 @@ rm -f mnt/usr/bin/dc mnt/usr/bin/bc mnt/usr/bin/hardlink mnt/usr/bin/lua5*
 rm -f mnt/usr/bin/mp3gain
 rm -f mnt/usr/lib/${TRIPLE}/libmpg123.so.* mnt/lib/${TRIPLE}/libmpg123.so.*
 
+# The hand-written list above keeps growing because the cause is general:
+# Debian rebuilds that keep the upstream version -- binNMUs ("1.6.2-2" ->
+# "1.6.2-2+b1") and repository rebuilds ("~bookworm" -> "~trixie") -- take
+# SOURCE_DATE_EPOCH from the source changelog, so every file keeps its old
+# mtime. Whenever the rebuilt file also happens to keep its size, rsync's
+# quick check skips it and the box keeps the old bytes (mp3gain above is
+# exactly that). rsync --checksum would catch these but reads every same-size
+# file on both sides, which is far too slow on SD cards.
+#
+# Instead, find them from the package databases: for every package whose
+# version differs between the old root and this image, delete the old copies
+# of its files whose size and mtime still match the new ones, so rsync copies
+# them fresh. This only stat()s files, never reads them, and touches only the
+# directories the rsync below copies -- never /boot, which was already synced.
+refresh_rebuilt_package_files() {
+    local new="${1%/}" old="${2%/}"
+    local tmp
+    tmp=$(mktemp -d) || return 0
+    # Not ${binary:Package}: whether that carries ":arch" depends on the native
+    # architecture of the dpkg reading the database, which differs between the
+    # two roots on a Pi -> Pi64 upgrade.
+    local fmt='${Package}\t${Architecture}\t${Version}\n'
+
+    dpkg-query --admindir="${new}/var/lib/dpkg" -W -f="${fmt}" > "${tmp}/new" 2>/dev/null
+    dpkg-query --admindir="${old}/var/lib/dpkg" -W -f="${fmt}" > "${tmp}/old" 2>/dev/null
+    # Packages that are new, changed version, or changed architecture.
+    awk -F'\t' 'NR == FNR { v[$1 "\t" $2] = $3; next }
+                $3 != "" && v[$1 "\t" $2] != $3 { print $1 "\t" $2 }' \
+        "${tmp}/old" "${tmp}/new" > "${tmp}/changed"
+
+    # Their files, plus their dpkg/info entries (md5sums, maintainer scripts),
+    # which carry the same mtime. dpkg names those "pkg:arch.*" for
+    # Multi-Arch: same packages and "pkg.*" otherwise. Merged-/usr: a .list
+    # may name /bin/x while the file lives at /usr/bin/x.
+    # One listing of dpkg/info matched in awk: probing each name with [ -f ]
+    # costs ~30s even on a Pi 5, a squashfs lookup per probe.
+    ls "${new}/var/lib/dpkg/info" | awk -F'\t' '
+        NR == FNR { want[$1] = 1; want[$1 ":" $2] = 1; next }
+        { base = $0; sub(/\.[^.]*$/, "", base); ext = substr($0, length(base) + 2) }
+        (base in want) && ext ~ /^(list|md5sums|conffiles|triggers|shlibs|symbols|templates|config|preinst|postinst|prerm|postrm)$/ {
+            print "/var/lib/dpkg/info/" $0 }' "${tmp}/changed" - > "${tmp}/info"
+    { cat "${tmp}/info"; grep '\.list$' "${tmp}/info" | sed "s#^#${new}#" | xargs -d '\n' -r cat; } \
+        | sed -E 's#^/(bin|sbin|lib[^/]*)/#/usr/\1/#' \
+        | grep -E '^/(etc|opt|root|usr|var)/' \
+        | grep -vE '^/(etc/fstab$|etc/systemd/network/|root/\.ssh/|var/lib/php/sessions/|opt/fpp/)' \
+        | sed 's#^/##' | sort -u > "${tmp}/paths"
+
+    # Many paths are missing on one side or the other, so stat exits non-zero
+    # here as a matter of course; its output for the rest is still complete.
+    (cd "${new}/" && xargs -d '\n' -r stat --printf='%F\t%s\t%Y\t%n\n' < "${tmp}/paths" 2>/dev/null) > "${tmp}/newstat" || true
+    (cd "${old}/" && xargs -d '\n' -r stat --printf='%F\t%s\t%Y\t%n\n' < "${tmp}/paths" 2>/dev/null) > "${tmp}/oldstat" || true
+    awk -F'\t' 'NR == FNR { if ($1 == "regular file") s[$4] = $2 "\t" $3; next }
+                $1 == "regular file" && ($4 in s) && s[$4] == $2 "\t" $3 { print $4 }' \
+        "${tmp}/newstat" "${tmp}/oldstat" > "${tmp}/stale"
+
+    echo "Refreshing $(wc -l < "${tmp}/stale") files from rebuilt packages that rsync would skip"
+    # Unlink, never truncate: the running system may have these mapped (see
+    # force_copy_libs below).
+    (cd "${old}/" && xargs -d '\n' -r rm -fv < "${tmp}/stale")
+    rm -rf "${tmp}"
+}
+refresh_rebuilt_package_files / /mnt
+
 SKIPFPP=""
 if [ -f /mnt/home/fpp/media/tmp/keepOptFPP ]
 then
