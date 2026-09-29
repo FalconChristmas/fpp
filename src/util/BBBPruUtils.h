@@ -152,7 +152,14 @@ public:
     }
 
     // bytes the consumer has not caught up on, from the published positions
-    uint32_t usedBytes() const { return ctrl ? (uint32_t)((ctrl[0] - ctrl[1]) % size) : 0; }
+    uint32_t usedBytes() const {
+        if (!ctrl) {
+            return 0;
+        }
+        // counters: the difference is exact across the wrap, and no modulo
+        // may be applied to it; pointers: both lie inside the ring
+        return pointerMode ? (ctrl[0] - ctrl[1] + size) % size : ctrl[0] - ctrl[1];
+    }
 
     // true once the consumer has caught up with every byte written; both
     // conventions publish positions that compare equal only when empty.

@@ -627,8 +627,14 @@ void BBBPruSMEMRing::attach(BBBPru* pru, uint32_t pruBaseAddr, uint32_t ringSize
 }
 
 uint32_t BBBPruSMEMRing::write(const uint8_t* src, uint32_t len) {
-    uint32_t readOff = pointerMode ? (ctrl[1] - basePru) : (ctrl[1] % size);
-    uint32_t used = (writeOff - readOff + size) % size;
+    // Counters are free running, so their difference is the exact number of
+    // bytes in flight across the 2^32 wrap.  Reducing a raw count modulo the
+    // ring size is not: 2^32 is not a multiple of the size, so each wrap moved
+    // the computed read position (by 4096 bytes on a 30720 byte ring) and,
+    // once that error was large enough, let the producer overwrite data the
+    // consumer had not read yet.
+    uint32_t used = pointerMode ? (writeOff - (ctrl[1] - basePru) + size) % size
+                                : (produced - ctrl[1]);
     uint32_t space = size - 64 - used;
     if (len > space) {
         len = space;
