@@ -1003,6 +1003,14 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 	});
 
 	pond.on('processfile', (error, file) => {
+		if (error) {
+			// FilePond has already retried the chunk; the item shows "Error during upload"
+			console.error('Upload failed: ' + file.filename, error);
+			$.jGrowl('Upload of ' + file.filename + ' failed: ' + (error.code ? error.code + ' ' : '') + (error.body || ''), {
+				themeState: 'danger'
+			});
+			return;
+		}
 		console.log('Process file: ' + file.filename);
 		moveFile(file.filename, function () {
 			GetAllFiles();

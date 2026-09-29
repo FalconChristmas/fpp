@@ -298,7 +298,8 @@
 
                 pond.on('error', (error, file) => {
                     console.error('FilePond error:', error);
-                    $.jGrowl('Upload error: ' + error.main, { theme: 'error' });
+                    // validation errors carry {main, sub}, upload errors {code, body}
+                    $.jGrowl('Upload error: ' + (error.main || ((error.code ? error.code + ' ' : '') + (error.body || ''))), { theme: 'error' });
                 });
             });
         </script>

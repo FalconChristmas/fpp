@@ -1318,106 +1318,250 @@ function PatchFile()
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         return uniqid("", true);
     }
-    $status = "OK";
     $dirName = params("DirName");
-    $fileName = $_SERVER['HTTP_UPLOAD_NAME'];
+    $fileName = isset($_SERVER['HTTP_UPLOAD_NAME']) ? $_SERVER['HTTP_UPLOAD_NAME'] : '';
     if (!preg_match("//u", $fileName)) {
         $fileName = iconv("ISO-8859-1", 'UTF-8//TRANSLIT', $fileName);
     }
-    $offset = $_SERVER['HTTP_UPLOAD_OFFSET'];
-    $length = $_SERVER['HTTP_UPLOAD_LENGTH'];
+    $offset = isset($_SERVER['HTTP_UPLOAD_OFFSET']) ? $_SERVER['HTTP_UPLOAD_OFFSET'] : '';
+    $length = isset($_SERVER['HTTP_UPLOAD_LENGTH']) ? $_SERVER['HTTP_UPLOAD_LENGTH'] : '';
 
+    // The offset becomes part of a file name (<name>.patch.<offset>), so it
+    // must be a plain number.
+    if ($fileName === '' || !ctype_digit($offset) || !ctype_digit($length)) {
+        http_response_code(400);
+        return json(["status" => "Missing or invalid Upload-Name, Upload-Offset or Upload-Length"]);
+    }
     $dir = MapDirectoryKey($dirName);
     if ($dir == "") { http_response_code(400); return json(["status"=>"Invalid Directory"]); }
     if (strpos($fileName, '..') !== false || strpos($fileName, '/') !== false || strpos($fileName, '\\') !== false) { http_response_code(400); return json(["status"=>"Invalid filename"]); }
     $fullPath = FilesValidatePathOrFail($dir, $fileName, true);
-    if ($offset == 0) {
-        //for the first chunk, clear out any existing patches
-        $patch = glob($fullPath . '.patch.*');
-        foreach ($patch as $fn) {
+
+    // Assembling a large file on an SD card can outlast the default time
+    // limit, and a browser that gives up must not leave it half written.
+    @set_time_limit(0);
+    ignore_user_abort(true);
+
+    // Receive the chunk into a private file first, without holding the lock:
+    // the body arrives at network speed and a cut-off body must never reach
+    // the patch set. FilePond retries a failed chunk.
+    $partPath = $fullPath . '.upload-' . bin2hex(random_bytes(6));
+    $received = PatchFileReceiveChunk($partPath);
+    if ($received === false) {
+        @unlink($partPath);
+        http_response_code(500);
+        return json(array("status" => "failed", "file" => $fileName, "dir" => $dirName, "error" => "Could not store upload chunk"));
+    }
+    $expected = isset($_SERVER['CONTENT_LENGTH']) ? $_SERVER['CONTENT_LENGTH'] : '';
+    if (ctype_digit($expected) && bccomp($received, $expected, 0) != 0) {
+        @unlink($partPath);
+        http_response_code(400);
+        return json(array("status" => "failed", "file" => $fileName, "dir" => $dirName, "error" => "Upload chunk was incomplete"));
+    }
+
+    // Everything that touches the patch set or the target happens under one
+    // lock per target: a retried chunk can arrive while the server is still
+    // handling the original, and two uploads can share a name. The lock file
+    // lives outside the media directory so it never shows up in a listing.
+    $lockHandle = fopen(sys_get_temp_dir() . '/fpp-upload-' . md5($fullPath) . '.lock', 'c');
+    if ($lockHandle === false || !flock($lockHandle, LOCK_EX)) {
+        if ($lockHandle !== false) {
+            fclose($lockHandle);
+        }
+        @unlink($partPath);
+        http_response_code(500);
+        return json(array("status" => "failed", "file" => $fileName, "dir" => $dirName, "error" => "Could not lock upload"));
+    }
+    try {
+        return PatchFileAddChunk($dir, $dirName, $fileName, $fullPath, $partPath, $offset, $length);
+    } finally {
+        @unlink($partPath);
+        flock($lockHandle, LOCK_UN);
+        fclose($lockHandle);
+    }
+}
+
+/**
+ * Streams the request body into $path. Returns the number of bytes written as
+ * a numeric string, or false if the body could not be read or stored.
+ */
+function PatchFileReceiveChunk($path)
+{
+    $in = fopen('php://input', 'rb');
+    if ($in === false) {
+        return false;
+    }
+    $out = fopen($path, 'xb');
+    if ($out === false) {
+        fclose($in);
+        return false;
+    }
+    $written = "0";
+    $ok = true;
+    while (!feof($in)) {
+        $data = fread($in, 1024 * 1024);
+        if ($data === false) {
+            $ok = false;
+            break;
+        }
+        if ($data === '') {
+            break;
+        }
+        if (fwrite($out, $data) !== strlen($data)) {
+            $ok = false;
+            break;
+        }
+        $written = bcadd($written, (string) strlen($data), 0);
+    }
+    fclose($in);
+    if (!fclose($out)) {
+        $ok = false;
+    }
+    return $ok ? $written : false;
+}
+
+/**
+ * Escapes glob() metacharacters so a file name like "Song [Remix].fseq" is
+ * matched literally.
+ */
+function PatchFileGlobEscape($path)
+{
+    return preg_replace('/([*?\[])/', '[$1]', $path);
+}
+
+/**
+ * Adds a received chunk to the upload's patch set and, once every byte has
+ * arrived, assembles the target file. Must be called with the upload lock held.
+ */
+function PatchFileAddChunk($dir, $dirName, $fileName, $fullPath, $partPath, $offset, $length)
+{
+    if (bccomp($offset, "0", 0) == 0) {
+        // a new upload of this name starts over, drop anything left behind
+        // by an earlier attempt
+        foreach (glob(PatchFileGlobEscape($fullPath) . '.patch.*') ?: array() as $fn) {
             unlink($fn);
         }
+    } else if (count(glob(PatchFileGlobEscape($fullPath) . '.patch.*') ?: array()) == 0) {
+        // Chunks arrive in order starting at offset 0, so with no patches this
+        // upload is not in progress: it is a late retry of a chunk whose upload
+        // already finished, or its patches were cleared by a restart.
+        foreach (array($fullPath . '.replace', $fullPath) as $done) {
+            if (file_exists($done) && bccomp((string) real_filesize($done), $length, 0) == 0) {
+                return json(array("status" => "OK", "file" => $fileName, "dir" => $dirName, "size" => $length));
+            }
+        }
+        http_response_code(409);
+        return json(array("status" => "failed", "file" => $fileName, "dir" => $dirName, "error" => "Upload is no longer in progress, please upload the file again"));
+    }
+    // A retried chunk replaces its earlier copy rather than being counted twice.
+    if (!rename($partPath, $fullPath . '.patch.' . $offset)) {
+        http_response_code(500);
+        return json(array("status" => "failed", "file" => $fileName, "dir" => $dirName, "error" => "Could not store upload chunk"));
     }
 
-    $patch_handle = fopen('php://input', 'rb');
-    if ($offset != 0 && file_exists($fullPath . '.patch.0')) {
-        $fileLen = real_filesize($fullPath . ".patch.0");
-        if (bccomp($fileLen, $offset) == 0) {
-            //it's the next patch, we can append the data instead of
-            //attempting to create a bunch of patch files to then
-            //have to spend time coping over later
-            file_put_contents($fullPath . '.patch.0', $patch_handle, FILE_APPEND | LOCK_EX);
+    $offsets = array();
+    $size = "0";
+    foreach (glob(PatchFileGlobEscape($fullPath) . '.patch.*') ?: array() as $fn) {
+        array_push($offsets, substr($fn, strlen($fullPath . '.patch.')));
+        $size = bcadd($size, (string) real_filesize($fn), 0);
+    }
+    if (bccomp($size, $length, 0) != 0) {
+        return json(array("status" => "OK", "file" => $fileName, "dir" => $dirName, "size" => $size));
+    }
+
+    // sort by offset so we can just continuously write and not have to seek
+    usort($offsets, "bccomp");
+
+    $error = PatchFileAssemble($fullPath, $offsets, $length);
+    if ($error !== null) {
+        // the patches are kept, so FilePond's retry of this last chunk
+        // assembles again
+        http_response_code(500);
+        return json(array("status" => "failed", "file" => $fileName, "dir" => $dirName, "size" => $size, "error" => $error));
+    }
+    foreach ($offsets as $patchOffset) {
+        unlink($fullPath . '.patch.' . $patchOffset);
+    }
+
+    if ($dirName != "upload" && $dirName != "uploads") {
+        // uploads to the upload directory will have this called during MoveFile
+        CallPluginFileUploaded($dir, $fileName);
+    }
+    return json(array("status" => "OK", "file" => $fileName, "dir" => $dirName, "size" => $size));
+}
+
+/**
+ * Concatenates the patches (sorted offsets) into the target. A sequence that
+ * fppd has locked is written to <name>.replace, which fppd swaps in when it
+ * next opens the file. Returns null on success or an error message.
+ */
+function PatchFileAssemble($fullPath, $offsets, $length)
+{
+    $outPath = $fullPath;
+    if (file_exists($fullPath)) {
+        $out = fopen($fullPath, 'r+b');
+        if ($out === false) {
+            return "Could not open file for writing";
+        }
+        $wouldBlock = false;
+        if (flock($out, LOCK_EX | LOCK_NB, $wouldBlock)) {
+            ftruncate($out, 0);
         } else {
-            file_put_contents($fullPath . '.patch.' . $offset, $patch_handle, LOCK_EX);
+            fclose($out);
+            if (!str_ends_with($fullPath, ".fseq")) {
+                return "Could not lock file for writing";
+            }
+            $outPath = $fullPath . '.replace';
+            $out = fopen($outPath, 'w+b');
+            if ($out === false) {
+                return "Could not open file for writing";
+            }
+            flock($out, LOCK_EX);
         }
     } else {
-        file_put_contents($fullPath . '.patch.' . $offset, $patch_handle, LOCK_EX);
-    }
-    fclose($patch_handle);
-
-    $size = 0;
-    $patch = glob($fullPath . '.patch.*');
-    foreach ($patch as $fn) {
-        $fileLen = real_filesize($fn);
-        $size = bcadd($size, $fileLen, 0);
-    }
-    if (bccomp($size, $length, 0) == 0) {
-        $offsets = array();
-        // write patches to file
-        foreach ($patch as $fn) {
-            // get offset from fn
-            list($dir, $offset) = explode($fileName . '.patch.', $fn, 2);
-            array_push($offsets, $offset);
+        error_log("Creating new file $fullPath");
+        $out = fopen($fullPath, 'w+b');
+        if ($out === false) {
+            return "Could not create file";
         }
-        //sort by offset so we can just continuously write and not have to seek
-        usort($offsets, "bccomp");
+        flock($out, LOCK_EX);
+    }
 
-        // create output file
-        $file_handle = false;
-        // write patches to file
-        foreach ($offsets as $offset) {
-            // apply patch
-            if (bccomp($offset, 0) == 0) {
-                if (file_exists($fullPath)) {
-                    $file_handle = fopen($fullPath, 'r+b');
-                    $wouldBlock = false;
-                    if (flock($file_handle, LOCK_EX | LOCK_NB, $wouldBlock)) {
-                        ftruncate($file_handle, 0);
-                    } else {
-                        fclose($file_handle);
-                        if (!str_ends_with($fullPath, ".fseq")) {
-                            http_response_code(500);
-                            return json(array("status" => "failed", "file" => $fileName, "dir" => $dirName, "size" => $size, "error" => "Could not lock file for writing"));
-                        }
-                        $file_handle = fopen($fullPath . '.replace', 'w+b');
-                        flock($file_handle, LOCK_EX);
-                    }
-                } else {
-                    error_log("Creating new file $fullPath");
-                    // create empty file
-                    $file_handle = fopen($fullPath, 'w+b');
-                    flock($file_handle, LOCK_EX);
-                }
+    $error = null;
+    $written = "0";
+    foreach ($offsets as $patchOffset) {
+        $in = fopen($fullPath . '.patch.' . $patchOffset, 'rb');
+        if ($in === false) {
+            $error = "Could not read upload chunk";
+            break;
+        }
+        while ($error === null && !feof($in)) {
+            $data = fread($in, 1024 * 1024);
+            if ($data === false) {
+                $error = "Could not read upload chunk";
+            } else if ($data !== '' && fwrite($out, $data) !== strlen($data)) {
+                $error = "Could not write file (disk full?)";
+            } else {
+                $written = bcadd($written, (string) strlen($data), 0);
             }
-            $patch_handle = fopen($fullPath . '.patch.' . $offset, 'rb');
-            while (!feof($patch_handle)) {
-                $read = fread($patch_handle, 128 * 1024);
-                fwrite($file_handle, $read);
-            }
-            fclose($patch_handle);
-            unlink($fullPath . '.patch.' . $offset);
         }
-
-        // done with file
-        flock($file_handle, LOCK_UN);
-        fclose($file_handle);
-
-        if ($dirName != "upload" && $dirName != "uploads") {
-            // uploads to the upload directory will have this called during MoveFile
-            CallPluginFileUploaded($dir, $fileName);
+        fclose($in);
+        if ($error !== null) {
+            break;
         }
     }
-    return json(array("status" => $status, "file" => $fileName, "dir" => $dirName, "size" => $size));
+    if ($error === null && bccomp($written, $length, 0) != 0) {
+        $error = "Assembled file is the wrong size";
+    }
+    flock($out, LOCK_UN);
+    if (!fclose($out) && $error === null) {
+        $error = "Could not write file (disk full?)";
+    }
+    if ($error !== null && $outPath !== $fullPath) {
+        // never leave a partial replacement for fppd to swap in
+        @unlink($outPath);
+    }
+    return $error;
 }
 
 /**
