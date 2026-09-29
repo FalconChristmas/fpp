@@ -104,19 +104,36 @@ if [ -f "$LEGACY_XORG_FILE" ] && sed -n "/$LEGACY_IDENTIFIER/,/EndSection/{
     fi
 fi
 
-# The touchscreen's XInput device, found by udev's touchscreen classification
-# rather than any one panel's device name.
-find_touchscreen_xinput_id() {
-    local ev id node
+# Every touchscreen XInput device, found by udev's touchscreen classification
+# rather than any one panel's device name -- there can be more than one (e.g.
+# a USB touch monitor alongside the panel), so print one id per line rather
+# than stopping at the first match. Each device's list-props output is
+# fetched once and reused for both the node lookup and the CTM check.
+#
+# Exclude anything udev tags as USB: a USB touch monitor should keep its own
+# touch mapping rather than being remapped onto the kiosk's rotated output.
+# The Touch Display 2's I2C-attached controller reports no ID_BUS at all on a
+# Pi (confirmed on real hardware), so this only ever excludes genuinely
+# USB-attached devices -- it doesn't require a specific bus, just rules one
+# out.
+find_touchscreen_xinput_ids() {
+    local ev id node props udev_props
+    local ids
+    ids=$(xinput list --id-only 2>/dev/null)
     for ev in /dev/input/event*; do
-        udevadm info -q property -n "$ev" 2>/dev/null | grep -q '^ID_INPUT_TOUCHSCREEN=1' || continue
-        for id in $(xinput list --id-only 2>/dev/null); do
-            node=$(xinput list-props "$id" 2>/dev/null | sed -n 's/.*Device Node.*"\(.*\)"/\1/p')
+        udev_props=$(udevadm info -q property -n "$ev" 2>/dev/null)
+        printf '%s\n' "$udev_props" | grep -q '^ID_INPUT_TOUCHSCREEN=1' || continue
+        printf '%s\n' "$udev_props" | grep -q '^ID_BUS=usb' && continue
+        for id in $ids; do
+            props=$(xinput list-props "$id" 2>/dev/null)
+            node=$(printf '%s\n' "$props" | sed -n 's/.*Device Node.*"\(.*\)"/\1/p')
             [ "$node" == "$ev" ] || continue
-            xinput list-props "$id" 2>/dev/null | grep -q "$CTM" && { echo "$id"; return 0; }
+            # A given event node maps to exactly one xinput device, so once
+            # it's found there's nothing left to check for this ev.
+            printf '%s\n' "$props" | grep -q "$CTM" && echo "$id"
+            break
         done
     done
-    return 1
 }
 
 KIOSK_ROTATE=$(getSetting KioskRotate)
@@ -126,11 +143,10 @@ if [ "x$KIOSK_ROTATE" != "x1" ]; then
     # user configured for some other panel.  The exception is the legacy line
     # removed above: this X server already loaded it at startup.
     if [ "$LEGACY_REMOVED" == "1" ]; then
-        TOUCH_ID=$(find_touchscreen_xinput_id)
-        if [ -n "$TOUCH_ID" ]; then
-            fppdLogLine "Kiosk" "Resetting touch rotation left by the legacy TransformationMatrix"
+        for TOUCH_ID in $(find_touchscreen_xinput_ids); do
+            fppdLogLine "Kiosk" "Resetting touch rotation left by the legacy TransformationMatrix (device $TOUCH_ID)"
             xinput set-prop "$TOUCH_ID" "$CTM" 1 0 0 0 1 0 0 0 1
-        fi
+        done
     fi
     $CHROMIUM_BIN --disable-infobars --kiosk "$KIOSK_URL"
     exit 0
@@ -148,19 +164,34 @@ if [ -z "$ROTATE_OUTPUT" ]; then
     exit 0
 fi
 
+# Rotate the display first and confirm it actually worked before touching any
+# touch device -- applying the touch transform against a display that's still
+# unrotated would rotate touch without rotating the picture.
+if ! xrandr --output "$ROTATE_OUTPUT" --mode "$ROTATE_MODE" --rate 60 --rotate right; then
+    fppdLogLine "Kiosk" "WARNING: xrandr failed to rotate $ROTATE_OUTPUT - leaving touch unrotated"
+    $CHROMIUM_BIN --disable-infobars --kiosk "$KIOSK_URL"
+    exit 0
+fi
+
 if [ "$LEGACY_KEPT" == "1" ]; then
-    fppdLogLine "Kiosk" "Rotating $ROTATE_OUTPUT; touch rotation comes from the legacy TransformationMatrix"
+    fppdLogLine "Kiosk" "Rotated $ROTATE_OUTPUT; touch rotation comes from the legacy TransformationMatrix"
 elif [ "$HAVE_XINPUT" != "1" ]; then
-    fppdLogLine "Kiosk" "WARNING: xinput not installed - rotating $ROTATE_OUTPUT but not its touchscreen"
+    fppdLogLine "Kiosk" "WARNING: xinput not installed - rotated $ROTATE_OUTPUT but not its touchscreen"
 else
-    TOUCH_ID=$(find_touchscreen_xinput_id)
-    if [ -z "$TOUCH_ID" ]; then
-        fppdLogLine "Kiosk" "WARNING: no touchscreen input device found - rotating $ROTATE_OUTPUT only"
+    TOUCH_IDS=$(find_touchscreen_xinput_ids)
+    if [ -z "$TOUCH_IDS" ]; then
+        fppdLogLine "Kiosk" "WARNING: no touchscreen input device found - rotated $ROTATE_OUTPUT only"
     else
-        fppdLogLine "Kiosk" "Rotating $ROTATE_OUTPUT and touch device $TOUCH_ID"
-        xinput set-prop "$TOUCH_ID" "$CTM" 0 1 0 -1 0 1 0 0 1
+        # map-to-output derives the transform from the output's actual
+        # current rotation rather than a hardcoded matrix -- confirmed on
+        # real Touch Display 2 hardware that a fixed "rotate right" matrix
+        # (0 1 0 -1 0 1 0 0 1) comes out 90 degrees wrong on this panel's
+        # touch controller, while map-to-output gets it right.
+        for TOUCH_ID in $TOUCH_IDS; do
+            fppdLogLine "Kiosk" "Mapping touch device $TOUCH_ID to $ROTATE_OUTPUT"
+            xinput map-to-output "$TOUCH_ID" "$ROTATE_OUTPUT"
+        done
     fi
 fi
 
-xrandr --output "$ROTATE_OUTPUT" --mode "$ROTATE_MODE" --rate 60 --rotate right
 $CHROMIUM_BIN --disable-infobars --kiosk "$KIOSK_URL"
