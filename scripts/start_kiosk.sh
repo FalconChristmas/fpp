@@ -168,9 +168,14 @@ else
     if [ -z "$TOUCH_IDS" ]; then
         fppdLogLine "Kiosk" "WARNING: no touchscreen input device found - rotated $ROTATE_OUTPUT only"
     else
+        # map-to-output derives the transform from the output's actual
+        # current rotation rather than a hardcoded matrix -- confirmed on
+        # real Touch Display 2 hardware that a fixed "rotate right" matrix
+        # (0 1 0 -1 0 1 0 0 1) comes out 90 degrees wrong on this panel's
+        # touch controller, while map-to-output gets it right.
         for TOUCH_ID in $TOUCH_IDS; do
-            fppdLogLine "Kiosk" "Rotating touch device $TOUCH_ID to match $ROTATE_OUTPUT"
-            xinput set-prop "$TOUCH_ID" "$CTM" 0 1 0 -1 0 1 0 0 1
+            fppdLogLine "Kiosk" "Mapping touch device $TOUCH_ID to $ROTATE_OUTPUT"
+            xinput map-to-output "$TOUCH_ID" "$ROTATE_OUTPUT"
         done
     fi
 fi
