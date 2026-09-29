@@ -947,7 +947,20 @@
             $(`#panelMatrix${panelMatrixID} .LEDPanelDataLayoutLabel`).hide();
             $(`#panelMatrix${panelMatrixID} .LEDPanelDataLayout`).val(0);
         }
-        if (fullHeight || (mp.panelScan * 2) === mp.panelHeight) {
+        const needsInterleave = !fullHeight && (mp.panelScan * 2) !== mp.panelHeight;
+        <? if ($settings['BeaglePlatform']) { ?>
+            // A panel scanning fewer than half its rows has to fold them, and
+            // "Off" does not, so fppd refuses the output.  That is exactly when
+            // this dropdown is shown, so never leave it sitting on "Off".
+            const interleaveSelect = $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`);
+            // the native value, not val(): jQuery's val() reads a selected but
+            // disabled option as null, which is how a saved "Off" arrives here
+            if (needsInterleave && interleaveSelect.prop('value') === '0') {
+                interleaveSelect.val('8');
+            }
+            interleaveSelect.find("option[value='0']").prop('disabled', needsInterleave);
+        <? } ?>
+        if (!needsInterleave) {
             $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).hide();
             $(`#panelMatrix${panelMatrixID} .LEDPanelInterleaveLabel`).hide();
         } else if (!(($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "ColorLight5a75") || ($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "X11PanelMatrix"))) {
@@ -2643,8 +2656,6 @@
                 html += "<option value='64x64x64'>64x64 1/64 Scan</option>"
                 html += "<option value='128x64x64'>128x64 1/64 Scan</option>"
             <? } ?>
-            html += "<option value='64x32x8'>64x32 1/8 Scan</option>"
-            html += "<option value='32x32x8'>32x32 1/8 Scan</option>"
             html += "<option value='40x20x5'>40x20 1/5 Scan</option>"
             html += "<option value='80x40x10'>80x40 1/10 Scan</option>"
             <? if ($panelCapesHaveSel4) { ?>
