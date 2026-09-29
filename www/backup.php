@@ -890,6 +890,9 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                 //and plugin config data is written back to the right file
 
                 //Get the filename (to restore data into) and file data to go into that file
+                // Initialized: skipped (unsafe) filenames must not leave this
+                // undefined for the SUCCESS assignment below.
+                $save_result = false;
                 foreach ($plugin_data as $p_data_filename => $p_data_data) {
                     // Same traversal guard as the dir restores below: the
                     // filename comes from inside the uploaded backup.
