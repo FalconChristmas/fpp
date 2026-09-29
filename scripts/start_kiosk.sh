@@ -109,12 +109,21 @@ fi
 # a USB touch monitor alongside the panel), so print one id per line rather
 # than stopping at the first match. Each device's list-props output is
 # fetched once and reused for both the node lookup and the CTM check.
+#
+# Exclude anything udev tags as USB: a USB touch monitor should keep its own
+# touch mapping rather than being remapped onto the kiosk's rotated output.
+# The Touch Display 2's I2C-attached controller reports no ID_BUS at all on a
+# Pi (confirmed on real hardware), so this only ever excludes genuinely
+# USB-attached devices -- it doesn't require a specific bus, just rules one
+# out.
 find_touchscreen_xinput_ids() {
-    local ev id node props
+    local ev id node props udev_props
     local ids
     ids=$(xinput list --id-only 2>/dev/null)
     for ev in /dev/input/event*; do
-        udevadm info -q property -n "$ev" 2>/dev/null | grep -q '^ID_INPUT_TOUCHSCREEN=1' || continue
+        udev_props=$(udevadm info -q property -n "$ev" 2>/dev/null)
+        printf '%s\n' "$udev_props" | grep -q '^ID_INPUT_TOUCHSCREEN=1' || continue
+        printf '%s\n' "$udev_props" | grep -q '^ID_BUS=usb' && continue
         for id in $ids; do
             props=$(xinput list-props "$id" 2>/dev/null)
             node=$(printf '%s\n' "$props" | sed -n 's/.*Device Node.*"\(.*\)"/\1/p')
