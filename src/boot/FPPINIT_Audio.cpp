@@ -299,6 +299,36 @@ static std::string normalizeCardIdForNode(const std::string& cardId) {
     return n;
 }
 
+// Returns the first output-group member whose cached nodeTarget is a WirePlumber
+// name for a card FPP owns (ownedCids: normalised IDs of the cards the boot conf
+// covers), or "" if there is none.
+//
+// Every such card has its WirePlumber device disabled by
+// 50-fpp-suppress-alsa-dupes.conf, so that node never exists: the group conf
+// built from it links its filter-chain to nothing and plays silently, with no
+// error anywhere.  It gets there when the card was hot-plugged (WirePlumber's
+// node was the only one when the group was applied) or the group predates the
+// suppression rule.  The card-presence check cannot see it -- the card IS
+// present -- so without this the cached conf is re-validated every boot.
+static std::string pipewireConfigSuppressedTarget(const std::string& jsonPath,
+                                                  const std::set<std::string>& ownedCids) {
+    Json::Value root;
+    if (!FileExists(jsonPath) || !LoadJsonFromString(GetFileContents(jsonPath), root)) {
+        return "";
+    }
+    for (const auto& grp : root["groups"]) {
+        for (const auto& mbr : grp["members"]) {
+            std::string cid = mbr.get("cardId", "").asString();
+            std::string target = mbr.get("nodeTarget", "").asString();
+            if (!cid.empty() && !target.empty() && !startsWith(target, "fpp_alsa_") &&
+                ownedCids.count(normalizeCardIdForNode(cid))) {
+                return target;
+            }
+        }
+    }
+    return "";
+}
+
 // Known multi-channel I2S cards whose drivers advertise a continuous channel
 // range (e.g. "CHANNELS: [2 8]") that the non-USB range heuristic below would
 // clamp to stereo, and whose live /proc hw_params may show a stale 2-channel
@@ -2436,9 +2466,22 @@ static void runAudioSetup(bool recoveryPass) {
                 // file carries the marker; the input groups live in 96-*.conf.
                 const bool wantPassive = getRawSettingInt("PipeWirePassiveSinks", 1) != 0;
                 const bool cachedPassive = cached.find("node.passive = true") != std::string::npos;
+                // A new 95 adapter or suppression rule changes which node names
+                // can exist at all, so a conf resolved against the old set may
+                // now target a node that is never coming back.  The C++ Simple
+                // generator just wrote its conf against the new set and needs no
+                // second opinion.
+                const bool ownershipChanged = sinkConfigChanged && !cppGeneratedSimpleConfig;
+                const std::string suppressedTarget = pipewireConfigSuppressedTarget(activeJson, adapterCandidateCids);
+                if (!suppressedTarget.empty()) {
+                    printf("FPP - PipeWire audio group targets %s, which FPP's own adapter replaces; regenerating\n",
+                           suppressedTarget.c_str());
+                }
                 if (cached.find("# WARNING:") == std::string::npos
                     && wantPassive == cachedPassive
                     && cached == GetFileContents(groupsConfDest)
+                    && !ownershipChanged
+                    && suppressedTarget.empty()
                     && pipewireConfigCardsPresent(activeJson)) {
                     needRegen = false;
                     // Remember this for the post-start block further down, which

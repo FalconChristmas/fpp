@@ -5315,6 +5315,20 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
         }
     }
 
+    // Cards FPP owns outright, from the "# cards:" line fppinit writes into the
+    // same conf (alsaSinkConfCardsTag in FPPINIT_Audio.cpp).  fppinit builds
+    // 50-fpp-suppress-alsa-dupes.conf from that same card list, so WirePlumber's
+    // device is disabled for every one of them: an alsa_output.* node for such a
+    // card never exists again, whatever the live graph shows at this moment (it
+    // can predate the rule taking effect).  A group saved with that name targets
+    // nothing, and nothing reports it -- the filter-chain simply never links.
+    $bootOwnedCardIds = array(); // normalised ALSA card ID => true
+    if ($bootConf && preg_match('/^# cards:(.*)$/m', $bootConf, $cm)) {
+        foreach (preg_split('/\s+/', trim($cm[1]), -1, PREG_SPLIT_NO_EMPTY) as $c) {
+            $bootOwnedCardIds[$c] = true;
+        }
+    }
+
     // What the custom adapters in the CURRENT graph were built with.
     //
     // Deciding between hw: and sysdefault: needs the card's capability list,
@@ -5418,8 +5432,10 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
 
     // Resolve card IDs to PipeWire node names.
     // Priority order:
-    //   0. Existing FPP adapter named for this card's stable ALSA ID
-    //   1. Previously-stored nodeTarget in member JSON (validated against its card)
+    //   0. FPP adapter named for this card's stable ALSA ID (live, or declared
+    //      in the boot conf for a present card)
+    //   1. Previously-stored nodeTarget in member JSON (validated against its
+    //      card; never a WirePlumber name for a card FPP owns)
     //   2. Direct cardId→nodeName via sinkCardIdMap (no card-number dependency)
     //   3. cardId→cardNum→nodeName via sinkCardNumMap (legacy fallback)
     //   4. Create FPP ALSA adapter if card exists but has no PipeWire sink
@@ -5508,12 +5524,22 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
             }
 
             // FPP adapter names encode the stable ALSA card ID. Prefer the
-            // matching live adapter over a cached target from another card.
-            $fppTarget = 'fpp_alsa_' . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($cardId));
-            if (isset($existingSinks[$fppTarget])) {
+            // matching adapter over a cached target from another card.  A
+            // present card with a boot-time adapter declared for it resolves to
+            // that adapter even while the node is missing from the graph (the
+            // stack mid-restart, or the device briefly busy at PipeWire start):
+            // its WirePlumber node is suppressed, so nothing else can serve it.
+            $cidNorm = preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($cardId));
+            $fppTarget = 'fpp_alsa_' . $cidNorm;
+            $cardNum = ResolveCardIdToNumber($cardId);
+            if (isset($existingSinks[$fppTarget])
+                || ($cardNum >= 0 && isset($bootAdapterChannels[$fppTarget]))) {
                 $cardNodeMap[$cardId] = $fppTarget;
                 continue;
             }
+            // A card FPP owns has no WirePlumber node, so no non-FPP name is an
+            // answer for it -- cached or live.  See $bootOwnedCardIds.
+            $cardOwnedByFpp = isset($bootOwnedCardIds[$cidNorm]);
             // With that adapter absent, the cached target still has to be
             // disqualified before the fallbacks below can reach it.  A cached
             // nodeTarget is only evidence about the card it was resolved for:
@@ -5530,12 +5556,16 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
             // A target no live sink accounts for and no fpp_alsa_ name to read
             // is left alone: it is the unplugged-device case Priority 4 exists
             // to serve, and the card-derived lookups cannot answer it either.
+            // The exception is a WirePlumber name cached for a card FPP now
+            // owns (it was hot-plugged, or saved before the suppression rule
+            // existed): that node is gone for good, not merely unplugged.
             if (isset($member['nodeTarget']) && !empty($member['nodeTarget'])) {
                 $cachedTarget = $member['nodeTarget'];
                 $cachedIsFppAdapter = (strpos($cachedTarget, 'fpp_alsa_') === 0);
                 $cachedTargetCardId = isset($sinkNodeCardIdMap[$cachedTarget])
                     ? $sinkNodeCardIdMap[$cachedTarget] : '';
                 if (($cachedIsFppAdapter && $cachedTarget !== $fppTarget)
+                    || (!$cachedIsFppAdapter && $cardOwnedByFpp)
                     || (!empty($cachedTargetCardId) && $cachedTargetCardId !== $cardId)) {
                     unset($member['nodeTarget']);
                 }
@@ -5555,21 +5585,24 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
             }
 
             // Priority 2: Direct cardId → node name (no card-number dependency)
-            if (isset($sinkCardIdMap[$cardId])) {
+            if (isset($sinkCardIdMap[$cardId])
+                && !($cardOwnedByFpp && strpos($sinkCardIdMap[$cardId], 'fpp_alsa_') !== 0)) {
                 $cardNodeMap[$cardId] = $sinkCardIdMap[$cardId];
                 continue;
             }
 
             // Priority 3: cardId → card number → node name
-            $cardNum = ResolveCardIdToNumber($cardId);
-            if ($cardNum >= 0 && isset($sinkCardNumMap[$cardNum])) {
+            if ($cardNum >= 0 && isset($sinkCardNumMap[$cardNum])
+                && !($cardOwnedByFpp && strpos($sinkCardNumMap[$cardNum], 'fpp_alsa_') !== 0)) {
                 $cardNodeMap[$cardId] = $sinkCardNumMap[$cardNum];
                 continue;
             }
 
             // Priority 4: Use stored nodeTarget even though device isn't present
             // WirePlumber names are deterministic (based on USB VID/PID/serial),
-            // so the stored name will be correct when the device reappears.
+            // so the stored name will be correct when the device reappears --
+            // unless FPP owns the card, which the disqualification above has
+            // already handled by dropping the name.
             // However, fpp_alsa_* nodes require a physical ALSA device — if the
             // card isn't present we must NOT create an adapter for it (PipeWire
             // crashes fatally trying to open a missing ALSA device).
