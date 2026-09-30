@@ -295,7 +295,16 @@ function GetEEPROMFilename()
 
     $eepromFile = "";
     if (file_exists("/home/fpp/media/tmp/eeprom_location.txt")) {
-        $eepromFile = file_get_contents("/home/fpp/media/tmp/eeprom_location.txt");
+        // Written by root fppd (CapeUtils) as /sys/bus/i2c/devices/<bus>-0050/eeprom,
+        // but the file lives under web-writable media/tmp/. Trim it and confine it
+        // to that shape -- anything else falls through to the cape-eeprom.bin
+        // default below instead of reaching the sudo dd commands.
+        $contents = file_get_contents("/home/fpp/media/tmp/eeprom_location.txt");
+        $eepromFile = is_string($contents) ? trim($contents) : "";
+        if ($eepromFile !== "" && (strpos($eepromFile, '..') !== false ||
+            !preg_match('#^/sys/bus/i2c/devices/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$#', $eepromFile))) {
+            $eepromFile = "";
+        }
     }
     if (!file_exists($eepromFile) && str_starts_with($eepromFile, "/sys/bus/i2c/devices/")) {
         $target = "/sys/bus/i2c/devices/i2c-1/new_device";
@@ -350,7 +359,7 @@ function GetSigningDataHelper($returnArray = false, $key = '', $order = '')
     $tmpEEPROM = '/home/fpp/media/config/tmpEEPROM.bin';
     if (file_exists($eepromFile)) {
         if ($eepromFile != '/home/fpp/media/config/cape-eeprom.bin') {
-            exec("sudo dd bs=32K if=$eepromFile of=$tmpEEPROM && sudo chown fpp:fpp $tmpEEPROM");
+            exec("sudo dd bs=32K if=" . escapeshellarg($eepromFile) . " of=" . escapeshellarg($tmpEEPROM) . " && sudo chown fpp:fpp " . escapeshellarg($tmpEEPROM));
             $eepromFile = $tmpEEPROM;
         }
         if (!$fh = fopen($eepromFile, 'rb')) {
@@ -490,7 +499,7 @@ function SignEEPROMHelper($data)
     $backup = '/home/fpp/media/upload/cape-eeprom-Backup-' . $timestamp . '.bin';
     $newFile = '/home/fpp/media/upload/cape-eeprom-Signed-' . $timestamp . '.bin';
 
-    exec("sudo dd bs=32K if=$eepromFile of=$backup && sudo chown fpp:fpp $backup");
+    exec("sudo dd bs=32K if=" . escapeshellarg($eepromFile) . " of=" . escapeshellarg($backup) . " && sudo chown fpp:fpp " . escapeshellarg($backup));
 
     if (file_exists($backup)) {
         # Write out new eeprom
@@ -506,7 +515,7 @@ function SignEEPROMHelper($data)
         fclose($fh);
 
         # Copy the new EEPROM data into place
-        exec("sudo dd bs=32K if=$newFile of=$eepromFile");
+        exec("sudo dd bs=32K if=" . escapeshellarg($newFile) . " of=" . escapeshellarg($eepromFile));
 
         unlink($newFile);
 
