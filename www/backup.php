@@ -864,7 +864,10 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
         $script_filenames = array();
         $restore_areas = $system_config_areas[$restore_area_key]['file'];
 
-        processRestoreDataArray($restore_area_key, $restore_area_sub_key, $restore_areas, $restore_area_data, $backup_version);
+        // Returns the restored script names (empty when none); previously
+        // this collected into a function-local that never reached the caller,
+        // so InstallActions silently never ran.
+        $script_filenames = processRestoreDataArray($restore_area_key, $restore_area_sub_key, $restore_areas, $restore_area_data, $backup_version);
 
         //Cause any InstallActions to be run for the restored scripts
         RestoreScripts($script_filenames);
@@ -887,7 +890,15 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                 //and plugin config data is written back to the right file
 
                 //Get the filename (to restore data into) and file data to go into that file
+                // Initialized: skipped (unsafe) filenames must not leave this
+                // undefined for the SUCCESS assignment below.
+                $save_result = false;
                 foreach ($plugin_data as $p_data_filename => $p_data_data) {
+                    // Same traversal guard as the dir restores below: the
+                    // filename comes from inside the uploaded backup.
+                    if (!IsSafeRestoreFilename($p_data_filename)) {
+                        continue;
+                    }
                     $plugin_settings_path = $plugin_settings_path_base . "/" . $p_data_filename;
                     $data = implode("\n", $p_data_data[0]);
 
@@ -1368,6 +1379,11 @@ function processRestoreDataArray($restore_area_key, $restore_area_sub_key, $rest
     //Version >7.2 backups - Panel layout is generated from the actual panel config (using col & row data) if the layout doesn't exist anywhere
     //                    - Single Panel size is generated from the same config and also written to the system settings
 
+    // Script filenames collected for InstallAction execution by the caller.
+    // Returned (not global) so existing callers that ignore the return value
+    // are unaffected.
+    $collected_script_filenames = array();
+
     //search through the files that should of been backed up for the specified area, eg. channelOutputs has multiple files
     //and then loop over the restore data and match up the data and restore it if anything exists.
     foreach ($restore_areas as $restore_areas_idx => $restore_areas_data) {
@@ -1395,6 +1411,18 @@ function processRestoreDataArray($restore_area_key, $restore_area_sub_key, $rest
                         foreach ($restore_area_data_payload as $filename_to_restore => $file_data) {
                             $save_result = false;
 
+                            // Filenames come from inside the uploaded backup. A
+                            // crafted name ("../../...") would escape the
+                            // target directory when appended below, so skip
+                            // anything that isn't a bare directory entry.
+                            // Legitimate backups only contain bare names (see
+                            // read_directory_files()), so valid restores are
+                            // unaffected. Skipped files leave the per-area
+                            // status to the remaining files.
+                            if ($restore_type == "dir" && !IsSafeRestoreFilename($filename_to_restore)) {
+                                continue;
+                            }
+
                             $restore_location = $restore_areas_data['location']; //reset
                             $final_file_restore_data = ""; //store restore data in variable
 
@@ -1419,8 +1447,8 @@ function processRestoreDataArray($restore_area_key, $restore_area_sub_key, $rest
                             }
 
                             //if restore sub-area is scripts, capture the file names so we can pass those along through RestoreScripts which will perform any InstallActions
-                            if (strtolower($restore_areas_idx) == "scripts") {
-                                $script_filenames[] = $filename_to_restore;
+                            if (strtolower($restore_areas_idx) == "scripts" && IsSafeRestoreFilename($filename_to_restore)) {
+                                $collected_script_filenames[] = $filename_to_restore;
                             }
 
                             //if restore sub-area is LED panels, we need write the matrix size / layout setting to the settings file in case it's different to the backup
@@ -1548,6 +1576,39 @@ function processRestoreDataArray($restore_area_key, $restore_area_sub_key, $rest
             }
         }
     }
+
+    return $collected_script_filenames;
+}
+
+/**
+ * Whether a filename from inside an uploaded backup is safe to restore.
+ *
+ * Backup payloads key files by name, so a crafted backup can carry names
+ * like "../../config/settings" or absolute paths. Legitimate backups only
+ * ever contain bare directory entries (see read_directory_files(): no
+ * slashes, never "." or ".."), so anything else is skipped, never written
+ * or executed. Mirrors the bare-name check in scripts/restoreScript so
+ * rejected names never even reach the sudo fork. Allows spaces, unicode,
+ * leading dashes and dotfiles -- anything that stays a single entry.
+ *
+ * @param mixed $filename array key from the decoded backup payload
+ * @return bool
+ */
+function IsSafeRestoreFilename($filename)
+{
+    if (is_int($filename)) {
+        $filename = (string) $filename;
+    }
+    if (!is_string($filename)) {
+        return false;
+    }
+    if ($filename === "" || $filename === "." || $filename === "..") {
+        return false;
+    }
+    if (basename($filename) !== $filename) {
+        return false;
+    }
+    return true;
 }
 
 /**
@@ -1561,7 +1622,13 @@ function RestoreScripts($file_names)
 
     if (!empty($file_names)) {
         foreach ($file_names as $filename) {
-            exec("$SUDO $fppDir/scripts/restoreScript $filename");
+            // Filenames come from inside the uploaded backup: stay in the
+            // scripts dir (restoreScript enforces this too) and keep the arg
+            // a single shell word.
+            if (!IsSafeRestoreFilename($filename)) {
+                continue;
+            }
+            exec($SUDO . " " . escapeshellarg($fppDir . "/scripts/restoreScript") . " " . escapeshellarg($filename));
         }
     }
 }
@@ -1739,6 +1806,11 @@ function RestoreConfigFolderConfigs($restore_data)
     if (!empty($restore_data)) {
         //Loop over the data to restore, the array key is the filename e.g joysticks.json, it's value is a array representing the file contents
         foreach ($restore_data as $restore_filename => $restore_file_data) {
+            // Traversal guard: the filename comes from inside the uploaded
+            // backup. Legitimate backups only contain bare names.
+            if (!IsSafeRestoreFilename($restore_filename)) {
+                continue;
+            }
             //Generate the filepath for the config file to be restored
             $misc_data_rest_filepath = $settings['configDirectory'] . '/' . $restore_filename;
 
