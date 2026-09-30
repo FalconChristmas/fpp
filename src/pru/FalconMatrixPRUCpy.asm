@@ -214,6 +214,11 @@ CTRL_CHANGE:
     QBA     FRAME_WAIT
 
 EXIT:
+    ; consume the exit sentinel: the scratchpad survives a firmware reload,
+    ; and the next run starts this PRU before the output PRU
+    LDI     ctrl_word, 0
+    LDI     clocked_seq, 0
+    XOUT    10, &ctrl_word, 8
     LDI   R31.b0, PRU_ARM_INTERRUPT+16
     halt
 
@@ -261,6 +266,10 @@ EXIT:
 
     LDI32   endVal, 0xFFFFFFF
     LDI     data_addr, 0
+    ; the scratchpad survives a firmware reload, and this PRU is started
+    ; before the output PRU: clear the control word so an exit sentinel
+    ; left by the previous run's output PRU cannot stop this one at once
+    XOUT    10, &data_addr, 4
 
 READ_LOOP:
     XIN 10, &data_addr, 4
@@ -280,6 +289,9 @@ READ_LOOP:
     QBA READ_LOOP
 
 EXIT:
+    ; consume the exit sentinel before halting (see the start-up clear)
+    LDI     data_addr, 0
+    XOUT    10, &data_addr, 4
     LDI   R31.b0, PRU_ARM_INTERRUPT+16
     halt                    ; Halt PRU execution
 #endif
