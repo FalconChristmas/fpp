@@ -3,7 +3,7 @@
 
 <h4>Header and actions</h4>
 <ul>
-    <li><b>Diagnostic Report</b> (top right) — Opens the Diagnostic Report wizard, which builds a diagnostic report on this FPP via <code>POST /api/crashes/report</code>, helps you send it with consent, and prefills a GitHub issue with the filename, version and platform. A logs/config zip of this page’s command output remains available from File Manager › Logs › Zip.</li>
+    <li><b>Diagnostic Report</b> (top right) — Opens the Diagnostic Report wizard, which builds a diagnostic report on this FPP via <code>POST /api/crashes/report</code>, helps you send it with consent, and prefills a GitHub issue with the filename, version and platform.</li>
     <li><b>Back to top</b> (red pill, fixed bottom-right) — Scrolls to the top; fades in after 100 px of scroll, fades out near the top.</li>
 </ul>
 

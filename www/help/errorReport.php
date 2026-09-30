@@ -1,6 +1,6 @@
 <h3>Diagnostic Report</h3>
 <p>
-    Press <b>F8</b> on any page (or use the <b>Diagnostic Report</b> button on the Get Help or Troubleshooting pages)
+    Press <b>F8</b> on any page (or use the <b>Diagnostic Report</b> button on the Get Help, Troubleshooting or File Manager › Logs pages)
     when something isn’t working and you’d like the developers to take a look.
     The tool builds a diagnostic report <b>on your FPP</b> via <code>POST /api/crashes/report</code>
     (<code>{"client":"Diagnostic Report"}</code>), then helps you send it. Nothing is sent until you review and confirm it.

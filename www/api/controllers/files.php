@@ -1001,6 +1001,8 @@ function ZipLogs($zip)
         "start_kiosk.log", // -> fppd.log
         "mp3gain.log", // -> fppd.log
         "fpp_backup_filecopy_last.log", // -> fppd.log (feed is now unlinked, not renamed)
+        "troubleshootingCommands.log", // stale copy from older versions -> Diagnostic Report
+        "healthCheck.log", // stale copy from older versions -> Diagnostic Report
     );
 
     // Superseded upgrade/plugin logs are dropped only ONCE their replacement has
@@ -1020,35 +1022,6 @@ function ZipLogs($zip)
         $rp = $logDirectory . '/' . $replacement;
         if (file_exists($rp) && filesize($rp) > 0) {
             $ignore_files = array_merge($ignore_files, $oldLogs);
-        }
-    }
-
-    // troubleshootingCommands.log and healthCheck.log are generated fresh for
-    // each zip -- they are artifacts OF the download, not logs of the system, and
-    // nothing reads them back. They used to be written into logs/ purely so the
-    // scandir below would pick them up, which left a permanently stale copy in
-    // the log directory (and in the Logs tab) between downloads --
-    // troubleshootingCommands.log alone runs to hundreds of KB. Generate them
-    // into tmp/ and add them to the zip by name instead: same zip contents, two
-    // fewer files pretending to be logs.
-    $genDir = $settings['mediaDirectory'] . "/tmp";
-    if (!is_dir($genDir)) {
-        mkdir($genDir, 0775, true);
-    }
-    $generated = array(
-        "troubleshootingCommands.log" => "php " . escapeshellarg($settings['fppDir'] . "/www/troubleshootingText.php"),
-        "healthCheck.log" => escapeshellarg($settings['fppDir'] . "/scripts/healthCheck"),
-    );
-    // Left in tmp/ rather than deleted here: addFile() only records the path,
-    // the bytes are read at $zip->close(), which happens in the caller after we
-    // return. media/tmp is FPP's scratch and is emptied on boot and on
-    // fppinit stop, so this is the same lifetime any other tmp file gets.
-    foreach ($generated as $name => $gcmd) {
-        $path = $genDir . "/" . $name;
-        exec($gcmd . " > " . escapeshellarg($path) . " 2>&1", $output, $return_val);
-        unset($output);
-        if (is_readable($path)) {
-            $zip->addFile($path, "logs/" . $name);
         }
     }
 

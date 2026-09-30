@@ -606,8 +606,9 @@
                                     <div class='form-actions'>
                                         <input onclick="ClearSelections('Logs');" class="buttons" type="button"
                                             value="Clear" />
-                                        <input onclick="DownloadZip('Logs', this, 'Zipping…');" class="buttons"
-                                            type="button" value="Zip" />
+                                        <input onclick="DisplayErrorReportDialog();" class="buttons"
+                                            type="button" value="Diagnostic Report"
+                                            title="Builds a report of settings, configuration, logs and system diagnostics on this FPP, to download or send" />
                                         <input onclick="ButtonHandler('Logs', 'viewFile');"
                                             class="disableButtons noDirButton singleLogsButton" type="button"
                                             value="View" />

@@ -77,7 +77,7 @@
 <h5>Logs</h5>
 <p>Columns: File, Size, Date Modified.</p>
 <ul>
-    <li><b>Zip</b> — Bundles selected logs into a single zip for download.</li>
+    <li><b>Diagnostic Report</b> — Opens the Diagnostic Report wizard, which builds a report of settings, configuration, the main logs and system diagnostics on this FPP, which you can download or send. To keep a copy of a log, select it and use <b>Download</b>.</li>
     <li><b>View</b> (single) — Opens the log text.</li>
     <li><b>Tail</b> (single) — Shows the end of the log file.</li>
     <li><b>Tail Follow</b> (single) — Live-updating tail, like watching the log while FPP runs.</li>
