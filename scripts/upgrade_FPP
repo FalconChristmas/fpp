@@ -12,6 +12,11 @@ then
 	exit 1
 fi
 
+# Mirror the allow-list in www/upgradefpp.php (letters, numbers, _, ., -, /
+# only, no .. or leading -). NOTE: no `--` after `git checkout` below on
+# purpose -- everything after `--` would be treated as a path, not a revision.
+case "$1" in ""|-*|*..*|*[!A-Za-z0-9_./-]*) echo "ERROR: Invalid version '$1'"; exit 1 ;; esac
+
 # Unified upgrade logging -> logs/fpp_system_upgrades.log. This is the outermost script
 # of the version-switch path, so its tee is the one that captures the nested
 # upgrade_config (and anything else it shells out to) as a single run.
@@ -32,12 +37,12 @@ echo "Cleaning up any compiled binaries"
 cleanCompiledBinaries
 
 echo "Adding newfeatures remote if not present"
-cd ${FPPDIR}
+cd "${FPPDIR}" || exit 1
 if ! git remote get-url newfeatures > /dev/null 2>&1; then
     if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
         $SUDO git remote add newfeatures https://github.com/FalconChristmas/fpp-new-feature-testing.git
     else
-        sudo -u ${FPPUSER} git remote add newfeatures https://github.com/FalconChristmas/fpp-new-feature-testing.git
+        sudo -u "${FPPUSER}" git remote add newfeatures https://github.com/FalconChristmas/fpp-new-feature-testing.git
     fi
 fi
 
@@ -56,19 +61,19 @@ echo "Switching git branch to $1"
 GITSWITCHOK=1
 if [ "x${FPPDIR}" = "x/opt/fpp" ]
 then
-	runGitLocked "cd ${FPPDIR} && git submodule foreach git reset --hard && git checkout $1 && git fetch && git rebase @{u}" || GITSWITCHOK=0
+	runGitLocked "cd \"${FPPDIR}\" && git submodule foreach git reset --hard && git checkout \"$1\" && git fetch && git rebase @{u}" || GITSWITCHOK=0
     if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
-        cd ${FPPDIR} && $SUDO git submodule sync && $SUDO git submodule update --init
+        cd "${FPPDIR}" && $SUDO git submodule sync && $SUDO git submodule update --init
     fi
 
-    $SUDO ${SCRIPTDIR}/upgrade_config
+    $SUDO "${SCRIPTDIR}/upgrade_config"
 else
-	runGitLocked "cd ${FPPDIR} && sudo -u ${FPPUSER} git submodule foreach git reset --hard && sudo -u ${FPPUSER} git checkout $1 && sudo -u ${FPPUSER} git fetch && sudo -u ${FPPUSER} git rebase @{u}" || GITSWITCHOK=0
+	runGitLocked "cd \"${FPPDIR}\" && sudo -u \"${FPPUSER}\" git submodule foreach git reset --hard && sudo -u \"${FPPUSER}\" git checkout \"$1\" && sudo -u \"${FPPUSER}\" git fetch && sudo -u \"${FPPUSER}\" git rebase @{u}" || GITSWITCHOK=0
     if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
-        cd ${FPPDIR} && sudo -u ${FPPUSER} git submodule sync && sudo -u ${FPPUSER} git submodule update --init
+        cd "${FPPDIR}" && sudo -u "${FPPUSER}" git submodule sync && sudo -u "${FPPUSER}" git submodule update --init
     fi
 
-    sudo -u ${FPPUSER} ${SCRIPTDIR}/upgrade_config
+    sudo -u "${FPPUSER}" "${SCRIPTDIR}/upgrade_config"
 fi
 
 if [ "${GITSWITCHOK}" != "1" ]; then
@@ -106,7 +111,7 @@ rm -f /tmp/cache_local_git_version.cache /tmp/cache_local_git_commit_date.cache 
 /usr/bin/curl -s -o /dev/null http://localhost/api/system/updateStatus &
 
 if [ "${GITSWITCHOK}" != "1" ]; then
-    echo "ERROR: upgrade to '$1' FAILED -- still on branch $(cd ${FPPDIR} && git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+    echo "ERROR: upgrade to '$1' FAILED -- still on branch $(cd "${FPPDIR}" && git rev-parse --abbrev-ref HEAD 2>/dev/null)"
     exit 1
 fi
 
