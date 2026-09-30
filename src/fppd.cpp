@@ -716,7 +716,8 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
 // A report the user asked for (POST /api/crashes/report), not a crash: level 3,
 // named -manual.  Built in media/tmp/manual-crash, as zip's temp file in
 // crashes/ would look like a recent crash to handleCrash.  No gdb stack:
-// attaching pauses fppd.
+// attaching pauses fppd.  One build at a time, then a 10s cooldown so a caller
+// in a loop cannot keep the player building back to back.
 static std::string ManualCrashReportCallback(std::string& error) {
     static std::mutex lock;
     static std::chrono::steady_clock::time_point last;
@@ -726,13 +727,17 @@ static std::string ManualCrashReportCallback(std::string& error) {
         error = "busy";
         return "";
     }
-    if (built && std::chrono::steady_clock::now() - last < std::chrono::seconds(60)) {
+    if (built && std::chrono::steady_clock::now() - last < std::chrono::seconds(10)) {
         error = "rate-limited";
         return "";
     }
-    // Counted from the start, so failed or timed-out builds are limited too
-    last = std::chrono::steady_clock::now();
-    built = true;
+    // Counted from the end of every build, failed or timed out ones included
+    struct BuildDone {
+        ~BuildDone() {
+            last = std::chrono::steady_clock::now();
+            built = true;
+        }
+    } buildDone;
 
     std::string mediaDir = getFPPMediaDir();
     char name[256];

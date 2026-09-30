@@ -5122,3 +5122,14 @@ pre.release-notes-body {
 	max-height: 40vh;
 	overflow-y: auto;
 }
+
+/* Diagnostic Report wizard (fpp.js): wide enough for a report's file name on
+   one line, and as tall as the window below the top nav (70px + 12px) allows.
+   DoModalDialog puts modal-dialog-scrollable on the .modal itself. */
+.modal-dialog-scrollable.diagnostic-report-dialog {
+	max-height: none;
+}
+.diagnostic-report-dialog .modal-content {
+	max-width: 900px;
+	max-height: calc(100vh - 82px);
+}

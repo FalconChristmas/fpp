@@ -54,11 +54,12 @@ function CrashReportJsonBody()
  * look like one of our own reports before it is used as a path.  Without that,
  * this is an "upload any file on the box to the internet" endpoint.
  */
-function CrashReportPath($file, &$error)
+function CrashReportPath($file, &$error, &$code = null)
 {
     global $settings;
 
     $error = '';
+    $code = null;
     $name = basename(str_replace('\\', '/', $file));
 
     if ($name === '' || $name === '.' || $name === '..') {
@@ -76,6 +77,8 @@ function CrashReportPath($file, &$error)
     $path = $dir . '/' . $name;
     if (!file_exists($path) || !is_file($path)) {
         $error = 'Crash report not found';
+        // Callers tell this apart by code: e.g. pruned by newer builds
+        $code = 'not-found';
         return false;
     }
     // Belt and suspenders after the basename: the file must really sit in the
@@ -160,19 +163,19 @@ function GetCrashDisclosures()
  * deleting the only copy of a crash report on an unverified "probably sent" is
  * how the evidence disappears.
  *
+ * **For FPP's own web UI only** (`ShowCrashUploadDialog()` in www/js/fpp.js,
+ * which asks the user before every send). Other apps and plugins should open
+ * FPP's Diagnostic Report instead.
+ *
  * A -manual.zip report (built by `POST /api/crashes/report`) needs a JSON body
- * of `{"consent": true}`. Before sending it, show the user FPP's disclosures for
- * crash reports, settings, configuration and logs, and e-mail address (the
- * crash, crash-settings, crash-config and email rows in
- * www/privacyDisclosures.inc, shown under Settings > Privacy), and tell them
- * this report is at the "configuration and logs" level and is sent even if
- * their saved crash report setting is "Keep locally, do not send" or Disabled.
- * If the player cannot reach the server (`CanRetryFromBrowser`), the browser
- * can post the file itself to the `url` and `field` that
- * `GET /api/crashes/uploadTarget` returns.
+ * of `{"consent": true}`: the user's answer in that dialog, never a value a
+ * caller sets on their behalf. If the player cannot reach the server
+ * (`CanRetryFromBrowser`), the same dialog has the browser post the file itself
+ * to the `url` and `field` that `GET /api/crashes/uploadTarget` returns.
  *
  * Error `Code`: consent-required (a -manual.zip report without
- * `{"consent":true}`).
+ * `{"consent":true}`), not-found (no such report on this player, e.g. pruned
+ * by newer builds).
  *
  * @route POST /api/crashes/upload/<file>
  * @badge "USER CONSENT REQUIRED" warning
@@ -181,8 +184,11 @@ function GetCrashDisclosures()
  */
 function PostCrashUpload()
 {
-    $path = CrashReportPath(params('file'), $error);
+    $path = CrashReportPath(params('file'), $error, $code);
     if ($path === false) {
+        if ($code !== null) {
+            return CrashReportError($code, $error);
+        }
         return json(array('Status' => 'Error', 'Message' => $error));
     }
 
@@ -246,18 +252,21 @@ function CrashReportError($code, $message)
 /**
  * Build a crash report now, for the user to look at and then send
  *
- * fppd builds a full report (settings, configuration and logs, level 3) named
- * like a crash report with a -manual suffix, and keeps it in the crashes folder
+ * fppd builds a Diagnostic Report (settings, configuration and logs, level 3)
+ * named like a crash report with a -manual suffix, and keeps it in the crashes
+ * folder.
+ * When fppd is not running the API builds it instead and the reply adds
+ * `"Fppd":"not-running"`
  * (two manual reports at most). Nothing is sent: the user can download it from
- * `GET /api/file/Crashes/<File>` to see what it holds, then send it with
- * `POST /api/crashes/upload/<File>`, which needs their consent. `client` names
- * the calling app in fppd.log.
+ * `GET /api/file/Crashes/<File>` to see what it holds. Sending it is done
+ * only from FPP's own UI (see `POST /api/crashes/upload/<File>`), which asks
+ * for the user's consent. `client` names the calling app in fppd.log.
  *
  * A build takes seconds on a fast player and can take a few minutes on a Pi
- * Zero or BeagleBone. One build a minute, counted from the start of the last
- * one.
+ * Zero or BeagleBone. One build at a time, and none for 10s after one finishes.
  *
- * Error `Code`s: bad-request, busy, rate-limited, build-failed, unavailable.
+ * Error `Code`s: bad-request, busy, rate-limited, build-failed, unavailable
+ * (fppd is running but did not answer).
  *
  * @route POST /api/crashes/report
  * @body {"client":"My App"}
@@ -287,6 +296,15 @@ function PostCrashReport()
     error_clear_last();
     $reply = @file_get_contents('http://127.0.0.1:32322/internal/crashReport', false, $ctx);
     $built = $reply === false ? null : json_decode($reply, true);
+    $withoutFppd = false;
+    if ($reply === false && !FppdListening()) {
+        // fppd is not running (stopped, or failing to start): build it here.
+        // A hung fppd still accepts the connection, so it never lands here.
+        $error = '';
+        $file = BuildManualCrashReportWithoutFppd($error);
+        $built = $file !== '' ? array('File' => $file) : array('Code' => $error);
+        $withoutFppd = true;
+    }
     if (!is_array($built) || !isset($built['File'])) {
         if (is_array($built) && isset($built['Code'])) {
             $code = $built['Code'];
@@ -303,7 +321,104 @@ function PostCrashReport()
 
     $file = basename($built['File']);
     clearstatcache();
-    FppdLogLine('crashes.php', 'General', "crash report on request $file (level 3) built, kept in crashes/$by");
-    return json(array('Status' => 'OK', 'File' => $file,
-        'Size' => (int)@filesize($settings['mediaDirectory'] . '/crashes/' . $file)));
+    $how = $withoutFppd ? ' without fppd (not running)' : '';
+    FppdLogLine('crashes.php', 'General', "crash report on request $file (level 3) built$how, kept in crashes/$by");
+    $result = array('Status' => 'OK', 'File' => $file,
+        'Size' => (int)@filesize($settings['mediaDirectory'] . '/crashes/' . $file));
+    if ($withoutFppd) {
+        $result['Fppd'] = 'not-running';
+    }
+    return json($result);
+}
+
+// True when something accepts connections on fppd's port
+function FppdListening()
+{
+    $sock = @fsockopen('127.0.0.1', 32322, $errno, $errstr, 1);
+    if ($sock === false) {
+        return false;
+    }
+    fclose($sock);
+    return true;
+}
+
+// ManualCrashReportCallback (fppd.cpp) for when fppd is not running: same
+// name (keep in step with CrashReportName), one build at a time, none for 10s
+// after one, two manual reports kept.  Runs as the web user, which can read
+// everything the report needs.  Returns the file name, or '' with $error set.
+function BuildManualCrashReportWithoutFppd(&$error)
+{
+    global $settings;
+
+    $media = $settings['mediaDirectory'];
+    $cdir = $media . '/crashes';
+    // Not fppd's tmp/manual-crash: fppd empties that at the start of a build
+    $tmpDir = $media . '/tmp/manual-crash-php';
+    @mkdir($media . '/tmp', 0775, true);
+    $lock = @fopen($media . '/tmp/manual-crash-php.lock', 'c');
+    if ($lock === false || !flock($lock, LOCK_EX | LOCK_NB)) {
+        $error = 'busy';
+        return '';
+    }
+    $manual = glob($cdir . '/*-manual.zip') ?: array();
+    usort($manual, function ($a, $b) {
+        return filemtime($b) - filemtime($a);
+    });
+    if (count($manual) > 0 && time() - filemtime($manual[0]) < 10) {
+        $error = 'rate-limited';
+        return '';
+    }
+
+    // fppd's compile-time platform names
+    $platforms = array('Raspberry Pi' => 'Pi', 'BeagleBone Black' => 'BBB', 'BeagleBone 64' => 'BB64',
+        'Armbian' => 'Armbian', 'Debian' => 'Debian', 'Docker' => 'Docker', 'MacOS' => 'MacOS');
+    $platform = isset($platforms[$settings['Platform']]) ? $platforms[$settings['Platform']] : 'Unknown';
+    $uuid = substr(preg_replace('/[^A-Za-z0-9._-]/', '', getSystemUUID()), 0, 63);
+    // The system's local time, as fppd uses
+    $stamp = trim((string)shell_exec('date +%Y-%m-%d_%H-%M-%S'));
+    if ($stamp === '') {
+        $stamp = date('Y-m-d_H-i-s');
+    }
+    $base = 'fpp-' . $platform . '-' . getFPPVersion() . '-' . $uuid . '-' . $stamp . '-manual.zip';
+    if (!preg_match('/^fpp-[A-Za-z0-9._-]+-manual\.zip$/', $base)) {
+        $error = 'build-failed';
+        return '';
+    }
+
+    exec('rm -rf ' . escapeshellarg($tmpDir));
+    @mkdir($tmpDir, 0775, true);
+    $tmpPath = $tmpDir . '/' . $base;
+    $cmd = escapeshellarg($settings['fppDir'] . '/scripts/generate_crash_report') . ' 3 ' .
+        escapeshellarg($tmpPath) . ' manual';
+    if (file_exists('/usr/bin/timeout')) {
+        $cmd = '/usr/bin/timeout -k 10 240 ' . $cmd;
+    }
+    exec($cmd . ' > /dev/null 2>&1');
+    clearstatcache();
+    if (!is_file($tmpPath) || filesize($tmpPath) == 0) {
+        @unlink($tmpPath);
+        $error = 'build-failed';
+        return '';
+    }
+
+    @mkdir($cdir, 0775, true);
+    $path = $cdir . '/' . $base;
+    // media/tmp may be on another filesystem
+    if (!@rename($tmpPath, $path)) {
+        $copied = @copy($tmpPath, $path);
+        @unlink($tmpPath);
+        if (!$copied) {
+            @unlink($path);
+            $error = 'build-failed';
+            return '';
+        }
+    }
+    @chmod($path, 0664);
+    // Keep at most two manual reports, counting the new one
+    foreach (array_slice(array_values(array_diff($manual, array($path))), 1) as $old) {
+        @unlink($old);
+    }
+    flock($lock, LOCK_UN);
+    fclose($lock);
+    return $base;
 }

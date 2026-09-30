@@ -3,7 +3,7 @@
 
 <h4>Header and actions</h4>
 <ul>
-    <li><b>Download Logs / Open Error Report</b> (top right) — Opens the Error Report wizard (<b>F8</b>), which builds a diagnostic report on this FPP via <code>POST /api/crashes/report</code>, helps you send it with consent, and prefills a GitHub issue with the filename, version and platform. A logs/config zip of this page’s command output remains available from File Manager › Logs › Zip.</li>
+    <li><b>Diagnostic Report</b> (top right) — Opens the Diagnostic Report wizard, which builds a diagnostic report on this FPP via <code>POST /api/crashes/report</code>, helps you send it with consent, and prefills a GitHub issue with the filename, version and platform. A logs/config zip of this page’s command output remains available from File Manager › Logs › Zip.</li>
     <li><b>Back to top</b> (red pill, fixed bottom-right) — Scrolls to the top; fades in after 100 px of scroll, fades out near the top.</li>
 </ul>
 
@@ -39,5 +39,5 @@
 <ul>
     <li>Open each tab you care about — tabs run their commands only when first viewed, so an unseen tab shows no badge until visited.</li>
     <li>Use the hot-link row at the top of a group to jump to a failing command without reading every output.</li>
-    <li>Use the <b>Download Logs / Open Error Report</b> button when you need to share diagnostics with the developers.</li>
+    <li>Use the <b>Diagnostic Report</b> button when you need to share diagnostics with the developers.</li>
 </ul>

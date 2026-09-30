@@ -91,7 +91,7 @@
 </ul>
 
 <h5>Crash Reports</h5>
-<p>Generated when <code>fppd</code> crashes, if crash reporting is enabled in <code>Settings → Privacy</code>, or made on request (the name ends in <code>-manual</code>).</p>
+<p>Generated when <code>fppd</code> crashes, if crash reporting is enabled in <code>Settings → Privacy</code>, or built as a Diagnostic Report (the name ends in <code>-manual</code>).</p>
 <ul>
     <li><b>Download</b> — Save reports to your computer for sharing.</li>
     <li><b>Upload and Delete</b> — Sends the selected reports, then removes them from this player. The confirmation shows who receives them and what they contain. Use this when you want to help diagnose a crash.</li>
