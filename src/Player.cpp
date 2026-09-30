@@ -393,6 +393,10 @@ int Player::GetPosition() {
     return PlaylistSnapshot()->GetPosition();
 }
 
+int Player::GetResumePosition() {
+    return PlaylistSnapshot()->GetResumePosition();
+}
+
 Json::Value Player::GetInfo(void) {
     return PlaylistSnapshot()->GetInfo();
 }

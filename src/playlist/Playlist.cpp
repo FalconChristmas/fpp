@@ -2134,6 +2134,43 @@ int Playlist::GetPosition(void) {
 }
 
 /*
+ * 0-based position a restart should resume this playlist at: the current
+ * entry if it still has work left, the one after it if it does not.
+ *
+ * Resuming AT an entry that has already done its work replays it.  For a
+ * command entry that is the command that asked for the restart ("Restart
+ * FPPD", "Switch To Player Mode"), so the new fppd runs it again and restarts
+ * in a loop for the rest of the schedule window.  That entry is not yet marked
+ * finished -- Process() only does that on the next main-loop pass, and the
+ * restart ends the loop first -- so a completed command counts as finished
+ * here too.
+ *
+ * The position is counted in the playlist FILE, which is what the restarted
+ * fppd loads.  A playlist that was itself started part-way through (a resume,
+ * or Start Playlist At Item) was loaded with every entry before that point
+ * trimmed off (see Load()), so GetPosition() counts from the trimmed start;
+ * add the trimmed entries back or a second restart resumes too early.
+ *
+ * A position past the end is wrapped back to the start by Start().
+ */
+int Playlist::GetResumePosition(void) {
+    int pos = GetPosition() - 1;
+    if (m_loadStartPos > 0) {
+        pos += m_loadStartPos;
+    }
+
+    PlaylistEntryBase* entry = CurrentEntry();
+    if (entry) {
+        PlaylistEntryCommand* cmdEntry = dynamic_cast<PlaylistEntryCommand*>(entry);
+        if (entry->IsFinished() || (cmdEntry && cmdEntry->CommandDone())) {
+            pos++;
+        }
+    }
+
+    return pos;
+}
+
+/*
  *
  */
 int Playlist::GetSize(void) {

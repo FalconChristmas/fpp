@@ -1377,7 +1377,7 @@ int main(int argc, char* argv[]) {
         if ((Player::INSTANCE.GetStatus() == FPP_STATUS_PLAYLIST_PLAYING) &&
             (Player::INSTANCE.WasScheduled() || RestartShouldResumePlaylist())) {
             resumePlaylist = Player::INSTANCE.GetPlaylistName();
-            resumePosition = std::to_string(Player::INSTANCE.GetPosition() - 1);
+            resumePosition = std::to_string(Player::INSTANCE.GetResumePosition());
             resumeRepeat = std::to_string(Player::INSTANCE.GetRepeat());
             // Force-start only what the scheduler won't restore itself.  A
             // scheduled playlist is left to CheckIfShouldBePlayingNow(), which

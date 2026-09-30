@@ -89,6 +89,7 @@ public:
     std::string GetPlaylistName(void) { return m_name; }
     int GetRepeat(void) { return m_repeat; }
     int GetPosition(void);
+    int GetResumePosition(void);
     int GetSize(void);
     int GetLoopNumber(void) { return (m_loop + 1); }
     std::string GetConfigStr(void);
