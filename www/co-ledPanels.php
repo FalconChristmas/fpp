@@ -3466,17 +3466,28 @@
     // nothing selected, and a null panel size then throws in the size parsing.
     // Returns the applicable keys in ascending version order so a later tier
     // refines an earlier one.
+    // Vendor panel data is fetched live by every FPP version, so settings a
+    // version cannot represent go in "<subType>-v<major>" or
+    // "<subType>-v<major>.<minor>" tiers, applied in ascending order when this
+    // player is at least that version.  The minor form is for support added
+    // within a major: players from before it only match the major-only form,
+    // so they skip "-v10.2" style keys entirely.
     function vendorSettingsKeysFor(subType, settings) {
-        var re = new RegExp("^" + subType.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "-v(\\d+)$");
+        var re = new RegExp("^" + subType.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "-v(\\d+)(?:\\.(\\d+))?$");
         var tiers = [];
         Object.keys(settings || {}).forEach(function (k) {
             var m = re.exec(k);
-            if (m && parseInt(m[1], 10) <= FPP_MAJOR_VERSION) {
-                tiers.push([parseInt(m[1], 10), k]);
+            if (!m) {
+                return;
+            }
+            var major = parseInt(m[1], 10);
+            var minor = m[2] === undefined ? 0 : parseInt(m[2], 10);
+            if (major < FPP_MAJOR_VERSION || (major == FPP_MAJOR_VERSION && minor <= FPP_MINOR_VERSION)) {
+                tiers.push([major, minor, k]);
             }
         });
-        tiers.sort(function (a, b) { return a[0] - b[0]; });
-        return [subType].concat(tiers.map(function (t) { return t[1]; }));
+        tiers.sort(function (a, b) { return (a[0] - b[0]) || (a[1] - b[1]); });
+        return [subType].concat(tiers.map(function (t) { return t[2]; }));
     }
 
     function applyPanelProperties(panelMatrixID, details) {
