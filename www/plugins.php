@@ -156,11 +156,10 @@
             // about: nothing is known about the plugin. The lights stay
             // information.
             var h = r.declared
-                ? '<div class="small text-secondary mb-1"><span class="fw-bold text-uppercase">Disclosed by the author</span> &middot; not verified by FPP</div>'
+                ? '<div class="small text-secondary mb-1"><span class="fw-bold text-uppercase">Disclosed by the author</span> &middot; ' +
+                    (r.unreviewed ? 'loaded from a URL, so not checked for the plugin list' : 'checked automatically against its code for the plugin list') + '</div>'
                 : '<div class="fpp-major-callout mb-2"><i class="fas fa-triangle-exclamation"></i><span><b>' +
                     EscapeHtml(r.headline.text) + '.</b> ' + EscapeHtml(r.headline.explain || '') + '</span></div>';
-            if (r.unreviewed && r.declared)
-                h += '<div class="small text-secondary mb-1">Loaded from a URL, not from the plugin list: this disclosure was not reviewed for the plugin list.</div>';
             h += FPPPluginPrivacy.summaryHtml(r);
             if (from) {
                 var changes = FPPPluginPrivacy.changesSummaryHtml(from, r);
@@ -204,8 +203,9 @@
             }
             var id = 'pluginNoticeDialog';
             var accepted = false;
-            var body = '<p>Plugins add features that are not part of FPP itself. They are written and maintained by their ' +
-                'own authors, and the FPP project does not review or test them.</p>' +
+            var body = '<p>Plugins add features that are not part of FPP itself. Plugins in the list are checked against FPP\'s ' +
+                'plugin guidelines when they are listed and before each major FPP release, but they are written and maintained ' +
+                'by their own authors: the FPP project does not audit their code and cannot vouch for it.</p>' +
                 '<p>A plugin runs with full access to this player: it can read and change any setting and reach anything on ' +
                 'the network this player is connected to. Install plugins from authors you trust. Plugins marked ' +
                 '<span class="badge text-bg-graceful"><i class="fas fa-certificate"></i> Official</span> are maintained by the FPP team.</p>' +
@@ -238,7 +238,7 @@
         function ReviewIntroDialog(opts) {
             var id = 'privacyReviewIntroDialog';
             var body = '<p>' + opts.lead + '</p>';
-            body += '<p class="small text-secondary">Each disclosure is the author\'s own statement, not verified by FPP.</p>';
+            body += '<p class="small text-secondary">Each disclosure is the author\'s own statement.</p>';
             body += '<div class="fw-semibold">You will be asked about, in this order:</div><ol class="mb-0">';
             opts.plugins.forEach(function (p) {
                 var k = FindPluginInfo(p);

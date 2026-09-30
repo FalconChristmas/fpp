@@ -1,6 +1,7 @@
 <h3>Plugins</h3>
-<p>Plugins add features to FPP. They are written and published by their own authors, and the FPP project
-    does not review or test them. Every plugin runs with full access to this player: it can read and change any
+<p>Plugins add features to FPP. Plugins in the list are checked against FPP's plugin guidelines when they are
+    listed and before each major FPP release, but they are written and maintained by their own authors: the FPP
+    project does not audit their code and cannot vouch for it. Every plugin runs with full access to this player: it can read and change any
     setting and reach anything on the network this player is connected to. Install plugins from authors you
     trust. Plugins marked <b>Official</b> are maintained by the FPP project.</p>
 <p>The first time you install a plugin, FPP shows a short note saying this and asks you to continue. It is
@@ -23,9 +24,11 @@
     online service or including code whose source is not published. Hover a light to read what the author
     wrote about it, or tap it to open <b>Full disclosure</b>, which lists every light's details together with
     any other notes from the author.</p>
-<p>Remember that the lights come from what the author wrote. FPP does not check the plugin's code against
-    its disclosure, and a green light is the author's word, not a test result. The lights describe what the
-    author says the plugin does; they do not limit what it can do.</p>
+<p>Remember that the lights come from what the author wrote. For a plugin in the list, an automated check
+    compares the disclosure with the plugin's code when it is listed and again from time to time afterwards. That
+    check catches many omissions, but it is not an audit: a green light is still the author's word, not a test
+    result, and it cannot look inside closed-source parts. The lights describe what the author says the plugin
+    does; they do not limit what it can do. A plugin loaded from a URL has had no such check.</p>
 <p>If a plugin keeps information about your visitors or passers-by - phone numbers, messages, votes,
     camera images - its <i>Collects data</i> or <i>Camera &amp; mic</i> light is red. Whether a plugin keeps such
     information or only passes it on to a service, what happens to it is your responsibility, not the

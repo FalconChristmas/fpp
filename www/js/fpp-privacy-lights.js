@@ -91,7 +91,7 @@ var FPPPluginPrivacy = (function () {
 			name: "Can it be checked?",
 			g: "Author says all its software can be checked",
 			a: "Downloads extra software",
-			r: "Includes software that can't be checked",
+			r: "Includes closed-source software",
 		},
 	];
 	var UNDECLARED_LABEL = "Not disclosed";
@@ -175,9 +175,9 @@ var FPPPluginPrivacy = (function () {
 	var DOWNLOAD_LINE = "Installs extra software from a public source; see System changes.";
 	var UNDECLARED_EXPLAIN =
 		"The author has not said what this plugin sends, collects or changes on this device, so nothing is known about what it does.";
-	var BLACK_BOX_EXPLAIN =
-		"Almost every FPP plugin is made entirely of code anyone can read. Part of this one is not, so nobody — not FPP, not you — " +
-		"can check what that part does, and the disclosure below cannot be checked for it either.";
+	var CLOSED_CODE_EXPLAIN =
+		"Part of this plugin is not published as source code, so what that part does cannot be read, and the plugin list's " +
+		"automated check cannot compare the disclosure with it.";
 
 	function arr(v) {
 		return Array.isArray(v) ? v : [];
@@ -700,7 +700,7 @@ var FPPPluginPrivacy = (function () {
 				break;
 			case "code":
 				if (p.closedCode)
-					out.push("Includes software whose source is not available.");
+					out.push("Includes software whose source code is not public.");
 				// A download is listed in full under System changes; repeating
 				// the author's line here read as a rendering fault. This light is
 				// about provenance, so it says why it is amber and points across.
@@ -740,9 +740,9 @@ var FPPPluginPrivacy = (function () {
 	function headlineFor(byId, labelById, p) {
 		if (byId.code === "r")
 			return {
-				text: "Part of this plugin is a black box",
+				text: "Includes closed-source software",
 				level: "r",
-				explain: BLACK_BOX_EXPLAIN,
+				explain: CLOSED_CODE_EXPLAIN,
 			};
 		if (byId.collect === "r" || byId.camera === "r")
 			return { text: "Handles other people's data", level: "r" };
