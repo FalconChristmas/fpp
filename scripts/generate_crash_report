@@ -140,33 +140,68 @@ CRASH_SECRET_KEYS="$(build_secret_key_list)"
 # TIGHT tokens are substrings of ordinary words (path, author, keyframe,
 # passthrough) so they count only when no lowercase letter follows. Cases are
 # spelled out rather than using sed's I flag: under I, [A-Z] also matches
-# lowercase and the "followed by uppercase" boundary collapses. \x27 is the
-# apostrophe -- \047 inside a bracket expression is the four characters \ 0 4 7.
+# lowercase and the "followed by uppercase" boundary collapses. The apostrophe
+# is written as itself: \x27 is a GNU-only escape, other seds read four characters.
 CRASH_BACKSTOP_LOOSE='[Pp]assword|PASSWORD|[Pp]asswd|PASSWD|[Pp]assphrase|PASSPHRASE|[Pp]asscode|PASSCODE|[Pp]wd|PWD|[Pp]sk|PSK|[Ss]ecret|SECRET|[Tt]oken|TOKEN|[Cc]redential|CREDENTIAL'
-CRASH_BACKSTOP_TIGHT='([Pp]ass|[Kk]ey|[Aa]uth|[Pp]at)([^a-z"\x27[:space:]:=][A-Za-z0-9_.-]*)?|(PASS|KEY|AUTH|PAT)([^A-Za-z"\x27[:space:]:=][A-Za-z0-9_.-]*)?'
+CRASH_BACKSTOP_TIGHT="([Pp]ass|[Kk]ey|[Aa]uth|[Pp]at)([^a-z\"'[:space:]:=][A-Za-z0-9_.-]*)?|(PASS|KEY|AUTH|PAT)([^A-Za-z\"'[:space:]:=][A-Za-z0-9_.-]*)?"
 # Key plus separator (optional closing quote, whitespace, : or =) as ONE group
 # so the substitutions only ever need \1.
 CRASH_BACKSTOP_KEY="([A-Za-z0-9_.-]*((${CRASH_BACKSTOP_LOOSE})[A-Za-z0-9_.-]*|(${CRASH_BACKSTOP_TIGHT}))\"?[[:space:]]*[:=][[:space:]]*)"
+# PHP's key => value (print_r, var_export, php -i), key quoted or in [ ]
+CRASH_ARROW_KEY="([[\"']*([A-Za-z0-9_.-]*((${CRASH_BACKSTOP_LOOSE})[A-Za-z0-9_.-]*|(${CRASH_BACKSTOP_TIGHT}))|${CRASH_SECRET_KEYS})[]\"']*[[:space:]]*=>[[:space:]]*)"
+# A JSON "key": for the same keys, for values with escaped quotes in them
+CRASH_JSON_KEY="(\"([A-Za-z0-9_.-]*((${CRASH_BACKSTOP_LOOSE})[A-Za-z0-9_.-]*|(${CRASH_BACKSTOP_TIGHT}))|${CRASH_SECRET_KEYS})\"[[:space:]]*:[[:space:]]*)"
 
 # Lines whose FIRST key ends in Enable are left alone (see above). Anchored to
 # the line start: a compact single-line JSON object with an ...Enable key in it
 # must still have its other keys redacted.
+CRASH_KEY_RE="[A-Za-z0-9_.-]*((${CRASH_BACKSTOP_LOOSE})[A-Za-z0-9_.-]*|(${CRASH_BACKSTOP_TIGHT}))|${CRASH_SECRET_KEYS}"
 CRASH_ENABLE_LINE='^[[:space:]]*"?[A-Za-z0-9_.-]*[Ee]nable"?[[:space:]]*[:=]'
 
 # Redact stdin to stdout. Used for every file that leaves the device, so there
 # is exactly one copy of this policy rather than the six divergent ones this
-# replaced.
+# replaced.  LC_ALL=C: ~12x faster than UTF-8, and a value with invalid UTF-8 is
+# still redacted to its end.
 redact_stream() {
-    sed -E \
+    LC_ALL=C sed -E \
+        `# var_dump: ["key"]=> on its own line, the value on the next` \
+        -e "/^[[:space:]]*${CRASH_ARROW_KEY}\$/{n; s/^([[:space:]]*string\([0-9]+\) ).*/\1\"**REDACTED**\"/; s/^([[:space:]]*(int|float)\().*/\1**REDACTED**)/;}" \
+        `# 0. PHP's key => value.  One per line (print_r, php -i): the rest of the` \
+        `#    line, as values have spaces; elsewhere a quoted or bare value.` \
+        -e "s/^([[:space:]]*(\\\$_[A-Z]+)?${CRASH_ARROW_KEY}).*\$/\1**REDACTED**/" \
+        -e "s/(^|[^A-Za-z0-9_.-]|[A-Za-z0-9_.-][[\"'])${CRASH_ARROW_KEY}(\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*'|[^\"'[:space:],]+)/\1\2**REDACTED**/g" \
+        `#    phpinfo() HTML rows (cleanedphpinfo.php): <td class="e">KEY</td><td class="v">value` \
+        -e "s#(<td class=\"e\">[[:space:]]*(\\\$_[A-Z]+)?[[\"']*([A-Za-z0-9_.-]*((${CRASH_BACKSTOP_LOOSE})[A-Za-z0-9_.-]*|(${CRASH_BACKSTOP_TIGHT}))|${CRASH_SECRET_KEYS}|[A-Za-z0-9_]*AUTHORIZATION)[]\"']*[[:space:]]*</td><td class=\"v\">)[^<]*#\1**REDACTED**#g" \
+        `#    JSON string values with escaped quotes (a\"b), whole.` \
+        -e "/${CRASH_ENABLE_LINE}/! s/${CRASH_JSON_KEY}\"([^\"\\\\]|\\\\.)*\"/\1\"**REDACTED**\"/g" \
+        `#    URL credentials, kept inside the URL's host part: a password with @ in` \
+        `#    it goes up to the last @, and nothing past the URL is touched.  Before` \
+        `#    rule 2, which would take https://x-access-token:... as a token: key.` \
+        -e "s%(^|[^a-z0-9+.-])([a-z][a-z0-9+.-]*://)[^:/?#@[:space:]\"']*:[^/?#[:space:]\"']*@%\1\2**REDACTED**@%gI" \
+        -e "s%(^|[^a-z0-9+.-])([a-z][a-z0-9+.-]*://)[^:/?#@[:space:]\"'*]+@%\1\2**REDACTED**@%gI" \
+        `#    Percent-encoded (https%3A%2F%2Fuser%3Apw%40host), up to the encoded @` \
+        -e "s/(^|[^a-z0-9+.-])([a-z][a-z0-9+.-]*%3A%2F%2F)([^%&\"'[:space:]]|%[013-9A-F][0-9A-F]|%2[0-9A-E])*%40/\1\2**REDACTED**%40/gI" \
+        `# 6. Escaped JSON inside a string (\"password\":\"x\") and Python dict repr ('password': 'x')` \
+        -e "s/(\\\\+\"(${CRASH_KEY_RE})\\\\+\"[[:space:]]*:[[:space:]]*\\\\+\")[^\"\\\\]*/\1**REDACTED**/g" \
+        -e "s/('(${CRASH_KEY_RE})'[[:space:]]*:[[:space:]]*[bu]?)'([^'\\\\]|\\\\.)*'/\1'**REDACTED**'/g" \
         `# 1. Known secret and PII settings keys, ini or JSON, quoted or bare.` \
         -e "/${CRASH_ENABLE_LINE}/! s/^([[:space:]]*\"?(${CRASH_SECRET_KEYS})\"?[[:space:]]*[:=][[:space:]]*).*\$/\1\"**REDACTED**\"/" \
         -e "/${CRASH_ENABLE_LINE}/! s/(\"(${CRASH_SECRET_KEYS})\"[[:space:]]*:[[:space:]]*)\"[^\"]*\"/\1\"**REDACTED**\"/g" \
         `# 2. Name-shaped backstop: double-quoted, single-quoted and bare values.` \
-        -e "/${CRASH_ENABLE_LINE}/! s/${CRASH_BACKSTOP_KEY}\"[^\"]*\"/\1\"**REDACTED**\"/g" \
-        -e "/${CRASH_ENABLE_LINE}/! s/${CRASH_BACKSTOP_KEY}'[^']*'/\1'**REDACTED**'/g" \
-        -e "/${CRASH_ENABLE_LINE}/! s/${CRASH_BACKSTOP_KEY}([^\"'[:space:]]+)/\1**REDACTED**/g" \
+        -e "/${CRASH_ENABLE_LINE}/! s/(^|[^A-Za-z0-9_.-])${CRASH_BACKSTOP_KEY}\"[^\"]*\"/\1\2\"**REDACTED**\"/g" \
+        -e "/${CRASH_ENABLE_LINE}/! s/(^|[^A-Za-z0-9_.-])${CRASH_BACKSTOP_KEY}'[^']*'/\1\2'**REDACTED**'/g" \
+        -e "/${CRASH_ENABLE_LINE}/! s/(^|[^A-Za-z0-9_.-])${CRASH_BACKSTOP_KEY}([^\"'[:space:]]+)/\1\2**REDACTED**/g" \
         `# 3. Credentials embedded in URLs, any scheme (https, rtsp, mqtt, smb...).` \
-        -e 's#([a-z][a-z0-9+.-]*://)[^:/@[:space:]]+:[^@[:space:]]+@#\1**REDACTED**@#gI'
+        -e 's#(^|[^a-z0-9+.-])([a-z][a-z0-9+.-]*://)[^:/@[:space:]]+:[^@[:space:]]+@#\1\2**REDACTED**@#gI' \
+        `# 4. GitHub and GitLab tokens wherever they appear.` \
+        -e 's/(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|glpat-[A-Za-z0-9_-]{20,})/**REDACTED**/g' \
+        `# 5. HTTP auth: an Authorization header's value, a long Bearer token, and` \
+        `#    anything shaped like a JWT.` \
+        -e "s#(authorization[]\"']*[[:space:]]*[:=]>?[[:space:]]*[\"']?((Bearer|Basic|token|Negotiate|NTLM)[[:space:]]+)?)[^\"'[:space:]]+#\1**REDACTED**#gI" \
+        -e 's#(^|[^A-Za-z0-9_])(Bearer[[:space:]]+)[A-Za-z0-9._~+/=-]{20,}#\1\2**REDACTED**#g' \
+        -e 's#(^|[^A-Za-z0-9_])eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]*#\1**REDACTED**#g' \
+        `# 7. Tidy "key => v" that rule 2 re-matched as "key =**REDACTED** **REDACTED**"` \
+        -e 's/([^[:space:]=])([[:space:]]*)=\*\*REDACTED\*\* \*\*REDACTED\*\*/\1\2=> **REDACTED**/g'
 }
 
 # Interface config fields that may leave the device. Declared in
