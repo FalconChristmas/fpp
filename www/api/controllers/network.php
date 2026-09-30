@@ -978,6 +978,18 @@ function network_save_gateway()
 }
 
 /**
+ * Shared interface-name allow-list for endpoints that pass `{interface}` to
+ * shells or build config file paths from it (see network_wifi_scan(),
+ * network_delete_interface()). Kernel names are at most IFNAMSIZ-1 (15)
+ * chars; requiring alnum-first with no '/' keeps values inside
+ * configDirectory and unusable as command options or flags.
+ */
+function network_is_valid_interface_name($interface)
+{
+    return is_string($interface) && preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]{0,14}$/', $interface);
+}
+
+/**
  * Get network interface configuration
  *
  * Retrieves the current network interface configuration.
@@ -1001,6 +1013,18 @@ function network_get_interface()
     global $settings;
 
     $interface = params('interface');
+
+    // Same validation as network_delete_interface() below: the value reaches
+    // shells (ip/iw/networkctl/arp, sudo fppinit) and config file paths, so it
+    // must be a plausible kernel name. IFNAMSIZ-1 chars, no '/' and no leading
+    // '.'/'-', so it can neither escape configDirectory nor become an option.
+    // Deliberately NOT restricted to currently-present interfaces (unlike the
+    // wifi endpoints): this is a status query that also serves saved configs
+    // for down/absent devices.
+    if (!network_is_valid_interface_name($interface)) {
+        return json(array("status" => "ERROR: Interface not found"));
+    }
+
     $result = array("status" => "ERROR: Interface not found");
 
     $cfgFile = $settings['configDirectory'] . "/interface." . $interface;
@@ -1015,8 +1039,8 @@ function network_get_interface()
     }
 
     // Use `ip` (netlink) rather than ifconfig to avoid WEXT calls on
-    // wireless interfaces.
-    exec("/sbin/ip -o -4 addr show dev $interface 2>/dev/null", $output);
+    // wireless interfaces. Each value is one shell word (see validator above).
+    exec("/sbin/ip -o -4 addr show dev " . escapeshellarg($interface) . " 2>/dev/null", $output);
     foreach ($output as $line) {
         if (preg_match('/\binet (\d+\.\d+\.\d+\.\d+)\/(\d+)/', $line, $m)) {
             $result['CurrentAddress'] = $m[1];
@@ -1024,7 +1048,7 @@ function network_get_interface()
         }
     }
     unset($output);
-    exec("/sbin/ip -o link show dev $interface 2>/dev/null", $output);
+    exec("/sbin/ip -o link show dev " . escapeshellarg($interface) . " 2>/dev/null", $output);
     foreach ($output as $line) {
         if (preg_match('/<[^>]*UP[^>]*>/', $line)) {
             $result['status'] = 'OK';
@@ -1033,7 +1057,7 @@ function network_get_interface()
     unset($output);
 
     if (substr($interface, 0, 2) == "wl") {
-        exec("/sbin/iw dev $interface link 2>/dev/null", $output);
+        exec("/sbin/iw dev " . escapeshellarg($interface) . " link 2>/dev/null", $output);
         foreach ($output as $line) {
             if (preg_match('/SSID: (.+)/', $line, $m)) {
                 $result['CurrentSSID'] = $m[1];
@@ -1084,7 +1108,7 @@ function network_get_interface()
             fclose($handle);
         }
 
-        $out = shell_exec("networkctl --no-legend -l -n 0 status " . $interface);
+        $out = shell_exec("networkctl --no-legend -l -n 0 status " . escapeshellarg($interface));
         $lines = explode("\n", trim($out));
         $inLeases = false;
         $result["CurrentLeases"] = array();
@@ -1103,7 +1127,9 @@ function network_get_interface()
                 } else {
                     $ip = trim(substr($line, 0, $pos));
 
-                    $mac = trim(shell_exec("arp -a  " . $ip . " | awk '{print $4;}'"));
+                    // $ip is parsed out of networkctl output (DHCP-provided data),
+                    // so quote it rather than trusting it to be a plain address.
+                    $mac = trim(shell_exec("arp -a  " . escapeshellarg($ip) . " | awk '{print $4;}'"));
                     if (!isset($result["StaticLeases"][$ip]) || $result["StaticLeases"][$ip] != $mac) {
                         $result["CurrentLeases"][$ip] = $mac;
                     }
@@ -1182,9 +1208,10 @@ function network_delete_interface()
 
     $interface = params('interface');
 
-    // IFNAMSIZ-1 characters, no '/' and no leading '.', so a name can never
-    // escape configDirectory.
-    if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]{0,14}$/', $interface)) {
+    // Shared allow-list (see network_is_valid_interface_name): IFNAMSIZ-1
+    // characters, no '/' and no leading '.', so a name can never escape
+    // configDirectory.
+    if (!network_is_valid_interface_name($interface)) {
         status(400);
         return json(array("status" => "ERROR: invalid interface name"));
     }
@@ -1255,6 +1282,12 @@ function network_set_interface()
     if (!isset($data['INTERFACE'])) {
         echo ("WTF");
         return json(array("status" => "Invalid Name is required", "debug" => $raw));
+    }
+
+    // $data['INTERFACE'] becomes config/interface.<name> and leases.<name> below;
+    // without validation "../" escapes configDirectory on write.
+    if (!network_is_valid_interface_name($data['INTERFACE'])) {
+        return json(array("status" => "ERROR: invalid interface name"));
     }
 
     $cfgFile = $settings['configDirectory'] . "/interface." . $data['INTERFACE'];
@@ -1362,6 +1395,12 @@ function network_apply_interface()
 
     $interface = params('interface');
 
-    exec($SUDO . " " . $settings['fppDir'] . "/src/fppinit setupNetwork $interface", $output);
+    // This runs root fppinit -- same validation as the read path.
+    if (!network_is_valid_interface_name($interface)) {
+        status(400);
+        return json(array("status" => "ERROR: invalid interface name"));
+    }
+
+    exec($SUDO . " " . $settings['fppDir'] . "/src/fppinit setupNetwork " . escapeshellarg($interface), $output);
     return json(array("status" => "OK", "output" => $output));
 }
