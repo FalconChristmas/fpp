@@ -141,8 +141,8 @@
                 FPPPluginPrivacy.stripHtml(PluginPrivacyResult(data), { compact: true }) + '</span>';
         }
 
-        // Label line, the author's summary, FPP's headline (undeclared only),
-        // the strip, then "Full disclosure" collapsed: every light's line, the
+        // Label line (a warning callout instead for a plugin with no block),
+        // the author's summary, the strip, then "Full disclosure" collapsed: every light's line, the
         // author's `other` text, and in Developer UI mode the block as
         // written. Shared by the
         // install dialog, the upgrade dialog and the detail modal. Wording per
@@ -152,16 +152,16 @@
         // with their changed lines marked, and a list under the headline says
         // which lights moved and which way (fpp-privacy-lights.js).
         function PrivacyBlockHtml(r, prefix, from) {
+            // No block at all is the one privacy finding the dialog warns
+            // about: nothing is known about the plugin. The lights stay
+            // information.
             var h = r.declared
                 ? '<div class="small text-secondary mb-1"><span class="fw-bold text-uppercase">Disclosed by the author</span> &middot; not verified by FPP</div>'
-                : '<div class="small text-secondary mb-1"><span class="fw-bold text-uppercase">No disclosure</span> &middot; the author has not said what this plugin does with data</div>';
+                : '<div class="fpp-major-callout mb-2"><i class="fas fa-triangle-exclamation"></i><span><b>' +
+                    EscapeHtml(r.headline.text) + '.</b> ' + EscapeHtml(r.headline.explain || '') + '</span></div>';
             if (r.unreviewed && r.declared)
                 h += '<div class="small text-secondary mb-1">Loaded from a URL, not from the plugin list: this disclosure was not reviewed for the plugin list.</div>';
             h += FPPPluginPrivacy.summaryHtml(r);
-            // The headline of a declared block is its worst chip's text
-            // again: only an undeclared block needs it, to say why the row
-            // is grey.
-            if (!r.declared) h += FPPPluginPrivacy.headlineHtml(r);
             if (from) {
                 var changes = FPPPluginPrivacy.changesSummaryHtml(from, r);
                 // `other` is material too (support access, payments, self-
@@ -1342,9 +1342,10 @@
         //   html:        the markup;
         //   btn:         {text, cls} for the Install button: "Install", or
         //                "Install anyway" in warning colour for a pasted URL,
-        //                a device that is too small, or a version not updated
-        //                for this FPP. The privacy lights do not change it;
-        //                they are information, and the dialog shows them;
+        //                a device that is too small, a version not updated
+        //                for this FPP, or a plugin (or dependency) with no
+        //                privacy disclosure at all. The lights of a declared
+        //                block do not change it; they are information;
         //   depAccepted: repoName -> the block shown for each dependency
         //                (null = no disclosure), posted with the install as
         //                dependencyPrivacyAccepted so the server can record
@@ -1380,6 +1381,7 @@
             if (IsSafeHttpUrl(src)) html += '<div class="small text-secondary mt-2"><i class="fas fa-code"></i> Source: ' +
                 '<a href="' + EscapeAttr(src) + '" target="_blank" rel="noopener noreferrer">' + EscapeHtml(src) + '</a></div>';
             var btn = { text: 'Install', cls: 'btn-success' };
+            var undisclosed = !r.declared;
             var deps = data ? DependencyPluginsToInstall(plugin) : [];
             var depAccepted = {};
             deps.forEach(function (d, n) {
@@ -1388,6 +1390,7 @@
                 var dinfo = pluginInfos[di];
                 depAccepted[dep] = dinfo.hasOwnProperty('privacy') ? dinfo.privacy : null;
                 var dr = PluginPrivacyResult(dinfo);
+                if (!dr.declared) undisclosed = true;
                 // Name the plugin that needs it when that is not the one
                 // being installed: a dependency of a dependency.
                 var vi = (d.via === plugin) ? FindPluginInfo(d.via) : FindListedPluginInfo(d.via);
@@ -1402,10 +1405,11 @@
             // The card says "Install anyway" for a version not updated for
             // this FPP release, and for a device under the plugin's declared
             // minimums; the dialogs say at least that too. A pasted URL is a
-            // developer path and gets the same.
+            // developer path and gets the same, and so does a plugin that
+            // discloses nothing.
             var sel = (data && Array.isArray(data.versions) && data.versions.length) ? SelectPluginVersionIndices(data) : { compatible: 0, untested: -1 };
             var forceAnyway = !!manuallyLoadedPlugins[plugin] || (data && PluginResourceVerdict(data).exceeds) ||
-                (sel.compatible < 0 && sel.untested >= 0);
+                (sel.compatible < 0 && sel.untested >= 0) || undisclosed;
             if (forceAnyway) btn = { text: 'Install anyway', cls: 'btn-warning' };
             return { html: html, btn: btn, depAccepted: depAccepted };
         }

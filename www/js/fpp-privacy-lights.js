@@ -32,7 +32,7 @@
  * written, and nothing here ever refuses a block. A key that is missing or
  * of the wrong type is not a statement, though: that light is "not
  * disclosed" (grey), never green, and a block with none of the six keys is
- * undeclared -- the same line the server draws (PluginPrivacyMaterial in
+ * undeclared (every light red: nothing is known about the plugin) -- the same line the server draws (PluginPrivacyMaterial in
  * api/controllers/plugin.php). Strict validation lives in the fpp-data
  * listing check, not in the player.
  *
@@ -41,11 +41,6 @@
  */
 var FPPPluginPrivacy = (function () {
 	"use strict";
-
-	// A plugin with no `privacy` block is grey ("Not declared") before this
-	// date and red on or after it (guidelines). The same constant lives in
-	// fpp-data's lint_plugin.py.
-	var PRIVACY_DECLARATION_REQUIRED_FROM = "2027-01-01";
 
 	// The six lights, in display order, with the chip text for each colour
 	// (guidelines). Level 'n' (undeclared) has the one label below for every
@@ -179,7 +174,7 @@ var FPPPluginPrivacy = (function () {
 	// download itself is listed under System changes, not repeated here.
 	var DOWNLOAD_LINE = "Installs extra software from a public source; see System changes.";
 	var UNDECLARED_EXPLAIN =
-		"Every FPP plugin has been required to describe what it does with data since 1 January 2027. This one has not.";
+		"The author has not said what this plugin sends, collects or changes on this device, so nothing is known about what it does.";
 	var BLACK_BOX_EXPLAIN =
 		"Almost every FPP plugin is made entirely of code anyone can read. Part of this one is not, so nobody — not FPP, not you — " +
 		"can check what that part does, and the disclosure below cannot be checked for it either.";
@@ -784,15 +779,6 @@ var FPPPluginPrivacy = (function () {
 		return { text: "Author says it runs on this device only", level: "g" };
 	}
 
-	// YYYY-MM-DD of the player's current local date, comparable as a string.
-	// Built by hand: toLocaleDateString("en-CA") depends on the ICU data the
-	// browser ships, and a WebView without that locale returns "1/1/2027".
-	function todayString() {
-		var d = new Date();
-		function two(n) { return (n < 10 ? "0" : "") + n; }
-		return d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate());
-	}
-
 	/**
 	 * Evaluate a pluginInfo.json `privacy` block.
 	 *
@@ -804,8 +790,7 @@ var FPPPluginPrivacy = (function () {
 	 * `label` and `level`. `declared` on the result is the block as a whole
 	 * (an object with at least one of the six keys, as the server counts
 	 * it); `declared` on a light is its own key -- a light whose key is
-	 * missing is grey "not disclosed" inside a declared block, whatever the
-	 * date.
+	 * missing is grey "not disclosed" inside a declared block.
 	 * Returns { declared, unreviewed, lights[], headline, red, summary,
 	 *           other, raw, normalised }.
 	 */
@@ -819,14 +804,14 @@ var FPPPluginPrivacy = (function () {
 			LIGHTS.some(function (L) {
 				return p.has[L.id];
 			});
-		var overdue =
-			!declared && todayString() >= PRIVACY_DECLARATION_REQUIRED_FROM;
+		// No block at all is red: nothing is known about the plugin. A block
+		// that leaves out some keys is declared, and those lights are grey.
 		var lights = [];
 		var byId = {};
 		var labelById = {};
-		var red = overdue;
+		var red = !declared;
 		LIGHTS.forEach(function (L) {
-			var d = declared ? decide(L.id, p) : { level: overdue ? "r" : "n" };
+			var d = declared ? decide(L.id, p) : { level: "r" };
 			var level = d.level;
 			var lit = declared && level !== "n";
 			var label = lit ? d.label || L[level] : UNDECLARED_LABEL;
@@ -844,13 +829,12 @@ var FPPPluginPrivacy = (function () {
 		});
 		var headline;
 		if (declared) headline = headlineFor(byId, labelById, p);
-		else if (overdue)
+		else
 			headline = {
 				text: "No privacy disclosure",
 				level: "r",
 				explain: UNDECLARED_EXPLAIN,
 			};
-		else headline = { text: "No privacy disclosure", level: "n" };
 		return {
 			declared: declared,
 			unreviewed: !!opts.unreviewed,
@@ -878,8 +862,8 @@ var FPPPluginPrivacy = (function () {
 	// colour is a theme token (text-*-emphasis on bg-*-subtle), so dark mode
 	// needs nothing of its own, and no rule of its own in fpp.css.
 
-	// Level -> Bootstrap contextual name. Grey ('n') is "nothing declared"
-	// before the deadline.
+	// Level -> Bootstrap contextual name. Grey ('n') is a light whose key a
+	// declared block leaves out.
 	var LEVEL_THEME = { g: "success", a: "warning", r: "danger", n: "secondary" };
 
 	// Bootstrap classes for a line or a change summary in a theme. Green is
@@ -947,8 +931,9 @@ var FPPPluginPrivacy = (function () {
 
 	// A declared chip's text names the finding ("Sends when enabled") and so
 	// implies the light. An undeclared one has no finding: "Not declared" six
-	// times over says nothing, so it carries the light's name instead, with the
-	// grey dot and the headline saying why.
+	// times over says nothing, so it carries the light's name instead, with its
+	// dot (grey for one missing key, red for no block) and the headline saying
+	// why.
 	function chipText(l) {
 		if (l.declared) return l.label;
 		return /\?$/.test(l.name) ?

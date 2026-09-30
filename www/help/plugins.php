@@ -32,9 +32,10 @@
     author's or FPP's.</p>
 
 <h4>Plugins with no privacy disclosure</h4>
-<p>If the author has not written a disclosure, every light reads <i>not disclosed</i>. Nothing is known about what the plugin does with data; treat it as
-    unknown rather than safe. Every plugin will be required to have a disclosure from 1 January 2027, and from
-    that date a plugin without one is shown in red.</p>
+<p>If the author has not written a disclosure at all, FPP says so in red above the lights, every light reads
+    <i>not disclosed</i> in red, and the install button reads <i>Install anyway</i>. Nothing is known about
+    what the plugin sends, collects or changes; treat it as unknown rather than safe. If the author left out
+    only some headings, those lights are grey.</p>
 
 <h4>Checking a plugin without installing</h4>
 <p>Click a card to see its lights and the author's disclosure without installing anything. Use it to see
