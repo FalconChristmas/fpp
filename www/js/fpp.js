@@ -207,19 +207,26 @@ function buildHttpURL(ip, path) {
 // navigator.clipboard only exists in a secure context (HTTPS or localhost) -
 // FPP's web UI is normally reached over plain HTTP on a LAN IP, where it's
 // simply undefined and calling .writeText() on it throws. Falls back to the
-// classic hidden-<textarea> + execCommand('copy') trick there.
-function CopyTextToClipboard (text) {
+// classic hidden-<textarea> + execCommand('copy') trick there, and also when
+// writeText() refuses (it rejects if the document does not have focus).  From
+// inside an open modal pass that modal as container: Bootstrap's focus trap
+// pulls focus back out of a textarea on <body>, and the copy then silently
+// copies nothing.
+function CopyTextToClipboard (text, container) {
+	var fallback = function () {
+		var $ta = $('<textarea readonly>').val(text).css({ position: 'fixed', top: '-1000px', left: '-1000px' }).appendTo(container || 'body');
+		$ta[0].select();
+		try {
+			document.execCommand('copy');
+		} catch (e) {
+			// nothing more we can do
+		}
+		$ta.remove();
+	};
 	if (navigator.clipboard && navigator.clipboard.writeText) {
-		return navigator.clipboard.writeText(text);
+		return navigator.clipboard.writeText(text).catch(fallback);
 	}
-	var $ta = $('<textarea readonly>').val(text).css({ position: 'fixed', top: '-1000px', left: '-1000px' }).appendTo('body');
-	$ta[0].select();
-	try {
-		document.execCommand('copy');
-	} catch (e) {
-		// nothing more we can do
-	}
-	$ta.remove();
+	fallback();
 	return Promise.resolve();
 }
 
@@ -1134,7 +1141,9 @@ function handleKeypress (e) {
 		e.preventDefault();
 		DisplayHelp();
 	} else if (e.keyCode == 119) {
-		// F8 — Error Report bundle (toggle)
+		// F8 — Error Report bundle (toggle).  Holding the key down would
+		// otherwise open and close it over and over.
+		if (e.repeat) return;
 		var t = e.target;
 		// Check typing in input/textarea/select or any contenteditable ancestor
 		var isTyping = false;
@@ -8429,18 +8438,7 @@ function DisplayHelp () {
 			$('#helpDialogText').load(tmpHelpPage);
 			lastHelpPage = tmpHelpPage;
 			if (!isErrorReportHelp) helpPage = tmpHelpPage;
-			// Bring help dialog to front when invoked from Error Report
-			if (isErrorReportHelp) {
-				setTimeout(function () {
-					var helpEl = document.getElementById('helpDialog');
-					if (helpEl) {
-						helpEl.style.zIndex = '1060';
-						// Ensure backdrop is also above Error Report backdrop
-						var backdrops = document.querySelectorAll('.modal-backdrop');
-						if (backdrops.length) backdrops[backdrops.length - 1].style.zIndex = '1059';
-					}
-				}, 10);
-			}
+			if (isErrorReportHelp) RaiseHelpAboveErrorReport();
 			return;
 		}
 		CloseModalDialog('helpDialog');
@@ -8465,36 +8463,52 @@ function DisplayHelp () {
 	lastHelpPage = tmpHelpPage;
 	if (!isErrorReportHelp) helpPage = tmpHelpPage;
 	helpOpen = 1;
-	// When Error Report is open, ensure Help appears above it
-	if (isErrorReportHelp) {
-		setTimeout(function () {
-			var helpEl = document.getElementById('helpDialog');
-			if (helpEl) {
-				helpEl.style.zIndex = '1060';
-				var backdrops = document.querySelectorAll('.modal-backdrop');
-				if (backdrops.length) backdrops[backdrops.length - 1].style.zIndex = '1059';
-			}
-		}, 10);
-	}
+	if (isErrorReportHelp) RaiseHelpAboveErrorReport();
+}
+
+// Help opened on top of the Error Report wizard: put it, and its backdrop,
+// above the wizard's
+function RaiseHelpAboveErrorReport () {
+	setTimeout(function () {
+		var helpEl = document.getElementById('helpDialog');
+		if (helpEl) {
+			helpEl.style.zIndex = '1060';
+			var backdrops = document.querySelectorAll('.modal-backdrop');
+			if (backdrops.length) backdrops[backdrops.length - 1].style.zIndex = '1059';
+		}
+	}, 10);
 }
 
 var errorReportPreviewCache = null;
 
+// F8 Error Report wizard.  The three steps are shown together, accordion style:
+// the current one is open and highlighted, finished ones can be reopened from
+// their header, and later ones stay shut until they are reached.
 var errorReportOpen = false;
 var erCurrentStep = 1;
+var erMaxStep = 1;
 var erReportFile = null;
 var erReportSize = 0;
 var erReportSent = false;
 var erBuilding = false;
 var erSending = false;
+// Bumped on every open and close, so a build or send still running from a
+// wizard that was closed does not write into the next one
+var erSession = 0;
 function ErrorReportClosed () {
+	erSession++;
 	errorReportOpen = false;
 	erCurrentStep = 1;
+	erMaxStep = 1;
 	erReportFile = null;
 	erReportSize = 0;
 	erReportSent = false;
 	erBuilding = false;
 	erSending = false;
+}
+function ErSizeLabel (bytes) {
+	var kb = Math.round(bytes / 1024);
+	return kb >= 1024 ? (kb / 1024).toFixed(1) + ' MB' : kb + ' KB';
 }
 function ErUpdateNextBtn () {
 	var nextBtn = document.getElementById('errorReportNextBtn');
@@ -8507,7 +8521,6 @@ function ErUpdateNextBtn () {
 				nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right ms-1"></i>';
 				nextBtn.disabled = false;
 			}
-			nextBtn.className = 'btn btn-success';
 		} else if (erCurrentStep === 2) {
 			if (!erReportSent) {
 				nextBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> Send Report';
@@ -8516,43 +8529,64 @@ function ErUpdateNextBtn () {
 				nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right ms-1"></i>';
 				nextBtn.disabled = false;
 			}
-			nextBtn.className = 'btn btn-success';
-		} else {
-			nextBtn.innerHTML = '<i class="fas fa-check me-1"></i> Done';
-			nextBtn.className = 'btn btn-success';
-			nextBtn.disabled = false;
 		}
+		nextBtn.classList.toggle('d-none', erCurrentStep === 3);
 	}
-	// Open GitHub is only useful once a report exists to reference
-	var ghBtn = document.getElementById('errorReportOpenGHBtn');
-	if (ghBtn) {
-		ghBtn.classList.toggle('d-none', !(erCurrentStep === 3 && erReportFile));
-	}
+	// Step 3 is about posting the issue, so there Open GitHub is the green
+	// default, between Done and Close
+	['errorReportDoneBtn', 'errorReportOpenGHBtn'].forEach(function (id) {
+		var btn = document.getElementById(id);
+		if (btn) btn.classList.toggle('d-none', !(erCurrentStep === 3 && erReportFile));
+	});
 }
 function ErShowStep (n) {
 	erCurrentStep = n;
+	if (n > erMaxStep) erMaxStep = n;
+	var done = [false, !!erReportFile, erReportSent, false];
 	for (var i = 1; i <= 3; i++) {
-		var el = document.getElementById('erStep' + i);
-		if (el) el.classList.toggle('d-none', i !== n);
+		var card = document.getElementById('erStep' + i);
+		var btn = document.getElementById('erStepBtn' + i);
+		var body = document.getElementById('erStepBody' + i);
 		var badge = document.getElementById('erStepBadge' + i);
-		if (badge) {
-			badge.className = i === n ? 'badge bg-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' : i < n ? 'badge bg-success rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' : 'badge bg-secondary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0';
-			badge.innerHTML = i < n ? '<i class="fas fa-check" style="font-size:0.6rem;"></i>' : i;
-		}
+		var chevron = document.getElementById('erStepChevron' + i);
+		if (!card || !btn || !body || !badge || !chevron) continue;
+		var current = i === n;
+		var reached = i <= erMaxStep;
+		// Where you are: open, primary border and a tinted header
+		card.classList.toggle('border-primary', current);
+		body.classList.toggle('d-none', !current);
+		btn.classList.toggle('bg-primary-subtle', current);
+		btn.classList.toggle('text-primary-emphasis', current);
+		btn.classList.toggle('bg-body-tertiary', !current);
+		btn.classList.toggle('text-body-secondary', !reached);
+		btn.setAttribute('aria-expanded', current ? 'true' : 'false');
+		if (current) btn.setAttribute('aria-current', 'step');
+		else btn.removeAttribute('aria-current');
+		btn.disabled = !reached;
+		chevron.className = 'fas small ms-2 ' + (current ? 'fa-chevron-down' : 'fa-chevron-right') + (reached ? '' : ' invisible');
+		badge.className = 'badge rounded-pill ' + (done[i] ? 'text-bg-success' : current ? 'text-bg-primary' : 'text-bg-secondary');
+		badge.innerHTML = done[i] ? '<i class="fas fa-check" aria-label="Done"></i>' : i;
 	}
+	$('#erStepSummary1').text(erReportFile ? 'Built · ' + ErSizeLabel(erReportSize) : '');
+	$('#erStepSummary2').text(erReportSent ? 'Sent' : '');
 	ErUpdateNextBtn();
+	if (n === 3) $('#errorReportOpenGHBtn').trigger('focus');
 }
-// Keep build progress visible: the dialog scrolls (modal-dialog-scrollable),
-// so on short screens the status would otherwise sit below the fold with no
-// indication anything is happening. Scroll the modal body to the status area.
-function ErScrollToStatus () {
+// A finished step's header reopens it; a step not reached yet stays shut
+function ErGoToStep (n) {
+	if (erBuilding || erSending || n > erMaxStep || n === erCurrentStep) return;
+	ErShowStep(n);
+}
+// Keep progress visible: the dialog scrolls (modal-dialog-scrollable), so on
+// short screens a status line would otherwise sit below the fold with no sign
+// that anything is happening. Scroll the modal body to it.
+function ErScrollTo (el) {
 	var dlg = document.getElementById('errorReportDialog');
-	var status = document.getElementById('errorReportStatus');
-	if (!dlg || !status) return;
+	if (!dlg || !el) return;
 	var body = dlg.querySelector('.modal-body');
-	if (!body || typeof $ === 'undefined') return;
+	if (!body) return;
 	var $body = $(body);
-	var target = $(status).offset().top - $body.offset().top + $body.scrollTop() - 12;
+	var target = $(el).offset().top - $body.offset().top + $body.scrollTop() - 12;
 	$body.animate({ scrollTop: target }, 200);
 }
 function ErNext () {
@@ -8569,9 +8603,45 @@ function ErNext () {
 		} else {
 			ErShowStep(3);
 		}
-	} else {
-		CloseModalDialog('errorReportDialog');
 	}
+}
+// One step as a card whose header is the toggle.  Cards rather than Bootstrap's
+// accordion because FPP's Bootstrap build (css/fpp-bootstrap) leaves the
+// accordion component out.
+function ErStepHtml (n, title, bodyHtml) {
+	return (
+		"<div class='card mb-2' id='erStep" + n + "'>" +
+		"<button type='button' class='card-header d-flex align-items-center gap-2 w-100 text-start border-0 py-2' id='erStepBtn" + n + "' onclick='ErGoToStep(" + n + ");' aria-expanded='false' aria-controls='erStepBody" + n + "'>" +
+		"<span id='erStepBadge" + n + "' class='badge rounded-pill text-bg-secondary'>" + n + "</span>" +
+		"<span class='fw-semibold'>" + title + "</span>" +
+		"<span id='erStepSummary" + n + "' class='small ms-auto'></span>" +
+		"<i id='erStepChevron" + n + "' class='fas fa-chevron-right small ms-2'></i>" +
+		"</button>" +
+		"<div id='erStepBody" + n + "' class='card-body border-top p-3 d-none'>" + bodyHtml + "</div>" +
+		"</div>"
+	);
+}
+// The report's name, with a copy button: the filename is what the developers
+// look the report up by, so it goes into the GitHub issue.
+function ErFileNameHtml (asLink) {
+	// Filename as plain body text: dark mode renders all links gray (#adb5bd,
+	// fpp-dark.css), which washes out a 70-char filename. text-body is
+	// near-white on dark, near-black on light. Once sent, the file has been
+	// deleted from the player, so it is no longer a download link.
+	var name = EscapeHtml(erReportFile || '');
+	return (
+		"<span class='d-flex align-items-center gap-2 bg-body text-body border rounded px-2 py-1 mt-1'>" +
+		"<i class='fas fa-file-zipper flex-shrink-0'></i>" +
+		(asLink
+			? "<a class='fw-semibold text-body text-decoration-underline text-break flex-grow-1' href='api/file/Crashes/" + encodeURIComponent(erReportFile || '') + "'>" + name + "</a>"
+			: "<span class='fw-semibold text-break flex-grow-1'>" + name + "</span>") +
+		"<button type='button' class='btn btn-sm btn-outline-secondary flex-shrink-0 erCopyFileBtn' title='Copy file name' aria-label='Copy file name'><i class='fas fa-copy'></i></button>" +
+		"</span>"
+	);
+}
+function ErRenderFileNames () {
+	$('#errorReportDownloadText').html(erReportFile ? ErFileNameHtml(!erReportSent) : '');
+	$('#errorReportSentFile').html(erReportFile ? ErFileNameHtml(false) : '');
 }
 function DisplayErrorReportDialog () {
 	// Toggle like DisplayHelp — second F8 closes
@@ -8581,74 +8651,68 @@ function DisplayErrorReportDialog () {
 		else CloseModalDialog('errorReportDialog');
 		return;
 	}
+	ErrorReportClosed();
 	errorReportOpen = true;
-	erCurrentStep = 1;
+	var session = erSession;
 	var bodyHtml =
 		"<div id='errorReportDialogBody'>" +
-		"<div class='alert alert-light border d-flex gap-2 align-items-start mb-2 py-2'>" +
+		"<div class='alert alert-light border d-flex gap-2 align-items-start mb-3 py-2'>" +
 		"<i class='fas fa-life-ring text-primary mt-1 flex-shrink-0'></i>" +
 		"<div class='text-muted'>When something isn’t working, build a diagnostic report on this FPP, review it, then choose whether to send it. Nothing is sent until you confirm.</div>" +
 		"</div>" +
+		"<div id='erSteps'>" +
 		// Step 1 — Build Report
-		"<div id='erStep1' class='er-step card mb-3 border'>" +
-		"<div class='card-header bg-body-tertiary py-2 d-flex align-items-center gap-2'>" +
-		"<span id='erStepBadge1' class='badge bg-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' style='width:22px;height:22px;font-size:0.7rem;'>1</span>" +
-		"<span class='fw-semibold'>Build Report</span>" +
-		"</div>" +
-		"<div class='card-body p-3'>" +
-		"<p class='text-muted mb-2'>The report is built <b>on your FPP</b> and covers settings, configuration and logs. A build takes seconds on a fast player and can take a few minutes on a Pi Zero or BeagleBone.</p>" +
-		"<div id='errorReportStatus' class='mb-2'></div>" +
-		"<div id='errorReportDownloadArea' class='d-none'>" +
-		"<div class='alert alert-success py-2 d-flex gap-2 align-items-start mb-0'>" +
-		"<i class='fas fa-file-zipper mt-1 flex-shrink-0'></i>" +
-		"<div class='flex-grow-1 min-w-0'>" +
-		"<div class='fw-semibold' id='errorReportDownloadTitle'>Ready</div>" +
-		"<div id='errorReportDownloadText'></div>" +
-		"<div class='text-muted mt-1' id='errorReportManifest'></div>" +
-		"</div>" +
-		"</div>" +
-		"</div>" +
-		"</div>" +
-		"</div>" +
+		ErStepHtml(
+			1,
+			'Build Report',
+			"<p class='text-muted mb-2'>The report is built <b>on your FPP</b> and covers settings, configuration and logs. A build takes seconds on a fast player and can take a few minutes on a Pi Zero or BeagleBone.</p>" +
+				"<div id='errorReportStatus' class='mb-2'></div>" +
+				"<div id='errorReportDownloadArea' class='d-none'>" +
+				"<div class='alert alert-success py-2 d-flex gap-2 align-items-start mb-0'>" +
+				"<i class='fas fa-file-zipper mt-1 flex-shrink-0'></i>" +
+				"<div class='flex-grow-1 min-w-0'>" +
+				"<div class='fw-semibold' id='errorReportDownloadTitle'>Ready</div>" +
+				"<div id='errorReportDownloadText'></div>" +
+				"<div class='text-muted mt-1' id='errorReportManifest'></div>" +
+				"</div>" +
+				"</div>" +
+				"</div>"
+		) +
 		// Step 2 — Review & Send
-		"<div id='erStep2' class='er-step card mb-3 border d-none'>" +
-		"<div class='card-header bg-body-tertiary py-2 d-flex align-items-center gap-2'>" +
-		"<span id='erStepBadge2' class='badge bg-secondary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' style='width:22px;height:22px;font-size:0.7rem;'>2</span>" +
-		"<span class='fw-semibold'>Review & Send</span>" +
-		"</div>" +
-		"<div class='card-body p-3'>" +
-		"<div class='text-muted mb-2'>This is what will be sent from <b>this device</b>:</div>" +
-		"<div id='errorReportVital'><div class='d-flex align-items-center gap-2 text-muted'><i class='fas fa-spinner fa-spin'></i> Loading system info…</div></div>" +
-		"<ul class='text-muted mt-2 mb-2 ps-3'>" +
-		"<li>System information (version, platform, OS, plugin list)</li>" +
-		"<li>Settings and configuration</li>" +
-		"<li>Logs</li>" +
-		"</ul>" +
-		"<div class='small text-muted d-flex gap-2 align-items-start'><i class='fas fa-circle-info text-primary mt-1 flex-shrink-0'></i><span>See <a href='settings.php#settings-privacy' target='_blank' rel='noopener'>Settings &rsaquo; Privacy</a> for what reports contain and who receives them. You confirm before anything is sent — if this player has no internet, your browser sends it instead, and the file is deleted from the player once delivery is confirmed.</span></div>" +
-		"<div id='errorReportSendStatus' class='mt-3'></div>" +
-		"</div>" +
-		"</div>" +
+		ErStepHtml(
+			2,
+			'Review &amp; Send',
+			"<div class='text-muted mb-2'>This is what will be sent from <b>this device</b>:</div>" +
+				"<div id='errorReportVital'><div class='d-flex align-items-center gap-2 text-muted'><i class='fas fa-spinner fa-spin'></i> Loading system info…</div></div>" +
+				"<ul class='text-muted mt-2 mb-2 ps-3'>" +
+				"<li>System information (version, platform, OS, plugin list)</li>" +
+				"<li>Settings and configuration</li>" +
+				"<li>Logs</li>" +
+				"</ul>" +
+				"<div class='small text-muted d-flex gap-2 align-items-start'><i class='fas fa-circle-info text-primary mt-1 flex-shrink-0'></i><span>See <a href='settings.php#settings-privacy' target='_blank' rel='noopener'>Settings &rsaquo; Privacy</a> for what reports contain and who receives them. You confirm before anything is sent — if this player has no internet, your browser sends it instead, and the file is deleted from the player once delivery is confirmed.</span></div>" +
+				"<div id='errorReportSendStatus' class='mt-3'></div>"
+		) +
 		// Step 3 — GitHub Issue
-		"<div id='erStep3' class='er-step card border d-none'>" +
-		"<div class='card-header bg-body-tertiary py-2 d-flex align-items-center gap-2'>" +
-		"<span id='erStepBadge3' class='badge bg-secondary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0' style='width:22px;height:22px;font-size:0.7rem;'>3</span>" +
-		"<span class='fw-semibold'>GitHub Issue</span>" +
-		"<span class='badge bg-body-secondary border fw-normal ms-auto small'>You’re almost done</span>" +
-		"</div>" +
-		"<div class='card-body p-3'>" +
-		"<p class='text-muted mb-3'>Reference the sent report on GitHub so the developers can find it.</p>" +
-		"<div class='border rounded bg-body-tertiary p-3'>" +
-		"<div class='fw-semibold mb-2'><i class='fab fa-github me-1'></i> How to post (about a minute)</div>" +
-		"<ol class='mb-0 ps-3' style='line-height:1.5;'>" +
-		"<li>Click <b>Open GitHub</b> at the bottom-left — the issue form opens with the report filename, FPP version and platform already filled in.</li>" +
-		"<li>Choose <b>Bug report</b>. Fill in what happened and what you expected.</li>" +
-		"<li>Hit <b>Submit new issue</b>.</li>" +
-		"</ol>" +
-		"</div>" +
-		"</div>" +
+		ErStepHtml(
+			3,
+			'GitHub Issue',
+			"<p class='text-muted mb-2'>Reference the sent report on GitHub so the developers can find it:</p>" +
+				"<div id='errorReportSentFile' class='mb-3'></div>" +
+				"<div class='border rounded bg-body-tertiary p-3'>" +
+				"<div class='fw-semibold mb-2'><i class='fab fa-github me-1'></i> How to post (about a minute)</div>" +
+				"<ol class='mb-0 ps-3'>" +
+				"<li>Click <b>Open GitHub</b> — the issue form opens with the report filename, FPP version and platform already filled in.</li>" +
+				"<li>Choose <b>Bug report</b>. Fill in what happened and what you expected.</li>" +
+				"<li>Hit <b>Submit new issue</b>.</li>" +
+				"</ol>" +
+				"</div>"
+		) +
 		"</div>" +
 		"</div>";
 
+	var close = function () {
+		CloseModalDialog('errorReportDialog');
+	};
 	DoModalDialog({
 		id: 'errorReportDialog',
 		title: 'Error Report',
@@ -8658,30 +8722,42 @@ function DisplayErrorReportDialog () {
 		keyboard: true,
 		close: ErrorReportClosed,
 		buttons: {
-			'Open GitHub': {
-				id: 'errorReportOpenGHBtn',
-				class: 'btn-outline-secondary me-auto',
-				click: function () {
-					ErOpenGitHubPrefilled();
-				}
-			},
-			'Next': {
+			Next: {
 				id: 'errorReportNextBtn',
 				class: 'btn-success',
-				click: function () {
-					ErNext();
-				}
+				click: ErNext
 			},
-			Close: function () {
-				CloseModalDialog('errorReportDialog');
-			}
+			Done: {
+				id: 'errorReportDoneBtn',
+				class: 'btn-outline-secondary d-none',
+				click: close
+			},
+			'Open GitHub': {
+				id: 'errorReportOpenGHBtn',
+				text: '<i class="fab fa-github me-1"></i> Open GitHub',
+				class: 'btn-success d-none',
+				click: ErOpenGitHubPrefilled
+			},
+			Close: close
 		}
+	});
+
+	var $dlg = $('#errorReportDialog');
+	$dlg.off('click.erCopy').on('click.erCopy', '.erCopyFileBtn', function () {
+		var $icon = $(this).find('i');
+		CopyTextToClipboard(erReportFile || '', $dlg).then(function () {
+			$icon.attr('class', 'fas fa-check text-success');
+			setTimeout(function () {
+				$icon.attr('class', 'fas fa-copy');
+			}, 1500);
+		});
 	});
 
 	ErShowStep(1);
 
 	$.get('api/errorReport/preview')
 		.done(function (data) {
+			if (session !== erSession) return;
 			errorReportPreviewCache = data;
 			var av = (data && data.advancedView) || {};
 			var version = EscapeHtml(av.Version || data.version || 'Unknown');
@@ -8712,6 +8788,7 @@ function DisplayErrorReportDialog () {
 			$('#errorReportVital').html(html);
 		})
 		.fail(function () {
+			if (session !== erSession) return;
 			$('#errorReportVital').html(
 				"<div class='small text-muted'>System information and plugin list.</div>"
 			);
@@ -8720,6 +8797,7 @@ function DisplayErrorReportDialog () {
 
 function ErBuildCrashReport () {
 	if (erBuilding) return;
+	var session = erSession;
 	erBuilding = true;
 	ErUpdateNextBtn();
 	var $status = $('#errorReportStatus');
@@ -8727,7 +8805,7 @@ function ErBuildCrashReport () {
 	$status.html(
 		'<div class="alert alert-secondary py-2 d-flex gap-2 align-items-center mb-2"><div class="spinner-border spinner-border-sm text-primary flex-shrink-0" role="status"><span class="visually-hidden">Loading…</span></div><span>Building report on your FPP — this can take a few minutes on slow players. Please wait…</span></div>'
 	);
-	ErScrollToStatus();
+	ErScrollTo($status[0]);
 	$area.addClass('d-none');
 	$.ajax({
 		url: 'api/crashes/report',
@@ -8738,6 +8816,7 @@ function ErBuildCrashReport () {
 		timeout: 280000
 	})
 		.done(function (data) {
+			if (session !== erSession) return;
 			if (!data || data.Status !== 'OK' || !data.File) {
 				var code = data && data.Code ? data.Code : '';
 				var msg = data && data.Message ? data.Message : 'Failed to build report. Please try again.';
@@ -8746,29 +8825,25 @@ function ErBuildCrashReport () {
 				else if (code === 'build-failed') msg = 'The report build failed on the player. Please try again, or check Troubleshooting.';
 				else if (code === 'unavailable') msg = 'fppd did not respond. If fppd is stopped, start it and try again.';
 				else if (code === 'bad-request') msg = 'Bad request — please reload the page and try again.';
-			$status.html('<div class="alert alert-danger py-2 mb-0">' + EscapeHtml(msg) + '</div>');
-			ErScrollToStatus();
+				$status.html('<div class="alert alert-danger py-2 mb-0">' + EscapeHtml(msg) + '</div>');
+				ErScrollTo($status[0]);
 				return;
 			}
 			erReportFile = data.File;
 			erReportSize = data.Size || 0;
 			erReportSent = false;
-			var sizeKb = Math.round(erReportSize / 1024);
-			var sizeLabel = sizeKb >= 1024 ? (sizeKb / 1024).toFixed(1) + ' MB' : sizeKb + ' KB';
+			var sizeLabel = ErSizeLabel(erReportSize);
 			$status.html('<div class="alert alert-success py-2 mb-0"><i class="fas fa-check me-1"></i> Report built.</div>');
-			ErScrollToStatus();
 			$('#errorReportDownloadTitle').text('Ready — ' + sizeLabel);
-			// Filename as plain body text (not a link): dark mode renders all
-			// links gray (#adb5bd, fpp-dark.css), which washes out a 70-char
-			// filename. text-body is near-white on dark, near-black on light.
-			// The download action is a separate explicit button below it.
-			$('#errorReportDownloadText').html(
-				'<span class="d-block bg-body text-body border rounded px-2 py-2 mt-1 text-break"><i class="fas fa-file-zipper me-1"></i><a class="fw-semibold text-body text-decoration-underline" href="api/file/Crashes/' + encodeURIComponent(erReportFile) + '">' + EscapeHtml(erReportFile) + '</a></span>'
-			);
+			ErRenderFileNames();
 			$('#errorReportManifest').text('Settings, configuration and logs · ' + sizeLabel);
 			$area.removeClass('d-none');
+			// Stay on this step: the user checks what was built, then Next
+			ErShowStep(1);
+			ErScrollTo($status[0]);
 		})
 		.fail(function (xhr, textStatus) {
+			if (session !== erSession) return;
 			var msg = 'Failed to build report. Please try again.';
 			try {
 				var j = JSON.parse(xhr.responseText);
@@ -8780,15 +8855,17 @@ function ErBuildCrashReport () {
 				else if (xhr.status === 0) msg = 'Could not reach your FPP. Check your connection.';
 			}
 			$status.html('<div class="alert alert-danger py-2 mb-0">' + EscapeHtml(msg) + '</div>');
-			ErScrollToStatus();
+			ErScrollTo($status[0]);
 		})
 		.always(function () {
+			if (session !== erSession) return;
 			erBuilding = false;
 			ErUpdateNextBtn();
 		});
 }
 function ErSendCrashReport () {
 	if (!erReportFile || erSending) return;
+	var session = erSession;
 	erSending = true;
 	ErUpdateNextBtn();
 	var $sendStatus = $('#errorReportSendStatus');
@@ -8797,6 +8874,7 @@ function ErSendCrashReport () {
 	);
 	UploadAndDeleteCrashReports([erReportFile], {
 		onDone: function (tally) {
+			if (session !== erSession) return;
 			erSending = false;
 			if (tally === null) {
 				$sendStatus.html('<div class="alert alert-secondary py-2 mb-0">Cancelled — nothing was sent. The report is still on the player; you can send it later from File Manager › Crashes.</div>');
@@ -8806,13 +8884,19 @@ function ErSendCrashReport () {
 			if (tally && tally.uploaded > 0) {
 				erReportSent = true;
 				$sendStatus.html('<div class="alert alert-success py-2 mb-0"><i class="fas fa-check me-1"></i> Report sent and deleted from the player.</div>');
-				ErUpdateNextBtn();
+				ErRenderFileNames();
 				ErShowStep(3);
+				return;
+			}
+			if (tally && tally.unconfirmed > 0) {
+				// Not a failure: the browser posted it but could not read the answer
+				$sendStatus.html('<div class="alert alert-warning py-2 mb-0">Your browser sent the report, but no delivery confirmation came back, so it has been kept on the player. Check your browser&rsquo;s internet connection and try again &mdash; if it did arrive, sending it again is harmless.</div>');
 			} else {
 				var detail = tally && tally.failed && tally.failed.length ? ' (' + tally.failed.join('; ').substring(0, 200) + ')' : '';
 				$sendStatus.html('<div class="alert alert-danger py-2 mb-0">' + EscapeHtml('Send did not complete' + detail + '. The report stays on the player; try again or download it from File Manager › Crashes.') + '</div>');
-				ErUpdateNextBtn();
 			}
+			ErUpdateNextBtn();
+			ErScrollTo($sendStatus[0]);
 		},
 		onDeleted: function () {
 			// File Manager row cleanup only applies on that page; no-op here.
