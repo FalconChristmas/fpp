@@ -152,8 +152,102 @@ DISPLAY_ON .macro
 
 
 
-OUTPUT_ROW_ADDRESS .macro
+#ifdef ADDRESSING_ABC_SHIFT
+#ifndef ROW_CHAIN
+#define ROW_CHAIN ROWS
+#endif
+// Row select for panels whose row drivers are shift registers clocked on A
+// with data on C (rpi-rgb-led-matrix row address type 3).  Every row change
+// clocks the whole chain - ROW_CHAIN bits, the panel height, since panels
+// daisy chain one driver per band of ROWS rows - with the row's bit repeated
+// every ROWS bits, one clock edge per bit.  B is held low: the panel may use
+// it for something else.  The display is off while this runs.
+OUTPUT_ROW_ADDRESS_ABC_SHIFT .macro
+    .newblock
+    // Let the column drivers go dark first: the very first clock walks the
+    // row bit onto the next row, and the tail of the old data would show
+    // there as a faint copy of each pixel.
+    LDI  tmp_reg1, NS2CLK(1000) / 2
+PREDLY?:
+    SUB  tmp_reg1, tmp_reg1, 1
+    QBNE PREDLY?, tmp_reg1, 0
+    LDI  tmp_reg4.b0, ROWS - 1
+    SUB  tmp_reg4.b0, tmp_reg4.b0, row       // active position within a band
+    LDI  tmp_reg4.b1, 0                      // position within the band
+    LDI  tmp_reg4.w2, 0                      // bits clocked
 #ifdef gpio_sel0
+SHIFT?:
+    // clock low, B low and the data bit on C, in one clear/set write
+    LDI32 out_clr, (1 << gpio_sel0) | (1 << gpio_sel1)
+    LDI  out_set, 0
+    QBEQ ACTIVE?, tmp_reg4.b1, tmp_reg4.b0
+    SET  out_clr, out_clr, gpio_sel2
+    QBA  WRITE?
+ACTIVE?:
+    SET  out_set, out_set, gpio_sel2
+WRITE?:
+    SBBO &out_clrset, gpio_base_cache, GPIO_SETCLRDATAOUT, 8
+    LDI  tmp_reg1, NS2CLK(80) / 2
+DLY1?:
+    SUB  tmp_reg1, tmp_reg1, 1
+    QBNE DLY1?, tmp_reg1, 0
+    LDI32 out_set, (1 << gpio_sel0)
+    LDI  out_clr, 0
+    SBBO &out_clrset, gpio_base_cache, GPIO_SETCLRDATAOUT, 8
+#else
+    CLR  r30, r30, pru_sel1
+SHIFT?:
+    CLR  r30, r30, pru_sel0
+    QBEQ ACTIVE?, tmp_reg4.b1, tmp_reg4.b0
+    CLR  r30, r30, pru_sel2
+    QBA  CLOCK?
+ACTIVE?:
+    SET  r30, r30, pru_sel2
+CLOCK?:
+    LDI  tmp_reg1, NS2CLK(80) / 2
+DLY1?:
+    SUB  tmp_reg1, tmp_reg1, 1
+    QBNE DLY1?, tmp_reg1, 0
+    SET  r30, r30, pru_sel0
+#endif
+    LDI  tmp_reg1, NS2CLK(80) / 2
+DLY2?:
+    SUB  tmp_reg1, tmp_reg1, 1
+    QBNE DLY2?, tmp_reg1, 0
+    ADD  tmp_reg4.b1, tmp_reg4.b1, 1
+    QBNE NOWRAP?, tmp_reg4.b1, ROWS
+    LDI  tmp_reg4.b1, 0
+NOWRAP?:
+    ADD  tmp_reg4.w2, tmp_reg4.w2, 1
+    QBNE SHIFT?, tmp_reg4.w2, ROW_CHAIN
+    // Leave the clock low - exactly one edge per bit, no trailing pulse -
+    // and then, after the last bit's hold time, the data line low too.  The
+    // last bit is the active one for row 0, and a data line left high for
+    // that row's whole display time made it flicker.
+#ifdef gpio_sel0
+    LDI  out_set, 0
+    LDI32 out_clr, (1 << gpio_sel0)
+    SBBO &out_clrset, gpio_base_cache, GPIO_SETCLRDATAOUT, 8
+#else
+    CLR  r30, r30, pru_sel0
+#endif
+    LDI  tmp_reg1, NS2CLK(80) / 2
+DLY3?:
+    SUB  tmp_reg1, tmp_reg1, 1
+    QBNE DLY3?, tmp_reg1, 0
+#ifdef gpio_sel0
+    LDI32 out_clr, (1 << gpio_sel2)
+    SBBO &out_clrset, gpio_base_cache, GPIO_SETCLRDATAOUT, 8
+#else
+    CLR  r30, r30, pru_sel2
+#endif
+    .endm
+#endif
+
+OUTPUT_ROW_ADDRESS .macro
+#ifdef ADDRESSING_ABC_SHIFT
+    OUTPUT_ROW_ADDRESS_ABC_SHIFT
+#elif defined(gpio_sel0)
     // set address; select pins in gpio1 are sequential
     // xor with the select bit mask to set which ones should
 #ifdef ADDRESSING_AB

@@ -52,6 +52,14 @@
 
 <p><b>Note:</b> vendor receiving-card files (NovaStar <code>.rcfgx</code>, ColorLight <code>.rcvbp</code>, Linsn <code>.RCG</code>) cannot be used here. Those files identify the driver chip and scan settings but do not contain the register values themselves — the receiving card holds its own table for each chip, the same way FPP does.</p>
 
+<p><b>Panel Addressing Type</b> (LED Panels) — How the panel selects which of its rows is lit. Most panels decode a row number from their A–E address lines, which is <b>Standard</b>. The others are for panels built differently:</p>
+<ul>
+    <li><b>Direct Row Select</b> — Each address line enables one row on its own, instead of the lines together forming a row number.</li>
+    <li><b>ABC-Addressed Panels</b> — The row drivers are shift registers: A is their clock and C their data, and B is not used. FPP clocks one bit per panel row every time the row changes, so panels that chain a separate row driver for each band of rows are covered too. Set <b>Panel Interleave</b> to match the panel as well — these panels often need a non-zero interleave.</li>
+    <li><b>AB-Addressed Panels</b> and <b>ABC Shift + DE Direct</b> — Other shift-register row drivers, clocked on A with data on B. Offered on PocketBeagle2 panel capes only.</li>
+</ul>
+<p>On the Raspberry Pi the list comes from the rpi-rgb-led-matrix library. A panel that needs ABC addressing but is left on Standard typically lights every pixel on several rows at once, in groups a few rows apart, and changing the interleave makes no difference to that.</p>
+
 <p><b>Pixelnet Open</b> — The Pixelnet Open output can send Pixelnet data (one 4096-channel universe) out generic FTDI-based USB to RS485 dongles.</p>
 
 <p><b>Pixelnet Lynx</b> — The Pixelnet Lynx output can send Pixelnet data (one 4096-channel universe) out the Lynx USB dongle w/ Pixelnet firmware.</p>

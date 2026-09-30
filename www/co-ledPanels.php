@@ -3904,14 +3904,27 @@
                                     ?>
                                     <option value='2'>Direct Row Select</option>
                                     <?
-                                    if ($panelCapesDriver == "BBShiftPanel") {
+                                    // BBBMatrix capes carry no driver name
+                                    if ($panelCapesDriver == "BBShiftPanel" || $panelCapesDriver == "") {
                                         echo "<option value='3'>ABC-Addressed Panels</option>";
+                                    }
+                                    if ($panelCapesDriver == "BBShiftPanel") {
                                         echo "<option value='4'>ABC Shift + DE Direct</option>";
                                         // FM6363C moved to the LED Panel Type dropdown; saved
                                         // configs with panelRowAddressType 51 are migrated on
                                         // load (and fppd itself still accepts 51)
                                     }
                                     ?>
+                                </select>
+                            </div>
+                        <? } else if ($settings['BeaglePlatform']) { ?>
+                            <div class="printSettingLabelCol col-md-2 col-lg-2"><span
+                                    class='LEDPanelsRowAddressTypeLabel'><b>Panel Addressing Type:</b></span></div>
+                            <div class="printSettingFieldCol col-md-4 col-lg-4">
+                                <select class="form-select LEDPanelsRowAddressType" onchange="RowAddressTypeChanged();">
+                                    <option value='0' selected>Standard</option>
+                                    <option value='2'>Direct Row Select</option>
+                                    <option value='3'>ABC-Addressed Panels</option>
                                 </select>
                             </div>
                         <? } else { ?>

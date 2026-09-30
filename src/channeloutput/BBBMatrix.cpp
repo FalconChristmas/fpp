@@ -655,6 +655,13 @@ int BBBMatrix::Init(Json::Value config) {
         // 1/2 scan panel that uses 2 bits, bit one for scan row 1 and bit two for row 2
         // Normal addressing would be 1 bit, 0 for row 1, 1 for row 2
         compileArgs.push_back("-DADDRESSING_AB=1");
+    } else if (addressingType == 3) {
+        // the row drivers are shift registers clocked on A with data on C;
+        // every row change clocks one bit per panel row since panels can
+        // daisy chain a driver per band of scan rows
+        compileArgs.push_back("-DADDRESSING_ABC_SHIFT=1");
+        snprintf(buf, sizeof(buf), "-DROW_CHAIN=%d", m_panelHeight);
+        compileArgs.push_back(buf);
     }
 
     calcBrightnessFlags(compileArgs);
