@@ -653,9 +653,9 @@ ROWADDR_NOWRAP:
     JMP  r23.w0
 ROWADDR_M3TAIL:
     CLR  r30, r30, SEL0_PIN
-    // after the last bit's hold time, park the data line low: that last bit
-    // is the active one for row 0, and a data line left high through row
-    // 0's display time makes that row flicker
+    // after the last bit's hold time, park the data line low so it rests
+    // at the same level whichever row is shown (the last bit clocked is the
+    // active one for row 0, so it would otherwise sit high through row 0)
     ADDR_DELAY
     CLR  r30, r30, SEL2_PIN
     JMP  r23.w0

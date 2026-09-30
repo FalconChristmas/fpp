@@ -221,9 +221,9 @@ NOWRAP?:
     ADD  tmp_reg4.w2, tmp_reg4.w2, 1
     QBNE SHIFT?, tmp_reg4.w2, ROW_CHAIN
     // Leave the clock low - exactly one edge per bit, no trailing pulse -
-    // and then, after the last bit's hold time, the data line low too.  The
-    // last bit is the active one for row 0, and a data line left high for
-    // that row's whole display time made it flicker.
+    // and then, after the last bit's hold time, the data line low too, so
+    // it rests at the same level whichever row is shown (the last bit
+    // clocked is the active one for row 0).
 #ifdef gpio_sel0
     LDI  out_set, 0
     LDI32 out_clr, (1 << gpio_sel0)
