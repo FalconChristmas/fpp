@@ -5,8 +5,9 @@
 #
 # "manual" is a report asked for with no crash (POST /api/crashes/report): the
 # /tmp files left by the last crash are not included, the working files go
-# beside the output, in the directory fppd clears before each manual build, and
-# only the end of fppd.log is included (see FPPD_LOG_TAIL).
+# beside the output, in the directory fppd clears before each manual build,
+# only the end of fppd.log is included (see FPPD_LOG_TAIL), and the
+# Troubleshooting page's output and the health check are added.
 #
 
 CRASH_LOG_LEVEL=$1
@@ -14,13 +15,14 @@ OUTPUT_ZIP=$2
 CRASH_TMP=/tmp
 TEMP_BASE=/home/fpp/media/tmp
 FPPD_LOG_TAIL=
+MANUAL_REPORT=0
 if [ "$3" = "manual" ]; then
+    MANUAL_REPORT=1
     CRASH_TMP=/nonexistent
     TEMP_BASE=$(dirname "$OUTPUT_ZIP")
-    # Redacting is the slow part (about 5s/MB on a Pi Zero) and fppd.log can be
-    # tens of MB; a report asked for is about what just happened.  10 MB is
-    # usually the whole log (logrotate rotates past 10M) and leaves a Pi Zero
-    # well inside fppd's 240s.
+    # Logrotate rotates fppd.log at 10M, so this is normally the whole log; it
+    # caps one that grew past that, and a report asked for is about what just
+    # happened.
     FPPD_LOG_TAIL=10485760
 fi
 
@@ -449,7 +451,7 @@ with open(sys.argv[2], "w") as f:
                             # Allowlisted keys only. These files hold the Wi-Fi
                             # PSK and SSID -- including BACKUPPSK and BACKUPSSID,
                             # which no password-shaped pattern matches -- and the
-                            # addresses, none of which may ship.
+                            # addresses, none of which ship from these files.
                             #
                             # But PROTO earns its place: a box on DHCP whose
                             # address changes mid-show fails in ways that look
@@ -490,7 +492,7 @@ with open(sys.argv[2], "w") as f:
         fi
 
         if [ -f "logs/fppd.log" ]; then
-            if [ -n "$FPPD_LOG_TAIL" ] && [ "$(stat -c %s logs/fppd.log)" -gt "$FPPD_LOG_TAIL" ]; then
+            if [ -n "$FPPD_LOG_TAIL" ] && [ "$(wc -c < logs/fppd.log)" -gt "$FPPD_LOG_TAIL" ]; then
                 # From the first whole line
                 tail -c "$FPPD_LOG_TAIL" logs/fppd.log | tail -n +2 | redact_stream > "$TEMP_DIR/logs/fppd.log" 2>/dev/null
             else
@@ -499,6 +501,38 @@ with open(sys.argv[2], "w") as f:
         fi
         if [ -f "logs/apache2-error.log" ]; then
             redact_copy "logs/apache2-error.log" "$TEMP_DIR/logs/apache2-error.log"
+        fi
+
+        # Manual reports only.  The timeouts stop a hung command from pushing
+        # the whole build past fppd's 240s limit (which keeps it inside PHP's
+        # 270s); a build that hits it writes no report at all.
+        if [ "$MANUAL_REPORT" -eq 1 ]; then
+            echo "Including troubleshooting output and health check..."
+            # Empty where there is no timeout (macOS without coreutils): run unlimited
+            TIMEOUT=$(command -v timeout)
+            ${TIMEOUT:+$TIMEOUT -k 5 120} php /opt/fpp/www/troubleshootingText.php --manual-crash-report 2>&1 \
+                | redact_stream > "$TEMP_DIR/logs/troubleshootingCommands.log"
+            case "${PIPESTATUS[0]}" in 124|137)
+                echo "** truncated: timed out after 120s **" >> "$TEMP_DIR/logs/troubleshootingCommands.log" ;;
+            esac
+            ${TIMEOUT:+$TIMEOUT -k 5 30} /opt/fpp/scripts/healthCheck 2>&1 \
+                | redact_stream > "$TEMP_DIR/logs/healthCheck.log"
+            case "${PIPESTATUS[0]}" in 124|137)
+                echo "** truncated: timed out after 30s **" >> "$TEMP_DIR/logs/healthCheck.log" ;;
+            esac
+
+            # Plugin install/update and FPP upgrade failures: the end of their
+            # logs, the plugin update state and what git says about /opt/fpp
+            for log in fpp_plugin_manager.log fpp_system_upgrades.log; do
+                [ -f "logs/$log" ] || continue
+                if [ "$(wc -c < "logs/$log")" -gt 1048576 ]; then
+                    tail -c 1048576 "logs/$log" | tail -n +2 | redact_stream > "$TEMP_DIR/logs/$log"
+                else
+                    redact_copy "logs/$log" "$TEMP_DIR/logs/$log"
+                fi
+            done
+            [ -f cache/plugin_updates.json ] && redact_copy cache/plugin_updates.json "$TEMP_DIR/logs/plugin_updates.json"
+            { git -C /opt/fpp status -sb; git -C /opt/fpp diff --stat; } 2>&1 | redact_stream > "$TEMP_DIR/logs/git_status.txt"
         fi
         
         # Playlists (scrub any embedded credentials in URLs)

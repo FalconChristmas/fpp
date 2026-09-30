@@ -29,15 +29,18 @@
                     "cmd": "iw dev; cat /proc/net/wireless",
                     "platforms": [
                         "all"
-                    ]
+                    ],
+                    "pii": true
                 },
                 "AvailableAPs": {
                     "title": "Wifi AP Scan",
                     "description": "A scan of all available wifi network Access Points near the fpp device",
                     "cmd": "sudo bash /opt/fpp/scripts/wifi_scan.sh 2>/dev/null",
+                    "manualCrashReportCmd": "bash /opt/fpp/scripts/wifi_scan.sh --summary 2>/dev/null",
                     "platforms": [
                         "all"
-                    ]
+                    ],
+                    "pii": true
                 },
                 "Routing": {
                     "title": "Routing",
@@ -354,6 +357,7 @@
                     "title": "ALSA Hardware & Contention",
                     "description": "Are the sound cards the audio groups reference actually present, unmuted, and not held by another process? Also checks that no group asks a card for more channels than it has.",
                     "cmd": "bash /opt/fpp/scripts/pipewire_diagnostics.sh alsa",
+                    "manualCrashReportCmd": "FPP_CRASH_REPORT=1 bash /opt/fpp/scripts/pipewire_diagnostics.sh alsa",
                     "platforms": [
                         "all"
                     ]
@@ -632,9 +636,11 @@
                     "title": "Processes",
                     "description": "",
                     "cmd": "ps -edaf --forest",
+                    "manualCrashReportCmd": "ps --forest --ppid 2 -p 2 --deselect -o pid,ppid,user,stat,pcpu,pmem,rss,etime,comm",
                     "platforms": [
                         "all"
-                    ]
+                    ],
+                    "pii": true
                 }
             }
         },
@@ -677,10 +683,19 @@
                         "all"
                     ]
                 },
+                "FPPDStatus": {
+                    "title": "FPPD Service Status",
+                    "description": "Whether fppd is running, restarting or has failed, and why",
+                    "cmd": "systemctl status fppd --no-pager -n 0",
+                    "platforms": [
+                        "all"
+                    ]
+                },
                 "FPPFPPDLogs": {
                     "title": "FPP FPPD Logs",
                     "description": "",
                     "cmd": "journalctl -u fppd | tail -20",
+                    "manualCrashReportCmd": "journalctl -u fppd | grep -v \" sudo\\[\" | tail -20",
                     "platforms": [
                         "all"
                     ]
@@ -706,6 +721,7 @@
                     "title": "Git Source IP",
                     "description": "",
                     "cmd": "git remote get-url origin | cut -f3 -d/;",
+                    "manualCrashReportCmd": "git remote get-url origin | cut -f3 -d/ | sed \"s/.*@//\"",
                     "platforms": [
                         "all"
                     ]
@@ -722,9 +738,11 @@
                     "title": "Git Origin Info",
                     "description": "",
                     "cmd": "git remote show origin",
+                    "manualCrashReportCmd": "git status -sb | head -1",
                     "platforms": [
                         "all"
-                    ]
+                    ],
+                    "pii": true
                 },
                 "GitConfigInfo": {
                     "title": "Git Configuration Settings",
@@ -732,7 +750,8 @@
                     "cmd": "git config --list",
                     "platforms": [
                         "all"
-                    ]
+                    ],
+                    "pii": true
                 }
             }
         },
@@ -803,9 +822,11 @@
                     "title": "RPI Info",
                     "description": "Raspberry Pi inbuilt info tool",
                     "cmd": "/bin/raspinfo | sed '/dmesg/q'; rm -f raspinfo.txt",
+                    "manualCrashReportCmd": "for c in get_throttled measure_temp \"measure_clock arm\" \"measure_volts core\" \"get_mem arm\" \"get_mem gpu\"; do printf \"%-20s %s\\n\" \"$c\" \"$(vcgencmd $c 2>&1)\"; done; echo; CFG=/boot/firmware/config.txt; [ -f $CFG ] || CFG=/boot/config.txt; echo \"$CFG:\"; grep -v \"^ *#\" $CFG | grep -v \"^ *$\"",
                     "platforms": [
                         "Raspberry Pi"
-                    ]
+                    ],
+                    "pii": true
                 },
                 "PINCTRL": {
                     "title": "RPI pinctrl util",
@@ -844,9 +865,11 @@
                     "title": "Apache Server Status",
                     "description": "Results from Apache mod_status extension",
                     "cmd": "curl -s http://localhost/server-status",
+                    "manualCrashReportCmd": "curl -s \"http://localhost/server-status?auto\"",
                     "platforms": [
                         "all"
-                    ]
+                    ],
+                    "pii": true
                 },
                 "WebPHPInfo": {
                     "title": "PHP Info",

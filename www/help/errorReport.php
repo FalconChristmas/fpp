@@ -11,7 +11,8 @@
 <ul>
     <li><b>System information</b> — FPP version, platform, OS, plugin list and cape info.</li>
     <li><b>Settings and configuration</b></li>
-    <li><b>Logs</b> (<code>fppd.log</code>, <code>apache2-error.log</code>, boot log) and your playlists.</li>
+    <li><b>Logs</b> (<code>fppd.log</code>, <code>apache2-error.log</code>, boot log, the end of the plugin install and FPP upgrade logs, and <code>git status</code>) and your playlists.</li>
+    <li><b>System diagnostics</b> — the <a href="troubleshooting.php">Troubleshooting</a> page’s output and the health check, including hardware and USB serial numbers, mounted network shares and network settings (IP and MAC addresses). Nearby Wi-Fi networks are only counted per channel; Wi-Fi network names (yours and nearby), process command lines and git identity are left out.</li>
 </ul>
 <p class="small text-muted">Reports are named like <code>fpp-&lt;platform&gt;-&lt;version&gt;-&lt;uuid&gt;-&lt;timestamp&gt;-manual.zip</code> and kept in <code>media/crashes/</code> (two manual reports at most).</p>
 <h4>Steps — a quick wizard</h4>

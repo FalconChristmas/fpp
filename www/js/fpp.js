@@ -8694,7 +8694,7 @@ function DisplayErrorReportDialog () {
 		"</ol>" +
 		// Step 1 — Build Report
 		"<div id='erStepBody1' class='d-none'>" +
-		"<p class='text-muted mb-2'>When something isn’t working, build a diagnostic report <b>on your FPP</b> — settings, configuration and logs — then download it or send it to the FPP developers. A build takes seconds on a fast player and a few minutes on a Pi Zero or BeagleBone.</p>" +
+		"<p class='text-muted mb-2'>When something isn’t working, build a diagnostic report <b>on your FPP</b> — settings, configuration, logs and system diagnostics — then download it or send it to the FPP developers. A build takes seconds on a fast player and a few minutes on a Pi Zero or BeagleBone.</p>" +
 		"<div id='errorReportStatus'></div>" +
 		"<div id='errorReportDownloadArea' class='d-none'>" +
 		"<div class='alert alert-success py-2 mb-0'>" +
@@ -8705,7 +8705,7 @@ function DisplayErrorReportDialog () {
 		"</div>" +
 		// Step 2 — Review & Send
 		"<div id='erStepBody2' class='d-none'>" +
-		"<div class='text-muted mb-2'>This is what will be sent from <b>this device</b>, along with its settings, configuration and logs:</div>" +
+		"<div class='text-muted mb-2'>This is what will be sent from <b>this device</b>, along with its settings, configuration, logs and system diagnostics:</div>" +
 		"<div id='errorReportVital'><div class='d-flex align-items-center gap-2 text-muted'><i class='fas fa-spinner fa-spin'></i> Loading system info…</div></div>" +
 		"<div class='small text-muted d-flex gap-2 align-items-start mt-2'><i class='fas fa-circle-info text-primary mt-1 flex-shrink-0'></i><span>You confirm before anything is sent. If this player has no internet, your browser sends it instead. <a href='settings.php#settings-privacy' target='_blank' rel='noopener'>Settings &rsaquo; Privacy</a> explains how reports are handled and who receives them.</span></div>" +
 		"<div id='errorReportSendStatus' class='mt-2'></div>" +
@@ -8863,7 +8863,7 @@ function ErBuildCrashReport () {
 			if (errorReportOpen) {
 				ErShowBuilt(data.File, data.Size);
 				if (data.Fppd === 'not-running') {
-					$('#errorReportStatus').html('<div class="alert alert-info py-2 mb-0">fppd is not running, so this report was built without it.</div>');
+					$('#errorReportStatus').html('<div class="alert alert-info py-2 mb-0">fppd is not running, so this report was built without it. It includes fppd&rsquo;s status and recent logs.</div>');
 				}
 				ErScrollTo(document.getElementById('errorReportDownloadArea'));
 			} else {
@@ -9504,6 +9504,16 @@ function ShowCrashUploadDialog (files, options, disclosures, goesTo) {
 	var anyManual = files.some(isManual);
 	var sending = false;
 	var allManual = anyManual && files.every(isManual);
+	// What generate_crash_report adds to a -manual report (see
+	// troubleshootingText.php --manual-crash-report)
+	var manualDiagnostics =
+		' the diagnostics from <a href="troubleshooting.php" target="_blank">' +
+		'Troubleshooting</a> and the health check: hardware (including the serial ' +
+		'numbers of the player and its USB devices), OS, disks and mounted network ' +
+		'shares, audio/video, network settings (IP and MAC addresses, routes), ' +
+		'recent system logs, and the plugin install and FPP upgrade logs. Nearby Wi-Fi networks are only counted per channel; ' +
+		'Wi-Fi network names (yours and nearby), process command lines and git ' +
+		'identity are left out.';
 
 	DisplayConfirmationDialog(
 		'confirmUploadCrash',
@@ -9524,12 +9534,18 @@ function ShowCrashUploadDialog (files, options, disclosures, goesTo) {
 					' no crash stack or crash-time playlist state. ' +
 					(files.length > 1 ? 'They are' : 'It is') +
 					' sent even if your crash report setting is &ldquo;Keep locally, do ' +
-					'not send&rdquo; or Disabled.</p>'
+					'not send&rdquo; or Disabled.</p>' +
+					'<p>' +
+					(files.length > 1 ? 'They also include' : 'It also includes') +
+					manualDiagnostics +
+					'</p>'
 				: anyManual
 					? '<p>A report whose name ends in -manual is a Diagnostic Report, made on request, so it ' +
 						'has no crash stack or crash-time playlist state, and is sent even ' +
 						'if your crash report setting is &ldquo;Keep locally, do not ' +
-						'send&rdquo; or Disabled.</p>'
+						'send&rdquo; or Disabled. It also includes' +
+						manualDiagnostics +
+						'</p>'
 					: '') +
 			(allManual
 				? ''

@@ -123,5 +123,15 @@ changing one.
   consumers fail closed if the file is unreadable. It is an allowlist on purpose: a field added
   without `gatherStats` is withheld automatically. `SSID`, `PSK`, `BACKUPSSID`, `BACKUPPSK` and
   the addresses stay off it.
+- **Troubleshooting commands**: `www/troubleshoot-commands.json` — the commands on the
+  Troubleshooting page, which also go into Diagnostic Reports (manual crash reports). Same rule
+  as `settings.json`: a command whose output identifies the user or their network (SSIDs/BSSIDs,
+  command lines, git identity, client IPs) is marked `"pii": true` where it is declared. A
+  Diagnostic Report runs a command's `"manualCrashReportCmd"` where it has one, and leaves out a
+  `pii` command that has none. The redactor only knows key=value secrets, so this flag is what
+  keeps these out. **Decide `pii`
+  for every command you add, and check it against real output, not the command name.**
+  Commands run inside `sh -c '...'` (no single quotes), and `[[name]]` is replaced with a PHP
+  variable (no `[[:space:]]`-style classes).
 - **Cape configs**: `capes/` directory — JSON files with GPIO pin mappings, output channel definitions
 - **Audio**: `etc/asoundrc.*` — ALSA configurations (dmix, hdmi, plain, softvol)

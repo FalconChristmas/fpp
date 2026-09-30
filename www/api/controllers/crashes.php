@@ -252,9 +252,9 @@ function CrashReportError($code, $message)
 /**
  * Build a crash report now, for the user to look at and then send
  *
- * fppd builds a Diagnostic Report (settings, configuration and logs, level 3)
- * named like a crash report with a -manual suffix, and keeps it in the crashes
- * folder.
+ * fppd builds a Diagnostic Report (settings, configuration and logs, level 3,
+ * plus the Troubleshooting page's output and the health check) named like a
+ * crash report with a -manual suffix, and keeps it in the crashes folder.
  * When fppd is not running the API builds it instead and the reply adds
  * `"Fppd":"not-running"`
  * (two manual reports at most). Nothing is sent: the user can download it from
