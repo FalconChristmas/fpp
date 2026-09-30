@@ -262,6 +262,26 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string& fn) {
         seqVersionMinor = V1ESEQ_MINOR_VERSION;
     }
 
+    // The ctors index fixed header fields directly, so require at least the
+    // bytes they touch before building the header buffer. Anything shorter is
+    // truncated/corrupt: base reads [18] (normal) or [8..11] (ESEQ), V2 reads
+    // [20],[21],[22],[24..31], V2-ESEQ reads [12..19]. All callers already
+    // handle a nullptr return, and valid files are far larger than these floors.
+    size_t minHeaderSize = 19;
+    if (headerPeek[0] == V1ESEQ_HEADER_IDENTIFIER) {
+        minHeaderSize = 20;
+    } else if (seqVersionMajor == V2FSEQ_MAJOR_VERSION) {
+        minHeaderSize = 32;
+    }
+    if (seqChanDataOffset < minHeaderSize) {
+        LogErr(VB_SEQUENCE, "Error reading FSEQ file (%s) header, channel data offset %" PRIu64 " is below minimum %d bytes, file is truncated\n",
+               fn.c_str(), seqChanDataOffset, (int)minHeaderSize);
+        DumpHeader("File header peek:", headerPeek, bytesRead);
+        flock(fileno(seqFile), LOCK_UN);
+        fclose(seqFile);
+        return nullptr;
+    }
+
     // Read the full header size (beginning at 0 and ending at seqChanDataOffset)
     std::vector<uint8_t> header(seqChanDataOffset);
     fseeko(seqFile, 0L, SEEK_SET);
@@ -522,11 +542,26 @@ void FSEQFile::VariableHeader::loadData() const {
         return;
     }
 
+    // offset/length come straight from the file (ED header): never allocate or
+    // read past EOF. An unchecked length is a multi-GB resize (OOM) from a tiny
+    // file, and an offset past EOF makes the read return nothing.
+    uint64_t fileSize = fseqFile->m_seqFileSize;
+    if (offset >= fileSize) {
+        return; // leave empty; consumers treat empty as absent
+    }
+    uint64_t toRead = length;
+    if (toRead > fileSize - offset) {
+        toRead = fileSize - offset;
+    }
+
     // seek to the offset and read the data
     uint64_t currentPos = fseqFile->tell();
     fseqFile->seek(offset, SEEK_SET);
-    data.resize(length);
-    fseqFile->read(data.data(), length);
+    data.resize((size_t)toRead);
+    uint64_t got = fseqFile->read(data.data(), toRead);
+    if (got < toRead) {
+        data.resize((size_t)got);
+    }
     fseqFile->seek(currentPos, SEEK_SET);
 }
 
@@ -552,6 +587,13 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int read
             LogInfo(VB_SEQUENCE, "VariableHeader has 0 length data: %c%c", code0, code1);
         } else if (code0 == 'E' && code1 == 'D') {
             // The actual data is elsewhere in the file
+            // The 2-byte codes + 8-byte offset + 4-byte length below need 14
+            // bytes; a truncated ED block would otherwise memcpy past the end.
+            if (readIndex + 14 > header.size()) {
+                LogErr(VB_SEQUENCE, "VariableHeader 'ED' is truncated, %d bytes remain but 14 needed\n",
+                       (int)(header.size() - readIndex));
+                return;
+            }
             code0 = header[readIndex];
             code1 = header[readIndex + 1];
             readIndex += VariableCodeSize;
