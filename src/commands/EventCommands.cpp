@@ -391,3 +391,12 @@ std::unique_ptr<Command::Result> ShutdownCommand::run(const std::vector<std::str
     urlGet("http://localhost/api/system/shutdown", rc);
     return std::make_unique<Command::Result>("Shutdown initiated");
 }
+
+RestartFPPDCommand::RestartFPPDCommand() :
+    Command("Restart FPPD", "Restart the FPPD daemon.") {
+}
+std::unique_ptr<Command::Result> RestartFPPDCommand::run(const std::vector<std::string>& args) {
+    LogInfo(VB_CONTROL, "Restart FPPD Command: restarting FPPD by FPP Command\n");
+    ShutdownFPPD(true);
+    return std::make_unique<Command::Result>("FPPD restart initiated");
+}
