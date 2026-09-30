@@ -25,8 +25,10 @@
 #include "../util/GPIOUtils.h"
 
 #include <cmath>
+#include <cstring>
 #include <ctime>
 #include <map>
+#include <strings.h>
 
 class GroupNode : public ConditionNode {
 public:
@@ -317,11 +319,124 @@ static bool ParseFullyNumeric(const std::string& s, double& out) {
     return pos == s.size();
 }
 
+static std::string TrimSpaces(const std::string& s) {
+    size_t start = s.find_first_not_of(" \t");
+    if (start == std::string::npos) {
+        return "";
+    }
+    return s.substr(start, s.find_last_not_of(" \t") - start + 1);
+}
+
+// Time of day, day of week and month are cyclic: their order wraps (23:59 ->
+// 00:00, Saturday -> Sunday, December -> January).  Compared as text they
+// sort in the wrong order ("Sunday" > "Saturday", "9:00" > "18:00"), std::stod
+// can't read them, so between used to be false for every one of them.  Map
+// each to its position in its cycle so the comparators can use real order.
+enum class CyclicKind { None,
+                        TimeOfDay,
+                        Weekday,
+                        Month };
+
+static int NamePosition(const std::string& s, const char* const* names, int count) {
+    // Full English name (what the Day/Month sources return) or its first
+    // three letters, any case.
+    if (s.size() < 3) {
+        return -1;
+    }
+    for (int i = 0; i < count; i++) {
+        size_t len = strlen(names[i]);
+        if ((s.size() == len || s.size() == 3) && strncasecmp(s.c_str(), names[i], s.size()) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static CyclicKind ParseCyclic(const std::string& raw, int& pos) {
+    static const char* const kDays[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+    static const char* const kMonths[12] = { "January", "February", "March", "April", "May", "June",
+                                             "July", "August", "September", "October", "November", "December" };
+    std::string s = TrimSpaces(raw);
+
+    // H:MM, HH:MM, H:MM:SS or HH:MM:SS, 24 hour
+    std::vector<std::string> parts = split(s, ':');
+    if (parts.size() == 2 || parts.size() == 3) {
+        int fields[3] = { 0, 0, 0 };
+        static const int kMax[3] = { 24, 60, 60 };
+        for (size_t i = 0; i < parts.size(); i++) {
+            const std::string& p = parts[i];
+            if (p.empty() || p.size() > 2 || (i > 0 && p.size() != 2) ||
+                p.find_first_not_of("0123456789") != std::string::npos) {
+                return CyclicKind::None;
+            }
+            fields[i] = std::stoi(p);
+            if (fields[i] >= kMax[i]) {
+                return CyclicKind::None;
+            }
+        }
+        pos = fields[0] * 3600 + fields[1] * 60 + fields[2];
+        return CyclicKind::TimeOfDay;
+    }
+    if ((pos = NamePosition(s, kDays, 7)) >= 0) {
+        return CyclicKind::Weekday;
+    }
+    if ((pos = NamePosition(s, kMonths, 12)) >= 0) {
+        return CyclicKind::Month;
+    }
+    return CyclicKind::None;
+}
+
 // Hoisted out of LeafNode (was a private member function there) so both
 // LeafNode::evaluate() and ConditionNode::PreviewLeafResult() (the Check
 // editor's consolidated eye-preview modal) share exactly one implementation
 // instead of a second copy risking drift.
 static bool CompareValues(const std::string& comparatorStr, const std::string& lhs, const std::string& rhs) {
+    // Both sides a time of day, both a day of week or both a month: compare
+    // positions in the cycle.  between is inclusive at both ends like the
+    // numeric one below, but a range whose first value is later than its
+    // second wraps round the end of the cycle instead of being swapped:
+    // "22:00,02:00" is overnight, "Friday,Sunday" the weekend and
+    // "November,February" winter.  Swapping those would give exactly the
+    // opposite range.
+    int lpos = 0;
+    CyclicKind lkind = ParseCyclic(lhs, lpos);
+    if (lkind != CyclicKind::None) {
+        if (comparatorStr == "between") {
+            auto commaPos = rhs.find(',');
+            int lo = 0, hi = 0;
+            if (commaPos != std::string::npos &&
+                ParseCyclic(rhs.substr(0, commaPos), lo) == lkind &&
+                ParseCyclic(rhs.substr(commaPos + 1), hi) == lkind) {
+                if (lo <= hi) {
+                    return lpos >= lo && lpos <= hi;
+                }
+                return lpos >= lo || lpos <= hi;
+            }
+        } else {
+            int rpos = 0;
+            if (ParseCyclic(rhs, rpos) == lkind) {
+                if (comparatorStr == "equal to") {
+                    return lpos == rpos;
+                }
+                if (comparatorStr == "not equal to") {
+                    return lpos != rpos;
+                }
+                if (comparatorStr == "greater than") {
+                    return lpos > rpos;
+                }
+                if (comparatorStr == "greater or equal") {
+                    return lpos >= rpos;
+                }
+                if (comparatorStr == "less than") {
+                    return lpos < rpos;
+                }
+                if (comparatorStr == "less or equal") {
+                    return lpos <= rpos;
+                }
+            }
+        }
+    }
+
     if (comparatorStr == "equal to") {
         return lhs == rhs;
     }
@@ -342,23 +457,20 @@ static bool CompareValues(const std::string& comparatorStr, const std::string& l
             !ParseFullyNumeric(lhs, v)) {
             return false;
         }
+        // Plain numbers have no wrap-around, so a reversed range is taken
+        // as the same range written backwards.
         if (mx < mn) {
             std::swap(mn, mx);
         }
         return v >= mn && v <= mx;
     }
-    // Numeric comparators. ParseFullyNumeric (not a bare std::stod) is
-    // what actually makes HH:MM values (Time/Sun) fall through to the
-    // string-compare branch below - std::stod alone does NOT throw on
-    // "18:15", it silently parses just the "18" prefix and stops at the
-    // colon, so a bare try/stod/catch here would (and, before this fix,
-    // did) compare HH:MM values by HOUR ONLY, discarding minutes: e.g.
-    // "18:20" vs "18:15" both truncate to 18, so "greater than" wrongly
-    // returned false for a time that genuinely is later. Falling through
-    // to plain string comparison instead is not just a safe fallback -
-    // it's the CORRECT comparison for this format, since Time/Sun always
-    // emit zero-padded HH:MM, which sorts identically to chronological
-    // order as plain text.
+    // Numeric comparators. ParseFullyNumeric (not a bare std::stod) keeps
+    // anything that merely starts with digits out of here: std::stod alone
+    // does NOT throw on "18:15", it parses just the "18" and stops at the
+    // colon, which compared times by hour only.  Times of day normally never
+    // get this far (the cyclic branch at the top takes them); one only does
+    // when the other side isn't a time, and then plain text comparison is
+    // the fallback.
     double a, b;
     if (ParseFullyNumeric(lhs, a) && ParseFullyNumeric(rhs, b)) {
         if (comparatorStr == "greater than") {

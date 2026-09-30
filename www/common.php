@@ -5184,6 +5184,20 @@ function fppUrlHost(string $host): string
  * on equality: the header may carry a list, and a cache that compressed the
  * response on the way past can echo the tag back with a "-gzip" suffix.
  *
+ * The response also states its own cache policy, and must: a browser copies a
+ * 304's headers onto the response it has stored, so whatever freshness the 304
+ * carries is what the stored copy gets from then on. Leaving that to Apache
+ * does not work. mod_expires picks a lifetime by Content-Type, a 304 from here
+ * reaches it with none, and it falls through to the vhost's one-year
+ * ExpiresDefault -- so a single unchanged refetch left the browser serving the
+ * config from cache for a year without asking, and a Save from that page wrote
+ * the stale copy back. Any Expires header already on the response makes
+ * mod_expires leave it alone, so one is sent that agrees with the policy, and
+ * the Cache-Control below is then the only policy on both the 200 and the 304.
+ * no-cache rather than max-age=0 because it forbids reusing the stored copy
+ * without asking in every case, including the ones where max-age=0 would allow
+ * a stale copy.
+ *
  * @param string $etag  Bare validator, no quotes.
  * @param int    $mtime Unix mtime for Last-Modified, or 0 to omit it.
  * @return bool True if a 304 was sent and the caller should stop.
@@ -5194,6 +5208,8 @@ function fppSendCacheValidators($etag, $mtime = 0)
         return false;
     }
 
+    header('Cache-Control: no-cache');
+    header('Expires: ' . gmdate('D, d M Y H:i:s') . ' GMT');
     header('ETag: "' . $etag . '"');
     if ($mtime > 0) {
         header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $mtime) . ' GMT');

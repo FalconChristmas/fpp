@@ -25,7 +25,7 @@
                     <button type="button" class="btn btn-outline-secondary btn-sm"
                         onclick="DisplayErrorReportDialog();"
                         title="Builds a diagnostic report on this FPP and helps you send it, then reference it on a GitHub issue.">
-                        <i class="fas fa-bug me-1"></i>Download Logs / Open Error Report
+                        <i class="fas fa-bug me-1"></i>Diagnostic Report
                     </button>
                 </div>
 

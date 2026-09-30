@@ -154,6 +154,9 @@
       "name": "time"
     },
     {
+      "name": "validate"
+    },
+    {
       "name": "variables"
     },
     {
@@ -1703,7 +1706,7 @@
           "crashes"
         ],
         "summary": "Build a crash report now, for the user to look at and then send",
-        "description": "fppd builds a full report (settings, configuration and logs, level 3) named like a crash report with a -manual suffix, and keeps it in the crashes folder (two manual reports at most). Nothing is sent: the user can download it from `GET /api/file/Crashes/<File>` to see what it holds, then send it with `POST /api/crashes/upload/<File>`, which needs their consent. `client` names the calling app in fppd.log. A build takes seconds on a fast player and can take a few minutes on a Pi Zero or BeagleBone. One build a minute, counted from the start of the last one. Error `Code`s: bad-request, busy, rate-limited, build-failed, unavailable.",
+        "description": "fppd builds a Diagnostic Report (settings, configuration and logs, level 3, plus the Troubleshooting page's output and the health check) named like a crash report with a -manual suffix, and keeps it in the crashes folder. When fppd is not running the API builds it instead and the reply adds `\"Fppd\":\"not-running\"` (two manual reports at most). Nothing is sent: the user can download it from `GET /api/file/Crashes/<File>` to see what it holds. Sending it is done only from FPP's own UI (see `POST /api/crashes/upload/<File>`), which asks for the user's consent. `client` names the calling app in fppd.log. A build takes seconds on a fast player and can take a few minutes on a Pi Zero or BeagleBone. One build at a time, and none for 10s after one finishes. Error `Code`s: bad-request, busy, rate-limited, build-failed, unavailable (fppd is running but did not answer).",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1741,7 +1744,7 @@
           "crashes"
         ],
         "summary": "Upload one locally-kept crash report from the player itself.",
-        "description": "Deliberately does NOT delete on success.  The caller deletes, through the existing file API, only after this reports the upload actually landed -- deleting the only copy of a crash report on an unverified \"probably sent\" is how the evidence disappears. A -manual.zip report (built by `POST /api/crashes/report`) needs a JSON body of `{\"consent\": true}`. Before sending it, show the user FPP's disclosures for crash reports, settings, configuration and logs, and e-mail address (the crash, crash-settings, crash-config and email rows in www/privacyDisclosures.inc, shown under Settings > Privacy), and tell them this report is at the \"configuration and logs\" level and is sent even if their saved crash report setting is \"Keep locally, do not send\" or Disabled. If the player cannot reach the server (`CanRetryFromBrowser`), the browser can post the file itself to the `url` and `field` that `GET /api/crashes/uploadTarget` returns. Error `Code`: consent-required (a -manual.zip report without `{\"consent\":true}`).",
+        "description": "Deliberately does NOT delete on success.  The caller deletes, through the existing file API, only after this reports the upload actually landed -- deleting the only copy of a crash report on an unverified \"probably sent\" is how the evidence disappears. **For FPP's own web UI only** (`ShowCrashUploadDialog()` in www/js/fpp.js, which asks the user before every send). Other apps and plugins should open FPP's Diagnostic Report instead. A -manual.zip report (built by `POST /api/crashes/report`) needs a JSON body of `{\"consent\": true}`: the user's answer in that dialog, never a value a caller sets on their behalf. If the player cannot reach the server (`CanRetryFromBrowser`), the same dialog has the browser post the file itself to the `url` and `field` that `GET /api/crashes/uploadTarget` returns. Error `Code`: consent-required (a -manual.zip report without `{\"consent\":true}`), not-found (no such report on this player, e.g. pruned by newer builds).",
         "x-badges": [
           {
             "name": "USER CONSENT REQUIRED",
@@ -1955,8 +1958,8 @@
         "tags": [
           "errorReport"
         ],
-        "summary": "Get Error Report preview data",
-        "description": "Returns the vital system information shown in Step 2 of the Error Report wizard (FPP version, platform, OS, plugins, etc.). See Settings \u203a Privacy for what reports contain.",
+        "summary": "Get Diagnostic Report preview data",
+        "description": "Returns the vital system information shown in Step 2 of the Diagnostic Report wizard (FPP version, platform, OS, plugins, etc.). See Settings \u203a Privacy for how reports are handled.",
         "responses": {
           "200": {
             "description": "Preview data",
@@ -6879,7 +6882,7 @@
           "playlists"
         ],
         "summary": "Validate all playlists",
-        "description": "Returns a list of all playlists with any validation errors, total item counts, and total duration.",
+        "description": "Returns a list of all playlists with any validation errors, total item counts, and total duration.  Each entry is checked the way fppd will play it: sequence, media, image and script files must exist; sub-playlists must exist and be valid themselves (and not include themselves); commands must still exist in fppd, and command arguments naming a playlist, sequence, media file, effect, script or command preset must name one that exists. Disabled entries are not checked, since fppd skips them. `messages` is a flat list of human-readable problems; `issues` carries the same problems with the section and 0-based index of the offending entry (`index` is -1 for a problem with the playlist as a whole).",
         "responses": {
           "200": {
             "description": "Validation results for all playlists",
@@ -6892,8 +6895,17 @@
                   {
                     "name": "Test1",
                     "description": "User entered playlist description",
-                    "valid": true,
-                    "messages": [],
+                    "valid": false,
+                    "messages": [
+                      "Main Playlist #2: Media 'song.mp3' not found"
+                    ],
+                    "issues": [
+                      {
+                        "section": "mainPlaylist",
+                        "index": 1,
+                        "message": "Media 'song.mp3' not found"
+                      }
+                    ],
                     "total_duration": 10,
                     "total_items": 3,
                     "version": 4,
@@ -9363,6 +9375,53 @@
                 "example": {
                   "time": "Tue Apr 02 08:06:34 EDT 2019"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/validate/commands": {
+      "post": {
+        "tags": [
+          "validate"
+        ],
+        "summary": "Validate FPP commands",
+        "description": "Checks a list of FPP commands the way fppd will run them on this host: the command must exist, and arguments that name a playlist, sequence, media file, effect, script or command preset must name one that exists.  Lists of commands inside an argument (the \"If\" command) are checked too.  A multisync command sent to named hosts is not checked, since it runs there. If fppd cannot be reached, nothing is reported.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array"
+              },
+              "example": [
+                {
+                  "command": "Start Playlist",
+                  "args": [
+                    "Show",
+                    "false",
+                    "false"
+                  ],
+                  "multisyncCommand": false,
+                  "multisyncHosts": ""
+                }
+              ]
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "One list of problems per command, in the order given",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                },
+                "example": [
+                  [
+                    "Command 'Start Playlist': Playlist Name 'Show' not found"
+                  ]
+                ]
               }
             }
           }

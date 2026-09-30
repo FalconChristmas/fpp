@@ -947,7 +947,20 @@
             $(`#panelMatrix${panelMatrixID} .LEDPanelDataLayoutLabel`).hide();
             $(`#panelMatrix${panelMatrixID} .LEDPanelDataLayout`).val(0);
         }
-        if (fullHeight || (mp.panelScan * 2) === mp.panelHeight) {
+        const needsInterleave = !fullHeight && (mp.panelScan * 2) !== mp.panelHeight;
+        <? if ($settings['BeaglePlatform']) { ?>
+            // A panel scanning fewer than half its rows has to fold them, and
+            // "Off" does not, so fppd refuses the output.  That is exactly when
+            // this dropdown is shown, so never leave it sitting on "Off".
+            const interleaveSelect = $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`);
+            // the native value, not val(): jQuery's val() reads a selected but
+            // disabled option as null, which is how a saved "Off" arrives here
+            if (needsInterleave && interleaveSelect.prop('value') === '0') {
+                interleaveSelect.val('8');
+            }
+            interleaveSelect.find("option[value='0']").prop('disabled', needsInterleave);
+        <? } ?>
+        if (!needsInterleave) {
             $(`#panelMatrix${panelMatrixID} .LEDPanelInterleave`).hide();
             $(`#panelMatrix${panelMatrixID} .LEDPanelInterleaveLabel`).hide();
         } else if (!(($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "ColorLight5a75") || ($(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`)[0].value === "X11PanelMatrix"))) {
@@ -2643,8 +2656,6 @@
                 html += "<option value='64x64x64'>64x64 1/64 Scan</option>"
                 html += "<option value='128x64x64'>128x64 1/64 Scan</option>"
             <? } ?>
-            html += "<option value='64x32x8'>64x32 1/8 Scan</option>"
-            html += "<option value='32x32x8'>32x32 1/8 Scan</option>"
             html += "<option value='40x20x5'>40x20 1/5 Scan</option>"
             html += "<option value='80x40x10'>80x40 1/10 Scan</option>"
             <? if ($panelCapesHaveSel4) { ?>
@@ -3455,17 +3466,28 @@
     // nothing selected, and a null panel size then throws in the size parsing.
     // Returns the applicable keys in ascending version order so a later tier
     // refines an earlier one.
+    // Vendor panel data is fetched live by every FPP version, so settings a
+    // version cannot represent go in "<subType>-v<major>" or
+    // "<subType>-v<major>.<minor>" tiers, applied in ascending order when this
+    // player is at least that version.  The minor form is for support added
+    // within a major: players from before it only match the major-only form,
+    // so they skip "-v10.2" style keys entirely.
     function vendorSettingsKeysFor(subType, settings) {
-        var re = new RegExp("^" + subType.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "-v(\\d+)$");
+        var re = new RegExp("^" + subType.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "-v(\\d+)(?:\\.(\\d+))?$");
         var tiers = [];
         Object.keys(settings || {}).forEach(function (k) {
             var m = re.exec(k);
-            if (m && parseInt(m[1], 10) <= FPP_MAJOR_VERSION) {
-                tiers.push([parseInt(m[1], 10), k]);
+            if (!m) {
+                return;
+            }
+            var major = parseInt(m[1], 10);
+            var minor = m[2] === undefined ? 0 : parseInt(m[2], 10);
+            if (major < FPP_MAJOR_VERSION || (major == FPP_MAJOR_VERSION && minor <= FPP_MINOR_VERSION)) {
+                tiers.push([major, minor, k]);
             }
         });
-        tiers.sort(function (a, b) { return a[0] - b[0]; });
-        return [subType].concat(tiers.map(function (t) { return t[1]; }));
+        tiers.sort(function (a, b) { return (a[0] - b[0]) || (a[1] - b[1]); });
+        return [subType].concat(tiers.map(function (t) { return t[2]; }));
     }
 
     function applyPanelProperties(panelMatrixID, details) {
@@ -3893,14 +3915,27 @@
                                     ?>
                                     <option value='2'>Direct Row Select</option>
                                     <?
-                                    if ($panelCapesDriver == "BBShiftPanel") {
+                                    // BBBMatrix capes carry no driver name
+                                    if ($panelCapesDriver == "BBShiftPanel" || $panelCapesDriver == "") {
                                         echo "<option value='3'>ABC-Addressed Panels</option>";
+                                    }
+                                    if ($panelCapesDriver == "BBShiftPanel") {
                                         echo "<option value='4'>ABC Shift + DE Direct</option>";
                                         // FM6363C moved to the LED Panel Type dropdown; saved
                                         // configs with panelRowAddressType 51 are migrated on
                                         // load (and fppd itself still accepts 51)
                                     }
                                     ?>
+                                </select>
+                            </div>
+                        <? } else if ($settings['BeaglePlatform']) { ?>
+                            <div class="printSettingLabelCol col-md-2 col-lg-2"><span
+                                    class='LEDPanelsRowAddressTypeLabel'><b>Panel Addressing Type:</b></span></div>
+                            <div class="printSettingFieldCol col-md-4 col-lg-4">
+                                <select class="form-select LEDPanelsRowAddressType" onchange="RowAddressTypeChanged();">
+                                    <option value='0' selected>Standard</option>
+                                    <option value='2'>Direct Row Select</option>
+                                    <option value='3'>ABC-Addressed Panels</option>
                                 </select>
                             </div>
                         <? } else { ?>

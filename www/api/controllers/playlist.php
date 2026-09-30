@@ -29,28 +29,6 @@ function playlist_list()
 }
 
 /**
- * Loads all media filenames from video, sequence, music, and image directories
- * for use in playlist validation.
- *
- * @return array Flat list of all media file names across all media directories.
- */
-function loadValidateFiles()
-{
-    global $settings;
-    $files = array();
-    $types = array("videoDirectory", "sequenceDirectory", "musicDirectory", "imageDirectory");
-    foreach ($types as $type) {
-        if ($d = opendir($settings[$type])) {
-            while (($file = readdir($d)) !== false) {
-                array_push($files, $file);
-            }
-            closedir($d);
-        }
-    }
-    return $files;
-}
-
-/**
  * Updates the `playlistInfo` array with section-level item counts and durations
  * in v4 format. Handles both v3 (backwards compatible) and v4 formats.
  *
@@ -114,58 +92,235 @@ function updatePlaylistInfo(&$playlist)
 }
 
 /**
- * Validates entries in a playlist section against known media files and
- * playlist names, appending error messages for any missing references.
+ * Checks a sub-playlist reference, recursing into the named playlist.
  *
- * @param array $entries  Playlist section entries to validate.
- * @param array $media    List of known media file names.
- * @param array $playlist List of known playlist names.
- * @param array $rc       Error message array, modified in place.
- * @return void
+ * @return array Problem descriptions for the reference.
  */
-function validatePlayListEntries(&$entries, &$media, &$playlist, &$rc)
+function validatePlaylistReference($name, $what, &$ctx)
 {
-    foreach ($entries as $e) {
-        if ($e->type == "playlist") {
-            if (property_exists($e, "name")) {
-                if (!in_array($e->name, $playlist)) {
-                    array_push($rc, "Invalid Playlist " . $e->name);
+    if ($name === '') {
+        return array("No $what selected");
+    }
+    if (!isset($ctx['playlists'][$name])) {
+        return array(ucfirst($what) . " '$name' not found");
+    }
+    if (isset($ctx['active'][$name])) {
+        return array(ucfirst($what) . " '$name' leads back to this playlist (a loop)");
+    }
+    $sub = validatePlaylistByName($name, $ctx);
+    if (count($sub['issues']) > 0) {
+        $n = count($sub['issues']);
+        return array(ucfirst($what) . " '$name' has $n problem" . ($n == 1 ? '' : 's'));
+    }
+    return array();
+}
+
+/**
+ * Checks one playlist entry against what fppd needs to play it.
+ *
+ * @param array $e   Playlist entry (decoded as an associative array).
+ * @param array $ctx Validation context.
+ * @return array Problem descriptions; empty when the entry looks playable.
+ */
+function validatePlaylistEntry($e, &$ctx)
+{
+    global $settings;
+    $rc = array();
+    $type = isset($e['type']) ? $e['type'] : '';
+
+    // fppd flattens sub-playlists without looking at "enabled", so they are
+    // always checked; any other disabled entry is skipped at play time.
+    if ($type != 'playlist' && isset($e['enabled']) && !$e['enabled']) {
+        return $rc;
+    }
+
+    $str = function ($key) use ($e) {
+        return (isset($e[$key]) && is_scalar($e[$key])) ? (string) $e[$key] : '';
+    };
+
+    switch ($type) {
+        case 'sequence':
+        case 'both':
+            $seq = $str('sequenceName');
+            if ($seq === '') {
+                $rc[] = "No sequence selected";
+            } else if (!validationFileExists($settings['sequenceDirectory'], $seq)) {
+                $rc[] = "Sequence '$seq' not found";
+            }
+            if ($type == 'sequence') {
+                break;
+            }
+            // fall through for the media half of a "both" entry
+        case 'media':
+            $fileMode = $str('fileMode');
+            if ($type == 'both' || $fileMode === '' || $fileMode == 'single') {
+                $media = $str('mediaName');
+                if ($media === '') {
+                    // A "both" entry without media plays the sequence alone.
+                    if ($type == 'media') {
+                        $rc[] = "No media selected";
+                    }
+                } else if (!validationMediaExists($media)) {
+                    $rc[] = "Media '$media' not found";
                 }
             }
-        } else if ($e->type == "media") {
-            if (property_exists($e, "mediaName")) {
-                if (!in_array($e->mediaName, $media)) {
-                    array_push($rc, "Invalid Playlist " . $e->mediaName);
+            $extra = array();
+            if ($str('extraMediaName') !== '') {
+                $extra[] = $str('extraMediaName');
+            }
+            if (isset($e['extraMedia']) && is_array($e['extraMedia'])) {
+                foreach ($e['extraMedia'] as $x) {
+                    if (is_array($x) && isset($x['mediaName']) && $x['mediaName'] !== '') {
+                        $extra[] = (string) $x['mediaName'];
+                    }
                 }
             }
-        } else if ($e->type == "both") {
-            if (property_exists($e, "mediaName")) {
-                if (!in_array($e->mediaName, $media)) {
-                    array_push($rc, "Invalid mediaName " . $e->mediaName);
+            foreach ($extra as $m) {
+                if (!validationMediaExists($m)) {
+                    $rc[] = "Extra media '$m' not found";
                 }
             }
-            if (property_exists($e, "sequenceName")) {
-                if (!in_array($e->sequenceName, $media)) {
-                    array_push($rc, "Invalid Sequence " . $e->sequenceName);
+            break;
+        case 'playlist':
+            $rc = validatePlaylistReference($str('name'), 'playlist', $ctx);
+            break;
+        case 'branch':
+            foreach (array('true', 'false') as $b) {
+                if ($str($b . 'NextBranchType') == 'Playlist') {
+                    $rc = array_merge($rc, validatePlaylistReference($str($b . 'BranchPlaylist'), 'branch playlist', $ctx));
                 }
             }
-        } else if ($e->type == "sequence" and property_exists($e, "sequenceName")) {
-            if (!in_array($e->sequenceName, $media)) {
-                array_push($rc, "Invalid Sequence " . $e->sequenceName);
+            break;
+        case 'image':
+            $img = $str('imagePath');
+            if ($img === '') {
+                $rc[] = "No image selected";
+            } else if (!validationFileExists($settings['imageDirectory'], rtrim($img, '/'), true)) {
+                $rc[] = "Image '$img' not found";
             }
-        } else if ($e->type == "image" and property_exists($e, "imagePath")) {
-            if (!preg_match('/\/$/', $e->imagePath) && !in_array($e->imagePath, $media)) {
-                array_push($rc, "Invalid Image " . $e->imagePath);
+            break;
+        case 'script':
+            $script = $str('scriptName');
+            if ($script === '') {
+                $rc[] = "No script selected";
+            } else if (!validationFileExists($settings['scriptDirectory'], $script)) {
+                $rc[] = "Script '$script' not found";
+            }
+            break;
+        case 'command':
+            $rc = validateFPPCommand($e, $ctx);
+            break;
+        case 'dynamic':
+            $sub = $str('subType');
+            if ($sub == 'file') {
+                $f = $str('dataFile');
+                // fppd opens the name as given, so only an absolute path can be checked here.
+                if (substr($f, 0, 1) == '/' && !is_file($f)) {
+                    $rc[] = "Dynamic data file '$f' not found";
+                }
+            } else if ($sub == 'plugin') {
+                $p = $str('pluginName');
+                $host = $str('pluginHost');
+                if ($p !== '' && ($host === '' || $host == 'localhost' || $host == '127.0.0.1') &&
+                    !is_dir($settings['pluginDirectory'] . '/' . $p)) {
+                    $rc[] = "Plugin '$p' is not installed";
+                }
+            }
+            break;
+        case 'pause':
+        case 'remap':
+        case 'url':
+            break;
+        default:
+            $rc[] = "Unknown entry type '$type'";
+            break;
+    }
+    return $rc;
+}
+
+/**
+ * Validates a playlist and, recursively, every playlist it includes.
+ * Results are memoized in the context, so each playlist is read once per pass.
+ *
+ * @param string $name Playlist name (without .json).
+ * @param array  $ctx  Validation context.
+ * @return array `playlist` (decoded object, or "" if unreadable) and `issues`,
+ *               a list of {section, index, message}; `index` is 0-based
+ *               within the section.
+ */
+function validatePlaylistByName($name, &$ctx)
+{
+    if (isset($ctx['results'][$name])) {
+        return $ctx['results'][$name];
+    }
+    $ctx['active'][$name] = true;
+
+    $pl = LoadPlayListDetails($name, false);
+    $issues = array();
+    $depth = 0;
+    if ($pl === "" || !is_object($pl)) {
+        $issues[] = array('section' => '', 'index' => -1, 'message' => "Playlist file could not be read");
+    } else {
+        // Round-trip to associative arrays so entries read uniformly.
+        $data = json_decode(json_encode($pl), true);
+        foreach (array('leadIn', 'mainPlaylist', 'leadOut') as $section) {
+            if (!isset($data[$section]) || !is_array($data[$section])) {
+                continue;
+            }
+            foreach ($data[$section] as $i => $e) {
+                if (!is_array($e)) {
+                    continue;
+                }
+                foreach (validatePlaylistEntry($e, $ctx) as $msg) {
+                    $issues[] = array('section' => $section, 'index' => $i, 'message' => $msg);
+                }
+                if (isset($e['type']) && $e['type'] == 'playlist' && isset($e['name']) &&
+                    isset($ctx['results'][$e['name']])) {
+                    $depth = max($depth, $ctx['results'][$e['name']]['depth'] + 1);
+                }
             }
         }
     }
+
+    // fppd includes sub-playlists at most 4 levels deep and drops anything
+    // below that.  Only reported where it first goes wrong, not on every
+    // playlist above it.
+    if ($depth == 5) {
+        $issues[] = array('section' => '', 'index' => -1,
+            'message' => "Sub-playlists are nested more than 4 levels deep; FPP skips the deepest ones");
+    }
+
+    unset($ctx['active'][$name]);
+    $ctx['results'][$name] = array('playlist' => $pl, 'issues' => $issues, 'depth' => $depth);
+    return $ctx['results'][$name];
+}
+
+/**
+ * Formats an issue's location for the one-line message list.
+ */
+function playlistIssueText($issue)
+{
+    $names = array('leadIn' => 'Lead In', 'mainPlaylist' => 'Main Playlist', 'leadOut' => 'Lead Out');
+    if ($issue['index'] < 0 || !isset($names[$issue['section']])) {
+        return $issue['message'];
+    }
+    return $names[$issue['section']] . ' #' . ($issue['index'] + 1) . ': ' . $issue['message'];
 }
 
 /**
  * Validate all playlists
  *
  * Returns a list of all playlists with any validation errors, total item
- * counts, and total duration.
+ * counts, and total duration.  Each entry is checked the way fppd will play
+ * it: sequence, media, image and script files must exist; sub-playlists must
+ * exist and be valid themselves (and not include themselves); commands must
+ * still exist in fppd, and command arguments naming a playlist, sequence,
+ * media file, effect, script or command preset must name one that exists.
+ * Disabled entries are not checked, since fppd skips them.
+ *
+ * `messages` is a flat list of human-readable problems; `issues` carries the
+ * same problems with the section and 0-based index of the offending entry
+ * (`index` is -1 for a problem with the playlist as a whole).
  *
  * @route GET /api/playlists/validate
  * @response 200 Validation results for all playlists
@@ -174,8 +329,9 @@ function validatePlayListEntries(&$entries, &$media, &$playlist, &$rc)
  *   {
  *     "name": "Test1",
  *     "description": "User entered playlist description",
- *     "valid": true,
- *     "messages": [],
+ *     "valid": false,
+ *     "messages": ["Main Playlist #2: Media 'song.mp3' not found"],
+ *     "issues": [{"section": "mainPlaylist", "index": 1, "message": "Media 'song.mp3' not found"}],
  *     "total_duration": 10,
  *     "total_items": 3,
  *     "version": 4,
@@ -188,36 +344,18 @@ function validatePlayListEntries(&$entries, &$media, &$playlist, &$rc)
  */
 function playlist_list_validate()
 {
-    global $settings;
-    $mediaFiles = loadValidateFiles();
-    $playlists = array();
-    if ($d = opendir($settings['playlistDirectory'])) {
-        while (($file = readdir($d)) !== false) {
-            if (preg_match('/\.json$/', $file)) {
-                $file = preg_replace('/\.json$/', '', $file);
-                array_push($playlists, $file);
-            }
-        }
-        closedir($d);
-    }
+    $ctx = validationContext();
+    $playlists = array_keys($ctx['playlists']);
     sort($playlists);
 
     $rc = array();
     foreach ($playlists as $plName) {
-        $pl = LoadPlayListDetails($plName, false);
-        $valid = true;
-        $msg = [];
-        if (isset($pl->leadIn)) {
-            validatePlayListEntries($pl->leadIn, $mediaFiles, $playlists, $msg);
-        }
-        if (isset($pl->mainPlaylist)) {
-            validatePlayListEntries($pl->mainPlaylist, $mediaFiles, $playlists, $msg);
-        }
-        if (isset($pl->leadOut)) {
-            validatePlayListEntries($pl->leadOut, $mediaFiles, $playlists, $msg);
-        }
-        if (count($msg) > 0) {
-            $valid = false;
+        $result = validatePlaylistByName($plName, $ctx);
+        $pl = $result['playlist'];
+        $issues = $result['issues'];
+        $msg = array_map('playlistIssueText', $issues);
+        if (!is_object($pl)) {
+            $pl = new stdClass();
         }
 
         //print_r($pl);
@@ -248,8 +386,9 @@ function playlist_list_validate()
             array(
                 "name" => $plName,
                 "description" => $plDesc,
-                "valid" => $valid,
+                "valid" => count($issues) == 0,
                 "messages" => $msg,
+                "issues" => $issues,
                 "total_duration" => $plDuration,
                 "total_items" => $plItems,
                 "version" => $version,

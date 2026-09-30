@@ -12,6 +12,13 @@
 #
 # Scan output is kept in shell variables (no temp files), so concurrent
 # invocations can never interfere with each other.
+#
+# --summary: per device, its mode, channel and link quality, then per-channel
+# network counts and signal, with no names or BSSIDs (a BSSID can be looked up
+# in public Wi-Fi location databases).  Safe for crash reports.  iw scan only.
+
+SUMMARY=0
+[ "$1" = "--summary" ] && SUMMARY=1
 
 # Parse raw `iw dev ... scan` output into numbered per-network lines.
 parse_iw() {
@@ -83,6 +90,54 @@ parse_iwlist() {
     '
 }
 
+# Summarise raw `iw dev ... scan` output per channel: networks (BSSs), distinct
+# network names, how many are strong enough to interfere (-70 dBm or better)
+# and the strongest signal.  Names are counted, never printed.
+summarise_iw() {
+    awk '
+        /^BSS / { n++ }
+        /^\tfreq:/   { freq[n] = int($2) }
+        /^\tsignal:/ { sig[n] = $2 + 0 }
+        /^\tSSID:/   { sub(/^\tSSID: ?/, ""); ssid[n] = $0 }
+        END {
+            for (i = 1; i <= n; i++) {
+                f = freq[i]
+                if (f == 2484)      { band = "2.4"; ch = 14 }
+                else if (f < 3000)  { band = "2.4"; ch = (f - 2407) / 5 }
+                else if (f < 5000)  { band = "4.9"; ch = (f - 4000) / 5 }
+                else if (f < 5925)  { band = "5";   ch = (f - 5000) / 5 }
+                else if (f == 5935) { band = "6";   ch = 2 }
+                else                { band = "6";   ch = (f - 5950) / 5 }
+                k = sprintf("%08d\t%-14s", f, band " GHz ch " ch)
+                bss[k]++
+                # Hidden networks have no name to count
+                if (ssid[i] != "" && !((k, ssid[i]) in seen)) { seen[k, ssid[i]] = 1; names[k]++ }
+                if (i in sig) {
+                    if (!(k in best) || sig[i] > best[k]) best[k] = sig[i]
+                    if (sig[i] >= -70) strong[k]++
+                }
+            }
+            for (k in bss)
+                printf("%s %6d %6d %9d %12s\n", k, bss[k], names[k], strong[k],
+                       (k in best) ? best[k] " dBm" : "n/a")
+        }
+    ' | sort | cut -f2-
+}
+
+# Print the per-channel table for one device's raw `iw dev ... scan` output.
+show_channel_table() {
+    local dev="$1" raw="$2"
+    printf -- "----- networks per channel (iw dev %s scan) -----\n" "$dev"
+    if grep -q '^BSS ' <<< "$raw"; then
+        printf "%-14s %6s %6s %9s %12s\n" "channel" "BSSs" "names" ">=-70dBm" "strongest"
+        summarise_iw <<< "$raw"
+    else
+        # Nothing parsed, so this is the scan's error text, not a network list
+        printf "%s\n" "$raw"
+    fi
+    printf "\n"
+}
+
 # Print one scan tool's section: its parsed network list, or the raw output if
 # nothing parsed (so a scan error or empty result stays visible).
 show() {
@@ -135,6 +190,25 @@ while read -r wifi_device || [[ -n $wifi_device ]]; do
         printf "%s: hotspot has %s client(s) connected - skipping disruptive scan\n\n" \
             "$wifi_device" "$(ap_client_count "$wifi_device")"
         [ "$UPORDOWN" = "down" ] && ip link set "$wifi_device" down 2>/dev/null
+        continue
+    fi
+
+    if [ "$SUMMARY" -eq 1 ]; then
+        # Mode, channel and TX power, and link quality if associated.  The addr
+        # and ssid lines, and the "Connected to <BSSID>" line, are left out.
+        iw dev "$wifi_device" info 2>/dev/null | grep -E '^[[:space:]]*(type|channel|txpower) '
+        link=$(iw dev "$wifi_device" link 2>/dev/null)
+        if grep -q '^Connected to' <<< "$link"; then
+            printf "\tconnected\n"
+            grep -E '^[[:space:]]*(freq|signal|rx bitrate|tx bitrate):' <<< "$link"
+        else
+            printf "\tnot connected\n"
+        fi
+
+        iw_scan=$(iw dev "$wifi_device" scan 2>&1)
+        [ "$UPORDOWN" = "down" ] && ip link set "$wifi_device" down 2>/dev/null
+
+        show_channel_table "$wifi_device" "$iw_scan"
         continue
     fi
 

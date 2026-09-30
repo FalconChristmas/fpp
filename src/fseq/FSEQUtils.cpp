@@ -1,7 +1,6 @@
 
 #include <getopt.h>
 #include <inttypes.h>
-#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -162,29 +161,57 @@ int parseArguments(int argc, char** argv) {
     return this_option_optind;
 }
 
-static char* escape(char* buf, const char* data) {
-    char* dest = buf;
-    while (*data) {
-        if (*data == '"') {
-            *dest = '\\';
-            dest++;
+static std::string escape(const std::string& data) {
+    std::string out;
+    out.reserve(data.size() + 16);
+    for (char c : data) {
+        // Keep the existing \" and \\ escaping byte-identical; additionally
+        // escape C0 controls so filenames with newline etc. stay valid JSON.
+        // Header values with controls never reach here (binary placeholder),
+        // but baseName has no such gate.
+        switch (c) {
+        case '"':
+        case '\\':
+            out.push_back('\\');
+            out.push_back(c);
+            break;
+        case '\b':
+            out.append("\\b");
+            break;
+        case '\f':
+            out.append("\\f");
+            break;
+        case '\n':
+            out.append("\\n");
+            break;
+        case '\r':
+            out.append("\\r");
+            break;
+        case '\t':
+            out.append("\\t");
+            break;
+        default:
+            if ((unsigned char)c < 32) {
+                char u[7];
+                snprintf(u, sizeof(u), "\\u%04x", (unsigned char)c);
+                out.append(u);
+            } else {
+                out.push_back(c);
+            }
+            break;
         }
-        *dest = *data;
-        dest++;
-        if (*data == '\\') {
-            *dest = '\\';
-            dest++;
-        }
-        data++;
     }
-    *dest = 0;
-    return buf;
+    return out;
 }
 std::string getFPPDDir(const std::string& path) {
     return "/tmp";
 }
 int main(int argc, char* argv[]) {
     int idx = parseArguments(argc, argv);
+    if (idx >= argc) {
+        usage(argv[0]);
+        return 1;
+    }
     if (verbose) {
         SetLogLevel("debug");
     } else {
@@ -200,10 +227,11 @@ int main(int argc, char* argv[]) {
              uint64_t      getUniqueId() const { return m_uniqueId; }
              const std::string& getFilename() const { return m_filename; }
              */
-            char buf[512];
-            strcpy(buf, src->getFilename().c_str());
+            std::string fullName = src->getFilename();
+            size_t slash = fullName.find_last_of('/');
+            std::string baseName = (slash == std::string::npos) ? fullName : fullName.substr(slash + 1);
             printf("{\"Name\": \"%s\", \"Version\": \"%d.%d\", \"ID\": \"%" PRIu64 "\", \"StepTime\": %d, \"NumFrames\": %d, \"MaxChannel\": %d, \"ChannelCount\": %d",
-                   escape(buf, basename(buf)),
+                   escape(baseName).c_str(),
                    src->getVersionMajor(), src->getVersionMinor(),
                    src->getUniqueId(),
                    src->getStepTime(),
@@ -215,10 +243,21 @@ int main(int argc, char* argv[]) {
                 bool first = true;
                 for (auto& head : src->getVariableHeaders()) {
                     if (head.code[0] > 32 && head.code[0] <= 127 && head.code[1] > 32 && head.code[1] <= 127) {
+                        const auto& vd = head.getData();
+                        if (vd.empty()) {
+                            continue;
+                        }
+                        const char* raw = (const char*)vd.data();
+                        size_t vlen = strnlen(raw, vd.size());
+                        std::string vs(raw, vlen);
+                        // Gate on the truncated view that is actually emitted:
+                        // bytes past the first NUL are never printed, so they
+                        // must not flip a truncated-ASCII value to binary.
                         bool allAscii = true;
-                        for (auto b : head.getData()) {
-                            if (b && (b < 32 || b > 127)) {
+                        for (unsigned char b : vs) {
+                            if (b < 32 || b > 127) {
                                 allAscii = false;
+                                break;
                             }
                         }
                         if (allAscii) {
@@ -227,7 +266,7 @@ int main(int argc, char* argv[]) {
                             } else {
                                 first = false;
                             }
-                            printf("\"%c%c\": \"%s\"", head.code[0], head.code[1], escape(buf, (const char*)&head.getData()[0]));
+                            printf("\"%c%c\": \"%s\"", head.code[0], head.code[1], escape(vs).c_str());
                         } else {
                             if (!first) {
                                 printf(", ");

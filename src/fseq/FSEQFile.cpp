@@ -262,6 +262,26 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string& fn) {
         seqVersionMinor = V1ESEQ_MINOR_VERSION;
     }
 
+    // The ctors index fixed header fields directly, so require at least the
+    // bytes they touch before building the header buffer. Anything shorter is
+    // truncated/corrupt: base reads [18] (normal) or [8..11] (ESEQ), V2 reads
+    // [20],[21],[22],[24..31], V2-ESEQ reads [12..19]. All callers already
+    // handle a nullptr return, and valid files are far larger than these floors.
+    size_t minHeaderSize = 19;
+    if (headerPeek[0] == V1ESEQ_HEADER_IDENTIFIER) {
+        minHeaderSize = 20;
+    } else if (seqVersionMajor == V2FSEQ_MAJOR_VERSION) {
+        minHeaderSize = 32;
+    }
+    if (seqChanDataOffset < minHeaderSize) {
+        LogErr(VB_SEQUENCE, "Error reading FSEQ file (%s) header, channel data offset %" PRIu64 " is below minimum %d bytes, file is truncated\n",
+               fn.c_str(), seqChanDataOffset, (int)minHeaderSize);
+        DumpHeader("File header peek:", headerPeek, bytesRead);
+        flock(fileno(seqFile), LOCK_UN);
+        fclose(seqFile);
+        return nullptr;
+    }
+
     // Read the full header size (beginning at 0 and ending at seqChanDataOffset)
     std::vector<uint8_t> header(seqChanDataOffset);
     fseeko(seqFile, 0L, SEEK_SET);
@@ -325,8 +345,16 @@ std::string FSEQFile::getMediaFilename(const std::string& fn) {
 std::string FSEQFile::getMediaFilename() const {
     for (auto& a : m_variableHeaders) {
         if (a.code[0] == 'm' && a.code[1] == 'f') {
-            const char* d = (const char*)&a.getData()[0];
-            return d;
+            const auto& data = a.getData();
+            if (data.empty()) {
+                continue;
+            }
+            const char* d = (const char*)data.data();
+            size_t len = strnlen(d, data.size());
+            if (len == 0) {
+                continue;
+            }
+            return std::string(d, len);
         }
     }
     return "";
@@ -514,11 +542,26 @@ void FSEQFile::VariableHeader::loadData() const {
         return;
     }
 
+    // offset/length come straight from the file (ED header): never allocate or
+    // read past EOF. An unchecked length is a multi-GB resize (OOM) from a tiny
+    // file, and an offset past EOF makes the read return nothing.
+    uint64_t fileSize = fseqFile->m_seqFileSize;
+    if (offset >= fileSize) {
+        return; // leave empty; consumers treat empty as absent
+    }
+    uint64_t toRead = length;
+    if (toRead > fileSize - offset) {
+        toRead = fileSize - offset;
+    }
+
     // seek to the offset and read the data
     uint64_t currentPos = fseqFile->tell();
     fseqFile->seek(offset, SEEK_SET);
-    data.resize(length);
-    fseqFile->read(&data[0], length);
+    data.resize((size_t)toRead);
+    uint64_t got = fseqFile->read(data.data(), toRead);
+    if (got < toRead) {
+        data.resize((size_t)got);
+    }
     fseqFile->seek(currentPos, SEEK_SET);
 }
 
@@ -544,6 +587,13 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int read
             LogInfo(VB_SEQUENCE, "VariableHeader has 0 length data: %c%c", code0, code1);
         } else if (code0 == 'E' && code1 == 'D') {
             // The actual data is elsewhere in the file
+            // The 2-byte codes + 8-byte offset + 4-byte length below need 14
+            // bytes; a truncated ED block would otherwise memcpy past the end.
+            if (readIndex + 14 > header.size()) {
+                LogErr(VB_SEQUENCE, "VariableHeader 'ED' is truncated, %d bytes remain but 14 needed\n",
+                       (int)(header.size() - readIndex));
+                return;
+            }
             code0 = header[readIndex];
             code1 = header[readIndex + 1];
             readIndex += VariableCodeSize;
@@ -585,7 +635,7 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t>& header, int read
             }
 
             vheader.resizeData(dataLength);
-            memcpy(&vheader.getData()[0], &header[readIndex], dataLength);
+            memcpy(vheader.getData().data(), &header[readIndex], dataLength);
 
             LogDebug(VB_SEQUENCE, "Variable Header: Code %c%c, Length: %d, Extended: %s, ExtDataOffset: %" PRIu64 "\n", vheader.code[0], vheader.code[1], vheader.getDataLength(), vheader.extendedData ? "Yes" : "No", vheader.getExtDataOffset());
 
@@ -677,7 +727,9 @@ void V1FSEQFile::writeHeader() {
         write2ByteUInt(&header[writePos], len);
         header[writePos + 2] = a.code[0];
         header[writePos + 3] = a.code[1];
-        memcpy(&header[writePos + 4], &data[0], data.size());
+        if (!data.empty()) {
+            memcpy(&header[writePos + 4], data.data(), data.size());
+        }
         writePos += len;
     }
 
@@ -886,7 +938,9 @@ public:
                     uint64_t curEnd = tell();
                     auto& h = m_file->getVariableHeaders()[x];
                     auto& data = h.getData();
-                    write(&data[0], data.size());
+                    if (!data.empty()) {
+                        write(data.data(), data.size());
+                    }
                     size_t cur = tell();
                     uint64_t off = m_variableHeaderOffsets[x];
                     seek(off, SEEK_SET);
@@ -2164,7 +2218,9 @@ void V2FSEQFile::writeHeader() {
         } else {
             auto& data = a.getData();
             m_handler->m_variableHeaderOffsets[idx] = 0;
-            memcpy(&header[writePos], &data[0], data.size());
+            if (!data.empty()) {
+                memcpy(&header[writePos], data.data(), data.size());
+            }
             writePos += data.size();
         }
         ++idx;

@@ -90,6 +90,15 @@ private:
     static void PageFlipHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void* data);
     static void VBlankHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void* data);
 
+    // What a queued page flip carries back to PageFlipHandler() instead of
+    // "this". Instances on one card share its fd, so any of them can drain an
+    // event queued by another - including one queued by an instance that has
+    // since been deleted. The handler resolves the token through FLIP_TARGETS
+    // and drops one that no longer names a live instance. Never reused.
+    uint32_t m_flipToken = 0;
+    static std::map<uint32_t, KMSFrameBuffer*> FLIP_TARGETS; // guarded by mediaOutputLock
+    static uint32_t NEXT_FLIP_TOKEN;                          // guarded by mediaOutputLock
+
     // True while a drmModePageFlip has been queued but its vblank completion
     // event has not yet been drained.  Guarded by mediaOutputLock (only touched
     // from SyncDisplay / WaitForPendingFlip, both of which hold that lock).

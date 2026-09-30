@@ -5,7 +5,7 @@
 <ul>
     <li><b>Add GPIO Trigger</b> (top right, plus icon) — Opens the trigger editor for a new pin.</li>
     <li><b>Save</b> (green, top right) — Writes the whole trigger list to <code>config/GPIO.json</code> via <code>saveGPIOInputs()</code>. A growl confirms when saved.</li>
-    <li><b>Trigger cards</b> — Each configured trigger appears as a card showing its pin, description and enable state. Cards are empty until you add one: “No GPIO triggers configured. Click Add GPIO Trigger to get started.” Each card has <b>Edit</b> (pencil) and <b>Delete</b> (trash) buttons, plus up/down arrows to reorder. The order does not affect firing — it is only for your organization.</li>
+    <li><b>Trigger cards</b> — Each configured trigger appears as a card showing its pin, description and enable state. Cards are empty until you add one: “No GPIO triggers configured. Click Add GPIO Trigger to get started.” Each card has <b>Edit</b> (pencil) and <b>Delete</b> (trash) buttons, plus up/down arrows to reorder. The order does not affect firing — it is only for your organization. On an enabled trigger, a &#x26a0; after a command means it would fail when the input fires; hover it to see why: the command no longer exists, or an argument names a playlist, sequence, media file, script, effect or command preset that is missing. Multisync commands sent to specific hosts are not checked.</li>
 </ul>
 
 <h4>Trigger editor — General</h4>

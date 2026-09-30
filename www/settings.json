@@ -2838,12 +2838,12 @@
 		},
 		"KioskRotate": {
 			"name": "KioskRotate",
-			"description": "Rotate Kiosk if using Raspberry Pi Touch Display 2 7inch",
-			"tip": "Click here if you have Raspberry Pi Touch Display 2",
+			"description": "Rotate Kiosk if using Raspberry Pi Touch Display 2",
+			"tip": "Click here if you have a Raspberry Pi Touch Display 2 (5-inch or 7-inch)",
 			"level": 1,
 			"gatherStats": true,
 			"restart": 0,
-			"reboot": 0,
+			"reboot": 1,
 			"checkedValue": "1",
 			"uncheckedValue": "0",
 			"default": "0",
@@ -3259,6 +3259,7 @@
 			"reboot": 0,
 			"default": "off",
 			"type": "select",
+            "gatherStats": true,
 			"options": {
 				"Off": "off",
 				"Send": "send",
@@ -3608,6 +3609,7 @@
 			"name": "currentHeaderSensor",
 			"description": "Current Header Sensor",
 			"tip": "The current header sensor is used to display the current sensor in the header of the FPP UI.",
+            "gatherStats": true,
 			"exposedAsJSToPages": [
 				"index",
 				"all"
@@ -3635,6 +3637,7 @@
 			"name": "AudioCardType",
 			"description": "Audio Card Type",
 			"tip": "The Audio Card Type setting is used to determine the type of audio card that FPP is using.  This setting is automatically set by FPP and should not be changed manually.",
+            "gatherStats": true,
 			"exposedAsJSToPages": [
 				"none"
 			]

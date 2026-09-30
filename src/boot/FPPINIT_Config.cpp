@@ -1105,6 +1105,110 @@ static void migrateMultiSyncDefaultToMulticast() {
     }
 }
 
+// FPP 10 removed the "Remote ..." commands.  Each took the remote host as its
+// first argument and forwarded the rest, unchanged, to the command named here
+// on that host; the same thing is now the plain command with Multisync turned
+// on and the host in multisyncHosts.  Rewrites one stored command in place.
+static bool convertRemoteCommand(Json::Value& cmd) {
+    static const std::map<std::string, std::string> REPLACEMENTS = {
+        { "Remote Trigger Command Preset", "Trigger Command Preset" },
+        { "Remote Trigger Command Preset Slot", "Trigger Command Preset Slot" },
+        { "Remote Effect Start", "Effect Start" },
+        { "Remote FSEQ Effect Start", "FSEQ Effect Start" },
+        { "Remote Effect Stop", "Effect Stop" },
+        { "Remote Playlist Start", "Start Playlist" },
+        { "Remote Run Script", "Run Script" },
+    };
+    if (!cmd["command"].isString() || !cmd["args"].isArray() || cmd["args"].empty()) {
+        return false;
+    }
+    auto it = REPLACEMENTS.find(cmd["command"].asString());
+    if (it == REPLACEMENTS.end() || !cmd["args"][0].isString()) {
+        return false;
+    }
+    // An empty host would become "every host", and multisyncHosts is not
+    // variable-substituted the way the old argument was; leave those for the
+    // user to fix (the playlist validator reports them).
+    std::string host = cmd["args"][0].asString();
+    if (host.empty() || host.find('%') != std::string::npos) {
+        return false;
+    }
+    Json::Value args(Json::arrayValue);
+    for (Json::ArrayIndex i = 1; i < cmd["args"].size(); i++) {
+        args.append(cmd["args"][i]);
+    }
+    cmd["command"] = it->second;
+    cmd["args"] = args;
+    cmd["multisyncCommand"] = true;
+    cmd["multisyncHosts"] = host;
+    return true;
+}
+
+// Walks any stored config -- playlist, schedule, command presets, GPIO inputs
+// -- converting every object shaped like a command.
+static int convertRemoteCommands(Json::Value& v) {
+    int count = 0;
+    if (v.isObject()) {
+        if (v.isMember("command") && convertRemoteCommand(v)) {
+            count++;
+        }
+        for (const auto& name : v.getMemberNames()) {
+            count += convertRemoteCommands(v[name]);
+        }
+    } else if (v.isArray()) {
+        for (auto& e : v) {
+            count += convertRemoteCommands(e);
+        }
+    }
+    return count;
+}
+
+// Runs before every fppd start, so fppd never loads one of the removed
+// commands, whether the file came from an older install, a restore, or a copy
+// from another player.  Idempotent: a file is only parsed if it mentions a
+// Remote command, and only rewritten if something was converted.
+void migrateRemoteCommands() {
+    std::vector<std::string> files = {
+        FPP_MEDIA_DIR + "/config/schedule.json",
+        FPP_MEDIA_DIR + "/config/commandPresets.json",
+        FPP_MEDIA_DIR + "/config/gpio.json",
+    };
+    std::string playlistDir = FPP_MEDIA_DIR + "/playlists";
+    if (DirectoryExists(playlistDir)) {
+        for (const auto& entry : std::filesystem::directory_iterator(playlistDir)) {
+            if (entry.is_regular_file() && entry.path().extension() == ".json") {
+                files.push_back(entry.path().string());
+            }
+        }
+    }
+    for (const auto& file : files) {
+        if (!FileExists(file)) {
+            continue;
+        }
+        std::string contents = GetFileContents(file);
+        if (contents.find("\"Remote ") == std::string::npos) {
+            continue;
+        }
+        try {
+            Json::Value root;
+            if (!LoadJsonFromString(contents, root)) {
+                continue;
+            }
+            int count = convertRemoteCommands(root);
+            if (count) {
+                Json::StreamWriterBuilder wbuilder;
+                wbuilder["indentation"] = "\t";
+                // Keep e.g. a 1.1 duration from coming back as 1.1000000000000001.
+                wbuilder["precision"] = 15;
+                PutFileContents(file, Json::writeString(wbuilder, root));
+                printf("FPP - Converted %d removed Remote command(s) to Multisync in %s\n", count, file.c_str());
+            }
+        } catch (const std::exception& e) {
+            printf("FPP - Could not convert Remote commands in %s: %s\n", file.c_str(), e.what());
+        }
+    }
+}
+
 // Config-state migrations that must survive an FPPOS reflash, gated on the
 // same /fppos_upgraded marker as checkInstallPackages() (touched by
 // upgradeOS-part2.sh, which is always sourced from the target image being

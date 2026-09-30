@@ -90,6 +90,7 @@ void checkInstallKiosk();
 void installKiosk();
 void checkInstallPackages();
 void checkConfigMigrations();
+void migrateRemoteCommands();
 void startZRAMSwap();
 void startDiskSwap();
 void setupChannelOutputs();

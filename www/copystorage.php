@@ -38,12 +38,33 @@ if (!$wrapped) {
     <?php
 }
 $date = date("Ymd-Hi");
+// $_GET values bound for the shell below: coerce to string (array input would
+// fatal inside escapeshellarg/preg_replace) and quote each shell word
+// individually. escapeshellcmd() is NOT a word boundary -- spaces in it split
+// into extra argv words for the sudo script.
+$getStr = function ($k) {
+    return (isset($_GET[$k]) && is_string($_GET[$k])) ? $_GET[$k] : '';
+};
 // The path is interpolated into the shell command below, so wrap it as a
 // single shell argument to prevent command injection.
-$path = escapeshellarg(preg_replace('/{DATE}/', $date, $_GET['path']));
-$compress = isset($_GET['compress']) ? escapeshellcmd($_GET['compress']) : "no";
-$delete = isset($_GET['delete']) ? escapeshellcmd($_GET['delete']) : "no";
-$remote_storage = isset($_GET['remoteStorage']) ? escapeshellcmd($_GET['remoteStorage']) : 'none';
+$path = escapeshellarg(preg_replace('/{DATE}/', $date, $getStr('path')));
+// Strict enums mirroring copy_settings_to_storage.sh (which enforces the same
+// direction set and coerces anything but "yes" to "no"). Legit callers only
+// ever send these values.
+$direction = $getStr('direction');
+if (!preg_match('/^(TOUSB|FROMUSB|TOLOCAL|FROMLOCAL|TOREMOTE|FROMREMOTE)$/', $direction)) {
+    echo "Invalid direction\n";
+    exit(1);
+}
+$compress = ($getStr('compress') === 'yes') ? 'yes' : 'no';
+$delete = ($getStr('delete') === 'yes') ? 'yes' : 'no';
+$remote_storage = (isset($_GET['remoteStorage']) && is_string($_GET['remoteStorage'])) ? $_GET['remoteStorage'] : 'none';
+// flags is legitimately multi-word (space-joined UI checkboxes: "Music
+// Videos ..."), consumed word-by-word by the script's case statement -- so
+// quote each word instead of the whole string. The case *) branch stays the
+// semantic validator for unknown tokens.
+$flagWords = preg_split('/\s+/', $getStr('flags'), -1, PREG_SPLIT_NO_EMPTY);
+$flagsEscaped = implode(' ', array_map('escapeshellarg', (array)$flagWords));
 
 $tee_log_file = $logDirectory . "/fpp_backup_filecopy.log";
 //Remove the log file if it exists before we start
@@ -55,7 +76,7 @@ $output_header_start = "========================================================
 echo $output_header_start;
 file_put_contents($tee_log_file, $output_header_start);
 
-$command = "sudo stdbuf --output=L " . __DIR__ . "/../scripts/copy_settings_to_storage.sh " . escapeshellcmd($_GET['storageLocation']) . " " . $path . " " . escapeshellcmd($_GET['direction']) . " " . $remote_storage . " " . $compress . " " . $delete . " " . escapeshellcmd($_GET['flags']);
+$command = "sudo stdbuf --output=L " . __DIR__ . "/../scripts/copy_settings_to_storage.sh " . escapeshellarg($getStr('storageLocation')) . " " . $path . " " . escapeshellarg($direction) . " " . escapeshellarg($remote_storage) . " " . escapeshellarg($compress) . " " . escapeshellarg($delete) . " " . $flagsEscaped;
 
 // Breadcrumb the backup into the fppd.log timeline, like every other operation.
 //
@@ -66,7 +87,7 @@ $command = "sudo stdbuf --output=L " . __DIR__ . "/../scripts/copy_settings_to_s
 // the content into fppd.log and removes it. backup.php already relies on the
 // file disappearing to detect completion (see CopyTimeoutError: "we rely on logs
 // api returning a file not found error to signify the copy process ending").
-$backupTarget = escapeshellcmd($_GET['direction']) . ' ' . escapeshellcmd($_GET['storageLocation']);
+$backupTarget = escapeshellcmd($direction) . ' ' . escapeshellcmd($getStr('storageLocation'));
 FppdLogLine('copystorage.php', 'Backup', 'backup START: ' . $backupTarget . ' (detail: logs/fpp_backup_filecopy.log, live)');
 
 $output_command = "Command: " . htmlspecialchars($command) . "\n";
@@ -89,8 +110,9 @@ echo "\n";
 
 sleep(2);
 
-$direction = $_GET['direction'] ?? '';
-$flags = $_GET['flags'] ?? '';
+// $direction is the validated enum from above (re-reading raw $_GET here
+// would fatal inside stripos on array input); $flags recoerced the same way.
+$flags = $getStr('flags');
 $isRestore = stripos($direction, 'FROM') === 0;
 $hasConfig = stripos($flags, 'Configuration') !== false;
 $hasPlugins = stripos($flags, 'Plugins') !== false;

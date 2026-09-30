@@ -447,7 +447,10 @@ then
 fi
 ############################
 # Date / Time
-HC_DateTime
+# Nothing to compare against without a browser time (crash reports)
+if [ -n "$BROWSER_TIME" ]; then
+    HC_DateTime
+fi
 
 #############################
 # System Resources

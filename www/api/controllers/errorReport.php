@@ -1,8 +1,8 @@
 <?php
 /**
- * Error Report — F8 modal preview data.
+ * Diagnostic Report — the wizard's preview data.
  *
- * Step 1 of the wizard shows vital system info from this endpoint.
+ * Step 2 of the wizard (Review & Send) shows vital system info from this endpoint.
  * Report building and sending go through the crash-report backend:
  * POST /api/crashes/report, then UploadAndDeleteCrashReports() in fpp.js.
  * (The old custom errorReport/create + download bundler was removed to avoid
@@ -13,9 +13,9 @@
 // API: Preview vital info for modal
 // ---------------------------------------------------------------------------
 /**
- * Get Error Report preview data
+ * Get Diagnostic Report preview data
  *
- * Returns the vital system information shown in Step 2 of the Error Report wizard (FPP version, platform, OS, plugins, etc.). See Settings › Privacy for what reports contain.
+ * Returns the vital system information shown in Step 2 of the Diagnostic Report wizard (FPP version, platform, OS, plugins, etc.). See Settings › Privacy for how reports are handled.
  *
  * @route GET /api/errorReport/preview
  * @response 200 Preview data

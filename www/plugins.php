@@ -120,7 +120,9 @@
         // System changes, Can it be checked?) come from the plugin's own `privacy`
         // block, coloured by FPP per the table in js/fpp-privacy-lights.js. Every
         // install dialog shows them, every card carries them as dots, and the
-        // detail and privacy modals show them in full. A plugin loaded from a
+        // detail and privacy modals show them with their lines under "Full
+        // disclosure". They inform; they do not change the Install button,
+        // which only warns for the device and version checks. A plugin loaded from a
         // pasted URL was never checked against its code for listing; its label
         // line says so.
         var pluginReinstallPrivacyChanged = {};   // same for what Reinstall would land (the versions[] branch/pin for this FPP)
@@ -139,9 +141,10 @@
                 FPPPluginPrivacy.stripHtml(PluginPrivacyResult(data), { compact: true }) + '</span>';
         }
 
-        // Label line, the author's summary, FPP's headline, the strip and its
-        // lines, then the author's `other` text; the block as written is
-        // behind "Full disclosure" in Developer UI mode only. Shared by the
+        // Label line (a warning callout instead for a plugin with no block),
+        // the author's summary, the strip, then "Full disclosure" collapsed: every light's line, the
+        // author's `other` text, and in Developer UI mode the block as
+        // written. Shared by the
         // install dialog, the upgrade dialog and the detail modal. Wording per
         // fpp-plugin-Template PLUGIN_GUIDELINES.md §14.15.
         // from: the result of the block the operator accepted earlier, for the
@@ -149,16 +152,15 @@
         // with their changed lines marked, and a list under the headline says
         // which lights moved and which way (fpp-privacy-lights.js).
         function PrivacyBlockHtml(r, prefix, from) {
+            // No block at all is the one privacy finding the dialog warns
+            // about: nothing is known about the plugin. The lights stay
+            // information.
             var h = r.declared
-                ? '<div class="small text-secondary mb-1"><span class="fw-bold text-uppercase">Disclosed by the author</span> &middot; not verified by FPP</div>'
-                : '<div class="small text-secondary mb-1"><span class="fw-bold text-uppercase">No disclosure</span> &middot; the author has not said what this plugin does with data</div>';
-            if (r.unreviewed && r.declared)
-                h += '<div class="small text-secondary mb-1">Loaded from a URL, not from the plugin list: this disclosure was not reviewed for the plugin list.</div>';
+                ? '<div class="small text-secondary mb-1"><span class="fw-bold text-uppercase">Disclosed by the author</span> &middot; ' +
+                    (r.unreviewed ? 'loaded from a URL, so not checked for the plugin list' : 'checked automatically against its code for the plugin list') + '</div>'
+                : '<div class="fpp-major-callout mb-2"><i class="fas fa-triangle-exclamation"></i><span><b>' +
+                    EscapeHtml(r.headline.text) + '.</b> ' + EscapeHtml(r.headline.explain || '') + '</span></div>';
             h += FPPPluginPrivacy.summaryHtml(r);
-            // The headline of a declared block is its worst chip's text
-            // again, and the open red line under that says it a third time:
-            // only an undeclared block needs it, to say why the row is grey.
-            if (!r.declared) h += FPPPluginPrivacy.headlineHtml(r);
             if (from) {
                 var changes = FPPPluginPrivacy.changesSummaryHtml(from, r);
                 // `other` is material too (support access, payments, self-
@@ -174,55 +176,69 @@
                 if (changes) h += '<div class="small fw-semibold mt-2">What changed</div>' + changes;
             }
             h += FPPPluginPrivacy.stripHtml(r, { prefix: prefix, from: from || null });
-            h += FPPPluginPrivacy.detailsHtml(r, { raw: uiLevel >= 3 });
+            h += FPPPluginPrivacy.detailsHtml(r, { prefix: prefix, raw: uiLevel >= 3 });
             return h;
         }
 
-        // The callout no declaration can change. Official (FalconChristmas org)
-        // plugins get the same slot with a quieter message; everything else gets
-        // the danger colour and the plugin's verifiable source owner by name.
-        // Bootstrap subtle/emphasis tokens rather than .alert-danger: FPP's
-        // Bootstrap build repaints .alert-danger solid red with white text
-        // (fpp-bootstrap-5-3.css), which the author link cannot sit on.
-        function PluginTrustHtml(data) {
-            if (data && IsOfficialPlugin(data))
-                return '<div class="d-flex gap-2 align-items-start p-2 mb-2 rounded border bg-success-subtle border-success-subtle text-success-emphasis"><i class="fas fa-circle-check mt-1"></i><div>' +
-                    '<p class="fw-bold mb-1">Maintained by the FPP project &mdash; but it still runs as root.</p>' +
-                    '<p class="mb-0">It can read and change any setting, including the privacy settings, and reach anything else on the network FPP is connected to.</p></div></div>';
-            var author = PluginAuthorHtml(data) || EscapeHtml((data && data.author) ? data.author : 'the author');
-            return '<div class="d-flex gap-2 align-items-start p-2 mb-2 rounded border bg-danger-subtle border-danger-subtle text-danger-emphasis"><i class="fas fa-triangle-exclamation mt-1"></i><div>' +
-                '<p class="fw-bold mb-1">Warning: this plugin is untrusted third-party code that will run on your FPP as root.</p>' +
-                '<p class="mb-0">It can read and change any setting, including the privacy settings, reach anything else on the ' +
-                'network FPP is connected to, and do anything at all once installed &mdash; including things not listed below. ' +
-                'This is inherently dangerous. The FPP project does not test, vet, or guarantee the quality or safety of plugins. ' +
-                'Install at your own risk, and only if you trust <b>' + author + '</b>. Plugins marked ' +
-                '<span class="badge text-bg-graceful"><i class="fas fa-certificate"></i> Official</span> are maintained by the FPP team; this one is not.</p>' +
-                '</div></div>';
+        // "Name by Author", with the Official badge when it is one: the line
+        // that heads each plugin in the install dialog.
+        function PluginByLineHtml(data) {
+            var author = PluginAuthorHtml(data) || EscapeHtml((data && data.author) ? data.author : '');
+            return '<div class="mb-2"><b>' + EscapeHtml((data && (data.name || data.repoName)) || '') + '</b>' +
+                (author ? ' <span class="text-secondary">by ' + author + '</span>' : '') +
+                (data && IsOfficialPlugin(data) ? ' <span class="badge text-bg-graceful"><i class="fas fa-certificate"></i> Official</span>' : '') +
+                '</div>';
         }
 
-        // The reminder for a plugin that is already installed: the operator
-        // saw PluginTrustHtml when they installed it, so an update or reinstall
-        // dialog says it in one line and leaves the room to the disclosure.
-        function PluginTrustLineHtml(data) {
-            return '<div class="small text-secondary mb-2"><i class="fas fa-triangle-exclamation"></i> ' +
-                (data && IsOfficialPlugin(data) ? 'Maintained by the FPP project, but it still runs as root.' :
-                    'Third-party code that runs as root: it can do anything on this player, including things not listed below.') + '</div>';
+        // What every plugin is -- someone else's code, running as root, not
+        // reviewed by the FPP project -- is said once, the first time this
+        // player installs a plugin, rather than on every install dialog. The
+        // answer is recorded as the FPP major version it was given under, so
+        // each new major release asks once more. cb runs when it has been
+        // acknowledged (at once if it already was); Cancel drops it.
+        function WithPluginNoticeAcknowledged(cb) {
+            if ((parseInt(settings['pluginNoticeAcknowledged'], 10) || 0) >= FPP_MAJOR_VERSION) {
+                cb();
+                return;
+            }
+            var id = 'pluginNoticeDialog';
+            var accepted = false;
+            var body = '<p>Plugins add features that are not part of FPP itself. Plugins in the list are checked against FPP\'s ' +
+                'plugin guidelines when they are listed and before each major FPP release, but they are written and maintained ' +
+                'by their own authors: the FPP project does not audit their code and cannot vouch for it.</p>' +
+                '<p>A plugin runs with full access to this player: it can read and change any setting and reach anything on ' +
+                'the network this player is connected to. Install plugins from authors you trust. Plugins marked ' +
+                '<span class="badge text-bg-graceful"><i class="fas fa-certificate"></i> Official</span> are maintained by the FPP team.</p>' +
+                '<p class="mb-0">Each plugin shows what its author says it does with data before you install it.</p>';
+            DoModalDialog({
+                id: id,
+                title: 'About plugins',
+                body: body,
+                backdrop: true,
+                keyboard: true,
+                buttons: {
+                    'Continue': { class: 'btn-primary', click: function () { accepted = true; CloseModalDialog(id); } },
+                    'Cancel': function () { CloseModalDialog(id); }
+                }
+            });
+            $('#' + id).one('hidden.bs.modal', function () {
+                if (!accepted) return;
+                settings['pluginNoticeAcknowledged'] = FPP_MAJOR_VERSION;
+                SetSetting('pluginNoticeAcknowledged', FPP_MAJOR_VERSION, 0, 0, true);
+                cb();
+            });
         }
 
         // The first screen of a Reinstall All / Update All that has more than
-        // one disclosure to ask about: what is about to happen, the root
-        // warning once, and the plugins in the order they will be asked. Each
-        // plugin's own screen then carries only its disclosure.
+        // one disclosure to ask about: what is about to happen and the plugins
+        // in the order they will be asked. Each plugin's own screen then
+        // carries only its disclosure.
         // opts: title, lead (what accept/decline do), plugins, button,
         // onStart, onCancel (omit for a review that must be walked).
         function ReviewIntroDialog(opts) {
             var id = 'privacyReviewIntroDialog';
             var body = '<p>' + opts.lead + '</p>';
-            body += '<div class="d-flex gap-2 align-items-start p-2 mb-2 rounded border bg-danger-subtle border-danger-subtle text-danger-emphasis"><i class="fas fa-triangle-exclamation mt-1"></i><div>' +
-                '<p class="fw-bold mb-1">Plugins are third-party code that runs on your FPP as root.</p>' +
-                '<p class="mb-0">A plugin can read and change any setting, including the privacy settings, reach anything else on the network FPP is connected to, ' +
-                'and do anything at all once installed &mdash; including things its disclosure does not list. The FPP project does not test, vet, or ' +
-                'guarantee plugins; what follows is each author\'s own statement, not verified by FPP.</p></div></div>';
+            body += '<p class="small text-secondary">Each disclosure is the author\'s own statement.</p>';
             body += '<div class="fw-semibold">You will be asked about, in this order:</div><ol class="mb-0">';
             opts.plugins.forEach(function (p) {
                 var k = FindPluginInfo(p);
@@ -1085,9 +1101,6 @@
             // the coloured things on this screen should all be findings.
             var body = intro ? '<p class="mb-2"><i class="fas fa-shield-halved text-secondary"></i> ' + intro + '</p>' : '';
             if (opts.note) body += '<div class="small text-secondary mb-2">' + EscapeHtml(opts.note) + '</div>';
-            // The root warning was on the intro screen of a chained review,
-            // and in full when the plugin was installed: one line here.
-            if (!opts.chained) body += PluginTrustLineHtml(data);
             // With a record to compare against, show the change, not just the
             // new block: st.accepted is what the operator said yes to.
             var from = null;
@@ -1132,13 +1145,6 @@
             });
             FPPPluginPrivacy.bind(opts.id);
         }
-
-        // Severity order of installButtonFor's labels, worst last, so the
-        // dialog's button can take the worst across a plugin and its
-        // dependencies. Unknown text ranks lowest.
-        var INSTALL_BUTTON_ORDER = ['Install', 'Install anyway', 'Install, permanent changes', 'Install, sends data out',
-            'Install, opens FPP to internet', "Install, handles others' data", 'Install, black box included', 'Install, no disclosure'];
-        function InstallButtonRank(btn) { return INSTALL_BUTTON_ORDER.indexOf(btn.text); }
 
         // The last install request, so a refusal can be answered with the
         // same request plus the block just reviewed (InstallStreamDone).
@@ -1243,12 +1249,6 @@
             else installProgressPending = closeThenReview;
         }
 
-        // Gate before InstallPlugin, on every install entry point (cards, popular
-        // strip, detail modal) at every UI level. EVERY install shows the dialog,
-        // official plugins included: the trust callout at the top is the one fact
-        // no declaration can change, and under it are the six privacy lights FPP
-        // computes from the plugin's own declaration. The URL-paste developer
-        // warning and the RAM/CPU warning are unchanged and sit above both.
         // Plugins that installing `plugin` would pull in as dependencies
         // (ResolvePluginDependencies on the server): the listed plugins named
         // in dependencies.plugins, top-level and on the versions[] entry this
@@ -1335,18 +1335,17 @@
         }
 
         // Everything an install asks the operator to accept, for the install
-        // dialog and the detail modal alike: the root callout, the plugin's
-        // block and source line, then one section per dependency plugin that
-        // the install will bring in (DependencyPluginsToInstall), each with
-        // its own callout, block and source. Returns
+        // dialog and the detail modal alike: the plugin's block and source
+        // line, then one section per dependency plugin that the install will
+        // bring in (DependencyPluginsToInstall), each with its by-line, block
+        // and source. Returns
         //   html:        the markup;
-        //   btn:         {text, cls} for the Install button, the worst finding
-        //                across the plugin and its dependencies (guidelines
-        //                §14.15: "Install", "Install anyway", "Install, black
-        //                box included", ...). A pasted URL, a device that is
-        //                too small, or a version not updated for this FPP
-        //                forces at least "Install anyway" in warning colour
-        //                when the finding-based label would be plainer;
+        //   btn:         {text, cls} for the Install button: "Install", or
+        //                "Install anyway" in warning colour for a pasted URL,
+        //                a device that is too small, a version not updated
+        //                for this FPP, or a plugin (or dependency) with no
+        //                privacy disclosure at all. The lights of a declared
+        //                block do not change it; they are information;
         //   depAccepted: repoName -> the block shown for each dependency
         //                (null = no disclosure), posted with the install as
         //                dependencyPrivacyAccepted so the server can record
@@ -1376,13 +1375,13 @@
                     'network FPP is connected to</b>. This is inherently dangerous. If you are not a developer, we recommend ' +
                     'you <b>do not</b> install this ' +
                     'plugin.</span></div>';
-            html += PluginTrustHtml(data || { repoName: plugin, name: plugin });
             var r = PluginPrivacyResult(data || { repoName: plugin });
             html += PrivacyBlockHtml(r, prefix);
             var src = (data && data.srcURL) ? data.srcURL : '';
             if (IsSafeHttpUrl(src)) html += '<div class="small text-secondary mt-2"><i class="fas fa-code"></i> Source: ' +
                 '<a href="' + EscapeAttr(src) + '" target="_blank" rel="noopener noreferrer">' + EscapeHtml(src) + '</a></div>';
-            var btn = FPPPluginPrivacy.installButtonFor(r);
+            var btn = { text: 'Install', cls: 'btn-success' };
+            var undisclosed = !r.declared;
             var deps = data ? DependencyPluginsToInstall(plugin) : [];
             var depAccepted = {};
             deps.forEach(function (d, n) {
@@ -1391,36 +1390,43 @@
                 var dinfo = pluginInfos[di];
                 depAccepted[dep] = dinfo.hasOwnProperty('privacy') ? dinfo.privacy : null;
                 var dr = PluginPrivacyResult(dinfo);
+                if (!dr.declared) undisclosed = true;
                 // Name the plugin that needs it when that is not the one
                 // being installed: a dependency of a dependency.
                 var vi = (d.via === plugin) ? FindPluginInfo(d.via) : FindListedPluginInfo(d.via);
                 var viaName = (d.via === plugin) ? 'this one' : ((vi >= 0 && pluginInfos[vi].name) ? pluginInfos[vi].name : d.via);
-                html += '<hr><div class="fw-bold mb-2 pluginInstallDependency"><i class="fas fa-puzzle-piece"></i> Also installs <b>' + EscapeHtml(dinfo.name || dep) + '</b>' +
+                html += '<hr><div class="fw-bold mb-2 pluginInstallDependency"><i class="fas fa-puzzle-piece"></i> Also installs' +
                     ' <span class="fw-normal text-secondary">(a plugin ' + EscapeHtml(viaName) + ' depends on)</span></div>';
-                html += PluginTrustHtml(dinfo);
+                html += PluginByLineHtml($.extend({ name: dep }, dinfo));
                 html += PrivacyBlockHtml(dr, prefix + 'd' + n);
                 if (IsSafeHttpUrl(dinfo.srcURL)) html += '<div class="small text-secondary mt-2"><i class="fas fa-code"></i> Source: ' +
                     '<a href="' + EscapeAttr(dinfo.srcURL) + '" target="_blank" rel="noopener noreferrer">' + EscapeHtml(dinfo.srcURL) + '</a></div>';
-                var dbtn = FPPPluginPrivacy.installButtonFor(dr);
-                if (InstallButtonRank(dbtn) > InstallButtonRank(btn)) btn = dbtn;
             });
             // The card says "Install anyway" for a version not updated for
             // this FPP release, and for a device under the plugin's declared
             // minimums; the dialogs say at least that too. A pasted URL is a
-            // developer path and gets the same.
+            // developer path and gets the same, and so does a plugin that
+            // discloses nothing.
             var sel = (data && Array.isArray(data.versions) && data.versions.length) ? SelectPluginVersionIndices(data) : { compatible: 0, untested: -1 };
             var forceAnyway = !!manuallyLoadedPlugins[plugin] || (data && PluginResourceVerdict(data).exceeds) ||
-                (sel.compatible < 0 && sel.untested >= 0);
-            if (forceAnyway && btn.text === 'Install') btn = { text: 'Install anyway', cls: 'btn-warning' };
+                (sel.compatible < 0 && sel.untested >= 0) || undisclosed;
+            if (forceAnyway) btn = { text: 'Install anyway', cls: 'btn-warning' };
             return { html: html, btn: btn, depAccepted: depAccepted };
         }
 
+        // The install dialog, from a card or the popular strip, at every UI
+        // level; the detail modal is the same content with its own button.
+        // The first install on this player is preceded by the plugin notice
+        // (WithPluginNoticeAcknowledged).
         function ConfirmAndInstall(plugin, branch, sha) {
+            WithPluginNoticeAcknowledged(function () { ShowInstallDialog(plugin, branch, sha); });
+        }
+
+        function ShowInstallDialog(plugin, branch, sha) {
             var i = FindPluginInfo(plugin);
             var data = (i >= 0) ? pluginInfos[i] : null;
-            var official = !!(data && IsOfficialPlugin(data));
             var d = InstallDisclosureHtml(plugin, data, 'ci');
-            var body = d.html;
+            var body = PluginByLineHtml(data || { name: plugin }) + d.html;
             var buttons = {};
             buttons[d.btn.text] = {
                 class: d.btn.cls,
@@ -1433,7 +1439,7 @@
             DoModalDialog({
                 id: "confirmInstallDialog",
                 class: "modal-lg",
-                title: official ? "Install this plugin?" : "Install third-party plugin?",
+                title: "Install plugin?",
                 body: body,
                 backdrop: true,
                 keyboard: true,
@@ -2770,11 +2776,11 @@
             if (PluginOffersReleaseNotes(data)) body += '<a href="javascript:void(0)" role="button" class="text-decoration-none" data-plugin-action="releaseNotes" data-repo="' + EscapeAttr(repo) + '"><i class="fas fa-file-lines"></i> <span class="text-decoration-underline">Release Notes</span></a>';
             body += '</div>';
             // What a plugin declares is one tap away from its card at any
-            // time, not only at install. Lines open on tap here too. For a
-            // plugin that can be installed from here this is the whole of
-            // what the install dialog would show -- the root callout, the
-            // block, and a section per dependency plugin the install brings
-            // in -- so its Install button installs without a second screen.
+            // time, not only at install. For a plugin that can be installed
+            // from here this is the whole of what the install dialog would
+            // show -- the block, and a section per dependency plugin the
+            // install brings in -- so its Install button installs without a
+            // second screen (after the one-time plugin notice).
             var canInstall = !installed && (compatibleVersion >= 0 || untestedVersion >= 0);
             var disclosure = canInstall ? InstallDisclosureHtml(repo, data, 'dt') : null;
             body += '<div class="mt-2">' + (disclosure ? disclosure.html : PrivacyBlockHtml(PluginPrivacyResult(data), 'dt')) + '</div>';
@@ -2790,13 +2796,18 @@
             } else if (canInstall) {
                 var idx = compatibleVersion < 0 ? untestedVersion : compatibleVersion;
                 // The button the install dialog would have shown (same text
-                // and colour, worst finding across plugin and dependencies),
-                // and the same post: the block above is what is accepted, and
+                // and colour), and the same post: the block above is what is
+                // accepted, and
                 // the server's check, refusal and record are as for the
                 // dialog (InstallPlugin, InstallStreamDone).
                 buttons[disclosure.btn.text] = {
                     class: disclosure.btn.cls,
-                    click: function () { CloseModalDialog('pluginDetailDialog'); InstallPlugin(repo, data.versions[idx].branch, data.versions[idx].sha, disclosure.depAccepted); }
+                    click: function () {
+                        $('#pluginDetailDialog').one('hidden.bs.modal', function () {
+                            WithPluginNoticeAcknowledged(function () { InstallPlugin(repo, data.versions[idx].branch, data.versions[idx].sha, disclosure.depAccepted); });
+                        });
+                        CloseModalDialog('pluginDetailDialog');
+                    }
                 };
             }
             buttons['Close'] = function () { CloseModalDialog('pluginDetailDialog'); };
@@ -3584,19 +3595,6 @@
             <div class="pageContent">
 
                 <div id="plugins" class="settings">
-
-                    <!-- BP-09. The install dialogs below cover third-party and
-                         URL-pasted plugins, but an Official plugin installs with no
-                         dialog at all, so the one fact that is true of EVERY plugin
-                         has to be stated somewhere that is always on screen. It is
-                         not a warning about any particular plugin and deliberately
-                         does not read like one. -->
-                    <div class="alert alert-secondary small py-2 mb-3" id="pluginPrivilegeNote">
-                        <i class="fas fa-circle-info"></i>
-                        Every plugin, official or not, runs with <b>root privileges</b> on this
-                        player &mdash; it can read and change any setting, including the privacy
-                        settings, and reach anything else on the network FPP is connected to.
-                    </div>
 
                     <div class='plugindiv'>
                         <!-- Desktop: tabs on the left, find box on the right of the same row.

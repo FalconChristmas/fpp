@@ -43,7 +43,7 @@ fi
 # drop them out from under us.
 apt-get $APT_OPTS install -y \
     xserver-xorg xserver-xorg-legacy xserver-xorg-input-libinput \
-    x11-xserver-utils xinit openbox libgl1-mesa-dri
+    x11-xserver-utils xinit openbox libgl1-mesa-dri xinput
 # Try chromium first (Debian Trixie+), fall back to chromium-browser (older versions)
 apt-get $APT_OPTS install -y --no-install-recommends chromium || apt-get $APT_OPTS install -y --no-install-recommends chromium-browser
 apt-get clean
@@ -75,6 +75,15 @@ if [ ! -e /usr/lib/xorg/Xorg.wrap ]; then
 fi
 if ! ls /usr/lib/xorg/modules/input/*.so > /dev/null 2>&1; then
     echo "ERROR: no X input driver installed - leaving kiosk uninstalled so it retries on next boot"
+    exit 1
+fi
+# x11-xserver-utils (xrandr) and xinput have both silently gone missing on a
+# live box before (found while debugging touch rotation on real hardware --
+# the box kept running kiosk fine on already-loaded binaries after the
+# packages were removed, so nothing else here would have caught it). Kiosk
+# output selection, DPI-output handling and touch rotation all depend on them.
+if ! command -v xrandr > /dev/null 2>&1 || ! command -v xinput > /dev/null 2>&1; then
+    echo "ERROR: x11-xserver-utils/xinput failed to install - leaving kiosk uninstalled so it retries on next boot"
     exit 1
 fi
 

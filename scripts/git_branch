@@ -14,6 +14,13 @@ fi
 # Get the remote name, default to 'origin'
 REMOTE=${2:-origin}
 
+# Mirror www/changebranch.php: branch names are letters, numbers, _, ., -, /
+# (no .. or leading -; pr-N fits the same shape), remotes are alnum/_/- only.
+# NOTE: no `--` after `git checkout -B` below on purpose -- it would turn the
+# branch into a pathspec. The allow-lists rule out option injection instead.
+case "$1" in ""|-*|*..*|*[!A-Za-z0-9_./-]*) echo "ERROR: Invalid branch name: $1"; exit 1 ;; esac
+case "${REMOTE}" in ""|-*|*..*|*/*|*[!a-zA-Z0-9_-]*) echo "ERROR: Invalid remote name: ${REMOTE}"; exit 1 ;; esac
+
 # Unified upgrade logging -> logs/fpp_system_upgrades.log (switching branch is an
 # upgrade path; it ends in a rebuild and a nested upgrade_config).
 startUpgradeLog "fpp-branch-switch" "${REMOTE}/$1"
@@ -31,9 +38,9 @@ echo "$0 running to switch branches to $1 from remote $REMOTE"
 # this fetch must be locked the same way.
 if [ "$REMOTE" != "origin" ] && [ "$REMOTE" != "newfeatures" ]; then
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
-		runGitLocked "cd ${FPPDIR} && git fetch $REMOTE 2>&1 | head -20" || true
+		runGitLocked "cd \"${FPPDIR}\" && git fetch \"${REMOTE}\" 2>&1 | head -20" || true
 	else
-		runGitLocked "cd ${FPPDIR} && sudo -u ${FPPUSER} git fetch $REMOTE 2>&1 | head -20" || true
+		runGitLocked "cd \"${FPPDIR}\" && sudo -u \"${FPPUSER}\" git fetch \"${REMOTE}\" 2>&1 | head -20" || true
 	fi
 fi
 
@@ -46,8 +53,10 @@ PR_LOCAL=""
 if echo "$1" | grep -qE '^pr-[0-9]+$'; then
 	PR_LOCAL="$1"
 else
-	CNT=`cd ${FPPDIR} && git show-ref | grep "refs/remotes/$REMOTE" | grep -i $1 | wc -l`
-	if [ $CNT -eq 0 ]; then
+	# -F: branch names contain regex metachars (.) that must match literally;
+	# fail closed (CNT=0) if the repo dir is unreachable.
+	CNT=$(cd "${FPPDIR}" && git show-ref | grep -F -- "refs/remotes/$REMOTE" | grep -i -F -- "$1" | wc -l) || CNT=0
+	if [ "$CNT" -eq 0 ]; then
 		echo "Invalid Branch Name: $1 for remote: $REMOTE"
 		exit 1
 	fi
@@ -67,18 +76,18 @@ cleanCompiledBinaries
 # any such refspec again when switching to an ordinary branch.
 setPullRefspec() {
 	# $1 = PR number or empty to clear
-	for r in $(cd ${FPPDIR} && git remote); do
+	for r in $(cd "${FPPDIR}" && git remote); do
 		if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
-			(cd ${FPPDIR} && git config --unset-all remote.$r.fetch '^\+refs/pull/' 2>/dev/null || true)
+			(cd "${FPPDIR}" && git config --unset-all remote.$r.fetch '^\+refs/pull/' 2>/dev/null || true)
 		else
-			(cd ${FPPDIR} && sudo -u ${FPPUSER} git config --unset-all remote.$r.fetch '^\+refs/pull/' 2>/dev/null || true)
+			(cd "${FPPDIR}" && sudo -u "${FPPUSER}" git config --unset-all remote.$r.fetch '^\+refs/pull/' 2>/dev/null || true)
 		fi
 	done
 	if [ -n "$1" ]; then
 		if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
-			(cd ${FPPDIR} && git config --add remote.$REMOTE.fetch "+refs/pull/$1/head:refs/remotes/${REMOTE}/pull/$1/head")
+			(cd "${FPPDIR}" && git config --add remote.$REMOTE.fetch "+refs/pull/$1/head:refs/remotes/${REMOTE}/pull/$1/head")
 		else
-			(cd ${FPPDIR} && sudo -u ${FPPUSER} git config --add remote.$REMOTE.fetch "+refs/pull/$1/head:refs/remotes/${REMOTE}/pull/$1/head")
+			(cd "${FPPDIR}" && sudo -u "${FPPUSER}" git config --add remote.$REMOTE.fetch "+refs/pull/$1/head:refs/remotes/${REMOTE}/pull/$1/head")
 		fi
 	fi
 }
@@ -91,20 +100,20 @@ if [ -n "$PR_LOCAL" ]; then
 	PR_NUM=$(echo "$PR_LOCAL" | sed 's/^pr-//')
 	setPullRefspec "$PR_NUM"
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
-		runGitLocked "cd ${FPPDIR} && git clean -df && git reset --hard && git submodule foreach git reset --hard && git fetch $REMOTE +pull/${PR_NUM}/head:refs/remotes/${REMOTE}/pull/${PR_NUM}/head 2>&1 | head -20; git checkout -B $PR_LOCAL $REMOTE/pull/${PR_NUM}/head && git fetch --tags -f && git submodule sync && git submodule update --init"
+		runGitLocked "cd \"${FPPDIR}\" && git clean -df && git reset --hard && git submodule foreach git reset --hard && git fetch \"${REMOTE}\" \"+pull/${PR_NUM}/head:refs/remotes/${REMOTE}/pull/${PR_NUM}/head\" 2>&1 | head -20; git checkout -B \"${PR_LOCAL}\" \"${REMOTE}/pull/${PR_NUM}/head\" && git fetch --tags -f && git submodule sync && git submodule update --init"
 	else
-		runGitLocked "cd ${FPPDIR} && sudo -u ${FPPUSER} git clean -df && sudo -u ${FPPUSER} git reset --hard && sudo -u ${FPPUSER} git submodule foreach git reset --hard && sudo -u ${FPPUSER} git fetch $REMOTE +pull/${PR_NUM}/head:refs/remotes/${REMOTE}/pull/${PR_NUM}/head 2>&1 | head -20; sudo -u ${FPPUSER} git checkout -B $PR_LOCAL $REMOTE/pull/${PR_NUM}/head && sudo -u ${FPPUSER} git fetch --tags -f && sudo -u ${FPPUSER} git submodule sync && sudo -u ${FPPUSER} git submodule update --init"
+		runGitLocked "cd \"${FPPDIR}\" && sudo -u \"${FPPUSER}\" git clean -df && sudo -u \"${FPPUSER}\" git reset --hard && sudo -u \"${FPPUSER}\" git submodule foreach git reset --hard && sudo -u \"${FPPUSER}\" git fetch \"${REMOTE}\" \"+pull/${PR_NUM}/head:refs/remotes/${REMOTE}/pull/${PR_NUM}/head\" 2>&1 | head -20; sudo -u \"${FPPUSER}\" git checkout -B \"${PR_LOCAL}\" \"${REMOTE}/pull/${PR_NUM}/head\" && sudo -u \"${FPPUSER}\" git fetch --tags -f && sudo -u \"${FPPUSER}\" git submodule sync && sudo -u \"${FPPUSER}\" git submodule update --init"
 	fi
 elif [ "x${FPPDIR}" = "x/opt/fpp" ]
 then
 	setPullRefspec ""
-	runGitLocked "cd ${FPPDIR} && git clean -df && git reset --hard && git submodule foreach git reset --hard && git fetch $REMOTE && git checkout -B $1 $REMOTE/$1 && git rebase $REMOTE/$1 && git fetch --tags -f && git submodule sync && git submodule update --init"
+	runGitLocked "cd \"${FPPDIR}\" && git clean -df && git reset --hard && git submodule foreach git reset --hard && git fetch \"${REMOTE}\" && git checkout -B \"$1\" \"${REMOTE}/$1\" && git rebase \"${REMOTE}/$1\" && git fetch --tags -f && git submodule sync && git submodule update --init"
 else
 	setPullRefspec ""
-	runGitLocked "cd ${FPPDIR} && sudo -u ${FPPUSER} git clean -df && sudo -u ${FPPUSER} git reset --hard && sudo -u ${FPPUSER} git submodule foreach git reset --hard && sudo -u ${FPPUSER} git fetch $REMOTE && sudo -u ${FPPUSER} git checkout -B $1 $REMOTE/$1 && sudo -u ${FPPUSER} git rebase $REMOTE/$1 && sudo -u ${FPPUSER} git fetch --tags -f && sudo -u ${FPPUSER} git submodule sync && sudo -u ${FPPUSER} git submodule update --init"
+	runGitLocked "cd \"${FPPDIR}\" && sudo -u \"${FPPUSER}\" git clean -df && sudo -u \"${FPPUSER}\" git reset --hard && sudo -u \"${FPPUSER}\" git submodule foreach git reset --hard && sudo -u \"${FPPUSER}\" git fetch \"${REMOTE}\" && sudo -u \"${FPPUSER}\" git checkout -B \"$1\" \"${REMOTE}/$1\" && sudo -u \"${FPPUSER}\" git rebase \"${REMOTE}/$1\" && sudo -u \"${FPPUSER}\" git submodule sync && sudo -u \"${FPPUSER}\" git submodule update --init"
 fi
 
-${SUDO} ${SCRIPTDIR}/upgrade_config
+${SUDO} "${SCRIPTDIR}/upgrade_config"
 
 echo "Compiling Binaries"
 compileBinaries
@@ -113,13 +122,13 @@ compileBinaries
 /usr/bin/curl -X DELETE http://localhost/api/statistics/usage
 
 # If apache config file has changed copy across from branch standard
-if [ -f ${FPPDIR}/etc/apache2.site ] && ! cmp -s ${FPPDIR}/etc/apache2.site /etc/apache2/sites-available/000-default.conf
+if [ -f "${FPPDIR}/etc/apache2.site" ] && ! cmp -s "${FPPDIR}/etc/apache2.site" /etc/apache2/sites-available/000-default.conf
 then
 	echo "Updating apache2 site configuration"
-	${SUDO} cp ${FPPDIR}/etc/apache2.site /etc/apache2/sites-available/000-default.conf
+	${SUDO} cp "${FPPDIR}/etc/apache2.site" /etc/apache2/sites-available/000-default.conf
 fi
 
 
 echo "Restarting fppd"
-${SUDO} ${FPPDIR}/scripts/fppd_start
+${SUDO} "${FPPDIR}/scripts/fppd_start"
 

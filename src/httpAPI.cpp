@@ -543,7 +543,8 @@ void APIServer::Init(void) {
 
     // Internal-only endpoint, deliberately undocumented (no @route
     // docblock) -- lists every HTTP route currently registered with the
-    // embedded Drogon server, FPP's own included, so ServeOpenApiSpec() in
+    // embedded Drogon server, FPP's own included, plus the loaded plugins'
+    // routes from FPP's plugin route registry, so ServeOpenApiSpec() in
     // www/api/index.php can diff it against known @route docblocks and
     // surface whatever's left over as plugin-supplied (e.g. fpp-brightness's
     // /Brightness). Registered under /internal, not /fppd, specifically so
@@ -565,6 +566,14 @@ void APIServer::Init(void) {
             drogon::HttpMethod m = std::get<1>(info);
             entry["method"] = (m >= 0 && m <= drogon::Invalid) ? methodNames[m] : "UNKNOWN";
             entry["description"] = std::get<2>(info);
+            result.append(entry);
+        }
+        // Plugin paths are dispatched by FPP, not registered with drogon.
+        for (auto& [path, m] : FPPPlugins::listPluginApiRoutes()) {
+            Json::Value entry;
+            entry["path"] = path;
+            entry["method"] = (m >= 0 && m <= drogon::Invalid) ? methodNames[m] : "UNKNOWN";
+            entry["description"] = "";
             result.append(entry);
         }
         callback(makeStringResponse(SaveJsonToString(result), 200, "application/json"));
@@ -866,7 +875,10 @@ void APIServer::Init(void) {
      */
     app.registerHandler("/videoinput/preview", copyHandler(handleVideoInputPreview), {drogon::Get, drogon::Head});
 
-    // Let plugins register their own routes
+    // Let plugins register their own routes. These live in FPP's plugin
+    // route registry, reached through drogon's default handler, so plugins
+    // loaded after run() can add routes too.
+    FPPPlugins::installPluginApiRouter();
     PluginManager::INSTANCE.registerApis();
 
     // Configure and start drogon in a separate thread (since app().run() blocks).

@@ -416,10 +416,28 @@ static void restorePRUSleepFirmware(int pru_num) {
 bool BBBPru::run(const std::string& program, bool clearSharedMems) {
     LogDebug(VB_CHANNELOUT, "BBBPru[%d]::run(%s)\n", pru_num, program.c_str());
 
+    auto clearMems = [&]() {
+        clearPRUMem(data_ram, data_ram_size);
+        if (clearSharedMems) {
+            if (shared_ram) {
+                clearPRUMem(shared_ram, shared_ram_size);
+            }
+            if (other_data_ram) {
+                clearPRUMem(other_data_ram, other_data_ram_size);
+            }
+        }
+    };
     bool enabled = true;
     if (!FAKE_PRU) {
         prus[pru_num].disable();
         installPRUFirmware(pru_num, program);
+        // Clear before the core starts as well as after.  Firmware loading
+        // does not clear data RAM, so on a restart the previous run's
+        // handshake words (the SMEM ring config in particular) are still
+        // there: the new firmware passes its wait on them at once and reads
+        // config the ARM has not written yet.  The clear after enable() stays
+        // for a PRUSS that was powered down, where these writes are dropped.
+        clearMems();
         enabled = prus[pru_num].enable();
         if (!enabled) {
             return false;
@@ -427,15 +445,7 @@ bool BBBPru::run(const std::string& program, bool clearSharedMems) {
     } else {
         installPRUFirmware(pru_num, program);
     }
-    clearPRUMem(data_ram, data_ram_size);
-    if (clearSharedMems) {
-        if (shared_ram) {
-            clearPRUMem(shared_ram, shared_ram_size);
-        }
-        if (other_data_ram) {
-            clearPRUMem(other_data_ram, other_data_ram_size);
-        }
-    }
+    clearMems();
     /*
     printf("DL:  %p\n", data_ram);
     printf("OL:  %p\n", other_data_ram);
@@ -617,8 +627,14 @@ void BBBPruSMEMRing::attach(BBBPru* pru, uint32_t pruBaseAddr, uint32_t ringSize
 }
 
 uint32_t BBBPruSMEMRing::write(const uint8_t* src, uint32_t len) {
-    uint32_t readOff = pointerMode ? (ctrl[1] - basePru) : (ctrl[1] % size);
-    uint32_t used = (writeOff - readOff + size) % size;
+    // Counters are free running, so their difference is the exact number of
+    // bytes in flight across the 2^32 wrap.  Reducing a raw count modulo the
+    // ring size is not: 2^32 is not a multiple of the size, so each wrap moved
+    // the computed read position (by 4096 bytes on a 30720 byte ring) and,
+    // once that error was large enough, let the producer overwrite data the
+    // consumer had not read yet.
+    uint32_t used = pointerMode ? (writeOff - (ctrl[1] - basePru) + size) % size
+                                : (produced - ctrl[1]);
     uint32_t space = size - 64 - used;
     if (len > space) {
         len = space;

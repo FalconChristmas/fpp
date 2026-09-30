@@ -3,7 +3,7 @@
 
 <h4>Header and actions</h4>
 <ul>
-    <li><b>Download Logs / Open Error Report</b> (top right) — Opens the Error Report wizard (<b>F8</b>), which builds a diagnostic report on this FPP via <code>POST /api/crashes/report</code>, helps you send it with consent, and prefills a GitHub issue with the filename, version and platform. A logs/config zip of this page’s command output remains available from File Manager › Logs › Zip.</li>
+    <li><b>Diagnostic Report</b> (top right) — Opens the Diagnostic Report wizard, which builds a diagnostic report on this FPP via <code>POST /api/crashes/report</code>, helps you send it with consent, and prefills a GitHub issue with the filename, version and platform.</li>
     <li><b>Back to top</b> (red pill, fixed bottom-right) — Scrolls to the top; fades in after 100 px of scroll, fades out near the top.</li>
 </ul>
 
@@ -19,10 +19,11 @@
     <li><b>Title + badges</b> — <code>&lt;h3&gt;Title &lt;span id="status_{key}"&gt;</code> plus a matching <code>hotlinkstatus_{key}</code> badge. Badges are filled after output is rendered.</li>
     <li><b>Command Description / Command</b> — <b>Command Description:</b> plain text from the JSON, then <b>Command:</b> the exact shell command string shown for reference (what will appear in the bundle as well).</li>
     <li><b>Output</b> — A <code>&lt;pre id="command_{key}"&gt;</code> initially showing a spinner and <i>Loading…</i>. Once fetched, the raw text replaces it. The text is built from <b>Text nodes</b> (never <code>innerHTML</code>) so angle brackets like <code>&lt;unavailable&gt;</code> or <code>&lt;node&gt;</code> in tool output are not parsed as HTML and do not vanish.</li>
+    <li><b>In a Diagnostic Report</b> — The report that <b>Diagnostic Report</b> builds includes this page’s output. A command whose output identifies you or your network (Wi-Fi network names, process command lines, git identity, web server clients) runs a cut-down version with those parts removed, or is left out. The report’s <b>Command:</b> line shows which one ran, or which was left out. Reports written after a crash do not include this page.</li>
 </ul>
 
 <h4>Verdict highlighting</h4>
-<p>The scripts mark verdicts with a leading <code>[PASS]</code> / <code>[WARN]</code> / <code>[FAIL]</code> / <code>[INFO]</code> / <code>[SKIP]</code>. Plain-state commands carry no markers and render unchanged. Only on-screen decoration is added here; the File Manager logs zip keeps the exact original bytes.</p>
+<p>The scripts mark verdicts with a leading <code>[PASS]</code> / <code>[WARN]</code> / <code>[FAIL]</code> / <code>[INFO]</code> / <code>[SKIP]</code>. Plain-state commands carry no markers and render unchanged. Only on-screen decoration is added here; a Diagnostic Report gets the text exactly as the commands printed it.</p>
 <ul>
     <li><b>Marker lines</b> — <code>[FAIL]</code> → red subtle background + bold, <code>[WARN]</code> → amber subtle + bold, <code>[PASS]</code> → green, <code>[INFO]/[SKIP]</code> → muted. Indented lines directly under a <code>FAIL</code>/<code>WARN</code> are tinted the same color but without the band, so the “what to do” stays visually attached. Section headers like <code>=== Section ===</code> / <code>--- Section ---</code> are bold, and <code>Result: …</code> is bold and colored by the overall worst verdict for that command.</li>
     <li><b>Counts and badges</b> — Each output is scanned for marker counts. Badges are rendered by <code>troubleshootBadges(counts, compact)</code>: one compact numeric badge per kind beside the hot link and on the tab (<code>3</code>), and a full label beside the heading (<code>3 failures</code> / <code>3 warnings</code> / <code>3 passed</code>). Only when there are no failures or warnings does a green “N passed” badge appear, and when a command reported nothing at all but skips — a section that has nothing applying to this device, such as Network Audio on a simple-mode player with no AES67, Opus or RTSP configured — a grey “nothing to check” badge appears in its place, so a section that ran is never left looking as though it had not.</li>
@@ -39,5 +40,5 @@
 <ul>
     <li>Open each tab you care about — tabs run their commands only when first viewed, so an unseen tab shows no badge until visited.</li>
     <li>Use the hot-link row at the top of a group to jump to a failing command without reading every output.</li>
-    <li>Use the <b>Download Logs / Open Error Report</b> button when you need to share diagnostics with the developers.</li>
+    <li>Use the <b>Diagnostic Report</b> button when you need to share diagnostics with the developers.</li>
 </ul>

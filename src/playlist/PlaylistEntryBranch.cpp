@@ -126,7 +126,7 @@ int PlaylistEntryBranch::Init(Json::Value& config) {
         if ((m_startTime != "") &&
             !ParseTimeString(m_startTime, m_sHour, m_sMinute, m_sSecond)) {
             LogErr(VB_PLAYLIST, "Invalid branch start time '%s'\n", m_startTime.c_str());
-            WarningHolder::AddWarning(62, "Playlist branch has an invalid start time '" + m_startTime + "'");
+            WarningHolder::AddWarningTimeout(60, 62, "Playlist branch has an invalid start time '" + m_startTime + "'");
         }
     }
 
@@ -136,7 +136,7 @@ int PlaylistEntryBranch::Init(Json::Value& config) {
         if ((m_endTime != "") &&
             !ParseTimeString(m_endTime, m_eHour, m_eMinute, m_eSecond)) {
             LogErr(VB_PLAYLIST, "Invalid branch end time '%s'\n", m_endTime.c_str());
-            WarningHolder::AddWarning(62, "Playlist branch has an invalid end time '" + m_endTime + "'");
+            WarningHolder::AddWarningTimeout(60, 62, "Playlist branch has an invalid end time '" + m_endTime + "'");
         }
     }
 
@@ -151,7 +151,7 @@ int PlaylistEntryBranch::Init(Json::Value& config) {
         // this, so a 0 here is a SIGFPE the first time the branch is reached.
         if (m_iterationCount < 1) {
             LogErr(VB_PLAYLIST, "Invalid branch iteration count %d, using 1\n", m_iterationCount);
-            WarningHolder::AddWarning(62, "Playlist branch has an invalid iteration count");
+            WarningHolder::AddWarningTimeout(60, 62, "Playlist branch has an invalid iteration count");
             m_iterationCount = 1;
         }
     }
@@ -223,7 +223,13 @@ int PlaylistEntryBranch::Process(void) {
         int daySecond = (now.tm_hour * 3600) + (now.tm_min * 60) + now.tm_sec;
 
         if ((m_sDaySecond >= 0) && (m_eDaySecond >= 0)) {
-            if ((daySecond >= m_sDaySecond) && (daySecond < m_eDaySecond))
+            if (m_sDaySecond > m_eDaySecond) {
+                // The window runs past midnight, e.g. 22:00 to 02:00
+                if ((daySecond >= m_sDaySecond) || (daySecond < m_eDaySecond))
+                    SetNext(1);
+                else
+                    SetNext(0);
+            } else if ((daySecond >= m_sDaySecond) && (daySecond < m_eDaySecond))
                 SetNext(1);
             else
                 SetNext(0);
@@ -232,7 +238,7 @@ int PlaylistEntryBranch::Process(void) {
                 SetNext(1);
             else
                 SetNext(0);
-        } else if (m_sDaySecond >= 0) {
+        } else if (m_eDaySecond >= 0) {
             if (daySecond < m_eDaySecond)
                 SetNext(1);
             else
@@ -240,7 +246,13 @@ int PlaylistEntryBranch::Process(void) {
         } else { // Just compare minutes & seconds
             int hourSecond = (now.tm_min * 60) + now.tm_sec;
 
-            if ((hourSecond >= m_sHourSecond) && (hourSecond < m_eHourSecond))
+            if (m_sHourSecond > m_eHourSecond) {
+                // The window runs past the top of the hour, e.g. :50 to :10
+                if ((hourSecond >= m_sHourSecond) || (hourSecond < m_eHourSecond))
+                    SetNext(1);
+                else
+                    SetNext(0);
+            } else if ((hourSecond >= m_sHourSecond) && (hourSecond < m_eHourSecond))
                 SetNext(1);
             else
                 SetNext(0);

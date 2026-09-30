@@ -1,4 +1,10 @@
 <?php
+// Command line only (generate_crash_report); never served as a page
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 //stop settings javascript output in results
 $skipJSsettings =1;
 
@@ -33,6 +39,23 @@ $troubleshootingCommandsLoaded = 0;
 LoadTroubleShootingCommands();
 $target_platforms = array('all', $settings['Platform']);
 
+// --manual-crash-report: output is going into a crash report.  A command's
+// "manualCrashReportCmd" in troubleshoot-commands.json runs instead where it has
+// one.  A command marked "pii" prints free-form text the crash report's redactor
+// cannot clean (SSIDs, command lines), so without one it is left out.
+$crashReport = isset($argv) && in_array('--manual-crash-report', $argv, true);
+if ($crashReport) {
+    // generate_crash_report runs from media/, and the Git commands need the repo
+    chdir(__DIR__);
+}
+// No timeout on macOS without coreutils: run commands unlimited there
+$timeoutCmd = trim((string)shell_exec('command -v timeout 2>/dev/null'));
+
+// Already root from a crash report: sudo would log each command to fppd's journal
+if (function_exists('posix_geteuid') && posix_geteuid() == 0) {
+    $SUDO = "";
+}
+
 
 echo "Troubleshooting Commands:\n";
 
@@ -52,6 +75,14 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
             $commandTitle = $commandID["title"];
             $commandCmd = $commandID["cmd"];
             $commandDesc = $commandID["description"];
+            $omit = false;
+            if ($crashReport) {
+                if (!empty($commandID["manualCrashReportCmd"])) {
+                    $commandCmd = $commandID["manualCrashReportCmd"];
+                } else if (!empty($commandID["pii"])) {
+                    $omit = true;
+                }
+            }
 
             // Execute command directly instead of making HTTP request
             // Substitute PHP variables denoted by [[ variable name (without $) ]]
@@ -60,13 +91,23 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
                 $commandCmd = str_replace('[[' . $value . ']]', ${$value}, $commandCmd);
             }
             
-            exec($SUDO . ' ' . "/bin/sh -c '" . $commandCmd . "' 2>&1 | fold -w 160 -s", $output, $return_val);
-            if ($return_val == 0) {
-                $results = implode("\n", $output) . "\n";
+            if ($omit) {
+                $results = "** omitted from crash report (pii) **\n";
             } else {
-                $results = "Failed to return valid result\n";
+                // A hung command costs 20s, not the whole report.  Not wrapped:
+                // the redactor needs a secret and its key on one line.
+                $started = microtime(true);
+                exec($SUDO . ' ' . ($timeoutCmd !== '' ? "$timeoutCmd -k 2 20 " : '') . "/bin/sh -c '" . $commandCmd . "' 2>&1", $output, $return_val);
+                $results = $output ? implode("\n", $output) . "\n" : "";
+                // 124/137 from a command's own timeout (e.g. timeout 3 pw-cli) is
+                // just an exit status
+                if (($return_val == 124 || $return_val == 137) && microtime(true) - $started >= 20) {
+                    $results .= "** timed out after 20s **\n";
+                } else if ($return_val != 0) {
+                    $results .= "(exit $return_val)\n";
+                }
+                unset($output);
             }
-            unset($output);
 
     echo "Title  : $commandTitle\n";
     echo "Command: $commandCmd\n";

@@ -1315,7 +1315,9 @@ section_alsa() {
                          cmd=$(ps -o comm= -p "${pid}" 2>/dev/null)
                          case "${cmd}" in
                              pipewire|wireplumber|pipewire-pulse|systemd|"") ;;
-                             *) echo "${pid} ${cmd} -- $(ps -o args= -p "${pid}" 2>/dev/null | cut -c1-70)" ;;
+                             # No command line in a crash report: it can name the user's files
+                             *) if [ -n "${FPP_CRASH_REPORT}" ]; then echo "${pid} ${cmd}"
+                                else echo "${pid} ${cmd} -- $(ps -o args= -p "${pid}" 2>/dev/null | cut -c1-70)"; fi ;;
                          esac
                      done)
             if [ -n "${others}" ]; then

@@ -31,6 +31,8 @@
 
 std::atomic_int KMSFrameBuffer::FRAMEBUFFER_COUNT(0);
 std::vector<CardInfo*> KMSFrameBuffer::CARDS;
+std::map<uint32_t, KMSFrameBuffer*> KMSFrameBuffer::FLIP_TARGETS;
+uint32_t KMSFrameBuffer::NEXT_FLIP_TOKEN = 0;
 
 std::string KMSFrameBuffer::ConnectorFullName(int fd, drmModeConnectorPtr conn) {
     const char* typeName = drmModeGetConnectorTypeName(conn->connector_type);
@@ -201,6 +203,10 @@ KMSFrameBuffer::KMSFrameBuffer() {
         }
     }
     ++FRAMEBUFFER_COUNT;
+
+    std::unique_lock<std::mutex> lock(mediaOutputLock);
+    m_flipToken = ++NEXT_FLIP_TOKEN;
+    FLIP_TARGETS[m_flipToken] = this;
 }
 
 KMSFrameBuffer::~KMSFrameBuffer() {
@@ -210,15 +216,25 @@ KMSFrameBuffer::~KMSFrameBuffer() {
     // demoted and the card fds below may be closed.
     StopDrawLoop();
 
-    if (m_displayEnabled && m_crtcId && m_planeId) {
-        LogInfo(VB_CHANNELOUT, "KMSFrameBuffer::~KMSFrameBuffer() disabling display before destruction\n");
+    {
         std::unique_lock<std::mutex> lock(mediaOutputLock);
-        int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
-        if (im == 0) {
-            drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, m_fb[m_cPage].fb_id, 0,
-                            0, 0, 0, 0, 0, 0, 0, 0);
-            m_displayEnabled = false;
-            ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
+        // Retire our last flip while this object can still take its event.
+        // Past this point one that is still queued is dropped by token.
+        if (m_flipPending) {
+            int vr = m_mode.vrefresh > 0 ? m_mode.vrefresh : 60;
+            WaitForPendingFlip((1000 / vr) + 20);
+        }
+        FLIP_TARGETS.erase(m_flipToken);
+
+        if (m_displayEnabled && m_crtcId && m_planeId) {
+            LogInfo(VB_CHANNELOUT, "KMSFrameBuffer::~KMSFrameBuffer() disabling display before destruction\n");
+            int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
+            if (im == 0) {
+                drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, m_fb[m_cPage].fb_id, 0,
+                                0, 0, 0, 0, 0, 0, 0, 0);
+                m_displayEnabled = false;
+                ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
+            }
         }
     }
 
@@ -518,11 +534,18 @@ void KMSFrameBuffer::SyncLoop() {
 }
 
 void KMSFrameBuffer::PageFlipHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void* data) {
-    // data is the "this" we passed to drmModePageFlip for that specific flip, so
-    // even if we drain an event that belongs to another KMSFrameBuffer sharing the
-    // same card fd, the correct instance's pending flag is cleared.
-    KMSFrameBuffer* self = static_cast<KMSFrameBuffer*>(data);
-    if (self) {
+    // data is the flip token of the instance that queued this flip, so even if
+    // we drain an event that belongs to another KMSFrameBuffer sharing the same
+    // card fd, the correct instance's pending flag is cleared. Runs inside
+    // drmHandleEvent under mediaOutputLock, which also guards FLIP_TARGETS.
+    uint32_t token = (uint32_t)(uintptr_t)data;
+    auto it = FLIP_TARGETS.find(token);
+    if (it == FLIP_TARGETS.end()) {
+        LogWarn(VB_CHANNELOUT, "KMSFrameBuffer: dropped the flip event of a deleted framebuffer (token %u)\n", token);
+        return;
+    }
+    KMSFrameBuffer* self = it->second;
+    {
         self->m_flipPending = false;
         // "frame" is the vblank sequence number at flip completion; track the
         // cadence.  Runs inside drmHandleEvent under mediaOutputLock.
@@ -684,7 +707,7 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
             int ret = -1;
             if (m_displayEnabled) {
                 ret = drmModePageFlip(m_cardFd, m_crtcId, m_fb[m_cPage].fb_id,
-                                      DRM_MODE_PAGE_FLIP_EVENT, this);
+                                      DRM_MODE_PAGE_FLIP_EVENT, (void*)(uintptr_t)m_flipToken);
             }
             if (ret) {
                 if (wasEnabled) {
@@ -705,7 +728,7 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
                                     0, 0, (uint32_t)m_width << 16, (uint32_t)m_height << 16);
                 }
                 ret = drmModePageFlip(m_cardFd, m_crtcId, m_fb[m_cPage].fb_id,
-                                      DRM_MODE_PAGE_FLIP_EVENT, this);
+                                      DRM_MODE_PAGE_FLIP_EVENT, (void*)(uintptr_t)m_flipToken);
             }
             m_flipPending = (ret == 0);
             ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);

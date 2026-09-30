@@ -3,7 +3,7 @@
 
 <h4>Your Playlists (first view)</h4>
 <ul>
-    <li><b>Playlist cards</b> — Each card shows the playlist <b>Name</b>, optional <b>Description</b>, <b>Total Duration</b> (sum of all entries) and <b>Total Items</b> with a breakdown when using the sections below: <code>Lead In: X, Main: Y, Lead Out: Z</code>. Cards with a warning highlight indicate a missing file.</li>
+    <li><b>Playlist cards</b> — Each card shows the playlist <b>Name</b>, optional <b>Description</b>, <b>Total Duration</b> (sum of all entries) and <b>Total Items</b> with a breakdown when using the sections below: <code>Lead In: X, Main: Y, Lead Out: Z</code>. A &#x26a0; on the card title means some entry would fail to play; hover it for the list. It covers missing sequence, media, image and script files; commands that no longer exist or that name a missing playlist, sequence, media file, script, effect or command preset (including commands inside an <b>If</b>); and sub-playlists that are missing, have problems of their own, include themselves, or are nested more than 4 levels deep. Disabled entries, and Multisync commands sent to specific hosts, are not checked. The <b>Remote …</b> commands removed in FPP 10 are converted automatically to the same command with Multisync to that host each time FPP starts.</li>
     <li><b>New Playlist</b> (button, top right) — Opens <b>Add a New Playlist</b> dialog: <b>Playlist Name</b> (required, must be unique), <b>Description</b> (optional), <b>Randomize</b> dropdown (see below), and <b>Global Pause Between Sequences</b> (number, ms, 0–999999). Creates an empty playlist and opens it in the editor.</li>
     <li><b>Click a card</b> — Selects that playlist and opens the editor. The hidden <code>#playlistSelect</code> dropdown tracks the current choice and drives the header title.</li>
 </ul>
@@ -25,7 +25,7 @@
     <li><b>Main Playlist</b> — The repeating body. When <b>Randomize</b> is on or the playlist is set to repeat on the Status page, this section loops.</li>
     <li><b>Lead Out</b> — Plays once at the very end. Drag rows between sections or reorder within a section by dragging the grip handle (touch devices drag via the grip). Double-click a row or click its pencil to edit.</li>
 </ul>
-<p>Each row shows <b>#</b>, <b>Type</b>, <b>Name/Details</b>, <b>Duration</b>, and row actions <b>Edit</b> / <b>Delete</b>. Durations are summed at the bottom of each section and as a grand total.</p>
+<p>Each row shows <b>#</b>, <b>Type</b>, <b>Name/Details</b>, <b>Duration</b>, and row actions <b>Edit</b> / <b>Delete</b>. Durations are summed at the bottom of each section and as a grand total. A row highlighted with &#x26a0; has a problem; hover it to see what. The highlight reflects the last saved version and refreshes when you save.</p>
 
 <h4>Add a Sequence / Entry</h4>
 <p>The large <b>Add a Sequence/Entry</b> button opens <b>New Entry</b> (800 px dialog). Footer offers <b>Add</b> (append), <b>Insert → Before Selection</b> and <b>Insert → After Selection</b>. Inside:</p>
@@ -45,7 +45,7 @@
     <li><b>Playlist</b> — <b>Playlist</b> (from <code>api/playlists</code>) to nest.</li>
     <li><b>FPP Command</b> — <b>Command</b> (from <code>LoadCommandList</code>), then command-specific <b>Args</b> (multisync options are hidden in this view). Each command’s arguments show their own help icons.</li>
     <li><b>Script</b> — <b>Script</b> (from <code>api/scripts</code>), <b>Args</b> (free-form command line), <b>Blocking</b> checkbox (wait for script to finish if checked).</li>
-    <li><b>Branch</b> — <b>Test Condition</b> (Time / Loop Number / MQTT Topic Message), then <b>Start/End Time</b> or <b>Loop Test</b> (<code>iteration</code> → <b>Starting iteration</b> 1–99 + <b>Every</b> N loops) or <b>MQTT Topic</b> + <b>MQTT Message</b>; plus <b>If True</b> / <b>If False</b> branches each offering <b>Do Nothing / Jump to Index / Jump to Offset / Call Playlist</b> with Section and Item fields (Index needs Section + Item number; Offset is -99…99).</li>
+    <li><b>Branch</b> — <b>Test Condition</b> (Time / Loop Number / MQTT Topic Message), then <b>Start/End Time</b> (True from Start up to End; an End earlier than Start runs past midnight, e.g. 22:00 to 02:00) or <b>Loop Test</b> (<code>iteration</code> → <b>Starting iteration</b> 1–99 + <b>Every</b> N loops) or <b>MQTT Topic</b> + <b>MQTT Message</b>; plus <b>If True</b> / <b>If False</b> branches each offering <b>Do Nothing / Jump to Index / Jump to Offset / Call Playlist</b> with Section and Item fields (Index needs Section + Item number; Offset is -99…99).</li>
     <li><b>Dynamic</b> — <b>Source Type</b> (File / Plugin / URL) then <b>File</b> or <b>Plugin</b> + <b>Plugin Host</b> (from <code>api/remotes</code>) + <b>Drain Queue</b> checkbox or <b>URL</b>.</li>
     <li><b>Image</b> — <b>Image</b> file (from <code>images</code> directory), <b>Pixel Overlay Model</b> (from <code>api/models?simple=true</code>).</li>
     <li><b>URL</b> — <b>Method</b> (GET / POST) then <b>URL</b> and, for POST, <b>POST Data</b>.</li>

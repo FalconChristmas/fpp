@@ -1753,6 +1753,18 @@ body.is-loading.show-loading-skeleton #schedulerInfo .labelValue:before {
 	color: var(--bs-danger);
 }
 
+/* Destructive actions (e.g. Delete) look like any other button until
+   hovered, so the warning shows without the button standing out on the page.
+   Applied via data-btn-enabled-class so disabled buttons never pick it up;
+   hover-capable devices only, so a tap doesn't leave the button stuck red. */
+@media (hover: hover) {
+	.buttons.btn-hover-danger:hover {
+		color: var(--bs-white);
+		background-color: var(--bs-danger);
+		border-color: var(--bs-danger);
+	}
+}
+
 .playlistEditorBackButton .fa-grip-horizontal {
 	color: var(--bs-danger);
 }
@@ -1851,7 +1863,8 @@ body.is-loading.show-loading-skeleton #schedulerInfo .labelValue:before {
 .playlistRowWarning {
 	background-color: var(--bs-warning-bg-subtle) !important;
 }
-.playlistEntryWarningIcon {
+.playlistEntryWarningIcon,
+.cmdTmplWarning {
 	color: var(--bs-warning);
 	font-family: 'Font Awesome 5 Free';
 	font-weight: 900;
@@ -5108,4 +5121,15 @@ pre.release-notes-body {
 .crash-disclosure-popover .popover-body {
 	max-height: 40vh;
 	overflow-y: auto;
+}
+
+/* Diagnostic Report wizard (fpp.js): wide enough for a report's file name on
+   one line, and as tall as the window below the top nav (70px + 12px) allows.
+   DoModalDialog puts modal-dialog-scrollable on the .modal itself. */
+.modal-dialog-scrollable.diagnostic-report-dialog {
+	max-height: none;
+}
+.diagnostic-report-dialog .modal-content {
+	max-width: 900px;
+	max-height: calc(100vh - 82px);
 }

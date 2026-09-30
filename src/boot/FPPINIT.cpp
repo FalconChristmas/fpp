@@ -446,6 +446,7 @@ int main(int argc, char* argv[]) {
             printf("FPP - Clearing restart flags\n");
             setRawSetting("restartFlag", "0");
         }
+        migrateRemoteCommands();
         setupChannelOutputs();
         runScripts("preStart", true);
     } else if (action == "bootPost") {

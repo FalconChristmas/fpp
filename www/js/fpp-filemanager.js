@@ -672,9 +672,45 @@ function ButtonHandler (table, button) {
 			);
 		}
 	} else if (button == 'delete') {
-		$('#tbl' + table + ' tr.selectedEntry').each(function () {
-			DeleteFile(table, $(this), $(this).find('td:first').text());
+		var rows = $('#tbl' + table + ' tr.selectedEntry');
+		if (rows.length == 0) {
+			return;
+		}
+		var files = [];
+		rows.each(function () {
+			files.push($(this).find('td:first').text());
 		});
+		var plural = files.length > 1 ? 's' : '';
+		// Capped scroll container (not modal-dialog-scrollable: that class
+		// forces .modal-dialog to full viewport height via fpp.css, making
+		// the dialog huge even for a few files). max-height only caps, so a
+		// short list keeps the dialog small and a long one scrolls in place.
+		var listHtml =
+			'<div class="overflow-auto" style="max-height: 30vh;"><ul class="mb-0">' +
+			files
+				.map(function (f) {
+					return (
+						'<li class="text-break">' +
+						f.replace(/&/g, '&amp;').replace(/</g, '&lt;') +
+						'</li>'
+					);
+				})
+				.join('') +
+			'</ul></div>';
+		DisplayConfirmationDialog(
+			'confirmDeleteFile',
+			'Delete File' + plural,
+			'Are you sure you want to delete the following file' +
+				plural +
+				'? This cannot be undone.' +
+				listHtml,
+			function () {
+				rows.each(function () {
+					DeleteFile(table, $(this), $(this).find('td:first').text());
+				});
+			},
+			'btn-danger'
+		);
 	} else if (button == 'uploadAndDelete') {
 		var crashRows = $('#tbl' + table + ' tr.selectedEntry');
 		if (crashRows.length == 0) {
@@ -708,15 +744,17 @@ function ButtonHandler (table, button) {
 		});
 		var plural = files.length > 1 ? 's' : '';
 		var listHtml =
-			'<ul>' +
+			'<div class="overflow-auto" style="max-height: 30vh;"><ul class="mb-0">' +
 			files
 				.map(function (f) {
 					return (
-						'<li>' + f.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</li>'
+						'<li class="text-break">' +
+						f.replace(/&/g, '&amp;').replace(/</g, '&lt;') +
+						'</li>'
 					);
 				})
 				.join('') +
-			'</ul>';
+			'</ul></div>';
 		DisplayConfirmationDialog(
 			'confirmDeleteConfig',
 			'Delete Configuration File' + plural,
@@ -728,7 +766,8 @@ function ButtonHandler (table, button) {
 				rows.each(function () {
 					DeleteFile(table, $(this), $(this).find('td:first').text());
 				});
-			}
+			},
+			'btn-danger'
 		);
 	} else if (button == 'editScript') {
 		if (selectedCount == 1) {
@@ -964,6 +1003,14 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 	});
 
 	pond.on('processfile', (error, file) => {
+		if (error) {
+			// FilePond has already retried the chunk; the item shows "Error during upload"
+			console.error('Upload failed: ' + file.filename, error);
+			$.jGrowl('Upload of ' + file.filename + ' failed: ' + (error.code ? error.code + ' ' : '') + (error.body || ''), {
+				themeState: 'danger'
+			});
+			return;
+		}
 		console.log('Process file: ' + file.filename);
 		moveFile(file.filename, function () {
 			GetAllFiles();

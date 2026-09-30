@@ -219,6 +219,7 @@ dispatch_get('/playlists', 'playlist_list');
 dispatch_post('/playlists', 'playlist_insert');
 dispatch_get('/playlists/playable', 'playlist_playable');
 dispatch_get('/playlists/validate', 'playlist_list_validate');
+dispatch_post('/validate/commands', 'validate_commands');
 dispatch_get('/playlists/stop', 'playlist_stop');
 dispatch_get('/playlists/pause', 'playlist_pause');
 dispatch_get('/playlists/resume', 'playlist_resume');
@@ -284,7 +285,7 @@ dispatch_get('/sequence/:SequenceName', 'GetSequence');
 dispatch_get('/sequence/:SequenceName/meta', 'GetSequenceMetaData');
 dispatch_get('/sequence/:SequenceName/start/:startSecond', 'GetSequenceStart');
 dispatch_post('/sequence/:SequenceName', 'PostSequence');
-dispatch_delete('/sequence/:SequenceName', 'DeleteSequence');
+dispatch_delete('/sequence/:SequenceName', 'DeleteSequences');
 
 dispatch_post('/schedule/reload', 'ReloadSchedule');
 dispatch_get('/schedule', 'GetSchedule');
