@@ -136,9 +136,13 @@ ServerTokens Prod
     RewriteRule ^(.*)$ /api/index.php?uri=/$1 [NC,L,QSA,B]
 
     # CORS headers
+    # PATCH + Upload-* are the FilePond chunked-upload (TUS-style) requests
+    # from the file manager (api/file/upload, 64MB chunks). Same-origin
+    # browsers don't preflight, but advertise them so a cross-origin PATCH
+    # passes preflight before the chunk is sent.
     Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET,POST,OPTIONS,DELETE,PUT"
-    Header always set Access-Control-Allow-Headers "Content-Type"
+    Header always set Access-Control-Allow-Methods "GET,POST,OPTIONS,DELETE,PUT,PATCH"
+    Header always set Access-Control-Allow-Headers "Content-Type,Upload-Offset,Upload-Length,Upload-Name"
 </Directory>
 
 # SSE (Server-Sent Events) ProxyPass with flushpackets for immediate streaming
