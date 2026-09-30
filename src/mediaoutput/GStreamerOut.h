@@ -136,6 +136,11 @@ private:
     // captures only this token (never `this`), eliminating use-after-free if it
     // is still running when the object is torn down.
     std::shared_ptr<std::atomic<bool>> m_startThreadCancel;
+    // Set while the Start() thread has yet to seek to a non-zero start
+    // position.  The pipeline prerolls at 0 first, and Process() must not
+    // report that 0 as the media position (see Start()).  Shared for the same
+    // reason as m_startThreadCancel.
+    std::shared_ptr<std::atomic<bool>> m_startSeekPending;
     gulong m_appsinkSignalId = 0;            // audio appsink signal handler ID
     gulong m_videoAppsinkSignalId = 0;       // video appsink signal handler ID
 
