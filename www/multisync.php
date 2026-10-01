@@ -385,17 +385,6 @@
             $('#' + rowID + ' > td:nth-child(1)').attr('rowspan', rowSpan);
         }
 
-        function proxyURLsInString(str, ip) {
-            if (!isProxied(ip))
-                return str;
-
-            var re = /(href=['"])([^:]*)\//;
-            if (re.test(str))
-                str = str.replace(re, "$1proxy/" + ip + "/$2/");
-
-            return str;
-        }
-
         function isProxied(ip) {
             return proxies.includes(ip);
         }
@@ -1262,6 +1251,56 @@
         }
 
         /**
+         * A remote's warnings carry markup on purpose (e.g. the crash-report
+         * link), so they can't simply be escaped -- but they come from another
+         * device and must not run script here.  Parse into an inert <template>
+         * and rebuild from an allowlist: text, a few formatting tags, and links.
+         * Relative links are pointed back at the remote (through the proxy when
+         * it is proxied); absolute links must be http(s).  Anything else keeps
+         * only its text.
+         */
+        function msRemoteWarningHtml(ip, raw) {
+            var tpl = document.createElement('template');
+            tpl.innerHTML = String(raw);
+
+            function linkFor(href) {
+                href = href.trim();
+                if (/^https?:\/\//i.test(href)) {
+                    return href;
+                }
+                if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('//')) {
+                    return '';
+                }
+                return wrapUrlWithProxy(ip, '/' + href.replace(/^\/+/, ''));
+            }
+
+            function render(node) {
+                var html = '';
+                node.childNodes.forEach(function (n) {
+                    if (n.nodeType === Node.TEXT_NODE) {
+                        html += msEscape(n.nodeValue);
+                    } else if (n.nodeType === Node.ELEMENT_NODE) {
+                        var tag = n.tagName.toLowerCase();
+                        if (tag === 'script' || tag === 'style') {
+                            // drop entirely rather than showing the code as text
+                        } else if (tag === 'br') {
+                            html += '<br>';
+                        } else if (['b', 'strong', 'i', 'em'].includes(tag)) {
+                            html += '<' + tag + '>' + render(n) + '</' + tag + '>';
+                        } else if (tag === 'a' && n.hasAttribute('href') && linkFor(n.getAttribute('href')) !== '') {
+                            html += "<a href='" + msEscape(linkFor(n.getAttribute('href'))) + "'>" + render(n) + '</a>';
+                        } else {
+                            html += render(n);
+                        }
+                    }
+                });
+                return html;
+            }
+
+            return render(tpl.content);
+        }
+
+        /**
          * fppd now collects the slow-changing detail about every FPP remote
          * itself (see MultiSync::CheckSystemInfoRefreshes) and returns it on
          * each multiSyncSystems entry as `systemInfo`.  Fold the two channel
@@ -1519,15 +1558,7 @@
 
                             var wHTML = "";
                             for (var i = 0; i < data.warnings.length; i++) {
-                                if (isProxied(ip))
-                                    data.warnings[i] = proxyURLsInString(data.warnings[i], ip);
-
-                                let wstr = data.warnings[i];
-                                let idx = wstr.indexOf("href=");
-                                if (idx > 0) {
-                                    wstr = wstr.substr(0, idx + 6) + buildHttpURL(ip, "/") + wstr.substr(idx + 6);
-                                }
-                                wHTML += "<span class='warning-text'>" + wstr + "</span><br>";
+                                wHTML += "<span class='warning-text'>" + msRemoteWarningHtml(ip, data.warnings[i]) + "</span><br>";
                             }
                             $('#' + rowID + '_warningCell').html(wHTML);
                         }
@@ -2003,7 +2034,7 @@
                         "<tr><td>OS:</td><td>" + msEscape(si.OSVersion || '') + "</td></tr>" +
                         "</table>";
                 } else {
-                    versionHtml = data[i].version;
+                    versionHtml = msEscape(data[i].version);
                 }
 
                 var selectboxHtml = '';
