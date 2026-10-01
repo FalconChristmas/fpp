@@ -260,6 +260,140 @@ static void SetGStreamerEnvLocked() {
     }
 }
 
+// videoconvert's I420 kernels, as compiled by ORC 0.4.41 for arm64 (the version
+// Raspberry Pi OS trixie ships), read two bytes past the end of the frame: the
+// chroma load for the last pixels of each row takes 4 bytes where 2 remain.
+// Inside a frame that lands in the next row, harmlessly.  At the end of the
+// last V row it lands past the buffer -- also harmless in system memory, which
+// has slack after it, but a hardware decoder's frames are mmapped V4L2 buffers
+// sized exactly to the image.  When the image needs no alignment padding
+// (1280x384, 640x192, ...) the frame ends on a page boundary and the over-read
+// faults, killing fppd on the first frame of every play.  Reproduced against
+// the stock libraries with a frame placed before an inaccessible page; ORC's C
+// backup code reads the same frame cleanly.
+//
+// So a frame that a videoconvert is going to convert is first copied into
+// system memory with tail padding, which is the slack GStreamer allocates for
+// exactly this kind of SIMD over-read.  Frames already in system memory
+// (software decoders) and converters running in passthrough (the HDMI
+// branches, which hand the decoder's buffers to kmssink untouched) are left
+// alone, so zero-copy playback keeps its zero copy.
+static GstPadProbeReturn CopyDeviceFrameForConvert(GstPad* pad, GstPadProbeInfo* info, gpointer) {
+    GstBuffer* buf = GST_PAD_PROBE_INFO_BUFFER(info);
+    if (!buf) {
+        return GST_PAD_PROBE_OK;
+    }
+    bool systemMemory = true;
+    for (guint i = 0, n = gst_buffer_n_memory(buf); i < n; i++) {
+        if (!gst_memory_is_type(gst_buffer_peek_memory(buf, i), GST_ALLOCATOR_SYSMEM)) {
+            systemMemory = false;
+            break;
+        }
+    }
+    if (systemMemory) {
+        return GST_PAD_PROBE_OK;
+    }
+
+    // Passthrough: identical caps on both sides, so the frame is never read.
+    GstElement* convert = gst_pad_get_parent_element(pad);
+    if (convert) {
+        bool passthrough = false;
+        GstPad* src = gst_element_get_static_pad(convert, "src");
+        GstCaps* inCaps = gst_pad_get_current_caps(pad);
+        GstCaps* outCaps = src ? gst_pad_get_current_caps(src) : nullptr;
+        if (inCaps && outCaps) {
+            passthrough = gst_caps_is_equal(inCaps, outCaps);
+        }
+        if (inCaps) {
+            gst_caps_unref(inCaps);
+        }
+        if (outCaps) {
+            gst_caps_unref(outCaps);
+        }
+        if (src) {
+            gst_object_unref(src);
+        }
+        gst_object_unref(convert);
+        if (passthrough) {
+            return GST_PAD_PROBE_OK;
+        }
+    }
+
+    gsize size = gst_buffer_get_size(buf);
+    GstAllocationParams params;
+    gst_allocation_params_init(&params);
+    params.align = 15;
+    params.padding = 64;
+    GstBuffer* copy = gst_buffer_new_allocate(nullptr, size, &params);
+    if (!copy) {
+        return GST_PAD_PROBE_OK;
+    }
+    GstMapInfo map;
+    if (!gst_buffer_map(copy, &map, GST_MAP_WRITE)) {
+        gst_buffer_unref(copy);
+        return GST_PAD_PROBE_OK;
+    }
+    gst_buffer_extract(buf, 0, map.data, size);
+    gst_buffer_unmap(copy, &map);
+    // Flags, timestamps and metas -- GstVideoMeta in particular, whose plane
+    // offsets and strides are buffer-relative and so stay valid in the copy.
+    gst_buffer_copy_into(copy, buf,
+                         (GstBufferCopyFlags)(GST_BUFFER_COPY_FLAGS | GST_BUFFER_COPY_TIMESTAMPS | GST_BUFFER_COPY_META),
+                         0, -1);
+    gst_buffer_unref(buf);
+    GST_PAD_PROBE_INFO_DATA(info) = copy;
+    return GST_PAD_PROBE_OK;
+}
+
+static void GuardVideoConvert(GstElement* element) {
+    GstElementFactory* factory = gst_element_get_factory(element);
+    if (!factory) {
+        return;
+    }
+    const char* name = gst_plugin_feature_get_name(GST_PLUGIN_FEATURE(factory));
+    if (strcmp(name, "videoconvert") != 0 && strcmp(name, "videoconvertscale") != 0) {
+        return;
+    }
+    GstPad* sink = gst_element_get_static_pad(element, "sink");
+    if (sink) {
+        gst_pad_add_probe(sink, GST_PAD_PROBE_TYPE_BUFFER, CopyDeviceFrameForConvert, nullptr, nullptr);
+        gst_object_unref(sink);
+    }
+}
+
+static void OnDeepElementAdded(GstBin*, GstBin*, GstElement* element, gpointer) {
+    GuardVideoConvert(element);
+}
+
+void GStreamerOutput::GuardVideoConvertInputs(GstElement* pipeline) {
+    if (!pipeline || !GST_IS_BIN(pipeline)) {
+        return;
+    }
+    // Converters added from here on: deferred branches, and the ones
+    // decodebin and friends plug for themselves.
+    g_signal_connect(pipeline, "deep-element-added", G_CALLBACK(OnDeepElementAdded), nullptr);
+    // ...and the ones already there.
+    GstIterator* it = gst_bin_iterate_recurse(GST_BIN(pipeline));
+    GValue item = G_VALUE_INIT;
+    bool done = false;
+    while (!done) {
+        switch (gst_iterator_next(it, &item)) {
+        case GST_ITERATOR_OK:
+            GuardVideoConvert(GST_ELEMENT(g_value_get_object(&item)));
+            g_value_reset(&item);
+            break;
+        case GST_ITERATOR_RESYNC:
+            gst_iterator_resync(it);
+            break;
+        default:
+            done = true;
+            break;
+        }
+    }
+    g_value_unset(&item);
+    gst_iterator_free(it);
+}
+
 void GStreamerOutput::EnsureGStreamerInit() {
     std::lock_guard<std::mutex> lock(s_gstInitMutex);
     if (!gst_is_initialized()) {
@@ -1182,6 +1316,7 @@ int GStreamerOutput::Start(int msTime) {
             g_error_free(error);
             return 0;
         }
+        GuardVideoConvertInputs(m_pipeline);
 
         // Build audio sub-chain: audioconvert ! audioresample ! tee ! ...
         GstElement* audioconvert = gst_element_factory_make("audioconvert", "aconv");
@@ -1360,6 +1495,7 @@ int GStreamerOutput::Start(int msTime) {
             g_error_free(error);
             return 0;
         }
+        GuardVideoConvertInputs(m_pipeline);
 
         // Build audio sub-chain (same as overlay mode)
         GstElement* audioconvert = gst_element_factory_make("audioconvert", "aconv");

@@ -65,6 +65,10 @@ public:
     // background so the first play doesn't pay for it (~1 s on an AM335x, and
     // ~20 s the very first time, when GStreamer builds its plugin registry).
     static void PreloadAsync();
+    // Make every videoconvert in `pipeline` -- including ones added later --
+    // read decoded frames from padded system memory rather than straight out
+    // of a hardware decoder's buffers.  See the comment at the definition.
+    static void GuardVideoConvertInputs(GstElement* pipeline);
 
     // The PipeWire sink a slot's audio is routed to ("" = PipeWire's default).
     static std::string PipeWireSinkNameForSlot(int slot);

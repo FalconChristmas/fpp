@@ -1021,6 +1021,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
         if (error) g_error_free(error);
         return false;
     }
+    GStreamerOutput::GuardVideoConvertInputs(source.pipeline);
     if (error) {
         LogWarn(VB_MEDIAOUT, "VideoInputManager: Pipeline warning for '%s': %s\n",
                 source.name.c_str(), error->message);
@@ -1341,6 +1342,7 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
         if (error) g_error_free(error);
         return false;
     }
+    GStreamerOutput::GuardVideoConvertInputs(source.pipeline);
     if (error) {
         LogWarn(VB_MEDIAOUT, "VideoInputManager: Pipeline warning for '%s': %s\n",
                 source.name.c_str(), error->message);
@@ -1611,6 +1613,7 @@ bool VideoInputManager::GrabSnapshotJPEG(int sourceId, int maxWidth, int timeout
         if (error) g_error_free(error);
         return false;
     }
+    GStreamerOutput::GuardVideoConvertInputs(pipeline);
     if (error) {
         g_error_free(error);
         error = nullptr;
