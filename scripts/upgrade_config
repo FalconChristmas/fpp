@@ -19,24 +19,23 @@ export FPPVERSION
 ########################################################################
 
 if [ -f "${CFGVERSIONFILE}" ]; then
-	CFGVERSION=$(cat "${CFGVERSIONFILE}")
+	CFGVERSION=$(sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' "${CFGVERSIONFILE}")
 else
     CFGVERSION="99999"
 fi
 
-# The version file is root-writable scratch: require plain digits (command
-# substitution already strips trailing newlines) of sane length with no
-# leading zeros -- bash [. -gt parses zero-prefixed numbers as octal, and
-# fixed-width integers anyway, so overlong values would still blow up the
-# compare below (real versions are <1000; the loop only goes to 1000). A
-# corrupt value previously blew up the integer compare on every loop iteration
-# (silent skip of ALL migrations); fail safe instead -- warn loudly and treat
-# as current so nothing runs blind, same outcome minus the error spam. Missing
-# file keeps 99999 (fresh installs ship current config, so nothing to migrate).
+# Surrounding whitespace (including a CRLF from a hand edit) is trimmed above, as
+# changebranch.php's intval(trim()) does. Anything left that isn't 1-6
+# digits is corrupt; the [ -gt ] below already skipped every migration for
+# it (by erroring, or by comparing above 1000), so keep that outcome but say
+# so once. 10# drops leading zeros.
 case "${CFGVERSION}" in
-    ''|*[!0-9]*|0[0-9]*|[0-9][0-9][0-9][0-9][0-9][0-9][0-9]*)
+    ''|*[!0-9]*|[0-9][0-9][0-9][0-9][0-9][0-9][0-9]*)
         echo "WARNING: invalid config version '${CFGVERSION}', skipping config upgrades" >&2
         CFGVERSION="99999"
+        ;;
+    *)
+        CFGVERSION=$((10#${CFGVERSION}))
         ;;
 esac
 
