@@ -233,6 +233,7 @@ private:
     // window and so a removed output cannot leave its warning stuck in the UI.
     uint32_t m_bpOffered = 0;
     uint32_t m_bpDeclined = 0;
+    bool m_bpLastDeclined = false; // previous window declined any frames
     bool m_bpWarned = false;
     std::chrono::steady_clock::time_point m_bpWindowStart{};
     void setFrameRateWarning(bool on);
