@@ -893,7 +893,22 @@ static constexpr int V2FSEQ_HEADER_SIZE = 32;
 static constexpr int V2FSEQ_SPARSE_RANGE_SIZE = 6;
 static constexpr int V2FSEQ_COMPRESSION_BLOCK_SIZE = 8;
 #if !defined(NO_ZLIB) || !defined(NO_ZSTD)
-static int V2FSEQ_OUT_BUFFER_SIZE = 0;                               // will be computed based on memory available
+// Size of the writers' compressed output buffer, chosen from the memory
+// available.  Every writer reads it through here.  It used to be a static that
+// only the ZSTD handler's constructor ever filled in, so a process that wrote a
+// zlib file without having built a ZSTD handler first -- fsequtils merging
+// uncompressed or zlib inputs into zlib output -- got a 0 byte buffer, and
+// deflate(Z_FINISH), unable to make progress, spun forever.
+static int V2OutBufferSize() {
+    static const int size = []() {
+        uint64_t pages = sysconf(_SC_PHYS_PAGES);
+        uint64_t page_size = sysconf(_SC_PAGESIZE);
+        uint64_t total_mem = pages * page_size;
+        // more than 1GB of RAM, use a bit larger buffer
+        return total_mem > (1024 * 1024 * 1024) ? 32 * 1024 * 1024 : 8 * 1024 * 1024;
+    }();
+    return size;
+}
 static constexpr int V2FSEQ_OUT_BUFFER_FLUSH_SIZE = 4 * 1024 * 1024; // 50% full, flush it
 static constexpr int V2FSEQ_OUT_COMPRESSION_BLOCK_SIZE = 64 * 1024;  // 64KB blocks
 #endif
@@ -1190,6 +1205,23 @@ public:
         }
     }
 
+    // Compressed size of `block`: the buffer readQueuedBlock() allocates and
+    // the input length every decoder is given.  They must come from this one
+    // place.  They used to clamp separately -- readQueuedBlock() against
+    // frames x channels in 32 bit arithmetic, which wraps for a big show, the
+    // decoders against the same product in 64 bit or not at all -- and the
+    // decoder read off the end of the buffer whenever they disagreed.  The
+    // product was never a bound on a compressed block anyway: a short,
+    // noisy sequence compresses to more bytes than it has channel data, and
+    // clamping it cut off a valid block.  The header parse bounds the block
+    // table by the file, which is the real limit.
+    uint64_t blockLength(uint32_t block) const {
+        if (block + 1 >= m_file->m_frameOffsets.size()) {
+            return 0;
+        }
+        return m_file->m_frameOffsets[block + 1].second - m_file->m_frameOffsets[block].second;
+    }
+
     // Reads the block at the front of m_blocksToRead into m_blockMap.  Called
     // by the read-ahead thread, and by getBlock() when that thread could not
     // be created.  readerlock is held on entry and on return but is dropped
@@ -1201,30 +1233,23 @@ public:
         if (!data && block < (m_file->m_frameOffsets.size() - 1)) {
             readerlock.unlock();
             uint64_t offset = m_file->m_frameOffsets[block].second;
-            uint64_t size = m_file->m_frameOffsets[block + 1].second - offset;
-            uint64_t max = m_file->getNumFrames() * m_file->getChannelCount();
-            bool problem = false;
-            if (size > max) {
-                size = max;
-                problem = true;
-            }
-            data = (uint8_t*)malloc(size);
-            if (!data || problem) {
-                // this is a serious problem, I need to figure out why this is occuring
-                LogWarn(VB_SEQUENCE, "Serious problem reading sequence data\n");
-                LogWarn(VB_SEQUENCE, "    Block: %d / %d\n", block, m_file->m_frameOffsets.size());
-                LogWarn(VB_SEQUENCE, "    Offset: %" PRIu64 "\n", m_file->m_frameOffsets[block].second);
-                LogWarn(VB_SEQUENCE, "    Offset+1: %" PRIu64 "\n", m_file->m_frameOffsets[block + 1].second);
-                int sz = m_file->m_frameOffsets[block + 1].second - offset;
-                LogWarn(VB_SEQUENCE, "    Size: %d\n", (int)sz);
-                LogWarn(VB_SEQUENCE, "    Max: %d\n", (int)max);
-                for (int x = 0; x < m_file->m_frameOffsets.size(); x++) {
-                    LogWarn(VB_SEQUENCE, "        Block %d:    Frame Index: %d    Offset: %" PRIu64 "\n", x, m_file->m_frameOffsets[x].first,
-                            m_file->m_frameOffsets[x].second);
+            uint64_t size = blockLength(block);
+            // At least one byte, so an empty block still reads as present
+            // rather than as a block getBlock() must keep waiting for.
+            data = (uint8_t*)malloc(size ? size : 1);
+            if (!data) {
+                // Leave the block unread; getBlock() asks for it again.
+                LogWarn(VB_SEQUENCE, "Could not allocate %" PRIu64 " bytes for sequence block %d\n", size, block);
+            } else {
+                seek(offset, SEEK_SET);
+                uint64_t got = read(data, size);
+                if (got < size) {
+                    // Hand the decoder zeros, not whatever malloc returned.
+                    LogErr(VB_SEQUENCE, "Short read of sequence block %d: wanted %" PRIu64 " bytes at %" PRIu64 ", got %" PRIu64 "\n",
+                           block, size, offset, got);
+                    memset(data + got, 0, size - got);
                 }
             }
-            seek(offset, SEEK_SET);
-            read(data, size);
 
             readerlock.lock();
             m_blockMap[block] = data;
@@ -1308,17 +1333,7 @@ public:
         m_dctx(nullptr) {
         m_outBuffer.pos = 0;
 
-        if (V2FSEQ_OUT_BUFFER_SIZE == 0) {
-            V2FSEQ_OUT_BUFFER_SIZE = 8 * 1024 * 1024; // 8MB output buffer
-            uint64_t pages = sysconf(_SC_PHYS_PAGES);
-            uint64_t page_size = sysconf(_SC_PAGESIZE);
-            uint64_t total_mem = pages * page_size;
-            if (total_mem > (1024 * 1024 * 1024)) {
-                // more than 1GB of RAM, use a bit larger buffer
-                V2FSEQ_OUT_BUFFER_SIZE = 32 * 1024 * 1024;
-            }
-        }
-        m_outBuffer.size = V2FSEQ_OUT_BUFFER_SIZE;
+        m_outBuffer.size = V2OutBufferSize();
         m_outBuffer.dst = malloc(m_outBuffer.size);
         m_outBufferCapacity = m_outBuffer.dst ? m_outBuffer.size : 0;
         m_inBuffer.src = nullptr;
@@ -1413,7 +1428,7 @@ public:
             if (end > start && (end - start) > maxFramesPerBlock) {
                 maxFramesPerBlock = end - start;
             }
-            uint64_t comp = m_file->m_frameOffsets[i + 1].second - m_file->m_frameOffsets[i].second;
+            uint64_t comp = blockLength(i);
             if (comp > maxCompBytes) {
                 maxCompBytes = comp;
             }
@@ -1523,7 +1538,7 @@ public:
         }
 
         uint64_t offset = m_file->m_frameOffsets[block].second;
-        uint64_t len = m_file->m_frameOffsets[block + 1].second - offset;
+        uint64_t len = blockLength(block);
         s.comp.resize(len);
         seek(offset, SEEK_SET);
         uint64_t bread = read(s.comp.data(), len);
@@ -1644,14 +1659,8 @@ public:
             }
             ZSTD_initDStream(m_dctx);
 
-            uint64_t len = m_file->m_frameOffsets[m_curBlock + 1].second;
-            len -= m_file->m_frameOffsets[m_curBlock].second;
-            uint64_t max = (uint64_t)m_file->getNumFrames() * m_file->getChannelCount();
-            if (len > max) {
-                len = max;
-            }
             m_inBuffer.pos = 0;
-            m_inBuffer.size = len;
+            m_inBuffer.size = blockLength(m_curBlock);
 
             m_inBuffer.src = getBlock(m_curBlock);
 
@@ -1692,8 +1701,21 @@ public:
         uint32_t frameInBlock = frame - blockStart;
         if (frameInBlock >= m_curFrameInBlock) {
             m_outBuffer.size = frameEnd;
-            ZSTD_decompressStream(m_dctx, &m_outBuffer, &m_inBuffer);
-            m_curFrameInBlock = frameInBlock + 1;
+            size_t zr = ZSTD_decompressStream(m_dctx, &m_outBuffer, &m_inBuffer);
+            if (ZSTD_isError(zr)) {
+                // The stream is unusable after an error (zstd.h), so don't feed
+                // it again: blank the rest of the block and treat every frame
+                // in it as decoded.  The next block re-initializes the stream.
+                LogErr(VB_SEQUENCE, "Corrupt compressed data in sequence block %d at frame %d: %s\n",
+                       (int)m_curBlock, (int)frame, ZSTD_getErrorName(zr));
+                uint64_t blockBytes = (uint64_t)m_framesPerBlock * m_file->getChannelCount();
+                if (m_outBuffer.pos < blockBytes) {
+                    memset((uint8_t*)m_outBuffer.dst + m_outBuffer.pos, 0, blockBytes - m_outBuffer.pos);
+                }
+                m_curFrameInBlock = m_framesPerBlock;
+            } else {
+                m_curFrameInBlock = frameInBlock + 1;
+            }
         }
 
         uint64_t fidx = (uint64_t)frameInBlock * m_file->getChannelCount();
@@ -1869,8 +1891,7 @@ public:
             // frame is not in the current block
             m_curBlock = findBlockForFrame(frame);
 
-            uint64_t len = m_file->m_frameOffsets[m_curBlock + 1].second;
-            len -= m_file->m_frameOffsets[m_curBlock].second;
+            uint64_t len = blockLength(m_curBlock);
             m_inBuffer = getBlock(m_curBlock);
 
             if (m_curBlock < m_file->m_frameOffsets.size() - 2) {
@@ -1935,7 +1956,7 @@ public:
     }
     virtual void addFrame(uint32_t frame, const uint8_t* data) override {
         if (m_outBuffer == nullptr) {
-            m_outBuffer = (uint8_t*)malloc(V2FSEQ_OUT_BUFFER_SIZE);
+            m_outBuffer = (uint8_t*)malloc(V2OutBufferSize());
         }
         if (m_stream == nullptr) {
             m_stream = (z_stream*)calloc(1, sizeof(z_stream));
@@ -1953,7 +1974,7 @@ public:
             }
             deflateInit(m_stream, clevel);
             m_stream->next_out = m_outBuffer;
-            m_stream->avail_out = V2FSEQ_OUT_BUFFER_SIZE;
+            m_stream->avail_out = V2OutBufferSize();
         }
 
         uint8_t* curData = (uint8_t*)data;
@@ -1968,31 +1989,36 @@ public:
                 deflate(m_stream, 0);
             }
         }
-        if (m_stream->avail_out < (V2FSEQ_OUT_BUFFER_SIZE - V2FSEQ_OUT_BUFFER_FLUSH_SIZE)) {
+        if (m_stream->avail_out < (V2OutBufferSize() - V2FSEQ_OUT_BUFFER_FLUSH_SIZE)) {
             // buffer is getting full, better flush it
-            uint64_t sz = V2FSEQ_OUT_BUFFER_SIZE;
+            uint64_t sz = V2OutBufferSize();
             sz -= m_stream->avail_out;
             write(m_outBuffer, sz);
             m_stream->next_out = m_outBuffer;
-            m_stream->avail_out = V2FSEQ_OUT_BUFFER_SIZE;
+            m_stream->avail_out = V2OutBufferSize();
         }
         m_curFrameInBlock++;
         // if we hit the max per block OR we're in the first block and hit frame #10
         // we'll start a new block.  We want the first block to be small so startup is
         // quicker and we can get the first few frames as fast as possible.
         if ((m_curBlock == 0 && m_curFrameInBlock == 10) || (m_curFrameInBlock == m_framesPerBlock && m_file->m_frameOffsets.size() < m_maxBlocks)) {
-            while (deflate(m_stream, Z_FINISH) != Z_STREAM_END) {
-                uint64_t sz = V2FSEQ_OUT_BUFFER_SIZE;
+            int zr;
+            while ((zr = deflate(m_stream, Z_FINISH)) != Z_STREAM_END) {
+                if (zr != Z_OK) {
+                    LogErr(VB_SEQUENCE, "zlib could not finish sequence block %d: %d\n", (int)m_curBlock, zr);
+                    break;
+                }
+                uint64_t sz = V2OutBufferSize();
                 sz -= m_stream->avail_out;
                 write(m_outBuffer, sz);
                 m_stream->next_out = m_outBuffer;
-                m_stream->avail_out = V2FSEQ_OUT_BUFFER_SIZE;
+                m_stream->avail_out = V2OutBufferSize();
             }
-            uint64_t sz = V2FSEQ_OUT_BUFFER_SIZE;
+            uint64_t sz = V2OutBufferSize();
             sz -= m_stream->avail_out;
             write(m_outBuffer, sz);
             m_stream->next_out = m_outBuffer;
-            m_stream->avail_out = V2FSEQ_OUT_BUFFER_SIZE;
+            m_stream->avail_out = V2OutBufferSize();
 
             m_curFrameInBlock = 0;
             m_curBlock++;
@@ -2000,18 +2026,23 @@ public:
     }
     virtual void finalize() override {
         if (m_curFrameInBlock) {
-            while (deflate(m_stream, Z_FINISH) != Z_STREAM_END) {
-                uint64_t sz = V2FSEQ_OUT_BUFFER_SIZE;
+            int zr;
+            while ((zr = deflate(m_stream, Z_FINISH)) != Z_STREAM_END) {
+                if (zr != Z_OK) {
+                    LogErr(VB_SEQUENCE, "zlib could not finish sequence block %d: %d\n", (int)m_curBlock, zr);
+                    break;
+                }
+                uint64_t sz = V2OutBufferSize();
                 sz -= m_stream->avail_out;
                 write(m_outBuffer, sz);
                 m_stream->next_out = m_outBuffer;
-                m_stream->avail_out = V2FSEQ_OUT_BUFFER_SIZE;
+                m_stream->avail_out = V2OutBufferSize();
             }
-            uint64_t sz = V2FSEQ_OUT_BUFFER_SIZE;
+            uint64_t sz = V2OutBufferSize();
             sz -= m_stream->avail_out;
             write(m_outBuffer, sz);
             m_stream->next_out = m_outBuffer;
-            m_stream->avail_out = V2FSEQ_OUT_BUFFER_SIZE;
+            m_stream->avail_out = V2OutBufferSize();
 
             m_curFrameInBlock = 0;
             m_curBlock++;
@@ -2345,6 +2376,24 @@ V2FSEQFile::V2FSEQFile(const std::string& fn, FILE* file, const std::vector<uint
         // fall back to the file size so the last block still covers the data.
         if (!haveBlocks || chanDataEnd > m_seqFileSize || chanDataEnd <= m_seqChanDataOffset) {
             chanDataEnd = m_seqFileSize;
+        }
+        // Every reader takes a block's length as the next block's offset minus
+        // its own, so no block may start past the end of the data.  A table
+        // claiming more bytes than the file holds -- truncated file, corrupt
+        // table -- otherwise leaves the later blocks past chanDataEnd and their
+        // lengths underflow to nearly 2^64.  Clamp here, where the table is
+        // built, so the offsets are non-decreasing and bounded by the file for
+        // every reader.
+        bool clamped = false;
+        for (auto& fo : m_frameOffsets) {
+            if (fo.second > chanDataEnd) {
+                fo.second = chanDataEnd;
+                clamped = true;
+            }
+        }
+        if (clamped) {
+            LogErr(VB_SEQUENCE, "FSEQ block table runs past the end of the channel data (%" PRIu64 " bytes).  File is truncated or corrupt.\n",
+                   chanDataEnd);
         }
         m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(getNumFrames() + 2, chanDataEnd));
 
