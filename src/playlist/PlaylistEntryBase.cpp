@@ -121,6 +121,12 @@ int PlaylistEntryBase::StartPlaying(void) {
     return 1;
 }
 
+void PlaylistEntryBase::ResetPlayState(void) {
+    m_isStarted = 0;
+    m_isPlaying = 0;
+    m_isFinished = 0;
+}
+
 /*
  *
  */

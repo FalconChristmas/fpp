@@ -26,6 +26,12 @@ public:
     virtual int Init(Json::Value& config);
 
     virtual int StartPlaying(void);
+    // Back to "not started" for an entry that is about to be played again
+    // but will be started later than its parent (see PlaylistEntryBoth).
+    // FinishPlay() leaves the entry started and finished, and only
+    // StartPlaying() clears that, so without this a repeating playlist's
+    // second pass sees the first pass's state.
+    void ResetPlayState(void);
     virtual int IsStarted(void);
     virtual int IsPlaying(void);
     virtual int IsFinished(void);

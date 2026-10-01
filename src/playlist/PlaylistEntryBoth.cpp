@@ -94,6 +94,14 @@ int PlaylistEntryBoth::StartPlaying(void) {
         return 0;
     }
 
+    // The sequence may start later than this (held until the media is
+    // audible, or after a media offset), and Process() acts on whether it is
+    // started or finished.  On a repeating playlist's next pass it still
+    // carries the last pass's "started and finished" -- which ended the entry
+    // at once, so a repeating playlist ran through every entry in a fraction
+    // of a second at the wrap and never played again.
+    m_sequenceEntry->ResetPlayState();
+
     if (m_mediaEntry && !m_mediaEntry->PreparePlay()) {
         delete m_mediaEntry;
         m_mediaEntry = nullptr;
