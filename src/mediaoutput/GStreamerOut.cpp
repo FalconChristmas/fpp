@@ -2006,12 +2006,14 @@ int GStreamerOutput::Start(int msTime) {
         // sets the token so a fast stop aborts the ramp/attach early.
         m_startThreadCancel = std::make_shared<std::atomic<bool>>(false);
         std::shared_ptr<std::atomic<bool>> cancel = m_startThreadCancel;
+        m_startSeekPending = std::make_shared<std::atomic<bool>>(seekMs > 0);
+        std::shared_ptr<std::atomic<bool>> seekPending = m_startSeekPending;
         GstElement* pipeline = m_pipeline;
         gst_object_ref(pipeline);
         GstElement* volume = m_volume ? GST_ELEMENT(gst_object_ref(m_volume)) : nullptr;
         // A per-slot singleton that is never freed, so safe to capture.
         PipeWireOutputStream* pwStream = m_pwStream;
-        std::thread([pipeline, volume, cancel, seekMs, videoPW, targetVolume,
+        std::thread([pipeline, volume, cancel, seekPending, seekMs, videoPW, targetVolume,
                      streamSlot, hdmiConnectorId, kmsPaces, directConnectorIds, pwStream]() {
             // Releases our owning refs on exit no matter which path we return on.
             struct RefGuard {
@@ -2022,6 +2024,36 @@ int GStreamerOutput::Start(int msTime) {
                     gst_object_unref(pipeline);
                 }
             } refGuard{pipeline, volume};
+
+            // Starting part-way in (a playlist entry resuming after Insert
+            // Playlist Immediate) needs the seek to land before playback
+            // starts.  A seek sent while the PLAYING transition is still
+            // ASYNC is dropped: it travels upstream from the sinks, and the
+            // audio chain is not linked to decodebin until its pad-added
+            // fires, so gst_element_seek_simple() returns FALSE.  The media
+            // then played from 0 while the sequence resumed at the paused
+            // frame, and the channel output servo, seeing the lights minutes
+            // ahead of the audio, slowed output to a standstill until the
+            // audio caught up.  Preroll in PAUSED (decodebin is linked by
+            // then), seek, and only then go to PLAYING.
+            if (seekMs > 0) {
+                LogWarn(VB_MEDIAOUT, "GStreamer: Prerolling to start at %dms...\n", seekMs);
+                GstStateChangeReturn pret = gst_element_set_state(pipeline, GST_STATE_PAUSED);
+                if (pret != GST_STATE_CHANGE_FAILURE) {
+                    gst_element_get_state(pipeline, nullptr, nullptr,
+                                          (GstClockTime)PREROLL_TIMEOUT_MS * GST_MSECOND);
+                }
+                if (cancel->load()) {
+                    seekPending->store(false);
+                    return;
+                }
+                if (!gst_element_seek_simple(pipeline, GST_FORMAT_TIME,
+                                             (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
+                                             (gint64)seekMs * GST_MSECOND)) {
+                    LogWarn(VB_MEDIAOUT, "GStreamer: seek to %dms failed, media will play from the start\n", seekMs);
+                }
+                seekPending->store(false);
+            }
 
             if (pwStream) {
                 // Preroll (decoder start-up) while the output stream comes up.
@@ -2057,13 +2089,6 @@ int GStreamerOutput::Start(int msTime) {
                 LogErr(VB_MEDIAOUT, "Failed to set GStreamer pipeline to PLAYING\n");
                 WarningHolder::AddWarningTimeout(60, 30, "Could not start media playback (pipeline failed to start)");
                 return;
-            }
-
-            // If starting at a non-zero position, seek after state change
-            if (seekMs > 0) {
-                gst_element_seek_simple(pipeline, GST_FORMAT_TIME,
-                                        (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
-                                        (gint64)seekMs * GST_MSECOND);
             }
 
             // Fade volume from 0 to target over ~50ms to eliminate startup
@@ -2939,6 +2964,11 @@ int GStreamerOutput::Process(void) {
         if (!posSource) posSource = m_pipeline;
         SetMainLoopPhase("GStreamer query position");
         bool havePos = gst_element_query_position(posSource, GST_FORMAT_TIME, &pos);
+        if (havePos && m_startSeekPending && m_startSeekPending->load()) {
+            // Prerolled at 0 and not yet seeked to the start position (see
+            // Start()).  Reporting 0 now would drag the sequence back to it.
+            havePos = false;
+        }
         SetMainLoopPhase("GStreamer query duration");
         bool haveDur = gst_element_query_duration(m_pipeline, GST_FORMAT_TIME, &dur);
         SetMainLoopPhase("GStreamer position post-processing");
