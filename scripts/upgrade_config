@@ -18,27 +18,43 @@ export FPPVERSION
 
 ########################################################################
 
-if [ -f ${CFGVERSIONFILE} ]; then
-	CFGVERSION=$(cat ${CFGVERSIONFILE})
+if [ -f "${CFGVERSIONFILE}" ]; then
+	CFGVERSION=$(cat "${CFGVERSIONFILE}")
 else
     CFGVERSION="99999"
 fi
+
+# The version file is root-writable scratch: require plain digits (command
+# substitution already strips trailing newlines) of sane length with no
+# leading zeros -- bash [. -gt parses zero-prefixed numbers as octal, and
+# fixed-width integers anyway, so overlong values would still blow up the
+# compare below (real versions are <1000; the loop only goes to 1000). A
+# corrupt value previously blew up the integer compare on every loop iteration
+# (silent skip of ALL migrations); fail safe instead -- warn loudly and treat
+# as current so nothing runs blind, same outcome minus the error spam. Missing
+# file keeps 99999 (fresh installs ship current config, so nothing to migrate).
+case "${CFGVERSION}" in
+    ''|*[!0-9]*|0[0-9]*|[0-9][0-9][0-9][0-9][0-9][0-9][0-9]*)
+        echo "WARNING: invalid config version '${CFGVERSION}', skipping config upgrades" >&2
+        CFGVERSION="99999"
+        ;;
+esac
 
 echo "FPP Version: ${FPPVERSION}"
 echo "Config Version: ${CFGVERSION}"
 
 for VERSION in $(seq 1 1000)
 do
-	if [ ${VERSION} -gt ${CFGVERSION} ]
+	if [ "${VERSION}" -gt "${CFGVERSION}" ]
 	then
 		if [ -f "${UPGRADEDIR}/${VERSION}/upgrade.sh" ]
 		then
 			echo "Upgrading config to version ${VERSION}"
-			(cd ${UPGRADEDIR}/${VERSION} && ./upgrade.sh)
+			(cd "${UPGRADEDIR}/${VERSION}" && ./upgrade.sh)
 			if [ $? -eq 0 ]
 			then
                 CFGVERSION=${VERSION}
-                echo ${VERSION} > ${CFGVERSIONFILE}
+                echo ${VERSION} > "${CFGVERSIONFILE}"
                 echo ">>SUCCESS upgraded to config version ${VERSION}"
 			else
                 echo ">>FAILED to update to config version ${VERSION}"
