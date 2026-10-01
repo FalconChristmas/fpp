@@ -1,0 +1,13 @@
+[Unit]
+Description=FPP Retry Deferred Outbound Mail
+Documentation=man:exim(8)
+# FPP does not run the exim daemon: mail is handed to the sendmail binary,
+# which delivers it from the submitting process. This retries whatever that
+# couldn't deliver (e.g. mail sent while the network was down) and lets exim
+# expire frozen messages. The condition is checked by systemd itself, so when
+# the queue is empty -- nearly always -- exim is not even started.
+ConditionDirectoryNotEmpty=/var/spool/exim4/input
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/exim4 -q

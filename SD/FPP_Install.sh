@@ -1572,6 +1572,8 @@ fi
 # adds contention on the boot critical path. Order it after fpp_postnetwork:
 # fppd is also After=fpp_postnetwork, so exim starts in parallel with fppd
 # rather than ahead of it, and by then DNS actually resolves so it comes up fast.
+# (install_fpp_services disables the daemon outright; this only matters if an
+# admin turns it back on.)
 echo "FPP - Deferring exim4 startup until after the network is up"
 mkdir -p /etc/systemd/system/exim4.service.d
 cat > /etc/systemd/system/exim4.service.d/fpp-defer.conf <<EOF
@@ -2382,6 +2384,19 @@ install_fpp_services() {
     # the tree references it; an admin who wants a firewall can enable it, which
     # is what `ufw enable` does anyway.
     systemctl disable ufw.service 2>/dev/null || true
+
+    # exim4: FPP and its plugins only hand mail to the sendmail binary, which
+    # delivers it from the submitting process, so the exim daemon has nothing to
+    # do. It isn't free, though: with no TLS certificate configured it generates
+    # a self-signed RSA cert at startup, and since that cert only lives an hour,
+    # again at the first queue-run wakeup after it expires (every 90 minutes in
+    # practice) -- 5-10s of CPU each time on a single-core board. Its SMTP
+    # listener on 127.0.0.1:25 is unused attack surface as well.
+    # fpp-exim-queue.timer takes over the one useful thing it did, retrying
+    # deferred mail. See also upgrade/148.
+    systemctl disable exim4.service 2>/dev/null || true
+    cp /opt/fpp/etc/systemd/fpp-exim-queue.timer /lib/systemd/system/
+    systemctl enable fpp-exim-queue.timer
     systemctl daemon-reload
 
     local svc

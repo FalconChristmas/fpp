@@ -3319,7 +3319,9 @@ function ApplyEmailConfig()
     if (file_exists("/etc/fpp/container")) {
         exec("sudo /etc/init.d/exim4 restart");
     } else {
-        exec("sudo systemctl restart exim4.service");
+        // FPP disables the exim daemon (sendmail delivers on its own), so only
+        // restart it if an admin has it running; restart would start it.
+        exec("sudo systemctl try-restart exim4.service");
     }
 }
 
