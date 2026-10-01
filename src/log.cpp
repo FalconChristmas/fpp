@@ -462,6 +462,18 @@ static void formatLogLines(std::string& out, const char* prefix, const char* msg
     }
 }
 
+// __FILE__ is whatever path the compiler was handed.  A local make passes
+// paths relative to src/ ("non-gpl/BBShiftString/BBShiftString.cpp"), but a
+// distributed compile (nocc) passes an absolute path rooted in the remote
+// cache, e.g. "/var/cache/nocc/cpp/clients/<id>/opt/fpp/src/...", which buries
+// the part that matters.  Trim everything up to and including "/fpp/src/" so
+// both builds log the same name.  Paths without it (plugins) are untouched.
+static const char* logSourceFile(const char* file) {
+    static constexpr char marker[] = "/fpp/src/";
+    const char* s = strstr(file, marker);
+    return s ? s + sizeof(marker) - 1 : file;
+}
+
 void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facility, const char* format, ...) {
     // A line is formatted if it is either being logged normally OR retained in
     // the crash ring -- the ring is the whole point of formatting a line the
@@ -523,7 +535,7 @@ void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facilit
     *p++ = (char)('0' + ms % 10);
     *p++ = ' ';
     snprintf(p, sizeof(prefix) - (p - prefix), "%s(%llu) [%s] %s:%d: ",
-             logProgramName(), tid, facility.name.c_str(), file, line);
+             logProgramName(), tid, facility.name.c_str(), logSourceFile(file), line);
 
     // Render the caller's message first so it can be split on newlines. The
     // stack buffer covers essentially every real log line; the heap path exists
