@@ -85,6 +85,9 @@ static constexpr int PIPELINE_TEARDOWN_TIMEOUT_MS = 10000;
 // Longest a track waits for its slot's PipeWire output stream to reach the
 // card.  A cold open is ~0.6 s on an AM335x.
 static constexpr int PW_STREAM_READY_TIMEOUT_MS = 3000;
+// Longest a track waits for the previous one's leftovers to play out of the
+// stream (normally ~100 ms: the feed's lead plus the tail-flush silence).
+static constexpr int PW_STREAM_DRAIN_MAX_MS = 500;
 static std::atomic<int> s_consecutiveWedgeEvents{ 0 };
 // Ensures the escalation decision (restart vs reboot) is made exactly once
 // per process — additional wedge events racing in while shutdown is already
@@ -2035,6 +2038,10 @@ int GStreamerOutput::Start(int msTime) {
                     LogDebug(VB_MEDIAOUT, "GStreamer: waited %d ms for PipeWire output stream %d\n",
                              (int)(GetTimeMS() - waitStart), streamSlot);
                 }
+                // A track starting right behind another queues behind what
+                // that one left in the stream; start the clock only once it
+                // has played, or the position leads the sound by that much.
+                pwStream->WaitDrained(PW_STREAM_DRAIN_MAX_MS);
                 if (cancel->load()) {
                     return;
                 }

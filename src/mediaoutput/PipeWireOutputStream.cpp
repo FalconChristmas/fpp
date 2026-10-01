@@ -23,6 +23,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <ctime>
 #include <cstdio>
 #include <cstring>
 #include <thread>
@@ -188,6 +189,36 @@ void PipeWireOutputStream::Release(GstElement* feed) {
     WakeWorker();
 }
 
+static int64_t MonoUs() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (int64_t)ts.tv_sec * 1000000LL + ts.tv_nsec / 1000;
+}
+
+void PipeWireOutputStream::NoteQueuedLocked(size_t bytes) {
+    if (m_rate <= 0) {
+        return;
+    }
+    int64_t now = MonoUs();
+    int64_t durUs = (int64_t)(bytes / kBytesPerFrame) * 1000000LL / m_rate;
+    m_queuedUntilUs = std::max(m_queuedUntilUs, now) + durUs;
+}
+
+void PipeWireOutputStream::WaitDrained(int maxMs) {
+    int64_t deadline = MonoUs() + (int64_t)maxMs * 1000;
+    while (true) {
+        int64_t remaining;
+        {
+            std::unique_lock<std::mutex> lock(m_lock);
+            remaining = m_queuedUntilUs - MonoUs();
+        }
+        if (remaining <= 0 || MonoUs() >= deadline) {
+            return;
+        }
+        std::this_thread::sleep_for(std::chrono::microseconds(std::min<int64_t>(remaining, 5000)));
+    }
+}
+
 bool PipeWireOutputStream::WaitReady(int timeoutMs) {
     std::unique_lock<std::mutex> lock(m_lock);
     m_stateChanged.wait_for(lock, std::chrono::milliseconds(timeoutMs), [this] {
@@ -270,6 +301,7 @@ GstFlowReturn PipeWireOutputStream::OnFeedSample(GstElement* appsink, gpointer u
                 GST_BUFFER_PTS(out) = GST_CLOCK_TIME_NONE;
             }
             GST_BUFFER_DTS(out) = GST_CLOCK_TIME_NONE;
+            self->NoteQueuedLocked(gst_buffer_get_size(out));
             src = GST_ELEMENT(gst_object_ref(self->m_src));
         }
     }
@@ -531,6 +563,7 @@ bool PipeWireOutputStream::OpenLocked(std::unique_lock<std::mutex>& lock) {
     gst_caps_unref(fixedCaps);
     m_rate = rate;
     m_warnedCaps = false;
+    m_queuedUntilUs = 0;
     m_target = target;
     m_cardStatusPath = cardStatus;
     m_cardWasRunning = cardWasRunning;
@@ -560,6 +593,7 @@ void PipeWireOutputStream::PushSilenceLocked(int ms) {
     GstClockTime base = gst_element_get_base_time(m_pipeline);
     GST_BUFFER_PTS(buf) = now > base ? now - base : 0;
     GST_BUFFER_DURATION(buf) = gst_util_uint64_scale(frames, GST_SECOND, m_rate);
+    NoteQueuedLocked(frames * kBytesPerFrame);
     gst_app_src_push_buffer(GST_APP_SRC(m_src), buf);
 }
 
@@ -612,6 +646,7 @@ void PipeWireOutputStream::CloseLocked(const char* why) {
     }
     gst_caps_replace(&m_caps, nullptr);
     m_rate = 0;
+    m_queuedUntilUs = 0;
     m_pipeline = nullptr;
     m_src = nullptr;
     m_feed = nullptr;

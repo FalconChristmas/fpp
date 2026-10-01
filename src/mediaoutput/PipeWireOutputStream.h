@@ -82,6 +82,12 @@ public:
 
     // Block until audio fed now will reach the card, or timeoutMs passes.
     bool WaitReady(int timeoutMs);
+    // Block until what earlier feeds (and the silence pushed behind them)
+    // queued has played out, or maxMs passes.  A track that starts right
+    // behind another must not go to PLAYING before then: its position runs
+    // from PLAYING, so audio still queued ahead of it would leave the lights
+    // ahead of the sound for the whole track.
+    void WaitDrained(int maxMs);
 
     // Route `appsink`'s samples into this stream, replacing any previous
     // feed.  Samples from a feed that has since been replaced are dropped, so
@@ -138,6 +144,10 @@ private:
     GstElement* m_pipeline = nullptr;
     GstElement* m_src = nullptr;
     GstCaps* m_caps = nullptr;         // the stream's fixed caps, set at open
+    // When (CLOCK_MONOTONIC, us) everything handed to the stream so far will
+    // have played, assuming the graph takes it at real time once queued.
+    int64_t m_queuedUntilUs = 0;
+    void NoteQueuedLocked(size_t bytes);
     int m_rate = 0;                    // ...and their rate
     bool m_warnedCaps = false;         // logged a feed in the wrong format
     GstElement* m_feed = nullptr;      // appsink currently allowed to feed (no ref held)
