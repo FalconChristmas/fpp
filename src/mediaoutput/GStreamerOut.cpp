@@ -253,21 +253,21 @@ static void SetGStreamerEnvLocked() {
         setenv("PIPEWIRE_RUNTIME_DIR", "/run/pipewire-fpp", 1);
         setenv("XDG_RUNTIME_DIR", "/run/pipewire-fpp", 1);
         setenv("PULSE_RUNTIME_PATH", "/run/pipewire-fpp/pulse", 1);
-        LogWarn(VB_MEDIAOUT, "GStreamer: Set PipeWire env (PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp)\n");
+        LogInfo(VB_MEDIAOUT, "GStreamer: Set PipeWire env (PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp)\n");
     } else {
         std::string mediaBackend = getSetting("MediaBackend");
-        LogWarn(VB_MEDIAOUT, "GStreamer: MediaBackend='%s', not setting PipeWire env\n", mediaBackend.c_str());
+        LogInfo(VB_MEDIAOUT, "GStreamer: MediaBackend='%s', not setting PipeWire env\n", mediaBackend.c_str());
     }
 }
 
 void GStreamerOutput::EnsureGStreamerInit() {
     std::lock_guard<std::mutex> lock(s_gstInitMutex);
     if (!gst_is_initialized()) {
-        LogWarn(VB_MEDIAOUT, "GStreamer: EnsureGStreamerInit() entered\n");
+        LogDebug(VB_MEDIAOUT, "GStreamer: EnsureGStreamerInit() entered\n");
         SetGStreamerEnvLocked();
-        LogWarn(VB_MEDIAOUT, "GStreamer: Calling gst_init()...\n");
+        LogDebug(VB_MEDIAOUT, "GStreamer: Calling gst_init()...\n");
         gst_init(nullptr, nullptr);
-        LogWarn(VB_MEDIAOUT, "GStreamer initialized: %s\n", gst_version_string());
+        LogInfo(VB_MEDIAOUT, "GStreamer initialized: %s\n", gst_version_string());
     }
 }
 
@@ -903,7 +903,7 @@ static void BuildChannelOrderFix(int channels, std::string& extraCaps, std::stri
 
 GStreamerOutput::GStreamerOutput(const std::string& mediaFilename, MediaOutputStatus* status, const std::string& videoOut, int streamSlot)
     : m_videoOut(videoOut), m_streamSlot(streamSlot) {
-    LogWarn(VB_MEDIAOUT, "GStreamer: CTOR enter (%s, videoOut=%s, slot=%d)\n", mediaFilename.c_str(), videoOut.c_str(), streamSlot);
+    LogDebug(VB_MEDIAOUT, "GStreamer: CTOR enter (%s, videoOut=%s, slot=%d)\n", mediaFilename.c_str(), videoOut.c_str(), streamSlot);
     m_mediaFilename = mediaFilename;
     m_mediaOutputStatus = status;
     m_allowSpeedAdjust = (getSettingInt("remoteIgnoreSync") == 0);
@@ -914,7 +914,7 @@ GStreamerOutput::GStreamerOutput(const std::string& mediaFilename, MediaOutputSt
         PipeWireOutputStream::Prewarm(m_streamSlot, PipeWireOutputStream::LINGER_MS);
     }
     EnsureGStreamerInit();
-    LogWarn(VB_MEDIAOUT, "GStreamer: CTOR done (%s)\n", mediaFilename.c_str());
+    LogDebug(VB_MEDIAOUT, "GStreamer: CTOR done (%s)\n", mediaFilename.c_str());
 }
 
 GStreamerOutput::~GStreamerOutput() {
@@ -922,7 +922,7 @@ GStreamerOutput::~GStreamerOutput() {
 }
 
 int GStreamerOutput::Start(int msTime) {
-    LogWarn(VB_MEDIAOUT, "GStreamer: Start(%d) enter - %s\n", msTime, m_mediaFilename.c_str());
+    LogDebug(VB_MEDIAOUT, "GStreamer: Start(%d) enter - %s\n", msTime, m_mediaFilename.c_str());
 
     // Flush PipeWire filter-chain delay ring-buffers EARLY in Start().
     // This runs as a fire-and-forget thread (pw-cli calls take ~200ms+).
@@ -1111,7 +1111,7 @@ int GStreamerOutput::Start(int msTime) {
     // since decodebin creates pads on-the-fly for each stream type.
     // We still use gst_parse_launch for the audio chain and manually add the video chain.
 
-    LogWarn(VB_MEDIAOUT, "GStreamer: Start() building pipeline...");
+    LogDebug(VB_MEDIAOUT, "GStreamer: Start() building pipeline...\n");
 
     bool usePipeWire = usePipeWireBackendLocal;
 
@@ -1129,7 +1129,7 @@ int GStreamerOutput::Start(int msTime) {
     if (usePipeWire) {
         pipelineSinkName = PipeWireSinkNameForSlot(m_streamSlot);
     }
-    LogWarn(VB_MEDIAOUT, "GStreamer: PipeWireSinkName='%s' (slot %d, backend=%s)\n",
+    LogDebug(VB_MEDIAOUT, "GStreamer: PipeWireSinkName='%s' (slot %d, backend=%s)\n",
             pipelineSinkName.c_str(), m_streamSlot, mediaBackend.c_str());
 
     // Log PipeWire group delay for reference (handled natively by PipeWire
@@ -1744,7 +1744,7 @@ int GStreamerOutput::Start(int msTime) {
 
     } else {
         // Audio-only pipeline (original gst_parse_launch approach)
-        LogWarn(VB_MEDIAOUT, "GStreamer: Building audio-only pipeline\n");
+        LogDebug(VB_MEDIAOUT, "GStreamer: Building audio-only pipeline\n");
         // expose-all-streams=false + audio caps makes decodebin discard any
         // video stream instead of auto-plugging a decoder for it.  Without
         // this, playing an mp4 audio-only still spins up the bcm2835 hardware
@@ -1792,11 +1792,11 @@ int GStreamerOutput::Start(int msTime) {
             "audioconvert ! audio/x-raw,format=F32LE,channels=1 ! "
             "appsink name=sampletap emit-signals=true sync=false max-buffers=3 drop=true";
 
-        LogWarn(VB_MEDIAOUT, "GStreamer pipeline: %s\n", pipelineStr.c_str());
+        LogDebug(VB_MEDIAOUT, "GStreamer pipeline: %s\n", pipelineStr.c_str());
 
-        LogWarn(VB_MEDIAOUT, "GStreamer: Calling gst_parse_launch()...\n");
+        LogDebug(VB_MEDIAOUT, "GStreamer: Calling gst_parse_launch()...\n");
         m_pipeline = gst_parse_launch(pipelineStr.c_str(), &error);
-        LogWarn(VB_MEDIAOUT, "GStreamer: gst_parse_launch() returned (pipeline=%p, error=%p)\n", m_pipeline, error);
+        LogDebug(VB_MEDIAOUT, "GStreamer: gst_parse_launch() returned (pipeline=%p, error=%p)\n", m_pipeline, error);
         if (error) {
             LogErr(VB_MEDIAOUT, "GStreamer pipeline error: %s\n", error->message);
             g_error_free(error);
@@ -1912,7 +1912,7 @@ int GStreamerOutput::Start(int msTime) {
     }
 
     // Get the bus for message handling
-    LogWarn(VB_MEDIAOUT, "GStreamer: Getting bus and setting sync handler...\n");
+    LogDebug(VB_MEDIAOUT, "GStreamer: Getting bus and setting sync handler...\n");
     m_bus = gst_element_get_bus(m_pipeline);
 
     // Install sync handler for autonomous bus message processing
@@ -2037,7 +2037,7 @@ int GStreamerOutput::Start(int msTime) {
             // audio caught up.  Preroll in PAUSED (decodebin is linked by
             // then), seek, and only then go to PLAYING.
             if (seekMs > 0) {
-                LogWarn(VB_MEDIAOUT, "GStreamer: Prerolling to start at %dms...\n", seekMs);
+                LogDebug(VB_MEDIAOUT, "GStreamer: Prerolling to start at %dms...\n", seekMs);
                 GstStateChangeReturn pret = gst_element_set_state(pipeline, GST_STATE_PAUSED);
                 if (pret != GST_STATE_CHANGE_FAILURE) {
                     gst_element_get_state(pipeline, nullptr, nullptr,
@@ -2079,9 +2079,9 @@ int GStreamerOutput::Start(int msTime) {
                 }
             }
 
-            LogWarn(VB_MEDIAOUT, "GStreamer: Setting pipeline to PLAYING...\n");
+            LogDebug(VB_MEDIAOUT, "GStreamer: Setting pipeline to PLAYING...\n");
             GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
-            LogWarn(VB_MEDIAOUT, "GStreamer: set_state returned %d\n", ret);
+            LogDebug(VB_MEDIAOUT, "GStreamer: set_state returned %d\n", ret);
             if (ret == GST_STATE_CHANGE_FAILURE) {
                 // Don't touch the (possibly freed) object — failure is reported
                 // to the rest of FPP via the GStreamer bus ERROR message
@@ -3107,7 +3107,7 @@ int GStreamerOutput::Process(void) {
                     remaining += latSec;
                     if (!m_loggedSinkLatency) {
                         m_loggedSinkLatency = true;
-                        LogInfo(VB_MEDIAOUT, "GStreamer: correcting reported position by %.1f ms of audio sink latency\n",
+                        LogDebug(VB_MEDIAOUT, "GStreamer: correcting reported position by %.1f ms of audio sink latency\n",
                                 latSec * 1000.0f);
                     }
                 }

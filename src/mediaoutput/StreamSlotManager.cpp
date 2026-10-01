@@ -88,7 +88,7 @@ void StreamSlotManager::SetActiveOutput(int slot, GStreamerOutput* output) {
 #ifdef HAS_GSTREAMER
     if (output) {
         m_slots[slot - 1].mediaFilename = output->m_mediaFilename;
-        LogInfo(VB_MEDIAOUT, "StreamSlotManager: slot %d active (%s)\n", slot,
+        LogDebug(VB_MEDIAOUT, "StreamSlotManager: slot %d active (%s)\n", slot,
                 output->m_mediaFilename.c_str());
         int saved = savedStreamSlotVolume(slot);
         if (saved >= 0) {
@@ -135,7 +135,7 @@ void StreamSlotManager::ClearSlot(int slot, GStreamerOutput* owner) {
     // gated off, so images never scan out until fppd is restarted.  Use
     // GetStatus(slot) so slot 1's global mediaOutputStatus is the object cleared.
     GetStatus(slot)->output = "";
-    LogInfo(VB_MEDIAOUT, "StreamSlotManager: slot %d cleared\n", slot);
+    LogDebug(VB_MEDIAOUT, "StreamSlotManager: slot %d cleared\n", slot);
 }
 
 std::string StreamSlotManager::GetNodeName(int slot) {
