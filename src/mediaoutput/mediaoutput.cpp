@@ -38,6 +38,7 @@
 #include "Plugins.h"
 #include "Sequence.h"
 #include "GStreamerOut.h"
+#include "PipeWireOutputStream.h"
 #include "StreamSlotManager.h"
 #include "mediadetails.h"
 #include "settings.h"
@@ -190,6 +191,9 @@ void InitMediaOutput(void) {
         CheckAudioOutputCardPresence();
     });
 #endif
+#ifdef HAS_GSTREAMER
+    GStreamerOutput::PreloadAsync();
+#endif
 }
 
 /*
@@ -197,6 +201,15 @@ void InitMediaOutput(void) {
  */
 void CleanupMediaOutput(void) {
     CloseMediaOutput();
+#ifdef HAS_GSTREAMER
+    PipeWireOutputStream::ShutdownAll();
+#endif
+}
+
+void PrewarmMediaOutput(int holdMs) {
+#ifdef HAS_GSTREAMER
+    PipeWireOutputStream::Prewarm(1, holdMs);
+#endif
 }
 
 #ifndef PLATFORM_OSX

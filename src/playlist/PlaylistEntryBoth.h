@@ -54,5 +54,10 @@ private:
     PlaylistEntryMedia* m_mediaEntry;
     PlaylistEntrySequence* m_sequenceEntry;
 
+    // The sequence is held until the media is audible, so the lights don't
+    // run ahead while the audio output starts up.  Process() starts it.
+    bool m_holdingForAudio = false;
+    long long m_holdStartMS = 0;
+
     std::recursive_mutex m_mutex;
 };

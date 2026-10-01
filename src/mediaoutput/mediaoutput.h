@@ -22,6 +22,10 @@ extern MediaOutputStatus mediaOutputStatus;
 
 void InitMediaOutput(void);
 void CleanupMediaOutput(void);
+// Bring the primary audio output up now and keep it up for at least holdMs,
+// so media started within that window doesn't pay its start-up time.  A no-op
+// where the output has nothing to warm (anything but PipeWire).
+void PrewarmMediaOutput(int holdMs);
 
 bool MatchesRunningMediaFilename(const std::string& filename);
 int OpenMediaOutput(const std::string& filename);

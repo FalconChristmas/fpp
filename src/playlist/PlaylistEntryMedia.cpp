@@ -314,6 +314,10 @@ bool PlaylistEntryMedia::HasExtraAtEnd() {
     }
     return result;
 }
+bool PlaylistEntryMedia::IsAudible() {
+    std::lock_guard<std::mutex> lock(m_mediaOutputLock);
+    return !m_mediaOutput || m_mediaOutput->IsAudible();
+}
 int32_t PlaylistEntryMedia::GetMediaOffsetMS() {
     std::lock_guard<std::mutex> lock(m_mediaOutputLock);
     int32_t result = 0;

@@ -23,6 +23,11 @@
 #include "mediadetails.h"
 #include "../MultiSync.h"
 
+// Longest the sequence waits for the media to become audible.  Covers a cold
+// audio output (~0.6 s on an AM335x, a PipeWire output stream gives up at 3 s)
+// with margin; past it the sequence starts and the sync servo takes over.
+static constexpr long long AUDIO_START_HOLD_MS = 4000;
+
 PlaylistEntryBoth::PlaylistEntryBoth(Playlist* playlist, PlaylistEntryBase* parent) :
     PlaylistEntryBase(playlist, parent),
     m_duration(0),
@@ -107,12 +112,15 @@ int PlaylistEntryBoth::StartPlaying(void) {
         }
     }
 
-    if (!m_mediaEntry || m_mediaEntry->GetMediaOffsetMS() <= 0) {
+    // With media, the sequence normally starts from Process() once the media
+    // is audible rather than here.  Starting both together put the lights
+    // ahead of the sound by however long the audio output took to come up --
+    // most of a second on slow boards -- and they only caught up as the sync
+    // servo slowed them, which looks like the first second of audio is missing.
+    m_holdingForAudio = m_mediaEntry && m_mediaEntry->GetMediaOffsetMS() <= 0;
+    if (!m_mediaEntry) {
         if (!m_sequenceEntry->StartPlaying()) {
             LogDebug(VB_PLAYLIST, "Could not start sequence: %s\n", m_sequenceEntry->GetSequenceName().c_str());
-            if (m_mediaEntry) {
-                m_mediaEntry->Stop();
-            }
             FinishPlay();
             return 0;
         }
@@ -121,10 +129,12 @@ int PlaylistEntryBoth::StartPlaying(void) {
         LogDebug(VB_PLAYLIST, "Could not start media: %s\n", m_mediaName.c_str());
         delete m_mediaEntry;
         m_mediaEntry = nullptr;
+        m_holdingForAudio = false;
         m_sequenceEntry->Stop();
         FinishPlay();
         return 0;
     }
+    m_holdStartMS = GetTimeMS();
 
     return PlaylistEntryBase::StartPlaying();
 }
@@ -138,6 +148,26 @@ int PlaylistEntryBoth::Process(void) {
 
     if (m_mediaEntry)
         m_mediaEntry->Process();
+
+    if (m_holdingForAudio && m_mediaEntry) {
+        long long held = GetTimeMS() - m_holdStartMS;
+        if (m_mediaEntry->IsAudible() || held >= AUDIO_START_HOLD_MS) {
+            m_holdingForAudio = false;
+            if (held >= AUDIO_START_HOLD_MS) {
+                LogWarn(VB_PLAYLIST, "No sound from %s after %lld ms, starting sequence %s anyway\n",
+                        m_mediaName.c_str(), held, m_sequenceEntry->GetSequenceName().c_str());
+            } else {
+                LogDebug(VB_PLAYLIST, "Media audible after %lld ms, starting sequence %s\n",
+                         held, m_sequenceEntry->GetSequenceName().c_str());
+            }
+            if (!m_sequenceEntry->StartPlaying()) {
+                LogDebug(VB_PLAYLIST, "Could not start sequence: %s\n", m_sequenceEntry->GetSequenceName().c_str());
+                m_mediaEntry->Stop();
+                FinishPlay();
+                return PlaylistEntryBase::Process();
+            }
+        }
+    }
 
     if (m_mediaEntry && m_mediaEntry->GetMediaOffsetMS() > 0) {
         long long ct = GetTimeMS();
@@ -176,6 +206,7 @@ int PlaylistEntryBoth::Process(void) {
 int PlaylistEntryBoth::Stop(void) {
     LogDebug(VB_PLAYLIST, "PlaylistEntryBoth::Stop()\n");
     std::unique_lock<std::recursive_mutex> seqLock(m_mutex);
+    m_holdingForAudio = false;
 
     if (m_mediaEntry)
         m_mediaEntry->Stop();

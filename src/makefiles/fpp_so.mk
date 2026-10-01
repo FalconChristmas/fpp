@@ -75,6 +75,7 @@ OBJECTS_fpp_so += \
 	mediaoutput/OpusRTPManager.o \
 	mediaoutput/RTSPOutputManager.o \
 	mediaoutput/PipeWireGraphConfig.o \
+	mediaoutput/PipeWireOutputStream.o \
 	mediaoutput/GStreamerOut.o \
 	mediaoutput/StreamSlotManager.o \
 	mediaoutput/V4L2Device.o \
