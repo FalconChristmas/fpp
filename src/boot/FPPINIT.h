@@ -91,6 +91,7 @@ void installKiosk();
 void checkInstallPackages();
 void checkConfigMigrations();
 void migrateRemoteCommands();
+void migrateLegacyFppMode();
 void startZRAMSwap();
 void startDiskSwap();
 void setupChannelOutputs();

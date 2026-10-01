@@ -1163,6 +1163,22 @@ static int convertRemoteCommands(Json::Value& v) {
     return count;
 }
 
+// "master" mode was folded into Player in FPP 5.0 (sending sync packets became
+// the MultiSyncEnabled setting).  The loaders in settings.cpp and config.php still
+// map a stored fppMode=master to player in memory, but never write it back, so the
+// settings file kept the old value indefinitely -- invisible to the UI and API
+// (both report the mapped value), but visible to backup/restore and anything
+// reading the file directly.  Write the same mapping back once.  Runs before
+// every fppd start; idempotent, since it only acts while fppMode is "master".
+void migrateLegacyFppMode() {
+    std::string mode;
+    if (getRawSetting("fppMode", mode) && mode == "master") {
+        printf("FPP - Converting legacy fppMode=master to player with MultiSync enabled\n");
+        setRawSetting("fppMode", "player");
+        setRawSetting("MultiSyncEnabled", "1");
+    }
+}
+
 // Runs before every fppd start, so fppd never loads one of the removed
 // commands, whether the file came from an older install, a restore, or a copy
 // from another player.  Idempotent: a file is only parsed if it mentions a
