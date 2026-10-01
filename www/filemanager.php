@@ -369,7 +369,7 @@
                                             class="disableButtons noDirButton singleVideosButton" type="button"
                                             value="Video Info" />
                                         <input onclick="ButtonHandler('Videos', 'addToPlaylist');"
-                                            class="disableButtons noDirButton singleMusicButton multiMusicButton"
+                                            class="disableButtons noDirButton singleVideosButton multiVideosButton"
                                             type="button" value="Add To Playlist" />
                                         <input onclick="ButtonHandler('Videos', 'download');"
                                             class="disableButtons noDirButton singleVideosButton multiVideosButton"
