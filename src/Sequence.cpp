@@ -302,8 +302,11 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
         filename.find("..") != std::string::npos ||
         filename.find('\0') != std::string::npos) {
         LogErr(VB_SEQUENCE, "Invalid Sequence Filename '%s'\n", filename.c_str());
+        // The missing-sequence warning state is guarded by m_sequenceLock.
+        // Leave m_seqStarting alone: a sequence that is open but not yet
+        // started must not be flipped to "running" by a rejected request.
+        std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
         SetMissingSequenceWarning(filename, "Invalid sequence filename " + filename + "\n");
-        m_seqStarting = 0;
         return 0;
     }
 
