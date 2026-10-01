@@ -2221,6 +2221,30 @@ static void runAudioSetup(bool recoveryPass) {
                selCid.c_str());
         simpleConfigStale = true;
     }
+    // The selected card's filter-chain has to play into fpp_alsa_<card> once FPP
+    // owns the card, and nothing above checks where it actually points.
+    //
+    // A card selected while WirePlumber still served it (hot-plugged after boot,
+    // so not yet in 95) is resolved by the PHP apply to WirePlumber's
+    // alsa_output.* node -- correct at that moment.  The next run here adds the
+    // card to 95 and disables its WirePlumber device, so that node never exists
+    // again and the filter-chain output stays unlinked: silent, no error.  The
+    // run that takes ownership regenerates (ownershipChanged below), but a conf
+    // already in this state is not caught by anything else: the card is present
+    // and selected, and the Simple JSON records no nodeTarget for
+    // pipewireConfigSuppressedTarget() to inspect.  So read the conf itself.
+    //
+    // Self-limiting: both generators target fpp_alsa_<card> for a card FPP owns,
+    // so the regenerated conf passes this on the following run.
+    if (!simpleConfigStale && usePipeWireBackend && mediaBackendLower == "pipewire-simple" &&
+        selCid != "Dummy" && adapterCandidateCids.count(normalizeCardIdForNode(selCid)) > 0 &&
+        FileExists("/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf") &&
+        !contains(GetFileContents("/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf"),
+                  "node.target = \"fpp_alsa_" + normalizeCardIdForNode(selCid) + "\"")) {
+        printf("FPP - Simple audio config does not target FPP's adapter for %s; regenerating\n",
+               selCid.c_str());
+        simpleConfigStale = true;
+    }
     if (usePipeWireBackend && !runningInDocker && mediaBackendLower == "pipewire-simple"
         && simpleConfigStale) {
         // The simple config is missing or points at an absent card (fresh flash,
