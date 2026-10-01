@@ -869,10 +869,10 @@
                 var addr = u.address || '-';
                 var chRange = u.startChannel + '-' + (u.startChannel + (u.channelCount * (u.universeCount || 1)) - 1);
                 html += '<tr>';
-                html += '<td>' + desc + '</td>';
-                html += '<td>' + typeName + '</td>';
-                html += '<td>' + addr + '</td>';
-                html += '<td>' + chRange + '</td>';
+                html += '<td>' + msEscape(desc) + '</td>';
+                html += '<td>' + msEscape(typeName) + '</td>';
+                html += '<td>' + msEscape(addr) + '</td>';
+                html += '<td>' + msEscape(chRange) + '</td>';
                 html += '</tr>';
             });
             html += '</table>';
@@ -900,10 +900,10 @@
                 var typeName = getUniverseTypeName(u.type);
                 var chCount = u.channelCount * (u.universeCount || 1);
                 html += '<tr>';
-                html += '<td>' + typeName + '</td>';
-                html += '<td>' + u.startChannel + '</td>';
-                html += '<td>' + chCount + '</td>';
-                html += '<td>' + (u.universeCount || 1) + '</td>';
+                html += '<td>' + msEscape(typeName) + '</td>';
+                html += '<td>' + msEscape(u.startChannel) + '</td>';
+                html += '<td>' + msEscape(chCount) + '</td>';
+                html += '<td>' + msEscape(u.universeCount || 1) + '</td>';
                 html += '</tr>';
             });
             html += '</table>';
@@ -1336,7 +1336,7 @@
                     (data.advancedView.RemoteGitVersion == data.advancedView.LocalGitVersion))
                     ? 'text-success'
                     : 'text-muted';
-            localVer += "<span class='fw-bold " + colorClass + "'>" + data.advancedView.LocalGitVersion + "</span>";
+            localVer += "<span class='fw-bold " + colorClass + "'>" + msEscape(data.advancedView.LocalGitVersion) + "</span>";
             if (!fppConfig.hideExternalURLs) {
                 localVer += "</a>";
             }
@@ -1381,11 +1381,11 @@
                             elapsed = data.time_elapsed;
 
                             if (data.current_sequence != "") {
-                                files += data.current_sequence;
+                                files += msEscape(data.current_sequence);
                                 if (data.current_song != "")
-                                    files += "<br>" + data.current_song;
+                                    files += "<br>" + msEscape(data.current_song);
                             } else {
-                                files += data.current_song;
+                                files += msEscape(data.current_song);
                             }
 
                             if (files != "")
@@ -1431,11 +1431,11 @@
                                     elapsed += data.time_elapsed;
 
                                     if (data.sequence_filename != "") {
-                                        files += data.sequence_filename;
+                                        files += msEscape(data.sequence_filename);
                                         if (data.media_filename != "")
-                                            files += "<br>" + data.media_filename;
+                                            files += "<br>" + msEscape(data.media_filename);
                                     } else {
-                                        files += data.media_filename;
+                                        files += msEscape(data.media_filename);
                                     }
 
                                     if (files != "")
@@ -1554,13 +1554,13 @@
                             // just rebuilt; platformSorter() sorts on them.
                             item._platformInit = platformTxt;
                             item._variantInit = variantTxt;
-                            item.platform = "<span id='" + rowID + "_platform'>" + platformTxt + "</span>" +
-                                "<br><small id='" + rowID + "_variant'>" + variantTxt + "</small>" +
+                            item.platform = "<span id='" + rowID + "_platform'>" + msEscape(platformTxt) + "</span>" +
+                                "<br><small id='" + rowID + "_variant'>" + msEscape(variantTxt) + "</small>" +
                                 (item._capeHtml || '') +
                                 "<span class='hidden typeId'> " + item._typeIdHex + " </span>" +
                                 "<span class='hidden version'>" + item._versionStr + "</span>";
 
-                            if (data.advancedView.hasOwnProperty("backgroundColor") && data.advancedView.backgroundColor != "") {
+                            if (data.advancedView.hasOwnProperty("backgroundColor") && /^[0-9a-fA-F]{6}$/.test(data.advancedView.backgroundColor)) {
                                 var colorInt = parseInt(data.advancedView.backgroundColor, 16);
                                 item.fppcolor = isNaN(colorInt) ? '' : colorInt;
                                 item._style = isNaN(colorInt) ? '' : 'background: #' + data.advancedView.backgroundColor + '; color: #FFF;';
@@ -1573,11 +1573,11 @@
                                 u += "<tr><td><small class='text-muted'>COMMIT:</small></td><td id='" + rowID + "_localgitvers'>";
                                 u += getLocalVersionLink(ip, data);
                                 u += "</td></tr>" +
-                                    "<tr><td><small class='text-muted'>BRANCH:</small></td><td id='" + rowID + "_gitbranch'>" + data.advancedView.Branch + "</td></tr>";
+                                    "<tr><td><small class='text-muted'>BRANCH:</small></td><td id='" + rowID + "_gitbranch'>" + msEscape(data.advancedView.Branch) + "</td></tr>";
 
                                 if ((typeof (data.advancedView.UpgradeSource) !== 'undefined') &&
                                     (data.advancedView.UpgradeSource != 'github.com')) {
-                                    u += "<tr><td><small class='text-muted'>ORIGIN:</small></td><td id='" + rowID + "_origin'>" + data.advancedView.UpgradeSource + "</td></tr>";
+                                    u += "<tr><td><small class='text-muted'>ORIGIN:</small></td><td id='" + rowID + "_origin'>" + msEscape(data.advancedView.UpgradeSource) + "</td></tr>";
                                 } else {
                                     u += "<span style='display: none;' id='" + rowID + "_origin'></span>";
                                 }
@@ -1591,7 +1591,7 @@
                             if (data.advancedView.OSVersion) {
                                 item.version = "<table class='multiSyncVerboseTable'>" +
                                     "<tr><td><small class='text-muted'>FPP:</small></td><td>" + item._versionStr + "</td></tr>" +
-                                    "<tr><td><small class='text-muted'>OS:</small></td><td>" + data.advancedView.OSVersion + "</td></tr>" +
+                                    "<tr><td><small class='text-muted'>OS:</small></td><td>" + msEscape(data.advancedView.OSVersion) + "</td></tr>" +
                                     "</table>";
                             }
 
@@ -1599,7 +1599,7 @@
                                 if (item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
                                     item.hostname = item.hostname.replace(
                                         "class='hostDescriptionSM'></small>",
-                                        "class='hostDescriptionSM'>" + data.advancedView.HostDescription + "</small>"
+                                        "class='hostDescriptionSM'>" + msEscape(data.advancedView.HostDescription) + "</small>"
                                     );
                                 }
                             }
@@ -1617,7 +1617,7 @@
                                         } else {
                                             diskHtml += ", "
                                         }
-                                        diskHtml += type + ": " + used + "/" + total;
+                                        diskHtml += msEscape(type) + ": " + used + "/" + total;
                                     }
                                 } catch (error) {
                                     // This feature may not exist on older devices
@@ -1979,10 +1979,14 @@
                 if (data[i].version != 'Unknown')
                     majorVersion = parseInt(versionParts[0]);
 
-                var versionStr = data[i].version;
+                var versionStr = msEscape(data[i].version);
                 var versionHtml;
                 if (isFPP(data[i].typeId)) {
-                    versionStr = data[i].version.replace('.x-master', '.x').replace(/-g[A-Za-z0-9]*/, '');
+                    // Escape first: the match targets below (.x-master, -g…,
+                    // -dirty) contain no escapable chars, so the transforms are
+                    // unaffected while a hostile version can't inject markup.
+                    // The intentional dirtyLink is appended after, unescaped.
+                    versionStr = msEscape(data[i].version).replace('.x-master', '.x').replace(/-g[A-Za-z0-9]*/, '');
                     if (versionStr.endsWith('-dirty')) {
                         versionStr = versionStr.replace('-dirty', '');
                         var dirtyLink = "<br><a ";
@@ -2070,7 +2074,7 @@
                                   "<br><small id='" + rowID + "_variant'>" + msEscape(variantInit) + "</small>" +
                                   capeHtml +
                                   "<span class='hidden typeId'> " + typeIdHex + " </span>" +
-                                  "<span class='hidden version'>" + data[i].version + "</span>",
+                                  "<span class='hidden version'>" + msEscape(data[i].version) + "</span>",
                     mode:         fppMode,
                     status:       'Last Seen:<br>' + data[i].lastSeenStr,
                     elapsed:      '',
@@ -2332,7 +2336,7 @@
             if (item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
                 item.hostname = item.hostname.replace(
                     "class='hostDescriptionSM'></small>",
-                    "class='hostDescriptionSM'>" + desc + "</small>"
+                    "class='hostDescriptionSM'>" + msEscape(desc) + "</small>"
                 );
             }
         }
@@ -2392,16 +2396,16 @@
                 var st = 'Bridging';
                 if (s.hasOwnProperty('e131')) {
                     st = "<table class='multiSyncVerboseTable'>";
-                    st += "<tr><td>Tot Pkts:</td><td>" + s.e131.num_packets + "</td></tr>";
-                    st += "<tr><td>Seq Errs:</td><td>" + s.e131.seq_errors + "</td></tr>";
-                    st += "<tr><td>Pkt Errs:</td><td>" + s.e131.packet_errors + "</td></tr>";
+                    st += "<tr><td>Tot Pkts:</td><td>" + msEscape(s.e131.num_packets) + "</td></tr>";
+                    st += "<tr><td>Seq Errs:</td><td>" + msEscape(s.e131.seq_errors) + "</td></tr>";
+                    st += "<tr><td>Pkt Errs:</td><td>" + msEscape(s.e131.packet_errors) + "</td></tr>";
                     st += "</table>";
                 } else if (s.hasOwnProperty('input')) {
                     for (var i = 0; i < s.input.length; i++) {
                         if (s.input[i].hasOwnProperty('e131')) {
                             st = "<table class='multiSyncVerboseTable'>";
-                            st += "<tr><td>Tot Pkts:</td><td>" + s.input[i].e131.num_packets + "</td></tr>";
-                            st += "<tr><td>Pkt Errs:</td><td>" + s.input[i].e131.packet_errors + "</td></tr>";
+                            st += "<tr><td>Tot Pkts:</td><td>" + msEscape(s.input[i].e131.num_packets) + "</td></tr>";
+                            st += "<tr><td>Pkt Errs:</td><td>" + msEscape(s.input[i].e131.packet_errors) + "</td></tr>";
                             st += "</table>";
                         }
                     }
@@ -2430,8 +2434,8 @@
             var rowId = hostRows[ip.replace(/\./g, '_')];
             var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
             if (!item) return;
-            item.version = s.version;
-            item._versionStr = s.version;
+            item.version = msEscape(s.version);
+            item._versionStr = msEscape(s.version);
             safeInitBody($tbl);
         }
 
@@ -2652,7 +2656,7 @@
                     var rssi = data.wifi.rssi;
                     var quality = data.wifi.signal;
                     var wifiDesc = quality < 25 ? 'weak' : quality < 50 ? 'fair' : quality < 75 ? 'good' : 'excellent';
-                    var wifiIcon = '<span title="' + quality + '% ' + rssi + 'dBm" class="wifi-icon wifi-' + wifiDesc + '"></span>';
+                    var wifiIcon = '<span title="' + msEscape(quality) + '% ' + msEscape(rssi) + 'dBm" class="wifi-icon wifi-' + wifiDesc + '"></span>';
 
                     var uf = formatUptime(parseInt(data.uptime));
 
@@ -2664,7 +2668,7 @@
                     var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
                     if (!item) return;
                     item.utilization = u;
-                    item.status = data.status_name;
+                    item.status = (data.status_name == null) ? data.status_name : msEscape(data.status_name);
 
                     var endTag = ip + '</a>';
                     var base = item._baseIpHtml || '';
@@ -2683,7 +2687,7 @@
                             var tagEnd = item.hostname.indexOf(">", spanStart);
                             var spanEnd = item.hostname.indexOf("</span>", tagEnd);
                             if (tagEnd >= 0 && spanEnd >= 0) {
-                                var newContent = "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, "/") + "'>" + data.name + "</a>";
+                                var newContent = "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, "/") + "'>" + msEscape(data.name) + "</a>";
                                 item.hostname = item.hostname.substring(0, tagEnd + 1) + newContent + item.hostname.substring(spanEnd);
                             }
                         }
@@ -2736,12 +2740,12 @@
                     var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
                     if (!item) return;
                     item.utilization = u;
-                    item.status = data.status_name;
+                    item.status = (data.status_name == null) ? data.status_name : msEscape(data.status_name);
                     var friendlyName = data.system.friendly_name ? data.system.friendly_name : "";
                     if (friendlyName != "" && item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
                         item.hostname = item.hostname.replace(
                             "class='hostDescriptionSM'></small>",
-                            "class='hostDescriptionSM'>" + friendlyName + "</small>"
+                            "class='hostDescriptionSM'>" + msEscape(friendlyName) + "</small>"
                         );
                     }
                 });
@@ -2794,7 +2798,7 @@
                     if (boardDesc != "" && item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
                         item.hostname = item.hostname.replace(
                             "class='hostDescriptionSM'></small>",
-                            "class='hostDescriptionSM'>" + boardDesc + "</small>"
+                            "class='hostDescriptionSM'>" + msEscape(boardDesc) + "</small>"
                         );
                     }
 
@@ -2810,10 +2814,10 @@
                         var current = data.ota.current_firmware_version;
                         var available = data.ota.available_firmware_version;
                         if (current !== available) {
-                            item.version = '<span class="text-warning" title="Update available: ' + available + '">' +
-                                current + ' <i class="fas fa-exclamation-triangle"></i></span>';
+                            item.version = '<span class="text-warning" title="Update available: ' + msEscape(available) + '">' +
+                                msEscape(current) + ' <i class="fas fa-exclamation-triangle"></i></span>';
                         } else {
-                            item.version = current;
+                            item.version = msEscape(current);
                         }
                     }
                 });
