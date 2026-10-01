@@ -52,9 +52,10 @@ constexpr int kLinkCheckIntervalMs = 50;
 // With no card to watch (a group of network sinks), how long the stream must
 // have been linked before it is trusted to be on the real driver.
 constexpr int kNoCardSettleMs = 150;
-// After the card starts, time for the graph to move off the placeholder
-// driver onto the card's: two quanta at 1024 @ 44.1 kHz.
-constexpr int kDriverSettleMs = 50;
+// With the stream kept open, how long after a failure to try again.  A
+// PipeWire restart under a running fppd leaves GStreamer's PipeWire connection
+// dead until fppd restarts, so retrying hard would only fill the log.
+constexpr int kKeepOpenRetryMs = 30000;
 
 std::mutex s_slotsLock;
 std::array<PipeWireOutputStream*, StreamSlotManager::MAX_SLOTS + 1> s_slots{};
@@ -64,6 +65,8 @@ std::condition_variable s_workerWake;
 std::thread s_worker;
 bool s_workerRunning = false;
 bool s_workerKick = false;
+
+std::atomic<bool> s_keepOpen{ false };
 
 uint64_t NowMs() {
     return (uint64_t)GetTimeMS();
@@ -105,6 +108,25 @@ void PipeWireOutputStream::Prewarm(int slot, int holdMs) {
         s->m_wantOpen = true;
     }
     WakeWorker();
+}
+
+void PipeWireOutputStream::SetKeepOpen(bool keepOpen) {
+    if (s_keepOpen.exchange(keepOpen) == keepOpen) {
+        return;
+    }
+    if (keepOpen) {
+        LogInfo(VB_MEDIAOUT, "PipeWire output stream 1 will be kept open\n");
+        Prewarm(1, 0);
+    } else {
+        // Falls back to the usual linger; the worker closes it once that
+        // and any playing track are done.
+        LogInfo(VB_MEDIAOUT, "PipeWire output stream 1 no longer kept open\n");
+        if (PipeWireOutputStream* s = ForSlot(1)) {
+            std::unique_lock<std::mutex> lock(s->m_lock);
+            s->m_holdUntilMs = std::max(s->m_holdUntilMs, NowMs() + LINGER_MS);
+        }
+        WakeWorker();
+    }
 }
 
 std::string PipeWireOutputStream::CapsFields() {
@@ -150,6 +172,13 @@ void PipeWireOutputStream::Release(GstElement* feed) {
         std::unique_lock<std::mutex> lock(m_lock);
         if (feed && m_feed == feed) {
             m_feed = nullptr;
+            // Push the track's last fragment out behind some silence.  PipeWire
+            // holds a partial cycle until there is more data, so with nothing
+            // behind it the tail of a stopped track sat in the stream and played
+            // at the head of the next one.  (Flushing it instead deactivates and
+            // reactivates the stream, and pipewiresink drops whatever arrives
+            // before that settles -- the next track's first ~40 ms.)
+            PushSilenceLocked(TailFlushMs());
         }
         if (m_users > 0) {
             m_users--;
@@ -172,12 +201,25 @@ int64_t PipeWireOutputStream::LatencyNs() {
     return kGraphQuantum * 1000000000LL / GStreamerOutput::PipeWireGraphRate();
 }
 
+int PipeWireOutputStream::TailFlushMs() {
+    // Three graph cycles: more than any partial cycle plus the feed's lead.
+    return (int)(3 * kGraphQuantum * 1000 / GStreamerOutput::PipeWireGraphRate()) + 1;
+}
+
+int64_t PipeWireOutputStream::FeedLeadNs() {
+    return kGraphQuantum * 1000000000LL / GStreamerOutput::PipeWireGraphRate();
+}
+
 void PipeWireOutputStream::AttachFeed(GstElement* appsink) {
     {
         std::unique_lock<std::mutex> lock(m_lock);
         m_feed = appsink;
     }
-    g_object_set(appsink, "emit-signals", TRUE, NULL);
+    // Run the feed one graph cycle ahead of the clock.  Handed over exactly
+    // on time, a buffer can miss the cycle that needed it by a hair; PipeWire
+    // then plays a quantum of silence there and the rest of the track is a
+    // quantum late.  A cycle's worth queued absorbs that.
+    g_object_set(appsink, "emit-signals", TRUE, "ts-offset", -FeedLeadNs(), NULL);
     g_signal_connect(appsink, "new-sample", G_CALLBACK(OnFeedSample), this);
 }
 
@@ -287,7 +329,15 @@ void PipeWireOutputStream::WorkerLoop() {
 void PipeWireOutputStream::Service(uint64_t now) {
     std::unique_lock<std::mutex> lock(m_lock);
 
-    bool wanted = m_users > 0 || now < m_holdUntilMs;
+    bool keepOpen = s_keepOpen && m_slot == 1;
+    if (keepOpen && !m_wantOpen && (m_state == State::Closed || m_state == State::Failed) &&
+        now - m_failedMs >= (uint64_t)kKeepOpenRetryMs) {
+        if (m_wantTarget.empty()) {
+            m_wantTarget = GStreamerOutput::PipeWireSinkNameForSlot(m_slot);
+        }
+        m_wantOpen = true;
+    }
+    bool wanted = keepOpen || m_users > 0 || now < m_holdUntilMs;
     if (!wanted) {
         m_wantOpen = false;
         if (m_state != State::Closed) {
@@ -311,6 +361,7 @@ void PipeWireOutputStream::Service(uint64_t now) {
             m_wantOpen = false;
             CloseLocked("stream error");
             m_state = State::Failed;
+            m_failedMs = now;
             m_stateChanged.notify_all();
         }
         gst_object_unref(bus);
@@ -327,6 +378,7 @@ void PipeWireOutputStream::Service(uint64_t now) {
         if (!OpenLocked(lock)) {
             m_wantOpen = false;
             m_state = State::Failed;
+            m_failedMs = NowMs();
             m_stateChanged.notify_all();
         }
         return;
@@ -353,11 +405,13 @@ void PipeWireOutputStream::Service(uint64_t now) {
     // pw_stream_get_time_n() reports a zero rate and the clock returns its last
     // value -- so nothing here runs on it.)
     bool ready = false;
+    //
+    // No settling time after the card starts is needed: a cold-start sweep on
+    // an AM335x with a USB card, checking what actually crossed the bus to the
+    // card, kept the head of the track intact with none, and 25-400 ms bought
+    // nothing.
     if (!m_cardStatusPath.empty() && !m_cardWasRunning) {
-        if (m_linkedMs == 0 && CardRunning()) {
-            m_linkedMs = NowMs();
-        }
-        ready = m_linkedMs != 0 && NowMs() - m_linkedMs >= (uint64_t)kDriverSettleMs;
+        ready = CardRunning();
     } else {
         if (!m_linked && NowMs() - m_lastLinkCheckMs >= (uint64_t)kLinkCheckIntervalMs) {
             // pw-link talks to the daemon; don't hold the lock the feed and
@@ -393,6 +447,7 @@ void PipeWireOutputStream::Service(uint64_t now) {
         m_wantOpen = false;
         CloseLocked("open timed out");
         m_state = State::Failed;
+        m_failedMs = now;
         m_stateChanged.notify_all();
     }
 }

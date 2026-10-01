@@ -58,6 +58,13 @@ public:
     // Close every stream immediately (fppd shutdown).
     static void ShutdownAll();
 
+    // Keep slot 1's stream open while set (the PipeWireKeepOutputOpen
+    // setting, applied live), so media triggered at any moment -- GPIO, a
+    // command, the API -- never waits for it to open.  Costs the CPU of a
+    // stream that is always running.  Clearing it lets the stream close after
+    // the usual linger.
+    static void SetKeepOpen(bool keepOpen);
+
     // The fixed format every stream carries, as caps fields to append to
     // "audio/x-raw" (",format=F32LE,rate=...,channels=2,layout=interleaved").
     // A feed must deliver exactly this: pipewiresink fixes its PipeWire format
@@ -87,6 +94,8 @@ public:
     // graph -- what a position read at the feed has to be backed up by, on
     // top of the card's own queue.
     int64_t LatencyNs();
+    // How far ahead of the clock a feed delivers (see AttachFeed()).
+    static int64_t FeedLeadNs();
 
 private:
     explicit PipeWireOutputStream(int slot);
@@ -104,6 +113,7 @@ private:
     void CloseLocked(const char* why);
     void PushSilenceLocked(int ms);
     bool CardRunning();
+    static int TailFlushMs();
     bool StreamLinked();
 
     static GstFlowReturn OnFeedSample(GstElement* appsink, gpointer userData);
@@ -119,6 +129,7 @@ private:
     int m_users = 0;
     uint64_t m_holdUntilMs = 0;
     uint64_t m_openStartedMs = 0;
+    uint64_t m_failedMs = 0;           // when the stream last failed (keep-open retry)
     bool m_linked = false;
     bool m_cardWasRunning = false;     // someone else had the card running when we opened
     uint64_t m_linkedMs = 0;

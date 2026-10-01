@@ -135,6 +135,7 @@
 				"WLEDAudioSyncPort",
 				"disableIPAnnouncement",
 				"disableAudioVolumeSlider",
+				"PipeWireKeepOutputOpen",
 				"globalMediaOffset",
 				"AudioCardAliases"
 			]
@@ -1356,6 +1357,19 @@
 			"description": "Disable Volume Slider",
 			"gatherStats": true,
 			"tip": "This setting will remove the Audio Volume Slider on the Status Page to prevent accidental unwanted volume changes.",
+			"default": "0",
+			"type": "checkbox",
+			"platforms": [
+				"!MacOS"
+			]
+		},
+		"PipeWireKeepOutputOpen": {
+			"name": "PipeWireKeepOutputOpen",
+			"description": "Keep Audio Output Open",
+			"gatherStats": true,
+			"tip": "Keep FPP's audio output running all the time instead of starting it when media is about to play and stopping it a few seconds after.  Media that starts with no warning -- sound effects triggered by GPIO inputs, commands or the API -- then plays without the start-up delay, which can be most of a second on a BeagleBone.  Scheduled playlists and back-to-back media do not need this.  Costs a little CPU all the time, since the sound card never idles.",
+			"level": 1,
+			"restart": 0,
 			"default": "0",
 			"type": "checkbox",
 			"platforms": [

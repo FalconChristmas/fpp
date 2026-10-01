@@ -193,6 +193,10 @@ void InitMediaOutput(void) {
 #endif
 #ifdef HAS_GSTREAMER
     GStreamerOutput::PreloadAsync();
+    PipeWireOutputStream::SetKeepOpen(getSettingInt("PipeWireKeepOutputOpen") != 0);
+    registerSettingsListener("PipeWireOutputStream", "PipeWireKeepOutputOpen", [](const std::string& value) {
+        PipeWireOutputStream::SetKeepOpen(!value.empty() && value != "0");
+    });
 #endif
 }
 

@@ -14,6 +14,7 @@
     <li><b>WLED Audio Sync Port</b> (number) — UDP port for WLED sync. Default 11988. Change only if you changed it on your other WLED devices. <i>Advanced level.</i></li>
     <li><b>Disable IP announcement</b> (checkbox) — When unchecked, FPP speaks the current IP addresses over the audio output at boot. Check to silence this for shows that use a transmitter or speakers.</li>
     <li><b>Disable Volume Slider</b> (checkbox) — Hides the volume slider on the Status page to prevent accidental changes.</li>
+    <li><b>Keep Audio Output Open</b> (checkbox) — Keeps the audio output running all the time, so media that starts without warning (sound effects from GPIO inputs, commands or the API) plays without the start-up delay — up to most of a second on a BeagleBone. Scheduled playlists and back-to-back media already avoid that delay, so most shows do not need this. Uses a little CPU continuously. Takes effect immediately. <i>Advanced level.</i></li>
     <li><b>Global Audio/Sequence Offset</b> (number, ms, -9999 to 9999) — Shifts audio vs. sequence on every device via MultiSync. Positive moves audio ahead. Affects all files; for per-file fixes, edit the audio/sequence instead. <i>Requires FPPD restart.</i></li>
     <li><b>Configure Sound Card Aliases</b> (button / modal) — Give cards friendly names like “Transmitter” or “Amplifier” shown in all audio dropdowns. Works for both ALSA and PipeWire.</li>
 </ul>

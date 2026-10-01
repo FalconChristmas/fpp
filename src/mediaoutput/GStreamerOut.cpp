@@ -1898,8 +1898,14 @@ int GStreamerOutput::Start(int msTime) {
     // Start muted — the background thread will ramp up to targetVolume
     // after the pipeline reaches PLAYING.  This eliminates audible clicks
     // caused by USB/ALSA/PipeWire sink initialisation transients.
+    //
+    // Not when feeding the persistent output stream: it is already running,
+    // so there is no sink start-up to hide -- and the ramp is timed by the
+    // wall clock, not the audio, so it mutes whatever the pipeline prerolled.
+    // A cold start prerolls while it waits for the stream, and that first
+    // decoded buffer (~90 ms of the song) went out silent.
     if (m_volume) {
-        g_object_set(m_volume, "volume", 0.0, NULL);
+        g_object_set(m_volume, "volume", m_pwStream ? targetVolume : 0.0, NULL);
     }
 
     // Get the bus for message handling
@@ -2054,8 +2060,9 @@ int GStreamerOutput::Start(int msTime) {
             }
 
             // Fade volume from 0 to target over ~50ms to eliminate startup
-            // clicks from sink initialisation transients.
-            if (volume && !cancel->load()) {
+            // clicks from sink initialisation transients.  (Not needed, and
+            // harmful, when feeding the persistent stream -- see Start().)
+            if (volume && !pwStream && !cancel->load()) {
                 constexpr int kRampSteps = 10;
                 constexpr int kRampStepUs = 5000; // 5ms per step = 50ms total
                 for (int i = 1; i <= kRampSteps && !cancel->load(); i++) {
