@@ -73,10 +73,36 @@ static inline std::string createWarning(const std::string& host, const std::stri
     return "Cannot Ping " + type + " Channel Data Target " + host + " " + description;
 }
 
+// Interface names that reach shells (interfaceHasFQ's tc popen below) and
+// sysfs paths must be plausible kernel names: IFNAMSIZ-1 chars, no '/' and no
+// leading '.'/'-'. The configured value is operator-editable JSON. Deliberately
+// platform-independent (used on all targets); manual char checks avoid any new
+// header dependency.
+static bool isValidInterfaceName(const std::string& n) {
+    if (n.empty() || n.size() > 15) {
+        return false;
+    }
+    auto ok = [](char c) {
+        return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '.' || c == '-';
+    };
+    if (!ok(n[0]) || n[0] == '.' || n[0] == '-') {
+        return false;
+    }
+    for (char c : n) {
+        if (!ok(c)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 #ifndef PLATFORM_OSX
 // SO_MAX_PACING_RATE only works if the interface's root qdisc is fq.
 // Some kernels expose the qdisc name in sysfs; fall back to asking tc.
 static bool interfaceHasFQ(const std::string& iface) {
+    if (!isValidInterfaceName(iface)) {
+        return false;
+    }
     std::string qdisc = GetFileContents("/sys/class/net/" + iface + "/qdisc");
     if (!qdisc.empty()) {
         TrimWhiteSpace(qdisc);
@@ -432,7 +458,14 @@ int UDPOutput::Init(Json::Value config) {
         blockingOutput = style == 0 || style == 1;
     }
     if (config.isMember("interface")) {
-        outInterface = config["interface"].asString();
+        std::string configured = config["interface"].asString();
+        if (configured.empty() || isValidInterfaceName(configured)) {
+            outInterface = configured;
+        } else {
+            // Garbage never produced working output (address/sysfs lookups fail
+            // on it) and reached a shell below -- fall through to auto-detect.
+            LogErr(VB_CHANNELOUT, "UDPOutput: ignoring invalid interface '%s'\n", configured.c_str());
+        }
     }
 
     std::set<std::string> myIps;
