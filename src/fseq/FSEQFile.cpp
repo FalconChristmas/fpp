@@ -1736,23 +1736,39 @@ public:
         }
         return data;
     }
+    // Feeds all of `input` to the stream.  A zstd error consumes nothing and
+    // leaves the stream unusable, so stop on one rather than spin forever.
     void compressData(ZSTD_CStream* m_cctx, ZSTD_inBuffer_s& input, ZSTD_outBuffer_s& output) {
-        ZSTD_compressStream2(m_cctx, &output, &input, ZSTD_e_continue);
-        size_t count = input.pos;
-        size_t total = input.size;
-        uint8_t* curData = (uint8_t*)input.src;
-        while (count < total) {
-            curData += input.pos;
-            input.src = curData;
-            input.size -= input.pos;
-            input.pos = 0;
+        while (input.pos < input.size) {
             if (output.pos > V2FSEQ_OUT_BUFFER_FLUSH_SIZE) {
                 write(output.dst, output.pos);
                 output.pos = 0;
             }
-            ZSTD_compressStream2(m_cctx, &output, &input, ZSTD_e_continue);
-            count += input.pos;
+            size_t zr = ZSTD_compressStream2(m_cctx, &output, &input, ZSTD_e_continue);
+            if (ZSTD_isError(zr)) {
+                LogErr(VB_SEQUENCE, "zstd could not compress sequence block %d: %s\n", (int)m_curBlock, ZSTD_getErrorName(zr));
+                return;
+            }
         }
+    }
+    // Ends the current zstd frame.  ZSTD_compressStream2 returns the bytes
+    // still to flush, but its error codes are also non-zero, so an unchecked
+    // "> 0" loop never terminates on an error.
+    void endBlock() {
+        ZSTD_inBuffer_s input = {
+            0, 0, 0
+        };
+        size_t zr;
+        while ((zr = ZSTD_compressStream2(m_cctx, &m_outBuffer, &input, ZSTD_e_end)) > 0) {
+            if (ZSTD_isError(zr)) {
+                LogErr(VB_SEQUENCE, "zstd could not finish sequence block %d: %s\n", (int)m_curBlock, ZSTD_getErrorName(zr));
+                break;
+            }
+            write(m_outBuffer.dst, m_outBuffer.pos);
+            m_outBuffer.pos = 0;
+        }
+        write(m_outBuffer.dst, m_outBuffer.pos);
+        m_outBuffer.pos = 0;
     }
     virtual void addFrame(uint32_t frame, const uint8_t* data) override {
         if (m_cctx == nullptr) {
@@ -1810,32 +1826,16 @@ public:
         // we'll start a new block.  We want the first block to be small so startup is
         // quicker and we can get the first few frames as fast as possible.
         if ((m_curBlock == 0 && m_curFrameInBlock == 10) || (m_curFrameInBlock >= m_framesPerBlock && m_file->m_frameOffsets.size() < m_maxBlocks)) {
-            ZSTD_inBuffer_s input = {
-                0, 0, 0
-            };
-            while (ZSTD_compressStream2(m_cctx, &m_outBuffer, &input, ZSTD_e_end) > 0) {
-                write(m_outBuffer.dst, m_outBuffer.pos);
-                m_outBuffer.pos = 0;
-            }
-            write(m_outBuffer.dst, m_outBuffer.pos);
+            endBlock();
             // LogDebug(VB_SEQUENCE, "  Finalized block of data ending at frame %d.  Frames in block: %d.\n", frame, m_curFrameInBlock);
-            m_outBuffer.pos = 0;
             m_curFrameInBlock = 0;
             m_curBlock++;
         }
     }
     virtual void finalize() override {
         if (m_curFrameInBlock) {
-            ZSTD_inBuffer_s input = {
-                0, 0, 0
-            };
-            while (ZSTD_compressStream2(m_cctx, &m_outBuffer, &input, ZSTD_e_end) > 0) {
-                write(m_outBuffer.dst, m_outBuffer.pos);
-                m_outBuffer.pos = 0;
-            }
-            write(m_outBuffer.dst, m_outBuffer.pos);
+            endBlock();
             LogDebug(VB_SEQUENCE, "  Finalized last block of data.  Frames in block: %d.\n", m_curFrameInBlock);
-            m_outBuffer.pos = 0;
             m_curFrameInBlock = 0;
             m_curBlock++;
         }
@@ -1954,6 +1954,26 @@ public:
         }
         return data;
     }
+    // One deflate() call stops once the output buffer is full, leaving the
+    // rest of the input unconsumed; the next caller then points next_in
+    // somewhere else and that remainder is silently dropped.  Keep going,
+    // flushing as needed, until all of it has been taken.
+    void deflateInput(uint8_t* in, uint32_t len) {
+        m_stream->next_in = in;
+        m_stream->avail_in = len;
+        while (m_stream->avail_in > 0) {
+            if (m_stream->avail_out == 0) {
+                write(m_outBuffer, V2OutBufferSize());
+                m_stream->next_out = m_outBuffer;
+                m_stream->avail_out = V2OutBufferSize();
+            }
+            int zr = deflate(m_stream, Z_NO_FLUSH);
+            if (zr != Z_OK) {
+                LogErr(VB_SEQUENCE, "zlib could not compress sequence block %d: %d\n", (int)m_curBlock, zr);
+                break;
+            }
+        }
+    }
     virtual void addFrame(uint32_t frame, const uint8_t* data) override {
         if (m_outBuffer == nullptr) {
             m_outBuffer = (uint8_t*)malloc(V2OutBufferSize());
@@ -1979,14 +1999,10 @@ public:
 
         uint8_t* curData = (uint8_t*)data;
         if (m_file->m_sparseRanges.empty()) {
-            m_stream->next_in = curData;
-            m_stream->avail_in = m_file->getChannelCount();
-            deflate(m_stream, 0);
+            deflateInput(curData, m_file->getChannelCount());
         } else {
             for (auto& a : m_file->m_sparseRanges) {
-                m_stream->next_in = &curData[a.first];
-                m_stream->avail_in = a.second;
-                deflate(m_stream, 0);
+                deflateInput(&curData[a.first], a.second);
             }
         }
         if (m_stream->avail_out < (V2OutBufferSize() - V2FSEQ_OUT_BUFFER_FLUSH_SIZE)) {
@@ -2319,6 +2335,15 @@ V2FSEQFile::V2FSEQFile(const std::string& fn, FILE* file, const std::vector<uint
         numBlocks <<= 4;
         numBlocks |= header[21];
 
+        // The block and sparse range counts are file data too; don't let them
+        // walk readPos past the header buffer.
+        if ((uint64_t)readPos + (uint64_t)numBlocks * V2FSEQ_COMPRESSION_BLOCK_SIZE > header.size()) {
+            uint32_t fits = (header.size() - readPos) / V2FSEQ_COMPRESSION_BLOCK_SIZE;
+            LogErr(VB_SEQUENCE, "FSEQ header claims %d compression blocks but only has room for %d.  File is truncated or corrupt.\n",
+                   (int)numBlocks, (int)fits);
+            numBlocks = fits;
+        }
+
         uint32_t lastFirstFrame = 0;
         for (uint32_t i = 0; i < numBlocks; i++) {
             uint32_t firstFrame = read4ByteUInt(&header[readPos]);
@@ -2400,7 +2425,13 @@ V2FSEQFile::V2FSEQFile(const std::string& fn, FILE* file, const std::vector<uint
         // Read sparse ranges
         // 6 byte size each (3 byte firstChannel + 3 byte length)
         // header[22] is the "sparse range count" field
-        for (int i = 0; i < header[22]; i++) {
+        int numRanges = header[22];
+        if (readPos + numRanges * V2FSEQ_SPARSE_RANGE_SIZE > (int)header.size()) {
+            LogErr(VB_SEQUENCE, "FSEQ header claims %d sparse ranges but only has room for %d.  File is truncated or corrupt.\n",
+                   numRanges, ((int)header.size() - readPos) / V2FSEQ_SPARSE_RANGE_SIZE);
+            numRanges = ((int)header.size() - readPos) / V2FSEQ_SPARSE_RANGE_SIZE;
+        }
+        for (int i = 0; i < numRanges; i++) {
             uint32_t startChan = read3ByteUInt(&header[readPos]);
             uint32_t length = read3ByteUInt(&header[readPos + 3]);
 
