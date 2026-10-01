@@ -37,8 +37,11 @@ static int savedStreamSlotVolume(int slot) {
     if (slot < 1 || slot > 5) {
         return -1;
     }
+    // The file only exists once a slot fader has been moved, so its absence is
+    // the normal case -- don't let LoadJsonFromFile() log it as an error.
+    std::string file = FPP_DIR_CONFIG("/pipewire-stream-slots.json");
     Json::Value root;
-    if (!LoadJsonFromFile(FPP_DIR_CONFIG("/pipewire-stream-slots.json"), root) ||
+    if (!FileExists(file) || !LoadJsonFromFile(file, root) ||
         !root.isMember("slots")) {
         return -1;
     }
