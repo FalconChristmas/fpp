@@ -148,6 +148,16 @@ if ($isRestore && ($hasConfig || $hasPlugins || $hasEeprom)) {
     exec('sudo touch /fppos_upgraded');
 }
 
+// Recorded in the plugin install history. An "All" restore replaces that file
+// with the source's, so this entry, written after it, marks where the copy
+// ends; "Plugins" brings in plugins outside the Plugin Manager, and
+// "Configuration" replaces the settings file (plugin source flags included).
+$copiedModes = array_values(array_intersect(array('All', 'Configuration', 'Plugins'), (array) $flagWords));
+if ($isRestore && !empty($copiedModes)) {
+    require_once __DIR__ . '/common/pluginhistory.inc.php';
+    AppendPluginHistory('', 'copied', array('modes' => $copiedModes, 'direction' => $direction));
+}
+
 // The run's output goes into the fppd.log timeline, and the progress file is
 // then removed rather than kept as fpp_backup_filecopy_last.log.
 //

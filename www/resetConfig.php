@@ -173,6 +173,17 @@ foreach ($pluginSourceSettings as $setting) {
     }
 }
 
+// The "plugins" area deletes every plugin without running its uninstall, so
+// record each one in the plugin install history, or it would show the plugin
+// installed and then simply gone. The commit is read before the directory goes.
+$resetPlugins = array();
+if (in_array('plugins', $areas)) {
+    require_once __DIR__ . '/common/pluginhistory.inc.php';
+    foreach (PluginDirsInstalled($settings['mediaDirectory'] . '/plugins') as $plugin) {
+        $resetPlugins[$plugin] = PluginGitHead($settings['mediaDirectory'] . '/plugins/' . $plugin);
+    }
+}
+
 foreach ($areas as $area) {
     printf("Area: %s\n", $area);
     foreach ($files[$area] as $file) {
@@ -205,6 +216,14 @@ foreach ($areas as $area) {
 }
 
 flush();
+
+// Gone means no pluginInfo.json: a root-owned subdirectory a plugin's script
+// made can survive the delete, but the plugin is no longer installed.
+foreach ($resetPlugins as $plugin => $sha) {
+    if (!file_exists($settings['mediaDirectory'] . '/plugins/' . $plugin . '/pluginInfo.json')) {
+        AppendPluginHistory($plugin, 'deleted', array('sha' => $sha));
+    }
+}
 
 if (in_array('settings', $areas) && !empty($pluginSourceBackup)) {
     printf("\nRestoring plugin source history...\n");

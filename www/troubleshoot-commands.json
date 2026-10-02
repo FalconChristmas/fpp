@@ -608,6 +608,33 @@
                 }
             }
         },
+        "Plugins": {
+            "grpDisplayTitle": "Plugins",
+            "grpDescription": "Plugin install history, and settings left behind by removed plugins",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "PluginHistory": {
+                    "title": "Install History",
+                    "description": "Every plugin install, update and uninstall on this player, oldest first, including plugins that have since been removed",
+                    "cmd": "PATH=$PATH:/opt/homebrew/bin:/usr/local/bin php [[fppDir]]/scripts/plugin_history.php",
+                    "manualCrashReportCmd": "PATH=$PATH:/opt/homebrew/bin:/usr/local/bin php [[fppDir]]/scripts/plugin_history.php --summary",
+                    "platforms": [
+                        "all"
+                    ],
+                    "pii": true
+                },
+                "PluginLeftovers": {
+                    "title": "Settings from Removed Plugins",
+                    "description": "Plugin settings and data files for plugins that are no longer installed. Uninstalling a plugin does not remove these. Matched by name, so treat it as a guide",
+                    "cmd": "PATH=$PATH:/opt/homebrew/bin:/usr/local/bin php [[fppDir]]/scripts/plugin_history.php --leftovers",
+                    "platforms": [
+                        "all"
+                    ]
+                }
+            }
+        },
         "i2c": {
             "grpDisplayTitle": "i2c",
             "grpDescription": "Set of tools for I2C troubleshooting",

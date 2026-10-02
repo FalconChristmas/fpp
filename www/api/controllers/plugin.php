@@ -7,6 +7,9 @@ require_once __DIR__ . '/../../common/packages.inc.php';
 // Shared operation logging (OpLog), the PHP half of scripts/common's startOpLog.
 require_once __DIR__ . '/../../common/oplog.inc.php';
 
+// The plugin install history (AppendPluginHistory() and friends).
+require_once __DIR__ . '/../../common/pluginhistory.inc.php';
+
 /**
  * Appends lines to the shared logs/fpp_plugin_manager.log in the same
  * syslog-style format scripts/common's startPluginLog() writes:
@@ -474,6 +477,36 @@ function SetUnverifiedPluginRepos($pending)
 	WriteSettingToFile($GLOBALS['PLUGIN_UNVERIFIED_REPOS_SETTING'], implode(',', array_keys($items)));
 }
 
+// Serialises rewrites of the unverified list (installs adding,
+// ResolveUnverifiedPlugins() settling). Returns the handle; null if the lock
+// file can't be opened (the caller carries on unlocked); false if $wait is
+// false and it is taken.
+function PluginUnverifiedLock($wait)
+{
+	$file = file_cache_dir_persistent() . '/plugin-unverified.lock';
+	$new = !file_exists($file);
+	$lock = @fopen($file, 'c');
+	if (!$lock) {
+		return null;
+	}
+	if ($new) {
+		@chmod($file, 0664);
+	}
+	if (!flock($lock, $wait ? LOCK_EX : LOCK_EX | LOCK_NB)) {
+		fclose($lock);
+		return false;
+	}
+	return $lock;
+}
+
+function PluginUnverifiedUnlock($lock)
+{
+	if ($lock) {
+		flock($lock, LOCK_UN);
+		fclose($lock);
+	}
+}
+
 /**
  * Records what this system now knows about where a just-installed plugin came
  * from. Called once per successful install from InstallPluginFromInfo().
@@ -489,12 +522,15 @@ function SetUnverifiedPluginRepos($pending)
  * it only fires on something real. What matters is where the code came from,
  * which PluginSrcURLIsListed() answers from srcURL. That also covers the dev-tools
  * case for free: there is no marker to strip, because there is no marker.
+ *
+ * Returns what it concluded -- 'official', 'listed', 'unknown' or
+ * 'unverified' -- for the install history (AppendPluginHistory()).
  */
 function RecordPluginInstallSource($repoName, $srcURL)
 {
 	// Published by the FPP project -- nothing to record.
 	if (IsOfficialPluginSrcURL($srcURL)) {
-		return;
+		return 'official';
 	}
 
 	// Decidable without the list: every listed plugin lives on GitHub, so a
@@ -503,26 +539,29 @@ function RecordPluginInstallSource($repoName, $srcURL)
 	// case instead of parking it.
 	if (is_string($srcURL) && $srcURL !== '' && PluginRepoSlugFromURL($srcURL) === '') {
 		WriteSettingToFile($GLOBALS['PLUGIN_UNKNOWN_SETTING'], '1');
-		return;
+		return 'unknown';
 	}
 
 	$list = GetPluginList();
 	if (!empty($list) && PluginSrcURLIsListed($srcURL)) {
 		// On the list. Safe to conclude even from a stale copy.
-		return;
+		return 'listed';
 	}
 
 	if (empty($list) || !PluginListIsCurrent()) {
 		// Either no list at all, or one whose last refresh failed. Absence
 		// proves nothing against it -- park the plugin and let
 		// GetPluginSource() settle it once a current list is available.
+		$lock = PluginUnverifiedLock(true);
 		$pending = GetUnverifiedPluginRepos();
 		$pending[] = array('repoName' => $repoName, 'srcURL' => $srcURL);
 		SetUnverifiedPluginRepos($pending);
-		return;
+		PluginUnverifiedUnlock($lock);
+		return 'unverified';
 	}
 
 	WriteSettingToFile($GLOBALS['PLUGIN_UNKNOWN_SETTING'], '1');
+	return 'unknown';
 }
 
 // How long GetPluginSource() will wait inline for a plugin list it does not
@@ -631,19 +670,32 @@ function ResolveUnverifiedPlugins()
 	// trustworthy) but must not promote one to a finding, since absence from
 	// an out-of-date list proves nothing. Anything we still can't settle
 	// stays pending for a later run.
+	// The health check and its SSE twin can both get here at once: one
+	// settles the list, the other leaves it, so no answer is recorded twice.
+	$lock = PluginUnverifiedLock(false);
+	if ($lock === false) {
+		return;
+	}
+	$pending = GetUnverifiedPluginRepos(); // again, now that it is ours
+
 	$current = PluginListIsCurrent();
 	$stillPending = array();
+	// Each answer also goes into the install history, which recorded the
+	// install as 'unverified'.
 	foreach ($pending as $p) {
 		if (PluginSrcURLIsListed($p['srcURL'])) {
+			AppendPluginHistory($p['repoName'], 'verified', array('source' => 'listed'));
 			continue;
 		}
 		if ($current) {
 			WriteSettingToFile($GLOBALS['PLUGIN_UNKNOWN_SETTING'], '1');
+			AppendPluginHistory($p['repoName'], 'verified', array('source' => 'unknown', 'srcURL' => PluginHistoryURL($p['srcURL'])));
 			continue;
 		}
 		$stillPending[] = $p;
 	}
 	SetUnverifiedPluginRepos($stillPending);
+	PluginUnverifiedUnlock($lock);
 }
 
 /**
@@ -1241,7 +1293,18 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 	// $depInfo (see ResolvePluginDependencies()) and recorded through this same
 	// call, so each one is judged on where it actually came from rather than
 	// inheriting anything from the plugin that pulled it in.
-	RecordPluginInstallSource($repoName, $origSrcURL);
+	$source = RecordPluginInstallSource($repoName, $origSrcURL);
+	$entry = array('source' => $source, 'branch' => $branch, 'sha' => PluginInstalledSha($plugin));
+	if ($source !== 'official' && $source !== 'listed') {
+		$entry['srcURL'] = PluginHistoryURL($origSrcURL);
+	}
+	if ($depth > 0) {
+		$entry['dependency'] = true;
+	}
+	if ($return_val != 0) {
+		$entry['scriptFailed'] = true;
+	}
+	AppendPluginHistory($repoName, 'install', $entry);
 
 	// install_plugin may reset to a pinned sha: ask rather than assume up to
 	// date. Git only: the plugin's own update-check script (networked, up to
@@ -1914,6 +1977,7 @@ function UninstallPlugin()
 		// say so and carry on - the uninstall itself still proceeds, it just
 		// needs a restart to fully take hold.
 		$unloaded = FPPDPluginLifecycle($plugin, 'unload');
+		$uninstalledSha = PluginInstalledSha($plugin);
 
 		// PLUGINDIR/SUDO exported on both paths so the wrapper resolves the same
 		// directory PHP does (the streaming path used to rely on scripts/common's
@@ -1961,6 +2025,16 @@ function UninstallPlugin()
 		}
 
 
+		// Recorded even when it failed: what its script changed still happened.
+		// keepPackages is the first half of a Reinstall; its install follows.
+		$entry = array('sha' => $uninstalledSha);
+		if ($keepPackages) {
+			$entry['reinstall'] = true;
+		}
+		if ($return_val != 0) {
+			$entry['scriptFailed'] = true;
+		}
+		AppendPluginHistory($plugin, 'uninstall', $entry);
 		if ($return_val == 0) {
 			PluginUpdateStateForget($plugin);
 
@@ -2538,16 +2612,19 @@ function UpgradePlugin()
 	$runCmd = $envPrefix . escapeshellarg($fppDir . '/scripts/upgrade_plugin')
 		. ' --run-upgrade-script ' . escapeshellarg($plugin);
 
+	$fromSha = PluginInstalledSha($plugin);
 	if ($streaming) {
 		DisableOutputBuffering();
 		system($cmd, $return_val);
 	} else {
 		exec($cmd, $output, $return_val);
 	}
+	$depFailed = false;
 	if ($return_val == 0) {
 		if (!ReconcilePluginDependencies($plugin, 'upgrade', $stream)) {
 			PluginEchoLog('upgrade', $plugin, "\nERROR: the code of '$plugin' was updated, but a dependency it now declares could not be installed; its upgrade script was not run.\n", $stream);
 			$return_val = 2;
+			$depFailed = true;
 		} else if ($streaming) {
 			system($runCmd, $return_val);
 		} else {
@@ -2563,6 +2640,17 @@ function UpgradePlugin()
 	PluginRecordUpgradedPrivacy($plugin, $return_val, $changed, $pending, $stream);
 	// rc 0 and 2 both mean the code landed. Before the streaming return: the UI always streams.
 	if ($return_val != 1) {
+		$entry = array('fromSha' => $fromSha, 'sha' => PluginInstalledSha($plugin));
+		if ($depFailed) {
+			$entry['dependencyFailed'] = true;
+		} else if ($return_val == 2) {
+			$entry['scriptFailed'] = true;
+		}
+		// Update All runs upgrade_plugin on plugins with nothing new; it
+		// succeeds without moving, and that is not an event worth keeping.
+		if ($entry['sha'] !== $fromSha || $return_val == 2) {
+			AppendPluginHistory($plugin, 'upgrade', $entry);
+		}
 		// The refs were fetched moments ago, so this is a local read.
 		list($u, $e) = PluginUpdateVerdict($plugin);
 		PluginUpdateStateSet($plugin, $u, $e, 'upgrade');
@@ -2736,8 +2824,7 @@ function PluginInstalledInfo($plugin)
 function PluginInstalledSha($plugin)
 {
 	global $settings;
-	$dir = $settings['pluginDirectory'] . '/' . $plugin;
-	return trim((string) shell_exec('cd ' . escapeshellarg($dir) . ' && git rev-parse HEAD 2>/dev/null'));
+	return PluginGitHead($settings['pluginDirectory'] . '/' . $plugin);
 }
 
 // The record is device-scoped, like the privacyConsent record

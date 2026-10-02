@@ -496,6 +496,9 @@ with open(sys.argv[2], "w") as f:
                             # Fails closed -- no list, no file.
                             filter_interface_config "$file" "$TEMP_DIR/config/$filename"
                             ;;
+                        pluginHistory.*)
+                            # Plugin install history: never copied (manual reports get plugin_history.php --summary).
+                            ;;
                         *authorized_keys*|*id_rsa*|*id_dsa*|*.pem|*.key)
                             echo "**REDACTED SSH/KEY FILE**" > "$TEMP_DIR/config/$filename"
                             ;;
