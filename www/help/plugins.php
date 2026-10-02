@@ -21,7 +21,7 @@
     <li><b>Camera &amp; mic</b> - Does it use a camera, microphone or similar sensor, and does it record?</li>
     <li><b>Remote access</b> - Can it be reached from outside this player, or from the internet?</li>
     <li><b>System changes</b> - Does it change the player itself, beyond its own files?</li>
-    <li><b>Can it be checked?</b> - Is all of its code somewhere anyone can look at it?</li>
+    <li><b>Can it be checked?</b> (the <b>Source</b> chip) - Is all of its code somewhere anyone can look at it?</li>
 </ul>
 <p><b>Green</b> means the author says there is nothing to report under that heading. <b>Amber</b> and
     <b>red</b> describe something the plugin does that you may want to know about, such as sending data to an

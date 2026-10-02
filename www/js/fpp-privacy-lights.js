@@ -42,17 +42,22 @@
 var FPPPluginPrivacy = (function () {
 	"use strict";
 
-	// The six lights, in display order, with the chip text for each colour
-	// (guidelines). Level 'n' (undeclared) has the one label below for every
-	// light; chipText() prefixes the light's name to it.
+	// The six lights, in display order. `g`/`a`/`r` are the sentence for each
+	// colour (headlines, guidelines). A chip reads "<chip || name>: <state>",
+	// the state being `gs`/`as`/`rs` or a rule's own `state`, so every colour,
+	// undeclared included, follows one pattern ("Sends data: none" ... "not disclosed").
 	//
 	// Attribution: nothing here is verified by FPP. A declaration AGAINST the
 	// author's interest (amber, red) is stated as a finding; a FAVOURABLE one
-	// (green) is attributed to the author ("No sending declared"), so a row of
-	// greens reads as what the author says, not as a clean bill from FPP.
+	// (green) is the author's word, which the "Disclosed by the author" heading
+	// over every strip says, so a row of greens does not read as a clean bill
+	// from FPP.
 	var LIGHTS = [
 		{
 			id: "send",
+			gs: "none",
+			as: "when enabled",
+			rs: "identifying",
 			name: "Sends data",
 			g: "No sending disclosed",
 			a: "Sends when enabled",
@@ -60,6 +65,9 @@ var FPPPluginPrivacy = (function () {
 		},
 		{
 			id: "collect",
+			gs: "none",
+			as: "with limits",
+			rs: "about visitors",
 			name: "Collects data",
 			g: "No collection disclosed",
 			a: "Collects, with limits",
@@ -67,6 +75,9 @@ var FPPPluginPrivacy = (function () {
 		},
 		{
 			id: "camera",
+			gs: "none",
+			as: "not stored",
+			rs: "records people",
 			name: "Camera & mic",
 			g: "No camera or mic disclosed",
 			a: "Camera, not stored",
@@ -74,6 +85,9 @@ var FPPPluginPrivacy = (function () {
 		},
 		{
 			id: "remote",
+			gs: "none",
+			as: "listens for connections",
+			rs: "from the internet",
 			name: "Remote access",
 			g: "No remote access disclosed",
 			a: "Listens for connections",
@@ -81,6 +95,9 @@ var FPPPluginPrivacy = (function () {
 		},
 		{
 			id: "system",
+			gs: "none",
+			as: "some",
+			rs: "permanent",
 			name: "System changes",
 			g: "No system changes disclosed",
 			a: "Changes this device",
@@ -88,6 +105,10 @@ var FPPPluginPrivacy = (function () {
 		},
 		{
 			id: "code",
+			chip: "Source",
+			gs: "all published",
+			as: "downloads extra software",
+			rs: "includes closed-source",
 			name: "Can it be checked?",
 			g: "Author says all its software can be checked",
 			a: "Downloads extra software",
@@ -95,6 +116,7 @@ var FPPPluginPrivacy = (function () {
 		},
 	];
 	var UNDECLARED_LABEL = "Not disclosed";
+	var UNDECLARED_STATE = "not disclosed";
 
 	// Guidelines: a `to` that contains a dotted domain is a hostname; anything
 	// else is an operator-entered phrase ("your MQTT broker") or a broadcast.
@@ -343,7 +365,8 @@ var FPPPluginPrivacy = (function () {
 	// THE TABLE (guidelines). Red rules first, then amber; first match wins;
 	// green when nothing matched. The comment on each rule is the published
 	// wording; `test` is what it means in the block. A rule may carry its own
-	// chip `label`; otherwise the light's label for that level is used.
+	// `label` (its headline) and `state` (after the chip's name);
+	// otherwise the light's ones for that level are used.
 	var RULES = {
 		send: [
 			{
@@ -362,6 +385,7 @@ var FPPPluginPrivacy = (function () {
 				// rule below and is tested out of the two internet rules
 				level: "r",
 				label: "Sends to the internet on its own",
+				state: "to the internet on its own",
 				test: function (p) {
 					return p.sends.some(function (s) {
 						return s.alwaysOn && isInternet(s.to) && !isBrowserLoad(s);
@@ -374,6 +398,7 @@ var FPPPluginPrivacy = (function () {
 				// amber below)
 				level: "r",
 				label: "Sends unencrypted to the internet",
+				state: "unencrypted to the internet",
 				test: function (p) {
 					return p.sends.some(function (s) {
 						return /^http:\/\//i.test(s.to) && isInternet(s.to) && !isBrowserLoad(s);
@@ -390,6 +415,10 @@ var FPPPluginPrivacy = (function () {
 					var s = p.sends.filter(isBrowserLoad)[0];
 					return "Your browser loads files from " + (unhttp(s.to) || "a web host");
 				},
+				state: function (p) {
+					var s = p.sends.filter(isBrowserLoad)[0];
+					return "browser loads files from " + (unhttp(s.to) || "a web host");
+				},
 				test: function (p) {
 					return p.sends.some(isBrowserLoad);
 				},
@@ -400,6 +429,7 @@ var FPPPluginPrivacy = (function () {
 				// false, so it has its own text
 				level: "a",
 				label: "Sends on its own to a device on your network",
+				state: "on its own, on your network",
 				test: function (p) {
 					return p.sends.some(function (s) {
 						return s.alwaysOn && isLocalDevice(s.to);
@@ -412,6 +442,7 @@ var FPPPluginPrivacy = (function () {
 				// itself): the `to` fragment on the line says who
 				level: "a",
 				label: "Sends on its own",
+				state: "on its own",
 				test: function (p) {
 					return p.sends.some(function (s) {
 						return s.alwaysOn;
@@ -479,6 +510,7 @@ var FPPPluginPrivacy = (function () {
 				// button log is kept, but nobody is recorded
 				level: "a",
 				label: "Sensor readings kept",
+				state: "sensor readings kept",
 				test: function (p) {
 					return p.sensors.some(function (s) {
 						return s.stored;
@@ -489,6 +521,7 @@ var FPPPluginPrivacy = (function () {
 				// any other sensor, not stored
 				level: "a",
 				label: "Uses a sensor, not stored",
+				state: "other sensor, not stored",
 				test: function (p) {
 					return p.sensors.length > 0;
 				},
@@ -506,6 +539,7 @@ var FPPPluginPrivacy = (function () {
 				// lan: a listener that only the operator's own network can reach
 				level: "a",
 				label: "Listens on your network",
+				state: "on your network",
 				test: function (p) {
 					return p.remoteAccess === "lan";
 				},
@@ -515,6 +549,7 @@ var FPPPluginPrivacy = (function () {
 				// one notch below the red "Can be reached from the internet"
 				level: "a",
 				label: "Reachable from the internet, with a login",
+				state: "from the internet, with a login",
 				test: function (p) {
 					return p.remoteAccess === "internet-authenticated";
 				},
@@ -544,6 +579,7 @@ var FPPPluginPrivacy = (function () {
 				// reads-core-credentials
 				level: "r",
 				label: "Reads FPP's credentials",
+				state: "reads FPP's credentials",
 				test: function (p) {
 					return p.systemChanges.some(function (c) {
 						return c.kind === "reads-core-credentials";
@@ -555,6 +591,7 @@ var FPPPluginPrivacy = (function () {
 				// not "permanent" -- some are undone by a restart
 				level: "r",
 				label: "Grants extra privileges",
+				state: "extra privileges",
 				test: function (p) {
 					return p.systemChanges.some(function (c) {
 						return c.kind === "privilege";
@@ -597,7 +634,12 @@ var FPPPluginPrivacy = (function () {
 		for (var i = 0; i < rules.length; i++) {
 			if (rules[i].test(p)) {
 				var label = rules[i].label;
-				return { level: rules[i].level, label: typeof label === "function" ? label(p) : label };
+				var state = rules[i].state;
+				return {
+					level: rules[i].level,
+					label: typeof label === "function" ? label(p) : label,
+					state: typeof state === "function" ? state(p) : state,
+				};
 			}
 		}
 		return { level: p.has[id] ? "g" : "n" };
@@ -736,7 +778,7 @@ var FPPPluginPrivacy = (function () {
 
 	// Headline, by the published rule (guidelines), first match wins. Red
 	// headlines state the finding; the amber and green ones are attributed
-	// to the author. `byId` maps light id -> level, `labelById` -> chip text.
+	// to the author. `byId` maps light id -> level, `labelById` -> its label.
 	function headlineFor(byId, labelById, p) {
 		if (byId.code === "r")
 			return {
@@ -815,14 +857,17 @@ var FPPPluginPrivacy = (function () {
 			var level = d.level;
 			var lit = declared && level !== "n";
 			var label = lit ? d.label || L[level] : UNDECLARED_LABEL;
+			var state = lit ? d.state || L[level + "s"] : UNDECLARED_STATE;
 			byId[L.id] = level;
 			labelById[L.id] = label;
 			if (declared && level === "r") red = true;
 			lights.push({
 				id: L.id,
 				name: L.name,
+				chip: L.chip || L.name, // its own chip label only where it differs (Source)
 				level: level,
 				label: label,
+				state: state,
 				entries: lit ? lineFor(L.id, p) : [esc(UNDECLARED_LINE)],
 				declared: lit,
 			});
@@ -929,16 +974,10 @@ var FPPPluginPrivacy = (function () {
 		);
 	}
 
-	// A declared chip's text names the finding ("Sends when enabled") and so
-	// implies the light. An undeclared one has no finding: "Not declared" six
-	// times over says nothing, so it carries the light's name instead, with its
-	// dot (grey for one missing key, red for no block) and the headline saying
-	// why.
+	// "light: state" for every colour (see LIGHTS), so a green chip can't be
+	// read as the undeclared one.
 	function chipText(l) {
-		if (l.declared) return l.label;
-		return /\?$/.test(l.name) ?
-				l.name + " " + l.label
-			:	l.name + ": " + lower(l.label);
+		return l.chip + ": " + l.state;
 	}
 
 	/**
@@ -973,7 +1012,7 @@ var FPPPluginPrivacy = (function () {
 			result.lights.forEach(function (l) {
 				var theme = LEVEL_THEME[l.level];
 				var filled = theme === "warning" || theme === "danger";
-				var title = ' title="' + esc(l.name + ": " + l.label) + '"';
+				var title = ' title="' + esc(chipText(l)) + '"';
 				if (theme === "secondary")
 					h +=
 						'<i class="far fa-circle-question fa-2xs text-secondary"' +
