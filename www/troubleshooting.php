@@ -292,9 +292,9 @@
             frame.id = pre.id;
             frame.title = 'Command output';
             frame.setAttribute('sandbox', 'allow-same-origin allow-popups allow-popups-to-escape-sandbox');
-            // The pages carry their own light styling, or none at all, so give
-            // them a light background in both themes.
-            frame.className = 'w-100 border rounded bg-white';
+            // No background of its own: the page inside paints its canvas in
+            // whichever theme the frame takes from this page.
+            frame.className = 'w-100 border rounded';
             frame.addEventListener('load', function () {
                 var doc = frame.contentDocument;
                 if (!doc || !doc.documentElement) {
@@ -306,10 +306,13 @@
                 (doc.head || doc.documentElement).prepend(base);
 
                 // server-status brings no styles at all: browser-default serif
-                // with tables run together.  phpinfo has its own and keeps them.
+                // with tables run together, and always light.  phpinfo has its
+                // own, with a prefers-color-scheme dark variant that already
+                // follows FPP's theme, and keeps them.
                 if (!doc.querySelector('style, link[rel="stylesheet"]')) {
                     var style = doc.createElement('style');
-                    style.textContent = 'body { font-family: sans-serif; font-size: 14px; } ' +
+                    style.textContent = ':root { color-scheme: light dark; } ' +
+                        'body { font-family: sans-serif; font-size: 14px; } ' +
                         'th, td { padding: 1px 6px; }';
                     (doc.head || doc.documentElement).appendChild(style);
                 }
