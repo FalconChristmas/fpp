@@ -2567,8 +2567,10 @@
                 var d = pluginInfos[i];
                 if (!d || !d.repoName) continue;
                 if (PluginIsInstalled(d.repoName)) continue;   // exclude installed
-                var sel = SelectPluginVersionIndices(d);
-                if (sel.compatible < 0 && sel.untested < 0) continue;  // exclude uninstallable
+                // Only plugins with a version for this FPP release: not ones that
+                // are uninstallable, nor ones not yet updated for it ("Install
+                // anyway"), which the grid still lists, badged, at Advanced up.
+                if (SelectPluginVersionIndices(d).compatible < 0) continue;
                 // Basic UI: don't recommend a plugin this device doesn't meet the
                 // minimum memory/CPU for (matches the grid's hide-on-Basic rule).
                 if (uiLevel < 1 && PluginResourceVerdict(d).exceeds) continue;
