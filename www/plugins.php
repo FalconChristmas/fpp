@@ -412,7 +412,8 @@
         // self-reported `author` is deliberately not shown — only the verifiable
         // source owner. Returns '' when there is no usable source URL (caller omits
         // the attribution line entirely).
-        function PluginAuthorHtml(data) {
+        // cls: extra classes for the link (the detail modal's tap-target padding).
+        function PluginAuthorHtml(data, cls) {
             var u = data && data.srcURL;
             if (!u) return '';
             try {
@@ -423,7 +424,7 @@
                 var profile = (parsed.host.toLowerCase() === 'github.com')
                     ? 'https://github.com/' + owner
                     : parsed.origin + '/' + owner;
-                return '<a href="' + profile + '" target="_blank" rel="noopener noreferrer">' + owner + '</a>';
+                return '<a href="' + profile + '"' + (cls ? ' class="' + cls + '"' : '') + ' target="_blank" rel="noopener noreferrer">' + owner + '</a>';
             } catch (e) {
                 return '';
             }
@@ -1151,8 +1152,7 @@
                 from = PluginPrivacyResult(prevData);
             }
             body += PrivacyBlockHtml(r, opts.prefix, from);
-            if (IsSafeHttpUrl(data.srcURL)) body += '<div class="small text-secondary mt-2"><i class="fas fa-code"></i> Source: ' +
-                '<a href="' + EscapeAttr(data.srcURL) + '" target="_blank" rel="noopener noreferrer">' + EscapeHtml(data.srcURL) + '</a></div>';
+            body += PluginSourceLinksHtml(data);
             var buttons = {};
             var outcome = 'cancel';
             buttons[opts.button] = function () { outcome = 'accept'; CloseModalDialog(opts.id); };
@@ -1375,9 +1375,30 @@
             return out;
         }
 
+        // Same address, ignoring a trailing slash or .git: github.com/x/y(.git)(/).
+        function PluginSameLink(a, b) {
+            var n = function (u) { return (u || '').replace(/\.git$/i, '').replace(/\/+$/, '').toLowerCase(); };
+            return !!(a && b && n(a) === n(b));
+        }
+
+        // Where a plugin lives, for the install and update dialogs: its home page,
+        // plus the clone address when it differs (that is the code that runs).
+        function PluginSourceLinksHtml(data) {
+            if (!data) return '';
+            var link = function (icon, label, url) {
+                return '<div class="small text-secondary mt-2"><i class="fas ' + icon + '"></i> ' + label +
+                    '<a href="' + EscapeAttr(url) + '" target="_blank" rel="noopener noreferrer">' + EscapeHtml(url) + '</a></div>';
+            };
+            var home = IsSafeHttpUrl(data.homeURL) ? data.homeURL : '';
+            var src = IsSafeHttpUrl(data.srcURL) ? data.srcURL : '';
+            var h = home ? link('fa-home', '', home) : '';
+            if (src && !PluginSameLink(src, home)) h += link('fa-code', 'Code from: ', src);
+            return h;
+        }
+
         // Everything an install asks the operator to accept, for the install
         // dialog and the detail modal alike: the plugin's block and source
-        // line, then one section per dependency plugin that the install will
+        // line (not in the detail modal: omitSource), then one section per dependency plugin that the install will
         // bring in (DependencyPluginsToInstall), each with its by-line, block
         // and source. Returns
         //   html:        the markup;
@@ -1395,7 +1416,9 @@
         // Dependency plugins are installed in the same operation with no
         // dialog of their own, which is why their disclosures are here.
         // prefix: id prefix for the strips (dependencies get prefix + 'd' + n).
-        function InstallDisclosureHtml(plugin, data, prefix) {
+        // omitSource: the caller already links the plugin's home and source (the
+        // detail modal), so PluginSourceLinksHtml() would repeat them.
+        function InstallDisclosureHtml(plugin, data, prefix, omitSource) {
             var html = '';
             // Resource warning is orthogonal to trust: it applies to Official plugins too.
             var res = data ? PluginResourceVerdict(data) : { exceeds: false };
@@ -1417,10 +1440,9 @@
                     'you <b>do not</b> install this ' +
                     'plugin.</span></div>';
             var r = PluginPrivacyResult(data || { repoName: plugin });
-            html += PrivacyBlockHtml(r, prefix);
-            var src = (data && data.srcURL) ? data.srcURL : '';
-            if (IsSafeHttpUrl(src)) html += '<div class="small text-secondary mt-2"><i class="fas fa-code"></i> Source: ' +
-                '<a href="' + EscapeAttr(src) + '" target="_blank" rel="noopener noreferrer">' + EscapeHtml(src) + '</a></div>';
+            // A hairline sets the disclosure apart from who wrote the plugin.
+            html += '<div class="border-top pt-2">' + PrivacyBlockHtml(r, prefix) + '</div>';
+            if (!omitSource) html += PluginSourceLinksHtml(data);
             var btn = { text: 'Install', cls: 'btn-success' };
             var undisclosed = !r.declared;
             var deps = data ? DependencyPluginsToInstall(plugin) : [];
@@ -1440,8 +1462,7 @@
                     ' <span class="fw-normal text-secondary">(a plugin ' + EscapeHtml(viaName) + ' depends on)</span></div>';
                 html += PluginByLineHtml($.extend({ name: dep }, dinfo));
                 html += PrivacyBlockHtml(dr, prefix + 'd' + n);
-                if (IsSafeHttpUrl(dinfo.srcURL)) html += '<div class="small text-secondary mt-2"><i class="fas fa-code"></i> Source: ' +
-                    '<a href="' + EscapeAttr(dinfo.srcURL) + '" target="_blank" rel="noopener noreferrer">' + EscapeHtml(dinfo.srcURL) + '</a></div>';
+                html += PluginSourceLinksHtml(dinfo);
             });
             // The card says "Install anyway" for a version not updated for
             // this FPP release, and for a device under the plugin's declared
@@ -2488,8 +2509,8 @@
                 var $dBadge = $('#pluginDetailDialog .modal-footer .pluginDetailGitHubStats').first();
                 if (dBadge) {
                     if (!$dBadge.length) {
-                        $dBadge = $('<span class="pluginDetailGitHubStats me-auto"></span>');
-                        $('#pluginDetailDialog .modal-footer').prepend($dBadge);
+                        $dBadge = $('<span class="pluginDetailGitHubStats"></span>');
+                        $('#pluginDetailDialog .modal-footer .pluginDetailFooterInfo').prepend($dBadge);
                     }
                     $dBadge.html(dBadge);
                 } else if ($dBadge.length) {
@@ -2737,11 +2758,14 @@
             var html = '';
             for (var i = 0; i < data.versions.length; i++) {
                 if (i > 0) html += ',';
-                if ((data.versions[i].minFPPVersion > 0) && (data.versions[i].maxFPPVersion > 0))
+                // parseFloat: "3.5.0" > 0 is false ("3.5.0" is not a number), "3.5" > 0 is true
+                var hasMin = parseFloat(data.versions[i].minFPPVersion) > 0;
+                var hasMax = parseFloat(data.versions[i].maxFPPVersion) > 0;
+                if (hasMin && hasMax)
                     html += ' v' + EscapeHtml(data.versions[i].minFPPVersion) + ' - v' + EscapeHtml(data.versions[i].maxFPPVersion);
-                else if (data.versions[i].minFPPVersion > 0)
+                else if (hasMin)
                     html += ' > v' + EscapeHtml(data.versions[i].minFPPVersion);
-                else if (data.versions[i].maxFPPVersion > 0)
+                else if (hasMax)
                     html += ' < v' + EscapeHtml(data.versions[i].maxFPPVersion);
                 if (data.versions[i].hasOwnProperty('platforms')) {
                     var platforms = data.versions[i].platforms;
@@ -2756,6 +2780,34 @@
                 }
             }
             return html;
+        }
+
+        // The detail modal's author-and-links row: "by owner", home page (shown
+        // as GitHub for a github.com repo), source only when elsewhere, bug
+        // tracker, release notes, then badgesHtml. Links are padded to ~32px tap
+        // targets.
+        function PluginDetailMetaHtml(data, repo, badgesHtml) {
+            var link = function (url, icon, text) {
+                return '<a class="d-inline-block py-1" href="' + EscapeAttr(url) + '" title="' + EscapeAttr(url) +
+                    '" target="_blank" rel="noopener noreferrer"><i class="' + icon + ' me-1" aria-hidden="true"></i>' + text + '</a>';
+            };
+            var items = [];
+            var author = PluginAuthorHtml(data, 'd-inline-block py-1');
+            if (author) items.push('<span><i class="fas fa-user me-1" aria-hidden="true"></i>by ' + author + '</span>');
+            var home = IsSafeHttpUrl(data.homeURL) ? data.homeURL : '';
+            if (home) {
+                var gh = /^https?:\/\/github\.com\/[^\/?#]+\/[^\/?#]+\/?$/i.test(home.replace(/\.git$/i, ''));
+                items.push(gh ? link(home, 'fab fa-github', 'GitHub') : link(home, 'fas fa-home', 'Home page'));
+            }
+            if (IsSafeHttpUrl(data.srcURL) && !PluginSameLink(data.srcURL, home))
+                items.push(link(data.srcURL, 'fas fa-code', 'Source'));
+            if (IsSafeHttpUrl(data.bugURL)) items.push(link(data.bugURL, 'fas fa-bug', 'Report a bug'));
+            if (PluginOffersReleaseNotes(data))
+                items.push('<a class="d-inline-block py-1" href="javascript:void(0)" role="button" data-plugin-action="releaseNotes" data-repo="' +
+                    EscapeAttr(repo) + '"><i class="fas fa-file-lines me-1" aria-hidden="true"></i>Release notes</a>');
+            if (badgesHtml) items.push('<span class="d-inline-flex flex-wrap align-items-center row-gap-1 py-1">' + badgesHtml + '</span>');
+            if (!items.length) return '';
+            return '<div class="d-flex flex-wrap align-items-center column-gap-3 small text-secondary mb-3">' + items.join('') + '</div>';
         }
 
         // Full-detail modal for a plugin card (reuses FPP's DoModalDialog).
@@ -2781,32 +2833,17 @@
                 titleIcon += '<div class="pluginIconWrap pluginIconWrapSm d-inline-flex align-middle me-2"><div class="pluginIconFallback pluginIconFallbackSm">' + initials + '</div></div>';
             }
 
-            var body = '';
-            body += '<div class="mb-2">' + PluginBadgesHtml(data, true, true) + '</div>';
-            var authorHtml = PluginAuthorHtml(data);
-            if (authorHtml) body += '<div class="mb-2 text-secondary"><i class="fas fa-user"></i> ' + authorHtml + '</div>';
-            body += '<p>' + EscapeHtml(data.description) + '</p>';
-            // Supported-versions detail is noise for Basic users; show it from Advanced up.
-            if (uiLevel >= 1)
-                body += '<div class="mb-2 text-muted small"><i class="fas fa-info-circle"></i> Compatible FPP versions: <b>' + PluginVersionsText(data) + '</b></div>';
+            // What the plugin does, then one wrapping row: who wrote it, where it
+            // lives, and the badges -- one line on a laptop, two or three on a
+            // phone -- just above the warnings.
+            var body = '<p>' + EscapeHtml(data.description) + '</p>';
+            body += PluginDetailMetaHtml(data, repo, PluginBadgesHtml(data, true, true));
             if (!installed && compatibleVersion == -1 && untestedVersion >= 0)
                 body += '<div class="fpp-inline-warn mb-2"><i class="fas fa-exclamation-triangle"></i>' +
                     '<span>This plugin has not been updated to work with your version of FPP (' + getFPPMajorVersion() + '). You can still install it, but it may not work correctly.</span></div>';
             else if (!installed && compatibleVersion == -1)
                 body += '<div class="fpp-major-callout mb-2"><i class="fas fa-exclamation-triangle"></i>' +
                     '<span>No version is compatible with your FPP version/platform.</span></div>';
-            body += '<div class="d-flex flex-column gap-1 small">';
-            if (IsSafeHttpUrl(data.homeURL)) body += '<a href="' + EscapeAttr(data.homeURL) + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none"><i class="fas fa-home"></i> <span class="text-decoration-underline">' + EscapeHtml(data.homeURL) + '</span></a>';
-            // Omit "View Source" when srcURL just duplicates the home link (same repo),
-            // ignoring a trailing slash or .git suffix so github.com/x/y(.git)(/) all match.
-            var sameLink = function (a, b) {
-                var n = function (u) { return (u || '').replace(/\.git$/i, '').replace(/\/+$/, '').toLowerCase(); };
-                return a && b && n(a) === n(b);
-            };
-            if (IsSafeHttpUrl(data.srcURL) && !sameLink(data.srcURL, data.homeURL)) body += '<a href="' + EscapeAttr(data.srcURL) + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none"><i class="fas fa-code"></i> <span class="text-decoration-underline">View Source</span></a>';
-            if (IsSafeHttpUrl(data.bugURL)) body += '<a href="' + EscapeAttr(data.bugURL) + '" target="_blank" rel="noopener noreferrer" class="text-decoration-none"><i class="fas fa-bug"></i> <span class="text-decoration-underline">Report a Bug</span></a>';
-            if (PluginOffersReleaseNotes(data)) body += '<a href="javascript:void(0)" role="button" class="text-decoration-none" data-plugin-action="releaseNotes" data-repo="' + EscapeAttr(repo) + '"><i class="fas fa-file-lines"></i> <span class="text-decoration-underline">Release Notes</span></a>';
-            body += '</div>';
             // What a plugin declares is one tap away from its card at any
             // time, not only at install. For a plugin that can be installed
             // from here this is the whole of what the install dialog would
@@ -2814,8 +2851,8 @@
             // install brings in -- so its Install button installs without a
             // second screen (after the one-time plugin notice).
             var canInstall = !installed && (compatibleVersion >= 0 || untestedVersion >= 0);
-            var disclosure = canInstall ? InstallDisclosureHtml(repo, data, 'dt') : null;
-            body += '<div class="mt-2">' + (disclosure ? disclosure.html : PrivacyBlockHtml(PluginPrivacyResult(data), 'dt')) + '</div>';
+            var disclosure = canInstall ? InstallDisclosureHtml(repo, data, 'dt', true) : null;
+            body += '<div class="mt-2">' + (disclosure ? disclosure.html : '<div class="border-top pt-2">' + PrivacyBlockHtml(PluginPrivacyResult(data), 'dt') + '</div>') + '</div>';
 
             var buttons = {};
             if (installed) {
@@ -2844,15 +2881,17 @@
             }
             buttons['Close'] = function () { CloseModalDialog('pluginDetailDialog'); };
 
-            // Developer UI: GitHub issue/PR counts at the far left of the footer,
-            // vertically level with the action buttons (me-auto pushes the buttons
-            // to the right). Passed as the footer's leading content (buttons are
-            // appended after it), so it only appears when we have data -- hidden
-            // offline.
+            // Developer UI: compatible FPP versions and GitHub issue/PR counts at the
+            // footer's left (me-auto pushes the buttons right; flex-basis 0 lets a
+            // long version list wrap rather than split the buttons); everyone else
+            // gets the version warnings above. The counts arrive later, via
+            // PatchPluginGitHubStats(), and never offline.
             var detailStats = '';
             if (uiLevel >= 3) {
                 var dBadge = GitHubStatsBadgeHtml(pluginGitHubRepos[repo]);
-                if (dBadge) detailStats = '<span class="pluginDetailGitHubStats me-auto">' + dBadge + '</span>';
+                detailStats = '<span class="pluginDetailFooterInfo me-auto d-inline-flex flex-grow-1 flex-wrap align-items-center gap-2 small text-muted" style="flex-basis:0;min-width:16rem">' +
+                    (dBadge ? '<span class="pluginDetailGitHubStats">' + dBadge + '</span>' : '') +
+                    '<span title="Compatible FPP versions"><i class="fas fa-info-circle"></i> FPP <b>' + PluginVersionsText(data) + '</b></span></span>';
             }
             pluginDetailDialogRepo = repo;
 
