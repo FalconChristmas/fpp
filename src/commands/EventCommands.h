@@ -103,6 +103,12 @@ public:
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
 };
 
+class RestartFPPDCommand : public Command {
+public:
+    RestartFPPDCommand();
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string>& args) override;
+};
+
 class ShutdownCommand : public Command {
 public:
     ShutdownCommand();

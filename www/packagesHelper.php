@@ -5,6 +5,11 @@ require_once "common.php";
 require_once "common/packages.inc.php";
 DisableOutputBuffering();
 
+// Finish once started, even if the browser goes away: a closed tab must not stop
+// PHP at the next echo.  apt carries on regardless, so stopping here would leave
+// the package installed or removed without the manifest being updated.
+ignore_user_abort(true);
+
 // Backend for the Package Manager UI. Install/uninstall stream apt output live
 // into the progress modal. The heavy lifting (hardened apt, ownership tracking)
 // lives in common/packages.inc.php so the plugin dependency installer can reuse

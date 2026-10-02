@@ -59,6 +59,13 @@ CCACHE = nocc
 # /usr/bin/nocc-daemon.
 NOCC_GO_EXECUTABLE ?= /usr/bin/nocc-daemon
 export NOCC_GO_EXECUTABLE
+# Retry the helpers, then fail, rather than compile locally: make's -j is
+# sized for the helpers (see ComputeDistccParallelism), so a fallback runs
+# that many compilers on this box at once, which hangs a single-core board.
+NOCC_REMOTE_RETRIES ?= 5
+NOCC_DISABLE_LOCAL_FALLBACK ?= 1
+export NOCC_REMOTE_RETRIES
+export NOCC_DISABLE_LOCAL_FALLBACK
 endif
 
 

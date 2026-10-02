@@ -59,6 +59,7 @@ public:
     std::time_t GetStopTime() { return stopTime; }
     int GetStopMethod();
     int GetPosition();
+    int GetResumePosition();
     Json::Value GetInfo();
     void ClearForceStopped() { forceStopped = false; }
     bool GetForceStopped() { return forceStopped; }

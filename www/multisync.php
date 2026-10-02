@@ -385,17 +385,6 @@
             $('#' + rowID + ' > td:nth-child(1)').attr('rowspan', rowSpan);
         }
 
-        function proxyURLsInString(str, ip) {
-            if (!isProxied(ip))
-                return str;
-
-            var re = /(href=['"])([^:]*)\//;
-            if (re.test(str))
-                str = str.replace(re, "$1proxy/" + ip + "/$2/");
-
-            return str;
-        }
-
         function isProxied(ip) {
             return proxies.includes(ip);
         }
@@ -869,10 +858,10 @@
                 var addr = u.address || '-';
                 var chRange = u.startChannel + '-' + (u.startChannel + (u.channelCount * (u.universeCount || 1)) - 1);
                 html += '<tr>';
-                html += '<td>' + desc + '</td>';
-                html += '<td>' + typeName + '</td>';
-                html += '<td>' + addr + '</td>';
-                html += '<td>' + chRange + '</td>';
+                html += '<td>' + msEscape(desc) + '</td>';
+                html += '<td>' + msEscape(typeName) + '</td>';
+                html += '<td>' + msEscape(addr) + '</td>';
+                html += '<td>' + msEscape(chRange) + '</td>';
                 html += '</tr>';
             });
             html += '</table>';
@@ -900,10 +889,10 @@
                 var typeName = getUniverseTypeName(u.type);
                 var chCount = u.channelCount * (u.universeCount || 1);
                 html += '<tr>';
-                html += '<td>' + typeName + '</td>';
-                html += '<td>' + u.startChannel + '</td>';
-                html += '<td>' + chCount + '</td>';
-                html += '<td>' + (u.universeCount || 1) + '</td>';
+                html += '<td>' + msEscape(typeName) + '</td>';
+                html += '<td>' + msEscape(u.startChannel) + '</td>';
+                html += '<td>' + msEscape(chCount) + '</td>';
+                html += '<td>' + msEscape(u.universeCount || 1) + '</td>';
                 html += '</tr>';
             });
             html += '</table>';
@@ -1262,6 +1251,98 @@
         }
 
         /**
+         * Play-status icon with a tooltip naming the running sequence/media.
+         * The icon is only emitted when BOTH a sequence and a media file are
+         * playing: the Status text already names the sequence, and the icon's
+         * tooltip carries the sequence + media lines.  With only one file
+         * playing there is nothing extra to reveal, so no icon is shown.
+         *
+         * The tooltip is rendered as HTML through the delegated instance
+         * bound in $(document).ready (selector '.ms-play-tip', html: true).
+         * The content lives in data-bs-title (not title) so the generic
+         * SetupToolTips() sweep -- which only looks at [title] -- leaves these
+         * icons alone.  Returns '' when there is nothing to describe.
+         *
+         * The filenames are escaped twice on purpose: once as HTML content
+         * (the tooltip renders as HTML), then the finished markup again as an
+         * attribute value, because the browser decodes one level when it
+         * parses data-bs-title.  Escaping once would hand the raw,
+         * remote-supplied filename to the tooltip's HTML renderer.
+         */
+        function buildPlayIconTooltip(seq, song) {
+            if (!seq || seq == '' || !song || song == '') return '';
+            var tip = msEscape('Sequence: ' + seq) + '<br>' + msEscape('Media: ' + song);
+            return ' <i class="fas fa-play-circle text-success ms-play-tip" data-bs-title="' + msEscape(tip) + '"></i>';
+        }
+
+        /**
+         * Assembles a Status cell with the play icon AFTER the file name:
+         * "<label>:<br><file> <icon>".  The icon only appears when both a
+         * sequence and a media file are playing (its tooltip then carries
+         * both lines); single-file states show just the name, no icon.
+         */
+        function buildPlayingStatus(label, fileText, seq, song) {
+            var s = label;
+            var icon = buildPlayIconTooltip(seq, song);
+            if (fileText && fileText != '') {
+                s += ':<br>' + fileText + icon;
+            } else {
+                s += icon;
+            }
+            return s;
+        }
+
+        /**
+         * A remote's warnings carry markup on purpose (e.g. the crash-report
+         * link), so they can't simply be escaped -- but they come from another
+         * device and must not run script here.  Parse into an inert <template>
+         * and rebuild from an allowlist: text, a few formatting tags, and links.
+         * Relative links are pointed back at the remote (through the proxy when
+         * it is proxied); absolute links must be http(s).  Anything else keeps
+         * only its text.
+         */
+        function msRemoteWarningHtml(ip, raw) {
+            var tpl = document.createElement('template');
+            tpl.innerHTML = String(raw);
+
+            function linkFor(href) {
+                href = href.trim();
+                if (/^https?:\/\//i.test(href)) {
+                    return href;
+                }
+                if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('//')) {
+                    return '';
+                }
+                return wrapUrlWithProxy(ip, '/' + href.replace(/^\/+/, ''));
+            }
+
+            function render(node) {
+                var html = '';
+                node.childNodes.forEach(function (n) {
+                    if (n.nodeType === Node.TEXT_NODE) {
+                        html += msEscape(n.nodeValue);
+                    } else if (n.nodeType === Node.ELEMENT_NODE) {
+                        var tag = n.tagName.toLowerCase();
+                        if (tag === 'script' || tag === 'style') {
+                            // drop entirely rather than showing the code as text
+                        } else if (tag === 'br') {
+                            html += '<br>';
+                        } else if (['b', 'strong', 'i', 'em'].includes(tag)) {
+                            html += '<' + tag + '>' + render(n) + '</' + tag + '>';
+                        } else if (tag === 'a' && n.hasAttribute('href') && linkFor(n.getAttribute('href')) !== '') {
+                            html += "<a href='" + msEscape(linkFor(n.getAttribute('href'))) + "'>" + render(n) + '</a>';
+                        } else {
+                            html += render(n);
+                        }
+                    }
+                });
+                return html;
+            }
+
+            return render(tpl.content);
+        }
+
+        /**
          * fppd now collects the slow-changing detail about every FPP remote
          * itself (see MultiSync::CheckSystemInfoRefreshes) and returns it on
          * each multiSyncSystems entry as `systemInfo`.  Fold the two channel
@@ -1336,7 +1417,7 @@
                     (data.advancedView.RemoteGitVersion == data.advancedView.LocalGitVersion))
                     ? 'text-success'
                     : 'text-muted';
-            localVer += "<span class='fw-bold " + colorClass + "'>" + data.advancedView.LocalGitVersion + "</span>";
+            localVer += "<span class='fw-bold " + colorClass + "'>" + msEscape(data.advancedView.LocalGitVersion) + "</span>";
             if (!fppConfig.hideExternalURLs) {
                 localVer += "</a>";
             }
@@ -1376,20 +1457,32 @@
                         }
 
                         if (data.status_name == 'playing') {
-                            status = 'Playing';
-
                             elapsed = data.time_elapsed;
 
-                            if (data.current_sequence != "") {
-                                files += data.current_sequence;
-                                if (data.current_song != "")
-                                    files += "<br>" + data.current_song;
-                            } else {
-                                files += data.current_song;
+                            // Label names what is actually playing: any sequence
+                            // present means "Playing Sequence" (with or without
+                            // media); media-only means "Playing Media".  Neither
+                            // (playlist between items) stays a bare "Playing".
+                            status = 'Playing';
+                            if (data.current_sequence && data.current_sequence != "") {
+                                status = 'Playing Sequence';
+                            } else if (data.current_song && data.current_song != "") {
+                                status = 'Playing Media';
                             }
 
-                            if (files != "")
-                                status += ":<br>" + files;
+                            // Visible text names the sequence only (the fseq file);
+                            // the media/audio file rides on the play icon tooltip
+                            // placed after the sequence name.  Both come from this
+                            // same poll so they change tracks together.  With no
+                            // sequence (media-only entry), the media itself is
+                            // the text.
+                            if (data.current_sequence && data.current_sequence != "") {
+                                files += msEscape(data.current_sequence);
+                            } else if (data.current_song && data.current_song != "") {
+                                files += msEscape(data.current_song);
+                            }
+
+                            status = buildPlayingStatus(status, files, data.current_sequence, data.current_song);
                         } else if (data.status_name == 'updating') {
                             status = 'Updating';
                         } else if (data.status_name == 'stopped') {
@@ -1399,7 +1492,27 @@
                         } else if (data.status_name == 'stopping gracefully after loop') {
                             status = 'Stopping Gracefully After Loop';
                         } else if (data.status_name == 'paused') {
+                            elapsed = data.time_elapsed;
+
+                            // Same rule as 'playing', paused: sequence present
+                            // means "Paused Sequence", media-only means
+                            // "Paused Media", neither stays bare "Paused".
                             status = 'Paused';
+                            if (data.current_sequence && data.current_sequence != "") {
+                                status = 'Paused Sequence';
+                            } else if (data.current_song && data.current_song != "") {
+                                status = 'Paused Media';
+                            }
+
+                            // Same shape as 'playing': sequence text, icon with
+                            // media tooltip after the name.
+                            if (data.current_sequence && data.current_sequence != "") {
+                                files += msEscape(data.current_sequence);
+                            } else if (data.current_song && data.current_song != "") {
+                                files += msEscape(data.current_song);
+                            }
+
+                            status = buildPlayingStatus(status, files, data.current_sequence, data.current_song);
                         } else if (data.status_name == 'testing') {
                             status = 'Testing';
                         } else if (data.status_name == 'unreachable') {
@@ -1424,23 +1537,42 @@
                                 status = 'Background Audio';
                             }
                             if (data.mode_name == 'remote') {
-                                if ((data.sequence_filename != "") ||
-                                    (data.media_filename != "")) {
+                                if ((data.sequence_filename && data.sequence_filename != "") ||
+                                    (data.media_filename && data.media_filename != "")) {
                                     status = 'Syncing';
 
                                     elapsed += data.time_elapsed;
 
-                                    if (data.sequence_filename != "") {
-                                        files += data.sequence_filename;
-                                        if (data.media_filename != "")
-                                            files += "<br>" + data.media_filename;
-                                    } else {
-                                        files += data.media_filename;
+                                    // Match players: visible text is the sequence
+                                    // only, with the play icon (media tooltip)
+                                    // after the name.  Media-only sync shows the
+                                    // media as the text.
+                                    if (data.sequence_filename && data.sequence_filename != "") {
+                                        files += msEscape(data.sequence_filename);
+                                    } else if (data.media_filename && data.media_filename != "") {
+                                        files += msEscape(data.media_filename);
                                     }
 
-                                    if (files != "")
-                                        status += ":<br>" + files;
+                                    status = buildPlayingStatus(status, files, data.sequence_filename, data.media_filename);
                                 }
+                            } else if ((data.status_name == 'playing media') ||
+                                       (data.status_name == 'playing background')) {
+                                // Player/master playing standalone media (outside a
+                                // playlist): same shape -- sequence (or media when
+                                // there is no sequence) as text, play icon with
+                                // media tooltip after the name.  A sequence here
+                                // upgrades the label to "Playing Sequence".
+                                var pfiles = "";
+                                if (data.current_sequence && data.current_sequence != "") {
+                                    pfiles += msEscape(data.current_sequence);
+                                    status = 'Playing Sequence';
+                                } else if (data.current_song && data.current_song != "") {
+                                    pfiles += msEscape(data.current_song);
+                                }
+
+                                status = buildPlayingStatus(status, pfiles, data.current_sequence, data.current_song);
+                                if (data.time_elapsed && data.time_elapsed != "" && data.time_elapsed != "00:00")
+                                    elapsed = data.time_elapsed;
                             }
                         } else {
                             status = data.status_name;
@@ -1519,15 +1651,7 @@
 
                             var wHTML = "";
                             for (var i = 0; i < data.warnings.length; i++) {
-                                if (isProxied(ip))
-                                    data.warnings[i] = proxyURLsInString(data.warnings[i], ip);
-
-                                let wstr = data.warnings[i];
-                                let idx = wstr.indexOf("href=");
-                                if (idx > 0) {
-                                    wstr = wstr.substr(0, idx + 6) + buildHttpURL(ip, "/") + wstr.substr(idx + 6);
-                                }
-                                wHTML += "<span class='warning-text'>" + wstr + "</span><br>";
+                                wHTML += "<span class='warning-text'>" + msRemoteWarningHtml(ip, data.warnings[i]) + "</span><br>";
                             }
                             $('#' + rowID + '_warningCell').html(wHTML);
                         }
@@ -1554,13 +1678,13 @@
                             // just rebuilt; platformSorter() sorts on them.
                             item._platformInit = platformTxt;
                             item._variantInit = variantTxt;
-                            item.platform = "<span id='" + rowID + "_platform'>" + platformTxt + "</span>" +
-                                "<br><small id='" + rowID + "_variant'>" + variantTxt + "</small>" +
+                            item.platform = "<span id='" + rowID + "_platform'>" + msEscape(platformTxt) + "</span>" +
+                                "<br><small id='" + rowID + "_variant'>" + msEscape(variantTxt) + "</small>" +
                                 (item._capeHtml || '') +
                                 "<span class='hidden typeId'> " + item._typeIdHex + " </span>" +
                                 "<span class='hidden version'>" + item._versionStr + "</span>";
 
-                            if (data.advancedView.hasOwnProperty("backgroundColor") && data.advancedView.backgroundColor != "") {
+                            if (data.advancedView.hasOwnProperty("backgroundColor") && /^[0-9a-fA-F]{6}$/.test(data.advancedView.backgroundColor)) {
                                 var colorInt = parseInt(data.advancedView.backgroundColor, 16);
                                 item.fppcolor = isNaN(colorInt) ? '' : colorInt;
                                 item._style = isNaN(colorInt) ? '' : 'background: #' + data.advancedView.backgroundColor + '; color: #FFF;';
@@ -1573,11 +1697,11 @@
                                 u += "<tr><td><small class='text-muted'>COMMIT:</small></td><td id='" + rowID + "_localgitvers'>";
                                 u += getLocalVersionLink(ip, data);
                                 u += "</td></tr>" +
-                                    "<tr><td><small class='text-muted'>BRANCH:</small></td><td id='" + rowID + "_gitbranch'>" + data.advancedView.Branch + "</td></tr>";
+                                    "<tr><td><small class='text-muted'>BRANCH:</small></td><td id='" + rowID + "_gitbranch'>" + msEscape(data.advancedView.Branch) + "</td></tr>";
 
                                 if ((typeof (data.advancedView.UpgradeSource) !== 'undefined') &&
                                     (data.advancedView.UpgradeSource != 'github.com')) {
-                                    u += "<tr><td><small class='text-muted'>ORIGIN:</small></td><td id='" + rowID + "_origin'>" + data.advancedView.UpgradeSource + "</td></tr>";
+                                    u += "<tr><td><small class='text-muted'>ORIGIN:</small></td><td id='" + rowID + "_origin'>" + msEscape(data.advancedView.UpgradeSource) + "</td></tr>";
                                 } else {
                                     u += "<span style='display: none;' id='" + rowID + "_origin'></span>";
                                 }
@@ -1591,7 +1715,7 @@
                             if (data.advancedView.OSVersion) {
                                 item.version = "<table class='multiSyncVerboseTable'>" +
                                     "<tr><td><small class='text-muted'>FPP:</small></td><td>" + item._versionStr + "</td></tr>" +
-                                    "<tr><td><small class='text-muted'>OS:</small></td><td>" + data.advancedView.OSVersion + "</td></tr>" +
+                                    "<tr><td><small class='text-muted'>OS:</small></td><td>" + msEscape(data.advancedView.OSVersion) + "</td></tr>" +
                                     "</table>";
                             }
 
@@ -1599,7 +1723,7 @@
                                 if (item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
                                     item.hostname = item.hostname.replace(
                                         "class='hostDescriptionSM'></small>",
-                                        "class='hostDescriptionSM'>" + data.advancedView.HostDescription + "</small>"
+                                        "class='hostDescriptionSM'>" + msEscape(data.advancedView.HostDescription) + "</small>"
                                     );
                                 }
                             }
@@ -1617,7 +1741,7 @@
                                         } else {
                                             diskHtml += ", "
                                         }
-                                        diskHtml += type + ": " + used + "/" + total;
+                                        diskHtml += msEscape(type) + ": " + used + "/" + total;
                                     }
                                 } catch (error) {
                                     // This feature may not exist on older devices
@@ -1979,10 +2103,14 @@
                 if (data[i].version != 'Unknown')
                     majorVersion = parseInt(versionParts[0]);
 
-                var versionStr = data[i].version;
+                var versionStr = msEscape(data[i].version);
                 var versionHtml;
                 if (isFPP(data[i].typeId)) {
-                    versionStr = data[i].version.replace('.x-master', '.x').replace(/-g[A-Za-z0-9]*/, '');
+                    // Escape first: the match targets below (.x-master, -g…,
+                    // -dirty) contain no escapable chars, so the transforms are
+                    // unaffected while a hostile version can't inject markup.
+                    // The intentional dirtyLink is appended after, unescaped.
+                    versionStr = msEscape(data[i].version).replace('.x-master', '.x').replace(/-g[A-Za-z0-9]*/, '');
                     if (versionStr.endsWith('-dirty')) {
                         versionStr = versionStr.replace('-dirty', '');
                         var dirtyLink = "<br><a ";
@@ -1999,7 +2127,7 @@
                         "<tr><td>OS:</td><td>" + msEscape(si.OSVersion || '') + "</td></tr>" +
                         "</table>";
                 } else {
-                    versionHtml = data[i].version;
+                    versionHtml = msEscape(data[i].version);
                 }
 
                 var selectboxHtml = '';
@@ -2070,7 +2198,7 @@
                                   "<br><small id='" + rowID + "_variant'>" + msEscape(variantInit) + "</small>" +
                                   capeHtml +
                                   "<span class='hidden typeId'> " + typeIdHex + " </span>" +
-                                  "<span class='hidden version'>" + data[i].version + "</span>",
+                                  "<span class='hidden version'>" + msEscape(data[i].version) + "</span>",
                     mode:         fppMode,
                     status:       'Last Seen:<br>' + data[i].lastSeenStr,
                     elapsed:      '',
@@ -2332,7 +2460,7 @@
             if (item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
                 item.hostname = item.hostname.replace(
                     "class='hostDescriptionSM'></small>",
-                    "class='hostDescriptionSM'>" + desc + "</small>"
+                    "class='hostDescriptionSM'>" + msEscape(desc) + "</small>"
                 );
             }
         }
@@ -2392,16 +2520,16 @@
                 var st = 'Bridging';
                 if (s.hasOwnProperty('e131')) {
                     st = "<table class='multiSyncVerboseTable'>";
-                    st += "<tr><td>Tot Pkts:</td><td>" + s.e131.num_packets + "</td></tr>";
-                    st += "<tr><td>Seq Errs:</td><td>" + s.e131.seq_errors + "</td></tr>";
-                    st += "<tr><td>Pkt Errs:</td><td>" + s.e131.packet_errors + "</td></tr>";
+                    st += "<tr><td>Tot Pkts:</td><td>" + msEscape(s.e131.num_packets) + "</td></tr>";
+                    st += "<tr><td>Seq Errs:</td><td>" + msEscape(s.e131.seq_errors) + "</td></tr>";
+                    st += "<tr><td>Pkt Errs:</td><td>" + msEscape(s.e131.packet_errors) + "</td></tr>";
                     st += "</table>";
                 } else if (s.hasOwnProperty('input')) {
                     for (var i = 0; i < s.input.length; i++) {
                         if (s.input[i].hasOwnProperty('e131')) {
                             st = "<table class='multiSyncVerboseTable'>";
-                            st += "<tr><td>Tot Pkts:</td><td>" + s.input[i].e131.num_packets + "</td></tr>";
-                            st += "<tr><td>Pkt Errs:</td><td>" + s.input[i].e131.packet_errors + "</td></tr>";
+                            st += "<tr><td>Tot Pkts:</td><td>" + msEscape(s.input[i].e131.num_packets) + "</td></tr>";
+                            st += "<tr><td>Pkt Errs:</td><td>" + msEscape(s.input[i].e131.packet_errors) + "</td></tr>";
                             st += "</table>";
                         }
                     }
@@ -2430,8 +2558,8 @@
             var rowId = hostRows[ip.replace(/\./g, '_')];
             var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
             if (!item) return;
-            item.version = s.version;
-            item._versionStr = s.version;
+            item.version = msEscape(s.version);
+            item._versionStr = msEscape(s.version);
             safeInitBody($tbl);
         }
 
@@ -2652,7 +2780,7 @@
                     var rssi = data.wifi.rssi;
                     var quality = data.wifi.signal;
                     var wifiDesc = quality < 25 ? 'weak' : quality < 50 ? 'fair' : quality < 75 ? 'good' : 'excellent';
-                    var wifiIcon = '<span title="' + quality + '% ' + rssi + 'dBm" class="wifi-icon wifi-' + wifiDesc + '"></span>';
+                    var wifiIcon = '<span title="' + msEscape(quality) + '% ' + msEscape(rssi) + 'dBm" class="wifi-icon wifi-' + wifiDesc + '"></span>';
 
                     var uf = formatUptime(parseInt(data.uptime));
 
@@ -2664,7 +2792,7 @@
                     var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
                     if (!item) return;
                     item.utilization = u;
-                    item.status = data.status_name;
+                    item.status = (data.status_name == null) ? data.status_name : msEscape(data.status_name);
 
                     var endTag = ip + '</a>';
                     var base = item._baseIpHtml || '';
@@ -2683,7 +2811,7 @@
                             var tagEnd = item.hostname.indexOf(">", spanStart);
                             var spanEnd = item.hostname.indexOf("</span>", tagEnd);
                             if (tagEnd >= 0 && spanEnd >= 0) {
-                                var newContent = "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, "/") + "'>" + data.name + "</a>";
+                                var newContent = "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, "/") + "'>" + msEscape(data.name) + "</a>";
                                 item.hostname = item.hostname.substring(0, tagEnd + 1) + newContent + item.hostname.substring(spanEnd);
                             }
                         }
@@ -2736,12 +2864,12 @@
                     var item = $tbl.bootstrapTable('getRowByUniqueId', rowId);
                     if (!item) return;
                     item.utilization = u;
-                    item.status = data.status_name;
+                    item.status = (data.status_name == null) ? data.status_name : msEscape(data.status_name);
                     var friendlyName = data.system.friendly_name ? data.system.friendly_name : "";
                     if (friendlyName != "" && item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
                         item.hostname = item.hostname.replace(
                             "class='hostDescriptionSM'></small>",
-                            "class='hostDescriptionSM'>" + friendlyName + "</small>"
+                            "class='hostDescriptionSM'>" + msEscape(friendlyName) + "</small>"
                         );
                     }
                 });
@@ -2794,7 +2922,7 @@
                     if (boardDesc != "" && item.hostname.indexOf("class='hostDescriptionSM'></small>") >= 0) {
                         item.hostname = item.hostname.replace(
                             "class='hostDescriptionSM'></small>",
-                            "class='hostDescriptionSM'>" + boardDesc + "</small>"
+                            "class='hostDescriptionSM'>" + msEscape(boardDesc) + "</small>"
                         );
                     }
 
@@ -2810,10 +2938,10 @@
                         var current = data.ota.current_firmware_version;
                         var available = data.ota.available_firmware_version;
                         if (current !== available) {
-                            item.version = '<span class="text-warning" title="Update available: ' + available + '">' +
-                                current + ' <i class="fas fa-exclamation-triangle"></i></span>';
+                            item.version = '<span class="text-warning" title="Update available: ' + msEscape(available) + '">' +
+                                msEscape(current) + ' <i class="fas fa-exclamation-triangle"></i></span>';
                         } else {
-                            item.version = current;
+                            item.version = msEscape(current);
                         }
                     }
                 });
@@ -4238,6 +4366,22 @@
 
             // Channel I/O icon tooltip popovers
             var activePopover = null;
+            // Status play-icon tooltips (sequence/media lines).  Delegated off
+            // document.body so the binding survives every poll-driven tbody
+            // rebuild -- per-icon instances would be destroyed with their nodes
+            // (and by the other device pollers, which re-render without
+            // re-running tooltip init).  Bootstrap creates each icon's instance
+            // lazily on first hover from its own data-bs-title, rendered as
+            // HTML per the html option here.
+            try {
+                new bootstrap.Tooltip(document.body, {
+                    selector: '.ms-play-tip',
+                    html: true,
+                    placement: 'auto'
+                });
+            } catch (e) {
+                console.warn('Could not bind play icon tooltips', e);
+            }
             $(document).on('mouseenter', '.channel-io-icon-output, .channel-io-icon-input', function () {
                 var $icon = $(this);
                 var isOutput = $icon.hasClass('channel-io-icon-output');

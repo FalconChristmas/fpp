@@ -37,8 +37,11 @@ static int savedStreamSlotVolume(int slot) {
     if (slot < 1 || slot > 5) {
         return -1;
     }
+    // The file only exists once a slot fader has been moved, so its absence is
+    // the normal case -- don't let LoadJsonFromFile() log it as an error.
+    std::string file = FPP_DIR_CONFIG("/pipewire-stream-slots.json");
     Json::Value root;
-    if (!LoadJsonFromFile(FPP_DIR_CONFIG("/pipewire-stream-slots.json"), root) ||
+    if (!FileExists(file) || !LoadJsonFromFile(file, root) ||
         !root.isMember("slots")) {
         return -1;
     }
@@ -88,7 +91,7 @@ void StreamSlotManager::SetActiveOutput(int slot, GStreamerOutput* output) {
 #ifdef HAS_GSTREAMER
     if (output) {
         m_slots[slot - 1].mediaFilename = output->m_mediaFilename;
-        LogInfo(VB_MEDIAOUT, "StreamSlotManager: slot %d active (%s)\n", slot,
+        LogDebug(VB_MEDIAOUT, "StreamSlotManager: slot %d active (%s)\n", slot,
                 output->m_mediaFilename.c_str());
         int saved = savedStreamSlotVolume(slot);
         if (saved >= 0) {
@@ -135,7 +138,7 @@ void StreamSlotManager::ClearSlot(int slot, GStreamerOutput* owner) {
     // gated off, so images never scan out until fppd is restarted.  Use
     // GetStatus(slot) so slot 1's global mediaOutputStatus is the object cleared.
     GetStatus(slot)->output = "";
-    LogInfo(VB_MEDIAOUT, "StreamSlotManager: slot %d cleared\n", slot);
+    LogDebug(VB_MEDIAOUT, "StreamSlotManager: slot %d cleared\n", slot);
 }
 
 std::string StreamSlotManager::GetNodeName(int slot) {

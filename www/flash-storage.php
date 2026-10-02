@@ -6,6 +6,11 @@ require_once("common.php");
 
 DisableOutputBuffering();
 
+// Finish once started, even if the browser goes away: a closed tab must not stop
+// PHP at the next echo.  flash_storage.sh runs under set -e, so a dropped pipe
+// kills it at its next line of output and leaves the target half written.
+ignore_user_abort(true);
+
 // The target must be one of the disks we actually offered.  The old endpoint passed
 // whatever ?dev= contained straight through to a root shell script (escaped, but
 // unvalidated), so a request could name the booted disk or the media drive.

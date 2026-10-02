@@ -14,6 +14,10 @@ require_once("common.php");
 
 DisableOutputBuffering();
 
+// Finish once started, even if the browser goes away: a closed tab must not stop
+// PHP at the next echo, after fppd has been stopped but before it is started again.
+ignore_user_abort(true);
+
 if (!$wrapped) {
     ?>
 

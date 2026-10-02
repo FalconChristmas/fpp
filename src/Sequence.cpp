@@ -292,6 +292,24 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
         return 0;
     }
 
+    // Sequence names are flat files inside the sequences directory -- they
+    // arrive from playlists, play commands, and multisync sync packets, so a
+    // rogue remote or crafted playlist must not escape via ../ (which would
+    // reach checkForReplacementFile()'s unlink/rename below), pick absolute
+    // paths, or smuggle NULs past the c_str() calls. Reject up front, before
+    // any teardown, the same way empty names are rejected.
+    if (filename.find_first_of("/\\") != std::string::npos ||
+        filename.find("..") != std::string::npos ||
+        filename.find('\0') != std::string::npos) {
+        LogErr(VB_SEQUENCE, "Invalid Sequence Filename '%s'\n", filename.c_str());
+        // The missing-sequence warning state is guarded by m_sequenceLock.
+        // Leave m_seqStarting alone: a sequence that is open but not yet
+        // started must not be flipped to "running" by a rejected request.
+        std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+        SetMissingSequenceWarning(filename, "Invalid sequence filename " + filename + "\n");
+        return 0;
+    }
+
     size_t bytesRead = 0;
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
 
@@ -346,7 +364,14 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 
     char tmpFilename[2048];
     unsigned char tmpData[2048];
-    strcpy(tmpFilename, FPP_DIR_SEQUENCE("/" + filename).c_str());
+    std::string fullPath = FPP_DIR_SEQUENCE("/" + filename);
+    if (fullPath.size() >= sizeof(tmpFilename)) {
+        LogErr(VB_SEQUENCE, "Sequence Filename too long (%u chars)\n", (unsigned)fullPath.size());
+        SetMissingSequenceWarning(filename, "Invalid sequence filename " + filename + "\n");
+        m_seqStarting = 0;
+        return 0;
+    }
+    memcpy(tmpFilename, fullPath.c_str(), fullPath.size() + 1);
 
     if (getFPPmode() == REMOTE_MODE)
         CheckForHostSpecificFile(getSetting("HostName").c_str(), tmpFilename);

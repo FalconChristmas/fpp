@@ -177,7 +177,8 @@ function GetCrashDisclosures()
  * `{"consent":true}`), not-found (no such report on this player, e.g. pruned
  * by newer builds).
  *
- * @route POST /api/crashes/upload/<file>
+ * @route POST /api/crashes/upload/{file}
+ * @badge "FPP UI ONLY" warning
  * @badge "USER CONSENT REQUIRED" warning
  * @body {"consent":true}
  * @response 200 {"Status":"OK"|"Error", ...}
@@ -257,10 +258,17 @@ function CrashReportError($code, $message)
  * crash report with a -manual suffix, and keeps it in the crashes folder.
  * When fppd is not running the API builds it instead and the reply adds
  * `"Fppd":"not-running"`
- * (two manual reports at most). Nothing is sent: the user can download it from
- * `GET /api/file/Crashes/<File>` to see what it holds. Sending it is done
- * only from FPP's own UI (see `POST /api/crashes/upload/<File>`), which asks
- * for the user's consent. `client` names the calling app in fppd.log.
+ * (two manual reports at most). Nothing is sent. `client` names the calling
+ * app in fppd.log.
+ *
+ * Any API client may build a report, but what happens to it next is the
+ * user's: they download it in a browser from File Manager > Crash Reports to see
+ * what it holds, or send it from FPP's own UI (see
+ * `POST /api/crashes/upload/{file}`), which asks for their consent. Scripts
+ * and other API clients must not download the report themselves (e.g. with
+ * `GET /api/file/Crashes/<File>`): use `File` to point the user at it. The
+ * server cannot tell callers apart, so this is a rule for clients, not
+ * something it enforces.
  *
  * A build takes seconds on a fast player and can take a few minutes on a Pi
  * Zero or BeagleBone. One build at a time, and none for 10s after one finishes.

@@ -83,7 +83,8 @@ $pre->appendChild($doc->createTextNode($out));
 $body->appendChild($pre);
 
 $doc->formatOutput = true; // For a nice indentation
-//echo ($doc->saveXML());
-$exportbody = $doc->documentElement->lastChild;
-echo ($doc->saveHTML($exportbody));
+// The whole document, head included: the Troubleshooting page shows this in
+// an iframe, so phpinfo's own stylesheet can come along without restyling the
+// page around it.
+echo ($doc->saveHTML());
 ?>

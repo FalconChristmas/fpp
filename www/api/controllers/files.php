@@ -590,6 +590,11 @@ function MovePluginFile($uploadDir, $filename)
  *
  * Downloads the specified file from a media directory.
  *
+ * Crash and Diagnostic Reports (`DirName` `Crashes`) are for the user to
+ * download through FPP's UI (File Manager > Crash Reports); scripts and other API
+ * clients must not fetch them. The server cannot tell callers apart, so this
+ * is a rule for clients, not something it enforces.
+ *
  * @route GET /api/file/{DirName}/**
  * @param int tail Return the last N lines instead of the whole file
  * @param bool play When `1`, set a playback-oriented content type instead of a forced attachment
@@ -891,7 +896,13 @@ function MoveFile()
  * directories) as a zip archive. `logs` and `config` are handled specially to
  * include system log and config files.
  *
+ * Deprecated; will be removed in FPP 11. The FPP UI no longer calls this
+ * endpoint, and there is no API replacement that hands the bundle to the
+ * caller: build a Diagnostic Report with `POST /api/crashes/report` and have
+ * the user download or send it from the FPP UI.
+ *
  * @route GET /api/files/zip/{DirNames}
+ * @badge "Deprecated — will be removed in FPP 11" warning
  * @response 200 Binary file stream of the compressed system archive.
  * ```bytes
  * [Raw Binary Stream: application/zip]

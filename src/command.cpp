@@ -171,8 +171,10 @@ char* ProcessCommand(char* command, char* response) {
     } else if (!strcmp(CommandStr, "restart")) {
         ShutdownFPPD(true);
     } else if (!strcmp(CommandStr, "GetTestMode")) {
-        strcpy(response, ChannelTester::INSTANCE.GetConfig().c_str());
-        strcat(response, "\n");
+        // GetConfig() is the full SetTestMode JSON (API-controlled, unbounded);
+        // strcpy/strcat would smash the 1501-byte stack reply. snprintf keeps
+        // the exact "config\n" shape for fitting values and truncates the rest.
+        snprintf(response, MAX_RESPONSE_SIZE - 1, "%s\n", ChannelTester::INSTANCE.GetConfig().c_str());
     } else if (!strcmp(CommandStr, "SetTestMode")) {
         if (ChannelTester::INSTANCE.SetupTest(std::string(s + strlen(s) + 1))) {
             snprintf(response, MAX_RESPONSE_SIZE - 1, "0,%d,Test Mode Activated,,,,,,,,,\n",

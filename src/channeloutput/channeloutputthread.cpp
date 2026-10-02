@@ -535,6 +535,14 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent) {
         // can't keep up using that delta then we probably won't be able to.
         if ((DefaultLightDelay - 15000) > newLightDelay)
             newLightDelay = DefaultLightDelay - 15000;
+        // Same bound when we are ahead.  The offset added above scales with
+        // the frame difference and accumulates on every check, so without it a
+        // large lead (a media position that fell back to 0 while the sequence
+        // resumed minutes in) grew LightDelay to seconds.  The output thread
+        // sleeps for LightDelay, so the lights froze until the media caught
+        // up.  At +15ms per frame a lead still closes steadily.
+        if ((DefaultLightDelay + 15000) < newLightDelay)
+            newLightDelay = DefaultLightDelay + 15000;
 
         LogDebug(VB_CHANNELOUT, "LightDelay: %d, newLightDelay: %d,   DiffFrames: %d     %d/%d\n",
                  LightDelay, newLightDelay, diff, channelOutputFrame, expectedFramesSent);

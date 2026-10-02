@@ -43,6 +43,10 @@ public:
     virtual int Close(void);
 
     virtual int IsPlaying(void);
+    // Whether sound is actually coming out yet.  A sequence started with this
+    // media holds until it is, instead of running ahead while the output
+    // starts up.  Outputs that can't tell say yes.
+    virtual bool IsAudible(void) { return true; }
 
     float getMediaOffset() { return mediaOffset; };
     int getMediaOffsetMS() { return mediaOffsetMS; };

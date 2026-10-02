@@ -1,0 +1,10 @@
+[Unit]
+Description=FPP Retry Deferred Outbound Mail every 30 minutes
+
+[Timer]
+# OnCalendar rather than OnUnitActiveSec: a run skipped by the service's
+# condition never becomes "active", which would stop a relative timer.
+OnCalendar=*:0/30
+
+[Install]
+WantedBy=timers.target

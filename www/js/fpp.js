@@ -8578,9 +8578,10 @@ function DisplayHelp () {
 
 	if (isErrorReportHelp) {
 		tmpHelpPage = 'help/errorReport.php';
-	} else if (isKeyBindingsHelp) {
-		tmpHelpPage = 'help/keybindings.php';
-	} else if (helpPage == 'help/settings.php' && tabs.length == 1) {
+	} else if (!helpOpen && pageName == 'settings' && tabs.length == 1) {
+		// Resolve from the active tab on every fresh F1.  helpPage is
+		// overwritten below (so links inside the help dialog can navigate),
+		// so it can't be what gates this.
 		var id = tabs.first().attr('id');
 		const re = /settings-(.*)-tab/;
 		var tab = '';
@@ -15448,6 +15449,54 @@ function BuildPluginHeaderIndicator (indicator) {
 }
 
 /*
+ * The player badge's tooltip is rendered as HTML (data-bs-html), and its markup
+ * travels in a title="..." attribute.  The browser decodes one level of
+ * escaping when it parses the attribute, so the HTML -- whose filenames were
+ * already escaped as content -- has to be escaped once more here.  Escaping
+ * only once would hand the raw filename to the tooltip's HTML renderer.
+ */
+function EscapeHeaderTooltipAttr (html) {
+	return EscapeHtml(html).replace(/"/g, '&quot;');
+}
+
+/*
+ * (Re)attaches the Bootstrap tooltip to the player badge span.  Called after
+ * every badge rebuild -- the tooltip instance belongs to the old span, so it
+ * is disposed before the markup is replaced (see the update site) and a new
+ * one is created here, with the same bottom placement, HTML content and
+ * 3-second auto-hide as every other tooltip on the site.
+ */
+function InitHeaderPlayerTooltip () {
+	var span = document.querySelector(
+		'#header_player > span[data-bs-toggle="tooltip"]'
+	);
+	if (!span) return;
+	var tooltipInstance;
+	try {
+		tooltipInstance = new bootstrap.Tooltip(span);
+	} catch (e) {
+		console.warn('Skipping invalid tooltip', span, e);
+		return;
+	}
+	span.addEventListener('mouseenter', function () {
+		clearTimeout(span.tooltipTimeout);
+	});
+	span.addEventListener('mouseleave', function () {
+		span.tooltipTimeout = setTimeout(function () {
+			// The badge span may have been rebuilt (and its instance
+			// disposed) since the mouse left -- hiding a disposed instance
+			// throws, so only hide when this instance is still attached.
+			if (
+				!span.matches(':hover') &&
+				bootstrap.Tooltip.getInstance(span) === tooltipInstance
+			) {
+				tooltipInstance.hide();
+			}
+		}, 3000);
+	});
+}
+
+/*
  * Called each time the system status JSON is updated to refresh icons in the header bar.
  */
 var headerCache = {}; // Used to cache what we've displayed on screen so we only update it if it has changed
@@ -15735,54 +15784,107 @@ function RefreshHeaderBar () {
 	if (data.status_name != undefined) {
 		var row = '';
 		if (data.status_name == 'playing') {
-			var title = 'Playing:\n';
-			if (data.current_song != undefined && data.current_song != '') {
-				title += data.current_song;
-				if (data.current_sequence != undefined && data.current_sequence != '') {
-					title += '\n';
+			// A non-empty current_playlist means a playlist entry is playing,
+			// with one exception: pressing Play on a bare file synthesizes a
+			// one-entry playlist NAMED after the file (see Playlist::Load in
+			// src/playlist/Playlist.cpp), flagged as generated.  From the
+			// user's view that is "playing a file", not "playing a
+			// playlist", so it reads as the standalone case below.  Remote
+			// mode reports 'playing' with sequence and/or media but no
+			// current_playlist, so it also reads as standalone, which is
+			// what it is from this host.
+			var plName =
+				data.current_playlist != undefined &&
+				data.current_playlist.playlist != undefined ?
+					data.current_playlist.playlist
+				:	'';
+			var generated =
+				data.current_playlist != undefined &&
+				data.current_playlist.generated == true;
+			var isRealPlaylist = plName != '' && !generated;
+			var seq =
+				data.current_sequence != undefined ? data.current_sequence : '';
+			var song = data.current_song != undefined ? data.current_song : '';
+			// The tooltip renders as HTML, so filenames are escaped as content
+			// here; the finished title is escaped again as an attribute below.
+			var escTitle = EscapeHtml;
+			var title = '';
+			var icon = 'fa-play text-success';
+			var label = 'Playing';
+			if (isRealPlaylist) {
+				title = 'Playlist: ' + escTitle(plName);
+				if (seq != '') {
+					title += '<br/>Sequence: ' + escTitle(seq);
 				}
-			}
-			if (data.current_sequence != undefined && data.current_sequence != '') {
-				if (data.current_song == undefined || data.current_song == '') {
-					title += ': ';
+				if (song != '') {
+					title += '<br/>Media: ' + escTitle(song);
 				}
-				title += data.current_sequence;
+				// A media-only entry mirrors standalone media: music icon,
+				// but the badge still reads Playing -- a playlist is playing.
+				if (seq == '' && song != '') {
+					icon = 'fa-music text-success';
+				}
+			} else if (seq != '') {
+				title = 'Playing sequence outside playlist: ' + escTitle(seq);
+				if (song != '') {
+					title += '<br/>Media: ' + escTitle(song);
+				}
+			} else if (song != '') {
+				title = 'Playing media outside playlist:<br/>' + escTitle(song);
+				icon = 'fa-music text-success';
+				label = 'Media';
+			} else {
+				title = 'Playing';
 			}
 			row =
-				'<span title="' +
-				title +
-				'"><i class="fas fa-play text-success"></i><small>Playing</small></span>';
+				'<span data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true" title="' +
+				EscapeHeaderTooltipAttr(title) +
+				'"><i class="fas ' +
+				icon +
+				'"></i><small>' +
+				label +
+				'</small></span>';
 		} else if (data.status_name == 'testing') {
 			row =
-				'<span title="Display Testing Active"><i class="fas fa-heart-pulse text-info"></i><small>Testing</small></span>';
+				'<span data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true" title="Display Testing Active"><i class="fas fa-heart-pulse text-info"></i><small>Testing</small></span>';
 		} else if (data.status_name == 'playing media') {
-			var mtitle = 'Playing media outside a playlist';
+			var mtitle = 'Playing media outside playlist';
 			if (data.current_song != undefined && data.current_song != '') {
-				mtitle += ':\n' + data.current_song;
+				mtitle += ':<br/>' + EscapeHtml(data.current_song);
 			}
 			row =
-				'<span title="' +
-				mtitle +
+				'<span data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true" title="' +
+				EscapeHeaderTooltipAttr(mtitle) +
 				'"><i class="fas fa-music text-success"></i><small>Media</small></span>';
 		} else if (data.status_name == 'playing background') {
 			var btitle = 'Background audio playing';
 			if (data.current_song != undefined && data.current_song != '') {
-				btitle += ':\n' + data.current_song;
+				btitle += ':<br/>' + EscapeHtml(data.current_song);
 			}
 			row =
-				'<span title="' +
-				btitle +
+				'<span data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true" title="' +
+				EscapeHeaderTooltipAttr(btitle) +
 				'"><i class="fas fa-music text-info"></i><small>Background</small></span>';
 		} else if (data.status_name == 'idle') {
 			row =
-				'<span title="Idle"><i class="fas fa-pause"></i><small>Idle</small></span>';
+				'<span data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true" title="Idle"><i class="fas fa-pause"></i><small>Idle</small></span>';
 		} else if (data.status_name == 'stopped') {
 			row =
-				'<span title="FPPD Stopped"><i class="fas fa-stop text-danger"></i><small>FPPD Stopped</small></span>';
+				'<span data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true" title="FPPD Stopped"><i class="fas fa-stop text-danger"></i><small>FPPD Stopped</small></span>';
 		}
 		if (headerCache.Player != row) {
+			// The badge markup is rebuilt, so the tooltip attached to the old
+			// span has to go with it -- same dispose/recreate pattern as the
+			// header sensors above.
+			$('#header_player')
+				.find('span[data-bs-toggle="tooltip"]')
+				.each(function () {
+					var tip = bootstrap.Tooltip.getInstance(this);
+					if (tip) tip.dispose();
+				});
 			$('#header_player').html(row);
 			headerCache.Player = row;
+			InitHeaderPlayerTooltip();
 		}
 	}
 	// Render plugin header indicators.  Every field here is plugin-supplied and

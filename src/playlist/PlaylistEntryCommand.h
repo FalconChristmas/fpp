@@ -33,6 +33,12 @@ public:
 
     virtual Json::Value GetConfig(void) override;
 
+    // The command has run to completion.  A completed command entry is only
+    // marked finished by the NEXT Process() call, so this is what tells a
+    // caller that has no next call coming (a restart) that the entry's work
+    // is already done.
+    bool CommandDone() { return m_result && m_result->isDone(); }
+
 private:
     Json::Value m_command;
     std::unique_ptr<Command::Result> m_result;

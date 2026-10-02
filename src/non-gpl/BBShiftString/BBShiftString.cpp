@@ -842,6 +842,7 @@ int BBShiftStringOutput::StartPRU() {
     m_curFrame = 0;
     m_bpOffered = 0;
     m_bpDeclined = 0;
+    m_bpLastDeclined = false;
     m_bpWindowStart = {};
     for (auto& a : m_usedPins) {
         PinCapabilities::getPinByName(a.first).configPin(a.second, true, "BBShiftString");
@@ -1561,10 +1562,14 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
                 LogWarn(VB_CHANNELOUT,
                         "BBShiftString: back-pressure gate declined %u of %u frames (%.1f%%)\n",
                         m_bpDeclined, m_bpOffered, 100.0 * m_bpDeclined / m_bpOffered);
-            } else {
-                LogInfo(VB_CHANNELOUT, "BBShiftString: back-pressure gate declined no frames of %u\n",
+            } else if (m_bpLastDeclined) {
+                // A clean window is the normal state, so only the transition
+                // back to it is worth a line; one per window at the default
+                // level filled the log on every healthy output.
+                LogInfo(VB_CHANNELOUT, "BBShiftString: back-pressure gate declined no frames of %u (recovered)\n",
                         m_bpOffered);
             }
+            m_bpLastDeclined = m_bpDeclined != 0;
             // Surface a persistent UI warning once the sequence rate is clearly
             // beyond what the strings can output; clear it again when the rate
             // drops back (e.g. a different sequence starts).  The thresholds

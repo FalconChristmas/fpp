@@ -31,6 +31,7 @@
 #include "OpusRTPManager.h"
 
 class PixelOverlayModel;
+class PipeWireOutputStream;
 
 class GStreamerOutput : public MediaOutputBase {
 public:
@@ -43,6 +44,9 @@ public:
     virtual int Close(void) override;
     virtual int IsPlaying(void) override;
     virtual int AdjustSpeed(float masterPos) override;
+    // True once the reported position -- already backed up to what is leaving
+    // the card -- has moved past the start of the media.
+    virtual bool IsAudible(void) override { return m_audible; }
 
     /// Flush-seek to an absolute position in seconds.  Audible/visible glitch,
     /// so this is for repairing a stream that has genuinely left the show
@@ -57,6 +61,23 @@ public:
 
     // One-time GStreamer + PipeWire env initialization (safe to call repeatedly)
     static void EnsureGStreamerInit();
+    // Set the environment now, on the calling thread, and run gst_init() in the
+    // background so the first play doesn't pay for it (~1 s on an AM335x, and
+    // ~20 s the very first time, when GStreamer builds its plugin registry).
+    static void PreloadAsync();
+    // Make every videoconvert in `pipeline` -- including ones added later --
+    // read decoded frames from padded system memory rather than straight out
+    // of a hardware decoder's buffers.  See the comment at the definition.
+    static void GuardVideoConvertInputs(GstElement* pipeline);
+
+    // The PipeWire sink a slot's audio is routed to ("" = PipeWire's default).
+    static std::string PipeWireSinkNameForSlot(int slot);
+    // The rate the PipeWire graph runs at (48000 if it can't be determined).
+    static int PipeWireGraphRate();
+    // /proc/asound status file of a card the PipeWire sink `sinkName` (a group
+    // or an fpp_alsa_* adapter) plays into, or "" if it reaches no card -- a
+    // group of network senders only, or PipeWire's unnamed default sink.
+    static std::string AlsaSinkStatusPath(const std::string& sinkName);
 
     // Resolve connector name (e.g., "HDMI-A-1") to DRM card path, connector ID,
     // and display resolution by scanning sysfs.  Works on all Pi models.
@@ -136,6 +157,11 @@ private:
     // captures only this token (never `this`), eliminating use-after-free if it
     // is still running when the object is torn down.
     std::shared_ptr<std::atomic<bool>> m_startThreadCancel;
+    // Set while the Start() thread has yet to seek to a non-zero start
+    // position.  The pipeline prerolls at 0 first, and Process() must not
+    // report that 0 as the media position (see Start()).  Shared for the same
+    // reason as m_startThreadCancel.
+    std::shared_ptr<std::atomic<bool>> m_startSeekPending;
     gulong m_appsinkSignalId = 0;            // audio appsink signal handler ID
     gulong m_videoAppsinkSignalId = 0;       // video appsink signal handler ID
 
@@ -319,6 +345,15 @@ private:
     void ApplyRate(float rate);
 
     int m_streamSlot = 1;  // stream slot number (1-5), determines PipeWire node name
+
+    // Audio-only PipeWire playback feeds the slot's persistent output stream
+    // through this appsink instead of owning a pipewiresink (see
+    // PipeWireOutputStream.h).  Both null on every other path.
+    PipeWireOutputStream* m_pwStream = nullptr;
+    GstElement* m_pwFeed = nullptr;
+    void ReleasePipeWireStream();
+
+    std::atomic<bool> m_audible{false};
 
     static GStreamerOutput* m_currentInstance;
 

@@ -483,7 +483,19 @@ void PixelOverlayModel::setState(const PixelOverlayState& st) {
 }
 // Copy-on-write publish of the child list.  See the note on `children` in the
 // header for why this must not take (or be called under) any overlay lock.
-void PixelOverlayModel::setChildState(const std::string& n, const PixelOverlayState& st, int ox, int oy, int w, int h) {
+void PixelOverlayModel::setChildState(const std::string& n, const PixelOverlayState& in, int ox, int oy, int w, int h) {
+    // flushChildren() indexes this model's channelMap with the child's
+    // rectangle on every frame, so the rectangle has to lie inside this model.
+    // A submodel saved against a parent whose geometry has since changed can
+    // point anywhere; refuse it here, where the list is written, the same way
+    // setData() refuses an out-of-bounds region.
+    PixelOverlayState st = in;
+    if (st.getState() && (ox < 0 || oy < 0 || w < 0 || h < 0 || ox + w > width || oy + h > height)) {
+        LogWarn(VB_CHANNELOUT, "Submodel '%s' (%dx%d @ %d,%d) lies outside its parent '%s' (%dx%d), ignoring it\n",
+                n.c_str(), w, h, ox, oy, name.c_str(), width, height);
+        st = PixelOverlayState(PixelOverlayState::Disabled);
+    }
+
     bool hadChildren = false;
     bool hasChildren = false;
 

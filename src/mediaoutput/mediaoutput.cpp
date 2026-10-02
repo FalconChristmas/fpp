@@ -38,6 +38,7 @@
 #include "Plugins.h"
 #include "Sequence.h"
 #include "GStreamerOut.h"
+#include "PipeWireOutputStream.h"
 #include "StreamSlotManager.h"
 #include "mediadetails.h"
 #include "settings.h"
@@ -190,6 +191,13 @@ void InitMediaOutput(void) {
         CheckAudioOutputCardPresence();
     });
 #endif
+#ifdef HAS_GSTREAMER
+    GStreamerOutput::PreloadAsync();
+    PipeWireOutputStream::SetKeepOpen(getSettingInt("PipeWireKeepOutputOpen") != 0);
+    registerSettingsListener("PipeWireOutputStream", "PipeWireKeepOutputOpen", [](const std::string& value) {
+        PipeWireOutputStream::SetKeepOpen(!value.empty() && value != "0");
+    });
+#endif
 }
 
 /*
@@ -197,6 +205,15 @@ void InitMediaOutput(void) {
  */
 void CleanupMediaOutput(void) {
     CloseMediaOutput();
+#ifdef HAS_GSTREAMER
+    PipeWireOutputStream::ShutdownAll();
+#endif
+}
+
+void PrewarmMediaOutput(int holdMs) {
+#ifdef HAS_GSTREAMER
+    PipeWireOutputStream::Prewarm(1, holdMs);
+#endif
 }
 
 #ifndef PLATFORM_OSX
@@ -693,18 +710,18 @@ MediaOutputBase* CreateMediaOutput(const std::string& mediaFilename, const std::
     bool useGStreamer = true;
 
     if (useGStreamer && IsExtensionAudio(ext)) {
-        LogInfo(VB_MEDIAOUT, "Using GStreamer for audio playback: %s (slot %d)\n", mediaFilename.c_str(), streamSlot);
+        LogDebug(VB_MEDIAOUT, "Using GStreamer for audio playback: %s (slot %d)\n", mediaFilename.c_str(), streamSlot);
         return new GStreamerOutput(mediaFilename, slotStatus, "--Disabled--", streamSlot);
     }
     if (useGStreamer && IsExtensionVideo(ext) && !IsHDMIOut(vo)) {
         // Video with PixelOverlay output — use GStreamer for both audio and video
-        LogInfo(VB_MEDIAOUT, "Using GStreamer for video+overlay playback: %s (overlay=%s, slot %d)\n",
+        LogDebug(VB_MEDIAOUT, "Using GStreamer for video+overlay playback: %s (overlay=%s, slot %d)\n",
                 mediaFilename.c_str(), vo.c_str(), streamSlot);
         return new GStreamerOutput(mediaFilename, slotStatus, vo, streamSlot);
     }
     if (useGStreamer && IsExtensionVideo(ext) && IsHDMIOut(vo)) {
         // Video to HDMI via GStreamer kmssink — audio through PipeWire
-        LogInfo(VB_MEDIAOUT, "Using GStreamer for video+HDMI playback: %s (output=%s, slot %d)\n",
+        LogDebug(VB_MEDIAOUT, "Using GStreamer for video+HDMI playback: %s (output=%s, slot %d)\n",
                 mediaFilename.c_str(), vo.c_str(), streamSlot);
         slotStatus->output = vo;
         return new GStreamerOutput(mediaFilename, slotStatus, vo, streamSlot);
@@ -777,9 +794,9 @@ int OpenMediaOutput(const std::string& filename) {
                 vOut = "--Disabled--";
             }
         }
-        LogWarn(VB_MEDIAOUT, "OpenMediaOutput: Creating media output for '%s' vOut='%s'\n", tmpFile.c_str(), vOut.c_str());
+        LogDebug(VB_MEDIAOUT, "OpenMediaOutput: Creating media output for '%s' vOut='%s'\n", tmpFile.c_str(), vOut.c_str());
         MediaOutputBase* out = CreateMediaOutput(tmpFile, vOut);
-        LogWarn(VB_MEDIAOUT, "OpenMediaOutput: CreateMediaOutput returned %p\n", out);
+        LogDebug(VB_MEDIAOUT, "OpenMediaOutput: CreateMediaOutput returned %p\n", out);
         if (!out) {
             LogErr(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile.c_str());
             WarningHolder::AddWarningTimeout(60, 30, "No media output handler for " + tmpFile + " (unsupported file type?)");

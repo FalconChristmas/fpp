@@ -34,6 +34,7 @@
 #include "log.h"
 #include "settings.h"
 #include "commands/Commands.h"
+#include "mediaoutput/mediaoutput.h"
 #include "playlist/Playlist.h"
 
 #include "Scheduler.h"
@@ -660,6 +661,9 @@ bool Scheduler::doScheduledPlaylist(const std::time_t now, const std::time_t ite
     return true;
 }
 
+// How far ahead of a scheduled playlist the audio output is brought up.
+static constexpr std::time_t MEDIA_PREWARM_LEAD_S = 5;
+
 void Scheduler::CheckScheduledItems(bool restarted) {
     if (m_schedulerDisabled)
         return;
@@ -667,6 +671,10 @@ void Scheduler::CheckScheduledItems(bool restarted) {
     std::time_t now = time(nullptr);
     std::vector<PlayerAction> actions;
     std::vector<CountdownPreset> presets;
+    // How long to hold the audio output up for a playlist about to start (0 =
+    // none due).  Opening it takes most of a second on slow boards, so do it
+    // ahead of time rather than when the first track starts.
+    int prewarmMs = 0;
 
     // Longest a scheduled FPP command may fire after its second passed.  Bounds
     // the (m_lastCommandCheckTime, now] catch-up window so a forward clock step
@@ -691,6 +699,16 @@ void Scheduler::CheckScheduledItems(bool restarted) {
             for (auto& itemTime : m_scheduledItems) {
                 if (itemTime.first > now) {
                     doCountdown(now, itemTime.first, itemTime.second, presets);
+                    if (itemTime.first - now <= MEDIA_PREWARM_LEAD_S) {
+                        for (auto& item : itemTime.second) {
+                            if (!item.ran && item.command == "Start Playlist") {
+                                // Through the start, plus the usual linger in
+                                // case the playlist opens with no media.
+                                prewarmMs = (int)((itemTime.first - now + MEDIA_PREWARM_LEAD_S) * 1000);
+                                break;
+                            }
+                        }
+                    }
                     break; // no need to look at items that are further in the future
                 }
 
@@ -742,6 +760,10 @@ void Scheduler::CheckScheduledItems(bool restarted) {
         RunPlayerActions(actions);
         RunCountdownPresets(presets);
     } while (!actions.empty());
+
+    if (prewarmMs > 0) {
+        PrewarmMediaOutput(prewarmMs);
+    }
 
     // Advance the command catch-up window past every second this call examined.
     // Done once, after all rescans, so each rescan judges commands against the

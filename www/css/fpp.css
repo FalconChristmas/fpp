@@ -2207,6 +2207,10 @@ table.fppStickyTheadTable thead.Zebra_Pin td {
 
 #fileUploadTabsContent .tab-pane {
 	margin-bottom: 1em;
+	/* jQuery UI's .ui-tabs-panel padding would inset the file list from the
+	   pill strip and the upload drop zone, which both run edge to edge. */
+	padding-left: 0;
+	padding-right: 0;
 }
 
 .fileManagerDivData {

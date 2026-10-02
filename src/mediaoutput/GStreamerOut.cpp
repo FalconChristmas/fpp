@@ -27,7 +27,9 @@
 #include <cstring>
 #include <dirent.h>
 #include <fcntl.h>
+#include <algorithm>
 #include <fstream>
+#include <map>
 #include <unistd.h>
 #include <vector>
 #include <sstream>
@@ -42,6 +44,7 @@
 
 #include "common.h"
 #include "log.h"
+#include "PipeWireOutputStream.h"
 #include "StreamSlotManager.h"
 #include "VideoOutputManager.h"
 #include "mediadetails.h"
@@ -79,6 +82,12 @@ std::vector<GStreamerOutput*> GStreamerOutput::m_overlayOutputs;
 //      reports a valid playback position (decoder demonstrably healthy).
 // ──────────────────────────────────────────────────────────────────────────────
 static constexpr int PIPELINE_TEARDOWN_TIMEOUT_MS = 10000;
+// Longest a track waits for its slot's PipeWire output stream to reach the
+// card.  A cold open is ~0.6 s on an AM335x.
+static constexpr int PW_STREAM_READY_TIMEOUT_MS = 3000;
+// Longest a track waits for the previous one's leftovers to play out of the
+// stream (normally ~100 ms: the feed's lead plus the tail-flush silence).
+static constexpr int PW_STREAM_DRAIN_MAX_MS = 500;
 static std::atomic<int> s_consecutiveWedgeEvents{ 0 };
 // Ensures the escalation decision (restart vs reboot) is made exactly once
 // per process — additional wedge events racing in while shutdown is already
@@ -229,26 +238,199 @@ std::mutex GStreamerOutput::s_sampleMutex;
 // alongside any other caller that reached gst_init() first, and serialized
 // because the WLED overlay, the managers and the playback path can all arrive
 // here from different threads.
-void GStreamerOutput::EnsureGStreamerInit() {
-    static std::mutex initMutex;
-    std::lock_guard<std::mutex> lock(initMutex);
-    if (!gst_is_initialized()) {
-        LogWarn(VB_MEDIAOUT, "GStreamer: EnsureGStreamerInit() entered\n");
-        // Set PipeWire env vars so pipewiresink can find the FPP PipeWire runtime.
-        // Both Simple PipeWire and PipeWire Advanced share the same runtime stack.
-        if (isPipeWireBackend()) {
-            setenv("PIPEWIRE_RUNTIME_DIR", "/run/pipewire-fpp", 1);
-            setenv("XDG_RUNTIME_DIR", "/run/pipewire-fpp", 1);
-            setenv("PULSE_RUNTIME_PATH", "/run/pipewire-fpp/pulse", 1);
-            LogWarn(VB_MEDIAOUT, "GStreamer: Set PipeWire env (PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp)\n");
-        } else {
-            std::string mediaBackend = getSetting("MediaBackend");
-            LogWarn(VB_MEDIAOUT, "GStreamer: MediaBackend='%s', not setting PipeWire env\n", mediaBackend.c_str());
-        }
-        LogWarn(VB_MEDIAOUT, "GStreamer: Calling gst_init()...\n");
-        gst_init(nullptr, nullptr);
-        LogWarn(VB_MEDIAOUT, "GStreamer initialized: %s\n", gst_version_string());
+static std::mutex s_gstInitMutex;
+
+// Caller holds s_gstInitMutex.
+static void SetGStreamerEnvLocked() {
+    static bool done = false;
+    if (done) {
+        return;
     }
+    done = true;
+    // Set PipeWire env vars so pipewiresink can find the FPP PipeWire runtime.
+    // Both Simple PipeWire and PipeWire Advanced share the same runtime stack.
+    if (isPipeWireBackend()) {
+        setenv("PIPEWIRE_RUNTIME_DIR", "/run/pipewire-fpp", 1);
+        setenv("XDG_RUNTIME_DIR", "/run/pipewire-fpp", 1);
+        setenv("PULSE_RUNTIME_PATH", "/run/pipewire-fpp/pulse", 1);
+        LogInfo(VB_MEDIAOUT, "GStreamer: Set PipeWire env (PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp)\n");
+    } else {
+        std::string mediaBackend = getSetting("MediaBackend");
+        LogInfo(VB_MEDIAOUT, "GStreamer: MediaBackend='%s', not setting PipeWire env\n", mediaBackend.c_str());
+    }
+}
+
+// videoconvert's I420 kernels, as compiled by ORC 0.4.41 for arm64 (the version
+// Raspberry Pi OS trixie ships), read two bytes past the end of the frame: the
+// chroma load for the last pixels of each row takes 4 bytes where 2 remain.
+// Inside a frame that lands in the next row, harmlessly.  At the end of the
+// last V row it lands past the buffer -- also harmless in system memory, which
+// has slack after it, but a hardware decoder's frames are mmapped V4L2 buffers
+// sized exactly to the image.  When the image needs no alignment padding
+// (1280x384, 640x192, ...) the frame ends on a page boundary and the over-read
+// faults, killing fppd on the first frame of every play.  Reproduced against
+// the stock libraries with a frame placed before an inaccessible page; ORC's C
+// backup code reads the same frame cleanly.
+//
+// So a frame that a videoconvert is going to convert is first copied into
+// system memory with tail padding, which is the slack GStreamer allocates for
+// exactly this kind of SIMD over-read.  Frames already in system memory
+// (software decoders) and converters running in passthrough (the HDMI
+// branches, which hand the decoder's buffers to kmssink untouched) are left
+// alone, so zero-copy playback keeps its zero copy.
+static GstPadProbeReturn CopyDeviceFrameForConvert(GstPad* pad, GstPadProbeInfo* info, gpointer) {
+    GstBuffer* buf = GST_PAD_PROBE_INFO_BUFFER(info);
+    if (!buf) {
+        return GST_PAD_PROBE_OK;
+    }
+    bool systemMemory = true;
+    for (guint i = 0, n = gst_buffer_n_memory(buf); i < n; i++) {
+        if (!gst_memory_is_type(gst_buffer_peek_memory(buf, i), GST_ALLOCATOR_SYSMEM)) {
+            systemMemory = false;
+            break;
+        }
+    }
+    if (systemMemory) {
+        return GST_PAD_PROBE_OK;
+    }
+
+    // Passthrough: identical caps on both sides, so the frame is never read.
+    GstElement* convert = gst_pad_get_parent_element(pad);
+    if (convert) {
+        bool passthrough = false;
+        GstPad* src = gst_element_get_static_pad(convert, "src");
+        GstCaps* inCaps = gst_pad_get_current_caps(pad);
+        GstCaps* outCaps = src ? gst_pad_get_current_caps(src) : nullptr;
+        if (inCaps && outCaps) {
+            passthrough = gst_caps_is_equal(inCaps, outCaps);
+        }
+        if (inCaps) {
+            gst_caps_unref(inCaps);
+        }
+        if (outCaps) {
+            gst_caps_unref(outCaps);
+        }
+        if (src) {
+            gst_object_unref(src);
+        }
+        gst_object_unref(convert);
+        if (passthrough) {
+            return GST_PAD_PROBE_OK;
+        }
+    }
+
+    gsize size = gst_buffer_get_size(buf);
+    GstAllocationParams params;
+    gst_allocation_params_init(&params);
+    params.align = 15;
+    params.padding = 64;
+    GstBuffer* copy = gst_buffer_new_allocate(nullptr, size, &params);
+    if (!copy) {
+        return GST_PAD_PROBE_OK;
+    }
+    GstMapInfo map;
+    if (!gst_buffer_map(copy, &map, GST_MAP_WRITE)) {
+        gst_buffer_unref(copy);
+        return GST_PAD_PROBE_OK;
+    }
+    gst_buffer_extract(buf, 0, map.data, size);
+    gst_buffer_unmap(copy, &map);
+    // Flags, timestamps and metas -- GstVideoMeta in particular, whose plane
+    // offsets and strides are buffer-relative and so stay valid in the copy.
+    gst_buffer_copy_into(copy, buf,
+                         (GstBufferCopyFlags)(GST_BUFFER_COPY_FLAGS | GST_BUFFER_COPY_TIMESTAMPS | GST_BUFFER_COPY_META),
+                         0, -1);
+    gst_buffer_unref(buf);
+    GST_PAD_PROBE_INFO_DATA(info) = copy;
+    return GST_PAD_PROBE_OK;
+}
+
+static void GuardVideoConvert(GstElement* element) {
+    GstElementFactory* factory = gst_element_get_factory(element);
+    if (!factory) {
+        return;
+    }
+    const char* name = gst_plugin_feature_get_name(GST_PLUGIN_FEATURE(factory));
+    if (strcmp(name, "videoconvert") != 0 && strcmp(name, "videoconvertscale") != 0) {
+        return;
+    }
+    GstPad* sink = gst_element_get_static_pad(element, "sink");
+    if (sink) {
+        gst_pad_add_probe(sink, GST_PAD_PROBE_TYPE_BUFFER, CopyDeviceFrameForConvert, nullptr, nullptr);
+        gst_object_unref(sink);
+    }
+}
+
+static void OnDeepElementAdded(GstBin*, GstBin*, GstElement* element, gpointer) {
+    GuardVideoConvert(element);
+}
+
+void GStreamerOutput::GuardVideoConvertInputs(GstElement* pipeline) {
+    if (!pipeline || !GST_IS_BIN(pipeline)) {
+        return;
+    }
+    // Converters added from here on: deferred branches, and the ones
+    // decodebin and friends plug for themselves.
+    g_signal_connect(pipeline, "deep-element-added", G_CALLBACK(OnDeepElementAdded), nullptr);
+    // ...and the ones already there.
+    GstIterator* it = gst_bin_iterate_recurse(GST_BIN(pipeline));
+    GValue item = G_VALUE_INIT;
+    bool done = false;
+    while (!done) {
+        switch (gst_iterator_next(it, &item)) {
+        case GST_ITERATOR_OK:
+            GuardVideoConvert(GST_ELEMENT(g_value_get_object(&item)));
+            g_value_reset(&item);
+            break;
+        case GST_ITERATOR_RESYNC:
+            gst_iterator_resync(it);
+            break;
+        default:
+            done = true;
+            break;
+        }
+    }
+    g_value_unset(&item);
+    gst_iterator_free(it);
+}
+
+void GStreamerOutput::EnsureGStreamerInit() {
+    std::lock_guard<std::mutex> lock(s_gstInitMutex);
+    if (!gst_is_initialized()) {
+        LogDebug(VB_MEDIAOUT, "GStreamer: EnsureGStreamerInit() entered\n");
+        SetGStreamerEnvLocked();
+        LogDebug(VB_MEDIAOUT, "GStreamer: Calling gst_init()...\n");
+        gst_init(nullptr, nullptr);
+        LogInfo(VB_MEDIAOUT, "GStreamer initialized: %s\n", gst_version_string());
+    }
+}
+
+void GStreamerOutput::PreloadAsync() {
+    {
+        // setenv() is not safe against a concurrent getenv() on another
+        // thread, so it happens here, on the caller's, rather than on the
+        // background thread below.
+        std::lock_guard<std::mutex> lock(s_gstInitMutex);
+        SetGStreamerEnvLocked();
+    }
+    std::thread([]() {
+        SetThreadName("FPP-GstInit");
+        EnsureGStreamerInit();
+    }).detach();
+}
+
+std::string GStreamerOutput::PipeWireSinkNameForSlot(int slot) {
+    std::string sinkName = getSetting("PipeWireSinkName");
+    // For multi-stream slots > 1, check for a per-slot PipeWire sink setting.
+    // Format: PipeWireSinkName_2, PipeWireSinkName_3, etc.
+    // If not set, falls back to the global PipeWireSinkName.
+    if (slot > 1) {
+        std::string slotSinkName = getSetting(("PipeWireSinkName_" + std::to_string(slot)).c_str());
+        if (!slotSinkName.empty()) {
+            sinkName = slotSinkName;
+        }
+    }
+    return sinkName;
 }
 
 // Pick the best available ALSA-direct audio sink element.
@@ -855,12 +1037,18 @@ static void BuildChannelOrderFix(int channels, std::string& extraCaps, std::stri
 
 GStreamerOutput::GStreamerOutput(const std::string& mediaFilename, MediaOutputStatus* status, const std::string& videoOut, int streamSlot)
     : m_videoOut(videoOut), m_streamSlot(streamSlot) {
-    LogWarn(VB_MEDIAOUT, "GStreamer: CTOR enter (%s, videoOut=%s, slot=%d)\n", mediaFilename.c_str(), videoOut.c_str(), streamSlot);
+    LogDebug(VB_MEDIAOUT, "GStreamer: CTOR enter (%s, videoOut=%s, slot=%d)\n", mediaFilename.c_str(), videoOut.c_str(), streamSlot);
     m_mediaFilename = mediaFilename;
     m_mediaOutputStatus = status;
     m_allowSpeedAdjust = (getSettingInt("remoteIgnoreSync") == 0);
+    // An audio-only track will play through the slot's persistent PipeWire
+    // stream.  Start bringing it up now: a MultiSync remote constructs this on
+    // the master's media-open packet, well before the start packet arrives.
+    if (m_videoOut == "--Disabled--" || m_videoOut.empty()) {
+        PipeWireOutputStream::Prewarm(m_streamSlot, PipeWireOutputStream::LINGER_MS);
+    }
     EnsureGStreamerInit();
-    LogWarn(VB_MEDIAOUT, "GStreamer: CTOR done (%s)\n", mediaFilename.c_str());
+    LogDebug(VB_MEDIAOUT, "GStreamer: CTOR done (%s)\n", mediaFilename.c_str());
 }
 
 GStreamerOutput::~GStreamerOutput() {
@@ -868,7 +1056,7 @@ GStreamerOutput::~GStreamerOutput() {
 }
 
 int GStreamerOutput::Start(int msTime) {
-    LogWarn(VB_MEDIAOUT, "GStreamer: Start(%d) enter - %s\n", msTime, m_mediaFilename.c_str());
+    LogDebug(VB_MEDIAOUT, "GStreamer: Start(%d) enter - %s\n", msTime, m_mediaFilename.c_str());
 
     // Flush PipeWire filter-chain delay ring-buffers EARLY in Start().
     // This runs as a fire-and-forget thread (pw-cli calls take ~200ms+).
@@ -879,6 +1067,7 @@ int GStreamerOutput::Start(int msTime) {
 
     // Fresh pipeline — allow Stop()'s teardown to run for this track
     m_teardownComplete = false;
+    m_audible = false;
 
     // Fresh lifetime guard for this pipeline's decodebin pad callbacks.  Any
     // connection left over from a previous pipeline holds the previous guard,
@@ -1056,7 +1245,7 @@ int GStreamerOutput::Start(int msTime) {
     // since decodebin creates pads on-the-fly for each stream type.
     // We still use gst_parse_launch for the audio chain and manually add the video chain.
 
-    LogWarn(VB_MEDIAOUT, "GStreamer: Start() building pipeline...");
+    LogDebug(VB_MEDIAOUT, "GStreamer: Start() building pipeline...\n");
 
     bool usePipeWire = usePipeWireBackendLocal;
 
@@ -1072,20 +1261,9 @@ int GStreamerOutput::Start(int msTime) {
 
     std::string pipelineSinkName;
     if (usePipeWire) {
-        pipelineSinkName = getSetting("PipeWireSinkName");
-
-        // For multi-stream slots > 1, check for a per-slot PipeWire sink setting.
-        // Format: PipeWireSinkName_2, PipeWireSinkName_3, etc.
-        // If not set, falls back to the global PipeWireSinkName.
-        if (m_streamSlot > 1) {
-            std::string slotSetting = "PipeWireSinkName_" + std::to_string(m_streamSlot);
-            std::string slotSinkName = getSetting(slotSetting.c_str());
-            if (!slotSinkName.empty()) {
-                pipelineSinkName = slotSinkName;
-            }
-        }
+        pipelineSinkName = PipeWireSinkNameForSlot(m_streamSlot);
     }
-    LogWarn(VB_MEDIAOUT, "GStreamer: PipeWireSinkName='%s' (slot %d, backend=%s)\n",
+    LogDebug(VB_MEDIAOUT, "GStreamer: PipeWireSinkName='%s' (slot %d, backend=%s)\n",
             pipelineSinkName.c_str(), m_streamSlot, mediaBackend.c_str());
 
     // Log PipeWire group delay for reference (handled natively by PipeWire
@@ -1138,6 +1316,7 @@ int GStreamerOutput::Start(int msTime) {
             g_error_free(error);
             return 0;
         }
+        GuardVideoConvertInputs(m_pipeline);
 
         // Build audio sub-chain: audioconvert ! audioresample ! tee ! ...
         GstElement* audioconvert = gst_element_factory_make("audioconvert", "aconv");
@@ -1316,6 +1495,7 @@ int GStreamerOutput::Start(int msTime) {
             g_error_free(error);
             return 0;
         }
+        GuardVideoConvertInputs(m_pipeline);
 
         // Build audio sub-chain (same as overlay mode)
         GstElement* audioconvert = gst_element_factory_make("audioconvert", "aconv");
@@ -1700,7 +1880,7 @@ int GStreamerOutput::Start(int msTime) {
 
     } else {
         // Audio-only pipeline (original gst_parse_launch approach)
-        LogWarn(VB_MEDIAOUT, "GStreamer: Building audio-only pipeline\n");
+        LogDebug(VB_MEDIAOUT, "GStreamer: Building audio-only pipeline\n");
         // expose-all-streams=false + audio caps makes decodebin discard any
         // video stream instead of auto-plugging a decoder for it.  Without
         // this, playing an mp4 audio-only still spins up the bcm2835 hardware
@@ -1720,20 +1900,39 @@ int GStreamerOutput::Start(int msTime) {
                     mediaChannels);
         }
         std::string rateCaps = decodeRate ? ",rate=" + std::to_string(decodeRate) : "";
+        // On PipeWire, play through the slot's persistent output stream rather
+        // than a pipewiresink of our own: a new PipeWire stream per track is
+        // most of a second of silence on slow boards (see
+        // PipeWireOutputStream.h).  The appsink syncs, so this pipeline still
+        // paces the audio.
+        //
+        // That stream's format is fixed for its lifetime (pipewiresink never
+        // renegotiates a connected stream -- new caps are taken as a relabel,
+        // so 16-bit samples would play as floats: full-scale noise), so this
+        // pipeline converts to it.  Files with more than two channels keep a
+        // pipewiresink of their own, where the channel-order workaround above
+        // applies.
+        PipeWireOutputStream* pwStream = (usePipeWire && mediaChannels <= 2)
+                                             ? PipeWireOutputStream::ForSlot(m_streamSlot)
+                                             : nullptr;
+        if (pwStream) {
+            rateCaps = PipeWireOutputStream::CapsFields();
+        }
+        std::string audioSinkStr = pwStream ? std::string("appsink name=pwfeed sync=true enable-last-sample=false") : sinkStr;
         std::string pipelineStr =
             "filesrc location=\"" + fullPath + "\" ! decodebin name=decoder expose-all-streams=false caps=\"audio/x-raw\" ! audioconvert ! audioresample ! "
             "audio/x-raw" + rateCaps + chOrderCaps + " ! " + chOrderPermute +
             "tee name=t "
-            "t. ! queue ! volume name=vol ! " + sinkStr + " "
+            "t. ! queue ! volume name=vol ! " + audioSinkStr + " "
             "t. ! queue max-size-buffers=3 leaky=downstream ! "
             "audioconvert ! audio/x-raw,format=F32LE,channels=1 ! "
             "appsink name=sampletap emit-signals=true sync=false max-buffers=3 drop=true";
 
-        LogWarn(VB_MEDIAOUT, "GStreamer pipeline: %s\n", pipelineStr.c_str());
+        LogDebug(VB_MEDIAOUT, "GStreamer pipeline: %s\n", pipelineStr.c_str());
 
-        LogWarn(VB_MEDIAOUT, "GStreamer: Calling gst_parse_launch()...\n");
+        LogDebug(VB_MEDIAOUT, "GStreamer: Calling gst_parse_launch()...\n");
         m_pipeline = gst_parse_launch(pipelineStr.c_str(), &error);
-        LogWarn(VB_MEDIAOUT, "GStreamer: gst_parse_launch() returned (pipeline=%p, error=%p)\n", m_pipeline, error);
+        LogDebug(VB_MEDIAOUT, "GStreamer: gst_parse_launch() returned (pipeline=%p, error=%p)\n", m_pipeline, error);
         if (error) {
             LogErr(VB_MEDIAOUT, "GStreamer pipeline error: %s\n", error->message);
             g_error_free(error);
@@ -1757,6 +1956,13 @@ int GStreamerOutput::Start(int msTime) {
 
         // Get the appsink
         m_appsink = gst_bin_get_by_name(GST_BIN(m_pipeline), "sampletap");
+
+        if (pwStream) {
+            m_pwFeed = gst_bin_get_by_name(GST_BIN(m_pipeline), "pwfeed");
+            if (m_pwFeed) {
+                m_pwStream = pwStream;
+            }
+        }
 
         // Set stream-properties on pipewiresink (must be done post-launch;
         // gst_parse_launch can't deserialize GstStructure with spaced values).
@@ -1831,12 +2037,18 @@ int GStreamerOutput::Start(int msTime) {
     // Start muted — the background thread will ramp up to targetVolume
     // after the pipeline reaches PLAYING.  This eliminates audible clicks
     // caused by USB/ALSA/PipeWire sink initialisation transients.
+    //
+    // Not when feeding the persistent output stream: it is already running,
+    // so there is no sink start-up to hide -- and the ramp is timed by the
+    // wall clock, not the audio, so it mutes whatever the pipeline prerolled.
+    // A cold start prerolls while it waits for the stream, and that first
+    // decoded buffer (~90 ms of the song) went out silent.
     if (m_volume) {
-        g_object_set(m_volume, "volume", 0.0, NULL);
+        g_object_set(m_volume, "volume", m_pwStream ? targetVolume : 0.0, NULL);
     }
 
     // Get the bus for message handling
-    LogWarn(VB_MEDIAOUT, "GStreamer: Getting bus and setting sync handler...\n");
+    LogDebug(VB_MEDIAOUT, "GStreamer: Getting bus and setting sync handler...\n");
     m_bus = gst_element_get_bus(m_pipeline);
 
     // Install sync handler for autonomous bus message processing
@@ -1875,7 +2087,10 @@ int GStreamerOutput::Start(int msTime) {
     // to 760 ms of the start missing, run to run.  Leaving pipewiresink's own
     // clock in place -- it does not advance until the stream runs, so no buffer
     // is ever late -- brings that down to one quantum (~20 ms).
-    if (wantVideo || wantHDMI) {
+    //
+    // A pipeline feeding the persistent output stream has no pipewiresink of
+    // its own and runs on the system clock too (see PipeWireOutputStream.h).
+    if (wantVideo || wantHDMI || m_pwStream) {
         GstClock* sysClock = gst_system_clock_obtain();
         gst_pipeline_use_clock(GST_PIPELINE(m_pipeline), sysClock);
         gst_object_unref(sysClock);
@@ -1892,6 +2107,11 @@ int GStreamerOutput::Start(int msTime) {
         AES67Manager::INSTANCE.FlushSendPipelines();
     }
 #endif
+
+    if (m_pwStream) {
+        m_pwStream->Acquire(pipelineSinkName);
+        m_pwStream->AttachFeed(m_pwFeed);
+    }
 
     // Move the potentially-blocking state transition to a background thread.
     // pipewiresink's READY→PAUSED blocks in pw_thread_loop_wait if its
@@ -1922,11 +2142,15 @@ int GStreamerOutput::Start(int msTime) {
         // sets the token so a fast stop aborts the ramp/attach early.
         m_startThreadCancel = std::make_shared<std::atomic<bool>>(false);
         std::shared_ptr<std::atomic<bool>> cancel = m_startThreadCancel;
+        m_startSeekPending = std::make_shared<std::atomic<bool>>(seekMs > 0);
+        std::shared_ptr<std::atomic<bool>> seekPending = m_startSeekPending;
         GstElement* pipeline = m_pipeline;
         gst_object_ref(pipeline);
         GstElement* volume = m_volume ? GST_ELEMENT(gst_object_ref(m_volume)) : nullptr;
-        std::thread([pipeline, volume, cancel, seekMs, videoPW, targetVolume,
-                     streamSlot, hdmiConnectorId, kmsPaces, directConnectorIds]() {
+        // A per-slot singleton that is never freed, so safe to capture.
+        PipeWireOutputStream* pwStream = m_pwStream;
+        std::thread([pipeline, volume, cancel, seekPending, seekMs, videoPW, targetVolume,
+                     streamSlot, hdmiConnectorId, kmsPaces, directConnectorIds, pwStream]() {
             // Releases our owning refs on exit no matter which path we return on.
             struct RefGuard {
                 GstElement* pipeline;
@@ -1937,9 +2161,63 @@ int GStreamerOutput::Start(int msTime) {
                 }
             } refGuard{pipeline, volume};
 
-            LogWarn(VB_MEDIAOUT, "GStreamer: Setting pipeline to PLAYING...\n");
+            // Starting part-way in (a playlist entry resuming after Insert
+            // Playlist Immediate) needs the seek to land before playback
+            // starts.  A seek sent while the PLAYING transition is still
+            // ASYNC is dropped: it travels upstream from the sinks, and the
+            // audio chain is not linked to decodebin until its pad-added
+            // fires, so gst_element_seek_simple() returns FALSE.  The media
+            // then played from 0 while the sequence resumed at the paused
+            // frame, and the channel output servo, seeing the lights minutes
+            // ahead of the audio, slowed output to a standstill until the
+            // audio caught up.  Preroll in PAUSED (decodebin is linked by
+            // then), seek, and only then go to PLAYING.
+            if (seekMs > 0) {
+                LogDebug(VB_MEDIAOUT, "GStreamer: Prerolling to start at %dms...\n", seekMs);
+                GstStateChangeReturn pret = gst_element_set_state(pipeline, GST_STATE_PAUSED);
+                if (pret != GST_STATE_CHANGE_FAILURE) {
+                    gst_element_get_state(pipeline, nullptr, nullptr,
+                                          (GstClockTime)PREROLL_TIMEOUT_MS * GST_MSECOND);
+                }
+                if (cancel->load()) {
+                    seekPending->store(false);
+                    return;
+                }
+                if (!gst_element_seek_simple(pipeline, GST_FORMAT_TIME,
+                                             (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
+                                             (gint64)seekMs * GST_MSECOND)) {
+                    LogWarn(VB_MEDIAOUT, "GStreamer: seek to %dms failed, media will play from the start\n", seekMs);
+                }
+                seekPending->store(false);
+            }
+
+            if (pwStream) {
+                // Preroll (decoder start-up) while the output stream comes up.
+                // Nothing may go to PLAYING before the stream reaches the
+                // card: PipeWire runs a freshly linked chain on a placeholder
+                // driver while the ALSA node is still opening, and anything
+                // played then is lost.
+                gst_element_set_state(pipeline, GST_STATE_PAUSED);
+                uint64_t waitStart = GetTimeMS();
+                if (!pwStream->WaitReady(PW_STREAM_READY_TIMEOUT_MS)) {
+                    LogWarn(VB_MEDIAOUT, "GStreamer: PipeWire output stream %d not ready after %d ms, starting anyway\n",
+                            streamSlot, PW_STREAM_READY_TIMEOUT_MS);
+                } else if (GetTimeMS() - waitStart > 5) {
+                    LogDebug(VB_MEDIAOUT, "GStreamer: waited %d ms for PipeWire output stream %d\n",
+                             (int)(GetTimeMS() - waitStart), streamSlot);
+                }
+                // A track starting right behind another queues behind what
+                // that one left in the stream; start the clock only once it
+                // has played, or the position leads the sound by that much.
+                pwStream->WaitDrained(PW_STREAM_DRAIN_MAX_MS);
+                if (cancel->load()) {
+                    return;
+                }
+            }
+
+            LogDebug(VB_MEDIAOUT, "GStreamer: Setting pipeline to PLAYING...\n");
             GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
-            LogWarn(VB_MEDIAOUT, "GStreamer: set_state returned %d\n", ret);
+            LogDebug(VB_MEDIAOUT, "GStreamer: set_state returned %d\n", ret);
             if (ret == GST_STATE_CHANGE_FAILURE) {
                 // Don't touch the (possibly freed) object — failure is reported
                 // to the rest of FPP via the GStreamer bus ERROR message
@@ -1949,16 +2227,10 @@ int GStreamerOutput::Start(int msTime) {
                 return;
             }
 
-            // If starting at a non-zero position, seek after state change
-            if (seekMs > 0) {
-                gst_element_seek_simple(pipeline, GST_FORMAT_TIME,
-                                        (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
-                                        (gint64)seekMs * GST_MSECOND);
-            }
-
             // Fade volume from 0 to target over ~50ms to eliminate startup
-            // clicks from sink initialisation transients.
-            if (volume && !cancel->load()) {
+            // clicks from sink initialisation transients.  (Not needed, and
+            // harmful, when feeding the persistent stream -- see Start().)
+            if (volume && !pwStream && !cancel->load()) {
                 constexpr int kRampSteps = 10;
                 constexpr int kRampStepUs = 5000; // 5ms per step = 50ms total
                 for (int i = 1; i <= kRampSteps && !cancel->load(); i++) {
@@ -2182,6 +2454,12 @@ int GStreamerOutput::Stop(void) {
             m_startThreadCancel->store(true);
         }
 
+        // Stop feeding the persistent output stream before anything else, so
+        // nothing from this track's teardown reaches it.  The stream stays open
+        // for the next track.
+        bool fedPipeWireStream = m_pwStream != nullptr;
+        ReleasePipeWireStream();
+
         // Disconnect appsink signals BEFORE state change to prevent
         // callbacks firing during pipeline teardown.
         if (m_appsink) {
@@ -2248,9 +2526,13 @@ int GStreamerOutput::Stop(void) {
             // The detached thread takes over this object's refs; it must not
             // touch `this` (the object is typically destroyed right after).
             std::thread([pipeline = m_pipeline, volume = m_volume, bus = m_bus,
-                         appsink = m_appsink, videoAppsink = m_videoAppsink]() {
+                         appsink = m_appsink, videoAppsink = m_videoAppsink,
+                         flushSilence = !fedPipeWireStream]() {
                 SetThreadName("FPP-GstTeardown");
-                if (volume) {
+                // A track that fed the persistent stream has nothing to flush:
+                // its feed is already detached, and the stream plays silence
+                // on its own once nothing feeds it.
+                if (volume && flushSilence) {
                     // Silence flush: push zeros through the PipeWire chain so
                     // stale buffer contents can't replay as a click when the
                     // next track starts (see comment on the synchronous path).
@@ -2338,6 +2620,17 @@ int GStreamerOutput::Stop(void) {
         m_teardownComplete = true;
     }
     return 1;
+}
+
+void GStreamerOutput::ReleasePipeWireStream() {
+    if (m_pwStream) {
+        m_pwStream->Release(m_pwFeed);
+        m_pwStream = nullptr;
+    }
+    if (m_pwFeed) {
+        gst_object_unref(m_pwFeed);
+        m_pwFeed = nullptr;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -2556,6 +2849,112 @@ static std::string AlsaPlaybackStatusPath(int card) {
     return base + "/" + devs[0] + "/sub0/status";
 }
 
+// Value of every `key = "..."` in [from, to) of `s`.
+static std::vector<std::string> QuotedValues(const std::string& s, const std::string& key,
+                                             std::size_t from, std::size_t to) {
+    std::vector<std::string> out;
+    for (std::size_t k = s.find(key, from); k != std::string::npos && k < to; k = s.find(key, k + key.size())) {
+        std::size_t a = s.find('"', k + key.size());
+        std::size_t eol = s.find('\n', k);
+        if (a == std::string::npos || a > eol) {
+            continue;
+        }
+        std::size_t b = s.find('"', a + 1);
+        if (b == std::string::npos) {
+            break;
+        }
+        out.push_back(s.substr(a + 1, b - a - 1));
+    }
+    return out;
+}
+
+// Cards a PipeWire sink ultimately plays into, following FPP's generated
+// configs: an input mix bus (96) targets an output group, the group's
+// combine-stream (97) targets one filter chain per member, and each filter
+// chain targets that member's sink -- an fpp_alsa_* adapter for a card, or a
+// network sender (AES67, Opus RTP) for anything else.  Within one module block
+// every node.name is treated as feeding every node.target, which is exactly
+// right for all of these block shapes.  A sink that reaches no adapter, e.g. a
+// group whose only member is an AES67 sender, yields no cards.
+static std::vector<int> AlsaCardsFedBy(const std::string& sinkName) {
+    const std::string conf95 = GetFileContents("/etc/pipewire/pipewire.conf.d/95-fpp-alsa-sink.conf");
+    const std::string conf97 = GetFileContents("/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf");
+    const std::string conf96 = GetFileContents("/etc/pipewire/pipewire.conf.d/96-fpp-input-groups.conf");
+
+    std::map<std::string, std::set<std::string>> edges;
+    const std::string blockKey = "name = libpipewire-module-";
+    for (const std::string* conf : { &conf96, &conf97 }) {
+        std::vector<std::size_t> starts;
+        for (std::size_t b = conf->find(blockKey); b != std::string::npos; b = conf->find(blockKey, b + 1)) {
+            starts.push_back(b);
+        }
+        for (std::size_t i = 0; i < starts.size(); i++) {
+            std::size_t end = (i + 1 < starts.size()) ? starts[i + 1] : conf->size();
+            std::vector<std::string> names = QuotedValues(*conf, "node.name", starts[i], end);
+            std::vector<std::string> targets = QuotedValues(*conf, "node.target", starts[i], end);
+            for (const auto& n : names) {
+                edges[n].insert(targets.begin(), targets.end());
+            }
+        }
+    }
+
+    // fpp_alsa_* adapter -> card, from whichever conf declared it.
+    std::map<std::string, int> adapterCard;
+    for (const std::string* conf : { &conf95, &conf97 }) {
+        const std::string nameKey = "node.name = \"fpp_alsa_";
+        for (std::size_t n = conf->find(nameKey); n != std::string::npos; n = conf->find(nameKey, n + 1)) {
+            std::size_t next = conf->find(nameKey, n + 1);
+            std::vector<std::string> name = QuotedValues(*conf, "node.name", n, n + nameKey.size() + 128);
+            std::vector<std::string> path = QuotedValues(*conf, "api.alsa.path", n, next == std::string::npos ? conf->size() : next);
+            if (name.empty() || path.empty()) {
+                continue;
+            }
+            std::size_t colon = path[0].find(':');
+            int card = colon == std::string::npos ? -1 : AlsaCardNumber(path[0].substr(colon + 1));
+            if (card >= 0 && !adapterCard.count(name[0])) {
+                adapterCard[name[0]] = card;
+            }
+        }
+    }
+
+    std::vector<int> cards;
+    std::set<std::string> seen;
+    std::vector<std::string> todo{ sinkName };
+    while (!todo.empty()) {
+        std::string node = todo.back();
+        todo.pop_back();
+        if (!seen.insert(node).second) {
+            continue;
+        }
+        auto ac = adapterCard.find(node);
+        if (ac != adapterCard.end()) {
+            if (std::find(cards.begin(), cards.end(), ac->second) == cards.end()) {
+                cards.push_back(ac->second);
+            }
+            continue;
+        }
+        auto e = edges.find(node);
+        if (e != edges.end()) {
+            todo.insert(todo.end(), e->second.begin(), e->second.end());
+        }
+    }
+    return cards;
+}
+
+int GStreamerOutput::PipeWireGraphRate() {
+    int rate = GetPipeWireGraphRate();
+    return rate > 0 ? rate : 48000;
+}
+
+std::string GStreamerOutput::AlsaSinkStatusPath(const std::string& sinkName) {
+    if (sinkName.empty()) {
+        // PipeWire's default sink: nothing in FPP's configs says which card.
+        return std::string();
+    }
+    std::vector<int> cards = AlsaCardsFedBy(sinkName);
+    return cards.empty() ? std::string() : AlsaPlaybackStatusPath(cards[0]);
+}
+
 static int ReadIntField(const std::string& text, const char* key) {
     std::size_t k = text.find(key);
     if (k == std::string::npos) {
@@ -2683,6 +3082,13 @@ int GStreamerOutput::Process(void) {
         // Only the audio sink's position gets the ALSA-queue correction below;
         // a kmssink is reporting video playout, which is a different path.
         bool posFromAudioSink = false;
+        if (!posSource && m_pwFeed) {
+            // Feeding the persistent output stream: the feed is the synced
+            // sink, and what it has rendered has only just entered the stream.
+            posSource = GST_ELEMENT(gst_object_ref(m_pwFeed));
+            ownPosSource = true;
+            posFromAudioSink = true;
+        }
         if (!posSource) {
             SetMainLoopPhase("GStreamer get pwsink");
             posSource = gst_bin_get_by_name(GST_BIN(m_pipeline), "pwsink");
@@ -2694,6 +3100,11 @@ int GStreamerOutput::Process(void) {
         if (!posSource) posSource = m_pipeline;
         SetMainLoopPhase("GStreamer query position");
         bool havePos = gst_element_query_position(posSource, GST_FORMAT_TIME, &pos);
+        if (havePos && m_startSeekPending && m_startSeekPending->load()) {
+            // Prerolled at 0 and not yet seeked to the start position (see
+            // Start()).  Reporting 0 now would drag the sequence back to it.
+            havePos = false;
+        }
         SetMainLoopPhase("GStreamer query duration");
         bool haveDur = gst_element_query_duration(m_pipeline, GST_FORMAT_TIME, &dur);
         SetMainLoopPhase("GStreamer position post-processing");
@@ -2817,7 +3228,13 @@ int GStreamerOutput::Process(void) {
             // sequence servo and the MultiSync packets both follow the sound
             // rather than the graph's write pointer.  See AudioSinkLatencyNs().
             if (posFromAudioSink) {
-                float latSec = (float)AudioSinkLatencyNs() / 1000000000.0f;
+                int64_t latNs = AudioSinkLatencyNs();
+                if (m_pwStream) {
+                    // ...and, when feeding the persistent stream, the time it
+                    // takes to get from the feed into the graph.
+                    latNs += m_pwStream->LatencyNs();
+                }
+                float latSec = (float)latNs / 1000000000.0f;
                 if (latSec > 0.0f) {
                     elapsed -= latSec;
                     if (elapsed < 0.0f) {
@@ -2826,10 +3243,13 @@ int GStreamerOutput::Process(void) {
                     remaining += latSec;
                     if (!m_loggedSinkLatency) {
                         m_loggedSinkLatency = true;
-                        LogInfo(VB_MEDIAOUT, "GStreamer: correcting reported position by %.1f ms of audio sink latency\n",
+                        LogDebug(VB_MEDIAOUT, "GStreamer: correcting reported position by %.1f ms of audio sink latency\n",
                                 latSec * 1000.0f);
                     }
                 }
+            }
+            if (elapsed > 0.0f) {
+                m_audible = true;
             }
             setMediaElapsed(elapsed, remaining);
 

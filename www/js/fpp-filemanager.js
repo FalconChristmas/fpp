@@ -884,7 +884,7 @@ function ButtonHandler (table, button) {
 		}
 	} else if (button == 'fileInfo') {
 		if (selectedCount == 1) {
-			eval('FileInfo' + table + '("' + filename.replace('"', '\\"') + '");');
+			CallFileManagerHandler('FileInfo' + table, filename);
 		} else {
 			DialogError(
 				'Error',
@@ -892,7 +892,27 @@ function ButtonHandler (table, button) {
 			);
 		}
 	} else {
-		eval(table + button + 'Pressed("' + filename.replace('"', '\\"') + '");');
+		CallFileManagerHandler(table + button + 'Pressed', filename);
+	}
+}
+
+// Dispatches plugin/extensibility actions (FileInfo<table>, <table><button>Pressed)
+// that have no hardcoded branch above. Looks the handler up as a global by name
+// and calls it with the raw filename -- no code is ever assembled from strings,
+// so filenames containing quotes, backslashes, or newlines cannot break out
+// into script execution the way eval('...("...")') allowed. Handlers must be
+// global functions, which is also all the old eval could resolve (it ran in
+// ButtonHandler's scope, where no such locals exist). Unknown names show the
+// same style of dialog as the other branches instead of throwing.
+function CallFileManagerHandler (fnName, filename) {
+	var fn = window[fnName];
+	if (typeof fn === 'function') {
+		fn(filename);
+	} else {
+		DialogError(
+			'Error',
+			'Error, unknown file action.'
+		);
 	}
 }
 

@@ -400,7 +400,7 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                                 "<td><input class='strcnt' type='text' size='3' maxlength='3' value='" + model.StringCount + "'" + attr + "></td>" +
                                 "<td><input class='strands' type='text' size='2' maxlength='2' value='" + model.StrandsPerString + "'" + attr + "></td>";
                         } else {
-                            postr += "<td><input class='corner' type='hidden' value='" + model.StartCorner + "'><input class='data' type='hidden' value='" + model.data + "'></td>" +
+                            postr += "<td><input class='corner' type='hidden' value='" + model.StartCorner + "'><input class='data' type='hidden' value='" + (model.data ?? "") + "'><input class='compressedData' type='hidden' value='" + (model.compressedData ?? "") + "'></td>" +
                                 "<td><input class='strcnt' type='hidden' value='" + model.StringCount + "'></td>" +
                                 "<td><input class='strands' type='hidden' value='" + model.StrandsPerString + "'></td>";
                         }
@@ -647,7 +647,15 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                             if ((model.StartChannel > 0) &&
                                 (model.ChannelCount > 0)) {
                                 if (model.Orientation == "custom") {
-                                    model.data = $this.find("input.data").val();
+                                    // A custom layout arrives from xLights as either "data"
+                                    // or (FPP 10+) "compressedData"; keep whichever it has.
+                                    var data = $this.find("input.data").val();
+                                    var compressedData = $this.find("input.compressedData").val();
+                                    if (compressedData) {
+                                        model.compressedData = compressedData;
+                                    } else {
+                                        model.data = data;
+                                    }
                                     model.StartCorner = $this.find("input.corner").val();
                                     models.push(model);
                                 } else if ((model.StringCount > 0) &&

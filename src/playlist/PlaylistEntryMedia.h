@@ -59,6 +59,9 @@ public:
     virtual uint64_t GetElapsedMS() override;
 
     bool HasExtraAtEnd();
+    // Whether the media's sound has reached the output yet (see
+    // MediaOutputBase::IsAudible).  True when there is no media output.
+    bool IsAudible();
     int32_t GetMediaOffsetMS();
 
     int m_status;

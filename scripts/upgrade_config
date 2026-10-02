@@ -18,27 +18,42 @@ export FPPVERSION
 
 ########################################################################
 
-if [ -f ${CFGVERSIONFILE} ]; then
-	CFGVERSION=$(cat ${CFGVERSIONFILE})
+if [ -f "${CFGVERSIONFILE}" ]; then
+	CFGVERSION=$(sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' "${CFGVERSIONFILE}")
 else
     CFGVERSION="99999"
 fi
+
+# Surrounding whitespace (including a CRLF from a hand edit) is trimmed above, as
+# changebranch.php's intval(trim()) does. Anything left that isn't 1-6
+# digits is corrupt; the [ -gt ] below already skipped every migration for
+# it (by erroring, or by comparing above 1000), so keep that outcome but say
+# so once. 10# drops leading zeros.
+case "${CFGVERSION}" in
+    ''|*[!0-9]*|[0-9][0-9][0-9][0-9][0-9][0-9][0-9]*)
+        echo "WARNING: invalid config version '${CFGVERSION}', skipping config upgrades" >&2
+        CFGVERSION="99999"
+        ;;
+    *)
+        CFGVERSION=$((10#${CFGVERSION}))
+        ;;
+esac
 
 echo "FPP Version: ${FPPVERSION}"
 echo "Config Version: ${CFGVERSION}"
 
 for VERSION in $(seq 1 1000)
 do
-	if [ ${VERSION} -gt ${CFGVERSION} ]
+	if [ "${VERSION}" -gt "${CFGVERSION}" ]
 	then
 		if [ -f "${UPGRADEDIR}/${VERSION}/upgrade.sh" ]
 		then
 			echo "Upgrading config to version ${VERSION}"
-			(cd ${UPGRADEDIR}/${VERSION} && ./upgrade.sh)
+			(cd "${UPGRADEDIR}/${VERSION}" && ./upgrade.sh)
 			if [ $? -eq 0 ]
 			then
                 CFGVERSION=${VERSION}
-                echo ${VERSION} > ${CFGVERSIONFILE}
+                echo ${VERSION} > "${CFGVERSIONFILE}"
                 echo ">>SUCCESS upgraded to config version ${VERSION}"
 			else
                 echo ">>FAILED to update to config version ${VERSION}"

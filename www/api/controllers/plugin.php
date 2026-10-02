@@ -7,6 +7,9 @@ require_once __DIR__ . '/../../common/packages.inc.php';
 // Shared operation logging (OpLog), the PHP half of scripts/common's startOpLog.
 require_once __DIR__ . '/../../common/oplog.inc.php';
 
+// The plugin install history (AppendPluginHistory() and friends).
+require_once __DIR__ . '/../../common/pluginhistory.inc.php';
+
 /**
  * Appends lines to the shared logs/fpp_plugin_manager.log in the same
  * syslog-style format scripts/common's startPluginLog() writes:
@@ -474,6 +477,36 @@ function SetUnverifiedPluginRepos($pending)
 	WriteSettingToFile($GLOBALS['PLUGIN_UNVERIFIED_REPOS_SETTING'], implode(',', array_keys($items)));
 }
 
+// Serialises rewrites of the unverified list (installs adding,
+// ResolveUnverifiedPlugins() settling). Returns the handle; null if the lock
+// file can't be opened (the caller carries on unlocked); false if $wait is
+// false and it is taken.
+function PluginUnverifiedLock($wait)
+{
+	$file = file_cache_dir_persistent() . '/plugin-unverified.lock';
+	$new = !file_exists($file);
+	$lock = @fopen($file, 'c');
+	if (!$lock) {
+		return null;
+	}
+	if ($new) {
+		@chmod($file, 0664);
+	}
+	if (!flock($lock, $wait ? LOCK_EX : LOCK_EX | LOCK_NB)) {
+		fclose($lock);
+		return false;
+	}
+	return $lock;
+}
+
+function PluginUnverifiedUnlock($lock)
+{
+	if ($lock) {
+		flock($lock, LOCK_UN);
+		fclose($lock);
+	}
+}
+
 /**
  * Records what this system now knows about where a just-installed plugin came
  * from. Called once per successful install from InstallPluginFromInfo().
@@ -489,12 +522,15 @@ function SetUnverifiedPluginRepos($pending)
  * it only fires on something real. What matters is where the code came from,
  * which PluginSrcURLIsListed() answers from srcURL. That also covers the dev-tools
  * case for free: there is no marker to strip, because there is no marker.
+ *
+ * Returns what it concluded -- 'official', 'listed', 'unknown' or
+ * 'unverified' -- for the install history (AppendPluginHistory()).
  */
 function RecordPluginInstallSource($repoName, $srcURL)
 {
 	// Published by the FPP project -- nothing to record.
 	if (IsOfficialPluginSrcURL($srcURL)) {
-		return;
+		return 'official';
 	}
 
 	// Decidable without the list: every listed plugin lives on GitHub, so a
@@ -503,26 +539,232 @@ function RecordPluginInstallSource($repoName, $srcURL)
 	// case instead of parking it.
 	if (is_string($srcURL) && $srcURL !== '' && PluginRepoSlugFromURL($srcURL) === '') {
 		WriteSettingToFile($GLOBALS['PLUGIN_UNKNOWN_SETTING'], '1');
-		return;
+		return 'unknown';
 	}
 
 	$list = GetPluginList();
 	if (!empty($list) && PluginSrcURLIsListed($srcURL)) {
 		// On the list. Safe to conclude even from a stale copy.
-		return;
+		return 'listed';
 	}
 
 	if (empty($list) || !PluginListIsCurrent()) {
 		// Either no list at all, or one whose last refresh failed. Absence
 		// proves nothing against it -- park the plugin and let
 		// GetPluginSource() settle it once a current list is available.
+		$lock = PluginUnverifiedLock(true);
 		$pending = GetUnverifiedPluginRepos();
 		$pending[] = array('repoName' => $repoName, 'srcURL' => $srcURL);
 		SetUnverifiedPluginRepos($pending);
-		return;
+		PluginUnverifiedUnlock($lock);
+		return 'unverified';
 	}
 
 	WriteSettingToFile($GLOBALS['PLUGIN_UNKNOWN_SETTING'], '1');
+	return 'unknown';
+}
+
+// System package changes around a plugin's own script (upgrades, removals,
+// holds, apt sources/pins/keys). Only the script phase is bracketed, so FPP's
+// own declared installs and claim releases don't count; anything else changing
+// packages meanwhile does, hence "while", not "by". Not pip, npm or background jobs.
+
+// Identifies one version of dpkg's state: filemtime() is whole seconds, but
+// dpkg replaces the status file by rename, so its inode changes; an
+// interrupted dpkg leaves its changes in updates/ instead.
+function PluginDpkgStatusStamp()
+{
+	clearstatcache(true, '/var/lib/dpkg/status');
+	$st = @stat('/var/lib/dpkg/status');
+	$updates = @scandir('/var/lib/dpkg/updates');
+	return $st ? $st['ino'] . ':' . $st['size'] . ':' . $st['mtime'] . ':' . implode(',', $updates ?: array()) : null;
+}
+define('PLUGIN_APT_STATE_DIRS', '/etc/apt/sources.list.d /etc/apt/preferences.d /etc/apt/trusted.gpg.d /etc/apt/keyrings /usr/share/keyrings');
+define('PLUGIN_APT_CHANGES_MAX', 20); // names kept per kind in the history
+
+// Whether the plugin has a script named one of $names in scripts/ or its top
+// directory (a superset of where the wrappers look): without one there is
+// nothing to bracket, so Update All over script-less plugins costs nothing.
+function PluginHasOwnScript($plugin, $names)
+{
+	global $settings;
+	foreach ($names as $name) {
+		foreach (array('/scripts/', '/') as $sub) {
+			if (file_exists($settings['pluginDirectory'] . '/' . $plugin . $sub . $name)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+function PluginAptFiles()
+{
+	$files = array();
+	foreach (array('/etc/apt/sources.list', '/etc/apt/preferences', '/etc/apt/trusted.gpg') as $f) {
+		if (is_file($f)) {
+			$files[$f] = is_readable($f) ? md5_file($f) : 'unreadable';
+		}
+	}
+	foreach (explode(' ', PLUGIN_APT_STATE_DIRS) as $dir) {
+		foreach (glob($dir . '/*') ?: array() as $f) {
+			if (is_file($f)) {
+				$files[$f] = is_readable($f) ? md5_file($f) : 'unreadable';
+			}
+		}
+	}
+	return $files;
+}
+
+// The installed packages ("name:arch" => array(version, want)), or null where
+// there is no dpkg (macOS, Fedora) or it cannot be read.
+function PluginDpkgList()
+{
+	$out = array();
+	exec("dpkg-query -W -f='\${Package}:\${Architecture} \${Version} \${db:Status-Want} \${db:Status-Status}\\n' 2>/dev/null", $out, $rc);
+	if (empty($out)) {
+		return null;
+	}
+	$pkgs = array();
+	foreach ($out as $line) {
+		$f = explode(' ', $line);
+		// Present unless removed (not-installed) or removed but its config kept.
+		if (count($f) >= 4 && $f[3] !== 'not-installed' && $f[3] !== 'config-files') {
+			$pkgs[$f[0]] = array($f[1], $f[2]);
+		}
+	}
+	return $pkgs;
+}
+
+function PluginPackageSnapshot()
+{
+	if (!AptAvailable()) {
+		return null;
+	}
+	$pkgs = PluginDpkgList();
+	if ($pkgs === null) {
+		return null;
+	}
+	return array(
+		'statusStamp' => PluginDpkgStatusStamp(),
+		'pkgs' => $pkgs,
+		'apt' => PluginAptFiles(),
+	);
+}
+
+// What changed since $before, or null for nothing (or no snapshot). Lists are
+// capped at PLUGIN_APT_CHANGES_MAX names, with the full count alongside.
+function PluginPackageChanges($before)
+{
+	if (!is_array($before)) {
+		return null;
+	}
+	$c = array();
+	$keep = function ($kind, $list) use (&$c) {
+		if (!empty($list)) {
+			sort($list, SORT_NATURAL | SORT_FLAG_CASE); // so the names kept read in order
+			$c[$kind] = array_slice($list, 0, PLUGIN_APT_CHANGES_MAX);
+			if (count($list) > PLUGIN_APT_CHANGES_MAX) {
+				$c[$kind . 'Count'] = count($list);
+			}
+		}
+	};
+	if ($before['statusStamp'] === null || PluginDpkgStatusStamp() !== $before['statusStamp']) {
+		$after = PluginDpkgList();
+		if ($after !== null) {
+			$removed = $added = $changed = $held = $unheld = array();
+			foreach ($before['pkgs'] as $p => $v) {
+				if (!isset($after[$p])) {
+					$removed[] = $p;
+					continue;
+				}
+				// Not labelled up or down: Debian version order needs a dpkg
+				// call per package (seconds on a BeagleBone after an apt-get
+				// upgrade); the two versions show it.
+				if ($after[$p][0] !== $v[0]) {
+					$changed[] = "$p {$v[0]} -> {$after[$p][0]}";
+				}
+				if ($v[1] !== 'hold' && $after[$p][1] === 'hold') {
+					$held[] = $p;
+				} else if ($v[1] === 'hold' && $after[$p][1] !== 'hold') {
+					$unheld[] = $p;
+				}
+			}
+			foreach ($after as $p => $v) {
+				if (!isset($before['pkgs'][$p])) {
+					$added[] = $p . ' ' . $v[0];
+					if ($v[1] === 'hold') {
+						$held[] = $p;
+					}
+				}
+			}
+			$keep('removed', $removed);
+			$keep('changed', $changed);
+			$keep('held', $held);
+			$keep('unheld', $unheld);
+			$keep('added', $added);
+		}
+	}
+	$apt = PluginAptFiles();
+	$aptChanged = array();
+	foreach ($apt as $f => $md5) {
+		if (!isset($before['apt'][$f])) {
+			$aptChanged[] = "$f (added)";
+		} else if ($before['apt'][$f] !== $md5) {
+			$aptChanged[] = "$f (changed)";
+		}
+	}
+	foreach ($before['apt'] as $f => $md5) {
+		if (!isset($apt[$f])) {
+			$aptChanged[] = "$f (removed)";
+		}
+	}
+	$keep('aptFiles', $aptChanged);
+	return empty($c) ? null : $c;
+}
+
+// One line for the operation's stream and the plugin manager log, or '' for none.
+function PluginPackageChangesText($op, $plugin, $c)
+{
+	static $arch = null; // ":all" and the native architecture are left off names
+	if ($arch === null) {
+		$arch = trim((string) shell_exec('dpkg --print-architecture 2>/dev/null'));
+	}
+	// Packages only added are routine; they go to the history without a line.
+	if (empty($c) || !array_diff(array_keys($c), array('added', 'addedCount'))) {
+		return '';
+	}
+	$parts = array();
+	foreach (PluginPackageChangeLabels() as $kind => $label) {
+		if (empty($c[$kind])) {
+			continue;
+		}
+		$n = isset($c[$kind . 'Count']) ? $c[$kind . 'Count'] : count($c[$kind]);
+		$names = array_map(function ($x) use ($kind, $arch) {
+			$x = preg_replace('#^/etc/apt/#', '', $x);
+			if ($kind === 'aptFiles') {
+				return $x; // apt files keep "(added)"
+			}
+			return preg_replace('/:(all|' . preg_quote($arch, '/') . ')$/', '', preg_replace('/ .*$/', '', $x));
+		}, array_slice($c[$kind], 0, 5));
+		$parts[] = "$label $n (" . implode(', ', $names) . ($n > 5 ? ', ...' : '') . ')';
+	}
+	return "System packages changed while $plugin's $op script was running: " . implode('; ', $parts) . '.';
+}
+
+// Runs $run, a plugin's script phase, inside a package snapshot when the
+// plugin has a script named one of $names, and prints any change worth a line
+// (tagged $logName in the plugin manager log). Returns the changes, or null.
+function PluginTrackPackages($op, $plugin, $logName, $names, $run, $stream)
+{
+	$before = PluginHasOwnScript($plugin, $names) ? PluginPackageSnapshot() : null;
+	$run();
+	$changes = PluginPackageChanges($before);
+	$text = $changes ? PluginPackageChangesText($op, $plugin, $changes) : '';
+	if ($text !== '') {
+		PluginEchoLog($op, $logName, "\n" . $text . "\n", $stream);
+	}
+	return $changes;
 }
 
 // How long GetPluginSource() will wait inline for a plugin list it does not
@@ -631,19 +873,32 @@ function ResolveUnverifiedPlugins()
 	// trustworthy) but must not promote one to a finding, since absence from
 	// an out-of-date list proves nothing. Anything we still can't settle
 	// stays pending for a later run.
+	// The health check and its SSE twin can both get here at once: one
+	// settles the list, the other leaves it, so no answer is recorded twice.
+	$lock = PluginUnverifiedLock(false);
+	if ($lock === false) {
+		return;
+	}
+	$pending = GetUnverifiedPluginRepos(); // again, now that it is ours
+
 	$current = PluginListIsCurrent();
 	$stillPending = array();
+	// Each answer also goes into the install history, which recorded the
+	// install as 'unverified'.
 	foreach ($pending as $p) {
 		if (PluginSrcURLIsListed($p['srcURL'])) {
+			AppendPluginHistory($p['repoName'], 'verified', array('source' => 'listed'));
 			continue;
 		}
 		if ($current) {
 			WriteSettingToFile($GLOBALS['PLUGIN_UNKNOWN_SETTING'], '1');
+			AppendPluginHistory($p['repoName'], 'verified', array('source' => 'unknown', 'srcURL' => PluginHistoryURL($p['srcURL'])));
 			continue;
 		}
 		$stillPending[] = $p;
 	}
 	SetUnverifiedPluginRepos($stillPending);
+	PluginUnverifiedUnlock($lock);
 }
 
 /**
@@ -737,7 +992,9 @@ function PluginPrivacyRefuse($repoName, $pending, $msg, $stream, $op = 'install'
 // is the plugin (or dependency plugin) whose block must be reviewed, `pending`
 // that block (null = no disclosure); `Code` lets a script tell this refusal
 // from any other error without parsing `Message`, and `reason` says which kind
-// it is: 'notAccepted' (post `pending` back as accepted) or 'mismatch'.
+// it is: 'notAccepted' (nothing accepted yet) or 'mismatch'. Either way the
+// operator reviews `pending` on the Plugins page; only that page posts it
+// back as accepted (POST /plugin docblock).
 function PluginPrivacyRefusalReply($msg)
 {
 	$ref = $GLOBALS['PLUGIN_PRIVACY_REFUSAL'];
@@ -839,13 +1096,13 @@ function GetInstalledPlugins()
  * remoteAccess, systemChanges, closedCode): when they differ -- the listing is
  * behind the repository, or the selected version pins an older commit -- the
  * install is refused, the clone removed, and the reply carries
- * `Code: "PrivacyMismatch"` and `pending` (the cloned block) so the caller can
- * show it and post again with it as `privacyAccepted`. A body without the
- * field is compared with the block recorded for that plugin from an earlier
+ * `Code: "PrivacyMismatch"` and `pending` (the cloned block) so the Plugins
+ * page can show it and post again with it as `privacyAccepted`. A body
+ * without the field is compared with the block recorded for that plugin from an earlier
  * install, if there is one (the record survives an uninstall), and refused
  * the same way when they differ; with no record either, a plugin that
  * declares a block is refused the same way (`pending` is the cloned block,
- * to post back as `privacyAccepted`), and only a plugin with no block installs.
+ * for the operator to review), and only a plugin with no block installs.
  * The block is recorded once the dependencies are in place, just before the
  * plugin's own install script runs.
  * `dependencyPrivacyAccepted` (optional) is a map repoName -> block or null
@@ -856,8 +1113,16 @@ function GetInstalledPlugins()
  * block). Without the map, a dependency plugin that declares a block is
  * refused the same way, and one with no block installs.
  * A refusal's `reason` is `notAccepted` when nothing was accepted for that
- * plugin (post `pending` back to accept it) and `mismatch` when the accepted
- * block is not the one that would land.
+ * plugin and `mismatch` when the accepted block is not the one that would
+ * land.
+ *
+ * `privacyAccepted` and `dependencyPrivacyAccepted` record that a person saw
+ * and accepted the disclosure. Only the FPP Plugins page may send them, and
+ * only with a block it actually displayed. Scripts and other API clients must
+ * not send them -- not even by echoing `pending` back from a refusal: on
+ * `Code: "PrivacyMismatch"` they stop and send the operator to the Plugins
+ * page. The server cannot tell callers apart, so this is a rule for clients,
+ * not something it enforces.
  *
  * @route POST /api/plugin
  * @body {"repoName": "fpp-matrixtools", "name": "MatrixTools", "author": "Chris Pinkham (CaptainMurdoch)", "srcURL": "https://github.com/cpinkham/fpp-matrixtools.git", "branch": "master", "sha": ""}
@@ -873,6 +1138,10 @@ function GetInstalledPlugins()
 function InstallPlugin()
 {
 	global $settings, $_REQUEST;
+	// Finish once started, even if the browser goes away: a closed tab must not
+	// stop PHP at the next echo between the scripts and the bookkeeping after
+	// them (install history, plugin source, privacy record).
+	ignore_user_abort(true);
 	$result = array();
 
 	$pluginInfoJSON = "";
@@ -945,9 +1214,9 @@ function InstallPlugin()
 	if (!$ok && is_array($GLOBALS['PLUGIN_PRIVACY_REFUSAL'])) {
 		$result = PluginPrivacyRefusalReply(($GLOBALS['PLUGIN_PRIVACY_REFUSAL']['plugin'] === $plugin)
 			? (($GLOBALS['PLUGIN_PRIVACY_REFUSAL']['reason'] === 'notAccepted')
-				? "The privacy disclosure of '$plugin' was not accepted with this request. Review it on the Plugins page, or post `pending` back as privacyAccepted to accept it."
+				? "The privacy disclosure of '$plugin' was not accepted with this request. Review it on the Plugins page and install again."
 				: "The privacy disclosure of '$plugin' is not the one that was accepted. Review it on the Plugins page and install again.")
-			: "'$plugin' depends on '" . $GLOBALS['PLUGIN_PRIVACY_REFUSAL']['plugin'] . "', whose privacy disclosure was not accepted. Review it on the Plugins page, or post it in dependencyPrivacyAccepted to accept it.");
+			: "'$plugin' depends on '" . $GLOBALS['PLUGIN_PRIVACY_REFUSAL']['plugin'] . "', whose privacy disclosure was not accepted. Review it on the Plugins page and install again.");
 	}
 	return json($result);
 }
@@ -1127,9 +1396,9 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 	// and the cloned block handed back for review (PluginPrivacyRefuse).
 	// A request with neither -- a fresh install from a script -- is refused
 	// the same way when the plugin declares anything: the reply carries the
-	// block, and a caller that means to accept it posts it back as
-	// privacyAccepted, as the Plugins page does. Only a plugin with no block
-	// at all installs without one. The record itself is written once the
+	// block for the Plugins page to show. Only the Plugins page posts
+	// privacyAccepted (POST /plugin docblock); a script sends the operator
+	// there. Only a plugin with no block at all installs without one. The record itself is written once the
 	// dependencies are in, just before the install script.
 	$installedBlock = PluginPrivacyBlock($data);
 	$accepted = false;
@@ -1147,7 +1416,7 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 	$recordBlock = ($acceptedFrom !== '');
 	if (!$recordBlock && $installedBlock !== null) {
 		PluginPrivacyRefuse($repoName, $installedBlock,
-			"the privacy disclosure of '$plugin' was not accepted with this request. Not installed: review it on the Plugins page, or post it back as privacyAccepted to accept it.\nRemoving the partial install of '$plugin'.", $stream, 'install', true, 'notAccepted');
+			"the privacy disclosure of '$plugin' was not accepted with this request. Not installed: review it on the Plugins page and install again.\nRemoving the partial install of '$plugin'.", $stream, 'install', true, 'notAccepted');
 		CleanupPartialPluginInstall($plugin);
 		return false;
 	}
@@ -1212,12 +1481,13 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 	// streaming to the browser dialog (a plugin script can build/fetch for minutes).
 	$runCmd = $envPrefix . escapeshellarg($fppDir . '/scripts/install_plugin')
 		. ' --run-install-script ' . escapeshellarg($plugin);
-	if ($streaming) {
-		system($runCmd, $return_val);
-	} else {
-		exec($runCmd, $o, $return_val);
-		unset($o);
-	}
+	$pkgChanges = PluginTrackPackages('install', $plugin, $repoName, array('fpp_install.sh'), function () use ($streaming, $runCmd, &$return_val) {
+		if ($streaming) {
+			system($runCmd, $return_val);
+		} else {
+			exec($runCmd, $o, $return_val);
+		}
+	}, $stream);
 
 	// The only statement that the operation as a whole succeeded -- the wrapper
 	// scripts only ever report on their own phase.
@@ -1237,7 +1507,21 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 	// $depInfo (see ResolvePluginDependencies()) and recorded through this same
 	// call, so each one is judged on where it actually came from rather than
 	// inheriting anything from the plugin that pulled it in.
-	RecordPluginInstallSource($repoName, $origSrcURL);
+	$source = RecordPluginInstallSource($repoName, $origSrcURL);
+	$entry = array('source' => $source, 'branch' => $branch, 'sha' => PluginInstalledSha($plugin));
+	if ($source !== 'official' && $source !== 'listed') {
+		$entry['srcURL'] = PluginHistoryURL($origSrcURL);
+	}
+	if ($depth > 0) {
+		$entry['dependency'] = true;
+	}
+	if ($return_val != 0) {
+		$entry['scriptFailed'] = true;
+	}
+	if ($pkgChanges) {
+		$entry['packages'] = $pkgChanges;
+	}
+	AppendPluginHistory($repoName, 'install', $entry);
 
 	// install_plugin may reset to a pinned sha: ask rather than assume up to
 	// date. Git only: the plugin's own update-check script (networked, up to
@@ -1878,6 +2162,10 @@ function FPPDPluginLifecycle($plugin, $action)
 function UninstallPlugin()
 {
 	global $settings, $fppDir, $SUDO, $_REQUEST;
+	// Finish once started, even if the browser goes away: a closed tab must not
+	// stop PHP at the next echo between the scripts and the bookkeeping after
+	// them (install history, plugin source, privacy record).
+	ignore_user_abort(true);
 	$result = array();
 	$stream = $_REQUEST['stream'];
 
@@ -1906,6 +2194,7 @@ function UninstallPlugin()
 		// say so and carry on - the uninstall itself still proceeds, it just
 		// needs a restart to fully take hold.
 		$unloaded = FPPDPluginLifecycle($plugin, 'unload');
+		$uninstalledSha = PluginInstalledSha($plugin);
 
 		// PLUGINDIR/SUDO exported on both paths so the wrapper resolves the same
 		// directory PHP does (the streaming path used to rely on scripts/common's
@@ -1913,13 +2202,16 @@ function UninstallPlugin()
 		$uninstallCmd = 'export SUDO=' . escapeshellarg($SUDO)
 			. '; export PLUGINDIR=' . escapeshellarg($settings['pluginDirectory'])
 			. '; ' . escapeshellarg($fppDir . '/scripts/uninstall_plugin') . ' ' . escapeshellarg($plugin);
-		if (isset($stream) && $stream != "false") {
-			DisableOutputBuffering();
-			system($uninstallCmd, $return_val);
-		} else {
-			exec($uninstallCmd, $output, $return_val);
-			unset($output);
-		}
+		// Before releasing its claims below: FPP's own removals are not the
+		// plugin's.
+		$pkgChanges = PluginTrackPackages('uninstall', $plugin, $plugin, array('fpp_uninstall.sh'), function () use ($stream, $uninstallCmd, &$return_val) {
+			if (isset($stream) && $stream != "false") {
+				DisableOutputBuffering();
+				system($uninstallCmd, $return_val);
+			} else {
+				exec($uninstallCmd, $output, $return_val);
+			}
+		}, $stream);
 
 		// Drop this plugin's claim on every package it holds in the manifest
 		// (declared at any level -- top-level or a versions[] entry -- or
@@ -1953,6 +2245,19 @@ function UninstallPlugin()
 		}
 
 
+		// Recorded even when it failed: what its script changed still happened.
+		// keepPackages is the first half of a Reinstall; its install follows.
+		$entry = array('sha' => $uninstalledSha);
+		if ($keepPackages) {
+			$entry['reinstall'] = true;
+		}
+		if ($pkgChanges) {
+			$entry['packages'] = $pkgChanges;
+		}
+		if ($return_val != 0) {
+			$entry['scriptFailed'] = true;
+		}
+		AppendPluginHistory($plugin, 'uninstall', $entry);
 		if ($return_val == 0) {
 			PluginUpdateStateForget($plugin);
 
@@ -2317,15 +2622,42 @@ function PluginFetchReinstallTargetByURL($plugin, $branch, $url)
  * declared dependency plugin is reported, not installed -- the operator has to
  * see its privacy disclosure on the Plugins page. Supports ?stream=true.
  *
- * @route GET /api/plugin/{RepoName}/upgrade
+ * When the privacy block the update would land differs materially from the
+ * one accepted for this plugin, the update is refused unless the POST body
+ * is `{"privacyAccepted": <block>}` with that block. Only the FPP Plugins
+ * page may send `privacyAccepted`, and only with a block it actually showed
+ * the operator (GET /plugin/{RepoName}/privacy; its Update and Update All
+ * both do). Scripts and other API clients must not send it -- not even by
+ * echoing `pending` back from a refusal: on `Code: "PrivacyMismatch"` they
+ * stop and send the operator to the Plugins page. The server cannot tell callers apart, so
+ * this is a rule for clients, not something it enforces.
+ *
+ * Refused on privacy grounds (the same shape as POST /api/plugin):
+ * `{"Status": "Error", "Code": "PrivacyMismatch", "reason": "mismatch",
+ * "Message": "…", "privacyChanged": true, "plugin": "fpp-matrixtools",
+ * "pending": {"sends": [], "remoteAccess": "none"}}`.
+ *
  * @route POST /api/plugin/{RepoName}/upgrade
+ * @badge "FPP UI ONLY" warning
+ * @body {"privacyAccepted": {"sends": [], "remoteAccess": "none"}}
  * @response 200 Plugin upgraded
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
- * Refused on privacy grounds (the same shape as POST /api/plugin):
+ */
+/**
+ * Update plugin (no body)
+ *
+ * The same update as POST /api/plugin/{RepoName}/upgrade, sent without a
+ * body: it is refused (`Code: "PrivacyMismatch"`) whenever the privacy
+ * disclosure the update would land differs from the one accepted for this
+ * plugin. This is the form for scripts and other API clients, which must
+ * never send `privacyAccepted`.
+ *
+ * @route GET /api/plugin/{RepoName}/upgrade
+ * @response 200 Plugin upgraded
  * ```json
- * {"Status": "Error", "Code": "PrivacyMismatch", "reason": "mismatch", "Message": "…", "privacyChanged": true, "plugin": "fpp-matrixtools", "pending": {"sends": [], "remoteAccess": "none"}}
+ * {"Status": "OK", "Message": ""}
  * ```
  */
 // The apt packages a dependency block declares, as a flat list of names.
@@ -2417,6 +2749,10 @@ function ReconcilePluginDependencies($plugin, $op, $stream)
 function UpgradePlugin()
 {
 	global $settings, $SUDO, $_REQUEST, $fppDir;
+	// Finish once started, even if the browser goes away: a closed tab must not
+	// stop PHP at the next echo between the scripts and the bookkeeping after
+	// them (install history, plugin source, privacy record).
+	ignore_user_abort(true);
 	$result = array();
 
 	$plugin = params('RepoName');
@@ -2526,20 +2862,28 @@ function UpgradePlugin()
 	$runCmd = $envPrefix . escapeshellarg($fppDir . '/scripts/upgrade_plugin')
 		. ' --run-upgrade-script ' . escapeshellarg($plugin);
 
+	$fromSha = PluginInstalledSha($plugin);
+	$pkgChanges = null;
 	if ($streaming) {
 		DisableOutputBuffering();
 		system($cmd, $return_val);
 	} else {
 		exec($cmd, $output, $return_val);
 	}
+	$depFailed = false;
 	if ($return_val == 0) {
 		if (!ReconcilePluginDependencies($plugin, 'upgrade', $stream)) {
 			PluginEchoLog('upgrade', $plugin, "\nERROR: the code of '$plugin' was updated, but a dependency it now declares could not be installed; its upgrade script was not run.\n", $stream);
 			$return_val = 2;
-		} else if ($streaming) {
-			system($runCmd, $return_val);
+			$depFailed = true;
 		} else {
-			exec($runCmd, $output, $return_val);
+			$pkgChanges = PluginTrackPackages('upgrade', $plugin, $plugin, array('fpp_upgrade.sh', 'fpp_install.sh'), function () use ($streaming, $runCmd, &$output, &$return_val) {
+				if ($streaming) {
+					system($runCmd, $return_val);
+				} else {
+					exec($runCmd, $output, $return_val);
+				}
+			}, $stream);
 		}
 		if ($return_val != 0) {
 			$return_val = 2; // the code landed; only the script phase failed
@@ -2551,6 +2895,21 @@ function UpgradePlugin()
 	PluginRecordUpgradedPrivacy($plugin, $return_val, $changed, $pending, $stream);
 	// rc 0 and 2 both mean the code landed. Before the streaming return: the UI always streams.
 	if ($return_val != 1) {
+		$entry = array('fromSha' => $fromSha, 'sha' => PluginInstalledSha($plugin));
+		if ($depFailed) {
+			$entry['dependencyFailed'] = true;
+		} else if ($return_val == 2) {
+			$entry['scriptFailed'] = true;
+		}
+		if (!empty($pkgChanges)) {
+			$entry['packages'] = $pkgChanges;
+		}
+		// Update All runs upgrade_plugin on plugins with nothing new; it
+		// succeeds without moving, and that is not an event worth keeping
+		// (unless its script changed system packages anyway).
+		if ($entry['sha'] !== $fromSha || $return_val == 2 || !empty($pkgChanges)) {
+			AppendPluginHistory($plugin, 'upgrade', $entry);
+		}
 		// The refs were fetched moments ago, so this is a local read.
 		list($u, $e) = PluginUpdateVerdict($plugin);
 		PluginUpdateStateSet($plugin, $u, $e, 'upgrade');
@@ -2724,8 +3083,7 @@ function PluginInstalledInfo($plugin)
 function PluginInstalledSha($plugin)
 {
 	global $settings;
-	$dir = $settings['pluginDirectory'] . '/' . $plugin;
-	return trim((string) shell_exec('cd ' . escapeshellarg($dir) . ' && git rev-parse HEAD 2>/dev/null'));
+	return PluginGitHead($settings['pluginDirectory'] . '/' . $plugin);
 }
 
 // The record is device-scoped, like the privacyConsent record

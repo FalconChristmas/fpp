@@ -505,6 +505,17 @@
     border-color: var(--bs-border-color);
 }
 
+/* Pages that run jQuery UI .tabs() over a Bootstrap pill strip (File Manager,
+   Channel Inputs) get the header/state classes above on the <ul> and each <li>,
+   painting a band behind the pills, and .ui-widget-content on the panel, whose
+   fill overlaps the bottom of the strip and cuts the band short. The pills carry
+   their own styling, so keep the strip and panel transparent as light mode does. */
+[data-bs-theme="dark"] .pageContent-tabs.ui-tabs-nav,
+[data-bs-theme="dark"] .pageContent-tabs.ui-tabs-nav > li,
+[data-bs-theme="dark"] .ui-tabs .ui-tabs-panel {
+    background: none;
+}
+
 /* Playlist back button */
 [data-bs-theme="dark"] .playlistEditorBackButton {
     background-color: var(--bs-secondary-bg);

@@ -50,7 +50,7 @@ function help_help()
         ['POST /settings/:SettingName/jsonValueUpdate', 'Used to update a sub value held as json within the setting value.', '', ''],
     );
     $fppEndpoints = array(
-        ['GET /fppd/status', 'Gets the current status of the FPPD daemon', '', '{"current_playlist":{"count":"0","index":"0","playlist":"","type":""},"current_sequence":"","current_song":"","fppd":"running","mode":2,"mode_name":"player","next_playlist":{"playlist":"No playlist scheduled.","start_time":""},"repeat_mode":"0","seconds_played":"0","seconds_remaining":"0","status":0,"status_name":"idle","time":"Tue Apr 02 08:06:34 EDT 2019","time_elapsed":"00:00","time_remaining":"00:00","volume":0}'],
+        ['GET /fppd/status', 'Gets the current status of the FPPD daemon', '', '{"current_playlist":{"count":"0","index":"0","playlist":"","type":"","generated":false},"current_sequence":"","current_song":"","fppd":"running","mode":2,"mode_name":"player","next_playlist":{"playlist":"No playlist scheduled.","start_time":""},"repeat_mode":"0","seconds_played":"0","seconds_remaining":"0","status":0,"status_name":"idle","time":"Tue Apr 02 08:06:34 EDT 2019","time_elapsed":"00:00","time_remaining":"00:00","volume":0}'],
         ['GET /commands', 'Gets a JSON description of the commands', '', '[{"name" : "Next Playlist Item"}, {"name" : "Start Playlist", "args" : [ {"description" : "Playlist Name", "type" : "string"}]}]'],
         ['GET /command/{COMMANDID}/arg1/arg2/...', 'Runs the given command', '', ''],
         ['GET /models', 'Gets all of the Pixel Overlay Models', '', '[{"ChannelCount":6144,"Name":"Matrix","Orientation":"horizontal","StartChannel":1,"StartCorner":"TL","StrandsPerString":1,"StringCount":32}]'],
