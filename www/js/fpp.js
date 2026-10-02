@@ -8420,7 +8420,10 @@ function DisplayHelp () {
 
 	if (isErrorReportHelp) {
 		tmpHelpPage = 'help/errorReport.php';
-	} else if (helpPage == 'help/settings.php' && tabs.length == 1) {
+	} else if (!helpOpen && pageName == 'settings' && tabs.length == 1) {
+		// Resolve from the active tab on every fresh F1.  helpPage is
+		// overwritten below (so links inside the help dialog can navigate),
+		// so it can't be what gates this.
 		var id = tabs.first().attr('id');
 		const re = /settings-(.*)-tab/;
 		var tab = '';

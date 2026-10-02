@@ -1,4 +1,7 @@
 <?
+// Loaded into the help dialog of a live page: don't re-emit config.php's
+// page globals (pageName, helpPage, settings, ...) over that page's own.
+$skipJSsettings = 1;
 require_once '../config.php';
 ?>
 <script>
