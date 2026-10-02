@@ -1706,7 +1706,7 @@
           "crashes"
         ],
         "summary": "Build a crash report now, for the user to look at and then send",
-        "description": "fppd builds a Diagnostic Report (settings, configuration and logs, level 3, plus the Troubleshooting page's output and the health check) named like a crash report with a -manual suffix, and keeps it in the crashes folder. When fppd is not running the API builds it instead and the reply adds `\"Fppd\":\"not-running\"` (two manual reports at most). Nothing is sent: the user can download it from `GET /api/file/Crashes/<File>` to see what it holds. Sending it is done only from FPP's own UI (see `POST /api/crashes/upload/<File>`), which asks for the user's consent. `client` names the calling app in fppd.log. A build takes seconds on a fast player and can take a few minutes on a Pi Zero or BeagleBone. One build at a time, and none for 10s after one finishes. Error `Code`s: bad-request, busy, rate-limited, build-failed, unavailable (fppd is running but did not answer).",
+        "description": "fppd builds a Diagnostic Report (settings, configuration and logs, level 3, plus the Troubleshooting page's output and the health check) named like a crash report with a -manual suffix, and keeps it in the crashes folder. When fppd is not running the API builds it instead and the reply adds `\"Fppd\":\"not-running\"` (two manual reports at most). Nothing is sent. `client` names the calling app in fppd.log. Any API client may build a report, but what happens to it next is the user's: they download it in a browser from File Manager > Crash Reports to see what it holds, or send it from FPP's own UI (see `POST /api/crashes/upload/{file}`), which asks for their consent. Scripts and other API clients must not download the report themselves (e.g. with `GET /api/file/Crashes/<File>`): use `File` to point the user at it. The server cannot tell callers apart, so this is a rule for clients, not something it enforces. A build takes seconds on a fast player and can take a few minutes on a Pi Zero or BeagleBone. One build at a time, and none for 10s after one finishes. Error `Code`s: bad-request, busy, rate-limited, build-failed, unavailable (fppd is running but did not answer).",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1738,7 +1738,17 @@
         }
       }
     },
-    "/api/crashes/upload/<file>": {
+    "/api/crashes/upload/{file}": {
+      "parameters": [
+        {
+          "name": "file",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
       "post": {
         "tags": [
           "crashes"
@@ -1747,7 +1757,7 @@
         "description": "Deliberately does NOT delete on success.  The caller deletes, through the existing file API, only after this reports the upload actually landed -- deleting the only copy of a crash report on an unverified \"probably sent\" is how the evidence disappears. **For FPP's own web UI only** (`ShowCrashUploadDialog()` in www/js/fpp.js, which asks the user before every send). Other apps and plugins should open FPP's Diagnostic Report instead. A -manual.zip report (built by `POST /api/crashes/report`) needs a JSON body of `{\"consent\": true}`: the user's answer in that dialog, never a value a caller sets on their behalf. If the player cannot reach the server (`CanRetryFromBrowser`), the same dialog has the browser post the file itself to the `url` and `field` that `GET /api/crashes/uploadTarget` returns. Error `Code`: consent-required (a -manual.zip report without `{\"consent\":true}`), not-found (no such report on this player, e.g. pruned by newer builds).",
         "x-badges": [
           {
-            "name": "USER CONSENT REQUIRED",
+            "name": "FPP UI ONLY",
             "color": "#b25e00"
           }
         ],
@@ -2274,7 +2284,7 @@
           "file"
         ],
         "summary": "Get file contents",
-        "description": "Downloads the specified file from a media directory.",
+        "description": "Downloads the specified file from a media directory. Crash and Diagnostic Reports (`DirName` `Crashes`) are for the user to download through FPP's UI (File Manager > Crash Reports); scripts and other API clients must not fetch them. The server cannot tell callers apart, so this is a rule for clients, not something it enforces.",
         "parameters": [
           {
             "name": "tail",
@@ -2604,7 +2614,13 @@
           "files"
         ],
         "summary": "Get zip file of directories",
-        "description": "Downloads all files in the specified directory (or comma-separated list of directories) as a zip archive. `logs` and `config` are handled specially to include system log and config files.",
+        "description": "Downloads all files in the specified directory (or comma-separated list of directories) as a zip archive. `logs` and `config` are handled specially to include system log and config files. Deprecated; will be removed in FPP 11. The FPP UI no longer calls this endpoint, and there is no API replacement that hands the bundle to the caller: build a Diagnostic Report with `POST /api/crashes/report` and have the user download or send it from the FPP UI.",
+        "x-badges": [
+          {
+            "name": "Deprecated \u2014 will be removed in FPP 11",
+            "color": "#b25e00"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Binary file stream of the compressed system archive.",
@@ -7599,6 +7615,12 @@
         ],
         "summary": "Update plugin",
         "description": "Pull in git updates for plugin {RepoName}: the checked-out branch's tip, or, when the versions[] entry for this FPP pins a sha the clone has not passed, that sha and no further. Before the plugin's own fpp_upgrade.sh (or fpp_install.sh) runs, its declared dependencies are reconciled against the new version: newly declared apt, Python and script dependencies are installed, and package claims the new version no longer declares are released (apt-removed once nothing else needs them). A newly declared dependency plugin is reported, not installed -- the operator has to see its privacy disclosure on the Plugins page. Supports ?stream=true. When the privacy block the update would land differs materially from the one accepted for this plugin, the update is refused unless the POST body is `{\"privacyAccepted\": <block>}` with that block. Only the FPP Plugins page may send `privacyAccepted`, and only with a block it actually showed the operator (GET /plugin/{RepoName}/privacy; its Update and Update All both do). Scripts and other API clients must not send it -- not even by echoing `pending` back from a refusal: on `Code: \"PrivacyMismatch\"` they stop and send the operator to the Plugins page. The server cannot tell callers apart, so this is a rule for clients, not something it enforces. Refused on privacy grounds (the same shape as POST /api/plugin): `{\"Status\": \"Error\", \"Code\": \"PrivacyMismatch\", \"reason\": \"mismatch\", \"Message\": \"\u2026\", \"privacyChanged\": true, \"plugin\": \"fpp-matrixtools\", \"pending\": {\"sends\": [], \"remoteAccess\": \"none\"}}`.",
+        "x-badges": [
+          {
+            "name": "FPP UI ONLY",
+            "color": "#b25e00"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {

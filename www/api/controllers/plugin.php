@@ -2638,6 +2638,7 @@ function PluginFetchReinstallTargetByURL($plugin, $branch, $url)
  * "pending": {"sends": [], "remoteAccess": "none"}}`.
  *
  * @route POST /api/plugin/{RepoName}/upgrade
+ * @badge "FPP UI ONLY" warning
  * @body {"privacyAccepted": {"sends": [], "remoteAccess": "none"}}
  * @response 200 Plugin upgraded
  * ```json
