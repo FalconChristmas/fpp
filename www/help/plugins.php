@@ -3,7 +3,8 @@
     listed and before each major FPP release, but they are written and maintained by their own authors: the FPP
     project does not audit their code and cannot vouch for it. Every plugin runs with full access to this player: it can read and change any
     setting and reach anything on the network this player is connected to. Install plugins from authors you
-    trust. Plugins marked <b>Official</b> are maintained by the FPP project.</p>
+    trust. Plugins marked <b>Official</b> are maintained by the FPP project. Each listed plugin shows the month
+    it joined the plugin list; that says nothing about how recently its code changed.</p>
 <p>FPP keeps a history of the plugins installed, updated and removed on this player, including any system
     packages that changed while a plugin's own script ran, and lists settings and packages left behind by
     removed plugins: see <b>Help &rarr; Troubleshooting Commands &rarr; Plugins</b>.</p>

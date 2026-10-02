@@ -42,6 +42,7 @@
         var pluginCategoryBySlug = {};
         var pluginCategoryByName = {};
         var pluginCategoryOf = {};        // lowercased pluginList name -> category name
+        var pluginListedBySlug = {};      // "owner/repo" of a pluginList entry -> date it joined the list (YYYY-MM-DD)
         var activeCategorySlug = 'all';
         var activeTopTab = 'available';
         // Both feed UpdatePopularStripVisibility(): the strip is hidden during a search
@@ -180,12 +181,52 @@
             return h;
         }
 
-        // "Name by Author", with the Official badge when it is one: the line
-        // that heads each plugin in the install dialog.
+        // When a plugin joined the plugin list, as {text: "Mar 2021", title}, or
+        // null: not listed, or loaded from a URL (not the listed copy, whatever it
+        // calls itself). To the month: a plugin new to the list has had fewer
+        // users find its rough edges; it says nothing about how recently the code
+        // changed.
+        var PLUGIN_MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        // "owner/repo", lower-cased, from a github.com or raw.githubusercontent.com
+        // URL, else ''. Same rule as PluginRepoSlugFromURL() in the plugin API.
+        // With host, only a URL on that host counts (GitHubRepoOf()).
+        function PluginRepoSlug(url, host) {
+            try {
+                var parsed = new URL(url || '');
+                var h = parsed.hostname.toLowerCase();
+                if (host ? h !== host : (h !== 'github.com' && h !== 'raw.githubusercontent.com')) return '';
+                var seg = parsed.pathname.split('/').filter(function (x) { return x.length > 0; });
+                if (seg.length < 2) return '';
+                // srcURL often ends in ".git"; the repo name has none.
+                return (seg[0] + '/' + seg[1].replace(/\.git$/i, '')).toLowerCase();
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function PluginListedInfo(data) {
+            if (!data) return null;
+            if (manuallyLoadedPlugins[data.repoName || '']) return null;
+            // Matched on where the code comes from, as the server judges "listed"
+            // (PluginSrcURLIsListed): a fork that shares a listed plugin's name
+            // is not that plugin and gets no date.
+            var d = pluginListedBySlug[PluginRepoSlug(data.srcURL)];
+            var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || '');
+            if (!m) return null;
+            if (+m[2] < 1 || +m[2] > 12) return null;
+            var text = PLUGIN_MONTH_NAMES[+m[2] - 1] + ' ' + m[1];
+            return { text: text, title: 'Added to the FPP plugin list in ' + text };
+        }
+
+        // "Name by Author", with the Official badge when it is one, and when it
+        // joined the plugin list: the line that heads each plugin in the install
+        // dialog.
         function PluginByLineHtml(data) {
             var author = PluginAuthorHtml(data) || EscapeHtml((data && data.author) ? data.author : '');
+            var listed = PluginListedInfo(data);
             return '<div class="mb-2"><b>' + EscapeHtml((data && (data.name || data.repoName)) || '') + '</b>' +
                 (author ? ' <span class="text-secondary">by ' + author + '</span>' : '') +
+                (listed ? ' <span class="text-secondary" title="' + listed.title + '">&middot; listed ' + listed.text + '</span>' : '') +
                 (data && IsOfficialPlugin(data) ? ' <span class="badge text-bg-graceful"><i class="fas fa-certificate"></i> Official</span>' : '') +
                 '</div>';
         }
@@ -2206,21 +2247,10 @@
         // GitHub owner/repo for a plugin's source repo ('' when not a GitHub repo).
         // Normalized to lowercase so keys match the backend, which lowercases
         // every repo in its response (GitHub repo names are case-insensitive).
+        // ".git" is stripped (PluginRepoSlug): a ".git" repo name fails the whole
+        // search query.
         function GitHubRepoOf(data) {
-            var u = data && data.srcURL;
-            if (!u) return '';
-            try {
-                var parsed = new URL(u);
-                if (parsed.host.toLowerCase() !== 'github.com') return '';
-                var seg = parsed.pathname.split('/').filter(function (x) { return x.length > 0; });
-                if (seg.length < 2) return '';
-                // srcURL often ends in ".git" (e.g. .../fpp-brightness.git); the
-                // GitHub repo name has no extension, and a ".git" repo in a
-                // search query fails the whole query.
-                return (seg[0] + '/' + seg[1].replace(/\.git$/i, '')).toLowerCase();
-            } catch (e) {
-                return '';
-            }
+            return PluginRepoSlug(data && data.srcURL, 'github.com');
         }
 
         // Corner badge HTML for a repo ('' when we have no data for it).
@@ -2752,7 +2782,7 @@
             }
 
             var body = '';
-            body += '<div class="mb-2">' + PluginBadgesHtml(data, true) + '</div>';
+            body += '<div class="mb-2">' + PluginBadgesHtml(data, true, true) + '</div>';
             var authorHtml = PluginAuthorHtml(data);
             if (authorHtml) body += '<div class="mb-2 text-secondary"><i class="fas fa-user"></i> ' + authorHtml + '</div>';
             body += '<p>' + EscapeHtml(data.description) + '</p>';
@@ -2854,7 +2884,7 @@
         // particular. Every tag keeps an icon: with the color gone the icon is what tells
         // the grey pills apart, and it keeps the two problem states from being
         // distinguished by hue alone.
-        function PluginBadgesHtml(data, includeCategory) {
+        function PluginBadgesHtml(data, includeCategory, includeListed) {
             var repo = data.repoName;
             var installed = PluginIsInstalled(repo);
             var sel = SelectPluginVersionIndices(data);
@@ -2877,6 +2907,10 @@
                     h += '<span class="fpp-tag fpp-tag--danger gap-1 me-1 pluginResourceBadge" title="' + res.title + '"><i class="fas fa-microchip"></i> ' + res.label + '</span>';
             }
             h += PopularityBadgeHtml(PopularityOf(repo));
+            // The listing date: in the detail popup, not on every card.
+            var listed = includeListed ? PluginListedInfo(data) : null;
+            if (listed)
+                h += '<span class="fpp-tag gap-1 me-1 pluginListedChip" title="' + listed.title + '"><i class="fas fa-calendar"></i> Listed ' + listed.text + '</span>';
             if (includeCategory) {
                 var cat = PluginCategoryInfo(data);
                 h += '<span class="fpp-tag gap-1 me-1 pluginCatChip" title="' + (cat.obj.longName || cat.name) + '"><i class="' + cat.obj.icon + '"></i> ' + cat.name + '</span>';
@@ -3062,6 +3096,11 @@
                 // only way PluginCategoryInfo() can resolve one for them.
                 if (pluginList[i].length > 2 && pluginList[i][2])
                     pluginCategoryOf[(pluginList[i][0] || '').toLowerCase()] = pluginList[i][2];
+                // The date it joined the list (4th field, YYYY-MM-DD), by the repo the
+                // entry's pluginInfo.json lives in.
+                var slug = pluginList[i].length > 3 && typeof pluginList[i][3] === 'string' ? PluginRepoSlug(pluginList[i][1]) : '';
+                if (slug)
+                    pluginListedBySlug[slug] = pluginList[i][3];
 
                 if (!PluginIsInstalled(pluginList[i][0])) {
                     var url = pluginList[i][1];
