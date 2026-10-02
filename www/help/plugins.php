@@ -1,15 +1,19 @@
 <h3>Plugins</h3>
-<p>Plugins add features to FPP. Plugins in the list are checked against FPP's plugin guidelines when they are
-    listed and before each major FPP release, but they are written and maintained by their own authors: the FPP
-    project does not audit their code and cannot vouch for it. Every plugin runs with full access to this player: it can read and change any
-    setting and reach anything on the network this player is connected to. Install plugins from authors you
-    trust. Plugins marked <b>Official</b> are maintained by the FPP project. Each listed plugin shows the month
-    it joined the plugin list; that says nothing about how recently its code changed.</p>
+<?php // Repeats the one-time plugin notice (WithPluginNoticeAcknowledged() in plugins.php): keep the two in step. ?>
+<p>Plugins add features to FPP. They are written and maintained by their own authors, not the FPP project.
+    Listed plugins are scanned for common problems when they join the plugin list and before each major FPP
+    release. A scan can't prove a plugin is safe, and updates in between come straight from the author.</p>
+<p>A plugin has full access to this player: it can change any setting, disrupt your show, and reach anything on
+    the networks this player is connected to. Uninstalling removes the plugin and runs its author's cleanup, but
+    changes it made elsewhere may remain.</p>
+<p>The first time you install a plugin, FPP shows a short note saying this and asks you to continue. It is
+    shown once per player, and once more after each major FPP upgrade.</p>
+<p>Install plugins from authors you trust. Plugins marked <b>Official</b> are maintained by the FPP team.
+    Each listed plugin shows the month it joined the plugin list; that says nothing about how recently its
+    code changed.</p>
 <p>FPP keeps a history of the plugins installed, updated and removed on this player, including any system
     packages that changed while a plugin's own script ran, and lists settings and packages left behind by
     removed plugins: see <b>Help &rarr; Troubleshooting Commands &rarr; Plugins</b>.</p>
-<p>The first time you install a plugin, FPP shows a short note saying this and asks you to continue. It is
-    shown once per player, and once more after each major FPP upgrade.</p>
 
 <h4>The six privacy lights</h4>
 <p>Each plugin's author fills in a short privacy disclosure, and FPP turns it into six coloured lights. They
@@ -28,11 +32,11 @@
     online service or including code whose source is not published. Hover a light to read what the author
     wrote about it, or tap it to open <b>Full disclosure</b>, which lists every light's details together with
     any other notes from the author.</p>
-<p>Remember that the lights come from what the author wrote. For a plugin in the list, an automated check
+<p>Remember that the lights come from what the author wrote. For a plugin in the list, an automated scan
     compares the disclosure with the plugin's code when it is listed and again from time to time afterwards. That
-    check catches many omissions, but it is not an audit: a green light is still the author's word, not a test
+    scan catches many omissions, but it is not an audit: a green light is still the author's word, not a test
     result, and it cannot look inside closed-source parts. The lights describe what the author says the plugin
-    does; they do not limit what it can do. A plugin loaded from a URL has had no such check.</p>
+    does; they do not limit what it can do. A plugin loaded from a URL has had no such scan.</p>
 <p>If a plugin keeps information about your visitors or passers-by - phone numbers, messages, votes,
     camera images - its <i>Collects data</i> or <i>Camera &amp; mic</i> light is red. Whether a plugin keeps such
     information or only passes it on to a service, what happens to it is your responsibility, not the

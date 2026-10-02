@@ -124,8 +124,9 @@
         // detail and privacy modals show them with their lines under "Full
         // disclosure". They inform; they do not change the Install button,
         // which only warns for the device and version checks. A plugin loaded from a
-        // pasted URL was never checked against its code for listing; its label
-        // line says so.
+        // pasted URL was never scanned for listing, and its heading says so; a
+        // listed one's says nothing (the help page explains the scan; a line on
+        // every dialog read as a guarantee).
         var pluginReinstallPrivacyChanged = {};   // same for what Reinstall would land (the versions[] branch/pin for this FPP)
         var pluginReinstallTarget = {};   // repoName -> {branch, sha} a Reinstall clones: the server's versions[] choice, posted back as is
 
@@ -157,8 +158,8 @@
             // about: nothing is known about the plugin. The lights stay
             // information.
             var h = r.declared
-                ? '<div class="small text-secondary mb-1"><span class="fw-bold text-uppercase">Disclosed by the author</span> &middot; ' +
-                    (r.unreviewed ? 'loaded from a URL, so not checked for the plugin list' : 'checked automatically against its code for the plugin list') + '</div>'
+                ? '<div class="small text-secondary mb-1"><span class="fw-bold text-uppercase">Disclosed by the author</span>' +
+                    (r.unreviewed ? ' &middot; loaded from a URL, so not scanned for the plugin list' : '') + '</div>'
                 : '<div class="fpp-major-callout mb-2"><i class="fas fa-triangle-exclamation"></i><span><b>' +
                     EscapeHtml(r.headline.text) + '.</b> ' + EscapeHtml(r.headline.explain || '') + '</span></div>';
             h += FPPPluginPrivacy.summaryHtml(r);
@@ -237,6 +238,7 @@
         // answer is recorded as the FPP major version it was given under, so
         // each new major release asks once more. cb runs when it has been
         // acknowledged (at once if it already was); Cancel drops it.
+        // help/plugins.php repeats this text: keep the two in step.
         function WithPluginNoticeAcknowledged(cb) {
             if ((parseInt(settings['pluginNoticeAcknowledged'], 10) || 0) >= FPP_MAJOR_VERSION) {
                 cb();
@@ -244,22 +246,28 @@
             }
             var id = 'pluginNoticeDialog';
             var accepted = false;
-            var body = '<p>Plugins add features that are not part of FPP itself. Plugins in the list are checked against FPP\'s ' +
-                'plugin guidelines when they are listed and before each major FPP release, but they are written and maintained ' +
-                'by their own authors: the FPP project does not audit their code and cannot vouch for it.</p>' +
-                '<p>A plugin runs with full access to this player: it can read and change any setting and reach anything on ' +
-                'the network this player is connected to. Install plugins from authors you trust. Plugins marked ' +
-                '<span class="badge text-bg-graceful"><i class="fas fa-certificate"></i> Official</span> are maintained by the FPP team.</p>' +
-                '<p class="mb-0">Each plugin shows what its author says it does with data before you install it.</p>';
+            var body = '<p>Plugins add features to FPP. They are written and maintained by their own authors, not the FPP ' +
+                'project. Listed plugins are scanned for common problems when they join the plugin list and before each ' +
+                'major FPP release. A scan can\'t prove a plugin is safe, and updates in between come straight from the author.</p>' +
+                '<p>A plugin has full access to this player: it can change any setting, disrupt your show, and reach anything ' +
+                'on the networks this player is connected to. Uninstalling removes the plugin and runs its author\'s cleanup, ' +
+                'but changes it made elsewhere may remain.</p>' +
+                '<p class="mb-0">Install plugins from authors you trust. Plugins marked ' +
+                '<span class="badge text-bg-graceful"><i class="fas fa-certificate"></i> Official</span> are maintained by the FPP team. ' +
+                'Before you install, each plugin shows what its author says it does with your data.</p>';
             DoModalDialog({
                 id: id,
-                title: 'About plugins',
+                class: 'modal-lg',
+                title: '<i class="fas fa-info-circle text-info"></i> About plugins',
                 body: body,
                 backdrop: true,
                 keyboard: true,
+                // Cancel has the focus, so an Enter or a double click meant for
+                // the Install button does not walk straight past the notice.
+                focus: 'pluginNoticeCancel',
                 buttons: {
                     'Continue': { class: 'btn-primary', click: function () { accepted = true; CloseModalDialog(id); } },
-                    'Cancel': function () { CloseModalDialog(id); }
+                    'Cancel': { id: 'pluginNoticeCancel', click: function () { CloseModalDialog(id); } }
                 }
             });
             $('#' + id).one('hidden.bs.modal', function () {
