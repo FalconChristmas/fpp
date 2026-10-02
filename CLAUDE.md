@@ -133,5 +133,8 @@ changing one.
   for every command you add, and check it against real output, not the command name.**
   Commands run inside `sh -c '...'` (no single quotes), and `[[name]]` is replaced with a PHP
   variable (no `[[:space:]]`-style classes).
+  A command that prints a web page (server-status, phpinfo) takes `"format": "html"`: the page
+  renders it in a script-less sandboxed iframe instead of a `<pre>`, and the helper skips its
+  `fold`. Diagnostic Reports still get the raw output.
 - **Cape configs**: `capes/` directory — JSON files with GPIO pin mappings, output channel definitions
 - **Audio**: `etc/asoundrc.*` — ALSA configurations (dmix, hdmi, plain, softvol)

@@ -279,9 +279,64 @@
             setTroubleshootBadge('tabstatus-' + commandGrpID, totals, true);
         }
 
-        function ShowTroubleshootResult(commandKey, commandGrpID, data) {
+        /*
+         * A few commands (Apache's server-status, phpinfo) print a web page,
+         * not text, and as text they are a wall of tags.  Those are marked
+         * "format": "html" in troubleshoot-commands.json and rendered in an
+         * iframe instead.  The sandbox has no allow-scripts, so nothing in the
+         * page can run; allow-same-origin is only so this page can read the
+         * document's height and size the frame to fit it.
+         */
+        function renderTroubleshootHtml(pre, data) {
+            var frame = document.createElement('iframe');
+            frame.id = pre.id;
+            frame.title = 'Command output';
+            frame.setAttribute('sandbox', 'allow-same-origin allow-popups allow-popups-to-escape-sandbox');
+            // The pages carry their own light styling, or none at all, so give
+            // them a light background in both themes.
+            frame.className = 'w-100 border rounded bg-white';
+            frame.addEventListener('load', function () {
+                var doc = frame.contentDocument;
+                if (!doc || !doc.documentElement) {
+                    return;
+                }
+                // Links open in a new tab rather than inside the frame
+                var base = doc.createElement('base');
+                base.target = '_blank';
+                (doc.head || doc.documentElement).prepend(base);
+
+                // server-status brings no styles at all: browser-default serif
+                // with tables run together.  phpinfo has its own and keeps them.
+                if (!doc.querySelector('style, link[rel="stylesheet"]')) {
+                    var style = doc.createElement('style');
+                    style.textContent = 'body { font-family: sans-serif; font-size: 14px; } ' +
+                        'th, td { padding: 1px 6px; }';
+                    (doc.head || doc.documentElement).appendChild(style);
+                }
+
+                // The root's own box, not scrollHeight: scrollHeight is never
+                // less than the frame's current height, so the frame could
+                // grow as the page reflowed but never shrink back.
+                var fit = function () {
+                    frame.style.height = Math.ceil(doc.documentElement.getBoundingClientRect().height) + 'px';
+                };
+                fit();
+                // Re-fit as the page width changes and its text rewraps
+                new ResizeObserver(fit).observe(doc.documentElement);
+            });
+            frame.srcdoc = data;
+            pre.replaceWith(frame);
+        }
+
+        function ShowTroubleshootResult(commandKey, commandGrpID, data, format) {
             var pre = document.querySelector('#command_' + commandKey);
             if (!pre) {
+                return;
+            }
+
+            // A failed command returns a plain-text message, not a page
+            if (format === 'html' && /^\s*</.test(data)) {
+                renderTroubleshootHtml(pre, data);
                 return;
             }
 
@@ -320,12 +375,13 @@
                         //Run command if relevant for current platform
                         if (count(array_intersect($commandID["platforms"], $target_platforms)) > 0) {
                             $url = "./troubleshootingHelper.php?key=" . urlencode($commandKey);
+                            $format = $commandID["format"] ?? "text";
                             ?>
                             $.ajax({
                                 url: "<?php echo $url ?>",
                                 type: 'GET',
                                 success: function (data) {
-                                    ShowTroubleshootResult("<?php echo $commandKey ?>", "<?php echo $commandGrpID ?>", data);
+                                    ShowTroubleshootResult("<?php echo $commandKey ?>", "<?php echo $commandGrpID ?>", data, "<?php echo $format ?>");
                                     fixScroll();
                                 },
                                 error: function () {

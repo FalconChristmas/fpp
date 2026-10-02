@@ -896,7 +896,8 @@
                     "platforms": [
                         "all"
                     ],
-                    "pii": true
+                    "pii": true,
+                    "format": "html"
                 },
                 "WebPHPInfo": {
                     "title": "PHP Info",
@@ -904,7 +905,8 @@
                     "cmd": "curl -s http://localhost/localonly/cleanedphpinfo.php",
                     "platforms": [
                         "all"
-                    ]
+                    ],
+                    "format": "html"
                 }
             }
         }

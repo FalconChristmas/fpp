@@ -37,6 +37,7 @@ foreach ($troubleshootingCommandGroups as $commandGrpID => $commandGrp) {
 
     foreach ($commandGrp["commands"] as $commandKey => $commandID) {
         $commands[$commandKey] = $commandID["cmd"];
+        $formats[$commandKey] = $commandID["format"] ?? "text";
     }
 }
 
@@ -56,7 +57,11 @@ if (isset($_GET['key'])) {
         }
         ////////
 
-        exec($SUDO . ' ' . "/bin/sh -c '" . $command . "' 2>&1 | fold -w 160 -s", $output, $return_val);
+        // fold is for reading text in a <pre>.  An HTML result is rendered, and
+        // fold hard-wraps runs with no spaces -- phpinfo's base64 logo, long
+        // attribute values -- which breaks the markup.
+        $fold = ($formats[$key] == "html") ? "" : " | fold -w 160 -s";
+        exec($SUDO . ' ' . "/bin/sh -c '" . $command . "' 2>&1" . $fold, $output, $return_val);
         if ($return_val == 0) {
             echo (implode("\n", $output) . "\n");
         } else {

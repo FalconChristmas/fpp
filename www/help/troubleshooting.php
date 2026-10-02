@@ -1,5 +1,5 @@
 <h3>Troubleshooting</h3>
-<p>This page runs a suite of diagnostic commands grouped into tabs. Results stream live from the FPP: each command’s raw text is shown exactly as emitted.</p>
+<p>This page runs a suite of diagnostic commands grouped into tabs. Results stream live from the FPP: each command’s raw text is shown exactly as emitted, except for the few commands that print a web page, which are shown rendered.</p>
 
 <h4>Header and actions</h4>
 <ul>
@@ -19,6 +19,7 @@
     <li><b>Title + badges</b> — <code>&lt;h3&gt;Title &lt;span id="status_{key}"&gt;</code> plus a matching <code>hotlinkstatus_{key}</code> badge. Badges are filled after output is rendered.</li>
     <li><b>Command Description / Command</b> — <b>Command Description:</b> plain text from the JSON, then <b>Command:</b> the exact shell command string shown for reference (what will appear in the bundle as well).</li>
     <li><b>Output</b> — A <code>&lt;pre id="command_{key}"&gt;</code> initially showing a spinner and <i>Loading…</i>. Once fetched, the raw text replaces it. The text is built from <b>Text nodes</b> (never <code>innerHTML</code>) so angle brackets like <code>&lt;unavailable&gt;</code> or <code>&lt;node&gt;</code> in tool output are not parsed as HTML and do not vanish.</li>
+    <li><b>Web page output</b> — A few commands print a web page rather than text: <b>Apache Server Status</b> and <b>PHP Info</b> on the <b>Webserver</b> tab. Those are shown as the rendered page, in a frame sized to fit it, instead of as raw HTML. Nothing in that page can run scripts, and its links open in a new tab. On a narrow screen, scroll the frame sideways to see wide tables.</li>
     <li><b>In a Diagnostic Report</b> — The report that <b>Diagnostic Report</b> builds includes this page’s output. A command whose output identifies you or your network (Wi-Fi network names, process command lines, git identity, web server clients) runs a cut-down version with those parts removed, or is left out. The report’s <b>Command:</b> line shows which one ran, or which was left out. Reports written after a crash do not include this page.</li>
 </ul>
 
