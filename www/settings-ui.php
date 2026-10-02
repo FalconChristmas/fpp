@@ -198,27 +198,33 @@ PrintSetting('passwordVerify');
                     <span id='uiPasswordSaveStatus' class='ms-2 text-muted'></span>
                 </div>
             </div>
+<? if ($uiLevel >= 1) { ?>
 <h2>Keyboard Shortcuts</h2>
 
 <div class='row' id='keyBindingsRow'>
     <div class='printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2'>
-        <div class='description'><i class="fas fa-fw fa-nbsp ui-level-0"></i>Keyboard Shortcuts</div>
+        <div class='description'><i class='fas fa-fw fa-graduation-cap fa-nbsp ui-level-1' title='Advanced Level Setting'></i>Keyboard Shortcuts</div>
     </div>
     <div class='printSettingFieldCol col-md'>
         <button type='button' class='buttons' id='keyBindingsOpenBtn' onClick='OpenKeyBindingsDialog();'><i class='fas fa-keyboard'></i> Configure Key Bindings</button>
-        <span id='keyBindingsTip' class='ms-2' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto' data-bs-title='<b>No custom shortcuts.</b><br>Keyboard shortcuts trigger a command preset, run an FPP command, or open a page. F1 opens help, F2 opens Settings, F8 opens Error Reporting.'><img id='keyBindings_img' src='images/redesign/help-icon.svg' class='icon-help' alt='keyBindings help icon'></span>
+        <span id='keyBindingsTip' class='ms-2' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto' data-bs-title='<b>No custom shortcuts.</b><br>Keyboard shortcuts trigger a command preset, run an FPP command, or open a page. F1 opens help. Unless you assign them, F2 opens Settings and F8 opens Error Reporting.'><img id='keyBindings_img' src='images/redesign/help-icon.svg' class='icon-help' alt='keyBindings help icon'></span>
     </div>
 </div>
 <br>
+<? } ?>
 <?
 PrintSettingGroup('uiColors');
 ?>
 
+<? if ($uiLevel >= 1) { ?>
 <div id='keyBindingsEditorHolder' class='d-none'>
 <div id='keyBindingsEditor'>
         <p class='text-muted mb-2'>Custom shortcuts must use
-            <kbd>Ctrl</kbd> or <kbd>Alt</kbd>, or be an unused function key
-            (<kbd>F3</kbd>&ndash;<kbd>F7</kbd>, <kbd>F9</kbd>-<kbd>F12</kbd>).</p>
+            <kbd>Ctrl</kbd> or <kbd>Alt</kbd>, or be a function key
+            (<kbd>F2</kbd>&ndash;<kbd>F4</kbd>, <kbd>F6</kbd>&ndash;<kbd>F10</kbd>).
+            Assigning <kbd>F2</kbd> or <kbd>F8</kbd> replaces its default action.
+            Browser and text-editing shortcuts (copy, paste, undo, find, reload,
+            new tab, zoom, ...) can't be used.</p>
         <h3 class='fs-6 fw-bold mt-2'>System shortcuts</h3>
         <table class='table table-sm w-auto' id='keyBindingsSystemTable'>
             <thead>
@@ -234,11 +240,11 @@ PrintSettingGroup('uiColors');
                 </tr>
                 <tr>
                     <td><kbd>F2</kbd></td>
-                    <td>Settings &ndash; opens the FPP Settings page.</td>
+                    <td>Settings &ndash; opens the FPP Settings page, unless you assign <kbd>F2</kbd> to a custom shortcut.</td>
                 </tr>
                 <tr>
                     <td><kbd>F8</kbd></td>
-                    <td>Error Reporting &ndash; opens or closes the diagnostic report dialog.</td>
+                    <td>Error Reporting &ndash; opens or closes the diagnostic report dialog, unless you assign <kbd>F8</kbd> to a custom shortcut.</td>
                 </tr>
                 <tr>
                     <td><kbd>Esc</kbd></td>
@@ -279,7 +285,8 @@ PrintSettingGroup('uiColors');
 //    {key:'Alt+1', action:'page', page:'playlists.php'}]
 // Key canonicalization, matching and dispatch live in fpp.js so every page
 // shares them; this editor only builds the table rows and saves the setting.
-// F1/F2/F8 are system keys handled in fpp.js and cannot be reassigned here.
+// F1 is reserved for Help. F2/F8 default to Settings/Error Reporting in
+// fpp.js until a shortcut here is assigned to them.
 var keyBindingsPresetNames = null;
 var keyBindingsCapturing = null;
 
@@ -485,7 +492,14 @@ function KeyBindingsMakeRow(binding) {
             keyInput.val(combo);
             keyBindingsCapturing = null;
             keyInput.blur();
-            KeyBindingsSetStatus('Not saved yet &ndash; click "Save shortcuts".', 'text-warning');
+            var blocked = KeyBindingsBlockedReason(combo);
+            if (KeyBindingsIsReservedKey(combo)) {
+                KeyBindingsSetStatus('F1 is reserved for Help &ndash; pick another combination.', 'text-danger');
+            } else if (blocked) {
+                KeyBindingsSetStatus($('<span>').text(combo + " is reserved for " + blocked + " and can't be used.").html(), 'text-danger');
+            } else {
+                KeyBindingsSetStatus('Not saved yet &ndash; click "Save shortcuts".', 'text-warning');
+            }
         }
         return false;
     });
@@ -575,10 +589,14 @@ function KeyBindingsValidate(bindings) {
             return 'Row ' + n + ': press the Keys field and enter a key combination (or delete the row).';
         }
         if (typeof KeyBindingsIsReservedKey === 'function' && KeyBindingsIsReservedKey(b.key)) {
-            return 'Row ' + n + ': ' + b.key + ' is a reserved system shortcut (F1 / F2 / F8). Pick another combination.';
+            return 'Row ' + n + ': F1 is reserved for Help. Pick another combination.';
         }
         if (typeof KeyBindingsIsAllowedCombo === 'function' && !KeyBindingsIsAllowedCombo(b.key)) {
-            return 'Row ' + n + ': use Ctrl or Alt with another key, or a function key (F2-F12). Plain letters would fire while typing.';
+            return 'Row ' + n + ': use Ctrl or Alt with another key, or a function key (F2-F4, F6-F10). Plain letters would fire while typing.';
+        }
+        var blocked = KeyBindingsBlockedReason(b.key);
+        if (blocked) {
+            return 'Row ' + n + ': ' + b.key + ' is reserved for ' + blocked + ' and can\'t be used. Pick another combination.';
         }
         if (seen[b.key]) {
             return 'Row ' + n + ': ' + b.key + ' is already used by row ' + seen[b.key] + '.';
@@ -620,7 +638,7 @@ function KeyBindingsSave() {
 function KeyBindingsTipHtml() {
     var n = KeyBindingsGetAll().length;
     var count = n === 0 ? 'No custom shortcuts' : n + (n === 1 ? ' custom shortcut' : ' custom shortcuts');
-    return '<b>' + count + '.</b><br>Keyboard shortcuts trigger a command preset, run an FPP command, or open a page. F1 opens help, F2 opens Settings, F8 opens Error Reporting.';
+    return '<b>' + count + '.</b><br>Keyboard shortcuts trigger a command preset, run an FPP command, or open a page. F1 opens help. Unless you assign them, F2 opens Settings and F8 opens Error Reporting.';
 }
 
 function KeyBindingsUpdateTip() {
@@ -691,3 +709,4 @@ $(document).ready(function () {
     KeyBindingsInit();
 });
 </script>
+<? } ?>

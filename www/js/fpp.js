@@ -1136,14 +1136,28 @@ function DisplayConfirmationDialog (id, title, body, yesFunction, yesClass) {
 	};
 })(jQuery);
 
+// True for the auto-repeat keydowns of a held key.  handleKeypress is bound
+// with jQuery, whose event wrapper doesn't copy 'repeat' (e.repeat is
+// undefined), so read it from the native event.
+function KeyEventIsRepeat (e) {
+	return !!(e.repeat || (e.originalEvent && e.originalEvent.repeat));
+}
+
 function handleKeypress (e) {
 	if (e.keyCode == 112) {
 		e.preventDefault();
 		DisplayHelp();
-	} else if (e.keyCode == 119) {
+		return;
+	}
+	// A saved custom shortcut wins.  F2 and F8 only fall through to their
+	// default actions below when no shortcut has been assigned to them.
+	if (KeyBindingsHandleEvent(e)) {
+		return;
+	}
+	if (e.keyCode == 119) {
 		// F8 — Diagnostic Report bundle (toggle).  Holding the key down would
 		// otherwise open and close it over and over.
-		if (e.repeat) return;
+		if (KeyEventIsRepeat(e)) return;
 		var t = e.target;
 		// Check typing in input/textarea/select or any contenteditable ancestor
 		var isTyping = false;
@@ -1163,9 +1177,8 @@ function handleKeypress (e) {
 	} else if (e.keyCode == 113) {
 		// F2 — Settings page
 		e.preventDefault();
+		if (KeyEventIsRepeat(e)) return;
 		window.location.href = 'settings.php';
-	} else {
-		KeyBindingsHandleEvent(e);
 	}
 }
 
@@ -1178,6 +1191,80 @@ function handleKeypress (e) {
 // where <Key> is a single upper-case character or a named key (F1-F12,
 // ArrowUp, Home, ...). The Meta (Cmd/Windows) key is never part of a binding
 // so browser-reserved shortcuts are left alone.
+// F1 is reserved for Help. F2 (Settings) and F8 (Error Reporting) are
+// defaults that a saved shortcut on the same key replaces.
+
+// Combos a custom shortcut may not use, with what they normally do. Either
+// the browser never hands them to the page (Ctrl+T/N/W, tab switching), or
+// taking them over would break editing and navigation everywhere in the UI;
+// Ctrl/Alt combos fire even while typing in a field. Enforced on save and
+// when dispatching, so a binding stored some other way can't take them.
+var KeyBindingsBlocked = {
+	'Ctrl+A': 'select all',
+	'Ctrl+C': 'copy',
+	'Ctrl+V': 'paste',
+	'Ctrl+X': 'cut',
+	'Ctrl+Z': 'undo',
+	'Ctrl+Y': 'redo',
+	'Ctrl+Shift+Z': 'redo',
+	'Ctrl+F': 'find',
+	'Ctrl+G': 'find next',
+	'Ctrl+Shift+G': 'find previous',
+	'Ctrl+H': 'history',
+	'Ctrl+J': 'downloads',
+	'Ctrl+D': 'bookmark this page',
+	'Ctrl+E': 'search',
+	'Ctrl+K': 'search',
+	'Ctrl+L': 'address bar',
+	'Alt+D': 'address bar',
+	'Ctrl+O': 'open file',
+	'Ctrl+P': 'print',
+	'Ctrl+S': 'save page',
+	'Ctrl+U': 'view source',
+	'Ctrl+R': 'reload',
+	'Ctrl+Shift+R': 'hard reload',
+	'F5': 'reload',
+	'Shift+F5': 'hard reload',
+	'Ctrl+F5': 'hard reload',
+	'F11': 'full screen',
+	'F12': 'developer tools',
+	'Ctrl+Shift+I': 'developer tools',
+	'Ctrl+Shift+J': 'developer tools',
+	'Ctrl+Shift+C': 'developer tools',
+	'Ctrl+T': 'new tab',
+	'Ctrl+N': 'new window',
+	'Ctrl+W': 'close tab',
+	'Ctrl+Shift+T': 'reopen closed tab',
+	'Ctrl+Shift+N': 'new private window',
+	'Ctrl+Shift+W': 'close window',
+	'Ctrl+PageUp': 'previous tab',
+	'Ctrl+PageDown': 'next tab',
+	'Ctrl+=': 'zoom in',
+	'Ctrl+Shift++': 'zoom in',
+	'Ctrl+-': 'zoom out',
+	'Ctrl+0': 'reset zoom',
+	'Alt+ArrowLeft': 'back',
+	'Alt+ArrowRight': 'forward',
+	'Alt+Home': 'home page',
+	'Alt+F4': 'close window',
+	'Alt+ArrowUp': 'open a dropdown',
+	'Alt+ArrowDown': 'open a dropdown',
+	'Ctrl+ArrowLeft': 'move a word left',
+	'Ctrl+ArrowRight': 'move a word right',
+	'Ctrl+ArrowUp': 'move a paragraph up',
+	'Ctrl+ArrowDown': 'move a paragraph down',
+	'Ctrl+Shift+ArrowLeft': 'select a word left',
+	'Ctrl+Shift+ArrowRight': 'select a word right',
+	'Ctrl+Home': 'go to start',
+	'Ctrl+End': 'go to end',
+	'Ctrl+Shift+Home': 'select to start',
+	'Ctrl+Shift+End': 'select to end'
+};
+
+// What a blocked combo normally does, or null if it may be used.
+function KeyBindingsBlockedReason (key) {
+	return KeyBindingsBlocked.hasOwnProperty(key) ? KeyBindingsBlocked[key] : null;
+}
 function KeyBindingsNormalizeKeyName (key) {
 	if (key === ' ') {
 		return 'Space';
@@ -1234,7 +1321,7 @@ function KeyBindingsEventToString (e) {
 
 function KeyBindingsIsReservedKey (key) {
 	var name = KeyBindingsNormalizeKeyName(String(key).split('+').pop());
-	return name === 'F1' || name === 'F2' || name === 'F8';
+	return name === 'F1';
 }
 
 // Plain letters/digits without Ctrl/Alt would fire while typing, so the
@@ -1284,23 +1371,21 @@ function KeyBindingsRunBinding (b) {
 	}
 }
 
+// Returns true when the event matched a custom shortcut (and was consumed).
 function KeyBindingsHandleEvent (e) {
 	// Never steal browser-reserved Meta combinations. While recording a new
 	// shortcut the editor handles the key itself (see settings-ui.php).
 	if (!e || e.metaKey) {
-		return;
+		return false;
 	}
 	if (typeof keyBindingsCapturing !== 'undefined' && keyBindingsCapturing) {
-		return;
+		return false;
 	}
 	var combo = KeyBindingsEventToString(e);
-	if (!combo) {
-		return;
+	if (!combo || KeyBindingsIsReservedKey(combo) || KeyBindingsBlockedReason(combo)) {
+		return false;
 	}
 	var bindings = KeyBindingsGetCustomBindings();
-	if (!bindings.length) {
-		return;
-	}
 	for (var i = 0; i < bindings.length; i++) {
 		if (bindings[i].key === combo) {
 			// Typing in a field only counts when the shortcut needs the
@@ -1310,13 +1395,17 @@ function KeyBindingsHandleEvent (e) {
 			var name = bits.pop();
 			var modified = bits.indexOf('Ctrl') !== -1 || bits.indexOf('Alt') !== -1;
 			if (KeyBindingsIsTypingTarget(e.target) && !modified && !/^F\d{1,2}$/.test(name)) {
-				return;
+				return false;
 			}
 			e.preventDefault();
-			KeyBindingsRunBinding(bindings[i]);
-			return;
+			// Holding the keys down would otherwise run the action over and over.
+			if (!KeyEventIsRepeat(e)) {
+				KeyBindingsRunBinding(bindings[i]);
+			}
+			return true;
 		}
 	}
+	return false;
 }
 
 class SwipeHandler {

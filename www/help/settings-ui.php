@@ -34,13 +34,13 @@
 </ul>
 
 <h4>Keyboard Shortcuts</h4>
-<p>System shortcuts work on every page and cannot be changed. Custom shortcuts work on every page too, and are stored in the <code>keyBindings</code> setting.</p>
+<p>Advanced level. System shortcuts work on every page. Custom shortcuts work on every page too, and are stored in the <code>keyBindings</code> setting.</p>
 <ul>
-    <li><b>Configure Key Bindings</b> (button) — Opens a dialog listing the system shortcuts (<b>F1</b> help, <b>F2</b> Settings, <b>F8</b> Error Reporting, <b>Esc</b> close) and your custom shortcuts.</li>
-    <li><b>Keys</b> — Click the field, then press the combination. Combinations must use <b>Ctrl</b> or <b>Alt</b> with another key, or be an unused function key (<b>F3</b>–<b>F7</b>, <b>F9</b>–<b>F12</b>); <b>F1</b>/<b>F2</b>/<b>F8</b> are reserved system shortcuts and rejected on save. <b>Esc</b> cancels recording, <b>Backspace</b> clears the field.</li>
+    <li><b>Configure Key Bindings</b> (button) — Opens a dialog listing the system shortcuts (<b>F1</b> help, <b>F2</b> Settings, <b>F8</b> Error Reporting, <b>Esc</b> close) and your custom shortcuts. A custom shortcut on <b>F2</b> or <b>F8</b> replaces that key's default action.</li>
+    <li><b>Keys</b> — Click the field, then press the combination. Combinations must use <b>Ctrl</b> or <b>Alt</b> with another key, or be a function key (<b>F2</b>–<b>F4</b>, <b>F6</b>–<b>F10</b>). <b>F1</b> is reserved for Help, and browser and text-editing shortcuts (copy, paste, undo, find, reload, new tab, zoom, ...) are rejected. <b>Esc</b> cancels recording, <b>Backspace</b> clears the field.</li>
     <li><b>Action type</b> — <b>Command preset</b> triggers one of your presets by name; <b>FPP command</b> runs any command with the arguments you enter; <b>Page</b> opens an FPP page. For a complex command, save it as a preset on the Command Presets page first and bind the preset, so the full argument editors are available.</li>
     <li><b>Test (play button)</b> — Runs that row's action immediately without pressing the keys.</li>
-    <li><b>Save shortcuts</b> (button, in the dialog) — Validates for empty keys, reserved keys and duplicates, then saves. Shortcuts apply on every page once saved; there is nothing to restart.</li>
+    <li><b>Save shortcuts</b> (button, in the dialog) — Validates for empty keys, reserved or browser shortcuts, and duplicates, then saves. Shortcuts apply on every page once saved; there is nothing to restart.</li>
 </ul>
 
 <p><b>More detail:</b> For the full dialog reference, see <a href='javascript:void(0)' onClick="helpPage='help/keybindings.php'; DisplayHelp();">Help &rarr; Keyboard Shortcuts</a>.</p>
