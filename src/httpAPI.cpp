@@ -316,7 +316,14 @@ void GetCurrentFPPDStatus(Json::Value& result) {
         }
 
         result["media_playing"] = anyForeground || anyBackground;
-        if (lead >= 0) {
+        // Only describe a stream slot when the player itself is idle.  Slot 1
+        // IS the playlist's own media, so an active playlist always has a
+        // "playing" slot; overwriting status_name here would demote a
+        // "playing" playlist (sequence + media) to "playing media" and hide
+        // the sequence name on consumers such as the multisync page.
+        // Testing also sets its own status_name; leave that alone too.
+        if (lead >= 0 && result["status"].asInt() == FPP_STATUS_IDLE &&
+            result["status_name"].asString() == "idle") {
             result["status_name"] = anyForeground ? "playing media" : "playing background";
             const std::string f = slots[lead]["mediaFilename"].asString();
             result["current_song"] = f.substr(f.find_last_of("/\\") + 1);

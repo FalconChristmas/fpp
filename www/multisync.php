@@ -1251,6 +1251,44 @@
         }
 
         /**
+         * Play-status icon with a tooltip naming the running sequence/media.
+         * The icon is only emitted when BOTH a sequence and a media file are
+         * playing: the Status text already names the sequence, and the icon's
+         * tooltip carries the sequence + media lines.  With only one file
+         * playing there is nothing extra to reveal, so no icon is shown.
+         *
+         * The tooltip is rendered as HTML through the delegated instance
+         * bound in $(document).ready (selector '.ms-play-tip', html: true) --
+         * NOT data-bs-html="true": this build's Tooltip type-checks data
+         * attributes strictly, so the "true" string throws.  The content
+         * lives in data-bs-title (not title) so the generic SetupToolTips()
+         * sweep -- which only looks at [title] -- leaves these icons alone.
+         * Returns '' when there is nothing to describe.
+         */
+        function buildPlayIconTooltip(seq, song) {
+            if (!seq || seq == '' || !song || song == '') return '';
+            var tip = msEscape('Sequence: ' + seq) + '<br>' + msEscape('Media: ' + song);
+            return ' <i class="fas fa-play-circle text-success ms-play-tip" data-bs-title="' + tip + '"></i>';
+        }
+
+        /**
+         * Assembles a Status cell with the play icon AFTER the file name:
+         * "<label>:<br><file> <icon>".  The icon only appears when both a
+         * sequence and a media file are playing (its tooltip then carries
+         * both lines); single-file states show just the name, no icon.
+         */
+        function buildPlayingStatus(label, fileText, seq, song) {
+            var s = label;
+            var icon = buildPlayIconTooltip(seq, song);
+            if (fileText && fileText != '') {
+                s += ':<br>' + fileText + icon;
+            } else {
+                s += icon;
+            }
+            return s;
+        }
+
+        /**
          * A remote's warnings carry markup on purpose (e.g. the crash-report
          * link), so they can't simply be escaped -- but they come from another
          * device and must not run script here.  Parse into an inert <template>
@@ -1415,20 +1453,32 @@
                         }
 
                         if (data.status_name == 'playing') {
-                            status = 'Playing';
-
                             elapsed = data.time_elapsed;
 
-                            if (data.current_sequence != "") {
+                            // Label names what is actually playing: any sequence
+                            // present means "Playing Sequence" (with or without
+                            // media); media-only means "Playing Media".  Neither
+                            // (playlist between items) stays a bare "Playing".
+                            status = 'Playing';
+                            if (data.current_sequence && data.current_sequence != "") {
+                                status = 'Playing Sequence';
+                            } else if (data.current_song && data.current_song != "") {
+                                status = 'Playing Media';
+                            }
+
+                            // Visible text names the sequence only (the fseq file);
+                            // the media/audio file rides on the play icon tooltip
+                            // placed after the sequence name.  Both come from this
+                            // same poll so they change tracks together.  With no
+                            // sequence (media-only entry), the media itself is
+                            // the text.
+                            if (data.current_sequence && data.current_sequence != "") {
                                 files += msEscape(data.current_sequence);
-                                if (data.current_song != "")
-                                    files += "<br>" + msEscape(data.current_song);
-                            } else {
+                            } else if (data.current_song && data.current_song != "") {
                                 files += msEscape(data.current_song);
                             }
 
-                            if (files != "")
-                                status += ":<br>" + files;
+                            status = buildPlayingStatus(status, files, data.current_sequence, data.current_song);
                         } else if (data.status_name == 'updating') {
                             status = 'Updating';
                         } else if (data.status_name == 'stopped') {
@@ -1438,7 +1488,27 @@
                         } else if (data.status_name == 'stopping gracefully after loop') {
                             status = 'Stopping Gracefully After Loop';
                         } else if (data.status_name == 'paused') {
+                            elapsed = data.time_elapsed;
+
+                            // Same rule as 'playing', paused: sequence present
+                            // means "Paused Sequence", media-only means
+                            // "Paused Media", neither stays bare "Paused".
                             status = 'Paused';
+                            if (data.current_sequence && data.current_sequence != "") {
+                                status = 'Paused Sequence';
+                            } else if (data.current_song && data.current_song != "") {
+                                status = 'Paused Media';
+                            }
+
+                            // Same shape as 'playing': sequence text, icon with
+                            // media tooltip after the name.
+                            if (data.current_sequence && data.current_sequence != "") {
+                                files += msEscape(data.current_sequence);
+                            } else if (data.current_song && data.current_song != "") {
+                                files += msEscape(data.current_song);
+                            }
+
+                            status = buildPlayingStatus(status, files, data.current_sequence, data.current_song);
                         } else if (data.status_name == 'testing') {
                             status = 'Testing';
                         } else if (data.status_name == 'unreachable') {
@@ -1463,23 +1533,42 @@
                                 status = 'Background Audio';
                             }
                             if (data.mode_name == 'remote') {
-                                if ((data.sequence_filename != "") ||
-                                    (data.media_filename != "")) {
+                                if ((data.sequence_filename && data.sequence_filename != "") ||
+                                    (data.media_filename && data.media_filename != "")) {
                                     status = 'Syncing';
 
                                     elapsed += data.time_elapsed;
 
-                                    if (data.sequence_filename != "") {
+                                    // Match players: visible text is the sequence
+                                    // only, with the play icon (media tooltip)
+                                    // after the name.  Media-only sync shows the
+                                    // media as the text.
+                                    if (data.sequence_filename && data.sequence_filename != "") {
                                         files += msEscape(data.sequence_filename);
-                                        if (data.media_filename != "")
-                                            files += "<br>" + msEscape(data.media_filename);
-                                    } else {
+                                    } else if (data.media_filename && data.media_filename != "") {
                                         files += msEscape(data.media_filename);
                                     }
 
-                                    if (files != "")
-                                        status += ":<br>" + files;
+                                    status = buildPlayingStatus(status, files, data.sequence_filename, data.media_filename);
                                 }
+                            } else if ((data.status_name == 'playing media') ||
+                                       (data.status_name == 'playing background')) {
+                                // Player/master playing standalone media (outside a
+                                // playlist): same shape -- sequence (or media when
+                                // there is no sequence) as text, play icon with
+                                // media tooltip after the name.  A sequence here
+                                // upgrades the label to "Playing Sequence".
+                                var pfiles = "";
+                                if (data.current_sequence && data.current_sequence != "") {
+                                    pfiles += msEscape(data.current_sequence);
+                                    status = 'Playing Sequence';
+                                } else if (data.current_song && data.current_song != "") {
+                                    pfiles += msEscape(data.current_song);
+                                }
+
+                                status = buildPlayingStatus(status, pfiles, data.current_sequence, data.current_song);
+                                if (data.time_elapsed && data.time_elapsed != "" && data.time_elapsed != "00:00")
+                                    elapsed = data.time_elapsed;
                             }
                         } else {
                             status = data.status_name;
@@ -4273,6 +4362,24 @@
 
             // Channel I/O icon tooltip popovers
             var activePopover = null;
+            // Status play-icon tooltips (sequence/media lines).  Delegated off
+            // document.body so the binding survives every poll-driven tbody
+            // rebuild -- per-icon instances would be destroyed with their nodes
+            // (and by the other device pollers, which re-render without
+            // re-running tooltip init).  Bootstrap creates each icon's instance
+            // lazily on first hover from its own data-bs-title, with a real
+            // boolean html:true here instead of a data-bs-html="true" string
+            // (this build type-checks data attributes strictly and throws on
+            // the string form).
+            try {
+                new bootstrap.Tooltip(document.body, {
+                    selector: '.ms-play-tip',
+                    html: true,
+                    placement: 'auto'
+                });
+            } catch (e) {
+                console.warn('Could not bind play icon tooltips', e);
+            }
             $(document).on('mouseenter', '.channel-io-icon-output, .channel-io-icon-input', function () {
                 var $icon = $(this);
                 var isOutput = $icon.hasClass('channel-io-icon-output');
