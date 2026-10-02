@@ -48,6 +48,12 @@ if (isset($_GET['key'])) {
     if (isset($commands[$key])) {
         $found = 1;
         $command = $commands[$key];
+        // Plain text unless the command says HTML: output can carry text a
+        // plugin or a hand-edited config file controls, and this URL can be
+        // opened on its own, outside the page that inserts it as text.
+        if ($formats[$key] != "html") {
+            header('Content-Type: text/plain; charset=utf-8');
+        }
 
         ////////// Substitute PHP variables denoted by [[ variable name (without $) ]] in command string to allow accessing normal settings variables and any specials declared above
         preg_match_all('/\[\[(.*?)\]\]/', $command, $matches);

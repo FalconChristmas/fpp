@@ -1236,12 +1236,7 @@ function GetOSPackageInfo()
 
     // Check installation status using dpkg-query
     $installStatus = shell_exec("/usr/bin/dpkg-query -W -f='\${Status}\n' " . escapeshellarg($packageName) . " 2>&1");
-    error_log("Raw dpkg-query output for $packageName: |" . $installStatus . "|");
-
-    // Trim and validate output
     $trimmedStatus = trim($installStatus);
-    error_log("Trimmed dpkg-query output for $packageName: |" . $trimmedStatus . "|");
-
     $isInstalled = ($trimmedStatus === 'install ok installed') ? 'Yes' : 'No';
 
     // Parse apt-cache output

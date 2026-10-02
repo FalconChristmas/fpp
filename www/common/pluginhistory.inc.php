@@ -69,14 +69,25 @@ function PluginGitHead($dir)
     return trim((string) shell_exec('git -c safe.directory=' . escapeshellarg($dir) . ' -C ' . escapeshellarg($dir) . ' rev-parse HEAD 2>/dev/null'));
 }
 
-// A clone URL without embedded credentials: everything up to the last '@'
-// before the path goes, so a password containing '@' does too.
+// A clone URL without credentials: the user/password and the query and
+// fragment (a token can ride in either) go. Rebuilt from parse_url(), so an
+// '@' or '?' in an odd place can't make another host look like the origin.
+// A scp-style "user@host:path" keeps everything after the '@'.
 function PluginHistoryURL($url)
 {
     if (!is_string($url) || $url === '') {
         return '';
     }
-    return preg_replace('#^([a-z][a-z0-9+.-]*://)[^/]*@#i', '$1', $url);
+    if (!preg_match('#^[a-z][a-z0-9+.-]*://#i', $url)) {
+        return preg_replace('/^[^@\/]*@/', '', preg_replace('/[?#].*$/s', '', $url));
+    }
+    $p = parse_url($url);
+    if ($p === false || !isset($p['scheme'])) {
+        // Unparseable (a bad port, say): cut what could carry a credential.
+        return preg_replace('#^([a-z][a-z0-9+.-]*://)[^/?\#]*@#i', '$1', preg_replace('/[?#].*$/s', '', $url));
+    }
+    return $p['scheme'] . '://' . (isset($p['host']) ? $p['host'] : '')
+        . (isset($p['port']) ? ':' . $p['port'] : '') . (isset($p['path']) ? $p['path'] : '');
 }
 
 // Appends one entry ($fields on top of time, action, plugin and FPP version).

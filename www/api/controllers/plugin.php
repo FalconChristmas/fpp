@@ -1776,7 +1776,8 @@ function ResolveLocalDependencies($deps, $ownerRepo, $stream, $op = 'install')
 			// failure here, not silently coexist. Note: a plugin needing a Python version
 			// other than FPP's system default (e.g. a dependency with no wheel for it) has
 			// no built-in FPP mechanism for that -- must be handled by the plugin itself.
-			$cmd = $SUDO . " python3 -m pip install --break-system-packages " . $args;
+			// "--": a declared name can't be read as a pip option ("--index-url=...").
+			$cmd = $SUDO . " python3 -m pip install --break-system-packages -- " . $args;
 			$rc = 0;
 			if ($streaming) {
 				system($cmd, $rc);

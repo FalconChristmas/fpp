@@ -136,11 +136,16 @@ if ($mode === '--leftovers') {
         if (!is_array($entry) || !isset($entry['package']) || !is_string($entry['package'])) {
             continue; // a bare string is a Package Manager install, not a plugin's
         }
+        // Same rules as LoadUserPackages(): the file is writable through the
+        // config API and backup restore, and the names reach dpkg-query.
+        if (!preg_match('/^[a-z0-9][a-z0-9+.-]*[a-z0-9+](:[a-z0-9-]+)?$/D', $entry['package'])) {
+            continue;
+        }
         if (($entry['preinstalled'] ?? null) === true) {
             $pre[$entry['package']] = true;
         }
         foreach ((isset($entry['requestedBy']) && is_array($entry['requestedBy'])) ? $entry['requestedBy'] : array() as $r) {
-            if (is_string($r) && $r !== 'user' && !in_array($r, $installed, true)) {
+            if (is_string($r) && preg_match('/^[A-Za-z0-9_.-]+$/', $r) && $r !== 'user' && !in_array($r, $installed, true)) {
                 $orphans[$r][] = $entry['package'];
             }
         }
@@ -155,7 +160,7 @@ if ($mode === '--leftovers') {
     $all = array_unique(array_merge(...array_values($orphans)));
     $haveDpkg = trim((string) shell_exec('command -v dpkg-query 2>/dev/null')) !== '';
     if ($haveDpkg) {
-        $out = (string) shell_exec('dpkg-query -W -f=\'${Package} ${Architecture} ${db:Status-Status}\n\' ' .
+        $out = (string) shell_exec('dpkg-query -W -f=\'${Package} ${Architecture} ${db:Status-Status}\n\' -- ' .
             implode(' ', array_map('escapeshellarg', $all)) . ' 2>/dev/null');
         // Claims are arch-less (PackageBaseName()); one counts as installed if
         // any architecture of it is (name:arch handled for hand edits).
