@@ -45,6 +45,11 @@ require_once "common/oplog.inc.php";
 
 DisableOutputBuffering();
 
+// Finish once started, even if the browser goes away: a closed tab must not stop
+// PHP at the next echo.  part1/part2 survive behind their tee, but the sync and
+// reboot below would be skipped, leaving the box running on a replaced root.
+ignore_user_abort(true);
+
 // Emit a "===== <message> =====" stage header, matching the shell helper
 // logStage() in scripts/common (and the same helper in manualUpdate.php), so the
 // streaming FPP OS Upgrade dialog can drive its status line from PHP-side phases

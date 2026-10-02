@@ -17,6 +17,11 @@ require_once("common/oplog.inc.php");
 
 DisableOutputBuffering();
 
+// Finish once started, even if the browser goes away: a closed tab must not stop
+// PHP at the next echo.  git_pull survives behind its tee, but the fppd restart
+// and the Apache/CSP updates after it would be skipped.
+ignore_user_abort(true);
+
 // Label this page's log lines with the branch, matching how scripts/git_pull
 // tags the run it is about to start, so the PHP-side phases and the script-side
 // output read as one "[fpp-update <branch>]" run. Best-effort: an unreadable or
