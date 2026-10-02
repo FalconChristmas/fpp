@@ -5074,6 +5074,20 @@ function json_object_validate($json, $depth = 512, $flags = 0)
     }
 }
 
+function json_array_validate($json, $depth = 512, $flags = 0)
+{
+    if (!is_string($json)) {
+        return false;
+    }
+
+    try {
+        $decoded = json_decode($json, false, $depth, $flags | JSON_THROW_ON_ERROR);
+        return is_array($decoded);
+    } catch (\JsonException $e) {
+        return false;
+    }
+}
+
 /**
  * Fetches a REST API via GET, but only if the response size is within a given limit.
  *

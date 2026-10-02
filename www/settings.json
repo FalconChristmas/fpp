@@ -2866,6 +2866,19 @@
 				"Raspberry Pi"
 			]
 		},
+		"keyBindings": {
+			"name": "keyBindings",
+			"description": "Keyboard Shortcuts",
+			"tip": "Custom keyboard shortcuts. JSON array of {key, action, ...} objects where action is 'preset' (trigger a Command Preset by name), 'command' (run an FPP Command with args) or 'page' (navigate to an FPP page). Edited from Settings -> UI -> Keyboard Shortcuts; F1 (Help), F2 (Settings) and F8 (Error Reporting) are reserved system shortcuts.",
+			"default": "[]",
+			"type": "text",
+			"size": 64,
+			"maxlength": 8192,
+			"level": 0,
+			"exposedAsJSToPages": [
+				"all"
+			]
+		},
 		"Service_rsync": {
 			"name": "Service_rsync",
 			"description": "Enable rsync",

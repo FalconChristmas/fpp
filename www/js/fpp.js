@@ -1160,8 +1160,165 @@ function handleKeypress (e) {
 		if (isTyping && !e.ctrlKey && !e.shiftKey) return;
 		e.preventDefault();
 		DisplayErrorReportDialog();
+	} else if (e.keyCode == 113) {
+		// F2 — Settings page
+		e.preventDefault();
+		window.location.href = 'settings.php';
+	} else {
+		KeyBindingsHandleEvent(e);
 	}
 }
+
+// Custom keyboard shortcuts (Settings -> UI -> Keyboard Shortcuts).
+// Bindings are stored as a JSON array in the 'keyBindings' setting:
+//   [{key:'Ctrl+Shift+A', action:'preset', preset:'Name'},
+//    {key:'Ctrl+Alt+P', action:'command', command:'Volume Set', args:['50']},
+//    {key:'Alt+1', action:'page', page:'playlists.php'}]
+// Canonical key form is 'Ctrl+Alt+Shift+<Key>' with modifiers in that order,
+// where <Key> is a single upper-case character or a named key (F1-F12,
+// ArrowUp, Home, ...). The Meta (Cmd/Windows) key is never part of a binding
+// so browser-reserved shortcuts are left alone.
+function KeyBindingsNormalizeKeyName (key) {
+	if (key === ' ') {
+		return 'Space';
+	}
+	if (key.length === 1) {
+		return key.toUpperCase();
+	}
+	if (/^F\d{1,2}$/i.test(key)) {
+		return key.toUpperCase();
+	}
+	// Normalize a few common alias spellings to DOM key names.
+	var lower = key.toLowerCase();
+	var aliases = {
+		spacebar: 'Space',
+		space: 'Space',
+		esc: 'Escape',
+		del: 'Delete',
+		up: 'ArrowUp',
+		down: 'ArrowDown',
+		left: 'ArrowLeft',
+		right: 'ArrowRight',
+		pgup: 'PageUp',
+		pgdn: 'PageDown',
+		pageup: 'PageUp',
+		pagedown: 'PageDown'
+	};
+	if (aliases.hasOwnProperty(lower)) {
+		return aliases[lower];
+	}
+	return key.length > 1 ? key.charAt(0).toUpperCase() + key.slice(1) : key;
+}
+
+function KeyBindingsEventToString (e) {
+	if (!e || typeof e.key === 'undefined') {
+		return null;
+	}
+	// Modifiers alone are not a shortcut - the editor waits for the real key.
+	if (e.key === 'Control' || e.key === 'Alt' || e.key === 'Shift' || e.key === 'Meta') {
+		return null;
+	}
+	var parts = [];
+	if (e.ctrlKey) {
+		parts.push('Ctrl');
+	}
+	if (e.altKey) {
+		parts.push('Alt');
+	}
+	if (e.shiftKey) {
+		parts.push('Shift');
+	}
+	parts.push(KeyBindingsNormalizeKeyName(e.key));
+	return parts.join('+');
+}
+
+function KeyBindingsIsReservedKey (key) {
+	var name = KeyBindingsNormalizeKeyName(String(key).split('+').pop());
+	return name === 'F1' || name === 'F2' || name === 'F8';
+}
+
+// Plain letters/digits without Ctrl/Alt would fire while typing, so the
+// editor requires Ctrl, Alt, or a function key. Matching here is permissive -
+// anything stored still matches - the restriction is only enforced on save.
+function KeyBindingsIsAllowedCombo (key) {
+	var bits = String(key).split('+');
+	var name = bits.pop();
+	if (/^F\d{1,2}$/.test(name)) {
+		return true;
+	}
+	return bits.indexOf('Ctrl') !== -1 || bits.indexOf('Alt') !== -1;
+}
+
+function KeyBindingsGetCustomBindings () {
+	try {
+		if (typeof settings === 'undefined' || !settings['keyBindings']) {
+			return [];
+		}
+		var bindings = JSON.parse(settings['keyBindings']);
+		return Array.isArray(bindings) ? bindings : [];
+	} catch (err) {
+		return [];
+	}
+}
+
+function KeyBindingsIsTypingTarget (t) {
+	while (t) {
+		if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable) {
+			return true;
+		}
+		t = t.parentElement;
+	}
+	return false;
+}
+
+function KeyBindingsRunBinding (b) {
+	if (!b) {
+		return;
+	}
+	if (b.action === 'preset' && b.preset) {
+		RunCommand({ command: 'Trigger Command Preset', args: [b.preset] });
+	} else if (b.action === 'command' && b.command) {
+		RunCommand({ command: b.command, args: b.args || [] });
+	} else if (b.action === 'page' && b.page) {
+		window.location.href = b.page;
+	}
+}
+
+function KeyBindingsHandleEvent (e) {
+	// Never steal browser-reserved Meta combinations. While recording a new
+	// shortcut the editor handles the key itself (see settings-ui.php).
+	if (!e || e.metaKey) {
+		return;
+	}
+	if (typeof keyBindingsCapturing !== 'undefined' && keyBindingsCapturing) {
+		return;
+	}
+	var combo = KeyBindingsEventToString(e);
+	if (!combo) {
+		return;
+	}
+	var bindings = KeyBindingsGetCustomBindings();
+	if (!bindings.length) {
+		return;
+	}
+	for (var i = 0; i < bindings.length; i++) {
+		if (bindings[i].key === combo) {
+			// Typing in a field only counts when the shortcut needs the
+			// keyboard anyway: a Ctrl/Alt combo or a function key. A bare
+			// key must not fire mid-sentence (saves also reject those).
+			var bits = combo.split('+');
+			var name = bits.pop();
+			var modified = bits.indexOf('Ctrl') !== -1 || bits.indexOf('Alt') !== -1;
+			if (KeyBindingsIsTypingTarget(e.target) && !modified && !/^F\d{1,2}$/.test(name)) {
+				return;
+			}
+			e.preventDefault();
+			KeyBindingsRunBinding(bindings[i]);
+			return;
+		}
+	}
+}
+
 class SwipeHandler {
 	constructor (element) {
 		this.xDown = null;
@@ -8417,9 +8574,12 @@ function DisplayHelp () {
 	var tmpHelpPage = helpPage;
 	var tabs = $('#settingsManagerTabs li .active');
 	var isErrorReportHelp = typeof errorReportOpen !== 'undefined' && errorReportOpen;
+	var isKeyBindingsHelp = $('#keyBindingsDlg').is(':visible');
 
 	if (isErrorReportHelp) {
 		tmpHelpPage = 'help/errorReport.php';
+	} else if (isKeyBindingsHelp) {
+		tmpHelpPage = 'help/keybindings.php';
 	} else if (!helpOpen && pageName == 'settings' && tabs.length == 1) {
 		// Resolve from the active tab on every fresh F1.  helpPage is
 		// overwritten below (so links inside the help dialog can navigate),
@@ -8440,8 +8600,8 @@ function DisplayHelp () {
 		if (tmpHelpPage != lastHelpPage) {
 			$('#helpDialogText').load(tmpHelpPage);
 			lastHelpPage = tmpHelpPage;
-			if (!isErrorReportHelp) helpPage = tmpHelpPage;
-			if (isErrorReportHelp) RaiseHelpAboveErrorReport();
+			if (!isErrorReportHelp && !isKeyBindingsHelp) helpPage = tmpHelpPage;
+			if (isErrorReportHelp || isKeyBindingsHelp) RaiseHelpAboveErrorReport();
 			return;
 		}
 		CloseModalDialog('helpDialog');
@@ -8464,13 +8624,13 @@ function DisplayHelp () {
 
 	$('#helpDialogText').load(tmpHelpPage);
 	lastHelpPage = tmpHelpPage;
-	if (!isErrorReportHelp) helpPage = tmpHelpPage;
+	if (!isErrorReportHelp && !isKeyBindingsHelp) helpPage = tmpHelpPage;
 	helpOpen = 1;
-	if (isErrorReportHelp) RaiseHelpAboveErrorReport();
+	if (isErrorReportHelp || isKeyBindingsHelp) RaiseHelpAboveErrorReport();
 }
 
-// Help opened on top of the Diagnostic Report wizard: put it, and its backdrop,
-// above the wizard's
+// Help opened on top of the Diagnostic Report wizard or the Key Bindings dialog:
+// put it, and its backdrop, above the underlying dialog's
 function RaiseHelpAboveErrorReport () {
 	setTimeout(function () {
 		var helpEl = document.getElementById('helpDialog');
