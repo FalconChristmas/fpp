@@ -610,7 +610,7 @@
         },
         "Plugins": {
             "grpDisplayTitle": "Plugins",
-            "grpDescription": "Plugin install history, and settings left behind by removed plugins",
+            "grpDescription": "Plugin install history, and settings and packages left behind by removed plugins",
             "platforms": [
                 "all"
             ],
@@ -627,7 +627,7 @@
                 },
                 "PluginLeftovers": {
                     "title": "Settings from Removed Plugins",
-                    "description": "Plugin settings and data files for plugins that are no longer installed. Uninstalling a plugin does not remove these. Matched by name, so treat it as a guide",
+                    "description": "Plugin settings and data files for plugins that are no longer installed, which uninstalling does not remove (matched by name, so treat it as a guide), and system packages FPP installed for plugins that are gone",
                     "cmd": "PATH=$PATH:/opt/homebrew/bin:/usr/local/bin php [[fppDir]]/scripts/plugin_history.php --leftovers",
                     "platforms": [
                         "all"

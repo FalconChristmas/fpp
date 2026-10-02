@@ -564,6 +564,209 @@ function RecordPluginInstallSource($repoName, $srcURL)
 	return 'unknown';
 }
 
+// System package changes around a plugin's own script (upgrades, removals,
+// holds, apt sources/pins/keys). Only the script phase is bracketed, so FPP's
+// own declared installs and claim releases don't count; anything else changing
+// packages meanwhile does, hence "while", not "by". Not pip, npm or background jobs.
+
+// Identifies one version of dpkg's state: filemtime() is whole seconds, but
+// dpkg replaces the status file by rename, so its inode changes; an
+// interrupted dpkg leaves its changes in updates/ instead.
+function PluginDpkgStatusStamp()
+{
+	clearstatcache(true, '/var/lib/dpkg/status');
+	$st = @stat('/var/lib/dpkg/status');
+	$updates = @scandir('/var/lib/dpkg/updates');
+	return $st ? $st['ino'] . ':' . $st['size'] . ':' . $st['mtime'] . ':' . implode(',', $updates ?: array()) : null;
+}
+define('PLUGIN_APT_STATE_DIRS', '/etc/apt/sources.list.d /etc/apt/preferences.d /etc/apt/trusted.gpg.d /etc/apt/keyrings /usr/share/keyrings');
+define('PLUGIN_APT_CHANGES_MAX', 20); // names kept per kind in the history
+
+// Whether the plugin has a script named one of $names in scripts/ or its top
+// directory (a superset of where the wrappers look): without one there is
+// nothing to bracket, so Update All over script-less plugins costs nothing.
+function PluginHasOwnScript($plugin, $names)
+{
+	global $settings;
+	foreach ($names as $name) {
+		foreach (array('/scripts/', '/') as $sub) {
+			if (file_exists($settings['pluginDirectory'] . '/' . $plugin . $sub . $name)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+function PluginAptFiles()
+{
+	$files = array();
+	foreach (array('/etc/apt/sources.list', '/etc/apt/preferences', '/etc/apt/trusted.gpg') as $f) {
+		if (is_file($f)) {
+			$files[$f] = is_readable($f) ? md5_file($f) : 'unreadable';
+		}
+	}
+	foreach (explode(' ', PLUGIN_APT_STATE_DIRS) as $dir) {
+		foreach (glob($dir . '/*') ?: array() as $f) {
+			if (is_file($f)) {
+				$files[$f] = is_readable($f) ? md5_file($f) : 'unreadable';
+			}
+		}
+	}
+	return $files;
+}
+
+// The installed packages ("name:arch" => array(version, want)), or null where
+// there is no dpkg (macOS, Fedora) or it cannot be read.
+function PluginDpkgList()
+{
+	$out = array();
+	exec("dpkg-query -W -f='\${Package}:\${Architecture} \${Version} \${db:Status-Want} \${db:Status-Status}\\n' 2>/dev/null", $out, $rc);
+	if (empty($out)) {
+		return null;
+	}
+	$pkgs = array();
+	foreach ($out as $line) {
+		$f = explode(' ', $line);
+		// Present unless removed (not-installed) or removed but its config kept.
+		if (count($f) >= 4 && $f[3] !== 'not-installed' && $f[3] !== 'config-files') {
+			$pkgs[$f[0]] = array($f[1], $f[2]);
+		}
+	}
+	return $pkgs;
+}
+
+function PluginPackageSnapshot()
+{
+	if (!AptAvailable()) {
+		return null;
+	}
+	$pkgs = PluginDpkgList();
+	if ($pkgs === null) {
+		return null;
+	}
+	return array(
+		'statusStamp' => PluginDpkgStatusStamp(),
+		'pkgs' => $pkgs,
+		'apt' => PluginAptFiles(),
+	);
+}
+
+// What changed since $before, or null for nothing (or no snapshot). Lists are
+// capped at PLUGIN_APT_CHANGES_MAX names, with the full count alongside.
+function PluginPackageChanges($before)
+{
+	if (!is_array($before)) {
+		return null;
+	}
+	$c = array();
+	$keep = function ($kind, $list) use (&$c) {
+		if (!empty($list)) {
+			sort($list, SORT_NATURAL | SORT_FLAG_CASE); // so the names kept read in order
+			$c[$kind] = array_slice($list, 0, PLUGIN_APT_CHANGES_MAX);
+			if (count($list) > PLUGIN_APT_CHANGES_MAX) {
+				$c[$kind . 'Count'] = count($list);
+			}
+		}
+	};
+	if ($before['statusStamp'] === null || PluginDpkgStatusStamp() !== $before['statusStamp']) {
+		$after = PluginDpkgList();
+		if ($after !== null) {
+			$removed = $added = $changed = $held = $unheld = array();
+			foreach ($before['pkgs'] as $p => $v) {
+				if (!isset($after[$p])) {
+					$removed[] = $p;
+					continue;
+				}
+				// Not labelled up or down: Debian version order needs a dpkg
+				// call per package (seconds on a BeagleBone after an apt-get
+				// upgrade); the two versions show it.
+				if ($after[$p][0] !== $v[0]) {
+					$changed[] = "$p {$v[0]} -> {$after[$p][0]}";
+				}
+				if ($v[1] !== 'hold' && $after[$p][1] === 'hold') {
+					$held[] = $p;
+				} else if ($v[1] === 'hold' && $after[$p][1] !== 'hold') {
+					$unheld[] = $p;
+				}
+			}
+			foreach ($after as $p => $v) {
+				if (!isset($before['pkgs'][$p])) {
+					$added[] = $p . ' ' . $v[0];
+					if ($v[1] === 'hold') {
+						$held[] = $p;
+					}
+				}
+			}
+			$keep('removed', $removed);
+			$keep('changed', $changed);
+			$keep('held', $held);
+			$keep('unheld', $unheld);
+			$keep('added', $added);
+		}
+	}
+	$apt = PluginAptFiles();
+	$aptChanged = array();
+	foreach ($apt as $f => $md5) {
+		if (!isset($before['apt'][$f])) {
+			$aptChanged[] = "$f (added)";
+		} else if ($before['apt'][$f] !== $md5) {
+			$aptChanged[] = "$f (changed)";
+		}
+	}
+	foreach ($before['apt'] as $f => $md5) {
+		if (!isset($apt[$f])) {
+			$aptChanged[] = "$f (removed)";
+		}
+	}
+	$keep('aptFiles', $aptChanged);
+	return empty($c) ? null : $c;
+}
+
+// One line for the operation's stream and the plugin manager log, or '' for none.
+function PluginPackageChangesText($op, $plugin, $c)
+{
+	static $arch = null; // ":all" and the native architecture are left off names
+	if ($arch === null) {
+		$arch = trim((string) shell_exec('dpkg --print-architecture 2>/dev/null'));
+	}
+	// Packages only added are routine; they go to the history without a line.
+	if (empty($c) || !array_diff(array_keys($c), array('added', 'addedCount'))) {
+		return '';
+	}
+	$parts = array();
+	foreach (PluginPackageChangeLabels() as $kind => $label) {
+		if (empty($c[$kind])) {
+			continue;
+		}
+		$n = isset($c[$kind . 'Count']) ? $c[$kind . 'Count'] : count($c[$kind]);
+		$names = array_map(function ($x) use ($kind, $arch) {
+			$x = preg_replace('#^/etc/apt/#', '', $x);
+			if ($kind === 'aptFiles') {
+				return $x; // apt files keep "(added)"
+			}
+			return preg_replace('/:(all|' . preg_quote($arch, '/') . ')$/', '', preg_replace('/ .*$/', '', $x));
+		}, array_slice($c[$kind], 0, 5));
+		$parts[] = "$label $n (" . implode(', ', $names) . ($n > 5 ? ', ...' : '') . ')';
+	}
+	return "System packages changed while $plugin's $op script was running: " . implode('; ', $parts) . '.';
+}
+
+// Runs $run, a plugin's script phase, inside a package snapshot when the
+// plugin has a script named one of $names, and prints any change worth a line
+// (tagged $logName in the plugin manager log). Returns the changes, or null.
+function PluginTrackPackages($op, $plugin, $logName, $names, $run, $stream)
+{
+	$before = PluginHasOwnScript($plugin, $names) ? PluginPackageSnapshot() : null;
+	$run();
+	$changes = PluginPackageChanges($before);
+	$text = $changes ? PluginPackageChangesText($op, $plugin, $changes) : '';
+	if ($text !== '') {
+		PluginEchoLog($op, $logName, "\n" . $text . "\n", $stream);
+	}
+	return $changes;
+}
+
 // How long GetPluginSource() will wait inline for a plugin list it does not
 // have. The health check gives the whole endpoint 3s, so this has to leave room
 // for everything else; anything slower is left to the detached warm below.
@@ -1268,12 +1471,13 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 	// streaming to the browser dialog (a plugin script can build/fetch for minutes).
 	$runCmd = $envPrefix . escapeshellarg($fppDir . '/scripts/install_plugin')
 		. ' --run-install-script ' . escapeshellarg($plugin);
-	if ($streaming) {
-		system($runCmd, $return_val);
-	} else {
-		exec($runCmd, $o, $return_val);
-		unset($o);
-	}
+	$pkgChanges = PluginTrackPackages('install', $plugin, $repoName, array('fpp_install.sh'), function () use ($streaming, $runCmd, &$return_val) {
+		if ($streaming) {
+			system($runCmd, $return_val);
+		} else {
+			exec($runCmd, $o, $return_val);
+		}
+	}, $stream);
 
 	// The only statement that the operation as a whole succeeded -- the wrapper
 	// scripts only ever report on their own phase.
@@ -1303,6 +1507,9 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 	}
 	if ($return_val != 0) {
 		$entry['scriptFailed'] = true;
+	}
+	if ($pkgChanges) {
+		$entry['packages'] = $pkgChanges;
 	}
 	AppendPluginHistory($repoName, 'install', $entry);
 
@@ -1985,13 +2192,16 @@ function UninstallPlugin()
 		$uninstallCmd = 'export SUDO=' . escapeshellarg($SUDO)
 			. '; export PLUGINDIR=' . escapeshellarg($settings['pluginDirectory'])
 			. '; ' . escapeshellarg($fppDir . '/scripts/uninstall_plugin') . ' ' . escapeshellarg($plugin);
-		if (isset($stream) && $stream != "false") {
-			DisableOutputBuffering();
-			system($uninstallCmd, $return_val);
-		} else {
-			exec($uninstallCmd, $output, $return_val);
-			unset($output);
-		}
+		// Before releasing its claims below: FPP's own removals are not the
+		// plugin's.
+		$pkgChanges = PluginTrackPackages('uninstall', $plugin, $plugin, array('fpp_uninstall.sh'), function () use ($stream, $uninstallCmd, &$return_val) {
+			if (isset($stream) && $stream != "false") {
+				DisableOutputBuffering();
+				system($uninstallCmd, $return_val);
+			} else {
+				exec($uninstallCmd, $output, $return_val);
+			}
+		}, $stream);
 
 		// Drop this plugin's claim on every package it holds in the manifest
 		// (declared at any level -- top-level or a versions[] entry -- or
@@ -2030,6 +2240,9 @@ function UninstallPlugin()
 		$entry = array('sha' => $uninstalledSha);
 		if ($keepPackages) {
 			$entry['reinstall'] = true;
+		}
+		if ($pkgChanges) {
+			$entry['packages'] = $pkgChanges;
 		}
 		if ($return_val != 0) {
 			$entry['scriptFailed'] = true;
@@ -2613,6 +2826,7 @@ function UpgradePlugin()
 		. ' --run-upgrade-script ' . escapeshellarg($plugin);
 
 	$fromSha = PluginInstalledSha($plugin);
+	$pkgChanges = null;
 	if ($streaming) {
 		DisableOutputBuffering();
 		system($cmd, $return_val);
@@ -2625,10 +2839,14 @@ function UpgradePlugin()
 			PluginEchoLog('upgrade', $plugin, "\nERROR: the code of '$plugin' was updated, but a dependency it now declares could not be installed; its upgrade script was not run.\n", $stream);
 			$return_val = 2;
 			$depFailed = true;
-		} else if ($streaming) {
-			system($runCmd, $return_val);
 		} else {
-			exec($runCmd, $output, $return_val);
+			$pkgChanges = PluginTrackPackages('upgrade', $plugin, $plugin, array('fpp_upgrade.sh', 'fpp_install.sh'), function () use ($streaming, $runCmd, &$output, &$return_val) {
+				if ($streaming) {
+					system($runCmd, $return_val);
+				} else {
+					exec($runCmd, $output, $return_val);
+				}
+			}, $stream);
 		}
 		if ($return_val != 0) {
 			$return_val = 2; // the code landed; only the script phase failed
@@ -2646,9 +2864,13 @@ function UpgradePlugin()
 		} else if ($return_val == 2) {
 			$entry['scriptFailed'] = true;
 		}
+		if (!empty($pkgChanges)) {
+			$entry['packages'] = $pkgChanges;
+		}
 		// Update All runs upgrade_plugin on plugins with nothing new; it
-		// succeeds without moving, and that is not an event worth keeping.
-		if ($entry['sha'] !== $fromSha || $return_val == 2) {
+		// succeeds without moving, and that is not an event worth keeping
+		// (unless its script changed system packages anyway).
+		if ($entry['sha'] !== $fromSha || $return_val == 2 || !empty($pkgChanges)) {
 			AppendPluginHistory($plugin, 'upgrade', $entry);
 		}
 		// The refs were fetched moments ago, so this is a local read.

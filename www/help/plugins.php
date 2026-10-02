@@ -4,8 +4,9 @@
     project does not audit their code and cannot vouch for it. Every plugin runs with full access to this player: it can read and change any
     setting and reach anything on the network this player is connected to. Install plugins from authors you
     trust. Plugins marked <b>Official</b> are maintained by the FPP project.</p>
-<p>FPP keeps a history of the plugins installed, updated and removed on this player, and lists settings left
-    behind by removed plugins: see <b>Help &rarr; Troubleshooting Commands &rarr; Plugins</b>.</p>
+<p>FPP keeps a history of the plugins installed, updated and removed on this player, including any system
+    packages that changed while a plugin's own script ran, and lists settings and packages left behind by
+    removed plugins: see <b>Help &rarr; Troubleshooting Commands &rarr; Plugins</b>.</p>
 <p>The first time you install a plugin, FPP shows a short note saying this and asks you to continue. It is
     shown once per player, and once more after each major FPP upgrade.</p>
 

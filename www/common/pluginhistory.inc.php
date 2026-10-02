@@ -93,3 +93,12 @@ function AppendPluginHistory($plugin, $action, $fields = array())
         @chmod($file, 0664);
     }
 }
+
+// The kinds of system package change PluginPackageChanges() records (in
+// api/controllers/plugin.php), with their labels: one list for the operation
+// output and the Install History.
+function PluginPackageChangeLabels()
+{
+    return array('removed' => 'removed', 'changed' => 'version changed', 'held' => 'held',
+        'unheld' => 'hold released', 'added' => 'installed', 'aptFiles' => 'apt sources/keys/pins');
+}

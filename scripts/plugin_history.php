@@ -12,7 +12,8 @@
  *                plugins.json anyway; this keeps removed and unlisted ones out.)
  *   --leftovers  Settings and data of plugins that are no longer installed
  *                (config/plugin.*, plugindata/*), matched by name prefix, so a
- *                guide, not a verdict.
+ *                guide, not a verdict; and system packages still
+ *                claimed in config/userpackages.json by plugins that are gone.
  */
 
 if (PHP_SAPI !== 'cli') {
@@ -116,6 +117,58 @@ if ($mode === '--leftovers') {
         }
     }
 
+    // System packages FPP installed for a plugin that is gone. A normal
+    // uninstall releases its claims (ReleasePackageClaims() in
+    // www/common/packages.inc.php) and removes what nothing else needs; a
+    // plugin removed any other way leaves them claimed, and they are never
+    // removed. Python packages are installed system-wide and not tracked, so
+    // they cannot be listed.
+    $orphans = array();   // plugin -> packages
+    $data = json_decode((string) @file_get_contents($cfgDir . '/userpackages.json'), true);
+    foreach (is_array($data) ? $data : array() as $entry) {
+        if (!is_array($entry) || !isset($entry['package']) || !is_string($entry['package'])) {
+            continue; // a bare string is a Package Manager install, not a plugin's
+        }
+        foreach ((isset($entry['requestedBy']) && is_array($entry['requestedBy'])) ? $entry['requestedBy'] : array() as $r) {
+            if (is_string($r) && $r !== 'user' && !in_array($r, $installed, true)) {
+                $orphans[$r][] = $entry['package'];
+            }
+        }
+    }
+    echo "\n";
+    if (empty($orphans)) {
+        echo "No system packages are still claimed by plugins that are not installed.\n";
+        exit(0);
+    }
+    // Whether each is still installed, where dpkg exists.
+    $status = array();
+    $all = array_unique(array_merge(...array_values($orphans)));
+    $haveDpkg = trim((string) shell_exec('command -v dpkg-query 2>/dev/null')) !== '';
+    if ($haveDpkg) {
+        $out = (string) shell_exec('dpkg-query -W -f=\'${Package} ${Architecture} ${db:Status-Status}\n\' ' .
+            implode(' ', array_map('escapeshellarg', $all)) . ' 2>/dev/null');
+        // Claims are arch-less (PackageBaseName()); one counts as installed if
+        // any architecture of it is (name:arch handled for hand edits).
+        foreach (explode("\n", $out) as $l) {
+            $parts = preg_split('/\s+/', trim($l));
+            if (count($parts) >= 3) {
+                $inst = ($parts[2] === 'installed');
+                $status[$parts[0]] = !empty($status[$parts[0]]) || $inst;
+                $status[$parts[0] . ':' . $parts[1]] = $inst;
+            }
+        }
+    }
+    ksort($orphans, SORT_NATURAL | SORT_FLAG_CASE);
+    echo "System packages FPP installed for plugins that are not installed (left claimed, so never removed):\n\n";
+    $w = colWidth(array_keys($orphans));
+    foreach ($orphans as $plugin => $pkgs) {
+        $shown = array();
+        foreach ($pkgs as $pkg) {
+            // dpkg lists nothing at all for a purged package
+            $shown[] = $pkg . ($haveDpkg && empty($status[$pkg]) ? ' (not installed)' : '');
+        }
+        echo '  ' . pad($plugin, $w + 2) . implode(', ', $shown) . "\n";
+    }
     exit(0);
 }
 
@@ -156,6 +209,10 @@ function shortSha($s)
     return substr(str($s), 0, 8);
 }
 
+// The player's own architecture and "all" are left off package names ("gpgv",
+// not "gpgv:arm64"); a foreign one is kept.
+$nativeArch = trim((string) @shell_exec('dpkg --print-architecture 2>/dev/null'));
+
 $rows = array();
 foreach ($events as $e) {
     $action = str($e['action'] ?? '?');
@@ -174,6 +231,7 @@ foreach ($events as $e) {
                         : 'FPP settings were replaced (not plugins or their settings)')),
             'cols' => array(),
             'url' => '',
+            'pkgRows' => array(),
         );
         continue;
     }
@@ -202,11 +260,36 @@ foreach ($events as $e) {
     if (!empty($e['scriptFailed'])) {
         $notes[] = 'its script FAILED';
     }
+    // System packages changed while its script ran (PluginPackageChanges()): a
+    // note here, then one row per package, as array(kind, name, detail).
+    $pkgRows = array();
+    if (!empty($e['packages']) && is_array($e['packages'])) {
+        foreach (PluginPackageChangeLabels() as $kind => $label) {
+            if (empty($e['packages'][$kind]) || !is_array($e['packages'][$kind])) {
+                continue;
+            }
+            $first = true;
+            foreach ($e['packages'][$kind] as $item) {
+                $parts = explode(' ', str($item), 2);
+                $name = preg_replace('/:(all|' . preg_quote($nativeArch, '/') . ')$/', '', $parts[0]);
+                $pkgRows[] = array($first ? $label : '', $name, $parts[1] ?? '');
+                $first = false;
+            }
+            $more = (int) ($e['packages'][$kind . 'Count'] ?? 0) - count($e['packages'][$kind]);
+            if ($more > 0) {
+                $pkgRows[] = array('', "... and $more more", '');
+            }
+        }
+        if (!empty($pkgRows)) {
+            $notes[] = 'packages changed:';
+        }
+    }
     $rows[] = array(
         'fpp' => str($e['fppVersion'] ?? '?'),
         'day' => substr(str($e['at'] ?? ''), 0, 10),
         'cols' => array(when($e['at'] ?? ''), $verb, $e['plugin'], $commit, implode(', ', $notes)),
         'url' => ($showURL && !empty($e['srcURL'])) ? str($e['srcURL']) : '',
+        'pkgRows' => $pkgRows,
     );
 }
 
@@ -255,6 +338,13 @@ foreach ($rows as $r) {
     echo rtrim($line) . "\n";
     if ($r['url'] !== '') {
         echo str_repeat(' ', 4 + $widths[0]) . 'from ' . $r['url'] . "\n";
+    }
+    if (!empty($r['pkgRows'])) {
+        $kw = max(array_map(function ($p) { return width($p[0]); }, $r['pkgRows']));
+        $nw = colWidth(array_map(function ($p) { return $p[1]; }, $r['pkgRows']));
+        foreach ($r['pkgRows'] as $p) {
+            echo rtrim(str_repeat(' ', 4 + $widths[0]) . pad($p[0], $kw + 2) . pad($p[1], $nw + 2) . $p[2]) . "\n";
+        }
     }
 }
 
