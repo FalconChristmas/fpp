@@ -145,6 +145,15 @@ private:
     std::string m_filename;
     std::string m_name;
     std::string m_desc;
+    // True when this playlist was synthesized on the fly from a bare media
+    // file -- Playlist::Load(filename) with a .fseq/.mp3/... name builds a
+    // one-entry playlist NAMED after the file.  Set under m_playlistMutex in
+    // Load(filename) and Cleanup(), alongside m_name; read under the same
+    // lock in GetCurrentStatus(), which publishes it as
+    // current_playlist.generated so the UI can tell "user pressed Play on a
+    // file" apart from "a saved playlist is playing".  Never true for a
+    // playlist loaded from a .json file.
+    bool m_generatedOnTheFly = false;
     int m_repeat;
     int m_loop;
     int m_loopCount;

@@ -725,7 +725,8 @@ function SystemGetAudio()
  *     "count": "4",
  *     "playlist": "Test1",
  *     "type": "pause",
- *     "index": "2"
+ *     "index": "2",
+ *     "generated": false
  *   },
  *   "volume": 70,
  *   "wifi": [],

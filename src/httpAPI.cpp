@@ -316,7 +316,14 @@ void GetCurrentFPPDStatus(Json::Value& result) {
         }
 
         result["media_playing"] = anyForeground || anyBackground;
-        if (lead >= 0) {
+        // Only describe a stream slot when the player itself is idle.  Slot 1
+        // IS the playlist's own media, so an active playlist always has a
+        // "playing" slot; overwriting status_name here would demote a
+        // "playing" playlist (sequence + media) to "playing media" and hide
+        // the sequence name on consumers such as the multisync page.
+        // Testing also sets its own status_name; leave that alone too.
+        if (lead >= 0 && result["status"].asInt() == FPP_STATUS_IDLE &&
+            result["status_name"].asString() == "idle") {
             result["status_name"] = anyForeground ? "playing media" : "playing background";
             const std::string f = slots[lead]["mediaFilename"].asString();
             result["current_song"] = f.substr(f.find_last_of("/\\") + 1);
@@ -332,6 +339,36 @@ void GetCurrentFPPDStatus(Json::Value& result) {
             if (elapsed > 0 || remaining > 0) {
                 result["seconds_played"] = std::to_string(elapsed);
                 result["seconds_remaining"] = std::to_string(remaining);
+            }
+        }
+
+        // A sequence started outside a playlist -- /api/sequence/.../start,
+        // the file manager's Play button, a "StartSequence" command preset --
+        // runs on the sequence engine, not through the player, so the idle
+        // branch above left current_sequence empty and status_name read
+        // "idle" (or "playing media" when media was also started on a slot)
+        // while channel data was visibly playing.  Surface it the same way a
+        // playlist's sequence entry surfaces: status_name "playing" with
+        // current_sequence named, so the header badge and the multisync page
+        // agree on what is playing.  A concurrent media slot keeps its
+        // current_song, so sequence + media outside a playlist names both.
+        //
+        // Only the display fields move.  result["status"] deliberately stays
+        // FPP_STATUS_IDLE for the same reason as above: the scheduler gates
+        // on it and Player::StopNow()/Scheduler wait on it.
+        //
+        // The allowlist matters: "testing" sets its own status_name above and
+        // must keep it, and the paused/stopping states are never idle, so
+        // only the three idle-family names can arrive here.
+        if (result["status"].asInt() == FPP_STATUS_IDLE &&
+            (result["status_name"].asString() == "idle" ||
+             result["status_name"].asString() == "playing media" ||
+             result["status_name"].asString() == "playing background") &&
+            sequence->IsSequenceRunning()) {
+            const std::string sf = sequence->GetSeqFilenameCopy();
+            if (sf != "") {
+                result["current_sequence"] = sf.substr(sf.find_last_of("/\\") + 1);
+                result["status_name"] = "playing";
             }
         }
     }
