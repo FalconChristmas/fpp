@@ -12,6 +12,27 @@
  * leave it alone, and named so no resetConfig.php area matches it; never
  * trimmed. Not in backups; Copy Settings "All" carries it, which the 'copied'
  * entry marks. Never copied into a crash report. Not tamper-proof.
+ *
+ * Fields: always 'at' (when the operation finished; local time with offset),
+ * 'action', 'plugin', 'fppVersion'. Then, where they apply:
+ *   startedAt          when it started (install, upgrade, uninstall), to line
+ *                      it up with apt's own log and spot overlapping ones
+ *   sha, fromSha       the commit installed / updated from
+ *   source, srcURL, branch  where an install came from
+ *   dependency         installed as another plugin's dependency
+ *   reinstall          the uninstall half of a Reinstall (packages kept)
+ *   scriptFailed       its script failed (the plugin itself is in place)
+ *   dependencyFailed   (upgrade) a dependency it now declares could not be
+ *                      installed, so its script did not run
+ *   packages           system packages changed while its script ran
+ *   fppPackages        ... while FPP did its own package work for it
+ *                      (declared dependencies installed or reconciled,
+ *                      claims released); its parts merged into one record
+ * In packages/fppPackages each kind (PluginPackageChangeLabels()) is a list
+ * of names, capped (PluginPackageChangesCap() in api/controllers/plugin.php);
+ * '<kind>Count' is there only when the list was cut.
+ * 'unknown': true when the package list could not be read, so what changed
+ * is not known (absent: nothing changed, or nothing was looked at).
  */
 
 define('PLUGIN_HISTORY_FILE', 'pluginHistory.jsonl');

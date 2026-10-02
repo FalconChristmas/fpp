@@ -564,10 +564,13 @@ function RecordPluginInstallSource($repoName, $srcURL)
 	return 'unknown';
 }
 
-// System package changes around a plugin's own script (upgrades, removals,
-// holds, apt sources/pins/keys). Only the script phase is bracketed, so FPP's
-// own declared installs and claim releases don't count; anything else changing
-// packages meanwhile does, hence "while", not "by". Not pip, npm or background jobs.
+// System package changes (upgrades, removals, holds, apt sources/pins/keys),
+// recorded apart: around a plugin's own script ('packages'), and around FPP's
+// own package work for it -- installing or reconciling its declared
+// dependencies, releasing its claims -- ('fppPackages', merged into one
+// record when it runs in two parts). Dependency plugins are outside both:
+// each records its own entry. Anything else changing packages meanwhile
+// counts too, hence "while", not "by". Not pip, npm or background jobs.
 
 // Identifies one version of dpkg's state: filemtime() is whole seconds, but
 // dpkg replaces the status file by rename, so its inode changes; an
@@ -580,7 +583,15 @@ function PluginDpkgStatusStamp()
 	return $st ? $st['ino'] . ':' . $st['size'] . ':' . $st['mtime'] . ':' . implode(',', $updates ?: array()) : null;
 }
 define('PLUGIN_APT_STATE_DIRS', '/etc/apt/sources.list.d /etc/apt/preferences.d /etc/apt/trusted.gpg.d /etc/apt/keyrings /usr/share/keyrings');
-define('PLUGIN_APT_CHANGES_MAX', 20); // names kept per kind in the history
+// Names kept per kind in the history, with the full count alongside: up to
+// a runaway's worth of upgrades, removals, holds and apt file changes (the
+// ones that can break FPP), fewer of the routine new installs.
+define('PLUGIN_APT_CHANGES_MAX', 500);
+define('PLUGIN_APT_ADDED_MAX', 50);
+function PluginPackageChangesCap($kind)
+{
+	return $kind === 'added' ? PLUGIN_APT_ADDED_MAX : PLUGIN_APT_CHANGES_MAX;
+}
 
 // Whether the plugin has a script named one of $names in scripts/ or its top
 // directory (a superset of where the wrappers look): without one there is
@@ -622,7 +633,7 @@ function PluginDpkgList()
 {
 	$out = array();
 	exec("dpkg-query -W -f='\${Package}:\${Architecture} \${Version} \${db:Status-Want} \${db:Status-Status}\\n' 2>/dev/null", $out, $rc);
-	if (empty($out)) {
+	if ($rc !== 0 || empty($out)) {
 		return null;
 	}
 	$pkgs = array();
@@ -653,22 +664,13 @@ function PluginPackageSnapshot()
 }
 
 // What changed since $before, or null for nothing (or no snapshot). Lists are
-// capped at PLUGIN_APT_CHANGES_MAX names, with the full count alongside.
+// capped (PluginPackageChangesCap()), with the full count alongside.
 function PluginPackageChanges($before)
 {
 	if (!is_array($before)) {
 		return null;
 	}
 	$c = array();
-	$keep = function ($kind, $list) use (&$c) {
-		if (!empty($list)) {
-			sort($list, SORT_NATURAL | SORT_FLAG_CASE); // so the names kept read in order
-			$c[$kind] = array_slice($list, 0, PLUGIN_APT_CHANGES_MAX);
-			if (count($list) > PLUGIN_APT_CHANGES_MAX) {
-				$c[$kind . 'Count'] = count($list);
-			}
-		}
-	};
 	if ($before['statusStamp'] === null || PluginDpkgStatusStamp() !== $before['statusStamp']) {
 		$after = PluginDpkgList();
 		if ($after !== null) {
@@ -698,11 +700,13 @@ function PluginPackageChanges($before)
 					}
 				}
 			}
-			$keep('removed', $removed);
-			$keep('changed', $changed);
-			$keep('held', $held);
-			$keep('unheld', $unheld);
-			$keep('added', $added);
+			PluginPackageChangesKeep($c, 'removed', $removed);
+			PluginPackageChangesKeep($c, 'changed', $changed);
+			PluginPackageChangesKeep($c, 'held', $held);
+			PluginPackageChangesKeep($c, 'unheld', $unheld);
+			PluginPackageChangesKeep($c, 'added', $added);
+		} else {
+			$c['unknown'] = true; // dpkg changed, but its list can't be read now
 		}
 	}
 	$apt = PluginAptFiles();
@@ -719,12 +723,81 @@ function PluginPackageChanges($before)
 			$aptChanged[] = "$f (removed)";
 		}
 	}
-	$keep('aptFiles', $aptChanged);
+	PluginPackageChangesKeep($c, 'aptFiles', $aptChanged);
 	return empty($c) ? null : $c;
 }
 
-// One line for the operation's stream and the plugin manager log, or '' for none.
-function PluginPackageChangesText($op, $plugin, $c)
+// Adds $list to $c as $kind: sorted (so the names kept read in order),
+// capped at PluginPackageChangesCap(), with the full count alongside when
+// cut. $total is the full count when $list is already a capped part of it.
+function PluginPackageChangesKeep(&$c, $kind, $list, $total = 0)
+{
+	if (empty($list)) {
+		return;
+	}
+	sort($list, SORT_NATURAL | SORT_FLAG_CASE);
+	$c[$kind] = array_slice($list, 0, PluginPackageChangesCap($kind));
+	$total = max($total, count($list));
+	if ($total > count($c[$kind])) {
+		$c[$kind . 'Count'] = $total;
+	}
+}
+
+// Two windows' changes as one (FPP's work for a plugin can run in two parts
+// either side of its dependency plugins). An identical entry in both counts
+// once. When a side was capped, the names kept come from what each side
+// kept, and the count is the sum.
+function PluginPackageChangesMerge($a, $b)
+{
+	if (empty($a) || empty($b)) {
+		return empty($a) ? (empty($b) ? null : $b) : $a;
+	}
+	$count = function ($x, $kind) {
+		return isset($x[$kind . 'Count']) ? $x[$kind . 'Count'] : (isset($x[$kind]) ? count($x[$kind]) : 0);
+	};
+	$c = array();
+	foreach (array_keys(PluginPackageChangeLabels()) as $kind) {
+		$list = array_merge(isset($a[$kind]) ? $a[$kind] : array(), isset($b[$kind]) ? $b[$kind] : array());
+		$unique = array_values(array_unique($list));
+		$total = $count($a, $kind) + $count($b, $kind) - (count($list) - count($unique));
+		PluginPackageChangesKeep($c, $kind, $unique, $total);
+	}
+	if (!empty($a['unknown']) || !empty($b['unknown'])) {
+		$c['unknown'] = true;
+	}
+	return empty($c) ? null : $c;
+}
+
+// The dependencies the copy of the plugin on disk declares for this box:
+// top level merged with the selected versions[] entry. null for none; false
+// when its pluginInfo.json can't be read, which must not read as "declares
+// nothing" (that would release every claim it holds).
+function PluginDeclaredDependencies($plugin)
+{
+	global $settings;
+	$infoFile = $settings['pluginDirectory'] . '/' . $plugin . '/pluginInfo.json';
+	$info = file_exists($infoFile) ? json_decode(file_get_contents($infoFile), true) : null;
+	if (!is_array($info)) {
+		return false;
+	}
+	return MergePluginDependencies(
+		isset($info['dependencies']) ? $info['dependencies'] : null,
+		SelectPluginVersionEntry($info)
+	);
+}
+
+// Whether a dependencies block declares apt packages. Python packages don't
+// touch dpkg; dependency plugins record their own.
+function DepsMayChangePackages($deps)
+{
+	return !empty(DeclaredPackages($deps));
+}
+
+
+// One line for the operation's stream and the plugin manager log, or '' for
+// none. $fppTask names FPP's own work for the plugin ("installing <plugin>'s
+// declared dependencies"); without it the changes are its script's.
+function PluginPackageChangesText($op, $plugin, $c, $fppTask = null)
 {
 	static $arch = null; // ":all" and the native architecture are left off names
 	if ($arch === null) {
@@ -749,22 +822,48 @@ function PluginPackageChangesText($op, $plugin, $c)
 		}, array_slice($c[$kind], 0, 5));
 		$parts[] = "$label $n (" . implode(', ', $names) . ($n > 5 ? ', ...' : '') . ')';
 	}
-	return "System packages changed while $plugin's $op script was running: " . implode('; ', $parts) . '.';
+	$when = ($fppTask !== null) ? "FPP was $fppTask" : "$plugin's $op script was running";
+	if (!empty($c['unknown'])) {
+		// The package list could not be read: whatever is listed is partial.
+		return "Could not tell which system packages changed while $when (the package list could not be read)"
+			. (count($parts) ? '; seen: ' . implode('; ', $parts) : '') . '.';
+	}
+	return "System packages changed while $when: " . implode('; ', $parts) . '.';
 }
 
-// Runs $run, a plugin's script phase, inside a package snapshot when the
-// plugin has a script named one of $names, and prints any change worth a line
-// (tagged $logName in the plugin manager log). Returns the changes, or null.
-function PluginTrackPackages($op, $plugin, $logName, $names, $run, $stream)
+// Releases $plugin's claims on $packages (apt-removing what nothing else
+// needs) in a tracked window. Returns the package changes, or null.
+function PluginReleaseClaimsTracked($op, $plugin, $packages, $stream, $fppTask)
 {
-	$before = PluginHasOwnScript($plugin, $names) ? PluginPackageSnapshot() : null;
-	$run();
+	if (empty($packages)) {
+		return null;
+	}
+	// packages.inc.php echoes progress; only into a stream, never a JSON body.
+	PackagesSetStreaming(PluginStreaming($stream), $plugin);
+	list(, $changes) = PluginTrackPackages($op, $plugin, $plugin, true, function () use ($packages, $plugin) {
+		ReleasePackageClaims($packages, $plugin);
+	}, $stream, $fppTask);
+	return $changes;
+}
+
+// Runs $run inside a package snapshot when $track is true (nothing to
+// bracket otherwise, so it costs nothing), and prints any change worth a line
+// (tagged $logName in the plugin manager log). $fppTask names FPP's own work
+// for the plugin; null means $run is its script. Returns array($run's result, the
+// changes or null).
+function PluginTrackPackages($op, $plugin, $logName, $track, $run, $stream, $fppTask = null)
+{
+	$before = $track ? PluginPackageSnapshot() : null;
+	$result = $run();
 	$changes = PluginPackageChanges($before);
-	$text = $changes ? PluginPackageChangesText($op, $plugin, $changes) : '';
+	if ($track && $before === null && AptAvailable()) {
+		$changes = array('unknown' => true); // the "before" list can't be read
+	}
+	$text = $changes ? PluginPackageChangesText($op, $plugin, $changes, $fppTask) : '';
 	if ($text !== '') {
 		PluginEchoLog($op, $logName, "\n" . $text . "\n", $stream);
 	}
-	return $changes;
+	return array($result, $changes);
 }
 
 // How long GetPluginSource() will wait inline for a plugin list it does not
@@ -1196,10 +1295,10 @@ function InstallPlugin()
 	$visited = array();
 	// The blocks the install dialog showed for the dependency plugins this
 	// install pulls in (repoName -> block or null), handed down to each one's
-	// own InstallPluginFromInfo through ResolvePluginDependencies. null when
+	// own InstallPluginFromInfo through ResolveDependencyPlugins. null when
 	// the request did not carry the field (a script, an old page), which
 	// counts as none shown: a dependency the dialog did not show is refused
-	// unless it declares no block (ResolvePluginDependencies).
+	// unless it declares no block (ResolveDependencyPlugins).
 	$depShown = (isset($pluginInfo['dependencyPrivacyAccepted']) && is_array($pluginInfo['dependencyPrivacyAccepted']))
 		? $pluginInfo['dependencyPrivacyAccepted'] : null;
 	$ok = InstallPluginFromInfo($pluginInfo, $visited, $stream, 0, $depShown);
@@ -1247,6 +1346,9 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 		return true;
 	}
 	$visited[$repoName] = true;
+	// For the history: 'at' is when it finished; this is when it started, to
+	// line the entry up with apt's own log.
+	$startedAt = date('c');
 
 	if ($depth > 8) {
 		PluginEchoLog('install', $repoName, "\nERROR: plugin dependency chain too deep at '$repoName'; aborting.\n", $stream);
@@ -1448,20 +1550,33 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 	// Resolve declared dependencies BEFORE the plugin's own install script. If a
 	// required dependency cannot be installed, refuse and clean up rather than
 	// run the plugin's install script against missing prerequisites.
+	// FPP's own package work for it is recorded as 'fppPackages': the local
+	// dependencies (apt, pip, scripts) in one window, then the claim release
+	// below in another, with the dependency plugins between them outside both
+	// (each records its own entry).
+	$fppPkgChanges = null;
+	$depsOk = true;
 	if ($deps !== null) {
-		if (!ResolvePluginDependencies($deps, $repoName, $visited, $stream, $depth, $depShown)) {
-			// Same trap as the package gate above: the clone's own rc=0 block is
-			// already in the log, and the cleanup below removes the plugin. Say so.
-			PluginEchoLog('install', $repoName, "\nERROR: refusing to complete install of '$plugin' -- a required dependency could not be installed.\nRemoving the partial install of '$plugin'.\n", $stream);
-			CleanupPartialPluginInstall($plugin, $linkName);
-			return false;
-		}
+		list($depsOk, $fppPkgChanges) = PluginTrackPackages('install', $repoName, $repoName, DepsMayChangePackages($deps), function () use ($deps, $repoName, $stream) {
+			return ResolveLocalDependencies($deps, $repoName, $stream, 'install');
+		}, $stream, "installing $repoName's declared dependencies");
+		// Even after a failure above: the install is refused either way.
+		$depsOk = ResolveDependencyPlugins($deps, $repoName, $visited, $stream, $depth, $depShown, 'install') && $depsOk;
+	}
+	if (!$depsOk) {
+		// Same trap as the package gate above: the clone's own rc=0 block is
+		// already in the log, and the cleanup below removes the plugin. Say so.
+		PluginEchoLog('install', $repoName, "\nERROR: refusing to complete install of '$plugin' -- a required dependency could not be installed.\nRemoving the partial install of '$plugin'.\n", $stream);
+		CleanupPartialPluginInstall($plugin, $linkName);
+		return false;
 	}
 
 	// A reinstall that kept its packages (keepPackages=1 on the uninstall
 	// half) still holds claims from the previous version; release the ones
-	// this version no longer declares. No-op on a fresh install.
-	ReleaseUndeclaredPackageClaims($repoName, DeclaredPackages($deps), 'install', $stream);
+	// this version no longer declares. A fresh install has none, so no
+	// snapshot either.
+	$released = ReleaseUndeclaredPackageClaims($repoName, UndeclaredPackageClaims($repoName, DeclaredPackages($deps)), 'install', $stream);
+	$fppPkgChanges = PluginPackageChangesMerge($fppPkgChanges, $released);
 
 	// The code that is about to run is on disk and is what was accepted (the
 	// gate above), its dependencies are in place: record it now, from the
@@ -1481,7 +1596,7 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 	// streaming to the browser dialog (a plugin script can build/fetch for minutes).
 	$runCmd = $envPrefix . escapeshellarg($fppDir . '/scripts/install_plugin')
 		. ' --run-install-script ' . escapeshellarg($plugin);
-	$pkgChanges = PluginTrackPackages('install', $plugin, $repoName, array('fpp_install.sh'), function () use ($streaming, $runCmd, &$return_val) {
+	list(, $pkgChanges) = PluginTrackPackages('install', $plugin, $repoName, PluginHasOwnScript($plugin, array('fpp_install.sh')), function () use ($streaming, $runCmd, &$return_val) {
 		if ($streaming) {
 			system($runCmd, $return_val);
 		} else {
@@ -1504,16 +1619,19 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 		PluginEchoLog('install', $repoName, "Installed, but FPPD did not load it (" . $loaded['message'] . "). Restart FPPD to enable it.\n", $stream);
 	}
 	// Dependency plugins are resolved from the plugin list into a fresh
-	// $depInfo (see ResolvePluginDependencies()) and recorded through this same
+	// $depInfo (see ResolveDependencyPlugins()) and recorded through this same
 	// call, so each one is judged on where it actually came from rather than
 	// inheriting anything from the plugin that pulled it in.
 	$source = RecordPluginInstallSource($repoName, $origSrcURL);
-	$entry = array('source' => $source, 'branch' => $branch, 'sha' => PluginInstalledSha($plugin));
+	$entry = array('startedAt' => $startedAt, 'source' => $source, 'branch' => $branch, 'sha' => PluginInstalledSha($plugin));
 	if ($source !== 'official' && $source !== 'listed') {
 		$entry['srcURL'] = PluginHistoryURL($origSrcURL);
 	}
 	if ($depth > 0) {
 		$entry['dependency'] = true;
+	}
+	if ($fppPkgChanges) {
+		$entry['fppPackages'] = $fppPkgChanges;
 	}
 	if ($return_val != 0) {
 		$entry['scriptFailed'] = true;
@@ -1535,26 +1653,19 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 }
 
 /**
- * Resolves a plugin's dependencies block: system packages (apt, ref-counted to
- * the owning plugin), Python packages (pip, system-wide -- not isolated per
- * plugin), script-repository scripts ("Category/file"), and other plugins
- * (installed transitively). Packages are installed first, then Python
- * packages, then scripts, then dependency plugins. Returns false if a
- * *required* dependency (a declared package, Python package, or a dependency
- * plugin) could not be installed, so the caller can refuse the whole install;
- * script-repository entries are treated as soft.
+ * Resolves the local part of a plugin's dependencies block: system packages
+ * (apt, ref-counted to the owning plugin), Python packages (pip, system-wide
+ * -- not isolated per plugin) and script-repository scripts
+ * ("Category/file"), in that order. Dependency plugins are
+ * ResolveDependencyPlugins(), run after this, so a caller can bracket FPP's
+ * own package work apart from their installs, which record their own.
+ * Returns false if a *required* dependency (a declared package or Python
+ * package) could not be installed, so the caller can refuse the whole
+ * install; script-repository entries are treated as soft.
  */
-// $depShown: repoName -> the privacy block the install dialog showed for that
-// dependency (or null), from the top-level request; see InstallPlugin(). null
-// when the request carried no such map (a script, an old page), which counts
-// as an empty one for any dependency that declares a block. A dependency
-// plugin that is not in the map was never shown -- the cloned copy declares a
-// dependency the listing's copy (what the dialog was built from) does not, a
-// different versions[] entry was selected, or the caller sent no map -- and is
-// refused before it is cloned, with its listed block as the one to review.
-function ResolvePluginDependencies($deps, $ownerRepo, &$visited, $stream, $depth, $depShown = null, $op = 'install')
+function ResolveLocalDependencies($deps, $ownerRepo, $stream, $op = 'install')
 {
-	global $settings, $fppDir, $SUDO;
+	global $fppDir, $SUDO;
 	$streaming = PluginStreaming($stream);
 	$ok = true;
 
@@ -1668,6 +1779,26 @@ function ResolvePluginDependencies($deps, $ownerRepo, &$visited, $stream, $depth
 			}
 		}
 	}
+
+	return $ok;
+}
+
+// The dependency plugins of a dependencies block, installed transitively (each
+// through InstallPluginFromInfo(), which records its own history entry), after
+// ResolveLocalDependencies(). Returns false if one could not be installed.
+// $depShown: repoName -> the privacy block the install dialog showed for that
+// dependency (or null), from the top-level request; see InstallPlugin(). null
+// when the request carried no such map (a script, an old page), which counts
+// as an empty one for any dependency that declares a block. A dependency
+// plugin that is not in the map was never shown -- the cloned copy declares a
+// dependency the listing's copy (what the dialog was built from) does not, a
+// different versions[] entry was selected, or the caller sent no map -- and is
+// refused before it is cloned, with its listed block as the one to review.
+function ResolveDependencyPlugins($deps, $ownerRepo, &$visited, $stream, $depth, $depShown = null, $op = 'install')
+{
+	global $settings;
+	$streaming = PluginStreaming($stream);
+	$ok = true;
 
 	// --- dependency plugins (transitive) ---
 	if (isset($deps['plugins']) && is_array($deps['plugins']) && count($deps['plugins'])) {
@@ -2168,6 +2299,7 @@ function UninstallPlugin()
 	ignore_user_abort(true);
 	$result = array();
 	$stream = $_REQUEST['stream'];
+	$startedAt = date('c'); // for the history, as in InstallPluginFromInfo()
 
 	$plugin = params('RepoName');
 
@@ -2204,7 +2336,7 @@ function UninstallPlugin()
 			. '; ' . escapeshellarg($fppDir . '/scripts/uninstall_plugin') . ' ' . escapeshellarg($plugin);
 		// Before releasing its claims below: FPP's own removals are not the
 		// plugin's.
-		$pkgChanges = PluginTrackPackages('uninstall', $plugin, $plugin, array('fpp_uninstall.sh'), function () use ($stream, $uninstallCmd, &$return_val) {
+		list(, $pkgChanges) = PluginTrackPackages('uninstall', $plugin, $plugin, PluginHasOwnScript($plugin, array('fpp_uninstall.sh')), function () use ($stream, $uninstallCmd, &$return_val) {
 			if (isset($stream) && $stream != "false") {
 				DisableOutputBuffering();
 				system($uninstallCmd, $return_val);
@@ -2226,30 +2358,28 @@ function UninstallPlugin()
 		// Only once the plugin is really gone: a wrapper failure leaves it on
 		// disk, and it still needs its packages.
 		$keepPackages = isset($_REQUEST['keepPackages']) && $_REQUEST['keepPackages'] == '1';
+		$fppPkgChanges = null;
 		if (!$keepPackages && $return_val == 0) {
-			$claimed = array();
-			foreach (LoadUserPackages() as $pkg => $reqs) {
-				if (in_array($plugin, $reqs)) {
-					$claimed[] = $pkg;
-				}
-			}
+			$claimed = PackagesClaimedBy($plugin);
 			if (count($claimed)) {
 				if (PluginStreaming($stream)) {
 					DisableOutputBuffering();
 				}
 				PluginEchoLog('uninstall', $plugin, "\n=== Releasing package dependencies for $plugin ===\n", $stream);
-				// packages.inc.php echoes progress; only into a stream, never a JSON body.
-				PackagesSetStreaming(PluginStreaming($stream), $plugin);
-				ReleasePackageClaims($claimed, $plugin);
+				// FPP's removals, recorded apart from the script's ('fppPackages').
+				$fppPkgChanges = PluginReleaseClaimsTracked('uninstall', $plugin, $claimed, $stream, "releasing $plugin's package dependencies");
 			}
 		}
 
 
 		// Recorded even when it failed: what its script changed still happened.
 		// keepPackages is the first half of a Reinstall; its install follows.
-		$entry = array('sha' => $uninstalledSha);
+		$entry = array('startedAt' => $startedAt, 'sha' => $uninstalledSha);
 		if ($keepPackages) {
 			$entry['reinstall'] = true;
+		}
+		if ($fppPkgChanges) {
+			$entry['fppPackages'] = $fppPkgChanges;
 		}
 		if ($pkgChanges) {
 			$entry['packages'] = $pkgChanges;
@@ -2676,55 +2806,52 @@ function DeclaredPackages($deps)
 	return $declared;
 }
 
-// Drop the plugin's claim on every package it holds in the manifest but no
-// longer declares (a package is apt-removed only once nothing else needs it).
-// Runs after an upgrade, and after the install half of a reinstall that kept
-// its packages, so a version that stops needing a package releases it. A
-// fresh install holds no claims and this is a no-op.
-function ReleaseUndeclaredPackageClaims($plugin, $declared, $op, $stream)
+// The packages the plugin holds a claim on but no longer declares ($declared:
+// DeclaredPackages()). A dependency the install pulled in is "declared"
+// through its parent: it stays as long as any parent is still declared, and
+// goes with the parent's batch when the parent is dropped.
+function UndeclaredPackageClaims($plugin, $declared)
 {
-	PackagesSetStreaming(PluginStreaming($stream), $plugin);
 	$stale = array();
-	foreach (LoadUserPackages() as $pkg => $reqs) {
-		if (!in_array($plugin, $reqs, true) || in_array((string) $pkg, $declared, true)) {
-			continue;
+	foreach (PackagesClaimedBy($plugin) as $pkg) {
+		if (!in_array($pkg, $declared, true) && !count(array_intersect(PackageVia($pkg), $declared))) {
+			$stale[] = $pkg;
 		}
-		// A dependency the install pulled in is "declared" through its parent:
-		// it stays as long as any parent is still declared, and goes with the
-		// parent's batch when the parent is dropped.
-		if (count(array_intersect(PackageVia($pkg), $declared))) {
-			continue;
-		}
-		$stale[] = $pkg;
 	}
-	if (count($stale)) {
-		PluginEchoLog($op, $plugin, "\nNo longer declared by '$plugin': " . implode(', ', $stale) . ".\n", $stream);
-		ReleasePackageClaims($stale, $plugin);
+	return $stale;
+}
+
+// Drop the plugin's claim on every package in $stale (UndeclaredPackageClaims();
+// a package is apt-removed only once nothing else needs it), in a tracked
+// window. Runs after an upgrade, and after the install half of a reinstall
+// that kept its packages, so a version that stops needing a package releases
+// it. Returns the package changes, or null.
+function ReleaseUndeclaredPackageClaims($plugin, $stale, $op, $stream)
+{
+	if (empty($stale)) {
+		return null;
 	}
+	PluginEchoLog($op, $plugin, "\nNo longer declared by '$plugin': " . implode(', ', $stale) . ".\n", $stream);
+	return PluginReleaseClaimsTracked($op, $plugin, $stale, $stream, "releasing package claims $plugin no longer declares");
 }
 
 // After a plugin's code has changed under an existing install (upgrade):
 // make its dependencies match what the version now on disk declares.
 // Packages this version no longer lists lose the plugin's claim; everything
-// it now lists goes through the same ResolvePluginDependencies() an install
-// uses, so a newly declared apt/python/script/plugin dependency is installed
-// before the plugin's own upgrade script runs against it. Packages already
-// present are left alone. Returns false if a newly declared dependency could
-// not be installed.
-function ReconcilePluginDependencies($plugin, $op, $stream)
+// it now lists goes through the same ResolveLocalDependencies() an install
+// uses, so a newly declared apt/python/script dependency is installed before
+// the plugin's own upgrade script runs against it. A newly declared
+// dependency plugin is not installed (see below). Packages already present
+// are left alone. Returns false if a newly declared dependency could not be
+// installed. $fppPkgChanges: the package changes, as 'fppPackages'; a window
+// opens only when there is something to release or install, so Update All
+// over plugins without dependencies costs nothing.
+function ReconcilePluginDependencies($plugin, $op, $stream, &$fppPkgChanges = null)
 {
 	global $settings;
-	$infoFile = $settings['pluginDirectory'] . '/' . $plugin . '/pluginInfo.json';
-	$info = file_exists($infoFile) ? json_decode(file_get_contents($infoFile), true) : null;
-	if (!is_array($info)) {
-		return true;
-	}
-	$deps = MergePluginDependencies(
-		isset($info['dependencies']) ? $info['dependencies'] : null,
-		SelectPluginVersionEntry($info)
-	);
-	ReleaseUndeclaredPackageClaims($plugin, DeclaredPackages($deps), $op, $stream);
-	if ($deps === null) {
+	$fppPkgChanges = null;
+	$deps = PluginDeclaredDependencies($plugin);
+	if ($deps === false) {
 		return true;
 	}
 	// A newly declared dependency PLUGIN is not installed from here: that
@@ -2742,10 +2869,15 @@ function ReconcilePluginDependencies($plugin, $op, $stream)
 		if (count($names)) {
 			PluginEchoLog($op, $plugin, "\n'$plugin' now depends on plugin(s) not installed here: " . implode(', ', $names) . ". Install them from the Plugins page.\n", $stream);
 		}
-		unset($deps['plugins']);
 	}
-	$visited = array();
-	return ResolvePluginDependencies($deps, $plugin, $visited, $stream, 0, null, $op);
+	// Two windows, as on install: the claims released, then what it now
+	// declares installed.
+	$released = ReleaseUndeclaredPackageClaims($plugin, UndeclaredPackageClaims($plugin, DeclaredPackages($deps)), $op, $stream);
+	list($ok, $installed) = PluginTrackPackages($op, $plugin, $plugin, DepsMayChangePackages($deps), function () use ($plugin, $deps, $op, $stream) {
+		return $deps === null || ResolveLocalDependencies($deps, $plugin, $stream, $op);
+	}, $stream, "installing $plugin's declared dependencies");
+	$fppPkgChanges = PluginPackageChangesMerge($released, $installed);
+	return $ok;
 }
 
 function UpgradePlugin()
@@ -2760,6 +2892,7 @@ function UpgradePlugin()
 	$plugin = params('RepoName');
 	$stream = $_REQUEST['stream'];
 	$streaming = isset($stream) && $stream != "false";
+	$startedAt = date('c'); // for the history, as in InstallPluginFromInfo()
 
 	// A change to what the plugin declares about sends, collects, sensors,
 	// remote access, system changes or closed code re-shows the install
@@ -2873,13 +3006,17 @@ function UpgradePlugin()
 		exec($cmd, $output, $return_val);
 	}
 	$depFailed = false;
+	$fppPkgChanges = null;
 	if ($return_val == 0) {
-		if (!ReconcilePluginDependencies($plugin, 'upgrade', $stream)) {
+		// FPP's own package work for the new version, recorded apart from its
+		// script's ('fppPackages'). Reconciling never installs a dependency
+		// plugin, so nothing else's install falls in that window.
+		if (!ReconcilePluginDependencies($plugin, 'upgrade', $stream, $fppPkgChanges)) {
 			PluginEchoLog('upgrade', $plugin, "\nERROR: the code of '$plugin' was updated, but a dependency it now declares could not be installed; its upgrade script was not run.\n", $stream);
 			$return_val = 2;
 			$depFailed = true;
 		} else {
-			$pkgChanges = PluginTrackPackages('upgrade', $plugin, $plugin, array('fpp_upgrade.sh', 'fpp_install.sh'), function () use ($streaming, $runCmd, &$output, &$return_val) {
+			list(, $pkgChanges) = PluginTrackPackages('upgrade', $plugin, $plugin, PluginHasOwnScript($plugin, array('fpp_upgrade.sh', 'fpp_install.sh')), function () use ($streaming, $runCmd, &$output, &$return_val) {
 				if ($streaming) {
 					system($runCmd, $return_val);
 				} else {
@@ -2897,19 +3034,22 @@ function UpgradePlugin()
 	PluginRecordUpgradedPrivacy($plugin, $return_val, $changed, $pending, $stream);
 	// rc 0 and 2 both mean the code landed. Before the streaming return: the UI always streams.
 	if ($return_val != 1) {
-		$entry = array('fromSha' => $fromSha, 'sha' => PluginInstalledSha($plugin));
+		$entry = array('startedAt' => $startedAt, 'fromSha' => $fromSha, 'sha' => PluginInstalledSha($plugin));
 		if ($depFailed) {
 			$entry['dependencyFailed'] = true;
 		} else if ($return_val == 2) {
 			$entry['scriptFailed'] = true;
+		}
+		if (!empty($fppPkgChanges)) {
+			$entry['fppPackages'] = $fppPkgChanges;
 		}
 		if (!empty($pkgChanges)) {
 			$entry['packages'] = $pkgChanges;
 		}
 		// Update All runs upgrade_plugin on plugins with nothing new; it
 		// succeeds without moving, and that is not an event worth keeping
-		// (unless its script changed system packages anyway).
-		if ($entry['sha'] !== $fromSha || $return_val == 2 || !empty($pkgChanges)) {
+		// (unless packages changed anyway).
+		if ($entry['sha'] !== $fromSha || $return_val == 2 || !empty($pkgChanges) || !empty($fppPkgChanges)) {
 			AppendPluginHistory($plugin, 'upgrade', $entry);
 		}
 		// The refs were fetched moments ago, so this is a local read.

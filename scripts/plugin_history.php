@@ -29,6 +29,12 @@ $showURL = ($mode !== '--summary'); // clone URLs: not in the Diagnostic Report 
 // The history is never trimmed, so the Diagnostic Report form lists only the
 // latest events; the summary at the end is still built from every one.
 define('SUMMARY_MAX_EVENTS', 100);
+// Package names shown per kind of change in the Diagnostic Report form, which
+// can carry SUMMARY_MAX_EVENTS events; the rest are counted. The full view
+// shows every name the history kept (PluginPackageChangesCap() in
+// www/api/controllers/plugin.php).
+define('PKG_ROWS_SUMMARY', 30);
+$pkgRowsShown = ($mode === '--summary') ? PKG_ROWS_SUMMARY : PHP_INT_MAX;
 
 // FPP's own settings: the media, config and plugin directories (which can all
 // be moved) and the player's TimeZone, which is what the history's times are
@@ -124,10 +130,14 @@ if ($mode === '--leftovers') {
     // removed. Python packages are installed system-wide and not tracked, so
     // they cannot be listed.
     $orphans = array();   // plugin -> packages
+    $pre = array();       // package => true: was already installed when claimed
     $data = json_decode((string) @file_get_contents($cfgDir . '/userpackages.json'), true);
     foreach (is_array($data) ? $data : array() as $entry) {
         if (!is_array($entry) || !isset($entry['package']) || !is_string($entry['package'])) {
             continue; // a bare string is a Package Manager install, not a plugin's
+        }
+        if (($entry['preinstalled'] ?? null) === true) {
+            $pre[$entry['package']] = true;
         }
         foreach ((isset($entry['requestedBy']) && is_array($entry['requestedBy'])) ? $entry['requestedBy'] : array() as $r) {
             if (is_string($r) && $r !== 'user' && !in_array($r, $installed, true)) {
@@ -159,13 +169,14 @@ if ($mode === '--leftovers') {
         }
     }
     ksort($orphans, SORT_NATURAL | SORT_FLAG_CASE);
-    echo "System packages FPP installed for plugins that are not installed (left claimed, so never removed):\n\n";
+    echo "System packages still claimed for plugins that are not installed (FPP does not remove these):\n\n";
     $w = colWidth(array_keys($orphans));
     foreach ($orphans as $plugin => $pkgs) {
         $shown = array();
         foreach ($pkgs as $pkg) {
             // dpkg lists nothing at all for a purged package
-            $shown[] = $pkg . ($haveDpkg && empty($status[$pkg]) ? ' (not installed)' : '');
+            $shown[] = $pkg . ($haveDpkg && empty($status[$pkg]) ? ' (not installed)' : '')
+                . (isset($pre[$pkg]) ? ' (was already installed)' : '');
         }
         echo '  ' . pad($plugin, $w + 2) . implode(', ', $shown) . "\n";
     }
@@ -254,35 +265,55 @@ foreach ($events as $e) {
     if (!empty($e['dependency'])) {
         $notes[] = 'as a dependency';
     }
-    if (!empty($e['dependencyFailed'])) {
+    // An upgrade whose newly declared dependency failed.
+    if ($action === 'upgrade' && !empty($e['dependencyFailed'])) {
         $notes[] = 'its dependencies could not be installed, so its script did not run';
     }
     if (!empty($e['scriptFailed'])) {
         $notes[] = 'its script FAILED';
     }
-    // System packages changed while its script ran (PluginPackageChanges()): a
-    // note here, then one row per package, as array(kind, name, detail).
+    // System packages changed (PluginPackageChanges()): a note here, then
+    // rows of array(kind, name, detail) under a heading per window -- FPP's
+    // own work for it ('fppPackages') and its script's ('packages') -- in the
+    // order they ran (an uninstall's script runs first). Older entries have
+    // only 'packages'.
     $pkgRows = array();
-    if (!empty($e['packages']) && is_array($e['packages'])) {
+    $windows = array('fppPackages' => 'while FPP handled its dependencies:', 'packages' => 'while its script ran:');
+    if ($action === 'uninstall') {
+        $windows = array_reverse($windows, true);
+    }
+    foreach ($windows as $key => $heading) {
+        if (empty($e[$key]) || !is_array($e[$key])) {
+            continue;
+        }
+        $block = array();
         foreach (PluginPackageChangeLabels() as $kind => $label) {
-            if (empty($e['packages'][$kind]) || !is_array($e['packages'][$kind])) {
+            if (empty($e[$key][$kind]) || !is_array($e[$key][$kind])) {
                 continue;
             }
             $first = true;
-            foreach ($e['packages'][$kind] as $item) {
+            $shown = array_slice($e[$key][$kind], 0, $pkgRowsShown);
+            foreach ($shown as $item) {
                 $parts = explode(' ', str($item), 2);
                 $name = preg_replace('/:(all|' . preg_quote($nativeArch, '/') . ')$/', '', $parts[0]);
-                $pkgRows[] = array($first ? $label : '', $name, $parts[1] ?? '');
+                $block[] = array($first ? $label : '', $name, $parts[1] ?? '');
                 $first = false;
             }
-            $more = (int) ($e['packages'][$kind . 'Count'] ?? 0) - count($e['packages'][$kind]);
+            $more = max((int) ($e[$key][$kind . 'Count'] ?? 0), count($e[$key][$kind])) - count($shown);
             if ($more > 0) {
-                $pkgRows[] = array('', "... and $more more", '');
+                $block[] = array('', "... and $more more", '');
             }
         }
-        if (!empty($pkgRows)) {
-            $notes[] = 'packages changed:';
+        if (($e[$key]['unknown'] ?? null) === true) {
+            $block[] = array('', '(could not tell: the package list could not be read)', '');
         }
+        if (!empty($block)) {
+            $pkgRows[] = $heading; // a heading: a string, not a row
+            $pkgRows = array_merge($pkgRows, $block);
+        }
+    }
+    if (!empty($pkgRows)) {
+        $notes[] = 'packages changed:';
     }
     $rows[] = array(
         'fpp' => str($e['fppVersion'] ?? '?'),
@@ -340,10 +371,15 @@ foreach ($rows as $r) {
         echo str_repeat(' ', 4 + $widths[0]) . 'from ' . $r['url'] . "\n";
     }
     if (!empty($r['pkgRows'])) {
-        $kw = max(array_map(function ($p) { return width($p[0]); }, $r['pkgRows']));
-        $nw = colWidth(array_map(function ($p) { return $p[1]; }, $r['pkgRows']));
+        $pkgs = array_filter($r['pkgRows'], 'is_array');
+        $kw = max(array_map(function ($p) { return width($p[0]); }, $pkgs));
+        $nw = colWidth(array_map(function ($p) { return $p[1]; }, $pkgs));
         foreach ($r['pkgRows'] as $p) {
-            echo rtrim(str_repeat(' ', 4 + $widths[0]) . pad($p[0], $kw + 2) . pad($p[1], $nw + 2) . $p[2]) . "\n";
+            if (is_string($p)) {
+                echo str_repeat(' ', 4 + $widths[0]) . $p . "\n";
+                continue;
+            }
+            echo rtrim(str_repeat(' ', 6 + $widths[0]) . pad($p[0], $kw + 2) . pad($p[1], $nw + 2) . $p[2]) . "\n";
         }
     }
 }

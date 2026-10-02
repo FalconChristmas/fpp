@@ -12,8 +12,9 @@
     Each listed plugin shows the month it joined the plugin list; that says nothing about how recently its
     code changed.</p>
 <p>FPP keeps a history of the plugins installed, updated and removed on this player, including any system
-    packages that changed while a plugin's own script ran, and lists settings and packages left behind by
-    removed plugins: see <b>Help &rarr; Troubleshooting Commands &rarr; Plugins</b>.</p>
+    packages that changed while FPP installed or removed a plugin's dependencies or while its own script
+    ran, and lists settings and packages left behind by removed plugins: see
+    <b>Help &rarr; Troubleshooting Commands &rarr; Plugins</b>.</p>
 
 <h4>The six privacy lights</h4>
 <p>Each plugin's author fills in a short privacy disclosure, and FPP turns it into six coloured lights. They

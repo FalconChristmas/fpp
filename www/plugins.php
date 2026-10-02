@@ -1299,7 +1299,7 @@
         }
 
         // Plugins that installing `plugin` would pull in as dependencies
-        // (ResolvePluginDependencies on the server): the listed plugins named
+        // (ResolveDependencyPlugins on the server): the listed plugins named
         // in dependencies.plugins, top-level and on the versions[] entry this
         // FPP would select, recursively, that are not installed. Each is
         // returned once as {repo, via} -- via being the plugin that named it,
