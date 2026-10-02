@@ -1258,17 +1258,21 @@
          * playing there is nothing extra to reveal, so no icon is shown.
          *
          * The tooltip is rendered as HTML through the delegated instance
-         * bound in $(document).ready (selector '.ms-play-tip', html: true) --
-         * NOT data-bs-html="true": this build's Tooltip type-checks data
-         * attributes strictly, so the "true" string throws.  The content
-         * lives in data-bs-title (not title) so the generic SetupToolTips()
-         * sweep -- which only looks at [title] -- leaves these icons alone.
-         * Returns '' when there is nothing to describe.
+         * bound in $(document).ready (selector '.ms-play-tip', html: true).
+         * The content lives in data-bs-title (not title) so the generic
+         * SetupToolTips() sweep -- which only looks at [title] -- leaves these
+         * icons alone.  Returns '' when there is nothing to describe.
+         *
+         * The filenames are escaped twice on purpose: once as HTML content
+         * (the tooltip renders as HTML), then the finished markup again as an
+         * attribute value, because the browser decodes one level when it
+         * parses data-bs-title.  Escaping once would hand the raw,
+         * remote-supplied filename to the tooltip's HTML renderer.
          */
         function buildPlayIconTooltip(seq, song) {
             if (!seq || seq == '' || !song || song == '') return '';
             var tip = msEscape('Sequence: ' + seq) + '<br>' + msEscape('Media: ' + song);
-            return ' <i class="fas fa-play-circle text-success ms-play-tip" data-bs-title="' + tip + '"></i>';
+            return ' <i class="fas fa-play-circle text-success ms-play-tip" data-bs-title="' + msEscape(tip) + '"></i>';
         }
 
         /**
@@ -4367,10 +4371,8 @@
             // rebuild -- per-icon instances would be destroyed with their nodes
             // (and by the other device pollers, which re-render without
             // re-running tooltip init).  Bootstrap creates each icon's instance
-            // lazily on first hover from its own data-bs-title, with a real
-            // boolean html:true here instead of a data-bs-html="true" string
-            // (this build type-checks data attributes strictly and throws on
-            // the string form).
+            // lazily on first hover from its own data-bs-title, rendered as
+            // HTML per the html option here.
             try {
                 new bootstrap.Tooltip(document.body, {
                     selector: '.ms-play-tip',

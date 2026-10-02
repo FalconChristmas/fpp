@@ -15288,6 +15288,17 @@ function BuildPluginHeaderIndicator (indicator) {
 }
 
 /*
+ * The player badge's tooltip is rendered as HTML (data-bs-html), and its markup
+ * travels in a title="..." attribute.  The browser decodes one level of
+ * escaping when it parses the attribute, so the HTML -- whose filenames were
+ * already escaped as content -- has to be escaped once more here.  Escaping
+ * only once would hand the raw filename to the tooltip's HTML renderer.
+ */
+function EscapeHeaderTooltipAttr (html) {
+	return EscapeHtml(html).replace(/"/g, '&quot;');
+}
+
+/*
  * (Re)attaches the Bootstrap tooltip to the player badge span.  Called after
  * every badge rebuild -- the tooltip instance belongs to the old span, so it
  * is disposed before the markup is replaced (see the update site) and a new
@@ -15633,12 +15644,9 @@ function RefreshHeaderBar () {
 			var seq =
 				data.current_sequence != undefined ? data.current_sequence : '';
 			var song = data.current_song != undefined ? data.current_song : '';
-			// Filenames land inside a title="..." attribute, so escape the
-			// double quote that EscapeHtml leaves alone (same pattern as the
-			// settings-page usage elsewhere in this file).
-			var escTitle = function (s) {
-				return EscapeHtml(s).replace(/"/g, '&quot;');
-			};
+			// The tooltip renders as HTML, so filenames are escaped as content
+			// here; the finished title is escaped again as an attribute below.
+			var escTitle = EscapeHtml;
 			var title = '';
 			var icon = 'fa-play text-success';
 			var label = 'Playing';
@@ -15669,7 +15677,7 @@ function RefreshHeaderBar () {
 			}
 			row =
 				'<span data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true" title="' +
-				title +
+				EscapeHeaderTooltipAttr(title) +
 				'"><i class="fas ' +
 				icon +
 				'"></i><small>' +
@@ -15681,24 +15689,20 @@ function RefreshHeaderBar () {
 		} else if (data.status_name == 'playing media') {
 			var mtitle = 'Playing media outside playlist';
 			if (data.current_song != undefined && data.current_song != '') {
-				mtitle +=
-					':<br/>' +
-					EscapeHtml(data.current_song).replace(/"/g, '&quot;');
+				mtitle += ':<br/>' + EscapeHtml(data.current_song);
 			}
 			row =
 				'<span data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true" title="' +
-				mtitle +
+				EscapeHeaderTooltipAttr(mtitle) +
 				'"><i class="fas fa-music text-success"></i><small>Media</small></span>';
 		} else if (data.status_name == 'playing background') {
 			var btitle = 'Background audio playing';
 			if (data.current_song != undefined && data.current_song != '') {
-				btitle +=
-					':<br/>' +
-					EscapeHtml(data.current_song).replace(/"/g, '&quot;');
+				btitle += ':<br/>' + EscapeHtml(data.current_song);
 			}
 			row =
 				'<span data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true" title="' +
-				btitle +
+				EscapeHeaderTooltipAttr(btitle) +
 				'"><i class="fas fa-music text-info"></i><small>Background</small></span>';
 		} else if (data.status_name == 'idle') {
 			row =
