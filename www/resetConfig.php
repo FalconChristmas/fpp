@@ -6,6 +6,10 @@ require_once "common.php";
 
 DisableOutputBuffering();
 
+// Finish once started, even if the browser goes away: a closed tab must not
+// stop PHP at the next echo, part way through deleting the chosen areas.
+ignore_user_abort(true);
+
 # Any file not starting with a / is assumed to be under $mediaDirectory
 # which is normally /home/fpp/media
 $files = array();
