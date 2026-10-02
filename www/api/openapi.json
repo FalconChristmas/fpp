@@ -6950,7 +6950,7 @@
           "plugin"
         ],
         "summary": "Install plugin",
-        "description": "Install a new plugin. The request body is a `pluginInfo.json` structure with `branch` and `sha` fields added to specify which branch and commit to install. The structure is NOT validated against a schema here, on purpose. FPP reads the keys it knows (repoName, srcURL, versions, dependencies, privacy, ...) and carries everything else through untouched, so a pluginInfo.json written for a newer FPP -- a key this release has never heard of, an unknown key inside `privacy` -- installs on this one. The Plugins page renders the parts it understands and ignores the rest (the full block is still shown as written). Strict validation lives in the fpp-data listing check (`.github/schema/pluginInfo.schema.json`), where a mistake is a rejected pull request rather than a plugin nobody can install. Keep it that way: any check added here must be on a key FPP acts on, never on the set of keys. `privacyAccepted` (optional, null allowed) is the privacy block the caller showed the operator, the same field `POST /plugin/{RepoName}/upgrade` takes. After the clone, before any dependency or the plugin's own install script, it is compared with the cloned copy's block (sends, collects, sensors, remoteAccess, systemChanges, closedCode): when they differ -- the listing is behind the repository, or the selected version pins an older commit -- the install is refused, the clone removed, and the reply carries `Code: \"PrivacyMismatch\"` and `pending` (the cloned block) so the caller can show it and post again with it as `privacyAccepted`. A body without the field is compared with the block recorded for that plugin from an earlier install, if there is one (the record survives an uninstall), and refused the same way when they differ; with no record either, a plugin that declares a block is refused the same way (`pending` is the cloned block, to post back as `privacyAccepted`), and only a plugin with no block installs. The block is recorded once the dependencies are in place, just before the plugin's own install script runs. `dependencyPrivacyAccepted` (optional) is a map repoName -> block or null for the dependency plugins the dialog also showed; each is gated and recorded the same way when that plugin is installed as a dependency of this one, and a dependency not in the map -- declared only in the cloned copy -- is refused before it is cloned (`pending` is then its listed block). Without the map, a dependency plugin that declares a block is refused the same way, and one with no block installs. A refusal's `reason` is `notAccepted` when nothing was accepted for that plugin (post `pending` back to accept it) and `mismatch` when the accepted block is not the one that would land.",
+        "description": "Install a new plugin. The request body is a `pluginInfo.json` structure with `branch` and `sha` fields added to specify which branch and commit to install. The structure is NOT validated against a schema here, on purpose. FPP reads the keys it knows (repoName, srcURL, versions, dependencies, privacy, ...) and carries everything else through untouched, so a pluginInfo.json written for a newer FPP -- a key this release has never heard of, an unknown key inside `privacy` -- installs on this one. The Plugins page renders the parts it understands and ignores the rest (the full block is still shown as written). Strict validation lives in the fpp-data listing check (`.github/schema/pluginInfo.schema.json`), where a mistake is a rejected pull request rather than a plugin nobody can install. Keep it that way: any check added here must be on a key FPP acts on, never on the set of keys. `privacyAccepted` (optional, null allowed) is the privacy block the caller showed the operator, the same field `POST /plugin/{RepoName}/upgrade` takes. After the clone, before any dependency or the plugin's own install script, it is compared with the cloned copy's block (sends, collects, sensors, remoteAccess, systemChanges, closedCode): when they differ -- the listing is behind the repository, or the selected version pins an older commit -- the install is refused, the clone removed, and the reply carries `Code: \"PrivacyMismatch\"` and `pending` (the cloned block) so the Plugins page can show it and post again with it as `privacyAccepted`. A body without the field is compared with the block recorded for that plugin from an earlier install, if there is one (the record survives an uninstall), and refused the same way when they differ; with no record either, a plugin that declares a block is refused the same way (`pending` is the cloned block, for the operator to review), and only a plugin with no block installs. The block is recorded once the dependencies are in place, just before the plugin's own install script runs. `dependencyPrivacyAccepted` (optional) is a map repoName -> block or null for the dependency plugins the dialog also showed; each is gated and recorded the same way when that plugin is installed as a dependency of this one, and a dependency not in the map -- declared only in the cloned copy -- is refused before it is cloned (`pending` is then its listed block). Without the map, a dependency plugin that declares a block is refused the same way, and one with no block installs. A refusal's `reason` is `notAccepted` when nothing was accepted for that plugin and `mismatch` when the accepted block is not the one that would land. `privacyAccepted` and `dependencyPrivacyAccepted` record that a person saw and accepted the disclosure. Only the FPP Plugins page may send them, and only with a block it actually displayed. Scripts and other API clients must not send them -- not even by echoing `pending` back from a refusal: on `Code: \"PrivacyMismatch\"` they stop and send the operator to the Plugins page. The server cannot tell callers apart, so this is a rule for clients, not something it enforces.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -7574,8 +7574,46 @@
         "tags": [
           "plugin"
         ],
+        "summary": "Update plugin (no body)",
+        "description": "The same update as POST /api/plugin/{RepoName}/upgrade, sent without a body: it is refused (`Code: \"PrivacyMismatch\"`) whenever the privacy disclosure the update would land differs from the one accepted for this plugin. This is the form for scripts and other API clients, which must never send `privacyAccepted`.",
+        "responses": {
+          "200": {
+            "description": "Plugin upgraded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "plugin"
+        ],
         "summary": "Update plugin",
-        "description": "Pull in git updates for plugin {RepoName}: the checked-out branch's tip, or, when the versions[] entry for this FPP pins a sha the clone has not passed, that sha and no further. Before the plugin's own fpp_upgrade.sh (or fpp_install.sh) runs, its declared dependencies are reconciled against the new version: newly declared apt, Python and script dependencies are installed, and package claims the new version no longer declares are released (apt-removed once nothing else needs them). A newly declared dependency plugin is reported, not installed -- the operator has to see its privacy disclosure on the Plugins page. Supports ?stream=true.",
+        "description": "Pull in git updates for plugin {RepoName}: the checked-out branch's tip, or, when the versions[] entry for this FPP pins a sha the clone has not passed, that sha and no further. Before the plugin's own fpp_upgrade.sh (or fpp_install.sh) runs, its declared dependencies are reconciled against the new version: newly declared apt, Python and script dependencies are installed, and package claims the new version no longer declares are released (apt-removed once nothing else needs them). A newly declared dependency plugin is reported, not installed -- the operator has to see its privacy disclosure on the Plugins page. Supports ?stream=true. When the privacy block the update would land differs materially from the one accepted for this plugin, the update is refused unless the POST body is `{\"privacyAccepted\": <block>}` with that block. Only the FPP Plugins page may send `privacyAccepted`, and only with a block it actually showed the operator (GET /plugin/{RepoName}/privacy; its Update and Update All both do). Scripts and other API clients must not send it -- not even by echoing `pending` back from a refusal: on `Code: \"PrivacyMismatch\"` they stop and send the operator to the Plugins page. The server cannot tell callers apart, so this is a rule for clients, not something it enforces. Refused on privacy grounds (the same shape as POST /api/plugin): `{\"Status\": \"Error\", \"Code\": \"PrivacyMismatch\", \"reason\": \"mismatch\", \"Message\": \"\u2026\", \"privacyChanged\": true, \"plugin\": \"fpp-matrixtools\", \"pending\": {\"sends\": [], \"remoteAccess\": \"none\"}}`.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "privacyAccepted": {
+                  "sends": [],
+                  "remoteAccess": "none"
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Plugin upgraded",

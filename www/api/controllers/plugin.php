@@ -992,7 +992,9 @@ function PluginPrivacyRefuse($repoName, $pending, $msg, $stream, $op = 'install'
 // is the plugin (or dependency plugin) whose block must be reviewed, `pending`
 // that block (null = no disclosure); `Code` lets a script tell this refusal
 // from any other error without parsing `Message`, and `reason` says which kind
-// it is: 'notAccepted' (post `pending` back as accepted) or 'mismatch'.
+// it is: 'notAccepted' (nothing accepted yet) or 'mismatch'. Either way the
+// operator reviews `pending` on the Plugins page; only that page posts it
+// back as accepted (POST /plugin docblock).
 function PluginPrivacyRefusalReply($msg)
 {
 	$ref = $GLOBALS['PLUGIN_PRIVACY_REFUSAL'];
@@ -1094,13 +1096,13 @@ function GetInstalledPlugins()
  * remoteAccess, systemChanges, closedCode): when they differ -- the listing is
  * behind the repository, or the selected version pins an older commit -- the
  * install is refused, the clone removed, and the reply carries
- * `Code: "PrivacyMismatch"` and `pending` (the cloned block) so the caller can
- * show it and post again with it as `privacyAccepted`. A body without the
- * field is compared with the block recorded for that plugin from an earlier
+ * `Code: "PrivacyMismatch"` and `pending` (the cloned block) so the Plugins
+ * page can show it and post again with it as `privacyAccepted`. A body
+ * without the field is compared with the block recorded for that plugin from an earlier
  * install, if there is one (the record survives an uninstall), and refused
  * the same way when they differ; with no record either, a plugin that
  * declares a block is refused the same way (`pending` is the cloned block,
- * to post back as `privacyAccepted`), and only a plugin with no block installs.
+ * for the operator to review), and only a plugin with no block installs.
  * The block is recorded once the dependencies are in place, just before the
  * plugin's own install script runs.
  * `dependencyPrivacyAccepted` (optional) is a map repoName -> block or null
@@ -1111,8 +1113,16 @@ function GetInstalledPlugins()
  * block). Without the map, a dependency plugin that declares a block is
  * refused the same way, and one with no block installs.
  * A refusal's `reason` is `notAccepted` when nothing was accepted for that
- * plugin (post `pending` back to accept it) and `mismatch` when the accepted
- * block is not the one that would land.
+ * plugin and `mismatch` when the accepted block is not the one that would
+ * land.
+ *
+ * `privacyAccepted` and `dependencyPrivacyAccepted` record that a person saw
+ * and accepted the disclosure. Only the FPP Plugins page may send them, and
+ * only with a block it actually displayed. Scripts and other API clients must
+ * not send them -- not even by echoing `pending` back from a refusal: on
+ * `Code: "PrivacyMismatch"` they stop and send the operator to the Plugins
+ * page. The server cannot tell callers apart, so this is a rule for clients,
+ * not something it enforces.
  *
  * @route POST /api/plugin
  * @body {"repoName": "fpp-matrixtools", "name": "MatrixTools", "author": "Chris Pinkham (CaptainMurdoch)", "srcURL": "https://github.com/cpinkham/fpp-matrixtools.git", "branch": "master", "sha": ""}
@@ -1204,9 +1214,9 @@ function InstallPlugin()
 	if (!$ok && is_array($GLOBALS['PLUGIN_PRIVACY_REFUSAL'])) {
 		$result = PluginPrivacyRefusalReply(($GLOBALS['PLUGIN_PRIVACY_REFUSAL']['plugin'] === $plugin)
 			? (($GLOBALS['PLUGIN_PRIVACY_REFUSAL']['reason'] === 'notAccepted')
-				? "The privacy disclosure of '$plugin' was not accepted with this request. Review it on the Plugins page, or post `pending` back as privacyAccepted to accept it."
+				? "The privacy disclosure of '$plugin' was not accepted with this request. Review it on the Plugins page and install again."
 				: "The privacy disclosure of '$plugin' is not the one that was accepted. Review it on the Plugins page and install again.")
-			: "'$plugin' depends on '" . $GLOBALS['PLUGIN_PRIVACY_REFUSAL']['plugin'] . "', whose privacy disclosure was not accepted. Review it on the Plugins page, or post it in dependencyPrivacyAccepted to accept it.");
+			: "'$plugin' depends on '" . $GLOBALS['PLUGIN_PRIVACY_REFUSAL']['plugin'] . "', whose privacy disclosure was not accepted. Review it on the Plugins page and install again.");
 	}
 	return json($result);
 }
@@ -1386,9 +1396,9 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 	// and the cloned block handed back for review (PluginPrivacyRefuse).
 	// A request with neither -- a fresh install from a script -- is refused
 	// the same way when the plugin declares anything: the reply carries the
-	// block, and a caller that means to accept it posts it back as
-	// privacyAccepted, as the Plugins page does. Only a plugin with no block
-	// at all installs without one. The record itself is written once the
+	// block for the Plugins page to show. Only the Plugins page posts
+	// privacyAccepted (POST /plugin docblock); a script sends the operator
+	// there. Only a plugin with no block at all installs without one. The record itself is written once the
 	// dependencies are in, just before the install script.
 	$installedBlock = PluginPrivacyBlock($data);
 	$accepted = false;
@@ -1406,7 +1416,7 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 	$recordBlock = ($acceptedFrom !== '');
 	if (!$recordBlock && $installedBlock !== null) {
 		PluginPrivacyRefuse($repoName, $installedBlock,
-			"the privacy disclosure of '$plugin' was not accepted with this request. Not installed: review it on the Plugins page, or post it back as privacyAccepted to accept it.\nRemoving the partial install of '$plugin'.", $stream, 'install', true, 'notAccepted');
+			"the privacy disclosure of '$plugin' was not accepted with this request. Not installed: review it on the Plugins page and install again.\nRemoving the partial install of '$plugin'.", $stream, 'install', true, 'notAccepted');
 		CleanupPartialPluginInstall($plugin);
 		return false;
 	}
@@ -2612,15 +2622,41 @@ function PluginFetchReinstallTargetByURL($plugin, $branch, $url)
  * declared dependency plugin is reported, not installed -- the operator has to
  * see its privacy disclosure on the Plugins page. Supports ?stream=true.
  *
- * @route GET /api/plugin/{RepoName}/upgrade
+ * When the privacy block the update would land differs materially from the
+ * one accepted for this plugin, the update is refused unless the POST body
+ * is `{"privacyAccepted": <block>}` with that block. Only the FPP Plugins
+ * page may send `privacyAccepted`, and only with a block it actually showed
+ * the operator (GET /plugin/{RepoName}/privacy; its Update and Update All
+ * both do). Scripts and other API clients must not send it -- not even by
+ * echoing `pending` back from a refusal: on `Code: "PrivacyMismatch"` they
+ * stop and send the operator to the Plugins page. The server cannot tell callers apart, so
+ * this is a rule for clients, not something it enforces.
+ *
+ * Refused on privacy grounds (the same shape as POST /api/plugin):
+ * `{"Status": "Error", "Code": "PrivacyMismatch", "reason": "mismatch",
+ * "Message": "…", "privacyChanged": true, "plugin": "fpp-matrixtools",
+ * "pending": {"sends": [], "remoteAccess": "none"}}`.
+ *
  * @route POST /api/plugin/{RepoName}/upgrade
+ * @body {"privacyAccepted": {"sends": [], "remoteAccess": "none"}}
  * @response 200 Plugin upgraded
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
- * Refused on privacy grounds (the same shape as POST /api/plugin):
+ */
+/**
+ * Update plugin (no body)
+ *
+ * The same update as POST /api/plugin/{RepoName}/upgrade, sent without a
+ * body: it is refused (`Code: "PrivacyMismatch"`) whenever the privacy
+ * disclosure the update would land differs from the one accepted for this
+ * plugin. This is the form for scripts and other API clients, which must
+ * never send `privacyAccepted`.
+ *
+ * @route GET /api/plugin/{RepoName}/upgrade
+ * @response 200 Plugin upgraded
  * ```json
- * {"Status": "Error", "Code": "PrivacyMismatch", "reason": "mismatch", "Message": "…", "privacyChanged": true, "plugin": "fpp-matrixtools", "pending": {"sends": [], "remoteAccess": "none"}}
+ * {"Status": "OK", "Message": ""}
  * ```
  */
 // The apt packages a dependency block declares, as a flat list of names.
