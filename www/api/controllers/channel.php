@@ -139,8 +139,17 @@ function channel_save_output_processors()
     global $settings;
     global $args;
 
+    // Never stripslashes() the body: its backslashes are JSON escapes from
+    // JSON.stringify(), and stripping them turned a quote or backslash typed into
+    // a description into an unparseable file.  Refuse anything that is not a JSON
+    // object before it replaces the working file.  It is only decoded to check it;
+    // the text is written as sent, so {} stays {} and 1.0 stays 1.0.
     $data = file_get_contents('php://input');
-    $data = prettyPrintJSON(stripslashes($data));
+    if (!is_object(json_decode($data))) {
+        http_response_code(400);
+        return json(array("status" => "ERROR: body is not a JSON object"));
+    }
+    $data = prettyPrintJSON($data);
 
     // Atomic write so a reader never observes a truncated/partial file mid-save.
     WriteFileAtomic($settings['outputProcessorsFile'], $data);
@@ -245,8 +254,15 @@ function channel_save_output()
 
     $file = params("file");
     if (isset($settings[$file])) {
+        // Same rules as channel_save_output_processors(): no stripslashes(), and
+        // nothing but a JSON object may replace the file -- fppd only loads an
+        // object, and the page shows no outputs at all for a file it cannot parse.
         $data = file_get_contents('php://input');
-        $data = prettyPrintJSON(stripslashes($data));
+        if (!is_object(json_decode($data))) {
+            http_response_code(400);
+            return json(array("status" => "ERROR: body is not a JSON object"));
+        }
+        $data = prettyPrintJSON($data);
         // Atomic write so fppd's inotify-driven reload (and any other reader)
         // never sees a truncated/partial file -- e.g. co-universes.json, which
         // ChannelOutputSetup and MultiSync both watch.
