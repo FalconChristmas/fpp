@@ -40,5 +40,9 @@ fi
 
 echo "Uninstalling plugin $1"
 cd "${PLUGINDIR}" || exit 1
-[ -d "$1" ] && $SUDO rm -rf -- "$1"
+# An if, not "[ -d ] && rm": a plugin whose own uninstall script already
+# removed its directory must not make the uninstall look failed.
+if [ -d "$1" ]; then
+	$SUDO rm -rf -- "$1"
+fi
 
