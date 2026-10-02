@@ -103,14 +103,11 @@ function ScrubFile($filename, $taboo = array("emailpass", "emailgpass", "MQTTPas
         $fd = @fopen($filename, "r");
         if ($fd) {
             flock($fd, LOCK_SH);
-            $data = parse_ini_file($filename);
+            // Not parse_ini_file(): it strips embedded '"' from JSON values and
+            // fails outright (returning nothing) on a quoted JSON array.
+            $data = custom_parse_ini_file($filename);
             flock($fd, LOCK_UN);
             fclose($fd);
-        }
-
-        // parse_ini_file can return false on failure
-        if (!is_array($data)) {
-            $data = [];
         }
 
         foreach ($taboo as $key) {
