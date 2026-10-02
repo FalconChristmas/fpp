@@ -873,6 +873,10 @@ function GetInstalledPlugins()
 function InstallPlugin()
 {
 	global $settings, $_REQUEST;
+	// Finish once started, even if the browser goes away: a closed tab must not
+	// stop PHP at the next echo between the scripts and the bookkeeping after
+	// them (install history, plugin source, privacy record).
+	ignore_user_abort(true);
 	$result = array();
 
 	$pluginInfoJSON = "";
@@ -1878,6 +1882,10 @@ function FPPDPluginLifecycle($plugin, $action)
 function UninstallPlugin()
 {
 	global $settings, $fppDir, $SUDO, $_REQUEST;
+	// Finish once started, even if the browser goes away: a closed tab must not
+	// stop PHP at the next echo between the scripts and the bookkeeping after
+	// them (install history, plugin source, privacy record).
+	ignore_user_abort(true);
 	$result = array();
 	$stream = $_REQUEST['stream'];
 
@@ -2417,6 +2425,10 @@ function ReconcilePluginDependencies($plugin, $op, $stream)
 function UpgradePlugin()
 {
 	global $settings, $SUDO, $_REQUEST, $fppDir;
+	// Finish once started, even if the browser goes away: a closed tab must not
+	// stop PHP at the next echo between the scripts and the bookkeeping after
+	// them (install history, plugin source, privacy record).
+	ignore_user_abort(true);
 	$result = array();
 
 	$plugin = params('RepoName');
