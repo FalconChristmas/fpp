@@ -215,6 +215,12 @@ function when($at)
     return $t === false ? str($at) : date('j M Y H:i', $t);
 }
 
+// An install that was refused and cleaned up: the plugin is not there.
+function failedInstall($e)
+{
+    return str($e['action'] ?? '') === 'install' && str($e['failed'] ?? '') !== '';
+}
+
 function shortSha($s)
 {
     return substr(str($s), 0, 8);
@@ -265,12 +271,18 @@ foreach ($events as $e) {
     if (!empty($e['dependency'])) {
         $notes[] = 'as a dependency';
     }
-    // An upgrade whose newly declared dependency failed.
+    // An upgrade whose newly declared dependency failed (a failed install
+    // shows as 'Not installed' below).
     if ($action === 'upgrade' && !empty($e['dependencyFailed'])) {
         $notes[] = 'its dependencies could not be installed, so its script did not run';
     }
     if (!empty($e['scriptFailed'])) {
         $notes[] = 'its script FAILED';
+    }
+    if (failedInstall($e)) {
+        // Refused and cleaned up (InstallPluginFromInfo()): not installed.
+        $verb = 'Not installed';
+        $notes[] = 'a required dependency could not be installed';
     }
     // System packages changed (PluginPackageChanges()): a note here, then
     // rows of array(kind, name, detail) under a heading per window -- FPP's
@@ -405,7 +417,8 @@ foreach ($installed as $name) {
     $act = isset($last[$name]) ? str($last[$name]['action'] ?? '') : '';
     if ($act === 'uninstall' && !empty($last[$name]['scriptFailed'])) {
         $stuck[$name] = when($last[$name]['at'] ?? '');
-    } else if ($act !== 'install' && $act !== 'upgrade') {
+    } else if ($act !== 'upgrade' && ($act !== 'install' || failedInstall($last[$name]))) {
+        // A failed install accounts for nothing: it was cleaned up.
         $unrecorded[] = $name;
     }
 }
@@ -413,6 +426,10 @@ $removed = array(); // name => array(when, note)
 foreach ($last as $name => $e) {
     $name = (string) $name; // an all-digit name is an integer key
     if (in_array($name, $installed, true)) {
+        continue;
+    }
+    if (failedInstall($e)) {
+        $removed[$name] = array(when($e['at'] ?? ''), 'its install failed then');
         continue;
     }
     $removed[$name] = in_array(str($e['action'] ?? ''), array('uninstall', 'deleted'), true)

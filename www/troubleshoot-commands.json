@@ -617,7 +617,7 @@
             "commands": {
                 "PluginHistory": {
                     "title": "Install History",
-                    "description": "Every plugin install, update and uninstall on this player, oldest first, including plugins that have since been removed",
+                    "description": "Every plugin install, update and uninstall on this player, oldest first, including failed installs, plugins that have since been removed, and the system packages each changed",
                     "cmd": "PATH=$PATH:/opt/homebrew/bin:/usr/local/bin php [[fppDir]]/scripts/plugin_history.php",
                     "manualCrashReportCmd": "PATH=$PATH:/opt/homebrew/bin:/usr/local/bin php [[fppDir]]/scripts/plugin_history.php --summary",
                     "platforms": [

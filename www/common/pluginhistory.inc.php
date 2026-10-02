@@ -24,13 +24,17 @@
  *   scriptFailed       its script failed (the plugin itself is in place)
  *   dependencyFailed   (upgrade) a dependency it now declares could not be
  *                      installed, so its script did not run
+ *   failed             (install) 'dependencies': a required dependency could
+ *                      not be installed, so the install was refused and
+ *                      cleaned up, and the plugin is not installed
  *   packages           system packages changed while its script ran
  *   fppPackages        ... while FPP did its own package work for it
  *                      (declared dependencies installed or reconciled,
  *                      claims released); its parts merged into one record
  * In packages/fppPackages each kind (PluginPackageChangeLabels()) is a list
  * of names, capped (PluginPackageChangesCap() in api/controllers/plugin.php);
- * '<kind>Count' is there only when the list was cut.
+ * '<kind>Count' is there only when the list was cut. 'addedRemoved': installed
+ * in one part and removed in a later one (a failed install's own packages).
  * 'unknown': true when the package list could not be read, so what changed
  * is not known (absent: nothing changed, or nothing was looked at).
  */
@@ -121,5 +125,6 @@ function AppendPluginHistory($plugin, $action, $fields = array())
 function PluginPackageChangeLabels()
 {
     return array('removed' => 'removed', 'changed' => 'version changed', 'held' => 'held',
-        'unheld' => 'hold released', 'added' => 'installed', 'aptFiles' => 'apt sources/keys/pins');
+        'unheld' => 'hold released', 'added' => 'installed', 'addedRemoved' => 'installed then removed',
+        'aptFiles' => 'apt sources/keys/pins');
 }

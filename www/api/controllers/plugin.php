@@ -745,8 +745,9 @@ function PluginPackageChangesKeep(&$c, $kind, $list, $total = 0)
 
 // Two windows' changes as one (FPP's work for a plugin can run in two parts
 // either side of its dependency plugins). An identical entry in both counts
-// once. When a side was capped, the names kept come from what each side
-// kept, and the count is the sum.
+// once, and a package installed in $a and removed in $b becomes one
+// 'addedRemoved' entry. When a side was capped, the names kept come from
+// what each side kept, and the count is the sum.
 function PluginPackageChangesMerge($a, $b)
 {
 	if (empty($a) || empty($b)) {
@@ -755,6 +756,31 @@ function PluginPackageChangesMerge($a, $b)
 	$count = function ($x, $kind) {
 		return isset($x[$kind . 'Count']) ? $x[$kind . 'Count'] : (isset($x[$kind]) ? count($x[$kind]) : 0);
 	};
+	// Installed in $a and removed in $b (a failed install's own packages):
+	// one 'addedRemoved' entry, rather than two that read in label order.
+	$name = function ($item) {
+		return explode(' ', $item, 2)[0];
+	};
+	$gone = array_flip(array_map($name, isset($b['removed']) ? $b['removed'] : array()));
+	$both = array_values(array_filter(isset($a['added']) ? $a['added'] : array(), function ($item) use ($gone, $name) {
+		return isset($gone[$name($item)]);
+	}));
+	if (count($both)) {
+		$names = array_flip(array_map($name, $both));
+		$drop = function ($list) use ($names, $name) {
+			return array_values(array_filter($list, function ($item) use ($names, $name) {
+				return !isset($names[$name($item)]);
+			}));
+		};
+		// The full counts, taken before the lists shrink.
+		$addedN = $count($a, 'added') - count($both);
+		$removedN = $count($b, 'removed') - count($both);
+		$a['added'] = $drop($a['added']);
+		$b['removed'] = $drop($b['removed']);
+		$a['addedCount'] = $addedN;
+		$b['removedCount'] = $removedN;
+		$a['addedRemoved'] = $both;
+	}
 	$c = array();
 	foreach (array_keys(PluginPackageChangeLabels()) as $kind) {
 		$list = array_merge(isset($a[$kind]) ? $a[$kind] : array(), isset($b[$kind]) ? $b[$kind] : array());
@@ -1552,10 +1578,25 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 	// run the plugin's install script against missing prerequisites.
 	// FPP's own package work for it is recorded as 'fppPackages': the local
 	// dependencies (apt, pip, scripts) in one window, then the claim release
-	// below in another, with the dependency plugins between them outside both
-	// (each records its own entry).
+	// below in another (on failure, the release of what this attempt
+	// claimed), with the dependency plugins between them outside both (each
+	// records its own entry).
+	//
+	// Its history entry, for both outcomes below, so the two can't drift.
+	$historyEntry = function ($fields, $fppPkgChanges) use ($startedAt, $branch, $plugin, $depth) {
+		$entry = array_merge(array('startedAt' => $startedAt), $fields,
+			array('branch' => $branch, 'sha' => PluginInstalledSha($plugin)));
+		if ($depth > 0) {
+			$entry['dependency'] = true;
+		}
+		if ($fppPkgChanges) {
+			$entry['fppPackages'] = $fppPkgChanges;
+		}
+		return $entry;
+	};
 	$fppPkgChanges = null;
 	$depsOk = true;
+	$claimedBefore = PackagesClaimedBy($repoName); // a Reinstall that kept its packages holds some
 	if ($deps !== null) {
 		list($depsOk, $fppPkgChanges) = PluginTrackPackages('install', $repoName, $repoName, DepsMayChangePackages($deps), function () use ($deps, $repoName, $stream) {
 			return ResolveLocalDependencies($deps, $repoName, $stream, 'install');
@@ -1567,6 +1608,16 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 		// Same trap as the package gate above: the clone's own rc=0 block is
 		// already in the log, and the cleanup below removes the plugin. Say so.
 		PluginEchoLog('install', $repoName, "\nERROR: refusing to complete install of '$plugin' -- a required dependency could not be installed.\nRemoving the partial install of '$plugin'.\n", $stream);
+		// What this attempt claimed comes out with it: the plugin is not
+		// staying. Claims it held before (a Reinstall that kept its packages)
+		// stay: a failure is often transient (no network), and a retry would
+		// have to download them again.
+		$released = PluginReleaseClaimsTracked('install', $repoName, array_values(array_diff(PackagesClaimedBy($repoName), $claimedBefore)),
+			$stream, "releasing what $repoName's dependencies installed");
+		// The only failure recorded: the others come before anything is
+		// installed. srcURL even for a listed plugin: it records what was tried.
+		AppendPluginHistory($repoName, 'install', $historyEntry(array('failed' => 'dependencies',
+			'srcURL' => PluginHistoryURL($origSrcURL)), PluginPackageChangesMerge($fppPkgChanges, $released)));
 		CleanupPartialPluginInstall($plugin, $linkName);
 		return false;
 	}
@@ -1623,15 +1674,9 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 	// call, so each one is judged on where it actually came from rather than
 	// inheriting anything from the plugin that pulled it in.
 	$source = RecordPluginInstallSource($repoName, $origSrcURL);
-	$entry = array('startedAt' => $startedAt, 'source' => $source, 'branch' => $branch, 'sha' => PluginInstalledSha($plugin));
+	$entry = $historyEntry(array('source' => $source), $fppPkgChanges);
 	if ($source !== 'official' && $source !== 'listed') {
 		$entry['srcURL'] = PluginHistoryURL($origSrcURL);
-	}
-	if ($depth > 0) {
-		$entry['dependency'] = true;
-	}
-	if ($fppPkgChanges) {
-		$entry['fppPackages'] = $fppPkgChanges;
 	}
 	if ($return_val != 0) {
 		$entry['scriptFailed'] = true;
