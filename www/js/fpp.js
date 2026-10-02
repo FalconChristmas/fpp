@@ -1358,6 +1358,13 @@ function KeyBindingsIsTypingTarget (t) {
 	return false;
 }
 
+// A 'page' binding may only name an FPP page: a bare 'name.php', optionally
+// with a simple query string and/or a #tab anchor. Anything else stored in
+// the setting (a javascript: URL, another host, a path) is never followed.
+function KeyBindingsIsValidPage (page) {
+	return /^[A-Za-z0-9_-]+\.php(\?[A-Za-z0-9_.=&%-]*)?(#[A-Za-z0-9_-]+)?$/.test(String(page));
+}
+
 function KeyBindingsRunBinding (b) {
 	if (!b) {
 		return;
@@ -1366,7 +1373,7 @@ function KeyBindingsRunBinding (b) {
 		RunCommand({ command: 'Trigger Command Preset', args: [b.preset] });
 	} else if (b.action === 'command' && b.command) {
 		RunCommand({ command: b.command, args: b.args || [] });
-	} else if (b.action === 'page' && b.page) {
+	} else if (b.action === 'page' && KeyBindingsIsValidPage(b.page)) {
 		window.location.href = b.page;
 	}
 }

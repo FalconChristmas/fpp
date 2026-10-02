@@ -611,6 +611,9 @@ function KeyBindingsValidate(bindings) {
         if (b.action === 'page' && !b.page) {
             return 'Row ' + n + ': choose a page.';
         }
+        if (b.action === 'page' && !KeyBindingsIsValidPage(b.page)) {
+            return 'Row ' + n + ': ' + b.page + ' is not an FPP page. Choose a page from the list.';
+        }
     }
     return null;
 }
@@ -620,7 +623,8 @@ function KeyBindingsSave() {
     var err = KeyBindingsValidate(bindings);
     if (err) {
         KeyBindingsSetStatus('', 'text-muted');
-        DialogError('Keyboard Shortcuts', err);
+        // The message can quote a stored key or page, which may not be plain text.
+        DialogError('Keyboard Shortcuts', $('<span>').text(err).html());
         return;
     }
     KeyBindingsSetStatus('<i class="fas fa-spinner fa-spin"></i> Saving...', 'text-muted');
