@@ -14,6 +14,8 @@
 //     { "package": "libfoo", "requestedBy": ["user"], "via": ["vlc"] }, ... ]
 // "via" names the package(s) whose install pulled this one in as a
 // dependency; the Package Manager folds such rows under their parent.
+// "preinstalled": true marks one that was already on the box when a plugin
+// first claimed it (see below): a plugin's release never removes it.
 // Legacy schema (still read): a plain array of package-name strings, treated as
 //   requestedBy ["user"]. Saving always rewrites in the new object schema.
 //
@@ -25,8 +27,17 @@
 // removes it. (One FPP did install gains every later requester as usual, and
 // one that is only there as another package's dependency -- apt's "auto"
 // mark -- is claimed, since it would otherwise be lost the day its parent
-// goes.) Every package an install newly adds is recorded against the
-// requester, so a plugin's footprint comes out whole on uninstall. Without that
+// goes; a plugin's claim is marked "preinstalled", since FPP didn't put it
+// there either: a plugin releasing the last claim drops the entry and leaves
+// the package (ffmpeg, auto-marked on some images, was removed with a plugin
+// before). The user's own Uninstall in the Package Manager still removes it.
+// The mark stays through the OS-upgrade replay, and goes once FPP itself
+// installs the package.) Every package an install newly adds is recorded
+// against the requester, so a plugin's footprint comes out whole on
+// uninstall. A package of a foreign architecture (multiarch "foo:armhf") is
+// never recorded: manifest keys are arch-less, so the claim would land on
+// the native package (an older FPP did record it so; the removal dry-run is
+// all that guards such a claim). Without that
 // rule a plugin declaring an already-present package (fontconfig, zip, ...)
 // had it apt-removed on uninstall -- and 'apt-get remove' takes every reverse
 // dependency with it (fontconfig -> libpango -> librsvg2 -> libavcodec ->
@@ -147,7 +158,10 @@ function LoadUserPackages()
 {
     $file = UserPackagesFile();
     $map = array();
-    $GLOBALS['FPP_PACKAGES_VIA'] = array(); // rebuilt from disk each load
+    // Rebuilt from disk each load: they describe the map this call returns,
+    // so a writer reloads under the lock before reading them.
+    $GLOBALS['FPP_PACKAGES_VIA'] = array();
+    $GLOBALS['FPP_PACKAGES_PREINSTALLED'] = array();
     if (!file_exists($file)) {
         return $map;
     }
@@ -164,7 +178,7 @@ function LoadUserPackages()
             if (!isset($map[$entry])) {
                 $map[$entry] = array();
             }
-            if (!in_array('user', $map[$entry])) {
+            if (!in_array('user', $map[$entry], true)) {
                 $map[$entry][] = 'user';
             }
         } else if (is_array($entry) && isset($entry['package']) && ValidPackageName($entry['package'])) {
@@ -178,7 +192,7 @@ function LoadUserPackages()
             }
             $reqs = (isset($entry['requestedBy']) && is_array($entry['requestedBy'])) ? $entry['requestedBy'] : array();
             foreach ($reqs as $r) {
-                if (is_string($r) && preg_match('/^[A-Za-z0-9_.-]+$/', $r) && !in_array($r, $map[$pkg])) {
+                if (is_string($r) && preg_match('/^[A-Za-z0-9_.-]+$/', $r) && !in_array($r, $map[$pkg], true)) {
                     $map[$pkg][] = $r;
                 }
             }
@@ -194,6 +208,9 @@ function LoadUserPackages()
                         SetPackageVia($pkg, $v);
                     }
                 }
+            }
+            if (($entry['preinstalled'] ?? null) === true) {
+                $GLOBALS['FPP_PACKAGES_PREINSTALLED'][$pkg] = true;
             }
         }
     }
@@ -213,9 +230,16 @@ function SetPackageVia($package, $via)
     if (!isset($GLOBALS['FPP_PACKAGES_VIA'][$package])) {
         $GLOBALS['FPP_PACKAGES_VIA'][$package] = array();
     }
-    if ($via !== $package && !in_array($via, $GLOBALS['FPP_PACKAGES_VIA'][$package])) {
+    if ($via !== $package && !in_array($via, $GLOBALS['FPP_PACKAGES_VIA'][$package], true)) {
         $GLOBALS['FPP_PACKAGES_VIA'][$package][] = $via;
     }
+}
+
+// Whether the package was already on the box when a plugin first claimed it
+// (see the header): a plugin's release never removes it.
+function PackageWasPreinstalled($package)
+{
+    return !empty($GLOBALS['FPP_PACKAGES_PREINSTALLED'][$package]);
 }
 
 // Persists the normalized map back to disk in the new object schema. Packages
@@ -232,13 +256,16 @@ function SaveUserPackages($map)
         if (count($reqs) === 0) {
             continue;
         }
-        $entry = array('package' => $pkg, 'requestedBy' => $reqs);
+        $entry = array('package' => (string) $pkg, 'requestedBy' => $reqs);
         // Only parents that are still tracked are worth naming.
         $via = array_values(array_filter(PackageVia($pkg), function ($v) use ($map) {
             return isset($map[$v]);
         }));
         if (count($via)) {
             $entry['via'] = $via;
+        }
+        if (PackageWasPreinstalled($pkg)) {
+            $entry['preinstalled'] = true;
         }
         $out[] = $entry;
     }
@@ -257,23 +284,46 @@ function GetPackageRequesters($package)
     return isset($map[$package]) ? $map[$package] : array();
 }
 
-function AddPackageRequester($package, $requester)
+// The packages $requester holds a claim on. Strict: a repoName can look
+// numeric ("01" == "1").
+function PackagesClaimedBy($requester)
 {
-    AddPackageRequesters(array($package), $requester);
+    $out = array();
+    foreach (LoadUserPackages() as $pkg => $reqs) {
+        if (in_array($requester, $reqs, true)) {
+            $out[] = (string) $pkg;
+        }
+    }
+    return $out;
+}
+
+// $preinstalled: see AddPackageRequesters().
+function AddPackageRequester($package, $requester, $preinstalled = null)
+{
+    AddPackageRequesters(array($package), $requester, '', $preinstalled);
 }
 
 // Records $requester against every package in $packages under one lock.
 // $via, when given, is the package whose install pulled the others in; it is
-// recorded on every package in the list other than itself.
-function AddPackageRequesters($packages, $requester, $via = '')
+// recorded on every package in the list other than itself. $preinstalled
+// (see the header): true, they were already on the box -- marks the entries
+// this call creates, never one FPP already tracks; false, FPP has just
+// installed them -- clears any mark; null leaves marks as they are.
+function AddPackageRequesters($packages, $requester, $via = '', $preinstalled = null)
 {
-    WithUserPackagesLock(function () use ($packages, $requester, $via) {
+    WithUserPackagesLock(function () use ($packages, $requester, $via, $preinstalled) {
         $map = LoadUserPackages();
         foreach ($packages as $package) {
             if (!isset($map[$package])) {
                 $map[$package] = array();
+                if ($preinstalled === true) {
+                    $GLOBALS['FPP_PACKAGES_PREINSTALLED'][$package] = true;
+                }
             }
-            if (!in_array($requester, $map[$package])) {
+            if ($preinstalled === false) {
+                unset($GLOBALS['FPP_PACKAGES_PREINSTALLED'][$package]);
+            }
+            if (!in_array($requester, $map[$package], true)) {
                 $map[$package][] = $requester;
             }
             if ($via !== '' && $via !== $package) {
@@ -290,7 +340,7 @@ function PackagesInstalledVia($package)
 {
     $children = array();
     foreach (array_keys(LoadUserPackages()) as $pkg) {
-        if (in_array($package, PackageVia($pkg))) {
+        if (in_array($package, PackageVia($pkg), true)) {
             $children[] = $pkg;
         }
     }
@@ -315,6 +365,26 @@ function ValidPackageName($package)
     return is_string($package)
         && strlen($package) <= 255
         && preg_match('/^[a-z0-9][a-z0-9+.-]*[a-z0-9+](:[a-z0-9-]+)?$/D', $package) === 1;
+}
+
+// dpkg's native architecture ("arm64"), or '' where there is no dpkg.
+function PackagesNativeArch()
+{
+    static $arch = null;
+    if ($arch === null) {
+        $arch = trim((string) @shell_exec('dpkg --print-architecture 2>/dev/null'));
+    }
+    return $arch;
+}
+
+// Whether $package names a foreign architecture ("foo:armhf" on arm64):
+// never recorded (see the header). ":all" and ":<native>" are not foreign.
+function PackageIsForeignArch($package)
+{
+    if (!preg_match('/:([a-z0-9-]+)$/', $package, $m)) {
+        return false;
+    }
+    return $m[1] !== 'all' && $m[1] !== PackagesNativeArch();
 }
 
 // "libfoo:armhf" -> "libfoo"
@@ -345,7 +415,7 @@ function InstalledReverseDependencies($package, $except = array())
             continue; // the package's own name and the "Reverse Depends:" header
         }
         $name = PackageBaseName($m[1]);
-        if (!in_array($name, $except) && !in_array($name, $rdeps)) {
+        if (!in_array($name, $except, true) && !in_array($name, $rdeps, true)) {
             $rdeps[] = $name;
         }
     }
@@ -384,14 +454,15 @@ function AptSimulate($args, $named)
         }
         $name = PackageBaseName($m[2]);
         // "Inst name [old] (new ...)" is an upgrade; "Inst name (new ...)" is new.
-        if ($m[1] === 'Inst' && !preg_match('/^\s*\[/', $m[3]) && !in_array($name, $result['new'])) {
+        // A foreign-architecture one is left out: never recorded (see the header).
+        if ($m[1] === 'Inst' && !preg_match('/^\s*\[/', $m[3]) && !PackageIsForeignArch($m[2]) && !in_array($name, $result['new'], true)) {
             $result['new'][] = $name;
         }
-        if (in_array($name, $named)) {
+        if (in_array($name, $named, true)) {
             continue;
         }
         $key = $m[1] === 'Remv' ? 'remove' : 'change';
-        if (!in_array($name, $result[$key])) {
+        if (!in_array($name, $result[$key], true)) {
             $result[$key][] = $name;
         }
     }
@@ -528,7 +599,8 @@ function FinishInterruptedDpkg()
 // added; if not, it came with the image or was installed by hand, and FPP
 // does not take it over -- unless apt has it marked "auto" (present only as
 // some other package's dependency): then the claim is recorded, mainly so
-// the post-fppos-upgrade replay of the manifest brings it back.
+// the post-fppos-upgrade replay of the manifest brings it back; a plugin's
+// claim is marked "preinstalled", so its release never removes the package.
 //
 // Pass $doUpdate=false to skip 'apt-get update' when the caller has already
 // refreshed the lists. Returns true when the package is installed afterwards.
@@ -545,16 +617,23 @@ function InstallSystemPackage($package, $requester, $doUpdate = true)
         PackagesMsg("ERROR: cannot install package '$package' -- this platform does not support system packages. Install it from the plugin's fpp_install.sh instead.");
         return false;
     }
+    $foreign = PackageIsForeignArch($package); // never recorded (see the header)
     if (PackageIsInstalled($package)) {
         $owners = GetPackageRequesters($key);
-        if (in_array($requester, $owners)) {
+        if ($foreign) {
+            PackagesMsg("Package '$package' is already installed; leaving it as it is (another architecture's packages are not tracked).");
+        } else if (in_array($requester, $owners, true)) {
             PackagesMsg("Package '$package' is already installed (required by $requester); nothing to do.");
         } else if (count($owners) > 0) {
             AddPackageRequester($key, $requester);
             PackagesMsg("Package '$package' is already installed; recorded $requester as also requiring it.");
         } else if (PackageIsAutoInstalled($package)) {
-            AddPackageRequester($key, $requester);
-            PackagesMsg("Package '$package' was already installed as a dependency of another package; recorded $requester as requiring it.");
+            // Marked for a plugin only, as only a plugin's release honours it:
+            // the user's own Uninstall still removes it (behind the same
+            // reverse-dependency dry-run as any other).
+            $plugin = ($requester !== 'user');
+            AddPackageRequester($key, $requester, $plugin ? true : null);
+            PackagesMsg("Package '$package' was already installed as a dependency of another package; recorded " . ($plugin ? "$requester as requiring it (it will not be removed if $requester is uninstalled)" : "it for the Package Manager") . ".");
         } else {
             PackagesMsg("Package '$package' is already installed; leaving it as it is (it will not be removed if $requester is uninstalled).");
         }
@@ -583,10 +662,16 @@ function InstallSystemPackage($package, $requester, $doUpdate = true)
         return false;
     }
 
-    if (!in_array($key, $new)) {
+    if ($foreign) {
+        // Nothing from it is recorded: its parent would not be tracked, and
+        // its dependencies would look undeclared on the next release.
+        $new = array();
+    } else if (!in_array($key, $new, true)) {
         $new[] = $key;
     }
-    AddPackageRequesters($new, $requester, $key);
+    if (count($new)) {
+        AddPackageRequesters($new, $requester, $key, false);
+    }
     $deps = array_values(array_diff($new, array($key)));
     PackagesMsg("Installed '$package'" . (count($deps) ? " (with " . implode(', ', $deps) . ")" : "") . ".");
     return true;
@@ -681,6 +766,14 @@ function ReleasePackageClaims($packages, $requester)
                     return $r === 'user' ? 'the Package Manager' : $r;
                 }, $reqs);
                 PackagesMsg("Package '$package' is still required by: " . implode(', ', $labels) . " - leaving it installed.");
+                continue;
+            }
+            if ($requester !== 'user' && PackageWasPreinstalled($package)) {
+                // Already on the box when first claimed (see the header): the
+                // last claim goes, the package stays. Not for the user's own
+                // Uninstall, which asked for the removal.
+                unset($map[$package]);
+                PackagesMsg("Package '$package' was already installed before FPP tracked it - leaving it installed.");
                 continue;
             }
             if (!AptAvailable()) {

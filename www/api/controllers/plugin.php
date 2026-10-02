@@ -2661,13 +2661,15 @@ function PluginFetchReinstallTargetByURL($plugin, $branch, $url)
  * ```
  */
 // The apt packages a dependency block declares, as a flat list of names.
+// Arch-less, like the manifest's keys and "via" (a declared "foo:armhf" is
+// claimed as "foo"), so the two compare like with like.
 function DeclaredPackages($deps)
 {
 	$declared = array();
-	if ($deps !== null && isset($deps['packages']) && is_array($deps['packages'])) {
+	if (is_array($deps) && isset($deps['packages']) && is_array($deps['packages'])) {
 		foreach ($deps['packages'] as $p) {
 			if (is_string($p) && $p !== '') {
-				$declared[] = $p;
+				$declared[] = PackageBaseName($p);
 			}
 		}
 	}
@@ -2684,7 +2686,7 @@ function ReleaseUndeclaredPackageClaims($plugin, $declared, $op, $stream)
 	PackagesSetStreaming(PluginStreaming($stream), $plugin);
 	$stale = array();
 	foreach (LoadUserPackages() as $pkg => $reqs) {
-		if (!in_array($plugin, $reqs) || in_array($pkg, $declared)) {
+		if (!in_array($plugin, $reqs, true) || in_array((string) $pkg, $declared, true)) {
 			continue;
 		}
 		// A dependency the install pulled in is "declared" through its parent:
