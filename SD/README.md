@@ -134,6 +134,30 @@ output/
 The `.fppos` file is what FPP's web UI offers under "OS Updates" — it
 upgrades a running FPP install in place via `upgradeOS-part1.sh`.
 
+## Preparing a card for mass duplication
+
+A fresh card normally spends its first two boots expanding the rootfs
+(partition grow + reboot, then `resize2fs`). Before sending a master card off
+to be duplicated, do that on a Linux host instead:
+
+```bash
+sudo SD/expand_fpp_fs.sh /dev/sdc
+```
+
+It grows the last (rootfs) partition and filesystem, zeroes the new inode
+tables (so `ext4lazyinit` doesn't run on the first boots), removes the
+`fpp_expand_rootfs` marker, and scrubs per-device state — SSH host keys,
+machine-id, FPP UUID, random seed, logs, settings/config — so every copy
+generates its own on first boot. Works on Pi, BBB and BB64 cards, or on an
+`.img` file (grow it with `truncate -s` first).
+
+By default it leaves 2% (max 900M) of the card unpartitioned, so the copy
+still fits on cards that are slightly smaller than the master. Use
+`--reserve 0` to fill the card, or e.g. `--reserve 1G` for more slack.
+`--keep-config` keeps `media/settings` and `media/config/`. Flash the master
+from the image and run this *without* booting it first: a boot can also bake
+hardware-specific changes (cape config, `config.txt` edits) into the card.
+
 ## Continuous integration
 
 `.github/workflows/build-images.yml` runs the same scripts on a nightly cron
