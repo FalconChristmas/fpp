@@ -116,6 +116,26 @@ public:
     std::mutex sensorLock;
 };
 
+// I2C sensor addresses are hex with an optional 0x prefix (e.g. "0x48").
+// Manual checks (no new headers): anything else cannot be an address and must
+// never reach the shell command built in HasI2CDevice() below.
+static bool isValidI2CAddress(const std::string& a) {
+    size_t i = 0;
+    if (a.size() > 2 && a[0] == '0' && (a[1] == 'x' || a[1] == 'X')) {
+        i = 2;
+    }
+    if (i == a.size()) {
+        return false;
+    }
+    for (; i < a.size(); i++) {
+        char c = a[i];
+        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) {
+            return false;
+        }
+    }
+    return true;
+}
+
 class I2CSensor : public Sensor {
 public:
     explicit I2CSensor(Json::Value& s) :
@@ -190,6 +210,14 @@ public:
         }
     }
     bool HasI2CDevice(int i2cBus) {
+        // address comes from operator-editable sensors.json and is
+        // interpolated unquoted into a shell below. I2C addresses are hex
+        // (e.g. "0x48"), so anything else is rejected here; a rejection reads
+        // as "no device", the same outcome as a genuinely absent chip, and
+        // the bus-fallback/rawIO branches keep working off that signal.
+        if (!isValidI2CAddress(address)) {
+            return false;
+        }
         char buf[256];
         snprintf(buf, sizeof(buf), "i2cdetect -y -r %d %s %s", i2cBus, address.c_str(), address.c_str());
         std::string result = exec(buf);
