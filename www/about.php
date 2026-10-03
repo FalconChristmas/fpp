@@ -408,10 +408,12 @@
         function setCoordinatedCards(recommended) {
             // Until the update check has answered, "not recommended" only means
             // "not known yet", so the FPP card is not faded on a verdict that has
-            // not been reached (the OS side can render first).
+            // not been reached (the OS side can render first).  Nor is it faded
+            // while it still offers an update for the installed version: that
+            // button is live even when the OS path is the recommended one.
             $('#fppCard')
                 .toggleClass('is-recommended', recommended === 'fpp')
-                .toggleClass('is-disabled', recommended !== 'fpp' && !updateCheckPending);
+                .toggleClass('is-disabled', recommended !== 'fpp' && !updateCheckPending && !sameBranchUpdateAvailable);
             $('#osCard')
                 .toggleClass('is-recommended', recommended === 'os')
                 .toggleClass('is-disabled', recommended !== 'os');
@@ -429,11 +431,13 @@
             if (needsRebuild) {
                 $fpp.text('FPP has not been built on this system. Rebuild to restore the FPP daemon.');
             } else if (isMajorVersionUpgrade) {
-                $fpp.text('Cannot upgrade across major versions from here. Use the OS upgrade instead.');
+                $fpp.text('Cannot upgrade across major versions from here. Use the OS upgrade instead.' +
+                    (sameBranchUpdateAvailable ? ' Updates for your current version can still be installed.' : ''));
             } else if (fppUpdateAvailable && osUpgradeAvailable) {
                 $fpp.text('An FPP update is available, but the OS upgrade below already includes a fresh FPP build.');
             } else if (fppUpdateAvailable && branchUpgradeData && branchUpgradeData.branchUpgradeVersion) {
-                $fpp.text('FPP ' + branchUpgradeData.branchUpgradeVersion + ' is available. Safe and quick (2-5 min).');
+                $fpp.text('FPP ' + branchUpgradeData.branchUpgradeVersion + ' is available. Safe and quick (2-5 min).' +
+                    (sameBranchUpdateAvailable ? ' To stay on your current version, you can install just its latest fixes instead.' : ''));
             } else if (fppUpdateAvailable) {
                 $fpp.text('New commits are available on your current branch. Safe and quick.');
             } else if (isEndOfLife) {
@@ -605,6 +609,10 @@
         var updateCheckFailed = false;
         var branchUpgradeData = null;
         var isMajorVersionUpgrade = false;
+        // A newer release is offered AND the installed branch has new commits of
+        // its own. The main button only offers the new release, so a second one
+        // lets the user stay on their version and just take its latest fixes.
+        var sameBranchUpdateAvailable = false;
         var isEndOfLife = false;
         // No local version (cleaned/never-built tree): nothing can be compared, so
         // the only action this card can offer is a rebuild of what's checked out.
@@ -747,6 +755,9 @@
             $('#fppVersionStandardBranchUpgrade, #fppVersionStandardCommitUpdate, #fppVersionStandardCurrent').hide();
             // Reset the major-version callout; re-shown only on the major path below.
             $('#fppMajorCallout').hide();
+            // Re-shown only on the branch-upgrade paths below.
+            sameBranchUpdateAvailable = false;
+            $('#fppBranchUpdateButton').addClass('d-none');
 
             // Check for End of Life status
             isEndOfLife = updateData.isEndOfLife || false;
@@ -778,6 +789,14 @@
                 fppUpdateAvailable = true;
 
                 isMajorVersionUpgrade = updateData.isMajorVersionUpgrade || false;
+
+                // The current branch can still have fixes of its own -- on a major
+                // upgrade (which needs an OS image) more than ever.
+                if (updateData.commitUpdateAvailable && updateData.currentBranch) {
+                    sameBranchUpdateAvailable = true;
+                    $('#fppBranchUpdateButtonText').text('Update to latest ' + updateData.currentBranch);
+                    $('#fppBranchUpdateButton').removeClass('d-none');
+                }
 
                 if (isMajorVersionUpgrade) {
                     // Major version upgrades REQUIRE OS upgrade
@@ -1652,6 +1671,12 @@
                                 <button class="fpp-btn fpp-btn--secondary" id="fppUpdateButton"
                                     onclick="HandleFPPUpdate();">
                                     <i class="fas fa-download"></i> <span id="fppUpdateButtonText">Update FPP Now</span>
+                                </button>
+                                <!-- Shown only when a newer release is offered and the installed
+                                     branch also has new commits: updates in place, no version change. -->
+                                <button class="fpp-btn fpp-btn--secondary d-none" id="fppBranchUpdateButton"
+                                    onclick="UpgradeFPP();">
+                                    <i class="fas fa-sync-alt"></i> <span id="fppBranchUpdateButtonText">Update current version</span>
                                 </button>
                                 <?php
                                 if ($settings['uiLevel'] > 0) {
