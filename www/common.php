@@ -3003,7 +3003,7 @@ function check_fppstats_updates($latestReleaseVersion = null, $latestReleaseHasD
             $result['checked'] = false;
         } else {
             $latestNonMaster = '';
-            $latestNonMasterEpoch = 0;
+            $latestNonMasterVersion = 0;
 
             foreach ($data['branches'] as $branch) {
                 // Check for remote commit on current branch
@@ -3034,14 +3034,18 @@ function check_fppstats_updates($latestReleaseVersion = null, $latestReleaseHasD
 
                 // Check for newer release branches (only for non-master users)
                 if ($checkBranchUpgrade && $branch['name'] !== 'master') {
-                    // Only consider branches that start with 'v' followed by a digit
-                    if (preg_match('/^v(\d+\.\d+)/', $branch['name'], $matches)) {
+                    // Only consider plain release branches (vX.Y). Suffixed ones
+                    // such as v10.0-beta or v8.5-bb64 are never an upgrade target.
+                    if (preg_match('/^v(\d+\.\d+)$/', $branch['name'], $matches)) {
                         $branchVersion = floatval($matches[1]);
-                        $branchEpoch = $branch['commit']['date_epoch'] ?? 0;
 
-                        if ($branchVersion >= $fppVersionFloat && $branchEpoch > $latestNonMasterEpoch) {
+                        // Pick the highest version, not the most recently committed
+                        // branch: a fix backported to an older release branch makes
+                        // it the newest commit and would otherwise hide every newer
+                        // release from the players on it.
+                        if ($branchVersion >= $fppVersionFloat && $branchVersion > $latestNonMasterVersion) {
                             $latestNonMaster = $branch['name'];
-                            $latestNonMasterEpoch = $branchEpoch;
+                            $latestNonMasterVersion = $branchVersion;
                         }
                     }
                 }
