@@ -884,6 +884,15 @@ function network_save_dns()
 
     $cfgFile = $settings['configDirectory'] . "/dns";
 
+    // Empty clears the server (the UI sends "" explicitly); anything else must
+    // be a dotted quad -- these lines are later parsed as plain KEY=VALUE.
+    $dns1 = isset($data['DNS1']) ? $data['DNS1'] : '';
+    $dns2 = isset($data['DNS2']) ? $data['DNS2'] : '';
+    if (($dns1 !== '' && !network_is_valid_ipv4($dns1)) ||
+        ($dns2 !== '' && !network_is_valid_ipv4($dns2))) {
+        return json(array("status" => "ERROR: invalid DNS address"));
+    }
+
     $f = fopen($cfgFile, "w");
     if ($f == false) {
         return;
@@ -893,8 +902,8 @@ function network_save_dns()
         $f,
         "DNS1=\"%s\"\n" .
         "DNS2=\"%s\"\n",
-        $data['DNS1'],
-        $data['DNS2']
+        $dns1,
+        $dns2
     );
     fclose($f);
 
@@ -959,6 +968,12 @@ function network_save_gateway()
 
     $cfgFile = $settings['configDirectory'] . "/gateway";
 
+    // Empty clears the gateway; anything else must be a dotted quad.
+    $gateway = isset($data['GATEWAY']) ? $data['GATEWAY'] : '';
+    if ($gateway !== '' && !network_is_valid_ipv4($gateway)) {
+        return json(array("status" => "ERROR", "message" => "Invalid gateway address"));
+    }
+
     $f = fopen($cfgFile, "w");
     if ($f == false) {
         return json(array("status" => "ERROR", "message" => "Unable to create gateway configuration file"));
@@ -967,14 +982,14 @@ function network_save_gateway()
     fprintf(
         $f,
         "GATEWAY=\"%s\"\n",
-        $data['GATEWAY']
+        $gateway
     );
     fclose($f);
 
     //Trigger a JSON Configuration Backup
     GenerateBackupViaAPI('Global Gateway Configuration was modified.');
 
-    return json(array("status" => "OK", "GATEWAY" => $data['GATEWAY']));
+    return json(array("status" => "OK", "GATEWAY" => $gateway));
 }
 
 /**
@@ -987,6 +1002,38 @@ function network_save_gateway()
 function network_is_valid_interface_name($interface)
 {
     return is_string($interface) && preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]{0,14}$/', $interface);
+}
+
+/**
+ * Strict IPv4 check for config-file values (addresses, masks, DNS, gateways,
+ * lease IPs). Empty is allowed separately by callers that accept it; anything
+ * else must be a dotted quad -- these files have no escape mechanism, so a
+ * malformed value would otherwise corrupt the whole file.
+ */
+function network_is_valid_ipv4($v)
+{
+    return is_string($v) && filter_var($v, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false;
+}
+
+/**
+ * Free-form wifi strings (SSID/PSK and backups) legitimately contain spaces,
+ * punctuation, and unicode, so they cannot be allow-listed -- but the config
+ * files are line-oriented with no escape processing on either reader (PHP
+ * parse_ini_file, C++ loadSettingsFile), so quote/newline/CR/NUL would break
+ * out into forged keys. Reject just those bytes.
+ */
+function network_is_safe_config_string($v)
+{
+    return is_string($v) && strpos($v, "\0") === false && strpbrk($v, "\"\r\n") === false;
+}
+
+/**
+ * Strict MAC check for static lease entries (colon or dash separators, as the
+ * UI accepts both styles).
+ */
+function network_is_valid_mac($v)
+{
+    return is_string($v) && preg_match('/^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/', $v);
 }
 
 /**
@@ -1293,12 +1340,33 @@ function network_set_interface()
     $cfgFile = $settings['configDirectory'] . "/interface." . $data['INTERFACE'];
     $leasesFile = $settings['configDirectory'] . "/leases." . $data['INTERFACE'];
 
+    // Static lease entries are written verbatim below; validate first so a bad
+    // MAC/IP fails the save instead of corrupting the leases file. The UI
+    // already enforces IPv4 client-side; MACs accept both separator styles.
+    if (isset($data['Leases'])) {
+        if (!is_array($data['Leases'])) {
+            return json(array("status" => "ERROR: invalid leases"));
+        }
+        foreach ($data['Leases'] as $lip => $lmac) {
+            if (!network_is_valid_ipv4((string)$lip) || !network_is_valid_mac($lmac)) {
+                return json(array("status" => "ERROR: invalid static lease entry"));
+            }
+        }
+    }
+
     $f = fopen($cfgFile, "w");
     if ($f == false) {
         return json(array("status" => "Unable to create file for interface"));
     }
 
     if ($data['PROTO'] == "static") {
+        $address = isset($data['ADDRESS']) ? $data['ADDRESS'] : '';
+        $netmask = isset($data['NETMASK']) ? $data['NETMASK'] : '';
+        if (($address !== '' && !network_is_valid_ipv4($address)) ||
+            ($netmask !== '' && !network_is_valid_ipv4($netmask))) {
+            fclose($f);
+            return json(array("status" => "ERROR: invalid static address or netmask"));
+        }
         fprintf(
             $f,
             "INTERFACE=\"%s\"\n" .
@@ -1306,8 +1374,8 @@ function network_set_interface()
             "ADDRESS=\"%s\"\n" .
             "NETMASK=\"%s\"\n",
             $data['INTERFACE'],
-            $data['ADDRESS'],
-            $data['NETMASK']
+            $address,
+            $netmask
         );
 
     } else if ($data['PROTO'] == "dhcp") {
@@ -1320,6 +1388,28 @@ function network_set_interface()
     }
 
     if (substr($data['INTERFACE'], 0, 2) == "wl") {
+        // SSID/PSK are free-form (spaces, punctuation, unicode all occur in
+        // the wild) but land in double-quoted file lines, so only the
+        // format-breaking bytes are refused. Flags arrive as JSON booleans
+        // from the UI and are written verbatim below -- anything else is.
+        foreach (array('SSID', 'PSK', 'BACKUPSSID', 'BACKUPPSK') as $k) {
+            if (isset($data[$k]) && !network_is_safe_config_string($data[$k])) {
+                fclose($f);
+                return json(array("status" => "ERROR: invalid characters in " . $k));
+            }
+        }
+        foreach (array('HIDDEN', 'WPA3', 'BACKUPHIDDEN', 'BACKUPWPA3') as $k) {
+            // Booleans from the UI pass through verbatim (fprintf %s renders
+            // true as "1", false as ""); the loose scalars below cover API
+            // clients. Anything else (notably strings with newlines/quotes)
+            // would inject file lines.
+            if (isset($data[$k]) && !is_bool($data[$k]) && $data[$k] !== 0 && $data[$k] !== 1 &&
+                $data[$k] !== "0" && $data[$k] !== "1" && $data[$k] !== "" &&
+                strcasecmp((string)$data[$k], "true") !== 0 && strcasecmp((string)$data[$k], "false") !== 0) {
+                fclose($f);
+                return json(array("status" => "ERROR: invalid value for " . $k));
+            }
+        }
         fprintf(
             $f,
             "SSID=\"%s\"\n" .
@@ -1347,6 +1437,7 @@ function network_set_interface()
         fprintf($f, "DHCPSERVER=%d\n", $data['DHCPSERVER'] ? "1" : 0);
         if ($data['DHCPSERVER']) {
             if (isset($data['Leases'])) {
+                // Entries validated above; non-array input rejected there too.
                 $lf = fopen($leasesFile, "w");
                 foreach ($data['Leases'] as $ip => $mac) {
                     fprintf($lf, "[DHCPServerStaticLease]\n");
@@ -1357,6 +1448,15 @@ function network_set_interface()
             } else if (file_exists($leasesFile)) {
                 unlink($leasesFile);
             }
+        }
+    }
+    // Numeric options render through %d below, where array input would fatal
+    // mid-save (leaving a truncated file). Empty string keeps its historical
+    // meaning (writes 0, as before); UI numeric fields send numbers.
+    foreach (array('DHCPOFFSET', 'DHCPPOOLSIZE', 'ROUTEMETRIC', 'IPFORWARDING') as $k) {
+        if (isset($data[$k]) && $data[$k] !== "" && !is_numeric($data[$k])) {
+            fclose($f);
+            return json(array("status" => "ERROR: invalid value for " . $k));
         }
     }
     if (isset($data['DHCPOFFSET'])) {
