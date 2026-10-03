@@ -13998,20 +13998,31 @@ function checkForFppUpdate () {
 				.done(function (data) {
 					let remote_commit = '';
 					let latest_non_master = '';
-					let latest_non_master_epoch = 0;
+					let latest_non_master_version = 0;
+
+					// This fallback cannot see GitHub's release assets, so it cannot
+					// tell whether a new major has an OS image for this device. A new
+					// major may need a new OS, so only offer branches of the major
+					// version already installed; the API path handles major upgrades.
+					var currentMajorMatch = FPP_BRANCH.match(/^v(\d+)\.\d+/);
+					var currentMajor = currentMajorMatch
+						? parseInt(currentMajorMatch[1])
+						: -1;
 
 					data.branches.forEach(branch => {
 						if (branch.name === FPP_BRANCH) {
 							remote_commit = branch.commit.sha;
 						}
-						if (branch.name != 'master' && /^v\d/.test(branch.name)) {
+						// Plain vX.Y release branches only, and pick the highest
+						// version rather than the most recently committed one: a fix
+						// backported to an older branch would otherwise hide every
+						// newer release.
+						var m = branch.name.match(/^v(\d+)\.\d+$/);
+						if (m && parseInt(m[1]) === currentMajor) {
 							var bn = parseFloat(branch.name.substr(1));
-							if (
-								bn >= FPP_VERSION_FLOAT &&
-								branch.commit.date_epoch > latest_non_master_epoch
-							) {
+							if (bn >= FPP_VERSION_FLOAT && bn > latest_non_master_version) {
 								latest_non_master = branch.name;
-								latest_non_master_epoch = branch.commit.date_epoch;
+								latest_non_master_version = bn;
 							}
 						}
 					});
@@ -14028,14 +14039,7 @@ function checkForFppUpdate () {
 							/^v/,
 							''
 						);
-
-						// Check if this is a major version upgrade
-						var currentMatch = FPP_BRANCH.match(/^v?(\d+)/);
-						var targetMatch = latest_non_master.match(/^v?(\d+)/);
-						if (currentMatch && targetMatch) {
-							FPP_UPDATE_STATE.isMajorVersionUpgrade =
-								parseInt(targetMatch[1]) > parseInt(currentMatch[1]);
-						}
+						FPP_UPDATE_STATE.isMajorVersionUpgrade = false;
 					}
 					if (remote_commit && !remote_commit.startsWith(FPP_LOCAL_COMMIT)) {
 						FPP_UPDATE_STATE.commitUpdateAvailable = true;
