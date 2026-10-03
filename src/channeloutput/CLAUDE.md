@@ -44,7 +44,7 @@ SendSequenceData()
       output->SendData(m_seqData + startChannel)
        |
        v
-  41 channel output plugins (UDPOutput, BBB48String, RGBMatrix, etc.)
+  channel output plugins (UDPOutput, BBB48String, RGBMatrix, etc.)
 ```
 
 ## Overlay Model Effect Update and Buffer Flushing

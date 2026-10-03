@@ -20,8 +20,8 @@ Checklist for a `www/` change:
 1. Work out which help file covers the page (see the mapping below).
 2. If a help file exists, edit the matching section — add the new control,
    drop the removed one, correct wording when behaviour changes.
-3. If no help file exists, you are not required to author a whole new one, but
-   say so in your summary so the maintainer can decide.
+3. If no help file exists, create one populated with the key information for
+   that page (one per tab if the page is tabbed), and say so in your summary.
 4. Keep the help file's existing voice: user-facing, second person, describing
    *what the control does*, not how it is implemented.
 5. Help files are PHP and follow `.claude/FRONTEND-GUIDELINES.md` like any
@@ -76,6 +76,3 @@ Most settings controls are declared in `www/settings.json` (and network ones in
 `www/interface-settings.json`) with a `description` and `tip`. Those are the
 inline hints; the `help/` file is the longer narrative. When you change a
 setting, check whether both need updating — they usually do.
-
-## If help page is missing
-If the help page is missing and you have just made a change - generate a new help page populated with key info for that page.  If its a tabbed page ensure a help page is created for each tab

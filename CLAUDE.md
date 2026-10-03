@@ -15,7 +15,7 @@ The project uses Make. The primary Makefile is `src/Makefile`, which includes fr
 cd src && make
 
 # Build targets
-make              # default optimized build (-O3, -g1 on master)
+make              # default optimized build (-O3; GCC builds add -g1)
 make debug        # debug build (-g -DDEBUG)
 make asan         # address sanitizer build (does NOT run on 4K-page arm64 kernels)
 make tsan         # thread sanitizer build
@@ -26,11 +26,11 @@ make clean        # remove all build artifacts
 make cleanfpp     # remove just fpp artifacts (keeps PCH)
 ```
 
-Platform is auto-detected: macOS uses clang/clang++, Linux uses g++. On macOS, Homebrew dependencies are expected at `/opt/homebrew` (ARM) or `/usr/local` (Intel). Linker preference: mold > gold > default ld. Precompiled headers used unless DISTCC_HOSTS is set.
+Platform is auto-detected: macOS uses clang/clang++, Linux uses g++. On macOS, Homebrew dependencies are expected at `/opt/homebrew` (ARM) or `/usr/local` (Intel). Linker preference: mold > gold > default ld. Precompiled headers are used unless a distributed compile is configured (`DISTCC_HOSTS`, `NOCC_SERVERS` or `NOCC_DISCOVER_MDNS`), which builds with `-DNOPCH` instead.
 
 ### macOS Setup
 
-Run `SD/FPP_Install_Mac.sh` from a directory that will serve as the media directory. It installs Homebrew and all required dependencies (php, httpd, ffmpeg, ccache, SDL2, zstd, taglib, mosquitto, jsoncpp, libhttpserver, graphicsmagick, libusb).
+Run `SD/FPP_Install_Mac.sh` from a directory that will serve as the media directory. It installs Homebrew and all required dependencies; the `brew install` line in the script is the current list.
 
 ### Key Build Artifacts
 
@@ -66,7 +66,7 @@ External plugins (`/media/plugins/`) are compiled separately and link against FP
 
 - **C++**: Configured via `.clang-format`. 4-space indent, no tabs, Allman-ish braces (custom), no column limit, C++20/23 standard.
 - **JavaScript**: Configured via `.prettierrc`. Semicolons, tabs, experimental ternaries.
-- **C++ standard**: GNU++23 with GCC 12+, GNU++2a with older GCC, C++20 with Clang.
+- **C++ standard**: GNU++23 with GCC, C++20 with Clang (set in `src/makefiles/common/setup.mk`).
 
 ## Frontend
 
@@ -137,4 +137,4 @@ changing one.
   renders it in a script-less sandboxed iframe instead of a `<pre>`, and the helper skips its
   `fold`. Diagnostic Reports still get the raw output.
 - **Cape configs**: `capes/` directory — JSON files with GPIO pin mappings, output channel definitions
-- **Audio**: `etc/asoundrc.*` — ALSA configurations (dmix, hdmi, plain, softvol)
+- **Audio**: `etc/asoundrc.*` — ALSA configurations (dmix, hdmi, pipewire, plain, softvol)

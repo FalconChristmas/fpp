@@ -14,13 +14,14 @@ built-in utility classes:
 - Typography: `.fw-bold`, `.fw-semibold`, `.fs-*`, `.text-truncate`
 - Sizing: `.w-100`, `.h-100`, `.mw-100`, `.w-auto`
 
-**If a Bootstrap utility exists for what you need, use it. Do not write custom CSS.**
+If a Bootstrap utility covers what you need, use it rather than custom CSS:
+custom rules are what break dark mode and page-to-page consistency.
 
-## Rule 2: Never use inline styles for these patterns
+## Rule 2: Inline styles that have a Bootstrap equivalent
 
-The following inline styles are BANNED — use the Bootstrap equivalent instead:
+Use the class instead of the inline style:
 
-| Banned inline style | Use instead |
+| Inline style | Use instead |
 | --- | --- |
 | `style="display: none;"` | `class="d-none"` |
 | `style="font-weight: bold;"` | `class="fw-bold"` |
@@ -57,13 +58,11 @@ Available `--fpp-*` variable groups: `--fpp-text-*`, `--fpp-bg-*`, `--fpp-border
 **Never use:** hex values, named colors (`red`, `orange`), or `rgb()` literals in
 generated HTML or inline styles.
 
-## Rule 4: Custom CSS is strongly discouraged — push back and suggest removal
+## Rule 4: Custom CSS needs a functional reason
 
-The default answer to any new custom class or inline style is **no**. If the user
-asks for one, explain why it isn't needed and offer the Bootstrap or `--fpp-*`
-alternative instead.
-
-A `<style>` block or new CSS rule is only permitted when it meets ALL of these:
+A `<style>` block, new CSS rule, or custom class is permitted only when it meets
+all of these. When a request asks for one that doesn't, offer the Bootstrap or
+`--fpp-*` alternative and explain why it fits better:
 
 1. **No Bootstrap utility or component covers it** (genuinely novel behavior)
 2. **It has a functional purpose** — a scroll boundary, a drag handle, a layout
@@ -99,7 +98,7 @@ scoping them to the theme attribute.
 
 When building HTML strings in JavaScript, the same rules apply. Use Bootstrap
 class names in string concatenation; do not use `style=` attributes for anything
-on the banned list.
+in the Rule 2 table.
 
 ```javascript
 // BAD
@@ -109,13 +108,9 @@ row += "<i class='fas fa-warning' style='color:red'></i>";
 row += "<i class='fas fa-warning text-danger'></i>";
 ```
 
-## Rule 8: Proactively flag existing violations when editing a file
+## Rule 8: Fix violations near your change
 
-When editing any file under `www/`, scan the surrounding code for violations of
-these rules and report them before making your changes. Format findings as:
-
-> **Style violation at line N:** `style="color: red"` → use `class="text-danger"`
-
-Do not silently leave violations in place. If the fix is low-risk (a class swap,
-removing a redundant style attribute), apply it in the same edit. If the fix
-requires broader restructuring, list it as a follow-up suggestion.
+When editing a file under `www/`, fix low-risk violations of these rules in the
+code around your change (a class swap, removing a redundant style attribute) in
+the same edit. List any that need broader restructuring, with line numbers, as
+follow-up suggestions in your summary.
