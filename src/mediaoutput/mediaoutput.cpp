@@ -458,6 +458,983 @@ void setVolume(int vol) {
     } else if (mixerDevice.empty()) {
         LogDebug(VB_MEDIAOUT, "No ALSA mixer control for card %d; skipping hardware volume\n",
                  audioOutput);
+    } else if (mixerDevice.find('\'') != std::string::npos) {
+        // The name is interpolated inside single quotes in the amixer command
+        // below -- the only character that can break out of that context. A
+        // quote can only get here via a hand-edited setting (real control
+        // names never contain one), so skip hardware volume exactly like a
+        // missing control is skipped above.
+        LogDebug(VB_MEDIAOUT, "ALSA mixer control name contains a quote; skipping hardware volume\n");
+    } else {
+        // Follow the same taper as the PipeWire path, where pactl's percentage
+        // is PulseAudio's cubic (perceptual) scale -- the same FPP volume should
+        // not mean a different loudness just because the backend changed.  Only
+        // the taper can be matched, not the absolute level: amixer's percentage
+        // is of the control's own raw range, and cards routinely describe that
+        // range uselessly (a USB DAC measured here spans 0.00 to -0.12 dB across
+        // all 31 of its steps), so there is no portable dB to aim at.
+        const float v = volume / 100.0f;
+        fvol = 100.0f * v * v * v;
+#ifdef PLATFORM_PI
+        if (audioOutput == 0 && audio0Type == "bcm2") {
+            fvol /= 2;
+            fvol += 50;
+        }
+#endif
+        snprintf(buffer, sizeof(buffer), "amixer set -c %d '%s' -- %.2f%% >/dev/null 2>&1",
+                 audioOutput, mixerDevice.c_str(), fvol);
+        LogDebug(VB_SETTING, "Volume change: %d \n", volume);
+        LogDebug(VB_MEDIAOUT, "Setting ALSA hardware volume: %s \n", buffer);
+        system(buffer);
+    }
+
+    // === PipeWire software volume ===
+    // Use pactl (PulseAudio compat layer) to set the sink volume.  This is
+    // the same mechanism used by the per-output-group volume controls in the
+    // PHP UI (which are known to work).  It avoids the fragile pw-cli node-ID
+    // lookup and correctly respects PIPEWIRE_RUNTIME_DIR / XDG_RUNTIME_DIR
+    // rather than PIPEWIRE_REMOTE.
+    //
+    // The master targets the CARD sinks (fpp_alsa_*), not PipeWireSinkName.
+    // PipeWireSinkName points at the primary output group, which is also the
+    // node the group volume control and RestorePipeWireGroupVolumes() write --
+    // so master and that group's slider were one knob, and whoever wrote last
+    // won.  At boot that is always fppd (the volume restore runs in fppinit,
+    // before fppd starts), which silently discarded whatever the user had set
+    // on the group.  A group left above the master therefore came back quieter
+    // after every reboot.  The card sinks sit downstream of every group, so
+    // master, group and member volumes now multiply rather than overwrite.
+    //
+    // Volume 0 is expressed as a real 0% so the sink goes silent without
+    // needing a separate mute call; any non-zero restore includes an explicit
+    // unmute in case a prior 0% left the sink muted.
+    if (usePipeWireBackend) {
+        const bool shouldMute = (volume == 0);
+        std::string pwPrefix = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp "
+                               "XDG_RUNTIME_DIR=/run/pipewire-fpp "
+                               "PULSE_RUNTIME_PATH=/run/pipewire-fpp/pulse ";
+
+        // Every FPP-owned output sink -- local cards and AES67 senders alike, so
+        // the master stays a master for a box whose output is a network stream --
+        // plus the WirePlumber-managed nodes group members target directly (an
+        // HDMI output, say), which match no FPP prefix and were being skipped.
+        // Those are appended by name rather than folded into the grep: they may
+        // legitimately be absent from the graph right now (an unplugged card
+        // whose stored nodeTarget is still in the config), and pactl shrugging
+        // at a name it does not know is exactly what the volume-restore path
+        // already relies on.
+        // Falls back to the default sink only when that leaves nothing at all
+        // (no 95-fpp-alsa-sink.conf adapters and no member targets), which is
+        // the old behaviour and still better than attenuating nothing.
+        // Deliberately no single quotes in here: the whole thing is embedded in
+        // an sh -c '...' string, so an inner ' would close it early (awk
+        // '{print $2}' silently truncated the command and left the volume
+        // unset).  pactl's short listing is tab separated, so cut does the job.
+        std::string extraSinks;
+        for (const std::string& n : nonFppOutputSinkNames()) {
+            extraSinks += " " + n;
+        }
+        std::string sinkList = "E=\"" + extraSinks + "\"; " +
+                               "S=$(pactl list sinks short 2>/dev/null | cut -f2 | "
+                               "grep -e ^fpp_alsa_ -e ^aes67_); "
+                               "[ -z \"$S\" ] && [ -z \"$E\" ] && S=@DEFAULT_SINK@; "
+                               "S=\"$S $E\"; ";
+
+        // Built as a string, not into the fixed buffer above: the member-target
+        // names make the length depend on the user's config, and this command
+        // silently losing its tail is precisely how the volume went unset before.
+        std::string cmd;
+        if (shouldMute) {
+            // Set volume to 0% and explicitly mute for true silence.
+            cmd = pwPrefix + " sh -c '" + sinkList +
+                  "for s in $S; do pactl set-sink-volume $s 0%; pactl set-sink-mute $s 1; done' >/dev/null 2>&1";
+            LogDebug(VB_MEDIAOUT, "Muting PipeWire output sinks: %s \n", cmd.c_str());
+        } else if (lastPipeWireVolume == 0) {
+            // Unmute and set volume together, undoing a prior 0%.
+            cmd = pwPrefix + " sh -c '" + sinkList +
+                  "for s in $S; do pactl set-sink-mute $s 0; pactl set-sink-volume $s " +
+                  std::to_string(volume) + "%; done' >/dev/null 2>&1";
+            LogDebug(VB_MEDIAOUT, "Unmuting and setting PipeWire output sink volume: %s \n", cmd.c_str());
+        } else {
+            cmd = pwPrefix + " sh -c '" + sinkList +
+                  "for s in $S; do pactl set-sink-volume $s " + std::to_string(volume) +
+                  "%; done' >/dev/null 2>&1";
+            LogDebug(VB_MEDIAOUT, "Setting PipeWire output sink volume: %s \n", cmd.c_str());
+        }
+        system(cmd.c_str());
+
+        lastPipeWireVolume = volume;
+    }
+#else
+    MacOSSetVolume(vol);
+#endif
+
+    std::unique_lock<std::mutex> lock(mediaOutputLock);
+    // In PipeWire mode, volume is controlled via pactl on the sink (above).
+    // Don't also set the GStreamer volume element or we get double attenuation.
+    // The GStreamer volume element is still used for per-track volumeAdjust
+    // (dB offset).  In ALSA mode, propagate to GStreamer as before.
+    if (mediaOutput && !usePipeWireBackend)
+        mediaOutput->SetVolume(vol);
+}
+
+static std::set<std::string> AUDIO_EXTS = {
+    "mp3", "ogg", "m4a", "m4p", "wav", "au", "wma", "flac", "aac",
+    "MP3", "OGG", "M4A", "M4P", "WAV", "AU", "WMA", "FLAC", "AAC"
+};
+static std::map<std::string, std::string> VIDEO_EXTS = {
+    { "mp4", "mp4" }, { "MP4", "mp4" }, { "avi", "avi" }, { "AVI", "avi" }, { "mov", "mov" }, { "MOV", "mov" }, { "mkv", "mkv" }, { "MKV", "mkv" }, { "mpg", "mpg" }, { "MPG", "mpg" }, { "mpeg", "mpeg" }, { "MPEG", "mpeg" }
+};
+
+bool IsExtensionVideo(const std::string& ext) {
+    return VIDEO_EXTS.find(ext) != VIDEO_EXTS.end();
+}
+bool IsExtensionAudio(const std::string& ext) {
+    return AUDIO_EXTS.find(ext) != AUDIO_EXTS.end();
+}
+
+std::string GetVideoFilenameForMedia(const std::string& filename, std::string& ext) {
+    ext = "";
+    std::string result("");
+    std::size_t found = filename.find_last_of(".");
+    std::string oext = filename.substr(found + 1);
+    std::string lext = toLowerCopy(oext);
+    std::string bfile = filename.substr(0, found + 1);
+    std::string hbfile = bfile;
+    std::string videoPath = FPP_DIR_VIDEO("/" + bfile);
+
+    std::string hostname = getSetting("HostName");
+    std::string hostVideoPath = "";
+    if (hostname != "") {
+        hostVideoPath = videoPath.substr(0, videoPath.length() - 2) + "-" + hostname + ".";
+        hbfile = filename.substr(0, found) + "-" + hostname + ".";
+    }
+
+    if (IsExtensionVideo(lext)) {
+        if (hostVideoPath != "" && FileExists(hostVideoPath + oext)) {
+            ext = lext;
+            result = hbfile + oext;
+        } else if (hostVideoPath != "" && FileExists(hostVideoPath + lext)) {
+            ext = lext;
+            result = hbfile + lext;
+        } else if (FileExists(videoPath + oext)) {
+            ext = lext;
+            result = bfile + oext;
+        } else if (FileExists(videoPath + lext)) {
+            ext = lext;
+            result = bfile + lext;
+        }
+    } else if (IsExtensionAudio(lext)) {
+        for (auto& n : VIDEO_EXTS) {
+            if (FileExists(hostVideoPath + n.first)) {
+                ext = n.second;
+                result = hbfile + n.first;
+                return result;
+            } else if (FileExists(videoPath + n.first)) {
+                ext = n.second;
+                result = bfile + n.first;
+                return result;
+            }
+        }
+    }
+
+    return result;
+}
+bool HasAudioForMedia(std::string& mediaFilename) {
+    std::string fullMediaPath = mediaFilename;
+
+    std::string hostname = getSetting("HostName");
+    if (hostname != "") {
+        std::size_t found = mediaFilename.find_last_of(".");
+        std::string hostMediaPath;
+        if (found != std::string::npos) {
+            hostMediaPath = mediaFilename.substr(0, found) + "-" + hostname + mediaFilename.substr(found);
+        } else {
+            hostMediaPath = mediaFilename + "-" + hostname;
+        }
+        if (FileExists(hostMediaPath)) {
+            mediaFilename = hostMediaPath;
+            return true;
+        }
+        hostMediaPath = FPP_DIR_MUSIC("/" + hostMediaPath);
+        if (FileExists(hostMediaPath)) {
+            mediaFilename = hostMediaPath;
+            return true;
+        }
+    }
+
+    if (FileExists(mediaFilename)) {
+        return true;
+    }
+    fullMediaPath = FPP_DIR_MUSIC("/" + mediaFilename);
+    if (FileExists(fullMediaPath)) {
+        mediaFilename = fullMediaPath;
+        return true;
+    }
+    return false;
+}
+bool HasVideoForMedia(std::string& filename) {
+    std::string ext;
+    std::string fp = GetVideoFilenameForMedia(filename, ext);
+    if (fp != "") {
+        filename = fp;
+    }
+    return fp != "";
+}
+
+static bool IsHDMIOut(std::string& vOut) {
+    if (vOut == "--HDMI--" || vOut == "--hdmi--" || vOut == "HDMI") {
+        vOut = "HDMI-A-1";
+    }
+    if (vOut.starts_with("HDMI-") || vOut.starts_with("DSI-") || vOut.starts_with("Composite-")) {
+        for (int x = 0; x < 4; x++) {
+            std::string conn = "/sys/class/drm/card" + std::to_string(x) + "-" + vOut + "/status";
+            if (FileExists(conn)) {
+                std::string status = GetFileContents(conn);
+                return !contains(status, "disconnected");
+            }
+        }
+    }
+    return false;
+}
+
+MediaOutputBase* CreateMediaOutput(const std::string& mediaFilename, const std::string& vOut, int streamSlot) {
+    std::string tmpFile(mediaFilename);
+    std::size_t found = mediaFilename.find_last_of(".");
+    if (found == std::string::npos) {
+        LogDebug(VB_MEDIAOUT, "Unable to determine extension of media file %s\n",
+                 mediaFilename.c_str());
+        return nullptr;
+    }
+    std::string ext = toLowerCopy(mediaFilename.substr(found + 1));
+    std::string vo = vOut;
+
+    // Use per-slot status for multi-stream; slot 1 uses global for backward compat
+    MediaOutputStatus* slotStatus = StreamSlotManager::Instance().GetStatus(streamSlot);
+    slotStatus->output = "";
+
+#ifdef HAS_GSTREAMER
+    // GStreamer is the sole media player.  In PipeWire mode audio/video are
+    // routed through the PipeWire stack; in Hardware Direct (ALSA) mode
+    // GStreamer talks directly to ALSA for audio and uses kmssink for video.
+    bool useGStreamer = true;
+
+    if (useGStreamer && IsExtensionAudio(ext)) {
+        LogDebug(VB_MEDIAOUT, "Using GStreamer for audio playback: %s (slot %d)\n", mediaFilename.c_str(), streamSlot);
+        return new GStreamerOutput(mediaFilename, slotStatus, "--Disabled--", streamSlot);
+    }
+    if (useGStreamer && IsExtensionVideo(ext) && !IsHDMIOut(vo)) {
+        // Video with PixelOverlay output — use GStreamer for both audio and video
+        LogDebug(VB_MEDIAOUT, "Using GStreamer for video+overlay playback: %s (overlay=%s, slot %d)\n",
+                mediaFilename.c_str(), vo.c_str(), streamSlot);
+        return new GStreamerOutput(mediaFilename, slotStatus, vo, streamSlot);
+    }
+    if (useGStreamer && IsExtensionVideo(ext) && IsHDMIOut(vo)) {
+        // Video to HDMI via GStreamer kmssink — audio through PipeWire
+        LogDebug(VB_MEDIAOUT, "Using GStreamer for video+HDMI playback: %s (output=%s, slot %d)\n",
+                mediaFilename.c_str(), vo.c_str(), streamSlot);
+        slotStatus->output = vo;
+        return new GStreamerOutput(mediaFilename, slotStatus, vo, streamSlot);
+    }
+#endif
+
+    return nullptr;
+}
+
+static std::set<std::string> alreadyWarned;
+/*
+ *
+ */
+int OpenMediaOutput(const std::string& filename) {
+    LogDebug(VB_MEDIAOUT, "OpenMediaOutput(%s)\n", filename.c_str());
+
+    std::unique_lock<std::mutex> lock(mediaOutputLock);
+
+    try {
+        if (mediaOutput) {
+            lock.unlock();
+            CloseMediaOutput();
+        }
+        // Only unlock here if we didn't already unlock above -- unlocking an
+        // already-unlocked mutex throws std::system_error, which was being
+        // mis-caught below and reported as "Error starting media" any time a
+        // previous mediaOutput existed (e.g. remote-mode UpdateMasterMediaPosition).
+        if (lock.owns_lock()) {
+            lock.unlock();
+        }
+
+        std::string tmpFile(filename);
+        std::size_t found = tmpFile.find_last_of(".");
+        if (found == std::string::npos) {
+            LogDebug(VB_MEDIAOUT, "Unable to determine extension of media file %s\n",
+                     tmpFile.c_str());
+            return 0;
+        }
+        std::string ext = toLowerCopy(tmpFile.substr(found + 1));
+
+        if (getFPPmode() == REMOTE_MODE) {
+            std::string orgTmp = tmpFile;
+            tmpFile = GetVideoFilenameForMedia(tmpFile, ext);
+            if (tmpFile == "" && HasAudioForMedia(orgTmp)) {
+                tmpFile = orgTmp;
+            }
+
+            if (tmpFile == "") {
+                // For v1.0 MultiSync, we can't sync audio to audio, so check for
+                // a video file if the master is playing an audio file
+                // video doesn't exist, punt
+                tmpFile = filename;
+                if (alreadyWarned.find(tmpFile) == alreadyWarned.end()) {
+                    alreadyWarned.emplace(tmpFile);
+                    LogDebug(VB_MEDIAOUT, "No video found for remote playing of %s\n", filename.c_str());
+                }
+                return 0;
+            } else {
+                LogDebug(VB_MEDIAOUT,
+                         "Player is playing %s audio, remote will try %s\n",
+                         filename.c_str(), tmpFile.c_str());
+            }
+        }
+
+        std::string vOut = getSetting("VideoOutput");
+        if (vOut == "") {
+            if (FileExists("/sys/class/drm/card0-HDMI-A-1/status") || FileExists("/sys/class/drm/card1-HDMI-A-1/status")) {
+                vOut = "--HDMI--";
+            } else {
+                vOut = "--Disabled--";
+            }
+        }
+        LogDebug(VB_MEDIAOUT, "OpenMediaOutput: Creating media output for '%s' vOut='%s'\n", tmpFile.c_str(), vOut.c_str());
+        MediaOutputBase* out = CreateMediaOutput(tmpFile, vOut);
+        LogDebug(VB_MEDIAOUT, "OpenMediaOutput: CreateMediaOutput returned %p\n", out);
+        if (!out) {
+            LogErr(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile.c_str());
+            WarningHolder::AddWarningTimeout(60, 30, "No media output handler for " + tmpFile + " (unsupported file type?)");
+            return 0;
+        }
+
+        // Install under a short lock, then run the plugin callbacks with the
+        // lock RELEASED.  playlistCallback/mediaCallback execute arbitrary
+        // plugin code inline — a native plugin that reaches anything taking
+        // mediaOutputLock (setVolume, CloseMediaOutput) would self-deadlock,
+        // and a script plugin would hold the lock for its entire fork/wait
+        // run.  Same defect and fix as PlaylistEntryMedia::OpenMediaOutput.
+        lock.lock();
+        if (mediaOutput) {
+            // Another thread opened media while we were creating ours; it
+            // won the race.  Discard ours (teardown outside the lock).
+            lock.unlock();
+            LogWarn(VB_MEDIAOUT, "OpenMediaOutput: another media output was opened concurrently, discarding %s\n", tmpFile.c_str());
+            delete out;
+            return 0;
+        }
+        mediaOutput = out;
+        lock.unlock();
+
+        Json::Value root;
+        root["currentEntry"]["type"] = "media";
+        root["currentEntry"]["mediaFilename"] = out->m_mediaFilename;
+
+        if (getFPPmode() == REMOTE_MODE && firstOutCreate) {
+            firstOutCreate = false;
+            // need to "fake" a playlist start as some plugins will not initialize
+            // until a playlist is started, but remotes don't have playlists
+            root["name"] = "FPP Remote";
+            root["desc"] = "FPP Remote Mode";
+            root["loop"] = false;
+            root["repeat"] = false;
+            root["random"] = false;
+            root["size"] = 1;
+            PluginManager::INSTANCE.playlistCallback(root, "start", "Main", 0);
+        }
+        MediaDetails::INSTANCE.ParseMedia(out->m_mediaFilename.c_str());
+        PluginManager::INSTANCE.mediaCallback(root, MediaDetails::INSTANCE);
+
+        if (multiSync->isMultiSyncEnabled()) {
+            multiSync->SendMediaOpenPacket(out->m_mediaFilename);
+        }
+        return 1;
+    } catch (const std::system_error& e) {
+        LogErr(VB_MEDIAOUT, "System exception starting media for %s.  Code: %d   What: %s\n", filename.c_str(), e.code().value(), e.what());
+        WarningHolder::AddWarningTimeout(60, 30, "Error starting media " + filename + ": " + e.what());
+        return 0;
+    }
+}
+bool MatchesRunningMediaFilename(const std::string& filename) {
+    if (mediaOutput) {
+        std::string tmpFile = filename;
+        if (HasAudioForMedia(tmpFile)) {
+            if (mediaOutput->m_mediaFilename == tmpFile || mediaOutput->m_mediaFilename == filename) {
+                return true;
+            }
+        }
+        tmpFile = filename;
+        if (HasVideoForMedia(tmpFile)) {
+            if (mediaOutput->m_mediaFilename == tmpFile || mediaOutput->m_mediaFilename == filename) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+int StartMediaOutput(const std::string& filename, int msTime) {
+    if (!MatchesRunningMediaFilename(filename)) {
+        CloseMediaOutput();
+    }
+
+    if (mediaOutput && mediaOutput->IsPlaying()) {
+        CloseMediaOutput();
+    }
+    if (!mediaOutput) {
+        OpenMediaOutput(filename);
+    }
+    if (!mediaOutput) {
+        return 0;
+    }
+    std::unique_lock<std::mutex> lock(mediaOutputLock);
+    // Snapshot under the lock — the pre-flight checks above read the global
+    // unlocked, and a concurrent CloseMediaOutput() may have nulled it.
+    MediaOutputBase* out = mediaOutput;
+    if (!out) {
+        return 0;
+    }
+    if (multiSync->isMultiSyncEnabled()) {
+        multiSync->SendMediaSyncStartPacket(out->m_mediaFilename);
+    }
+
+    // mediaOutputStatus is global and shared by every media output, and only
+    // Process() ever writes the elapsed fields -- so until the new pipeline
+    // reports its first position they still describe the *previous* item.  On a
+    // synced remote that stale value is actively dangerous: the first sync
+    // packet after a clip change hands AdjustSpeed() a ~15s "local position"
+    // against a master position of ~1s, it reads that as 14s out of sync and
+    // issues a flushing seek into a pipeline that has not even prerolled yet
+    // (issue #2727).  Start every item from zero instead; AdjustSpeed()'s own
+    // "not playing yet" guard then holds until a real position arrives.
+    mediaOutputStatus.mediaSeconds = 0.0;
+    mediaOutputStatus.secondsElapsed = 0;
+    mediaOutputStatus.subSecondsElapsed = 0;
+    mediaOutputStatus.secondsRemaining = 0;
+    mediaOutputStatus.subSecondsRemaining = 0;
+
+    LogWarn(VB_MEDIAOUT, "StartMediaOutput: Calling Start(%d) on mediaOutput=%p\n", msTime, out);
+    if (!out->Start(msTime)) {
+        LogErr(VB_MEDIAOUT, "Could not start media %s\n", out->m_mediaFilename.c_str());
+        WarningHolder::AddWarningTimeout(60, 30, "Could not start media " + out->m_mediaFilename);
+        mediaOutput = 0;
+        lock.unlock();
+        // Teardown (GStreamer state change + sleeps) never under the lock.
+        delete out;
+        return 0;
+    }
+    // MEDIA_STARTED preset commands run INLINE on this thread.  A preset
+    // containing a volume command takes mediaOutputLock again (self-deadlock
+    // on this non-recursive mutex); one containing a playlist command takes
+    // m_playlistMutex under mediaOutputLock, the reverse of every other
+    // thread's order (AB-BA).  Release before triggering.
+    lock.unlock();
+    std::map<std::string, std::string> keywords;
+    keywords["MEDIA_NAME"] = filename;
+    if (CommandManager::INSTANCE.HasPreset("MEDIA_STARTED")) {
+        CommandManager::INSTANCE.TriggerPreset("MEDIA_STARTED", keywords);
+    }
+
+    return 1;
+}
+void CloseMediaOutput() {
+    LogDebug(VB_MEDIAOUT, "CloseMediaOutput()\n");
+
+    mediaOutputStatus.status = MEDIAOUTPUTSTATUS_IDLE;
+
+    std::unique_lock<std::mutex> lock(mediaOutputLock);
+    if (!mediaOutput) {
+        return;
+    }
+
+    // Move the global pointer into a local and clear the global while still
+    // holding the lock, then release the lock before the (potentially
+    // ~400ms) Stop()/teardown. This ensures only one thread can ever "win"
+    // the null-check above -- a second, concurrent caller (e.g. the
+    // MultiSync thread racing the playlist thread in remote mode) will see
+    // mediaOutput already null and return immediately, instead of both
+    // threads operating on (and eventually deleting) the same object.
+    MediaOutputBase* out = mediaOutput;
+    mediaOutput = nullptr;
+    lock.unlock();
+
+    if (out->IsPlaying()) {
+        out->Stop();
+    }
+
+    if (multiSync->isMultiSyncEnabled()) {
+        multiSync->SendMediaSyncStopPacket(out->m_mediaFilename);
+    }
+
+    std::map<std::string, std::string> keywords;
+    keywords["MEDIA_NAME"] = out->m_mediaFilename;
+    if (CommandManager::INSTANCE.HasPreset("MEDIA_STOPPED")) {
+        CommandManager::INSTANCE.TriggerPreset("MEDIA_STOPPED", keywords);
+    }
+
+    delete out;
+
+    Json::Value root;
+    root["name"] = "FPP Remote";
+    root["desc"] = "FPP Remote Mode";
+    root["currentEntry"]["type"] = "media";
+    root["currentEntry"]["mediaFilename"] = "";
+    MediaDetails::INSTANCE.Clear();
+    PluginManager::INSTANCE.mediaCallback(root, MediaDetails::INSTANCE);
+}
+
+void UpdateMasterMediaPosition(const std::string& filename, float seconds) {
+    if (getFPPmode() != REMOTE_MODE) {
+        return;
+    }
+
+    if (MatchesRunningMediaFilename(filename)) {
+        masterMediaPosition = seconds;
+        std::unique_lock<std::mutex> lock(mediaOutputLock);
+        if (!mediaOutput) {
+            return;
+        }
+        mediaOutput->AdjustSpeed(seconds);
+        return;
+    } else {
+        OpenMediaOutput(filename);
+        int msTime = (seconds > 0.0f) ? (int)(seconds * 1000.0f) : 0;
+        StartMediaOutput(filename, msTime);
+        masterMediaPosition = seconds;
+        std::unique_lock<std::mutex> lock(mediaOutputLock);
+        if (!mediaOutput) {
+            return;
+        }
+        mediaOutput->AdjustSpeed(seconds);
+        return;
+    }
+}
+
+#include "Plugins.h"
+#include "Sequence.h"
+#include "GStreamerOut.h"
+#include "PipeWireOutputStream.h"
+#include "StreamSlotManager.h"
+#include "mediadetails.h"
+#include "settings.h"
+#include "../config.h"
+
+/////////////////////////////////////////////////////////////////////////////
+MediaOutputBase* mediaOutput = 0;
+float masterMediaPosition = 0.0;
+std::mutex mediaOutputLock;
+
+static bool firstOutCreate = true;
+
+// AudioOutput is persisted as a stable ALSA card ID string (e.g. "S3",
+// "bcm2835ALSA"); setupAudio() in boot/FPPINIT_Audio.cpp migrates legacy numeric
+// values on boot. Resolve it to the current card number for amixer. Read
+// defensively: an all-numeric value is treated as a legacy card index, otherwise
+// it is matched against /proc/asound/cards by ID. Mirrors getAlsaCardNumForId()
+// in boot/FPPINIT_Audio.cpp (fppd and fppinit are separate binaries and cannot
+// share the static helper).
+static int resolveAudioOutputCardNum() {
+    std::string id = getSetting("AudioOutput");
+    TrimWhiteSpace(id);
+    if (id.empty()) {
+        return 0;
+    }
+    if (id.find_first_not_of("0123456789") == std::string::npos) {
+        try {
+            return std::stoi(id);
+        } catch (...) {
+            return 0;
+        }
+    }
+    std::istringstream iss(GetFileContents("/proc/asound/cards"));
+    std::string line;
+    while (std::getline(iss, line)) {
+        auto b = line.find('[');
+        auto e = line.find(']');
+        if (b != std::string::npos && e != std::string::npos && e > b) {
+            std::string cid = line.substr(b + 1, e - b - 1);
+            TrimWhiteSpace(cid);
+            if (cid == id) {
+                std::string num = line.substr(0, b);
+                TrimWhiteSpace(num);
+                try {
+                    return std::stoi(num);
+                } catch (...) {}
+            }
+        }
+    }
+    return 0; // selected card not present -> default to card 0
+}
+
+#ifndef PLATFORM_OSX
+// Warning ID for "configured audio output card is missing". Kept distinct so
+// the warning can be added/removed idempotently as the card comes and goes.
+static constexpr int AUDIO_CARD_MISSING_WARNING_ID = 58;
+
+// Is the given stable ALSA card ID currently listed in /proc/asound/cards?
+static bool alsaCardIdPresent(const std::string& id) {
+    std::istringstream iss(GetFileContents("/proc/asound/cards"));
+    std::string line;
+    while (std::getline(iss, line)) {
+        auto b = line.find('[');
+        auto e = line.find(']');
+        if (b != std::string::npos && e != std::string::npos && e > b) {
+            std::string cid = line.substr(b + 1, e - b - 1);
+            TrimWhiteSpace(cid);
+            if (cid == id) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// Periodically verify the configured audio output card is still present. USB
+// sound cards can be unplugged (or drop off the bus) while fppd is running; when
+// that happens PipeWire/ALSA fall back to the default device and audio silently
+// plays somewhere unexpected -- and, historically, PipeWire's ALSA layer would
+// also spam syslog retrying the dead device. Surface a UI warning so the user
+// knows, and clear it automatically once the card returns.
+//
+// Only named cards (stable IDs like "S3", "ICUSBAUDIO7D") are monitored: an
+// empty or all-numeric setting means the default/legacy card index, which we
+// can't meaningfully test for presence by ID. A short debounce avoids flapping
+// on transient enumeration gaps.
+static void CheckAudioOutputCardPresence() {
+    static int missCount = 0;
+    static bool warningActive = false;
+
+    std::string id = getSetting("AudioOutput");
+    TrimWhiteSpace(id);
+    if (id.empty() || id.find_first_not_of("0123456789") == std::string::npos) {
+        // Nothing monitorable by ID; make sure any stale warning is cleared.
+        if (warningActive) {
+            WarningHolder::RemoveWarning(AUDIO_CARD_MISSING_WARNING_ID,
+                                         "Audio output card is not present");
+            warningActive = false;
+        }
+        missCount = 0;
+        return;
+    }
+
+    if (alsaCardIdPresent(id)) {
+        missCount = 0;
+        if (warningActive) {
+            LogInfo(VB_MEDIAOUT, "Audio output card '%s' is present again; clearing warning.\n", id.c_str());
+            WarningHolder::RemoveWarning(AUDIO_CARD_MISSING_WARNING_ID,
+                                         "Audio output card is not present");
+            warningActive = false;
+        }
+        return;
+    }
+
+    // Absent. Require two consecutive misses (~20s) before warning to ride out
+    // brief re-enumeration during resume/hotplug.
+    if (missCount < 2) {
+        ++missCount;
+        return;
+    }
+    if (!warningActive) {
+        LogWarn(VB_MEDIAOUT, "Configured audio output card '%s' is no longer present.\n", id.c_str());
+        WarningHolder::AddWarning(AUDIO_CARD_MISSING_WARNING_ID,
+                                  "Audio output card '" + id + "' is not present - it may have been unplugged. "
+                                  "Audio will fall back to the default output device until it is reconnected.",
+                                  "pipewire-audio.php", "Audio Settings");
+        warningActive = true;
+    }
+}
+#endif
+
+MediaOutputStatus mediaOutputStatus = {
+    MEDIAOUTPUTSTATUS_IDLE, // status
+};
+
+/*
+ *
+ */
+void InitMediaOutput(void) {
+#ifndef PLATFORM_OSX
+    int vol = getSettingInt("volume", -1);
+    if (vol < 0) {
+        vol = 70;
+    }
+    setVolume(vol);
+
+    // Watch for the configured audio output card disappearing at runtime
+    // (e.g. a USB sound card unplugged mid-show) and surface a UI warning.
+    Timers::INSTANCE.addPeriodicTimer("AudioCardPresence", 10000, []() {
+        CheckAudioOutputCardPresence();
+    });
+#endif
+#ifdef HAS_GSTREAMER
+    GStreamerOutput::PreloadAsync();
+    PipeWireOutputStream::SetKeepOpen(getSettingInt("PipeWireKeepOutputOpen") != 0);
+    registerSettingsListener("PipeWireOutputStream", "PipeWireKeepOutputOpen", [](const std::string& value) {
+        PipeWireOutputStream::SetKeepOpen(!value.empty() && value != "0");
+    });
+#endif
+}
+
+/*
+ *
+ */
+void CleanupMediaOutput(void) {
+    CloseMediaOutput();
+#ifdef HAS_GSTREAMER
+    PipeWireOutputStream::ShutdownAll();
+#endif
+}
+
+void PrewarmMediaOutput(int holdMs) {
+#ifdef HAS_GSTREAMER
+    PipeWireOutputStream::Prewarm(1, holdMs);
+#endif
+}
+
+#ifndef PLATFORM_OSX
+static int volume = 70;
+static int lastPipeWireVolume = -1;  // Track last volume to avoid redundant mute toggles
+int getVolume() {
+    return volume;
+}
+
+// Read a command's stdout.  Local to the mixer handling below, which has to parse
+// amixer's output; libfpp has no shared helper for this.
+static std::string readCommandOutput(const std::string& cmd) {
+    std::string out;
+    FILE* f = popen(cmd.c_str(), "r");
+    if (!f) {
+        return out;
+    }
+    char buf[512];
+    while (fgets(buf, sizeof(buf), f) != nullptr) {
+        out += buf;
+    }
+    pclose(f);
+    return out;
+}
+
+// The playback volume controls on a card, cached: enumerating them costs an
+// amixer per control, and setVolume() is called repeatedly while a slider moves.
+// Most FPP capes are bare I2S DACs and return an empty list, so this is normally
+// one amixer at startup and nothing thereafter.
+static const std::vector<std::string>& playbackVolumeControls(int card) {
+    static std::mutex cacheLock;
+    static std::map<int, std::vector<std::string>> cache;
+    std::unique_lock<std::mutex> lk(cacheLock);
+    auto it = cache.find(card);
+    if (it != cache.end()) {
+        return it->second;
+    }
+    std::vector<std::string> ctls;
+    std::string list = readCommandOutput("amixer -c " + std::to_string(card) + " scontrols 2>/dev/null");
+    std::istringstream iss(list);
+    std::string line;
+    while (std::getline(iss, line)) {
+        // "Simple mixer control 'Main Digital',0"
+        std::size_t b = line.find('\'');
+        std::size_t e = line.rfind('\'');
+        if (b == std::string::npos || e <= b) {
+            continue;
+        }
+        std::string name = line.substr(b + 1, e - b - 1);
+        // The name is interpolated into a shell command.  Control names are plain
+        // text, so anything that could escape the quoting is a reason to skip it
+        // rather than to quote harder.
+        if (name.empty() || name.find_first_of("\"'`$\\") != std::string::npos) {
+            continue;
+        }
+        // Only controls that actually carry a playback volume.  A card like a
+        // PCM512x cape also exposes switches and tuning enums (Deemphasis, DSP
+        // Program, Auto Mute, Overclock...) that must not be written.
+        if (readCommandOutput("amixer -c " + std::to_string(card) + " sget \"" + name +
+                              "\" 2>/dev/null")
+                .find("pvolume") != std::string::npos) {
+            ctls.push_back(name);
+        }
+    }
+    return cache.emplace(card, std::move(ctls)).first->second;
+}
+
+// Opus RTP send nodes are named "opusrtp_<safe(name)>_send" by
+// OpusRTPManager::SafeNodeName()+ApplyConfig() (OpusRTPManager.cpp), never
+// fpp_/aes67_ prefixed.  Reimplemented here rather than including
+// OpusRTPManager.h: that header only exists under
+// "#if __has_include(<gst/gst.h>)", so a translation unit that isn't already
+// guarded the same way can't reference it unconditionally.  KEEP IN SYNC with
+// OpusRTPManager::SafeNodeName().
+static std::string opusRtpSafeNodeName(const std::string& name) {
+    std::string result = "opusrtp_";
+    for (char c : name) {
+        if (std::isalnum((unsigned char)c) || c == '_') {
+            result += std::tolower((unsigned char)c);
+        } else {
+            result += '_';
+        }
+    }
+    return result;
+}
+
+// Output sinks the master volume has to attenuate that are NOT FPP-owned.
+//
+// The master targets the terminal output sinks so it multiplies with the group
+// and member volumes instead of fighting them, and finds them by prefix
+// (fpp_alsa_*, aes67_*).  But a group member does not always target an FPP
+// adapter: when WirePlumber already publishes a node for the card, the member
+// targets that instead -- an HDMI output comes through as
+// alsa_output.platform-<addr>.hdmi.hdmi-stereo.  Those match no prefix, so the
+// master silently skipped them: on a group with one fpp_alsa_ member and one
+// HDMI member, moving the master attenuated half the group and unbalanced it,
+// and on an HDMI-only box the master did nothing at all.
+//
+// RestorePipeWireGroupVolumes() already has to know about exactly these nodes
+// (it pins them to 100% because WirePlumber initialises them at ~40%), so read
+// the same member list it does and hand the names to the master too.
+//
+// Opus RTP send nodes are a second, separate category: they're FPP-owned but
+// don't carry the fpp_/aes67_ prefix (see opusRtpSafeNodeName() above), so
+// they were being silently skipped the same way HDMI members once were --
+// the master did nothing at all for a box whose only output is Opus RTP.
+//
+// KEEP IN SYNC with restorePipeWireVolumes() in FPPINIT_Audio.cpp and
+// RestorePipeWireGroupVolumes() in pipewire.php -- same file selection, same
+// "not fpp_/aes67_" test. Also KEEP IN SYNC with OpusRTPManager::SafeNodeName().
+static std::set<std::string> nonFppOutputSinkNames() {
+    std::set<std::string> names;
+    // Same default as settings.json: a missing key must not select the retired
+    // ALSA backend, and Simple mode's groups live in a different file.
+    std::string backend = toLowerCopy(getSetting("MediaBackend", "pipewire-simple"));
+    // Named separately: FPP_DIR_CONFIG does not parenthesise its argument, so a
+    // ternary passed straight in binds to the concatenation instead.
+    const char* groupsFile = (backend == "pipewire-simple") ? "/pipewire-audio-groups-simple.json"
+                                                            : "/pipewire-audio-groups.json";
+    std::string path = FPP_DIR_CONFIG(groupsFile);
+    Json::Value root;
+    if (LoadJsonFromFile(path, root) && root.isMember("groups")) {
+        for (const auto& grp : root["groups"]) {
+            if (!grp.get("enabled", false).asBool() || !grp.isMember("members")) {
+                continue;
+            }
+            for (const auto& mbr : grp["members"]) {
+                std::string t = mbr.get("nodeTarget", "").asString();
+                if (t.empty() || startsWith(t, "fpp_") || startsWith(t, "aes67_")) {
+                    continue; // already covered by the prefix match
+                }
+                // Interpolated into a shell command below.  WirePlumber node names
+                // are plain identifiers; anything that could escape the quoting is a
+                // reason to skip the node rather than to quote harder.
+                if (t.find_first_not_of("abcdefghijklmnopqrstuvwxyz"
+                                        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                        "0123456789_.-") != std::string::npos) {
+                    LogWarn(VB_MEDIAOUT, "Skipping master volume for node with unexpected name: %s\n", t.c_str());
+                    continue;
+                }
+                names.insert(t);
+            }
+        }
+    }
+
+    Json::Value opusRoot;
+    std::string opusPath = FPP_DIR_CONFIG("/pipewire-opus-rtp-instances.json");
+    if (LoadJsonFromFile(opusPath, opusRoot) && opusRoot.isMember("instances")) {
+        for (const auto& inst : opusRoot["instances"]) {
+            if (!inst.get("enabled", true).asBool()) {
+                continue;
+            }
+            if (inst.get("mode", "send").asString() != "send") {
+                continue; // recv nodes are inputs, not outputs the master should touch
+            }
+            std::string name = inst.get("name", "Opus RTP").asString();
+            names.insert(opusRtpSafeNodeName(name) + "_send");
+        }
+    }
+
+    return names;
+}
+
+// Put the card's hardware playback path at unity, so PipeWire's software volume
+// is the only thing attenuating.
+//
+// This replaces pinning the single control named by the AudioMixerDevice setting
+// to 100%, which was wrong in two directions.  100% is not unity on a control
+// whose range runs above 0 dB: a PCM512x cape's "Main Digital" spans 0..255 with
+// 0 dB at 207 and +24 dB at 255, so selecting the one control on that card that
+// genuinely is the volume -- the obvious choice -- pinned it 24 dB into clipping.
+// And pinning only the selected control left any other volume control sitting
+// wherever the driver happened to leave it.  The setting itself only ever picked
+// the alphabetically first control anyway (amixer scontrols | head -1).
+//
+// bcm2835 keeps the old behaviour deliberately: its mixer reaches +4 dB and FPP
+// wants that headroom available above the software stage.
+static void pinCardPlaybackToUnity(int card, bool useMax) {
+    for (const std::string& name : playbackVolumeControls(card)) {
+        const std::string base = "amixer -c " + std::to_string(card) + " sset \"" + name + "\" ";
+        if (useMax) {
+            system((base + "100% >/dev/null 2>&1").c_str());
+        } else if (system((base + "0dB >/dev/null 2>&1").c_str()) != 0) {
+            // No dB scale on this control; 100% is the top of a plain range.
+            system((base + "100% >/dev/null 2>&1").c_str());
+        }
+    }
+}
+#else
+int getVolume() {
+    return MacOSGetVolume();
+}
+#endif
+
+void setVolume(int vol) {
+    // Only the amixer command below still uses this; the pactl commands are
+    // built as std::strings because their length depends on the user's config.
+    char buffer[1024];
+
+    if (vol < 0)
+        vol = 0;
+    else if (vol > 100)
+        vol = 100;
+
+    std::string mixerDevice = getSetting("AudioMixerDevice");
+    int audioOutput = resolveAudioOutputCardNum();
+    std::string audio0Type = getSetting("AudioCard0Type");
+    // Same default as settings.json: a missing key must not select the retired
+    // ALSA path.
+    std::string mediaBackend = toLowerCopy(getSetting("MediaBackend", "pipewire-simple"));
+
+    bool usePipeWireBackend = (mediaBackend == "pipewire" || mediaBackend == "pipewire-simple");
+
+#ifndef PLATFORM_OSX
+    volume = vol;
+    float fvol = volume;
+
+    // === Hardware mixer ===
+    // PipeWire mode: put the card's playback controls at unity so the software
+    // volume further down is the sole attenuator.  The 0 dB choice, the bcm2835
+    // exception, and why only pvolume controls are touched all live in
+    // pinCardPlaybackToUnity().  Many capes are bare I2S DACs with no playback
+    // mixer at all, so the control list is empty and nothing is shelled out --
+    // and nothing is lost, because the software volume is what actually
+    // attenuates, verified at the ALSA boundary through a loopback card (a sink
+    // node at 50% delivers 0.125 amplitude with no mixer involved).
+    //
+    // The ALSA branch below is legacy.  "alsa" is no longer offered as a
+    // MediaBackend and FPPINIT migrates a stored one to pipewire-simple at boot,
+    // so it is unreachable in a supported configuration; it is kept as a
+    // fallback, and given the same taper as the PipeWire path so that the same
+    // number would still mean the same loudness if it ever did run.
+    if (usePipeWireBackend) {
+        bool useMax = false;
+#ifdef PLATFORM_PI
+        useMax = (audioOutput == 0 && audio0Type == "bcm2");
+#endif
+        pinCardPlaybackToUnity(audioOutput, useMax);
+    } else if (mixerDevice.empty()) {
+        LogDebug(VB_MEDIAOUT, "No ALSA mixer control for card %d; skipping hardware volume\n",
+                 audioOutput);
     } else {
         // Follow the same taper as the PipeWire path, where pactl's percentage
         // is PulseAudio's cubic (perceptual) scale -- the same FPP volume should
