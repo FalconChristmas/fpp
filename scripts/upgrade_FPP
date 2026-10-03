@@ -47,10 +47,13 @@ if ! git remote get-url newfeatures > /dev/null 2>&1; then
 fi
 
 echo "Switching git branch to $1"
-# Checkout the target branch, then fetch its configured upstream and rebase
-# onto the tracking ref (@{u}) rather than a bare "git pull" -- the latter
-# rebases off FETCH_HEAD and can abort with "Cannot rebase onto multiple
-# branches." See runGitLocked in scripts/functions.
+# Fetch first, then checkout the target branch and rebase onto its tracking
+# ref (@{u}) rather than a bare "git pull" -- the latter rebases off
+# FETCH_HEAD and can abort with "Cannot rebase onto multiple branches." See
+# runGitLocked in scripts/functions. The fetch MUST come before the checkout:
+# git can only create a local branch from an origin/<branch> ref it already
+# has, so a release branch created since this device last fetched (e.g.
+# v10.1 -> v10.2) fails with "pathspec did not match" otherwise. (#3055)
 # A failed switch used to be invisible: runGitLocked's status was discarded, so
 # a bad ref (a malformed version string, a branch that doesn't exist) rebuilt
 # the tree in place and still reported "Upgrade complete", leaving the user on
@@ -61,14 +64,14 @@ echo "Switching git branch to $1"
 GITSWITCHOK=1
 if [ "x${FPPDIR}" = "x/opt/fpp" ]
 then
-	runGitLocked "cd \"${FPPDIR}\" && git submodule foreach git reset --hard && git checkout \"$1\" && git fetch && git rebase @{u}" || GITSWITCHOK=0
+	runGitLocked "cd \"${FPPDIR}\" && git submodule foreach git reset --hard && git fetch && git checkout \"$1\" && git rebase @{u}" || GITSWITCHOK=0
     if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
         cd "${FPPDIR}" && $SUDO git submodule sync && $SUDO git submodule update --init
     fi
 
     $SUDO "${SCRIPTDIR}/upgrade_config"
 else
-	runGitLocked "cd \"${FPPDIR}\" && sudo -u \"${FPPUSER}\" git submodule foreach git reset --hard && sudo -u \"${FPPUSER}\" git checkout \"$1\" && sudo -u \"${FPPUSER}\" git fetch && sudo -u \"${FPPUSER}\" git rebase @{u}" || GITSWITCHOK=0
+	runGitLocked "cd \"${FPPDIR}\" && sudo -u \"${FPPUSER}\" git submodule foreach git reset --hard && sudo -u \"${FPPUSER}\" git fetch && sudo -u \"${FPPUSER}\" git checkout \"$1\" && sudo -u \"${FPPUSER}\" git rebase @{u}" || GITSWITCHOK=0
     if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
         cd "${FPPDIR}" && sudo -u "${FPPUSER}" git submodule sync && sudo -u "${FPPUSER}" git submodule update --init
     fi
