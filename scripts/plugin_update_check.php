@@ -171,13 +171,18 @@ foreach ($due as $i => $plugin) {
 
 // Count only what this pass established.
 $state = PluginUpdateStateRead();
-$failed = 0;
+$failedNames = array();
 foreach ($checkedNow as $p) {
     if (isset($state['plugins'][$p]) && array_key_exists('updates', $state['plugins'][$p])
         && $state['plugins'][$p]['updates'] === null) {
-        $failed++;
+        $failedNames[] = $p;
     }
 }
+$failed = count($failedNames);
+// Named on the summary line, written on every pass that checks something: the
+// per-plugin line is written only when a verdict changes, so a lasting failure
+// is otherwise named once and then only counted.
+$failedList = $failed ? (' (' . implode(', ', $failedNames) . ')') : '';
 // The last FINISHED pass. Read from lastResult, not result: the endpoint
 // wrote in-progress before this script started, so result is never it.
 $prevResult = isset($prevSweep['lastResult']) ? (string) $prevSweep['lastResult'] : '';
@@ -193,7 +198,7 @@ if (empty($checkedNow)) {
     $message = 'nothing could be reached';
 } else {
     $result = ($failed > 0) ? 'partial' : 'ok';
-    $message = ($failed > 0) ? ($failed . ' of ' . count($checkedNow) . ' could not be checked') : '';
+    $message = ($failed > 0) ? ($failed . ' of ' . count($checkedNow) . ' could not be checked' . $failedList) : '';
 }
 if ($outOfTime) {
     $result = ($result === 'offline') ? $result : 'partial';
@@ -219,7 +224,7 @@ PluginUpdateStateRecordSweep($result, $message, $trigger, false, $retryAfter);
 // One line per pass that did something; a pass with nothing due is silent.
 if ($done > 0) {
     SweepLog('checked ' . $done . ' plugin' . ($done == 1 ? '' : 's')
-        . ($failed ? (', ' . $failed . ' could not be checked') : '')
+        . ($failed ? (', ' . $failed . ' could not be checked' . $failedList) : '')
         . ($result === 'offline' ? ' (offline)' : '') . ($outOfTime ? ' (ran out of time)' : ''));
 }
 exit(0);

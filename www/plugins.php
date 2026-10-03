@@ -763,7 +763,7 @@
                 var actionable = ActionableUpdates(state);
                 var parts = [];
                 parts.push(actionable.length ? (actionable.length + ' update' + (actionable.length > 1 ? 's' : '') + ' available') : 'no updates');
-                if (failed.length) parts.push(failed.length + ' could not be checked');
+                if (failed.length) parts.push(CouldNotCheckText(failed));
                 $.jGrowl('Checked ' + state.installed + ' plugin' + (state.installed == 1 ? '' : 's') + ': ' + parts.join(', '),
                     { themeState: failed.length ? 'detract' : 'success' });
             });
@@ -805,6 +805,15 @@
             return (state.plugins || []).filter(function (p) { return unchecked.indexOf(p) < 0; });
         }
 
+        // Growl text for plugins whose check failed: one or two are named, more
+        // link to the Updates tab, which lists each one with its reason.
+        function CouldNotCheckText(failed) {
+            var detail = (failed.length <= 2)
+                ? EscapeHtml(failed.join(', '))
+                : '<a href="#" onclick="ShowTopTab(\'updates\'); return false;">see the Updates tab</a>';
+            return failed.length + ' could not be checked (' + detail + ')';
+        }
+
         // Which of these plugins would show a privacy dialog on upgrade: asks
         // api/plugin/<name>/privacy for each (a local read), then cb(names).
         function FindPrivacyReviewNeeded(plugins, cb) {
@@ -825,7 +834,7 @@
                 // the reasons. Not a warning: a plugin that fails for a lasting
                 // reason would otherwise warn on every press.
                 var n = (failed || []).length;
-                $.jGrowl('Nothing to update' + (n ? ' (' + n + ' could not be checked)' : ': all plugins are up to date'),
+                $.jGrowl('Nothing to update' + (n ? ': ' + CouldNotCheckText(failed) : ': all plugins are up to date'),
                     { themeState: n ? 'detract' : 'success' });
                 return;
             }
