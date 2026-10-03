@@ -74,6 +74,16 @@ void SocketFrameBuffer::DestroyFrameBuffer(void) {
  */
 int SocketFrameBuffer::InitializeFrameBuffer(void) {
     std::string devString = getSetting("framebufferControlSocketPath", "/dev") + "/" + m_device;
+    // sun_path is fixed-size; an overlong setting/device name must fail init
+    // rather than overflow the stack (the re-connect path below truncates to
+    // fit, but silently addressing the wrong socket is worse than an error).
+    // Checked before any fd/shm is opened so the failure path owns nothing.
+    if (devString.size() >= sizeof(dev_address.sun_path)) {
+        LogErr(VB_CHANNELOUT, "Error initializing FrameBuffer, control socket path too long (%u chars, max %u): %s\n",
+               (unsigned)devString.size(), (unsigned)sizeof(dev_address.sun_path) - 1, devString.c_str());
+        WarningHolder::AddWarning(36, "Framebuffer output: control socket path too long " + devString);
+        return 0;
+    }
     m_pages = 3;
     m_bpp = 32;
     m_rowStride = m_width * 4;
