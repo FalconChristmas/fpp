@@ -782,9 +782,16 @@ public:
         uint32_t offset = 0;
         for (auto& rng : m_ranges) {
             uint32_t toRead = rng.second;
-            if (offset + toRead <= m_size) {
-                uint32_t toCopy = std::min(toRead, maxChannels - rng.first);
-                memcpy(&data[rng.first], &m_data[offset], toCopy);
+            if ((uint64_t)offset + toRead <= m_size) {
+                // Sparse ranges come from the file (or the caller), so a start
+                // past the destination must copy nothing -- the subtraction
+                // below would otherwise underflow unsigned and memcpy off the
+                // end of the channel buffer. The source offset still advances
+                // so later ranges stay aligned.
+                if (rng.first < maxChannels) {
+                    uint32_t toCopy = std::min(toRead, maxChannels - rng.first);
+                    memcpy(&data[rng.first], &m_data[offset], toCopy);
+                }
                 offset += toRead;
             } else {
                 return false;
@@ -1026,8 +1033,24 @@ public:
         if (m_file->m_sparseRanges.empty()) {
             write(data, m_file->getChannelCount());
         } else {
+            // Sparse positions address the caller's input buffer, so bound
+            // them to channel space: a corrupt range would otherwise read out
+            // of bounds (and into the output file). The ceiling is the largest
+            // channel index any real input buffer can hold -- m_seqData and
+            // the merge buffers are all <= 8M by platform design (cf.
+            // FPPD_MAX_CHANNELS in Sequence.h, deliberately not included here
+            // to avoid inverting the Sequence -> FSEQFile dependency). This is
+            // a no-op for valid files, whose ranges sit far below it.
+            static constexpr uint64_t MAX_SPARSE_CHANNEL = (uint64_t)8192 * 1024;
             for (auto& a : m_file->m_sparseRanges) {
-                write(&data[a.first], a.second);
+                if ((uint64_t)a.first >= MAX_SPARSE_CHANNEL) {
+                    continue;
+                }
+                uint64_t len = a.second;
+                if ((uint64_t)a.first + len > MAX_SPARSE_CHANNEL) {
+                    len = MAX_SPARSE_CHANNEL - a.first;
+                }
+                write(&data[a.first], (uint32_t)len);
             }
         }
     }
