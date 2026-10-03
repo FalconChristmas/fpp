@@ -179,7 +179,7 @@ done
 
 HOSTNAME_S="$(hostname)"
 if grep -q -- "-advertise-mdns" "$ENVF" 2>/dev/null; then
-    MDNS_NOTE="${MDNS_NOTE}"
+    MDNS_NOTE=""
 else
     MDNS_NOTE="NOTE: mDNS advertising is OFF on this helper, so option 1 will not find
 it. Re-run this script without NOCC_MDNS=0 to turn advertising on."
