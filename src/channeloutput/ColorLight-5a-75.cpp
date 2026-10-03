@@ -208,6 +208,14 @@ int bindBPFSocket(const std::string iface) {
 
     struct ifreq bound_if;
     memset(&bound_if, 0, sizeof(bound_if));
+    // ifr_name is IFNAMSIZ bytes; callers pass the validated m_ifName, but
+    // guard the copy itself so a future caller cannot reintroduce the overflow.
+    if (iface.size() >= sizeof(bound_if.ifr_name)) {
+        LogErr(VB_CHANNELOUT, "Interface name too long for bind (max %d chars): %s\n",
+               IFNAMSIZ - 1, iface.c_str());
+        close(m_fd);
+        return -1;
+    }
     strcpy(bound_if.ifr_name, iface.c_str());
     if (ioctl(m_fd, BIOCSETIF, &bound_if) > 0) {
         LogErr(VB_CHANNELOUT, "Cannot bind bpf device to physical device %s, exiting\n", iface.c_str());
@@ -396,6 +404,15 @@ int ColorLight5a75Output::Init(Json::Value config) {
         m_ifName = config["interface"].asString();
     else
         m_ifName = "eth1";
+
+    // ifr_name is IFNAMSIZ (16) bytes at every use below; an overlong name
+    // would overflow the stack copies. It never worked (ioctl/sysfs lookups
+    // fail on it), so fail init with an error like other bad config here.
+    if (m_ifName.size() >= IFNAMSIZ) {
+        LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface name too long (max %d chars): %s\n",
+               IFNAMSIZ - 1, m_ifName.c_str());
+        return 0;
+    }
 
     m_rowSize = m_longestChain * m_panelWidth * 3;
 
@@ -935,6 +952,7 @@ void ColorLight5a75Output::GetReceiverInfo() {
         return;
     }
 
+    memset(&ifopts, 0, sizeof(ifopts));
     strncpy(ifopts.ifr_name, m_ifName.c_str(), IFNAMSIZ - 1);
     ioctl(sockfd, SIOCGIFFLAGS, &ifopts);
     ifopts.ifr_flags |= IFF_PROMISC;
