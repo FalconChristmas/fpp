@@ -2288,6 +2288,24 @@ function retrieveNetworkInterfaces()
 }
 
 /**
+ * Checks if a MIME type (as reported by finfo) is text-like and safe to back up as lines of text
+ * libmagic sniffs content so JSON/XML config files are reported as application/*, not text/*
+ *
+ * @param $mimeType string MIME type to check
+ * @return bool True if text-like, false for binary types (e.g. databases)
+ */
+function isTextMimeType($mimeType)
+{
+    $mimeType = strtolower((string) $mimeType);
+
+    if (strpos($mimeType, "text/") === 0) {
+        return true;
+    }
+
+    return in_array($mimeType, array('application/json', 'application/xml', 'application/x-yaml', 'application/yaml', 'application/x-empty', 'inode/x-empty'));
+}
+
+/**
  * Returns a list of plugin Config files
  *
  * @return array Array of plugins and respective config file data
@@ -2307,8 +2325,8 @@ function retrievePluginList()
             $finfo_open_handle = finfo_open(FILEINFO_MIME_TYPE);
             $fileInfo = finfo_file($finfo_open_handle, $settings['configDirectory'] . "/" . $fname);
 
-            //If it's a plain text file then we can back it up, things like databases are skipped
-            if (stripos(strtolower($fileInfo), "text") !== false) {
+            //If it's a plain text file (incl. JSON/XML/empty) then we can back it up, things like databases are skipped
+            if (isTextMimeType($fileInfo)) {
                 //split the string to get just the plugin name
                 $plugin_name = explode(".", $fname);
                 $plugin_name = $plugin_name[1];
