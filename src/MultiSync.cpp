@@ -72,6 +72,13 @@ MultiSync MultiSync::INSTANCE;
 MultiSync* multiSync = &MultiSync::INSTANCE;
 
 static const char* MULTISYNC_MULTICAST_ADDRESS = "239.70.80.80"; // 239.F.P.P
+
+// Ping packet extraData lengths (see docs/ControlProtocol.txt).  Each version
+// only appends to the one before, and receivers parse by length, never by the
+// version byte: every FPP release and xLights treat an unknown version as v3.
+static constexpr int PING_V3_LEN = 294;
+static constexpr int PING_UUID_MAX = 64; // plus its NUL
+static constexpr int PING_V4_LEN = PING_V3_LEN + PING_UUID_MAX + 1;
 static uint32_t MULTISYNC_MULTICAST_ADD = inet_addr(MULTISYNC_MULTICAST_ADDRESS);
 
 NetInterfaceInfo::NetInterfaceInfo() :
@@ -2283,12 +2290,12 @@ int MultiSync::CreatePingPacket(MultiSyncSystem& sysInfo, char* outBuf, int disc
     InitControlPacket(cpkt);
 
     cpkt->pktType = CTRL_PKT_PING;
-    cpkt->extraDataLen = 294; // v3 ping length
+    cpkt->extraDataLen = PING_V4_LEN;
 
     unsigned char* ed = (unsigned char*)(outBuf + 7);
-    memset(ed, 0, cpkt->extraDataLen - 7);
+    memset(ed, 0, cpkt->extraDataLen);
 
-    ed[0] = 3;                    // ping version 3
+    ed[0] = 4;                    // ping version 4
     ed[1] = discover > 0 ? 1 : 0; // 0 = ping, 1 = discover
     ed[2] = sysInfo.type;
     ed[3] = (sysInfo.majorVersion & 0xFF00) >> 8;
@@ -2308,6 +2315,11 @@ int MultiSync::CreatePingPacket(MultiSyncSystem& sysInfo, char* outBuf, int disc
     strncpy((char*)(ed + 77), sysInfo.version.c_str(), 40);
     strncpy((char*)(ed + 118), sysInfo.model.c_str(), 40);
     strncpy((char*)(ed + 159), sysInfo.ranges.c_str(), 120);
+    // v4: appended after the whole v3 payload, which receivers that predate
+    // it never read past.  "Unknown" is getSetting()'s answer for no UUID.
+    if (sysInfo.uuid != "Unknown") {
+        strncpy((char*)(ed + PING_V3_LEN), sysInfo.uuid.c_str(), PING_UUID_MAX);
+    }
     return sizeof(ControlPkt) + cpkt->extraDataLen;
 }
 
@@ -4089,11 +4101,22 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
         }
     }
 
+    // v4: the sender's SystemUUID, so every address a device pings from can be
+    // tied to the one device without an HTTP round trip.  Gated on length
+    // rather than version, so anything that appends further still carries it.
+    std::string pktUUID;
+    if (pkt->extraDataLen >= PING_V4_LEN) {
+        pktUUID = copyField(PING_V3_LEN).substr(0, PING_UUID_MAX);
+        if (std::any_of(pktUUID.begin(), pktUUID.end(), [](unsigned char c) { return !isgraph(c); })) {
+            pktUUID.clear();
+        }
+    }
+
     if (isInstance) {
-        std::string localUUID(isLocal ? getSetting("SystemUUID") : "Unknown");
+        std::string uuid = isLocal ? getSetting("SystemUUID") : (pktUUID.empty() ? "Unknown" : pktUUID);
         multiSync->UpdateSystem(type, majorVersion, minorVersion,
                                 systemMode, address, hostname, version,
-                                typeStr, ranges, localUUID.c_str(), true,
+                                typeStr, ranges, uuid, true,
                                 systemMode & 0x04 ? true : false);
 
         // A discover ping is what an instance sends as its fppd starts (fppd.cpp

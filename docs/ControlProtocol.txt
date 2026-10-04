@@ -83,8 +83,19 @@ buf[1]   = 'P'
 buf[2]   = 'P'
 buf[3]   = 'D'
 buf[4]   = PacketType (0x04 for Ping)
-buf[5-6] = ExtraDataLen (98 for version 0x01 ping packet, 294 for v3 ping)
-buf[7]   = Ping packet version number (0x01 for initial version with 98 bytes of extra data as bytes 7-104, 0x03 for current)
+buf[5-6] = ExtraDataLen (98 for version 0x01 ping packet, 214 for v2, 294 for v3, 359 for v4)
+buf[7]   = Ping packet version number (0x01 for initial version with 98 bytes of extra data as bytes 7-104, 0x04 for current)
+
+           Compatibility rules (every version since v2 has only appended fields):
+           - Receivers must accept any version >= 0x03 and decide which fields are
+             present from ExtraDataLen, not from the version number.  Bytes beyond
+             the last field a receiver knows about must be ignored.  FPP (2.x and
+             later), xLights and ESPixelStick already behave this way, which is
+             what lets v4 be sent to them unchanged.
+           - Senders must keep every string NUL terminated inside its own field.
+             Older FPP releases copy these fields with strcpy().
+           - New fields go after the end of the previous version's payload, never
+             into a gap or reserved byte of an earlier version.
 buf[8]   = SubType
            - 0x00 - Ping (unsolicited ping or as a response to a discover)
            - 0x01 - Discover (signals all remotes to ping back with a 'ping' subtype packet)
@@ -167,10 +178,18 @@ Ping type 2 and 3 fields:
 buf[125-165] = Hardware Type String (NULL terminated, up to 40 bytes plus NULL: "Raspberry Pi 2 Model B Rev 1.1", "Raspberry Pi 2 Model B Rev 1.2")
 Ping type 2:
 buf[166-206] = Comma separated list of channel ranges (zero based) ("0-455,512-1024") that this FPP instances is outputing  (40 bytes + NULL)
-Ping type 3:
+Ping type 3 and later:
 buf[166-286] = Comma separated list of channel ranges (zero based) ("0-455,512-1024") that this FPP instances is outputing  (120 bytes + NULL)
+buf[287-300] = Reserved, zero
+<<<< End of Ping version 0x03 information (ExtraDataLen 294)
 
-<<<< End of Ping version 0x02 information
+Ping type 4 and later:
+buf[301-365] = System UUID (NULL terminated, up to 64 bytes plus NULL), the same value the
+               instance reports as "uuid" in /api/fppd/multiSyncSystems.  It identifies the
+               device rather than the address, so a receiver can tell that pings from several
+               addresses (multiple interfaces, or a 169.254.x.x link-local address followed by a
+               DHCP one) all come from one system.  Empty (all NULL) if the sender has no UUID.
+<<<< End of Ping version 0x04 information (ExtraDataLen 359)
 
 =============================================================================
 Plugin
