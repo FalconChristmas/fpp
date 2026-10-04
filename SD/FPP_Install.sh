@@ -78,6 +78,16 @@ OSVER="UNKNOWN"
 # need the adduser/addgroup/ldconfig/a2enmod/etc... commands
 PATH=$PATH:/usr/sbin:/sbin
 
+# git refuses to run without HOME ("fatal: $HOME not set"), and systemd
+# does not set HOME for a system service, so launching the installer from a
+# unit (systemd-run, a provisioning service) rather than a login shell
+# aborts at the clone. Fall back to the invoking user's passwd home so the
+# clone and the "git config --global" below work there too.
+if [ -z "${HOME:-}" ]; then
+    HOME=$(getent passwd "$(id -u)" | cut -d: -f6)
+    export HOME=${HOME:-/root}
+fi
+
 # Under docker / chroot (systemd isn't PID 1), runtime systemctl commands
 # (start/stop/restart/reload/is-active/daemon-reload/...) fail because there
 # is no running systemd to talk to. But unit-symlink operations (enable,
