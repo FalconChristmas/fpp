@@ -834,7 +834,7 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
         }
 
         // highlightNodes (optional): map of 1-based parent node index -> true.
-        // When provided, those pixels (by node order in the preview list) are
+        // When provided, those pixels (by the node number in each preview point) are
         // drawn highlighted and the rest dimmed, so a submodel can be shown in
         // the context of its parent.  subModelName (optional) adjusts the title.
         function showModelPreview(modelName, highlightNodes, subModelName) {
@@ -900,8 +900,10 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                         var cx = margin + (p[0] - minX) * scaleX;
                         var cy = canvasH - margin - (p[1] - minY) * scaleY;
                         if (hasHighlight) {
-                            // preview pixels are in node order; node index is 1-based
-                            ctx.fillStyle = highlightNodes[idx + 1] ? '#ff3b6b' : '#2a3a44';
+                            // p[3] is the 1-based node number; older fppd builds
+                            // omit it and their list order is not node order.
+                            var node = p.length > 3 ? p[3] : idx + 1;
+                            ctx.fillStyle = highlightNodes[node] ? '#ff3b6b' : '#2a3a44';
                         } else {
                             ctx.fillStyle = '#00aaff';
                         }

@@ -19,11 +19,13 @@
 #include <sys/stat.h>
 #include <dirent.h>
 
-#include <algorithm> // std::sort/std::transform in the image file listing
+#include <algorithm> // std::sort/std::transform in the image file listing, preview ordering
+#include <climits> // INT_MAX in the preview node numbering
 #include <fcntl.h>
 #include <filesystem> // image file listing for the Image effect's picker
 #include <fstream> // virtualdisplaymap parse for model preview endpoint
 #include <unistd.h> // write -- needed directly for NOPCH builds
+#include <vector>
 
 #include <Magick++.h>
 
@@ -663,7 +665,8 @@ HttpResponsePtr PixelOverlayManager::render_HEAD(const HttpRequestPtr& req) {
  * can be hundreds of thousands of points per model) for every model at once.
  *
  * @route GET /api/overlays/model/{model}/preview
- * @response 200 Object with a `pixels` array of [x, y, channel] triples.
+ * @response 200 Object with a `pixels` array of [x, y, z, node] entries in node
+ *   order (node is the 1-based node number, derived from the pixel's channel).
  */
 
 /**
@@ -759,7 +762,7 @@ static void collectOverlayImageNames(Json::Value& result) {
     }
 }
 
-// Collect the per-pixel [x, y, channel] preview coordinates for one model from
+// Collect the per-pixel [x, y, z, node] preview coordinates for one model from
 // config/virtualdisplaymap, appending them to pixels. Matches the model section
 // on exact or normalized name. Parsing on demand (only when a preview is
 // requested) keeps this potentially very large data out of the page.
@@ -770,6 +773,13 @@ static void collectModelPreviewPixels(const std::string& modelName, Json::Value&
     if (!in.is_open()) {
         return;
     }
+    // Line format: x,y,z,channel(0-based),channelsPerNode,colorOrder,size
+    struct PreviewPoint {
+        int x = 0, y = 0, z = 0;
+        int channel = -1;
+        int channelsPerNode = 0;
+    };
+    std::vector<PreviewPoint> points;
     std::string line;
     bool inModel = false;
     while (std::getline(in, line)) {
@@ -788,14 +798,33 @@ static void collectModelPreviewPixels(const std::string& modelName, Json::Value&
         if (!inModel || line.empty()) {
             continue;
         }
-        int x = 0, y = 0, z = 0;
-        if (sscanf(line.c_str(), "%d,%d,%d", &x, &y, &z) >= 3) {
-            Json::Value px(Json::arrayValue);
-            px.append(x);
-            px.append(y);
-            px.append(z);
-            pixels.append(px);
+        PreviewPoint pt;
+        if (sscanf(line.c_str(), "%d,%d,%d,%d,%d", &pt.x, &pt.y, &pt.z, &pt.channel, &pt.channelsPerNode) >= 3) {
+            points.push_back(pt);
         }
+    }
+
+    // xLights writes each model's points in spatial order, not node order, so
+    // derive each point's node number from its channel or the UI would attach
+    // submodel node numbers to the wrong pixels.
+    int firstChannel = INT_MAX;
+    for (auto& pt : points) {
+        firstChannel = std::min(firstChannel, pt.channel);
+    }
+    std::stable_sort(points.begin(), points.end(), [](const PreviewPoint& a, const PreviewPoint& b) {
+        return a.channel < b.channel;
+    });
+    for (std::size_t i = 0; i < points.size(); i++) {
+        const PreviewPoint& pt = points[i];
+        int node = (pt.channel >= 0 && pt.channelsPerNode > 0)
+                       ? (pt.channel - firstChannel) / pt.channelsPerNode + 1
+                       : (int)i + 1;
+        Json::Value px(Json::arrayValue);
+        px.append(pt.x);
+        px.append(pt.y);
+        px.append(pt.z);
+        px.append(node);
+        pixels.append(px);
     }
 }
 
