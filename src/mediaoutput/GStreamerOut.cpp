@@ -335,11 +335,30 @@ static GstPadProbeReturn CopyDeviceFrameForConvert(GstPad* pad, GstPadProbeInfo*
     }
     gst_buffer_extract(buf, 0, map.data, size);
     gst_buffer_unmap(copy, &map);
-    // Flags, timestamps and metas -- GstVideoMeta in particular, whose plane
-    // offsets and strides are buffer-relative and so stay valid in the copy.
     gst_buffer_copy_into(copy, buf,
                          (GstBufferCopyFlags)(GST_BUFFER_COPY_FLAGS | GST_BUFFER_COPY_TIMESTAMPS | GST_BUFFER_COPY_META),
                          0, -1);
+    // ...except that gst_buffer_copy_into() leaves out every meta tagged
+    // "memory" unless the memory itself is copied too, and GstVideoMeta is
+    // one: it records where the planes sit.  Its offsets are buffer-relative
+    // and the copy keeps every byte where it was, so it still holds for the
+    // copy -- and without it videoconvert assumes the caps' default layout.
+    // That default happens to match a plain linear frame, but not a padded
+    // or tiled one: the Pi 4 HEVC decoder's NV12_128C8 pads each 128-byte
+    // column to 1088 rows, and read as 1080 the picture shears and the
+    // chroma comes from the wrong place.  So carry it over by hand, through
+    // the meta's own copy transform.  Looked up by name because libfpp does
+    // not link gstreamer-video; if the type was never registered, no buffer
+    // can be carrying one.
+    if (GType videoMetaApi = g_type_from_name("GstVideoMetaAPI")) {
+        gpointer state = nullptr;
+        while (GstMeta* meta = gst_buffer_iterate_meta_filtered(buf, &state, videoMetaApi)) {
+            if (meta->info->transform_func) {
+                GstMetaTransformCopy whole = { FALSE, 0, (gsize)-1 };
+                meta->info->transform_func(copy, meta, buf, _gst_meta_transform_copy, &whole);
+            }
+        }
+    }
     gst_buffer_unref(buf);
     GST_PAD_PROBE_INFO_DATA(info) = copy;
     return GST_PAD_PROBE_OK;
