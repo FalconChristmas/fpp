@@ -867,19 +867,37 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strin
                     }
                 }
                 // xLights will name the individual strings of a matrix/prop/model with a -str-# postfix
-                // so we will try and detect this and recreate the original model
+                // so we will try and detect this and recreate the original model.
+                // Anything that is not a modest non-negative number (free-form
+                // user names, corrupt descriptions) is treated as a plain name
+                // below instead of throwing (stoi) or resizing gigabytes (huge
+                // index) and terminating fppd at model creation.
                 size_t found = desc.find("-str-");
                 if (found == std::string::npos) {
                     vstrings[desc].push_back(&strings[s]->m_virtualStrings[vs]);
                 } else {
-                    int idx = std::stoi(desc.substr(found + 5));
-                    if (idx > 0)
-                        --idx;
-                    desc = desc.substr(0, found);
-                    if (vstrings[desc].size() <= idx) {
-                        vstrings[desc].resize(idx + 1);
+                    int idx = -1;
+                    try {
+                        size_t len = 0;
+                        long long v = std::stoll(desc.substr(found + 5), &len);
+                        // Entire tail must be the number (no "12x" partial
+                        // parses) and it must fit a realistic string count.
+                        if (len == desc.size() - (found + 5) && v >= 0 && v <= 100000) {
+                            idx = (int)v;
+                        }
+                    } catch (...) {
                     }
-                    vstrings[desc][idx] = &strings[s]->m_virtualStrings[vs];
+                    if (idx < 0) {
+                        vstrings[desc].push_back(&strings[s]->m_virtualStrings[vs]);
+                    } else {
+                        if (idx > 0)
+                            --idx;
+                        desc = desc.substr(0, found);
+                        if (vstrings[desc].size() <= (size_t)idx) {
+                            vstrings[desc].resize(idx + 1);
+                        }
+                        vstrings[desc][idx] = &strings[s]->m_virtualStrings[vs];
+                    }
                 }
             }
         }

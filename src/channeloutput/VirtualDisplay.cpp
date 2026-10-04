@@ -144,13 +144,19 @@ int VirtualDisplayOutput::Init(Json::Value config) {
     if (!VirtualDisplayBaseOutput::Init(config))
         return 0;
 
-    m_virtualDisplay = (unsigned char*)malloc(m_width * m_height * m_bytesPerPixel);
+    size_t bufBytes = virtualDisplayBufferBytes(m_width, m_height, m_bytesPerPixel);
+    if (bufBytes == 0) {
+        LogErr(VB_CHANNELOUT, "Invalid virtual display dimensions %dx%d\n",
+               m_width, m_height);
+        return 0;
+    }
+    m_virtualDisplay = (unsigned char*)malloc(bufBytes);
     if (!m_virtualDisplay) {
         LogErr(VB_CHANNELOUT, "Unable to malloc buffer\n");
         return 0;
     }
 
-    memset(m_virtualDisplay, 0, m_width * m_height * m_bytesPerPixel);
+    memset(m_virtualDisplay, 0, bufBytes);
 
     int result = InitializePixelMap();
     if (!result)

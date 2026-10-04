@@ -150,6 +150,18 @@ int HTTPVirtualDisplayOutput::Init(Json::Value config) {
         return 0;
     }
 
+    // An empty map parses "successfully" but allocates nothing (and absurd map
+    // dimensions fail the allocation above the same way): refuse to run with
+    // no buffer or dimensions that cannot form one, instead of crashing on
+    // the first draw/status poll.
+    if (m_virtualDisplay == nullptr ||
+        virtualDisplayBufferBytes(m_width, m_height, m_bytesPerPixel) == 0) {
+        LogErr(VB_CHANNELOUT, "Error, virtual display has no usable buffer (%dx%d)\n",
+               m_width, m_height);
+        WarningHolder::AddWarning(37, "Virtual Display preview: could not initialize pixel map");
+        return 0;
+    }
+
     m_screenSize = m_width * m_height * 3;
 
     // Worst case a frame touches every pixel; size this once so the hot loop
