@@ -468,7 +468,11 @@ rm /etc/issue.new
 #######################################
 # Setup for U.S. users mainly
 echo "FPP - Setting US keyboard layout and locale"
-sed -i "s/XKBLAYOUT=".*"/XKBLAYOUT="us"/" /etc/default/keyboard
+# Minimal bases such as the Debian cloud images don't ship
+# keyboard-configuration, so there is no keymap to change.
+if [ -f /etc/default/keyboard ]; then
+    sed -i "s/XKBLAYOUT=".*"/XKBLAYOUT="us"/" /etc/default/keyboard
+fi
 echo "LANG=en_US.UTF-8" > /etc/default/locale
 
 # end of if desktop
