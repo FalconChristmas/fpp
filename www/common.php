@@ -87,17 +87,77 @@ function getFileList($dir, $ext)
     return $i;
 }
 
+// Recursively masks values whose key is in the secret set. Numeric-indexed
+// entries (plain lists) are walked without masking; only named keys match,
+// so channel layouts, pixel maps, and schedules keep every value.
+function scrubArraySecrets(&$data, $taboo)
+{
+    foreach ($data as $key => &$value) {
+        if (is_array($value)) {
+            scrubArraySecrets($value, $taboo);
+        } else if (!is_int($key) && in_array($key, $taboo, true)) {
+            $value = "********";
+        }
+    }
+    unset($value);
+}
+
 function ScrubFile($filename, $taboo = array("emailpass", "emailgpass", "MQTTPassword", "password", "passwordVerify", "osPassword", "osPasswordVerify"))
 {
     if (!file_exists($filename)) {
         return "";
     }
 
+    // Secret set = caller list + metadata-declared credentials/PII. Mirrors
+    // scripts/generate_crash_report (type=password or pii:true in
+    // www/settings.json win over key-name guessing). The hardcoded entries
+    // stay as fallback for when settings.json is unreadable -- notably
+    // Latitude/Longitude, which must never identify a household in a bundle.
+    static $secretKeys = null;
+    if ($secretKeys === null) {
+        $secretKeys = array(
+            "emailpass", "emailgpass", "MQTTPassword", "MQTTUsername",
+            "password", "passwordVerify", "osPassword", "osPasswordVerify",
+            "gitHubPAT", "TetherPSK", "emailAddress", "emailuser", "emailserver",
+            "Latitude", "Longitude"
+        );
+        $settingsJson = @file_get_contents(__DIR__ . '/settings.json');
+        if ($settingsJson !== false) {
+            $settingsMeta = json_decode($settingsJson, true);
+            if (is_array($settingsMeta) && isset($settingsMeta['settings']) && is_array($settingsMeta['settings'])) {
+                foreach ($settingsMeta['settings'] as $key => $meta) {
+                    if (is_array($meta) && (isset($meta['type']) && $meta['type'] === 'password' || !empty($meta['pii']))) {
+                        if (!in_array($key, $secretKeys, true)) {
+                            $secretKeys[] = $key;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    $taboo = array_values(array_unique(array_merge($taboo, $secretKeys)));
+
     $dataStr = "";
 
     if (preg_match("/.json$/", $filename)) {
-        // Need to scrub .json as well at some point
-        $dataStr = file_get_contents($filename);
+        $jsonStr = file_get_contents($filename);
+        $data = json_decode($jsonStr, true);
+        if (is_array($data)) {
+            scrubArraySecrets($data, $taboo);
+            $dataStr = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        } else {
+            // Not parseable as JSON: redact secret-shaped values in place so
+            // the layout stays byte-identical otherwise. Covers string,
+            // numeric, and literal values (e.g. an unquoted coordinate).
+            $dataStr = $jsonStr;
+            foreach ($taboo as $key) {
+                $dataStr = preg_replace(
+                    '/("' . preg_quote($key, '/') . '"\s*:\s*)("[^"]*"|[0-9.eE+-]+|true|false|null)/',
+                    '$1"********"',
+                    $dataStr
+                );
+            }
+        }
     } else {
         $data = [];
         $fd = @fopen($filename, "r");
