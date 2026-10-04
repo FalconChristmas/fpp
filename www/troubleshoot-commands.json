@@ -782,6 +782,35 @@
                 }
             }
         },
+        "DevTools": {
+            "grpDisplayTitle": "Dev Tools",
+            "grpDescription": "Tools for building and developing FPP on this device",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "NOCCHelpers": {
+                    "title": "Available NOCC Helpers",
+                    "description": "The distributed-compile (nocc) helpers this device can see on the network, from nocc-daemon -print-discovered-servers, with the IP address, port and host name of each",
+                    "cmd": "command -v nocc-daemon >/dev/null 2>&1 || { echo \"nocc-daemon is not installed\"; exit 0; }; out=$(nocc-daemon -print-discovered-servers 2>/dev/null); [ -n \"$out\" ] || { echo \"No NOCC helpers discovered\"; exit 0; }; printf \"%-16s %-7s %s\\n\" IP PORT HOSTNAME; echo \"$out\" | while read s; do h=${s%:*}; p=${s##*:}; case \"$h\" in *[a-zA-Z]*) name=$h; ip=$(getent ahostsv4 \"$h\" | head -1 | cut -d\" \" -f1);; *) ip=$h; name=$(timeout 3 avahi-resolve -a \"$h\" 2>/dev/null | cut -f2); [ -n \"$name\" ] || name=$(getent hosts \"$h\" | tr -s \" \" | cut -d\" \" -f2 | head -1);; esac; printf \"%-16s %-7s %s\\n\" \"${ip:--}\" \"$p\" \"${name:--}\"; done",
+                    "manualCrashReportCmd": "command -v nocc-daemon >/dev/null 2>&1 || { echo \"nocc-daemon is not installed\"; exit 0; }; echo \"NOCC helpers discovered: $(nocc-daemon -print-discovered-servers 2>/dev/null | wc -l)\"",
+                    "platforms": [
+                        "all"
+                    ],
+                    "pii": true
+                },
+                "DevSettings": {
+                    "title": "Developer Settings",
+                    "description": "The Developer tab settings that decide where FPP updates come from and how it is built. The GitHub access token is never shown: **** means one is set, blank means none",
+                    "cmd": "f=/home/fpp/media/settings; get() { grep -i \"^$1 = \" $f 2>/dev/null | head -1 | sed -e \"s/^[^=]*= *//\" -e \"s/\\\"//g\"; }; row() { printf \"%-30s  %s\\n\" \"$1\" \"$2\"; }; row Setting Value; row \"------------------------------\" \"--------------------\"; v=$(get gitRemote); row \"Git Remote Repository\" \"${v:-origin (default)}\"; v=$(get gitHubUser); row \"GitHub User Name\" \"${v:-none}\"; if [ -n \"$(get gitHubPAT)\" ]; then pat=\"****\"; else pat=\"none\"; fi; row \"GitHub Personal Access Token\" \"$pat\"; v=$(get DistributedCompile); row \"Distributed Compile\" \"${v:-off (default)}\"",
+                    "manualCrashReportCmd": "f=/home/fpp/media/settings; get() { grep -i \"^$1 = \" $f 2>/dev/null | head -1 | sed -e \"s/^[^=]*= *//\" -e \"s/\\\"//g\"; }; row() { printf \"%-30s  %s\\n\" \"$1\" \"$2\"; }; row Setting Value; row \"------------------------------\" \"--------------------\"; v=$(get gitRemote); row \"Git Remote Repository\" \"${v:-origin (default)}\"; if [ -n \"$(get gitHubPAT)\" ]; then pat=\"****\"; else pat=\"none\"; fi; row \"GitHub Personal Access Token\" \"$pat\"; v=$(get DistributedCompile); row \"Distributed Compile\" \"${v:-off (default)}\"",
+                    "platforms": [
+                        "all"
+                    ],
+                    "pii": true
+                }
+            }
+        },
         "GPIO": {
             "grpDisplayTitle": "GPIO",
             "grpDescription": "Set of tools for GPIO troubleshooting",

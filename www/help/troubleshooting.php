@@ -23,6 +23,14 @@
     <li><b>In a Diagnostic Report</b> — The report that <b>Diagnostic Report</b> builds includes this page’s output. A command whose output identifies you or your network (Wi-Fi network names, process command lines, git identity, web server clients) runs a cut-down version with those parts removed, or is left out. The report’s <b>Command:</b> line shows which one ran, or which was left out. Reports written after a crash do not include this page.</li>
 </ul>
 
+<h4>Dev Tools tab</h4>
+<p>The <b>Dev Tools</b> tab is for people building FPP on this device or testing a development branch.</p>
+<ul>
+    <li><b>Available NOCC Helpers</b> — Lists the distributed-compile (nocc) helpers this FPP can find on the network, one per line, with each helper’s IP address, port and host name. Use it to check that the helpers you expect are visible before a build. It shows “No NOCC helpers discovered” when none answer, and a note if <code>nocc-daemon</code> is not installed.</li>
+    <li><b>Developer Settings</b> — Shows four values from the <b>Developer</b> tab of FPP Settings, in a table of setting and value: <b>Git Remote Repository</b>, <b>GitHub User Name</b>, <b>GitHub Personal Access Token</b> and <b>Distributed Compile</b>. The token itself is never displayed: <code>****</code> means one is set and <code>none</code> means there is none. A user name that is not set also shows <code>none</code>, and a remote or compile mode you have not changed shows its default.</li>
+    <li><b>In a Diagnostic Report</b> — Both commands identify you or your network, so a report gets a cut-down version: only the number of helpers found, and the settings without the GitHub user name.</li>
+</ul>
+
 <h4>Verdict highlighting</h4>
 <p>The scripts mark verdicts with a leading <code>[PASS]</code> / <code>[WARN]</code> / <code>[FAIL]</code> / <code>[INFO]</code> / <code>[SKIP]</code>. Plain-state commands carry no markers and render unchanged. Only on-screen decoration is added here; a Diagnostic Report gets the text exactly as the commands printed it.</p>
 <ul>
