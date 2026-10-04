@@ -104,6 +104,33 @@ static bool GetIPForHost(std::string& target) {
     return true;
 }
 
+// 169.254/16: what an interface holds when DHCP hasn't answered (yet).
+static bool IsIPv4LinkLocal(const std::string& address) {
+    return startsWith(address, "169.254.");
+}
+
+// Whether `sys` is the device reporting (hostname, fppMode, type, uuid) from
+// some other address.  A ping packet carries no UUID, so a ping alone can only
+// be matched on what it does carry; when both sides do know a UUID of the same
+// kind (real or MAC-derived) that decides it instead, which keeps two
+// controllers left on the same default hostname apart.
+static bool IsSameDevice(const MultiSyncSystem& sys, const std::string& hostname,
+                         FPPMode fppMode, MultiSyncSystemType type, const std::string& uuid) {
+    // update() stores MASTER_MODE as PLAYER_MODE
+    if (fppMode == MASTER_MODE) {
+        fppMode = PLAYER_MODE;
+    }
+    if (hostname.empty() || sys.hostname != hostname || sys.fppMode != fppMode) {
+        return false;
+    }
+    auto known = [](const std::string& u) { return !u.empty() && u != "Unknown"; };
+    if (known(uuid) && known(sys.uuid) &&
+        startsWith(uuid, MAC_UUID_PREFIX) == startsWith(sys.uuid, MAC_UUID_PREFIX)) {
+        return uuid == sys.uuid;
+    }
+    return sys.type == type;
+}
+
 void MultiSyncSystem::update(MultiSyncSystemType type,
                              unsigned int majorVersion, unsigned int minorVersion,
                              FPPMode fppMode,
@@ -412,11 +439,21 @@ int MultiSync::Init(void) {
         LogDebug(VB_SYNC, "MultiSync::NetworkChanged - Interface: %s   Up: %d   Msg: %d\n", name.c_str(), up, i);
         if (i == NetworkMonitor::NetEventType::DEL_ADDR && !up) {
             RemoveInterface(name);
+            // The interface may still hold another address -- the DHCP lease
+            // that replaced a 169.254 fallback, typically -- so pick it back up
+            // rather than leave the interface out, and drop the deleted address
+            // from what we announce.
+            if (FillInInterfaces()) {
+                setupMulticastReceive(true);
+            }
+            FillLocalSystemInfo();
         } else if (i == NetworkMonitor::NetEventType::NEW_ADDR && up) {
             bool changed = FillInInterfaces();
             setupMulticastReceive(true);
+            // Always, not just when an interface appeared: a new address on an
+            // interface we already had can retire its 169.254 fallback.
+            changed |= FillLocalSystemInfo();
             if (changed) {
-                FillLocalSystemInfo();
                 Ping(0, false);
             }
         }
@@ -492,6 +529,77 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
     std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
     bool found = false;
     bool unicastChanged = false;
+
+    // A device that started before DHCP answered announced itself from a
+    // 169.254 address, and keeps that entry here after it has a real one.  The
+    // link-local address is only reachable from the same link, so once the
+    // device reports from a routable address that is the address to list: move
+    // the link-local entry over to it (or drop it, if the routable address
+    // already has its own entry) rather than listing the device twice.
+    if (ipForAddress.find(':') == std::string::npos) {
+        MultiSyncSystem* existing = nullptr;
+        for (auto& sys : m_remoteSystems) {
+            if (address == sys.address || ipForAddress == sys.address) {
+                existing = &sys;
+                break;
+            }
+        }
+        // A ping carries no UUID, but the entry already at this address may know one
+        std::string knownUUID = uuid;
+        if ((knownUUID.empty() || knownUUID == "Unknown") && existing) {
+            knownUUID = existing->uuid;
+        }
+
+        if (IsIPv4LinkLocal(ipForAddress)) {
+            // The other direction: a sender that still announces its old
+            // 169.254 address alongside the new one (an older FPP) would
+            // otherwise re-add the entry on every ping.  Only while the
+            // routable entry is current, so a device that genuinely fell back
+            // to link-local (lost its lease) is still picked up.
+            for (auto& sys : m_remoteSystems) {
+                if (!existing && sys.address.find(':') == std::string::npos &&
+                    !IsIPv4LinkLocal(sys.address) && sys.lastSeen + 120 >= (unsigned long)t &&
+                    IsSameDevice(sys, hostname, fppMode, type, knownUUID)) {
+                    LogDebug(VB_SYNC, "Ignoring link-local %s for %s, also seen at %s\n",
+                             address.c_str(), hostname.c_str(), sys.address.c_str());
+                    return;
+                }
+            }
+        } else {
+            bool haveEntry = existing != nullptr;
+            for (auto it = m_remoteSystems.begin(); it != m_remoteSystems.end();) {
+                if (!IsIPv4LinkLocal(it->address) || !IsSameDevice(*it, hostname, fppMode, type, knownUUID)) {
+                    ++it;
+                    continue;
+                }
+                if (haveEntry) {
+                    LogInfo(VB_SYNC, "Removing link-local %s for %s, now at %s\n",
+                            it->address.c_str(), hostname.c_str(), ipForAddress.c_str());
+                    unicastChanged |= it->supportsUnicast;
+                    it = m_remoteSystems.erase(it);
+                    continue;
+                }
+                LogInfo(VB_SYNC, "Moving %s from link-local %s to %s\n",
+                        hostname.c_str(), it->address.c_str(), ipForAddress.c_str());
+                // Set here rather than left to update() below: update() leaves
+                // a multisync-learned entry alone when the report isn't one.
+                it->address = ipForAddress;
+                std::vector<std::string> parts = split(ipForAddress, '.');
+                if (parts.size() == 4) {
+                    it->ipa = atoi(parts[0].c_str());
+                    it->ipb = atoi(parts[1].c_str());
+                    it->ipc = atoi(parts[2].c_str());
+                    it->ipd = atoi(parts[3].c_str());
+                }
+                // Never fetched while link-local (CheckSystemInfoRefreshes skips it)
+                it->infoNextFetch = 0;
+                unicastChanged |= it->supportsUnicast;
+                haveEntry = true;
+                ++it;
+            }
+        }
+    }
+
     for (auto& sys : m_remoteSystems) {
         if ((address == sys.address || ipForAddress == sys.address) &&
             ((hostname == sys.hostname) ||
@@ -654,6 +762,8 @@ bool MultiSync::FillLocalSystemInfo(void) {
         struct ifaddrs *interfaces, *tmp;
         getifaddrs(&interfaces);
         tmp = interfaces;
+        std::vector<std::pair<std::string, std::string>> ifAddrs; // interface, address
+        std::set<std::string> routableIfs;
         while (tmp) {
             if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
                 if (strncmp("usb", tmp->ifa_name, 3) != 0) {
@@ -663,7 +773,10 @@ bool MultiSync::FillLocalSystemInfo(void) {
                     struct sockaddr_in* sa = (struct sockaddr_in*)(tmp->ifa_addr);
                     inet_ntop(AF_INET, &sa->sin_addr, addressBuf, INET_ADDRSTRLEN);
                     if (isSupportedForMultisync(addressBuf, tmp->ifa_name)) {
-                        addresses.push_back(addressBuf);
+                        ifAddrs.emplace_back(tmp->ifa_name, addressBuf);
+                        if (!IsIPv4LinkLocal(addressBuf)) {
+                            routableIfs.insert(tmp->ifa_name);
+                        }
                     }
                 }
             } else if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET6) {
@@ -672,6 +785,15 @@ bool MultiSync::FillLocalSystemInfo(void) {
             tmp = tmp->ifa_next;
         }
         freeifaddrs(interfaces);
+        // A 169.254 address alongside a DHCP/static one on the same interface
+        // is only the fallback from before the lease arrived.  Announcing it
+        // too just lists this box twice on every peer, once at an address
+        // nothing off this link can reach.
+        for (auto& [intf, addr] : ifAddrs) {
+            if (!IsIPv4LinkLocal(addr) || !routableIfs.contains(intf)) {
+                addresses.push_back(addr);
+            }
+        }
     } else if (dockerAddress == "") {
         memset(addressBuf, 0, sizeof(addressBuf));
         GetInterfaceAddress(multiSyncInterface.c_str(), addressBuf, NULL, NULL);
@@ -723,6 +845,19 @@ bool MultiSync::FillLocalSystemInfo(void) {
 
     bool changed = false;
     std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+
+    // Addresses this box no longer has.  Every ping goes out once per local
+    // system, so an entry left here keeps announcing an address that is gone
+    // -- typically the 169.254 one held until DHCP answered.
+    for (auto it = m_localSystems.begin(); it != m_localSystems.end();) {
+        if (std::find(addresses.begin(), addresses.end(), it->address) == addresses.end()) {
+            LogDebug(VB_SYNC, "Removing Local System Address: %s\n", it->address.c_str());
+            changed = true;
+            it = m_localSystems.erase(it);
+        } else {
+            ++it;
+        }
+    }
 
     for (auto address : addresses) {
         if (address.empty()) {
@@ -1529,20 +1664,26 @@ void MultiSync::Ping(int discover, bool broadcast) {
     // update the range for local systems so it's accurate
     auto ranges = GetOutputRangesSnapshot(true);
     std::string range = createRanges(*ranges, 120);
-    char outBuf[768];
 
-    std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
-    for (auto& sys : m_localSystems) {
-        memset(outBuf, 0, sizeof(outBuf));
-        sys.ranges = range;
-        int len = CreatePingPacket(sys, outBuf, discover);
-        lock.unlock();
-        if (broadcast) {
-            SendBroadcastPacket(outBuf, len);
-        } else {
-            SendMulticastPacket(outBuf, len);
+    // Build every packet under m_systemsLock and send once it is released.
+    // Dropping the lock mid-loop instead would leave the loop iterating
+    // m_localSystems while a network change (FillLocalSystemInfo) rewrites it.
+    std::vector<std::vector<char>> packets;
+    {
+        std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+        for (auto& sys : m_localSystems) {
+            std::vector<char> outBuf(768, 0);
+            sys.ranges = range;
+            outBuf.resize(CreatePingPacket(sys, outBuf.data(), discover));
+            packets.push_back(std::move(outBuf));
         }
-        lock.lock();
+    }
+    for (auto& outBuf : packets) {
+        if (broadcast) {
+            SendBroadcastPacket(outBuf.data(), outBuf.size());
+        } else {
+            SendMulticastPacket(outBuf.data(), outBuf.size());
+        }
     }
 
     if (discover) {
@@ -2125,12 +2266,16 @@ void MultiSync::PingSingleRemote(const char* address, int discover) {
 }
 
 void MultiSync::PingSingleRemote(MultiSyncSystem& sys, int discover) {
-    if (m_localSystems.empty()) {
-        return;
-    }
     char outBuf[512];
     memset(outBuf, 0, sizeof(outBuf));
-    int len = CreatePingPacket(m_localSystems[0], outBuf, discover);
+    int len;
+    {
+        std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+        if (m_localSystems.empty()) {
+            return;
+        }
+        len = CreatePingPacket(m_localSystems[0], outBuf, discover);
+    }
     SendUnicastPacket(sys.address, outBuf, len);
 }
 int MultiSync::CreatePingPacket(MultiSyncSystem& sysInfo, char* outBuf, int discover) {
@@ -3117,8 +3262,16 @@ bool MultiSync::FillInInterfaces() {
     tmp = interfaces;
 
     bool change = false;
+    // An interface can hold its 169.254 fallback and a DHCP/static address at
+    // the same time.  Only one is kept per interface, so prefer the routable
+    // one, whatever order getifaddrs() lists them in.
+    std::set<std::string> haveRoutable;
 
     std::unique_lock<std::mutex> lock(m_socketLock);
+    std::map<std::string, std::string> before;
+    for (auto& [name, info] : m_interfaces) {
+        before[name] = info.interfaceAddress;
+    }
     while (tmp) {
         if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
             // Check if interface is UP and RUNNING before adding it
@@ -3132,13 +3285,19 @@ bool MultiSync::FillInInterfaces() {
                 struct sockaddr_in* ba = (struct sockaddr_in*)(tmp->ifa_ifu.ifu_broadaddr);
 #endif
                 struct sockaddr_in* sa = (struct sockaddr_in*)(tmp->ifa_addr);
+                char abuf[INET_ADDRSTRLEN] = {0};
+                inet_ntop(AF_INET, &sa->sin_addr, abuf, sizeof(abuf));
+                if (IsIPv4LinkLocal(abuf) && haveRoutable.contains(tmp->ifa_name)) {
+                    tmp = tmp->ifa_next;
+                    continue;
+                }
+                if (!IsIPv4LinkLocal(abuf)) {
+                    haveRoutable.insert(tmp->ifa_name);
+                }
 
                 NetInterfaceInfo& info = m_interfaces[tmp->ifa_name];
                 change |= info.interfaceName == "";
-                change |= info.interfaceAddress == "";
                 info.interfaceName = tmp->ifa_name;
-                char abuf[INET_ADDRSTRLEN] = {0};
-                inet_ntop(AF_INET, &sa->sin_addr, abuf, sizeof(abuf));
                 info.interfaceAddress = abuf;
                 info.address = sa->sin_addr.s_addr;
                 info.broadcastAddress = ba->sin_addr.s_addr;
@@ -3149,6 +3308,10 @@ bool MultiSync::FillInInterfaces() {
         tmp = tmp->ifa_next;
     }
     freeifaddrs(interfaces);
+    for (auto& [name, info] : m_interfaces) {
+        auto it = before.find(name);
+        change |= it == before.end() || it->second != info.interfaceAddress;
+    }
     return change;
 }
 bool MultiSync::RemoveInterface(const std::string& interface) {
