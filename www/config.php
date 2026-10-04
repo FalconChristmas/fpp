@@ -842,12 +842,18 @@ if (!isset($skipJSsettings)) {
         <? } ?>
 
         <? $pageName = str_ireplace('.php', '', basename($_SERVER['PHP_SELF'])); ?>
-        var pageName = "<? echo $pageName; ?>";
+        var pageName = <?= json_encode($pageName) ?>;
 
-        var helpPage = "<? echo basename($_SERVER['PHP_SELF']) ?>";
+        var helpPage = <?= json_encode(basename($_SERVER['PHP_SELF'])) ?>;
         if (pageName == "plugin") {
-            var pluginPage = "<? echo preg_replace('/.*page=/', '', $_SERVER['REQUEST_URI']); ?>";
-            var pluginBase = "<? echo preg_replace("/^\//", "", preg_replace('/page=.*/', '', $_SERVER['REQUEST_URI'])); ?>";
+            // REQUEST_URI is attacker-controlled (path+query): encode as JS
+            // string literals rather than interpolating raw, or a crafted
+            // query breaks out of the quotes into script execution. Plain
+            // json_encode (no UNESCAPED flags): the default \/ and \uXXXX
+            // escapes keep the value identical while also defeating the
+            // literal </script> sequence for the HTML parser.
+            var pluginPage = <?= json_encode(preg_replace('/.*page=/', '', $_SERVER['REQUEST_URI'])) ?>;
+            var pluginBase = <?= json_encode(preg_replace("/^\//", "", preg_replace('/page=.*/', '', $_SERVER['REQUEST_URI']))) ?>;
             helpPage = pluginBase + "nopage=1&page=help/" + pluginPage;
         }
         else {
