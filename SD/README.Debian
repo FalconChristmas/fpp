@@ -36,7 +36,8 @@ are. Pick based on what the device is for.
 Default mode (no `--img`, "side install" / desktop)
   - Installs all packages and FPP itself, but leaves your hostname,
     networking, user accounts, and existing services alone.
-  - Adds an `fpp` user but doesn't reshape root or disable other users.
+  - Adds an `fpp` user (UID 1000 if free, otherwise the next free UID)
+    but doesn't reshape root or disable other users.
   - Suitable for: NUCs / desktops where FPP is one of several things the
     machine does, dev workstations, Docker containers.
 

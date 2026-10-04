@@ -1678,26 +1678,41 @@ if $isimage; then
 fi
 
 #######################################
-# Create the fpp user at UID/GID 1000 plus hardware group memberships.
-# Evicts any pre-existing user/group at UID/GID 1000 first (stock pi/debian
-# users shipped in various base images) so the fixed-UID adduser can't
-# silently collide.
+# Create the fpp user plus hardware group memberships.
+# Image installs pin fpp to UID/GID 1000 and evict any pre-existing user/group
+# there first (stock pi/debian users shipped in various base images) so the
+# fixed-UID adduser can't silently collide.
+# Side installs (no --img) must leave existing accounts alone, as
+# README.Debian promises: fpp still gets UID/GID 1000 when it is free,
+# otherwise adduser/addgroup pick the next free id. Nothing at runtime
+# depends on the number -- FPP looks the fpp user up by name.
 add_fpp_user() {
     local existing_user_1000 existing_group_1000
+    local -a uid_opt=(--uid 1000) gid_opt=(--gid 1000)
     existing_user_1000=$(getent passwd 1000 | cut -d: -f1 || true)
     if [ -n "$existing_user_1000" ] && [ "$existing_user_1000" != "${FPPUSER}" ]; then
-        echo "FPP - Removing pre-existing UID 1000 user: ${existing_user_1000}"
-        userdel -r "${existing_user_1000}" 2>/dev/null || userdel "${existing_user_1000}" || true
+        if $isimage; then
+            echo "FPP - Removing pre-existing UID 1000 user: ${existing_user_1000}"
+            userdel -r "${existing_user_1000}" 2>/dev/null || userdel "${existing_user_1000}" || true
+        else
+            echo "FPP - UID 1000 belongs to '${existing_user_1000}'; keeping it, ${FPPUSER} gets the next free UID"
+            uid_opt=()
+        fi
     fi
     existing_group_1000=$(getent group 1000 | cut -d: -f1 || true)
     if [ -n "$existing_group_1000" ] && [ "$existing_group_1000" != "${FPPUSER}" ]; then
-        echo "FPP - Removing pre-existing GID 1000 group: ${existing_group_1000}"
-        groupdel "${existing_group_1000}" || true
+        if $isimage; then
+            echo "FPP - Removing pre-existing GID 1000 group: ${existing_group_1000}"
+            groupdel "${existing_group_1000}" || true
+        else
+            echo "FPP - GID 1000 belongs to '${existing_group_1000}'; keeping it, ${FPPUSER} gets the next free GID"
+            gid_opt=()
+        fi
     fi
 
     echo "FPP - Adding ${FPPUSER} user"
-    addgroup --gid 1000 ${FPPUSER}
-    adduser --uid 1000 --home ${FPPHOME} --shell /bin/bash --ingroup ${FPPUSER} \
+    addgroup "${gid_opt[@]}" ${FPPUSER}
+    adduser "${uid_opt[@]}" --home ${FPPHOME} --shell /bin/bash --ingroup ${FPPUSER} \
             --gecos "Falcon Player" --disabled-password ${FPPUSER}
     adduser ${FPPUSER} adm
     adduser ${FPPUSER} sudo
