@@ -7,16 +7,29 @@ if ! [[ "$DEVICE" =~ ^(sd[a-z][0-9]+|mmcblk[0-9]+p[0-9]+|nvme[0-9]+n[0-9]+p[0-9]
     echo "Invalid device: $DEVICE" >&2
     exit 1
 fi
-LEN=${#DEVICE}-1
-PARTNUM=${DEVICE:$LEN}
-RAWDEV=${DEVICE:0:$LEN}
-
-if [[ $DEVICE == mmcblk* || $DEVICE == nvme* ]] ; then
-    LEN=${#DEVICE}-2
-    RAWDEV=${DEVICE:0:$LEN}
+# Split trailing partition digits: sda10 -> sda + 10, mmcblk0p10 -> mmcblk0p + 10,
+# nvme0n1p10 -> nvme0n1p + 10. A fixed-width cut breaks on multi-digit
+# partitions (sda10 parsed as RAWDEV=sda1 PARTNUM=0, retargeting sfdisk).
+if [[ $DEVICE =~ ^(.*[^0-9])([0-9]+)$ ]]; then
+    RAWDEV=${BASH_REMATCH[1]}
+    PARTNUM=${BASH_REMATCH[2]}
+    # mmcblk/nvme use a 'p' separator between disk and partition number;
+    # strip it only for those families (an sd name like sdp1 keeps its p).
+    if [[ $DEVICE == mmcblk* || $DEVICE == nvme* ]]; then
+        RAWDEV=${RAWDEV%p}
+    fi
+else
+    echo "Unable to split device/partition: $DEVICE" >&2
+    exit 1
 fi
 
 echo "$RAWDEV"   "$PARTNUM"
+# Allowed values mirror www/formatstorage.php (which validates before invoking
+# us); anything else exits non-zero instead of silently formatting nothing.
+if [ "$FS" != 'FAT' ] && [ "$FS" != 'ext4' ] && [ "$FS" != 'exFAT' ] && [ "$FS" != 'btrfs' ]; then
+    echo "Invalid filesystem type: $FS (expected FAT, ext4, exFAT, or btrfs)" >&2
+    exit 1
+fi
 if [ "$FS" == 'FAT' ]; then
     sfdisk --part-type "/dev/$RAWDEV" "$PARTNUM" "c"
     sleep 1
