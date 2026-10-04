@@ -504,8 +504,38 @@ function AptAvailable()
 // The sudo prefix every apt/dpkg call uses. DEBIAN_FRONTEND has to be set
 // AFTER sudo (via env): sudoers env_reset drops anything set in front of it,
 // and a debconf prompt would otherwise be able to hang the request.
-define('FPP_SUDO_APT', 'sudo env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=60');
-define('FPP_SUDO_DPKG', 'sudo env DEBIAN_FRONTEND=noninteractive dpkg');
+// DEBIAN_FRONTEND does not cover dpkg's own conffile prompt (a config file
+// left on disk after a purge, say): that reads EOF, fails the configure and
+// leaves the package unconfigured, so every later apt run fails too.
+// confdef/confold answer it unattended: the package default if it has one,
+// else keep the file that is already on disk. LC_ALL=C.UTF-8 keeps dpkg's
+// messages in English so KeptConffiles() can find them.
+define('FPP_SUDO_APT', 'sudo env DEBIAN_FRONTEND=noninteractive LC_ALL=C.UTF-8 apt-get -o DPkg::Lock::Timeout=60 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold');
+define('FPP_SUDO_DPKG', 'sudo env DEBIAN_FRONTEND=noninteractive LC_ALL=C.UTF-8 dpkg --force-confdef --force-confold');
+
+// Config files dpkg kept over the packaged version during a run, from its
+// transcript: with --force-confold a conflict no longer stops the install, so
+// these are the only sign of it.
+function KeptConffiles($transcript)
+{
+    $kept = array();
+    $file = '';
+    foreach (explode("\n", $transcript) as $line) {
+        $line = trim($line);
+        if ($line === '') {
+            continue;
+        }
+        if (preg_match("/^Configuration file '([^']+)'( \\(actually '.*'\\))?$/", $line, $m)) {
+            $file = $m[1];
+        } else if ($file !== '' && preg_match('/^==> (Keeping old config file as default|Using current old file as you requested)\.$/', $line)) {
+            $kept[] = $file;
+            $file = '';
+        } else if (strpos($line, '==>') !== 0 && strpos($line, 'Version in package is the same') !== 0) {
+            $file = '';
+        }
+    }
+    return array_values(array_unique($kept));
+}
 
 // Runs a shell command, streaming its combined stdout+stderr to the client as
 // it goes (when streaming), and returns the process exit code (0 == success).
@@ -536,6 +566,9 @@ function RunAptStreaming($cmd)
     $rc = proc_close($proc);
     OpLog('fpp_plugin_manager.log', 'apt', $GLOBALS['FPP_PACKAGES_OWNER'] ?? '',
         trim($transcript) . "\n(exit $rc)");
+    foreach (KeptConffiles($transcript) as $file) {
+        PackagesMsg("NOTE: kept your version of $file; the package's version is in $file.dpkg-dist. Compare them if the package misbehaves.");
+    }
     return $rc;
 }
 

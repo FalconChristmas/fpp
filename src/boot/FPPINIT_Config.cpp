@@ -1035,7 +1035,10 @@ bool installPackagesFromJson(const std::string& filePath) {
             continue;
         }
         printf("Installing: %s\n", pkg.c_str());
-        if (!runAptGet({ "-o", "DPkg::Lock::Timeout=60", "install", "-y", pkg })) {
+        // confdef/confold: with no stdin, dpkg's conffile prompt (a config
+        // file the old OS left behind) would fail the install and leave the
+        // package half-configured for every later apt run.
+        if (!runAptGet({ "-o", "DPkg::Lock::Timeout=60", "-o", "Dpkg::Options::=--force-confdef", "-o", "Dpkg::Options::=--force-confold", "install", "-y", pkg })) {
             printf("Warning: Package installation failed for %s\n", pkg.c_str());
             allOk = false;
         }

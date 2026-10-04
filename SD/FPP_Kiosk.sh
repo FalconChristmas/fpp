@@ -15,8 +15,9 @@
 # it still can't complete (see the package-verification guard below).
 
 # Wait up to 60s for the apt/dpkg lock rather than failing immediately if
-# another process is mid-install at boot.
-APT_OPTS="-o DPkg::Lock::Timeout=60"
+# another process is mid-install at boot. confdef/confold answer dpkg's
+# conffile prompt (no stdin here), keeping a config file already on disk.
+APT_OPTS="-o DPkg::Lock::Timeout=60 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold"
 
 # Retry "apt-get update" a few times - a single transient failure at boot
 # should not abort the whole kiosk install. If it never succeeds we still try
