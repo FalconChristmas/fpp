@@ -5,11 +5,13 @@
 // was gone, leaving just a rebuild warning with no idea an update was
 // running. This module makes the update visible everywhere:
 //
+// - a header spinner icon (menu.inc #navbarUpdateInProgress, next to the
+//   update-available spot) on every page that opens the live log,
 // - a global banner (menu.inc #updateInProgressFlag) on every page with
 //   "View progress" (reopens the live log) and "Dismiss" (hides the banner
 //   for a stuck update; the update keeps running). The status page is the
-//   exception: it shows the warning row below instead, so the update
-//   appears exactly once there,
+//   exception: it shows the warning row below instead of the banner, so the
+//   update appears exactly once there (plus the header icon),
 // - a spinning "Update in progress" warning row on the status page
 //   (index.php #updateInProgressWarningRow) that clears itself when done,
 // - suppression of the "FPPD not found. Rebuild required" banner
@@ -92,6 +94,19 @@ function FPPUpdate_Render(activity) {
 			$flag.show();
 		} else {
 			$flag.hide();
+		}
+	}
+
+	// Header icon (every page): a spinner next to the update-available spot
+	// that opens the live log. Never dismissible — it is the always-visible
+	// indicator, and it clears itself when the update ends.
+	var $navIcon = $('#navbarUpdateInProgress');
+	if ($navIcon.length) {
+		if (activity.inProgress) {
+			$('#navbarUpdateInProgressLink').attr('title', FPPUpdate_Title(activity) + ' — view progress');
+			$navIcon.show();
+		} else {
+			$navIcon.hide();
 		}
 	}
 
@@ -297,7 +312,7 @@ function FPPUpdate_Init() {
 	}
 	// Event delegation: the banner lives in menu.inc (body) while this file
 	// loads in the head, so direct binding would miss it.
-	$(document).on('click', '#updateInProgressViewBtn, #updateInProgressWarningViewBtn', function () {
+	$(document).on('click', '#updateInProgressViewBtn, #updateInProgressWarningViewBtn, #navbarUpdateInProgressLink', function () {
 		openUpdateProgress();
 	});
 	$(document).on('click', '#updateInProgressDismissBtn', function () {

@@ -99,6 +99,12 @@ function list_plugin_entries($menu)
                     <i class="fa-solid fa-download" id="navbarUpdateAvailIcon"></i>
                 </a>
             </div>
+            <div id="navbarUpdateInProgress">
+                &nbsp;<a href="javascript:void(0)" id="navbarUpdateInProgressLink" role="button"
+                    title="Update in progress — view progress">
+                    <i class="fa-solid fa-circle-notch fa-spin" id="navbarUpdateInProgressIcon"></i>
+                </a>
+            </div>
             <div id="navbarPluginUpdateAvail">
                 &nbsp;<a href="plugins.php?tab=updates" role="button">
                     <i class="fa-solid fa-puzzle-piece" id="navbarPluginUpdateAvailIcon"></i>
