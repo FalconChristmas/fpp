@@ -12,6 +12,7 @@
 
 #include <chrono>
 #include "fpp-json.h"
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
@@ -1571,6 +1572,349 @@ void setupHDMICECConfig(bool rebootIfChanged) {
 #endif
 }
 
+#ifdef PLATFORM_PI
+// P1 header pin -> BCM GPIO number for the Pi DPI data bits.  Mirrors the
+// table in DPIPixelsOutput::GetDPIPinBitPosition().  Returns -1 for pins DPI
+// cannot drive.
+static int dpiP1ToBcm(const std::string& pin) {
+    // clang-format off
+    if (pin == "P1-7")  return 4;
+    if (pin == "P1-29") return 5;
+    if (pin == "P1-31") return 6;
+    if (pin == "P1-26") return 7;
+    if (pin == "P1-24") return 8;
+    if (pin == "P1-21") return 9;
+    if (pin == "P1-19") return 10;
+    if (pin == "P1-23") return 11;
+    if (pin == "P1-32") return 12;
+    if (pin == "P1-33") return 13;
+    if (pin == "P1-8")  return 14;
+    if (pin == "P1-10") return 15;
+    if (pin == "P1-36") return 16;
+    if (pin == "P1-11") return 17;
+    if (pin == "P1-12") return 18;
+    if (pin == "P1-35") return 19;
+    if (pin == "P1-38") return 20;
+    if (pin == "P1-40") return 21;
+    if (pin == "P1-15") return 22;
+    if (pin == "P1-16") return 23;
+    if (pin == "P1-18") return 24;
+    if (pin == "P1-22") return 25;
+    if (pin == "P1-37") return 26;
+    if (pin == "P1-13") return 27;
+    // clang-format on
+    return -1;
+}
+
+// Which kind of cape EEPROM was detected.  Physical means every cape pin is
+// hard-wired to an output buffer; virtual describes a hand-wired setup where
+// unused header pins may serve other purposes.  Mirrors DPIPixelsOutput's
+// physical/virtual distinction, which keys off eepromLocation containing the
+// sysfs i2c path.  Unknown (no cape-info yet, e.g. first boot before cape
+// detection) is treated as physical by callers: the pixel pins of a real cape
+// cannot be repurposed.  A positively-identified virtual setup with no
+// strings bundle resolved parks nothing (see the call site).
+enum class CapeEepromKind { Unknown, Virtual, Physical };
+static CapeEepromKind capeEepromKind() {
+    Json::Value ci;
+    if (!FileExists("/home/fpp/media/tmp/cape-info.json")) {
+        return CapeEepromKind::Unknown;
+    }
+    if (!LoadJsonFromString(GetFileContents("/home/fpp/media/tmp/cape-info.json"), ci)) {
+        return CapeEepromKind::Unknown;
+    }
+    if (!ci.isMember("eepromLocation")) {
+        return CapeEepromKind::Unknown;
+    }
+    if (ci["eepromLocation"].asString().find("sys/bus/i2c") != std::string::npos) {
+        return CapeEepromKind::Physical;
+    }
+    return CapeEepromKind::Virtual;
+}
+
+// True when an enabled DPIPixels entry claims the default PiHat ports, so the
+// {18,19} first-boot fallback at the call site is evidence-based rather than
+// a guess applied to unrelated capes.
+static bool hasPiHatDefault(const Json::Value& coPixelStrings) {
+    if (!coPixelStrings.isMember("channelOutputs") || !coPixelStrings["channelOutputs"].isArray()) {
+        return false;
+    }
+    for (const auto& co : coPixelStrings["channelOutputs"]) {
+        if (co["type"].asString() != "DPIPixels" || co["enabled"].asInt() != 1) {
+            continue;
+        }
+        const std::string subType = co["subType"].asString();
+        if (subType == "PiHat" || subType == "PiHat-DPIPixels") {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Collect the BCM GPIO numbers backing the enabled DPIPixels outputs so the
+// firmware can hold them low across reboot (issue #2895).  Reads the same
+// string configs DPIPixels resolves at runtime; falls back to the PiHat
+// default 2-port pins (P1-12/P1-35 = BCM 18,19) when they cannot be resolved.
+// On a physical cape every strings-file pin is parked (DPIPixels muxes all of
+// them for DPI so no buffer input floats).  On a virtual/hand-wired setup
+// only pins backing outputs with pixels configured are parked, leaving spare
+// header pins free for other uses exactly as DPIPixels does at runtime.
+static std::vector<int> resolveDpiBcmPins(const Json::Value& coPixelStrings, bool physical) {
+    std::vector<int> bcms;
+    auto addBcm = [&bcms](int bcm) {
+        if (bcm < 0) {
+            return;
+        }
+        for (int b : bcms) {
+            if (b == bcm) {
+                return;
+            }
+        }
+        bcms.push_back(bcm);
+    };
+    // Pin name for the j-th port in a strings file, following sharedOutput
+    // indirection the same way DPIPixelsOutput::Init() does.
+    auto stringsPinAt = [](const Json::Value& sc, Json::ArrayIndex j) -> std::string {
+        if (!sc.isMember("outputs") || !sc["outputs"].isArray()) {
+            return "";
+        }
+        if (j >= sc["outputs"].size()) {
+            return "";
+        }
+        const Json::Value& o = sc["outputs"][j];
+        if (o.isMember("pin")) {
+            return o["pin"].asString();
+        }
+        if (o.isMember("sharedOutput")) {
+            int ref = o["sharedOutput"].asInt();
+            if (ref >= 0 && (Json::ArrayIndex)ref < sc["outputs"].size() &&
+                sc["outputs"][ref].isMember("pin")) {
+                return sc["outputs"][ref]["pin"].asString();
+            }
+        }
+        return "";
+    };
+    const char* kStringDirs[] = {
+        "/home/fpp/media/tmp/strings/",
+        "/tmp/strings/",
+        "/opt/fpp/capes/pi/strings/",
+    };
+    // Candidate strings-file names for a co-pixelStrings subType, in the same
+    // order DPIPixelsOutput::LoadStringConfig() resolves them: the legacy
+    // RPIWS281X subtype map, then a "-DPIPixels" variant for capes we don't
+    // know about, then the name as-is.
+    auto subTypeCandidates = [](const std::string& subType) {
+        std::vector<std::string> out;
+        if (subType == "PiHat") {
+            out.push_back("PiHat-DPIPixels");
+        } else if (subType == "rPi-MFC") {
+            out.push_back("rPi-MFC-DPIPixels");
+        } else if (subType == "rPi-28D") {
+            out.push_back("rPi-28D-DPIPixels-4");
+        }
+        if (!endsWith(subType, "-DPIPixels")) {
+            out.push_back(subType + "-DPIPixels");
+        }
+        out.push_back(subType);
+        return out;
+    };
+    if (coPixelStrings.isMember("channelOutputs") && coPixelStrings["channelOutputs"].isArray()) {
+        for (const auto& co : coPixelStrings["channelOutputs"]) {
+            if (co["type"].asString() != "DPIPixels" || co["enabled"].asInt() != 1) {
+                continue;
+            }
+            std::string subType = co["subType"].asString();
+            if (subType.empty()) {
+                continue;
+            }
+            Json::Value sc;
+            bool loaded = false;
+            for (const auto& cand : subTypeCandidates(subType)) {
+                for (const char* dir : kStringDirs) {
+                    if (!FileExists(dir + cand + ".json")) {
+                        continue;
+                    }
+                    if (LoadJsonFromString(GetFileContents(dir + cand + ".json"), sc)) {
+                        loaded = true;
+                        break;
+                    }
+                }
+                if (loaded) {
+                    break;
+                }
+            }
+            if (!loaded) {
+                continue;
+            }
+            if (physical) {
+                // Every strings-file pin is hard-wired to a buffer, so
+                // park them all even if the port is unconfigured, exactly
+                // matching the physical-EEPROM claim-all in
+                // DPIPixelsOutput::Init().
+                if (sc.isMember("outputs") && sc["outputs"].isArray()) {
+                    for (Json::ArrayIndex j = 0; j < sc["outputs"].size(); j++) {
+                        addBcm(dpiP1ToBcm(stringsPinAt(sc, j)));
+                    }
+                }
+            } else if (co.isMember("outputs") && co["outputs"].isArray()) {
+                for (Json::ArrayIndex i = 0; i < co["outputs"].size(); i++) {
+                    // Park only ports that actually drive pixels,
+                    // mirroring the virtual-EEPROM claim logic in
+                    // DPIPixelsOutput::Init() and leaving spare header
+                    // pins free for other uses.
+                    int pixels = 0;
+                    const Json::Value& out = co["outputs"][i];
+                    if (out.isMember("virtualStrings") && out["virtualStrings"].isArray()) {
+                        for (const auto& vs : out["virtualStrings"]) {
+                            pixels += vs["pixelCount"].asInt();
+                        }
+                    }
+                    if (pixels <= 0) {
+                        continue;
+                    }
+                    addBcm(dpiP1ToBcm(stringsPinAt(sc, i)));
+                }
+            }
+            if (sc.isMember("latches") && sc["latches"].isArray()) {
+                // Latch pins are always claimed by DPIPixels when present
+                // (no virtual-EEPROM exemption), so always park them.
+                for (const auto& l : sc["latches"]) {
+                    addBcm(dpiP1ToBcm(l.asString()));
+                }
+            }
+        }
+    }
+    return bcms;
+}
+
+// True when an EOF append to config.txt would land in global scope, i.e.
+// the nearest section header at or above the end of file is [all], or there
+// is none.  A hand-added trailing board filter (e.g. [pi5]) would otherwise
+// silently scope our lines to that board only.  Follows the repo convention
+// that managed blocks close with [all] (see writeCapeOverlayVariantBlock).
+static bool trailingScopeIsAll(const std::string& content) {
+    // Walk lines bottom-up, skipping blanks: the first [...] header found
+    // sets the scope.  Unknown/malformed headers count as not-[all], which
+    // only ever adds a redundant (firmware-valid) [all], never mis-scopes.
+    size_t lineEnd = content.size();
+    while (lineEnd > 0 && (content[lineEnd - 1] == '\n' || content[lineEnd - 1] == '\r')) {
+        --lineEnd;
+    }
+    while (lineEnd > 0) {
+        size_t ls = content.rfind('\n', lineEnd - 1);
+        size_t begin = (ls == std::string::npos) ? 0 : ls + 1;
+        size_t s = begin, e = lineEnd;
+        while (s < e && (content[s] == ' ' || content[s] == '\t' || content[s] == '\r')) {
+            ++s;
+        }
+        while (e > s && (content[e - 1] == ' ' || content[e - 1] == '\t' || content[e - 1] == '\r')) {
+            --e;
+        }
+        if (s == e || content[s] != '[') {
+            // Blank or ordinary line: scoped from above, keep walking up.
+            // ls == npos means this was the first line: nothing above.
+            lineEnd = (ls == std::string::npos) ? 0 : ls;
+            continue;
+        }
+        return content.compare(s, e - s, "[all]") == 0;
+    }
+    return true; // no header anywhere: global scope
+}
+
+// Keep firmware-held DPI pins low from power-on through the kernel's DPI
+// probe, which runs long before fppd's blank-before-mux.  The hat's buffer
+// amplifies a floating input into random pixel data during reboot; a
+// firmware `gpio=..=op,dl` holds WS281x idle until fppd re-muxes the pins to
+// DPI after a blank frame is already staged (issue #2895).  Managed as two
+// adjacent lines under our own marker so user gpio= lines are never touched.
+static void reconcileDpiFirmwareGpio(std::string& content, const std::vector<int>& bcms, bool& changed) {
+    const std::string kMarker = "# FPP DPI pixel pins (issue #2895)";
+    std::string line;
+    if (!bcms.empty()) {
+        std::vector<int> sorted = bcms;
+        std::sort(sorted.begin(), sorted.end());
+        std::string pins;
+        for (size_t i = 0; i < sorted.size(); i++) {
+            if (i) {
+                pins += ",";
+            }
+            pins += std::to_string(sorted[i]);
+        }
+        line = "gpio=" + pins + "=op,dl";
+    }
+    size_t mpos = content.find(kMarker);
+    std::string origLine;
+    if (mpos != std::string::npos) {
+        size_t lend = content.find("\n", mpos);
+        size_t lstart = (lend == std::string::npos) ? content.size() : lend + 1;
+        size_t lstop = content.find("\n", lstart);
+        if (lstop == std::string::npos) {
+            origLine = content.substr(lstart);
+        } else {
+            origLine = content.substr(lstart, lstop - lstart);
+        }
+        // Tolerate a blank line between marker and gpio= line.
+        if (origLine.empty() && lstop != std::string::npos) {
+            size_t l2 = lstop + 1;
+            size_t l2e = content.find("\n", l2);
+            std::string next = (l2e == std::string::npos) ? content.substr(l2) : content.substr(l2, l2e - l2);
+            if (next.rfind("gpio=", 0) == 0) {
+                origLine = next;
+            }
+        }
+        if (origLine.rfind("gpio=", 0) != 0) {
+            origLine.clear();
+        }
+    }
+    if (line.empty()) {
+        if (mpos != std::string::npos) {
+            size_t end = content.find("\n", mpos);
+            end = (end == std::string::npos) ? content.size() : end + 1;
+            // Also drop a gpio= line immediately following the marker.
+            size_t l2 = end;
+            size_t l2e = content.find("\n", l2);
+            std::string next = (l2e == std::string::npos) ? content.substr(l2) : content.substr(l2, l2e - l2);
+            if (next.rfind("gpio=", 0) == 0) {
+                end = (l2e == std::string::npos) ? content.size() : l2e + 1;
+            }
+            content.erase(mpos, end - mpos);
+            PutFileContents("/boot/firmware/config.txt", content);
+            changed = true;
+        }
+        return;
+    }
+    if (origLine == line) {
+        return;
+    }
+    std::string block = kMarker + "\n" + line + "\n";
+    if (mpos != std::string::npos) {
+        size_t end = content.find("\n", mpos);
+        end = (end == std::string::npos) ? content.size() : end + 1;
+        size_t l2 = end;
+        size_t l2e = content.find("\n", l2);
+        std::string next = (l2e == std::string::npos) ? content.substr(l2) : content.substr(l2, l2e - l2);
+        if (next.rfind("gpio=", 0) == 0) {
+            end = (l2e == std::string::npos) ? content.size() : l2e + 1;
+        }
+        content.replace(mpos, end - mpos, block);
+    } else {
+        if (!content.empty() && content.back() != '\n') {
+            content += "\n";
+        }
+        if (!trailingScopeIsAll(content)) {
+            // A board-specific filter is in effect at EOF; reset to global
+            // scope so our lines apply on every board.  Skipped when already
+            // global: a redundant [all] is firmware-valid but needless churn
+            // in a file whose change triggers a reboot.
+            content += "[all]\n";
+        }
+        content += block;
+    }
+    PutFileContents("/boot/firmware/config.txt", content);
+    changed = true;
+}
+#endif // PLATFORM_PI
+
 void setupChannelOutputs() {
 #ifdef PLATFORM_PI
     bool hasDPI = false;
@@ -1676,6 +2020,27 @@ void setupChannelOutputs() {
         content.erase(idx, idx2 - idx);
         PutFileContents("/boot/firmware/config.txt", content);
         changed = true;
+    }
+    {
+        // Hold DPI pixel data pins low from firmware through kernel probe so
+        // the hat buffer never sees a floating input during reboot (#2895).
+        // No-ops (and removes our lines) when DPI is not in use.  Unknown
+        // EEPROMs are treated as physical; positively-identified virtual
+        // EEPROMs park only actually-used ports so spare header pins stay
+        // free for other purposes.
+        CapeEepromKind kind = capeEepromKind();
+        bool physical = (kind != CapeEepromKind::Virtual);
+        std::vector<int> dpiBcms = hasDPI ? resolveDpiBcmPins(v, physical) : std::vector<int>();
+        if (hasDPI && dpiBcms.empty() && kind != CapeEepromKind::Virtual && hasPiHatDefault(v)) {
+            // String bundle may not be unpacked yet on first boot; cover the
+            // default PiHat 2-port config (P1-12/P1-35 = BCM 18,19).  Only
+            // reached for physical/unknown capes whose config actually claims
+            // PiHat ports; anything else with nothing resolved parks nothing
+            // instead of driving pins there is no evidence for.
+            dpiBcms.push_back(18);
+            dpiBcms.push_back(19);
+        }
+        reconcileDpiFirmwareGpio(content, dpiBcms, changed);
     }
     if (changed) {
         printf("\n\nRebooting to load new settings.\n\n");

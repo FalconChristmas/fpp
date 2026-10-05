@@ -23,6 +23,11 @@ function RebootDevice()
         // apache is container's long-running process, send it a SIGTERM
         $status = exec($SUDO . " killall -15 apache2");
     } else {
+        // Stop the show first so pixel outputs latch blank before fppd tears
+        // down: without this the DPI pins can keep scanning the last lit
+        // frame (or float) across the reboot (issue #2895).  Best-effort and
+        // fast when idle; systemd still stops fppd via fppd_stop afterwards.
+        @SendCommand('d');
         $status = exec($SUDO . " bash -c '{ sleep 1; shutdown -r now; }  > /dev/null 2>&1 &'");
     }
 
@@ -49,6 +54,9 @@ function SystemShutdownOS()
         // apache is container's long-running process, send it a SIGTERM
         $status = exec($SUDO . " killall -15 apache2");
     } else {
+        // Same pre-blank as RebootDevice(): latch pixels blank before the
+        // shutdown teardown parks the outputs (issue #2895).
+        @SendCommand('d');
         $status = exec($SUDO . " bash -c '{ sleep 1; shutdown -h now; }  > /dev/null 2>&1 &'");
     }
 

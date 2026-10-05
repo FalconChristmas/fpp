@@ -2193,6 +2193,17 @@ void MainLoop(void) {
     MAIN_LOOP_PHASE("loop exited");
     FileMonitor::INSTANCE.Cleanup();
 
+    // Push a blank frame while the output thread is still running so pixel
+    // strings (notably DPIPixels/WS281x) latch zeros before teardown.  This
+    // runs before StopChannelOutputThread's ForceChannelOutputNow path goes
+    // away and well before CloseChannelOutputs parks the pins, closing the
+    // window where a reboot scans the last lit frame (issue #2895).  Guarded
+    // by null check; SendBlankingData falls back to direct send when the
+    // output thread is already down.
+    if (sequence) {
+        sequence->SendBlankingData();
+    }
+
     LogInfo(VB_GENERAL, "Stopping channel output thread.\n");
     StopChannelOutputThread();
 

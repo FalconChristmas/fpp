@@ -13,25 +13,34 @@ echo "Stopping fppd"
 # Tell fppd to shut itself down
 ${FPPBINDIR}/fpp -q > /dev/null 2>&1
 
-# fpp should quit because its socket was closed by fppd, but give a little
-# time to make sure fppd is down before checking.
-sleep 0.5
-COUNT=$(pgrep -x -c fppd)
-if [ ${COUNT} -ne 0 ]
-then
-   sleep 0.5
-fi
+# Poll for graceful exit instead of fixed sleeps: DPIPixels Close() blanks
+# both framebuffer pages and parks the DPI pins low (~110ms at 20fps, issue
+# #2895), and SIGBUS/SIGKILL mid-teardown would skip exactly that.  Same
+# ~1.5s worst-case cap as before, but a clean shutdown usually exits inside
+# the poll without ever seeing a signal.
+# NOTE: no `|| echo 0` fallback here: GNU pgrep -c already prints 0 on no
+# match (exiting 1), so a fallback would append a second line ("0\n0") that
+# never equals "0" and breaks the -ne test below.  Empty output (pgrep
+# missing, BSD with no match) is covered by the -z/-n guards.
+COUNT=$(pgrep -x -c fppd 2>/dev/null)
+for i in 1 2 3 4; do
+    if [ -z "${COUNT}" ] || [ "${COUNT}" = "0" ]; then
+        break
+    fi
+    sleep 0.25
+    COUNT=$(pgrep -x -c fppd 2>/dev/null)
+done
 
 # kill fppd if it is still running
 # send kill -7 first, should print a stack trace to logs to figure out why it's slow
-COUNT=$(pgrep -x -c fppd)
-if [ ${COUNT} -ne 0 ]
+COUNT=$(pgrep -x -c fppd 2>/dev/null)
+if [ -n "${COUNT}" ] && [ "${COUNT}" -ne 0 ]
 then
     killall -7 fppd
     sleep 0.5
 fi
-COUNT=$(pgrep -x -c fppd)
-if [ ${COUNT} -ne 0 ]
+COUNT=$(pgrep -x -c fppd 2>/dev/null)
+if [ -n "${COUNT}" ] && [ "${COUNT}" -ne 0 ]
 then
     killall -9 fppd
 fi
