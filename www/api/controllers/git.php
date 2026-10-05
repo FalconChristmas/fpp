@@ -358,6 +358,64 @@ function GitOSReleaseSizes()
 }
 
 /**
+ * Fetch branch names for a user's fpp fork via the GitHub API.
+ *
+ * Shared fallback for GitBranches() when the fork remote has no local
+ * tracking refs yet (or its fetch failed). Applies the same obsolete /
+ * dependabot filtering as the local branch listing. Returns an empty array
+ * when GitHub is unreachable, the repo does not exist, or credentials fail.
+ */
+function GitHubForkBranchNames($user, $pat)
+{
+    $branches = array();
+    if (preg_match('/^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/', $user) !== 1 || preg_match('/[\r\n]/', $pat)) {
+        return $branches;
+    }
+    $ch = curl_init('https://api.github.com/repos/' . rawurlencode($user) . '/fpp/branches?per_page=100');
+    $headers = array('User-Agent: FPP', 'Accept: application/vnd.github.v3+json');
+    if ($pat !== '') {
+        $headers[] = 'Authorization: token ' . $pat;
+    }
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_FAILONERROR, false);
+    $body = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($body === false || $code < 200 || $code >= 300) {
+        return $branches;
+    }
+    $data = json_decode($body, true);
+    if (!is_array($data)) {
+        return $branches;
+    }
+    foreach ($data as $b) {
+        if (!isset($b['name'])) {
+            continue;
+        }
+        $branch = $b['name'];
+        if (
+            preg_match("*v[01]\.[0-9x]*", $branch)
+            || preg_match("*v2\.[0-9x]*", $branch)
+            || preg_match("*v3\.[0-9x]*", $branch)
+            || preg_match("*v4\.[0-9x]*", $branch)
+            || preg_match("*v5\.[0-9x]*", $branch)
+            || preg_match("*v6\.[0-9x]*", $branch)
+            || str_starts_with($branch, "dependabot/")
+            || str_starts_with($branch, "HEAD ")
+        ) {
+            continue;
+        }
+        $branches[] = $branch;
+    }
+    sort($branches);
+    return $branches;
+}
+
+/**
  * Get local branches
  *
  * Returns an array of branches available to switch to, filtering out obsolete version branches
@@ -372,7 +430,7 @@ function GitOSReleaseSizes()
 function GitBranches()
 {
     $rows = array();
-    global $fppDir, $settings;
+    global $fppDir, $settings, $SUDO, $mediaDirectory;
 
     // Get the remote parameter from the query string, default to 'origin'
     $remote = isset($_GET['remote']) ? $_GET['remote'] : (isset($settings['gitRemote']) ? $settings['gitRemote'] : 'origin');
@@ -384,6 +442,51 @@ function GitBranches()
     // Validate remote name to prevent injection
     if (!preg_match('/^[a-zA-Z0-9_-]+$/', $remote)) {
         $remote = 'origin';
+    }
+
+    // A fork remote only has local tracking refs once the git remote exists
+    // and has been fetched. That remote is created lazily at branch-switch
+    // time (see www/changebranch.php), so a freshly-entered username/PAT
+    // would otherwise list zero branches here. Ensure it now so the
+    // Developer settings branch dropdown populates on first selection.
+    $forkUser = isset($settings['gitHubUser']) ? trim($settings['gitHubUser']) : '';
+    $forkPat = isset($settings['gitHubPAT']) ? trim($settings['gitHubPAT']) : '';
+    // Never treat the reserved remotes as a fork: a username matching one of
+    // these (case-insensitively) must not rewrite the real origin/newfeatures
+    // remote URL below.
+    $forkUserReserved = in_array(strtolower($forkUser), array('origin', 'newfeatures', 'pull-requests'), true);
+    $isForkRemote = (!$forkUserReserved && $forkUser !== '' && preg_match('/^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/', $forkUser) === 1
+        && strcasecmp($remote, $forkUser) === 0 && !preg_match('/[\r\n]/', $forkPat));
+    if ($isForkRemote) {
+        // Canonical casing for git remote operations
+        $remote = $forkUser;
+        $gitDir = escapeshellarg($fppDir . "/.git");
+        $sudo = isset($SUDO) ? $SUDO : 'sudo';
+        exec("$sudo git --git-dir=$gitDir remote get-url " . escapeshellarg($remote) . " 2>&1", $chkOut, $chkRet);
+        if ($chkRet != 0) {
+            if ($forkPat !== '') {
+                $remoteUrl = "https://" . rawurlencode($forkUser) . ":" . rawurlencode($forkPat) . "@github.com/" . rawurlencode($forkUser) . "/fpp.git";
+            } else {
+                $remoteUrl = "https://github.com/" . rawurlencode($forkUser) . "/fpp.git";
+            }
+            exec("$sudo git --git-dir=$gitDir remote add " . escapeshellarg($remote) . " " . escapeshellarg($remoteUrl) . " 2>&1", $addOut, $addRet);
+        } elseif ($forkPat !== '') {
+            // Keep private-fork fetches authenticated
+            $remoteUrl = "https://" . rawurlencode($forkUser) . ":" . rawurlencode($forkPat) . "@github.com/" . rawurlencode($forkUser) . "/fpp.git";
+            exec("$sudo git --git-dir=$gitDir remote set-url " . escapeshellarg($remote) . " " . escapeshellarg($remoteUrl) . " 2>&1", $updOut, $updRet);
+        }
+        unset($chkOut); unset($addOut); unset($updOut);
+        // Fetch just this remote under the shared git lock so we can't race
+        // a running upgrade (same lock as scripts/functions runGitLocked).
+        $mediaDir = isset($mediaDirectory) ? $mediaDirectory : (isset($settings['mediaDirectory']) ? $settings['mediaDirectory'] : "/tmp");
+        $gitLock = escapeshellarg($mediaDir . "/tmp/fpp-git-repo.lock");
+        $fetchInner = "git --git-dir=$gitDir fetch " . escapeshellarg($remote) . " 2>&1";
+        if (is_executable("/usr/bin/flock")) {
+            exec("$sudo flock -w 60 -x $gitLock bash -c " . escapeshellarg($fetchInner) . " 2>&1", $forkFetchOut, $forkFetchRet);
+        } else {
+            exec("$sudo bash -c " . escapeshellarg($fetchInner) . " 2>&1", $forkFetchOut, $forkFetchRet);
+        }
+        unset($forkFetchOut);
     }
 
     exec("$fppDir/scripts/git_fetch", $log);
@@ -410,6 +513,13 @@ function GitBranches()
             }
 
         }
+    }
+
+    // Newly-added fork remotes (or a failed fetch, e.g. private fork over
+    // https without a working credential) can still yield zero local refs.
+    // Fall back to the GitHub branches API so the dropdown still populates.
+    if ($isForkRemote && empty($rows)) {
+        $rows = GitHubForkBranchNames($forkUser, $forkPat);
     }
 
     return json($rows);

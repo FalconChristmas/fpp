@@ -72,6 +72,35 @@ function PrintGitBranchOptions()
         }
     }
 
+    // A fork remote only has local tracking refs once the git remote exists
+    // and has been fetched. That remote is created lazily at branch-switch
+    // time (see changebranch.php), so ensure it here or the dropdown renders
+    // empty on first selection of a freshly-entered fork.
+    $forkUser = isset($settings['gitHubUser']) ? trim($settings['gitHubUser']) : '';
+    $forkPat = isset($settings['gitHubPAT']) ? trim($settings['gitHubPAT']) : '';
+    // Never treat the reserved remotes as a fork (see api/controllers/git.php):
+    // a username matching one of these must not rewrite the real remote URL.
+    $forkUserReserved = in_array(strtolower($forkUser), array('origin', 'newfeatures', 'pull-requests'), true);
+    $isForkRemote = (!$forkUserReserved && $forkUser !== '' && preg_match('/^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/', $forkUser) === 1
+        && strcasecmp($remote, $forkUser) === 0 && !preg_match('/[\r\n]/', $forkPat));
+    if ($isForkRemote) {
+        $remote = $forkUser; // canonical casing for git remote operations
+        $gitDirEsc = escapeshellarg(dirname(dirname(__FILE__)) . "/.git");
+        exec("$SUDO git --git-dir=$gitDirEsc remote get-url " . escapeshellarg($remote) . " 2>&1", $forkChkOut, $forkChkRet);
+        if ($forkChkRet != 0) {
+            if ($forkPat !== '') {
+                $forkUrl = "https://" . rawurlencode($forkUser) . ":" . rawurlencode($forkPat) . "@github.com/" . rawurlencode($forkUser) . "/fpp.git";
+            } else {
+                $forkUrl = "https://github.com/" . rawurlencode($forkUser) . "/fpp.git";
+            }
+            exec("$SUDO git --git-dir=$gitDirEsc remote add " . escapeshellarg($remote) . " " . escapeshellarg($forkUrl) . " 2>&1", $forkAddOut, $forkAddRet);
+        } elseif ($forkPat !== '') {
+            $forkUrl = "https://" . rawurlencode($forkUser) . ":" . rawurlencode($forkPat) . "@github.com/" . rawurlencode($forkUser) . "/fpp.git";
+            exec("$SUDO git --git-dir=$gitDirEsc remote set-url " . escapeshellarg($remote) . " " . escapeshellarg($forkUrl) . " 2>&1", $forkUpdOut, $forkUpdRet);
+        }
+        unset($forkChkOut); unset($forkAddOut); unset($forkUpdOut);
+    }
+
     // Serialize this fetch through the same lock the upgrade scripts use so it
     // can't race on FETCH_HEAD / ref locks with a running upgrade (which would
     // otherwise show up as "Cannot rebase onto multiple branches"). See
@@ -104,6 +133,42 @@ function PrintGitBranchOptions()
     // Sort and remove duplicates
     $branches = array_unique($branches);
     sort($branches);
+
+    // Newly-added fork remotes (or a failed fetch) can still yield zero local
+    // refs. Fall back to the GitHub branches API so the dropdown still
+    // populates instead of showing only the placeholder.
+    if ($isForkRemote && empty($branches)) {
+        $ch = curl_init('https://api.github.com/repos/' . rawurlencode($forkUser) . '/fpp/branches?per_page=100');
+        $ghHeaders = array('User-Agent: FPP', 'Accept: application/vnd.github.v3+json');
+        if ($forkPat !== '') {
+            $ghHeaders[] = 'Authorization: token ' . $forkPat;
+        }
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $ghHeaders);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_FAILONERROR, false);
+        $ghBody = curl_exec($ch);
+        $ghCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($ghBody !== false && $ghCode >= 200 && $ghCode < 300) {
+            $ghData = json_decode($ghBody, true);
+            if (is_array($ghData)) {
+                foreach ($ghData as $b) {
+                    if (!isset($b['name'])) {
+                        continue;
+                    }
+                    $gb = filterBranch($b['name']);
+                    if ($gb != "" && $gb !== false) {
+                        $branches[] = $gb;
+                    }
+                }
+                $branches = array_unique($branches);
+                sort($branches);
+            }
+        }
+    }
 
     foreach ($branches as $branch) {
         if ($branch == $git_branch) {
@@ -145,22 +210,60 @@ function PrintGitBranchOptions()
             reloadPullRequests();
             return;
         }
+        $('#gitBranch').empty().append('<option value="" selected>Loading branches…</option>');
         $.ajax({
-            url: 'api/git/branches?remote=' + remote,
+            url: 'api/git/branches?remote=' + encodeURIComponent(remote),
             type: 'GET',
             success: function (branches) {
-                $('#gitBranch').empty();
-                // Add a placeholder option to force user selection
-                $('#gitBranch').append('<option value="" selected>-- Select Branch --</option>');
-                branches.forEach(function (branch) {
-                    $('#gitBranch').append('<option value="' + branch + '">' + branch + '</option>');
+                if (Array.isArray(branches) && branches.length > 0) {
+                    populateBranchSelect(branches);
+                    return;
+                }
+                // Empty local result for a fork remote: fall back to the
+                // GitHub-API branch list so a fetch hiccup does not leave
+                // only the placeholder. Non-fork remotes keep the empty
+                // result with a hint instead of failing silently.
+                var $sel = $('#gitRemote').find('option:selected');
+                var ghUser = String($('#gitHubUser').val() || '').toLowerCase();
+                var isFork = $sel.attr('data-fork') === '1' ||
+                    (ghUser !== '' && String(remote || '').toLowerCase() === ghUser);
+                if (!isFork) {
+                    populateBranchSelect([]);
+                    return;
+                }
+                $.ajax({
+                    url: 'api/git/forkBranches',
+                    type: 'GET',
+                    success: function (data) {
+                        if (data && data.hasFork && Array.isArray(data.branches) && data.branches.length > 0) {
+                            populateBranchSelect(data.branches);
+                        } else {
+                            populateBranchSelect([]);
+                        }
+                    },
+                    error: function () {
+                        populateBranchSelect([]);
+                    }
                 });
-                $('#prMeta').hide();
             },
             error: function (data) {
                 alert('Call to api/git/branches failed');
             }
         });
+    }
+
+    function populateBranchSelect(branches) {
+        $('#gitBranch').empty();
+        // Add a placeholder option to force user selection
+        $('#gitBranch').append('<option value="" selected>-- Select Branch --</option>');
+        if (!branches || branches.length === 0) {
+            $('#gitBranch').append('<option value="" disabled>No branches found for this remote</option>');
+        } else {
+            branches.forEach(function (branch) {
+                $('#gitBranch').append($('<option>').attr('value', branch).text(branch));
+            });
+        }
+        $('#prMeta').hide();
     }
 
     var prCache = [];
@@ -360,6 +463,22 @@ function PrintGitBranchOptions()
 <div class="settingsTable container-fluid">
     <?
     PrintSetting('masqUIPlatform');
+    // Preserve a saved fork remote in the dropdown: the static options in
+    // settings.json only know origin/newfeatures/pull-requests, so the
+    // generic select renderer would otherwise treat a saved username as a
+    // stale value, auto-select origin, and overwrite the saved setting on
+    // page load via SetSetting.
+    global $settingInfos;
+    LoadSettingInfos();
+    if (!empty($settings['gitRemote']) && !empty($settings['gitHubUser'])
+        && strcasecmp(trim($settings['gitRemote']), trim($settings['gitHubUser'])) === 0
+        && preg_match('/^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/', trim($settings['gitHubUser'])) === 1) {
+        $savedFork = trim($settings['gitRemote']); // preserve saved casing
+        $forkLabel = 'GitHub User Fork (' . trim($settings['gitHubUser']) . '/fpp)';
+        if (isset($settingInfos['gitRemote']['options']) && !in_array($savedFork, $settingInfos['gitRemote']['options'])) {
+            $settingInfos['gitRemote']['options'][$forkLabel] = $savedFork;
+        }
+    }
     PrintSetting('gitRemote');
     PrintSetting('gitHubUser');
     PrintSetting('gitHubPAT');
