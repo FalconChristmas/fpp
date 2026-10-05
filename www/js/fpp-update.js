@@ -10,6 +10,9 @@
 //   for a stuck update; the update keeps running),
 // - a spinning "Update in progress" warning row on the status page
 //   (index.php #updateInProgressWarningRow) that clears itself when done,
+// - suppression of the "FPPD not found. Rebuild required" banner
+//   (menu.inc #compileFPPDBanner) while an update is actively running,
+//   since the binary is absent *because* of the running rebuild,
 // - a re-openable live modal fed from logs/fpp_system_upgrades.log, so any
 //   browser can attach, detach (Hide), refresh, and reattach.
 //
@@ -95,6 +98,23 @@ function FPPUpdate_Render(activity) {
 			$warn.show();
 		} else {
 			$warn.hide();
+		}
+	}
+
+	// While an update is actively running, the "FPPD not found. Rebuild
+	// required" banner (menu.inc #compileFPPDBanner, rendered when src/fppd
+	// is missing) is wrong: the binary is absent *because* the update
+	// cleaned it before rebuilding, and its Rebuild button would start a
+	// second update on top of the running one. Hide it so the update banner
+	// is the single call to action; it comes back on its own when the
+	// update ends. A merely stale (never finished, nothing running) update
+	// leaves the rebuild banner alone: fppd may genuinely need rebuilding.
+	var $rebuild = $('#compileFPPDBanner');
+	if ($rebuild.length) {
+		if (activity.inProgress) {
+			$rebuild.hide();
+		} else {
+			$rebuild.show();
 		}
 	}
 }
