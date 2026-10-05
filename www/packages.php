@@ -152,6 +152,7 @@
         // they are folded into a "(+N dependencies)" note on the parent.
         var showDependencyChain = <?php echo ((int) $uiLevel >= 3) ? 'true' : 'false'; ?>;
         var selectedPackageName = "";
+        var missingPackages = [];
 
         function ShowLoadingIndicator() {
             $('#loadingIndicator').show();
@@ -278,6 +279,7 @@
             });
 
             const rows = new Array(ordered.length);
+            const missing = [];
             let pendingRequests = ordered.length;
 
             ordered.forEach((entry, idx) => {
@@ -325,6 +327,11 @@
                     dataType: 'json',
                     success: function (data) {
                         const isInstalled = data.Installed === 'Yes';
+                        // Same rule as the server: a dependency comes back
+                        // with its parent, so only top-level rows count.
+                        if (!isInstalled && !parent) {
+                            missing.push(pkg);
+                        }
                         rows[idx] = isInstalled
                             ? row('<span class="badge text-bg-success">Installed</span>', removeBtn + reinstallBtn)
                             : row('<span class="badge text-bg-danger">Missing</span>',
@@ -339,6 +346,9 @@
                         pendingRequests--;
                         if (pendingRequests === 0) {
                             $('#userPackagesList').html(rows.join(''));
+                            missingPackages = missing;
+                            $('#installMissingCount').text(missing.length);
+                            $('#installMissingBtn').attr('title', missing.join(', ')).toggle(missing.length > 0);
                         }
                     }
                 });
@@ -421,6 +431,22 @@
             );
         }
 
+        function InstallMissingPackages() {
+            if (!missingPackages.length) {
+                return;
+            }
+            if (!confirm(`Install ${missingPackages.length} missing package(s)?\n\n${missingPackages.join(', ')}`)) {
+                return;
+            }
+            DisplayProgressDialog("packageProgressPopup", `Installing ${missingPackages.length} Missing Package(s)`);
+            StreamURL(
+                'packagesHelper.php?action=installmissing',
+                'packageProgressPopupText',
+                'ProgressDialogDone',
+                'ProgressDialogDone'
+            );
+        }
+
         function UninstallPackage(packageName) {
             const url = `packagesHelper.php?action=uninstall&package=${encodeURIComponent(packageName)}`;
             DisplayProgressDialog("packageProgressPopup", `Uninstalling Package: ${packageName}`);
@@ -455,7 +481,13 @@
                     Installing or reinstalling packages can break your FPP installation requiring complete reinstallation of
                     FPP. Continue at your own risk.
                     <p>
-                    <h2>Installed User Packages</h2>
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <h2>Installed User Packages</h2>
+                        <button id="installMissingBtn" class="btn btn-outline-success ms-auto" style="display: none;"
+                            onClick="InstallMissingPackages();">
+                            <i class="fas fa-download"></i> Install All Missing (<span id="installMissingCount">0</span>)
+                        </button>
+                    </div>
                     <div style="overflow-x: auto;">
                         <table id="userPackagesTable">
                             <thead>
