@@ -7,7 +7,9 @@
 //
 // - a global banner (menu.inc #updateInProgressFlag) on every page with
 //   "View progress" (reopens the live log) and "Dismiss" (hides the banner
-//   for a stuck update; the update keeps running),
+//   for a stuck update; the update keeps running). The status page is the
+//   exception: it shows the warning row below instead, so the update
+//   appears exactly once there,
 // - a spinning "Update in progress" warning row on the status page
 //   (index.php #updateInProgressWarningRow) that clears itself when done,
 // - suppression of the "FPPD not found. Rebuild required" banner
@@ -79,9 +81,13 @@ function FPPUpdate_Render(activity) {
 
 	// Global banner (all pages). Dismiss hides the banner only; the update
 	// keeps running and the status-page warning keeps its View link.
+	// The status page has its own dedicated warning row (below) — showing
+	// the banner there too renders the same update twice, so the banner
+	// stays hidden wherever that row exists.
+	var hasWarnRow = $('#updateInProgressWarningRow').length > 0;
 	var $flag = $('#updateInProgressFlag');
 	if ($flag.length) {
-		if (show && !dismissed) {
+		if (show && !dismissed && !hasWarnRow) {
 			$('#updateInProgressFlagText').text(FPPUpdate_Title(activity));
 			$flag.show();
 		} else {
