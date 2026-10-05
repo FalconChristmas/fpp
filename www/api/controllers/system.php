@@ -435,6 +435,365 @@ function GetUpdateStatus()
 }
 
 /**
+ * Operations that constitute an FPP software/OS update run in
+ * logs/fpp_system_upgrades.log. Nested operations (e.g. fpp-config-upgrade
+ * running inside an fpp-update) are deliberately excluded: only these outer
+ * operations drive the persistent update-progress UI.
+ */
+function UpdateActivityOuterOps()
+{
+    return array('fpp-update', 'fpp-upgrade', 'os-upgrade', 'fpp-branch-switch', 'fpp-version-checkout');
+}
+
+/**
+ * Human label for an update operation, for banner/modal titles.
+ */
+function UpdateActivityKindLabel($op)
+{
+    static $labels = array(
+        'fpp-update' => 'FPP Update',
+        'fpp-upgrade' => 'FPP Upgrade',
+        'os-upgrade' => 'FPP OS Upgrade',
+        'fpp-branch-switch' => 'FPP Branch Switch',
+        'fpp-version-checkout' => 'FPP Version Change'
+    );
+    return isset($labels[$op]) ? $labels[$op] : 'FPP Update';
+}
+
+/**
+ * Resolve the shared upgrade log file. Mirrors OpLogDir() in
+ * www/common/oplog.inc.php ($logDirectory from config.php, same fallback).
+ */
+function UpdateActivityLogFile()
+{
+    global $logDirectory, $settings;
+    if (isset($logDirectory) && $logDirectory != '') {
+        return rtrim($logDirectory, '/') . '/fpp_system_upgrades.log';
+    }
+    if (isset($settings['logDirectory']) && $settings['logDirectory'] != '') {
+        return rtrim($settings['logDirectory'], '/') . '/fpp_system_upgrades.log';
+    }
+    if (isset($settings['mediaDirectory']) && $settings['mediaDirectory'] != '') {
+        return rtrim($settings['mediaDirectory'], '/') . '/logs/fpp_system_upgrades.log';
+    }
+    return '/home/fpp/media/logs/fpp_system_upgrades.log';
+}
+
+/**
+ * True when an update worker process is currently alive. Patterns cover the
+ * commit update (git_pull, manualUpdate.php), branch upgrade (upgrade_FPP,
+ * upgradefpp.php, git_branch, git_checkout_version), OS upgrade
+ * (upgradeOS.php, upgradeOS-part1.sh) and the rebuild they all share
+ * (fpp_build). `ps ax` works on both Linux and macOS.
+ */
+function UpdateActivityProcessAlive()
+{
+    $out = array();
+    @exec("ps ax 2>/dev/null | grep -E 'git_pull|upgrade_FPP|upgradeOS-part1|git_branch|git_checkout_version|fpp_build|manualUpdate\\.php|upgradefpp\\.php|upgradeOS\\.php' 2>/dev/null | grep -v grep 2>/dev/null", $out);
+    return count($out) > 0;
+}
+
+/**
+ * Read the last lines of the upgrade log without loading multi-MB builds
+ * fully into memory (submodule chatter can run to several MB).
+ */
+function UpdateActivityReadTail($maxLines = 250)
+{
+    $file = UpdateActivityLogFile();
+    if (!is_file($file) || !is_readable($file)) {
+        return array('lines' => array(), 'mtime' => 0);
+    }
+    $mtime = @filemtime($file);
+    $size = @filesize($file);
+    if ($size === false || $size <= 0) {
+        return array('lines' => array(), 'mtime' => $mtime ? $mtime : 0);
+    }
+    // Last 128KB is plenty: ~250 lines even at 500 chars/line.
+    $chunk = '';
+    $fh = @fopen($file, 'r');
+    if ($fh) {
+        $readSize = $size > 131072 ? 131072 : $size;
+        @fseek($fh, $size - $readSize);
+        $chunk = @stream_get_contents($fh);
+        @fclose($fh);
+    }
+    if ($chunk === '' || $chunk === false) {
+        return array('lines' => array(), 'mtime' => $mtime ? $mtime : 0);
+    }
+    $lines = preg_split("/\r?\n/", $chunk);
+    if (count($lines) > $maxLines) {
+        $lines = array_slice($lines, -$maxLines);
+    }
+    return array('lines' => $lines, 'mtime' => $mtime ? $mtime : 0);
+}
+
+/**
+ * Last N lines of a file as a string, without loading multi-MB logs fully
+ * into memory (a 300-line build tail is tens of KB; submodule chatter can
+ * make the whole file several MB, and the progress modal polls this every
+ * few seconds while open).
+ */
+function UpdateActivityLastLines($file, $n)
+{
+    if ($n < 1) {
+        $n = 1;
+    }
+    if ($n > 500) {
+        $n = 500;
+    }
+    $size = @filesize($file);
+    if ($size === false || $size <= 0) {
+        return '';
+    }
+    $fh = @fopen($file, 'r');
+    if (!$fh) {
+        return '';
+    }
+    // Read trailing bytes incrementally until N line breaks are covered.
+    $readSize = 65536;
+    $chunk = '';
+    while (true) {
+        if ($readSize > $size) {
+            $readSize = $size;
+        }
+        @fseek($fh, $size - $readSize);
+        $chunk = @stream_get_contents($fh);
+        if ($chunk === false) {
+            $chunk = '';
+            break;
+        }
+        if (substr_count($chunk, "\n") >= $n + 1 || $readSize >= $size || $readSize >= 1048576) {
+            break;
+        }
+        $readSize *= 2;
+    }
+    @fclose($fh);
+    if ($chunk === '') {
+        return '';
+    }
+    $lines = preg_split("/\r?\n/", $chunk);
+    // The seek can land mid-line: drop the first (partial) line, unless the
+    // whole file was read.
+    if ($readSize < $size && count($lines) > 0) {
+        array_shift($lines);
+    }
+    // A trailing newline leaves a final empty element; drop those so the
+    // tail ends with the last real line plus one newline.
+    while (count($lines) > 0 && end($lines) === '') {
+        array_pop($lines);
+    }
+    $lines = array_slice($lines, -$n);
+    if (empty($lines)) {
+        return '';
+    }
+    return implode("\n", $lines) . "\n";
+}
+
+/**
+ * Derive update-in-progress state from the durable log plus process liveness.
+ *
+ * Source of truth is logs/fpp_system_upgrades.log: the last outer START
+ * marker (emitted by startUpgradeLog() / upgradeOS-part1.sh, format
+ * "[<op> <target>] ===== <op> START: ... =====") opens a run, and the run
+ * closes on its matching "===== <op> FINISH: ... (rc=N) =====" trailer or a
+ * terminal stage ("Upgrade Complete", "Upgrade Failed", "Rebooting") logged
+ * after it. A run that is open in the log is reported in progress when a
+ * worker process is alive or the log was written recently (covers the brief
+ * restart window where ps misses); an open run with neither is reported as
+ * stale so the UI can still offer the log without claiming activity.
+ *
+ * @param bool $withLogTail Include the last N lines of the run's log.
+ * @return array Activity payload (also embedded in api/system/status).
+ */
+function GetUpdateActivityInternal($withLogTail = false)
+{
+    $empty = array(
+        'inProgress' => false,
+        'op' => '',
+        'target' => '',
+        'kind' => '',
+        'runId' => '',
+        'stage' => '',
+        'logUpdatedAt' => 0,
+        'stale' => false
+    );
+
+    $tail = UpdateActivityReadTail();
+    $lines = $tail['lines'];
+    if (empty($lines)) {
+        return $empty;
+    }
+    $outerOps = UpdateActivityOuterOps();
+    $opsAlt = implode('|', $outerOps);
+
+    // Last outer START opens the run under inspection.
+    $startIdx = -1;
+    $startOp = '';
+    $startTarget = '';
+    $startLine = '';
+    foreach ($lines as $i => $line) {
+        if (preg_match('/\[(' . $opsAlt . ')\s+([^\]]*)\]\s*=====\s*\1\s+START:/', $line, $m)) {
+            $startIdx = $i;
+            $startOp = $m[1];
+            $startTarget = trim($m[2]);
+            $startLine = $line;
+        }
+    }
+    if ($startIdx < 0) {
+        // No run markers (fresh/rotated log, or a worker between spawn and
+        // its first log line): a live worker alone still means an update is
+        // running. The fixed runId keeps a dismiss stable across polls in
+        // this rare state.
+        if (UpdateActivityProcessAlive()) {
+            $active = $empty;
+            $active['inProgress'] = true;
+            $active['kind'] = UpdateActivityKindLabel('fpp-update');
+            $active['runId'] = 'workers-active';
+            $active['logUpdatedAt'] = $tail['mtime'];
+            if ($withLogTail) {
+                $n = 200;
+                if (isset($_GET['lines'])) {
+                    $n = intval($_GET['lines']);
+                }
+                $file = UpdateActivityLogFile();
+                $active['logTail'] = (is_file($file) && is_readable($file))
+                    ? UpdateActivityLastLines($file, $n)
+                    : '';
+            }
+            return $active;
+        }
+        return $empty;
+    }
+
+    $after = array_slice($lines, $startIdx + 1);
+    $finished = false;
+    foreach ($after as $line) {
+        // Matching FINISH trailer for this run.
+        if (preg_match('/=====\s*' . preg_quote($startOp, '/') . '\s+FINISH:/', $line)) {
+            $finished = true;
+            break;
+        }
+        // Terminal stage logged after the script's tee is gone (PHP side of
+        // manualUpdate.php / upgradeOS.php).
+        if (preg_match('/^.*?=====\s*(Upgrade Complete|Upgrade Failed|Rebooting|Upgrade complete[^=]*)\s*=====\s*$/i', $line)) {
+            $finished = true;
+            break;
+        }
+    }
+
+    $base = array(
+        'inProgress' => false,
+        'op' => $startOp,
+        'target' => $startTarget,
+        'kind' => UpdateActivityKindLabel($startOp),
+        'runId' => md5($startLine),
+        'stage' => '',
+        'logUpdatedAt' => $tail['mtime'],
+        'stale' => false
+    );
+
+    // Latest stage marker since the run started (drives the modal title).
+    // START/FINISH framing lines are skipped so the title names the work,
+    // not the framing.
+    $stageRe = '/^.*?=====\s*(.+?)\s*=====\s*$/';
+    foreach (array_merge(array($startLine), $after) as $line) {
+        if (preg_match($stageRe, $line, $m)) {
+            $marker = trim($m[1]);
+            if (!preg_match('/^(?:' . $opsAlt . ')\s+(START|FINISH):/', $marker)
+                && !preg_match('/^(?:' . $opsAlt . ')\s+(START|FINISH)$/', $marker)) {
+                $base['stage'] = $marker;
+            }
+        }
+    }
+
+    if ($withLogTail) {
+        $n = 200;
+        if (isset($_GET['lines'])) {
+            $n = intval($_GET['lines']);
+            if ($n < 1) {
+                $n = 1;
+            }
+            if ($n > 500) {
+                $n = 500;
+            }
+        }
+        $file = UpdateActivityLogFile();
+        if (is_file($file) && is_readable($file)) {
+            $last = UpdateActivityLastLines($file, $n);
+            // Show the whole run when its START is inside the fetched tail,
+            // otherwise the last N lines.
+            $runStart = -1;
+            if ($last !== '' && $startLine !== '') {
+                $runLines = explode("\n", $last);
+                foreach ($runLines as $i => $line) {
+                    if (strpos($line, $startLine) !== false) {
+                        $runStart = $i;
+                    }
+                }
+                if ($runStart >= 0) {
+                    $last = implode("\n", array_slice($runLines, $runStart));
+                    if ($last !== '' && substr($last, -1) !== "\n") {
+                        $last .= "\n";
+                    }
+                }
+            }
+            $base['logTail'] = $last;
+        } else {
+            $base['logTail'] = '';
+        }
+    }
+
+    if ($finished) {
+        return $base;
+    }
+
+    // Run is open in the log: live when a worker is alive or the log is
+    // fresh, stale (crashed/killed, power loss) otherwise.
+    $alive = UpdateActivityProcessAlive();
+    $recent = ($tail['mtime'] > 0) && ((time() - $tail['mtime']) < 900);
+    if ($alive || $recent) {
+        $base['inProgress'] = true;
+        return $base;
+    }
+    $base['stale'] = true;
+    return $base;
+}
+
+/**
+ * Update activity for the persistent progress UI
+ *
+ * Reports whether an FPP software or OS update is currently running, derived
+ * from logs/fpp_system_upgrades.log markers plus worker process liveness, so
+ * any browser (including one opened mid-update or after a refresh) can show
+ * the live progress. Pass `?logTail=1&lines=200` to include the run's log.
+ *
+ * @route GET /api/system/updateActivity
+ * @response 200 Update activity
+ * ```json
+ * {"status": "OK", "inProgress": true, "op": "fpp-update", "kind": "FPP Update", "runId": "abc", "stage": "Building FPP (longest step, please wait)"}
+ * ```
+ */
+function GetUpdateActivity()
+{
+    $withLog = (isset($_GET['logTail']) && $_GET['logTail']);
+    $activity = GetUpdateActivityInternal($withLog);
+    // Test mode: pretend an update is running so the banner/modal/warning can
+    // be exercised without flashing a device. Mirrors ?test= in GetUpdateStatus.
+    if (isset($_GET['test']) && $_GET['test'] === 'inprogress') {
+        $activity['inProgress'] = true;
+        if ($activity['op'] === '') {
+            $activity['op'] = 'fpp-update';
+            $activity['kind'] = UpdateActivityKindLabel('fpp-update');
+            $activity['target'] = 'master';
+            $activity['runId'] = 'test-run';
+            $activity['stage'] = 'Fetching updates';
+        }
+    }
+    $activity['status'] = 'OK';
+    return json($activity);
+}
+
+/**
  * Set volume
  *
  * Sets the system volume. The new level should be passed as a JSON body.
@@ -1127,6 +1486,12 @@ function finalizeStatusJson($obj)
 
     // Check if FPPD restart limit has been hit (Start request repeated too quickly)
     $obj['fppdRestartBlocked'] = GetFPPDRestartBlocked();
+
+    // Update activity (FPP software / OS update in progress) for the
+    // persistent progress banner/modal. Log tail is excluded here to keep the
+    // every-few-seconds status poll light; the modal fetches it from
+    // GET /api/system/updateActivity?logTail=1.
+    $obj['updateActivity'] = GetUpdateActivityInternal(false);
 
     return $obj;
 }

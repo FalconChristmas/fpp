@@ -4651,6 +4651,11 @@ function UpgradeFPPVersion (newVersion) {
 		}
 
 		DoModalDialog(opts);
+		// Let the starter detach mid-run: the banner + status warning keep a
+		// way back to the live log (see js/fpp-update.js).
+		if (typeof FPPUpdate_AddHideButton === 'function') {
+			FPPUpdate_AddHideButton('upgradeFPPDialog');
+		}
 		StreamURL(
 			'upgradefpp.php?version=v' + version,
 			'upgradeFPPDialogText',
@@ -15164,7 +15169,8 @@ var STATUS_AUGMENTATION_KEYS = [
 	'bootDelayActive',
 	'bootDelayStart',
 	'bootDelayDuration',
-	'pluginHeaderIndicators'
+	'pluginHeaderIndicators',
+	'updateActivity'
 ];
 
 // A status snapshot pushed by fppd over the WebSocket.

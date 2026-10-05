@@ -19,6 +19,10 @@ if (!$wrapped)
 
 $skipJSsettings = 1;
 require_once("common.php");
+// Record the outcome in logs/fpp_system_upgrades.log (the script's own output
+// is already there via its tee); the persistent update-progress UI reads this
+// file, so without these lines a re-attached viewer sees no verdict.
+require_once("common/oplog.inc.php");
 
 DisableOutputBuffering();
 
@@ -76,8 +80,11 @@ if (!$wrapped) {
 } else {
     echo "----------------------------------------------------------------------------------\n";
     if ($upgradeStatus !== 0) {
+        UpgradeLog('fpp-upgrade', $version, "ERROR: upgrade_FPP exited rc=" . $upgradeStatus . "; not rebooting.");
+        UpgradeLog('fpp-upgrade', $version, "===== Upgrade Failed =====");
         echo "Upgrade FAILED (exit code " . $upgradeStatus . ").  See the errors above.\n";
     } else {
+        UpgradeLog('fpp-upgrade', $version, "===== Upgrade Complete =====");
         echo "Upgrade complete.  Please reboot.\n";
     }
 }

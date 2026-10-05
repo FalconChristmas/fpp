@@ -962,6 +962,11 @@
         function UpgradeFPP(title) {
             fppUpgradeTitle = title || 'FPP Upgrade';
             DisplayProgressDialog('fppUpgrade', fppUpgradeTitle);
+            // Let the starter detach mid-run: the banner + status warning keep
+            // a way back to the live log (see js/fpp-update.js).
+            if (typeof FPPUpdate_AddHideButton === 'function') {
+                FPPUpdate_AddHideButton('fppUpgrade');
+            }
             SetProgressDialogStatus('fppUpgrade', fppUpgradeTitle + ' — Starting…');
             StreamURL('manualUpdate.php?wrapped=1', 'fppUpgradeText', 'FPPUpgradeDone', '', 'GET', null, null, true, false, 'FPPUpgradeProgress'); // trailing arg: generic stage-status hook
         }
@@ -1132,6 +1137,10 @@
                 '?\nThis can take a long time. It is also strongly recommended to run FPP backup first.')) {
 
                 DisplayProgressDialog('osUpgrade', 'FPP OS Upgrade');
+                // Same detach support as the FPP upgrade above.
+                if (typeof FPPUpdate_AddHideButton === 'function') {
+                    FPPUpdate_AddHideButton('osUpgrade');
+                }
                 SetProgressDialogStatus('osUpgrade', 'FPP OS Upgrade — Starting…');
                 StreamURL('upgradeOS.php?wrapped=1&os=' + os + keepOptFPP, 'osUpgradeText', 'OSUpgradeDone', 'OSUpgradeDone', 'GET', null, null, true, false, 'OSUpgradeProgress'); // trailing arg: generic stage-status hook
             }

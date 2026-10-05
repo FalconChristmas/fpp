@@ -9275,6 +9275,38 @@
         }
       }
     },
+    "/api/system/updateActivity": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Get update activity",
+        "description": "Reports whether an FPP software or OS update is currently running, derived from logs/fpp_system_upgrades.log markers plus worker process liveness, so any browser can show the live progress. Pass `?logTail=1&lines=200` to include the run's log.",
+        "responses": {
+          "200": {
+            "description": "Update activity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "inProgress": true,
+                  "op": "fpp-update",
+                  "target": "master",
+                  "kind": "FPP Update",
+                  "runId": "abc123",
+                  "stage": "Building FPP (longest step, please wait)",
+                  "logUpdatedAt": 1728000000,
+                  "stale": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/system/volume": {
       "get": {
         "tags": [
