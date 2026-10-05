@@ -242,7 +242,8 @@ void MultiSyncSystem::update(MultiSyncSystemType type,
     // learned via the UDP MultiSync protocol so that FPP remotes discovered
     // via HTTP (e.g. on a network segment where multicast is blocked - the
     // very case this mode exists for) are still targeted.
-    this->supportsUnicast = (this->type < kSysTypeFalconController) &&
+    this->supportsUnicast = ((this->type < kSysTypeFalconController) ||
+                             (this->type == kSysTypeJBoards)) &&
                             (this->fppMode == REMOTE_MODE);
 }
 
@@ -1075,6 +1076,8 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local) {
         return "ESPixelStick-ESP32";
     case kSysTypeBaldrick:
         return "Baldrick";
+    case kSysTypeJBoards:
+        return "JBoards";
     case kSysTypeMacOS:
         return "MacOS";
     case kSysTypeFPPArmbian:
