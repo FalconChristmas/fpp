@@ -1149,6 +1149,15 @@ function handleKeypress (e) {
 		DisplayHelp();
 		return;
 	}
+	// A page's own use of a key wins over custom shortcuts and the F2/F8
+	// defaults.  A page defines pageSpecific_HandleKeypress(e) and returns
+	// true when it consumed the key (e.g. F2 on the Pixel Strings tab).
+	// Pages must not bind their own document keydown handler for these
+	// keys: both would fire, and this one would navigate away.
+	if (typeof pageSpecific_HandleKeypress === 'function' && pageSpecific_HandleKeypress(e)) {
+		e.preventDefault();
+		return;
+	}
 	// A saved custom shortcut wins.  F2 and F8 only fall through to their
 	// default actions below when no shortcut has been assigned to them.
 	if (KeyBindingsHandleEvent(e)) {
