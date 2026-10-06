@@ -13,6 +13,7 @@
 // Include drogon framework header before FPP headers to avoid
 // macro conflicts between trantor's LOG_* macros and FPP's LogLevel enum
 #include <drogon/HttpAppFramework.h>
+#include <drogon/version.h>
 #undef LOG_WARN
 #undef LOG_INFO
 #undef LOG_DEBUG
@@ -421,7 +422,50 @@ static T copyHandler(const T& handler) {
 /*
  *
  */
+// "1.9.13" -> "1.9"
+static std::string drogonMajorMinor(const std::string& v) {
+    size_t first = v.find('.');
+    if (first == std::string::npos) {
+        return v;
+    }
+    size_t second = v.find('.', first + 1);
+    return second == std::string::npos ? v : v.substr(0, second);
+}
+
+// registerHandler() and friends are templates instantiated in fppd from the
+// drogon headers it was compiled against, and they call into libdrogon by
+// vtable slot. Built against one drogon's headers and run against another's
+// library - headers from a drogon source install in /usr/local, library from
+// the distro package, say - the first route registration jumps through the
+// wrong slot and fppd segfaults on every start. drogon's SONAME stays
+// libdrogon.so.1 across those releases, so the dynamic linker cannot catch it.
+// Compare what we were built with against what we loaded, and refuse to run
+// on a major.minor mismatch with a message that says what to fix. A patch
+// difference (a distro update within a release) is only noted.
+static bool drogonVersionMatches() {
+    std::string built = DROGON_VERSION;
+    std::string loaded = drogon::getVersion();
+    if (built == loaded) {
+        return true;
+    }
+    if (drogonMajorMinor(built) != drogonMajorMinor(loaded)) {
+        LogErr(VB_HTTP, "fppd was built against drogon %s headers but loaded libdrogon %s. "
+                        "These are not compatible; rebuild fppd against the drogon that is installed "
+                        "(or remove the other drogon's headers or library)\n",
+               built.c_str(), loaded.c_str());
+        fprintf(stderr, "fppd: built against drogon %s headers but loaded libdrogon %s; rebuild fppd\n",
+                built.c_str(), loaded.c_str());
+        return false;
+    }
+    LogWarn(VB_HTTP, "fppd was built against drogon %s headers and loaded libdrogon %s\n",
+            built.c_str(), loaded.c_str());
+    return true;
+}
+
 void APIServer::Init(void) {
+    if (!drogonVersionMatches()) {
+        exit(EXIT_FAILURE);
+    }
     m_pr = std::make_shared<PlayerResource>();
 
     auto& app = drogon::app();
