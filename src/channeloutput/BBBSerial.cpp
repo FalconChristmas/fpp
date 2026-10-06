@@ -310,8 +310,13 @@ int BBBSerialOutput::Close(void) {
                                      : "memory");
             cnt++;
         }
-        m_pru->stop();
+        // Clear the command while the core is still up: m_serialData is PRU
+        // data RAM, which can be unreachable once remoteproc has stopped the
+        // core (the access then takes an external abort - see
+        // BBB48StringOutput::StopPRU()). The firmware has already acked the
+        // stop above, so it no longer reads the command.
         m_serialData->command = 0;
+        m_pru->stop();
 
         delete m_pru;
         m_pru = NULL;
