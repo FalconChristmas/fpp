@@ -130,7 +130,7 @@ var fppUpdateCompletedAt = 0;
 // restarts after an update completes. Callers skip the "FPPD Daemon is not
 // running" warning while this holds; a daemon that never comes back still
 // warns once the window passes.
-var FPP_UPDATE_QUIET_NOTRUNNING_MS = 90000;
+var FPP_UPDATE_QUIET_NOTRUNNING_MS = 10000;
 function FPPUpdate_QuietNotRunning() {
 	return fppUpdateCompletedAt > 0 && (Date.now() - fppUpdateCompletedAt) < FPP_UPDATE_QUIET_NOTRUNNING_MS;
 }
