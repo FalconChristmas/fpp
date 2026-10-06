@@ -251,8 +251,21 @@ CFLAGS+=$(OPTIMIZE_FLAGS) -pipe \
 #
 # The matching link flags stay in fpp_so.mk; only the core links them.
 
-# GStreamer support
-ifneq ($(wildcard /usr/include/gstreamer-1.0/gst/gst.h),)
+# GStreamer support.  On Linux the -dev packages put the headers in /usr/include;
+# on macOS Homebrew's "gstreamer" formula (which bundles every gst-plugins-* set,
+# rtsp-server included) installs them under its own prefix, so ask pkg-config
+# there instead.  Either way the test is "is <gst/gst.h> reachable once these
+# flags are added", which is what __has_include(<gst/gst.h>) then sees.
+BUILD_OS := $(shell uname -s)
+ifeq ($(BUILD_OS),Darwin)
+HAVE_GSTREAMER := $(shell pkg-config --exists gstreamer-1.0 gstreamer-app-1.0 gstreamer-net-1.0 && echo 1)
+HAVE_GST_RTSP_SERVER := $(shell pkg-config --exists gstreamer-rtsp-server-1.0 && echo 1)
+else
+HAVE_GSTREAMER := $(if $(wildcard /usr/include/gstreamer-1.0/gst/gst.h),1)
+HAVE_GST_RTSP_SERVER := $(if $(wildcard /usr/include/gstreamer-1.0/gst/rtsp-server/rtsp-server.h),1)
+endif
+
+ifeq ($(HAVE_GSTREAMER),1)
 GSTREAMER_CFLAGS := $(shell pkg-config --cflags gstreamer-1.0 gstreamer-app-1.0 gstreamer-net-1.0)
 GSTREAMER_LIBS := $(shell pkg-config --libs gstreamer-1.0 gstreamer-app-1.0 gstreamer-net-1.0)
 
@@ -261,7 +274,7 @@ GSTREAMER_LIBS := $(shell pkg-config --libs gstreamer-1.0 gstreamer-app-1.0 gstr
 # header: without it the RTSP output compiles out and everything else builds
 # exactly as before.  Folded into GSTREAMER_* before they reach CFLAGS so the
 # include paths, which overlap almost entirely, are only added once.
-ifneq ($(wildcard /usr/include/gstreamer-1.0/gst/rtsp-server/rtsp-server.h),)
+ifeq ($(HAVE_GST_RTSP_SERVER),1)
 GSTREAMER_CFLAGS += $(shell pkg-config --cflags-only-I gstreamer-rtsp-server-1.0)
 GSTREAMER_LIBS += $(shell pkg-config --libs gstreamer-rtsp-server-1.0)
 endif
@@ -272,8 +285,15 @@ endif
 # libsamplerate, for AES67 media clock drift correction.  AES67Manager.cpp
 # enables the resampler on __has_include(<samplerate.h>), so the flags have to
 # key off that same header.  Absent it, the AES67 send path builds and runs
-# exactly as before, just without drift correction.
-ifneq ($(wildcard /usr/include/samplerate.h),)
+# exactly as before, just without drift correction.  On macOS the header can be
+# reachable through Homebrew's -I without anything linking the library, so ask
+# pkg-config there, as for GStreamer.
+ifeq ($(BUILD_OS),Darwin)
+HAVE_SAMPLERATE := $(shell pkg-config --exists samplerate && echo 1)
+else
+HAVE_SAMPLERATE := $(if $(wildcard /usr/include/samplerate.h),1)
+endif
+ifeq ($(HAVE_SAMPLERATE),1)
 SAMPLERATE_CFLAGS := $(shell pkg-config --cflags samplerate)
 SAMPLERATE_LIBS := $(shell pkg-config --libs samplerate)
 CFLAGS += $(SAMPLERATE_CFLAGS)
@@ -282,7 +302,8 @@ endif
 # DRM/KMS. fpp.cpp and framebuffer/KMSFrameBuffer.h enable the KMS code on
 # __has_include(<xf86drm.h>), so the flags have to key off that same header --
 # xf86drm.h itself pulls in <drm.h>, which only resolves with libdrm's -I.
-ifneq ($(wildcard /usr/include/xf86drm.h),)
+HAVE_LIBDRM := $(if $(wildcard /usr/include/xf86drm.h),1)
+ifeq ($(HAVE_LIBDRM),1)
 LIBDRM_CFLAGS := $(shell pkg-config --cflags libdrm)
 LIBDRM_LIBS := -ldrm
 CFLAGS += $(LIBDRM_CFLAGS)

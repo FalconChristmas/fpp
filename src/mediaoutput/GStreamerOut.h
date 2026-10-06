@@ -226,6 +226,7 @@ private:
 
     // HDMI/DRM video output via kmssink (Phase 4)
     bool m_wantHDMI = false;               // true when outputting to HDMI via kmssink
+    bool m_macVideoWindow = false;         // macOS: the "HDMI" output is this slot's video window
     GstElement* m_kmssink = nullptr;       // kmssink element (owned by pipeline bin)
     int m_hdmiConnectorId = -1;            // DRM connector ID from sysfs
     std::string m_hdmiCardPath;            // e.g. "/dev/dri/card1"

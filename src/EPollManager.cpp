@@ -20,6 +20,10 @@
 #include "common_mini.h"
 #include "log.h"
 
+#ifdef PLATFORM_OSX
+#include "MacOSApp.h"
+#endif
+
 EPollManager EPollManager::INSTANCE;
 
 EPollManager::EPollManager() {
@@ -231,6 +235,14 @@ EPollManager::WaitResult EPollManager::waitForEvents(int mstimeout) {
     // Implementation for waiting for events and calling the appropriate callbacks
     constexpr int MAX_EVENTS = 40;
 #ifdef USE_KQUEUE
+#ifdef PLATFORM_OSX
+    // With Cocoa active (fppd owns a window), the main thread must keep
+    // servicing AppKit while it waits, so do the waiting there and only
+    // collect the kqueue events below. No-op off the main thread or headless.
+    if (MacOSWaitForFd(epollf, mstimeout) >= 0) {
+        mstimeout = 0; // already waited; just collect what is ready
+    }
+#endif
     struct kevent events[MAX_EVENTS];
     struct timespec timeoutStruct = { mstimeout / 1000, (mstimeout % 1000) * 1000000 };
     int epollresult = kevent(epollf, NULL, 0, events, MAX_EVENTS, &timeoutStruct);

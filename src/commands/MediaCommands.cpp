@@ -30,6 +30,7 @@
 
 #include "MediaCommands.h"
 #include "../mediaoutput/GStreamerOut.h"
+#include "../mediaoutput/mediaoutput.h" // ResolveVideoOutput()
 #include "../mediaoutput/StreamSlotManager.h"
 
 IncreaseVolumeCommand::IncreaseVolumeCommand() :
@@ -446,7 +447,10 @@ std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::st
     }
     std::string videoOut;
     if (args.size() > 4) {
-        videoOut = args[4];
+        // An omitted video output stays "" (audio only); "--Default--" means
+        // the same display a playlist's default would use. It used to be
+        // passed through as-is and taken for a pixel overlay model name.
+        videoOut = args[4] == "--Default--" ? ResolveVideoOutput(args[4]) : args[4];
     }
     bool syncToShow = false;
     if (args.size() > 5) {

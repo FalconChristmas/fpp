@@ -478,17 +478,7 @@ int PlaylistEntryMedia::OpenMediaOutput(void) {
     MediaDetails::INSTANCE.ParseMedia(m_mediaFilename.c_str());
     PluginManager::INSTANCE.mediaCallback(m_parentPlaylist->GetInfo(), MediaDetails::INSTANCE);
 
-    std::string vOut = m_videoOutput;
-    if (vOut == "--Default--") {
-        vOut = getSetting("VideoOutput");
-    }
-    if (vOut == "") {
-        if (FileExists("/sys/class/drm/card0-HDMI-A-1/status") || FileExists("/sys/class/drm/card1-HDMI-A-1/status")) {
-            vOut = "--HDMI--";
-        } else {
-            vOut = "--Disabled--";
-        }
-    }
+    std::string vOut = ResolveVideoOutput(m_videoOutput);
 
     MediaOutputBase* out = CreateMediaOutput(tmpFile, vOut, m_streamSlot);
 

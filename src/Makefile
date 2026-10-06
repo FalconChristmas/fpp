@@ -16,6 +16,21 @@ endif
 
 include  ${SRCDIR}/makefiles/common/setup.mk
 
+# Which of the optional libraries makefiles/common/setup.mk found.  It decides
+# more than flags: headers gate class MEMBERS on __has_include() (mediaoutput/
+# does, for gstreamer), so objects compiled before and after one appears or
+# disappears disagree about class layouts -- and makefiles/common/ is not a
+# prerequisite of anything, so installing gstreamer and running make rebuilt
+# nothing, or only some objects, and linked the mix.  Every object and the PCH
+# depend on this file (see the rule after DEPFILES), which is rewritten only
+# when the set changes.  Core only: plugins include setup.mk too, and must not
+# write into this tree.
+BUILD_FEATURES := gstreamer=$(HAVE_GSTREAMER) rtsp-server=$(HAVE_GST_RTSP_SERVER) libdrm=$(HAVE_LIBDRM) samplerate=$(HAVE_SAMPLERATE)
+BUILD_FEATURES_STAMP := .build-features
+ifneq ($(shell cat $(BUILD_FEATURES_STAMP) 2>/dev/null),$(BUILD_FEATURES))
+$(shell echo "$(BUILD_FEATURES)" > $(BUILD_FEATURES_STAMP))
+endif
+
 # include the platform fragments first....
 # Each will have an ifdef for itself
 include ${SRCDIR}/makefiles/platform/*.mk
@@ -42,6 +57,10 @@ TARGETS_PHP := ../www/fppversion.php ../www/fppdefines.php
 # list rather than a */*.d wildcard because the core nests three deep
 # (channeloutput/processors, overlays/wled, non-gpl/BBShiftPanel).
 DEPFILES := $(OBJECTS_ALL:.o=.d)
+
+# Prerequisite-only, so it reaches every object whatever rule builds it --
+# several fragments (fppd.mk, fsequtils.mk, ...) have their own.
+$(OBJECTS_ALL) $(PCH_FILE): $(BUILD_FEATURES_STAMP)
 
 PWD := $(shell pwd)
 
