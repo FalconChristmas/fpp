@@ -294,7 +294,10 @@ std::unique_ptr<Command::Result> AdjustVolumeCommand::run(const std::vector<std:
 #ifdef HAS_GSTREAMER
 
 // Common data for tracking running command media
-std::mutex runningMediaLock;
+// Recursive: Stop() runs under this lock and fires MEDIA_STOPPED, and a preset
+// for that event may run Play Media, which registers new media from the same
+// thread. A plain mutex deadlocked fppd on exactly that.
+std::recursive_mutex runningMediaLock;
 std::map<std::string, MediaOutputBase*> runningCommandMedia;
 
 static void RemoveRunningMedia(const std::string& filename, MediaOutputBase* self) {
@@ -373,6 +376,33 @@ void GStreamerPlayData::Stopped() {
     GStreamerOutput::Stopped();
     RemoveRunningMedia(filename, this);
 }
+
+// Stop the command-started media playing on `slot`. Returns the name it is
+// registered under, or "" if there was none.
+//
+// This is the only safe way to stop command media by slot. The slot manager
+// hands out a raw pointer with nothing keeping it alive, and a stopped
+// GStreamerPlayData is deleted on the main thread 1ms after Stopped() - so two
+// requests that both fetched the slot's output could see one stop it, the main
+// thread free it, and the other still be inside its Stop(). Here the stop runs
+// under runningMediaLock, which RemoveRunningMedia()'s deferred delete must take
+// before freeing the object, so it stays alive for the whole call, and
+// concurrent requests take turns.
+//
+// Entries already stopped stay in the map until that delete runs; skip them, or
+// a dead entry is "stopped" and the live stream on the slot keeps playing.
+static std::string StopCommandMediaInSlot(int slot) {
+    std::lock_guard<std::recursive_mutex> lock(runningMediaLock);
+    for (const auto& item : runningCommandMedia) {
+        GStreamerPlayData* gpd = dynamic_cast<GStreamerPlayData*>(item.second);
+        if (gpd && gpd->streamSlot == slot && !gpd->m_stoppedOnce.load()) {
+            std::string name = item.first;
+            gpd->Stop();
+            return name;
+        }
+    }
+    return "";
+}
 #endif
 
 // Runtime backend selection for "Play Media" command
@@ -431,11 +461,20 @@ std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::st
     // tracks the newest output, so the original becomes untracked and
     // unstoppable via any command, and the two streams mix audibly. Stop
     // whatever already holds the slot first so only one stream ever owns it.
-    GStreamerOutput* existingSlotOutput = StreamSlotManager::Instance().GetActiveOutput(slot);
-    if (existingSlotOutput) {
-        LogInfo(VB_COMMAND, "Play Media: slot %d already active, stopping previous stream before starting %s\n", slot, args[0].c_str());
-        existingSlotOutput->Stop();
+#ifdef HAS_GSTREAMER
+    std::string stoppedMedia = StopCommandMediaInSlot(slot);
+    if (!stoppedMedia.empty()) {
+        LogInfo(VB_COMMAND, "Play Media: slot %d was playing %s, stopped it before starting %s\n", slot, stoppedMedia.c_str(), args[0].c_str());
+    } else {
+        // Not command media - a playlist-owned stream, which the playlist
+        // frees on its own thread rather than through runningCommandMedia.
+        GStreamerOutput* existingSlotOutput = StreamSlotManager::Instance().GetActiveOutput(slot);
+        if (existingSlotOutput) {
+            LogInfo(VB_COMMAND, "Play Media: slot %d already active, stopping previous stream before starting %s\n", slot, args[0].c_str());
+            existingSlotOutput->Stop();
+        }
     }
+#endif
 
     MediaOutputBase* out = nullptr;
 #ifdef HAS_GSTREAMER
@@ -547,18 +586,9 @@ std::unique_ptr<Command::Result> StopMediaSlotCommand::run(const std::vector<std
 
     // Try command-started media first (matches by slot)
     std::string stoppedFile;
-    runningMediaLock.lock();
-    for (const auto& item : runningCommandMedia) {
 #ifdef HAS_GSTREAMER
-        GStreamerPlayData* gpd = dynamic_cast<GStreamerPlayData*>(item.second);
-        if (gpd && gpd->streamSlot == slot) {
-            gpd->Stop();
-            stoppedFile = item.first;
-            break;
-        }
+    stoppedFile = StopCommandMediaInSlot(slot);
 #endif
-    }
-    runningMediaLock.unlock();
 
     if (!stoppedFile.empty()) {
         LogInfo(VB_COMMAND, "Stop Media Slot %d: stopped command media '%s'\n", slot, stoppedFile.c_str());

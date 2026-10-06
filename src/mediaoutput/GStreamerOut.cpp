@@ -2584,8 +2584,11 @@ int GStreamerOutput::Stop(void) {
             if (m_mediaOutputStatus) {
                 m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
             }
-            Stopped();
+            // Last touch of `this`: Stopped() may hand the object to a
+            // deferred delete (Play Media's runningCommandMedia), so nothing
+            // may be written after it.
             m_teardownComplete = true;
+            Stopped();
             return 1;
         }
 
@@ -2635,8 +2638,9 @@ int GStreamerOutput::Stop(void) {
         if (m_mediaOutputStatus) {
             m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
         }
-        Stopped();
+        // Last touch of `this` - see the async path above.
         m_teardownComplete = true;
+        Stopped();
     }
     return 1;
 }
