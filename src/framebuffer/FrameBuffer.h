@@ -71,6 +71,7 @@ public:
 
     virtual int InitializeFrameBuffer() = 0;
     virtual void DestroyFrameBuffer();
+    void ClipToPage();
     virtual void SyncLoop() = 0;
     virtual void SyncDisplay(bool pageChanged = false) = 0;
     virtual void FBCopyData(const uint8_t* buffer, int draw = 0);
@@ -169,6 +170,16 @@ protected:
     int m_pixelSize = 0;
     int m_pixelsWide = 0;
     int m_pixelsHigh = 0;
+
+    // The part of the m_pixelsWide x m_pixelsHigh source image that fits in a
+    // page once scaled by m_pixelSize. The copy loops write only this much and
+    // still step through the source at m_pixelsWide per row. A model larger
+    // than the device it lands on - a 1920x1080 model on a framebuffer that is
+    // only 768 rows tall - otherwise wrote past the end of the page mapping, or
+    // past m_outputBuffer, which is malloc(m_pageSize). Set by ClipToPage().
+    int m_drawCols = 0;
+    int m_drawRows = 0;
+    std::string m_clipWarning;
 
     ImageTransitionType m_transitionType = IT_Normal;
     volatile ImageTransitionType m_nextTransitionType = IT_Normal;

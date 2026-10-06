@@ -444,6 +444,13 @@
             "WarningGroup": "FPPD_Warnings"
         },
         {
+            "id": 67,
+            "Title": "Display Output Cropped",
+            "HelpTxt": "A framebuffer output (for example a Virtual Display) is configured larger than the display device it is drawing on, so only the top-left part of the image that fits is shown. Make the output's width and height match the display's resolution, or set the display to a resolution at least as large as the output. This warning clears when the output is reconfigured or FPPD restarts.",
+            "HelpPageType": "",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
             "id": 65,
             "Title": "FPPD restart limit reached.",
             "HelpTxt": "",
