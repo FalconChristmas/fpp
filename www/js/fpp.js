@@ -4608,12 +4608,24 @@ function UpgradeFPPVersion (newVersion) {
 	// the git ref -- prepending 'v' unconditionally produced 'vv10.1', which
 	// upgrade_FPP then failed to check out, leaving the branch unchanged.
 	var version = String(newVersion).replace(/^v+/, '');
+	// An OS upgrade owns the box until it finishes; starting a branch
+	// upgrade on top of it would corrupt both.
+	if (typeof UpdateActivityBusySide === 'function' && UpdateActivityBusySide() === 'os') {
+		$.jGrowl('An OS upgrade is in progress. Wait for it to finish before upgrading FPP.', { themeState: 'warning' });
+		return;
+	}
 	if (
 		confirm(
 			'Do you wish to upgrade the Falcon Player?\n\nClick "OK" to continue.\n\nThe system will automatically reboot to complete the upgrade.\nThis can take a long time,  20-30 minutes on slower devices.'
 		)
 	) {
 		CloseModalDialog('releaseNotesDialog');
+
+		// Instant feedback: the header icon and banners react at once instead
+		// of waiting for the next server poll (see js/fpp-update.js).
+		if (typeof FPPUpdate_MarkStarted === 'function') {
+			FPPUpdate_MarkStarted('fpp');
+		}
 
 		var opts = {
 			id: 'upgradeFPPDialog',

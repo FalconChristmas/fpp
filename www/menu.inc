@@ -333,6 +333,9 @@ function list_plugin_entries($menu)
                         EnableModalDialogCloseButton("rebuildFPP");
                     }
                     function RebuildFPPD() {
+                        if (typeof FPPUpdate_MarkStarted === 'function') {
+                            FPPUpdate_MarkStarted('fpp');
+                        }
                         DisplayProgressDialog("rebuildFPP", "Rebuild FPP");
                         if (typeof FPPUpdate_AddHideButton === 'function') {
                             FPPUpdate_AddHideButton('rebuildFPP');

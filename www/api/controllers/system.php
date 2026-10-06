@@ -497,7 +497,7 @@ function UpdateActivityProcessAlive()
  * Read the last lines of the upgrade log without loading multi-MB builds
  * fully into memory (submodule chatter can run to several MB).
  */
-function UpdateActivityReadTail($maxLines = 250)
+function UpdateActivityReadTail($maxLines = 10000)
 {
     $file = UpdateActivityLogFile();
     if (!is_file($file) || !is_readable($file)) {
@@ -508,11 +508,14 @@ function UpdateActivityReadTail($maxLines = 250)
     if ($size === false || $size <= 0) {
         return array('lines' => array(), 'mtime' => $mtime ? $mtime : 0);
     }
-    // Last 128KB is plenty: ~250 lines even at 500 chars/line.
+    // A noisy rebuild (submodule chatter) can put megabytes between the run's
+    // START marker and the current tail, so the window must be big enough to
+    // still contain it: 512KB holds several thousand lines, and these are
+    // hot page-cache reads of a few milliseconds.
     $chunk = '';
     $fh = @fopen($file, 'r');
     if ($fh) {
-        $readSize = $size > 131072 ? 131072 : $size;
+        $readSize = $size > 524288 ? 524288 : $size;
         @fseek($fh, $size - $readSize);
         $chunk = @stream_get_contents($fh);
         @fclose($fh);
@@ -694,14 +697,17 @@ function GetUpdateActivityInternal($withLogTail = false)
 
     // Latest stage marker since the run started (drives the modal title).
     // START/FINISH framing lines are skipped so the title names the work,
-    // not the framing.
+    // not the framing. Scanned newest-first stopping at the first hit: the
+    // window above can hold thousands of build lines, and only the latest
+    // marker matters.
     $stageRe = '/^.*?=====\s*(.+?)\s*=====\s*$/';
-    foreach (array_merge(array($startLine), $after) as $line) {
+    foreach (array_reverse($after) as $line) {
         if (preg_match($stageRe, $line, $m)) {
             $marker = trim($m[1]);
             if (!preg_match('/^(?:' . $opsAlt . ')\s+(START|FINISH):/', $marker)
                 && !preg_match('/^(?:' . $opsAlt . ')\s+(START|FINISH)$/', $marker)) {
                 $base['stage'] = $marker;
+                break;
             }
         }
     }
