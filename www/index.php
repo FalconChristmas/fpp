@@ -416,14 +416,6 @@
                     </div>
                 </div>
             </div>
-            <div id="updateInProgressWarningRow" class="alert alert-warning" style="display: none;">
-                <div id="updateInProgressWarningTd">
-                    <i class="fas fa-circle-notch fa-spin"></i>
-                    <span id="updateInProgressWarningText">Update in progress</span>
-                    <button id="updateInProgressWarningViewBtn" type="button"
-                        class="btn btn-sm btn-outline-primary">View progress</button>
-                </div>
-            </div>
             <div id="warningsRow" class="alert alert-danger">
                 <div id="warningsTd">
                     <div id="warningsDiv"></div>

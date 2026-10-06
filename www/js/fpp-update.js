@@ -7,13 +7,15 @@
 //
 // - a header spinner icon (menu.inc #navbarUpdateInProgress, next to the
 //   update-available spot) on every page that opens the live log,
-// - a global banner (menu.inc #updateInProgressFlag) on every page with
+// - a global banner (menu.inc #updateInProgressFlag): the same banner in
+//   the same spot on every page, including the status page, with
 //   "View progress" (reopens the live log) and "Dismiss" (hides the banner
-//   for a stuck update; the update keeps running). The status page is the
-//   exception: it shows the warning row below instead of the banner, so the
-//   update appears exactly once there (plus the header icon),
-// - a spinning "Update in progress" warning row on the status page
-//   (index.php #updateInProgressWarningRow) that clears itself when done,
+//   for a stuck update; the update keeps running). Once the run ends the
+//   banner keeps showing its outcome until dismissed or superseded,
+// - a completion toast (jGrowl, 15s) for runs seen live, persisted across
+//   the starter's Close-reload via sessionStorage,
+// - suppression of the "update available" prompts (menu.inc #upgradeFlag,
+//   about.php availability banners) while a run is active, restored after,
 // - suppression of the "FPPD not found. Rebuild required" banner
 //   (menu.inc #compileFPPDBanner) while an update is actively running,
 //   since the binary is absent *because* of the running rebuild,
@@ -71,6 +73,7 @@ function UpdateActivityBusySide() {
 // Activity subscribers (e.g. about.php's per-section busy states). Invoked
 // with the activity payload at the end of every FPPUpdate_Render.
 var fppUpdateBadgesHidden = false;
+var fppUpdateAvailHidden = false;
 var fppUpdateActivityListeners = [];
 function FPPUpdate_OnActivity(fn) {
 	if (typeof fn === 'function') {
@@ -98,23 +101,81 @@ function FPPUpdate_TrackCompletion(activity) {
 	) {
 		var done = fppUpdateLastActive;
 		fppUpdateLastActive = null;
-		FPPUpdate_NotifyCompletion(done.kind, activity.stage || done.stage);
+		FPPUpdate_OnCompleted(done.kind, /fail/i.test(activity.stage || done.stage), done.runId);
 	} else if (fppUpdateLastActive && activity.runId !== fppUpdateLastActive.runId) {
 		fppUpdateLastActive = null;
 	}
 }
 
+// Just-finished run shown in the banner until dismissed or superseded.
+// Survives a reload via sessionStorage (the starter's Close button reloads
+// the page, which would otherwise erase the outcome).
+var fppUpdateCompleted = null;
+var FPP_UPDATE_COMPLETED_KEY = 'fppUpdateCompleted';
+
+function FPPUpdate_ClearCompleted() {
+	fppUpdateCompleted = null;
+	try {
+		if (window.sessionStorage) {
+			window.sessionStorage.removeItem(FPP_UPDATE_COMPLETED_KEY);
+		}
+	} catch (e) {
+		// Best-effort only.
+	}
+}
+
+// A run this session saw live just finished: record it for the banner (and
+// across a reload) and toast. Success vs failure comes from the closing stage.
+function FPPUpdate_OnCompleted(kind, failed, runId) {
+	fppUpdateCompleted = { kind: kind || 'Update', failed: !!failed, runId: runId || '' };
+	try {
+		if (window.sessionStorage) {
+			window.sessionStorage.setItem(FPP_UPDATE_COMPLETED_KEY, JSON.stringify({
+				kind: fppUpdateCompleted.kind,
+				failed: fppUpdateCompleted.failed,
+				runId: fppUpdateCompleted.runId,
+				at: Date.now()
+			}));
+		}
+	} catch (e) {
+		// Best-effort only.
+	}
+	FPPUpdate_ShowToast(fppUpdateCompleted.kind, fppUpdateCompleted.failed);
+}
+
 // Built-in completion notification (jGrowl popover, same mechanism the rest
-// of FPP uses). Success vs failure comes from the run's closing stage.
-function FPPUpdate_NotifyCompletion(kind, stage) {
+// of FPP uses). Generous lifetime: the default 3s toast expired unseen behind
+// the still-open progress modal, which is why completions never appeared.
+function FPPUpdate_ShowToast(kind, failed) {
 	if (typeof $.jGrowl !== 'function') {
 		return;
 	}
-	var failed = /fail/i.test(stage || '');
-	var label = kind || 'Update';
-	$.jGrowl(label + (failed ? ' failed.' : ' complete.'), {
-		themeState: failed ? 'danger' : 'success'
+	$.jGrowl((kind || 'Update') + (failed ? ' failed.' : ' complete.'), {
+		themeState: failed ? 'danger' : 'success',
+		life: 15000
 	});
+}
+
+// Restore a just-finished run after a reload (picks up where the starter's
+// Close-reload left off). Stale entries are dropped silently.
+function FPPUpdate_RestoreCompleted() {
+	try {
+		if (!window.sessionStorage) {
+			return;
+		}
+		var raw = window.sessionStorage.getItem(FPP_UPDATE_COMPLETED_KEY);
+		if (!raw) {
+			return;
+		}
+		window.sessionStorage.removeItem(FPP_UPDATE_COMPLETED_KEY);
+		var c = JSON.parse(raw);
+		if (c && c.runId && (Date.now() - (c.at || 0)) < 15 * 60 * 1000) {
+			fppUpdateCompleted = { kind: c.kind || 'Update', failed: !!c.failed, runId: c.runId };
+			FPPUpdate_ShowToast(fppUpdateCompleted.kind, fppUpdateCompleted.failed);
+		}
+	} catch (e) {
+		// Best-effort only.
+	}
 }
 
 // Dismissed run id for this browser ("" when nothing dismissed). Wrapped:
@@ -135,6 +196,28 @@ function FPPUpdate_SetDismissedRunId(runId) {
 		}
 	} catch (e) {
 		// Best-effort only.
+	}
+}
+
+// Whether this run's UI (in-progress or completed banner) is dismissed on
+// this browser. Shared so a mid-run dismiss also covers the completion.
+function FPPUpdate_IsDismissed(runId) {
+	return !!(runId && FPPUpdate_GetDismissedRunId() === runId);
+}
+
+// Swap the banner icon between the spinning progress state and the
+// completion states. Unknown markup is left alone.
+function FPPUpdate_SetBannerMode($flag, mode) {
+	var $icon = $flag.find('i').first();
+	if (!$icon.length) {
+		return;
+	}
+	if (mode === 'active') {
+		$icon.removeClass('fa-check-circle fa-exclamation-triangle text-success text-danger').addClass('fa-circle-notch fa-spin');
+	} else if (mode === 'done-fail') {
+		$icon.removeClass('fa-circle-notch fa-spin fa-check-circle text-success').addClass('fa-exclamation-triangle text-danger');
+	} else {
+		$icon.removeClass('fa-circle-notch fa-spin fa-exclamation-triangle text-danger').addClass('fa-check-circle text-success');
 	}
 }
 
@@ -177,18 +260,30 @@ function FPPUpdate_Render(activity) {
 	}
 	fppUpdateActivity = activity;
 	var show = !!(activity.inProgress || activity.stale);
-	var dismissed = show && activity.runId && FPPUpdate_GetDismissedRunId() === activity.runId;
+	var dismissed = show && FPPUpdate_IsDismissed(activity.runId);
+	// Tracked here, ahead of the banner below, so the render that observes a
+	// completion already shows its outcome (it used to land one render late).
+	FPPUpdate_TrackCompletion(activity);
 
-	// Global banner (all pages). Dismiss hides the banner only; the update
-	// keeps running and the status-page warning keeps its View link.
-	// The status page has its own dedicated warning row (below) — showing
-	// the banner there too renders the same update twice, so the banner
-	// stays hidden wherever that row exists.
-	var hasWarnRow = $('#updateInProgressWarningRow').length > 0;
+	// A live run supersedes any recorded completion.
+	if (activity.inProgress) {
+		FPPUpdate_ClearCompleted();
+	}
+
+	// Global banner: the same banner in the same spot on every page,
+	// including the status page. While active it shows live progress with
+	// View progress + Dismiss; once the run ends it keeps showing the
+	// outcome ("FPP Update complete") until dismissed or superseded, so the
+	// result cannot be missed the way the old transient toast was.
 	var $flag = $('#updateInProgressFlag');
 	if ($flag.length) {
-		if (show && !dismissed && !hasWarnRow) {
+		if (show && !dismissed) {
+			FPPUpdate_SetBannerMode($flag, 'active');
 			$('#updateInProgressFlagText').text(FPPUpdate_Title(activity));
+			$flag.show();
+		} else if (fppUpdateCompleted && !FPPUpdate_IsDismissed(fppUpdateCompleted.runId)) {
+			FPPUpdate_SetBannerMode($flag, fppUpdateCompleted.failed ? 'done-fail' : 'done-ok');
+			$('#updateInProgressFlagText').text(fppUpdateCompleted.kind + (fppUpdateCompleted.failed ? ' failed' : ' complete'));
 			$flag.show();
 		} else {
 			$flag.hide();
@@ -239,15 +334,29 @@ function FPPUpdate_Render(activity) {
 		}
 	}
 
-	// Status-page warning row. Never dismissible here: it is the way back to
-	// the progress for a dismissed banner, and it clears itself on completion.
-	var $warn = $('#updateInProgressWarningRow');
-	if ($warn.length) {
-		if (show) {
-			$('#updateInProgressWarningText').text(FPPUpdate_Title(activity));
-			$warn.show();
-		} else {
-			$warn.hide();
+	// While an update runs, hide the "update available" prompts ("FPP v10.2
+	// is available for install", the about.php availability banners): they
+	// describe the pre-update box, and acting on one would stack another
+	// update on top of the running one. Re-applied on every render (their
+	// own renders can re-show them at any time) and restored once via
+	// republish when the run ends — but only if the update check already
+	// answered, so an unanswered check is never forced into an "unknown"
+	// verdict.
+	var $availBanners = $('#upgradeFlag, #fppUpdateBanner, #osUpdateBanner, #upgradeRecommendationBanner');
+	if ($availBanners.length) {
+		if (activity.inProgress) {
+			$availBanners.hide();
+			fppUpdateAvailHidden = true;
+		} else if (fppUpdateAvailHidden) {
+			fppUpdateAvailHidden = false;
+			if (typeof FPP_UPDATE_STATE !== 'undefined' && FPP_UPDATE_STATE && FPP_UPDATE_STATE.answered
+				&& typeof publishFppUpdateState === 'function') {
+				try {
+					publishFppUpdateState();
+				} catch (e) {
+					// Restore is best-effort; the checks re-render on their own cycles anyway.
+				}
+			}
 		}
 	}
 
@@ -268,7 +377,6 @@ function FPPUpdate_Render(activity) {
 		}
 	}
 
-	FPPUpdate_TrackCompletion(activity);
 	FPPUpdate_DebugLog(activity);
 	for (var i = 0; i < fppUpdateActivityListeners.length; i++) {
 		try {
@@ -470,6 +578,10 @@ function FPPUpdate_Init() {
 		if (typeof OnSystemStatusChange === 'function') {
 			OnSystemStatusChange(FPPUpdate_OnStatusChange);
 		}
+		// A completion recorded just before a reload (the starter's Close
+		// button reloads the page) is restored here, ahead of the first
+		// paint, so the outcome still shows.
+		FPPUpdate_RestoreCompleted();
 		// First paint: menuHead.inc pre-populates lastStatusJSON server-side
 		// (now including updateActivity), so render immediately when present —
 		// then fetch directly at once rather than waiting for the first poll
@@ -478,9 +590,9 @@ function FPPUpdate_Init() {
 		FPPUpdate_FallbackPoll();
 		// Event delegation: the banner lives in menu.inc (body) while this file
 		// loads in the head, so direct binding would miss it.
-		$(document).on('click', '#updateInProgressViewBtn, #updateInProgressWarningViewBtn, #navbarUpdateInProgressLink', function () {
-			openUpdateProgress();
-		});
+	$(document).on('click', '#updateInProgressViewBtn, #navbarUpdateInProgressLink', function () {
+		openUpdateProgress();
+	});
 		$(document).on('click', '#updateInProgressDismissBtn', function () {
 			if (fppUpdateActivity && fppUpdateActivity.runId) {
 				FPPUpdate_SetDismissedRunId(fppUpdateActivity.runId);
