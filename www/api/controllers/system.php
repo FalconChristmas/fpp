@@ -610,6 +610,13 @@ function UpdateActivityLastLines($file, $n)
  */
 function GetUpdateActivityInternal($withLogTail = false)
 {
+    // Whether the fppd binary exists right now. Same condition menu.inc's
+    // "FPPD not found. Rebuild required" banner renders from
+    // (__DIR__ . "/../src/fppd" there, i.e. parent-of-www/src/fppd), so the
+    // UI can retire that banner without a refresh once a rebuild recreates
+    // the binary — or (re)show it when the build failed. One stat call.
+    $fppdBinaryExists = @file_exists(__DIR__ . '/../../../src/fppd');
+
     $empty = array(
         'inProgress' => false,
         'op' => '',
@@ -618,7 +625,8 @@ function GetUpdateActivityInternal($withLogTail = false)
         'runId' => '',
         'stage' => '',
         'logUpdatedAt' => 0,
-        'stale' => false
+        'stale' => false,
+        'fppdBinaryExists' => $fppdBinaryExists
     );
 
     $tail = UpdateActivityReadTail();
@@ -692,7 +700,8 @@ function GetUpdateActivityInternal($withLogTail = false)
         'runId' => md5($startLine),
         'stage' => '',
         'logUpdatedAt' => $tail['mtime'],
-        'stale' => false
+        'stale' => false,
+        'fppdBinaryExists' => $fppdBinaryExists
     );
 
     // Latest stage marker since the run started (drives the modal title).
@@ -776,7 +785,7 @@ function GetUpdateActivityInternal($withLogTail = false)
  * @route GET /api/system/updateActivity
  * @response 200 Update activity
  * ```json
- * {"status": "OK", "inProgress": true, "op": "fpp-update", "kind": "FPP Update", "runId": "abc", "stage": "Building FPP (longest step, please wait)"}
+ * {"status": "OK", "inProgress": true, "op": "fpp-update", "kind": "FPP Update", "runId": "abc", "stage": "Building FPP (longest step, please wait)", "fppdBinaryExists": true}
  * ```
  */
 function GetUpdateActivity()

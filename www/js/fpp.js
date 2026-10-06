@@ -6250,12 +6250,20 @@ function GetFPPStatus () {
 					message: message,
 					id: 0
 				});
-			} else {
+		} else {
+			// Post-update restart grace: fppd is expected down briefly while
+			// it restarts after an update completes, so skip the flash-and-clear
+			// warning unless it stays down (see FPPUpdate_QuietNotRunning in
+			// js/fpp-update.js). Everything below still runs.
+			var quietNotRunning =
+				typeof FPPUpdate_QuietNotRunning === 'function' && FPPUpdate_QuietNotRunning();
+			if (!quietNotRunning) {
 				response.warnings.push('FPPD Daemon is not running');
 				response.warningInfo.push({
 					message: 'FPPD Daemon is not running',
 					id: 1
 				});
+			}
 				// Additional warning when systemd has hit StartLimitBurst (too many restarts)
 				// Handles both cases: status already includes fppdRestartBlocked (from PHP's SystemGetStatus)
 				// and WebSocket status (lastStatusJSON) which does not — fetch via API in the latter case.

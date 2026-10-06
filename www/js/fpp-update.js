@@ -101,7 +101,7 @@ function FPPUpdate_TrackCompletion(activity) {
 	) {
 		var done = fppUpdateLastActive;
 		fppUpdateLastActive = null;
-		FPPUpdate_OnCompleted(done.kind, /fail/i.test(activity.stage || done.stage), done.runId);
+		FPPUpdate_OnCompleted(done.kind, /fail/i.test(activity.stage || done.stage), done.runId, !!activity.fppdBinaryExists);
 	} else if (fppUpdateLastActive && activity.runId !== fppUpdateLastActive.runId) {
 		fppUpdateLastActive = null;
 	}
@@ -124,10 +124,33 @@ function FPPUpdate_ClearCompleted() {
 	}
 }
 
+// Client-observed completion timestamp, for the restart grace below.
+var fppUpdateCompletedAt = 0;
+// Post-update restart window: fppd is expected to be briefly down while it
+// restarts after an update completes. Callers skip the "FPPD Daemon is not
+// running" warning while this holds; a daemon that never comes back still
+// warns once the window passes.
+var FPP_UPDATE_QUIET_NOTRUNNING_MS = 90000;
+function FPPUpdate_QuietNotRunning() {
+	return fppUpdateCompletedAt > 0 && (Date.now() - fppUpdateCompletedAt) < FPP_UPDATE_QUIET_NOTRUNNING_MS;
+}
+
 // A run this session saw live just finished: record it for the banner (and
 // across a reload) and toast. Success vs failure comes from the closing stage.
-function FPPUpdate_OnCompleted(kind, failed, runId) {
+function FPPUpdate_OnCompleted(kind, failed, runId, binaryExists) {
 	fppUpdateCompleted = { kind: kind || 'Update', failed: !!failed, runId: runId || '' };
+	fppUpdateCompletedAt = Date.now();
+	// The rebuild banner was rendered server-side from a mid-update view of
+	// the world: with the binary rebuilt it must go without a refresh, while
+	// a failed build (binary still missing) must (re)show it.
+	var $rebuild = $('#compileFPPDBanner');
+	if ($rebuild.length) {
+		if (binaryExists) {
+			$rebuild.remove();
+		} else {
+			$rebuild.show();
+		}
+	}
 	try {
 		if (window.sessionStorage) {
 			window.sessionStorage.setItem(FPP_UPDATE_COMPLETED_KEY, JSON.stringify({
@@ -141,6 +164,62 @@ function FPPUpdate_OnCompleted(kind, failed, runId) {
 		// Best-effort only.
 	}
 	FPPUpdate_ShowToast(fppUpdateCompleted.kind, fppUpdateCompleted.failed);
+	FPPUpdate_RefreshHeaderVersion();
+	// The availability state describes the pre-update box; re-check now that
+	// the new version is installed so the navbar icon and banners settle on
+	// the post-update truth (fpp.js coalesces concurrent checks per page).
+	if (typeof checkForFppUpdate === 'function') {
+		try {
+			checkForFppUpdate();
+		} catch (e) {
+			// Best-effort; the next page load checks anyway.
+		}
+	}
+}
+
+// The header version is server-rendered per page load (menu.inc), so without
+// this it names the old version until a refresh. Rebuild its label from the
+// live values exactly like menu.inc does, and update the FPP_BRANCH global
+// the update check compares against (a branch upgrade changes both).
+function FPPUpdate_RefreshHeaderVersion() {
+	$.ajax({
+		url: 'api/system/info?simple=1',
+		dataType: 'json',
+		cache: false,
+		success: function (data) {
+			if (!data || typeof data !== 'object') {
+				return;
+			}
+			var version = data.Version;
+			var branch = data.Branch;
+			if (!version || !branch) {
+				return;
+			}
+			var label = 'v' + version;
+			try {
+				var escaped = String(branch).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+				if (!(new RegExp('^' + escaped + '(-.*)?$').test(label))) {
+					label += ' (' + branch + ' branch)';
+				}
+			} catch (e) {
+				label += ' (' + branch + ' branch)';
+			}
+			var $head = $('.versionHead');
+			if ($head.length) {
+				$head.text(label);
+			}
+			if (typeof FPP_BRANCH !== 'undefined') {
+				try {
+					FPP_BRANCH = branch;
+				} catch (e) {
+					// Read-only context; the label above is what matters.
+				}
+			}
+		},
+		error: function () {
+			// Keep the old label; the next page load renders it server-side.
+		}
+	});
 }
 
 // Built-in completion notification (jGrowl popover, same mechanism the rest
@@ -171,6 +250,7 @@ function FPPUpdate_RestoreCompleted() {
 		var c = JSON.parse(raw);
 		if (c && c.runId && (Date.now() - (c.at || 0)) < 15 * 60 * 1000) {
 			fppUpdateCompleted = { kind: c.kind || 'Update', failed: !!c.failed, runId: c.runId };
+			fppUpdateCompletedAt = c.at || Date.now();
 			FPPUpdate_ShowToast(fppUpdateCompleted.kind, fppUpdateCompleted.failed);
 		}
 	} catch (e) {
