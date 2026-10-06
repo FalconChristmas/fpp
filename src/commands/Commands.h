@@ -42,6 +42,11 @@ public:
     // getDescription() virtual, ideally via an FPP-internal intermediate class
     // (see LocalOnlyCommand) that plugins never subclass.
 
+    // Result and ErrorResult are entirely inline, so every plugin that returns
+    // one builds its own copy of their vtable and layout, and FPP then calls
+    // through it. The size fingerprints below cover only Command and
+    // CommandArg: any member or virtual change here needs an
+    // FPP_PLUGIN_API_VERSION bump (Plugin.h).
     class Result {
     public:
         Result() :

@@ -11,6 +11,16 @@
  * included LICENSE.LGPL file.
  */
 
+// PLUGIN ABI: native plugins compile against this header and are loaded with
+// dlopen(), so parts of it are baked into binaries FPP did not build.
+//   - MediaDetails: plugins read its fields (title, artist, album, track,
+//     length, ...) directly from the object passed to mediaCallback(), so
+//     adding, removing or reordering members changes their offsets.
+// Any such change must bump FPP_PLUGIN_API_VERSION in Plugin.h. Without the
+// bump, a plugin built against the previous header still loads and silently
+// uses the old layout - FPP 10.2 shipped exactly that and crash-looped fppd.
+// See .claude/PLUGIN-ABI.md for which plugins use what.
+
 #include <string>
 
 class MediaDetails {

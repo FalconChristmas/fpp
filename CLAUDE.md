@@ -61,6 +61,7 @@ External plugins (`/media/plugins/`) are compiled separately and link against FP
 - Do not remove or rename public macros, classes, or functions that plugins may depend on. If cleaning up internally, keep the old symbol as an alias/empty define with a comment.
 - `HTTP_RESPONSE_CONST` in `fpp-pch.h` is an example: FPP's own code no longer uses it, but it's kept as an empty `#define` for plugin compatibility.
 - Channel output plugins implement `ChannelOutput` or `ThreadedChannelOutput` and are loaded via `dlopen()`. Changes to these base class interfaces will break all plugins.
+- Plugins are rebuilt by a git update, but **not** after an FPPOS reflash, and prebuilt plugins (no Makefile) never are. A layout or vtable change to any header a plugin compiles in must bump `FPP_PLUGIN_API_VERSION` in `src/Plugin.h`: inserting a virtual, adding or reordering a data member, or changing an inline function. Those headers carry a `PLUGIN ABI:` comment, and headers whose only dependency is call signatures carry `PLUGIN API:`. **Read `.claude/PLUGIN-ABI.md` before changing any of them.**
 
 ## Code Style
 

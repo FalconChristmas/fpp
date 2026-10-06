@@ -10,6 +10,15 @@
  * This source file is covered under the LGPL v2.1 as described in the
  * included LICENSE.LGPL file.
  */
+
+// PLUGIN ABI: native plugins compile against this header and are loaded with
+// dlopen(), so parts of it are baked into binaries FPP did not build.
+//   - EventHandler's vtable: plugins call Publish() through MosquittoClient.
+//   - Events::AddCallback()/RemoveCallback() signatures (called by symbol).
+// Any such change must bump FPP_PLUGIN_API_VERSION in Plugin.h. Without the
+// bump, a plugin built against the previous header still loads and silently
+// uses the old layout - FPP 10.2 shipped exactly that and crash-looped fppd.
+// See .claude/PLUGIN-ABI.md for which plugins use what.
 #include <ctime>
 #include <functional>
 #include <string>

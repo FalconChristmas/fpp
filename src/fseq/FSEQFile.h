@@ -1,5 +1,18 @@
 #pragma once
 
+// PLUGIN ABI: native plugins compile against this header and are loaded with
+// dlopen(), so parts of it are baked into binaries FPP did not build.
+//   - FSEQFile, V1FSEQFile, V2FSEQFile and FrameData vtables: plugins call
+//     their virtuals (a mid-vtable virtual added here once only escaped
+//     because an unrelated bump landed a week later).
+//   - Their data members: plugins use inline setters that write protected
+//     fields, and read V2FSEQFile::m_sparseRanges.
+//   - VariableHeader, which plugins construct and push by value.
+// Any such change must bump FPP_PLUGIN_API_VERSION in Plugin.h. Without the
+// bump, a plugin built against the previous header still loads and silently
+// uses the old layout - FPP 10.2 shipped exactly that and crash-looped fppd.
+// See .claude/PLUGIN-ABI.md for which plugins use what.
+
 #include <stdio.h>
 #include <cstdint>
 #include <string>

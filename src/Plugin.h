@@ -23,7 +23,9 @@
 
 #include "fpphttp_types.h"
 
-// Increment this when the plugin ABI changes. "ABI" is not just virtual method
+// Increment this when the plugin ABI changes. The headers plugins compile in
+// are marked "PLUGIN ABI:"; .claude/PLUGIN-ABI.md lists them and what each
+// plugin uses. "ABI" is not just virtual method
 // signatures - it is anything that changes the layout of a type a plugin can
 // construct, destroy, or subclass. Adding a data member to Command::CommandArg
 // counts, because plugins push_back into Command::args with the old sizeof while

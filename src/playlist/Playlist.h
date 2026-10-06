@@ -220,8 +220,13 @@ private:
 // main loop retires that playlist mid-call.  That makes the old plugin
 // expression lifetime-safe rather than merely still-compiling.
 //
-// ABI is NOT preserved (this used to be a pointer object); plugins are
-// recompiled against these headers at update, which is what makes that fine.
+// ABI is NOT preserved (this used to be a pointer object). That was safe only
+// because it landed before 10.0 shipped, inside the plugin API 6 development
+// window, so no released API-6 plugin saw the old form. Plugins are not
+// rebuilt after an FPPOS reflash, and prebuilt ones never are, so
+// PlaylistHandle's layout (one shared_ptr, used inline by plugin code) is
+// plugin ABI now: changing it needs an FPP_PLUGIN_API_VERSION bump
+// (Plugin.h). See .claude/PLUGIN-ABI.md.
 //
 // Before Player::Init() the snapshot is empty and `playlist->` dereferences
 // null, exactly as the old NULL-initialized global did.  It is deliberately not
