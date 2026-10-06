@@ -241,7 +241,7 @@ int main(int argc, char* argv[]) {
             // dup2 replaces that fd before we print anything, so this capture
             // still works even though the parent shell redirected us away.
             teeOutput(logFile, "fppinit", "Audio", getpid());
-        } else if (action == "configureBBB" || action == "applyThermal" || action == "resetThermal" || action == "installKiosk" || action == "setupPiRTC" || action == "setupHDMICEC") {
+        } else if (action == "configureBBB" || action == "applyThermal" || action == "resetThermal" || action == "installKiosk" || action == "setupPiRTC" || action == "setupHDMICEC" || action == "setupWifiAntenna") {
             // Same gap as setupNetwork: invoked directly via PHP exec(), output
             // otherwise lives only in that request's $output/HTTP response.
             teeOutput(logFile, "fppinit", "Config", getpid());
@@ -284,6 +284,7 @@ int main(int argc, char* argv[]) {
         // defaultSettings is honoured on the boot it is first detected on.
         setupPiRTCConfig();
         setupHDMICECConfig();
+        setupWifiAntennaConfig();
         int reboot = getRawSettingInt("rebootFlag", 0);
         if (reboot && !needReboot) {
             printf("FPP - Clearing reboot flags\n");
@@ -481,6 +482,9 @@ int main(int argc, char* argv[]) {
     } else if (action == "setupHDMICEC") {
         // The UI's "reboot": 1 on DisableHDMICECInit prompts the user; don't reboot here.
         setupHDMICECConfig(false);
+    } else if (action == "setupWifiAntenna") {
+        // The UI's "reboot": 1 on WifiAntenna prompts the user; don't reboot here.
+        setupWifiAntennaConfig(false);
     } else if (action == "setupNetwork") {
         PutFileContents(networkSetupMut, "1");
         setupNetwork(true);

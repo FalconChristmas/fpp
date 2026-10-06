@@ -467,6 +467,11 @@ function ApplySetting($setting, $value)
             // "reboot": 1, so the UI already prompts for reboot.
             exec("sudo " . $settings['fppDir'] . "/src/fppinit setupHDMICEC", $output);
             break;
+        case 'WifiAntenna':
+            // fppinit owns the config.txt block. The setting is declared
+            // "reboot": 1, so the UI already prompts for reboot.
+            exec("sudo " . $settings['fppDir'] . "/src/fppinit setupWifiAntenna", $output);
+            break;
         case 'screensaver':
             SetupScreenBlanking($value);
             break;
