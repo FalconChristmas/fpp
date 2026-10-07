@@ -67,7 +67,7 @@ FPPBRANCH=${FPPBRANCH:-"master"}
 # user-supplied --os-version so the .img / .fppos filenames match what's
 # baked into the image itself).
 FPPIMAGEVER=${FPPIMAGEVER:-"2026-09"}
-FPPCFGVER="150"
+FPPCFGVER="151"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -2651,18 +2651,15 @@ finalize_image_post_build() {
     systemctl mask winbind
     sed -i -e "s/winbind//" /etc/nsswitch.conf
 
-    # Stop all the pipewire daemons starting up when user fpp logs in.
-    # Note: target is /dev/null (the systemd convention for masking a unit).
-    # The old code had a typo ("/dev/mull") which just left dangling symlinks;
-    # fortunately those also prevented the units from loading, so the
-    # intended effect was preserved by accident.
-    mkdir -p /home/fpp/.config/systemd/user
-    local svc
-    for svc in pipewire.socket pipewire.service pipewire-pulse.service \
-               pipewire-pulse.socket wireplumber.service; do
-        ln -sf /dev/null /home/fpp/.config/systemd/user/$svc
-    done
-    chown -R fpp:fpp /home/fpp/.config
+    # Stop the distro's per-user PipeWire stack from starting when anyone logs
+    # in. FPP runs its own system instance (fpp-pipewire etc.); a user instance
+    # reads the same /etc/pipewire config, builds a second sink on the same
+    # sound card, and drags in rtkit and polkit. Mask globally, in
+    # /etc/systemd/user: an fppos upgrade syncs /etc but never /home, so masks
+    # in ~fpp/.config never reach a device upgraded that way.
+    systemctl --global mask pipewire.socket pipewire.service \
+        pipewire-pulse.socket pipewire-pulse.service \
+        wireplumber.service filter-chain.service
 
     # Remove stock distro users; FPP has its own.
     rm -rf /home/pi
