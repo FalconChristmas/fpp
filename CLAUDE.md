@@ -144,5 +144,10 @@ changing one.
   A command that prints a web page (server-status, phpinfo) takes `"format": "html"`: the page
   renders it in a script-less sandboxed iframe instead of a `<pre>`, and the helper skips its
   `fold`. Diagnostic Reports still get the raw output.
+  A command that does a lot of work (a scan of every media file) takes `"runOnce": true`, so the
+  page runs it the first time its tab is opened and not again on each later click. A Diagnostic
+  Report runs *every* command, with a 20 s limit, so give such a command a cheap
+  `"manualCrashReportCmd"` (or mark it `pii` with none, to leave it out); `media_report.php
+  --summary` is the example.
 - **Cape configs**: `capes/` directory — JSON files with GPIO pin mappings, output channel definitions
 - **Audio**: `etc/asoundrc.*` — ALSA configurations (dmix, hdmi, pipewire, plain, softvol)
