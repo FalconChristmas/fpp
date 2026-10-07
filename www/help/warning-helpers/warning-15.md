@@ -11,4 +11,5 @@ How to fix:
 2. Replace thin or long USB power cables — they drop voltage under load and are the most common cause.
 3. Do not power pixels, relays, or other peripherals from the Pi's 5V rail; use a dedicated supply for them.
 4. Check for a loose or worn power connector at the Pi.
-5. To confirm it at the hardware level, open **Help → [Troubleshooting Commands](../../troubleshooting.php)** and run **RPI Utils → RPI vclog util** (or **RPI Info**); look for under-voltage / throttled messages.
+5. To see the actual supply voltage, open **Help → [Troubleshooting Commands](../../troubleshooting.php)** and run **RPI Utils → RPI Supply Voltage**. On a Pi 5 or later this shows the measured 5V input rail (`EXT5V_V`) next to the expected nominal; boards without a supply-voltage ADC report that the reading is unavailable.
+6. To confirm it at the hardware level on any Pi, run **RPI Utils → RPI vclog util** (or **RPI Info**); look for under-voltage / throttled messages.

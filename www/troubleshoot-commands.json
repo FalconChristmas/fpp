@@ -807,6 +807,14 @@
                         "Raspberry Pi"
                     ]
                 },
+                "PMICVOLTAGE": {
+                    "title": "RPI Supply Voltage",
+                    "description": "Reads the actual input-supply voltage from the PMIC (Pi 5 and later). EXT5V_V is the 5V input rail; the expected nominal is 5.0V (5.1V with the official PSU) and the firmware's under-voltage trip is around 4.63-4.85V. Models without a PMIC report that the reading is unavailable.",
+                    "cmd": "if vcgencmd pmic_read_adc 2>/dev/null | grep -q EXT5V_V; then echo \"Actual input voltage (EXT5V_V):\"; vcgencmd pmic_read_adc | grep EXT5V_V; echo \"Expected (nominal)            : 5.0V (5.1V with official PSU)\"; else echo \"No input-supply voltage ADC on this Raspberry Pi model (pmic_read_adc requires Pi 5 or later)\"; fi",
+                    "platforms": [
+                        "Raspberry Pi"
+                    ]
+                },
                 "PINCTRL": {
                     "title": "RPI pinctrl util",
                     "description": "Raspberry Pi util for displaying the GPIO and pin muxing state of a system, bypassing the kernel",
