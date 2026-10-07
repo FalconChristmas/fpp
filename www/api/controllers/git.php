@@ -96,7 +96,10 @@ function GitOSReleases()
                             $row["downloaded"] = in_array($name, $existingFiles);
                             $row["size"] = $file["size"];
                             array_push($releases, $row);
-                        } else if (startsWith($name, $settings['OSImagePrefix'])) {
+                        } else if (startsWith($name, $settings['OSImagePrefix'] . "-")) {
+                            // Match the whole prefix: a bare startsWith("Pi") also
+                            // matches "Pi64-*.fppos", offering 64-bit images to
+                            // 32-bit Pi systems, which cannot run them.
                             $row = array();
                             $row["tag"] = $r["tag_name"];
                             $row["release_name"] = $r["name"];
