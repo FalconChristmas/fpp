@@ -332,6 +332,11 @@
             pre.replaceWith(frame);
         }
 
+        // Commands marked "runOnce" in troubleshoot-commands.json (a scan of every
+        // media file, say) run the first time their tab is opened, not on every
+        // later click on it.  Reloading the page runs them again.
+        var troubleshootStarted = {};
+
         function ShowTroubleshootResult(commandKey, commandGrpID, data, format) {
             var pre = document.querySelector('#command_' + commandKey);
             if (!pre) {
@@ -380,6 +385,13 @@
                         if (count(array_intersect($commandID["platforms"], $target_platforms)) > 0) {
                             $url = "./troubleshootingHelper.php?key=" . urlencode($commandKey);
                             $format = $commandID["format"] ?? "text";
+                            $runOnce = !empty($commandID["runOnce"]);
+                            if ($runOnce) {
+                                ?>
+                            if (!troubleshootStarted["<?php echo $commandKey ?>"]) {
+                                troubleshootStarted["<?php echo $commandKey ?>"] = true;
+                            <?
+                            }
                             ?>
                             $.ajax({
                                 url: "<?php echo $url ?>",
@@ -389,9 +401,12 @@
                                     fixScroll();
                                 },
                                 error: function () {
-                                    DialogError('Failed to query command', "Error: Unable to query for <?php echo $commandKey ?>");
+                                    <? if ($runOnce) { ?>troubleshootStarted["<?php echo $commandKey ?>"] = false; // let the next visit retry
+                                    <? } ?>DialogError('Failed to query command', "Error: Unable to query for <?php echo $commandKey ?>");
                                 }
                             });
+                            <? if ($runOnce) { ?>}
+                            <? } ?>
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 <?
                         }
