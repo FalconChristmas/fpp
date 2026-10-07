@@ -266,7 +266,11 @@ if ($applyUpdate) {
     UpgradeLog('os-upgrade', $baseFile, "Running upgradeOS-part1.sh (keepOptFPP=" . ($keepOptFPP ? "1" : "0") . ")");
     // part1 installs its own tee onto fpp_system_upgrades.log and captures part2's
     // chroot'd output too, so its lines are logged by the script side.
-    system($SUDO . " $TMP_FILE /home/fpp/media/upload/$baseFile", $return_code);
+    // 2>&1: system() streams only stdout, and part1 only folds stderr into it
+    // when logs/ is writable. Errors such as chroot's "Exec format error" for an
+    // image of the wrong architecture otherwise land in the apache error log,
+    // leaving the dialog with no sign that the copy never ran.
+    system($SUDO . " $TMP_FILE /home/fpp/media/upload/$baseFile 2>&1", $return_code);
     UpgradeLog('os-upgrade', $baseFile, "upgradeOS-part1.sh rc=" . $return_code);
 } else {
     UpgradeEchoLog('os-upgrade', $baseFile, "Skipping update\n");
@@ -274,12 +278,15 @@ if ($applyUpdate) {
 
 if (!$wrapped) {
     // Non-streaming mode has no status line to drive, so log the outcome without
-    // echoing a stage marker into the HTML. Logged rather than inferred from the
-    // banner below, which announces "Rebooting" unconditionally.
+    // echoing a stage marker into the HTML.
     UpgradeLog('os-upgrade', $baseFile, ($applyUpdate && ($return_code == 0)) ? "===== Rebooting =====" : "===== Upgrade Failed =====");
     ?></pre>
         ==========================================================================
+        <? if ($applyUpdate && ($return_code == 0)) { ?>
         <b>Rebooting.....Close this window and refresh the screen. It might take a minute or so for FPP to reboot</b>
+        <? } else if ($applyUpdate) { ?>
+        <b>FPP UPGRADE FAILED. The system will not reboot; see the output above.</b><br>
+        <? } ?>
         <a href='index.php'>Go to FPP Main Status Page</a><br>
         <a href='about.php'>Go back to FPP Upgrade page</a><br>
     </body>

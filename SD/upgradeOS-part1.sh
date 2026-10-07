@@ -171,6 +171,29 @@ if [ -f /etc/fpp/arch ] && [ -f /mnt/etc/fpp/arch ]; then
     fi
 fi
 
+# The marker check above is skipped for images from before FPP 10, which have
+# no /etc/fpp/arch, so also compare the ELF machine of the two shells. This is
+# done here, before anything below modifies the live system: an image the
+# kernel cannot execute would otherwise only fail when part2 is chrooted into.
+# upgradeOS-part2.sh carries the same check for systems whose part1 predates it.
+elfMachine() {
+    case "$(od -An -tx1 -j18 -N2 "$1" 2>/dev/null | tr -d ' \n')" in
+        2800) echo "32-bit ARM" ;;
+        b700) echo "64-bit ARM" ;;
+        3e00) echo "x86-64" ;;
+        "") ;;
+        *) echo "ELF machine $(od -An -tx1 -j18 -N2 "$1" | tr -d ' \n')" ;;
+    esac
+}
+ORIGELF=$(elfMachine /bin/bash)
+NEWELF=$(elfMachine /mnt/bin/bash)
+if [ -n "${ORIGELF}" ] && [ -n "${NEWELF}" ] && [ "${ORIGELF}" != "${NEWELF}" ]; then
+    echo "New image is for ${NEWELF}, but this system runs ${ORIGELF} (e.g. Pi64 vs Pi)"
+    echo "The upgrade was NOT applied; nothing was changed"
+    umount /mnt
+    exit 1;
+fi
+
 #make sure settings are re-applied after boot
 echo "BootActions = \"settings\"" >> /home/fpp/media/settings
 
@@ -200,12 +223,14 @@ mount -t tmpfs tmpfs /mnt/tmp
 mount -o bind /dev /mnt/dev
 mount -o bind /proc /mnt/proc
 
+PART2RC=0
 if [ -f /home/fpp/media/tmp/keepOptFPP ]
 then
     # If we are on master and keeping /opt/fpp, run the existing part2 script
     echo "keepOptFPP flag exists, script will not copy /opt/fpp from image."
     echo "Passing control to existing upgradeOS-part2.sh from /opt/fpp"
     stdbuf --output=0 --error=0 chroot /mnt /mnt/opt/fpp/SD/upgradeOS-part2.sh
+    PART2RC=$?
 elif [ "${BOOTMOUNT}" = "/boot/firmware" -a ! -d "/mnt/boot/firmware" ]
 then
     # Downgrading from Raspbian 12 or higher to a pre-12 version without /boot/firmware.
@@ -215,10 +240,12 @@ then
     echo "Passing control to upgradeOS-part2.sh from current version."
     cp /opt/fpp/SD/upgradeOS-part2.sh /home/fpp/media/tmp/upgradeOS-part2.sh
     stdbuf --output=0 --error=0 chroot /mnt /mnt/home/fpp/media/tmp/upgradeOS-part2.sh
+    PART2RC=$?
     rm /home/fpp/media/tmp/upgradeOS-part2.sh
 else
     echo "Passing control to upgradeOS-part2.sh from fppos image"
     stdbuf --output=0 --error=0 chroot /mnt /opt/fpp/SD/upgradeOS-part2.sh
+    PART2RC=$?
 fi
 
 echo "----------"
@@ -236,6 +263,24 @@ fi
 umount /mnt/mnt
 
 sync
+
+# A failed part2 must fail this script too: upgradeOS.php only reports a
+# failure, and skips the reboot, on a non-zero exit. 125-127 are chroot's own
+# "could not run the command" codes (126 is "Exec format error", which is
+# what an image for another architecture produces). Then part2 never started,
+# so nothing was copied.
+if [ "${PART2RC}" -ne 0 ]; then
+    if [ "${PART2RC}" -ge 125 ] && [ "${PART2RC}" -le 127 ]; then
+        echo "ERROR: upgradeOS-part2.sh could not be started (rc=${PART2RC})."
+        echo "ERROR: the OS image was NOT applied; the current OS is unchanged."
+        echo "ERROR: the image is probably for a different architecture (e.g. Pi64 vs Pi)."
+    else
+        echo "ERROR: upgradeOS-part2.sh failed (rc=${PART2RC}); see its output above."
+        echo "ERROR: unless it says nothing was copied, the OS copy may be incomplete;"
+        echo "ERROR: check logs/fpp_system_upgrades.log before rebooting."
+    fi
+    exit ${PART2RC}
+fi
 
 echo "Please reboot if the system does not do so automatically"
 

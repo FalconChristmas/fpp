@@ -5,6 +5,36 @@
 
 cd /
 
+# Refuse an image built for a different CPU architecture, before anything is
+# copied. This runs chrooted into the image, so / is the image and /mnt is the
+# live system. upgradeOS-part1.sh is the copy shipped with the system being
+# upgraded, and the ones from before FPP 10 neither compare architectures nor
+# check this script's exit status. On a 64-bit kernel with a 32-bit userland,
+# a Pi64 image still gets this far, and without this check the copy would put
+# the 64-bit OS over the 32-bit one. The ELF machine of the shell is the ground
+# truth here, unlike /etc/fpp/arch, which images from before FPP 10 do not have.
+#
+# This cannot catch the case where the kernel cannot run the image at all (a
+# 64-bit image on a 32-bit kernel): there, this script never starts, and only
+# part1 can report the failure.
+elfMachine() {
+    case "$(od -An -tx1 -j18 -N2 "$1" 2>/dev/null | tr -d ' \n')" in
+        2800) echo "32-bit ARM" ;;
+        b700) echo "64-bit ARM" ;;
+        3e00) echo "x86-64" ;;
+        "") ;;
+        *) echo "ELF machine $(od -An -tx1 -j18 -N2 "$1" | tr -d ' \n')" ;;
+    esac
+}
+IMAGEARCH=$(elfMachine /bin/bash)
+SYSTEMARCH=$(elfMachine /mnt/bin/bash)
+if [ -n "${IMAGEARCH}" ] && [ -n "${SYSTEMARCH}" ] && [ "${IMAGEARCH}" != "${SYSTEMARCH}" ]; then
+    echo "ERROR: this OS image is for ${IMAGEARCH}, but this system runs ${SYSTEMARCH}."
+    echo "ERROR: the upgrade was NOT applied. Nothing was copied; the current OS is unchanged."
+    echo "ERROR: download the .fppos for this system's architecture and try again."
+    exit 1
+fi
+
 logStage "Updating boot filesystem"
 echo "Running rsync to update boot file system:"
 
