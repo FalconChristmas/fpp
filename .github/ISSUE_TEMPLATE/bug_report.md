@@ -10,7 +10,7 @@ assignees: ''
 **NOTE:** IF YOU DO NOT ATTACH YOUR LOG FILES, THEN THERE IS A HIGHER PROBABILITY THE ISSUE WON'T BE RESOLVED.  (Steps at end) 
 # Please answer the following:
 **FPP Version and Hardware**: 
-Example: *FPP 10.2 running on BBB*
+Example: *FPP 10.2 32bit running on BBB*
 
 
 **Describe the bug and Steps to reproduce**: 
