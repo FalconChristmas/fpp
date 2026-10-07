@@ -1248,14 +1248,17 @@ void checkInstallPackages() {
     if (FileExists("/fppos_upgraded")) {
         // An FPPOS reflash replaces /opt/fpp (new fppd, headers, plugin API
         // version) while /home/fpp/media -- including the plugin clones -- is
-        // preserved. Native (.so) plugins built against the old API will be
-        // rejected at dlopen, and any rootfs artifacts a plugin's fpp_install.sh
-        // dropped are gone. If plugins are present, set a persisted flag so fppd
-        // can raise a (non-dismissible) warning prompting the user to Reinstall
-        // All. The Plugin Manager turns "1" into the list of plugins still to
-        // reinstall and clears it once every one has been reinstalled or
-        // uninstalled. Set independent of the apt result below; a retry next boot
-        // just rewrites the same value.
+        // preserved, and any rootfs artifacts a plugin's fpp_install.sh dropped
+        // are gone. Native (.so) plugins were built against the old headers;
+        // the API version check only refuses them if every layout change was
+        // paired with a bump, so fppd instead declines to load a native plugin
+        // at all while it is on this list (PluginManager::
+        // awaitingReinstallAfterOS). If plugins are present, set a persisted
+        // flag so fppd can raise a (non-dismissible) warning prompting the user
+        // to Reinstall All. The Plugin Manager turns "1" into the list of
+        // plugins still to reinstall and clears it once every one has been
+        // reinstalled or uninstalled. Set independent of the apt result below;
+        // a retry next boot just rewrites the same value.
         if (anyPluginsInstalled()) {
             setRawSetting("pluginReinstallNeededAfterOS", "1");
         }
@@ -1564,6 +1567,87 @@ void setupHDMICECConfig(bool rebootIfChanged) {
     if (applyDisableHDMICECBlock(content, want)) {
         PutFileContents("/boot/firmware/config.txt", content);
         printf("FPP - HDMI CEC configuration changed in config.txt\n");
+        if (rebootIfChanged) {
+            printf("\n\nRebooting to load new settings.\n\n");
+            exec("/usr/sbin/reboot");
+        }
+    }
+#endif
+}
+
+#ifdef PLATFORM_PI
+// CM4/CM5 carry both a PCB antenna and a U.FL socket; the firmware picks one via
+// dtparam=ant1 (PCB, the default) or ant2 (U.FL).  Only those base DTBs define the
+// ant2 override, which is what /proc/device-tree/__overrides__/ant2 tests for, and
+// the block is filtered to [cm4]/[cm5] anyway so a card moved into a board without
+// the param carries an inert block rather than a dterror.  ant2 disables the PCB
+// antenna outright, so selecting it with nothing on the socket leaves WiFi with
+// almost no range -- hence a setting, not a default.
+//
+// Same managed block pattern as applyDisablePiRTCBlock above.
+static const std::string WIFI_ANTENNA_BLOCK_BEGIN = "# FPP WiFi Antenna - BEGIN (managed by fppinit, do not edit)";
+static const std::string WIFI_ANTENNA_BLOCK_END = "# FPP WiFi Antenna - END";
+
+// --- BEGIN applyWifiAntennaBlock ---
+static bool applyWifiAntennaBlock(std::string& content, bool external) {
+    const std::string orig = content;
+    std::string desired;
+    if (external) {
+        desired = WIFI_ANTENNA_BLOCK_BEGIN + "\n[cm4]\ndtparam=ant2\n[cm5]\ndtparam=ant2\n[all]\n" + WIFI_ANTENNA_BLOCK_END + "\n";
+    }
+
+    size_t at = std::string::npos;
+    size_t begin = content.find(WIFI_ANTENNA_BLOCK_BEGIN);
+    while (begin != std::string::npos) {
+        if (at == std::string::npos) {
+            at = begin;
+        }
+        size_t end = content.find(WIFI_ANTENNA_BLOCK_END, begin);
+        end = (end == std::string::npos) ? content.length()
+                                         : end + WIFI_ANTENNA_BLOCK_END.length();
+        if (end < content.length() && content[end] == '\n') {
+            ++end;
+        }
+        content.erase(begin, end - begin);
+        begin = content.find(WIFI_ANTENNA_BLOCK_BEGIN);
+    }
+
+    if (!desired.empty()) {
+        if (at == std::string::npos) {
+            at = content.find(CAPE_VARIANT_BLOCK_BEGIN);
+            if (at == std::string::npos) {
+                while (!content.empty() && content.back() == '\n') {
+                    content.pop_back();
+                }
+                content += "\n\n";
+                at = content.length();
+            } else {
+                desired += "\n";
+            }
+        }
+        content.insert(at, desired);
+    }
+    return content != orig;
+}
+// --- END applyWifiAntennaBlock ---
+#endif
+
+void setupWifiAntennaConfig(bool rebootIfChanged) {
+#ifdef PLATFORM_PI
+    // Leave config.txt alone on boards without the param: there is no setting
+    // to reconcile (the UI hides it), and any block left from a CM is inert.
+    if (!FileExists("/proc/device-tree/__overrides__/ant2")) {
+        return;
+    }
+    std::string content = GetFileContents("/boot/firmware/config.txt");
+    if (content.empty()) {
+        return;
+    }
+    std::string antenna = "internal";
+    getRawSetting("WifiAntenna", antenna);
+    if (applyWifiAntennaBlock(content, antenna == "external")) {
+        PutFileContents("/boot/firmware/config.txt", content);
+        printf("FPP - WiFi antenna configuration changed in config.txt\n");
         if (rebootIfChanged) {
             printf("\n\nRebooting to load new settings.\n\n");
             exec("/usr/sbin/reboot");
