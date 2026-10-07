@@ -69,7 +69,7 @@ bool OpusRTPManager::Init() {
     // - pipewire-simple: the graph lacks the node connections needed for audio
     //   format negotiation, causing the state change to block indefinitely.
     std::string mediaBackend = toLowerCopy(getSetting("MediaBackend"));
-    if (mediaBackend != "pipewire") {
+    if (!isPipeWireBackend() || mediaBackend != "pipewire") {
         LogDebug(VB_MEDIAOUT, "OpusRTPManager: MediaBackend='%s' (need 'pipewire'), skipping init\n",
                  mediaBackend.c_str());
         return true;

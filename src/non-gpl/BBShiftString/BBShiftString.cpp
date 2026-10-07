@@ -672,10 +672,16 @@ int BBShiftStringOutput::Init(Json::Value config) {
         // m_lowNs is the programmed bit cell from resolveTiming(); the bit loop
         // carries ~130ns/bit of instruction time outside the waits.  Measured
         // on a K32-Max at two cells: ws281x 1120 -> 1245-1252ns achieved,
-        // ucs1903 2500 -> 2619ns achieved.  The 1700us covers the reset gap
-        // and receiver packet staging (#2855).
+        // ucs1903 2500 -> 2619ns achieved.
+        //
+        // Every frame pays the firmware's fixed 300us reset.  A Falcon
+        // receiver chain also pays the packet phase: with one attached the
+        // measured overhead was ~1700us (#2855), so the other 1400us applies
+        // only then.  Without one the reset is all there is - the next frame
+        // is staged while the reset runs, and 300 px at 100fps measured a
+        // 110fps ceiling, where charging 1700us here warned at 93.
         int bitNs = m_lowNs + 130;
-        m_frameTimeUs = (int)((maxLen * 8LL * bitNs) / 1000) + 1700;
+        m_frameTimeUs = (int)((maxLen * 8LL * bitNs) / 1000) + 300 + (hasFalconSR ? 1400 : 0);
         LogInfo(VB_CHANNELOUT, "BBShiftString: longest string %d bytes at %dns/bit -> %.1fms/frame, sustainable ceiling ~%.4g fps\n",
                 maxLen, bitNs, m_frameTimeUs / 1000.0, 1000000.0 / m_frameTimeUs);
     }

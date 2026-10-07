@@ -718,15 +718,18 @@ void BBB48StringOutput::StopPRU(bool wait) {
     }
     __asm__ __volatile__("" ::: "memory");
 
+    // Wait for BOTH cores to acknowledge before stopping EITHER. Stopping a
+    // core through remoteproc can leave the PRUSS data RAM unreachable, and a
+    // read of it then takes an external abort (SIGBUS) rather than returning
+    // a value - which is what happened when PRU0's response was polled after
+    // PRU1 had already been stopped. So every access to PRU RAM here finishes
+    // while both cores are still up, and nothing touches it afterwards.
     int cnt = 0;
     while (wait && cnt < 25 && m_pruData->response != 0xFFFF) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         cnt++;
         __asm__ __volatile__("" ::: "memory");
     }
-    m_pru->stop();
-    delete m_pru;
-
     if (m_pru0) {
         cnt = 0;
         while (wait && cnt < 25 && m_pru0Data->response != 0xFFFF) {
@@ -734,6 +737,11 @@ void BBB48StringOutput::StopPRU(bool wait) {
             cnt++;
             __asm__ __volatile__("" ::: "memory");
         }
+    }
+
+    m_pru->stop();
+    delete m_pru;
+    if (m_pru0) {
         m_pru0->stop();
         delete m_pru0;
     }

@@ -173,7 +173,9 @@ int IOCTLFrameBuffer::InitializeFrameBuffer() {
              m_vInfo.xres, m_vInfo.yres, m_vInfo.xres_virtual, m_vInfo.yres_virtual);
 
     if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfo)) {
-        m_vInfo.yres_virtual = m_height;
+        // Single page of the device's own height - m_height is the model's,
+        // which the framebuffer was deliberately not resized to.
+        m_vInfo.yres_virtual = actualFbHeight;
         m_cPage = 0;
         m_pPage = 0;
         m_pages = 1;
@@ -340,9 +342,11 @@ void IOCTLFrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
             ob = m_pageBuffers[m_cPage];
         }
 
-        for (int y = 0; y < m_pixelsHigh; y++) {
+        // Clipped to the page - see FrameBuffer::ClipToPage().
+        int skip = (m_pixelsWide - m_drawCols) * sBpp;
+        for (int y = 0; y < m_drawRows; y++) {
             d = ob + (drow * m_pixelSize * m_rowStride);
-            for (int x = 0; x < m_pixelsWide; x++) {
+            for (int x = 0; x < m_drawCols; x++) {
                 for (int sc = 0; sc < m_pixelSize; sc++) {
                     *((uint16_t*)d) = m_rgb565map[*sR >> 3][*sG >> 2][*sB >> 3];
                     d += 2;
@@ -352,6 +356,9 @@ void IOCTLFrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
                 sB += sBpp;
                 sR += sBpp;
             }
+            sG += skip;
+            sB += skip;
+            sR += skip;
 
             d = ob + (drow * m_pixelSize * m_rowStride);
             for (int sc = 1; sc < m_pixelSize; sc++) {

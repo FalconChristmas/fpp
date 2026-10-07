@@ -393,6 +393,7 @@
 			"description": "WIFI Domain",
 			"settings": [
 				"WifiRegulatoryDomain",
+				"WifiAntenna",
 				"AutoRebootOnUSBNetworkFailure"
 			]
 		},
@@ -511,6 +512,27 @@
 			"uncheckedValue": "0",
 			"default": "1",
 			"type": "checkbox"
+		},
+		"WifiAntenna": {
+			"name": "WifiAntenna",
+			"description": "WiFi Antenna",
+			"tip": "Compute Module 4 and 5 only.  Selects the onboard PCB antenna or the external U.FL antenna socket on the module (dtparam=ant2 in config.txt).  External switches the onboard antenna off completely, so only choose it with an antenna connected to the socket, otherwise WiFi will have almost no range.",
+			"gatherStats": true,
+			"level": 0,
+			"restart": 0,
+			"reboot": 1,
+			"platforms": [
+				"Raspberry Pi"
+			],
+			"checkFile": [
+				"/proc/device-tree/__overrides__/ant2"
+			],
+			"default": "internal",
+			"type": "select",
+			"options": {
+				"Internal (onboard)": "internal",
+				"External (U.FL socket)": "external"
+			}
 		},
 		"WifiRegulatoryDomain": {
 			"name": "WifiRegulatoryDomain",

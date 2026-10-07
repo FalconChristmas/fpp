@@ -11,6 +11,7 @@
     <li><b>Save</b> (green) — Writes <code>api/configfile/channeloutputs.json</code> (path from <code>settings['channelOutputsJSON']</code>) and shows a growl. Validation checks for overlapping channels and missing required fields before saving.</li>
     <li><b>Clone / Delete</b> — Duplicate a selected output to quickly make a similar one, or remove it. You must still Save after.</li>
     <li><b>Clone String</b> (Pixel Strings tab) — Copies the selected string's settings down (or up) onto the following ports, renumbering the description and stepping the start channel on for each copy. The button only appears once you click a string row to select it. It offers the number of ports left to fill as the default; enter a negative number to clone upwards. Ports belonging to an expansion set to <i>None</i> are hidden and are not counted or written to. Save afterwards as usual.</li>
+    <li><b>F2</b> (Pixel Strings tab) — Sets the start channel of the string after the selected one so it follows straight on, then selects that string; press it repeatedly to chain the start channels down the ports. Click a string row to select it first. On this tab it replaces F2's usual jump to the Settings page.</li>
 </ul>
 
 <h4>Output types — what they do and when to use them</h4>

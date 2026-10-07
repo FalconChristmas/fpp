@@ -11,6 +11,16 @@
  * included LICENSE.LGPL file.
  */
 
+// PLUGIN ABI: native plugins compile against this header and are loaded with
+// dlopen(), so parts of it are baked into binaries FPP did not build.
+//   - I2CUtils' size and layout: plugins `new I2CUtils(...)` themselves, so
+//     the allocation is the plugin's compiled-in sizeof and FPP's constructor
+//     writes into it; isOk() is inline.
+// Any such change must bump FPP_PLUGIN_API_VERSION in Plugin.h. Without the
+// bump, a plugin built against the previous header still loads and silently
+// uses the old layout - FPP 10.2 shipped exactly that and crash-looped fppd.
+// See .claude/PLUGIN-ABI.md for which plugins use what.
+
 #include <stdint.h>
 
 class I2CUtils {

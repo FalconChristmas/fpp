@@ -48,6 +48,56 @@ if ($action === 'reinstall' && !empty($packageName)) {
     exit;
 }
 
+if ($action === 'installmissing') {
+    header('Content-Type: text/plain');
+    // Reinstalls managed packages that are missing; the manifest is unchanged.
+    // As in fppinit's replay, a dependency is left to its parent's install,
+    // since its recorded (often versioned) name may no longer exist.
+    $map = LoadUserPackages();
+    $missing = array();
+    foreach (array_keys($map) as $pkg) {
+        if (count(array_intersect(PackageVia($pkg), array_keys($map)))) {
+            continue;
+        }
+        if (ValidPackageName($pkg) && !PackageIsInstalled($pkg)) {
+            $missing[] = $pkg;
+        }
+    }
+    if (!count($missing)) {
+        echo "\nNo missing packages.\nCompleted";
+        exit;
+    }
+    if (!AptAvailable()) {
+        echo "\nThis platform does not support system packages.\nFailed";
+        exit;
+    }
+    FinishInterruptedDpkg();
+    if (!AptGetUpdate()) {
+        echo "\nERROR: 'apt-get update' did not succeed; nothing installed.\nFailed";
+        exit;
+    }
+    $known = array();
+    foreach ($missing as $pkg) {
+        if (PackageKnownToApt($pkg)) {
+            $known[] = $pkg;
+        } else {
+            PackagesMsg("Skipping '$pkg': no package by that name is available.");
+        }
+    }
+    if (!count($known)) {
+        echo "\nNone of the missing packages are available.\nFailed";
+        exit;
+    }
+    PackagesMsg("Installing missing packages: " . implode(', ', $known));
+    $rc = RunAptStreaming(FPP_SUDO_APT . " install -y " . implode(' ', array_map('escapeshellarg', $known)));
+    if ($rc !== 0) {
+        echo "\nERROR: failed to install missing packages (apt exit $rc).\nFailed";
+        exit;
+    }
+    echo count($known) === count($missing) ? "\nCompleted" : "\nCompleted with skipped packages";
+    exit;
+}
+
 if ($action === 'uninstall' && !empty($packageName)) {
     header('Content-Type: text/plain');
     // The page only shows Uninstall when "user" is among the requesters.

@@ -11,6 +11,19 @@
  * included LICENSE.LGPL file.
  */
 
+// PLUGIN ABI: native plugins compile against this header and are loaded with
+// dlopen(), so parts of it are baked into binaries FPP did not build.
+//   - PinCapabilities' vtable: plugins call ptr(), configPin(), getValue()
+//     and setValue() virtually. Inserting a virtual anywhere but after the
+//     last one shifts every later slot (10.2's isAcquired() turned an old
+//     plugin's ptr() into getPWMRegisterAddress()). Plugins do not subclass
+//     it, so appending after the last virtual is safe.
+//   - PinCapabilities' data members (plugins read name).
+// Any such change must bump FPP_PLUGIN_API_VERSION in Plugin.h. Without the
+// bump, a plugin built against the previous header still loads and silently
+// uses the old layout - FPP 10.2 shipped exactly that and crash-looped fppd.
+// See .claude/PLUGIN-ABI.md for which plugins use what.
+
 #include <list>
 #include "fpp-json-fwd.h"
 #include <string>

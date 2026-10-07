@@ -79,7 +79,7 @@ fi
 echo ""
 echo "The next step is to use brew to install several needed dependencies.   This includes"
 echo "   php, git, httpd, ccache, make, zstd, wget, taglib, mosquitto,"
-echo "   jsoncpp, drogon, graphicsmagick, libusb, sdl3, ffmpeg"
+echo "   jsoncpp, drogon, graphicsmagick, libusb, sdl3, ffmpeg, gstreamer"
 echo ""
 echo -n "Do you wish to proceed? [N/y] "
 read ANSWER
@@ -89,15 +89,12 @@ if [ "x${ANSWER}" != "xY" -a "x${ANSWER}" != "xy" ]; then
     echo
     exit
 fi
-# NOTE: macOS audio goes through CoreAudio; PipeWire and GStreamer are Linux-only
-# paths here, so they are intentionally NOT installed. Video playback uses
-# GStreamer, which is currently gated off on macOS (the build keys on a Linux
-# header path) and whose video output is built on DRM/KMS (kmssink) with no macOS
-# equivalent. Getting video working on Mac is future work: it needs the build to
-# detect GStreamer via pkg-config and GStreamerOut.cpp's DRM/kmssink path
-# decoupled behind a Linux guard plus a macOS video sink -- not just adding the
-# gstreamer brew packages here. See fpp_so.mk and src/mediaoutput/GStreamerOut.cpp.
-brew install php git httpd ccache make zstd wget taglib mosquitto jsoncpp drogon graphicsmagick libusb sdl3 ffmpeg
+# gstreamer: media playback uses the same GStreamer pipelines as on the Pi
+# (Homebrew's formula bundles every gst-plugins-* set). Audio goes to the Mac's
+# default output device; video plays in an "FPP Video Output" window in place
+# of HDMI, which reopens where it was last left. There is no PipeWire on macOS,
+# so the PipeWire-only features (AES67, routing, video fan-out) stay off.
+brew install php git httpd ccache make zstd wget taglib mosquitto jsoncpp drogon graphicsmagick libusb sdl3 ffmpeg gstreamer
 echo ""
 ccache -M 350M
 ccache --set-config=temporary_dir=/tmp

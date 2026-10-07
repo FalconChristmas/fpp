@@ -32,6 +32,11 @@ Platform is auto-detected: macOS uses clang/clang++, Linux uses g++. On macOS, H
 
 Run `SD/FPP_Install_Mac.sh` from a directory that will serve as the media directory. It installs Homebrew and all required dependencies; the `brew install` line in the script is the current list.
 
+Media plays through the same GStreamer pipelines as on Linux (Homebrew's `gstreamer` formula, found via pkg-config). There is no PipeWire on macOS, so `isPipeWireBackend()` is always false and audio goes to `autoaudiosink` (the default output device). The HDMI output is an "FPP Video Output" window (`src/MacOSApp.mm`), whose position macOS saves per stream slot (`defaults read fppd`). Two traps when working on it:
+
+- **Windows only appear when fppd runs in the GUI login session**, as the LaunchAgent does. An fppd started from an ssh or tool shell reports its window visible and nothing is on screen; test as a LaunchAgent (`launchctl bootstrap gui/$(id -u) <plist>`).
+- **AppKit runs on fppd's main thread**, pumped from `EPollManager::waitForEvents()`. Never hop to the main thread from a GStreamer bus handler: GStreamer posts there holding its GL display lock, which the main thread needs to draw, and they deadlock. Create the window before the pipeline starts (`MacOSShowVideoWindow()`).
+
 ### Key Build Artifacts
 
 - `libfpp.so` (`.dylib` on macOS) — core shared library with most functionality
@@ -51,7 +56,7 @@ Run `SD/FPP_Install_Mac.sh` from a directory that will serve as the media direct
 |----------|------|---------|-------|
 | Raspberry Pi | `pi.mk` | `PLATFORM_PI` | libgpiod, builds all external submodules, fppoled/fppcapedetect/fpprtc |
 | BeagleBone | `bb.mk` | `PLATFORM_BBB` or `PLATFORM_BB64` | PRU support, NEON SIMD (32-bit), fppoled/fppcapedetect |
-| macOS | `osx.mk` | `PLATFORM_OSX` | clang++, CoreAudio framework, `.dylib` extension |
+| macOS | `osx.mk` | `PLATFORM_OSX` | clang++, CoreAudio + Cocoa, GStreamer via Homebrew, `.dylib` extension |
 | Linux | `linux.mk` | `PLATFORM_DEBIAN`/`PLATFORM_UBUNTU`/etc. | Docker detection skips OLED/cape/RTC builds |
 
 ## Plugin Compatibility
@@ -61,6 +66,7 @@ External plugins (`/media/plugins/`) are compiled separately and link against FP
 - Do not remove or rename public macros, classes, or functions that plugins may depend on. If cleaning up internally, keep the old symbol as an alias/empty define with a comment.
 - `HTTP_RESPONSE_CONST` in `fpp-pch.h` is an example: FPP's own code no longer uses it, but it's kept as an empty `#define` for plugin compatibility.
 - Channel output plugins implement `ChannelOutput` or `ThreadedChannelOutput` and are loaded via `dlopen()`. Changes to these base class interfaces will break all plugins.
+- Plugins are rebuilt by a git update, but **not** after an FPPOS reflash, and prebuilt plugins (no Makefile) never are. A layout or vtable change to any header a plugin compiles in must bump `FPP_PLUGIN_API_VERSION` in `src/Plugin.h`: inserting a virtual, adding or reordering a data member, or changing an inline function. Those headers carry a `PLUGIN ABI:` comment, and headers whose only dependency is call signatures carry `PLUGIN API:`. **Read `.claude/PLUGIN-ABI.md` before changing any of them.**
 
 ## Code Style
 

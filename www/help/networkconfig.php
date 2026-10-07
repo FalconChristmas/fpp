@@ -28,6 +28,14 @@
 
 <p><b>Update DNS</b> — Writes the DNS/hostname settings. A <b>Restart DNS</b> button then appears to restart the DNS resolver without a full reboot.</p>
 
+<h4>WiFi Configuration</h4>
+
+<p><b>WIFI Regulatory Domain</b> — The country this player is operating in. It controls which WiFi frequencies and channels the adapter is allowed to use, so set it to where the player actually is. <i>Reboot required.</i></p>
+
+<p><b>WiFi Antenna</b> (Compute Module 4 and 5 only) — Chooses between the antenna printed on the module (<b>Internal</b>, the default) and an aerial plugged into the module’s U.FL socket (<b>External</b>). An external aerial helps when the module sits in a metal or tightly packed enclosure. <b>External turns the onboard antenna off completely</b>, so only choose it with an aerial connected, or WiFi will have almost no range. FPP writes <code>dtparam=ant2</code> into a managed block in <code>/boot/firmware/config.txt</code>, limited to <code>[cm4]</code>/<code>[cm5]</code>. This setting is hidden on boards without a selectable antenna. <i>Reboot required.</i></p>
+
+<p><b>Reboot If USB WiFi Adapter Fails</b> — Some USB WiFi adapters lose their USB connection while booting, so the interface appears but never connects. When FPP sees USB errors and no other connection has an address, it reboots to recover. It gives up after two tries, so it can never get stuck in a reboot loop.</p>
+
 <h4>Extra topics shown on this page</h4>
 <ul>
     <li><b>Tethering / Access Point</b> (when supported) — Turns this FPP into its own WiFi network for field configuration. It creates an SSID/passphrase and assigns addresses to clients; the tethered interface should not also have a separate Gateway beyond the tether subnet.</li>

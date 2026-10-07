@@ -10,6 +10,17 @@
  * included LICENSE.LGPL file.
  */
 
+// PLUGIN ABI: native plugins compile against this header and are loaded with
+// dlopen(), so parts of it are baked into binaries FPP did not build.
+//   - CurlManager::CurlPrivateData: plugins read req/resp from the object
+//     FPP hands back, so its members and their order are fixed.
+//   - Signatures of addGet()/addPost()/addCURL()/createCurl(): add new
+//     parameters as a new overload and keep the old one.
+// Any such change must bump FPP_PLUGIN_API_VERSION in Plugin.h. Without the
+// bump, a plugin built against the previous header still loads and silently
+// uses the old layout - FPP 10.2 shipped exactly that and crash-looped fppd.
+// See .claude/PLUGIN-ABI.md for which plugins use what.
+
 #pragma once
 
 #include <curl/curl.h>

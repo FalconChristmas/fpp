@@ -437,6 +437,20 @@
             "WarningGroup": "Plugin_Warnings"
         },
         {
+            "id": 66,
+            "Title": "Command Preset Triggers Itself",
+            "HelpTxt": "A Command Preset ran a command that fired the same event again before the preset had finished - for example a MEDIA_STARTED preset that runs Play Media, which starts more media and fires MEDIA_STARTED again. That loops forever, so FPP ran the preset once and skipped the nested run. Edit the preset named in the warning (Status/Control - Command Presets) so its commands don't re-trigger it. This warning clears itself automatically 15 minutes after the last time it was triggered.",
+            "HelpPageType": "",
+            "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 67,
+            "Title": "Display Output Cropped",
+            "HelpTxt": "A framebuffer output (for example a Virtual Display) is configured larger than the display device it is drawing on, so only the top-left part of the image that fits is shown. Make the output's width and height match the display's resolution, or set the display to a resolution at least as large as the output. This warning clears when the output is reconfigured or FPPD restarts.",
+            "HelpPageType": "",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
             "id": 65,
             "Title": "FPPD restart limit reached.",
             "HelpTxt": "",

@@ -5,7 +5,7 @@
 <p>These work on every page. <b>F1</b> and <b>Esc</b> cannot be changed; <b>F2</b> and <b>F8</b> do their default action only until you assign a custom shortcut to that key.</p>
 <ul>
     <li><b>F1</b> &mdash; Help &ndash; opens help for the current page. Press again or <kbd>Esc</kbd> to close. While this dialog is open, help shows this page instead of the settings help.</li>
-    <li><b>F2</b> &mdash; Settings &ndash; opens the FPP Settings page, unless assigned to a custom shortcut.</li>
+    <li><b>F2</b> &mdash; Settings &ndash; opens the FPP Settings page, unless assigned to a custom shortcut. On the Channel Outputs <b>Pixel Strings</b> tab, F2 instead sets the start channel of the next string (and a custom F2 shortcut does not run there).</li>
     <li><b>F8</b> &mdash; Error Reporting &ndash; opens or closes the diagnostic report dialog, unless assigned to a custom shortcut.</li>
     <li><b>Esc</b> &mdash; Close &ndash; closes the Help or Error Reporting dialog.</li>
 </ul>

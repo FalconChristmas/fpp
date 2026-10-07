@@ -37,10 +37,22 @@
 #include <thread>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+// DRM/KMS is Linux-only. Without libdrm (macOS) there is no kmssink to hand a
+// DRM fd or plane to, so the helpers below report "none" and every caller
+// already falls back on that.
+#ifdef PLATFORM_OSX
+// No DRM/KMS on macOS: the display output is a window (MacOSApp.mm) that
+// glimagesink renders into through GstVideoOverlay.
+#include <gst/video/videooverlay.h>
+#include "../MacOSApp.h"
+#endif
+#if __has_include(<xf86drm.h>)
+#define FPP_GST_HAS_DRM
 #include <libdrm/drm.h>
 #include <libdrm/drm_mode.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#endif
 
 #include "common.h"
 #include "log.h"
@@ -462,6 +474,11 @@ std::string GStreamerOutput::PipeWireSinkNameForSlot(int slot) {
 // autoaudiosink so playback always works.  Result is cached; must be
 // called after gst_init().
 static const char* GetAlsaDirectSinkName() {
+#ifdef PLATFORM_OSX
+    // No ALSA on macOS; autoaudiosink picks osxaudiosink (the default output
+    // device), and there is no slow pulsesink probe to avoid.
+    return "autoaudiosink";
+#endif
     static const char* cached = nullptr;
     if (!cached) {
         GstElementFactory* f = gst_element_factory_find("alsasink");
@@ -548,6 +565,9 @@ struct DrmFdEntry {
 static std::map<std::string, DrmFdEntry> s_drmFds;  // cardPath → {fd, refCount}
 
 int GStreamerOutput::AcquireSharedDrmFd(const std::string& cardPath) {
+#ifndef FPP_GST_HAS_DRM
+    return -1;
+#else
     std::lock_guard<std::mutex> lock(s_drmFdMutex);
     auto it = s_drmFds.find(cardPath);
     if (it != s_drmFds.end()) {
@@ -573,6 +593,7 @@ int GStreamerOutput::AcquireSharedDrmFd(const std::string& cardPath) {
     s_drmFds[cardPath] = DrmFdEntry{fd, 1};
     LogDebug(VB_MEDIAOUT, "GStreamer: Opened shared DRM fd=%d for %s (refcount=1)\n", fd, cardPath.c_str());
     return fd;
+#endif
 }
 
 void GStreamerOutput::ReleaseSharedDrmFd(const std::string& cardPath) {
@@ -610,6 +631,9 @@ static std::mutex s_allocatedPlanesMutex;
 int GStreamerOutput::FindPrimaryPlaneForConnector(int drmFd, int connectorId) {
     if (drmFd < 0 || connectorId < 0)
         return -1;
+#ifndef FPP_GST_HAS_DRM
+    return -1;
+#else
 
     // Enable universal planes so we see Primary/Overlay/Cursor types
     drmSetClientCap(drmFd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1);
@@ -691,6 +715,7 @@ int GStreamerOutput::FindPrimaryPlaneForConnector(int drmFd, int connectorId) {
     LogDebug(VB_MEDIAOUT, "GStreamer DRM: connector %d → CRTC %u (index %d) → overlay plane %d\n",
             connectorId, crtcId, crtcIndex, foundPlane);
     return foundPlane;
+#endif
 }
 
 void GStreamerOutput::ReleasePlane(int planeId) {
@@ -1146,8 +1171,7 @@ int GStreamerOutput::Start(int msTime) {
     // Only honour it when PipeWire is actually the audio backend; in ALSA-only
     // mode PipeWire isn't running so pipewiresink would fail to connect and
     // block the pipeline (causing audio stall / playback abort).
-    std::string mediaBackend = toLowerCopy(getSetting("MediaBackend"));
-    bool usePipeWireBackendLocal = (mediaBackend == "pipewire" || mediaBackend == "pipewire-simple");
+    bool usePipeWireBackendLocal = isPipeWireBackend();
     if (usePipeWireBackendLocal) {
         m_pwVideoSinkName = getSetting("PipeWireVideoSinkName");
         if (m_streamSlot > 1) {
@@ -1174,6 +1198,22 @@ int GStreamerOutput::Start(int msTime) {
         if (m_videoOut.starts_with("HDMI-") || m_videoOut.starts_with("DSI-") ||
             m_videoOut.starts_with("Composite-") ||
             m_videoOut == "--HDMI--" || m_videoOut == "--hdmi--" || m_videoOut == "HDMI") {
+#ifdef PLATFORM_OSX
+            // A Mac has no connectors to resolve: every display target is the
+            // slot's video window. It stands in for the primary HDMI output,
+            // as connector 0, so the rest of the HDMI path - its pacing, its
+            // position queries, its synchronous teardown - applies unchanged.
+            if (MacOSAppActive()) {
+                m_wantHDMI = true;
+                wantHDMI = true;
+                m_macVideoWindow = true;
+                m_hdmiConnectorId = 0;
+                m_hdmiCardPath.clear();
+                LogDebug(VB_MEDIAOUT, "GStreamer: %s -> macOS video window (slot %d)\n", m_videoOut.c_str(), m_streamSlot);
+            } else {
+                LogWarn(VB_MEDIAOUT, "GStreamer: no GUI session, so no video window for %s; playing audio only\n", m_videoOut.c_str());
+            }
+#else
             // Resolve the connector name
             std::string connectorName = m_videoOut;
             if (connectorName == "--HDMI--" || connectorName == "--hdmi--" || connectorName == "HDMI") {
@@ -1222,6 +1262,7 @@ int GStreamerOutput::Start(int msTime) {
             } else {
                 LogWarn(VB_MEDIAOUT, "GStreamer: could not resolve connector ID for %s\n", connectorName.c_str());
             }
+#endif
         } else {
             // PixelOverlay model name
             wantVideo = true;
@@ -1283,7 +1324,7 @@ int GStreamerOutput::Start(int msTime) {
         pipelineSinkName = PipeWireSinkNameForSlot(m_streamSlot);
     }
     LogDebug(VB_MEDIAOUT, "GStreamer: PipeWireSinkName='%s' (slot %d, backend=%s)\n",
-            pipelineSinkName.c_str(), m_streamSlot, mediaBackend.c_str());
+            pipelineSinkName.c_str(), m_streamSlot, usePipeWire ? "pipewire" : "non-pipewire");
 
     // Log PipeWire group delay for reference (handled natively by PipeWire
     // filter-chain delay nodes, not by GStreamer ts-offset).
@@ -1618,7 +1659,22 @@ int GStreamerOutput::Start(int msTime) {
         GstElement* videoQueue = gst_element_factory_make("queue", "vq");
 
         if (haveHdmiConnector) {
+#ifdef PLATFORM_OSX
+            // The "kmssink" slot holds whatever drives the primary display;
+            // here that is glimagesink drawing into the slot's window. The
+            // view is fetched now, before the pipeline starts, and handed over
+            // directly - see MacOSShowVideoWindow() for why it must not wait
+            // for the sink's prepare-window-handle message.
+            m_kmssink = gst_element_factory_make("glimagesink", "kmsvideosink");
+            void* view = m_kmssink ? MacOSShowVideoWindow(m_streamSlot) : nullptr;
+            if (view) {
+                gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(m_kmssink), (guintptr)view);
+            } else {
+                LogWarn(VB_MEDIAOUT, "GStreamer: could not open the macOS video window; video will open in its own window\n");
+            }
+#else
             m_kmssink = gst_element_factory_make("kmssink", "kmsvideosink");
+#endif
             if (!m_kmssink) {
                 LogErr(VB_MEDIAOUT, "GStreamer: kmssink element not available — is gstreamer1.0-plugins-bad installed?\n");
                 WarningHolder::AddWarning(31, "Video output unavailable: kmssink element missing (install gstreamer1.0-plugins-bad)");
@@ -1639,6 +1695,7 @@ int GStreamerOutput::Start(int msTime) {
                 m_pipeline = nullptr;
                 return 0;
             }
+#ifndef PLATFORM_OSX
             int sharedFd = AcquireSharedDrmFd(m_hdmiCardPath);
             if (sharedFd >= 0) {
                 m_acquiredDrmCards.push_back(m_hdmiCardPath);
@@ -1661,6 +1718,7 @@ int GStreamerOutput::Start(int msTime) {
                              "skip-vsync", TRUE,
                              NULL);
             }
+#endif
         }
 
         // kmssink handles format conversion + scaling in hardware.
@@ -2584,8 +2642,11 @@ int GStreamerOutput::Stop(void) {
             if (m_mediaOutputStatus) {
                 m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
             }
-            Stopped();
+            // Last touch of `this`: Stopped() may hand the object to a
+            // deferred delete (Play Media's runningCommandMedia), so nothing
+            // may be written after it.
             m_teardownComplete = true;
+            Stopped();
             return 1;
         }
 
@@ -2626,7 +2687,7 @@ int GStreamerOutput::Stop(void) {
         // Only needed when kmssink is in the primary pipeline (not when
         // PipeWire routing sends HDMI through a consumer pipeline), and
         // pointless after an abandoned teardown (nothing was released).
-        if (!m_teardownAbandoned && (m_kmssink || !m_directConnectorIds.empty())) {
+        if (!m_teardownAbandoned && !m_macVideoWindow && (m_kmssink || !m_directConnectorIds.empty())) {
             std::this_thread::sleep_for(std::chrono::milliseconds(150));
             LogDebug(VB_MEDIAOUT, "GStreamerOutput::Stop() - DRM release delay complete\n");
         }
@@ -2635,8 +2696,9 @@ int GStreamerOutput::Stop(void) {
         if (m_mediaOutputStatus) {
             m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
         }
-        Stopped();
+        // Last touch of `this` - see the async path above.
         m_teardownComplete = true;
+        Stopped();
     }
     return 1;
 }
@@ -3748,6 +3810,13 @@ int GStreamerOutput::Close(void) {
     m_videoChain = nullptr;
     m_kmssink = nullptr;     // owned by pipeline bin, already freed
     m_wantHDMI = false;
+#ifdef PLATFORM_OSX
+    if (m_macVideoWindow) {
+        // Deferred, and cancelled if the next item opens it again.
+        MacOSHideVideoWindowSoon(m_streamSlot);
+    }
+#endif
+    m_macVideoWindow = false;
 
     // Consumers already stopped before pipeline NULL; just clear state
     m_videoPipeWireRouting = false;

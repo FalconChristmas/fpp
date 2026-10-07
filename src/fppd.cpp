@@ -17,6 +17,7 @@
 #ifdef PLATFORM_OSX
 #include <sys/event.h>
 #define USE_KQUEUE
+#include "MacOSApp.h"
 #else
 #include <sys/epoll.h>
 #include <sys/prctl.h>
@@ -1906,6 +1907,16 @@ void MainLoop(void) {
     std::map<int, std::function<bool(int)>> callbacks;
 
     LogDebug(VB_GENERAL, "MainLoop()\n");
+
+#ifdef PLATFORM_OSX
+    // Lets media show a video window: this main thread pumps Cocoa from its
+    // wait in EPollManager::waitForEvents(). Only in a GUI login session.
+    if (MacOSAppInit()) {
+        LogInfo(VB_GENERAL, "macOS: GUI session found, video output windows enabled\n");
+    } else {
+        LogInfo(VB_GENERAL, "macOS: no GUI session, video output windows disabled\n");
+    }
+#endif
 
     int sock = Command_Initialize();
     LogDebug(VB_GENERAL, "Command socket: %d\n", sock);

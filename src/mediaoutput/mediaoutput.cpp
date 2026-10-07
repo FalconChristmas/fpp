@@ -43,6 +43,9 @@
 #include "mediadetails.h"
 #include "settings.h"
 #include "../config.h"
+#ifdef PLATFORM_OSX
+#include "../MacOSApp.h"
+#endif
 
 /////////////////////////////////////////////////////////////////////////////
 MediaOutputBase* mediaOutput = 0;
@@ -688,6 +691,27 @@ static bool IsHDMIOut(std::string& vOut) {
     return false;
 }
 
+std::string ResolveVideoOutput(const std::string& requested) {
+    std::string vOut = requested;
+    if (vOut.empty() || vOut == "--Default--") {
+        vOut = getSetting("VideoOutput");
+    }
+    if (vOut.empty()) {
+#ifdef PLATFORM_OSX
+        // No connectors on a Mac; the display is the video window, which exists
+        // only in a GUI session (see MacOSApp.h).
+        vOut = MacOSAppActive() ? "--HDMI--" : "--Disabled--";
+#else
+        if (FileExists("/sys/class/drm/card0-HDMI-A-1/status") || FileExists("/sys/class/drm/card1-HDMI-A-1/status")) {
+            vOut = "--HDMI--";
+        } else {
+            vOut = "--Disabled--";
+        }
+#endif
+    }
+    return vOut;
+}
+
 MediaOutputBase* CreateMediaOutput(const std::string& mediaFilename, const std::string& vOut, int streamSlot) {
     std::string tmpFile(mediaFilename);
     std::size_t found = mediaFilename.find_last_of(".");
@@ -786,14 +810,7 @@ int OpenMediaOutput(const std::string& filename) {
             }
         }
 
-        std::string vOut = getSetting("VideoOutput");
-        if (vOut == "") {
-            if (FileExists("/sys/class/drm/card0-HDMI-A-1/status") || FileExists("/sys/class/drm/card1-HDMI-A-1/status")) {
-                vOut = "--HDMI--";
-            } else {
-                vOut = "--Disabled--";
-            }
-        }
+        std::string vOut = ResolveVideoOutput("--Default--");
         LogDebug(VB_MEDIAOUT, "OpenMediaOutput: Creating media output for '%s' vOut='%s'\n", tmpFile.c_str(), vOut.c_str());
         MediaOutputBase* out = CreateMediaOutput(tmpFile, vOut);
         LogDebug(VB_MEDIAOUT, "OpenMediaOutput: CreateMediaOutput returned %p\n", out);

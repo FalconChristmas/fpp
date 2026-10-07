@@ -97,6 +97,7 @@ void startDiskSwap();
 void setupChannelOutputs();
 void setupPiRTCConfig(bool rebootIfChanged = true);
 void setupHDMICECConfig(bool rebootIfChanged = true);
+void setupWifiAntennaConfig(bool rebootIfChanged = true);
 void handleRebootActions();
 
 // ---------------------------------------------------------------------------

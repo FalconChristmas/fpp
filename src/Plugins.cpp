@@ -439,8 +439,9 @@ void PluginManager::loadUserPlugins() {
     // After an FPPOS reflash the boot code sets pluginReinstallNeededAfterOS to
     // "1" if plugins were present. The Plugin Manager turns that into the list
     // of plugins still to reinstall and clears it once every one has been
-    // reinstalled or uninstalled; only non-empty matters here. Surface the
-    // reinstall prompt, and keep it in sync while fppd is running.
+    // reinstalled or uninstalled. Surface the reinstall prompt, and keep it in
+    // sync while fppd is running. Native plugins still on the list were not
+    // loaded above - see loadUserPlugin().
     static bool reinstallListenerRegistered = false;
     if (!reinstallListenerRegistered) {
         reinstallListenerRegistered = true;
@@ -534,7 +535,27 @@ FPPPlugins::Plugin* PluginManager::findPlugin(const std::string& name, const std
     }
     return p;
 }
-FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name) {
+bool PluginManager::awaitingReinstallAfterOS(const std::string& dirName) {
+    std::string v = getSetting("pluginReinstallNeededAfterOS");
+    TrimWhiteSpace(v);
+    if (v.empty()) {
+        return false;
+    }
+    // Boot writes "1" (every installed plugin); the Plugin Manager turns that
+    // into the comma-separated list of plugins still to reinstall.
+    if (v == "1") {
+        return true;
+    }
+    for (auto& p : split(v, ',')) {
+        TrimWhiteSpace(p);
+        if (p == dirName) {
+            return true;
+        }
+    }
+    return false;
+}
+
+FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name, bool explicitLoad) {
     LogDebug(VB_PLUGIN, "Found Plugin: (%s)\n", name.c_str());
     // Covers the whole load, so it catches both the commands FPP registers from
     // the plugin's descriptions.json below and the ones a C++ plugin registers
@@ -627,6 +648,22 @@ FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name) {
                 }
                 delete spl;
                 mLoadedUserPlugins.emplace(name);
+                // An FPPOS reflash replaces FPP but keeps the plugin clones, so
+                // this library was built against the previous FPP's headers.
+                // The API version check cannot be relied on to refuse it - it
+                // only catches what someone remembered to bump for, and 10.2
+                // shipped layout changes without a bump - and a stale library
+                // that does load can crash fppd in its constructor (a boot
+                // loop) or in shutdown() when the Plugin Manager unloads it to
+                // reinstall. So do not load it at all until it is rebuilt; the
+                // reinstall warning is already up, and the Plugin Manager's
+                // post-rebuild load request comes through with explicitLoad.
+                if (!explicitLoad && awaitingReinstallAfterOS(name)) {
+                    LogWarn(VB_PLUGIN, "Not loading plugin %s: FPPOS was upgraded and it has not been reinstalled, "
+                                       "so %s was built against the previous FPP\n",
+                            name.c_str(), shlibName.c_str());
+                    return nullptr;
+                }
                 auto* p = loadSHLIBPlugin(shlibName, name);
                 if (p == nullptr) {
                     WarningHolder::AddWarning(5, "Could not load plugin " + name);
@@ -984,7 +1021,7 @@ bool PluginManager::loadPlugin(const std::string& name, std::string& error) {
     // mapped), so clear it or loadUserPlugin() will not look at the plugin again.
     mLoadedUserPlugins.erase(name);
 
-    FPPPlugins::Plugin* p = loadUserPlugin(name);
+    FPPPlugins::Plugin* p = loadUserPlugin(name, true);
     if (!p) {
         // loadUserPlugin() logs the specific reason - a missing callbacks script,
         // an ABI-version refusal from loadSHLIBPlugin(), a createPlugin() that

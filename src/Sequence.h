@@ -11,6 +11,15 @@
  * included LICENSE.LGPL file.
  */
 
+// PLUGIN API: native plugins compile against this header and are loaded with
+// dlopen().
+//   - Plugins use the global `sequence` and call its methods by symbol
+//     (SendBlankingData, ...), and rely on FPPD_MAX_CHANNELS.
+// Data layout here is NOT plugin ABI, so members can change freely. Changing
+// or removing a signature a plugin calls is: keep the old one as an overload
+// (as Timers::addPeriodicTimer does) or bump FPP_PLUGIN_API_VERSION in
+// Plugin.h. See .claude/PLUGIN-ABI.md for which plugins use what.
+
 #include <stdio.h>
 #include <string>
 

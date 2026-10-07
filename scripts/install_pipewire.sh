@@ -181,11 +181,10 @@ echo "    Services installed (left disabled; started on demand by setupAudio)."
 # --- 6. Mask user-session PipeWire services ---
 echo ""
 echo "Step 6: Masking user-session PipeWire services..."
-mkdir -p /home/fpp/.config/systemd/user
-for svc in pipewire.socket pipewire.service pipewire-pulse.service pipewire-pulse.socket wireplumber.service; do
-    ln -sf /dev/null "/home/fpp/.config/systemd/user/${svc}"
-done
-chown -R fpp:fpp /home/fpp/.config
+# Globally (/etc/systemd/user), not in ~fpp: an fppos upgrade never syncs /home.
+systemctl --global mask pipewire.socket pipewire.service \
+    pipewire-pulse.socket pipewire-pulse.service \
+    wireplumber.service filter-chain.service
 echo "    User-session PipeWire services masked."
 
 # --- 7. Create runtime directory ---

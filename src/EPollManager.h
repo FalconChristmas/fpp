@@ -10,6 +10,15 @@
  * This source file is covered under the LGPL v2.1 as described in the
  * included LICENSE.LGPL file.
  */
+
+// PLUGIN API: native plugins compile against this header and are loaded with
+// dlopen().
+//   - Plugins call EPollManager::INSTANCE.addFileDescriptor()/
+//     removeFileDescriptor() by symbol.
+// Data layout here is NOT plugin ABI, so members can change freely. Changing
+// or removing a signature a plugin calls is: keep the old one as an overload
+// (as Timers::addPeriodicTimer does) or bump FPP_PLUGIN_API_VERSION in
+// Plugin.h. See .claude/PLUGIN-ABI.md for which plugins use what.
  
 #ifdef PLATFORM_OSX
 #include <sys/event.h>

@@ -33,8 +33,14 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
+// Only for PhcIndexForInterface(): finding a NIC's hardware PTP clock is a
+// Linux ethtool query. Without it (macOS) every interface reports no PHC and the
+// clock falls back to CLOCK_REALTIME, as it does on Linux for software-only NICs.
+#if __has_include(<linux/ethtool.h>)
+#define FPP_AES67_HAS_ETHTOOL
 #include <linux/ethtool.h>
 #include <linux/sockios.h>
+#endif
 #include <net/if.h>
 #include <netinet/in.h>
 #include <signal.h>
@@ -105,7 +111,7 @@ bool AES67Manager::Init() {
     // - pipewire-simple: the graph lacks the node connections needed for audio
     //   format negotiation, causing the state change to block indefinitely.
     std::string mediaBackend = toLowerCopy(getSetting("MediaBackend"));
-    if (mediaBackend != "pipewire") {
+    if (!isPipeWireBackend() || mediaBackend != "pipewire") {
         LogDebug(VB_MEDIAOUT, "AES67Manager: MediaBackend='%s' (need 'pipewire'), skipping AES67 init\n",
                  mediaBackend.c_str());
         return true;
@@ -1658,6 +1664,9 @@ std::string AES67Manager::GetPTPClockId() {
 // Resolve the PHC backing an interface via ETHTOOL_GET_TS_INFO.  Returns -1
 // when the NIC has no PHC (software timestamping), which is not an error.
 static int PhcIndexForInterface(const std::string& iface) {
+#ifndef FPP_AES67_HAS_ETHTOOL
+    return -1;
+#else
     if (iface.empty()) {
         return -1;
     }
@@ -1680,6 +1689,7 @@ static int PhcIndexForInterface(const std::string& iface) {
     }
     close(sock);
     return idx;
+#endif
 }
 
 // GstClock reading PTP time.  Subclasses GstSystemClock so that all of its

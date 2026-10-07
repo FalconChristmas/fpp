@@ -194,6 +194,8 @@ int FrameBuffer::FBInit(const Json::Value& config) {
     if (!result)
         return 0;
 
+    ClipToPage();
+
     if (m_autoSync) {
         m_dirtyPages = new volatile uint8_t[m_pages];
         for (int i = 0; i < m_pages; i++)
@@ -288,7 +290,45 @@ FrameBuffer* FrameBuffer::createFrameBuffer(const Json::Value& config) {
     return nullptr;
 }
 
+static constexpr int WARNING_ID_FB_CROPPED = 67;
+
+// Everything that writes a page - FBCopyData() and the transitions - must stay
+// inside it, and the page is whatever the device gave us (m_rowStride bytes by
+// m_pageSize / m_rowStride rows), which need not be what the model asked for:
+// IOCTLFrameBuffer deliberately keeps the framebuffer at its native size. Clip
+// once here, after the backend has sized the page, rather than in each loop.
+void FrameBuffer::ClipToPage() {
+    m_drawCols = m_pixelsWide;
+    m_drawRows = m_pixelsHigh;
+    int bytesPerPixel = m_bpp / 8;
+    if (m_rowStride <= 0 || bytesPerPixel <= 0 || m_pixelSize <= 0) {
+        return;
+    }
+    int pageCols = m_rowStride / bytesPerPixel;
+    int pageRows = m_pageSize / m_rowStride;
+
+    m_drawCols = std::min(m_pixelsWide, pageCols / m_pixelSize);
+    m_drawRows = std::min(m_pixelsHigh, pageRows / m_pixelSize);
+    // The transitions work in device pixels over the same page-sized buffers.
+    m_width = std::min(m_width, pageCols);
+    m_height = std::min(m_height, pageRows);
+
+    if (m_drawCols < m_pixelsWide || m_drawRows < m_pixelsHigh) {
+        m_clipWarning = "Framebuffer " + m_device + ": the " + std::to_string(m_pixelsWide) + "x" +
+                        std::to_string(m_pixelsHigh) + " model does not fit the " + std::to_string(pageCols) + "x" +
+                        std::to_string(pageRows) + " display, so only the top-left " + std::to_string(m_drawCols) +
+                        "x" + std::to_string(m_drawRows) + " is shown";
+        LogWarn(VB_CHANNELOUT, "%s\n", m_clipWarning.c_str());
+        // Lasts as long as this framebuffer; DestroyFrameBuffer() takes it down.
+        WarningHolder::AddWarning(WARNING_ID_FB_CROPPED, m_clipWarning);
+    }
+}
+
 void FrameBuffer::DestroyFrameBuffer(void) {
+    if (!m_clipWarning.empty()) {
+        WarningHolder::RemoveWarning(WARNING_ID_FB_CROPPED, m_clipWarning);
+        m_clipWarning.clear();
+    }
     if (m_buffer) {
         memset(m_buffer, 0, m_bufferSize);
         munmap(m_buffer, m_bufferSize);
@@ -320,13 +360,16 @@ void FrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
     uint8_t* dB;
     int add = m_bpp / 8;
 
-    for (int y = 0; y < m_pixelsHigh; y++) {
+    // Rows and columns past m_drawRows/m_drawCols do not fit the page (see
+    // ClipToPage()); the source is still walked at its full m_pixelsWide.
+    int skip = (m_pixelsWide - m_drawCols) * 3;
+    for (int y = 0; y < m_drawRows; y++) {
         // Output is BGR(A)
         dB = ob + (drow * m_pixelSize * m_rowStride);
         dG = dB + 1;
         dR = dB + 2;
 
-        for (int x = 0; x < m_pixelsWide; x++) {
+        for (int x = 0; x < m_drawCols; x++) {
             for (int sc = 0; sc < m_pixelSize; sc++) {
                 *dR = *sR;
                 *dG = *sG;
@@ -341,6 +384,9 @@ void FrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
             sG += 3;
             sB += 3;
         }
+        sR += skip;
+        sG += skip;
+        sB += skip;
 
         dB = ob + (drow * m_pixelSize * m_rowStride);
         for (int sc = 1; sc < m_pixelSize; sc++) {

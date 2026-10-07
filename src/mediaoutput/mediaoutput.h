@@ -35,6 +35,11 @@ void CloseMediaOutput();
 
 MediaOutputBase* CreateMediaOutput(const std::string& mediaFilename, const std::string& videoOut, int streamSlot = 1);
 
+// "--Default--" or "" -> the VideoOutput setting, or the display when none is
+// configured (an HDMI connector on Linux, the video window on macOS), else
+// "--Disabled--". Anything else is returned unchanged.
+std::string ResolveVideoOutput(const std::string& requested);
+
 /* If try, filename will be updated with the media filename */
 bool HasVideoForMedia(std::string& filename);
 

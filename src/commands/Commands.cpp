@@ -914,6 +914,42 @@ Json::Value CommandManager::ReplaceCommandKeywords(Json::Value cmd, std::map<std
     return cmd;
 }
 
+// A preset whose own commands fire the event that triggers it - a MEDIA_STARTED
+// preset that runs Play Media, which fires MEDIA_STARTED again - recursed on
+// the calling thread without bound. Each level started and stopped another
+// pipeline; thousands of nested calls deep, a second request racing the chain
+// for the same stream slot hit a freed object. Run a preset at most once per
+// call chain: a nested trigger of a preset already running on this thread is
+// skipped. Triggers from other threads, or later from the same thread (a
+// MEDIA_STOPPED preset restarting media when it ends), are unaffected.
+static constexpr int WARNING_ID_PRESET_RECURSION = 66;
+
+class PresetRecursionGuard {
+public:
+    explicit PresetRecursionGuard(const std::string& name) :
+        m_name(name), m_entered(running().insert(name).second) {
+        if (!m_entered) {
+            LogWarn(VB_COMMAND, "Command Preset \"%s\" triggered itself while it was still running; skipping the nested run\n", name.c_str());
+            WarningHolder::AddWarningTimeout(900, WARNING_ID_PRESET_RECURSION,
+                                             "Command Preset \"" + name + "\" triggers itself, so its nested run was skipped");
+        }
+    }
+    ~PresetRecursionGuard() {
+        if (m_entered) {
+            running().erase(m_name);
+        }
+    }
+    bool entered() const { return m_entered; }
+
+private:
+    static std::set<std::string>& running() {
+        static thread_local std::set<std::string> names;
+        return names;
+    }
+    std::string m_name;
+    bool m_entered;
+};
+
 int CommandManager::TriggerPreset(int slot, std::map<std::string, std::string>& keywords) {
     std::unique_lock<std::mutex> lock(presetsMutex);
     std::list<Json::Value> slotPresets;
@@ -943,8 +979,11 @@ int CommandManager::TriggerPreset(int slot, std::map<std::string, std::string>& 
 
     auto nameIt = slotPresetNames.begin();
     for (auto const& preset : slotPresets) {
-        LogDebug(VB_COMMAND, "Command Preset \"%s\" (slot %d) running command \"%s\"\n", nameIt->c_str(), slot, preset["command"].asString().c_str());
-        run(preset);
+        PresetRecursionGuard guard(*nameIt);
+        if (guard.entered()) {
+            LogDebug(VB_COMMAND, "Command Preset \"%s\" (slot %d) running command \"%s\"\n", nameIt->c_str(), slot, preset["command"].asString().c_str());
+            run(preset);
+        }
         ++nameIt;
     }
     return 1;
@@ -968,6 +1007,11 @@ int CommandManager::TriggerPreset(std::string name, std::map<std::string, std::s
 
     auto it = presets[name];
     lock.unlock();
+
+    PresetRecursionGuard guard(name);
+    if (!guard.entered()) {
+        return 0;
+    }
 
     // Publish MQTT event for preset trigger
     Json::Value payload;

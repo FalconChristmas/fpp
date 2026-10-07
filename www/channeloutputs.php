@@ -340,15 +340,19 @@
 
         ?>
 
-        function handleCOKeypress(e) {
+        // Called by handleKeypress() in fpp.js before custom shortcuts and the
+        // global F2 (Settings) default; returning true keeps them from running.
+        function pageSpecific_HandleKeypress(e) {
             if (verboseDebug) {
-                console.trace("handleCOKeypress called with keyCode: " + e.keyCode);
+                console.trace("pageSpecific_HandleKeypress called with keyCode: " + e.keyCode);
             }
-            if (e.keyCode == 113) {
+            if (e.keyCode == 113 && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
                 if ($('.nav-link.active').attr('tabtype') == 'strings') {
                     setPixelStringsStartChannelOnNextRow();
+                    return true;
                 }
             }
+            return false;
         }
 
 
@@ -379,8 +383,6 @@
             if (verboseDebug) {
                 console.trace("pageSpecific_PageLoad_PostDOMLoad_ActionsSetup called");
             }
-            $(document).on('keydown', handleCOKeypress);
-
         }
 
 

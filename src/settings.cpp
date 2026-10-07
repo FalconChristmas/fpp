@@ -511,6 +511,14 @@ int getSettingInt(const char* setting, int defaultVal) {
 }
 
 bool isPipeWireBackend() {
+#ifdef PLATFORM_OSX
+    // There is no PipeWire on macOS, whatever MediaBackend says (its default is
+    // a PipeWire mode). Media plays through GStreamer's non-PipeWire path there -
+    // autoaudiosink, i.e. osxaudiosink - so every PipeWire-only feature has to
+    // see "no" from here rather than build pipewiresink/pipewiresrc pipelines
+    // that cannot be created.
+    return false;
+#endif
     // Default to the settings.json default rather than "".  ALSA is retired --
     // the UI offers only the two PipeWire modes and FPPINIT migrates a stored
     // "alsa" away -- so a box that simply has no MediaBackend key must not fall

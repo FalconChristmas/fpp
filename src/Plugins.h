@@ -79,7 +79,13 @@ private:
     void checkPluginReinstallWarning();
 
     FPPPlugins::Plugin* loadSHLIBPlugin(const std::string& shlibName, const std::string& dirName);
-    FPPPlugins::Plugin* loadUserPlugin(const std::string& name);
+    // explicitLoad is the Plugin Manager's load request (loadPlugin()), issued
+    // after it has just rebuilt the plugin; it bypasses the post-FPPOS gate.
+    FPPPlugins::Plugin* loadUserPlugin(const std::string& name, bool explicitLoad = false);
+    // True while the plugin in directory dirName is still on the post-FPPOS
+    // reinstall list, i.e. its native library was built against the FPP that
+    // was on the box before the reflash.
+    bool awaitingReinstallAfterOS(const std::string& dirName);
     void addPlugin(FPPPlugins::Plugin* plugin);
 
     // A plugin's own name - what it passed to FPPPlugins::Plugin's constructor -
