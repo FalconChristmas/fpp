@@ -34,7 +34,7 @@
 <ul>
     <li><b>CPU Usage</b> (left) — Circular gauge 0–100 % with thresholds green &lt;60, amber 60–80, red &gt;80. On Linux it is derived from <code>/proc/stat</code> deltas with EMA smoothing (α=0.4, ~10 s to 64 %, ~20 s to 87 %); on Mac it uses the <code>?cpu=1</code> endpoint’s <code>cpu.mac</code>. Stroke is <code>normalized*2.827 @ 282.7</code>.</li>
     <li><b>Memory Usage</b> (center) — Stacked gauge showing <b>Used</b> (green/amber/red same thresholds), <b>Buffer/Cache</b> (info blue) and <b>Free</b> (muted). Text below shows <code>used (+cache) / free</code> and total via <code>formatMemBytes</code>. Hover segments show exact bytes. The help popover (?) explains Used vs Buffer/Cache vs Free and notes that high cache is normal.</li>
-    <li><b>Temperature</b> (right) — CPU temperature from the <code>Temperature</code> sensor in <code>api/system/status</code>. Thresholds 60 °C (amber), 80 °C (red), max 100 °C; in Fahrenheit mode (via <code>temperatureInF</code>) they become 140 °F / 176 °F / max 212 °F and the label shows °F.</li>
+    <li><b>Temperature</b> (right) — CPU temperature from the <code>Temperature</code> sensor in <code>api/system/status</code>. Thresholds 60 °C (amber), 80 °C (red), max 100 °C; in Fahrenheit mode (via <code>temperatureInF</code>) they become 140 °F / 176 °F / max 212 °F and the label shows °F. Hidden when no <code>valueType === 'Temperature'</code> sensor exists (e.g. BeagleBone boards, which expose none); CPU and Memory then share the row.</li>
 </ul>
 
 <h4>Fan Monitoring</h4>

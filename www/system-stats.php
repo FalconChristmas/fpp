@@ -412,7 +412,9 @@ if (isset($_GET['cpu'])) {
             updateCpuGauge();
             $.get('api/system/status', function (data) {
                 // Temperature
+                // Hidden on boards with no temperature sensor (e.g. BeagleBone)
                 var tempSensor = data.sensors && data.sensors.find(function (s) { return s.valueType === 'Temperature'; });
+                $('#temp-gauge-col').toggleClass('d-none', !tempSensor);
                 if (tempSensor) {
                     var temp = parseFloat(tempSensor.value);
                     <?php if (isset($settings['temperatureInF']) && $settings['temperatureInF'] == 1) { ?>
@@ -738,7 +740,7 @@ if (isset($_GET['cpu'])) {
 
                 <!-- System Monitoring Gauges -->
                 <div class="row">
-                    <div class="col-md-4">
+                    <div class="col-md">
                         <div class="card compact-card fpp-gauge">
                             <div class="card-header">
                                 <h5><i class="fa-solid fa-microchip"></i> CPU Usage</h5>
@@ -758,7 +760,7 @@ if (isset($_GET['cpu'])) {
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md">
                         <?php
                         $memInfo = get_server_memory_info();
                         $memTotal = $memInfo['total'];
@@ -853,7 +855,7 @@ if (isset($_GET['cpu'])) {
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md d-none" id="temp-gauge-col">
                         <div class="card compact-card fpp-gauge">
                             <div class="card-header">
                                 <h5><i class="fa-solid fa-temperature-half"></i> Temperature</h5>
