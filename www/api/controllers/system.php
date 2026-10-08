@@ -954,14 +954,22 @@ function SystemGetInfo()
 
 function GetFPPDRestartBlocked()
 {
+    // Only a dead fppd can be held back by the restart limit, and one that
+    // accepts a connection on its API port is not dead.  Every status poll
+    // lands here, and the systemctl calls below are ~230ms of forks on a
+    // BeagleBone -- most of the cost of api/system/status -- so settle the
+    // overwhelmingly common case without them.
+    $sock = @fsockopen('127.0.0.1', 32322, $errno, $errstr, 0.2);
+    if ($sock !== false) {
+        fclose($sock);
+        return array("blocked" => false);
+    }
     // Check if systemd is available
-    $hasSystemctl = trim(shell_exec("which systemctl 2>/dev/null")) !== "";
-    if (!$hasSystemctl) {
+    if (!is_executable("/usr/bin/systemctl") && !is_executable("/bin/systemctl")) {
         return array("blocked" => false);
     }
     // Quick check: is fppd in failed state?
     $activeState = trim(shell_exec("systemctl show fppd --property=ActiveState --value 2>/dev/null"));
-    $result = trim(shell_exec("systemctl show fppd --property=Result --value 2>/dev/null"));
     if ($activeState !== "failed") {
         return array("blocked" => false);
     }
