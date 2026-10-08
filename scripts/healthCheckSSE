@@ -137,6 +137,8 @@ HC_Warnings() {
 #
 #   unknown    -- certain. Installed via a pasted pluginInfo.json URL, or
 #                 confirmed absent from a plugin list FPP successfully fetched.
+#                 Sticky across uninstalls, so the message names the plugins
+#                 (when FPP recorded them) and which have since been removed.
 #   unverified -- uncertain. Something was installed while the plugin list was
 #                 unreachable, and it still is, so FPP genuinely cannot say.
 #                 Deliberately not phrased as an accusation and carries no
@@ -144,6 +146,18 @@ HC_Warnings() {
 #                 internet access. It clears itself once the plugin list is
 #                 reachable and the plugin turns out to be listed.
 #   none       -- nothing to report; no item is emitted at all.
+# The "unknown" message: the plugins that set the flag, marking any since
+# removed, or a generic line when the record predates FPP keeping names.
+plugin_source_names() {
+    local names
+    names=$(echo "$1" | jq -r '[.plugins[]? | .repoName + (if .installed then "" else " (since removed)" end)] | join(", ")')
+    if [ -n "$names" ]; then
+        echo "Installed: $names"
+    else
+        echo "Installed at some point (may since have been removed)"
+    fi
+}
+
 HC_PluginSource() {
     local pluginsource level icon status message details
     pluginsource=$(curl -s --max-time 3 http://127.0.0.1/api/plugin/source)
@@ -157,8 +171,8 @@ HC_PluginSource() {
         unknown)
             icon="fa-triangle-exclamation"
             status="fail"
-            message="Installed"
-            details=$(build_json_array "Please install plugins via the Plugins page. If this plugin is not listed there, the FPP team may have decided it is unsuitable to run on FPP." "This plugin runs whatever code was found at that URL, with full access to this device and to anything else on the network it is connected to. Installing plugins via URLs is not supported." "Uninstalling an unknown plugin cannot be trusted to clean up after itself - its uninstall script could do anything. Reimaging is the only reliable way to ensure this system is not contaminated.")
+            message=$(plugin_source_names "$pluginsource")
+            details=$(build_json_array "Please install plugins via the Plugins page. If this plugin is not listed there, the FPP team may have decided it is unsuitable to run on FPP." "This plugin runs whatever code was found at that URL, with full access to this device and to anything else on the network it is connected to. Installing plugins via URLs is not supported." "Uninstalling an unknown plugin cannot be trusted to clean up after itself - its uninstall script could do anything. Reimaging is the only reliable way to ensure this system is not contaminated." "This stays reported after the plugin is uninstalled. An FPP OS upgrade clears it, since that replaces the operating system; any unknown plugin still installed is then reported again.")
             ;;
         unverified)
             icon="fa-triangle-exclamation"

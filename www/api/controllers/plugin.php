@@ -355,7 +355,16 @@ function FindPluginIndexEntry($repoName)
  *
  * The first is sticky -- never cleared by uninstalling the plugin -- because it
  * answers "has unsupported code ever touched this system" when someone is
- * reading a Support Zip, not "is it installed right now".
+ * reading a Support Zip, not "is it installed right now". Only an FPPOS
+ * reflash resets it, since that replaces everything a plugin could have done
+ * to the OS; the boot code then parks every plugin still installed as
+ * unverified, so one that is still here is found again
+ * (resetPluginSourceAfterOS() in src/boot/FPPINIT_Config.cpp).
+ *
+ *   PluginUnknownRepos         -- which plugins set the first, in the same
+ *                                 "repoName|srcURL" form as PluginUnverifiedRepos,
+ *                                 so the health check can name them. Empty
+ *                                 when the flag predates it.
  *
  * Classification happens at INSTALL time, not at read time. Classifying on read
  * needs the plugin list on every health check, and a box that is offline, rate
@@ -369,6 +378,7 @@ function FindPluginIndexEntry($repoName)
  */
 $GLOBALS['PLUGIN_UNKNOWN_SETTING'] = 'PluginUnknownEverInstalled';
 $GLOBALS['PLUGIN_UNVERIFIED_REPOS_SETTING'] = 'PluginUnverifiedRepos';
+$GLOBALS['PLUGIN_UNKNOWN_REPOS_SETTING'] = 'PluginUnknownRepos';
 
 /**
  * "owner/repo", lower-cased, out of a github.com or raw.githubusercontent.com
@@ -438,9 +448,20 @@ function PluginSrcURLIsListed($srcURL)
 // srcURL is what a deferred check matches on, so it is exactly as accurate as
 // the immediate one. repoName rides along purely as a label, so whoever reads
 // this setting in a support bundle can see which plugin is awaiting an answer.
+// PluginUnknownRepos uses the same form.
 function GetUnverifiedPluginRepos()
 {
-	$raw = ReadSettingFromFile($GLOBALS['PLUGIN_UNVERIFIED_REPOS_SETTING']);
+	return GetPluginRepoRecords($GLOBALS['PLUGIN_UNVERIFIED_REPOS_SETTING']);
+}
+
+function SetUnverifiedPluginRepos($pending)
+{
+	SetPluginRepoRecords($GLOBALS['PLUGIN_UNVERIFIED_REPOS_SETTING'], $pending);
+}
+
+function GetPluginRepoRecords($setting)
+{
+	$raw = ReadSettingFromFile($setting);
 	if (!is_string($raw) || trim($raw) === '') {
 		return array();
 	}
@@ -459,7 +480,7 @@ function GetUnverifiedPluginRepos()
 	return $out;
 }
 
-function SetUnverifiedPluginRepos($pending)
+function SetPluginRepoRecords($setting, $pending)
 {
 	$items = array();
 	foreach ($pending as $p) {
@@ -474,7 +495,18 @@ function SetUnverifiedPluginRepos($pending)
 		}
 		$items[$repoName . '|' . $srcURL] = true;
 	}
-	WriteSettingToFile($GLOBALS['PLUGIN_UNVERIFIED_REPOS_SETTING'], implode(',', array_keys($items)));
+	WriteSettingToFile($setting, implode(',', array_keys($items)));
+}
+
+// Raises the certain flag and records which plugin raised it. The caller
+// holds PluginUnverifiedLock(), which also serialises this list. srcURL is
+// stored without credentials, as the install history stores it.
+function RecordPluginUnknown($repoName, $srcURL)
+{
+	WriteSettingToFile($GLOBALS['PLUGIN_UNKNOWN_SETTING'], '1');
+	$known = GetPluginRepoRecords($GLOBALS['PLUGIN_UNKNOWN_REPOS_SETTING']);
+	$known[] = array('repoName' => $repoName, 'srcURL' => PluginHistoryURL($srcURL));
+	SetPluginRepoRecords($GLOBALS['PLUGIN_UNKNOWN_REPOS_SETTING'], $known);
 }
 
 // Serialises rewrites of the unverified list (installs adding,
@@ -538,7 +570,9 @@ function RecordPluginInstallSource($repoName, $srcURL)
 	// here so an offline box still gets a definite result for the clearest
 	// case instead of parking it.
 	if (is_string($srcURL) && $srcURL !== '' && PluginRepoSlugFromURL($srcURL) === '') {
-		WriteSettingToFile($GLOBALS['PLUGIN_UNKNOWN_SETTING'], '1');
+		$lock = PluginUnverifiedLock(true);
+		RecordPluginUnknown($repoName, $srcURL);
+		PluginUnverifiedUnlock($lock);
 		return 'unknown';
 	}
 
@@ -560,7 +594,9 @@ function RecordPluginInstallSource($repoName, $srcURL)
 		return 'unverified';
 	}
 
-	WriteSettingToFile($GLOBALS['PLUGIN_UNKNOWN_SETTING'], '1');
+	$lock = PluginUnverifiedLock(true);
+	RecordPluginUnknown($repoName, $srcURL);
+	PluginUnverifiedUnlock($lock);
 	return 'unknown';
 }
 
@@ -980,18 +1016,25 @@ function ResolveUnverifiedPlugins()
 	if (empty($pending)) {
 		return;
 	}
-	// Cache-only first: primes GetPluginList()'s static, so the
+	// No current list, and a plugin is waiting on an answer. Try briefly --
+	// if the list is a fast fetch away, settle it right now. If not, leave a
+	// detached fetch behind rather than making the health check wait, and the
+	// next run settles it. This is the only path that fetches here, and it
+	// only runs while something is pending. A stale copy is refreshed too: it
+	// can clear a pending plugin but never convict one, so without this an
+	// unlisted plugin (one still installed across an FPPOS upgrade, say) would
+	// wait for someone to open the Plugins page. Done before the list is
+	// loaded, as GetPluginList() keeps the first copy it reads.
+	if (!PluginListIsCurrent()) {
+		PluginTryQuickListFetch();
+	}
+	// Judged before loading: a detached refresh landing in between leaves
+	// this saying stale, which only defers a conviction.
+	$current = PluginListIsCurrent();
+	// Cache-only: primes GetPluginList()'s static, so the
 	// PluginSrcURLIsListed() calls below reuse it without a fetch.
 	if (empty(GetPluginList(true))) {
-		// Nothing cached, and a plugin is waiting on an answer. Try briefly --
-		// if the list is a fast fetch away, settle it right now. If not, leave
-		// a detached fetch behind rather than making the health check wait, and
-		// the next run settles it. This is the only path that fetches here, it
-		// only runs while something is pending, and it stops for good once the
-		// list lands.
-		if (!PluginTryQuickListFetch() || empty(GetPluginList(true))) {
-			return;
-		}
+		return;
 	}
 
 	// A stale list can clear a pending plugin (being present on it is
@@ -1006,7 +1049,6 @@ function ResolveUnverifiedPlugins()
 	}
 	$pending = GetUnverifiedPluginRepos(); // again, now that it is ours
 
-	$current = PluginListIsCurrent();
 	$stillPending = array();
 	// Each answer also goes into the install history, which recorded the
 	// install as 'unverified'.
@@ -1016,7 +1058,7 @@ function ResolveUnverifiedPlugins()
 			continue;
 		}
 		if ($current) {
-			WriteSettingToFile($GLOBALS['PLUGIN_UNKNOWN_SETTING'], '1');
+			RecordPluginUnknown($p['repoName'], $p['srcURL']);
 			AppendPluginHistory($p['repoName'], 'verified', array('source' => 'unknown', 'srcURL' => PluginHistoryURL($p['srcURL'])));
 			continue;
 		}
@@ -1032,7 +1074,9 @@ function ResolveUnverifiedPlugins()
  * Reports whether a plugin from outside the curated plugin list has ever been
  * installed on this system, at one of two confidence levels:
  *
- *   "unknown"    -- it definitely has.
+ *   "unknown"    -- it definitely has. "plugins" names the ones that did, and
+ *                   whether each is still installed; it is empty when the
+ *                   record predates FPP keeping the names.
  *   "unverified" -- one may have been: something was installed while FPP could
  *                   not reach the plugin list to check it, and the list still
  *                   isn't cached, so the question is still open.
@@ -1045,7 +1089,7 @@ function ResolveUnverifiedPlugins()
  * @route GET /api/plugin/source
  * @response 200 Source level
  * ```json
- * {"level": "none"}
+ * {"level": "unknown", "plugins": [{"repoName": "fpp-example", "srcURL": "https://github.com/someone/fpp-example.git", "installed": false}]}
  * ```
  */
 function GetPluginSource()
@@ -1053,7 +1097,19 @@ function GetPluginSource()
 	ResolveUnverifiedPlugins();
 
 	if (ReadSettingFromFile($GLOBALS['PLUGIN_UNKNOWN_SETTING']) == '1') {
-		$level = 'unknown';
+		global $settings;
+		$plugins = array();
+		foreach (GetPluginRepoRecords($GLOBALS['PLUGIN_UNKNOWN_REPOS_SETTING']) as $p) {
+			// Same allow-list installs enforce, before it goes near a path.
+			$name = $p['repoName'];
+			$plugins[] = array(
+				'repoName' => $name,
+				'srcURL' => $p['srcURL'],
+				'installed' => preg_match('/^[A-Za-z0-9_.-]+$/', $name) && $name !== '.' && $name !== '..'
+					&& is_dir($settings['pluginDirectory'] . '/' . $name),
+			);
+		}
+		return json(array('level' => 'unknown', 'plugins' => $plugins));
 	} else if (!empty(GetUnverifiedPluginRepos())) {
 		$level = 'unverified';
 	} else {

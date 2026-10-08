@@ -10,6 +10,7 @@
  * included LICENSE.LGPL file.
  */
 
+#include <algorithm>
 #include <chrono>
 #include "fpp-json.h"
 #include <cctype>
@@ -1243,8 +1244,87 @@ void checkConfigMigrations() {
     }
 }
 
+// The URL a plugin checkout was cloned from ("remote.origin.url" in its
+// .git/config), or "" when it is not a git checkout.
+static std::string pluginOriginURL(const std::string& dir) {
+    std::string config = GetFileContents(dir + "/.git/config");
+    bool inOrigin = false;
+    for (auto line : split(config, '\n')) {
+        size_t b = line.find_first_not_of(" \t");
+        if (b == std::string::npos) {
+            continue;
+        }
+        line = line.substr(b);
+        if (line[0] == '[') {
+            inOrigin = line.rfind("[remote \"origin\"]", 0) == 0;
+        } else if (inOrigin && line.rfind("url", 0) == 0) {
+            size_t eq = line.find('=');
+            if (eq != std::string::npos && line.find_first_not_of(" \t", 3) == eq) {
+                std::string url = line.substr(eq + 1);
+                size_t ub = url.find_first_not_of(" \t");
+                size_t ue = url.find_last_not_of(" \t\r");
+                return ub == std::string::npos ? "" : url.substr(ub, ue - ub + 1);
+            }
+        }
+    }
+    return "";
+}
+
+// "repoName|srcURL" records, comma-separated (the PluginUnverifiedRepos form,
+// see www/api/controllers/plugin.php), for every plugin installed in
+// pluginDir that the FPP project did not publish. A linkName alias is a
+// symlink to another plugin, not one itself.
+static std::string pluginSourceRecordsToVerify(const std::string& pluginDir) {
+    std::string records;
+    if (!DirectoryExists(pluginDir)) {
+        return records;
+    }
+    std::vector<std::string> names;
+    for (const auto& entry : std::filesystem::directory_iterator(pluginDir)) {
+        if (entry.is_directory() && !entry.is_symlink() && FileExists(entry.path().string() + "/pluginInfo.json")) {
+            names.push_back(entry.path().filename().string());
+        }
+    }
+    std::sort(names.begin(), names.end());
+    for (const auto& name : names) {
+        std::string url = pluginOriginURL(pluginDir + "/" + name);
+        // IsOfficialPluginSrcURL(): published by the FPP project, never flagged.
+        std::string lower = toLowerCopy(url);
+        if (lower.rfind("https://github.com/falconchristmas/", 0) == 0 || lower.rfind("http://github.com/falconchristmas/", 0) == 0) {
+            continue;
+        }
+        // ',' and '|' separate records and fields, '"' would end the setting.
+        auto clean = [](std::string v) {
+            v.erase(std::remove_if(v.begin(), v.end(), [](char c) { return c == ',' || c == '|' || c == '"'; }), v.end());
+            return v;
+        };
+        if (!records.empty()) {
+            records += ",";
+        }
+        records += clean(name) + "|" + clean(url);
+    }
+    return records;
+}
+
+// The "Unknown Plugins" health check flag (PluginUnknownEverInstalled) is
+// sticky because an unknown plugin's uninstall can't be trusted to undo what
+// its install did to the OS. A reflash replaces the OS, so start the record
+// over -- but the plugin clones in /home/fpp/media survive, and their scripts
+// still run. So rather than simply clearing it, park every surviving plugin
+// as unverified, keyed on the URL it was cloned from: the Plugin Manager
+// settles those against the plugin list (ResolveUnverifiedPlugins()) and
+// raises the flag again only for one that is not listed. Rebuilt from what
+// is on disk each time, so the retry of /fppos_upgraded on a later boot gives
+// the same answer.
+static void resetPluginSourceAfterOS() {
+    setRawSetting("PluginUnknownEverInstalled", "");
+    setRawSetting("PluginUnknownRepos", "");
+    setRawSetting("PluginUnverifiedRepos", pluginSourceRecordsToVerify(FPP_MEDIA_DIR + "/plugins"));
+}
+
 void checkInstallPackages() {
     if (FileExists("/fppos_upgraded")) {
+        resetPluginSourceAfterOS();
         // An FPPOS reflash replaces /opt/fpp (new fppd, headers, plugin API
         // version) while /home/fpp/media -- including the plugin clones -- is
         // preserved, and any rootfs artifacts a plugin's fpp_install.sh dropped

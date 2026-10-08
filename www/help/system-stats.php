@@ -21,6 +21,7 @@
     </li>
     <li><b>Conditional checks</b> (hidden until a result arrives, rendered at the tail of their column):
         Left tail: <b>PipeWire Audio</b>, <b>Scheduler</b>, <b>Unknown Plugins</b>; Right tail: <b>GStreamer</b>, <b>Media Partition</b>. They appear only when the backend emits them, so an empty column does not create a gap in the always-shown block.</li>
+    <li><b>Unknown Plugins</b> — Fails once a plugin from outside the curated plugin list has been installed, and names it (“Installed: fpp-example (since removed)”); older records that predate the names read “Installed at some point”. It stays after the plugin is uninstalled, since an uninstall cannot be trusted to undo what the install changed. An FPP OS upgrade clears it, and any unknown plugin still installed is then reported again. <b>Possibly Installed</b> (caution) means a plugin was installed while the plugin list was unreachable; it settles itself once the list can be fetched.</li>
     <li><b>Recovery actions</b> (<code>#healthRecoveryActions</code>, below the lists) — Appear only when <b>PipeWire</b> or <b>GStreamer</b> is degraded:
         <ul>
             <li>If <b>PipeWire</b> is <code>warn</code> or <code>fail</code>: yellow callout <i>“The PipeWire audio stack needs attention…”</i> with <b>Restart Audio Services</b> → <code>POST api/pipewire/audio/services/restart</code> (which bounces PipeWire and then restarts FPPD). Interrupts playback; auto re-checks after 5 s.</li>

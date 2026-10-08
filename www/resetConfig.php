@@ -164,6 +164,7 @@ if (isset($_GET['areas'])) {
 $pluginSourceSettings = array(
     'PluginUnknownEverInstalled',
     'PluginUnverifiedRepos',
+    'PluginUnknownRepos',
 );
 $pluginSourceBackup = array();
 foreach ($pluginSourceSettings as $setting) {

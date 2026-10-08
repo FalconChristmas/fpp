@@ -7119,7 +7119,7 @@
           "plugin"
         ],
         "summary": "Get plugin source status",
-        "description": "Reports whether a plugin from outside the curated plugin list has ever been installed on this system, at one of two confidence levels: \"unknown\"    -- it definitely has. \"unverified\" -- one may have been: something was installed while FPP could not reach the plugin list to check it, and the list still isn't cached, so the question is still open. \"none\"       -- nothing to report. Answered entirely from settings plus an already-cached plugin list. No network call, no plugin-directory scan: this is on the health check's path and has to be instant even on a box with no internet.",
+        "description": "Reports whether a plugin from outside the curated plugin list has ever been installed on this system, at one of two confidence levels: \"unknown\"    -- it definitely has. \"plugins\" names the ones that did, and whether each is still installed; it is empty when the record predates FPP keeping the names. \"unverified\" -- one may have been: something was installed while FPP could not reach the plugin list to check it, and the list still isn't cached, so the question is still open. \"none\"       -- nothing to report. Answered entirely from settings plus an already-cached plugin list. No network call, no plugin-directory scan: this is on the health check's path and has to be instant even on a box with no internet.",
         "responses": {
           "200": {
             "description": "Source level",
@@ -7129,7 +7129,14 @@
                   "type": "object"
                 },
                 "example": {
-                  "level": "none"
+                  "level": "unknown",
+                  "plugins": [
+                    {
+                      "repoName": "fpp-example",
+                      "srcURL": "https://github.com/someone/fpp-example.git",
+                      "installed": false
+                    }
+                  ]
                 }
               }
             }

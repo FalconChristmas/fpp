@@ -397,7 +397,14 @@ HC_PluginSource() {
     case "${LEVEL}" in
         unknown)
             STATUS=0
-            STATUSSTR="Installed"
+            # Sticky across uninstalls: name the plugins, marking any since
+            # removed, when FPP recorded them.
+            NAMES=$(echo "${PLUGINSOURCE}" | jq -r '[.plugins[]? | .repoName + (if .installed then "" else " (since removed)" end)] | join(", ")')
+            if [ -n "${NAMES}" ]; then
+                STATUSSTR="Installed: ${NAMES}"
+            else
+                STATUSSTR="Installed at some point (may since have been removed)"
+            fi
             ;;
         unverified)
             STATUS=1
