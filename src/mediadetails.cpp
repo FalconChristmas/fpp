@@ -16,6 +16,7 @@
 #include <taglib/fileref.h>
 #include <taglib/tag.h>
 #include <taglib/tstring.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <string.h>
 #include <string>
@@ -51,6 +52,51 @@ void MediaDetails::Clear() {
     bitrate = 0;
     sampleRate = 0;
     channels = 0;
+}
+
+// TagLib only reads a file's header, and some files carry no length there: a
+// fragmented MP4 (an empty moov followed by moof/mdat fragments) declares a
+// duration of zero, and finding the real one means walking every fragment --
+// seconds of work on a single-core board, far too slow to do as a track
+// starts.  The web UI has already done it: it runs ffprobe on every media file
+// and caches the result in config/media_durations.cache, keyed by the name
+// relative to the music or video directory and checked against the file size.
+// Take that whenever it is longer than what TagLib found.
+static void UseCachedProbeDuration(MediaDetails& details, const std::string& fullPath) {
+    std::string name;
+    for (const std::string& dir : { FPP_DIR_MUSIC("/"), FPP_DIR_VIDEO("/") }) {
+        if (startsWith(fullPath, dir)) {
+            name = fullPath.substr(dir.size());
+            break;
+        }
+    }
+    std::string cacheFile = FPP_DIR_CONFIG("/media_durations.cache");
+    struct stat st;
+    if (name.empty() || !FileExists(cacheFile) || stat(fullPath.c_str(), &st) != 0) {
+        return;
+    }
+    Json::Value cache;
+    if (!LoadJsonFromFile(cacheFile, cache) || !cache.isObject() || !cache.isMember(name)) {
+        return;
+    }
+    // PHP writes the size as a number and ffprobe's duration as a string, but
+    // accept either for both.
+    auto number = [](const Json::Value& v) {
+        return v.isString() ? atof(v.asString().c_str()) : (v.isNumeric() ? v.asDouble() : 0.0);
+    };
+    const Json::Value& entry = cache[name];
+    if ((off_t)number(entry["filesize"]) != st.st_size) {
+        return;
+    }
+    int ms = (int)(number(entry["duration"]) * 1000.0);
+    if (ms <= details.lengthMS) {
+        return;
+    }
+    LogDebug(VB_MEDIAOUT, "  Length %d ms from the media duration cache (TagLib found %d ms)\n", ms, details.lengthMS);
+    details.lengthMS = ms;
+    details.length = ms / 1000;
+    details.seconds = details.length % 60;
+    details.minutes = details.length / 60;
 }
 
 void MediaDetails::ParseMedia(const char* mediaFilename) {
@@ -95,8 +141,10 @@ void MediaDetails::ParseMedia(const char* mediaFilename) {
 
     TagLib::FileRef f(fullMediaPath);
 
-    if (f.isNull() || !f.tag())
+    if (f.isNull() || !f.tag()) {
+        UseCachedProbeDuration(*this, fullMediaPath);
         return;
+    }
 
     TagLib::Tag* tag = f.tag();
 
@@ -120,6 +168,10 @@ void MediaDetails::ParseMedia(const char* mediaFilename) {
         sampleRate = properties->sampleRate();
         channels = properties->channels();
     }
+    UseCachedProbeDuration(*this, fullMediaPath);
+    length = lengthMS / 1000;
+    seconds = length % 60;
+    minutes = (length - seconds) / 60;
 
     LogDebug(VB_MEDIAOUT, "  Title        : %s\n", title.c_str());
     LogDebug(VB_MEDIAOUT, "  Artist       : %s\n", artist.c_str());
