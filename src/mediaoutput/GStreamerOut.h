@@ -168,6 +168,7 @@ private:
     // Stall watchdog — detects when PipeWire sink stops consuming data
     gint64 m_lastPosition = -1;
     gint64 m_maxDuration = 0;   // highest observed duration (handles VBR fluctuations)
+    uint64_t m_durationQueriedMs = 0;
     uint64_t m_stallStartMs = 0;
     uint64_t m_wallStartMs = 0;
     uint64_t m_lastWallLogMs = 0;
@@ -206,6 +207,10 @@ private:
     static int s_sampleRate;
     static std::mutex s_sampleMutex;
     static GstFlowReturn OnNewSample(GstAppSink* appsink, gpointer userData);
+    // The tap's branch only carries audio while something is reading it.
+    static constexpr int SAMPLE_TAP_IDLE_MS = 1000;
+    static std::atomic<uint64_t> s_sampleTapReadMs;
+    static GstPadProbeReturn GateSampleTap(GstPad* pad, GstPadProbeInfo* info, gpointer userData);
 
     // Video overlay for PixelOverlayModel (Phase 3)
     PixelOverlayModel* m_videoOverlayModel = nullptr;

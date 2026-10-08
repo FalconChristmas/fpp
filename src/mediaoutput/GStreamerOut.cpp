@@ -235,6 +235,7 @@ std::array<float, GStreamerOutput::SAMPLE_BUFFER_SIZE> GStreamerOutput::s_sample
 int GStreamerOutput::s_sampleWritePos = 0;
 int GStreamerOutput::s_sampleRate = 0;
 std::mutex GStreamerOutput::s_sampleMutex;
+std::atomic<uint64_t> GStreamerOutput::s_sampleTapReadMs{ 0 };
 
 // One-time GStreamer initialization.
 //
@@ -883,6 +884,42 @@ static std::vector<GstElement*> BuildHdmiScaleChain(const VideoCropRect& crop,
                                                                  displayHeight, namePrefix))
         chain.push_back(e);
     return chain;
+}
+
+// decodebin's "autoplug-query": asked on behalf of an element it has plugged
+// but not yet linked downstream, which is exactly when a decoder settles its
+// output format.  Left alone, a decoder sees no downstream preference and takes
+// the first format in its own template -- S16 for mpg123 -- and audioconvert
+// then turns that straight back into the F32 the persistent PipeWire stream
+// wants: two conversions of every sample where none is needed, about 2% of a
+// single-core board for an mp3.  Offering F32 first lets a decoder that can
+// produce it do so; one that can't still sees every other raw format.
+static gboolean PreferFloatDecode(GstElement* bin, GstPad* pad, GstElement* element, GstQuery* query, gpointer userData) {
+    if (GST_QUERY_TYPE(query) != GST_QUERY_CAPS || GST_PAD_DIRECTION(pad) != GST_PAD_SRC) {
+        return FALSE;
+    }
+    static GstStaticCaps rawAudio = GST_STATIC_CAPS("audio/x-raw");
+    static GstStaticCaps floatFirst = GST_STATIC_CAPS("audio/x-raw,format=F32LE,layout=interleaved; audio/x-raw");
+    GstCaps* raw = gst_static_caps_get(&rawAudio);
+    GstCaps* tmpl = gst_pad_get_pad_template_caps(pad);
+    bool rawAudioOut = gst_caps_can_intersect(tmpl, raw);
+    gst_caps_unref(tmpl);
+    gst_caps_unref(raw);
+    if (!rawAudioOut) {
+        // A parser or demuxer, or a video decoder: not ours to answer.
+        return FALSE;
+    }
+    GstCaps* prefer = gst_static_caps_get(&floatFirst);
+    GstCaps* filter = nullptr;
+    gst_query_parse_caps(query, &filter);
+    if (filter) {
+        GstCaps* both = gst_caps_intersect_full(prefer, filter, GST_CAPS_INTERSECT_FIRST);
+        gst_caps_unref(prefer);
+        prefer = both;
+    }
+    gst_query_set_caps_result(query, prefer);
+    gst_caps_unref(prefer);
+    return TRUE;
 }
 
 static int ChooseDecodeRate(int mediaRate, bool usePipeWire) {
@@ -2001,7 +2038,7 @@ int GStreamerOutput::Start(int msTime) {
             "audio/x-raw" + rateCaps + chOrderCaps + " ! " + chOrderPermute +
             "tee name=t "
             "t. ! queue ! volume name=vol ! " + audioSinkStr + " "
-            "t. ! queue max-size-buffers=3 leaky=downstream ! "
+            "t. ! queue name=q2 max-size-buffers=3 leaky=downstream ! "
             "audioconvert ! audio/x-raw,format=F32LE,channels=1 ! "
             "appsink name=sampletap emit-signals=true sync=false max-buffers=3 drop=true";
 
@@ -2025,6 +2062,9 @@ int GStreamerOutput::Start(int msTime) {
         m_audioOnlyPipeline = true;
         if (GstElement* fbDecoder = gst_bin_get_by_name(GST_BIN(m_pipeline), "decoder")) {
             ConnectPadSignals(fbDecoder, false);
+            if (pwStream) {
+                g_signal_connect(fbDecoder, "autoplug-query", G_CALLBACK(PreferFloatDecode), nullptr);
+            }
             gst_object_unref(fbDecoder);
         }
 
@@ -2081,6 +2121,20 @@ int GStreamerOutput::Start(int msTime) {
     m_shutdownFlag.store(false);
     if (m_appsink) {
         m_appsinkSignalId = g_signal_connect(m_appsink, "new-sample", G_CALLBACK(OnNewSample), this);
+        // Only WLED's audio-reactive effects read the tap, and most shows run
+        // none, yet the branch costs a thread, a downmix and a copy of every
+        // buffer -- a few percent of a single-core board.  Drop its buffers at
+        // the branch's queue unless something has read recently.  The sink
+        // then may never see a buffer, so it must not hold up preroll.
+        g_object_set(m_appsink, "async", FALSE, NULL);
+        if (GstElement* tapQueue = gst_bin_get_by_name(GST_BIN(m_pipeline), "q2")) {
+            if (GstPad* tapIn = gst_element_get_static_pad(tapQueue, "sink")) {
+                gst_pad_add_probe(tapIn, (GstPadProbeType)(GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST),
+                                  GateSampleTap, nullptr, nullptr);
+                gst_object_unref(tapIn);
+            }
+            gst_object_unref(tapQueue);
+        }
         LogDebug(VB_MEDIAOUT, "GStreamer audio sample tap connected\n");
     } else {
         m_appsinkSignalId = 0;
@@ -3186,8 +3240,19 @@ int GStreamerOutput::Process(void) {
             // Start()).  Reporting 0 now would drag the sequence back to it.
             havePos = false;
         }
-        SetMainLoopPhase("GStreamer query duration");
-        bool haveDur = gst_element_query_duration(m_pipeline, GST_FORMAT_TIME, &dur);
+        // The duration only moves as a VBR estimate is refined, but a
+        // pipeline-wide query is anything but cheap: the bin asks every sink,
+        // and each one walks back through the tee and the decoder to the
+        // parser, which converts filesrc's size (an fstat apiece).  Once a
+        // second is plenty; at the main loop's 100 Hz it was most of its
+        // CPU on a single-core board.
+        bool haveDur = false;
+        uint64_t nowMs = GetTimeMS();
+        if (m_maxDuration <= 0 || nowMs - m_durationQueriedMs >= 1000) {
+            m_durationQueriedMs = nowMs;
+            SetMainLoopPhase("GStreamer query duration");
+            haveDur = gst_element_query_duration(m_pipeline, GST_FORMAT_TIME, &dur);
+        }
         SetMainLoopPhase("GStreamer position post-processing");
         if (ownPosSource) gst_object_unref(posSource);
 
@@ -4472,11 +4537,29 @@ GstFlowReturn GStreamerOutput::OnNewSample(GstAppSink* appsink, gpointer userDat
     return GST_FLOW_OK;
 }
 
+GstPadProbeReturn GStreamerOutput::GateSampleTap(GstPad* pad, GstPadProbeInfo* info, gpointer userData) {
+    uint64_t lastRead = s_sampleTapReadMs.load(std::memory_order_relaxed);
+    if (lastRead && (uint64_t)GetTimeMS() - lastRead < SAMPLE_TAP_IDLE_MS) {
+        return GST_PAD_PROBE_OK;
+    }
+    return GST_PAD_PROBE_DROP;
+}
+
 bool GStreamerOutput::GetAudioSamples(float* samples, int numSamples, int& sampleRate) {
     if (!m_currentInstance || !m_currentInstance->m_playing)
         return false;
 
+    uint64_t now = GetTimeMS();
+    uint64_t lastRead = s_sampleTapReadMs.exchange(now, std::memory_order_relaxed);
+
     std::lock_guard<std::mutex> lock(s_sampleMutex);
+    if (!lastRead || now - lastRead >= SAMPLE_TAP_IDLE_MS) {
+        // The tap has been closed, so what the buffer holds is from whenever
+        // it last ran.  Its audio starts flowing again from here.
+        s_sampleBuffer.fill(0.0f);
+        s_sampleWritePos = 0;
+        return false;
+    }
     if (s_sampleRate == 0)
         return false;
 
