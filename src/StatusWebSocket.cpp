@@ -36,6 +36,16 @@
 // status poll when it reconnects, which it must do anyway to pick up the PHP
 // augmentation.
 //
+// A client that only cares about state -- a monitor watching every box on the
+// network, rather than a page showing this one -- can connect to
+// /fppdws?quiet=1.  An idle fppd's payload still changes every second, but only
+// in its clock and uptime fields (and sensor readings, which jitter), so a
+// plain client gets a frame a second from a box where nothing is happening.  A
+// quiet client gets a frame only when something else changed, plus one every
+// QUIET_KEEPALIVE_MS so the clock fields stay roughly current and the client
+// can still tell a live feed from a dead one.  Playback and warnings count as
+// changes, so a playing box still sends once a second.
+//
 // Client -> server: only "pong" is expected (drogon answers pings itself);
 // anything else is ignored.  The endpoint is read-only — it never accepts
 // commands — so proxying it to the LAN carries no more authority than the
@@ -69,7 +79,20 @@ namespace {
 
 std::mutex g_mutex;
 std::set<WebSocketConnectionPtr> g_conns;
+std::set<WebSocketConnectionPtr> g_quietConns; // the subset that asked for ?quiet=1
 std::string g_lastStatusJson; // last pushed status payload, for change detection
+// The quiet clients' view: the payload minus kTickingKeys, and when they were
+// last sent anything.
+std::string g_lastQuietJson;
+uint64_t g_lastQuietSendMs = 0;
+constexpr uint64_t QUIET_KEEPALIVE_MS = 30000;
+// Status keys that change on their own with nothing having happened.
+const char* const kTickingKeys[] = {
+    "time", "timeStr", "timeStrFull", "dateStr",
+    "uptime", "uptimeStr", "uptimeTotalSeconds", "uptimeSeconds",
+    "uptimeMinutes", "uptimeHours", "uptimeDays",
+    "systemUptimeTotalSeconds", "sensors"
+};
 // Set by StatusWebSocketShutdown() under g_mutex. Once set, no producer builds
 // or sends a payload and no new connection is tracked, so a connection that
 // arrives while fppd is tearing down can't re-populate g_conns after the clear.
@@ -120,12 +143,31 @@ void broadcastStatusIfChanged() {
         // none of which hold any of the locks buildStatusJson() reaches, so the
         // nesting is one-directional and this cannot deadlock.  The hold is the
         // ~0.7ms build.
-        std::string js = buildStatusJson();
+        Json::Value status;
+        GetCurrentFPPDStatus(status);
+        std::string js = SaveJsonToString(status, "");
         if (js == g_lastStatusJson)
             return;
         g_lastStatusJson = std::move(js);
         msg = makeSnapshot("status", g_lastStatusJson);
-        targets.assign(g_conns.begin(), g_conns.end());
+        bool quietDue = false;
+        if (!g_quietConns.empty()) {
+            for (const char* key : kTickingKeys) {
+                status.removeMember(key);
+            }
+            std::string stable = SaveJsonToString(status, "");
+            uint64_t now = GetTimeMS();
+            if (stable != g_lastQuietJson || now - g_lastQuietSendMs >= QUIET_KEEPALIVE_MS) {
+                g_lastQuietJson = std::move(stable);
+                g_lastQuietSendMs = now;
+                quietDue = true;
+            }
+        }
+        for (const auto& c : g_conns) {
+            if (quietDue || !g_quietConns.count(c)) {
+                targets.push_back(c);
+            }
+        }
     }
     for (auto& c : targets) {
         if (c->connected())
@@ -177,7 +219,7 @@ StatusWarningListener* g_warningListener = nullptr;
 // (which have no controller instance) can reach it too.
 class StatusWebSocket : public drogon::WebSocketController<StatusWebSocket> {
 public:
-    void handleNewConnection(const HttpRequestPtr& /*req*/,
+    void handleNewConnection(const HttpRequestPtr& req,
                              const WebSocketConnectionPtr& conn) override {
         std::string msg;
         {
@@ -195,6 +237,11 @@ public:
             // lock could overwrite g_lastStatusJson with an older payload.
             std::string js = buildStatusJson();
             g_conns.insert(conn);
+            // Its own first snapshot doesn't advance the quiet cache: the
+            // other quiet clients haven't seen this state yet.
+            if (req->getParameter("quiet") == "1") {
+                g_quietConns.insert(conn);
+            }
             // Advance the shared cache so the timer doesn't immediately
             // re-broadcast identical data to everyone.
             g_lastStatusJson = std::move(js);
@@ -213,6 +260,7 @@ public:
     void handleConnectionClosed(const WebSocketConnectionPtr& conn) override {
         std::lock_guard<std::mutex> lk(g_mutex);
         g_conns.erase(conn);
+        g_quietConns.erase(conn);
     }
 
     WS_PATH_LIST_BEGIN
@@ -268,4 +316,5 @@ void StatusWebSocketShutdown() {
     std::lock_guard<std::mutex> lk(g_mutex);
     g_shutdown = true;
     g_conns.clear();
+    g_quietConns.clear();
 }
