@@ -19,6 +19,7 @@
 #include <ifaddrs.h>
 #include <list>
 #include <map>
+#include <net/if.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <set>
@@ -1180,11 +1181,93 @@ static bool rebootIfUsbNetWedged() {
     return true;
 }
 
+// True if some WiFi interface has client settings, and so may still associate
+// and get an address. Read from the config, not the adapter, so it holds for an
+// adapter that has not enumerated yet.
+static bool anyWifiClientConfigured() {
+    int tetherEnabled = getRawSettingInt("EnableTethering", 0);
+    std::string tetherInterface;
+    if (tetherEnabled == 1) {
+        tetherInterface = FindTetherWIFIAdapater(); // its settings describe the AP, not a client
+    }
+    std::error_code ec;
+    for (const auto& entry : std::filesystem::directory_iterator(FPP_MEDIA_DIR + "/config", ec)) {
+        std::string name = entry.path().filename();
+        if (!startsWith(name, "interface.wl") || name.substr(10) == tetherInterface) {
+            continue;
+        }
+        auto settings = loadSettingsFile(entry.path());
+        if (!settings["SSID"].empty() && settings["SSID"] != "\"\"") {
+            return true;
+        }
+    }
+    // A hand-written supplicant config counts too
+    for (const auto& entry : std::filesystem::directory_iterator("/etc/wpa_supplicant", ec)) {
+        std::string name = entry.path().filename();
+        if (startsWith(name, "wpa_supplicant-wl") && endsWith(name, ".conf")) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// With no WiFi client configured, only a wired interface can bring up an
+// address, and only once it has carrier (static configs are not applied
+// without it). So once network hardware has shown up, nothing wired has
+// carrier, and the set of interfaces has held still for a moment, there is
+// nothing left to wait for -- a first boot with no cable would otherwise sit
+// out the whole wait before tethering comes up. The quiet period covers USB
+// adapters enumerating one after another behind a hub (seen ~1s apart) and
+// autonegotiation after a port comes up.
+class UpstreamLinkWatch {
+public:
+    static constexpr int SETTLE_ITERATIONS = 20; // x 200ms
+
+    // false once no interface can still get an address
+    bool stillPossible(int count) {
+        std::set<std::string> state;
+        std::error_code ec;
+        for (const auto& entry : std::filesystem::directory_iterator("/sys/class/net", ec)) {
+            std::string dev = entry.path().filename();
+            if (dev == "lo" || startsWith(dev, "usb") || !FileExists(entry.path().string() + "/device")) {
+                continue; // loopback, the board's own gadget links, virtual devices
+            }
+            std::string flags = GetFileContents(entry.path().string() + "/flags");
+            bool up = strtol(flags.c_str(), nullptr, 16) & IFF_UP;
+            state.insert(dev + (up ? ":up" : ":down"));
+            if (FileExists(entry.path().string() + "/wireless")) {
+                continue; // no client config, so it can only ever be the tether AP
+            }
+            std::string carrier = GetFileContents(entry.path().string() + "/carrier");
+            TrimWhiteSpace(carrier);
+            if (carrier == "1") {
+                return true; // DHCP may be about to land
+            }
+        }
+        if (state != lastState) {
+            lastState = state;
+            lastChange = count;
+        }
+        return lastState.empty() || (count - lastChange) < SETTLE_ITERATIONS;
+    }
+
+private:
+    std::set<std::string> lastState;
+    int lastChange = 0;
+};
+
 bool waitForInterfacesUp(int timeOut, bool allowUsbRecovery) {
     int count = 0;
+    bool wifiClientConfigured = anyWifiClientConfigured();
+    UpstreamLinkWatch linkWatch;
     // If no network interfaces have carrier/link, don't wait for IP address - likely no network available and no point waiting for DHCP/NTP
     while (!hasNetworkInterfaceForNTP()) {
-        if (count >= (timeOut / 2)) { // spend half the timeOut waiting for interfaces to have link, then give up
+        bool giveUp = count >= (timeOut / 2); // spend half the timeOut waiting for interfaces to have link, then give up
+        if (!giveUp && !wifiClientConfigured && !linkWatch.stillPossible(count)) {
+            printf("FPP - No wired link and no WiFi client configured; nothing can get an address\n");
+            giveUp = true;
+        }
+        if (giveUp) {
             // Before writing the network off, check for a USB adapter whose USB
             // link has died, which only a reboot clears.
             //
@@ -1198,7 +1281,7 @@ bool waitForInterfacesUp(int timeOut, bool allowUsbRecovery) {
                 // for the few seconds of life this boot has left.
                 return false;
             }
-            printf("FPP - No network interfaces with link detected after waiting for %d ms, skipping IP wait\n", timeOut * 200);
+            printf("FPP - No network interfaces with link detected after waiting for %d ms, skipping IP wait\n", count * 200);
             return false;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -1450,7 +1533,12 @@ void maybeEnableTethering() {
         exec("/usr/bin/systemctl reload-or-restart systemd-networkd.service");
         unblockWifi();
         exec("/usr/bin/systemctl reload-or-restart hostapd.service");
-        exec("/usr/bin/systemctl enable hostapd.service");
+        // Only the boot-time symlink is wanted here. Plain "enable" also syncs
+        // hostapd's SysV init script through update-rc.d and then reloads the
+        // manager: measured 4.75s on a PocketBeagle2 even when already enabled,
+        // on fppd's startup path. systemd ignores the init script since a native
+        // unit exists, and nothing needs a reload to see a new wants link.
+        exec("SYSTEMCTL_SKIP_SYSV=1 /usr/bin/systemctl enable --no-reload hostapd.service");
     }
 }
 void detectNetworkModules() {
