@@ -67,7 +67,7 @@ FPPBRANCH=${FPPBRANCH:-"master"}
 # user-supplied --os-version so the .img / .fppos filenames match what's
 # baked into the image itself).
 FPPIMAGEVER=${FPPIMAGEVER:-"2026-09"}
-FPPCFGVER="151"
+FPPCFGVER="152"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -2435,6 +2435,11 @@ finalize_image_services() {
     rm -f /etc/systemd/network/*eth*
     rm -f /etc/systemd/network/*wlan*
     cp /opt/fpp/etc/systemd/network/* /etc/systemd/network
+
+    # A configured WiFi adapter that is missing must not stall boot (upgrade 152)
+    mkdir -p "/etc/systemd/system/wpa_supplicant@.service.d"
+    cp "/opt/fpp/etc/systemd/wpa_supplicant@.service.d/fpp-missing-adapter.conf" "/etc/systemd/system/wpa_supplicant@.service.d/"
+    cp /opt/fpp/etc/udev/rules.d/80-fpp-wpa-supplicant.rules /etc/udev/rules.d/
 }
 
 if $isimage; then

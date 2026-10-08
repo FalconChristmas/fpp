@@ -583,9 +583,14 @@ void setupNetwork(bool fullReload) {
     if (changed) {
         bool localFullReload = false;
         printf("Need to restart/reload stuff.\n");
+        // These end in "&" and must not be waited for: through exec()'s popen the
+        // backgrounded systemctl keeps the pipe open, so exec() blocks until it
+        // exits. A start job for an adapter that is not plugged in then held
+        // fppinit -- and systemd-networkd, ordered after it -- until the job
+        // timed out.
         for (auto& c : commandsToRun) {
             printf("    %s\n", c.c_str());
-            exec(c);
+            execbg(c);
         }
         if (fullReload) {
             exec("/usr/bin/systemctl daemon-reload");
@@ -620,7 +625,7 @@ void setupNetwork(bool fullReload) {
             exec("/usr/bin/systemctl reload-or-restart systemd-networkd.service");
             for (auto& c : postCommandsToRun) {
                 printf("    %s\n", c.c_str());
-                exec(c);
+                execbg(c);
             }
         }
     }
@@ -1181,10 +1186,10 @@ static bool rebootIfUsbNetWedged() {
     return true;
 }
 
-// True if some WiFi interface has client settings, and so may still associate
-// and get an address. Read from the config, not the adapter, so it holds for an
-// adapter that has not enumerated yet.
-static bool anyWifiClientConfigured() {
+// WiFi interfaces with client settings, which may still associate and get an
+// address. Read from the config, so it includes adapters that are not present.
+static std::set<std::string> wifiClientInterfaces() {
+    std::set<std::string> ret;
     int tetherEnabled = getRawSettingInt("EnableTethering", 0);
     std::string tetherInterface;
     if (tetherEnabled == 1) {
@@ -1198,30 +1203,39 @@ static bool anyWifiClientConfigured() {
         }
         auto settings = loadSettingsFile(entry.path());
         if (!settings["SSID"].empty() && settings["SSID"] != "\"\"") {
-            return true;
+            ret.insert(name.substr(10));
         }
     }
     // A hand-written supplicant config counts too
     for (const auto& entry : std::filesystem::directory_iterator("/etc/wpa_supplicant", ec)) {
         std::string name = entry.path().filename();
         if (startsWith(name, "wpa_supplicant-wl") && endsWith(name, ".conf")) {
-            return true;
+            ret.insert(name.substr(15, name.size() - 15 - 5));
         }
     }
-    return false;
+    return ret;
 }
 
-// With no WiFi client configured, only a wired interface can bring up an
-// address, and only once it has carrier (static configs are not applied
-// without it). So once network hardware has shown up, nothing wired has
-// carrier, and the set of interfaces has held still for a moment, there is
-// nothing left to wait for -- a first boot with no cable would otherwise sit
-// out the whole wait before tethering comes up. The quiet period covers USB
-// adapters enumerating one after another behind a hub (seen ~1s apart) and
+// An address can only come from a present WiFi adapter with client settings,
+// or a wired interface once it has carrier (static configs are not applied
+// without it). So once network hardware has shown up, neither of those exists,
+// and the set of interfaces has held still for a moment, there is nothing left
+// to wait for -- a first boot with no cable would otherwise sit out the whole
+// wait before tethering comes up. The quiet period covers USB adapters
+// enumerating one after another behind a hub (seen ~1s apart) and
 // autonegotiation after a port comes up.
+//
+// A configured WiFi adapter that is absent is not worth waiting for: postNetwork
+// runs after network.target, which wpa_supplicant@<if> orders itself before, so
+// by now its start job has either seen the adapter appear or given up on it
+// (JobTimeoutSec in etc/systemd/wpa_supplicant@.service.d). If it turns up
+// later, udev starts its supplicant then.
 class UpstreamLinkWatch {
 public:
     static constexpr int SETTLE_ITERATIONS = 20; // x 200ms
+
+    explicit UpstreamLinkWatch(std::set<std::string> wifiClients) :
+        wifiClients(std::move(wifiClients)) {}
 
     // false once no interface can still get an address
     bool stillPossible(int count) {
@@ -1236,6 +1250,9 @@ public:
             bool up = strtol(flags.c_str(), nullptr, 16) & IFF_UP;
             state.insert(dev + (up ? ":up" : ":down"));
             if (FileExists(entry.path().string() + "/wireless")) {
+                if (wifiClients.count(dev)) {
+                    return true; // may still associate
+                }
                 continue; // no client config, so it can only ever be the tether AP
             }
             std::string carrier = GetFileContents(entry.path().string() + "/carrier");
@@ -1252,19 +1269,19 @@ public:
     }
 
 private:
+    std::set<std::string> wifiClients;
     std::set<std::string> lastState;
     int lastChange = 0;
 };
 
 bool waitForInterfacesUp(int timeOut, bool allowUsbRecovery) {
     int count = 0;
-    bool wifiClientConfigured = anyWifiClientConfigured();
-    UpstreamLinkWatch linkWatch;
+    UpstreamLinkWatch linkWatch(wifiClientInterfaces());
     // If no network interfaces have carrier/link, don't wait for IP address - likely no network available and no point waiting for DHCP/NTP
     while (!hasNetworkInterfaceForNTP()) {
         bool giveUp = count >= (timeOut / 2); // spend half the timeOut waiting for interfaces to have link, then give up
-        if (!giveUp && !wifiClientConfigured && !linkWatch.stillPossible(count)) {
-            printf("FPP - No wired link and no WiFi client configured; nothing can get an address\n");
+        if (!giveUp && !linkWatch.stillPossible(count)) {
+            printf("FPP - No wired link and no configured WiFi adapter present; nothing can get an address\n");
             giveUp = true;
         }
         if (giveUp) {

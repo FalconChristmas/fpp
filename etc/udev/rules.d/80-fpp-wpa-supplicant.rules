@@ -1,0 +1,6 @@
+# Start the WiFi client for an adapter when it appears: one plugged in after
+# boot, or one that enumerated too late for its boot-time start job (see
+# /etc/systemd/system/wpa_supplicant@.service.d/fpp-missing-adapter.conf).
+# The unit's ConditionPathExists skips adapters without a client config, such
+# as the tether AP.
+ACTION=="add", SUBSYSTEM=="net", KERNEL=="wl*", ENV{SYSTEMD_WANTS}+="wpa_supplicant@$name.service"
