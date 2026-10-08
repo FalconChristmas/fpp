@@ -1,7 +1,8 @@
 #!/bin/sh
 # Runs when an interface becomes routable. Two jobs:
 #   1. Reconcile DHCP-provided NTP servers with the UseNTPFromDHCP setting.
-#   2. On a runtime network reconnect, nudge chrony to re-measure and step.
+#   2. On a runtime network reconnect, nudge chrony to re-measure (and step if
+#      the clock is off by more than a second).
 #
 # During the initial boot, fppinit's postNetwork step already does a fast SNTP
 # clock set, so forcing a chrony step here is redundant and just piles
@@ -39,10 +40,15 @@ fi
 # Wait a moment for DNS to be fully available.
 sleep 2
 
-# Bring sources back online and force a fresh measurement + step. Unlike the old
-# "systemctl stop ntp; ntpd -gq; start" dance, chrony does this without dropping
-# the daemon, so it keeps serving the fleet the whole time.
+# Re-arm the automatic step (same threshold as chrony.conf) for the next few
+# clock updates, then bring sources back online and force a fresh measurement.
+# A real offset is stepped inside chrony's clock update, which also re-asserts
+# the kernel's synchronized status. A bare "chronyc makestep" would instead step
+# the leftover slew outside an update; any step clears the kernel NTP state, so
+# timedatectl (and the Health Check) reported "not synchronized" until chrony's
+# next poll, up to ~68 minutes later. Unlike the old "systemctl stop ntp;
+# ntpd -gq; start" dance, chrony never drops the daemon, so it keeps serving the
+# fleet the whole time.
+/usr/bin/chronyc makestep 1.0 3 > /dev/null 2>&1 || true
 /usr/bin/chronyc online > /dev/null 2>&1 || true
 /usr/bin/chronyc burst 4/4 > /dev/null 2>&1 || true
-sleep 8
-/usr/bin/chronyc makestep > /dev/null 2>&1 || true
