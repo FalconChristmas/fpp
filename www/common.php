@@ -2482,6 +2482,69 @@ function file_cache_internal($cache_name, $data_to_cache, $cache_age = 90)
 // version, git state) SHOULD be re-read after a reboot.  Pass a persistent
 // directory only for a value whose absence has a visible consequence rather
 // than just a slower first request -- see file_cache_dir_persistent().
+/**
+ * Run a command without a shell, like exec(): returns the exit status and puts
+ * stdout's lines in $output.  exec() always goes through `/bin/sh -c`, which is
+ * an extra fork and exec per call -- a real cost on a single-core board for the
+ * commands the status polls run.  The command is an argv array, so there is no
+ * quoting to get wrong.  A bare program name is looked up in the sbin and bin
+ * directories, since php-fpm's environment may carry no PATH.  stderr is
+ * discarded.
+ */
+function fpp_exec_argv(array $argv, &$output = null)
+{
+    $output = array();
+    if (strpos($argv[0], '/') === false) {
+        foreach (array('/usr/sbin', '/usr/bin', '/sbin', '/bin') as $dir) {
+            if (is_executable($dir . '/' . $argv[0])) {
+                $argv[0] = $dir . '/' . $argv[0];
+                break;
+            }
+        }
+    }
+    $proc = @proc_open($argv, array(
+        0 => array('file', '/dev/null', 'r'),
+        1 => array('pipe', 'w'),
+        2 => array('file', '/dev/null', 'w'),
+    ), $pipes);
+    if (!is_resource($proc)) {
+        return -1;
+    }
+    $out = stream_get_contents($pipes[1]);
+    fclose($pipes[1]);
+    $rc = proc_close($proc);
+    if ($out !== false && $out !== '') {
+        $output = explode("\n", rtrim($out, "\n"));
+    }
+    return $rc;
+}
+
+// Newest mtime among the files a commit, checkout or pull rewrites: HEAD, the
+// branch ref it names, and packed-refs.  Anything derived from the checked-out
+// commit stays valid until this moves.
+function fpp_git_state_mtime()
+{
+    $gitDir = dirname(dirname(__FILE__)) . "/.git";
+    $mtime = @filemtime($gitDir . "/HEAD") ?: 0;
+    $head = @file_get_contents($gitDir . "/HEAD");
+    if ($head !== false && strncmp($head, "ref: ", 5) == 0) {
+        $mtime = max($mtime, @filemtime($gitDir . "/" . trim(substr($head, 5))) ?: 0);
+    }
+    return max($mtime, @filemtime($gitDir . "/packed-refs") ?: 0);
+}
+
+// file_cache() for a value that only changes when the checkout does.  A short
+// TTL meant forking git every few seconds for every page load and status poll;
+// this keeps the value until the repository's state is newer than the cache.
+function git_state_file_cache($cache_name, $data_function)
+{
+    $path = "/tmp/cache_" . $cache_name . ".cache";
+    if (file_exists($path) && filemtime($path) <= fpp_git_state_mtime()) {
+        @unlink($path);
+    }
+    return file_cache($cache_name, $data_function, 86400);
+}
+
 function file_cache($cache_name, $data_function, $cache_time = 90, $grace_time = 10, $cache_dir = "/tmp")
 {
     $file_path = $cache_dir . "/cache_" . $cache_name . ".cache";
@@ -2754,16 +2817,15 @@ function get_local_git_version()
 {
     $git_version = "Unknown";
     $cachefile_name = "local_git_version";
-    $cache_age = 20;
 
-    $git_version = file_cache($cachefile_name, function () {
+    $git_version = git_state_file_cache($cachefile_name, function () {
         $git_version = exec("git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ rev-parse --short=9 HEAD", $output, $return_val);
         if ($return_val != 0) {
             $git_version = "Unknown";
         }
         unset($output);
         return trim($git_version);
-    }, $cache_age);
+    });
 
     return $git_version;
 }
@@ -2775,16 +2837,15 @@ function get_local_git_version()
 function get_local_git_commit_date()
 {
     $cachefile_name = "local_git_commit_date";
-    $cache_age = 20;
 
-    $epoch = file_cache($cachefile_name, function () {
+    $epoch = git_state_file_cache($cachefile_name, function () {
         $epoch = exec("git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ log -1 --format=%ct HEAD", $output, $return_val);
         if ($return_val != 0) {
             $epoch = "0";
         }
         unset($output);
         return trim($epoch);
-    }, $cache_age);
+    });
 
     return intval($epoch);
 }
@@ -2806,7 +2867,11 @@ function get_remote_git_version()
 
     if (!empty($git_branch) || strtolower($git_branch) != "unknown") {
         $cachefile_name = "git_" . $git_branch;
-        $cache_age = 90;
+        // A check is a TLS connection to the upgrade source -- about a second
+        // of CPU on a BeagleBone -- and every full status poll from every open
+        // page lands here.  Its main consumer, the MultiSync page's per-host
+        // update marker, doesn't need it fresher than this.
+        $cache_age = 900;
         $git_remote_version = "Unknown";
 
         //Check the cache for git_<branch>, if null is returned no cache file exists or it's expired, so then off to github
@@ -3462,6 +3527,12 @@ function PrintAwesomeFree($code, $isLink = 0)
 function network_wifi_strength_obj()
 {
     global $settings;
+    // finalizeStatusJson() asks for this directly and again through
+    // network_list_interfaces_obj(); one answer per request is plenty.
+    static $memo = null;
+    if ($memo !== null) {
+        return $memo;
+    }
     $rc = array();
     if ($settings["Platform"] == "MacOS") {
         exec("/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I", $status);
@@ -3500,13 +3571,11 @@ function network_wifi_strength_obj()
         // the WEXT handlers and produces a "uses wireless extensions
         // which will stop working for Wi-Fi 7 hardware" dmesg warning on
         // every status page load.
-        $iw_dev_out = [];
-        exec("iw dev 2>/dev/null", $iw_dev_out);
+        // Every nl80211 interface has a phy80211 link in sysfs, so list them
+        // from there rather than forking `iw dev`.
         $interfaces = [];
-        foreach ($iw_dev_out as $line) {
-            if (preg_match('/^\s*Interface\s+(\S+)/', $line, $m)) {
-                $interfaces[] = $m[1];
-            }
+        foreach (glob('/sys/class/net/*/phy80211') ?: array() as $phy) {
+            $interfaces[] = basename(dirname($phy));
         }
 
         foreach ($interfaces as $iface) {
@@ -3519,7 +3588,7 @@ function network_wifi_strength_obj()
             $obj->desc = '';
 
             $link_out = [];
-            exec("iw dev " . escapeshellarg($iface) . " link 2>/dev/null", $link_out);
+            fpp_exec_argv(array('iw', 'dev', $iface, 'link'), $link_out);
             $joined = implode("\n", $link_out);
 
             if ($joined === '' || strpos($joined, 'Not connected') !== false) {
@@ -3549,6 +3618,7 @@ function network_wifi_strength_obj()
             array_push($rc, $obj);
         }
     }
+    $memo = $rc;
     return $rc;
 }
 
@@ -3566,7 +3636,14 @@ function network_list_interfaces_array()
     // Enumerate via sysfs rather than ifconfig: ifconfig on wireless
     // interfaces calls SIOCGIWNAME (WEXT), producing a dmesg deprecation
     // warning on every call.
-    $interfaces = explode("\n", trim(shell_exec("ls /sys/class/net 2>/dev/null | grep -v '^lo$' | grep -v '^usb' | grep -v SoftAp | grep -v '^can' | grep -v '^tether'")));
+    $interfaces = array();
+    foreach (@scandir('/sys/class/net') ?: array() as $name) {
+        if ($name[0] == '.' || $name == 'lo' || strpos($name, 'SoftAp') !== false ||
+            preg_match('/^(usb|can|tether)/', $name)) {
+            continue;
+        }
+        $interfaces[] = $name;
+    }
     return $interfaces;
 }
 
@@ -3641,8 +3718,7 @@ function network_list_interfaces_obj()
             unset($config);
         }
     } else {
-        $cmd = "ip --json address show";
-        exec($cmd, $output);
+        fpp_exec_argv(array('ip', '--json', 'address', 'show'), $output);
         $rc = json_decode(join(" ", $output), true);
 
         foreach ($rc as &$rec) {
@@ -4099,14 +4175,16 @@ function GetSystemInfoJsonInternal($simple = false, $network = true)
 
         if ($network) {
             if ($settings["Platform"] != "MacOS") {
-                $output = array();
+                // The IPv4 addresses of every interface but lo and usb*, from
+                // getifaddrs() rather than a forked `ip`.  Family 2 is AF_INET.
                 $IPs = array();
-                exec("/usr/sbin/ip --json -4 address show", $output);
-                $ipAddresses = json_decode(join("", $output), true);
-                foreach ($ipAddresses as $key => $value) {
-                    if ($value["ifname"] != "lo" && strpos($value["ifname"], 'usb') === false) {
-                        foreach ($value["addr_info"] as $key2 => $value2) {
-                            $IPs[] = $value2["local"];
+                foreach (net_get_interfaces() ?: array() as $ifname => $iface) {
+                    if ($ifname == "lo" || strpos($ifname, 'usb') !== false) {
+                        continue;
+                    }
+                    foreach ($iface['unicast'] ?? array() as $addr) {
+                        if (($addr['family'] ?? 0) == 2 && isset($addr['address'])) {
+                            $IPs[] = $addr['address'];
                         }
                     }
                 }
