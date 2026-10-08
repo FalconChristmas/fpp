@@ -20,6 +20,18 @@
 #include "FPPStatusOLEDPage.h"
 #include "OLEDPages.h"
 
+// Every interval in the run loop -- the 1s status refresh, button debounce,
+// the display-off timeout -- is measured on this, never on GetTime().  The
+// wall clock is routinely stepped during boot: the cape RTC registering with
+// an unset 2000-01-01 time steps it back years, NTP steps it forward.  A
+// backward step left the refresh waiting for wall time to pass the pre-step
+// timestamp, freezing the display on "Booting..." with fppd running.
+static long long MonotonicMicros() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000000LL + ts.tv_nsec / 1000;
+}
+
 // shared memory area so other processes can see if the display is on
 // as well as let fppoled know to force it off (if the pins need to be
 // reconfigured so I2C no longer will work)
@@ -510,8 +522,8 @@ void FPPOLEDUtils::run() {
     OLEDPage::SetCurrentPage(statusPage);
 
     long long lastUpdateTime = 0;
-    long long ntime = GetTime();
-    long long lastActionTime = GetTime();
+    long long ntime = MonotonicMicros();
+    long long lastActionTime = MonotonicMicros();
     while (true) {
         bool forcedOff = currentStatus->forceOff;
         if (OLEDPage::IsForcedOff() && !forcedOff) {
@@ -525,7 +537,7 @@ void FPPOLEDUtils::run() {
             OLEDPage::SetForcedOff(forcedOff);
             currentStatus->displayOn = true;
             OLEDPage::SetCurrentPage(statusPage);
-            lastActionTime = GetTime();
+            lastActionTime = MonotonicMicros();
         } else if (!OLEDPage::IsForcedOff() && forcedOff) {
             if (currentStatus->displayOn) {
                 if (OLEDPage::GetOLEDType() != OLEDPage::OLEDType::NONE) {
@@ -545,14 +557,14 @@ void FPPOLEDUtils::run() {
         if (ntime > (lastUpdateTime + 1000000)) {
             bool displayOn = currentStatus->displayOn;
             if (OLEDPage::GetCurrentPage() && OLEDPage::GetCurrentPage()->doIteration(displayOn)) {
-                lastActionTime = GetTime();
+                lastActionTime = MonotonicMicros();
             }
             currentStatus->displayOn = displayOn;
             lastUpdateTime = ntime;
         }
         if (actions.empty()) {
             sleep(1);
-            ntime = GetTime();
+            ntime = MonotonicMicros();
         } else {
             memset((void*)&fdset[0], 0, sizeof(struct pollfd) * actions.size());
             int actionCount = 0;
@@ -570,7 +582,7 @@ void FPPOLEDUtils::run() {
             } else {
                 usleep(100000);
             }
-            ntime = GetTime();
+            ntime = MonotonicMicros();
             for (int x = 0; x < actions.size(); x++) {
                 std::string action;
                 // printf("%x:   %s      f: %d    pi: %d\n", x, actions[x]->pin.c_str(), actions[x]->file, actions[x]->pollIndex);
@@ -609,10 +621,6 @@ void FPPOLEDUtils::run() {
                         OLEDPage::GetCurrentPage()->doAction(action);
                     }
                 }
-            }
-            if (ntime > (lastActionTime + 18000000000L)) {
-                // most likely the system time jumped due to NTP or RTC, we'll reset the counter
-                lastActionTime = ntime;
             }
             if (ntime > (lastActionTime + 180000000)) {
                 if (OLEDPage::GetCurrentPage() != statusPage) {
