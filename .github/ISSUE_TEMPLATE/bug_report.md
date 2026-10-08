@@ -7,6 +7,7 @@ assignees: ''
 
 ---
 
+**NOTE:** IF YOU DO NOT RUN A DIAGNOSTIC REPORT, THEN THERE IS A HIGHER PROBABILITY THE ISSUE WON'T BE RESOLVED.  (Steps at end)
 # Please answer the following:
 **FPP Version and Hardware**: 
 Example: *FPP 10.2 32bit running on BBB*
@@ -30,6 +31,6 @@ Please run the Diagnostic Report from FPP:
 1. Open the FPP UI
 2. Press F8 on any page OR go to Help -> Troubleshooting Commands and click Diagnostic Report
 3. Follow the steps to build and upload the Diagnostic Report
-4. **Report File:** Include the full name of the log file here
+4. **Report File:** Include the full name of the Diagnostic Report file here
 
 If applicable, add screenshots to help explain your problem.
