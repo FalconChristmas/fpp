@@ -27,6 +27,7 @@
 #include <unistd.h>
 
 #include <curl/curl.h>
+#include <algorithm> // find_if -- one pending work item per destination (needed directly for NOPCH builds)
 #include <filesystem>
 #include <set>
 #include <sstream>
@@ -995,10 +996,7 @@ int UDPOutput::SendData(unsigned char* channelData) {
         unsigned int generation;
         {
             // start a new generation so late completions of the previous
-            // frame's work don't count toward this frame.  Stale items are
-            // left in the queue: workers will still send them (late) so a
-            // frame that carried a change the dedup logic won't resend is
-            // never silently dropped.
+            // frame's work don't count toward this frame.
             std::unique_lock<std::mutex> lock(workMutex);
             generation = ++workGeneration;
             doneWorkCount = 0;
@@ -1009,7 +1007,31 @@ int UDPOutput::SendData(unsigned char* channelData) {
             if (!msgs.second.empty() && msgs.first < LATE_MESSAGES_START) {
                 std::shared_ptr<SendSocketInfo> socketInfo = findOrCreateSocket(msgs.first);
                 std::unique_lock<std::mutex> lock(workMutex);
-                workQueue.emplace_back(msgs.first, socketInfo, msgs.second, generation);
+                // A destination that still has an unstarted item from an
+                // earlier frame is behind: SendMessages() serializes on its
+                // sendLock, so another item would only queue up behind it, and
+                // every queued item gets a worker thread below.  A destination
+                // that can't keep up (more data than its pacing rate allows)
+                // grew one item and one blocked thread per frame until thread
+                // creation failed and std::terminate took fppd down.  Fold this
+                // frame into the pending item instead.  Nothing is lost: the
+                // iovecs point at the live packet buffers, so the pending item
+                // sends this frame's data when it runs, and the union keeps any
+                // message the dedup logic left out of this frame but not that one.
+                auto pending = std::find_if(workQueue.begin(), workQueue.end(),
+                                            [&](const WorkItem& w) { return w.id == msgs.first; });
+                if (pending != workQueue.end()) {
+                    std::set<std::pair<const void*, const void*>> have;
+                    for (auto& m : pending->msgs)
+                        have.emplace(m.msg_hdr.msg_iov, m.msg_hdr.msg_name);
+                    for (auto& m : msgs.second) {
+                        if (!have.count({ m.msg_hdr.msg_iov, m.msg_hdr.msg_name }))
+                            pending->msgs.push_back(m);
+                    }
+                    pending->generation = generation;
+                } else {
+                    workQueue.emplace_back(msgs.first, socketInfo, msgs.second, generation);
+                }
                 lock.unlock();
                 workSignal.notify_one();
                 ++total;
