@@ -23,6 +23,7 @@
 #include "overlays/PixelOverlay.h"
 #include "overlays/PixelOverlayModel.h"
 
+#include <algorithm> // any_of -- one output per connector (needed directly for NOPCH builds)
 #include <cmath> // lround -- crop fractions to pixels (needed directly for NOPCH builds)
 #include <fstream>
 #include <cstring>
@@ -617,6 +618,20 @@ std::vector<VideoOutputManager::HdmiConsumerInfo> VideoOutputManager::GetHdmiCon
 
         if (skipConnectorIds.count(info.connectorId))
             continue;
+        // One display takes one on-demand output.  Two enabled groups that
+        // both list the same connector all subscribe to the one video bus, so
+        // without this a single video asks for two kmssinks on that connector;
+        // GStreamerOut names each sink branch after its connector, and the
+        // second branch's elements collide in the bin.  The first entry wins,
+        // which is also the one GetHdmiCropForConnector() reports.
+        if (std::any_of(result.begin(), result.end(),
+                        [&](const HdmiConsumerInfo& r) { return r.connectorId == info.connectorId; })) {
+            LogWarn(VB_MEDIAOUT, "VideoOutputManager: %s is already driven by an earlier video output; "
+                                 "ignoring '%s' for this stream\n",
+                    c.connector.empty() ? std::to_string(info.connectorId).c_str() : c.connector.c_str(),
+                    c.name.c_str());
+            continue;
+        }
         result.push_back(info);
     }
     return result;

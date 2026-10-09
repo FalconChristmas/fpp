@@ -858,9 +858,15 @@ static int GetPipeWireGraphRate() {
 // showing a sub-region, scaling elements only for a stretched one -- and
 // spelling out a gst_element_link_many() per combination does not scale past
 // the second optional element.
+//
+// gst_bin_add() refuses an element whose name is already in the bin, and then
+// drops the floating ref it was handed -- the element is freed.  Linking it
+// afterwards is a use-after-free, so stop before linking anything.
 static bool AddAndLinkChain(GstElement* pipeline, const std::vector<GstElement*>& chain) {
-    for (GstElement* e : chain)
-        gst_bin_add(GST_BIN(pipeline), e);
+    for (GstElement* e : chain) {
+        if (!gst_bin_add(GST_BIN(pipeline), e))
+            return false;
+    }
     for (size_t i = 1; i < chain.size(); i++) {
         if (!gst_element_link(chain[i - 1], chain[i]))
             return false;
@@ -1936,6 +1942,7 @@ int GStreamerOutput::Start(int msTime) {
                     if (!AddAndLinkChain(m_pipeline, dChain)) {
                         LogWarn(VB_MEDIAOUT, "GStreamer: failed to link kmssink chain for connector %d\n",
                                 resolvedConnId);
+                        continue;
                     }
 
                     GstPad* teeSrc = gst_element_request_pad_simple(vtee, "src_%u");
