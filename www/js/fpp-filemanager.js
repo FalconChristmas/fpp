@@ -1204,6 +1204,10 @@ function AddFilesToPlaylist (type, files) {
 function BulkAddPlaylist () {
 	var playlistName = $('#bulkAddPlaylist').val();
 	var pl = Get('api/playlist/' + playlistName, false);
+	if (!pl.hasOwnProperty('name')) {
+		// Get() has already reported the failure
+		return;
+	}
 	var files = 'Playlist: ' + playlistName + '\n';
 	$('#bulkAddList')
 		.find('tr')

@@ -3450,13 +3450,15 @@ function SetPlaylistItemMetaData (row) {
 					UpdatePlaylistDurations();
 				}
 			},
-			error: function () {
+			error: function (xhr) {
 				row
 					.find('.psiDataSimple')
 					.append(
-						'<span style="color: #FF0000; font-weight: bold;">ERROR: Loading Playlist "' +
-							playlistName +
-							'" </span><br>'
+						'<span style="color: #FF0000; font-weight: bold;">ERROR: ' +
+							(xhr.status == 404
+								? 'Playlist "' + playlistName + '" Not Found'
+								: 'Loading Playlist "' + playlistName + '" ') +
+							'</span><br>'
 					);
 			}
 		});

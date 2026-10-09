@@ -672,6 +672,11 @@ function GetPlaylist($playlistName)
  *   }
  * }
  * ```
+ * @response 404 No playlist by that name
+ * ```json
+ * {"Status": "Error", "Message": "Playlist not found: UploadTest"}
+ * ```
+ * @response 500 The playlist file is not valid JSON
  */
 function playlist_get()
 {
@@ -684,6 +689,17 @@ function playlist_get()
     }
 
     $data = LoadPlayListDetails($playlistName, $mergeSubs);
+    if ($data === "") {
+        // A 200 here would hand clients a JSON string where every caller
+        // expects an object.  Plugins ask for the current playlist's name,
+        // which for a sequence started directly has no file behind it.
+        http_response_code(404);
+        return json(array('Status' => 'Error', 'Message' => 'Playlist not found: ' . $playlistName));
+    }
+    if (!is_object($data)) {
+        http_response_code(500);
+        return json(array('Status' => 'Error', 'Message' => 'Playlist could not be read: ' . $playlistName));
+    }
 
     return json($data);
 }
