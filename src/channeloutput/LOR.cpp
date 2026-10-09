@@ -164,12 +164,21 @@ void LOROutput::GetRequiredChannelRanges(const std::function<void(int, int)>& ad
     addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 
-// LOR brightness runs from 0xF0 (off) to 0x01 (full).  This is a linear map
-// over that whole range, computed exactly as xLights' LOR outputs do so a
-// sequence tested from xLights puts the same bytes on the wire.
+// LOR intensity is a whole percent: 0xF0 is off, 0x01 is full, and 1-99%
+// are 228 - 2 * percent.  The Pixie manual's intensity table is per percent
+// (101 levels), and this is the table LOR's own software was captured using.
+// A linear map over 0xF0..0x01 lands low values at or past the off end (so
+// the bottom of a fade goes dark) and reads 50% as about 54%.
 static void LOR_SetupIntensityMap(LOROutputData* privData) {
     for (int i = 0; i < 256; i++) {
-        privData->intensityMap[i] = (unsigned char)((i / 255.0F) * -0xEF + 0xF0);
+        int percent = (i * 100 + 127) / 255;
+        if (percent == 0) {
+            privData->intensityMap[i] = 0xF0;
+        } else if (percent == 100) {
+            privData->intensityMap[i] = 0x01;
+        } else {
+            privData->intensityMap[i] = 228 - percent * 2;
+        }
     }
 }
 
