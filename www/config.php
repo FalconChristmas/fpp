@@ -851,7 +851,7 @@ if (!isset($skipJSsettings)) {
             // query breaks out of the quotes into script execution. Plain
             // json_encode (no UNESCAPED flags): the default \/ and \uXXXX
             // escapes keep the value identical while also defeating the
-            // literal </script> sequence for the HTML parser.
+            // literal closing-script-tag sequence for the HTML parser.
             var pluginPage = <?= json_encode(preg_replace('/.*page=/', '', $_SERVER['REQUEST_URI'])) ?>;
             var pluginBase = <?= json_encode(preg_replace("/^\//", "", preg_replace('/page=.*/', '', $_SERVER['REQUEST_URI']))) ?>;
             helpPage = pluginBase + "nopage=1&page=help/" + pluginPage;
