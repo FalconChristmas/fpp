@@ -785,6 +785,7 @@
         "DevTools": {
             "grpDisplayTitle": "Dev Tools",
             "grpDescription": "Tools for building and developing FPP on this device",
+            "level": 3,
             "platforms": [
                 "all"
             ],

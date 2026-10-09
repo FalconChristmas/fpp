@@ -24,7 +24,7 @@
 </ul>
 
 <h4>Dev Tools tab</h4>
-<p>The <b>Dev Tools</b> tab is for people building FPP on this device or testing a development branch.</p>
+<p>The <b>Dev Tools</b> tab is for people building FPP on this device or testing a development branch. It appears only when the <b>User Interface Level</b> in FPP Settings is set to <b>Developer</b>.</p>
 <ul>
     <li><b>Available NOCC Helpers</b> — Lists the distributed-compile (nocc) helpers this FPP can find on the network, one per line, with each helper’s IP address, port and host name. Use it to check that the helpers you expect are visible before a build. It shows “No NOCC helpers discovered” when none answer, and a note if <code>nocc-daemon</code> is not installed.</li>
     <li><b>Developer Settings</b> — Shows four values from the <b>Developer</b> tab of FPP Settings, in a table of setting and value: <b>Git Remote Repository</b>, <b>GitHub User Name</b>, <b>GitHub Personal Access Token</b> and <b>Distributed Compile</b>. The token itself is never displayed: <code>****</code> means one is set and <code>none</code> means there is none. A user name that is not set also shows <code>none</code>, and a remote or compile mode you have not changed shows its default.</li>
