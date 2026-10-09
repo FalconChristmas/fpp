@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
 #include <list>
 #include <string>
 #include <vector>
@@ -62,6 +63,24 @@ static bool sparse = true;
 static bool json = false;
 static bool dump = false;
 static V2FSEQFile::CompressionType compressionType = V2FSEQFile::CompressionType::zstd;
+
+// Channel buffers here are sized to the channel space the FSEQ library writes
+// (MAX_CHANNEL_SPACE in FSEQFile.cpp, == FPPD_MAX_CHANNELS).  Channels past it
+// are dropped on read and on write, so say so rather than silently producing a
+// shorter file or dump.
+static constexpr uint32_t CHANNEL_SPACE = 8192 * 1024;
+
+static void warnIfBeyondChannelSpace(const std::vector<std::pair<uint32_t, uint32_t>>& rngs, uint32_t maxChannel) {
+    uint64_t wanted = 0;
+    for (auto& r : rngs) {
+        wanted = std::max(wanted, (uint64_t)r.first + r.second);
+    }
+    wanted = std::min(wanted, (uint64_t)maxChannel);
+    if (wanted > CHANNEL_SPACE) {
+        printf("Warning: only the first %u channels are used; channels %u-%" PRIu64 " are dropped.\n",
+               CHANNEL_SPACE, CHANNEL_SPACE + 1, wanted);
+    }
+}
 
 static void parseRanges(std::vector<std::pair<uint32_t, uint32_t>>& ranges, char* rng) {
     char* end = rng;
@@ -307,21 +326,22 @@ int main(int argc, char* argv[]) {
             src->setReadPattern(FSEQFile::ReadPattern::Bulk);
             src->prepareRead(ranges);
 
+            warnIfBeyondChannelSpace(ranges, src->getMaxChannel());
+
             char title[50];
-            static constexpr uint32_t DUMP_BUFFER_SIZE = 8192 * 1024;
-            uint8_t* data = (uint8_t*)malloc(DUMP_BUFFER_SIZE);
+            uint8_t* data = (uint8_t*)malloc(CHANNEL_SPACE);
             for (int x = 0; x < src->getNumFrames(); x++) {
                 FSEQFile::FrameData* fdata = src->getFrame(x);
-                fdata->readFrame(data, DUMP_BUFFER_SIZE);
+                fdata->readFrame(data, CHANNEL_SPACE);
                 delete fdata;
 
                 for (auto& r : ranges) {
-                    if ((uint64_t)r.first >= DUMP_BUFFER_SIZE) {
+                    if ((uint64_t)r.first >= CHANNEL_SPACE) {
                         continue;
                     }
                     uint64_t len = r.second;
-                    if ((uint64_t)r.first + len > DUMP_BUFFER_SIZE) {
-                        len = DUMP_BUFFER_SIZE - r.first;
+                    if ((uint64_t)r.first + len > CHANNEL_SPACE) {
+                        len = CHANNEL_SPACE - r.first;
                     }
                     uint64_t end = len == 0 ? r.first : (uint64_t)r.first + len - 1;
                     snprintf(title, 50, "Frame: %d, Range: %d-%d", x, r.first, (int)end);
@@ -335,7 +355,7 @@ int main(int argc, char* argv[]) {
                     src->setReadPattern(FSEQFile::ReadPattern::Bulk);
                     f.srcFile = src;
                     if (f.ranges.empty()) {
-                        f.ranges.push_back(std::pair<uint32_t, uint32_t>(0, 8192 * 1024));
+                        f.ranges.push_back(std::pair<uint32_t, uint32_t>(0, CHANNEL_SPACE));
                     }
                 }
             }
@@ -366,34 +386,30 @@ int main(int argc, char* argv[]) {
                 V2FSEQFile* f = (V2FSEQFile*)dest;
                 f->m_sparseRanges = ranges;
             }
+            warnIfBeyondChannelSpace(ranges, src->getMaxChannel());
             src->setReadPattern(FSEQFile::ReadPattern::Bulk);
             src->prepareRead(ranges);
 
             dest->initializeFromFSEQ(*src);
             dest->writeHeader();
 
-            // Sized to the channel-space ceiling enforced by the FSEQ write
-            // path (cf. MAX_CHANNEL_SPACE in FSEQFile.cpp, == FPPD_MAX_CHANNELS).
-            // Previously 8024*1024, which left a ~172KB window where a capped
-            // write count/range could still exceed the heap buffer.
-            static constexpr uint32_t INPUT_BUFFER_SIZE = 8192 * 1024;
-            uint8_t* data = (uint8_t*)malloc(INPUT_BUFFER_SIZE);
-            uint8_t* mergedata = (uint8_t*)malloc(INPUT_BUFFER_SIZE);
-            memset(mergedata, 0, INPUT_BUFFER_SIZE);
+            uint8_t* data = (uint8_t*)malloc(CHANNEL_SPACE);
+            uint8_t* mergedata = (uint8_t*)malloc(CHANNEL_SPACE);
+            memset(mergedata, 0, CHANNEL_SPACE);
             for (int x = 0; x < src->getNumFrames(); x++) {
                 FSEQFile::FrameData* fdata = src->getFrame(x);
-                fdata->readFrame(data, INPUT_BUFFER_SIZE);
+                fdata->readFrame(data, CHANNEL_SPACE);
                 delete fdata;
 
                 for (auto& m : mergeFseqs) {
                     if (m.srcFile) {
                         FSEQFile::FrameData* fdata = m.srcFile->getFrame(x);
-                        fdata->readFrame(mergedata, INPUT_BUFFER_SIZE);
+                        fdata->readFrame(mergedata, CHANNEL_SPACE);
                         delete fdata;
                         for (auto& r : m.ranges) {
                             // Merge ranges come from the CLI, but never trust an
                             // index past the buffer: stop instead of corrupting heap.
-                            for (uint64_t y = 0, idx = r.first; y < r.second && idx < INPUT_BUFFER_SIZE; ++y, ++idx) {
+                            for (uint64_t y = 0, idx = r.first; y < r.second && idx < CHANNEL_SPACE; ++y, ++idx) {
                                 if (mergedata[idx] || m.copyZero) {
                                     data[idx] = mergedata[idx];
                                     mergedata[idx] = 0;
