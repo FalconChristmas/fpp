@@ -1,0 +1,61 @@
+name: Bug Report
+description: Create a bug report to help us improve FPP
+title: "Bug: "
+labels: "bug"
+body:
+  - type: "markdown"
+    attributes:
+      value: "**NOTE:** IF YOU DO NOT RUN A DIAGNOSTIC REPORT, THEN THERE IS A HIGHER PROBABILITY THE ISSUE WON'T BE RESOLVED.  (See \"Report File\")"
+  - type: "input"
+    attributes:
+      label: "FPP Version"
+      description: "Please enter the FPP version you are using (e.g. 8.2, 9.5.3, 10.2)"
+      placeholder: "FPP 10.2"
+    validations:
+      required: false
+  - type: "input"
+    attributes:
+      label: "Architecture"
+      description: "Please enter 32 bit or 64 bit"
+      placeholder: "32bit"
+    validations:
+      required: false
+  - type: "input"
+    attributes:
+      label: "Device"
+      description: "Please enter the device running FPP (e.g. BBB, Pi4B, PB2)"
+      placeholder: "BBB"
+    validations:
+      required: false
+  - type: "input"
+    attributes:
+      label: "Report File"
+      description: "Press F8 on any page in the FPP UI  -OR-  go to Help -> Troubleshooting Commands and click Diagnostic Report"
+      placeholder: "fpp-Pi-10.2-3-g00e5f727c-##-#####-YYYY-MM-DD_HH-MM-SS-manual.zip"
+    validations:
+      required: false
+  - type: "textarea"
+    attributes:
+      label: "Describe the Bug / Steps to Reproduce"
+      description: "A clear and concise description of what the bug is and the steps to be taken to reproduce.A clear and concise description of what the bug is and the steps to be taken to reproduce"
+      value: "1. Go to '...'\n2. Click on '....'\n3. Scroll down to '....'\n4. See error"
+    validations:
+      required: false
+  - type: "textarea"
+    attributes:
+      label: "Expected Behavior"
+      description: "A clear and concise description of what you expected to happen and why"
+    validations:
+      required: false
+  - type: "textarea"
+    attributes:
+      label: "Additional Context"
+      description: " Add any other context about the problem here"
+    validations:
+      required: false
+  - type: "textarea"
+    attributes:
+      label: "Additional Attachments"
+      description: "Please attach any additional files here (e.g. screenshots). Do not attach logs. Submit logs and provide the report file name."
+    validations:
+      required: false
