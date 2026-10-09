@@ -1172,6 +1172,9 @@ int UDPOutput::SendData(unsigned char* channelData) {
     return 1;
 }
 
+// Not 57: that id belongs to the plugin-reinstall warning (Plugins.cpp), and
+// sharing it gave this banner that warning's title and help.
+static constexpr int LOCAL_DROP_WARNING_ID = 69;
 static const std::string LOCAL_DROP_WARNING = "The network interface is dropping outgoing packets before they reach the wire. The link may be down, saturated, or misconfigured. See logs for details.";
 
 #ifndef PLATFORM_OSX
@@ -1253,11 +1256,11 @@ void UDPOutput::CheckLocalDrops() {
             LogWarn(VB_CHANNELOUT, "Local packet drops since last check: %llu on interface %s, %llu in ethernet qdiscs\n",
                     (unsigned long long)txDelta, outInterface.c_str(), (unsigned long long)qdDelta);
             if (!dropWarningActive) {
-                WarningHolder::AddWarning(57, LOCAL_DROP_WARNING);
+                WarningHolder::AddWarning(LOCAL_DROP_WARNING_ID, LOCAL_DROP_WARNING);
                 dropWarningActive = true;
             }
         } else if (dropWarningActive) {
-            WarningHolder::RemoveWarning(57, LOCAL_DROP_WARNING);
+            WarningHolder::RemoveWarning(LOCAL_DROP_WARNING_ID, LOCAL_DROP_WARNING);
             dropWarningActive = false;
         }
     }

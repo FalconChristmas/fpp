@@ -451,6 +451,13 @@
             "WarningGroup": "Output_Warnings"
         },
         {
+            "id": 69,
+            "Title": "Network Interface Dropping Packets",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Network_Warnings"
+        },
+        {
             "id": 65,
             "Title": "FPPD restart limit reached.",
             "HelpTxt": "",
