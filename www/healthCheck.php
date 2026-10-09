@@ -17,8 +17,16 @@
         function StartHealthCheck() {
             SetButtonState('#btnStartHealthCheck', 'disable');
             $('#healthCheckOutput').html('');
-            //StreamURL('healthCheckHelper.php?output=php', 'healthCheckOutput', 'HealthCheckDone', '', 'GET', null, null, true, true);  //commented out by onlinedynamic as function giving broken results on Firefox browser
+            // Legacy StreamURL consumer of the known streamScript producer
+            // (scripts/healthCheck --php via healthCheckHelper.php). If this
+            // path is ever re-enabled it needs both opt-ins: raw=true (HTML
+            // stream) and allowScripts=true (eval streamScript blocks).
+            //StreamURL('healthCheckHelper.php?output=php', 'healthCheckOutput', 'HealthCheckDone', '', 'GET', null, null, true, true, '', true);  //commented out by onlinedynamic as function giving broken results on Firefox browser
 
+            // Active path: intentionally executes the trusted local
+            // streamScript blocks emitted by scripts/healthCheck (status
+            // strings are escaped there via EscapeStatusStr) to update the
+            // #checkNumberN placeholders.
             $.ajax({
                 url: "healthCheckHelper.php?output=php&timestamp=" + (Date.parse(Date()) / 1000),
                 method: "GET",

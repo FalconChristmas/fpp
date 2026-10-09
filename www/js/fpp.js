@@ -2019,7 +2019,11 @@ function StreamURL (
 	// class='streamScript'> blocks extracted and eval()'d). Defaults off:
 	// unsolicited script blocks in a stream are otherwise indistinguishable
 	// from injected ones, so only callers that intentionally produce them
-	// should enable this.
+	// should enable this. The known legitimate producer is
+	// scripts/healthCheck --php (via healthCheckHelper.php), consumed by
+	// www/healthCheck.php -- which currently uses jQuery .append(), not
+	// StreamURL. A StreamURL consumer of that endpoint must pass
+	// raw=true AND allowScripts=true.
 	allowScripts = false
 ) {
 	var last_response_len = false;
@@ -2074,8 +2078,11 @@ function StreamURL (
 						AppendStreamText(outputArea, this_response, outputArea.nodeName != 'PRE');
 					} else {
 						// Explicit HTML opt-in: caller asserts the stream is
-						// already markup (the only in-repo use is commented
-						// out). Everything else renders as inert text above.
+						// already markup. The known in-repo HTML-stream consumer
+						// is the (currently commented-out) Health Check
+						// StreamURL call in healthCheck.php, which must also
+						// pass allowScripts=true. Everything else renders as
+						// inert text above.
 						outputArea.innerHTML += this_response;
 					}
 				} else {

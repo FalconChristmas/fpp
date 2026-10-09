@@ -161,9 +161,15 @@ if (isset($_GET['cpu'])) {
             }
 
             if (statusEl.length) {
+                // check.message carries host-influenced data (hostname,
+                // gateway IPs, disk usage); escape it for both the title
+                // attribute and the HTML text content. Fall back to empty
+                // string so a missing message renders blank, never the
+                // literal text "undefined".
+                var escapedMsg = $('<span>').text(check.message || '').html();
                 var statusHtml =
                     '<i class="fas ' + getStatusIcon(check.status) + ' fpp-health-check__status-icon"></i>' +
-                    '<span class="fpp-health-check__status-text" title="' + check.message + '">' + check.message + '</span>';
+                    '<span class="fpp-health-check__status-text" title="' + escapedMsg + '">' + escapedMsg + '</span>';
 
                 // Add expand icon if warning details are present
                 if (check.details && check.details.length > 0) {
