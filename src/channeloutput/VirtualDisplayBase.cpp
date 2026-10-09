@@ -14,6 +14,10 @@
 
 #include "fpp-json.h"
 
+#include <cctype>
+#include <climits>
+#include <cstdint>
+
 #include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
 #include <set>
 #include <tuple>
@@ -93,11 +97,11 @@ int VirtualDisplayBaseOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "VirtualDisplayBaseOutput::Init()\n");
 
     m_width = config["width"].asInt();
-    if (!m_width)
+    if (m_width <= 0)
         m_width = 1280;
 
     m_height = config["height"].asInt();
-    if (!m_height)
+    if (m_height <= 0)
         m_height = 1024;
 
     if (config.isMember("pixelSize"))
@@ -111,8 +115,19 @@ int VirtualDisplayBaseOutput::Init(Json::Value config) {
     if (config.isMember("colorOrder"))
         m_colorOrder = config["colorOrder"].asString();
 
-    if (config.isMember("backgroundFilename"))
+    if (config.isMember("backgroundFilename")) {
         m_backgroundFilename = config["backgroundFilename"].asString();
+        // Backgrounds live flat in images/: reject separators and parent
+        // references so a crafted config cannot escape into FileExists/
+        // GraphicsMagick reads elsewhere. Falls back to no background, the
+        // same as a missing file below.
+        if (m_backgroundFilename.find_first_of("/\\") != std::string::npos ||
+            m_backgroundFilename.find("..") != std::string::npos) {
+            LogErr(VB_CHANNELOUT, "Invalid background filename '%s', ignoring\n",
+                   m_backgroundFilename.c_str());
+            m_backgroundFilename.clear();
+        }
+    }
 
     if (config.isMember("backgroundBrightness"))
         m_backgroundBrightness = 1.0 * config["backgroundBrightness"].asInt() / 100;
@@ -123,6 +138,17 @@ int VirtualDisplayBaseOutput::Init(Json::Value config) {
 /*
  *
  */
+size_t VirtualDisplayBaseOutput::virtualDisplayBufferBytes(int w, int h, int bpp) {
+    if (w <= 0 || h <= 0 || bpp <= 0) {
+        return 0;
+    }
+    uint64_t bytes = (uint64_t)w * (uint64_t)h * (uint64_t)bpp;
+    if (bytes > (uint64_t)INT_MAX) {
+        return 0;
+    }
+    return (size_t)bytes;
+}
+
 int VirtualDisplayBaseOutput::InitializePixelMap(void) {
     std::string virtualDisplayMapFilename = FPP_DIR_CONFIG("/virtualdisplaymap");
 
@@ -193,14 +219,35 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
                 m_previewWidth = atoi(parts[0].c_str());
                 m_previewHeight = atoi(parts[1].c_str());
 
+                // A corrupt header (e.g. "0,0" or non-numeric) would divide by
+                // zero below and convert NaN/Inf to int (UB). Fail cleanly
+                // instead; valid exporters always write positive dimensions.
+                if (m_previewWidth <= 0 || m_previewHeight <= 0) {
+                    LogErr(VB_CHANNELOUT, "Invalid virtual display preview dimensions %dx%d\n",
+                           m_previewWidth, m_previewHeight);
+                    free(line);
+                    fclose(file);
+                    return 0;
+                }
+
                 // Only HTTPVirtualDisplay uses this where buffer is based on preview size
                 if ((m_width == -1) || (m_height == -1)) {
                     m_width = m_previewWidth;
                     m_height = m_previewHeight;
 
-                    m_virtualDisplay = (unsigned char*)malloc(m_width * m_height * m_bytesPerPixel);
+                    size_t bufBytes = virtualDisplayBufferBytes(m_width, m_height, m_bytesPerPixel);
+                    if (bufBytes == 0) {
+                        LogErr(VB_CHANNELOUT, "Invalid virtual display dimensions %dx%d\n",
+                               m_width, m_height);
+                        free(line);
+                        fclose(file);
+                        return 0;
+                    }
+                    m_virtualDisplay = (unsigned char*)malloc(bufBytes);
                     if (!m_virtualDisplay) {
                         LogErr(VB_CHANNELOUT, "Unable to malloc buffer\n");
+                        free(line);
+                        fclose(file);
                         return 0;
                     }
                 }
@@ -315,6 +362,20 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
             else if (colorPart == "White")
                 vpc = kVPC_White;
             else if (startsWith(colorPart, "#")) {
+                // "#RRGGBB" exactly: substr/stoi below throw on anything
+                // shorter or non-hex, which would terminate fppd on a corrupt
+                // map line. Skip the pixel (logged) instead.
+                bool okColor = (colorPart.size() == 7);
+                for (size_t ci = 1; okColor && ci < colorPart.size(); ci++) {
+                    if (!isxdigit((unsigned char)colorPart[ci])) {
+                        okColor = false;
+                    }
+                }
+                if (!okColor) {
+                    LogErr(VB_CHANNELOUT, "Virtual Display: invalid color '%s', skipping pixel\n",
+                           colorPart.c_str());
+                    continue;
+                }
                 std::string tmpColor;
 
                 vpc = kVPC_Custom;
@@ -348,6 +409,7 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
 
     LoadBackgroundImage();
 
+    free(line);
     fclose(file);
 
     return 1;
@@ -357,6 +419,12 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
  *
  */
 void VirtualDisplayBaseOutput::LoadBackgroundImage(void) {
+    // Nothing to draw into (e.g. an empty map left no buffer): callers check
+    // too, but never write through a null display from here.
+    if (m_virtualDisplay == nullptr) {
+        return;
+    }
+
     std::string bgFile = "/home/fpp/media/images/";
     bgFile += m_backgroundFilename;
 

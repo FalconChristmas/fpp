@@ -91,6 +91,17 @@ public:
     std::vector<VirtualDisplayPixel> m_pixels;
     
 protected:
+    // Byte size of a w*h buffer at bpp bytes per pixel, or 0 when the
+    // dimensions cannot form one (non-positive, or the product would overflow
+    // a signed int -- every downstream offset multiplies the same factors, so
+    // capping the total at INT_MAX keeps all of that arithmetic safe too).
+    // Callers fail init instead of heap-smashing. Static: no vtable/object
+    // impact on plugin-facing classes.
+    static size_t virtualDisplayBufferBytes(int w, int h, int bpp);
+
+public:
+    // Historically public: external channel-output plugins may reference this
+    // directly, so it stays public while the helper above stays protected.
     bool m_allowDuplicatePixels;  // Set to true for 3D mode where multiple pixels can be at same coords
 };
 
