@@ -278,8 +278,10 @@ function GetFilesHelper($dirName, $prefix = '')
             $current = array();
             $current["name"] = $prefix . $fileName;
             $current["mtime"] = date('m/d/y  h:i A', $mTime);
+            // a number whenever it fits; intval() saturates past 2GB on
+            // 32-bit PHP, and only those sizes stay strings
             $sizeInt = intval($Size);
-            if (PHP_INT_SIZE === 4 && $sizeInt < PHP_INT_MAX) {
+            if ($sizeInt < PHP_INT_MAX) {
                 $current["sizeBytes"] = $sizeInt;
             } else {
                 $current["sizeBytes"] = $Size;
