@@ -26,6 +26,12 @@ require_once("common/oplog.inc.php");
 
 DisableOutputBuffering();
 
+// Finish once started, even if the browser goes away: a closed tab must not
+// stop PHP at the next echo (matches manualUpdate.php / upgradeOS.php). The
+// script survives behind its tee, but without this the terminal UpgradeLog
+// verdict below would be skipped, leaving a stale open run.
+ignore_user_abort(true);
+
 if (!$wrapped) {
 ?>
 <head>

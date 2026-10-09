@@ -9300,7 +9300,8 @@
                   "stage": "Building FPP (longest step, please wait)",
                   "logUpdatedAt": 1728000000,
                   "stale": false,
-                  "fppdBinaryExists": true
+                  "fppdBinaryExists": true,
+                  "failed": false
                 }
               }
             }

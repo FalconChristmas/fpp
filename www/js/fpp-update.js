@@ -60,6 +60,10 @@ function FPPUpdate_MarkStarted(side) {
 // 'fpp' covers fpp-update/fpp-upgrade/branch-switch/version-checkout, 'os'
 // is an OS upgrade, null when idle. Global so page starters (about.php,
 // fpp.js) can refuse a conflicting update while one is already running.
+// UX-only immediate feedback: this browser-local snapshot cannot prevent two
+// browsers (or direct PHP calls) from racing; it only hides/disables the
+// conflicting controls and warns. A server-side lock would be a behavioural
+// change to every update entry point and is deliberately out of scope here.
 function UpdateActivityBusySide() {
 	if (typeof fppUpdateActivity === 'undefined' || !fppUpdateActivity) {
 		return null;
@@ -86,6 +90,14 @@ function FPPUpdate_OnActivity(fn) {
 // observed live (opening a page after the fact stays silent), and only when
 // the run actually finished (not when it went stale).
 var fppUpdateLastActive = null;
+function FPPUpdate_FailedFromActivity(activity, fallbackStage) {
+	// Prefer the backend's explicit outcome (FINISH rc / "Upgrade Failed");
+	// fall back to the stage-text heuristic for older payloads.
+	if (activity && typeof activity.failed !== 'undefined') {
+		return !!activity.failed;
+	}
+	return /fail/i.test(fallbackStage || '');
+}
 function FPPUpdate_TrackCompletion(activity) {
 	if (activity.inProgress && activity.runId) {
 		fppUpdateLastActive = {
@@ -101,7 +113,7 @@ function FPPUpdate_TrackCompletion(activity) {
 	) {
 		var done = fppUpdateLastActive;
 		fppUpdateLastActive = null;
-		FPPUpdate_OnCompleted(done.kind, /fail/i.test(activity.stage || done.stage), done.runId, !!activity.fppdBinaryExists);
+		FPPUpdate_OnCompleted(done.kind, FPPUpdate_FailedFromActivity(activity, activity.stage || done.stage), done.runId, !!activity.fppdBinaryExists);
 	} else if (fppUpdateLastActive && activity.runId !== fppUpdateLastActive.runId) {
 		fppUpdateLastActive = null;
 	}
@@ -320,10 +332,12 @@ function FPPUpdate_Title(activity) {
 }
 
 // Render banner + status-page warning from an activity payload. Idempotent:
-// every poll (status hook or fallback) funnels through here.
+// every poll (status hook or fallback) funnels through here. Returns true
+// when the payload was applied, false when ignored as a stale echo (see
+// below) so callers (notably the modal fetch) can skip rejected payloads.
 function FPPUpdate_Render(activity) {
 	if (!activity || typeof activity !== 'object') {
-		return;
+		return false;
 	}
 	// Stale-echo guard. While fppd is up, its WebSocket pushes snapshots
 	// about every second and each rebuild carries the last-seen PHP
@@ -334,9 +348,17 @@ function FPPUpdate_Render(activity) {
 	// idle payload for a DIFFERENT run than the one shown active is such an
 	// echo, never an ending — ignore it. A same-run idle, a stale flag, or
 	// any active payload always applies, so genuine completion still lands.
+	// Synthetic placeholders ('starting' from MarkStarted, 'workers-active'
+	// from the markerless backend fallback) are explicitly allowed to go
+	// idle: their ending arrives with an empty/different runId, and holding
+	// them would trap the spinner/banner forever when a start never
+	// materializes or a worker exits with no markers.
 	if (fppUpdateActivity && fppUpdateActivity.inProgress && !activity.inProgress
 		&& (activity.runId || '') !== (fppUpdateActivity.runId || '')) {
-		return;
+		var curRun = fppUpdateActivity.runId || '';
+		if (curRun !== 'starting' && curRun !== 'workers-active') {
+			return false;
+		}
 	}
 	fppUpdateActivity = activity;
 	var show = !!(activity.inProgress || activity.stale);
@@ -465,6 +487,7 @@ function FPPUpdate_Render(activity) {
 			// One listener must not break render or the other listeners.
 		}
 	}
+	return true;
 }
 
 // Status-system hook: api/system/status already carries updateActivity
@@ -517,8 +540,16 @@ function FPPUpdate_FetchModalState(done) {
 		cache: false,
 		success: function (data) {
 			if (data && typeof data === 'object') {
-				FPPUpdate_Render(data);
-				done(data);
+				// Render may reject this as a stale idle echo for a different
+				// run (see the guard above). The modal must not consume
+				// rejected payloads: opening progress right after starting an
+				// update can race the worker's START marker, and the echo of
+				// the previous finished run would otherwise stop the poll and
+				// display the old run instead of ever attaching to the new one.
+				var accepted = FPPUpdate_Render(data);
+				if (accepted) {
+					done(data);
+				}
 			}
 		},
 		error: function () {
@@ -526,6 +557,13 @@ function FPPUpdate_FetchModalState(done) {
 		}
 	});
 }
+
+// When the modal is opened while an update is starting, the first fetch can
+// race the worker's START marker and return idle. Keep polling (up to a grace
+// window) instead of treating that first idle as completion.
+var fppUpdateModalWaitForActive = false;
+var fppUpdateModalOpenTime = 0;
+var FPP_UPDATE_MODAL_RACE_GRACE_MS = 15000;
 
 function FPPUpdate_UpdateModal(data) {
 	var area = document.getElementById('fppUpdateProgressText');
@@ -541,11 +579,21 @@ function FPPUpdate_UpdateModal(data) {
 		}
 		fppUpdateModalFirstLoad = false;
 	}
-	var title = (data.kind || 'FPP Update') + ' — ' + (data.stage || (data.inProgress ? 'Running…' : 'Done'));
+	if (data.inProgress) {
+		fppUpdateModalWaitForActive = false;
+	}
+	var doneLabel = (typeof data.failed !== 'undefined' && data.failed) ? 'Failed' : 'Done';
+	var title = (data.kind || 'FPP Update') + ' — ' + (data.stage || (data.inProgress ? 'Running…' : doneLabel));
 	if (typeof SetProgressDialogStatus === 'function') {
 		SetProgressDialogStatus('fppUpdateProgress', title);
 	}
 	if (!data.inProgress && !fppUpdateModalSawCompletion) {
+		// Opened mid-start and still within the race grace: the worker's START
+		// may simply not be in the log yet. Stay open and keep polling rather
+		// than showing the previous run as the outcome.
+		if (fppUpdateModalWaitForActive && (Date.now() - fppUpdateModalOpenTime) < FPP_UPDATE_MODAL_RACE_GRACE_MS) {
+			return;
+		}
 		// Run ended (or was already over / stale): show the outcome and let
 		// the user out. One final fetch is unnecessary -- this payload
 		// already carries the closing tail.
@@ -570,6 +618,8 @@ function openUpdateProgress() {
 	fppUpdateModalSawCompletion = false;
 	fppUpdateModalFirstLoad = true;
 	var activity = fppUpdateActivity || {};
+	fppUpdateModalWaitForActive = !!(activity && activity.inProgress);
+	fppUpdateModalOpenTime = Date.now();
 	DisplayProgressDialog('fppUpdateProgress', (activity.kind || 'FPP Update') + ' — Loading…');
 	// A Hide button next to Close: closes the modal WITHOUT reloading so the
 	// user can keep using FPP mid-update and come back via the banner or the
@@ -674,8 +724,14 @@ function FPPUpdate_Init() {
 		openUpdateProgress();
 	});
 		$(document).on('click', '#updateInProgressDismissBtn', function () {
-			if (fppUpdateActivity && fppUpdateActivity.runId) {
-				FPPUpdate_SetDismissedRunId(fppUpdateActivity.runId);
+			// Dismiss what is actually visible: the completed outcome when it
+			// is showing (a later idle poll may have moved fppUpdateActivity
+			// to a different/empty runId), else the active run.
+			var visibleRunId = (fppUpdateCompleted && !FPPUpdate_IsDismissed(fppUpdateCompleted.runId))
+				? fppUpdateCompleted.runId
+				: (fppUpdateActivity && fppUpdateActivity.runId);
+			if (visibleRunId) {
+				FPPUpdate_SetDismissedRunId(visibleRunId);
 			}
 			$('#updateInProgressFlag').hide();
 		});

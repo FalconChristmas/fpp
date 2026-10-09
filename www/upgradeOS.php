@@ -144,6 +144,16 @@ if (isset($_GET['os']) && preg_match('/^https?:/', $_GET['os'])) {
     }
 
     logStage("Downloading OS image");
+    // Open the persistent run BEFORE the (potentially very long) image
+    // download so other browsers report the update for its full lifetime.
+    // upgradeOS-part1.sh emits its own outer START afterwards; the activity
+    // endpoint treats that as a continuation (last START wins for the runId,
+    // which transparently takes over). Skipped for downloadOnly (a mere
+    // download, not an upgrade run).
+    if (!isset($_GET['downloadOnly'])) {
+        UpgradeLog('os-upgrade', $baseFile, "===== os-upgrade START: " . $baseFile . " =====");
+        $osUpgradeActivityStarted = true;
+    }
     $rc = 1;
     foreach ($urls as $idx => $url) {
         // Validate each URL (including mirror) before shell use
@@ -153,7 +163,7 @@ if (isset($_GET['os']) && preg_match('/^https?:/', $_GET['os'])) {
         }
         if (count($urls) > 1) {
             if ($idx == 0) {
-                UpgradeEchoLog('os-upgrade', $baseFile, "Downloading from local FPP mirror ${upgradeSource}...\n");
+                UpgradeEchoLog('os-upgrade', $baseFile, "Downloading from local FPP mirror {$upgradeSource}...\n");
             } else {
                 UpgradeEchoLog('os-upgrade', $baseFile, "Mirror download failed, falling back to GitHub...\n");
             }
@@ -206,6 +216,18 @@ if (isset($_GET['os']) && preg_match('/^https?:/', $_GET['os'])) {
 
 $full_fppos_path = "/home/fpp/media/upload/$baseFile";
 
+// Open the run for local-image / pre-apply failure paths too (the download
+// path above already opened it; the flag keeps exactly one PHP-side START).
+// Every early abort below then pairs with the terminal Failed marker in the
+// wrapped !$applyUpdate branch, so re-attached viewers see the outcome
+// instead of a stale open run. downloadOnly stays unmarked (not an upgrade),
+// as do direct hits with no ?os= (no upgrade intent: avoids START/Failed
+// noise flipping the banner for a mere page load).
+if ((!isset($osUpgradeActivityStarted) || !$osUpgradeActivityStarted) && !isset($_GET['downloadOnly']) && isset($_GET['os'])) {
+    UpgradeLog('os-upgrade', $baseFile, "===== os-upgrade START: " . $baseFile . " =====");
+    $osUpgradeActivityStarted = true;
+}
+
 if (!file_exists($full_fppos_path)) {
     UpgradeEchoLog('os-upgrade', $baseFile, "File does not exist, aborting: $full_fppos_path\n");
     $applyUpdate = false;
@@ -240,6 +262,15 @@ if ($applyUpdate) {
 }
 
 if ($applyUpdate) {
+    // Local-image path (no download above): open the run here so the apply
+    // phase is visible. The download path already opened it; guard with a
+    // flag so we emit exactly one PHP-side START (part1 emits its own).
+    if (!isset($osUpgradeActivityStarted) || !$osUpgradeActivityStarted) {
+        if (!isset($_GET['downloadOnly'])) {
+            UpgradeLog('os-upgrade', $baseFile, "===== os-upgrade START: " . $baseFile . " =====");
+            $osUpgradeActivityStarted = true;
+        }
+    }
     logStage("Applying OS image");
 
     # Ensure /proc/sysrq-trigger is writable by fpp for reboot later.  Do it now whilst libraries are all good
@@ -290,6 +321,12 @@ if (!$wrapped) {
     logStage("Rebooting");
     echo "Rebooting.....Close this window and refresh the screen. It might take a minute or so for FPP to reboot\n";
 } else if (!$applyUpdate) {
+    // Close the PHP-side run opened above so re-attached viewers see the
+    // outcome instead of a stale open run. downloadOnly is not a failure
+    // (and never opened a run).
+    if (!isset($_GET['downloadOnly']) && !empty($osUpgradeActivityStarted)) {
+        UpgradeLog('os-upgrade', $baseFile, "===== Upgrade Failed =====");
+    }
     echo "==========================================================================\n";
 } else {
     logStage("Upgrade Failed");

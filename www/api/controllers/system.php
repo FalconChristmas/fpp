@@ -497,7 +497,7 @@ function UpdateActivityProcessAlive()
  * Read the last lines of the upgrade log without loading multi-MB builds
  * fully into memory (submodule chatter can run to several MB).
  */
-function UpdateActivityReadTail($maxLines = 10000)
+function UpdateActivityReadTail($maxLines = 10000, $maxBytes = 524288)
 {
     $file = UpdateActivityLogFile();
     if (!is_file($file) || !is_readable($file)) {
@@ -509,13 +509,15 @@ function UpdateActivityReadTail($maxLines = 10000)
         return array('lines' => array(), 'mtime' => $mtime ? $mtime : 0);
     }
     // A noisy rebuild (submodule chatter) can put megabytes between the run's
-    // START marker and the current tail, so the window must be big enough to
-    // still contain it: 512KB holds several thousand lines, and these are
-    // hot page-cache reads of a few milliseconds.
+    // START marker and the current tail. The default 512KB window holds
+    // several thousand lines and keeps the every-few-seconds status poll
+    // cheap (hot page-cache reads of a few milliseconds); when no START is
+    // found below, GetUpdateActivityInternal() retries with a larger window
+    // (see UPDATE_ACTIVITY_EXTENDED_BYTES) rather than giving up.
     $chunk = '';
     $fh = @fopen($file, 'r');
     if ($fh) {
-        $readSize = $size > 524288 ? 524288 : $size;
+        $readSize = $size > $maxBytes ? $maxBytes : $size;
         @fseek($fh, $size - $readSize);
         $chunk = @stream_get_contents($fh);
         @fclose($fh);
@@ -626,6 +628,7 @@ function GetUpdateActivityInternal($withLogTail = false)
         'stage' => '',
         'logUpdatedAt' => 0,
         'stale' => false,
+        'failed' => false,
         'fppdBinaryExists' => $fppdBinaryExists
     );
 
@@ -636,6 +639,7 @@ function GetUpdateActivityInternal($withLogTail = false)
     }
     $outerOps = UpdateActivityOuterOps();
     $opsAlt = implode('|', $outerOps);
+    $startRe = '/\[(' . $opsAlt . ')\s+([^\]]*)\]\s*=====\s*\1\s+START:/';
 
     // Last outer START opens the run under inspection.
     $startIdx = -1;
@@ -643,11 +647,38 @@ function GetUpdateActivityInternal($withLogTail = false)
     $startTarget = '';
     $startLine = '';
     foreach ($lines as $i => $line) {
-        if (preg_match('/\[(' . $opsAlt . ')\s+([^\]]*)\]\s*=====\s*\1\s+START:/', $line, $m)) {
+        if (preg_match($startRe, $line, $m)) {
             $startIdx = $i;
             $startOp = $m[1];
             $startTarget = trim($m[2]);
             $startLine = $line;
+        }
+    }
+    if ($startIdx < 0) {
+        // The default 512KB window can miss the START when a noisy rebuild
+        // (submodule chatter, several MB) sits between it and the tail. Before
+        // falling back, retry once with a larger bounded window (4MB / 30000
+        // lines, still a hot page-cache read) when a run is plausible (a worker
+        // is alive or the log was written recently). This keeps runIds stable
+        // and preserves completion reporting for multi-MB logs.
+        $aliveProbe = UpdateActivityProcessAlive();
+        $recentProbe = ($tail['mtime'] > 0) && ((time() - $tail['mtime']) < 900);
+        if ($aliveProbe || $recentProbe) {
+            $ext = UpdateActivityReadTail(30000, 4194304);
+            if (!empty($ext['lines'])) {
+                foreach ($ext['lines'] as $i => $line) {
+                    if (preg_match($startRe, $line, $m)) {
+                        $startIdx = $i;
+                        $startOp = $m[1];
+                        $startTarget = trim($m[2]);
+                        $startLine = $line;
+                    }
+                }
+                if ($startIdx >= 0) {
+                    $lines = $ext['lines'];
+                    $tail = $ext;
+                }
+            }
         }
     }
     if ($startIdx < 0) {
@@ -665,6 +696,12 @@ function GetUpdateActivityInternal($withLogTail = false)
                 $n = 200;
                 if (isset($_GET['lines'])) {
                     $n = intval($_GET['lines']);
+                    if ($n < 1) {
+                        $n = 1;
+                    }
+                    if ($n > 500) {
+                        $n = 500;
+                    }
                 }
                 $file = UpdateActivityLogFile();
                 $active['logTail'] = (is_file($file) && is_readable($file))
@@ -678,16 +715,27 @@ function GetUpdateActivityInternal($withLogTail = false)
 
     $after = array_slice($lines, $startIdx + 1);
     $finished = false;
+    $finishFailed = false;
+    $finishRc = null;
     foreach ($after as $line) {
-        // Matching FINISH trailer for this run.
+        // Matching FINISH trailer for this run. The exit code matters: branch
+        // switches and version checkouts can fail with only this marker
+        // (no "Upgrade Failed" stage), so a nonzero rc is a failure outcome.
         if (preg_match('/=====\s*' . preg_quote($startOp, '/') . '\s+FINISH:/', $line)) {
             $finished = true;
+            if (preg_match('/\(rc=(\d+)\)/', $line, $rcm) && intval($rcm[1]) !== 0) {
+                $finishFailed = true;
+                $finishRc = intval($rcm[1]);
+            }
             break;
         }
         // Terminal stage logged after the script's tee is gone (PHP side of
         // manualUpdate.php / upgradeOS.php).
-        if (preg_match('/^.*?=====\s*(Upgrade Complete|Upgrade Failed|Rebooting|Upgrade complete[^=]*)\s*=====\s*$/i', $line)) {
+        if (preg_match('/^.*?=====\s*(Upgrade Complete|Upgrade Failed|Rebooting|Upgrade complete[^=]*)\s*=====\s*$/i', $line, $tm)) {
             $finished = true;
+            if (stripos($tm[1], 'fail') !== false) {
+                $finishFailed = true;
+            }
             break;
         }
     }
@@ -701,6 +749,7 @@ function GetUpdateActivityInternal($withLogTail = false)
         'stage' => '',
         'logUpdatedAt' => $tail['mtime'],
         'stale' => false,
+        'failed' => false,
         'fppdBinaryExists' => $fppdBinaryExists
     );
 
@@ -719,6 +768,15 @@ function GetUpdateActivityInternal($withLogTail = false)
                 break;
             }
         }
+    }
+
+    // Failure outcome: a nonzero FINISH rc (branch/version paths fail with
+    // only this marker) or an "Upgrade Failed" terminal stage. Exposed as a
+    // dedicated flag (new clients) plus a fail-bearing stage when none was
+    // logged (old clients that infer from /fail/ still classify correctly).
+    $base['failed'] = $finishFailed;
+    if ($finished && $finishFailed && $base['stage'] === '') {
+        $base['stage'] = ($finishRc !== null) ? ('Failed (rc=' . $finishRc . ')') : 'Upgrade Failed';
     }
 
     if ($withLogTail) {

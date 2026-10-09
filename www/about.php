@@ -1777,7 +1777,7 @@
                                 <div id="fppBusyBar" class="fpp-version-indicator" style="display: none;">
                                     <i class="fas fa-circle-notch fa-spin"></i>
                                     <span id="fppBusyText">FPP update in progress</span>
-                                    <button class="fpp-btn fpp-btn--secondary" onclick="openUpdateProgress();">View
+                                    <button class="fpp-btn fpp-btn--secondary" onclick="if(typeof openUpdateProgress==='function'){openUpdateProgress();}">View
                                         Status</button>
                                 </div>
                                 <button class="fpp-btn fpp-btn--secondary" id="fppUpdateButton"
@@ -1901,7 +1901,7 @@
                                 <div id="osBusyBar" class="fpp-version-indicator" style="display: none;">
                                     <i class="fas fa-circle-notch fa-spin"></i>
                                     <span id="osBusyText">OS upgrade in progress</span>
-                                    <button class="fpp-btn fpp-btn--secondary" onclick="openUpdateProgress();">View
+                                    <button class="fpp-btn fpp-btn--secondary" onclick="if(typeof openUpdateProgress==='function'){openUpdateProgress();}">View
                                         Status</button>
                                 </div>
                                 <select id="osSelect" class="form-select fpp-select" onChange="OSSelectChanged();">
