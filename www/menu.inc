@@ -333,6 +333,13 @@ function list_plugin_entries($menu)
                         EnableModalDialogCloseButton("rebuildFPP");
                     }
                     function RebuildFPPD() {
+                        // Refuse while any update owns the box (same guard as the
+                        // about.php starters); the server lock below is the atomic
+                        // backstop and answers 409 in the dialog.
+                        if (typeof UpdateActivityBusySide === 'function' && UpdateActivityBusySide() !== null) {
+                            $.jGrowl('An update is already in progress. Wait for it to finish before rebuilding.', { themeState: 'warning' });
+                            return;
+                        }
                         if (typeof FPPUpdate_MarkStarted === 'function') {
                             FPPUpdate_MarkStarted('fpp');
                         }

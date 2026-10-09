@@ -11,12 +11,18 @@ if (!$wrapped)
 
 $skipJSsettings = 1;
 require_once("common.php");
+// Atomic server-side update lock (see common/updateLock.inc.php): a rebuild
+// cleans binaries and recompiles, so it serializes against updates.
+require_once("common/updateLock.inc.php");
 
 DisableOutputBuffering();
 
 // Finish once started, even if the browser goes away: a closed tab must not stop
 // PHP at the next echo, after fppd has been stopped but before it is started again.
 ignore_user_abort(true);
+
+// Serialize concurrent starters; held for the whole rebuild.
+UpdateLockAcquireOrConflict('fpp-rebuild', '');
 
 if (!$wrapped) {
     ?>

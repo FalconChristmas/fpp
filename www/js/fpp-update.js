@@ -60,10 +60,9 @@ function FPPUpdate_MarkStarted(side) {
 // 'fpp' covers fpp-update/fpp-upgrade/branch-switch/version-checkout, 'os'
 // is an OS upgrade, null when idle. Global so page starters (about.php,
 // fpp.js) can refuse a conflicting update while one is already running.
-// UX-only immediate feedback: this browser-local snapshot cannot prevent two
-// browsers (or direct PHP calls) from racing; it only hides/disables the
-// conflicting controls and warns. A server-side lock would be a behavioural
-// change to every update entry point and is deliberately out of scope here.
+// Instant UX-only feedback for the common case; every starter additionally
+// takes the server-side flock (common/updateLock.inc.php), which atomically
+// refuses racers with HTTP 409.
 function UpdateActivityBusySide() {
 	if (typeof fppUpdateActivity === 'undefined' || !fppUpdateActivity) {
 		return null;

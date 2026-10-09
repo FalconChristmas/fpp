@@ -7,8 +7,13 @@ header("Access-Control-Allow-Origin: *");
 include 'common/htmlMeta.inc';
 $skipJSsettings = 1;
 require_once("common.php");
+// Atomic server-side update lock helper (acquired after the ack gate below,
+// before any remote/branch mutation).
+require_once("common/updateLock.inc.php");
 
 DisableOutputBuffering();
+// Survive a closed tab mid-switch like the other update endpoints.
+ignore_user_abort(true);
 ?>
 
 <head>
@@ -231,6 +236,10 @@ if (!$prFetchDone && $remote !== 'origin' && $remote !== 'newfeatures' && $remot
 // Fetch the fork remote so that git_branch's show-ref validation succeeds.
 // Newly-added remotes have no refs yet; without this the script aborts with
 // "Invalid Branch Name" even though the branch exists on GitHub.
+// The update lock is taken here (after the ack gate above, which must not
+// hold it while the user reads the warning): held for the whole switch so a
+// concurrent starter gets 409 instead of stacking a second mutation.
+UpdateLockAcquireOrConflict('fpp-branch-switch', $remote . '/' . $branch);
 if ($isForkRemote) {
 	$fetchOut = array();
 	$fetchRet = 0;

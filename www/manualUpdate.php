@@ -14,6 +14,10 @@ require_once("common.php");
 // Shared operation logging -> logs/fpp_system_upgrades.log, the same file the scripts
 // this page drives (git_pull, and upgrade_config beneath it) append to.
 require_once("common/oplog.inc.php");
+// Atomic server-side update lock: refuse (409) when another update starter
+// already holds it, before any mutating work. Fail-open when flock is
+// unavailable. Held for the whole request (auto-released on kill).
+require_once("common/updateLock.inc.php");
 
 DisableOutputBuffering();
 
@@ -21,6 +25,10 @@ DisableOutputBuffering();
 // PHP at the next echo.  git_pull survives behind its tee, but the fppd restart
 // and the Apache/CSP updates after it would be skipped.
 ignore_user_abort(true);
+
+// Serialize concurrent starters (two browsers / direct calls can both pass
+// the client-side busy guard before either poll observes the other).
+UpdateLockAcquireOrConflict('fpp-update', 'manual');
 
 // Label this page's log lines with the branch, matching how scripts/git_pull
 // tags the run it is about to start, so the PHP-side phases and the script-side

@@ -957,8 +957,10 @@
             var osBusy = side === 'os';
             var stage = activity && activity.stage ? ' — ' + activity.stage : '';
 
-            $('#fppBusyBar').toggle(fppBusy);
-            $('#osBusyBar').toggle(osBusy);
+            // .fpp-version-indicator is a flex row; jQuery .toggle()/.show()
+            // would flatten it to display:block, so set flex explicitly.
+            $('#fppBusyBar').css('display', fppBusy ? 'flex' : 'none');
+            $('#osBusyBar').css('display', osBusy ? 'flex' : 'none');
             if (fppBusy) {
                 $('#fppBusyText').text((activity.kind || 'FPP update') + ' in progress' + stage);
             }
@@ -1074,7 +1076,7 @@
                 FPPUpdate_AddHideButton('fppUpgrade');
             }
             SetProgressDialogStatus('fppUpgrade', fppUpgradeTitle + ' — Starting…');
-            StreamURL('manualUpdate.php?wrapped=1', 'fppUpgradeText', 'FPPUpgradeDone', '', 'GET', null, null, true, false, 'FPPUpgradeProgress'); // trailing arg: generic stage-status hook
+            StreamURL('manualUpdate.php?wrapped=1', 'fppUpgradeText', 'FPPUpgradeDone', 'FPPUpgradeDone', 'GET', null, null, true, false, 'FPPUpgradeProgress'); // trailing arg: generic stage-status hook
         }
 
         function FPPUpgradeDone() {

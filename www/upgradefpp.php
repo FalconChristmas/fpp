@@ -23,6 +23,9 @@ require_once("common.php");
 // is already there via its tee); the persistent update-progress UI reads this
 // file, so without these lines a re-attached viewer sees no verdict.
 require_once("common/oplog.inc.php");
+// Atomic server-side update lock (see common/updateLock.inc.php): refuse
+// with 409 when another update already holds it. Fail-open otherwise.
+require_once("common/updateLock.inc.php");
 
 DisableOutputBuffering();
 
@@ -31,6 +34,9 @@ DisableOutputBuffering();
 // script survives behind its tee, but without this the terminal UpgradeLog
 // verdict below would be skipped, leaving a stale open run.
 ignore_user_abort(true);
+
+// Serialize concurrent starters; held for the whole request.
+UpdateLockAcquireOrConflict('fpp-upgrade', $version);
 
 if (!$wrapped) {
 ?>

@@ -2078,7 +2078,23 @@ function StreamURL (
 				window[doneCallback](id);
 			}
 		})
-		.fail(function (data) {
+		.fail(function (jqXHR) {
+			// Surface the server's refusal text (e.g. the 409 update-lock
+			// conflict) in the streaming target so a refused starter shows
+			// WHY it never started instead of hanging on "Starting…".
+			// Guarded: error display must never break the callback chain.
+			try {
+				var failMsg = (jqXHR && jqXHR.responseText) ? String(jqXHR.responseText) : '';
+				if (failMsg !== '' && outputArea) {
+					if (typeof outputArea.value === 'string') {
+						outputArea.value += failMsg + '\n';
+					} else if (outputArea.innerHTML !== undefined) {
+						outputArea.innerHTML += failMsg.replace(/(?:\r\n|\r|\n)/g, '<br>') + '<br>';
+					}
+					outputArea.scrollTop = outputArea.scrollHeight;
+				}
+			} catch (e) {
+			}
 			if (errorCallback != '') {
 				window[errorCallback](id);
 			}
@@ -4671,6 +4687,7 @@ function UpgradeFPPVersion (newVersion) {
 		StreamURL(
 			'upgradefpp.php?version=v' + version,
 			'upgradeFPPDialogText',
+			'VersionUpgradeDone',
 			'VersionUpgradeDone'
 		);
 	}

@@ -42,6 +42,10 @@ require_once "common.php";
 // the media tree, which upgradeOS-part2.sh's rsync never touches (it copies only
 // bin etc lib opt root sbin usr var), so this log survives the image swap.
 require_once "common/oplog.inc.php";
+// Atomic server-side update lock (see common/updateLock.inc.php). Required
+// at the mutation points below, not here, so validation exits and
+// downloadOnly (a mere fetch, not an upgrade) never take it.
+require_once "common/updateLock.inc.php";
 
 DisableOutputBuffering();
 
@@ -143,6 +147,12 @@ if (isset($_GET['os']) && preg_match('/^https?:/', $_GET['os'])) {
         array_unshift($urls, "http://" . fppUrlHost($upgradeSource) . "/api/file/uploads/" . $baseFile);
     }
 
+    // Serialize concurrent starters before any mutating work (the download
+    // writes the upload file below; the lock is held for the whole request).
+    // downloadOnly is a pure fetch and never takes it.
+    if (!isset($_GET['downloadOnly'])) {
+        UpdateLockAcquireOrConflict('os-upgrade', $baseFile);
+    }
     logStage("Downloading OS image");
     // Open the persistent run BEFORE the (potentially very long) image
     // download so other browsers report the update for its full lifetime.
@@ -224,6 +234,9 @@ $full_fppos_path = "/home/fpp/media/upload/$baseFile";
 // as do direct hits with no ?os= (no upgrade intent: avoids START/Failed
 // noise flipping the banner for a mere page load).
 if ((!isset($osUpgradeActivityStarted) || !$osUpgradeActivityStarted) && !isset($_GET['downloadOnly']) && isset($_GET['os'])) {
+    // Local-image path: same lock before the apply phase (no-op when the
+    // download path above already holds it in this request).
+    UpdateLockAcquireOrConflict('os-upgrade', $baseFile);
     UpgradeLog('os-upgrade', $baseFile, "===== os-upgrade START: " . $baseFile . " =====");
     $osUpgradeActivityStarted = true;
 }
@@ -262,15 +275,8 @@ if ($applyUpdate) {
 }
 
 if ($applyUpdate) {
-    // Local-image path (no download above): open the run here so the apply
-    // phase is visible. The download path already opened it; guard with a
-    // flag so we emit exactly one PHP-side START (part1 emits its own).
-    if (!isset($osUpgradeActivityStarted) || !$osUpgradeActivityStarted) {
-        if (!isset($_GET['downloadOnly'])) {
-            UpgradeLog('os-upgrade', $baseFile, "===== os-upgrade START: " . $baseFile . " =====");
-            $osUpgradeActivityStarted = true;
-        }
-    }
+    // The run was already opened above (download path) or at the file
+    // checks (local-image path); part1 emits its own START next.
     logStage("Applying OS image");
 
     # Ensure /proc/sysrq-trigger is writable by fpp for reboot later.  Do it now whilst libraries are all good
