@@ -284,6 +284,23 @@ int StartEffect(const std::string& effectName, int startChannel, int loop, bool 
 }
 
 /*
+ * Queue a channel range to be zeroed by OverlayEffects().  The ranges come
+ * from the effect file's header (or a caller-supplied start channel), so they
+ * are clamped to the channel buffer here: readFrame() already ignores a range
+ * past FPPD_MAX_CHANNELS, but the memset() that clears it would not.  Assumes
+ * effectsLock is already held.
+ */
+static void AddClearRange(uint32_t start, uint32_t len) {
+    if (start >= FPPD_MAX_CHANNELS) {
+        return;
+    }
+    len = std::min(len, (uint32_t)FPPD_MAX_CHANNELS - start);
+    if (len) {
+        clearRanges.push_back(std::pair<uint32_t, uint32_t>(start, len));
+    }
+}
+
+/*
  * Helper function to stop an effect, assumes effectsLock is already held
  */
 void StopEffectHelper(int effectID) {
@@ -294,14 +311,14 @@ void StopEffectHelper(int effectID) {
         V2FSEQFile* v2fseq = dynamic_cast<V2FSEQFile*>(e->fp);
         if (v2fseq && v2fseq->m_sparseRanges.size() != 0) {
             for (auto& a : v2fseq->m_sparseRanges) {
-                clearRanges.push_back(std::pair<uint32_t, uint32_t>(a.first, a.second));
+                AddClearRange(a.first, a.second);
             }
             for (auto& a : v2fseq->m_rangesToRead) {
-                clearRanges.push_back(std::pair<uint32_t, uint32_t>(a.first, a.second));
+                AddClearRange(a.first, a.second);
             }
         } else {
             // not sparse and not eseq, entire range
-            clearRanges.push_back(std::pair<uint32_t, uint32_t>(0, e->fp->getChannelCount()));
+            AddClearRange(0, e->fp->getChannelCount());
         }
     }
     delete e;
