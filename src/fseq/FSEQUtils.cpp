@@ -308,15 +308,24 @@ int main(int argc, char* argv[]) {
             src->prepareRead(ranges);
 
             char title[50];
-            uint8_t* data = (uint8_t*)malloc(8024 * 1024);
+            static constexpr uint32_t DUMP_BUFFER_SIZE = 8192 * 1024;
+            uint8_t* data = (uint8_t*)malloc(DUMP_BUFFER_SIZE);
             for (int x = 0; x < src->getNumFrames(); x++) {
                 FSEQFile::FrameData* fdata = src->getFrame(x);
-                fdata->readFrame(data, 8024 * 1024);
+                fdata->readFrame(data, DUMP_BUFFER_SIZE);
                 delete fdata;
 
                 for (auto& r : ranges) {
-                    snprintf(title, 50, "Frame: %d, Range: %d-%d", x, r.first, r.first + r.second - 1);
-                    HexDump(title, data + r.first, r.second, VB_SEQUENCE, 16);
+                    if ((uint64_t)r.first >= DUMP_BUFFER_SIZE) {
+                        continue;
+                    }
+                    uint64_t len = r.second;
+                    if ((uint64_t)r.first + len > DUMP_BUFFER_SIZE) {
+                        len = DUMP_BUFFER_SIZE - r.first;
+                    }
+                    uint64_t end = len == 0 ? r.first : (uint64_t)r.first + len - 1;
+                    snprintf(title, 50, "Frame: %d, Range: %d-%d", x, r.first, (int)end);
+                    HexDump(title, data + r.first, (int)len, VB_SEQUENCE, 16);
                 }
             }
         } else {
@@ -326,7 +335,7 @@ int main(int argc, char* argv[]) {
                     src->setReadPattern(FSEQFile::ReadPattern::Bulk);
                     f.srcFile = src;
                     if (f.ranges.empty()) {
-                        f.ranges.push_back(std::pair<uint32_t, uint32_t>(0, 8024 * 1024));
+                        f.ranges.push_back(std::pair<uint32_t, uint32_t>(0, 8192 * 1024));
                     }
                 }
             }
@@ -363,21 +372,28 @@ int main(int argc, char* argv[]) {
             dest->initializeFromFSEQ(*src);
             dest->writeHeader();
 
-            uint8_t* data = (uint8_t*)malloc(8024 * 1024);
-            uint8_t* mergedata = (uint8_t*)malloc(8024 * 1024);
-            memset(mergedata, 0, 8024 * 1024);
+            // Sized to the channel-space ceiling enforced by the FSEQ write
+            // path (cf. MAX_CHANNEL_SPACE in FSEQFile.cpp, == FPPD_MAX_CHANNELS).
+            // Previously 8024*1024, which left a ~172KB window where a capped
+            // write count/range could still exceed the heap buffer.
+            static constexpr uint32_t INPUT_BUFFER_SIZE = 8192 * 1024;
+            uint8_t* data = (uint8_t*)malloc(INPUT_BUFFER_SIZE);
+            uint8_t* mergedata = (uint8_t*)malloc(INPUT_BUFFER_SIZE);
+            memset(mergedata, 0, INPUT_BUFFER_SIZE);
             for (int x = 0; x < src->getNumFrames(); x++) {
                 FSEQFile::FrameData* fdata = src->getFrame(x);
-                fdata->readFrame(data, 8024 * 1024);
+                fdata->readFrame(data, INPUT_BUFFER_SIZE);
                 delete fdata;
 
                 for (auto& m : mergeFseqs) {
                     if (m.srcFile) {
                         FSEQFile::FrameData* fdata = m.srcFile->getFrame(x);
-                        fdata->readFrame(mergedata, 8024 * 1024);
+                        fdata->readFrame(mergedata, INPUT_BUFFER_SIZE);
                         delete fdata;
                         for (auto& r : m.ranges) {
-                            for (int y = 0, idx = r.first; y < r.second; ++y, ++idx) {
+                            // Merge ranges come from the CLI, but never trust an
+                            // index past the buffer: stop instead of corrupting heap.
+                            for (uint64_t y = 0, idx = r.first; y < r.second && idx < INPUT_BUFFER_SIZE; ++y, ++idx) {
                                 if (mergedata[idx] || m.copyZero) {
                                     data[idx] = mergedata[idx];
                                     mergedata[idx] = 0;
