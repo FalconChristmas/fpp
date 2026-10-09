@@ -165,8 +165,11 @@ if (isset($_GET['cpu'])) {
                 // gateway IPs, disk usage); escape it for both the title
                 // attribute and the HTML text content. Fall back to empty
                 // string so a missing message renders blank, never the
-                // literal text "undefined".
-                var escapedMsg = $('<span>').text(check.message || '').html();
+                // literal text "undefined". Note: .text().html() serialises
+                // a text node, which escapes & < > but NOT quotes, so the
+                // double quote is escaped separately for the title="…"
+                // attribute (single quotes need no escaping there).
+                var escapedMsg = $('<span>').text(check.message || '').html().replace(/"/g, '&quot;');
                 var statusHtml =
                     '<i class="fas ' + getStatusIcon(check.status) + ' fpp-health-check__status-icon"></i>' +
                     '<span class="fpp-health-check__status-text" title="' + escapedMsg + '">' + escapedMsg + '</span>';

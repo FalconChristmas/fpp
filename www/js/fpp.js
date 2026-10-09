@@ -2072,18 +2072,19 @@ function StreamURL (
 					outputArea.nodeName == 'PRE' ||
 					outputArea.nodeName == 'SPAN'
 				) {
-					if (raw == false) {
-						// Default: inert text rendering (see AppendStreamText).
-						// Only an explicit opt-out falls through to HTML.
-						AppendStreamText(outputArea, this_response, outputArea.nodeName != 'PRE');
-					} else {
+					if (raw === true) {
 						// Explicit HTML opt-in: caller asserts the stream is
 						// already markup. The known in-repo HTML-stream consumer
 						// is the (currently commented-out) Health Check
 						// StreamURL call in healthCheck.php, which must also
 						// pass allowScripts=true. Everything else renders as
-						// inert text above.
+						// inert text below. Strict equality on purpose: any
+						// other value (false, null, undefined, …) is text.
 						outputArea.innerHTML += this_response;
+					} else {
+						// Default: inert text rendering (see AppendStreamText).
+						// Only an explicit opt-in renders as HTML.
+						AppendStreamText(outputArea, this_response, outputArea.nodeName != 'PRE');
 					}
 				} else {
 					outputArea.value += this_response;
