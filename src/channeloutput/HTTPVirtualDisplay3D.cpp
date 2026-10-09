@@ -149,6 +149,18 @@ int HTTPVirtualDisplay3DOutput::Init(Json::Value config) {
         return 0;
     }
 
+    // An empty/headerless map parses "successfully" but allocates nothing (and
+    // absurd map dimensions fail the allocation inside InitializePixelMap the
+    // same way): refuse to run with no buffer or dimensions that cannot form
+    // one, instead of bzero()'ing a null display below. Mirrors the 2D guard.
+    if (m_virtualDisplay == nullptr ||
+        virtualDisplayBufferBytes(m_width, m_height, m_bytesPerPixel) == 0) {
+        LogErr(VB_CHANNELOUT, "Error, virtual display has no usable buffer (%dx%d)\n",
+               m_width, m_height);
+        WarningHolder::AddWarning(37, "3D Virtual Display preview: could not initialize pixel map");
+        return 0;
+    }
+
     // Auto-calculate channel range from virtualdisplaymap
     if (!m_pixels.empty()) {
         unsigned int minChannel = m_pixels[0].ch;
@@ -174,7 +186,7 @@ int HTTPVirtualDisplay3DOutput::Init(Json::Value config) {
         }
     }
 
-    m_screenSize = m_width * m_height * 3;
+    m_screenSize = (int)virtualDisplayBufferBytes(m_width, m_height, m_bytesPerPixel);
 
     bzero(m_virtualDisplay, m_screenSize);
 

@@ -162,7 +162,7 @@ int HTTPVirtualDisplayOutput::Init(Json::Value config) {
         return 0;
     }
 
-    m_screenSize = m_width * m_height * 3;
+    m_screenSize = (int)virtualDisplayBufferBytes(m_width, m_height, m_bytesPerPixel);
 
     // Worst case a frame touches every pixel; size this once so the hot loop
     // never reallocates

@@ -219,6 +219,17 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
                 m_previewWidth = atoi(parts[0].c_str());
                 m_previewHeight = atoi(parts[1].c_str());
 
+                // A corrupt header (e.g. "0,0" or non-numeric) would divide by
+                // zero below and convert NaN/Inf to int (UB). Fail cleanly
+                // instead; valid exporters always write positive dimensions.
+                if (m_previewWidth <= 0 || m_previewHeight <= 0) {
+                    LogErr(VB_CHANNELOUT, "Invalid virtual display preview dimensions %dx%d\n",
+                           m_previewWidth, m_previewHeight);
+                    free(line);
+                    fclose(file);
+                    return 0;
+                }
+
                 // Only HTTPVirtualDisplay uses this where buffer is based on preview size
                 if ((m_width == -1) || (m_height == -1)) {
                     m_width = m_previewWidth;
@@ -228,11 +239,15 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
                     if (bufBytes == 0) {
                         LogErr(VB_CHANNELOUT, "Invalid virtual display dimensions %dx%d\n",
                                m_width, m_height);
+                        free(line);
+                        fclose(file);
                         return 0;
                     }
                     m_virtualDisplay = (unsigned char*)malloc(bufBytes);
                     if (!m_virtualDisplay) {
                         LogErr(VB_CHANNELOUT, "Unable to malloc buffer\n");
+                        free(line);
+                        fclose(file);
                         return 0;
                     }
                 }
@@ -394,6 +409,7 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
 
     LoadBackgroundImage();
 
+    free(line);
     fclose(file);
 
     return 1;

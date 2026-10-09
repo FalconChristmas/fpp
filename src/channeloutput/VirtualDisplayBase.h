@@ -99,6 +99,9 @@ protected:
     // impact on plugin-facing classes.
     static size_t virtualDisplayBufferBytes(int w, int h, int bpp);
 
+public:
+    // Historically public: external channel-output plugins may reference this
+    // directly, so it stays public while the helper above stays protected.
     bool m_allowDuplicatePixels;  // Set to true for 3D mode where multiple pixels can be at same coords
 };
 
