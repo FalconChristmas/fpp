@@ -231,7 +231,6 @@ function SetForceHDMIResolution($value, $postfix)
     } else {
         $parts = explode("@", $value);
         $numParts = count($parts);
-        file_put_contents("/home/fpp/foo.txt", $postfix . " " . $value . " " . $numParts);
         if ($numParts == 2 || $value == "Default") {
             exec("sudo sed -i -e 's/^c\(.*\) video=HDMI-A-" . $postfix . ":\([A-Za-z@0-9]*\)\(.*\)/c\\1 \\3/' " . GetDirSetting('boot') . "/cmdline.txt", $output, $return_val);
             exec("sudo sed -i 's/[ \\t]*$//' " . GetDirSetting('boot') . "/cmdline.txt", $output, $return_val);
