@@ -101,8 +101,6 @@ public:
     // appropriate cap instead of one global setting for all of them.
     int pacingRateMbps = -1;
 
-    int failCount;
-
     // Set while StartingOutput() is owed its StoppingOutput().  valid can change
     // at runtime (a failed ping clears it), so it cannot say which outputs were
     // started; UDPOutput pairs the two calls through this instead.
@@ -157,6 +155,15 @@ private:
 
     bool InitNetwork();
     std::shared_ptr<SendSocketInfo> findOrCreateSocket(unsigned int key, int sc = 1);
+
+    // Reachability is a property of the controller, not of each universe sent
+    // to it: one PingHost per address, shared by every output sending there,
+    // so a controller that stops answering takes all its universes out of the
+    // frame, and it is pinged once rather than once per universe.
+    struct PingHost;
+    std::map<std::string, std::shared_ptr<PingHost>> pingHosts;
+    void OnPingResult(const std::shared_ptr<PingHost>& host, int ms);
+    void SetHostValid(PingHost& host, bool valid);
     void CloseNetwork();
 
     std::mutex socketMutex;
@@ -168,6 +175,7 @@ private:
     int networkCallbackId;
 
     void PingControllers(bool failedOnly);
+    // controllers that have not answered yet; Init() waits on it
     std::atomic_int failedCount;
     std::string HexToIP(unsigned int hex);
 

@@ -75,6 +75,18 @@ static inline std::string createWarning(const std::string& host, const std::stri
     return "Cannot Ping " + type + " Channel Data Target " + host + " " + description;
 }
 
+struct UDPOutput::PingHost {
+    std::string address;
+    std::vector<UDPOutputData*> outputs;
+    std::string warning;
+    // the ping thread and the HEAD probe's callback (main loop) both update it
+    std::mutex lock;
+    int failCount = 0;
+    bool answered = false;
+    bool valid = true;
+    bool headPending = false;
+};
+
 // Interface names that reach shells (interfaceHasFQ's tc popen below) and
 // sysfs paths must be plausible kernel names: IFNAMSIZ-1 chars, no '/' and no
 // leading '.'/'-'. The configured value is operator-editable JSON. Deliberately
@@ -350,7 +362,6 @@ UDPOutputData::UDPOutputData(const Json::Value& config) :
     valid(true),
     type(0),
     monitor(true),
-    failCount(0),
     lastData(nullptr),
     skippedFrames(0) {
     if (config.isMember("description")) {
@@ -730,14 +741,19 @@ int UDPOutput::Init(Json::Value config) {
     // so we'll assume the interface is Up.
     interfaceUp = true;
     InitNetwork();
-    failedCount = 0;
-    // need to do three pings to detect down hosts
-    for (auto& o : outputs) {
-        if (o->active) {
-            o->failCount = -1;
-            ++failedCount;
+    for (auto o : outputs) {
+        if (o->IsPingable() && o->Monitor() && o->active) {
+            std::shared_ptr<PingHost>& host = pingHosts[o->ipAddress];
+            if (!host) {
+                host = std::make_shared<PingHost>();
+                host->address = o->ipAddress;
+                host->warning = createWarning(o->ipAddress, o->GetOutputTypeString(), o->description);
+            }
+            host->outputs.push_back(o);
         }
     }
+    failedCount = (int)pingHosts.size();
+    // need to do three pings to detect down hosts
     PingControllers(false);
     int sleepCount = 0;
     while (failedCount > 0 && sleepCount < (UDP_PING_TIMEOUT + 10)) {
@@ -769,10 +785,8 @@ int UDPOutput::Close() {
     NetworkMonitor::INSTANCE.removeCallback(networkCallbackId);
     messages.clearMessages();
     messages.clearSockets();
-    for (auto o : outputs) {
-        if (o->IsPingable() && o->Monitor()) {
-            PingManager::INSTANCE.removePeriodicPing(o->ipAddress);
-        }
+    for (auto& h : pingHosts) {
+        PingManager::INSTANCE.removePeriodicPing(h.first);
     }
     return ChannelOutput::Close();
 }
@@ -1415,61 +1429,84 @@ void UDPOutput::CheckLocalDrops() {
 
 void UDPOutput::PingControllers(bool failedOnly) {
     LogExcess(VB_CHANNELOUT, "Pinging controllers to see what is online\n");
-    for (auto o : outputs) {
-        if (o->IsPingable() && o->Monitor() && o->active) {
-            if (failedOnly && o->failCount == 0) {
+    for (auto& h : pingHosts) {
+        std::shared_ptr<PingHost> host = h.second;
+        if (failedOnly) {
+            std::unique_lock<std::mutex> l(host->lock);
+            if (host->answered && host->failCount == 0) {
                 continue;
             }
-            PingManager::INSTANCE.addPeriodicPing(o->ipAddress, UDP_PING_TIMEOUT, 15000, [o, this](int i) {
-                if (o->failCount == -1) {
-                    // first pass through, we got a response of some sort
-                    // so decrement the failed count so the main thread may
-                    // be able to continue
-                    if (i > 0 && o->valid) {
-                        --failedCount;
-                    }
-                    o->failCount = 0;
-                }
-                if (i > 0 && !o->valid) {
-                    WarningHolder::RemoveWarning(27, createWarning(o->ipAddress, o->GetOutputTypeString(), o->description));
-                    LogWarn(VB_CHANNELOUT, "Could ping host %s, re-adding to outputs\n", o->ipAddress.c_str());
-                    o->failCount = 0;
-                    o->valid = true;
+        }
+        PingManager::INSTANCE.addPeriodicPing(host->address, UDP_PING_TIMEOUT, 15000, [this, host](int ms) {
+            OnPingResult(host, ms);
+        });
+    }
+}
+
+// caller holds host.lock
+void UDPOutput::SetHostValid(PingHost& host, bool valid) {
+    host.valid = valid;
+    for (auto o : host.outputs) {
+        o->valid = valid;
+    }
+    if (valid) {
+        WarningHolder::RemoveWarning(27, host.warning);
+        LogWarn(VB_CHANNELOUT, "Could ping host %s, re-adding to outputs\n", host.address.c_str());
+    } else {
+        WarningHolder::AddWarning(27, host.warning);
+        LogWarn(VB_CHANNELOUT, "Could not ping host %s, removing from output\n", host.address.c_str());
+    }
+}
+
+void UDPOutput::OnPingResult(const std::shared_ptr<PingHost>& host, int ms) {
+    std::unique_lock<std::mutex> l(host->lock);
+    if (ms > 0) {
+        host->failCount = 0;
+        if (!host->answered) {
+            host->answered = true;
+            --failedCount;
+        }
+        if (!host->valid) {
+            SetHostValid(*host, true);
+        }
+        return;
+    }
+    LogDebug(VB_CHANNELOUT, "Could not ping host %s   Fail count: %d   Currently Valid: %d\n", host->address.c_str(), host->failCount, host->valid);
+    host->failCount++;
+    if (host->failCount == 1) {
+        // ignore a single ping failure, could be transient
+    } else if (host->failCount == 2) {
+        // if two pings fail, we'll try a HEAD request via HTTP.  One at a
+        // time: a probe can take the whole curl timeout, and the pings keep
+        // failing meanwhile.
+        if (host->headPending) {
+            return;
+        }
+        host->headPending = true;
+        l.unlock();
+        std::shared_ptr<PingHost> h = host;
+        CurlManager::INSTANCE.add("http://" + h->address + "/", "HEAD", "", {}, [this, h](int rc, const std::string& resp) {
+            std::unique_lock<std::mutex> l(h->lock);
+            h->headPending = false;
+            if (rc) {
+                h->failCount = 0;
+                if (!h->answered) {
+                    h->answered = true;
                     --failedCount;
-                } else if (i <= 0) {
-                    LogDebug(VB_CHANNELOUT, "Could not ping host %s   Fail count: %d   Currently Valid: %d\n", o->ipAddress.c_str(), o->failCount, o->valid);
-                    o->failCount++;
-                    if (o->failCount == 1) {
-                        // ignore a single ping failure, could be transient
-                    } else if (o->failCount == 2) {
-                        // if two pings fail, we'll try a HEAD request via HTTP
-                        CurlManager::INSTANCE.add("http://" + o->ipAddress + "/", "HEAD", "", {}, [o, this](int rc, const std::string& resp) {
-                            if (rc) {
-                                o->failCount = 0;
-                                if (!o->valid) {
-                                    --failedCount;
-                                    o->valid = true;
-                                    WarningHolder::RemoveWarning(27, createWarning(o->ipAddress, o->GetOutputTypeString(), o->description));
-                                    LogWarn(VB_CHANNELOUT, "Could ping host %s, re-adding to outputs\n",
-                                            o->ipAddress.c_str());
-                                }
-                            }
-                        });
-                    } else if (o->failCount >= 3) {
-                        // three pings an HEAD request failed, mark invalid
-                        if (o->valid) {
-                            WarningHolder::AddWarning(27, createWarning(o->ipAddress, o->GetOutputTypeString(), o->description));
-                            LogWarn(VB_CHANNELOUT, "Could not ping host %s, removing from output\n", o->ipAddress.c_str());
-                            o->valid = false;
-                        }
-                        ++failedCount;
-                        if (o->failCount > 5) {
-                            // make sure we wrap around so another HEAD request later may pick it up
-                            o->failCount = 0;
-                        }
-                    }
                 }
-            });
+                if (!h->valid) {
+                    SetHostValid(*h, true);
+                }
+            }
+        });
+    } else if (host->failCount >= 3) {
+        // three pings and a HEAD request failed, mark invalid
+        if (host->valid) {
+            SetHostValid(*host, false);
+        }
+        if (host->failCount > 5) {
+            // make sure we wrap around so another HEAD request later may pick it up
+            host->failCount = 0;
         }
     }
 }
