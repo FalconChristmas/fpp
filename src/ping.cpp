@@ -94,6 +94,8 @@ public:
     long long startTime;
     long long timeoutMS;
     int period = 0;
+    // in PingInfo::targets awaiting a reply or timeout; guarded by targetLock
+    bool pending = false;
 
     PingTarget(const std::string& target, int timeout, std::function<void(int)> cb) :
         callback(cb) {
@@ -208,9 +210,19 @@ public:
             if (t->hostname == target && t->period) {
                 t->timeoutMS = timeout;
                 t->period = period;
-                targets.push_back(t);
-                lock.unlock();
-                sendPing(t);
+                // One ping in flight per target.  Callers re-request on every
+                // send error (UDPOutput, ~13/s against a saturated controller,
+                // once per universe), and each re-push used to add another copy
+                // to targets, every one of which fired the callback on timeout
+                // -- hundreds per second, each failure able to start an HTTP
+                // HEAD probe, until fppd ran out of file descriptors.  The
+                // pending ping answers this request too.
+                if (!t->pending) {
+                    // a fresh deadline; the stale one timed the ping out at
+                    // the next poll, before the host could possibly answer
+                    t->startTime = GetTimeMS();
+                    queuePing(t);
+                }
                 return;
             }
         }
@@ -219,10 +231,8 @@ public:
         if (t->valid) {
             t->callback = callback;
             t->period = period;
-            targets.push_back(t);
             periodics.push_back(t);
-            lock.unlock();
-            sendPing(t);
+            queuePing(t);
         } else {
             delete t;
         }
@@ -309,6 +319,7 @@ public:
             std::unique_lock<std::mutex> lock(targetLock);
             for (auto t : toRemove) {
                 targets.remove(t);
+                t->pending = false;
                 if (t->period == 0) {
                     delete t;
                 }
@@ -316,14 +327,13 @@ public:
             for (auto t : periodics) {
                 long long st = t->startTime;
                 st += t->period;
-                if (curTime > st) {
+                if (curTime > st && !t->pending) {
                     if (!t->valid) {
                         t->revalidate();
                     }
                     if (t->valid) {
                         t->startTime = GetTimeMS();
-                        targets.push_back(t);
-                        sendPing(t);
+                        queuePing(t);
                     }
                 }
             }
@@ -332,6 +342,12 @@ public:
         isRunning = -1;
     }
 
+    // caller holds targetLock
+    void queuePing(PingTarget* t) {
+        t->pending = true;
+        targets.push_back(t);
+        sendPing(t);
+    }
     void sendPing(PingTarget* target) {
         int cc = DEFDATALEN + ICMP_MINLEN;
         target->icp->icmp_seq++;
@@ -353,8 +369,7 @@ public:
             // 64-byte read in sendto of a region freed by the ping thread).
             // The periodic path below already sends while holding the lock.
             std::unique_lock<std::mutex> lock(targetLock);
-            targets.push_back(t);
-            sendPing(t);
+            queuePing(t);
         } else {
             delete t;
         }
