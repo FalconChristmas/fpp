@@ -1992,6 +1992,27 @@ function ProcessStreamedScript (str, allowEmpty = false) {
 	}
 }
 
+// Appends streamed text to an HTML output element without interpreting markup:
+// text runs become text nodes, line breaks become real <br> elements. Renders
+// exactly like the old `innerHTML += text-with-<br>` for plain-text streams
+// while keeping filenames, SSIDs, and log lines inert.
+function AppendStreamText (outputArea, text, convertBreaks) {
+	// Split on the same breaks the old innerHTML path converted to <br>.
+	var parts = text.split(/\r\n|\r|\n/);
+	for (var i = 0; i < parts.length; i++) {
+		if (i > 0) {
+			if (convertBreaks) {
+				outputArea.appendChild(document.createElement('br'));
+			} else {
+				outputArea.appendChild(document.createTextNode('\n'));
+			}
+		}
+		if (parts[i] !== '') {
+			outputArea.appendChild(document.createTextNode(parts[i]));
+		}
+	}
+}
+
 function StreamURL (
 	url,
 	id,
@@ -2002,7 +2023,17 @@ function StreamURL (
 	postContentType = null,
 	postProcessData = true,
 	raw = false,
-	dataCallback = ''
+	dataCallback = '',
+	// Opt-in to the legacy streamed-script mechanism (<script
+	// class='streamScript'> blocks extracted and eval()'d). Defaults off:
+	// unsolicited script blocks in a stream are otherwise indistinguishable
+	// from injected ones, so only callers that intentionally produce them
+	// should enable this. The known legitimate producer is
+	// scripts/healthCheck --php (via healthCheckHelper.php), consumed by
+	// www/healthCheck.php -- which currently uses jQuery .append(), not
+	// StreamURL. A StreamURL consumer of that endpoint must pass
+	// raw=true AND allowScripts=true.
+	allowScripts = false
 ) {
 	var last_response_len = false;
 	var outputArea = document.getElementById(id);
@@ -2050,16 +2081,25 @@ function StreamURL (
 					outputArea.nodeName == 'PRE' ||
 					outputArea.nodeName == 'SPAN'
 				) {
-					if (outputArea.nodeName != 'PRE' && raw == false) {
-						this_response = this_response.replace(/(?:\r\n|\r|\n)/g, '<br>');
+					if (raw === true) {
+						// Explicit HTML opt-in: caller asserts the stream is
+						// already markup. The known in-repo HTML-stream consumer
+						// is the (currently commented-out) Health Check
+						// StreamURL call in healthCheck.php, which must also
+						// pass allowScripts=true. Everything else renders as
+						// inert text below. Strict equality on purpose: any
+						// other value (false, null, undefined, …) is text.
+						outputArea.innerHTML += this_response;
+					} else {
+						// Default: inert text rendering (see AppendStreamText).
+						// Only an explicit opt-in renders as HTML.
+						AppendStreamText(outputArea, this_response, outputArea.nodeName != 'PRE');
 					}
-
-					outputArea.innerHTML += this_response;
 				} else {
 					outputArea.value += this_response;
 				}
 
-				if (orig_response.includes('<script')) {
+				if (allowScripts == true && orig_response.includes('<script')) {
 					ProcessStreamedScript(orig_response);
 				}
 
@@ -2080,9 +2120,12 @@ function StreamURL (
 			// Because xhrFields.onprogress is not guaranteed to fire on the last chunk
 			// any scripts at the end may be missed.  This will execute those, but has
 			// the side effecting of running all other streamScripts again.
-			$('script.streamScript').each(function () {
-				eval($(this).html());
-			});
+			// Only for callers that opted into allowScripts (see above).
+			if (allowScripts == true) {
+				$('script.streamScript').each(function () {
+					eval($(this).html());
+				});
+			}
 			if (doneCallback != '') {
 				window[doneCallback](id);
 			}
