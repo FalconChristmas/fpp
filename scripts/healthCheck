@@ -58,17 +58,14 @@ PrintItemHead() {
     fi
 }
 
-# Escape a status string for embedding inside:
-#   <script class='streamScript'>$('#checkNumberN').html("...");</script>
-# STATUSSTR carries host-influenced data (warning text, hostnames, gateway
-# IPs), so it must not be able to break out of the .html("...") string, the
-# surrounding <script> block, or the single-quoted title='...' attribute in
-# HTML_GOOD. HTML-escape first (neutralises </script>), then JS-string-escape
-# the double-quoted argument. Newlines are stripped; statuses are one line.
+# Escape a status string for $('#checkNumberN').html("...") inside a
+# streamScript block. STATUSSTR carries host-influenced text (warnings,
+# hostnames, plugin names). HTML-escaping covers </script>, the title='...'
+# attribute and every quote, so only backslashes remain to JS-escape.
 EscapeStatusStr() {
     printf '%s' "$1" \
         | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g' -e "s/'/\&#39;/g" \
-        | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' \
+            -e 's/\\/\\\\/g' \
         | tr -d '\r\n'
 }
 
@@ -87,9 +84,6 @@ PrintItemFoot() {
             fi
         fi
 
-        # Legitimate streamScript producer: consumed by www/healthCheck.php,
-        # which intentionally executes these blocks via jQuery .append(), and
-        # by the legacy StreamURL path (requires raw=true + allowScripts=true).
         ESCAPED_STATUSSTR=$(EscapeStatusStr "${STATUSSTR}")
         STATUSHTML=$(printf "${STATUSHTML}" "${ESCAPED_STATUSSTR}")
         printf "<script class='streamScript'>\$('#checkNumber%d').html(\"%s\");</script>\n" ${ID} "${STATUSHTML}"

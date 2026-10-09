@@ -2024,15 +2024,8 @@ function StreamURL (
 	postProcessData = true,
 	raw = false,
 	dataCallback = '',
-	// Opt-in to the legacy streamed-script mechanism (<script
-	// class='streamScript'> blocks extracted and eval()'d). Defaults off:
-	// unsolicited script blocks in a stream are otherwise indistinguishable
-	// from injected ones, so only callers that intentionally produce them
-	// should enable this. The known legitimate producer is
-	// scripts/healthCheck --php (via healthCheckHelper.php), consumed by
-	// www/healthCheck.php -- which currently uses jQuery .append(), not
-	// StreamURL. A StreamURL consumer of that endpoint must pass
-	// raw=true AND allowScripts=true.
+	// eval() <script class='streamScript'> blocks in the stream. Off by
+	// default: an injected block is indistinguishable from an intended one.
 	allowScripts = false
 ) {
 	var last_response_len = false;
@@ -2082,24 +2075,16 @@ function StreamURL (
 					outputArea.nodeName == 'SPAN'
 				) {
 					if (raw === true) {
-						// Explicit HTML opt-in: caller asserts the stream is
-						// already markup. The known in-repo HTML-stream consumer
-						// is the (currently commented-out) Health Check
-						// StreamURL call in healthCheck.php, which must also
-						// pass allowScripts=true. Everything else renders as
-						// inert text below. Strict equality on purpose: any
-						// other value (false, null, undefined, …) is text.
+						// Explicit HTML opt-in; anything else renders as text.
 						outputArea.innerHTML += this_response;
 					} else {
-						// Default: inert text rendering (see AppendStreamText).
-						// Only an explicit opt-in renders as HTML.
 						AppendStreamText(outputArea, this_response, outputArea.nodeName != 'PRE');
 					}
 				} else {
 					outputArea.value += this_response;
 				}
 
-				if (allowScripts == true && orig_response.includes('<script')) {
+				if (allowScripts === true && orig_response.includes('<script')) {
 					ProcessStreamedScript(orig_response);
 				}
 
@@ -2120,8 +2105,7 @@ function StreamURL (
 			// Because xhrFields.onprogress is not guaranteed to fire on the last chunk
 			// any scripts at the end may be missed.  This will execute those, but has
 			// the side effecting of running all other streamScripts again.
-			// Only for callers that opted into allowScripts (see above).
-			if (allowScripts == true) {
+			if (allowScripts === true) {
 				$('script.streamScript').each(function () {
 					eval($(this).html());
 				});
