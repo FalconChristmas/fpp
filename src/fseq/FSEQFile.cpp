@@ -212,6 +212,14 @@ static const int V1ESEQ_HEADER_IDENTIFIER = 'E';
 static const int V1ESEQ_CHANNEL_DATA_OFFSET = 20;
 static const int V1ESEQ_STEP_TIME = 50;
 
+// Largest channel count any real writer input buffer can hold. Sequence
+// m_seqData is FPPD_MAX_CHANNELS (8192*1024) and the fsequtils buffers are
+// sized to match, so clamping file-fed counts/ranges here to the same ceiling
+// keeps the write path inside every real caller buffer. Valid files sit far
+// below it, so this is a no-op for them. Kept file-local to avoid a
+// Sequence -> FSEQFile include inversion (cf. FPPD_MAX_CHANNELS in Sequence.h).
+static constexpr uint64_t MAX_CHANNEL_SPACE = (uint64_t)8192 * 1024;
+
 FSEQFile* FSEQFile::openFSEQFile(const std::string& fn) {
     FILE* seqFile = fopen((const char*)fn.c_str(), "rb");
     if (seqFile == NULL) {
@@ -412,9 +420,18 @@ void FSEQFile::initializeFromFSEQ(const FSEQFile& fseq) {
 
     if (fseq.getVersionMajor() >= 2) {
         const V2FSEQFile* v2 = dynamic_cast<const V2FSEQFile*>(&fseq);
-        if (!v2->m_sparseRanges.empty()) {
+        if (v2 && !v2->m_sparseRanges.empty()) {
             for (auto& a : v2->m_sparseRanges) {
-                m_seqChannelCount = std::max(m_seqChannelCount, (a.first + a.second));
+                // File-fed: use 64-bit so a.first + a.second cannot wrap, and
+                // cap the expansion at channel space. Without the cap a crafted
+                // sparse end (3-byte fields allow ~33M) inflates m_seqChannelCount
+                // far beyond any real input buffer, turning the dense write path
+                // (write(data, getChannelCount())) into an OOB read.
+                uint64_t end = (uint64_t)a.first + (uint64_t)a.second;
+                if (end > MAX_CHANNEL_SPACE) {
+                    end = MAX_CHANNEL_SPACE;
+                }
+                m_seqChannelCount = std::max(m_seqChannelCount, (uint32_t)end);
             }
         }
     }
@@ -660,6 +677,11 @@ V1FSEQFile::V1FSEQFile(const std::string& fn) :
 }
 
 void V1FSEQFile::writeHeader() {
+    // Cap a file-inflated count (see initializeFromFSEQ) so the header and
+    // the per-frame writes agree. No-op for valid files (<= channel space).
+    if ((uint64_t)m_seqChannelCount > MAX_CHANNEL_SPACE) {
+        m_seqChannelCount = (uint32_t)MAX_CHANNEL_SPACE;
+    }
     // Additional file format documentation available at:
     // https://github.com/FalconChristmas/fpp/blob/master/docs/FSEQ_Sequence_File_Format.txt#L1
 
@@ -782,9 +804,16 @@ public:
         uint32_t offset = 0;
         for (auto& rng : m_ranges) {
             uint32_t toRead = rng.second;
-            if (offset + toRead <= m_size) {
-                uint32_t toCopy = std::min(toRead, maxChannels - rng.first);
-                memcpy(&data[rng.first], &m_data[offset], toCopy);
+            if ((uint64_t)offset + toRead <= m_size) {
+                // Sparse ranges come from the file (or the caller), so a start
+                // past the destination must copy nothing -- the subtraction
+                // below would otherwise underflow unsigned and memcpy off the
+                // end of the channel buffer. The source offset still advances
+                // so later ranges stay aligned.
+                if (rng.first < maxChannels) {
+                    uint32_t toCopy = std::min(toRead, maxChannels - rng.first);
+                    memcpy(&data[rng.first], &m_data[offset], toCopy);
+                }
                 offset += toRead;
             } else {
                 return false;
@@ -878,7 +907,11 @@ FrameData* V1FSEQFile::getFrame(uint32_t frame) {
 
 void V1FSEQFile::addFrame(uint32_t frame,
                           const uint8_t* data) {
-    write(data, m_seqChannelCount);
+    uint64_t toWrite = m_seqChannelCount;
+    if (toWrite > MAX_CHANNEL_SPACE) {
+        toWrite = MAX_CHANNEL_SPACE;
+    }
+    write(data, toWrite);
 }
 
 void V1FSEQFile::finalize() {
@@ -1023,11 +1056,28 @@ public:
         return data;
     }
     virtual void addFrame(uint32_t frame, const uint8_t* data) override {
+        // Sparse positions index the caller's full input buffer, NOT the packed
+        // channel count (getMaxChannel extends by design), so bound them to
+        // channel space. The ceiling matches every real input buffer
+        // (Sequence m_seqData == FPPD_MAX_CHANNELS; fsequtils buffers are sized
+        // to match) and writeHeader() normalizes to the same ceiling, so header
+        // and body agree. No-op for valid files, whose ranges sit far below it.
         if (m_file->m_sparseRanges.empty()) {
-            write(data, m_file->getChannelCount());
+            uint64_t toWrite = m_file->getChannelCount();
+            if (toWrite > MAX_CHANNEL_SPACE) {
+                toWrite = MAX_CHANNEL_SPACE;
+            }
+            write(data, toWrite);
         } else {
             for (auto& a : m_file->m_sparseRanges) {
-                write(&data[a.first], a.second);
+                if ((uint64_t)a.first >= MAX_CHANNEL_SPACE) {
+                    continue;
+                }
+                uint64_t len = a.second;
+                if ((uint64_t)a.first + len > MAX_CHANNEL_SPACE) {
+                    len = MAX_CHANNEL_SPACE - a.first;
+                }
+                write(&data[a.first], (uint32_t)len);
             }
         }
     }
@@ -1798,17 +1848,28 @@ public:
 
         uint8_t* curData = (uint8_t*)data;
         if (m_file->m_sparseRanges.empty()) {
+            uint64_t toCompress = m_file->getChannelCount();
+            if (toCompress > MAX_CHANNEL_SPACE) {
+                toCompress = MAX_CHANNEL_SPACE;
+            }
             ZSTD_inBuffer_s input = {
                 curData,
-                m_file->getChannelCount(),
+                (size_t)toCompress,
                 0
             };
             compressData(m_cctx, input, m_outBuffer);
         } else {
             for (auto& a : m_file->m_sparseRanges) {
+                if ((uint64_t)a.first >= MAX_CHANNEL_SPACE) {
+                    continue;
+                }
+                uint64_t len = a.second;
+                if ((uint64_t)a.first + len > MAX_CHANNEL_SPACE) {
+                    len = MAX_CHANNEL_SPACE - a.first;
+                }
                 ZSTD_inBuffer_s input = {
                     &curData[a.first],
-                    a.second,
+                    (size_t)len,
                     0
                 };
                 compressData(m_cctx, input, m_outBuffer);
@@ -1999,10 +2060,21 @@ public:
 
         uint8_t* curData = (uint8_t*)data;
         if (m_file->m_sparseRanges.empty()) {
-            deflateInput(curData, m_file->getChannelCount());
+            uint64_t toCompress = m_file->getChannelCount();
+            if (toCompress > MAX_CHANNEL_SPACE) {
+                toCompress = MAX_CHANNEL_SPACE;
+            }
+            deflateInput(curData, (uint32_t)toCompress);
         } else {
             for (auto& a : m_file->m_sparseRanges) {
-                deflateInput(&curData[a.first], a.second);
+                if ((uint64_t)a.first >= MAX_CHANNEL_SPACE) {
+                    continue;
+                }
+                uint64_t len = a.second;
+                if ((uint64_t)a.first + len > MAX_CHANNEL_SPACE) {
+                    len = MAX_CHANNEL_SPACE - a.first;
+                }
+                deflateInput(&curData[a.first], (uint32_t)len);
             }
         }
         if (m_stream->avail_out < (V2OutBufferSize() - V2FSEQ_OUT_BUFFER_FLUSH_SIZE)) {
@@ -2115,14 +2187,27 @@ V2FSEQFile::V2FSEQFile(const std::string& fn, CompressionType ct, int cl) :
 void V2FSEQFile::writeHeader() {
     if (!m_sparseRanges.empty()) {
         // make sure the sparse ranges fit, and then
-        // recalculate the channel count for in the fseq
+        // recalculate the channel count for in the fseq.
+        // Clamp to channel space in 64-bit as well: addFrame() enforces the
+        // same ceiling, so normalizing here keeps the header's packed count
+        // (sum of lens) equal to the bytes each frame actually writes.
+        // Without this, a clamped range would leave frames short and shift
+        // every subsequent frame in the file.
         std::vector<std::pair<uint32_t, uint32_t>> newRanges;
         for (auto& a : m_sparseRanges) {
-            if (a.first < m_seqChannelCount) {
-                if (a.first + a.second > m_seqChannelCount) {
-                    a.second = m_seqChannelCount - a.first;
+            uint64_t start = a.first;
+            if (start >= MAX_CHANNEL_SPACE) {
+                continue;
+            }
+            uint64_t len = a.second;
+            if (start + len > MAX_CHANNEL_SPACE) {
+                len = MAX_CHANNEL_SPACE - start;
+            }
+            if (start < m_seqChannelCount) {
+                if (start + len > m_seqChannelCount) {
+                    len = (uint64_t)m_seqChannelCount - start;
                 }
-                newRanges.push_back(a);
+                newRanges.push_back(std::pair<uint32_t, uint32_t>((uint32_t)start, (uint32_t)len));
             }
         }
         m_sparseRanges = newRanges;
@@ -2132,6 +2217,10 @@ void V2FSEQFile::writeHeader() {
                 m_seqChannelCount += a.second;
             }
         }
+    } else if ((uint64_t)m_seqChannelCount > MAX_CHANNEL_SPACE) {
+        // Dense output with a file-inflated count (see initializeFromFSEQ):
+        // cap it so the header and the per-frame writes agree.
+        m_seqChannelCount = (uint32_t)MAX_CHANNEL_SPACE;
     }
 
     // Additional file format documentation available at:
@@ -2580,12 +2669,15 @@ void V2FSEQFile::finalize() {
 }
 
 uint32_t V2FSEQFile::getMaxChannel() const {
-    uint32_t ret = m_seqChannelCount;
+    uint64_t ret = m_seqChannelCount;
     for (auto& a : m_sparseRanges) {
-        uint32_t m = a.first + a.second;
+        uint64_t m = (uint64_t)a.first + (uint64_t)a.second;
         if (m > ret) {
             ret = m;
         }
     }
-    return ret;
+    if (ret > 0xFFFFFFFFu) {
+        ret = 0xFFFFFFFFu;
+    }
+    return (uint32_t)ret;
 }
