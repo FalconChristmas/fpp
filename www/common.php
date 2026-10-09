@@ -762,6 +762,28 @@ function LoadTroubleShootingCommands()
     }
 }
 
+// Drop the troubleshooting groups and commands whose "level" is above the UI
+// level.  "level" means what it does in settings.json (0 Basic, 1 Advanced,
+// 2 Experimental, 3 Developer) and only hides an entry from the Troubleshooting
+// page: a Diagnostic Report still runs it.
+function FilterTroubleshootingCommandsByLevel($groups)
+{
+    global $settings;
+    $uiLevel = isset($settings['uiLevel']) ? intval($settings['uiLevel']) : 0;
+
+    $shown = array();
+    foreach ($groups as $grpID => $grp) {
+        if (($grp['level'] ?? 0) > $uiLevel) {
+            continue;
+        }
+        $grp['commands'] = array_filter($grp['commands'], function ($cmd) use ($uiLevel) {
+            return ($cmd['level'] ?? 0) <= $uiLevel;
+        });
+        $shown[$grpID] = $grp;
+    }
+    return $shown;
+}
+
 function MergeDefaultsFromPluginSettings($plugin)
 {
     global $pluginSettingInfos;

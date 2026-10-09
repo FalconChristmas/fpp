@@ -139,6 +139,8 @@ changing one.
   for every command you add, and check it against real output, not the command name.**
   Commands run inside `sh -c '...'` (no single quotes), and `[[name]]` is replaced with a PHP
   variable (no `[[:space:]]`-style classes).
+  A group or command for developers takes `"level"` with its `settings.json` meaning (3 =
+  Developer): the page hides it below that UI level, and Diagnostic Reports still run it.
   A command that prints a web page (server-status, phpinfo) takes `"format": "html"`: the page
   renders it in a script-less sandboxed iframe instead of a `<pre>`, and the helper skips its
   `fold`. Diagnostic Reports still get the raw output.

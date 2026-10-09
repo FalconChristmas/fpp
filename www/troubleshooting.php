@@ -34,6 +34,7 @@
                     //LoadCommands
                     $troubleshootingCommandsLoaded = 0;
                     LoadTroubleShootingCommands();
+                    $troubleshootingCommandGroups = FilterTroubleshootingCommandsByLevel($troubleshootingCommandGroups);
                     $target_platforms = array('all', $settings['Platform']);
 
                     //Display Nav Tabs - one per group
