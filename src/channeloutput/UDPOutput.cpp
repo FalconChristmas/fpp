@@ -27,6 +27,7 @@
 #include <unistd.h>
 
 #include <curl/curl.h>
+#include <cmath> // ceil -- pacing-budget warning rate (needed directly for NOPCH builds)
 #include <algorithm> // find_if -- one pending work item per destination (needed directly for NOPCH builds)
 #include <filesystem>
 #include <set>
@@ -188,6 +189,16 @@ static std::string egressInterfaceFor(in_addr_t dest) {
 }
 #endif
 
+// Sites that log a failed send.  A destination that is persistently behind
+// fails every frame, and logging each one wrote 1.4 million lines (360MB of
+// fppd.log) on one player, so each site logs a destination at most once per
+// SEND_ERR_LOG_INTERVAL_MS.  CheckPacingBudget() reports the totals.
+enum SendErrLogSite { SEND_ERR_BUDGET,
+                      SEND_ERR_EAGAIN,
+                      SEND_ERR_FRAME,
+                      SEND_ERR_SITES };
+static constexpr long long SEND_ERR_LOG_INTERVAL_MS = 10000;
+
 class SendSocketInfo {
 public:
     SendSocketInfo() {
@@ -222,7 +233,72 @@ public:
     // worker gets the same destination, and SendMessages rotates curSocket
     // and grows the sockets vector on EAGAIN.
     std::mutex sendLock;
+
+    // Pacing-budget accounting, read and reset by CheckPacingBudget().
+    // pacedRate is the rate (bytes/sec) the kernel clocks this destination at,
+    // 0 while it isn't paced.  framesBehind counts frames that were folded
+    // into a still-queued item (late) or whose send came up short.
+    std::atomic_uint pacedRate{ 0 };
+    std::atomic<uint64_t> bytesQueued{ 0 };
+    std::atomic_uint framesQueued{ 0 };
+    std::atomic_uint framesBehind{ 0 };
+    // only the stats thread touches these, and only one runs at a time
+    std::chrono::steady_clock::time_point budgetCheckTime = std::chrono::steady_clock::now();
+    std::string budgetWarning;
+
+    std::atomic<long long> lastSendErrLog[SEND_ERR_SITES] = {};
 };
+
+static bool ShouldLogSendError(SendSocketInfo* si, SendErrLogSite site) {
+    long long now = GetTimeMS();
+    long long last = si->lastSendErrLog[site].load();
+    return now - last >= SEND_ERR_LOG_INTERVAL_MS && si->lastSendErrLog[site].compare_exchange_strong(last, now);
+}
+
+static uint64_t MessageBytes(const std::vector<struct mmsghdr>& msgs) {
+    uint64_t bytes = 0;
+    for (auto& m : msgs) {
+        for (size_t v = 0; v < m.msg_hdr.msg_iovlen; v++)
+            bytes += m.msg_hdr.msg_iov[v].iov_len;
+    }
+    return bytes;
+}
+
+// A destination that needs more than its pacing rate can't be fixed from here:
+// the kernel clocks its packets out at that rate, so each frame finishes late
+// or is cut off at the send budget, and the lights on that controller stutter.
+// Nothing else tells the user.  The packets wait in our own socket, not in a
+// queue that drops them, so the local-drop check never sees them.
+static constexpr int PACING_BUDGET_WARNING_ID = 68;
+// Re-raised on every check (every 1500 frames, 40-75 s at typical rates) and
+// removed by the first clean one, so this only matters once output stops: the
+// banner then ages out instead of outliving the show.
+static constexpr int PACING_BUDGET_WARNING_TIMEOUT_S = 300;
+
+static void RaisePacingBudgetWarning(SendSocketInfo* si, const std::string& msg) {
+    if (!si->budgetWarning.empty() && si->budgetWarning != msg)
+        WarningHolder::RemoveWarning(PACING_BUDGET_WARNING_ID, si->budgetWarning);
+    si->budgetWarning = msg;
+    WarningHolder::AddWarningTimeout(PACING_BUDGET_WARNING_TIMEOUT_S, PACING_BUDGET_WARNING_ID, msg,
+                                     { { "fixUrl", "channeloutputs.php#tab-e131" }, { "fixText", "Channel Outputs" } });
+}
+
+static void ClearPacingBudgetWarning(SendSocketInfo* si) {
+    if (!si->budgetWarning.empty()) {
+        WarningHolder::RemoveWarning(PACING_BUDGET_WARNING_ID, si->budgetWarning);
+        si->budgetWarning.clear();
+    }
+}
+
+// A unicast destination as the frame thread saw it; the address is formatted
+// there because HexToIP() is a UDPOutput member.
+struct PacingBudgetDest {
+    unsigned int key;
+    std::string ip;
+    std::shared_ptr<SendSocketInfo> info;
+};
+static void CheckPacingBudget(const std::vector<PacingBudgetDest>& dests,
+                              const std::list<UDPOutputData*>& outputs);
 
 UDPOutputMessages::UDPOutputMessages() {
 }
@@ -402,6 +478,11 @@ UDPOutput::~UDPOutput() {
     }
     while (statCheckRunning) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    // a reload builds a new output set, which raises its own if still over
+    for (auto& si : messages.sendSockets) {
+        if (si.second)
+            ClearPacingBudgetWarning(si.second.get());
     }
     // Need to make sure all curls are processed before we delete the outputs
     // or we may have curl callbacks trying to access deleted data.
@@ -851,8 +932,9 @@ int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, 
         // this cap the worker would hold sendLock across whole frames as a
         // permanent straggler.
         if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - retryStart).count() > 100) {
-            LogErr(VB_CHANNELOUT, "sendmmsg() send to %s exceeded time budget, dropping remainder of frame (output count: %d/%d)\n",
-                   HexToIP(socketKey).c_str(), outputCount, msgCount);
+            if (ShouldLogSendError(socketInfo, SEND_ERR_BUDGET))
+                LogErr(VB_CHANNELOUT, "sendmmsg() send to %s exceeded time budget, dropping remainder of frame (output count: %d/%d)\n",
+                       HexToIP(socketKey).c_str(), outputCount, msgCount);
             return outputCount;
         }
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -886,11 +968,12 @@ int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, 
         }
         ++errCount;
         if (errCount >= 10) {
-            LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (IP: %s   Socket: %d   output count: %d/%d) with error: %d   %s\n",
-                   HexToIP(socketKey).c_str(), sendSocket,
-                   outputCount, msgCount,
-                   errno,
-                   FPPstrerror(errno));
+            if (ShouldLogSendError(socketInfo, SEND_ERR_EAGAIN))
+                LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (IP: %s   Socket: %d   output count: %d/%d) with error: %d   %s\n",
+                       HexToIP(socketKey).c_str(), sendSocket,
+                       outputCount, msgCount,
+                       errno,
+                       FPPstrerror(errno));
             return outputCount;
         }
         errno = 0;
@@ -940,15 +1023,18 @@ void UDPOutput::BackgroundOutputWork() {
             auto t2 = clock.now();
 
             long diff = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+            if (outputCount != i.msgs.size())
+                i.socketInfo->framesBehind++;
             if ((outputCount != i.msgs.size()) || (diff > 100)) {
                 i.socketInfo->errCount++;
 
                 // failed to send all messages or it took more than 100ms to send them
-                LogErr(VB_CHANNELOUT, "%s() failed for UDP output (IP: %s   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
-                       blockingOutput ? "sendmsg" : "sendmmsg", HexToIP(i.id).c_str(),
-                       outputCount, i.msgs.size(), diff, i.socketInfo->errCount.load(),
-                       errno,
-                       FPPstrerror(errno));
+                if (ShouldLogSendError(i.socketInfo.get(), SEND_ERR_FRAME))
+                    LogErr(VB_CHANNELOUT, "%s() failed for UDP output (IP: %s   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
+                           blockingOutput ? "sendmsg" : "sendmmsg", HexToIP(i.id).c_str(),
+                           outputCount, i.msgs.size(), diff, i.socketInfo->errCount.load(),
+                           errno,
+                           FPPstrerror(errno));
             } else {
                 i.socketInfo->errCount = 0;
             }
@@ -979,10 +1065,17 @@ int UDPOutput::SendData(unsigned char* channelData) {
         // tc fork in the qdisc check can't hiccup the frame
         statCheckCounter = 0;
         if (!statCheckRunning.exchange(true)) {
-            std::thread([this]() {
+            // the socket map is only safe to walk under socketMutex, held here
+            std::vector<PacingBudgetDest> dests;
+            for (auto& si : messages.sendSockets) {
+                if (si.second && si.first > ARTNET_MESSAGES_KEY && si.first < LATE_MESSAGES_START)
+                    dests.push_back({ si.first, HexToIP(si.first), si.second });
+            }
+            std::thread([this, dests = std::move(dests)]() {
                 SetThreadName("FPP-UDPStats");
                 try {
                     CheckLocalDrops();
+                    CheckPacingBudget(dests, outputs);
                 } catch (...) {
                     // an escaped exception on a detached thread would call
                     // std::terminate and take down the show over a diagnostic
@@ -1020,7 +1113,10 @@ int UDPOutput::SendData(unsigned char* channelData) {
                 // message the dedup logic left out of this frame but not that one.
                 auto pending = std::find_if(workQueue.begin(), workQueue.end(),
                                             [&](const WorkItem& w) { return w.id == msgs.first; });
+                socketInfo->bytesQueued += MessageBytes(msgs.second);
+                socketInfo->framesQueued++;
                 if (pending != workQueue.end()) {
+                    socketInfo->framesBehind++;
                     std::set<std::pair<const void*, const void*>> have;
                     for (auto& m : pending->msgs)
                         have.emplace(m.msg_hdr.msg_iov, m.msg_hdr.msg_name);
@@ -1123,11 +1219,12 @@ int UDPOutput::SendData(unsigned char* channelData) {
                             socketInfo->errCount++;
 
                             // failed to send all messages or it took more than 100ms to send them
-                            LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (IP: %s   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
-                                   HexToIP(msgs.first).c_str(),
-                                   outputCount, msgs.second.size(), diff, socketInfo->errCount.load(),
-                                   errno,
-                                   FPPstrerror(errno));
+                            if (ShouldLogSendError(socketInfo.get(), SEND_ERR_FRAME))
+                                LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (IP: %s   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
+                                       HexToIP(msgs.first).c_str(),
+                                       outputCount, msgs.second.size(), diff, socketInfo->errCount.load(),
+                                       errno,
+                                       FPPstrerror(errno));
                         } else {
                             socketInfo->errCount = 0;
                         }
@@ -1149,15 +1246,20 @@ int UDPOutput::SendData(unsigned char* channelData) {
             int outputCount = SendMessages(msgs.first, socketInfo.get(), msgs.second);
             auto t2 = clock.now();
             long diff = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+            socketInfo->bytesQueued += MessageBytes(msgs.second);
+            socketInfo->framesQueued++;
+            if (outputCount != msgs.second.size())
+                socketInfo->framesBehind++;
             if ((outputCount != msgs.second.size()) || (diff > 100)) {
                 socketInfo->errCount++;
 
                 // failed to send all messages or it took more than 100ms to send them
-                LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (IP: %s   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
-                       HexToIP(msgs.first).c_str(),
-                       outputCount, msgs.second.size(), diff, socketInfo->errCount.load(),
-                       errno,
-                       FPPstrerror(errno));
+                if (ShouldLogSendError(socketInfo.get(), SEND_ERR_FRAME))
+                    LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (IP: %s   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
+                           HexToIP(msgs.first).c_str(),
+                           outputCount, msgs.second.size(), diff, socketInfo->errCount.load(),
+                           errno,
+                           FPPstrerror(errno));
 
                 if (socketInfo->errCount >= 3) {
                     // we'll ping the controllers and rebuild the valid message list, this could take time
@@ -1205,6 +1307,46 @@ static uint64_t qdiscDroppedCount() {
     return total;
 }
 #endif
+
+// Called with the unicast destinations from the frame thread's snapshot, on
+// the stats thread.  Raises the over-budget banner for a paced destination that
+// fell behind on more than 1% of its frames since the last check, and clears it
+// on the first check that doesn't.
+static void CheckPacingBudget(const std::vector<PacingBudgetDest>& dests,
+                              const std::list<UDPOutputData*>& outputs) {
+    auto now = std::chrono::steady_clock::now();
+    for (auto& [key, ip, si] : dests) {
+        double secs = std::chrono::duration<double>(now - si->budgetCheckTime).count();
+        si->budgetCheckTime = now;
+        uint64_t bytes = si->bytesQueued.exchange(0);
+        unsigned int frames = si->framesQueued.exchange(0);
+        unsigned int behind = si->framesBehind.exchange(0);
+        unsigned int rate = si->pacedRate;
+        // a handful of late frames is a hiccup, not something to change config for
+        if (rate == 0 || frames == 0 || secs <= 0 || behind < 10 || behind * 100ULL < frames) {
+            ClearPacingBudgetWarning(si.get());
+            continue;
+        }
+        // Rounded up to 10 Mbps so the text, which is what identifies the
+        // banner, stays the same from one check to the next.
+        unsigned int needMbps = (unsigned int)std::ceil(bytes * 8 / secs / 1000000.0 / 10.0) * 10;
+        unsigned int pacedMbps = (unsigned int)(rate * 8ULL / 1000000ULL);
+        std::string name = ip;
+        for (auto o : outputs) {
+            bool valid = false;
+            if (!o->description.empty() && UDPOutputData::toInetAddr(o->ipAddress, valid) == (in_addr_t)key && valid) {
+                name += " (" + o->description + ")";
+                break;
+            }
+        }
+        LogWarn(VB_CHANNELOUT, "UDP output to %s: %u of %u frames late or incomplete in the last %.0f s; sending ~%u Mbps, paced at %u Mbps\n",
+                name.c_str(), behind, frames, secs, needMbps, pacedMbps);
+        std::string need = needMbps > pacedMbps ? "needs about " + std::to_string(needMbps) + " Mbps but is paced at "
+                                                : "is sending close to its pacing rate of ";
+        RaisePacingBudgetWarning(si.get(), "Controller " + name + " " + need + std::to_string(pacedMbps) +
+                                               " Mbps, so its frames arrive late or incomplete and its lights will stutter.");
+    }
+}
 
 void UDPOutput::CheckLocalDrops() {
 #ifndef PLATFORM_OSX
@@ -1409,6 +1551,7 @@ std::shared_ptr<SendSocketInfo> UDPOutput::findOrCreateSocket(unsigned int socke
                             HexToIP(socketKey).c_str(), iface.c_str(),
                             shouldPace ? "paced" : "not paced (no fq qdisc on egress)");
                     info->paced = shouldPace;
+                    info->pacedRate = shouldPace ? destRate : 0;
                     // ~0 = unlimited; used when un-pacing after the route
                     // moved to a non-fq interface (e.g. eth -> wifi failover)
                     unsigned int rate = shouldPace ? destRate : ~0U;

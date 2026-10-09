@@ -451,6 +451,13 @@
             "WarningGroup": "Output_Warnings"
         },
         {
+            "id": 68,
+            "Title": "Controller Needs More Than Its Pacing Rate",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
             "id": 69,
             "Title": "Network Interface Dropping Packets",
             "HelpTxt": "",
