@@ -166,6 +166,9 @@ char* ProcessCommand(char* command, char* response) {
         }
 
         ShutdownFPPD();
+        // fpp waits for a non-empty reply, so an empty one stalls it until
+        // its ~2s timeout.
+        snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Shutting Down,,,,,,,,,,\n", getFPPmode(), COMMAND_SUCCESS);
     } else if (!strcmp(CommandStr, "restart")) {
         ShutdownFPPD(true);
     } else if (!strcmp(CommandStr, "GetTestMode")) {
