@@ -500,6 +500,19 @@ html .ui-button.ui-state-disabled:active {
 	background: #fff;
 }
 
+/* Datepicker selected day must stay visible in light mode. The generic
+   .ui-state-active override above (white background for tabs) also matches
+   the selected day link (which carries both .ui-state-default and
+   .ui-state-active), rendering white text on white so the chosen date looks
+   blanked out when the calendar is reopened. Restore a visible selection. */
+[data-bs-theme='light'] .ui-datepicker .ui-state-active,
+[data-bs-theme='light'] .ui-datepicker .ui-widget-content .ui-state-active,
+[data-bs-theme='light'] .ui-datepicker .ui-widget-header .ui-state-active {
+	background: var(--fpp-primary);
+	border: 1px solid var(--fpp-primary-hover);
+	color: var(--bs-white);
+}
+
 .fppMinMaxSliderRange.ui-widget.ui-widget-content {
 	border: 1px;
 	border-style: solid;
