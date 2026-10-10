@@ -2322,7 +2322,7 @@ int GStreamerOutput::Start(int msTime) {
                     return;
                 }
                 if (!gst_element_seek_simple(pipeline, GST_FORMAT_TIME,
-                                             (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
+                                             (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE),
                                              (gint64)seekMs * GST_MSECOND)) {
                     LogWarn(VB_MEDIAOUT, "GStreamer: seek to %dms failed, media will play from the start\n", seekMs);
                 }
@@ -4180,7 +4180,7 @@ void GStreamerOutput::ApplyRate(float rate) {
             LogDebug(VB_MEDIAOUT, "GStreamer: instant-rate-change failed, falling back to flush seek at %" GST_TIME_FORMAT "\n",
                      GST_TIME_ARGS(pos));
             gst_element_seek(m_pipeline, (gdouble)rate, GST_FORMAT_TIME,
-                             (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
+                             (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE),
                              GST_SEEK_TYPE_SET, pos, GST_SEEK_TYPE_NONE, 0);
         } else {
             LogWarn(VB_MEDIAOUT, "GStreamer: ApplyRate(%0.3f) failed — could not query position\n", rate);
