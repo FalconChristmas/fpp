@@ -5966,6 +5966,16 @@ function GetFiles (dir) {
 		success: function (data) {
 			let i = 0;
 
+			// Tear down Bootstrap Table BEFORE rebuilding the tbody (when
+			// present -- this legacy listing shares pages with the file
+			// manager). destroy() restores the HTML snapshot captured at
+			// init, so a rebuild made while managed would be discarded by
+			// the destroy in SetupTableSorter() below, resurrecting deleted
+			// files and hiding fresh uploads until a full page reload.
+			if (typeof DestroyBootstrapTable === 'function') {
+				DestroyBootstrapTable('tbl' + dir);
+			}
+
 			if (data.files.length > 0) {
 				$('#tbl' + dir)
 					.find('tbody')
@@ -9615,8 +9625,22 @@ function DeleteFile (dir, row, file, silent = false) {
 	})
 		.done(function (data) {
 			if (data.status == 'OK') {
-				$(row).remove();
-				UpdateFileCount(dir);
+				// Prefer the file-manager-aware removal when available: it
+				// keeps the Bootstrap Table model/snapshot, the fileData
+				// cache, and the counts in sync. Fall back to the plain DOM
+				// removal on pages without the file manager (row may be null
+				// for programmatic deletes, e.g. co-pixelStrings.php).
+				if (typeof RemoveFileManagerRow === 'function') {
+					RemoveFileManagerRow(dir, file);
+				} else if (row) {
+					$(row).remove();
+				}
+				if (typeof UpdateFileCount === 'function') {
+					UpdateFileCount(dir);
+				}
+				if (typeof UpdateTabVisibility === 'function') {
+					UpdateTabVisibility(dir);
+				}
 			} else {
 				if (!silent)
 					DialogError(

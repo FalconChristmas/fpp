@@ -1,6 +1,15 @@
 // Global storage for file data to calculate total sizes
 var fileData = {};
 
+// Sequencing for listing refreshes. Each upload completion fires GetAllFiles,
+// so parallel uploads produce overlapping refresh rounds whose responses can
+// arrive out of order; without sequencing, an older response arriving last
+// would overwrite the newer listing (uploaded files missing again). Every
+// refresh round mints one id, each dir remembers the newest id it applied,
+// and stale responses are ignored before touching the table.
+var fileListSeq = 0;
+var fileListApplied = {};
+
 // Cache of sequence filename => fps, populated lazily by LoadSequenceFPS() so
 // the file manager list renders immediately and the FPS column fills in after.
 var sequenceFpsCache = {};
@@ -111,12 +120,36 @@ function SortLogFiles (files) {
 	});
 }
 
-function GetFiles (dir, extraParams) {
+function GetFiles (dir, extraParams, seq) {
+	if (seq === undefined) {
+		// A standalone refresh (rename/copy/save follow-ups, initial Config
+		// load): its own round, so it is never treated as stale.
+		seq = ++fileListSeq;
+	}
 	$.ajax({
 		dataType: 'json',
 		url: 'api/files/' + dir + (extraParams ? '?' + extraParams : ''),
 		success: function (data) {
 			let i = 0;
+
+			// Ignore responses from a superseded round: a newer listing for
+			// this dir is already applied, and this must not touch the table
+			// (including the destroy below) or the cache.
+			if ((fileListApplied[dir] || 0) > seq) {
+				return;
+			}
+			fileListApplied[dir] = seq;
+
+			// Tear down Bootstrap Table BEFORE rebuilding the tbody.
+			// destroy() restores the HTML snapshot captured at init time,
+			// so any tbody rewrite made while the table is managed is
+			// discarded by the destroy in SetupTableSorter() below --
+			// leaving deleted files as ghosts and new uploads invisible
+			// until a full page reload. Destroying first means the rebuild
+			// below lands on the plain table and is picked up fresh at init.
+			if (typeof DestroyBootstrapTable === 'function') {
+				DestroyBootstrapTable('tbl' + dir);
+			}
 
 			// Store file data globally
 			fileData[dir] = data.files;
@@ -258,6 +291,11 @@ function GetFiles (dir, extraParams) {
 			});
 		},
 		error: function (x, t, e) {
+			// A superseded round failing after a newer one already refreshed
+			// this dir is not worth an error dialog: the listing is current.
+			if ((fileListApplied[dir] || 0) > seq) {
+				return;
+			}
 			DialogError(
 				'Load Files',
 				'Error loading list of files in ' +
@@ -270,6 +308,12 @@ function GetFiles (dir, extraParams) {
 			SetupTableSorter('tbl' + dir);
 			UpdateFileCount(dir);
 			UpdateTabVisibility(dir);
+			// Lazy per-file enrichment belongs to the newest listing only;
+			// a superseded round must not re-probe files (Music/Videos) or
+			// repaint the FPS column from an older view of the world.
+			if ((fileListApplied[dir] || 0) > seq) {
+				return;
+			}
 			if (dir == 'Sequences') {
 				// Lazily fetch the per-sequence fps (server-cached) and fill in
 				// the FPS column afterwards, without blocking the initial list.
@@ -383,19 +427,22 @@ function LoadMediaDurations (dir) {
 }
 
 function GetAllFiles () {
-	GetFiles('Sequences');
-	GetFiles('Music');
-	GetFiles('Videos');
-	GetFiles('Images');
-	GetFiles('Effects');
-	GetFiles('Scripts');
-	GetFiles('Logs');
-	GetFiles('Uploads');
-	GetFiles('Crashes');
-	GetFiles('Backups');
+	// One round id for the whole sweep so overlapping sweeps (parallel
+	// uploads completing near-simultaneously) can be ordered per dir.
+	var round = ++fileListSeq;
+	GetFiles('Sequences', undefined, round);
+	GetFiles('Music', undefined, round);
+	GetFiles('Videos', undefined, round);
+	GetFiles('Images', undefined, round);
+	GetFiles('Effects', undefined, round);
+	GetFiles('Scripts', undefined, round);
+	GetFiles('Logs', undefined, round);
+	GetFiles('Uploads', undefined, round);
+	GetFiles('Crashes', undefined, round);
+	GetFiles('Backups', undefined, round);
 
 	pluginFileExtensions.forEach(ext => {
-		GetFiles(ext);
+		GetFiles(ext, undefined, round);
 	});
 }
 
@@ -588,6 +635,62 @@ function FileManagerHideEmptyTabsToggled () {
 	});
 }
 
+// Removes one row from a file manager listing without a server round trip,
+// keeping every layer in sync: the Bootstrap Table data model, its restore
+// snapshot, the fileData cache, and the counts/tab visibility.
+//
+// $(row).remove() alone is not enough once Bootstrap Table manages the table:
+// the deleted row stays in the table's data model (so sorting/filtering
+// brings it back) and in the HTML snapshot destroy() restores (so the next
+// tab switch or listing refresh resurrects it as a ghost). Destroying first
+// drops the stale snapshot, the removal then happens on the plain table, and
+// SetupTableSorter() re-initializes from that correct DOM when visible (a
+// hidden tab initializes from it on next activation instead).
+// Returns true when a row was removed.
+function RemoveFileManagerRow (dir, file) {
+	var tableName = 'tbl' + dir;
+	var $table = $('#' + tableName);
+	if (!$table.length) {
+		return false;
+	}
+	var managed =
+		typeof DestroyBootstrapTable === 'function' &&
+		!!($table.closest('.bootstrap-table').length ||
+			$table.data('bootstrap.table'));
+	if (managed) {
+		DestroyBootstrapTable(tableName);
+	}
+	var removed = false;
+	$table.find('tbody tr').each(function () {
+		var $r = $(this);
+		if ($r.hasClass('unselectableRow')) {
+			return;
+		}
+		// Compare decoded text: cells hold escaped HTML (&amp;, &lt;).
+		if ($r.find('td:first').text() === file) {
+			$r.remove();
+			removed = true;
+			return false;
+		}
+	});
+	if (typeof fileData !== 'undefined' && fileData[dir]) {
+		fileData[dir] = fileData[dir].filter(function (f) {
+			return f.name !== file;
+		});
+		if (fileData[dir].length == 0 && $table.find('tbody tr').length == 0) {
+			$table
+				.find('tbody')
+				.html(
+					"<tr class='unselectableRow'><td colspan=8 align='center'>No files found.</td></tr>"
+				);
+		}
+	}
+	if (managed && typeof SetupTableSorter === 'function') {
+		SetupTableSorter(tableName);
+	}
+	return removed;
+}
+
 function FileManagerFilterToggled () {
 	var value = settings.fileManagerTableFilter == '1';
 	var $t = $('#fileManager').find('table');
@@ -723,12 +826,9 @@ function ButtonHandler (table, button) {
 			.get();
 		UploadAndDeleteCrashReports(files, {
 			onDeleted: function (file) {
-				crashRows
-					.filter(function () {
-						return $(this).find('td:first').text() === file;
-					})
-					.remove();
+				RemoveFileManagerRow(table, file);
 				UpdateFileCount(table);
+				UpdateTabVisibility(table);
 			}
 		});
 	} else if (button == 'deleteConfig') {
