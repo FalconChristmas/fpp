@@ -2650,10 +2650,10 @@ if ($skipHTMLCodeOutput === false) {
                             continue;
                         }
 
-                        printf("	settings['%s'] = %s;\n", $key, json_encode((string) $value));
+                        printf("	settings[%s] = %s;\n", json_encode((string) $key), json_encode((string) $value));
                     } else {
                         $js_array = json_encode($value);
-                        printf("    settings['%s'] = %s;\n", $key, $js_array);
+                        printf("    settings[%s] = %s;\n", json_encode((string) $key), $js_array);
                     }
                 }
 

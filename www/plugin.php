@@ -134,7 +134,7 @@ if (!isset($_GET['nopage'])):
 
             <?
             foreach ($pluginSettings as $key => $value) {
-                printf("	pluginSettings['%s'] = %s;\n", $key, json_encode((string) $value));
+                printf("	pluginSettings[%s] = %s;\n", json_encode((string) $key), json_encode((string) $value));
             }
             ?>
         </script>

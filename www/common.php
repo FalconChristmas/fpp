@@ -333,6 +333,21 @@ function RepairConfigFileOwnership($filename)
 }
 
 /**
+ * Whether a setting name supplied over the API is safe to store.
+ *
+ * Names become INI keys (neither reader has an escape mechanism), so refuse
+ * anything that would break that format.  Only API entry points apply this;
+ * internal WriteSettingToFile() callers legitimately use wider alphabets
+ * (e.g. "ip:port", "a|b|c").  Pages must still JSON-encode keys when emitting
+ * them into JS - this is not an output-escaping substitute.
+ */
+function IsValidSettingName($name)
+{
+    return is_string($name) && $name !== '' &&
+        strpbrk($name, "\"'\\\n\r\0=[];#/") === false;
+}
+
+/**
  * Write a single setting to the settings file, or to a plugin's config file.
  *
  * Returns true once the value is on disk (including when it was already the

@@ -5456,20 +5456,25 @@ function PluginSetSetting()
 	$plugin = params("RepoName");
 	$value = file_get_contents('php://input');
 
-	// Setting names land in INI keys and JS strings (see PutSetting() in
-	// api/controllers/settings.php); the plugin name becomes a config
-	// filename. Validate both with the same rules used for plugin names
-	// elsewhere (plugin.php strips to [A-Za-z0-9_.-] and rejects '..').
-	if (!is_string($setting) || $setting === '' ||
-	    strpbrk($setting, "\"'\\\n\r\0=[];#/") !== false) {
+	// Errors must be non-2xx: SetPluginSetting() in fpp.js reports any 2xx
+	// as "setting saved".
+	if (!IsValidSettingName($setting)) {
+		http_response_code(400);
 		return json(array("status" => "ERROR", "message" => "Invalid setting name."));
 	}
-	$pluginName = is_string($plugin) ? preg_replace('/[^A-Za-z0-9_.-]/', '', $plugin) : '';
-	if ($pluginName === '' || $pluginName !== $plugin || strpos($pluginName, '..') !== false) {
+	// The plugin name becomes the config filename; same pattern plugin install enforces.
+	if (!is_string($plugin) || !preg_match('/^[A-Za-z0-9_.-]+$/', $plugin) || strpos($plugin, '..') !== false) {
+		http_response_code(400);
 		return json(array("status" => "ERROR", "message" => "Invalid plugin name."));
 	}
 
-	WriteSettingToFile($setting, $value, $pluginName);
+	if (!WriteSettingToFile($setting, $value, $plugin)) {
+		http_response_code(500);
+		return json(array(
+			"status" => "ERROR",
+			"message" => "Unable to save the '" . $setting . "' setting.  The plugin config file is not writable - check the FPP logs."
+		));
+	}
 
 	return PluginGetSetting();
 }

@@ -120,15 +120,7 @@ function PutSetting()
     $value = file_get_contents('php://input');
     $setting = params('SettingName');
 
-    // Setting names become INI keys in the settings file (no escape mechanism
-    // on either reader) and single-quoted JS strings on every page. All 248
-    // declared names plus dynamic ones (FanTrip_*, PipeWireSinkName_*, plugin
-    // settings) are identifier-shaped, so refuse anything structural here --
-    // a crafted name otherwise persists as stored XSS firing on each page load.
-    // Validated at this boundary only: internal WriteSettingToFile() callers
-    // legitimately use wider alphabets (e.g. "ip:port", "a|b|c").
-    if (!is_string($setting) || $setting === '' ||
-        strpbrk($setting, "\"'\\\n\r\0=[];#/") !== false) {
+    if (!IsValidSettingName($setting)) {
         http_response_code(400);
         return json(array(
             "status" => "ERROR",
@@ -496,10 +488,7 @@ function UpdateJSONValueSetting()
     $new_json_sub_value = str_replace("\\", "", $new_json_sub_value);
     $settingName = params('SettingName');
 
-    // Same validation as PutSetting() above: the name becomes an INI key and
-    // a JS string below.
-    if (!is_string($settingName) || $settingName === '' ||
-        strpbrk($settingName, "\"'\\\n\r\0=[];#/") !== false) {
+    if (!IsValidSettingName($settingName)) {
         return json(array("status" => "Error updating JSON value"));
     }
 
