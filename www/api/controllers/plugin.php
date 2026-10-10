@@ -5456,7 +5456,20 @@ function PluginSetSetting()
 	$plugin = params("RepoName");
 	$value = file_get_contents('php://input');
 
-	WriteSettingToFile($setting, $value, $plugin);
+	// Setting names land in INI keys and JS strings (see PutSetting() in
+	// api/controllers/settings.php); the plugin name becomes a config
+	// filename. Validate both with the same rules used for plugin names
+	// elsewhere (plugin.php strips to [A-Za-z0-9_.-] and rejects '..').
+	if (!is_string($setting) || $setting === '' ||
+	    strpbrk($setting, "\"'\\\n\r\0=[];#/") !== false) {
+		return json(array("status" => "ERROR", "message" => "Invalid setting name."));
+	}
+	$pluginName = is_string($plugin) ? preg_replace('/[^A-Za-z0-9_.-]/', '', $plugin) : '';
+	if ($pluginName === '' || $pluginName !== $plugin || strpos($pluginName, '..') !== false) {
+		return json(array("status" => "ERROR", "message" => "Invalid plugin name."));
+	}
+
+	WriteSettingToFile($setting, $value, $pluginName);
 
 	return PluginGetSetting();
 }
