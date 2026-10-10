@@ -27,7 +27,7 @@ body:
       description: "Add any other context about the feature request here"
     validations:
       required: false
-  - type: "textarea"
+  - type: "upload"
     attributes:
       label: "Additional Attachments"
       description: "Please attach any additional files here (e.g. screenshots)"

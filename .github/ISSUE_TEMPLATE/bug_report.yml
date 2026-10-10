@@ -13,11 +13,15 @@ body:
       placeholder: "FPP 10.2"
     validations:
       required: false
-  - type: "input"
+  - type: "dropdown"
     attributes:
       label: "Architecture"
-      description: "Please enter 32 bit or 64 bit"
-      placeholder: "32bit"
+      description: "Please select 32 or 64 bit"
+      options:
+        - "-- Select Architecture --"
+        - "32-Bit"
+        - "64-Bit"
+      default: 0
     validations:
       required: false
   - type: "input"
@@ -53,7 +57,7 @@ body:
       description: " Add any other context about the problem here"
     validations:
       required: false
-  - type: "textarea"
+  - type: "upload"
     attributes:
       label: "Additional Attachments"
       description: "Please attach any additional files here (e.g. screenshots). Do not attach logs. Submit logs and provide the report file name."
