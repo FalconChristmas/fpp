@@ -124,6 +124,31 @@ function LoadProxyList()
 }
 
 /**
+ * Shared proxy-entry validation (used by every writer below and by the file
+ * sink itself). Hosts are IPv4 literals or dot/dash hostnames; descriptions
+ * are free-form text with tags stripped, line breaks flattened (they would
+ * otherwise inject Apache directives via the "# D:" comment lines), and a
+ * length cap. Anything failing validation is the caller's error, never
+ * written to the config.
+ */
+function proxyIsValidHost($host)
+{
+    return is_string($host) &&
+        (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) ||
+         preg_match('/^[a-zA-Z0-9.-]+$/', $host));
+}
+
+function proxyCleanDescription($description)
+{
+    if (!is_string($description)) {
+        return '';
+    }
+    $description = strip_tags($description);
+    $description = str_replace(array("\r", "\n"), ' ', $description);
+    return substr($description, 0, 128);
+}
+
+/**
  * Set proxy list
  *
  * Replaces the proxy list with the submitted array of `host`/`description` objects,
@@ -157,16 +182,12 @@ function PostProxies()
         $description = isset($proxy['description']) ? $proxy['description'] : '';
 
         // Validate host as IPv4 or hostname
-        if (
-            !filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) &&
-            !preg_match('/^[a-zA-Z0-9\-\.]+$/', $host)
-        ) {
+        if (!proxyIsValidHost($host)) {
             continue; // skip invalid host
         }
 
-        // Sanitize description (strip tags, limit length)
-        $description = strip_tags($description);
-        $description = substr($description, 0, 128);
+        // Sanitize description (strip tags, flatten line breaks, limit length)
+        $description = proxyCleanDescription($description);
 
         $validProxies[] = [
             'host' => $host,
@@ -215,7 +236,14 @@ function WriteProxyFile($proxies)
     $newht = "";
     foreach ($proxies as $item) {
         $host = $item['host'];
-        $description = $item['description'];
+        $description = isset($item['description']) ? $item['description'] : '';
+        // Belt-and-braces: every caller above validates, but stored entries
+        // predate validation (and future callers may not). Never write an
+        // unvalidated host or a line-breaking description into Apache config.
+        if (!proxyIsValidHost($host)) {
+            continue;
+        }
+        $description = proxyCleanDescription($description);
         // Mark DHCP hosts with a comment if desired
         if (!empty($item['dhcp'])) {
             $newht .= "# DHCP\n";
@@ -273,6 +301,12 @@ function AddProxy()
 {
     $pip = params('ProxyIp');
     $pdesp = params('Description', ''); // Allow description to be passed
+    if (!proxyIsValidHost($pip)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid proxy host']);
+        return;
+    }
+    $pdesp = proxyCleanDescription($pdesp);
     $proxies = LoadProxyList();
     $exists = false;
     foreach ($proxies as $proxy) {
