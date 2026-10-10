@@ -668,6 +668,15 @@ void setupNetwork(bool fullReload) {
     }
 }
 
+// Whether an IPv4 address is one that reaches a real network. Excludes the
+// board's own USB gadget and tether addresses, and 169.254/16: networkd falls
+// back to link-local while DHCP is still pending (LinkLocalAddressing=yes), and
+// the probe can finish before a slow DHCP server answers, so treating it as
+// "the address" started fppd on it ahead of the real lease.
+static bool isUpstreamAddress(const std::string& addr) {
+    return !startsWith(addr, "169.254.") && addr != "192.168.6.2" && addr != "192.168.7.2" && addr != "192.168.8.1";
+}
+
 // Check if there are any network interfaces that could potentially receive NTP time
 // Returns true if there's at least one interface with a "real" IP address that could reach NTP servers
 // Excludes loopback, USB gadget, and tethering interfaces
@@ -708,12 +717,8 @@ static bool hasNetworkInterfaceForNTP() {
             inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
             std::string addr = addressBuffer;
 
-            // Skip tethering/USB gadget IP addresses
-            // 192.168.6.2/192.168.7.2 = BeagleBone USB gadget
-            // 192.168.8.1 = FPP tethering hotspot
-            if (contains(addr, "192.168.6.2") ||
-                contains(addr, "192.168.7.2") ||
-                contains(addr, "192.168.8.1")) {
+            // Skip USB gadget, tethering and link-local addresses
+            if (!isUpstreamAddress(addr)) {
                 continue;
             }
 
@@ -965,7 +970,7 @@ static std::string buildIPAnnounceString() {
             char addressBuffer[INET_ADDRSTRLEN];
             inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
             std::string addr = addressBuffer;
-            if (!contains(addr, "192.168.6.2") && !contains(addr, "192.168.7.2") && !contains(addr, "192.168.8.1")) {
+            if (isUpstreamAddress(addr)) {
                 printf("FPP - Found %s IP Address %s\n", ifa->ifa_name, addressBuffer);
                 announce += ", " + std::string(addressBuffer);
                 found = true;
@@ -1216,14 +1221,18 @@ static std::set<std::string> wifiClientInterfaces() {
     return ret;
 }
 
-// An address can only come from a present WiFi adapter with client settings,
-// or a wired interface once it has carrier (static configs are not applied
-// without it). So once network hardware has shown up, neither of those exists,
-// and the set of interfaces has held still for a moment, there is nothing left
-// to wait for -- a first boot with no cable would otherwise sit out the whole
-// wait before tethering comes up. The quiet period covers USB adapters
-// enumerating one after another behind a hub (seen ~1s apart) and
-// autonegotiation after a port comes up.
+// An address can only come from a wired interface once it has carrier (static
+// configs are not applied without it), or from a present WiFi adapter with
+// client settings. With neither, a first boot would sit out the whole wait
+// before tethering comes up, so for a board with no wired port and no
+// configured WiFi adapter, the wait ends once the set of interfaces has held
+// still for a moment -- enough for USB adapters enumerating one after another
+// behind a hub (seen ~1s apart).
+//
+// A wired port without carrier is never written off early: carrier cannot tell
+// "no cable" from "still autonegotiating", which took 5.1s on a Pi 5 against a
+// gigabit switch. Giving up there started tethering, then tore it down when
+// DHCP landed a few seconds later.
 //
 // A configured WiFi adapter that is absent is not worth waiting for: postNetwork
 // runs after network.target, which wpa_supplicant@<if> orders itself before, so
@@ -1234,12 +1243,18 @@ class UpstreamLinkWatch {
 public:
     static constexpr int SETTLE_ITERATIONS = 20; // x 200ms
 
+    enum class State {
+        NONE,     // nothing can get an address
+        POSSIBLE, // something may still get link
+        LINK      // something has link; its address may be about to land
+    };
+
     explicit UpstreamLinkWatch(std::set<std::string> wifiClients) :
         wifiClients(std::move(wifiClients)) {}
 
-    // false once no interface can still get an address
-    bool stillPossible(int count) {
+    State check(int count) {
         std::set<std::string> state;
+        bool possible = false;
         std::error_code ec;
         for (const auto& entry : std::filesystem::directory_iterator("/sys/class/net", ec)) {
             std::string dev = entry.path().filename();
@@ -1249,23 +1264,24 @@ public:
             std::string flags = GetFileContents(entry.path().string() + "/flags");
             bool up = strtol(flags.c_str(), nullptr, 16) & IFF_UP;
             state.insert(dev + (up ? ":up" : ":down"));
-            if (FileExists(entry.path().string() + "/wireless")) {
-                if (wifiClients.count(dev)) {
-                    return true; // may still associate
-                }
+            if (FileExists(entry.path().string() + "/wireless") && !wifiClients.count(dev)) {
                 continue; // no client config, so it can only ever be the tether AP
             }
             std::string carrier = GetFileContents(entry.path().string() + "/carrier");
             TrimWhiteSpace(carrier);
             if (carrier == "1") {
-                return true; // DHCP may be about to land
+                return State::LINK;
             }
+            possible = true;
         }
         if (state != lastState) {
             lastState = state;
             lastChange = count;
         }
-        return lastState.empty() || (count - lastChange) < SETTLE_ITERATIONS;
+        if (possible || lastState.empty() || (count - lastChange) < SETTLE_ITERATIONS) {
+            return State::POSSIBLE;
+        }
+        return State::NONE;
     }
 
 private:
@@ -1279,9 +1295,15 @@ bool waitForInterfacesUp(int timeOut, bool allowUsbRecovery) {
     UpstreamLinkWatch linkWatch(wifiClientInterfaces());
     // If no network interfaces have carrier/link, don't wait for IP address - likely no network available and no point waiting for DHCP/NTP
     while (!hasNetworkInterfaceForNTP()) {
+        UpstreamLinkWatch::State link = linkWatch.check(count);
+        if (link == UpstreamLinkWatch::State::LINK) {
+            // Has link but no address yet: DHCP gets the rest of the timeOut
+            // below rather than being cut off at the halfway mark.
+            break;
+        }
         bool giveUp = count >= (timeOut / 2); // spend half the timeOut waiting for interfaces to have link, then give up
-        if (!giveUp && !linkWatch.stillPossible(count)) {
-            printf("FPP - No wired link and no configured WiFi adapter present; nothing can get an address\n");
+        if (!giveUp && link == UpstreamLinkWatch::State::NONE) {
+            printf("FPP - No wired port and no configured WiFi adapter present; nothing can get an address\n");
             giveUp = true;
         }
         if (giveUp) {
@@ -1423,7 +1445,7 @@ void maybeEnableTethering() {
                 char addressBuffer[INET_ADDRSTRLEN];
                 inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
                 std::string addr = addressBuffer;
-                if (!contains(addr, "192.168.6.2") && !contains(addr, "192.168.7.2") && !contains(addr, "192.168.8.1")) {
+                if (isUpstreamAddress(addr)) {
                     found = true;
                 }
             }
