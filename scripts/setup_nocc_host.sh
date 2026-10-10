@@ -121,6 +121,14 @@ if [ -f "$ENVF" ]; then
     fi
 fi
 
+# ---- start only after FPP has an address (see the drop-in for why) -----------
+DROPIN_SRC="$(cd "$(dirname "$0")/.." && pwd)/etc/systemd/nocc-server.service.d/fpp-after-postnetwork.conf"
+if [ -f "$DROPIN_SRC" ]; then
+    echo "==> Ordering nocc-server after fpp_postnetwork"
+    mkdir -p /etc/systemd/system/nocc-server.service.d
+    cp -f "$DROPIN_SRC" /etc/systemd/system/nocc-server.service.d/
+fi
+
 # ---- optional LAN-only firewall (nocc-server has no ACL of its own) ----------
 if [ "${NOCC_FIREWALL:-0}" = "1" ]; then
     if command -v nft >/dev/null 2>&1; then
