@@ -12,6 +12,20 @@ if (!isset($_GET['ip'])) {
 
 $ip = $_GET['ip'];
 
+// Validate IP/hostname (prevents SSRF, matches streamRemote.php / changeRemoteBranch.php).
+// Intentionally syntax-only, not resolvability: targets are LAN peers by design
+// (including mDNS names), so private addresses must keep working.
+if (!is_string($ip)) {
+    echo "ERROR: Invalid IP given\n";
+    exit(0);
+}
+$validIp = filter_var($ip, FILTER_VALIDATE_IP);
+$validHost = preg_match('/^(?=.{1,253}$)([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$/', $ip);
+if (!$validIp && !$validHost) {
+    echo "ERROR: Invalid IP '" . htmlspecialchars($ip, ENT_QUOTES, 'UTF-8') . "'\n";
+    exit(0);
+}
+
 echo "Rebooting FPP system @ " . htmlspecialchars($ip) . "\n";
 
 // FPP 5.0+
