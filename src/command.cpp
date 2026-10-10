@@ -166,8 +166,6 @@ char* ProcessCommand(char* command, char* response) {
         }
 
         ShutdownFPPD();
-
-        sleep(1);
     } else if (!strcmp(CommandStr, "restart")) {
         ShutdownFPPD(true);
     } else if (!strcmp(CommandStr, "GetTestMode")) {

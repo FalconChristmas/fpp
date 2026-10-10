@@ -13,25 +13,25 @@ echo "Stopping fppd"
 # Tell fppd to shut itself down
 ${FPPBINDIR}/fpp -q > /dev/null 2>&1
 
-# fpp should quit because its socket was closed by fppd, but give a little
-# time to make sure fppd is down before checking.
-sleep 0.5
-COUNT=$(pgrep -x -c fppd)
-if [ ${COUNT} -ne 0 ]
-then
-   sleep 0.5
-fi
+# Poll for fppd to exit rather than sleeping a fixed time.  With a playlist
+# running, fppd's main loop spends ~2s stopping it before teardown even starts,
+# and teardown is what closes the channel outputs (DPIPixels blanks the strings
+# and parks its pins there).  A fixed ~1s grace landed the kill mid-teardown,
+# leaving pixel outputs driving garbage through the reboot.  A clean exit still
+# returns as soon as fppd is gone.
+for i in $(seq 1 50); do
+    pgrep -x fppd > /dev/null || break
+    sleep 0.1
+done
 
 # kill fppd if it is still running
 # send kill -7 first, should print a stack trace to logs to figure out why it's slow
-COUNT=$(pgrep -x -c fppd)
-if [ ${COUNT} -ne 0 ]
+if pgrep -x fppd > /dev/null
 then
     killall -7 fppd
     sleep 0.5
 fi
-COUNT=$(pgrep -x -c fppd)
-if [ ${COUNT} -ne 0 ]
+if pgrep -x fppd > /dev/null
 then
     killall -9 fppd
 fi
