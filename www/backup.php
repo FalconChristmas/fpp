@@ -2658,12 +2658,12 @@ if ($skipHTMLCodeOutput === false) {
                 }
 
                 ?>
-            var pageName = "<?php echo str_ireplace('.php', '', basename($_SERVER['PHP_SELF'])) ?>";
+            var pageName = <?= json_encode(str_ireplace('.php', '', basename($_SERVER['PHP_SELF']))) ?>;
 
-            var helpPage = "<?php echo basename($_SERVER['PHP_SELF']) ?>";
+            var helpPage = <?= json_encode(basename($_SERVER['PHP_SELF'])) ?>;
             if (pageName == "plugin") {
-                var pluginPage = "<?php echo preg_replace('/.*page=/', '', $_SERVER['REQUEST_URI']); ?>";
-                var pluginBase = "<?php echo preg_replace("/^\//", "", preg_replace('/page=.*/', '', $_SERVER['REQUEST_URI'])); ?>";
+                var pluginPage = <?= json_encode(preg_replace('/.*page=/', '', $_SERVER['REQUEST_URI'])) ?>;
+                var pluginBase = <?= json_encode(preg_replace("/^\//", "", preg_replace('/page=.*/', '', $_SERVER['REQUEST_URI']))) ?>;
                 helpPage = pluginBase + "nopage=1&page=help/" + pluginPage;
             }
             else {
