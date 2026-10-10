@@ -326,8 +326,9 @@ REREAD:
 ; banks it owns (CPY_OWNS_GPIOx) itself, then publishes the pixel's four
 ; bank words + a sequence number through scratchpad bank 11 (r17..r21).
 ; This PRU waits for the publish, writes its own banks + the clock, and
-; acknowledges through bank 10 - so the copy PRU's data writes always land
-; before this PRU's clock edge, and never change under a pending clock.
+; acknowledges through bank 10 once the clock edge has landed (ACK_SPLIT) -
+; so the copy PRU's data writes land before this PRU's clock edge, and never
+; change under a pending clock.
 ;
 ; NOTE: the scratchpad banks are PACKED - a transfer always starts at bank
 ; offset 0 no matter which register it starts from - so each bank carries
@@ -372,7 +373,18 @@ WAITPUB?:
     .endm
 
 ; release the copy PRU to write its banks for the next pixel
+;
+; With a GPIO clock, read the controls bank back first.  The clock write is
+; only posted when SBBO returns, and it queues behind this PRU's own bank
+; writes (and any GPIO0 write stall); the copy PRU writes from an idle queue,
+; so without the read its next pixel's data can land before this pixel's
+; rising edge and get clocked into it - a pixel bleeding into its neighbour.
+; Ordering across the two PRUs comes only from this read: it can't complete
+; until the clock write has landed.  A PRU (r30) clock is immediate.
 ACK_SPLIT .macro
+#ifdef gpio_clock
+    READ_TO_FLUSH
+#endif
     XOUT 10, &split_ctrl, 8
     .endm
 

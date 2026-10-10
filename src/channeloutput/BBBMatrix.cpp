@@ -576,7 +576,15 @@ int BBBMatrix::Init(Json::Value config) {
         // higher pixel clock.  The controls bank and GPIO0 (which has
         // multi-microsecond write-landing jitter on the L4_WKUP bus) stay
         // on the output PRU so their behavior is unchanged.  AM335x only.
-        if (!m_singlePRU && !root.get("noSplitOutput", false).asBool() && getSettingInt("BBBMatrixNoSplitOutput", 0) == 0) {
+        //
+        // Not with a GPIO clock: the clock write is posted, so the copy PRU
+        // can't write the next pixel until a read back proves the edge has
+        // landed (ACK_SPLIT), and that read makes the split slower than one
+        // PRU doing everything (measured 70Hz vs 100Hz).  Without it the copy
+        // PRU's data beat ~1 in 5 clock edges and bled into the neighbouring
+        // pixel.  A PRU (r30) clock is immediate and needs no read back.
+        bool gpioClock = root["controls"]["clock"]["type"].asString() != "pruout";
+        if (!m_singlePRU && !gpioClock && !root.get("noSplitOutput", false).asBool() && getSettingInt("BBBMatrixNoSplitOutput", 0) == 0) {
             int cnt = 0;
             for (int x = 3; x > 0; x--) { // never GPIO0
                 if (minPort[x] != 99 && x != controlGpio && cnt < 2) {
