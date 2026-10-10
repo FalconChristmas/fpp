@@ -24,8 +24,9 @@
 //   including kills/crashes. No PID files, no timestamps to go stale.
 // - No new worker cost: the holder is the already-running update request
 //   (which streams for the whole run anyway); contenders exit immediately.
-// - downloadOnly (OS image fetch without apply) never takes the lock: it
-//   mutates nothing and must not block real updates.
+// - downloadOnly (OS image fetch without apply) DOES take the lock: it
+//   writes the same upload/<file> an in-flight apply reads, so two
+//   overlapping downloads/applies would corrupt each other.
 // - 409 is sent only if headers are still sendable (entry points that
 //   already echoed HTML still show the message in the streamed dialog).
 
@@ -75,9 +76,13 @@ function UpdateLockAcquireOrConflict($op, $target = '')
         return null;
     }
     $file = UpdateLockFile();
-    $fh = @fopen($file, 'c+');
+    // 'e' (close-on-exec): without it the FD is inherited by child processes
+    // (git_pull is started without sudo's FD-closing), so a background child
+    // keeps the flock after the PHP request exits and later starters get 409
+    // until that child dies.
+    $fh = @fopen($file, 'c+e');
     if (!$fh) {
-        $fh = @fopen($file, 'a+');
+        $fh = @fopen($file, 'a+e');
     }
     if (!$fh) {
         return null;

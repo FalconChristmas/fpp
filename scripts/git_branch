@@ -117,6 +117,7 @@ ${SUDO} "${SCRIPTDIR}/upgrade_config"
 
 echo "Compiling Binaries"
 compileBinaries
+BUILD_RC=$?
 
 # Delete any statistics
 /usr/bin/curl -X DELETE http://localhost/api/statistics/usage
@@ -131,4 +132,12 @@ fi
 
 echo "Restarting fppd"
 ${SUDO} "${FPPDIR}/scripts/fppd_start"
+
+# A failed build must fail the run (FINISH rc) instead of reporting success
+# with no fppd binary. fppd is restarted above regardless so the device keeps
+# whatever binaries it has.
+if [ "${BUILD_RC:-0}" != "0" ]; then
+    echo "ERROR: build failed (rc=${BUILD_RC}) -- branch was switched but binaries were NOT rebuilt."
+    exit ${BUILD_RC}
+fi
 

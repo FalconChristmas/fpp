@@ -40,9 +40,18 @@ var fppUpdateModalFirstLoad = true;
 // entirely under compile load). The payload is deliberately shaped exactly
 // like the server's: the first real poll transparently takes over (its runId
 // differs, so a dismiss of this placeholder never sticks, and completion
-// tracking picks up the real run). If the start never materializes
-// server-side, the next idle poll clears this on its own.
+// tracking picks up the real run).
+//
+// A stale idle echo of the previous run must not clear this instantly: the
+// worker's START marker may not be in the log yet when the next poll lands.
+// Idle payloads are held off until FPP_UPDATE_START_GRACE_MS after the click;
+// an active payload for the real run always takes over immediately. If the
+// start never materializes server-side, the first idle poll after the grace
+// clears this on its own.
+var fppUpdateMarkStartedAt = 0;
+var FPP_UPDATE_START_GRACE_MS = 15000;
 function FPPUpdate_MarkStarted(side) {
+	fppUpdateMarkStartedAt = Date.now();
 	FPPUpdate_Render({
 		status: 'OK',
 		inProgress: true,
@@ -52,6 +61,7 @@ function FPPUpdate_MarkStarted(side) {
 		runId: 'starting',
 		stage: 'Starting…',
 		logUpdatedAt: 0,
+		logSize: 0,
 		stale: false
 	});
 }
@@ -72,6 +82,53 @@ function UpdateActivityBusySide() {
 	}
 	return fppUpdateActivity.op === 'os-upgrade' ? 'os' : 'fpp';
 }
+
+// Ordering against stale echoes. Every server payload carries the log's
+// version vector (logUpdatedAt = mtime, logSize = bytes); a payload older
+// than the last applied one is a stale echo and is dropped. Equal vectors
+// always apply so state transitions without log writes (active->stale)
+// still land. Synthetic 'starting' placeholders and empty-runId idles
+// (missing/rotated log) are exempt: they carry no vector.
+var fppUpdateLastMtime = -1;
+var fppUpdateLastSize = -1;
+function FPPUpdate_IsStaleEcho(activity) {
+	if (!activity || typeof activity !== 'object') {
+		return true;
+	}
+	if (activity.runId === 'starting') {
+		return false;
+	}
+	if (!activity.inProgress && !activity.runId) {
+		return false;
+	}
+	var mtime = (typeof activity.logUpdatedAt === 'number') ? activity.logUpdatedAt : -1;
+	var size = (typeof activity.logSize === 'number') ? activity.logSize : -1;
+	if (mtime < 0 || fppUpdateLastMtime < 0) {
+		return false;
+	}
+	if (mtime !== fppUpdateLastMtime) {
+		return mtime < fppUpdateLastMtime;
+	}
+	if (size >= 0 && fppUpdateLastSize >= 0) {
+		return size < fppUpdateLastSize;
+	}
+	return false;
+}
+function FPPUpdate_NoteAppliedVector(activity) {
+	if (activity && typeof activity.logUpdatedAt === 'number') {
+		fppUpdateLastMtime = activity.logUpdatedAt;
+	}
+	if (activity && typeof activity.logSize === 'number') {
+		fppUpdateLastSize = activity.logSize;
+	}
+}
+
+// Whether the authoritative direct poll has answered at least once. The
+// status hook (fppd WebSocket snapshots carrying up-to-30s-old augmentation)
+// renders only until then: afterwards the 5s direct poll is the single source
+// of truth, so a stale "run X active" echo can never revive a finished run
+// (re-firing the completion toast) behind the poll's back.
+var fppUpdateDirectPollApplied = false;
 
 // Activity subscribers (e.g. about.php's per-section busy states). Invoked
 // with the activity payload at the end of every FPPUpdate_Render.
@@ -330,7 +387,8 @@ function FPPUpdate_Title(activity) {
 	return kind + ' in progress';
 }
 
-// Render banner + status-page warning from an activity payload. Idempotent:
+// Render the global banner (shown in the same spot on every page, including
+// the status page) from an activity payload. Idempotent:
 // every poll (status hook or fallback) funnels through here. Returns true
 // when the payload was applied, false when ignored as a stale echo (see
 // below) so callers (notably the modal fetch) can skip rejected payloads.
@@ -343,15 +401,31 @@ function FPPUpdate_Render(activity) {
 	// augmentation forward, so the status hook can hand us an updateActivity
 	// up to a poll interval older than the direct endpoint. Rendering that
 	// blindly let a stale idle echo clobber live active state (the whole UI
-	// flickered out ~1s after showing, until a refresh re-seeded it). An
-	// idle payload for a DIFFERENT run than the one shown active is such an
-	// echo, never an ending — ignore it. A same-run idle, a stale flag, or
-	// any active payload always applies, so genuine completion still lands.
-	// Synthetic placeholders ('starting' from MarkStarted, 'workers-active'
-	// from the markerless backend fallback) are explicitly allowed to go
-	// idle: their ending arrives with an empty/different runId, and holding
-	// them would trap the spinner/banner forever when a start never
-	// materializes or a worker exits with no markers.
+	// flickered out ~1s after showing, until a refresh re-seeded it), and --
+	// worse -- let a stale "run X active" echo revive a finished run behind
+	// the poll's back, re-firing the completion toast every cycle. Three
+	// layers, in order:
+	// (1) Version ordering: any payload older than the last applied one
+	//     (log mtime+size vector, see FPPUpdate_IsStaleEcho) is dropped.
+	// (2) Placeholder grace: right after MarkStarted the worker's START may
+	//     not be logged yet, so idle payloads are held off briefly; the real
+	//     run's active payload always takes over immediately.
+	// (3) Different-run idle: an idle payload for a DIFFERENT run than the
+	//     one shown active is such an echo, never an ending -- ignore it. A
+	//     same-run idle, a stale flag, or any active payload always applies,
+	//     so genuine completion still lands. Synthetic placeholders
+	//     ('starting' from MarkStarted, 'workers-active' from the markerless
+	//     backend fallback) are explicitly allowed to go idle past their
+	//     grace: their ending arrives with an empty/different runId, and
+	//     holding them would trap the spinner/banner forever when a start
+	//     never materializes or a worker exits with no markers.
+	if (FPPUpdate_IsStaleEcho(activity)) {
+		return false;
+	}
+	if (fppUpdateActivity && fppUpdateActivity.runId === 'starting' && !activity.inProgress
+		&& (Date.now() - fppUpdateMarkStartedAt) < FPP_UPDATE_START_GRACE_MS) {
+		return false;
+	}
 	if (fppUpdateActivity && fppUpdateActivity.inProgress && !activity.inProgress
 		&& (activity.runId || '') !== (fppUpdateActivity.runId || '')) {
 		var curRun = fppUpdateActivity.runId || '';
@@ -360,6 +434,11 @@ function FPPUpdate_Render(activity) {
 		}
 	}
 	fppUpdateActivity = activity;
+	// The synthetic 'starting' placeholder carries no vector; recording its
+	// (0,0) would regress ordering and let older echoes apply afterwards.
+	if (activity.runId !== 'starting') {
+		FPPUpdate_NoteAppliedVector(activity);
+	}
 	var show = !!(activity.inProgress || activity.stale);
 	var dismissed = show && FPPUpdate_IsDismissed(activity.runId);
 	// Tracked here, ahead of the banner below, so the render that observes a
@@ -490,8 +569,16 @@ function FPPUpdate_Render(activity) {
 }
 
 // Status-system hook: api/system/status already carries updateActivity
-// (finalizeStatusJson), so on pages running the status loop this is free.
+// (finalizeStatusJson), so on pages running the status loop this is free --
+// but only until the first authoritative direct poll answers. After that the
+// hook is ignored: the fppd snapshots replaying through it can be up to 30s
+// older than the direct endpoint, and rendering them revived finished runs
+// (repeated completion toasts, busy-side flapping, redundant version
+// refreshes). First paint still renders immediately when present.
 function FPPUpdate_OnStatusChange() {
+	if (fppUpdateDirectPollApplied) {
+		return;
+	}
 	try {
 		if (typeof lastStatusJSON !== 'undefined' && lastStatusJSON && lastStatusJSON.updateActivity) {
 			FPPUpdate_Render(lastStatusJSON.updateActivity);
@@ -507,13 +594,26 @@ function FPPUpdate_OnStatusChange() {
 // This deliberately does not wait on the status loop: while fppd is up the
 // host-side augmentation (which carries updateActivity) only arrives every
 // 30s, and the server-side first-paint snapshot can time out under compile
-// load — both of which left the UI stale until a manual refresh. The
-// endpoint is light (one ps + a bounded log tail), and rendering is
-// idempotent, so overlapping with the status hook is harmless. Skipped while
-// the re-attached modal runs its own 3s poll.
+// load — both of which left the UI stale until a manual refresh. Once this
+// poll has answered, it is the single source of truth and the status hook
+// stops rendering (see FPPUpdate_OnStatusChange); the endpoint is light
+// (cached when idle, one flock probe plus a bounded log tail otherwise),
+// and rendering is idempotent. Skipped while the re-attached modal runs its
+// own 3s poll, and while the tab is hidden.
 function FPPUpdate_FallbackPoll() {
 	if (fppUpdateModalOpen) {
 		return;
+	}
+	// Background tabs do no polling: like LoadSystemStatus (fpp.js
+	// handleVisibilityChange), skip while hidden. The status hook already
+	// stops for hidden tabs; without this every background tab kept hitting
+	// the endpoint (and the box) every 5s.
+	try {
+		if (typeof document !== 'undefined' && document.hidden) {
+			return;
+		}
+	} catch (e) {
+		// Absent/blocked visibility API: poll anyway.
 	}
 	$.ajax({
 		url: 'api/system/updateActivity',
@@ -521,6 +621,7 @@ function FPPUpdate_FallbackPoll() {
 		cache: false,
 		success: function (data) {
 			if (data && typeof data === 'object') {
+				fppUpdateDirectPollApplied = true;
 				FPPUpdate_Render(data);
 			}
 		},
@@ -539,6 +640,9 @@ function FPPUpdate_FetchModalState(done) {
 		cache: false,
 		success: function (data) {
 			if (data && typeof data === 'object') {
+				// Authoritative direct-endpoint response: take the status
+				// hook out of the picture from here on (see above).
+				fppUpdateDirectPollApplied = true;
 				// Render may reject this as a stale idle echo for a different
 				// run (see the guard above). The modal must not consume
 				// rejected payloads: opening progress right after starting an
@@ -621,8 +725,8 @@ function openUpdateProgress() {
 	fppUpdateModalOpenTime = Date.now();
 	DisplayProgressDialog('fppUpdateProgress', (activity.kind || 'FPP Update') + ' — Loading…');
 	// A Hide button next to Close: closes the modal WITHOUT reloading so the
-	// user can keep using FPP mid-update and come back via the banner or the
-	// status-page warning. Added once per modal lifetime.
+	// user can keep using FPP mid-update and come back via the banner.
+	// Added once per modal lifetime.
 	var $footer = $('#fppUpdateProgress .modal-footer');
 	if ($footer.length && $('#fppUpdateProgressHideButton').length === 0) {
 		var $hide = $('<button id="fppUpdateProgressHideButton" class="buttons">Hide (view later)</button>');

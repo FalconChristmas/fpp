@@ -9299,6 +9299,7 @@
                   "runId": "abc123",
                   "stage": "Building FPP (longest step, please wait)",
                   "logUpdatedAt": 1728000000,
+                  "logSize": 123456,
                   "stale": false,
                   "fppdBinaryExists": true,
                   "failed": false

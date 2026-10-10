@@ -43,8 +43,8 @@ require_once "common.php";
 // bin etc lib opt root sbin usr var), so this log survives the image swap.
 require_once "common/oplog.inc.php";
 // Atomic server-side update lock (see common/updateLock.inc.php). Required
-// at the mutation points below, not here, so validation exits and
-// downloadOnly (a mere fetch, not an upgrade) never take it.
+// at the mutation points below, not here, so validation exits never take it.
+// downloadOnly takes it too: it writes the same upload/<file> an apply reads.
 require_once "common/updateLock.inc.php";
 
 DisableOutputBuffering();
@@ -147,23 +147,22 @@ if (isset($_GET['os']) && preg_match('/^https?:/', $_GET['os'])) {
         array_unshift($urls, "http://" . fppUrlHost($upgradeSource) . "/api/file/uploads/" . $baseFile);
     }
 
-    // Serialize concurrent starters before any mutating work (the download
-    // writes the upload file below; the lock is held for the whole request).
-    // downloadOnly is a pure fetch and never takes it.
-    if (!isset($_GET['downloadOnly'])) {
-        UpdateLockAcquireOrConflict('os-upgrade', $baseFile);
-    }
-    logStage("Downloading OS image");
+    // Serialize concurrent starters before any mutating work. The lock is
+    // held for the whole request, including downloadOnly: a pure fetch still
+    // writes the same upload/<file> an in-flight apply reads, so it must not
+    // run alongside one.
+    UpdateLockAcquireOrConflict('os-upgrade', $baseFile);
     // Open the persistent run BEFORE the (potentially very long) image
-    // download so other browsers report the update for its full lifetime.
+    // download so other browsers report the update for its full lifetime,
+    // and before the first stage so the stage is never empty mid-download.
     // upgradeOS-part1.sh emits its own outer START afterwards; the activity
-    // endpoint treats that as a continuation (last START wins for the runId,
-    // which transparently takes over). Skipped for downloadOnly (a mere
-    // download, not an upgrade run).
+    // endpoint treats that as a continuation of this run (stable runId).
+    // Skipped for downloadOnly (a mere download, not an upgrade run).
     if (!isset($_GET['downloadOnly'])) {
         UpgradeLog('os-upgrade', $baseFile, "===== os-upgrade START: " . $baseFile . " =====");
         $osUpgradeActivityStarted = true;
     }
+    logStage("Downloading OS image");
     $rc = 1;
     foreach ($urls as $idx => $url) {
         // Validate each URL (including mirror) before shell use

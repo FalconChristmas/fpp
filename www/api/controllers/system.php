@@ -494,6 +494,69 @@ function UpdateActivityProcessAlive()
 }
 
 /**
+ * Resolve the shared update lock file without depending on
+ * www/common/updateLock.inc.php (which the API context does not load).
+ * Mirrors UpdateLockFile() there: <media>/tmp/fpp-update.lock.
+ */
+function UpdateActivityLockFile()
+{
+    global $settings, $mediaDirectory;
+    $base = '';
+    if (isset($settings['mediaDirectory']) && $settings['mediaDirectory'] != '') {
+        $base = $settings['mediaDirectory'];
+    } elseif (isset($mediaDirectory) && $mediaDirectory != '') {
+        $base = $mediaDirectory;
+    } else {
+        $base = '/home/fpp/media';
+    }
+    return rtrim($base, '/') . '/tmp/fpp-update.lock';
+}
+
+/**
+ * True when another request currently holds the update lock (an update or
+ * rebuild is running). Probed with a non-blocking SHARED lock: it succeeds
+ * immediately when no exclusive holder exists and fails when one does, and
+ * is released at once so this probe never blocks an update.
+ *
+ * This covers phases that append nothing to the log and are invisible to
+ * `ps`: the long OS image download (wget under php-fpm) and rebuildfpp.php
+ * (fpp_build writes no START marker). Fail-safe: any error reports
+ * not-held. Never creates the file (mode 'r').
+ */
+function UpdateActivityLockHeld()
+{
+    if (!function_exists('flock')) {
+        return false;
+    }
+    $file = UpdateActivityLockFile();
+    if (!is_file($file)) {
+        return false;
+    }
+    $fh = @fopen($file, 'r');
+    if (!$fh) {
+        return false;
+    }
+    $held = !@flock($fh, LOCK_SH | LOCK_NB);
+    @flock($fh, LOCK_UN);
+    @fclose($fh);
+    return $held;
+}
+
+/**
+ * True when any liveness signal says an update is running: a worker process
+ * is alive OR the update lock is held. The lock probe is cheap (no fork);
+ * the ps probe forks, so callers on the hot path should check the lock
+ * first and consult this only when needed.
+ */
+function UpdateActivityAnyAlive()
+{
+    if (UpdateActivityLockHeld()) {
+        return true;
+    }
+    return UpdateActivityProcessAlive();
+}
+
+/**
  * Read the last lines of the upgrade log without loading multi-MB builds
  * fully into memory (submodule chatter can run to several MB).
  */
@@ -595,6 +658,65 @@ function UpdateActivityLastLines($file, $n)
 }
 
 /**
+ * Cache file for the idle update-activity payload, next to the log itself.
+ * api/system/status runs every few seconds (plus MultiSync/remote pollers),
+ * and a full tail scan costs ~66ms on single-core boards even when idle.
+ * The cache is keyed strictly on log size+mtime: a hit serves the stored
+ * payload without the 512KB read or the ps fork. Only idle/stale payloads
+ * are cached (never an in-progress one, which must stay live), and only for
+ * the no-logTail path. Atomic write via temp+rename; corrupt cache = miss.
+ */
+function UpdateActivityCacheFile()
+{
+    return UpdateActivityLogFile() . '.activitycache';
+}
+
+function UpdateActivityReadCache($size, $mtime)
+{
+    $cache = UpdateActivityCacheFile();
+    if (!is_file($cache) || !is_readable($cache)) {
+        return null;
+    }
+    $raw = @file_get_contents($cache);
+    if ($raw === false || $raw === '') {
+        return null;
+    }
+    $data = json_decode($raw, true);
+    if (!is_array($data) || !isset($data['size'], $data['mtime'], $data['activity'])) {
+        return null;
+    }
+    if (intval($data['size']) !== intval($size) || intval($data['mtime']) !== intval($mtime)) {
+        return null;
+    }
+    if (!is_array($data['activity'])) {
+        return null;
+    }
+    // Only idle/stale payloads are cached; an in-progress entry must be
+    // re-derived so completion is never served stale.
+    if (!empty($data['activity']['inProgress'])) {
+        return null;
+    }
+    return $data['activity'];
+}
+
+function UpdateActivityWriteCache($size, $mtime, $activity)
+{
+    if (!empty($activity['inProgress'])) {
+        return;
+    }
+    $cache = UpdateActivityCacheFile();
+    $tmp = $cache . '.' . getmypid() . '.tmp';
+    $raw = json_encode(array('size' => intval($size), 'mtime' => intval($mtime), 'activity' => $activity));
+    if ($raw === false) {
+        return;
+    }
+    if (@file_put_contents($tmp, $raw, LOCK_EX) === false) {
+        return;
+    }
+    @rename($tmp, $cache);
+}
+
+/**
  * Derive update-in-progress state from the durable log plus process liveness.
  *
  * Source of truth is logs/fpp_system_upgrades.log: the last outer START
@@ -619,6 +741,16 @@ function GetUpdateActivityInternal($withLogTail = false)
     // the binary — or (re)show it when the build failed. One stat call.
     $fppdBinaryExists = @file_exists(__DIR__ . '/../../../src/fppd');
 
+    // Version vector for stale-echo ordering (see js/fpp-update.js): every
+    // payload carries the log's mtime+size, and the client drops anything
+    // older than the last applied payload. Equal vectors always apply so
+    // state transitions without log writes (active->stale) still land.
+    $logFileForStat = UpdateActivityLogFile();
+    $logStatSize = @filesize($logFileForStat);
+    if ($logStatSize === false) {
+        $logStatSize = 0;
+    }
+
     $empty = array(
         'inProgress' => false,
         'op' => '',
@@ -627,16 +759,69 @@ function GetUpdateActivityInternal($withLogTail = false)
         'runId' => '',
         'stage' => '',
         'logUpdatedAt' => 0,
+        'logSize' => 0,
         'stale' => false,
         'failed' => false,
         'fppdBinaryExists' => $fppdBinaryExists
     );
 
+    // Cheap idle fast-path (no 512KB read, no ps fork): when the log is
+    // unchanged since the last idle computation AND no update holds the
+    // lock, serve the cached payload. The lock probe is a single
+    // open+flock; a held lock bypasses the cache so a starting update (or
+    // a markerless rebuild) is never served stale. Skipped for the modal's
+    // logTail path, which needs a fresh tail.
+    if (!$withLogTail && $logStatSize > 0) {
+        $logStatMtime = @filemtime($logFileForStat);
+        if ($logStatMtime !== false && !UpdateActivityLockHeld()) {
+            $cached = UpdateActivityReadCache($logStatSize, $logStatMtime);
+            if ($cached !== null) {
+                $cached['fppdBinaryExists'] = $fppdBinaryExists;
+                return $cached;
+            }
+        }
+    }
+
     $tail = UpdateActivityReadTail();
     $lines = $tail['lines'];
     if (empty($lines)) {
+        // No markers (missing/empty/rotated log): do NOT return before the
+        // worker-liveness fallback below. A browser opened in this window
+        // must still see a running update.
+        if (UpdateActivityAnyAlive()) {
+            $active = $empty;
+            $active['inProgress'] = true;
+            $active['kind'] = UpdateActivityKindLabel('fpp-update');
+            $active['runId'] = 'workers-active';
+            $active['logUpdatedAt'] = $tail['mtime'];
+            $active['logSize'] = $logStatSize;
+            if ($withLogTail) {
+                $n = 200;
+                if (isset($_GET['lines'])) {
+                    $n = intval($_GET['lines']);
+                    if ($n < 1) {
+                        $n = 1;
+                    }
+                    if ($n > 500) {
+                        $n = 500;
+                    }
+                }
+                $file = UpdateActivityLogFile();
+                $active['logTail'] = (is_file($file) && is_readable($file))
+                    ? UpdateActivityLastLines($file, $n)
+                    : '';
+            }
+            return $active;
+        }
+        if (!$withLogTail && $logStatSize > 0) {
+            $logCacheMtime = @filemtime($logFileForStat);
+            if ($logCacheMtime !== false) {
+                UpdateActivityWriteCache($logStatSize, $logCacheMtime, $empty);
+            }
+        }
         return $empty;
     }
+
     $outerOps = UpdateActivityOuterOps();
     $opsAlt = implode('|', $outerOps);
     $startRe = '/\[(' . $opsAlt . ')\s+([^\]]*)\]\s*=====\s*\1\s+START:/';
@@ -661,7 +846,7 @@ function GetUpdateActivityInternal($withLogTail = false)
         // lines, still a hot page-cache read) when a run is plausible (a worker
         // is alive or the log was written recently). This keeps runIds stable
         // and preserves completion reporting for multi-MB logs.
-        $aliveProbe = UpdateActivityProcessAlive();
+        $aliveProbe = UpdateActivityAnyAlive();
         $recentProbe = ($tail['mtime'] > 0) && ((time() - $tail['mtime']) < 900);
         if ($aliveProbe || $recentProbe) {
             $ext = UpdateActivityReadTail(30000, 4194304);
@@ -686,12 +871,13 @@ function GetUpdateActivityInternal($withLogTail = false)
         // its first log line): a live worker alone still means an update is
         // running. The fixed runId keeps a dismiss stable across polls in
         // this rare state.
-        if (UpdateActivityProcessAlive()) {
+        if (UpdateActivityAnyAlive()) {
             $active = $empty;
             $active['inProgress'] = true;
             $active['kind'] = UpdateActivityKindLabel('fpp-update');
             $active['runId'] = 'workers-active';
             $active['logUpdatedAt'] = $tail['mtime'];
+            $active['logSize'] = $logStatSize;
             if ($withLogTail) {
                 $n = 200;
                 if (isset($_GET['lines'])) {
@@ -717,26 +903,60 @@ function GetUpdateActivityInternal($withLogTail = false)
     $finished = false;
     $finishFailed = false;
     $finishRc = null;
+    // Stable runId across continuations: the OS upgrade opens its run in PHP
+    // and upgradeOS-part1.sh emits a second outer START for the same image
+    // afterwards. Without this the runId flips mid-upgrade (the START lines
+    // differ in their timestamp prefix) and a dismiss during the download
+    // stops matching. Walk back over the unbroken chain of same-op +
+    // same-target STARTs (no FINISH/terminal between) and identify the run
+    // by the earliest one. Sequential runs stay distinct: a FINISH or
+    // terminal between two STARTs breaks the chain.
+    $runIdLine = $startLine;
+    for ($j = $startIdx - 1; $j >= 0; $j--) {
+        if (preg_match($startRe, $lines[$j], $mm)) {
+            if ($mm[1] === $startOp && trim($mm[2]) === $startTarget) {
+                $runIdLine = $lines[$j];
+                continue;
+            }
+            break;
+        }
+        if (preg_match('/=====\s*' . preg_quote($startOp, '/') . '\s+FINISH:/', $lines[$j])) {
+            break;
+        }
+        if (preg_match('/^.*?=====\s*(Upgrade Complete|Upgrade Failed|Rebooting|Upgrade complete[^=]*)\s*=====\s*$/i', $lines[$j])) {
+            break;
+        }
+    }
+    // Scan the WHOLE remainder: a FINISH trailer never shadows a later
+    // failure marker and vice versa. The build-failure path can be
+    // `fpp-update FINISH (rc=0)` followed by the PHP-side `Upgrade Failed`
+    // verdict (a nonzero make status used to be swallowed on the way to
+    // git_pull's exit code); stopping at the first terminator reported that
+    // sequence as success. A recorded failure is sticky: a later success
+    // marker never clears it.
     foreach ($after as $line) {
         // Matching FINISH trailer for this run. The exit code matters: branch
         // switches and version checkouts can fail with only this marker
         // (no "Upgrade Failed" stage), so a nonzero rc is a failure outcome.
+        // No break: a later "Upgrade Failed" terminal still overrides an
+        // rc=0 FINISH (see above).
         if (preg_match('/=====\s*' . preg_quote($startOp, '/') . '\s+FINISH:/', $line)) {
             $finished = true;
             if (preg_match('/\(rc=(\d+)\)/', $line, $rcm) && intval($rcm[1]) !== 0) {
                 $finishFailed = true;
                 $finishRc = intval($rcm[1]);
             }
-            break;
+            continue;
         }
         // Terminal stage logged after the script's tee is gone (PHP side of
-        // manualUpdate.php / upgradeOS.php).
+        // manualUpdate.php / upgradeOS.php / upgradefpp.php).
         if (preg_match('/^.*?=====\s*(Upgrade Complete|Upgrade Failed|Rebooting|Upgrade complete[^=]*)\s*=====\s*$/i', $line, $tm)) {
             $finished = true;
             if (stripos($tm[1], 'fail') !== false) {
                 $finishFailed = true;
+                $finishRc = null;
             }
-            break;
+            continue;
         }
     }
 
@@ -745,9 +965,10 @@ function GetUpdateActivityInternal($withLogTail = false)
         'op' => $startOp,
         'target' => $startTarget,
         'kind' => UpdateActivityKindLabel($startOp),
-        'runId' => md5($startLine),
+        'runId' => md5($runIdLine),
         'stage' => '',
         'logUpdatedAt' => $tail['mtime'],
+        'logSize' => $logStatSize,
         'stale' => false,
         'failed' => false,
         'fppdBinaryExists' => $fppdBinaryExists
@@ -794,12 +1015,14 @@ function GetUpdateActivityInternal($withLogTail = false)
         if (is_file($file) && is_readable($file)) {
             $last = UpdateActivityLastLines($file, $n);
             // Show the whole run when its START is inside the fetched tail,
-            // otherwise the last N lines.
+            // otherwise the last N lines. Trim at the run's FIRST start
+            // ($runIdLine, which may precede $startLine for continuations
+            // such as part1's take-over) so the download phase is included.
             $runStart = -1;
-            if ($last !== '' && $startLine !== '') {
+            if ($last !== '' && $runIdLine !== '') {
                 $runLines = explode("\n", $last);
                 foreach ($runLines as $i => $line) {
-                    if (strpos($line, $startLine) !== false) {
+                    if (strpos($line, $runIdLine) !== false) {
                         $runStart = $i;
                     }
                 }
@@ -817,18 +1040,45 @@ function GetUpdateActivityInternal($withLogTail = false)
     }
 
     if ($finished) {
+        // A held update lock means a request is still finalizing (or a
+        // markerless rebuild is running): never report a settled outcome
+        // while the lock is held. Markerless work (rebuildfpp.php writes no
+        // START) surfaces as the generic active state so it is visible at
+        // all instead of hiding behind the previous finished run.
+        if (UpdateActivityLockHeld()) {
+            $active = $empty;
+            $active['inProgress'] = true;
+            $active['kind'] = UpdateActivityKindLabel('fpp-update');
+            $active['runId'] = 'workers-active';
+            $active['logUpdatedAt'] = $tail['mtime'];
+            $active['logSize'] = $logStatSize;
+            return $active;
+        }
+        if (!$withLogTail && $logStatSize > 0) {
+            $logCacheMtime = @filemtime($logFileForStat);
+            if ($logCacheMtime !== false) {
+                UpdateActivityWriteCache($logStatSize, $logCacheMtime, $base);
+            }
+        }
         return $base;
     }
 
-    // Run is open in the log: live when a worker is alive or the log is
-    // fresh, stale (crashed/killed, power loss) otherwise.
-    $alive = UpdateActivityProcessAlive();
+    // Run is open in the log: live when a worker is alive, the update lock
+    // is held (long OS download under php-fpm, rebuild), or the log is
+    // fresh; stale (crashed/killed, power loss) otherwise.
+    $alive = UpdateActivityAnyAlive();
     $recent = ($tail['mtime'] > 0) && ((time() - $tail['mtime']) < 900);
     if ($alive || $recent) {
         $base['inProgress'] = true;
         return $base;
     }
     $base['stale'] = true;
+    if (!$withLogTail && $logStatSize > 0) {
+        $logCacheMtime = @filemtime($logFileForStat);
+        if ($logCacheMtime !== false) {
+            UpdateActivityWriteCache($logStatSize, $logCacheMtime, $base);
+        }
+    }
     return $base;
 }
 

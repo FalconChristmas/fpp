@@ -528,12 +528,19 @@ compileBinaries() {
 	# daemon left running from a prior build (different/no hosts) would serve this
 	# one with stale config (e.g. dialing a host with no port). Stop it so make
 	# spawns a fresh daemon with the current NOCC_SERVERS. No-op when nocc is off.
+	# BUILD_RC carries the main src build status to the caller: without it the
+	# function's exit status is whatever the swap cleanup below returns (0),
+	# so git_pull exits 0 when the build fails and the update UI reports a
+	# failed build as "complete". Plugin builds stay best-effort.
+	BUILD_RC=0
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]; then
 		${SUDO} pkill -x nocc-daemon 2>/dev/null || true
 		cd ${FPPDIR}/src && ${SUDO} make clean && ${SUDO} -E make -j ${CPUS} optimized
+		BUILD_RC=$?
 	else
 		sudo -u ${FPPUSER} pkill -x nocc-daemon 2>/dev/null || true
 		cd ${FPPDIR}/src && sudo -u ${FPPUSER} make clean && sudo -u ${FPPUSER} make -j ${CPUS} optimized
+		BUILD_RC=$?
 	fi
 
     for p in ${MEDIADIR}/plugins/*; do
@@ -557,6 +564,9 @@ compileBinaries() {
             ${SUDO} rm -f "${FPPHOME}/media/tmp/swapfile"
         fi
     fi
+    # Propagate the src build status (see above): the swap cleanup must not
+    # mask a failed make with its own success.
+    return ${BUILD_RC:-0}
 }
 
 #############################################################################
