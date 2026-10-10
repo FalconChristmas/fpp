@@ -87,6 +87,7 @@ fi
 
 echo "Compiling Binaries"
 compileBinaries
+BUILD_RC=$?
 
 # Delete any statistics
 /usr/bin/curl -X DELETE http://localhost/api/statistics/usage
@@ -116,5 +117,12 @@ rm -f /tmp/cache_local_git_version.cache /tmp/cache_local_git_commit_date.cache 
 if [ "${GITSWITCHOK}" != "1" ]; then
     echo "ERROR: upgrade to '$1' FAILED -- still on branch $(cd "${FPPDIR}" && git rev-parse --abbrev-ref HEAD 2>/dev/null)"
     exit 1
+fi
+
+# A failed build must fail the run (FINISH rc + PHP "Upgrade Failed"
+# verdict), not report "Upgrade complete" with no fppd binary.
+if [ "${BUILD_RC:-0}" != "0" ]; then
+    echo "ERROR: build failed (rc=${BUILD_RC}) -- binaries were NOT rebuilt."
+    exit ${BUILD_RC}
 fi
 

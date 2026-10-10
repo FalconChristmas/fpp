@@ -2114,7 +2114,30 @@ function StreamURL (
 				window[doneCallback](id);
 			}
 		})
-		.fail(function (data) {
+		.fail(function (jqXHR) {
+			// Surface the server's refusal text (e.g. the 409 update-lock
+			// conflict) in the streaming target so a refused starter shows
+			// WHY it never started instead of hanging on "Starting…".
+			// Guarded: error display must never break the callback chain.
+			try {
+				var failMsg = (jqXHR && jqXHR.responseText) ? String(jqXHR.responseText) : '';
+				if (failMsg !== '' && outputArea) {
+					if (typeof outputArea.value === 'string') {
+						outputArea.value += failMsg + '\n';
+					} else if (outputArea.innerHTML !== undefined) {
+						// Text-safe append: the refusal text is server-generated
+						// but must never be parsed as HTML (no innerHTML sink).
+						// Build text nodes line by line to preserve newlines.
+						var failLines = failMsg.split(/(?:\r\n|\r|\n)/);
+						for (var fi = 0; fi < failLines.length; fi++) {
+							outputArea.appendChild(document.createTextNode(failLines[fi]));
+							outputArea.appendChild(document.createElement('br'));
+						}
+					}
+					outputArea.scrollTop = outputArea.scrollHeight;
+				}
+			} catch (e) {
+			}
 			if (errorCallback != '') {
 				window[errorCallback](id);
 			}
@@ -4646,12 +4669,24 @@ function UpgradeFPPVersion (newVersion) {
 	// the git ref -- prepending 'v' unconditionally produced 'vv10.1', which
 	// upgrade_FPP then failed to check out, leaving the branch unchanged.
 	var version = String(newVersion).replace(/^v+/, '');
+	// An OS upgrade owns the box until it finishes; starting a branch
+	// upgrade on top of it would corrupt both.
+	if (typeof UpdateActivityBusySide === 'function' && UpdateActivityBusySide() === 'os') {
+		$.jGrowl('An OS upgrade is in progress. Wait for it to finish before upgrading FPP.', { themeState: 'warning' });
+		return;
+	}
 	if (
 		confirm(
 			'Do you wish to upgrade the Falcon Player?\n\nClick "OK" to continue.\n\nThe system will automatically reboot to complete the upgrade.\nThis can take a long time,  20-30 minutes on slower devices.'
 		)
 	) {
 		CloseModalDialog('releaseNotesDialog');
+
+		// Instant feedback: the header icon and banners react at once instead
+		// of waiting for the next server poll (see js/fpp-update.js).
+		if (typeof FPPUpdate_MarkStarted === 'function') {
+			FPPUpdate_MarkStarted('fpp');
+		}
 
 		var opts = {
 			id: 'upgradeFPPDialog',
@@ -4689,9 +4724,15 @@ function UpgradeFPPVersion (newVersion) {
 		}
 
 		DoModalDialog(opts);
+		// Let the starter detach mid-run: the banner + status warning keep a
+		// way back to the live log (see js/fpp-update.js).
+		if (typeof FPPUpdate_AddHideButton === 'function') {
+			FPPUpdate_AddHideButton('upgradeFPPDialog');
+		}
 		StreamURL(
 			'upgradefpp.php?version=v' + version,
 			'upgradeFPPDialogText',
+			'VersionUpgradeDone',
 			'VersionUpgradeDone'
 		);
 	}
@@ -6271,35 +6312,43 @@ function GetFPPStatus () {
 					message: message,
 					id: 0
 				});
-			} else {
+		} else {
+			// Post-update restart grace: fppd is expected down briefly while
+			// it restarts after an update completes, so skip the flash-and-clear
+			// warning unless it stays down (see FPPUpdate_QuietNotRunning in
+			// js/fpp-update.js). Everything below still runs.
+			var quietNotRunning =
+				typeof FPPUpdate_QuietNotRunning === 'function' && FPPUpdate_QuietNotRunning();
+			if (!quietNotRunning) {
 				response.warnings.push('FPPD Daemon is not running');
 				response.warningInfo.push({
 					message: 'FPPD Daemon is not running',
 					id: 1
 				});
-				// Additional warning when systemd has hit StartLimitBurst (too many restarts)
-				// Handles both cases: status already includes fppdRestartBlocked (from PHP's SystemGetStatus)
-				// and WebSocket status (lastStatusJSON) which does not — fetch via API in the latter case.
-				var checkBlocked = function(data) {
-					if (data && data.blocked) {
-						var s = parseInt(data.remainingSec) || 0;
-						var mins = Math.floor(s / 60);
-						var secs = s % 60;
-						var waitMsg = 'FPPD restart limit reached — please wait ' + (mins > 0 ? mins + 'm ' : '') + secs + 's before restarting';
-						var already = response.warnings.some(function(w){ return w.indexOf('restart limit') !== -1; });
-						if (!already) {
-							response.warnings.push(waitMsg);
-							response.warningInfo.push({message: waitMsg, id: 65});
-							updateWarnings(response);
-						}
-					}
-				};
-				if (response.fppdRestartBlocked && response.fppdRestartBlocked.blocked) {
-					checkBlocked(response.fppdRestartBlocked);
-				} else {
-					$.get('api/system/fppd/restartStatus').done(checkBlocked);
-				}
 			}
+			// Additional warning when systemd has hit StartLimitBurst (too many restarts)
+			// Handles both cases: status already includes fppdRestartBlocked (from PHP's SystemGetStatus)
+			// and WebSocket status (lastStatusJSON) which does not — fetch via API in the latter case.
+			var checkBlocked = function(data) {
+				if (data && data.blocked) {
+					var s = parseInt(data.remainingSec) || 0;
+					var mins = Math.floor(s / 60);
+					var secs = s % 60;
+					var waitMsg = 'FPPD restart limit reached — please wait ' + (mins > 0 ? mins + 'm ' : '') + secs + 's before restarting';
+					var already = response.warnings.some(function(w){ return w.indexOf('restart limit') !== -1; });
+					if (!already) {
+						response.warnings.push(waitMsg);
+						response.warningInfo.push({message: waitMsg, id: 65});
+						updateWarnings(response);
+					}
+				}
+			};
+			if (response.fppdRestartBlocked && response.fppdRestartBlocked.blocked) {
+				checkBlocked(response.fppdRestartBlocked);
+			} else {
+				$.get('api/system/fppd/restartStatus').done(checkBlocked);
+			}
+		}
 			$.get('api/system/volume')
 				.done(function (data) {
 					updateVolumeUI(parseInt(data.volume));
@@ -15202,7 +15251,8 @@ var STATUS_AUGMENTATION_KEYS = [
 	'bootDelayActive',
 	'bootDelayStart',
 	'bootDelayDuration',
-	'pluginHeaderIndicators'
+	'pluginHeaderIndicators',
+	'updateActivity'
 ];
 
 // A status snapshot pushed by fppd over the WebSocket.

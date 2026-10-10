@@ -19,8 +19,24 @@ if (!$wrapped)
 
 $skipJSsettings = 1;
 require_once("common.php");
+// Record the outcome in logs/fpp_system_upgrades.log (the script's own output
+// is already there via its tee); the persistent update-progress UI reads this
+// file, so without these lines a re-attached viewer sees no verdict.
+require_once("common/oplog.inc.php");
+// Atomic server-side update lock (see common/updateLock.inc.php): refuse
+// with 409 when another update already holds it. Fail-open otherwise.
+require_once("common/updateLock.inc.php");
 
 DisableOutputBuffering();
+
+// Finish once started, even if the browser goes away: a closed tab must not
+// stop PHP at the next echo (matches manualUpdate.php / upgradeOS.php). The
+// script survives behind its tee, but without this the terminal UpgradeLog
+// verdict below would be skipped, leaving a stale open run.
+ignore_user_abort(true);
+
+// Serialize concurrent starters; held for the whole request.
+UpdateLockAcquireOrConflict('fpp-upgrade', $version);
 
 if (!$wrapped) {
 ?>
@@ -76,8 +92,11 @@ if (!$wrapped) {
 } else {
     echo "----------------------------------------------------------------------------------\n";
     if ($upgradeStatus !== 0) {
+        UpgradeLog('fpp-upgrade', $version, "ERROR: upgrade_FPP exited rc=" . $upgradeStatus . "; not rebooting.");
+        UpgradeLog('fpp-upgrade', $version, "===== Upgrade Failed =====");
         echo "Upgrade FAILED (exit code " . $upgradeStatus . ").  See the errors above.\n";
     } else {
+        UpgradeLog('fpp-upgrade', $version, "===== Upgrade Complete =====");
         echo "Upgrade complete.  Please reboot.\n";
     }
 }

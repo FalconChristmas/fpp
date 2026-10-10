@@ -99,6 +99,12 @@ function list_plugin_entries($menu)
                     <i class="fa-solid fa-download" id="navbarUpdateAvailIcon"></i>
                 </a>
             </div>
+            <div id="navbarUpdateInProgress">
+                &nbsp;<a href="javascript:void(0)" id="navbarUpdateInProgressLink" role="button"
+                    title="Update in progress — view progress">
+                    <i class="fa-solid fa-circle-notch fa-spin" id="navbarUpdateInProgressIcon"></i>
+                </a>
+            </div>
             <div id="navbarPluginUpdateAvail">
                 &nbsp;<a href="plugins.php?tab=updates" role="button">
                     <i class="fa-solid fa-puzzle-piece" id="navbarPluginUpdateAvailIcon"></i>
@@ -290,6 +296,18 @@ function list_plugin_entries($menu)
                 }
             });
             </script>
+            <div id='updateInProgressFlag' class="alert detract" style="display: none;">
+                <span class='inlineBlock'><i class='fas fa-circle-notch fa-spin'></i> <span
+                        id='updateInProgressFlagText'>FPP update in progress</span></span>
+                <span class='inlineBlock'>
+                    <button name="btnViewUpdateProgress" type="button" id='updateInProgressViewBtn'
+                        class="buttons btn-outline-light">
+                        <i class='fas fa-fw fa-eye fa-nbsp'></i>View progress</button>
+                    <button name="btnDismissUpdateProgress" type="button" id='updateInProgressDismissBtn'
+                        class="buttons btn-outline-light">
+                        <i class='fas fa-fw fa-times fa-nbsp'></i>Dismiss</button>
+                </span>
+            </div>
             <div id='restartFlag' class="alert detract"><span class='inlineBlock'>Settings have changed. FPPD Restart
                     Required</span><span class='inlineBlock'><button name="btnRestartFPPD" type="button"
                         onClick="RestartFPPD();common_ViewPortChange();" class="buttons btn-outline-light"><i
@@ -315,7 +333,20 @@ function list_plugin_entries($menu)
                         EnableModalDialogCloseButton("rebuildFPP");
                     }
                     function RebuildFPPD() {
+                        // Refuse while any update owns the box (same guard as the
+                        // about.php starters); the server lock below is the atomic
+                        // backstop and answers 409 in the dialog.
+                        if (typeof UpdateActivityBusySide === 'function' && UpdateActivityBusySide() !== null) {
+                            $.jGrowl('An update is already in progress. Wait for it to finish before rebuilding.', { themeState: 'warning' });
+                            return;
+                        }
+                        if (typeof FPPUpdate_MarkStarted === 'function') {
+                            FPPUpdate_MarkStarted('fpp');
+                        }
                         DisplayProgressDialog("rebuildFPP", "Rebuild FPP");
+                        if (typeof FPPUpdate_AddHideButton === 'function') {
+                            FPPUpdate_AddHideButton('rebuildFPP');
+                        }
                         StreamURL('manualUpdate.php?wrapped=1', 'rebuildFPPText', 'RebuildFPPDDone', 'RebuildFPPDDone');
                     }
                 </script>

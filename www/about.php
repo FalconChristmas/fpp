@@ -560,6 +560,9 @@
             setCoordinatedCards(recommended);
             updateCardSubtitles();
             updateOSRebootWarning();
+            // Last so an in-progress update wins over the recommendation
+            // styling (busy bars, disabled sections).
+            renderUpdateActivityState();
         }
 
         // Reboot warning: show it whenever an OS upgrade is the action at hand --
@@ -929,8 +932,101 @@
             checkUpgradeRecommendation();
         }
 
+        // Which side of this page is busy, from the shared update-activity
+        // state (js/fpp-update.js). 'fpp' covers update/upgrade/branch-switch/
+        // version-checkout runs, 'os' is an OS upgrade, null when idle.
+        function AboutBusySide() {
+            if (typeof UpdateActivityBusySide === 'function') {
+                return UpdateActivityBusySide();
+            }
+            return null;
+        }
+
+        // Applies the per-section busy states for an in-progress update, and
+        // clears the parts busy mode owns when idle. Runs after every card
+        // render (checkUpgradeRecommendation, OSSelectChanged) and on every
+        // activity change, so neither render can clobber the other: while
+        // busy this always runs last and wins; while idle it only clears what
+        // busy mode owns (bars, hidden buttons, checkbox/select disables) and
+        // leaves disabled/text/fade to the recommendation render, which the
+        // busy-to-idle transition refreshes (see onUpdateActivityForAbout).
+        function renderUpdateActivityState() {
+            var side = AboutBusySide();
+            var activity = (typeof fppUpdateActivity !== 'undefined') ? fppUpdateActivity : null;
+            var fppBusy = side === 'fpp';
+            var osBusy = side === 'os';
+            var stage = activity && activity.stage ? ' — ' + activity.stage : '';
+
+            // .fpp-version-indicator is a flex row; jQuery .toggle()/.show()
+            // would flatten it to display:block, so set flex explicitly.
+            $('#fppBusyBar').css('display', fppBusy ? 'flex' : 'none');
+            $('#osBusyBar').css('display', osBusy ? 'flex' : 'none');
+            if (fppBusy) {
+                $('#fppBusyText').text((activity.kind || 'FPP update') + ' in progress' + stage);
+            }
+            if (osBusy) {
+                $('#osBusyText').text((activity.kind || 'OS upgrade') + ' in progress' + stage);
+            }
+
+            if (!fppBusy && !osBusy) {
+                // Idle: clear only what busy mode owns (bars, inline hides,
+                // checkbox/select disables). Button disabled/text and card
+                // fade belong to the recommendation render, which the
+                // busy-to-idle transition refreshes; untouched here so an
+                // interleaved render is never clobbered.
+                $('#fppUpdateButton, #fppBranchUpdateButton').css('display', '');
+                $('#osUpgradeButton, #osDownloadButton, #osReleaseNotesButton').css('display', '');
+                $('#osSelect, #allPlatforms, #LegacyOS, #keepOptFPP').prop('disabled', false);
+                return;
+            }
+
+            // Updating section: actions collapse to the busy bar's View
+            // Status; the other section's controls are disabled and faded.
+            if (fppBusy) {
+                $('#fppUpdateButton, #fppBranchUpdateButton').hide();
+                $('#osSelect, #osUpgradeButton, #osDownloadButton, #osReleaseNotesButton, #allPlatforms, #LegacyOS, #keepOptFPP')
+                    .prop('disabled', true);
+                $('#osCard').addClass('is-disabled');
+            }
+            if (osBusy) {
+                $('#osUpgradeButton, #osDownloadButton, #osReleaseNotesButton').hide();
+                $('#fppUpdateButton, #fppBranchUpdateButton').hide();
+                $('#fppUpdateButton, #fppBranchUpdateButton').prop('disabled', true);
+                $('#fppCard').addClass('is-disabled');
+            }
+        }
+
+        // Activity subscription for this page: re-apply section states on
+        // every change, and when a run ends refresh the whole card state
+        // (versions changed, so the recommendation render must re-run --
+        // same as the starter's done-callback does via UpdateVersionInfo).
+        var lastUpdateBusySide = null;
+        function onUpdateActivityForAbout() {
+            var side = AboutBusySide();
+            if (lastUpdateBusySide && !side) {
+                lastUpdateBusySide = null;
+                renderUpdateActivityState();
+                if (typeof OSSelectChanged === 'function') {
+                    OSSelectChanged();
+                }
+                if (typeof UpdateVersionInfo === 'function') {
+                    UpdateVersionInfo(true);
+                }
+                return;
+            }
+            lastUpdateBusySide = side;
+            renderUpdateActivityState();
+        }
+        if (typeof FPPUpdate_OnActivity === 'function') {
+            FPPUpdate_OnActivity(onUpdateActivityForAbout);
+        }
+
         // Handle FPP update button click - route to appropriate action
         function HandleFPPUpdate() {
+            if (AboutBusySide() === 'os') {
+                $.jGrowl('An OS upgrade is in progress. Wait for it to finish before updating FPP.', { themeState: 'warning' });
+                return;
+            }
             if (needsRebuild) {
                 // No version to diff against and no release notes to show -- just
                 // rebuild. manualUpdate.php is the same script the upgrade uses.
@@ -960,10 +1056,27 @@
         }
 
         function UpgradeFPP(title) {
+            // Direct onclick path (same-branch button) bypasses HandleFPPUpdate's
+            // guard, so refuse here too rather than stacking onto an OS upgrade.
+            if (AboutBusySide() === 'os') {
+                $.jGrowl('An OS upgrade is in progress. Wait for it to finish before updating FPP.', { themeState: 'warning' });
+                return;
+            }
             fppUpgradeTitle = title || 'FPP Upgrade';
+            // Instant feedback: the header icon, banner, and card states below
+            // react at once instead of waiting for the next server poll. The
+            // first real poll transparently takes over from this placeholder.
+            if (typeof FPPUpdate_MarkStarted === 'function') {
+                FPPUpdate_MarkStarted('fpp');
+            }
             DisplayProgressDialog('fppUpgrade', fppUpgradeTitle);
+            // Let the starter detach mid-run: the banner + status warning keep
+            // a way back to the live log (see js/fpp-update.js).
+            if (typeof FPPUpdate_AddHideButton === 'function') {
+                FPPUpdate_AddHideButton('fppUpgrade');
+            }
             SetProgressDialogStatus('fppUpgrade', fppUpgradeTitle + ' — Starting…');
-            StreamURL('manualUpdate.php?wrapped=1', 'fppUpgradeText', 'FPPUpgradeDone', '', 'GET', null, null, true, false, 'FPPUpgradeProgress'); // trailing arg: generic stage-status hook
+            StreamURL('manualUpdate.php?wrapped=1', 'fppUpgradeText', 'FPPUpgradeDone', 'FPPUpgradeDone', 'GET', null, null, true, false, 'FPPUpgradeProgress'); // trailing arg: generic stage-status hook
         }
 
         function FPPUpgradeDone() {
@@ -1107,6 +1220,10 @@
         }
 
         function UpgradeOS() {
+            if (AboutBusySide() === 'fpp') {
+                $.jGrowl('An FPP update is in progress. Wait for it to finish before upgrading the OS.', { themeState: 'warning' });
+                return;
+            }
             var os = $('#osSelect').val();
             var osName = os;
 
@@ -1131,7 +1248,15 @@
             if (confirm('Upgrade the OS using ' + osName +
                 '?\nThis can take a long time. It is also strongly recommended to run FPP backup first.')) {
 
+                // Instant feedback, same as UpgradeFPP above.
+                if (typeof FPPUpdate_MarkStarted === 'function') {
+                    FPPUpdate_MarkStarted('os');
+                }
                 DisplayProgressDialog('osUpgrade', 'FPP OS Upgrade');
+                // Same detach support as the FPP upgrade above.
+                if (typeof FPPUpdate_AddHideButton === 'function') {
+                    FPPUpdate_AddHideButton('osUpgrade');
+                }
                 SetProgressDialogStatus('osUpgrade', 'FPP OS Upgrade — Starting…');
                 StreamURL('upgradeOS.php?wrapped=1&os=' + os + keepOptFPP, 'osUpgradeText', 'OSUpgradeDone', 'OSUpgradeDone', 'GET', null, null, true, false, 'OSUpgradeProgress'); // trailing arg: generic stage-status hook
             }
@@ -1314,6 +1439,9 @@
             updateOSRebootWarning();
 
             syncOSCardEngaged();
+            // A selection change must not re-enable controls or lift the fade
+            // while an FPP update is running.
+            renderUpdateActivityState();
         }
 
         // In the coordinated view the OS card may be faded back (is-disabled) when
@@ -1380,6 +1508,9 @@
             UpdateVersionInfo();
             PopulateOSSelect();
             initFaqAccordion();
+            // Catch an update already running when this page loads (the
+            // activity subscription only fires on subsequent changes).
+            onUpdateActivityForAbout();
 
             if (upgradeTestMode) {
                 console.log('Upgrade test mode: ' + upgradeTestMode);
@@ -1642,6 +1773,15 @@
                             </div>
 
                             <div class="fpp-card__actions">
+                                <!-- Shown while an FPP-side update runs: the action
+                                     buttons below are hidden and the other card's
+                                     controls are disabled until it completes. -->
+                                <div id="fppBusyBar" class="fpp-version-indicator" style="display: none;">
+                                    <i class="fas fa-circle-notch fa-spin"></i>
+                                    <span id="fppBusyText">FPP update in progress</span>
+                                    <button class="fpp-btn fpp-btn--secondary" onclick="if(typeof openUpdateProgress==='function'){openUpdateProgress();}">View
+                                        Status</button>
+                                </div>
                                 <button class="fpp-btn fpp-btn--secondary" id="fppUpdateButton"
                                     onclick="HandleFPPUpdate();">
                                     <i class="fas fa-download"></i> <span id="fppUpdateButtonText">Update FPP Now</span>
@@ -1757,6 +1897,15 @@
                             </div>
 
                             <div class="fpp-card__actions">
+                                <!-- Shown while an OS upgrade runs: the controls
+                                     below are hidden and the FPP card's controls
+                                     are disabled until it completes. -->
+                                <div id="osBusyBar" class="fpp-version-indicator" style="display: none;">
+                                    <i class="fas fa-circle-notch fa-spin"></i>
+                                    <span id="osBusyText">OS upgrade in progress</span>
+                                    <button class="fpp-btn fpp-btn--secondary" onclick="if(typeof openUpdateProgress==='function'){openUpdateProgress();}">View
+                                        Status</button>
+                                </div>
                                 <select id="osSelect" class="form-select fpp-select" onChange="OSSelectChanged();">
                                     <option value="">-- Select OS Image --</option>
                                 </select>

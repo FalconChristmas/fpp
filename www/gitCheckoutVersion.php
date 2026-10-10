@@ -13,8 +13,15 @@ if (!$wrapped) {
 
 $skipJSsettings = 1;
 require_once "common.php";
+// Atomic server-side update lock (see common/updateLock.inc.php).
+require_once "common/updateLock.inc.php";
 
 DisableOutputBuffering();
+
+// Hold the update lock for the whole checkout+rebuild so a concurrent
+// starter gets 409 instead of stacking a second mutation on top. Also
+// survive a closed tab mid-run like the other update endpoints.
+ignore_user_abort(true);
 
 $rawVersion = $_GET['version'] ?? '';
 // Allow branch/tag/SHA names (e.g. master, v10.0, HEAD, a1b2c3d4) — letters, numbers, _, ., -, / only, no .. or leading -.
@@ -24,6 +31,7 @@ if (!preg_match('/^[A-Za-z0-9_.\/-]+$/', $rawVersion) || strpos($rawVersion, '..
     exit(0);
 }
 $version = $rawVersion;
+UpdateLockAcquireOrConflict('fpp-version-checkout', $version);
 if (!$wrapped) {
     ?>
 <head>

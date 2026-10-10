@@ -7,8 +7,13 @@ header("Access-Control-Allow-Origin: *");
 include 'common/htmlMeta.inc';
 $skipJSsettings = 1;
 require_once("common.php");
+// Atomic server-side update lock helper (acquired after the ack gate below,
+// before any remote/branch mutation).
+require_once("common/updateLock.inc.php");
 
 DisableOutputBuffering();
+// Survive a closed tab mid-switch like the other update endpoints.
+ignore_user_abort(true);
 ?>
 
 <head>
@@ -200,6 +205,13 @@ if ($prFetchDone && ($_GET['ackcfg'] ?? '') !== '1') {
 	}
 }
 
+// The update lock is taken here, right after the ack gate above (which must
+// not hold it while the user reads the warning) and BEFORE the remote
+// add/set-url mutations below: two racers must serialize before either
+// touches the repo, not after. Held for the whole switch so a concurrent
+// starter gets 409 instead of stacking a second mutation.
+UpdateLockAcquireOrConflict('fpp-branch-switch', $remote . '/' . $branch);
+
 // If remote is a GitHub fork (matches saved gitHubUser), ensure the git remote exists
 $isForkRemote = false;
 $forkUser = isset($settings['gitHubUser']) ? trim($settings['gitHubUser']) : '';
@@ -231,6 +243,7 @@ if (!$prFetchDone && $remote !== 'origin' && $remote !== 'newfeatures' && $remot
 // Fetch the fork remote so that git_branch's show-ref validation succeeds.
 // Newly-added remotes have no refs yet; without this the script aborts with
 // "Invalid Branch Name" even though the branch exists on GitHub.
+// (The update lock was already taken above, before the remote mutations.)
 if ($isForkRemote) {
 	$fetchOut = array();
 	$fetchRet = 0;

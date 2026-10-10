@@ -1083,11 +1083,13 @@ body.modal-open #scrollTopButton {
 }
 
 #navbarUpdateAvail,
+#navbarUpdateInProgress,
 #navbarPluginUpdateAvail {
 	display: none;
 }
 
 #navbarUpdateAvail a,
+#navbarUpdateInProgress a,
 #navbarPluginUpdateAvail a {
 	/* A token, not an rgb() literal (rule 3); see its definition. */
 	color: var(--fpp-header-attention);

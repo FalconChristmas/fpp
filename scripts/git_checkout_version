@@ -108,6 +108,7 @@ ${SUDO} make clean
 SetupBuildEnv
 
 ${SUDO} make -j ${BUILD_CPUS} optimized
+BUILD_RC=$?
 
 echo "======================================================================"
 echo "Restarting fppd"
@@ -123,5 +124,12 @@ then
     /opt/fpp/scripts/fppd_start
 else
     systemctl restart fppd
+fi
+
+# A failed build must fail the run (FINISH rc) instead of reporting success
+# with no fppd binary. fppd is restarted above regardless.
+if [ "${BUILD_RC:-0}" != "0" ]; then
+    echo "ERROR: build failed (rc=${BUILD_RC}) -- version was checked out but binaries were NOT rebuilt."
+    exit ${BUILD_RC}
 fi
 
