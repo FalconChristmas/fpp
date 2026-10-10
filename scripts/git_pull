@@ -113,6 +113,7 @@ if curl --silent --head "${HTTPURL}" | grep -i "Content-Type: text/html; charset
     $SUDO ${SCRIPTDIR}/upgrade_config
     logStage "Building FPP (longest step, please wait)"
     compileBinaries
+    PULL_BUILD_RC=$?
 else
     echo "Can not access ${HTTPURL}, unable to pull git updates.  Check if you have Internet Access from this FPP by going to Help->System Health Check"
 
@@ -120,5 +121,16 @@ else
         echo "${FPPBINDIR}/fppd doesn't exist, need to build it"
         logStage "Building FPP (longest step, please wait)"
         compileBinaries
+        PULL_BUILD_RC=$?
     fi
+fi
+
+# A failed build exits 3, distinct from the pull failures above (exit 1):
+# the tree has already moved to the new code (or, offline, was rebuilt in
+# place), so manualUpdate.php must still restart fppd and refresh the Apache
+# config / CSP before reporting the upgrade as failed, whereas a failed pull
+# left the old tree untouched.
+if [ "${PULL_BUILD_RC:-0}" != "0" ]; then
+    echo "ERROR: build failed (rc=${PULL_BUILD_RC}) -- binaries were NOT rebuilt."
+    exit 3
 fi

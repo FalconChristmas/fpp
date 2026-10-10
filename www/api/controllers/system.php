@@ -455,7 +455,8 @@ function UpdateActivityKindLabel($op)
         'fpp-upgrade' => 'FPP Upgrade',
         'os-upgrade' => 'FPP OS Upgrade',
         'fpp-branch-switch' => 'FPP Branch Switch',
-        'fpp-version-checkout' => 'FPP Version Change'
+        'fpp-version-checkout' => 'FPP Version Change',
+        'fpp-rebuild' => 'FPP Rebuild'
     );
     return isset($labels[$op]) ? $labels[$op] : 'FPP Update';
 }
@@ -525,6 +526,18 @@ function UpdateActivityLockFile()
  */
 function UpdateActivityLockHeld()
 {
+    return UpdateActivityLockHolder() !== false;
+}
+
+/**
+ * The current update-lock holder: false when the lock is free, otherwise
+ * the record UpdateLockAcquireOrConflict() wrote into the lock file
+ * (op, target, pid, acquiredAt) -- an empty array when the holder has not
+ * written it yet or it is unreadable. The content is only trusted while the
+ * lock is held, so a leftover record from a finished request is never used.
+ */
+function UpdateActivityLockHolder()
+{
     if (!function_exists('flock')) {
         return false;
     }
@@ -536,10 +549,59 @@ function UpdateActivityLockHeld()
     if (!$fh) {
         return false;
     }
-    $held = !@flock($fh, LOCK_SH | LOCK_NB);
-    @flock($fh, LOCK_UN);
+    if (@flock($fh, LOCK_SH | LOCK_NB)) {
+        @flock($fh, LOCK_UN);
+        @fclose($fh);
+        return false;
+    }
+    $raw = @stream_get_contents($fh, 4096);
     @fclose($fh);
-    return $held;
+    $holder = ($raw !== false && $raw !== '') ? json_decode($raw, true) : null;
+    return is_array($holder) ? $holder : array();
+}
+
+/**
+ * Number of log-tail lines requested by ?lines=N (default 200, clamped 1-500).
+ */
+function UpdateActivityRequestedLines()
+{
+    $n = 200;
+    if (isset($_GET['lines'])) {
+        $n = intval($_GET['lines']);
+        if ($n < 1) {
+            $n = 1;
+        }
+        if ($n > 500) {
+            $n = 500;
+        }
+    }
+    return $n;
+}
+
+/**
+ * Generic active payload for work the log cannot attribute to a run: a
+ * worker with no START marker in view, or a lock holder other than the
+ * log's last run (rebuildfpp.php, an OS image downloadOnly, a new request
+ * that has not logged its START yet). Labelled from the lock holder's op
+ * when known.
+ */
+function UpdateActivityWorkersActive($empty, $holder, $mtime, $logSize, $withLogTail)
+{
+    $op = (is_array($holder) && isset($holder['op']) && is_string($holder['op'])) ? $holder['op'] : '';
+    $active = $empty;
+    $active['inProgress'] = true;
+    $active['op'] = $op;
+    $active['kind'] = UpdateActivityKindLabel($op !== '' ? $op : 'fpp-update');
+    $active['runId'] = 'workers-active';
+    $active['logUpdatedAt'] = $mtime;
+    $active['logSize'] = $logSize;
+    if ($withLogTail) {
+        $file = UpdateActivityLogFile();
+        $active['logTail'] = (is_file($file) && is_readable($file))
+            ? UpdateActivityLastLines($file, UpdateActivityRequestedLines())
+            : '';
+    }
+    return $active;
 }
 
 /**
@@ -658,7 +720,9 @@ function UpdateActivityLastLines($file, $n)
 }
 
 /**
- * Cache file for the idle update-activity payload, next to the log itself.
+ * Cache file for the idle update-activity payload, in <media>/tmp next to
+ * the update lock (not in logs/, where it would show up in the log list and
+ * in support zips).
  * api/system/status runs every few seconds (plus MultiSync/remote pollers),
  * and a full tail scan costs ~66ms on single-core boards even when idle.
  * The cache is keyed strictly on log size+mtime: a hit serves the stored
@@ -668,7 +732,7 @@ function UpdateActivityLastLines($file, $n)
  */
 function UpdateActivityCacheFile()
 {
-    return UpdateActivityLogFile() . '.activitycache';
+    return dirname(UpdateActivityLockFile()) . '/fpp-update-activity.cache';
 }
 
 function UpdateActivityReadCache($size, $mtime)
@@ -788,30 +852,9 @@ function GetUpdateActivityInternal($withLogTail = false)
         // No markers (missing/empty/rotated log): do NOT return before the
         // worker-liveness fallback below. A browser opened in this window
         // must still see a running update.
-        if (UpdateActivityAnyAlive()) {
-            $active = $empty;
-            $active['inProgress'] = true;
-            $active['kind'] = UpdateActivityKindLabel('fpp-update');
-            $active['runId'] = 'workers-active';
-            $active['logUpdatedAt'] = $tail['mtime'];
-            $active['logSize'] = $logStatSize;
-            if ($withLogTail) {
-                $n = 200;
-                if (isset($_GET['lines'])) {
-                    $n = intval($_GET['lines']);
-                    if ($n < 1) {
-                        $n = 1;
-                    }
-                    if ($n > 500) {
-                        $n = 500;
-                    }
-                }
-                $file = UpdateActivityLogFile();
-                $active['logTail'] = (is_file($file) && is_readable($file))
-                    ? UpdateActivityLastLines($file, $n)
-                    : '';
-            }
-            return $active;
+        $holder = UpdateActivityLockHolder();
+        if ($holder !== false || UpdateActivityProcessAlive()) {
+            return UpdateActivityWorkersActive($empty, $holder, $tail['mtime'], $logStatSize, $withLogTail);
         }
         if (!$withLogTail && $logStatSize > 0) {
             $logCacheMtime = @filemtime($logFileForStat);
@@ -871,30 +914,9 @@ function GetUpdateActivityInternal($withLogTail = false)
         // its first log line): a live worker alone still means an update is
         // running. The fixed runId keeps a dismiss stable across polls in
         // this rare state.
-        if (UpdateActivityAnyAlive()) {
-            $active = $empty;
-            $active['inProgress'] = true;
-            $active['kind'] = UpdateActivityKindLabel('fpp-update');
-            $active['runId'] = 'workers-active';
-            $active['logUpdatedAt'] = $tail['mtime'];
-            $active['logSize'] = $logStatSize;
-            if ($withLogTail) {
-                $n = 200;
-                if (isset($_GET['lines'])) {
-                    $n = intval($_GET['lines']);
-                    if ($n < 1) {
-                        $n = 1;
-                    }
-                    if ($n > 500) {
-                        $n = 500;
-                    }
-                }
-                $file = UpdateActivityLogFile();
-                $active['logTail'] = (is_file($file) && is_readable($file))
-                    ? UpdateActivityLastLines($file, $n)
-                    : '';
-            }
-            return $active;
+        $holder = UpdateActivityLockHolder();
+        if ($holder !== false || UpdateActivityProcessAlive()) {
+            return UpdateActivityWorkersActive($empty, $holder, $tail['mtime'], $logStatSize, $withLogTail);
         }
         return $empty;
     }
@@ -1001,19 +1023,9 @@ function GetUpdateActivityInternal($withLogTail = false)
     }
 
     if ($withLogTail) {
-        $n = 200;
-        if (isset($_GET['lines'])) {
-            $n = intval($_GET['lines']);
-            if ($n < 1) {
-                $n = 1;
-            }
-            if ($n > 500) {
-                $n = 500;
-            }
-        }
         $file = UpdateActivityLogFile();
         if (is_file($file) && is_readable($file)) {
-            $last = UpdateActivityLastLines($file, $n);
+            $last = UpdateActivityLastLines($file, UpdateActivityRequestedLines());
             // Show the whole run when its START is inside the fetched tail,
             // otherwise the last N lines. Trim at the run's FIRST start
             // ($runIdLine, which may precede $startLine for continuations
@@ -1040,19 +1052,28 @@ function GetUpdateActivityInternal($withLogTail = false)
     }
 
     if ($finished) {
-        // A held update lock means a request is still finalizing (or a
-        // markerless rebuild is running): never report a settled outcome
-        // while the lock is held. Markerless work (rebuildfpp.php writes no
-        // START) surfaces as the generic active state so it is visible at
-        // all instead of hiding behind the previous finished run.
-        if (UpdateActivityLockHeld()) {
-            $active = $empty;
-            $active['inProgress'] = true;
-            $active['kind'] = UpdateActivityKindLabel('fpp-update');
-            $active['runId'] = 'workers-active';
-            $active['logUpdatedAt'] = $tail['mtime'];
-            $active['logSize'] = $logStatSize;
-            return $active;
+        // A held update lock means a request is still running: never report
+        // a settled outcome while it is held.
+        $holder = UpdateActivityLockHolder();
+        if ($holder !== false) {
+            // The run's own request finalizing after its script's FINISH
+            // (manualUpdate.php restarts fppd and regenerates the Apache
+            // config for several seconds): it is still THIS run, so keep its
+            // runId, stage and tail. Swapping to a placeholder here made the
+            // client lose track of the run and drop its completion. The
+            // holder is this run when it is the same op and took the lock
+            // before the log's last write; a holder that arrived after it is
+            // new work that has not logged a START yet.
+            $acquiredAt = isset($holder['acquiredAt']) ? intval($holder['acquiredAt']) : 0;
+            if (isset($holder['op']) && $holder['op'] === $startOp
+                && $acquiredAt > 0 && $acquiredAt <= $tail['mtime']) {
+                $base['inProgress'] = true;
+                return $base;
+            }
+            // Different (or markerless) work, e.g. rebuildfpp.php: surface
+            // it as the generic active state instead of hiding it behind
+            // the previous finished run.
+            return UpdateActivityWorkersActive($empty, $holder, $tail['mtime'], $logStatSize, $withLogTail);
         }
         if (!$withLogTail && $logStatSize > 0) {
             $logCacheMtime = @filemtime($logFileForStat);

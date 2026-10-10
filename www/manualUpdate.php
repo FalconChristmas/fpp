@@ -87,7 +87,13 @@ UpgradeLog('fpp-update', $upgradeTarget, $elapsed . " (git_pull rc=" . $return_v
 ?>
 <?
 
-if ($return_val === 0) {
+// scripts/git_pull exits 3 when the pull succeeded but the build failed: the
+// tree is already on the new code, so fppd is still restarted and the Apache
+// config / CSP refreshed for it below, and the run is then reported failed.
+// Any other nonzero status is a failed pull that left the old tree in place.
+$buildFailed = ($return_val === 3);
+
+if ($return_val === 0 || $buildFailed) {
   logStage("Restarting FPP");
 
   // Compare and copy apache config if needed
@@ -121,13 +127,18 @@ if ($return_val === 0) {
   }
 
   exec($SUDO . " rm -f /tmp/cache_*.cache");
-  if (file_exists($fppDir . "/src/fppd")) {
+  if (!$buildFailed && file_exists($fppDir . "/src/fppd")) {
     logStage("Upgrade Complete");
   } else {
-    // git_pull returned 0 but the build produced no fppd binary. Record the
-    // reason: the banner below only shouts "FAILED" at the browser, and this is
-    // the one line that says why when it turns up in a Support Zip later.
-    UpgradeLog('fpp-update', $upgradeTarget, "ERROR: git_pull succeeded but " . $fppDir . "/src/fppd is missing -- build failed.");
+    // The build failed, or git_pull returned 0 but produced no fppd binary.
+    // Record the reason: the banner below only shouts "FAILED" at the
+    // browser, and this is the one line that says why when it turns up in a
+    // Support Zip later.
+    if ($buildFailed) {
+      UpgradeLog('fpp-update', $upgradeTarget, "ERROR: updates were pulled but the build failed (git_pull rc=3).");
+    } else {
+      UpgradeLog('fpp-update', $upgradeTarget, "ERROR: git_pull succeeded but " . $fppDir . "/src/fppd is missing -- build failed.");
+    }
     logStage("Upgrade Failed");
     print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");

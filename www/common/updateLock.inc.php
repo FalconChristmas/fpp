@@ -21,7 +21,9 @@
 //   the update proceeds exactly as before (returns null). Logging must never
 //   break an update, and neither must locking.
 // - No stale locks: the kernel releases flock when the holder's FD closes,
-//   including kills/crashes. No PID files, no timestamps to go stale.
+//   including kills/crashes. The holder's op/target is written into the
+//   file, but it is only ever read while the lock is held, so it cannot go
+//   stale.
 // - No new worker cost: the holder is the already-running update request
 //   (which streams for the whole run anyway); contenders exit immediately.
 // - downloadOnly (OS image fetch without apply) DOES take the lock: it
@@ -87,7 +89,19 @@ function UpdateLockAcquireOrConflict($op, $target = '')
     if (!$fh) {
         return null;
     }
-    if (!@flock($fh, LOCK_EX | LOCK_NB)) {
+    // The activity endpoint probes this lock with a momentary LOCK_SH on
+    // every status poll (UpdateActivityLockHeld in api/controllers/system.php),
+    // and that probe makes LOCK_EX|LOCK_NB fail for its duration. Retry
+    // briefly so a probe in flight is never reported as a running update.
+    $locked = false;
+    for ($attempt = 0; $attempt < 5; $attempt++) {
+        if (@flock($fh, LOCK_EX | LOCK_NB)) {
+            $locked = true;
+            break;
+        }
+        usleep(50000);
+    }
+    if (!$locked) {
         @fclose($fh);
         if (!headers_sent()) {
             http_response_code(409);
@@ -97,6 +111,14 @@ function UpdateLockAcquireOrConflict($op, $target = '')
         exit(0);
     }
     $GLOBALS['updateLockHandle'] = $fh;
+    // Record the holder so the activity endpoint can tell this run's own
+    // finalizing phase (FINISH already logged, request still restarting
+    // fppd) from a different operation holding the lock. Only read while
+    // the lock is held, so the content can never go stale. Best-effort.
+    @ftruncate($fh, 0);
+    @rewind($fh);
+    @fwrite($fh, json_encode(array('op' => $op, 'target' => $target, 'pid' => getmypid(), 'acquiredAt' => time())));
+    @fflush($fh);
     register_shutdown_function(function () {
         if (isset($GLOBALS['updateLockHandle']) && is_resource($GLOBALS['updateLockHandle'])) {
             @flock($GLOBALS['updateLockHandle'], LOCK_UN);

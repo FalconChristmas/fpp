@@ -154,8 +154,18 @@ function FPPUpdate_FailedFromActivity(activity, fallbackStage) {
 	}
 	return /fail/i.test(fallbackStage || '');
 }
+function FPPUpdate_IsSyntheticRunId(runId) {
+	return runId === 'starting' || runId === 'workers-active';
+}
 function FPPUpdate_TrackCompletion(activity) {
 	if (activity.inProgress && activity.runId) {
+		// A placeholder never replaces a real run being tracked: the real
+		// run's idle payload must still match when it arrives, or its
+		// completion (toast, outcome banner, restart grace) is lost.
+		if (FPPUpdate_IsSyntheticRunId(activity.runId) && fppUpdateLastActive
+			&& !FPPUpdate_IsSyntheticRunId(fppUpdateLastActive.runId)) {
+			return;
+		}
 		fppUpdateLastActive = {
 			runId: activity.runId,
 			kind: activity.kind || 'Update',
@@ -545,13 +555,15 @@ function FPPUpdate_Render(activity) {
 	// is missing) is wrong: the binary is absent *because* the update
 	// cleaned it before rebuilding, and its Rebuild button would start a
 	// second update on top of the running one. Hide it so the update banner
-	// is the single call to action; it comes back on its own when the
-	// update ends. A merely stale (never finished, nothing running) update
-	// leaves the rebuild banner alone: fppd may genuinely need rebuilding.
+	// is the single call to action. Once idle it follows the binary's current
+	// state: shown while it is still missing, removed once a rebuild has
+	// recreated it -- even in a browser that did not observe the completion.
 	var $rebuild = $('#compileFPPDBanner');
 	if ($rebuild.length) {
 		if (activity.inProgress) {
 			$rebuild.hide();
+		} else if (activity.fppdBinaryExists === true) {
+			$rebuild.remove();
 		} else {
 			$rebuild.show();
 		}
