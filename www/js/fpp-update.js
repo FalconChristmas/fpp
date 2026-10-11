@@ -218,6 +218,11 @@ function FPPUpdate_QuietNotRunning() {
 function FPPUpdate_OnCompleted(kind, failed, runId, binaryExists) {
 	fppUpdateCompleted = { kind: kind || 'Update', failed: !!failed, runId: runId || '' };
 	fppUpdateCompletedAt = Date.now();
+	// Closed from its own dialog before this poll saw it end: the user has
+	// already seen the outcome, so it goes straight to dismissed.
+	if (runId && runId === fppUpdateAcknowledgedRunId) {
+		FPPUpdate_SetDismissedRunId(runId);
+	}
 	// The rebuild banner was rendered server-side from a mid-update view of
 	// the world: with the binary rebuilt it must go without a refresh, while
 	// a failed build (binary still missing) must (re)show it.
@@ -745,6 +750,7 @@ function openUpdateProgress() {
 		$hide.on('click', function () {
 			FPPUpdate_HideModal();
 		});
+		FPPUpdate_AcknowledgeOnClose('fppUpdateProgress', 'fppUpdateProgressHideButton');
 		$footer.prepend($hide);
 	}
 	if (fppUpdateModalTimer) {
@@ -776,6 +782,53 @@ function FPPUpdate_HideModal() {
 	}
 }
 
+// A run the user closed out from its own progress dialog. Closing (as
+// opposed to Hide) is only possible once the log has finished, so the user
+// has read the outcome there and the "complete" banner -- which exists so a
+// detached or unwatched run's result cannot be missed -- has nothing left to
+// say. Without this the starter's Close reloaded the page, restored the
+// completion from sessionStorage, and re-showed the banner it had just
+// acknowledged.
+var fppUpdateAcknowledgedRunId = '';
+function FPPUpdate_Acknowledge() {
+	if (fppUpdateCompleted && fppUpdateCompleted.runId) {
+		FPPUpdate_SetDismissedRunId(fppUpdateCompleted.runId);
+	} else if (fppUpdateActivity && fppUpdateActivity.runId && !FPPUpdate_IsSyntheticRunId(fppUpdateActivity.runId)) {
+		if (fppUpdateActivity.inProgress) {
+			// The poll lags the stream, so the run may well be over already;
+			// its completion is dismissed when observed (FPPUpdate_OnCompleted).
+			// The in-progress banner stays: if the stream merely dropped
+			// mid-run, it is still the way back to the log.
+			fppUpdateAcknowledgedRunId = fppUpdateActivity.runId;
+		} else {
+			FPPUpdate_SetDismissedRunId(fppUpdateActivity.runId);
+		}
+	}
+	FPPUpdate_ClearCompleted();
+	if (!(fppUpdateActivity && fppUpdateActivity.inProgress)) {
+		$('#updateInProgressFlag').hide();
+	}
+}
+
+// Acknowledge on the dialog's Close (footer or header X, both enabled only
+// once the log ends) or the branch upgrade's Reboot -- any button but Hide.
+// Capture phase, so it runs ahead of the button's own handler, which reloads
+// the page or reboots the box. Bound once per dialog element: same-id
+// dialogs are reused across runs.
+function FPPUpdate_AcknowledgeOnClose(dialogId, hideId) {
+	var dlg = document.getElementById(dialogId);
+	if (!dlg || dlg.fppUpdateAckBound) {
+		return;
+	}
+	dlg.fppUpdateAckBound = true;
+	dlg.addEventListener('click', function (e) {
+		var btn = e.target && e.target.closest ? e.target.closest('.modal-footer button, #modalCloseButton') : null;
+		if (btn && !btn.disabled && btn.id !== hideId) {
+			FPPUpdate_Acknowledge();
+		}
+	}, true);
+}
+
 // Add the same Hide button to the starter modals (FPP/OS/branch upgrade and
 // the rebuild dialog) so the browser that kicked off the update can also get
 // back to the UI mid-run and reattach later. No-op when already added or
@@ -786,6 +839,7 @@ function FPPUpdate_AddHideButton(dialogId) {
 		return;
 	}
 	var $hide = $('<button id="' + dialogId + 'HideButton" class="buttons">Hide (view later)</button>');
+	FPPUpdate_AcknowledgeOnClose(dialogId, dialogId + 'HideButton');
 	$hide.on('click', function () {
 		if (typeof CloseModalDialog === 'function') {
 			try {
