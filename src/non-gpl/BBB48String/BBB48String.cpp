@@ -20,6 +20,8 @@
 
 #include <arm_neon.h>
 
+#include <algorithm>
+
 #include <fstream>
 
 #define BBB_PRU 1
@@ -187,73 +189,75 @@ void BBB48StringOutput::createOutputLengths(FrameData& d,
         }
     }
 
-    auto i = sizes.begin();
-    while (i != sizes.end()) {
-        int min = i->first;
-        outputFile << "\nCHECK_" << pfx << std::to_string(min) << ":\n";
-        if (min != d.maxStringLen) {
-            if (min <= 255) {
-                outputFile << "    QBNE skip_" << pfx << std::to_string(min)
-                           << ", cur_data, " << std::to_string(min) << "\n";
-            } else {
-                if (min <= 0xFFFF) {
-                    outputFile << "    LDI r8, " << std::to_string(min) << "\n";
-                } else {
-                    outputFile << "    LDI32 r8, " << std::to_string(min) << "\n";
-                }
-                outputFile << "    QBNE skip_" << pfx << std::to_string(min)
-                           << ", cur_data, r8\n";
-            }
-
-            for (auto& cmd : i->second) {
-                int y = cmd.port;
-                for (int x = 0; x < d.gpioStringMap.size(); x++) {
-                    if (d.gpioStringMap[x] == y) {
-                        y = x;
-                        break;
-                    }
-                }
-
-                std::string o = std::to_string(y + 1);
-                if (cmd.type) {
-                    outputFile << "        SET GPIO_MASK(o" << o << "_gpio), GPIO_MASK(o"
-                               << o << "_gpio), o" << o << "_pin\n";
-                } else {
-                    outputFile << "        CLR GPIO_MASK(o" << o << "_gpio), GPIO_MASK(o"
-                               << o << "_gpio), o" << o << "_pin\n";
-                }
-            }
-            i++;
-            int next = i->first;
-            outputFile << "        LDI next_check, $CODE(CHECK_" << pfx
-                       << std::to_string(next) << ")\n";
-            outputFile << "skip_" << pfx << std::to_string(min) << ":\n        RET\n";
-
-        } else {
-            outputFile << "    RET\n\n";
-            i++;
+    // Only offsets inside the frame get a check: the firmware turns every
+    // line off when the frame ends, so a command at or past the longest
+    // string never has anything to do.  The last key is not necessarily the
+    // longest string's own end - a Falcon receiver chain has no end of
+    // string command, and a license clamped string keeps commands past its
+    // new length - so the chain is terminated explicitly rather than by
+    // looking one key past the end of the map.
+    std::vector<int> offsets;
+    for (auto& s : sizes) {
+        if (s.first < d.maxStringLen) {
+            offsets.push_back(s.first);
         }
     }
+    for (size_t k = 0; k < offsets.size(); k++) {
+        int min = offsets[k];
+        outputFile << "\nCHECK_" << pfx << std::to_string(min) << ":\n";
+        if (min <= 255) {
+            outputFile << "    QBNE skip_" << pfx << std::to_string(min)
+                       << ", cur_data, " << std::to_string(min) << "\n";
+        } else {
+            if (min <= 0xFFFF) {
+                outputFile << "    LDI r8, " << std::to_string(min) << "\n";
+            } else {
+                outputFile << "    LDI32 r8, " << std::to_string(min) << "\n";
+            }
+            outputFile << "    QBNE skip_" << pfx << std::to_string(min)
+                       << ", cur_data, r8\n";
+        }
 
-    if (sizes.empty()) {
+        for (auto& cmd : sizes[min]) {
+            int y = cmd.port;
+            for (int x = 0; x < d.gpioStringMap.size(); x++) {
+                if (d.gpioStringMap[x] == y) {
+                    y = x;
+                    break;
+                }
+            }
+
+            std::string o = std::to_string(y + 1);
+            if (cmd.type) {
+                outputFile << "        SET GPIO_MASK(o" << o << "_gpio), GPIO_MASK(o"
+                           << o << "_gpio), o" << o << "_pin\n";
+            } else {
+                outputFile << "        CLR GPIO_MASK(o" << o << "_gpio), GPIO_MASK(o"
+                           << o << "_gpio), o" << o << "_pin\n";
+            }
+        }
+        std::string next = "NO_PIXELS_CHECK";
+        if (k + 1 < offsets.size()) {
+            next = "CHECK_" + pfx + std::to_string(offsets[k + 1]);
+        }
+        outputFile << "        LDI next_check, $CODE(" << next << ")\n";
+        outputFile << "skip_" << pfx << std::to_string(min) << ":\n        RET\n";
+    }
+
+    if (offsets.empty()) {
         args.emplace_back("-DFIRST_CHECK=NO_PIXELS_CHECK");
     } else {
-        int sz = sizes.begin()->first;
-        std::string v = "-DFIRST_CHECK=CHECK_" + pfx;
-        v += std::to_string(sz);
-        args.push_back(v);
+        args.push_back("-DFIRST_CHECK=CHECK_" + pfx + std::to_string(offsets[0]));
     }
     outputFile.close();
 }
 
-void BBB48StringOutput::setupFalconV4Support(Json::Value& root, std::vector<std::string>& args) {
-    // Group Falcon smart receiver ports into 4-port chains and prepare the
-    // config packet.  Only the send-only V4 protocol is possible here:
-    // these capes have no listener hardware, so a V5 selection falls back
-    // to V4 handling.  The packet content is static for a configuration,
-    // so it is generated once and pre-transposed into the frame's byte-lane
-    // format; PrepData appends it to the frame every twelfth frame.
-    uint32_t masks[4] = { 0, 0, 0, 0 };
+void BBB48StringOutput::groupFalconV4Chains() {
+    // Group Falcon smart receiver ports into 4-port chains.  Only the
+    // send-only V4 protocol is possible here: these capes have no listener
+    // hardware, so a V5 selection falls back to V4 handling.  Done before
+    // the outputs are mapped so a chain whose first port has no pixels still
+    // gets a lane to carry its receiver's config packet.
     int x = 0;
     while (x < m_strings.size()) {
         int p = x;
@@ -271,7 +275,6 @@ void BBB48StringOutput::setupFalconV4Support(Json::Value& root, std::vector<std:
         PixelString* p3 = x < m_strings.size() ? m_strings[x++] : nullptr;
         PixelString* p4 = x < m_strings.size() ? m_strings[x++] : nullptr;
 
-        const PinCapabilities& pin = PinCapabilities::getPinByName(root["outputs"][p]["pin"].asString());
         if (p1->m_isInverted) {
             WarningHolder::AddWarning("BBB48String: Falcon smart receivers are not supported on inverted output " + std::to_string(p + 1));
             continue;
@@ -280,7 +283,7 @@ void BBB48StringOutput::setupFalconV4Support(Json::Value& root, std::vector<std:
             falconV5Support = new FalconV5Support();
         }
         falconV5Support->addReceiverChain(p1, p2, p3, p4, 0, 0, true);
-        masks[pin.mappedGPIOIdx()] |= 1 << pin.mappedGPIO();
+        m_falconChainHeads.push_back(p);
         // the four lines carry continuous pixel data - none of the v1/v2
         // style mid-frame gpio toggling
         p1->m_gpioCommands.clear();
@@ -294,18 +297,53 @@ void BBB48StringOutput::setupFalconV4Support(Json::Value& root, std::vector<std:
             p4->m_gpioCommands.clear();
         }
     }
-    if (!falconV5Support || falconV5Support->getReceiverChains().empty()) {
+}
+
+void BBB48StringOutput::setupFalconV4Lanes(FrameData& d, const std::vector<std::array<uint8_t, 64>>& packets,
+                                           Json::Value& root, std::vector<std::string>& args) {
+    // The chain heads this PRU drives get their packet bytes in their lane
+    // (bytes reversed: the firmware clocks MSB first, the wire wants the
+    // UART LSB first) and their pin in the FALCON_MASK_GPIOn the firmware
+    // toggles.  Every other lane stays zero and its line stays low.
+    d.falconPacketLanes.clear();
+    uint32_t masks[4] = { 0, 0, 0, 0 };
+    int numStrings = d.gpioStringMap.size();
+    std::vector<uint8_t> lanes(57 * numStrings, 0);
+    for (int lane = 0; lane < numStrings; lane++) {
+        int idx = d.gpioStringMap[lane];
+        if (idx < 0 || std::find(m_falconChainHeads.begin(), m_falconChainHeads.end(), idx) == m_falconChainHeads.end()) {
+            continue;
+        }
+        const PinCapabilities& pin = PinCapabilities::getPinByName(root["outputs"][idx]["pin"].asString());
+        masks[pin.mappedGPIOIdx()] |= 1 << pin.mappedGPIO();
+        for (int b = 0; b < 57; b++) {
+            uint8_t v = packets[idx][b];
+            v = ((v * 0x0802LU & 0x22110LU) | (v * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16;
+            lanes[b * numStrings + lane] = v;
+        }
+    }
+    if (!masks[0] && !masks[1] && !masks[2] && !masks[3]) {
         return;
     }
+    d.falconPacketLanes = std::move(lanes);
     args.push_back("-DFALCONV4");
-    for (int g = 1; g < 4; g++) { // GPIO0 chains were rejected above
+    for (int g = 0; g < 4; g++) {
         if (masks[g]) {
             char buf[40];
             snprintf(buf, sizeof(buf), "-DFALCON_MASK_GPIO%d=0x%08X", g, masks[g]);
             args.push_back(buf);
         }
     }
+}
 
+void BBB48StringOutput::setupFalconV4Support(Json::Value& root, std::vector<std::string>& args1, std::vector<std::string>& args0) {
+    // The packet content is static for a configuration, so it is generated
+    // once (after any license clamp has settled the pixel counts) and handed
+    // to whichever PRU drives each chain head: GPIO0 heads may be on the
+    // other PRU.
+    if (!falconV5Support || falconV5Support->getReceiverChains().empty()) {
+        return;
+    }
     std::vector<std::array<uint8_t, 64>> packets;
     packets.resize(m_strings.size());
     for (auto& pk : packets) {
@@ -314,21 +352,8 @@ void BBB48StringOutput::setupFalconV4Support(Json::Value& root, std::vector<std:
     for (auto& rc : falconV5Support->getReceiverChains()) {
         rc->generateConfigPacket(&packets[rc->getPixelStrings()[0]->m_portNumber][0]);
     }
-    int numStrings = m_gpioData.gpioStringMap.size();
-    m_falconPacketLanes.assign(57 * numStrings, 0);
-    for (int lane = 0; lane < numStrings; lane++) {
-        int idx = m_gpioData.gpioStringMap[lane];
-        if (idx < 0) {
-            continue;
-        }
-        for (int b = 0; b < 57; b++) {
-            // reverse the bits: the firmware clocks MSB first, the wire
-            // wants the UART LSB first
-            uint8_t v = packets[idx][b];
-            v = ((v * 0x0802LU & 0x22110LU) | (v * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16;
-            m_falconPacketLanes[b * numStrings + lane] = v;
-        }
-    }
+    setupFalconV4Lanes(m_gpioData, packets, root, args1);
+    setupFalconV4Lanes(m_gpio0Data, packets, root, args0);
 }
 
 /*
@@ -450,11 +475,14 @@ int BBB48StringOutput::Init(Json::Value config) {
         }
     }
 
+    groupFalconV4Chains();
+
     std::vector<int> allStringMap;
     std::string outputList;
     int allMax = 0;
     for (int x = 0; x < m_strings.size(); x++) {
-        if (m_strings[x]->m_outputBytes > 0) {
+        bool chainHead = std::find(m_falconChainHeads.begin(), m_falconChainHeads.end(), x) != m_falconChainHeads.end();
+        if (m_strings[x]->m_outputBytes > 0 || chainHead) {
             if (x >= capeOutputCount) {
                 LogErr(VB_CHANNELOUT, "Output %d is past the %d the %s cape declares\n",
                        x + 1, capeOutputCount, m_subType.c_str());
@@ -565,7 +593,7 @@ int BBB48StringOutput::Init(Json::Value config) {
         m_gpio0Data.gpioStringMap.push_back(-1);
     }
 
-    setupFalconV4Support(root, split1args);
+    setupFalconV4Support(root, split1args, split0args);
 
     std::string v = "-DOUTPUTS=";
     v += std::to_string(m_gpioData.gpioStringMap.size());
@@ -632,14 +660,16 @@ int BBB48StringOutput::Init(Json::Value config) {
     // shared region allocator so other outputs on the region (BBBMatrix
     // panels, BBBSerial - e.g. the K8-B-Scroller runs all three) cannot
     // overlap us
+    // each with room for the Falcon V4 config packet appended after the
+    // frame data
     m_gpioData.frameSize =
         m_gpioData.gpioStringMap.size() * std::max(2400, m_gpioData.maxStringLen);
-    // room for the Falcon V4 config packet appended after the frame data
-    m_gpioData.frameSize += m_falconPacketLanes.size();
+    m_gpioData.frameSize += m_gpioData.falconPacketLanes.size();
     // leave a full memory page between to avoid conflicts
     int offset = ((m_gpioData.frameSize / 4096) + 2) * 4096;
     m_gpio0Data.frameSize = m_gpio0Data.gpioStringMap.size() *
                             std::max(2400, m_gpio0Data.maxStringLen);
+    m_gpio0Data.frameSize += m_gpio0Data.falconPacketLanes.size();
     int offset0 = ((m_gpio0Data.frameSize / 4096) + 2) * 4096;
     uint32_t ddrPhys = 0;
     uint8_t* ddrBase = BBBPru::ddrAlloc("BBB48String", 2 * offset + 2 * offset0, ddrPhys);
@@ -680,6 +710,21 @@ int BBB48StringOutput::StartPRU(bool both) {
     m_curFrame = 0;
     int pruNumber = BBB_PRU;
 
+    // The firmware is assembled per configuration just before this, so a
+    // missing program is a build failure (the assembler's errors are in the
+    // fppd output), not a PRU that needs a reboot.  Like the warning below,
+    // it stays up until fppd restarts with a configuration that builds.
+    std::vector<std::string> programs = { "/tmp/FalconWS281x.out" };
+    if (both) {
+        programs.push_back("/tmp/FalconWS281x_gpio0.out");
+    }
+    for (auto& fw : programs) {
+        if (!FileExists(fw)) {
+            LogErr(VB_CHANNELOUT, "BBB48String: PRU firmware %s failed to build\n", fw.c_str());
+            WarningHolder::AddWarning("BBB48String: PRU firmware failed to build for this configuration");
+            return 0;
+        }
+    }
     m_pru = new BBBPru(pruNumber, true, true);
     m_pruData = (BBB48StringData*)m_pru->data_ram;
     if (!m_pru->run("/tmp/FalconWS281x.out")) {
@@ -973,11 +1018,15 @@ void BBB48StringOutput::PrepData(unsigned char* channelData) {
     prepData(m_gpio0Data, channelData);
     m_testCycle = -1;
 
-    if (!m_falconPacketLanes.empty() && (m_curFrame % 12) == 1) {
+    if (!m_falconChainHeads.empty() && (m_curFrame % 12) == 1) {
         // append the config packet after the frame data; the firmware sends
         // it when the command has the packet bit set
-        memcpy(m_gpioData.curData + m_gpioData.outputStringLen * m_gpioData.gpioStringMap.size(),
-               m_falconPacketLanes.data(), m_falconPacketLanes.size());
+        for (FrameData* d : { &m_gpioData, &m_gpio0Data }) {
+            if (!d->falconPacketLanes.empty()) {
+                memcpy(d->curData + d->outputStringLen * d->gpioStringMap.size(),
+                       d->falconPacketLanes.data(), d->falconPacketLanes.size());
+            }
+        }
         m_sendFalconPacket = true;
     }
 }
@@ -1044,14 +1093,20 @@ int BBB48StringOutput::SendData(unsigned char* channelData) {
         // pixel counting needs the GPIO commands and such turned off
         flag = 0x8000;
     }
-    if (m_pru0Data) {
-        m_pru0Data->command = m_gpio0Data.outputStringLen | flag;
-    }
+    // bit 16: a Falcon V4 config packet follows the frame data, for the
+    // PRUs that drive a chain head
+    uint32_t flag0 = flag;
     if (m_sendFalconPacket) {
-        // bit 16: a Falcon V4 config packet follows the frame data (only
-        // the main firmware build has the falcon section, never GPIO0)
-        flag |= 0x10000;
+        if (!m_gpioData.falconPacketLanes.empty()) {
+            flag |= 0x10000;
+        }
+        if (!m_gpio0Data.falconPacketLanes.empty()) {
+            flag0 |= 0x10000;
+        }
         m_sendFalconPacket = false;
+    }
+    if (m_pru0Data) {
+        m_pru0Data->command = m_gpio0Data.outputStringLen | flag0;
     }
     m_pruData->command = m_gpioData.outputStringLen | flag;
 

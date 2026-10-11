@@ -12,6 +12,7 @@
  * personal use, but modified copies MAY NOT be redistributed in any form.
  */
 
+#include <array>
 #include <string>
 #include "fpp-json-fwd.h"
 #include <vector>
@@ -71,6 +72,9 @@ private:
         int maxStringLen = 0;
         bool copyToPru = true;
         uint32_t outputStringLen;
+        // the Falcon V4 config packet for the chain heads this PRU drives,
+        // pre-transposed into the frame's byte-lane format; empty when none
+        std::vector<uint8_t> falconPacketLanes;
     } m_gpio0Data, m_gpioData;
     std::vector<PixelString*> m_strings;
     // per string, per virtual string: nonzero when chMap[i+3] == chMap[i]+3
@@ -92,15 +96,19 @@ private:
     float m_testPercent = 0.0f;
     std::list<std::string> m_autoCreatedModelNames;
 
-    // Falcon V4 (send-only) smart receiver support: the config packet bytes
-    // pre-transposed into the frame's byte-lane format, appended to the
-    // frame and sent by the firmware every twelfth frame
+    // Falcon V4 (send-only) smart receiver support: the chains, and the
+    // m_strings index of each chain's first port.  The config packet rides
+    // in each FrameData's falconPacketLanes, appended to the frame and sent
+    // by the firmware every twelfth frame.
     class FalconV5Support* falconV5Support = nullptr;
-    std::vector<uint8_t> m_falconPacketLanes;
+    std::vector<int> m_falconChainHeads;
     bool m_sendFalconPacket = false;
 
     void prepData(FrameData& d, unsigned char* channelData);
     void sendData(FrameData& d, uint32_t* dptr);
     void createOutputLengths(FrameData& d, const std::string& pfx, std::vector<std::string>& args);
-    void setupFalconV4Support(Json::Value& root, std::vector<std::string>& args);
+    void groupFalconV4Chains();
+    void setupFalconV4Lanes(FrameData& d, const std::vector<std::array<uint8_t, 64>>& packets,
+                            Json::Value& root, std::vector<std::string>& args);
+    void setupFalconV4Support(Json::Value& root, std::vector<std::string>& args1, std::vector<std::string>& args0);
 };

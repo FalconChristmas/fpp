@@ -3,6 +3,10 @@
 echo $0 $@
 cd /tmp
 
+# a failed build must not leave the previous configuration's program behind
+# for the driver to load
+rm -f /tmp/FalconWS281x_gpio0.obj /tmp/FalconWS281x_gpio0.out
+
 CPPFLAG="-DAM33XX"
 
 # clpru versions

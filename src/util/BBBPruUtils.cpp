@@ -386,14 +386,19 @@ static std::string pruFirmwareName(int pru_num) {
 // parking firmware that the image loads at boot.  Copying the program
 // through that name would overwrite the sleep firmware itself, so install
 // the program under its own name and atomically repoint the link at it.
-static void installPRUFirmware(int pru_num, const std::string& program) {
+// Returns false if the program could not be copied in, leaving the
+// previously installed program in place.
+static bool installPRUFirmware(int pru_num, const std::string& program) {
     std::string fw = "/lib/firmware/" + pruFirmwareName(pru_num);
-    CopyFileContents(program, fw + ".fpp");
+    if (!CopyFileContents(program, fw + ".fpp")) {
+        return false;
+    }
     std::string tmpLink = fw + ".new";
     unlink(tmpLink.c_str());
     if (symlink((pruFirmwareName(pru_num) + ".fpp").c_str(), tmpLink.c_str()) == 0) {
         rename(tmpLink.c_str(), fw.c_str());
     }
+    return true;
 }
 
 // Point the firmware name back at the sleep firmware so the next boot parks
@@ -427,10 +432,21 @@ bool BBBPru::run(const std::string& program, bool clearSharedMems) {
             }
         }
     };
+    // A program that is missing - a runtime firmware build that failed - must
+    // not start the core: the copy below would fail and the core would boot
+    // whatever an earlier run left installed, possibly another output's
+    // firmware, while this reported success.
+    if (!FileExists(program)) {
+        LogErr(VB_CHANNELOUT, "BBBPru[%d]: PRU program %s does not exist\n", pru_num, program.c_str());
+        return false;
+    }
     bool enabled = true;
     if (!FAKE_PRU) {
         prus[pru_num].disable();
-        installPRUFirmware(pru_num, program);
+        if (!installPRUFirmware(pru_num, program)) {
+            LogErr(VB_CHANNELOUT, "BBBPru[%d]: could not install PRU program %s\n", pru_num, program.c_str());
+            return false;
+        }
         // Clear before the core starts as well as after.  Firmware loading
         // does not clear data RAM, so on a restart the previous run's
         // handshake words (the SMEM ring config in particular) are still
@@ -442,8 +458,9 @@ bool BBBPru::run(const std::string& program, bool clearSharedMems) {
         if (!enabled) {
             return false;
         }
-    } else {
-        installPRUFirmware(pru_num, program);
+    } else if (!installPRUFirmware(pru_num, program)) {
+        LogErr(VB_CHANNELOUT, "BBBPru[%d]: could not install PRU program %s\n", pru_num, program.c_str());
+        return false;
     }
     clearMems();
     /*
