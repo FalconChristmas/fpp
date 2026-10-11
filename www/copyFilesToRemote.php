@@ -30,6 +30,8 @@ if (isset($settings['MultiSyncCopyEffects']) && ($settings['MultiSyncCopyEffects
 	array_push($dirs, 'effects');
 if (isset($settings['MultiSyncCopyVideos']) && ($settings['MultiSyncCopyVideos'] == 1))
 	array_push($dirs, 'videos');
+if (isset($settings['MultiSyncCopyImages']) && ($settings['MultiSyncCopyImages'] == 1))
+	array_push($dirs, 'images');
 if (isset($settings['MultiSyncCopyEvents']) && ($settings['MultiSyncCopyEvents'] == 1))
 	array_push($dirs, 'events');
 if (isset($settings['MultiSyncCopyScripts']) && ($settings['MultiSyncCopyScripts'] == 1))

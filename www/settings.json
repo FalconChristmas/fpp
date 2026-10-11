@@ -276,6 +276,7 @@
 				"MultiSyncCopyEffects",
 				"MultiSyncCopyMusic",
 				"MultiSyncCopyVideos",
+				"MultiSyncCopyImages",
 				"MultiSyncCopyEvents",
 				"MultiSyncCopyScripts",
 				"CompressMultiSyncTransfers"
@@ -2481,6 +2482,14 @@
 			"description": "Copy Events",
 			"gatherStats": true,
 			"tip": "Copy Events from this FPP instance to Remote.",
+			"type": "checkbox",
+			"textOnRight": 1
+		},
+		"MultiSyncCopyImages": {
+			"name": "MultiSyncCopyImages",
+			"description": "Copy Images",
+			"gatherStats": true,
+			"tip": "Copy Images from this FPP instance to Remote.",
 			"type": "checkbox",
 			"textOnRight": 1
 		},
