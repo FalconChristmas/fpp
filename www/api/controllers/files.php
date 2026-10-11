@@ -812,7 +812,20 @@ function MoveFile()
 {
     global $mediaDirectory, $uploadDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory, $imageDirectory, $configDirectory, $SUDO;
 
-    $file = findFile($uploadDirectory, params("fileName"));
+    // Like files_copy()/files_rename() below: the name must be a bare filename.
+    // findFile() tries urldecoded/sanitized/transliterated variants, any of
+    // which could otherwise resolve outside upload/ (and every destination
+    // below is built by concatenation), so gate both the request and result.
+    // Quotes stay allowed: Firefox/xLights upload with " intact (see below).
+    $requested = params("fileName");
+    if (!is_string($requested) || strpos($requested, '..') !== false || strpos($requested, '/') !== false || strpos($requested, '\\') !== false) {
+        return json(array("status" => "Invalid filename"));
+    }
+
+    $file = findFile($uploadDirectory, $requested);
+    if (!is_string($file) || strpos($file, '..') !== false || strpos($file, '/') !== false || strpos($file, '\\') !== false) {
+        return json(array("status" => "Invalid filename"));
+    }
 
     // Fix double quote uploading by simply moving the file first, if we find it with URL encoding
     if (strstr($file, '"')) {
