@@ -812,7 +812,7 @@ function MoveFile()
 {
     global $mediaDirectory, $uploadDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory, $imageDirectory, $configDirectory, $SUDO;
 
-    // Like files_copy()/files_rename() below: the name must be a bare filename.
+    // Like files_copy()/files_rename() above: the name must be a bare filename.
     // findFile() tries urldecoded/sanitized/transliterated variants, any of
     // which could otherwise resolve outside upload/ (and every destination
     // below is built by concatenation), so gate both the request and result.

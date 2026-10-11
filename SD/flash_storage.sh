@@ -623,7 +623,7 @@ profile_bb64_fixup() {
     sed -i "s|root=/dev/[a-zA-Z0-9]*\([0-9]\) |root=/dev/${DEVICE}p3 |g;
             s|root=/dev/[a-zA-Z0-9]*\([0-9]\)\$|root=/dev/${DEVICE}p3|g;
             s|resume=/dev/[a-zA-Z0-9]*\([0-9]\) |resume=/dev/${DEVICE}p2 |g;
-            s|resume=/dev/[a-zA-Z0-9]*\([0-9]\)\$|resume=/dev/${DEVICE}p2|" "${extlinux}"
+            s|resume=/dev/[a-zA-Z0-9]*\([0-9]\)\$|resume=/dev/${DEVICE}p2|g" "${extlinux}"
     # A flash booted from the auto-flash entry defaults to that label; the copy
     # must come up normally.
     sed -i "s|default flashEMMC|default microSD|g" "${extlinux}"
