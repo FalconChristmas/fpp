@@ -147,9 +147,10 @@ function GetFiles (dir, extraParams, seq) {
 			// leaving deleted files as ghosts and new uploads invisible
 			// until a full page reload. Destroying first means the rebuild
 			// below lands on the plain table and is picked up fresh at init.
-			if (typeof DestroyBootstrapTable === 'function') {
-				DestroyBootstrapTable('tbl' + dir);
-			}
+			// fpp-filemanager.js is only loaded alongside
+			// fpp-bootstrap-table.js (see filemanager.php), so these helpers
+			// always exist here.
+			DestroyBootstrapTable('tbl' + dir);
 
 			// Store file data globally
 			fileData[dir] = data.files;
@@ -305,15 +306,18 @@ function GetFiles (dir, extraParams, seq) {
 			);
 		},
 		complete: function () {
+			// A superseded round must not touch the table at all: reaching
+			// SetupTableSorter() would destroy/rebuild for nothing, dropping
+			// the newer listing's view state.
+			if ((fileListApplied[dir] || 0) > seq) {
+				return;
+			}
 			SetupTableSorter('tbl' + dir);
 			UpdateFileCount(dir);
 			UpdateTabVisibility(dir);
 			// Lazy per-file enrichment belongs to the newest listing only;
 			// a superseded round must not re-probe files (Music/Videos) or
 			// repaint the FPS column from an older view of the world.
-			if ((fileListApplied[dir] || 0) > seq) {
-				return;
-			}
 			if (dir == 'Sequences') {
 				// Lazily fetch the per-sequence fps (server-cached) and fill in
 				// the FPS column afterwards, without blocking the initial list.
@@ -444,6 +448,20 @@ function GetAllFiles () {
 	pluginFileExtensions.forEach(ext => {
 		GetFiles(ext, undefined, round);
 	});
+}
+
+// Coalesces rapid upload completions into a single sweep: each completion
+// reschedules the sweep ~350ms out, so N files finishing together cost one
+// round of listing requests instead of N overlapping rounds.
+var getAllFilesTimer = null;
+function QueueGetAllFiles () {
+	if (getAllFilesTimer) {
+		clearTimeout(getAllFilesTimer);
+	}
+	getAllFilesTimer = setTimeout(function () {
+		getAllFilesTimer = null;
+		GetAllFiles();
+	}, 350);
 }
 
 // Fetches the fps (frame rate) for every sequence from the server-cached
@@ -636,16 +654,18 @@ function FileManagerHideEmptyTabsToggled () {
 }
 
 // Removes one row from a file manager listing without a server round trip,
-// keeping every layer in sync: the Bootstrap Table data model, its restore
-// snapshot, the fileData cache, and the counts/tab visibility.
+// keeping the fileData cache in sync. When Bootstrap Table manages the table
+// the row is removed through its data model ('remove'), which preserves the
+// user's sort order, filter text, and already-filled Duration/FPS cells.
+// Destroying/rebuilding here would reset all of that (sort back to ascending,
+// filter cleared, durations back to "…" with nothing refilling them, since
+// LoadMediaDurations only probes files whose duration is still null).
 //
 // $(row).remove() alone is not enough once Bootstrap Table manages the table:
 // the deleted row stays in the table's data model (so sorting/filtering
-// brings it back) and in the HTML snapshot destroy() restores (so the next
-// tab switch or listing refresh resurrects it as a ghost). Destroying first
-// drops the stale snapshot, the removal then happens on the plain table, and
-// SetupTableSorter() re-initializes from that correct DOM when visible (a
-// hidden tab initializes from it on next activation instead).
+// brings it back). 'remove' drops it from the model and re-renders in place,
+// so no destroy is needed and the tab-switch handler must not destroy either
+// (see the activate handler: resetView when already initialized).
 // Returns true when a row was removed.
 function RemoveFileManagerRow (dir, file) {
 	var tableName = 'tbl' + dir;
@@ -653,40 +673,93 @@ function RemoveFileManagerRow (dir, file) {
 	if (!$table.length) {
 		return false;
 	}
-	var managed =
-		typeof DestroyBootstrapTable === 'function' &&
-		!!($table.closest('.bootstrap-table').length ||
-			$table.data('bootstrap.table'));
-	if (managed) {
-		DestroyBootstrapTable(tableName);
-	}
+	var managed = !!(
+		$table.closest('.bootstrap-table').length ||
+		$table.data('bootstrap.table')
+	);
 	var removed = false;
-	$table.find('tbody tr').each(function () {
-		var $r = $(this);
-		if ($r.hasClass('unselectableRow')) {
-			return;
-		}
-		// Compare decoded text: cells hold escaped HTML (&amp;, &lt;).
-		if ($r.find('td:first').text() === file) {
-			$r.remove();
+	if (managed) {
+		// The data model stores the cell's inner HTML (see trToData in
+		// bootstrap-table.js: row[field] is the escaped cell HTML, with
+		// apostrophes as &#39;), so match on the exact stored value: decode
+		// each candidate and compare to the raw filename. This handles names
+		// containing &, <, quotes, etc. without guessing the escaping.
+		var decoder = document.createElement('textarea');
+		var decode = function (s) {
+			decoder.innerHTML = s;
+			return decoder.value;
+		};
+		var values = [];
+		var rows = $table.bootstrapTable('getData', { unfiltered: true });
+		rows.forEach(function (r) {
+			if (
+				r.filename !== undefined &&
+				decode(r.filename) === file
+			) {
+				values.push(r.filename);
+			}
+		});
+		if (values.length) {
+			$table.bootstrapTable('remove', {
+				field: 'filename',
+				values: values
+			});
 			removed = true;
-			return false;
 		}
-	});
-	if (typeof fileData !== 'undefined' && fileData[dir]) {
+		// Fallback for a model shape we did not expect (e.g. a future BT
+		// version storing raw text): remove by the escaped cell form, which
+		// is how GetFiles writes the tbody (& and < escaped).
+		if (!removed) {
+			var escaped =
+				file.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+			var countBefore = $table.bootstrapTable('getData', {
+				unfiltered: true
+			}).length;
+			$table.bootstrapTable('remove', {
+				field: 'filename',
+				values: [escaped]
+			});
+			var countAfter = $table.bootstrapTable('getData', {
+				unfiltered: true
+			}).length;
+			removed = countAfter < countBefore;
+		}
+	} else {
+		$table.find('tbody tr').each(function () {
+			var $r = $(this);
+			if ($r.hasClass('unselectableRow')) {
+				return;
+			}
+			// Compare decoded text: cells hold escaped HTML (&amp;, &lt;).
+			if ($r.find('td:first').text() === file) {
+				$r.remove();
+				removed = true;
+				return false;
+			}
+		});
+	}
+	if (fileData[dir]) {
+		var cacheBefore = fileData[dir].length;
 		fileData[dir] = fileData[dir].filter(function (f) {
 			return f.name !== file;
 		});
-		if (fileData[dir].length == 0 && $table.find('tbody tr').length == 0) {
+		if (fileData[dir].length < cacheBefore) {
+			removed = true;
+		}
+		if (
+			!managed &&
+			fileData[dir].length == 0 &&
+			$table.find('tbody tr').length == 0
+		) {
+			// Plain (unmanaged) table only: a managed table renders its own
+			// empty state, and touching its tbody directly would be discarded
+			// by the next destroy/restore cycle.
 			$table
 				.find('tbody')
 				.html(
 					"<tr class='unselectableRow'><td colspan=8 align='center'>No files found.</td></tr>"
 				);
 		}
-	}
-	if (managed && typeof SetupTableSorter === 'function') {
-		SetupTableSorter(tableName);
 	}
 	return removed;
 }
@@ -1133,7 +1206,10 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 		}
 		console.log('Process file: ' + file.filename);
 		moveFile(file.filename, function () {
-			GetAllFiles();
+			// Each upload completion used to fire its own full sweep, so N
+			// parallel uploads sent ~10xN listing requests with overlapping
+			// rounds. Coalesce completions arriving together into one sweep.
+			QueueGetAllFiles();
 		});
 	});
 
@@ -1144,10 +1220,22 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 			var $tableName = $t[0].id;
 
 			if ($t.length && $t.find('tbody').length) {
-				// Clean up previous Bootstrap Table instance
-				DestroyBootstrapTable($tableName);
-				// Initialize Bootstrap Table for all file manager tables
-				InitializeBootstrapTable($tableName);
+				// Never destroy here: destroy() restores the init-time HTML
+				// snapshot, which still holds rows deleted via 'remove' and
+				// would resurrect them as ghosts on every tab switch. The
+				// table body is already current (GetFiles rebuilds it, delete
+				// patches it in place), so re-initialize only a tab that was
+				// never set up (hidden tabs cannot measure columns), and
+				// just re-fit the header when it already is.
+				var initialized = !!(
+					$t.closest('.bootstrap-table').length ||
+					$t.data('bootstrap.table')
+				);
+				if (initialized) {
+					$t.bootstrapTable('resetView');
+				} else {
+					InitializeBootstrapTable($tableName);
+				}
 			}
 		}
 	});
