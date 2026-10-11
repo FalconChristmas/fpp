@@ -9664,8 +9664,23 @@ function DeleteFile (dir, row, file, silent = false) {
 	})
 		.done(function (data) {
 			if (data.status == 'OK') {
-				$(row).remove();
-				UpdateFileCount(dir);
+				// Prefer the file-manager-aware removal when available: it
+				// removes through the Bootstrap Table model (preserving sort,
+				// filter, and filled durations) and keeps the fileData cache
+				// in sync. Fall back to the plain DOM removal on pages
+				// without the file manager (row may be null for programmatic
+				// deletes, e.g. co-pixelStrings.php).
+				if (typeof RemoveFileManagerRow === 'function') {
+					RemoveFileManagerRow(dir, file);
+				} else if (row) {
+					$(row).remove();
+				}
+				if (typeof UpdateFileCount === 'function') {
+					UpdateFileCount(dir);
+				}
+				if (typeof UpdateTabVisibility === 'function') {
+					UpdateTabVisibility(dir);
+				}
 			} else {
 				if (!silent)
 					DialogError(
