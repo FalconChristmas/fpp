@@ -2,6 +2,7 @@
 
 $skipJSsettings = 1;
 require_once("common.php");
+require_once("common/remoteJobs.inc.php");
 
 DisableOutputBuffering();
 
@@ -21,23 +22,7 @@ if (!$validIp && !$validHost) {
 }
 $ip = $rawIp;
 
-$dirs = Array();
-
-if ((isset($settings['MultiSyncCopySequences']) && ($settings['MultiSyncCopySequences'] == 1)) ||
-	(!isset($settings['MultiSyncCopySequences'])))
-	array_push($dirs, 'sequences');
-if (isset($settings['MultiSyncCopyEffects']) && ($settings['MultiSyncCopyEffects'] == 1))
-	array_push($dirs, 'effects');
-if (isset($settings['MultiSyncCopyVideos']) && ($settings['MultiSyncCopyVideos'] == 1))
-	array_push($dirs, 'videos');
-if (isset($settings['MultiSyncCopyImages']) && ($settings['MultiSyncCopyImages'] == 1))
-	array_push($dirs, 'images');
-if (isset($settings['MultiSyncCopyEvents']) && ($settings['MultiSyncCopyEvents'] == 1))
-	array_push($dirs, 'events');
-if (isset($settings['MultiSyncCopyScripts']) && ($settings['MultiSyncCopyScripts'] == 1))
-	array_push($dirs, 'scripts');
-if (isset($settings['MultiSyncCopyMusic']) && ($settings['MultiSyncCopyMusic'] == 1))
-    array_push($dirs, 'music');
+$dirs = MultiSyncCopyDirs();
 
 if (sizeof($dirs) == 0)
 {

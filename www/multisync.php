@@ -3258,37 +3258,6 @@
             }
         }
 
-        function upgradeDone(id) {
-            id = id.replace('_logText', '');
-            $('#' + id + '_doneButtons').show();
-            streamCount--;
-
-            var ip = ipFromRowID(id);
-            setTimeout(function () { getFPPSystemStatus(ip, true); }, 3000);
-
-            if (origins.hasOwnProperty(ip)) {
-                for (var i = 0; i < origins[ip].length; i++) {
-                    var rowID = "fpp_" + origins[ip][i].replace(/\./g, '_');
-                    upgradeSystem(rowID);
-                }
-            }
-
-            EnableDisableStreamButtons();
-        }
-
-        function upgradeFailed(id) {
-            id = id.replace('_logText', '');
-            var ip = ipFromRowID(id);
-
-            alert('Update failed for FPP system at ' + ip);
-            streamCount--;
-
-            EnableDisableStreamButtons();
-
-            if (!$('#fppSystemsTableWrapper').hasClass('fppTableWrapperErrored'))
-                $('#fppSystemsTableWrapper').addClass('fppTableWrapperErrored');
-        }
-
         function showLogsRow(rowID) {
             // Ensure child rows match parent striping color - use getElementById for UUID safety
             var parentEl = document.getElementById(rowID);
@@ -3311,58 +3280,101 @@
                 $('#' + rowID + '_logText').val($('#' + rowID + '_logText').val() + '\n==================================\n');
         }
 
-        function upgradeSystemByHostname(id) {
-            id = id.replace('_logText', '');
-            var ip = ipOrHostnameFromRowID(id);
-            StreamURL('streamRemote.php?action=upgrade&ip=' + ip, id + '_logText', 'upgradeDone', 'upgradeFailed');
-        }
-
-        function upgradeSystem(rowID) {
-            streamUpgrade(rowID, 'upgrade', 'upgradeSystemByHostname');
-        }
-
-        /**
-         * Initiates an OS upgrade for a single remote system.
-         * Delegates to streamUpgrade with the 'upgradeOS' action.
-         *
-         * @param {string} rowID - The table row ID of the target system
-         * @param {string} os - The OS upgrade filename/version to apply
-         */
-        function upgradeOSSystem(rowID, os) {
-            streamUpgrade(rowID, 'upgradeOS', 'upgradeFailed', '&os=' + os);
+        function appendRowLog(rowID, text) {
+            var log = document.getElementById(rowID + '_logText');
+            if (!log) {
+                return;
+            }
+            log.value += text;
+            log.scrollTop = log.scrollHeight;
         }
 
         /**
-         * Generic upgrade streaming handler that manages the upgrade process for a single system.
-         * Handles the UI state (hiding checkboxes, showing logs), manages stream count,
-         * and invokes the appropriate remote action via StreamURL.
+         * Runs a long action on several systems over ONE streaming request
+         * (StreamJobs / streamRemoteJobs.php).  Over plain http the browser
+         * holds at most 6 connections to this FPP, shared by every tab; a
+         * stream per system used them all for the length of a fleet upgrade,
+         * starving the status polls and any other page open on this FPP.
          *
-         * @param {string} rowID - The table row ID of the target system
-         * @param {string} action - The type of upgrade action ('upgrade', 'upgradeOS', etc.)
-         * @param {string} failedCallback - Name of the callback function to invoke on failure
-         * @param {string} [additionalParams=''] - Additional URL parameters to pass to the remote action (e.g., '&os=filename')
+         * @param {Array} jobs - [{id: rowID, type, ip, ...}], see
+         *     www/common/remoteJobs.inc.php for the types and their fields
+         * @param {Object} opts
+         *     failMessage  - alert prefix, followed by the failed systems
+         *     onDone       - optional, called with the rowID of each success
+         *     maxParallel  - optional cap on jobs running at once (0 = none)
+         *     waiting      - optional {rowID: text} shown until a job starts
          */
-        function streamUpgrade(rowID, action, failedCallback, additionalParams = '') {
-            $('#' + rowID).find('input.remoteCheckbox').prop('checked', false);
+        function runRemoteJobs(jobs, opts) {
+            if (!jobs.length) {
+                return;
+            }
+            var heldLF = {};
+            var failed = [];
 
-            streamCount++;
+            jobs.forEach(function (job) {
+                $('#' + job.id).find('input.remoteCheckbox').prop('checked', false);
+                streamCount++;
+                showLogsRow(job.id);
+                addLogsDivider(job.id);
+                if (opts.waiting && opts.waiting[job.id]) {
+                    appendRowLog(job.id, opts.waiting[job.id] + '\n');
+                }
+            });
             EnableDisableStreamButtons();
 
-            showLogsRow(rowID);
-            addLogsDivider(rowID);
+            StreamJobs({ maxParallel: opts.maxParallel || 0, jobs: jobs }, {
+                output: function (rowID, text) {
+                    // Hold a trailing newline back until more output arrives so
+                    // the log doesn't end on an empty line.
+                    if (heldLF[rowID]) {
+                        text = '\n' + text;
+                    }
+                    heldLF[rowID] = text.endsWith('\n');
+                    if (heldLF[rowID]) {
+                        text = text.slice(0, -1);
+                    }
+                    appendRowLog(rowID, text);
+                },
+                done: function (rowID, ok) {
+                    streamCount--;
+                    if (ok) {
+                        $('#' + rowID + '_doneButtons').show();
+                        if (opts.onDone) {
+                            opts.onDone(rowID);
+                        }
+                    } else {
+                        failed.push(ipFromRowID(rowID));
+                    }
+                    EnableDisableStreamButtons();
+                },
+                finished: function () {
+                    if (failed.length) {
+                        if (!$('#fppSystemsTableWrapper').hasClass('fppTableWrapperErrored'))
+                            $('#fppSystemsTableWrapper').addClass('fppTableWrapperErrored');
+                        alert(opts.failMessage + failed.join(', '));
+                    }
+                }
+            });
+        }
 
+        // The checked, unfiltered rows, in table order.
+        function selectedRowIDs() {
+            var rowIDs = [];
+            $('input.remoteCheckbox').each(function () {
+                if ($(this).is(":checked")) {
+                    var rowID = $(this).closest('tr').attr('id');
+                    if (!$('#' + rowID).hasClass('filtered')) {
+                        rowIDs.push(rowID);
+                    }
+                }
+            });
+            return rowIDs;
+        }
+
+        function refreshStatusSoon(rowID) {
             var ip = ipFromRowID(rowID);
-            StreamURL('streamRemote.php?action=' + action + '&ip=' + ip + additionalParams, rowID + '_logText', 'upgradeDone', failedCallback);
+            setTimeout(function () { getFPPSystemStatus(ip, true); }, 3000);
         }
-
-        function showWaitingOnOriginUpdate(rowID, origin) {
-            showLogsRow(rowID);
-            addLogsDivider(rowID);
-
-            $('#' + rowID + '_logText').append("Waiting for origin (" + origin + ") to finish updating...");
-        }
-
-        var origins = {};
 
         function upgradeOSSelectedSystems() {
             // Apply fppos upgrades to selected systems.
@@ -3371,81 +3383,41 @@
                 alert('Please select a valid OS upgrade file to upgrade to.');
                 return;
             }
-            $('input.remoteCheckbox').each(function () {
-                if ($(this).is(":checked")) {
-                    var rowID = $(this).closest('tr').attr('id');
-                    ip = ipFromRowID(rowID);
-                    if ($('#' + rowID).hasClass('filtered')) {
-                        return true;
-                    }
-                    upgradeOSSystem(rowID, os);
-                }
+            var jobs = selectedRowIDs().map(function (rowID) {
+                return { id: rowID, type: 'upgradeOS', ip: ipFromRowID(rowID), os: os };
             });
+            runRemoteJobs(jobs, { failMessage: 'OS upgrade failed for FPP systems at: ', onDone: refreshStatusSoon });
         }
+
         function upgradeSelectedSystems() {
-            $origins = {};
-            $('input.remoteCheckbox').each(function () {
-                if ($(this).is(":checked")) {
-                    var rowID = $(this).closest('tr').attr('id');
-                    if ($('#' + rowID).hasClass('filtered')) {
-                        return true;
-                    }
-                    var origin = $('#' + rowID + '_origin').html();
-                    if (typeof origin === 'undefined') {
-                        var msg = "Invalid Origin for " + ipFromRowID(rowID) + ". Skipping";
-                        $.jGrowl(msg, { themeState: 'danger' });
-                        return;
-                    }
-                    var originRowID = "fpp_" + origin.replace(/\./g, '_');
-                    if ((origin != '') &&
-                        (origin != 'github.com') &&
-                        ($('#' + originRowID).find('input.remoteCheckbox').is(':checked'))) {
-                        if (!origins.hasOwnProperty(origin)) {
-                            origins[origin] = [];
-                        }
-                        origins[origin].push(ipFromRowID(rowID));
-                    }
+            var rowIDs = selectedRowIDs();
+
+            // A system that updates from another FPP (its UpgradeSource) waits
+            // for that one to finish updating when both are selected.
+            var rowIDByIP = {};
+            rowIDs.forEach(function (rowID) { rowIDByIP[ipFromRowID(rowID)] = rowID; });
+
+            var jobs = [];
+            var waiting = {};
+            rowIDs.forEach(function (rowID) {
+                var ip = ipFromRowID(rowID);
+                var origin = $('#' + rowID + '_origin').html();
+                if (typeof origin === 'undefined') {
+                    $.jGrowl("Invalid Origin for " + ip + ". Skipping", { themeState: 'danger' });
+                    return;
                 }
-            });
-
-            var originsUpdating = {};
-            $('input.remoteCheckbox').each(function () {
-                if ($(this).is(":checked")) {
-                    var rowID = $(this).closest('tr').attr('id');
-                    if ($('#' + rowID).hasClass('filtered')) {
-                        return true;
-                    }
-                    var ip = ipFromRowID(rowID);
-
-                    if (origins.hasOwnProperty(ip)) {
-                        originsUpdating[ip] = 1;
-                    }
+                var job = { id: rowID, type: 'upgrade', ip: ip };
+                var host = ipOrHostnameFromRowID(rowID);
+                if (host && host != ip) {
+                    job.fallback = host;
                 }
-            });
-
-            $('input.remoteCheckbox').each(function () {
-                if ($(this).is(":checked")) {
-                    var rowID = $(this).closest('tr').attr('id');
-                    if ($('#' + rowID).hasClass('filtered')) {
-                        return true;
-                    }
-
-                    var origin = $('#' + rowID + '_origin').html();
-                    if (typeof origin === 'undefined') {
-                        var msg = "Invalid Origin for " + ipFromRowID(rowID) + ". Skipping";
-                        $.jGrowl(msg, { themeState: 'danger' });
-                        return;
-                    }
-                    var originRowID = "fpp_" + origin.replace(/\./g, '_');
-                    if ((origin == '') ||
-                        (origin == 'github.com') ||
-                        (!originsUpdating.hasOwnProperty(origin))) {
-                        upgradeSystem(rowID);
-                    } else {
-                        showWaitingOnOriginUpdate(rowID, origin);
-                    }
+                if (origin != '' && origin != 'github.com' && rowIDByIP.hasOwnProperty(origin) && rowIDByIP[origin] != rowID) {
+                    job.after = rowIDByIP[origin];
+                    waiting[rowID] = "Waiting for origin (" + origin + ") to finish updating...";
                 }
+                jobs.push(job);
             });
+            runRemoteJobs(jobs, { failMessage: 'Update failed for FPP systems at: ', onDone: refreshStatusSoon, waiting: waiting });
         }
 
         // ============================================================
@@ -3475,25 +3447,46 @@
             EnableDisableStreamButtons();
         }
 
-        function restartSystem(rowID) {
+        // The quick per-system actions (restart, reboot, mode change) still
+        // stream one request per system.  Cap how many are open at once so they
+        // never hold all 6 of the browser's connections to this FPP -- the
+        // status polls and any other tab need some too.  The long-running
+        // actions go through runRemoteJobs() instead.
+        var quickStreamLimit = 4;
+        var quickStreamActive = 0;
+        var quickStreamQueue = [];
+
+        function queueQuickStream(url, rowID) {
             streamCount++;
             EnableDisableStreamButtons();
 
             showLogsRow(rowID);
             addLogsDivider(rowID);
 
-            var ip = ipFromRowID(rowID);
-            StreamURL('restartRemoteFPPD.php?ip=' + ip, rowID + '_logText', 'actionDone', 'actionFailed');
+            quickStreamQueue.push({ url: url, rowID: rowID });
+            pumpQuickStreams();
+        }
+
+        function pumpQuickStreams() {
+            var settle = function (callback) {
+                return function (id) {
+                    quickStreamActive--;
+                    callback(id);
+                    pumpQuickStreams();
+                };
+            };
+            while (quickStreamActive < quickStreamLimit && quickStreamQueue.length) {
+                var q = quickStreamQueue.shift();
+                quickStreamActive++;
+                StreamURL(q.url, q.rowID + '_logText', settle(actionDone), settle(actionFailed));
+            }
+        }
+
+        function restartSystem(rowID) {
+            queueQuickStream('restartRemoteFPPD.php?ip=' + ipFromRowID(rowID), rowID);
         }
         function setSystemMode(rowID, mode) {
-            streamCount++;
-            EnableDisableStreamButtons();
-
-            showLogsRow(rowID);
-            addLogsDivider(rowID);
-
-            var ip = ipFromRowID(rowID);
-            StreamURL('restartRemoteFPPD.php?ip=' + ip + '&mode=' + mode, rowID + '_logText', 'actionDone', 'actionFailed');
+            queueQuickStream('restartRemoteFPPD.php?ip=' + ipFromRowID(rowID) + '&mode=' + mode, rowID);
         }
 
         function restartSelectedSystems() {
@@ -3526,14 +3519,7 @@
         }
 
         function rebootSystem(rowID) {
-            streamCount++;
-            EnableDisableStreamButtons();
-
-            showLogsRow(rowID);
-            addLogsDivider(rowID);
-
-            var ip = ipFromRowID(rowID);
-            StreamURL('rebootRemoteFPP.php?ip=' + ip, rowID + '_logText', 'actionDone', 'actionFailed');
+            queueQuickStream('rebootRemoteFPP.php?ip=' + ipFromRowID(rowID), rowID);
         }
 
         function rebootSelectedSystems() {
@@ -3550,14 +3536,7 @@
             });
         }
         function shutdownSystem(rowID) {
-            streamCount++;
-            EnableDisableStreamButtons();
-
-            showLogsRow(rowID);
-            addLogsDivider(rowID);
-
-            var ip = ipFromRowID(rowID);
-            StreamURL('shutdownRemoteFPP.php?ip=' + ip, rowID + '_logText', 'actionDone', 'actionFailed');
+            queueQuickStream('shutdownRemoteFPP.php?ip=' + ipFromRowID(rowID), rowID);
         }
         function shutdownSelectedSystems() {
             $('input.remoteCheckbox').each(function () {
@@ -3577,29 +3556,6 @@
         // SECTION: Git / branch actions
         // ============================================================
 
-        function changeBranch(rowID) {
-            var branch = $("#branchSelect").val();
-            var remote = $("#branchRemoteSelect").length ? $("#branchRemoteSelect").val() : 'origin';
-            if (!branch) {
-                $.jGrowl("No branch selected", { themeState: 'danger' });
-                return;
-            }
-            // Validate branch locally (same allow-list as www/changebranch.php:26) to surface error in log window
-            if (!/^[A-Za-z0-9_.\/-]+$/.test(branch) || branch.indexOf('..') !== -1 || branch[0] === '-') {
-                showLogsRow(rowID);
-                addLogsDivider(rowID);
-                $('#' + rowID + '_logText').val($('#' + rowID + '_logText').val() + "Invalid branch: " + branch + "\n");
-                return;
-            }
-            streamCount++;
-            EnableDisableStreamButtons();
-
-            showLogsRow(rowID);
-            addLogsDivider(rowID);
-
-            var ip = ipFromRowID(rowID);
-            StreamURL('changeRemoteBranch.php?branch=' + encodeURIComponent(branch) + '&remote=' + encodeURIComponent(remote) + '&ip=' + ip, rowID + '_logText', 'actionDone', 'actionFailed');
-        }
         async function reloadBranchSelect() {
             var remote = $("#branchRemoteSelect").length ? $("#branchRemoteSelect").val() : 'origin';
             const r = await fetch("api/git/branches?remote=" + encodeURIComponent(remote));
@@ -3611,81 +3567,66 @@
         }
         function changeBranchSelectedSystems() {
             var branch = $("#branchSelect").val();
+            var remote = $("#branchRemoteSelect").length ? $("#branchRemoteSelect").val() : 'origin';
             if (!branch) {
                 $.jGrowl("No branch selected", { themeState: 'danger' });
                 return;
             }
-            var targets = [];
-            $('input.remoteCheckbox').each(function () {
-                if ($(this).is(":checked")) {
-                    var rowID = $(this).closest('tr').attr('id');
-                    if ($('#' + rowID).hasClass('filtered')) {
-                        return true;
-                    }
-                    $(this).prop('checked', false);
-                    targets.push(rowID);
-                }
+            // Same allow-list as www/changebranch.php
+            if (!/^[A-Za-z0-9_.\/-]+$/.test(branch) || branch.indexOf('..') !== -1 || branch[0] === '-') {
+                $.jGrowl("Invalid branch: " + branch, { themeState: 'danger' });
+                return;
+            }
+            var jobs = selectedRowIDs().map(function (rowID) {
+                return { id: rowID, type: 'changeBranch', ip: ipFromRowID(rowID), branch: branch, remote: remote };
             });
-            if (targets.length === 0) {
+            if (jobs.length === 0) {
                 $.jGrowl("No remote FPP systems were selected", { themeState: 'danger' });
                 return;
             }
-            targets.forEach(function (rowID) { changeBranch(rowID); });
+            runRemoteJobs(jobs, {
+                failMessage: 'Changing branch failed for FPP systems at: ',
+                onDone: function (rowID) {
+                    var ip = ipFromRowID(rowID);
+                    setTimeout(function () { getFPPSystemStatus(ip, true); }, 1500);
+                }
+            });
         }
 
         // ============================================================
         // SECTION: File copy actions
         // ============================================================
 
-        function copyFilesToSystem(rowID) {
-            streamCount++;
-            EnableDisableStreamButtons();
+        // Copies send from this FPP, so run a few at a time rather than one
+        // rsync or upload per selected system all at once.
+        var copyMaxParallel = 4;
 
-            showLogsRow(rowID);
-            addLogsDivider(rowID);
-
+        // The address this FPP can reach the row's system on, or '' after
+        // saying so in the row's log.
+        function copyTargetIP(rowID) {
             var ip = getReachableIPFromRowID(rowID);
             if (ip == "") {
-                ip = ipFromRowID(rowID);
-                $('#' + rowID + '_logText').append('No IPs appear reachable for ' + ip);
-            } else {
-                StreamURL('copyFilesToRemote.php?ip=' + ip, rowID + '_logText', 'copyDone', 'copyFailed');
+                showLogsRow(rowID);
+                addLogsDivider(rowID);
+                appendRowLog(rowID, 'No IPs appear reachable for ' + ipFromRowID(rowID) + '\n');
             }
-        }
-
-        function copyFileToSystem(file, rowID) {
-            EnableDisableStreamButtons();
-            streamCount++;
-
-            showLogsRow(rowID);
-            addLogsDivider(rowID);
-
-            var ip = getReachableIPFromRowID(rowID);
-            if (ip == "") {
-                ip = ipFromRowID(rowID);
-                $('#' + rowID + '_logText').append('No IPs appear reachable for ' + ip);
-            } else {
-                StreamURL('remotePush.php?dir=uploads&raw=1&filename=' + file.name + '&remoteHost=' + ip, rowID + '_logText', 'copyDone', 'copyFailed');
-            }
+            return ip;
         }
 
         function copyFilesToSelectedSystems() {
-            $('input.remoteCheckbox').each(function () {
-                if ($(this).is(":checked")) {
-                    var rowID = $(this).closest('tr').attr('id');
-                    if ($('#' + rowID).hasClass('filtered')) {
-                        return true;
-                    }
-
-                    $(this).prop('checked', false);
-                    copyFilesToSystem(rowID);
+            var jobs = [];
+            selectedRowIDs().forEach(function (rowID) {
+                $('#' + rowID).find('input.remoteCheckbox').prop('checked', false);
+                var ip = copyTargetIP(rowID);
+                if (ip != "") {
+                    jobs.push({ id: rowID, type: 'copyFiles', ip: ip });
                 }
             });
+            runRemoteJobs(jobs, { failMessage: 'File Copy failed for FPP systems at: ', maxParallel: copyMaxParallel });
         }
 
         function copyOSFilesToSelectedSystems() {
             let files = [];
-            let targets = [];
             $("#copyOSOptionsDetails input").each(function () {
                 if ($(this).is(":checked")) {
                     let name = $(this).attr('id');
@@ -3697,87 +3638,69 @@
                 }
             });
 
-            $('input.remoteCheckbox').each(function () {
-                if ($(this).is(":checked")) {
-                    var rowID = $(this).closest('tr').attr('id');
-                    if ($('#' + rowID).hasClass('filtered')) {
-                        return true;
-                    }
-
-                    $(this).prop('checked', false);
-                    targets.push(rowID);
-                }
+            let targets = selectedRowIDs();
+            targets.forEach(function (rowID) {
+                $('#' + rowID).find('input.remoteCheckbox').prop('checked', false);
             });
 
             if (files.length == 0) {
                 $.jGrowl("No OS Upgrade files were selected", { themeState: 'danger' });
-            } else if (targets.length == 0) {
-                $.jGrowl("No remote FPP systems were selected", { themeState: 'danger' });
-            } else {
-                targets.forEach(function (rowID) {
-                    files.forEach(function (f) {
-                        ip = ipFromRowID(rowID);
-                        osType = "UNKNOWN";
-                        freeSpace = 0;
-                        if (systemStatusCache.hasOwnProperty(ip)) {
-                            rec = systemStatusCache[ip];
-                            try {
-                                let platform = rec["advancedView"]["Platform"];
-                                if (platform == "BeagleBone Black") {
-                                    osType = "BBB";
-                                } else if (platform == "BeagleBone 64") {
-                                    osType = "BB64";
-                                } else if (platform == "Raspberry Pi") {
-                                    osType = "PI";
-                                }
-                            } catch (error) {
-                                // Eat it
-                            }
-
-                            try {
-                                freeSpace = rec.advancedView.Utilization.Disk.Media.Free
-                            } catch (error) {
-                                // Eat it
-                            }
-
-                            // 0.95 is to not completely fill it.
-                            if (freeSpace != 0 && ((f.sizeBytes) > (freeSpace * 0.95))) {
-                                $.jGrowl("Insufficient free disk space on remote " + ip + ". Skipping", { themeState: 'danger' });
-                            } else if (osType != f.type) {
-                                let msg = f.name + " isn't compatible with " + ip + ". Skipping";
-                                $.jGrowl(msg, { themeState: 'danger' });
-                            } else {
-                                copyFileToSystem(f, rowID);
-                            }
-
-                        } else {
-                            $.jGrowl("Unable to locate data for " + ip + ". Skipping", { themeState: 'danger' });
-                        }
-
-                    });
-                });
+                return;
             }
-        }
+            if (targets.length == 0) {
+                $.jGrowl("No remote FPP systems were selected", { themeState: 'danger' });
+                return;
+            }
 
-        function copyDone(id) {
-            id = id.replace('_logText', '');
-            $('#' + id + '_doneButtons').show();
-            streamCount--;
+            // One job per system, copying its compatible files one after another.
+            let jobs = [];
+            targets.forEach(function (rowID) {
+                let ip = ipFromRowID(rowID);
+                if (!systemStatusCache.hasOwnProperty(ip)) {
+                    $.jGrowl("Unable to locate data for " + ip + ". Skipping", { themeState: 'danger' });
+                    return;
+                }
+                let rec = systemStatusCache[ip];
+                let osType = "UNKNOWN";
+                let freeSpace = 0;
+                try {
+                    let platform = rec["advancedView"]["Platform"];
+                    if (platform == "BeagleBone Black") {
+                        osType = "BBB";
+                    } else if (platform == "BeagleBone 64") {
+                        osType = "BB64";
+                    } else if (platform == "Raspberry Pi") {
+                        osType = "PI";
+                    }
+                } catch (error) {
+                    // Eat it
+                }
+                try {
+                    freeSpace = rec.advancedView.Utilization.Disk.Media.Free
+                } catch (error) {
+                    // Eat it
+                }
 
-            EnableDisableStreamButtons();
-        }
-
-        function copyFailed(id) {
-            id = id.replace('_logText', '');
-            var ip = ipFromRowID(id);
-
-            alert('File Copy failed for FPP system at ' + ip);
-            streamCount--;
-
-            EnableDisableStreamButtons();
-
-            if (!$('#fppSystemsTableWrapper').hasClass('fppTableWrapperErrored'))
-                $('#fppSystemsTableWrapper').addClass('fppTableWrapperErrored');
+                let names = [];
+                files.forEach(function (f) {
+                    // 0.95 is to not completely fill it.
+                    if (freeSpace != 0 && ((f.sizeBytes) > (freeSpace * 0.95))) {
+                        $.jGrowl("Insufficient free disk space on remote " + ip + ". Skipping", { themeState: 'danger' });
+                    } else if (osType != f.type) {
+                        $.jGrowl(f.name + " isn't compatible with " + ip + ". Skipping", { themeState: 'danger' });
+                    } else {
+                        names.push(f.name);
+                    }
+                });
+                if (names.length == 0) {
+                    return;
+                }
+                let target = copyTargetIP(rowID);
+                if (target != "") {
+                    jobs.push({ id: rowID, type: 'pushFiles', ip: target, dir: 'uploads', files: names });
+                }
+            });
+            runRemoteJobs(jobs, { failMessage: 'File Copy failed for FPP systems at: ', maxParallel: copyMaxParallel });
         }
 
         // ============================================================

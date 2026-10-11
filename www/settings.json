@@ -2501,6 +2501,17 @@
 			"type": "checkbox",
 			"textOnRight": 1
 		},
+		"MultiSyncMaxParallelJobs": {
+			"name": "MultiSyncMaxParallelJobs",
+			"description": "Max Systems Updated at Once",
+			"gatherStats": true,
+			"tip": "The most remote systems the MultiSync page upgrades, changes branch on, or copies files to at the same time. The rest wait their turn. Raise it if your build helpers can take more parallel rebuilds; 0 means no limit. Not shown in the UI; set it through the settings API.",
+			"level": 3,
+			"type": "number",
+			"default": 10,
+			"min": 0,
+			"max": 100
+		},
 		"MultiSyncCopySequences": {
 			"name": "MultiSyncCopySequences",
 			"description": "Copy Sequences",

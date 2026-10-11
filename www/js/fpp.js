@@ -2110,7 +2110,9 @@ function StreamURL (
 					eval($(this).html());
 				});
 			}
-			if (doneCallback != '') {
+			if (typeof doneCallback === 'function') {
+				doneCallback(id);
+			} else if (doneCallback != '') {
 				window[doneCallback](id);
 			}
 		})
@@ -2138,10 +2140,85 @@ function StreamURL (
 				}
 			} catch (e) {
 			}
-			if (errorCallback != '') {
+			if (typeof errorCallback === 'function') {
+				errorCallback(id);
+			} else if (errorCallback != '') {
 				window[errorCallback](id);
 			}
 		});
+}
+
+// Runs a batch of long per-host jobs (see www/common/remoteJobs.inc.php) through
+// ONE streaming request. Over plain http a browser allows only 6 connections per
+// host across all of its tabs, so a StreamURL() per remote system starved every
+// other request to this FPP for as long as the batch ran.
+//
+//   request:  {jobs: [{id, type, ...}], maxParallel}
+//   handlers: output(id, text)   some output from job id
+//             done(id, ok)       job id finished; called once per job, even
+//                                when the stream itself fails
+//             finished()         optional, after every job is done
+async function StreamJobs (request, handlers) {
+	var pending = new Set(request.jobs.map(j => j.id));
+	var finish = function (id, ok) {
+		if (pending.delete(id)) {
+			handlers.done(id, ok);
+		}
+	};
+	var failure = '';
+	try {
+		const r = await fetch('streamRemoteJobs.php', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(request),
+			cache: 'no-store'
+		});
+		if (!r.ok) {
+			throw new Error('HTTP ' + r.status + ': ' + (await r.text()));
+		}
+		const reader = r.body.getReader();
+		const decoder = new TextDecoder();
+		var buf = '';
+		for (;;) {
+			const { value, done } = await reader.read();
+			if (done) {
+				break;
+			}
+			buf += decoder.decode(value, { stream: true });
+			var nl;
+			while ((nl = buf.indexOf('\n')) >= 0) {
+				var line = buf.slice(0, nl);
+				buf = buf.slice(nl + 1);
+				if (line === '') {
+					continue;
+				}
+				var ev;
+				try {
+					ev = JSON.parse(line);
+				} catch (e) {
+					continue;
+				}
+				if (typeof ev.out === 'string' && pending.has(ev.id)) {
+					handlers.output(ev.id, ev.out);
+				}
+				if (ev.done) {
+					finish(ev.id, ev.ok === true);
+				}
+			}
+		}
+		if (pending.size) {
+			failure = 'the stream ended before this job reported a result';
+		}
+	} catch (e) {
+		failure = String(e && e.message ? e.message : e);
+	}
+	pending.forEach(function (id) {
+		handlers.output(id, '\nERROR: ' + failure + '\n');
+		finish(id, false);
+	});
+	if (handlers.finished) {
+		handlers.finished();
+	}
 }
 
 function PostPutHelper (url, async, data, silent, type) {
