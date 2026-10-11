@@ -560,10 +560,10 @@ void Sensors::DetectHWSensors() {
                         --r;
                     }
                     std::string label = path;
-                    // Strip a real prefix only: the suffix checks below match
-                    // an exact-length string too, where stripping would index
-                    // before the buffer.
-                    if (endsWith(label, "thermal_zone") && (int)label.size() > 12) {
+                    // Each strip removes the suffix plus its separator, so only
+                    // strip when a non-empty prefix is left: an exact-length
+                    // match would otherwise index before the buffer.
+                    if ((endsWith(label, "thermal_zone") || endsWith(label, "thermal-zone")) && (int)label.size() > 13) {
                         path[r - 13] = 0; // remove the "thermal_zone" suffix
                     } else if (endsWith(label, "thermal") && (int)label.size() > 8) {
                         path[r - 8] = 0; // remove the "thermal" suffix
