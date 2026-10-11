@@ -491,25 +491,43 @@ html .ui-button.ui-state-disabled:active {
 	border: none;
 }
 
-[data-bs-theme='light'] .ui-state-active,
-[data-bs-theme='light'] .ui-widget-content .ui-state-active,
-[data-bs-theme='light'] .ui-widget-header .ui-state-active,
+/* Light-theme active tab: white fill so the selected tab merges with the
+   content panel. Scoped to tabs on purpose: left generic, this also matches
+   every other jQuery UI widget using .ui-state-active (datepicker selected
+   day, autocomplete/menu hovered item) and blanks them with white text on
+   white in light mode. */
+[data-bs-theme='light'] .ui-tabs .ui-tabs-nav .ui-state-active,
 [data-bs-theme='light'] a.ui-button:active,
 [data-bs-theme='light'] .ui-button:active,
 [data-bs-theme='light'] .ui-button.ui-state-active:hover {
 	background: #fff;
 }
 
-/* Datepicker selected day must stay visible in light mode. The generic
-   .ui-state-active override above (white background for tabs) also matches
-   the selected day link (which carries both .ui-state-default and
-   .ui-state-active), rendering white text on white so the chosen date looks
-   blanked out when the calendar is reopened. Restore a visible selection. */
-[data-bs-theme='light'] .ui-datepicker .ui-state-active,
-[data-bs-theme='light'] .ui-datepicker .ui-widget-content .ui-state-active,
-[data-bs-theme='light'] .ui-datepicker .ui-widget-header .ui-state-active {
-	background: var(--fpp-primary);
-	border: 1px solid var(--fpp-primary-hover);
+/* Datepicker today must stay distinguishable in light mode. The
+   .ui-state-default reset above removes jQuery UI's yellow today fill (the
+   today link carries .ui-state-default and .ui-state-highlight), leaving only
+   olive text on white. Restore the fill with box-shadow for the edge so the
+   cell keeps the same size as its neighbours. */
+[data-bs-theme='light'] .ui-datepicker .ui-state-highlight {
+	background: #fffa90;
+	box-shadow: inset 0 0 0 1px #dad55e;
+	color: #777620;
+}
+
+/* Datepicker selected day must stay visible in light mode. The selected day
+   link carries .ui-state-default and .ui-state-active, so two rules above
+   conspire to blank it: the .ui-state-default reset removes jQuery UI's blue
+   active fill, and the light .ui-state-active override (now scoped to tabs)
+   set it to white while leaving the white active text from jquery-ui.css.
+   This rule is still needed after scoping the tab rule because the
+   background:none reset alone would leave the selection unfilled. Placed after
+   the today rule so a selected today shows the selection. Fill uses
+   --fpp-primary-hover (#0056b3, white text ~7:1) to meet WCAG AA, and
+   box-shadow instead of border so the selected cell keeps the same size as
+   its neighbours. */
+[data-bs-theme='light'] .ui-datepicker .ui-state-active {
+	background: var(--fpp-primary-hover);
+	box-shadow: inset 0 0 0 1px var(--fpp-primary-hover);
 	color: var(--bs-white);
 }
 
