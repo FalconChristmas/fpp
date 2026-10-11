@@ -207,59 +207,15 @@ SETUP_GPIO0_REGS .macro
     LDI r10, 2
     SBBO &r10, r9, 0x3c, 4     //use the accurate clock
 
-    LDI32 r9, 0x44E00400        //CM_WKUP registers
-    LBBO &r10, r13, 0x08, 4    //0x08 is the CM_WKUP_GPIO0_CLKCTRL register
-    SET r10, r10, 1     //ENABLE
-    CLR r10, r10, 0     //ENABLE
-    CLR r10, r10, 16     //IDLEST
-    CLR r10, r10, 17     //IDLEST
-    SET r10, r10, 18
-    SBBO &r10, r13, 0x08, 4
-    
-    LBBO &r10, r13, 0x00, 4    //0x00 is the CM_WKUP_CLKSTCTRL register
-    CLR r10, r10, 0
-    CLR r10, r10, 1
-    SET r10, r10, 2
-    SET r10, r10, 8
-    SBBO &r10, r13, 0x00, 4
-    
-    LBBO &r10, r13, 0x04, 4    //0x04 is the CM_WKUP_CONTROL_CLKCTRL register
-    CLR r10, r10, 17
-    CLR r10, r10, 16
-    SET r10, r10, 1
-    CLR r10, r10, 0
-    SBBO &r10, r13, 0x04, 4
-
-    LBBO &r10, r13, 0x0C, 4    //0x04 is the CM_WKUP_L4WKUP_CLKCTRL register
-    CLR r10, r10, 17
-    CLR r10, r10, 16
-    SET r10, r10, 1
-    CLR r10, r10, 0
-    SBBO &r10, r13, 0x0C, 4    //0x10 is the SYSCONFIG register
-    
-    LDI32 r9, 0x44E00400        //CM_MPU registers
-    LBBO &r10, r13, 0x00, 8    //0x00 is the CM_MPU_CLKSTCTRL register
-    CLR r10, r10, 0
-    CLR r10, r10, 1
-    CLR r11, r11, 0
-    SET r11, r11, 1
-    SBBO &r10, r13, 0x00, 8
-
-    LDI32 r9, 0x44E00000        //CM_PER registers
-    LBBO &r10, r13, 0x00, 8    //0x00 is the CM_PER_L4LS_CLKSTCTRL register
-    CLR r10, r10, 0
-    CLR r10, r10, 1
-    CLR r11, r11, 0
-    CLR r11, r11, 1
-    SBBO &r10, r13, 0x00, 8
-    LBBO &r10, r13, 0x0C, 4    //0x0C is the CM_PER_L3_CLKSTCTRL register
-    CLR r10, r10, 0
-    CLR r10, r10, 1
-    CLR r11, r11, 0
-    CLR r11, r11, 1
-    SBBO &r10, r13, 0x00, 4
-
-    
+    // This used to also adjust the CM_WKUP/CM_MPU/CM_PER clock registers and
+    // INITPRIORITY.  Those writes loaded the CM base into r9 but addressed
+    // through r13 (0x100), so the clock writes only ever landed in this
+    // PRU's own data RAM, and the INITPRIORITY store - base 0x44E10608 plus
+    // the GPIO0 address still in r12 - wrote 8 bytes into whatever DDR page
+    // sat at 0x89C17608.  They never reached the registers they named, so
+    // they are gone rather than retargeted: written correctly, the clock
+    // settings made no measurable difference to GPIO0 write latency, and the
+    // control module ignores PRU writes (INITPRIORITY, and mreqprio below).
 
     LDI32 r13, 0x50000000       //GPMC registers
     LBBO &r10, r13, 0x10, 4    //0x10 is the SYSCONFIG register
@@ -268,18 +224,7 @@ SETUP_GPIO0_REGS .macro
     SET r10, r10, 3     //No-Idle
     CLR r10, r10, 4     //
     SBBO &r10, r13, 0x10, 4
-    
-    LDI32 r13, 0x44E10608       //CONTROL_MODULE registers
-    //            0x608       //0x608 is the INITPRIORITY register
-    //LBBO r10, r13, r12, 8
-    LDI r10, 0
-    LDI r11, 0
-    SET r10, r10, 0
-    SET r10, r10, 4
-    SET r10, r10, 5
-    SET r10, r10, 6
-    SBBO &r10, r13, r12, 8
-    
+
     LDI32 r13, 0x44E10670       //CONTROL_MODULE registers
     //            0x670       //0x670 is the mreqprio register
     LBBO &r10, r13, 0, 4
