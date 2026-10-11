@@ -292,9 +292,17 @@ profile_pi_fixup() {
     [ -f "${config}" ]  || die "no config.txt on the destination boot filesystem."
 
     # ${DSTPART}2, not /dev/${DEVICE}p2 -- sda's second partition is sda2, not sdap2.
+    # Each pattern also matches end-of-line: cmdline.txt is a single line and
+    # root= is often its last token, in which case the trailing-space-only form
+    # matched nothing and the copy kept the source disk as root (unbootable).
+    # The EOL expressions cannot double-process space matches (those end in a
+    # space, never directly at end of line).
     sed -i "s|root=/dev/[a-zA-Z0-9]* |root=${DSTPART}2 |g;
+            s|root=/dev/[a-zA-Z0-9]*\$|root=${DSTPART}2|g;
             s|root=LABEL=[a-zA-Z0-9]* |root=${DSTPART}2 |g;
-            s|root=PARTUUID=[a-zA-Z0-9-]* |root=${DSTPART}2 |g" "${cmdline}"
+            s|root=LABEL=[a-zA-Z0-9]*\$|root=${DSTPART}2|g;
+            s|root=PARTUUID=[a-zA-Z0-9-]* |root=${DSTPART}2 |g;
+            s|root=PARTUUID=[a-zA-Z0-9-]*\$|root=${DSTPART}2|g" "${cmdline}"
 
     write_fstab <<-EOF
 	proc            /proc           proc    defaults          0       0
@@ -611,8 +619,11 @@ profile_bb64_fixup() {
 
     [ -f "${extlinux}" ] || die "no extlinux/extlinux.conf on the destination boot filesystem."
 
+    # End-of-line twins as above: an extlinux stanza can end on these tokens.
     sed -i "s|root=/dev/[a-zA-Z0-9]*\([0-9]\) |root=/dev/${DEVICE}p3 |g;
-            s|resume=/dev/[a-zA-Z0-9]*\([0-9]\) |resume=/dev/${DEVICE}p2 |g" "${extlinux}"
+            s|root=/dev/[a-zA-Z0-9]*\([0-9]\)\$|root=/dev/${DEVICE}p3|g;
+            s|resume=/dev/[a-zA-Z0-9]*\([0-9]\) |resume=/dev/${DEVICE}p2 |g;
+            s|resume=/dev/[a-zA-Z0-9]*\([0-9]\)\$|resume=/dev/${DEVICE}p2|" "${extlinux}"
     # A flash booted from the auto-flash entry defaults to that label; the copy
     # must come up normally.
     sed -i "s|default flashEMMC|default microSD|g" "${extlinux}"
