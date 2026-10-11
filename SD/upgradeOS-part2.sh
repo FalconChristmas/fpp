@@ -106,8 +106,11 @@ case "${FPPPLATFORM}" in
         fi
 
         # Pi uses cmdline.txt; BB64 uses extlinux.conf (updated later).
+        # Match end-of-line as well as trailing space: cmdline.txt is a single
+        # line and root= is often its last token.
         if [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
             sed -i "s|root=/dev/[a-zA-Z0-9]* |root=${ROOTDEV} |g" /mnt/boot/firmware/cmdline.txt
+            sed -i "s|root=/dev/[a-zA-Z0-9]*\$|root=${ROOTDEV}|" /mnt/boot/firmware/cmdline.txt
         fi
         ;;
     *)
@@ -459,8 +462,12 @@ if [ "${FPPPLATFORM}" = "BeagleBone 64" ]; then
     fi
     NEWROOT=$(findmnt -n -o SOURCE -f /mnt)
     DEVICE="${NEWROOT%p?}"
+    # End-of-line variants as above; extlinux.conf stanzas put these mid-line
+    # today, but a final token with no trailing space must not keep stale root.
     sed -i "s|root=/dev/[a-zA-Z0-9]*\([0-9]\) |root=${DEVICE}p3 |g" /mnt/boot/firmware/extlinux/extlinux.conf
+    sed -i "s|root=/dev/[a-zA-Z0-9]*\([0-9]\)\$|root=${DEVICE}p3|" /mnt/boot/firmware/extlinux/extlinux.conf
     sed -i "s|resume=/dev/[a-zA-Z0-9]*\([0-9]\) |resume=${DEVICE}p2 |g" /mnt/boot/firmware/extlinux/extlinux.conf
+    sed -i "s|resume=/dev/[a-zA-Z0-9]*\([0-9]\)\$|resume=${DEVICE}p2|" /mnt/boot/firmware/extlinux/extlinux.conf
 fi
 
 echo "Running sync command to flush data"
