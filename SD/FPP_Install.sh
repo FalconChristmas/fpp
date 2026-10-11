@@ -1478,7 +1478,10 @@ fi
 
 #######################################
 # Upgrade the config if needed
-bash ${FPPDIR}/scripts/upgrade_config -notee
+# Non-fatal by design (this script runs under set -e): a failed migration
+# must not abort a fresh install. upgrade_config exits non-zero on failure
+# so the op log records it; the stale version file makes the next run retry.
+bash ${FPPDIR}/scripts/upgrade_config -notee || echo "WARNING: config upgrade reported failure, continuing install"
 
 
 #######################################

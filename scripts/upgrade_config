@@ -58,7 +58,11 @@ do
 			else
                 echo ">>FAILED to update to config version ${VERSION}"
                 echo "!!Config Version not up to date!!"
-                exit 0
+                # Non-zero so callers (and the op-log FINISH line) can tell a
+                # partial upgrade from a clean one. Callers that must proceed
+                # regardless (fresh installs) handle this at their own call
+                # site; the version file stays stale so the next run retries.
+                exit 1
 			fi
 		else
 			echo "Up to date at config version ${CFGVERSION}"
