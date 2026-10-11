@@ -242,7 +242,12 @@ public:
         } else if (file != -1) {
             lseek(file, 0, SEEK_SET);
             char buffer[20];
-            int i = read(file, buffer, 20);
+            // Leave room for the terminator; a failed read must not index at
+            // [-1] and returns the same 0.0 as a missing file below.
+            int i = read(file, buffer, sizeof(buffer) - 1);
+            if (i <= 0) {
+                return 0.0;
+            }
             buffer[i] = 0;
             double d = atof(buffer);
             d *= multiplier;
@@ -361,7 +366,12 @@ public:
         if (file != -1) {
             lseek(file, 0, SEEK_SET);
             char buffer[20];
-            int i = read(file, buffer, 20);
+            // Leave room for the terminator: a full-size read leaves no room
+            // for buffer[i] = 0, and a failed read must not index at [-1].
+            int i = read(file, buffer, sizeof(buffer) - 1);
+            if (i <= 0) {
+                return 0.0;
+            }
             buffer[i] = 0;
             double d = atof(buffer);
             d *= vScale;
@@ -401,7 +411,7 @@ public:
         if (file != -1) {
             lseek(file, 0, SEEK_SET);
             char buffer[20];
-            int i = read(file, buffer, 20);
+            int i = read(file, buffer, sizeof(buffer) - 1);
             double d = 0;
             if (i > 0) {
                 buffer[i] = 0;
@@ -433,7 +443,7 @@ public:
         if (file != -1) {
             lseek(file, 0, SEEK_SET);
             char buffer[20];
-            int i = read(file, buffer, 20);
+            int i = read(file, buffer, sizeof(buffer) - 1);
             double d = 0;
             if (i > 0) {
                 buffer[i] = 0;
@@ -533,39 +543,53 @@ void Sensors::DetectHWSensors() {
         snprintf(path, sizeof(path), "/sys/class/thermal/thermal_zone%d/type", i);
         if (FileExists(path)) {
             int file = open(path, O_RDONLY);
-            int r = read(file, path, 30);
-            path[r] = 0;
-            if (path[r - 1] == '\n') {
-                path[r - 1] = 0; // remove trailing newline
-                --r;
-            }
-            std::string label = path;
-            if (endsWith(label, "thermal_zone") || endsWith(label, "thermal-zone")) {
-                path[r - 13] = 0; // remove the "thermal_zone" suffix
-            } else if (endsWith(label, "thermal")) {
-                path[r - 8] = 0; // remove the "thermal" suffix
-            }
-            bool hasUpper = false;
-            for (int x = 0; path[x]; x++) {
-                if (isupper(path[x])) {
-                    hasUpper = true;
+            if (file == -1) {
+                v["label"] = "CPU: ";
+            } else {
+                // Cap the read below the buffer so there is always room for
+                // the terminator; short/failed reads fall back like a missing
+                // type file instead of indexing out of bounds.
+                int r = read(file, path, sizeof(path) - 1);
+                close(file);
+                if (r <= 0) {
+                    v["label"] = "CPU: ";
+                } else {
+                    path[r] = 0;
+                    if (path[r - 1] == '\n') {
+                        path[r - 1] = 0; // remove trailing newline
+                        --r;
+                    }
+                    std::string label = path;
+                    // Strip a real prefix only: the suffix checks below match
+                    // an exact-length string too, where stripping would index
+                    // before the buffer.
+                    if (endsWith(label, "thermal_zone") && (int)label.size() > 12) {
+                        path[r - 13] = 0; // remove the "thermal_zone" suffix
+                    } else if (endsWith(label, "thermal") && (int)label.size() > 8) {
+                        path[r - 8] = 0; // remove the "thermal" suffix
+                    }
+                    bool hasUpper = false;
+                    for (int x = 0; path[x]; x++) {
+                        if (isupper(path[x])) {
+                            hasUpper = true;
+                        }
+                    }
+                    if (!hasUpper) {
+                        // convert to lower case
+                        for (int x = 0; path[x]; x++) {
+                            path[x] = toupper(path[x]);
+                        }
+                    }
+                    label = path;
+                    if (endsWith(label, "_THERMAL_ZONE")) {
+                        label = label.substr(0, label.size() - 13);
+                    } else if (endsWith(label, "_THERMAL")) {
+                        label = label.substr(0, label.size() - 8);
+                    }
+                    label += ": ";
+                    v["label"] = label;
                 }
             }
-            if (!hasUpper) {
-                // convert to lower case
-                for (int x = 0; path[x]; x++) {
-                    path[x] = toupper(path[x]);
-                }
-            }
-            label = path;
-            if (endsWith(label, "_THERMAL_ZONE")) {
-                label = label.substr(0, label.size() - 13);
-            } else if (endsWith(label, "_THERMAL")) {
-                label = label.substr(0, label.size() - 8);
-            }
-            label += ": ";
-            v["label"] = label;
-            close(file);
         } else {
             v["label"] = "CPU: ";
         }
