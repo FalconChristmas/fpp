@@ -365,6 +365,12 @@ FalconV5Support::ReceiverChain::ReceiverChain(PixelString* p1, PixelString* p2, 
     }
 }
 FalconV5Support::ReceiverChain* FalconV5Support::addReceiverChain(PixelString* p1, PixelString* p2, PixelString* p3, PixelString* p4, int group, int m, bool sendOnly) {
+    // the mux comes from the cape config (falconV5ListenerMux); a negative
+    // one compares as huge against the sizes below and grew maxCount until
+    // memory ran out
+    if (m < 0) {
+        m = 0;
+    }
     FalconV5Support::ReceiverChain* rc = new FalconV5Support::ReceiverChain(p1, p2, p3, p4, group, m, sendOnly);
     receiverChains.push_back(rc);
 
@@ -489,7 +495,8 @@ void FalconV5Support::ReceiverChain::handleQueryResponse(Json::Value& json) {
         int index = json["index"].asInt();
         int port = json["port"].asInt();
         int dial = json["dial"].asInt();
-        int numPorts = json["numPorts"].asInt();
+        // decoded from a reply on the wire; a receiver has at most 4 ports
+        int numPorts = std::clamp(json["numPorts"].asInt(), 0, 4);
         int id = json["id"].asInt();
         // printf("Resp:  Idx: %d     Port: %d    dial:  %d    NP: %d    ID: %d\n", index, port, dial, numPorts, id);
         for (int x = 0; x < numPorts; x++) {
