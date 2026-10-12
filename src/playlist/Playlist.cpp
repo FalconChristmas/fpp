@@ -513,7 +513,10 @@ int Playlist::Load(Json::Value& config) {
 
     Cleanup();
 
-    m_name = name;
+    {
+        std::lock_guard<std::mutex> nl(m_nameLock);
+        m_name = name;
+    }
     m_desc = desc;
     m_repeat = repeat;
     m_loopCount = loopCount;
@@ -1804,7 +1807,10 @@ int Playlist::CleanupIfIdle(void) {
 int Playlist::Cleanup(void) {
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
-    m_name = "";
+    {
+        std::lock_guard<std::mutex> nl(m_nameLock);
+        m_name = "";
+    }
     m_desc = "";
     m_generatedOnTheFly = false;
     m_currentSectionStr = "New";
@@ -2170,6 +2176,11 @@ void Playlist::NextItem(void) {
         } else {
             // nowhere to go, stop playlist
             somewhereToGo = false;
+std::string Playlist::GetPlaylistName(void) {
+    std::lock_guard<std::mutex> nl(m_nameLock);
+    return m_name;
+}
+
         }
     } else if (m_currentSectionStr == "MainPlaylist") {
         if (pos < (m_leadIn.size() + m_mainPlaylist.size())) {
@@ -2334,6 +2345,9 @@ int Playlist::GetSize(void) {
 /*
  *
  */
+    // Read from status, restart and sync paths on other threads; the sections
+    // and m_currentSectionStr change under this lock.
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 Json::Value Playlist::GetCurrentEntry(void) {
     Json::Value result;
 
@@ -2372,6 +2386,7 @@ void Playlist::GetFilenamesForPos(int pos, std::string& seq, std::string& med) {
     for (auto& a : m_mainPlaylist) {
         if (a->GetPositionInPlaylist() == pos) {
             GetFilenames(a, seq, med);
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
             return;
         }
     }
@@ -2392,6 +2407,7 @@ int Playlist::FindPosForMS(uint64_t& t, bool itemDefinedOnly) {
                 uint64_t d2 = t - a->GetTimeCode();
                 if (d2 < diff) {
                     diff = d2;
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
                     bestOption = a;
                 }
             }
@@ -2430,6 +2446,7 @@ int Playlist::FindPosForMS(uint64_t& t, bool itemDefinedOnly) {
             uint64_t i = a->GetLengthInMS();
             if (t < i) {
                 return a->GetPositionInPlaylist();
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
             }
             t -= i;
         }
@@ -2451,6 +2468,7 @@ uint64_t Playlist::GetCurrentPosInMS() {
     return GetCurrentPosInMS(pos, posms, false);
 }
 uint64_t Playlist::GetCurrentPosInMS(int& position, uint64_t& posms, bool itemDefinedOnly) {
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
     position = -1;
@@ -2563,6 +2581,7 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
         result["seconds_remaining"] = "0";
         result["time_elapsed"] = "00:00";
         result["time_remaining"] = "00:00";
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
         
         // Still provide global pause and random info even when idle
         result["global_pause"]["configured"] = m_globalPauseBetweenSequencesMS > 0;

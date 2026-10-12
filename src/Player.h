@@ -62,19 +62,19 @@ public:
     PlaylistStatus GetStatus();
     int GetRepeat();
     void SetRepeat(int repeat);
-    std::time_t GetOrigStartTime() { return origStartTime; }
-    std::time_t GetOrigStopTime() { return origStopTime; }
-    std::time_t GetStartTime() { return startTime; }
-    std::time_t GetStopTime() { return stopTime; }
+    std::time_t GetOrigStartTime();
+    std::time_t GetOrigStopTime();
+    std::time_t GetStartTime();
+    std::time_t GetStopTime();
     int GetStopMethod();
     int GetPosition();
     int GetResumePosition();
     Json::Value GetInfo();
-    void ClearForceStopped() { forceStopped = false; }
-    bool GetForceStopped() { return forceStopped; }
-    std::string GetForceStoppedPlaylist() { return forceStoppedPlaylist; }
-    int GetPriority() { return priority; }
-    bool GetAllowScheduleOverride() { return allowScheduleOverride; }
+    void ClearForceStopped();
+    bool GetForceStopped();
+    std::string GetForceStoppedPlaylist();
+    int GetPriority();
+    bool GetAllowScheduleOverride();
     int GetScheduleEntry();
     uint64_t GetFileTime();
     Json::Value GetConfig();
@@ -142,6 +142,9 @@ public:
     void DrainRetiredPlaylists();
 
 private:
+    // Set forceStopped/forceStoppedPlaylist for a stop request.
+    void RecordForceStop(int forceStop);
+
     // Every live instance, keyed by nothing but its own identity: the current
     // playlist plus every ancestor still on the m_parent chain.  A parent is
     // reachable only by raw pointer, so this is what keeps it alive.
@@ -160,6 +163,13 @@ private:
     int priority;
     bool allowScheduleOverride;
 
-    volatile bool forceStopped;
+    bool forceStopped;
     std::string forceStoppedPlaylist;
+
+    // Guards every field above from playlistName down.  They are written by
+    // whichever thread starts or stops a playlist (the main loop, an API
+    // thread, MQTT) and read by the scheduler and the status API; two threads
+    // assigning playlistName at once could free its buffer twice.  A leaf
+    // lock: never held while calling into a Playlist.
+    mutable std::mutex m_stateLock;
 };
