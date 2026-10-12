@@ -48,6 +48,10 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#if defined(__linux__)
+#include <poll.h>
+#include <sys/syscall.h>
+#endif
 
 #include <algorithm>
 #include <cctype>
@@ -923,6 +927,61 @@ bool AES67Manager::WritePtpConf(const std::string& path, bool hwTimestamping, bo
     return true;
 }
 
+// A pidfd for our own child, or -1 with errno set (ESRCH: already gone;
+// ENOSYS: kernel or platform without pidfds, where callers fall back to
+// the PID).
+static int OpenPidfd(pid_t pid) {
+#if defined(__linux__) && defined(SYS_pidfd_open)
+    return (int)syscall(SYS_pidfd_open, pid, 0);  // close-on-exec by default
+#else
+    (void)pid;
+    errno = ENOSYS;
+    return -1;
+#endif
+}
+
+// Whether the child is alive.  A pidfd becomes readable when its process
+// exits.  Without one, the PID has to belong to a process with the
+// expected name: a dead child's PID may already be someone else's.
+static bool ChildAlive(pid_t pid, int pidfd, const char* name) {
+#if defined(__linux__)
+    if (pidfd >= 0) {
+        struct pollfd pfd = { pidfd, POLLIN, 0 };
+        return poll(&pfd, 1, 0) == 0;
+    }
+#endif
+    if (pid <= 0 || kill(pid, 0) != 0) {
+        return false;
+    }
+    std::ifstream f("/proc/" + std::to_string((int)pid) + "/comm");
+    if (!f.is_open()) {
+        return true;  // no procfs (macOS): the signal probe is all there is
+    }
+    std::string comm;
+    std::getline(f, comm);
+    return comm == name;
+}
+
+static void SignalChild(pid_t pid, int pidfd, int sig, const char* name) {
+#if defined(__linux__) && defined(SYS_pidfd_send_signal)
+    if (pidfd >= 0) {
+        syscall(SYS_pidfd_send_signal, pidfd, sig, nullptr, 0);
+        return;
+    }
+#endif
+    if (ChildAlive(pid, -1, name)) {
+        kill(pid, sig);
+    }
+}
+
+void AES67Manager::ForgetPtp4l() {
+    if (m_ptp4lPidfd >= 0) {
+        close(m_ptp4lPidfd);
+        m_ptp4lPidfd = -1;
+    }
+    m_ptp4lPid = -1;
+}
+
 bool AES67Manager::StartPtp4l(bool hwTimestamping, bool includeDscp) {
     if (!WritePtpConf(m_ptpConfPath, hwTimestamping, includeDscp)) {
         return false;
@@ -945,12 +1004,18 @@ bool AES67Manager::StartPtp4l(bool hwTimestamping, bool includeDscp) {
         _exit(127);
     }
     m_ptp4lPid = pid;
+    m_ptp4lPidfd = OpenPidfd(pid);
+    if (m_ptp4lPidfd < 0 && errno == ESRCH) {
+        // Exited and was reaped before we could even look.
+        ForgetPtp4l();
+        return false;
+    }
 
     // Give ptp4l a moment to start, then check it did not exit immediately
     // (bad config key, no hardware timestamping, interface down, ...).
     usleep(500000);  // 500ms
     if (!IsPtp4lRunning()) {
-        m_ptp4lPid = -1;
+        ForgetPtp4l();
         return false;
     }
 
@@ -996,7 +1061,7 @@ bool AES67Manager::InitPTP() {
             if (!StartPtp4l(false, false)) {
                 LogErr(VB_MEDIAOUT, "AES67Manager: ptp4l failed to start\n");
                 WarningHolder::AddWarning(AES67::WARNING_ID_PTP, AES67::WARNING_PTP_START_FAILED);
-                m_ptp4lPid = -1;
+                ForgetPtp4l();
                 return false;
             }
         }
@@ -1080,12 +1145,29 @@ bool AES67Manager::InitPTP() {
 // actually waited.  That let ApplyConfig() launch a replacement ptp4l while
 // the old one still held /var/run/ptp4l and the PTP ports, leaving two
 // daemons briefly running BMCA against each other on one interface.
-static void StopChildProcess(pid_t& pid, const char* name) {
+//
+// Signals go through the pidfd where there is one: under SA_NOCLDWAIT a
+// child that already died has given up its PID, and kill(pid) -- SIGKILL
+// included -- would land on whatever process took it.
+static void StopChildProcess(pid_t& pid, int& pidfd, const char* name) {
+    auto forget = [&]() {
+        if (pidfd >= 0) {
+            close(pidfd);
+            pidfd = -1;
+        }
+        pid = -1;
+    };
     if (pid <= 0) {
+        forget();
+        return;
+    }
+    if (!ChildAlive(pid, pidfd, name)) {
+        LogInfo(VB_MEDIAOUT, "AES67Manager: %s (PID %d) had already exited\n", name, (int)pid);
+        forget();
         return;
     }
     LogInfo(VB_MEDIAOUT, "AES67Manager: Stopping %s (PID %d)\n", name, (int)pid);
-    kill(pid, SIGTERM);
+    SignalChild(pid, pidfd, SIGTERM, name);
 
     // Up to ~3s for a clean exit, then insist.
     for (int i = 0; i < 60; i++) {
@@ -1093,8 +1175,8 @@ static void StopChildProcess(pid_t& pid, const char* name) {
         // change turns that off.
         int status = 0;
         waitpid(pid, &status, WNOHANG);
-        if (kill(pid, 0) != 0) {
-            pid = -1;
+        if (!ChildAlive(pid, pidfd, name)) {
+            forget();
             return;
         }
         usleep(50000);
@@ -1102,16 +1184,16 @@ static void StopChildProcess(pid_t& pid, const char* name) {
 
     LogWarn(VB_MEDIAOUT, "AES67Manager: %s (PID %d) did not exit, sending SIGKILL\n",
             name, (int)pid);
-    kill(pid, SIGKILL);
+    SignalChild(pid, pidfd, SIGKILL, name);
     for (int i = 0; i < 20; i++) {
         int status = 0;
         waitpid(pid, &status, WNOHANG);
-        if (kill(pid, 0) != 0) {
+        if (!ChildAlive(pid, pidfd, name)) {
             break;
         }
         usleep(50000);
     }
-    pid = -1;
+    forget();
 }
 
 void AES67Manager::ShutdownPTP() {
@@ -1124,8 +1206,8 @@ void AES67Manager::ShutdownPTP() {
         m_ptpAnnounceSources.clear();
     }
 
-    StopChildProcess(m_phc2sysPid, "phc2sys");
-    StopChildProcess(m_ptp4lPid, "ptp4l");
+    StopChildProcess(m_phc2sysPid, m_phc2sysPidfd, "phc2sys");
+    StopChildProcess(m_ptp4lPid, m_ptp4lPidfd, "ptp4l");
 
     if (!m_ptpConfPath.empty()) {
         unlink(m_ptpConfPath.c_str());
@@ -1151,24 +1233,9 @@ void AES67Manager::ShutdownPTP() {
 }
 
 bool AES67Manager::IsPtp4lRunning() const {
-    if (m_ptp4lPid <= 0) return false;
-    // kill(pid, 0) checks if process exists without sending a signal.  That
-    // alone is not enough here: SA_NOCLDWAIT means a dead ptp4l leaves no
-    // zombie holding its slot, so the PID can be recycled by an unrelated
-    // process and we would report a long-dead daemon as healthy.  Confirm the
-    // name too.
-    if (kill(m_ptp4lPid, 0) != 0) {
-        return false;
-    }
-    std::string comm = "/proc/" + std::to_string((int)m_ptp4lPid) + "/comm";
-    std::ifstream f(comm);
-    if (!f.is_open()) {
-        // No procfs (macOS) — fall back to the signal probe alone.
-        return true;
-    }
-    std::string name;
-    std::getline(f, name);
-    return name == "ptp4l";
+    // SA_NOCLDWAIT means a dead ptp4l leaves no zombie holding its slot, so
+    // the PID can be recycled by an unrelated process; see ChildAlive().
+    return m_ptp4lPid > 0 && ChildAlive(m_ptp4lPid, m_ptp4lPidfd, "ptp4l");
 }
 
 // Runs a `pmc` management query against ptp4l's UDS socket and returns the

@@ -1146,6 +1146,13 @@ private:
     bool m_ptpInitialized = false;
     pid_t m_ptp4lPid = -1;               // ptp4l child process ID
     pid_t m_phc2sysPid = -1;             // phc2sys child process ID
+    // pidfds for the two, or -1 (no pidfd support).  fppd's SA_NOCLDWAIT
+    // reaps a child the moment it exits, so its PID can be reused at once;
+    // a pidfd always refers to our child, where kill(pid) could hit
+    // whatever took the number.
+    int m_ptp4lPidfd = -1;
+    int m_phc2sysPidfd = -1;
+    void ForgetPtp4l();
     std::string m_ptpConfPath;           // temp config file for ptp4l
     bool InitPTP();
     void ShutdownPTP();
