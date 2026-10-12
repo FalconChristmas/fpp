@@ -539,7 +539,7 @@ UDPOutput::~UDPOutput() {
 
 int UDPOutput::Init(Json::Value config) {
     enabled = config["enabled"].asInt();
-    bool hasArtNet = false;
+    hasArtNet = false;
     for (int i = 0; i < config["universes"].size(); i++) {
         Json::Value s = config["universes"][i];
         int type = s["type"].asInt();
@@ -762,8 +762,17 @@ int UDPOutput::Init(Json::Value config) {
                 LogInfo(VB_CHANNELOUT, "UDP Interface %s now up\n", s.c_str());
                 PingControllers(false);
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
-                InitNetwork();
-                interfaceUp = true;
+                // the frame thread kept creating sockets while the address was
+                // missing, bound to (and multicasting out of) loopback or the
+                // old address; drop them so they are rebuilt on the new one
+                {
+                    std::unique_lock<std::mutex> lk(socketMutex);
+                    messages.clearSockets();
+                }
+                interfaceUp = InitNetwork();
+                if (interfaceUp && hasArtNet) {
+                    CreateArtNetSocket(localAddress.sin_addr.s_addr, true);
+                }
             }
         } else if (s == interface && i == NetworkMonitor::NetEventType::DEL_ADDR) {
             LogInfo(VB_CHANNELOUT, "UDP Interface %s now down\n", s.c_str());
@@ -773,10 +782,10 @@ int UDPOutput::Init(Json::Value config) {
     };
     networkCallbackId = NetworkMonitor::INSTANCE.registerCallback(f);
 
-    // We are going to initialize everything and Ping the outputs
-    // so we'll assume the interface is Up.
-    interfaceUp = true;
-    InitNetwork();
+    // An interface with no address yet (DHCP still waiting, cable out) is
+    // down: the NEW_ADDR event for it then rebuilds the sockets on the real
+    // address instead of being ignored.
+    interfaceUp = InitNetwork();
     for (auto o : outputs) {
         if (o->IsPingable() && o->Monitor() && o->active) {
             std::shared_ptr<PingHost>& host = pingHosts[o->ipAddress];
@@ -810,9 +819,12 @@ int UDPOutput::Init(Json::Value config) {
         CurlManager::INSTANCE.processCurls();
         ++sleepCount;
     }
-    if (hasArtNet) {
+    if (hasArtNet && interfaceUp) {
         // we have artnet packets so we'll need to get the special artnet socket created,
-        // but we want to make sure it's on the given interface
+        // but we want to make sure it's on the given interface.  Without an
+        // address yet this waits for NEW_ADDR; binding it now would pin the
+        // shared ArtNet socket to loopback for good, and if ArtNet sends
+        // first it creates its own socket on INADDR_ANY.
         CreateArtNetSocket(localAddress.sin_addr.s_addr, true);
     }
     {
@@ -1771,35 +1783,41 @@ int UDPOutput::createSocket(int port, bool broadCast, bool multiCast) {
 }
 
 bool UDPOutput::InitNetwork() {
-    memset(&localAddress, 0, sizeof(struct sockaddr_in));
-    localAddress.sin_family = AF_INET;
-    localAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
-
-    if (!messages.sendSockets.empty()) {
-        return true;
-    }
-
+    // Returns true when the output interface has a usable address.
     char E131LocalAddress[16];
     int rv = GetInterfaceAddress(outInterface.c_str(), E131LocalAddress, NULL, NULL);
     LogDebug(VB_CHANNELOUT, "UDPLocalAddress = %s\n", E131LocalAddress);
+    // GetInterfaceAddress() reports 127.0.0.1 for an interface without an
+    // address; the entire 127.* subnet is localhost
+    bool haveAddress = rv == 0 && strncmp(E131LocalAddress, "127.", 4) != 0;
+
+    // createSocket() binds broadcast/multicast sockets to this address and
+    // sends multicast out of it, and it runs on the frame thread under
+    // socketMutex, so the address changes under that lock too.  It is
+    // refreshed every time: resetting it to loopback and then returning early
+    // because sockets already existed is what left multicast going out of lo
+    // after an address change.
+    std::unique_lock<std::mutex> lk(socketMutex);
+    memset(&localAddress, 0, sizeof(struct sockaddr_in));
+    localAddress.sin_family = AF_INET;
     localAddress.sin_addr.s_addr = inet_addr(E131LocalAddress);
 
+    if (!messages.sendSockets.empty()) {
+        return haveAddress;
+    }
     if (needsBroadcast) {
         if (rv) {
             LogErr(VB_CHANNELOUT, "Invalid interface %s\n", outInterface.c_str());
             WarningHolder::AddWarning(22, "Invalid interface for UDP broadcast/multicast: " + outInterface);
-            return -1;
+            return false;
         }
-
-        if (strlen(E131LocalAddress) > 3 && E131LocalAddress[0] == '1' && E131LocalAddress[1] == '2' && E131LocalAddress[2] == '7') {
-            // the entire 127.* subnet is localhost
-            return -1;
+        if (!haveAddress) {
+            return false;
         }
-
         int broadcastSocket = createSocket(0, true);
         messages.ForceSocket(BROADCAST_MESSAGES_KEY, broadcastSocket);
     }
-    return true;
+    return haveAddress;
 }
 
 void UDPOutput::StartingOutput() {

@@ -159,6 +159,7 @@ private:
     struct sockaddr_in localAddress;
     std::string outInterface;
     bool needsBroadcast = false;
+    bool hasArtNet = false;
     bool interfaceUp;
 
     bool InitNetwork();
