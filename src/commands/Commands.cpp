@@ -19,6 +19,8 @@
 #include <algorithm>
 #include <thread>
 
+#include <sys/stat.h>
+
 #include "../Variables.h"
 #include "../common.h"
 #include "../log.h"
@@ -1253,9 +1255,28 @@ int CommandManager::TriggerPreset(std::string name) {
     return TriggerPreset(name, keywords);
 }
 
+// The preset file's modification time in nanoseconds, 0 if it is missing.
+// Whole seconds were not enough: a save in the same second as the previous
+// load (two quick edits, or an edit right after startup) looked unchanged, and
+// the presets stayed stale until the next save.
+static uint64_t PresetFileStamp(const std::string& file) {
+    struct stat st;
+    if (stat(file.c_str(), &st) != 0) {
+        return 0;
+    }
+#ifdef PLATFORM_OSX
+    const struct timespec& ts = st.st_mtimespec;
+#else
+    const struct timespec& ts = st.st_mtim;
+#endif
+    return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
+}
+
 void CommandManager::MaybeReloadPresets() {
     std::string commandsFile = FPP_DIR_CONFIG("/commandPresets.json");
-    if (lastPresetTimeStamp < FileTimestamp(commandsFile)) {
+    // Any change, not only a newer time: a restored backup can carry an
+    // older modification time than the file it replaces.
+    if (lastPresetTimeStamp != PresetFileStamp(commandsFile)) {
         LoadPresets();
     }
 }
@@ -1272,7 +1293,9 @@ void CommandManager::LoadPresets() {
 
     if (FileExists(commandsFile)) {
         // Load new config file
-        lastPresetTimeStamp = FileTimestamp(commandsFile);
+        // Stamped before the read, so an edit landing during it is seen as a
+        // change by the next check rather than recorded as already loaded.
+        lastPresetTimeStamp = PresetFileStamp(commandsFile);
         allCommands = LoadJsonFromFile(commandsFile, JsonRoot::Object);
     } else {
         // Convert any old events to new format
@@ -1300,7 +1323,7 @@ void CommandManager::LoadPresets() {
 
         allCommands["commands"] = commands;
         SaveJsonToFile(allCommands, commandsFile, "\t");
-        lastPresetTimeStamp = FileTimestamp(commandsFile);
+        lastPresetTimeStamp = PresetFileStamp(commandsFile);
     }
 
     // Built aside and swapped in under presetsMutex: TriggerPreset() reads
