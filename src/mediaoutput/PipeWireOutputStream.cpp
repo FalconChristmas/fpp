@@ -65,6 +65,10 @@ std::mutex s_workerLock;
 std::condition_variable s_workerWake;
 std::thread s_worker;
 bool s_workerRunning = false;
+// Set by ShutdownAll() and never cleared: a ForSlot() racing it (a prewarm, a
+// settings listener) must not start a worker again, let alone assign a new
+// std::thread over the one ShutdownAll() is joining.
+bool s_workerShutDown = false;
 bool s_workerKick = false;
 
 std::atomic<bool> s_keepOpen{ false };
@@ -88,7 +92,7 @@ PipeWireOutputStream* PipeWireOutputStream::ForSlot(int slot) {
     }
     {
         std::unique_lock<std::mutex> wlock(s_workerLock);
-        if (!s_workerRunning) {
+        if (!s_workerRunning && !s_workerShutDown) {
             s_workerRunning = true;
             s_worker = std::thread(WorkerLoop);
         }
@@ -136,16 +140,19 @@ std::string PipeWireOutputStream::CapsFields() {
 }
 
 void PipeWireOutputStream::ShutdownAll() {
+    std::thread worker;
     {
         std::unique_lock<std::mutex> wlock(s_workerLock);
+        s_workerShutDown = true;
         if (!s_workerRunning) {
             return;
         }
         s_workerRunning = false;
+        worker = std::move(s_worker);
     }
     s_workerWake.notify_all();
-    if (s_worker.joinable()) {
-        s_worker.join();
+    if (worker.joinable()) {
+        worker.join();
     }
     std::unique_lock<std::mutex> lock(s_slotsLock);
     for (PipeWireOutputStream* s : s_slots) {
