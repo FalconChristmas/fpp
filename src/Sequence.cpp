@@ -1136,10 +1136,13 @@ bool Sequence::WriteBridgeData(uint8_t* data, int startChannel, int len) {
     if (!m_bridgeData) {
         m_bridgeData = (uint8_t*)calloc(1, FPPD_MAX_CHANNEL_NUM);
     }
-    // Guard against out-of-range bridging data so it cannot write past
-    // m_bridgeData (FPPD_MAX_CHANNEL_NUM). Unsigned arithmetic avoids overflow.
+    // Guard against out-of-range bridging data.  The bound is the real
+    // channels, FPPD_MAX_CHANNELS: the bytes after them are the reserved OFF
+    // and WHITE channels, which outputs read as "always 0" for null pixels and
+    // smart-receiver lead-in/out, and bridged data merged into them turned
+    // those on.  Unsigned arithmetic avoids overflow.
     if (startChannel < 0 || len < 0 ||
-        ((unsigned long long)startChannel + (unsigned long long)len) > (unsigned long long)FPPD_MAX_CHANNEL_NUM) {
+        ((unsigned long long)startChannel + (unsigned long long)len) > (unsigned long long)FPPD_MAX_CHANNELS) {
         return false;
     }
     memcpy(&m_bridgeData[startChannel], data, len);

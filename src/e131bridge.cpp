@@ -1019,7 +1019,7 @@ bool Bridge_StoreDDPData(uint8_t* bridgeBuffer, long long packetTime, int msgLen
         // stale data or corrupt memory. 64-bit arithmetic avoids uint32 overflow
         // of the channel+length sum.
         if ((uint64_t)len > (uint64_t)(msgLen - ddpOffset) ||
-            (uint64_t)chan + (uint64_t)len > (uint64_t)FPPD_MAX_CHANNEL_NUM) {
+            (uint64_t)chan + (uint64_t)len > (uint64_t)FPPD_MAX_CHANNELS) { // not into the reserved OFF/WHITE channels
             ddpErrors++;
             return false;
         }
