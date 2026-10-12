@@ -177,7 +177,11 @@ char* ProcessCommand(char* command, char* response) {
         // the exact "config\n" shape for fitting values and truncates the rest.
         snprintf(response, MAX_RESPONSE_SIZE - 1, "%s\n", ChannelTester::INSTANCE.GetConfig().c_str());
     } else if (!strcmp(CommandStr, "SetTestMode")) {
-        if (ChannelTester::INSTANCE.SetupTest(std::string(s + strlen(s) + 1))) {
+        // The test config is everything after the first comma, which is where
+        // strtok_r left saveptr (NULL or "" when there was no comma).  It used
+        // to be s + strlen(s) + 1, which with no comma pointed past the end of
+        // the command into stale receive-buffer bytes.
+        if (ChannelTester::INSTANCE.SetupTest(std::string(saveptr ? saveptr : ""))) {
             snprintf(response, MAX_RESPONSE_SIZE - 1, "0,%d,Test Mode Activated,,,,,,,,,\n",
                      COMMAND_SUCCESS);
         } else {
