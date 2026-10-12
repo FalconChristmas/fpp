@@ -162,6 +162,14 @@ private:
     // SEQUENCE_STARTED/STOPPED, until the master stopped.
     std::string m_endedSeqFilename;
 
+    // The name the sequence was opened as -- the master's name for it -- even
+    // when a remote is playing fallback.fseq in its place.  m_seqFilename names
+    // the file actually playing; sync packets and stop packets carry this one.
+    // Matching sync against m_seqFilename alone meant a fallback never took the
+    // master's position (so the output thread gave up after two seconds) and
+    // was never stopped by the master's stop.  Guarded by m_sequenceLock.
+    std::string m_seqSyncName;
+
     // Both guarded by m_sequenceLock.
     std::string m_missingSeqFilename;
     std::string m_missingSeqWarning;

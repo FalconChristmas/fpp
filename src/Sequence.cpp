@@ -361,6 +361,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
         std::unique_lock<std::mutex> nameLock(m_seqFilenameLock);
         m_seqFilename = filename;
     }
+    m_seqSyncName = filename;
 
     char tmpFilename[2048];
     unsigned char tmpData[2048];
@@ -647,7 +648,7 @@ void Sequence::StartSequence(const std::string& filename, int frameNumber) {
         // (see m_endedSeqFilename).  A start (frame 0) or an open replays it.
         return;
     }
-    if (sequence->m_seqFilename != filename) {
+    if ((sequence->m_seqFilename != filename) && (m_seqSyncName != filename)) {
         CloseSequenceFile();
         OpenSequenceFile(filename, frameNumber);
     } else if (!m_seqFile.load() && m_missingSeqFilename == filename) {
@@ -719,7 +720,7 @@ int Sequence::IsSequenceRunning(const std::string& filename) {
     int result = 0;
 
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
-    if (sequence->m_seqFilename == filename)
+    if ((sequence->m_seqFilename == filename) || (!filename.empty() && (sequence->m_seqSyncName == filename)))
         result = sequence->IsSequenceRunning();
 
     return result;
@@ -830,7 +831,12 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
             lock.unlock();
             m_seqMSElapsed = m_seqMSDuration;
             m_seqMSRemaining = 0;
-            std::string ended = GetSeqFilenameCopy();
+            // Remember it by the name sync packets use (see m_seqSyncName).
+            std::string ended;
+            {
+                std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+                ended = m_seqSyncName.empty() ? m_seqFilename : m_seqSyncName;
+            }
             CloseSequenceFile();
             std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
             m_endedSeqFilename = ended;
@@ -1050,7 +1056,7 @@ void Sequence::SendBlankingData(void) {
 
 void Sequence::CloseIfOpen(const std::string& filename) {
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
-    if (m_seqFilename == filename)
+    if ((m_seqFilename == filename) || (m_seqSyncName == filename))
         CloseSequenceFile();
 }
 
@@ -1098,6 +1104,7 @@ void Sequence::CloseSequenceFile(void) {
         std::unique_lock<std::mutex> nameLock(m_seqFilenameLock);
         m_seqFilename = "";
     }
+    m_seqSyncName.clear();
     m_seqPaused = 0;
 
     if ((!IsEffectRunning()) &&
