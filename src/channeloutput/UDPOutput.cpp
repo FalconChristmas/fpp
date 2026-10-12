@@ -113,7 +113,7 @@ static bool isValidInterfaceName(const std::string& n) {
 #ifndef PLATFORM_OSX
 // SO_MAX_PACING_RATE only works if the interface's root qdisc is fq.
 // Some kernels expose the qdisc name in sysfs; fall back to asking tc.
-static bool interfaceHasFQ(const std::string& iface) {
+static bool queryInterfaceHasFQ(const std::string& iface) {
     if (!isValidInterfaceName(iface)) {
         return false;
     }
@@ -135,6 +135,33 @@ static bool interfaceHasFQ(const std::string& iface) {
         pclose(pipe);
     }
     return qdisc == "fq";
+}
+// The answer per interface, because the sysfs file does not exist on the
+// kernels FPP ships (6.x), so every query forks tc - and findOrCreateSocket()
+// asks once per destination, on the output thread, at startup, on every
+// reload and after every address loss.  fppinit sets the qdisc at boot, so
+// it does not change under a running output; UDPOutput::Init() clears the
+// cache and warms it from the main thread.
+static std::mutex fqCacheLock;
+static std::map<std::string, bool> fqCache;
+static void clearFQCache() {
+    std::lock_guard<std::mutex> lk(fqCacheLock);
+    fqCache.clear();
+}
+static bool interfaceHasFQ(const std::string& iface) {
+    {
+        std::lock_guard<std::mutex> lk(fqCacheLock);
+        auto it = fqCache.find(iface);
+        if (it != fqCache.end()) {
+            return it->second;
+        }
+    }
+    // not under the lock: tc can take a while, and a duplicate query by
+    // another thread is harmless
+    bool fq = queryInterfaceHasFQ(iface);
+    std::lock_guard<std::mutex> lk(fqCacheLock);
+    fqCache[iface] = fq;
+    return fq;
 }
 // Unicast sockets follow the routing table, not the configured output
 // interface, and the interface scan at startup can race the network coming
@@ -639,6 +666,9 @@ int UDPOutput::Init(Json::Value config) {
             break;
         }
     }
+    // a reload re-reads the qdiscs, and warms the cache here on the main
+    // thread rather than in the first frame
+    clearFQCache();
     if (pacingMbps > 0 || anyPerDestPacing) {
         if (!anyEthernetHasFQ(outInterface)) {
             // fppinit only installs fq at boot; if the user enabled pacing
@@ -653,6 +683,7 @@ int UDPOutput::Init(Json::Value config) {
                     InstallShowTrafficQdisc(dev);
                 }
             }
+            clearFQCache();
         }
         if (anyEthernetHasFQ(outInterface)) {
             pacingEnabled = true;
