@@ -552,8 +552,11 @@ int InitializeChannelOutputs(void) {
                                          Json::Value root;
                                          if (LoadJsonFromFile(channelOutputsFile, root, JsonRoot::Object) && root.isMember("channelOutputs")) {
                                              for (int i = 0; i < root["channelOutputs"].size(); i++) {
+                                                 // the BBBMatrix driver is the "LEDscapeMatrix"
+                                                 // subtype, which is what the UI saves
+                                                 const std::string subType = root["channelOutputs"][i]["subType"].asString();
                                                  if (root["channelOutputs"][i]["type"].asString() == "LEDPanelMatrix" &&
-                                                     root["channelOutputs"][i]["subType"].asString() == "BBBMatrix" &&
+                                                     (subType == "LEDscapeMatrix" || subType == "BBBMatrix") &&
                                                      root["channelOutputs"][i]["enabled"].asInt() == 1) {
                                                      LogDebug(VB_CHANNELOUT, "BBBMatrix output detected, reloading %s to ensure PRU code is compiled\n", channelOutputsFile.c_str());
                                                      ReloadChannelOutputsForFile(channelOutputsFile);
