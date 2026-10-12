@@ -502,7 +502,9 @@ int DPIPixelsOutput::Init(Json::Value config) {
 
                     int lp = stringToOutputMap[s] / 24;
 
-                    while (start < a.channelOffset) {
+                    // onOffMask holds 4800 channels; a longer string is
+                    // refused further on, but this runs first
+                    while (start < a.channelOffset && start < 4800) {
                         // Turn Off bits in the mask as needed
                         onOffMask[lp][start] &= ~(POSITION_TO_BITMASK(stringToOutputMap[s] % 24));
                         onOffMap[start * pixelStrings.size() + s] = 0x00; // convert channel offset to pixel offset, store by row
