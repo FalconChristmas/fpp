@@ -1166,6 +1166,11 @@ private:
     // a pidfd always refers to our child, where kill(pid) could hit
     // whatever took the number.
     int m_ptp4lPidfd = -1;
+    // ptp4l is running with hardware timestamping, i.e. disciplining the
+    // NIC's PHC.  With software timestamping it disciplines CLOCK_REALTIME
+    // and leaves the PHC free-running, so only this makes the PHC the
+    // domain's time.
+    std::atomic<bool> m_ptpHwTimestamping{false};
     int m_phc2sysPidfd = -1;
     void ForgetPtp4l();
     std::string m_ptpConfPath;           // temp config file for ptp4l

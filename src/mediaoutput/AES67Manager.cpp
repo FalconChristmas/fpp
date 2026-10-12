@@ -1019,6 +1019,7 @@ bool AES67Manager::StartPtp4l(bool hwTimestamping, bool includeDscp) {
         return false;
     }
 
+    m_ptpHwTimestamping.store(hwTimestamping);
     LogInfo(VB_MEDIAOUT, "AES67Manager: ptp4l started (PID %d) on %s — %s timestamping%s, domain %d, role %s\n",
             (int)m_ptp4lPid, m_config.ptpInterface.c_str(),
             hwTimestamping ? "hardware" : "software",
@@ -1208,6 +1209,7 @@ void AES67Manager::ShutdownPTP() {
 
     StopChildProcess(m_phc2sysPid, m_phc2sysPidfd, "phc2sys");
     StopChildProcess(m_ptp4lPid, m_ptp4lPidfd, "ptp4l");
+    m_ptpHwTimestamping.store(false);
 
     if (!m_ptpConfPath.empty()) {
         unlink(m_ptpConfPath.c_str());
@@ -1950,7 +1952,16 @@ GstClock* AES67Manager::GetOrCreateMediaClock() {
     }
 
     std::string iface = GetPtpInterface();
-    int phcIndex = PhcIndexForInterface(iface);
+    // The PHC is the domain's time only while ptp4l disciplines it.  A NIC
+    // that has one but rejected hardware timestamping leaves ptp4l on
+    // software timestamping (it steers CLOCK_REALTIME), and with ptp4l not
+    // running at all CLOCK_REALTIME is at least NTP-steered -- a free-running
+    // PHC is neither, and every box would drift on its own crystal.
+    int phcIndex = m_ptpHwTimestamping.load() ? PhcIndexForInterface(iface) : -1;
+    if (phcIndex < 0 && PhcIndexForInterface(iface) >= 0) {
+        LogInfo(VB_MEDIAOUT, "AES67 media clock: %s has a PHC, but ptp4l is not running with "
+                "hardware timestamping, so it is not disciplined\n", iface.c_str());
+    }
     if (phcIndex >= 0) {
         std::string dev = "/dev/ptp" + std::to_string(phcIndex);
         int fd = open(dev.c_str(), O_RDONLY);
@@ -1981,7 +1992,7 @@ GstClock* AES67Manager::GetOrCreateMediaClock() {
     // its own clock, so that is the domain's time in both roles.
     clock->clkid = CLOCK_REALTIME;
     LogInfo(VB_MEDIAOUT, "AES67 media clock: using CLOCK_REALTIME "
-            "(no PHC on %s — software timestamping)\n", iface.c_str());
+            "(no disciplined PHC on %s — software timestamping)\n", iface.c_str());
     m_ptpClock = GST_CLOCK(clock);
     return m_ptpClock;
 }
