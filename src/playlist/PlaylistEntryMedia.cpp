@@ -62,6 +62,10 @@ PlaylistEntryMedia::PlaylistEntryMedia(Playlist* playlist, PlaylistEntryBase* pa
  *
  */
 PlaylistEntryMedia::~PlaylistEntryMedia() {
+    // Companion streams belong to this entry; deleting a playing entry
+    // (Playlist::Cleanup() doesn't Stop() first) left them playing.
+    StopExtraMedia();
+
     // Playlist::Cleanup() deletes entries without calling Stop() first — if
     // media was still open the output object (and its live GStreamer
     // pipeline) leaked.  Swap under the lock, tear down outside it, same
@@ -172,7 +176,7 @@ int PlaylistEntryMedia::Init(Json::Value& config) {
 int PlaylistEntryMedia::PreparePlay() {
     LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::PreparePlay()\n");
 
-    if (!CanPlay()) {
+    if (!m_resuming && !CanPlay()) {
         FinishPlay();
         return 0;
     }
@@ -181,7 +185,7 @@ int PlaylistEntryMedia::PreparePlay() {
     m_slotStatus->secondsElapsed = 0;
     m_slotStatus->subSecondsElapsed = 0;
 
-    if (m_fileMode != "single") {
+    if ((m_fileMode != "single") && !m_resuming) {
         if (m_files.size()) {
             m_mediaFilename = GetNextRandomFile();
         } else {
@@ -658,7 +662,9 @@ void PlaylistEntryMedia::Resume() {
         // PreparePlay()'s return is intentionally not treated as fatal here;
         // if it failed, m_mediaOutput will be left null and is handled below
         // instead of blindly dereferencing it.
+        m_resuming = true;
         PreparePlay();
+        m_resuming = false;
 
         // If Start() fails, the failed output is swapped out under the lock
         // and deleted after it's released — its destructor runs the blocking

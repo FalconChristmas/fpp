@@ -73,6 +73,10 @@ public:
     // every main-loop tick for the whole song and remotes restarted their media
     // on each one.
     bool m_syncStartSent = false;
+    // Set while Resume() reopens the paused media through PreparePlay(): the
+    // same file, not a new random pick, and no play-once check (the entry is
+    // already playing -- that check made Resume() finish a play-once entry).
+    bool m_resuming = false;
     static int m_openStartDelay;
 
 private:
