@@ -48,6 +48,12 @@ static_assert(std::is_move_constructible_v<ScheduledItem>);
 
 // Warning 23 is removed by an exact match on its text, so every site that adds
 // or removes it for an entry has to produce the identical string.
+// Warnings raised for schedule.json entries that could not be parsed by the
+// last load.  Each load retracts the previous load's set before raising its
+// own, so fixing and saving the schedule clears the banner.  Guarded by
+// m_scheduleLock (only touched inside LoadScheduleFromFile).
+static std::vector<std::string> s_invalidEntryWarnings;
+
 static std::string missingEntryWarning(const ScheduleEntry& entry) {
     return std::string("Scheduled ") + (entry.sequence ? "Sequence" : "Playlist") +
            " '" + entry.playlist + "' does not exist";
@@ -817,10 +823,26 @@ void Scheduler::LoadScheduleFromFile(void) {
     if (FileExists(SCHEDULE_FILE)) {
         sch = LoadJsonFromFile(SCHEDULE_FILE, JsonRoot::Array);
     }
+    for (auto& w : s_invalidEntryWarnings) {
+        WarningHolder::RemoveWarning(47, w);
+    }
+    s_invalidEntryWarnings.clear();
     for (int i = 0; i < sch.size(); i++) {
         ScheduleEntry scheduleEntry;
-        if (!scheduleEntry.LoadFromJson(sch[i]))
+        // jsoncpp throws on a wrong-typed field ("day":"7", an entry that is
+        // not an object).  This runs from the Scheduler constructor and from
+        // the main loop's reloads with nothing above it to catch, so one bad
+        // entry took fppd down -- and again on every restart.  Skip the entry.
+        try {
+            if (!scheduleEntry.LoadFromJson(sch[i]))
+                continue;
+        } catch (const std::exception& ex) {
+            std::string warning = "Schedule entry " + std::to_string(i + 1) + " is invalid and was skipped: " + ex.what();
+            LogErr(VB_SCHEDULE, "%s\n", warning.c_str());
+            WarningHolder::AddWarning(47, warning);
+            s_invalidEntryWarnings.push_back(warning);
             continue;
+        }
 
         std::string warning = missingEntryWarning(scheduleEntry);
 
