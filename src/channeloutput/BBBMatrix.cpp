@@ -95,21 +95,7 @@ static std::map<int, std::vector<int>> BIT_ORDERS = {
     { 12, { 11, 5, 8, 2, 4, 1, 7, 10, 3, 9, 6, 0 } }
 };
 static void compilePRUMatrixCode(std::vector<std::string>& sargs) {
-    pid_t compilePid = fork();
-    if (compilePid == 0) {
-        char* args[sargs.size() + 3];
-        args[0] = (char*)"/bin/bash";
-        args[1] = (char*)"/opt/fpp/src/pru/compileMatrix.sh";
-
-        for (int x = 0; x < sargs.size(); x++) {
-            args[x + 2] = (char*)sargs[x].c_str();
-        }
-        args[sargs.size() + 2] = NULL;
-
-        execvp("/bin/bash", args);
-    } else {
-        wait(NULL);
-    }
+    CompilePRUProgram("/opt/fpp/src/pru/compileMatrix.sh", sargs);
 }
 
 void BBBMatrix::calcBrightnessFlags(std::vector<std::string>& sargs) {

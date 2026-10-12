@@ -14,6 +14,7 @@
 
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <algorithm>
 #include <cstring>
 #include <elf.h>
@@ -680,4 +681,33 @@ uint32_t BBBPruSMEMRing::write(const uint8_t* src, uint32_t len) {
         ctrl[0] = pointerMode ? (basePru + writeOff) : produced;
     }
     return total;
+}
+
+void CompilePRUProgram(const std::string& script, const std::vector<std::string>& args) {
+    // argv is built before the fork: the child of a threaded process should
+    // do nothing but exec
+    std::vector<char*> argv;
+    argv.push_back((char*)"/bin/bash");
+    argv.push_back((char*)script.c_str());
+    std::string log = script;
+    for (auto& a : args) {
+        argv.push_back((char*)a.c_str());
+        log += " " + a;
+    }
+    argv.push_back(nullptr);
+    LogDebug(VB_CHANNELOUT, "Compiling PRU program: %s\n", log.c_str());
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        LogErr(VB_CHANNELOUT, "Could not fork to compile PRU program %s: %s\n", script.c_str(), strerror(errno));
+        return;
+    }
+    if (pid == 0) {
+        execv("/bin/bash", argv.data());
+        // never return into the caller: that would be a second fppd
+        _exit(127);
+    }
+    // returns when this child exits (with ECHILD, as it is reaped for us)
+    while (waitpid(pid, nullptr, 0) < 0 && errno == EINTR) {
+    }
 }

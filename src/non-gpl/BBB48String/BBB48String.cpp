@@ -93,31 +93,9 @@ BBB48StringOutput::~BBB48StringOutput() {
 static void compilePRUCode(const char* program,
                            const std::vector<std::string>& sargs,
                            const std::vector<std::string>& args1) {
-    std::string log;
-
-    char* args[sargs.size() + 3 + args1.size()];
-    int idx = 0;
-    args[idx++] = (char*)"/bin/bash";
-    args[idx++] = (char*)program;
-    log = args[1];
-    for (int x = 0; x < sargs.size(); x++) {
-        args[idx++] = (char*)sargs[x].c_str();
-        log += " " + sargs[x];
-    }
-    for (int x = 0; x < args1.size(); x++) {
-        args[idx++] = (char*)args1[x].c_str();
-        log += " " + args1[x];
-    }
-    args[idx] = NULL;
-    LogDebug(VB_CHANNELOUT, "BBB48StringOutput::compilePRUCode() args: %s\n",
-             log.c_str());
-
-    pid_t compilePid = fork();
-    if (compilePid == 0) {
-        execvp("/bin/bash", args);
-    } else {
-        wait(NULL);
-    }
+    std::vector<std::string> args = sargs;
+    args.insert(args.end(), args1.begin(), args1.end());
+    CompilePRUProgram(program, args);
 }
 
 static void compilePRUCode(const std::vector<std::string>& sargs,

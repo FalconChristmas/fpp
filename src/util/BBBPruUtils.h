@@ -14,6 +14,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string>
+#include <vector>
 
 /**
  * Mapping of the PRU memory spaces.
@@ -190,3 +191,11 @@ private:
     uint32_t produced = 0;
     bool pointerMode = false;
 };
+
+// Build a PRU program: runs "/bin/bash <script> <args...>" and waits for that
+// child alone.  fppd sets SA_NOCLDWAIT on SIGCHLD, so wait() would block until
+// every child of fppd had exited (ptp4l, a running script...) and no exit
+// status survives either way.  The script therefore has to delete its outputs
+// before building, so a failed build leaves nothing for BBBPru::run() to load
+// instead of the previous configuration's program.
+void CompilePRUProgram(const std::string& script, const std::vector<std::string>& args);
