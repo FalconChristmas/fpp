@@ -1,4 +1,6 @@
 #pragma once
+
+#include <mutex>
 /*
  * This file is part of the Falcon Player (FPP) and is Copyright (C)
  * 2013-2022 by the Falcon Player Developers.
@@ -28,5 +30,10 @@ public:
 private:
     std::string m_modelName;
     bool modelCreated = false;
+    // Followed through a model listener under m_modelLock: an auto-created
+    // model belongs to another output, which deletes and re-creates it when
+    // its config reloads.
     PixelOverlayModel* m_model = nullptr;
+    std::mutex m_modelLock;
+    std::string m_modelListenerName;
 };

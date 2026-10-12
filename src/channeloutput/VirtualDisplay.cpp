@@ -135,6 +135,15 @@ int VirtualDisplayOutput::Init(Json::Value config) {
         return 0;
     }
 
+    // the display is drawn as 3 byte RGB, and setData() below reads the
+    // model's own bytes per pixel from it (4 for an RGBW submodel)
+    if (m_model->getBytesPerPixel() != 3) {
+        LogErr(VB_CHANNELOUT, "Pixel Overlay Model '%s' is not RGB\n", m_modelName.c_str());
+        WarningHolder::AddWarning(35, "Virtual Display: model '" + m_modelName + "' is not an RGB model");
+        m_model = nullptr;
+        return 0;
+    }
+
     m_width = m_model->getWidth();
     m_height = m_model->getHeight();
 
@@ -163,9 +172,27 @@ int VirtualDisplayOutput::Init(Json::Value config) {
         return 0;
 
     // Put the background image onto the model and always call doOverlay
-    // to ensure display is enabled (even if model state is not Disabled)
+    // to ensure display is enabled (even if model state is not Disabled).
+    // Only for a framebuffer model: doOverlay() writes the model's channels
+    // at its start channel into the buffer it is given, and a submodel
+    // forwards to its parent at the parent's channels - far past the end of
+    // this display-sized buffer.
     m_model->setData(m_virtualDisplay);
-    m_model->doOverlay(m_virtualDisplay);
+    if (m_model->getType() == "FB") {
+        m_model->doOverlay(m_virtualDisplay);
+    }
+
+    m_modelListenerName = "VirtualDisplay" + std::to_string((uintptr_t)this);
+    PixelOverlayManager::INSTANCE.addModelListener(m_modelName, m_modelListenerName,
+        [this](PixelOverlayModel* m) {
+            std::lock_guard<std::mutex> lock(m_modelLock);
+            // only follow a replacement this display still fits
+            if (m && (m->getWidth() != m_width || m->getHeight() != m_height || m->getBytesPerPixel() != 3)) {
+                LogWarn(VB_CHANNELOUT, "VirtualDisplay: model '%s' changed shape; detaching\n", m_modelName.c_str());
+                m = nullptr;
+            }
+            m_model = m;
+        });
     return 1;
 }
 
@@ -174,6 +201,14 @@ int VirtualDisplayOutput::Init(Json::Value config) {
  */
 int VirtualDisplayOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "VirtualDisplayOutput::Close()\n");
+    if (!m_modelListenerName.empty()) {
+        PixelOverlayManager::INSTANCE.removeModelListener(m_modelName, m_modelListenerName);
+        m_modelListenerName.clear();
+    }
+    {
+        std::lock_guard<std::mutex> lock(m_modelLock);
+        m_model = nullptr;
+    }
     if (modelCreated) {
         PixelOverlayManager::INSTANCE.removeAutoOverlayModel(m_modelName);
     }
@@ -188,6 +223,10 @@ int VirtualDisplayOutput::Close(void) {
 int VirtualDisplayOutput::SendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "VirtualDisplayOutput::SendData(%p)\n",
               channelData);
+    std::lock_guard<std::mutex> modelLock(m_modelLock);
+    if (!m_model) {
+        return m_channelCount;
+    }
     unsigned char r = 0;
     unsigned char g = 0;
     unsigned char b = 0;
@@ -229,7 +268,11 @@ int VirtualDisplayOutput::SendData(unsigned char* channelData) {
     }
     m_model->setBufferIsDirty(true);
     if (m_model->getState() == 0) {
-        if (uint8_t* buf = m_model->getOverlayBuffer()) {
+        if (m_model->getType() != "FB") {
+            // a submodel's parent writes at its own absolute channels, so it
+            // needs the whole sequence buffer, not a display-sized one
+            m_model->doOverlay(channelData - m_startChannel);
+        } else if (uint8_t* buf = m_model->getOverlayBuffer()) {
             m_model->doOverlay(buf);
         }
     }
