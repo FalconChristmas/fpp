@@ -1848,6 +1848,9 @@
 				],
 				"nocc": [
 					"DistccHosts"
+				],
+				"nocc-zeroconf": [
+					"NoccDiscoverWireless"
 				]
 			}
 		},
@@ -1863,6 +1866,18 @@
 			"type": "text",
 			"size": 60,
 			"maxlength": 256
+		},
+		"NoccDiscoverWireless": {
+			"name": "NoccDiscoverWireless",
+			"description": "Enable NOCC discovery across Wireless Networks",
+			"tip": "When enabled this will add an additional 3 seconds to allow NOCC helper discovery over Wi-Fi networks.",
+			"level": 3,
+			"restart": 0,
+			"reboot": 0,
+			"default": "0",
+			"type": "checkbox",
+			"checkedValue": "1",
+			"uncheckedValue": "0"
 		},
 		"gitBranch": {
 			"name": "gitBranch",
