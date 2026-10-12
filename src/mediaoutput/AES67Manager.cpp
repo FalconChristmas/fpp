@@ -4173,8 +4173,29 @@ bool AES67Manager::ReviewPtpNoLockWarning() {
 }
 
 bool AES67Manager::CheckPtpWatchdog() {
-    if (!m_config.ptpEnabled || !m_ptpInitialized) {
+    if (!m_config.ptpEnabled) {
         return false;
+    }
+    if (!m_ptpInitialized) {
+        // Its start at apply time or a restart below failed (interface down,
+        // the port briefly held).  Everything after this used to return here,
+        // so PTP stayed down until someone applied the config again.
+        auto now = std::chrono::steady_clock::now();
+        if (m_ptpRetryDelayS > 0 && now < m_ptpRetryAt) {
+            return false;
+        }
+        m_ptpRetryDelayS = m_ptpRetryDelayS == 0 ? 30 : std::min(m_ptpRetryDelayS * 2, 300);
+        m_ptpRetryAt = now + std::chrono::seconds(m_ptpRetryDelayS);
+        LogInfo(VB_MEDIAOUT, "AES67 watchdog: PTP is not running, starting it\n");
+        if (!InitPTP()) {
+            LogWarn(VB_MEDIAOUT, "AES67 watchdog: PTP start failed, trying again in %ds\n", m_ptpRetryDelayS);
+            return false;
+        }
+        m_ptpRetryDelayS = 0;
+        // The streams were built without it (or against the ptp4l that died):
+        // build them again on the clock that is disciplined now.
+        LogInfo(VB_MEDIAOUT, "AES67 watchdog: PTP started, rebuilding the streams on it\n");
+        return true;
     }
 
     if (!IsPtp4lRunning()) {
@@ -4185,6 +4206,8 @@ bool AES67Manager::CheckPtpWatchdog() {
         if (InitPTP()) {
             LogInfo(VB_MEDIAOUT, "AES67 watchdog: ptp4l restarted\n");
         } else {
+            // Retried on the next passes; see above.
+            m_ptpRetryDelayS = 0;
             LogErr(VB_MEDIAOUT, "AES67 watchdog: ptp4l restart failed\n");
         }
         // A fresh ptp4l may have stepped the clock on its way back to lock, and

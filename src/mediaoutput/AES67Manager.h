@@ -1359,6 +1359,11 @@ private:
     // ptp4l for the whole domain, so an error that comes straight back must
     // not do that every pass.  Watchdog thread only.
     int m_errorRebuilds = 0;
+    // PTP enabled but not running (its start, or a watchdog restart, failed):
+    // when the watchdog tries again, backing off 30s..5min.  Watchdog thread
+    // only; reset by a successful start.
+    std::chrono::steady_clock::time_point m_ptpRetryAt{};
+    int m_ptpRetryDelayS = 0;
     std::chrono::steady_clock::time_point m_lastErrorRebuild{};
 
     // Deferred pipeline-rebuild thread — spawned by WatchdogLoop()'s
