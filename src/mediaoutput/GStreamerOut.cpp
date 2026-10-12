@@ -217,6 +217,7 @@ static void RecordWedgeEventAndMaybeRestart(const char* what, bool hwDecoder) {
         LogErr(VB_MEDIAOUT, "GStreamer: %d wedge-triggered fppd restarts within %d minutes did not recover the decoder — "
                             "VideoCore firmware is wedged (issues #2695/#2727), REBOOTING the system\n",
                recentRestarts, (int)(WEDGE_RESTART_WINDOW_MS / 60000));
+        // Permanent: the reboot that follows clears it.
         WarningHolder::AddWarning(37, "Rebooting: hardware video decoder firmware wedged; fppd restart did not recover it");
         sync();
         if (system("/usr/sbin/reboot") != 0) {
@@ -1635,6 +1636,7 @@ int GStreamerOutput::Start(int msTime) {
 #endif
             if (!m_kmssink) {
                 LogErr(VB_MEDIAOUT, "GStreamer: kmssink element not available — is gstreamer1.0-plugins-bad installed?\n");
+                // Permanent: the element appears only with a package install and a restart.
                 WarningHolder::AddWarning(31, "Video output unavailable: kmssink element missing (install gstreamer1.0-plugins-bad)");
                 // Release the extra refs taken above (~827-828) before discarding
                 // the pipeline.  Close() only unrefs m_volume/m_appsink when
@@ -2092,7 +2094,8 @@ int GStreamerOutput::Start(int msTime) {
 
     if (!m_pipeline) {
         LogErr(VB_MEDIAOUT, "Failed to create GStreamer pipeline\n");
-        WarningHolder::AddWarning(31, "Failed to create GStreamer media pipeline");
+        // Per track: the next one tries again.
+        WarningHolder::AddWarningTimeout(60, 31, "Failed to create GStreamer media pipeline");
         return 0;
     }
 

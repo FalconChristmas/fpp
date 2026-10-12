@@ -458,4 +458,9 @@ private:
     std::mutex m_teardownMutex;
     std::condition_variable m_teardownCV;
     int m_pendingTeardowns = 0;
+    // Up while a teardown has outlived WaitForPendingTeardowns(); comes down
+    // when the last one finishes.  Under m_teardownMutex.
+    bool m_teardownStuckWarned = false;
+    static constexpr const char* TEARDOWN_STUCK_WARNING =
+        "Video output: a pipeline teardown is stuck (its display memory is not freed)";
 };

@@ -178,6 +178,7 @@ GstElement* VideoOutputManager::CreateCropElement(const VideoCropRect& crop,
         LogErr(VB_MEDIAOUT, "VideoOutputManager: videocrop element not available — "
                "is gstreamer1.0-plugins-good installed?  Output '%s' will show the full frame\n",
                name.c_str());
+        // Permanent: the element appears only with a package install and a restart.
         WarningHolder::AddWarning(31, "Video crop unavailable: videocrop element missing (install gstreamer1.0-plugins-good)");
         return nullptr;
     }
@@ -1330,7 +1331,8 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
                 LogErr(VB_MEDIAOUT, "VideoOutputManager: videocrop element not available for '%s' — "
                        "is gstreamer1.0-plugins-good installed?  Showing the full frame\n",
                        consumer.name.c_str());
-                WarningHolder::AddWarning(31, "Video crop unavailable: videocrop element missing (install gstreamer1.0-plugins-good)");
+                // Permanent: the element appears only with a package install and a restart.
+        WarningHolder::AddWarning(31, "Video crop unavailable: videocrop element missing (install gstreamer1.0-plugins-good)");
                 cropping = false;
                 // Without the crop there is no region and no fill.  Say so, so
                 // the missing plugin does not read as a scaling bug.
@@ -1481,7 +1483,10 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
     if (!consumer.pipeline) {
         LogErr(VB_MEDIAOUT, "VideoOutputManager: Failed to create pipeline for '%s': %s\n",
                consumer.name.c_str(), error ? error->message : "unknown error");
-        WarningHolder::AddWarning(31, "Video output pipeline creation failed for '" + consumer.name + "'");
+        // Re-raised by every later attempt (a persistent consumer is retried,
+        // an on-demand one starts with each video), so it ages out once the
+        // pipeline builds again.
+        WarningHolder::AddWarningTimeout(120, 31, "Video output pipeline creation failed for '" + consumer.name + "'");
         if (error) g_error_free(error);
         return false;
     }
@@ -1825,8 +1830,10 @@ bool VideoOutputManager::WaitForPendingTeardowns(int timeoutMs) {
         // too).  Surface it as a warning so a 24h soak-test log clearly
         // flags a wedged gst_element_set_state(NULL) instead of silently
         // bleeding memory.
-        WarningHolder::AddWarning(31, "Video output: " + std::to_string(m_pendingTeardowns) +
-                                   " pipeline teardown(s) stuck after " + std::to_string(timeoutMs) + "ms");
+        // Fixed text, so the teardown thread that finally finishes can take
+        // it down (the count used to be in it, which no removal could match).
+        WarningHolder::AddWarning(31, TEARDOWN_STUCK_WARNING);
+        m_teardownStuckWarned = true;
     } else {
         LogInfo(VB_MEDIAOUT, "VideoOutputManager: All pipeline teardowns completed\n");
     }
@@ -1896,6 +1903,10 @@ void VideoOutputManager::StopConsumer(ConsumerInfo& consumer) {
             {
                 std::lock_guard<std::mutex> tl(m_teardownMutex);
                 m_pendingTeardowns--;
+                if (m_pendingTeardowns == 0 && m_teardownStuckWarned) {
+                    m_teardownStuckWarned = false;
+                    WarningHolder::RemoveWarning(31, TEARDOWN_STUCK_WARNING);
+                }
             }
             m_teardownCV.notify_all();
             LogDebug(VB_MEDIAOUT, "VideoOutputManager: pipeline teardown completed in %llu ms\n",

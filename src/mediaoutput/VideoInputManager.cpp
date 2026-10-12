@@ -17,6 +17,8 @@
 #include <atomic>
 #include <cmath>
 #include <map>
+#include <mutex>
+#include <set>
 #include <vector>
 
 #include <fcntl.h>
@@ -297,6 +299,33 @@ static void ApplyDetectedFps(double detectedFps, int& framerate, const char* nam
             detected, name, configFps, framerate);
 }
 
+// Warnings about a source's config or its stream (an invalid value, no URI,
+// an RTSP stream with no video).  Each is recorded as it is raised and all
+// come down at the next reload -- which raises again whichever is still true
+// -- and at shutdown; nothing else retracts them.  "Failed to start" also
+// comes down once the source reaches PLAYING.
+static std::mutex s_sourceWarningsLock;
+static std::set<std::string> s_sourceWarnings;
+
+static void AddSourceWarning(const std::string& msg) {
+    {
+        std::lock_guard<std::mutex> lock(s_sourceWarningsLock);
+        s_sourceWarnings.insert(msg);
+    }
+    WarningHolder::AddWarning(56, msg);
+}
+
+static void ClearSourceWarnings() {
+    std::set<std::string> warnings;
+    {
+        std::lock_guard<std::mutex> lock(s_sourceWarningsLock);
+        warnings.swap(s_sourceWarnings);
+    }
+    for (const auto& msg : warnings) {
+        WarningHolder::RemoveWarning(56, msg);
+    }
+}
+
 // Control characters have no representation in the description grammar and
 // never belong in a URI, device path or element name, so reject them up front
 // rather than trying to encode them. Checked once per source in StartSource()
@@ -307,7 +336,7 @@ static bool GstValueUsable(const std::string& value, const char* what,
         if (c < 0x20 || c == 0x7f) {
             LogWarn(VB_MEDIAOUT, "VideoInputManager: %s for '%s' contains a control character\n",
                     what, sourceName.c_str());
-            WarningHolder::AddWarning(56, "Video input '" + sourceName + "' has an invalid " + what);
+            AddSourceWarning("Video input '" + sourceName + "' has an invalid " + what);
             return false;
         }
     }
@@ -393,7 +422,7 @@ static void RtspNoMorePads(GstElement*, gpointer userData) {
     }
     LogErr(VB_MEDIAOUT, "VideoInputManager: '%s' RTSP stream offers no video track\n",
            filter->sourceName.c_str());
-    WarningHolder::AddWarning(56, "Video input '" + filter->sourceName +
+    AddSourceWarning("Video input '" + filter->sourceName +
                                       "': the RTSP stream contains no video track");
 }
 
@@ -791,6 +820,9 @@ void VideoInputManager::StartLoadedSources(std::unique_lock<std::mutex>& lock) {
 
 void VideoInputManager::Reload() {
     LogInfo(VB_MEDIAOUT, "VideoInputManager: Reloading configuration\n");
+    // The sources are rebuilt from the new config, and raise again what
+    // still applies.
+    ClearSourceWarnings();
 
     StopAllSources();
 
@@ -844,6 +876,7 @@ void VideoInputManager::Shutdown() {
     // a prior Reload) has actually finished before we consider Shutdown()
     // complete, so nothing outlives the process.
     JoinTeardownThreads();
+    ClearSourceWarnings();
     LogInfo(VB_MEDIAOUT, "VideoInputManager: Shutdown complete\n");
 }
 
@@ -1080,14 +1113,14 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
     } else if (source.type == "v4l2src") {
         if (source.device.empty()) {
             LogWarn(VB_MEDIAOUT, "VideoInputManager: v4l2src '%s' has no device path\n", source.name.c_str());
-            WarningHolder::AddWarning(56, "Video input '" + source.name + "' has no capture device path configured");
+            AddSourceWarning("Video input '" + source.name + "' has no capture device path configured");
             return false;
         }
         srcElement = "v4l2src device=" + GstQuote(source.device);
     } else if (source.type == "rtspsrc") {
         if (source.uri.empty()) {
             LogWarn(VB_MEDIAOUT, "VideoInputManager: rtspsrc '%s' has no URI\n", source.name.c_str());
-            WarningHolder::AddWarning(56, "Video input '" + source.name + "' (RTSP) has no URI configured");
+            AddSourceWarning("Video input '" + source.name + "' (RTSP) has no URI configured");
             return false;
         }
         // rtspsrc → decodebin handles codec negotiation (H.264, H.265, MJPEG, etc.)
@@ -1105,7 +1138,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
     } else if (source.type == "urisrc") {
         if (source.uri.empty()) {
             LogWarn(VB_MEDIAOUT, "VideoInputManager: urisrc '%s' has no URI\n", source.name.c_str());
-            WarningHolder::AddWarning(56, "Video input '" + source.name + "' has no URI configured");
+            AddSourceWarning("Video input '" + source.name + "' has no URI configured");
             return false;
         }
         std::string resolvedUri = source.uri;
@@ -1132,7 +1165,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
                 LogErr(VB_MEDIAOUT, "VideoInputManager: yt-dlp could not resolve the URL for '%s': %s\n",
                        source.name.c_str(),
                        yt.diagnostics.empty() ? "no output" : yt.diagnostics.c_str());
-                WarningHolder::AddWarning(56, "Video input '" + source.name
+                AddSourceWarning("Video input '" + source.name
                     + "': yt-dlp could not resolve the YouTube URL - it may need updating");
                 return false;
             }
@@ -1187,7 +1220,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
         useDecodebin = true;
     } else {
         LogWarn(VB_MEDIAOUT, "VideoInputManager: Unknown source type '%s'\n", source.type.c_str());
-        WarningHolder::AddWarning(56, "Video input '" + source.name + "' has unknown source type '" + source.type + "'");
+        AddSourceWarning("Video input '" + source.name + "' has unknown source type '" + source.type + "'");
         return false;
     }
 
@@ -1433,7 +1466,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
         if (ret == GST_STATE_CHANGE_FAILURE) {
             if (!shutdownFlag->load()) {
                 LogWarn(VB_MEDIAOUT, "VideoInputManager: Source '%s' failed to start\n", sourceName.c_str());
-                WarningHolder::AddWarning(56, "Video input '" + sourceName + "' failed to start");
+                AddSourceWarning("Video input '" + sourceName + "' failed to start");
             }
             *runningFlag = false;
             if (!shutdownFlag->load()) {
@@ -1549,6 +1582,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
     return true;
 #else
     LogWarn(VB_MEDIAOUT, "VideoInputManager: GStreamer not available\n");
+    // Permanent: a build without GStreamer stays one until it is replaced.
     WarningHolder::AddWarning(56, "Video input requires GStreamer, which is not available on this device");
     return false;
 #endif
@@ -1582,7 +1616,7 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
             LogWarn(VB_MEDIAOUT, "VideoInputManager: Failed to resolve video URL for '%s': %s\n",
                     source.name.c_str(),
                     yt.diagnostics.empty() ? "no output" : yt.diagnostics.c_str());
-            WarningHolder::AddWarning(56, "Video input '" + source.name + "': could not resolve the video URL");
+            AddSourceWarning("Video input '" + source.name + "': could not resolve the video URL");
             return false;
         }
         videoUrl = yt.url;
@@ -1711,7 +1745,7 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
             if (!shutdownFlag->load()) {
                 LogWarn(VB_MEDIAOUT, "VideoInputManager: Source '%s' failed to start\n",
                         sourceName.c_str());
-                WarningHolder::AddWarning(56, "Video input '" + sourceName + "' failed to start");
+                AddSourceWarning("Video input '" + sourceName + "' failed to start");
             }
             *runningFlag = false;
             if (!shutdownFlag->load()) {
@@ -1823,6 +1857,7 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
     return true;
 #else
     LogWarn(VB_MEDIAOUT, "VideoInputManager: GStreamer not available\n");
+    // Permanent: a build without GStreamer stays one until it is replaced.
     WarningHolder::AddWarning(56, "Video input requires GStreamer, which is not available on this device");
     return false;
 #endif
