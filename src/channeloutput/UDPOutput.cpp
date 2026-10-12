@@ -383,6 +383,13 @@ void UDPOutputMessages::clearSockets() {
     sendSockets.clear();
 }
 
+// Keys whose packets go to multicast groups.  Their sockets need
+// IP_MULTICAST_IF, or the packets leave by the default route instead of the
+// output interface.  E1.31 sync is always sent to 239.255.<universe>.
+static bool isMulticastKey(unsigned int key) {
+    return key == MULTICAST_MESSAGES_KEY || key == LATE_MULTICAST_MESSAGES_KEY || key == E131_SYNC_KEY;
+}
+
 UDPOutput* UDPOutput::INSTANCE = nullptr;
 std::mutex UDPOutput::externalLock;
 std::map<const void*, std::function<UDPOutputData*()>> UDPOutput::externalFactories;
@@ -1070,8 +1077,7 @@ int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, 
                 if (sendSocket == -1) {
                     // replacement must keep the multicast setup or the packets
                     // will egress the default route instead of the show network
-                    socketInfo->sockets[socketInfo->curSocket] = createSocket(0, false,
-                                                                              socketKey == MULTICAST_MESSAGES_KEY || socketKey == LATE_MULTICAST_MESSAGES_KEY);
+                    socketInfo->sockets[socketInfo->curSocket] = createSocket(0, false, isMulticastKey(socketKey));
                     sendSocket = socketInfo->sockets[socketInfo->curSocket];
                 }
             } else {
@@ -1644,7 +1650,7 @@ std::shared_ptr<SendSocketInfo> UDPOutput::findOrCreateSocket(unsigned int socke
     }
     if (info->sockets.empty()) {
         bool broadCast = socketKey == BROADCAST_MESSAGES_KEY;
-        bool multiCast = socketKey == MULTICAST_MESSAGES_KEY || socketKey == LATE_MULTICAST_MESSAGES_KEY;
+        bool multiCast = isMulticastKey(socketKey);
         for (int x = info->sockets.size(); x < sc; x++) {
             int s = createSocket(0, broadCast, multiCast);
             info->sockets.push_back(s);
