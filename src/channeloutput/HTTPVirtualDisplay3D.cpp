@@ -92,6 +92,13 @@ HTTPVirtualDisplay3DOutput::~HTTPVirtualDisplay3DOutput() {
         delete m_selectThread;
     }
 
+    // Also reached when Init() failed part way.  Without this every reload
+    // left the old listener open on the port.
+    if (m_socket >= 0) {
+        close(m_socket);
+        m_socket = -1;
+    }
+
     if (m_connList.size()) {
         for (int i = m_connList.size() - 1; i >= 0; i--) {
             close(m_connList[i]);
@@ -201,9 +208,12 @@ int HTTPVirtualDisplay3DOutput::Init(Json::Value config) {
 
     fcntl(m_socket, F_SETFL, O_NONBLOCK);
 
+    // SO_REUSEADDR so a reload can rebind while the previous instance's
+    // connections sit in TIME_WAIT.  Not SO_REUSEPORT: that lets a listener
+    // that was never closed keep taking a share of the new connections.
     int optval = 1;
-    if (setsockopt(m_socket, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) < 0) {
-        LogErr(VB_CHANNELOUT, "Error turning on SO_REUSEPORT; %s\n", FPPstrerror(errno));
+    if (setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0) {
+        LogErr(VB_CHANNELOUT, "Error turning on SO_REUSEADDR; %s\n", FPPstrerror(errno));
         return 0;
     }
     int v6only = 0;
