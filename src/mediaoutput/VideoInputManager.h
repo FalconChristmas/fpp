@@ -12,7 +12,10 @@
  */
 
 #include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <cstdint>
+#include <map>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -55,6 +58,13 @@ public:
     /// and pipeline teardown.  A request made while a reload is running
     /// makes the worker go round once more.
     void RequestReload();
+
+    /// Called by a source's run thread when its pipeline fails to start,
+    /// errors or ends: restart that source on the reload worker after a
+    /// backoff (2s, doubling to 60s; back to 2s once it has run for five
+    /// minutes).  Takes only m_reloadMutex -- the run thread must never
+    /// wait on m_mutex, since RestartSource() joins it under that lock.
+    void ScheduleSourceRestart(int sourceId);
 
     /// Stop all source pipelines and clean up.
     void Shutdown();
@@ -158,7 +168,6 @@ private:
         // monitor thread spawned in StartSource()/StartSourceWithAudio()
         // without holding m_mutex.
         std::atomic<bool> running{false};
-        int restartCount = 0;
 
         SourceInfo() = default;
         SourceInfo(SourceInfo&& o) noexcept
@@ -185,7 +194,7 @@ private:
               audioRunThread(std::move(o.audioRunThread)),
               shutdownRequested(o.shutdownRequested.load()),
               audioShutdownRequested(o.audioShutdownRequested.load()),
-              running(o.running.load()), restartCount(o.restartCount) {
+              running(o.running.load()) {
 #ifdef HAS_GSTREAMER_VIDEO_INPUT
             o.pipeline = nullptr;
             o.audioPipeline = nullptr;
@@ -216,6 +225,12 @@ private:
 
     /// Stop a single source pipeline.
     void StopSource(SourceInfo& source);
+
+    /// Restart one dead source in place (reload worker only).
+    void RestartSource(int sourceId);
+
+    /// Start the reload worker if it isn't running.  m_reloadMutex held.
+    void EnsureReloadWorkerLocked();
 
     /// Take every source out of m_sources (under m_mutex), then stop them
     /// with the lock released.  StopSource() joins each source's run thread,
@@ -248,12 +263,23 @@ private:
     std::mutex m_teardownMutex;
     std::vector<std::thread> m_teardownThreads;
 
-    // RequestReload()'s worker.  m_reloadMutex guards all of these.
+    // RequestReload()'s worker, which also runs the restarts that
+    // ScheduleSourceRestart() queues.  m_reloadMutex guards all of these.
+    struct RestartState {
+        std::chrono::steady_clock::time_point due;
+        std::chrono::steady_clock::time_point lastFailure;
+        int delayMs = 0;
+        bool pending = false;
+    };
     std::mutex m_reloadMutex;
+    std::condition_variable m_reloadCv;
     std::thread m_reloadThread;
     bool m_reloadPending = false;
     bool m_reloadRunning = false;
     bool m_stopReloads = false;
+    std::map<int, RestartState> m_restarts;
 
-    static constexpr int MAX_RESTARTS = 3;
+    static constexpr int RESTART_MIN_DELAY_MS = 2000;
+    static constexpr int RESTART_MAX_DELAY_MS = 60000;
+    static constexpr int RESTART_QUIET_RESET_MS = 5 * 60 * 1000;
 };

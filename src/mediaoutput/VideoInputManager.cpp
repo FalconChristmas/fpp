@@ -610,8 +610,33 @@ void VideoInputManager::RequestReload() {
         return;
     }
     m_reloadPending = true;
+    EnsureReloadWorkerLocked();
+    m_reloadCv.notify_all();
+}
+
+void VideoInputManager::ScheduleSourceRestart(int sourceId) {
+    std::lock_guard<std::mutex> rl(m_reloadMutex);
+    if (m_stopReloads) {
+        return;
+    }
+    auto now = std::chrono::steady_clock::now();
+    RestartState& r = m_restarts[sourceId];
+    if (r.delayMs == 0 || now - r.lastFailure > std::chrono::milliseconds(RESTART_QUIET_RESET_MS)) {
+        r.delayMs = RESTART_MIN_DELAY_MS;
+    } else {
+        r.delayMs = std::min(r.delayMs * 2, RESTART_MAX_DELAY_MS);
+    }
+    r.lastFailure = now;
+    r.due = now + std::chrono::milliseconds(r.delayMs);
+    r.pending = true;
+    LogInfo(VB_MEDIAOUT, "VideoInputManager: Restarting source %d in %d ms\n", sourceId, r.delayMs);
+    EnsureReloadWorkerLocked();
+    m_reloadCv.notify_all();
+}
+
+void VideoInputManager::EnsureReloadWorkerLocked() {
     if (m_reloadRunning) {
-        return;  // the running worker sees m_reloadPending and goes again
+        return;  // the running worker sees the new request and acts on it
     }
     if (m_reloadThread.joinable()) {
         m_reloadThread.join();  // a finished worker; it no longer needs the lock
@@ -620,14 +645,97 @@ void VideoInputManager::RequestReload() {
     m_reloadThread = std::thread([this]() {
         SetThreadName("FPP-VideoInReload");
         std::unique_lock<std::mutex> l(m_reloadMutex);
-        while (m_reloadPending && !m_stopReloads) {
-            m_reloadPending = false;
+        while (!m_stopReloads) {
+            if (m_reloadPending) {
+                // A reload restarts every source from the new config, so
+                // queued restarts and their backoff go with the old one.
+                m_reloadPending = false;
+                m_restarts.clear();
+                l.unlock();
+                Reload();
+                l.lock();
+                continue;
+            }
+            int id = -1;
+            std::chrono::steady_clock::time_point due;
+            for (const auto& [sid, r] : m_restarts) {
+                if (r.pending && (id < 0 || r.due < due)) {
+                    id = sid;
+                    due = r.due;
+                }
+            }
+            if (id < 0) {
+                break;
+            }
+            if (std::chrono::steady_clock::now() < due) {
+                m_reloadCv.wait_until(l, due);
+                continue;
+            }
+            m_restarts[id].pending = false;
             l.unlock();
-            Reload();
+            RestartSource(id);
             l.lock();
         }
         m_reloadRunning = false;
     });
+}
+
+void VideoInputManager::RestartSource(int sourceId) {
+    std::unique_lock<std::mutex> lock(m_mutex);
+    auto find = [this, sourceId]() -> SourceInfo* {
+        for (auto& s : m_sources) {
+            if (s.id == sourceId) {
+                return &s;
+            }
+        }
+        return nullptr;
+    };
+    SourceInfo* source = find();
+    if (!m_initialized || !source || !source->enabled || source->running) {
+        return;
+    }
+    LogInfo(VB_MEDIAOUT, "VideoInputManager: Restarting source '%s'\n", source->name.c_str());
+    // The run thread cleared `running` on its way out and takes no lock after
+    // that, so this join is immediate.
+    StopSource(*source);
+
+    bool youTube = source->type == "urisrc" && IsYouTubeUri(source->uri);
+    std::string uri = source->uri;
+    int height = source->height;
+    bool audio = source->audioEnabled;
+    lock.unlock();
+
+    // As in Reload(): the old pipeline must let go of the device or socket
+    // before the new one opens it, and a wedged teardown or a yt-dlp lookup
+    // must not hold m_mutex.
+    JoinTeardownThreads();
+    std::map<std::string, YtDlpResult> results;
+    if (youTube) {
+        results[YtKey(YtVideoFormat(height), uri)] = RunYtDlp(YtVideoFormat(height), uri, true);
+        if (audio) {
+            results[YtKey(YT_AUDIO_FORMAT, uri)] = RunYtDlp(YT_AUDIO_FORMAT, uri, false);
+        }
+    }
+
+    lock.lock();
+    {
+        std::lock_guard<std::mutex> rl(m_reloadMutex);
+        if (m_stopReloads) {
+            return;
+        }
+    }
+    source = find();
+    if (!m_initialized || !source || !source->enabled || source->running) {
+        return;
+    }
+    s_ytPrefetched = std::move(results);
+    bool started = StartSource(*source);
+    s_ytPrefetched.clear();
+    if (!started) {
+        // It started before, so the config is good: this is a lookup or a
+        // resource that isn't back yet (a YouTube URL that won't resolve).
+        ScheduleSourceRestart(sourceId);
+    }
 }
 
 void VideoInputManager::StartLoadedSources(std::unique_lock<std::mutex>& lock) {
@@ -717,8 +825,10 @@ void VideoInputManager::Shutdown() {
         std::lock_guard<std::mutex> rl(m_reloadMutex);
         m_stopReloads = true;
         m_reloadPending = false;
+        m_restarts.clear();
         reloadWorker = std::move(m_reloadThread);
     }
+    m_reloadCv.notify_all();
     // A YouTube lookup can run for its full timeout, far longer than
     // fppd_stop waits before it kills fppd.
     KillRunningYtDlp();
@@ -1281,6 +1391,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
 
     std::string sourceName = source.name;
     std::string nodeNameCopy = source.pipeWireNodeName;
+    const int sourceId = source.id;
     GstElement* pipeline = source.pipeline;
     std::atomic<bool>* shutdownFlag = &source.shutdownRequested;
     std::atomic<bool>* runningFlag = &source.running;
@@ -1298,7 +1409,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
     }
 
     source.runThread = std::thread([pipeline, sourceName, nodeNameCopy, shutdownFlag, runningFlag,
-                                    deviceCopy, controls]() {
+                                    deviceCopy, controls, sourceId]() {
         LogInfo(VB_MEDIAOUT, "VideoInputManager: Source '%s' thread starting pipeline (node=%s)\n",
                 sourceName.c_str(), nodeNameCopy.c_str());
 
@@ -1325,6 +1436,9 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
                 WarningHolder::AddWarning(56, "Video input '" + sourceName + "' failed to start");
             }
             *runningFlag = false;
+            if (!shutdownFlag->load()) {
+                VideoInputManager::Instance().ScheduleSourceRestart(sourceId);
+            }
             return;
         }
 
@@ -1337,6 +1451,8 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
         if (ret == GST_STATE_CHANGE_SUCCESS) {
             applyControls();
             VideoOutputManager::Instance().NotifyProducerReady(nodeNameCopy);
+            // Up again after a restart: retract the banner its failure raised.
+            WarningHolder::RemoveWarning(56, "Video input '" + sourceName + "' failed to start");
         }
 
         // Monitor the pipeline bus for errors / EOS
@@ -1365,6 +1481,9 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
                     // days). StopSource() still owns unref'ing source.pipeline.
                     gst_element_set_state(pipeline, GST_STATE_NULL);
                     *runningFlag = false;
+                    if (!shutdownFlag->load()) {
+                        VideoInputManager::Instance().ScheduleSourceRestart(sourceId);
+                    }
                     return;
                 }
                 case GST_MESSAGE_BUFFERING: {
@@ -1394,6 +1513,8 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
                         if (newState == GST_STATE_PLAYING && pending == GST_STATE_VOID_PENDING) {
                             applyControls();
                             VideoOutputManager::Instance().NotifyProducerReady(nodeNameCopy);
+                            // Up again after a restart: retract the banner its failure raised.
+                            WarningHolder::RemoveWarning(56, "Video input '" + sourceName + "' failed to start");
                         }
                     }
                     break;
@@ -1409,6 +1530,9 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
                     // left in PLAYING.
                     gst_element_set_state(pipeline, GST_STATE_NULL);
                     *runningFlag = false;
+                    if (!shutdownFlag->load()) {
+                        VideoInputManager::Instance().ScheduleSourceRestart(sourceId);
+                    }
                     return;
                 default:
                     break;
@@ -1573,11 +1697,12 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
 
     std::string sourceName = source.name;
     std::string nodeNameCopy = source.pipeWireNodeName;
+    const int sourceId = source.id;
     GstElement* combinedPipeline = source.pipeline;
     std::atomic<bool>* shutdownFlag = &source.shutdownRequested;
     std::atomic<bool>* runningFlag = &source.running;
 
-    source.runThread = std::thread([combinedPipeline, sourceName, nodeNameCopy, shutdownFlag, runningFlag]() {
+    source.runThread = std::thread([combinedPipeline, sourceName, nodeNameCopy, shutdownFlag, runningFlag, sourceId]() {
         LogInfo(VB_MEDIAOUT, "VideoInputManager: Source '%s' A/V thread starting (node=%s)\n",
                 sourceName.c_str(), nodeNameCopy.c_str());
 
@@ -1589,6 +1714,9 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
                 WarningHolder::AddWarning(56, "Video input '" + sourceName + "' failed to start");
             }
             *runningFlag = false;
+            if (!shutdownFlag->load()) {
+                VideoInputManager::Instance().ScheduleSourceRestart(sourceId);
+            }
             return;
         }
 
@@ -1599,6 +1727,8 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
 
         if (ret == GST_STATE_CHANGE_SUCCESS) {
             VideoOutputManager::Instance().NotifyProducerReady(nodeNameCopy);
+            // Up again after a restart: retract the banner its failure raised.
+            WarningHolder::RemoveWarning(56, "Video input '" + sourceName + "' failed to start");
         }
 
         GstBus* bus = gst_pipeline_get_bus(GST_PIPELINE(combinedPipeline));
@@ -1629,6 +1759,9 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
                     // source.pipeline.
                     gst_element_set_state(combinedPipeline, GST_STATE_NULL);
                     *runningFlag = false;
+                    if (!shutdownFlag->load()) {
+                        VideoInputManager::Instance().ScheduleSourceRestart(sourceId);
+                    }
                     return;
                 }
                 case GST_MESSAGE_BUFFERING: {
@@ -1653,6 +1786,8 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
                                 gst_element_state_get_name(pending));
                         if (newState == GST_STATE_PLAYING && pending == GST_STATE_VOID_PENDING) {
                             VideoOutputManager::Instance().NotifyProducerReady(nodeNameCopy);
+                            // Up again after a restart: retract the banner its failure raised.
+                            WarningHolder::RemoveWarning(56, "Video input '" + sourceName + "' failed to start");
                         }
                     }
                     break;
@@ -1667,6 +1802,9 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
                     // Same reasoning as the ERROR case above.
                     gst_element_set_state(combinedPipeline, GST_STATE_NULL);
                     *runningFlag = false;
+                    if (!shutdownFlag->load()) {
+                        VideoInputManager::Instance().ScheduleSourceRestart(sourceId);
+                    }
                     return;
                 default:
                     break;
