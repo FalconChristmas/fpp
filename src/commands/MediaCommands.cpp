@@ -24,6 +24,7 @@
 #include <functional>
 #include <mutex>
 #include <thread>
+#include <vector>
 
 #include "../Timers.h"
 #include "../fppversion.h"
@@ -70,6 +71,75 @@ static size_t URL_write_data(void* buffer, size_t size, size_t nmemb, void* user
     return size * nmemb;
 }
 
+// A URL command's transfer outlives its Result. Fire-and-forget callers
+// (presets, an If's Parallel branch, GPIO, MultiSync) drop the Result at
+// once, and ~CURLResult used to busy-wait up to a second for the transfer and
+// then abort it: every webhook to a slow or dead host stalled the calling
+// thread - usually the main loop - for a second, and any response slower than
+// that was silently cut off. The destructor now hands the still-running
+// transfer here, whole (moving the easy handle to another multi would restart
+// it, and could send a POST twice), and the main loop finishes it.
+static constexpr long URL_TRANSFER_TIMEOUT_MS = 30000;
+static constexpr long URL_CONNECT_TIMEOUT_MS = 10000;
+namespace {
+struct OrphanTransfer {
+    CURLM* multi;
+    CURL* easy;
+    long long deadline;
+    std::string url;
+};
+std::mutex s_orphanLock;
+std::vector<OrphanTransfer> s_orphans;
+bool s_reaperArmed = false;
+
+size_t DiscardBody(void*, size_t size, size_t nmemb, void*) {
+    return size * nmemb;
+}
+
+void PumpOrphanTransfers() {
+    std::vector<OrphanTransfer> work;
+    {
+        std::lock_guard<std::mutex> l(s_orphanLock);
+        work.swap(s_orphans);
+    }
+    std::vector<OrphanTransfer> keep;
+    long long now = GetTimeMS();
+    for (auto& o : work) {
+        int running = 0;
+        CURLMcode mc = curl_multi_perform(o.multi, &running);
+        if (mc == CURLM_OK && running > 0 && now < o.deadline) {
+            keep.push_back(o);
+            continue;
+        }
+        if (running > 0) {
+            LogWarn(VB_COMMAND, "URL \"%s\" did not finish; abandoning it\n", o.url.c_str());
+        }
+        curl_multi_remove_handle(o.multi, o.easy);
+        curl_multi_cleanup(o.multi);
+        curl_easy_cleanup(o.easy);
+    }
+    std::lock_guard<std::mutex> l(s_orphanLock);
+    s_orphans.insert(s_orphans.end(), keep.begin(), keep.end());
+    if (s_orphans.empty()) {
+        s_reaperArmed = false;
+    } else {
+        Timers::INSTANCE.addTimer("URLCommandTransfers", GetTimeMS() + 10, PumpOrphanTransfers);
+    }
+}
+
+void AdoptOrphanTransfer(CURLM* multi, CURL* easy, const std::string& url) {
+    // The body has nowhere to go once the Result is gone.
+    curl_easy_setopt(easy, CURLOPT_WRITEFUNCTION, DiscardBody);
+    curl_easy_setopt(easy, CURLOPT_WRITEDATA, nullptr);
+    std::lock_guard<std::mutex> l(s_orphanLock);
+    s_orphans.push_back({ multi, easy, GetTimeMS() + URL_TRANSFER_TIMEOUT_MS + 5000, url });
+    if (!s_reaperArmed) {
+        s_reaperArmed = true;
+        Timers::INSTANCE.addTimer("URLCommandTransfers", GetTimeMS() + 10, PumpOrphanTransfers);
+    }
+}
+} // namespace
+
 class CURLResult : public Command::Result {
 public:
     CURLResult(const std::vector<std::string>& args) :
@@ -103,6 +173,10 @@ public:
         curl_easy_setopt(m_curl, CURLOPT_USERAGENT, userAgent.c_str());
         curl_easy_setopt(m_curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(m_curl, CURLOPT_MAXREDIRS, 10L);
+        // A transfer may now outlive its Result (see AdoptOrphanTransfer()),
+        // so it needs its own end.
+        curl_easy_setopt(m_curl, CURLOPT_CONNECTTIMEOUT_MS, URL_CONNECT_TIMEOUT_MS);
+        curl_easy_setopt(m_curl, CURLOPT_TIMEOUT_MS, URL_TRANSFER_TIMEOUT_MS);
 
         CURLcode status;
         status = curl_easy_setopt(m_curl, CURLOPT_URL, url.c_str());
@@ -140,10 +214,11 @@ public:
         m_isDone = false;
     }
     virtual ~CURLResult() {
-        int count = 0;
-        while (!isDone() && count < 1000) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            count++;
+        if (!isDone() && m_curl && m_curlm) {
+            AdoptOrphanTransfer(m_curlm, m_curl, m_url);
+            m_curl = nullptr;
+            m_curlm = nullptr;
+            return;
         }
         cleanupCurl();
     }
