@@ -353,9 +353,20 @@ const char* Playlist::PlaylistStatusToString(PlaylistStatus status) {
  *
  */
 int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*>& playlistPart, const Json::Value& entries, int startPos, int& maxEntries) {
+    return LoadSection(playlistPart, entries, startPos, maxEntries, nullptr);
+}
+
+int Playlist::LoadSection(std::vector<PlaylistEntryBase*>& playlistPart, const Json::Value& entries, int startPos,
+                          int& maxEntries, std::vector<int>* rowStart) {
     PlaylistEntryBase* plEntry = NULL;
 
-    for (int c = startPos; (c < entries.size()) && (maxEntries > 0); c++) {
+    if (rowStart)
+        rowStart->assign(entries.size(), -1);
+
+    int c = startPos;
+    for (; (c < entries.size()) && (maxEntries > 0); c++) {
+        if (rowStart)
+            (*rowStart)[c] = playlistPart.size();
         // Long-term handle sub-playlists on-demand instead of at load time
         if (entries[c]["type"].asString() == "playlist") {
             m_subPlaylistDepth++;
@@ -383,9 +394,16 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*>& playlistPart
             plEntry = LoadPlaylistEntry(entries[c]);
             if (plEntry) {
                 playlistPart.push_back(plEntry);
-                maxEntries--;
             }
         }
+        // An end position counts rows of the file: a sub-playlist row used not
+        // to count at all, and an entry that failed to load let one more in.
+        maxEntries--;
+    }
+    if (rowStart) {
+        // Rows past an end position start where the section ends.
+        for (; c < entries.size(); c++)
+            (*rowStart)[c] = playlistPart.size();
     }
 
     return 1;
@@ -414,6 +432,9 @@ int Playlist::Load(Json::Value& config) {
     std::vector<PlaylistEntryBase*> leadIn;
     std::vector<PlaylistEntryBase*> mainPlaylist;
     std::vector<PlaylistEntryBase*> leadOut;
+    std::vector<int> leadInRows;
+    std::vector<int> mainRows;
+    std::vector<int> leadOutRows;
 
     try {
         if (config.isMember("name"))
@@ -456,8 +477,9 @@ int Playlist::Load(Json::Value& config) {
             else
                 startPos = 0;
 
+            leadInRows.assign(leadInCfg.size(), -1);
             if (startPos < leadInCfg.size())
-                LoadJSONIntoPlaylist(leadIn, leadInCfg, startPos, maxEntries);
+                LoadSection(leadIn, leadInCfg, startPos, maxEntries, &leadInRows);
 
             origEntryCount += leadInCfg.size();
         }
@@ -479,8 +501,9 @@ int Playlist::Load(Json::Value& config) {
                 startPos = 0;
             }
 
+            mainRows.assign(playlist.size(), -1);
             if (startPos < playlist.size()) {
-                LoadJSONIntoPlaylist(mainPlaylist, playlist, startPos, maxEntries);
+                LoadSection(mainPlaylist, playlist, startPos, maxEntries, &mainRows);
             }
 
             origEntryCount += playlist.size();
@@ -495,9 +518,16 @@ int Playlist::Load(Json::Value& config) {
             else
                 startPos = 0;
 
+            leadOutRows.assign(leadOutCfg.size(), -1);
             if (startPos < leadOutCfg.size())
-                LoadJSONIntoPlaylist(leadOut, leadOutCfg, startPos, maxEntries);
+                LoadSection(leadOut, leadOutCfg, startPos, maxEntries, &leadOutRows);
         }
+
+        // Sections skipped above still count their rows.
+        if (leadInRows.empty() && config.isMember("leadIn"))
+            leadInRows.assign(config["leadIn"].size(), -1);
+        if (leadOutRows.empty() && config.isMember("leadOut"))
+            leadOutRows.assign(config["leadOut"].size(), -1);
 
         if (config.isMember("random")) {
             if (config["random"].isNumeric()) {
@@ -538,6 +568,9 @@ int Playlist::Load(Json::Value& config) {
     m_leadIn.swap(leadIn);
     m_mainPlaylist.swap(mainPlaylist);
     m_leadOut.swap(leadOut);
+    m_leadInRows.swap(leadInRows);
+    m_mainRows.swap(mainRows);
+    m_leadOutRows.swap(leadOutRows);
 
     // set the positions prior to any randomizations
     int curPos = 0;
@@ -1515,33 +1548,34 @@ int Playlist::Process(void) {
                     m_currentSection = &m_mainPlaylist;
                 }
 
-                if (currentEntry->GetNextItem() == -1) {
-                    m_sectionPosition = 0;
-                } else if (currentEntry->GetNextItem() < m_currentSection->size()) {
-                    m_sectionPosition = currentEntry->GetNextItem();
+                // A Branch's item number is a row of the playlist as the
+                // editor shows it; map it through the row table, as a
+                // sub-playlist row expands to several entries.
+                const std::vector<int>& rows = CurrentSectionRows();
+                int rowCount = rows.empty() ? (int)m_currentSection->size() : (int)rows.size();
+                int item = currentEntry->GetNextItem();
+                if ((item >= 0) && (item < rowCount)) {
+                    m_sectionPosition = RowToSectionPosition(rows, item, m_currentSection->size());
                 } else {
                     m_sectionPosition = 0;
                 }
             } else if (currentEntry->GetNextItem() != -1) {
-                if (currentEntry->GetNextItem() < m_currentSection->size()) {
-                    m_sectionPosition = currentEntry->GetNextItem();
-                } else {
-                    m_sectionPosition = m_currentSection->size();
-                }
+                m_sectionPosition = RowToSectionPosition(CurrentSectionRows(), currentEntry->GetNextItem(), m_currentSection->size());
             } else {
                 m_sectionPosition++;
             }
         } else if (currentEntry->GetNextBranchType() == PlaylistEntryBase::PlaylistBranchType::Offset) {
-            int nextPosition = m_sectionPosition + currentEntry->GetNextItem();
-            LogDebug(VB_PLAYLIST, "Attempting Offset Branch to section position %d\n", nextPosition);
-            if (nextPosition < 0) {
+            // Offsets count rows too (see the Index case above).
+            const std::vector<int>& rows = CurrentSectionRows();
+            int nextRow = SectionPositionToRow(rows, m_sectionPosition) + currentEntry->GetNextItem();
+            LogDebug(VB_PLAYLIST, "Attempting Offset Branch to section row %d\n", nextRow);
+            if (nextRow < 0) {
                 LogDebug(VB_PLAYLIST, "New position negative, branching to first position in section\n");
                 m_sectionPosition = 0;
-            } else if (nextPosition > m_currentSection->size()) {
-                m_sectionPosition = m_currentSection->size();
-                LogDebug(VB_PLAYLIST, "Offset outside current section, ending section\n");
             } else {
-                m_sectionPosition = nextPosition;
+                m_sectionPosition = RowToSectionPosition(rows, nextRow, m_currentSection->size());
+                if (m_sectionPosition >= m_currentSection->size())
+                    LogDebug(VB_PLAYLIST, "Offset outside current section, ending section\n");
             }
         } else if (currentEntry->GetNextBranchType() == PlaylistEntryBase::PlaylistBranchType::Playlist) {
             // handled internally to PlaylistEntryBranch
@@ -1880,6 +1914,9 @@ int Playlist::Cleanup(void) {
     // entry a second time (media restarted, command entries ran twice).
     m_isInGlobalPause = false;
     m_shouldStartGlobalPause = false;
+    m_leadInRows.clear();
+    m_mainRows.clear();
+    m_leadOutRows.clear();
 
     while (m_leadIn.size()) {
         PlaylistEntryBase* entry = m_leadIn.back();
@@ -2019,7 +2056,9 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
             }
 
             m_sectionPosition = 0;
-            SetPosition(position);
+            // position is a row of the playlist file; the loaded copy counts
+            // a sub-playlist row's entries separately.
+            SetPosition(FileRowToPosition(position));
             // Deliberate here, unlike the call at the end of this function:
             // this branch is a jump inside a playlist that is already running
             // (possibly stopping gracefully), so normalising to PLAYING is what
@@ -2213,6 +2252,55 @@ void Playlist::Dump(void) {
 std::string Playlist::GetPlaylistName(void) {
     std::lock_guard<std::mutex> nl(m_nameLock);
     return m_name;
+}
+
+const std::vector<int>& Playlist::CurrentSectionRows() const {
+    static const std::vector<int> none;
+    if (m_currentSection == &m_leadIn)
+        return m_leadInRows;
+    if (m_currentSection == &m_mainPlaylist)
+        return m_mainRows;
+    if (m_currentSection == &m_leadOut)
+        return m_leadOutRows;
+    return none;
+}
+
+// File row (0-based, within a section) to a position in the loaded section.
+// A row that wasn't loaded (before a start position) maps to the section's
+// start; one past the last row, to its end.  With no row table (nothing
+// loaded from a file) rows and positions are the same.
+int Playlist::RowToSectionPosition(const std::vector<int>& rows, int row, int sectionSize) {
+    if (row < 0)
+        return 0;
+    if (rows.empty())
+        return std::min(row, sectionSize);
+    if (row >= (int)rows.size())
+        return sectionSize;
+    return std::max(rows[row], 0);
+}
+
+// The file row a loaded position came from.
+int Playlist::SectionPositionToRow(const std::vector<int>& rows, int pos) {
+    if (rows.empty())
+        return pos;
+    int row = 0;
+    for (int r = 0; r < (int)rows.size(); r++) {
+        if ((rows[r] >= 0) && (rows[r] <= pos))
+            row = r;
+    }
+    return row;
+}
+
+// File row counted across the whole playlist (lead-in, then main, then
+// lead-out) to an overall loaded position.
+int Playlist::FileRowToPosition(int row) {
+    int li = m_leadInRows.empty() ? (int)m_leadIn.size() : (int)m_leadInRows.size();
+    int mi = m_mainRows.empty() ? (int)m_mainPlaylist.size() : (int)m_mainRows.size();
+    if (row < li)
+        return RowToSectionPosition(m_leadInRows, row, m_leadIn.size());
+    if (row < li + mi)
+        return m_leadIn.size() + RowToSectionPosition(m_mainRows, row - li, m_mainPlaylist.size());
+    return m_leadIn.size() + m_mainPlaylist.size() + RowToSectionPosition(m_leadOutRows, row - li - mi, m_leadOut.size());
 }
 
 std::shared_ptr<Playlist> Playlist::CurrentIfNotThis(void) {
@@ -2421,20 +2509,40 @@ int Playlist::GetPosition(void) {
  */
 int Playlist::GetResumePosition(void) {
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
-    int pos = GetPosition() - 1;
-    if (m_loadStartPos > 0) {
-        pos += m_loadStartPos;
-    }
 
+    bool done = false;
     PlaylistEntryBase* entry = CurrentEntry();
     if (entry) {
         PlaylistEntryCommand* cmdEntry = dynamic_cast<PlaylistEntryCommand*>(entry);
         if (entry->IsFinished() || (cmdEntry && cmdEntry->CommandDone())) {
-            pos++;
+            done = true;
         }
     }
 
-    return pos;
+    const std::vector<int>& rows = CurrentSectionRows();
+    if (rows.empty() || !m_currentSection || (m_status == FPP_STATUS_IDLE)) {
+        // No row table (not loaded from a playlist file): positions are rows.
+        int pos = GetPosition() - 1;
+        if (m_loadStartPos > 0) {
+            pos += m_loadStartPos;
+        }
+        return done ? pos + 1 : pos;
+    }
+
+    // The row of the file this entry came from, counted across the whole
+    // playlist.  It used to be the loaded position plus the trimmed rows,
+    // which mixed the two once a sub-playlist row had expanded into several
+    // entries.  Resuming inside a sub-playlist restarts that sub-playlist: a
+    // row is as fine as a position in the file can be.
+    int pos = m_sectionPosition + (done ? 1 : 0);
+    int row = (pos >= (int)m_currentSection->size()) ? (int)rows.size() : SectionPositionToRow(rows, pos);
+    int base = 0;
+    if (m_currentSection == &m_mainPlaylist) {
+        base = m_leadInRows.size();
+    } else if (m_currentSection == &m_leadOut) {
+        base = m_leadInRows.size() + m_mainRows.size();
+    }
+    return base + row;
 }
 
 /*

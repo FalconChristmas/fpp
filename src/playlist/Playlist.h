@@ -134,6 +134,15 @@ private:
 
     bool WillStopAfterCurrent();
 
+    // LoadJSONIntoPlaylist(), recording where each of the section's rows (as
+    // the playlist file and editor number them) starts in the loaded entries.
+    int LoadSection(std::vector<PlaylistEntryBase*>& part, const Json::Value& entries, int startPos,
+                    int& maxEntries, std::vector<int>* rowStart);
+    const std::vector<int>& CurrentSectionRows() const;
+    static int RowToSectionPosition(const std::vector<int>& rows, int row, int sectionSize);
+    static int SectionPositionToRow(const std::vector<int>& rows, int pos);
+    int FileRowToPosition(int row);
+
     // A command reaches a playlist through a snapshot of the current one taken
     // before it gets this playlist's lock.  If the player switched playlists in
     // between -- an inserted playlist started or finished -- the command is for
@@ -241,6 +250,15 @@ private:
     // GetPlaylistName() takes only this one, so it never waits on a playlist
     // transition and never orders this lock against the scheduler's.
     mutable std::mutex m_nameLock;
+
+    // For each section, the index in m_leadIn / m_mainPlaylist / m_leadOut
+    // where each row of the playlist file starts (-1 for rows not loaded).
+    // A sub-playlist row expands to several entries, so file rows -- what a
+    // Branch's item number, a resume position and Start At Item count -- and
+    // loaded positions differ once one appears.
+    std::vector<int> m_leadInRows;
+    std::vector<int> m_mainRows;
+    std::vector<int> m_leadOutRows;
 };
 
 // Source-compatibility façade for the old `extern Playlist* playlist;` global.
