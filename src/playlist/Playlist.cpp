@@ -1190,13 +1190,13 @@ int Playlist::FileHasBeenModified(void) {
     return 0;
 }
 
-// Process() re-enters itself on this thread: after switching to an inserted
-// playlist it tail-calls `return pl->Process()` while the outer frame still
-// holds its own m_playlistMutex -- and that outer instance may already be on
-// PL_CLEANUPS.  Draining only in the outermost frame is what makes the
-// PL_CLEANUPS/PL_ENTRY_CLEANUPS promise ("freed after the stack has unwound")
-// true; without it the nested drain deletes the object whose mutex an outer
-// frame is about to unlock.
+// Process() used to re-enter itself on this thread: after switching to an
+// inserted playlist it tail-called `return pl->Process()` while the outer frame
+// still held its own m_playlistMutex -- and that outer instance may already be
+// on PL_CLEANUPS.  It no longer does (see the switch sites), but draining only
+// in the outermost frame is what makes the PL_CLEANUPS/PL_ENTRY_CLEANUPS
+// promise ("freed after the stack has unwound") true, so the depth guard stays
+// for any path that still nests.
 static thread_local int tl_processDepth = 0;
 namespace {
 class ProcessDepthGuard {
@@ -1310,11 +1310,25 @@ int Playlist::Process(void) {
     }
 
     Playlist* pl = nullptr;
-    if (m_currentSection->at(m_sectionPosition)->IsPaused() && ((pl = SwitchToInsertedPlaylist()) != nullptr)) {
-        std::unique_lock<std::recursive_mutex> lck(pl->m_playlistMutex);
-        // SwitchToInsertedPlaylist() already started pl (via PlayImpl) --
-        // starting it again would replay its first entry.
-        return pl->Process();
+    if (m_currentSection->at(m_sectionPosition)->IsPaused() && !m_insertedPlaylist.empty()) {
+        if ((pl = SwitchToInsertedPlaylist()) == nullptr) {
+            // The insert was refused (nesting limit) or failed to start.  A
+            // failed start already resumed us from the child's SetIdle; a
+            // refusal didn't, and we'd sit paused under nothing.  Resume() is a
+            // no-op if we're not paused.
+            if (Player::INSTANCE.PlaylistSnapshot().get() == this) {
+                Resume();
+            }
+            return 1;
+        }
+        // SwitchToInsertedPlaylist() already started pl (via PlayImpl) and made
+        // it current; the next tick processes it.  Never process the child from
+        // here: this frame holds our lock, and a thread stopping the child
+        // takes the child's lock and then ours (StopGracefully forwards to
+        // m_parent, SetIdle resumes it) -- taking pl's lock here deadlocked
+        // against that.  Processing it inline also recursed once per level of
+        // a playlist that inserts itself.
+        return 1;
     }
 
     if (m_currentSection->at(m_sectionPosition)->IsFinished()) {
@@ -1359,14 +1373,22 @@ int Playlist::Process(void) {
         }
         if (m_stopAtPos != -1 && m_stopAtPos <= (GetPosition() - 1)) {
             if ((pl = SwitchToInsertedPlaylist(true)) != nullptr) {
-                return pl->Process();
+                return 1; // next tick processes pl; see the paused case above
+            }
+            if (Player::INSTANCE.PlaylistSnapshot().get() != this) {
+                // The insert failed to start and handed the player back to our
+                // parent, condemning us; nothing here is ours to run any more.
+                return 1;
             }
             LogDebug(VB_PLAYLIST, "Stopping after end position\n");
             SetIdle();
             return 1;
         }
         if ((pl = SwitchToInsertedPlaylist(WillStopAfterCurrent())) != nullptr) {
-            return pl->Process();
+            return 1; // next tick processes pl; see the paused case above
+        }
+        if (Player::INSTANCE.PlaylistSnapshot().get() != this) {
+            return 1; // condemned by a failed insert; see above
         }
 
         auto currentEntry = m_currentSection->at(m_sectionPosition);
@@ -1514,20 +1536,36 @@ int Playlist::Process(void) {
     return 1;
 }
 
+// Deepest stack of inserted playlists SwitchToInsertedPlaylist will build,
+// counting the resident playlist at the bottom.
+static constexpr int MAX_INSERTED_PLAYLIST_DEPTH = 10;
+
+// True when this playlist ends once the current entry finishes -- i.e. an
+// inserted playlist can take our place instead of nesting under us.  Both
+// section branches used to be inverted (true exactly when more was left to
+// play): an insert queued near the end of a nested playlist dropped its
+// remaining sections, while a playlist that really was ending nested the
+// insert one level deeper every time -- without bound for a playlist that
+// branches back to itself.
 bool Playlist::WillStopAfterCurrent() {
-    if ((m_sectionPosition + 1) >= m_currentSection->size()) {
-        if (m_currentSectionStr == "LeadIn") {
-            return !m_mainPlaylist.empty() || !m_leadOut.empty();
-        } else if (m_currentSectionStr == "MainPlaylist") {
-            if (m_repeat) {
-                return false;
-            }
-            return !m_leadOut.empty();
-        } else {
-            return true;
-        }
+    if ((m_sectionPosition + 1) < m_currentSection->size()) {
+        return false;
     }
-    return false;
+    PlaylistEntryBase* entry = CurrentEntry();
+    if (entry && (entry->GetNextBranchType() == PlaylistEntryBase::PlaylistBranchType::Index ||
+                  entry->GetNextBranchType() == PlaylistEntryBase::PlaylistBranchType::Offset)) {
+        // A last-entry branch can jump back into the playlist.
+        return false;
+    }
+    if (m_currentSectionStr == "LeadIn") {
+        return m_mainPlaylist.empty() && m_leadOut.empty();
+    } else if (m_currentSectionStr == "MainPlaylist") {
+        // Same test Process() applies once m_loop has been incremented.
+        bool loopsAgain = m_repeat && (!m_loopCount || ((m_loop + 1) < m_loopCount)) &&
+                          (m_status != FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP);
+        return !loopsAgain && m_leadOut.empty();
+    }
+    return true;
 }
 
 Playlist* Playlist::SwitchToInsertedPlaylist(bool isStopping) {
@@ -1536,6 +1574,24 @@ Playlist* Playlist::SwitchToInsertedPlaylist(bool isStopping) {
         // of playlists: the new playlist takes our place by inheriting our
         // parent, and we clean ourselves up once it is known to be running.
         bool replaceSelf = isStopping && m_parent;
+
+        // Bound the stack of inserted playlists.  Inline sub-playlists stop at
+        // 5 levels in LoadJSONIntoPlaylist, but inserts (Insert Playlist
+        // commands, Branch-to-playlist) had no limit: a playlist that branches
+        // to itself, or A -> B -> A, nested one level per pass until memory or
+        // the stack ran out.
+        int depth = 1;
+        for (Playlist* p = replaceSelf ? m_parent : this; p; p = p->m_parent) {
+            depth++;
+        }
+        if (depth > MAX_INSERTED_PLAYLIST_DEPTH) {
+            LogErr(VB_PLAYLIST, "Not inserting playlist '%s': inserted playlists are already nested %d deep (does a playlist insert or branch to itself?)\n",
+                   m_insertedPlaylist.c_str(), depth - 1);
+            WarningHolder::AddWarningTimeout(60, 24, "Recursive playlist: too many nested inserts trying to start '" + m_insertedPlaylist + "'");
+            m_insertedPlaylist = "";
+            return nullptr;
+        }
+
         // The player owns the new instance from birth; plRef only keeps it
         // alive across the start attempt below, before it is published.
         std::shared_ptr<Playlist> plRef = Player::INSTANCE.CreatePlaylist(replaceSelf ? m_parent : this);
