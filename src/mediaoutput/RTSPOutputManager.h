@@ -212,6 +212,8 @@ private:
 
     GstRTSPServer* m_server = nullptr;
     guint m_serverSourceId = 0;
+    // Expires sessions whose client went away without a TEARDOWN; see StartServer().
+    GSource* m_sessionCleanup = nullptr;
     GMainContext* m_mainContext = nullptr;
     GMainLoop* m_mainLoop = nullptr;
     std::thread m_loopThread;

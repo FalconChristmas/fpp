@@ -410,6 +410,10 @@ void RTSPOutputManager::StopAudioBridges() {
     }
 }
 
+// Concurrent RTSP sessions.  One shared encoder serves them all, but each
+// still gets its own transport.
+static constexpr guint RTSP_MAX_SESSIONS = 32;
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Server lifecycle
 // ──────────────────────────────────────────────────────────────────────────────
@@ -468,6 +472,33 @@ bool RTSPOutputManager::StartServer() {
         return false;
     }
 
+    // A UDP viewer that vanishes without a TEARDOWN (a phone app killed, a
+    // dropped network) leaves its session behind, and the server goes on
+    // sending its RTP into the void.  The session times out (60s by
+    // default), but only once someone runs the pool's cleanup -- which
+    // gst-rtsp-server leaves to the application.  The cap bounds what a
+    // crowd of viewers, or one client opening sessions in a loop, can cost.
+    if (GstRTSPSessionPool* pool = gst_rtsp_server_get_session_pool(m_server)) {
+        gst_rtsp_session_pool_set_max_sessions(pool, RTSP_MAX_SESSIONS);
+        g_object_unref(pool);
+    }
+    m_sessionCleanup = g_timeout_source_new_seconds(2);
+    g_source_set_callback(
+        m_sessionCleanup,
+        [](gpointer data) -> gboolean {
+            GstRTSPSessionPool* pool = gst_rtsp_server_get_session_pool(static_cast<GstRTSPServer*>(data));
+            if (pool) {
+                guint expired = gst_rtsp_session_pool_cleanup(pool);
+                if (expired) {
+                    LogInfo(VB_MEDIAOUT, "RTSPOutputManager: expired %u session(s) whose client went away\n", expired);
+                }
+                g_object_unref(pool);
+            }
+            return G_SOURCE_CONTINUE;
+        },
+        m_server, nullptr);
+    g_source_attach(m_sessionCleanup, m_mainContext);
+
     m_loopThread = std::thread([this]() {
         // The loop must run with the same context the server was attached to,
         // and pushing it as this thread's default keeps any source the server
@@ -508,6 +539,12 @@ void RTSPOutputManager::StopServer() {
     }
     if (m_loopThread.joinable()) {
         m_loopThread.join();
+    }
+    if (m_sessionCleanup) {
+        // It points at m_server, which goes below.
+        g_source_destroy(m_sessionCleanup);
+        g_source_unref(m_sessionCleanup);
+        m_sessionCleanup = nullptr;
     }
     if (m_serverSourceId != 0) {
         // Only safe now that the loop has stopped: removing the server's
