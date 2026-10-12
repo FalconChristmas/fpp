@@ -65,10 +65,12 @@ Sequence::Sequence() :
     m_seqFile(nullptr),
     m_seqStarting(0),
     m_seqPaused(0),
+    m_seqStepTime(50),
     m_seqSingleStep(0),
     m_seqSingleStepBack(0),
     m_seqRefreshRate(20),
     m_remoteBlankCount(0),
+    m_numSeek(0),
     m_readThread(nullptr),
     m_lastFrameRead(-1),
     m_doneRead(false),
@@ -119,7 +121,7 @@ Sequence::~Sequence() {
     if (m_bridgeData) {
         free(m_bridgeData);
     }
-    munmap(m_seqData, FPPD_MAX_CHANNELS);
+    munmap(m_seqData, FPPD_MAX_CHANNEL_NUM); // the size mmap()ed in the constructor
 }
 
 void Sequence::setBridgePrioritySetting(const std::string& value) {
@@ -696,7 +698,9 @@ void Sequence::SeekSequenceFile(int frameNumber) {
         if ((frameNumber < 100) && (getFPPmode() == REMOTE_MODE)) {
             m_numSeek++;
             if (m_numSeek > 6) {
-                WarningHolder::AddWarning(17, "Multiple Frame Skips During Playback - Likely Slow Network");
+                // Timed: it is re-raised while the skipping continues and
+                // otherwise ages out, rather than staying up until a restart.
+                WarningHolder::AddWarningTimeout(600, 17, "Multiple Frame Skips During Playback - Likely Slow Network");
             }
         }
     }
