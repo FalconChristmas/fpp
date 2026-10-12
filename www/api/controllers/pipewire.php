@@ -6726,7 +6726,7 @@ function GetAES67SDPFile()
         if (isset($s['instanceId']) && intval($s['instanceId']) === $id) {
             $name = isset($s['filename']) ? basename($s['filename']) : ('aes67_' . $id . '.sdp');
             header("Content-Type: application/sdp");
-            header("Content-Disposition: attachment; filename=\"" . $name . "\"");
+            header("Content-Disposition: attachment; filename=\"" . SanitizeDownloadFilename($name) . "\"");
             // application/sdp has no ExpiresByType rule, so Apache's
             // ExpiresDefault ("access plus 1 year") would apply here and a
             // browser would keep serving this description long after the

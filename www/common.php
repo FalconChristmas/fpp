@@ -3854,6 +3854,22 @@ function sanitizeFilename($file)
     return $file;
 }
 
+// Reduce a filename to a value that is safe inside a Content-Disposition
+// response header. Strips directory components, CR/LF (response splitting)
+// and double quotes (quoted-string breakout); single quotes are legal in
+// filenames and harmless inside a double-quoted header value, so they are
+// kept and names keep round-tripping. Only the suggested save-as name is
+// affected, never the file on disk.
+function SanitizeDownloadFilename($name)
+{
+    $name = basename(str_replace("\\", "/", (string) $name));
+    $name = str_replace(array("\r", "\n", '"'), '', $name);
+    if ($name === '' || $name === '.' || $name === '..') {
+        $name = 'download';
+    }
+    return $name;
+}
+
 function is_valid_domain_name($domain_name)
 {
     return (preg_match("/^([a-z\d](-*[a-z\d])*)(\.([a-z\d](-*[a-z\d])*))*$/i", $domain_name) //valid chars check
