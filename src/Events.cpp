@@ -205,7 +205,22 @@ void Events::RemoveCallback(const std::string& topic) {
     EVENT_CALLBACKS.erase(topic);
 }
 void Events::InvokeCallback(const std::string& topic, const std::string& topic_in, const std::string& payload) {
-    EVENT_CALLBACKS[topic](topic_in, payload);
+    // find(), not operator[]: an unknown topic would otherwise insert an empty
+    // std::function and calling it throws bad_function_call.
+    auto it = EVENT_CALLBACKS.find(topic);
+    if (it == EVENT_CALLBACKS.end() || !it->second) {
+        return;
+    }
+    // Callbacks run on the event handler's own thread (libmosquitto's for
+    // MQTT), where nothing above us catches - an exception escaping here is
+    // std::terminate. The payload is whatever a broker client sent.
+    try {
+        it->second(topic_in, payload);
+    } catch (const std::exception& e) {
+        LogErr(VB_CONTROL, "Event callback for \"%s\" threw: %s\n", topic_in.c_str(), e.what());
+    } catch (...) {
+        LogErr(VB_CONTROL, "Event callback for \"%s\" threw an unknown exception\n", topic_in.c_str());
+    }
 }
 
 void Events::PrepareForShutdown() {

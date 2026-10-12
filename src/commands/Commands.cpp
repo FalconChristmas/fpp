@@ -302,7 +302,7 @@ void CommandManager::Init() {
                 Json::Value val;
                 bool success = LoadJsonFromString(payload, val);
                 if (success && val.isObject()) {
-                    LogDebug(VB_COMMAND, "MQTT topic \"%s\" running command \"%s\" (JSON payload)\n", topic.c_str(), val["command"].asString().c_str());
+                    LogDebug(VB_COMMAND, "MQTT topic \"%s\" running command (JSON payload)\n", topic.c_str());
                     CommandManager::INSTANCE.run(val);
                 } else {
                     LogWarn(VB_COMMAND, "Invalid JSON Payload: %s\n", payload.c_str());
@@ -491,7 +491,66 @@ static std::unique_ptr<Command::Result> invokeCommand(Command* cmd, const std::v
         return std::make_unique<Command::ErrorResult>(
             "Command \"" + cmd->name + "\" requires the \"" + argName + "\" argument");
     }
-    return cmd->run(args);
+    // ...and the one place a throwing command can be stopped from taking fppd
+    // down. Only the HTTP routes have a catch above them (drogon's); MQTT runs
+    // commands on libmosquitto's thread, MultiSync, GPIO, presets and playlist
+    // entries on the main loop, and none of those frames catch, so an exception
+    // out of run() - jsoncpp's LogicError on an argument of the wrong JSON type,
+    // std::stoi on a non-number, a Magick error, any plugin's own throw - was
+    // std::terminate. A malformed command is the sender's error; report it as
+    // one.
+    try {
+        return cmd->run(args);
+    } catch (const std::exception& e) {
+        LogErr(VB_COMMAND, "Command \"%s(%s)\" failed: %s\n", cmd->name.c_str(), FormatArgsForLog(args).c_str(), e.what());
+        return std::make_unique<Command::ErrorResult>("Command \"" + cmd->name + "\" failed: " + e.what());
+    } catch (...) {
+        LogErr(VB_COMMAND, "Command \"%s(%s)\" failed with an unknown exception\n", cmd->name.c_str(), FormatArgsForLog(args).c_str());
+        return std::make_unique<Command::ErrorResult>("Command \"" + cmd->name + "\" failed");
+    }
+}
+
+// A command's args as strings, whatever JSON type each one arrived as. Every
+// documented sender writes strings, but these come off MQTT payloads, MultiSync
+// packets and hand-edited presets, and asString() throws on an object or array
+// - and indexing a non-array by position throws too. Scalars convert the way
+// asString() always has; an object or array is passed on as its JSON text,
+// which is what the commands that take structured args (If) parse anyway.
+static bool JsonArgsToStrings(const Json::Value& argsArray, std::vector<std::string>& args, std::string& err) {
+    if (argsArray.isNull()) {
+        return true;
+    }
+    if (!argsArray.isArray()) {
+        err = "\"args\" must be an array";
+        return false;
+    }
+    for (Json::ArrayIndex x = 0; x < argsArray.size(); x++) {
+        const Json::Value& a = argsArray[x];
+        if (a.isNull()) {
+            args.push_back("");
+        } else if (a.isObject() || a.isArray()) {
+            args.push_back(SaveJsonToString(a));
+        } else {
+            args.push_back(a.asString());
+        }
+    }
+    return true;
+}
+
+// A boolean flag in a command's JSON, tolerating the "true"/"1" string forms a
+// hand-written payload uses; asBool() throws on a string.
+static bool JsonFlag(const Json::Value& v) {
+    if (v.isBool()) {
+        return v.asBool();
+    }
+    if (v.isIntegral()) {
+        return v.asLargestInt() != 0;
+    }
+    if (v.isString()) {
+        std::string s = v.asString();
+        return s == "true" || s == "1";
+    }
+    return false;
 }
 
 std::unique_ptr<Command::Result> CommandManager::run(const std::string& command, const std::vector<std::string>& args) {
@@ -538,12 +597,13 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
     auto f = commands.find(command);
     if (f != commands.end()) {
         std::vector<std::string> args;
-        for (int x = 0; x < argsArray.size(); x++) {
-            if (argsArray[x].isNull()) {
-                args.push_back("");
-            } else {
-                args.push_back(ReplaceVariableKeywords(argsArray[x].asString()));
-            }
+        std::string err;
+        if (!JsonArgsToStrings(argsArray, args, err)) {
+            LogWarn(VB_COMMAND, "Command \"%s\" not run: %s\n", command.c_str(), err.c_str());
+            return std::make_unique<Command::ErrorResult>(err);
+        }
+        for (auto& a : args) {
+            a = ReplaceVariableKeywords(a);
         }
         LogInfo(VB_COMMAND, "Running command \"%s(%s)\"\n", command.c_str(), FormatArgsForLog(args).c_str());
 
@@ -575,23 +635,28 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
     return std::make_unique<Command::ErrorResult>("No Command: " + command);
 }
 std::unique_ptr<Command::Result> CommandManager::run(const Json::Value& cmd) {
+    if (!cmd.isObject() || !cmd["command"].isString()) {
+        LogWarn(VB_COMMAND, "Command not run: \"command\" must be a string\n");
+        return std::make_unique<Command::ErrorResult>("\"command\" must be a string");
+    }
     std::string command = cmd["command"].asString();
     if (cmd.isMember("multisyncCommand")) {
-        bool multisync = cmd["multisyncCommand"].asBool();
+        bool multisync = JsonFlag(cmd["multisyncCommand"]);
         if (multisync) {
-            std::string hosts = cmd.isMember("multisyncHosts") ? cmd["multisyncHosts"].asString() : "";
+            std::string hosts = cmd["multisyncHosts"].isString() ? cmd["multisyncHosts"].asString() : "";
             std::vector<std::string> args;
-            for (int x = 0; x < cmd["args"].size(); x++) {
-                if (cmd["args"][x].isNull()) {
-                    args.push_back("");
-                } else {
-                    // Resolved against THIS host's Variables before sending -
-                    // a remote host has no way to resolve %VAR:name% itself
-                    // (and may not even have a same-named Variable), so it
-                    // must go out already substituted, unlike the
-                    // non-multisync path below where run() does this.
-                    args.push_back(ReplaceVariableKeywords(cmd["args"][x].asString()));
-                }
+            std::string err;
+            if (!JsonArgsToStrings(cmd["args"], args, err)) {
+                LogWarn(VB_COMMAND, "Command \"%s\" not sent: %s\n", command.c_str(), err.c_str());
+                return std::make_unique<Command::ErrorResult>(err);
+            }
+            // Resolved against THIS host's Variables before sending - a remote
+            // host has no way to resolve %VAR:name% itself (and may not even
+            // have a same-named Variable), so it must go out already
+            // substituted, unlike the non-multisync path below where run()
+            // does this.
+            for (auto& a : args) {
+                a = ReplaceVariableKeywords(a);
             }
             MultiSync::INSTANCE.SendFPPCommandPacket(hosts, command, args);
             return std::make_unique<Command::Result>("Command Sent");
@@ -807,10 +872,14 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
                 return makeStringResponse("Body is not valid JSON - expected an array of arguments", 400, "text/plain");
             }
             std::vector<std::string> args;
-            for (int x = 0; x < val.size(); x++) {
+            std::string err;
+            if (!JsonArgsToStrings(val, args, err)) {
+                return makeStringResponse("Body must be a JSON array of arguments", 400, "text/plain");
+            }
+            for (auto& a : args) {
                 // Direct Command call, so substitute here - same reason as the
                 // GET route above.
-                args.push_back(ReplaceVariableKeywords(val[x].asString()));
+                a = ReplaceVariableKeywords(a);
             }
             auto f = commands.find(command);
             if (f != commands.end()) {
