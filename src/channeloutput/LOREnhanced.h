@@ -35,5 +35,6 @@ public:
 private:
     LOREnhancedOutputData* data;
 
-    void SendUnitData(unsigned char* channelData, LOREnhancedOutputUnit* unit);
+    bool UnitIsValid(const LOREnhancedOutputUnit& unit);
+    int EncodeUnit(int unitIdx, const unsigned char* cur, unsigned char* out, int room, bool& complete);
 };

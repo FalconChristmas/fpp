@@ -750,11 +750,14 @@
     /////////////////////////////////////////////////////////////////////////////
     // LOR Enhanced
     var LOREnhancedSpeeds = new Array();
-    LOREnhancedSpeeds["19200"] = "19.2k, 15 pixels max";
-    LOREnhancedSpeeds["57600"] = "57.6k, 45 pixels";
-    LOREnhancedSpeeds["115400"] = "115.4k, 90 pixels max";
-    LOREnhancedSpeeds["500000"] = "500 k, 400 pixels max";
-    LOREnhancedSpeeds["1000000"] = "1 Mbps, 800 pixels max";
+    // The pixel counts are for every pixel changing every frame at 40fps;
+    // only changed pixels are sent, so typical sequences fit several times
+    // more.
+    LOREnhancedSpeeds["19200"] = "19.2k, 15 pixels all changing";
+    LOREnhancedSpeeds["57600"] = "57.6k, 45 pixels all changing";
+    LOREnhancedSpeeds["115200"] = "115.2k, 90 pixels all changing";
+    LOREnhancedSpeeds["500000"] = "500k, 400 pixels all changing";
+    LOREnhancedSpeeds["1000000"] = "1 Mbps, 800 pixels all changing";
 
     class LOREnhanced extends OtherBaseDevice {
 
@@ -767,7 +770,7 @@
             result += "Unit Id: <input class='unitId' style='opacity: 1' type='number' value='" + uintId.toString() + "' min='1' max='240' />&nbsp;&nbsp;";
             result += "Pixels: <input class='numOfPixels' style='opacity: 1' type='number' value='" + numOfPixels.toString() + "' min='1' max='170' />&nbsp;&nbsp;";
             result += "LOR Start Pix: <input class='lorStartPixel' style='opacity: 1' type='number' value='" + lorStartPixel.toString() + "' min='1' max='170' />&nbsp;&nbsp;";
-            result += "FPP Start Ch: <input class='fppStartAddr' style='opacity: 1' type='number' value='" + fppStartAddr.toString() + "' min='1' max='" + this._maxChannels + "' />&nbsp;&nbsp;";
+            result += "<span title='Channel within this output where the unit&apos;s data starts. 1 is the output&apos;s Start Channel.'>Start Ch</span>: <input class='fppStartAddr' style='opacity: 1' type='number' value='" + fppStartAddr.toString() + "' min='1' max='" + FPPD_MAX_CHANNELS + "' />&nbsp;&nbsp;";
             result += '<input class="buttons" type="button" value="Remove" onClick="LOREnhanced.RemoveUnit(this);" />';
             result += "<br>";
             result += "</span>"
@@ -809,15 +812,17 @@
 
             result += "<br>Speed: <select class='speed'>";
 
+            // Older versions offered a mistyped 115400.
+            var speed = (config.speed == 115400) ? 115200 : config.speed;
             for (var key in LOREnhancedSpeeds) {
                 result += "<option value='" + key + "'";
 
-                if (config.speed == key) {
+                if (speed == key) {
                     result += " selected";
                 }
 
                 // Make 500k the default
-                if ((config.speed == "") && (key == "500000")) {
+                if ((speed == "") && (key == "500000")) {
                     result += " selected";
                 }
 

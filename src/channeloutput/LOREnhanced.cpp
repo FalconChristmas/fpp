@@ -14,55 +14,79 @@
 
 #include "fpp-json.h"
 
-#include <fcntl.h>
-#include <termios.h>
-#include <unistd.h>
+#include <cstdint>
+#include <vector>
 
 #include "../Warnings.h"
 #include "../common.h"
 #include "../log.h"
 
 #include "LOREnhanced.h"
-#include "SerialChannelOutput.h"
+#include "LORSerial.h"
 
+// A Pixie port set for 340 pixels takes two unit IDs, so a unit ID never
+// carries more than 170 pixels.
 #define LORE_MAX_PIXELS_PER_UNIT 170
-#define LORE_MAX_CHANNELS_PER_UNIT LORE_MAX_PIXELS_PER_UNIT * 3
-#define LORE_UNIT_MAX_PACKET 518 // 2 for Unit Address & Enhanced Command header, 510 channels, 4 addressing bytes, 2 null bytes
-#define LOR_HEARTBEAT_SIZE 5
+#define LORE_MAX_CHANNELS_PER_UNIT (LORE_MAX_PIXELS_PER_UNIT * 3)
 #define LOR_ENHANCED_CMD 0x8E
+
+/*
+ * Enhanced command: 00 <unit> 8E <ops...> 00
+ *
+ * The ops walk the unit's channels from channel 1.  Each op is a command
+ * byte, [7:5] the op and [4:0] a count; a count of 11111 means the count is
+ * in the next byte instead (FPP only uses that for counts over 30).
+ *
+ *   000  literal: the next <count> bytes are values for the next channels
+ *   001  jump: skip <count> channels
+ *   010  repeat: the next 3 bytes are one pixel, written to <count> pixels
+ *
+ * Values are 1-255 (0 is the delimiter, so 0 is sent as 1).  Checked on a
+ * Pixie: a jump leaves the channels it skips unchanged, and so do channels
+ * past the end of the packet, so a frame can carry only what changed.  A
+ * unit blanks its outputs when the heartbeat stops.
+ */
 
 /////////////////////////////////////////////////////////////////////////////
 
 class LOREnhancedOutputUnit {
 public:
-    LOREnhancedOutputUnit() :
-        unitId(1),
-        numOfPixels(0),
-        lorStartPixel(0),
-        fppStartAddr(0) {
-        memset(outputBuff, 0, LORE_UNIT_MAX_PACKET);
-    }
-    int unitId;
-    int numOfPixels;
-    int lorStartPixel;
-    int fppStartAddr;
-    unsigned char outputBuff[LORE_UNIT_MAX_PACKET];
+    int unitId = 1;
+    int numOfPixels = 0;
+    int lorStartPixel = 1;
+    int fppStartAddr = 0;
+
+    // What the unit was last sent for each of its channels, or LOR_UNKNOWN.
+    std::vector<uint16_t> lastSent;
 };
 
-class LOREnhancedOutputData : public SerialChannelOutput {
+class LOREnhancedOutputData : public LORSerialOutput {
 public:
-    LOREnhancedOutputData() :
-        SerialChannelOutput(),
-        speed(500000),
-        lastHeartbeat(0) {
+    LOREnhancedOutputData() {
+        speed = 500000;
     }
-    ~LOREnhancedOutputData() {}
 
-    int speed;
-    unsigned char intensityMap[256];
-    long long lastHeartbeat;
-    unsigned char heartbeatData[LOR_HEARTBEAT_SIZE];
     std::vector<LOREnhancedOutputUnit> units;
+
+    // Unit the next frame starts with, so a frame whose changes do not all
+    // fit the budget does not starve the units after it.
+    int nextUnit = 0;
+    // Next pixel the background refresh marks for resending.
+    int refreshUnit = 0;
+    int refreshPixel = 0;
+
+    unsigned char batch[LOR_MAX_BATCH_SIZE];
+
+    // One per packet in the batch: the unit, the pixels its ops reach, and
+    // where the packet ends in the batch, so a short write can mark them
+    // unsent again.
+    struct SentPacket {
+        int unit;
+        int firstPixel;
+        int endPixel;
+        int batchEnd;
+    };
+    std::vector<SentPacket> sent;
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -97,19 +121,9 @@ void LOREnhancedOutput::GetRequiredChannelRanges(const std::function<void(int, i
     addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 
-static void LOREnhanced_SetupIntensityMap(LOREnhancedOutputData* privData) {
-    int i = 0;
-
-    for (i = 0; i <= 255; i++) {
-        if (i == 0)
-            privData->intensityMap[i] = 1;
-        else
-            privData->intensityMap[i] = i;
-    }
-}
-
 int LOREnhancedOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "LOREnhancedOutput::Close()\n");
+    data->StopHeartbeat();
     data->closeSerialPort();
     return ChannelOutput::Close();
 }
@@ -119,13 +133,12 @@ void LOREnhancedOutput::DumpConfig(void) {
     if (data) {
         data->dumpSerialConfig();
         LogDebug(VB_CHANNELOUT, "    port speed   : %d\n", data->speed);
-        LogDebug(VB_CHANNELOUT, "    lastHeartbeat: %d\n", data->lastHeartbeat);
-    }
-    for (auto& unit : data->units) {
-        LogDebug(VB_CHANNELOUT, "    Unit Id     : %d\n", unit.unitId);
-        LogDebug(VB_CHANNELOUT, "      Pixels    : %d\n", unit.numOfPixels);
-        LogDebug(VB_CHANNELOUT, "      Lor Start : %d\n", unit.lorStartPixel);
-        LogDebug(VB_CHANNELOUT, "      FPP Start : %d\n", unit.fppStartAddr);
+        for (auto& unit : data->units) {
+            LogDebug(VB_CHANNELOUT, "    Unit Id     : %d\n", unit.unitId);
+            LogDebug(VB_CHANNELOUT, "      Pixels    : %d\n", unit.numOfPixels);
+            LogDebug(VB_CHANNELOUT, "      Lor Start : %d\n", unit.lorStartPixel);
+            LogDebug(VB_CHANNELOUT, "      FPP Start : %d\n", unit.fppStartAddr);
+        }
     }
 }
 
@@ -135,6 +148,10 @@ int LOREnhancedOutput::Init(Json::Value config) {
 
     if (config.isMember("speed")) {
         data->speed = config["speed"].asInt();
+        // Older versions of the UI offered a mistyped 115400.
+        if (data->speed == 115400) {
+            data->speed = 115200;
+        }
     }
 
     if (config.isMember("units")) {
@@ -171,139 +188,232 @@ int LOREnhancedOutput::Init(Json::Value config) {
                 WarningHolder::AddWarning(39, "LOR unit " + std::to_string(newUnit.unitId) + ": invalid FPP start channel " + std::to_string(newUnit.fppStartAddr) + " - unit disabled");
                 continue;
             }
+            newUnit.lastSent.assign(std::max(newUnit.numOfPixels, 0) * 3, LOR_UNKNOWN);
             data->units.push_back(newUnit);
         }
     }
     if (!data->setupSerialPort(config, data->speed, "8N1")) {
         return 0;
     }
-
-    LOREnhanced_SetupIntensityMap(data);
-
-    data->heartbeatData[0] = 0x00;
-    data->heartbeatData[1] = 0xFF;
-    data->heartbeatData[2] = 0x81;
-    data->heartbeatData[3] = 0x56;
-    data->heartbeatData[4] = 0x00;
+    data->StartHeartbeat();
 
     return ChannelOutput::Init(config);
 }
 
-static void LOR_SendHeartbeat(LOREnhancedOutputData* privData) {
-    long long now = GetTime();
-
-    // Only send a heartbeat every 300ms
-    if (privData->lastHeartbeat > (now - 300000))
-        return;
-
-    if (privData->getFD() >= 0) {
-        write(privData->getFD(), privData->heartbeatData, LOR_HEARTBEAT_SIZE);
-        privData->lastHeartbeat = now;
+bool LOREnhancedOutput::UnitIsValid(const LOREnhancedOutputUnit& unit) {
+    if ((unit.lorStartPixel - 1) * 3 + unit.numOfPixels * 3 > LORE_MAX_CHANNELS_PER_UNIT) {
+        LogErr(VB_CHANNELOUT, "More than 510 Channels, ie 170 pixels, per unit. Unit %d, Total channels: %d\n",
+               unit.unitId, (unit.lorStartPixel - 1) * 3 + unit.numOfPixels * 3);
+        WarningHolder::AddWarningTimeout(120, 39, "LOR unit " + std::to_string(unit.unitId) + ": more than 510 channels (170 pixels) per unit");
+        return false;
     }
+    // The LOR start pixel places the unit's pixels on the controller; it
+    // does not move them in FPP's channel data, so it is not counted here.
+    if (unit.fppStartAddr - 1 + unit.numOfPixels * 3 > (int)m_channelCount) {
+        LogErr(VB_CHANNELOUT, "Invalid FPP Channel Range. Unit %d\n",
+               unit.unitId);
+        WarningHolder::AddWarningTimeout(120, 39, "LOR unit " + std::to_string(unit.unitId) + ": channel range exceeds the configured channel count");
+        return false;
+    }
+    if (unit.unitId < 1 || unit.unitId > 240) {
+        LogErr(VB_CHANNELOUT, "Invalid Unit ID. Unit %d\n",
+               unit.unitId);
+        WarningHolder::AddWarningTimeout(120, 39, "LOR: invalid unit ID " + std::to_string(unit.unitId) + " (must be 1-240)");
+        return false;
+    }
+    return unit.numOfPixels > 0;
+}
+
+static inline uint16_t LORE_Value(unsigned char v) {
+    return v ? v : 1;
+}
+
+// Writes an op's command byte(s) and returns how many it took.
+static inline int LORE_PutCount(unsigned char* p, int op, int count) {
+    if (count <= 30) {
+        p[0] = op | count;
+        return 1;
+    }
+    p[0] = op | 0x1F;
+    p[1] = count;
+    return 2;
+}
+static inline int LORE_CountBytes(int count) {
+    return count <= 30 ? 1 : 2;
+}
+static int LORE_JumpBytes(int channels) {
+    int bytes = 0;
+    for (; channels > 0; channels -= 255) {
+        bytes += LORE_CountBytes(std::min(channels, 255));
+    }
+    return bytes;
 }
 
 /*
- * Enhanced Command Format:
- * Start at channel 1, then fill in channel data as the stream describes it.
- * The format is basically Command + Count in one or two bytes, then channel
- * data as needed by the command, repeat through the whole buffer
- *
- * Command Byte [7:0]:
- * [7:5]
- * 000 Straight list of values for the given number of channels
- * 001 Jump the given number channels
- * 010 Repeat the given 3 values the given number of times
- *
- * [4:0]
- * Count - if 11111 then use the next byte instead of the lower bits of the first one
+ * Appends a packet bringing one unit up to date with cur, as far as room
+ * bytes allow.  Unchanged pixels are jumped over, a run of two or more
+ * identical pixels is one repeat (4 bytes against 6 or more as literals),
+ * and the remaining changed pixels go as literals.  Works in whole pixels,
+ * which is what was checked on hardware.  Pixels it covers are recorded as
+ * sent.  Returns the bytes appended, 0 if there was nothing to send or not
+ * even one op fit; complete says whether every changed pixel went.
  */
+int LOREnhancedOutput::EncodeUnit(int unitIdx, const unsigned char* cur, unsigned char* out, int room, bool& complete) {
+    LOREnhancedOutputUnit& unit = data->units[unitIdx];
+    const int n = unit.numOfPixels;
+    const int base = unit.lorStartPixel - 1;
+    auto changed = [&](int p) {
+        const uint16_t* last = &unit.lastSent[p * 3];
+        return last[0] != LORE_Value(cur[p * 3]) || last[1] != LORE_Value(cur[p * 3 + 1]) || last[2] != LORE_Value(cur[p * 3 + 2]);
+    };
+    auto same = [&](int a, int b) {
+        return LORE_Value(cur[a * 3]) == LORE_Value(cur[b * 3]) && LORE_Value(cur[a * 3 + 1]) == LORE_Value(cur[b * 3 + 1]) && LORE_Value(cur[a * 3 + 2]) == LORE_Value(cur[b * 3 + 2]);
+    };
 
-void LOREnhancedOutput::SendUnitData(unsigned char* channelData, LOREnhancedOutputUnit* unit) {
-    if (unit->lorStartPixel < 0 || (unit->lorStartPixel * 3) > 510) {
-        LogErr(VB_CHANNELOUT, "Invalid LOR Start Pixel. Unit %d, Start Pixel %d\n",
-               unit->unitId, unit->lorStartPixel);
-        WarningHolder::AddWarningTimeout(120, 39, "LOR unit " + std::to_string(unit->unitId) + ": invalid start pixel");
-        return;
-    }
-
-    if ((unit->lorStartPixel - 1) * 3 + unit->numOfPixels * 3 > 510) {
-        LogErr(VB_CHANNELOUT, "More than 510 Channels, ie 170 pixels, per unit. Unit %d, Total channels: %d\n",
-               unit->unitId, (unit->lorStartPixel - 1) * 3 + unit->numOfPixels * 3);
-        WarningHolder::AddWarningTimeout(120, 39, "LOR unit " + std::to_string(unit->unitId) + ": more than 510 channels (170 pixels) per unit");
-        return;
-    }
-
-    if (unit->fppStartAddr < 1) {
-        LogErr(VB_CHANNELOUT, "Invalid FPP Start Channel. Unit %d, Start Channel %d\n",
-               unit->unitId, unit->fppStartAddr);
-        WarningHolder::AddWarningTimeout(120, 39, "LOR unit " + std::to_string(unit->unitId) + ": invalid FPP start channel");
-        return;
-    }
-
-    if ((unit->lorStartPixel - 1) * 3 + unit->numOfPixels * 3 + unit->fppStartAddr - 1 > m_channelCount) {
-        LogErr(VB_CHANNELOUT, "Invalid FPP Channel Range. Unit %d\n",
-               unit->unitId);
-        WarningHolder::AddWarningTimeout(120, 39, "LOR unit " + std::to_string(unit->unitId) + ": channel range exceeds the configured channel count");
-        return;
-    }
-
-    if (unit->unitId < 1 || unit->unitId > 240) {
-        LogErr(VB_CHANNELOUT, "Invalid Unit ID. Unit %d\n",
-               unit->unitId);
-        WarningHolder::AddWarningTimeout(120, 39, "LOR: invalid unit ID " + std::to_string(unit->unitId) + " (must be 1-240)");
-        return;
-    }
-
-    int bufAt = 1;
-    memset(unit->outputBuff, 0, LORE_UNIT_MAX_PACKET);
-
-    unit->outputBuff[bufAt++] = unit->unitId;
-    unit->outputBuff[bufAt++] = LOR_ENHANCED_CMD;
-
-    int jumpsLeft = (unit->lorStartPixel - 1) * 3;
-    while (jumpsLeft > 0) {
-        int thisJump = std::min(jumpsLeft, 255);
-        jumpsLeft -= thisJump;
-
-        if (thisJump > 30) {
-            unit->outputBuff[bufAt++] = 0x3F;
-            unit->outputBuff[bufAt++] = thisJump;
+    complete = true;
+    int len = 3;
+    int streamAt = 0; // pixels from LOR pixel 1 the ops have reached
+    int firstPixel = -1;
+    int p = 0;
+    while (p < n) {
+        if (!changed(p)) {
+            p++;
+            continue;
+        }
+        int run = 1;
+        while (p + run < n && run < 255 && same(p, p + run)) {
+            run++;
+        }
+        bool repeat = run >= 2;
+        int count = run;
+        if (!repeat) {
+            // Literal over the following changed pixels, stopping at an
+            // unchanged one (a jump is cheaper) or at the start of a run.
+            count = 1;
+            while (p + count < n && count < 85 && changed(p + count) && !(p + count + 1 < n && same(p + count, p + count + 1))) {
+                count++;
+            }
+        }
+        int jump = (base + p - streamAt) * 3;
+        int avail = room - len - 1 - LORE_JumpBytes(jump); // 1 for the closing 00
+        int opBytes = repeat ? LORE_CountBytes(count) + 3 : LORE_CountBytes(count * 3) + count * 3;
+        if (opBytes > avail && !repeat) {
+            while (count > 0 && LORE_CountBytes(count * 3) + count * 3 > avail) {
+                count--;
+            }
+            opBytes = LORE_CountBytes(count * 3) + count * 3;
+        }
+        if (count == 0 || opBytes > avail) {
+            complete = false;
+            break;
+        }
+        for (; jump > 0; jump -= 255) {
+            len += LORE_PutCount(out + len, 0x20, std::min(jump, 255));
+        }
+        if (repeat) {
+            len += LORE_PutCount(out + len, 0x40, count);
+            for (int c = 0; c < 3; c++) {
+                out[len++] = LORE_Value(cur[p * 3 + c]);
+            }
         } else {
-            unit->outputBuff[bufAt++] = 0x20 | thisJump;
+            len += LORE_PutCount(out + len, 0x00, count * 3);
+            for (int c = 0; c < count * 3; c++) {
+                out[len++] = LORE_Value(cur[p * 3 + c]);
+            }
         }
+        for (int c = p * 3; c < (p + count) * 3; c++) {
+            unit.lastSent[c] = LORE_Value(cur[c]);
+        }
+        if (firstPixel < 0) {
+            firstPixel = p;
+        }
+        p += count;
+        streamAt = base + p;
     }
-
-    int remainingChannels = unit->numOfPixels * 3;
-    int channelAt = 0;
-
-    while (remainingChannels > 0) {
-        int thisChannelCount = std::min(remainingChannels, 255);
-        remainingChannels -= thisChannelCount;
-
-        if (thisChannelCount > 30) {
-            unit->outputBuff[bufAt++] = 0x1F;
-            unit->outputBuff[bufAt++] = thisChannelCount;
-        } else {
-            unit->outputBuff[bufAt++] = thisChannelCount;
-        }
-
-        for (int i = 0; i < thisChannelCount; i++) {
-            int channelValue = channelData[unit->fppStartAddr - 1 + channelAt++];
-            channelValue = data->intensityMap[channelValue];
-            unit->outputBuff[bufAt++] = channelValue;
-        }
+    if (firstPixel < 0) {
+        return 0;
     }
-
-    write(data->getFD(), unit->outputBuff, bufAt + 1);
+    out[0] = 0x00;
+    out[1] = unit.unitId;
+    out[2] = LOR_ENHANCED_CMD;
+    out[len++] = 0x00;
+    data->sent.push_back({ unitIdx, firstPixel, p, 0 });
+    return len;
 }
 
 int LOREnhancedOutput::SendData(unsigned char* channelData) {
     LogDebug(VB_CHANNELDATA, "LOREnhancedOutput::SendData()\n");
 
-    for (auto& unit : data->units) {
-        SendUnitData(channelData, &unit);
+    const int count = data->units.size();
+    if (!count) {
+        return m_channelCount;
     }
 
-    LOR_SendHeartbeat(data);
+    // Changes that do not fit the frame's budget stay unsent and go out on
+    // a later frame; a unit can be brought up to date over several frames
+    // because a packet leaves everything it does not reach unchanged.
+    int budget = data->FrameBudget();
+    int len = 0;
+    bool allSent = true;
+    data->sent.clear();
+    for (int k = 0; k < count; k++) {
+        int u = (data->nextUnit + k) % count;
+        LOREnhancedOutputUnit& unit = data->units[u];
+        if (!UnitIsValid(unit)) {
+            continue;
+        }
+        bool complete = true;
+        int added = EncodeUnit(u, channelData + unit.fppStartAddr - 1, data->batch + len, budget - len, complete);
+        if (added) {
+            len += added;
+            data->sent.back().batchEnd = len;
+        }
+        if (!complete) {
+            data->nextUnit = u;
+            allSent = false;
+            break;
+        }
+    }
+
+    if (len) {
+        int written = data->WriteBatch(data->batch, len);
+        if (written < len) {
+            // A cut-off packet may have been applied in part or not at all,
+            // so everything it and the packets after it reached is resent.
+            for (auto& s : data->sent) {
+                if (s.batchEnd > written) {
+                    LOREnhancedOutputUnit& unit = data->units[s.unit];
+                    std::fill(unit.lastSent.begin() + s.firstPixel * 3, unit.lastSent.begin() + s.endPixel * 3, LOR_UNKNOWN);
+                }
+            }
+            allSent = false;
+        }
+    }
+
+    // With everything up to date, mark a few pixels for resending.  A unit
+    // that missed a packet (line noise, power cycled) would otherwise hold
+    // the wrong values until they next changed, which for a static scene is
+    // never.  One pass over all the pixels per LOR_REFRESH_PERIOD at most.
+    if (allSent) {
+        int total = 0;
+        for (auto& unit : data->units) {
+            total += std::max(unit.numOfPixels, 0);
+        }
+        int refresh = std::max(1, (int)((total * data->frameTime + LOR_REFRESH_PERIOD - 1) / LOR_REFRESH_PERIOD));
+        for (int checked = 0; refresh > 0 && checked < count; ) {
+            LOREnhancedOutputUnit& unit = data->units[data->refreshUnit % count];
+            if (data->refreshPixel >= unit.numOfPixels) {
+                data->refreshUnit = (data->refreshUnit + 1) % count;
+                data->refreshPixel = 0;
+                checked++;
+                continue;
+            }
+            int take = std::min(refresh, unit.numOfPixels - data->refreshPixel);
+            std::fill(unit.lastSent.begin() + data->refreshPixel * 3, unit.lastSent.begin() + (data->refreshPixel + take) * 3, LOR_UNKNOWN);
+            data->refreshPixel += take;
+            refresh -= take;
+            checked = 0;
+        }
+    }
     return m_channelCount;
 }
