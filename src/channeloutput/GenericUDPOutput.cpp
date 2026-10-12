@@ -124,7 +124,8 @@ public:
         }
         udpIovecs.resize(udpBuffers.size());
         for (int x = 0; x < udpBuffers.size(); x++) {
-            udpIovecs[x].iov_base = &udpBuffers[x][0];
+            // data(), not &[0]: the {data} placeholder is an empty vector
+            udpIovecs[x].iov_base = udpBuffers[x].data();
             udpIovecs[x].iov_len = udpBuffers[x].size();
         }
         for (auto idx : channelIovecs) {
