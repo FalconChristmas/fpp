@@ -473,6 +473,13 @@ GStreamerPlayData::GStreamerPlayData(const std::string& file, int l, int vol, in
 }
 
 GStreamerPlayData::~GStreamerPlayData() {
+    // Detach while this class is still whole. ~GStreamerOutput's Close() runs
+    // only after filename, status and the slot-1 status target are destroyed
+    // and the vtable no longer reaches RequestStop()/Stopped() here, yet until
+    // that Close() the slot manager (under its lock, from an HTTP thread) and
+    // a late bus message could still call them. Close() is idempotent, so the
+    // base destructor's own call is then a no-op.
+    Close();
 }
 
 // Stops this media from the main loop, through runningCommandMedia like every
