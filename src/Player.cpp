@@ -366,16 +366,35 @@ bool Player::GetAllowScheduleOverride() {
 
 int Player::Process() {
     std::time_t procTime = std::time(nullptr);
+    PlaylistStatus status = PlaylistSnapshot()->getPlaylistStatus();
 
-    // See if we need to stop a scheduled playlist
-    if ((PlaylistSnapshot()->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING) &&
-        (stopTime) &&
-        (lastCheckTime != procTime)) {
-        lastCheckTime = procTime;
+    // See if we need to stop a scheduled playlist.  A paused one counts: it
+    // used to be skipped, so a playlist paused during its window never
+    // stopped, and as the scheduler waits for idle, every later scheduled show
+    // was skipped too.
+    bool check = false;
+    std::time_t stop = 0;
+    std::time_t origStop = 0;
+    int method = 0;
+    std::string name;
+    {
+        std::lock_guard<std::mutex> lk(m_stateLock);
+        if (((status == FPP_STATUS_PLAYLIST_PLAYING) || (status == FPP_STATUS_PLAYLIST_PAUSED)) &&
+            (stopTime) &&
+            (lastCheckTime != procTime)) {
+            lastCheckTime = procTime;
+            check = true;
+            stop = stopTime;
+            origStop = origStopTime;
+            method = stopMethod;
+            name = playlistName;
+        }
+    }
 
-        if (stopTime > procTime) {
+    if (check) {
+        if (stop > procTime) {
             bool logSwitch = false;
-            int diff = stopTime - procTime;
+            int diff = stop - procTime;
 
             // Print the countdown more frequently as we get closer
             if (((diff > 300) && ((diff % 300) == 0)) ||
@@ -387,20 +406,26 @@ int Player::Process() {
 
             if (logSwitch) {
                 LogDebug(VB_PLAYLIST, "Playlist '%s' will switch to '%s' in %d second%s\n",
-                         playlistName.c_str(),
-                         stopMethod == 0 ? "Stopping Gracefully" : stopMethod == 1 ? "Hard Stop"
-                                                               : stopMethod == 2   ? "Stopping Gracefully After Loop"
-                                                                                   : "",
+                         name.c_str(),
+                         method == 0 ? "Stopping Gracefully" : method == 1 ? "Hard Stop"
+                                                           : method == 2   ? "Stopping Gracefully After Loop"
+                                                                           : "",
                          diff,
                          diff == 1 ? "" : "s");
             }
         }
 
-        if (stopTime <= procTime) {
+        if (stop <= procTime) {
             // if user shortened the scheduled end time mark as force stopped
-            int forceStop = (stopTime < origStopTime) ? 1 : 0;
+            int forceStop = (stop < origStop) ? 1 : 0;
 
-            switch (stopMethod) {
+            // A paused playlist just stops at the end of its window: a
+            // graceful stop would first resume it, bringing the show back on
+            // after its time to finish the interrupted entry.
+            if (status == FPP_STATUS_PLAYLIST_PAUSED)
+                method = 1;
+
+            switch (method) {
             case 0: // Gracefully
                 StopGracefully(forceStop);
                 break;
