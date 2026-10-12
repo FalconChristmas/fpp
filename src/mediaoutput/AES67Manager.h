@@ -291,6 +291,16 @@ constexpr int PTP_GENERAL_PORT           = 320;
 // the live path to the clock and must not be reported as if it were.
 constexpr int PTP_ANNOUNCE_STALE_MS      = 10000;
 
+// Anything on the LAN can send Announce and SAP packets, and each one with a
+// new identity used to add an entry that only aged out minutes later -- a
+// flood of made-up ones grew both maps until the board ran out of memory.
+// A real domain has a handful of masters and a real network a few dozen
+// streams; past these caps the entry heard from longest ago makes room.
+constexpr size_t MAX_PTP_ANNOUNCE_SOURCES = 32;
+constexpr size_t MAX_SAP_DISCOVERED       = 256;
+// SDP fields kept from an announcement, which can be up to a datagram long.
+constexpr size_t MAX_SAP_FIELD_LEN        = 256;
+
 constexpr const char* DEFAULT_MULTICAST_IP = "239.69.0.1";
 constexpr const char* AUDIO_FORMAT         = "S24BE";
 constexpr const char* SAP_MCAST_ADDRESS    = "239.255.255.255";
@@ -1443,7 +1453,10 @@ private:
     std::thread m_sapRecvThread;
     std::atomic<bool> m_sapRecvRunning{false};
     void SAPReceiveLoop();
-    std::map<uint16_t, SAPDiscoveredStream> m_discoveredStreams;
+    // Keyed by (origin address, message id hash): RFC 2974 identifies an
+    // announcement by both, and the 16-bit hash alone collides between
+    // senders.
+    std::map<std::pair<std::string, uint16_t>, SAPDiscoveredStream> m_discoveredStreams;
     std::mutex m_discoveredMutex;
     void HandleSAPPacket(const uint8_t* data, size_t len,
                          const std::string& senderAddr);

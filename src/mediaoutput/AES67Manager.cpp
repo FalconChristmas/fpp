@@ -1668,7 +1668,6 @@ void AES67Manager::HandlePtpAnnounce(const uint8_t* data, size_t len,
     src.address = senderAddr;
     src.direct = (stepsRemoved == 0);
     src.lastSeenMs = nowMs;
-    m_ptpAnnounceSources[gmId] = src;
 
     // Drop clocks that have stopped announcing.  A domain holds a handful of
     // masters at most, but BMCA churn would otherwise accumulate them for the
@@ -1680,6 +1679,16 @@ void AES67Manager::HandlePtpAnnounce(const uint8_t* data, size_t len,
             ++i;
         }
     }
+    it = m_ptpAnnounceSources.find(gmId);  // the prune may have erased it
+    if (it == m_ptpAnnounceSources.end() &&
+        m_ptpAnnounceSources.size() >= AES67::MAX_PTP_ANNOUNCE_SOURCES) {
+        auto oldest = std::min_element(m_ptpAnnounceSources.begin(), m_ptpAnnounceSources.end(),
+                                       [](const auto& a, const auto& b) {
+                                           return a.second.lastSeenMs < b.second.lastSeenMs;
+                                       });
+        m_ptpAnnounceSources.erase(oldest);
+    }
+    m_ptpAnnounceSources[gmId] = src;
 }
 
 bool AES67Manager::GetGrandmasterAddress(const std::string& gmId, std::string& address,
@@ -5006,9 +5015,10 @@ void AES67Manager::HandleSAPPacket(const uint8_t* data, size_t len,
     std::string ourIP = GetInterfaceIP(m_config.ptpInterface);
     if (senderAddr == ourIP) return;
 
+    const auto key = std::make_pair(senderAddr, msgIdHash);
     if (isDeletion) {
         std::lock_guard<std::mutex> lock(m_discoveredMutex);
-        auto it = m_discoveredStreams.find(msgIdHash);
+        auto it = m_discoveredStreams.find(key);
         if (it != m_discoveredStreams.end()) {
             LogInfo(VB_MEDIAOUT, "AES67 SAP: Stream deleted: %s\n",
                     it->second.sessionName.c_str());
@@ -5019,6 +5029,12 @@ void AES67Manager::HandleSAPPacket(const uint8_t* data, size_t len,
 
     // Parse SDP for stream info
     std::string sdp((const char*)data + sdpStart, len - sdpStart);
+    auto clamp = [](std::string v) {
+        if (v.size() > AES67::MAX_SAP_FIELD_LEN) {
+            v.resize(AES67::MAX_SAP_FIELD_LEN);
+        }
+        return v;
+    };
 
     SAPDiscoveredStream stream;
     stream.msgIdHash = msgIdHash;
@@ -5034,7 +5050,7 @@ void AES67Manager::HandleSAPPacket(const uint8_t* data, size_t len,
         if (!line.empty() && line.back() == '\r') line.pop_back();
 
         if (line.substr(0, 2) == "s=") {
-            stream.sessionName = line.substr(2);
+            stream.sessionName = clamp(line.substr(2));
         } else if (line.substr(0, 2) == "c=") {
             // c=IN IP4 239.69.0.1/255
             size_t ip4Pos = line.find("IP4 ");
@@ -5042,7 +5058,7 @@ void AES67Manager::HandleSAPPacket(const uint8_t* data, size_t len,
                 std::string addr = line.substr(ip4Pos + 4);
                 size_t slash = addr.find('/');
                 if (slash != std::string::npos) addr = addr.substr(0, slash);
-                stream.multicastIP = addr;
+                stream.multicastIP = clamp(addr);
             }
         } else if (line.substr(0, 8) == "m=audio ") {
             // m=audio 5004 RTP/AVP 96
@@ -5071,15 +5087,22 @@ void AES67Manager::HandleSAPPacket(const uint8_t* data, size_t len,
                 while (!id.empty() && (id.back() == '\r' || id.back() == ' ')) {
                     id.pop_back();
                 }
-                stream.ptpClockId = id;
+                stream.ptpClockId = clamp(id);
             }
         }
     }
 
     {
         std::lock_guard<std::mutex> lock(m_discoveredMutex);
-        bool isNew = (m_discoveredStreams.find(msgIdHash) == m_discoveredStreams.end());
-        m_discoveredStreams[msgIdHash] = stream;
+        bool isNew = (m_discoveredStreams.find(key) == m_discoveredStreams.end());
+        if (isNew && m_discoveredStreams.size() >= AES67::MAX_SAP_DISCOVERED) {
+            auto oldest = std::min_element(m_discoveredStreams.begin(), m_discoveredStreams.end(),
+                                           [](const auto& a, const auto& b) {
+                                               return a.second.lastSeenMs < b.second.lastSeenMs;
+                                           });
+            m_discoveredStreams.erase(oldest);
+        }
+        m_discoveredStreams[key] = stream;
 
         if (isNew) {
             LogInfo(VB_MEDIAOUT, "AES67 SAP: Discovered stream '%s' from %s → %s:%d (%dch)\n",
@@ -5471,7 +5494,7 @@ AES67Manager::Status AES67Manager::GetStatus() {
     // Discovered streams
     {
         std::lock_guard<std::mutex> lock(m_discoveredMutex);
-        for (const auto& [hash, stream] : m_discoveredStreams) {
+        for (const auto& [key, stream] : m_discoveredStreams) {
             status.discoveredStreams.push_back(stream);
         }
     }
