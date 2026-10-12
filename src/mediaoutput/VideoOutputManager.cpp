@@ -1581,27 +1581,39 @@ GstFlowReturn VideoOutputManager::OnOverlaySample(GstAppSink* appsink, gpointer 
         return GST_FLOW_OK;
 
     GstBuffer* buffer = gst_sample_get_buffer(sample);
+    // The frame's own size comes from its caps.  state->width/height follow
+    // the model, which a listener can swap for one of another size while
+    // frames negotiated for the old one are still arriving.
+    int w = 0;
+    int h = 0;
+    if (GstCaps* caps = gst_sample_get_caps(sample)) {
+        if (const GstStructure* st = gst_caps_get_structure(caps, 0)) {
+            gst_structure_get_int(st, "width", &w);
+            gst_structure_get_int(st, "height", &h);
+        }
+    }
     GstMapInfo map;
-    if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
+    if (w > 0 && h > 0 && gst_buffer_map(buffer, &map, GST_MAP_READ)) {
         std::lock_guard<std::mutex> lock(state->mtx);
         PixelOverlayModel* model = state->model;
-        if (model) {
-            int w = state->width;
-            int h = state->height;
-            int rowBytes = w * 3;
-            int expectedSize = rowBytes * h;
-            int stride = (h > 0) ? (int)(map.size / h) : rowBytes;
-
-            if (stride == rowBytes && (int)map.size >= expectedSize) {
-                // No padding — push directly
-                model->setData(map.data);
-            } else if (stride > rowBytes) {
-                // GStreamer row padding — strip it
+        const size_t rowBytes = (size_t)w * 3;
+        const size_t expectedSize = rowBytes * h;
+        // Packed RGB rows are padded to 4 bytes unless the buffer is exactly
+        // the tightly packed size.
+        const size_t stride = (map.size == expectedSize) ? rowBytes : ((rowBytes + 3) & ~(size_t)3);
+        if (model && map.size >= stride * (h - 1) + rowBytes) {
+            // blitData(), not setData(): setData() reads
+            // width*height*bytesPerPixel, and an RGBW model has 4 bytes per
+            // pixel to this frame's 3.  blitData() converts and clips.
+            const PixelOverlayState enabled(PixelOverlayState::Enabled);
+            if (stride == rowBytes) {
+                model->blitData(map.data, w, h, 3, 0, 0, enabled);
+            } else {
                 std::vector<uint8_t> stripped(expectedSize);
                 for (int y = 0; y < h; y++) {
-                    memcpy(&stripped[y * rowBytes], map.data + y * stride, rowBytes);
+                    memcpy(&stripped[(size_t)y * rowBytes], map.data + (size_t)y * stride, rowBytes);
                 }
-                model->setData(stripped.data());
+                model->blitData(stripped.data(), w, h, 3, 0, 0, enabled);
             }
 
             // Auto-enable model if it was disabled

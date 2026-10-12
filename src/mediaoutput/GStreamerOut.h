@@ -164,6 +164,8 @@ private:
     // Cuts the decodebin and bus callbacks off from this object and waits for
     // any that are running.  See CallbackGuard.
     void DetachCallbacks();
+    // This output's id for its PixelOverlayManager model listener.
+    std::string OverlayListenerId() const;
 
     GstElement* m_pipeline = nullptr;
     GstElement* m_volume = nullptr;
@@ -255,6 +257,8 @@ private:
 
     // Latest video frame buffer — written by OnNewVideoSample, read by ProcessVideoOverlay
     std::vector<uint8_t> m_videoFrameData;
+    int m_videoFrameWidth = 0;    // dimensions of m_videoFrameData (packed RGB)
+    int m_videoFrameHeight = 0;
     std::mutex m_videoFrameMutex;
     bool m_videoFrameReady = false;
     uint64_t m_videoFramesReceived = 0;    // diagnostic counter

@@ -1351,7 +1351,7 @@ int GStreamerOutput::Start(int msTime) {
 
     if (wantVideo) {
         // Register listener and get model
-        PixelOverlayManager::INSTANCE.addModelListener(m_videoOut, "GStreamerOut",
+        PixelOverlayManager::INSTANCE.addModelListener(m_videoOut, OverlayListenerId(),
             [this](PixelOverlayModel* m) {
                 std::lock_guard<std::mutex> lock(m_videoOverlayModelLock);
                 m_videoOverlayModel = m;
@@ -2843,6 +2843,16 @@ void GStreamerOutput::DetachCallbacks() {
     }
 }
 
+// Per output: two outputs on one model (a Play Media restarted on it, whose
+// old output closes after the new one starts) used to share one id, and the
+// old one's Close() removed the new one's listener -- leaving it holding a
+// model pointer nothing would clear when the model was deleted.
+std::string GStreamerOutput::OverlayListenerId() const {
+    char id[48];
+    snprintf(id, sizeof(id), "GStreamerOut_%p", (const void*)this);
+    return id;
+}
+
 bool GStreamerOutput::SetPipelineToNullBounded(GstElement* pipeline, int timeoutMs) {
     return SetPipelineToNullSupervised(pipeline, timeoutMs);
 }
@@ -3995,7 +4005,7 @@ int GStreamerOutput::Close(void) {
 
     // Remove model listener
     if (!m_videoOut.empty() && m_videoOut != "--Disabled--") {
-        PixelOverlayManager::INSTANCE.removeModelListener(m_videoOut, "GStreamerOut");
+        PixelOverlayManager::INSTANCE.removeModelListener(m_videoOut, OverlayListenerId());
     }
     // Deregister before taking m_videoOverlayModelLock: ProcessVideoOverlay()
     // walks the registry and then takes that lock, so acquiring them in the
@@ -4348,18 +4358,28 @@ bool GStreamerOutput::PushVideoOverlayFrame() {
 
     // Copy the latest video frame data under lock
     std::vector<uint8_t> frameData;
+    int frameW, frameH;
     {
         std::lock_guard<std::mutex> lock(self->m_videoFrameMutex);
         if (!self->m_videoFrameReady)
             return false;
         frameData = self->m_videoFrameData;
+        frameW = self->m_videoFrameWidth;
+        frameH = self->m_videoFrameHeight;
         self->m_videoFrameReady = false;
     }
 
-    // Push RGB data to the PixelOverlayModel
+    // Push the RGB frame to the PixelOverlayModel.  blitData(), not
+    // setData(): setData() reads width*height*bytesPerPixel from the buffer,
+    // and an RGBW model has 4 bytes per pixel to this frame's 3 -- it read a
+    // third past the end of every frame.  blitData() converts to the model's
+    // format and clips, which also covers a model replaced by one of another
+    // size mid-play.
     std::lock_guard<std::mutex> lock(self->m_videoOverlayModelLock);
-    if (self->m_videoOverlayModel && !frameData.empty()) {
-        self->m_videoOverlayModel->setData(frameData.data());
+    if (self->m_videoOverlayModel && !frameData.empty() &&
+        frameData.size() >= (size_t)frameW * frameH * 3) {
+        self->m_videoOverlayModel->blitData(frameData.data(), frameW, frameH, 3, 0, 0,
+                                            PixelOverlayState(PixelOverlayState::Enabled));
         self->m_videoFramesDelivered++;
 
         if (self->m_videoFramesDelivered == 1 || (self->m_videoFramesDelivered % 100) == 0) {
@@ -4386,13 +4406,30 @@ GstFlowReturn GStreamerOutput::OnNewVideoSample(GstAppSink* appsink, gpointer us
         return GST_FLOW_OK;
 
     GstBuffer* buffer = gst_sample_get_buffer(sample);
+    // The frame's own size, from its caps: the appsink caps pin it to the
+    // overlay model's size at Start(), but this is what the buffer holds.
+    int width = self->m_videoOverlayWidth;
+    int height = self->m_videoOverlayHeight;
+    if (GstCaps* caps = gst_sample_get_caps(sample)) {
+        if (const GstStructure* st = gst_caps_get_structure(caps, 0)) {
+            gst_structure_get_int(st, "width", &width);
+            gst_structure_get_int(st, "height", &height);
+        }
+    }
     GstMapInfo map;
-    if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
-        int width = self->m_videoOverlayWidth;
-        int height = self->m_videoOverlayHeight;
-        int rowBytes = width * 3;  // RGB = 3 bytes/pixel, tightly packed
-        int expectedSize = rowBytes * height;
-        int stride = (height > 0) ? (int)(map.size / height) : rowBytes;
+    if (width > 0 && height > 0 && gst_buffer_map(buffer, &map, GST_MAP_READ)) {
+        const size_t rowBytes = (size_t)width * 3;  // RGB = 3 bytes/pixel
+        const size_t expectedSize = rowBytes * height;
+        // Packed RGB rows are padded to 4 bytes unless the buffer is exactly
+        // the tightly packed size.
+        const size_t stride = (map.size == expectedSize) ? rowBytes : ((rowBytes + 3) & ~(size_t)3);
+        if (map.size < stride * (height - 1) + rowBytes) {
+            // Shorter than the frame its caps describe: drop it rather than
+            // read past the buffer.
+            gst_buffer_unmap(buffer, &map);
+            gst_sample_unref(sample);
+            return GST_FLOW_OK;
+        }
 
         std::lock_guard<std::mutex> lock(self->m_videoFrameMutex);
         if (stride == rowBytes) {
@@ -4402,13 +4439,15 @@ GstFlowReturn GStreamerOutput::OnNewVideoSample(GstAppSink* appsink, gpointer us
             // GStreamer pads rows to 4-byte alignment — strip padding
             self->m_videoFrameData.resize(expectedSize);
             for (int y = 0; y < height; y++) {
-                memcpy(&self->m_videoFrameData[y * rowBytes], map.data + y * stride, rowBytes);
+                memcpy(&self->m_videoFrameData[(size_t)y * rowBytes], map.data + (size_t)y * stride, rowBytes);
             }
         }
+        self->m_videoFrameWidth = width;
+        self->m_videoFrameHeight = height;
         self->m_videoFrameReady = true;
         self->m_videoFramesReceived++;
         if (self->m_videoFramesReceived == 1 || (self->m_videoFramesReceived % 100) == 0) {
-            LogExcess(VB_MEDIAOUT, "GStreamer: video frame %lu received (%zu bytes, stride=%d, rowBytes=%d)\n",
+            LogExcess(VB_MEDIAOUT, "GStreamer: video frame %lu received (%zu bytes, stride=%zu, rowBytes=%zu)\n",
                     (unsigned long)self->m_videoFramesReceived, map.size, stride, rowBytes);
         }
         gst_buffer_unmap(buffer, &map);
