@@ -40,7 +40,7 @@
     $LEDPanelDefaults['LEDPanelsCLLinkCheck'] = 1;
 
     if (count($panelCapes) == 1) {
-        echo "var KNOWN_PANEL_CAPE = " . $panelCapes[0] . ";";
+        echo "var KNOWN_PANEL_CAPE = " . JsonForScript($panelCapes[0]) . ";";
         $panelCapes[0] = json_decode($panelCapes[0], true);
         if (isset($panelCapes[0]["controls"]["sel4"])) {
             $panelCapesHaveSel4 = true;

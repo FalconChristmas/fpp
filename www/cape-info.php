@@ -1019,26 +1019,26 @@ if ($printSigningUI) {
                                                         <table class='tblAbout'>
                                                             <tr>
                                                                 <td><b>Name:</b></td>
-                                                                <td width="100%"><? echo $currentCapeInfo['name'] ?></td>
+                                                                <td width="100%"><? echo htmlspecialchars($currentCapeInfo['name'], ENT_QUOTES, 'UTF-8') ?></td>
                                                             </tr>
                                                             <?php
                                                             if (isset($currentCapeInfo['version'])) {
-                                                                echo "<tr><td><b>Hardware Version:</b></td><td>" . $currentCapeInfo['version'] . "</td></tr>";
+                                                                echo "<tr><td><b>Hardware Version:</b></td><td>" . htmlspecialchars($currentCapeInfo['version'], ENT_QUOTES, 'UTF-8') . "</td></tr>";
                                                             }
                                                             if (isset($currentCapeInfo['eepromVersion'])) {
-                                                                echo "<tr><td><b>EEPROM Version:</b></td><td>" . $currentCapeInfo['eepromVersion'] . "</td></tr>";
+                                                                echo "<tr><td><b>EEPROM Version:</b></td><td>" . htmlspecialchars($currentCapeInfo['eepromVersion'], ENT_QUOTES, 'UTF-8') . "</td></tr>";
                                                             }
                                                             if (isset($currentCapeInfo['serialNumber'])) {
-                                                                echo "<tr><td><b>Serial&nbsp;Number:</b></td><td>" . $currentCapeInfo['serialNumber'] . "</td></tr>";
+                                                                echo "<tr><td><b>Serial&nbsp;Number:</b></td><td>" . htmlspecialchars($currentCapeInfo['serialNumber'], ENT_QUOTES, 'UTF-8') . "</td></tr>";
                                                             }
                                                             if (isset($currentCapeInfo['designer'])) {
-                                                                echo "<tr><td><b>Designer:</b></td><td>" . $currentCapeInfo['designer'] . "</td></tr>";
+                                                                echo "<tr><td><b>Designer:</b></td><td>" . htmlspecialchars($currentCapeInfo['designer'], ENT_QUOTES, 'UTF-8') . "</td></tr>";
                                                             }
                                                             if ((isset($currentCapeInfo['verifiedKeyId'])) && (($channelOutputDriver == 'BBB48String') || ($channelOutputDriver == 'DPIPixels') || ($channelOutputDriver == 'BBShiftString'))) {
                                                                 $key = $currentCapeInfo['verifiedKeyId'];
                                                                 if ($key == 'fp') {
                                                                     if (isset($currentCapeInfo['signed']['licensePorts'])) {
-                                                                        echo "<tr><td><b>Licensed&nbsp;Outputs:</b></td><td>" . $currentCapeInfo['signed']['licensePorts'] . " ('fp' key)</td></tr>";
+                                                                        echo "<tr><td><b>Licensed&nbsp;Outputs:</b></td><td>" . htmlspecialchars($currentCapeInfo['signed']['licensePorts'], ENT_QUOTES, 'UTF-8') . " ('fp' key)</td></tr>";
                                                                     } else {
                                                                         echo "<tr><td><b>Licensed&nbsp;Outputs:</b></td><td>Unknown, licensePorts setting does not exist ('fp' key)</td></tr>";
                                                                     }

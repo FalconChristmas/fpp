@@ -34,7 +34,7 @@ function readCapes($cd, $capes)
                     // unsupported
                     continue;
                 } else if (empty($currentCape) || (isset($json['capes']) && in_array($currentCape, $json['capes']))) {
-                    echo "'" . $file . "': " . $string . ",\n";
+                    echo json_encode($file, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ": " . JsonForScript($string) . ",\n";
                     $file = str_replace('-v2.j', '.j', $file);
                     $file = str_replace('-v3.j', '.j', $file);
                     if (!isset($capes[$file])) {

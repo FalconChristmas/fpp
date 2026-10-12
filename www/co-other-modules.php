@@ -399,8 +399,11 @@
         if ((($model['Type'] == 'FB') || ($model['Type'] == 'Sub')) && ($modelName != 'FB - fb0') && ($modelName != 'FB - fb1')) {
             $width = intval($model['Width'] / $pixelSize);
             $height = intval($model['Height'] / $pixelSize);
-            echo "PixelOverlayModels['$modelName'] = '$modelName (" . $width . 'x' . $height . ")';\n";
-            echo "PixelOverlayModelChannels['$modelName'] = " . $model['ChannelCount'] . ";\n";
+            // Model names are user data; json_encode() with the HEX flags keeps
+            // a quote or a </script> from ending the string inside this script.
+            $jsName = json_encode($modelName, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+            echo "PixelOverlayModels[" . $jsName . "] = " . json_encode($modelName . " (" . $width . 'x' . $height . ")", JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . ";\n";
+            echo "PixelOverlayModelChannels[" . $jsName . "] = " . intval($model['ChannelCount']) . ";\n";
         }
     }
     ?>
@@ -1210,7 +1213,7 @@
         $commandPresetsFile = file_get_contents($settings['configDirectory'] . "/commandPresets.json");
         json_decode($commandPresetsFile);
         if (json_last_error() === JSON_ERROR_NONE) {
-            echo "var commandPresets = " . $commandPresetsFile . ";\n";
+            echo "var commandPresets = " . JsonForScript($commandPresetsFile) . ";\n";
         } else {
             echo "var commandPresets = { \"commands\": [] };\n";
         }

@@ -13,7 +13,7 @@
     include 'common/menuHead.inc'; ?>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>
-        <? echo htmlspecialchars($pageTitle); ?>
+        <? echo $pageTitle; ?>
     </title>
     <?
     if (isset($_GET['playlist'])) {

@@ -499,7 +499,7 @@ select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(
       ? state.models.map(m => {
           const n = m.Name || m.name;
           const dim = (m.width && m.height) ? ' (' + m.width + '×' + m.height + ')' : '';
-          return `<option value="${n}">${n}${dim}</option>`;
+          return `<option value="${escapeHtml(n)}">${escapeHtml(n)}${dim}</option>`;
         }).join('')
       : '<option>(no overlay models configured)</option>';
     $('#modelSelectC').innerHTML = opts;
@@ -809,7 +809,7 @@ select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(
           div.className = 'row';
           const name = (item.Name || item.name || '?');
           const eff = (item.effect && item.effect.name) || '?';
-          div.innerHTML = '<div style="flex:1;">' + name + ' → <b>' + eff + '</b></div>';
+          div.innerHTML = '<div style="flex:1;">' + escapeHtml(name) + ' → <b>' + escapeHtml(eff) + '</b></div>';
           const btn = document.createElement('button');
           btn.className = 'btn danger';
           btn.textContent = 'Stop';

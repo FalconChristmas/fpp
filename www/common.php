@@ -348,6 +348,21 @@ function IsValidSettingName($name)
 }
 
 /**
+ * JSON text from a file, re-encoded for a <script> block.  Valid JSON is
+ * also valid JS, but a string value containing "</script>" still ends the
+ * block; the HEX flags encode <, >, &, ' and " inside strings.  Returns
+ * "null" for text that is not JSON.
+ */
+function JsonForScript($jsonText)
+{
+    $v = json_decode((string) $jsonText);
+    if ($v === null && json_last_error() !== JSON_ERROR_NONE) {
+        return 'null';
+    }
+    return json_encode($v, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+}
+
+/**
  * Whether a caller-supplied host may be contacted as another FPP.
  *
  * MultiSync peers are any LAN or VPN address or (mDNS) name, so this does not

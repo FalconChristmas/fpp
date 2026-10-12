@@ -87,9 +87,9 @@ function list_plugin_entries($menu)
         <div class="headerLeftCol fppBrand">
             <a href="index.php">
                 <img src='<?= $themeInfo["HEADER_LOGO1"] ?>' class="logo"
-                    title="Host: <? echo $settings['HostName']; ?>">
+                    title="Host: <? echo htmlspecialchars($settings['HostName'], ENT_QUOTES, 'UTF-8'); ?>">
                 <? if (isset($themeInfo["HEADER_LOGO2"]) && $themeInfo["HEADER_LOGO2"] != "") {
-                    echo "<img src='" . $themeInfo["HEADER_LOGO2"] . "' class='fpp-logo'  title='Host: " . $settings["HostName"] . "' >";
+                    echo "<img src='" . $themeInfo["HEADER_LOGO2"] . "' class='fpp-logo'  title='Host: " . htmlspecialchars($settings["HostName"], ENT_QUOTES, 'UTF-8') . "' >";
                 }
                 ?>
             </a>
@@ -117,9 +117,9 @@ function list_plugin_entries($menu)
         <div class="headerCenterRow headerHost">
             <?
             if (isset($settings['HostDescription']) && $settings['HostDescription'] != "") {
-                echo ("<span class=\"headerHostName headerBox\" id=\"header_host\" data-bs-placement=\"bottom\" data-bs-title=\"" . $settings['HostDescription'] . "\" data-bs-toggle=\"tooltip\"><a href='index.php' class='nonULLink'>" . $settings['HostName'] . "</a></span>");
+                echo ("<span class=\"headerHostName headerBox\" id=\"header_host\" data-bs-placement=\"bottom\" data-bs-title=\"" . htmlspecialchars($settings['HostDescription'], ENT_QUOTES, 'UTF-8') . "\" data-bs-toggle=\"tooltip\"><a href='index.php' class='nonULLink'>" . htmlspecialchars($settings['HostName'], ENT_QUOTES, 'UTF-8') . "</a></span>");
             } else {
-                echo ("<span class=\"headerHostName headerBox\" id=\"header_host\" ><a href='index.php' class='nonULLink'>" . $settings['HostName'] . "</a></span>");
+                echo ("<span class=\"headerHostName headerBox\" id=\"header_host\" ><a href='index.php' class='nonULLink'>" . htmlspecialchars($settings['HostName'], ENT_QUOTES, 'UTF-8') . "</a></span>");
             }
 
             $currentHeaderSensor = "1";

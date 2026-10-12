@@ -377,19 +377,23 @@ if (!empty($systems_UsbDevices)) {
             //find where mounted
             $usbMountLocation = shell_exec('findmnt -nr -o target -S /dev/' . $usbName);
             $usbMountLocation_folder = trim(str_replace("/mnt/", "", $usbMountLocation));
-            $onClick_unmount = "unmountUSBDevice(\"$usbName\",\"$usbMountLocation_folder\");";
+            // Device strings (vendor, model, label, the names of open files) come
+            // from whatever is plugged in, so everything below is escaped.
+            $onClick_unmount = htmlspecialchars("unmountUSBDevice(" . json_encode($usbName, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . "," .
+                json_encode($usbMountLocation_folder, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");", ENT_QUOTES, 'UTF-8');
+            $usbNameHtml = htmlspecialchars($usbName, ENT_QUOTES, 'UTF-8');
 
             //Find what files are open for the mount
             $openFiles = trim(shell_exec("sudo lsof +f -- /dev/$usbName"));
             ?>
-            <div id="unmount_<?php echo $usbName; ?>" class="row">
+            <div id="unmount_<?php echo $usbNameHtml; ?>" class="row">
                 <div id="mounted-usb-info" class="row">
-                    <div id="mounted-usb-name_<?php echo $usbName; ?>" class="col-md-3">
-                        <?php echo $usbName . " - " . $usbVendor . " - " . $usbModel . " - " . $usbSize; ?>
+                    <div id="mounted-usb-name_<?php echo $usbNameHtml; ?>" class="col-md-3">
+                        <?php echo htmlspecialchars($usbName . " - " . $usbVendor . " - " . $usbModel . " - " . $usbSize, ENT_QUOTES, 'UTF-8'); ?>
                     </div>
-                    <div id="mounted-usb-location_<?php echo $usbName; ?>" class="col-md-2">Mounted
-                        at: <?php echo $usbMountLocation; ?></div>
-                    <div id="mounted-usb-action_<?php echo $usbName; ?>" class="col-md-2">
+                    <div id="mounted-usb-location_<?php echo $usbNameHtml; ?>" class="col-md-2">Mounted
+                        at: <?php echo htmlspecialchars($usbMountLocation, ENT_QUOTES, 'UTF-8'); ?></div>
+                    <div id="mounted-usb-action_<?php echo $usbNameHtml; ?>" class="col-md-2">
                         <input style='width:13em;' type='button' class='buttons btn-danger' value='Force Unmount'
                             onClick='<?php echo $onClick_unmount; ?>'>
                     </div>
@@ -399,7 +403,7 @@ if (!empty($systems_UsbDevices)) {
                     <div id="mounted-usb-open-files" class="row">
                         <div class="backdrop col-md-10 m-auto">
                             <p><b>Open files:</b></p>
-                            <pre><?php echo trim($openFiles); ?></pre>
+                            <pre><?php echo htmlspecialchars(trim($openFiles), ENT_QUOTES, 'UTF-8'); ?></pre>
                         </div>
                     </div>
                     <?php
