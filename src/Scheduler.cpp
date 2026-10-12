@@ -14,6 +14,7 @@
 
 #include "fpp-json.h"
 
+#include <climits>
 #include <ctime>
 #include <list>
 #include <map>
@@ -168,7 +169,8 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat, int forceStopped) {
                     if (((Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) ||
                          (Player::INSTANCE.GetPlaylistName() != item.entry->playlist)) &&
                         (forceStopped != item.entryIndex) &&
-                        (item.entry->repeat || ir)) {
+                        (item.entry->repeat || ir) &&
+                        !m_startsInFlight.count({ item.startTime, item.entryIndex })) {
                         LogExcess(VB_SCHEDULE, "Item run status reset\n");
                         item.ran = false;
                     }
@@ -619,7 +621,13 @@ bool Scheduler::doScheduledPlaylist(const std::time_t now, const std::time_t ite
                 forceStop = 1;
             }
 
-            // Stop whatever is playing, and the next time through this loop we'll
+            // Stop whatever is playing the way its entry says to, and start
+            // this item once the player is idle: a hard stop is idle by the
+            // rescan this pass does after its actions, a graceful one when the
+            // running playlist finishes.  This item is deliberately not marked
+            // ran.  It used to queue its start straight after the stop, and
+            // the start cut the stopping playlist off - every pre-emption was a
+            // hard stop whatever stop type the running entry had.
             switch (Player::INSTANCE.GetStopMethod()) {
             case 0:
                 actions.push_back({ .type = PlayerAction::Type::StopGracefully,
@@ -635,6 +643,7 @@ bool Scheduler::doScheduledPlaylist(const std::time_t now, const std::time_t ite
                                     .forceStop = forceStop });
                 break;
             }
+            return false;
         } else {
             // Need to wait for current Scheduled Higher-Priority
             // item to end until we can play multiple playlists
@@ -664,6 +673,7 @@ bool Scheduler::doScheduledPlaylist(const std::time_t now, const std::time_t ite
         m_forcedNextPlaylist = SCHEDULE_INDEX_INVALID;
     }
 
+    m_startsInFlight.insert({ item.startTime, item.entryIndex });
     actions.push_back({ .type = PlayerAction::Type::StartPlaylist,
                         .playlist = item.entry->playlist,
                         .position = position,
@@ -711,6 +721,27 @@ void Scheduler::CheckScheduledItems(bool restarted) {
         {
             std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
 
+            // With the player idle and several playlists due, start the
+            // highest-priority one (lowest entry index) rather than whichever
+            // started earliest.  Starting the earlier, lower-priority one
+            // played the wrong show until the next pass pre-empted it; and
+            // after a graceful pre-emption the stopped entry is due again (it
+            // is owed a restart) and would win again, pre-empting forever.
+            int bestIdlePriority = INT_MAX;
+            if (Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) {
+                for (auto& due : m_scheduledItems) {
+                    if (due.first > now)
+                        break;
+                    for (auto& c : due.second) {
+                        if (!c.ran && (c.command == "Start Playlist") && (c.endTime > now) &&
+                            (c.priority < bestIdlePriority) &&
+                            !m_startsInFlight.count({ c.startTime, c.entryIndex })) {
+                            bestIdlePriority = c.priority;
+                        }
+                    }
+                }
+            }
+
             for (auto& itemTime : m_scheduledItems) {
                 if (itemTime.first > now) {
                     doCountdown(now, itemTime.first, itemTime.second, presets);
@@ -732,6 +763,10 @@ void Scheduler::CheckScheduledItems(bool restarted) {
                         continue; // skip over any items that ran already
 
                     if (item.command == "Start Playlist") {
+                        if (m_startsInFlight.count({ item.startTime, item.entryIndex }))
+                            continue; // being started by another thread right now
+                        if (item.priority > bestIdlePriority)
+                            continue; // a higher-priority playlist is due; it goes first
                         if (!doScheduledPlaylist(now, itemTime.first, item, restarted, actions)) {
                             continue;
                         }
@@ -773,6 +808,13 @@ void Scheduler::CheckScheduledItems(bool restarted) {
         }
 
         RunPlayerActions(actions);
+        {
+            std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
+            for (const auto& action : actions) {
+                if (action.type == PlayerAction::Type::StartPlaylist)
+                    m_startsInFlight.erase({ action.startTime, action.entryIndex });
+            }
+        }
         RunCountdownPresets(presets);
     } while (!actions.empty());
 
@@ -785,6 +827,9 @@ void Scheduler::CheckScheduledItems(bool restarted) {
     // same window; within a call the item.ran flag prevents a second firing.
     // Left unchanged if the clock ran backwards so the window never moves ahead
     // of the wall clock.
+    // Under the lock: this runs on the main loop and on API threads, and an
+    // unlocked read-compare-write could move the window backwards.
+    std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
     if (now > m_lastCommandCheckTime)
         m_lastCommandCheckTime = now;
 }

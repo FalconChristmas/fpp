@@ -15,6 +15,7 @@
 #include <map>
 #include "fpp-json.h"
 #include <mutex>
+#include <set>
 #include <vector>
 
 #include <pthread.h>
@@ -168,6 +169,14 @@ private:
     std::recursive_mutex m_scheduleLock;
     std::vector<ScheduleEntry> m_Schedule;
     std::map<std::time_t, std::vector<ScheduledItem>> m_scheduledItems;
+
+    // Scheduled starts decided under m_scheduleLock but not yet carried out
+    // (RunPlayerActions runs unlocked), keyed by start time and entry index.
+    // The player still reads idle while such a start loads, and a concurrent
+    // CheckIfShouldBePlayingNow() -- an API "Start Playlist At Item" runs one
+    // on its own thread -- used to reset the item's ran flag in that window
+    // and start it a second time.  Guarded by m_scheduleLock.
+    std::set<std::pair<std::time_t, int>> m_startsInFlight;
     std::map<std::time_t, std::vector<ScheduledItem>> m_oldItems;
     std::map<std::time_t, std::vector<ScheduledItem>> m_ranItems;
 
