@@ -348,6 +348,92 @@ function IsValidSettingName($name)
 }
 
 /**
+ * Whether a value may be stored for a setting.
+ *
+ * Every setting is one `key = "value"` line, so a line break would smuggle in
+ * extra settings.  Beyond that, the settings listed here end up in root shell
+ * commands or in config files that are sourced as shell (ApplySetting(),
+ * ApplyEmailConfig(), fppinit at boot), so they are held to the shape their
+ * consumers expect.  Writing an invalid value is refused rather than repaired:
+ * the value would otherwise sit in the settings file, be carried into backups
+ * and be applied again at the next restore or boot.
+ *
+ * The consumers still escape what they use; this is the single gate that keeps
+ * a hostile value from being stored in the first place, whichever path wrote it
+ * (the settings API, a backup restore, the setup wizard).
+ */
+function IsValidSettingValue($name, $value)
+{
+    $value = (string) $value;
+    if (strpbrk($value, "\r\n\0") !== false) {
+        return false;
+    }
+
+    switch ($name) {
+        case 'HostName':
+            return preg_match('/^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$/', $value) === 1;
+        case 'emailserver':
+            return $value === '' || preg_match('/^[A-Za-z0-9.-]+$/', $value) === 1;
+        case 'emailtoemail':
+            return IsValidEmailList($value);
+        case 'emailfromuser':
+            return IsValidEmailFromUser($value);
+        case 'ForceHDMIResolution':
+        case 'ForceHDMIResolutionPort2':
+            return preg_match('/^[A-Za-z0-9@]+$/', $value) === 1;
+        case 'InstalledCape':
+            return preg_match('/^[A-Za-z0-9][A-Za-z0-9._+-]*$/', $value) === 1 || $value === '--None--';
+        case 'screensaverTimeout':
+            return $value === '' || ctype_digit($value);
+        case 'TimeZone':
+            return $value === '' || IsValidTimeZone($value);
+        // Used unquoted in root commands by fppinit at boot.
+        case 'WifiRegulatoryDomain':
+            return preg_match('/^[A-Za-z0-9]{0,3}$/', $value) === 1;
+        case 'TetherInterface':
+            return preg_match('/^[A-Za-z0-9._-]*$/', $value) === 1;
+        // Spliced into a JSON string in Chromium's managed policy by fppinit.
+        case 'KioskUrl':
+            return strpbrk($value, "\"\\") === false && preg_match('/[\x00-\x1f]/', $value) === 0;
+    }
+    return true;
+}
+
+/**
+ * Empty, or a comma-separated list of plain email addresses.
+ *
+ * These values are written into /etc/aliases and exim's email-addresses file,
+ * where other forms (":include:", "|command", a bare path) mean something else.
+ */
+function IsValidEmailList($value)
+{
+    if (trim($value) === '') {
+        return true;
+    }
+    foreach (explode(',', $value) as $address) {
+        if (filter_var(trim($address), FILTER_VALIDATE_EMAIL) === false) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * The sender address for exim's email-addresses rewrite table.  It falls back
+ * to the SMTP login when unset, which need not be an email address, so only
+ * refuse what changes the meaning of a table entry.
+ */
+function IsValidEmailFromUser($value)
+{
+    return preg_match('/^[^\s,:|"\/]*$/', $value) === 1;
+}
+
+function IsValidTimeZone($tz)
+{
+    return in_array($tz, timezone_identifiers_list(DateTimeZone::ALL_WITH_BC), true);
+}
+
+/**
  * Write a single setting to the settings file, or to a plugin's config file.
  *
  * Returns true once the value is on disk (including when it was already the
@@ -363,6 +449,16 @@ function WriteSettingToFile($settingName, $new_setting_value, $plugin = "")
 
     if ($plugin != "") {
         $filename = $settings['configDirectory'] . "/plugin." . $plugin;
+    }
+
+    // A trailing line break (e.g. from command output) is dropped by the reader
+    // anyway; anything else invalid is refused (see IsValidSettingValue()).
+    if (is_string($new_setting_value)) {
+        $new_setting_value = rtrim($new_setting_value, "\r\n");
+    }
+    if (!IsValidSettingValue($plugin == "" ? $settingName : "", $new_setting_value)) {
+        error_log("WriteSettingToFile: refusing invalid value for '$settingName'.");
+        return false;
     }
 
     $fd = @fopen($filename, "c+");
@@ -3342,6 +3438,22 @@ function ApplyEmailConfig()
         return;
     }
 
+    // update-exim4.conf runs as root and sources update-exim4.conf.conf as
+    // shell, and the address files below are exim alias/rewrite tables, so
+    // nothing outside the expected shape may reach them.  Values are also
+    // checked when stored (IsValidSettingValue()); this covers anything that
+    // was stored before that check existed.
+    $hostname = preg_replace('/[^A-Za-z0-9-]/', '', $hostname);
+    if (!preg_match('/^[A-Za-z0-9.-]+$/', $emailserver) ||
+        !IsValidEmailList($emailtoemail) || !IsValidEmailFromUser($emailfromuser) ||
+        strpbrk($emailuser . $emailpass, "\r\n\0") !== false) {
+        error_log("ApplyEmailConfig: email settings are not valid; mail configuration NOT updated.");
+        return;
+    }
+    $emailport = (int) $emailport;
+    // chfn rejects ':' ',' '=' and control characters in a GECOS name.
+    $emailfromtext = preg_replace('/[\x00-\x1f\x7f:,=]/', '', $emailfromtext);
+
     // Debian Trixie split-config: transport 30_exim4-config_remote_smtp_smarthost
     // honors .ifdef REMOTE_SMTP_SMARTHOST_PROTOCOL but ::465 no longer auto-defines it.
     // FPP must set protocol = smtps for implicit-TLS on 465, and ensure 587/25 use plain smtp.
@@ -3416,7 +3528,7 @@ function ApplyEmailConfig()
     exec("sudo update-exim4.conf");
 
     # set the fpp user GECOS field
-    $cmd = "sudo chfn -f \"" . $emailfromtext . "\" fpp";
+    $cmd = "sudo chfn -f " . escapeshellarg($emailfromtext) . " fpp";
     exec($cmd);
 
     if (file_exists("/etc/fpp/container")) {

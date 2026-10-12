@@ -13,6 +13,7 @@
 #include <array>
 #include "fpp-json.h"
 #include <chrono>
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -75,8 +76,19 @@ void exec(const std::string& cmd) {
         throw std::runtime_error("popen() failed!");
     }
     while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-        printf(buffer.data());
+        printf("%s", buffer.data());
     }
+}
+bool isShellSafeWord(const std::string& s) {
+    if (s.empty()) {
+        return false;
+    }
+    for (char c : s) {
+        if (!isalnum((unsigned char)c) && c != '.' && c != '_' && c != '/' && c != '+' && c != '-') {
+            return false;
+        }
+    }
+    return true;
 }
 int execbg(const std::string& cmd) {
     return system(cmd.c_str());

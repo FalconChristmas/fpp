@@ -117,7 +117,9 @@ function GetSetting()
 function PutSetting()
 {
     global $SUDO, $settings;
-    $value = file_get_contents('php://input');
+    // A trailing line break (curl --data-binary @file, echo | curl) is not part
+    // of the value; the settings file reader would drop it anyway.
+    $value = rtrim(file_get_contents('php://input'), "\r\n");
     $setting = params('SettingName');
 
     if (!IsValidSettingName($setting)) {
@@ -138,6 +140,14 @@ function PutSetting()
         // src/boot/FPPINIT_Config.cpp and SetGPIOFanProperties() in
         // www/common/settings.php.  A value entered in C stays a whole number.
         $value = round(($value - 32) * 5 / 9, 1);
+    }
+
+    if (!IsValidSettingValue($setting, $value)) {
+        http_response_code(400);
+        return json(array(
+            "status" => "ERROR",
+            "message" => "Invalid value for the '" . $setting . "' setting."
+        ));
     }
 
     // A failed write must not fall through to the apply/restart steps below:

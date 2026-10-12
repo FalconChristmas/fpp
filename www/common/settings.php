@@ -2,8 +2,13 @@
 
 function SetTimeZone($timezone)
 {
-    // The timezone value is interpolated into shell commands, so escape it
-    // as a single shell word before use.
+    // The value goes into root shell commands, one of them inside an outer
+    // "..." where escapeshellarg()'s single quotes do not protect it.  A known
+    // zone name has no shell metacharacters, so accept nothing else.
+    if (!IsValidTimeZone($timezone)) {
+        error_log("SetTimeZone: ignoring unknown time zone");
+        return;
+    }
     $timezone = escapeshellarg($timezone);
     if (file_exists("/etc/fpp/container")) {
         exec("sudo ln -s -f /usr/share/zoneinfo/$timezone /etc/localtime");
@@ -222,6 +227,14 @@ function SetForceHDMIResolution($value, $postfix)
 {
     global $settings;
 
+    // Spliced into a single-quoted sed expression run as root; a mode is only
+    // ever letters, digits and '@' (e.g. 1920x1080@60, the same set the sed
+    // patterns below match when removing it).
+    if (!preg_match('/^[A-Za-z0-9@]+$/', $value)) {
+        error_log("SetForceHDMIResolution: ignoring invalid mode");
+        return;
+    }
+
     if ($settings["Platform"] == "BeagleBone Black") {
         exec("sudo sed -i -e 's/^cmdline\(.*\) video=HDMI-A-1:\([A-Za-z@0-9]*\)\(.*\)/cmdline\\1 \\3/' " . GetDirSetting('boot') . "/uEnv.txt", $output, $return_val);
         exec("sudo sed -i 's/[ \\t]*$//' " . GetDirSetting('boot') . "/uEnv.txt", $output, $return_val);
@@ -257,7 +270,14 @@ function SetInstalledCape($value)
         } else {
             $directory = $directory . "/bbb/";
         }
-        exec("sudo cp -f " . $directory . $value . "-eeprom.bin " . $settings['configDirectory'] . "/cape-eeprom.bin", $output, $return_val);
+        // Only a cape that actually ships an EEPROM image here (the list
+        // GetCapeOptions() offers); the name is a path component in a root cp.
+        $eeprom = $directory . $value . "-eeprom.bin";
+        if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9._+-]*$/', $value) || !is_file($eeprom)) {
+            error_log("SetInstalledCape: no EEPROM image for the selected cape");
+            return;
+        }
+        exec("sudo cp -f " . escapeshellarg($eeprom) . " " . escapeshellarg($settings['configDirectory'] . "/cape-eeprom.bin"), $output, $return_val);
         exec("sudo chown fpp:fpp " . $settings['configDirectory'] . "/cape-eeprom.bin", $output, $return_val);
     }
     exec("sudo " . $settings['fppBinDir'] . "/fppcapedetect", $output, $return_val);
@@ -382,9 +402,10 @@ function SetupLocalMQTTBroker($value)
 function SetupScreenBlanking($value)
 {
     global $settings;
-    $timeout = ReadSettingFromFile('screensaverTimeout');
-    if (!$timeout || $timeout == '') {
-        $timeout = "1";
+    // Spliced into a root sed command: minutes, so an integer.
+    $timeout = intval(ReadSettingFromFile('screensaverTimeout'));
+    if ($timeout <= 0) {
+        $timeout = 1;
     }
 
     if ($settings["Platform"] == "Raspberry Pi") {

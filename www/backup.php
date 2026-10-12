@@ -1017,8 +1017,10 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                                 if ($keepMasterSlaveSettings == false) {
                                     WriteSettingToFile($setting_name, $setting_value);
                                 }
-                            } else {
-                                WriteSettingToFile($setting_name, $setting_value);
+                            } else if (!WriteSettingToFile($setting_name, $setting_value)) {
+                                //Refused (IsValidSettingValue) or unwritable: never apply a
+                                //value that is not what the settings file now holds.
+                                continue;
                             }
 
                             //Do special things that require some sort of system change

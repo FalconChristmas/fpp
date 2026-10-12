@@ -44,14 +44,16 @@ function SendTestEmail() {
     $tmpfname = tempnam("/tmp", "sendmail-stderr.txt");
 
     $emailTo = isset($settings['emailtoemail']) ? trim($settings['emailtoemail']) : '';
-    // Non-breaking: keep sending even if format is unusual, but ensure it cannot inject shell commands.
-    // FILTER_VALIDATE_EMAIL would reject some exotic but valid addresses, so we only log and still use escapeshellarg.
-    if ($emailTo !== '' && filter_var($emailTo, FILTER_VALIDATE_EMAIL) === false) {
-        error_log("SendTestEmail: emailtoemail does not look like a valid email: " . $emailTo);
+    // escapeshellarg() stops shell injection but not a value that starts with
+    // '-', which mail would parse as an option (mailutils has --exec and
+    // --config-file).  The same list check the setting is stored with.
+    if ($emailTo === '' || !IsValidEmailList($emailTo)) {
+        unlink($tmpfname);
+        return json(array('Status' => 'ERROR', 'Message' => 'The default TO address is not a valid email address.'));
     }
     $toArg = escapeshellarg($emailTo);
     $tmpArg = escapeshellarg($tmpfname);
-    system('echo "Email test from $(hostname)" | mail -s "Email test from $(hostname)" ' . $toArg . " 2> " . $tmpArg, $result_code); //capture stderr
+    system('echo "Email test from $(hostname)" | mail -s "Email test from $(hostname)" -- ' . $toArg . " 2> " . $tmpArg, $result_code); //capture stderr
 
     $result['Status'] = 'OK'; //maybe not; need to check ret code
     $result['Message'] = '';

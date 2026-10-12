@@ -47,7 +47,8 @@ std::string FindTetherWIFIAdapater() {
             }
         }
     }
-    if (ret.empty()) {
+    // Used unquoted in root commands; the UI only offers interface names.
+    if (ret.empty() || !isShellSafeWord(ret)) {
         ret = "wlan0";
     }
     return ret;
@@ -265,7 +266,9 @@ void setupNetwork(bool fullReload) {
     }
     std::string WifiRegulatoryDomain = "US";
     getRawSetting("WifiRegulatoryDomain", WifiRegulatoryDomain);
-    exec("/usr/sbin/iw reg set " + WifiRegulatoryDomain);
+    if (isShellSafeWord(WifiRegulatoryDomain)) {
+        exec("/usr/sbin/iw reg set " + WifiRegulatoryDomain);
+    }
 
     int tetherEnabled = getRawSettingInt("EnableTethering", 0);
     std::string tetherInterface = FindTetherWIFIAdapater();
