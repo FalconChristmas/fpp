@@ -607,7 +607,12 @@ void ScheduleEntry::pushStartEndTimes(int dow, int& delta, time_t deltaThreshold
     // turned a half-hour entry into a 23.5 hour one.  And build the next-day
     // end with mktime rather than adding 86400, which is an hour off across
     // the change.
-    if (WallSeconds(endHour, endMinute, endSecond) < WallSeconds(startHour, startMinute, startSecond)) {
+    // A sun-relative time can itself fall after midnight, so with one of
+    // those compare the actual times; the wall-clock test is for fixed times.
+    bool sunTimes = (startTimeStr.find(":") == std::string::npos) || (endTimeStr.find(":") == std::string::npos);
+    bool crossesMidnight = sunTimes ? (endTime < startTime)
+                                    : (WallSeconds(endHour, endMinute, endSecond) < WallSeconds(startHour, startMinute, startSecond));
+    if (crossesMidnight) {
         endTime = GetTimeOnDOW(dow + 1, endHour, endMinute, endSecond);
         if (endTimeStr.find(":") == std::string::npos) {
             GetTimeFromSun(endTime, endTimeStr, endTimeOffset, endHour, endMinute, endSecond);
@@ -788,7 +793,9 @@ void ScheduleEntry::GetOccurrencesOnDate(int year, int month, int mday,
     }
     // As in pushStartEndTimes(): wall-clock crossover test, next-day end via
     // mktime.
-    if (WallSeconds(eh, em, es) < WallSeconds(sh, sm, ss)) {
+    bool sunTimes = (startTimeStr.find(":") == std::string::npos) || (endTimeStr.find(":") == std::string::npos);
+    bool crossesMidnight = sunTimes ? (endTime < startTime) : (WallSeconds(eh, em, es) < WallSeconds(sh, sm, ss));
+    if (crossesMidnight) {
         endTime = GetTimeOnDate(year, month, mday + 1, eh, em, es);
         if (endTimeStr.find(":") == std::string::npos) {
             GetTimeFromSun(endTime, endTimeStr, endTimeOffset, eh, em, es);
@@ -917,9 +924,15 @@ void ScheduleEntry::GetTimeFromSun(time_t& when, const std::string info,
     time_t target = event + (time_t)infoOffset * SECONDS_PER_MINUTE;
     struct tm tt;
     localtime_r(&target, &tt);
+    struct tm et;
+    localtime_r(&event, &et);
 
-    if ((tt.tm_year != local.tm_year) || (tt.tm_yday != local.tm_yday)) {
-        if (target < midnight) {
+    // Clamp only when the sun event itself is not on this day, which means
+    // the time zone or location is wrong.  An offset may legitimately carry
+    // the time past midnight (SunSet + 4 hours far north in summer); that used
+    // to be clamped to 8PM, hours from what was asked for.
+    if ((et.tm_year != local.tm_year) || (et.tm_yday != local.tm_yday)) {
+        if (event < midnight) {
             LogWarn(VB_SCHEDULE, "%s with offset %d falls before the day starts, using 8AM. "
                                  "Check your time zone to make sure it is valid.\n",
                     info.c_str(), infoOffset);
