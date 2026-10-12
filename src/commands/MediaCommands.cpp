@@ -838,7 +838,11 @@ std::unique_ptr<Command::Result> ApplyRoutingPresetCommand::run(const std::vecto
     }
     // Build the API call — POST to the live-apply endpoint with the preset name
     std::string url = "http://localhost/api/pipewire/audio/routing/presets/live-apply";
-    std::string postData = "{\"name\":\"" + args[0] + "\"}";
+    // Serialized, not concatenated: a preset name with a quote or backslash
+    // in it made invalid JSON (or a different request).
+    Json::Value body;
+    body["name"] = args[0];
+    std::string postData = SaveJsonToString(body);
     std::vector<std::string> curlArgs = { url, "POST", postData };
     return std::make_unique<CURLResult>(curlArgs);
 }
