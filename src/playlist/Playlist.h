@@ -57,6 +57,11 @@ public:
     int Process(void);
     void ProcessMedia(void);
     int Cleanup(void);
+    // Cleanup(), but only if the playlist is idle when checked under
+    // m_playlistMutex.  For callers outside a transition that decided to
+    // clean up from an unlocked status read: another thread may have started
+    // a new playlist in between, and Cleanup() would wipe it mid-play.
+    int CleanupIfIdle(void);
 
     // Refresh the lock-free snapshot the crash handler reads (see
     // PlaylistDumpCrashState).  Called at the points where the section or

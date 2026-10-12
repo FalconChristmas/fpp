@@ -1663,6 +1663,13 @@ void Playlist::SetIdle(bool exit) {
 /*
  *
  */
+int Playlist::CleanupIfIdle(void) {
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    if (m_status != FPP_STATUS_IDLE)
+        return 0;
+    return Cleanup();
+}
+
 int Playlist::Cleanup(void) {
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 

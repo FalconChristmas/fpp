@@ -477,7 +477,11 @@ void Player::Resume() {
 }
 
 int Player::Cleanup(void) {
-    return PlaylistSnapshot()->Cleanup();
+    // The main loop calls this after an unlocked "now idle" read.  A start from
+    // another thread can land between that read and here, so only clean up a
+    // playlist that is still idle under its lock; SetIdle() has already run
+    // Cleanup() on every transition to idle.
+    return PlaylistSnapshot()->CleanupIfIdle();
 }
 
 void Player::GetCurrentStatus(Json::Value& result) {
