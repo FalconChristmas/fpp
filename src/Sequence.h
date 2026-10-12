@@ -179,9 +179,29 @@ private:
     std::condition_variable frameLoadSignal;
     std::condition_variable frameLoadedSignal;
 
-    std::map<uint32_t, std::vector<std::string>> commandPresets;
-    std::map<uint32_t, std::vector<std::string>> effectsOn;
-    std::map<uint32_t, std::vector<std::string>> effectsOff;
+    // Frame-triggered presets and effects from the file's FC/FE variable
+    // headers.  Built whole by ProcessVariableHeaders() and published with the
+    // file; the output thread reads a snapshot.  They used to be plain maps
+    // that open/close cleared and refilled while the output thread was
+    // looking things up in them.
+    struct Triggers {
+        std::map<uint32_t, std::vector<std::string>> commandPresets;
+        std::map<uint32_t, std::vector<std::string>> effectsOn;
+        std::map<uint32_t, std::vector<std::string>> effectsOff;
+    };
+    AtomicSharedPtr<Triggers> m_triggers;
+    // Frame number of m_lastFrameData (-1 for none), set with it under
+    // frameCacheLock, so the output thread can read it without the lock --
+    // and without touching a frame another thread may be freeing.
+    std::atomic<int64_t> m_lastFrameNumber{ -1 };
+    // Last frame whose triggers have fired; reset when a file opens.
+    std::atomic<int64_t> m_lastTriggeredFrame{ -1 };
+    // FE-started effects still running.  They loop, so they are stopped when
+    // the sequence closes rather than left running after it.
+    std::mutex m_triggerEffectsLock;
+    std::vector<std::string> m_triggerEffects;
+    void FireFrameTriggers();
+    void ForgetTriggers();
 
     // Sequence-fired presets (SEQUENCE_STARTED/SEQUENCE_STOPPED and the FSEQ
     // frame-triggered commands) must never run at the call site: the open/close
@@ -193,6 +213,8 @@ private:
     // in FIFO order by a main-loop timer with no sequence locks held.
     std::mutex m_pendingPresetsLock;
     std::list<std::pair<std::string, std::map<std::string, std::string>>> m_pendingPresets;
+    // Effects to stop, drained with the presets for the same reason.
+    std::list<std::string> m_pendingEffectStops;
 
 public:
     // Also used by outputs that fire presets from the output thread (the

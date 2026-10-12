@@ -169,6 +169,7 @@ void Sequence::SetLastFrameData(FSEQFile::FrameData* data) {
     }
 
     m_lastFrameData = data;
+    m_lastFrameNumber = data ? (int64_t)data->frame : -1;
 }
 
 /*
@@ -332,9 +333,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     if (std::shared_ptr<FSEQFile> old = m_seqFile.load()) {
         std::string fn = old->getFilename();
         m_seqFile.store(nullptr);
-        commandPresets.clear();
-        effectsOn.clear();
-        effectsOff.clear();
+        ForgetTriggers();
         checkForReplacementFile(fn);
     }
 
@@ -476,6 +475,7 @@ void Sequence::ProcessVariableHeaders() {
     if (!seqFile) {
         return;
     }
+    auto trig = std::make_shared<Triggers>();
     for (auto& vh : seqFile->getVariableHeaders()) {
         if (vh.code[0] != 'F' || (vh.code[1] != 'C' && vh.code[1] != 'E')) {
             continue;
@@ -535,11 +535,11 @@ void Sequence::ProcessVariableHeaders() {
                     break;
                 }
                 if (vh.code[1] == 'C') {
-                    commandPresets[start].push_back(cmd);
-                    commandPresets[stop].push_back(cmd + "_END");
+                    trig->commandPresets[start].push_back(cmd);
+                    trig->commandPresets[stop].push_back(cmd + "_END");
                 } else {
-                    effectsOn[start].push_back(cmd);
-                    effectsOff[stop].push_back(cmd);
+                    trig->effectsOn[start].push_back(cmd);
+                    trig->effectsOff[stop].push_back(cmd);
                 }
             }
         }
@@ -548,6 +548,33 @@ void Sequence::ProcessVariableHeaders() {
                     vh.code[0], vh.code[1], m_seqFilename.c_str());
         }
     }
+    if (!trig->commandPresets.empty() || !trig->effectsOn.empty() || !trig->effectsOff.empty()) {
+        m_lastTriggeredFrame = -1;
+        m_triggers.store(trig);
+    }
+}
+
+// Drop the current file's triggers (open/close).  Effects the file started
+// are stopped from the main loop: this runs under m_sequenceLock, and on the
+// output thread when a sequence reaches its end, and StopEffect() can blank
+// the outputs.
+void Sequence::ForgetTriggers() {
+    m_triggers.store(nullptr);
+    m_lastTriggeredFrame = -1;
+    std::vector<std::string> running;
+    {
+        std::unique_lock<std::mutex> l(m_triggerEffectsLock);
+        running.swap(m_triggerEffects);
+    }
+    if (running.empty())
+        return;
+    {
+        std::unique_lock<std::mutex> l(m_pendingPresetsLock);
+        m_pendingEffectStops.insert(m_pendingEffectStops.end(), running.begin(), running.end());
+    }
+    Timers::INSTANCE.addTimer("SequencePresets", GetTimeMS(), [this]() {
+        drainPendingPresets();
+    });
 }
 
 void Sequence::queuePreset(const std::string& preset, std::map<std::string, std::string>&& keywords) {
@@ -570,6 +597,13 @@ void Sequence::queuePreset(const std::string& preset, std::map<std::string, std:
 
 void Sequence::drainPendingPresets() {
     std::unique_lock<std::mutex> l(m_pendingPresetsLock);
+    while (!m_pendingEffectStops.empty()) {
+        std::string eff = std::move(m_pendingEffectStops.front());
+        m_pendingEffectStops.pop_front();
+        l.unlock();
+        StopEffect(eff);
+        l.lock();
+    }
     while (!m_pendingPresets.empty()) {
         auto p = std::move(m_pendingPresets.front());
         m_pendingPresets.pop_front();
@@ -914,51 +948,72 @@ void Sequence::ProcessSequenceData(int ms) {
     m_dataProcessed = true;
 }
 
-void Sequence::SendSequenceData() {
-    if (m_lastFrameData) {
-        uint32_t frame = m_lastFrameData->frame;
-        if (!commandPresets.empty()) {
-            const auto& p = commandPresets.find(frame);
-            if (p != commandPresets.end()) {
-                // This runs on the channel output thread while the open/close
-                // paths can be reassigning the name on another thread.
-                std::string seqName = GetSeqFilenameCopy();
-                std::map<std::string, std::string> keywords({ { "SEQUENCE_NAME", seqName } });
-                uint32_t elapsedMS = frame * (uint32_t)m_seqStepTime;
-                uint32_t totalSeconds = elapsedMS / 1000;
-                char timeBuf[16];
-                snprintf(timeBuf, sizeof(timeBuf), "%02u:%02u.%03u",
-                         totalSeconds / 60, totalSeconds % 60, elapsedMS % 1000);
-                for (auto& cmd : p->second) {
-                    LogDebug(VB_COMMAND, "Sequence \"%s\" @ %s triggering preset \"%s\"\n", seqName.c_str(), timeBuf, cmd.c_str());
-                    // Deferred to the main loop: this thread holds
-                    // outputThreadLock for the whole frame, so running a
-                    // command here couples the output thread to every lock
-                    // any command can take (playlist, scheduler via
-                    // %VAR:fpp_*%, media...). The preset fires on the next
-                    // main-loop tick, a few ms after the frame it was
-                    // authored on.
-                    queuePreset(cmd, std::map<std::string, std::string>(keywords));
-                }
-            }
-        }
-        if (!effectsOn.empty()) {
-            const auto& eop = effectsOn.find(frame);
-            if (eop != effectsOn.end()) {
-                for (auto& eff : eop->second) {
-                    StartEffect(eff, 0, 1);
-                }
-            }
-        }
-        if (!effectsOff.empty()) {
-            const auto& efp = effectsOff.find(frame);
-            if (efp != effectsOff.end()) {
-                for (auto& eff : efp->second) {
-                    StopEffect(eff);
-                }
-            }
+void Sequence::FireFrameTriggers() {
+    // Triggers belong to frames, not to sends.  This runs on every output
+    // send, and used to fire whatever frame was current: the first frame's
+    // triggers went off two or three times (it is sent before the sequence
+    // starts, and a remote resends it until the start packet arrives), a held
+    // or paused frame re-fired every send, and a frame skipped by a catch-up
+    // jump -- often the one carrying an _END preset -- never fired.  Fire each
+    // frame's triggers once, only once the sequence has started, including the
+    // frames a small jump skipped; a large jump is a seek (a remote joining
+    // mid-song) and fires only the frame it lands on.
+    std::shared_ptr<Triggers> trig = m_triggers.load();
+    int64_t frame = m_lastFrameNumber.load();
+    if (!trig || (frame < 0) || m_seqStarting)
+        return;
+    int64_t last = m_lastTriggeredFrame.load();
+    if (frame == last)
+        return;
+    int64_t maxCatchup = (m_seqStepTime > 0) ? (2000 / m_seqStepTime) : 40;
+    int64_t from = ((frame < last) || ((frame - last) > maxCatchup)) ? frame : last + 1;
+    m_lastTriggeredFrame = frame;
+
+    for (auto p = trig->commandPresets.lower_bound((uint32_t)from);
+         (p != trig->commandPresets.end()) && (p->first <= (uint64_t)frame); ++p) {
+        // This runs on the channel output thread while the open/close
+        // paths can be reassigning the name on another thread.
+        std::string seqName = GetSeqFilenameCopy();
+        std::map<std::string, std::string> keywords({ { "SEQUENCE_NAME", seqName } });
+        uint32_t elapsedMS = p->first * (uint32_t)m_seqStepTime;
+        uint32_t totalSeconds = elapsedMS / 1000;
+        char timeBuf[16];
+        snprintf(timeBuf, sizeof(timeBuf), "%02u:%02u.%03u",
+                 totalSeconds / 60, totalSeconds % 60, elapsedMS % 1000);
+        for (auto& cmd : p->second) {
+            LogDebug(VB_COMMAND, "Sequence \"%s\" @ %s triggering preset \"%s\"\n", seqName.c_str(), timeBuf, cmd.c_str());
+            // Deferred to the main loop: this thread holds
+            // outputThreadLock for the whole frame, so running a
+            // command here couples the output thread to every lock
+            // any command can take (playlist, scheduler via
+            // %VAR:fpp_*%, media...). The preset fires on the next
+            // main-loop tick, a few ms after the frame it was
+            // authored on.
+            queuePreset(cmd, std::map<std::string, std::string>(keywords));
         }
     }
+    for (auto e = trig->effectsOn.lower_bound((uint32_t)from);
+         (e != trig->effectsOn.end()) && (e->first <= (uint64_t)frame); ++e) {
+        for (auto& eff : e->second) {
+            StartEffect(eff, 0, 1);
+            std::unique_lock<std::mutex> l(m_triggerEffectsLock);
+            m_triggerEffects.push_back(eff);
+        }
+    }
+    for (auto e = trig->effectsOff.lower_bound((uint32_t)from);
+         (e != trig->effectsOff.end()) && (e->first <= (uint64_t)frame); ++e) {
+        for (auto& eff : e->second) {
+            StopEffect(eff);
+            std::unique_lock<std::mutex> l(m_triggerEffectsLock);
+            auto it = std::find(m_triggerEffects.begin(), m_triggerEffects.end(), eff);
+            if (it != m_triggerEffects.end())
+                m_triggerEffects.erase(it);
+        }
+    }
+}
+
+void Sequence::SendSequenceData() {
+    FireFrameTriggers();
     SendChannelData(m_seqData);
 }
 
@@ -1014,9 +1069,7 @@ void Sequence::CloseSequenceFile(void) {
         // ends via ReadSequenceData), so firing the preset here inverts
         // against the playlist thread's m_playlistMutex -> m_sequenceLock.
         queuePreset("SEQUENCE_STOPPED", { { "SEQUENCE_NAME", m_seqFilename } });
-        commandPresets.clear();
-        effectsOn.clear();
-        effectsOff.clear();
+        ForgetTriggers();
     }
     readLock.unlock();
 
