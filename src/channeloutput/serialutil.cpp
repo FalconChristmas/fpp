@@ -16,8 +16,10 @@
 #include "../common_mini.h" // FPPstrerror() -- needed directly for NOPCH builds
 
 #include <sys/ioctl.h>
+#include <algorithm>
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
@@ -258,4 +260,50 @@ int SerialResetRTS(int fd) {
     }
 
     return 0;
+}
+
+int SerialWriteAll(int fd, const void* data, int len, int timeoutMs) {
+    if (fd < 0) {
+        return -1;
+    }
+    const char* buf = (const char*)data;
+    uint64_t deadline = GetTimeMS() + timeoutMs;
+    int sent = 0;
+    while (sent < len) {
+        ssize_t w = write(fd, buf + sent, len - sent);
+        if (w > 0) {
+            sent += w;
+            continue;
+        }
+        if (w < 0 && errno == EINTR) {
+            continue;
+        }
+        if (w < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+            break;
+        }
+        long long left = (long long)deadline - (long long)GetTimeMS();
+        if (left <= 0) {
+            break;
+        }
+        struct pollfd pfd;
+        pfd.fd = fd;
+        pfd.events = POLLOUT;
+        pfd.revents = 0;
+        poll(&pfd, 1, (int)std::min<long long>(left, 100));
+    }
+    return sent;
+}
+
+bool SerialWaitDrained(int fd, int timeoutMs) {
+    uint64_t deadline = GetTimeMS() + timeoutMs;
+    while (true) {
+        int queued = 0;
+        if (ioctl(fd, TIOCOUTQ, &queued) < 0 || queued <= 0) {
+            return true;
+        }
+        if (GetTimeMS() >= deadline) {
+            return false;
+        }
+        usleep(500);
+    }
 }

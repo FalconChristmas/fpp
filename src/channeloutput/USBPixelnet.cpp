@@ -148,7 +148,7 @@ int USBPixelnetOutput::RawSendData(unsigned char* channelData) {
     }
 
     // Send Header and Pixelnet Data
-    write(m_fd, m_outputData, m_outputPacketSize);
+    SerialWriteAll(m_fd, m_outputData, m_outputPacketSize, 500);
 
     return m_channelCount;
 }

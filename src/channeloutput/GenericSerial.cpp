@@ -125,7 +125,8 @@ int GenericSerialOutput::RawSendData(unsigned char* channelData) {
     if (WillLog(LOG_EXCESSIVE, VB_CHANNELDATA))
         HexDump("Generic Serial", m_data, m_headerSize + 16, VB_CHANNELDATA);
 
-    write(m_fd, m_data, m_packetSize);
+    // whole packets only: a truncated one desyncs the receiver
+    SerialWriteAll(m_fd, m_data, m_packetSize, 500);
 
     return m_channelCount;
 }

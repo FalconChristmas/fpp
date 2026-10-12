@@ -131,10 +131,14 @@ int USBDMXOutput::RawSendData(unsigned char* channelData) {
 }
 void USBDMXOutput::WaitTimedOut() {
     if (m_dongleType == DMX_DVC_OPEN) {
+        // TIOCSBRK does not wait for output to drain: a break sent while the
+        // previous frame (~23ms for 513 slots) is still going out lands in
+        // the middle of it
+        SerialWaitDrained(m_fd, 50);
         SerialSendBreak(m_fd, 200);
         usleep(20);
     }
-    write(m_fd, m_outputData, m_dataLen);
+    SerialWriteAll(m_fd, m_outputData, m_dataLen, 500);
 }
 
 void USBDMXOutput::DumpConfig(void) {
