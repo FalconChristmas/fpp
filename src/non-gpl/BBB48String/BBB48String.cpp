@@ -881,7 +881,11 @@ void BBB48StringOutput::prepData(FrameData& d, unsigned char* channelData) {
     PixelStringTester* tester = nullptr;
     if (m_testType && m_testCycle >= 0) {
         tester = PixelStringTester::getPixelStringTester(m_testType);
-        tester->prepareTestData(m_testCycle, m_testPercent);
+        // null for a test type no string tester implements; the strings then
+        // just send their normal data
+        if (tester) {
+            tester->prepareTestData(m_testCycle, m_testPercent);
+        }
     }
     const int numStrings = d.gpioStringMap.size();
     // per string slot: either a fully prepared buffer (test mode) or the

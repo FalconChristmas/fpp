@@ -1145,7 +1145,11 @@ void BBShiftStringOutput::prepDataT(FrameData& d, unsigned char* channelData) {
             falconV5Support->sendCountPixelPackets();
         }
         tester = PixelStringTester::getPixelStringTester(m_testType);
-        tester->prepareTestData(m_testCycle, m_testPercent);
+        // null for a test type no string tester implements; the strings then
+        // just send their normal data
+        if (tester) {
+            tester->prepareTestData(m_testCycle, m_testPercent);
+        }
     }
     constexpr int NSTR = MAX_PINS_PER_PRU * SPP;
     // per string slot: either a fully prepared buffer (test mode) or the
