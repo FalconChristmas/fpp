@@ -45,8 +45,21 @@ static std::string getAlsaCardProductName(int cardNum, const std::string& fallba
             std::string productFile = parentDir.substr(0, pos) + "/product";
             std::string product = GetFileContents(productFile);
             TrimWhiteSpace(product);
-            if (!product.empty()) {
-                return product;
+            // It is written into PipeWire's SPA-JSON config as a quoted
+            // string, and the device chose it: a '"' or '\\' would end the
+            // string early, and a config PipeWire can't parse brings audio
+            // down at every boot.
+            std::string safe;
+            for (unsigned char ch : product) {
+                if (ch == '"' || ch == '\\') {
+                    safe += '\'';
+                } else if (ch >= 0x20 && ch != 0x7f) {
+                    safe += (char)ch;
+                }
+            }
+            TrimWhiteSpace(safe);
+            if (!safe.empty()) {
+                return safe;
             }
         }
     }
@@ -422,7 +435,10 @@ static int achievedRateForFormat(const std::string& alsaPath, const std::string&
     }
     std::smatch m;
     if (std::regex_search(out, m, std::regex(R"(not accurate \(requested = \d+Hz, got = (\d+)Hz\))"))) {
-        return std::stoi(m[1].str());
+        try {
+            return std::stoi(m[1].str());
+        } catch (...) {
+        }
     }
     return rate; // negotiated exactly what was asked for
 }
@@ -1270,8 +1286,17 @@ static void runAudioSetup(bool recoveryPass) {
 
     std::string aplay;
     std::vector<std::string> lines;
-    std::map<std::string, std::string> cards;
-    std::map<std::string, std::string> cardLines; // full aplay line per "card N"
+    // Keyed "card N", in card-number order: as plain strings "card 10" sorts
+    // before "card 2", and the fallback below takes the first usable card.
+    struct CardKeyLess {
+        bool operator()(const std::string& a, const std::string& b) const {
+            int na = atoi(a.c_str() + std::min<size_t>(5, a.size()));
+            int nb = atoi(b.c_str() + std::min<size_t>(5, b.size()));
+            return na != nb ? na < nb : a < b;
+        }
+    };
+    std::map<std::string, std::string, CardKeyLess> cards;
+    std::map<std::string, std::string, CardKeyLess> cardLines; // full aplay line per "card N"
     // Normalised card IDs that got an fpp_alsa_* sink node in 95-fpp-alsa-sink.conf
     // below; consulted by the Simple-mode C++ config generator to know whether a
     // card already has a boot-time adapter or needs a custom one inline.
@@ -1296,11 +1321,14 @@ static void runAudioSetup(bool recoveryPass) {
         cardLines.clear();
         hasNonHDMI = false;
         for (auto& l : lines) {
-            if (l.starts_with("card ")) {
-                std::string k = l.substr(0, 6);
-                std::string v = l.substr(8);
-                int idx = v.find(' ');
-                v = v.substr(0, idx);
+            // "card 10: S3 [USB Audio Device], device 0: ..." -- the number is
+            // as wide as it is.  Fixed offsets made card 10 "card 1" with no
+            // id, overwriting card 1.
+            size_t colon = l.find(':');
+            if (l.starts_with("card ") && colon != std::string::npos && colon > 5) {
+                std::string k = l.substr(0, colon);
+                std::string v = colon + 2 <= l.size() ? l.substr(colon + 2) : "";
+                v = v.substr(0, v.find(' '));
                 cards[k] = v;
                 cardLines[k] = l;
                 // The synthetic snd-dummy is not real hardware; with an explicit
@@ -1454,7 +1482,9 @@ static void runAudioSetup(bool recoveryPass) {
         onFallback = true;
     }
     while (!found && count < 50) {
-        std::string amixer = execAndReturn("/usr/bin/amixer -c " + std::to_string(card) + " cset numid=3 1  2>&1");
+        // A read: "cset numid=3" was the old probe, which wrote whatever
+        // control 3 is on any card but the Pi's own (output routing there).
+        std::string amixer = execAndReturn("/usr/bin/amixer -c " + std::to_string(card) + " info 2>&1");
         if (contains(amixer, "Invalid ")) {
             ++count;
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -2139,7 +2169,14 @@ static void runAudioSetup(bool recoveryPass) {
         printf("FPP - Setting mixer device to %s\n", mixer.c_str());
         setRawSetting("AudioMixerDevice", mixer);
     }
-    exec("/usr/bin/amixer -c " + std::to_string(card) + " set " + mixer + " " + std::to_string(v) + "% > /dev/null 2>&1");
+    // Quoted for the shell: control names have spaces ("PCM Playback"), and
+    // AudioMixerDevice is a setting.
+    std::string quotedMixer = "'";
+    for (char ch : mixer) {
+        quotedMixer += (ch == '\'') ? std::string("'\\''") : std::string(1, ch);
+    }
+    quotedMixer += "'";
+    exec("/usr/bin/amixer -c " + std::to_string(card) + " set " + quotedMixer + " " + std::to_string(v) + "% > /dev/null 2>&1");
     setRawSetting("AudioCardType", cardType);
 
     if (!runningInDocker) {
