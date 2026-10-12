@@ -313,6 +313,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 
     size_t bytesRead = 0;
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+    m_endedSeqFilename.clear();
 
     if (m_seqFile.load()) {
         if (m_seqFilename == filename && m_seqStarting) {
@@ -625,17 +626,27 @@ void Sequence::StartSequence() {
         m_seqStarting = 0;
         SetChannelOutputRefreshRate(m_seqRefreshRate);
         StartChannelOutputThread();
-    }
 
-    // Deferred to the main loop: callers can hold m_sequenceLock (recursively,
-    // via StartSequence(filename, frame)), and a preset that starts/stops a
-    // playlist takes m_playlistMutex - the reverse of the playlist thread's
-    // m_playlistMutex -> m_sequenceLock order.
-    queuePreset("SEQUENCE_STARTED", { { "SEQUENCE_NAME", seqName } });
+        // Only on an actual start.  It used to be queued on every call, and a
+        // remote whose copy of the sequence is missing calls this for every
+        // sync packet: the user's SEQUENCE_STARTED preset ran several times a
+        // second for the whole song, with no matching SEQUENCE_STOPPED.
+        //
+        // Deferred to the main loop: callers can hold m_sequenceLock
+        // (recursively, via StartSequence(filename, frame)), and a preset that
+        // starts/stops a playlist takes m_playlistMutex - the reverse of the
+        // playlist thread's m_playlistMutex -> m_sequenceLock order.
+        queuePreset("SEQUENCE_STARTED", { { "SEQUENCE_NAME", seqName } });
+    }
 }
 
 void Sequence::StartSequence(const std::string& filename, int frameNumber) {
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+    if ((frameNumber > 0) && (filename == m_endedSeqFilename)) {
+        // A sync packet for a sequence that already played to its end here
+        // (see m_endedSeqFilename).  A start (frame 0) or an open replays it.
+        return;
+    }
     if (sequence->m_seqFilename != filename) {
         CloseSequenceFile();
         OpenSequenceFile(filename, frameNumber);
@@ -819,7 +830,10 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
             lock.unlock();
             m_seqMSElapsed = m_seqMSDuration;
             m_seqMSRemaining = 0;
+            std::string ended = GetSeqFilenameCopy();
             CloseSequenceFile();
+            std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+            m_endedSeqFilename = ended;
         } else {
             if (m_lastFrameRead > 0) {
                 // we'll have the read thread discard the frame

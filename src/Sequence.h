@@ -155,6 +155,13 @@ private:
 
     int m_blankBetweenSequences;
 
+    // A sequence that played to its end, until the next open.  Guarded by
+    // m_sequenceLock.  A remote whose copy is shorter than the master's
+    // finishes first, and every later sync packet for it used to reopen the
+    // file at a frame past its end -- several reopens a second, each firing
+    // SEQUENCE_STARTED/STOPPED, until the master stopped.
+    std::string m_endedSeqFilename;
+
     // Both guarded by m_sequenceLock.
     std::string m_missingSeqFilename;
     std::string m_missingSeqWarning;
