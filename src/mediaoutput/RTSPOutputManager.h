@@ -141,6 +141,10 @@ public:
     /// Read the config and rebuild the server, its mounts and audio bridges.
     bool ApplyConfig();
 
+    /// True when an enabled stream reads stream slot `slot`'s video channel,
+    /// so media playback on that slot has to publish it.
+    bool ServesStreamSlot(int slot);
+
     struct Status {
         struct MountStatus {
             std::string name;

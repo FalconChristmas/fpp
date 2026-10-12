@@ -552,6 +552,18 @@ void VideoOutputManager::NotifyProducerReady(const std::string& channelName) {
                 channelName.c_str(), started);
 }
 
+bool VideoOutputManager::HasSlotChannelConsumers(int streamSlot) const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    for (const auto& c : m_consumers) {
+        if ((c.type != "overlay" && c.type != "rtp") || !c.sourceNode.empty())
+            continue;
+        if (c.streamSlots.empty() ||
+            std::find(c.streamSlots.begin(), c.streamSlots.end(), streamSlot) != c.streamSlots.end())
+            return true;
+    }
+    return false;
+}
+
 std::vector<VideoOutputManager::HdmiConsumerInfo> VideoOutputManager::GetHdmiConsumers(
     int streamSlot, const std::set<int>& skipConnectorIds) const {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -1086,8 +1098,15 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
     // cannot drive video graph cycles at rate=0).
     // timeout=5s — must not overflow gint64 when converted to microseconds
     // and added to g_get_monotonic_time(); UINT64_MAX caused spin-loop.
+    // A consumer without a fixed source follows media playback, which
+    // publishes the active slot's channel (StartConsumers() records which).
+    const std::string& channel = consumer.sourceNode.empty() ? m_activeProducer : consumer.sourceNode;
+    if (channel.empty()) {
+        LogWarn(VB_MEDIAOUT, "VideoOutputManager: consumer '%s' has no source to read\n", consumer.name.c_str());
+        return false;
+    }
     const std::string srcDesc = "intervideosrc timeout=5000000000 channel="
-                              + consumer.sourceNode + " ! videoconvert ! ";
+                              + channel + " ! videoconvert ! ";
     pipelineDesc = srcDesc + "videoscale ! ";
 
     if (consumer.type == "hdmi") {

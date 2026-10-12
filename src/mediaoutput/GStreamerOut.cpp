@@ -59,6 +59,7 @@
 #include "PipeWireOutputStream.h"
 #include "StreamSlotManager.h"
 #include "VideoOutputManager.h"
+#include "RTSPOutputManager.h"
 #include "mediadetails.h"
 #include "mediaoutput.h"
 #include "settings.h"
@@ -2008,6 +2009,54 @@ int GStreamerOutput::Start(int msTime) {
                     } else {
                         LogWarn(VB_MEDIAOUT, "GStreamer: failed to link vtee → kmssink for connector %d (ret=%d)\n",
                                 resolvedConnId, lr);
+                    }
+                }
+            }
+
+            // ── Slot channel for the other consumers ──
+            // Overlay and RTP members of a playback group, and RTSP streams
+            // aimed at this slot, read the slot's intervideo channel.  Nothing
+            // published it -- the pipewiresink branch below is only for the
+            // PipeWire graph -- so they never got a frame.  Only built when one
+            // of them exists: HDMI members are fed directly above, and the
+            // conversion costs CPU on every frame.  Converting here, in this
+            // pipeline, also keeps hardware-decoded frames (and their device
+            // memory) out of the consumers' pipelines: this videoconvert has
+            // the copy guard every converter in this pipeline gets.
+            bool slotChannelWanted = VideoOutputManager::Instance().HasSlotChannelConsumers(m_streamSlot);
+#ifdef HAS_RTSP_OUTPUT_GSTREAMER
+            slotChannelWanted = slotChannelWanted || RTSPOutputManager::INSTANCE.ServesStreamSlot(m_streamSlot);
+#endif
+            if (slotChannelWanted) {
+                std::string channel = StreamSlotManager::GetVideoNodeName(m_streamSlot);
+                GstElement* chQueue = gst_element_factory_make("queue", "vchq");
+                GstElement* chConvert = gst_element_factory_make("videoconvert", "vchconv");
+                GstElement* chCaps = gst_element_factory_make("capsfilter", "vchcaps");
+                GstElement* chSink = gst_element_factory_make("intervideosink", "vchsink");
+                if (chQueue && chConvert && chCaps && chSink) {
+                    g_object_set(chQueue, "leaky", 2, "max-size-buffers", 2,
+                                 "max-size-bytes", 0, "max-size-time", (guint64)0, NULL);
+                    GstCaps* i420 = gst_caps_from_string("video/x-raw,format=I420");
+                    g_object_set(chCaps, "caps", i420, NULL);
+                    gst_caps_unref(i420);
+                    g_object_set(chSink, "channel", channel.c_str(), "sync", FALSE, NULL);
+                    std::vector<GstElement*> chain = { chQueue, chConvert, chCaps, chSink };
+                    GstPad* teeSrc = nullptr;
+                    GstPad* qSink = nullptr;
+                    if (AddAndLinkChain(m_pipeline, chain) &&
+                        (teeSrc = gst_element_request_pad_simple(vtee, "src_%u")) &&
+                        (qSink = gst_element_get_static_pad(chQueue, "sink")) &&
+                        gst_pad_link(teeSrc, qSink) == GST_PAD_LINK_OK) {
+                        LogDebug(VB_MEDIAOUT, "GStreamer: video published on channel %s\n", channel.c_str());
+                    } else {
+                        LogWarn(VB_MEDIAOUT, "GStreamer: could not publish video on channel %s\n", channel.c_str());
+                    }
+                    if (teeSrc) gst_object_unref(teeSrc);
+                    if (qSink) gst_object_unref(qSink);
+                } else {
+                    LogWarn(VB_MEDIAOUT, "GStreamer: intervideosink unavailable, video groups' overlay/RTP/RTSP outputs get no video\n");
+                    for (GstElement* e : { chQueue, chConvert, chCaps, chSink }) {
+                        if (e) gst_object_unref(e);
                     }
                 }
             }

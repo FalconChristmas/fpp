@@ -116,6 +116,11 @@ public:
         std::string scaling = "fit";
     };
 
+    /// True when an overlay or RTP member of a playback group (no fixed
+    /// source) takes stream slot `streamSlot`.  Those read the slot's
+    /// intervideo channel, which media playback publishes only when asked.
+    bool HasSlotChannelConsumers(int streamSlot) const;
+
     /// Return HDMI consumer info for consumers that match the given stream
     /// slot but whose connectorId is NOT in skipConnectorIds.
     std::vector<HdmiConsumerInfo> GetHdmiConsumers(

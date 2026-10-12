@@ -568,6 +568,20 @@ bool RTSPOutputManager::ApplyConfig() {
     return ok;
 }
 
+bool RTSPOutputManager::ServesStreamSlot(int slot) {
+    std::unique_lock<std::mutex> lock(m_configMutex);
+    if (!m_config.enabled) {
+        return false;
+    }
+    std::string channel = "fppd_video_stream_" + std::to_string(slot);
+    for (const auto& mount : m_config.mounts) {
+        if (mount.ResolveSourceNode() == channel) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void RTSPOutputManager::Shutdown() {
     std::unique_lock<std::mutex> applyLock(m_applyMutex);
     StopServer();
