@@ -789,8 +789,14 @@ static int GetPipeWireGraphRate() {
         return atoi(out.substr(p, e - p).c_str());
     };
 
+    // Bounded: this runs inside Start(), which StartMediaOutput() calls with
+    // mediaOutputLock held, and pw-metadata waits forever on a PipeWire
+    // daemon that is up but not answering.
     std::string dump;
-    if (FILE* p = popen("/usr/bin/pw-metadata -n settings 2>/dev/null", "r")) {
+    if (FILE* p = popen(FileExists("/usr/bin/timeout")
+                            ? "/usr/bin/timeout -k 1 3 /usr/bin/pw-metadata -n settings 2>/dev/null"
+                            : "/usr/bin/pw-metadata -n settings 2>/dev/null",
+                        "r")) {
         char buf[1024];
         size_t r;
         while ((r = fread(buf, 1, sizeof(buf), p)) > 0)
@@ -1030,7 +1036,11 @@ static bool IsGstPipeWireChannelOrderQuirky() {
     std::vector<std::string> positions;
     for (int attempt = 0; attempt < 10 && positions.empty(); attempt++) {
         std::this_thread::sleep_for(std::chrono::milliseconds(300));
-        FILE* p = popen("/usr/bin/pw-dump 2>/dev/null", "r");
+        // Bounded for the same reason as pw-metadata in GetPipeWireGraphRate().
+        FILE* p = popen(FileExists("/usr/bin/timeout")
+                            ? "/usr/bin/timeout -k 1 3 /usr/bin/pw-dump 2>/dev/null"
+                            : "/usr/bin/pw-dump 2>/dev/null",
+                        "r");
         if (!p)
             break;
         std::string out;
@@ -1059,7 +1069,11 @@ static bool IsGstPipeWireChannelOrderQuirky() {
             }
         }
     }
-    gst_element_set_state(probe, GST_STATE_NULL);
+    // pipewiresink can deadlock in its teardown (see Stop()); don't let the
+    // probe hang the Start() that asked for it.
+    if (!SetPipelineToNullSupervised(probe, PIPELINE_TEARDOWN_TIMEOUT_MS)) {
+        LogWarn(VB_MEDIAOUT, "GStreamer: channel-order quirk probe did not stop, abandoning it\n");
+    }
     gst_object_unref(probe);
 
     if (positions.size() != 8) {
