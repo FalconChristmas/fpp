@@ -1093,27 +1093,23 @@ bool PixelOverlayModel::blitOverlayBuffer(const uint8_t* src, int srcW, int srcH
     return true;
 }
 
+// Sets absolute (0-based) channels startChannel..endChannel of this model to
+// value; -1 for either end means the model's own first or last channel. No
+// caller in FPP; protected, so kept for plugin subclasses. It used to index channelMap - laid out by
+// buffer cell, not by channel - with channel numbers, compute the end from
+// the shadowed startChannel parameter, and run an omitted end to -1.
 void PixelOverlayModel::setValue(uint8_t value, int startChannel, int endChannel) {
-    int start;
-    int end;
-
-    start = startChannel - this->startChannel;
-    if (startChannel == -1) {
-        start = 0;
-    }
-    if (start > channelCount) {
+    if (!channelData || channelCount <= 0) {
         return;
     }
-
-    end = endChannel - startChannel + 1;
-    if (end >= channelCount) {
-        end = channelCount - 1;
+    int64_t start = (startChannel == -1) ? 0 : (int64_t)startChannel - this->startChannel;
+    int64_t end = (endChannel == -1) ? channelCount - 1 : (int64_t)endChannel - this->startChannel;
+    start = std::max<int64_t>(start, 0);
+    end = std::min<int64_t>(end, channelCount - 1);
+    if (start > end) {
+        return;
     }
-    for (int c = start; c <= end; c++) {
-        if (channelMap[c] != FPPD_OFF_CHANNEL) {
-            channelData[channelMap[c]] = value;
-        }
-    }
+    memset(channelData + start, value, (size_t)(end - start + 1));
     dirtyBuffer = true;
 }
 void PixelOverlayModel::setPixelValue(int x, int y, int r, int g, int b) {
