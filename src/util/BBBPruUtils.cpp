@@ -379,6 +379,49 @@ BBBPru::~BBBPru() {
     }
 }
 
+// The core control register sits 0x22000 into the PRUSS mapping, one 0x2000
+// block per core, on both the AM335x and the AM62x.  Bit 1 enables the core.
+static constexpr uintptr_t PRU_CTRL_OFFSET = 0x22000;
+static constexpr uintptr_t PRU_CTRL_STRIDE = 0x2000;
+static constexpr uint32_t PRU_CTRL_ENABLE = 0x2;
+
+static volatile uint32_t* pruControlReg(unsigned pru_num) {
+    // only the two PRU cores: one block further on is the PRUSS CFG space
+    if (!base_memory_location || pru_num > 1) {
+        return nullptr;
+    }
+    return (volatile uint32_t*)(base_memory_location + PRU_CTRL_OFFSET + (pru_num * PRU_CTRL_STRIDE));
+}
+
+// Clear the core's enable bit and wait until it reads back clear with the
+// core no longer running.  A remoteproc stop alone does not guarantee this:
+// the firmware's RESET_PRU_CLOCK read-modify-writes this same register to
+// restart the cycle counter, and every FPP program runs it constantly while
+// idle.  A stop that clears EN between the firmware's read and its write is
+// undone, and the core keeps running its old program while remoteproc
+// reports it offline - acting on any command word it sees, and executing
+// whatever lands in its instruction RAM when the next program is loaded.
+// Our own write can be undone the same way, so it is repeated until it
+// sticks; once the core is halted nothing can set the bit again.
+static bool haltCore(unsigned pru_num) {
+    volatile uint32_t* ctrl = pruControlReg(pru_num);
+    if (!ctrl) {
+        return true;
+    }
+    constexpr uint32_t PRU_CTRL_RUNSTATE = 0x8000;
+    for (int x = 0; x < 100; x++) {
+        uint32_t v = *ctrl;
+        if (!(v & PRU_CTRL_ENABLE) && !(v & PRU_CTRL_RUNSTATE)) {
+            return true;
+        }
+        *ctrl = v & ~PRU_CTRL_ENABLE;
+        __sync_synchronize();
+        std::this_thread::sleep_for(std::chrono::microseconds(10));
+    }
+    LogWarn(VB_CHANNELOUT, "BBBPru: PRU core %d did not halt (control 0x%X)\n", pru_num, *ctrl);
+    return false;
+}
+
 static std::string pruFirmwareName(int pru_num) {
     return FIRMWARE_PREFIX + "-pru" + std::to_string(pru_num) + "-fw";
 }
@@ -443,6 +486,9 @@ bool BBBPru::run(const std::string& program, bool clearSharedMems) {
     }
     bool enabled = true;
     if (!FAKE_PRU) {
+        // halted before the program is installed: remoteproc loads it into
+        // the instruction RAM of a core it believes is stopped
+        haltCore(pru_num);
         prus[pru_num].disable();
         if (!installPRUFirmware(pru_num, program)) {
             LogErr(VB_CHANNELOUT, "BBBPru[%d]: could not install PRU program %s\n", pru_num, program.c_str());
@@ -585,22 +631,10 @@ void BBBPru::ddrRelease(const std::string& owner) {
 
 void BBBPru::stop() {
     if (!FAKE_PRU) {
+        haltCore(pru_num);
         prus[pru_num].disable();
         restorePRUSleepFirmware(pru_num);
     }
-}
-
-// The core control register sits 0x22000 into the PRUSS mapping, one 0x2000
-// block per core, on both the AM335x and the AM62x.  Bit 1 enables the core.
-static constexpr uintptr_t PRU_CTRL_OFFSET = 0x22000;
-static constexpr uintptr_t PRU_CTRL_STRIDE = 0x2000;
-static constexpr uint32_t PRU_CTRL_ENABLE = 0x2;
-
-static volatile uint32_t* pruControlReg(unsigned pru_num) {
-    if (!base_memory_location) {
-        return nullptr;
-    }
-    return (volatile uint32_t*)(base_memory_location + PRU_CTRL_OFFSET + (pru_num * PRU_CTRL_STRIDE));
 }
 
 void BBBPru::pause() {
