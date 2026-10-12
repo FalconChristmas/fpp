@@ -3896,7 +3896,7 @@ void MultiSync::SyncSyncedMedia(const std::string& filename, int frameNumber, fl
 void MultiSync::ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stats) {
     if (pkt->extraDataLen < sizeof(SyncPkt)) {
         LogErr(VB_SYNC, "Error: Invalid length of received sync packet\n");
-        HexDump("Received data:", (void*)&pkt, len, VB_SYNC);
+        HexDump("Received data:", (void*)pkt, len, VB_SYNC);
         stats->pktError++;
         return;
     }
@@ -3978,7 +3978,7 @@ void MultiSync::ProcessCommandPacket(ControlPkt* pkt, int len, MultiSyncStats* s
 
     if (pkt->extraDataLen < sizeof(CommandPkt)) {
         LogErr(VB_SYNC, "Error: Invalid length of received command packet\n");
-        HexDump("Received data:", (void*)&pkt, len, VB_SYNC);
+        HexDump("Received data:", (void*)pkt, len, VB_SYNC);
         stats->pktError++;
         return;
     }
@@ -4010,7 +4010,7 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
 
     if (pkt->extraDataLen < 169) { // v1 packet length
         LogErr(VB_SYNC, "ERROR: Invalid length of received Ping packet\n");
-        HexDump("Received data:", (void*)&pkt, len, VB_SYNC);
+        HexDump("Received data:", (void*)pkt, len, VB_SYNC);
         stats->pktError++;
         return;
     }
@@ -4021,13 +4021,13 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
 
     if ((pingVersion == 1) && (pkt->extraDataLen > 169)) {
         LogErr(VB_SYNC, "ERROR: Ping v1 packet too long: %d\n", pkt->extraDataLen);
-        HexDump("Received data:", (void*)&pkt, len, VB_SYNC);
+        HexDump("Received data:", (void*)pkt, len, VB_SYNC);
         stats->pktError++;
         return;
     }
     if ((pingVersion == 2) && (pkt->extraDataLen > 214)) {
         LogErr(VB_SYNC, "ERROR: Ping v2 packet too long %d\n", pkt->extraDataLen);
-        HexDump("Received data:", (void*)&pkt, len, VB_SYNC);
+        HexDump("Received data:", (void*)pkt, len, VB_SYNC);
         stats->pktError++;
         return;
     }
