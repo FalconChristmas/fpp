@@ -20,6 +20,7 @@
 
 #include "PCA9685.h"
 #include "Plugin.h"
+#include "../Sequence.h"
 #include "../common.h"
 #include "../log.h"
 
