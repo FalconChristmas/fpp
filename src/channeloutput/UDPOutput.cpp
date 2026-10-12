@@ -540,11 +540,12 @@ UDPOutput::~UDPOutput() {
         if (si.second)
             ClearPacingBudgetWarning(si.second.get());
     }
-    // Need to make sure all curls are processed before we delete the outputs
-    // or we may have curl callbacks trying to access deleted data.
-    while (CurlManager::INSTANCE.processCurls()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    // Requests in flight capture this (the HEAD probe) or an output deleted
+    // below (Twinkly, which cancels its own).  Cancel ours rather than
+    // draining every request in the process, which waited out unrelated
+    // ones - up to the 10s curl timeout each - with outputThreadLock held.
+    // The destructor runs on the main loop, where cancelling is allowed.
+    CurlManager::INSTANCE.cancelRequests(curlOwner);
     for (auto a : outputs) {
         delete a;
     }
@@ -1618,7 +1619,8 @@ void UDPOutput::OnPingResult(const std::shared_ptr<PingHost>& host, int ms) {
                     SetHostValid(*h, true);
                 }
             }
-        });
+        },
+                                  curlOwner);
     } else if (host->failCount >= 3) {
         // three pings and a HEAD request failed, mark invalid
         if (host->valid) {

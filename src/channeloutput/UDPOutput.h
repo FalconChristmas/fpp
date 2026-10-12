@@ -162,6 +162,8 @@ private:
     bool hasArtNet = false;
     // between StartingOutput() and StoppingOutput(); output thread only
     bool outputRunning = false;
+    // tags this output's CurlManager requests so the destructor can cancel them
+    const std::string curlOwner = "UDPOutput-" + std::to_string((uintptr_t)this);
     bool interfaceUp;
 
     bool InitNetwork();

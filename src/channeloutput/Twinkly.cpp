@@ -90,6 +90,10 @@ TwinklyOutputData::TwinklyOutputData(const Json::Value& config) :
     }
 }
 TwinklyOutputData::~TwinklyOutputData() {
+    // Every request above captures this.  Drop the ones still in flight
+    // instead of letting their callbacks run on a freed object; deleted on
+    // the main loop (a reload, or shutdown), where cancelling is allowed.
+    CurlManager::INSTANCE.cancelRequests(curlOwner);
     // The token timer captures this. StoppingOutput() normally removes it, but
     // the timer must never outlive the object whatever path deleted it. Only
     // while still started: the name is per address, so once stopped it may
@@ -321,9 +325,12 @@ void TwinklyOutputData::authenticate() {
                                                   LogWarn(VB_CHANNELOUT, "Twinkly %s: could not switch to realtime mode (http %d)\n", ipAddress.c_str(), rc);
                                               }
                                               finishAuth();
-                                          });
-            });
-        });
+                                          },
+                                          curlOwner);
+            },
+                                      curlOwner);
+        },
+        curlOwner);
 }
 void TwinklyOutputData::verifyToken() {
     if (!outputStarted) {
@@ -339,7 +346,8 @@ void TwinklyOutputData::verifyToken() {
             // no answer, or the token was rejected. Retry async
             authenticate();
         }
-    });
+    },
+                              curlOwner);
 }
 
 // URL Helpers
