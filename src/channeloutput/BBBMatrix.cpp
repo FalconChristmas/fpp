@@ -370,10 +370,18 @@ int BBBMatrix::Init(Json::Value config) {
         if (p["colorOrder"].asString() == "")
             p["colorOrder"] = ColorOrderToString(m_colorOrder);
 
-        m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
-                                p["panelNumber"].asInt(), orientation,
-                                p["xOffset"].asInt(), p["yOffset"].asInt(),
-                                ColorOrderFromString(p["colorOrder"].asString()));
+        // the cape has at most 16 outputs, and usesOutput is sized for that
+        if (p["outputNumber"].asInt() >= 16) {
+            LogErr(VB_CHANNELOUT, "Invalid panel output number %d\n", p["outputNumber"].asInt());
+            continue;
+        }
+        // a refused panel (out of range) must not count toward the outputs or chains below
+        if (!m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
+                                     p["panelNumber"].asInt(), orientation,
+                                     p["xOffset"].asInt(), p["yOffset"].asInt(),
+                                     ColorOrderFromString(p["colorOrder"].asString()))) {
+            continue;
+        }
 
         if (p["outputNumber"].asInt() > m_outputs)
             m_outputs = p["outputNumber"].asInt();

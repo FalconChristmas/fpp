@@ -78,6 +78,15 @@ int PanelMatrix::AddPanel(int output, int chain, char orientation,
     int pWidth = m_panelWidth;
     int pHeight = m_panelHeight;
 
+    // These come straight from the config.  The UI only produces valid ones,
+    // but out of range they index m_outputPanels and the drivers' per-output
+    // tables, and a negative offset puts pixels before the frame.
+    if (output < 0 || output >= MAX_MATRIX_OUTPUTS || chain < 0 || chain >= MAX_PANELS_PER_OUTPUT ||
+        xOffset < 0 || yOffset < 0) {
+        LogErr(VB_CHANNELOUT, "Invalid panel: output %d, chain %d, offset %d,%d\n", output, chain, xOffset, yOffset);
+        return 0;
+    }
+
     // Orientation, Left, Right, Normal, Upside down
     if ((orientation == 'L') || (orientation == 'R')) {
         pWidth = m_panelHeight;

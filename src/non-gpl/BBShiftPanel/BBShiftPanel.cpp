@@ -672,11 +672,14 @@ int BBShiftPanelOutput::Init(Json::Value config) {
                 p["colorOrder"] = ColorOrderToString(m_colorOrder);
             }
 
-            m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
-                                    p["panelNumber"].asInt(),
-                                    orientation,
-                                    p["xOffset"].asInt(), p["yOffset"].asInt(),
-                                    ColorOrderFromString(p["colorOrder"].asString()));
+            // a refused panel (out of range) must not count toward the outputs or chains below
+            if (!m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
+                                         p["panelNumber"].asInt(),
+                                         orientation,
+                                         p["xOffset"].asInt(), p["yOffset"].asInt(),
+                                         ColorOrderFromString(p["colorOrder"].asString()))) {
+                continue;
+            }
             if (p["panelNumber"].asInt() > m_longestChain) {
                 m_longestChain = p["panelNumber"].asInt();
             }
