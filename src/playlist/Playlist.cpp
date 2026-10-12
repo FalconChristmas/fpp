@@ -963,6 +963,10 @@ int Playlist::Start(void) {
     m_startTime = GetTime();
     m_loop = 0;
     m_forceStop = 0;
+    // Also cleared by Cleanup(); repeated for the restart-in-place path,
+    // which starts again without cleaning up.
+    m_isInGlobalPause = false;
+    m_shouldStartGlobalPause = false;
 
     LogDebug(VB_PLAYLIST, "============================================================================\n");
 
@@ -1810,6 +1814,11 @@ int Playlist::Cleanup(void) {
     m_repeat = 0;
     m_loopCount = 0;
     m_startTime = 0;
+    // A stop during the gap between sequences left these set, and the next
+    // playlist's first Process() "ended the pause" by starting its first
+    // entry a second time (media restarted, command entries ran twice).
+    m_isInGlobalPause = false;
+    m_shouldStartGlobalPause = false;
 
     while (m_leadIn.size()) {
         PlaylistEntryBase* entry = m_leadIn.back();
