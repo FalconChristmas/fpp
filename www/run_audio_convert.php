@@ -2,18 +2,23 @@
 /*
  * Convert Rate, on the File Manager's Music tab.
  *
- * Takes a JSON list of music file names in the POST body and writes a copy of
- * each at the audio system's configured sample rate, beside the original, as
- * "<name>_<rate>Hz.<ext>".  The original is never touched and an existing file
- * is never overwritten.
+ * Takes a JSON list of music file names in the POST body and converts each one
+ * to the audio system's configured sample rate, replacing the file in place
+ * under the same name (as MP3Gain does), so playlists and sequences that name it
+ * keep working.  There is no backup: keep your originals elsewhere.
+ *
+ * The original is only replaced once the conversion has finished and the result
+ * has been checked to really be at the target rate.  It is written to a
+ * temporary file first and moved over the original in one step, so a failed or
+ * interrupted conversion leaves the original exactly as it was.
  *
  * Why: audio at any rate other than the one the audio system runs at is
  * resampled on the CPU every time it plays, which is expensive on the smaller
  * boards.  Converting a file once, ahead of time, moves that cost out of the
  * show.  Files are encoded as the same kind of file they came from (MP3 stays
  * MP3, FLAC stays FLAC), and a lossy file is encoded again, so it loses a little
- * quality; the copy is written at the original's bit rate, rounded up to the
- * next standard one.
+ * quality; it is written at the original's bit rate, rounded up to the next
+ * standard one.
  *
  * Output streams to the browser as it is produced (like run_mp3gain.php) and is
  * also written to fppd.log.
@@ -23,6 +28,14 @@ $skipJSsettings = 1;
 require_once("common.php");
 require_once("common/metadata.php");
 require_once("common/oplog.inc.php");
+
+// It rewrites files, so only a POST is accepted: a GET is something any web page
+// can make a browser send.  (The File Manager always POSTs.)
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    http_response_code(405);
+    echo "This must be requested with POST.\n";
+    exit;
+}
 
 DisableOutputBuffering();
 // A conversion can outlast PHP's limit, and closing the tab must not leave a
@@ -132,14 +145,6 @@ foreach ($files as $name) {
         continue;
     }
 
-    $outName = pathinfo($name, PATHINFO_FILENAME) . '_' . $target . 'Hz.' . $ext;
-    $outPath = $musicDir . '/' . $outName;
-    if (file_exists($outPath)) {
-        convertLog('Skipping ' . $name . ': ' . $outName . ' already exists');
-        $skipped++;
-        continue;
-    }
-
     // Same codec family as the source.  A lossy file keeps its bit rate, rounded
     // up to a standard one (192 kbps when the source does not say).
     $codec = $ENCODERS[$extLower];
@@ -175,7 +180,7 @@ foreach ($files as $name) {
     }
     $cmd[] = $tmp;
 
-    convertLog('Converting ' . $name . ' (' . $info['sampleRate'] . ' Hz -> ' . $target . ' Hz) as ' . $outName);
+    convertLog('Converting ' . $name . ' (' . $info['sampleRate'] . ' Hz -> ' . $target . ' Hz)');
     $started = microtime(true);
     $proc = @proc_open($cmd, array(1 => array('pipe', 'w'), 2 => array('redirect', 1)), $pipes);
     if (!is_resource($proc)) {
@@ -194,25 +199,36 @@ foreach ($files as $name) {
         // Trust the result only if it really is at the target rate.
         $check = AudioInfoFromProbe(ProbeMediaWithFFProbe($tmp));
         if ($check['sampleRate'] === $target) {
-            $ok = @rename($tmp, $outPath);
+            // Keep the original's permissions, then move the result over it in
+            // one step.  The temporary folder is normally on the same
+            // filesystem as the music folder; if it is not, stage the copy
+            // beside the original first so the final move is still one step.
+            @chmod($tmp, fileperms($src) & 0777);
+            $ok = @rename($tmp, $src);
             if (!$ok) {
-                // The temporary folder may be on another filesystem.
-                $ok = @copy($tmp, $outPath);
-                @unlink($tmp);
+                $stage = $musicDir . '/.convert_' . getmypid() . '_' . $n . '.' . $extLower;
+                if (@copy($tmp, $stage)) {
+                    @chmod($stage, fileperms($src) & 0777);
+                    $ok = @rename($stage, $src);
+                }
+                @unlink($stage);
             }
-            if (!$ok) {
-                convertLog('  FAILED: could not write ' . $outName);
+            if ($ok) {
+                // The size changed, so the cached values for this file are stale.
+                media_audio_info_cache($name, $check, real_filesize($src));
+            } else {
+                convertLog('  FAILED: could not replace ' . $name . ' (the original is unchanged)');
             }
         } else {
-            convertLog('  FAILED: the result is at ' . $check['sampleRate'] . ' Hz, not ' . $target . ' Hz');
+            convertLog('  FAILED: the result is at ' . $check['sampleRate'] . ' Hz, not ' . $target . ' Hz (the original is unchanged)');
         }
     } else {
-        convertLog('  FAILED: ffmpeg exited with ' . $rc);
+        convertLog('  FAILED: ' . ($rc === 0 ? 'ffmpeg produced no output' : 'ffmpeg exited with ' . $rc) . ' (the original is unchanged)');
     }
     @unlink($tmp);
 
     if ($ok) {
-        convertLog(sprintf('  Done in %.1f s: %s (%s)', microtime(true) - $started, $outName, humanFileSize(filesize($outPath))));
+        convertLog(sprintf('  Done in %.1f s: %s is now %s Hz (%s)', microtime(true) - $started, $name, $target, humanFileSize(filesize($src))));
         $converted++;
     } else {
         $failed++;

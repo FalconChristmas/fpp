@@ -1222,10 +1222,10 @@ function ButtonHandler (table, button) {
 		DisplayConfirmationDialog(
 			'convertRateConfirm',
 			'Convert Sample Rate',
-			'<p>Make a copy of ' +
+			'<p>Convert ' +
 				(files.length == 1 ? 'the selected file' : 'each of the ' + files.length + ' selected files') +
-				' at the audio system&#39;s configured sample rate?</p>' +
-				'<p>The original is kept and the copy is saved beside it as <code>name_&lt;rate&gt;Hz</code>. ' +
+				' to the audio system&#39;s configured sample rate?</p>' +
+				'<p>The file is <strong>replaced</strong> under the same name, and no backup is kept, so keep your originals elsewhere. ' +
 				'Files already at that rate are skipped. Lossy files (MP3, OGG, AAC) are encoded again, ' +
 				'so they lose a little quality. This can take a while on a small device.</p>',
 			function () {
