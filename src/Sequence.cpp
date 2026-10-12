@@ -316,6 +316,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     size_t bytesRead = 0;
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
     m_endedSeqFilename.clear();
+    const uint64_t openGeneration = ++m_openGeneration;
 
     if (m_seqFile.load()) {
         if (m_seqFilename == filename && m_seqStarting) {
@@ -421,6 +422,10 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
         seqLock.unlock();
         multiSync->SendSeqOpenPacket(filename);
         seqLock.lock();
+        if (openGeneration != m_openGeneration) {
+            LogDebug(VB_SEQUENCE, "Open of %s superseded by a later open while sending the open packet\n", filename.c_str());
+            return 0;
+        }
     }
 
     m_seqFile.store(nullptr);

@@ -171,6 +171,12 @@ private:
     // was never stopped by the master's stop.  Guarded by m_sequenceLock.
     std::string m_seqSyncName;
 
+    // Bumped by every OpenSequenceFile() under m_sequenceLock.  The open drops
+    // that lock while it sends the MultiSync open packet; if another open ran
+    // in that window, the older one stands down instead of replacing the newer
+    // file with its own (leaving the newer one's caches and triggers behind).
+    uint64_t m_openGeneration = 0;
+
     // Both guarded by m_sequenceLock.
     std::string m_missingSeqFilename;
     std::string m_missingSeqWarning;
