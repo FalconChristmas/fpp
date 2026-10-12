@@ -2230,6 +2230,9 @@
                     "<input type='button' class='buttons' value='Restart FPPD' onClick='restartSystem(\"" + rowID + "\");' style='float: left;'>" +
                     "<input type='button' class='buttons' value='Reboot' onClick='rebootSystem(\"" + rowID + "\");' style='float: left;'>" +
                     "<input type='button' class='buttons' value='Close Log' onClick='$(\"#" + rowID + "_logs\").hide(); rowSpanSet(\"" + rowID + "\");'>" +
+                    "</div><div class='right' id='" + rowID + "_failButtons' style='display: none;'>" +
+                    "<input type='button' class='buttons' value='Retry' onClick='retryRow(\"" + rowID + "\");' style='float: left;'>" +
+                    "<input type='button' class='buttons' value='Close Log' onClick='$(\"#" + rowID + "_logs\").hide(); rowSpanSet(\"" + rowID + "\");'>" +
                     "</div></td></tr></table></td></tr>"
                 );
 
@@ -3289,6 +3292,31 @@
             log.scrollTop = log.scrollHeight;
         }
 
+        // What a row's Retry button re-runs, set when its last action failed.
+        var rowRetry = {};
+
+        function clearRowResult(rowID) {
+            delete rowRetry[rowID];
+            $('#' + rowID + '_doneButtons').hide();
+            $('#' + rowID + '_failButtons').hide();
+        }
+
+        // A failed action gets Retry and Close Log in place of the follow-up
+        // buttons, which need a system that answered.
+        function showRowFailed(rowID, retry) {
+            rowRetry[rowID] = retry;
+            $('#' + rowID + '_doneButtons').hide();
+            $('#' + rowID + '_failButtons').show();
+        }
+
+        function retryRow(rowID) {
+            var retry = rowRetry[rowID];
+            clearRowResult(rowID);
+            if (retry) {
+                retry();
+            }
+        }
+
         /**
          * Runs a long action on several systems over ONE streaming request
          * (StreamJobs / streamRemoteJobs.php).  Over plain http the browser
@@ -3311,7 +3339,10 @@
             var heldLF = {};
             var failed = [];
 
+            var jobByID = {};
             jobs.forEach(function (job) {
+                jobByID[job.id] = job;
+                clearRowResult(job.id);
                 $('#' + job.id).find('input.remoteCheckbox').prop('checked', false);
                 streamCount++;
                 showLogsRow(job.id);
@@ -3344,6 +3375,12 @@
                         }
                     } else {
                         failed.push(ipFromRowID(rowID));
+                        // A retry runs alone, so it no longer waits on an origin.
+                        var job = Object.assign({}, jobByID[rowID]);
+                        delete job.after;
+                        var retryOpts = Object.assign({}, opts);
+                        delete retryOpts.waiting;
+                        showRowFailed(rowID, function () { runRemoteJobs([job], retryOpts); });
                     }
                     EnableDisableStreamButtons();
                 },
@@ -3436,9 +3473,10 @@
             EnableDisableStreamButtons();
         }
 
-        function actionFailed(id) {
+        function actionFailed(id, url) {
             id = id.replace('_logText', '');
             var ip = ipFromRowID(id);
+            showRowFailed(id, function () { queueQuickStream(url, id); });
 
             alert('Action failed for FPP system at ' + ip);
 
@@ -3457,6 +3495,7 @@
         var quickStreamQueue = [];
 
         function queueQuickStream(url, rowID) {
+            clearRowResult(rowID);
             streamCount++;
             EnableDisableStreamButtons();
 
@@ -3476,9 +3515,10 @@
                 };
             };
             while (quickStreamActive < quickStreamLimit && quickStreamQueue.length) {
-                var q = quickStreamQueue.shift();
+                const q = quickStreamQueue.shift();
                 quickStreamActive++;
-                StreamURL(q.url, q.rowID + '_logText', settle(actionDone), settle(actionFailed));
+                StreamURL(q.url, q.rowID + '_logText', settle(actionDone),
+                    settle(function (id) { actionFailed(id, q.url); }));
             }
         }
 
