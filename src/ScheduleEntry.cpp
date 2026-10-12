@@ -649,12 +649,28 @@ int ScheduleEntry::DayIndexToMask(int dayIndex) {
     return dayIndex;
 }
 
+// Days since 1970-01-01 for a proleptic Gregorian civil date (Howard
+// Hinnant's days_from_civil).  Pure calendar arithmetic: no time zone, no DST.
+static long DaysFromCivil(long y, unsigned m, unsigned d) {
+    y -= m <= 2;
+    const long era = (y >= 0 ? y : y - 399) / 400;
+    const unsigned yoe = (unsigned)(y - era * 400);
+    const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+    const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    return era * 146097 + (long)doe - 719468;
+}
+
 bool ScheduleEntry::IsOddEvenMatch(time_t dayTime) const {
     // Odd/Even is based on the FPP 'epoch', the date of the first commit to
-    // the FPP repository on github, July 15, 2013.
-    struct std::tm FPPEpoch = { 0, 0, 0, 15, 6, 113 };
-    std::time_t FPPEpochTimeT = std::mktime(&FPPEpoch);
-    int daysSince = (int)std::difftime(dayTime, FPPEpochTimeT) / SECONDS_PER_DAY;
+    // the FPP repository on github, July 15, 2013.  Count calendar days, not
+    // seconds: the epoch used to be built with tm_isdst=0, an hour off during
+    // DST, so from 00:00 to 00:59 in summer -- exactly when the midnight
+    // schedule reload runs -- the count came out a day short and odd entries
+    // were scheduled on even days.
+    struct tm local;
+    localtime_r(&dayTime, &local);
+    long daysSince = DaysFromCivil(local.tm_year + 1900, local.tm_mon + 1, local.tm_mday) -
+                     DaysFromCivil(2013, 7, 15);
 
     if (daysSince % 2)
         return dayIndex == INX_ODD_DAY;
