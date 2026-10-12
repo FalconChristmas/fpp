@@ -35,9 +35,13 @@
 </ul>
 
 <h5>Audio — .mp3 / .ogg / .m4a / .flac / .aac / .wav / .m4p</h5>
-<p>Columns: File, Duration, Date Modified.</p>
+<p>Columns: File, Duration, Bit Rate, Sample Rate, Date Modified.</p>
 <ul>
+    <li><b>Bit Rate</b> and <b>Sample Rate</b> — Read from each file the first time it is listed and remembered, so a large library is only inspected once. They show <code>…</code> until they are read, and <code>-</code> for a file with no audio in it or one inside a subfolder.</li>
+    <li><b>Warning icon</b> (next to a Sample Rate) — This file is not at the sample rate the audio system uses, so the CPU has to convert it every time it plays. That is costly on small devices. Hover over the icon for the detail. Files at the configured rate that the audio hardware itself upsamples (44.1 kHz on a card that runs at 88.2 kHz) are not flagged. The Media Files report on the Troubleshooting page gives the same judgement for the whole library.</li>
     <li><b>Listen</b> (single) — Plays the audio in the browser for quick preview.</li>
+    <li><b>Audio Info</b> (single) — Shows everything the file reports about itself: container, codec, sample rate, channels, bit rate, duration and tags, as the video tab’s <b>Video Info</b> does for video.</li>
+    <li><b>Convert Rate</b> (when <code>ffmpeg</code> is installed, single or multiple) — After a confirmation, makes a copy of each selected file at the audio system’s configured sample rate and saves it beside the original as <code>name_&lt;rate&gt;Hz</code>. The original is kept and an existing file is never overwritten; files already at that rate, and file types other than MP3, OGG, M4A, AAC, FLAC and WAV, are skipped. The copy is the same kind of file (an MP3 stays an MP3). MP3, OGG and AAC are lossy, so converting them encodes them again and costs a little quality; they are written at the original’s bit rate, rounded up to the next standard one. A small device converts one file at a time at low priority, which can take a while, and only one conversion can run at once. Add the converted copy to your playlist in place of the original.</li>
     <li><b>MP3Gain</b> (when <code>mp3gain</code> is installed, single or multiple) — Normalizes volume across tracks by rewriting each selected MP3 to the same ReplayGain loudness, turning a track down further where raising it would clip. The change is lossless (1.5 dB steps) and can be undone with <code>mp3gain -u</code>. Other audio formats are skipped.</li>
     <li><b>Add To Playlist, Download, Rename, Delete</b> — As above, with the same single/multi rules.</li>
 </ul>
@@ -114,5 +118,6 @@
 <ul>
     <li>If a file you just uploaded does not appear where you expect, look in <b>Uploads</b> and check its extension.</li>
     <li>Keep file names short and without special characters so playlists and sequences can find them after a rename.</li>
-    <li>Select a file and use <b>Sequence Info</b> / <b>Video Info</b> to verify timing and channel counts match what your playlist expects.</li>
+    <li>Select a file and use <b>Sequence Info</b> / <b>Video Info</b> / <b>Audio Info</b> to verify timing and channel counts match what your playlist expects.</li>
+    <li>If a small device is working hard while music plays, look for warning icons in the Audio tab’s <b>Sample Rate</b> column and use <b>Convert Rate</b> on those files.</li>
 </ul>

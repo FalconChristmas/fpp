@@ -274,6 +274,14 @@ function GetFiles (dir, extraParams, seq) {
 						fpsCell = '<td></td>';
 					}
 
+					// Music gets Bit Rate and Sample Rate columns after Duration.
+					// Directories show nothing; files show what the server has
+					// cached, or a placeholder LoadAudioInfo() fills in.
+					var audioCells = '';
+					if (dir == 'Music') {
+						audioCells = isDir ? '<td></td><td></td>' : AudioInfoCells(f);
+					}
+
 					tableRow =
 						"<tr class='" +
 						extraClass +
@@ -284,6 +292,7 @@ function GetFiles (dir, extraParams, seq) {
 						"</td><td class='fileExtraInfo'>" +
 						detail +
 						'</td>' +
+						audioCells +
 						fpsCell +
 						"<td class ='fileTime'>" +
 						f.mtime +
@@ -327,7 +336,14 @@ function GetFiles (dir, extraParams, seq) {
 				// Lazily fetch the per-sequence fps (server-cached) and fill in
 				// the FPS column afterwards, without blocking the initial list.
 				LoadSequenceFPS();
-			} else if (dir == 'Music' || dir == 'Videos') {
+			} else if (dir == 'Music') {
+				// One probe at a time on a small board: durations first, then
+				// the sample and bit rates (which the duration probe has
+				// usually already cached, so those are quick lookups).
+				LoadMediaDurations(dir, function () {
+					LoadAudioInfo(dir);
+				});
+			} else if (dir == 'Videos') {
 				LoadMediaDurations(dir);
 			}
 		}
@@ -358,11 +374,14 @@ function HumanPlaytime (seconds) {
 // Pi running several probes at once. Follows LoadSequenceFPS() for how the
 // table is updated: through the Bootstrap Table data model once it is
 // initialized, or the raw cells while its tab is still hidden.
-function LoadMediaDurations (dir) {
+function LoadMediaDurations (dir, whenDone) {
 	var pending = (fileData[dir] || []).filter(function (f) {
 		return f.playtimeSeconds === null;
 	});
 	if (pending.length == 0) {
+		if (whenDone) {
+			whenDone();
+		}
 		return;
 	}
 
@@ -411,6 +430,9 @@ function LoadMediaDurations (dir) {
 	var next = function () {
 		var f = pending.shift();
 		if (!f) {
+			if (whenDone) {
+				whenDone();
+			}
 			return;
 		}
 		$.ajax({
@@ -428,6 +450,185 @@ function LoadMediaDurations (dir) {
 			error: function () {
 				f.playtimeSeconds = 'Unknown';
 				setDuration(f.name, f.playtimeSeconds);
+			},
+			complete: next
+		});
+	};
+	next();
+}
+
+// "44.1 kHz", "48 kHz", "22.05 kHz"
+function FormatSampleRate (hz) {
+	return parseFloat((hz / 1000).toFixed(3)) + ' kHz';
+}
+
+// "192 kbps"; '-' where the file has no bit rate to report
+function FormatBitRate (bps) {
+	return bps > 0 ? Math.round(bps / 1000) + ' kbps' : '-';
+}
+
+// The Sample Rate cell: the rate, plus a warning icon when the audio system has
+// to resample the file while it plays. `status` is the server's judgement (see
+// AudioRateStatus() in common/metadata.php): 'resample' is any rate other than
+// the audio system's; 'stuck' is the configured rate on hardware that runs at
+// something that is not a whole multiple of it. 'ok' and 'hardware' (the card
+// upsamples it) are not warned about.
+function SampleRateCellHtml (hz, status) {
+	if (!(hz > 0)) {
+		return '-';
+	}
+	var html = FormatSampleRate(hz);
+	var tip = '';
+	if (status == 'resample') {
+		tip =
+			"This file's sample rate is not the audio system's, so it is converted on the CPU every time it plays. Use Convert Rate to make a copy at the configured rate.";
+	} else if (status == 'stuck') {
+		tip =
+			"This file is at the configured rate, but the audio hardware runs at a rate that is not a whole multiple of it, so it is converted on the CPU every time it plays.";
+	}
+	if (tip != '') {
+		html +=
+			" <i class='fas fa-exclamation-triangle text-warning' title=\"" +
+			tip +
+			'" aria-label="' +
+			tip +
+			'"></i>';
+	}
+	return html;
+}
+
+// The Bit Rate and Sample Rate cells for one Music file. Where the server had
+// nothing cached yet (null), a placeholder stands in until LoadAudioInfo() has
+// the answer; files in subfolders cannot be looked up that way (the route takes
+// no slashes), so they show '-'.
+function AudioInfoCells (f) {
+	var pendingCell = "<span class='audioPending text-muted'>…</span>";
+	var unknown = f.name.indexOf('/') >= 0;
+	var bit, rate;
+	if (f.bitRate === null || f.bitRate === undefined) {
+		bit = unknown ? '-' : pendingCell;
+	} else {
+		bit = FormatBitRate(f.bitRate);
+	}
+	if (f.sampleRate === null || f.sampleRate === undefined) {
+		rate = unknown ? '-' : pendingCell;
+	} else {
+		rate = SampleRateCellHtml(f.sampleRate, f.audioStatus);
+	}
+	return (
+		"<td class='fileBitRate' align='right'>" +
+		bit +
+		"</td><td class='fileSampleRate' align='right'>" +
+		rate +
+		'</td>'
+	);
+}
+
+// Fills in the Bit Rate and Sample Rate cells for every Music file the listing
+// came back without them (not in the server's cache yet). One request at a
+// time, like LoadMediaDurations(), so a bulk upload never has a small board
+// running several probes at once; each request probes a file once and caches
+// the answer, so the next listing arrives complete. Updates the table the same
+// way LoadMediaDurations() does: through Bootstrap Table's data model once it
+// is initialized, or the raw cells while its tab is still hidden.
+var audioInfoLoading = {};
+var audioInfoRerun = {};
+function LoadAudioInfo (dir) {
+	// Several listings can overlap (a sweep right after an upload, say). One
+	// loader at a time, so a small board never runs two probes at once; a call
+	// that arrives meanwhile is replayed when the running one is done, against
+	// the newest listing.
+	if (audioInfoLoading[dir]) {
+		audioInfoRerun[dir] = true;
+		return;
+	}
+	var pending = (fileData[dir] || []).filter(function (f) {
+		return (
+			f.sampleRate === null &&
+			f.isDirectory !== true &&
+			f.name.indexOf('/') < 0
+		);
+	});
+	if (pending.length == 0) {
+		return;
+	}
+
+	var decoder = document.createElement('textarea');
+	var decode = function (s) {
+		decoder.innerHTML = s;
+		return decoder.value.trim();
+	};
+
+	var setCells = function (name, bitHtml, rateHtml) {
+		var $table = $('#tbl' + dir);
+		var initialized = !!(
+			$table.closest('.bootstrap-table').length ||
+			$table.data('bootstrap.table')
+		);
+		if (initialized) {
+			var rows = $table.bootstrapTable('getData');
+			for (var r = 0; r < rows.length; r++) {
+				if (
+					rows[r].filename !== undefined &&
+					decode(rows[r].filename) == name
+				) {
+					// reinit:false patches just these <td>s; updateRow would
+					// re-render the whole body for every file that comes back
+					// and yank the page scroll to the top each time.
+					$table.bootstrapTable('updateCell', {
+						index: r,
+						field: 'bitrate',
+						value: bitHtml,
+						reinit: false
+					});
+					$table.bootstrapTable('updateCell', {
+						index: r,
+						field: 'samplerate',
+						value: rateHtml,
+						reinit: false
+					});
+					break;
+				}
+			}
+		} else {
+			$table.find('tbody tr').each(function () {
+				var $row = $(this);
+				if (decode($row.find('td.fileName').html()) == name) {
+					$row.find('td.fileBitRate').html(bitHtml);
+					$row.find('td.fileSampleRate').html(rateHtml);
+					return false;
+				}
+			});
+		}
+	};
+
+	audioInfoLoading[dir] = true;
+	var next = function () {
+		var f = pending.shift();
+		if (!f) {
+			audioInfoLoading[dir] = false;
+			if (audioInfoRerun[dir]) {
+				audioInfoRerun[dir] = false;
+				LoadAudioInfo(dir);
+			}
+			return;
+		}
+		$.ajax({
+			dataType: 'json',
+			url: 'api/media/' + encodeURIComponent(f.name) + '/audio',
+			success: function (resp) {
+				f.bitRate = resp.bitRate;
+				f.sampleRate = resp.sampleRate;
+				f.audioStatus = resp.status;
+				setCells(
+					f.name,
+					FormatBitRate(resp.bitRate),
+					SampleRateCellHtml(resp.sampleRate, resp.status)
+				);
+			},
+			error: function () {
+				// Do not leave the placeholder spinning for a file we cannot read.
+				setCells(f.name, '-', '-');
 			},
 			complete: next
 		});
@@ -790,24 +991,35 @@ function FileManagerFilterToggled () {
 	}
 }
 
-function GetVideoInfo (file) {
-	$('#fileText').html('Getting Video Info.');
+// The full ffprobe description of a media file (format, streams, codecs,
+// profiles, tags), shown as JSON. Video Info and Audio Info are the same view
+// of the same API.
+function ShowMediaInfo (file, title, dialogId) {
+	$('#fileText').html('Getting ' + title + '.');
 
-	$.get('api/media/' + file + '/meta', function (data) {
+	$.get('api/media/' + encodeURIComponent(file) + '/meta', function (data) {
 		DoModalDialog({
-			id: 'VideoViewer',
-			title: 'Video Info',
+			id: dialogId,
+			title: title,
 			class: 'modal-lg modal-dialog-scrollable',
 			body: '<pre>' + syntaxHighlight(JSON.stringify(data, null, 2)) + '</pre>',
 			keyboard: true,
 			backdrop: true,
 			buttons: {
 				Close: function () {
-					CloseModalDialog('VideoViewer');
+					CloseModalDialog(dialogId);
 				}
 			}
 		});
 	});
+}
+
+function GetVideoInfo (file) {
+	ShowMediaInfo(file, 'Video Info', 'VideoViewer');
+}
+
+function GetAudioInfo (file) {
+	ShowMediaInfo(file, 'Audio Info', 'AudioViewer');
 }
 function ButtonHandler (table, button) {
 	var selectedCount = $('#tbl' + table + ' tr.selectedEntry').length;
@@ -992,6 +1204,43 @@ function ButtonHandler (table, button) {
 				'Error, unable to get info for multiple files at the same time.'
 			);
 		}
+	} else if (button == 'audioInfo') {
+		if (selectedCount == 1) {
+			GetAudioInfo(filename);
+		} else {
+			DialogError(
+				'Error',
+				'Error, unable to get info for multiple files at the same time.'
+			);
+		}
+	} else if (button == 'convertRate') {
+		var files = [];
+		$('#tbl' + table + ' tr.selectedEntry').each(function () {
+			files.push($(this).find('td:first').text());
+		});
+		var postData = JSON.stringify(files);
+		DisplayConfirmationDialog(
+			'convertRateConfirm',
+			'Convert Sample Rate',
+			'<p>Make a copy of ' +
+				(files.length == 1 ? 'the selected file' : 'each of the ' + files.length + ' selected files') +
+				' at the audio system&#39;s configured sample rate?</p>' +
+				'<p>The original is kept and the copy is saved beside it as <code>name_&lt;rate&gt;Hz</code>. ' +
+				'Files already at that rate are skipped. Lossy files (MP3, OGG, AAC) are encoded again, ' +
+				'so they lose a little quality. This can take a while on a small device.</p>',
+			function () {
+				DisplayProgressDialog('convertRateProgress', 'Convert Sample Rate');
+				StreamURL(
+					'run_audio_convert.php',
+					'convertRateProgressText',
+					'ProgressDialogDone',
+					'ProgressDialogDone',
+					'POST',
+					postData,
+					'application/json'
+				);
+			}
+		);
 	} else if (button == 'viewFile') {
 		if (selectedCount == 1) {
 			ViewFile(table, filename);
