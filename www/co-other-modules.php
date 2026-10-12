@@ -753,11 +753,11 @@
     // The pixel counts are for every pixel changing every frame at 40fps;
     // only changed pixels are sent, so typical sequences fit several times
     // more.
-    LOREnhancedSpeeds["19200"] = "19.2k, 15 pixels all changing";
-    LOREnhancedSpeeds["57600"] = "57.6k, 45 pixels all changing";
-    LOREnhancedSpeeds["115200"] = "115.2k, 90 pixels all changing";
-    LOREnhancedSpeeds["500000"] = "500k, 400 pixels all changing";
-    LOREnhancedSpeeds["1000000"] = "1 Mbps, 800 pixels all changing";
+    LOREnhancedSpeeds["19200"] = "19.2k, 15 pixels all changing (40fps)";
+    LOREnhancedSpeeds["57600"] = "57.6k, 45 pixels all changing (40fps)";
+    LOREnhancedSpeeds["115200"] = "115.2k, 90 pixels all changing (40fps)";
+    LOREnhancedSpeeds["500000"] = "500k, 400 pixels all changing (40fps)";
+    LOREnhancedSpeeds["1000000"] = "1 Mbps, 800 pixels all changing (40fps)";
 
     class LOREnhanced extends OtherBaseDevice {
 
