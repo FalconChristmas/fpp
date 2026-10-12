@@ -1102,7 +1102,8 @@ void Playlist::Pause() {
         PlaylistEntryBase* entry = CurrentEntry();
         if (entry && entry->IsPlaying()) {
             entry->Pause();
-            if (entry->IsPaused()) {
+            if (entry->IsPaused() && m_status != FPP_STATUS_PLAYLIST_PAUSED) {
+                m_statusBeforePause = m_status;
                 m_status = FPP_STATUS_PLAYLIST_PAUSED;
             }
         }
@@ -1113,12 +1114,21 @@ void Playlist::Resume() {
     PlaylistTransitionGuard guard;
     if (IsPlaying()) {
         std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
-        if (m_status == FPP_STATUS_PLAYLIST_PAUSED) {
-            PlaylistEntryBase* entry = CurrentEntry();
+        // Two ways to be paused: the playlist status, or -- for a parent that
+        // was told to stop gracefully while paused under an "insert
+        // immediate" child -- a STOPPING_* status over an entry that is still
+        // paused.  The second used to be unresumable: the parent sat on its
+        // paused entry forever, never finishing the stop.
+        PlaylistEntryBase* entry = CurrentEntry();
+        bool statusPaused = (m_status == FPP_STATUS_PLAYLIST_PAUSED);
+        if (statusPaused || (entry && entry->IsPaused())) {
             if (entry) {
                 entry->Resume();
             }
-            m_status = FPP_STATUS_PLAYLIST_PLAYING;
+            if (statusPaused) {
+                // Back to what Pause() interrupted, which may be a stop.
+                m_status = m_statusBeforePause;
+            }
 
             // Notify of current playlists because was likely changed when Paused.
             Events::Publish("playlist/name/status", m_name);
@@ -1628,9 +1638,9 @@ void Playlist::SetIdle(bool exit) {
         // par is still owned: it is on the parent chain and not condemned, so
         // the player has never released it.
         Player::INSTANCE.SetCurrentPlaylist(par);
-        if (par->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PAUSED) {
-            par->Resume();
-        }
+        // Unconditional: Resume() is a no-op unless par is paused, and par
+        // may be STOPPING_* over a paused entry (stopped while we played).
+        par->Resume();
         {
             std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
             PL_CLEANUPS.push_back(this);

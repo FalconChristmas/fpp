@@ -209,6 +209,13 @@ private:
     std::vector<PlaylistEntryBase*> m_mainPlaylist;
     std::vector<PlaylistEntryBase*> m_leadOut;
     std::vector<PlaylistEntryBase*>* m_currentSection;
+
+    // Members below are appended rather than grouped with their relatives so
+    // that the offsets of everything above stay put for already-built plugins.
+
+    // The status Pause() replaced, restored by Resume().  A playlist paused
+    // while stopping gracefully must keep stopping once resumed.
+    PlaylistStatus m_statusBeforePause = FPP_STATUS_PLAYLIST_PLAYING;
 };
 
 // Source-compatibility façade for the old `extern Playlist* playlist;` global.
