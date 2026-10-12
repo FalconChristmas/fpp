@@ -564,6 +564,16 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
     }
 }
 PixelOverlayModel::~PixelOverlayModel() {
+    {
+        // The running effect used to be left behind, so every output reload
+        // leaked whatever was running on an auto-created model (a WLED effect
+        // is a whole strip). Nothing else can reach it now: the effect thread
+        // was drained (removeAutoOverlayModel) or stopped (loadModelMap,
+        // shutdown) before the model is freed.
+        std::unique_lock<std::recursive_mutex> l(effectLock);
+        delete runningEffect;
+        runningEffect = nullptr;
+    }
     if (channelData) {
         if (channelDataMapped) {
             munmap(channelData, std::max(channelCount, 8));
