@@ -1194,7 +1194,7 @@ private:
     // Restart ptp4l/phc2sys if they have died (link flap, OOM, manual kill),
     // and notice a PTP clock that has stepped out from under the pipelines'
     // RTP anchors.  Returns true when the caller should rebuild everything.
-    // Called from the SAP announce loop alongside the pipeline watchdog.
+    // Called from WatchdogLoop() alongside the pipeline watchdog.
     bool CheckPtpWatchdog();
 
     // Retract WARNING_PTP_NO_LOCK once the clock it complains about has
@@ -1324,16 +1324,16 @@ private:
     std::atomic<bool> m_driftRunning{false};
     void DriftControlLoop();
 
-    // Pipeline watchdog — called from SAP thread to poll bus messages
+    // Pipeline watchdog — called from WatchdogLoop() to poll bus messages
     // and restart any pipeline that isn't in PLAYING state.
     // Returns true if a full pipeline rebuild is needed.
     bool PollPipelinesWatchdog();
 
-    // Deferred pipeline-rebuild thread — spawned by SAPAnnounceLoop()'s
+    // Deferred pipeline-rebuild thread — spawned by WatchdogLoop()'s
     // watchdog rebuild path to call ApplyConfig() from a thread other than
     // the one ApplyConfig() needs to join (m_sapAnnounceThread).  Tracked
     // as a member (rather than detached) so Shutdown() can join it before
-    // tearing anything else down -- see Shutdown() and SAPAnnounceLoop().
+    // tearing anything else down -- see Shutdown() and WatchdogLoop().
     std::thread m_rebuildThread;
 
     // Rebuild bookkeeping.  m_rebuildMutex guards m_rebuildThread.  A rebuild
@@ -1388,6 +1388,12 @@ private:
     std::thread m_sapAnnounceThread;
     std::atomic<bool> m_sapAnnounceRunning{false};
     void SAPAnnounceLoop();
+
+    // Recovery and PTP supervision; see WatchdogLoop().
+    std::thread m_watchdogThread;
+    std::atomic<bool> m_watchdogRunning{false};
+    void WatchdogLoop();
+    void StopWorkerThreads();
     std::string BuildSDP(const AES67Instance& inst, const std::string& sourceIP,
                          const std::string& ptpClockId, uint32_t sdpVersion);
     std::vector<uint8_t> BuildSAPPacket(const std::string& sourceIP,

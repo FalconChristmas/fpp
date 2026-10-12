@@ -158,7 +158,7 @@ void AES67Manager::Shutdown() {
     // calls ApplyConfig(), which itself joins those two threads -- joining
     // them here concurrently with the rebuild thread would be a double
     // join on the same std::thread object (undefined behavior).  Taken out
-    // under m_rebuildMutex: the SAP thread assigns it.
+    // under m_rebuildMutex: the watchdog thread assigns it.
     std::thread rebuild;
     {
         std::lock_guard<std::mutex> rl(m_rebuildMutex);
@@ -175,18 +175,7 @@ void AES67Manager::Shutdown() {
     std::lock_guard<std::mutex> applyLock(m_applyMutex);
 
     // Stop SAP threads
-    m_sapAnnounceRunning.store(false);
-    m_sapRecvRunning.store(false);
-    m_driftRunning.store(false);
-    if (m_driftThread.joinable()) {
-        m_driftThread.join();
-    }
-    if (m_sapAnnounceThread.joinable()) {
-        m_sapAnnounceThread.join();
-    }
-    if (m_sapRecvThread.joinable()) {
-        m_sapRecvThread.join();
-    }
+    StopWorkerThreads();
 
     StopAllPipelines();
     ShutdownPTP();
@@ -547,18 +536,7 @@ bool AES67Manager::ApplyConfigLocked() {
     }
 
     // Stop existing pipelines and SAP threads
-    m_sapAnnounceRunning.store(false);
-    m_sapRecvRunning.store(false);
-    m_driftRunning.store(false);
-    if (m_driftThread.joinable()) {
-        m_driftThread.join();
-    }
-    if (m_sapAnnounceThread.joinable()) {
-        m_sapAnnounceThread.join();
-    }
-    if (m_sapRecvThread.joinable()) {
-        m_sapRecvThread.join();
-    }
+    StopWorkerThreads();
     StopAllPipelines();
     ShutdownPTP();
     // Re-resolved below against the new config: the PTP interface (and so the
@@ -683,10 +661,62 @@ bool AES67Manager::ApplyConfigLocked() {
     // instead of the one after it.
     ResetPtpStepReference();
 
+    m_watchdogRunning.store(true);
+    m_watchdogThread = std::thread(&AES67Manager::WatchdogLoop, this);
+
     m_active.store(true);
     LogInfo(VB_MEDIAOUT, "AES67Manager: Applied config — %d send, %d receive pipelines\n",
             (int)m_sendPipelines.size(), (int)m_recvPipelines.size());
     return true;
+}
+
+// Stops and joins the drift, SAP and watchdog threads.  Caller holds
+// m_applyMutex.  Never call it from one of those threads.
+void AES67Manager::StopWorkerThreads() {
+    m_sapAnnounceRunning.store(false);
+    m_sapRecvRunning.store(false);
+    m_driftRunning.store(false);
+    m_watchdogRunning.store(false);
+    if (m_driftThread.joinable()) {
+        m_driftThread.join();
+    }
+    if (m_sapAnnounceThread.joinable()) {
+        m_sapAnnounceThread.join();
+    }
+    if (m_sapRecvThread.joinable()) {
+        m_sapRecvThread.join();
+    }
+    if (m_watchdogThread.joinable()) {
+        m_watchdogThread.join();
+    }
+}
+
+// Pipeline recovery, ptp4l supervision, the PTP step detector and the
+// no-lock warning review, every SAP_ANNOUNCE_INTERVAL_S.  This used to run
+// inside the SAP announcer, which only exists when something sends with SAP
+// on: a receive-only box, or one with SAP turned off, got none of it -- a
+// dead pipeline or ptp4l stayed dead and the no-lock warning never cleared.
+void AES67Manager::WatchdogLoop() {
+    while (m_watchdogRunning.load()) {
+        for (int i = 0; i < AES67::SAP_ANNOUNCE_INTERVAL_S && m_watchdogRunning.load(); i++) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+        if (!m_watchdogRunning.load()) {
+            break;
+        }
+        // Evaluate both before deciding: PollPipelinesWatchdog() also drains
+        // each pipeline's bus, so short-circuiting past it would leave errors
+        // unread until the next pass.
+        const bool ptpStepped = CheckPtpWatchdog();
+        if (PollPipelinesWatchdog() || ptpStepped) {
+            // ApplyConfig() joins this thread, so the rebuild runs on its own
+            // thread once this one has stopped.
+            LogWarn(VB_MEDIAOUT, "AES67 watchdog: rebuild needed, scheduling ApplyConfig\n");
+            m_watchdogRunning.store(false);
+            ScheduleRebuild();
+            break;
+        }
+    }
 }
 
 void AES67Manager::ScheduleRebuild() {
@@ -694,7 +724,7 @@ void AES67Manager::ScheduleRebuild() {
     if (m_stopping.load() || m_rebuildRunning.load()) {
         // Shutting down, or a rebuild is already on its way.  Never join a
         // running one here: its ApplyConfig() may be waiting to join the
-        // SAP thread that is calling this.
+        // watchdog thread that is calling this.
         return;
     }
     if (m_rebuildThread.joinable()) {
@@ -727,18 +757,7 @@ void AES67Manager::Cleanup() {
     // tears down.
     m_applyGeneration++;
 
-    m_sapAnnounceRunning.store(false);
-    m_sapRecvRunning.store(false);
-    m_driftRunning.store(false);
-    if (m_driftThread.joinable()) {
-        m_driftThread.join();
-    }
-    if (m_sapAnnounceThread.joinable()) {
-        m_sapAnnounceThread.join();
-    }
-    if (m_sapRecvThread.joinable()) {
-        m_sapRecvThread.join();
-    }
+    StopWorkerThreads();
     StopAllPipelines();
     ShutdownPTP();
     ReleaseMediaClock();
@@ -2939,10 +2958,15 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
             gst_object_unref(payEl);
         }
 
+        // No reference to the sink here: the probe sits on the sink's own pad
+        // and pads only drop their probes when their element is disposed, so a
+        // ref held by the probe kept the sink -- and with it this struct, the
+        // PTP clock and its /dev/ptp fd -- alive forever after the pipeline was
+        // freed, one more on every rebuild.  The probe reads the sink off the
+        // pad instead.
         struct LeadServo {
             GstClock* ptp;
             GstClock* pipe;
-            GstElement* sink;
             gint64 targetNs;
             guint64 tick;
             int instanceId;
@@ -2954,13 +2978,17 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         if (sinkPad) {
             auto* sv = new LeadServo{ GST_CLOCK(gst_object_ref(ptpClock)),
                                       gst_pipeline_get_pipeline_clock(GST_PIPELINE(pipeline)),
-                                      sinkEl,
                                       (gint64)m_config.targetLeadMs * GST_MSECOND,
                                       0, inst.id, false, -1 };
             gst_pad_add_probe(
                 sinkPad, GST_PAD_PROBE_TYPE_BUFFER,
-                [](GstPad*, GstPadProbeInfo* info, gpointer user) -> GstPadProbeReturn {
+                [](GstPad* pad, GstPadProbeInfo* info, gpointer user) -> GstPadProbeReturn {
                     auto* v = static_cast<LeadServo*>(user);
+                    // Valid for the call: the pad's element is the one running it.
+                    GstElement* sink = GST_ELEMENT(GST_OBJECT_PARENT(pad));
+                    if (!sink) {
+                        return GST_PAD_PROBE_OK;
+                    }
                     GstBuffer* b = GST_PAD_PROBE_INFO_BUFFER(info);
                     // ~1Hz at any ptime; the correction is tens of microseconds
                     // and does not need to be finer.
@@ -2988,7 +3016,7 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                     // receiver-discards-everything failure.
                     if (v->latency < 0) {
                         GstQuery* lq = gst_query_new_latency();
-                        if (gst_element_query(v->sink, lq)) {
+                        if (gst_element_query(sink, lq)) {
                             gboolean live = FALSE;
                             GstClockTime minL = 0, maxL = 0;
                             gst_query_parse_latency(lq, &live, &minL, &maxL);
@@ -3000,8 +3028,8 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                         }
                     }
                     gint64 tsOff = 0;
-                    g_object_get(v->sink, "ts-offset", &tsOff, NULL);
-                    const GstClockTime baseT = gst_element_get_base_time(v->sink);
+                    g_object_get(sink, "ts-offset", &tsOff, NULL);
+                    const GstClockTime baseT = gst_element_get_base_time(sink);
                     const GstClockTime pipeNow = gst_clock_get_time(v->pipe);
                     const GstClockTime ptpNow = gst_clock_get_time(v->ptp);
                     // When the sink will put this packet on the wire, expressed
@@ -3044,7 +3072,7 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                         if (corr < -kSlew) corr = -kSlew;
                     }
                     if (corr != 0) {
-                        g_object_set(v->sink, "ts-offset", tsOff + corr, NULL);
+                        g_object_set(sink, "ts-offset", tsOff + corr, NULL);
                     }
                     // Diagnostic: the servo drove the lead to -56ms once and
                     // took 50 minutes to recover, which no combination of its
@@ -3080,11 +3108,11 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                     auto* v = static_cast<LeadServo*>(user);
                     if (v->ptp) gst_object_unref(v->ptp);
                     if (v->pipe) gst_object_unref(v->pipe);
-                    if (v->sink) gst_object_unref(v->sink);
                     delete v;
                 });
             gst_object_unref(sinkPad);
-        } else if (sinkEl) {
+        }
+        if (sinkEl) {
             gst_object_unref(sinkEl);
         }
     }
@@ -3664,7 +3692,7 @@ void AES67Manager::FlushSendPipelines() {
 // ──────────────────────────────────────────────────────────────────────────────
 // ──────────────────────────────────────────────────────────────────────────────
 // Pipeline watchdog — polls bus messages and recovers crashed pipelines.
-// Called from the SAP announcer thread (every SAP_ANNOUNCE_INTERVAL_S seconds).
+// Called from WatchdogLoop() (every SAP_ANNOUNCE_INTERVAL_S seconds).
 // fppd does not run a GLib main loop, so gst_bus_add_watch() callbacks would
 // never fire.  We poll the bus manually and promote any ERROR/WARNING messages.
 // ──────────────────────────────────────────────────────────────────────────────
@@ -3672,7 +3700,7 @@ void AES67Manager::FlushSendPipelines() {
 // link flap, an OOM kill or a stray `killall ptp4l` left FPP silently running
 // with no clock discipline at all, reporting "not running" forever.
 //
-// Called from the SAP announcer alongside the pipeline watchdog, so it shares
+// Called from WatchdogLoop() alongside the pipeline watchdog, so it shares
 // that thread's cadence.  Note this means PTP is only supervised while the SAP
 // announcer runs (i.e. there is at least one SAP-enabled send instance).
 
@@ -4795,33 +4823,8 @@ void AES67Manager::SAPAnnounceLoop() {
             }
         }
 
-        // Poll pipeline bus messages and recover any crashed pipelines.
-        // Runs every SAP_ANNOUNCE_INTERVAL_S (30s) — fast enough to detect
-        // silent failures without adding significant overhead.
-        if (m_sapAnnounceRunning.load()) {
-            // Evaluate both before deciding: PollPipelinesWatchdog() also
-            // drains each pipeline's bus, so short-circuiting past it would
-            // leave errors unread until the next pass.
-            const bool ptpStepped = CheckPtpWatchdog();
-            if (PollPipelinesWatchdog() || ptpStepped) {
-                // A full pipeline rebuild is needed.  We cannot call
-                // ApplyConfig() from this thread because ApplyConfig()
-                // joins m_sapAnnounceThread — which IS this thread — causing
-                // a deadlock ("Resource deadlock avoided" / SIGABRT).
-                // Instead, stop this loop and spawn a short-lived thread
-                // that calls ApplyConfig() after we exit.
-                LogWarn(VB_MEDIAOUT, "AES67 watchdog: rebuild needed, stopping SAP loop and scheduling ApplyConfig\n");
-                m_sapAnnounceRunning.store(false);
-                // Track this as m_rebuildThread (rather than detaching) so
-                // Shutdown() can join it before tearing anything else down
-                // -- a detached thread could otherwise call ApplyConfig()
-                // and resurrect pipelines after Shutdown() has already run,
-                // and a detached thread racing Shutdown()'s own joins of
-                // m_sapAnnounceThread/m_sapRecvThread is undefined behavior.
-                ScheduleRebuild();
-                break;
-            }
-        }
+        // Pipeline recovery and PTP supervision run in WatchdogLoop(), which
+        // doesn't depend on anything announcing.
     }
 
     // Send deletion packets on shutdown
