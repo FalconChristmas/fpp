@@ -123,6 +123,13 @@ int MCP23017Output::Init(Json::Value config) {
         return 0;
     }
 
+    // 16 pins, one channel each; SendData shifts a bit per channel into two
+    // bytes, and past 40 channels the shift count passes the int's width
+    if (m_channelCount > 16) {
+        LogWarn(VB_CHANNELOUT, "MCP23017 has 16 pins, using 16 of the %u channels configured\n", m_channelCount);
+        m_channelCount = 16;
+    }
+
     i2c = new I2CUtils(1, m_deviceID);
     if (!i2c->isOk()) {
         LogErr(VB_CHANNELOUT, "Error opening I2C device for MCP23017 output\n");
