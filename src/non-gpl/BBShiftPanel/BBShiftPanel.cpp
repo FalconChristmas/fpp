@@ -369,6 +369,7 @@ void BBShiftPanelOutput::StartingOutput() {
 }
 
 void BBShiftPanelManager::startingOutput() {
+    std::lock_guard<std::mutex> memberLock(m_memberLock);
     if (m_activeMembers++) {
         // the cape is already refreshing for another matrix
         return;
@@ -457,6 +458,7 @@ void BBShiftPanelOutput::StoppingOutput() {
 }
 
 void BBShiftPanelManager::stoppingOutput() {
+    std::lock_guard<std::mutex> memberLock(m_memberLock);
     if (m_activeMembers > 0 && --m_activeMembers) {
         // another matrix on this cape is still outputting
         return;
@@ -560,6 +562,7 @@ BBShiftPanelOutput::~BBShiftPanelOutput() {
 }
 
 void BBShiftPanelManager::removeMember(BBShiftPanelOutput* m) {
+    std::lock_guard<std::mutex> memberLock(m_memberLock);
     auto it = std::find(m_members.begin(), m_members.end(), m);
     if (it == m_members.end()) {
         // never registered (its Init failed)
@@ -942,9 +945,15 @@ BBShiftPanelManager::PanelParams BBShiftPanelManager::parsePanelParams(const Jso
                    p.panelWidth);
             p.dataLayout = 0;
         } else if (!p.panelInterleave.empty()) {
-            LogErr(VB_CHANNELOUT, "BBShiftPanel: full height data layout cannot be combined with panel interleave; using the standard layout\n");
-            WarningHolder::AddWarning("LED panel data layout cannot be combined with panel interleave");
-            p.dataLayout = 0;
+            // Interleave means nothing when every row has its own address.
+            // The UI hides the dropdown for these panels but still saves
+            // whatever it held - "0" (Off), or "8" left over from a smaller
+            // scan - and falling back to the standard layout instead could
+            // never work: it needs a handler, and none exists for scan ==
+            // height.
+            LogInfo(VB_CHANNELOUT, "BBShiftPanel: ignoring panel interleave '%s' for a full height data layout\n",
+                    p.panelInterleave.c_str());
+            p.panelInterleave = "";
         }
     }
     return p;
@@ -1079,6 +1088,7 @@ bool BBShiftPanelManager::checkCompatible(const PanelParams& p) const {
 }
 
 bool BBShiftPanelManager::addMember(BBShiftPanelOutput* m, const Json::Value& config, const Json::Value& capeConfig) {
+    std::lock_guard<std::mutex> memberLock(m_memberLock);
     PanelParams p = parsePanelParams(config, capeConfig);
     if (m_members.empty()) {
         if (!parseCapeConfig(capeConfig) || !adoptPanelParams(p)) {
@@ -1190,7 +1200,17 @@ void BBShiftPanelManager::computeGeometry() {
 // already registered onto the new frame width.
 bool BBShiftPanelManager::rebuild() {
     teardownHardware();
+    // a frame part way through arriving was counted against the old member
+    // set; the next frame starts over with the new one
+    m_preppedThisFrame = 0;
+    m_framePrepped = false;
     computeGeometry();
+    if (numRows > MAX_SCAN_ROWS) {
+        // full height panels scan every row (64 for a 64 high panel); the
+        // per-row tables and the firmware's brightness table stop there
+        LogErr(VB_CHANNELOUT, "BBShiftPanel: %u scan rows, at most %u are supported\n", numRows, MAX_SCAN_ROWS);
+        return false;
+    }
 
     uint32_t dataSize = intermediateSize();
     if (!dataSize) {
@@ -1665,6 +1685,7 @@ void BBShiftPanelOutput::scatterFrame(unsigned char* channelData) {
 // arrived.  Doing it here rather than in SendData keeps it out of the way of
 // the other outputs' wire sends.
 void BBShiftPanelManager::prepMember(BBShiftPanelOutput* m, unsigned char* channelData) {
+    std::lock_guard<std::mutex> memberLock(m_memberLock);
     if (!m->m_stopping) {
         m->scatterFrame(channelData);
     }
@@ -1758,7 +1779,8 @@ void BBShiftPanelManager::PrepDataPWM() {
 }
 
 void BBShiftPanelManager::PrepDataShift() {
-    std::array<std::array<uint16_t*, 16>, 32> results;
+    // rebuild() refuses a geometry with more rows than this
+    std::array<std::array<uint16_t*, 16>, MAX_SCAN_ROWS> results;
 
     uint32_t bytesPerPixel = (m_numOutputSlots * 6 * 2) / 16;
     uint32_t strideLen = rowLen * bytesPerPixel;
@@ -1840,6 +1862,7 @@ int BBShiftPanelOutput::SendData(unsigned char* channelData) {
 // store and a couple of PRU words, nothing that would hold up the other
 // outputs waiting to send.
 void BBShiftPanelManager::publishFrame() {
+    std::lock_guard<std::mutex> memberLock(m_memberLock);
     if (!m_framePrepped) {
         return;
     }
@@ -2549,10 +2572,16 @@ bool BBShiftPanelOutput::buildScatterMap() {
     const uint32_t maxRowLen = mgr.maxRowLen;
     const int m_numOutputSlots = mgr.m_numOutputSlots;
 
-    PanelInterleaveHandler* handler = PanelInterleaveHandler::createHandler(mgr.m_panelInterleave, m_panelWidth, m_panelHeight, mgr.m_panelScan);
-    if (!handler) {
-        LogErr(VB_CHANNELOUT, "Failed to create panel interleave handler\n");
-        return false;
+    // Full height layouts map every row directly and have no interleave; a
+    // handler for them cannot exist (scan == height leaves no room for the
+    // folded columns it checks for), so only the split layout asks for one.
+    PanelInterleaveHandler* handler = nullptr;
+    if (!mgr.m_dataLayout) {
+        handler = PanelInterleaveHandler::createHandler(mgr.m_panelInterleave, m_panelWidth, m_panelHeight, mgr.m_panelScan);
+        if (!handler) {
+            LogErr(VB_CHANNELOUT, "Failed to create panel interleave handler\n");
+            return false;
+        }
     }
 
     uint32_t* channelOffsets = new uint32_t[m_channelCount];
