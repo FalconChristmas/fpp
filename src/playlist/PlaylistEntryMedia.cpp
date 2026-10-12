@@ -549,17 +549,35 @@ int PlaylistEntryMedia::GetFileList(void) {
     else if (m_fileMode == "randomAudio")
         dir = FPP_DIR_MUSIC("");
 
-    for (auto& cp : recursive_directory_iterator(dir)) {
-        std::string entry = cp.path().string();
-
-        if (!m_mediaPrefix.empty()) {
-            if (cp.is_regular_file() && cp.path().stem().string().find(m_mediaPrefix) == 0) {
-                LogDebug(VB_PLAYLIST, "match: %s\n", cp.path().c_str());
-                m_files.push_back(entry);
-            }
-        } else {
-            m_files.push_back(entry);
+    // Only media files of the kind this entry plays: without a prefix every
+    // directory entry went in, subdirectories included, and one picked as
+    // "random media" failed to play.  Names are kept relative to the folder,
+    // as a single-file entry's are, rather than as this box's full path --
+    // they go out in MultiSync packets, and a remote looks them up in its own
+    // folder.  A folder that can't be read is reported, not thrown.
+    bool video = (m_fileMode == "randomVideo");
+    std::error_code ec;
+    for (recursive_directory_iterator it(dir, directory_options::skip_permission_denied, ec), end;
+         !ec && it != end; it.increment(ec)) {
+        std::error_code fec;
+        if (!it->is_regular_file(fec)) {
+            continue;
         }
+        std::string ext = it->path().extension().string();
+        if (!ext.empty()) {
+            ext.erase(0, 1);
+        }
+        if (video ? !IsExtensionVideo(ext) : !IsExtensionAudio(ext)) {
+            continue;
+        }
+        if (!m_mediaPrefix.empty() && it->path().stem().string().find(m_mediaPrefix) != 0) {
+            continue;
+        }
+        LogDebug(VB_PLAYLIST, "match: %s\n", it->path().c_str());
+        m_files.push_back(it->path().lexically_relative(dir).string());
+    }
+    if (ec) {
+        LogWarn(VB_PLAYLIST, "Could not list %s for random media: %s\n", dir.c_str(), ec.message().c_str());
     }
 
     LogDebug(VB_PLAYLIST, "%d files in %s directory\n", m_files.size(), dir.c_str());
