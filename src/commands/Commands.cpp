@@ -491,6 +491,25 @@ static std::unique_ptr<Command::Result> invokeCommand(Command* cmd, const std::v
         return std::make_unique<Command::ErrorResult>(
             "Command \"" + cmd->name + "\" requires the \"" + argName + "\" argument");
     }
+    // ...and the one place every nested command passes through, so the one
+    // place runaway nesting can be bounded. Commands run commands: a preset, an
+    // If's Then/Else list, a playlist entry that restarts its own playlist, a
+    // %VAR: whose value is an If that expands the same variable again. Each
+    // path that recurses into itself on the same stack has its own fix, but
+    // anything missed - including a plugin command - would otherwise grow the
+    // stack until it faults. Real chains are a handful deep.
+    static constexpr int MAX_COMMAND_DEPTH = 32;
+    static thread_local int depth = 0;
+    if (depth >= MAX_COMMAND_DEPTH) {
+        LogErr(VB_COMMAND, "Command \"%s\" not run: commands nested more than %d deep - a command is running itself\n",
+               cmd->name.c_str(), MAX_COMMAND_DEPTH);
+        return std::make_unique<Command::ErrorResult>("Command \"" + cmd->name + "\" nested too deep");
+    }
+    struct DepthGuard {
+        DepthGuard() { depth++; }
+        ~DepthGuard() { depth--; }
+    } depthGuard;
+
     // ...and the one place a throwing command can be stopped from taking fppd
     // down. Only the HTTP routes have a catch above them (drogon's); MQTT runs
     // commands on libmosquitto's thread, MultiSync, GPIO, presets and playlist
