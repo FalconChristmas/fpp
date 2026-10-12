@@ -139,6 +139,15 @@ this mode; FPP browses the LAN for advertised `_nocc._tcp` helpers at build time
 **Rebuild FPP** from the Developer tab, or a branch change, then builds through nocc.
 If no helper answers, the build simply falls back to compiling locally and says so.
 
+If this FPP is connected over **Wi-Fi** and the helpers are running but it finds none,
+tick **Enable NOCC discovery across Wireless Networks**, which appears under **Distributed
+Compile** in this mode. nocc listens for mDNS answers for 500 ms by default; an access
+point holds multicast traffic back until its next beacon, so on Wi-Fi the answers can
+arrive later than that. The checkbox gives them 3 more seconds (`NOCC_DISCOVER_TIMEOUT=3500ms`
+for the discovery), at the cost of a slightly longer wait at the start of each build. The
+setting is `NoccDiscoverWireless` in the settings file: off by default, kept through an
+FPP update or FPPOS upgrade, and cleared by an FPP reset that includes the Settings area.
+
 To name the helper yourself instead -- mDNS doesn't cross VLANs, and some APs block
 multicast -- set **Distributed Compile** to **nocc** and put the helper in
 **Compile Hosts** (`myhelper` or `myhelper:43210`; space-separate several, FPP normalises
