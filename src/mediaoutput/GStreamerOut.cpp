@@ -143,7 +143,52 @@ static int RecordWedgeRestartAndCount() {
     return (int)stamps.size();
 }
 
-static void RecordWedgeEventAndMaybeRestart(const char* what) {
+// Whether `pipeline` holds a hardware video decoder (element class
+// "Codec/Decoder/Video/Hardware" -- the V4L2 stateful and stateless decoders).
+static bool PipelineHasHwVideoDecoder(GstElement* pipeline) {
+    if (!pipeline || !GST_IS_BIN(pipeline)) {
+        return false;
+    }
+    bool found = false;
+    GstIterator* it = gst_bin_iterate_recurse(GST_BIN(pipeline));
+    GValue item = G_VALUE_INIT;
+    bool done = false;
+    while (!done && !found) {
+        switch (gst_iterator_next(it, &item)) {
+        case GST_ITERATOR_OK: {
+            GstElementFactory* f = gst_element_get_factory(GST_ELEMENT(g_value_get_object(&item)));
+            const gchar* klass = f ? gst_element_factory_get_metadata(f, GST_ELEMENT_METADATA_KLASS) : nullptr;
+            if (klass && strstr(klass, "Decoder") && strstr(klass, "Video") && strstr(klass, "Hardware")) {
+                found = true;
+            }
+            g_value_reset(&item);
+            break;
+        }
+        case GST_ITERATOR_RESYNC:
+            gst_iterator_resync(it);
+            break;
+        default:
+            done = true;
+            break;
+        }
+    }
+    g_value_unset(&item);
+    gst_iterator_free(it);
+    return found;
+}
+
+// The restart and reboot rungs below exist for one failure: a hardware video
+// decoder (V4L2 / VideoCore firmware) that has wedged and only a process
+// restart or a reboot recovers.  A pipeline without one that times out --
+// an audio-only track whose pipewiresink stalled in teardown, a stream that
+// never prerolled on a BeagleBone -- has nothing a reboot fixes, and counting
+// it restarted fppd and rebooted show controllers that have no such decoder.
+// Those are logged and left at that.
+static void RecordWedgeEventAndMaybeRestart(const char* what, bool hwDecoder) {
+    if (!hwDecoder) {
+        LogErr(VB_MEDIAOUT, "GStreamer: %s (no hardware decoder involved, not counted toward a restart)\n", what);
+        return;
+    }
     int fails = s_consecutiveWedgeEvents.fetch_add(1) + 1;
     // 0 disables the self-restart escalation (teardown abandonment still applies)
     int limit = getSettingInt("GStreamerWedgeRestartLimit", 3);
@@ -2797,10 +2842,11 @@ int GStreamerOutput::Stop(void) {
                     g_object_set(volume, "volume", 0.0, NULL);
                     std::this_thread::sleep_for(std::chrono::milliseconds(250));
                 }
+                const bool hwDecoder = PipelineHasHwVideoDecoder(pipeline);
                 if (!SetPipelineToNullSupervised(pipeline, PIPELINE_TEARDOWN_TIMEOUT_MS)) {
                     // Reaper keeps its own refs to a wedged pipeline; drop
                     // ours below either way (mirrors Close()'s behavior).
-                    RecordWedgeEventAndMaybeRestart("async pipeline teardown wedged, abandoning pipeline");
+                    RecordWedgeEventAndMaybeRestart("async pipeline teardown wedged, abandoning pipeline", hwDecoder);
                 }
                 if (appsink)
                     gst_object_unref(appsink);
@@ -2853,11 +2899,12 @@ int GStreamerOutput::Stop(void) {
         // change block forever — on the 2026-07-03 soak it hung the playlist
         // thread for 2h25m and ended in SIGBUS.  On timeout the pipeline is
         // abandoned (reaper thread keeps the ref) so playback can continue.
+        const bool hwDecoder = PipelineHasHwVideoDecoder(m_pipeline);
         if (SetPipelineToNullSupervised(m_pipeline, PIPELINE_TEARDOWN_TIMEOUT_MS)) {
             LogDebug(VB_MEDIAOUT, "GStreamerOutput::Stop() - pipeline NULL complete\n");
         } else {
             m_teardownAbandoned = true;
-            RecordWedgeEventAndMaybeRestart("pipeline teardown wedged, abandoning pipeline");
+            RecordWedgeEventAndMaybeRestart("pipeline teardown wedged, abandoning pipeline", hwDecoder);
         }
 
         // On Raspberry Pi's vc4/v3d DRM driver, the kernel needs time to
@@ -3675,7 +3722,7 @@ int GStreamerOutput::Process(void) {
                 LogWarn(VB_MEDIAOUT, "GStreamer pipeline failed to preroll within %dms "
                         "(stuck in PAUSED — HW decoder may have wedged, see issue #2695). "
                         "Forcing stop so the playlist advances.\n", PREROLL_TIMEOUT_MS);
-                RecordWedgeEventAndMaybeRestart("pipeline failed to preroll");
+                RecordWedgeEventAndMaybeRestart("pipeline failed to preroll", PipelineHasHwVideoDecoder(m_pipeline));
                 m_playing = false;
                 if (m_mediaOutputStatus) {
                     m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
