@@ -57,6 +57,11 @@ public:
     void SetTimeDelta(int delta, int timeLimit);
     bool StartNextScheduledItemNow();
 
+    // Scheduled FPP commands run on their own detached threads.  At shutdown,
+    // wait (up to timeoutMS) for any still running, before the media, outputs
+    // and command registry they use are torn down.
+    static void WaitForCommandThreads(int timeoutMS);
+
     std::string GetNextPlaylistName();
     std::string GetNextPlaylistStartStr();
     bool IsEnabled() const { return !m_schedulerDisabled; }

@@ -25,6 +25,8 @@
 #include <string.h>
 #include <string>
 #include <thread>
+#include <chrono>
+#include <condition_variable>
 #include <time.h>
 #include <utility>
 #include <vector>
@@ -514,6 +516,17 @@ void Scheduler::RunPlayerActions(const std::vector<PlayerAction>& actions) {
     }
 }
 
+static std::mutex s_commandThreadsLock;
+static std::condition_variable s_commandThreadsDone;
+static int s_commandThreads = 0;
+
+void Scheduler::WaitForCommandThreads(int timeoutMS) {
+    std::unique_lock<std::mutex> l(s_commandThreadsLock);
+    if (!s_commandThreadsDone.wait_for(l, std::chrono::milliseconds(timeoutMS), []() { return s_commandThreads == 0; })) {
+        LogWarn(VB_SCHEDULE, "%d scheduled command(s) still running at shutdown\n", s_commandThreads);
+    }
+}
+
 void Scheduler::doScheduledCommand(const std::time_t itemTime, const ScheduledItem& item) {
     LogDebug(VB_SCHEDULE, "Running scheduled item:\n");
     DumpScheduledItem(itemTime, item);
@@ -524,7 +537,11 @@ void Scheduler::doScheduledCommand(const std::time_t itemTime, const ScheduledIt
     cmd["multisyncHosts"] = item.entry->multisyncHosts;
 
     int entryIndex = item.entryIndex;
-    std::thread th([this, entryIndex](Json::Value cmd) {
+    {
+        std::lock_guard<std::mutex> l(s_commandThreadsLock);
+        s_commandThreads++;
+    }
+    std::thread th([entryIndex](Json::Value cmd) {
         SetThreadName("FPP-RunCmd");
         // "id" rather than a row number: entryIndex is the 0-based index into
         // the schedule vector, and that is exactly what the API reports as an
@@ -547,6 +564,9 @@ void Scheduler::doScheduledCommand(const std::time_t itemTime, const ScheduledIt
                    entryIndex, cmd["command"].asString().c_str());
             WarningHolder::AddWarningTimeout(60, 47, "Schedule: command '" + cmd["command"].asString() + "' failed");
         }
+        std::lock_guard<std::mutex> l(s_commandThreadsLock);
+        s_commandThreads--;
+        s_commandThreadsDone.notify_all();
     },
                    std::move(cmd));
     th.detach();

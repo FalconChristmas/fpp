@@ -1306,6 +1306,11 @@ int main(int argc, char* argv[]) {
     // events while we are shutting down
     Events::PrepareForShutdown();
 
+    // Scheduled commands run on detached threads; give any still running a
+    // moment to finish before the media, outputs and command registry below go
+    // away under them.  Bounded so a stuck command can't hold up shutdown.
+    Scheduler::WaitForCommandThreads(2000);
+
     // Tear down mDNS *first* so the goodbye packets for our advertised
     // services go out on the wire before anything slower (media output
     // shutdown, channel-output close, or the WS responder draining its
