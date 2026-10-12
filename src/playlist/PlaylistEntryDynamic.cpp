@@ -148,7 +148,12 @@ int PlaylistEntryDynamic::StartPlaying(void) {
  */
 int PlaylistEntryDynamic::Process(void) {
     if ((m_currentEntry >= 0) && (m_playlistEntries[m_currentEntry])) {
-        m_playlistEntries[m_currentEntry]->Process();
+        // Only a child that is playing gets Process(), as in
+        // Playlist::Process().  One that finished inside StartPlaying() (a
+        // disabled entry, a failed start) was never set up for it: a disabled
+        // command entry has no result, and processing it dereferenced null.
+        if (m_playlistEntries[m_currentEntry]->IsPlaying())
+            m_playlistEntries[m_currentEntry]->Process();
         if (m_playlistEntries[m_currentEntry]->IsFinished()) {
             if ((m_parentPlaylist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY) ||
                 (m_parentPlaylist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {

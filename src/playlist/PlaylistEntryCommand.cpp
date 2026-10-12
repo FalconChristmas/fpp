@@ -70,7 +70,7 @@ int PlaylistEntryCommand::StartPlaying(void) {
  */
 int PlaylistEntryCommand::Process(void) {
     LogDebug(VB_PLAYLIST, "Process()\n");
-    if (m_result->isDone()) {
+    if (!m_result || m_result->isDone()) {
         FinishPlay();
     }
     return PlaylistEntryBase::Process();
