@@ -591,7 +591,8 @@ int PixelString::ReadVirtualString(Json::Value& vsc, VirtualString& vs) const {
     if (vs.brightness > 100 || vs.brightness < 0) {
         vs.brightness = 100;
     }
-    if (vs.gamma < 0.01) {
+    if (!(vs.gamma >= 0.01)) {
+        // also catches NaN, which compares false either way
         vs.gamma = 0.01;
     }
     if (vs.gamma > 50.0f) {
