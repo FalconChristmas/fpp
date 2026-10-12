@@ -3072,7 +3072,7 @@ static int AlsaSinkCardNumber() {
     // AudioOutput is a stable ALSA card ID on current installs, a bare card
     // number on older ones; resolveAudioOutputCardNum() accepts both, so match
     // its handling here rather than assuming either spelling.
-    std::string wanted = getSetting("AudioOutput");
+    std::string wanted = GetEffectiveAudioOutput();
     TrimWhiteSpace(wanted);
     int wantedCard = -1;
     if (!wanted.empty()) {

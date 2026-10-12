@@ -751,6 +751,26 @@ function NormalizeAudioOutputToCardId($value)
     return $value;
 }
 
+/*
+ * The audio card this boot plays on.  Boot (fppinit) falls back to another
+ * card when the selected one is missing or is HDMI with no display, uses it
+ * for this boot only, and records it in /run/fppd/audio-output.json; the
+ * AudioOutput setting keeps the user's choice.  Returns the fallback while
+ * $stored is still what boot saw as the selection, otherwise $stored (the
+ * user has picked something since).  Use it where the card actually playing
+ * matters, not where the user's choice is shown.
+ */
+function EffectiveAudioOutput($stored)
+{
+    $stored = trim((string) $stored);
+    $eff = @json_decode(@file_get_contents('/run/fppd/audio-output.json'), true);
+    if (is_array($eff) && isset($eff['selected'], $eff['effective'])
+        && trim((string) $eff['selected']) === $stored && $eff['effective'] !== '') {
+        return $eff['effective'];
+    }
+    return $stored;
+}
+
 function DeleteSettingFromFile($settingName, $plugin = "")
 {
     global $settingsFile;

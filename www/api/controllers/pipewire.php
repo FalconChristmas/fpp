@@ -9758,7 +9758,9 @@ function ApplyPipeWireSimpleConfig($skipRestart = false)
 {
     global $settings;
 
-    $audioOutput = isset($settings['AudioOutput']) ? $settings['AudioOutput'] : '0';
+    // The card this boot actually plays on: routing Simple mode to a selected
+    // HDMI card that had no display at boot would send the audio nowhere.
+    $audioOutput = EffectiveAudioOutput(isset($settings['AudioOutput']) ? $settings['AudioOutput'] : '0');
     $videoOutput = isset($settings['VideoOutput']) ? $settings['VideoOutput'] : '';
 
     $audioData = BuildSimpleAudioGroupsData($audioOutput);

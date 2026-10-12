@@ -62,8 +62,23 @@ static bool firstOutCreate = true;
 // it is matched against /proc/asound/cards by ID. Mirrors getAlsaCardNumForId()
 // in boot/FPPINIT_Audio.cpp (fppd and fppinit are separate binaries and cannot
 // share the static helper).
+std::string GetEffectiveAudioOutput() {
+    std::string selected = getSetting("AudioOutput");
+    TrimWhiteSpace(selected);
+    Json::Value eff;
+    if (FileExists("/run/fppd/audio-output.json") &&
+        LoadJsonFromFile("/run/fppd/audio-output.json", eff, JsonRoot::Object) &&
+        eff.get("selected", "").asString() == selected) {
+        std::string effective = eff.get("effective", "").asString();
+        if (!effective.empty()) {
+            return effective;
+        }
+    }
+    return selected;
+}
+
 static int resolveAudioOutputCardNum() {
-    std::string id = getSetting("AudioOutput");
+    std::string id = GetEffectiveAudioOutput();
     TrimWhiteSpace(id);
     if (id.empty()) {
         return 0;

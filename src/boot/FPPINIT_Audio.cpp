@@ -53,6 +53,9 @@ static std::string getAlsaCardProductName(int cardNum, const std::string& fallba
     return fallback;
 }
 
+// Written at boot by setupAudio(); see the comment where it is written.
+static const char* const EFFECTIVE_AUDIO_OUTPUT_PATH = "/run/fppd/audio-output.json";
+
 static std::string getAlsaCardId(int cardNum) {
     std::string cardsContent = GetFileContents("/proc/asound/cards");
     if (!cardsContent.empty()) {
@@ -1378,6 +1381,14 @@ static void runAudioSetup(bool recoveryPass) {
     // unplugged for the evening), so a fallback must not be written back over
     // it -- doing so silently loses the selection across a reboot.
     bool selectedCardMissing = false;
+    // True when this boot plays on some other card than the selection --
+    // the selected card is missing, is HDMI with no display, or never
+    // answered.  The fallback is used for this boot only and recorded in
+    // EFFECTIVE_AUDIO_OUTPUT_PATH; AudioOutput keeps the user's choice.
+    // Writing the fallback into AudioOutput lost that choice for good: a show
+    // controller whose TV was off at boot came back on the headphone jack
+    // every boot after, display or not.
+    bool onFallback = false;
     int card = 0;
     if (audioOutputId.empty()) {
         card = 0;
@@ -1389,6 +1400,7 @@ static void runAudioSetup(bool recoveryPass) {
             printf("FPP - Audio device '%s' not currently present; falling back to card 0 for this boot\n", audioOutputId.c_str());
             card = 0;
             selectedCardMissing = true;
+            onFallback = true;
         }
     }
     std::string cstr = "card " + std::to_string(card);
@@ -1432,19 +1444,14 @@ static void runAudioSetup(bool recoveryPass) {
             }
         }
         if (fallback >= 0 && fallback != card) {
-            printf("FPP - Audio device %d has no HDMI connected, switching to card %d (%s)\n",
+            printf("FPP - Audio device %d has no HDMI connected, using card %d (%s) for this boot\n",
                    card, fallback, cards["card " + std::to_string(fallback)].c_str());
             card = fallback;
-            if (!selectedCardMissing) {
-                setRawSetting("AudioOutput", getAlsaCardId(card));
-            }
         } else {
             card = cards.size();
             found = true;
-            if (!selectedCardMissing) {
-                setRawSetting("AudioOutput", getAlsaCardId(card));
-            }
         }
+        onFallback = true;
     }
     while (!found && count < 50) {
         std::string amixer = execAndReturn("/usr/bin/amixer -c " + std::to_string(card) + " cset numid=3 1  2>&1");
@@ -1456,11 +1463,10 @@ static void runAudioSetup(bool recoveryPass) {
         }
     }
     if (!found) {
+        // The probe below is an amixer control write, which a working card
+        // can refuse; don't record card 0 over the selection on its word.
         printf("FPP - Could not find audio device %d, defaulting to device 0.\n", card);
         CopyFileContents("/opt/fpp/etc/asoundrc.plain", "/root/.asoundrc");
-        if (!selectedCardMissing) {
-            setRawSetting("AudioOutput", getAlsaCardId(0));
-        }
     } else {
         printf("FPP - Waited for %d seconds for audio device\n", (count / 5));
         // Persist the selection as the stable ALSA card ID. This migrates a
@@ -1468,7 +1474,7 @@ static void runAudioSetup(bool recoveryPass) {
         // boot matches by name regardless of probe order. Skipped when we're on
         // a fallback card: that would overwrite the user's choice with whatever
         // happened to be present (typically the synthetic Dummy).
-        std::string canonicalId = selectedCardMissing ? "" : getAlsaCardId(card);
+        std::string canonicalId = onFallback ? "" : getAlsaCardId(card);
         if (!canonicalId.empty() && canonicalId != audioOutputId) {
             printf("FPP - Persisting selected audio device as ID '%s'\n", canonicalId.c_str());
             setRawSetting("AudioOutput", canonicalId);
@@ -1483,6 +1489,18 @@ static void runAudioSetup(bool recoveryPass) {
             pos += cardLine.size();
         }
         PutFileContents("/root/.asoundrc", arc);
+    }
+    // What this boot plays on, for whatever reads AudioOutput later (Simple
+    // mode's PHP apply, fppd's volume control).  They use "effective" while
+    // AudioOutput still equals "selected", and AudioOutput once the user has
+    // changed it.
+    if (!runningInDocker) {
+        mkdir("/run/fppd", 0755);
+        Json::Value eff;
+        eff["selected"] = audioOutputId;
+        eff["effective"] = getAlsaCardId(card);
+        eff["fallback"] = onFallback;
+        PutFileContents(EFFECTIVE_AUDIO_OUTPUT_PATH, SaveJsonToString(eff));
     }
     int v = getRawSettingInt("volume", -1);
     if (v == -1) {
