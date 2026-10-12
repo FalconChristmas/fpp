@@ -186,11 +186,12 @@ int HTTPVirtualDisplay3DOutput::Init(Json::Value config) {
         
         LogInfo(VB_CHANNELOUT, "HTTPVirtualDisplay3D auto-detected channel range: %u - %u (%u channels, %zu pixels)\n",
                 m_startChannel, maxChannel, m_channelCount, m_pixels.size());
-        
-        // Adjust pixel.ch to be relative to m_startChannel since channelData is passed with offset
-        for (auto& pixel : m_pixels) {
-            pixel.ch -= m_startChannel;
-        }
+
+        // pixel.ch stays absolute: PrepData() is handed the whole sequence
+        // buffer, not one offset to this output, and GetRequiredChannelRanges()
+        // reports the pixels' own channels.  Rebasing them by the lowest
+        // channel showed channel ch - min for every pixel whenever the map
+        // did not start at channel 1, and requested the wrong range.
     }
 
     m_screenSize = (int)virtualDisplayBufferBytes(m_width, m_height, m_bytesPerPixel);
