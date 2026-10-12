@@ -176,6 +176,21 @@ static bool IsPipelineSafeInterface(const std::string& iface) {
     return true;
 }
 
+// The pipeline-start warnings.  Kept as constants because RemoveWarning()
+// matches the exact text: an apply where every stream of a kind started
+// retracts that kind's warning, and Cleanup() retracts both -- before this,
+// nothing ever did, and the banner outlived the fix until fppd restarted.
+static const char* const OPUS_WARNING_SEND_FAILED = "Opus RTP: audio send stream failed to start";
+static const char* const OPUS_WARNING_RECV_FAILED = "Opus RTP: audio receive stream failed to start";
+static void ClearOpusPipelineWarnings(bool send, bool recv) {
+    if (send) {
+        WarningHolder::RemoveWarning(44, OPUS_WARNING_SEND_FAILED);
+    }
+    if (recv) {
+        WarningHolder::RemoveWarning(44, OPUS_WARNING_RECV_FAILED);
+    }
+}
+
 bool OpusRTPManager::LoadConfig() {
     Json::Value root;
     if (!LoadJsonFromFile(m_configPath, root, JsonRoot::Object)) {
@@ -307,6 +322,8 @@ bool OpusRTPManager::ApplyConfigLocked() {
     // Senders held idle because nothing feeds them -- published to
     // m_deferredSenders below, once the whole pass has run.
     std::map<int, std::string> deferred;
+    bool sendFailed = false;
+    bool recvFailed = false;
 
     for (const auto& inst : m_config.instances) {
         if (!inst.enabled) continue;
@@ -327,15 +344,16 @@ bool OpusRTPManager::ApplyConfigLocked() {
                         inst.id, inst.name.c_str(), nodeName.c_str());
                 deferred[inst.id] =
                     "Waiting for audio — not a member of any enabled Audio Output Group";
-            } else {
-                CreateSendPipeline(inst);
+            } else if (!CreateSendPipeline(inst)) {
+                sendFailed = true;
             }
         }
 
-        if (wantRecv) {
-            CreateRecvPipeline(inst);
+        if (wantRecv && !CreateRecvPipeline(inst)) {
+            recvFailed = true;
         }
     }
+    ClearOpusPipelineWarnings(!sendFailed, !recvFailed);
 
     {
         std::lock_guard<std::mutex> lock(m_pipelineMutex);
@@ -386,6 +404,8 @@ void OpusRTPManager::Cleanup() {
     LogInfo(VB_MEDIAOUT, "OpusRTPManager: Cleanup\n");
 
     std::lock_guard<std::mutex> applyLock(m_applyMutex);
+    // Nothing runs after this, so no stream is failing to start.
+    ClearOpusPipelineWarnings(true, true);
     // A watchdog rebuild already scheduled must not bring back what this
     // tears down.
     m_applyGeneration++;
@@ -547,7 +567,7 @@ bool OpusRTPManager::CreateSendPipeline(const OpusRTPInstance& inst) {
     GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (ret == GST_STATE_CHANGE_FAILURE) {
         LogErr(VB_MEDIAOUT, "Opus RTP send pipeline [%d] failed to start\n", inst.id);
-        WarningHolder::AddWarning(44, "Opus RTP: audio send stream failed to start");
+        WarningHolder::AddWarning(44, OPUS_WARNING_SEND_FAILED);
         // Drop back to NULL before unreffing -- elements may already hold
         // READY/PAUSED resources (sockets, threads, PipeWire connections)
         // that gst_object_unref() alone will not release.
@@ -670,7 +690,7 @@ bool OpusRTPManager::CreateRecvPipeline(const OpusRTPInstance& inst) {
     GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (ret == GST_STATE_CHANGE_FAILURE) {
         LogErr(VB_MEDIAOUT, "Opus RTP recv pipeline [%d] failed to start\n", inst.id);
-        WarningHolder::AddWarning(44, "Opus RTP: audio receive stream failed to start");
+        WarningHolder::AddWarning(44, OPUS_WARNING_RECV_FAILED);
         // Drop back to NULL before unreffing -- elements may already hold
         // READY/PAUSED resources (sockets, threads, PipeWire connections)
         // that gst_object_unref() alone will not release.
