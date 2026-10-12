@@ -392,87 +392,137 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*>& playlistPart
 int Playlist::Load(Json::Value& config) {
     LogDebug(VB_PLAYLIST, "Playlist::Load(JSON)\n");
 
+    // Everything is parsed into locals and only committed once the whole
+    // config has been read.  jsoncpp throws on a wrong-typed value ("repeat":
+    // "1", a section that is an object, ...), and this runs from Process()
+    // when a playing playlist's file is edited (ReloadIfNeeded) with nothing
+    // above it to catch -- that terminated fppd mid-show.  Cleaning up first,
+    // as this used to, also meant any failure left a half-loaded playlist in
+    // place of the running one.
+    std::string name;
+    std::string desc;
+    int repeat = 0;
+    int loopCount = 0;
+    int globalPauseMS = 0;
+    int random = 0;
+    Json::Value playlistInfo;
+    std::vector<PlaylistEntryBase*> leadIn;
+    std::vector<PlaylistEntryBase*> mainPlaylist;
+    std::vector<PlaylistEntryBase*> leadOut;
+
+    try {
+        if (config.isMember("name"))
+            name = config["name"].asString();
+
+        if (config.isMember("desc"))
+            desc = config["desc"].asString();
+
+        repeat = config["repeat"].asInt();
+        loopCount = config["loopCount"].asInt();
+        m_subPlaylistDepth = 0;
+
+        // Load global pause between sequences configuration
+        if (config.isMember("globalPauseBetweenSequencesMS"))
+            globalPauseMS = config["globalPauseBetweenSequencesMS"].asInt();
+
+        playlistInfo = config["playlistInfo"];
+
+        int startPos = 0;
+        int maxEntries = 999999;
+        int origEntryCount = 0;
+
+        if (m_loadEndPos >= 0) {
+            maxEntries = m_loadEndPos + 1 - ((m_loadStartPos >= 0) ? m_loadStartPos : 0);
+        }
+
+        if (config.isMember("leadIn") && config["leadIn"].size()) {
+            LogDebug(VB_PLAYLIST, "Loading LeadIn:\n");
+            const Json::Value leadInCfg = config["leadIn"];
+
+            if (m_loadStartPos >= 0)
+                startPos = m_loadStartPos;
+            else
+                startPos = 0;
+
+            if (startPos < leadInCfg.size())
+                LoadJSONIntoPlaylist(leadIn, leadInCfg, startPos, maxEntries);
+
+            origEntryCount += leadInCfg.size();
+        }
+
+        if (config.isMember("mainPlaylist") && config["mainPlaylist"].size()) {
+            LogDebug(VB_PLAYLIST, "Loading MainPlaylist:\n");
+            const Json::Value playlist = config["mainPlaylist"];
+
+            if ((m_loadStartPos >= 0) && (m_loadStartPos > origEntryCount)) {
+                startPos = m_loadStartPos - origEntryCount;
+            } else if (m_loadStartPos == -2 && m_loadEndPos == 0) {
+                // random single item
+                int l = playlist.size();
+                if (l > 1) {
+                    startPos = FPPrand() % l;
+                    maxEntries = 1;
+                }
+            } else {
+                startPos = 0;
+            }
+
+            if (startPos < playlist.size()) {
+                LoadJSONIntoPlaylist(mainPlaylist, playlist, startPos, maxEntries);
+            }
+
+            origEntryCount += playlist.size();
+        }
+
+        if (config.isMember("leadOut") && config["leadOut"].size()) {
+            LogDebug(VB_PLAYLIST, "Loading LeadOut:\n");
+            const Json::Value leadOutCfg = config["leadOut"];
+
+            if ((m_loadStartPos >= 0) && (m_loadStartPos > origEntryCount))
+                startPos = m_loadStartPos - origEntryCount;
+            else
+                startPos = 0;
+
+            if (startPos < leadOutCfg.size())
+                LoadJSONIntoPlaylist(leadOut, leadOutCfg, startPos, maxEntries);
+        }
+
+        if (config.isMember("random")) {
+            if (config["random"].isNumeric()) {
+                random = config["random"].asInt();
+            } else if (config["random"].isBool() && config["random"].asBool()) {
+                random = 1;
+            } else if (config["random"].isString()) {
+                random = std::atoi(config["random"].asString().c_str());
+            }
+        }
+    } catch (const std::exception& ex) {
+        std::string warn = "Playlist " + (name.empty() ? m_filename : name) + " is invalid: " + ex.what();
+        LogErr(VB_PLAYLIST, "%s\n", warn.c_str());
+        WarningHolder::AddWarningTimeout(60, 24, warn);
+        // Entries built before the throw were never published; retire them
+        // the same way Cleanup() does (destroyed on the main thread).
+        std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
+        for (auto* section : { &leadIn, &mainPlaylist, &leadOut }) {
+            for (auto* e : *section) {
+                PL_ENTRY_CLEANUPS.push_back(e);
+            }
+        }
+        return 0;
+    }
+
     Cleanup();
 
-    if (config.isMember("name"))
-        m_name = config["name"].asString();
-
-    if (config.isMember("desc"))
-        m_desc = config["desc"].asString();
-
-    m_repeat = config["repeat"].asInt();
-    m_loopCount = config["loopCount"].asInt();
-    m_subPlaylistDepth = 0;
-
-    // Load global pause between sequences configuration
-    if (config.isMember("globalPauseBetweenSequencesMS"))
-        m_globalPauseBetweenSequencesMS = config["globalPauseBetweenSequencesMS"].asInt();
-    else
-        m_globalPauseBetweenSequencesMS = 0;
-
-    m_playlistInfo = config["playlistInfo"];
-
-    PlaylistEntryBase* plEntry = NULL;
-
-    int startPos = 0;
-    int maxEntries = 999999;
-    int origEntryCount = 0;
-
-    if (m_loadEndPos >= 0) {
-        maxEntries = m_loadEndPos + 1 - ((m_loadStartPos >= 0) ? m_loadStartPos : 0);
-    }
-
-    if (config.isMember("leadIn") && config["leadIn"].size()) {
-        LogDebug(VB_PLAYLIST, "Loading LeadIn:\n");
-        const Json::Value leadIn = config["leadIn"];
-
-        if (m_loadStartPos >= 0)
-            startPos = m_loadStartPos;
-        else
-            startPos = 0;
-
-        if (startPos < leadIn.size())
-            LoadJSONIntoPlaylist(m_leadIn, leadIn, startPos, maxEntries);
-
-        origEntryCount += leadIn.size();
-    }
-
-    if (config.isMember("mainPlaylist") && config["mainPlaylist"].size()) {
-        LogDebug(VB_PLAYLIST, "Loading MainPlaylist:\n");
-        const Json::Value playlist = config["mainPlaylist"];
-
-        if ((m_loadStartPos >= 0) && (m_loadStartPos > origEntryCount)) {
-            startPos = m_loadStartPos - origEntryCount;
-        } else if (m_loadStartPos == -2 && m_loadEndPos == 0) {
-            // random single item
-            int l = playlist.size();
-            if (l > 1) {
-                startPos = FPPrand() % l;
-                maxEntries = 1;
-            }
-        } else {
-            startPos = 0;
-        }
-
-        if (startPos < playlist.size()) {
-            LoadJSONIntoPlaylist(m_mainPlaylist, playlist, startPos, maxEntries);
-        }
-
-        origEntryCount += playlist.size();
-    }
-
-    if (config.isMember("leadOut") && config["leadOut"].size()) {
-        LogDebug(VB_PLAYLIST, "Loading LeadOut:\n");
-        const Json::Value leadOut = config["leadOut"];
-
-        if ((m_loadStartPos >= 0) && (m_loadStartPos > origEntryCount))
-            startPos = m_loadStartPos - origEntryCount;
-        else
-            startPos = 0;
-
-        if (startPos < leadOut.size())
-            LoadJSONIntoPlaylist(m_leadOut, leadOut, startPos, maxEntries);
-    }
+    m_name = name;
+    m_desc = desc;
+    m_repeat = repeat;
+    m_loopCount = loopCount;
+    m_globalPauseBetweenSequencesMS = globalPauseMS;
+    m_playlistInfo = playlistInfo;
+    m_random = random;
+    m_leadIn.swap(leadIn);
+    m_mainPlaylist.swap(mainPlaylist);
+    m_leadOut.swap(leadOut);
 
     // set the positions prior to any randomizations
     int curPos = 0;
@@ -487,18 +537,6 @@ int Playlist::Load(Json::Value& config) {
     for (auto& a : m_leadOut) {
         a->SetPositionInPlaylist(curPos);
         ++curPos;
-    }
-
-    if (config.isMember("random")) {
-        if (config["random"].isNumeric()) {
-            m_random = config["random"].asInt();
-        } else if (config["random"].isBool() && config["random"].asBool()) {
-            m_random = 1;
-        } else if (config["random"].isString()) {
-            m_random = std::atoi(config["random"].asString().c_str());
-        }
-    } else {
-        m_random = 0;
     }
 
     m_sectionPosition = 0;
@@ -731,41 +769,51 @@ int Playlist::Load(const std::string& filename) {
 PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry) {
     PlaylistEntryBase* result = NULL;
 
-    if (entry["type"].asString() == "both")
-        result = new PlaylistEntryBoth(this);
-    else if (entry["type"].asString() == "branch")
-        result = new PlaylistEntryBranch(this);
-    else if (entry["type"].asString() == "dynamic")
-        result = new PlaylistEntryDynamic(this);
-    else if (entry["type"].asString() == "image")
-        result = new PlaylistEntryImage(this);
-    else if (entry["type"].asString() == "media")
-        result = new PlaylistEntryMedia(this);
-    else if (entry["type"].asString() == "pause")
-        result = new PlaylistEntryPause(this);
-    else if (entry["type"].asString() == "playlist")
-        result = new PlaylistEntryPlaylist(this);
-    else if (entry["type"].asString() == "remap")
-        result = new PlaylistEntryRemap(this);
-    else if (entry["type"].asString() == "script")
-        result = new PlaylistEntryScript(this);
-    else if (entry["type"].asString() == "sequence")
-        result = new PlaylistEntrySequence(this);
-    else if (entry["type"].asString() == "url")
-        result = new PlaylistEntryURL(this);
-    else if (entry["type"].asString() == "command")
-        result = new PlaylistEntryCommand(this);
-    else {
-        LogErr(VB_PLAYLIST, "Unknown Playlist Entry Type: %s\n", entry["type"].asString().c_str());
-        WarningHolder::AddWarningTimeout(60, 24, "Unknown playlist entry type: " + entry["type"].asString());
-        return NULL;
+    // jsoncpp throws on a wrong-typed value ("enabled":"1", an entry that is
+    // not an object, ...).  Contain it here, the one place every entry is
+    // built: nothing above this catches on the reload-from-Process() path, so
+    // an escaped exception terminated fppd mid-show.
+    try {
+        std::string type = entry["type"].asString();
+        if (type == "both")
+            result = new PlaylistEntryBoth(this);
+        else if (type == "branch")
+            result = new PlaylistEntryBranch(this);
+        else if (type == "dynamic")
+            result = new PlaylistEntryDynamic(this);
+        else if (type == "image")
+            result = new PlaylistEntryImage(this);
+        else if (type == "media")
+            result = new PlaylistEntryMedia(this);
+        else if (type == "pause")
+            result = new PlaylistEntryPause(this);
+        else if (type == "playlist")
+            result = new PlaylistEntryPlaylist(this);
+        else if (type == "remap")
+            result = new PlaylistEntryRemap(this);
+        else if (type == "script")
+            result = new PlaylistEntryScript(this);
+        else if (type == "sequence")
+            result = new PlaylistEntrySequence(this);
+        else if (type == "url")
+            result = new PlaylistEntryURL(this);
+        else if (type == "command")
+            result = new PlaylistEntryCommand(this);
+        else {
+            LogErr(VB_PLAYLIST, "Unknown Playlist Entry Type: %s\n", type.c_str());
+            WarningHolder::AddWarningTimeout(60, 24, "Unknown playlist entry type: " + type);
+            return NULL;
+        }
+
+        if (result->Init(entry))
+            return result;
+    } catch (const std::exception& ex) {
+        LogErr(VB_PLAYLIST, "Invalid playlist entry, skipping it: %s\n", ex.what());
+        WarningHolder::AddWarningTimeout(60, 24, std::string("Invalid playlist entry skipped: ") + ex.what());
     }
 
-    if (result->Init(entry))
-        return result;
-
-    // Init failed: the entry was never handed to a caller, so this is its only
-    // owner and it must be destroyed here rather than leaked.
+    // Init failed or threw: the entry was never handed to a caller, so this is
+    // its only owner and it must be destroyed here rather than leaked.
     delete result;
     return NULL;
 }
