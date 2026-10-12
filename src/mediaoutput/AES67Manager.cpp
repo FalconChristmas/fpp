@@ -539,22 +539,24 @@ bool AES67Manager::ApplyConfigLocked() {
         }
     }
 
-    // Stop existing pipelines and SAP threads
+    // Stop existing pipelines and SAP threads.  ptp4l is left for now: it is
+    // only restarted below if the new config changes what it runs with.
     StopWorkerThreads();
     StopAllPipelines();
-    ShutdownPTP();
     // Re-resolved below against the new config: the PTP interface (and so the
     // PHC backing the media clock) may have changed.
     ReleaseMediaClock();
 
     if (!FileExists(m_configPath)) {
         LogInfo(VB_MEDIAOUT, "AES67Manager: No config file, nothing to apply\n");
+        ShutdownPTP();
         ClearAES67PipelineWarnings(true, true);
         m_active.store(false);
         return true;
     }
 
     if (!LoadConfig()) {
+        ShutdownPTP();
         return false;
     }
 
@@ -566,16 +568,30 @@ bool AES67Manager::ApplyConfigLocked() {
 
     if (enabledCount == 0) {
         LogInfo(VB_MEDIAOUT, "AES67Manager: No enabled instances\n");
+        ShutdownPTP();
         ClearAES67PipelineWarnings(true, true);
         m_active.store(false);
         return true;
     }
 
-    // Initialize PTP if enabled
+    // Initialize PTP if enabled.  A rebuild -- one stream's error, a watchdog
+    // pass, an Apply that changed only the streams -- keeps a running ptp4l
+    // whose settings are unchanged: restarting it takes every receiver in the
+    // domain off the clock, all of them when this box is the grandmaster.
     if (m_config.ptpEnabled) {
-        if (!InitPTP()) {
-            LogWarn(VB_MEDIAOUT, "AES67Manager: PTP init failed, continuing without PTP clock\n");
+        PtpParams wanted{ m_config.ptpInterface, m_config.ptpDomain, m_config.ptpRole };
+        if (m_ptpInitialized && IsPtp4lRunning() && wanted == m_ptpStartedWith) {
+            LogInfo(VB_MEDIAOUT, "AES67Manager: PTP settings unchanged, keeping ptp4l (PID %d)\n",
+                    (int)m_ptp4lPid);
+            AnchorToPtpLock();
+        } else {
+            ShutdownPTP();
+            if (!InitPTP()) {
+                LogWarn(VB_MEDIAOUT, "AES67Manager: PTP init failed, continuing without PTP clock\n");
+            }
         }
+    } else {
+        ShutdownPTP();
     }
 
     // Create pipelines for each enabled instance
@@ -1092,6 +1108,16 @@ bool AES67Manager::InitPTP() {
         m_ptpAnnounceThread = std::thread(&AES67Manager::PtpAnnounceListenLoop, this);
     }
 
+    AnchorToPtpLock();
+    m_ptpStartedWith = PtpParams{ m_config.ptpInterface, m_config.ptpDomain, m_config.ptpRole };
+
+    m_ptpInitialized = true;
+    LogInfo(VB_MEDIAOUT, "AES67Manager: PTP initialized — ptp4l PID %d on %s\n",
+            (int)m_ptp4lPid, m_config.ptpInterface.c_str());
+    return true;
+}
+
+void AES67Manager::AnchorToPtpLock() {
     // Do not let anything anchor to the clock until it has stopped moving.
     //
     // ptp4l being alive is not the same as the clock being right: as a
@@ -1124,11 +1150,6 @@ bool AES67Manager::InitPTP() {
     // With ptpMediaClock off nothing is anchored to PTP at all, so there is
     // no anchor for a late lock to invalidate and the question does not apply.
     m_ptpLockedAtStart.store(locked || !m_config.ptpMediaClock);
-
-    m_ptpInitialized = true;
-    LogInfo(VB_MEDIAOUT, "AES67Manager: PTP initialized — ptp4l PID %d on %s\n",
-            (int)m_ptp4lPid, m_config.ptpInterface.c_str());
-    return true;
 }
 
 // SIGTERM then SIGKILL, polling until the process is really gone.

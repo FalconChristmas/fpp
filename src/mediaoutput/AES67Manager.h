@@ -1149,6 +1149,22 @@ private:
     void ForgetPtp4l();
     std::string m_ptpConfPath;           // temp config file for ptp4l
     bool InitPTP();
+    // Wait (up to ptpLockWaitMs) for the clock to settle before the streams
+    // anchor to it, and record whether it did.  Part of InitPTP(), and run on
+    // its own when a rebuild keeps the running ptp4l.
+    void AnchorToPtpLock();
+    // What the running ptp4l was started with.  A rebuild that leaves these
+    // alone keeps it: restarting it drops every receiver in the domain off
+    // the clock, and with this box as grandmaster that is all of them.
+    struct PtpParams {
+        std::string interface;
+        int domain = 0;
+        std::string role;
+        bool operator==(const PtpParams& o) const {
+            return interface == o.interface && domain == o.domain && role == o.role;
+        }
+    };
+    PtpParams m_ptpStartedWith;
     void ShutdownPTP();
     bool IsPtp4lRunning() const;         // check if ptp4l process is alive
     std::string GetPTPClockId();         // EUI-64 from interface MAC (this node's own identity)
