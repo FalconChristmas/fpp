@@ -67,6 +67,14 @@
 #define INX_DAY_MASK_START_ODD 0x05500
 #define INX_DAY_MASK_START_EVEN 0x02A00
 
+// Warnings about the schedule's configuration (a bad time, an unknown
+// holiday, a missing playlist...).  Raised while the schedule is loaded or
+// expanded; ClearScheduleLoadWarnings() at the start of each load retracts the
+// previous set, so fixing and saving the schedule clears the banner and an
+// entry that was deleted stops warning.
+void ScheduleLoadWarning(int id, const std::string& msg);
+void ClearScheduleLoadWarnings();
+
 class ScheduleEntry {
 public:
     ScheduleEntry();

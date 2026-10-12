@@ -20,9 +20,11 @@
 #include <ctype.h>
 #include <math.h>
 #include <memory>
+#include <mutex>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "FPPLocale.h"
@@ -33,6 +35,30 @@
 #include "commands/Commands.h"
 
 #include "ScheduleEntry.h"
+
+static std::mutex s_loadWarningsLock;
+static std::vector<std::pair<int, std::string>> s_loadWarnings;
+
+void ScheduleLoadWarning(int id, const std::string& msg) {
+    WarningHolder::AddWarning(id, msg);
+    std::lock_guard<std::mutex> l(s_loadWarningsLock);
+    for (auto& w : s_loadWarnings) {
+        if ((w.first == id) && (w.second == msg))
+            return;
+    }
+    s_loadWarnings.emplace_back(id, msg);
+}
+
+void ClearScheduleLoadWarnings() {
+    std::vector<std::pair<int, std::string>> old;
+    {
+        std::lock_guard<std::mutex> l(s_loadWarningsLock);
+        old.swap(s_loadWarnings);
+    }
+    for (auto& w : old) {
+        WarningHolder::RemoveWarning(w.first, w.second);
+    }
+}
 
 // Days since 1970-01-01 for a proleptic Gregorian civil date (Howard
 // Hinnant's days_from_civil).  Pure calendar arithmetic: no time zone, no DST.
@@ -322,7 +348,7 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday, int refYe
             month = c["month"].asInt();
             if ((month < 1) || (month > 12)) {
                 LogErr(VB_SCHEDULE, "Invalid month %d in holiday definition, using January\n", month);
-                WarningHolder::AddWarning(47, "Schedule: invalid month in holiday definition");
+                ScheduleLoadWarning(47, "Schedule: invalid month in holiday definition");
                 month = 1;
             }
             if (rollForward && (month < (now.tm_mon + 1)))
@@ -406,7 +432,7 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday, int refYe
                 CalculateHinduDiwali(year, month, day);
             } else {
                 LogErr(VB_SCHEDULE, "Unknown lunar calendar type %s\n", calendar.c_str());
-                WarningHolder::AddWarning(47, "Schedule: unknown lunar calendar type '" + calendar + "'");
+                ScheduleLoadWarning(47, "Schedule: unknown lunar calendar type '" + calendar + "'");
                 return "0000-00-00";
             }
             
@@ -432,7 +458,7 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday, int refYe
             }
         } else {
             LogErr(VB_SCHEDULE, "Unknown holiday calculation type %s\n", type.c_str());
-            WarningHolder::AddWarning(47, "Schedule: unknown holiday calculation type '" + type + "'");
+            ScheduleLoadWarning(47, "Schedule: unknown holiday calculation type '" + type + "'");
             return "0000-00-00";
         }
 
@@ -551,7 +577,7 @@ static int WallSeconds(int h, int m, int s) {
 static void mapTimeString(const std::string& tm, int& h, int& m, int& s) {
     if (!ParseTimeString(tm, h, m, s)) {
         LogErr(VB_SCHEDULE, "Invalid time '%s' in schedule, using midnight\n", tm.c_str());
-        WarningHolder::AddWarning(47, "Schedule: invalid time '" + tm + "'");
+        ScheduleLoadWarning(47, "Schedule: invalid time '" + tm + "'");
         h = 0;
         m = 0;
         s = 0;
@@ -937,7 +963,7 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
         // memory - on the scheduler thread or the calendar API thread.
         LogErr(VB_SCHEDULE, "Negative repeat interval %d for playlist %s, treating as no repeat\n",
                repeatInterval, playlist.c_str());
-        WarningHolder::AddWarning(47, "Schedule: negative repeat interval for playlist '" + playlist + "'");
+        ScheduleLoadWarning(47, "Schedule: negative repeat interval for playlist '" + playlist + "'");
         repeatInterval = 0;
     }
     repeat = repeatInterval == 1;
@@ -967,7 +993,7 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
     if (!entry.isMember("startTime") || (entry["startTime"].asString() == "")) {
         LogErr(VB_SCHEDULE, "Missing or invalid startTime for playlist %s\n",
                playlist.c_str());
-        WarningHolder::AddWarning(47, "Schedule: missing or invalid start time for playlist '" + playlist + "'");
+        ScheduleLoadWarning(47, "Schedule: missing or invalid start time for playlist '" + playlist + "'");
         return 0;
     }
     startTimeStr = entry["startTime"].asString();
@@ -978,7 +1004,7 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
     if (!entry.isMember("endTime") || (entry["endTime"].asString() == "")) {
         LogErr(VB_SCHEDULE, "Missing or invalid endTime for playlist %s\n",
                playlist.c_str());
-        WarningHolder::AddWarning(47, "Schedule: missing or invalid end time for playlist '" + playlist + "'");
+        ScheduleLoadWarning(47, "Schedule: missing or invalid end time for playlist '" + playlist + "'");
         return 0;
     }
     endTimeStr = entry["endTime"].asString();
@@ -1020,12 +1046,12 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
             v = e.asLargestInt();
         } else {
             LogErr(VB_SCHEDULE, "Invalid %s in schedule (not a number), using 0\n", key);
-            WarningHolder::AddWarning(47, std::string("Schedule: ") + key + " is not a number");
+            ScheduleLoadWarning(47, std::string("Schedule: ") + key + " is not a number");
             return 0;
         }
         if ((v < -366) || (v > 366)) {
             LogErr(VB_SCHEDULE, "Invalid %s %lld in schedule, using 0\n", key, (long long)v);
-            WarningHolder::AddWarning(47, std::string("Schedule: ") + key + " out of range (-366..366)");
+            ScheduleLoadWarning(47, std::string("Schedule: ") + key + " out of range (-366..366)");
             return 0;
         }
         return (int)v;
