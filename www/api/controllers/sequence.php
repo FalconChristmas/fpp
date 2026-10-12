@@ -48,7 +48,12 @@ function GetSequence()
         $sequence = $sequence . ".fseq";
     }
     $dir = FSeqOrEseqDirectory($sequence);
-    $file = $dir . '/' . findFile($dir, $sequence);
+    $name = findFile($dir, $sequence);
+    if ($name === false) {
+        http_response_code(400);
+        return json(array('Status' => 'Error', 'Message' => 'Invalid sequence name.'));
+    }
+    $file = $dir . '/' . $name;
     if (file_exists($file)) {
         if (ob_get_level()) {
             ob_end_clean();
@@ -97,7 +102,12 @@ function GetSequenceMetaData()
         $sequence = $sequence . ".fseq";
     }
     $dir = FSeqOrEseqDirectory($sequence);
-    $file = $dir . '/' . findFile($dir, $sequence);
+    $name = findFile($dir, $sequence);
+    if ($name === false) {
+        http_response_code(400);
+        return json(array('Status' => 'Error', 'Message' => 'Invalid sequence name.'));
+    }
+    $file = $dir . '/' . $name;
     if (file_exists($file)) {
         $cmd = $fppDir . "/src/fsequtils -j " . escapeshellarg($file) . " 2> /dev/null";
         exec($cmd, $output);
@@ -139,7 +149,12 @@ function PostSequence()
         $sequence = $sequence . ".fseq";
     }
     $dir = FSeqOrEseqDirectory($sequence);
-    $file = $dir . '/' . findFile($dir, $sequence);
+    $name = findFile($dir, $sequence);
+    if ($name === false) {
+        http_response_code(400);
+        return json(array('Status' => 'Error', 'Message' => 'Invalid sequence name.'));
+    }
+    $file = $dir . '/' . $name;
 
     $putdata = fopen("php://input", "r");
     $fp = fopen($file, "w");
@@ -175,7 +190,12 @@ function DeleteSequences()
         $sequence = $sequence . ".fseq";
     }
     $dir = FSeqOrEseqDirectory($sequence);
-    $file = $dir . '/' . findFile($dir, $sequence);
+    $name = findFile($dir, $sequence);
+    if ($name === false) {
+        http_response_code(400);
+        return json(array('Status' => 'Error', 'Message' => 'Invalid sequence name.'));
+    }
+    $file = $dir . '/' . $name;
     if (file_exists($file)) {
         unlink($file);
     }
@@ -223,6 +243,9 @@ function GetSequenceStart()
     }
     $dir = $settings['sequenceDirectory'];
     $sequence = findFile($dir, $sequence);
+    if ($sequence === false) {
+        return json(array("status" => "ERROR: Invalid sequence name"));
+    }
 
     $startSecond = params('startSecond');
 

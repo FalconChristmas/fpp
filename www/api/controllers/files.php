@@ -812,29 +812,28 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
  */
 function findFile($dir, $filename)
 {
-    if (file_exists($dir . "/" . $filename)) {
-        return $filename;
-    }
-    if (file_exists($dir . "/" . urldecode($filename))) {
-        return urldecode($filename);
-    }
+    // Only ever a file directly in $dir.  The variants below decode the name
+    // again, so a "%2F" or "..%2F" that was a single path segment to the router
+    // can turn into a separator here; such a candidate is skipped, and a name
+    // that is not a bare filename at all gives false.
+    $bare = function ($f) {
+        return is_string($f) && $f !== '' && $f !== '.' && $f !== '..' && strpbrk($f, "/\\\0") === false;
+    };
+    $candidates = array($filename, urldecode($filename));
     $tempFile = sanitizeFilename($filename);
-    if (file_exists($dir . "/" . $tempFile)) {
-        return $tempFile;
-    }
-    if (file_exists($dir . "/" . urldecode($tempFile))) {
-        return urldecode($tempFile);
-    }
+    $candidates[] = $tempFile;
+    $candidates[] = urldecode($tempFile);
     if (!preg_match("//u", $filename)) {
         $tempFile = iconv("ISO-8859-1", 'UTF-8//TRANSLIT', $filename);
-        if (file_exists($dir . "/" . $tempFile)) {
-            return $tempFile;
-        }
-        if (file_exists($dir . "/" . urldecode($tempFile))) {
-            return urldecode($tempFile);
+        $candidates[] = $tempFile;
+        $candidates[] = urldecode($tempFile);
+    }
+    foreach ($candidates as $candidate) {
+        if ($bare($candidate) && file_exists($dir . "/" . $candidate)) {
+            return $candidate;
         }
     }
-    return $filename;
+    return $bare($filename) ? $filename : false;
 }
 
 /**
