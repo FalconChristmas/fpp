@@ -59,6 +59,29 @@ Media plays through the same GStreamer pipelines as on Linux (Homebrew's `gstrea
 | macOS | `osx.mk` | `PLATFORM_OSX` | clang++, CoreAudio + Cocoa, GStreamer via Homebrew, `.dylib` extension |
 | Linux | `linux.mk` | `PLATFORM_DEBIAN`/`PLATFORM_UBUNTU`/etc. | Docker detection skips OLED/cape/RTC builds |
 
+## Regression Tests
+
+fppd's runtime tests live in a separate repository, [FalconChristmas/fpp-tests](https://github.com/FalconChristmas/fpp-tests)
+(checked out next to this one as `../fpp-tests`), so they never reach the devices that clone
+this repo. Each scenario starts a real fppd (an ASan build in Docker, or `/opt/fpp` on a device),
+drives it over its HTTP API, and fails on a wedge, a crash, a non-zero exit or a sanitizer
+report, as well as on what it asserts. Read `docs/Testing.md` before writing one.
+
+**When you fix a bug in fppd's runtime behavior, add a scenario for it in the same piece of
+work**, and prove it with `scripts/verify-fix.sh <fix> <test>`: it must fail on the fix's parent
+and pass on the fix. Name the fix commit in the scenario's docstring. Commit the fpp fix first,
+because `run.sh` builds from commits. Then commit the scenario to fpp-tests.
+
+- Run everything: `cd ../fpp-tests && ./run.sh` (Docker, ASan, `../fpp` at HEAD; `--ref` for any commit).
+- On a device, against the tree as built: `sudo ./run-local.sh`. The device's own fppd keeps running.
+- A failure leaves `artifacts/<test>/logs/` with fppd.log, sanitizer reports, and a gdb
+  backtrace of every thread if fppd was still running.
+- Races must fail every time, not occasionally: loop the trigger until failure is near-certain.
+- Hardware-only bugs (PRU, DPI, panels, serial) can't run in Docker. Write the scenario anyway,
+  verify it with `run-local.sh` on matching hardware, and say so in the docstring.
+
+UI changes under `www/` are covered by the Playwright suite in `tests/playwright/`.
+
 ## Plugin Compatibility
 
 External plugins (`/media/plugins/`) are compiled separately and link against FPP headers. When modifying public headers (especially `fpp-pch.h`, `commands/Commands.h`, `Plugin.h`, `Plugins.h`, or any header included by channel output plugins), preserve backward compatibility:
