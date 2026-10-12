@@ -283,6 +283,7 @@ std::array<float, GStreamerOutput::SAMPLE_BUFFER_SIZE> GStreamerOutput::s_sample
 int GStreamerOutput::s_sampleWritePos = 0;
 int GStreamerOutput::s_sampleRate = 0;
 std::mutex GStreamerOutput::s_sampleMutex;
+uint64_t GStreamerOutput::s_sampleLastWriteMs = 0;
 std::atomic<uint64_t> GStreamerOutput::s_sampleTapReadMs{ 0 };
 
 // One-time GStreamer initialization.
@@ -2303,14 +2304,6 @@ int GStreamerOutput::Start(int msTime) {
         m_videoAppsinkSignalId = 0;
     }
 
-    // Clear the sample buffer for fresh playback
-    {
-        std::lock_guard<std::mutex> lock(s_sampleMutex);
-        s_sampleBuffer.fill(0.0f);
-        s_sampleWritePos = 0;
-        s_sampleRate = 0;
-    }
-
     // Compute the target volume (1.0 unless dB adjustment is set)
     double targetVolume = 1.0;
     if (m_volumeAdjust != 0) {
@@ -2696,11 +2689,14 @@ int GStreamerOutput::Start(int msTime) {
         }).detach();
     }
 
-    // m_currentInstance is used by WLED audio-reactive tap and video overlay.
-    // Slot 1 (primary) always takes priority; secondary slots only claim it
-    // if no other instance is active.
-    if (m_streamSlot == 1 || m_currentInstance == nullptr) {
-        m_currentInstance = this;
+    // m_currentInstance owns the WLED audio-reactive tap.  Slot 1 (primary)
+    // always takes priority; secondary slots only claim it if no other
+    // instance is active.
+    {
+        std::lock_guard<std::mutex> lock(s_sampleMutex);
+        if (m_streamSlot == 1 || m_currentInstance == nullptr) {
+            SetSampleTapOwnerLocked(this);
+        }
     }
 
     // Register with StreamSlotManager
@@ -4148,17 +4144,22 @@ int GStreamerOutput::Close(void) {
         m_videoOverlayModel = nullptr;
     }
 
-    if (m_currentInstance == this) {
-        // If we're closing the primary (WLED tap) instance, try to hand off
-        // to another active slot (prefer slot 1)
-        m_currentInstance = nullptr;
+    {
+        // If we're closing the WLED tap owner, hand it to another active slot
+        // (prefer slot 1).  The candidate is found before taking the tap lock
+        // so the slot manager's lock is never taken under it.
+        GStreamerOutput* next = nullptr;
         for (int s = 1; s <= StreamSlotManager::MAX_SLOTS; s++) {
             if (s == m_streamSlot) continue;
             GStreamerOutput* other = StreamSlotManager::Instance().GetActiveOutput(s);
-            if (other && other->m_playing) {
-                m_currentInstance = other;
+            if (other && other != this && other->m_playing) {
+                next = other;
                 break;
             }
+        }
+        std::lock_guard<std::mutex> lock(s_sampleMutex);
+        if (m_currentInstance == this) {
+            SetSampleTapOwnerLocked(next);
         }
     }
 
@@ -4819,14 +4820,10 @@ GstFlowReturn GStreamerOutput::OnNewSample(GstAppSink* appsink, gpointer userDat
     GstBuffer* buffer = gst_sample_get_buffer(sample);
     GstCaps* caps = gst_sample_get_caps(sample);
 
-    // Extract sample rate from caps on first buffer
+    int rate = 0;
     if (caps) {
         GstStructure* s = gst_caps_get_structure(caps, 0);
-        int rate = 0;
-        if (gst_structure_get_int(s, "rate", &rate) && rate > 0) {
-            std::lock_guard<std::mutex> lock(s_sampleMutex);
-            s_sampleRate = rate;
-        }
+        gst_structure_get_int(s, "rate", &rate);
     }
 
     GstMapInfo map;
@@ -4835,9 +4832,17 @@ GstFlowReturn GStreamerOutput::OnNewSample(GstAppSink* appsink, gpointer userDat
         const float* src = reinterpret_cast<const float*>(map.data);
 
         std::lock_guard<std::mutex> lock(s_sampleMutex);
-        for (int i = 0; i < numFloats; i++) {
-            s_sampleBuffer[s_sampleWritePos] = src[i];
-            s_sampleWritePos = (s_sampleWritePos + 1) % SAMPLE_BUFFER_SIZE;
+        // Every playing slot has a tap; only the owner's audio goes in the
+        // ring, or two slots interleave into noise.
+        if (self == m_currentInstance) {
+            if (rate > 0) {
+                s_sampleRate = rate;
+            }
+            for (int i = 0; i < numFloats; i++) {
+                s_sampleBuffer[s_sampleWritePos] = src[i];
+                s_sampleWritePos = (s_sampleWritePos + 1) % SAMPLE_BUFFER_SIZE;
+            }
+            s_sampleLastWriteMs = GetTimeMS();
         }
 
         gst_buffer_unmap(buffer, &map);
@@ -4855,14 +4860,24 @@ GstPadProbeReturn GStreamerOutput::GateSampleTap(GstPad* pad, GstPadProbeInfo* i
     return GST_PAD_PROBE_DROP;
 }
 
+void GStreamerOutput::SetSampleTapOwnerLocked(GStreamerOutput* o) {
+    m_currentInstance = o;
+    s_sampleBuffer.fill(0.0f);
+    s_sampleWritePos = 0;
+    s_sampleRate = 0;
+    s_sampleLastWriteMs = 0;
+}
+
 bool GStreamerOutput::GetAudioSamples(float* samples, int numSamples, int& sampleRate) {
-    if (!m_currentInstance || !m_currentInstance->m_playing)
+    if (numSamples <= 0 || numSamples > SAMPLE_BUFFER_SIZE)
+        return false;  // the read position below would leave the ring
+    std::lock_guard<std::mutex> lock(s_sampleMutex);
+    if (!m_currentInstance)
         return false;
 
     uint64_t now = GetTimeMS();
     uint64_t lastRead = s_sampleTapReadMs.exchange(now, std::memory_order_relaxed);
 
-    std::lock_guard<std::mutex> lock(s_sampleMutex);
     if (!lastRead || now - lastRead >= SAMPLE_TAP_IDLE_MS) {
         // The tap has been closed, so what the buffer holds is from whenever
         // it last ran.  Its audio starts flowing again from here.
@@ -4870,7 +4885,7 @@ bool GStreamerOutput::GetAudioSamples(float* samples, int numSamples, int& sampl
         s_sampleWritePos = 0;
         return false;
     }
-    if (s_sampleRate == 0)
+    if (s_sampleRate == 0 || now - s_sampleLastWriteMs > SAMPLE_STALE_MS)
         return false;
 
     sampleRate = s_sampleRate;

@@ -250,7 +250,16 @@ private:
     static std::array<float, SAMPLE_BUFFER_SIZE> s_sampleBuffer;
     static int s_sampleWritePos;
     static int s_sampleRate;
+    // Guards the ring above and m_currentInstance, the one output allowed to
+    // write it.
     static std::mutex s_sampleMutex;
+    // When the tap owner last wrote the ring.  A paused or stalled owner
+    // stops writing, and its last half second of audio must not read as
+    // live.
+    static uint64_t s_sampleLastWriteMs;
+    static constexpr int SAMPLE_STALE_MS = 500;
+    // Make `o` the tap owner and empty the ring.  s_sampleMutex held.
+    static void SetSampleTapOwnerLocked(GStreamerOutput* o);
     static GstFlowReturn OnNewSample(GstAppSink* appsink, gpointer userData);
     // The tap's branch only carries audio while something is reading it.
     static constexpr int SAMPLE_TAP_IDLE_MS = 1000;
@@ -413,6 +422,9 @@ private:
 
     std::atomic<bool> m_audible{false};
 
+    // The output whose audio feeds the WLED tap.  Only read or written
+    // under s_sampleMutex, and never dereferenced by the tap's reader: the
+    // owner can be closing on another thread.
     static GStreamerOutput* m_currentInstance;
 
     // Every output currently driving a PixelOverlay model.  The overlay push
