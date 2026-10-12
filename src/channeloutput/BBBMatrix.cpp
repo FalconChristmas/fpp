@@ -549,8 +549,9 @@ int BBBMatrix::Init(Json::Value config) {
         configureControlPin("sel1", root, outputFile, pru, controlGpio);
         configureControlPin("sel2", root, outputFile, pru, controlGpio);
         configureControlPin("sel3", root, outputFile, pru, controlGpio);
-        if (m_panelScan == 32) {
-            // 1:32 scan panels need the "E" line
+        if (m_panelScan > 16) {
+            // a row address of 16 or more needs the fifth "E" line - 1/32
+            // scan, and 80x40 1/20 scan (rows 16-19)
             configureControlPin("sel4", root, outputFile, pru, controlGpio);
             compileArgs.push_back("-DE_SCAN_LINE");
         }
