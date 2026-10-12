@@ -1025,7 +1025,6 @@ int Playlist::Start(void) {
     m_isInGlobalPause = false;
     m_shouldStartGlobalPause = false;
     m_loopHoldUntilMS = 0;
-    m_warnedInstantLoop = false;
 
     LogDebug(VB_PLAYLIST, "============================================================================\n");
 
@@ -1951,6 +1950,8 @@ int Playlist::Cleanup(void) {
     m_isInGlobalPause = false;
     m_shouldStartGlobalPause = false;
     m_loopHoldUntilMS = 0;
+    // Here, not in Start(): navigation restarts in place through Start().
+    m_warnedInstantLoop = false;
     m_leadInRows.clear();
     m_mainRows.clear();
     m_leadOutRows.clear();

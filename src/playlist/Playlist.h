@@ -217,7 +217,10 @@ private:
     // A repeating main playlist whose every entry finishes at once (command
     // entries only) used to restart on every main loop pass, about a
     // thousand times a second. A pass shorter than MIN_INSTANT_PASS_MS holds
-    // the next one until m_loopHoldUntilMS. See SwitchToMainPlaylist().
+    // the next one until m_loopHoldUntilMS (see the repeat in Process()).
+    // A command entry that navigates its own playlist (Next Playlist Item
+    // alone in a repeating list) restarts through Start() instead, which this
+    // does not cover; the notification cascade limit bounds that one.
     long long m_loopStartMS = 0;
     long long m_loopHoldUntilMS = 0;
     bool m_warnedInstantLoop = false;
