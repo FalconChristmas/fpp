@@ -121,6 +121,15 @@ int PlaylistEntryBase::StartPlaying(void) {
     return 1;
 }
 
+int PlaylistEntryBase::StartPlayingOrFinish(void) {
+    int result = StartPlaying();
+    if (!IsPlaying() && !IsFinished()) {
+        LogWarn(VB_PLAYLIST, "%s entry did not start; skipping it\n", m_type.c_str());
+        FinishPlay();
+    }
+    return result;
+}
+
 void PlaylistEntryBase::ResetPlayState(void) {
     m_isStarted = 0;
     m_isPlaying = 0;

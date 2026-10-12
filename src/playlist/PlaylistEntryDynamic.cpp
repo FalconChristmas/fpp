@@ -132,7 +132,7 @@ int PlaylistEntryDynamic::StartPlaying(void) {
     m_isPrepped = 0;
 
     if (m_currentEntry >= 0) {
-        m_playlistEntries[m_currentEntry]->StartPlaying();
+        m_playlistEntries[m_currentEntry]->StartPlayingOrFinish();
         Started();
     } else {
         FinishPlay();
@@ -160,7 +160,7 @@ int PlaylistEntryDynamic::Process(void) {
                 FinishPlay();
             } else if (m_currentEntry < (m_playlistEntries.size() - 1)) {
                 m_currentEntry++;
-                m_playlistEntries[m_currentEntry]->StartPlaying();
+                m_playlistEntries[m_currentEntry]->StartPlayingOrFinish();
             } else if (m_drainQueue) {
                 // Check for more entries to play, if there are none,
                 // then StartPlaying() will call FinishPlay().

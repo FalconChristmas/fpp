@@ -1027,7 +1027,7 @@ int Playlist::Start(void) {
     Events::Publish("playlist/section/status", m_currentSectionStr);
     Events::Publish("playlist/sectionPosition/status", m_sectionPosition);
 
-    m_currentSection->at(m_sectionPosition)->StartPlaying();
+    m_currentSection->at(m_sectionPosition)->StartPlayingOrFinish();
 
     LogDebug(VB_PLAYLIST, "Exiting Playlist::Start()\n");
     return 1;
@@ -1349,7 +1349,7 @@ int Playlist::Process(void) {
             m_isInGlobalPause = false;
             // Start the current item (which was delayed by the pause)
             if (m_currentSection && m_sectionPosition < m_currentSection->size()) {
-                m_currentSection->at(m_sectionPosition)->StartPlaying();
+                m_currentSection->at(m_sectionPosition)->StartPlayingOrFinish();
             }
         } else {
             // Still in pause period, don't process anything
@@ -2894,6 +2894,6 @@ void Playlist::StartPlayingWithGlobalPause(PlaylistEntryBase* entry) {
         // Don't start the entry yet, it will be started when the pause completes
     } else {
         // No global pause needed, start immediately
-        entry->StartPlaying();
+        entry->StartPlayingOrFinish();
     }
 }
