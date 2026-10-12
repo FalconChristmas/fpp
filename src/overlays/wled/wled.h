@@ -147,6 +147,7 @@ extern int second(time_t t); // the second for the given time
 extern int day(time_t t);    // the day for the given time
 extern int month(time_t t);  // the month for the given time
 extern int year(time_t t);   // the year for the given time
+extern int weekday(time_t t); // the day of the week, 1-7 with Sunday = 1
 extern const char* monthStr(uint8_t month);
 extern const char* monthShortStr(uint8_t month);
 extern const char* dayStr(uint8_t day);

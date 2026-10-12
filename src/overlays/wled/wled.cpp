@@ -87,32 +87,42 @@ int day(time_t t) {
     localtime_r(&t, &tm);
     return tm.tm_mday;
 }
+// TimeLib semantics, which the WLED effects were written against: month()
+// is 1-12, year() the full year, weekday() 1-7 with Sunday = 1. These
+// returned tm_mon and tm_year as-is, so January printed "Err" and #YYYY "126".
 int month(time_t t) {
     struct tm tm;
     localtime_r(&t, &tm);
-    return tm.tm_mon;
+    return tm.tm_mon + 1;
 }
 int year(time_t t) {
     struct tm tm;
     localtime_r(&t, &tm);
-    return tm.tm_year;
+    return tm.tm_year + 1900;
+}
+int weekday(time_t t) {
+    struct tm tm;
+    localtime_r(&t, &tm);
+    return tm.tm_wday + 1;
 }
 static const char* monthShortNames_P[] = { "Err", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 static const char* monthNames_P[] = { "Err", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
+// Index 0 is "Err"; anything outside the table maps there too rather than
+// handing sprintf a pointer from past the end of the array.
 const char* monthStr(uint8_t m) {
-    return monthNames_P[m];
+    return monthNames_P[m <= 12 ? m : 0];
 }
 const char* monthShortStr(uint8_t m) {
-    return monthShortNames_P[m];
+    return monthShortNames_P[m <= 12 ? m : 0];
 }
 
 static const char* datStrShort_P[] = { "Err", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
 static const char* datStr_P[] = { "Err", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
 const char* dayStr(uint8_t day) {
-    return datStr_P[day];
+    return datStr_P[day <= 7 ? day : 0];
 }
 const char* dayShortStr(uint8_t day) {
-    return datStrShort_P[day];
+    return datStrShort_P[day <= 7 ? day : 0];
 }
 
 uint16_t XY(uint8_t x, uint8_t y) {
