@@ -205,9 +205,13 @@ public:
     }
 
 private:
-    CURL* m_curl;
-    CURLM* m_curlm;
-    bool m_isDone;
+    // Initialized here, not in the constructor: a setup failure (a URL curl
+    // rejects, curl_easy_init() returning NULL) calls cleanupCurl() before
+    // m_curlm is assigned, and it then handed a garbage pointer to
+    // curl_multi_remove_handle()/curl_multi_cleanup().
+    CURL* m_curl = nullptr;
+    CURLM* m_curlm = nullptr;
+    bool m_isDone = true;
     bool m_transferFailed = false;
     std::string m_url;
 };
