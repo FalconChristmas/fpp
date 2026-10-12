@@ -556,7 +556,7 @@ line('Audio engine rate : ' . hz($engineRate) . '  (' . $engineSource . ')');
 if ($configuredRate !== $engineRate) {
     line('Configured rate   : ' . hz($configuredRate));
     line();
-    line('[WARN] The audio engine runs at ' . hz($engineRate) . ', not the ' . hz($configuredRate) . ' configured.');
+    line('[INFO] The audio engine runs at ' . hz($engineRate) . ', not the ' . hz($configuredRate) . ' configured.');
     if ($engineRate > $configuredRate) {
         line('       ' . hz($engineRate) . ' is the lowest rate this hardware supports (' . hz($configuredRate) . ' configured).');
     } else {
