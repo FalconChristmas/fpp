@@ -875,23 +875,27 @@ bool KMSFrameBuffer::SetRefreshRate(int fps) {
 
     // Only the vertical blanking changes; horizontal timing and the pixel clock
     // (and therefore the WS bit timing and the framebuffer layout) are untouched.
-    m_mode.vsync_start = m_mode.vdisplay + 1;
-    m_mode.vsync_end = m_mode.vdisplay + 2;
-    m_mode.vtotal = newVtotal;
-    m_mode.vrefresh = (uint32_t)llround((double)m_mode.clock * 1000.0 / ((double)m_mode.htotal * (double)newVtotal));
+    // Built in a copy: m_mode is what the CRTC is running, which the check
+    // above and the flip timeouts depend on.  Updating it before the modeset
+    // happened made a refused attempt look applied - the next call returned
+    // "already at this rate" and the new rate was never set.
+    drmModeModeInfo mode = m_mode;
+    mode.vsync_start = mode.vdisplay + 1;
+    mode.vsync_end = mode.vdisplay + 2;
+    mode.vtotal = newVtotal;
+    mode.vrefresh = (uint32_t)llround((double)mode.clock * 1000.0 / ((double)mode.htotal * (double)newVtotal));
 
     std::unique_lock<std::mutex> lock(mediaOutputLock);
     if (mediaOutputStatus.output == m_connectorName) {
         // The connector is currently presenting media playback; don't fight it.
-        // The updated m_mode is applied on the next EnableDisplay()/modeset.
         // Report "not applied" so the caller's idea of the live rate stays
         // honest and it asks again next frame.
         return false;
     }
     int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
     if (im != 0) {
-        // Couldn't grab master right now; m_mode is updated and the next modeset
-        // in SyncDisplay() will pick up the new timing.  As above, not applied.
+        // Couldn't grab master right now.  As above, not applied; the caller
+        // asks again.
         return false;
     }
     // Drain any in-flight flip so the modeset starts from a known state.
@@ -900,8 +904,9 @@ bool KMSFrameBuffer::SetRefreshRate(int fps) {
         WaitForPendingFlip((1000 / vr) + 20);
     }
     int ret = drmModeSetCrtc(m_cardFd, m_crtcId, m_fb[m_cPage].fb_id, 0, 0,
-                             &m_connectorId, 1, &m_mode);
+                             &m_connectorId, 1, &mode);
     if (ret == 0) {
+        m_mode = mode;
         m_displayEnabled = true;
         if (m_planeId) {
             drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, m_fb[m_cPage].fb_id, 0,

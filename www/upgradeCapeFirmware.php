@@ -128,6 +128,38 @@ function capeFirmwareUrlIsPublic($url)
     return true;
 }
 
+/**
+ * Follow a firmware URL's redirects by hand, checking every hop with
+ * capeFirmwareUrlIsPublic(): wget follows redirects on its own, so checking
+ * only the URL given would let a public host bounce the download to a
+ * private one.  Release links (GitHub's included) redirect, so redirects
+ * must keep working.  Returns the final URL, or false.
+ */
+function capeFirmwareResolveUrl($url)
+{
+    for ($hop = 0; $hop < 6; $hop++) {
+        if (!capeFirmwareUrlIsPublic($url)) {
+            return false;
+        }
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_RANGE, '0-0');
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+        curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $next = curl_getinfo($ch, CURLINFO_REDIRECT_URL);
+        curl_close($ch);
+        if ($code >= 300 && $code < 400 && is_string($next) && $next !== '') {
+            $url = $next;
+            continue;
+        }
+        return $url;
+    }
+    return false;
+}
+
 $force = "";
 if (isset($_GET['force']) && $_GET['force'] == 'true') {
     $force = "force ";
@@ -159,13 +191,15 @@ if (isset($_FILES['firmware']) && isset($_FILES['firmware']['tmp_name'])) {
         // Vendor firmware downloads stay working, but the URL must target a
         // public host: without this check any link-local/metadata/intranet URL
         // would be fetched server-side and flashed to the cape EEPROM below.
-        if (!capeFirmwareUrlIsPublic($fn)) {
+        $finalUrl = capeFirmwareResolveUrl($fn);
+        if ($finalUrl === false) {
             echo "Invalid firmware URL: host must be a public http(s) address\n";
             $file = '';
         } else {
             $file = '/home/fpp/media/tmp/tmp-eeprom.bin';
             echo "Downloading " . htmlspecialchars($fn) . " to $file \n\n";
-        system("/usr/bin/wget -O " . escapeshellarg($file) . " " . escapeshellarg($fn) . " 2>&1");
+        // Redirects were already followed (and checked) above.
+        system("/usr/bin/wget --max-redirect=0 -O " . escapeshellarg($file) . " " . escapeshellarg($finalUrl) . " 2>&1");
         if (!file_exists($file) || filesize($file) < 72) {
             echo "\n\nProblems downloading firmware.  Check above errors for details.\n";
             echo "You may be able to manually download the file and do the upgrade directly with the file.\n";

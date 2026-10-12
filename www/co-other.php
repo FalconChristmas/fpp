@@ -904,7 +904,8 @@
                 }
 
                 var channelCount = $this.find("td:nth-child(5) input").val();
-                if ((channelCount == "") || isNaN(channelCount) || (parseInt(channelCount) > FPPD_MAX_CHANNELS)) {
+                // negative counts reach fppd as a huge unsigned count
+                if ((channelCount == "") || isNaN(channelCount) || (parseInt(channelCount) < 0) || (parseInt(channelCount) > FPPD_MAX_CHANNELS)) {
                     DialogError("Save Channel Outputs",
                         "Invalid Channel Count '" + channelCount + "' on row " + rowNumber);
                     dataError = 1;
@@ -912,7 +913,7 @@
                 }
 
                 var startChannel = $this.find("td:nth-child(4) input").val();
-                if ((startChannel == "") || isNaN(startChannel)) {
+                if ((startChannel == "") || isNaN(startChannel) || (parseInt(startChannel) < 1)) {
                     DialogError("Save Channel Outputs",
                         "Invalid Start Channel '" + startChannel + "' on row " + rowNumber);
                     dataError = 1;

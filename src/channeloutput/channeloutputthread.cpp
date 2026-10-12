@@ -56,6 +56,8 @@ volatile int alwaysTransmit = 0;
 // declared in channeloutputthread.h, which documents what it protects
 std::mutex outputThreadLock;
 std::mutex outputThreadStatusLock;
+// bumped under outputThreadStatusLock by every StartChannelOutputThread()
+static uint64_t outputStartRequests = 0;
 std::condition_variable outputThreadCond;
 std::condition_variable outputThreadSatusCond;
 
@@ -256,7 +258,14 @@ void RunChannelOutputThread(void) {
             } else {
                 // we will wait up to 2500ms to see if the thread is still needed
                 ThreadIsExiting = 1;
-                if (outputThreadSatusCond.wait_for(statusLock, std::chrono::milliseconds(2500)) == std::cv_status::no_timeout) {
+                // On a start request, counted under statusLock, not on any
+                // notify: StartChannelOutputThread() used to notify without
+                // the lock, and a notify that landed before this wait began
+                // was lost - the start then spawned a replacement and this
+                // thread's timeout below cleared RunThread under it.
+                const uint64_t seenStarts = outputStartRequests;
+                if (outputThreadSatusCond.wait_for(statusLock, std::chrono::milliseconds(2500),
+                                                   [seenStarts]() { return outputStartRequests != seenStarts; })) {
                     // signal to keep going
                     ThreadIsExiting = 0;
                     statusLock.unlock();
@@ -351,6 +360,10 @@ void StartChannelOutputThread(void) {
         LogDebug(VB_MEDIAOUT, "Using mediaOffset of %.3f\n", mediaOffset);
     }
 
+    {
+        std::unique_lock<std::mutex> lock(outputThreadStatusLock);
+        ++outputStartRequests;
+    }
     outputThreadSatusCond.notify_all();
     if (ChannelOutputThreadIsRunning()) {
         // Give a little time in case we were shutting down

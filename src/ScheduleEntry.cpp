@@ -1011,6 +1011,13 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
     }
 
     stopType = entry["stopType"].asInt();
+    if ((stopType < 0) || (stopType > 2)) {
+        // 0 graceful, 1 hard, 2 graceful after loop.  Anything else indexed
+        // past SchedulePrint's table; fall back to the default.
+        LogErr(VB_SCHEDULE, "Invalid stop type %d for playlist %s, using graceful stop\n",
+               stopType, playlist.c_str());
+        stopType = 0;
+    }
 
     return 1;
 }

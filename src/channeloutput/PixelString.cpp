@@ -591,7 +591,8 @@ int PixelString::ReadVirtualString(Json::Value& vsc, VirtualString& vs) const {
     if (vs.brightness > 100 || vs.brightness < 0) {
         vs.brightness = 100;
     }
-    if (vs.gamma < 0.01) {
+    if (!(vs.gamma >= 0.01)) {
+        // also catches NaN, which compares false either way
         vs.gamma = 0.01;
     }
     if (vs.gamma > 50.0f) {
@@ -621,6 +622,14 @@ int PixelString::ReadVirtualString(Json::Value& vsc, VirtualString& vs) const {
 
         if (vs.groupCount == 1)
             vs.groupCount = 0;
+
+        // The start is checked above, but not where the string ends:
+        // prepareOutput() reads up to the last node's channels, and the drivers
+        // drop channels at or past FPPD_MAX_CHANNELS from the range they
+        // report, so the loader's range check never saw the overrun.
+        int64_t vsNodes = vs.groupCount ? (vs.pixelCount + vs.groupCount - 1) / vs.groupCount : vs.pixelCount;
+        int64_t vsEnd = (int64_t)vs.startChannel + vsNodes * vs.channelsPerNode();
+        CHECKPS_SETTING(vsEnd > FPPD_MAX_CHANNELS);
 
         if ((vs.zigZag == vs.pixelCount) || (vs.zigZag == 1))
             vs.zigZag = 0;
@@ -716,17 +725,17 @@ void PixelString::SetupMap(int vsOffset, const VirtualString& vs) {
         if (vs.colorOrder == FPPColorOrder::kColorOrderONE) {
             m_outputMap[offset++] = ch;
         } else {
-            // incoming data is always RGB or RGBW, map to whatever order is needed
-            if (whiteOffset == 0) {
-                // white is first, then color order on the way out, but W is always data[3]
-                m_outputMap[offset++] = ch + 3;
-            }
+            // incoming data is always RGB or RGBW, map to whatever order is
+            // needed.  The offsets are positions within the output node with
+            // W counted, so for WRGB red is at 1, not 0.
             m_outputMap[offset + redOffset] = ch;       // red is always data[0]
             m_outputMap[offset + greenOffset] = ch + 1; // green is always data[1]
             m_outputMap[offset + blueOffset] = ch + 2;  // blue is always data[2]
-            offset += 3;
-            if (whiteOffset == 3) {
-                m_outputMap[offset++] = ch + 3;
+            if (whiteOffset >= 0) {
+                m_outputMap[offset + whiteOffset] = ch + 3; // W is always data[3]
+                offset += 4;
+            } else {
+                offset += 3;
             }
         }
     }

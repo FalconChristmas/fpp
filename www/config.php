@@ -585,7 +585,8 @@ if ($settings["IsDesktop"]) {
     $settings["HostName"] = explode(".", gethostname())[0];
 }
 
-$pageTitle = "FPP - " . $settings['HostName'];
+// HTML-escaped once here: every page echoes it straight into <title>.
+$pageTitle = "FPP - " . htmlspecialchars($settings['HostName'], ENT_QUOTES, 'UTF-8');
 if ($settings['HostName'] == "FPP") {
     $pageTitle = "Falcon Player - FPP";
 }

@@ -67,6 +67,10 @@ public:
     uint32_t reauthCount = 0;                               // output thread only
     std::atomic<bool> authInFlight{ false };
     std::atomic<bool> authPending{ false };   // a request came in while one was in flight
+    // when the last login was sent; output thread only (see PrepareData)
+    uint64_t lastAuthAttemptMS = 0;
+    // tags this output's CurlManager requests so the destructor can cancel them
+    const std::string curlOwner = "Twinkly-" + std::to_string((uintptr_t)this);
     std::atomic<bool> tokenPending{ false };  // a staged token is waiting for the output thread
     std::atomic<bool> outputStarted{ false }; // false once StoppingOutput() has run
 };

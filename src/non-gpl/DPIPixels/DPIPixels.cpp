@@ -502,7 +502,9 @@ int DPIPixelsOutput::Init(Json::Value config) {
 
                     int lp = stringToOutputMap[s] / 24;
 
-                    while (start < a.channelOffset) {
+                    // onOffMask holds 4800 channels; a longer string is
+                    // refused further on, but this runs first
+                    while (start < a.channelOffset && start < 4800) {
                         // Turn Off bits in the mask as needed
                         onOffMask[lp][start] &= ~(POSITION_TO_BITMASK(stringToOutputMap[s] % 24));
                         onOffMap[start * pixelStrings.size() + s] = 0x00; // convert channel offset to pixel offset, store by row
@@ -821,7 +823,11 @@ void DPIPixelsOutput::PrepData(unsigned char* channelData) {
     PixelStringTester* tester = nullptr;
     if (m_testType && m_testCycle >= 0) {
         tester = PixelStringTester::getPixelStringTester(m_testType);
-        tester->prepareTestData(m_testCycle, m_testPercent);
+        // null for a test type no string tester implements; the strings then
+        // just send their normal data
+        if (tester) {
+            tester->prepareTestData(m_testCycle, m_testPercent);
+        }
     }
     for (int x = 0; x < 80; x++) {
         if (x < pixelStrings.size()) {

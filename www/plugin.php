@@ -24,7 +24,9 @@ function pluginRealPath($pluginDirectory, $pluginName, $rawPath)
         if ($part === '' || $part === '.') {
             continue;
         }
-        if ($part === '..') {
+        // ".." escapes; any other dot-prefixed name is a dotfile or dot
+        // directory (.git/config holds a clone's remote URL), never content.
+        if ($part[0] === '.') {
             return null;
         }
         if (preg_replace('/[^A-Za-z0-9_.-]/', '', $part) !== $part) {
@@ -35,14 +37,16 @@ function pluginRealPath($pluginDirectory, $pluginName, $rawPath)
     if (empty($clean)) {
         return null;
     }
-    $realBase = realpath($pluginDirectory);
+    // Contained in THIS plugin's directory, not merely the plugins directory:
+    // otherwise one plugin's page could name another's files.
+    $realBase = realpath($pluginDirectory . '/' . $pluginName);
     $realPath = realpath($pluginDirectory . '/' . $pluginName . '/' . implode('/', $clean));
     if ($realBase === false || $realPath === false) {
         return null;
     }
     // The separator is part of the test on purpose: a plain prefix comparison
     // also accepts a sibling whose name merely starts with the base, so
-    // ".../pluginsOther" would count as being inside ".../plugins".
+    // ".../pluginOther" would count as being inside ".../plugin".
     if (strpos($realPath, rtrim($realBase, '/') . '/') !== 0) {
         return null;
     }
@@ -75,11 +79,8 @@ if (!isset($_GET['nopage'])):
     }
 
     if (isset($_GET['plugin'])) {
-        $rawPlugin = $_GET['plugin'];
-        // Strict allow-list for plugin names — prevents ../ traversal and shell metachars.
-        // Valid names are like "my-plugin_1.2" — only A-Z, 0-9, _, ., -
-        $pluginName = preg_replace('/[^A-Za-z0-9_.-]/', '', $rawPlugin);
-        if ($pluginName !== $rawPlugin || $pluginName === '' || strpos($pluginName, '..') !== false) {
+        $pluginName = $_GET['plugin'];
+        if (!IsValidPluginName($pluginName) || !is_dir($pluginDirectory . '/' . $pluginName)) {
             $pluginName = '';
         } else {
             LoadPluginSettings($pluginName);
@@ -145,7 +146,12 @@ if (!isset($_GET['nopage'])):
         if (file_exists($jsDir)) {
             if ($handle = opendir($jsDir)) {
                 while (($file = readdir($handle)) !== false) {
-                    if (!in_array($file, array('.', '..')) && !is_dir($jsDir . $file)) {
+                    // Only emit files the file-serving branch below can actually
+                    // serve (pluginRealPath's allow-list): anything else 404s on
+                    // fetch, so linking it only hands a raw filesystem name to
+                    // the src attribute, where quote characters break out into
+                    // markup. $pluginName is already allow-listed above.
+                    if (!in_array($file, array('.', '..')) && !is_dir($jsDir . $file) && preg_replace('/[^A-Za-z0-9_.-]/', '', $file) === $file) {
                         printf(
                             "<script type='text/javascript' src='plugin.php?plugin=%s&file=js/%s&nopage=1'></script>\n",
                             $pluginName,
@@ -160,7 +166,7 @@ if (!isset($_GET['nopage'])):
         if (file_exists($cssDir)) {
             if ($handle = opendir($cssDir)) {
                 while (($file = readdir($handle)) !== false) {
-                    if (!in_array($file, array('.', '..')) && !is_dir($cssDir . $file)) {
+                    if (!in_array($file, array('.', '..')) && !is_dir($cssDir . $file) && preg_replace('/[^A-Za-z0-9_.-]/', '', $file) === $file) {
                         printf(
                             "<link rel='stylesheet' type='text/css' href='/plugin.php?plugin=%s&file=css/%s&nopage=1'>\n",
                             $pluginName,
@@ -196,7 +202,7 @@ if (!isset($_GET['nopage'])):
                         <img class="pluginIcon" src="<?= $pluginIconUrl ?>" alt="">
                     </div>
                     <?php endif; ?>
-                    <?= $pluginInfo['name'] ?>
+                    <?= htmlspecialchars((string) $pluginInfo['name'], ENT_QUOTES, 'UTF-8') ?>
                 </h1>
                 <div class="pageContent">
 
@@ -208,16 +214,17 @@ else:
 endif;
 
 if (isset($_GET['plugin'])) {
-    $rawPlugin = $_GET['plugin'];
-    $pluginName = preg_replace('/[^A-Za-z0-9_.-]/', '', $rawPlugin);
-    if ($pluginName !== $rawPlugin || $pluginName === '' || strpos($pluginName, '..') !== false) {
+    $pluginName = $_GET['plugin'];
+    // Must name an installed plugin.  "." passed the old character check and
+    // made the plugins directory itself count as a plugin.
+    if (!IsValidPluginName($pluginName) || !is_dir($pluginDirectory . '/' . $pluginName)) {
         $pluginName = '';
     }
 }
 
 if (!isset($_GET['plugin'])) {
     echo "Please don't access this page directly";
-} elseif (empty($_GET['plugin'])) {
+} elseif (empty($_GET['plugin']) || $pluginName === '') {
     echo "Plugin variable empty, please don't access this page directly";
 } elseif (isset($_GET['page']) && !empty($_GET['page'])) {
     $pageName = $_GET['page'];

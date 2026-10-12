@@ -289,6 +289,9 @@ private:
     constexpr static int NUM_OUTPUT_BUFFERS = 4;
     std::array<uint8_t*, NUM_OUTPUT_BUFFERS> outputBuffers = { nullptr, nullptr, nullptr, nullptr };
     uint8_t currOutputBuffer = 0;
+    // scan rows in the frame: the scan for split panels, the panel height
+    // for full height ones.  PrepDataShift's per-row table is this big.
+    static constexpr uint32_t MAX_SCAN_ROWS = 64;
     uint32_t numRows = 0;
     uint32_t rowLen = 0;
     uint32_t maxRowLen = 0;
@@ -351,6 +354,13 @@ private:
     std::queue<std::function<void()>> bgTasks;
     volatile bool bgThreadsRunning = false;
     std::mutex bgTaskMutex;
+
+    // Serializes the output thread's per-frame calls (prepMember,
+    // publishFrame, starting/stoppingOutput) against membership changes.  A
+    // config reload Init()s each replacement matrix outside outputThreadLock,
+    // after the earlier ones are already live, and adding a member rebuilds
+    // the shared PRU, frame buffers and every member's scatter map.
+    std::mutex m_memberLock;
     std::condition_variable bgTaskCondVar;
     std::atomic<int> bgThreadCount;
     void runBackgroundTasks();

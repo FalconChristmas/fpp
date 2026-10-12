@@ -485,6 +485,26 @@
                 }
             }
         },
+        "MediaFiles": {
+            "grpDisplayTitle": "Media Files",
+            "grpDescription": "What is in the music, video and image folders: codecs, sample rates, bit rates, sizes and aspect ratios",
+            "platforms": [
+                "all"
+            ],
+            "commands": {
+                "MediaFileReport": {
+                    "title": "Media File Report",
+                    "description": "Probes every file in the music, video and image folders with ffprobe and reports its codec, sample rate, bit rate, channels, resolution, aspect ratio and frame rate, and which audio is not at the audio engine's sample rate and so gets resampled while it plays. Runs only when this tab is opened, once per page load, at the lowest CPU priority; a large library can take several minutes on a small device",
+                    "cmd": "PATH=$PATH:/opt/homebrew/bin:/usr/local/bin php [[fppDir]]/scripts/media_report.php",
+                    "manualCrashReportCmd": "PATH=$PATH:/opt/homebrew/bin:/usr/local/bin php [[fppDir]]/scripts/media_report.php --summary",
+                    "platforms": [
+                        "all"
+                    ],
+                    "pii": true,
+                    "runOnce": true
+                }
+            }
+        },
         "Midi": {
             "grpDisplayTitle": "Midi",
             "grpDescription": "Set of tools for Midi troubleshooting",

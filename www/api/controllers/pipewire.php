@@ -345,6 +345,9 @@ function SavePipeWireAudioGroups()
         http_response_code(400);
         return json(array("status" => "ERROR", "message" => "Missing 'groups' array"));
     }
+    // Store names the way the generators will write them (PwConfSanitize()),
+    // so node names derived from the saved names match the generated config.
+    $decoded = PwConfSanitize($decoded);
 
     // Assign IDs if missing
     $maxId = 0;
@@ -2140,6 +2143,9 @@ function SavePipeWireInputGroups()
         http_response_code(400);
         return json(array("status" => "ERROR", "message" => "Missing 'inputGroups' array"));
     }
+    // Store names the way the generators will write them (PwConfSanitize()),
+    // so node names derived from the saved names match the generated config.
+    $decoded = PwConfSanitize($decoded);
 
     // Assign IDs if missing
     $maxId = 0;
@@ -4486,9 +4492,54 @@ function ResolveAlsaCaptureNodeName($cardId)
 
 /////////////////////////////////////////////////////////////////////////////
 // Helper: Generate PipeWire input group config (combine-stream + loopback)
+/**
+ * Make saved audio config safe to splice into a PipeWire .conf drop-in.
+ *
+ * The generators below write user-entered values (group, card and stream
+ * names) into SPA-JSON quoted strings and "# ..." comments.  Those files are
+ * loaded by a root PipeWire daemon that honours context.exec, so a quote,
+ * backslash or line break in a value could close the string or the comment and
+ * add sections of its own.  Removing those characters from every string (and
+ * key) in the config, once, at the top of each generator, keeps every quoted
+ * and comment context closed - including configs saved before this existed.
+ * Values written UNQUOTED (bare tokens) need more than this; they go through
+ * PwConfToken() or an allowlist where they are used.
+ */
+function PwConfSanitize($data)
+{
+    if (is_string($data)) {
+        return preg_replace('/[\x00-\x1f\x7f"\\\\]/', '', $data);
+    }
+    if (!is_array($data)) {
+        return $data;
+    }
+    $out = array();
+    foreach ($data as $k => $v) {
+        $out[is_string($k) ? PwConfSanitize($k) : $k] = PwConfSanitize($v);
+    }
+    return $out;
+}
+
+/**
+ * A value written as a bare (unquoted) SPA-JSON token: whitespace, '=', ':',
+ * braces or brackets would end it and start new keys.  Returns $default for
+ * anything that is not a plain word.
+ */
+function PwConfToken($v, $default)
+{
+    $v = trim(strval($v));
+    return preg_match('/^[A-Za-z0-9_.-]+$/', $v) ? $v : $default;
+}
+
+// filter-chain builtin biquad labels the EQ editor offers.
+const PW_EQ_BAND_TYPES = array('bq_peaking', 'bq_lowshelf', 'bq_highshelf', 'bq_lowpass',
+    'bq_highpass', 'bq_notch', 'bq_bandpass', 'bq_allpass');
+
 function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
 {
     global $settings;
+    $inputGroups = PwConfSanitize($inputGroups);
+    $outputGroups = PwConfSanitize($outputGroups);
     $channelPositions = array(
         1 => "[ MONO ]",
         2 => "[ FL FR ]",
@@ -4708,7 +4759,7 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
             $routeNodeName = "fpp_route_ig_" . $groupId;
 
             // 1. Filter-chain for EQ processing
-            $bands = $ig['effects']['eq']['bands'];
+            $bands = array_values((array) $ig['effects']['eq']['bands']); // links assume indices 0..n-1
             $fxDesc = "EQ: $groupName";
 
             $conf .= "  # Input Group EQ: $groupName\n";
@@ -4722,6 +4773,8 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
                 $chLabel = $channelLabels[$ch];
                 foreach ($bands as $bi => $band) {
                     $type = isset($band['type']) ? $band['type'] : 'bq_peaking';
+                    if (!in_array($type, PW_EQ_BAND_TYPES, true))
+                        $type = 'bq_peaking';
                     $freq = floatval(isset($band['freq']) ? $band['freq'] : 1000);
                     $gain = floatval(isset($band['gain']) ? $band['gain'] : 0);
                     $q = floatval(isset($band['q']) ? $band['q'] : 1.0);
@@ -5199,6 +5252,7 @@ function SyncBootAdapterUsbHeadroom($groups, $SUDO)
 function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
 {
     global $SUDO, $settings;
+    $groups = PwConfSanitize($groups);
 
     // Passive links let the graph reach idle so PipeWire can suspend the card.
     // A non-passive playback link keeps the ALSA sink running forever, so the
@@ -6055,11 +6109,13 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
 
             // --- EQ nodes (one per channel x band) ---
             if ($hasEQ) {
-                $bands = $member['eq']['bands'];
+                $bands = array_values((array) $member['eq']['bands']); // links assume indices 0..n-1
                 for ($ch = 0; $ch < $numCh; $ch++) {
                     $chLabel = $channelLabels[$ch];
                     foreach ($bands as $bi => $band) {
                         $type = isset($band['type']) ? $band['type'] : 'bq_peaking';
+                        if (!in_array($type, PW_EQ_BAND_TYPES, true))
+                            $type = 'bq_peaking';
                         $freq = floatval(isset($band['freq']) ? $band['freq'] : 1000);
                         $gain = floatval(isset($band['gain']) ? $band['gain'] : 0);
                         $q = floatval(isset($band['q']) ? $band['q'] : 1.0);
@@ -6081,7 +6137,7 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                 }
 
                 if ($hasEQ) {
-                    $bands = $member['eq']['bands'];
+                    $bands = array_values((array) $member['eq']['bands']); // links assume indices 0..n-1
                     // Chain EQ bands in series
                     for ($bi = 1; $bi < count($bands); $bi++) {
                         $prevBi = $bi - 1;
@@ -6245,7 +6301,12 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
                 $gLabel = trim(strval($mapGroup[$pi]));
                 if ($gLabel === '' || !in_array($gLabel, $groupPosList))
                     continue;
-                $validCard[] = trim(strval($mapCard[$pi]));
+                // Written unquoted into audio.position; position names are
+                // plain words (FL, AUX3), so anything else is dropped.
+                $cLabel = PwConfToken($mapCard[$pi], '');
+                if ($cLabel === '')
+                    continue;
+                $validCard[] = $cLabel;
                 $validGroup[] = $gLabel;
             }
             if (!empty($validCard)) {
@@ -6726,7 +6787,7 @@ function GetAES67SDPFile()
         if (isset($s['instanceId']) && intval($s['instanceId']) === $id) {
             $name = isset($s['filename']) ? basename($s['filename']) : ('aes67_' . $id . '.sdp');
             header("Content-Type: application/sdp");
-            header("Content-Disposition: attachment; filename=\"" . $name . "\"");
+            header("Content-Disposition: attachment; filename=\"" . SanitizeDownloadFilename($name) . "\"");
             // application/sdp has no ExpiresByType rule, so Apache's
             // ExpiresDefault ("access plus 1 year") would apply here and a
             // browser would keep serving this description long after the
@@ -7090,6 +7151,9 @@ function SaveVBANInstances()
         http_response_code(400);
         return json(array("status" => "ERROR", "message" => "Missing instances array"));
     }
+    // Store names the way the generators will write them (PwConfSanitize()),
+    // so node names derived from the saved names match the generated config.
+    $parsed = PwConfSanitize($parsed);
 
     $nextId = 1;
     foreach ($parsed['instances'] as &$inst) {
@@ -7221,6 +7285,7 @@ function SaveVBANInstances()
 // PipeWire creates a separate node for each as its name appears on the wire.
 function GenerateVBANConfig($instances)
 {
+    $instances = PwConfSanitize($instances);
     $conf = "# Auto-generated by FPP - VBAN (VB-Audio Network) streams\n";
     $conf .= "# Do not edit manually - managed via FPP UI\n";
     $conf .= "# Loaded before 96-fpp-input-groups.conf and 97-fpp-audio-groups.conf\n";
@@ -7242,8 +7307,11 @@ function GenerateVBANConfig($instances)
         $sourceIP = trim(isset($inst['sourceIP']) ? $inst['sourceIP'] : '');
         if ($sourceIP === '')
             $sourceIP = '0.0.0.0';
+        // Written unquoted as source.ip.
+        if (filter_var($sourceIP, FILTER_VALIDATE_IP) === false)
+            continue;
         $port = intval(isset($inst['port']) ? $inst['port'] : 6980);
-        $iface = trim(isset($inst['interface']) ? $inst['interface'] : '');
+        $iface = PwConfToken(isset($inst['interface']) ? $inst['interface'] : '', '');
         $key = $sourceIP . '|' . $port . '|' . $iface;
 
         if (!isset($recvGroups[$key])) {
@@ -7323,13 +7391,17 @@ function GenerateVBANConfig($instances)
             continue;
 
         $destIP = trim(isset($inst['destIP']) ? $inst['destIP'] : '');
-        if ($destIP === '')
+        // Written unquoted as destination.ip.
+        if ($destIP === '' || filter_var($destIP, FILTER_VALIDATE_IP) === false)
             continue;
         $port = intval(isset($inst['port']) ? $inst['port'] : 6980);
         $chans = intval(isset($inst['channels']) ? $inst['channels'] : 2);
         $rate = intval(isset($inst['sampleRate']) ? $inst['sampleRate'] : 48000);
         $format = isset($inst['format']) ? $inst['format'] : 'S16LE';
-        $iface = trim(isset($inst['interface']) ? $inst['interface'] : '');
+        // Written unquoted as audio.format: only the formats the UI offers.
+        if (!in_array($format, array('S16LE', 'S24LE', 'S32LE', 'F32LE'), true))
+            $format = 'S16LE';
+        $iface = PwConfToken(isset($inst['interface']) ? $inst['interface'] : '', '');
         $nodeName = VBANNodeName($inst['name'], 'send');
         $positions = PipeWireChannelPositions($chans);
         // The stream name the far end matches on.  VBAN caps it at 16 bytes.
@@ -8954,9 +9026,7 @@ function SavePipeWireVideoInputSources()
     unset($src);
 
     $jsonOut = json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-    $writeResult = file_put_contents($configFile, $jsonOut);
-    file_put_contents('/tmp/debug_save_vis.txt', date('c') . " WRITE path=$configFile bytes=$writeResult\n", FILE_APPEND);
-    file_put_contents('/tmp/debug_save_vis.txt', date('c') . " VERIFY: " . file_get_contents($configFile) . "\n", FILE_APPEND);
+    file_put_contents($configFile, $jsonOut);
 
     return json(array("status" => "OK", "message" => "Video input sources saved"));
 }

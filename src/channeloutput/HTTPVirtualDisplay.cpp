@@ -183,9 +183,12 @@ int HTTPVirtualDisplayOutput::Init(Json::Value config) {
 
     fcntl(m_socket, F_SETFL, O_NONBLOCK);
 
+    // SO_REUSEADDR so a reload can rebind while the previous instance's
+    // connections sit in TIME_WAIT.  Not SO_REUSEPORT: that lets a listener
+    // that was never closed keep taking a share of the new connections.
     int optval = 1;
-    if (setsockopt(m_socket, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) < 0) {
-        LogErr(VB_CHANNELOUT, "Error turning on SO_REUSEPORT; %s\n", FPPstrerror(errno));
+    if (setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0) {
+        LogErr(VB_CHANNELOUT, "Error turning on SO_REUSEADDR; %s\n", FPPstrerror(errno));
         return 0;
     }
     int v6only = 0;
@@ -346,6 +349,7 @@ void HTTPVirtualDisplayOutput::SelectThread(void) {
                     m_connListChanged = true;
                 } else {
                     LogErr(VB_CHANNELOUT, "Read failed for socket %d, connection %d.  Closing connection.\n", m_connList[i], i);
+                    close(m_connList[i]);
                     m_connList.erase(m_connList.begin() + i);
                     m_connListChanged = true;
                 }
@@ -357,7 +361,12 @@ void HTTPVirtualDisplayOutput::SelectThread(void) {
 /*
  *
  */
-int HTTPVirtualDisplayOutput::WriteSSEPacket(int fd, const std::string& data) {
+// The output thread's whole budget for preview writes in one frame, and how
+// many frames in a row a client may refuse before it is dropped.
+static constexpr uint64_t SSE_FRAME_BUDGET_MS = 20;
+static constexpr int SSE_MAX_DROPPED_FRAMES = 200;
+
+int HTTPVirtualDisplayOutput::WriteSSEPacket(int fd, const std::string& data, uint64_t deadlineMS) {
     int len = data.size();
     std::string sendData;
 
@@ -405,7 +414,15 @@ int HTTPVirtualDisplayOutput::WriteSSEPacket(int fd, const std::string& data) {
             struct pollfd pfd;
             pfd.fd = fd;
             pfd.events = POLLOUT;
-            int pr = poll(&pfd, 1, 250);
+            // Bounded by the frame's budget, not per client per stall: a
+            // client trickling a few bytes at a time otherwise held the
+            // output thread (and every output) for as long as it liked.
+            long long left = (long long)deadlineMS - (long long)GetTimeMS();
+            if (left <= 0) {
+                LogDebug(VB_CHANNELOUT, "SSE client too slow for this frame (%zu/%zu bytes), closing connection\n", sent, total);
+                return -1;
+            }
+            int pr = poll(&pfd, 1, (int)std::min<long long>(left, 250));
             if (pr > 0) {
                 continue;
             }
@@ -537,7 +554,10 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
             colorStr = color;
 
             y = m_previewHeight - m_pixels[i].y;
-            if (m_pixels[i].x >= 4095)
+            // must pick the same form as the page's scaleMap keys
+            // (virtualdisplaybody.php), or the browser finds no entry for the
+            // pixel and drops the rest of the frame
+            if ((m_pixels[i].x >= 4096) || (y >= 4096))
                 snprintf(loc, sizeof(loc), "%c%c%c%c%c%c",
                          base64[(m_pixels[i].x >> 12) & 0x3f],
                          base64[(m_pixels[i].x >> 6) & 0x3f],
@@ -607,9 +627,19 @@ int HTTPVirtualDisplayOutput::SendData(unsigned char* channelData) {
 
     if (m_sseData != "") {
         std::unique_lock<std::mutex> lock(m_connListLock);
+        const uint64_t deadline = GetTimeMS() + SSE_FRAME_BUDGET_MS;
         // Iterate backwards so we can safely remove elements
         for (int i = m_connList.size() - 1; i >= 0; i--) {
-            int result = WriteSSEPacket(m_connList[i], m_sseData);
+            int result = WriteSSEPacket(m_connList[i], m_sseData, deadline);
+            if (result == 0 && ++m_dropCounts[m_connList[i]] > SSE_MAX_DROPPED_FRAMES) {
+                // A client that has taken nothing for this long is gone or
+                // stuck; dropping its frames forever also cost every frame a
+                // resync of the pixels it never received.
+                LogDebug(VB_CHANNELOUT, "SSE client %d took no frames for %d frames, closing it\n", m_connList[i], SSE_MAX_DROPPED_FRAMES);
+                result = -1;
+            } else if (result > 0) {
+                m_dropCounts.erase(m_connList[i]);
+            }
             if (result < 0) {
                 // Connection is dead, remove it
                 LogDebug(VB_CHANNELOUT, "Removing dead SSE connection %d\n", m_connList[i]);
@@ -618,6 +648,14 @@ int HTTPVirtualDisplayOutput::SendData(unsigned char* channelData) {
                 m_connListChanged = true;
             } else if (result == 0) {
                 dropped = true;
+            }
+        }
+        // forget counts for connections the select thread has since closed
+        for (auto it = m_dropCounts.begin(); it != m_dropCounts.end();) {
+            if (std::find(m_connList.begin(), m_connList.end(), it->first) == m_connList.end()) {
+                it = m_dropCounts.erase(it);
+            } else {
+                ++it;
             }
         }
     }

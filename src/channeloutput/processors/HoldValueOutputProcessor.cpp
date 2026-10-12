@@ -24,6 +24,9 @@ HoldValueOutputProcessor::HoldValueOutputProcessor(const Json::Value& config) {
     start = config["start"].asInt();
     count = config["count"].asInt();
     ProcessModelConfig(config, model, start, count);
+    if (count < 0) {
+        count = 0;
+    }
 
     LogInfo(VB_CHANNELOUT, "Hold Channel Values:   %d-%d, Model: %s\n",
             start + 1, start + count, model.c_str());

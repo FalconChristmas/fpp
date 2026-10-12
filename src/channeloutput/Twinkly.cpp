@@ -26,6 +26,7 @@
 #include <signal.h>
 
 #include "../Warnings.h"
+#include "ChannelOutputSetup.h"
 #include "../common.h"
 #include "../fppversion.h"
 #include "../log.h"
@@ -55,7 +56,7 @@ TwinklyOutputData::TwinklyOutputData(const Json::Value& config) :
     if (active) {
         twinklyAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
         if (!valid) {
-            WarningHolder::AddWarning(14, "Could not resolve host name " + ipAddress + " - disabling output");
+            AddOutputConfigWarning(14, "Could not resolve host name " + ipAddress + " - disabling output");
             active = false;
         }
     }
@@ -68,7 +69,8 @@ TwinklyOutputData::TwinklyOutputData(const Json::Value& config) :
     int chanToOutput = channelCount;
     int chan = startChannel - 1;
     for (int x = 0; x < portCount; x++) {
-        twinklyBuffers[x] = (unsigned char*)malloc(HEADER_LEN);
+        // zeroed: the token bytes go on the wire before the first auth fills them
+        twinklyBuffers[x] = (unsigned char*)calloc(1, HEADER_LEN);
         twinklyBuffers[x][0] = 3;
         twinklyBuffers[x][9] = 0;
         twinklyBuffers[x][10] = 0;
@@ -89,6 +91,10 @@ TwinklyOutputData::TwinklyOutputData(const Json::Value& config) :
     }
 }
 TwinklyOutputData::~TwinklyOutputData() {
+    // Every request above captures this.  Drop the ones still in flight
+    // instead of letting their callbacks run on a freed object; deleted on
+    // the main loop (a reload, or shutdown), where cancelling is allowed.
+    CurlManager::INSTANCE.cancelRequests(curlOwner);
     // The token timer captures this. StoppingOutput() normally removes it, but
     // the timer must never outlive the object whatever path deleted it. Only
     // while still started: the name is per address, so once stopped it may
@@ -104,8 +110,9 @@ TwinklyOutputData::~TwinklyOutputData() {
 }
 
 void TwinklyOutputData::GetRequiredChannelRange(int& min, int& max) {
+    // channelCount is the total across all of the device's 900 channel ports
     min = startChannel - 1;
-    max = startChannel + (channelCount * portCount) - 1;
+    max = startChannel + channelCount - 1;
 }
 
 void TwinklyOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& msgs) {
@@ -122,6 +129,16 @@ void TwinklyOutputData::PrepareData(unsigned char* channelData, UDPOutputMessage
                 memcpy(&twinklyBuffers[x][1], authTokenBytes, TOKEN_LEN);
             }
             tokenPending = false;
+        }
+
+        // No token: the login failed (the device was unreachable or still
+        // booting when output started) or has not finished.  Retrying only
+        // on the 120s token check left a device that came back sooner
+        // getting frames it ignores; valid means it answers pings again.
+        uint64_t now = GetTimeMS();
+        if (!authInFlight && now - lastAuthAttemptMS > 5000 && getAuthToken().empty()) {
+            lastAuthAttemptMS = now;
+            authenticate();
         }
 
         reauthCount++;
@@ -182,7 +199,13 @@ void TwinklyOutputData::StoppingOutput() {
     // put the device back into "rt" mode with nothing left to send it frames.
     outputStarted = false;
     Timers::INSTANCE.stopPeriodicTimer("Twinkly" + ipAddress);
-    callRestAPI(true, "xled/v1/led/mode", "{\"mode\": \"off\"}");
+    // This runs on the output thread or under outputThreadLock on a reload,
+    // and the call blocks for up to 5s.  Only make it for a device that is
+    // answering and that this output put into rt mode; one whose ping failed
+    // is stopped here too, and would only time out.
+    if (valid && !getAuthToken().empty()) {
+        callRestAPI(true, "xled/v1/led/mode", "{\"mode\": \"off\"}");
+    }
     setAuthToken("");
 }
 
@@ -303,9 +326,12 @@ void TwinklyOutputData::authenticate() {
                                                   LogWarn(VB_CHANNELOUT, "Twinkly %s: could not switch to realtime mode (http %d)\n", ipAddress.c_str(), rc);
                                               }
                                               finishAuth();
-                                          });
-            });
-        });
+                                          },
+                                          curlOwner);
+            },
+                                      curlOwner);
+        },
+        curlOwner);
 }
 void TwinklyOutputData::verifyToken() {
     if (!outputStarted) {
@@ -321,7 +347,8 @@ void TwinklyOutputData::verifyToken() {
             // no answer, or the token was rejected. Retry async
             authenticate();
         }
-    });
+    },
+                              curlOwner);
 }
 
 // URL Helpers

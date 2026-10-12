@@ -1017,8 +1017,10 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                                 if ($keepMasterSlaveSettings == false) {
                                     WriteSettingToFile($setting_name, $setting_value);
                                 }
-                            } else {
-                                WriteSettingToFile($setting_name, $setting_value);
+                            } else if (!WriteSettingToFile($setting_name, $setting_value)) {
+                                //Refused (IsValidSettingValue) or unwritable: never apply a
+                                //value that is not what the settings file now holds.
+                                continue;
                             }
 
                             //Do special things that require some sort of system change
@@ -1235,6 +1237,13 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
             // this is a cheat to get around not knowing if there is more than the standard interfaces were backed up
             //$network_data = $restore_area_data[$network_type][0];
             foreach ($restore_area_data as $net_type => $net_data) {
+                //An unknown key becomes a file name under config/, so only an
+                //interface config (interface.<ifname>) is accepted -- never a
+                //path, and never some other config file.
+                if (!array_key_exists($net_type, (array) $system_config_areas['network']['file']) &&
+                    !preg_match('/^interface\.[A-Za-z0-9_][A-Za-z0-9_.:-]{0,14}$/', (string) $net_type)) {
+                    continue;
+                }
                 //Check if the net_type in the network config area
                 //the new type will be wired_network, wifi_network or like interface.eth1 etc for an extra interface(s)
                 //the net_type is also the filename of the interfaces file when it was backed up
@@ -1279,6 +1288,11 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                     //else it will hold the first line of the interface configuration e.g. "INTERFACE=wlan0",
                     if (!empty($network_data[0])) {
                         foreach ($network_data as $ini_key => $ini_value) {
+                            //One KEY=VALUE per entry: a line break inside one would
+                            //add lines the network save path never allows.
+                            if (!is_string($ini_value) || strpbrk($ini_value, "\r\n\0") !== false) {
+                                continue;
+                            }
                             $ini_string .= "$ini_value\n";
                         }
                     }
@@ -2177,7 +2191,7 @@ function doBackupDownload($settings_data, $area)
             //Make the users browser prompt a download and send the file
             if ($fpp_backup_prompt_download == true) {
                 ///Generate the headers to prompt browser to start download
-                header("Content-Disposition: attachment; filename=\"" . basename($backup_fname) . "\"");
+                header("Content-Disposition: attachment; filename=\"" . SanitizeDownloadFilename(basename($backup_fname)) . "\"");
                 header("Content-Type: application/json");
                 header("Content-Length: " . filesize($backup_local_fpath));
                 header("Connection: close");

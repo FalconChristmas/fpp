@@ -38,6 +38,9 @@ inline const std::string FPP_MEDIA_DIR = "/home/fpp/media";
 void exec(const std::string& cmd);
 int execbg(const std::string& cmd);
 std::string execAndReturn(const std::string& cmd);
+// True if s is non-empty and only [A-Za-z0-9._/+-], i.e. safe to splice
+// unquoted into a shell command.  For settings-file values used that way.
+bool isShellSafeWord(const std::string& s);
 bool LoadJsonFromString(const std::string& str, Json::Value& root);
 
 // Require the parsed root to be the shape the caller expects. A mismatch

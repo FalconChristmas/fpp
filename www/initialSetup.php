@@ -15,6 +15,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
 
     header('Content-Type: application/json');
 
+    // First-run only.  A restore replaces settings and scripts (whose install
+    // actions run as root), and this handler has none of the Backup page's
+    // options -- once setup is done, that page is where a restore belongs.
+    if (ReadSettingFromFile('initialSetup-02') == '1') {
+        ob_end_clean();
+        http_response_code(403);
+        echo json_encode(['Status' => 'Error', 'Message' => 'Setup has already been completed. Restore a backup from the Backup page instead.']);
+        exit;
+    }
+
     $file = $_FILES['restoreFile'];
     if ($file['error'] !== UPLOAD_ERR_OK) {
         ob_end_clean();
@@ -1082,7 +1092,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             }
 
             function redirectToApp() {
-                var redirectURL = <?= json_encode($_GET['redirect'] ?? '') ?>;
+                <?php
+                // Only one of our own pages (menuHead.inc sends the page that
+                // bounced here): json_encode() keeps the value inside the string,
+                // but a javascript: or off-site URL would still be followed.
+                $setupRedirect = isset($_GET['redirect']) && is_string($_GET['redirect']) &&
+                    preg_match('#^[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*\.php$#', $_GET['redirect']) ? $_GET['redirect'] : '';
+                ?>
+                var redirectURL = <?= json_encode($setupRedirect) ?>;
                 location.href = (redirectURL == '') ? 'index.php' : redirectURL;
             }
 

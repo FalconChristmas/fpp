@@ -86,8 +86,9 @@ if(isset($_FILES["myfile"]))
      	    $ret[]= $fileName;
         } else {
             // jQuery-Upload-File's native per-file error contract (see the
-            // commented sample above); remotePush surfaces the text and its
-            // follow-up move then fails visibly instead of finalizing malware.
+            // commented sample above); a MultiSync file push (RemoteJobPushFiles)
+            // surfaces the text, and its follow-up move then fails visibly
+            // instead of finalizing malware.
             $ret[]= array("jquery-upload-file-error" => "File type not allowed");
         }
  	}

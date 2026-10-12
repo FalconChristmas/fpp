@@ -121,7 +121,7 @@ ArtNetOutputData::ArtNetOutputData(const Json::Value& config) :
     } else if (active) {
         anAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
         if (!valid) {
-            WarningHolder::AddWarning(14, "Could not resolve host name " + ipAddress + " - disabling output");
+            AddOutputConfigWarning(14, "Could not resolve host name " + ipAddress + " - disabling output");
             active = false;
         }
     }
@@ -212,8 +212,13 @@ void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages
         if (sequenceNumber == 0) {
             sequenceNumber++;
         }
+        // the counter forces a full resend once 10 frames in a row skipped
+        // something; without the reset, after the first 10 skips dedup was
+        // off for the rest of the run
         if (anySkipped) {
             skippedFrames++;
+        } else {
+            skippedFrames = 0;
         }
         if (!allSkipped) {
             SaveFrame(&channelData[startChannel - 1], start);

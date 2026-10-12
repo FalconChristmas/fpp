@@ -150,6 +150,13 @@ int LOREnhancedOutput::Init(Json::Value config) {
             if ((*it).isMember("lorStartPixel")) {
                 newUnit.lorStartPixel = (*it)["lorStartPixel"].asInt();
             }
+            // 1-based.  A blank field arrives as JSON null and so as 0, which
+            // sent the same packet as 1 (no leading jump) but made the
+            // 510-channel check below count one pixel short: 171 pixels then
+            // passed it and overran the 518 byte packet buffer.
+            if (newUnit.lorStartPixel < 1) {
+                newUnit.lorStartPixel = 1;
+            }
             if ((*it).isMember("fppStartAddr")) {
                 newUnit.fppStartAddr = (*it)["fppStartAddr"].asInt();
             }

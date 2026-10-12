@@ -446,14 +446,21 @@ void VirtualDisplayBaseOutput::LoadBackgroundImage(void) {
         image.magick("RGBA");
         image.write(&blob);
     } catch (Magick::Exception& error_) {
+        // the image can come back partly decoded and unscaled, with no blob
         LogErr(VB_CHANNELOUT, "GraphicsMagick exception reading %s: %s\n",
                bgFile.c_str(), error_.what());
+        return;
     }
 
     unsigned char* imgData = (unsigned char*)blob.data();
     unsigned int imgWidth = image.columns();
     unsigned int imgHeight = image.rows();
     unsigned int imgBytes = imgWidth * imgHeight * 4; // RGBA
+    // the copy below assumes a scaled RGBA image that fits the display
+    if (!imgData || blob.length() < imgBytes || imgWidth > (unsigned int)m_width || imgHeight > (unsigned int)m_height) {
+        LogErr(VB_CHANNELOUT, "Background image %s could not be converted for display\n", bgFile.c_str());
+        return;
+    }
     unsigned long RGBx = 0;
     bool letterboxed = false;
     int offset = 0;

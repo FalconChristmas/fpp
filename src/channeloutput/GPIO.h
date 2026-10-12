@@ -36,4 +36,5 @@ private:
     int m_invertOutput;
     int m_pwm;
     std::string lastWarning;
+    uint64_t lastWarningMS = 0;
 };

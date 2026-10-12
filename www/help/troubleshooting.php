@@ -39,6 +39,22 @@
     <li><b>Tab badges</b> — Each group’s pill accumulates totals from all its commands’ <code>data-troubleshoot-fail/warn/pass/skip</code> datasets via <code>updateTroubleshootTabBadge()</code>, so looking at a tab shows its aggregate health without opening it.</li>
 </ul>
 
+<h4>Media Files tab</h4>
+<p>The <b>Media Files</b> tab inspects every file in your music, video and image folders and reports what they contain. It is meant for finding out why a small device is working hard while audio plays.</p>
+<ul>
+    <li><b>Runs on demand</b> — Nothing is scanned until you open this tab, and it scans once: clicking away and back does not start another scan. Reload the page to scan again. The scan runs one file at a time at the lowest CPU priority, so it should not disturb a show that is playing, but a large library can still take several minutes on a small device. A scan that would take longer than ten minutes stops there and says how many files it covered.</li>
+    <li><b>Resampling</b> — The top of the report gives the <b>engine rate</b> (the rate FPP’s audio system actually runs at) and the <b>configured rate</b> (the one you chose in the audio settings). Usually they are the same. Some audio hardware cannot run as slowly as you ask: a card that cannot clock below 88.2 kHz will run at 88.2 kHz when 44.1 kHz is configured. When the two differ the report notes it, for example “88.2 kHz is the lowest rate this hardware supports (44.1 kHz configured)”. This is normal for such hardware, not a fault. Each audio file, and each video soundtrack, then falls into one of three groups:
+        <ul>
+            <li><b>At the engine rate</b> — Nothing to do, and no note.</li>
+            <li><b>Hardware upsample</b> — The file is at the configured rate and the hardware runs at a whole multiple of it (44.1 kHz on 88.2 kHz). The hardware does this conversion itself, so these are marked <code>hardware upsample</code> and are <i>not</i> counted as files to convert.</li>
+            <li><b>Resampled</b> — Any other rate. The CPU converts these every time they play, which is what slows small devices down. They are marked <code>resampled</code> and counted as files to convert. Convert each one once, ahead of time, to the <b>configured</b> rate, not the engine rate: the configured rate is the one you chose, while the engine rate is only what this particular hardware settled on.</li>
+        </ul>
+        If the engine rate is not a whole multiple of the configured rate (a card that only runs at 48 kHz with 44.1 kHz configured), nothing at the configured rate can be upsampled by the hardware. Those files are reported on their own line, “already at the configured rate but still resampled”, because converting them would change nothing.</li>
+    <li><b>Summary tables</b> — For audio, video and images: how many files use each codec, sample rate, channel layout, bit rate range, bit depth, resolution, aspect ratio, frame rate, pixel format and scan type (progressive or interlaced), and which file types they are. Codecs show their profile where they have one, such as <code>aac (LC)</code> or <code>h264 (High)</code>.</li>
+    <li><b>Every file</b> — One line per file with its type, codec, sample rate, channels, bit depth, bit rate, running time, size, and for video the width and height (<code>WxH</code>), aspect ratio and frame rate. A file that gets resampled is marked in the last column. Files that could not be read as media are listed at the end with the reason.</li>
+    <li><b>In a Diagnostic Report</b> — The report gets the summary tables only, with no file names, from a short random sample of the library (a few seconds), so it shows what kinds of files are in use without listing them.</li>
+</ul>
+
 <h4>Hash and navigation</h4>
 <ul>
     <li>Hashes of the form <code>#header_{commandKey}</code> (hot-link anchors) and <code>#pills-{group}</code> (tab anchors) are both supported. On load, if the hash names a hot-link anchor, the code finds the enclosing <code>.tab-pane</code>, switches to that tab, then scrolls the anchor into view and pins the header. Direct <code>#pills-{group}</code> hashes also switch tabs.</li>

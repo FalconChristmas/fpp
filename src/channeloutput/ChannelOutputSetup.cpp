@@ -29,6 +29,7 @@
 #include "ChannelOutputSetup.h"
 #include "Sequence.h"
 #include "channeloutputthread.h"
+#include "ThreadedChannelOutput.h"
 #include "Warnings.h"
 #include "common.h"
 #include "log.h"
@@ -115,6 +116,18 @@ bool HasUniverseOutputs() {
 }
 
 static std::map<std::string, std::set<std::string>> outputLoadWarnings;
+// Warnings the outputs themselves raise while a config file's outputs are
+// being initialised (AddOutputConfigWarning), retracted with that file's other
+// load warnings when it is next loaded.  Main loop only, like the loader.
+static std::map<std::string, std::set<std::pair<int, std::string>>> outputConfigWarnings;
+static std::string outputConfigWarningFile;
+
+void AddOutputConfigWarning(int id, const std::string& warning) {
+    WarningHolder::AddWarning(id, warning);
+    if (!outputConfigWarningFile.empty()) {
+        outputConfigWarnings[outputConfigWarningFile].insert({ id, warning });
+    }
+}
 
 using OutputRangeVec = std::vector<std::pair<uint32_t, uint32_t>>;
 // Snapshots published by ComputeOutputRanges() and handed out by
@@ -295,6 +308,19 @@ static std::map<std::string, std::string> OUTPUT_REMAPS = {
 
 bool skipOutputRangeCompute = false;
 
+// Every output is closed through here.  A ThreadedChannelOutput subclass's
+// Close() frees its own resources (serial port, libusb handle, buffers, X
+// display) and only then reaches ThreadedChannelOutput::Close(), which stops
+// the worker - and the worker flushes any pending frame on its way out, into
+// what was just freed.  Stopping it first covers every subclass, plugins
+// included, without relying on each one to order its Close() correctly.
+static void CloseChannelOutput(ChannelOutput* output) {
+    if (auto* threaded = dynamic_cast<ThreadedChannelOutput*>(output)) {
+        threaded->StopOutputThread();
+    }
+    output->Close();
+}
+
 static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
     Json::Value root;
     if (FileExists(cfgFile)) {
@@ -363,7 +389,7 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
         }
         for (auto inst : toDelete) {
             if (inst->output) {
-                inst->output->Close();
+                CloseChannelOutput(inst->output);
                 delete inst->output;
             }
             delete inst;
@@ -373,25 +399,47 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
         WarningHolder::RemoveWarning(26, warning);
     }
     outputLoadWarnings.erase(cfgFile);
+    for (auto& [id, warning] : outputConfigWarnings[cfgFile]) {
+        WarningHolder::RemoveWarning(id, warning);
+    }
+    outputConfigWarnings.erase(cfgFile);
     if (FileExists(cfgFile)) {
-        const Json::Value outputs = root["channelOutputs"];
+        // indexing a non-array by position throws, out of this callback
+        const Json::Value outputs = root["channelOutputs"].isArray() ? root["channelOutputs"] : Json::Value(Json::arrayValue);
         std::string type;
         int start = 0;
         int count = 0;
 
         for (int c = 0; c < outputs.size(); c++) {
-            type = outputs[c]["type"].asString();
+            bool enabled = false;
+            try {
+                // asInt()/asString() throw on a value of the wrong type
+                // (hand-edited or third-party configs), and this runs in the
+                // FileMonitor callback: an escaping exception ends fppd
+                type = outputs[c]["type"].asString();
+                enabled = outputs[c]["enabled"].asInt();
+                start = outputs[c]["startChannel"].asInt();
+                count = outputs[c]["channelCount"].asInt();
+            } catch (const std::exception& ex) {
+                std::string warning = "Could not read output " + std::to_string(c + 1) + " in " + cfgFile + " (" + ex.what() + ")";
+                WarningHolder::AddWarning(26, warning);
+                outputLoadWarnings[cfgFile].insert(warning);
+                LogErr(VB_CHANNELOUT, "%s\n", warning.c_str());
+                continue;
+            }
 
-            if (!outputs[c]["enabled"].asInt()) {
+            if (!enabled) {
                 LogDebug(VB_CHANNELOUT, "Skipping Disabled Channel Output: %s\n", type.c_str());
                 continue;
             }
 
-            start = outputs[c]["startChannel"].asInt();
-            count = outputs[c]["channelCount"].asInt();
-
             // internally we start channel counts at zero
             start -= 1;
+            if (start < 0 && count <= 0) {
+                // nothing to send from it, but the start still becomes the
+                // offset SendData() is handed; -1 would wrap to UINT_MAX
+                start = 0;
+            }
             if (start < 0 && count > 0) {
                 // we have a negative channel number, but actually are supposed to be outputting data
                 // Skip this output as that's not valid
@@ -434,6 +482,10 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
                 }
                 if (channelOutput->output) {
                     LogInfo(VB_CHANNELOUT, "Calling Init() on %s output\n", type.c_str());
+                    struct ConfigWarningScope {
+                        ConfigWarningScope(const std::string& f) { outputConfigWarningFile = f; }
+                        ~ConfigWarningScope() { outputConfigWarningFile.clear(); }
+                    } warningScope(cfgFile);
                     bool initOK = channelOutput->output->Init(outputs[c]);
                     if (initOK) {
                         // Every output reads (PrepData) or sends from exactly the
@@ -460,7 +512,7 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
                             WarningHolder::AddWarning(26, warning);
                             LogErr(VB_CHANNELOUT, "%s\n", warning.c_str());
                             outputLoadWarnings[cfgFile].insert(warning);
-                            channelOutput->output->Close();
+                            CloseChannelOutput(channelOutput->output);
                             delete channelOutput->output;
                             channelOutput->output = nullptr;
                             initOK = false;
@@ -538,8 +590,11 @@ int InitializeChannelOutputs(void) {
                                          Json::Value root;
                                          if (LoadJsonFromFile(channelOutputsFile, root, JsonRoot::Object) && root.isMember("channelOutputs")) {
                                              for (int i = 0; i < root["channelOutputs"].size(); i++) {
+                                                 // the BBBMatrix driver is the "LEDscapeMatrix"
+                                                 // subtype, which is what the UI saves
+                                                 const std::string subType = root["channelOutputs"][i]["subType"].asString();
                                                  if (root["channelOutputs"][i]["type"].asString() == "LEDPanelMatrix" &&
-                                                     root["channelOutputs"][i]["subType"].asString() == "BBBMatrix" &&
+                                                     (subType == "LEDscapeMatrix" || subType == "BBBMatrix") &&
                                                      root["channelOutputs"][i]["enabled"].asInt() == 1) {
                                                      LogDebug(VB_CHANNELOUT, "BBBMatrix output detected, reloading %s to ensure PRU code is compiled\n", channelOutputsFile.c_str());
                                                      ReloadChannelOutputsForFile(channelOutputsFile);
@@ -568,8 +623,16 @@ int InitializeChannelOutputs(void) {
     std::string opfilename = FPP_DIR_CONFIG("/outputprocessors.json");
     FileMonitor::INSTANCE.AddFile("outputprocessors.json", opfilename, [opfilename]() {
                              Json::Value newRoot;
-                             if (FileExists(opfilename)) {
-                                 LoadJsonFromFile(opfilename, newRoot, JsonRoot::Object);
+                             if (FileExists(opfilename) && !LoadJsonFromFile(opfilename, newRoot, JsonRoot::Object)) {
+                                 // probably caught part way through being
+                                 // written; one retry, as for the outputs, and
+                                 // otherwise keep the processors running now
+                                 // rather than dropping every one of them
+                                 std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                                 if (!LoadJsonFromFile(opfilename, newRoot, JsonRoot::Object)) {
+                                     LogErr(VB_CHANNELOUT, "Could not parse %s, keeping the current output processors\n", opfilename.c_str());
+                                     return;
+                                 }
                              }
                              outputProcessors.loadFromJSON(newRoot);
                              ComputeOutputRanges();
@@ -682,7 +745,7 @@ void CloseChannelOutputs(void) {
     // lock, blocking here would trade a crash-exit for a hung daemon.
     for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
         if (inst->output) {
-            inst->output->Close();
+            CloseChannelOutput(inst->output);
         }
     }
     for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {

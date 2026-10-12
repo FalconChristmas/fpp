@@ -199,7 +199,8 @@ void MQTTOutput::ReplaceValues(std::string& valueStr, uint8_t r, uint8_t g, uint
 
     float h, si, sv, i, v;
 
-    RGBtoHSIV(r / 255, g / 255, b / 255, h, si, sv, i, v);
+    // 0..1 floats: integer division made every channel 0 (or 1 at full)
+    RGBtoHSIV(r / 255.0f, g / 255.0f, b / 255.0f, h, si, sv, i, v);
 
     int ih = (h);
     int isi = (si * 100);

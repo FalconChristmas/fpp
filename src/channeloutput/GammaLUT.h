@@ -23,10 +23,11 @@ namespace GammaLUT {
 
 // Outputs fall back to their own default both when gamma is unconfigured and
 // when the configured value is outside the range they accept, so the default is
-// a per caller parameter.  NaN is not out of range by this test and is passed
-// through, same as it always has been.
+// a per caller parameter.  Written so NaN ("gamma": "nan") is out of range too:
+// it fails every comparison, and as a gamma it built a curve that lit every
+// channel at full brightness.
 inline float Clamp(float gamma, float def) {
-    if (gamma < 0.01 || gamma > 50.0) {
+    if (!(gamma >= 0.01f && gamma <= 50.0f)) {
         return def;
     }
     return gamma;

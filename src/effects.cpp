@@ -305,6 +305,11 @@ static void AddClearRange(uint32_t start, uint32_t len) {
  */
 void StopEffectHelper(int effectID) {
     FPPeffect* e = NULL;
+    // Slots are validated by all callers, but effect IDs also arrive parsed
+    // from sequence tracks and command arguments -- never trust the index.
+    if (effectID < 0 || effectID >= MAX_EFFECTS) {
+        return;
+    }
     e = effects[effectID];
 
     if (e->fp) {
@@ -366,7 +371,7 @@ int StopEffect(int effectID) {
     LogDebug(VB_EFFECT, "StopEffect(%d)\n", effectID);
 
     std::unique_lock<std::mutex> lock(effectsLock);
-    if (!effects[effectID]) {
+    if (effectID < 0 || effectID >= MAX_EFFECTS || !effects[effectID]) {
         return 0;
     }
 
@@ -433,7 +438,7 @@ void StopAllEffects(void) {
  */
 int OverlayEffect(int effectID, char* channelData) {
     FPPeffect* e = NULL;
-    if (!effects[effectID]) {
+    if (effectID < 0 || effectID >= MAX_EFFECTS || !effects[effectID]) {
         LogErr(VB_EFFECT, "Invalid Effect ID %d\n", effectID);
         return 0;
     }

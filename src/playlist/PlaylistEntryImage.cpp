@@ -233,26 +233,32 @@ void PlaylistEntryImage::SetFileList(void) {
  *
  */
 const std::string PlaylistEntryImage::GetNextFile(void) {
-    std::string result;
+    // At most one refill per call.  This used to recurse once per missing
+    // file and refill whenever the list ran dry, so a directory whose files
+    // had all gone (broken links) recursed until the stack overflowed.
+    bool refilled = false;
+    while (true) {
+        if (!m_files.size()) {
+            if (refilled)
+                break;
+            SetFileList();
+            refilled = true;
+            if (!m_files.size())
+                break;
+        }
 
-    if (!m_files.size())
-        SetFileList();
+        int i = rand_r(&m_fileSeed) % m_files.size();
+        std::string result = m_files[i];
+        m_files.erase(m_files.begin() + i);
 
-    if (!m_files.size()) {
-        LogWarn(VB_PLAYLIST, "No files found in GetNextFile()\n");
-        return result;
+        if (FileExists(result)) {
+            LogDebug(VB_PLAYLIST, "GetNextFile() = %s\n", result.c_str());
+            return result;
+        }
     }
 
-    int i = rand_r(&m_fileSeed) % m_files.size();
-    result = m_files[i];
-    m_files.erase(m_files.begin() + i);
-
-    if (!FileExists(result))
-        return GetNextFile(); // Recurse to handle refilling empty list
-
-    LogDebug(VB_PLAYLIST, "GetNextFile() = %s\n", result.c_str());
-
-    return result;
+    LogWarn(VB_PLAYLIST, "No files found in GetNextFile()\n");
+    return "";
 }
 
 /*
@@ -264,8 +270,12 @@ void PlaylistEntryImage::PrepImage(void) {
     bool needToCache = true;
     std::string nextFile = GetNextFile();
 
-    if (nextFile == "")
+    if (nextFile == "") {
+        m_noImage = true;
+        m_imagePrepped = true;
         return;
+    }
+    m_noImage = false;
 
     if (nextFile == m_nextFileName) {
         m_imagePrepped = true;
@@ -372,7 +382,12 @@ void PlaylistEntryImage::Draw(void) {
             return;
         }
 
-        m_model->setData(m_buffer);
+        if (m_noImage) {
+            // Nothing to show; count it as drawn so the entry finishes.
+            LogWarn(VB_PLAYLIST, "No image found for '%s', skipping\n", m_imagePath.c_str());
+        } else {
+            m_model->setData(m_buffer);
+        }
     }
 
     m_imageDrawn = true;

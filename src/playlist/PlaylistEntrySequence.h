@@ -44,7 +44,10 @@ public:
 
     const std::string& GetSequenceName(void) const { return m_sequenceName; }
 
-    uint32_t GetSequenceFrameTime(void) { return m_sequenceFrameTime; }
+    // int, like the member and Sequence::GetSeqStepTime(): callers subtract it
+    // from signed offsets, and an unsigned return turned "offset - frameTime"
+    // into ~4e9 whenever the offset was under one frame.
+    int GetSequenceFrameTime(void) { return m_sequenceFrameTime; }
 
 private:
     long long m_startTme;

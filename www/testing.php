@@ -16,12 +16,13 @@ function PrintSequenceOptions()
 	echo "<select id=\"selSequence\" size=\"1\">";
 	foreach (scandir($sequenceDirectory) as $seqFile) {
 		if ($seqFile != '.' && $seqFile != '..' && !preg_match('/.eseq$/', $seqFile)) {
-			echo "<option value=\"" . $seqFile . "\"";
+			$seqHtml = htmlspecialchars($seqFile, ENT_QUOTES, 'UTF-8');
+			echo "<option value=\"" . $seqHtml . "\"";
 			if ($first) {
 				echo " selected";
 				$first = 0;
 			}
-			echo ">" . $seqFile . "</option>";
+			echo ">" . $seqHtml . "</option>";
 		}
 	}
 	echo "</select>";

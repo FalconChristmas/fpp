@@ -73,16 +73,17 @@ function SaveSchedule() {
 
     $fileName = $settings['configDirectory'] . '/schedule.json';
 
-    $f = fopen($fileName, "w");
-    if ($f)
-    {
-        $postdata = fopen("php://input", "r");
-        while ($data = fread($postdata, 1024*16)) {
-            fwrite($f, $data);
-        }
-        fclose($postdata);
-        fclose($f);
+    // Stored as sent, but only if it is a schedule (a JSON array of entries):
+    // the scheduler reads this file and anything else would leave the player
+    // with no schedule.  Written atomically so fppd never reads half of it.
+    $body = file_get_contents("php://input");
+    $entries = json_decode($body, true);
+    if (!is_array($entries) || !array_is_list($entries)) {
+        halt(400, 'The schedule must be a JSON array of entries.');
+    }
 
+    if (WriteFileAtomic($fileName, $body))
+    {
         //Trigger a JSON Configuration Backup
         GenerateBackupViaAPI('Schedule was modified.');
 

@@ -40,6 +40,7 @@
 #include "../settings.h"
 
 #include "UDPOutput.h"
+#include "ChannelOutputSetup.h"
 #include "ping.h"
 
 #include "NetworkMonitor.h"
@@ -113,7 +114,7 @@ static bool isValidInterfaceName(const std::string& n) {
 #ifndef PLATFORM_OSX
 // SO_MAX_PACING_RATE only works if the interface's root qdisc is fq.
 // Some kernels expose the qdisc name in sysfs; fall back to asking tc.
-static bool interfaceHasFQ(const std::string& iface) {
+static bool queryInterfaceHasFQ(const std::string& iface) {
     if (!isValidInterfaceName(iface)) {
         return false;
     }
@@ -135,6 +136,33 @@ static bool interfaceHasFQ(const std::string& iface) {
         pclose(pipe);
     }
     return qdisc == "fq";
+}
+// The answer per interface, because the sysfs file does not exist on the
+// kernels FPP ships (6.x), so every query forks tc - and findOrCreateSocket()
+// asks once per destination, on the output thread, at startup, on every
+// reload and after every address loss.  fppinit sets the qdisc at boot, so
+// it does not change under a running output; UDPOutput::Init() clears the
+// cache and warms it from the main thread.
+static std::mutex fqCacheLock;
+static std::map<std::string, bool> fqCache;
+static void clearFQCache() {
+    std::lock_guard<std::mutex> lk(fqCacheLock);
+    fqCache.clear();
+}
+static bool interfaceHasFQ(const std::string& iface) {
+    {
+        std::lock_guard<std::mutex> lk(fqCacheLock);
+        auto it = fqCache.find(iface);
+        if (it != fqCache.end()) {
+            return it->second;
+        }
+    }
+    // not under the lock: tc can take a while, and a duplicate query by
+    // another thread is harmless
+    bool fq = queryInterfaceHasFQ(iface);
+    std::lock_guard<std::mutex> lk(fqCacheLock);
+    fqCache[iface] = fq;
+    return fq;
 }
 // Unicast sockets follow the routing table, not the configured output
 // interface, and the interface scan at startup can race the network coming
@@ -356,7 +384,19 @@ void UDPOutputMessages::clearSockets() {
     sendSockets.clear();
 }
 
+// Keys whose packets go to multicast groups.  Their sockets need
+// IP_MULTICAST_IF, or the packets leave by the default route instead of the
+// output interface.  E1.31 sync is always sent to 239.255.<universe>.
+static bool isMulticastKey(unsigned int key) {
+    return key == MULTICAST_MESSAGES_KEY || key == LATE_MULTICAST_MESSAGES_KEY || key == E131_SYNC_KEY;
+}
+
+static constexpr int LOCAL_DROP_WARNING_ID = 69;
+static const std::string LOCAL_DROP_WARNING = "The network interface is dropping outgoing packets before they reach the wire. The link may be down, saturated, or misconfigured. See logs for details.";
+
 UDPOutput* UDPOutput::INSTANCE = nullptr;
+std::mutex UDPOutput::externalLock;
+std::map<const void*, std::function<UDPOutputData*()>> UDPOutput::externalFactories;
 
 UDPOutputData::UDPOutputData(const Json::Value& config) :
     valid(true),
@@ -469,7 +509,7 @@ bool UDPOutputData::NeedToOutputFrame(unsigned char* channelData, int startChann
 }
 
 UDPOutput::UDPOutput(unsigned int startChannel, unsigned int channelCount) :
-    networkCallbackId(0),
+    networkCallbackId(-1),
     doneWorkCount(0),
     numWorkThreads(0),
     workGeneration(0),
@@ -479,10 +519,19 @@ UDPOutput::UDPOutput(unsigned int startChannel, unsigned int channelCount) :
     INSTANCE = this;
 }
 UDPOutput::~UDPOutput() {
-    runWorkThreads = false;
+    {
+        // under workMutex: a worker between its runWorkThreads check and its
+        // wait() would otherwise miss this notify and sleep forever, and the
+        // loop below would then spin with outputThreadLock held
+        std::lock_guard<std::mutex> lk(workMutex);
+        runWorkThreads = false;
+    }
     workSignal.notify_all();
 
-    INSTANCE = nullptr;
+    {
+        std::lock_guard<std::mutex> lk(externalLock);
+        INSTANCE = nullptr;
+    }
     NetworkMonitor::INSTANCE.removeCallback(networkCallbackId);
     while (numWorkThreads) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -495,11 +544,12 @@ UDPOutput::~UDPOutput() {
         if (si.second)
             ClearPacingBudgetWarning(si.second.get());
     }
-    // Need to make sure all curls are processed before we delete the outputs
-    // or we may have curl callbacks trying to access deleted data.
-    while (CurlManager::INSTANCE.processCurls()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    // Requests in flight capture this (the HEAD probe) or an output deleted
+    // below (Twinkly, which cancels its own).  Cancel ours rather than
+    // draining every request in the process, which waited out unrelated
+    // ones - up to the 10s curl timeout each - with outputThreadLock held.
+    // The destructor runs on the main loop, where cancelling is allowed.
+    CurlManager::INSTANCE.cancelRequests(curlOwner);
     for (auto a : outputs) {
         delete a;
     }
@@ -507,7 +557,7 @@ UDPOutput::~UDPOutput() {
 
 int UDPOutput::Init(Json::Value config) {
     enabled = config["enabled"].asInt();
-    bool hasArtNet = false;
+    hasArtNet = false;
     for (int i = 0; i < config["universes"].size(); i++) {
         Json::Value s = config["universes"][i];
         int type = s["type"].asInt();
@@ -634,6 +684,9 @@ int UDPOutput::Init(Json::Value config) {
             break;
         }
     }
+    // a reload re-reads the qdiscs, and warms the cache here on the main
+    // thread rather than in the first frame
+    clearFQCache();
     if (pacingMbps > 0 || anyPerDestPacing) {
         if (!anyEthernetHasFQ(outInterface)) {
             // fppinit only installs fq at boot; if the user enabled pacing
@@ -648,6 +701,7 @@ int UDPOutput::Init(Json::Value config) {
                     InstallShowTrafficQdisc(dev);
                 }
             }
+            clearFQCache();
         }
         if (anyEthernetHasFQ(outInterface)) {
             pacingEnabled = true;
@@ -688,7 +742,7 @@ int UDPOutput::Init(Json::Value config) {
                     std::string msg = "UDP Output set to send data to myself.  Disabling ";
                     msg += host.c_str();
                     LogWarn(VB_CHANNELOUT, msg.c_str());
-                    WarningHolder::AddWarning(6, msg);
+                    AddOutputConfigWarning(6, msg);
                     o->active = false;
                 }
             }
@@ -726,8 +780,17 @@ int UDPOutput::Init(Json::Value config) {
                 LogInfo(VB_CHANNELOUT, "UDP Interface %s now up\n", s.c_str());
                 PingControllers(false);
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
-                InitNetwork();
-                interfaceUp = true;
+                // the frame thread kept creating sockets while the address was
+                // missing, bound to (and multicasting out of) loopback or the
+                // old address; drop them so they are rebuilt on the new one
+                {
+                    std::unique_lock<std::mutex> lk(socketMutex);
+                    messages.clearSockets();
+                }
+                interfaceUp = InitNetwork();
+                if (interfaceUp && hasArtNet) {
+                    CreateArtNetSocket(localAddress.sin_addr.s_addr, true);
+                }
             }
         } else if (s == interface && i == NetworkMonitor::NetEventType::DEL_ADDR) {
             LogInfo(VB_CHANNELOUT, "UDP Interface %s now down\n", s.c_str());
@@ -737,10 +800,10 @@ int UDPOutput::Init(Json::Value config) {
     };
     networkCallbackId = NetworkMonitor::INSTANCE.registerCallback(f);
 
-    // We are going to initialize everything and Ping the outputs
-    // so we'll assume the interface is Up.
-    interfaceUp = true;
-    InitNetwork();
+    // An interface with no address yet (DHCP still waiting, cable out) is
+    // down: the NEW_ADDR event for it then rebuilds the sockets on the real
+    // address instead of being ignored.
+    interfaceUp = InitNetwork();
     for (auto o : outputs) {
         if (o->IsPingable() && o->Monitor() && o->active) {
             std::shared_ptr<PingHost>& host = pingHosts[o->ipAddress];
@@ -774,10 +837,21 @@ int UDPOutput::Init(Json::Value config) {
         CurlManager::INSTANCE.processCurls();
         ++sleepCount;
     }
-    if (hasArtNet) {
+    if (hasArtNet && interfaceUp) {
         // we have artnet packets so we'll need to get the special artnet socket created,
-        // but we want to make sure it's on the given interface
+        // but we want to make sure it's on the given interface.  Without an
+        // address yet this waits for NEW_ADDR; binding it now would pin the
+        // shared ArtNet socket to loopback for good, and if ArtNet sends
+        // first it creates its own socket on INADDR_ANY.
         CreateArtNetSocket(localAddress.sin_addr.s_addr, true);
+    }
+    {
+        // outputs registered by other plugins before this instance existed,
+        // or kept across a co-universes reload that replaced the previous one
+        std::lock_guard<std::mutex> lk(externalLock);
+        for (auto& [owner, create] : externalFactories) {
+            attachExternalOutput(owner, create());
+        }
     }
     return ChannelOutput::Init(config);
 }
@@ -787,6 +861,19 @@ int UDPOutput::Close() {
     messages.clearSockets();
     for (auto& h : pingHosts) {
         PingManager::INSTANCE.removePeriodicPing(h.first);
+        // the replacement output raises it again if the controller is still
+        // down; one removed from the config would otherwise keep its
+        // "unreachable" banner until fppd restarted
+        std::unique_lock<std::mutex> l(h.second->lock);
+        if (!h.second->valid) {
+            WarningHolder::RemoveWarning(27, h.second->warning);
+        }
+    }
+    if (dropWarningActive) {
+        // the replacement instance starts with dropWarningActive false and
+        // would never remove this one
+        WarningHolder::RemoveWarning(LOCAL_DROP_WARNING_ID, LOCAL_DROP_WARNING);
+        dropWarningActive = false;
     }
     return ChannelOutput::Close();
 }
@@ -796,6 +883,15 @@ void UDPOutput::PrepData(unsigned char* channelData) {
         messages.clearMessages();
         for (auto a : outputs) {
             if (a->valid && a->active) {
+                if (outputRunning && !a->started) {
+                    // StartingOutput() only starts the outputs that were
+                    // reachable then; one whose controller answers later (a
+                    // Twinkly powered on after the show started) is started
+                    // here, or it would get frames without ever having
+                    // authenticated
+                    a->started = true;
+                    a->StartingOutput();
+                }
                 a->PrepareData(channelData, messages);
             }
         }
@@ -820,7 +916,43 @@ void UDPOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& ad
 }
 
 void UDPOutput::addOutput(UDPOutputData* out) {
+    // the output thread walks the list in PrepData under socketMutex
+    std::lock_guard<std::mutex> lk(socketMutex);
     outputs.push_back(out);
+}
+
+void UDPOutput::attachExternalOutput(const void* owner, UDPOutputData* d) {
+    if (d == nullptr) {
+        return;
+    }
+    std::lock_guard<std::mutex> lk(socketMutex);
+    outputs.push_back(d);
+    externalOutputs[owner] = d;
+}
+
+void UDPOutput::RegisterExternalOutput(const void* owner, std::function<UDPOutputData*()> create) {
+    std::lock_guard<std::mutex> lk(externalLock);
+    externalFactories[owner] = create;
+    if (INSTANCE) {
+        INSTANCE->attachExternalOutput(owner, create());
+    }
+}
+
+void UDPOutput::UnregisterExternalOutput(const void* owner) {
+    std::lock_guard<std::mutex> lk(externalLock);
+    externalFactories.erase(owner);
+    if (INSTANCE) {
+        std::lock_guard<std::mutex> slk(INSTANCE->socketMutex);
+        auto it = INSTANCE->externalOutputs.find(owner);
+        if (it != INSTANCE->externalOutputs.end()) {
+            // Retired, not deleted: a queued or running send may still point
+            // into its packet buffers.  It stays in outputs, inactive, so
+            // PrepData skips it and the destructor frees it once the workers
+            // have exited.
+            it->second->active = false;
+            INSTANCE->externalOutputs.erase(it);
+        }
+    }
 }
 
 static void flushBuffers(int socket, int msgs, int total) {
@@ -958,6 +1090,13 @@ int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, 
                 // overflow across additional sockets, which would multiply the
                 // per-controller rate cap and defeat the pacing
                 std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            } else if (socketInfo->preventClose) {
+                // a shared socket pinned with ForceSocket (the ArtNet socket,
+                // bound to port 6454 with SO_BROADCAST): an extra socket made
+                // here would have neither, so broadcast ArtNet and ArtNet sync
+                // would fail on it for good, and it would never be closed.
+                // Wait for room on the one socket instead.
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
             } else if (socketKey != BROADCAST_MESSAGES_KEY) {
                 ++socketInfo->curSocket;
                 if (socketInfo->curSocket == socketInfo->sockets.size()) {
@@ -972,8 +1111,7 @@ int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, 
                 if (sendSocket == -1) {
                     // replacement must keep the multicast setup or the packets
                     // will egress the default route instead of the show network
-                    socketInfo->sockets[socketInfo->curSocket] = createSocket(0, false,
-                                                                              socketKey == MULTICAST_MESSAGES_KEY || socketKey == LATE_MULTICAST_MESSAGES_KEY);
+                    socketInfo->sockets[socketInfo->curSocket] = createSocket(0, false, isMulticastKey(socketKey));
                     sendSocket = socketInfo->sockets[socketInfo->curSocket];
                 }
             } else {
@@ -1024,9 +1162,7 @@ void UDPOutput::BackgroundOutputWork() {
     std::chrono::high_resolution_clock clock;
     while (runWorkThreads) {
         std::unique_lock<std::mutex> lock(workMutex);
-        if (workQueue.empty()) {
-            workSignal.wait(lock);
-        }
+        workSignal.wait(lock, [this]() { return !runWorkThreads || !workQueue.empty(); });
         if (!workQueue.empty()) {
             WorkItem i = std::move(workQueue.front());
             workQueue.pop_front();
@@ -1085,11 +1221,13 @@ int UDPOutput::SendData(unsigned char* channelData) {
                 if (si.second && si.first > ARTNET_MESSAGES_KEY && si.first < LATE_MESSAGES_START)
                     dests.push_back({ si.first, HexToIP(si.first), si.second });
             }
-            std::thread([this, dests = std::move(dests)]() {
+            // a copy: the list itself can grow under socketMutex while the
+            // stats thread runs; the entries live as long as this instance
+            std::thread([this, dests = std::move(dests), outs = outputs]() {
                 SetThreadName("FPP-UDPStats");
                 try {
                     CheckLocalDrops();
-                    CheckPacingBudget(dests, outputs);
+                    CheckPacingBudget(dests, outs);
                 } catch (...) {
                     // an escaped exception on a detached thread would call
                     // std::terminate and take down the show over a diagnostic
@@ -1290,8 +1428,6 @@ int UDPOutput::SendData(unsigned char* channelData) {
 
 // Not 57: that id belongs to the plugin-reinstall warning (Plugins.cpp), and
 // sharing it gave this banner that warning's title and help.
-static constexpr int LOCAL_DROP_WARNING_ID = 69;
-static const std::string LOCAL_DROP_WARNING = "The network interface is dropping outgoing packets before they reach the wire. The link may be down, saturated, or misconfigured. See logs for details.";
 
 #ifndef PLATFORM_OSX
 // Total packets dropped by the qdiscs on the ethernet interfaces.  This is
@@ -1498,7 +1634,8 @@ void UDPOutput::OnPingResult(const std::shared_ptr<PingHost>& host, int ms) {
                     SetHostValid(*h, true);
                 }
             }
-        });
+        },
+                                  curlOwner);
     } else if (host->failCount >= 3) {
         // three pings and a HEAD request failed, mark invalid
         if (host->valid) {
@@ -1546,7 +1683,7 @@ std::shared_ptr<SendSocketInfo> UDPOutput::findOrCreateSocket(unsigned int socke
     }
     if (info->sockets.empty()) {
         bool broadCast = socketKey == BROADCAST_MESSAGES_KEY;
-        bool multiCast = socketKey == MULTICAST_MESSAGES_KEY || socketKey == LATE_MULTICAST_MESSAGES_KEY;
+        bool multiCast = isMulticastKey(socketKey);
         for (int x = info->sockets.size(); x < sc; x++) {
             int s = createSocket(0, broadCast, multiCast);
             info->sockets.push_back(s);
@@ -1689,38 +1826,45 @@ int UDPOutput::createSocket(int port, bool broadCast, bool multiCast) {
 }
 
 bool UDPOutput::InitNetwork() {
-    memset(&localAddress, 0, sizeof(struct sockaddr_in));
-    localAddress.sin_family = AF_INET;
-    localAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
-
-    if (!messages.sendSockets.empty()) {
-        return true;
-    }
-
+    // Returns true when the output interface has a usable address.
     char E131LocalAddress[16];
     int rv = GetInterfaceAddress(outInterface.c_str(), E131LocalAddress, NULL, NULL);
     LogDebug(VB_CHANNELOUT, "UDPLocalAddress = %s\n", E131LocalAddress);
+    // GetInterfaceAddress() reports 127.0.0.1 for an interface without an
+    // address; the entire 127.* subnet is localhost
+    bool haveAddress = rv == 0 && strncmp(E131LocalAddress, "127.", 4) != 0;
+
+    // createSocket() binds broadcast/multicast sockets to this address and
+    // sends multicast out of it, and it runs on the frame thread under
+    // socketMutex, so the address changes under that lock too.  It is
+    // refreshed every time: resetting it to loopback and then returning early
+    // because sockets already existed is what left multicast going out of lo
+    // after an address change.
+    std::unique_lock<std::mutex> lk(socketMutex);
+    memset(&localAddress, 0, sizeof(struct sockaddr_in));
+    localAddress.sin_family = AF_INET;
     localAddress.sin_addr.s_addr = inet_addr(E131LocalAddress);
 
+    if (!messages.sendSockets.empty()) {
+        return haveAddress;
+    }
     if (needsBroadcast) {
         if (rv) {
             LogErr(VB_CHANNELOUT, "Invalid interface %s\n", outInterface.c_str());
-            WarningHolder::AddWarning(22, "Invalid interface for UDP broadcast/multicast: " + outInterface);
-            return -1;
+            AddOutputConfigWarning(22, "Invalid interface for UDP broadcast/multicast: " + outInterface);
+            return false;
         }
-
-        if (strlen(E131LocalAddress) > 3 && E131LocalAddress[0] == '1' && E131LocalAddress[1] == '2' && E131LocalAddress[2] == '7') {
-            // the entire 127.* subnet is localhost
-            return -1;
+        if (!haveAddress) {
+            return false;
         }
-
         int broadcastSocket = createSocket(0, true);
         messages.ForceSocket(BROADCAST_MESSAGES_KEY, broadcastSocket);
     }
-    return true;
+    return haveAddress;
 }
 
 void UDPOutput::StartingOutput() {
+    outputRunning = true;
     for (auto a : outputs) {
         if (a->valid && a->active && !a->started) {
             a->started = true;
@@ -1732,6 +1876,7 @@ void UDPOutput::StoppingOutput() {
     // Every output that was started is stopped, whether or not it is still
     // valid: one whose ping failed mid-show would otherwise keep whatever
     // StartingOutput() set up (Twinkly's token timer) past its own deletion.
+    outputRunning = false;
     for (auto a : outputs) {
         if (a->started) {
             a->started = false;

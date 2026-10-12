@@ -170,6 +170,7 @@ int SPInRF24L01Output::Init(Json::Value config) {
     if (radio->getDataRate() != RF24_250KBPS) {
         LogErr(VB_CHANNELOUT, "Failed to detect nRF Radio by setting speed to 250k!\n");
         WarningHolder::AddWarning(40, "nRF24 radio output: radio not detected (check wiring/SPI)");
+        delete radio;
         delete data;
         data = nullptr;
         return 0;

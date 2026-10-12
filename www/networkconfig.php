@@ -780,11 +780,20 @@
                 if (iface.substr(0, 2) == "wl") {
                     data.SSID = $('#eth_ssid_' + safeName).val();
                     data.PSK = $('#eth_psk_' + safeName).val();
+                    // The API never returns a saved key.  A blank field on the
+                    // network it was saved for means "keep it", so leave it out
+                    // of the request; blank on a different network clears it.
+                    if (data.PSK === '' && $('#eth_psk_' + safeName).attr('data-saved-ssid') === data.SSID) {
+                        delete data.PSK;
+                    }
                     data.KEY = $('#eth_key_' + safeName).val();
                     data.HIDDEN = $('#eth_hidden_' + safeName).is(':checked');
                     data.WPA3 = $('#eth_wpa3_' + safeName).is(':checked');
                     data.BACKUPSSID = $('#backupeth_ssid_' + safeName).val();
                     data.BACKUPPSK = $('#backupeth_psk_' + safeName).val();
+                    if (data.BACKUPPSK === '' && $('#backupeth_psk_' + safeName).attr('data-saved-ssid') === data.BACKUPSSID) {
+                        delete data.BACKUPPSK;
+                    }
                     data.BACKUPHIDDEN = $('#backupeth_hidden_' + safeName).is(':checked');
                     data.BACKUPWPA3 = $('#backupeth_wpa3_' + safeName).is(':checked');
                 }
@@ -815,11 +824,11 @@
                         currentData.DHCPPOOLSIZE !== data.DHCPPOOLSIZE ||
                         currentData.IPFORWARDING !== data.IPFORWARDING ||
                         currentData.SSID !== data.SSID ||
-                        currentData.PSK !== data.PSK ||
+                        (data.PSK !== undefined && (data.PSK !== '' || currentData.PSKSet)) ||
                         currentData.HIDDEN !== data.HIDDEN ||
                         currentData.WPA3 !== data.WPA3 ||
                         currentData.BACKUPSSID !== data.BACKUPSSID ||
-                        currentData.BACKUPPSK !== data.BACKUPPSK ||
+                        (data.BACKUPPSK !== undefined && (data.BACKUPPSK !== '' || currentData.BACKUPPSKSet)) ||
                         currentData.BACKUPHIDDEN !== data.BACKUPHIDDEN ||
                         currentData.BACKUPWPA3 !== data.BACKUPWPA3) {
                         hasChanged = true;
@@ -1248,7 +1257,7 @@
                 var ssidElement = contentDiv.find('#eth_ssid_' + safeName);
                 ssidElement.val(data.SSID);
                 // Show the appropriate password field based on the network type
-                if (data.PSK) {
+                if (data.PSKSet) {
                     contentDiv.find('#pskRow_' + safeName).show();
                     contentDiv.find('#keyRow_' + safeName).hide();
                 } else if (data.KEY) {
@@ -1256,8 +1265,13 @@
                     contentDiv.find('#pskRow_' + safeName).hide();
                 }
             }
-            if (data.PSK) {
-                contentDiv.find('#eth_psk_' + safeName).val(data.PSK);
+            // Saved keys are not sent to the browser (see the save handler).
+            var pskField = contentDiv.find('#eth_psk_' + safeName);
+            pskField.val('');
+            if (data.PSKSet) {
+                pskField.attr('data-saved-ssid', data.SSID || '').attr('placeholder', 'Saved - leave blank to keep');
+            } else {
+                pskField.removeAttr('data-saved-ssid').removeAttr('placeholder');
             }
             if (data.KEY) {
                 contentDiv.find('#eth_key_' + safeName).val(data.KEY);
@@ -1275,8 +1289,12 @@
                 // A saved backup SSID means the PSK field is in use - reveal it.
                 contentDiv.find('#backuppskRow_' + safeName).show();
             }
-            if (data.BACKUPPSK) {
-                contentDiv.find('#backupeth_psk_' + safeName).val(data.BACKUPPSK);
+            var bpskField = contentDiv.find('#backupeth_psk_' + safeName);
+            bpskField.val('');
+            if (data.BACKUPPSKSet) {
+                bpskField.attr('data-saved-ssid', data.BACKUPSSID || '').attr('placeholder', 'Saved - leave blank to keep');
+            } else {
+                bpskField.removeAttr('data-saved-ssid').removeAttr('placeholder');
             }
             if (data.BACKUPHIDDEN) {
                 contentDiv.find('#backupeth_hidden_' + safeName).prop('checked', data.BACKUPHIDDEN == "1");
@@ -1559,10 +1577,11 @@
                 timeout: 30000
             }).done(function (data) {
                 var html = '';
+                var rows = [];
                 var uniqueNetworks = {};
 
                 if (data && data.status === 'Blocked') {
-                    html = '<tr><td colspan="3" class="p-2 text-center text-muted">' + data.message + '</td></tr>';
+                    html = '<tr><td colspan="3" class="p-2 text-center text-muted">' + EscapeHtml(data.message) + '</td></tr>';
                     wifiTableBody.html(html);
                     return;
                 }
@@ -1572,7 +1591,7 @@
                 var noticeRow = '';
                 if (data && data.status === 'Cached' && data.message) {
                     noticeRow = '<tr><td colspan="3" class="p-2 text-center text-muted"><i class="fas fa-history"></i> ' +
-                        data.message + '</td></tr>';
+                        EscapeHtml(data.message) + '</td></tr>';
                 }
 
                 if (data && data.networks && data.networks.length > 0) {
@@ -1650,30 +1669,44 @@
 
                         // Check if this is the currently configured network
                         var isSelected = (n.SSID === currentSSID);
-                        var rowClass = isSelected ? 'table-primary' : '';
-                        var selectedIcon = isSelected ? '<i class="fas fa-check text-success" title="Currently configured"></i> ' : '';
 
-                        html += '<tr class="wifi-network-row ' + rowClass + '" onclick="selectWifiNetworkForInterface(\'' + n.SSID.replace(/'/g, "\\'") + '\', \'' + safeName + '\', \'' + security + '\')" style="cursor: pointer;">' +
-                            '<td class="p-2">' + selectedIcon + n.SSID + '</td>' +
-                            '<td class="wifi-signal p-2 text-center fw-bold text-nowrap ' + signalClass + '">' + signalBars + ' ' + signalStrength + 'dBm</td>' +
-                            '<td class="p-2">' + securityBadge + '</td>' +
-                            '</tr>';
+                        // Built as DOM, not markup: an SSID is whatever any
+                        // nearby access point chooses to broadcast, so it is
+                        // only ever set as text, and the click handler gets it
+                        // from this closure rather than from an inline attribute.
+                        var row = $('<tr class="wifi-network-row" style="cursor: pointer;"></tr>');
+                        if (isSelected) {
+                            row.addClass('table-primary');
+                        }
+                        var nameCell = $('<td class="p-2"></td>');
+                        if (isSelected) {
+                            nameCell.append('<i class="fas fa-check text-success" title="Currently configured"></i> ');
+                        }
+                        nameCell.append(document.createTextNode(n.SSID));
+                        row.append(nameCell)
+                            .append($('<td class="wifi-signal p-2 text-center fw-bold text-nowrap"></td>').addClass(signalClass)
+                                .text(signalBars + ' ' + signalStrength + 'dBm'))
+                            .append($('<td class="p-2"></td>').html(securityBadge));
+                        row.on('click', function () {
+                            selectWifiNetworkForInterface(n.SSID, safeName, security, this);
+                        });
+                        rows.push(row);
                     });
                 } else {
                     html = '<tr><td colspan="3">No networks found</td></tr>';
                 }
-                wifiTableBody.html(noticeRow + html);
+                wifiTableBody.empty().append(noticeRow).append(html).append(rows);
             }).fail(function () {
                 wifiTableBody.html('<tr><td colspan="3" class="p-2 text-center text-muted">Scan failed</td></tr>');
             });
         }
 
-        function selectWifiNetworkForInterface(ssid, safeName, security) {
+        function selectWifiNetworkForInterface(ssid, safeName, security, row) {
             // Remove previous selection highlighting for this interface
             $('#wifiNetworksList_' + safeName + ' .wifi-network-row').removeClass('table-primary');
 
             // Highlight the selected row
-            event.target.closest('tr').classList.add('table-primary');
+            $(row).addClass('table-primary');
 
             // Set the SSID value for this interface
             $('#eth_ssid_' + safeName).val(ssid);

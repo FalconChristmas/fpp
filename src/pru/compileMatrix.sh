@@ -2,6 +2,10 @@
 
 echo $0 $@
 cd /tmp
+
+# a failed build must not leave the previous configuration's program behind
+# for the driver to load
+rm -f /tmp/FalconMatrix.obj /tmp/FalconMatrix.out /tmp/FalconMatrixPRUCpy.obj /tmp/FalconMatrixPRUCpy.out
 /bin/rm -f /opt/fpp/lib/FalconMatrix.*
 /bin/rm -f /opt/fpp/lib/FalconMatrixPRUCpy.*
 

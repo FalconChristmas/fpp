@@ -309,11 +309,13 @@ int CreateArtNetSocket(uint32_t sourceAddr, bool allowPortChange) {
                 if (bind(artnetSockT, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
                     LogWarn(VB_E131BRIDGE, "ArtNet bind failed even after port change: %s", FPPstrerror(errno));
                     WarningHolder::AddWarning(54, "Socket bind failed for ArtNet");
+                    close(artnetSockT);
                     return -1;
                 }
             } else {
                 LogWarn(VB_E131BRIDGE, "ArtNet bind failed: %s", FPPstrerror(errno));
                 WarningHolder::AddWarning(54, "Socket bind failed for ArtNet");
+                close(artnetSockT);
                 return -1;
             }
         }

@@ -180,6 +180,25 @@ void Player::Init() {
         };
     Events::AddCallback("/set/playlist/#", playlist_callback);
 
+    if (Events::HasEventHandlers()) {
+        // Deprecated topics.  Registered here, once, rather than per Playlist
+        // instance: a per-instance callback captured that instance, outlived
+        // it, and was re-added (growing the handler's topic list) by every
+        // inserted playlist.  Same snapshot dispatch as /set/playlist/#.
+        std::function<void(const std::string&, const std::string&)> legacy_callback =
+            [](const std::string& t, const std::string& payload) {
+                LogDebug(VB_CONTROL, "Received deprecated MQTT Topic: '%s' \n", t.c_str());
+                std::string topic = t;
+                topic.replace(0, 10, ""); // strip "/playlist/"
+                std::shared_ptr<Playlist> pl = Player::INSTANCE.PlaylistSnapshot();
+                if (pl)
+                    pl->MQTTHandler(topic, payload);
+            };
+        Events::AddCallback("/playlist/name/set", legacy_callback);
+        Events::AddCallback("/playlist/repeat/set", legacy_callback);
+        Events::AddCallback("/playlist/sectionPosition/set", legacy_callback);
+    }
+
     // The resident playlist.  Created here rather than in the constructor
     // because Playlist's own constructor reaches for Events, PluginManager and
     // CommandManager, which are not yet built during static initialization.
@@ -458,7 +477,11 @@ void Player::Resume() {
 }
 
 int Player::Cleanup(void) {
-    return PlaylistSnapshot()->Cleanup();
+    // The main loop calls this after an unlocked "now idle" read.  A start from
+    // another thread can land between that read and here, so only clean up a
+    // playlist that is still idle under its lock; SetIdle() has already run
+    // Cleanup() on every transition to idle.
+    return PlaylistSnapshot()->CleanupIfIdle();
 }
 
 void Player::GetCurrentStatus(Json::Value& result) {

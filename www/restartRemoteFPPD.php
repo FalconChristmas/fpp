@@ -11,17 +11,9 @@ if (!isset($_GET['ip'])) {
 }
 $ip = $_GET['ip'];
 
-// Validate IP/hostname (prevents SSRF, matches streamRemote.php / changeRemoteBranch.php).
-// Intentionally syntax-only, not resolvability: targets are LAN peers by design
-// (including mDNS names), so private addresses must keep working.
-if (!is_string($ip)) {
-    echo "ERROR: Invalid IP given\n";
-    exit(0);
-}
-$validIp = filter_var($ip, FILTER_VALIDATE_IP);
-$validHost = preg_match('/^(?=.{1,253}$)([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$/', $ip);
-if (!$validIp && !$validHost) {
-    echo "ERROR: Invalid IP '" . htmlspecialchars($ip, ENT_QUOTES, 'UTF-8') . "'\n";
+// Any LAN/VPN peer or (mDNS) name, never this device (see IsRemotePeerHost()).
+if (!IsRemotePeerHost($ip)) {
+    echo "ERROR: Invalid IP '" . htmlspecialchars((string) $ip, ENT_QUOTES, 'UTF-8') . "'\n";
     exit(0);
 }
 
@@ -30,7 +22,7 @@ if (isset($_GET['mode'])) {
     $mode = $_GET['mode'];
     $curl = curl_init('http://' . $ip . '/api/settings/fppMode');
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
-    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false); // a redirect could point back at loopback
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 300);
     curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "PUT");
@@ -45,7 +37,7 @@ echo "Restarting FPPD @ " . htmlspecialchars($ip) . "\n";
 // FPP 5.0+
 $curl = curl_init('http://' . $ip . '/api/system/fppd/restart?quick=true');
 curl_setopt($curl, CURLOPT_FAILONERROR, true);
-curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false); // a redirect could point back at loopback
 curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
 $request_content = curl_exec($curl);
@@ -62,7 +54,7 @@ while ((time() < $endTime) && ($request_content === false)) {
     echo '.';
     $curl = curl_init('http://' . $ip . '/api/fppd/status');
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
-    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false); // a redirect could point back at loopback
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
     $request_content = curl_exec($curl);

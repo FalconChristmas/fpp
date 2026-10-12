@@ -33,6 +33,12 @@ SerialChannelOutput::SerialChannelOutput() :
 }
 
 SerialChannelOutput::~SerialChannelOutput() {
+    // an output whose Init() failed after the port opened is deleted without
+    // Close(); the fd would leak and keep its TIOCEXCL lock, so the next
+    // attempt to open the port fails as "in use"
+    if (m_fd >= 0) {
+        closeSerialPort();
+    }
     if (!pinName.empty()) {
         PinCapabilities::getPinByName(pinName).releasePin();
     }

@@ -193,9 +193,12 @@ private:
     // in FIFO order by a main-loop timer with no sequence locks held.
     std::mutex m_pendingPresetsLock;
     std::list<std::pair<std::string, std::map<std::string, std::string>>> m_pendingPresets;
-    void queuePreset(const std::string& preset, std::map<std::string, std::string>&& keywords);
 
 public:
+    // Also used by outputs that fire presets from the output thread (the
+    // control channel output), for the same reason.
+    void queuePreset(const std::string& preset, std::map<std::string, std::string>&& keywords);
+
     void ReadFramesLoop();
 };
 

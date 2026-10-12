@@ -57,6 +57,10 @@ ModelPixelStringsOutput::ModelPixelStringsOutput(unsigned int startChannel, unsi
  */
 ModelPixelStringsOutput::~ModelPixelStringsOutput() {
     LogDebug(VB_CHANNELOUT, "ModelPixelStringsOutput::~ModelPixelStringsOutput()\n");
+    // a failed Init() is deleted without Close()
+    if (!m_modelListenerName.empty()) {
+        PixelOverlayManager::INSTANCE.removeModelListener(modelName, m_modelListenerName);
+    }
 
     for (int s = 0; s < strings.size(); s++)
         delete strings[s];
@@ -90,6 +94,21 @@ int ModelPixelStringsOutput::Init(Json::Value config) {
         WarningHolder::AddWarning(35, "ModelPixelStringsOutput: Invalid Pixel Overlay Model: " + modelName);
         return 0;
     }
+    m_modelWidth = model->getWidth();
+    m_modelHeight = model->getHeight();
+    m_modelBpp = model->getBytesPerPixel();
+    m_modelListenerName = "ModelPixelStrings" + std::to_string((uintptr_t)this);
+    PixelOverlayManager::INSTANCE.addModelListener(modelName, m_modelListenerName,
+        [this](PixelOverlayModel* m) {
+            std::lock_guard<std::mutex> lock(m_modelLock);
+            // only follow a replacement the buffers still fit
+            if (m && (m->getWidth() != m_modelWidth || m->getHeight() != m_modelHeight ||
+                      m->getBytesPerPixel() != m_modelBpp)) {
+                LogWarn(VB_CHANNELOUT, "ModelPixelStrings: model '%s' changed shape; detaching\n", modelName.c_str());
+                m = nullptr;
+            }
+            model = m;
+        });
 
     model->setState(PixelOverlayState(PixelOverlayState::PixelState::Enabled));
 
@@ -102,7 +121,21 @@ int ModelPixelStringsOutput::Init(Json::Value config) {
             return 0;
         }
 
-        if ((newString->m_outputBytes / 3) > model->getWidth()) {
+        // PrepData writes each string as a row of 8 bit RGB pixels, three
+        // output bytes per model pixel.  Anything else (RGBW or single colour
+        // nodes, 16 bit protocols, smart receiver markers) would walk the
+        // string's maps out of step and past their ends.
+        bool rgbOnly = newString->m_bytesPerChannel == 1 && (newString->m_outputBytes % 3) == 0;
+        for (auto& vs : newString->m_virtualStrings) {
+            if (vs.pixelCount && vs.channelsPerNode() != 3) {
+                rgbOnly = false;
+            }
+        }
+        if (!rgbOnly) {
+            LogErr(VB_CHANNELOUT, "ERROR, ModelPixelStrings only supports 8 bit RGB strings\n");
+            WarningHolder::AddWarning(35, "ModelPixelStringsOutput: model " + modelName + " has a string that is not 8 bit RGB");
+            delete newString;
+        } else if ((newString->m_outputBytes / 3) > model->getWidth()) {
             LogErr(VB_CHANNELOUT, "ERROR, string length of %d is too long for model width of %d\n",
                    (newString->m_outputBytes / 3), model->getWidth());
             delete newString;
@@ -142,6 +175,10 @@ int ModelPixelStringsOutput::Init(Json::Value config) {
  */
 int ModelPixelStringsOutput::Close(void) {
     LogDebug(VB_CHANNELOUT, "ModelPixelStringsOutput::Close()\n");
+    if (!m_modelListenerName.empty()) {
+        PixelOverlayManager::INSTANCE.removeModelListener(modelName, m_modelListenerName);
+        m_modelListenerName.clear();
+    }
 
     return ThreadedChannelOutput::Close();
 }
@@ -173,9 +210,13 @@ void ModelPixelStringsOutput::GetRequiredChannelRanges(const std::function<void(
 void ModelPixelStringsOutput::PrepData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "ModelPixelStringsOutput::PrepData(%p)\n", channelData);
 
+    std::lock_guard<std::mutex> modelLock(m_modelLock);
+    if (!model) {
+        return;
+    }
     unsigned char* d = prepBuffer;
-    int bpp = model->getBytesPerPixel();
-    int stride = model->getWidth() * bpp;
+    int bpp = m_modelBpp;
+    int stride = m_modelWidth * bpp;
 
     PixelString* ps = NULL;
     int inCh = 0;
@@ -204,8 +245,12 @@ void ModelPixelStringsOutput::PrepData(unsigned char* channelData) {
 }
 
 int ModelPixelStringsOutput::RawSendData(unsigned char* channelData) {
+    // model before buffer, the same order as PrepData
+    std::lock_guard<std::mutex> modelLock(m_modelLock);
     std::lock_guard<std::mutex> lock(bufferLock);
-    model->setData(buffer);
+    if (model) {
+        model->setData(buffer);
+    }
 
     return m_channelCount;
 }

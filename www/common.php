@@ -348,6 +348,156 @@ function IsValidSettingName($name)
 }
 
 /**
+ * JSON text from a file, re-encoded for a <script> block.  Valid JSON is
+ * also valid JS, but a string value containing "</script>" still ends the
+ * block; the HEX flags encode <, >, &, ' and " inside strings.  Returns
+ * "null" for text that is not JSON.
+ */
+function JsonForScript($jsonText)
+{
+    $v = json_decode((string) $jsonText);
+    if ($v === null && json_last_error() !== JSON_ERROR_NONE) {
+        return 'null';
+    }
+    return json_encode($v, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+}
+
+/**
+ * Whether a caller-supplied host may be contacted as another FPP.
+ *
+ * MultiSync peers are any LAN or VPN address or (mDNS) name, so this does not
+ * restrict to private ranges, nor refuse link-local (two players cabled
+ * together without DHCP talk over it).  It refuses what can only be this
+ * device: loopback, the unspecified address and "localhost" -- through those a
+ * request would reach fppd's internal port or localonly/ pages that trust the
+ * local address.  Callers must also not follow redirects, or a peer could
+ * send the request back to loopback.
+ */
+function IsRemotePeerHost($host)
+{
+    if (!is_string($host) || $host === '') {
+        return false;
+    }
+    if (filter_var($host, FILTER_VALIDATE_IP)) {
+        $packed = @inet_pton($host);
+        if ($packed === false) {
+            return false;
+        }
+        // IPv4-mapped IPv6 (::ffff:a.b.c.d) is judged as the IPv4 address.
+        if (strlen($packed) == 16 && substr($packed, 0, 12) === str_repeat("\0", 10) . "\xff\xff") {
+            $packed = substr($packed, 12);
+        }
+        if (strlen($packed) == 4) {
+            $b = ord($packed[0]);
+            return !($b == 127 || $b == 0);
+        }
+        return !($packed === str_repeat("\0", 16) || $packed === str_repeat("\0", 15) . "\x01");
+    }
+    return strcasecmp($host, 'localhost') != 0 && !preg_match('/\.localhost$/i', $host) &&
+        preg_match('/^(?=.{1,253}$)([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$/', $host) === 1;
+}
+
+/**
+ * Whether a string can be a plugin's directory name.
+ *
+ * A plugin name becomes a path component under the plugins directory, so "."
+ * (the plugins directory itself, where a stray file would then load as a
+ * plugin) and ".." must never pass, nor any dot-prefixed name.  Only
+ * [A-Za-z0-9_.-], like the installer (scripts/install_plugin) accepts.
+ */
+function IsValidPluginName($name)
+{
+    return is_string($name) && preg_match('/^[A-Za-z0-9_][A-Za-z0-9_.-]*$/', $name) === 1 &&
+        strpos($name, '..') === false;
+}
+
+/**
+ * Whether a value may be stored for a setting.
+ *
+ * Every setting is one `key = "value"` line, so a line break would smuggle in
+ * extra settings.  Beyond that, the settings listed here end up in root shell
+ * commands or in config files that are sourced as shell (ApplySetting(),
+ * ApplyEmailConfig(), fppinit at boot), so they are held to the shape their
+ * consumers expect.  Writing an invalid value is refused rather than repaired:
+ * the value would otherwise sit in the settings file, be carried into backups
+ * and be applied again at the next restore or boot.
+ *
+ * The consumers still escape what they use; this is the single gate that keeps
+ * a hostile value from being stored in the first place, whichever path wrote it
+ * (the settings API, a backup restore, the setup wizard).
+ */
+function IsValidSettingValue($name, $value)
+{
+    $value = (string) $value;
+    if (strpbrk($value, "\r\n\0") !== false) {
+        return false;
+    }
+
+    switch ($name) {
+        case 'HostName':
+            return preg_match('/^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$/', $value) === 1;
+        case 'emailserver':
+            return $value === '' || preg_match('/^[A-Za-z0-9.-]+$/', $value) === 1;
+        case 'emailtoemail':
+            return IsValidEmailList($value);
+        case 'emailfromuser':
+            return IsValidEmailFromUser($value);
+        case 'ForceHDMIResolution':
+        case 'ForceHDMIResolutionPort2':
+            return preg_match('/^[A-Za-z0-9@]+$/', $value) === 1;
+        case 'InstalledCape':
+            return preg_match('/^[A-Za-z0-9][A-Za-z0-9._+-]*$/', $value) === 1 || $value === '--None--';
+        case 'screensaverTimeout':
+            return $value === '' || ctype_digit($value);
+        case 'TimeZone':
+            return $value === '' || IsValidTimeZone($value);
+        // Used unquoted in root commands by fppinit at boot.
+        case 'WifiRegulatoryDomain':
+            return preg_match('/^[A-Za-z0-9]{0,3}$/', $value) === 1;
+        case 'TetherInterface':
+            return preg_match('/^[A-Za-z0-9._-]*$/', $value) === 1;
+        // Spliced into a JSON string in Chromium's managed policy by fppinit.
+        case 'KioskUrl':
+            return strpbrk($value, "\"\\") === false && preg_match('/[\x00-\x1f]/', $value) === 0;
+    }
+    return true;
+}
+
+/**
+ * Empty, or a comma-separated list of plain email addresses.
+ *
+ * These values are written into /etc/aliases and exim's email-addresses file,
+ * where other forms (":include:", "|command", a bare path) mean something else.
+ */
+function IsValidEmailList($value)
+{
+    if (trim($value) === '') {
+        return true;
+    }
+    foreach (explode(',', $value) as $address) {
+        if (filter_var(trim($address), FILTER_VALIDATE_EMAIL) === false) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * The sender address for exim's email-addresses rewrite table.  It falls back
+ * to the SMTP login when unset, which need not be an email address, so only
+ * refuse what changes the meaning of a table entry.
+ */
+function IsValidEmailFromUser($value)
+{
+    return preg_match('/^[^\s,:|"\/]*$/', $value) === 1;
+}
+
+function IsValidTimeZone($tz)
+{
+    return in_array($tz, timezone_identifiers_list(DateTimeZone::ALL_WITH_BC), true);
+}
+
+/**
  * Write a single setting to the settings file, or to a plugin's config file.
  *
  * Returns true once the value is on disk (including when it was already the
@@ -363,6 +513,16 @@ function WriteSettingToFile($settingName, $new_setting_value, $plugin = "")
 
     if ($plugin != "") {
         $filename = $settings['configDirectory'] . "/plugin." . $plugin;
+    }
+
+    // A trailing line break (e.g. from command output) is dropped by the reader
+    // anyway; anything else invalid is refused (see IsValidSettingValue()).
+    if (is_string($new_setting_value)) {
+        $new_setting_value = rtrim($new_setting_value, "\r\n");
+    }
+    if (!IsValidSettingValue($plugin == "" ? $settingName : "", $new_setting_value)) {
+        error_log("WriteSettingToFile: refusing invalid value for '$settingName'.");
+        return false;
     }
 
     $fd = @fopen($filename, "c+");
@@ -3342,6 +3502,22 @@ function ApplyEmailConfig()
         return;
     }
 
+    // update-exim4.conf runs as root and sources update-exim4.conf.conf as
+    // shell, and the address files below are exim alias/rewrite tables, so
+    // nothing outside the expected shape may reach them.  Values are also
+    // checked when stored (IsValidSettingValue()); this covers anything that
+    // was stored before that check existed.
+    $hostname = preg_replace('/[^A-Za-z0-9-]/', '', $hostname);
+    if (!preg_match('/^[A-Za-z0-9.-]+$/', $emailserver) ||
+        !IsValidEmailList($emailtoemail) || !IsValidEmailFromUser($emailfromuser) ||
+        strpbrk($emailuser . $emailpass, "\r\n\0") !== false) {
+        error_log("ApplyEmailConfig: email settings are not valid; mail configuration NOT updated.");
+        return;
+    }
+    $emailport = (int) $emailport;
+    // chfn rejects ':' ',' '=' and control characters in a GECOS name.
+    $emailfromtext = preg_replace('/[\x00-\x1f\x7f:,=]/', '', $emailfromtext);
+
     // Debian Trixie split-config: transport 30_exim4-config_remote_smtp_smarthost
     // honors .ifdef REMOTE_SMTP_SMARTHOST_PROTOCOL but ::465 no longer auto-defines it.
     // FPP must set protocol = smtps for implicit-TLS on 465, and ensure 587/25 use plain smtp.
@@ -3416,7 +3592,7 @@ function ApplyEmailConfig()
     exec("sudo update-exim4.conf");
 
     # set the fpp user GECOS field
-    $cmd = "sudo chfn -f \"" . $emailfromtext . "\" fpp";
+    $cmd = "sudo chfn -f " . escapeshellarg($emailfromtext) . " fpp";
     exec($cmd);
 
     if (file_exists("/etc/fpp/container")) {
@@ -3707,6 +3883,24 @@ function network_interface_is_hardware($interface)
     return is_link($dev) || file_exists($dev);
 }
 
+/**
+ * A saved interface config as the API reports it: WiFi keys replaced by
+ * PSKSet/BACKUPPSKSet flags.  /api answers any origin and system/info is read
+ * by other players, so a key returned here would be readable well beyond this
+ * device.  The network page leaves a saved key out of its save request to keep
+ * it (network_set_interface() fills it back in).
+ */
+function network_redact_interface_config($cfg)
+{
+    foreach (array('PSK', 'BACKUPPSK') as $k) {
+        if (array_key_exists($k, $cfg)) {
+            $cfg[$k . 'Set'] = ($cfg[$k] !== '');
+            unset($cfg[$k]);
+        }
+    }
+    return $cfg;
+}
+
 function network_list_interfaces_obj()
 {
     global $settings;
@@ -3788,7 +3982,7 @@ function network_list_interfaces_obj()
             $cfgFile = $settings['configDirectory'] . "/interface." . $ifname;
             if (file_exists($cfgFile)) {
                 $result = parse_ini_file($cfgFile);
-                $rec["config"] = $result;
+                $rec["config"] = network_redact_interface_config($result);
             }
         }
     }
@@ -3852,6 +4046,22 @@ function sanitizeFilename($file)
     $file = preg_replace("([\.]{2,})", '.', $file);
 
     return $file;
+}
+
+// Reduce a filename to a value that is safe inside a Content-Disposition
+// response header. Strips directory components, CR/LF (response splitting)
+// and double quotes (quoted-string breakout); single quotes are legal in
+// filenames and harmless inside a double-quoted header value, so they are
+// kept and names keep round-tripping. Only the suggested save-as name is
+// affected, never the file on disk.
+function SanitizeDownloadFilename($name)
+{
+    $name = basename(str_replace("\\", "/", (string) $name));
+    $name = str_replace(array("\r", "\n", '"'), '', $name);
+    if ($name === '' || $name === '.' || $name === '..') {
+        $name = 'download';
+    }
+    return $name;
 }
 
 function is_valid_domain_name($domain_name)

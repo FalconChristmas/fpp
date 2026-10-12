@@ -204,6 +204,10 @@ function GetFiles (dir, extraParams, seq) {
 						// only fetch nothing and render a broken image.
 						var thumb = '';
 						if (parseInt(f.sizeBytes) > 0) {
+							// The name is uploaded by whoever named the file
+							// (quotes are legal), so it goes into the URL encoded
+							// and reaches ViewImage() through an escaped data-
+							// attribute, never spliced into markup or script.
 							thumb =
 								"<img style='display: block; max-width: " +
 								thumbSize +
@@ -212,10 +216,10 @@ function GetFiles (dir, extraParams, seq) {
 								"px; width: auto; height: auto;' src='api/file/" +
 								dir +
 								'/' +
-								f.name +
-								"' onClick=\"ViewImage('" +
-								f.name +
-								"');\" />";
+								FileURLPath(f.name) +
+								"' data-name='" +
+								EscapeHtmlAttr(f.name) +
+								"' onClick='ViewImage(this.dataset.name);' />";
 						}
 						tableRow =
 							"<tr class='fileDetails' id='fileDetail_" +

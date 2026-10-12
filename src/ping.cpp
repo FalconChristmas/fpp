@@ -238,6 +238,12 @@ public:
         }
     }
     void removePeriodicPing(const std::string& target) {
+        // Waits out the ping thread's current pass: it holds dispatchLock
+        // while it calls callbacks and while it still holds the targets it
+        // collected, so once this returns the removed target's callback is
+        // neither running nor about to run.  The caller (an output being
+        // deleted) frees what that callback captured right after this.
+        std::lock_guard<std::recursive_mutex> dispatch(dispatchLock);
         std::unique_lock<std::mutex> lock(targetLock);
         for (auto t : periodics) {
             if (t->hostname == target && t->period) {
@@ -266,6 +272,9 @@ public:
             std::list<PingTarget*> toRemove;
 
             int retval = poll(rfds, 1, 250);
+            // held for the rest of the pass, from the callbacks through the
+            // last use of toCall/toRemove; see removePeriodicPing()
+            std::lock_guard<std::recursive_mutex> dispatch(dispatchLock);
             long long curTime = GetTimeMS();
             if (retval == -1) {
                 printf("select() -1\n");
@@ -381,6 +390,9 @@ public:
     std::list<PingTarget*> targets;
     std::list<PingTarget*> periodics;
     std::mutex targetLock;
+    // taken before targetLock; recursive so a callback could remove a ping
+    // on the ping thread without deadlocking (none does today)
+    std::recursive_mutex dispatchLock;
 };
 
 PingManager PingManager::INSTANCE;

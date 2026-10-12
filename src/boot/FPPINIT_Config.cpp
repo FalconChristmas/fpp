@@ -134,6 +134,11 @@ void checkHostName() {
         if (hn == "") {
             hn = "fpp";
         }
+        // Goes to a root shell below; the UI only stores [A-Za-z0-9-] names.
+        if (!isShellSafeWord(hn)) {
+            printf("Ignoring invalid HostName setting\n");
+            return;
+        }
         char hostname[256];
         int result = gethostname(hostname, 256);
         if (result == 0 && hn != hostname) {
@@ -755,7 +760,9 @@ void setupTimezone() {
             }
         }
         TrimWhiteSpace(c);
-        if (c != s) {
+        if (!isShellSafeWord(s)) {
+            printf("Ignoring invalid TimeZone setting\n");
+        } else if (c != s) {
             printf("Resetting timezone from %s to %s\n", c.c_str(), s.c_str());
             exec("/usr/bin/timedatectl set-timezone " + s);
             execbg("/usr/sbin/dpkg-reconfigure -f noninteractive tzdata &");

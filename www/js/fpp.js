@@ -6911,8 +6911,9 @@ function parseStatus (jsonStatus) {
 		}
 
 		$('#txtRemoteStatus').html(status);
-		$('#txtRemoteSeqFilename').html(jsonStatus.sequence_filename);
-		$('#txtRemoteMediaFilename').html(jsonStatus.media_filename);
+		// In remote mode these names come from the player's MultiSync packets.
+		$('#txtRemoteSeqFilename').text(jsonStatus.sequence_filename);
+		$('#txtRemoteMediaFilename').text(jsonStatus.media_filename);
 
 		if (firstStatusLoad || $('#syncStatsLiveUpdate').is(':checked'))
 			GetMultiSyncStats();
@@ -6960,7 +6961,7 @@ function parseStatus (jsonStatus) {
 			}
 			if (jsonStatus.current_song != '') {
 				playerStatusText +=
-					" - <strong>'" + jsonStatus.current_song + "'</strong>";
+					" - <strong>'" + EscapeHtml(jsonStatus.current_song) + "'</strong>";
 				if (jsonStatus.current_sequence != '') {
 					playerStatusText += '/';
 				}
@@ -6970,7 +6971,7 @@ function parseStatus (jsonStatus) {
 					playerStatusText += ' - ';
 				}
 				playerStatusText +=
-					"<strong>'" + jsonStatus.current_sequence + "'</strong>";
+					"<strong>'" + EscapeHtml(jsonStatus.current_sequence) + "'</strong>";
 			}
 			var repeatMode = jsonStatus.repeat_mode;
 			if (
@@ -7010,9 +7011,9 @@ function parseStatus (jsonStatus) {
 			) {
 				txtPlayerStatusLabel += ' (';
 				jsonStatus.breadcrumbs.forEach(function (r) {
-					txtPlayerStatusLabel += r + ' -> ';
+					txtPlayerStatusLabel += EscapeHtml(r) + ' -> ';
 				});
-				txtPlayerStatusLabel += jsonStatus.current_playlist.playlist;
+				txtPlayerStatusLabel += EscapeHtml(jsonStatus.current_playlist.playlist);
 				txtPlayerStatusLabel += ')';
 			}
 			txtPlayerStatusLabel += ':';
@@ -7036,8 +7037,8 @@ function parseStatus (jsonStatus) {
 				'width: ' + jsonStatus.percentage_played + '%'
 			);
 			$('#txtPercentageComplete p').html(jsonStatus.percentage_played + '%');
-			$('#txtSeqFilename').html(jsonStatus.current_sequence);
-			$('#txtMediaFilename').html(jsonStatus.current_song);
+			$('#txtSeqFilename').text(jsonStatus.current_sequence);
+			$('#txtMediaFilename').text(jsonStatus.current_song);
 
 			//				if(currentPlaylist.index != gblCurrentPlaylistIndex &&
 			//					currentPlaylist.index <=
@@ -7100,7 +7101,7 @@ function parseStatus (jsonStatus) {
 				if (jsonStatus.scheduler.status == 'playing') {
 					var pl = jsonStatus.scheduler.currentPlaylist;
 					$('#schedulerStatus').html(
-						"Playing <b>'" + pl.playlistName + "'</b>"
+						"Playing <b>'" + EscapeHtml(pl.playlistName) + "'</b>"
 					);
 					$('body').addClass('schedulderStatusPlaying');
 					$('.schedulerStartTime').show();
@@ -7124,7 +7125,7 @@ function parseStatus (jsonStatus) {
 				} else if (jsonStatus.scheduler.status == 'manual') {
 					var pl = jsonStatus.scheduler.currentPlaylist;
 					$('#schedulerStatus').html(
-						"Playing <b>'" + pl.playlistName + "'</b> (manually started)"
+						"Playing <b>'" + EscapeHtml(pl.playlistName) + "'</b> (manually started)"
 					);
 					$('body').addClass('schedulderStatusPlaying');
 					$('.schedulerStartTime').hide();
@@ -7148,7 +7149,7 @@ function parseStatus (jsonStatus) {
 				playerStatusText = 'Paused ';
 			}
 			playerStatusText =
-				"<strong>'" + jsonStatus.current_sequence + "'</strong>";
+				"<strong>'" + EscapeHtml(jsonStatus.current_sequence) + "'</strong>";
 			SetButtonState('#btnPlay', 'disable');
 			SetButtonState('#btnPrev', 'enable');
 			SetButtonState('#btnNext', 'enable');
@@ -7160,8 +7161,8 @@ function parseStatus (jsonStatus) {
 			$('#playerTime').show();
 			$('#txtTimePlayed').html(jsonStatus.time_elapsed);
 			$('#txtTimeRemaining').html(jsonStatus.time_remaining);
-			$('#txtSeqFilename').html(jsonStatus.current_sequence);
-			$('#txtMediaFilename').html(jsonStatus.current_song);
+			$('#txtSeqFilename').text(jsonStatus.current_sequence);
+			$('#txtMediaFilename').text(jsonStatus.current_song);
 		}
 		setTimeout(function () {
 			SetHomepageStatusRowWidthForMobile();
@@ -7172,7 +7173,7 @@ function parseStatus (jsonStatus) {
 		var npl = jsonStatus.scheduler.nextPlaylist;
 		if (npl.scheduledStartTimeStr != '')
 			$('#nextPlaylist').html(
-				"'" + npl.playlistName + "' on " + npl.scheduledStartTimeStr
+				"'" + EscapeHtml(npl.playlistName) + "' on " + npl.scheduledStartTimeStr
 			);
 		else $('#nextPlaylist').html('No playlist scheduled.');
 	}
@@ -9546,9 +9547,30 @@ function DownloadFiles (dir, files) {
 	}
 }
 
+// HTML-escape for a quoted attribute value: unlike EscapeHtml() this also
+// covers both quote characters.
+function EscapeHtmlAttr (s) {
+	return String(s == null ? '' : s)
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+}
+
+// A file name as a URL path: each segment encoded, '/' kept.  Also encodes
+// the characters encodeURIComponent() leaves alone that would end a quoted
+// attribute or script string ('!*() are legal in file names).
+function FileURLPath (name) {
+	return encodeURIComponent(name)
+		.replaceAll('%2F', '/')
+		.replace(/['()*!]/g, function (c) {
+			return '%' + c.charCodeAt(0).toString(16).toUpperCase();
+		});
+}
+
 function ViewImage (file) {
-	var url =
-		'api/file/Images/' + encodeURIComponent(file).replaceAll('%2F', '/');
+	var url = 'api/file/Images/' + FileURLPath(file);
 	ViewFileImpl(
 		url,
 		file,
@@ -9725,7 +9747,8 @@ function startTailFollowStream (url) {
 function ViewFileImpl (url, file, html = '', opts = {}) {
 	var options = {
 		id: 'fileViewerDialog',
-		title: (opts.title || 'File Viewer') + ': ' + file,
+		// Titles are inserted as HTML; a file name is not.
+		title: (opts.title || 'File Viewer') + ': ' + EscapeHtml(file),
 		body: "<div id='fileViewerText' class='fileText'>Loading...</div>",
 		class: 'modal-dialog-scrollable',
 		keyboard: true,

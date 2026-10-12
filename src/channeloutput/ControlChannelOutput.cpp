@@ -17,6 +17,7 @@
 #include "../log.h"
 
 #include "../commands/Commands.h"
+#include "../Sequence.h"
 
 #include "ControlChannelOutput.h"
 
@@ -78,7 +79,12 @@ int ControlChannelOutput::SendData(unsigned char* channelData) {
         for (auto& p : it->second) {
             if (p != "") {
                 LogDebug(VB_COMMAND, "Control Channel %d (value %d) triggering preset \"%s\"\n", StartChannel(), v, p.c_str());
-                CommandManager::INSTANCE.TriggerPreset(p, keywords);
+                // Deferred to the main loop like FSEQ-triggered presets:
+                // SendData runs on the output thread holding outputThreadLock,
+                // so running the commands here stalled every output for as
+                // long as they took, and tied this thread to every lock a
+                // command can take.
+                sequence->queuePreset(p, std::map<std::string, std::string>(keywords));
             }
         }
     }

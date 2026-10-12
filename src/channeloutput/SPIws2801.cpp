@@ -56,6 +56,7 @@ SPIws2801Output::~SPIws2801Output() {
     if (m_spi) {
         delete m_spi;
     }
+    delete[] m_pi36Data;
 }
 
 int SPIws2801Output::Init(Json::Value config) {
@@ -97,7 +98,10 @@ int SPIws2801Output::Close(void) {
     return ThreadedChannelOutput::Close();
 }
 void SPIws2801Output::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
-    addRange(m_startChannel, m_startChannel + m_channelCount - 1);
+    // the Pi36 layout always reads its 36 WS2803 channels, even when fewer
+    // are configured
+    int count = m_pi36 ? std::max((int)m_channelCount, 36) : (int)m_channelCount;
+    addRange(m_startChannel, m_startChannel + count - 1);
 }
 
 int SPIws2801Output::RawSendData(unsigned char* channelData) {

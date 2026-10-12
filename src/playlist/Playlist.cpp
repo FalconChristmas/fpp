@@ -298,22 +298,12 @@ Playlist::Playlist(Playlist* parent) :
 
     SetRepeat(0);
 
-    if (Events::HasEventHandlers()) {
-        // Legacy callbacks
-        std::function<void(const std::string& t, const std::string& payload)> f1 = [this](const std::string& t, const std::string& payload) {
-            std::string emptyStr;
-            LogDebug(VB_CONTROL, "Received deprecated MQTT Topic: '%s' \n", t.c_str());
-            std::string topic = t;
-            topic.replace(0, 10, emptyStr); // Replace until /#
-            this->MQTTHandler(topic, payload);
-        };
-        Events::AddCallback("/playlist/name/set", f1);
-        Events::AddCallback("/playlist/repeat/set", f1);
-        Events::AddCallback("/playlist/sectionPosition/set", f1);
-
-    } else {
-        LogDebug(VB_CONTROL, "Not registered MQTT Callbacks for Playlist. MQTT Not configured. \n");
-    }
+    // The legacy /playlist/*/set MQTT topics are registered once, in
+    // Player::Init(), and dispatched to whichever playlist is current.  They
+    // used to be registered here with [this]: every inserted playlist
+    // overwrote the callback with a pointer to itself and never removed it,
+    // so once that playlist finished and was freed, the next message on those
+    // topics called into freed memory.
 }
 
 /*
@@ -402,87 +392,137 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*>& playlistPart
 int Playlist::Load(Json::Value& config) {
     LogDebug(VB_PLAYLIST, "Playlist::Load(JSON)\n");
 
+    // Everything is parsed into locals and only committed once the whole
+    // config has been read.  jsoncpp throws on a wrong-typed value ("repeat":
+    // "1", a section that is an object, ...), and this runs from Process()
+    // when a playing playlist's file is edited (ReloadIfNeeded) with nothing
+    // above it to catch -- that terminated fppd mid-show.  Cleaning up first,
+    // as this used to, also meant any failure left a half-loaded playlist in
+    // place of the running one.
+    std::string name;
+    std::string desc;
+    int repeat = 0;
+    int loopCount = 0;
+    int globalPauseMS = 0;
+    int random = 0;
+    Json::Value playlistInfo;
+    std::vector<PlaylistEntryBase*> leadIn;
+    std::vector<PlaylistEntryBase*> mainPlaylist;
+    std::vector<PlaylistEntryBase*> leadOut;
+
+    try {
+        if (config.isMember("name"))
+            name = config["name"].asString();
+
+        if (config.isMember("desc"))
+            desc = config["desc"].asString();
+
+        repeat = config["repeat"].asInt();
+        loopCount = config["loopCount"].asInt();
+        m_subPlaylistDepth = 0;
+
+        // Load global pause between sequences configuration
+        if (config.isMember("globalPauseBetweenSequencesMS"))
+            globalPauseMS = config["globalPauseBetweenSequencesMS"].asInt();
+
+        playlistInfo = config["playlistInfo"];
+
+        int startPos = 0;
+        int maxEntries = 999999;
+        int origEntryCount = 0;
+
+        if (m_loadEndPos >= 0) {
+            maxEntries = m_loadEndPos + 1 - ((m_loadStartPos >= 0) ? m_loadStartPos : 0);
+        }
+
+        if (config.isMember("leadIn") && config["leadIn"].size()) {
+            LogDebug(VB_PLAYLIST, "Loading LeadIn:\n");
+            const Json::Value leadInCfg = config["leadIn"];
+
+            if (m_loadStartPos >= 0)
+                startPos = m_loadStartPos;
+            else
+                startPos = 0;
+
+            if (startPos < leadInCfg.size())
+                LoadJSONIntoPlaylist(leadIn, leadInCfg, startPos, maxEntries);
+
+            origEntryCount += leadInCfg.size();
+        }
+
+        if (config.isMember("mainPlaylist") && config["mainPlaylist"].size()) {
+            LogDebug(VB_PLAYLIST, "Loading MainPlaylist:\n");
+            const Json::Value playlist = config["mainPlaylist"];
+
+            if ((m_loadStartPos >= 0) && (m_loadStartPos > origEntryCount)) {
+                startPos = m_loadStartPos - origEntryCount;
+            } else if (m_loadStartPos == -2 && m_loadEndPos == 0) {
+                // random single item
+                int l = playlist.size();
+                if (l > 1) {
+                    startPos = FPPrand() % l;
+                    maxEntries = 1;
+                }
+            } else {
+                startPos = 0;
+            }
+
+            if (startPos < playlist.size()) {
+                LoadJSONIntoPlaylist(mainPlaylist, playlist, startPos, maxEntries);
+            }
+
+            origEntryCount += playlist.size();
+        }
+
+        if (config.isMember("leadOut") && config["leadOut"].size()) {
+            LogDebug(VB_PLAYLIST, "Loading LeadOut:\n");
+            const Json::Value leadOutCfg = config["leadOut"];
+
+            if ((m_loadStartPos >= 0) && (m_loadStartPos > origEntryCount))
+                startPos = m_loadStartPos - origEntryCount;
+            else
+                startPos = 0;
+
+            if (startPos < leadOutCfg.size())
+                LoadJSONIntoPlaylist(leadOut, leadOutCfg, startPos, maxEntries);
+        }
+
+        if (config.isMember("random")) {
+            if (config["random"].isNumeric()) {
+                random = config["random"].asInt();
+            } else if (config["random"].isBool() && config["random"].asBool()) {
+                random = 1;
+            } else if (config["random"].isString()) {
+                random = std::atoi(config["random"].asString().c_str());
+            }
+        }
+    } catch (const std::exception& ex) {
+        std::string warn = "Playlist " + (name.empty() ? m_filename : name) + " is invalid: " + ex.what();
+        LogErr(VB_PLAYLIST, "%s\n", warn.c_str());
+        WarningHolder::AddWarningTimeout(60, 24, warn);
+        // Entries built before the throw were never published; retire them
+        // the same way Cleanup() does (destroyed on the main thread).
+        std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
+        for (auto* section : { &leadIn, &mainPlaylist, &leadOut }) {
+            for (auto* e : *section) {
+                PL_ENTRY_CLEANUPS.push_back(e);
+            }
+        }
+        return 0;
+    }
+
     Cleanup();
 
-    if (config.isMember("name"))
-        m_name = config["name"].asString();
-
-    if (config.isMember("desc"))
-        m_desc = config["desc"].asString();
-
-    m_repeat = config["repeat"].asInt();
-    m_loopCount = config["loopCount"].asInt();
-    m_subPlaylistDepth = 0;
-
-    // Load global pause between sequences configuration
-    if (config.isMember("globalPauseBetweenSequencesMS"))
-        m_globalPauseBetweenSequencesMS = config["globalPauseBetweenSequencesMS"].asInt();
-    else
-        m_globalPauseBetweenSequencesMS = 0;
-
-    m_playlistInfo = config["playlistInfo"];
-
-    PlaylistEntryBase* plEntry = NULL;
-
-    int startPos = 0;
-    int maxEntries = 999999;
-    int origEntryCount = 0;
-
-    if (m_loadEndPos >= 0) {
-        maxEntries = m_loadEndPos + 1 - ((m_loadStartPos >= 0) ? m_loadStartPos : 0);
-    }
-
-    if (config.isMember("leadIn") && config["leadIn"].size()) {
-        LogDebug(VB_PLAYLIST, "Loading LeadIn:\n");
-        const Json::Value leadIn = config["leadIn"];
-
-        if (m_loadStartPos >= 0)
-            startPos = m_loadStartPos;
-        else
-            startPos = 0;
-
-        if (startPos < leadIn.size())
-            LoadJSONIntoPlaylist(m_leadIn, leadIn, startPos, maxEntries);
-
-        origEntryCount += leadIn.size();
-    }
-
-    if (config.isMember("mainPlaylist") && config["mainPlaylist"].size()) {
-        LogDebug(VB_PLAYLIST, "Loading MainPlaylist:\n");
-        const Json::Value playlist = config["mainPlaylist"];
-
-        if ((m_loadStartPos >= 0) && (m_loadStartPos > origEntryCount)) {
-            startPos = m_loadStartPos - origEntryCount;
-        } else if (m_loadStartPos == -2 && m_loadEndPos == 0) {
-            // random single item
-            int l = playlist.size();
-            if (l > 1) {
-                startPos = FPPrand() % l;
-                maxEntries = 1;
-            }
-        } else {
-            startPos = 0;
-        }
-
-        if (startPos < playlist.size()) {
-            LoadJSONIntoPlaylist(m_mainPlaylist, playlist, startPos, maxEntries);
-        }
-
-        origEntryCount += playlist.size();
-    }
-
-    if (config.isMember("leadOut") && config["leadOut"].size()) {
-        LogDebug(VB_PLAYLIST, "Loading LeadOut:\n");
-        const Json::Value leadOut = config["leadOut"];
-
-        if ((m_loadStartPos >= 0) && (m_loadStartPos > origEntryCount))
-            startPos = m_loadStartPos - origEntryCount;
-        else
-            startPos = 0;
-
-        if (startPos < leadOut.size())
-            LoadJSONIntoPlaylist(m_leadOut, leadOut, startPos, maxEntries);
-    }
+    m_name = name;
+    m_desc = desc;
+    m_repeat = repeat;
+    m_loopCount = loopCount;
+    m_globalPauseBetweenSequencesMS = globalPauseMS;
+    m_playlistInfo = playlistInfo;
+    m_random = random;
+    m_leadIn.swap(leadIn);
+    m_mainPlaylist.swap(mainPlaylist);
+    m_leadOut.swap(leadOut);
 
     // set the positions prior to any randomizations
     int curPos = 0;
@@ -497,18 +537,6 @@ int Playlist::Load(Json::Value& config) {
     for (auto& a : m_leadOut) {
         a->SetPositionInPlaylist(curPos);
         ++curPos;
-    }
-
-    if (config.isMember("random")) {
-        if (config["random"].isNumeric()) {
-            m_random = config["random"].asInt();
-        } else if (config["random"].isBool() && config["random"].asBool()) {
-            m_random = 1;
-        } else if (config["random"].isString()) {
-            m_random = std::atoi(config["random"].asString().c_str());
-        }
-    } else {
-        m_random = 0;
     }
 
     m_sectionPosition = 0;
@@ -741,41 +769,51 @@ int Playlist::Load(const std::string& filename) {
 PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry) {
     PlaylistEntryBase* result = NULL;
 
-    if (entry["type"].asString() == "both")
-        result = new PlaylistEntryBoth(this);
-    else if (entry["type"].asString() == "branch")
-        result = new PlaylistEntryBranch(this);
-    else if (entry["type"].asString() == "dynamic")
-        result = new PlaylistEntryDynamic(this);
-    else if (entry["type"].asString() == "image")
-        result = new PlaylistEntryImage(this);
-    else if (entry["type"].asString() == "media")
-        result = new PlaylistEntryMedia(this);
-    else if (entry["type"].asString() == "pause")
-        result = new PlaylistEntryPause(this);
-    else if (entry["type"].asString() == "playlist")
-        result = new PlaylistEntryPlaylist(this);
-    else if (entry["type"].asString() == "remap")
-        result = new PlaylistEntryRemap(this);
-    else if (entry["type"].asString() == "script")
-        result = new PlaylistEntryScript(this);
-    else if (entry["type"].asString() == "sequence")
-        result = new PlaylistEntrySequence(this);
-    else if (entry["type"].asString() == "url")
-        result = new PlaylistEntryURL(this);
-    else if (entry["type"].asString() == "command")
-        result = new PlaylistEntryCommand(this);
-    else {
-        LogErr(VB_PLAYLIST, "Unknown Playlist Entry Type: %s\n", entry["type"].asString().c_str());
-        WarningHolder::AddWarningTimeout(60, 24, "Unknown playlist entry type: " + entry["type"].asString());
-        return NULL;
+    // jsoncpp throws on a wrong-typed value ("enabled":"1", an entry that is
+    // not an object, ...).  Contain it here, the one place every entry is
+    // built: nothing above this catches on the reload-from-Process() path, so
+    // an escaped exception terminated fppd mid-show.
+    try {
+        std::string type = entry["type"].asString();
+        if (type == "both")
+            result = new PlaylistEntryBoth(this);
+        else if (type == "branch")
+            result = new PlaylistEntryBranch(this);
+        else if (type == "dynamic")
+            result = new PlaylistEntryDynamic(this);
+        else if (type == "image")
+            result = new PlaylistEntryImage(this);
+        else if (type == "media")
+            result = new PlaylistEntryMedia(this);
+        else if (type == "pause")
+            result = new PlaylistEntryPause(this);
+        else if (type == "playlist")
+            result = new PlaylistEntryPlaylist(this);
+        else if (type == "remap")
+            result = new PlaylistEntryRemap(this);
+        else if (type == "script")
+            result = new PlaylistEntryScript(this);
+        else if (type == "sequence")
+            result = new PlaylistEntrySequence(this);
+        else if (type == "url")
+            result = new PlaylistEntryURL(this);
+        else if (type == "command")
+            result = new PlaylistEntryCommand(this);
+        else {
+            LogErr(VB_PLAYLIST, "Unknown Playlist Entry Type: %s\n", type.c_str());
+            WarningHolder::AddWarningTimeout(60, 24, "Unknown playlist entry type: " + type);
+            return NULL;
+        }
+
+        if (result->Init(entry))
+            return result;
+    } catch (const std::exception& ex) {
+        LogErr(VB_PLAYLIST, "Invalid playlist entry, skipping it: %s\n", ex.what());
+        WarningHolder::AddWarningTimeout(60, 24, std::string("Invalid playlist entry skipped: ") + ex.what());
     }
 
-    if (result->Init(entry))
-        return result;
-
-    // Init failed: the entry was never handed to a caller, so this is its only
-    // owner and it must be destroyed here rather than leaked.
+    // Init failed or threw: the entry was never handed to a caller, so this is
+    // its only owner and it must be destroyed here rather than leaked.
     delete result;
     return NULL;
 }
@@ -1112,7 +1150,8 @@ void Playlist::Pause() {
         PlaylistEntryBase* entry = CurrentEntry();
         if (entry && entry->IsPlaying()) {
             entry->Pause();
-            if (entry->IsPaused()) {
+            if (entry->IsPaused() && m_status != FPP_STATUS_PLAYLIST_PAUSED) {
+                m_statusBeforePause = m_status;
                 m_status = FPP_STATUS_PLAYLIST_PAUSED;
             }
         }
@@ -1123,12 +1162,21 @@ void Playlist::Resume() {
     PlaylistTransitionGuard guard;
     if (IsPlaying()) {
         std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
-        if (m_status == FPP_STATUS_PLAYLIST_PAUSED) {
-            PlaylistEntryBase* entry = CurrentEntry();
+        // Two ways to be paused: the playlist status, or -- for a parent that
+        // was told to stop gracefully while paused under an "insert
+        // immediate" child -- a STOPPING_* status over an entry that is still
+        // paused.  The second used to be unresumable: the parent sat on its
+        // paused entry forever, never finishing the stop.
+        PlaylistEntryBase* entry = CurrentEntry();
+        bool statusPaused = (m_status == FPP_STATUS_PLAYLIST_PAUSED);
+        if (statusPaused || (entry && entry->IsPaused())) {
             if (entry) {
                 entry->Resume();
             }
-            m_status = FPP_STATUS_PLAYLIST_PLAYING;
+            if (statusPaused) {
+                // Back to what Pause() interrupted, which may be a stop.
+                m_status = m_statusBeforePause;
+            }
 
             // Notify of current playlists because was likely changed when Paused.
             Events::Publish("playlist/name/status", m_name);
@@ -1190,13 +1238,13 @@ int Playlist::FileHasBeenModified(void) {
     return 0;
 }
 
-// Process() re-enters itself on this thread: after switching to an inserted
-// playlist it tail-calls `return pl->Process()` while the outer frame still
-// holds its own m_playlistMutex -- and that outer instance may already be on
-// PL_CLEANUPS.  Draining only in the outermost frame is what makes the
-// PL_CLEANUPS/PL_ENTRY_CLEANUPS promise ("freed after the stack has unwound")
-// true; without it the nested drain deletes the object whose mutex an outer
-// frame is about to unlock.
+// Process() used to re-enter itself on this thread: after switching to an
+// inserted playlist it tail-called `return pl->Process()` while the outer frame
+// still held its own m_playlistMutex -- and that outer instance may already be
+// on PL_CLEANUPS.  It no longer does (see the switch sites), but draining only
+// in the outermost frame is what makes the PL_CLEANUPS/PL_ENTRY_CLEANUPS
+// promise ("freed after the stack has unwound") true, so the depth guard stays
+// for any path that still nests.
 static thread_local int tl_processDepth = 0;
 namespace {
 class ProcessDepthGuard {
@@ -1310,11 +1358,25 @@ int Playlist::Process(void) {
     }
 
     Playlist* pl = nullptr;
-    if (m_currentSection->at(m_sectionPosition)->IsPaused() && ((pl = SwitchToInsertedPlaylist()) != nullptr)) {
-        std::unique_lock<std::recursive_mutex> lck(pl->m_playlistMutex);
-        // SwitchToInsertedPlaylist() already started pl (via PlayImpl) --
-        // starting it again would replay its first entry.
-        return pl->Process();
+    if (m_currentSection->at(m_sectionPosition)->IsPaused() && !m_insertedPlaylist.empty()) {
+        if ((pl = SwitchToInsertedPlaylist()) == nullptr) {
+            // The insert was refused (nesting limit) or failed to start.  A
+            // failed start already resumed us from the child's SetIdle; a
+            // refusal didn't, and we'd sit paused under nothing.  Resume() is a
+            // no-op if we're not paused.
+            if (Player::INSTANCE.PlaylistSnapshot().get() == this) {
+                Resume();
+            }
+            return 1;
+        }
+        // SwitchToInsertedPlaylist() already started pl (via PlayImpl) and made
+        // it current; the next tick processes it.  Never process the child from
+        // here: this frame holds our lock, and a thread stopping the child
+        // takes the child's lock and then ours (StopGracefully forwards to
+        // m_parent, SetIdle resumes it) -- taking pl's lock here deadlocked
+        // against that.  Processing it inline also recursed once per level of
+        // a playlist that inserts itself.
+        return 1;
     }
 
     if (m_currentSection->at(m_sectionPosition)->IsFinished()) {
@@ -1359,14 +1421,22 @@ int Playlist::Process(void) {
         }
         if (m_stopAtPos != -1 && m_stopAtPos <= (GetPosition() - 1)) {
             if ((pl = SwitchToInsertedPlaylist(true)) != nullptr) {
-                return pl->Process();
+                return 1; // next tick processes pl; see the paused case above
+            }
+            if (Player::INSTANCE.PlaylistSnapshot().get() != this) {
+                // The insert failed to start and handed the player back to our
+                // parent, condemning us; nothing here is ours to run any more.
+                return 1;
             }
             LogDebug(VB_PLAYLIST, "Stopping after end position\n");
             SetIdle();
             return 1;
         }
         if ((pl = SwitchToInsertedPlaylist(WillStopAfterCurrent())) != nullptr) {
-            return pl->Process();
+            return 1; // next tick processes pl; see the paused case above
+        }
+        if (Player::INSTANCE.PlaylistSnapshot().get() != this) {
+            return 1; // condemned by a failed insert; see above
         }
 
         auto currentEntry = m_currentSection->at(m_sectionPosition);
@@ -1439,6 +1509,19 @@ int Playlist::Process(void) {
                 m_loop++;
                 LogDebug(VB_PLAYLIST, "mainPlaylist loop now: %d\n", m_loop);
                 if ((m_repeat) && (!m_loopCount || (m_loop < m_loopCount))) {
+                    if ((m_loadStartPos > 0) && (m_loadEndPos < 0)) {
+                        // This pass started part-way in (Start Playlist At
+                        // Item, or a resume after an fppd restart), so Load()
+                        // trimmed off every entry before that point.  The
+                        // repeat is of the whole playlist: reload it untrimmed,
+                        // or the earlier entries never play again.
+                        int trimmedAt = m_loadStartPos;
+                        m_loadStartPos = -1;
+                        if (!ReloadPlaylist()) {
+                            LogWarn(VB_PLAYLIST, "Could not reload the full playlist to repeat it; repeating from entry %d\n", trimmedAt + 1);
+                            m_loadStartPos = trimmedAt;
+                        }
+                    }
                     ReloadIfNeeded();
 
                     if (m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) {
@@ -1514,20 +1597,36 @@ int Playlist::Process(void) {
     return 1;
 }
 
+// Deepest stack of inserted playlists SwitchToInsertedPlaylist will build,
+// counting the resident playlist at the bottom.
+static constexpr int MAX_INSERTED_PLAYLIST_DEPTH = 10;
+
+// True when this playlist ends once the current entry finishes -- i.e. an
+// inserted playlist can take our place instead of nesting under us.  Both
+// section branches used to be inverted (true exactly when more was left to
+// play): an insert queued near the end of a nested playlist dropped its
+// remaining sections, while a playlist that really was ending nested the
+// insert one level deeper every time -- without bound for a playlist that
+// branches back to itself.
 bool Playlist::WillStopAfterCurrent() {
-    if ((m_sectionPosition + 1) >= m_currentSection->size()) {
-        if (m_currentSectionStr == "LeadIn") {
-            return !m_mainPlaylist.empty() || !m_leadOut.empty();
-        } else if (m_currentSectionStr == "MainPlaylist") {
-            if (m_repeat) {
-                return false;
-            }
-            return !m_leadOut.empty();
-        } else {
-            return true;
-        }
+    if ((m_sectionPosition + 1) < m_currentSection->size()) {
+        return false;
     }
-    return false;
+    PlaylistEntryBase* entry = CurrentEntry();
+    if (entry && (entry->GetNextBranchType() == PlaylistEntryBase::PlaylistBranchType::Index ||
+                  entry->GetNextBranchType() == PlaylistEntryBase::PlaylistBranchType::Offset)) {
+        // A last-entry branch can jump back into the playlist.
+        return false;
+    }
+    if (m_currentSectionStr == "LeadIn") {
+        return m_mainPlaylist.empty() && m_leadOut.empty();
+    } else if (m_currentSectionStr == "MainPlaylist") {
+        // Same test Process() applies once m_loop has been incremented.
+        bool loopsAgain = m_repeat && (!m_loopCount || ((m_loop + 1) < m_loopCount)) &&
+                          (m_status != FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP);
+        return !loopsAgain && m_leadOut.empty();
+    }
+    return true;
 }
 
 Playlist* Playlist::SwitchToInsertedPlaylist(bool isStopping) {
@@ -1536,6 +1635,24 @@ Playlist* Playlist::SwitchToInsertedPlaylist(bool isStopping) {
         // of playlists: the new playlist takes our place by inheriting our
         // parent, and we clean ourselves up once it is known to be running.
         bool replaceSelf = isStopping && m_parent;
+
+        // Bound the stack of inserted playlists.  Inline sub-playlists stop at
+        // 5 levels in LoadJSONIntoPlaylist, but inserts (Insert Playlist
+        // commands, Branch-to-playlist) had no limit: a playlist that branches
+        // to itself, or A -> B -> A, nested one level per pass until memory or
+        // the stack ran out.
+        int depth = 1;
+        for (Playlist* p = replaceSelf ? m_parent : this; p; p = p->m_parent) {
+            depth++;
+        }
+        if (depth > MAX_INSERTED_PLAYLIST_DEPTH) {
+            LogErr(VB_PLAYLIST, "Not inserting playlist '%s': inserted playlists are already nested %d deep (does a playlist insert or branch to itself?)\n",
+                   m_insertedPlaylist.c_str(), depth - 1);
+            WarningHolder::AddWarningTimeout(60, 24, "Recursive playlist: too many nested inserts trying to start '" + m_insertedPlaylist + "'");
+            m_insertedPlaylist = "";
+            return nullptr;
+        }
+
         // The player owns the new instance from birth; plRef only keeps it
         // alive across the start attempt below, before it is published.
         std::shared_ptr<Playlist> plRef = Player::INSTANCE.CreatePlaylist(replaceSelf ? m_parent : this);
@@ -1638,9 +1755,9 @@ void Playlist::SetIdle(bool exit) {
         // par is still owned: it is on the parent chain and not condemned, so
         // the player has never released it.
         Player::INSTANCE.SetCurrentPlaylist(par);
-        if (par->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PAUSED) {
-            par->Resume();
-        }
+        // Unconditional: Resume() is a no-op unless par is paused, and par
+        // may be STOPPING_* over a paused entry (stopped while we played).
+        par->Resume();
         {
             std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
             PL_CLEANUPS.push_back(this);
@@ -1673,6 +1790,13 @@ void Playlist::SetIdle(bool exit) {
 /*
  *
  */
+int Playlist::CleanupIfIdle(void) {
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    if (m_status != FPP_STATUS_IDLE)
+        return 0;
+    return Cleanup();
+}
+
 int Playlist::Cleanup(void) {
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
@@ -1782,7 +1906,12 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
         (m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
         std::string fullfilename = FPP_DIR_PLAYLIST("/" + filename + ".json");
 
-        if ((m_filename == fullfilename) && (repeat == m_repeat) && m_currentSection && position >= 0) {
+        // Only a fully loaded copy can be jumped within: SetPosition() indexes
+        // the loaded entries, and a copy Load() trimmed (started at an item,
+        // or given an end) no longer lines up with the playlist's positions.
+        bool loadedWhole = ((m_loadStartPos == -1) || (m_loadStartPos == 0)) && (m_loadEndPos < 0);
+        if ((m_filename == fullfilename) && (repeat == m_repeat) && m_currentSection && position >= 0 &&
+            loadedWhole && (endPosition < 0)) {
             // the requested playlist is already running and loaded, we can jump right to the index
             PlaylistEntryBase* entry = CurrentEntry();
             if (entry && entry->IsPlaying()) {

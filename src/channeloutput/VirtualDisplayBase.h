@@ -107,13 +107,19 @@ public:
 
 inline void VirtualDisplayBaseOutput::GetPixelRGB(VirtualDisplayPixel& pixel,
                                                   unsigned char* channelData, unsigned char& r, unsigned char& g, unsigned char& b) {
+    // every path below sets all three; a combination none of them handles
+    // shows black rather than whatever the caller's variables held (the last
+    // pixel's colour, or uninitialised stack)
+    r = g = b = 0;
     if (pixel.vpc == kVPC_Custom) {
         r = pixel.customR;
         g = pixel.customG;
         b = pixel.customB;
     } else if ((pixel.cpp == 3) ||
                ((pixel.cpp == 4) && (channelData[pixel.ch + 3] == 0))) {
-        if (pixel.vpc == kVPC_RGB) {
+        // RGBW with W off shows its RGB part; xLights writes "RGBW" for
+        // every RGBW model
+        if (pixel.vpc == kVPC_RGB || pixel.vpc == kVPC_RGBW) {
             r = channelData[pixel.ch];
             g = channelData[pixel.ch + 1];
             b = channelData[pixel.ch + 2];

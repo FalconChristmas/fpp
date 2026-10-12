@@ -55,6 +55,12 @@ function MapExtention($filename)
  */
 function MapDirectoryKey($dirName)
 {
+    // Not a media directory: anything written there runs as a plugin (plugin.php
+    // includes it), and installed plugins keep their git config there.  Plugin
+    // files are managed by the plugin install/upgrade paths, not the file API.
+    if (strtolower($dirName) === 'plugins') {
+        return "";
+    }
     $dir = GetDirSetting($dirName);
     if ($dir == "") {
         $dir = MapExtention($dirName);
@@ -468,6 +474,13 @@ function GetPluginFileInfo()
     $ext = params("ext");
     $fileName = params(0);
 
+    // pluginInfo.json's infoCommand runs below; "." would make the plugins
+    // directory itself the plugin.
+    if (!IsValidPluginName($pluginName)) {
+        http_response_code(404);
+        return json(array("status" => "Invalid plugin"));
+    }
+
     $pluginDirectory = GetDirSetting("plugins") . "/" . $pluginName;
     if (is_dir($pluginDirectory)) {
         $pluginInfoFile = $pluginDirectory . "/pluginInfo.json";
@@ -573,6 +586,35 @@ function MovePluginFile($uploadDir, $filename)
                     if (isset($pluginConfig["fileExtensions"])) {
                         foreach ($pluginConfig["fileExtensions"] as $key => $value) {
                             if (str_ends_with($filename, $key) && isset($value["folder"])) {
+                                // $value["folder"] comes from the plugin's own
+                                // pluginInfo.json: refuse anything that would
+                                // resolve outside the media directory (absolute
+                                // paths, "..", NUL, backslashes). The media dir
+                                // itself is the only value that may resolve to
+                                // the base; anything else must stay beneath it.
+                                // A folder that fails validation (or whose
+                                // directory does not exist) fails the move, the
+                                // same outcome rename() produces today.
+                                $folder = $value["folder"];
+                                if (!is_string($folder) || $folder === '' || $folder[0] === '/' || strpos($folder, "\0") !== false || strpos($folder, "\\") !== false) {
+                                    return false;
+                                }
+                                $fparts = explode('/', $folder);
+                                $folderOk = true;
+                                foreach ($fparts as $fp) {
+                                    if ($fp === '' || $fp === '.') {
+                                        continue;
+                                    }
+                                    if ($fp === '..') {
+                                        $folderOk = false;
+                                        break;
+                                    }
+                                }
+                                $realMedia = realpath($mediaDirectory);
+                                $realDest = $folderOk ? realpath($mediaDirectory . "/" . $folder) : false;
+                                if (!$folderOk || $realMedia === false || $realDest === false || ($realDest !== $realMedia && strpos($realDest, rtrim($realMedia, '/') . '/') !== 0)) {
+                                    return false;
+                                }
                                 if (!rename($uploadDir . "/" . $filename, $mediaDirectory . "/" . $value["folder"] . "/" . $filename)) {
                                     return false;
                                 }
@@ -705,12 +747,12 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
         header('Content-type: ' . mime_content_type($fullPath));
 
         if ($attach == 1) {
-            header('Content-disposition: attachment;filename="' . $filename . '"');
+            header('Content-disposition: attachment;filename="' . SanitizeDownloadFilename($filename) . '"');
         }
 
     } else {
         header('Content-type: application/binary');
-        header('Content-disposition: attachment;filename="' . $filename . '"');
+        header('Content-disposition: attachment;filename="' . SanitizeDownloadFilename($filename) . '"');
     }
 
     if (ob_get_level()) {
@@ -770,29 +812,28 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
  */
 function findFile($dir, $filename)
 {
-    if (file_exists($dir . "/" . $filename)) {
-        return $filename;
-    }
-    if (file_exists($dir . "/" . urldecode($filename))) {
-        return urldecode($filename);
-    }
+    // Only ever a file directly in $dir.  The variants below decode the name
+    // again, so a "%2F" or "..%2F" that was a single path segment to the router
+    // can turn into a separator here; such a candidate is skipped, and a name
+    // that is not a bare filename at all gives false.
+    $bare = function ($f) {
+        return is_string($f) && $f !== '' && $f !== '.' && $f !== '..' && strpbrk($f, "/\\\0") === false;
+    };
+    $candidates = array($filename, urldecode($filename));
     $tempFile = sanitizeFilename($filename);
-    if (file_exists($dir . "/" . $tempFile)) {
-        return $tempFile;
-    }
-    if (file_exists($dir . "/" . urldecode($tempFile))) {
-        return urldecode($tempFile);
-    }
+    $candidates[] = $tempFile;
+    $candidates[] = urldecode($tempFile);
     if (!preg_match("//u", $filename)) {
         $tempFile = iconv("ISO-8859-1", 'UTF-8//TRANSLIT', $filename);
-        if (file_exists($dir . "/" . $tempFile)) {
-            return $tempFile;
-        }
-        if (file_exists($dir . "/" . urldecode($tempFile))) {
-            return urldecode($tempFile);
+        $candidates[] = $tempFile;
+        $candidates[] = urldecode($tempFile);
+    }
+    foreach ($candidates as $candidate) {
+        if ($bare($candidate) && file_exists($dir . "/" . $candidate)) {
+            return $candidate;
         }
     }
-    return $filename;
+    return $bare($filename) ? $filename : false;
 }
 
 /**
@@ -984,7 +1025,7 @@ function GetZipDir()
     $timestamp = date('Ymd_Hi');
 
     header('Content-type: application/zip');
-    header('Content-disposition: attachment;filename="' . $hostName . '_' . $zipName . '_' . $timestamp . '.zip"');
+    header('Content-disposition: attachment;filename="' . SanitizeDownloadFilename($hostName . '_' . $zipName . '_' . $timestamp . '.zip') . '"');
     ob_clean();
     flush();
     readfile($filename);

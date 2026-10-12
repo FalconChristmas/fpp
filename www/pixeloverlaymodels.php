@@ -51,7 +51,9 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
         $json = file_get_contents('http://localhost/api/models?simple=true');
         $models = json_decode($json, true);
         foreach ($models as $model) {
-            echo "PixelOverlayModels['$model'] = '$model';";
+            // User data inside a script: see co-other-modules.php.
+            $jsName = json_encode($model, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+            echo "PixelOverlayModels[" . $jsName . "] = " . $jsName . ";";
         }
 
         ?>

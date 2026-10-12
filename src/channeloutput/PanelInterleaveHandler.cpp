@@ -95,11 +95,11 @@ public:
     virtual void mapCol(int y, int& x) {
         int whichInt = x / m_interleave;
         if (m_flipRows) {
-            if (y & m_panelScan) {
-                y &= !m_panelScan;
-            } else {
-                y |= m_panelScan;
-            }
+            // swap each pair of scan blocks (rows 0..scan-1 with scan..2*scan-1
+            // and so on).  For a power of two scan this is y ^ scan; the
+            // division also covers scans like 6.
+            int block = y / m_panelScan;
+            y = (block ^ 1) * m_panelScan + y % m_panelScan;
         }
         int offInInt = x % m_interleave;
         int mult = (m_panelHeight / m_panelScan / 2) - 1 - y / m_panelScan;
@@ -819,6 +819,8 @@ class PiRGBInterleaveHandler : public PanelInterleaveHandler {
 public:
     PiRGBInterleaveHandler(int pw, int ph, int ps, int pi) :
         PanelInterleaveHandler(pw, ph, ps, 8) {
+        // buildHandler only passes the indexes handled here
+        MultiplexMapperBase* base = nullptr;
         switch (pi) {
         case 1:
             base = new StripeMultiplexMapper();
@@ -895,10 +897,12 @@ public:
                 m_map[idx] = std::make_pair(x1, y1);
             }
         }
+        delete base;
     }
     virtual ~PiRGBInterleaveHandler() {}
 
-    MultiplexMapperBase* base;
+    // the rpi-rgb-led-matrix multiplex mappers this handler can wrap
+    static constexpr int NUM_MAPPERS = 21;
 };
 
 static PanelInterleaveHandler* buildHandler(const std::string& type, int panelWidth, int panelHeight, int panelScan) {
@@ -928,7 +932,7 @@ static PanelInterleaveHandler* buildHandler(const std::string& type, int panelWi
     } else if (type == "32f") {
         return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 32, true);
     } else if (type == "40f") {
-        return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 32, true);
+        return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 40, true);
     } else if (type == "64f") {
         return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 64, true);
     } else if (type == "80f") {
@@ -962,13 +966,22 @@ static PanelInterleaveHandler* buildHandler(const std::string& type, int panelWi
     } else if (type.starts_with("RPi")) {
         std::string idx = type.substr(3);
         int idxValue = std::atoi(idx.c_str());
-        return new PiRGBInterleaveHandler(panelWidth, panelHeight, panelScan, idxValue);
+        if (idxValue >= 1 && idxValue <= PiRGBInterleaveHandler::NUM_MAPPERS) {
+            return new PiRGBInterleaveHandler(panelWidth, panelHeight, panelScan, idxValue);
+        }
+        // an unknown index falls back like any other unknown type
     }
 
     return new NoInterleaveHandler(panelWidth, panelHeight, panelScan, 0);
 }
 
 PanelInterleaveHandler* PanelInterleaveHandler::createHandler(const std::string& type, int panelWidth, int panelHeight, int panelScan) {
+    // The handlers fold rows by the scan as they are built (a scan of 0 or
+    // below loops forever in mapRow), so this cannot wait for mapFitsFrame().
+    // The UI only offers valid sizes; a hand-edited config may not.
+    if (panelWidth <= 0 || panelHeight <= 0 || panelScan <= 0 || panelScan > panelHeight) {
+        return nullptr;
+    }
     PanelInterleaveHandler* handler = buildHandler(type, panelWidth, panelHeight, panelScan);
     if (handler && !handler->mapFitsFrame()) {
         // Unknown interleave types fall back to no interleave at all, which

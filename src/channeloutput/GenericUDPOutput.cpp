@@ -7,6 +7,7 @@
 
 #include "GenericUDPOutput.h"
 #include "UDPOutput.h"
+#include "ChannelOutputSetup.h"
 
 #include "Plugin.h"
 class GenericUDPPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
@@ -45,7 +46,7 @@ public:
         if (active) {
             udpAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
             if (!valid) {
-                WarningHolder::AddWarning(14, "Could not resolve host name " + ipAddress + " - disabling output");
+                AddOutputConfigWarning(14, "Could not resolve host name " + ipAddress + " - disabling output");
                 active = false;
             }
         }
@@ -124,7 +125,8 @@ public:
         }
         udpIovecs.resize(udpBuffers.size());
         for (int x = 0; x < udpBuffers.size(); x++) {
-            udpIovecs[x].iov_base = &udpBuffers[x][0];
+            // data(), not &[0]: the {data} placeholder is an empty vector
+            udpIovecs[x].iov_base = udpBuffers[x].data();
             udpIovecs[x].iov_len = udpBuffers[x].size();
         }
         for (auto idx : channelIovecs) {
@@ -208,19 +210,25 @@ GenericUDPOutput::GenericUDPOutput(unsigned int startChannel, unsigned int chann
     ChannelOutput(startChannel, channelCount) {
 }
 GenericUDPOutput::~GenericUDPOutput() {
+    // deleted without Close() when Init() fails; a no-op otherwise
+    UDPOutput::UnregisterExternalOutput(this);
 }
 
 int GenericUDPOutput::Init(Json::Value config) {
-    if (UDPOutput::INSTANCE) {
-        config.removeMember("type");
-        GenericUDPOutputData* od = new GenericUDPOutputData(config);
-        UDPOutput::INSTANCE->addOutput(od);
-    } else {
+    if (!UDPOutput::INSTANCE) {
         LogErr(VB_CHANNELOUT, "GenericUDPOutput Requires the UDP outputs to be enabled\n");
     }
+    config.removeMember("type");
+    // Registered by owner, not handed over as data: the UDP output is rebuilt
+    // whenever the E1.31/DDP config is saved and has to recreate this, and
+    // Close() has to be able to take it back out.
+    UDPOutput::RegisterExternalOutput(this, [config]() -> UDPOutputData* {
+        return new GenericUDPOutputData(config);
+    });
     return ChannelOutput::Init(config);
 }
 int GenericUDPOutput::Close(void) {
+    UDPOutput::UnregisterExternalOutput(this);
     return ChannelOutput::Close();
 }
 

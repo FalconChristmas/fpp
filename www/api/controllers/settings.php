@@ -50,13 +50,14 @@ function GetSetting()
     // Service_rsync. Accepts IPv4 and IPv6 (bracketed in the URL).
     if (isset($_GET['ip'])) {
         $ip = $_GET['ip'];
-        if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+        if (!filter_var($ip, FILTER_VALIDATE_IP) || !IsRemotePeerHost($ip)) {
             http_response_code(400);
             return json(array('error' => 'Invalid IP address'));
         }
         $hostForUrl = (strpos($ip, ':') !== false) ? '[' . $ip . ']' : $ip;
         $curl = curl_init('http://' . $hostForUrl . '/api/settings/' . rawurlencode($settingName));
-        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+        // Not followed: the peer could redirect it to a local-only service.
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
         curl_setopt($curl, CURLOPT_TIMEOUT_MS, 8000);
@@ -83,7 +84,14 @@ function GetSetting()
         $sInfo = array();
     }
 
-    if (isset($settings[$settingName])) {
+    // Credentials are write-only over the API.  /api answers any origin
+    // (Access-Control-Allow-Origin: *), so on a player without a UI password a
+    // web page the user merely visits could read them; settings pages print
+    // these fields server-side and never read them back from here.
+    // emailgpass and secret are stored but not declared in settings.json.
+    $isSecret = (isset($sInfo['type']) && $sInfo['type'] === 'password') ||
+        in_array($settingName, array('emailgpass', 'secret'), true);
+    if (isset($settings[$settingName]) && !$isSecret) {
         $sInfo['value'] = $settings[$settingName];
     }
 
@@ -117,7 +125,9 @@ function GetSetting()
 function PutSetting()
 {
     global $SUDO, $settings;
-    $value = file_get_contents('php://input');
+    // A trailing line break (curl --data-binary @file, echo | curl) is not part
+    // of the value; the settings file reader would drop it anyway.
+    $value = rtrim(file_get_contents('php://input'), "\r\n");
     $setting = params('SettingName');
 
     if (!IsValidSettingName($setting)) {
@@ -138,6 +148,14 @@ function PutSetting()
         // src/boot/FPPINIT_Config.cpp and SetGPIOFanProperties() in
         // www/common/settings.php.  A value entered in C stays a whole number.
         $value = round(($value - 32) * 5 / 9, 1);
+    }
+
+    if (!IsValidSettingValue($setting, $value)) {
+        http_response_code(400);
+        return json(array(
+            "status" => "ERROR",
+            "message" => "Invalid value for the '" . $setting . "' setting."
+        ));
     }
 
     // A failed write must not fall through to the apply/restart steps below:

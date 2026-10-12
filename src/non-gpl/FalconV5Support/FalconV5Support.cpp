@@ -17,6 +17,8 @@
 #include <unistd.h>
 
 #include "FalconV5Support.h"
+
+#include <stdexcept>
 #include "OutputMonitor.h"
 #include "Warnings.h"
 #include "common.h"
@@ -40,6 +42,12 @@ public:
     FalconV5Listener(const Json::Value& config) {
         pin = config["pin"].asString();
         const PinCapabilities& p = PinCapabilities::getPinByName(pin);
+        // the cape config comes from the cape EEPROM; a pin this board does
+        // not have fails the output (Init() catches this) instead of being
+        // dereferenced as null below
+        if (p.ptr() == nullptr) {
+            throw std::runtime_error("FalconV5 listener pin '" + pin + "' does not exist on this board");
+        }
         p.configPin("pru0in", false, "FalconV5 Listener");
 
         const BBBPinCapabilities* pc = (const BBBPinCapabilities*)p.ptr();
@@ -144,6 +152,9 @@ void FalconV5Support::addListeners(const Json::Value& config) {
     }
     for (int x = 0; x < config["muxPins"].size(); x++) {
         std::string p = config["muxPins"][x].asString();
+        if (PinCapabilities::getPinByName(p).ptr() == nullptr) {
+            throw std::runtime_error("FalconV5 mux pin '" + p + "' does not exist on this board");
+        }
         muxPins.push_back(PinCapabilities::getPinByName(p).ptr());
         muxPins.back()->configPin("gpio", true, "FalconV5 Mux Pin");
         muxPins.back()->setValue(0);
@@ -340,6 +351,10 @@ FalconV5Support::ReceiverChain::ReceiverChain(PixelString* p1, PixelString* p2, 
     strings[2] = p3;
     strings[3] = p4;
     for (auto& s : strings) {
+        // a chain head in the last three strings has fewer than four
+        if (s == nullptr) {
+            continue;
+        }
         uint32_t srCount = 1;
         for (auto& vs : s->m_virtualStrings) {
             if (vs.isFalconV5SmartReceiver()) {
@@ -350,6 +365,12 @@ FalconV5Support::ReceiverChain::ReceiverChain(PixelString* p1, PixelString* p2, 
     }
 }
 FalconV5Support::ReceiverChain* FalconV5Support::addReceiverChain(PixelString* p1, PixelString* p2, PixelString* p3, PixelString* p4, int group, int m, bool sendOnly) {
+    // the mux comes from the cape config (falconV5ListenerMux); a negative
+    // one compares as huge against the sizes below and grew maxCount until
+    // memory ran out
+    if (m < 0) {
+        m = 0;
+    }
     FalconV5Support::ReceiverChain* rc = new FalconV5Support::ReceiverChain(p1, p2, p3, p4, group, m, sendOnly);
     receiverChains.push_back(rc);
 
@@ -474,7 +495,8 @@ void FalconV5Support::ReceiverChain::handleQueryResponse(Json::Value& json) {
         int index = json["index"].asInt();
         int port = json["port"].asInt();
         int dial = json["dial"].asInt();
-        int numPorts = json["numPorts"].asInt();
+        // decoded from a reply on the wire; a receiver has at most 4 ports
+        int numPorts = std::clamp(json["numPorts"].asInt(), 0, 4);
         int id = json["id"].asInt();
         // printf("Resp:  Idx: %d     Port: %d    dial:  %d    NP: %d    ID: %d\n", index, port, dial, numPorts, id);
         for (int x = 0; x < numPorts; x++) {

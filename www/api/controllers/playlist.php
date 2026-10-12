@@ -452,6 +452,21 @@ function playlist_playable()
  * @param string $section     Section name to clean (e.g. "leadIn", "mainPlaylist").
  * @return void
  */
+/**
+ * The file a playlist name refers to, or false if the name is not a single
+ * path component.  Names arrive from request bodies and from URL segments that
+ * are decoded twice (limonade, then rawurldecode() below), so a separator can
+ * reach here even though the router never saw one.
+ */
+function PlaylistFilePath($playlistName)
+{
+    global $settings;
+    if (!is_string($playlistName) || $playlistName === '' || strpbrk($playlistName, "/\\\0") !== false) {
+        return false;
+    }
+    return $settings['playlistDirectory'] . '/' . $playlistName . '.json';
+}
+
 function cleanMedialNamesInPlaylist(&$playlistObj, $section)
 {
     global $settings;
@@ -508,13 +523,16 @@ function playlist_insert()
     global $settings;
 
     $playlist = $GLOBALS['_POST'];
-    $playlistName = $playlist['name'];
+    $playlistName = isset($playlist['name']) ? $playlist['name'] : '';
+    $filename = PlaylistFilePath($playlistName);
+    if ($filename === false) {
+        http_response_code(400);
+        return json(array('Status' => 'Error', 'Message' => 'Invalid playlist name.'));
+    }
 
     cleanMedialNamesInPlaylist($playlist, "leadIn");
     cleanMedialNamesInPlaylist($playlist, "mainPlaylist");
     cleanMedialNamesInPlaylist($playlist, "leadOut");
-
-    $filename = $settings['playlistDirectory'] . '/' . $playlistName . '.json';
 
     $json = json_encode($playlist/*, JSON_PRETTY_PRINT*/);
 
@@ -591,7 +609,8 @@ function LoadPlayListDetails($file, $mergeSubs)
 
     $jsonStr = "";
 
-    if (!file_exists($settings['playlistDirectory'] . '/' . $file . ".json")) {
+    $path = PlaylistFilePath($file);
+    if ($path === false || !file_exists($path)) {
         return "";
     }
 
@@ -644,7 +663,11 @@ function GetPlaylist($playlistName)
 {
     global $settings;
 
-    $jsonStr = file_get_contents($settings['playlistDirectory'] . '/' . $playlistName . ".json", LOCK_SH);
+    $path = PlaylistFilePath($playlistName);
+    if ($path === false) {
+        return null;
+    }
+    $jsonStr = file_get_contents($path, LOCK_SH);
 
     return json_decode($jsonStr);
 }
@@ -732,12 +755,15 @@ function playlist_update()
 
     $playlist = $GLOBALS['_POST'];
     $playlistName = rawurldecode(params('PlaylistName'));
+    $filename = PlaylistFilePath($playlistName);
+    if ($filename === false) {
+        http_response_code(400);
+        return json(array('Status' => 'Error', 'Message' => 'Invalid playlist name.'));
+    }
 
     cleanMedialNamesInPlaylist($playlist, "leadIn");
     cleanMedialNamesInPlaylist($playlist, "mainPlaylist");
     cleanMedialNamesInPlaylist($playlist, "leadOut");
-
-    $filename = $settings['playlistDirectory'] . '/' . $playlistName . '.json';
 
     // Preserve duration values from existing playlist file ONLY if not provided by frontend
     if (file_exists($filename)) {
@@ -772,8 +798,6 @@ function playlist_update()
     // Update playlistInfo to maintain v4 format with section-level stats
     updatePlaylistInfo($playlist);
 
-    $filename = $settings['playlistDirectory'] . '/' . $playlistName . '.json';
-
     $json = json_encode($playlist, JSON_PRETTY_PRINT);
     $f = file_put_contents($filename, $json, LOCK_EX);
     if ($f != false) {
@@ -805,7 +829,11 @@ function playlist_delete()
     $playlistName = rawurldecode(params('PlaylistName'));
     $resp = array();
 
-    $filename = $settings['playlistDirectory'] . '/' . $playlistName . '.json';
+    $filename = PlaylistFilePath($playlistName);
+    if ($filename === false) {
+        http_response_code(400);
+        return json(array('Status' => 'Error', 'Message' => 'Invalid playlist name.'));
+    }
     if (file_exists($filename)) {
         unlink($filename);
         if (file_exists($filename)) {
@@ -847,7 +875,11 @@ function PlaylistSectionInsertItem()
     $entry = $GLOBALS['_POST'];
     $resp = array();
 
-    $filename = $settings['playlistDirectory'] . '/' . $playlistName . '.json';
+    $filename = PlaylistFilePath($playlistName);
+    if ($filename === false) {
+        http_response_code(400);
+        return json(array('Status' => 'Error', 'Message' => 'Invalid playlist name.'));
+    }
     if (file_exists($filename)) {
         $json = file_get_contents($filename, LOCK_SH);
         $playlist = json_decode($json, true);

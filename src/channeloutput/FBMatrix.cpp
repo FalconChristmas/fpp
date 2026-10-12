@@ -163,6 +163,15 @@ int FBMatrixOutput::Init(Json::Value config) {
         return 0;
     }
 
+    // buffer is 3 byte RGB and SendData() hands it to setData(), which reads
+    // the model's own bytes per pixel (4 for an RGBW submodel)
+    if (model->getBytesPerPixel() != 3) {
+        LogErr(VB_CHANNELOUT, "Pixel Overlay Model '%s' is not RGB\n", modelName.c_str());
+        WarningHolder::AddWarning(35, "VirtualMatrix: model " + modelName + " is not an RGB model");
+        model = nullptr;
+        return 0;
+    }
+
     width = model->getWidth();
     height = model->getHeight();
 
@@ -267,7 +276,11 @@ int FBMatrixOutput::SendData(unsigned char* channelData) {
         // overlay/effect, so push the current sequence channels into it
         // and draw to the framebuffer right here.
         model->setData(buffer);
-        model->doOverlay(channelData);
+        // doOverlay() takes the whole sequence buffer: a submodel's parent
+        // writes at its own absolute channels, and channelData here is this
+        // output's slice, starting m_startChannel in.  (A framebuffer model
+        // ignores the argument and draws its own data.)
+        model->doOverlay(channelData - m_startChannel);
     }
     // else: the model is acting as an overlay (e.g., a Pixel Overlay
     // effect is writing into channelData via flushOverlayBuffer). Don't

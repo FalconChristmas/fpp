@@ -1076,7 +1076,7 @@ function network_get_interface()
 
     $cfgFile = $settings['configDirectory'] . "/interface." . $interface;
     if (file_exists($cfgFile)) {
-        $result = parse_ini_file($cfgFile);
+        $result = network_redact_interface_config(parse_ini_file($cfgFile));
         $result['status'] = 'OK';
 
         // Remove GATEWAY from interface configuration since it's now handled globally
@@ -1350,6 +1350,20 @@ function network_set_interface()
         foreach ($data['Leases'] as $lip => $lmac) {
             if (!network_is_valid_ipv4((string)$lip) || !network_is_valid_mac($lmac)) {
                 return json(array("status" => "ERROR: invalid static lease entry"));
+            }
+        }
+    }
+
+    // GETs never return WiFi keys (network_redact_interface_config()), so a
+    // request without one keeps the key already saved.  Read before the file
+    // is truncated below.
+    if (!array_key_exists('PSK', $data) || !array_key_exists('BACKUPPSK', $data)) {
+        // RAW: the default mode expands ${...} inside values, which would
+        // rewrite a kept passphrase that happens to contain one.
+        $saved = file_exists($cfgFile) ? @parse_ini_file($cfgFile, false, INI_SCANNER_RAW) : array();
+        foreach (array('PSK', 'BACKUPPSK') as $k) {
+            if (!array_key_exists($k, $data)) {
+                $data[$k] = (is_array($saved) && isset($saved[$k])) ? $saved[$k] : '';
             }
         }
     }

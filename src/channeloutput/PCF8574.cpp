@@ -129,6 +129,12 @@ int PCF8574Output::Init(Json::Value config) {
         return 0;
     }
 
+    // one channel per pin; SendData indexes m_ports[8] by channel
+    if (m_channelCount > 8) {
+        LogWarn(VB_CHANNELOUT, "PCF8574 has 8 pins, using 8 of the %u channels configured\n", m_channelCount);
+        m_channelCount = 8;
+    }
+
     i2c = new I2CUtils(1, m_deviceID);
     if (!i2c->isOk()) {
         LogErr(VB_CHANNELOUT, "Error opening I2C device for PCF8574 output\n");

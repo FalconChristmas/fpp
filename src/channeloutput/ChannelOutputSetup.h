@@ -33,6 +33,12 @@ int PrepareChannelData(char* channelData);
 int SendChannelData(const char* channelData);
 void OverlayOutputTestData(std::set<std::string> types, unsigned char* channelData, int cycleCnt, float percentOfCycle, int testType, const Json::Value& extraConfig);
 std::set<std::string> GetOutputTypes();
+
+// For an output's Init(): raises a warning about its configuration that comes
+// down the next time that output's config file is loaded - when the user has
+// presumably fixed it.  A plain AddWarning() raised from Init() stays up
+// until fppd restarts.  Outside Init() it is an ordinary warning.
+void AddOutputConfigWarning(int id, const std::string& warning);
 void CloseChannelOutputs();
 void SetChannelOutputFrameNumber(int frameNumber);
 void ResetChannelOutputFrameNumber();

@@ -57,6 +57,11 @@ public:
     int Process(void);
     void ProcessMedia(void);
     int Cleanup(void);
+    // Cleanup(), but only if the playlist is idle when checked under
+    // m_playlistMutex.  For callers outside a transition that decided to
+    // clean up from an unlocked status read: another thread may have started
+    // a new playlist in between, and Cleanup() would wipe it mid-play.
+    int CleanupIfIdle(void);
 
     // Refresh the lock-free snapshot the crash handler reads (see
     // PlaylistDumpCrashState).  Called at the points where the section or
@@ -204,6 +209,13 @@ private:
     std::vector<PlaylistEntryBase*> m_mainPlaylist;
     std::vector<PlaylistEntryBase*> m_leadOut;
     std::vector<PlaylistEntryBase*>* m_currentSection;
+
+    // Members below are appended rather than grouped with their relatives so
+    // that the offsets of everything above stay put for already-built plugins.
+
+    // The status Pause() replaced, restored by Resume().  A playlist paused
+    // while stopping gracefully must keep stopping once resumed.
+    PlaylistStatus m_statusBeforePause = FPP_STATUS_PLAYLIST_PLAYING;
 };
 
 // Source-compatibility façade for the old `extern Playlist* playlist;` global.

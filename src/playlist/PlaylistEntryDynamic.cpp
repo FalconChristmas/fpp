@@ -148,7 +148,12 @@ int PlaylistEntryDynamic::StartPlaying(void) {
  */
 int PlaylistEntryDynamic::Process(void) {
     if ((m_currentEntry >= 0) && (m_playlistEntries[m_currentEntry])) {
-        m_playlistEntries[m_currentEntry]->Process();
+        // Only a child that is playing gets Process(), as in
+        // Playlist::Process().  One that finished inside StartPlaying() (a
+        // disabled entry, a failed start) was never set up for it: a disabled
+        // command entry has no result, and processing it dereferenced null.
+        if (m_playlistEntries[m_currentEntry]->IsPlaying())
+            m_playlistEntries[m_currentEntry]->Process();
         if (m_playlistEntries[m_currentEntry]->IsFinished()) {
             if ((m_parentPlaylist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY) ||
                 (m_parentPlaylist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
@@ -350,34 +355,47 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr) {
         }
         playlistEntry = NULL;
 
-        if (pe["type"].asString() == "both")
-            playlistEntry = new PlaylistEntryBoth(m_parentPlaylist);
-        else if (pe["type"].asString() == "command")
-            playlistEntry = new PlaylistEntryCommand(m_parentPlaylist);
-        else if (pe["type"].asString() == "media")
-            playlistEntry = new PlaylistEntryMedia(m_parentPlaylist);
-        else if (pe["type"].asString() == "pause")
-            playlistEntry = new PlaylistEntryPause(m_parentPlaylist);
-        else if (pe["type"].asString() == "remap")
-            playlistEntry = new PlaylistEntryRemap(m_parentPlaylist);
-        else if (pe["type"].asString() == "script")
-            playlistEntry = new PlaylistEntryScript(m_parentPlaylist);
-        else if (pe["type"].asString() == "sequence")
-            playlistEntry = new PlaylistEntrySequence(m_parentPlaylist);
-        else if (pe["type"].asString() == "url")
-            playlistEntry = new PlaylistEntryURL(m_parentPlaylist);
-        else {
-            LogErr(VB_PLAYLIST, "Invalid Playlist Entry Type: %s\n", pe["type"].asString().c_str());
-            WarningHolder::AddWarningTimeout(60, 33, "Dynamic playlist contains an invalid entry type: " + pe["type"].asString());
-            ClearPlaylistEntries();
-            return 0;
-        }
+        // Plugins, URLs and files supply this data.  jsoncpp throws on a
+        // wrong-typed value ("type" an object, "enabled":"1", ...) and nothing
+        // above StartPlaying() catches, so an escape terminated fppd.  Treat a
+        // throw exactly like a failed Init().
+        try {
+            std::string type = pe["type"].asString();
+            if (type == "both")
+                playlistEntry = new PlaylistEntryBoth(m_parentPlaylist);
+            else if (type == "command")
+                playlistEntry = new PlaylistEntryCommand(m_parentPlaylist);
+            else if (type == "media")
+                playlistEntry = new PlaylistEntryMedia(m_parentPlaylist);
+            else if (type == "pause")
+                playlistEntry = new PlaylistEntryPause(m_parentPlaylist);
+            else if (type == "remap")
+                playlistEntry = new PlaylistEntryRemap(m_parentPlaylist);
+            else if (type == "script")
+                playlistEntry = new PlaylistEntryScript(m_parentPlaylist);
+            else if (type == "sequence")
+                playlistEntry = new PlaylistEntrySequence(m_parentPlaylist);
+            else if (type == "url")
+                playlistEntry = new PlaylistEntryURL(m_parentPlaylist);
+            else {
+                LogErr(VB_PLAYLIST, "Invalid Playlist Entry Type: %s\n", pe["type"].asString().c_str());
+                WarningHolder::AddWarningTimeout(60, 33, "Dynamic playlist contains an invalid entry type: " + pe["type"].asString());
+                ClearPlaylistEntries();
+                return 0;
+            }
 
-        if (!playlistEntry->Init(pe)) {
-            LogErr(VB_PLAYLIST, "Error initializing %s Playlist Entry\n", pe["type"].asString().c_str());
-            WarningHolder::AddWarningTimeout(60, 33, "Dynamic playlist entry failed to initialize: " + pe["type"].asString());
-            // Not yet pushed into m_playlistEntries (that happens only after a
-            // successful Init below), so ClearPlaylistEntries() won't free it.
+            if (!playlistEntry->Init(pe)) {
+                LogErr(VB_PLAYLIST, "Error initializing %s Playlist Entry\n", pe["type"].asString().c_str());
+                WarningHolder::AddWarningTimeout(60, 33, "Dynamic playlist entry failed to initialize: " + pe["type"].asString());
+                // Not yet pushed into m_playlistEntries (that happens only after a
+                // successful Init below), so ClearPlaylistEntries() won't free it.
+                delete playlistEntry;
+                ClearPlaylistEntries();
+                return 0;
+            }
+        } catch (const std::exception& ex) {
+            LogErr(VB_PLAYLIST, "Invalid dynamic playlist entry: %s\n", ex.what());
+            WarningHolder::AddWarningTimeout(60, 33, std::string("Dynamic playlist entry is invalid: ") + ex.what());
             delete playlistEntry;
             ClearPlaylistEntries();
             return 0;

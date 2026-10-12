@@ -1060,6 +1060,10 @@ void OutputMonitor::processRetries() {
 }
 void OutputMonitor::setSmartReceiverInfo(int port, int index, bool enabled, bool tripped, int current, int pixelCount) {
     // printf("      %d  %c:     Current:  %d     PC:  %d    EN: %d    TR: %d\n", port + 1, (char)('A' + index), current, pixelCount, enabled, tripped);
+    // both come decoded off the wire from a receiver's reply; receivers[] has 6
+    if (port < 0 || index < 0 || index >= 6) {
+        return;
+    }
     std::unique_lock<std::shared_mutex> lock(gpioLock);
     if (port < portPins.size() && portPins[port]) {
         portPins[port]->receivers[index].enabled = true;

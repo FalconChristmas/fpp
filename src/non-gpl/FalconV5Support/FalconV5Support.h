@@ -110,7 +110,7 @@ private:
 
     std::vector<std::map<int, std::list<ReceiverChain*>>> queryData;
     std::vector<int> maxCount;
-    bool curMux = 0;
+    int curMux = 0;
     int curCount = 0;
     bool triggerPixelCount = false;
 

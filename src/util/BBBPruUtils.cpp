@@ -14,6 +14,7 @@
 
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <algorithm>
 #include <cstring>
 #include <elf.h>
@@ -378,6 +379,49 @@ BBBPru::~BBBPru() {
     }
 }
 
+// The core control register sits 0x22000 into the PRUSS mapping, one 0x2000
+// block per core, on both the AM335x and the AM62x.  Bit 1 enables the core.
+static constexpr uintptr_t PRU_CTRL_OFFSET = 0x22000;
+static constexpr uintptr_t PRU_CTRL_STRIDE = 0x2000;
+static constexpr uint32_t PRU_CTRL_ENABLE = 0x2;
+
+static volatile uint32_t* pruControlReg(unsigned pru_num) {
+    // only the two PRU cores: one block further on is the PRUSS CFG space
+    if (!base_memory_location || pru_num > 1) {
+        return nullptr;
+    }
+    return (volatile uint32_t*)(base_memory_location + PRU_CTRL_OFFSET + (pru_num * PRU_CTRL_STRIDE));
+}
+
+// Clear the core's enable bit and wait until it reads back clear with the
+// core no longer running.  A remoteproc stop alone does not guarantee this:
+// the firmware's RESET_PRU_CLOCK read-modify-writes this same register to
+// restart the cycle counter, and every FPP program runs it constantly while
+// idle.  A stop that clears EN between the firmware's read and its write is
+// undone, and the core keeps running its old program while remoteproc
+// reports it offline - acting on any command word it sees, and executing
+// whatever lands in its instruction RAM when the next program is loaded.
+// Our own write can be undone the same way, so it is repeated until it
+// sticks; once the core is halted nothing can set the bit again.
+static bool haltCore(unsigned pru_num) {
+    volatile uint32_t* ctrl = pruControlReg(pru_num);
+    if (!ctrl) {
+        return true;
+    }
+    constexpr uint32_t PRU_CTRL_RUNSTATE = 0x8000;
+    for (int x = 0; x < 100; x++) {
+        uint32_t v = *ctrl;
+        if (!(v & PRU_CTRL_ENABLE) && !(v & PRU_CTRL_RUNSTATE)) {
+            return true;
+        }
+        *ctrl = v & ~PRU_CTRL_ENABLE;
+        __sync_synchronize();
+        std::this_thread::sleep_for(std::chrono::microseconds(10));
+    }
+    LogWarn(VB_CHANNELOUT, "BBBPru: PRU core %d did not halt (control 0x%X)\n", pru_num, *ctrl);
+    return false;
+}
+
 static std::string pruFirmwareName(int pru_num) {
     return FIRMWARE_PREFIX + "-pru" + std::to_string(pru_num) + "-fw";
 }
@@ -418,10 +462,13 @@ static void restorePRUSleepFirmware(int pru_num) {
     }
 }
 
-bool BBBPru::run(const std::string& program, bool clearSharedMems) {
+bool BBBPru::run(const std::string& program, bool clearSharedMems, bool clearMems) {
     LogDebug(VB_CHANNELOUT, "BBBPru[%d]::run(%s)\n", pru_num, program.c_str());
 
-    auto clearMems = [&]() {
+    auto clearPRUMems = [&]() {
+        if (!clearMems) {
+            return;
+        }
         clearPRUMem(data_ram, data_ram_size);
         if (clearSharedMems) {
             if (shared_ram) {
@@ -442,6 +489,9 @@ bool BBBPru::run(const std::string& program, bool clearSharedMems) {
     }
     bool enabled = true;
     if (!FAKE_PRU) {
+        // halted before the program is installed: remoteproc loads it into
+        // the instruction RAM of a core it believes is stopped
+        haltCore(pru_num);
         prus[pru_num].disable();
         if (!installPRUFirmware(pru_num, program)) {
             LogErr(VB_CHANNELOUT, "BBBPru[%d]: could not install PRU program %s\n", pru_num, program.c_str());
@@ -453,7 +503,7 @@ bool BBBPru::run(const std::string& program, bool clearSharedMems) {
         // there: the new firmware passes its wait on them at once and reads
         // config the ARM has not written yet.  The clear after enable() stays
         // for a PRUSS that was powered down, where these writes are dropped.
-        clearMems();
+        clearPRUMems();
         enabled = prus[pru_num].enable();
         if (!enabled) {
             return false;
@@ -462,7 +512,7 @@ bool BBBPru::run(const std::string& program, bool clearSharedMems) {
         LogErr(VB_CHANNELOUT, "BBBPru[%d]: could not install PRU program %s\n", pru_num, program.c_str());
         return false;
     }
-    clearMems();
+    clearPRUMems();
     /*
     printf("DL:  %p\n", data_ram);
     printf("OL:  %p\n", other_data_ram);
@@ -584,22 +634,10 @@ void BBBPru::ddrRelease(const std::string& owner) {
 
 void BBBPru::stop() {
     if (!FAKE_PRU) {
+        haltCore(pru_num);
         prus[pru_num].disable();
         restorePRUSleepFirmware(pru_num);
     }
-}
-
-// The core control register sits 0x22000 into the PRUSS mapping, one 0x2000
-// block per core, on both the AM335x and the AM62x.  Bit 1 enables the core.
-static constexpr uintptr_t PRU_CTRL_OFFSET = 0x22000;
-static constexpr uintptr_t PRU_CTRL_STRIDE = 0x2000;
-static constexpr uint32_t PRU_CTRL_ENABLE = 0x2;
-
-static volatile uint32_t* pruControlReg(unsigned pru_num) {
-    if (!base_memory_location) {
-        return nullptr;
-    }
-    return (volatile uint32_t*)(base_memory_location + PRU_CTRL_OFFSET + (pru_num * PRU_CTRL_STRIDE));
 }
 
 void BBBPru::pause() {
@@ -680,4 +718,33 @@ uint32_t BBBPruSMEMRing::write(const uint8_t* src, uint32_t len) {
         ctrl[0] = pointerMode ? (basePru + writeOff) : produced;
     }
     return total;
+}
+
+void CompilePRUProgram(const std::string& script, const std::vector<std::string>& args) {
+    // argv is built before the fork: the child of a threaded process should
+    // do nothing but exec
+    std::vector<char*> argv;
+    argv.push_back((char*)"/bin/bash");
+    argv.push_back((char*)script.c_str());
+    std::string log = script;
+    for (auto& a : args) {
+        argv.push_back((char*)a.c_str());
+        log += " " + a;
+    }
+    argv.push_back(nullptr);
+    LogDebug(VB_CHANNELOUT, "Compiling PRU program: %s\n", log.c_str());
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        LogErr(VB_CHANNELOUT, "Could not fork to compile PRU program %s: %s\n", script.c_str(), strerror(errno));
+        return;
+    }
+    if (pid == 0) {
+        execv("/bin/bash", argv.data());
+        // never return into the caller: that would be a second fppd
+        _exit(127);
+    }
+    // returns when this child exits (with ECHILD, as it is reaped for us)
+    while (waitpid(pid, nullptr, 0) < 0 && errno == EINTR) {
+    }
 }

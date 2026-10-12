@@ -1,5 +1,4 @@
 <?
-header("Access-Control-Allow-Origin: *");
 
 $skipJSsettings = 1;
 require_once "common.php";
@@ -146,7 +145,9 @@ $areas = array();
 if (isset($_GET['areas'])) {
     $areasStr = $_GET['areas'];
     $areasStr = preg_replace('/,dummy/', '', $areasStr);
-    $areas = preg_split('/,/', $areasStr);
+    // Only the areas defined above: each one is echoed into the page, and
+    // anything else would only index $files with a name it doesn't have.
+    $areas = array_values(array_intersect(preg_split('/,/', $areasStr), array_keys($files)));
 }
 
 // Plugin source (see www/api/controllers/plugin.php) is meant to survive

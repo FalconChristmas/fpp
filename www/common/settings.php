@@ -2,8 +2,13 @@
 
 function SetTimeZone($timezone)
 {
-    // The timezone value is interpolated into shell commands, so escape it
-    // as a single shell word before use.
+    // The value goes into root shell commands, one of them inside an outer
+    // "..." where escapeshellarg()'s single quotes do not protect it.  A known
+    // zone name has no shell metacharacters, so accept nothing else.
+    if (!IsValidTimeZone($timezone)) {
+        error_log("SetTimeZone: ignoring unknown time zone");
+        return;
+    }
     $timezone = escapeshellarg($timezone);
     if (file_exists("/etc/fpp/container")) {
         exec("sudo ln -s -f /usr/share/zoneinfo/$timezone /etc/localtime");
@@ -141,6 +146,44 @@ function EnableUIPassword($value)
     }
 }
 
+/**
+ * The htpasswd hash for the UI password.
+ *
+ * Apache mod_auth_basic re-verifies the hash on EVERY request, with no
+ * caching, and a page fires dozens of requests.  bcrypt at PHP's default cost
+ * (12) takes ~1.4s per verify on a BBB, which stacked up to ~10s per page.
+ *
+ * - One core (BBB): unsalted SHA-1 ({SHA}), which verifies in microseconds.
+ *   Weak against a stolen .htpasswd, but every request queues on that core.
+ * - More than one core: bcrypt, at the highest cost this board verifies in
+ *   about 10ms (cost 6 on a Pi 5, 5 on a PocketBeagle2 when measured), so a
+ *   page's requests spread over the cores and the delay stays small.  A board
+ *   too slow even for cost 5 keeps {SHA}.
+ *
+ * The cost is chosen when the password is set, so moving a card to faster
+ * hardware keeps the old cost until the password is saved again.
+ */
+function UIPasswordHash($value)
+{
+    $cores = intval(trim((string) @shell_exec('nproc 2>/dev/null')));
+    if ($cores > 1) {
+        // Time a cost-5 verify (best of three; each step up doubles it).
+        $probe = password_hash('calibrate', PASSWORD_BCRYPT, array('cost' => 5));
+        $best = PHP_FLOAT_MAX;
+        for ($i = 0; $i < 3; $i++) {
+            $t = microtime(true);
+            password_verify('calibrate', $probe);
+            $best = min($best, (microtime(true) - $t) * 1000.0);
+        }
+        if ($best <= 25.0) {
+            $cost = 5 + (int) floor(log(10.0 / max($best, 0.01), 2));
+            $cost = max(5, min(10, $cost));
+            return password_hash($value, PASSWORD_BCRYPT, array('cost' => $cost));
+        }
+    }
+    return "{SHA}" . base64_encode(sha1($value, true));
+}
+
 function SetUIPassword($value)
 {
     global $settings;
@@ -150,14 +193,7 @@ function SetUIPassword($value)
     }
 
     // Write a new password file, replacing old one if exists; users fpp and admin.
-    //
-    // Apache mod_auth_basic re-verifies the htpasswd hash on EVERY request with no
-    // caching. bcrypt (PHP 8.4 bumped the default to cost 12) takes ~1.4s per verify
-    // on a BBB, so every page - which fires many API/asset requests - stacked up to
-    // ~10s of unresponsiveness. The UI password is a low-value secret on a LAN device
-    // (the plaintext is even kept in the settings file), so use apache's fast
-    // unsalted SHA-1 ({SHA}) htpasswd format, which verifies in microseconds.
-    $encrypted_password = "{SHA}" . base64_encode(sha1($value, true));
+    $encrypted_password = UIPasswordHash($value);
     $data = "admin:$encrypted_password\nfpp:$encrypted_password\n";
     $filename = $settings['mediaDirectory'] . "/config/.htpasswd";
 
@@ -222,6 +258,14 @@ function SetForceHDMIResolution($value, $postfix)
 {
     global $settings;
 
+    // Spliced into a single-quoted sed expression run as root; a mode is only
+    // ever letters, digits and '@' (e.g. 1920x1080@60, the same set the sed
+    // patterns below match when removing it).
+    if (!preg_match('/^[A-Za-z0-9@]+$/', $value)) {
+        error_log("SetForceHDMIResolution: ignoring invalid mode");
+        return;
+    }
+
     if ($settings["Platform"] == "BeagleBone Black") {
         exec("sudo sed -i -e 's/^cmdline\(.*\) video=HDMI-A-1:\([A-Za-z@0-9]*\)\(.*\)/cmdline\\1 \\3/' " . GetDirSetting('boot') . "/uEnv.txt", $output, $return_val);
         exec("sudo sed -i 's/[ \\t]*$//' " . GetDirSetting('boot') . "/uEnv.txt", $output, $return_val);
@@ -257,7 +301,14 @@ function SetInstalledCape($value)
         } else {
             $directory = $directory . "/bbb/";
         }
-        exec("sudo cp -f " . $directory . $value . "-eeprom.bin " . $settings['configDirectory'] . "/cape-eeprom.bin", $output, $return_val);
+        // Only a cape that actually ships an EEPROM image here (the list
+        // GetCapeOptions() offers); the name is a path component in a root cp.
+        $eeprom = $directory . $value . "-eeprom.bin";
+        if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9._+-]*$/', $value) || !is_file($eeprom)) {
+            error_log("SetInstalledCape: no EEPROM image for the selected cape");
+            return;
+        }
+        exec("sudo cp -f " . escapeshellarg($eeprom) . " " . escapeshellarg($settings['configDirectory'] . "/cape-eeprom.bin"), $output, $return_val);
         exec("sudo chown fpp:fpp " . $settings['configDirectory'] . "/cape-eeprom.bin", $output, $return_val);
     }
     exec("sudo " . $settings['fppBinDir'] . "/fppcapedetect", $output, $return_val);
@@ -382,9 +433,10 @@ function SetupLocalMQTTBroker($value)
 function SetupScreenBlanking($value)
 {
     global $settings;
-    $timeout = ReadSettingFromFile('screensaverTimeout');
-    if (!$timeout || $timeout == '') {
-        $timeout = "1";
+    // Spliced into a root sed command: minutes, so an integer.
+    $timeout = intval(ReadSettingFromFile('screensaverTimeout'));
+    if ($timeout <= 0) {
+        $timeout = 1;
     }
 
     if ($settings["Platform"] == "Raspberry Pi") {

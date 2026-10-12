@@ -7,7 +7,6 @@ require_once "common/settings.php";
 session_write_close();
 ignore_user_abort(true);
 set_time_limit(3600);
-header("Access-Control-Allow-Origin: *");
 
 $wrapped = 0;
 

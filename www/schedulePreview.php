@@ -53,6 +53,13 @@ if (file_exists($userHolidaysFile)) {
 // isn't anchored on a holiday.  $field limits the check to 'startDate' or
 // 'endDate'; by default the end date wins when both match, as the calendar
 // labels only want one name.
+// Schedule entries are user data (and arrive from the schedule JSON), so every
+// value is escaped as it goes into this page's markup.
+function sp_h($v)
+{
+    return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+}
+
 function checkIfHoliday($item, $wrap = false, $field = '')
 {
     global $data;
@@ -99,6 +106,7 @@ function checkIfHoliday($item, $wrap = false, $field = '')
         $holiday .= (($schEntry[$key] > 0) ? ' +' : ' ') . $schEntry[$key] . ' ' . ((abs($schEntry[$key]) > 1) ? 'days' : 'day');
     }
 
+    $holiday = sp_h($holiday);
     return $wrap ? ' (' . $holiday . ')' : $holiday;
 }
 
@@ -107,7 +115,7 @@ function getItemInfo($item)
     global $data;
 
     if (!isset($data['schedule']['entries'][$item['id']])) {
-        return "ERROR: Unable to find schedule entry with id: " . $item['id'];
+        return "ERROR: Unable to find schedule entry with id: " . sp_h($item['id']);
     }
 
     $sch = $data['schedule']['entries'][$item['id']];
@@ -116,7 +124,7 @@ function getItemInfo($item)
 
     $info .= '<b>Start Date:</b> ';
     if (preg_match('/^[0-9]/', $sch['startDate'])) {
-        $info .= $sch['startDate'];
+        $info .= sp_h($sch['startDate']);
     } else {
         $info .= checkIfHoliday($item, false, 'startDate');
     }
@@ -124,28 +132,28 @@ function getItemInfo($item)
 
     $info .= '<b>End Date:</b> ';
     if (preg_match('/^[0-9]/', $sch['endDate'])) {
-        $info .= $sch['endDate'];
+        $info .= sp_h($sch['endDate']);
     } else {
         $info .= checkIfHoliday($item, false, 'endDate');
     }
     $info .= '<br>';
 
-    $info .= '<b>Start Time:</b> ' . $sch['startTimeStr'];
+    $info .= '<b>Start Time:</b> ' . sp_h($sch['startTimeStr']);
     if ($sch['startTimeOffset'] != 0) {
         $info .= (($sch['startTimeOffset'] > 0) ? ' +' : ' ') . $sch['startTimeOffset'] . ' ' . (($sch['startTimeOffset'] > 1) ? 'minutes' : 'minute');
     }
 
     $info .= '<br>';
 
-    $info .= '<b>End Time:</b> ' . $sch['endTimeStr'];
+    $info .= '<b>End Time:</b> ' . sp_h($sch['endTimeStr']);
     if ($sch['endTimeOffset'] != 0) {
         $info .= (($sch['endTimeOffset'] > 0) ? ' +' : ' ') . $sch['endTimeOffset'] . ' ' . (($sch['endTimeOffset'] > 1) ? 'minutes' : 'minute');
     }
 
     $info .= '<br>';
 
-    $info .= '<b>Days:</b> ' . $sch['dayStr'] . '<br>';
-    $info .= '<b>Stop:</b> ' . $sch['stopTypeStr'] . '<br>';
+    $info .= '<b>Days:</b> ' . sp_h($sch['dayStr']) . '<br>';
+    $info .= '<b>Stop:</b> ' . sp_h($sch['stopTypeStr']) . '<br>';
 
     $info .= '<b>Repeat:</b> ';
     if ($sch['repeat']) {
@@ -157,7 +165,7 @@ function getItemInfo($item)
         $info .= 'None';
     }
     $info .= '<br>';
-    $info .= '<b>Priority:</b> ' . $item['priority'] . '<br>';
+    $info .= '<b>Priority:</b> ' . sp_h($item['priority']) . '<br>';
     return $info;
 }
 
@@ -205,12 +213,12 @@ function showPlaylistEnds($currTime = 0)
                 }
                 printf(
                     "<td>%s%s</td><td>&nbsp;-&nbsp;</td><td%s>End Playing</td><td>&nbsp;-&nbsp;</td><td%s>%s (%s Stop)</td><td></td></tr>\n<tr>",
-                    $endItem["endTimeStr"],
+                    sp_h($endItem["endTimeStr"]),
                     checkIfHoliday($endItem, true),
                     $style,
                     $style,
-                    $endItem["args"][0],
-                    $data["schedule"]["entries"][$endItem["id"]]["stopTypeStr"]
+                    sp_h($endItem["args"][0]),
+                    sp_h($data["schedule"]["entries"][$endItem["id"]]["stopTypeStr"])
                 );
 
                 unset($depthsInUse[$endItem["previewDepth"]]);
@@ -354,18 +362,18 @@ foreach ($data["schedule"]["items"] as $item) {
         if ($depth == 0 || $item['priority'] < $priorities[$depth - 1]) {
             printf(
                 "<td>%s%s</td><td>&nbsp;-&nbsp;</td><td>Start Playing</td><td>&nbsp;-&nbsp;</td><td>%s (%s w/ %s Stop)</td>",
-                $item["startTimeStr"],
+                sp_h($item["startTimeStr"]),
                 checkIfHoliday($item, true),
-                $item["args"][0],
+                sp_h($item["args"][0]),
                 $data["schedule"]["entries"][$item["id"]]["repeat"] == 1 ? "Repeating" : "Non-Repeating",
-                $data["schedule"]["entries"][$item["id"]]["stopTypeStr"]
+                sp_h($data["schedule"]["entries"][$item["id"]]["stopTypeStr"])
             );
         } else {
             printf(
                 "<td>%s%s</td><td>&nbsp;-&nbsp;</td><td style='color: red;'>Skip Start Playing</td><td>&nbsp;-&nbsp;</td><td style='color: red;'>%s - Lower Priority</td>",
-                $item["startTimeStr"],
+                sp_h($item["startTimeStr"]),
                 checkIfHoliday($item, true),
-                $item["args"][0]
+                sp_h($item["args"][0])
             );
         }
     } else {
@@ -386,14 +394,14 @@ foreach ($data["schedule"]["items"] as $item) {
 
         printf(
             "<td>%s%s</td><td>&nbsp;-&nbsp;</th><td>%s</td><td>&nbsp;-&nbsp;</th><td>%s</td>",
-            $item["startTimeStr"],
+            sp_h($item["startTimeStr"]),
             checkIfHoliday($item, true),
-            $item["command"],
-            join(' | ', $item["args"])
+            sp_h($item["command"]),
+            sp_h(join(' | ', $item["args"]))
         );
     }
 
-    echo "<td><span data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto' data-bs-title=\"" . getItemInfo($item) . "\"><img src='images/redesign/help-icon.svg' class='icon-help'></span></td>";
+    echo "<td><span data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto' data-bs-title=\"" . sp_h(getItemInfo($item)) . "\"><img src='images/redesign/help-icon.svg' class='icon-help'></span></td>";
 
     echo "</tr>\n";
 }

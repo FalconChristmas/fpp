@@ -115,7 +115,8 @@ function RecordPrivacyConsent($values, $via, $date = '')
         $rec['settings'] = array();
     }
 
-    if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}T/', $date)) {
+    // The browser's clock, but only a timestamp: the whole string is stored.
+    if ($date === '' || !is_string($date) || !preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:\d{2})$/', $date)) {
         $date = gmdate('Y-m-d\TH:i:s\Z');
     }
 

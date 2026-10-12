@@ -2,6 +2,10 @@
 
 echo $0 $@
 cd /tmp
+
+# a failed build must not leave the previous configuration's program behind
+# for the driver to load
+rm -f /tmp/FalconSerial.obj /tmp/FalconSerial.out
 /bin/rm -f /opt/fpp/lib/FalconSerial.*
 
 

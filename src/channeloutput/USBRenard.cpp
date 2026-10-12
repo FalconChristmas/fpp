@@ -137,7 +137,16 @@ int USBRenardOutput::Init(Json::Value config) {
         return 0;
     }
 
-    data->outputData = new char[USBRenard_MaxChannels(data)];
+    // SendData() refuses (and logs) every frame larger than the speed
+    // allows, and an unlisted speed allows none: say so once, here, and
+    // don't start the output
+    int maxChannels = USBRenard_MaxChannels(data);
+    if (maxChannels == 0 || (int)m_channelCount > maxChannels) {
+        LogErr(VB_CHANNELOUT, "Renard at %d baud carries at most %d channels, %u configured\n",
+               data->speed, maxChannels, m_channelCount);
+        return 0;
+    }
+    data->outputData = new char[maxChannels];
     if (data->outputData == NULL) {
         LogErr(VB_CHANNELOUT, "Error %d allocating channel memory: %s\n",
                errno, FPPstrerror(errno));

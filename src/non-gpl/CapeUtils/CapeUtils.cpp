@@ -27,6 +27,8 @@
 #include <sys/reboot.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <vector>
+#include <sys/wait.h>
 #include <fcntl.h>
 #include <fstream>
 #include <pwd.h>
@@ -253,8 +255,77 @@ static std::string read_string(FILE* file, int len) {
     fread(&buf[0], 1, len, file);
     return trim(buf);
 }
+
+// The EEPROM image is the largest thing parseEEPROM()'s buffers hold.
+static constexpr int MAX_EEPROM_SIZE = 32768;
+
+// A section's length field.  Everything in the image is untrusted until the
+// signature is checked - and a virtual EEPROM is an uploaded file, not a
+// 32K chip - so a negative length (fseek backwards: the parse never ends) or
+// one past the buffers (heap overflow) is a corrupt image.
+static int read_section_length(FILE* file) {
+    int len = std::stoi(read_string(file, 6));
+    if (len < 0 || len > MAX_EEPROM_SIZE) {
+        throw std::runtime_error("invalid section length " + std::to_string(len));
+    }
+    return len;
+}
+
+// A file name from a section, relative to the extraction directory.  These are
+// read before the signature is known, so nothing that could leave that
+// directory is accepted.
+static std::string checked_section_name(const std::string& name) {
+    if (name.empty() || name[0] == '/' || name.back() == '/') {
+        throw std::runtime_error("invalid file name in EEPROM: '" + name + "'");
+    }
+    for (char c : name) {
+        if (!isalnum((unsigned char)c) && c != '.' && c != '_' && c != '-' && c != '/' && c != '+') {
+            throw std::runtime_error("invalid file name in EEPROM: '" + name + "'");
+        }
+    }
+    std::stringstream parts(name);
+    std::string part;
+    while (std::getline(parts, part, '/')) {
+        if (part.empty() || part == "." || part == "..") {
+            throw std::runtime_error("invalid file name in EEPROM: '" + name + "'");
+        }
+    }
+    return name;
+}
+
+// Run an archive tool in dir with no shell in between: the archive's name
+// came from the EEPROM.  Waits for that child only (fppd sets SA_NOCLDWAIT).
+static void run_in_dir(const std::string& dir, const std::vector<std::string>& args) {
+    std::vector<char*> argv;
+    for (auto& a : args) {
+        argv.push_back((char*)a.c_str());
+    }
+    argv.push_back(nullptr);
+    pid_t pid = fork();
+    if (pid < 0) {
+        throw std::runtime_error("fork failed");
+    }
+    if (pid == 0) {
+        int devnull = open("/dev/null", O_RDWR);
+        if (devnull >= 0) {
+            dup2(devnull, 0);
+            dup2(devnull, 1);
+            dup2(devnull, 2);
+        }
+        if (chdir(dir.c_str()) == 0) {
+            execvp(argv[0], argv.data());
+        }
+        _exit(127);
+    }
+    while (waitpid(pid, nullptr, 0) < 0 && errno == EINTR) {
+    }
+}
+
 static void put_file_contents(const std::string& path, const uint8_t* data, int len) {
     FILE* f = fopen(path.c_str(), "w+b");
+    if (f == nullptr) {
+        throw std::runtime_error("could not write " + path + ": " + strerror(errno));
+    }
     fwrite(data, 1, len, f);
     fclose(f);
 
@@ -1430,6 +1501,13 @@ public:
             } catch (std::exception& ex) {
                 corruptEEPROM = true;
                 printf("Corrupt EEPROM: %s\n", ex.what());
+                // nothing from a corrupt image is published: files extracted
+                // before the failure can be truncated (an EEPROM ending inside
+                // a section, or a partly written one), and a truncated
+                // cape-image.xbm takes down fppoled
+                std::filesystem::remove_all(outputPath);
+                mkdir(outputPath.c_str(), 0700);
+                mkdir(tmpPath.c_str(), 0700);
             }
         }
         loadFiles();
@@ -1633,7 +1711,11 @@ private:
         if (!file_exists(EEPROM)) {
             printf("Could not detect any cape\n");
             EEPROM = "";
-            handleReboot(handleCapeOverlay("/home/fpp/media/"));
+            // A read-only probe (fppd's outputs, the setup wizard's dry run)
+            // must not rewrite config.txt or reboot; the boot-time run does.
+            if (!readOnly) {
+                handleReboot(handleCapeOverlay("/home/fpp/media/"));
+            }
             return;
         }
         printf("Using %s\n", EEPROM.c_str());
@@ -1651,7 +1733,9 @@ private:
                 // old overlay applied forever, and the i2c addresses it binds
                 // then block rewriting the eeprom that would fix it.
                 fclose(file);
-                handleReboot(handleCapeOverlay("/home/fpp/media/"));
+                if (!readOnly) {
+                    handleReboot(handleCapeOverlay("/home/fpp/media/"));
+                }
                 return;
             }
             printf("Using %s\n", EEPROM.c_str());
@@ -1675,36 +1759,33 @@ private:
             capesn = read_string(file, 16); // cape serial# + nulls
             printf("Found cape %s, Version %s, Serial Number: %s\n", cape.c_str(), capev.c_str(), capesn.c_str());
 
-            std::string flenStr = read_string(file, 6); // length of the section
-            int flen = std::stoi(flenStr);
+            int flen = read_section_length(file); // length of the section
             while (flen) {
                 int flag = std::stoi(read_string(file, 2));
                 std::string path;
                 if (flag < 50) {
                     path = outputPath + "/";
-                    path += read_string(file, 64);
+                    path += checked_section_name(read_string(file, 64));
                 }
                 switch (flag) {
                 case 0:
                 case 1:
                 case 2:
                 case 3: {
-                    int l = fread(buffer, 1, flen, file);
+                    if ((int)fread(buffer, 1, flen, file) != flen) {
+                        throw std::runtime_error("EEPROM image ends inside " + path);
+                    }
+                    std::filesystem::create_directories(std::filesystem::path(path).parent_path());
                     put_file_contents(path, buffer, flen);
-                    char* s1 = strdup(path.c_str());
-                    std::string dir = dirname(s1);
-                    free(s1);
+                    std::string dir = std::filesystem::path(path).parent_path().string();
                     if (flag == 1) {
-                        std::string cmd = "cd " + dir + "; unzip " + path + " 2>&1";
-                        exec(cmd);
+                        run_in_dir(dir, { "unzip", path });
                         unlink(path.c_str());
                     } else if (flag == 2) {
-                        std::string cmd = "cd " + dir + "; tar -xzf " + path + " 2>&1";
-                        exec(cmd);
+                        run_in_dir(dir, { "tar", "-xzf", path });
                         unlink(path.c_str());
                     } else if (flag == 3) {
-                        std::string cmd = "cd " + dir + "; tar -xjf " + path + " 2>&1";
-                        exec(cmd);
+                        run_in_dir(dir, { "tar", "-xjf", path });
                         unlink(path.c_str());
                     }
                     printf("- extracted file: %s\n", path.c_str());
@@ -1722,6 +1803,9 @@ private:
                     break;
                 }
                 case 97: {
+                    if (flen < 12) {
+                        throw std::runtime_error("invalid extras section length");
+                    }
                     std::string eKey = read_string(file, 12);
                     std::string eValue = read_string(file, flen - 12);
                     if (hasSignature && validEpromLocation && validSignature) {
@@ -1753,6 +1837,9 @@ private:
                     break;
                 }
                 case 99: {
+                    if (flen < 6) {
+                        throw std::runtime_error("invalid signature section length");
+                    }
                     hasSignature = true;
                     fkeyId = read_string(file, 6);
                     fread(buffer, 1, flen - 6, file);
@@ -1768,8 +1855,7 @@ private:
                     fseek(file, flen, SEEK_CUR);
                     printf("Don't know how to handle -%s- with type %d and length %d\n", path.c_str(), flag, flen);
                 }
-                flenStr = read_string(file, 6); // length of the section
-                flen = std::stoi(flenStr);
+                flen = read_section_length(file); // length of the section
             }
         }
         fclose(file);
@@ -2311,13 +2397,17 @@ private:
                     if (pinout == "2.x") {
                         newEeprom += "v2";
                     }
-                    if (file_exists(platformDir + "/" + newEeprom + "-eeprom.bin")) {
+                    if (readOnly) {
+                        // installing it is the boot-time run's job; a read-only
+                        // probe used to install it here and then switch itself
+                        // to read-write for the rest of the run
+                        printf("Not installing a virtual eeprom for %s from a read-only probe\n", newEeprom.c_str());
+                    } else if (file_exists(platformDir + "/" + newEeprom + "-eeprom.bin")) {
                         // found a virtual eeprom, install it and use it
                         printf("Installing new virtual eeprom based on prior string configuration: %s\n", newEeprom.c_str());
                         newEeprom = platformDir + "/" + newEeprom + "-eeprom.bin";
                         copyFile(newEeprom, "/home/fpp/media/config/cape-eeprom.bin");
                         setFilePerms("/home/fpp/media/config/cape-eeprom.bin");
-                        readOnly = false;
                         return "/home/fpp/media/config/cape-eeprom.bin";
                     }
                 }
@@ -2345,6 +2435,14 @@ private:
         settingsOstream.close();
     }
     void getFileList(const std::string& basepath, const std::string& path, std::vector<std::string>& files) {
+        // Archives from the EEPROM are extracted here, and tar and unzip both
+        // restore symlinks: following one would recurse forever (a link to
+        // "..") or copy whatever it points at into the media directory.
+        // Only plain files and directories are taken.
+        struct stat st;
+        if (lstat(basepath.c_str(), &st) != 0 || !(S_ISDIR(st.st_mode) || S_ISREG(st.st_mode))) {
+            return;
+        }
         DIR* dir = opendir(basepath.c_str());
         if (dir) {
             files.push_back(path + "/");
@@ -2365,16 +2463,20 @@ private:
     void DoSignatureVerify(FILE* file, const std::string& fKeyId, const std::string& path, bool& validSignature, uint8_t* signature, int sigLen) {
         uint8_t* b = new uint8_t[32768];
         size_t pos = ftell(file);
-        int flen = std::stoi(read_string(file, 6));
+        int flen = read_section_length(file);
         while (flen != 0) {
             int flag = std::stoi(read_string(file, 2));
             if (flag < 50) {
                 flen += 64;
             }
             fseek(file, flen, SEEK_CUR);
-            flen = std::stoi(read_string(file, 6));
+            flen = read_section_length(file);
         }
         int end = ftell(file);
+        if (end < (int)pos || end - (int)pos > MAX_EEPROM_SIZE) {
+            delete[] b;
+            throw std::runtime_error("signed EEPROM content larger than an EEPROM");
+        }
         fseek(file, pos, SEEK_SET);
         int len = fread(b, 1, end - pos, file);
         fseek(file, pos, SEEK_SET);

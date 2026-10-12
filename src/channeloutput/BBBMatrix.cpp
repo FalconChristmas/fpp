@@ -25,6 +25,7 @@
 #include <fstream>
 
 #include "../Warnings.h"
+#include "ChannelOutputSetup.h"
 #include "../common.h"
 #include "../log.h"
 #include "../settings.h"
@@ -95,21 +96,7 @@ static std::map<int, std::vector<int>> BIT_ORDERS = {
     { 12, { 11, 5, 8, 2, 4, 1, 7, 10, 3, 9, 6, 0 } }
 };
 static void compilePRUMatrixCode(std::vector<std::string>& sargs) {
-    pid_t compilePid = fork();
-    if (compilePid == 0) {
-        char* args[sargs.size() + 3];
-        args[0] = (char*)"/bin/bash";
-        args[1] = (char*)"/opt/fpp/src/pru/compileMatrix.sh";
-
-        for (int x = 0; x < sargs.size(); x++) {
-            args[x + 2] = (char*)sargs[x].c_str();
-        }
-        args[sargs.size() + 2] = NULL;
-
-        execvp("/bin/bash", args);
-    } else {
-        wait(NULL);
-    }
+    CompilePRUProgram("/opt/fpp/src/pru/compileMatrix.sh", sargs);
 }
 
 void BBBMatrix::calcBrightnessFlags(std::vector<std::string>& sargs) {
@@ -189,14 +176,15 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string>& sargs) {
         FILE* file = fopen("/home/fpp/media/config/ledscape_dimming", "r");
 
         if (file != NULL) {
-            char buf[100];
-            char* line = buf;
-            size_t len = 100;
-            ssize_t read;
+            // fgets, not getline: getline() was handed a stack buffer as if it
+            // were malloc'd, and a line of 100 characters or more made it
+            // realloc() the stack
+            char line[100];
             int count = 0;
 
-            while (((read = getline(&line, &len, file)) != -1) && (count < 10)) {
-                if ((!line) || (!read) || (read == 1))
+            while ((count < 10) && fgets(line, sizeof(line), file)) {
+                size_t read = strlen(line);
+                if ((!read) || (read == 1))
                     continue;
 
                 LogDebug(VB_CHANNELOUT, "Line %d: %s\n", count, line);
@@ -205,13 +193,12 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string>& sargs) {
                     count++;
                 } else {
                     uint32_t d1, d2;
-                    sscanf(line, "%X %X", &d1, &d2);
-                    brightnessValues[count - 1] = d1;
-                    delayValues[count - 1] = d2;
+                    if (sscanf(line, "%X %X", &d1, &d2) == 2) {
+                        brightnessValues[count - 1] = d1;
+                        delayValues[count - 1] = d2;
+                    }
                     count++;
                 }
-                line = buf;
-                len = 100;
             }
             fclose(file);
         }
@@ -384,10 +371,18 @@ int BBBMatrix::Init(Json::Value config) {
         if (p["colorOrder"].asString() == "")
             p["colorOrder"] = ColorOrderToString(m_colorOrder);
 
-        m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
-                                p["panelNumber"].asInt(), orientation,
-                                p["xOffset"].asInt(), p["yOffset"].asInt(),
-                                ColorOrderFromString(p["colorOrder"].asString()));
+        // the cape has at most 16 outputs, and usesOutput is sized for that
+        if (p["outputNumber"].asInt() >= 16) {
+            LogErr(VB_CHANNELOUT, "Invalid panel output number %d\n", p["outputNumber"].asInt());
+            continue;
+        }
+        // a refused panel (out of range) must not count toward the outputs or chains below
+        if (!m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
+                                     p["panelNumber"].asInt(), orientation,
+                                     p["xOffset"].asInt(), p["yOffset"].asInt(),
+                                     ColorOrderFromString(p["colorOrder"].asString()))) {
+            continue;
+        }
 
         if (p["outputNumber"].asInt() > m_outputs)
             m_outputs = p["outputNumber"].asInt();
@@ -445,7 +440,7 @@ int BBBMatrix::Init(Json::Value config) {
         // one the pixels have nowhere to go.
         LogErr(VB_CHANNELOUT, "BBBMatrix: Panel interleave '%s' cannot map a %dx%d 1/%d scan panel\n",
                m_panelInterleave.c_str(), m_panelWidth, m_panelHeight, m_panelScan);
-        WarningHolder::AddWarning(50, "LED panel output disabled: panel interleave '" + m_panelInterleave +
+        AddOutputConfigWarning(50, "LED panel output disabled: panel interleave '" + m_panelInterleave +
                                           "' is not valid for a " + std::to_string(m_panelWidth) + "x" + std::to_string(m_panelHeight) +
                                           " 1/" + std::to_string(m_panelScan) + " scan panel.  Set the Panel Interleave to match the panel.");
         return 0;
@@ -508,13 +503,13 @@ int BBBMatrix::Init(Json::Value config) {
     bool isPWM = false;
     if (!FileExists(filename)) {
         LogErr(VB_CHANNELOUT, "No output pin configuration for %s - %s\n", name.c_str(), filename);
-        WarningHolder::AddWarning(50, "LED panel output: no output pin configuration for " + name);
+        AddOutputConfigWarning(50, "LED panel output: no output pin configuration for " + name);
         return 0;
     } else {
         LogDebug(VB_CHANNELOUT, "Using panel pinout from %s\n", filename);
         if (!LoadJsonFromFile(filename, root, JsonRoot::Object)) {
             LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s - %s\n", name.c_str(), filename);
-            WarningHolder::AddWarning(50, "LED panel output: could not read pin configuration for " + name);
+            AddOutputConfigWarning(50, "LED panel output: could not read pin configuration for " + name);
             return 0;
         }
         std::string longName = root["longName"].asString();
@@ -549,8 +544,9 @@ int BBBMatrix::Init(Json::Value config) {
         configureControlPin("sel1", root, outputFile, pru, controlGpio);
         configureControlPin("sel2", root, outputFile, pru, controlGpio);
         configureControlPin("sel3", root, outputFile, pru, controlGpio);
-        if (m_panelScan == 32) {
-            // 1:32 scan panels need the "E" line
+        if (m_panelScan > 16) {
+            // a row address of 16 or more needs the fifth "E" line - 1/32
+            // scan, and 80x40 1/20 scan (rows 16-19)
             configureControlPin("sel4", root, outputFile, pru, controlGpio);
             compileArgs.push_back("-DE_SCAN_LINE");
         }
@@ -700,13 +696,13 @@ int BBBMatrix::Init(Json::Value config) {
     if (!m_singlePRU) {
         if (!m_pruCopy->run("/tmp/FalconMatrixPRUCpy.out")) {
             LogErr(VB_CHANNELOUT, "BBBMatrix: Unable to start PRU. May require a reboot.\n");
-            WarningHolder::AddWarning(20, "BBBMatrix: Unable to start PRU. May require a reboot.");
+            AddOutputConfigWarning(20, "BBBMatrix: Unable to start PRU. May require a reboot.");
             return 0;
         }
     }
     if (!m_pru->run(pru_program)) {
         LogErr(VB_CHANNELOUT, "BBBMatrix: Unable to start PRU. May require a reboot.\n");
-        WarningHolder::AddWarning(20, "BBBMatrix: Unable to start PRU. May require a reboot.");
+        AddOutputConfigWarning(20, "BBBMatrix: Unable to start PRU. May require a reboot.");
         return 0;
     }
 
@@ -784,7 +780,7 @@ int BBBMatrix::Init(Json::Value config) {
     }
     if (!framesBase) {
         LogErr(VB_CHANNELOUT, "BBBMatrix: no room in the PRU DDR region for even one frame\n");
-        WarningHolder::AddWarning(20, "BBBMatrix: no room in the PRU DDR region - reduce panel count/color depth or other outputs' buffers");
+        AddOutputConfigWarning(20, "BBBMatrix: no room in the PRU DDR region - reduce panel count/color depth or other outputs' buffers");
         return 0;
     }
     for (int x = 0; x < 8; x++) {
@@ -1064,8 +1060,14 @@ void BBBMatrix::PrepData(unsigned char* channelData) {
                 }
             }
             size_t offset = (m_outputByRow ? (size_t)m_yOutMap[y] * fullRowLen : (size_t)m_yOutMap[y] * rowLen) + chainOff;
+            // Depths below 8 take the TOP bits of the 8 bit gamma value: the
+            // bit order is relative to the depth (0..depth-1, which the
+            // brightness flags index by), so shift it up past the bits the
+            // depth drops.  Without this 6 and 7 bit showed the low bits and
+            // wrapped - at 6 bit, 136 came out black.
+            const int bitShift = m_colorDepth < 8 ? 8 - m_colorDepth : 0;
             for (int bi = 0; bi < m_colorDepth; bi++) {
-                int b = m_bitOrder[bi];
+                int b = m_bitOrder[bi] + bitShift;
                 uint32_t* out = &gpioFrame[offset + (size_t)bi * bitStride];
                 const uint8_t* st = (b < 8) ? m_stageLo.data() : m_stageHi.data();
                 size_t stStride = (b < 8) ? (m_panelWidth * 8) : (m_panelWidth * 4);

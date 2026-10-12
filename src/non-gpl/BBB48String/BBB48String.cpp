@@ -93,31 +93,9 @@ BBB48StringOutput::~BBB48StringOutput() {
 static void compilePRUCode(const char* program,
                            const std::vector<std::string>& sargs,
                            const std::vector<std::string>& args1) {
-    std::string log;
-
-    char* args[sargs.size() + 3 + args1.size()];
-    int idx = 0;
-    args[idx++] = (char*)"/bin/bash";
-    args[idx++] = (char*)program;
-    log = args[1];
-    for (int x = 0; x < sargs.size(); x++) {
-        args[idx++] = (char*)sargs[x].c_str();
-        log += " " + sargs[x];
-    }
-    for (int x = 0; x < args1.size(); x++) {
-        args[idx++] = (char*)args1[x].c_str();
-        log += " " + args1[x];
-    }
-    args[idx] = NULL;
-    LogDebug(VB_CHANNELOUT, "BBB48StringOutput::compilePRUCode() args: %s\n",
-             log.c_str());
-
-    pid_t compilePid = fork();
-    if (compilePid == 0) {
-        execvp("/bin/bash", args);
-    } else {
-        wait(NULL);
-    }
+    std::vector<std::string> args = sargs;
+    args.insert(args.end(), args1.begin(), args1.end());
+    CompilePRUProgram(program, args);
 }
 
 static void compilePRUCode(const std::vector<std::string>& sargs,
@@ -734,9 +712,17 @@ int BBB48StringOutput::StartPRU(bool both) {
             return 0;
         }
     }
+    // run() is told not to clear PRU memory.  The firmware zeroes its own
+    // control block (address, command, response) before it first reads the
+    // command, and reads nothing else until a non-zero command arrives.
+    // SendData() writes that command only after the frame's address, and on
+    // the first frame a full copy of its pixel data into the PRU memories, so
+    // a stale word left from an earlier run can neither start output nor be
+    // sent as pixel data.  Skipping the clear also keeps this from touching
+    // the PRUSS while both cores are offline (crash e80ad9caf7).
     m_pru = new BBBPru(pruNumber, true, true);
     m_pruData = (BBB48StringData*)m_pru->data_ram;
-    if (!m_pru->run("/tmp/FalconWS281x.out")) {
+    if (!m_pru->run("/tmp/FalconWS281x.out", true, false)) {
         LogErr(VB_CHANNELOUT,
                "BBB48String: Unable to start PRU. May require a reboot.\n");
         WarningHolder::AddWarning(
@@ -749,7 +735,7 @@ int BBB48StringOutput::StartPRU(bool both) {
     if (both) {
         m_pru0 = new BBBPru(!pruNumber, true, true);
         m_pru0Data = (BBB48StringData*)m_pru0->data_ram;
-        if (!m_pru0->run("/tmp/FalconWS281x_gpio0.out")) {
+        if (!m_pru0->run("/tmp/FalconWS281x_gpio0.out", true, false)) {
             LogErr(VB_CHANNELOUT,
                    "BBB48String: Unable to start PRU0. May require a reboot.\n");
             WarningHolder::AddWarning(
@@ -881,7 +867,11 @@ void BBB48StringOutput::prepData(FrameData& d, unsigned char* channelData) {
     PixelStringTester* tester = nullptr;
     if (m_testType && m_testCycle >= 0) {
         tester = PixelStringTester::getPixelStringTester(m_testType);
-        tester->prepareTestData(m_testCycle, m_testPercent);
+        // null for a test type no string tester implements; the strings then
+        // just send their normal data
+        if (tester) {
+            tester->prepareTestData(m_testCycle, m_testPercent);
+        }
     }
     const int numStrings = d.gpioStringMap.size();
     // per string slot: either a fully prepared buffer (test mode) or the

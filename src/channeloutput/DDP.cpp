@@ -92,6 +92,7 @@
 #include <signal.h>
 
 #include "../Warnings.h"
+#include "ChannelOutputSetup.h"
 #include "../log.h"
 
 #include "DDP.h"
@@ -131,7 +132,7 @@ DDPOutputData::DDPOutputData(const Json::Value& config) :
     if (active) {
         ddpAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
         if (!valid) {
-            WarningHolder::AddWarning(14, "Could not resolve host name " + ipAddress + " - disabling output");
+            AddOutputConfigWarning(14, "Could not resolve host name " + ipAddress + " - disabling output");
             active = false;
         }
     }

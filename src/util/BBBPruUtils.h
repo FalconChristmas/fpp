@@ -14,6 +14,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string>
+#include <vector>
 
 /**
  * Mapping of the PRU memory spaces.
@@ -31,7 +32,11 @@ public:
     // PRU's data RAM after the firmware load.  Pass false when another
     // driver owns the other PRU (a shared panels + strings cape) so a
     // restart of this output cannot wipe its ring or command state.
-    bool run(const std::string& program, bool clearSharedMems = true);
+    // clearMems: false skips clearing any PRU memory, before or after the
+    // core starts, for firmware that zeroes its own handshake words before
+    // reading them and only reads data the ARM wrote ahead of the command
+    // that releases it.  run() then does not touch PRU memory at all.
+    bool run(const std::string& program, bool clearSharedMems = true, bool clearMems = true);
     void stop();
 
     // Halt/restart the core in place.  Unlike stop()/run() these do not go
@@ -190,3 +195,11 @@ private:
     uint32_t produced = 0;
     bool pointerMode = false;
 };
+
+// Build a PRU program: runs "/bin/bash <script> <args...>" and waits for that
+// child alone.  fppd sets SA_NOCLDWAIT on SIGCHLD, so wait() would block until
+// every child of fppd had exited (ptp4l, a running script...) and no exit
+// status survives either way.  The script therefore has to delete its outputs
+// before building, so a failed build leaves nothing for BBBPru::run() to load
+// instead of the previous configuration's program.
+void CompilePRUProgram(const std::string& script, const std::vector<std::string>& args);
