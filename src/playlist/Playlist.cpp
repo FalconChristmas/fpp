@@ -1509,6 +1509,19 @@ int Playlist::Process(void) {
                 m_loop++;
                 LogDebug(VB_PLAYLIST, "mainPlaylist loop now: %d\n", m_loop);
                 if ((m_repeat) && (!m_loopCount || (m_loop < m_loopCount))) {
+                    if ((m_loadStartPos > 0) && (m_loadEndPos < 0)) {
+                        // This pass started part-way in (Start Playlist At
+                        // Item, or a resume after an fppd restart), so Load()
+                        // trimmed off every entry before that point.  The
+                        // repeat is of the whole playlist: reload it untrimmed,
+                        // or the earlier entries never play again.
+                        int trimmedAt = m_loadStartPos;
+                        m_loadStartPos = -1;
+                        if (!ReloadPlaylist()) {
+                            LogWarn(VB_PLAYLIST, "Could not reload the full playlist to repeat it; repeating from entry %d\n", trimmedAt + 1);
+                            m_loadStartPos = trimmedAt;
+                        }
+                    }
                     ReloadIfNeeded();
 
                     if (m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) {
@@ -1893,7 +1906,12 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
         (m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
         std::string fullfilename = FPP_DIR_PLAYLIST("/" + filename + ".json");
 
-        if ((m_filename == fullfilename) && (repeat == m_repeat) && m_currentSection && position >= 0) {
+        // Only a fully loaded copy can be jumped within: SetPosition() indexes
+        // the loaded entries, and a copy Load() trimmed (started at an item,
+        // or given an end) no longer lines up with the playlist's positions.
+        bool loadedWhole = ((m_loadStartPos == -1) || (m_loadStartPos == 0)) && (m_loadEndPos < 0);
+        if ((m_filename == fullfilename) && (repeat == m_repeat) && m_currentSection && position >= 0 &&
+            loadedWhole && (endPosition < 0)) {
             // the requested playlist is already running and loaded, we can jump right to the index
             PlaylistEntryBase* entry = CurrentEntry();
             if (entry && entry->IsPlaying()) {
