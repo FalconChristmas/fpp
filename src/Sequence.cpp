@@ -929,10 +929,12 @@ void Sequence::ProcessSequenceData(int ms) {
                 memcpy(&m_seqData[curStart], &m_bridgeData[curStart], nextStart - curStart);
                 curStart = a.first;
                 nextStart = a.first + a.second;
-            } else if (a.first == nextStart) {
-                nextStart += a.second;
             } else {
-                nextStart += a.second - (nextStart - a.first);
+                // Adjacent or overlapping: extend the run, but never shrink it.
+                // This used to set it to the end of 'a', which cut the run
+                // short when 'a' lay entirely inside it (one input's universe
+                // inside another's range), dropping the earlier range's tail.
+                nextStart = std::max(nextStart, a.first + a.second);
             }
         }
         if (curStart != 0xFFFFFFFF) {
