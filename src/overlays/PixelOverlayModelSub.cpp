@@ -253,9 +253,18 @@ std::string PixelOverlayModelSub::getParentName() const {
 
 uint32_t PixelOverlayModelSub::outputChannelForData(uint32_t dataOffset) const {
     if (!gridMode) {
-        // A rectangular submodel is a contiguous window of its parent, which
-        // the base class's arithmetic already describes correctly.
-        return PixelOverlayModel::outputChannelForData(dataOffset);
+        // A rectangular submodel draws through its parent, so its cells land
+        // wherever the parent's do at the offset cell; the base class's
+        // startChannel arithmetic is meaningless here (startChannel is forced
+        // to 0 for a submodel), and joined the polar layout against channels
+        // 0..N. channelData is node-major at channelsPerNode.
+        if (!parent || channelsPerNode <= 0) {
+            return FPPD_OFF_CHANNEL;
+        }
+        int node = dataOffset / channelsPerNode;
+        int k = dataOffset % channelsPerNode;
+        uint32_t ch = parent->outputChannelForCell(node % width + xOffset, node / width + yOffset);
+        return ch == FPPD_OFF_CHANNEL ? ch : ch + k;
     }
     int slot = dataOffset / channelsPerNode;
     if (channelGridMode) {

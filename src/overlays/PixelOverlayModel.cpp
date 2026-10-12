@@ -773,6 +773,16 @@ bool PixelOverlayModel::flushChildren(uint8_t* dst) {
 uint32_t PixelOverlayModel::outputChannelForData(uint32_t dataOffset) const {
     return static_cast<uint32_t>(startChannel) + dataOffset;
 }
+uint32_t PixelOverlayModel::outputChannelForCell(int x, int y) const {
+    if (x < 0 || y < 0 || x >= width || y >= height) {
+        return FPPD_OFF_CHANNEL;
+    }
+    size_t off = ((size_t)y * width + x) * bytesPerPixel;
+    if (off >= channelMap.size() || channelMap[off] == FPPD_OFF_CHANNEL) {
+        return FPPD_OFF_CHANNEL;
+    }
+    return outputChannelForData(channelMap[off]);
+}
 
 /*
  * Build (once) the polar view of this model's buffer.

@@ -107,6 +107,9 @@ public:
     }
 
     PixelOverlayState getState() const;
+    // The absolute output channel buffer cell (x, y)'s first byte lands on,
+    // or FPPD_OFF_CHANNEL for a hole or a cell outside the model.
+    uint32_t outputChannelForCell(int x, int y) const;
     // Whether the channel output thread has to draw this model: its own state
     // is enabled, or a submodel is enabled within it. The manager's active
     // list is kept in step with this, not with individual state transitions.
