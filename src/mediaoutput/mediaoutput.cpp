@@ -823,6 +823,12 @@ int OpenMediaOutput(const std::string& filename) {
                 // video doesn't exist, punt
                 tmpFile = filename;
                 if (alreadyWarned.find(tmpFile) == alreadyWarned.end()) {
+                    // The names come from sync packets; a show has a few
+                    // hundred at most, and a stream of made-up ones must not
+                    // grow this for good.
+                    if (alreadyWarned.size() >= 1000) {
+                        alreadyWarned.clear();
+                    }
                     alreadyWarned.emplace(tmpFile);
                     LogDebug(VB_MEDIAOUT, "No video found for remote playing of %s\n", filename.c_str());
                 }

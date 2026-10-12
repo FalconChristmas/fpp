@@ -24,6 +24,8 @@
 #include <sys/types.h>
 #include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>
@@ -3893,6 +3895,47 @@ void MultiSync::SyncSyncedMedia(const std::string& filename, int frameNumber, fl
 /*
  *
  */
+// A file name from a sync packet, as a name relative to the media folder it is
+// looked up in, or false if it can't be one.  Masters send what they play: a
+// name, a path below the folder, or -- for a random media item -- the full
+// path on the master.  That full path is cut down to what follows its
+// music/videos/sequences folder, which also makes it work on a remote whose
+// media directory is elsewhere.  Anything else absolute, and any "..", is
+// refused: the name is network input, and a remote opened whatever existing
+// file it named.
+static bool SyncFilenameToMediaRelative(std::string& name, uint8_t fileType) {
+    if (name.empty()) {
+        return false;
+    }
+    if (name[0] == '/') {
+        static const char* const seqDirs[] = { "/sequences/", nullptr };
+        static const char* const mediaDirs[] = { "/music/", "/videos/", nullptr };
+        bool found = false;
+        for (const char* const* d = (fileType == SYNC_FILE_SEQ) ? seqDirs : mediaDirs; *d && !found; d++) {
+            size_t pos = name.find(*d);
+            if (pos != std::string::npos) {
+                name = name.substr(pos + strlen(*d));
+                found = true;
+            }
+        }
+        if (!found) {
+            return false;
+        }
+    }
+    size_t start = 0;
+    while (start <= name.size()) {
+        size_t end = name.find('/', start);
+        if (end == std::string::npos) {
+            end = name.size();
+        }
+        if (name.compare(start, end - start, "..") == 0 && end - start == 2) {
+            return false;
+        }
+        start = end + 1;
+    }
+    return !name.empty() && name.back() != '/';
+}
+
 void MultiSync::ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stats) {
     if (pkt->extraDataLen < sizeof(SyncPkt)) {
         LogErr(VB_SYNC, "Error: Invalid length of received sync packet\n");
@@ -3910,31 +3953,56 @@ void MultiSync::ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stat
 
     SyncPkt* spkt = (SyncPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
+    // filename is a flexible char[1]: read it no further than the packet goes,
+    // terminated or not.
+    size_t nameMax = pkt->extraDataLen - offsetof(SyncPkt, filename);
+    std::string filename(spkt->filename, strnlen(spkt->filename, nameMax));
+    float secondsIn = spkt->secondsElapsed;
+
     LogDebug(VB_SYNC, "ProcessSyncPacket()   filename: %s    type: %d   filetype: %d   frameNumber: %d   secondsElapsed: %0.2f\n",
-             spkt->filename, spkt->pktType, spkt->fileType, spkt->frameNumber, spkt->secondsElapsed);
+             TruncateForLog(filename).c_str(), spkt->pktType, spkt->fileType, spkt->frameNumber, secondsIn);
+
+    if (!SyncFilenameToMediaRelative(filename, spkt->fileType)) {
+        // A master sends one of these several times a second; say it once.
+        static std::string s_lastRefused;
+        if (filename != s_lastRefused) {
+            s_lastRefused = filename;
+            LogWarn(VB_SYNC, "Ignoring sync packets from %s for '%s': not a name in the media folders\n",
+                    stats->sourceIP.c_str(), TruncateForLog(filename).c_str());
+        }
+        stats->pktError++;
+        return;
+    }
+    // A NaN passes every "< 0" test and the int conversions downstream are
+    // undefined for it, as for anything past INT_MAX milliseconds.
+    if (!std::isfinite(secondsIn) || secondsIn < 0.0f) {
+        secondsIn = 0.0f;
+    } else if (secondsIn > 86400.0f) {
+        secondsIn = 86400.0f;
+    }
 
     float secondsElapsed = 0.0;
 
     if (spkt->fileType == SYNC_FILE_SEQ) {
         switch (spkt->pktType) {
         case SYNC_PKT_OPEN:
-            OpenSyncedSequence(spkt->filename);
+            OpenSyncedSequence(filename);
             stats->pktSyncSeqOpen++;
             break;
         case SYNC_PKT_START:
-            StartSyncedSequence(spkt->filename);
+            StartSyncedSequence(filename);
             stats->pktSyncSeqStart++;
             break;
         case SYNC_PKT_STOP:
-            StopSyncedSequence(spkt->filename);
+            StopSyncedSequence(filename);
             stats->pktSyncSeqStop++;
             break;
         case SYNC_PKT_SYNC:
-            secondsElapsed = spkt->secondsElapsed - m_remoteOffset;
+            secondsElapsed = secondsIn - m_remoteOffset;
             if (secondsElapsed < 0)
                 secondsElapsed = 0.0;
 
-            SyncSyncedSequence(spkt->filename,
+            SyncSyncedSequence(filename,
                                spkt->frameNumber, secondsElapsed);
             stats->pktSyncSeqSync++;
             break;
@@ -3942,27 +4010,27 @@ void MultiSync::ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stat
     } else if (spkt->fileType == SYNC_FILE_MEDIA) {
         switch (spkt->pktType) {
         case SYNC_PKT_OPEN:
-            OpenSyncedMedia(spkt->filename);
+            OpenSyncedMedia(filename);
             stats->pktSyncMedOpen++;
             break;
         case SYNC_PKT_START:
-            secondsElapsed = spkt->secondsElapsed - m_remoteOffset;
+            secondsElapsed = secondsIn - m_remoteOffset;
             if (secondsElapsed < 0)
                 secondsElapsed = 0.0;
 
-            StartSyncedMedia(spkt->filename, secondsElapsed);
+            StartSyncedMedia(filename, secondsElapsed);
             stats->pktSyncMedStart++;
             break;
         case SYNC_PKT_STOP:
-            StopSyncedMedia(spkt->filename);
+            StopSyncedMedia(filename);
             stats->pktSyncMedStop++;
             break;
         case SYNC_PKT_SYNC:
-            secondsElapsed = spkt->secondsElapsed - m_remoteOffset;
+            secondsElapsed = secondsIn - m_remoteOffset;
             if (secondsElapsed < 0)
                 secondsElapsed = 0.0;
 
-            SyncSyncedMedia(spkt->filename,
+            SyncSyncedMedia(filename,
                             spkt->frameNumber, secondsElapsed);
             stats->pktSyncMedSync++;
             break;
