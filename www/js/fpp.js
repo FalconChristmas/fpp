@@ -3270,8 +3270,9 @@ function CreateNewPlaylist () {
 	DisableButtonClass('playlistDetailsEditButton');
 }
 
-function EditPlaylist () {
-	var name = $('#playlistSelect').val();
+function EditPlaylist (name) {
+	if (name === undefined) name = $('#playlistSelect').val();
+	if (!name) return;
 	EnableButtonClass('playlistEditButton');
 	DisableButtonClass('playlistDetailsEditButton');
 

@@ -464,10 +464,9 @@
                                     },
                                     function () {
                                         onPlaylistArrayLoaded();
-                                        $('#playlistSelect').val($(
-                                            "#txtAddPlaylistName").val()).trigger(
-                                                'change');
-                                        LoadPlaylistDetails($("#txtAddPlaylistName").val());
+                                        // Not via #playlistSelect: the save has just emptied it to
+                                        // reload the list, so it has no option for the new name yet.
+                                        EditPlaylist($("#txtAddPlaylistName").val());
                                         //Set Page header to new playlist name
                                         $('.playlistEditorHeaderTitle').html($("#txtAddPlaylistName").val());
 
