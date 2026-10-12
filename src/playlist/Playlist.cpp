@@ -294,9 +294,14 @@ Playlist::Playlist(Playlist* parent) :
     m_shouldStartGlobalPause(false),
     m_globalPauseStartTime(0),
     m_status(FPP_STATUS_IDLE) {
-    SetIdle(false);
-
-    SetRepeat(0);
+    if (!parent) {
+        // The resident playlist announces the player's idle state at startup.
+        // An inserted playlist must not: it is constructed mid-show, and this
+        // published status=idle and repeat=0 over MQTT and sent plugins a
+        // "stop" while the parent was still playing.
+        SetIdle(false);
+        SetRepeat(0);
+    }
 
     // The legacy /playlist/*/set MQTT topics are registered once, in
     // Player::Init(), and dispatched to whichever playlist is current.  They
