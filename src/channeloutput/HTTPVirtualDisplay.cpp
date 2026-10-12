@@ -349,6 +349,7 @@ void HTTPVirtualDisplayOutput::SelectThread(void) {
                     m_connListChanged = true;
                 } else {
                     LogErr(VB_CHANNELOUT, "Read failed for socket %d, connection %d.  Closing connection.\n", m_connList[i], i);
+                    close(m_connList[i]);
                     m_connList.erase(m_connList.begin() + i);
                     m_connListChanged = true;
                 }
@@ -540,7 +541,10 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
             colorStr = color;
 
             y = m_previewHeight - m_pixels[i].y;
-            if (m_pixels[i].x >= 4095)
+            // must pick the same form as the page's scaleMap keys
+            // (virtualdisplaybody.php), or the browser finds no entry for the
+            // pixel and drops the rest of the frame
+            if ((m_pixels[i].x >= 4096) || (y >= 4096))
                 snprintf(loc, sizeof(loc), "%c%c%c%c%c%c",
                          base64[(m_pixels[i].x >> 12) & 0x3f],
                          base64[(m_pixels[i].x >> 6) & 0x3f],

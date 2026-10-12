@@ -376,6 +376,7 @@ void HTTPVirtualDisplay3DOutput::SelectThread(void) {
                     m_connListChanged = true;
                 } else {
                     LogErr(VB_CHANNELOUT, "Read failed for 3D socket %d, connection %d.  Closing connection.\n", m_connList[i], i);
+                    close(m_connList[i]);
                     m_connList.erase(m_connList.begin() + i);
                     m_connListChanged = true;
                 }
