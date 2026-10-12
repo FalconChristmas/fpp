@@ -18,6 +18,7 @@
 #define HAS_KMS_FB
 
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -134,6 +135,31 @@ private:
     uint32_t m_phaseNudges = 0;
 
     CardInfo* m_cardInfo = nullptr;
+
+    // Display hotplug.  A KMS client that is DRM master owns recovery after a
+    // sink disconnects and comes back: the kernel keeps the CRTC scanning out
+    // and keeps accepting page flips, but nothing restarts the link, and some
+    // sinks (projectors in particular) stay black until a full modeset.  A
+    // thread listens for the kernel's DRM hotplug uevents, re-probes this
+    // output's connector, and redoes the modeset when the sink returns.
+    static void StartHotplugMonitor();
+    static void StopHotplugMonitor();
+    static void HotplugMonitorLoop(int sock, int wakeFd);
+    static void HandleHotplug(const std::string& cardPath, const std::set<uint32_t>& connectorIds);
+    // Full off/on modeset of this output; caller holds drmMasterLock.
+    void RestartDisplayLocked();
+    // Light the CRTC in m_mode and show the current page on our plane.  Caller
+    // holds drmMasterLock and DRM master.  Returns the plane commit's result.
+    int ModesetLocked();
+
+    // Set (under drmMasterLock) once InitializeFrameBuffer() has filled in the
+    // card/connector/CRTC, cleared again before DestroyFrameBuffer() releases
+    // them; the hotplug thread only looks at instances with it set.
+    bool m_hotplugReady = false;
+    // Whether the sink was there at the last probe: connected AND reporting
+    // modes.  vc4.force_hotplug (the ForceHDMI setting) pins the connector to
+    // "connected", so an empty mode list (no EDID) is the only sign it left.
+    bool m_sinkPresent = false; // guarded by drmMasterLock
 };
 
 #endif

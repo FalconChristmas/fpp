@@ -22,9 +22,15 @@
 #include <cstring>
 #include <cerrno>
 #include <fcntl.h>
+#include <linux/netlink.h>
 #include <poll.h>
+#include <sys/eventfd.h>
+#include <sys/socket.h>
 #include <unistd.h>
+#include <algorithm>
+#include <thread>
 
+#include "../common.h"
 #include "../common_mini.h"
 #include "../log.h"
 #include "../mediaoutput/mediaoutput.h"
@@ -45,6 +51,8 @@ bool KMSFrameBuffer::CreateDumbBuffer(int fd, uint32_t width, uint32_t height, u
     uint32_t bpp;
     if (format == DRM_FORMAT_RGB888) {
         bpp = 24;
+    } else if (format == DRM_FORMAT_RGB565) {
+        bpp = 16;
     } else {
         bpp = 32;
     }
@@ -201,6 +209,7 @@ KMSFrameBuffer::KMSFrameBuffer() {
                 CARDS.push_back(info);
             }
         }
+        StartHotplugMonitor();
     }
     ++FRAMEBUFFER_COUNT;
 
@@ -246,6 +255,7 @@ KMSFrameBuffer::~KMSFrameBuffer() {
 
     --FRAMEBUFFER_COUNT;
     if (FRAMEBUFFER_COUNT == 0) {
+        StopHotplugMonitor();
         for (auto* card : CARDS) {
             if (card->fd >= 0) {
                 close(card->fd);
@@ -471,6 +481,12 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
 
             drmModeFreeConnector(conn);
             drmModeFreeResources(res);
+
+            {
+                std::unique_lock<std::mutex> lock(drmMasterLock);
+                m_sinkPresent = true;
+                m_hotplugReady = true;
+            }
             return 1;
         }
         drmModeFreeResources(res);
@@ -479,6 +495,10 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
 }
 
 void KMSFrameBuffer::DestroyFrameBuffer(void) {
+    {
+        std::unique_lock<std::mutex> lock(drmMasterLock);
+        m_hotplugReady = false;
+    }
     for (int x = 0; x < 3; x++) {
         if (m_fb[x].handle) {
             DestroyDumbBuffer(m_cardFd, m_fb[x]);
@@ -731,11 +751,9 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
                 // First flip after enable, or the flip was rejected: bring the
                 // display up with a full modeset/plane commit, then queue a flip.
                 if (!m_displayEnabled) {
-                    drmModeSetCrtc(m_cardFd, m_crtcId, m_fb[m_cPage].fb_id, 0, 0,
-                                   &m_connectorId, 1, &m_mode);
+                    ModesetLocked();
                     m_displayEnabled = true;
-                }
-                if (m_planeId) {
+                } else if (m_planeId) {
                     drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, m_fb[m_cPage].fb_id, 0,
                                     0, 0, m_mode.hdisplay, m_mode.vdisplay,
                                     0, 0, (uint32_t)m_width << 16, (uint32_t)m_height << 16);
@@ -800,6 +818,60 @@ void KMSFrameBuffer::DisableDisplay() {
     }
 }
 
+int KMSFrameBuffer::ModesetLocked() {
+    if (!m_planeId) {
+        return drmModeSetCrtc(m_cardFd, m_crtcId, m_fb[m_cPage].fb_id, 0, 0,
+                              &m_connectorId, 1, &m_mode);
+    }
+
+    // Legacy SetCrtc scans the CRTC's primary plane out at the full mode size,
+    // so it rejects (ENOSPC) a framebuffer smaller than the mode - and ours is
+    // only the model times its pixel size, which is often short of the panel.
+    // Without this, a CRTC that went off could never be turned back on: every
+    // earlier "modeset" here failed and only worked because the console had
+    // left the CRTC running.  Light it with a blank mode-sized buffer instead,
+    // put the picture on our (scaling) plane, then take the blank one away.
+    DumbBuffer blank;
+    bool useBlank = m_fb[m_cPage].width < m_mode.hdisplay || m_fb[m_cPage].height < m_mode.vdisplay;
+    if (useBlank && !CreateDumbBuffer(m_cardFd, m_mode.hdisplay, m_mode.vdisplay, DRM_FORMAT_RGB565, blank) &&
+        !CreateDumbBuffer(m_cardFd, m_mode.hdisplay, m_mode.vdisplay, DRM_FORMAT_XRGB8888, blank)) {
+        useBlank = false;
+    }
+    if (useBlank) {
+        memset(blank.mapped, 0, blank.size);
+    }
+    int ret = drmModeSetCrtc(m_cardFd, m_crtcId, useBlank ? blank.fb_id : m_fb[m_cPage].fb_id, 0, 0,
+                             &m_connectorId, 1, &m_mode);
+    if (ret) {
+        // Still place the plane: that is enough when the CRTC is already
+        // running this mode, which is all the old code ever managed.
+        LogWarn(VB_CHANNELOUT, "KMSFrameBuffer %s: modeset failed: %d (%s)\n", m_connectorName.c_str(), ret, strerror(errno));
+    }
+    ret = drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, m_fb[m_cPage].fb_id, 0,
+                          0, 0, m_mode.hdisplay, m_mode.vdisplay,
+                          0, 0, (uint32_t)m_width << 16, (uint32_t)m_height << 16);
+    if (useBlank) {
+        // Unless our plane is the primary (and has just replaced it), the blank
+        // buffer is still on the primary plane.  Take it off explicitly: removing
+        // an in-use framebuffer can make the kernel turn the whole CRTC off.
+        drmModePlaneResPtr planes = drmModeGetPlaneResources(m_cardFd);
+        for (uint32_t i = 0; planes && i < planes->count_planes; i++) {
+            drmModePlanePtr plane = drmModeGetPlane(m_cardFd, planes->planes[i]);
+            if (plane && plane->fb_id == blank.fb_id) {
+                drmModeSetPlane(m_cardFd, plane->plane_id, m_crtcId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+            }
+            if (plane) {
+                drmModeFreePlane(plane);
+            }
+        }
+        if (planes) {
+            drmModeFreePlaneResources(planes);
+        }
+        DestroyDumbBuffer(m_cardFd, blank);
+    }
+    return ret;
+}
+
 void KMSFrameBuffer::EnableDisplay() {
     LogDebug(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay() called for %s\n", m_connectorName.c_str());
     if (MediaHoldsConnector(m_connectorName, true)) {
@@ -811,17 +883,7 @@ void KMSFrameBuffer::EnableDisplay() {
         int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
         if (im == 0) {
             if (m_crtcId && m_planeId) {
-                int ret = drmModeSetCrtc(m_cardFd, m_crtcId, m_fb[m_cPage].fb_id, 0, 0,
-                                         &m_connectorId, 1, &m_mode);
-                if (ret) {
-                    LogErr(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay set_mode failed: %d\n", ret);
-                } else {
-                    LogInfo(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay: set mode for %s\n", m_connectorName.c_str());
-                }
-
-                ret = drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, m_fb[m_cPage].fb_id, 0,
-                                      0, 0, m_mode.hdisplay, m_mode.vdisplay,
-                                      0, 0, (uint32_t)m_width << 16, (uint32_t)m_height << 16);
+                int ret = ModesetLocked();
                 if (ret) {
                     LogErr(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay set_plane failed: %d\n", ret);
                 } else {
@@ -935,6 +997,236 @@ bool KMSFrameBuffer::SetRefreshRate(int fps) {
     }
     ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
     return ret == 0;
+}
+
+// ---------------------------------------------------------------------------
+// Display hotplug
+// ---------------------------------------------------------------------------
+
+// Quiet time after the last uevent before acting on a batch.  A sink powering
+// up can bounce HPD a few times, and acting once on the settled state avoids a
+// modeset per bounce.
+static constexpr int HOTPLUG_SETTLE_MS = 1000;
+
+static std::mutex s_hotplugLock; // guards the three below
+static std::thread* s_hotplugThread = nullptr;
+static int s_hotplugSock = -1;
+static int s_hotplugWakeFd = -1;
+
+void KMSFrameBuffer::StartHotplugMonitor() {
+    std::unique_lock<std::mutex> lock(s_hotplugLock);
+    if (s_hotplugThread) {
+        return;
+    }
+    // The kernel's own uevent multicast group (1), not udevd's re-broadcast:
+    // it needs no udevd and no libudev, and fppd runs as root.
+    int sock = socket(AF_NETLINK, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, NETLINK_KOBJECT_UEVENT);
+    if (sock < 0) {
+        LogWarn(VB_CHANNELOUT, "KMSFrameBuffer: no uevent socket, display hotplug will not be handled: %s\n", strerror(errno));
+        return;
+    }
+    struct sockaddr_nl addr = {};
+    addr.nl_family = AF_NETLINK;
+    addr.nl_groups = 1;
+    if (bind(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        LogWarn(VB_CHANNELOUT, "KMSFrameBuffer: could not bind the uevent socket, display hotplug will not be handled: %s\n", strerror(errno));
+        close(sock);
+        return;
+    }
+    int wakeFd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+    if (wakeFd < 0) {
+        close(sock);
+        return;
+    }
+    s_hotplugSock = sock;
+    s_hotplugWakeFd = wakeFd;
+    s_hotplugThread = new std::thread(HotplugMonitorLoop, sock, wakeFd);
+}
+
+void KMSFrameBuffer::StopHotplugMonitor() {
+    std::unique_lock<std::mutex> lock(s_hotplugLock);
+    if (!s_hotplugThread) {
+        return;
+    }
+    uint64_t one = 1;
+    write(s_hotplugWakeFd, &one, sizeof(one));
+    s_hotplugThread->join();
+    delete s_hotplugThread;
+    s_hotplugThread = nullptr;
+    close(s_hotplugSock);
+    close(s_hotplugWakeFd);
+    s_hotplugSock = -1;
+    s_hotplugWakeFd = -1;
+}
+
+void KMSFrameBuffer::HotplugMonitorLoop(int sock, int wakeFd) {
+    SetThreadName("FPP-DRMHotplug");
+
+    // card path ("/dev/dri/card1") -> connector ids named by the batch's
+    // events; 0 for an event that named none (a sysfs status write, polled
+    // connectors).  Any event re-probes every output on its card.
+    std::map<std::string, std::set<uint32_t>> pending;
+    long long deadline = 0;
+    char buf[8192];
+
+    while (true) {
+        struct pollfd pfds[2] = {};
+        pfds[0].fd = sock;
+        pfds[0].events = POLLIN;
+        pfds[1].fd = wakeFd;
+        pfds[1].events = POLLIN;
+        int timeout = -1;
+        if (deadline) {
+            timeout = (int)std::max(0LL, deadline - GetTimeMS());
+        }
+        int r = poll(pfds, 2, timeout);
+        if (r < 0 && errno != EINTR) {
+            LogWarn(VB_CHANNELOUT, "KMSFrameBuffer: uevent poll failed, display hotplug will no longer be handled: %s\n", strerror(errno));
+            return;
+        }
+        if (pfds[1].revents & POLLIN) {
+            return;
+        }
+        if (pfds[0].revents & POLLIN) {
+            ssize_t len;
+            while ((len = recv(sock, buf, sizeof(buf) - 1, 0)) > 0) {
+                // "change@/devices/...\0ACTION=change\0SUBSYSTEM=drm\0HOTPLUG=1\0..."
+                buf[len] = 0;
+                std::string subsystem, devname;
+                bool hotplug = false;
+                uint32_t connectorId = 0;
+                for (char* p = buf; p < buf + len; p += strlen(p) + 1) {
+                    if (!strncmp(p, "SUBSYSTEM=", 10)) {
+                        subsystem = p + 10;
+                    } else if (!strncmp(p, "DEVNAME=", 8)) {
+                        devname = p + 8;
+                    } else if (!strcmp(p, "HOTPLUG=1")) {
+                        hotplug = true;
+                    } else if (!strncmp(p, "CONNECTOR=", 10)) {
+                        connectorId = (uint32_t)strtoul(p + 10, nullptr, 10);
+                    }
+                }
+                if (subsystem != "drm" || !hotplug || devname.empty()) {
+                    continue;
+                }
+                LogDebug(VB_CHANNELOUT, "KMSFrameBuffer: hotplug uevent on %s connector %u\n", devname.c_str(), connectorId);
+                pending["/dev/" + devname].insert(connectorId);
+                deadline = GetTimeMS() + HOTPLUG_SETTLE_MS;
+            }
+        }
+        if (deadline && GetTimeMS() >= deadline) {
+            for (auto& [cardPath, connectorIds] : pending) {
+                HandleHotplug(cardPath, connectorIds);
+            }
+            pending.clear();
+            deadline = 0;
+        }
+    }
+}
+
+void KMSFrameBuffer::HandleHotplug(const std::string& cardPath, const std::set<uint32_t>& connectorIds) {
+    // Media state is read before drmMasterLock, as the other callers do, so
+    // collect this card's outputs by token first.
+    std::vector<std::pair<uint32_t, std::string>> outputs;
+    {
+        std::unique_lock<std::mutex> lock(drmMasterLock);
+        for (auto& [token, fb] : FLIP_TARGETS) {
+            if (fb->m_hotplugReady && fb->m_cardInfo->path == cardPath) {
+                outputs.emplace_back(token, fb->m_connectorName);
+            }
+        }
+    }
+    std::map<uint32_t, bool> mediaHeld;
+    for (auto& [token, name] : outputs) {
+        mediaHeld[token] = MediaHoldsConnector(name, true);
+    }
+
+    std::unique_lock<std::mutex> lock(drmMasterLock);
+    for (auto& [token, name] : outputs) {
+        auto it = FLIP_TARGETS.find(token);
+        if (it == FLIP_TARGETS.end() || !it->second->m_hotplugReady) {
+            continue;
+        }
+        KMSFrameBuffer* fb = it->second;
+
+        // Re-probe the connector.  Only the DRM master gets a real probe: for
+        // anyone else the kernel demotes it to reading back its cached state,
+        // and after a reconnect that is "connected" with no modes, because the
+        // HPD interrupt updates the status but not the mode list.  So this
+        // holds master - and drmMasterLock, so every output's flips wait out
+        // the EDID read, once per hotplug.  The real probe also refreshes the
+        // sysfs mode list that was emptied while the sink was away.
+        bool master = ioctl(fb->m_cardFd, DRM_IOCTL_SET_MASTER, 0) == 0;
+        drmModeConnectorPtr conn = drmModeGetConnector(fb->m_cardFd, fb->m_connectorId);
+        bool present = conn && conn->connection == DRM_MODE_CONNECTED && conn->count_modes > 0;
+        if (conn) {
+            drmModeFreeConnector(conn);
+        }
+        if (master) {
+            ioctl(fb->m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
+        }
+
+        bool wasPresent = fb->m_sinkPresent;
+        fb->m_sinkPresent = present;
+        if (!present) {
+            if (wasPresent) {
+                LogInfo(VB_CHANNELOUT, "KMSFrameBuffer %s: display disconnected\n", name.c_str());
+            }
+            continue;
+        }
+        // Back after we saw it gone.  An event naming this connector while it
+        // looks present also counts: the sink went away and came back before
+        // the batch settled, or (with force_hotplug) its EDID changed.  A
+        // card-wide event alone does not: it may be about another connector,
+        // and a needless modeset blanks this one (or glitches DPI pixels).
+        if (wasPresent && !connectorIds.count(fb->m_connectorId)) {
+            continue;
+        }
+        LogInfo(VB_CHANNELOUT, "KMSFrameBuffer %s: display %s\n", name.c_str(),
+                wasPresent ? "re-announced itself" : "reconnected");
+        if (mediaHeld[token]) {
+            LogInfo(VB_CHANNELOUT, "KMSFrameBuffer %s: media owns the connector, not restarting the display\n", name.c_str());
+        } else if (!fb->m_displayEnabled) {
+            // Not lit yet; EnableDisplay() or SyncDisplay() will do it.
+        } else {
+            fb->RestartDisplayLocked();
+        }
+    }
+}
+
+void KMSFrameBuffer::RestartDisplayLocked() {
+    int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
+    if (im != 0) {
+        LogWarn(VB_CHANNELOUT, "KMSFrameBuffer %s: could not get DRM master to restart the display\n", m_connectorName.c_str());
+        return;
+    }
+    if (m_flipPending) {
+        int vr = m_mode.vrefresh > 0 ? m_mode.vrefresh : 60;
+        WaitForPendingFlip((1000 / vr) + 20);
+    }
+    // Off first.  SetCrtc with the mode the CRTC already runs is not a modeset
+    // to the atomic helpers - it just swaps the framebuffer - and it is the
+    // modeset that restarts the HDMI link the sink has to lock onto.
+    if (m_planeId) {
+        drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    }
+    drmModeSetCrtc(m_cardFd, m_crtcId, 0, 0, 0, nullptr, 0, nullptr);
+
+    int ret = ModesetLocked();
+    if (ret == 0) {
+        LogInfo(VB_CHANNELOUT, "KMSFrameBuffer %s: display restarted at %dx%d @ %dHz\n",
+                m_connectorName.c_str(), m_mode.hdisplay, m_mode.vdisplay, m_mode.vrefresh);
+    } else {
+        // Leave it disabled so the next SyncDisplay() tries the modeset again.
+        LogWarn(VB_CHANNELOUT, "KMSFrameBuffer %s: display restart failed: %d (%s)\n",
+                m_connectorName.c_str(), ret, strerror(errno));
+    }
+    m_displayEnabled = (ret == 0);
+    // The modeset restarts the vblank stream; don't count it as a stutter.
+    m_lastFlipSeq = 0;
+    m_prevVblankDelta = 0;
+    m_lastFlipTimeUS = 0;
+    ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
 }
 
 #endif
