@@ -39,6 +39,11 @@ public:
     time_t endTime;
     std::string command;
     Json::Value args;
+    // A playlist entry's start (as opposed to an FPP command entry).  The
+    // command string can't tell them apart: a command entry can run the
+    // "Start Playlist" command, and was then taken for a playlist entry with
+    // no playlist -- marked ran, never run.
+    bool isPlaylist = false;
 };
 
 class Scheduler {

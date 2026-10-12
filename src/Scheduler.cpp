@@ -168,7 +168,7 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat, int forceStopped) {
             for (auto& item : itemTime.second) {
                 if (WillLog(LOG_EXCESSIVE, VB_SCHEDULE))
                     DumpScheduledItem(item.startTime, item);
-                if (item.command == "Start Playlist") {
+                if (item.isPlaylist) {
                     if (item.endTime <= now) {
                         LogExcess(VB_SCHEDULE, "End time is in the past, skipping item\n");
                         continue;
@@ -211,7 +211,7 @@ std::string Scheduler::GetPlaylistThatShouldBePlaying(int& repeat) {
         }
 
         for (auto& item : itemTime.second) {
-            if (item.command == "Start Playlist") {
+            if (item.isPlaylist) {
                 // Skip things that should have ended in the past
                 if (item.endTime <= now) {
                     continue;
@@ -390,6 +390,7 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
             args.append("false");
 
             newItem.command = "Start Playlist";
+            newItem.isPlaylist = true;
             newItem.args = std::move(args);
             newItem.endTime = endTime;
 
@@ -397,6 +398,7 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
             if (auto it = m_ranItems.find(newItem.startTime); it != m_ranItems.end()) {
                 for (auto& item : it->second) {
                     if ((newItem.command == item.command) &&
+                        (newItem.isPlaylist == item.isPlaylist) &&
                         (newItem.startTime == item.startTime) &&
                         (newItem.endTime == item.endTime) &&
                         (newItem.args.size() == item.args.size()) &&
@@ -465,7 +467,7 @@ void Scheduler::doCountdown(const std::time_t now, const std::time_t itemTime, c
                  diff == 1 ? "" : "s");
 
         for (auto& item : items) {
-            if ((item.command == "Start Playlist") &&
+            if (item.isPlaylist &&
                 (diff < 1000)) {
                 char tmpStr[27];
                 snprintf(tmpStr, 26, "PLAYLIST_START_TMINUS_%03d", diff);
@@ -622,7 +624,7 @@ bool Scheduler::doScheduledPlaylist(const std::time_t now, const std::time_t ite
             std::string playlistName = Player::INSTANCE.GetPlaylistName();
             if (auto it = m_scheduledItems.find(oldStartTime); it != m_scheduledItems.end()) {
                 for (auto& oldItem : it->second) {
-                    if ((oldItem.command == "Start Playlist") &&
+                    if (oldItem.isPlaylist &&
                         (oldItem.entry->playlist == playlistName)) {
                         oldItem.ran = false;
                         m_forcedNextPlaylist = oldItem.entryIndex;
@@ -748,7 +750,7 @@ void Scheduler::CheckScheduledItems(bool restarted) {
                     if (due.first > now)
                         break;
                     for (auto& c : due.second) {
-                        if (!c.ran && (c.command == "Start Playlist") && (c.endTime > now) &&
+                        if (!c.ran && c.isPlaylist && (c.endTime > now) &&
                             (c.priority < bestIdlePriority) &&
                             !m_startsInFlight.count({ c.startTime, c.entryIndex })) {
                             bestIdlePriority = c.priority;
@@ -762,7 +764,7 @@ void Scheduler::CheckScheduledItems(bool restarted) {
                     doCountdown(now, itemTime.first, itemTime.second, presets);
                     if (itemTime.first - now <= MEDIA_PREWARM_LEAD_S) {
                         for (auto& item : itemTime.second) {
-                            if (!item.ran && item.command == "Start Playlist") {
+                            if (!item.ran && item.isPlaylist) {
                                 // Through the start, plus the usual linger in
                                 // case the playlist opens with no media.
                                 prewarmMs = (int)((itemTime.first - now + MEDIA_PREWARM_LEAD_S) * 1000);
@@ -777,7 +779,7 @@ void Scheduler::CheckScheduledItems(bool restarted) {
                     if (item.ran)
                         continue; // skip over any items that ran already
 
-                    if (item.command == "Start Playlist") {
+                    if (item.isPlaylist) {
                         if (m_startsInFlight.count({ item.startTime, item.entryIndex }))
                             continue; // being started by another thread right now
                         if (item.priority > bestIdlePriority)
@@ -859,6 +861,7 @@ void Scheduler::SetItemRan(ScheduledItem& item, bool ran) {
     auto& vec = m_ranItems[item.startTime];
     auto it = std::find_if(vec.begin(), vec.end(), [&](const ScheduledItem& ranItem) {
         return item.command == ranItem.command &&
+               item.isPlaylist == ranItem.isPlaylist &&
                item.startTime == ranItem.startTime &&
                item.endTime == ranItem.endTime &&
                item.args.size() == ranItem.args.size() &&
@@ -867,7 +870,17 @@ void Scheduler::SetItemRan(ScheduledItem& item, bool ran) {
     if (it != vec.end()) {
         it->ran = ran;
     } else {
-        vec.push_back(item);
+        // Without the entry pointer: it points into m_Schedule, which the next
+        // reload frees, while ran-state outlives reloads.
+        vec.push_back({ .entry = nullptr,
+                        .priority = item.priority,
+                        .entryIndex = item.entryIndex,
+                        .ran = ran,
+                        .startTime = item.startTime,
+                        .endTime = item.endTime,
+                        .command = item.command,
+                        .args = item.args,
+                        .isPlaylist = item.isPlaylist });
     }
 }
 
@@ -999,7 +1012,7 @@ ScheduledItem* Scheduler::GetNextScheduledPlaylist() {
             if (item.ran)
                 continue; // skip over any items that ran already
 
-            if (item.command == "Start Playlist")
+            if (item.isPlaylist)
                 return &item;
         }
     }
