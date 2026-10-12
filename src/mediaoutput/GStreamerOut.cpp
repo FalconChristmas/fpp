@@ -2843,6 +2843,10 @@ void GStreamerOutput::DetachCallbacks() {
     }
 }
 
+bool GStreamerOutput::SetPipelineToNullBounded(GstElement* pipeline, int timeoutMs) {
+    return SetPipelineToNullSupervised(pipeline, timeoutMs);
+}
+
 void GStreamerOutput::ReleasePipeWireStream() {
     if (m_pwStream) {
         m_pwStream->Release(m_pwFeed);

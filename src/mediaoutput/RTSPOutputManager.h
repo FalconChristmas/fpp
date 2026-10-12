@@ -180,8 +180,18 @@ private:
     /// gst-launch description for one mount's GstRTSPMediaFactory.
     std::string BuildFactoryLaunch(const RTSPOutputMount& mount) const;
 
+    struct AudioBridge {
+        std::string mountPoint;
+        std::string nodeName;
+        GstElement* pipeline = nullptr;
+        bool waitingForSource = false;
+    };
     /// Start/stop the always-present pipewiresrc -> interaudiosink bridge.
-    bool StartAudioBridge(const RTSPOutputMount& mount);
+    /// Started without m_configMutex held (a pipewiresrc talks to the
+    /// PipeWire daemon) into `bridges`, which the caller swaps into
+    /// m_audioBridges under the lock so GetStatus() can walk it safely.
+    bool StartAudioBridge(const RTSPOutputMount& mount, bool requireGroupSource,
+                          std::vector<AudioBridge>& bridges);
     void StopAudioBridges();
 
     bool StartServer();
@@ -202,13 +212,7 @@ private:
     GMainLoop* m_mainLoop = nullptr;
     std::thread m_loopThread;
 
-    struct AudioBridge {
-        std::string mountPoint;
-        std::string nodeName;
-        GstElement* pipeline = nullptr;
-        bool waitingForSource = false;
-    };
-    std::vector<AudioBridge> m_audioBridges;
+    std::vector<AudioBridge> m_audioBridges;  // guarded by m_configMutex
 };
 
 #endif // __has_include(<gst/rtsp-server/rtsp-server.h>)

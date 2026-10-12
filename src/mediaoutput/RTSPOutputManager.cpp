@@ -289,12 +289,13 @@ std::string RTSPOutputManager::BuildFactoryLaunch(const RTSPOutputMount& mount) 
     return oss.str();
 }
 
-bool RTSPOutputManager::StartAudioBridge(const RTSPOutputMount& mount) {
+bool RTSPOutputManager::StartAudioBridge(const RTSPOutputMount& mount, bool requireGroupSource,
+                                         std::vector<AudioBridge>& bridges) {
     AudioBridge bridge;
     bridge.mountPoint = mount.mountPoint;
     bridge.nodeName = mount.audioNodeName;
 
-    if (m_config.requireGroupSource && !PipeWireGraphFeedsNode(mount.audioNodeName)) {
+    if (requireGroupSource && !PipeWireGraphFeedsNode(mount.audioNodeName)) {
         // Nothing routes into this node yet, and a pipewiresrc with
         // node.autoconnect=false and nothing linked cannot preroll: starting
         // it would block for 30 seconds and then report a failure for a stream
@@ -304,7 +305,7 @@ bool RTSPOutputManager::StartAudioBridge(const RTSPOutputMount& mount) {
                              "Output Group to feed '%s'\n",
                 mount.name.c_str(), mount.audioNodeName.c_str());
         bridge.waitingForSource = true;
-        m_audioBridges.push_back(bridge);
+        bridges.push_back(bridge);
         return false;
     }
 
@@ -362,29 +363,51 @@ bool RTSPOutputManager::StartAudioBridge(const RTSPOutputMount& mount) {
         gst_object_unref(pwsrc);
     }
 
-    if (gst_element_set_state(pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
-        LogErr(VB_MEDIAOUT, "RTSPOutputManager: audio bridge for '%s' failed to start\n",
-               mount.name.c_str());
-        WarningHolder::AddWarning(31, "RTSP output '" + mount.name + "': audio bridge failed to start");
-        gst_element_set_state(pipeline, GST_STATE_NULL);
-        gst_object_unref(pipeline);
-        return false;
-    }
-
+    // Started on its own thread.  A pipewiresrc whose node nothing feeds
+    // (requireGroupSource off) takes 30 s to fail the state change, and the
+    // caller is ApplyConfig() -- fppd's main loop for reloadRTSPOutputs, and
+    // startup.  The thread holds its own ref; the bridge entry owns the
+    // pipeline and StopAudioBridges() tears it down whether or not the start
+    // has finished.
     bridge.pipeline = pipeline;
-    m_audioBridges.push_back(bridge);
+    GstElement* startRef = GST_ELEMENT(gst_object_ref(pipeline));
+    std::string mountName = mount.name;
+    std::thread([startRef, mountName]() {
+        SetThreadName("FPP-RTSPAudio");
+        if (gst_element_set_state(startRef, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
+            LogErr(VB_MEDIAOUT, "RTSPOutputManager: audio bridge for '%s' failed to start\n",
+                   mountName.c_str());
+            WarningHolder::AddWarning(31, "RTSP output '" + mountName + "': audio bridge failed to start");
+        }
+        gst_object_unref(startRef);
+    }).detach();
+
+    bridges.push_back(bridge);
     return true;
 }
 
 void RTSPOutputManager::StopAudioBridges() {
-    for (auto& b : m_audioBridges) {
+    // Taken out under m_configMutex: GetStatus() walks the vector on HTTP
+    // threads, and clearing it under only the apply lock freed elements out
+    // from under it.  Stopped with the lock released.
+    std::vector<AudioBridge> bridges;
+    {
+        std::unique_lock<std::mutex> lock(m_configMutex);
+        bridges.swap(m_audioBridges);
+    }
+    for (auto& b : bridges) {
         if (b.pipeline) {
-            gst_element_set_state(b.pipeline, GST_STATE_NULL);
+            // Bounded: a bridge whose start is still stuck in pipewiresrc
+            // holds the state lock, and this runs on the main loop and in
+            // Shutdown().  A wedged one is left to the reaper.
+            if (!GStreamerOutput::SetPipelineToNullBounded(b.pipeline, 2000)) {
+                LogWarn(VB_MEDIAOUT, "RTSPOutputManager: audio bridge for '%s' did not stop, abandoning it\n",
+                        b.mountPoint.c_str());
+            }
             gst_object_unref(b.pipeline);
             b.pipeline = nullptr;
         }
     }
-    m_audioBridges.clear();
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -500,31 +523,46 @@ bool RTSPOutputManager::Init() {
 bool RTSPOutputManager::ApplyConfig() {
     std::unique_lock<std::mutex> applyLock(m_applyMutex);
 
+    // Before anything below builds a pipeline.  The audio bridges are parsed
+    // before StartServer(), and at boot nothing has initialised GStreamer by
+    // then: gst_parse_launch() crashed in gst_value_deserialize(), and the
+    // crash handler's exit() then hung in this object's destructor on the
+    // apply lock until the crash watchdog killed fppd -- on every boot.
+    GStreamerOutput::EnsureGStreamerInit();
+
     StopServer();
     StopAudioBridges();
     m_active = false;
 
     LoadConfig();
 
-    std::unique_lock<std::mutex> lock(m_configMutex);
-    if (!m_config.enabled) {
+    RTSPOutputConfig cfg;
+    {
+        std::unique_lock<std::mutex> lock(m_configMutex);
+        cfg = m_config;
+    }
+    if (!cfg.enabled) {
         LogDebug(VB_MEDIAOUT, "RTSPOutputManager: disabled\n");
         return true;
     }
-    if (m_config.mounts.empty()) {
+    if (cfg.mounts.empty()) {
         LogInfo(VB_MEDIAOUT, "RTSPOutputManager: enabled but no mounts configured\n");
         return true;
     }
 
     // Bridges first: the RTSP media's interaudiosrc has nothing to read until
     // its bridge is publishing, and a client can connect the moment the
-    // server's socket is up.
-    for (const auto& mount : m_config.mounts) {
+    // server's socket is up.  Built without m_configMutex (see
+    // StartAudioBridge()).
+    std::vector<AudioBridge> bridges;
+    for (const auto& mount : cfg.mounts) {
         if (mount.audioEnabled) {
-            StartAudioBridge(mount);
+            StartAudioBridge(mount, cfg.requireGroupSource, bridges);
         }
     }
 
+    std::unique_lock<std::mutex> lock(m_configMutex);
+    m_audioBridges = std::move(bridges);
     bool ok = StartServer();
     m_active = ok;
     return ok;

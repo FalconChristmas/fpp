@@ -68,6 +68,10 @@ public:
 
     // One-time GStreamer + PipeWire env initialization (safe to call repeatedly)
     static void EnsureGStreamerInit();
+    // Take `pipeline` to NULL on a reaper thread, waiting at most timeoutMs.
+    // False if it wedged: the reaper keeps its own ref and the pipeline (with
+    // whatever it holds) is left to it.  The caller's ref is untouched.
+    static bool SetPipelineToNullBounded(GstElement* pipeline, int timeoutMs);
     // Set the environment now, on the calling thread, and run gst_init() in the
     // background so the first play doesn't pay for it (~1 s on an AM335x, and
     // ~20 s the very first time, when GStreamer builds its plugin registry).
