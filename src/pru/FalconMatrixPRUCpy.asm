@@ -1,10 +1,16 @@
 #include "ResourceTable.asm"
 
 
-#ifndef RUNNING_ON_PRU0
-#ifndef RUNNING_ON_PRU1
+// compileMatrix.sh passes the output PRU's -DRUNNING_ON_PRUn to both
+// programs, and this one runs on the other core
+#if defined(RUNNING_ON_PRU0)
+#undef RUNNING_ON_PRU0
 #define RUNNING_ON_PRU1
-#endif
+#elif defined(RUNNING_ON_PRU1)
+#undef RUNNING_ON_PRU1
+#define RUNNING_ON_PRU0
+#else
+#define RUNNING_ON_PRU1
 #endif
 
 ; this file is always the "copy" PRU side
