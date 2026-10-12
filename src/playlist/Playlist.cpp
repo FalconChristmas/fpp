@@ -298,22 +298,12 @@ Playlist::Playlist(Playlist* parent) :
 
     SetRepeat(0);
 
-    if (Events::HasEventHandlers()) {
-        // Legacy callbacks
-        std::function<void(const std::string& t, const std::string& payload)> f1 = [this](const std::string& t, const std::string& payload) {
-            std::string emptyStr;
-            LogDebug(VB_CONTROL, "Received deprecated MQTT Topic: '%s' \n", t.c_str());
-            std::string topic = t;
-            topic.replace(0, 10, emptyStr); // Replace until /#
-            this->MQTTHandler(topic, payload);
-        };
-        Events::AddCallback("/playlist/name/set", f1);
-        Events::AddCallback("/playlist/repeat/set", f1);
-        Events::AddCallback("/playlist/sectionPosition/set", f1);
-
-    } else {
-        LogDebug(VB_CONTROL, "Not registered MQTT Callbacks for Playlist. MQTT Not configured. \n");
-    }
+    // The legacy /playlist/*/set MQTT topics are registered once, in
+    // Player::Init(), and dispatched to whichever playlist is current.  They
+    // used to be registered here with [this]: every inserted playlist
+    // overwrote the callback with a pointer to itself and never removed it,
+    // so once that playlist finished and was freed, the next message on those
+    // topics called into freed memory.
 }
 
 /*
