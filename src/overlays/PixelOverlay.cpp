@@ -203,9 +203,10 @@ void PixelOverlayManager::addModel(Json::Value config) {
     }
 
     if (pmodel && !pmodel->isValid()) {
-        // Its channel data could not be allocated, so every accessor on it
-        // would index a null pointer.  Drop it; the warning is already up.
-        LogErr(VB_CHANNELOUT, "PixelOverlayManager::addModel() - could not allocate memory for model %s\n",
+        // Its definition was rejected, or its channel data could not be
+        // allocated, so every accessor on it would index a null pointer. Drop
+        // it; the constructor has already logged why.
+        LogErr(VB_CHANNELOUT, "PixelOverlayManager::addModel() - model %s was not created\n",
                pmodel->getName().c_str());
         delete pmodel;
         pmodel = nullptr;
