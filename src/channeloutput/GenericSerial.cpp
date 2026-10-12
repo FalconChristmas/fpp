@@ -123,7 +123,7 @@ int GenericSerialOutput::RawSendData(unsigned char* channelData) {
     memcpy(m_data + m_headerSize, channelData, m_channelCount);
 
     if (WillLog(LOG_EXCESSIVE, VB_CHANNELDATA))
-        HexDump("Generic Serial", m_data, m_headerSize + 16, VB_CHANNELDATA);
+        HexDump("Generic Serial", m_data, std::min(m_headerSize + 16, m_packetSize), VB_CHANNELDATA);
 
     // whole packets only: a truncated one desyncs the receiver
     SerialWriteAll(m_fd, m_data, m_packetSize, 500);
