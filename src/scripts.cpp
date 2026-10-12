@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <vector>
 
+#include "Warnings.h"
 #include "common.h"
 #include "log.h"
 #include "settings.h"
