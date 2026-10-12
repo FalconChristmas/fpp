@@ -1974,7 +1974,12 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
 
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
+    // Paused counts as running: it used to fall through to the load below,
+    // which replaced the paused entry without stopping it -- no stop
+    // callback, no PLAYLIST_STOPPED preset, and an inserted level loaded in
+    // place instead of handing back to its parent.
     if ((m_status == FPP_STATUS_PLAYLIST_PLAYING) ||
+        (m_status == FPP_STATUS_PLAYLIST_PAUSED) ||
         (m_status == FPP_STATUS_STOPPING_GRACEFULLY) ||
         (m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
         std::string fullfilename = FPP_DIR_PLAYLIST("/" + filename + ".json");
