@@ -3471,6 +3471,7 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         auto [it, ok] = m_sendPipelines.try_emplace(inst.id);
         it->second.instanceId = inst.id;
         it->second.channels = inst.channels;
+        it->second.ptime = inst.ptime;
         it->second.isSend = true;
         it->second.pipeline = pipeline;
         it->second.bus = bus;
@@ -3583,6 +3584,7 @@ bool AES67Manager::CreateRecvPipeline(const AES67Instance& inst) {
         auto [it, ok] = m_recvPipelines.try_emplace(inst.id);
         it->second.instanceId = inst.id;
         it->second.channels = inst.channels;
+        it->second.ptime = inst.ptime;
         it->second.isSend = false;
         it->second.pipeline = pipeline;
         it->second.bus = bus;
@@ -4356,15 +4358,21 @@ bool AES67Manager::PollPipelinesWatchdog() {
                     // Compare throughput against what this instance should
                     // be emitting.  Payload is ptime worth of 24-bit frames,
                     // and at nominal that is AUDIO_RATE * 3 * channels bytes a
-                    // second regardless of ptime.
+                    // second regardless of ptime.  bytes-served counts whole
+                    // RTP packets, though, so each packet's 12-byte header is
+                    // in it too: leaving that out had a healthy stream read
+                    // 104% at 1ms ptime (101% at 4ms), and a stream delivering
+                    // 94% of its audio read 98% and never tripped the check.
                     const auto nowT = std::chrono::steady_clock::now();
                     if (p.lastByteTime.time_since_epoch().count() != 0 &&
                         bytesSent > p.lastByteCount) {
                         const double secs =
                             std::chrono::duration<double>(nowT - p.lastByteTime)
                                 .count();
+                        constexpr double RTP_HEADER_BYTES = 12.0;
                         const double expected =
-                            (double)AES67::AUDIO_RATE * 3.0 * p.channels;
+                            (double)AES67::AUDIO_RATE * 3.0 * p.channels +
+                            (p.ptime > 0 ? RTP_HEADER_BYTES * 1000.0 / p.ptime : 0.0);
                         if (secs > 5.0 && expected > 0) {
                             const double got =
                                 (double)(bytesSent - p.lastByteCount) / secs;

@@ -973,6 +973,7 @@ struct AES67Pipeline {
     std::chrono::steady_clock::time_point lastByteTime{};
     int     lowRateCount = 0;
     int     channels = AES67::DEFAULT_CHANNELS;  // for the expected byte rate
+    int     ptime = AES67::DEFAULT_PTIME_MS;     // packets/s, for the header bytes in it
     bool    pacingTuned = false;         // latency-derived shift applied yet?
 };
 
