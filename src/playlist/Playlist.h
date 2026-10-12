@@ -214,6 +214,14 @@ private:
     bool m_shouldStartGlobalPause;
     long long m_globalPauseStartTime;
 
+    // A repeating main playlist whose every entry finishes at once (command
+    // entries only) used to restart on every main loop pass, about a
+    // thousand times a second. A pass shorter than MIN_INSTANT_PASS_MS holds
+    // the next one until m_loopHoldUntilMS. See SwitchToMainPlaylist().
+    long long m_loopStartMS = 0;
+    long long m_loopHoldUntilMS = 0;
+    bool m_warnedInstantLoop = false;
+
     std::string m_insertedPlaylist;
     int m_insertedPlaylistPosition;
     int m_insertedPlaylistEndPosition;
