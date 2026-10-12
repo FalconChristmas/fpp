@@ -1591,7 +1591,7 @@
                 var noticeRow = '';
                 if (data && data.status === 'Cached' && data.message) {
                     noticeRow = '<tr><td colspan="3" class="p-2 text-center text-muted"><i class="fas fa-history"></i> ' +
-                        data.message + '</td></tr>';
+                        EscapeHtml(data.message) + '</td></tr>';
                 }
 
                 if (data && data.networks && data.networks.length > 0) {
@@ -1669,30 +1669,44 @@
 
                         // Check if this is the currently configured network
                         var isSelected = (n.SSID === currentSSID);
-                        var rowClass = isSelected ? 'table-primary' : '';
-                        var selectedIcon = isSelected ? '<i class="fas fa-check text-success" title="Currently configured"></i> ' : '';
 
-                        html += '<tr class="wifi-network-row ' + rowClass + '" onclick="selectWifiNetworkForInterface(\'' + n.SSID.replace(/'/g, "\\'") + '\', \'' + safeName + '\', \'' + security + '\')" style="cursor: pointer;">' +
-                            '<td class="p-2">' + selectedIcon + n.SSID + '</td>' +
-                            '<td class="wifi-signal p-2 text-center fw-bold text-nowrap ' + signalClass + '">' + signalBars + ' ' + signalStrength + 'dBm</td>' +
-                            '<td class="p-2">' + securityBadge + '</td>' +
-                            '</tr>';
+                        // Built as DOM, not markup: an SSID is whatever any
+                        // nearby access point chooses to broadcast, so it is
+                        // only ever set as text, and the click handler gets it
+                        // from this closure rather than from an inline attribute.
+                        var row = $('<tr class="wifi-network-row" style="cursor: pointer;"></tr>');
+                        if (isSelected) {
+                            row.addClass('table-primary');
+                        }
+                        var nameCell = $('<td class="p-2"></td>');
+                        if (isSelected) {
+                            nameCell.append('<i class="fas fa-check text-success" title="Currently configured"></i> ');
+                        }
+                        nameCell.append(document.createTextNode(n.SSID));
+                        row.append(nameCell)
+                            .append($('<td class="wifi-signal p-2 text-center fw-bold text-nowrap"></td>').addClass(signalClass)
+                                .text(signalBars + ' ' + signalStrength + 'dBm'))
+                            .append($('<td class="p-2"></td>').html(securityBadge));
+                        row.on('click', function () {
+                            selectWifiNetworkForInterface(n.SSID, safeName, security, this);
+                        });
+                        rows.push(row);
                     });
                 } else {
                     html = '<tr><td colspan="3">No networks found</td></tr>';
                 }
-                wifiTableBody.html(noticeRow + html);
+                wifiTableBody.empty().append(noticeRow).append(html).append(rows);
             }).fail(function () {
                 wifiTableBody.html('<tr><td colspan="3" class="p-2 text-center text-muted">Scan failed</td></tr>');
             });
         }
 
-        function selectWifiNetworkForInterface(ssid, safeName, security) {
+        function selectWifiNetworkForInterface(ssid, safeName, security, row) {
             // Remove previous selection highlighting for this interface
             $('#wifiNetworksList_' + safeName + ' .wifi-network-row').removeClass('table-primary');
 
             // Highlight the selected row
-            event.target.closest('tr').classList.add('table-primary');
+            $(row).addClass('table-primary');
 
             // Set the SSID value for this interface
             $('#eth_ssid_' + safeName).val(ssid);
