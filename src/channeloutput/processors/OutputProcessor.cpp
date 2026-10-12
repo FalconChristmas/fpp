@@ -14,6 +14,8 @@
 
 #include "fpp-json.h"
 
+#include <algorithm>
+
 #include "../../log.h"
 
 #include "OutputProcessor.h"
@@ -87,11 +89,20 @@ void OutputProcessors::addProcessor(OutputProcessor* p) {
     std::lock_guard<std::mutex> lock(processorsLock);
     if (rangeIsValid(p)) {
         processors.push_back(p);
+    } else {
+        delete p; // rejected; nothing else owns it
     }
 }
 void OutputProcessors::removeProcessor(OutputProcessor* p) {
+    // ProcessData() walks the chain under processorsLock, so once the
+    // processor is out of the list (under the same lock) nothing can be using
+    // it.  Removed processors used to be leaked.
     std::lock_guard<std::mutex> lock(processorsLock);
-    processors.remove(p);
+    auto it = std::find(processors.begin(), processors.end(), p);
+    if (it != processors.end()) {
+        processors.erase(it);
+        delete p;
+    }
 }
 void OutputProcessors::removeAll() {
     std::lock_guard<std::mutex> lock(processorsLock);
