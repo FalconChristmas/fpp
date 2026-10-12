@@ -3833,6 +3833,24 @@ function network_interface_is_hardware($interface)
     return is_link($dev) || file_exists($dev);
 }
 
+/**
+ * A saved interface config as the API reports it: WiFi keys replaced by
+ * PSKSet/BACKUPPSKSet flags.  /api answers any origin and system/info is read
+ * by other players, so a key returned here would be readable well beyond this
+ * device.  The network page leaves a saved key out of its save request to keep
+ * it (network_set_interface() fills it back in).
+ */
+function network_redact_interface_config($cfg)
+{
+    foreach (array('PSK', 'BACKUPPSK') as $k) {
+        if (array_key_exists($k, $cfg)) {
+            $cfg[$k . 'Set'] = ($cfg[$k] !== '');
+            unset($cfg[$k]);
+        }
+    }
+    return $cfg;
+}
+
 function network_list_interfaces_obj()
 {
     global $settings;
@@ -3914,7 +3932,7 @@ function network_list_interfaces_obj()
             $cfgFile = $settings['configDirectory'] . "/interface." . $ifname;
             if (file_exists($cfgFile)) {
                 $result = parse_ini_file($cfgFile);
-                $rec["config"] = $result;
+                $rec["config"] = network_redact_interface_config($result);
             }
         }
     }

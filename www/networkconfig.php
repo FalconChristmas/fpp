@@ -780,11 +780,20 @@
                 if (iface.substr(0, 2) == "wl") {
                     data.SSID = $('#eth_ssid_' + safeName).val();
                     data.PSK = $('#eth_psk_' + safeName).val();
+                    // The API never returns a saved key.  A blank field on the
+                    // network it was saved for means "keep it", so leave it out
+                    // of the request; blank on a different network clears it.
+                    if (data.PSK === '' && $('#eth_psk_' + safeName).attr('data-saved-ssid') === data.SSID) {
+                        delete data.PSK;
+                    }
                     data.KEY = $('#eth_key_' + safeName).val();
                     data.HIDDEN = $('#eth_hidden_' + safeName).is(':checked');
                     data.WPA3 = $('#eth_wpa3_' + safeName).is(':checked');
                     data.BACKUPSSID = $('#backupeth_ssid_' + safeName).val();
                     data.BACKUPPSK = $('#backupeth_psk_' + safeName).val();
+                    if (data.BACKUPPSK === '' && $('#backupeth_psk_' + safeName).attr('data-saved-ssid') === data.BACKUPSSID) {
+                        delete data.BACKUPPSK;
+                    }
                     data.BACKUPHIDDEN = $('#backupeth_hidden_' + safeName).is(':checked');
                     data.BACKUPWPA3 = $('#backupeth_wpa3_' + safeName).is(':checked');
                 }
@@ -815,11 +824,11 @@
                         currentData.DHCPPOOLSIZE !== data.DHCPPOOLSIZE ||
                         currentData.IPFORWARDING !== data.IPFORWARDING ||
                         currentData.SSID !== data.SSID ||
-                        currentData.PSK !== data.PSK ||
+                        (data.PSK !== undefined && (data.PSK !== '' || currentData.PSKSet)) ||
                         currentData.HIDDEN !== data.HIDDEN ||
                         currentData.WPA3 !== data.WPA3 ||
                         currentData.BACKUPSSID !== data.BACKUPSSID ||
-                        currentData.BACKUPPSK !== data.BACKUPPSK ||
+                        (data.BACKUPPSK !== undefined && (data.BACKUPPSK !== '' || currentData.BACKUPPSKSet)) ||
                         currentData.BACKUPHIDDEN !== data.BACKUPHIDDEN ||
                         currentData.BACKUPWPA3 !== data.BACKUPWPA3) {
                         hasChanged = true;
@@ -1248,7 +1257,7 @@
                 var ssidElement = contentDiv.find('#eth_ssid_' + safeName);
                 ssidElement.val(data.SSID);
                 // Show the appropriate password field based on the network type
-                if (data.PSK) {
+                if (data.PSKSet) {
                     contentDiv.find('#pskRow_' + safeName).show();
                     contentDiv.find('#keyRow_' + safeName).hide();
                 } else if (data.KEY) {
@@ -1256,8 +1265,13 @@
                     contentDiv.find('#pskRow_' + safeName).hide();
                 }
             }
-            if (data.PSK) {
-                contentDiv.find('#eth_psk_' + safeName).val(data.PSK);
+            // Saved keys are not sent to the browser (see the save handler).
+            var pskField = contentDiv.find('#eth_psk_' + safeName);
+            pskField.val('');
+            if (data.PSKSet) {
+                pskField.attr('data-saved-ssid', data.SSID || '').attr('placeholder', 'Saved - leave blank to keep');
+            } else {
+                pskField.removeAttr('data-saved-ssid').removeAttr('placeholder');
             }
             if (data.KEY) {
                 contentDiv.find('#eth_key_' + safeName).val(data.KEY);
@@ -1275,8 +1289,12 @@
                 // A saved backup SSID means the PSK field is in use - reveal it.
                 contentDiv.find('#backuppskRow_' + safeName).show();
             }
-            if (data.BACKUPPSK) {
-                contentDiv.find('#backupeth_psk_' + safeName).val(data.BACKUPPSK);
+            var bpskField = contentDiv.find('#backupeth_psk_' + safeName);
+            bpskField.val('');
+            if (data.BACKUPPSKSet) {
+                bpskField.attr('data-saved-ssid', data.BACKUPSSID || '').attr('placeholder', 'Saved - leave blank to keep');
+            } else {
+                bpskField.removeAttr('data-saved-ssid').removeAttr('placeholder');
             }
             if (data.BACKUPHIDDEN) {
                 contentDiv.find('#backupeth_hidden_' + safeName).prop('checked', data.BACKUPHIDDEN == "1");
@@ -1559,10 +1577,11 @@
                 timeout: 30000
             }).done(function (data) {
                 var html = '';
+                var rows = [];
                 var uniqueNetworks = {};
 
                 if (data && data.status === 'Blocked') {
-                    html = '<tr><td colspan="3" class="p-2 text-center text-muted">' + data.message + '</td></tr>';
+                    html = '<tr><td colspan="3" class="p-2 text-center text-muted">' + EscapeHtml(data.message) + '</td></tr>';
                     wifiTableBody.html(html);
                     return;
                 }
