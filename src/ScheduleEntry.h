@@ -98,7 +98,7 @@ public:
     // entry's odd/even selection?  Meaningless for non-odd/even entries.
     bool IsOddEvenMatch(time_t dayTime) const;
 
-    void pushStartEndTimes(int day, int &delta, int deltaThreshold);
+    void pushStartEndTimes(int day, int &delta, time_t deltaThreshold);
 
     // Occurrence expansion anchored to an absolute calendar date rather than to
     // an offset from today.  pushStartEndTimes() can only ever describe the

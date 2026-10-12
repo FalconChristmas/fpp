@@ -1526,6 +1526,9 @@ Json::Value Scheduler::GetScheduleRange(time_t rangeStart, time_t rangeEnd,
 }
 
 void Scheduler::SetTimeDelta(int delta, int timeLimit) {
+    // Under the schedule lock: the load path reads and resets m_timeDelta
+    // there, and this runs on the command's thread.
+    std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
     m_timeDelta = m_timeDelta + delta;
     m_timeDeltaThreshold = time(NULL) + timeLimit;
     // Trigger a reload the next time Scheduler::ScheduleProc() is called

@@ -558,7 +558,7 @@ static void mapTimeString(const std::string& tm, int& h, int& m, int& s) {
     }
 }
 
-void ScheduleEntry::pushStartEndTimes(int dow, int& delta, int deltaThreshold) {
+void ScheduleEntry::pushStartEndTimes(int dow, int& delta, time_t deltaThreshold) {
     time_t startTime = GetTimeOnDOW(dow, startHour, startMinute, startSecond);
     time_t endTime = GetTimeOnDOW(dow, endHour, endMinute, endSecond);
 
