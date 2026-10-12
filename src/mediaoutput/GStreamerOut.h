@@ -128,7 +128,14 @@ public:
     void SetLoopCount(int loops) { m_loopCount = loops; }
     void SetVolumeAdjustment(int volAdj);
 
-    // Event callbacks (matching VLCOutput pattern)
+    // Event callbacks (matching VLCOutput pattern).
+    //
+    // Playing(), Stopping() and Stopped() are called from Stop() and also from
+    // BusSyncHandler, on the GStreamer streaming thread that delivered the
+    // message, while that thread still holds the sink's internal locks.  An override must only
+    // record state or hand work to the main loop (Timers): anything that
+    // seeks, changes pipeline state, stops or closes an output -- including
+    // running a command preset, which can do all of those -- deadlocks there.
     virtual void Starting() {}
     virtual void Playing() {}
     virtual void Stopping() {}
@@ -283,6 +290,11 @@ private:
     static void ReleaseCallbackGuard(gpointer data, GClosure* closure);
     // GDestroyNotify for the guard reference handed to gst_bus_set_sync_handler.
     static void ReleaseBusCallbackGuard(gpointer data);
+    // Restarts the output from the top for its next loop.  Called from
+    // BusSyncHandler on EOS, it does the seek on the main loop: a flushing
+    // seek issued from the thread that delivered the EOS deadlocks, because
+    // that thread still holds the sink's preroll lock and the flush needs it.
+    static void ScheduleLoopSeek(const std::shared_ptr<CallbackGuard>& guard);
     // Resolves the closure data back to a live output.  Returns nullptr (with
     // `lock` left unlocked) once the owning Close() has run.
     static GStreamerOutput* LockCallbackGuard(gpointer userData,

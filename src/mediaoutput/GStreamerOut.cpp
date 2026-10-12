@@ -61,6 +61,7 @@
 #include "VideoOutputManager.h"
 #include "mediadetails.h"
 #include "settings.h"
+#include "Timers.h"
 #include "channeloutput/channeloutputthread.h"
 #include "../MultiSync.h"
 #include "overlays/PixelOverlay.h"
@@ -3601,9 +3602,7 @@ GstBusSyncReply GStreamerOutput::BusSyncHandler(GstBus* bus, GstMessage* msg, gp
         if (self->m_loopCount > 0 || self->m_loopCount == -1) {
             if (self->m_loopCount > 0)
                 self->m_loopCount--;
-            gst_element_seek_simple(self->m_pipeline, GST_FORMAT_TIME,
-                                    (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
-                                    0);
+            ScheduleLoopSeek(scope.guard);
             LogDebug(VB_MEDIAOUT, "GStreamer sync: Looping (remaining: %d)\n", self->m_loopCount);
         } else {
             // Detach AES67 inline branches so the standalone pipeline
@@ -4324,6 +4323,30 @@ GStreamerOutput::BusCallbackScope::BusCallbackScope(gpointer userData) {
     guard = *held;
     self = guard->self;
     guard->busInFlight++;
+}
+
+void GStreamerOutput::ScheduleLoopSeek(const std::shared_ptr<CallbackGuard>& guard) {
+    static std::atomic<unsigned> seq{ 0 };
+    std::shared_ptr<CallbackGuard> g = guard;
+    Timers::INSTANCE.addTimer("GStreamerLoop" + std::to_string(seq++), GetTimeMS(), [g]() {
+        // The guard says whether the output still exists; Close() clears
+        // `self` under `mtx`.  Seek on our own pipeline ref, outside the lock,
+        // so a Close() on another thread never waits on the seek.
+        GstElement* pipeline = nullptr;
+        {
+            std::lock_guard<std::recursive_mutex> lock(g->mtx);
+            GStreamerOutput* self = g->self;
+            if (!self || self->m_shutdownFlag.load() || !self->m_pipeline)
+                return;
+            pipeline = GST_ELEMENT(gst_object_ref(self->m_pipeline));
+        }
+        if (!gst_element_seek_simple(pipeline, GST_FORMAT_TIME,
+                                     (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
+                                     0)) {
+            LogWarn(VB_MEDIAOUT, "GStreamer: seek back to the start for the next loop failed\n");
+        }
+        gst_object_unref(pipeline);
+    });
 }
 
 GStreamerOutput::BusCallbackScope::~BusCallbackScope() {
