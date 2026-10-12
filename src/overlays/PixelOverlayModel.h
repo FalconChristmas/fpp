@@ -221,6 +221,13 @@ public:
     bool isAutoCreated();
 
 protected:
+    // Constructor helpers: read a config field without throwing (a number,
+    // or a number in a string; false for anything else), and reject the
+    // definition. See the constructor.
+    static bool configInt(const Json::Value& c, const char* key, int dflt, int& out);
+    static bool configString(const Json::Value& c, const char* key, std::string& out);
+    void markInvalid(const std::string& why);
+
     void setValue(uint8_t v, int startChannel = -1, int endChannel = -1);
     bool flushChildren(uint8_t* dst);
 

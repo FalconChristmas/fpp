@@ -162,39 +162,133 @@ static std::string modelMemoryName(const std::string& prefix, const std::string&
     return n;
 }
 
+// Model definitions come from model-overlays.json, which POST /api/models
+// (xLights' FPP Connect) writes unchecked, and from xlights-submodels.json.
+// jsoncpp's asInt()/asString() throw on the wrong type, and nothing above the
+// constructor catches - at boot that was a crash on every start. These read a
+// field the way a hand-edited file might hold it (a number, or a number in a
+// string) and report anything else instead of throwing.
+bool PixelOverlayModel::configInt(const Json::Value& c, const char* key, int dflt, int& out) {
+    if (!c.isMember(key) || c[key].isNull()) {
+        out = dflt;
+        return true;
+    }
+    const Json::Value& v = c[key];
+    if (v.isBool()) {
+        out = v.asBool() ? 1 : 0;
+        return true;
+    }
+    if (v.isNumeric()) {
+        double d = v.asDouble();
+        if (d < INT_MIN || d > INT_MAX) {
+            return false;
+        }
+        out = (int)d;
+        return true;
+    }
+    if (v.isString()) {
+        std::string str = v.asString();
+        if (str.empty()) {
+            out = dflt;
+            return true;
+        }
+        char* end = nullptr;
+        errno = 0;
+        long l = strtol(str.c_str(), &end, 10);
+        if (errno || *end != '\0' || l < INT_MIN || l > INT_MAX) {
+            return false;
+        }
+        out = (int)l;
+        return true;
+    }
+    return false;
+}
+bool PixelOverlayModel::configString(const Json::Value& c, const char* key, std::string& out) {
+    if (!c.isMember(key) || c[key].isNull()) {
+        out.clear();
+        return true;
+    }
+    const Json::Value& v = c[key];
+    if (v.isObject() || v.isArray()) {
+        return false;
+    }
+    out = v.asString();
+    return true;
+}
+
+// Logs why and releases channelData, so isValid() is false and the manager
+// drops the model. For constructors only.
+void PixelOverlayModel::markInvalid(const std::string& why) {
+    LogErr(VB_CHANNELOUT, "Overlay model '%s' is not usable: %s\n", name.c_str(), why.c_str());
+    if (channelData) {
+        if (channelDataMapped) {
+            munmap(channelData, std::max(channelCount, 8));
+            shm_unlink(modelMemoryName("/FPP-Model-Data-", "/FPPMD-", name).c_str());
+        } else {
+            free(channelData);
+        }
+        channelData = nullptr;
+    }
+}
+
+// Largest buffer a model may describe, in cells (pixels). Above this the
+// channel map alone would run to hundreds of MB.
+static constexpr int64_t MAX_MODEL_CELLS = 4096 * 1024;
+
 PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
     config(c),
     overlayBufferData(nullptr),
     channelData(nullptr),
     runningEffect(nullptr) {
-    name = config["Name"].asString();
-    type = config["Type"].asString();
-    replaceAll(name, "/", "_");
-    startChannel = config["StartChannel"].asInt();
-    startChannel--; // need to be 0 based
-
-    if (config.isMember("BufferStyle")) {
-        bufferStyle = config["BufferStyle"].asString();
+    // Any definition this constructor cannot represent safely leaves
+    // channelData null and returns: isValid() is then false and the manager
+    // drops the model, with the reason in the log. Nothing below may throw.
+    if (!config.isObject()) {
+        markInvalid("its definition is not a JSON object");
+        return;
     }
-    channelCount = config["ChannelCount"].asInt();
-    int strings = config["StringCount"].asInt();
-    int sps = config["StrandsPerString"].asInt();
+    std::string orientation;
+    std::string startCorner;
+    int strings = 0;
+    int sps = 0;
+    int cfgWidth = 0;
+    int cfgHeight = 0;
+    int pixelSize = 0;
+    if (!configString(config, "Name", name) || !configString(config, "Type", type) ||
+        !configString(config, "BufferStyle", bufferStyle) ||
+        !configString(config, "Orientation", orientation) || !configString(config, "StartCorner", startCorner)) {
+        markInvalid("a text field (Name, Type, BufferStyle, Orientation or StartCorner) is not text");
+        return;
+    }
+    replaceAll(name, "/", "_");
+    if (!configInt(config, "StartChannel", 0, startChannel) || !configInt(config, "ChannelCount", 0, channelCount) ||
+        !configInt(config, "StringCount", 0, strings) || !configInt(config, "StrandsPerString", 0, sps) ||
+        !configInt(config, "ChannelCountPerNode", 3, channelsPerNode) ||
+        !configInt(config, "Width", 0, cfgWidth) || !configInt(config, "Height", 0, cfgHeight) ||
+        !configInt(config, "PixelSize", 0, pixelSize)) {
+        markInvalid("a numeric field is not a number");
+        return;
+    }
+    startChannel--; // need to be 0 based
     if (sps == 0) {
         sps = 1;
     }
 
-    std::string orientation = config["Orientation"].asString();
-    std::string startCorner = config["StartCorner"].asString();
+    // An empty or one-letter StartCorner used to index past the string.
+    bool TtoB = startCorner.size() < 1 || startCorner[0] == 'T';
+    bool LtoR = startCorner.size() < 2 || startCorner[1] == 'L';
 
-    bool TtoB = (startCorner[0] == 'T');
-    bool LtoR = (startCorner[1] == 'L');
-
-    channelsPerNode = 3;
-    if (config.isMember("ChannelCountPerNode")) {
-        channelsPerNode = config["ChannelCountPerNode"].asInt();
-        if (channelsPerNode == 0) {
-            channelsPerNode = 1;
-        }
+    if (channelsPerNode == 0) {
+        channelsPerNode = 1;
+    }
+    if (type == "FB") {
+        // The framebuffer copies channelData as packed RGB, width*height*3
+        // bytes; any other node width under- or over-ran it.
+        channelsPerNode = 3;
+    }
+    if (channelsPerNode < 1 || channelsPerNode > 32) {
+        markInvalid("ChannelCountPerNode " + std::to_string(channelsPerNode) + " is out of range (1-32)");
+        return;
     }
     bytesPerPixel = (channelsPerNode >= 4) ? 4 : 3;
 
@@ -205,13 +299,17 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
     // Exported read-only through the API so the UI can show it.
     config["ColorOrder"] = ChannelDataOrder(channelsPerNode);
 
-    if (config["Type"].asString() != "Channel") {
-        if (config.isMember("PixelSize") && config["PixelSize"].asInt() > 1) {            
-            width = config["Width"].asInt() / config["PixelSize"].asInt();
-            height = config["Height"].asInt() / config["PixelSize"].asInt();
+    if (type != "Channel") {
+        if (pixelSize > 1) {
+            width = cfgWidth / pixelSize;
+            height = cfgHeight / pixelSize;
         } else {
-            width = config["Width"].asInt();
-            height = config["Height"].asInt();
+            width = cfgWidth;
+            height = cfgHeight;
+        }
+        if (width < 1 || height < 1 || (int64_t)width * height > MAX_MODEL_CELLS) {
+            markInvalid("size " + std::to_string(width) + "x" + std::to_string(height) + " is out of range");
+            return;
         }
         config["ChannelCount"] = channelCount = width * height * channelsPerNode;
         config["StringCount"] = strings = height;
@@ -222,10 +320,22 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
         TtoB = true;
         LtoR = true;
     } else {
-        height = strings * sps;
-        if (height == 0) {
-            height = 1;
+        // doOverlay() copies channelCount bytes to channels[startChannel], in
+        // a buffer that ends at FPPD_MAX_CHANNELS: StartChannel 0 wrote
+        // channels[-1], and a range past the end wrote past the buffer, every
+        // frame, on the channel output thread.
+        if (startChannel < 0 || channelCount < 1 ||
+            (int64_t)startChannel + channelCount > FPPD_MAX_CHANNELS) {
+            markInvalid("channels " + std::to_string(startChannel + 1) + " + " + std::to_string(channelCount) +
+                    " do not fit in 1-" + std::to_string(FPPD_MAX_CHANNELS));
+            return;
         }
+        if (strings < 0 || sps < 0) {
+            markInvalid("StringCount and StrandsPerString must not be negative");
+            return;
+        }
+        int64_t h = (int64_t)strings * sps;
+        height = (h < 1 || h > INT_MAX) ? 1 : (int)h;
         width = channelCount / channelsPerNode;
         width /= height;
         if (width == 0) {
@@ -273,9 +383,14 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
         // Two formats supported:
         //   "data": dense format "n,n,n;n,n,n|n,n,n;n,n,n" (comma=col, semi=row, pipe=layer)
         //   "compressedData": sparse format "node,row,col[,layer];..." (only non-empty cells)
-        if (config.isMember("compressedData") && !config["compressedData"].asString().empty()) {
+        std::string compressed;
+        std::string dense;
+        if (!configString(config, "compressedData", compressed) || !configString(config, "data", dense)) {
+            markInvalid("custom model data is not text");
+            return;
+        }
+        if (!compressed.empty()) {
             // Parse compressed format: "node,row,col[,layer];node,row,col[,layer];..."
-            std::string compressed = config["compressedData"].asString();
             std::vector<std::string> entries = split(compressed, ';');
 
             struct NodeEntry {
@@ -293,7 +408,12 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
                     ne.row = std::atoi(parts[1].c_str());
                     ne.col = std::atoi(parts[2].c_str());
                     ne.layer = (parts.size() >= 4) ? std::atoi(parts[3].c_str()) : 0;
-                    if (ne.node > 0 && ne.node <= FPPD_MAX_CHANNEL_NUM) {
+                    // Negative row/col/layer indexed channelMap before its
+                    // start (a heap write), and huge ones overflowed the int
+                    // size below; no real model is 4096 cells on a side.
+                    if (ne.node > 0 && ne.node <= FPPD_MAX_CHANNEL_NUM &&
+                        ne.row >= 0 && ne.row < 4096 && ne.col >= 0 && ne.col < 4096 &&
+                        ne.layer >= 0 && ne.layer < 4096) {
                         nodes.push_back(ne);
                         maxRow = std::max(maxRow, ne.row);
                         maxCol = std::max(maxCol, ne.col);
@@ -303,13 +423,18 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
             }
 
             width = maxCol + 1;
-            height = (maxRow + 1) * (maxLayer + 1);
+            int64_t allLayers = (int64_t)(maxRow + 1) * (maxLayer + 1);
+            height = allLayers > INT_MAX ? INT_MAX : (int)allLayers;
             if (width < 1) width = 1;
             if (height < 1) height = 1;
-            if ((width * height) > (600 * 600)) {
+            if ((int64_t)width * height > (600 * 600)) {
                 // Limit to first layer only
                 height = maxRow + 1;
                 if (height < 1) height = 1;
+            }
+            if ((int64_t)width * height > MAX_MODEL_CELLS) {
+                markInvalid("custom model is " + std::to_string(width) + "x" + std::to_string(height) + ", too large");
+                return;
             }
 
             channelMap.resize(width * height * bytesPerPixel);
@@ -332,12 +457,13 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
             // Parse dense format: "n,n,n;n,n,n|n,n,n;n,n,n"
             std::string customData = ",;,";
             if (config.isMember("data")) {
-                customData = config["data"].asString();
+                customData = dense;
             }
             int endOfFirstLayer = 0;
             std::vector<std::string> layers = split(customData, '|');
             std::vector<std::vector<std::string>> allData;
             width = 1;
+            height = 0; // counted from the rows below, not StringCount
             for (auto& layer : layers) {
                 std::vector<std::string> lines = split(layer, ';');
                 for (auto& l : lines) {
@@ -349,11 +475,18 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
                     endOfFirstLayer = allData.size();
                 }
                 lines.clear();
-                if ((width * height) > (600 * 600)) {
+                if ((int64_t)width * height > (600 * 600)) {
                     height = endOfFirstLayer;
                     allData.erase(allData.begin() + endOfFirstLayer, allData.end());
                     break;
                 }
+            }
+            if (height < 1) {
+                height = 1;
+            }
+            if ((int64_t)width * height > MAX_MODEL_CELLS) {
+                markInvalid("custom model is " + std::to_string(width) + "x" + std::to_string(height) + ", too large");
+                return;
             }
             channelMap.resize(width * height * bytesPerPixel);
             for (int y = 0; y < height; y++) {
@@ -458,7 +591,7 @@ PixelOverlayModel::~PixelOverlayModel() {
 }
 
 bool PixelOverlayModel::isAutoCreated() {
-    return config.isMember("autoCreated") && config["autoCreated"].asBool();
+    return config.isMember("autoCreated") && config["autoCreated"].isBool() && config["autoCreated"].asBool();
 }
 
 PixelOverlayState PixelOverlayModel::getState() const {

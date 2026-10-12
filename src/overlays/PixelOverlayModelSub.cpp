@@ -25,12 +25,20 @@
 
 PixelOverlayModelSub::PixelOverlayModelSub(const Json::Value& c) :
     PixelOverlayModel(c) {
-    if (config.isMember("XOffset")) {
-        xOffset = config["XOffset"].asInt();
+    if (!isValid()) {
+        // The base class rejected the definition; the manager drops it.
+        return;
     }
-
-    if (config.isMember("YOffset")) {
-        yOffset = config["YOffset"].asInt();
+    // Same type tolerance as the base class: these come from the same
+    // unchecked files, and asInt()/asString() throw.
+    std::string parentName, subType, grid;
+    int parentStart = 0;
+    if (!configInt(config, "XOffset", 0, xOffset) || !configInt(config, "YOffset", 0, yOffset) ||
+        !configInt(config, "ParentStartChannel", 0, parentStart) ||
+        !configString(config, "Parent", parentName) || !configString(config, "SubType", subType) ||
+        !configString(config, "Grid", grid)) {
+        markInvalid("XOffset, YOffset, ParentStartChannel, Parent, SubType or Grid has the wrong type");
+        return;
     }
 
     if (config.isMember("SubType")) {
@@ -83,7 +91,8 @@ void PixelOverlayModelSub::buildChannelGrid() {
                     continue;
                 }
                 int ch1 = std::atoi(chStr.c_str()); // 1-based absolute start channel
-                if (ch1 > 0) {
+                // Same bound as buildGrid(): scattered to on the output thread.
+                if (ch1 > 0 && (int64_t)ch1 - 1 + cpn <= FPPD_MAX_CHANNELS) {
                     outputCells[slot].push_back((uint32_t)(ch1 - 1));
                 }
             }
@@ -98,9 +107,8 @@ void PixelOverlayModelSub::buildChannelGrid() {
 // base orientation mapping.
 void PixelOverlayModelSub::buildGrid() {
     int parentStart0 = 0;
-    if (config.isMember("ParentStartChannel")) {
-        parentStart0 = config["ParentStartChannel"].asInt() - 1;
-    }
+    configInt(config, "ParentStartChannel", 0, parentStart0); // type checked in the constructor
+    parentStart0--;
     if (parentStart0 < 0) {
         parentStart0 = 0;
     }
@@ -133,8 +141,12 @@ void PixelOverlayModelSub::buildGrid() {
                 continue;
             }
             int slot = cd / cpn;
-            if (slot >= 0 && slot < (int)outputMap.size()) {
-                outputMap[slot] = (uint32_t)(parentStart0 + (node - 1) * cpn);
+            // doGridOverlay() writes cpn channels at this base on the output
+            // thread, so it has to lie inside the channel buffer; a stale or
+            // corrupt grid could name any node.
+            int64_t ob = (int64_t)parentStart0 + (int64_t)(node - 1) * cpn;
+            if (slot >= 0 && slot < (int)outputMap.size() && ob + cpn <= FPPD_MAX_CHANNELS) {
+                outputMap[slot] = (uint32_t)ob;
             }
         }
     }

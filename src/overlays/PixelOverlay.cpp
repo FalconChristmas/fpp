@@ -154,6 +154,12 @@ void PixelOverlayManager::Initialize() {
 void PixelOverlayManager::addModel(Json::Value config) {
     PixelOverlayModel* pmodel = nullptr;
 
+    // The definition comes from an unchecked file; isMember() and asString()
+    // throw on the wrong JSON types, and nothing above here catches.
+    if (!config.isObject() || (config.isMember("Type") && !config["Type"].isString())) {
+        LogErr(VB_CHANNELOUT, "PixelOverlayManager::addModel() - skipping a model definition that is not an object with a text Type\n");
+        return;
+    }
     if (!config.isMember("Type"))
         config["Type"] = "Channel";
 
@@ -164,7 +170,7 @@ void PixelOverlayManager::addModel(Json::Value config) {
             pmodel = new PixelOverlayModel(config);
         } else {
             std::string name;
-            if (config.isMember("Name")) {
+            if (config["Name"].isString()) {
                 name = config["Name"].asString();
             }
             LogWarn(VB_CHANNELOUT, "PixelOverlayManager::loadModelMap() - invalid configuration for model %s\n", name.c_str());
@@ -235,12 +241,22 @@ void PixelOverlayManager::loadModelMap() {
             return;
         }
 
-        if (root.isMember("autoCreate")) {
+        if (root["autoCreate"].isBool()) {
             autoCreate = root["autoCreate"].asBool();
         }
-        Json::Value models = root["models"];
-        for (int c = 0; c < models.size(); c++) {
-            addModel(models[c]);
+        // Runs at startup with nothing above it to catch: a throw here was a
+        // crash on every boot until someone fixed the file by hand.
+        const Json::Value& models = root["models"];
+        if (!models.isNull() && !models.isArray()) {
+            LogErr(VB_CHANNELOUT, "model-overlays.json: \"models\" is not an array - no models loaded from it\n");
+            return;
+        }
+        for (Json::ArrayIndex c = 0; c < models.size(); c++) {
+            try {
+                addModel(models[c]);
+            } catch (const std::exception& e) {
+                LogErr(VB_CHANNELOUT, "model-overlays.json: skipping model %d: %s\n", (int)c, e.what());
+            }
         }
     }
 }
@@ -524,7 +540,15 @@ PixelOverlayModel* PixelOverlayManager::materializeSubModelLocked(const std::str
         LogErr(VB_CHANNELOUT, "Error parsing cached submodel config for %s\n", name.c_str());
         return nullptr;
     }
-    addModel(config);
+    try {
+        addModel(config);
+    } catch (const std::exception& e) {
+        // Reached from effect threads and MQTT commands, where nothing
+        // catches. addModel() is not expected to throw any more; this keeps
+        // a lazy lookup from ever being the thing that does.
+        LogErr(VB_CHANNELOUT, "Could not create submodel %s: %s\n", name.c_str(), e.what());
+        return nullptr;
+    }
     auto a = models.find(name);
     return (a != models.end()) ? a->second.model : nullptr;
 }
@@ -1505,6 +1529,20 @@ HttpResponsePtr PixelOverlayManager::render_POST(const HttpRequestPtr& req) {
             urlPut("http://127.0.0.1/api/settings/restartFlag", "1", nvresults);
             return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
         } else if (parts.size() == 1) {
+            // Check the shape before replacing the file: whatever lands there
+            // is loaded at the next start, and a file fppd cannot read leaves
+            // the box with no models (it used to crash fppd on every boot).
+            Json::Value posted;
+            std::string body(getRequestContent(req));
+            if (!LoadJsonFromString(body, posted) || !posted.isObject() ||
+                (posted.isMember("models") && !posted["models"].isArray())) {
+                return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Body must be a JSON object whose \\\"models\\\" member is an array\"}", 400);
+            }
+            for (const auto& m : posted["models"]) {
+                if (!m.isObject()) {
+                    return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Every entry in \\\"models\\\" must be an object\"}", 400);
+                }
+            }
             char filename[2048];
             strcpy(filename, FPP_DIR_CONFIG("/model-overlays.json").c_str());
 

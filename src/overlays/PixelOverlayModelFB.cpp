@@ -20,6 +20,11 @@
 
 PixelOverlayModelFB::PixelOverlayModelFB(const Json::Value& c) :
     PixelOverlayModel(c) {
+    if (!isValid()) {
+        // The base class rejected the definition; don't claim a framebuffer
+        // for a model the manager is about to drop.
+        return;
+    }
     fb = FrameBuffer::createFrameBuffer(config);
     if (fb == nullptr) {
         LogErr(VB_CHANNELOUT, "Error initializing underlying FrameBuffer for Pixel Overlay Model '%s'\n", name.c_str());
