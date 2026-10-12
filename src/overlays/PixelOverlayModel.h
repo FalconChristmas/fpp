@@ -142,6 +142,9 @@ public:
     // then the channelData will be significantly smaller than WxHxBPP
     int getBytesPerPixel() const { return bytesPerPixel; }
     void saveOverlayAsImage(std::string filename = "");
+    // True for a name saveOverlayAsImage() accepts: no directory part,
+    // nothing hidden or relative.
+    static bool isPlainImageFileName(const std::string& f);
     virtual void setData(const uint8_t* data); // full pixel data, width*height*bytesPerPixel
     virtual void setData(const uint8_t* data, int xOffset, int yOffset, int w, int h, const PixelOverlayState& st = PixelOverlayState(PixelOverlayState::Enabled));
 

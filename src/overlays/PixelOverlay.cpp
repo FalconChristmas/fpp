@@ -1681,7 +1681,11 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                     Json::Value root;
                     if (LoadJsonFromString(std::string(getRequestContent(req)), root)) {
                         if (root.isMember("File")) {
-                            m->saveOverlayAsImage(root["File"].asString());
+                            std::string file = root["File"].asString();
+                            if (file != "" && !PixelOverlayModel::isPlainImageFileName(file)) {
+                                return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"File must be a plain file name\"}", 400);
+                            }
+                            m->saveOverlayAsImage(file);
                             return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
                         }
                     }

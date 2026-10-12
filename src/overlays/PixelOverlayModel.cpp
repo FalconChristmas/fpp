@@ -1258,7 +1258,30 @@ void PixelOverlayModel::setOverlayBufferScaledData(uint8_t* data, int w, int h) 
     }
 }
 
+// A file name the image directory can hold: no directory part, nothing
+// hidden or relative ("..", ".foo"), no control characters. fppd runs as
+// root, so "../../boot/firmware/config.txt" overwrote that file with PNG data.
+bool PixelOverlayModel::isPlainImageFileName(const std::string& f) {
+    if (f.empty() || f[0] == '.') {
+        return false;
+    }
+    for (unsigned char c : f) {
+        if (c == '/' || c == '\\' || c < 0x20 || c == 0x7F) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void PixelOverlayModel::saveOverlayAsImage(std::string filename) {
+    if (filename != "" && !isPlainImageFileName(filename)) {
+        LogWarn(VB_CHANNELOUT, "Not saving model \"%s\" as \"%s\": the name must be a plain file name\n",
+                name.c_str(), filename.c_str());
+        return;
+    }
+    if (width <= 0 || height <= 0) {
+        return;
+    }
     Magick::Blob blob;
     Magick::Image image(Magick::Geometry(width, height), Magick::Color("black"));
 
@@ -1310,12 +1333,17 @@ void PixelOverlayModel::saveOverlayAsImage(std::string filename) {
     }
     blob.update(&data[0], width * height * 3);
 
-    image.magick("RGB");
-    image.depth(8);
-    image.quiet(true);
-    image.read(blob, Magick::Geometry(width, height));
+    try {
+        image.magick("RGB");
+        image.depth(8);
+        image.quiet(true);
+        image.read(blob, Magick::Geometry(width, height));
 
-    image.write(filename.c_str());
+        image.write(filename.c_str());
+    } catch (const std::exception& e) {
+        LogErr(VB_CHANNELOUT, "Could not save model \"%s\" to %s: %s\n", name.c_str(), filename.c_str(), e.what());
+        return;
+    }
 
     SetFilePerms(filename);
 }
