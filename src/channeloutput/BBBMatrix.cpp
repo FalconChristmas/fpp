@@ -1051,8 +1051,14 @@ void BBBMatrix::PrepData(unsigned char* channelData) {
                 }
             }
             size_t offset = (m_outputByRow ? (size_t)m_yOutMap[y] * fullRowLen : (size_t)m_yOutMap[y] * rowLen) + chainOff;
+            // Depths below 8 take the TOP bits of the 8 bit gamma value: the
+            // bit order is relative to the depth (0..depth-1, which the
+            // brightness flags index by), so shift it up past the bits the
+            // depth drops.  Without this 6 and 7 bit showed the low bits and
+            // wrapped - at 6 bit, 136 came out black.
+            const int bitShift = m_colorDepth < 8 ? 8 - m_colorDepth : 0;
             for (int bi = 0; bi < m_colorDepth; bi++) {
-                int b = m_bitOrder[bi];
+                int b = m_bitOrder[bi] + bitShift;
                 uint32_t* out = &gpioFrame[offset + (size_t)bi * bitStride];
                 const uint8_t* st = (b < 8) ? m_stageLo.data() : m_stageHi.data();
                 size_t stStride = (b < 8) ? (m_panelWidth * 8) : (m_panelWidth * 4);
