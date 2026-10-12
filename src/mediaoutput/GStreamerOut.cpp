@@ -2029,7 +2029,11 @@ int GStreamerOutput::Start(int msTime) {
                     // double-wide file feed a different half to each display,
                     // and what makes "fill" free.  "stretch" adds a videoscale
                     // behind it and does cost a copy.
-                    std::vector<GstElement*> dChain = { dQueue, dConvert };
+                    std::vector<GstElement*> dChain;
+                    if (GstElement* guard = MakeBranchErrorGuard())
+                        dChain.push_back(guard);
+                    dChain.push_back(dQueue);
+                    dChain.push_back(dConvert);
                     for (GstElement* e : BuildHdmiScaleChain(
                              hc.crop, hc.scaling, hc.width, hc.height,
                              "d_" + std::to_string(resolvedConnId)))
@@ -2043,7 +2047,7 @@ int GStreamerOutput::Start(int msTime) {
                     }
 
                     GstPad* teeSrc = gst_element_request_pad_simple(vtee, "src_%u");
-                    GstPad* dQSink = gst_element_get_static_pad(dQueue, "sink");
+                    GstPad* dQSink = gst_element_get_static_pad(dChain.front(), "sink");
                     GstPadLinkReturn lr = gst_pad_link(teeSrc, dQSink);
                     gst_object_unref(teeSrc);
                     gst_object_unref(dQSink);
@@ -2646,14 +2650,26 @@ int GStreamerOutput::Start(int msTime) {
                 if (!gst_element_link(pwQueue, pwvideosink)) {
                     LogWarn(VB_MEDIAOUT, "GStreamer: failed to link vpwq → pwvideosink\n");
                 }
+                GstElement* pwHead = pwQueue;
+                if (GstElement* guard = MakeBranchErrorGuard()) {
+                    gst_bin_add(GST_BIN(pipeline), guard);
+                    if (gst_element_link(guard, pwQueue)) {
+                        pwHead = guard;
+                    } else {
+                        gst_bin_remove(GST_BIN(pipeline), guard);
+                    }
+                }
 
+                if (pwHead != pwQueue) {
+                    gst_element_sync_state_with_parent(pwHead);
+                }
                 gboolean qSync = gst_element_sync_state_with_parent(pwQueue);
                 gboolean pwSync = gst_element_sync_state_with_parent(pwvideosink);
                 LogDebug(VB_MEDIAOUT, "GStreamer: deferred state sync — queue=%d pipewiresink=%d\n",
                         qSync, pwSync);
 
                 GstPad* teeSrc = gst_element_request_pad_simple(vtee, "src_%u");
-                GstPad* pwQSink = gst_element_get_static_pad(pwQueue, "sink");
+                GstPad* pwQSink = gst_element_get_static_pad(pwHead, "sink");
                 GstPadLinkReturn linkRet = gst_pad_link(teeSrc, pwQSink);
                 if (linkRet != GST_PAD_LINK_OK) {
                     LogWarn(VB_MEDIAOUT, "GStreamer: vtee→vpwq pad link failed: %d\n", linkRet);
@@ -3411,6 +3427,11 @@ int GStreamerOutput::Process(void) {
     if (!m_pipeline || !m_bus) {
         return 0;
     }
+    if (m_haveFailedBranches.load(std::memory_order_acquire) && !m_teardownComplete &&
+        !m_shutdownFlag.load(std::memory_order_acquire)) {
+        SetMainLoopPhase("GStreamer remove failed branch");
+        RemoveFailedBranches();
+    }
     // Sub-phases for the main-loop stall watchdog (issue #2727): everything
     // below runs on the main loop and calls into GStreamer, which takes both
     // element locks and (via pipewiresink) PipeWire's thread-loop lock, so a
@@ -3936,6 +3957,14 @@ GstBusSyncReply GStreamerOutput::BusSyncHandler(GstBus* bus, GstMessage* msg, gp
         } else if (isAES67Branch || isVideoPWSink || isDirectKmsSink) {
             LogWarn(VB_MEDIAOUT, "GStreamer non-fatal error (src=%s): %s\n",
                     srcName, err->message);
+            // Logging it as non-fatal isn't enough: the sink is about to
+            // return GST_FLOW_ERROR, which travels back through its queue to
+            // the tee and the demuxer, and that ends the media.  This runs on
+            // the sink's streaming thread before it returns, so cutting the
+            // branch off at the tee here gets in ahead of that.
+            if ((isVideoPWSink || isDirectKmsSink) && GST_IS_ELEMENT(GST_MESSAGE_SRC(msg))) {
+                self->CutFailedBranch(GST_ELEMENT(GST_MESSAGE_SRC(msg)));
+            }
             LogDebug(VB_MEDIAOUT, "GStreamer AES67 branch debug: %s\n",
                      debug ? debug : "(none)");
         } else {
@@ -4066,6 +4095,9 @@ int GStreamerOutput::Close(void) {
             m_pipeline = nullptr;
         }
     }
+    // Branches cut off but not yet removed go down with the pipeline; only
+    // our refs on them are left to drop, before the planes are returned below.
+    ReleaseFailedBranches();
 
     // Return any DRM overlay planes we reserved for this pipeline's kmssink
     // elements to the shared free pool.  The kmssinks themselves were owned by
@@ -4445,6 +4477,134 @@ void GStreamerOutput::SetVolume(int volume) {
         double linearVol = volume / 100.0;
         g_object_set(m_volume, "volume", linearVol, NULL);
         LogDebug(VB_MEDIAOUT, "GStreamer volume set to %d%% (%.2f)\n", volume, linearVol);
+    }
+}
+
+GstElement* GStreamerOutput::MakeBranchErrorGuard() {
+    GstElement* guard = gst_element_factory_make("errorignore", nullptr);
+    if (guard) {
+        // Only a failing sink is in scope: a branch that can't negotiate
+        // still fails the media, as it always has, rather than sitting dead.
+        g_object_set(guard,
+                     "ignore-error", TRUE,
+                     "ignore-notnegotiated", FALSE,
+                     "convert-to", GST_FLOW_OK,
+                     NULL);
+    }
+    return guard;
+}
+
+bool GStreamerOutput::CutFailedBranch(GstElement* sink) {
+    // Walk upstream from the sink to the tee feeding its branch.
+    FailedBranch b;
+    GstElement* el = GST_ELEMENT(gst_object_ref(sink));
+    for (int depth = 0; depth < 16 && el; depth++) {
+        b.elements.push_back(el);
+        GstPad* sinkPad = gst_element_get_static_pad(el, "sink");
+        GstPad* peer = sinkPad ? gst_pad_get_peer(sinkPad) : nullptr;
+        if (sinkPad) {
+            gst_object_unref(sinkPad);
+        }
+        GstElement* up = peer ? gst_pad_get_parent_element(peer) : nullptr;
+        if (!up) {
+            if (peer) {
+                gst_object_unref(peer);
+            }
+            break;
+        }
+        GstElementFactory* f = gst_element_get_factory(up);
+        if (f && strcmp(GST_OBJECT_NAME(f), "tee") == 0) {
+            b.tee = up;
+            b.teePad = peer;
+            break;
+        }
+        gst_object_unref(peer);
+        el = up;
+    }
+    auto release = [](FailedBranch& fb) {
+        for (GstElement* e : fb.elements) {
+            gst_object_unref(e);
+        }
+        if (fb.teePad) {
+            gst_object_unref(fb.teePad);
+        }
+        if (fb.tee) {
+            gst_object_unref(fb.tee);
+        }
+    };
+    if (!b.teePad) {
+        LogWarn(VB_MEDIAOUT, "GStreamer: no tee above failed sink %s; it cannot be cut off\n",
+                GST_OBJECT_NAME(sink));
+        release(b);
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(m_failedBranchLock);
+    for (const auto& fb : m_failedBranches) {
+        if (fb.teePad == b.teePad) {
+            release(b);  // a second error from a branch already cut off
+            return true;
+        }
+    }
+    // Everything the tee sends this way is dropped and reported as
+    // delivered, so the failed sink's error never makes it upstream.
+    gst_pad_add_probe(b.teePad, GST_PAD_PROBE_TYPE_DATA_DOWNSTREAM,
+                      [](GstPad*, GstPadProbeInfo*, gpointer) { return GST_PAD_PROBE_DROP; },
+                      nullptr, nullptr);
+    LogWarn(VB_MEDIAOUT, "GStreamer: %s failed; cut its branch off so %s keeps playing\n",
+            GST_OBJECT_NAME(sink), m_mediaFilename.c_str());
+    m_failedBranches.push_back(std::move(b));
+    m_haveFailedBranches.store(true, std::memory_order_release);
+    return true;
+}
+
+void GStreamerOutput::RemoveFailedBranches() {
+    // The cut branch would still count as a sink that has to preroll after a
+    // seek and post EOS at the end -- it can do neither, so a seek would wait
+    // forever and the media would never finish.  Take it out of the pipeline.
+    std::vector<FailedBranch> branches;
+    {
+        std::lock_guard<std::mutex> lock(m_failedBranchLock);
+        branches.swap(m_failedBranches);
+        m_haveFailedBranches.store(false, std::memory_order_release);
+    }
+    for (auto& b : branches) {
+        if (GstPad* qSink = gst_pad_get_peer(b.teePad)) {
+            gst_pad_unlink(b.teePad, qSink);
+            gst_object_unref(qSink);
+        }
+        gst_element_release_request_pad(b.tee, b.teePad);
+        // Upstream first, so nothing is pushing into an element going down.
+        for (auto it = b.elements.rbegin(); it != b.elements.rend(); ++it) {
+            GstElement* e = *it;
+            gst_element_set_state(e, GST_STATE_NULL);
+            if (m_pipeline && GST_OBJECT_PARENT(e) == GST_OBJECT(m_pipeline)) {
+                gst_bin_remove(GST_BIN(m_pipeline), e);
+            }
+        }
+        LogInfo(VB_MEDIAOUT, "GStreamer: removed failed branch %s\n",
+                b.elements.empty() ? "?" : GST_OBJECT_NAME(b.elements.front()));
+        for (GstElement* e : b.elements) {
+            gst_object_unref(e);
+        }
+        gst_object_unref(b.teePad);
+        gst_object_unref(b.tee);
+    }
+}
+
+void GStreamerOutput::ReleaseFailedBranches() {
+    std::vector<FailedBranch> branches;
+    {
+        std::lock_guard<std::mutex> lock(m_failedBranchLock);
+        branches.swap(m_failedBranches);
+        m_haveFailedBranches.store(false, std::memory_order_release);
+    }
+    for (auto& b : branches) {
+        for (GstElement* e : b.elements) {
+            gst_object_unref(e);
+        }
+        gst_object_unref(b.teePad);
+        gst_object_unref(b.tee);
     }
 }
 

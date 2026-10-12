@@ -170,6 +170,29 @@ private:
     // StreamSlotManager's lock, never the other way round.
     std::recursive_mutex m_opMutex;
     std::atomic<bool> m_stopRequested{false};
+
+    // An optional video branch -- a secondary display's kmssink, or the
+    // PipeWire video tap -- whose sink failed.  Its GST_FLOW_ERROR would
+    // otherwise reach the tee and fail the whole pipeline, so the bus sync
+    // handler cuts it off at the tee (CutFailedBranch, on the failing sink's
+    // streaming thread) and Process() takes it out of the pipeline
+    // (RemoveFailedBranches, op lock held).  Holds a ref on every object.
+    struct FailedBranch {
+        GstElement* tee = nullptr;
+        GstPad* teePad = nullptr;
+        std::vector<GstElement*> elements;  // sink first, back to the queue
+    };
+    std::mutex m_failedBranchLock;
+    std::vector<FailedBranch> m_failedBranches;
+    std::atomic<bool> m_haveFailedBranches{false};
+    bool CutFailedBranch(GstElement* sink);
+    // The head of an optional branch, between the tee and the branch's
+    // queue: turns a sink's GST_FLOW_ERROR into OK, so even a buffer already
+    // waiting on the branch's full queue can't carry it back to the tee.
+    // nullptr where errorignore isn't installed.
+    static GstElement* MakeBranchErrorGuard();
+    void RemoveFailedBranches();
+    void ReleaseFailedBranches();
     bool m_drivesShowClock = true;
     // Cuts the decodebin and bus callbacks off from this object and waits for
     // any that are running.  See CallbackGuard.
