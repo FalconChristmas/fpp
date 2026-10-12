@@ -12,6 +12,7 @@
  */
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <map>
 #include <memory>
@@ -202,6 +203,15 @@ public:
     /// PLAYING and is about to deliver its first video frames.  Starts any
     /// persistent consumers that target the given intervideo channel.
     void NotifyProducerReady(const std::string& channelName);
+
+    /// Retry the persistent consumers on a source's channel after a
+    /// backoff (2s, doubling to 60s; back to 2s after five quiet minutes):
+    /// one whose pipeline errored or ended while the source kept running,
+    /// or one that could not start (a display not connected yet).  Runs on
+    /// its own worker, and only while the source runs -- a dead source
+    /// restarts itself and fires NotifyProducerReady().  Never takes
+    /// m_mutex.
+    void ScheduleConsumerRestart(const std::string& channelName);
 
     /// Suspend persistent HDMI consumers so GStreamerOut's pipeline can
     /// become DRM master.  Only one pipeline at a time can hold DRM master
@@ -403,6 +413,25 @@ private:
     // WaitForPendingTeardowns(), but only when CMA is short.  Never call it
     // with m_mutex held.
     void WaitForCmaIfLow();
+
+    // ScheduleConsumerRestart()'s worker.  m_restartMutex guards these; it
+    // is taken after m_mutex, never before.
+    struct RestartState {
+        std::chrono::steady_clock::time_point due;
+        std::chrono::steady_clock::time_point lastFailure;
+        int delayMs = 0;
+        bool pending = false;
+    };
+    std::mutex m_restartMutex;
+    std::condition_variable m_restartCv;
+    std::thread m_restartThread;
+    bool m_restartRunning = false;
+    bool m_stopRestarts = false;
+    std::map<std::string, RestartState> m_restarts;
+    static constexpr int RESTART_MIN_DELAY_MS = 2000;
+    static constexpr int RESTART_MAX_DELAY_MS = 60000;
+    static constexpr int RESTART_QUIET_RESET_MS = 5 * 60 * 1000;
+    void RestartWorker();
 
     mutable std::mutex m_mutex;
     std::vector<ConsumerInfo> m_consumers;

@@ -296,6 +296,10 @@ void VideoOutputManager::Reload() {
 
     // Stop SAP before taking the lock (SAP thread needs m_mutex)
     StopSAPAnnouncer();
+    {
+        std::lock_guard<std::mutex> rl(m_restartMutex);
+        m_restarts.clear();
+    }
 
     std::string savedProducer;
     {
@@ -350,7 +354,8 @@ void VideoOutputManager::Reload() {
                 LogInfo(VB_MEDIAOUT, "VideoOutputManager: Restarting consumer '%s' — source '%s' "
                         "is already running, so no producer-ready notification is coming\n",
                         consumer.name.c_str(), consumer.sourceNode.c_str());
-                StartConsumer(consumer);
+                if (!StartConsumer(consumer))
+                    ScheduleConsumerRestart(consumer.sourceNode);
             }
         }
         shouldStartSAP = shouldStartSAP && HasRunningRtpLocked();
@@ -367,6 +372,18 @@ void VideoOutputManager::Shutdown() {
     }
     // Stop SAP announcer first — outside the lock because SAP thread needs m_mutex
     StopSAPAnnouncer();
+    // The restart worker takes m_mutex too.
+    std::thread restartWorker;
+    {
+        std::lock_guard<std::mutex> rl(m_restartMutex);
+        m_stopRestarts = true;
+        m_restarts.clear();
+        restartWorker = std::move(m_restartThread);
+    }
+    m_restartCv.notify_all();
+    if (restartWorker.joinable()) {
+        restartWorker.join();
+    }
 
     std::lock_guard<std::mutex> lock(m_mutex);
     StopAllConsumers();
@@ -506,8 +523,8 @@ void VideoOutputManager::ResumePersistentHdmiConsumers() {
             && startedAsGroup.find(i) == startedAsGroup.end()) {
             LogInfo(VB_MEDIAOUT, "VideoOutputManager: Resuming persistent HDMI consumer '%s' (connector %s)\n",
                     c.name.c_str(), c.connector.c_str());
-            StartConsumer(c);
-            started++;
+            if (StartConsumer(c))
+                started++;
         }
     }
     if (started > 0)
@@ -554,14 +571,87 @@ void VideoOutputManager::NotifyProducerReady(const std::string& channelName) {
         auto& c = m_consumers[i];
         if (c.sourceNode == channelName && !c.running
             && startedAsGroup.find(i) == startedAsGroup.end()) {
-            StartConsumer(c);
-            started++;
+            if (StartConsumer(c))
+                started++;
         }
     }
 
     if (started > 0)
         LogInfo(VB_MEDIAOUT, "VideoOutputManager: Producer '%s' ready — started %d consumer(s)\n",
                 channelName.c_str(), started);
+
+    // StartConsumer() refuses a display that isn't connected, and nothing
+    // else will try it again while this source keeps running.  An HDMI
+    // consumer saved without a connector id is a config error a retry
+    // can't fix.
+    for (const auto& c : m_consumers) {
+        if (c.sourceNode == channelName && !c.running &&
+            !(c.type == "hdmi" && (c.connectorId <= 0 || c.cardPath.empty()))) {
+            ScheduleConsumerRestart(channelName);
+            break;
+        }
+    }
+}
+
+void VideoOutputManager::ScheduleConsumerRestart(const std::string& channelName) {
+    std::lock_guard<std::mutex> rl(m_restartMutex);
+    if (m_stopRestarts) {
+        return;
+    }
+    RestartState& r = m_restarts[channelName];
+    if (r.pending) {
+        return;  // one retry covers every consumer on the channel
+    }
+    auto now = std::chrono::steady_clock::now();
+    if (r.delayMs == 0 || now - r.lastFailure > std::chrono::milliseconds(RESTART_QUIET_RESET_MS)) {
+        r.delayMs = RESTART_MIN_DELAY_MS;
+    } else {
+        r.delayMs = std::min(r.delayMs * 2, RESTART_MAX_DELAY_MS);
+    }
+    r.lastFailure = now;
+    r.due = now + std::chrono::milliseconds(r.delayMs);
+    r.pending = true;
+    LogInfo(VB_MEDIAOUT, "VideoOutputManager: Retrying consumers of '%s' in %d ms\n",
+            channelName.c_str(), r.delayMs);
+    if (!m_restartRunning) {
+        if (m_restartThread.joinable()) {
+            m_restartThread.join();  // a finished worker; it no longer needs the lock
+        }
+        m_restartRunning = true;
+        m_restartThread = std::thread([this]() { RestartWorker(); });
+    }
+    m_restartCv.notify_all();
+}
+
+void VideoOutputManager::RestartWorker() {
+    SetThreadName("FPP-VideoOutRst");
+    std::unique_lock<std::mutex> l(m_restartMutex);
+    while (!m_stopRestarts) {
+        std::string channel;
+        std::chrono::steady_clock::time_point due;
+        for (const auto& [name, r] : m_restarts) {
+            if (r.pending && (channel.empty() || r.due < due)) {
+                channel = name;
+                due = r.due;
+            }
+        }
+        if (channel.empty()) {
+            break;
+        }
+        if (std::chrono::steady_clock::now() < due) {
+            m_restartCv.wait_until(l, due);
+            continue;
+        }
+        m_restarts[channel].pending = false;
+        l.unlock();
+        // A source that is down restarts itself and calls
+        // NotifyProducerReady() when it is back, which is the same retry.
+        if (VideoInputManager::Instance().IsSourceRunning(channel)) {
+            NotifyProducerReady(channel);
+        }
+        l.lock();
+    }
+    m_restartRunning = false;
 }
 
 bool VideoOutputManager::HasSlotChannelConsumers(int streamSlot) const {
@@ -1494,8 +1584,16 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
     gst_object_ref(pipeline);
     std::shared_ptr<std::atomic<bool>> shutdownFlag = consumer.shutdownRequested;
     std::shared_ptr<std::atomic<bool>> pipelineDead = consumer.pipelineDead;
+    std::string sourceNode = consumer.sourceNode;
 
-    consumer.startThread = std::thread([pipeline, consumerName, shutdownFlag, pipelineDead]() {
+    consumer.startThread = std::thread([pipeline, consumerName, shutdownFlag, pipelineDead, sourceNode]() {
+        // A persistent consumer that dies while its source runs gets no
+        // producer-ready notification to bring it back.
+        auto scheduleRestart = [&sourceNode]() {
+            if (!sourceNode.empty()) {
+                VideoOutputManager::Instance().ScheduleConsumerRestart(sourceNode);
+            }
+        };
         struct PipelineRefGuard {
             GstElement* p;
             ~PipelineRefGuard() { gst_object_unref(p); }
@@ -1519,6 +1617,7 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
                 // of `running` staying true forever with a pipeline that
                 // will never produce frames.
                 pipelineDead->store(true);
+                scheduleRestart();
             }
             return;
         }
@@ -1556,6 +1655,7 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
                         // Pipeline died on its own (not via StopConsumer) —
                         // see pipelineDead comment on the ConsumerInfo field.
                         pipelineDead->store(true);
+                        scheduleRestart();
                     }
                     if (err) g_error_free(err);
                     g_free(debug);
@@ -1568,6 +1668,7 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
                             consumerName.c_str());
                     if (!shutdownFlag->load()) {
                         pipelineDead->store(true);
+                        scheduleRestart();
                     }
                     gst_message_unref(msg);
                     gst_object_unref(bus);
