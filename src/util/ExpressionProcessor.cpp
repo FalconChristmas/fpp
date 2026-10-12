@@ -19,6 +19,7 @@
 #include <list>
 #include <map>
 
+#include "../log.h"
 #include "ExpressionProcessor.h"
 
 #include "tinyexpr.h"
@@ -67,9 +68,23 @@ public:
 
 class TinyExprEvalStep : public EvalStep {
 public:
+    // tinyexpr recurses once per nesting level when it parses ("((((1))))",
+    // "abs abs abs 1"), and again per tree level when it evaluates and frees
+    // - so even a flat "1+1+1+..." becomes a left-deep tree as deep as it is
+    // long. With no limit, a ~60KB expression in a Set Variable or If command
+    // ran the calling thread out of stack. Every level costs at least one
+    // character, so capping the length caps all three; real expressions are
+    // a few dozen characters.
+    static constexpr size_t MAX_EXPRESSION_LENGTH = 4096;
+
     TinyExprEvalStep(const std::string& s, std::vector<te_variable>& exprVars) {
+        if (s.size() > MAX_EXPRESSION_LENGTH) {
+            LogWarn(VB_GENERAL, "Expression is %d characters long, the limit is %d - not evaluating it\n",
+                    (int)s.size(), (int)MAX_EXPRESSION_LENGTH);
+            return;
+        }
         int err = 0;
-        expr = te_compile(s.c_str(), &exprVars[0], exprVars.size(), &err);
+        expr = te_compile(s.c_str(), exprVars.data(), exprVars.size(), &err);
     }
     ~TinyExprEvalStep() {
         if (expr) {
