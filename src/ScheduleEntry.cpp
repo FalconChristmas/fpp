@@ -565,7 +565,15 @@ void ScheduleEntry::pushStartEndTimes(int dow, int& delta, int deltaThreshold) {
         endTime = startTime;
     }
 
-    if (endTime < time(NULL))
+    time_t now = time(NULL);
+    // A command occurrence has no duration (the UI saves endTime = startTime),
+    // so once its second passed it used to be dropped here -- by any reload in
+    // the same second or a few seconds later, which is exactly the stall or
+    // clock step the scheduler's command catch-up exists for.  Keep commands
+    // through the catch-up window; the scheduler's check window stops them
+    // firing twice.
+    time_t cutoff = playlist.empty() ? now - SCHEDULE_COMMAND_CATCHUP_S : now;
+    if (endTime < cutoff)
         return;
 
     if (!DateInRange(startTime, startDate, endDate)) {
@@ -589,9 +597,12 @@ void ScheduleEntry::pushStartEndTimes(int dow, int& delta, int deltaThreshold) {
     }
 
     if ((repeatInterval > 0) && (startTime != endTime)) {
+        time_t horizon = now + SCHEDULE_REPEAT_HORIZON_S;
         time_t newEnd = startTime + repeatInterval - 1;
-        while (startTime < endTime) {
-            startEndTimes.emplace_back(startTime, newEnd);
+        while ((startTime < endTime) && (startTime < horizon)) {
+            if (newEnd >= cutoff) {
+                startEndTimes.emplace_back(startTime, newEnd);
+            }
             newEnd += repeatInterval;
             if (newEnd > endTime) {
                 newEnd = endTime;

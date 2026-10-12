@@ -22,6 +22,15 @@
 #define SECONDS_PER_WEEK 604800
 #define DAYS_PER_WEEK 7
 
+// Longest a scheduled FPP command may fire after its second has passed (a
+// stall, a clock step, a reload landing just after it).
+#define SCHEDULE_COMMAND_CATCHUP_S 60
+// How far ahead repeat-interval entries are expanded into occurrences.  The
+// schedule reloads every day, so two days always covers what can run; a full
+// schedule-distance expansion of a 5-minute repeat was hundreds of thousands
+// of items.
+#define SCHEDULE_REPEAT_HORIZON_S (2 * SECONDS_PER_DAY)
+
 // Values for ScheduleEntry::dayIndex
 #define INX_SUN 0
 #define INX_MON 1

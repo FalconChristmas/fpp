@@ -695,7 +695,7 @@ void Scheduler::CheckScheduledItems(bool restarted) {
     // the (m_lastCommandCheckTime, now] catch-up window so a forward clock step
     // does not replay a batch of stale commands; anything older is logged and
     // marked ran instead of run.
-    constexpr std::time_t maxCommandCatchup = 60;
+    constexpr std::time_t maxCommandCatchup = SCHEDULE_COMMAND_CATCHUP_S;
 
     // Each pass decides what to do while holding m_scheduleLock and runs it
     // after releasing the lock, since starting or stopping a playlist takes
