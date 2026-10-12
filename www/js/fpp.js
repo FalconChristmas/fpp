@@ -4677,12 +4677,17 @@ function reloadPage () {
 function PingIP (ip, count) {
 	if (ip == '') return;
 
+	// ip comes from UI address/hostname inputs and is reflected verbatim in
+	// this dialog and by ping.php, so render it as inert text and encode it
+	// for the query string. The response keeps its server-rendered markup
+	// (ping.php escapes the command output before sending it).
+	var safeIp = escapeHtml(ip);
 	var opts = {
 		id: 'pingDialog',
-		title: 'Ping ' + ip,
+		title: 'Ping ' + safeIp,
 		body:
 			"<div id='pingText'>Pinging " +
-			ip +
+			safeIp +
 			'<br><br>This will take a few seconds to load</div>',
 		backdrop: 'static',
 		keyboard: false,
@@ -4691,12 +4696,12 @@ function PingIP (ip, count) {
 
 	DoModalDialog(opts);
 
-	$.get('ping.php?ip=' + ip + '&count=' + count)
+	$.get('ping.php?ip=' + encodeURIComponent(ip) + '&count=' + encodeURIComponent(count))
 		.done(function (data) {
 			$('#pingText').html(data);
 		})
 		.fail(function () {
-			$('#pingText').html('Error pinging ' + ip);
+			$('#pingText').html('Error pinging ' + safeIp);
 		});
 }
 
@@ -6487,6 +6492,37 @@ function GetFPPStatus () {
    */
 }
 
+// Encodes the five HTML-significant characters so untrusted strings (warning
+// messages, icon names, user input reflected by plugins) render as inert text
+// when concatenated into HTML. Same output contract as msEscape() in
+// multisync.php: every input maps to text that displays verbatim.
+function escapeHtml (s) {
+	return String(s)
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+}
+
+// Fix buttons must navigate within this FPP instance (all current fixUrls are
+// page-relative, e.g. "channeloutputs.php#tab-e131"). Reject absolute URLs
+// with executable schemes and protocol-relative URLs so a compromised warning
+// payload cannot turn the button into a javascript:/data: link or a phishing
+// redirect. http(s) links are allowed and quoted as text.
+function isSafeFixUrl (u) {
+	if (typeof u !== 'string' || u === '') {
+		return false;
+	}
+	// Strip ASCII tab/newline first: browsers remove those characters from
+	// URLs before parsing, so "java\tscript:" would otherwise execute while
+	// passing a naive scheme test. Leading C0 controls and space are stripped
+	// per the WHATWG URL spec (which trims them before scheme detection), so
+	// "\x01javascript:" cannot smuggle a scheme past the test below either.
+	var t = u.replace(/[\t\n\r]/g, '').replace(/^[\x00-\x20]+/, '');
+	return !/^(javascript|data|vbscript|file|blob):/i.test(t) && t.indexOf('//') !== 0;
+}
+
 function updateWarnings (jsonStatus) {
 	if (jsonStatus.hasOwnProperty('warnings')) {
 		var txt =
@@ -6552,19 +6588,19 @@ function updateWarnings (jsonStatus) {
 			// directly (e.g. "Reinstall All Plugins" after an FPPOS upgrade).
 			var fixButton = '';
 			var warningData = currentWarnings[i]['data'];
-			if (warningData && warningData['fixUrl'] && warningData['fixText']) {
+			if (warningData && isSafeFixUrl(warningData['fixUrl']) && warningData['fixText']) {
 				fixButton =
 					' <a class="btn btn-sm btn-outline-primary warning-fix-btn" href="' +
-					encodeURI(warningData['fixUrl']) +
+					escapeHtml(warningData['fixUrl']) +
 					'"><i class="fas fa-wrench"></i> ' +
-					warningData['fixText'] +
+					escapeHtml(warningData['fixText']) +
 					'</a>';
 			}
 			if (warningID == 0) {
 				//handle old style warnings with no id with legacy behavior
 				txt +=
 					'<li><i class="fas fa-solid fa-circle fa-2xs"></i>  ' +
-					currentWarnings[i]['message'] +
+					escapeHtml(currentWarnings[i]['message']) +
 					fixButton +
 					'</li>';
 			} else if (warningDefinitions && warningDefinitions['Warnings']) {
@@ -6600,20 +6636,20 @@ function updateWarnings (jsonStatus) {
 						'<li><span class="warning-link"><a href="javascript:void(0)" data-warning-idx="' +
 						i +
 						'"><i class="fas fa-' +
-						currentWarnings[i]['icon'] +
+						escapeHtml(currentWarnings[i]['icon']) +
 						'"></i> ' +
-						currentWarnings[i]['message'] +
+						escapeHtml(currentWarnings[i]['message']) +
 						' (<i class="fas fa-link"></i> Warning ID: ' +
-						warningID +
+						escapeHtml(warningID) +
 						')</a></span>' +
 						fixButton +
 						'</li>';
 				} else {
 					txt +=
 						'<li><i class="fas fa-' +
-						currentWarnings[i]['icon'] +
+						escapeHtml(currentWarnings[i]['icon']) +
 						'"></i> ' +
-						currentWarnings[i]['message'] +
+						escapeHtml(currentWarnings[i]['message']) +
 						fixButton +
 						'</li>';
 				}
@@ -6653,15 +6689,17 @@ function updateWarnings (jsonStatus) {
 }
 
 function doWarningPHPModal (id, message) {
+	// DoModalDialog renders string titles via .html(): the id and message are
+	// server/plugin-supplied (hostnames, filenames) and must render as text.
 	var options = {
 		id: 'warningHelpDialog',
-		title: 'Warning ID: ' + id + ' - ' + message,
+		title: 'Warning ID: ' + escapeHtml(id) + ' - ' + escapeHtml(message),
 		class: 'modal-dialog-scrollable',
 		keyboard: true,
 		backdrop: true
 	};
 	$.ajax({
-		url: 'warningHelper.php?id=' + id,
+		url: 'warningHelper.php?id=' + encodeURIComponent(id),
 		type: 'GET',
 		error: function () {
 			//file not exists
@@ -6674,10 +6712,12 @@ function doWarningPHPModal (id, message) {
 }
 
 function doWarningMDModal (id, message) {
-	var mdFile = 'help/warning-helpers/warning-' + id + '.md';
+	// id is server/plugin-supplied: encode it for the URL and for the src=""
+	// attribute below so quote characters cannot break out of either context.
+	var mdFile = 'help/warning-helpers/warning-' + encodeURIComponent(id) + '.md';
 	var options = {
 		id: 'warningHelpDialog',
-		title: 'Warning ID: ' + id + ' - ' + message,
+		title: 'Warning ID: ' + escapeHtml(id) + ' - ' + escapeHtml(message),
 		body: '<zero-md src="' + mdFile + '"></zero-md>',
 		class: 'modal-dialog-scrollable',
 		keyboard: true,
@@ -6698,7 +6738,7 @@ function doWarningMDModal (id, message) {
 function doWarningBasicModal (id, message, helptxt) {
 	var options = {
 		id: 'warningHelpDialog',
-		title: 'Warning ID: ' + id + ' - ' + message,
+		title: 'Warning ID: ' + escapeHtml(id) + ' - ' + escapeHtml(message),
 		body: helptxt,
 		class: 'modal-dialog-scrollable',
 		keyboard: true,
