@@ -12,6 +12,7 @@
  */
 
 #include <array>
+#include <atomic>
 #include <mutex>
 #include <string>
 
@@ -99,6 +100,8 @@ public:
 
     /// Process all active background slots (call from Playlist::Process).
     void ProcessBackgroundSlots();
+    /// Process() the outputs nothing else pumps; see the definition.
+    void PumpSlotOutputs();
 
     /// Mark a slot as following the primary media's clock.  Off by default:
     /// two unrelated videos on two displays should each run at their own pace,
@@ -140,5 +143,12 @@ private:
     static constexpr long long SYNC_SETTLE_MS = 3000;
 
     std::array<SlotState, MAX_SLOTS> m_slots;
+
+    // PumpSlotOutputs() cadence: a main-loop timer, started with the first
+    // output that needs it, plus the playlist's tick while one is playing.
+    static constexpr long long PUMP_INTERVAL_MS = 50;
+    long long m_lastPumpMS = 0;
+    std::atomic<bool> m_pumpTimerStarted{ false };
+    void StartPumpTimer();
     std::recursive_mutex m_mutex;
 };

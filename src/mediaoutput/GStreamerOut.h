@@ -61,6 +61,11 @@ public:
     /// Media's outputs override it to stop through their own registry.
     virtual void RequestStop() { m_stopRequested = true; }
 
+    /// Whether StreamSlotManager must call Process() for this output.  False
+    /// for outputs whose owner already does (a playlist entry, the remote's
+    /// synced media); Play Media's outputs have no other pump.
+    virtual bool NeedsSlotPump() const { return false; }
+
     // Static methods matching SDLOutput interface
     static bool IsOverlayingVideo();
     static bool ProcessVideoOverlay(unsigned int msTimestamp);

@@ -15,6 +15,7 @@
 #include "fpp-json.h"
 #include "log.h"
 #include "common_mini.h"
+#include "Timers.h"
 
 #include "StreamSlotManager.h"
 #include "GStreamerOut.h"
@@ -86,6 +87,11 @@ void StreamSlotManager::SetActiveOutput(int slot, GStreamerOutput* output) {
     if (slot < 1 || slot > MAX_SLOTS) return;
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
     m_slots[slot - 1].activeOutput = output;
+#ifdef HAS_GSTREAMER
+    if (output && output->NeedsSlotPump()) {
+        StartPumpTimer();
+    }
+#endif
     // Every start (including a resume) re-arms the settle window.
     m_slots[slot - 1].syncSettleMS = GetTimeMS() + SYNC_SETTLE_MS;
 #ifdef HAS_GSTREAMER
@@ -320,20 +326,43 @@ void StreamSlotManager::SyncSlotsToMaster(float masterPos) {
 }
 
 void StreamSlotManager::ProcessBackgroundSlots() {
+    PumpSlotOutputs();
+}
+
+// Calls Process() for every output whose owner doesn't (see
+// GStreamerOutput::NeedsSlotPump()) -- Play Media's, on any slot.  Without it
+// their status never advances, so the UI and status API report a frozen
+// position, and the preroll and stall watchdogs never run.  This used to
+// happen only from a playing playlist (ProcessBackgroundSlots()), and only for
+// slots 2-5: Play Media with the player idle, or on slot 1, got nothing.  The
+// pump timer covers those; the playlist's tick still pumps while it runs, and
+// the two share one cadence.
+//
+// Teardown is deliberately not done here.  Media started by the "Play Media"
+// command is owned by runningCommandMedia and freed off the main loop when
+// Stopped() fires, so deleting it here would be a double free.
+// Close()/ClearSlot() on that path is what clears the slot.
+void StreamSlotManager::PumpSlotOutputs() {
 #ifdef HAS_GSTREAMER
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
-    // Slot 1 is pumped by the playlist; slots 2-5 have no other pump, so
-    // without this their status never advances and the UI and status API
-    // report a frozen position for the whole track.
-    //
-    // Teardown is deliberately not done here.  Media started by the "Play
-    // Media" command is owned by runningCommandMedia and freed off the
-    // GStreamer bus when Stopped() fires, so deleting it here would be a
-    // double free.  Close()/ClearSlot() on that path is what clears the slot.
-    for (int i = 1; i < MAX_SLOTS; i++) {
-        if (m_slots[i].activeOutput) {
+    long long now = GetTimeMS();
+    if (now - m_lastPumpMS < PUMP_INTERVAL_MS / 2) {
+        return;
+    }
+    m_lastPumpMS = now;
+    for (int i = 0; i < MAX_SLOTS; i++) {
+        if (m_slots[i].activeOutput && m_slots[i].activeOutput->NeedsSlotPump()) {
             m_slots[i].activeOutput->Process();
         }
     }
 #endif
+}
+
+void StreamSlotManager::StartPumpTimer() {
+    if (m_pumpTimerStarted.exchange(true)) {
+        return;
+    }
+    Timers::INSTANCE.addPeriodicTimer("StreamSlotPump", PUMP_INTERVAL_MS, [this]() {
+        PumpSlotOutputs();
+    });
 }

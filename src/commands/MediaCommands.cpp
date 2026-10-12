@@ -359,6 +359,7 @@ public:
     virtual ~GStreamerPlayData();
     virtual void Stopped() override;
     virtual void RequestStop() override;
+    virtual bool NeedsSlotPump() const override { return true; }
     // Declared first so it is destroyed last, remaining valid throughout ~GStreamerPlayData()
     // even if the GStreamer bus fires a second Stopped() callback during our destruction.
     std::atomic<bool> m_stoppedOnce{ false };

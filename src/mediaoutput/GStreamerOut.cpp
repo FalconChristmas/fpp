@@ -3588,7 +3588,7 @@ int GStreamerOutput::Process(void) {
             // Only the primary slot represents the show's synced position;
             // companion streams (slot > 1, e.g. extraMedia) play locally on
             // each device and must not broadcast themselves as the master.
-            if (m_streamSlot == 1 && multiSync->isMultiSyncEnabled()) {
+            if (m_streamSlot == 1 && m_drivesShowClock && multiSync->isMultiSyncEnabled()) {
                 multiSync->SendMediaSyncPacket(m_mediaFilename, m_mediaOutputStatus->mediaSeconds);
             }
             // Only the show's own media paces the sequence.  Media started
@@ -3757,19 +3757,26 @@ void GStreamerOutput::ProcessMessages() {
 }
 
 GstBusSyncReply GStreamerOutput::BusSyncHandler(GstBus* bus, GstMessage* msg, gpointer userData) {
-    // Everything this handler doesn't act on passes straight through without
-    // touching the output.  Of the state changes, only the pipeline's own
-    // matter -- it is the one source on its bus with no parent.
+    // Everything this handler doesn't act on is dropped without touching the
+    // output.  Passing it on queued it on the bus for Process() to pop, and
+    // nothing calls Process() for Play Media with no playlist running: every
+    // tag, QoS, state-change and stream-status message piled up there for the
+    // whole of the media, a looping video's indefinitely.  Of the state
+    // changes, only the pipeline's own matter -- it is the one source on its
+    // bus with no parent.
     switch (GST_MESSAGE_TYPE(msg)) {
     case GST_MESSAGE_EOS:
     case GST_MESSAGE_ERROR:
         break;
     case GST_MESSAGE_STATE_CHANGED:
-        if (!GST_MESSAGE_SRC(msg) || GST_OBJECT_PARENT(GST_MESSAGE_SRC(msg)))
-            return GST_BUS_PASS;
+        if (!GST_MESSAGE_SRC(msg) || GST_OBJECT_PARENT(GST_MESSAGE_SRC(msg))) {
+            gst_message_unref(msg);
+            return GST_BUS_DROP;
+        }
         break;
     default:
-        return GST_BUS_PASS;
+        gst_message_unref(msg);
+        return GST_BUS_DROP;
     }
 
     // An EOS or error marks the output idle below, and the playlist can then
@@ -3915,12 +3922,13 @@ GstBusSyncReply GStreamerOutput::BusSyncHandler(GstBus* bus, GstMessage* msg, gp
                 self->Playing();
             }
         }
-        // Let state changes pass through for normal GStreamer operation
-        return GST_BUS_PASS;
+        gst_message_unref(msg);
+        return GST_BUS_DROP;
     }
 
     default:
-        return GST_BUS_PASS;
+        gst_message_unref(msg);
+        return GST_BUS_DROP;
     }
 }
 
