@@ -137,6 +137,14 @@ public:
 
     void addOutput(UDPOutputData*);
 
+    // Outputs another channel output plugin (GenericUDP) sends through this
+    // one.  Registered by owner with a factory rather than as data: this
+    // instance is replaced whenever co-universes.json reloads, and the new one
+    // has to rebuild them.  Unregistering only retires the data - a worker may
+    // still be sending from its buffers - and it is freed with this instance.
+    static void RegisterExternalOutput(const void* owner, std::function<UDPOutputData*()> create);
+    static void UnregisterExternalOutput(const void* owner);
+
     int createSocket(int port = 0, bool broadCast = false, bool multiCast = false);
 
     static UDPOutput* INSTANCE;
@@ -171,6 +179,11 @@ private:
     bool enabled;
 
     std::list<UDPOutputData*> outputs;
+
+    static std::mutex externalLock;
+    static std::map<const void*, std::function<UDPOutputData*()>> externalFactories;
+    std::map<const void*, UDPOutputData*> externalOutputs;
+    void attachExternalOutput(const void* owner, UDPOutputData* d);
 
     int networkCallbackId;
 

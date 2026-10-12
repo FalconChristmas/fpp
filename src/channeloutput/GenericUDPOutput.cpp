@@ -208,19 +208,25 @@ GenericUDPOutput::GenericUDPOutput(unsigned int startChannel, unsigned int chann
     ChannelOutput(startChannel, channelCount) {
 }
 GenericUDPOutput::~GenericUDPOutput() {
+    // deleted without Close() when Init() fails; a no-op otherwise
+    UDPOutput::UnregisterExternalOutput(this);
 }
 
 int GenericUDPOutput::Init(Json::Value config) {
-    if (UDPOutput::INSTANCE) {
-        config.removeMember("type");
-        GenericUDPOutputData* od = new GenericUDPOutputData(config);
-        UDPOutput::INSTANCE->addOutput(od);
-    } else {
+    if (!UDPOutput::INSTANCE) {
         LogErr(VB_CHANNELOUT, "GenericUDPOutput Requires the UDP outputs to be enabled\n");
     }
+    config.removeMember("type");
+    // Registered by owner, not handed over as data: the UDP output is rebuilt
+    // whenever the E1.31/DDP config is saved and has to recreate this, and
+    // Close() has to be able to take it back out.
+    UDPOutput::RegisterExternalOutput(this, [config]() -> UDPOutputData* {
+        return new GenericUDPOutputData(config);
+    });
     return ChannelOutput::Init(config);
 }
 int GenericUDPOutput::Close(void) {
+    UDPOutput::UnregisterExternalOutput(this);
     return ChannelOutput::Close();
 }
 

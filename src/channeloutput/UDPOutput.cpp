@@ -357,6 +357,8 @@ void UDPOutputMessages::clearSockets() {
 }
 
 UDPOutput* UDPOutput::INSTANCE = nullptr;
+std::mutex UDPOutput::externalLock;
+std::map<const void*, std::function<UDPOutputData*()>> UDPOutput::externalFactories;
 
 UDPOutputData::UDPOutputData(const Json::Value& config) :
     valid(true),
@@ -482,7 +484,10 @@ UDPOutput::~UDPOutput() {
     runWorkThreads = false;
     workSignal.notify_all();
 
-    INSTANCE = nullptr;
+    {
+        std::lock_guard<std::mutex> lk(externalLock);
+        INSTANCE = nullptr;
+    }
     NetworkMonitor::INSTANCE.removeCallback(networkCallbackId);
     while (numWorkThreads) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -779,6 +784,14 @@ int UDPOutput::Init(Json::Value config) {
         // but we want to make sure it's on the given interface
         CreateArtNetSocket(localAddress.sin_addr.s_addr, true);
     }
+    {
+        // outputs registered by other plugins before this instance existed,
+        // or kept across a co-universes reload that replaced the previous one
+        std::lock_guard<std::mutex> lk(externalLock);
+        for (auto& [owner, create] : externalFactories) {
+            attachExternalOutput(owner, create());
+        }
+    }
     return ChannelOutput::Init(config);
 }
 int UDPOutput::Close() {
@@ -820,7 +833,43 @@ void UDPOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& ad
 }
 
 void UDPOutput::addOutput(UDPOutputData* out) {
+    // the output thread walks the list in PrepData under socketMutex
+    std::lock_guard<std::mutex> lk(socketMutex);
     outputs.push_back(out);
+}
+
+void UDPOutput::attachExternalOutput(const void* owner, UDPOutputData* d) {
+    if (d == nullptr) {
+        return;
+    }
+    std::lock_guard<std::mutex> lk(socketMutex);
+    outputs.push_back(d);
+    externalOutputs[owner] = d;
+}
+
+void UDPOutput::RegisterExternalOutput(const void* owner, std::function<UDPOutputData*()> create) {
+    std::lock_guard<std::mutex> lk(externalLock);
+    externalFactories[owner] = create;
+    if (INSTANCE) {
+        INSTANCE->attachExternalOutput(owner, create());
+    }
+}
+
+void UDPOutput::UnregisterExternalOutput(const void* owner) {
+    std::lock_guard<std::mutex> lk(externalLock);
+    externalFactories.erase(owner);
+    if (INSTANCE) {
+        std::lock_guard<std::mutex> slk(INSTANCE->socketMutex);
+        auto it = INSTANCE->externalOutputs.find(owner);
+        if (it != INSTANCE->externalOutputs.end()) {
+            // Retired, not deleted: a queued or running send may still point
+            // into its packet buffers.  It stays in outputs, inactive, so
+            // PrepData skips it and the destructor frees it once the workers
+            // have exited.
+            it->second->active = false;
+            INSTANCE->externalOutputs.erase(it);
+        }
+    }
 }
 
 static void flushBuffers(int socket, int msgs, int total) {
@@ -1085,11 +1134,13 @@ int UDPOutput::SendData(unsigned char* channelData) {
                 if (si.second && si.first > ARTNET_MESSAGES_KEY && si.first < LATE_MESSAGES_START)
                     dests.push_back({ si.first, HexToIP(si.first), si.second });
             }
-            std::thread([this, dests = std::move(dests)]() {
+            // a copy: the list itself can grow under socketMutex while the
+            // stats thread runs; the entries live as long as this instance
+            std::thread([this, dests = std::move(dests), outs = outputs]() {
                 SetThreadName("FPP-UDPStats");
                 try {
                     CheckLocalDrops();
-                    CheckPacingBudget(dests, outputs);
+                    CheckPacingBudget(dests, outs);
                 } catch (...) {
                     // an escaped exception on a detached thread would call
                     // std::terminate and take down the show over a diagnostic
