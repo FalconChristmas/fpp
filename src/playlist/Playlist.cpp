@@ -1302,6 +1302,59 @@ public:
 };
 } // namespace
 
+// Release playlists condemned to PL_CLEANUPS, run the destructors the
+// shared_ptr deleter deferred, then free retired entries.  Main thread only,
+// and never with a Process() frame on the stack.  Process() does this at its
+// outermost depth; the main loop also calls it while the player is idle,
+// because Process() only runs while something plays -- a stop used to leave
+// the stopped playlist's entries (an image entry's prep thread, a media
+// entry's state) alive until the next show started.
+void Playlist::ReleaseRetired(void) {
+    {
+        // Held across the whole condemned pass (not swap-and-release) so
+        // SetIdle's condemned-parent walk on another thread sees either the
+        // full pre-drain list or the post-release state, never a moment
+        // where a condemned instance has left the list but still looks
+        // current-able.  ReleasePlaylist only nests the owner's registry
+        // lock inside; nothing takes these two in the other order.
+        std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
+        if (!PL_CLEANUPS.empty()) {
+            PL_CLEANUPS.sort();
+            PL_CLEANUPS.unique();
+            while (!PL_CLEANUPS.empty()) {
+                Playlist* p = PL_CLEANUPS.front();
+                // Drops the player's owning reference rather than deleting.
+                // If a reader thread still holds a snapshot of p, the
+                // instance stays alive until that snapshot releases; its
+                // destructor then runs on this thread in a later
+                // DrainRetiredPlaylists().
+                Player::INSTANCE.ReleasePlaylist(p);
+                PL_CLEANUPS.pop_front();
+            }
+        }
+    }
+    // Runs the destructors the shared_ptr deleter deferred — here, between
+    // the two lists, because ~Playlist parks its entries on
+    // PL_ENTRY_CLEANUPS and those must be freed in the same tick, exactly
+    // as when the drain above did the delete itself.  Not under the lock:
+    // those destructors push onto PL_ENTRY_CLEANUPS themselves.
+    Player::INSTANCE.DrainRetiredPlaylists();
+    // Entry destructors can park further entries (nested sub-entries), so
+    // swap-and-delete until a pass drains nothing.
+    while (true) {
+        std::list<PlaylistEntryBase*> entries;
+        {
+            std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
+            entries.swap(PL_ENTRY_CLEANUPS);
+        }
+        if (entries.empty())
+            break;
+        for (auto* e : entries) {
+            delete e;
+        }
+    }
+}
+
 /*
  *
  */
@@ -1327,49 +1380,7 @@ int Playlist::Process(void) {
     // LogExcess(VB_PLAYLIST, "Playlist::Process: %s, section %s, position: %d\n", m_name.c_str(), m_currentSectionStr.c_str(), m_sectionPosition);
 
     if (tl_processDepth == 1) {
-        {
-            // Held across the whole condemned pass (not swap-and-release) so
-            // SetIdle's condemned-parent walk on another thread sees either the
-            // full pre-drain list or the post-release state, never a moment
-            // where a condemned instance has left the list but still looks
-            // current-able.  ReleasePlaylist only nests the owner's registry
-            // lock inside; nothing takes these two in the other order.
-            std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
-            if (!PL_CLEANUPS.empty()) {
-                PL_CLEANUPS.sort();
-                PL_CLEANUPS.unique();
-                while (!PL_CLEANUPS.empty()) {
-                    Playlist* p = PL_CLEANUPS.front();
-                    // Drops the player's owning reference rather than deleting.
-                    // If a reader thread still holds a snapshot of p, the
-                    // instance stays alive until that snapshot releases; its
-                    // destructor then runs on this thread in a later
-                    // DrainRetiredPlaylists().
-                    Player::INSTANCE.ReleasePlaylist(p);
-                    PL_CLEANUPS.pop_front();
-                }
-            }
-        }
-        // Runs the destructors the shared_ptr deleter deferred — here, between
-        // the two lists, because ~Playlist parks its entries on
-        // PL_ENTRY_CLEANUPS and those must be freed in the same tick, exactly
-        // as when the drain above did the delete itself.  Not under the lock:
-        // those destructors push onto PL_ENTRY_CLEANUPS themselves.
-        Player::INSTANCE.DrainRetiredPlaylists();
-        // Entry destructors can park further entries (nested sub-entries), so
-        // swap-and-delete until a pass drains nothing.
-        while (true) {
-            std::list<PlaylistEntryBase*> entries;
-            {
-                std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
-                entries.swap(PL_ENTRY_CLEANUPS);
-            }
-            if (entries.empty())
-                break;
-            for (auto* e : entries) {
-                delete e;
-            }
-        }
+        ReleaseRetired();
     }
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     if (m_currentSectionStr == "New") {

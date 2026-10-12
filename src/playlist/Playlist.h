@@ -55,6 +55,8 @@ public:
     int IsPlaying(void);
 
     int Process(void);
+    // Free retired playlists and entries.  Main thread only; see Playlist.cpp.
+    static void ReleaseRetired(void);
     void ProcessMedia(void);
     int Cleanup(void);
     // Cleanup(), but only if the playlist is idle when checked under

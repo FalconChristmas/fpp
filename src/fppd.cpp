@@ -2127,6 +2127,12 @@ void MainLoop(void) {
             else
                 prevFPPstatus = Player::INSTANCE.GetStatus();
 
+            // Process() frees retired playlists and entries, but only runs
+            // while something plays; free them while idle too.
+            if (!Player::INSTANCE.IsPlaying()) {
+                Playlist::ReleaseRetired();
+            }
+
         } else if (getFPPmode() == REMOTE_MODE) {
             if (mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING) {
                 MAIN_LOOP_PHASE("Player::ProcessMedia");
