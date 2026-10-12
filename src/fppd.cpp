@@ -487,10 +487,9 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
         // Restart=always never fires.  Arm a watchdog with SIGALRM restored to
         // its default (terminate) disposition — both calls are
         // async-signal-safe — so a wedged handler still dies and gets
-        // restarted.  Normal paths finish in exit(-1) long before it fires;
+        // restarted.  Normal paths finish in _exit(-1) long before it fires;
         // the timeout is generous because the crash-report zip + curl upload
-        // legitimately take time.  Left armed across exit(-1) on purpose:
-        // atexit/global destructors can hit the same held locks.
+        // legitimately take time.
         constexpr unsigned int kCrashHandlerWatchdogSec = 120;
         struct sigaction almAct;
         memset(&almAct, 0, sizeof(almAct));
@@ -710,7 +709,15 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
         WarningHolder::RemoveAllWarnings();
         WarningHolder::AddWarning(1, "FPPD has crashed.  Check crash reports.");
         WarningHolder::WriteWarningsFile();
-        exit(-1);
+        // _exit(), not exit(): exit() runs the global/static destructors, and
+        // those take locks the crashed thread may still hold -- a crash inside
+        // RTSPOutputManager::ApplyConfig() left ~RTSPOutputManager waiting on
+        // its apply lock until the watchdog above killed fppd two minutes
+        // later, leaving the show dark all that time.  main() skips them for
+        // the same reason on a normal exit (see its end), so nothing depends
+        // on them running.
+        fflush(nullptr);
+        _exit(-1);
     }
 }
 
