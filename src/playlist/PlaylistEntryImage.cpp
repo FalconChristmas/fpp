@@ -386,7 +386,12 @@ void PlaylistEntryImage::Draw(void) {
             // Nothing to show; count it as drawn so the entry finishes.
             LogWarn(VB_PLAYLIST, "No image found for '%s', skipping\n", m_imagePath.c_str());
         } else {
-            m_model->setData(m_buffer);
+            // m_buffer is m_width x m_height RGB.  setData() reads the model's
+            // own pixel size -- 4 bytes on an RGBW model, a third past the end
+            // of this buffer -- and assumes the model is still the size it was
+            // at Init().  blitData() converts to the model's format and clips.
+            m_model->blitData(m_buffer, m_width, m_height, 3, 0, 0,
+                              PixelOverlayState(PixelOverlayState::Enabled));
         }
     }
 
