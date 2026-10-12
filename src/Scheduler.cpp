@@ -124,6 +124,18 @@ void Scheduler::ScheduleProc(void) {
                 break;
             it = m_ranItems.erase(it);
         }
+
+        if (timeDelta < -SCHEDULE_COMMAND_CATCHUP_S) {
+            // The clock stepped back (an RTC that was ahead, corrected by
+            // NTP).  Whatever "ran" at the wrong, later time hasn't really run
+            // yet: forget it so the reload below schedules it again, and pull
+            // the command check window back so commands in the stepped-over
+            // span fire when their second actually comes instead of being
+            // treated as already examined.
+            LogWarn(VB_SCHEDULE, "Clock stepped back %d seconds; re-arming schedule items after now\n", -timeDelta);
+            m_ranItems.erase(m_ranItems.upper_bound(procTime), m_ranItems.end());
+            m_lastCommandCheckTime = procTime;
+        }
     }
 
     if (m_loadSchedule)
