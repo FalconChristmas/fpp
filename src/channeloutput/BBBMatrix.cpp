@@ -175,14 +175,15 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string>& sargs) {
         FILE* file = fopen("/home/fpp/media/config/ledscape_dimming", "r");
 
         if (file != NULL) {
-            char buf[100];
-            char* line = buf;
-            size_t len = 100;
-            ssize_t read;
+            // fgets, not getline: getline() was handed a stack buffer as if it
+            // were malloc'd, and a line of 100 characters or more made it
+            // realloc() the stack
+            char line[100];
             int count = 0;
 
-            while (((read = getline(&line, &len, file)) != -1) && (count < 10)) {
-                if ((!line) || (!read) || (read == 1))
+            while ((count < 10) && fgets(line, sizeof(line), file)) {
+                size_t read = strlen(line);
+                if ((!read) || (read == 1))
                     continue;
 
                 LogDebug(VB_CHANNELOUT, "Line %d: %s\n", count, line);
@@ -191,13 +192,12 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string>& sargs) {
                     count++;
                 } else {
                     uint32_t d1, d2;
-                    sscanf(line, "%X %X", &d1, &d2);
-                    brightnessValues[count - 1] = d1;
-                    delayValues[count - 1] = d2;
+                    if (sscanf(line, "%X %X", &d1, &d2) == 2) {
+                        brightnessValues[count - 1] = d1;
+                        delayValues[count - 1] = d2;
+                    }
                     count++;
                 }
-                line = buf;
-                len = 100;
             }
             fclose(file);
         }
