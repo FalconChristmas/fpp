@@ -22,6 +22,7 @@
 #include <Magick++/TypeMetric.h>
 #include <magick/image.h>
 #include <algorithm>
+#include <memory>
 #include <climits> // INT_MAX bounds the Bars effect args
 #include <atomic>
 #include <cmath> // std::ceil/std::lround in the image scaling helpers
@@ -1210,6 +1211,9 @@ public:
         long long colorStartMS = 0;
     };
 
+    // GraphicsMagick throws on a font it cannot load, an allocation it cannot
+    // make, and so on. The command dispatcher would catch it now, but not
+    // before the model was left auto-enabled with nothing to turn it off.
     void doText(PixelOverlayModel* m,
                 const std::string& msg,
                 int r, int g, int b,
@@ -1221,6 +1225,28 @@ public:
                 const std::string& autoEnable,
                 int duration,
                 const TextColorSpec& colorSpec) {
+        const bool wasDisabled = m->getState().getState() == PixelOverlayState::PixelState::Disabled;
+        try {
+            doTextImpl(m, msg, r, g, b, font, fontSize, antialias, position, pixelsPerSecond,
+                       autoEnable, duration, colorSpec);
+        } catch (const std::exception& e) {
+            LogErr(VB_CHANNELOUT, "Text Overlay Effect - could not render text: %s\n", e.what());
+            if (wasDisabled && m->getState().getState() != PixelOverlayState::PixelState::Disabled) {
+                m->setState(PixelOverlayState(PixelOverlayState::PixelState::Disabled));
+            }
+        }
+    }
+    void doTextImpl(PixelOverlayModel* m,
+                    const std::string& msg,
+                    int r, int g, int b,
+                    const std::string& font,
+                    int fontSize,
+                    bool antialias,
+                    const std::string& position,
+                    int pixelsPerSecond,
+                    const std::string& autoEnable,
+                    int duration,
+                    const TextColorSpec& colorSpec) {
         bool disableWhenDone = false;
         PixelOverlayState st(autoEnable);
         if ((st.getState() != PixelOverlayState::PixelState::Disabled) && (m->getState().getState() == PixelOverlayState::PixelState::Disabled)) {
@@ -1248,7 +1274,8 @@ public:
             }
         }
 
-        Magick::Image* image = new Magick::Image(Magick::Geometry(m->getWidth(), m->getHeight()), Magick::Color("black"));
+        // Owned, so every return and any Magick throw below frees it.
+        std::unique_ptr<Magick::Image> image = std::make_unique<Magick::Image>(Magick::Geometry(m->getWidth(), m->getHeight()), Magick::Color("black"));
         image->quiet(true);
         image->depth(8);
         image->font(font);
@@ -1301,7 +1328,7 @@ public:
                     }
                     m->setRunningEffect(new StopRunningEffect(m, "Text", disableWhenDone), nd);
                 }
-                delete image;
+                image.reset();
                 return;
             }
 
@@ -1314,13 +1341,13 @@ public:
                 // would be an out-of-bounds read rather than a stretched image.
                 LogErr(VB_CHANNELOUT, "Text Overlay Effect - rendered %zu bytes, expected %zu\n",
                        blob.length(), pixels * 3);
-                delete image;
+                image.reset();
                 return;
             }
             std::vector<uint8_t> mask(pixels);
             rgbToCoverageMask((const uint8_t*)blob.data(), pixels, mask.data());
             TextColor::Layout layout = buildTextLayout(mask.data(), w, h, *image, lines, colorSpec.mode);
-            delete image;
+            image.reset();
 
             std::vector<uint8_t> rgb(pixels * 3);
             TextColor::Colorize(mask.data(), w, h, layout, colorSpec.mode, colorSpec.palette,
@@ -1355,8 +1382,21 @@ public:
             }
             m->setRunningEffect(ef, 1);
         } else {
-            delete image;
+            image.reset();
             // movement
+            // The strip is as wide as the whole message, so its size is the
+            // caller's to choose: a long MQTT payload or a huge FontSize asked
+            // GraphicsMagick for gigabytes (8 bytes a pixel), more than a
+            // BeagleBone has. 4M pixels is a 64-row banner some 65000 wide.
+            constexpr int64_t MAX_TEXT_PIXELS = 4 * 1024 * 1024;
+            if ((int64_t)maxWid * totalHi > MAX_TEXT_PIXELS) {
+                LogErr(VB_CHANNELOUT, "Text Overlay Effect - text renders %dx%d, over the %lld pixel limit; not drawing it\n",
+                       maxWid, totalHi, (long long)MAX_TEXT_PIXELS);
+                if (disableWhenDone) {
+                    m->setState(PixelOverlayState(PixelOverlayState::PixelState::Disabled));
+                }
+                return;
+            }
             Magick::Image image2(Magick::Geometry(maxWid, totalHi), Magick::Color("black"));
             image2.quiet(true);
             image2.depth(8);
@@ -1521,6 +1561,8 @@ public:
         if (fontSize < 4) {
             fontSize = 12;
         }
+        // Points; even this renders far taller than any model.
+        fontSize = std::min(fontSize, 1000);
         bool aa = args[3] == "true" || args[3] == "1";
         std::string position = MapOverlayPosition(args[4]);
         int pps = std::atoi(args[5].c_str());
