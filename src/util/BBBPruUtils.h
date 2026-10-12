@@ -32,7 +32,11 @@ public:
     // PRU's data RAM after the firmware load.  Pass false when another
     // driver owns the other PRU (a shared panels + strings cape) so a
     // restart of this output cannot wipe its ring or command state.
-    bool run(const std::string& program, bool clearSharedMems = true);
+    // clearMems: false skips clearing any PRU memory, before or after the
+    // core starts, for firmware that zeroes its own handshake words before
+    // reading them and only reads data the ARM wrote ahead of the command
+    // that releases it.  run() then does not touch PRU memory at all.
+    bool run(const std::string& program, bool clearSharedMems = true, bool clearMems = true);
     void stop();
 
     // Halt/restart the core in place.  Unlike stop()/run() these do not go

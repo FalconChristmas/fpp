@@ -462,10 +462,13 @@ static void restorePRUSleepFirmware(int pru_num) {
     }
 }
 
-bool BBBPru::run(const std::string& program, bool clearSharedMems) {
+bool BBBPru::run(const std::string& program, bool clearSharedMems, bool clearMems) {
     LogDebug(VB_CHANNELOUT, "BBBPru[%d]::run(%s)\n", pru_num, program.c_str());
 
-    auto clearMems = [&]() {
+    auto clearPRUMems = [&]() {
+        if (!clearMems) {
+            return;
+        }
         clearPRUMem(data_ram, data_ram_size);
         if (clearSharedMems) {
             if (shared_ram) {
@@ -500,7 +503,7 @@ bool BBBPru::run(const std::string& program, bool clearSharedMems) {
         // there: the new firmware passes its wait on them at once and reads
         // config the ARM has not written yet.  The clear after enable() stays
         // for a PRUSS that was powered down, where these writes are dropped.
-        clearMems();
+        clearPRUMems();
         enabled = prus[pru_num].enable();
         if (!enabled) {
             return false;
@@ -509,7 +512,7 @@ bool BBBPru::run(const std::string& program, bool clearSharedMems) {
         LogErr(VB_CHANNELOUT, "BBBPru[%d]: could not install PRU program %s\n", pru_num, program.c_str());
         return false;
     }
-    clearMems();
+    clearPRUMems();
     /*
     printf("DL:  %p\n", data_ram);
     printf("OL:  %p\n", other_data_ram);

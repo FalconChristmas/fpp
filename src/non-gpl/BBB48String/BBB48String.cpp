@@ -712,9 +712,17 @@ int BBB48StringOutput::StartPRU(bool both) {
             return 0;
         }
     }
+    // run() is told not to clear PRU memory.  The firmware zeroes its own
+    // control block (address, command, response) before it first reads the
+    // command, and reads nothing else until a non-zero command arrives.
+    // SendData() writes that command only after the frame's address, and on
+    // the first frame a full copy of its pixel data into the PRU memories, so
+    // a stale word left from an earlier run can neither start output nor be
+    // sent as pixel data.  Skipping the clear also keeps this from touching
+    // the PRUSS while both cores are offline (crash e80ad9caf7).
     m_pru = new BBBPru(pruNumber, true, true);
     m_pruData = (BBB48StringData*)m_pru->data_ram;
-    if (!m_pru->run("/tmp/FalconWS281x.out")) {
+    if (!m_pru->run("/tmp/FalconWS281x.out", true, false)) {
         LogErr(VB_CHANNELOUT,
                "BBB48String: Unable to start PRU. May require a reboot.\n");
         WarningHolder::AddWarning(
@@ -727,7 +735,7 @@ int BBB48StringOutput::StartPRU(bool both) {
     if (both) {
         m_pru0 = new BBBPru(!pruNumber, true, true);
         m_pru0Data = (BBB48StringData*)m_pru0->data_ram;
-        if (!m_pru0->run("/tmp/FalconWS281x_gpio0.out")) {
+        if (!m_pru0->run("/tmp/FalconWS281x_gpio0.out", true, false)) {
             LogErr(VB_CHANNELOUT,
                    "BBB48String: Unable to start PRU0. May require a reboot.\n");
             WarningHolder::AddWarning(
