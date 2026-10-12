@@ -43,11 +43,18 @@ class VideoInputManager {
 public:
     static VideoInputManager& Instance();
 
-    /// Load config and start enabled sources.
+    /// Load config and start enabled sources, on the reload worker (see
+    /// RequestReload()), so this returns before they are running.
     void Init();
 
     /// Reload config — stops all sources, reloads, restarts enabled ones.
     void Reload();
+
+    /// Reload() on the manager's own worker thread, so whoever asks (fppd's
+    /// main loop, for the reloadVideoInputs command) doesn't wait out yt-dlp
+    /// and pipeline teardown.  A request made while a reload is running
+    /// makes the worker go round once more.
+    void RequestReload();
 
     /// Stop all source pipelines and clean up.
     void Shutdown();
@@ -202,6 +209,11 @@ private:
     /// for why an unsupported mode must not be pinned.
     std::string BuildDeviceCaps(const SourceInfo& source);
 
+    /// Start every enabled source just loaded into m_sources.  Called with
+    /// m_mutex held through `lock`; releases it while yt-dlp resolves any
+    /// YouTube sources.
+    void StartLoadedSources(std::unique_lock<std::mutex>& lock);
+
     /// Stop a single source pipeline.
     void StopSource(SourceInfo& source);
 
@@ -235,6 +247,13 @@ private:
     // reopened, and at Shutdown().
     std::mutex m_teardownMutex;
     std::vector<std::thread> m_teardownThreads;
+
+    // RequestReload()'s worker.  m_reloadMutex guards all of these.
+    std::mutex m_reloadMutex;
+    std::thread m_reloadThread;
+    bool m_reloadPending = false;
+    bool m_reloadRunning = false;
+    bool m_stopReloads = false;
 
     static constexpr int MAX_RESTARTS = 3;
 };

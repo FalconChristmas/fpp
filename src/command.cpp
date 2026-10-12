@@ -215,7 +215,7 @@ char* ProcessCommand(char* command, char* response) {
         VideoOutputManager::Instance().Reload();
         snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Video outputs reloaded,,,,,,,,,,\n", getFPPmode(), COMMAND_SUCCESS);
     } else if (!strcmp(CommandStr, "reloadVideoInputs")) {
-        VideoInputManager::Instance().Reload();
+        VideoInputManager::Instance().RequestReload();
         snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Video inputs reloaded,,,,,,,,,,\n", getFPPmode(), COMMAND_SUCCESS);
 #ifdef HAS_RTSP_OUTPUT_GSTREAMER
     } else if (!strcmp(CommandStr, "reloadRTSPOutputs")) {

@@ -13,7 +13,25 @@
 #include "fpp-pch.h"
 
 #include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
+#include <algorithm>
+#include <atomic>
 #include <cmath>
+#include <map>
+#include <vector>
+
+#include <fcntl.h>
+#include <poll.h>
+#include <signal.h>
+#include <spawn.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#ifdef __APPLE__
+#include <crt_externs.h>
+#define FPP_ENVIRON (*_NSGetEnviron())
+#else
+extern char** environ;
+#define FPP_ENVIRON environ
+#endif
 
 #include "GStreamerOut.h"
 #include "V4L2Device.h"
@@ -97,28 +115,104 @@ struct YtDlpResult {
 // stderr is folded into the capture and reported instead: yt-dlp's own
 // diagnostics are line-oriented and never begin with "http", so the URL line
 // stays unambiguous among them.
+//
+// Bounded, and killable: it talks to YouTube, and a stalled connection would
+// otherwise hold the caller for as long as the network stays silent.  It runs
+// in its own process group, so the deadline and Shutdown() (which has only a
+// few seconds before fppd_stop kills fppd) can take down yt-dlp and anything
+// it started.  Spawned directly rather than through a shell, so the URI is an
+// argument, not shell text.
+static constexpr int YTDLP_TIMEOUT_SEC = 45;
+static std::atomic<pid_t> s_ytDlpPgid{ 0 };
+
+static void KillRunningYtDlp() {
+    pid_t pgid = s_ytDlpPgid.load();
+    if (pgid > 0) {
+        kill(-pgid, SIGKILL);
+    }
+}
+
 static YtDlpResult RunYtDlp(const std::string& format, const std::string& uri, bool wantFps) {
     YtDlpResult res;
-    std::string cmd = "yt-dlp -f '" + format + "' --print url";
+    std::vector<std::string> args = { "yt-dlp", "-f", format, "--print", "url" };
     if (wantFps) {
-        cmd += " --print fps";
+        args.push_back("--print");
+        args.push_back("fps");
     }
-    cmd += " '" + ShellSafeUri(uri) + "' 2>&1";
+    args.push_back(ShellSafeUri(uri));
+    std::vector<char*> argv;
+    for (auto& a : args) {
+        argv.push_back(a.data());
+    }
+    argv.push_back(nullptr);
 
-    FILE* pipe = popen(cmd.c_str(), "r");
-    if (!pipe) {
+    int fds[2];
+    if (pipe(fds) != 0) {
         res.diagnostics = "could not run yt-dlp";
         return res;
     }
+    fcntl(fds[0], F_SETFD, FD_CLOEXEC);
+    posix_spawn_file_actions_t actions;
+    posix_spawn_file_actions_init(&actions);
+    posix_spawn_file_actions_adddup2(&actions, fds[1], STDOUT_FILENO);
+    posix_spawn_file_actions_adddup2(&actions, fds[1], STDERR_FILENO);
+    posix_spawn_file_actions_addclose(&actions, fds[1]);
+    posix_spawnattr_t attr;
+    posix_spawnattr_init(&attr);
+    posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETPGROUP);
+    posix_spawnattr_setpgroup(&attr, 0);
+    pid_t pid = -1;
+    int rc = posix_spawnp(&pid, "yt-dlp", &actions, &attr, argv.data(), FPP_ENVIRON);
+    posix_spawn_file_actions_destroy(&actions);
+    posix_spawnattr_destroy(&attr);
+    close(fds[1]);
+    if (rc != 0) {
+        close(fds[0]);
+        res.diagnostics = "could not run yt-dlp";
+        return res;
+    }
+    s_ytDlpPgid = pid;
+
+    // stderr is folded into the capture (see above); read until yt-dlp exits
+    // and closes the pipe, or the deadline passes.
     std::string output;
     char buf[4096];
-    while (fgets(buf, sizeof(buf), pipe)) {
-        output += buf;
+    uint64_t deadline = GetTimeMS() + (uint64_t)YTDLP_TIMEOUT_SEC * 1000;
+    bool timedOut = false;
+    for (;;) {
+        uint64_t now = GetTimeMS();
+        if (now >= deadline) {
+            timedOut = true;
+            break;
+        }
+        struct pollfd pfd = { fds[0], POLLIN, 0 };
+        int pr = poll(&pfd, 1, (int)std::min<uint64_t>(deadline - now, 1000));
+        if (pr < 0 && errno != EINTR) {
+            break;
+        }
+        if (pr <= 0) {
+            continue;
+        }
+        ssize_t n = read(fds[0], buf, sizeof(buf));
+        if (n > 0) {
+            output.append(buf, (size_t)n);
+        } else if (n == 0 || errno != EINTR) {
+            break;
+        }
     }
-    // pclose() may return -1 when SA_NOCLDWAIT is set on SIGCHLD (the kernel
-    // auto-reaps the child, so waitpid fails with ECHILD), so the exit status
-    // can't be trusted here - validate the output content instead.
-    pclose(pipe);
+    if (timedOut) {
+        kill(-pid, SIGKILL);
+        res.diagnostics = "yt-dlp did not answer within " + std::to_string(YTDLP_TIMEOUT_SEC) + "s";
+    }
+    s_ytDlpPgid = 0;
+    close(fds[0]);
+    // fppd sets SA_NOCLDWAIT, so the kernel reaps yt-dlp itself and this
+    // usually fails with ECHILD; it only matters where that isn't set.  The
+    // exit status can't be relied on either way - validate the output instead.
+    waitpid(pid, nullptr, WNOHANG);
+    if (timedOut) {
+        return res;
+    }
 
     std::istringstream iss(output);
     std::string line;
@@ -149,6 +243,41 @@ static YtDlpResult RunYtDlp(const std::string& format, const std::string& uri, b
         }
     }
     return res;
+}
+
+// The formats StartSource() and StartSourceWithAudio() ask yt-dlp for.
+static std::string YtVideoFormat(int height) {
+    // Select the best H.264 video-only stream that fits the configured
+    // output height.  This avoids fetching 240p when the user wants
+    // 720p/1080p, while still capping bandwidth to what the Pi can
+    // actually decode and display.
+    return "bestvideo[height<=" + std::to_string(height) + "][vcodec^=avc1]/worst[vcodec^=avc1]";
+}
+// 234 = high quality HLS audio, 233 = low quality HLS audio
+// 140 = AAC 128k from DASH (non-live fallback), 139 = HE-AAC 48k
+static const char* const YT_AUDIO_FORMAT = "234/233/140/139/bestaudio";
+
+static bool IsYouTubeUri(const std::string& uri) {
+    return uri.find("youtube.com/") != std::string::npos ||
+           uri.find("youtu.be/") != std::string::npos;
+}
+
+// yt-dlp results fetched before StartSource() runs (see StartLoadedSources()),
+// keyed by format and URI.  Only touched under VideoInputManager::m_mutex.
+static std::map<std::string, YtDlpResult> s_ytPrefetched;
+
+static std::string YtKey(const std::string& format, const std::string& uri) {
+    return format + "\n" + uri;
+}
+
+// What StartSource() calls: the prefetched answer when there is one, else a
+// live lookup (a source started outside StartLoadedSources()).
+static YtDlpResult ResolveYtDlp(const std::string& format, const std::string& uri, bool wantFps) {
+    auto it = s_ytPrefetched.find(YtKey(format, uri));
+    if (it != s_ytPrefetched.end()) {
+        return it->second;
+    }
+    return RunYtDlp(format, uri, wantFps);
 }
 
 // Adopt the stream's native framerate, but never above the configured one -
@@ -446,7 +575,7 @@ VideoInputManager::~VideoInputManager() {
 }
 
 void VideoInputManager::Init() {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::unique_lock<std::mutex> lock(m_mutex);
     if (m_initialized)
         return;
 
@@ -464,18 +593,92 @@ void VideoInputManager::Init() {
     // (re)starting sources here, a future Shutdown() must be allowed to
     // run its teardown again.
     m_shutdownDone = false;
+    lock.unlock();
+    {
+        std::lock_guard<std::mutex> rl(m_reloadMutex);
+        m_stopReloads = false;
+    }
 
-    if (LoadConfig()) {
-        LogInfo(VB_MEDIAOUT, "VideoInputManager: Loaded %d source(s), starting enabled ones\n",
-                (int)m_sources.size());
-        for (auto& source : m_sources) {
-            if (source.enabled) {
-                StartSource(source);
+    // Load and start the sources on the worker: a YouTube source can take
+    // yt-dlp's whole timeout to resolve, and fppd's startup shouldn't wait.
+    RequestReload();
+}
+
+void VideoInputManager::RequestReload() {
+    std::lock_guard<std::mutex> rl(m_reloadMutex);
+    if (m_stopReloads) {
+        return;
+    }
+    m_reloadPending = true;
+    if (m_reloadRunning) {
+        return;  // the running worker sees m_reloadPending and goes again
+    }
+    if (m_reloadThread.joinable()) {
+        m_reloadThread.join();  // a finished worker; it no longer needs the lock
+    }
+    m_reloadRunning = true;
+    m_reloadThread = std::thread([this]() {
+        SetThreadName("FPP-VideoInReload");
+        std::unique_lock<std::mutex> l(m_reloadMutex);
+        while (m_reloadPending && !m_stopReloads) {
+            m_reloadPending = false;
+            l.unlock();
+            Reload();
+            l.lock();
+        }
+        m_reloadRunning = false;
+    });
+}
+
+void VideoInputManager::StartLoadedSources(std::unique_lock<std::mutex>& lock) {
+    // Resolving a YouTube source runs yt-dlp, which can take as long as its
+    // timeout.  Holding m_mutex across that stalled everything that asks this
+    // manager about its sources -- the video output manager starting media
+    // playback among them, under its own lock.  Collect what needs resolving,
+    // resolve it unlocked, and start the sources from the results.
+    struct YtJob {
+        std::string format;
+        std::string uri;
+        bool wantFps;
+    };
+    std::vector<YtJob> jobs;
+    for (const auto& source : m_sources) {
+        if (source.enabled && source.type == "urisrc" && IsYouTubeUri(source.uri)) {
+            jobs.push_back({ YtVideoFormat(source.height), source.uri, true });
+            if (source.audioEnabled) {
+                jobs.push_back({ YT_AUDIO_FORMAT, source.uri, false });
             }
         }
-    } else {
-        LogDebug(VB_MEDIAOUT, "VideoInputManager: No video input sources configured\n");
     }
+    if (!jobs.empty()) {
+        lock.unlock();
+        std::map<std::string, YtDlpResult> results;
+        for (const auto& job : jobs) {
+            {
+                // Shutdown() waits for this; don't make it wait for every
+                // source when one lookup would do.
+                std::lock_guard<std::mutex> rl(m_reloadMutex);
+                if (m_stopReloads) {
+                    break;
+                }
+            }
+            results[YtKey(job.format, job.uri)] = RunYtDlp(job.format, job.uri, job.wantFps);
+        }
+        lock.lock();
+        s_ytPrefetched = std::move(results);
+        std::lock_guard<std::mutex> rl(m_reloadMutex);
+        if (m_stopReloads) {
+            // Shutting down: don't start what it is about to tear down.
+            s_ytPrefetched.clear();
+            return;
+        }
+    }
+    for (auto& source : m_sources) {
+        if (source.enabled) {
+            StartSource(source);
+        }
+    }
+    s_ytPrefetched.clear();
 }
 
 void VideoInputManager::Reload() {
@@ -490,18 +693,14 @@ void VideoInputManager::Reload() {
     // v4l2/rtsp resource that's still held (EBUSY).
     JoinTeardownThreads();
 
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::unique_lock<std::mutex> lock(m_mutex);
     m_initialized = true;
     // See Init(): allow a subsequent Shutdown() to run its teardown again.
     m_shutdownDone = false;
 
     if (LoadConfig()) {
         LogInfo(VB_MEDIAOUT, "VideoInputManager: Reloaded with %d source(s)\n", (int)m_sources.size());
-        for (auto& source : m_sources) {
-            if (source.enabled) {
-                StartSource(source);
-            }
-        }
+        StartLoadedSources(lock);
     }
 }
 
@@ -510,6 +709,21 @@ void VideoInputManager::Shutdown() {
     // it again at static-destruction time. Run the teardown only once.
     if (m_shutdownDone.exchange(true)) {
         return;
+    }
+    // No reloads from here on, and wait out one in progress: it is about to
+    // start sources this is tearing down.
+    std::thread reloadWorker;
+    {
+        std::lock_guard<std::mutex> rl(m_reloadMutex);
+        m_stopReloads = true;
+        m_reloadPending = false;
+        reloadWorker = std::move(m_reloadThread);
+    }
+    // A YouTube lookup can run for its full timeout, far longer than
+    // fppd_stop waits before it kills fppd.
+    KillRunningYtDlp();
+    if (reloadWorker.joinable()) {
+        reloadWorker.join();
     }
     {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -796,13 +1010,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
              resolvedUri.find("youtu.be/") != std::string::npos)) {
             LogInfo(VB_MEDIAOUT, "VideoInputManager: Resolving YouTube URL for '%s' via yt-dlp\n",
                     source.name.c_str());
-            // Select the best H.264 video-only stream that fits the
-            // configured output height.  This avoids fetching 240p when
-            // the user wants 720p/1080p, while still capping bandwidth
-            // to what the Pi can actually decode and display.
-            std::string ytFmt = "bestvideo[height<=" + std::to_string(source.height)
-                + "][vcodec^=avc1]/worst[vcodec^=avc1]";
-            YtDlpResult yt = RunYtDlp(ytFmt, resolvedUri, true);
+            YtDlpResult yt = ResolveYtDlp(YtVideoFormat(source.height), resolvedUri, true);
             if (yt.url.empty()) {
                 // Do not fall back to the original page URL. uridecodebin will
                 // happily fetch it, get text/html back, and fail with "Your
@@ -1243,12 +1451,9 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
     // Resolve video-only URL and detect native framerate
     std::string videoUrl;
     {
-        // Select best H.264 stream fitting the configured height
-        std::string ytFmt = "bestvideo[height<=" + std::to_string(source.height)
-            + "][vcodec^=avc1]/worst[vcodec^=avc1]";
         LogInfo(VB_MEDIAOUT, "VideoInputManager: Resolving YouTube video URL for '%s'\n",
                 source.name.c_str());
-        YtDlpResult yt = RunYtDlp(ytFmt, source.uri, true);
+        YtDlpResult yt = ResolveYtDlp(YtVideoFormat(source.height), source.uri, true);
         if (yt.url.empty()) {
             LogWarn(VB_MEDIAOUT, "VideoInputManager: Failed to resolve video URL for '%s': %s\n",
                     source.name.c_str(),
@@ -1264,11 +1469,9 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
     // Resolve audio-only URL
     std::string audioUrl;
     {
-        // 234 = high quality HLS audio, 233 = low quality HLS audio
-        // 140 = AAC 128k from DASH (non-live fallback), 139 = HE-AAC 48k
         LogInfo(VB_MEDIAOUT, "VideoInputManager: Resolving YouTube audio URL for '%s'\n",
                 source.name.c_str());
-        YtDlpResult yt = RunYtDlp("234/233/140/139/bestaudio", source.uri, false);
+        YtDlpResult yt = ResolveYtDlp(YT_AUDIO_FORMAT, source.uri, false);
         if (yt.url.empty()) {
             LogWarn(VB_MEDIAOUT, "VideoInputManager: Failed to resolve audio URL for '%s' (%s), "
                     "falling back to video-only\n", source.name.c_str(),
