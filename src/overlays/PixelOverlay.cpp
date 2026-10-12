@@ -170,6 +170,7 @@ PixelOverlayManager::~PixelOverlayManager() {
 void PixelOverlayManager::Initialize() {
     loadModelMap();
     loadFonts();
+    RegisterCommands();
 }
 
 void PixelOverlayManager::addModel(Json::Value config) {
@@ -213,7 +214,6 @@ void PixelOverlayManager::addModel(Json::Value config) {
     }
 
     std::unique_lock<std::recursive_mutex> lock(modelsLock);
-    bool wasEmpty = models.empty();
     if (pmodel && models.count(pmodel->getName()) && models[pmodel->getName()].model) {
         // Replacing the live model in place used to leak it, and freeing it
         // here instead would pull it out from under the active list and the
@@ -232,9 +232,6 @@ void PixelOverlayManager::addModel(Json::Value config) {
         for (auto& l : models[pmodel->getName()].listeners) {
             l.second(pmodel);
         }
-    }
-    if (wasEmpty) {
-        RegisterCommands();
     }
 }
 
@@ -2173,10 +2170,11 @@ public:
     }
 };
 
+// Once, from Initialize(). This used to run when the first model was added,
+// which missed the commands entirely when a model listener had already put an
+// empty holder in the map, and registered them a second time (leaking the
+// first set) whenever the map emptied and refilled.
 void PixelOverlayManager::RegisterCommands() {
-    if (models.empty()) {
-        return;
-    }
     CommandManager::INSTANCE.addCategorizedCommand(new EnableOverlayCommand(this), "Pixel Overlay", 1);
     CommandManager::INSTANCE.addCategorizedCommand(new FillOverlayCommand(this), "Pixel Overlay", 1);
     CommandManager::INSTANCE.addCategorizedCommand(new TextOverlayCommand(this), "Pixel Overlay", 1);
