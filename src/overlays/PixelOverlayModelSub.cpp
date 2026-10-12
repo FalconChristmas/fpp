@@ -169,6 +169,30 @@ bool PixelOverlayModelSub::foundParent() {
         return false;
     }
 
+    // Refuse a parent chain that leads back here: a submodel naming itself
+    // (the Parent picker lists every model, this one included) or a loop of
+    // them. doOverlay() calls parent->setData() then parent->doOverlay(), and
+    // with this model somewhere up the chain that never returned - the channel
+    // output thread recursed until its stack overflowed. Grid submodels end
+    // the walk: they scatter to output channels and never call their parent.
+    constexpr int MAX_SUBMODEL_DEPTH = 16;
+    PixelOverlayModel* a = p;
+    for (int depth = 0; a; depth++) {
+        if (a == this || depth >= MAX_SUBMODEL_DEPTH) {
+            LogErr(VB_CHANNELOUT, "Submodel \"%s\" cannot use \"%s\" as its parent: the parent chain leads back to it\n",
+                   name.c_str(), config["Parent"].asString().c_str());
+            return false;
+        }
+        PixelOverlayModelSub* s = dynamic_cast<PixelOverlayModelSub*>(a);
+        if (!s || s->gridMode) {
+            break;
+        }
+        PixelOverlayModel* next = nullptr;
+        if (!PixelOverlayManager::INSTANCE.tryGetModel(s->config["Parent"].asString(), next)) {
+            return false;
+        }
+        a = next;
+    }
     parent = p;
 
     if (parent) {
