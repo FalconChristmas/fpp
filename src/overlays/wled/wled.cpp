@@ -512,8 +512,10 @@ WS2812FXExt::WS2812FXExt(PixelOverlayModel* m, int map, int b,
     _segments[0].check2 = check2;
     _segments[0].check3 = check3;
     if (text != "") {
-        _segments[0].name = new char[text.length() + 1];
-        strncpy(_segments[0].name, text.c_str(), text.length() + 1);
+        // Not setName(): that caps the name at WLED_MAX_SEGNAME_LEN, and the
+        // Scrolling Text effect takes its message from here. malloc, not
+        // new[], because ~Segment free()s it.
+        _segments[0].name = strdup(text.c_str());
     }
     _segments[0].refreshLightCapabilities();
 

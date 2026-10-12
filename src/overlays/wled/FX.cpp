@@ -6534,8 +6534,12 @@ uint16_t mode_2Dscrollingtext(void) {
     rotLH = letterHeight;
   }
 
-  char text[WLED_MAX_SEGNAME_LEN+1] = {'\0'};
-  if (SEGMENT.name) for (size_t i=0,j=0; i<strlen(SEGMENT.name); i++) if (SEGMENT.name[i]>31 && SEGMENT.name[i]<128) text[j++] = SEGMENT.name[i];
+  // FPP: the segment name is the effect's Text argument, which is not held to
+  // WLED_MAX_SEGNAME_LEN, so the buffer is sized from it rather than fixed.
+  const size_t nameLen = SEGMENT.name ? strlen(SEGMENT.name) : 0;
+  std::vector<char> textBuf(std::max(nameLen, (size_t)WLED_MAX_SEGNAME_LEN) + 1, '\0');
+  char *text = textBuf.data();
+  if (SEGMENT.name) for (size_t i=0,j=0; i<nameLen; i++) if (SEGMENT.name[i]>31 && SEGMENT.name[i]<128) text[j++] = SEGMENT.name[i];
   const bool zero = strchr(text, '0') != nullptr;
 
   char sec[5];
@@ -6552,7 +6556,7 @@ uint16_t mode_2Dscrollingtext(void) {
   if (!strlen(text)) { // fallback if empty segment name: display date and time
     sprintf_P(text, PSTR("%s %d, %d %d:%02d%s"), monthShortStr(month(localTime)), day(localTime), year(localTime), AmPmHour, minute(localTime), sec);
   } else {
-    if (text[0] == '#') for (auto &c : text) c = std::toupper(c);
+    if (text[0] == '#') for (auto &c : textBuf) c = std::toupper(c);
     if      (!strncmp_P(text,PSTR("#DATE"),5)) sprintf_P(text, zero?PSTR("%02d.%02d.%04d"):PSTR("%d.%d.%d"),   day(localTime),   month(localTime),  year(localTime));
     else if (!strncmp_P(text,PSTR("#DDMM"),5)) sprintf_P(text, zero?PSTR("%02d.%02d")     :PSTR("%d.%d"),      day(localTime),   month(localTime));
     else if (!strncmp_P(text,PSTR("#MMDD"),5)) sprintf_P(text, zero?PSTR("%02d/%02d")     :PSTR("%d/%d"),      month(localTime), day(localTime));
