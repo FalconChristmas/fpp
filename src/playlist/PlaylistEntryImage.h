@@ -84,6 +84,11 @@ private:
     volatile bool m_runLoop = false;
     volatile bool m_imagePrepped = false;
     volatile bool m_imageDrawn = false;
+    // Set by PrepImage() when there is no file to show (missing or empty
+    // imagePath).  The prep counts as done so the prep thread waits instead
+    // of retrying in a tight loop, and Draw() finishes the entry without
+    // drawing -- previously the entry never finished and stalled the playlist.
+    std::atomic<bool> m_noImage{ false };
 
     std::thread* m_prepThread = nullptr;
     std::mutex m_bufferLock;
