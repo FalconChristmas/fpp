@@ -132,14 +132,16 @@ static bool alsaCardIdPresent(const std::string& id) {
 static void CheckAudioOutputCardPresence() {
     static int missCount = 0;
     static bool warningActive = false;
+    // RemoveWarning() matches the exact text, and the text names the card, so
+    // keep what was added rather than retyping it at the removal sites.
+    static std::string warningText;
 
     std::string id = getSetting("AudioOutput");
     TrimWhiteSpace(id);
     if (id.empty() || id.find_first_not_of("0123456789") == std::string::npos) {
         // Nothing monitorable by ID; make sure any stale warning is cleared.
         if (warningActive) {
-            WarningHolder::RemoveWarning(AUDIO_CARD_MISSING_WARNING_ID,
-                                         "Audio output card is not present");
+            WarningHolder::RemoveWarning(AUDIO_CARD_MISSING_WARNING_ID, warningText);
             warningActive = false;
         }
         missCount = 0;
@@ -150,8 +152,7 @@ static void CheckAudioOutputCardPresence() {
         missCount = 0;
         if (warningActive) {
             LogInfo(VB_MEDIAOUT, "Audio output card '%s' is present again; clearing warning.\n", id.c_str());
-            WarningHolder::RemoveWarning(AUDIO_CARD_MISSING_WARNING_ID,
-                                         "Audio output card is not present");
+            WarningHolder::RemoveWarning(AUDIO_CARD_MISSING_WARNING_ID, warningText);
             warningActive = false;
         }
         return;
@@ -165,9 +166,9 @@ static void CheckAudioOutputCardPresence() {
     }
     if (!warningActive) {
         LogWarn(VB_MEDIAOUT, "Configured audio output card '%s' is no longer present.\n", id.c_str());
-        WarningHolder::AddWarning(AUDIO_CARD_MISSING_WARNING_ID,
-                                  "Audio output card '" + id + "' is not present - it may have been unplugged. "
-                                  "Audio will fall back to the default output device until it is reconnected.",
+        warningText = "Audio output card '" + id + "' is not present - it may have been unplugged. "
+                      "Audio will fall back to the default output device until it is reconnected.";
+        WarningHolder::AddWarning(AUDIO_CARD_MISSING_WARNING_ID, warningText,
                                   "pipewire-audio.php", "Audio Settings");
         warningActive = true;
     }
@@ -607,7 +608,7 @@ std::string GetVideoFilenameForMedia(const std::string& filename, std::string& e
     std::string hostname = getSetting("HostName");
     std::string hostVideoPath = "";
     if (hostname != "") {
-        hostVideoPath = videoPath.substr(0, videoPath.length() - 2) + "-" + hostname + ".";
+        hostVideoPath = videoPath.substr(0, videoPath.length() - 1) + "-" + hostname + ".";
         hbfile = filename.substr(0, found) + "-" + hostname + ".";
     }
 
