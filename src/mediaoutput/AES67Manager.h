@@ -912,6 +912,10 @@ struct AES67Pipeline {
     // Pipeline state
     bool running = false;
     std::string errorMessage;
+    // Posted an ERROR on its bus.  The pipeline stays in PLAYING with its
+    // streaming stopped and says so only once, so the watchdog keeps this
+    // until the rebuild replaces the pipeline.
+    bool busError = false;
 
     // Buffer-drop probe: while > 0, the probe drops buffers and subtracts
     // each one's duration.  Used by FlushSendPipelines() to discard stale
@@ -1346,6 +1350,11 @@ private:
     // and restart any pipeline that isn't in PLAYING state.
     // Returns true if a full pipeline rebuild is needed.
     bool PollPipelinesWatchdog();
+    // Rebuilds asked for by bus errors, for the backoff.  A rebuild restarts
+    // ptp4l for the whole domain, so an error that comes straight back must
+    // not do that every pass.  Watchdog thread only.
+    int m_errorRebuilds = 0;
+    std::chrono::steady_clock::time_point m_lastErrorRebuild{};
 
     // Deferred pipeline-rebuild thread — spawned by WatchdogLoop()'s
     // watchdog rebuild path to call ApplyConfig() from a thread other than

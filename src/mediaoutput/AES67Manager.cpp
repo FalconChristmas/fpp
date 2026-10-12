@@ -4221,8 +4221,9 @@ bool AES67Manager::PollPipelinesWatchdog() {
                             LogErr(VB_MEDIAOUT,
                                    "AES67 %s pipeline [%d] bus error: %s\n",
                                    direction, p.instanceId, err->message);
+                            p.errorMessage = std::string("GStreamer error: ") + err->message;
+                            p.busError = true;
                             g_error_free(err); g_free(dbg);
-                            p.errorMessage = "GStreamer error";
                             break;
                         }
                         case GST_MESSAGE_WARNING: {
@@ -4239,6 +4240,10 @@ bool AES67Manager::PollPipelinesWatchdog() {
                     gst_message_unref(msg);
                 }
             }
+
+            // Already known dead; the bus-error backoff below decides when it
+            // is rebuilt, and the stall checks would only bypass it.
+            if (p.busError) continue;
 
             // Check current pipeline state
             GstState curState = GST_STATE_NULL, pendingState = GST_STATE_VOID_PENDING;
@@ -4424,6 +4429,49 @@ bool AES67Manager::PollPipelinesWatchdog() {
 
     checkPipelines(m_sendPipelines, "send");
     checkPipelines(m_recvPipelines, "recv");
+
+    // An ERROR stops the pipeline's streaming for good, and a receive
+    // pipeline has nothing else that would ever notice.  The first one
+    // rebuilds at once; one that keeps coming back waits 30s, 60s, ... up to
+    // 8 minutes between rebuilds, and the count starts over after 10 quiet
+    // minutes.
+    {
+        const auto now = std::chrono::steady_clock::now();
+        std::vector<AES67Pipeline*> errored;
+        for (auto* pipelines : { &m_sendPipelines, &m_recvPipelines }) {
+            for (auto& kv : *pipelines) {
+                if (kv.second.pipeline && kv.second.busError) {
+                    errored.push_back(&kv.second);
+                }
+            }
+        }
+        if (m_errorRebuilds > 0 && now - m_lastErrorRebuild > std::chrono::minutes(10)) {
+            m_errorRebuilds = 0;
+        }
+        if (!errored.empty()) {
+            const auto wait = std::chrono::seconds(30) * (1 << std::min(std::max(m_errorRebuilds - 1, 0), 4));
+            if (needsRebuild || m_errorRebuilds == 0 || now - m_lastErrorRebuild >= wait) {
+                if (!needsRebuild) {
+                    m_errorRebuilds++;
+                    m_lastErrorRebuild = now;
+                }
+                needsRebuild = true;
+                for (AES67Pipeline* p : errored) {
+                    p->running = false;
+                }
+                LogWarn(VB_MEDIAOUT, "AES67 watchdog: %d pipeline(s) stopped on a bus error\n",
+                        (int)errored.size());
+            } else {
+                LogWarn(VB_MEDIAOUT,
+                        "AES67 watchdog: %d pipeline(s) stopped on a bus error, rebuilding in %llds "
+                        "(error rebuild %d)\n",
+                        (int)errored.size(),
+                        (long long)std::chrono::duration_cast<std::chrono::seconds>(
+                            wait - (now - m_lastErrorRebuild)).count(),
+                        m_errorRebuilds + 1);
+            }
+        }
+    }
 
     // If any pipeline needs rebuilding, re-apply config.
     // ApplyConfig() tears down all pipelines and recreates them with fresh
