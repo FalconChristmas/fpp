@@ -2169,6 +2169,12 @@ function GetPluginInfo()
 	global $settings;
 
 	$plugin = params('RepoName');
+	// Every RepoName is a path component under the plugins directory, and
+	// /api/index.php?uri= skips Apache's dot-segment cleanup, so "." and ".."
+	// arrive here as names.  See IsValidPluginName().
+	if (!IsValidPluginName($plugin)) {
+		return json(array('Status' => 'Error', 'Message' => 'Plugin is not installed'));
+	}
 	$infoFile = $settings['pluginDirectory'] . '/' . $plugin . '/pluginInfo.json';
 
 	if (file_exists($infoFile)) {
@@ -2285,7 +2291,7 @@ function PluginServeIcon()
 
 	// Path segment, not a path. Keeps a crafted RepoName out of the
 	// filesystem lookups below.
-	if (!is_string($plugin) || !preg_match('/^[A-Za-z0-9_.-]+$/', $plugin) || $plugin === '.' || $plugin === '..') {
+	if (!IsValidPluginName($plugin)) {
 		http_response_code(404);
 		return;
 	}
@@ -2404,6 +2410,9 @@ function UninstallPlugin()
 	$startedAt = date('c'); // for the history, as in InstallPluginFromInfo()
 
 	$plugin = params('RepoName');
+	if (!IsValidPluginName($plugin)) {
+		return json(array('Status' => 'Error', 'Message' => 'Plugin is not installed'));
+	}
 
 	if (file_exists($settings['pluginDirectory'] . '/' . $plugin)) {
 		$infoFile = $settings['pluginDirectory'] . '/' . $plugin . '/pluginInfo.json';
@@ -2643,7 +2652,7 @@ function CheckForPluginUpdates()
 	$result = array();
 
 	$plugin = params('RepoName');
-	if (!preg_match('/^[A-Za-z0-9_.-]+$/', $plugin) || !file_exists($settings['pluginDirectory'] . '/' . $plugin . '/pluginInfo.json')) {
+	if (!IsValidPluginName($plugin) || !file_exists($settings['pluginDirectory'] . '/' . $plugin . '/pluginInfo.json')) {
 		$result['Status'] = 'Error';
 		$result['reason'] = 'not installed';
 		$result['Message'] = 'Could not check ' . $plugin . ': not installed';
@@ -2992,6 +3001,9 @@ function UpgradePlugin()
 	$result = array();
 
 	$plugin = params('RepoName');
+	if (!IsValidPluginName($plugin)) {
+		return json(array('Status' => 'Error', 'Message' => 'Plugin is not installed'));
+	}
 	$stream = $_REQUEST['stream'];
 	$streaming = isset($stream) && $stream != "false";
 	$startedAt = date('c'); // for the history, as in InstallPluginFromInfo()
@@ -3676,7 +3688,7 @@ function GetPluginPrivacyStatus()
 {
 	global $settings;
 	$plugin = params('RepoName');
-	if (!preg_match('/^[A-Za-z0-9_.-]+$/', $plugin) || !is_dir($settings['pluginDirectory'] . '/' . $plugin)) {
+	if (!IsValidPluginName($plugin) || !is_dir($settings['pluginDirectory'] . '/' . $plugin)) {
 		return json(array('Status' => 'Error', 'Message' => 'Plugin is not installed'));
 	}
 	$target = (isset($_GET['target']) && $_GET['target'] === 'reinstall') ? 'reinstall' : 'upgrade';
@@ -4390,7 +4402,7 @@ function PluginReleaseNotesError($code, $message)
 function GetPluginReleaseNotes()
 {
 	$plugin = params('RepoName');
-	if (!preg_match('/^[A-Za-z0-9_.-]+$/', $plugin) || $plugin === '.' || $plugin === '..') {
+	if (!IsValidPluginName($plugin)) {
 		return PluginReleaseNotesError(404, 'Plugin is not installed');
 	}
 	$installedInfo = PluginInstalledInfo($plugin);
@@ -5427,6 +5439,13 @@ function PluginGetSetting()
 	$setting = params("SettingName");
 	$plugin = params("RepoName");
 
+	// An empty name reads the main settings file; the setting name is also
+	// spliced into a regex by ReadSettingFromFile().
+	if (!IsValidPluginName($plugin) || !IsValidSettingName($setting)) {
+		http_response_code(400);
+		return json(array("status" => "ERROR", "message" => "Invalid plugin or setting name."));
+	}
+
 	$value = ReadSettingFromFile($setting, $plugin);
 
 	$result = array("status" => "OK");
@@ -5463,7 +5482,7 @@ function PluginSetSetting()
 		return json(array("status" => "ERROR", "message" => "Invalid setting name."));
 	}
 	// The plugin name becomes the config filename; same pattern plugin install enforces.
-	if (!is_string($plugin) || !preg_match('/^[A-Za-z0-9_.-]+$/', $plugin) || strpos($plugin, '..') !== false) {
+	if (!IsValidPluginName($plugin)) {
 		http_response_code(400);
 		return json(array("status" => "ERROR", "message" => "Invalid plugin name."));
 	}
@@ -5495,6 +5514,9 @@ function PluginSetSetting()
 function GetPluginPageUrl()
 {
 	$plugin = params('RepoName');
+	if (!IsValidPluginName($plugin)) {
+		return json(array('url' => '', 'page' => '', 'found' => false));
+	}
 	return json(_PluginGetBestPageUrl($plugin));
 }
 
@@ -5523,6 +5545,10 @@ function GetPluginPageUrl()
 function _PluginGetBestPageUrl($plugin)
 {
 	global $pluginDirectory;
+	// The scan below include()s the plugin's menu files.
+	if (!IsValidPluginName($plugin)) {
+		return array('url' => '', 'page' => '', 'found' => false);
+	}
 	$dir = $pluginDirectory . '/' . $plugin;
 
 	// Gather candidate page names keyed by menu type (status, content, …).

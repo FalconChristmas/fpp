@@ -55,6 +55,12 @@ function MapExtention($filename)
  */
 function MapDirectoryKey($dirName)
 {
+    // Not a media directory: anything written there runs as a plugin (plugin.php
+    // includes it), and installed plugins keep their git config there.  Plugin
+    // files are managed by the plugin install/upgrade paths, not the file API.
+    if (strtolower($dirName) === 'plugins') {
+        return "";
+    }
     $dir = GetDirSetting($dirName);
     if ($dir == "") {
         $dir = MapExtention($dirName);
@@ -467,6 +473,13 @@ function GetPluginFileInfo()
     $pluginName = params("plugin");
     $ext = params("ext");
     $fileName = params(0);
+
+    // pluginInfo.json's infoCommand runs below; "." would make the plugins
+    // directory itself the plugin.
+    if (!IsValidPluginName($pluginName)) {
+        http_response_code(404);
+        return json(array("status" => "Invalid plugin"));
+    }
 
     $pluginDirectory = GetDirSetting("plugins") . "/" . $pluginName;
     if (is_dir($pluginDirectory)) {

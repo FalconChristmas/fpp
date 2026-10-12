@@ -348,6 +348,20 @@ function IsValidSettingName($name)
 }
 
 /**
+ * Whether a string can be a plugin's directory name.
+ *
+ * A plugin name becomes a path component under the plugins directory, so "."
+ * (the plugins directory itself, where a stray file would then load as a
+ * plugin) and ".." must never pass, nor any dot-prefixed name.  Only
+ * [A-Za-z0-9_.-], like the installer (scripts/install_plugin) accepts.
+ */
+function IsValidPluginName($name)
+{
+    return is_string($name) && preg_match('/^[A-Za-z0-9_][A-Za-z0-9_.-]*$/', $name) === 1 &&
+        strpos($name, '..') === false;
+}
+
+/**
  * Whether a value may be stored for a setting.
  *
  * Every setting is one `key = "value"` line, so a line break would smuggle in
