@@ -18,6 +18,7 @@
 #include "../log.h"
 
 #include "GPIO.h"
+#include "../common_mini.h"
 
 #include "Plugin.h"
 class GPIOPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
@@ -141,8 +142,17 @@ int GPIOOutput::SendData(unsigned char* channelData) {
     } catch (...) {
         warning = std::string("Exception in GPIO output");
     }
-    if (!warning.empty() && warning != lastWarning) {
-        WarningHolder::AddWarning(51, warning);
+    if (!warning.empty()) {
+        // A timed warning, refreshed while the error keeps happening: it
+        // comes down by itself once the pin works again.  lastWarning was
+        // never set before, so the banner was re-added every frame and never
+        // removed.  Refreshing at most every 10s keeps this off the frame path.
+        uint64_t now = GetTimeMS();
+        if (warning != lastWarning || now - lastWarningMS > 10000) {
+            WarningHolder::AddWarningTimeout(30, 51, warning);
+            lastWarning = warning;
+            lastWarningMS = now;
+        }
     }
 
     return m_channelCount;
