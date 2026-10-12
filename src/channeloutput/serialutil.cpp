@@ -99,8 +99,14 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output, bool
         snprintf(buf, sizeof(buf), "%s-rx", &device[5]); // "ttyS1-rx" or "ttyUSB0-rx"
     }
     if (configurePin && strncmp(device, "/dev/ttyUSB", 11) != 0) {
-        // don't attempt to configure USB uarts  as they wouldn't have a pin
-        PinCapabilities::getPinByUART(buf).configPin("uart", output, desc);
+        // don't attempt to configure USB uarts  as they wouldn't have a pin.
+        // Nor anything else with no UART pin: a USB adapter named by its
+        // stable /dev/serial/by-id path, or a ttyACM, finds no pin, and
+        // configuring the empty placeholder raises a warning banner.
+        const PinCapabilities& pin = PinCapabilities::getPinByUART(buf);
+        if (pin.ptr()) {
+            pin.configPin("uart", output, desc);
+        }
     }
 
     int fd = 0;
