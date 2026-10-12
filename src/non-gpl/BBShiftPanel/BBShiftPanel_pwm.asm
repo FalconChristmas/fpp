@@ -14,8 +14,9 @@
 
 #include "ResourceTable.asm"
 
+// BBShiftPanel.cpp runs this on PRU1, with the gclk firmware on PRU0
 #if !defined(RUNNING_ON_PRU0) && !defined(RUNNING_ON_PRU1)
-#define RUNNING_ON_PRU0
+#define RUNNING_ON_PRU1
 #endif
 
 #include "FalconUtils.asm"

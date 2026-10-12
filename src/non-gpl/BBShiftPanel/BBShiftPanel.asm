@@ -778,7 +778,7 @@ INITDONE:
 
 EXIT:
 #ifndef SINGLEPRU
-    LDI32 curBright, 0xFFFFFFF
+    LDI32 curBright, 0xFFFFFFFF
     XOUT  12, &curBright, 4
 #endif
 
