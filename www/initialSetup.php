@@ -1092,7 +1092,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             }
 
             function redirectToApp() {
-                var redirectURL = <?= json_encode($_GET['redirect'] ?? '') ?>;
+                <?php
+                // Only one of our own pages (menuHead.inc sends the page that
+                // bounced here): json_encode() keeps the value inside the string,
+                // but a javascript: or off-site URL would still be followed.
+                $setupRedirect = isset($_GET['redirect']) && is_string($_GET['redirect']) &&
+                    preg_match('#^[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*\.php$#', $_GET['redirect']) ? $_GET['redirect'] : '';
+                ?>
+                var redirectURL = <?= json_encode($setupRedirect) ?>;
                 location.href = (redirectURL == '') ? 'index.php' : redirectURL;
             }
 

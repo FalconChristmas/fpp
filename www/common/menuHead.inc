@@ -34,7 +34,10 @@ if (!$fppNeedsSetup) {
     }
 }
 if ($fppNeedsSetup && (basename($_SERVER['PHP_SELF']) != "initialSetup.php")) {
-    echo "<meta http-equiv='refresh' content='0;url=initialSetup.php?redirect=" . preg_replace('/^\//', '', $_SERVER['PHP_SELF']) . "' />\n";
+    // SCRIPT_NAME, not PHP_SELF: PHP_SELF includes any PATH_INFO the
+    // requester tacked on, which would land unescaped in this attribute.
+    echo "<meta http-equiv='refresh' content='0;url=initialSetup.php?redirect=" .
+        htmlspecialchars(rawurlencode(ltrim($_SERVER['SCRIPT_NAME'], '/')), ENT_QUOTES, 'UTF-8') . "' />\n";
     exit(0);
 }
 ?>

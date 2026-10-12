@@ -188,7 +188,9 @@ if (isset($_GET['os']) && preg_match('/^https?:/', $_GET['os'])) {
         $command = "sudo wget -c --quiet --show-progress --progress=dot:giga " . escapeshellarg($url) . " -O " . escapeshellarg("/home/fpp/media/upload/$baseFile") . " 2>&1";
         $retryCount = 0;
         while ($retryCount < 20 && $rc != 0) {
-            echo "Running command: $command\n";
+            // The command carries the caller's URL, and some viewers render this
+            // stream as HTML (the page itself, About's upgrade dialog): no tags.
+            echo "Running command: " . str_replace(array('<', '>'), array('&lt;', '&gt;'), $command) . "\n";
             // The URL (not the \r-heavy progress bar that passthru streams to the
             // browser) is what matters on disk: which mirror was used, and how many
             // attempts it took. A 20-deep retry loop silently burning through
