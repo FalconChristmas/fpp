@@ -761,7 +761,7 @@
 
     class LOREnhanced extends OtherBaseDevice {
 
-        constructor(name = "LOREnhanced", friendlyName = "LOR Enhanced", maxChannels = FPPD_MAX_CHANNELS, fixedStart = false, fixedChans = false, devices = SerialDevices, config = { speed: 500000, units: [] }) {
+        constructor(name = "LOREnhanced", friendlyName = "LOR Enhanced", maxChannels = FPPD_MAX_CHANNELS, fixedStart = false, fixedChans = false, devices = SerialDevices, config = { speed: 1000000, units: [] }) {
             super(name, friendlyName, maxChannels, fixedStart, fixedChans, devices, config);
         }
 
@@ -821,8 +821,8 @@
                     result += " selected";
                 }
 
-                // Make 500k the default
-                if ((speed == "") && (key == "500000")) {
+                // Make 1 Mbps the default
+                if ((speed == "") && (key == "1000000")) {
                     result += " selected";
                 }
 

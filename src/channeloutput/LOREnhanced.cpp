@@ -63,7 +63,7 @@ public:
 class LOREnhancedOutputData : public LORSerialOutput {
 public:
     LOREnhancedOutputData() {
-        speed = 500000;
+        speed = 1000000;
     }
 
     std::vector<LOREnhancedOutputUnit> units;
