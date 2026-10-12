@@ -295,25 +295,28 @@ std::unique_ptr<Command::Result> AdjustVolumeCommand::run(const std::vector<std:
 #ifdef HAS_GSTREAMER
 
 // Common data for tracking running command media
-// Recursive: Stop() runs under this lock and fires MEDIA_STOPPED, and a preset
-// for that event may run Play Media, which registers new media from the same
-// thread. A plain mutex deadlocked fppd on exactly that.
+// Recursive: Stop() runs under this lock. MEDIA_STOPPED now fires later from
+// the main loop with the lock released (RemoveRunningMedia), but it once fired
+// from inside Stop(), where a preset running Play Media re-took this lock on
+// the same thread and a plain mutex deadlocked fppd.
 std::recursive_mutex runningMediaLock;
 std::map<std::string, MediaOutputBase*> runningCommandMedia;
 
+// Called from Stopped(), which runs on a GStreamer streaming thread when the
+// media ends by itself, so everything happens on the main loop instead.  The
+// MEDIA_STOPPED preset in particular can stop playlists, start media or stop
+// this very output; run on the streaming thread, those wait on the thread
+// that is running them.
 static void RemoveRunningMedia(const std::string& filename, MediaOutputBase* self) {
     intptr_t i = (intptr_t)self;
     MediaOutputBase* dt = self;
     std::string fn = filename;
 
-    // Trigger MEDIA_STOPPED event
-    std::map<std::string, std::string> keywords;
-    keywords["MEDIA_NAME"] = fn;
-    if (CommandManager::INSTANCE.HasPreset("MEDIA_STOPPED")) {
-        CommandManager::INSTANCE.TriggerPreset("MEDIA_STOPPED", keywords);
-    }
-
     Timers::INSTANCE.addTimer(std::to_string(i), GetTimeMS() + 1, [dt, fn]() {
+        // Unregister first: the preset below can start the same file again,
+        // and it should get the name back rather than a "_" suffix.  This
+        // object stays alive until the delete at the end, so a preset that
+        // reaches it through its stream slot still finds a valid output.
         runningMediaLock.lock();
         auto it = runningCommandMedia.find(fn);
         if (it != runningCommandMedia.end() && it->second == dt) {
@@ -321,6 +324,12 @@ static void RemoveRunningMedia(const std::string& filename, MediaOutputBase* sel
             LogDebug(VB_COMMAND, "Removed cached PlayData for file: \"%s\"\n", fn.c_str());
         }
         runningMediaLock.unlock();
+
+        if (CommandManager::INSTANCE.HasPreset("MEDIA_STOPPED")) {
+            std::map<std::string, std::string> keywords;
+            keywords["MEDIA_NAME"] = fn;
+            CommandManager::INSTANCE.TriggerPreset("MEDIA_STOPPED", keywords);
+        }
         delete dt;
     });
 }
