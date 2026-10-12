@@ -591,6 +591,13 @@ std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::st
     // unstoppable via any command, and the two streams mix audibly. Stop
     // whatever already holds the slot first so only one stream ever owns it.
 #ifdef HAS_GSTREAMER
+    // Stop-then-start is one step per slot. Two Play Media on the same slot at
+    // once (two HTTP or MQTT requests) both found it empty, both started, and
+    // the slot went on tracking only the later stream while the two mixed.
+    // Recursive: a preset reached from Start() may play onto the same slot on
+    // this thread. Released before the MEDIA_STARTED preset below.
+    static std::recursive_mutex slotStartLocks[StreamSlotManager::MAX_SLOTS + 1];
+    std::unique_lock<std::recursive_mutex> slotStartLock(slotStartLocks[slot]);
     std::string stoppedMedia = StopCommandMediaInSlot(slot);
     if (!stoppedMedia.empty()) {
         LogInfo(VB_COMMAND, "Play Media: slot %d was playing %s, stopped it before starting %s\n", slot, stoppedMedia.c_str(), args[0].c_str());
@@ -645,6 +652,9 @@ std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::st
     if (syncToShow) {
         StreamSlotManager::Instance().SetSyncToMaster(slot, true);
     }
+#ifdef HAS_GSTREAMER
+    slotStartLock.unlock();
+#endif
 
     std::map<std::string, std::string> keywords;
     keywords["MEDIA_NAME"] = args[0];
