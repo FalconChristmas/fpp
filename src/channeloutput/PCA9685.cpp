@@ -47,6 +47,11 @@ FPPPlugins::Plugin* createPlugin() {
 /*
  *
  */
+// MODE1 when its real value can't be read: ALLCALL and auto-increment, as the
+// driver programs it.  EXTCLK is sticky in the chip, so writing it as 0 leaves
+// an external clock that was turned on alone.
+static constexpr int MODE1_SAFE = 0x21;
+
 PCA9685Output::PCA9685Output(unsigned int startChannel, unsigned int channelCount) :
     ChannelOutput(startChannel, channelCount),
     i2c(nullptr),
@@ -317,6 +322,11 @@ int PCA9685Output::Init(Json::Value config) {
 
     // Initialize
     int oldmode = i2c->readByteData(0x00);
+    if (oldmode < 0) {
+        // a failed read is -1, which as a register value would set every
+        // bit - EXTCLK included, which only a power cycle clears
+        oldmode = MODE1_SAFE;
+    }
     int m0 = (oldmode & 0x7f) | 0x10;
     // set sleep bit
     i2c->writeByteData(0x00, m0);
@@ -375,7 +385,8 @@ void PCA9685Output::loadPortConfig(const Json::Value& portConfigs) {
             asUsec = origConfig["asUsec"].asInt();
         }
     }
-    numPorts = portConfigs.size();
+    // the chip has 16 ports; m_ports and data[] are sized for exactly that
+    numPorts = std::min<int>(portConfigs.size(), 16);
 
     for (int x = 0; x < numPorts; x++) {
         m_ports[x].description = portConfigs[x]["description"].asString();
@@ -486,6 +497,16 @@ void PCA9685Output::loadPortConfig(const Json::Value& portConfigs) {
             m_ports[x].startChannel = sc;
             sc += m_ports[x].is16Bit ? 2 : 1;
         }
+        // PrepData reads and the output test writes the sequence buffer at
+        // this channel.  A per-port start only comes from a hand-edited config
+        // or the output test's config over the API; a negative one arrives
+        // here as a huge unsigned value.
+        if (m_ports[x].startChannel + (m_ports[x].is16Bit ? 1 : 0) >= FPPD_MAX_CHANNELS) {
+            LogErr(VB_CHANNELOUT, "PCA9685 port %d start channel %u is out of range, ignoring it and the ports after it\n",
+                   x + 1, m_ports[x].startChannel);
+            numPorts = x;
+            break;
+        }
     }
 }
 
@@ -587,7 +608,11 @@ std::unique_ptr<Command::Result> PCA9685Output::ServoPositionCommand::run(const 
     return std::make_unique<Command::Result>("Servo " + std::to_string(servo_index) + " set to " + std::to_string(position_percent) + "% (raw " + std::to_string(targetValue) + ")");
 }
 
-void PCA9685Output::StartingOutput() {    uint8_t b = i2c->readByteData(0x00);
+void PCA9685Output::StartingOutput() {
+    int b = i2c->readByteData(0x00);
+    if (b < 0) {
+        b = MODE1_SAFE;
+    }
     i2c->writeByteData(0x00, b & 0x6F);
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
 }
@@ -595,7 +620,10 @@ void PCA9685Output::StoppingOutput() {
     uint8_t allOff[4] = { 0x00, 0x00, 0x00, 0x10 };
     i2c->writeRawI2CBlockData(0xFA, allOff, 4);
     std::this_thread::sleep_for(std::chrono::milliseconds(3));
-    uint8_t b = i2c->readByteData(0x00);
+    int b = i2c->readByteData(0x00);
+    if (b < 0) {
+        b = MODE1_SAFE;
+    }
     i2c->writeByteData(0x00, b | 0x10);
 }
 
