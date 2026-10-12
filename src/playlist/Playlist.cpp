@@ -2310,9 +2310,36 @@ std::shared_ptr<Playlist> Playlist::CurrentIfNotThis(void) {
     return nullptr;
 }
 
+// Re-entrant Restart/Next/Prev Item: a command entry for one of them runs
+// inside its own StartPlaying() frame (Start()/Process() are on the stack).
+// Inline, RestartItem() restarted that same command entry, which ran
+// RestartItem() again, until the main thread's stack overflowed; Next and Prev
+// did the same whenever they landed back on the entry itself (the only entry
+// of a repeating playlist, Prev on the first). Defer like StopNow(): the
+// outermost guard replays it against whatever playlist is current then, so an
+// entry that restarts itself is a drain cascade, which
+// MAX_NOTIFICATION_CASCADE bounds, rather than recursion.
+static bool DeferIfReentrant(const char* what, void (Playlist::*fn)(void)) {
+    if (tl_transitionDepth <= 1) {
+        return false;
+    }
+    LogDebug(VB_PLAYLIST, "Playlist::%s() re-entrant (depth %d) — deferring until current transition completes\n",
+             what, tl_transitionDepth);
+    QueuePlaylistNotification([fn]() {
+        std::shared_ptr<Playlist> cur = Player::INSTANCE.PlaylistSnapshot();
+        if (cur) {
+            ((*cur).*fn)();
+        }
+    });
+    return true;
+}
+
 void Playlist::RestartItem(void) {
     LogDebug(VB_PLAYLIST, "RestartItem called for '%s'\n", m_name.c_str());
     PlaylistTransitionGuard guard;
+    if (DeferIfReentrant("RestartItem", &Playlist::RestartItem)) {
+        return;
+    }
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     if (std::shared_ptr<Playlist> cur = CurrentIfNotThis()) {
         lck.unlock();
@@ -2341,6 +2368,9 @@ void Playlist::RestartItem(void) {
 void Playlist::NextItem(void) {
     LogDebug(VB_PLAYLIST, "NextItem called for '%s'\n", m_name.c_str());
     PlaylistTransitionGuard guard;
+    if (DeferIfReentrant("NextItem", &Playlist::NextItem)) {
+        return;
+    }
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     if (std::shared_ptr<Playlist> cur = CurrentIfNotThis()) {
         lck.unlock();
@@ -2412,6 +2442,9 @@ void Playlist::NextItem(void) {
 void Playlist::PrevItem(void) {
     LogDebug(VB_PLAYLIST, "PrevItem called for '%s'\n", m_name.c_str());
     PlaylistTransitionGuard guard;
+    if (DeferIfReentrant("PrevItem", &Playlist::PrevItem)) {
+        return;
+    }
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     if (std::shared_ptr<Playlist> cur = CurrentIfNotThis()) {
         lck.unlock();
