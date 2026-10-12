@@ -525,6 +525,10 @@ std::string ScheduleEntry::ResolveDate(const std::string& date, int offsetDays, 
     return resolved;
 }
 
+static int WallSeconds(int h, int m, int s) {
+    return (h * SECONDS_PER_HOUR) + (m * SECONDS_PER_MINUTE) + s;
+}
+
 static void mapTimeString(const std::string& tm, int& h, int& m, int& s) {
     if (!ParseTimeString(tm, h, m, s)) {
         LogErr(VB_SCHEDULE, "Invalid time '%s' in schedule, using midnight\n", tm.c_str());
@@ -545,11 +549,20 @@ void ScheduleEntry::pushStartEndTimes(int dow, int& delta, int deltaThreshold) {
     if (endTimeStr.find(":") == std::string::npos) {
         GetTimeFromSun(endTime, endTimeStr, endTimeOffset, endHour, endMinute, endSecond);
     }
-    if (endTime < startTime) {
-        endTime += 24 * 60 * 60;
+    // Decide "runs past midnight" from the wall-clock times, not the epoch
+    // times: on a DST change day those differ by an hour, and a 02:30 start
+    // on the spring-forward day normalizes to 03:30, past a 03:00 end, which
+    // turned a half-hour entry into a 23.5 hour one.  And build the next-day
+    // end with mktime rather than adding 86400, which is an hour off across
+    // the change.
+    if (WallSeconds(endHour, endMinute, endSecond) < WallSeconds(startHour, startMinute, startSecond)) {
+        endTime = GetTimeOnDOW(dow + 1, endHour, endMinute, endSecond);
         if (endTimeStr.find(":") == std::string::npos) {
             GetTimeFromSun(endTime, endTimeStr, endTimeOffset, endHour, endMinute, endSecond);
         }
+    } else if (endTime < startTime) {
+        // Same-day window squeezed by the spring-forward gap.
+        endTime = startTime;
     }
 
     if (endTime < time(NULL))
@@ -713,20 +726,23 @@ void ScheduleEntry::GetOccurrencesOnDate(int year, int month, int mday,
     time_t startTime = GetTimeOnDate(year, month, mday, startHour, startMinute, startSecond);
     time_t endTime = GetTimeOnDate(year, month, mday, endHour, endMinute, endSecond);
 
+    int sh = startHour, sm = startMinute, ss = startSecond;
+    int eh = endHour, em = endMinute, es = endSecond;
     if (startTimeStr.find(":") == std::string::npos) {
-        int h = startHour, m = startMinute, s = startSecond;
-        GetTimeFromSun(startTime, startTimeStr, startTimeOffset, h, m, s);
+        GetTimeFromSun(startTime, startTimeStr, startTimeOffset, sh, sm, ss);
     }
     if (endTimeStr.find(":") == std::string::npos) {
-        int h = endHour, m = endMinute, s = endSecond;
-        GetTimeFromSun(endTime, endTimeStr, endTimeOffset, h, m, s);
+        GetTimeFromSun(endTime, endTimeStr, endTimeOffset, eh, em, es);
     }
-    if (endTime < startTime) {
-        endTime += SECONDS_PER_DAY;
+    // As in pushStartEndTimes(): wall-clock crossover test, next-day end via
+    // mktime.
+    if (WallSeconds(eh, em, es) < WallSeconds(sh, sm, ss)) {
+        endTime = GetTimeOnDate(year, month, mday + 1, eh, em, es);
         if (endTimeStr.find(":") == std::string::npos) {
-            int h = endHour, m = endMinute, s = endSecond;
-            GetTimeFromSun(endTime, endTimeStr, endTimeOffset, h, m, s);
+            GetTimeFromSun(endTime, endTimeStr, endTimeOffset, eh, em, es);
         }
+    } else if (endTime < startTime) {
+        endTime = startTime;
     }
 
     int sDate = 0;
@@ -811,16 +827,12 @@ void ScheduleEntry::GetTimeFromSun(time_t& when, const std::string info,
         // Coordinates are usable - clear the warning if it was previously raised.
         WarningHolder::RemoveWarning(48, LATLON_WARNING);
     }
-    double sunOffset = 0;
     time_t currTime = when;
-    time_t midnight = when;
     struct tm local;
     struct tm mtm;
 
     localtime_r(&currTime, &local);
     localtime_r(&currTime, &mtm);
-
-    int daySecond = (local.tm_hour * SECONDS_PER_HOUR) + (local.tm_min * SECONDS_PER_MINUTE) + local.tm_sec;
 
     LogExcess(VB_SCHEDULE, "Lat/Lon: %.6f, %.6f\n", lat, lon);
     LogExcess(VB_SCHEDULE, "Lookup Date is %02d/%02d/%04d\n",
@@ -832,38 +844,38 @@ void ScheduleEntry::GetTimeFromSun(time_t& when, const std::string info,
     else
         sr.calculate(lat, lon, when);
 
-    // Find midnight on the 'when' day
+    // Find midnight on the 'when' day.  tm_isdst = -1: on a DST change day
+    // midnight and 'when' are on different sides of the change.
     mtm.tm_hour = 0;
     mtm.tm_min = 0;
     mtm.tm_sec = 0;
-    midnight = mktime(&mtm);
+    mtm.tm_isdst = -1;
+    time_t midnight = mktime(&mtm);
 
-    if (info == "SunRise")
-        sunOffset = sr.riseTime - midnight;
-    else if (info == "SunSet")
-        sunOffset = sr.setTime - midnight;
-    else if (info == "Dawn")
-        sunOffset = sr.riseTime - midnight;
-    else if (info == "Dusk")
-        sunOffset = sr.setTime - midnight;
-    else
-        sunOffset = 0;
+    time_t event = midnight;
+    if ((info == "SunRise") || (info == "Dawn"))
+        event = sr.riseTime;
+    else if ((info == "SunSet") || (info == "Dusk"))
+        event = sr.setTime;
 
-    // convert sunOffset to minutes for later calculations
-    sunOffset /= 60.0;
+    // Work from the absolute event time and let localtime() give the wall
+    // clock.  This used to add "seconds since midnight" to the wall-clock
+    // midnight, which is an hour off on a DST change day: a 17:00 sunset on
+    // the fall-back day was scheduled at 18:00.
+    time_t target = event + (time_t)infoOffset * SECONDS_PER_MINUTE;
+    struct tm tt;
+    localtime_r(&target, &tt);
 
-    sunOffset += infoOffset;
-
-    if ((sunOffset < 0) || (sunOffset >= (24 * 60))) {
-        if (sunOffset < 0) {
-            LogWarn(VB_SCHEDULE, "%s offset calculated as %.2f minutes, using 8AM. "
+    if ((tt.tm_year != local.tm_year) || (tt.tm_yday != local.tm_yday)) {
+        if (target < midnight) {
+            LogWarn(VB_SCHEDULE, "%s with offset %d falls before the day starts, using 8AM. "
                                  "Check your time zone to make sure it is valid.\n",
-                    info.c_str(), sunOffset);
+                    info.c_str(), infoOffset);
             h = 8;
         } else {
-            LogWarn(VB_SCHEDULE, "%s offset calculated as %.2f minutes, using 8PM. "
+            LogWarn(VB_SCHEDULE, "%s with offset %d falls after the day ends, using 8PM. "
                                  "Check your time zone to make sure it is valid.\n",
-                    info.c_str(), sunOffset);
+                    info.c_str(), infoOffset);
             h = 20;
         }
         m = 0;
@@ -872,20 +884,22 @@ void ScheduleEntry::GetTimeFromSun(time_t& when, const std::string info,
         // FIXME, move the following to Excess once the issues are worked out with SunRise class
         LogWarn(VB_SCHEDULE, "w: %lld, m: %lld, rt: %lld, st: %lld\n",
                 (long long)when, (long long)midnight, (long long)sr.riseTime, (long long)sr.setTime);
-        LogWarn(VB_SCHEDULE, "info: %s, infoOffset: %d, sunOffset: %.4f, lat: %.6f, lon: %.6f, date: %02d/%02d/%04d\n",
-                info.c_str(), infoOffset, sunOffset, lat, lon,
+        LogWarn(VB_SCHEDULE, "info: %s, infoOffset: %d, lat: %.6f, lon: %.6f, date: %02d/%02d/%04d\n",
+                info.c_str(), infoOffset, lat, lon,
                 local.tm_mon + 1, local.tm_mday, local.tm_year + 1900);
 
-        when = when - daySecond + (h * SECONDS_PER_HOUR);
+        mtm.tm_hour = h;
+        mtm.tm_min = 0;
+        mtm.tm_sec = 0;
+        mtm.tm_isdst = -1;
+        when = mktime(&mtm);
         return;
     }
 
-    LogExcess(VB_SCHEDULE, "%s Time Offset: %.2f minutes\n", info.c_str(), sunOffset);
-    h = (int)sunOffset / 60;
-    m = (int)sunOffset % 60;
-    s = (int)(((int)(sunOffset * 100) % 100) * 0.01 * 60);
-
-    when = when - daySecond + (h * SECONDS_PER_HOUR) + (m * SECONDS_PER_MINUTE) + s;
+    h = tt.tm_hour;
+    m = tt.tm_min;
+    s = tt.tm_sec;
+    when = target;
 
     LogExcess(VB_SCHEDULE, "%s on %0d/%d/%d is at %02d:%02d:%02d\n", info.c_str(),
               local.tm_mon + 1, local.tm_mday, local.tm_year + 1900, h, m, s);
