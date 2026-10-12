@@ -238,7 +238,7 @@ void BridgeShutdownUDP(bool reloading);
 int Bridge_GetIndexFromUniverseNumber(int universe);
 void InputUniversesPrint();
 inline void SetBridgeData(uint8_t* data, int startChannel, int len, long long packetTime);
-inline void CommitBridgeData(long long packetTime);
+inline void CommitBridgeData();
 
 // Size the receive buffer on a bridge input socket. A show pushing several
 // hundred universes delivers a full frame as one back-to-back burst (hundreds
@@ -435,9 +435,14 @@ inline void SetBridgeData(uint8_t* data, int startChannel, int len, long long pa
         pendingBridgeRanges.emplace_back(startChannel, len);
     }
 }
-inline void CommitBridgeData(long long packetTime) {
+inline void CommitBridgeData() {
     if (!pendingBridgeRanges.empty()) {
-        sequence->CommitBridgeRanges(pendingBridgeRanges, packetTime + expireOffSet);
+        // Expiry is on the monotonic clock (as Sequence compares it).  It was
+        // the packets' wall-clock time, so a clock stepping back kept stale
+        // bridge pixels over the sequence for as long as the step; and the
+        // serial-input path, whose time already included the timeout, got it
+        // added twice.
+        sequence->CommitBridgeRanges(pendingBridgeRanges, GetMonotonicTimeMS() + expireOffSet);
         pendingBridgeRanges.clear();
     }
 }
@@ -502,7 +507,7 @@ bool Bridge_ReceiveE131Data(void) {
         }
         msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     }
-    CommitBridgeData(packetTime);
+    CommitBridgeData();
     return sync;
 }
 bool Bridge_ReceiveDDPData(void) {
@@ -516,7 +521,7 @@ bool Bridge_ReceiveDDPData(void) {
         }
         msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     }
-    CommitBridgeData(packetTime);
+    CommitBridgeData();
     return sync;
 }
 bool Bridge_ReceiveArtNetData(void) {
@@ -545,7 +550,7 @@ bool Bridge_ReceiveArtNetData(void) {
         }
         msgcnt = recvmmsg(artnetSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     }
-    CommitBridgeData(packetTime);
+    CommitBridgeData();
     return sync;
 }
 
@@ -1372,7 +1377,7 @@ static void BridgeReloadDMXInputs() {
                                     sz = read(i, buffer, sizeof(buffer));
                                 }
                                 if (commitTime) {
-                                    CommitBridgeData(commitTime);
+                                    CommitBridgeData();
                                 }
                                 return 0;
                             };

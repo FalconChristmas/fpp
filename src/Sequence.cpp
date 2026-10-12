@@ -892,7 +892,7 @@ void Sequence::ProcessSequenceData(int ms) {
         // never protected by this lock anyway (the writer memcpys into
         // m_bridgeData before taking it), so a concurrent packet can tear a
         // universe mid-merge exactly as it always could.
-        uint64_t nt = GetTimeMS();
+        uint64_t nt = GetMonotonicTimeMS(); // expiries are monotonic (CommitBridgeRanges)
         m_bridgeRangeScratch.clear();
         std::unique_lock<std::mutex> bridgesLock(m_bridgeRangesLock);
         auto rit = m_bridgeRanges.begin();

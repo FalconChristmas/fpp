@@ -93,6 +93,7 @@ public:
     int GetSeqStepTime() const { return m_seqStepTime; }
     void BlankSequenceData(bool clearBridge = false);
 
+    // expireMS is on the GetMonotonicTimeMS() clock.
     void SetBridgeData(uint8_t* data, int startChannel, int len, uint64_t expireMS);
 
     // Bridge data arrives in bursts (one recvmmsg drain can be hundreds of
