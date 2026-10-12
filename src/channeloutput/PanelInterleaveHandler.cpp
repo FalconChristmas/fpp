@@ -95,11 +95,11 @@ public:
     virtual void mapCol(int y, int& x) {
         int whichInt = x / m_interleave;
         if (m_flipRows) {
-            if (y & m_panelScan) {
-                y &= !m_panelScan;
-            } else {
-                y |= m_panelScan;
-            }
+            // swap each pair of scan blocks (rows 0..scan-1 with scan..2*scan-1
+            // and so on).  For a power of two scan this is y ^ scan; the
+            // division also covers scans like 6.
+            int block = y / m_panelScan;
+            y = (block ^ 1) * m_panelScan + y % m_panelScan;
         }
         int offInInt = x % m_interleave;
         int mult = (m_panelHeight / m_panelScan / 2) - 1 - y / m_panelScan;
@@ -928,7 +928,7 @@ static PanelInterleaveHandler* buildHandler(const std::string& type, int panelWi
     } else if (type == "32f") {
         return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 32, true);
     } else if (type == "40f") {
-        return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 32, true);
+        return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 40, true);
     } else if (type == "64f") {
         return new SimpleInterleaveHandler(panelWidth, panelHeight, panelScan, 64, true);
     } else if (type == "80f") {
