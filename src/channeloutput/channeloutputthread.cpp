@@ -55,6 +55,7 @@ volatile int alwaysTransmit = 0;
 
 // declared in channeloutputthread.h, which documents what it protects
 std::mutex outputThreadLock;
+std::recursive_mutex inlineOutputLock;
 std::mutex outputThreadStatusLock;
 // bumped under outputThreadStatusLock by every StartChannelOutputThread()
 static uint64_t outputStartRequests = 0;

@@ -1055,6 +1055,10 @@ void Sequence::SendBlankingData(void) {
     if (ChannelOutputThreadIsRunning() && ChannelOutputThreadIsEnabled()) {
         ForceChannelOutputNow();
     } else {
+        // Driving the outputs from this thread: hold off an output reload's
+        // teardown, which would otherwise free an output mid-send (it only
+        // excluded the output thread).
+        std::unique_lock<std::recursive_mutex> inlineLock(inlineOutputLock);
         ProcessSequenceData(0);
         SendSequenceData();
     }

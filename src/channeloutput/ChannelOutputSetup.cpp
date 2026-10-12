@@ -358,6 +358,9 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
         // not.
         std::list<FPPChannelOutputInstance*> toDelete;
         std::unique_lock<std::mutex> lock(outputThreadLock);
+        // And against a blank being sent inline from another thread (see
+        // inlineOutputLock); that send doesn't hold outputThreadLock.
+        std::unique_lock<std::recursive_mutex> inlineLock(inlineOutputLock);
         for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
             // remove everything in the list that was loaded from the cfgFile
             if (inst->sourceFile == cfgFile) {

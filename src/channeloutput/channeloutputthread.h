@@ -31,6 +31,14 @@
 // with it, which rules out making it recursive.
 extern std::mutex outputThreadLock;
 
+// Held by a thread that drives the outputs itself instead of the output thread
+// (Sequence::SendBlankingData() when the output thread isn't sending), and by
+// an output reload around its teardown, so a reload can't free an output that
+// such a send is in the middle of using.  Always taken after outputThreadLock
+// when both are held.  Recursive: the inline send can re-enter
+// SendBlankingData() through OverlayEffects().
+extern std::recursive_mutex inlineOutputLock;
+
 void DisableChannelOutput(void);
 void EnableChannelOutput(void);
 void InitChannelOutputSyncVars(void);
