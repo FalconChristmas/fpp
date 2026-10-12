@@ -629,15 +629,6 @@
             return self.indexOf(value) === index;
         }
 
-        function escapeHtml(unsafe) {
-            return unsafe
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-        }
-
         function LoadDNSConfig() {
             var url = "api/network/dns";
             $.get(url, function (data) {

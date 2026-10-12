@@ -1823,15 +1823,16 @@ function finalizeStatusJson($obj)
             // "disabled" (-1), and telling them those will be uploaded is wrong
             // in both cases.
             if (intval($settings['ShareCrashData']) <= 0) {
-                $crWarning = "There $verb $num <a href='filemanager.php#tab-crashes'>crash report$plural</a> available. Send or delete them in the File Manager.";
+                $crWarning = "There $verb $num crash report$plural available. Send or delete them in the File Manager.";
             } else {
                 // fppd uploads once, at the crash, and keeps the file either way
-                $crWarning = "There $verb $num <a href='filemanager.php#tab-crashes'>crash report$plural</a> available. " .
+                $crWarning = "There $verb $num crash report$plural available. " .
                     "This system sends crash reports automatically when they are written, so they may already have been sent; you may delete them in the File Manager.";
             }
             $obj["warnings"][] = $crWarning;
             $wi["message"] = $crWarning;
             $wi["id"] = 0;
+            $wi["data"] = array("fixUrl" => "filemanager.php#tab-crashes", "fixText" => "File Manager");
             $obj["warningInfo"][] = $wi;
         }
     }

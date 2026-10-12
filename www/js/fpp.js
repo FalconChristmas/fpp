@@ -6506,10 +6506,10 @@ function escapeHtml (s) {
 }
 
 // Fix buttons must navigate within this FPP instance (all current fixUrls are
-// page-relative, e.g. "channeloutputs.php#tab-e131"). Reject absolute URLs
-// with executable schemes and protocol-relative URLs so a compromised warning
-// payload cannot turn the button into a javascript:/data: link or a phishing
-// redirect. http(s) links are allowed and quoted as text.
+// page-relative, e.g. "channeloutputs.php#tab-e131"). Only relative URLs are
+// allowed: any scheme (javascript:, data:, https:, ...) is rejected so a
+// compromised warning payload cannot turn the button into a script link or a
+// phishing redirect, and protocol-relative and backslash variants are rejected.
 function isSafeFixUrl (u) {
 	if (typeof u !== 'string' || u === '') {
 		return false;
@@ -6520,7 +6520,13 @@ function isSafeFixUrl (u) {
 	// per the WHATWG URL spec (which trims them before scheme detection), so
 	// "\x01javascript:" cannot smuggle a scheme past the test below either.
 	var t = u.replace(/[\t\n\r]/g, '').replace(/^[\x00-\x20]+/, '');
-	return !/^(javascript|data|vbscript|file|blob):/i.test(t) && t.indexOf('//') !== 0;
+	// Browsers normalize backslashes to slashes for http(s) pages, so "/\evil.com",
+	// "\/evil.com" and "\\evil.com" all resolve like "//evil.com". Reject any
+	// leading backslash and any two-character "/\"-style prefix outright.
+	if (t.charAt(0) === '\\' || /^[\/\\][\/\\]/.test(t)) {
+		return false;
+	}
+	return !/^[a-zA-Z][a-zA-Z0-9+.\-]*:/.test(t);
 }
 
 function updateWarnings (jsonStatus) {
