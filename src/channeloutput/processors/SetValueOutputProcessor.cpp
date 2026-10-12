@@ -25,6 +25,9 @@ SetValueOutputProcessor::SetValueOutputProcessor(const Json::Value& config) {
     count = config["count"].asInt();
     value = config["value"].asInt();
     ProcessModelConfig(config, model, start, count);
+    if (count < 0) {
+        count = 0;
+    }
     LogInfo(VB_CHANNELOUT, "Set Channel Value:   %d-%d => %d, Model: %s\n",
             start + 1, start + count,
             value, model.c_str());

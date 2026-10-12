@@ -19,6 +19,8 @@
 #include "RemapOutputProcessor.h"
 #include "OutputProcessor.h"
 
+#include <climits>
+
 RemapOutputProcessor::RemapOutputProcessor(const Json::Value& config) {
     description = config["description"].asString();
     active = config["active"].asInt() ? true : false;
@@ -36,7 +38,12 @@ RemapOutputProcessor::RemapOutputProcessor(const Json::Value& config) {
 
     // channel numbers need to be 0 based
     --destChannel;
-    tempBuffer.resize(count > 0 ? count : 0);
+    if (count < 1 || loops < 1) {
+        // ProcessData still copies one channel per loop for a count below 2
+        count = 0;
+        loops = 0;
+    }
+    tempBuffer.resize(count);
 }
 
 RemapOutputProcessor::RemapOutputProcessor(int src, int dst, int c, int l, int r) {
@@ -46,16 +53,25 @@ RemapOutputProcessor::RemapOutputProcessor(int src, int dst, int c, int l, int r
     count = c;
     loops = l;
     reverse = r;
-    tempBuffer.resize(count > 0 ? count : 0);
+    if (count < 1 || loops < 1) {
+        count = 0;
+        loops = 0;
+    }
+    tempBuffer.resize(count);
 }
 
 RemapOutputProcessor::~RemapOutputProcessor() {
 }
 void RemapOutputProcessor::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
-    int min = std::min(sourceChannel, destChannel);
-    int max = std::max(sourceChannel, destChannel);
-    max += loops * count - 1;
-    addRange(min, max);
+    if (count < 1 || loops < 1) {
+        return;
+    }
+    // 64 bit: the UI allows counts and loops large enough that loops * count
+    // overflows an int and would report a small, valid looking range
+    int64_t min = std::min(sourceChannel, destChannel);
+    int64_t max = std::max(sourceChannel, destChannel);
+    max += (int64_t)loops * count - 1;
+    addRange((int)min, (int)std::min<int64_t>(max, INT_MAX));
 }
 
 void RemapOutputProcessor::ProcessData(unsigned char* channelData) const {
@@ -63,9 +79,10 @@ void RemapOutputProcessor::ProcessData(unsigned char* channelData) const {
     case 0: // No reverse
         for (int l = 0; l < loops; l++) {
             if (count > 1) {
-                memcpy(channelData + destChannel + (l * count),
-                       channelData + sourceChannel,
-                       count);
+                // the source and destination ranges may overlap
+                memmove(channelData + destChannel + (l * count),
+                        channelData + sourceChannel,
+                        count);
             } else {
                 channelData[destChannel + l] = channelData[sourceChannel];
             }

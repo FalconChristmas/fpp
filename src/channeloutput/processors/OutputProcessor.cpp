@@ -17,6 +17,7 @@
 #include "../../log.h"
 
 #include "OutputProcessor.h"
+#include "../../Warnings.h"
 
 #include "BrightnessOutputProcessor.h"
 #include "ClampValueOutputProcessor.h"
@@ -53,7 +54,31 @@ void OutputProcessors::addProcessor(OutputProcessor* p) {
     if (p == nullptr) {
         return;
     }
+    // ProcessData() writes straight into the sequence buffer, which is
+    // FPPD_MAX_CHANNELS long, over the channels the processor reports here.
+    // The UI only checks that numbers are positive, so a start or a count (or
+    // count * loops) can put that past the end - where it overwrites the
+    // off/white sentinel channels just past the buffer, or faults on every
+    // frame.  Refuse it rather than trust each processor to clamp.  An
+    // inverted range is how a processor with nothing to do reports.
+    int badMin = 0;
+    int badMax = -1;
+    p->GetRequiredChannelRanges([&badMin, &badMax](int m1, int m2) {
+        if (badMax < 0 && m2 >= m1 && (m1 < 0 || m2 >= (int)FPPD_MAX_CHANNELS)) {
+            badMin = m1;
+            badMax = m2;
+        }
+    });
     std::lock_guard<std::mutex> lock(processorsLock);
+    if (badMax >= 0) {
+        std::string warning = "Output processor needs channels " + std::to_string(badMin + 1) + "-" +
+                              std::to_string(badMax + 1) + ", outside 1-" + std::to_string(FPPD_MAX_CHANNELS) +
+                              ". Processor disabled.";
+        LogErr(VB_CHANNELOUT, "%s\n", warning.c_str());
+        WarningHolder::AddWarning(warning);
+        rejectedWarnings.push_back(warning);
+        return;
+    }
     processors.push_back(p);
 }
 void OutputProcessors::removeProcessor(OutputProcessor* p) {
@@ -78,6 +103,10 @@ void OutputProcessors::loadFromJSON(const Json::Value& config) {
         delete a;
     }
     fromJsonProcessors.clear();
+    for (auto& w : rejectedWarnings) {
+        WarningHolder::RemoveWarning(w);
+    }
+    rejectedWarnings.clear();
     lock.unlock();
 
     for (Json::Value::const_iterator itr = config.begin(); itr != config.end(); ++itr) {
@@ -146,6 +175,8 @@ OutputProcessor* OutputProcessors::find(std::function<bool(OutputProcessor*)> f)
 }
 
 void OutputProcessors::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
+    // a playlist Remap entry adds and removes processors from other threads
+    std::lock_guard<std::mutex> lock(processorsLock);
     for (OutputProcessor* a : processors) {
         a->GetRequiredChannelRanges(addRange);
     }

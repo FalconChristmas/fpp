@@ -75,6 +75,10 @@ protected:
     mutable std::mutex processorsLock;
     std::list<OutputProcessor*> processors;
     std::list<OutputProcessor*> fromJsonProcessors;
+
+    // warnings for processors addProcessor() refused; retracted on the next
+    // loadFromJSON(), which is when a corrected config arrives
+    std::list<std::string> rejectedWarnings;
 };
 
 void ProcessModelConfig(const Json::Value& config, std::string& model, int& start, int& count);
