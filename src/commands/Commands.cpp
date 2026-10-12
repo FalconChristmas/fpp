@@ -235,7 +235,9 @@ void CommandManager::Init() {
     FileMonitor::INSTANCE.AddFile("CommandManager:CommandPresets.json",
                                   FPP_DIR_CONFIG("/commandPresets.json"),
                                   [this]() {
-                                      std::unique_lock<std::mutex> lock(presetsMutex);
+                                      // No presetsMutex here: LoadPresets()
+                                      // takes it for the swap, and it is not
+                                      // recursive.
                                       MaybeReloadPresets();
                                   });
 
