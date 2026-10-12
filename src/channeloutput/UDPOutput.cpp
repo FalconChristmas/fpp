@@ -1063,6 +1063,13 @@ int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, 
                 // overflow across additional sockets, which would multiply the
                 // per-controller rate cap and defeat the pacing
                 std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            } else if (socketInfo->preventClose) {
+                // a shared socket pinned with ForceSocket (the ArtNet socket,
+                // bound to port 6454 with SO_BROADCAST): an extra socket made
+                // here would have neither, so broadcast ArtNet and ArtNet sync
+                // would fail on it for good, and it would never be closed.
+                // Wait for room on the one socket instead.
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
             } else if (socketKey != BROADCAST_MESSAGES_KEY) {
                 ++socketInfo->curSocket;
                 if (socketInfo->curSocket == socketInfo->sockets.size()) {
