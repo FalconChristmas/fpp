@@ -36,6 +36,10 @@ pid_t RunScript(std::string script, std::string scriptArgs) {
     return RunScript(script, scriptArgs, envVars);
 }
 
+// Refused a script path outside the scripts directory.  Timed: it is raised
+// per attempt, so it ages out once nothing asks for that path any more.
+static constexpr int WARNING_ID_SCRIPT_OUTSIDE_DIR = 70;
+
 pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pair<std::string, std::string>> envVars) {
     pid_t pid = 0;
     char userScript[1024];
@@ -43,11 +47,26 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
 
     LogDebug(VB_COMMAND, "Script %s:  Args: %s\n", script.c_str(), scriptArgs.c_str());
 
-    // Setup the script from our user - snprintf is truncation-safe
+    // Only scripts in the scripts directory run.  The name is appended to that
+    // directory, so a ".." component was the one way out of it -- and names
+    // arrive from dynamic playlist sources (a remote URL) and from commands,
+    // not just from the UI's script picker.  Everything up to the first space
+    // is the path; the rest are arguments.
+    std::string scriptPath = script.substr(0, script.find(' '));
+    for (auto& part : split(scriptPath, '/')) {
+        if (part == "..") {
+            LogErr(VB_COMMAND, "RunScript: refusing script outside the scripts directory: %s\n", script.c_str());
+            WarningHolder::AddWarningTimeout(60, WARNING_ID_SCRIPT_OUTSIDE_DIR, "Refused to run a script outside the scripts directory: " + scriptPath);
+            return -1;
+        }
+    }
+
+    // Setup the script from our user
     int n = snprintf(userScript, sizeof(userScript), "%s%s", FPP_DIR_SCRIPT("/").c_str(), script.c_str());
     if (n < 0 || n >= (int)sizeof(userScript)) {
-        LogWarn(VB_COMMAND, "RunScript: script path truncated: %s\n", script.c_str());
-        userScript[sizeof(userScript) - 1] = '\0';
+        // Truncated: running a prefix of the requested path is never right.
+        LogErr(VB_COMMAND, "RunScript: script path too long: %s\n", script.c_str());
+        return -1;
     }
 
     // Setup the wrapper
