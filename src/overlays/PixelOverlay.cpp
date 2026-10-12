@@ -2091,6 +2091,20 @@ void PixelOverlayManager::removeAutoOverlayModel(const std::string& name) {
     std::unique_lock<std::recursive_mutex> lock(modelsLock);
     PixelOverlayModel* pmodel = models[name].model;
     if (pmodel && pmodel->isAutoCreated()) {
+        // Every submodel of this model lets go of it before it is freed. A
+        // submodel caches its parent pointer the first time it resolves it,
+        // and the parent's destructor only reaches the children currently
+        // enabled within it, so a disabled one (or one refused for lying
+        // outside the parent) kept a dangling pointer across an output
+        // reload. Enabling it again called into the freed model and put it
+        // back on the active list. Done under modelsLock, before the model
+        // leaves the map, so nothing can resolve it again in between.
+        for (auto& m : models) {
+            PixelOverlayModelSub* sub = dynamic_cast<PixelOverlayModelSub*>(m.second.model);
+            if (sub && sub->getParentName() == name) {
+                sub->resetParent();
+            }
+        }
         modelNames.remove(name);
         models[name].model = nullptr;
         ++modelsGeneration;

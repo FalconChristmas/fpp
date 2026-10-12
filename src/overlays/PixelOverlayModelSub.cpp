@@ -168,6 +168,7 @@ bool PixelOverlayModelSub::foundParent() {
         // perfectly valid, we just can't look it up without risking deadlock.
         return false;
     }
+
     parent = p;
 
     if (parent) {
@@ -203,8 +204,14 @@ void PixelOverlayModelSub::setState(const PixelOverlayState& st) {
     }
 }
 void PixelOverlayModelSub::resetParent() {
-    parent = nullptr;
+    // Disable first: that takes this model out of the active list under
+    // activeModelsLock, which waits out a doOverlay() already reading
+    // `parent` on the channel output thread. Only then is it safe to clear.
     PixelOverlayModel::setState(PixelOverlayState(PixelOverlayState::Disabled));
+    parent = nullptr;
+}
+std::string PixelOverlayModelSub::getParentName() const {
+    return config["Parent"].asString();
 }
 
 uint32_t PixelOverlayModelSub::outputChannelForData(uint32_t dataOffset) const {
