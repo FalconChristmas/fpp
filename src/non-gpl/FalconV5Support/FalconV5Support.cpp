@@ -260,9 +260,11 @@ void FalconV5Support::stageListenerData() {
         stageBuf.resize(SMEM_RING_LISTENER_BYTES + 8);
         workBuf.resize(SMEM_RING_LISTENER_BYTES + 8);
     }
-    // the copy rounds up past len, and the PRU keeps counting even
-    // after it stops storing, so leave room for the overshoot
-    pru->pru->memcpyToPRU(&stageBuf[0], pru->data, (len + 8) & 0xFFFFFFFC);
+    // copy exactly len: the listener publishes whole 32 byte stores, so len
+    // is a multiple of the 8 bytes maskBit() reads at a time, and the clamp
+    // above keeps it inside the capture reservation.  Reading past it ran off
+    // the end of the AM335x's 12KB shared RAM.
+    pru->pru->memcpyToPRU(&stageBuf[0], pru->data, len);
     uint32_t busy1 = pru->pruData->busy;
     uint32_t captures2 = pru->pruData->captures;
     if (busy0 || busy1 || captures2 != captures) {
