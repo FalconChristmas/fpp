@@ -888,6 +888,16 @@ static void initCape() {
     initCapeFromFile(FPP_DIR_MEDIA("/tmp/cape-sensors.json"));
 }
 
+// Leave without running the global/static destructors, as main()'s normal
+// exit and the crash handler already do (see the end of main()). An early
+// failure that called exit() ran them with fppd half started: the warnings
+// notify thread read WarningHolder's map while __cxa_finalize freed it, and
+// ~PluginManager's cleanup read settings that were already destroyed.
+[[noreturn]] static void ExitWithoutTeardown(int code) {
+    fflush(nullptr);
+    _exit(code);
+}
+
 void usage(char* appname) {
     printf("Usage: %s [OPTION...]\n"
            "\n"
@@ -970,7 +980,7 @@ int parseArguments(int argc, char** argv) {
         switch (c) {
         case 'V':
             printVersionInfo();
-            exit(0);
+            ExitWithoutTeardown(0);
         case 2: // log-level
             if (SetLogLevelComplex(optarg)) {
                 std::cout << FPPLogger::INSTANCE.GetLogLevelString() << std::endl;
@@ -1012,11 +1022,11 @@ int parseArguments(int argc, char** argv) {
             break;
         case 'h': // help
             usage(argv[0]);
-            exit(EXIT_SUCCESS);
+            ExitWithoutTeardown(EXIT_SUCCESS);
             break;
         default:
             usage(argv[0]);
-            exit(EXIT_FAILURE);
+            ExitWithoutTeardown(EXIT_FAILURE);
         }
     }
 
@@ -1098,7 +1108,7 @@ int main(int argc, char* argv[]) {
     FPPLogger::INSTANCE.Init();
 
     if (!checkASan(argc, argv))
-        return 1;
+        ExitWithoutTeardown(1);
 
     LoadSettings(argv[0]);
 
@@ -1236,7 +1246,7 @@ int main(int argc, char* argv[]) {
     LogInfo(VB_GENERAL, "Creation of Scheduler, Playlist, and Sequence Complete\n");
 
     if (!MultiSync::INSTANCE.Init()) {
-        exit(EXIT_FAILURE);
+        ExitWithoutTeardown(EXIT_FAILURE);
     }
 
     Sensors::INSTANCE.DetectHWSensors();
