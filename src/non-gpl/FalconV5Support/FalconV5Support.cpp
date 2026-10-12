@@ -17,6 +17,8 @@
 #include <unistd.h>
 
 #include "FalconV5Support.h"
+
+#include <stdexcept>
 #include "OutputMonitor.h"
 #include "Warnings.h"
 #include "common.h"
@@ -40,6 +42,12 @@ public:
     FalconV5Listener(const Json::Value& config) {
         pin = config["pin"].asString();
         const PinCapabilities& p = PinCapabilities::getPinByName(pin);
+        // the cape config comes from the cape EEPROM; a pin this board does
+        // not have fails the output (Init() catches this) instead of being
+        // dereferenced as null below
+        if (p.ptr() == nullptr) {
+            throw std::runtime_error("FalconV5 listener pin '" + pin + "' does not exist on this board");
+        }
         p.configPin("pru0in", false, "FalconV5 Listener");
 
         const BBBPinCapabilities* pc = (const BBBPinCapabilities*)p.ptr();
@@ -144,6 +152,9 @@ void FalconV5Support::addListeners(const Json::Value& config) {
     }
     for (int x = 0; x < config["muxPins"].size(); x++) {
         std::string p = config["muxPins"][x].asString();
+        if (PinCapabilities::getPinByName(p).ptr() == nullptr) {
+            throw std::runtime_error("FalconV5 mux pin '" + p + "' does not exist on this board");
+        }
         muxPins.push_back(PinCapabilities::getPinByName(p).ptr());
         muxPins.back()->configPin("gpio", true, "FalconV5 Mux Pin");
         muxPins.back()->setValue(0);
@@ -340,6 +351,10 @@ FalconV5Support::ReceiverChain::ReceiverChain(PixelString* p1, PixelString* p2, 
     strings[2] = p3;
     strings[3] = p4;
     for (auto& s : strings) {
+        // a chain head in the last three strings has fewer than four
+        if (s == nullptr) {
+            continue;
+        }
         uint32_t srCount = 1;
         for (auto& vs : s->m_virtualStrings) {
             if (vs.isFalconV5SmartReceiver()) {
