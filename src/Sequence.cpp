@@ -1088,7 +1088,13 @@ void Sequence::CloseSequenceFile(void) {
         // readFileLock (and on the channel output thread when the sequence
         // ends via ReadSequenceData), so firing the preset here inverts
         // against the playlist thread's m_playlistMutex -> m_sequenceLock.
-        queuePreset("SEQUENCE_STOPPED", { { "SEQUENCE_NAME", m_seqFilename } });
+        if (!m_seqStarting) {
+            // Only for a sequence that started, to pair with SEQUENCE_STARTED
+            // (which fires only on an actual start).  Closing one that was
+            // opened and never started -- the next playlist entry prepared,
+            // then a stop -- used to fire a STOPPED with no STARTED.
+            queuePreset("SEQUENCE_STOPPED", { { "SEQUENCE_NAME", m_seqFilename } });
+        }
         ForgetTriggers();
     }
     readLock.unlock();
