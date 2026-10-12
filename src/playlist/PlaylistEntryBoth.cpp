@@ -114,7 +114,7 @@ int PlaylistEntryBoth::StartPlaying(void) {
     }
 
     if (multiSync->isMultiSyncEnabled() && m_mediaEntry && m_mediaEntry->m_openTime) {
-        long long st = GetTimeMS() - m_mediaEntry->m_openTime;
+        long long st = GetMonotonicTimeMS() - m_mediaEntry->m_openTime;
         if (st < PlaylistEntryMedia::m_openStartDelay) {
             std::this_thread::sleep_for(std::chrono::milliseconds(PlaylistEntryMedia::m_openStartDelay - st - 2));
         }
@@ -142,7 +142,7 @@ int PlaylistEntryBoth::StartPlaying(void) {
         FinishPlay();
         return 0;
     }
-    m_holdStartMS = GetTimeMS();
+    m_holdStartMS = GetMonotonicTimeMS();
 
     return PlaylistEntryBase::StartPlaying();
 }
@@ -158,7 +158,7 @@ int PlaylistEntryBoth::Process(void) {
         m_mediaEntry->Process();
 
     if (m_holdingForAudio && m_mediaEntry) {
-        long long held = GetTimeMS() - m_holdStartMS;
+        long long held = GetMonotonicTimeMS() - m_holdStartMS;
         if (m_mediaEntry->IsAudible() || held >= AUDIO_START_HOLD_MS) {
             m_holdingForAudio = false;
             if (held >= AUDIO_START_HOLD_MS) {
@@ -178,7 +178,7 @@ int PlaylistEntryBoth::Process(void) {
     }
 
     if (m_mediaEntry && m_mediaEntry->GetMediaOffsetMS() > 0) {
-        long long ct = GetTimeMS();
+        long long ct = GetMonotonicTimeMS();
         long long df = ct - m_mediaEntry->m_startTime;
         if (df > (m_mediaEntry->GetMediaOffsetMS() - m_sequenceEntry->GetSequenceFrameTime())) {
             if (!m_sequenceEntry->IsStarted()) {

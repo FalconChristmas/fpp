@@ -29,6 +29,10 @@
 long long GetTime();
 long long GetTimeMicros();
 long long GetTimeMS();
+// Milliseconds on a clock that never steps (CLOCK_MONOTONIC), for measuring
+// durations.  GetTimeMS() is the wall clock: an NTP or RTC correction moves it
+// by hours or years, and a timer built on it then fires early or never.
+long long GetMonotonicTimeMS();
 std::string GetTimeStr(std::string fmt);
 std::string GetDateStr(std::string fmt);
 

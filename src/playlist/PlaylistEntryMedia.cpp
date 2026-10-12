@@ -204,7 +204,7 @@ int PlaylistEntryMedia::PreparePlay() {
         multiSync->SendMediaOpenPacket(m_mediaFilename);
     }
 
-    m_openTime = GetTimeMS();
+    m_openTime = GetMonotonicTimeMS();
     Events::Publish("playlist/media/status", m_mediaFilename);
     Events::Publish("playlist/media/title", MediaDetails::INSTANCE.title);
     Events::Publish("playlist/media/artist", MediaDetails::INSTANCE.artist);
@@ -218,7 +218,7 @@ int PlaylistEntryMedia::StartPlaying(void) {
     LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::StartPlaying()\n");
 
     if (multiSync->isMultiSyncEnabled() && m_openTime) {
-        long long st = GetTimeMS() - m_openTime;
+        long long st = GetMonotonicTimeMS() - m_openTime;
         if (st < m_openStartDelay) {
             std::this_thread::sleep_for(std::chrono::milliseconds(m_openStartDelay - st));
         }
@@ -266,7 +266,7 @@ int PlaylistEntryMedia::StartPlaying(void) {
     }
 
     lock.unlock();
-    m_startTime = GetTimeMS();
+    m_startTime = GetMonotonicTimeMS();
     StartExtraMedia();
     return PlaylistEntryBase::StartPlaying();
 }
@@ -279,7 +279,7 @@ int PlaylistEntryMedia::Process(void) {
 
     if (m_mediaOutput) {
         if (m_mediaOutput->getMediaOffsetMS() > 0 && multiSync->isMultiSyncEnabled()) {
-            long long ct = GetTimeMS() - m_startTime;
+            long long ct = GetMonotonicTimeMS() - m_startTime;
             if (ct > (m_mediaOutput->getMediaOffsetMS() - 20)) {
                 multiSync->SendMediaSyncStartPacket(m_mediaFilename);
             }

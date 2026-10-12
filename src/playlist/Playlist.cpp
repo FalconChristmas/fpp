@@ -1339,7 +1339,7 @@ int Playlist::Process(void) {
 
     // Handle global pause between sequences
     if (m_isInGlobalPause) {
-        long long currentTime = GetTimeMS();
+        long long currentTime = GetMonotonicTimeMS();
         if ((currentTime - m_globalPauseStartTime) >= m_globalPauseBetweenSequencesMS) {
             LogDebug(VB_PLAYLIST, "Global pause between sequences completed, starting next item\n");
             m_isInGlobalPause = false;
@@ -2576,7 +2576,7 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
     result["global_pause"]["duration_ms"] = m_globalPauseBetweenSequencesMS;
     result["global_pause"]["active"] = m_isInGlobalPause;
     if (m_isInGlobalPause && m_globalPauseBetweenSequencesMS > 0) {
-        long long elapsed = GetTimeMS() - m_globalPauseStartTime;
+        long long elapsed = GetMonotonicTimeMS() - m_globalPauseStartTime;
         long long remaining = m_globalPauseBetweenSequencesMS - elapsed;
         if (remaining < 0) remaining = 0;
         result["global_pause"]["elapsed_ms"] = static_cast<Json::Int64>(elapsed);
@@ -2619,7 +2619,7 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
         // Check if we're currently in a global pause - if so, show pause progress instead of item progress
         if (m_isInGlobalPause && m_globalPauseBetweenSequencesMS > 0) {
             // Show global pause progress
-            long long elapsed = GetTimeMS() - m_globalPauseStartTime;
+            long long elapsed = GetMonotonicTimeMS() - m_globalPauseStartTime;
             long long remaining = m_globalPauseBetweenSequencesMS - elapsed;
             if (remaining < 0) remaining = 0;
             
@@ -2881,7 +2881,7 @@ void Playlist::StartPlayingWithGlobalPause(PlaylistEntryBase* entry) {
         LogDebug(VB_PLAYLIST, "Starting global pause between sequences for %d ms before next item\n", m_globalPauseBetweenSequencesMS);
         m_shouldStartGlobalPause = false;
         m_isInGlobalPause = true;
-        m_globalPauseStartTime = GetTimeMS();
+        m_globalPauseStartTime = GetMonotonicTimeMS();
         // Don't start the entry yet, it will be started when the pause completes
     } else {
         // No global pause needed, start immediately
