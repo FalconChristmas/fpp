@@ -1750,16 +1750,19 @@ void VideoOutputManager::StopConsumer(ConsumerInfo& consumer) {
         consumer.acquiredDrmCard.clear();
     }
 
-    // Restore overlay model state and remove listener
+    // Remove the listener, then restore the overlay model's state.  In that
+    // order: the listener runs under PixelOverlayManager's modelsLock and
+    // takes state->mtx, so removing it (which takes modelsLock) while holding
+    // state->mtx deadlocked against a model being re-added or auto-removed.
     if (consumer.overlayState) {
+        PixelOverlayManager::INSTANCE.removeModelListener(consumer.overlayModel,
+            "VideoOutputManager_" + consumer.pipeWireNodeName);
         std::lock_guard<std::mutex> lock(consumer.overlayState->mtx);
         if (consumer.overlayState->wasDisabled && consumer.overlayState->model) {
             consumer.overlayState->model->setState(PixelOverlayState(PixelOverlayState::Disabled));
             consumer.overlayState->wasDisabled = false;
         }
         consumer.overlayState->model = nullptr;
-        PixelOverlayManager::INSTANCE.removeModelListener(consumer.overlayModel,
-            "VideoOutputManager_" + consumer.pipeWireNodeName);
         consumer.overlayState.reset();
     }
 
