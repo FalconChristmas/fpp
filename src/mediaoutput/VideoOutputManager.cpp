@@ -26,6 +26,7 @@
 #include <algorithm> // any_of -- one output per connector (needed directly for NOPCH builds)
 #include <cmath> // lround -- crop fractions to pixels (needed directly for NOPCH builds)
 #include <fstream>
+#include <cctype>
 #include <cstring>
 #include <thread>
 #include <arpa/inet.h>
@@ -803,6 +804,24 @@ bool VideoOutputManager::LoadConfig() {
                 if (slot >= 1 && slot <= 5)
                     ci.streamSlots.push_back(slot);
             }
+        }
+
+        // Both go into a gst_parse_launch() description unquoted; a space or
+        // '!' would re-parse as extra pipeline elements.  Real node names and
+        // addresses never need anything outside these characters.
+        auto onlyChars = [](const std::string& v, const char* extra) {
+            for (unsigned char c : v) {
+                if (!std::isalnum(c) && !strchr(extra, c)) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        if (!onlyChars(ci.sourceNode, "_.-") ||
+            (ci.type == "rtp" && (ci.address.empty() || !onlyChars(ci.address, ".-:")))) {
+            LogErr(VB_MEDIAOUT, "VideoOutputManager: consumer '%s' has an invalid source or address, skipping it\n",
+                   ci.name.c_str());
+            continue;
         }
 
         m_consumers.push_back(std::move(ci));

@@ -256,6 +256,35 @@ static std::string FirstWiredInterface() {
     return first.empty() ? "eth0" : first;
 }
 
+
+// Values that go into a gst_parse_launch() description unquoted.  Anything
+// outside these characters is refused at load: a space or '!' in a
+// destination address re-parses as extra pipeline elements (a udpsrc feeding
+// a filesink is a root file write), and no real address or interface name
+// needs them.
+static bool IsPipelineSafeHost(const std::string& host) {
+    if (host.empty() || host.size() > 253) {
+        return false;
+    }
+    for (unsigned char c : host) {
+        if (!std::isalnum(c) && c != '.' && c != '-' && c != ':') {
+            return false;
+        }
+    }
+    return true;
+}
+static bool IsPipelineSafeInterface(const std::string& iface) {
+    if (iface.size() > 15) {  // IFNAMSIZ - 1
+        return false;
+    }
+    for (unsigned char c : iface) {
+        if (!std::isalnum(c) && c != '.' && c != '-' && c != '_' && c != '@') {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool AES67Manager::LoadConfig() {
     Json::Value root;
     if (!LoadJsonFromFile(m_configPath, root, JsonRoot::Object)) {
@@ -392,6 +421,14 @@ bool AES67Manager::LoadConfig() {
                         AES67::L24PayloadBytes(inst.ptime, inst.channels),
                         AES67::MAX_RTP_PACKET_BYTES, maxPtime);
                 inst.ptime = maxPtime;
+            }
+
+            if (!IsPipelineSafeHost(inst.multicastIP) || !IsPipelineSafeInterface(inst.interface)) {
+                LogErr(VB_MEDIAOUT, "AES67Manager: instance '%s' has an invalid address or interface, skipping it\n",
+                       inst.name.c_str());
+                WarningHolder::AddWarningTimeout(300, AES67::WARNING_ID_PIPELINE, "AES67: stream '" + inst.name +
+                                                              "' has an invalid address or interface and was not started");
+                continue;
             }
 
             cfg.instances.push_back(inst);

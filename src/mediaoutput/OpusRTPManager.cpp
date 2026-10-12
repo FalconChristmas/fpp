@@ -26,6 +26,7 @@
 #include <gst/gst.h>
 
 #include <arpa/inet.h>
+#include <cctype>
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -146,6 +147,35 @@ OpusRTPConfig OpusRTPManager::GetConfigSnapshot() {
     return m_config;
 }
 
+
+// Values that go into a gst_parse_launch() description unquoted.  Anything
+// outside these characters is refused at load: a space or '!' in a
+// destination address re-parses as extra pipeline elements (a udpsrc feeding
+// a filesink is a root file write), and no real address or interface name
+// needs them.
+static bool IsPipelineSafeHost(const std::string& host) {
+    if (host.empty() || host.size() > 253) {
+        return false;
+    }
+    for (unsigned char c : host) {
+        if (!std::isalnum(c) && c != '.' && c != '-' && c != ':') {
+            return false;
+        }
+    }
+    return true;
+}
+static bool IsPipelineSafeInterface(const std::string& iface) {
+    if (iface.size() > 15) {  // IFNAMSIZ - 1
+        return false;
+    }
+    for (unsigned char c : iface) {
+        if (!std::isalnum(c) && c != '.' && c != '-' && c != '_' && c != '@') {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool OpusRTPManager::LoadConfig() {
     Json::Value root;
     if (!LoadJsonFromFile(m_configPath, root, JsonRoot::Object)) {
@@ -181,6 +211,14 @@ bool OpusRTPManager::LoadConfig() {
 
             if (!OpusRTP::IsValidBitrate(inst.bitrate)) {
                 inst.bitrate = OpusRTP::DEFAULT_BITRATE;
+            }
+
+            if (!IsPipelineSafeHost(inst.destIP) || !IsPipelineSafeInterface(inst.interface)) {
+                LogErr(VB_MEDIAOUT, "OpusRTPManager: instance '%s' has an invalid address or interface, skipping it\n",
+                       inst.name.c_str());
+                WarningHolder::AddWarningTimeout(300, 44, "Opus RTP: stream '" + inst.name +
+                                                              "' has an invalid address or interface and was not started");
+                continue;
             }
 
             cfg.instances.push_back(inst);
