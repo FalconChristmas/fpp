@@ -36,7 +36,16 @@ public:
 
 private:
     std::string modelName;
+    // Followed through a model listener and guarded by m_modelLock, not a bare
+    // cached pointer: an auto-created model is deleted and re-created by the
+    // output that owns it whenever that output's config reloads.  The buffers
+    // are laid out for the dimensions seen in Init(), kept here.
     PixelOverlayModel* model = nullptr;
+    std::mutex m_modelLock;
+    std::string m_modelListenerName;
+    int m_modelWidth = 0;
+    int m_modelHeight = 0;
+    int m_modelBpp = 3;
 
     // PrepData runs on the output thread and RawSendData on this output's
     // worker, so the frame being filled and the frame being handed to the model
