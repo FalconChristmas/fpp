@@ -282,7 +282,8 @@ int CreateArtNetSocket(uint32_t sourceAddr, bool allowPortChange) {
         if (artnetSockT < 0) {
             LogWarn(VB_E131BRIDGE, "ArtNet socket failed: %s", FPPstrerror(errno));
             WarningHolder::AddWarning("Socket creation failed for ArtNet");
-            exit(1);
+            // As for a failed bind below: run without ArtNet, don't exit().
+            return -1;
         }
         int enable = 1;
         // need to be able to send broadcast for ArtPollReply
@@ -554,8 +555,49 @@ bool Bridge_ReceiveArtNetData(void) {
     return sync;
 }
 
+// A bridge input port that can't be opened (another program already has it)
+// leaves that input off with a warning; fppd used to exit(1) here, which on a
+// reload of the input config took a running show down from the main loop, and
+// systemd's restart then failed the same way. Each (re)initialization retracts
+// what the last one raised, so the banner clears once the port is free and the
+// input config is saved again or fppd restarts.
+static constexpr int WARNING_ID_BRIDGE_PORT = 72;
+static std::vector<std::string> bridgePortWarnings;
+
+static int OpenBridgeSocket(const char* what, int port) {
+    int sock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+    const char* step = "socket";
+    if (sock >= 0) {
+        memset((char*)&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        addr.sin_port = htons(port);
+        addrlen = sizeof(addr);
+        if (bind(sock, (struct sockaddr*)&addr, sizeof(addr)) == 0) {
+            SetBridgeReceiveBufferSize(sock);
+            return sock;
+        }
+        step = "bind";
+    }
+    int err = errno;
+    LogErr(VB_E131BRIDGE, "e131bridge %s %s failed on UDP port %d: %s\n", what, step, port, FPPstrerror(err));
+    if (sock >= 0) {
+        close(sock);
+    }
+    std::string msg = std::string(what) + " input is off: could not open UDP port " + std::to_string(port) +
+                      " (" + FPPstrerror(err) + ")";
+    WarningHolder::AddWarning(WARNING_ID_BRIDGE_PORT, msg);
+    bridgePortWarnings.push_back(msg);
+    return -1;
+}
+
 bool Bridge_Initialize_Internal(bool& hasArtNet) {
     LogExcess(VB_E131BRIDGE, "Bridge_Initialize()\n");
+
+    for (const auto& w : bridgePortWarnings) {
+        WarningHolder::RemoveWarning(WARNING_ID_BRIDGE_PORT, w);
+    }
+    bridgePortWarnings.clear();
 
     // prepare the msg receive buffers
     memset(msgs, 0, sizeof(msgs));
@@ -589,22 +631,7 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
     int i3 = socket(AF_INET, SOCK_DGRAM, 0);
 
     if (enabled || !disableFakeBridges) {
-        ddpSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
-        if (ddpSock < 0) {
-            LogErr(VB_E131BRIDGE, "e131bridge DDP socket failed: %s", FPPstrerror(errno));
-            exit(1);
-        }
-        memset((char*)&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        addr.sin_port = htons(DDP_PORT);
-        addrlen = sizeof(addr);
-        // Bind the socket to address/port
-        if (bind(ddpSock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            LogErr(VB_E131BRIDGE, "e131bridge DDP bind failed: %s", FPPstrerror(errno));
-            exit(1);
-        }
-        SetBridgeReceiveBufferSize(ddpSock);
+        ddpSock = OpenBridgeSocket("DDP", DDP_PORT);
     }
 
     hasArtNet = false;
@@ -623,27 +650,7 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
         int UniverseOctet[2];
         struct ip_mreq mreq;
         char strMulticastGroup[16];
-        /* set up socket */
-        bridgeSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
-        if (bridgeSock < 0) {
-            LogErr(VB_E131BRIDGE, "e131bridge socket failed: %s", FPPstrerror(errno));
-            exit(1);
-        }
-
-        // net.ipv4.igmp_max_memberships is raised at boot by FPPINIT_Network.
-
-        memset((char*)&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        addr.sin_port = htons(E131_DEST_PORT);
-        addrlen = sizeof(addr);
-        // Bind the socket to address/port
-        if (bind(bridgeSock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            LogErr(VB_E131BRIDGE, "e131bridge bind failed: %s", FPPstrerror(errno));
-            exit(1);
-        }
-
-        SetBridgeReceiveBufferSize(bridgeSock);
+        bridgeSock = OpenBridgeSocket("E1.31", E131_DEST_PORT);
 
         // get all the addresses
         struct ifaddrs *interfaces, *tmp;
@@ -651,8 +658,8 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
 
         char address[16];
         address[0] = 0;
-        // Join the multicast groups
-        for (int i = 0; i < InputUniverseCount; i++) {
+        // Join the multicast groups (none without a socket to join them on)
+        for (int i = 0; bridgeSock >= 0 && i < InputUniverseCount; i++) {
             if (InputUniverses[i].type == E131_TYPE_MULTICAST) {
                 UniverseOctet[0] = InputUniverses[i].universe / 256;
                 UniverseOctet[1] = InputUniverses[i].universe % 256;
