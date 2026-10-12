@@ -33,10 +33,22 @@
 #endif
 #include <sys/fcntl.h>
 
-static std::string FPP_BIN_DIR("");
-static std::string FPP_MEDIA_DIR("");
+// Built on first use and never destroyed. Both are reached from other static
+// objects: AES67Manager's constructor asks for the media directory during
+// static initialization, and ~PluginManager -> CommandManager::Cleanup() asks
+// again when fppd leaves through exit(). File-scope strings could be used
+// there before they were constructed, or after they were destroyed.
+static std::string& FPPBinDir() {
+    static std::string* dir = new std::string();
+    return *dir;
+}
+static std::string& FPPMediaDir() {
+    static std::string* dir = new std::string();
+    return *dir;
+}
 
 std::string getFPPDDir(const std::string& path) {
+    std::string& FPP_BIN_DIR = FPPBinDir();
     if (FPP_BIN_DIR == "") {
         char exePath[2048];
         exePath[0] = 0;
@@ -59,6 +71,7 @@ std::string getFPPDDir(const std::string& path) {
     return FPP_BIN_DIR + path;
 }
 std::string getFPPMediaDir(const std::string& path) {
+    std::string& FPP_MEDIA_DIR = FPPMediaDir();
     if (FPP_MEDIA_DIR == "") {
         std::string filename = getFPPDDir("/www/media_root.txt");
         std::string fc = "";
