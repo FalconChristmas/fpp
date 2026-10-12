@@ -6,11 +6,22 @@
  * Probes every file in the music, video and image directories with ffprobe and
  * prints what is in them: codec, sample rate, bit rate, channels, resolution,
  * aspect ratio and frame rate.  The point is to see what people actually play,
- * and in particular which audio is not at the audio engine's sample rate: FPP's
- * audio graph runs at one fixed rate (default.clock.rate, 48000 unless the
- * Audio/Video setting says otherwise) and everything at another rate -- 44.1 kHz
- * MP3s being the usual case -- is resampled on the CPU, which is what hurts on
- * the smaller boards.
+ * and in particular which audio gets resampled on the CPU, which is what hurts on
+ * the smaller boards.  FPP's audio graph runs at one fixed rate (the engine rate,
+ * default.clock.rate), but that is not always the rate the user chose: a card
+ * that cannot clock as low as the AudioFormat setting asks refines it upward (a
+ * PCM5102A clocks no lower than 88.2 kHz, so a 44.1 kHz request runs at 88.2 kHz).
+ * Each audio file therefore lands in one of three groups:
+ *   - at the engine rate: nothing to do;
+ *   - at the configured rate, with the hardware running a whole multiple of it:
+ *     "hardware upsample" -- the card does it, so it is not counted as a file to
+ *     convert;
+ *   - any other rate: resampled on the CPU.  Convert these to the configured
+ *     rate, not the engine rate.
+ * One case does not fit: a file already at the configured rate when the engine
+ * runs at something that is not a whole multiple of it (a card stuck at 48 kHz
+ * with 44.1 kHz configured).  The CPU resamples it, but converting it to the
+ * configured rate would change nothing, so it is reported on its own.
  *
  *   (no option)  The full report: summary tables, then one line per file.
  *                Stops after DEFAULT_BUDGET seconds so a very large library
@@ -19,6 +30,8 @@
  *                manual Diagnostic Reports get.  Files are sampled in random
  *                order, so what it covers is representative of the library.
  *   --budget=N   Stop probing after N seconds.
+ *   --pwconf=DIR Read the PipeWire configuration from DIR instead of
+ *                /etc/pipewire/pipewire.conf.d (for testing).
  *   --music=DIR --videos=DIR --images=DIR
  *                Scan these directories instead of the configured ones.
  *
@@ -39,6 +52,7 @@ define('UNREADABLE_LISTED', 25);
 $summaryOnly = false;
 $budget = null;
 $override = array();
+$pwConfDir = '/etc/pipewire/pipewire.conf.d';
 foreach (array_slice($argv, 1) as $arg) {
     if ($arg === '--summary') {
         $summaryOnly = true;
@@ -46,8 +60,10 @@ foreach (array_slice($argv, 1) as $arg) {
         $budget = (int) $m[1];
     } else if (preg_match('/^--(music|videos|images)=(.+)$/', $arg, $m)) {
         $override[$m[1]] = rtrim($m[2], '/');
+    } else if (preg_match('/^--pwconf=(.+)$/', $arg, $m)) {
+        $pwConfDir = rtrim($m[1], '/');
     } else {
-        fwrite(STDERR, "Usage: media_report.php [--summary] [--budget=SECONDS] [--music=DIR] [--videos=DIR] [--images=DIR]\n");
+        fwrite(STDERR, "Usage: media_report.php [--summary] [--budget=SECONDS] [--music=DIR] [--videos=DIR] [--images=DIR] [--pwconf=DIR]\n");
         exit(1);
     }
 }
@@ -86,26 +102,66 @@ $timeoutCmd = trim((string) shell_exec('command -v timeout 2>/dev/null'));
 $niceCmd = trim((string) shell_exec('command -v nice 2>/dev/null'));
 
 // ---------------------------------------------------------------------------
-// The rate the audio graph runs at.  Three places name one and the last file
-// loaded wins: 90-fpp.conf ships a default and 95-fpp-alsa-sink.conf is
-// generated from the audio setting and overrides it (see
-// scripts/pipewire_diagnostics.sh, "Sample rate consistency").
+// The rates involved.  Three places name one and the last file loaded wins:
+// 90-fpp.conf ships a default and 95-fpp-alsa-sink.conf is generated from the
+// audio setting and overrides it (see scripts/pipewire_diagnostics.sh, "Sample
+// rate consistency").
+//
+//   engine rate      default.clock.rate: what the graph really runs at.
+//   configured rate  the "# configured rate:" tag in 95-fpp-alsa-sink.conf: what
+//                    the AudioFormat setting asked for.  The generator keeps it
+//                    beside default.clock.rate because the two legitimately
+//                    differ -- a fixed-bit-clock card refines the request upward
+//                    (alsaSinkConfRateTag() in src/boot/FPPINIT_Audio.cpp).  With
+//                    no tag, the configured rate is taken to be the engine rate.
 // ---------------------------------------------------------------------------
-function engineRate(&$source)
+function audioRates($confd, &$source)
 {
-    $confd = '/etc/pipewire/pipewire.conf.d';
-    foreach (array('95-fpp-alsa-sink.conf', '90-fpp.conf') as $file) {
-        $text = @file_get_contents($confd . '/' . $file);
+    $sink = @file_get_contents($confd . '/95-fpp-alsa-sink.conf');
+    $configured = 0;
+    if ($sink !== false && preg_match('/^#\s*configured rate:\s*(\d+)/m', $sink, $m)) {
+        $configured = (int) $m[1];
+    }
+    foreach (array('95-fpp-alsa-sink.conf' => $sink, '90-fpp.conf' => @file_get_contents($confd . '/90-fpp.conf')) as $file => $text) {
         if ($text !== false && preg_match('/default\.clock\.rate\s*=\s*(\d+)/', $text, $m)) {
             $source = $file;
-            return (int) $m[1];
+            $engine = (int) $m[1];
+            return array($engine, $configured > 0 ? $configured : $engine);
         }
     }
     $source = 'assumed, no PipeWire configuration found';
-    return 48000;
+    return array(48000, $configured > 0 ? $configured : 48000);
 }
 $engineSource = '';
-$engineRate = engineRate($engineSource);
+list($engineRate, $configuredRate) = audioRates($pwConfDir, $engineSource);
+
+// Which of the three groups a sample rate falls in.
+//   'engine'    the rate the graph runs at
+//   'hardware'  the configured rate, with the hardware running a whole multiple
+//               of it (the card upsamples; no CPU resampling)
+//   'stuck'     the configured rate, but the hardware does not run a whole
+//               multiple of it, so the CPU resamples it and converting it to
+//               the configured rate would change nothing
+//   'resample'  anything else
+// '' for a file with no sample rate to judge.
+function rateGroup($rate)
+{
+    global $engineRate, $configuredRate;
+    $rate = (int) $rate;
+    if ($rate <= 0) {
+        return '';
+    }
+    if ($rate === $engineRate) {
+        return 'engine';
+    }
+    if ($rate === $configuredRate && $engineRate > $configuredRate && $engineRate % $configuredRate === 0) {
+        return 'hardware';
+    }
+    if ($rate === $configuredRate) {
+        return 'stuck';
+    }
+    return 'resample';
+}
 
 // ---------------------------------------------------------------------------
 // Formatting helpers.  Widths are in characters, not bytes, so a non-ASCII file
@@ -452,8 +508,16 @@ function countTable($title, $values, $mark = null, $order = null)
 }
 function rateNote($rate)
 {
-    global $engineRate;
-    return ((int) $rate > 0 && (int) $rate !== $engineRate) ? '<-- resampled to ' . hz($engineRate) : '';
+    global $engineRate, $configuredRate;
+    switch (rateGroup($rate)) {
+        case 'hardware':
+            return '<-- hardware upsample (x' . intdiv($engineRate, $configuredRate) . ' to ' . hz($engineRate) . ')';
+        case 'stuck':
+            return '<-- resampled to ' . hz($engineRate) . ' (not a multiple of ' . hz($configuredRate) . ')';
+        case 'resample':
+            return '<-- resampled; convert to ' . hz($configuredRate);
+    }
+    return '';
 }
 function bitrateBucket($bps)
 {
@@ -489,7 +553,24 @@ line('FPP Media Report');
 line(str_repeat('=', 16));
 line();
 line('Audio engine rate : ' . hz($engineRate) . '  (' . $engineSource . ')');
-line('                     Audio at any other rate is resampled on the CPU while it plays.');
+if ($configuredRate !== $engineRate) {
+    line('Configured rate   : ' . hz($configuredRate));
+    line();
+    line('[WARN] The audio engine runs at ' . hz($engineRate) . ', not the ' . hz($configuredRate) . ' configured.');
+    if ($engineRate > $configuredRate) {
+        line('       ' . hz($engineRate) . ' is the lowest rate this hardware supports (' . hz($configuredRate) . ' configured).');
+    } else {
+        line('       This hardware cannot run at ' . hz($configuredRate) . ', the rate configured.');
+    }
+    if ($engineRate > $configuredRate && $engineRate % $configuredRate === 0) {
+        line('       Audio at ' . hz($configuredRate) . ' is upsampled by the hardware; audio at any other rate is resampled on the CPU.');
+    } else {
+        line('       ' . hz($engineRate) . ' is not a whole multiple of ' . hz($configuredRate) . ', so audio at any rate other than ' . hz($engineRate) . ' is resampled on the CPU.');
+    }
+    line();
+} else {
+    line('                     Audio at any other rate is resampled on the CPU while it plays.');
+}
 foreach ($dirs as $kind => $dir) {
     $st = $dirStats[$kind];
     $where = $summaryOnly ? $kind : $dir;
@@ -517,28 +598,56 @@ if ($probed === 0 && !$unreadable) {
 }
 
 // -- Resampling: the question this report exists to answer --------------------
-$audioOff = array_filter($audio, function ($r) {
-    global $engineRate;
-    return $r['arate'] > 0 && $r['arate'] !== $engineRate;
-});
-$videoOff = array_filter($video, function ($r) {
-    global $engineRate;
-    return isset($r['arate']) && $r['arate'] > 0 && $r['arate'] !== $engineRate;
-});
+$split = function ($rows) {
+    $g = array('engine' => array(), 'hardware' => array(), 'stuck' => array(), 'resample' => array());
+    foreach ($rows as $r) {
+        $k = rateGroup($r['arate'] ?? 0);
+        if ($k !== '') {
+            $g[$k][] = $r;
+        }
+    }
+    return $g;
+};
+$audioGroups = $split($audio);
+$videoGroups = $split($video);
+$audioConvert = $audioGroups['resample'];
+$videoConvert = $videoGroups['resample'];
+$withSoundCount = count(array_filter($video, function ($r) {
+    return isset($r['arate']);
+}));
 $offSeconds = 0;
-foreach (array_merge($audioOff, $videoOff) as $r) {
+foreach (array_merge($audioConvert, $videoConvert, $audioGroups['stuck'], $videoGroups['stuck']) as $r) {
     $offSeconds += $r['duration'] ?? 0;
 }
-heading('Resampling at ' . hz($engineRate));
-line('Audio files not at ' . hz($engineRate) . ': ' . count($audioOff) . ' of ' . count($audio) . ' (' . pct(count($audioOff), count($audio)) . ')');
-line('Video soundtracks not at ' . hz($engineRate) . ': ' . count($videoOff) . ' of ' . count(array_filter($video, function ($r) {
-    return isset($r['arate']);
-})) . ' with sound');
+$differs = ($configuredRate !== $engineRate);
+heading($differs
+    ? 'Resampling (engine ' . hz($engineRate) . ', configured ' . hz($configuredRate) . ')'
+    : 'Resampling at ' . hz($engineRate));
+line('Audio files to convert to ' . hz($configuredRate) . ': ' . count($audioConvert) . ' of ' . count($audio) . ' (' . pct(count($audioConvert), count($audio)) . ')');
+line('Video soundtracks to convert to ' . hz($configuredRate) . ': ' . count($videoConvert) . ' of ' . $withSoundCount . ' with sound');
+if ($differs && $engineRate > $configuredRate && $engineRate % $configuredRate === 0) {
+    line('Hardware upsample, not counted above: ' . count($audioGroups['hardware']) . ' audio file' . (count($audioGroups['hardware']) == 1 ? '' : 's')
+        . ', ' . count($videoGroups['hardware']) . ' video soundtrack' . (count($videoGroups['hardware']) == 1 ? '' : 's')
+        . ' (at ' . hz($configuredRate) . ', upsampled by the hardware)');
+}
+if ($differs) {
+    line('At the engine rate (' . hz($engineRate) . '): ' . count($audioGroups['engine']) . ' audio file' . (count($audioGroups['engine']) == 1 ? '' : 's')
+        . ', ' . count($videoGroups['engine']) . ' video soundtrack' . (count($videoGroups['engine']) == 1 ? '' : 's'));
+}
+if ($audioGroups['stuck'] || $videoGroups['stuck']) {
+    line('Already at ' . hz($configuredRate) . ' but still resampled: ' . count($audioGroups['stuck']) . ' audio file' . (count($audioGroups['stuck']) == 1 ? '' : 's')
+        . ', ' . count($videoGroups['stuck']) . ' video soundtrack' . (count($videoGroups['stuck']) == 1 ? '' : 's')
+        . ' (the hardware runs at ' . hz($engineRate) . ', which is not a whole multiple, so converting them would not help)');
+}
 if ($offSeconds > 0) {
     line('Total playing time that is resampled: ' . humanDuration($offSeconds));
 }
-if (count($audioOff) + count($videoOff) === 0) {
-    line('Nothing needs resampling.');
+if (count($audioConvert) + count($videoConvert) === 0) {
+    line('Nothing needs converting.');
+} else if ($differs) {
+    line('Convert these to ' . hz($configuredRate) . ', the configured rate, not ' . hz($engineRate) . ', the engine rate.');
+} else {
+    line('Convert these to ' . hz($configuredRate) . ' ahead of time so they are not resampled on every play.');
 }
 
 // -- Audio ---------------------------------------------------------------------
@@ -643,7 +752,7 @@ if (!$summaryOnly) {
         foreach ($audio as $r) {
             $rows[] = array($r['rel'], strtoupper($r['ext']), $r['acodec'], $r['arate'] ? (string) $r['arate'] : '-',
                 $r['channels'] ?: '-', $r['bits'] ?: '-', kbps($r['abitrate']), humanDuration($r['duration']),
-                humanSize($r['size']), $r['arate'] > 0 && $r['arate'] !== $engineRate ? 'resampled' : '');
+                humanSize($r['size']), in_array(rateGroup($r['arate']), array('resample', 'stuck'), true) ? 'resampled' : (rateGroup($r['arate']) === 'hardware' ? 'hardware upsample' : ''));
         }
         $table($rows, array('File', 'Type', 'Codec', 'Rate', 'Ch', 'Bits', 'kbps', 'Time', 'Size', 'Note'));
     }
@@ -656,7 +765,7 @@ if (!$summaryOnly) {
                 $r['acodec'] ?? '-', isset($r['arate']) && $r['arate'] ? (string) $r['arate'] : '-',
                 isset($r['channels']) && $r['channels'] ? (string) $r['channels'] : '-', kbps($r['abitrate'] ?? 0),
                 humanDuration($r['duration']), humanSize($r['size']),
-                isset($r['arate']) && $r['arate'] > 0 && $r['arate'] !== $engineRate ? 'audio resampled' : '');
+                in_array(rateGroup($r['arate'] ?? 0), array('resample', 'stuck'), true) ? 'audio resampled' : (rateGroup($r['arate'] ?? 0) === 'hardware' ? 'audio hw upsample' : ''));
         }
         $table($rows, array('File', 'Type', 'Codec', 'WxH', 'Aspect', 'FPS', 'PixFmt', 'V kbps', 'Audio', 'A rate', 'A ch', 'A kbps', 'Time', 'Size', 'Note'));
     }
