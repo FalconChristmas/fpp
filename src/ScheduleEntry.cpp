@@ -208,7 +208,9 @@ void ScheduleEntry::CalculateChineseNewYear(int year, int& month, int& day) {
         }
     }
     
-    // Default fallback if year not in table
+    // Not in the table: say so rather than silently scheduling on a made-up
+    // date.  The table needs extending for later years.
+    ScheduleLoadWarning(47, "Schedule: no Chinese New Year date known for " + std::to_string(year) + "; FPP's table needs updating");
     month = 2;
     day = 1;
 }
@@ -251,7 +253,9 @@ void ScheduleEntry::CalculateHebrewDate(int year, const std::string& hebrewMonth
         }
     }
     
-    // Default fallback
+    // Not in the table (or not a date it covers): say so rather than silently
+    // scheduling on Jan 1.
+    ScheduleLoadWarning(47, "Schedule: no Hebrew calendar date known for " + std::to_string(year) + "; FPP's table needs updating");
     month = 1;
     day = 1;
 }
@@ -294,7 +298,9 @@ void ScheduleEntry::CalculateIslamicDate(int year, int islamicMonth, int islamic
         }
     }
     
-    // Default fallback
+    // Not in the table (or not a date it covers): say so rather than silently
+    // scheduling on Jan 1.
+    ScheduleLoadWarning(47, "Schedule: no Islamic calendar date known for " + std::to_string(year) + "; FPP's table needs updating");
     month = 1;
     day = 1;
 }
@@ -316,7 +322,8 @@ void ScheduleEntry::CalculateHinduDiwali(int year, int& month, int& day) {
         }
     }
     
-    // Default fallback
+    // Not in the table: say so rather than silently scheduling on Nov 1.
+    ScheduleLoadWarning(47, "Schedule: no Diwali date known for " + std::to_string(year) + "; FPP's table needs updating");
     month = 11;
     day = 1;
 }
