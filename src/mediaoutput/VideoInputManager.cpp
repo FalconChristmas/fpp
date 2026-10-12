@@ -481,11 +481,7 @@ void VideoInputManager::Init() {
 void VideoInputManager::Reload() {
     LogInfo(VB_MEDIAOUT, "VideoInputManager: Reloading configuration\n");
 
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        StopAllSources();
-        m_sources.clear();
-    }
+    StopAllSources();
 
     // Join the teardown threads spawned by the StopAllSources() above (plus
     // any still outstanding from an earlier cycle) before touching the
@@ -517,10 +513,9 @@ void VideoInputManager::Shutdown() {
     }
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        StopAllSources();
-        m_sources.clear();
         m_initialized = false;
     }
+    StopAllSources();
     // Make sure every teardown thread spawned above (and any left over from
     // a prior Reload) has actually finished before we consider Shutdown()
     // complete, so nothing outlives the process.
@@ -1539,7 +1534,15 @@ void VideoInputManager::StopSource(SourceInfo& source) {
 }
 
 void VideoInputManager::StopAllSources() {
-    for (auto& source : m_sources) {
+    // The swap moves the vector's buffer, so the run threads' pointers to
+    // each source's flags stay valid until the sources are destroyed below,
+    // after StopSource() has joined those threads.
+    std::vector<SourceInfo> sources;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        sources.swap(m_sources);
+    }
+    for (auto& source : sources) {
         StopSource(source);
     }
 }

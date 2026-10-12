@@ -205,7 +205,12 @@ private:
     /// Stop a single source pipeline.
     void StopSource(SourceInfo& source);
 
-    /// Stop all sources.
+    /// Take every source out of m_sources (under m_mutex), then stop them
+    /// with the lock released.  StopSource() joins each source's run thread,
+    /// and a run thread can be waiting on m_mutex: it calls
+    /// VideoOutputManager::NotifyProducerReady(), which reads the framerate
+    /// back through GetSourceFramerate().  Joining it under m_mutex
+    /// deadlocks both managers.
     void StopAllSources();
 
     /// Join (and discard) any pipeline-teardown threads queued up by
