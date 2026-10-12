@@ -622,6 +622,14 @@ int PixelString::ReadVirtualString(Json::Value& vsc, VirtualString& vs) const {
         if (vs.groupCount == 1)
             vs.groupCount = 0;
 
+        // The start is checked above, but not where the string ends:
+        // prepareOutput() reads up to the last node's channels, and the drivers
+        // drop channels at or past FPPD_MAX_CHANNELS from the range they
+        // report, so the loader's range check never saw the overrun.
+        int64_t vsNodes = vs.groupCount ? (vs.pixelCount + vs.groupCount - 1) / vs.groupCount : vs.pixelCount;
+        int64_t vsEnd = (int64_t)vs.startChannel + vsNodes * vs.channelsPerNode();
+        CHECKPS_SETTING(vsEnd > FPPD_MAX_CHANNELS);
+
         if ((vs.zigZag == vs.pixelCount) || (vs.zigZag == 1))
             vs.zigZag = 0;
 
