@@ -22,6 +22,7 @@
 #include <Magick++/TypeMetric.h>
 #include <magick/image.h>
 #include <algorithm>
+#include <climits> // INT_MAX bounds the Bars effect args
 #include <atomic>
 #include <cmath> // std::ceil/std::lround in the image scaling helpers
 #include <cstdint>
@@ -447,16 +448,21 @@ public:
             } else {
                 direction = DirectionEnum::LEFT;
             }
-            duration = std::stol(args[1]);
-            iterations = std::stol(args[2]);
-            int colorRep = std::stol(args[3]);
-            if (colorRep < 1) {
-                colorRep = 1;
-            }
-            int numColors = std::stol(args[4]);
+            // Every numeric arg is held to what update()/apply() can survive;
+            // the UI's ranges are not enforced for API, MQTT or preset callers.
+            // duration 0 made the position NaN and indexed `colors` with it,
+            // a huge iterations count made the subtract-one wrap loop spin
+            // forever (f -= 1 is a no-op past 2^24) with effectLock held, and
+            // numColors 0 left `colors` empty for apply() to index.
+            static const char* DEFAULT_COLORS[MAX_COLORS] = { "#FF0000", "#00FF00", "#0000FF", "#FFFFFF", "#000000" };
+            duration = std::clamp(argToLong(args, 1, 2000), 1L, (long)INT_MAX);
+            iterations = std::clamp(argToLong(args, 2, 1), 1L, (long)INT_MAX);
+            int colorRep = std::clamp(argToLong(args, 3, 1), 1L, (long)MAX_COLOR_REP);
+            int numColors = std::clamp(argToLong(args, 4, 3), 1L, (long)MAX_COLORS);
             while (colorRep) {
                 for (int x = 0; x < numColors; x++) {
-                    colors.push_back(PixelOverlayManager::mapColor(args[5 + x]));
+                    size_t i = 5 + x;
+                    colors.push_back(PixelOverlayManager::mapColor(i < args.size() ? args[i] : DEFAULT_COLORS[x]));
                 }
                 colorRep--;
             }
@@ -469,6 +475,17 @@ public:
             done = false;
             apply(0.0f);
         }
+        static constexpr int MAX_COLORS = 5;
+        static constexpr int MAX_COLOR_REP = 100;
+        static long argToLong(const std::vector<std::string>& args, size_t i, long dflt) {
+            if (i >= args.size()) {
+                return dflt;
+            }
+            char* end = nullptr;
+            long v = strtol(args[i].c_str(), &end, 10);
+            return end == args[i].c_str() ? dflt : v;
+        }
+
         const std::string& name() const override {
             static std::string NAME = "Bars";
             return NAME;
@@ -539,7 +556,7 @@ public:
                 }
                 f *= numBars;
                 int cIdx = (int)f;
-                if (cIdx >= numBars) {
+                if (cIdx < 0 || cIdx >= numBars) {
                     cIdx = 0;
                 }
                 uint32_t color = colors[cIdx];
@@ -560,9 +577,7 @@ public:
                 float f = nowTime;
                 f /= duration;
                 f *= iterations;
-                while (f > 1.0f) {
-                    f -= 1.0f;
-                }
+                f = std::fmod(f, 1.0f);
                 apply(f);
             } else if (!done && autoEnable) {
                 // end
