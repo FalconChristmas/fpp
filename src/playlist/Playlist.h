@@ -131,6 +131,18 @@ private:
     void SwitchToLeadOut(void);
 
     bool WillStopAfterCurrent();
+
+    // A command reaches a playlist through a snapshot of the current one taken
+    // before it gets this playlist's lock.  If the player switched playlists in
+    // between -- an inserted playlist started or finished -- the command is for
+    // whichever playlist is current now: a stop landing on the parent that was
+    // just paused, or a Next Item starting the parent's next entry alongside
+    // the inserted one.  Returns that playlist, or null if it is this one.
+    // The current playlist only changes while the outgoing playlist's lock is
+    // held, so called under m_playlistMutex the answer can't go stale.  Every
+    // public command method checks it first and forwards.
+    std::shared_ptr<Playlist> CurrentIfNotThis(void);
+    int StopGracefullyImpl(int forceStop, int afterCurrentLoop);
     Playlist* SwitchToInsertedPlaylist(bool isStopping = false);
 
     // The entry at the current section position, or nullptr if there is none.

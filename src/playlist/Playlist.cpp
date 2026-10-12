@@ -1040,11 +1040,16 @@ int Playlist::Start(void) {
  *
  */
 int Playlist::StopNow(int forceStop) {
+    PlaylistTransitionGuard guard;
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    if (std::shared_ptr<Playlist> cur = CurrentIfNotThis()) {
+        lck.unlock();
+        return cur->StopNow(forceStop);
+    }
     if (m_status == FPP_STATUS_IDLE) {
         return 1;
     }
 
-    PlaylistTransitionGuard guard;
     if (tl_transitionDepth > 1) {
         // Re-entrant stop — e.g. a "Stop Now" (or "Start Playlist At Item",
         // which pre-stops) command executing from inside a playlist entry's
@@ -1118,6 +1123,19 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop) {
     LogDebug(VB_PLAYLIST, "Playlist::StopGracefully(%d, %d)\n", forceStop, afterCurrentLoop);
 
     PlaylistTransitionGuard guard;
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    if (std::shared_ptr<Playlist> cur = CurrentIfNotThis()) {
+        lck.unlock();
+        return cur->StopGracefully(forceStop, afterCurrentLoop);
+    }
+    return StopGracefullyImpl(forceStop, afterCurrentLoop);
+}
+
+// The body of StopGracefully(), minus the is-this-current check: it walks up
+// the m_parent chain, and the parents of an inserted playlist are never the
+// current one.
+int Playlist::StopGracefullyImpl(int forceStop, int afterCurrentLoop) {
+    PlaylistTransitionGuard guard;
     if (m_status == FPP_STATUS_PLAYLIST_PAUSED && this == Player::INSTANCE.PlaylistSnapshot().get()) {
         Resume();
     }
@@ -1143,7 +1161,7 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop) {
     }
     m_forceStop = forceStop;
     if (m_parent) {
-        m_parent->StopGracefully(forceStop, afterCurrentLoop);
+        m_parent->StopGracefullyImpl(forceStop, afterCurrentLoop);
     }
 
     return 1;
@@ -1152,8 +1170,12 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop) {
 void Playlist::Pause() {
     LogDebug(VB_PLAYLIST, "Playlist::Pause called on %s\n", m_filename.c_str());
     PlaylistTransitionGuard guard;
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    if (std::shared_ptr<Playlist> cur = CurrentIfNotThis()) {
+        lck.unlock();
+        return cur->Pause();
+    }
     if (IsPlaying()) {
-        std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
         PlaylistEntryBase* entry = CurrentEntry();
         if (entry && entry->IsPlaying()) {
             entry->Pause();
@@ -1167,8 +1189,12 @@ void Playlist::Pause() {
 void Playlist::Resume() {
     LogDebug(VB_PLAYLIST, "Playlist::Resume called on %s\n", m_filename.c_str());
     PlaylistTransitionGuard guard;
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    if (std::shared_ptr<Playlist> cur = CurrentIfNotThis()) {
+        lck.unlock();
+        return cur->Resume();
+    }
     if (IsPlaying()) {
-        std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
         // Two ways to be paused: the playlist status, or -- for a parent that
         // was told to stop gracefully while paused under an "insert
         // immediate" child -- a STOPPING_* status over an entry that is still
@@ -1856,7 +1882,16 @@ int Playlist::Cleanup(void) {
 }
 
 void Playlist::InsertPlaylistAsNext(const std::string& filename, const int position, int endPosition) {
+    // Guard before the lock, like every transition: when idle the Play()
+    // below is then deferred and run after the lock is released, instead of
+    // draining its presets and plugin callbacks while holding it.
+    PlaylistTransitionGuard guard;
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    if (std::shared_ptr<Playlist> cur = CurrentIfNotThis()) {
+        lck.unlock();
+        cur->InsertPlaylistAsNext(filename, position, endPosition);
+        return;
+    }
     PluginManager::INSTANCE.playlistInserted(filename, position, endPosition, false);
     if (m_status == FPP_STATUS_IDLE) {
         Play(filename, position, 0, m_scheduleEntry, endPosition);
@@ -1867,7 +1902,16 @@ void Playlist::InsertPlaylistAsNext(const std::string& filename, const int posit
     }
 }
 void Playlist::InsertPlaylistImmediate(const std::string& filename, const int position, int endPosition) {
+    // Guard before the lock, like every transition: when idle the Play()
+    // below is then deferred and run after the lock is released, instead of
+    // draining its presets and plugin callbacks while holding it.
+    PlaylistTransitionGuard guard;
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    if (std::shared_ptr<Playlist> cur = CurrentIfNotThis()) {
+        lck.unlock();
+        cur->InsertPlaylistImmediate(filename, position, endPosition);
+        return;
+    }
     PluginManager::INSTANCE.playlistInserted(filename, position, endPosition, true);
     if (m_status == FPP_STATUS_IDLE) {
         Play(filename, position, 0, m_scheduleEntry, endPosition);
@@ -1903,6 +1947,13 @@ int Playlist::Play(const std::string& filename, const int position, const int re
         s_pendingStartScheduleEntry = scheduleEntry;
         s_pendingStartEndPosition = endPosition;
         return 1;
+    }
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    if (std::shared_ptr<Playlist> cur = CurrentIfNotThis()) {
+        // An idle, condemned level would otherwise load and start the new
+        // playlist itself, where nothing processes it.
+        lck.unlock();
+        return cur->Play(filename, position, repeat, scheduleEntry, endPosition);
     }
     return PlayImpl(filename, position, repeat, scheduleEntry, endPosition);
 }
@@ -2130,12 +2181,22 @@ void Playlist::RestartItem(void) {
     PlaylistTransitionGuard guard;
     if (m_status == FPP_STATUS_IDLE) {
         return;
+std::shared_ptr<Playlist> Playlist::CurrentIfNotThis(void) {
+    std::shared_ptr<Playlist> cur = Player::INSTANCE.PlaylistSnapshot();
+    if (cur && cur.get() != this)
+        return cur;
+    return nullptr;
+}
+
     }
     if (m_status != FPP_STATUS_PLAYLIST_PLAYING) {
         return;
-    }
-
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    if (std::shared_ptr<Playlist> cur = CurrentIfNotThis()) {
+        lck.unlock();
+        return cur->RestartItem();
+    }
+    }
     
     // Clear global pause state when manually navigating
     m_shouldStartGlobalPause = false;
@@ -2158,9 +2219,12 @@ void Playlist::NextItem(void) {
     }
     if (m_status != FPP_STATUS_PLAYLIST_PLAYING) {
         return;
-    }
-
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    if (std::shared_ptr<Playlist> cur = CurrentIfNotThis()) {
+        lck.unlock();
+        return cur->NextItem();
+    }
+    }
     
     // Clear global pause state when manually navigating
     m_shouldStartGlobalPause = false;
@@ -2226,14 +2290,17 @@ std::string Playlist::GetPlaylistName(void) {
 void Playlist::PrevItem(void) {
     LogDebug(VB_PLAYLIST, "PrevItem called for '%s'\n", m_name.c_str());
     PlaylistTransitionGuard guard;
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    if (std::shared_ptr<Playlist> cur = CurrentIfNotThis()) {
+        lck.unlock();
+        return cur->PrevItem();
+    }
     if (m_status == FPP_STATUS_IDLE) {
         return;
     }
     if (m_status != FPP_STATUS_PLAYLIST_PLAYING) {
         return;
     }
-
-    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     
     // Clear global pause state when manually navigating
     m_shouldStartGlobalPause = false;
