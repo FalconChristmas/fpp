@@ -143,6 +143,11 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output, bool
         return -1;
     }
 
+    // Raw mode first: cfmakeraw() resets the character size to 8 bits and
+    // clears parity, so applied after the mode below it turned "7E1" or "8E1"
+    // into 8N1.
+    cfmakeraw(&tty);
+
     tty.c_cflag &= ~CSIZE;
     switch (mode[0]) {
     case '5':
@@ -181,8 +186,6 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output, bool
         tty.c_cflag &= ~CSTOPB;
         break;
     }
-
-    cfmakeraw(&tty);
 
     tty.c_cc[VMIN] = 0;
     tty.c_cc[VTIME] = 0;
