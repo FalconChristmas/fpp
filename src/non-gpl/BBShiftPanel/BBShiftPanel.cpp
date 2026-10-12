@@ -33,6 +33,7 @@
 // FPP includes
 #include "../../Sequence.h"
 #include "../../Warnings.h"
+#include "channeloutput/ChannelOutputSetup.h"
 #include "../../common.h"
 #include "../../log.h"
 #include "../../settings.h"
@@ -941,7 +942,7 @@ BBShiftPanelManager::PanelParams BBShiftPanelManager::parsePanelParams(const Jso
         if (p.panelScan != p.panelHeight) {
             LogErr(VB_CHANNELOUT, "BBShiftPanel: full height data layout needs scan (%d) to equal panel height (%d); using the standard layout\n",
                    p.panelScan, p.panelHeight);
-            WarningHolder::AddWarning("LED panel data layout requires the scan rate to equal the panel height");
+            AddOutputConfigWarning(UNKNOWN_WARNING_ID, "LED panel data layout requires the scan rate to equal the panel height");
             p.dataLayout = 0;
         } else if (p.panelWidth & 1) {
             LogErr(VB_CHANNELOUT, "BBShiftPanel: full height data layout needs an even panel width (%d); using the standard layout\n",
@@ -1044,7 +1045,7 @@ bool BBShiftPanelManager::adoptPanelParams(const PanelParams& p) {
     if (m_sharedPRUSS) {
         if (isPWMPanel()) {
             LogErr(VB_CHANNELOUT, "PWM panel types require both PRUs and cannot be used on a shared panels+strings cape\n");
-            WarningHolder::AddWarning("PWM panel types cannot be used on a shared panels+strings cape");
+            AddOutputConfigWarning(UNKNOWN_WARNING_ID, "PWM panel types cannot be used on a shared panels+strings cape");
             return false;
         }
         singlePRU = true;
@@ -1084,7 +1085,7 @@ bool BBShiftPanelManager::checkCompatible(const PanelParams& p) const {
         std::string w = std::string("All LED panel matrices on one cape must use the same ") + bad +
                         "; this matrix was not started.";
         LogErr(VB_CHANNELOUT, "BBShiftPanel: %s\n", w.c_str());
-        WarningHolder::AddWarning(w);
+        AddOutputConfigWarning(UNKNOWN_WARNING_ID, w);
         return false;
     }
     return true;
@@ -1113,7 +1114,7 @@ bool BBShiftPanelManager::addMember(BBShiftPanelOutput* m, const Json::Value& co
                 std::string w = "Two LED panel matrices are both configured to use cape output " +
                                 std::to_string(o + 1) + "; the second matrix was not started.";
                 LogErr(VB_CHANNELOUT, "BBShiftPanel: %s\n", w.c_str());
-                WarningHolder::AddWarning(w);
+                AddOutputConfigWarning(UNKNOWN_WARNING_ID, w);
                 return false;
             }
         }
@@ -1310,7 +1311,7 @@ int BBShiftPanelManager::StartPRU() {
     }
     if (!started) {
         LogErr(VB_CHANNELOUT, "BBShiftPanel: Unable to start PRU(s). May require a reboot.\n");
-        WarningHolder::AddWarning("BBShiftPanel: Unable to start PRU(s). May require a reboot.");
+        AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBShiftPanel: Unable to start PRU(s). May require a reboot.");
         return 0;
     }
     // The same data RAM word configures either firmware: the shift firmware
@@ -2534,6 +2535,12 @@ void BBShiftPanelManager::buildStrideSchedule() {
     float refresh = 250000000.0f / (float)frameCycles;
     LogInfo(VB_CHANNELOUT, "BBShiftPanel: %d strides/row (%d bit color, MSB split %d ways), est refresh %d Hz, duty %d%%\n",
             n, m_colorDepth, pieces[m_colorDepth - 1], (int)refresh, (int)(onCycles * 100 / rowCycles));
+    // a rebuild with other geometry replaces the estimate, so the banner for
+    // the previous one has to come down first or it stays up for good
+    if (!m_refreshWarning.empty()) {
+        WarningHolder::RemoveWarning(m_refreshWarning);
+        m_refreshWarning.clear();
+    }
     if (refresh < 60.0f) {
         m_refreshWarning = "LED panel refresh rate is only " + std::to_string((int)refresh) + "Hz and may flicker; reduce the color depth or panels per output";
         WarningHolder::AddWarning(m_refreshWarning);

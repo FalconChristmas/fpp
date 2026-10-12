@@ -116,6 +116,18 @@ bool HasUniverseOutputs() {
 }
 
 static std::map<std::string, std::set<std::string>> outputLoadWarnings;
+// Warnings the outputs themselves raise while a config file's outputs are
+// being initialised (AddOutputConfigWarning), retracted with that file's other
+// load warnings when it is next loaded.  Main loop only, like the loader.
+static std::map<std::string, std::set<std::pair<int, std::string>>> outputConfigWarnings;
+static std::string outputConfigWarningFile;
+
+void AddOutputConfigWarning(int id, const std::string& warning) {
+    WarningHolder::AddWarning(id, warning);
+    if (!outputConfigWarningFile.empty()) {
+        outputConfigWarnings[outputConfigWarningFile].insert({ id, warning });
+    }
+}
 
 using OutputRangeVec = std::vector<std::pair<uint32_t, uint32_t>>;
 // Snapshots published by ComputeOutputRanges() and handed out by
@@ -387,6 +399,10 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
         WarningHolder::RemoveWarning(26, warning);
     }
     outputLoadWarnings.erase(cfgFile);
+    for (auto& [id, warning] : outputConfigWarnings[cfgFile]) {
+        WarningHolder::RemoveWarning(id, warning);
+    }
+    outputConfigWarnings.erase(cfgFile);
     if (FileExists(cfgFile)) {
         // indexing a non-array by position throws, out of this callback
         const Json::Value outputs = root["channelOutputs"].isArray() ? root["channelOutputs"] : Json::Value(Json::arrayValue);
@@ -466,6 +482,10 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
                 }
                 if (channelOutput->output) {
                     LogInfo(VB_CHANNELOUT, "Calling Init() on %s output\n", type.c_str());
+                    struct ConfigWarningScope {
+                        ConfigWarningScope(const std::string& f) { outputConfigWarningFile = f; }
+                        ~ConfigWarningScope() { outputConfigWarningFile.clear(); }
+                    } warningScope(cfgFile);
                     bool initOK = channelOutput->output->Init(outputs[c]);
                     if (initOK) {
                         // Every output reads (PrepData) or sends from exactly the
