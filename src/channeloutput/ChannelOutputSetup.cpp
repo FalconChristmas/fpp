@@ -388,24 +388,42 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
     }
     outputLoadWarnings.erase(cfgFile);
     if (FileExists(cfgFile)) {
-        const Json::Value outputs = root["channelOutputs"];
+        // indexing a non-array by position throws, out of this callback
+        const Json::Value outputs = root["channelOutputs"].isArray() ? root["channelOutputs"] : Json::Value(Json::arrayValue);
         std::string type;
         int start = 0;
         int count = 0;
 
         for (int c = 0; c < outputs.size(); c++) {
-            type = outputs[c]["type"].asString();
+            bool enabled = false;
+            try {
+                // asInt()/asString() throw on a value of the wrong type
+                // (hand-edited or third-party configs), and this runs in the
+                // FileMonitor callback: an escaping exception ends fppd
+                type = outputs[c]["type"].asString();
+                enabled = outputs[c]["enabled"].asInt();
+                start = outputs[c]["startChannel"].asInt();
+                count = outputs[c]["channelCount"].asInt();
+            } catch (const std::exception& ex) {
+                std::string warning = "Could not read output " + std::to_string(c + 1) + " in " + cfgFile + " (" + ex.what() + ")";
+                WarningHolder::AddWarning(26, warning);
+                outputLoadWarnings[cfgFile].insert(warning);
+                LogErr(VB_CHANNELOUT, "%s\n", warning.c_str());
+                continue;
+            }
 
-            if (!outputs[c]["enabled"].asInt()) {
+            if (!enabled) {
                 LogDebug(VB_CHANNELOUT, "Skipping Disabled Channel Output: %s\n", type.c_str());
                 continue;
             }
 
-            start = outputs[c]["startChannel"].asInt();
-            count = outputs[c]["channelCount"].asInt();
-
             // internally we start channel counts at zero
             start -= 1;
+            if (start < 0 && count <= 0) {
+                // nothing to send from it, but the start still becomes the
+                // offset SendData() is handed; -1 would wrap to UINT_MAX
+                start = 0;
+            }
             if (start < 0 && count > 0) {
                 // we have a negative channel number, but actually are supposed to be outputting data
                 // Skip this output as that's not valid
