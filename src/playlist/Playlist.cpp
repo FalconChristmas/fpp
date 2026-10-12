@@ -1167,8 +1167,8 @@ int Playlist::StopGracefullyImpl(int forceStop, int afterCurrentLoop) {
         m_status = FPP_STATUS_STOPPING_GRACEFULLY;
     }
     m_forceStop = forceStop;
-    if (m_parent) {
-        m_parent->StopGracefullyImpl(forceStop, afterCurrentLoop);
+    if (Playlist* par = m_parent.load()) {
+        par->StopGracefullyImpl(forceStop, afterCurrentLoop);
     }
 
     return 1;
@@ -1674,7 +1674,7 @@ Playlist* Playlist::SwitchToInsertedPlaylist(bool isStopping) {
         // We are exiting, so there is no point wasting our memory on the stack
         // of playlists: the new playlist takes our place by inheriting our
         // parent, and we clean ourselves up once it is known to be running.
-        bool replaceSelf = isStopping && m_parent;
+        bool replaceSelf = isStopping && (m_parent.load() != nullptr);
 
         // Bound the stack of inserted playlists.  Inline sub-playlists stop at
         // 5 levels in LoadJSONIntoPlaylist, but inserts (Insert Playlist
@@ -1682,7 +1682,7 @@ Playlist* Playlist::SwitchToInsertedPlaylist(bool isStopping) {
         // to itself, or A -> B -> A, nested one level per pass until memory or
         // the stack ran out.
         int depth = 1;
-        for (Playlist* p = replaceSelf ? m_parent : this; p; p = p->m_parent) {
+        for (Playlist* p = replaceSelf ? m_parent.load() : this; p; p = p->m_parent.load()) {
             depth++;
         }
         if (depth > MAX_INSERTED_PLAYLIST_DEPTH) {
@@ -1695,7 +1695,7 @@ Playlist* Playlist::SwitchToInsertedPlaylist(bool isStopping) {
 
         // The player owns the new instance from birth; plRef only keeps it
         // alive across the start attempt below, before it is published.
-        std::shared_ptr<Playlist> plRef = Player::INSTANCE.CreatePlaylist(replaceSelf ? m_parent : this);
+        std::shared_ptr<Playlist> plRef = Player::INSTANCE.CreatePlaylist(replaceSelf ? m_parent.load() : this);
         Playlist* pl = plRef.get();
         std::string plname = m_insertedPlaylist;
         // PlayImpl, not Play: this runs inside the parent's transition
@@ -1784,11 +1784,11 @@ void Playlist::SetIdle(bool exit) {
     // releases (leaving the player pointing at a corpse), or double-play it.  A
     // parent can be condemned while we're exiting when a re-entrant stop tore
     // down an intermediate level of an inserted-playlist stack.
-    Playlist* par = m_parent;
+    Playlist* par = m_parent.load();
     {
         std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
         while (par && std::find(PL_CLEANUPS.begin(), PL_CLEANUPS.end(), par) != PL_CLEANUPS.end()) {
-            par = par->m_parent;
+            par = par->m_parent.load();
         }
     }
     if (par && exit) {
@@ -1802,11 +1802,14 @@ void Playlist::SetIdle(bool exit) {
             std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
             PL_CLEANUPS.push_back(this);
         }
+        // Retired: a thread still holding a snapshot of this level must not
+        // reach the parent (released on a later tick) through us.
+        m_parent = nullptr;
 
         if (par->getPlaylistStatus() != FPP_STATUS_IDLE)
             publishIdle = false;
     } else if (exit) {
-        if (m_parent) {
+        if (m_parent.load()) {
             // Whole remaining chain was condemned — we are still the current
             // playlist, so we must NOT be condemned too (the PL_CLEANUPS drain
             // releases unconditionally, and the player's own reference is the
@@ -2795,9 +2798,9 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
     }
 }
 void Playlist::GetParentPlaylistNames(std::list<std::string>& names) {
-    if (m_parent) {
-        m_parent->GetParentPlaylistNames(names);
-        names.push_back(m_parent->GetPlaylistName());
+    if (Playlist* par = m_parent.load()) {
+        par->GetParentPlaylistNames(names);
+        names.push_back(par->GetPlaylistName());
     }
 }
 

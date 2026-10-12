@@ -158,7 +158,11 @@ private:
     // well-defined; volatile never made them so.
     std::atomic<PlaylistStatus> m_status;
 
-    Playlist* m_parent;
+    // Atomic (same size and place as the raw pointer it replaces): status
+    // threads walk the chain for breadcrumbs while the main loop retires
+    // levels, and a level is cut loose (nulled) when it is retired so nothing
+    // reaches a freed parent through it.
+    std::atomic<Playlist*> m_parent;
     std::string m_filename;
     std::string m_name;
     std::string m_desc;
