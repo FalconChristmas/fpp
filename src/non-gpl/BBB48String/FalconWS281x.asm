@@ -190,7 +190,8 @@
 #endif
 
 SETUP_GPIO0_REGS .macro
-#ifdef USES_GPIO0
+    // every address below is an AM335x one
+#if defined(USES_GPIO0) && defined(AM33XX)
     // also need to turn off the GPIO0 idle and wakeup domain stuff
     LDI32 r12, GPIO0
     LDI r13, 0x100

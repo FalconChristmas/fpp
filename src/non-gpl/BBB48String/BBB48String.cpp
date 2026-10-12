@@ -592,6 +592,15 @@ int BBB48StringOutput::Init(Json::Value config) {
     while (m_gpio0Data.gpioStringMap.size() < i) {
         m_gpio0Data.gpioStringMap.push_back(-1);
     }
+    // The firmware loads one byte per output into r10-r21; past 48 the load
+    // runs on into the GPIO bank address registers and every later GPIO
+    // store goes to an address made of pixel data.
+    if (m_gpioData.gpioStringMap.size() > 48 || m_gpio0Data.gpioStringMap.size() > 48) {
+        LogErr(VB_CHANNELOUT, "%s uses %d outputs on one PRU, more than the 48 the firmware supports\n",
+               m_subType.c_str(), (int)std::max(m_gpioData.gpioStringMap.size(), m_gpio0Data.gpioStringMap.size()));
+        WarningHolder::AddWarning("BBB48String: " + m_subType + " uses more than 48 outputs on one PRU");
+        return 0;
+    }
 
     setupFalconV4Support(root, split1args, split0args);
 
@@ -1033,9 +1042,12 @@ void BBB48StringOutput::PrepData(unsigned char* channelData) {
 
 void BBB48StringOutput::sendData(FrameData& d, uint32_t* dptr) {
     bool doSwap = false;
+    // compare everything the copy below would place in PRU memory - the
+    // firmware reads those bytes from there rather than DDR, so a change
+    // past the compared range would leave it sending the old data
+    uint32_t pruCopySize = std::min(d.frameSize, (uint32_t)(7624 + 7624 + m_pru->shared_ram_size));
     if (d.copyToPru &&
-        (m_curFrame == 1 || memcmp(d.lastData, d.curData,
-                                   std::min(d.frameSize, (uint32_t)24 * 1024)))) {
+        (m_curFrame == 1 || memcmp(d.lastData, d.curData, pruCopySize))) {
         // don't copy to PRU memory unless really needed to avoid bus contention
 
         // copy first 7.5K into PRU mem directly
