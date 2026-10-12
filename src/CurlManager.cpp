@@ -141,7 +141,17 @@ CURL* CurlManager::createCurl(const std::string& fullUrl, CurlPrivateData** cpd,
     static std::string USERAGENT = std::string("FPP/") + getFPPVersionTriplet();
 
     const std::string host = getHost(fullUrl);
-    HostData* hd = getHostData(host);
+    // Under the lock: requests are created from API and command threads as
+    // well as the main loop, and getHostData() inserts into the map.  Copy the
+    // credentials out (curl copies string options anyway).
+    std::string username;
+    std::string password;
+    {
+        std::unique_lock<std::mutex> l(lock);
+        HostData* hd = getHostData(host);
+        username = hd->username;
+        password = hd->password;
+    }
     CURL* c = curl_easy_init();
     curl_easy_setopt(c, CURLOPT_URL, fullUrl.c_str());
     if (share) {
@@ -164,9 +174,9 @@ CURL* CurlManager::createCurl(const std::string& fullUrl, CurlPrivateData** cpd,
     curl_easy_setopt(c, CURLOPT_ERRORBUFFER, data->errorResp);
     curl_easy_setopt(c, CURLOPT_WRITEDATA, &data->resp);
     curl_easy_setopt(c, CURLOPT_PRIVATE, data);
-    if (hd->username != "") {
-        curl_easy_setopt(c, CURLOPT_USERNAME, hd->username.c_str());
-        curl_easy_setopt(c, CURLOPT_PASSWORD, hd->password.c_str());
+    if (username != "") {
+        curl_easy_setopt(c, CURLOPT_USERNAME, username.c_str());
+        curl_easy_setopt(c, CURLOPT_PASSWORD, password.c_str());
         curl_easy_setopt(c, CURLOPT_HTTPAUTH, CURLAUTH_BASIC | CURLAUTH_DIGEST | CURLAUTH_NEGOTIATE);
     }
     if (upload) {
