@@ -145,7 +145,12 @@ if (!isset($_GET['nopage'])):
         if (file_exists($jsDir)) {
             if ($handle = opendir($jsDir)) {
                 while (($file = readdir($handle)) !== false) {
-                    if (!in_array($file, array('.', '..')) && !is_dir($jsDir . $file)) {
+                    // Only emit files the file-serving branch below can actually
+                    // serve (pluginRealPath's allow-list): anything else 404s on
+                    // fetch, so linking it only hands a raw filesystem name to
+                    // the src attribute, where quote characters break out into
+                    // markup. $pluginName is already allow-listed above.
+                    if (!in_array($file, array('.', '..')) && !is_dir($jsDir . $file) && preg_replace('/[^A-Za-z0-9_.-]/', '', $file) === $file) {
                         printf(
                             "<script type='text/javascript' src='plugin.php?plugin=%s&file=js/%s&nopage=1'></script>\n",
                             $pluginName,
@@ -160,7 +165,7 @@ if (!isset($_GET['nopage'])):
         if (file_exists($cssDir)) {
             if ($handle = opendir($cssDir)) {
                 while (($file = readdir($handle)) !== false) {
-                    if (!in_array($file, array('.', '..')) && !is_dir($cssDir . $file)) {
+                    if (!in_array($file, array('.', '..')) && !is_dir($cssDir . $file) && preg_replace('/[^A-Za-z0-9_.-]/', '', $file) === $file) {
                         printf(
                             "<link rel='stylesheet' type='text/css' href='/plugin.php?plugin=%s&file=css/%s&nopage=1'>\n",
                             $pluginName,
@@ -196,7 +201,7 @@ if (!isset($_GET['nopage'])):
                         <img class="pluginIcon" src="<?= $pluginIconUrl ?>" alt="">
                     </div>
                     <?php endif; ?>
-                    <?= $pluginInfo['name'] ?>
+                    <?= htmlspecialchars((string) $pluginInfo['name'], ENT_QUOTES, 'UTF-8') ?>
                 </h1>
                 <div class="pageContent">
 

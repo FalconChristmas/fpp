@@ -2177,7 +2177,7 @@ function doBackupDownload($settings_data, $area)
             //Make the users browser prompt a download and send the file
             if ($fpp_backup_prompt_download == true) {
                 ///Generate the headers to prompt browser to start download
-                header("Content-Disposition: attachment; filename=\"" . basename($backup_fname) . "\"");
+                header("Content-Disposition: attachment; filename=\"" . SanitizeDownloadFilename(basename($backup_fname)) . "\"");
                 header("Content-Type: application/json");
                 header("Content-Length: " . filesize($backup_local_fpath));
                 header("Connection: close");

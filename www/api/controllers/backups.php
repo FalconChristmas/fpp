@@ -977,7 +977,7 @@ function DownloadJsonBackup(){
 
 			//Content type will always be json so see the header
 			header("Content-Type: application/json");
-			header("Content-Disposition: attachment; filename=\"" . basename($fileName) . "\"");
+			header("Content-Disposition: attachment; filename=\"" . SanitizeDownloadFilename(basename($fileName)) . "\"");
 			header("Content-Length: " . strlen($outgoing));
 
 			//Empty the output buffers
@@ -1013,7 +1013,7 @@ function DownloadJsonBackup(){
 
 			//Content type will always be json so see the header
 			header("Content-Type: application/json");
-			header("Content-Disposition: attachment; filename=\"" . basename($fileName) . "\"");
+			header("Content-Disposition: attachment; filename=\"" . SanitizeDownloadFilename(basename($fileName)) . "\"");
 			header("Content-Length: " . strlen($outgoing));
 
 			//Empty the output buffers

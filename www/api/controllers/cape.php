@@ -478,7 +478,7 @@ function GetSigningFile()
     }
 
     header('Content-type: application/binary');
-    header('Content-disposition: attachment;filename="cape-signing-' . $settings['HostName'] . '.bin"');
+    header('Content-disposition: attachment;filename="' . SanitizeDownloadFilename('cape-signing-' . $settings['HostName'] . '.bin') . '"');
 
     return json_encode($data);
 }
