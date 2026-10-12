@@ -50,10 +50,9 @@ void OutputProcessors::ProcessData(unsigned char* channelData) const {
     }
 }
 
-void OutputProcessors::addProcessor(OutputProcessor* p) {
-    if (p == nullptr) {
-        return;
-    }
+// Whether the processor's channels lie inside the sequence buffer, recording a
+// warning when they do not.  Caller holds processorsLock.
+bool OutputProcessors::rangeIsValid(OutputProcessor* p) {
     // ProcessData() writes straight into the sequence buffer, which is
     // FPPD_MAX_CHANNELS long, over the channels the processor reports here.
     // The UI only checks that numbers are positive, so a start or a count (or
@@ -69,17 +68,26 @@ void OutputProcessors::addProcessor(OutputProcessor* p) {
             badMax = m2;
         }
     });
-    std::lock_guard<std::mutex> lock(processorsLock);
-    if (badMax >= 0) {
-        std::string warning = "Output processor needs channels " + std::to_string(badMin + 1) + "-" +
-                              std::to_string(badMax + 1) + ", outside 1-" + std::to_string(FPPD_MAX_CHANNELS) +
-                              ". Processor disabled.";
-        LogErr(VB_CHANNELOUT, "%s\n", warning.c_str());
-        WarningHolder::AddWarning(warning);
-        rejectedWarnings.push_back(warning);
+    if (badMax < 0) {
+        return true;
+    }
+    std::string warning = "Output processor needs channels " + std::to_string(badMin + 1) + "-" +
+                          std::to_string(badMax + 1) + ", outside 1-" + std::to_string(FPPD_MAX_CHANNELS) +
+                          ". Processor disabled.";
+    LogErr(VB_CHANNELOUT, "%s\n", warning.c_str());
+    WarningHolder::AddWarning(warning);
+    rejectedWarnings.push_back(warning);
+    return false;
+}
+
+void OutputProcessors::addProcessor(OutputProcessor* p) {
+    if (p == nullptr) {
         return;
     }
-    processors.push_back(p);
+    std::lock_guard<std::mutex> lock(processorsLock);
+    if (rangeIsValid(p)) {
+        processors.push_back(p);
+    }
 }
 void OutputProcessors::removeProcessor(OutputProcessor* p) {
     std::lock_guard<std::mutex> lock(processorsLock);
@@ -94,41 +102,50 @@ void OutputProcessors::removeAll() {
 }
 
 void OutputProcessors::loadFromJSON(const Json::Value& config) {
-    // If we are reloading, remove all existing processors first
-    // But only the ones created from JSON, plugins may have added their own
-    // and we don't want to remove those.
-    std::unique_lock<std::mutex> lock(processorsLock);
-    for (auto a : fromJsonProcessors) {
-        processors.remove(a);
-        delete a;
-    }
-    fromJsonProcessors.clear();
-    for (auto& w : rejectedWarnings) {
-        WarningHolder::RemoveWarning(w);
-    }
-    rejectedWarnings.clear();
-    lock.unlock();
-
+    // Build the whole new chain first and swap it in under one lock: removing
+    // the old processors, unlocking and adding the new ones one at a time let
+    // the output thread run a frame with part of the chain (a brightness or
+    // current limit missing for a frame).  Only the processors created from
+    // JSON are replaced; plugins may have added their own.
+    std::list<OutputProcessor*> created;
     for (Json::Value::const_iterator itr = config.begin(); itr != config.end(); ++itr) {
         std::string name = itr.key().asString();
         if (name == "outputProcessors") {
             Json::Value val = *itr;
             if (val.isArray()) {
                 for (int x = 0; x < val.size(); x++) {
-                    OutputProcessor* p = create(val[x]);
-                    addProcessor(p);
-                    lock.lock();
-                    fromJsonProcessors.push_back(p);
-                    lock.unlock();
+                    if (OutputProcessor* p = create(val[x])) {
+                        created.push_back(p);
+                    }
                 }
-            } else {
-                OutputProcessor* p = create(val);
-                addProcessor(p);
-                lock.lock();
-                fromJsonProcessors.push_back(p);
-                lock.unlock();
+            } else if (OutputProcessor* p = create(val)) {
+                created.push_back(p);
             }
         }
+    }
+
+    std::list<OutputProcessor*> old;
+    {
+        std::lock_guard<std::mutex> lock(processorsLock);
+        for (auto& w : rejectedWarnings) {
+            WarningHolder::RemoveWarning(w);
+        }
+        rejectedWarnings.clear();
+        for (auto a : fromJsonProcessors) {
+            processors.remove(a);
+        }
+        old.swap(fromJsonProcessors);
+        for (auto p : created) {
+            if (rangeIsValid(p)) {
+                processors.push_back(p);
+            }
+            // owned either way, freed on the next reload
+            fromJsonProcessors.push_back(p);
+        }
+    }
+    // not running any more, and no longer reachable by the output thread
+    for (auto a : old) {
+        delete a;
     }
 }
 OutputProcessor* OutputProcessors::create(const Json::Value& config) {

@@ -603,8 +603,16 @@ int InitializeChannelOutputs(void) {
     std::string opfilename = FPP_DIR_CONFIG("/outputprocessors.json");
     FileMonitor::INSTANCE.AddFile("outputprocessors.json", opfilename, [opfilename]() {
                              Json::Value newRoot;
-                             if (FileExists(opfilename)) {
-                                 LoadJsonFromFile(opfilename, newRoot, JsonRoot::Object);
+                             if (FileExists(opfilename) && !LoadJsonFromFile(opfilename, newRoot, JsonRoot::Object)) {
+                                 // probably caught part way through being
+                                 // written; one retry, as for the outputs, and
+                                 // otherwise keep the processors running now
+                                 // rather than dropping every one of them
+                                 std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                                 if (!LoadJsonFromFile(opfilename, newRoot, JsonRoot::Object)) {
+                                     LogErr(VB_CHANNELOUT, "Could not parse %s, keeping the current output processors\n", opfilename.c_str());
+                                     return;
+                                 }
                              }
                              outputProcessors.loadFromJSON(newRoot);
                              ComputeOutputRanges();

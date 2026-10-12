@@ -71,6 +71,7 @@ public:
 protected:
     void removeAll();
     OutputProcessor* create(const Json::Value& config);
+    bool rangeIsValid(OutputProcessor* p);
 
     mutable std::mutex processorsLock;
     std::list<OutputProcessor*> processors;
