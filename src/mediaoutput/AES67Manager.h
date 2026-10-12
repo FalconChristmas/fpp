@@ -1085,43 +1085,17 @@ public:
     };
     std::vector<TestResult> RunSelfTest();
 
-    // Signal from fppd that PipeWire is ready (called after PipeWire restart)
-    void OnPipeWireReady();
-
     // Check if manager is active
     bool IsActive() const { return m_active.load(); }
 
-    // Returns true if there are active AES67 send instances that want
-    // zero-hop direct RTP branches from media pipelines.
-    bool HasActiveSendInstances();
-
-    // Zero-hop optimization (7.9): Attach RTP send branches directly to an
-    // existing GStreamer tee element inside a media pipeline, bypassing the
-    // PipeWire→pipewiresrc→AES67 path for lower latency.
-    //
-    // For each active send instance, creates:
-    //   queue → audioconvert → S24BE,48kHz,Nch caps → rtpL24pay → udpsink
-    // and links it as a new branch on the tee.
-    //
-    // Returns a list of GstElement* branch entry queues (one per send instance).
-    // The caller must call DetachInlineRTPBranches() before destroying the pipeline.
+    // A zero-hop RTP branch on a media pipeline's tee.  The branches are
+    // disabled (see GStreamerOutput::AttachAES67Branches()); the type stays
+    // for that member.
     struct InlineRTPBranch {
         int instanceId;
         GstElement* queue = nullptr;     // branch entry point (added to caller's bin)
         GstPad* teeSrcPad = nullptr;     // requested pad on tee (must be released)
     };
-    std::vector<InlineRTPBranch> AttachInlineRTPBranches(GstElement* pipeline, GstElement* tee);
-
-    // Detach and clean up inline RTP branches attached by AttachInlineRTPBranches.
-    void DetachInlineRTPBranches(GstElement* pipeline, std::vector<InlineRTPBranch>& branches);
-
-    // Pause/resume standalone send pipelines.
-    // Called by GStreamerOutput so that send pipelines only run PLAYING
-    // while media is actually being played, preventing digital noise on
-    // the AES67 output when nothing is playing (pipewiresrc would capture
-    // uninitialized data from the idle PipeWire node).
-    void PauseSendPipelines();
-    void ResumeSendPipelines();
     void FlushSendPipelines();
 
     AES67Manager();
@@ -1480,9 +1454,6 @@ private:
     std::mutex m_discoveredMutex;
     void HandleSAPPacket(const uint8_t* data, size_t len,
                          const std::string& senderAddr);
-
-    // GStreamer bus callback
-    static gboolean OnBusMessage(GstBus* bus, GstMessage* msg, gpointer userData);
 
     // State
     std::atomic<bool> m_active{false};

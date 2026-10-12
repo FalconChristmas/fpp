@@ -773,14 +773,6 @@ void AES67Manager::Cleanup() {
     m_active.store(false);
 }
 
-void AES67Manager::OnPipeWireReady() {
-    // PipeWire has been restarted — if we have a config, apply it
-    if (FileExists(m_configPath)) {
-        LogInfo(VB_MEDIAOUT, "AES67Manager: PipeWire ready, applying AES67 config\n");
-        ApplyConfig();
-    }
-}
-
 // ──────────────────────────────────────────────────────────────────────────────
 // PTP clock management — uses ptp4l (linuxptp) as an IEEE 1588 PTP daemon
 //
@@ -3667,16 +3659,6 @@ void AES67Manager::StopAllPipelines() {
     }
 }
 
-void AES67Manager::PauseSendPipelines() {
-    // No-op: with node.autoconnect=false the send pipeline always outputs
-    // to multicast.  When no media is playing, the filter-chain delivers
-    // clean silence — no muting needed.
-}
-
-void AES67Manager::ResumeSendPipelines() {
-    // No-op: pipeline is always sending to multicast.
-}
-
 // Pad probe callback: drops buffers while dropCounter > 0, passes through otherwise.
 // Installed once on pipewiresrc's src pad and stays active for the pipeline's lifetime.
 static GstPadProbeReturn DropBufferProbe(GstPad* pad, GstPadProbeInfo* info, gpointer userData) {
@@ -4518,43 +4500,6 @@ bool AES67Manager::PollPipelinesWatchdog() {
     return needsRebuild;
 }
 
-gboolean AES67Manager::OnBusMessage(GstBus* bus, GstMessage* msg, gpointer userData) {
-    switch (GST_MESSAGE_TYPE(msg)) {
-        case GST_MESSAGE_ERROR: {
-            GError* err = nullptr;
-            gchar* debug = nullptr;
-            gst_message_parse_error(msg, &err, &debug);
-            LogErr(VB_MEDIAOUT, "AES67 pipeline error: %s (debug: %s)\n",
-                   err->message, debug ? debug : "none");
-            g_error_free(err);
-            g_free(debug);
-            break;
-        }
-        case GST_MESSAGE_WARNING: {
-            GError* err = nullptr;
-            gchar* debug = nullptr;
-            gst_message_parse_warning(msg, &err, &debug);
-            LogWarn(VB_MEDIAOUT, "AES67 pipeline warning: %s\n", err->message);
-            g_error_free(err);
-            g_free(debug);
-            break;
-        }
-        case GST_MESSAGE_STATE_CHANGED: {
-            if (GST_MESSAGE_SRC(msg) == GST_OBJECT(msg)) {
-                GstState oldState, newState, pending;
-                gst_message_parse_state_changed(msg, &oldState, &newState, &pending);
-                LogDebug(VB_MEDIAOUT, "AES67 pipeline state: %s → %s\n",
-                         gst_element_state_get_name(oldState),
-                         gst_element_state_get_name(newState));
-            }
-            break;
-        }
-        default:
-            break;
-    }
-    return TRUE;  // keep watching
-}
-
 // ──────────────────────────────────────────────────────────────────────────────
 // Network helpers
 // ──────────────────────────────────────────────────────────────────────────────
@@ -5220,183 +5165,6 @@ void AES67Manager::HandleSAPPacket(const uint8_t* data, size_t len,
             }
         }
     }
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Zero-hop inline RTP branches (7.9)
-// ──────────────────────────────────────────────────────────────────────────────
-bool AES67Manager::HasActiveSendInstances() {
-    if (!m_active.load()) return false;
-    std::lock_guard<std::mutex> lock(m_pipelineMutex);
-    return !m_sendPipelines.empty();
-}
-
-std::vector<AES67Manager::InlineRTPBranch> AES67Manager::AttachInlineRTPBranches(
-    GstElement* pipeline, GstElement* tee) {
-
-    std::vector<InlineRTPBranch> branches;
-
-    if (!m_active.load() || !pipeline || !tee) {
-        return branches;
-    }
-
-    // Get the current send config (not the pipelines — those capture from pipewiresrc).
-    // For each enabled send instance, we create a parallel RTP branch on the tee.
-    AES67Config config;
-    {
-        // Grab a snapshot of the config
-        config = m_config;
-    }
-
-    for (const auto& inst : config.instances) {
-        if (!inst.enabled) continue;
-        if (inst.mode != "send" && inst.mode != "both") continue;
-
-        LogInfo(VB_MEDIAOUT, "AES67 zero-hop: Attaching inline RTP branch for '%s' → %s:%d\n",
-                inst.name.c_str(), inst.multicastIP.c_str(), inst.port);
-
-        int64_t ptimeNs = (int64_t)inst.ptime * 1000000LL;
-        std::string branchName = "aes67_q_" + std::to_string(inst.id);
-
-        // Create branch elements
-        GstElement* queue = gst_element_factory_make("queue", branchName.c_str());
-        GstElement* aconv = gst_element_factory_make("audioconvert",
-            ("aes67_aconv_" + std::to_string(inst.id)).c_str());
-        GstElement* capsf = gst_element_factory_make("capsfilter",
-            ("aes67_caps_" + std::to_string(inst.id)).c_str());
-        GstElement* rtppay = gst_element_factory_make("rtpL24pay",
-            ("aes67_rtppay_" + std::to_string(inst.id)).c_str());
-        GstElement* udpsink = gst_element_factory_make("udpsink",
-            ("aes67_udpsink_" + std::to_string(inst.id)).c_str());
-
-        if (!queue || !aconv || !capsf || !rtppay || !udpsink) {
-            LogErr(VB_MEDIAOUT, "AES67 zero-hop: Failed to create elements for instance %d\n", inst.id);
-            if (queue) gst_object_unref(queue);
-            if (aconv) gst_object_unref(aconv);
-            if (capsf) gst_object_unref(capsf);
-            if (rtppay) gst_object_unref(rtppay);
-            if (udpsink) gst_object_unref(udpsink);
-            continue;
-        }
-
-        // Configure caps: S24BE at 48kHz
-        GstCaps* caps = gst_caps_new_simple("audio/x-raw",
-            "format", G_TYPE_STRING, AES67::AUDIO_FORMAT,
-            "rate", G_TYPE_INT, AES67::AUDIO_RATE,
-            "channels", G_TYPE_INT, inst.channels, NULL);
-        g_object_set(capsf, "caps", caps, NULL);
-        gst_caps_unref(caps);
-
-        // Configure rtpL24pay
-        g_object_set(rtppay,
-            "pt", (guint)AES67::RTP_PAYLOAD_TYPE,
-            "min-ptime", ptimeNs,
-            "max-ptime", ptimeNs,
-            NULL);
-
-        // Configure udpsink — sync=FALSE so packets go out immediately.
-        // The playback pipeline's tee delivers data at real-time rate;
-        // adding sync=true would cause the udpsink to buffer based on the
-        // pipeline clock, which can lag behind the stream position and
-        // block output entirely.
-        g_object_set(udpsink,
-            "host", inst.multicastIP.c_str(),
-            "port", inst.port,
-            "ttl-mc", AES67::AUDIO_RTP_TTL,
-            "qos-dscp", AES67::AUDIO_DSCP,
-            "auto-multicast", TRUE,
-            "sync", FALSE,
-            NULL);
-        if (!inst.interface.empty()) {
-            g_object_set(udpsink, "multicast-iface", inst.interface.c_str(), NULL);
-        }
-
-        // Configure queue: small buffer for low-latency, leaky to avoid
-        // blocking the main audio chain if the network stalls
-        g_object_set(queue, "max-size-buffers", 3, "leaky", 2 /* downstream */, NULL);
-
-        // Add elements to pipeline bin
-        gst_bin_add_many(GST_BIN(pipeline), queue, aconv, capsf, rtppay, udpsink, NULL);
-
-        // Link: queue → audioconvert → capsfilter → rtpL24pay → udpsink
-        if (!gst_element_link_many(queue, aconv, capsf, rtppay, udpsink, NULL)) {
-            LogErr(VB_MEDIAOUT, "AES67 zero-hop: Failed to link branch for instance %d\n", inst.id);
-            // Elements are owned by bin now, cleanup happens when pipeline is destroyed
-            continue;
-        }
-
-        // Sync element states to pipeline state
-        gst_element_sync_state_with_parent(queue);
-        gst_element_sync_state_with_parent(aconv);
-        gst_element_sync_state_with_parent(capsf);
-        gst_element_sync_state_with_parent(rtppay);
-        gst_element_sync_state_with_parent(udpsink);
-
-        // Request tee pad and link to queue
-        GstPad* teeSrcPad = gst_element_request_pad_simple(tee, "src_%u");
-        if (!teeSrcPad) {
-            LogErr(VB_MEDIAOUT, "AES67 zero-hop: Failed to request tee src pad for instance %d\n", inst.id);
-            continue;
-        }
-        GstPad* queueSinkPad = gst_element_get_static_pad(queue, "sink");
-
-        if (gst_pad_link(teeSrcPad, queueSinkPad) != GST_PAD_LINK_OK) {
-            LogErr(VB_MEDIAOUT, "AES67 zero-hop: Failed to link tee to queue for instance %d\n", inst.id);
-            // Release the request pad back to the tee before dropping our
-            // ref -- otherwise the tee is left with a pad slot that was
-            // never returned via gst_element_release_request_pad().
-            gst_element_release_request_pad(tee, teeSrcPad);
-            gst_object_unref(teeSrcPad);
-            gst_object_unref(queueSinkPad);
-            continue;
-        }
-        gst_object_unref(queueSinkPad);
-
-        // NOTE: Do NOT call gst_pipeline_use_clock() here.
-        // The playback pipeline's own clock (e.g. system clock) must remain.
-        // An unsynced PTP clock returns GST_CLOCK_TIME_NONE which crashes
-        // the pipeline.  (No AES67 pipeline sets a PTP clock today --
-        // CreateSendPipeline() does not either, despite what this note used
-        // to claim.)
-
-        InlineRTPBranch branch;
-        branch.instanceId = inst.id;
-        branch.queue = queue;
-        branch.teeSrcPad = teeSrcPad;
-        branches.push_back(branch);
-
-        // NOTE: We do NOT pause the standalone send pipeline.  Pausing it
-        // with pipewiresrc causes preroll issues when trying to resume
-        // (PAUSED→PLAYING can hang if pipewiresrc can't re-acquire buffers).
-        // Both streams (inline + standalone) will coexist briefly during
-        // playback — they have different SSRCs so receivers pick one.
-
-        LogInfo(VB_MEDIAOUT, "AES67 zero-hop: Branch active for '%s' → %s:%d (%dch, %dms)\n",
-                inst.name.c_str(), inst.multicastIP.c_str(), inst.port,
-                inst.channels, inst.ptime);
-    }
-
-    return branches;
-}
-
-void AES67Manager::DetachInlineRTPBranches(GstElement* pipeline,
-                                            std::vector<InlineRTPBranch>& branches) {
-    for (auto& branch : branches) {
-        if (branch.teeSrcPad) {
-            // Get the tee element from the pad's parent
-            GstElement* tee = gst_pad_get_parent_element(branch.teeSrcPad);
-            if (tee) {
-                gst_element_release_request_pad(tee, branch.teeSrcPad);
-                gst_object_unref(tee);
-            }
-            gst_object_unref(branch.teeSrcPad);
-            branch.teeSrcPad = nullptr;
-        }
-        // The queue and downstream elements are owned by the pipeline bin
-        // and will be destroyed when the pipeline is unreffed.
-        branch.queue = nullptr;
-    }
-    branches.clear();
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

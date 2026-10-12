@@ -419,13 +419,6 @@ void OpusRTPManager::Cleanup() {
     m_active.store(false);
 }
 
-void OpusRTPManager::OnPipeWireReady() {
-    if (FileExists(m_configPath)) {
-        LogInfo(VB_MEDIAOUT, "OpusRTPManager: PipeWire ready, applying config\n");
-        ApplyConfig();
-    }
-}
-
 // ──────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────────────────────────────────────
@@ -779,18 +772,6 @@ void OpusRTPManager::StopAllPipelines() {
     }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Pause / Resume / Flush
-// ──────────────────────────────────────────────────────────────────────────────
-void OpusRTPManager::PauseSendPipelines() {
-    // No-op: with node.autoconnect=false the send pipeline always outputs.
-    // When no media is playing, the filter-chain delivers clean silence.
-}
-
-void OpusRTPManager::ResumeSendPipelines() {
-    // No-op: pipeline is always sending.
-}
-
 // Pad probe callback: drops buffers while dropCounter > 0
 static GstPadProbeReturn OpusDropBufferProbe(GstPad* pad, GstPadProbeInfo* info, gpointer userData) {
     std::atomic<int>* counter = static_cast<std::atomic<int>*>(userData);
@@ -964,15 +945,6 @@ bool OpusRTPManager::PollPipelinesWatchdog() {
     checkPipelines(m_recvPipelines, "recv");
 
     return needsRebuild;
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Status
-// ──────────────────────────────────────────────────────────────────────────────
-bool OpusRTPManager::HasActiveSendInstances() {
-    if (!m_active.load()) return false;
-    std::lock_guard<std::mutex> lock(m_pipelineMutex);
-    return !m_sendPipelines.empty();
 }
 
 OpusRTPManager::Status OpusRTPManager::GetStatus() {

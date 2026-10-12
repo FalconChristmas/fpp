@@ -176,18 +176,10 @@ public:
     };
     Status GetStatus();
 
-    // Signal from fppd that PipeWire is ready
-    void OnPipeWireReady();
-
     // Check if manager is active
     bool IsActive() const { return m_active.load(); }
 
-    // Check for active send instances
-    bool HasActiveSendInstances();
-
-    // Pause/resume/flush send pipelines (media playback integration)
-    void PauseSendPipelines();
-    void ResumeSendPipelines();
+    // Flush send pipelines (media playback integration)
     void FlushSendPipelines();
 
     OpusRTPManager();
@@ -247,10 +239,9 @@ private:
     // Serializes the whole tear-down/rebuild sequence in ApplyConfig(),
     // Shutdown() and Cleanup().  ApplyConfig() joins the watchdog thread at
     // the top and re-creates it ~50 lines later, after loading config and
-    // building pipelines; that window is wide, and ApplyConfig() has four
+    // building pipelines; that window is wide, and ApplyConfig() has three
     // independent callers (the boot sequence, OpusRTPApplyCommand::run on a
-    // command thread, OnPipeWireReady(), and m_rebuildThread from the
-    // watchdog).  Two overlapping calls both pass the join, then both assign
+    // command thread, and m_rebuildThread from the watchdog).  Two overlapping calls both pass the join, then both assign
     // m_watchdogThread -- and assigning over a still-joinable std::thread is
     // an unconditional std::terminate().
     //
