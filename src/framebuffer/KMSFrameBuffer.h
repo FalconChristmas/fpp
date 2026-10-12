@@ -145,7 +145,12 @@ private:
     static void StartHotplugMonitor();
     static void StopHotplugMonitor();
     static void HotplugMonitorLoop(int sock, int wakeFd);
-    static void HandleHotplug(const std::string& cardPath, const std::set<uint32_t>& connectorIds);
+    // onlyAbsent: re-probe just the outputs that have no display (the periodic
+    // recheck), leaving the others - and their EDID reads - alone.
+    static void HandleHotplug(const std::string& cardPath, const std::set<uint32_t>& connectorIds, bool onlyAbsent);
+    static bool SinkPresent(int fd, drmModeConnectorPtr conn);
+    static bool PickMode(drmModeConnectorPtr conn, drmModeModeInfo& mode);
+    static drmModeConnectorPtr ProbeConnectorLocked(int fd, uint32_t connectorId);
     // Full off/on modeset of this output; caller holds drmMasterLock.
     void RestartDisplayLocked();
     // Light the CRTC in m_mode and show the current page on our plane.  Caller
@@ -156,10 +161,14 @@ private:
     // card/connector/CRTC, cleared again before DestroyFrameBuffer() releases
     // them; the hotplug thread only looks at instances with it set.
     bool m_hotplugReady = false;
-    // Whether the sink was there at the last probe: connected AND reporting
-    // modes.  vc4.force_hotplug (the ForceHDMI setting) pins the connector to
-    // "connected", so an empty mode list (no EDID) is the only sign it left.
+    // Whether a display was there at the last probe (see SinkPresent()).
+    // False from the start when the output came up without one, running the
+    // stand-in mode.
     bool m_sinkPresent = false; // guarded by drmMasterLock
+    // Whether the "no display" warning is up for this output; moves with
+    // m_sinkPresent, both only through SetSinkPresentLocked().
+    bool m_noDisplayWarned = false; // guarded by drmMasterLock
+    void SetSinkPresentLocked(bool present);
 };
 
 #endif

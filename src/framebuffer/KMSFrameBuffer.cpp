@@ -32,6 +32,7 @@
 
 #include "../common.h"
 #include "../common_mini.h"
+#include "../Warnings.h"
 #include "../log.h"
 #include "../mediaoutput/mediaoutput.h"
 
@@ -45,6 +46,131 @@ std::string KMSFrameBuffer::ConnectorFullName(int fd, drmModeConnectorPtr conn) 
     std::string name = typeName ? typeName : "Unknown";
     name += "-" + std::to_string(conn->connector_type_id);
     return name;
+}
+
+// A plugged-in display: HDMI, DVI, DisplayPort and VGA can be unplugged, and a
+// sink on them answers with an EDID.  Panels (DPI, DSI, ...) are there for good.
+static bool IsExternalConnector(uint32_t type) {
+    switch (type) {
+    case DRM_MODE_CONNECTOR_HDMIA:
+    case DRM_MODE_CONNECTOR_HDMIB:
+    case DRM_MODE_CONNECTOR_DVII:
+    case DRM_MODE_CONNECTOR_DVID:
+    case DRM_MODE_CONNECTOR_DVIA:
+    case DRM_MODE_CONNECTOR_DisplayPort:
+    case DRM_MODE_CONNECTOR_VGA:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// Whether a display is actually on the connector.  For an external connector
+// that takes an EDID: vc4.force_hotplug (the ForceHDMI setting) pins it to
+// "connected" and the kernel then makes up a few modes (up to 1024x768) even
+// with nothing plugged in.
+bool KMSFrameBuffer::SinkPresent(int fd, drmModeConnectorPtr conn) {
+    if (!conn || conn->connection != DRM_MODE_CONNECTED || conn->count_modes == 0) {
+        return false;
+    }
+    if (!IsExternalConnector(conn->connector_type)) {
+        return true;
+    }
+    bool edid = false;
+    for (int i = 0; i < conn->count_props && !edid; i++) {
+        drmModePropertyPtr prop = drmModeGetProperty(fd, conn->props[i]);
+        if (prop) {
+            edid = !strcmp(prop->name, "EDID") && conn->prop_values[i] != 0;
+            drmModeFreeProperty(prop);
+        }
+    }
+    return edid;
+}
+
+// The display's preferred mode, else its first.
+bool KMSFrameBuffer::PickMode(drmModeConnectorPtr conn, drmModeModeInfo& mode) {
+    for (int mi = 0; mi < conn->count_modes; mi++) {
+        if (conn->modes[mi].type & DRM_MODE_TYPE_PREFERRED) {
+            mode = conn->modes[mi];
+            return true;
+        }
+    }
+    if (conn->count_modes > 0) {
+        mode = conn->modes[0];
+        return true;
+    }
+    return false;
+}
+
+// What an external connector runs until a display shows up: CEA-861 1080p60,
+// which any HDMI sink takes.
+static drmModeModeInfo FallbackMode() {
+    drmModeModeInfo m = {};
+    m.clock = 148500;
+    m.hdisplay = 1920;
+    m.hsync_start = 2008;
+    m.hsync_end = 2052;
+    m.htotal = 2200;
+    m.vdisplay = 1080;
+    m.vsync_start = 1084;
+    m.vsync_end = 1089;
+    m.vtotal = 1125;
+    m.vrefresh = 60;
+    m.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC;
+    m.type = DRM_MODE_TYPE_DRIVER;
+    snprintf(m.name, sizeof(m.name), "1920x1080");
+    return m;
+}
+
+// "1920x1080@60 148500kHz h 1920/2008/2052/2200 v 1080/1084/1089/1125 flags 0x5"
+static std::string ModeLine(const drmModeModeInfo& m) {
+    char buf[160];
+    snprintf(buf, sizeof(buf), "%dx%d@%d %ukHz h %d/%d/%d/%d v %d/%d/%d/%d flags 0x%x",
+             m.hdisplay, m.vdisplay, m.vrefresh, m.clock, m.hdisplay, m.hsync_start, m.hsync_end, m.htotal,
+             m.vdisplay, m.vsync_start, m.vsync_end, m.vtotal, m.flags);
+    return buf;
+}
+
+static bool SameTiming(const drmModeModeInfo& a, const drmModeModeInfo& b) {
+    return a.clock == b.clock && a.hdisplay == b.hdisplay && a.hsync_start == b.hsync_start &&
+           a.hsync_end == b.hsync_end && a.htotal == b.htotal && a.vdisplay == b.vdisplay &&
+           a.vsync_start == b.vsync_start && a.vsync_end == b.vsync_end && a.vtotal == b.vtotal &&
+           a.flags == b.flags;
+}
+
+// Up while an output is running with no display on its connector, which on a
+// show night usually means a projector that is off or lost its signal.  Comes
+// down when the display appears and when the output is torn down; built by one
+// function so the add and the remove always match.
+static constexpr int WARNING_ID_NO_DISPLAY = 71;
+static std::string NoDisplayWarning(const std::string& connector) {
+    return "Video output " + connector + ": no display detected - check that the projector or monitor is on and connected";
+}
+
+// The flag and the banner move together; caller holds drmMasterLock.
+void KMSFrameBuffer::SetSinkPresentLocked(bool present) {
+    m_sinkPresent = present;
+    if (!present && !m_noDisplayWarned) {
+        WarningHolder::AddWarning(WARNING_ID_NO_DISPLAY, NoDisplayWarning(m_connectorName));
+        m_noDisplayWarned = true;
+    } else if (present && m_noDisplayWarned) {
+        WarningHolder::RemoveWarning(WARNING_ID_NO_DISPLAY, NoDisplayWarning(m_connectorName));
+        m_noDisplayWarned = false;
+    }
+}
+
+// Only the DRM master gets a real probe; for anyone else the kernel reads back
+// its cached state, which after a hotplug can be "connected" with no modes -
+// the HPD interrupt updates the status but not the mode list.  The real probe
+// reads the EDID over DDC and also refreshes the sysfs mode list.  Caller holds
+// drmMasterLock, as master is otherwise only held for the length of a flip.
+drmModeConnectorPtr KMSFrameBuffer::ProbeConnectorLocked(int fd, uint32_t connectorId) {
+    bool master = ioctl(fd, DRM_IOCTL_SET_MASTER, 0) == 0;
+    drmModeConnectorPtr conn = drmModeGetConnector(fd, connectorId);
+    if (master) {
+        ioctl(fd, DRM_IOCTL_DROP_MASTER, 0);
+    }
+    return conn;
 }
 
 bool KMSFrameBuffer::CreateDumbBuffer(int fd, uint32_t width, uint32_t height, uint32_t format, DumbBuffer& buf) {
@@ -276,15 +402,31 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
         }
 
         for (int ci = 0; ci < res->count_connectors; ci++) {
-            drmModeConnectorPtr conn = drmModeGetConnector(card->fd, res->connectors[ci]);
+            drmModeConnectorPtr conn = drmModeGetConnectorCurrent(card->fd, res->connectors[ci]);
+            if (!conn) {
+                continue;
+            }
+            std::string cname = ConnectorFullName(card->fd, conn);
+            if (m_device != cname) {
+                drmModeFreeConnector(conn);
+                continue;
+            }
+            drmModeFreeConnector(conn);
+            {
+                std::unique_lock<std::mutex> lock(drmMasterLock);
+                conn = ProbeConnectorLocked(card->fd, res->connectors[ci]);
+            }
             if (!conn) {
                 continue;
             }
 
-            std::string cname = ConnectorFullName(card->fd, conn);
-            bool connected = (conn->connection == DRM_MODE_CONNECTED);
-
-            if (m_device != cname || !connected) {
+            // An external display that is off or unplugged right now is not a
+            // reason to have no output: run a standard mode until it shows up
+            // and the hotplug handler adopts its own.  Before, the output was
+            // simply never created, and only a restart brought it back.
+            bool present = SinkPresent(card->fd, conn);
+            bool external = IsExternalConnector(conn->connector_type);
+            if (!present && !external && conn->connection != DRM_MODE_CONNECTED) {
                 drmModeFreeConnector(conn);
                 continue;
             }
@@ -353,19 +495,15 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
                 return 0;
             }
 
-            // Get default mode (first preferred, or first available)
             drmModeModeInfo mode = {};
             bool foundMode = false;
-            for (int mi = 0; mi < conn->count_modes; mi++) {
-                if (conn->modes[mi].type & DRM_MODE_TYPE_PREFERRED) {
-                    mode = conn->modes[mi];
-                    foundMode = true;
-                    break;
-                }
-            }
-            if (!foundMode && conn->count_modes > 0) {
-                mode = conn->modes[0];
+            if (present || !external) {
+                foundMode = PickMode(conn, mode);
+            } else {
+                mode = FallbackMode();
                 foundMode = true;
+                LogInfo(VB_CHANNELOUT, "KMSFrameBuffer: no display on %s yet, running %dx%d @ %dHz until one appears\n",
+                        cname.c_str(), mode.hdisplay, mode.vdisplay, mode.vrefresh);
             }
 
             if (!foundMode) {
@@ -484,7 +622,7 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
 
             {
                 std::unique_lock<std::mutex> lock(drmMasterLock);
-                m_sinkPresent = true;
+                SetSinkPresentLocked(present);
                 m_hotplugReady = true;
             }
             return 1;
@@ -498,6 +636,10 @@ void KMSFrameBuffer::DestroyFrameBuffer(void) {
     {
         std::unique_lock<std::mutex> lock(drmMasterLock);
         m_hotplugReady = false;
+        if (m_noDisplayWarned) {
+            WarningHolder::RemoveWarning(WARNING_ID_NO_DISPLAY, NoDisplayWarning(m_connectorName));
+            m_noDisplayWarned = false;
+        }
     }
     for (int x = 0; x < 3; x++) {
         if (m_fb[x].handle) {
@@ -1007,6 +1149,11 @@ bool KMSFrameBuffer::SetRefreshRate(int fps) {
 // up can bounce HPD a few times, and acting once on the settled state avoids a
 // modeset per bounce.
 static constexpr int HOTPLUG_SETTLE_MS = 1000;
+// How often an output without a display re-probes for one.  Events cover
+// most of it, but vc4.force_hotplug (the ForceHDMI setting) makes the kernel
+// ignore HPD: a projector switched on later sends nothing, and without this
+// the output would run the stand-in mode, under a stale warning, for good.
+static constexpr int ABSENT_RECHECK_MS = 10000;
 
 static std::mutex s_hotplugLock; // guards the three below
 static std::thread* s_hotplugThread = nullptr;
@@ -1067,6 +1214,7 @@ void KMSFrameBuffer::HotplugMonitorLoop(int sock, int wakeFd) {
     // connectors).  Any event re-probes every output on its card.
     std::map<std::string, std::set<uint32_t>> pending;
     long long deadline = 0;
+    long long nextRecheck = GetTimeMS() + ABSENT_RECHECK_MS;
     char buf[8192];
 
     while (true) {
@@ -1075,10 +1223,8 @@ void KMSFrameBuffer::HotplugMonitorLoop(int sock, int wakeFd) {
         pfds[0].events = POLLIN;
         pfds[1].fd = wakeFd;
         pfds[1].events = POLLIN;
-        int timeout = -1;
-        if (deadline) {
-            timeout = (int)std::max(0LL, deadline - GetTimeMS());
-        }
+        long long wake = deadline ? std::min(deadline, nextRecheck) : nextRecheck;
+        int timeout = (int)std::max(0LL, wake - GetTimeMS());
         int r = poll(pfds, 2, timeout);
         if (r < 0 && errno != EINTR) {
             LogWarn(VB_CHANNELOUT, "KMSFrameBuffer: uevent poll failed, display hotplug will no longer be handled: %s\n", strerror(errno));
@@ -1116,22 +1262,37 @@ void KMSFrameBuffer::HotplugMonitorLoop(int sock, int wakeFd) {
         }
         if (deadline && GetTimeMS() >= deadline) {
             for (auto& [cardPath, connectorIds] : pending) {
-                HandleHotplug(cardPath, connectorIds);
+                HandleHotplug(cardPath, connectorIds, false);
             }
             pending.clear();
             deadline = 0;
         }
+        if (GetTimeMS() >= nextRecheck) {
+            std::set<std::string> cards;
+            {
+                std::unique_lock<std::mutex> lock(drmMasterLock);
+                for (auto& [token, fb] : FLIP_TARGETS) {
+                    if (fb->m_hotplugReady && !fb->m_sinkPresent) {
+                        cards.insert(fb->m_cardInfo->path);
+                    }
+                }
+            }
+            for (auto& cardPath : cards) {
+                HandleHotplug(cardPath, {}, true);
+            }
+            nextRecheck = GetTimeMS() + ABSENT_RECHECK_MS;
+        }
     }
 }
 
-void KMSFrameBuffer::HandleHotplug(const std::string& cardPath, const std::set<uint32_t>& connectorIds) {
+void KMSFrameBuffer::HandleHotplug(const std::string& cardPath, const std::set<uint32_t>& connectorIds, bool onlyAbsent) {
     // Media state is read before drmMasterLock, as the other callers do, so
     // collect this card's outputs by token first.
     std::vector<std::pair<uint32_t, std::string>> outputs;
     {
         std::unique_lock<std::mutex> lock(drmMasterLock);
         for (auto& [token, fb] : FLIP_TARGETS) {
-            if (fb->m_hotplugReady && fb->m_cardInfo->path == cardPath) {
+            if (fb->m_hotplugReady && fb->m_cardInfo->path == cardPath && !(onlyAbsent && fb->m_sinkPresent)) {
                 outputs.emplace_back(token, fb->m_connectorName);
             }
         }
@@ -1149,25 +1310,19 @@ void KMSFrameBuffer::HandleHotplug(const std::string& cardPath, const std::set<u
         }
         KMSFrameBuffer* fb = it->second;
 
-        // Re-probe the connector.  Only the DRM master gets a real probe: for
-        // anyone else the kernel demotes it to reading back its cached state,
-        // and after a reconnect that is "connected" with no modes, because the
-        // HPD interrupt updates the status but not the mode list.  So this
-        // holds master - and drmMasterLock, so every output's flips wait out
-        // the EDID read, once per hotplug.  The real probe also refreshes the
-        // sysfs mode list that was emptied while the sink was away.
-        bool master = ioctl(fb->m_cardFd, DRM_IOCTL_SET_MASTER, 0) == 0;
-        drmModeConnectorPtr conn = drmModeGetConnector(fb->m_cardFd, fb->m_connectorId);
-        bool present = conn && conn->connection == DRM_MODE_CONNECTED && conn->count_modes > 0;
+        // A real probe (see ProbeConnectorLocked()), so it also refills the
+        // sysfs mode list that was emptied while the display was away.  Every
+        // output's flips wait out this EDID read, once per hotplug.
+        drmModeConnectorPtr conn = ProbeConnectorLocked(fb->m_cardFd, fb->m_connectorId);
+        bool present = SinkPresent(fb->m_cardFd, conn);
+        drmModeModeInfo mode = {};
+        bool haveMode = present && PickMode(conn, mode);
         if (conn) {
             drmModeFreeConnector(conn);
         }
-        if (master) {
-            ioctl(fb->m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
-        }
 
         bool wasPresent = fb->m_sinkPresent;
-        fb->m_sinkPresent = present;
+        fb->SetSinkPresentLocked(present);
         if (!present) {
             if (wasPresent) {
                 LogInfo(VB_CHANNELOUT, "KMSFrameBuffer %s: display disconnected\n", name.c_str());
@@ -1186,11 +1341,23 @@ void KMSFrameBuffer::HandleHotplug(const std::string& cardPath, const std::set<u
                 wasPresent ? "re-announced itself" : "reconnected");
         if (mediaHeld[token]) {
             LogInfo(VB_CHANNELOUT, "KMSFrameBuffer %s: media owns the connector, not restarting the display\n", name.c_str());
-        } else if (!fb->m_displayEnabled) {
-            // Not lit yet; EnableDisplay() or SyncDisplay() will do it.
-        } else {
+            continue;
+        }
+        // Run the display's own mode: the one we have may have been the stand-in
+        // for a display that wasn't there yet, or this may be another display.
+        // The framebuffer stays as it is; the plane scales it onto whatever mode
+        // the CRTC runs.  (DPI Pixels sets its own timing, but is never
+        // external, so never gets here.)
+        if (haveMode && !fb->m_variableRefresh && !SameTiming(mode, fb->m_mode)) {
+            LogInfo(VB_CHANNELOUT, "KMSFrameBuffer %s: switching to the display's own mode %s (was %s)\n",
+                    name.c_str(), ModeLine(mode).c_str(), ModeLine(fb->m_mode).c_str());
+            fb->m_mode = mode;
+        }
+        if (fb->m_displayEnabled) {
             fb->RestartDisplayLocked();
         }
+        // Otherwise it isn't lit yet, and EnableDisplay() or SyncDisplay()
+        // will light it in m_mode.
     }
 }
 
