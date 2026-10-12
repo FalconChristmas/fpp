@@ -245,7 +245,9 @@ class RemoteJobRunner
     {
         $runner = $this;
         $ch = curl_init($step->url);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        // Never follow: a peer could redirect the request back to loopback,
+        // which IsRemotePeerHost() keeps out of the URL itself.
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, $step->connectTimeoutMs);
         if ($step->timeout > 0) {
             curl_setopt($ch, CURLOPT_TIMEOUT, $step->timeout);
@@ -397,8 +399,7 @@ function RemoteJobUtf8CompleteLength($s)
 
 function RemoteJobValidHost($host)
 {
-    return is_string($host) && (filter_var($host, FILTER_VALIDATE_IP) ||
-        preg_match('/^(?=.{1,253}$)([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$/', $host));
+    return IsRemotePeerHost($host);
 }
 
 function RemoteJobURL($host, $path)
@@ -560,7 +561,12 @@ function RemoteJobPushFiles(array $job, callable $out)
     }
     $host = $hosts[0];
 
-    $dir = GetDirSetting(isset($job['dir']) ? $job['dir'] : '');
+    // Media only.  GetDirSetting() also maps config, logs, backups and crashes,
+    // whose files (.htpasswd, authorized_keys, backups holding settings) must
+    // not be sent to whatever host the request names.
+    $dirKey = isset($job['dir']) ? strtolower((string) $job['dir']) : '';
+    $mediaDirs = array('uploads', 'sequences', 'music', 'videos', 'images', 'effects', 'scripts', 'playlists');
+    $dir = in_array($dirKey, $mediaDirs, true) ? GetDirSetting($dirKey) : "";
     if ($dir == "") {
         $out("ERROR: invalid directory\n");
         return false;

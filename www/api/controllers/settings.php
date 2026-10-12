@@ -50,13 +50,14 @@ function GetSetting()
     // Service_rsync. Accepts IPv4 and IPv6 (bracketed in the URL).
     if (isset($_GET['ip'])) {
         $ip = $_GET['ip'];
-        if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+        if (!filter_var($ip, FILTER_VALIDATE_IP) || !IsRemotePeerHost($ip)) {
             http_response_code(400);
             return json(array('error' => 'Invalid IP address'));
         }
         $hostForUrl = (strpos($ip, ':') !== false) ? '[' . $ip . ']' : $ip;
         $curl = curl_init('http://' . $hostForUrl . '/api/settings/' . rawurlencode($settingName));
-        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+        // Not followed: the peer could redirect it to a local-only service.
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
         curl_setopt($curl, CURLOPT_TIMEOUT_MS, 8000);

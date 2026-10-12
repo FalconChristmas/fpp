@@ -19,6 +19,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit(0);
 }
 
+// A cross-site form or text/plain POST needs no CORS preflight; an
+// application/json one does, and this page answers no preflight.  So
+// requiring the type keeps other sites from starting jobs here (upgrades,
+// OS upgrades, file pushes to a host of their choosing).
+if (stripos(isset($_SERVER['CONTENT_TYPE']) ? $_SERVER['CONTENT_TYPE'] : '', 'application/json') !== 0) {
+    http_response_code(415);
+    echo "Content-Type must be application/json\n";
+    exit(0);
+}
+
 $request = json_decode(file_get_contents('php://input'), true);
 if (!is_array($request) || !isset($request['jobs']) || !is_array($request['jobs']) || !count($request['jobs'])) {
     http_response_code(400);

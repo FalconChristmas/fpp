@@ -12,8 +12,8 @@ if (!isset($_GET['ip'])) {
 
 $ip = $_GET['ip'];
 
-if (!filter_var($ip, FILTER_VALIDATE_IP)) {
-    $clean_ip = htmlspecialchars($ip, ENT_QUOTES, 'UTF-8');
+if (!filter_var($ip, FILTER_VALIDATE_IP) || !IsRemotePeerHost($ip)) {
+    $clean_ip = htmlspecialchars((string) $ip, ENT_QUOTES, 'UTF-8');
     echo "$clean_ip is not a valid IP address\n";
     exit(0);
 }
@@ -23,7 +23,7 @@ echo "Shutting down FPP system @ $ip\n";
 // FPP 5.0+
 $curl = curl_init('http://' . $ip . '/api/system/shutdown');
 curl_setopt($curl, CURLOPT_FAILONERROR, true);
-curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false); // a redirect could point back at loopback
 curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
 $request_content = curl_exec($curl);

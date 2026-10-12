@@ -348,6 +348,41 @@ function IsValidSettingName($name)
 }
 
 /**
+ * Whether a caller-supplied host may be contacted as another FPP.
+ *
+ * MultiSync peers are any LAN or VPN address or (mDNS) name, so this does not
+ * restrict to private ranges, nor refuse link-local (two players cabled
+ * together without DHCP talk over it).  It refuses what can only be this
+ * device: loopback, the unspecified address and "localhost" -- through those a
+ * request would reach fppd's internal port or localonly/ pages that trust the
+ * local address.  Callers must also not follow redirects, or a peer could
+ * send the request back to loopback.
+ */
+function IsRemotePeerHost($host)
+{
+    if (!is_string($host) || $host === '') {
+        return false;
+    }
+    if (filter_var($host, FILTER_VALIDATE_IP)) {
+        $packed = @inet_pton($host);
+        if ($packed === false) {
+            return false;
+        }
+        // IPv4-mapped IPv6 (::ffff:a.b.c.d) is judged as the IPv4 address.
+        if (strlen($packed) == 16 && substr($packed, 0, 12) === str_repeat("\0", 10) . "\xff\xff") {
+            $packed = substr($packed, 12);
+        }
+        if (strlen($packed) == 4) {
+            $b = ord($packed[0]);
+            return !($b == 127 || $b == 0);
+        }
+        return !($packed === str_repeat("\0", 16) || $packed === str_repeat("\0", 15) . "\x01");
+    }
+    return strcasecmp($host, 'localhost') != 0 && !preg_match('/\.localhost$/i', $host) &&
+        preg_match('/^(?=.{1,253}$)([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$/', $host) === 1;
+}
+
+/**
  * Whether a string can be a plugin's directory name.
  *
  * A plugin name becomes a path component under the plugins directory, so "."
