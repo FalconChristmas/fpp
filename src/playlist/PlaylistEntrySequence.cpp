@@ -45,6 +45,7 @@ PlaylistEntrySequence::PlaylistEntrySequence(Playlist* playlist, PlaylistEntryBa
     m_duration(0),
     m_prepared(false),
     m_adjustTiming(true),
+    m_sequenceFrameTime(0),
     m_pausedFrame(-1) {
     LogDebug(VB_PLAYLIST, "PlaylistEntrySequence::PlaylistEntrySequence()\n");
 
