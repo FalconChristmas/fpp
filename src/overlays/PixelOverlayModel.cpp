@@ -626,7 +626,9 @@ void PixelOverlayModel::setChildState(const std::string& n, const PixelOverlaySt
     // point anywhere; refuse it here, where the list is written, the same way
     // setData() refuses an out-of-bounds region.
     PixelOverlayState st = in;
-    if (st.getState() && (ox < 0 || oy < 0 || w < 0 || h < 0 || ox + w > width || oy + h > height)) {
+    // 64-bit sums: an XOffset near INT_MAX wrapped ox + w negative and passed.
+    if (st.getState() && (ox < 0 || oy < 0 || w < 0 || h < 0 ||
+                          (int64_t)ox + w > width || (int64_t)oy + h > height)) {
         LogWarn(VB_CHANNELOUT, "Submodel '%s' (%dx%d @ %d,%d) lies outside its parent '%s' (%dx%d), ignoring it\n",
                 n.c_str(), w, h, ox, oy, name.c_str(), width, height);
         st = PixelOverlayState(PixelOverlayState::Disabled);
@@ -875,12 +877,16 @@ void PixelOverlayModel::doOverlay(uint8_t* channels) {
         break;
     case 3: // Active Transparent RGB(W)
         for (int j = 0; j < channelCount; j += channelsPerNode, src += channelsPerNode, dst += channelsPerNode) {
+            // A channel count that is not a whole number of nodes leaves a
+            // short last node; reading and writing a full node there ran past
+            // channelData and past the model's channels.
+            const int n = std::min(channelsPerNode, channelCount - j);
             bool any = false;
-            for (int k = 0; k < channelsPerNode; k++) {
+            for (int k = 0; k < n; k++) {
                 any |= src[k];
             }
             if (any) {
-                for (int k = 0; k < channelsPerNode; k++) {
+                for (int k = 0; k < n; k++) {
                     dst[k] = src[k];
                 }
             }
@@ -901,10 +907,9 @@ void PixelOverlayModel::setData(const uint8_t* data) {
 }
 
 void PixelOverlayModel::setData(const uint8_t* data, int xOffset, int yOffset, int w, int h, const PixelOverlayState& st) {
-    if (((w + xOffset) > width) ||
-        ((h + yOffset) > height) ||
-        (xOffset < 0) ||
-        (yOffset < 0)) {
+    if (((int64_t)w + xOffset > width) ||
+        ((int64_t)h + yOffset > height) ||
+        (xOffset < 0) || (yOffset < 0) || (w < 0) || (h < 0)) {
         LogErr(VB_CHANNELOUT, "Error: region is out of bounds, model is %dx%d, region is %dx%d @ %d,%d\n",
                width, height, w, h, xOffset, yOffset);
         return;

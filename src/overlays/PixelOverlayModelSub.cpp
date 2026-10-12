@@ -14,6 +14,7 @@
 
 #include "fpp-json.h"
 
+#include <algorithm>
 #include <cstring>
 
 #include "../Sequence.h" // FPPD_OFF_CHANNEL
@@ -295,7 +296,24 @@ void PixelOverlayModelSub::doOverlay(uint8_t* channels) {
     if (!dirtyBuffer)
         return;
 
-    parent->setData(channelData, xOffset, yOffset, width, height, state);
+    // channelData is packed at this model's node width, but the parent reads
+    // the region at its own bytes per pixel. A UI-made submodel is 3 channels
+    // per node, so on an RGBW parent that read ran a third past the end of
+    // channelData (and shifted every colour). Repack when they differ; this
+    // runs only on the channel output thread, hence the thread_local.
+    const uint8_t* data = channelData;
+    const int pb = parent->getBytesPerPixel();
+    if (pb != channelsPerNode) {
+        static thread_local std::vector<uint8_t> repacked;
+        const size_t px = (size_t)width * height;
+        const int n = std::min(pb, channelsPerNode);
+        repacked.assign(px * pb, 0);
+        for (size_t p = 0; p < px; p++) {
+            memcpy(&repacked[p * pb], &channelData[p * channelsPerNode], n);
+        }
+        data = repacked.data();
+    }
+    parent->setData(data, xOffset, yOffset, width, height, state);
     parent->doOverlay(channels);
     dirtyBuffer = false;
 }
