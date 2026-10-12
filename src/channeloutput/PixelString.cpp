@@ -716,17 +716,17 @@ void PixelString::SetupMap(int vsOffset, const VirtualString& vs) {
         if (vs.colorOrder == FPPColorOrder::kColorOrderONE) {
             m_outputMap[offset++] = ch;
         } else {
-            // incoming data is always RGB or RGBW, map to whatever order is needed
-            if (whiteOffset == 0) {
-                // white is first, then color order on the way out, but W is always data[3]
-                m_outputMap[offset++] = ch + 3;
-            }
+            // incoming data is always RGB or RGBW, map to whatever order is
+            // needed.  The offsets are positions within the output node with
+            // W counted, so for WRGB red is at 1, not 0.
             m_outputMap[offset + redOffset] = ch;       // red is always data[0]
             m_outputMap[offset + greenOffset] = ch + 1; // green is always data[1]
             m_outputMap[offset + blueOffset] = ch + 2;  // blue is always data[2]
-            offset += 3;
-            if (whiteOffset == 3) {
-                m_outputMap[offset++] = ch + 3;
+            if (whiteOffset >= 0) {
+                m_outputMap[offset + whiteOffset] = ch + 3; // W is always data[3]
+                offset += 4;
+            } else {
+                offset += 3;
             }
         }
     }
