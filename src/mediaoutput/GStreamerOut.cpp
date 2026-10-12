@@ -60,6 +60,7 @@
 #include "StreamSlotManager.h"
 #include "VideoOutputManager.h"
 #include "mediadetails.h"
+#include "mediaoutput.h"
 #include "settings.h"
 #include "Timers.h"
 #include "channeloutput/channeloutputthread.h"
@@ -585,7 +586,10 @@ int GStreamerOutput::AcquireSharedDrmFd(const std::string& cardPath) {
         return -1;
     }
 
-    // Become DRM master — required for modesetting (kmssink needs this)
+    // Become DRM master — required for modesetting (kmssink needs this).
+    // Under drmMasterLock so it can't land in the middle of a KMS
+    // framebuffer output's flip, which holds master on its own fd.
+    std::unique_lock<std::mutex> masterLock(drmMasterLock);
     if (ioctl(fd, DRM_IOCTL_SET_MASTER, 0) < 0) {
         LogWarn(VB_MEDIAOUT, "GStreamer: DRM_IOCTL_SET_MASTER failed for %s: %s (another master may exist)\n",
                 cardPath.c_str(), FPPstrerror(errno));

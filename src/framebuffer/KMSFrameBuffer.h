@@ -96,15 +96,15 @@ private:
     // since been deleted. The handler resolves the token through FLIP_TARGETS
     // and drops one that no longer names a live instance. Never reused.
     uint32_t m_flipToken = 0;
-    static std::map<uint32_t, KMSFrameBuffer*> FLIP_TARGETS; // guarded by mediaOutputLock
-    static uint32_t NEXT_FLIP_TOKEN;                          // guarded by mediaOutputLock
+    static std::map<uint32_t, KMSFrameBuffer*> FLIP_TARGETS; // guarded by drmMasterLock
+    static uint32_t NEXT_FLIP_TOKEN;                          // guarded by drmMasterLock
 
     // True while a drmModePageFlip has been queued but its vblank completion
-    // event has not yet been drained.  Guarded by mediaOutputLock (only touched
+    // event has not yet been drained.  Guarded by drmMasterLock (only touched
     // from SyncDisplay / WaitForPendingFlip, both of which hold that lock).
     bool m_flipPending = false;
 
-    // Flip-path health counters (guarded by mediaOutputLock like m_flipPending).
+    // Flip-path health counters (guarded by drmMasterLock like m_flipPending).
     // Logged rate-limited at Warn so brief output hitches are visible without
     // debug logging: a stutter on the panel with these counters unchanged means
     // the delay is NOT in the KMS flip path.

@@ -204,7 +204,7 @@ KMSFrameBuffer::KMSFrameBuffer() {
     }
     ++FRAMEBUFFER_COUNT;
 
-    std::unique_lock<std::mutex> lock(mediaOutputLock);
+    std::unique_lock<std::mutex> lock(drmMasterLock);
     m_flipToken = ++NEXT_FLIP_TOKEN;
     FLIP_TARGETS[m_flipToken] = this;
 }
@@ -217,7 +217,7 @@ KMSFrameBuffer::~KMSFrameBuffer() {
     StopDrawLoop();
 
     {
-        std::unique_lock<std::mutex> lock(mediaOutputLock);
+        std::unique_lock<std::mutex> lock(drmMasterLock);
         // Retire our last flip while this object can still take its event.
         // Past this point one that is still queued is dropped by token.
         if (m_flipPending) {
@@ -533,11 +533,24 @@ void KMSFrameBuffer::SyncLoop() {
     }
 }
 
+// Whether media playback is starting up or showing on this connector, so this
+// output must leave it alone.  Read under mediaOutputLock and released at once:
+// the DRM work that follows holds drmMasterLock, can wait most of a refresh,
+// and with mediaOutputLock held that long it stalled MultiSync position
+// updates and status requests on every frame.
+static bool MediaHoldsConnector(const std::string& connector, bool includeLoading) {
+    std::unique_lock<std::mutex> lock(mediaOutputLock);
+    if (includeLoading && mediaOutputStatus.mediaLoading) {
+        return true;
+    }
+    return mediaOutputStatus.output == connector;
+}
+
 void KMSFrameBuffer::PageFlipHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void* data) {
     // data is the flip token of the instance that queued this flip, so even if
     // we drain an event that belongs to another KMSFrameBuffer sharing the same
     // card fd, the correct instance's pending flag is cleared. Runs inside
-    // drmHandleEvent under mediaOutputLock, which also guards FLIP_TARGETS.
+    // drmHandleEvent under drmMasterLock, which also guards FLIP_TARGETS.
     uint32_t token = (uint32_t)(uintptr_t)data;
     auto it = FLIP_TARGETS.find(token);
     if (it == FLIP_TARGETS.end()) {
@@ -548,7 +561,7 @@ void KMSFrameBuffer::PageFlipHandler(int fd, unsigned int frame, unsigned int se
     {
         self->m_flipPending = false;
         // "frame" is the vblank sequence number at flip completion; track the
-        // cadence.  Runs inside drmHandleEvent under mediaOutputLock.
+        // cadence.  Runs inside drmHandleEvent under drmMasterLock.
         if (self->m_lastFlipSeq != 0 && frame > self->m_lastFlipSeq) {
             uint32_t delta = frame - self->m_lastFlipSeq;
             self->m_vblankDeltaCounts[delta > 4 ? 4 : delta]++;
@@ -592,7 +605,7 @@ void KMSFrameBuffer::WaitForPageFree() {
     if (m_pages == 1) {
         return;
     }
-    std::unique_lock<std::mutex> lock(mediaOutputLock);
+    std::unique_lock<std::mutex> lock(drmMasterLock);
     if (m_flipPending) {
         int vr = m_mode.vrefresh > 0 ? m_mode.vrefresh : 60;
         uint32_t timeoutsBefore = m_flipWaitTimeouts;
@@ -639,11 +652,11 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
     if (!pageChanged || m_pages == 1)
         return;
 
-    std::unique_lock<std::mutex> lock(mediaOutputLock);
-    if (mediaOutputStatus.mediaLoading) {
+    if (MediaHoldsConnector(m_connectorName, true)) {
         return;
     }
-    if (mediaOutputStatus.output != m_connectorName) {
+    std::unique_lock<std::mutex> lock(drmMasterLock);
+    {
         long long syncStart = GetTimeMS();
         int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
         if (im == 0) {
@@ -768,11 +781,11 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
 }
 
 void KMSFrameBuffer::DisableDisplay() {
-    std::unique_lock<std::mutex> lock(mediaOutputLock);
-    if (mediaOutputStatus.mediaLoading) {
+    if (MediaHoldsConnector(m_connectorName, true)) {
         return;
     }
-    if (mediaOutputStatus.output != m_connectorName) {
+    std::unique_lock<std::mutex> lock(drmMasterLock);
+    {
         int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
         if (im == 0) {
             if (m_crtcId && m_planeId) {
@@ -789,13 +802,12 @@ void KMSFrameBuffer::DisableDisplay() {
 
 void KMSFrameBuffer::EnableDisplay() {
     LogDebug(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay() called for %s\n", m_connectorName.c_str());
-    std::unique_lock<std::mutex> lock(mediaOutputLock);
-    if (mediaOutputStatus.mediaLoading) {
-        LogDebug(VB_CHANNELOUT, "  Skipping: media is loading\n");
+    if (MediaHoldsConnector(m_connectorName, true)) {
+        LogDebug(VB_CHANNELOUT, "  Skipping: media is loading or playing on this connector\n");
         return;
     }
-    if (mediaOutputStatus.output != m_connectorName) {
-        LogDebug(VB_CHANNELOUT, "  mediaOutputStatus.output='%s', proceeding with enable\n", mediaOutputStatus.output.c_str());
+    std::unique_lock<std::mutex> lock(drmMasterLock);
+    {
         int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
         if (im == 0) {
             if (m_crtcId && m_planeId) {
@@ -821,8 +833,6 @@ void KMSFrameBuffer::EnableDisplay() {
         } else {
             LogWarn(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay: Failed to get DRM master (ioctl returned %d)\n", im);
         }
-    } else {
-        LogDebug(VB_CHANNELOUT, "  Skipping: mediaOutputStatus.output matches connector\n");
     }
 }
 
@@ -885,13 +895,13 @@ bool KMSFrameBuffer::SetRefreshRate(int fps) {
     mode.vtotal = newVtotal;
     mode.vrefresh = (uint32_t)llround((double)mode.clock * 1000.0 / ((double)mode.htotal * (double)newVtotal));
 
-    std::unique_lock<std::mutex> lock(mediaOutputLock);
-    if (mediaOutputStatus.output == m_connectorName) {
+    if (MediaHoldsConnector(m_connectorName, false)) {
         // The connector is currently presenting media playback; don't fight it.
         // Report "not applied" so the caller's idea of the live rate stays
         // honest and it asks again next frame.
         return false;
     }
+    std::unique_lock<std::mutex> lock(drmMasterLock);
     int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
     if (im != 0) {
         // Couldn't grab master right now.  As above, not applied; the caller

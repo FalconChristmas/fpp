@@ -51,6 +51,7 @@
 MediaOutputBase* mediaOutput = 0;
 float masterMediaPosition = 0.0;
 std::mutex mediaOutputLock;
+std::mutex drmMasterLock;
 
 static bool firstOutCreate = true;
 
