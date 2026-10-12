@@ -53,6 +53,11 @@ USBPixelnetOutput::USBPixelnetOutput(unsigned int startChannel,
     LogDebug(VB_CHANNELOUT, "USBPixelnetOutput::USBPixelnetOutput(%u, %u)\n",
              startChannel, channelCount);
 
+    // one Pixelnet universe; m_rawData holds the header plus 4096 channels,
+    // and RawSendData copies m_channelCount into it
+    if (m_channelCount > 4096) {
+        m_channelCount = 4096;
+    }
     m_useDoubleBuffer = 1;
 }
 
