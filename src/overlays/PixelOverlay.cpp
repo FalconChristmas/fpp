@@ -333,8 +333,22 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
     SaveJsonToFile(result, filename);
 }
 
+// Holds output running for a moment after the last overlay goes away, so the
+// frame that clears its channels is actually sent. Kept apart from numActive,
+// which is recomputed from the active lists and would erase a bump made to it.
+static std::atomic_int s_holdOutput{ 0 };
+static void holdOutputBriefly() {
+    s_holdOutput++;
+    std::this_thread::sleep_for(std::chrono::milliseconds(125));
+    s_holdOutput--;
+}
+
 bool PixelOverlayManager::hasActiveOverlays() {
-    return numActive > 0;
+    return numActive > 0 || s_holdOutput > 0;
+}
+// Caller holds activeModelsLock.
+void PixelOverlayManager::updateActiveCountLocked() {
+    numActive = (int)(activeModels.size() + activeRanges.size());
 }
 void PixelOverlayManager::resetChildParent(const std::string& name) {
     std::unique_lock<std::recursive_mutex> lock(modelsLock);
@@ -347,18 +361,25 @@ void PixelOverlayManager::resetChildParent(const std::string& name) {
     }
 }
 
+// Brings m's membership of activeModels in line with m->needsOutput(). The
+// old/new states are deliberately ignored: a model is active for two reasons
+// (its own state, and enabled submodels within it) that change on different
+// threads, and acting on each transition separately pushed a parent twice
+// (children first, then its own enable) and later dropped it while children
+// still needed it - and the counter drifted with every duplicate, so output
+// never idled again. Recomputing under the lock converges whatever order the
+// calls arrive in.
 void PixelOverlayManager::modelStateChanged(PixelOverlayModel* m, const PixelOverlayState& old, const PixelOverlayState& state) {
-    if (old.getState() == 0) {
-        // enabling, add
-        std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
+    std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
+    bool want = m->needsOutput();
+    bool present = std::find(activeModels.begin(), activeModels.end(), m) != activeModels.end();
+    if (want && !present) {
         activeModels.push_back(m);
-        numActive++;
-    } else if (state.getState() == 0) {
-        // disabling, remove
-        std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
+    } else if (!want && present) {
         activeModels.remove(m);
-        numActive--;
     }
+    updateActiveCountLocked();
+    lock.unlock();
     if (numActive > 0) {
         StartChannelOutputThread();
     }
@@ -1761,14 +1782,11 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                         val = -1;
                     } else if (root.isMember("deleteAll") && root["deleteAll"].asBool()) {
                         std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
-                        int sz = activeRanges.size();
                         activeRanges.clear();
-                        numActive -= sz;
+                        updateActiveCountLocked();
                         lock.unlock();
                         if (numActive == 0) {
-                            numActive++;
-                            std::this_thread::sleep_for(std::chrono::milliseconds(125));
-                            numActive--;
+                            holdOutputBriefly();
                         }
                         return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
                     } else if (root.isMember("Value")) {
@@ -1813,16 +1831,18 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                             } else {
                                 activeRanges.erase(it);
                                 it = activeRanges.begin();
-                                numActive--;
                             }
                         } else {
                             it++;
                         }
                     }
-                    if (!found) {
+                    // val < 0 is a delete (or a PUT with no usable Value); a
+                    // range that was not there stays absent rather than being
+                    // added with -1, which wrote 0xFF - every channel full on.
+                    if (!found && val >= 0) {
                         activeRanges.push_back(OverlayRange(start, end, val));
-                        numActive++;
                     }
+                    updateActiveCountLocked();
                 }
                 // skip the ','
                 if (p3.size()) {
@@ -1830,9 +1850,7 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                 }
                 if (numActive == 0 && startActive) {
                     // removed some, may need to wait to make sure the new values are output
-                    numActive++;
-                    std::this_thread::sleep_for(std::chrono::milliseconds(125));
-                    numActive--;
+                    holdOutputBriefly();
                 }
             }
             if (badRange) {
@@ -2119,6 +2137,7 @@ void PixelOverlayManager::removeAutoOverlayModel(const std::string& name) {
         removePeriodicUpdateAndWait(pmodel);
         std::unique_lock<std::recursive_mutex> alock(activeModelsLock);
         activeModels.remove(pmodel);
+        updateActiveCountLocked();
         alock.unlock();
 
         delete pmodel;

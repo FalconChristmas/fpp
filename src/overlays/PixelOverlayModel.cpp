@@ -464,6 +464,9 @@ bool PixelOverlayModel::isAutoCreated() {
 PixelOverlayState PixelOverlayModel::getState() const {
     return state;
 }
+bool PixelOverlayModel::needsOutput() const {
+    return state.getState() != PixelOverlayState::PixelState::Disabled || hasChildren();
+}
 
 void PixelOverlayModel::setState(const PixelOverlayState& st) {
     if (st == state)

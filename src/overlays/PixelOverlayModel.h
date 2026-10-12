@@ -107,6 +107,10 @@ public:
     }
 
     PixelOverlayState getState() const;
+    // Whether the channel output thread has to draw this model: its own state
+    // is enabled, or a submodel is enabled within it. The manager's active
+    // list is kept in step with this, not with individual state transitions.
+    bool needsOutput() const;
     virtual void setState(const PixelOverlayState& state);
 
     virtual void doOverlay(uint8_t* channels);

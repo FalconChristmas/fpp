@@ -143,7 +143,10 @@ private:
     std::map<std::string, std::string> subModelConfigs;
     bool subModelIndexLoaded = false;
 
+    // activeModels.size() + activeRanges.size(), set by
+    // updateActiveCountLocked() and nothing else.
     std::atomic_int numActive;
+    void updateActiveCountLocked();
     std::list<PixelOverlayModel*> activeModels;
     std::list<OverlayRange> activeRanges;
     std::recursive_mutex activeModelsLock;
