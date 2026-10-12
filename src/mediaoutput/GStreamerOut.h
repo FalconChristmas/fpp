@@ -178,6 +178,9 @@ private:
     uint64_t m_durationQueriedMs = 0;
     uint64_t m_stallStartMs = 0;
     uint64_t m_wallStartMs = 0;
+    // A SeekTo() that arrived before the pipeline prerolled, applied by
+    // Process() at the first position.  -1 when none is waiting.
+    gint64 m_pendingSeekNs = -1;
     uint64_t m_lastWallLogMs = 0;
 
     // Audio still queued between pipewiresink's reported position and the DAC.

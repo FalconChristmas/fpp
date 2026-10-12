@@ -3270,6 +3270,17 @@ int GStreamerOutput::Process(void) {
             // A valid position means the pipeline prerolled and the decoder
             // is producing — clear the consecutive-wedge escalation counter.
             s_consecutiveWedgeEvents = 0;
+            if (m_pendingSeekNs >= 0) {
+                gint64 seekNs = m_pendingSeekNs;
+                m_pendingSeekNs = -1;
+                LogDebug(VB_MEDIAOUT, "GStreamer: prerolled, applying held seek to %0.3fs\n",
+                         (double)seekNs / GST_SECOND);
+                if (!gst_element_seek(m_pipeline, 1.0, GST_FORMAT_TIME,
+                                      (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE),
+                                      GST_SEEK_TYPE_SET, seekNs, GST_SEEK_TYPE_NONE, 0)) {
+                    LogWarn(VB_MEDIAOUT, "GStreamer: held seek to %0.3fs failed\n", (double)seekNs / GST_SECOND);
+                }
+            }
             // The remaining pipeline/sink introspection here exists purely to
             // populate the debug log — skip the GStreamer queries entirely when
             // MediaOut isn't at DEBUG (or more verbose).
@@ -4156,6 +4167,17 @@ bool GStreamerOutput::SeekTo(float seconds) {
     if (!m_pipeline)
         return false;
     gint64 pos_ns = (gint64)(seconds * GST_SECOND);
+    // Same rule as AdjustSpeed(): a flushing seek into a pipeline that has
+    // never produced a position blocks the caller for good if its preroll is
+    // wedged (#2727), and callers hold StreamSlotManager's lock on the main
+    // loop.  The usual case is a companion that was just started for a
+    // resumed entry, so keep the position and let Process() seek once the
+    // pipeline is running.
+    if (m_wallStartMs == 0) {
+        LogDebug(VB_MEDIAOUT, "GStreamer: holding seek to %0.3fs until the pipeline has prerolled\n", seconds);
+        m_pendingSeekNs = pos_ns;
+        return true;
+    }
     return gst_element_seek(m_pipeline, 1.0, GST_FORMAT_TIME,
                             (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE),
                             GST_SEEK_TYPE_SET, pos_ns, GST_SEEK_TYPE_NONE, 0)
