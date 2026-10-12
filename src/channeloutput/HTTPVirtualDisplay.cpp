@@ -361,7 +361,12 @@ void HTTPVirtualDisplayOutput::SelectThread(void) {
 /*
  *
  */
-int HTTPVirtualDisplayOutput::WriteSSEPacket(int fd, const std::string& data) {
+// The output thread's whole budget for preview writes in one frame, and how
+// many frames in a row a client may refuse before it is dropped.
+static constexpr uint64_t SSE_FRAME_BUDGET_MS = 20;
+static constexpr int SSE_MAX_DROPPED_FRAMES = 200;
+
+int HTTPVirtualDisplayOutput::WriteSSEPacket(int fd, const std::string& data, uint64_t deadlineMS) {
     int len = data.size();
     std::string sendData;
 
@@ -409,7 +414,15 @@ int HTTPVirtualDisplayOutput::WriteSSEPacket(int fd, const std::string& data) {
             struct pollfd pfd;
             pfd.fd = fd;
             pfd.events = POLLOUT;
-            int pr = poll(&pfd, 1, 250);
+            // Bounded by the frame's budget, not per client per stall: a
+            // client trickling a few bytes at a time otherwise held the
+            // output thread (and every output) for as long as it liked.
+            long long left = (long long)deadlineMS - (long long)GetTimeMS();
+            if (left <= 0) {
+                LogDebug(VB_CHANNELOUT, "SSE client too slow for this frame (%zu/%zu bytes), closing connection\n", sent, total);
+                return -1;
+            }
+            int pr = poll(&pfd, 1, (int)std::min<long long>(left, 250));
             if (pr > 0) {
                 continue;
             }
@@ -614,9 +627,19 @@ int HTTPVirtualDisplayOutput::SendData(unsigned char* channelData) {
 
     if (m_sseData != "") {
         std::unique_lock<std::mutex> lock(m_connListLock);
+        const uint64_t deadline = GetTimeMS() + SSE_FRAME_BUDGET_MS;
         // Iterate backwards so we can safely remove elements
         for (int i = m_connList.size() - 1; i >= 0; i--) {
-            int result = WriteSSEPacket(m_connList[i], m_sseData);
+            int result = WriteSSEPacket(m_connList[i], m_sseData, deadline);
+            if (result == 0 && ++m_dropCounts[m_connList[i]] > SSE_MAX_DROPPED_FRAMES) {
+                // A client that has taken nothing for this long is gone or
+                // stuck; dropping its frames forever also cost every frame a
+                // resync of the pixels it never received.
+                LogDebug(VB_CHANNELOUT, "SSE client %d took no frames for %d frames, closing it\n", m_connList[i], SSE_MAX_DROPPED_FRAMES);
+                result = -1;
+            } else if (result > 0) {
+                m_dropCounts.erase(m_connList[i]);
+            }
             if (result < 0) {
                 // Connection is dead, remove it
                 LogDebug(VB_CHANNELOUT, "Removing dead SSE connection %d\n", m_connList[i]);
@@ -625,6 +648,14 @@ int HTTPVirtualDisplayOutput::SendData(unsigned char* channelData) {
                 m_connListChanged = true;
             } else if (result == 0) {
                 dropped = true;
+            }
+        }
+        // forget counts for connections the select thread has since closed
+        for (auto it = m_dropCounts.begin(); it != m_dropCounts.end();) {
+            if (std::find(m_connList.begin(), m_connList.end(), it->first) == m_connList.end()) {
+                it = m_dropCounts.erase(it);
+            } else {
+                ++it;
             }
         }
     }

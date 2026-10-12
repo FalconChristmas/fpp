@@ -1,4 +1,6 @@
 #pragma once
+
+#include <map>
 /*
  * This file is part of the Falcon Player (FPP) and is Copyright (C)
  * 2013-2022 by the Falcon Player Developers.
@@ -37,7 +39,11 @@ public:
 private:
     // Returns 1 if the frame was sent, 0 if it was dropped (client is behind
     // but the connection is still good), -1 if the connection is dead.
-    int WriteSSEPacket(int fd, const std::string& data);
+    // deadlineMS bounds the whole frame's writes across every client: this
+    // runs on the channel output thread
+    int WriteSSEPacket(int fd, const std::string& data, uint64_t deadlineMS);
+    // consecutive frames each client could not take; see SendData()
+    std::map<int, int> m_dropCounts;
 
     int m_port;
     int m_screenSize;
