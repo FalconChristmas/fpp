@@ -1819,10 +1819,10 @@ void BBShiftStringOutput::StartingOutput() {
 }
 void BBShiftStringOutput::StoppingOutput() {
     for (int y = 0; y < NUM_CONFIG_PACKETS; ++y) {
-        if (m_pru1.v5_config_packets[y] == &m_pru1.dynamicPacketInfo2 && m_pru1.v5_config_packets[y] == &m_pru1.dynamicPacketInfo1) {
+        if (m_pru1.v5_config_packets[y] == &m_pru1.dynamicPacketInfo2 || m_pru1.v5_config_packets[y] == &m_pru1.dynamicPacketInfo1) {
             m_pru1.v5_config_packets[y] = nullptr;
         }
-        if (m_pru0.v5_config_packets[y] == &m_pru0.dynamicPacketInfo2 && m_pru0.v5_config_packets[y] == &m_pru0.dynamicPacketInfo1) {
+        if (m_pru0.v5_config_packets[y] == &m_pru0.dynamicPacketInfo2 || m_pru0.v5_config_packets[y] == &m_pru0.dynamicPacketInfo1) {
             m_pru0.v5_config_packets[y] = nullptr;
         }
     }
@@ -1834,8 +1834,10 @@ constexpr int numPacketTypes = 12;
 // and demoteInvertedReceiverChains() has already dropped any chain whose head
 // is inverted, so a packet never needs flipping.
 void BBShiftStringOutput::encodeFalconV5Packet(std::vector<std::array<uint8_t, 64>>& packets, uint8_t* memLocPru0, uint8_t* memLocPru1) {
-    std::array<uint8_t, 57 * MAX_PINS_PER_PRU * MAX_STRINGS_PER_PIN> pru0Data;
-    std::array<uint8_t, 57 * MAX_PINS_PER_PRU * MAX_STRINGS_PER_PIN> pru1Data;
+    // zeroed: slots with no string mapped to them are still clocked out on
+    // their shift stage, and must send zeros rather than old stack contents
+    std::array<uint8_t, 57 * MAX_PINS_PER_PRU * MAX_STRINGS_PER_PIN> pru0Data = {};
+    std::array<uint8_t, 57 * MAX_PINS_PER_PRU * MAX_STRINGS_PER_PIN> pru1Data = {};
     for (int y = 0; y < MAX_PINS_PER_PRU; ++y) {
         uint8_t pinMask = 1 << y;
         for (int x = 0; x < m_stringsPerPin; ++x) {
