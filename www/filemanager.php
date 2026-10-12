@@ -285,6 +285,8 @@
                                                 <tr>
                                                     <th data-field="filename">File</th>
                                                     <th data-field="duration">Duration</th>
+                                                    <th data-field="bitrate">Bit Rate</th>
+                                                    <th data-field="samplerate">Sample Rate</th>
                                                     <th data-field="dateModified">Date Modified</th>
                                                 </tr>
                                             </thead>
@@ -300,6 +302,15 @@
                                             id="btnPlayMusicInBrowser"
                                             class="disableButtons noDirButton singleMusicButton" type="button"
                                             value="Listen" />
+                                        <input onclick="ButtonHandler('Music', 'audioInfo');"
+                                            class="disableButtons noDirButton singleMusicButton" type="button"
+                                            value="Audio Info" />
+                                        <? if (file_exists("/bin/ffmpeg") || file_exists("/usr/bin/ffmpeg") || file_exists("/opt/homebrew/bin/ffmpeg") || file_exists("/usr/local/bin/ffmpeg")) { ?>
+                                            <input onclick="ButtonHandler('Music', 'convertRate');"
+                                                id="btnConvertMusicRate"
+                                                class="disableButtons noDirButton singleMusicButton multiMusicButton"
+                                                type="button" value="Convert Rate" />
+                                        <? } ?>
                                         <? if (file_exists("/bin/mp3gain") || file_exists("/usr/bin/mp3gain") || file_exists("/opt/homebrew/bin/mp3gain") || file_exists("/usr/local/bin/mp3gain")) { ?>
                                             <input onclick="ButtonHandler('Music', 'mp3gain');" id="btnPlayMusicInBrowser"
                                                 class="disableButtons noDirButton singleMusicButton multiMusicButton"

@@ -2416,6 +2416,68 @@ function media_duration_cache($media, $duration_seconds = null, $filesize = null
 }
 
 /**
+ * Caches the audio facts the File Manager's Music tab shows for each file
+ * (sample rate, bit rate, channels, codec), so a page load never probes a file
+ * it has already seen.
+ *
+ * Mirrors media_duration_cache(): keyed on the relative filename and validated
+ * against the file size, so a replaced file of a different size is probed again.
+ * A file with no audio stream is cached with a sample rate of 0, so it is not
+ * probed on every listing either.
+ *
+ * @param string $media relative music filename (cache key)
+ * @param array|null $info ['sampleRate','bitRate','channels','codec'] to store, or null to only look up
+ * @param int|string|null $filesize file size used to validate the cache entry
+ * @return array|null the cached/stored info, or null on a miss with nothing to store
+ */
+function media_audio_info_cache($media, $info = null, $filesize = null)
+{
+    global $settings;
+    $file_path = $settings['configDirectory'] . "/media_audio_info.cache";
+    $time = 86400 * 30; //seconds - cache for 24hrs * 30days
+
+    $decode = function ($raw) {
+        if ($raw === false || $raw === '') {
+            return array();
+        }
+        $cache = json_decode($raw, true);
+        return is_array($cache) ? $cache : array();
+    };
+
+    if ($info === null) {
+        // Lookup only. No lock: a torn read fails to decode and reads as a miss.
+        if (!file_exists($file_path) || (time() - filemtime($file_path) > $time)) {
+            return null;
+        }
+        $cache = $decode(file_get_contents($file_path));
+        if (array_key_exists($media, $cache) && $cache[$media]['filesize'] == $filesize) {
+            return $cache[$media]['info'];
+        }
+        return null;
+    }
+
+    // Store: read-modify-write under an exclusive lock, for the same reason as
+    // media_duration_cache() (concurrent callers clobber each other otherwise).
+    $fp = fopen($file_path, 'c+');
+    if ($fp === false) {
+        return $info;
+    }
+    if (flock($fp, LOCK_EX)) {
+        $expired = (time() - filemtime($file_path) > $time);
+        $cache = $expired ? array() : $decode(stream_get_contents($fp));
+        $cache[$media] = array('filesize' => $filesize, 'info' => $info);
+        ftruncate($fp, 0);
+        rewind($fp);
+        fwrite($fp, json_encode($cache, JSON_PRETTY_PRINT));
+        fflush($fp);
+        flock($fp, LOCK_UN);
+    }
+    fclose($fp);
+
+    return $info;
+}
+
+/**
  * Caches the frame rate (fps) of sequence (.fseq) files so the file manager
  * doesn't have to shell out to fsequtils for every sequence on every listing.
  *
