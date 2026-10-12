@@ -1261,22 +1261,36 @@ void PixelOverlayModel::setBufferIsDirty(bool dirty) {
     dirtyBuffer = dirty;
 }
 
+// Created on first use, which can be an HTTP thread and an effect thread at
+// once: both saw null, both created it, and one mapping was lost - along with
+// whatever that thread had already drawn into it. Serialized here (allocation
+// happens once per model, so one lock for all of them is fine; a member would
+// change the plugin-visible layout), and published with release so the
+// channel output thread, which reads the pointer unlocked, never sees it
+// before its header is filled in.
+static std::mutex s_overlayBufferAllocLock;
 uint8_t* PixelOverlayModel::getOverlayBuffer() {
-    if (!overlayBufferData) {
-        uint32_t size = width * height * bytesPerPixel + sizeof(OverlayBufferData);
-        overlayBufferData = (OverlayBufferData*)createModelMemory(
-            modelMemoryName("/FPP-Model-Overlay-Buffer-", "/FPPMB-", name), size, overlayBufferMapped);
-        if (!overlayBufferData) {
-            // Nothing left to hand back. Callers check, because the alternative
-            // was dereferencing this null a few instructions from here.
-            WarningHolder::AddWarning(WARNING_ID_MODEL_MEMORY, MODEL_MEMORY_WARNING);
-            return nullptr;
+    OverlayBufferData* ob = __atomic_load_n(&overlayBufferData, __ATOMIC_ACQUIRE);
+    if (!ob) {
+        std::lock_guard<std::mutex> l(s_overlayBufferAllocLock);
+        ob = overlayBufferData;
+        if (!ob) {
+            uint32_t size = width * height * bytesPerPixel + sizeof(OverlayBufferData);
+            ob = (OverlayBufferData*)createModelMemory(
+                modelMemoryName("/FPP-Model-Overlay-Buffer-", "/FPPMB-", name), size, overlayBufferMapped);
+            if (!ob) {
+                // Nothing left to hand back. Callers check, because the alternative
+                // was dereferencing this null a few instructions from here.
+                WarningHolder::AddWarning(WARNING_ID_MODEL_MEMORY, MODEL_MEMORY_WARNING);
+                return nullptr;
+            }
+            ob->width = width;
+            ob->height = height;
+            ob->flags = (bytesPerPixel << 8); // store bytesPerPixel in bits 8-15
+            __atomic_store_n(&overlayBufferData, ob, __ATOMIC_RELEASE);
         }
-        overlayBufferData->width = width;
-        overlayBufferData->height = height;
-        overlayBufferData->flags = (bytesPerPixel << 8); // store bytesPerPixel in bits 8-15
     }
-    return overlayBufferData->data;
+    return ob->data;
 }
 
 void PixelOverlayModel::clearOverlayBuffer() {
