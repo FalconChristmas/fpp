@@ -25,6 +25,7 @@
 #include <fstream>
 
 #include "../Warnings.h"
+#include "ChannelOutputSetup.h"
 #include "../common.h"
 #include "../log.h"
 #include "../settings.h"
@@ -439,7 +440,7 @@ int BBBMatrix::Init(Json::Value config) {
         // one the pixels have nowhere to go.
         LogErr(VB_CHANNELOUT, "BBBMatrix: Panel interleave '%s' cannot map a %dx%d 1/%d scan panel\n",
                m_panelInterleave.c_str(), m_panelWidth, m_panelHeight, m_panelScan);
-        WarningHolder::AddWarning(50, "LED panel output disabled: panel interleave '" + m_panelInterleave +
+        AddOutputConfigWarning(50, "LED panel output disabled: panel interleave '" + m_panelInterleave +
                                           "' is not valid for a " + std::to_string(m_panelWidth) + "x" + std::to_string(m_panelHeight) +
                                           " 1/" + std::to_string(m_panelScan) + " scan panel.  Set the Panel Interleave to match the panel.");
         return 0;
@@ -502,13 +503,13 @@ int BBBMatrix::Init(Json::Value config) {
     bool isPWM = false;
     if (!FileExists(filename)) {
         LogErr(VB_CHANNELOUT, "No output pin configuration for %s - %s\n", name.c_str(), filename);
-        WarningHolder::AddWarning(50, "LED panel output: no output pin configuration for " + name);
+        AddOutputConfigWarning(50, "LED panel output: no output pin configuration for " + name);
         return 0;
     } else {
         LogDebug(VB_CHANNELOUT, "Using panel pinout from %s\n", filename);
         if (!LoadJsonFromFile(filename, root, JsonRoot::Object)) {
             LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s - %s\n", name.c_str(), filename);
-            WarningHolder::AddWarning(50, "LED panel output: could not read pin configuration for " + name);
+            AddOutputConfigWarning(50, "LED panel output: could not read pin configuration for " + name);
             return 0;
         }
         std::string longName = root["longName"].asString();
@@ -695,13 +696,13 @@ int BBBMatrix::Init(Json::Value config) {
     if (!m_singlePRU) {
         if (!m_pruCopy->run("/tmp/FalconMatrixPRUCpy.out")) {
             LogErr(VB_CHANNELOUT, "BBBMatrix: Unable to start PRU. May require a reboot.\n");
-            WarningHolder::AddWarning(20, "BBBMatrix: Unable to start PRU. May require a reboot.");
+            AddOutputConfigWarning(20, "BBBMatrix: Unable to start PRU. May require a reboot.");
             return 0;
         }
     }
     if (!m_pru->run(pru_program)) {
         LogErr(VB_CHANNELOUT, "BBBMatrix: Unable to start PRU. May require a reboot.\n");
-        WarningHolder::AddWarning(20, "BBBMatrix: Unable to start PRU. May require a reboot.");
+        AddOutputConfigWarning(20, "BBBMatrix: Unable to start PRU. May require a reboot.");
         return 0;
     }
 
@@ -779,7 +780,7 @@ int BBBMatrix::Init(Json::Value config) {
     }
     if (!framesBase) {
         LogErr(VB_CHANNELOUT, "BBBMatrix: no room in the PRU DDR region for even one frame\n");
-        WarningHolder::AddWarning(20, "BBBMatrix: no room in the PRU DDR region - reduce panel count/color depth or other outputs' buffers");
+        AddOutputConfigWarning(20, "BBBMatrix: no room in the PRU DDR region - reduce panel count/color depth or other outputs' buffers");
         return 0;
     }
     for (int x = 0; x < 8; x++) {
