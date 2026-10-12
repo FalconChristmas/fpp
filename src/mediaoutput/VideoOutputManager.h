@@ -382,6 +382,12 @@ private:
     /// Wait for pending pipeline teardown threads to finish (releases DRM/CMA).
     /// Returns true if all teardowns completed, false on timeout.
     bool WaitForPendingTeardowns(int timeoutMs);
+    // CmaFree from /proc/meminfo in kB, or -1.
+    static long ReadCmaFreeKB();
+    static constexpr long CMA_WARN_KB = 20480;
+    // WaitForPendingTeardowns(), but only when CMA is short.  Never call it
+    // with m_mutex held.
+    void WaitForCmaIfLow();
 
     mutable std::mutex m_mutex;
     std::vector<ConsumerInfo> m_consumers;

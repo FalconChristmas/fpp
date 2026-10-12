@@ -377,6 +377,7 @@ void VideoOutputManager::StartConsumers(const std::string& producerNodeName,
                                         int primaryConnectorId,
                                         const std::set<int>& directConnectorIds) {
     bool shouldStartSAP = false;
+    WaitForCmaIfLow();
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (!m_initialized || m_consumers.empty()) {
@@ -501,6 +502,7 @@ void VideoOutputManager::ResumePersistentHdmiConsumers() {
 }
 
 void VideoOutputManager::NotifyProducerReady(const std::string& channelName) {
+    WaitForCmaIfLow();
     std::lock_guard<std::mutex> lock(m_mutex);
 
     // Zombie sweep — see ResumePersistentHdmiConsumers for rationale. Applies
@@ -1122,36 +1124,17 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
         // ~16-24 MB of CMA for dumb buffers.  CmaFree may appear low because
         // the kernel uses CMA pages for general movable allocations; those
         // pages are migrated on demand when a real DMA allocation occurs.
-        // If a teardown is in progress, wait briefly for DRM buffers to be
-        // released.  Otherwise just warn and proceed — the kernel will
-        // attempt CMA migration, and if it truly fails the DRM ioctl
-        // (and hence pipeline start) will error out on its own.
+        // The wait for in-flight teardowns to give their buffers back happens
+        // before m_mutex is taken (WaitForCmaIfLow()); here just warn and
+        // proceed — the kernel will attempt CMA migration, and if it truly
+        // fails the DRM ioctl (and hence pipeline start) will error out on
+        // its own.
         {
-            auto readCmaFree = []() -> long {
-                FILE* f = fopen("/proc/meminfo", "r");
-                if (!f) return -1;
-                char line[256];
-                long kb = -1;
-                while (fgets(line, sizeof(line), f)) {
-                    if (sscanf(line, "CmaFree: %ld kB", &kb) == 1) break;
-                }
-                fclose(f);
-                return kb;
-            };
-
-            long cmaFreeKB = readCmaFree();
-            static constexpr long CMA_WARN_KB = 20480;
+            long cmaFreeKB = ReadCmaFreeKB();
             if (cmaFreeKB >= 0 && cmaFreeKB < CMA_WARN_KB) {
-                LogInfo(VB_MEDIAOUT, "VideoOutputManager: CMA low (%ld kB) for consumer '%s', "
-                        "waiting for pending teardowns then proceeding...\n",
+                LogWarn(VB_MEDIAOUT, "VideoOutputManager: CMA low (%ld kB) for '%s' — "
+                        "proceeding anyway (kernel will attempt CMA migration)\n",
                         cmaFreeKB, consumer.name.c_str());
-                WaitForPendingTeardowns(3000);
-                cmaFreeKB = readCmaFree();
-                if (cmaFreeKB >= 0 && cmaFreeKB < CMA_WARN_KB) {
-                    LogWarn(VB_MEDIAOUT, "VideoOutputManager: CMA still low (%ld kB) for '%s' — "
-                            "proceeding anyway (kernel will attempt CMA migration)\n",
-                            cmaFreeKB, consumer.name.c_str());
-                }
             }
         }
 
@@ -1634,6 +1617,31 @@ GstFlowReturn VideoOutputManager::OnOverlaySample(GstAppSink* appsink, gpointer 
     return GST_FLOW_OK;
 }
 #endif
+
+long VideoOutputManager::ReadCmaFreeKB() {
+    FILE* f = fopen("/proc/meminfo", "r");
+    if (!f) return -1;
+    char line[256];
+    long kb = -1;
+    while (fgets(line, sizeof(line), f)) {
+        if (sscanf(line, "CmaFree: %ld kB", &kb) == 1) break;
+    }
+    fclose(f);
+    return kb;
+}
+
+void VideoOutputManager::WaitForCmaIfLow() {
+    // When CMA is short and a teardown is still releasing its DRM buffers,
+    // give it a moment before starting consumers.  Called before m_mutex is
+    // taken: it can wait seconds, and media playback's Start() asks this
+    // manager for crop rectangles under that lock while holding
+    // mediaOutputLock.
+    long cmaFreeKB = ReadCmaFreeKB();
+    if (cmaFreeKB >= 0 && cmaFreeKB < CMA_WARN_KB) {
+        LogInfo(VB_MEDIAOUT, "VideoOutputManager: CMA low (%ld kB), waiting for pending teardowns\n", cmaFreeKB);
+        WaitForPendingTeardowns(3000);
+    }
+}
 
 bool VideoOutputManager::WaitForPendingTeardowns(int timeoutMs) {
     std::unique_lock<std::mutex> tl(m_teardownMutex);
