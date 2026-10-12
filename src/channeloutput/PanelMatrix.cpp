@@ -121,7 +121,7 @@ int PanelMatrix::AddPanel(int output, int chain, char orientation,
         m_panels[m_panelCount].yOffset = yOffset;
         m_panels[m_panelCount].colorOrder = colorOrder;
 
-        m_panels[m_panelCount].pixelMap.resize(pWidth & pHeight);
+        m_panels[m_panelCount].pixelMap.resize(pWidth * pHeight * 3);
 
         m_outputPanels[output].push_back(m_panelCount);
 
