@@ -483,6 +483,26 @@ bool RTSPOutputManager::StartServer() {
 }
 
 void RTSPOutputManager::StopServer() {
+    if (m_server) {
+        // Close the connected clients and their sessions first, while the loop
+        // that services them still runs.  Quitting the loop and dropping the
+        // server left them connected: their media (intervideosrc -> x264enc)
+        // kept encoding through every reload and shutdown, a viewer stayed on
+        // the old config, and its context held the old listening socket.
+        g_list_free_full(gst_rtsp_server_client_filter(
+                             m_server,
+                             [](GstRTSPServer*, GstRTSPClient*, gpointer) { return GST_RTSP_FILTER_REMOVE; },
+                             nullptr),
+                         g_object_unref);
+        if (GstRTSPSessionPool* pool = gst_rtsp_server_get_session_pool(m_server)) {
+            g_list_free_full(gst_rtsp_session_pool_filter(
+                                 pool,
+                                 [](GstRTSPSessionPool*, GstRTSPSession*, gpointer) { return GST_RTSP_FILTER_REMOVE; },
+                                 nullptr),
+                             g_object_unref);
+            g_object_unref(pool);
+        }
+    }
     if (m_mainLoop) {
         g_main_loop_quit(m_mainLoop);
     }
