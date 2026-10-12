@@ -242,7 +242,11 @@ static void ReplaceString(std::string& str, std::string pattern, std::string rep
     while (found != std::string::npos) {
         str.replace(found, pattern.length(), replacement);
 
-        found = str.find(pattern);
+        // Resume after what was inserted, not from the start: a value that
+        // contains its own keyword (a playlist named "%PLAYLIST_NAME%") was
+        // found again inside the replacement, forever, hanging whichever
+        // thread fired the preset.
+        found = str.find(pattern, found + replacement.length());
     }
 }
 std::string ReplaceKeywords(std::string str, std::map<std::string, std::string>& keywords) {
