@@ -52,14 +52,14 @@ SPIUtils::~SPIUtils() {
 int SPIUtils::xfer(uint8_t* tx, uint8_t* rx, int count) {
     if (file != -1) {
 #ifdef HAS_SPI
-        if (rx == nullptr) {
-            rx = tx;
-        }
         struct spi_ioc_transfer spi;
         channel &= 1;
         memset(&spi, 0, sizeof(spi));
 
         spi.tx_buf = (unsigned long)tx;
+        // A null rx is a send-only transfer.  Do not receive into tx: the
+        // outputs pass the live sequence buffer as tx, and spidev would write
+        // whatever is on MISO back over it.
         spi.rx_buf = (unsigned long)rx;
         spi.len = count;
         spi.delay_usecs = 0;
