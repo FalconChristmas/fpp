@@ -34,6 +34,11 @@ public:
 
     void OutputThread(void);
 
+    // Public so the output loader can stop the worker before Close(): a
+    // subclass Close() tears down its own state first and only then reaches
+    // ThreadedChannelOutput::Close().  Idempotent.
+    int StopOutputThread(void);
+
 private:
     int Init(void);
 
@@ -45,7 +50,6 @@ protected:
     // the output in that case rather than waiting for a thread that will
     // never run.
     bool StartOutputThread(void);
-    int StopOutputThread(void);
     int SendOutputBuffer(void);
 
     unsigned int m_maxWait;

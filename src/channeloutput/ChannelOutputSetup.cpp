@@ -29,6 +29,7 @@
 #include "ChannelOutputSetup.h"
 #include "Sequence.h"
 #include "channeloutputthread.h"
+#include "ThreadedChannelOutput.h"
 #include "Warnings.h"
 #include "common.h"
 #include "log.h"
@@ -295,6 +296,19 @@ static std::map<std::string, std::string> OUTPUT_REMAPS = {
 
 bool skipOutputRangeCompute = false;
 
+// Every output is closed through here.  A ThreadedChannelOutput subclass's
+// Close() frees its own resources (serial port, libusb handle, buffers, X
+// display) and only then reaches ThreadedChannelOutput::Close(), which stops
+// the worker - and the worker flushes any pending frame on its way out, into
+// what was just freed.  Stopping it first covers every subclass, plugins
+// included, without relying on each one to order its Close() correctly.
+static void CloseChannelOutput(ChannelOutput* output) {
+    if (auto* threaded = dynamic_cast<ThreadedChannelOutput*>(output)) {
+        threaded->StopOutputThread();
+    }
+    output->Close();
+}
+
 static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
     Json::Value root;
     if (FileExists(cfgFile)) {
@@ -363,7 +377,7 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
         }
         for (auto inst : toDelete) {
             if (inst->output) {
-                inst->output->Close();
+                CloseChannelOutput(inst->output);
                 delete inst->output;
             }
             delete inst;
@@ -460,7 +474,7 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
                             WarningHolder::AddWarning(26, warning);
                             LogErr(VB_CHANNELOUT, "%s\n", warning.c_str());
                             outputLoadWarnings[cfgFile].insert(warning);
-                            channelOutput->output->Close();
+                            CloseChannelOutput(channelOutput->output);
                             delete channelOutput->output;
                             channelOutput->output = nullptr;
                             initOK = false;
@@ -682,7 +696,7 @@ void CloseChannelOutputs(void) {
     // lock, blocking here would trade a crash-exit for a hung daemon.
     for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
         if (inst->output) {
-            inst->output->Close();
+            CloseChannelOutput(inst->output);
         }
     }
     for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
