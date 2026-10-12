@@ -20,6 +20,47 @@ ServerTokens Prod
 	# empty (200 OK, zero-length body) instead of erroring visibly.
 	AllowEncodedSlashes On
 
+	# Cross-site request gate.
+	#
+	# There is no login by default and /api answers any origin, so without
+	# this any web page a user opens could make this player do things:
+	# change settings, install plugins, run scripts, reboot it.  Browsers say
+	# where a request comes from, so requests another site starts are refused
+	# here, in front of every page, the API and the routes proxied to fppd.
+	# Browsers send Sec-Fetch-Site only to HTTPS (and localhost) origins, so on
+	# a plain-HTTP player it is Origin, sent with every cross-origin
+	# POST/PUT/DELETE, that does the work in rule 1; rule 2 can only act on
+	# Sec-Fetch-Site and so applies only when the UI is reached over HTTPS.  Clients that are not browsers
+	# (xLights, other players, scripts, curl) send neither header and are not
+	# affected, and a page served by this player is "same-origin" -- also
+	# when another player's UI reaches it through /proxy/, which forwards
+	# the header unchanged.  The WLED-compatible endpoints (/json, /win, /ws)
+	# are left open: WLED apps drive them from anywhere, and all they can do
+	# is switch overlay models.
+	#
+	# Server context, so it runs before the <Directory> rewrites and before
+	# ProxyPass; REDIRECT_STATUS keeps it to the original request, whose path
+	# Apache has already decoded and normalised.
+	RewriteEngine On
+
+	# 1. Anything but GET/HEAD/OPTIONS that another site's page sent.
+	RewriteCond %{ENV:REDIRECT_STATUS} ^$
+	RewriteCond %{REQUEST_URI} !^/(json|win|ws)(/|$)
+	RewriteCond %{REQUEST_METHOD} !^(GET|HEAD|OPTIONS)$
+	RewriteCond expr "%{HTTP:Sec-Fetch-Site} -in {'cross-site', 'same-site'} || (%{HTTP:Sec-Fetch-Site} == '' && %{HTTP:Origin} != '' && %{HTTP:Origin} != 'http://' . %{HTTP_HOST} && %{HTTP:Origin} != 'https://' . %{HTTP_HOST})"
+	RewriteRule ^ - [F]
+
+	# 2. GETs that act rather than read, when another site's page sent them
+	#    (a link, an <img>, a fetch).  Reading stays open cross-origin.
+	#    Only effective over HTTPS (see above): over plain HTTP these routes
+	#    stay reachable until they stop answering GET.  Keep this list in
+	#    step with any GET route that changes state.
+	RewriteCond %{ENV:REDIRECT_STATUS} ^$
+	RewriteCond %{HTTP:Sec-Fetch-Site} ^(cross-site|same-site)$ [NC]
+	RewriteCond %{REQUEST_URI} ^(/proxy/[^/]+)?/api/(index\.php|api\.php|command/|events/[^/]+/trigger|file/move/|git/reset|network/interface/add/|playlists/(stop|pause|resume|stopgracefully|stopgracefullyafterloop)$|playlist/[^/]+/start|playlist/repeat/|plugin/[^/]+/upgrade|sequence/current/(stop|togglePause)|sequence/[^/]+/start/|scripts/[^/]+/run|system/(reboot|shutdown)$|system/fppd/(start|stop|restart)$) [NC,OR]
+	RewriteCond %{REQUEST_URI} ^/(changebranch|copystorage|disableKiosk|flash-storage|formatstorage|gitCheckoutVersion|growsd|installKiosk|manualUpdate|newpartitionsd|packagesHelper|rebootRemoteFPP|rebuildfpp|resetConfig|restartRemoteFPPD|run_mp3gain|runEventScript|shutdownRemoteFPP|upgradeCapeFirmware|upgradefpp|upgradeOS)\.php$ [NC]
+	RewriteRule ^ - [F]
+
 	DocumentRoot /opt/fpp/www
 
 	<Directory />
@@ -272,6 +313,11 @@ ProxyPassReverse /fppdws ws://localhost:32322/fppdws
     Options Indexes FollowSymLinks
     AllowOverride None
     Require all granted
+
+    # The cross-site gate at the top has already judged this request.  Passed
+    # on, its Origin (this player) would not match the next player's Host, so
+    # that player's gate would refuse this player's own UI.
+    RequestHeader unset Origin
 
     # Expand gzip only for clients that cannot decode it themselves; everything
     # else is passed through exactly as the controller sent it.
