@@ -4988,14 +4988,20 @@ void AES67Manager::HandleSAPPacket(const uint8_t* data, size_t len,
             }
         } else if (line.substr(0, 8) == "a=ptime:") {
             stream.ptime = std::atoi(line.substr(8).c_str());
-        } else if (line.substr(0, 26) == "a=ts-refclk:ptp=IEEE1588-") {
+        } else if (line.rfind("a=ts-refclk:ptp=IEEE1588-", 0) == 0) {
             // a=ts-refclk:ptp=IEEE1588-2008:AA-BB-CC-FF-FE-DD-EE-FF:0
+            // (The domain suffix is optional.)  This used to compare a 26-char
+            // prefix against the 25-char literal, so it never matched and the
+            // grandmaster of a discovered stream was never reported.
             size_t colon1 = line.find(':', 15);
             if (colon1 != std::string::npos) {
                 size_t colon2 = line.find(':', colon1 + 1);
-                if (colon2 != std::string::npos) {
-                    stream.ptpClockId = line.substr(colon1 + 1, colon2 - colon1 - 1);
+                std::string id = line.substr(colon1 + 1, colon2 == std::string::npos ? std::string::npos
+                                                                                     : colon2 - colon1 - 1);
+                while (!id.empty() && (id.back() == '\r' || id.back() == ' ')) {
+                    id.pop_back();
                 }
+                stream.ptpClockId = id;
             }
         }
     }
