@@ -3542,7 +3542,13 @@ int GStreamerOutput::Process(void) {
             if (m_streamSlot == 1 && multiSync->isMultiSyncEnabled()) {
                 multiSync->SendMediaSyncPacket(m_mediaFilename, m_mediaOutputStatus->mediaSeconds);
             }
-            CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
+            // Only the show's own media paces the sequence.  Media started
+            // beside it (Play Media on another slot, a companion) followed the
+            // same servo, so the sequence slewed toward whichever clock
+            // reported last.
+            if (m_drivesShowClock) {
+                CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
+            }
 
             // Always update total duration — it may be refined for VBR media
             if (effectiveDur > 0) {

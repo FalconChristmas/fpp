@@ -137,6 +137,10 @@ public:
 
     // GStreamer-specific
     void SetLoopCount(int loops) { m_loopCount = loops; }
+    // Whether this output's position paces the running sequence (the channel
+    // output servo).  True for the show's own media -- a playlist entry's, or
+    // a remote's synced media -- and false for media played alongside it.
+    void SetDrivesShowClock(bool drives) { m_drivesShowClock = drives; }
     void SetVolumeAdjustment(int volAdj);
 
     // Event callbacks (matching VLCOutput pattern).
@@ -161,6 +165,7 @@ private:
     // StreamSlotManager's lock, never the other way round.
     std::recursive_mutex m_opMutex;
     std::atomic<bool> m_stopRequested{false};
+    bool m_drivesShowClock = true;
     // Cuts the decodebin and bus callbacks off from this object and waits for
     // any that are running.  See CallbackGuard.
     void DetachCallbacks();

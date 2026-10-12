@@ -385,6 +385,10 @@ GStreamerPlayData::GStreamerPlayData(const std::string& file, int l, int vol, in
     streamSlot(slot) {
     SetLoopCount(l > 0 ? l - 1 : 0);
     SetVolumeAdjustment(vol);
+    // Media played by command runs beside the show; it must not pace a
+    // running sequence (a companion keeps in step through the slot manager's
+    // sync instead).
+    SetDrivesShowClock(false);
     filename = RegisterRunningMedia(file, this);
 }
 
