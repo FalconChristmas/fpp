@@ -117,6 +117,7 @@ private:
     void Service(uint64_t now);  // takes and may drop/retake m_lock
     bool OpenLocked(std::unique_lock<std::mutex>& lock);
     void CloseLocked(const char* why);
+    void ForgetFailureLocked();
     void PushSilenceLocked(int ms);
     bool CardRunning();
     static int TailFlushMs();

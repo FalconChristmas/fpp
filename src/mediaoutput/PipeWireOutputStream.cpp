@@ -111,6 +111,7 @@ void PipeWireOutputStream::Prewarm(int slot, int holdMs) {
         s->m_wantTarget = target;
         s->m_holdUntilMs = std::max(s->m_holdUntilMs, NowMs() + (uint64_t)std::max(holdMs, 0));
         s->m_wantOpen = true;
+        s->ForgetFailureLocked();
     }
     WakeWorker();
 }
@@ -171,8 +172,18 @@ void PipeWireOutputStream::Acquire(const std::string& target) {
         m_users++;
         m_wantTarget = target;
         m_wantOpen = true;
+        ForgetFailureLocked();
     }
     WakeWorker();
+}
+
+// A failure belongs to the attempt that made it.  Left in place, the next
+// track's WaitReady() returned on it at once while the worker was already
+// opening the stream again, and the head of that track went nowhere.
+void PipeWireOutputStream::ForgetFailureLocked() {
+    if (m_state == State::Failed) {
+        m_state = State::Closed;
+    }
 }
 
 void PipeWireOutputStream::Release(GstElement* feed) {
@@ -227,12 +238,15 @@ void PipeWireOutputStream::WaitDrained(int maxMs) {
 }
 
 bool PipeWireOutputStream::WaitReady(int timeoutMs) {
+    // Ready only counts on the target asked for: a stream still Ready on the
+    // previous sink is about to be closed and reopened by the worker.
     std::unique_lock<std::mutex> lock(m_lock);
-    m_stateChanged.wait_for(lock, std::chrono::milliseconds(timeoutMs), [this] {
-        return m_state == State::Ready || m_state == State::Failed ||
+    auto readyHere = [this] { return m_state == State::Ready && m_target == m_wantTarget; };
+    m_stateChanged.wait_for(lock, std::chrono::milliseconds(timeoutMs), [this, &readyHere] {
+        return readyHere() || m_state == State::Failed ||
                (m_state == State::Closed && !m_wantOpen);
     });
-    return m_state == State::Ready;
+    return readyHere();
 }
 
 int64_t PipeWireOutputStream::LatencyNs() {
@@ -656,7 +670,10 @@ void PipeWireOutputStream::CloseLocked(const char* why) {
     m_queuedUntilUs = 0;
     m_pipeline = nullptr;
     m_src = nullptr;
-    m_feed = nullptr;
+    // m_feed stays: it belongs to the track using the slot (AttachFeed() /
+    // Release()), not to this stream.  Clearing it here orphaned a track
+    // whose start triggered a reopen -- a new target -- and the whole track
+    // played silent.  Its samples are dropped while there is no m_src.
     m_target.clear();
     m_linked = false;
     m_state = State::Closed;
