@@ -498,7 +498,7 @@ bool UDPOutputData::NeedToOutputFrame(unsigned char* channelData, int startChann
 }
 
 UDPOutput::UDPOutput(unsigned int startChannel, unsigned int channelCount) :
-    networkCallbackId(0),
+    networkCallbackId(-1),
     doneWorkCount(0),
     numWorkThreads(0),
     workGeneration(0),
@@ -508,7 +508,13 @@ UDPOutput::UDPOutput(unsigned int startChannel, unsigned int channelCount) :
     INSTANCE = this;
 }
 UDPOutput::~UDPOutput() {
-    runWorkThreads = false;
+    {
+        // under workMutex: a worker between its runWorkThreads check and its
+        // wait() would otherwise miss this notify and sleep forever, and the
+        // loop below would then spin with outputThreadLock held
+        std::lock_guard<std::mutex> lk(workMutex);
+        runWorkThreads = false;
+    }
     workSignal.notify_all();
 
     {
@@ -1116,9 +1122,7 @@ void UDPOutput::BackgroundOutputWork() {
     std::chrono::high_resolution_clock clock;
     while (runWorkThreads) {
         std::unique_lock<std::mutex> lock(workMutex);
-        if (workQueue.empty()) {
-            workSignal.wait(lock);
-        }
+        workSignal.wait(lock, [this]() { return !runWorkThreads || !workQueue.empty(); });
         if (!workQueue.empty()) {
             WorkItem i = std::move(workQueue.front());
             workQueue.pop_front();
