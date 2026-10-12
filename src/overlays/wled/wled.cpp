@@ -381,8 +381,10 @@ void computeAudioFrame(const std::array<float, NUM_SAMPLES>& samples,
     kiss_fft_cpx fft_out[NUM_SAMPLES];
     kiss_fftr(cfg, (kiss_fft_scalar*)samples.data(), fft_out);
 
-    // Log-bin into 16 octave-ish buckets, mirroring WLED's binning.
-    std::array<float, 17> res{};
+    // Log-bin into 16 octave-ish buckets, mirroring WLED's binning. The loop
+    // below fills buckets 0..17 (it stops when it would start an 18th) - at
+    // 44.1/48kHz the top ~20 bins land in 17 - and only 0..15 are reported.
+    std::array<float, 18> res{};
     float rate = sampleRate;
     int curBucket = 0;
     double freqnext = 440.0 * exp2f(((float)((1 + 1) * 8) - 69.0) / 12.0);
