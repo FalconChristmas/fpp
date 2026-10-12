@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <array>
+#include <mutex>
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -260,10 +261,21 @@ public:
     static void clearInstance();
     static WS2812FXExt* getInstance();
 
+    // The WLED code was written for one strip per device: matrix geometry
+    // (Segment::maxWidth/maxHeight) and the segment-data budget are statics
+    // shared by every strip. Each model's effect is a strip, so construction,
+    // service() and destruction all hold this, and a strip restores its own
+    // geometry when it becomes current. Recursive; a leaf below effectLock.
+    static std::recursive_mutex& lock();
+
     um_data_t* getAudioSamples(int simulationId);
 
 private:
     WS2812FXExt* parent = nullptr;
+    // This strip's matrix geometry, saved after finalizeInit() and restored
+    // into the shared statics by pushCurrent(). 0 until saved.
+    uint16_t ownMaxWidth = 0;
+    uint16_t ownMaxHeight = 0;
 
     // Sound Reactive Stuff
     void processSamples(std::array<float, NUM_SAMPLES>& samples, int sampleRate);

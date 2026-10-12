@@ -387,6 +387,11 @@ bool fetchAudioSamples(std::array<float, NUM_SAMPLES>& samples, int& sampleRate)
 void computeAudioFrame(const std::array<float, NUM_SAMPLES>& samples,
                        int sampleRate,
                        AudioFrame& out) {
+    // The FFT config (with its scratch buffer) and the volume smoothing below
+    // are statics, used by every strip's service() and by the WLED Audio
+    // Sync sender on its own thread; concurrent calls corrupted each other's
+    // spectrum. Recursive: service() already holds it.
+    std::lock_guard<std::recursive_mutex> l(WS2812FXExt::lock());
     static kiss_fftr_cfg cfg = kiss_fftr_alloc(NUM_SAMPLES, false, 0, 0);
     kiss_fft_cpx fft_out[NUM_SAMPLES];
     kiss_fftr(cfg, (kiss_fft_scalar*)samples.data(), fft_out);
@@ -578,8 +583,13 @@ WS2812FXExt::WS2812FXExt(PixelOverlayModel* m, int map, int b,
     */
 
     panel.push_back(p);
-    pushCurrent(this);
+    // Already current (pushed at the top). This used to push a second time,
+    // which made the strip its own parent: the two pops that followed (here
+    // and in the caller) left it current on this thread forever, dangling
+    // once the effect was deleted, and clearInstance() then looped on it.
     finalizeInit();
+    ownMaxWidth = Segment::maxWidth;
+    ownMaxHeight = Segment::maxHeight;
     popCurrent();
 }
 
@@ -605,10 +615,22 @@ void WS2812FXExt::clearInstance() {
     }
 }
 
+std::recursive_mutex& WS2812FXExt::lock() {
+    static std::recursive_mutex m;
+    return m;
+}
+
 void WS2812FXExt::pushCurrent(WS2812FXExt* e) {
     if (e) {
         e->parent = currentStrip;
         currentStrip = e;
+        if (e->ownMaxWidth) {
+            // Another strip's construction may have reset the shared matrix
+            // geometry since this one was built; setPixelColorXY() indexes
+            // with it.
+            Segment::maxWidth = e->ownMaxWidth;
+            Segment::maxHeight = e->ownMaxHeight;
+        }
     } else if (currentStrip) {
         currentStrip = currentStrip->parent;
     }

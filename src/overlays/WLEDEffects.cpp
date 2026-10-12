@@ -491,15 +491,17 @@ public:
             if (!hasC3) {
                 color3 = color1;
             }
+            // The constructor pushes and pops itself.
+            std::lock_guard<std::recursive_mutex> l(WS2812FXExt::lock());
             wled = new WS2812FXExt(m, mapping, brightness,
                                    mode, speed, intensity, p,
                                    color1, color2, color3,
                                    custom1, custom2, custom3,
                                    check1, check2, check3, text,
                                    PolarModeFromName(mappingName));
-            WS2812FXExt::popCurrent();
         }
         virtual ~RawWLEDEffectInternal() {
+            std::lock_guard<std::recursive_mutex> l(WS2812FXExt::lock());
             delete wled;
         }
 
@@ -556,9 +558,12 @@ public:
             }
         }
         virtual int32_t doIteration() override {
-            WS2812FXExt::pushCurrent(wled);
-            wled->service();
-            WS2812FXExt::popCurrent();
+            {
+                std::lock_guard<std::recursive_mutex> l(WS2812FXExt::lock());
+                WS2812FXExt::pushCurrent(wled);
+                wled->service();
+                WS2812FXExt::popCurrent();
+            }
 
             wled->model->flushOverlayBuffer();
             // no sense updating faster than the output
