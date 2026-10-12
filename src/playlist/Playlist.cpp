@@ -435,7 +435,14 @@ int Playlist::Load(Json::Value& config) {
             maxEntries = m_loadEndPos + 1 - ((m_loadStartPos >= 0) ? m_loadStartPos : 0);
         }
 
-        if (config.isMember("leadIn") && config["leadIn"].size()) {
+        // Start -2 / end 0 asks for one random main-playlist item (Insert
+        // Random Item From Playlist).  The lead-in and lead-out are not part of
+        // the pick: the lead-in used to load first and take the single slot, so
+        // a playlist with a lead-in always "randomly" played its first lead-in
+        // item.
+        bool randomSingle = (m_loadStartPos == -2) && (m_loadEndPos == 0);
+
+        if (!randomSingle && config.isMember("leadIn") && config["leadIn"].size()) {
             LogDebug(VB_PLAYLIST, "Loading LeadIn:\n");
             const Json::Value leadInCfg = config["leadIn"];
 
@@ -456,7 +463,7 @@ int Playlist::Load(Json::Value& config) {
 
             if ((m_loadStartPos >= 0) && (m_loadStartPos > origEntryCount)) {
                 startPos = m_loadStartPos - origEntryCount;
-            } else if (m_loadStartPos == -2 && m_loadEndPos == 0) {
+            } else if (randomSingle) {
                 // random single item
                 int l = playlist.size();
                 if (l > 1) {
@@ -474,7 +481,7 @@ int Playlist::Load(Json::Value& config) {
             origEntryCount += playlist.size();
         }
 
-        if (config.isMember("leadOut") && config["leadOut"].size()) {
+        if (!randomSingle && config.isMember("leadOut") && config["leadOut"].size()) {
             LogDebug(VB_PLAYLIST, "Loading LeadOut:\n");
             const Json::Value leadOutCfg = config["leadOut"];
 
