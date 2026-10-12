@@ -47,3 +47,45 @@ fallbacks above keep older images working through normal master updates.
 but **not enabled** (`CONFIG_GPIO_OF_HELPER` is unset in `patches/defconfig`, so the
 driver isn't built). They can be dropped from the kernel patch set entirely at the
 next convenient kernel rebase.
+
+## HTTP API: routes that change state but answer GET
+
+**Status:** planned for FPP 11 — these routes must require POST.
+
+Any web page a user opens can make the browser send a GET to the player (a link,
+an `<img>`, a no-cors `fetch`). The cross-site gate at the top of
+`etc/apache2.site` refuses POST/PUT/DELETE that another site sends, by `Origin`.
+A cross-site GET over plain HTTP carries neither `Sec-Fetch-Site` nor `Origin`,
+so it cannot be told apart from an integration's request. Rule 2 of the gate
+covers these routes only when the UI is reached over HTTPS.
+
+**Routes:**
+- `www/api/index.php`: `events/:id/trigger`, `file/move/:name`, `git/reset`,
+  `network/interface/add/:if`,
+  `playlists/{stop,pause,resume,stopgracefully,stopgracefullyafterloop}`,
+  `playlist/:name/start[/...]`, `playlist/repeat/:r`, `plugin/:repo/upgrade`,
+  `sequence/current/{stop,togglePause}`, `sequence/:name/start/:sec`,
+  `scripts/:name/run`, `system/{reboot,shutdown}`,
+  `system/fppd/{start,stop,restart}`.
+- fppd: `GET /api/command/<name>/<args...>` (`CommandManager::render_GET`) runs
+  any command. The `/commands` and `/commandPresets` GETs are reads and stay.
+- Pages: `changebranch`, `copystorage`, `disableKiosk`, `flash-storage`,
+  `formatstorage`, `gitCheckoutVersion`, `growsd`, `installKiosk`,
+  `manualUpdate`, `newpartitionsd`, `packagesHelper`, `rebootRemoteFPP`,
+  `rebuildfpp`, `resetConfig`, `restartRemoteFPPD`, `run_mp3gain`,
+  `runEventScript`, `shutdownRemoteFPP`, `upgradeCapeFirmware`, `upgradefpp`,
+  `upgradeOS` (`.php`).
+
+**Still here because:** integrations call them by GET — xLights, Home Assistant,
+Remote Falcon, Stream Deck plugins and many user scripts use
+`GET /api/command/...` in particular.
+
+**Plan:**
+1. 10.x: accept POST on every route above alongside GET; move FPP's own UI and
+   the MultiSync job runner to POST; mark GET deprecated (a `Deprecation`
+   response header and a rate-limited log line); update `www/api/openapi.json`
+   and the API help page; tell integrators.
+2. 11: these routes answer GET with 405, and rule 2 of the gate is removed.
+
+**Removal condition:** FPP 11. Until then, keep rule 2's route list in step with
+any GET route that changes state.
