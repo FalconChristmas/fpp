@@ -36,6 +36,7 @@
 #include "../channeloutput/channeloutputthread.h"
 #include "../common.h"
 #include "../effects.h"
+#include "../Sequence.h" // FPPD_MAX_CHANNELS bounds an overlay range
 #include "../log.h"
 #include "../settings.h"
 
@@ -1778,6 +1779,7 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                 val = std::stoi(p4, nullptr, 10);
             }
 
+            bool badRange = false;
             while (p3.size()) {
                 std::size_t pos = 0;
                 int start = std::stoi(p3, &pos, 10);
@@ -1789,7 +1791,14 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                     p3 = p3.substr(pos);
                 }
                 int startActive = numActive;
-                if (start > 0 && end >= start) {
+                // doOverlays() writes every channel of the range into the
+                // sequence buffer on each frame, so a range past its end was
+                // a heap overwrite on the output thread.
+                if (start <= 0 || end < start || end > FPPD_MAX_CHANNELS) {
+                    LogWarn(VB_CHANNELOUT, "Ignoring overlay range %d-%d: channels must be 1-%d\n",
+                            start, end, FPPD_MAX_CHANNELS);
+                    badRange = true;
+                } else {
                     end--;
                     start--;
                     std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
@@ -1825,6 +1834,9 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(125));
                     numActive--;
                 }
+            }
+            if (badRange) {
+                return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Channel range out of bounds\"}", 400);
             }
             return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
         }
