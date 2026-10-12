@@ -790,7 +790,10 @@ public:
         FrameData(frame),
         m_ranges(ranges) {
         m_size = sz;
-        m_data = (uint8_t*)malloc(sz);
+        // Zeroed: every reader returns the frame even when a seek or read
+        // failed part-way (a truncated file), and an unzeroed buffer put
+        // whatever the heap held on the lights.
+        m_data = (uint8_t*)calloc(1, sz);
     }
     virtual ~UncompressedFrameData() {
         if (m_data != nullptr) {
