@@ -105,9 +105,15 @@ function event_trigger()
     global $settings;
 
     $event = params('eventId');
-    $curl = curl_init('http://localhost:32322/commands/Trigger%20Event/' . $event);
+    // An event id is an event file's base name (e.g. 01_02).  It is appended
+    // to an fppd URL, and limonade has already decoded it, so '?', '#' or an
+    // encoded '/' would otherwise reach fppd as more URL than an id.
+    if (!is_string($event) || !preg_match('/^[A-Za-z0-9_-]+$/', $event)) {
+        http_response_code(400);
+        return json(array("status" => "ERROR", "message" => "Invalid event id"));
+    }
+    $curl = curl_init('http://localhost:32322/commands/Trigger%20Event/' . rawurlencode($event));
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
-    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
     $request_content = curl_exec($curl);

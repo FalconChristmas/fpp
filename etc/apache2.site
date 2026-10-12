@@ -281,9 +281,12 @@ ProxyPassReverse /fppdws ws://localhost:32322/fppdws
 
     RewriteEngine On
 
-  # WebSocket upgrade handling
+  # WebSocket upgrade handling.  Never to this device itself: /proxy is not
+  # behind the UI password, and a request proxied to 127.x/0.x arrives from the
+  # local address, which "Require local" lets through.
    RewriteCond %{HTTP:Upgrade} websocket [NC]
    RewriteCond %{HTTP:Connection} Upgrade [NC]
+   RewriteCond %{REQUEST_URI} !^/proxy/(127|0)\.
    RewriteRule ^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/(.*)$ ws://$1/$2 [P,L]
 
   # Add trailing slash to /proxy/<IP> if missing

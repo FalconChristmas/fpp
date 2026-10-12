@@ -2727,7 +2727,7 @@ function CheckForPluginUpdates()
 	// reinstall target from the URL a reinstall would clone, into the same
 	// origin/<branch> ref the reinstall-side privacy diff reads.
 	list($tBranch, $tSha) = PluginReinstallTarget($plugin);
-	if ($tBranch !== '' && PluginFetchReinstallTargetByURL($plugin, $tBranch, PluginUpdateCheckSrcURL())) {
+	if ($tBranch !== '' && PluginFetchReinstallTargetByURL($plugin, $tBranch, PluginUpdateCheckSrcURL($plugin))) {
 		$result['Status'] = 'OK';
 		// Nothing about the checked-out branch could be learned; it is the
 		// origin that is gone, so an upgrade (git pull) cannot happen either.
@@ -2804,7 +2804,10 @@ function PluginFetchFailureReason($output, $rv = 0, $timeout = PLUGIN_GIT_FETCH_
 // Reinstall would clone), with GitHub credentials injected when asked for.
 // '' when absent or not a GitHub URL: the only place it is used is as a git
 // remote, and IsGitHubURL() is the same gate the install path applies.
-function PluginUpdateCheckSrcURL()
+// It must also be where this plugin can legitimately come from -- a listed
+// plugin, or the source the installed plugin declares -- because it is
+// force-fetched into the installed clone; any GitHub repo would otherwise do.
+function PluginUpdateCheckSrcURL($plugin)
 {
 	$body = '';
 	$fp = fopen('php://input', 'r');
@@ -2820,6 +2823,12 @@ function PluginUpdateCheckSrcURL()
 	}
 	$url = isset($req['srcURL']) && is_string($req['srcURL']) ? trim($req['srcURL']) : '';
 	if ($url === '' || !IsGitHubURL($url) || filter_var($url, FILTER_VALIDATE_URL) === false) {
+		return '';
+	}
+	$installed = PluginInstalledInfo($plugin);
+	$ownSrc = (is_array($installed) && isset($installed['srcURL'])) ? $installed['srcURL'] : '';
+	$slug = PluginRepoSlugFromURL($url);
+	if (!PluginSrcURLIsListed($url) && ($slug === '' || $slug !== PluginRepoSlugFromURL($ownSrc))) {
 		return '';
 	}
 	if (!empty($req['useCredentials'])) {
@@ -3887,6 +3896,13 @@ function FetchURLWithGitHubCredentials($url)
 		return false;
 	}
 
+	// Plugin info is fetched from the web.  A plugin install request names
+	// this URL, and file_get_contents() would otherwise read local files
+	// (file://, php://filter) and hand them back as the plugin's info.
+	if (!preg_match('#^https?://#i', (string) $url)) {
+		$GitHubFetchLastError = 'only http(s) URLs can be fetched';
+		return false;
+	}
 	return @file_get_contents($url);
 }
 

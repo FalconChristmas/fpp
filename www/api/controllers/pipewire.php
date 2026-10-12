@@ -9026,9 +9026,7 @@ function SavePipeWireVideoInputSources()
     unset($src);
 
     $jsonOut = json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-    $writeResult = file_put_contents($configFile, $jsonOut);
-    file_put_contents('/tmp/debug_save_vis.txt', date('c') . " WRITE path=$configFile bytes=$writeResult\n", FILE_APPEND);
-    file_put_contents('/tmp/debug_save_vis.txt', date('c') . " VERIFY: " . file_get_contents($configFile) . "\n", FILE_APPEND);
+    file_put_contents($configFile, $jsonOut);
 
     return json(array("status" => "OK", "message" => "Video input sources saved"));
 }
