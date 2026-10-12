@@ -391,7 +391,12 @@ int BBBMatrix::Init(Json::Value config) {
 
         if (p["outputNumber"].asInt() > m_outputs)
             m_outputs = p["outputNumber"].asInt();
-        usesOutput[p["outputNumber"].asInt()] = true;
+        // AddPanel() above rejects out-of-range outputs; mirror that bound
+        // here since this fixed-size array is indexed directly.
+        if (p["outputNumber"].asInt() >= 0 &&
+            p["outputNumber"].asInt() < (int)(sizeof(usesOutput) / sizeof(usesOutput[0]))) {
+            usesOutput[p["outputNumber"].asInt()] = true;
+        }
 
         if (p["panelNumber"].asInt() > m_longestChain)
             m_longestChain = p["panelNumber"].asInt();

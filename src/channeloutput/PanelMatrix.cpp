@@ -88,6 +88,20 @@ int PanelMatrix::AddPanel(int output, int chain, char orientation,
         return 0;
     }
 
+    // All of these flow into fixed-size arrays (m_outputPanels[]) and buffer
+    // index math below; the values arrive from JSON/API config or map text.
+    // Reject rather than clamp: there is no sensible fallback position.
+    if (output < 0 || output >= MAX_MATRIX_OUTPUTS) {
+        LogErr(VB_CHANNELOUT, "Invalid panel output %d (max %d)\n",
+               output, MAX_MATRIX_OUTPUTS - 1);
+        return 0;
+    }
+    if (xOffset < 0 || yOffset < 0 || pWidth <= 0 || pHeight <= 0) {
+        LogErr(VB_CHANNELOUT, "Invalid panel geometry %dx%d at %dx%d\n",
+               pWidth, pHeight, xOffset, yOffset);
+        return 0;
+    }
+
     if ((xOffset + pWidth) > m_width) {
         m_width = xOffset + pWidth;
         m_pixelCount = m_width * m_height;
@@ -112,7 +126,7 @@ int PanelMatrix::AddPanel(int output, int chain, char orientation,
         m_panels[m_panelCount].yOffset = yOffset;
         m_panels[m_panelCount].colorOrder = colorOrder;
 
-        m_panels[m_panelCount].pixelMap.resize(pWidth & pHeight);
+        m_panels[m_panelCount].pixelMap.resize(pWidth * pHeight * 3);
 
         m_outputPanels[output].push_back(m_panelCount);
 
