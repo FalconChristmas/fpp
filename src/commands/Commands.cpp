@@ -998,8 +998,14 @@ Json::Value CommandManager::ReplaceCommandKeywords(Json::Value cmd, std::map<std
     if (!cmd.isMember("args"))
         return cmd;
 
-    for (int i = 0; i < cmd["args"].size(); i++) {
-        cmd["args"][i] = ReplaceKeywords(cmd["args"][i].asString(), keywords);
+    if (!cmd["args"].isArray())
+        return cmd;
+    for (Json::ArrayIndex i = 0; i < cmd["args"].size(); i++) {
+        // Only text has keywords in it; an object or array arg is passed on
+        // as JSON by run(), and asString() would throw on it here.
+        if (cmd["args"][i].isString()) {
+            cmd["args"][i] = ReplaceKeywords(cmd["args"][i].asString(), keywords);
+        }
     }
 
     return cmd;
@@ -1134,8 +1140,6 @@ int CommandManager::TriggerPreset(std::string name) {
 void CommandManager::MaybeReloadPresets() {
     std::string commandsFile = FPP_DIR_CONFIG("/commandPresets.json");
     if (lastPresetTimeStamp < FileTimestamp(commandsFile)) {
-        presets.clear();
-        missingPresets.clear();
         LoadPresets();
     }
 }
@@ -1183,17 +1187,38 @@ void CommandManager::LoadPresets() {
         lastPresetTimeStamp = FileTimestamp(commandsFile);
     }
 
-    if (allCommands.isMember("commands")) {
-        for (int i = 0; i < allCommands["commands"].size(); i++) {
-            if (presets.isMember(allCommands["commands"][i]["name"].asString())) {
-                presets[allCommands["commands"][i]["name"].asString()].append(allCommands["commands"][i]);
-            } else {
-                Json::Value pArr(Json::arrayValue);
-                pArr.append(allCommands["commands"][i]);
-                presets[allCommands["commands"][i]["name"].asString()] = pArr;
-            }
-        }
+    // Built aside and swapped in under presetsMutex: TriggerPreset() reads
+    // `presets` under that lock from HTTP, MQTT and main-loop threads, and a
+    // reload used to clear and refill it in place with no lock at all.
+    //
+    // The file can be hand-edited or uploaded through the config file API, so
+    // every entry is checked here, once, rather than by asString()/asInt() at
+    // trigger time - where the wrong type threw on whichever thread fired the
+    // preset, and here at startup threw out of Init() on every boot.
+    Json::Value loaded(Json::objectValue);
+    const Json::Value& list = allCommands.isObject() ? allCommands["commands"] : Json::Value::nullSingleton();
+    if (!list.isNull() && !list.isArray()) {
+        LogErr(VB_COMMAND, "commandPresets.json: \"commands\" is not an array - no presets loaded\n");
     }
+    for (Json::ArrayIndex i = 0; list.isArray() && i < list.size(); i++) {
+        Json::Value entry = list[i];
+        if (!entry.isObject() || !entry["name"].isString() || entry["name"].asString().empty() ||
+            !entry["command"].isString() || (!entry["args"].isNull() && !entry["args"].isArray())) {
+            LogWarn(VB_COMMAND, "commandPresets.json: skipping entry %d - it needs a text \"name\" and \"command\" and an \"args\" array\n", (int)i);
+            continue;
+        }
+        if (!entry["presetSlot"].isConvertibleTo(Json::intValue)) {
+            entry["presetSlot"] = 0;
+        }
+        std::string name = entry["name"].asString();
+        if (!loaded.isMember(name)) {
+            loaded[name] = Json::Value(Json::arrayValue);
+        }
+        loaded[name].append(entry);
+    }
+    std::unique_lock<std::mutex> lock(presetsMutex);
+    presets.swap(loaded);
+    missingPresets.clear();
 }
 
 bool CommandManager::HasPreset(const std::string& name) {
