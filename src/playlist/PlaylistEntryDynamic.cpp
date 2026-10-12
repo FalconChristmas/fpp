@@ -54,6 +54,9 @@ PlaylistEntryDynamic::PlaylistEntryDynamic(Playlist* playlist, PlaylistEntryBase
 /*
  *
  */
+// Longest a plugin or URL source may take to answer before the entry gives up.
+static constexpr long long DYNAMIC_FETCH_TIMEOUT_MS = 15000;
+
 PlaylistEntryDynamic::~PlaylistEntryDynamic() {
     // Ordering matters for UAF/lifecycle safety:
     //  1) cancelRequests() removes this entry's in-flight handles from
@@ -90,8 +93,8 @@ int PlaylistEntryDynamic::Init(Json::Value& config) {
     else if (m_subType == "url")
         m_data = config["url"].asString();
 
-    // The plugin/url HTTP requests go through CurlManager now (see Prep()/
-    // ReadFromURL()); there is no longer a per-instance curl handle to set up.
+    // The plugin/url HTTP requests go through CurlManager (see PrepPlugin()/
+    // FetchURL()); there is no per-instance curl handle to set up.
     // Cookie persistence across the plugin's prep/load/started calls is provided
     // by CurlManager's cookie session keyed on m_curlToken.
 
@@ -109,9 +112,15 @@ int PlaylistEntryDynamic::StartPlaying(void) {
         return 0;
     }
 
-    if (!IsPrepped() && !Prep()) {
-        FinishPlay();
-        return 0;
+    if ((m_subType == "plugin") || (m_subType == "url")) {
+        int started = (m_subType == "plugin") ? PrepPlugin() : FetchURL();
+        if (!started) {
+            FinishPlay();
+            return 0;
+        }
+        m_loading = true;
+        m_loadDeadline = GetMonotonicTimeMS() + DYNAMIC_FETCH_TIMEOUT_MS;
+        return PlaylistEntryBase::StartPlaying();
     }
 
     int res = 0;
@@ -119,34 +128,56 @@ int PlaylistEntryDynamic::StartPlaying(void) {
         res = ReadFromCommand();
     else if (m_subType == "file")
         res = ReadFromFile();
-    else if (m_subType == "plugin")
-        res = ReadFromPlugin();
-    else if (m_subType == "url")
-        res = ReadFromURL(m_data);
 
-    if (!res) {
-        FinishPlay();
-        return 0;
-    }
-
-    m_isPrepped = 0;
-
-    if (m_currentEntry >= 0) {
-        m_playlistEntries[m_currentEntry]->StartPlayingOrFinish();
-        Started();
-    } else {
+    if (!BeginEntries(res)) {
         FinishPlay();
         return 0;
     }
 
     return PlaylistEntryBase::StartPlaying();
-    ;
+}
+
+bool PlaylistEntryDynamic::BeginEntries(int loaded) {
+    if (!loaded || (m_currentEntry < 0))
+        return false;
+
+    m_isPrepped = 0;
+    m_playlistEntries[m_currentEntry]->StartPlayingOrFinish();
+    Started();
+    return true;
 }
 
 /*
  *
  */
 int PlaylistEntryDynamic::Process(void) {
+    if (m_loading) {
+        PluginPrep state;
+        std::string item;
+        {
+            std::lock_guard<std::mutex> g(m_pluginMutex);
+            state = m_pluginPrep;
+            if (state == PluginPrep::Ready) {
+                item = std::move(m_pluginItem);
+                m_pluginItem.clear();
+                m_pluginPrep = PluginPrep::Idle; // consumed; the next start re-fetches
+            }
+        }
+        if (state == PluginPrep::Ready) {
+            m_loading = false;
+            if (!BeginEntries(ReadFromString(item)))
+                FinishPlay();
+        } else if ((state == PluginPrep::Failed) || (GetMonotonicTimeMS() >= m_loadDeadline)) {
+            m_loading = false;
+            if (state != PluginPrep::Failed) {
+                LogErr(VB_PLAYLIST, "Dynamic playlist %s request did not complete in time\n", m_subType.c_str());
+                WarningHolder::AddWarningTimeout(60, 32, "Dynamic playlist " + m_subType + " request timed out");
+            }
+            FinishPlay();
+        }
+        return PlaylistEntryBase::Process();
+    }
+
     if ((m_currentEntry >= 0) && (m_playlistEntries[m_currentEntry])) {
         // Only a child that is playing gets Process(), as in
         // Playlist::Process().  One that finished inside StartPlaying() (a
@@ -181,6 +212,7 @@ int PlaylistEntryDynamic::Process(void) {
  */
 int PlaylistEntryDynamic::Stop(void) {
     LogDebug(VB_PLAYLIST, "PlaylistEntryDynamic::Stop()\n");
+    m_loading = false;
 
     if ((m_currentEntry >= 0) && (m_playlistEntries[m_currentEntry])) {
         m_playlistEntries[m_currentEntry]->Stop();
@@ -262,48 +294,35 @@ int PlaylistEntryDynamic::ReadFromFile(void) {
 }
 
 /*
- *
+ * The "url" source: one async GET whose response is consumed by Process().
+ * rc==0 means the transfer never got an HTTP response (connect/timeout).
  */
-int PlaylistEntryDynamic::ReadFromPlugin(void) {
-    LogDebug(VB_PLAYLIST, "ReadFromPlugin: %s\n", m_data.c_str());
-
-    // The loadNextItem response was fetched (or is being fetched) asynchronously
-    // by the prep chain; consume the buffered JSON. EnsurePluginItemReady()
-    // returns immediately in the common ahead-of-time case and only blocks
-    // (bounded) for the rare cold start / inline-prep case.
-    if (!EnsurePluginItemReady()) {
-        return 0;
-    }
-
-    std::string item;
+int PlaylistEntryDynamic::FetchURL(void) {
+    LogDebug(VB_PLAYLIST, "FetchURL: %s\n", m_data.c_str());
     {
         std::lock_guard<std::mutex> g(m_pluginMutex);
-        item = std::move(m_pluginItem);
+        if (m_pluginPrep == PluginPrep::Running) {
+            return 1; // the previous start's request is still out; use it
+        }
+        m_pluginPrep = PluginPrep::Running;
         m_pluginItem.clear();
-        m_pluginPrep = PluginPrep::Idle; // consumed; the next transition re-preps
     }
-    return ReadFromString(item);
-}
-
-/*
- *
- */
-int PlaylistEntryDynamic::ReadFromURL(std::string url) {
-    LogDebug(VB_PLAYLIST, "ReadFromURL: %s\n", url.c_str());
-
-    // Only the "url" subtype reaches here now (the plugin subtype consumes its
-    // buffered async response in ReadFromPlugin()). A single one-shot GET; it
-    // stays synchronous, matching the prior behaviour for this subtype. rc==0
-    // means the transfer never got an HTTP response (connect/timeout failure).
-    int rc = 0;
-    std::string resp = CurlManager::INSTANCE.doGet(url, rc);
-    if (rc == 0) {
-        LogErr(VB_PLAYLIST, "Dynamic playlist URL request failed (%s): %s\n", url.c_str(), resp.c_str());
-        WarningHolder::AddWarningTimeout(60, 32, "Dynamic playlist URL request failed (" + url + "): " + resp);
-        return 0;
-    }
-
-    return ReadFromString(resp);
+    std::string url = m_data;
+    CurlManager::INSTANCE.addGet(
+        url,
+        [this, url](int rc, const std::string& resp) {
+            std::lock_guard<std::mutex> g(m_pluginMutex);
+            if (rc == 0) {
+                LogErr(VB_PLAYLIST, "Dynamic playlist URL request failed (%s): %s\n", url.c_str(), resp.c_str());
+                WarningHolder::AddWarningTimeout(60, 32, "Dynamic playlist URL request failed (" + url + "): " + resp);
+                m_pluginPrep = PluginPrep::Failed;
+            } else {
+                m_pluginItem = resp;
+                m_pluginPrep = PluginPrep::Ready;
+            }
+        },
+        m_curlToken, m_curlToken);
+    return 1;
 }
 
 /*
@@ -472,7 +491,7 @@ int PlaylistEntryDynamic::Prep(void) {
  */
 int PlaylistEntryDynamic::PrepPlugin(void) {
     // Idempotent: if a prep/load chain is already running or has already buffered
-    // an item (an ahead-of-time Prep() primed it), leave it be. Only fire when
+    // an item (an earlier Prep() primed it), leave it be. Only fire when
     // Idle or after a prior Failed attempt (an inline-prep retry).
     {
         std::lock_guard<std::mutex> g(m_pluginMutex);
@@ -513,7 +532,7 @@ void PlaylistEntryDynamic::FireLoadNextItem(void) {
     LogDebug(VB_PLAYLIST, "FireLoadNextItem URL: %s\n", url.c_str());
 
     // loadNextItem's response IS the next item's JSON; buffer it for
-    // StartPlaying() to consume. Runs on the main-loop thread (processCurls()),
+    // Process() to consume. Runs on the main-loop thread (processCurls()),
     // same as the consumer, so the lock only guards against the defensive case
     // of a callback landing on another processCurls() call site.
     CurlManager::INSTANCE.addGet(
@@ -528,42 +547,6 @@ void PlaylistEntryDynamic::FireLoadNextItem(void) {
             }
         },
         m_curlToken, m_curlToken);
-}
-
-/*
- *
- */
-bool PlaylistEntryDynamic::EnsurePluginItemReady(void) {
-    // Make sure a prep/load chain is in flight. PrepPlugin() is idempotent: a
-    // no-op if one is already running or an item is already buffered, and it
-    // (re)fires for the inline-prep / cold-start / post-failure retry case.
-    PrepPlugin();
-
-    // Pump CurlManager on this (main-loop) thread until the chain resolves or a
-    // bounded deadline passes. processCurls() runs our own callbacks on this
-    // thread, so pumping drives our requests to completion; the ahead-of-time
-    // case usually already sees Ready and never spins. The deadline caps the
-    // rare cold-start block - the old path was fully synchronous (up to ~15s of
-    // stacked 5s timeouts), so a bounded wait here is no regression.
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
-    while (true) {
-        {
-            std::lock_guard<std::mutex> g(m_pluginMutex);
-            if (m_pluginPrep == PluginPrep::Ready) {
-                return true;
-            }
-            if (m_pluginPrep == PluginPrep::Failed) {
-                return false;
-            }
-        }
-        if (std::chrono::steady_clock::now() >= deadline) {
-            LogErr(VB_PLAYLIST, "Dynamic playlist plugin prep did not complete in time\n");
-            WarningHolder::AddWarningTimeout(60, 32, "Dynamic playlist plugin request timed out");
-            return false;
-        }
-        CurlManager::INSTANCE.processCurls();
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
 }
 
 /*

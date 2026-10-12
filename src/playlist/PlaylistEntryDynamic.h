@@ -38,13 +38,13 @@ public:
 private:
     int ReadFromCommand(void);
     int ReadFromFile(void);
-    int ReadFromPlugin(void);
-    int ReadFromURL(std::string url);
     int ReadFromString(std::string jsonStr);
 
     int PrepPlugin(void);
-    void FireLoadNextItem(void);      // chained from the prepNextItem callback
-    bool EnsurePluginItemReady(void); // bounded fallback if prep hasn't finished
+    void FireLoadNextItem(void); // chained from the prepNextItem callback
+    int FetchURL(void);
+    // Start the first loaded child; false if there is none to start.
+    bool BeginEntries(int loaded);
 
     int Started(void);
     int StartedPlugin(void);
@@ -63,22 +63,30 @@ private:
     std::string m_url;
     std::string m_method;
 
-    // Plugin subtype fetches the next item over HTTP through CurlManager instead
-    // of blocking the main loop on curl_easy_perform. The prep -> load pair is
-    // fired ahead of time during the previous entry's Prep() window and chained
-    // (load starts from prep's completion callback); loadNextItem's response is
-    // buffered here so StartPlaying consumes it without waiting. All of this
-    // state is touched only on the main-loop thread (Prep, StartPlaying, the
-    // dtor, and the CurlManager callbacks driven by processCurls() all run
-    // there), so m_pluginMutex is defensive rather than load-bearing; see the
-    // threading note in the .cpp.
+    // Plugin and URL sources are fetched over HTTP through CurlManager instead
+    // of blocking on curl_easy_perform.  For a plugin the prep -> load pair is
+    // fired when the entry starts (or by an explicit Prep()) and chained (load
+    // starts from prep's completion callback); the response (loadNextItem's, or
+    // the URL's) is buffered here and consumed by Process().  The callbacks run
+    // on the main loop (processCurls()), but StartPlaying() can run on an API
+    // thread when a command starts the playlist, so m_pluginMutex guards the
+    // state below.
     enum class PluginPrep { Idle,
                             Running,
                             Ready,
                             Failed };
     std::mutex m_pluginMutex;
     PluginPrep m_pluginPrep = PluginPrep::Idle;
-    std::string m_pluginItem; // JSON from loadNextItem, awaiting StartPlaying
+    std::string m_pluginItem; // JSON from loadNextItem (or the URL), awaiting Process()
+
+    // Plugin and URL sources are fetched without waiting: StartPlaying()
+    // starts the request and the entry plays as "loading" until Process()
+    // finds the response.  StartPlaying() used to wait for it -- up to 15 s,
+    // with the playlist lock held, on whichever thread started the entry --
+    // pumping CurlManager there, which also ran other subsystems' curl
+    // callbacks off the main loop.
+    bool m_loading = false;
+    long long m_loadDeadline = 0;
 
     // Unique per live instance: tags this entry's CurlManager requests (owner,
     // for cancelRequests() in the dtor) and names its cookie session. A
