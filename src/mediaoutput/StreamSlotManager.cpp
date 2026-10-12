@@ -102,6 +102,27 @@ void StreamSlotManager::SetActiveOutput(int slot, GStreamerOutput* output) {
 #endif
 }
 
+void StreamSlotManager::DetachOutput(int slot, GStreamerOutput* owner) {
+    if (slot < 1 || slot > MAX_SLOTS || !owner) return;
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+    if (m_slots[slot - 1].activeOutput == owner) {
+        m_slots[slot - 1].activeOutput = nullptr;
+        m_slots[slot - 1].closingOutput = owner;
+    }
+}
+
+bool StreamSlotManager::RequestStop(int slot) {
+#ifdef HAS_GSTREAMER
+    if (slot < 1 || slot > MAX_SLOTS) return false;
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+    if (m_slots[slot - 1].activeOutput) {
+        m_slots[slot - 1].activeOutput->RequestStop();
+        return true;
+    }
+#endif
+    return false;
+}
+
 GStreamerOutput* StreamSlotManager::GetActiveOutput(int slot) {
     if (slot < 1 || slot > MAX_SLOTS) return nullptr;
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
@@ -111,7 +132,12 @@ GStreamerOutput* StreamSlotManager::GetActiveOutput(int slot) {
 void StreamSlotManager::ClearSlot(int slot, GStreamerOutput* owner) {
     if (slot < 1 || slot > MAX_SLOTS) return;
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
-    if (owner && m_slots[slot - 1].activeOutput != owner) {
+    bool closing = owner && m_slots[slot - 1].closingOutput == owner;
+    if (closing) {
+        m_slots[slot - 1].closingOutput = nullptr;
+    }
+    if (owner && m_slots[slot - 1].activeOutput != owner &&
+        !(closing && !m_slots[slot - 1].activeOutput)) {
         // Another (newer) stream has already claimed this slot -- our
         // teardown is stale, don't blank out its registration.
         LogDebug(VB_MEDIAOUT, "StreamSlotManager: slot %d clear skipped, already reclaimed by a newer stream\n", slot);
@@ -223,20 +249,18 @@ int StreamSlotManager::ActiveSlotCount() {
 
 void StreamSlotManager::StopBackgroundSlots() {
 #ifdef HAS_GSTREAMER
+    // These outputs belong to someone else -- Play Media's registry, or a
+    // playlist entry playing on a background slot -- which stops, closes and
+    // frees them on its own thread.  Stopping and closing them here, from
+    // whatever thread is stopping the playlist, raced the owner: a second
+    // Close() alongside the deferred delete's, and Stop() under this lock
+    // while the main loop waited on it.  Each output is asked to stop, and
+    // its own Close() clears the slot.
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
     for (int i = 1; i < MAX_SLOTS; i++) {  // skip slot 1 (managed by playlist)
         if (m_slots[i].activeOutput) {
             LogInfo(VB_MEDIAOUT, "StreamSlotManager: stopping slot %d\n", i + 1);
-            m_slots[i].activeOutput->Stop();
-            m_slots[i].activeOutput->Close();
-            // Note: the owning PlaylistEntryMedia will delete the output
-            m_slots[i].activeOutput = nullptr;
-            m_slots[i].mediaFilename.clear();
-            m_slots[i].isBackground = false;
-            m_slots[i].syncToMaster = false;
-            m_slots[i].lastSyncMS = 0;
-            m_slots[i].syncSettleMS = 0;
-            m_slots[i].status.status = MEDIAOUTPUTSTATUS_IDLE;
+            m_slots[i].activeOutput->RequestStop();
         }
     }
 #endif

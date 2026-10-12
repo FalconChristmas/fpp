@@ -54,6 +54,13 @@ public:
     bool SeekTo(float seconds);
     virtual void SetVolume(int volume) override;
 
+    /// Ask the output's owner to stop it, from a thread that doesn't own it
+    /// (a command, or the slot manager stopping a playlist's background
+    /// slots).  Only the owner may Stop()/Close()/delete an output: the base
+    /// version flags it for the next Process() on the owner's thread; Play
+    /// Media's outputs override it to stop through their own registry.
+    virtual void RequestStop() { m_stopRequested = true; }
+
     // Static methods matching SDLOutput interface
     static bool IsOverlayingVideo();
     static bool ProcessVideoOverlay(unsigned int msTimestamp);
@@ -142,6 +149,18 @@ public:
     virtual void Stopped() {}
 
 private:
+    // Serializes Start(), Stop() and Close() against each other and against
+    // Process(), SeekTo() and AdjustSpeed(), which a slot's pump and MultiSync
+    // run on the main loop while a command may be stopping the same output on
+    // an HTTP thread.  The pump side only ever try-locks and skips a tick when
+    // the output is busy, so it never waits here; holders may take
+    // StreamSlotManager's lock, never the other way round.
+    std::recursive_mutex m_opMutex;
+    std::atomic<bool> m_stopRequested{false};
+    // Cuts the decodebin and bus callbacks off from this object and waits for
+    // any that are running.  See CallbackGuard.
+    void DetachCallbacks();
+
     GstElement* m_pipeline = nullptr;
     GstElement* m_volume = nullptr;
     GstElement* m_appsink = nullptr;       // audio sample tap

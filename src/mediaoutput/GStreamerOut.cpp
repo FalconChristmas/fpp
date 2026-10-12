@@ -1149,6 +1149,24 @@ GStreamerOutput::~GStreamerOutput() {
 
 int GStreamerOutput::Start(int msTime) {
     LogDebug(VB_MEDIAOUT, "GStreamer: Start(%d) enter - %s\n", msTime, m_mediaFilename.c_str());
+    std::lock_guard<std::recursive_mutex> opLock(m_opMutex);
+
+    // An output can be started again once its media has ended (a remote that
+    // missed the stop and open packets is handed the same file again).  That
+    // run's pipeline, bus, guard and slot registration are all still here and
+    // would be overwritten below, leaking the pipeline with its PipeWire node
+    // and DRM resources and leaving its callbacks pointed at this object.
+    if (m_pipeline) {
+        LogDebug(VB_MEDIAOUT, "GStreamer: Start() on an output that already ran, closing the old pipeline first\n");
+        Close();
+    }
+    // Per-run state the watchdogs and the preroll guards key off.
+    m_wallStartMs = 0;
+    m_playStartMs = 0;
+    m_lastPosition = -1;
+    m_stallStartMs = 0;
+    m_pendingSeekNs = -1;
+    m_stopRequested = false;
 
     // Flush PipeWire filter-chain delay ring-buffers EARLY in Start().
     // This runs as a fire-and-forget thread (pw-cli calls take ~200ms+).
@@ -2295,14 +2313,28 @@ int GStreamerOutput::Start(int msTime) {
         std::thread([pipeline, volume, cancel, seekPending, seekMs, videoPW, targetVolume,
                      streamSlot, hdmiConnectorId, kmsPaces, directConnectorIds, pwStream]() {
             // Releases our owning refs on exit no matter which path we return on.
+            //
+            // A pipeline must never lose its last ref above NULL: disposing it
+            // with streaming threads still running frees decodebin's elements
+            // under them.  Stop() takes the pipeline to NULL and drops its own
+            // refs, but nothing stops this thread from raising the state again
+            // afterwards -- it checks `cancel` and then calls set_state(), and
+            // Stop() can land in between.  When that happens this ref is the
+            // last one, so a cancelled start puts the pipeline back to NULL
+            // itself before letting go.
             struct RefGuard {
                 GstElement* pipeline;
                 GstElement* volume;
+                std::shared_ptr<std::atomic<bool>> cancel;
                 ~RefGuard() {
+                    if (cancel->load() &&
+                        !SetPipelineToNullSupervised(pipeline, PIPELINE_TEARDOWN_TIMEOUT_MS)) {
+                        LogWarn(VB_MEDIAOUT, "GStreamer: cancelled start could not return its pipeline to NULL, abandoning it\n");
+                    }
                     if (volume) gst_object_unref(volume);
                     gst_object_unref(pipeline);
                 }
-            } refGuard{pipeline, volume};
+            } refGuard{pipeline, volume, cancel};
 
             // Starting part-way in (a playlist entry resuming after Insert
             // Playlist Immediate) needs the seek to land before playback
@@ -2570,6 +2602,7 @@ int GStreamerOutput::Start(int msTime) {
 
 int GStreamerOutput::Stop(void) {
     LogDebug(VB_MEDIAOUT, "GStreamerOutput::Stop()\n");
+    std::unique_lock<std::recursive_mutex> opLock(m_opMutex);
     // Idempotency guard: Stop() is invoked both directly (e.g. from
     // CloseMediaOutput() when the media is still playing) and again via the
     // destructor's Close().  The teardown below includes a 250ms audio-silence
@@ -2577,6 +2610,11 @@ int GStreamerOutput::Stop(void) {
     // dead time to every clip transition, which on a multisync remote pushes
     // playback progressively behind the master.  Run the teardown once only.
     if (m_pipeline && !m_teardownComplete) {
+        // Nothing below may race decodebin's no-more-pads handler, which
+        // removes and unrefs m_appsink, m_volume and m_videoAppsink on a
+        // streaming thread, or a bus handler still running for this pipeline.
+        DetachCallbacks();
+
         // Detach AES67 zero-hop RTP branches BEFORE pipeline goes NULL —
         // this resumes the standalone send pipeline so AES67 keeps working
         // between tracks.
@@ -2710,8 +2748,9 @@ int GStreamerOutput::Stop(void) {
             }
             // Last touch of `this`: Stopped() may hand the object to a
             // deferred delete (Play Media's runningCommandMedia), so nothing
-            // may be written after it.
+            // may be written after it -- the lock included.
             m_teardownComplete = true;
+            opLock.unlock();
             Stopped();
             return 1;
         }
@@ -2764,9 +2803,30 @@ int GStreamerOutput::Stop(void) {
         }
         // Last touch of `this` - see the async path above.
         m_teardownComplete = true;
+        opLock.unlock();
         Stopped();
     }
     return 1;
+}
+
+void GStreamerOutput::DetachCallbacks() {
+    // Start() hands an owning pipeline ref to a detached thread that calls
+    // set_state(PLAYING), so decodebin can still be exposing pads after the
+    // teardown nulls m_audioChain/m_videoChain and drops our pipeline ref --
+    // and after ~GStreamerOutput frees the object outright.  Clearing `self`
+    // under the guard lock both blocks until any in-flight callback finishes
+    // and makes every later one a no-op.  The bus sync handler doesn't hold
+    // the lock while it runs, so wait for it separately.  Never call this from
+    // a streaming thread: it waits for the handlers running on them.
+    if (m_cbGuard) {
+        {
+            std::unique_lock<std::recursive_mutex> lock(m_cbGuard->mtx);
+            m_cbGuard->self = nullptr;
+            auto guard = m_cbGuard;
+            guard->busIdle.wait(lock, [&guard] { return guard->busInFlight == 0; });
+        }
+        m_cbGuard.reset();
+    }
 }
 
 void GStreamerOutput::ReleasePipeWireStream() {
@@ -3198,6 +3258,18 @@ int64_t GStreamerOutput::AudioSinkLatencyNs() {
 }
 
 int GStreamerOutput::Process(void) {
+    // Busy being started or stopped on another thread: skip this tick rather
+    // than wait for it (see m_opMutex).
+    std::unique_lock<std::recursive_mutex> opLock(m_opMutex, std::try_to_lock);
+    if (!opLock.owns_lock()) {
+        return 1;
+    }
+    if (m_stopRequested.exchange(false) && m_pipeline && !m_teardownComplete) {
+        LogInfo(VB_MEDIAOUT, "GStreamer: stopping %s on request\n", m_mediaFilename.c_str());
+        opLock.unlock();
+        Stop();
+        return 1;
+    }
     if (!m_pipeline || !m_bus) {
         return 0;
     }
@@ -3779,23 +3851,15 @@ static long ReadMeminfoKB(const char* key) {
 int GStreamerOutput::Close(void) {
     LogDebug(VB_MEDIAOUT, "GStreamerOutput::Close()\n");
 
-    // Detach the decodebin pad callbacks from this object BEFORE any teardown.
-    // Start() hands an owning pipeline ref to a detached thread that calls
-    // set_state(PLAYING), so decodebin can still be exposing pads after this
-    // Close() nulls m_audioChain/m_videoChain and drops our pipeline ref -- and
-    // after ~GStreamerOutput frees the object outright.  Clearing `self` under
-    // the guard lock both blocks until any in-flight callback finishes and
-    // makes every later one a no-op.  The bus sync handler doesn't hold the
-    // lock while it runs, so wait for it separately.
-    if (m_cbGuard) {
-        {
-            std::unique_lock<std::recursive_mutex> lock(m_cbGuard->mtx);
-            m_cbGuard->self = nullptr;
-            auto guard = m_cbGuard;
-            guard->busIdle.wait(lock, [&guard] { return guard->busInFlight == 0; });
-        }
-        m_cbGuard.reset();
-    }
+    // Leave the slot table before anything is torn down.  The slot manager
+    // calls Process(), SeekTo() and SetVolume() through its pointer under its
+    // own lock, so this waits out any such call and makes it the last: from
+    // here on nothing can reach this output that way while it is dismantled
+    // or freed.  The slot itself (status, KMS gate) is cleared at the end.
+    StreamSlotManager::Instance().DetachOutput(m_streamSlot, this);
+
+    std::lock_guard<std::recursive_mutex> opLock(m_opMutex);
+    DetachCallbacks();
 
     if (m_pipeline) {
         // Flush PipeWire filter-chain delay buffers.  Each audio group member
@@ -3844,8 +3908,11 @@ int GStreamerOutput::Close(void) {
             gst_object_unref(m_bus);
             m_bus = nullptr;
         }
-        gst_object_unref(m_pipeline);
-        m_pipeline = nullptr;
+        // Stop()'s asynchronous teardown has already handed the pipeline off.
+        if (m_pipeline) {
+            gst_object_unref(m_pipeline);
+            m_pipeline = nullptr;
+        }
     }
 
     // Return any DRM overlay planes we reserved for this pipeline's kmssink
@@ -3961,7 +4028,8 @@ int GStreamerOutput::IsPlaying(void) {
 }
 
 int GStreamerOutput::AdjustSpeed(float masterMediaPosition) {
-    if (!m_pipeline || !m_allowSpeedAdjust)
+    std::unique_lock<std::recursive_mutex> opLock(m_opMutex, std::try_to_lock);
+    if (!opLock.owns_lock() || !m_pipeline || !m_allowSpeedAdjust)
         return 1;
 
     // Nothing below may touch a pipeline that has never produced a position:
@@ -4168,7 +4236,8 @@ void GStreamerOutput::pushDiff(int diff, float rate) {
 }
 
 bool GStreamerOutput::SeekTo(float seconds) {
-    if (!m_pipeline)
+    std::unique_lock<std::recursive_mutex> opLock(m_opMutex, std::try_to_lock);
+    if (!opLock.owns_lock() || !m_pipeline)
         return false;
     gint64 pos_ns = (gint64)(seconds * GST_SECOND);
     // Same rule as AdjustSpeed(): a flushing seek into a pipeline that has

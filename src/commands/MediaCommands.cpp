@@ -19,6 +19,8 @@
 
 #include <curl/curl.h>
 
+#include <atomic>
+#include <cstdint>
 #include <functional>
 #include <mutex>
 #include <thread>
@@ -352,6 +354,7 @@ public:
                       const std::string& videoOut = "");
     virtual ~GStreamerPlayData();
     virtual void Stopped() override;
+    virtual void RequestStop() override;
     // Declared first so it is destroyed last, remaining valid throughout ~GStreamerPlayData()
     // even if the GStreamer bus fires a second Stopped() callback during our destruction.
     std::atomic<bool> m_stoppedOnce{ false };
@@ -359,6 +362,15 @@ public:
     int volumeAdjust = 0;
     int streamSlot = 1;
     MediaOutputStatus status;
+    // Names this output in a deferred stop.  A pointer can't: by the time the
+    // stop runs, the output may have been freed and its address reused.
+    const uint64_t playId = NextPlayId();
+
+private:
+    static uint64_t NextPlayId() {
+        static std::atomic<uint64_t> next{ 1 };
+        return next++;
+    }
 };
 
 GStreamerPlayData::GStreamerPlayData(const std::string& file, int l, int vol, int slot,
@@ -377,6 +389,26 @@ GStreamerPlayData::GStreamerPlayData(const std::string& file, int l, int vol, in
 }
 
 GStreamerPlayData::~GStreamerPlayData() {
+}
+
+// Stops this media from the main loop, through runningCommandMedia like every
+// other stop of command media.  Called by the slot manager while it holds its
+// own lock, so the stop itself -- up to half a second for video -- must not
+// run here.
+void GStreamerPlayData::RequestStop() {
+    uint64_t id = playId;
+    Timers::INSTANCE.addTimer("PlayMediaStop" + std::to_string(id), GetTimeMS(), [id]() {
+        std::lock_guard<std::recursive_mutex> lock(runningMediaLock);
+        for (const auto& item : runningCommandMedia) {
+            GStreamerPlayData* gpd = dynamic_cast<GStreamerPlayData*>(item.second);
+            if (gpd && gpd->playId == id) {
+                if (!gpd->m_stoppedOnce.load()) {
+                    gpd->Stop();
+                }
+                return;
+            }
+        }
+    });
 }
 
 void GStreamerPlayData::Stopped() {
@@ -478,14 +510,11 @@ std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::st
     std::string stoppedMedia = StopCommandMediaInSlot(slot);
     if (!stoppedMedia.empty()) {
         LogInfo(VB_COMMAND, "Play Media: slot %d was playing %s, stopped it before starting %s\n", slot, stoppedMedia.c_str(), args[0].c_str());
-    } else {
-        // Not command media - a playlist-owned stream, which the playlist
-        // frees on its own thread rather than through runningCommandMedia.
-        GStreamerOutput* existingSlotOutput = StreamSlotManager::Instance().GetActiveOutput(slot);
-        if (existingSlotOutput) {
-            LogInfo(VB_COMMAND, "Play Media: slot %d already active, stopping previous stream before starting %s\n", slot, args[0].c_str());
-            existingSlotOutput->Stop();
-        }
+    } else if (StreamSlotManager::Instance().RequestStop(slot)) {
+        // Not command media - a playlist-owned stream.  Its owner stops and
+        // frees it on its own thread; stopping it from here raced the owner's
+        // Process() and its delete.  It stops on the owner's next pass.
+        LogInfo(VB_COMMAND, "Play Media: slot %d already active, asked its owner to stop it before starting %s\n", slot, args[0].c_str());
     }
 #endif
 
@@ -608,11 +637,10 @@ std::unique_ptr<Command::Result> StopMediaSlotCommand::run(const std::vector<std
         return std::make_unique<Command::Result>("Stopped slot " + std::to_string(slot));
     }
 
-    // Fall back to StreamSlotManager (catches playlist-started media)
-    GStreamerOutput* output = StreamSlotManager::Instance().GetActiveOutput(slot);
-    if (output) {
-        output->Stop();
-        LogInfo(VB_COMMAND, "Stop Media Slot %d: stopped active output\n", slot);
+    // Fall back to StreamSlotManager (catches playlist-started media), which
+    // asks the owner to stop it on its own thread -- see Play Media above.
+    if (StreamSlotManager::Instance().RequestStop(slot)) {
+        LogInfo(VB_COMMAND, "Stop Media Slot %d: asked the slot's owner to stop it\n", slot);
         return std::make_unique<Command::Result>("Stopped slot " + std::to_string(slot));
     }
 
