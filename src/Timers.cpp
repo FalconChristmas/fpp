@@ -65,8 +65,14 @@ void Timers::addTimer(const std::string& name, long long fireTimeMS, const std::
     if (!name.empty()) {
         for (auto& a : timers) {
             if (a && a->id == name) {
+                // A preset timer is a one-shot preset and nothing else: keeping
+                // the old entry's callback and periodic rate turned a preset
+                // aimed at an internal timer's id ("FileMonitor") into a preset
+                // fired every 2s for good, and that timer's own work never ran.
                 a->fireTimeMS = fireTimeMS;
                 a->commandPreset = preset;
+                a->callback = nullptr;
+                a->periodicRate = 0;
                 updateTimers();
                 return;
             }

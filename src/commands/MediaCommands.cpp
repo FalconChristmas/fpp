@@ -393,7 +393,7 @@ static void RemoveRunningMedia(const std::string& filename, MediaOutputBase* sel
     MediaOutputBase* dt = self;
     std::string fn = filename;
 
-    Timers::INSTANCE.addTimer(std::to_string(i), GetTimeMS() + 1, [dt, fn]() {
+    Timers::INSTANCE.addTimer("RemoveRunningMedia-" + std::to_string(i), GetTimeMS() + 1, [dt, fn]() {
         // Unregister first: the preset below can start the same file again,
         // and it should get the name back rather than a "_" suffix.  This
         // object stays alive until the delete at the end, so a preset that

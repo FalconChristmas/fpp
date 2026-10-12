@@ -58,7 +58,11 @@ std::unique_ptr<Command::Result> TriggerPresetInFutureCommand::run(const std::ve
     long long tv = t + val;
     LogDebug(VB_COMMAND, "\"Trigger Command Preset In Future\" identifier \"%s\" scheduling preset \"%s\" to trigger in %dms\n",
             args[0].c_str(), args[2].c_str(), val);
-    Timers::INSTANCE.addTimer(args[0], tv, args[2]);
+    // The identifier lets a later trigger with the same one replace a pending
+    // timer. Kept in its own namespace: Timers ids are shared with fppd's own
+    // timers, and a user id of "FileMonitor" or "SequencePresets" replaced
+    // that timer's work with the preset.
+    Timers::INSTANCE.addTimer("preset:" + args[0], tv, args[2]);
     return std::make_unique<Command::Result>("Timer Started");
 }
 
