@@ -1136,8 +1136,13 @@ static HttpResponsePtr bulkPixelDataPut(const HttpRequestPtr& req, PixelOverlayM
         if (!srcBpp) {
             return errorResp("Unknown fmt \"" + fmtArg + "\"; expected rgb, rgbw, mono, or image");
         }
-        std::size_t expect = (std::size_t)w * h * srcBpp;
-        if (dataLen != expect) {
+        // 64-bit on every platform: size_t is 32 bits on armhf, where
+        // w=1073741825 h=4 mono wrapped to 4 and a 4-byte body passed, sending
+        // blitData() striding a gigabyte per row through the request buffer.
+        // With an exact match against the body, w*h*bpp can be no larger than
+        // the bytes actually received, which bounds every index blitData uses.
+        uint64_t expect = (uint64_t)w * (uint64_t)h * (uint64_t)srcBpp;
+        if ((uint64_t)dataLen != expect) {
             // Wrong length for the geometry given. If the bytes are an encoded
             // image, the caller almost certainly meant to post one, so take it
             // rather than making them add ?fmt=image.
