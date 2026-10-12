@@ -379,6 +379,17 @@ static GstPadProbeReturn CopyDeviceFrameForConvert(GstPad* pad, GstPadProbeInfo*
     return GST_PAD_PROBE_OK;
 }
 
+// The media path goes to filesrc as a property, not spliced into the
+// gst_parse_launch() description.  Inside the description a '"' in the
+// filename (uploads keep them) ended the quoted value early, so the file never
+// played, and a crafted name could add elements to the pipeline.
+static void SetFileSourceLocation(GstElement* pipeline, const std::string& path) {
+    if (GstElement* fsrc = gst_bin_get_by_name(GST_BIN(pipeline), "fsrc")) {
+        g_object_set(fsrc, "location", path.c_str(), NULL);
+        gst_object_unref(fsrc);
+    }
+}
+
 static void GuardVideoConvert(GstElement* element) {
     GstElementFactory* factory = gst_element_get_factory(element);
     if (!factory) {
@@ -1447,7 +1458,7 @@ int GStreamerOutput::Start(int msTime) {
     if (wantVideo) {
         // Build pipeline with decodebin pad-added for dynamic audio+video linking
         std::string pipelineStr =
-            "filesrc location=\"" + fullPath + "\" ! decodebin name=decoder";
+            "filesrc name=fsrc ! decodebin name=decoder";
 
         LogDebug(VB_MEDIAOUT, "GStreamer pipeline (video): %s\n", pipelineStr.c_str());
         m_pipeline = gst_parse_launch(pipelineStr.c_str(), &error);
@@ -1456,6 +1467,7 @@ int GStreamerOutput::Start(int msTime) {
             g_error_free(error);
             return 0;
         }
+        SetFileSourceLocation(m_pipeline, fullPath);
         GuardVideoConvertInputs(m_pipeline);
 
         // Build audio sub-chain: audioconvert ! audioresample ! tee ! ...
@@ -1625,7 +1637,7 @@ int GStreamerOutput::Start(int msTime) {
         //   All platforms: avdec_h264 from gstreamer1.0-libav as universal fallback
         // ---------------------------------------------------------------
         std::string pipelineStr =
-            "filesrc location=\"" + fullPath + "\" ! decodebin name=decoder";
+            "filesrc name=fsrc ! decodebin name=decoder";
 
         LogDebug(VB_MEDIAOUT, "GStreamer pipeline (HDMI): %s  connector-id=%d card=%s\n",
                  pipelineStr.c_str(), m_hdmiConnectorId, m_hdmiCardPath.c_str());
@@ -1635,6 +1647,7 @@ int GStreamerOutput::Start(int msTime) {
             g_error_free(error);
             return 0;
         }
+        SetFileSourceLocation(m_pipeline, fullPath);
         GuardVideoConvertInputs(m_pipeline);
 
         // Build audio sub-chain (same as overlay mode)
@@ -2078,7 +2091,7 @@ int GStreamerOutput::Start(int msTime) {
         }
         std::string audioSinkStr = pwStream ? std::string("appsink name=pwfeed sync=true enable-last-sample=false") : sinkStr;
         std::string pipelineStr =
-            "filesrc location=\"" + fullPath + "\" ! decodebin name=decoder expose-all-streams=false caps=\"audio/x-raw\" ! audioconvert ! audioresample ! "
+            "filesrc name=fsrc ! decodebin name=decoder expose-all-streams=false caps=\"audio/x-raw\" ! audioconvert ! audioresample ! "
             "audio/x-raw" + rateCaps + chOrderCaps + " ! " + chOrderPermute +
             "tee name=t "
             "t. ! queue ! volume name=vol ! " + audioSinkStr + " "
@@ -2096,6 +2109,7 @@ int GStreamerOutput::Start(int msTime) {
             g_error_free(error);
             return 0;
         }
+        SetFileSourceLocation(m_pipeline, fullPath);
 
         // This pipeline's only sink is audio, so a file with nothing decodable
         // to feed it cannot play at all -- and the caps filter above turns that
