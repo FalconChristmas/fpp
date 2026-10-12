@@ -1711,7 +1711,11 @@ private:
         if (!file_exists(EEPROM)) {
             printf("Could not detect any cape\n");
             EEPROM = "";
-            handleReboot(handleCapeOverlay("/home/fpp/media/"));
+            // A read-only probe (fppd's outputs, the setup wizard's dry run)
+            // must not rewrite config.txt or reboot; the boot-time run does.
+            if (!readOnly) {
+                handleReboot(handleCapeOverlay("/home/fpp/media/"));
+            }
             return;
         }
         printf("Using %s\n", EEPROM.c_str());
@@ -1729,7 +1733,9 @@ private:
                 // old overlay applied forever, and the i2c addresses it binds
                 // then block rewriting the eeprom that would fix it.
                 fclose(file);
-                handleReboot(handleCapeOverlay("/home/fpp/media/"));
+                if (!readOnly) {
+                    handleReboot(handleCapeOverlay("/home/fpp/media/"));
+                }
                 return;
             }
             printf("Using %s\n", EEPROM.c_str());
@@ -2391,13 +2397,17 @@ private:
                     if (pinout == "2.x") {
                         newEeprom += "v2";
                     }
-                    if (file_exists(platformDir + "/" + newEeprom + "-eeprom.bin")) {
+                    if (readOnly) {
+                        // installing it is the boot-time run's job; a read-only
+                        // probe used to install it here and then switch itself
+                        // to read-write for the rest of the run
+                        printf("Not installing a virtual eeprom for %s from a read-only probe\n", newEeprom.c_str());
+                    } else if (file_exists(platformDir + "/" + newEeprom + "-eeprom.bin")) {
                         // found a virtual eeprom, install it and use it
                         printf("Installing new virtual eeprom based on prior string configuration: %s\n", newEeprom.c_str());
                         newEeprom = platformDir + "/" + newEeprom + "-eeprom.bin";
                         copyFile(newEeprom, "/home/fpp/media/config/cape-eeprom.bin");
                         setFilePerms("/home/fpp/media/config/cape-eeprom.bin");
-                        readOnly = false;
                         return "/home/fpp/media/config/cape-eeprom.bin";
                     }
                 }
