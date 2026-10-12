@@ -607,10 +607,14 @@ void PixelOverlayManager::loadFonts() {
     }
 }
 
+// find(), not operator[]: every unknown name used to be inserted into
+// `fonts`, which GET /api/overlays/fonts iterates from other HTTP threads, and
+// stayed in the font list for good.
 const std::string& PixelOverlayManager::mapFont(const std::string& f) {
     static std::string EMPTY_STR;
-    if (fonts[f] != "") {
-        return fonts[f];
+    auto it = fonts.find(f);
+    if (it != fonts.end()) {
+        return it->second;
     }
     return EMPTY_STR;
 }
@@ -1698,11 +1702,6 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                             bool autoEnable = false;
                             if (root.isMember("AutoEnable")) {
                                 autoEnable = root["AutoEnable"].asBool();
-                            }
-
-                            std::string f = fonts[font];
-                            if (f == "") {
-                                f = font;
                             }
 
                             std::vector<std::string> args;

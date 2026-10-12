@@ -1797,7 +1797,11 @@ public:
         ++generation;
     }
     PixelOverlayEffect* get(const std::string& n) {
-        return effects[n];
+        // find(), not operator[]: GET /api/overlays/effects/<name> reaches
+        // this from several HTTP threads at once, and inserting a null entry
+        // for each unknown name raced the map (and grew it for good).
+        auto it = effects.find(n);
+        return it == effects.end() ? nullptr : it->second;
     }
     const std::list<std::string>& names() const {
         return effectNames;
