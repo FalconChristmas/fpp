@@ -34,6 +34,30 @@
 
 #include "ScheduleEntry.h"
 
+// Days since 1970-01-01 for a proleptic Gregorian civil date (Howard
+// Hinnant's days_from_civil).  Pure calendar arithmetic: no time zone, no DST.
+static long DaysFromCivil(long y, unsigned m, unsigned d) {
+    y -= m <= 2;
+    const long era = (y >= 0 ? y : y - 399) / 400;
+    const unsigned yoe = (unsigned)(y - era * 400);
+    const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+    const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    return era * 146097 + (long)doe - 719468;
+}
+
+// The inverse of DaysFromCivil (Hinnant's civil_from_days).
+static void CivilFromDays(long z, int& y, int& m, int& d) {
+    z += 719468;
+    const long era = (z >= 0 ? z : z - 146096) / 146097;
+    const unsigned doe = (unsigned)(z - era * 146097);
+    const unsigned yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    const unsigned doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    const unsigned mp = (5 * doy + 2) / 153;
+    d = (int)(doy - (153 * mp + 2) / 5 + 1);
+    m = (int)(mp < 10 ? mp + 3 : mp - 9);
+    y = (int)(yoe + era * 400 + (m <= 2));
+}
+
 static time_t GetTimeOnDOW(int day, int hour, int minute, int second) {
     time_t currTime = time(NULL);
     struct tm now;
@@ -336,17 +360,12 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday, int refYe
 
             // We have Easter, see if we are looking for something offset from Easter
             if (offset != 0) {
-                time_t t = (365 * year) + (year / 4) - (year / 100) + (year / 400); // get years
-                t += (30 * month) + (3 * (month + 1) / 5) + (day + 1);              // add months and days
-                t -= 719561;                                                        // convert to epoch
-                t += offset;                                                        // apply our days offset
-                t *= 86400;                                                         // multiple to seconds
-
-                struct tm ts;
-                localtime_r(&t, &ts);
-
-                month = ts.tm_mon + 1;
-                day = ts.tm_mday;
+                // Calendar arithmetic, no time zone.  This used to build UTC
+                // midnight of the day after and convert with localtime(),
+                // which is right west of UTC and a day late east of it (UK
+                // Mothering Sunday, Easter - 21, came out a Monday).
+                int y = year;
+                CivilFromDays(DaysFromCivil(year, month, day) + offset, y, month, day);
             }
         } else if (type == "head") {
             day = ((dow + 7 - wday) % 7) + ((week - 1) * 7) + 1;
@@ -671,17 +690,6 @@ int ScheduleEntry::DayIndexToMask(int dayIndex) {
     // enumerated case; it is already a mask or is resolved separately, so
     // return it unchanged.
     return dayIndex;
-}
-
-// Days since 1970-01-01 for a proleptic Gregorian civil date (Howard
-// Hinnant's days_from_civil).  Pure calendar arithmetic: no time zone, no DST.
-static long DaysFromCivil(long y, unsigned m, unsigned d) {
-    y -= m <= 2;
-    const long era = (y >= 0 ? y : y - 399) / 400;
-    const unsigned yoe = (unsigned)(y - era * 400);
-    const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
-    const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    return era * 146097 + (long)doe - 719468;
 }
 
 bool ScheduleEntry::IsOddEvenMatch(time_t dayTime) const {
