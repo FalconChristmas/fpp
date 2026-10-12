@@ -1,5 +1,4 @@
 <?
-header( "Access-Control-Allow-Origin: *");
 
 $wrapped = 1;
 $skipJSsettings = 1;

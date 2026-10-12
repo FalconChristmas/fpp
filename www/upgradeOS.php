@@ -1,5 +1,4 @@
 <?
-header("Access-Control-Allow-Origin: *");
 
 $lastUpdate = time();
 $applyUpdate = true;
