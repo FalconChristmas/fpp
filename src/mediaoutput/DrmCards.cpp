@@ -278,9 +278,13 @@ Lease AcquireLease(const std::string& cardPath, int connectorId) {
     // No lease: kmssink on the shared, master fd, as before leases.  Mark the
     // connector and the overlay it gets as held all the same, so a
     // framebuffer output there stands aside and no one else takes the plane.
+    // Only what this call took is recorded, so its release can't clear a
+    // mark that belongs to another holder of the connector.
     lease.objectCount = 0;
-    lease.objects[lease.objectCount++] = (uint32_t)connectorId;
-    card.leased.insert((uint32_t)connectorId);
+    if (!card.leased.count((uint32_t)connectorId)) {
+        lease.objects[lease.objectCount++] = (uint32_t)connectorId;
+        card.leased.insert((uint32_t)connectorId);
+    }
     if (overlay) {
         lease.objects[lease.objectCount++] = overlay;
         card.leased.insert(overlay);

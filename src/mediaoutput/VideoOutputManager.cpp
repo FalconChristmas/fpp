@@ -394,8 +394,6 @@ void VideoOutputManager::Shutdown() {
 }
 
 void VideoOutputManager::StartConsumers(const std::string& producerNodeName,
-                                        int primaryConnectorId,
-                                        const std::set<int>& directConnectorIds,
                                         uint64_t producerGeneration) {
     bool shouldStartSAP = false;
     WaitForCmaIfLow();
@@ -414,8 +412,6 @@ void VideoOutputManager::StartConsumers(const std::string& producerNodeName,
         }
 
         m_activeProducer = producerNodeName;
-        m_primaryConnectorId = primaryConnectorId;
-        m_directConnectorIds = directConnectorIds;
 
         // Extract stream slot number from producer node name (e.g. "fppd_video_stream_2" → 2)
         int producerSlot = 0;
@@ -458,86 +454,73 @@ void VideoOutputManager::StartConsumers(const std::string& producerNodeName,
         StartSAPAnnouncer();
 }
 
-void VideoOutputManager::SuspendPersistentHdmiConsumers() {
+void VideoOutputManager::ClaimConnectorForMedia(int connectorId) {
+    if (connectorId <= 0) {
+        return;
+    }
+    int stopped = 0;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        int stopped = 0;
-        for (auto& consumer : m_consumers) {
-            if (!consumer.sourceNode.empty() && consumer.type == "hdmi" && consumer.running) {
-                LogInfo(VB_MEDIAOUT, "VideoOutputManager: Suspending persistent HDMI consumer '%s' (connector %s) for DRM master handoff\n",
-                        consumer.name.c_str(), consumer.connector.c_str());
-                StopConsumer(consumer);
+        m_mediaConnectors[connectorId]++;
+        for (auto& c : m_consumers) {
+            if (c.sourceNode.empty() || c.type != "hdmi" || c.connectorId != connectorId) {
+                continue;
+            }
+            // Running or not, it waits for the media to finish: one that is
+            // between retries would otherwise start up under the video.
+            c.suspendedForMedia = true;
+            if (c.running) {
+                LogInfo(VB_MEDIAOUT, "VideoOutputManager: '%s' stands aside for media on connector %s\n",
+                        c.name.c_str(), c.connector.c_str());
+                StopConsumer(c);
                 stopped++;
             }
         }
-        if (stopped > 0)
-            LogInfo(VB_MEDIAOUT, "VideoOutputManager: Suspended %d persistent HDMI consumer(s)\n", stopped);
     }
-    // Wait for DRM/CMA resources to be freed before the main pipeline
-    // claims DRM master on the same device.
-    WaitForPendingTeardowns(5000);
+    if (stopped) {
+        // Its lease on the connector goes once its pipeline is down; the
+        // media's own lease needs it.
+        WaitForPendingTeardowns(2000);
+    }
 }
 
-void VideoOutputManager::ResumePersistentHdmiConsumers() {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    // Zombie sweep: a persistent consumer whose bus-monitor thread saw
-    // GST_MESSAGE_ERROR/EOS sets pipelineDead but leaves `running` true
-    // (nothing else clears it) — without this, such a consumer holds its
-    // DRM plane and CMA forever and is never considered for resume below.
-    // StopConsumer() clears `running` synchronously (its pipeline-NULL
-    // transition is what's detached/async), so it's safe to fold straight
-    // into the grouping loop right after.
-    for (auto& c : m_consumers) {
-        if (!c.sourceNode.empty() && c.type == "hdmi" &&
-            c.running && c.pipelineDead && c.pipelineDead->load()) {
-            LogWarn(VB_MEDIAOUT, "VideoOutputManager: persistent consumer '%s' pipeline died (ERROR/EOS) — tearing down for restart\n",
-                    c.name.c_str());
-            StopConsumer(c);
-        }
+void VideoOutputManager::ReleaseConnectorFromMedia(int connectorId) {
+    if (connectorId <= 0) {
+        return;
     }
-
-    // Group persistent HDMI consumers by sourceNode (same logic as Init)
-    std::map<std::string, std::vector<size_t>> hdmiSourceGroups;
-    for (size_t i = 0; i < m_consumers.size(); i++) {
-        auto& c = m_consumers[i];
-        if (!c.sourceNode.empty() && c.type == "hdmi" && !c.running) {
-            hdmiSourceGroups[c.sourceNode].push_back(i);
+    std::set<std::string> channels;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        auto it = m_mediaConnectors.find(connectorId);
+        if (it == m_mediaConnectors.end()) {
+            return;
         }
-    }
-
-    int started = 0;
-    std::set<size_t> startedAsGroup;
-    for (auto& [sourceNode, indices] : hdmiSourceGroups) {
-        if (indices.size() > 1) {
-            if (StartHdmiConsumerGroup(indices)) {
-                started += indices.size();
-                for (auto idx : indices) startedAsGroup.insert(idx);
+        if (--it->second > 0) {
+            return;  // another slot's media still shows here
+        }
+        m_mediaConnectors.erase(it);
+        for (auto& c : m_consumers) {
+            if (c.suspendedForMedia && c.connectorId == connectorId) {
+                channels.insert(c.sourceNode);
             }
         }
     }
-
-    for (size_t i = 0; i < m_consumers.size(); i++) {
-        auto& c = m_consumers[i];
-        if (!c.sourceNode.empty() && c.type == "hdmi" && !c.running
-            && startedAsGroup.find(i) == startedAsGroup.end()) {
-            LogInfo(VB_MEDIAOUT, "VideoOutputManager: Resuming persistent HDMI consumer '%s' (connector %s)\n",
-                    c.name.c_str(), c.connector.c_str());
-            if (StartConsumer(c))
-                started++;
-        }
+    // Through the retry worker, which brings a consumer back only while its
+    // source runs (a dead source restarts itself and notifies).
+    for (const auto& channel : channels) {
+        ScheduleConsumerResume(channel, MEDIA_RESUME_DELAY_MS);
     }
-    if (started > 0)
-        LogInfo(VB_MEDIAOUT, "VideoOutputManager: Resumed %d persistent HDMI consumer(s)\n", started);
 }
 
 void VideoOutputManager::NotifyProducerReady(const std::string& channelName) {
     WaitForCmaIfLow();
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    // Zombie sweep — see ResumePersistentHdmiConsumers for rationale. Applies
-    // to all consumer types here (not just hdmi) since NotifyProducerReady
-    // is the general persistent-source restart path.
+    // Zombie sweep: a consumer whose bus-monitor thread saw ERROR/EOS sets
+    // pipelineDead but leaves `running` true (nothing else clears it), so it
+    // would hold its DRM lease and CMA forever and never be started again.
+    // StopConsumer() clears `running` synchronously (only its pipeline-NULL
+    // transition is detached), so the start loop below picks it straight up.
     for (auto& c : m_consumers) {
         if (c.sourceNode == channelName &&
             c.running && c.pipelineDead && c.pipelineDead->load()) {
@@ -584,8 +567,9 @@ void VideoOutputManager::NotifyProducerReady(const std::string& channelName) {
     // else will try it again while this source keeps running.  An HDMI
     // consumer saved without a connector id is a config error a retry
     // can't fix.
+    // One standing aside for media comes back when the media releases it.
     for (const auto& c : m_consumers) {
-        if (c.sourceNode == channelName && !c.running &&
+        if (c.sourceNode == channelName && !c.running && !c.suspendedForMedia &&
             !(c.type == "hdmi" && (c.connectorId <= 0 || c.cardPath.empty()))) {
             ScheduleConsumerRestart(channelName);
             break;
@@ -616,6 +600,27 @@ void VideoOutputManager::ScheduleConsumerRestart(const std::string& channelName)
     if (!m_restartRunning) {
         if (m_restartThread.joinable()) {
             m_restartThread.join();  // a finished worker; it no longer needs the lock
+        }
+        m_restartRunning = true;
+        m_restartThread = std::thread([this]() { RestartWorker(); });
+    }
+    m_restartCv.notify_all();
+}
+
+void VideoOutputManager::ScheduleConsumerResume(const std::string& channelName, int delayMs) {
+    std::lock_guard<std::mutex> rl(m_restartMutex);
+    if (m_stopRestarts) {
+        return;
+    }
+    RestartState& r = m_restarts[channelName];
+    auto due = std::chrono::steady_clock::now() + std::chrono::milliseconds(delayMs);
+    if (!r.pending || due < r.due) {
+        r.due = due;
+    }
+    r.pending = true;
+    if (!m_restartRunning) {
+        if (m_restartThread.joinable()) {
+            m_restartThread.join();
         }
         m_restartRunning = true;
         m_restartThread = std::thread([this]() { RestartWorker(); });
@@ -981,8 +986,10 @@ bool VideoOutputManager::StartHdmiConsumerGroup(const std::vector<size_t>& indic
                 continue;
             }
         }
-        if (m_primaryConnectorId >= 0 && c.connectorId == m_primaryConnectorId) continue;
-        if (m_directConnectorIds.count(c.connectorId)) continue;
+        if (m_mediaConnectors.count(c.connectorId)) {
+            c.suspendedForMedia = true;
+            continue;
+        }
         validIndices.push_back(idx);
     }
     if (validIndices.empty()) return false;
@@ -1241,22 +1248,15 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
             }
         }
 
-        // Check for conflict with the primary video output — the main GStreamerOut
-        // pipeline may have a direct kmssink on the primary connector.
-        // Two kmssinks cannot share the same DRM CRTC/connector.
-        // primaryConnectorId is -1 when the primary connector is disconnected
-        // (no kmssink in the main pipeline), so no consumer is skipped.
-        if (m_primaryConnectorId >= 0 && consumer.connectorId == m_primaryConnectorId) {
-            LogWarn(VB_MEDIAOUT, "VideoOutputManager: Skipping HDMI consumer '%s' — "
-                    "connector %s (id=%d) is used by the primary video output\n",
-                    consumer.name.c_str(), consumer.connector.c_str(), consumer.connectorId);
-            return false;
-        }
-        // Also skip connectors handled by direct kmssink branches on the
-        // producer's video tee (avoids DRM CRTC conflicts).
-        if (m_directConnectorIds.count(consumer.connectorId)) {
+        // Media playback shows on this connector (its kmssink holds it); a
+        // persistent consumer comes back when that ends.  Two kmssinks cannot
+        // share one connector.
+        if (m_mediaConnectors.count(consumer.connectorId)) {
+            if (!consumer.sourceNode.empty()) {
+                consumer.suspendedForMedia = true;
+            }
             LogInfo(VB_MEDIAOUT, "VideoOutputManager: Skipping HDMI consumer '%s' — "
-                    "connector %s (id=%d) handled by direct kmssink in main pipeline\n",
+                    "media is playing on connector %s (id=%d)\n",
                     consumer.name.c_str(), consumer.connector.c_str(), consumer.connectorId);
             return false;
         }
@@ -1529,8 +1529,8 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
                 if (planeId >= 0) {
                     g_object_set(sink, "plane-id", planeId, NULL);
                 }
-                LogInfo(VB_MEDIAOUT, "VideoOutputManager: Set shared DRM fd=%d plane=%d on consumer '%s' kmssink\n",
-                        drmFd, planeId, consumer.name.c_str());
+                LogInfo(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' kmssink on DRM fd=%d (%s) plane=%d\n",
+                        consumer.name.c_str(), drmFd, consumer.drmLease.isLease ? "lease" : "card's shared fd", planeId);
             } else {
                 g_object_set(sink, "driver-name", "vc4", NULL);
                 LogInfo(VB_MEDIAOUT, "VideoOutputManager: No shared DRM fd for consumer '%s', using driver-name=vc4\n",
@@ -1572,6 +1572,7 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
     consumer.shutdownRequested = std::make_shared<std::atomic<bool>>(false);
     consumer.pipelineDead = std::make_shared<std::atomic<bool>>(false);
     consumer.running = true;
+    consumer.suspendedForMedia = false;
 
     std::string consumerName = consumer.name;
     GstElement* pipeline = consumer.pipeline;

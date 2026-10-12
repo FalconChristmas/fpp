@@ -182,14 +182,12 @@ public:
 
     /// Start all configured consumers targeting the given producer node.
     /// Called by GStreamerOut after pipewiresink is attached to PipeWire graph.
-    /// directConnectorIds: HDMI connectors already driven by direct kmssink
-    /// branches in the main pipeline — these will be skipped.
+    /// HDMI connectors the producer's own kmssinks drive were claimed with
+    /// ClaimConnectorForMedia() and are skipped.
     /// producerGeneration: ProducerGeneration() as read when the producer was
     /// set up; if StopConsumers() has run since, the producer is gone and
     /// nothing is started.  0 skips the check.
     void StartConsumers(const std::string& producerNodeName,
-                        int primaryConnectorId = -1,
-                        const std::set<int>& directConnectorIds = {},
                         uint64_t producerGeneration = 0);
 
     /// Stop all running consumer pipelines.
@@ -214,14 +212,20 @@ public:
     /// restarts itself and fires NotifyProducerReady().  Never takes
     /// m_mutex.
     void ScheduleConsumerRestart(const std::string& channelName);
+    /// The same retry after a fixed delay, outside the failure backoff.
+    void ScheduleConsumerResume(const std::string& channelName, int delayMs);
 
-    /// Suspend persistent HDMI consumers so GStreamerOut's pipeline can
-    /// become DRM master.  Only one pipeline at a time can hold DRM master
-    /// on a given DRM device (card1), so persistent consumers must yield.
-    void SuspendPersistentHdmiConsumers();
+    /// Media playback is about to show on this HDMI connector.  A persistent
+    /// consumer there (a camera group, say) stops and waits; this returns
+    /// once its kmssink has let go of the connector, so the caller can take
+    /// it.  Refcounted: every call needs a ReleaseConnectorFromMedia().
+    void ClaimConnectorForMedia(int connectorId);
 
-    /// Resume persistent HDMI consumers after GStreamerOut's pipeline stops.
-    void ResumePersistentHdmiConsumers();
+    /// The media on this connector is gone (its kmssink released).  Once
+    /// nothing else holds it, what stood aside comes back after a moment --
+    /// long enough that the next video in a playlist claims the connector
+    /// first, rather than the consumer flashing up between them.
+    void ReleaseConnectorFromMedia(int connectorId);
 
     /// Check if any consumers are configured.
     bool HasConsumers() const;
@@ -310,6 +314,9 @@ private:
         // shared_ptr-per-run rationale as shutdownRequested.
         std::shared_ptr<std::atomic<bool>> pipelineDead = std::make_shared<std::atomic<bool>>(false);
         bool running = false;
+        // Stood aside for media playback on its connector, to come back when
+        // the media releases it (ReleaseConnectorFromMedia).
+        bool suspendedForMedia = false;
 
         ConsumerInfo() = default;
         ConsumerInfo(ConsumerInfo&& o) noexcept
@@ -332,7 +339,7 @@ private:
               startThread(std::move(o.startThread)),
               shutdownRequested(std::move(o.shutdownRequested)),
               pipelineDead(std::move(o.pipelineDead)),
-              running(o.running) {
+              running(o.running), suspendedForMedia(o.suspendedForMedia) {
 #ifdef HAS_GSTREAMER_VIDEO_OUTPUT
             o.pipeline = nullptr;
 #endif
@@ -434,10 +441,12 @@ private:
 
     mutable std::mutex m_mutex;
     std::vector<ConsumerInfo> m_consumers;
-    std::set<int> m_directConnectorIds;   // HDMI connectors handled by direct kmssink
     std::string m_activeProducer;  // node name of the current producer, empty if none
     std::atomic<uint64_t> m_producerGeneration{ 1 };
-    int m_primaryConnectorId = -1; // DRM connector ID used by primary pipeline's kmssink
+    // HDMI connectors media playback holds (ClaimConnectorForMedia), with how
+    // many claims each.  A persistent consumer stands aside on these.
+    std::map<int, int> m_mediaConnectors;
+    static constexpr int MEDIA_RESUME_DELAY_MS = 1500;
     bool m_initialized = false;
     // Guards Shutdown() so the destructor doesn't re-run it after main() already
     // did (the "Shutdown complete" was logged twice). Harmless today since it

@@ -1654,8 +1654,12 @@ int GStreamerOutput::Start(int msTime) {
                 return 0;
             }
 #ifndef PLATFORM_OSX
-            // A lease on the connector, so the KMS framebuffer outputs on the
-            // card keep their DRM master (see DrmCards.h).
+            // A persistent consumer on this connector (a camera group) stands
+            // aside until the video is over.  Then a lease on the connector,
+            // so the KMS framebuffer outputs on the card keep their DRM
+            // master (see DrmCards.h).
+            VideoOutputManager::Instance().ClaimConnectorForMedia(m_hdmiConnectorId);
+            m_mediaConnectors.push_back(m_hdmiConnectorId);
             DrmCards::Lease lease = DrmCards::AcquireLease(m_hdmiCardPath, m_hdmiConnectorId);
             if (lease.fd >= 0) {
                 g_object_set(m_kmssink,
@@ -1791,6 +1795,8 @@ int GStreamerOutput::Start(int msTime) {
                                             : m_hdmiCardPath;
                     DrmCards::Lease lease;
                     if (!cardForDkms.empty()) {
+                        VideoOutputManager::Instance().ClaimConnectorForMedia(resolvedConnId);
+                        m_mediaConnectors.push_back(resolvedConnId);
                         lease = DrmCards::AcquireLease(cardForDkms, resolvedConnId);
                     }
                     int drmFd = lease.fd;
@@ -2222,13 +2228,8 @@ int GStreamerOutput::Start(int msTime) {
         int seekMs = msTime;
         bool videoPW = m_videoPipeWireRouting;
         int streamSlot = m_streamSlot;
-        int hdmiConnectorId = m_hdmiConnectorId;
         // Whether a kmssink (primary or consumer) paces the video clock.
         bool kmsPaces = m_kmssink || !m_directConnectorIds.empty();
-        // Final consumer connector set (primary HDMI included), captured by value.
-        std::set<int> directConnectorIds = m_directConnectorIds;
-        if (hdmiConnectorId >= 0)
-            directConnectorIds.insert(hdmiConnectorId);
 
         // The thread must NOT capture `this`: it may still be running (blocked in
         // gst_element_set_state / pipewiresink) when this GStreamerOutput is torn
@@ -2249,7 +2250,7 @@ int GStreamerOutput::Start(int msTime) {
         // from this thread, possibly after this output has been stopped.
         const uint64_t producerGeneration = VideoOutputManager::Instance().ProducerGeneration();
         std::thread([pipeline, volume, cancel, seekPending, seekMs, videoPW, targetVolume,
-                     streamSlot, hdmiConnectorId, kmsPaces, directConnectorIds, pwStream,
+                     streamSlot, kmsPaces, pwStream,
                      producerGeneration]() {
             // Releases our owning refs on exit no matter which path we return on.
             //
@@ -2422,7 +2423,7 @@ int GStreamerOutput::Start(int msTime) {
                 if (!pwvideosink) {
                     LogWarn(VB_MEDIAOUT, "GStreamer: pipewiresink not available\n");
                     gst_object_unref(vtee);
-                    VideoOutputManager::Instance().StartConsumers("", hdmiConnectorId, directConnectorIds, producerGeneration);
+                    VideoOutputManager::Instance().StartConsumers("", producerGeneration);
                     return;
                 }
 
@@ -2515,7 +2516,7 @@ int GStreamerOutput::Start(int msTime) {
                     return;
                 }
 
-                VideoOutputManager::Instance().StartConsumers(videoNodeName, hdmiConnectorId, directConnectorIds, producerGeneration);
+                VideoOutputManager::Instance().StartConsumers(videoNodeName, producerGeneration);
             }
             // Owning refs on pipeline/volume released by refGuard on scope exit.
         }).detach();
@@ -2645,7 +2646,7 @@ int GStreamerOutput::Stop(void) {
         bool asyncTeardownEligible = !m_hasVideoStream && !m_kmssink &&
                                      m_directConnectorIds.empty() &&
                                      !m_videoPipeWireRouting &&
-                                     m_drmLeases.empty();
+                                     m_drmLeases.empty() && m_mediaConnectors.empty();
         if (asyncTeardownEligible) {
             // These are what Close() would run inside its m_pipeline guard;
             // that guard will be skipped because we null the members here.
@@ -3930,8 +3931,14 @@ int GStreamerOutput::Close(void) {
         for (DrmCards::Lease& lease : m_drmLeases) {
             DrmCards::ReleaseLease(lease);
         }
+        // The connectors are free again: what stood aside for this video
+        // (a camera group on the same display) comes back.
+        for (int connectorId : m_mediaConnectors) {
+            VideoOutputManager::Instance().ReleaseConnectorFromMedia(connectorId);
+        }
     }
     m_drmLeases.clear();
+    m_mediaConnectors.clear();
 
     // Clean up video overlay state
     if (m_videoFramesReceived > 0 || m_videoFramesDelivered > 0) {

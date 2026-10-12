@@ -287,6 +287,10 @@ private:
     // any dkms_* branches).  Released in Close(), strictly after the pipeline
     // (and therefore every kmssink) has been unreffed.
     std::vector<DrmCards::Lease> m_drmLeases;
+    // HDMI connectors this pipeline claimed from the video output manager's
+    // persistent consumers (ClaimConnectorForMedia); released in Close()
+    // after the leases, which brings those consumers back.
+    std::vector<int> m_mediaConnectors;
     int m_hdmiDisplayWidth = 0;            // display resolution
     int m_hdmiDisplayHeight = 0;
 
