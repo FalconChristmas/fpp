@@ -742,7 +742,9 @@ std::unique_ptr<Command::Result> StopMediaSlotCommand::run(const std::vector<std
     // asks the owner to stop it on its own thread -- see Play Media above.
     if (StreamSlotManager::Instance().RequestStop(slot)) {
         LogInfo(VB_COMMAND, "Stop Media Slot %d: asked the slot's owner to stop it\n", slot);
-        return std::make_unique<Command::Result>("Stopped slot " + std::to_string(slot));
+        // Not "Stopped": the owner stops it on its next pass, and only if it
+        // is still processing that output.
+        return std::make_unique<Command::Result>("Stop requested for slot " + std::to_string(slot));
     }
 
     return std::make_unique<Command::Result>("Slot " + std::to_string(slot) + " not playing");
