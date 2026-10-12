@@ -21,6 +21,7 @@
 
 #include <cstdlib>
 #include <map>
+#include <random>
 
 // std::to_string(double) always pads to 6 decimals ("45.000000"); use a
 // format that drops trailing zeros so integer-valued results stay readable.
@@ -108,7 +109,13 @@ std::unique_ptr<Command::Result> SetVariableCommand::run(const std::vector<std::
         if (mx < mn) {
             std::swap(mn, mx);
         }
-        int result = mn + (mx > mn ? (rand() % (mx - mn + 1)) : 0);
+        // The span is computed in 64 bits: across the full int range
+        // mx - mn + 1 overflowed to 0, and rand() % 0 is SIGFPE on x86 and
+        // armhf. A distribution also drops rand()'s modulo bias and its
+        // RAND_MAX ceiling, which made most of a wide range unreachable.
+        static thread_local std::mt19937 rng{ std::random_device{}() };
+        std::uniform_int_distribution<long long> dist(mn, mx);
+        int result = (int)dist(rng);
         Variables::INSTANCE.setVariable(name, result, persist);
         return std::make_unique<Command::Result>(std::to_string(result));
     } else if (type == "Expression") {
