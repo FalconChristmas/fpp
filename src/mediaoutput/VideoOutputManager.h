@@ -24,6 +24,8 @@
 
 #include <arpa/inet.h>
 
+#include "DrmCards.h"
+
 #if __has_include(<gst/gst.h>)
 #define HAS_GSTREAMER_VIDEO_OUTPUT
 #include <gst/gst.h>
@@ -261,13 +263,11 @@ private:
         int height = 0;
         std::string scaling;        // "fit", "fill", "stretch"
         VideoCropRect crop;         // region of the source shown on this output
-        int assignedPlaneId = -1;   // DRM overlay plane reserved for this consumer's kmssink; released in StopConsumer
-        // DRM cardPath this consumer's kmssink acquired via
-        // GStreamerOutput::AcquireSharedDrmFd(); empty if none (non-HDMI
-        // consumer, or the acquire failed).  Released with
-        // ReleaseSharedDrmFd() in StopConsumer's teardown thread, strictly
-        // after the pipeline (and its kmssink) has been unreffed.
-        std::string acquiredDrmCard;
+        // The DRM lease this consumer's kmssink runs on (fd < 0: none --
+        // non-HDMI, or it couldn't get one).  Released in StopConsumer's
+        // teardown thread, strictly after the pipeline (and its kmssink) has
+        // been unreffed.
+        DrmCards::Lease drmLease;
 
         // Overlay-specific
         std::string overlayModel;
@@ -318,8 +318,7 @@ private:
               connector(std::move(o.connector)), cardPath(std::move(o.cardPath)),
               connectorId(o.connectorId), width(o.width), height(o.height),
               scaling(std::move(o.scaling)), crop(o.crop),
-              assignedPlaneId(o.assignedPlaneId),
-              acquiredDrmCard(std::move(o.acquiredDrmCard)),
+              drmLease(o.drmLease),
               overlayModel(std::move(o.overlayModel)),
               overlayState(std::move(o.overlayState)),
               address(std::move(o.address)), port(o.port),

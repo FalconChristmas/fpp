@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "AES67Manager.h"
+#include "DrmCards.h"
 #include "OpusRTPManager.h"
 
 class PixelOverlayModel;
@@ -107,38 +108,6 @@ public:
     };
     static DrmConnectorInfo ResolveDrmConnector(const std::string& connectorName);
 
-    // Acquire a shared, refcounted DRM master fd for the given card (e.g.
-    // "/dev/dri/card1").  All kmssink elements should use this fd to avoid
-    // DRM master contention.  Opens the device and takes DRM master on the
-    // first acquire for a given card; subsequent acquires just bump the
-    // refcount and return the same fd.  Every successful call MUST be
-    // matched by a later ReleaseSharedDrmFd() call for the same cardPath —
-    // closing the fd once the refcount drops to zero is the kernel's
-    // cleanup backstop that frees any GEM handles/framebuffers a kmssink
-    // failed to release explicitly, which is what keeps CMA/GPU memory from
-    // growing unbounded across many pipeline build/teardown cycles.
-    static int AcquireSharedDrmFd(const std::string& cardPath);
-
-    // Release a reference taken by AcquireSharedDrmFd().  When the refcount
-    // for cardPath reaches zero the fd is closed (dropping DRM master and
-    // freeing any leaked GEM handles/FBs).  Must only be called after the
-    // pipeline holding kmssink(s) on that fd has been fully unreffed —
-    // releasing (and possibly closing the fd) while a kmssink still holds
-    // it open is undefined behavior.
-    static void ReleaseSharedDrmFd(const std::string& cardPath);
-
-    // Find a DRM OVERLAY plane for the CRTC currently bound to a connector.
-    // Uses overlay planes (not primary) because fbcon holds the primary planes.
-    // Tracks allocated planes to avoid collisions between consumers.
-    // Returns -1 if not found.  Requires the shared DRM fd.
-    static int FindPrimaryPlaneForConnector(int drmFd, int connectorId);
-
-    // Return a plane previously handed out by FindPrimaryPlaneForConnector to
-    // the free pool so it can be reused.  Must be called when the kmssink that
-    // owned the plane is torn down, otherwise the allocated-plane set grows
-    // until no overlay planes remain and HDMI video silently stops working.
-    // A negative id or an id that was never allocated is ignored.
-    static void ReleasePlane(int planeId);
 
     // GStreamer-specific
     void SetLoopCount(int loops) { m_loopCount = loops; }
@@ -314,13 +283,10 @@ private:
     GstElement* m_kmssink = nullptr;       // kmssink element (owned by pipeline bin)
     int m_hdmiConnectorId = -1;            // DRM connector ID from sysfs
     std::string m_hdmiCardPath;            // e.g. "/dev/dri/card1"
-    std::vector<int> m_allocatedPlanes;    // overlay planes reserved for this pipeline's kmssinks; released in Close()
-    // Cards this pipeline called AcquireSharedDrmFd() on — one entry per
-    // acquire call (the same card can be acquired more than once, e.g. one
-    // primary kmssink plus several dkms_* consumer branches).  Released with
-    // matching ReleaseSharedDrmFd() calls in Close(), strictly after the
-    // pipeline (and therefore every kmssink) has been unreffed.
-    std::vector<std::string> m_acquiredDrmCards;
+    // The DRM lease of each of this pipeline's kmssinks (the primary one and
+    // any dkms_* branches).  Released in Close(), strictly after the pipeline
+    // (and therefore every kmssink) has been unreffed.
+    std::vector<DrmCards::Lease> m_drmLeases;
     int m_hdmiDisplayWidth = 0;            // display resolution
     int m_hdmiDisplayHeight = 0;
 

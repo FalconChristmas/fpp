@@ -18,10 +18,11 @@
 
 extern MediaOutputBase* mediaOutput;
 extern std::mutex mediaOutputLock;
-// Serializes DRM master handoffs on the display cards -- between the KMS
-// framebuffer outputs, and against the media pipelines' kmssink fd -- and the
-// KMS page-flip bookkeeping.  A flip holds it for most of a refresh, so take
-// it only for DRM work, and never take mediaOutputLock while holding it.
+// Serializes DRM work on the display cards' shared master fds (see
+// mediaoutput/DrmCards.h) -- the KMS framebuffer outputs' flips and modesets,
+// and media pipelines taking leases -- and the KMS page-flip bookkeeping.  A
+// flip holds it for most of a refresh, so take it only for DRM work, and never
+// take mediaOutputLock while holding it.
 extern std::mutex drmMasterLock;
 extern MediaOutputStatus mediaOutputStatus;
 

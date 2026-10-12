@@ -153,6 +153,15 @@ private:
     static drmModeConnectorPtr ProbeConnectorLocked(int fd, uint32_t connectorId);
     // Full off/on modeset of this output; caller holds drmMasterLock.
     void RestartDisplayLocked();
+
+    // A media pipeline's kmssink holds this connector (DrmCards.h).
+    bool MediaHoldsConnector() const;
+    // While it does, our plane shows this black buffer instead of the last
+    // frame, which would otherwise show around a letterboxed video.  Made on
+    // first use; m_mediaBlanked says it is up.  Both under drmMasterLock.
+    DumbBuffer m_blankFb = {};
+    bool m_mediaBlanked = false;
+    void BlankForMediaLocked();
     // Light the CRTC in m_mode and show the current page on our plane.  Caller
     // holds drmMasterLock and DRM master.  Returns the plane commit's result.
     int ModesetLocked();

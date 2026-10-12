@@ -1519,15 +1519,15 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
                     resolvedConnId = drmCheck.connectorId;
             }
             std::string cardForFd = !resolvedCard.empty() ? resolvedCard : consumer.cardPath;
-            int drmFd = cardForFd.empty() ? -1
-                : GStreamerOutput::AcquireSharedDrmFd(cardForFd);
+            if (!cardForFd.empty()) {
+                consumer.drmLease = DrmCards::AcquireLease(cardForFd, resolvedConnId);
+            }
+            int drmFd = consumer.drmLease.fd;
             if (drmFd >= 0) {
-                consumer.acquiredDrmCard = cardForFd;
                 g_object_set(sink, "fd", drmFd, NULL);
-                int planeId = GStreamerOutput::FindPrimaryPlaneForConnector(drmFd, resolvedConnId);
+                int planeId = consumer.drmLease.planeId;
                 if (planeId >= 0) {
                     g_object_set(sink, "plane-id", planeId, NULL);
-                    consumer.assignedPlaneId = planeId;
                 }
                 LogInfo(VB_MEDIAOUT, "VideoOutputManager: Set shared DRM fd=%d plane=%d on consumer '%s' kmssink\n",
                         drmFd, planeId, consumer.name.c_str());
@@ -1877,34 +1877,21 @@ void VideoOutputManager::StopConsumer(ConsumerInfo& consumer) {
     if (consumer.pipeline) {
         GstElement* p = consumer.pipeline;
         consumer.pipeline = nullptr;
-        // Release the reserved overlay plane only after the pipeline reaches
-        // NULL (which destroys the kmssink and frees the plane in DRM).
-        // Releasing it earlier would let a new consumer claim a plane the old
-        // kmssink still holds.  -1 if this consumer never got a plane.
-        int planeId = consumer.assignedPlaneId;
-        consumer.assignedPlaneId = -1;
-        // Same ordering requirement for the shared DRM master fd: release it
-        // only after the pipeline (and its kmssink) is gone. Empty if this
-        // consumer never acquired one (non-HDMI, or the acquire failed).
-        std::string drmCard = consumer.acquiredDrmCard;
-        consumer.acquiredDrmCard.clear();
+        // Give the DRM lease back only after the pipeline reaches NULL (which
+        // destroys the kmssink): closing it frees any GEM handles/FBs the
+        // kmssink failed to release, and returns its plane for the next
+        // consumer -- neither may happen while the kmssink is alive.
+        DrmCards::Lease lease = consumer.drmLease;
+        consumer.drmLease = DrmCards::Lease();
         {
             std::lock_guard<std::mutex> tl(m_teardownMutex);
             m_pendingTeardowns++;
         }
-        std::thread([this, p, planeId, drmCard]() {
+        std::thread([this, p, lease]() mutable {
             uint64_t startMs = GetTimeMS();
             gst_element_set_state(p, GST_STATE_NULL);
             gst_object_unref(p);
-            // Release the DRM master fd AFTER the pipeline (and therefore its
-            // kmssink) has been destroyed — closing the fd is what actually
-            // frees any GEM handles/FBs the kmssink/vc4 driver failed to
-            // release explicitly, and doing so while the kmssink object was
-            // still alive would be premature (undefined behavior).
-            if (!drmCard.empty())
-                GStreamerOutput::ReleaseSharedDrmFd(drmCard);
-            if (planeId >= 0)
-                GStreamerOutput::ReleasePlane(planeId);
+            DrmCards::ReleaseLease(lease);
             {
                 std::lock_guard<std::mutex> tl(m_teardownMutex);
                 m_pendingTeardowns--;
@@ -1913,13 +1900,11 @@ void VideoOutputManager::StopConsumer(ConsumerInfo& consumer) {
             LogDebug(VB_MEDIAOUT, "VideoOutputManager: pipeline teardown completed in %llu ms\n",
                     (unsigned long long)(GetTimeMS() - startMs));
         }).detach();
-    } else if (!consumer.acquiredDrmCard.empty()) {
+    } else if (consumer.drmLease.fd >= 0) {
         // No pipeline to tear down (e.g. this consumer never fully started)
-        // but a DRM fd was still acquired while wiring up the kmssink —
-        // release it immediately since there's no teardown thread to do it
-        // for us later.
-        GStreamerOutput::ReleaseSharedDrmFd(consumer.acquiredDrmCard);
-        consumer.acquiredDrmCard.clear();
+        // but a lease was still taken while wiring up the kmssink — release
+        // it now since there's no teardown thread to do it later.
+        DrmCards::ReleaseLease(consumer.drmLease);
     }
 
     // Remove the listener, then restore the overlay model's state.  In that

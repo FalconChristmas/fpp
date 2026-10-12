@@ -608,188 +608,6 @@ GStreamerOutput::DrmConnectorInfo GStreamerOutput::ResolveDrmConnector(const std
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Shared DRM master fd — opened once per card, shared by all kmssink elements,
-// refcounted so it closes (and drops DRM master) once nothing references it
-// any more.  This avoids DRM master contention between multiple pipelines
-// driving different HDMI connectors on the same card, AND — critically for
-// the 24h soak case — closing the fd is the kernel's cleanup backstop that
-// frees any GEM handles/framebuffers a kmssink/vc4 driver failed to release
-// explicitly.  Keeping the fd open forever (the old behavior) meant that
-// backstop never ran, so any per-track leak in gstkmssink/vc4 accumulated in
-// CMA without bound across ~300-500 build/teardown cycles.
-// ──────────────────────────────────────────────────────────────────────────────
-static std::mutex s_drmFdMutex;
-struct DrmFdEntry {
-    int fd = -1;
-    int refCount = 0;
-};
-static std::map<std::string, DrmFdEntry> s_drmFds;  // cardPath → {fd, refCount}
-
-int GStreamerOutput::AcquireSharedDrmFd(const std::string& cardPath) {
-#ifndef FPP_GST_HAS_DRM
-    return -1;
-#else
-    std::lock_guard<std::mutex> lock(s_drmFdMutex);
-    auto it = s_drmFds.find(cardPath);
-    if (it != s_drmFds.end()) {
-        it->second.refCount++;
-        return it->second.fd;
-    }
-
-    int fd = open(cardPath.c_str(), O_RDWR | O_CLOEXEC);
-    if (fd < 0) {
-        LogErr(VB_MEDIAOUT, "GStreamer: Failed to open DRM device %s: %s\n",
-               cardPath.c_str(), FPPstrerror(errno));
-        WarningHolder::AddWarning(31, "Video output: could not open DRM device " + cardPath);
-        return -1;
-    }
-
-    // Become DRM master — required for modesetting (kmssink needs this).
-    // Under drmMasterLock so it can't land in the middle of a KMS
-    // framebuffer output's flip, which holds master on its own fd.
-    std::unique_lock<std::mutex> masterLock(drmMasterLock);
-    if (ioctl(fd, DRM_IOCTL_SET_MASTER, 0) < 0) {
-        LogWarn(VB_MEDIAOUT, "GStreamer: DRM_IOCTL_SET_MASTER failed for %s: %s (another master may exist)\n",
-                cardPath.c_str(), FPPstrerror(errno));
-        // Continue anyway — kmssink may still work if we're root
-    }
-
-    s_drmFds[cardPath] = DrmFdEntry{fd, 1};
-    LogDebug(VB_MEDIAOUT, "GStreamer: Opened shared DRM fd=%d for %s (refcount=1)\n", fd, cardPath.c_str());
-    return fd;
-#endif
-}
-
-void GStreamerOutput::ReleaseSharedDrmFd(const std::string& cardPath) {
-    std::lock_guard<std::mutex> lock(s_drmFdMutex);
-    auto it = s_drmFds.find(cardPath);
-    if (it == s_drmFds.end()) {
-        LogWarn(VB_MEDIAOUT, "GStreamer: ReleaseSharedDrmFd(%s) called with no matching acquire\n", cardPath.c_str());
-        return;
-    }
-    it->second.refCount--;
-    if (it->second.refCount <= 0) {
-        LogDebug(VB_MEDIAOUT, "GStreamer: Closing shared DRM fd=%d for %s (refcount 0)\n",
-                it->second.fd, cardPath.c_str());
-        close(it->second.fd);
-        s_drmFds.erase(it);
-    } else {
-        LogDebug(VB_MEDIAOUT, "GStreamer: Released one ref on DRM fd for %s (refcount=%d)\n",
-                cardPath.c_str(), it->second.refCount);
-    }
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Find a DRM OVERLAY plane for the CRTC bound to a given connector.
-// Primary planes are often held by fbcon and cannot be replaced by kmssink.
-// Overlay planes sit on top of the primary plane and are freely available.
-// Each call returns a unique plane — tracked via s_allocatedPlanes so that
-// multiple kmssink elements sharing a DRM fd don't collide.
-// ──────────────────────────────────────────────────────────────────────────────
-static std::set<uint32_t> s_allocatedPlanes;
-// FindPrimaryPlaneForConnector / ReleasePlane are called both from the main
-// media thread (GStreamerOutput pipelines) and from VideoOutputManager's
-// consumer threads, so the shared set needs its own lock.
-static std::mutex s_allocatedPlanesMutex;
-
-int GStreamerOutput::FindPrimaryPlaneForConnector(int drmFd, int connectorId) {
-    if (drmFd < 0 || connectorId < 0)
-        return -1;
-#ifndef FPP_GST_HAS_DRM
-    return -1;
-#else
-
-    // Enable universal planes so we see Primary/Overlay/Cursor types
-    drmSetClientCap(drmFd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1);
-
-    // Get connector → encoder → CRTC
-    drmModeConnectorPtr conn = drmModeGetConnector(drmFd, connectorId);
-    if (!conn) return -1;
-
-    uint32_t crtcId = 0;
-    if (conn->encoder_id) {
-        drmModeEncoderPtr enc = drmModeGetEncoder(drmFd, conn->encoder_id);
-        if (enc) {
-            crtcId = enc->crtc_id;
-            drmModeFreeEncoder(enc);
-        }
-    }
-    drmModeFreeConnector(conn);
-
-    if (!crtcId) return -1;
-
-    // Find CRTC index in the resources list
-    drmModeResPtr res = drmModeGetResources(drmFd);
-    if (!res) return -1;
-
-    int crtcIndex = -1;
-    for (int i = 0; i < res->count_crtcs; i++) {
-        if (res->crtcs[i] == crtcId) {
-            crtcIndex = i;
-            break;
-        }
-    }
-    drmModeFreeResources(res);
-    if (crtcIndex < 0) return -1;
-
-    // Scan planes for an OVERLAY one compatible with this CRTC
-    drmModePlaneResPtr planeRes = drmModeGetPlaneResources(drmFd);
-    if (!planeRes) return -1;
-
-    // Hold the lock across the scan-and-claim so two concurrent callers can't
-    // both select the same free plane.
-    std::lock_guard<std::mutex> planeLock(s_allocatedPlanesMutex);
-
-    int foundPlane = -1;
-    for (uint32_t i = 0; i < planeRes->count_planes && foundPlane < 0; i++) {
-        uint32_t pid = planeRes->planes[i];
-        if (s_allocatedPlanes.count(pid))
-            continue;  // already assigned to another consumer
-
-        drmModePlanePtr plane = drmModeGetPlane(drmFd, pid);
-        if (!plane) continue;
-
-        if (plane->possible_crtcs & (1u << crtcIndex)) {
-            // Check plane type property — want OVERLAY
-            drmModeObjectPropertiesPtr props =
-                drmModeObjectGetProperties(drmFd, pid, DRM_MODE_OBJECT_PLANE);
-            if (props) {
-                for (uint32_t j = 0; j < props->count_props; j++) {
-                    drmModePropertyPtr prop = drmModeGetProperty(drmFd, props->props[j]);
-                    if (prop) {
-                        if (strcmp(prop->name, "type") == 0 &&
-                            props->prop_values[j] == DRM_PLANE_TYPE_OVERLAY) {
-                            foundPlane = pid;
-                        }
-                        drmModeFreeProperty(prop);
-                    }
-                    if (foundPlane >= 0) break;
-                }
-                drmModeFreeObjectProperties(props);
-            }
-        }
-        drmModeFreePlane(plane);
-    }
-    drmModeFreePlaneResources(planeRes);
-
-    if (foundPlane >= 0) {
-        s_allocatedPlanes.insert(foundPlane);
-    }
-
-    LogDebug(VB_MEDIAOUT, "GStreamer DRM: connector %d → CRTC %u (index %d) → overlay plane %d\n",
-            connectorId, crtcId, crtcIndex, foundPlane);
-    return foundPlane;
-#endif
-}
-
-void GStreamerOutput::ReleasePlane(int planeId) {
-    if (planeId < 0)
-        return;
-    std::lock_guard<std::mutex> lock(s_allocatedPlanesMutex);
-    s_allocatedPlanes.erase((uint32_t)planeId);
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
 // Read the maximum per-member delay (ms) across all enabled PipeWire audio
 // output groups.  This compensates the GStreamer ts-offset so that audio
 // through the longest-delayed PipeWire path still lines up with video.
@@ -1793,7 +1611,7 @@ int GStreamerOutput::Start(int msTime) {
         // Build video sub-chain: queue ! videoconvert ! videoscale ! capsfilter ! kmssink
         // When PipeWire video routing is active, a tee is inserted before kmssink
         // so a deferred pipewiresink can expose the stream in the PipeWire graph.
-        // All kmssink elements share a single DRM master fd via AcquireSharedDrmFd()
+        // Each kmssink runs on its own DRM lease (DrmCards::AcquireLease())
         // so multiple HDMI outputs on the same card work simultaneously.
         bool haveHdmiConnector = (m_hdmiConnectorId >= 0);
         GstElement* videoQueue = gst_element_factory_make("queue", "vq");
@@ -1836,20 +1654,20 @@ int GStreamerOutput::Start(int msTime) {
                 return 0;
             }
 #ifndef PLATFORM_OSX
-            int sharedFd = AcquireSharedDrmFd(m_hdmiCardPath);
-            if (sharedFd >= 0) {
-                m_acquiredDrmCards.push_back(m_hdmiCardPath);
+            // A lease on the connector, so the KMS framebuffer outputs on the
+            // card keep their DRM master (see DrmCards.h).
+            DrmCards::Lease lease = DrmCards::AcquireLease(m_hdmiCardPath, m_hdmiConnectorId);
+            if (lease.fd >= 0) {
                 g_object_set(m_kmssink,
-                             "fd", sharedFd,
+                             "fd", lease.fd,
                              "connector-id", m_hdmiConnectorId,
                              "restore-crtc", TRUE,
                              "skip-vsync", TRUE,
                              NULL);
-                int planeId = FindPrimaryPlaneForConnector(sharedFd, m_hdmiConnectorId);
-                if (planeId >= 0) {
-                    g_object_set(m_kmssink, "plane-id", planeId, NULL);
-                    m_allocatedPlanes.push_back(planeId);
+                if (lease.planeId >= 0) {
+                    g_object_set(m_kmssink, "plane-id", lease.planeId, NULL);
                 }
+                m_drmLeases.push_back(lease);
             } else {
                 g_object_set(m_kmssink,
                              "driver-name", "vc4",
@@ -1971,11 +1789,15 @@ int GStreamerOutput::Start(int msTime) {
                     std::string cardForDkms = !resolvedCard.empty() ? resolvedCard
                                             : !hc.cardPath.empty() ? hc.cardPath
                                             : m_hdmiCardPath;
-                    int drmFd = cardForDkms.empty() ? -1 : AcquireSharedDrmFd(cardForDkms);
-                    LogDebug(VB_MEDIAOUT, "GStreamer: dkms_%d cardPath='%s' sharedFd=%d\n",
-                            resolvedConnId, cardForDkms.c_str(), drmFd);
+                    DrmCards::Lease lease;
+                    if (!cardForDkms.empty()) {
+                        lease = DrmCards::AcquireLease(cardForDkms, resolvedConnId);
+                    }
+                    int drmFd = lease.fd;
+                    LogDebug(VB_MEDIAOUT, "GStreamer: dkms_%d cardPath='%s' fd=%d lease=%d\n",
+                            resolvedConnId, cardForDkms.c_str(), drmFd, lease.isLease);
                     if (drmFd >= 0) {
-                        m_acquiredDrmCards.push_back(cardForDkms);
+                        m_drmLeases.push_back(lease);
                         g_object_set(dkmsSink,
                                      "fd", drmFd,
                                      "connector-id", resolvedConnId,
@@ -1983,15 +1805,9 @@ int GStreamerOutput::Start(int msTime) {
                                      "max-lateness", (gint64)-1,
                                      "skip-vsync", TRUE,
                                      NULL);
-                        int planeId = (hc.primaryPlaneId >= 0) ? hc.primaryPlaneId
-                                      : FindPrimaryPlaneForConnector(drmFd, resolvedConnId);
+                        int planeId = lease.planeId;
                         if (planeId >= 0) {
                             g_object_set(dkmsSink, "plane-id", planeId, NULL);
-                            // hc.primaryPlaneId is always -1 today (GetHdmiConsumers
-                            // never sets it), so this plane came from our own
-                            // allocation and must be released in Close().
-                            if (hc.primaryPlaneId < 0)
-                                m_allocatedPlanes.push_back(planeId);
                         }
                         // Verify the fd was accepted by kmssink
                         gint readbackFd = -1;
@@ -2829,8 +2645,7 @@ int GStreamerOutput::Stop(void) {
         bool asyncTeardownEligible = !m_hasVideoStream && !m_kmssink &&
                                      m_directConnectorIds.empty() &&
                                      !m_videoPipeWireRouting &&
-                                     m_allocatedPlanes.empty() &&
-                                     m_acquiredDrmCards.empty();
+                                     m_drmLeases.empty();
         if (asyncTeardownEligible) {
             // These are what Close() would run inside its m_pipeline guard;
             // that guard will be skipped because we null the members here.
@@ -4099,40 +3914,24 @@ int GStreamerOutput::Close(void) {
     // our refs on them are left to drop, before the planes are returned below.
     ReleaseFailedBranches();
 
-    // Return any DRM overlay planes we reserved for this pipeline's kmssink
-    // elements to the shared free pool.  The kmssinks themselves were owned by
-    // the pipeline bin and were destroyed by the unref above; without this the
-    // planes stay marked allocated forever and eventually run out.
+    // Hand back the DRM leases this pipeline's kmssinks ran on, which also
+    // returns their planes.  Must run after gst_object_unref(m_pipeline)
+    // above: the kmssinks are destroyed by that unref, and closing a lease
+    // under a live one is undefined.  Closing it is also what frees any GEM
+    // handles or framebuffers a kmssink failed to release.  Runs outside the
+    // `if (m_pipeline)` guard so a Start() that failed after taking a lease
+    // still gives it back.
     //
     // EXCEPT after an abandoned (wedged) teardown: the pipeline and its
-    // kmssinks are still alive on the reaper thread and still hold these
-    // planes in DRM — returning them to the pool would let the next pipeline
-    // claim a plane the kernel considers busy.  Leak them with the pipeline;
-    // the wedge-escalation restart bounds the loss.
+    // kmssinks are still alive on the reaper thread and still using these.
+    // Leak them with the pipeline; the wedge-escalation restart bounds the
+    // loss.
     if (!m_teardownAbandoned) {
-        for (int planeId : m_allocatedPlanes) {
-            ReleasePlane(planeId);
+        for (DrmCards::Lease& lease : m_drmLeases) {
+            DrmCards::ReleaseLease(lease);
         }
     }
-    m_allocatedPlanes.clear();
-
-    // Release the shared DRM master fd(s) this pipeline's kmssink(s) acquired.
-    // Must run after gst_object_unref(m_pipeline) above — the kmssinks (which
-    // hold the fd open via kmssink's internal use) are destroyed as part of
-    // that unref, and ReleaseSharedDrmFd() must not close the fd out from
-    // under a still-alive kmssink.  Runs unconditionally (outside the
-    // `if (m_pipeline)` guard) so a Start() that failed after acquiring a fd
-    // but before/without building a full pipeline still releases it.
-    //
-    // Same abandonment exception as the planes above: a wedged pipeline's
-    // kmssinks are still alive and using the fd — dropping our refs could
-    // close it under them.  Leak the refs with the pipeline.
-    if (!m_teardownAbandoned) {
-        for (const std::string& card : m_acquiredDrmCards) {
-            ReleaseSharedDrmFd(card);
-        }
-    }
-    m_acquiredDrmCards.clear();
+    m_drmLeases.clear();
 
     // Clean up video overlay state
     if (m_videoFramesReceived > 0 || m_videoFramesDelivered > 0) {
