@@ -865,6 +865,15 @@ void UDPOutput::PrepData(unsigned char* channelData) {
         messages.clearMessages();
         for (auto a : outputs) {
             if (a->valid && a->active) {
+                if (outputRunning && !a->started) {
+                    // StartingOutput() only starts the outputs that were
+                    // reachable then; one whose controller answers later (a
+                    // Twinkly powered on after the show started) is started
+                    // here, or it would get frames without ever having
+                    // authenticated
+                    a->started = true;
+                    a->StartingOutput();
+                }
                 a->PrepareData(channelData, messages);
             }
         }
@@ -1838,6 +1847,7 @@ bool UDPOutput::InitNetwork() {
 }
 
 void UDPOutput::StartingOutput() {
+    outputRunning = true;
     for (auto a : outputs) {
         if (a->valid && a->active && !a->started) {
             a->started = true;
@@ -1849,6 +1859,7 @@ void UDPOutput::StoppingOutput() {
     // Every output that was started is stopped, whether or not it is still
     // valid: one whose ping failed mid-show would otherwise keep whatever
     // StartingOutput() set up (Twinkly's token timer) past its own deletion.
+    outputRunning = false;
     for (auto a : outputs) {
         if (a->started) {
             a->started = false;

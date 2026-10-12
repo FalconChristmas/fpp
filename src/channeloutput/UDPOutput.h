@@ -160,6 +160,8 @@ private:
     std::string outInterface;
     bool needsBroadcast = false;
     bool hasArtNet = false;
+    // between StartingOutput() and StoppingOutput(); output thread only
+    bool outputRunning = false;
     bool interfaceUp;
 
     bool InitNetwork();
