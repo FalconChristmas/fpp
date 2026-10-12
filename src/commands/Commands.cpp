@@ -42,6 +42,7 @@
 // gets run. Defined further down (needs Variables.h); forward-declared here
 // since run() is used well above that point in the file.
 static std::string ReplaceVariableKeywords(std::string str);
+static void ResolveCommandArgs(const Command* cmd, std::vector<std::string>& args);
 
 CommandManager CommandManager::INSTANCE;
 
@@ -658,11 +659,8 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
     // Pinned: removeCommand() waits for it, so it cannot be freed mid-run.
     std::shared_ptr<Command> pinned = acquireCommand(command);
     if (pinned) {
-        std::vector<std::string> resolvedArgs;
-        resolvedArgs.reserve(args.size());
-        for (auto const& arg : args) {
-            resolvedArgs.push_back(ReplaceVariableKeywords(arg));
-        }
+        std::vector<std::string> resolvedArgs = args;
+        ResolveCommandArgs(pinned.get(), resolvedArgs);
 
         // Logged after substitution (like the Json overload below) so the line
         // shows what actually ran, not the unresolved %VAR:name% that was
@@ -705,9 +703,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
             LogWarn(VB_COMMAND, "Command \"%s\" not run: %s\n", command.c_str(), err.c_str());
             return std::make_unique<Command::ErrorResult>(err);
         }
-        for (auto& a : args) {
-            a = ReplaceVariableKeywords(a);
-        }
+        ResolveCommandArgs(pinned.get(), args);
         LogInfo(VB_COMMAND, "Running command \"%s(%s)\"\n", command.c_str(), FormatArgsForLog(args).c_str());
 
         // Publish MQTT event for command execution
@@ -888,15 +884,16 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
         std::string command = parts[1];
         std::vector<std::string> args;
         for (int x = 2; x < plen; x++) {
-            // Substituted here rather than inherited from CommandManager::run():
-            // this route calls the Command directly (see the MQTT publish below
-            // for why), so without this %VAR:name% would pass through literally
-            // on /api/command/... alone while resolving on every other path.
-            args.push_back(ReplaceVariableKeywords(parts[x]));
+            args.push_back(parts[x]);
         }
         // Pinned: removeCommand() waits for it, so it cannot be freed mid-run.
         std::shared_ptr<Command> pinned = acquireCommand(command);
         if (pinned) {
+            // Substituted here rather than inherited from CommandManager::run():
+            // this route calls the Command directly (see the MQTT publish below
+            // for why), so without this %VAR:name% would pass through literally
+            // on /api/command/... alone while resolving on every other path.
+            ResolveCommandArgs(pinned.get(), args);
             // This route calls the Command directly rather than through
             // CommandManager::run(), so it must log the args itself - see the
             // MQTT publish just below for why it can't simply delegate.
@@ -981,14 +978,12 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
             if (!JsonArgsToStrings(val, args, err)) {
                 return makeStringResponse("Body must be a JSON array of arguments", 400, "text/plain");
             }
-            for (auto& a : args) {
-                // Direct Command call, so substitute here - same reason as the
-                // GET route above.
-                a = ReplaceVariableKeywords(a);
-            }
             // Pinned: removeCommand() waits for it, so it cannot be freed mid-run.
             std::shared_ptr<Command> pinned = acquireCommand(command);
             if (pinned) {
+                // Direct Command call, so substitute here - same reason as the
+                // GET route above.
+                ResolveCommandArgs(pinned.get(), args);
                 // Direct Command call, not CommandManager::run() - log the
                 // args here too, same as the GET route above.
                 LogInfo(VB_COMMAND, "POST /api/command/%s from %s: running command \"%s(%s)\"\n",
@@ -1076,6 +1071,40 @@ static std::string ReplaceVariableKeywords(std::string str) {
         varPos += varValue.length();
     }
     return str;
+}
+
+static void ReplaceVariableKeywordsInJson(Json::Value& v) {
+    if (v.isString()) {
+        v = ReplaceVariableKeywords(v.asString());
+    } else if (v.isArray() || v.isObject()) {
+        for (auto& c : v) {
+            ReplaceVariableKeywordsInJson(c);
+        }
+    }
+}
+
+// %VAR: substitution for every arg of a command about to run. Most args are
+// text and take the value as-is. A condition list or command list (If's) is
+// JSON text, though, and pasting a value into that - one containing a quote,
+// say - broke the JSON, so If silently ran an empty list. Those are
+// substituted inside their string values and serialized again instead.
+static void ResolveCommandArgs(const Command* cmd, std::vector<std::string>& args) {
+    auto decl = cmd->args.begin();
+    for (size_t i = 0; i < args.size(); i++) {
+        bool structured = decl != cmd->args.end() &&
+                          (decl->type == "commandlist" || decl->type == "conditionlist");
+        Json::Value v;
+        if (structured && args[i].find("%VAR:") != std::string::npos && LoadJsonFromString(args[i], v) &&
+            (v.isArray() || v.isObject())) {
+            ReplaceVariableKeywordsInJson(v);
+            args[i] = SaveJsonToString(v);
+        } else {
+            args[i] = ReplaceVariableKeywords(args[i]);
+        }
+        if (decl != cmd->args.end()) {
+            ++decl;
+        }
+    }
 }
 
 // %VAR: substitution isn't done here - it's applied once, centrally, by
