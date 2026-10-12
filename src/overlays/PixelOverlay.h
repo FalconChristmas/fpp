@@ -28,6 +28,7 @@
 #include "fpphttp_types.h"
 #include <list>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -51,6 +52,10 @@ public:
 
     void addModel(Json::Value config);
     PixelOverlayModel* getModel(const std::string& name);
+    // A reference that keeps the model alive after modelsLock is released.
+    // removeAutoOverlayModel() can free a model at any time; anything that
+    // goes on using one after unlocking must hold this, not a raw pointer.
+    std::shared_ptr<PixelOverlayModel> getModelShared(const std::string& name);
     // Non-blocking lookup for callers that may hold a model's effectLock (the
     // effect update threads).  modelsLock -> effectLock is the sanctioned
     // order everywhere else; blocking on modelsLock from under an effectLock
@@ -120,7 +125,10 @@ public:
 private:
     class PixelOverlayModelHolder {
     public:
-        PixelOverlayModel* model;
+        // `owner` holds the model; `model` is owner.get(), kept for the many
+        // callers that only use it under modelsLock.
+        PixelOverlayModel* model = nullptr;
+        std::shared_ptr<PixelOverlayModel> owner;
         std::map<std::string, std::function<void(PixelOverlayModel*)>> listeners;
 
         void toJson(Json::Value& json) const;

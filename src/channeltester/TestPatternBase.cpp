@@ -138,7 +138,7 @@ int TestPatternBase::SetChannelSet(std::string channelSetStr) {
     }
 
     for (int r = 0; r < ranges.size(); r++) {
-        PixelOverlayModel* model = PixelOverlayManager::INSTANCE.getModel(ranges[r]);
+        auto model = PixelOverlayManager::INSTANCE.getModelShared(ranges[r]);
         if (model != nullptr) {
             start = model->getStartChannel();
             end = start + model->getChannelCount() - 1;

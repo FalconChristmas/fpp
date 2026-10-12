@@ -79,7 +79,7 @@ PlaylistEntryImage::~PlaylistEntryImage() {
     delete[] m_buffer;
 
     if (m_modelOrigState == PixelOverlayState::PixelState::Disabled) {
-        m_model = PixelOverlayManager::INSTANCE.getModel(m_modelName);
+        m_model = PixelOverlayManager::INSTANCE.getModelShared(m_modelName);
 
         if (m_model) {
             m_model->clear();
@@ -101,7 +101,7 @@ int PlaylistEntryImage::Init(Json::Value& config) {
         return 0;
     }
 
-    m_model = PixelOverlayManager::INSTANCE.getModel(m_modelName);
+    m_model = PixelOverlayManager::INSTANCE.getModelShared(m_modelName);
 
     if (!m_model) {
         LogErr(VB_PLAYLIST, "Invalid Pixel Overlay Model: '%s'\n", m_modelName.c_str());
@@ -386,7 +386,7 @@ void PlaylistEntryImage::Draw(void) {
         std::lock_guard<std::mutex> lock(m_bufferLock);
 
         // We need to look this up again since the model may have disappeared
-        m_model = PixelOverlayManager::INSTANCE.getModel(m_modelName);
+        m_model = PixelOverlayManager::INSTANCE.getModelShared(m_modelName);
 
         if (!m_model) {
             // The model went away mid-playlist.  Finish the entry rather than

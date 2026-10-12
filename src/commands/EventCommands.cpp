@@ -198,7 +198,9 @@ std::unique_ptr<Command::Result> StartEffectCommand::run(const std::vector<std::
     if (args.size() > 5) {
         Model = args[5].c_str();
         if (Model != "") {
-            auto m_model = PixelOverlayManager::INSTANCE.getModel(Model);
+            // A reference, not getModel()'s raw pointer: an output reload
+            // can free the model between the lookup and its use below.
+            auto m_model = PixelOverlayManager::INSTANCE.getModelShared(Model);
             if (!m_model) {
                 LogErr(VB_COMMAND, "Invalid Pixel Overlay Model: '%s'\n", Model.c_str());
             } else {

@@ -25,6 +25,7 @@
 #include <climits> // INT_MAX in the preview node numbering
 #include <fcntl.h>
 #include <filesystem> // image file listing for the Image effect's picker
+#include <set>
 #include <fstream> // virtualdisplaymap parse for model preview endpoint
 #include <unistd.h> // write -- needed directly for NOPCH builds
 #include <vector>
@@ -125,6 +126,27 @@ void PixelOverlayManager::PixelOverlayModelHolder::toJson(Json::Value& v) const 
         model->toJson(v);
     }
 }
+// Models removed from the map whose memory is still alive because something
+// holds a reference (getModelShared()). A retired model must not be put back
+// on the effect schedule or the active list: both hold raw pointers that
+// outlive the last reference. Entries leave the set when the model is freed,
+// so a new model at the same address is not mistaken for it. Leaf lock.
+static std::mutex s_retiredLock;
+static std::set<const PixelOverlayModel*> s_retired;
+static bool isRetired(const PixelOverlayModel* m) {
+    std::lock_guard<std::mutex> l(s_retiredLock);
+    return s_retired.count(m) != 0;
+}
+static std::shared_ptr<PixelOverlayModel> makeModelOwner(PixelOverlayModel* m) {
+    return std::shared_ptr<PixelOverlayModel>(m, [](PixelOverlayModel* p) {
+        {
+            std::lock_guard<std::mutex> l(s_retiredLock);
+            s_retired.erase(p);
+        }
+        delete p;
+    });
+}
+
 PixelOverlayManager::PixelOverlayManager() :
     numActive(0) {
 }
@@ -138,10 +160,9 @@ PixelOverlayManager::~PixelOverlayManager() {
         delete updateThread;
         updateThread = nullptr;
     }
-    for (auto a : models) {
-        if (a.second.model) {
-            delete a.second.model;
-        }
+    for (auto& a : models) {
+        a.second.model = nullptr;
+        a.second.owner.reset();
     }
     models.clear();
     modelNames.clear();
@@ -192,7 +213,18 @@ void PixelOverlayManager::addModel(Json::Value config) {
 
     std::unique_lock<std::recursive_mutex> lock(modelsLock);
     bool wasEmpty = models.empty();
+    if (pmodel && models.count(pmodel->getName()) && models[pmodel->getName()].model) {
+        // Replacing the live model in place used to leak it, and freeing it
+        // here instead would pull it out from under the active list and the
+        // effect thread. The first definition of a name wins; anything that
+        // genuinely replaces a model removes the old one first.
+        LogWarn(VB_CHANNELOUT, "A pixel overlay model named \"%s\" already exists; ignoring the second definition\n",
+                pmodel->getName().c_str());
+        delete pmodel;
+        pmodel = nullptr;
+    }
     if (pmodel) {
+        models[pmodel->getName()].owner = makeModelOwner(pmodel);
         models[pmodel->getName()].model = pmodel;
         modelNames.push_back(pmodel->getName());
         ++modelsGeneration;
@@ -217,11 +249,12 @@ void PixelOverlayManager::loadModelMap() {
         delete updateThread;
         updateThread = nullptr;
     }
-    for (auto a : models) {
+    for (auto& a : models) {
         for (auto& l : a.second.listeners) {
             l.second(a.second.model);
         }
-        delete a.second.model;
+        a.second.model = nullptr;
+        a.second.owner.reset();
     }
     models.clear();
     modelNames.clear();
@@ -387,7 +420,9 @@ void PixelOverlayManager::resetChildParent(const std::string& name) {
 // calls arrive in.
 void PixelOverlayManager::modelStateChanged(PixelOverlayModel* m, const PixelOverlayState& old, const PixelOverlayState& state) {
     std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
-    bool want = m->needsOutput();
+    // A removed model still referenced elsewhere can have its state set, but
+    // must never reach the output thread again.
+    bool want = m->needsOutput() && !isRetired(m);
     bool present = std::find(activeModels.begin(), activeModels.end(), m) != activeModels.end();
     if (want && !present) {
         activeModels.push_back(m);
@@ -459,6 +494,14 @@ void PixelOverlayManager::doOverlays(uint8_t* channels) {
 PixelOverlayModel* PixelOverlayManager::getModel(const std::string& name) {
     std::unique_lock<std::recursive_mutex> lock(modelsLock);
     return getModelLocked(name);
+}
+std::shared_ptr<PixelOverlayModel> PixelOverlayManager::getModelShared(const std::string& name) {
+    std::unique_lock<std::recursive_mutex> lock(modelsLock);
+    PixelOverlayModel* m = getModelLocked(name); // materializes a lazy submodel
+    if (!m) {
+        return nullptr;
+    }
+    return models[m->getName()].owner;
 }
 bool PixelOverlayManager::tryGetModel(const std::string& name, PixelOverlayModel*& model) {
     std::unique_lock<std::recursive_mutex> lock(modelsLock, std::try_to_lock);
@@ -1725,7 +1768,10 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                         }
                     }
                 } else if (p4 == "data") {
-                    // Takes over `lock` and releases it before the slow work.
+                    // Takes over `lock` and releases it before the slow work,
+                    // so the model has to be pinned for the rest of the call:
+                    // an output reload can remove it meanwhile.
+                    std::shared_ptr<PixelOverlayModel> pin = models[m->getName()].owner;
                     return bulkPixelDataPut(req, m, lock);
                 } else if (p4 == "save") {
                     Json::Value root;
@@ -2176,6 +2222,13 @@ void PixelOverlayManager::removeAutoOverlayModel(const std::string& name) {
                 sub->resetParent();
             }
         }
+        // Retired before it leaves the map: from here a reference holder can
+        // still use it, but nothing may schedule it or make it active again.
+        {
+            std::lock_guard<std::mutex> l(s_retiredLock);
+            s_retired.insert(pmodel);
+        }
+        std::shared_ptr<PixelOverlayModel> owner = std::move(models[name].owner);
         modelNames.remove(name);
         models[name].model = nullptr;
         ++modelsGeneration;
@@ -2184,8 +2237,8 @@ void PixelOverlayManager::removeAutoOverlayModel(const std::string& name) {
         }
         lock.unlock();
 
-        // The only caller that actually deletes the model, so the only one
-        // that needs to wait for a running update to finish.  modelsLock was
+        // The only caller that actually frees a model, so the only one that
+        // needs to wait for a running update to finish.  modelsLock was
         // released above, which this variant requires.
         removePeriodicUpdateAndWait(pmodel);
         std::unique_lock<std::recursive_mutex> alock(activeModelsLock);
@@ -2193,7 +2246,9 @@ void PixelOverlayManager::removeAutoOverlayModel(const std::string& name) {
         updateActiveCountLocked();
         alock.unlock();
 
-        delete pmodel;
+        // Frees it now, or when the last getModelShared() holder lets go -
+        // a bulk data PUT or effect start that looked it up before this.
+        owner.reset();
     }
 }
 
@@ -2204,9 +2259,21 @@ Json::Value PixelOverlayManager::getActiveOverlayEffects() {
     // so we don't hold the lock while iterating through them
     // and to avoid deadlocks if the model is being modified
     // while we are iterating through it
-    std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
-    auto am = activeModels;
-    lock.unlock();
+    //
+    // The snapshot holds references, not the raw active-list pointers: it is
+    // walked with no lock held, and removeAutoOverlayModel() can free a model
+    // meanwhile. modelsLock -> activeModelsLock is the sanctioned order.
+    std::vector<std::shared_ptr<PixelOverlayModel>> am;
+    {
+        std::unique_lock<std::recursive_mutex> mlock(modelsLock);
+        std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
+        for (auto* raw : activeModels) {
+            auto it = models.find(raw->getName());
+            if (it != models.end() && it->second.owner.get() == raw) {
+                am.push_back(it->second.owner);
+            }
+        }
+    }
 
     for (auto& m : am) {
         std::unique_lock<std::recursive_mutex> l(m->getRunningEffectMutex());
@@ -2361,6 +2428,14 @@ void PixelOverlayManager::removePeriodicUpdateAndWait(PixelOverlayModel* m) {
 
 void PixelOverlayManager::addPeriodicUpdate(int32_t initialDelayMS, PixelOverlayModel* m) {
     std::unique_lock<std::mutex> l(threadLock);
+    // Checked under threadLock so the check and the push below are one step
+    // against removeAutoOverlayModel(), which retires the model before it
+    // drains the schedule under this lock. Without it a reference holder
+    // setting an effect afterwards (the bulk data PUT stops the running one
+    // with a 25ms requeue) put the model back, to be run after it was freed.
+    if (isRetired(m)) {
+        return;
+    }
     if (updateThread == nullptr) {
         threadKeepRunning = true;
         updateThread = new std::thread(&PixelOverlayManager::doOverlayModelEffects, this);

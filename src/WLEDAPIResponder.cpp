@@ -538,7 +538,7 @@ std::string WLEDAPIResponder::BuildInfoJson() {
     int totalPixels = 0;
     int segCount = 0;
     for (const auto& name : PixelOverlayManager::INSTANCE.getModelNames()) {
-        auto* m = PixelOverlayManager::INSTANCE.getModel(name);
+        auto m = PixelOverlayManager::INSTANCE.getModelShared(name);
         if (!m) continue;
         int w = m->getWidth();
         int h = m->getHeight();
@@ -591,7 +591,7 @@ std::string WLEDAPIResponder::BuildStateJson() {
     int idx = 0;
     const auto& effects = PixelOverlayEffect::GetPixelOverlayEffects();
     for (const auto& name : PixelOverlayManager::INSTANCE.getModelNames()) {
-        auto* m = PixelOverlayManager::INSTANCE.getModel(name);
+        auto m = PixelOverlayManager::INSTANCE.getModelShared(name);
         if (!m) continue;
 
         int w = m->getWidth();
@@ -700,7 +700,7 @@ void WLEDAPIResponder::ApplyStatePost(const std::string& jsonBody) {
     std::vector<std::string> modelNames(nameList.begin(), nameList.end());
 
     auto applyOnOff = [&](const std::string& modelName, bool on) {
-        auto* m = PixelOverlayManager::INSTANCE.getModel(modelName);
+        auto m = PixelOverlayManager::INSTANCE.getModelShared(modelName);
         if (!m) return;
         m->setState(PixelOverlayState(on ? PixelOverlayState::Enabled
                                           : PixelOverlayState::Disabled));
@@ -732,12 +732,14 @@ void WLEDAPIResponder::ApplyStatePost(const std::string& jsonBody) {
             if (hasParamUpdate) {
                 int fxIdx = seg.get("fx", 0).asInt();
                 if (fxIdx < 0 || fxIdx >= (int)effects.size()) continue;
-                auto* m = PixelOverlayManager::INSTANCE.getModel(modelName);
+                auto m = PixelOverlayManager::INSTANCE.getModelShared(modelName);
                 auto* eff = PixelOverlayEffect::GetPixelOverlayEffect(effects[fxIdx]);
                 if (!m || !eff) continue;
 
                 std::vector<std::string> args = BuildEffectArgs(eff, seg);
-                eff->apply(m, std::string("Enabled"), args);
+                // Through applyEffect(), not eff->apply(): it checks the
+                // argument count every effect relies on.
+                m->applyEffect("Enabled", effects[fxIdx], args);
             }
         }
     }

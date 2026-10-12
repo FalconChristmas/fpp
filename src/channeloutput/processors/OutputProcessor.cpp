@@ -222,7 +222,7 @@ void ProcessModelConfig(const Json::Value& config, std::string& model, int& star
     if (config.isMember("model")) {
         model = config["model"].asString();
         if (model != "<Use Start Channel>") {
-            auto m_model = PixelOverlayManager::INSTANCE.getModel(model);
+            auto m_model = PixelOverlayManager::INSTANCE.getModelShared(model);
             if (!m_model) {
                 LogErr(VB_CHANNELOUT, "Invalid Pixel Overlay Model: '%s'\n", model.c_str());
             } else {

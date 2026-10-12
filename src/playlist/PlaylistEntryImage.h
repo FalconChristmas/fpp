@@ -16,6 +16,7 @@
 #include <condition_variable>
 #include <list>
 #include <mutex>
+#include <memory>
 #include <string>
 #include <thread>
 
@@ -73,7 +74,9 @@ private:
     int m_height;
 
     std::string m_modelName;
-    PixelOverlayModel *m_model = nullptr;
+    // A reference, not a raw pointer: an output reload can remove the model
+    // while this entry is drawing into it.
+    std::shared_ptr<PixelOverlayModel> m_model;
     PixelOverlayState::PixelState m_modelOrigState = PixelOverlayState::PixelState::Disabled;
 
     unsigned char* m_buffer;
