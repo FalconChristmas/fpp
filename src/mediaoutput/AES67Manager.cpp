@@ -146,19 +146,26 @@ void AES67Manager::Shutdown() {
 
     LogInfo(VB_MEDIAOUT, "AES67Manager: Shutting down\n");
 
-    // Clear the initialized flag up front so the watchdog rebuild thread
-    // (spawned by SAPAnnounceLoop(), see m_rebuildThread) observes
-    // shutdown-in-progress and skips calling ApplyConfig() instead of
-    // resurrecting pipelines after we tear them down below.
+    // Nothing may apply from here on, including a watchdog rebuild that is
+    // already scheduled: ApplyConfig() would re-Init() and bring back the
+    // pipelines this is about to tear down.
+    m_stopping.store(true);
+    m_applyGeneration++;
     m_initialized.store(false);
 
     // Join any in-flight watchdog rebuild thread FIRST, before touching
     // m_sapAnnounceThread/m_sapRecvThread.  The rebuild thread internally
     // calls ApplyConfig(), which itself joins those two threads -- joining
     // them here concurrently with the rebuild thread would be a double
-    // join on the same std::thread object (undefined behavior).
-    if (m_rebuildThread.joinable()) {
-        m_rebuildThread.join();
+    // join on the same std::thread object (undefined behavior).  Taken out
+    // under m_rebuildMutex: the SAP thread assigns it.
+    std::thread rebuild;
+    {
+        std::lock_guard<std::mutex> rl(m_rebuildMutex);
+        rebuild = std::move(m_rebuildThread);
+    }
+    if (rebuild.joinable()) {
+        rebuild.join();
     }
 
     // Only now take the apply lock -- m_rebuildThread calls ApplyConfig(),
@@ -279,6 +286,16 @@ bool AES67Manager::LoadConfig() {
     cfg.ptpDomain = root.get("ptpDomain", kDefault.ptpDomain).asInt();
     cfg.ptpRole = root.get("ptpRole", kDefault.ptpRole).asString();
     cfg.ptpLockWaitMs = root.get("ptpLockWaitMs", kDefault.ptpLockWaitMs).asInt();
+    // The wait runs inside ApplyConfig(), which holds the apply lock and, at
+    // boot, fppd's startup; Shutdown() has to wait it out too.  Anything past
+    // half a minute is not a wait for lock any more.
+    static constexpr int MAX_PTP_LOCK_WAIT_MS = 30000;
+    if (cfg.ptpLockWaitMs < 0 || cfg.ptpLockWaitMs > MAX_PTP_LOCK_WAIT_MS) {
+        int clamped = cfg.ptpLockWaitMs < 0 ? 0 : MAX_PTP_LOCK_WAIT_MS;
+        LogWarn(VB_MEDIAOUT, "AES67Manager: ptpLockWaitMs %d out of range, using %d\n",
+                cfg.ptpLockWaitMs, clamped);
+        cfg.ptpLockWaitMs = clamped;
+    }
     cfg.ptpMediaClock = root.get("ptpMediaClock", kDefault.ptpMediaClock).asBool();
     cfg.sourcePacing = root.get("sourcePacing", kDefault.sourcePacing).asBool();
     cfg.sinkPacing = root.get("sinkPacing", kDefault.sinkPacing).asBool();
@@ -471,6 +488,15 @@ bool AES67Manager::ApplyConfig() {
     // thread joins below and both reach the std::thread assignments at the
     // end, where assigning over a joinable thread calls std::terminate().
     std::lock_guard<std::mutex> applyLock(m_applyMutex);
+    return ApplyConfigLocked();
+}
+
+bool AES67Manager::ApplyConfigLocked() {
+    if (m_stopping.load()) {
+        return false;
+    }
+    // Any rebuild scheduled before this apply is now redundant.
+    m_applyGeneration++;
 
     if (!m_initialized.load()) {
         if (!Init()) {
@@ -626,10 +652,43 @@ bool AES67Manager::ApplyConfig() {
     return true;
 }
 
+void AES67Manager::ScheduleRebuild() {
+    std::lock_guard<std::mutex> rl(m_rebuildMutex);
+    if (m_stopping.load() || m_rebuildRunning.load()) {
+        // Shutting down, or a rebuild is already on its way.  Never join a
+        // running one here: its ApplyConfig() may be waiting to join the
+        // SAP thread that is calling this.
+        return;
+    }
+    if (m_rebuildThread.joinable()) {
+        m_rebuildThread.join();  // finished: returns at once
+    }
+    uint64_t generation = m_applyGeneration.load();
+    m_rebuildRunning.store(true);
+    m_rebuildThread = std::thread([this, generation]() {
+        // Brief delay to let the SAP announce thread finish exiting and
+        // become joinable.
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        {
+            std::lock_guard<std::mutex> applyLock(m_applyMutex);
+            // Nothing to do if anything applied, cleaned up or shut down in
+            // the meantime -- it either did this rebuild's work or undid it
+            // on purpose.
+            if (!m_stopping.load() && generation == m_applyGeneration.load()) {
+                ApplyConfigLocked();
+            }
+        }
+        m_rebuildRunning.store(false);
+    });
+}
+
 void AES67Manager::Cleanup() {
     LogInfo(VB_MEDIAOUT, "AES67Manager: Cleanup\n");
 
     std::lock_guard<std::mutex> applyLock(m_applyMutex);
+    // A watchdog rebuild already scheduled must not bring back what this
+    // tears down.
+    m_applyGeneration++;
 
     m_sapAnnounceRunning.store(false);
     m_sapRecvRunning.store(false);
@@ -1316,6 +1375,9 @@ bool AES67Manager::WaitForPtpLock(int timeoutMs) {
 
     std::string reported;
     for (;;) {
+        if (m_stopping.load()) {
+            return false;
+        }
         if (!IsPtp4lRunning()) {
             LogWarn(VB_MEDIAOUT,
                     "AES67Manager: ptp4l exited while waiting for it to lock\n");
@@ -4719,20 +4781,7 @@ void AES67Manager::SAPAnnounceLoop() {
                 // and resurrect pipelines after Shutdown() has already run,
                 // and a detached thread racing Shutdown()'s own joins of
                 // m_sapAnnounceThread/m_sapRecvThread is undefined behavior.
-                if (m_rebuildThread.joinable()) {
-                    m_rebuildThread.join();
-                }
-                m_rebuildThread = std::thread([this]() {
-                    // Brief delay to let the SAP announce thread finish
-                    // exiting and become joinable.
-                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-                    // If Shutdown() ran while we were sleeping, don't
-                    // resurrect pipelines -- just exit quietly.
-                    if (!m_initialized.load()) {
-                        return;
-                    }
-                    ApplyConfig();
-                });
+                ScheduleRebuild();
                 break;
             }
         }

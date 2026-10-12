@@ -103,16 +103,24 @@ void OpusRTPManager::Shutdown() {
 
     LogInfo(VB_MEDIAOUT, "OpusRTPManager: Shutting down\n");
 
-    // Clear this first so a rebuild thread that is mid-sleep sees
-    // shutdown-in-progress and skips calling ApplyConfig() instead of
-    // rebuilding everything we are about to tear down.
+    // Nothing may apply from here on, including a watchdog rebuild that is
+    // already scheduled: ApplyConfig() would re-Init() and bring back the
+    // pipelines this is about to tear down.
+    m_stopping.store(true);
+    m_applyGeneration++;
     m_initialized.store(false);
 
     // Join the rebuild thread BEFORE taking m_applyMutex: that thread calls
     // ApplyConfig(), which itself takes the lock -- holding it across the
-    // join would deadlock.
-    if (m_rebuildThread.joinable()) {
-        m_rebuildThread.join();
+    // join would deadlock.  Taken out under m_rebuildMutex: the watchdog
+    // thread assigns it.
+    std::thread rebuild;
+    {
+        std::lock_guard<std::mutex> rl(m_rebuildMutex);
+        rebuild = std::move(m_rebuildThread);
+    }
+    if (rebuild.joinable()) {
+        rebuild.join();
     }
 
     // Only now take the apply lock -- it blocks until any in-flight
@@ -198,6 +206,15 @@ bool OpusRTPManager::ApplyConfig() {
     // watchdog join below and both reach the std::thread assignment at the
     // end, where assigning over a joinable thread calls std::terminate().
     std::lock_guard<std::mutex> applyLock(m_applyMutex);
+    return ApplyConfigLocked();
+}
+
+bool OpusRTPManager::ApplyConfigLocked() {
+    if (m_stopping.load()) {
+        return false;
+    }
+    // Any rebuild scheduled before this apply is now redundant.
+    m_applyGeneration++;
 
     if (!m_initialized.load()) {
         if (!Init()) {
@@ -297,10 +314,43 @@ bool OpusRTPManager::ApplyConfig() {
     return true;
 }
 
+void OpusRTPManager::ScheduleRebuild() {
+    std::lock_guard<std::mutex> rl(m_rebuildMutex);
+    if (m_stopping.load() || m_rebuildRunning.load()) {
+        // Shutting down, or a rebuild is already on its way.  Never join a
+        // running one here: its ApplyConfig() may be waiting to join the
+        // watchdog thread that is calling this.
+        return;
+    }
+    if (m_rebuildThread.joinable()) {
+        m_rebuildThread.join();  // finished: returns at once
+    }
+    uint64_t generation = m_applyGeneration.load();
+    m_rebuildRunning.store(true);
+    m_rebuildThread = std::thread([this, generation]() {
+        // Brief delay to let the watchdog thread finish exiting and become
+        // joinable.
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        {
+            std::lock_guard<std::mutex> applyLock(m_applyMutex);
+            // Nothing to do if anything applied, cleaned up or shut down in
+            // the meantime -- it either did this rebuild's work or undid it
+            // on purpose.
+            if (!m_stopping.load() && generation == m_applyGeneration.load()) {
+                ApplyConfigLocked();
+            }
+        }
+        m_rebuildRunning.store(false);
+    });
+}
+
 void OpusRTPManager::Cleanup() {
     LogInfo(VB_MEDIAOUT, "OpusRTPManager: Cleanup\n");
 
     std::lock_guard<std::mutex> applyLock(m_applyMutex);
+    // A watchdog rebuild already scheduled must not bring back what this
+    // tears down.
+    m_applyGeneration++;
 
     m_watchdogRunning.store(false);
     if (m_watchdogThread.joinable()) {
@@ -767,20 +817,7 @@ void OpusRTPManager::WatchdogLoop() {
             // resurrect pipelines after Shutdown() has already run, and a
             // detached thread racing Shutdown()'s own join of
             // m_watchdogThread is undefined behavior.
-            if (m_rebuildThread.joinable()) {
-                m_rebuildThread.join();
-            }
-            m_rebuildThread = std::thread([this]() {
-                // Brief delay to let this watchdog thread finish exiting
-                // and become joinable.
-                std::this_thread::sleep_for(std::chrono::milliseconds(500));
-                // If Shutdown() ran while we were sleeping, don't resurrect
-                // pipelines -- just exit quietly.
-                if (!m_initialized.load()) {
-                    return;
-                }
-                ApplyConfig();
-            });
+            ScheduleRebuild();
             break;
         }
     }
