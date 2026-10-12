@@ -40,6 +40,7 @@
 #include "../settings.h"
 
 #include "UDPOutput.h"
+#include "ChannelOutputSetup.h"
 #include "ping.h"
 
 #include "NetworkMonitor.h"
@@ -390,6 +391,9 @@ static bool isMulticastKey(unsigned int key) {
     return key == MULTICAST_MESSAGES_KEY || key == LATE_MULTICAST_MESSAGES_KEY || key == E131_SYNC_KEY;
 }
 
+static constexpr int LOCAL_DROP_WARNING_ID = 69;
+static const std::string LOCAL_DROP_WARNING = "The network interface is dropping outgoing packets before they reach the wire. The link may be down, saturated, or misconfigured. See logs for details.";
+
 UDPOutput* UDPOutput::INSTANCE = nullptr;
 std::mutex UDPOutput::externalLock;
 std::map<const void*, std::function<UDPOutputData*()>> UDPOutput::externalFactories;
@@ -738,7 +742,7 @@ int UDPOutput::Init(Json::Value config) {
                     std::string msg = "UDP Output set to send data to myself.  Disabling ";
                     msg += host.c_str();
                     LogWarn(VB_CHANNELOUT, msg.c_str());
-                    WarningHolder::AddWarning(6, msg);
+                    AddOutputConfigWarning(6, msg);
                     o->active = false;
                 }
             }
@@ -857,6 +861,19 @@ int UDPOutput::Close() {
     messages.clearSockets();
     for (auto& h : pingHosts) {
         PingManager::INSTANCE.removePeriodicPing(h.first);
+        // the replacement output raises it again if the controller is still
+        // down; one removed from the config would otherwise keep its
+        // "unreachable" banner until fppd restarted
+        std::unique_lock<std::mutex> l(h.second->lock);
+        if (!h.second->valid) {
+            WarningHolder::RemoveWarning(27, h.second->warning);
+        }
+    }
+    if (dropWarningActive) {
+        // the replacement instance starts with dropWarningActive false and
+        // would never remove this one
+        WarningHolder::RemoveWarning(LOCAL_DROP_WARNING_ID, LOCAL_DROP_WARNING);
+        dropWarningActive = false;
     }
     return ChannelOutput::Close();
 }
@@ -1411,8 +1428,6 @@ int UDPOutput::SendData(unsigned char* channelData) {
 
 // Not 57: that id belongs to the plugin-reinstall warning (Plugins.cpp), and
 // sharing it gave this banner that warning's title and help.
-static constexpr int LOCAL_DROP_WARNING_ID = 69;
-static const std::string LOCAL_DROP_WARNING = "The network interface is dropping outgoing packets before they reach the wire. The link may be down, saturated, or misconfigured. See logs for details.";
 
 #ifndef PLATFORM_OSX
 // Total packets dropped by the qdiscs on the ethernet interfaces.  This is
@@ -1836,7 +1851,7 @@ bool UDPOutput::InitNetwork() {
     if (needsBroadcast) {
         if (rv) {
             LogErr(VB_CHANNELOUT, "Invalid interface %s\n", outInterface.c_str());
-            WarningHolder::AddWarning(22, "Invalid interface for UDP broadcast/multicast: " + outInterface);
+            AddOutputConfigWarning(22, "Invalid interface for UDP broadcast/multicast: " + outInterface);
             return false;
         }
         if (!haveAddress) {

@@ -7,6 +7,7 @@
 
 #include "GenericUDPOutput.h"
 #include "UDPOutput.h"
+#include "ChannelOutputSetup.h"
 
 #include "Plugin.h"
 class GenericUDPPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
@@ -45,7 +46,7 @@ public:
         if (active) {
             udpAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
             if (!valid) {
-                WarningHolder::AddWarning(14, "Could not resolve host name " + ipAddress + " - disabling output");
+                AddOutputConfigWarning(14, "Could not resolve host name " + ipAddress + " - disabling output");
                 active = false;
             }
         }

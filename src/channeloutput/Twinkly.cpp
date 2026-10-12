@@ -26,6 +26,7 @@
 #include <signal.h>
 
 #include "../Warnings.h"
+#include "ChannelOutputSetup.h"
 #include "../common.h"
 #include "../fppversion.h"
 #include "../log.h"
@@ -55,7 +56,7 @@ TwinklyOutputData::TwinklyOutputData(const Json::Value& config) :
     if (active) {
         twinklyAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
         if (!valid) {
-            WarningHolder::AddWarning(14, "Could not resolve host name " + ipAddress + " - disabling output");
+            AddOutputConfigWarning(14, "Could not resolve host name " + ipAddress + " - disabling output");
             active = false;
         }
     }
