@@ -1454,17 +1454,13 @@ public:
     }
 
     /**
-     * PixelOverlayManager::mapColor() throws on anything it cannot parse.  The
-     * colour arguments can arrive straight off an MQTT topic path or a
-     * hand-written preset, so a typo must not unwind out through the command
-     * dispatcher.
+     * The colour arguments can arrive straight off an MQTT topic path or a
+     * hand-written preset; a typo falls back to the caller's default rather
+     * than mapColor()'s black.
      */
     static uint32_t safeMapColor(const std::string& c, uint32_t dflt) {
-        try {
-            return PixelOverlayManager::mapColor(c);
-        } catch (...) {
-            return dflt;
-        }
+        uint32_t color;
+        return PixelOverlayManager::parseColor(c, color) ? color : dflt;
     }
 
     /**

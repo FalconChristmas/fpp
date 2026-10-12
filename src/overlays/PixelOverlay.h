@@ -78,7 +78,11 @@ public:
     void removeAutoOverlayModel(const std::string& name);
 
     const std::string& mapFont(const std::string& f);
+    // Never throws: an unparseable colour logs a warning and maps to black.
+    // Colour args arrive off MQTT topics and hand-written presets.
     static uint32_t mapColor(const std::string& c);
+    // As mapColor(), but reports whether c parsed instead of logging.
+    static bool parseColor(const std::string& c, uint32_t& color);
 
     void addPeriodicUpdate(int32_t initialDelayMS, PixelOverlayModel* m);
     // Takes the model out of the update schedule and stamps any update already

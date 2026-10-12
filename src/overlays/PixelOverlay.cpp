@@ -20,6 +20,8 @@
 #include <dirent.h>
 
 #include <algorithm> // std::sort/std::transform in the image file listing, preview ordering
+#include <cctype> // tolower/isspace in parseColor
+#include <cerrno> // strtoull range check in parseColor
 #include <climits> // INT_MAX in the preview node numbering
 #include <fcntl.h>
 #include <filesystem> // image file listing for the Image effect's picker
@@ -69,35 +71,53 @@ public:
     }
 };
 
-uint32_t PixelOverlayManager::mapColor(const std::string& c) {
+bool PixelOverlayManager::parseColor(const std::string& c, uint32_t& color) {
+    static const std::map<std::string, uint32_t> NAMES = {
+        { "red", 0xFF0000 }, { "green", 0x00FF00 }, { "blue", 0x0000FF },
+        { "yellow", 0xFFFF00 }, { "black", 0x000000 }, { "white", 0xFFFFFF },
+        { "cyan", 0x00FFFF }, { "magenta", 0xFF00FF }, { "gray", 0x808080 },
+        { "grey", 0x808080 }
+    };
+    color = 0;
     if (c.empty()) {
-        return 0x000000;
+        return true;
     }
+    std::string lc = c;
+    std::transform(lc.begin(), lc.end(), lc.begin(), [](unsigned char ch) { return std::tolower(ch); });
+    auto it = NAMES.find(lc);
+    if (it != NAMES.end()) {
+        color = it->second;
+        return true;
+    }
+    // "#RRGGBB" (or "#RRGGBBWW") is hex; anything else is a number in C
+    // notation ("0xFF0000", "16711680"). strtoull, not std::stoul: the latter
+    // throws on garbage, and these strings come off MQTT topics.
+    const char* digits = c.c_str();
+    int base = 0;
     if (c[0] == '#') {
-        std::string color = "0x" + c.substr(1);
-        return std::stoul(color, nullptr, 0);
-    } else if (c == "red") {
-        return 0xFF0000;
-    } else if (c == "green") {
-        return 0x00FF00;
-    } else if (c == "blue") {
-        return 0x0000FF;
-    } else if (c == "yellow") {
-        return 0xFFFF00;
-    } else if (c == "black") {
-        return 0x000000;
-    } else if (c == "white") {
-        return 0xFFFFFF;
-    } else if (c == "cyan") {
-        return 0x00FFFF;
-    } else if (c == "magenta") {
-        return 0xFF00FF;
-    } else if (c == "gray") {
-        return 0x808080;
-    } else if (c == "grey") {
-        return 0x808080;
+        digits++;
+        base = 16;
     }
-    return std::stoul(c, nullptr, 0);
+    if (*digits == '\0' || *digits == '-' || *digits == '+' || std::isspace((unsigned char)*digits)) {
+        return false;
+    }
+    char* end = nullptr;
+    errno = 0;
+    unsigned long long v = strtoull(digits, &end, base);
+    if (errno != 0 || *end != '\0' || v > 0xFFFFFFFFull) {
+        return false;
+    }
+    color = (uint32_t)v;
+    return true;
+}
+
+uint32_t PixelOverlayManager::mapColor(const std::string& c) {
+    uint32_t color = 0;
+    if (!parseColor(c, color)) {
+        LogWarn(VB_CHANNELOUT, "Unrecognized color \"%s\", using black\n", c.c_str());
+        return 0x000000;
+    }
+    return color;
 }
 void PixelOverlayManager::PixelOverlayModelHolder::toJson(Json::Value& v) const {
     if (model) {
@@ -1919,7 +1939,7 @@ public:
             }
             if (color.size() == 9 && color[0] == '#') {
                 // #RRGGBBWW - explicit white channel for RGBW models
-                uint32_t x = (uint32_t)std::stoul(color.substr(1), nullptr, 16);
+                uint32_t x = PixelOverlayManager::mapColor(color);
                 m->fillOverlayBuffer((x >> 24) & 0xFF,
                                      (x >> 16) & 0xFF,
                                      (x >> 8) & 0xFF,
