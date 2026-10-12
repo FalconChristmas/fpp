@@ -126,6 +126,16 @@ void TwinklyOutputData::PrepareData(unsigned char* channelData, UDPOutputMessage
             tokenPending = false;
         }
 
+        // No token: the login failed (the device was unreachable or still
+        // booting when output started) or has not finished.  Retrying only
+        // on the 120s token check left a device that came back sooner
+        // getting frames it ignores; valid means it answers pings again.
+        uint64_t now = GetTimeMS();
+        if (!authInFlight && now - lastAuthAttemptMS > 5000 && getAuthToken().empty()) {
+            lastAuthAttemptMS = now;
+            authenticate();
+        }
+
         reauthCount++;
         if (reauthCount > MAXPACKETS) {
             // need to re-authenticate or lights will stop eventually.  If this
@@ -184,7 +194,13 @@ void TwinklyOutputData::StoppingOutput() {
     // put the device back into "rt" mode with nothing left to send it frames.
     outputStarted = false;
     Timers::INSTANCE.stopPeriodicTimer("Twinkly" + ipAddress);
-    callRestAPI(true, "xled/v1/led/mode", "{\"mode\": \"off\"}");
+    // This runs on the output thread or under outputThreadLock on a reload,
+    // and the call blocks for up to 5s.  Only make it for a device that is
+    // answering and that this output put into rt mode; one whose ping failed
+    // is stopped here too, and would only time out.
+    if (valid && !getAuthToken().empty()) {
+        callRestAPI(true, "xled/v1/led/mode", "{\"mode\": \"off\"}");
+    }
     setAuthToken("");
 }
 
