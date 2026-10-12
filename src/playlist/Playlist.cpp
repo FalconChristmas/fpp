@@ -593,13 +593,16 @@ Json::Value Playlist::LoadJSON(const std::string& filename) {
     }
 
     if (m_filename == filename) {
+        // stat() can fail (the file replaced between the read and here); its
+        // st_mtime is then uninitialized, so leave m_fileTime as it was rather
+        // than copying garbage into the reload check.
         struct stat attr;
-        stat(filename.c_str(), &attr);
+        if (stat(filename.c_str(), &attr) == 0) {
+            char timeBuf[32];
+            LogDebug(VB_PLAYLIST, "Playlist Last Modified: %s\n", ctime_r(&attr.st_mtime, timeBuf));
 
-        char timeBuf[32];
-        LogDebug(VB_PLAYLIST, "Playlist Last Modified: %s\n", ctime_r(&attr.st_mtime, timeBuf));
-
-        m_fileTime = attr.st_mtime;
+            m_fileTime = attr.st_mtime;
+        }
     }
 
     return root;
