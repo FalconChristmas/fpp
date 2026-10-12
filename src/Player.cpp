@@ -474,6 +474,7 @@ void Player::SetRepeat(int repeat) {
 }
 
 int Player::GetStopMethod() {
+    std::lock_guard<std::mutex> lk(m_stateLock);
     return stopMethod;
 }
 
@@ -499,7 +500,6 @@ uint64_t Player::GetFileTime() {
 
 Json::Value Player::GetConfig() {
     return PlaylistSnapshot()->GetConfig();
-    std::lock_guard<std::mutex> lk(m_stateLock);
 }
 
 Json::Value Player::GetMqttStatusJSON() {
@@ -575,6 +575,7 @@ Json::Value Player::GetStatusJSON() {
 
     // things we store locally that would need to be in an array if we can
     // play multiple playlists concurrently
+    std::lock_guard<std::mutex> lk(m_stateLock);
     pl["origStartTime"] = (Json::UInt64)origStartTime;
     pl["origStopTime"] = (Json::UInt64)origStopTime;
     pl["startTime"] = (Json::UInt64)startTime;
@@ -600,7 +601,6 @@ Json::Value Player::GetStatusJSON() {
  * @response 200 Player status JSON.
  */
 
-    std::lock_guard<std::mutex> lk(m_stateLock);
 /**
  * Get the player status (playlist, sequence, timing, mode, etc.).
  *

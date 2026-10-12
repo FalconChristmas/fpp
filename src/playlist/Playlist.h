@@ -228,6 +228,13 @@ private:
     // The status Pause() replaced, restored by Resume().  A playlist paused
     // while stopping gracefully must keep stopping once resumed.
     PlaylistStatus m_statusBeforePause = FPP_STATUS_PLAYLIST_PLAYING;
+
+    // m_name is written under m_playlistMutex (Load, Cleanup) but read by the
+    // scheduler and status threads through GetPlaylistName() without it --
+    // a copy racing the assignment read a freed buffer.  Writers hold both;
+    // GetPlaylistName() takes only this one, so it never waits on a playlist
+    // transition and never orders this lock against the scheduler's.
+    mutable std::mutex m_nameLock;
 };
 
 // Source-compatibility façade for the old `extern Playlist* playlist;` global.
@@ -240,13 +247,6 @@ private:
 // That expression still compiles, through two chained operator->s: PlaylistRef
 // hands back a PlaylistHandle holding a snapshot, and the handle's operator->
 // yields the raw pointer.  The handle is a temporary of the full expression, so
-
-    // m_name is written under m_playlistMutex (Load, Cleanup) but read by the
-    // scheduler and status threads through GetPlaylistName() without it --
-    // a copy racing the assignment read a freed buffer.  Writers hold both;
-    // GetPlaylistName() takes only this one, so it never waits on a playlist
-    // transition and never orders this lock against the scheduler's.
-    mutable std::mutex m_nameLock;
 // the snapshot — and therefore the instance — outlives the call even if the
 // main loop retires that playlist mid-call.  That makes the old plugin
 // expression lifetime-safe rather than merely still-compiling.
