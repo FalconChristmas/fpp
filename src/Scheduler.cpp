@@ -159,7 +159,8 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat, int forceStopped) {
                     }
 
                     bool ir = ignoreRepeat;
-                    if (m_forcedNextPlaylist == item.entryIndex) {
+                    if ((m_forcedNextPlaylist == item.entryIndex) &&
+                        (m_forcedNextPlaylistStart == item.startTime)) {
                         LogExcess(VB_SCHEDULE, "This item entry index == m_forcedNextPlaylist\n");
                         ir = true;
                     }
@@ -608,6 +609,7 @@ bool Scheduler::doScheduledPlaylist(const std::time_t now, const std::time_t ite
                         (oldItem.entry->playlist == playlistName)) {
                         oldItem.ran = false;
                         m_forcedNextPlaylist = oldItem.entryIndex;
+                        m_forcedNextPlaylistStart = oldItem.startTime;
                     }
                 }
             }
@@ -653,6 +655,13 @@ bool Scheduler::doScheduledPlaylist(const std::time_t now, const std::time_t ite
 
         SetSetting("resumePlaylist", "");
         SetSetting("resumePosition", 0);
+    }
+
+    if ((m_forcedNextPlaylist == item.entryIndex) &&
+        (m_forcedNextPlaylistStart == item.startTime)) {
+        // The pre-empted occurrence is getting its restart; that was the
+        // whole of what the force was for.
+        m_forcedNextPlaylist = SCHEDULE_INDEX_INVALID;
     }
 
     actions.push_back({ .type = PlayerAction::Type::StartPlaylist,

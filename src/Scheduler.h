@@ -171,7 +171,12 @@ private:
     std::map<std::time_t, std::vector<ScheduledItem>> m_oldItems;
     std::map<std::time_t, std::vector<ScheduledItem>> m_ranItems;
 
+    // The scheduled occurrence a higher-priority entry pre-empted: allowed to
+    // start again (despite not repeating) once the player goes idle, then
+    // consumed.  Keyed by occurrence -- entry index alone matched every later
+    // run of that entry forever, restarting it each time it ended.
     int m_forcedNextPlaylist;
+    std::time_t m_forcedNextPlaylistStart = 0;
 
     std::string m_lastBlockedPlaylist;
     std::time_t m_lastBlockedTime;
