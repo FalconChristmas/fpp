@@ -941,6 +941,9 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
             std::string command(getRequestContent(req));
             LogExcess(VB_COMMAND, "Received command: \"%s\"\n", TruncateForLog(command, 2000).c_str());
             Json::Value val = LoadJsonFromString(command);
+            if (!val.isObject() || !val["command"].isString()) {
+                return makeStringResponse("Body must be a JSON object with a \"command\" string", 400, "text/plain");
+            }
             LogDebug(VB_COMMAND, "POST /api/command (bare JSON body) from %s: running command \"%s\"\n",
                      getEffectiveClientIP(req).c_str(), val["command"].asString().c_str());
             std::unique_ptr<Command::Result> r = run(val);
