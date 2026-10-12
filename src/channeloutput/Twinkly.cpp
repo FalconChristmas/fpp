@@ -68,7 +68,8 @@ TwinklyOutputData::TwinklyOutputData(const Json::Value& config) :
     int chanToOutput = channelCount;
     int chan = startChannel - 1;
     for (int x = 0; x < portCount; x++) {
-        twinklyBuffers[x] = (unsigned char*)malloc(HEADER_LEN);
+        // zeroed: the token bytes go on the wire before the first auth fills them
+        twinklyBuffers[x] = (unsigned char*)calloc(1, HEADER_LEN);
         twinklyBuffers[x][0] = 3;
         twinklyBuffers[x][9] = 0;
         twinklyBuffers[x][10] = 0;
@@ -104,8 +105,9 @@ TwinklyOutputData::~TwinklyOutputData() {
 }
 
 void TwinklyOutputData::GetRequiredChannelRange(int& min, int& max) {
+    // channelCount is the total across all of the device's 900 channel ports
     min = startChannel - 1;
-    max = startChannel + (channelCount * portCount) - 1;
+    max = startChannel + channelCount - 1;
 }
 
 void TwinklyOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& msgs) {
