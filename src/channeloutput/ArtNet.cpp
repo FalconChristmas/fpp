@@ -212,8 +212,13 @@ void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages
         if (sequenceNumber == 0) {
             sequenceNumber++;
         }
+        // the counter forces a full resend once 10 frames in a row skipped
+        // something; without the reset, after the first 10 skips dedup was
+        // off for the rest of the run
         if (anySkipped) {
             skippedFrames++;
+        } else {
+            skippedFrames = 0;
         }
         if (!allSkipped) {
             SaveFrame(&channelData[startChannel - 1], start);
