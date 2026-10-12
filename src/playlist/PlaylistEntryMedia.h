@@ -68,6 +68,11 @@ public:
 
     long long m_openTime;
     long long m_startTime;
+    // With a media offset the MultiSync start goes out from Process() once the
+    // offset has passed.  Once: there used to be no flag, so it was resent on
+    // every main-loop tick for the whole song and remotes restarted their media
+    // on each one.
+    bool m_syncStartSent = false;
     static int m_openStartDelay;
 
 private:

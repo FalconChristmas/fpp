@@ -267,6 +267,7 @@ int PlaylistEntryMedia::StartPlaying(void) {
 
     lock.unlock();
     m_startTime = GetMonotonicTimeMS();
+    m_syncStartSent = false;
     StartExtraMedia();
     return PlaylistEntryBase::StartPlaying();
 }
@@ -278,10 +279,11 @@ int PlaylistEntryMedia::Process(void) {
     std::unique_lock<std::mutex> lock(m_mediaOutputLock);
 
     if (m_mediaOutput) {
-        if (m_mediaOutput->getMediaOffsetMS() > 0 && multiSync->isMultiSyncEnabled()) {
+        if (!m_syncStartSent && m_mediaOutput->getMediaOffsetMS() > 0 && multiSync->isMultiSyncEnabled()) {
             long long ct = GetMonotonicTimeMS() - m_startTime;
             if (ct > (m_mediaOutput->getMediaOffsetMS() - 20)) {
                 multiSync->SendMediaSyncStartPacket(m_mediaFilename);
+                m_syncStartSent = true;
             }
         }
 
@@ -678,6 +680,7 @@ void PlaylistEntryMedia::Resume() {
 
         if (multiSync->isMultiSyncEnabled())
             multiSync->SendMediaSyncStartPacket(m_mediaFilename);
+        m_syncStartSent = true; // sent just above, offset or not
 
         if (!m_mediaOutput->Start(m_pausedTime)) {
             LogErr(VB_MEDIAOUT, "Could not start media %s\n", m_mediaOutput->m_mediaFilename.c_str());
