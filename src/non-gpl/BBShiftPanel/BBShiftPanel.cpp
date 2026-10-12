@@ -1539,6 +1539,11 @@ void BBShiftPanelManager::StopPRU(bool wait) {
         pru->stop();
         delete pru;
         pru = nullptr;
+        // pruData points into the mapping that just went away.  Code that
+        // finds it set assumes the PRU is up (startingOutput() sends the
+        // panel init through pru on that basis), and after a failed rebuild
+        // the surviving matrices keep calling in.
+        pruData = nullptr;
 
         if (pwmPru) {
             pwmPru->stop();
