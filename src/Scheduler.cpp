@@ -55,6 +55,15 @@ static_assert(std::is_move_constructible_v<ScheduledItem>);
 // m_scheduleLock (only touched inside LoadScheduleFromFile).
 static std::vector<std::string> s_invalidEntryWarnings;
 
+// strftime() into a fixed buffer.  The time and date formats come from
+// settings; when a result doesn't fit, strftime() returns 0 and leaves the
+// buffer's contents undefined, and the callers then read an unterminated
+// string.  Leave it empty instead.
+static void FormatTime(char* buf, size_t size, const char* fmt, const struct tm* t) {
+    if (strftime(buf, size, fmt, t) == 0)
+        buf[0] = '\0';
+}
+
 static std::string missingEntryWarning(const ScheduleEntry& entry) {
     return std::string("Scheduled ") + (entry.sequence ? "Sequence" : "Playlist") +
            " '" + entry.playlist + "' does not exist";
@@ -1039,7 +1048,7 @@ std::string Scheduler::GetNextPlaylistStartStr() {
     time_t currTime = time(NULL);
 
     localtime_r(&item->startTime, &timeStruct);
-    strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
+    FormatTime(timeStr, sizeof(timeStr), timeFmt.c_str(), &timeStruct);
 
     // Thursday @ 11:00:00 - (Everyday)
     result = timeStr;
@@ -1128,31 +1137,31 @@ Json::Value Scheduler::GetInfo(void) {
             time_t currTime = time(NULL);
 
             localtime_r(&currTime, &timeStruct);
-            strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
+            FormatTime(timeStr, sizeof(timeStr), timeFmt.c_str(), &timeStruct);
             cp["currentTime"] = (Json::UInt64)currTime;
             cp["currentTimeStr"] = timeStr;
 
             timeT = Player::INSTANCE.GetOrigStartTime();
             localtime_r(&timeT, &timeStruct);
-            strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
+            FormatTime(timeStr, sizeof(timeStr), timeFmt.c_str(), &timeStruct);
             cp["scheduledStartTime"] = (Json::UInt64)timeT;
             cp["scheduledStartTimeStr"] = timeStr;
 
             timeT = Player::INSTANCE.GetStartTime();
             localtime_r(&timeT, &timeStruct);
-            strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
+            FormatTime(timeStr, sizeof(timeStr), timeFmt.c_str(), &timeStruct);
             cp["actualStartTime"] = (Json::UInt64)timeT;
             cp["actualStartTimeStr"] = timeStr;
 
             timeT = Player::INSTANCE.GetOrigStopTime();
             localtime_r(&timeT, &timeStruct);
-            strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
+            FormatTime(timeStr, sizeof(timeStr), timeFmt.c_str(), &timeStruct);
             cp["scheduledEndTime"] = (Json::UInt64)timeT;
             cp["scheduledEndTimeStr"] = timeStr;
 
             timeT = Player::INSTANCE.GetStopTime();
             localtime_r(&timeT, &timeStruct);
-            strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
+            FormatTime(timeStr, sizeof(timeStr), timeFmt.c_str(), &timeStruct);
             cp["actualEndTime"] = (Json::UInt64)timeT;
             cp["actualEndTimeStr"] = timeStr;
             cp["secondsRemaining"] = (int)(timeT - currTime);
@@ -1226,21 +1235,21 @@ Json::Value Scheduler::GetSchedule() {
 
         tmpTime = Player::INSTANCE.GetOrigStartTime();
         localtime_r(&tmpTime, &timeStruct);
-        strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
+        FormatTime(timeStr, sizeof(timeStr), timeFmt.c_str(), &timeStruct);
         scheduledItem["startTimeStr"] = timeStr;
         scheduledItem["startTime"] = (Json::UInt64)tmpTime;
 
-        strftime(timeStr, 32, "%Y%m%d", &timeStruct);
+        FormatTime(timeStr, sizeof(timeStr), "%Y%m%d", &timeStruct);
         scheduledItem["startDateStr"] = timeStr;
         scheduledItem["startDateInt"] = atoi(timeStr);
 
         tmpTime = Player::INSTANCE.GetStopTime();
         localtime_r(&tmpTime, &timeStruct);
-        strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
+        FormatTime(timeStr, sizeof(timeStr), timeFmt.c_str(), &timeStruct);
         scheduledItem["endTimeStr"] = timeStr;
         scheduledItem["endTime"] = (Json::UInt64)tmpTime;
 
-        strftime(timeStr, 32, "%Y%m%d", &timeStruct);
+        FormatTime(timeStr, sizeof(timeStr), "%Y%m%d", &timeStruct);
         scheduledItem["endDateStr"] = timeStr;
         scheduledItem["endDateInt"] = atoi(timeStr);
 
@@ -1262,20 +1271,20 @@ Json::Value Scheduler::GetSchedule() {
             scheduledItem["id"] = item.entryIndex;
 
             localtime_r(&item.startTime, &timeStruct);
-            strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
+            FormatTime(timeStr, sizeof(timeStr), timeFmt.c_str(), &timeStruct);
             scheduledItem["startTimeStr"] = timeStr;
             scheduledItem["startTime"] = (Json::UInt64)item.startTime;
 
-            strftime(timeStr, 32, "%Y%m%d", &timeStruct);
+            FormatTime(timeStr, sizeof(timeStr), "%Y%m%d", &timeStruct);
             scheduledItem["startDateStr"] = timeStr;
             scheduledItem["startDateInt"] = atoi(timeStr);
 
             localtime_r(&item.endTime, &timeStruct);
-            strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
+            FormatTime(timeStr, sizeof(timeStr), timeFmt.c_str(), &timeStruct);
             scheduledItem["endTimeStr"] = timeStr;
             scheduledItem["endTime"] = (Json::UInt64)item.endTime;
 
-            strftime(timeStr, 32, "%Y%m%d", &timeStruct);
+            FormatTime(timeStr, sizeof(timeStr), "%Y%m%d", &timeStruct);
             scheduledItem["endDateStr"] = timeStr;
             scheduledItem["endDateInt"] = atoi(timeStr);
 
@@ -1324,16 +1333,16 @@ Json::Value Scheduler::BuildScheduleRangeItem(const ScheduleEntry& entry,
     item["endTime"] = (Json::UInt64)occurrence.end;
 
     localtime_r(&occurrence.start, &timeStruct);
-    strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
+    FormatTime(timeStr, sizeof(timeStr), timeFmt.c_str(), &timeStruct);
     item["startTimeStr"] = timeStr;
-    strftime(timeStr, 32, "%Y%m%d", &timeStruct);
+    FormatTime(timeStr, sizeof(timeStr), "%Y%m%d", &timeStruct);
     item["startDateStr"] = timeStr;
     item["startDateInt"] = atoi(timeStr);
 
     localtime_r(&occurrence.end, &timeStruct);
-    strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
+    FormatTime(timeStr, sizeof(timeStr), timeFmt.c_str(), &timeStruct);
     item["endTimeStr"] = timeStr;
-    strftime(timeStr, 32, "%Y%m%d", &timeStruct);
+    FormatTime(timeStr, sizeof(timeStr), "%Y%m%d", &timeStruct);
     item["endDateStr"] = timeStr;
     item["endDateInt"] = atoi(timeStr);
 
