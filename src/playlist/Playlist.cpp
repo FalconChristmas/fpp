@@ -229,9 +229,9 @@ public:
         while (true) {
             if (!tl_pendingNotifications.empty()) {
                 if (++fired > MAX_NOTIFICATION_CASCADE) {
-                    LogErr(VB_PLAYLIST, "Playlist notification cascade exceeded %d events — presets/plugins are starting playlists in a loop (e.g. PLAYLIST_STARTED -> Start Playlist -> PLAYLIST_STARTED). Dropping %d pending notifications.\n",
+                    LogErr(VB_PLAYLIST, "Playlist notification cascade exceeded %d events — presets/plugins are starting playlists in a loop (e.g. PLAYLIST_STARTED -> Start Playlist -> PLAYLIST_STARTED), or a playlist command entry keeps restarting its own playlist item. Dropping %d pending notifications.\n",
                            MAX_NOTIFICATION_CASCADE, (int)tl_pendingNotifications.size());
-                    WarningHolder::AddWarningTimeout(300, 36, "Command preset loop detected: a playlist preset (e.g. PLAYLIST_STARTED) starts a playlist which re-triggers the preset. Fix the preset configuration.");
+                    WarningHolder::AddWarningTimeout(300, 36, "Playlist loop detected: a playlist preset (e.g. PLAYLIST_STARTED) starts a playlist which re-triggers the preset, or a playlist command entry (Restart/Next/Prev Playlist Item) keeps landing on itself. Fix the preset or playlist.");
                     tl_pendingNotifications.clear();
                     std::lock_guard<std::mutex> l(s_pendingStartMutex);
                     s_pendingStartFilename.clear();
