@@ -1404,7 +1404,18 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
                 // 4-byte JSON literal that a caller would read as pixel data.
                 return makeStringResponse("Model not found: " + p3, 404);
             }
-            if (m) {
+            if (m && p4 == "preview") {
+                // Needs only the name. The virtualdisplaymap parse is the
+                // slowest thing this route does, and under modelsLock and the
+                // model's effectLock it stalled the effect thread - and the
+                // channel output thread too, when the effect updates after
+                // output - for as long as it took.
+                std::string modelName = m->getName();
+                lock.unlock();
+                Json::Value pixels(Json::arrayValue);
+                collectModelPreviewPixels(modelName, pixels);
+                result["pixels"] = pixels;
+            } else if (m) {
                 std::unique_lock<std::recursive_mutex> lock(m->getRunningEffectMutex());
                 if (p4 == "data") {
                     if (p5 == "raw") {
@@ -1429,10 +1440,6 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
                 } else if (p4 == "clear") {
                     m->clear();
                     return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
-                } else if (p4 == "preview") {
-                    Json::Value pixels(Json::arrayValue);
-                    collectModelPreviewPixels(m->getName(), pixels);
-                    result["pixels"] = pixels;
                 } else {
                     m->toJson(result);
                     result["isActive"] = (int)m->getState().getState();
