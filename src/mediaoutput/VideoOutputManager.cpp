@@ -286,7 +286,8 @@ void VideoOutputManager::Init() {
                 (int)m_consumers.size(), persistentCount,
                 (int)m_consumers.size() - persistentCount);
         // Start SAP multicast announcer for any persistent RTP consumers
-        StartSAPAnnouncer();
+        if (HasRunningRtpLocked())
+            StartSAPAnnouncer();
     }
 }
 
@@ -352,6 +353,7 @@ void VideoOutputManager::Reload() {
                 StartConsumer(consumer);
             }
         }
+        shouldStartSAP = shouldStartSAP && HasRunningRtpLocked();
     }
     if (shouldStartSAP)
         StartSAPAnnouncer();
@@ -376,12 +378,21 @@ void VideoOutputManager::Shutdown() {
 
 void VideoOutputManager::StartConsumers(const std::string& producerNodeName,
                                         int primaryConnectorId,
-                                        const std::set<int>& directConnectorIds) {
+                                        const std::set<int>& directConnectorIds,
+                                        uint64_t producerGeneration) {
     bool shouldStartSAP = false;
     WaitForCmaIfLow();
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (!m_initialized || m_consumers.empty()) {
+            return;
+        }
+        if (producerGeneration != 0 && producerGeneration != m_producerGeneration.load()) {
+            // The producer was stopped between its start and this call (its
+            // deferred attach runs on another thread).  Consumers started now
+            // would run against a dead producer until the next track.
+            LogDebug(VB_MEDIAOUT, "VideoOutputManager: producer '%s' already stopped, not starting consumers\n",
+                     producerNodeName.c_str());
             return;
         }
 
@@ -423,6 +434,7 @@ void VideoOutputManager::StartConsumers(const std::string& producerNodeName,
         }
         LogInfo(VB_MEDIAOUT, "VideoOutputManager: Started %d on-demand consumer(s) targeting producer '%s' (slot %d)\n",
                 started, producerNodeName.c_str(), producerSlot);
+        shouldStartSAP = shouldStartSAP && HasRunningRtpLocked();
     }
     // Start SAP announcer outside the lock (SAPAnnounceLoop needs m_mutex)
     if (shouldStartSAP)
@@ -682,6 +694,7 @@ void VideoOutputManager::StopConsumers() {
     bool shouldStopSAP = false;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
+        m_producerGeneration++;
         if (!m_initialized) return;
 
         // Only stop on-demand consumers (those without a fixed sourceNode).
@@ -1957,22 +1970,22 @@ std::vector<uint8_t> VideoOutputManager::BuildSAPPacket(const std::string& sourc
     return packet;
 }
 
+bool VideoOutputManager::HasRunningRtpLocked() const {
+    for (const auto& c : m_consumers) {
+        if (c.type == "rtp" && c.running)
+            return true;
+    }
+    return false;
+}
+
 void VideoOutputManager::StartSAPAnnouncer() {
     // Serialize with StopSAPAnnouncer() and with any other Start. The flag on
     // its own was a test-then-set across two unsynchronized threads.
+    // The caller decides, under m_mutex, whether any RTP consumer is running
+    // (HasRunningRtpLocked()).  Walking m_consumers here under only m_sapLock
+    // raced Reload() clearing and refilling the vector.
     std::lock_guard<std::mutex> lock(m_sapLock);
     if (m_sapRunning.load())
-        return;
-
-    // Only start if we have at least one RTP consumer
-    bool hasRtp = false;
-    for (const auto& c : m_consumers) {
-        if (c.type == "rtp" && c.running) {
-            hasRtp = true;
-            break;
-        }
-    }
-    if (!hasRtp)
         return;
 
     // Never assign over a joinable thread -- that is an unconditional

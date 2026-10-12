@@ -181,13 +181,22 @@ public:
     /// Called by GStreamerOut after pipewiresink is attached to PipeWire graph.
     /// directConnectorIds: HDMI connectors already driven by direct kmssink
     /// branches in the main pipeline — these will be skipped.
+    /// producerGeneration: ProducerGeneration() as read when the producer was
+    /// set up; if StopConsumers() has run since, the producer is gone and
+    /// nothing is started.  0 skips the check.
     void StartConsumers(const std::string& producerNodeName,
                         int primaryConnectorId = -1,
-                        const std::set<int>& directConnectorIds = {});
+                        const std::set<int>& directConnectorIds = {},
+                        uint64_t producerGeneration = 0);
 
     /// Stop all running consumer pipelines.
     /// Called by GStreamerOut when video playback ends.
     void StopConsumers();
+
+    /// Bumped by every StopConsumers().  A producer reads it when it is set
+    /// up and hands it back to StartConsumers(), which then refuses to start
+    /// consumers for a producer that has been stopped in between.
+    uint64_t ProducerGeneration() const { return m_producerGeneration.load(); }
 
     /// Called by VideoInputManager when a producer source pipeline reaches
     /// PLAYING and is about to deliver its first video frames.  Starts any
@@ -359,6 +368,7 @@ private:
     /// SAPAnnounceLoop() takes m_mutex, so joining under it deadlocks. Every
     /// call site already does this deliberately.
     void StartSAPAnnouncer();
+    bool HasRunningRtpLocked() const;  // caller holds m_mutex
     void StopSAPAnnouncer();
 
     /// SAP announcer background loop.
@@ -398,6 +408,7 @@ private:
     std::vector<ConsumerInfo> m_consumers;
     std::set<int> m_directConnectorIds;   // HDMI connectors handled by direct kmssink
     std::string m_activeProducer;  // node name of the current producer, empty if none
+    std::atomic<uint64_t> m_producerGeneration{ 1 };
     int m_primaryConnectorId = -1; // DRM connector ID used by primary pipeline's kmssink
     bool m_initialized = false;
     // Guards Shutdown() so the destructor doesn't re-run it after main() already

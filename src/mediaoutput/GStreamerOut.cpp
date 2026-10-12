@@ -2432,8 +2432,12 @@ int GStreamerOutput::Start(int msTime) {
         GstElement* volume = m_volume ? GST_ELEMENT(gst_object_ref(m_volume)) : nullptr;
         // A per-slot singleton that is never freed, so safe to capture.
         PipeWireOutputStream* pwStream = m_pwStream;
+        // See VideoOutputManager::ProducerGeneration(): consumers are started
+        // from this thread, possibly after this output has been stopped.
+        const uint64_t producerGeneration = VideoOutputManager::Instance().ProducerGeneration();
         std::thread([pipeline, volume, cancel, seekPending, seekMs, videoPW, targetVolume,
-                     streamSlot, hdmiConnectorId, kmsPaces, directConnectorIds, pwStream]() {
+                     streamSlot, hdmiConnectorId, kmsPaces, directConnectorIds, pwStream,
+                     producerGeneration]() {
             // Releases our owning refs on exit no matter which path we return on.
             //
             // A pipeline must never lose its last ref above NULL: disposing it
@@ -2605,7 +2609,7 @@ int GStreamerOutput::Start(int msTime) {
                 if (!pwvideosink) {
                     LogWarn(VB_MEDIAOUT, "GStreamer: pipewiresink not available\n");
                     gst_object_unref(vtee);
-                    VideoOutputManager::Instance().StartConsumers("", hdmiConnectorId, directConnectorIds);
+                    VideoOutputManager::Instance().StartConsumers("", hdmiConnectorId, directConnectorIds, producerGeneration);
                     return;
                 }
 
@@ -2686,7 +2690,7 @@ int GStreamerOutput::Start(int msTime) {
                     return;
                 }
 
-                VideoOutputManager::Instance().StartConsumers(videoNodeName, hdmiConnectorId, directConnectorIds);
+                VideoOutputManager::Instance().StartConsumers(videoNodeName, hdmiConnectorId, directConnectorIds, producerGeneration);
             }
             // Owning refs on pipeline/volume released by refGuard on scope exit.
         }).detach();
