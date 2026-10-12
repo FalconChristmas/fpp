@@ -12,12 +12,14 @@
  */
 
 #include <atomic>
+#include <condition_variable>
 #include "fpp-json.h"
 #include "fpphttp_types.h"
 #include <list>
 #include <map>
 #include <memory>
 #include <set>
+#include <shared_mutex>
 #include <span>
 #include <string>
 #include <vector>
@@ -331,4 +333,18 @@ private:
     // a singleton plugins only ever reach through INSTANCE) so no plugin needs
     // rebuilding.
     std::atomic<uint64_t> commandsGeneration{0};
+
+    // Guards `commands` and `commandMeta`. Plugin load/unload and the channel
+    // output reload register and remove commands on the main loop while HTTP,
+    // MQTT and playlist threads look them up. Appended, like
+    // commandsGeneration, so the layout plugins see does not move.
+    mutable std::shared_mutex commandsLock;
+    // Runs in progress per command. removeCommand() waits for its command to
+    // go idle, because every caller deletes the command right after it.
+    std::mutex inFlightLock;
+    std::condition_variable inFlightCV;
+    std::map<Command*, int> inFlight;
+
+    std::shared_ptr<Command> acquireCommand(const std::string& name);
+    void waitForIdle(Command* cmd);
 };

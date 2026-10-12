@@ -16,6 +16,7 @@
 #include "fpphttp.h" // drogon/HTTP helpers used here; no longer pulled transitively (see fpphttp_types.h)
 #include "fpphttp_clientip.h" // getEffectiveClientIP() - FPP-internal, not in the plugin API
 
+#include <algorithm>
 #include <thread>
 
 #include "../Variables.h"
@@ -359,14 +360,18 @@ void CommandManager::Cleanup() {
         return;
     }
     FileMonitor::INSTANCE.RemoveFile("CommandManager:CommandPresets.json", FPP_DIR_CONFIG("/commandPresets.json"));
-    while (!commands.empty()) {
-        Command* cmd = commands.begin()->second;
-        commands.erase(commands.begin());
-
-        delete cmd;
+    std::map<std::string, Command*> all;
+    {
+        std::unique_lock<std::shared_mutex> l(commandsLock);
+        all.swap(commands);
+        commandMeta.clear();
+        ++commandsGeneration;
     }
-    commands.clear();
-    ++commandsGeneration;
+    for (auto& c : all) {
+        // An MQTT or HTTP thread can still be inside one at shutdown.
+        waitForIdle(c.second);
+        delete c.second;
+    }
 }
 
 void CommandManager::addCommand(Command* cmd) {
@@ -378,27 +383,92 @@ void CommandManager::addCommand(Command* cmd) {
     addCategorizedCommand(cmd, "Plugins", 0);
 }
 void CommandManager::addCategorizedCommand(Command* cmd, const std::string& category, int level) {
+    std::unique_lock<std::shared_mutex> l(commandsLock);
+    auto a = commands.find(cmd->name);
+    if (a != commands.end() && a->second != cmd) {
+        LogWarn(VB_COMMAND, "Command \"%s\" registered twice; the later registration replaces the earlier\n", cmd->name.c_str());
+    }
     commands[cmd->name] = cmd;
     commandMeta[cmd->name] = { category, level };
     ++commandsGeneration;
 }
-void CommandManager::removeCommand(Command* cmd) {
-    auto a = commands.find(cmd->name);
-    if (a != commands.end()) {
-        commands.erase(a);
+
+// Commands this thread is running, innermost last. waitForIdle() discounts
+// them, so a command that unregisters itself from its own run() does not wait
+// on itself.
+static thread_local std::vector<Command*> tl_runningCommands;
+
+std::shared_ptr<Command> CommandManager::acquireCommand(const std::string& name) {
+    std::shared_lock<std::shared_mutex> l(commandsLock);
+    auto f = commands.find(name);
+    if (f == commands.end()) {
+        return nullptr;
     }
-    commandMeta.erase(cmd->name);
-    ++commandsGeneration;
+    Command* cmd = f->second;
+    {
+        std::lock_guard<std::mutex> il(inFlightLock);
+        inFlight[cmd]++;
+    }
+    // Releases the pin, never deletes: the command's owner does that.
+    return std::shared_ptr<Command>(cmd, [this](Command* c) {
+        std::lock_guard<std::mutex> il(inFlightLock);
+        auto it = inFlight.find(c);
+        if (it != inFlight.end() && --it->second <= 0) {
+            inFlight.erase(it);
+        }
+        inFlightCV.notify_all();
+    });
+}
+
+// Every caller of removeCommand() deletes the command straight after, so it
+// must not return while another thread is still inside that command's run().
+// Bounded, because a run that never ends (one blocked on the thread doing the
+// removal) would otherwise hang the removal for good; that case is logged.
+void CommandManager::waitForIdle(Command* cmd) {
+    const int own = (int)std::count(tl_runningCommands.begin(), tl_runningCommands.end(), cmd);
+    std::unique_lock<std::mutex> il(inFlightLock);
+    bool idle = inFlightCV.wait_for(il, std::chrono::seconds(10), [&] {
+        auto it = inFlight.find(cmd);
+        return it == inFlight.end() || it->second <= own;
+    });
+    if (!idle) {
+        LogErr(VB_COMMAND, "Command \"%s\" is still running 10s after it was unregistered; continuing anyway\n", cmd->name.c_str());
+    }
+}
+
+void CommandManager::removeCommand(Command* cmd) {
+    {
+        std::unique_lock<std::shared_mutex> l(commandsLock);
+        auto a = commands.find(cmd->name);
+        if (a == commands.end() || a->second != cmd) {
+            // Another object holds this name now (two outputs registering the
+            // same command); removing by name would unregister theirs.
+            return;
+        }
+        commands.erase(a);
+        commandMeta.erase(cmd->name);
+        ++commandsGeneration;
+    }
+    waitForIdle(cmd);
 }
 void CommandManager::removeCommand(const std::string& cmdName) {
-    auto a = commands.find(cmdName);
-    if (a != commands.end()) {
-        commands.erase(a);
+    Command* cmd = nullptr;
+    {
+        std::unique_lock<std::shared_mutex> l(commandsLock);
+        auto a = commands.find(cmdName);
+        if (a != commands.end()) {
+            cmd = a->second;
+            commands.erase(a);
+        }
+        commandMeta.erase(cmdName);
+        ++commandsGeneration;
     }
-    commandMeta.erase(cmdName);
-    ++commandsGeneration;
+    if (cmd) {
+        waitForIdle(cmd);
+    }
 }
 std::vector<std::pair<std::string, Command*>> CommandManager::getRegisteredCommands() const {
+    std::shared_lock<std::shared_mutex> l(commandsLock);
     std::vector<std::pair<std::string, Command*>> ret;
     ret.reserve(commands.size());
     for (const auto& c : commands) {
@@ -406,6 +476,7 @@ std::vector<std::pair<std::string, Command*>> CommandManager::getRegisteredComma
     }
     return ret;
 }
+// Caller holds commandsLock (shared).
 Json::Value CommandManager::describeCommand(Command* cmd) {
     Json::Value result = cmd->getDescription();
     auto m = commandMeta.find(cmd->name);
@@ -417,6 +488,7 @@ Json::Value CommandManager::describeCommand(Command* cmd) {
 }
 Json::Value CommandManager::getDescriptions() {
     Json::Value ret;
+    std::shared_lock<std::shared_mutex> l(commandsLock);
     for (auto& a : commands) {
         // Isolate each command's description: a single command that throws while
         // being described (e.g. a stale external plugin whose Command/CommandArg
@@ -506,9 +578,17 @@ static std::unique_ptr<Command::Result> invokeCommand(Command* cmd, const std::v
         return std::make_unique<Command::ErrorResult>("Command \"" + cmd->name + "\" nested too deep");
     }
     struct DepthGuard {
-        DepthGuard() { depth++; }
-        ~DepthGuard() { depth--; }
-    } depthGuard;
+        Command* c;
+        explicit DepthGuard(Command* cmd) :
+            c(cmd) {
+            depth++;
+            tl_runningCommands.push_back(c);
+        }
+        ~DepthGuard() {
+            depth--;
+            tl_runningCommands.pop_back();
+        }
+    } depthGuard(cmd);
 
     // ...and the one place a throwing command can be stopped from taking fppd
     // down. Only the HTTP routes have a catch above them (drogon's); MQTT runs
@@ -573,8 +653,9 @@ static bool JsonFlag(const Json::Value& v) {
 }
 
 std::unique_ptr<Command::Result> CommandManager::run(const std::string& command, const std::vector<std::string>& args) {
-    auto f = commands.find(command);
-    if (f != commands.end()) {
+    // Pinned: removeCommand() waits for it, so it cannot be freed mid-run.
+    std::shared_ptr<Command> pinned = acquireCommand(command);
+    if (pinned) {
         std::vector<std::string> resolvedArgs;
         resolvedArgs.reserve(args.size());
         for (auto const& arg : args) {
@@ -597,7 +678,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
         std::string topic = "command/run";
         Events::Publish(topic, SaveJsonToString(payload));
 
-        return invokeCommand(f->second, resolvedArgs);
+        return invokeCommand(pinned.get(), resolvedArgs);
     }
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
     // A playlist "FPP Command" entry (or preset, GPIO binding, etc.) can
@@ -613,8 +694,9 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
 }
 
 std::unique_ptr<Command::Result> CommandManager::run(const std::string& command, const Json::Value& argsArray) {
-    auto f = commands.find(command);
-    if (f != commands.end()) {
+    // Pinned: removeCommand() waits for it, so it cannot be freed mid-run.
+    std::shared_ptr<Command> pinned = acquireCommand(command);
+    if (pinned) {
         std::vector<std::string> args;
         std::string err;
         if (!JsonArgsToStrings(argsArray, args, err)) {
@@ -639,7 +721,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
         LogExcess(VB_COMMAND, "JSONVAL MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
         Events::Publish(topic, payloadStr);
 
-        return invokeCommand(f->second, args);
+        return invokeCommand(pinned.get(), args);
     }
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
     // A playlist "FPP Command" entry (or preset, GPIO binding, etc.) can
@@ -750,6 +832,7 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
     if (p1 == "commands") {
         if (plen > 1) {
             std::string command = parts[1];
+            std::shared_lock<std::shared_mutex> cl(commandsLock);
             auto f = commands.find(command);
             if (f != commands.end()) {
                 Json::Value result = describeCommand(f->second);
@@ -809,8 +892,9 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
             // on /api/command/... alone while resolving on every other path.
             args.push_back(ReplaceVariableKeywords(parts[x]));
         }
-        auto f = commands.find(command);
-        if (f != commands.end()) {
+        // Pinned: removeCommand() waits for it, so it cannot be freed mid-run.
+        std::shared_ptr<Command> pinned = acquireCommand(command);
+        if (pinned) {
             // This route calls the Command directly rather than through
             // CommandManager::run(), so it must log the args itself - see the
             // MQTT publish just below for why it can't simply delegate.
@@ -831,7 +915,7 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
             LogExcess(VB_COMMAND, "GET MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
             Events::Publish(topic, payloadStr);
 
-            std::unique_ptr<Command::Result> r = invokeCommand(f->second, args);
+            std::unique_ptr<Command::Result> r = invokeCommand(pinned.get(), args);
             int count = 0;
             while (!r->isDone() && count < 1000) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -900,8 +984,9 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
                 // GET route above.
                 a = ReplaceVariableKeywords(a);
             }
-            auto f = commands.find(command);
-            if (f != commands.end()) {
+            // Pinned: removeCommand() waits for it, so it cannot be freed mid-run.
+            std::shared_ptr<Command> pinned = acquireCommand(command);
+            if (pinned) {
                 // Direct Command call, not CommandManager::run() - log the
                 // args here too, same as the GET route above.
                 LogInfo(VB_COMMAND, "POST /api/command/%s from %s: running command \"%s(%s)\"\n",
@@ -921,7 +1006,7 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
                 LogExcess(VB_COMMAND, "POST MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
                 Events::Publish(topic, payloadStr);
 
-                std::unique_ptr<Command::Result> r = invokeCommand(f->second, args);
+                std::unique_ptr<Command::Result> r = invokeCommand(pinned.get(), args);
                 int count = 0;
                 while (!r->isDone() && count < 1000) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(1));
