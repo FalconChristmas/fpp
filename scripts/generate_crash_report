@@ -611,7 +611,13 @@ fi
 
 # Create the zip file
 cd "$TEMP_DIR" || exit 1
-zip -r "$OUTPUT_ZIP" . >/dev/null 2>&1
+if ! zip -r "$OUTPUT_ZIP" . >/dev/null 2>&1 || [ ! -s "$OUTPUT_ZIP" ]; then
+    # It used to say "created" whatever zip did (a box without zip, a full
+    # disk), and fppd and the UI then looked for a report that wasn't there.
+    echo "Could not create the crash report $OUTPUT_ZIP" >&2
+    rm -f "$OUTPUT_ZIP"
+    exit 1
+fi
 
 echo "Crash report created: $OUTPUT_ZIP"
 exit 0
