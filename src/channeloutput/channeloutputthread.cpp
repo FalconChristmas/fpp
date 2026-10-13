@@ -44,17 +44,20 @@ std::atomic<float> RefreshRate{ 20 };
 std::atomic_int SequenceLightDelay{ 50000 };
 std::atomic_int BridgeLightDelay{ 0 };
 std::atomic_int LightDelay{ 50000 };
-volatile int FrameSkip = 0;
-int MasterFramesPlayed = -1;
-volatile int OutputFrames = 1;
+std::atomic_int FrameSkip{ 0 };
+std::atomic_int MasterFramesPlayed{ -1 };
+std::atomic_int OutputFrames{ 1 };
 float mediaOffset = 0.0;
 
 /* local variables */
-volatile int RunThread = 0;
-volatile int ThreadIsRunning = 0;
-volatile int ThreadIsExiting = 0;
-volatile int outputForced = 0;
-volatile int alwaysTransmit = 0;
+// Atomic, not volatile: volatile orders nothing between threads, and the main
+// loop, HTTP threads and MultiSync read and set these while the output thread
+// runs.
+std::atomic_int RunThread{ 0 };
+std::atomic_int ThreadIsRunning{ 0 };
+std::atomic_int ThreadIsExiting{ 0 };
+std::atomic_int outputForced{ 0 };
+std::atomic_int alwaysTransmit{ 0 };
 
 // declared in channeloutputthread.h, which documents what it protects
 std::mutex outputThreadLock;
@@ -246,9 +249,12 @@ void RunChannelOutputThread(void) {
         sendTime = GetTime();
 
         if (sequence->IsSequenceRunning() || (onceMore >= 1)) {
-            if (FrameSkip && sequence->IsSequenceRunning()) {
-                sequence->SeekSequenceFile(channelOutputFrame + FrameSkip + 1);
-                FrameSkip = 0;
+            if (sequence->IsSequenceRunning()) {
+                // Taken in one step: media sync sets it from another thread,
+                // and a skip it set between a read and a reset was lost.
+                if (int skip = FrameSkip.exchange(0)) {
+                    sequence->SeekSequenceFile(channelOutputFrame + skip + 1);
+                }
             }
             sequence->ReadSequenceData();
         }
