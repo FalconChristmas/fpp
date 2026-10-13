@@ -200,8 +200,16 @@ bool ThreadedChannelOutput::StartOutputThread(void) {
 
     // m_runThread can only be 0 here if construction failed, which returns
     // above; the check keeps the wait bounded if that ever stops holding.
-    while (m_runThread && !m_threadIsRunning)
+    // Both are read under m_sendLock, which the worker holds to set them.
+    while (true) {
+        {
+            std::lock_guard<std::mutex> l(m_sendLock);
+            if (!m_runThread || m_threadIsRunning) {
+                break;
+            }
+        }
         usleep(10000);
+    }
 
     return true;
 }
