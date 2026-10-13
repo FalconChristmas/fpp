@@ -596,12 +596,9 @@
                 });
             })
             $('.playlistEditorBackButton').on("click", function () {
-                if (isCurrentPlaylistModified()) {
-                    if (confirm("Leave without saving changes?") == false) {
-                        return;
-                    }
-                }
-
+                ConfirmLeavePlaylist(BackToPlaylistList);
+            })
+            function BackToPlaylistList() {
                 ExitPlaylistSelectMode();
 
                 // Clear playlist DOM tables to prevent data being put in new playlists
@@ -619,7 +616,34 @@
 
                 // Update history state when clicking back button
                 history.pushState({ view: 'list' }, '', window.location.href);
-            })
+            }
+
+            // Leaving the page with unsaved edits.  A link (the FPP menu, the
+            // header) gets the Save / Discard dialog; closing the tab, reloading
+            // or a typed URL can only get the browser's own prompt.
+            $(document).on('click', 'a[href]', function (e) {
+                if (!PlaylistHasUnsavedEdits() || e.isDefaultPrevented() || e.button !== 0 ||
+                    e.ctrlKey || e.metaKey || e.shiftKey || e.altKey ||
+                    (this.target && this.target !== '_self') || this.hasAttribute('download')) {
+                    return;
+                }
+                var url = new URL(this.href, location.href);
+                if ((url.protocol !== 'http:' && url.protocol !== 'https:') ||
+                    (url.origin === location.origin && url.pathname === location.pathname &&
+                        url.search === location.search)) {
+                    return; // javascript:, mailto:, or an in-page "#" link
+                }
+                e.preventDefault();
+                ConfirmLeavePlaylist(function () {
+                    window.location.href = url.href;
+                });
+            });
+            window.addEventListener('beforeunload', function (e) {
+                if (PlaylistHasUnsavedEdits()) {
+                    e.preventDefault();
+                    e.returnValue = '';
+                }
+            });
 
             PopulateLists({
                 onPlaylistArrayLoaded: onPlaylistArrayLoaded
@@ -634,6 +658,15 @@
             // Handle browser back/forward button
             window.addEventListener('popstate', function (e) {
                 if (e.state) {
+                    if (e.state.view === 'list' && PlaylistHasUnsavedEdits()) {
+                        // The browser has already gone back.  Put the editor's
+                        // entry back while the user decides, then go back again.
+                        history.pushState({ view: 'editor', playlist: $('#txtPlaylistName').val() }, '', location.href);
+                        ConfirmLeavePlaylist(function () {
+                            history.back();
+                        });
+                        return;
+                    }
                     if (e.state.view === 'list') {
                         ExitPlaylistSelectMode();
 
@@ -662,6 +695,49 @@
             history.replaceState({ view: 'list' }, '', location.href);
 
         })
+
+        function PlaylistHasUnsavedEdits() {
+            return $('#playlistEditor').hasClass('hasPlaylistDetailsLoaded') && isCurrentPlaylistModified();
+        }
+
+        // Ask before leaving a playlist with unsaved edits.  leave() runs once
+        // they are saved or discarded; Cancel (or closing the dialog) stays put.
+        function ConfirmLeavePlaylist(leave) {
+            if (!PlaylistHasUnsavedEdits()) {
+                leave();
+                return;
+            }
+            DoModalDialog({
+                id: 'UnsavedPlaylistDialog',
+                title: 'Unsaved Changes',
+                body: 'The playlist <b>' + EscapeHtml($('#txtPlaylistName').val()) +
+                    '</b> has changes that have not been saved.',
+                class: 'modal-m',
+                backdrop: true,
+                keyboard: true,
+                buttons: {
+                    "Save": {
+                        click: function () {
+                            CloseModalDialog('UnsavedPlaylistDialog');
+                            // An error dialog and no leave() if the save fails.
+                            SavePlaylist('', leave);
+                        },
+                        class: 'btn-success'
+                    },
+                    "Discard Changes": {
+                        click: function () {
+                            CloseModalDialog('UnsavedPlaylistDialog');
+                            markCurrentPlaylistModified(false);
+                            leave();
+                        },
+                        class: 'btn-danger'
+                    },
+                    "Cancel": function () {
+                        CloseModalDialog('UnsavedPlaylistDialog');
+                    }
+                }
+            });
+        }
 
         function TogglePlaylistSelectMode() {
             if ($('#playlistEditor').hasClass('playlistSelectMode')) {

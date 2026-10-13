@@ -120,6 +120,42 @@ test('Playlists Add New Playlist', async ({ page }) => {
   }
 });
 
+test('Playlists Unsaved Changes Prompt', async ({ page }) => {
+  const name = 'PlaywrightUnsavedPlaylist';
+  await page.request.delete(`/api/playlist/${name}`);
+  await page.request.post(`/api/playlist/${name}`, {
+    data: { name, version: 4, leadIn: [], mainPlaylist: [], leadOut: [], playlistInfo: {} }
+  });
+  const onDisk = async () => (await (await page.request.get(`/api/playlist/${name}`)).json()).mainPlaylist.length;
+  const dialog = page.locator('#UnsavedPlaylistDialog.show');
+
+  try {
+    await gotoPage(page, '/playlists.php');
+    await page.locator('.playlistCard h3', { hasText: new RegExp(`^${name}$`) }).click();
+    await expect(page.locator('#playlistEditor')).toHaveClass(/hasPlaylistDetailsLoaded/);
+
+    await page.locator('.playlistEntriesAddNewBtn').first().click();
+    await page.selectOption('#pe_type', 'pause');
+    await page.locator('.ui-dialog:visible button, .modal.show button', { hasText: /^Add$/ }).first().click();
+    await expect(page.locator('tr.playlistRow')).toHaveCount(1);
+
+    // Leaving through the FPP menu used to drop the edit without a word.
+    await page.evaluate(() => (document.querySelector('a[href="about.php"]') as HTMLElement).click());
+    await expect(dialog).toBeVisible();
+    await dialog.locator('button', { hasText: 'Cancel' }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page).toHaveURL(/playlists\.php/);
+    await expect(page.locator('tr.playlistRow')).toHaveCount(1);
+
+    await page.evaluate(() => (document.querySelector('a[href="about.php"]') as HTMLElement).click());
+    await dialog.locator('button', { hasText: 'Save' }).click();
+    await expect(page).toHaveURL(/about\.php/);
+    expect(await onDisk()).toBe(1);
+  } finally {
+    await page.request.delete(`/api/playlist/${name}`);
+  }
+});
+
 test('Plugins Overview', async ({ page }) => {
   await gotoPage(page, '/plugins.php');
   await page.locator('#bodyWrapper').first().waitFor({ state: 'visible', timeout: 10_000 });

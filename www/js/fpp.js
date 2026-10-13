@@ -3211,6 +3211,8 @@ function RefreshPlaylistRowWarnings (name) {
 function LoadPlaylistDetails (name) {
 	$.get('api/playlist/' + name)
 		.done(function (data) {
+			// The editor now shows what is on disk; any earlier edits are gone.
+			markCurrentPlaylistModified(false);
 			var issues = {};
 			for (var i = 0; i < playListArray.length; i++) {
 				if (playListArray[i].name == name) {
@@ -4210,6 +4212,7 @@ function RandomizePlaylistEntries () {
 	}
 
 	RenumberPlaylistEditorEntries();
+	markCurrentPlaylistModified();
 
 	//    $('.playlistEntriesBody').sortable('refresh').sortable('refreshPositions');
 }
