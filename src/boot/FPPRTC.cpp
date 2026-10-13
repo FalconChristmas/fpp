@@ -198,7 +198,7 @@ int main(int argc, char* argv[]) {
     // (the media dir is hardcoded here as it is throughout this file - FPPINIT.h
     // has the same constant, but including it collides with this file's own static
     // exec()/modprobe() helpers.)
-    teeOutput("/home/fpp/media/logs/fppd.log", "fpprtc", "RTC", getpid());
+    teeOutput(getRawMediaDir() + "/logs/fppd.log", "fpprtc", "RTC", getpid());
 
     std::string rtc = getRTCDev();
     std::string dev;

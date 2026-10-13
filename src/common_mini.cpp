@@ -884,11 +884,20 @@ std::string toLowerCopy(const std::string& str) {
     return cp;
 }
 
+const std::string& getRawMediaDir() {
+    static const std::string dir = [] {
+        const char* e = getenv("FPP_MEDIA_DIR");
+        return std::string(e && *e ? e : "/home/fpp/media");
+    }();
+    return dir;
+}
+
 bool getRawSetting(const std::string& setting, std::string& value) {
-    if (!FileExists("/home/fpp/media/settings")) {
+    const std::string settingsFile = getRawMediaDir() + "/settings";
+    if (!FileExists(settingsFile)) {
         return false;
     }
-    std::string c = GetFileContents("/home/fpp/media/settings");
+    std::string c = GetFileContents(settingsFile);
     size_t idx = c.find(setting + " = ");
     if (idx != std::string::npos) {
         int offset = idx + setting.size() + 3;
@@ -908,10 +917,11 @@ bool getRawSetting(const std::string& setting, std::string& value) {
     return false;
 }
 int getRawSettingInt(const std::string& setting, int def) {
-    if (!FileExists("/home/fpp/media/settings")) {
+    const std::string settingsFile = getRawMediaDir() + "/settings";
+    if (!FileExists(settingsFile)) {
         return def;
     }
-    std::string c = GetFileContents("/home/fpp/media/settings");
+    std::string c = GetFileContents(settingsFile);
     size_t idx = c.find(setting + " = ");
     if (idx != std::string::npos) {
         int offset = idx + setting.size() + 3;
@@ -941,7 +951,8 @@ int getRawSettingInt(const std::string& setting, int def) {
 }
 
 void setRawSetting(const std::string& setting, const std::string& value) {
-    std::string content = GetFileContents("/home/fpp/media/settings");
+    const std::string settingsFile = getRawMediaDir() + "/settings";
+    std::string content = GetFileContents(settingsFile);
     std::vector<std::string> lines = split(content, '\n');
     content = "";
     for (auto& line : lines) {
@@ -954,7 +965,7 @@ void setRawSetting(const std::string& setting, const std::string& value) {
     content += " = \"";
     content += value;
     content += "\"\n";
-    PutFileContents("/home/fpp/media/settings", content);
+    PutFileContents(settingsFile, content);
 }
 
 std::map<std::string, std::string> loadSettingsFile(const std::string& filename) {

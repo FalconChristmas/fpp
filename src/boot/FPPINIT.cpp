@@ -253,7 +253,9 @@ int main(int argc, char* argv[]) {
             // dup2 replaces that fd before we print anything, so this capture
             // still works even though the parent shell redirected us away.
             teeOutput(logFile, "fppinit", "Audio", getpid());
-        } else if (action == "configureBBB" || action == "applyThermal" || action == "resetThermal" || action == "installKiosk" || action == "setupPiRTC" || action == "setupHDMICEC" || action == "setupWifiAntenna") {
+        } else if (action == "configureBBB" || action == "applyThermal" || action == "resetThermal" || action == "installKiosk" || action == "setupPiRTC" || action == "setupHDMICEC" || action == "setupWifiAntenna" ||
+                   action == "setupChannelOutputs" || action == "checkConfigMigrations" || action == "detectCape" ||
+                   action == "setupTimezone" || action == "checkHostName" || action == "handleBootActions") {
             // Same gap as setupNetwork: invoked directly via PHP exec(), output
             // otherwise lives only in that request's $output/HTTP response.
             teeOutput(logFile, "fppinit", "Config", getpid());
@@ -279,7 +281,7 @@ int main(int argc, char* argv[]) {
         if (!FileExists("/etc/fpp/container")) {
 #ifdef CAPEDETECT
             printf("FPP - Cleaning tmp\n");
-            remove_recursive("/home/fpp/media/tmp/", false);
+            remove_recursive((FPP_MEDIA_DIR + "/tmp/").c_str(), false);
 #endif
         }
         createDirectories();
@@ -530,7 +532,7 @@ int main(int argc, char* argv[]) {
                 std::string iface = argv[2];
                 if (FindTetherWIFIAdapater() != iface && !iface.starts_with("usb") && !iface.starts_with("lo") && waitForInterfacesUp(10)) {
                     exec("rm -f /etc/systemd/network/10-" + FindTetherWIFIAdapater() + ".network");
-                    exec("rm -f /home/fpp/media/tmp/wifi-*.ascii");
+                    exec("rm -f " + FPP_MEDIA_DIR + "/tmp/wifi-*.ascii");
                     exec("systemctl stop hostapd.service");
                     exec("systemctl disable hostapd.service");
                     exec("systemctl reload-or-restart systemd-networkd.service");
@@ -539,6 +541,21 @@ int main(int argc, char* argv[]) {
         }
     } else if (action == "detectNetworkModules") {
         detectNetworkModules();
+    } else if (action == "setupChannelOutputs") {
+        // The single steps below normally run inside start/bootPre; as actions
+        // of their own they can be run, and tested, one at a time
+        // (FPP_MEDIA_DIR points them at another media directory).
+        setupChannelOutputs();
+    } else if (action == "checkConfigMigrations") {
+        checkConfigMigrations();
+    } else if (action == "detectCape") {
+        DetectCape();
+    } else if (action == "setupTimezone") {
+        setupTimezone();
+    } else if (action == "checkHostName") {
+        checkHostName();
+    } else if (action == "handleBootActions") {
+        handleBootActions();
     } else if (action == "reboot") {
         handleRebootActions();
     } else if (action == "resizeRootFS") {

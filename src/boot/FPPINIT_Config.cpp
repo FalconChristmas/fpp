@@ -264,10 +264,10 @@ void setupApache() {
     }
     /*     if (!FileExists("/opt/fpp/www/proxy/.htaccess")) {
             printf("Creating proxy .htaccess link\n");
-            if (!FileExists("/home/fpp/media/config/proxies")) {
-                PutFileContents("/home/fpp/media/config/proxies", "");
+            if (!FileExists(FPP_MEDIA_DIR + "/config/proxies")) {
+                PutFileContents(FPP_MEDIA_DIR + "/config/proxies", "");
             }
-            symlink("/home/fpp/media/config/proxies", "/opt/fpp/www/proxy/.htaccess");
+            symlink((FPP_MEDIA_DIR + "/config/proxies").c_str(), "/opt/fpp/www/proxy/.htaccess");
         } */
 }
 
@@ -1380,7 +1380,7 @@ void checkInstallPackages() {
     // install can't complete (e.g. no network yet at boot), leave them in
     // place so it is retried on the next boot rather than silently never
     // reinstalling the user's packages.
-    if (installPackagesFromJson("/home/fpp/media/config/userpackages.json")) {
+    if (installPackagesFromJson(FPP_MEDIA_DIR + "/config/userpackages.json")) {
         unlink("/fppos_upgraded");
         unlink(FPP_RESTORED_MARKER);
     } else {
@@ -1827,19 +1827,29 @@ void setupChannelOutputs() {
     bool hasDPI = false;
     bool hasRPIMatrix = false;
     Json::Value v;
-    if (FileExists("/home/fpp/media/config/channeloutputs.json")) {
-        if (LoadJsonFromString(GetFileContents("/home/fpp/media/config/channeloutputs.json"), v)) {
-            for (int x = 0; x < v["channelOutputs"].size(); x++) {
-                if (v["channelOutputs"][x]["subType"].asString() == "RGBMatrix" && v["channelOutputs"][x]["enabled"].asInt() == 1) {
+    // Both files are read on every boot, and fppinit has no one to restart it:
+    // an entry with a field of the wrong JSON type is skipped, not thrown on.
+    auto isOutput = [](const Json::Value& co) {
+        return co.isObject() && co["type"].isConvertibleTo(Json::stringValue) &&
+               co["subType"].isConvertibleTo(Json::stringValue) && co["enabled"].isConvertibleTo(Json::intValue);
+    };
+    if (FileExists(FPP_MEDIA_DIR + "/config/channeloutputs.json")) {
+        if (LoadJsonFromString(GetFileContents(FPP_MEDIA_DIR + "/config/channeloutputs.json"), v, JsonRoot::Object)) {
+            const Json::Value& cos = v["channelOutputs"];
+            for (Json::ArrayIndex x = 0; cos.isArray() && x < cos.size(); x++) {
+                if (isOutput(cos[x]) && cos[x]["subType"].asString() == "RGBMatrix" && cos[x]["enabled"].asInt() == 1) {
                     hasRPIMatrix = true;
                 }
             }
         }
     }
-    if (FileExists("/home/fpp/media/config/co-pixelStrings.json")) {
-        if (LoadJsonFromString(GetFileContents("/home/fpp/media/config/co-pixelStrings.json"), v)) {
+    if (FileExists(FPP_MEDIA_DIR + "/config/co-pixelStrings.json")) {
+        if (LoadJsonFromString(GetFileContents(FPP_MEDIA_DIR + "/config/co-pixelStrings.json"), v, JsonRoot::Object)) {
             bool migrated = false;
-            for (int x = 0; x < v["channelOutputs"].size(); x++) {
+            for (Json::ArrayIndex x = 0; v["channelOutputs"].isArray() && x < v["channelOutputs"].size(); x++) {
+                if (!isOutput(v["channelOutputs"][x])) {
+                    continue;
+                }
                 if (v["channelOutputs"][x]["type"].asString() == "RPIWS281X") {
                     // The RPIWS281X driver has been removed.  DPI drives the same pins without
                     // conflicting with the onboard audio, so migrate the config to DPIPixels.
@@ -1855,9 +1865,11 @@ void setupChannelOutputs() {
                         // The rPi-28D's third output was ws2801 over SPI which DPI cannot drive.
                         // The 4 output variant drives CN1's clock and data pins as WS281x instead.
                         v["channelOutputs"][x]["subType"] = "rPi-28D-DPIPixels-4";
-                        for (int o = 0; o < v["channelOutputs"][x]["outputs"].size(); o++) {
-                            if (v["channelOutputs"][x]["outputs"][o]["protocol"].asString() == "ws2801") {
-                                v["channelOutputs"][x]["outputs"][o]["protocol"] = "ws2811";
+                        Json::Value& outputs = v["channelOutputs"][x]["outputs"];
+                        for (Json::ArrayIndex o = 0; outputs.isArray() && o < outputs.size(); o++) {
+                            if (outputs[o].isObject() && outputs[o]["protocol"].isString() &&
+                                outputs[o]["protocol"].asString() == "ws2801") {
+                                outputs[o]["protocol"] = "ws2811";
                             }
                         }
                     }
@@ -1868,7 +1880,7 @@ void setupChannelOutputs() {
                 }
             }
             if (migrated) {
-                PutFileContents("/home/fpp/media/config/co-pixelStrings.json", SaveJsonToString(v));
+                PutFileContents(FPP_MEDIA_DIR + "/config/co-pixelStrings.json", SaveJsonToString(v));
             }
         }
     }
@@ -1995,9 +2007,9 @@ static bool setNamedGPIO(const std::string& pin, int val) {
 }
 
 void handleRebootActions() {
-    if (FileExists("/home/fpp/media/tmp/cape-info.json")) {
+    if (FileExists(FPP_MEDIA_DIR + "/tmp/cape-info.json")) {
         Json::Value v;
-        if (LoadJsonFromString(GetFileContents("/home/fpp/media/tmp/cape-info.json"), v)) {
+        if (LoadJsonFromString(GetFileContents(FPP_MEDIA_DIR + "/tmp/cape-info.json"), v)) {
             if (v.isMember("rebootActions")) {
                 for (const auto& action : v["rebootActions"]) {
                     if (action["type"].asString() == "gpio") {

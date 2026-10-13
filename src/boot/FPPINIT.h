@@ -30,7 +30,8 @@ inline const std::string I2C_DEV = "/dev/i2c-1";
 inline const std::string I2C_DEV = "/dev/i2c-2";
 #endif
 
-inline const std::string FPP_MEDIA_DIR = "/home/fpp/media";
+// $FPP_MEDIA_DIR, defaulting to /home/fpp/media (see getRawMediaDir()).
+inline const std::string FPP_MEDIA_DIR = getRawMediaDir();
 
 // ---------------------------------------------------------------------------
 // Shared utilities (defined in FPPINIT.cpp)

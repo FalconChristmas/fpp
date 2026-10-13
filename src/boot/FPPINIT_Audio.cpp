@@ -261,6 +261,43 @@ static void loadPendingSoundDrivers() {
     closedir(dp);
 }
 
+// Load a PipeWire audio-groups config (pipewire-audio-groups[-simple].json).
+// The UI writes these, but fppinit reads them at boot with no one to restart
+// it, so every field the readers below touch is checked for the type they read
+// it as: a file that fails is reported unusable, which each caller already
+// treats as a missing or stale config (regenerate it, or skip it), instead of
+// throwing out of fppinit on a wrong-typed value.
+static bool loadAudioGroupsConfig(const std::string& path, Json::Value& root) {
+    root = Json::Value();
+    if (!FileExists(path) || !LoadJsonFromString(GetFileContents(path), root, JsonRoot::Object)) {
+        return false;
+    }
+    auto fits = [](const Json::Value& o, const char* key, Json::ValueType t) {
+        return !o.isMember(key) || o[key].isConvertibleTo(t);
+    };
+    const Json::Value& groups = root["groups"];
+    if (!groups.isNull() && !groups.isArray()) {
+        return false;
+    }
+    for (const auto& grp : groups) {
+        if (!grp.isObject() || !fits(grp, "enabled", Json::booleanValue) || !fits(grp, "id", Json::intValue) ||
+            !fits(grp, "volume", Json::intValue) || !fits(grp, "name", Json::stringValue)) {
+            return false;
+        }
+        const Json::Value& members = grp["members"];
+        if (!members.isNull() && !members.isArray()) {
+            return false;
+        }
+        for (const auto& mbr : members) {
+            if (!mbr.isObject() || !fits(mbr, "cardId", Json::stringValue) ||
+                !fits(mbr, "nodeTarget", Json::stringValue) || !fits(mbr, "volume", Json::intValue)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 // Returns true if every ALSA card referenced by the PipeWire audio-groups JSON
 // is currently present (by stable card ID, as listed in /proc/asound/cards).
 // Used to decide whether the cached PipeWire group config is still valid for the
@@ -270,11 +307,8 @@ static void loadPendingSoundDrivers() {
 // (not card number), so a card that's still present but renumbered keeps a valid
 // config -- which is why presence-by-ID is a sufficient check.
 static bool pipewireConfigCardsPresent(const std::string& jsonPath) {
-    if (!FileExists(jsonPath)) {
-        return false;
-    }
     Json::Value root;
-    if (!LoadJsonFromString(GetFileContents(jsonPath), root)) {
+    if (!loadAudioGroupsConfig(jsonPath, root)) {
         return false;
     }
     std::vector<std::string> present;
@@ -329,7 +363,7 @@ static std::string normalizeCardIdForNode(const std::string& cardId) {
 static std::string pipewireConfigSuppressedTarget(const std::string& jsonPath,
                                                   const std::set<std::string>& ownedCids) {
     Json::Value root;
-    if (!FileExists(jsonPath) || !LoadJsonFromString(GetFileContents(jsonPath), root)) {
+    if (!loadAudioGroupsConfig(jsonPath, root)) {
         return "";
     }
     for (const auto& grp : root["groups"]) {
@@ -370,9 +404,8 @@ static int quirkMinChannelsForCard(const std::string& aplayLine) {
 // or "" if the file is absent/empty/unparseable or has no member. Simple mode
 // always has exactly one group with one member (the selected output card).
 static std::string simpleConfigCardId(const std::string& jsonPath) {
-    if (!FileExists(jsonPath)) return "";
     Json::Value root;
-    if (!LoadJsonFromString(GetFileContents(jsonPath), root)) return "";
+    if (!loadAudioGroupsConfig(jsonPath, root)) return "";
     const Json::Value& groups = root["groups"];
     if (!groups.isArray() || groups.empty()) return "";
     const Json::Value& members = groups[0]["members"];
@@ -633,11 +666,8 @@ static constexpr int kHeadroomNonUsb = 256;
 // the point the decision has to be made.
 static std::map<std::string, int> pipewireGroupSizeByCard(const std::string& jsonPath) {
     std::map<std::string, int> sizes;
-    if (!FileExists(jsonPath)) {
-        return sizes;
-    }
     Json::Value root;
-    if (!LoadJsonFromString(GetFileContents(jsonPath), root) || !root.isMember("groups")) {
+    if (!loadAudioGroupsConfig(jsonPath, root) || !root.isMember("groups")) {
         return sizes;
     }
     for (const auto& grp : root["groups"]) {
@@ -1008,6 +1038,15 @@ static void restorePipeWireInputGroupVolumes() {
         return;
     }
     for (const auto& ig : root["inputGroups"]) {
+        // Read at boot: an entry with a field of the wrong JSON type is skipped,
+        // not thrown on (see loadAudioGroupsConfig()).
+        auto fits = [&ig](const char* key, Json::ValueType t) {
+            return !ig.isMember(key) || ig[key].isConvertibleTo(t);
+        };
+        if (!ig.isObject() || !fits("enabled", Json::booleanValue) || !fits("name", Json::stringValue) ||
+            !fits("volume", Json::intValue) || !fits("mute", Json::booleanValue)) {
+            continue;
+        }
         if (!ig.get("enabled", false).asBool()) {
             continue;
         }
@@ -1052,8 +1091,7 @@ static void restorePipeWireVolumes() {
                                             ? "pipewire-audio-groups-simple.json"
                                             : "pipewire-audio-groups.json");
     Json::Value root;
-    const bool haveGroups = FileExists(groupsJsonPath)
-                            && LoadJsonFromString(GetFileContents(groupsJsonPath), root)
+    const bool haveGroups = loadAudioGroupsConfig(groupsJsonPath, root)
                             && root.isMember("groups");
 
     // The filter-chain/combine-stream nodes appear a moment after the daemon
@@ -1564,10 +1602,10 @@ static void runAudioSetup(bool recoveryPass) {
         }
         asoundrc = GetFileContents("/opt/fpp/etc/asoundrc.pipewire");
     } else {
-        if (FileExists("/home/fpp/media/tmp/asoundrc")) {
+        if (FileExists(FPP_MEDIA_DIR + "/tmp/asoundrc")) {
             if (contains(cardType, "pcm510")) {
                 printf("FPP - Using Cape Provided asoundrc\n");
-                asoundrc = GetFileContents("/home/fpp/media/tmp/asoundrc");
+                asoundrc = GetFileContents(FPP_MEDIA_DIR + "/tmp/asoundrc");
             } else {
                 asoundrc = GetFileContents("/opt/fpp/etc/asoundrc.dmix");
             }

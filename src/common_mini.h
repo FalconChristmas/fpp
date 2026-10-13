@@ -134,6 +134,10 @@ std::string toLowerCopy(const std::string& str);
 // Tools for getting settings directly from the settings file
 // Most programs should use the utilities in settings.h, but
 // for boot utilities, these are quicker and have less dependencies
+// The media directory the raw settings helpers below (and fppinit) work in:
+// $FPP_MEDIA_DIR when set and non-empty, else /home/fpp/media.  Lets a test
+// point fppinit at a media directory of its own.
+const std::string& getRawMediaDir();
 bool getRawSetting(const std::string& str, std::string& value);
 int getRawSettingInt(const std::string& str, int def);
 void setRawSetting(const std::string& str, const std::string& value);
