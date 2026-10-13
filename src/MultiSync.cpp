@@ -3018,6 +3018,15 @@ void MultiSync::ReloadSyncDestinations() {
     }
 }
 
+// Undelivered sync packets since the last log line about them, and when that
+// was (GetMonotonicTimeMS()).  Guarded by m_socketLock; file-static rather
+// than members because MultiSync's layout is plugin ABI.  A remote that is
+// gone stays gone: logging every failed packet wrote a line per sync packet
+// (several a second) to the SD card for the whole show.
+static int undeliveredSinceLog = 0;
+static long long undeliveredLoggedAt = 0;
+static constexpr long long UNDELIVERED_LOG_INTERVAL_MS = 60000;
+
 void MultiSync::SendControlPacketViaMsgs(std::vector<struct mmsghdr>& msgs, struct iovec& iovec, void* outBuf, int len) {
     // The msgs vector (and the sockaddrs its entries point at) may be rebuilt
     // concurrently by UpdateUnicastDestinations(), so read its size, point the
@@ -3045,7 +3054,9 @@ void MultiSync::SendControlPacketViaMsgs(std::vector<struct mmsghdr>& msgs, stru
     constexpr long long SEND_BUDGET_MS = 2;
     int outputCount = 0;
     int undelivered = 0;
-    long long startTime = GetTimeMS();
+    // monotonic: on the wall clock a step back during the budget kept this
+    // loop retrying, on the channel output thread, for the size of the step
+    long long startTime = GetMonotonicTimeMS();
     while (outputCount < msgCount) {
         int sent = sendmmsg(m_controlSock, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
         if (sent > 0) {
@@ -3053,7 +3064,7 @@ void MultiSync::SendControlPacketViaMsgs(std::vector<struct mmsghdr>& msgs, stru
             continue;
         }
         bool transient = (sent == 0) || errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS;
-        if (transient && (GetTimeMS() - startTime) < SEND_BUDGET_MS) {
+        if (transient && (GetMonotonicTimeMS() - startTime) < SEND_BUDGET_MS) {
             // Genuine buffer pressure clears in well under the budget.
             std::this_thread::sleep_for(std::chrono::microseconds(250));
             continue;
@@ -3066,8 +3077,16 @@ void MultiSync::SendControlPacketViaMsgs(std::vector<struct mmsghdr>& msgs, stru
         ++undelivered;
     }
     if (undelivered) {
-        LogErr(VB_SYNC, "Error: Unable to send multisync packet: %s   (%d/%d sent, %d undelivered)\n",
-               FPPstrerror(errno), msgCount - undelivered, msgCount, undelivered);
+        int err = errno;
+        undeliveredSinceLog += undelivered;
+        long long now = GetMonotonicTimeMS();
+        if (!undeliveredLoggedAt || now - undeliveredLoggedAt >= UNDELIVERED_LOG_INTERVAL_MS) {
+            LogErr(VB_SYNC, "Error: Unable to send multisync packet: %s   (%d/%d sent; %d undelivered %s)\n",
+                   FPPstrerror(err), msgCount - undelivered, msgCount, undeliveredSinceLog,
+                   undeliveredLoggedAt ? "in the last minute" : "");
+            undeliveredSinceLog = 0;
+            undeliveredLoggedAt = now ? now : 1;
+        }
     }
 }
 
