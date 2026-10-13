@@ -12,8 +12,17 @@
 
 CRASH_LOG_LEVEL=$1
 OUTPUT_ZIP=$2
+
+# Where FPP and its media live, found the way scripts/common finds them, so a
+# tree outside /opt/fpp (macOS, a development checkout) reports its own files.
+FPPDIR=$(cd "$(dirname "$0")/.." && pwd)
+if [ -f "$FPPDIR/www/media_root.txt" ]; then
+    MEDIADIR=$(cat "$FPPDIR/www/media_root.txt")
+fi
+MEDIADIR=${MEDIADIR:-/home/fpp/media}
+
 CRASH_TMP=/tmp
-TEMP_BASE=/home/fpp/media/tmp
+TEMP_BASE=$MEDIADIR/tmp
 FPPD_LOG_TAIL=
 MANUAL_REPORT=0
 if [ "$3" = "manual" ]; then
@@ -27,11 +36,11 @@ if [ "$3" = "manual" ]; then
 fi
 
 # Change to FPP media directory
-cd /home/fpp/media || cd /opt/fpp || exit 1
+cd "$MEDIADIR" || cd "$FPPDIR" || exit 1
 
 # Make output path absolute if it's relative
 if [[ "$OUTPUT_ZIP" != /* ]]; then
-    OUTPUT_ZIP="/home/fpp/media/$OUTPUT_ZIP"
+    OUTPUT_ZIP="$MEDIADIR/$OUTPUT_ZIP"
 fi
 
 # Ensure output directory exists
@@ -109,7 +118,7 @@ CRASH_SECRET_KEYS_FALLBACK="MQTTPassword|TetherPSK|emailpass|gitHubPAT|osPasswor
 CRASH_REPORT_PURPOSE="crash-report"
 
 build_secret_key_list() {
-    local settings_json="/opt/fpp/www/settings.json"
+    local settings_json="$FPPDIR/www/settings.json"
     local keys=""
     if [ -r "$settings_json" ] && command -v python3 >/dev/null 2>&1; then
         keys=$(python3 -c '
@@ -210,7 +219,7 @@ redact_stream() {
 # "gatherStats": true. The statistics client reads the same file. Empty here
 # means filter_interface_config redacts the whole file.
 CRASH_INTERFACE_FIELDS=""
-if [ -r /opt/fpp/www/interface-settings.json ] && command -v python3 >/dev/null 2>&1; then
+if [ -r "$FPPDIR"/www/interface-settings.json ] && command -v python3 >/dev/null 2>&1; then
     CRASH_INTERFACE_FIELDS=$(python3 -c '
 import json, sys
 try:
@@ -221,7 +230,7 @@ except Exception:
 names = [k for k, v in fields.items()
          if isinstance(v, dict) and v.get("gatherStats") and k.isidentifier()]
 print("|".join(sorted(names)))
-' /opt/fpp/www/interface-settings.json 2>/dev/null)
+' "$FPPDIR"/www/interface-settings.json 2>/dev/null)
 fi
 
 # Emit only the allowlisted keys of an interface config. Anything not on the
@@ -294,7 +303,7 @@ crash_report_json_escape() {
 {
     printf '{\n  "plugins": [\n'
     sep=""
-    for plugin_dir in /home/fpp/media/plugins/*/; do
+    for plugin_dir in "$MEDIADIR"/plugins/*/; do
         [ -d "$plugin_dir" ] || continue
         plugin_name=$(basename "$plugin_dir")
         printf '%s' "$sep"
@@ -338,8 +347,8 @@ crash_report_json_escape() {
 # symbolize_crash_frames.py for why this cannot correctly be done elsewhere.
 # No-op when gdb succeeded (that stack already has line numbers) or when the
 # helper/addr2line is missing. Never allowed to fail the report.
-if [ -f "$CRASH_TMP"/fppd_crash.log ] && [ -x /opt/fpp/scripts/symbolize_crash_frames.py ]; then
-    timeout 60 /opt/fpp/scripts/symbolize_crash_frames.py \
+if [ -f "$CRASH_TMP"/fppd_crash.log ] && [ -x "$FPPDIR"/scripts/symbolize_crash_frames.py ]; then
+    timeout 60 "$FPPDIR"/scripts/symbolize_crash_frames.py \
         "$CRASH_TMP"/fppd_crash.log "$TEMP_DIR/fppd_crash_addr2line.log" >/dev/null 2>&1 || true
     [ -s "$TEMP_DIR/fppd_crash_addr2line.log" ] || rm -f "$TEMP_DIR/fppd_crash_addr2line.log"
 fi
@@ -368,7 +377,7 @@ cp "$CRASH_TMP"/fppd_crash_context.log "$TEMP_DIR/" 2>/dev/null || true
 #
 # Driven by the piiPurpose declaration rather than by naming the key here, so a
 # second contact field later needs no change to this script.
-if command -v python3 >/dev/null 2>&1 && [ -r /opt/fpp/www/settings.json ]; then
+if command -v python3 >/dev/null 2>&1 && [ -r "$FPPDIR"/www/settings.json ]; then
     python3 -c '
 import json, re, sys
 
@@ -398,7 +407,7 @@ if found:
     found["_purpose"] = purpose
     with open(out, "w") as f:
         json.dump(found, f, indent=2)
-' /opt/fpp/www/settings.json settings "$CRASH_REPORT_PURPOSE" "$TEMP_DIR/contact.json" 2>/dev/null || true
+' "$FPPDIR"/www/settings.json settings "$CRASH_REPORT_PURPOSE" "$TEMP_DIR/contact.json" 2>/dev/null || true
 fi
 
 # Level 2+: Include settings, and the two files that describe the host.
@@ -548,12 +557,12 @@ with open(sys.argv[2], "w") as f:
             echo "Including troubleshooting output and health check..."
             # Empty where there is no timeout (macOS without coreutils): run unlimited
             TIMEOUT=$(command -v timeout)
-            ${TIMEOUT:+$TIMEOUT -k 5 120} php /opt/fpp/www/troubleshootingText.php --manual-crash-report 2>&1 \
+            ${TIMEOUT:+$TIMEOUT -k 5 120} php "$FPPDIR"/www/troubleshootingText.php --manual-crash-report 2>&1 \
                 | redact_stream > "$TEMP_DIR/logs/troubleshootingCommands.log"
             case "${PIPESTATUS[0]}" in 124|137)
                 echo "** truncated: timed out after 120s **" >> "$TEMP_DIR/logs/troubleshootingCommands.log" ;;
             esac
-            ${TIMEOUT:+$TIMEOUT -k 5 30} /opt/fpp/scripts/healthCheck 2>&1 \
+            ${TIMEOUT:+$TIMEOUT -k 5 30} "$FPPDIR"/scripts/healthCheck 2>&1 \
                 | redact_stream > "$TEMP_DIR/logs/healthCheck.log"
             case "${PIPESTATUS[0]}" in 124|137)
                 echo "** truncated: timed out after 30s **" >> "$TEMP_DIR/logs/healthCheck.log" ;;
@@ -570,7 +579,7 @@ with open(sys.argv[2], "w") as f:
                 fi
             done
             [ -f cache/plugin_updates.json ] && redact_copy cache/plugin_updates.json "$TEMP_DIR/logs/plugin_updates.json"
-            { git -C /opt/fpp status -sb; git -C /opt/fpp diff --stat; } 2>&1 | redact_stream > "$TEMP_DIR/logs/git_status.txt"
+            { git -C "$FPPDIR" status -sb; git -C "$FPPDIR" diff --stat; } 2>&1 | redact_stream > "$TEMP_DIR/logs/git_status.txt"
         fi
         
         # Playlists (scrub any embedded credentials in URLs)
