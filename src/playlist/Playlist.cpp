@@ -986,6 +986,9 @@ void Playlist::SwitchToLeadOut(void) {
     m_currentSectionStr = "LeadOut";
     m_currentSection = &m_leadOut;
     m_sectionPosition = 0;
+    // A hold is for the next main pass only; one still set here would
+    // restart this lead-out entry when it ran out.
+    m_loopHoldUntilMS = 0;
     StartPlayingWithGlobalPause(m_leadOut[0]);
 }
 
@@ -1621,21 +1624,6 @@ int Playlist::Process(void) {
             } else if (m_currentSectionStr == "MainPlaylist") {
                 m_loop++;
                 LogDebug(VB_PLAYLIST, "mainPlaylist loop now: %d\n", m_loop);
-                // A pass this short has nothing in it that takes time; repeated
-                // as-is it would spin the main loop. Hold the next pass until a
-                // second after this one began. Any pass with a real entry in it
-                // (a sequence, a pause, media) is far longer and unaffected.
-                static constexpr long long MIN_INSTANT_PASS_MS = 50;
-                static constexpr long long INSTANT_PASS_PERIOD_MS = 1000;
-                long long passMS = GetMonotonicTimeMS() - m_loopStartMS;
-                if (m_loopStartMS && passMS < MIN_INSTANT_PASS_MS) {
-                    m_loopHoldUntilMS = m_loopStartMS + INSTANT_PASS_PERIOD_MS;
-                    if (!m_warnedInstantLoop) {
-                        m_warnedInstantLoop = true;
-                        LogWarn(VB_PLAYLIST, "Playlist '%s' repeats with nothing in it that takes time; limiting it to one pass a second\n",
-                                m_name.c_str());
-                    }
-                }
                 if ((m_repeat) && (!m_loopCount || (m_loop < m_loopCount))) {
                     if ((m_loadStartPos > 0) && (m_loadEndPos < 0)) {
                         // This pass started part-way in (Start Playlist At
@@ -1668,6 +1656,26 @@ int Playlist::Process(void) {
                         LogDebug(VB_PLAYLIST, "mainPlaylist repeating for another loop, loopCount == 0\n");
                     else
                         LogDebug(VB_PLAYLIST, "mainPlaylist repeating for another loop, %d <= %d\n", m_loop, m_loopCount);
+
+                    // A pass this short has nothing in it that takes time;
+                    // repeated as-is it would spin the main loop. Hold the next
+                    // pass until a second after this one began. Any pass with a
+                    // real entry in it (a sequence, a pause, media) is far
+                    // longer and unaffected.  Only here, where another pass
+                    // starts: Process() restarts whatever entry is current when
+                    // the hold runs out, so a hold left set on the way to the
+                    // lead-out played its first entry twice.
+                    static constexpr long long MIN_INSTANT_PASS_MS = 50;
+                    static constexpr long long INSTANT_PASS_PERIOD_MS = 1000;
+                    long long passMS = GetMonotonicTimeMS() - m_loopStartMS;
+                    if (m_loopStartMS && passMS < MIN_INSTANT_PASS_MS) {
+                        m_loopHoldUntilMS = m_loopStartMS + INSTANT_PASS_PERIOD_MS;
+                        if (!m_warnedInstantLoop) {
+                            m_warnedInstantLoop = true;
+                            LogWarn(VB_PLAYLIST, "Playlist '%s' repeats with nothing in it that takes time; limiting it to one pass a second\n",
+                                    m_name.c_str());
+                        }
+                    }
 
                     if (m_random == 2) {
                         RandomizeMainPlaylist();
