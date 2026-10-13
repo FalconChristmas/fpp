@@ -1186,6 +1186,12 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop) {
         lck.unlock();
         return cur->StopGracefully(forceStop, afterCurrentLoop);
     }
+    // Nothing to stop.  Going on would set a stopping status on an idle
+    // playlist, which nothing then clears: fppd reported "stopping
+    // gracefully" with nothing playing.
+    if (m_status == FPP_STATUS_IDLE) {
+        return 1;
+    }
     return StopGracefullyImpl(forceStop, afterCurrentLoop);
 }
 
