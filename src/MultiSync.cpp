@@ -310,23 +310,39 @@ Json::Value MultiSyncCapeInfo::toJSON() const {
     return v;
 }
 
+// A field of what a remote sent us (system info, cape info), read so that a
+// value of the wrong type gives the default instead of throwing: the reply is
+// parsed in a curl callback on the main loop, and {"Platform":{}} ended fppd.
+static std::string ReplyString(const Json::Value& v, const char* key, const std::string& dflt = "") {
+    const Json::Value f = v.get(key, Json::Value());
+    return (f.isString() || f.isNumeric() || f.isBool()) ? f.asString() : dflt;
+}
+static bool ReplyBool(const Json::Value& v, const char* key, bool dflt) {
+    const Json::Value f = v.get(key, Json::Value());
+    return (f.isBool() || f.isNumeric()) ? f.asBool() : dflt;
+}
+static int ReplyInt(const Json::Value& v, const char* key, int dflt) {
+    const Json::Value f = v.get(key, Json::Value());
+    return f.isConvertibleTo(Json::intValue) && !f.isNull() ? f.asInt() : dflt;
+}
+
 MultiSyncCapeInfo MultiSyncCapeInfo::fromCapeJSON(const Json::Value& v) {
     MultiSyncCapeInfo cape;
     cape.valid = true;
     cape.present = true;
-    cape.id = v.get("id", "").asString();
-    cape.name = v.get("name", "").asString();
-    cape.description = v.get("description", "").asString();
-    cape.version = v.get("version", "").asString();
-    cape.designer = v.get("designer", "").asString();
+    cape.id = ReplyString(v, "id");
+    cape.name = ReplyString(v, "name");
+    cape.description = ReplyString(v, "description");
+    cape.version = ReplyString(v, "version");
+    cape.designer = ReplyString(v, "designer");
     // Absent (including on every unsigned cape) means no opt-out.
-    cape.sendStats = v.get("sendStats", 1).asInt() != 0;
+    cape.sendStats = ReplyInt(v, "sendStats", 1) != 0;
     if (JsonHas(v, "vendor") && v["vendor"].isObject()) {
         const Json::Value& vendor = v["vendor"];
-        cape.vendorName = vendor.get("name", "").asString();
-        cape.vendorURL = vendor.get("url", "").asString();
-        cape.vendorEmail = vendor.get("email", "").asString();
-        cape.vendorImage = vendor.get("image", "").asString();
+        cape.vendorName = ReplyString(vendor, "name");
+        cape.vendorURL = ReplyString(vendor, "url");
+        cape.vendorEmail = ReplyString(vendor, "email");
+        cape.vendorImage = ReplyString(vendor, "image");
     }
     return cape;
 }
@@ -2114,23 +2130,23 @@ void MultiSync::FetchSystemInfo(const std::string& address) {
 
         MultiSyncSystemInfo info;
         info.valid = true;
-        info.platform = v.get("Platform", "").asString();
-        info.variant = v.get("Variant", "").asString();
-        info.subPlatform = v.get("SubPlatform", "").asString();
-        info.osVersion = v.get("OSVersion", "").asString();
-        info.osRelease = v.get("OSRelease", "").asString();
-        info.kernel = v.get("Kernel", "").asString();
-        info.hostDescription = v.get("HostDescription", "").asString();
-        info.backgroundColor = v.get("backgroundColor", "").asString();
-        info.branch = v.get("Branch", "").asString();
-        info.localGitVersion = v.get("LocalGitVersion", "").asString();
-        info.remoteGitVersion = v.get("RemoteGitVersion", "").asString();
-        info.upgradeSource = v.get("UpgradeSource", "").asString();
+        info.platform = ReplyString(v, "Platform");
+        info.variant = ReplyString(v, "Variant");
+        info.subPlatform = ReplyString(v, "SubPlatform");
+        info.osVersion = ReplyString(v, "OSVersion");
+        info.osRelease = ReplyString(v, "OSRelease");
+        info.kernel = ReplyString(v, "Kernel");
+        info.hostDescription = ReplyString(v, "HostDescription");
+        info.backgroundColor = ReplyString(v, "backgroundColor");
+        info.branch = ReplyString(v, "Branch");
+        info.localGitVersion = ReplyString(v, "LocalGitVersion");
+        info.remoteGitVersion = ReplyString(v, "RemoteGitVersion");
+        info.upgradeSource = ReplyString(v, "UpgradeSource");
         if (JsonHas(v, "channelInputsEnabled")) {
-            info.channelInputsEnabled = v["channelInputsEnabled"].asBool() ? 1 : 0;
+            info.channelInputsEnabled = ReplyBool(v, "channelInputsEnabled", false) ? 1 : 0;
         }
         if (JsonHas(v, "channelOutputsEnabled")) {
-            info.channelOutputsEnabled = v["channelOutputsEnabled"].asBool() ? 1 : 0;
+            info.channelOutputsEnabled = ReplyBool(v, "channelOutputsEnabled", false) ? 1 : 0;
         }
         if (JsonHas(v, "IPs") && v["IPs"].isArray()) {
             for (const auto& ip : v["IPs"]) {

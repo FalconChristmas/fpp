@@ -444,7 +444,24 @@ bool CurlManager::doProcessCurls() {
                 }
                 if (ci) {
                     l.unlock();
-                    ci->callback(e);
+                    // The callbacks parse what a remote or a probed device sent
+                    // back, on the main loop with nothing above to catch: one
+                    // jsoncpp throw on a field of the wrong type ({"Platform":{}}
+                    // from a MultiSync remote, {"majorVersion":"9"} from a
+                    // discovery probe) ended fppd.  Contain it here, for every
+                    // callback, and carry on with the cleanup.
+                    try {
+                        ci->callback(e);
+                    } catch (const std::exception& ex) {
+                        char* url = nullptr;
+                        curl_easy_getinfo(e, CURLINFO_EFFECTIVE_URL, &url);
+                        LogWarn(VB_GENERAL, "Ignoring the reply from %s: handling it failed: %s\n",
+                                url ? url : "(unknown)", ex.what());
+                    } catch (...) {
+                        char* url = nullptr;
+                        curl_easy_getinfo(e, CURLINFO_EFFECTIVE_URL, &url);
+                        LogWarn(VB_GENERAL, "Ignoring the reply from %s: handling it failed\n", url ? url : "(unknown)");
+                    }
                     l.lock();
                     if (ci->cleanCurl) {
                         CurlPrivateData* data = nullptr;
