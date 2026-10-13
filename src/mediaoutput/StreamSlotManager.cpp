@@ -223,8 +223,16 @@ Json::Value StreamSlotManager::GetAllSlotsStatus() {
         slotJson["nodeName"] = GetNodeName(i + 1);
         slotJson["nodeDescription"] = GetNodeDescription(i + 1);
 
-        MediaOutputStatus* st = (i == 0) ? &mediaOutputStatus : &m_slots[i].status;
-        if (m_slots[i].activeOutput) {
+        // The output's own status, which is not always the slot's: Play Media
+        // on slot 1 keeps a private one so it doesn't overwrite the playlist's
+        // (the global mediaOutputStatus), and reading the global reported 0
+        // for its whole track. Close() takes an output out of the table
+        // before freeing it, so under m_mutex the pointer is live.
+        GStreamerOutput* out = m_slots[i].activeOutput;
+        MediaOutputStatus* st = (out && out->m_mediaOutputStatus) ? out->m_mediaOutputStatus
+                                : (i == 0)                         ? &mediaOutputStatus
+                                                                   : &m_slots[i].status;
+        if (out) {
             slotJson["status"] = "playing";
             slotJson["mediaFilename"] = m_slots[i].mediaFilename;
             slotJson["secondsElapsed"] = st->secondsElapsed;
