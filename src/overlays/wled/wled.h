@@ -47,6 +47,8 @@
 constexpr int NUM_SAMPLES = 1024;
 
 long long GetTimeMS(void);
+long long GetMonotonicTimeMS(void);
+long long GetMonotonicTimeMicros(void);
 long long GetTimeMicros(void);
 
 // Audio sample buffer + computed FFT frame, in the form used by both
@@ -72,15 +74,18 @@ bool fetchAudioSamples(std::array<float, NUM_SAMPLES>& samples, int& sampleRate)
 void computeAudioFrame(const std::array<float, NUM_SAMPLES>& samples,
                        int sampleRate,
                        AudioFrame& out);
+// Effects time themselves with these (as WLED does), so they are on the
+// monotonic clock: on the wall clock a step back froze every running WLED
+// effect for the size of the step.
 inline uint32_t millis() {
-    return GetTimeMS();
+    return GetMonotonicTimeMS();
 }
 inline uint32_t GET_MILLIS() {
-    return GetTimeMS();
+    return GetMonotonicTimeMS();
 }
 
 inline uint64_t micros() {
-    return GetTimeMicros();
+    return GetMonotonicTimeMicros();
 }
 
 #define PSTR(a) a

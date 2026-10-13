@@ -2287,13 +2287,17 @@ Json::Value PixelOverlayManager::getActiveOverlayEffects() {
     return ret;
 }
 
+// `updates` is keyed by GetMonotonicTimeMS().  It was the wall clock: a step
+// back (NTP, an RTC that boots in the past) froze every running overlay
+// effect for the size of the step, and a step forward ran an hour of 25ms
+// requeues back to back.
 void PixelOverlayManager::doOverlayModelEffects() {
     SetThreadName("FPP-OverlayME");
     std::unique_lock<std::mutex> l(threadLock);
     while (threadKeepRunning) {
         uint32_t waitTime = 1000;
         if (!updates.empty()) {
-            uint64_t curTime = GetTimeMS();
+            uint64_t curTime = GetMonotonicTimeMS();
             while (!updates.empty() && updates.begin()->first <= curTime) {
                 // Drain the due batch one model at a time while holding
                 // threadLock rather than snapshotting the whole list and
@@ -2324,7 +2328,7 @@ void PixelOverlayManager::doOverlayModelEffects() {
                     updates.begin()->second.empty()) {
                     updates.erase(updates.begin());
                 }
-                curTime = GetTimeMS();
+                curTime = GetMonotonicTimeMS();
             }
             if (!updates.empty()) {
                 waitTime = updates.begin()->first - curTime;
@@ -2440,7 +2444,7 @@ void PixelOverlayManager::addPeriodicUpdate(int32_t initialDelayMS, PixelOverlay
         updateThread = new std::thread(&PixelOverlayManager::doOverlayModelEffects, this);
     }
     if (initialDelayMS > 0) {
-        uint64_t nextTime = GetTimeMS();
+        uint64_t nextTime = GetMonotonicTimeMS();
         nextTime += initialDelayMS;
         updates[nextTime].push_back(m);
     } else {

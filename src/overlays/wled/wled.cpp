@@ -129,7 +129,7 @@ uint16_t XY(uint8_t x, uint8_t y) {
     return x;
 }
 uint32_t get_millisecond_timer() {
-    return GetTimeMS();
+    return GetMonotonicTimeMS();
 }
 
 // RMS average
@@ -453,7 +453,7 @@ void computeAudioFrame(const std::array<float, NUM_SAMPLES>& samples,
     // held for 50ms with a 100ms refractory window so receivers don't
     // miss it even with slower poll cadences.
     static uint64_t lastPeakMs = 0;
-    uint64_t nowMsLocal = GetTimeMS();
+    uint64_t nowMsLocal = GetMonotonicTimeMS();
     uint8_t peakOut = 0;
     if (instantVolume > 12.0f &&
         instantVolume > smoothedVolume + 25.0f &&
@@ -839,7 +839,7 @@ um_data_t* WS2812FXExt::getAudioSamples(int simulationId) {
         processSamples(samples, sampleRate);
     } else {
         // arrays
-        auto ms = GetTimeMS();
+        auto ms = GetMonotonicTimeMS();
 
         switch (simulationId) {
         default:

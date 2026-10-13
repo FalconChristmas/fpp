@@ -340,7 +340,7 @@ public:
                 autoEnable = true;
                 model->setState(st);
             }
-            startTime = GetTimeMS();
+            startTime = GetMonotonicTimeMS();
             done = false;
             if (fadeIn == 0) {
                 fill(color);
@@ -363,7 +363,7 @@ public:
             model->fill((c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF);
         }
         virtual int32_t update() override {
-            long long nowTime = GetTimeMS();
+            long long nowTime = GetMonotonicTimeMS();
             nowTime -= startTime;
 
             if (nowTime < fadeIn) {
@@ -472,7 +472,7 @@ public:
                 autoEnable = true;
                 model->setState(st);
             }
-            startTime = GetTimeMS();
+            startTime = GetMonotonicTimeMS();
             done = false;
             apply(0.0f);
         }
@@ -572,7 +572,7 @@ public:
             }
         }
         virtual int32_t update() override {
-            long long nowTime = GetTimeMS();
+            long long nowTime = GetMonotonicTimeMS();
             nowTime -= startTime;
             if (nowTime <= duration) {
                 float f = nowTime;
@@ -695,7 +695,7 @@ public:
     }
     virtual int32_t update() override {
         if (!done) {
-            if (endTimeMS && GetTimeMS() >= endTimeMS) {
+            if (endTimeMS && GetMonotonicTimeMS() >= endTimeMS) {
                 // Duration expired mid-scroll.  Wipe the partial frame so a
                 // timeout leaves the model blank, matching what the static path
                 // does, rather than freezing half an image on the display.
@@ -814,7 +814,7 @@ static double textColorPhase(const TextColorSpec& spec, long long startMS) {
     if (!spec.animated()) {
         return 0.0;
     }
-    double cycles = ((double)(GetTimeMS() - startMS) / 1000.0) *
+    double cycles = ((double)(GetMonotonicTimeMS() - startMS) / 1000.0) *
                     ((double)spec.colorSpeed / TEXT_COLOR_SPEED_PER_CYCLE);
     return cycles - std::floor(cycles);
 }
@@ -1058,7 +1058,7 @@ public:
         return NAME;
     }
     virtual int32_t update() override {
-        if (endTimeMS && GetTimeMS() >= endTimeMS) {
+        if (endTimeMS && GetMonotonicTimeMS() >= endTimeMS) {
             // The same two-step teardown StopRunningEffect performs: blank the
             // model, let one output cycle push that out, and only then drop the
             // state we auto-enabled.
@@ -1372,7 +1372,7 @@ public:
             ef->spec = colorSpec;
             ef->width = w;
             ef->height = h;
-            ef->startMS = GetTimeMS();
+            ef->startMS = GetMonotonicTimeMS();
             ef->disableWhenDone = disableWhenDone;
             // Duration bounds an auto-enabled run only, which is the rule the
             // still centred path has always followed - without auto-enable the
@@ -1468,7 +1468,7 @@ public:
             ef->colorMask = std::move(mask);
             ef->colorLayout = std::move(layout);
             ef->colorSpec = colorSpec;
-            ef->colorStartMS = GetTimeMS();
+            ef->colorStartMS = GetMonotonicTimeMS();
             ef->copyImageData(ef->x, ef->y);
             m->setRunningEffect(ef, t);
             lock.unlock();
@@ -1760,7 +1760,7 @@ public:
         ef->disableWhenDone = disableWhenDone;
         ef->direction = position;
         if (duration > 0) {
-            ef->endTimeMS = GetTimeMS() + ((long long)duration * 1000);
+            ef->endTimeMS = GetMonotonicTimeMS() + ((long long)duration * 1000);
         }
         ef->imageData = imageRGB; // effect owns it from here, frees in its dtor
         ef->imageDataCols = cols;
