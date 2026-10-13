@@ -78,7 +78,7 @@ public:
     // non-blocking write drops bytes.  Call once per frame; it also records
     // the frame interval in frameTime.
     int FrameBudget() {
-        long long now = GetTime();
+        long long now = GetMonotonicTimeMicros();
         long long ft = lastFrame ? now - lastFrame : LOR_DEFAULT_FRAME_TIME;
         lastFrame = now;
         frameTime = std::clamp(ft, (long long)LOR_MIN_FRAME_TIME, (long long)LOR_MAX_FRAME_TIME);
@@ -107,7 +107,9 @@ private:
         static const unsigned char heartbeat[LOR_HEARTBEAT_SIZE] = { 0x00, 0xFF, 0x81, 0x56, 0x00 };
         std::unique_lock<std::mutex> lk(lock);
         while (!stopHeartbeat) {
-            long long now = GetTime();
+            // monotonic: on the wall clock a step back stopped the heartbeat
+            // for the size of the step, and the controllers dropped out
+            long long now = GetMonotonicTimeMicros();
             if (now - lastHeartbeat >= LOR_HEARTBEAT_INTERVAL) {
                 write(getFD(), heartbeat, LOR_HEARTBEAT_SIZE);
                 lastHeartbeat = now;
