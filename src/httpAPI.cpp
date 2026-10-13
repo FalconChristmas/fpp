@@ -94,7 +94,9 @@ extern std::atomic_int runMainFPPDLoop;
 
 #include "httpAPI.h"
 
-static std::time_t startupTime = std::time(nullptr);
+// Monotonic, so the reported uptime survives a wall-clock step (NTP, an RTC
+// that boots in the past) instead of going negative or jumping by hours.
+static long long startupTimeMS = GetMonotonicTimeMS();
 static bool piPowerBad = false;
 
 /*
@@ -176,7 +178,7 @@ void GetCurrentFPPDStatus(Json::Value& result) {
     result["dateStr"] = GetDateStr(getSetting("DateFormat"));
 
     // FPPD process uptime (time since fppd started)
-    int totalseconds = (int)(std::time(nullptr) - startupTime);
+    int totalseconds = (int)((GetMonotonicTimeMS() - startupTimeMS) / 1000);
     int days = totalseconds / 86400;
     int hours = (totalseconds % 86400) / 3600;
     int minutes = (totalseconds % 3600) / 60;

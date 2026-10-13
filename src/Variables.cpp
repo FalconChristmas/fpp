@@ -44,7 +44,9 @@ static std::string DoubleToCleanString(double v) {
 // Same "static initialized at process start" convention as httpAPI.cpp's own
 // (private) startupTime - duplicated rather than shared across translation
 // units for one time_t.
-static std::time_t FPP_STARTUP_TIME = std::time(nullptr);
+// On the monotonic clock, as httpAPI.cpp's: a wall-clock step made the
+// uptime negative or hours off.
+static long long FPP_STARTUP_MS = GetMonotonicTimeMS();
 
 // FPP_STATUS_* -> name, mirroring GetCurrentFPPDStatus()'s switch
 // (httpAPI.cpp) - not shared code since it's a small, stable 6-case mapping
@@ -108,7 +110,7 @@ static std::map<std::string, std::string> ComputeFppStatusVariables() {
     vars["fpp_mode_name"] = toStdStringAndFree(modeToString(getFPPmode()));
     vars["fpp_volume"] = std::to_string(getVolume());
     vars["fpp_multisync"] = (multiSync && multiSync->isMultiSyncEnabled()) ? "1" : "0";
-    vars["fpp_uptime_seconds"] = std::to_string((long long)(std::time(nullptr) - FPP_STARTUP_TIME));
+    vars["fpp_uptime_seconds"] = std::to_string((GetMonotonicTimeMS() - FPP_STARTUP_MS) / 1000);
     vars["fpp_is_playing"] = Player::INSTANCE.IsPlaying() ? "1" : "0";
     vars["fpp_was_scheduled"] = Player::INSTANCE.WasScheduled() ? "1" : "0";
     vars["fpp_scheduler_enabled"] = (scheduler && scheduler->IsEnabled()) ? "1" : "0";
