@@ -69,6 +69,39 @@ function channel_input_delete_stats()
 }
 
 /**
+ * Get serial devices
+ *
+ * Lists the serial devices on the system and, for each, a name for it that
+ * survives a reboot. USB adapters are numbered in the order they are found, so
+ * ttyUSB0 can be a different adapter after a reboot; `stable` is its
+ * /dev/serial/by-id link where the adapter has a USB serial number, else its
+ * by-path link, which follows the USB socket. Any of these names can be used as
+ * the `device` of a serial channel output.
+ *
+ * @route GET /api/channel/output/serialDevices
+ * @response 200 Serial devices
+ * ```json
+ * {
+ *   "status": "OK",
+ *   "devices": [
+ *     {
+ *       "device": "ttyUSB0",
+ *       "stable": "serial/by-id/usb-FTDI_USB__-__Serial_Converter_A1B2C3D4-if00-port0",
+ *       "byId": "serial/by-id/usb-FTDI_USB__-__Serial_Converter_A1B2C3D4-if00-port0",
+ *       "byPath": "serial/by-path/platform-xhci-hcd.0-usb-0:1.3:1.0-port0",
+ *       "usbSerial": "A1B2C3D4",
+ *       "description": "FTDI USB <-> Serial Converter"
+ *     }
+ *   ]
+ * }
+ * ```
+ */
+function channel_get_serial_devices()
+{
+    return json(array("status" => "OK", "devices" => GetSerialDevices()));
+}
+
+/**
  * Get output processors
  *
  * Returns the current configuration of any output processors.

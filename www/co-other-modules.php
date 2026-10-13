@@ -324,6 +324,14 @@
             }
         }
     }
+    // An adapter with no serial number shares its by-id name with any other of its make,
+    // so the name that stays with it is the USB socket it is in.
+    foreach (GetSerialDevices() as $dev) {
+        if (str_starts_with($dev['stable'], 'serial/by-path/')) {
+            $label = basename($dev['stable']) . ' -> ' . $dev['device'];
+            echo "SerialDevices[" . json_encode($dev['stable']) . "] = " . json_encode($label) . ";\n";
+        }
+    }
     ?>
 
     var UDMXDevices = new Array();

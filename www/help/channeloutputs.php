@@ -206,6 +206,7 @@
 <h4>Tips for all outputs</h4>
 <ul>
     <li>When using a cape or hat, let FPP auto-detect it — the <b>Channel Outputs</b> header shows which cape was found. Follow the cape vendor’s wiring for pixel ports; the tables above show the underlying SoC mapping when no cape overrides it.</li>
+    <li>USB serial adapters are numbered in the order they are found, so with more than one plugged in, <code>ttyUSB0</code> can be a different adapter after a reboot. For a serial output on a USB adapter pick the port's <code>serial/by-id</code> name, which belongs to that adapter, or for an adapter with no serial number its <code>serial/by-path</code> name, which follows the USB socket it is plugged into. Each entry shows the <code>tty</code> it is now.</li>
     <li>Avoid channel overlaps unless you want two outputs to mirror each other. The Validation after Save warns about overlaps.</li>
     <li>For network outputs (E1.31, DDP, ArtNet), put FPP and the controllers on the same subnet and verify with <b>Network Settings</b> that the IP and netmask are correct. Test with <b>Display Testing</b> to confirm lights respond.</li>
     <li>Power injection is always separate from the Pi — never power large pixel strings from the Pi’s 5V pin.</li>
