@@ -271,7 +271,7 @@ void RecurringTasks::runTask(const RecurringTask& task) {
     pending.result = std::move(result);
     pending.resultVariable = task.resultVariable;
     pending.persistResult = task.persistResult;
-    pending.startTimeMS = GetTimeMS();
+    pending.startTimeMS = GetMonotonicTimeMS();
     pending.taskName = task.name;
     pending.filterType = task.filterType;
     pending.filterJsonPath = task.filterJsonPath;
@@ -450,7 +450,7 @@ void RecurringTasks::pollPending() {
         std::unique_lock<std::mutex> l(m_pendingLock);
         std::vector<PendingResult> stillPending;
         for (auto& pending : m_pending) {
-            bool timedOut = (GetTimeMS() - pending.startTimeMS) > PENDING_RESULT_MAX_MS;
+            bool timedOut = (GetMonotonicTimeMS() - pending.startTimeMS) > PENDING_RESULT_MAX_MS;
             if (pending.result->isDone() || timedOut) {
                 if (timedOut && !pending.result->isDone()) {
                     LogWarn(VB_GENERAL, "RecurringTasks: a task's Result did not finish within %lldms, giving up\n", PENDING_RESULT_MAX_MS);

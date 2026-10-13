@@ -103,7 +103,7 @@ void PumpOrphanTransfers() {
         work.swap(s_orphans);
     }
     std::vector<OrphanTransfer> keep;
-    long long now = GetTimeMS();
+    long long now = GetMonotonicTimeMS();
     for (auto& o : work) {
         int running = 0;
         CURLMcode mc = curl_multi_perform(o.multi, &running);
@@ -132,7 +132,7 @@ void AdoptOrphanTransfer(CURLM* multi, CURL* easy, const std::string& url) {
     curl_easy_setopt(easy, CURLOPT_WRITEFUNCTION, DiscardBody);
     curl_easy_setopt(easy, CURLOPT_WRITEDATA, nullptr);
     std::lock_guard<std::mutex> l(s_orphanLock);
-    s_orphans.push_back({ multi, easy, GetTimeMS() + URL_TRANSFER_TIMEOUT_MS + 5000, url });
+    s_orphans.push_back({ multi, easy, GetMonotonicTimeMS() + URL_TRANSFER_TIMEOUT_MS + 5000, url });
     if (!s_reaperArmed) {
         s_reaperArmed = true;
         Timers::INSTANCE.addTimer("URLCommandTransfers", GetTimeMS() + 10, PumpOrphanTransfers);

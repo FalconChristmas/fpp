@@ -178,7 +178,7 @@ namespace
         // out of crash dumps - which is exactly where it earns its keep.
         LogDebug(VB_COMMAND, "If: running command %s\n", DescribeEntry(entry).c_str());
         chain.inFlight = CommandManager::INSTANCE.run(entry.command, entry.args);
-        chain.startTimeMS = GetTimeMS();
+        chain.startTimeMS = GetMonotonicTimeMS();
     }
 
     // Sequential: fires the first entry, then queues the rest as a
@@ -235,7 +235,7 @@ namespace
         }
         std::vector<PendingChain> stillPending;
         for (auto& chain : toAdvance) {
-            bool timedOut = (GetTimeMS() - chain.startTimeMS) > PENDING_CHAIN_MAX_MS;
+            bool timedOut = (GetMonotonicTimeMS() - chain.startTimeMS) > PENDING_CHAIN_MAX_MS;
             if (timedOut && chain.inFlight && !chain.inFlight->isDone()) {
                 LogWarn(VB_COMMAND, "If: a Sequential command did not finish within %lldms, abandoning the rest of its chain\n",
                         PENDING_CHAIN_MAX_MS);
