@@ -1129,11 +1129,13 @@ bool Bridge_StoreDDPData(uint8_t* bridgeBuffer, long long packetTime, int msgLen
                       packetTime);
         ddpBytesReceived += len;
     } else if (bridgeBuffer[0] & 0x02 && bridgeBuffer[3] == 250) {
-        printf("Query config packet: %d \n", (int)bridgeBuffer[3]);
+        // Queries and other non-data packets are ordinary DDP traffic FPP
+        // doesn't answer; printed one per packet, they filled the journal.
+        LogExcess(VB_E131BRIDGE, "DDP query config packet: %d\n", (int)bridgeBuffer[3]);
     } else if (bridgeBuffer[0] & 0x02 && bridgeBuffer[3] == 251) {
-        printf("Query status packet: %d \n", (int)bridgeBuffer[3]);
+        LogExcess(VB_E131BRIDGE, "DDP query status packet: %d\n", (int)bridgeBuffer[3]);
     } else {
-        printf("Unknown packet: %d \n", (int)bridgeBuffer[3]);
+        LogExcess(VB_E131BRIDGE, "DDP packet for id %d ignored\n", (int)bridgeBuffer[3]);
     }
     return push;
 }
