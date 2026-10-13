@@ -100,9 +100,13 @@ static int currentArtNetPacketLen = 0;
 static inline bool EvaluateSource(UniverseEntry& entry,
                                   const uint8_t* sourceId,
                                   uint8_t priority,
-                                  long long packetTime,
                                   bool& sourceJustSwitched) {
     sourceJustSwitched = false;
+    // The active source's age is on the monotonic clock.  It was the packets'
+    // wall-clock time: a step back kept a stopped source "active" for the size
+    // of the step, so the backup source stayed suppressed and the output froze
+    // on the last frame of the one that stopped.
+    long long packetTime = GetMonotonicTimeMS();
     bool idMatches = entry.activeSourceValid &&
                      memcmp(entry.activeSourceId, sourceId, 16) == 0;
     bool expired = entry.activeSourceValid &&
@@ -822,7 +826,7 @@ bool Bridge_StoreData(uint8_t* bridgeBuffer, long long packetTime, int msgLen) {
                 memcpy(sourceId, &bridgeBuffer[E131_CID_INDEX], E131_CID_LENGTH);
                 if (!EvaluateSource(InputUniverses[universeIndex], sourceId,
                                     bridgeBuffer[E131_PRIORITY_INDEX],
-                                    packetTime, sourceJustSwitched)) {
+                                    sourceJustSwitched)) {
                     return false;
                 }
             }
@@ -913,7 +917,7 @@ bool Bridge_StoreArtNetData(uint8_t* bridgeBuffer, long long packetTime) {
                 uint8_t sourceId[16] = {};
                 memcpy(sourceId, &currentArtNetSourceIP, sizeof(currentArtNetSourceIP));
                 if (!EvaluateSource(InputUniverses[universeIndex], sourceId,
-                                    100, packetTime, sourceJustSwitched)) {
+                                    100, sourceJustSwitched)) {
                     return false;
                 }
             }
