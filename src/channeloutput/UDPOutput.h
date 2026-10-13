@@ -11,6 +11,7 @@
  * included LICENSE.GPL file.
  */
 
+#include <set>
 #include <atomic>
 #include "fpp-json-fwd.h"
 #include <condition_variable>
@@ -55,6 +56,9 @@ public:
 private:
     std::map<unsigned int, std::vector<struct mmsghdr>> messages;
     std::map<unsigned int, std::shared_ptr<SendSocketInfo>> sendSockets;
+    // While set, every key an output asks for is noted here (once), so
+    // UDPOutput knows which destinations each output's packets go to.
+    std::vector<unsigned int>* recordKeys = nullptr;
 
     void clearMessages();
     void clearSockets();
@@ -237,6 +241,15 @@ private:
     std::mutex workMutex;
     std::condition_variable workSignal;
     std::list<WorkItem> workQueue;
+    // Keys a worker is sending to right now (under workMutex). With the keys
+    // still queued, these are the destinations whose packet buffers a worker
+    // may be reading, which PrepData() must not rewrite.
+    std::multiset<unsigned int> sendingKeys;
+    // The destination keys each output's packets went to when it was last
+    // prepared, and the outputs PrepData() left alone this frame (both under
+    // socketMutex).
+    std::map<UDPOutputData*, std::vector<unsigned int>> outputKeys;
+    std::set<UDPOutputData*> skippedOutputs;
     std::atomic_int doneWorkCount;
     std::atomic_int numWorkThreads;
     std::atomic_uint workGeneration;

@@ -371,6 +371,9 @@ void UDPOutputMessages::ForceSocket(unsigned int key, int socket, bool preventCl
     info->sockets.push_back(socket);
 }
 std::vector<struct mmsghdr>& UDPOutputMessages::GetMessages(unsigned int key) {
+    if (recordKeys && std::find(recordKeys->begin(), recordKeys->end(), key) == recordKeys->end()) {
+        recordKeys->push_back(key);
+    }
     return messages[key];
 }
 void UDPOutputMessages::clearMessages() {
@@ -883,8 +886,33 @@ void UDPOutput::PrepData(unsigned char* channelData) {
     if (enabled) {
         std::unique_lock<std::mutex> lk(socketMutex);
         messages.clearMessages();
+        // A destination that couldn't keep up still has a work item from an
+        // earlier frame, queued or being sent, whose iovecs point at its
+        // outputs' packet buffers (headers, sequence numbers, the dedup copy).
+        // Preparing those outputs again rewrote the buffers while a worker
+        // read them, so packets went out half one frame, half the next. Leave
+        // them as they are this frame: the destination is behind anyway, and
+        // its pending item still goes out.
+        std::set<unsigned int> busy;
+        if (useThreadedOutput) {
+            std::lock_guard<std::mutex> wl(workMutex);
+            for (auto& w : workQueue) {
+                busy.insert(w.id);
+            }
+            busy.insert(sendingKeys.begin(), sendingKeys.end());
+        }
+        skippedOutputs.clear();
         for (auto a : outputs) {
             if (a->valid && a->active) {
+                if (!busy.empty()) {
+                    auto k = outputKeys.find(a);
+                    if (k != outputKeys.end() &&
+                        std::any_of(k->second.begin(), k->second.end(),
+                                    [&busy](unsigned int key) { return busy.count(key) != 0; })) {
+                        skippedOutputs.insert(a);
+                        continue;
+                    }
+                }
                 if (outputRunning && !a->started) {
                     // StartingOutput() only starts the outputs that were
                     // reachable then; one whose controller answers later (a
@@ -894,12 +922,16 @@ void UDPOutput::PrepData(unsigned char* channelData) {
                     a->started = true;
                     a->StartingOutput();
                 }
+                std::vector<unsigned int>& keys = outputKeys[a];
+                keys.clear();
+                messages.recordKeys = &keys;
                 a->PrepareData(channelData, messages);
+                messages.recordKeys = nullptr;
             }
         }
         // add any sync packets or whatever that are needed
         for (auto a : outputs) {
-            if (a->valid && a->active) {
+            if (a->valid && a->active && !skippedOutputs.count(a)) {
                 a->PostPrepareData(channelData, messages);
             }
         }
@@ -1168,6 +1200,7 @@ void UDPOutput::BackgroundOutputWork() {
         if (!workQueue.empty()) {
             WorkItem i = std::move(workQueue.front());
             workQueue.pop_front();
+            sendingKeys.insert(i.id);
             lock.unlock();
 
             auto t1 = clock.now();
@@ -1197,6 +1230,7 @@ void UDPOutput::BackgroundOutputWork() {
             // generation bump between them counts old work toward the new frame.
             {
                 std::unique_lock<std::mutex> countLock(workMutex);
+                sendingKeys.erase(sendingKeys.find(i.id));
                 if (i.generation == workGeneration) {
                     doneWorkCount++;
                 }
@@ -1213,7 +1247,10 @@ int UDPOutput::SendData(unsigned char* channelData) {
         return 0;
     }
     for (auto a : outputs) {
-        a->FrameSent();
+        // A skipped output prepared nothing, so it has nothing to commit.
+        if (!skippedOutputs.count(a)) {
+            a->FrameSent();
+        }
     }
     if (++statCheckCounter >= 1500) {
         // roughly once a minute at typical frame rates; run off-thread so the
