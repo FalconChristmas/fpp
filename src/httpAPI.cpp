@@ -1493,10 +1493,21 @@ HttpResponsePtr PlayerResource::render_POST(const HttpRequestPtr& req) {
     } else if (url == "schedule") {
         PostSchedule(data, result);
     } else if (url.find("volume/") == 0) {
-        int volume = atoi(url.substr(7).c_str());
-        setVolume(volume);
-        result["volume"] = volume;
-        SetOKResult(result, "Volume set");
+        // A whole number, or nothing changes: atoi() read garbage ("x", a
+        // number too big for an int) as 0 or -1, and that muted the show.
+        std::string v = url.substr(7);
+        char* endp = nullptr;
+        errno = 0;
+        long volume = strtol(v.c_str(), &endp, 10);
+        // the whole value must be digits: an embedded NUL ("%00") stops
+        // strtol() as if the string had ended
+        if (v.empty() || endp != v.c_str() + v.size() || errno == ERANGE) {
+            SetErrorResult(result, 400, "Volume must be a whole number, 0-100");
+        } else {
+            setVolume((int)std::clamp(volume, 0L, 100L));
+            result["volume"] = getVolume();
+            SetOKResult(result, "Volume set");
+        }
     } else if (url == "shutdown") {
         SetOKResult(result, "Shutting down fppd");
         ShutdownFPPD();
