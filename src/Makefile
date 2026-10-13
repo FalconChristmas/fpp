@@ -150,14 +150,20 @@ fpp-pch.h.gch: CFLAGS := $(CFLAGS)
 # to date, and ccache caches .gch creation (FPP images set sloppiness
 # pch_defines,time_macros) keyed on the compiler and inputs only, so even a
 # clean rebuild gets the old page size's .gch back.  Rebuild it when the page
-# size changes, and put the page size in its ccache key.
+# size changes, and put the page size in its ccache key.  4K is the implicit
+# default for both -- no stamp means 4096, and a 4K .gch keeps an unchanged
+# ccache key -- so the common case never writes a stamp or rebuilds the .gch
+# for it, and still hits the published caches and every existing one.
 PCH_PAGESIZE := $(shell getconf PAGESIZE)
 PCH_PAGESIZE_STAMP := .pch-pagesize
-ifneq ($(shell cat $(PCH_PAGESIZE_STAMP) 2>/dev/null),$(PCH_PAGESIZE))
+ifneq ($(shell cat $(PCH_PAGESIZE_STAMP) 2>/dev/null || echo 4096),$(PCH_PAGESIZE))
 $(shell echo "$(PCH_PAGESIZE)" > $(PCH_PAGESIZE_STAMP))
 endif
-fpp-pch.h.gch: fpp-pch.h Makefile makefiles/*.mk makefiles/platform/*.mk $(PCH_PAGESIZE_STAMP)
-	CCACHE_NAMESPACE="$${CCACHE_NAMESPACE}pagesize$(PCH_PAGESIZE)" CCACHE_NOHARDLINK=true CCACHE_COMPRESS=true $(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(DEPFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
+ifneq '$(PCH_PAGESIZE)' '4096'
+PCH_CCACHE_NAMESPACE := CCACHE_NAMESPACE="$${CCACHE_NAMESPACE}pagesize$(PCH_PAGESIZE)"
+endif
+fpp-pch.h.gch: fpp-pch.h Makefile makefiles/*.mk makefiles/platform/*.mk $(wildcard $(PCH_PAGESIZE_STAMP))
+	$(PCH_CCACHE_NAMESPACE) CCACHE_NOHARDLINK=true CCACHE_COMPRESS=true $(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(DEPFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
 	shasum $(PCH_FILE) > $(PCH_FILE).sum
 endif
 
