@@ -73,7 +73,9 @@ int PlaylistEntrySequence::Init(Json::Value& config) {
 
 int PlaylistEntrySequence::PreparePlay(int frame) {
     if (sequence->OpenSequenceFile(m_sequenceName, frame) <= 0) {
-        LogErr(VB_PLAYLIST, "Error opening sequence %s\n", m_sequenceName.c_str());
+        // OpenSequenceFile() has logged why (once per name); a playlist that
+        // keeps coming round to a missing sequence must not log it each time.
+        LogDebug(VB_PLAYLIST, "Error opening sequence %s\n", m_sequenceName.c_str());
         return 0;
     }
     m_prepared = true;

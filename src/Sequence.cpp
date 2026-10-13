@@ -24,6 +24,7 @@
 #include <list>
 #include <map>
 #include <mutex>
+#include <set>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -262,6 +263,21 @@ inline void checkForReplacementFile(const std::string &fname) {
 static constexpr int MISSING_SEQUENCE_WARNING_ID = 25;
 static constexpr int MISSING_SEQUENCE_WARNING_TIMEOUT = 30;
 
+// Sequence names already reported missing or invalid, so a playlist that keeps
+// coming round to them (or a master that keeps naming one in sync packets)
+// logs each once instead of every time: a repeating playlist of missing
+// sequences wrote some 150 KB of log every 5 s.  A name leaves the set when
+// it opens.  File-static (guarded by m_sequenceLock) because Sequence is
+// plugin-visible.
+static std::set<std::string> reportedMissingSequences;
+
+static bool FirstReportOfMissing(const std::string& name) {
+    if (reportedMissingSequences.size() > 256) {
+        reportedMissingSequences.clear();
+    }
+    return reportedMissingSequences.insert(name).second;
+}
+
 void Sequence::SetMissingSequenceWarning(const std::string& filename, const std::string& warning) {
     ClearMissingSequenceWarning();
     m_missingSeqFilename = filename;
@@ -304,11 +320,15 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     if (filename.find_first_of("/\\") != std::string::npos ||
         filename.find("..") != std::string::npos ||
         filename.find('\0') != std::string::npos) {
-        LogErr(VB_SEQUENCE, "Invalid Sequence Filename '%s'\n", filename.c_str());
         // The missing-sequence warning state is guarded by m_sequenceLock.
         // Leave m_seqStarting alone: a sequence that is open but not yet
         // started must not be flipped to "running" by a rejected request.
         std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+        if (FirstReportOfMissing(filename)) {
+            LogErr(VB_SEQUENCE, "Invalid Sequence Filename '%s'\n", filename.c_str());
+        } else {
+            LogDebug(VB_SEQUENCE, "Invalid Sequence Filename '%s'\n", filename.c_str());
+        }
         SetMissingSequenceWarning(filename, "Invalid sequence filename " + filename + "\n");
         return 0;
     }
@@ -408,7 +428,11 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
             }
 
         } else {
-            LogErr(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
+            if (FirstReportOfMissing(filename)) {
+                LogErr(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
+            } else {
+                LogDebug(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
+            }
             SetMissingSequenceWarning(filename, warning);
             m_seqStarting = 0;
             return 0;
@@ -417,6 +441,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 
     // We have a file to play (the requested one, or the fallback)
     ClearMissingSequenceWarning();
+    reportedMissingSequences.erase(filename);
 
     if (multiSync->isMultiSyncEnabled()) {
         seqLock.unlock();
