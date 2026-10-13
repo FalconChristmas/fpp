@@ -594,9 +594,15 @@ if [ "${SKIP_KERNEL_UPDATE}" != "1" ]; then
         rm -rf /usr/lib/linux-image-\${OLD_KV}* 2>/dev/null || true
     done
 
-    # Drop the 16K-page kernel image and any *-16k modules
-    rm -f /boot/firmware/kernel_2712.img
-    rm -rf /lib/modules/*-16k*
+    # Drop (32-bit) or park (64-bit) the 16K-page kernel image; see below.
+    if [ "${ARCH}" = "arm64" ]; then
+        if [ -f /boot/firmware/kernel_2712.img ]; then
+            mv -f /boot/firmware/kernel_2712.img /boot/firmware/kernel_2712.img.fpp-disabled
+        fi
+    else
+        rm -f /boot/firmware/kernel_2712.img
+        rm -rf /lib/modules/*-16k*
+    fi
 
     # Remove kernel-header packages (apt is idempotent if a package is absent;
     # || true covers anything not installed)
@@ -610,16 +616,30 @@ if [ "${SKIP_KERNEL_UPDATE}" != "1" ]; then
     rm -rf /usr/src/linux-*
 fi
 
-# Drop the 16K-page Pi5 kernel image + its modules, and purge kernel headers.
+# Take the 16K-page Pi5 kernel out of the boot path, and purge kernel headers.
 # This runs UNCONDITIONALLY (not just when rpi-update ran): the stock Trixie
 # base ships kernel_2712.img -- the 16K-page kernel a Pi5/CM5 boots by default
 # -- and some FPP libs are incompatible with 16K pages. With kernel_2712.img
-# gone the Pi5 firmware falls back to the 4K kernel8.img (v8 modules). Glob both
-# the stock module name (*+rpt-rpi-2712) and rpi-update's (*-16k) so either path
-# is covered. (The rpi-update branch above also strips its own kernel's 16K
-# variant; the duplication is intentional so each path is self-contained.)
-rm -f /boot/firmware/kernel_2712.img
-rm -rf /lib/modules/*-2712 /lib/modules/*-16k*
+# gone the Pi5 firmware falls back to the 4K kernel8.img (v8 modules).
+#
+# 32-bit images: delete the kernel and its modules outright. Glob both the
+# stock module name (*+rpt-rpi-2712) and rpi-update's (*-16k) so either path is
+# covered.
+#
+# 64-bit images: park the kernel as kernel_2712.img.fpp-disabled, which the
+# firmware never loads, and keep its modules, so developers can test 16K pages.
+# fppinit copies it back into place when the developer-level Pi16KPageKernel
+# setting is on. (The rpi-update branch above already parked rpi-update's own
+# kernel and removed the stock one's modules as an old kernel; the duplication
+# is intentional so each path is self-contained.)
+if [ "${ARCH}" = "arm64" ]; then
+    if [ -f /boot/firmware/kernel_2712.img ]; then
+        mv -f /boot/firmware/kernel_2712.img /boot/firmware/kernel_2712.img.fpp-disabled
+    fi
+else
+    rm -f /boot/firmware/kernel_2712.img
+    rm -rf /lib/modules/*-2712 /lib/modules/*-16k*
+fi
 apt-get remove -y --purge --autoremove \\
     linux-headers-rpi-v6 linux-headers-rpi-v7 linux-headers-rpi-v8 2>/dev/null || true
 rm -rf /usr/src/linux-*

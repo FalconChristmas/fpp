@@ -1879,6 +1879,25 @@
 			"checkedValue": "1",
 			"uncheckedValue": "0"
 		},
+		"Pi16KPageKernel": {
+			"name": "Pi16KPageKernel",
+			"description": "Use 16K-Page Kernel",
+			"tip": "Pi 5 family only, 64-bit images only.  Boots the Pi 5's 16K-page kernel (kernel_2712.img) instead of the 4K-page kernel8.img.  The 64-bit image ships it disabled, as some libraries FPP uses are not compatible with 16K pages; this is for testing them.  Reboot required.",
+			"level": 3,
+			"gatherStats": true,
+			"restart": 0,
+			"reboot": 1,
+			"default": "0",
+			"platforms": [
+				"Raspberry Pi"
+			],
+			"checkFile": [
+				"/boot/firmware/kernel_2712.img.fpp-disabled"
+			],
+			"type": "checkbox",
+			"checkedValue": "1",
+			"uncheckedValue": "0"
+		},
 		"gitBranch": {
 			"name": "gitBranch",
 			"description": "Git Branch",

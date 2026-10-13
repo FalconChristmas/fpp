@@ -485,6 +485,7 @@ function PrintGitBranchOptions()
     PrintSetting('DistributedCompile');
     PrintSetting('DistccHosts');
     PrintSetting('NoccDiscoverWireless');
+    PrintSetting('Pi16KPageKernel');
     ?>
     <div class="row">
         <div class='printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2 align-top'>

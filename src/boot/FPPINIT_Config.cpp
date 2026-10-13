@@ -1742,6 +1742,60 @@ void setupWifiAntennaConfig(bool rebootIfChanged) {
 #endif
 }
 
+// The 64-bit Pi images keep the Pi 5's 16K-page kernel, and its modules, but
+// park the kernel under a name the firmware never loads; a Pi 5 would otherwise
+// prefer kernel_2712.img over the 4K-page kernel8.img.  The developer-level
+// Pi16KPageKernel setting copies it back into place.  The 32-bit images, images
+// from before this, and stock Raspberry Pi OS installs have no parked copy, and
+// are left alone.
+//
+// Runs at every boot as well as from the UI: an FPPOS upgrade replaces the boot
+// partition, which drops the active copy, and the boot pass puts it back.
+void setup16KPageKernel(bool rebootIfChanged) {
+#ifdef PLATFORM_PI
+    static const std::string ACTIVE = "/boot/firmware/kernel_2712.img";
+    static const std::string PARKED = "/boot/firmware/kernel_2712.img.fpp-disabled";
+    if (!FileExists(PARKED)) {
+        return;
+    }
+    bool want = getRawSettingInt("Pi16KPageKernel", 0) != 0;
+    bool have = FileExists(ACTIVE);
+    std::error_code ec;
+    if (want && !have) {
+        // Copy to a temporary name first so a power cut mid-copy can't leave a
+        // truncated kernel_2712.img for the firmware to boot.
+        std::string tmp = ACTIVE + ".tmp";
+        std::filesystem::copy_file(PARKED, tmp, std::filesystem::copy_options::overwrite_existing, ec);
+        if (!ec) {
+            std::filesystem::rename(tmp, ACTIVE, ec);
+        }
+        if (ec) {
+            printf("FPP - Could not enable the 16K-page kernel: %s\n", ec.message().c_str());
+            std::filesystem::remove(tmp, ec);
+            return;
+        }
+        printf("FPP - Enabled the 16K-page kernel\n");
+    } else if (!want && have) {
+        // Park the active copy rather than deleting it: it is the one that
+        // matches the 16K module tree, should anything have updated it.
+        std::filesystem::rename(ACTIVE, PARKED, ec);
+        if (ec) {
+            printf("FPP - Could not disable the 16K-page kernel: %s\n", ec.message().c_str());
+            return;
+        }
+        printf("FPP - Disabled the 16K-page kernel\n");
+    } else {
+        return;
+    }
+    sync();
+    // Only the Pi 5 family loads kernel_2712.img; elsewhere the change is inert.
+    if (rebootIfChanged && isPi5()) {
+        printf("\n\nRebooting to load new settings.\n\n");
+        exec("/usr/sbin/reboot");
+    }
+#endif
+}
+
 void setupChannelOutputs() {
 #ifdef PLATFORM_PI
     bool hasDPI = false;

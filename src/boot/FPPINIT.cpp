@@ -297,6 +297,7 @@ int main(int argc, char* argv[]) {
         setupPiRTCConfig();
         setupHDMICECConfig();
         setupWifiAntennaConfig();
+        setup16KPageKernel();
         int reboot = getRawSettingInt("rebootFlag", 0);
         if (reboot && !needReboot) {
             printf("FPP - Clearing reboot flags\n");
@@ -497,6 +498,9 @@ int main(int argc, char* argv[]) {
     } else if (action == "setupWifiAntenna") {
         // The UI's "reboot": 1 on WifiAntenna prompts the user; don't reboot here.
         setupWifiAntennaConfig(false);
+    } else if (action == "setup16KPageKernel") {
+        // The UI's "reboot": 1 on Pi16KPageKernel prompts the user; don't reboot here.
+        setup16KPageKernel(false);
     } else if (action == "setupNetwork") {
         PutFileContents(networkSetupMut, "1");
         setupNetwork(true);

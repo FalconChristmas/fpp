@@ -523,6 +523,11 @@ function ApplySetting($setting, $value)
             // "reboot": 1, so the UI already prompts for reboot.
             exec("sudo " . $settings['fppDir'] . "/src/fppinit setupWifiAntenna", $output);
             break;
+        case 'Pi16KPageKernel':
+            // fppinit owns the kernel swap and re-applies it at boot. The setting
+            // is declared "reboot": 1, so the UI already prompts for reboot.
+            exec("sudo " . $settings['fppDir'] . "/src/fppinit setup16KPageKernel", $output);
+            break;
         case 'screensaver':
             SetupScreenBlanking($value);
             break;
