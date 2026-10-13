@@ -56,4 +56,7 @@ void StopForcingChannelOutput(void);
 void ResetMasterPosition(void);
 void UpdateMasterPosition(int frameNumber);
 void CalculateNewChannelOutputDelay(float mediaPosition);
+// The media clock the sequence follows runs at `rate` times the system clock's
+// pace; call it with each position update.  Frames go out at that pace.
+void SetMediaClockRate(double rate);
 void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent);

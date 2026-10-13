@@ -2194,8 +2194,17 @@ int GStreamerOutput::Start(int msTime) {
     // is ever late -- brings that down to one quantum (~20 ms).
     //
     // A pipeline feeding the persistent output stream has no pipewiresink of
-    // its own and runs on the system clock too (see PipeWireOutputStream.h).
-    if (wantVideo || wantHDMI || m_pwStream) {
+    // its own.  It runs on the stream's card clock: a monotonic clock like the
+    // system's, but held to the rate the card actually plays at, so the feed
+    // delivers exactly what the card takes (the "sub-ms per minute" above is
+    // not true of real cards -- see PipeWireOutputStream::DisciplineClock()).
+    // Video in the same pipeline then keeps time with its own sound.
+    if (m_pwStream) {
+        GstClock* cardClock = m_pwStream->Clock();
+        gst_pipeline_use_clock(GST_PIPELINE(m_pipeline), cardClock);
+        gst_object_unref(cardClock);
+        LogDebug(VB_MEDIAOUT, "GStreamer: pipeline clock is the output stream's card clock\n");
+    } else if (wantVideo || wantHDMI) {
         GstClock* sysClock = gst_system_clock_obtain();
         gst_pipeline_use_clock(GST_PIPELINE(m_pipeline), sysClock);
         gst_object_unref(sysClock);
@@ -3483,6 +3492,11 @@ int GStreamerOutput::Process(void) {
             // same servo, so the sequence slewed toward whichever clock
             // reported last.
             if (m_drivesShowClock) {
+                // The position is in card time when it comes from the output
+                // stream; frames go out at the same pace.
+                if (m_pwStream) {
+                    SetMediaClockRate(m_pwStream->ClockRate());
+                }
                 CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
             }
 

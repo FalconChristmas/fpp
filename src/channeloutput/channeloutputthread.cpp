@@ -13,6 +13,7 @@
 #include "../fpp-pch.h"
 
 #include <sys/time.h>
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <cstring>
@@ -61,6 +62,28 @@ std::mutex outputThreadStatusLock;
 static uint64_t outputStartRequests = 0;
 std::condition_variable outputThreadCond;
 std::condition_variable outputThreadSatusCond;
+
+// The pace of the media clock the sequence follows, relative to the system
+// clock, and when it was last reported (GetTime() us).  A card's crystal is
+// tens to hundreds of ppm off; frames run at its pace so the lights don't walk
+// across media sync's whole-frame dead band over a song.  It goes stale (back
+// to 1.0) a second after the media stops reporting it.
+static std::atomic<double> mediaClockRate{ 1.0 };
+static std::atomic<long long> mediaClockRateAt{ 0 };
+
+void SetMediaClockRate(double rate) {
+    mediaClockRate = rate;
+    mediaClockRateAt = GetTime();
+}
+
+static double CurrentMediaClockRate(long long now) {
+    // A remote follows the master's frame numbers, not its own media.
+    if (now - mediaClockRateAt.load() > 1000000 || !sequence->IsSequenceRunning() ||
+        getFPPmode() == REMOTE_MODE) {
+        return 1.0;
+    }
+    return mediaClockRate.load();
+}
 
 /* prototypes for functions below */
 void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent);
@@ -134,6 +157,7 @@ void RunChannelOutputThread(void) {
     int onceMore = (getFPPmode() == REMOTE_MODE) ? 20 : 1;
     // When the next frame is due (GetTime() microseconds), 0 before the first.
     long long nextFrameTime = 0;
+    double frameTimeCarry = 0.0;
     struct timespec ts;
     struct timeval tv;
     int slowFrameCount = 0;
@@ -289,12 +313,19 @@ void RunChannelOutputThread(void) {
         // to every frame: on a Pi 5 the lights ran 125 ppm slow, and media
         // sync, which only acts on whole frames, let them fall behind the
         // sound by tens of ms over a song before correcting.
+        // The period is LightDelay of media time (see SetMediaClockRate()),
+        // kept to a fraction of a microsecond so 100 fps doesn't round it off.
+        double period = LightDelay / CurrentMediaClockRate(startTime);
         if (nextFrameTime == 0 || startTime >= nextFrameTime + LightDelay) {
             // First frame, or more than a frame behind (back from idle, or a
             // stall): start the cadence again here rather than racing to catch up.
             nextFrameTime = startTime + LightDelay;
+            frameTimeCarry = 0.0;
         } else if (startTime >= nextFrameTime) {
-            nextFrameTime += LightDelay;
+            frameTimeCarry += period;
+            long long whole = (long long)frameTimeCarry;
+            frameTimeCarry -= whole;
+            nextFrameTime += whole;
         }
         // else: a forced wake ran this pass early; the regular frame stays due
         // when it was.
