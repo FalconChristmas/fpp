@@ -233,17 +233,39 @@ function SetOSPassword($value)
     system("echo " . escapeshellarg('fpp:' . $value) . " | sudo chpasswd");
 }
 
+// cmdline.txt's text with every vc4.force_hotplug= option removed, and one
+// added back when $force.
+function CmdlineWithForceHotplug($cmdline, $force)
+{
+    $options = array_values(array_filter(
+        preg_split('/\s+/', trim($cmdline), -1, PREG_SPLIT_NO_EMPTY),
+        function ($o) {
+            return strpos($o, 'vc4.force_hotplug=') !== 0;
+        }
+    ));
+    if ($force) {
+        $options[] = 'vc4.force_hotplug=0x03';
+    }
+    return implode(' ', $options) . "\n";
+}
+
 function SetForceHDMI($value)
 {
     global $settings;
     if ($settings["Platform"] == "Raspberry Pi") {
-        if ($value == 0) {
-            $cmd = "sudo sed -i -e 's/^c\(.*\)vc4.force_hotplug=[x0-9]*\(.*\)/c\\1 \\2/' " . GetDirSetting('boot') . "/cmdline.txt";
-        } else {
-            $cmd = "sudo sed -i -e 's/^c\(.*\) */c\\1 vc4.force_hotplug=0x03 /' " . GetDirSetting('boot') . "/cmdline.txt";
+        // cmdline.txt is one line of space-separated options.  Every
+        // vc4.force_hotplug= option is dropped and, when forcing HDMI, exactly
+        // one added back: ticking the box used to append another copy each
+        // time, and unticking removed only the last one.
+        $file = GetDirSetting('boot') . "/cmdline.txt";
+        $current = @file_get_contents($file);
+        if ($current === false || trim($current) === '') {
+            return;
         }
-        exec($cmd, $output, $return_val);
-        exec("sudo sed -i -e 's/  */ /g' " . GetDirSetting('boot') . "/cmdline.txt", $output, $return_val);
+        $updated = CmdlineWithForceHotplug($current, $value != 0);
+        if ($updated !== $current) {
+            exec("printf %s " . escapeshellarg($updated) . " | sudo tee " . escapeshellarg($file) . " > /dev/null", $output, $return_val);
+        }
     }
 }
 function SetEnableBBBHDMI($value)
