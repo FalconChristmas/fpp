@@ -592,14 +592,19 @@ static void mapTimeString(const std::string& tm, int& h, int& m, int& s) {
 }
 
 void ScheduleEntry::pushStartEndTimes(int dow, int& delta, time_t deltaThreshold) {
-    time_t startTime = GetTimeOnDOW(dow, startHour, startMinute, startSecond);
-    time_t endTime = GetTimeOnDOW(dow, endHour, endMinute, endSecond);
+    // Local copies, as in GetOccurrencesOnDate(): GetTimeFromSun() writes the
+    // day's resolved time into them, and writing it into the entry's own
+    // fields made each day start from the previous day's sun time.
+    int sh = startHour, sm = startMinute, ss = startSecond;
+    int eh = endHour, em = endMinute, es = endSecond;
+    time_t startTime = GetTimeOnDOW(dow, sh, sm, ss);
+    time_t endTime = GetTimeOnDOW(dow, eh, em, es);
 
     if (startTimeStr.find(":") == std::string::npos) {
-        GetTimeFromSun(startTime, startTimeStr, startTimeOffset, startHour, startMinute, startSecond);
+        GetTimeFromSun(startTime, startTimeStr, startTimeOffset, sh, sm, ss);
     }
     if (endTimeStr.find(":") == std::string::npos) {
-        GetTimeFromSun(endTime, endTimeStr, endTimeOffset, endHour, endMinute, endSecond);
+        GetTimeFromSun(endTime, endTimeStr, endTimeOffset, eh, em, es);
     }
     // Decide "runs past midnight" from the wall-clock times, not the epoch
     // times: on a DST change day those differ by an hour, and a 02:30 start
@@ -611,11 +616,11 @@ void ScheduleEntry::pushStartEndTimes(int dow, int& delta, time_t deltaThreshold
     // those compare the actual times; the wall-clock test is for fixed times.
     bool sunTimes = (startTimeStr.find(":") == std::string::npos) || (endTimeStr.find(":") == std::string::npos);
     bool crossesMidnight = sunTimes ? (endTime < startTime)
-                                    : (WallSeconds(endHour, endMinute, endSecond) < WallSeconds(startHour, startMinute, startSecond));
+                                    : (WallSeconds(eh, em, es) < WallSeconds(sh, sm, ss));
     if (crossesMidnight) {
-        endTime = GetTimeOnDOW(dow + 1, endHour, endMinute, endSecond);
+        endTime = GetTimeOnDOW(dow + 1, eh, em, es);
         if (endTimeStr.find(":") == std::string::npos) {
-            GetTimeFromSun(endTime, endTimeStr, endTimeOffset, endHour, endMinute, endSecond);
+            GetTimeFromSun(endTime, endTimeStr, endTimeOffset, eh, em, es);
         }
     } else if (endTime < startTime) {
         // Same-day window squeezed by the spring-forward gap.
@@ -897,11 +902,22 @@ void ScheduleEntry::GetTimeFromSun(time_t& when, const std::string info,
     LogExcess(VB_SCHEDULE, "Lookup Date is %02d/%02d/%04d\n",
               local.tm_mon + 1, local.tm_mday, local.tm_year + 1900);
 
+    // Ask about local noon of the day. SunRise finds the events within 12
+    // hours either side of the time it is given, so asked from a time near
+    // midnight it returned the other day's sunset or sunrise -- and the time
+    // passed in here can be any time on the day.
+    struct tm noonTm = local;
+    noonTm.tm_hour = 12;
+    noonTm.tm_min = 0;
+    noonTm.tm_sec = 0;
+    noonTm.tm_isdst = -1;
+    time_t noon = mktime(&noonTm);
+
     SunRise sr;
     if ((info == "Dawn") || (info == "Dusk"))
-        sr.calculate(lat, lon, when, TT_CIVIL);
+        sr.calculate(lat, lon, noon, TT_CIVIL);
     else
-        sr.calculate(lat, lon, when);
+        sr.calculate(lat, lon, noon);
 
     // Find midnight on the 'when' day.  tm_isdst = -1: on a DST change day
     // midnight and 'when' are on different sides of the change.
