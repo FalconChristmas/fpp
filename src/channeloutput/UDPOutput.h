@@ -92,6 +92,12 @@ public:
     virtual void FrameSent() {}
 
     static in_addr_t toInetAddr(const std::string& ip, bool& valid);
+    static in_addr_t toInetAddr(const std::string& ip, std::atomic<bool>& valid) {
+        bool v = false;
+        in_addr_t a = toInetAddr(ip, v);
+        valid = v;
+        return a;
+    }
 
     std::string description;
     bool active;
@@ -99,7 +105,9 @@ public:
     int channelCount;
     int type;
     std::string ipAddress;
-    bool valid;
+    // Flipped by the ping thread (SetHostValid) while the output thread reads
+    // it in PrepData().
+    std::atomic<bool> valid;
     bool monitor;
 
     // per-destination pacing override in Mbps; -1 means "use the global rate".
