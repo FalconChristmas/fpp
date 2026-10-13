@@ -645,7 +645,7 @@ bool ResolveHostToIPv4(const std::string& host, uint32_t& addr) {
         return true;
     }
 
-    uint64_t now = (uint64_t)GetTimeMS();
+    uint64_t now = (uint64_t)GetMonotonicTimeMS();
     {
         std::unique_lock<std::mutex> lock(resolveCacheLock);
         auto it = resolveCache.find(host);
@@ -677,7 +677,7 @@ bool ResolveHostToIPv4(const std::string& host, uint32_t& addr) {
     {
         std::unique_lock<std::mutex> lock(resolveCacheLock);
         if (resolveCache.size() >= RESOLVE_CACHE_MAX) {
-            uint64_t cutoff = (uint64_t)GetTimeMS();
+            uint64_t cutoff = (uint64_t)GetMonotonicTimeMS();
             for (auto it = resolveCache.begin(); it != resolveCache.end();) {
                 it = (it->second.expiresMS <= cutoff) ? resolveCache.erase(it) : std::next(it);
             }

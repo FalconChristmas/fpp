@@ -179,10 +179,10 @@ static YtDlpResult RunYtDlp(const std::string& format, const std::string& uri, b
     // and closes the pipe, or the deadline passes.
     std::string output;
     char buf[4096];
-    uint64_t deadline = GetTimeMS() + (uint64_t)YTDLP_TIMEOUT_SEC * 1000;
+    uint64_t deadline = GetMonotonicTimeMS() + (uint64_t)YTDLP_TIMEOUT_SEC * 1000;
     bool timedOut = false;
     for (;;) {
-        uint64_t now = GetTimeMS();
+        uint64_t now = GetMonotonicTimeMS();
         if (now >= deadline) {
             timedOut = true;
             break;

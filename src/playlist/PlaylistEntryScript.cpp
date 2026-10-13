@@ -72,7 +72,7 @@ int PlaylistEntryScript::StartPlaying(void) {
         return 0;
     }
 
-    m_startTime = GetTime();
+    m_startTime = GetMonotonicTimeMicros();
     PlaylistEntryBase::StartPlaying();
     m_scriptProcess = RunScript(m_scriptFilename, m_scriptArgs);
     if (!m_blocking) {
@@ -127,7 +127,7 @@ void PlaylistEntryScript::Dump(void) {
 }
 
 uint64_t PlaylistEntryScript::GetElapsedMS() {
-    long long t = GetTime();
+    long long t = GetMonotonicTimeMicros();
     t -= m_startTime;
     t /= 1000;
     return t;
@@ -139,7 +139,7 @@ uint64_t PlaylistEntryScript::GetElapsedMS() {
 Json::Value PlaylistEntryScript::GetConfig(void) {
     Json::Value result = PlaylistEntryBase::GetConfig();
 
-    long long t = GetTime();
+    long long t = GetMonotonicTimeMicros();
     t -= m_startTime;
     t /= 1000;
     t /= 1000;
@@ -153,7 +153,7 @@ Json::Value PlaylistEntryScript::GetConfig(void) {
 Json::Value PlaylistEntryScript::GetMqttStatus(void) {
     Json::Value result = PlaylistEntryBase::GetMqttStatus();
 
-    long long t = GetTime();
+    long long t = GetMonotonicTimeMicros();
     t -= m_startTime;
     t /= 1000;
     t /= 1000;

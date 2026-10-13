@@ -88,7 +88,7 @@ bool s_workerKick = false;
 std::atomic<bool> s_keepOpen{ false };
 
 uint64_t NowMs() {
-    return (uint64_t)GetTimeMS();
+    return (uint64_t)GetMonotonicTimeMS(); // holds and timeouts: must not step with the wall clock
 }
 }
 

@@ -87,7 +87,7 @@ static long long mqttLastRefusalLogMS = 0;
 void mosq_connect_callback(struct mosquitto* mosq, void* userdata, int rc) {
     if (rc != 0) {
         mqttConnectRefusals++;
-        long long now = GetTimeMS();
+        long long now = GetMonotonicTimeMS();
         if ((mqttConnectRefusals == 1) || ((now - mqttLastRefusalLogMS) >= 60000)) {
             mqttLastRefusalLogMS = now;
             LogErr(VB_CONTROL, "MQTT broker refused connection: %s (%d attempts so far)\n",

@@ -1163,7 +1163,7 @@ bool PluginManager::unloadPlugin(const std::string& name, std::string& error) {
     pending.ready = std::move(ready);
     // Cap the wait so a predicate that never returns true delays teardown
     // rather than holding the plugin forever.
-    pending.deadlineMS = GetTimeMS() + 60000;
+    pending.deadlineMS = GetMonotonicTimeMS() + 60000;
 
     if (!pending.ready) {
         finishUnload(pending);
@@ -1189,7 +1189,7 @@ void PluginManager::pollPendingUnload(const std::string& name) {
                 continue;
             }
             bool done = false;
-            long long now = GetTimeMS();
+            long long now = GetMonotonicTimeMS();
             if (now >= it->deadlineMS) {
                 LogWarn(VB_PLUGIN, "Plugin %s never reported finished; tearing down anyway\n", name.c_str());
                 done = true;

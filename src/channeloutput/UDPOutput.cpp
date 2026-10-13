@@ -290,9 +290,9 @@ public:
 };
 
 static bool ShouldLogSendError(SendSocketInfo* si, SendErrLogSite site) {
-    long long now = GetTimeMS();
+    long long now = GetMonotonicTimeMS(); // the wall clock stepping back silenced it
     long long last = si->lastSendErrLog[site].load();
-    return now - last >= SEND_ERR_LOG_INTERVAL_MS && si->lastSendErrLog[site].compare_exchange_strong(last, now);
+    return (last == 0 || now - last >= SEND_ERR_LOG_INTERVAL_MS) && si->lastSendErrLog[site].compare_exchange_strong(last, now);
 }
 
 static uint64_t MessageBytes(const std::vector<struct mmsghdr>& msgs) {

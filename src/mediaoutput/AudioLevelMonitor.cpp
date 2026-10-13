@@ -99,7 +99,7 @@ bool AudioLevelMonitor::BuildMeter(const std::string& node, bool isSink, Meter& 
     m.isSink = isSink;
     m.pipeline = pipeline;
     m.bus = gst_element_get_bus(pipeline);
-    m.updatedMS = GetTimeMS();
+    m.updatedMS = GetMonotonicTimeMS();
     gst_element_set_state(pipeline, GST_STATE_PLAYING);
     LogDebug(VB_MEDIAOUT, "AudioLevelMonitor: metering %s\n", node.c_str());
     return true;
@@ -183,7 +183,7 @@ void AudioLevelMonitor::Subscribe(const std::vector<Target>& nodes, int ttlMs) {
                 m_meters[kv.first] = kv.second;
             }
         }
-        m_expiresMS = m_meters.empty() ? 0 : GetTimeMS() + std::max(1000, ttlMs);
+        m_expiresMS = m_meters.empty() ? 0 : GetMonotonicTimeMS() + std::max(1000, ttlMs);
         m_active.store(!m_meters.empty());
         needThread = !m_meters.empty();
     }
@@ -220,7 +220,7 @@ void AudioLevelMonitor::PollThread() {
             // Nobody has re-subscribed: tear everything down. This is what
             // keeps a closed browser tab from metering forever.  The
             // pipelines are stopped below, once m_lock is released.
-            if (!m_meters.empty() && GetTimeMS() > m_expiresMS) {
+            if (!m_meters.empty() && GetMonotonicTimeMS() > m_expiresMS) {
                 expired.swap(m_meters);
                 m_active.store(false);
             }
@@ -275,7 +275,7 @@ void AudioLevelMonitor::PollThread() {
                         }
                         if (v && G_VALUE_HOLDS_DOUBLE(v)) {
                             kv.second.rmsDb = g_value_get_double(v);
-                            kv.second.updatedMS = GetTimeMS();
+                            kv.second.updatedMS = GetMonotonicTimeMS();
                         }
                     }
                     gst_message_unref(msg);
@@ -296,7 +296,7 @@ void AudioLevelMonitor::PollThread() {
 Json::Value AudioLevelMonitor::GetLevels() {
     Json::Value out(Json::objectValue);
     std::lock_guard<std::mutex> lk(m_lock);
-    long long now = GetTimeMS();
+    long long now = GetMonotonicTimeMS();
     for (const auto& kv : m_meters) {
         // A pipeline that has stopped reporting (device gone, node removed)
         // reads as silent rather than freezing at its last value.

@@ -2310,8 +2310,9 @@ void PublishStatsBackground(std::string reason) {
     // configuration signature has moved and stays quiet when it has not, and a
     // device that never changes still checks in on the publish interval so the
     // project can see it is alive.
-    static auto lastAsk = std::chrono::system_clock::now() - std::chrono::hours(STATS_PUBLISH_ASK_HOURS);
-    auto now_ts = std::chrono::system_clock::now();
+    // steady_clock: a wall-clock step back held the ask off for the size of the step
+    static auto lastAsk = std::chrono::steady_clock::now() - std::chrono::hours(STATS_PUBLISH_ASK_HOURS);
+    auto now_ts = std::chrono::steady_clock::now();
     auto hours = std::chrono::duration_cast<std::chrono::hours>(now_ts - lastAsk);
 
     if (hours.count() >= STATS_PUBLISH_ASK_HOURS) {
@@ -2332,7 +2333,7 @@ void PublishStatsBackground(std::string reason) {
             // tick rather than daily, so the message needs its own limiter or it
             // becomes a per-second log. The setting lookup itself is a cheap map
             // read and is fine to repeat.
-            static auto lastLog = std::chrono::system_clock::now() - std::chrono::hours(STATS_PUBLISH_ASK_HOURS);
+            static auto lastLog = std::chrono::steady_clock::now() - std::chrono::hours(STATS_PUBLISH_ASK_HOURS);
             if (std::chrono::duration_cast<std::chrono::hours>(now_ts - lastLog).count() >= STATS_PUBLISH_ASK_HOURS) {
                 lastLog = now_ts;
                 LogInfo(VB_GENERAL, "Not Publishing statistics as mode is '%s'\n", mode.c_str());
