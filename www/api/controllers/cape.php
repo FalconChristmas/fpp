@@ -548,10 +548,7 @@ function SignEEPROM($key = '', $order = '')
 {
     global $settings;
 
-    $APIhost = 'api.FalconPlayer.com';
-    if (isset($settings['SigningAPIHost'])) {
-        $APIhost = $settings['SigningAPIHost'];
-    }
+    $APIhost = SigningAPIHost();
 
     $url = "https://$APIhost/api/fpp/eeprom/sign";
     $result = array();
@@ -660,10 +657,7 @@ function RedeemVoucher()
 {
     global $settings;
 
-    $APIhost = 'api.FalconPlayer.com';
-    if (isset($settings['SigningAPIHost'])) {
-        $APIhost = $settings['SigningAPIHost'];
-    }
+    $APIhost = SigningAPIHost();
 
     $url = "https://$APIhost/api/fpp/voucher/redeem";
 

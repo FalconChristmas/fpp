@@ -7,10 +7,7 @@ include 'common/htmlMeta.inc';
 require_once 'common.php';
 require_once 'config.php';
 
-$APIhost = 'api.FalconPlayer.com';
-if (isset($settings['SigningAPIHost'])) {
-    $APIhost = $settings['SigningAPIHost'];
-}
+$APIhost = SigningAPIHost();
 
 $channelOutputDriver = "";
 
@@ -187,7 +184,7 @@ if ($printSigningUI) {
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <script language="Javascript">
         // Define API host for use in JavaScript
-        var apiHost = '<?php echo $APIhost; ?>';
+        var apiHost = <?php echo json_encode($APIhost); ?>;
 
         // Open the shared EEPROM sign/voucher progress dialog. Built via the standard
         // DoModalDialog helper (not the legacy fppDialog shim); the footer button starts
@@ -910,7 +907,7 @@ if ($printSigningUI) {
         // rejects when it did not, which is the same yes/no. It also moves the
         // host from script-src to connect-src, where it already was.
         function TestInternet() {
-            fetch('https://<?= $APIhost ?>/js/internetTest.js?ref=' + Date.now(),
+            fetch('https://' + apiHost + '/js/internetTest.js?ref=' + Date.now(),
                 { mode: 'no-cors', cache: 'no-store' })
                 .then(function () {
                     // Opaque response: we cannot read it, and do not need to.

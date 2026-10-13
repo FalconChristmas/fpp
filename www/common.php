@@ -211,6 +211,20 @@ function MissingSetupSettings()
     return $missing;
 }
 
+// The host the cape pages send the SoC serial, order ID and account password
+// to when signing an EEPROM or redeeming a voucher.  A developer override in
+// the settings file; anything but a plain host[:port] falls back to the real
+// one, because the value is put into URLs and echoed into the page's script.
+function SigningAPIHost()
+{
+    global $settings;
+    $host = isset($settings['SigningAPIHost']) ? trim($settings['SigningAPIHost']) : '';
+    if (preg_match('/^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,252})(?::[0-9]{1,5})?$/', $host)) {
+        return $host;
+    }
+    return 'api.FalconPlayer.com';
+}
+
 function ReadSettingFromFile($settingName, $plugin = "")
 {
     global $settingsFile;
