@@ -22,8 +22,8 @@ ServerTokens Prod
 
 	# Cross-site request gate.
 	#
-	# There is no login by default and /api answers any origin, so without
-	# this any web page a user opens could make this player do things:
+	# There is no login by default, so without this any web page a user
+	# opens could make this player do things:
 	# change settings, install plugins, run scripts, reboot it.  Browsers say
 	# where a request comes from, so requests another site starts are refused
 	# here, in front of every page, the API and the routes proxied to fppd.
@@ -176,10 +176,15 @@ ServerTokens Prod
     # Catch-all rewrite to index.php
     RewriteRule ^(.*)$ /api/index.php?uri=/$1 [NC,L,QSA,B]
 
-    # CORS headers
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET,POST,OPTIONS,DELETE,PUT"
-    Header always set Access-Control-Allow-Headers "Content-Type"
+    # CORS headers, only when "Let other websites read the API" is on
+    # (AllowCrossOriginAPI; the file is kept in step with it).  Without them
+    # a web page the user merely visits can still send a GET, but cannot read
+    # the answer: the cape serial, the settings, the file lists.  FPP's own
+    # pages never need them, since every call to another player goes through
+    # /proxy/ or our PHP; apps that are not browsers ignore them.
+    Header always set Access-Control-Allow-Origin "*" "expr=-f '/home/fpp/media/config/api-cross-origin'"
+    Header always set Access-Control-Allow-Methods "GET,POST,OPTIONS,DELETE,PUT" "expr=-f '/home/fpp/media/config/api-cross-origin'"
+    Header always set Access-Control-Allow-Headers "Content-Type" "expr=-f '/home/fpp/media/config/api-cross-origin'"
 </Directory>
 
 # SSE (Server-Sent Events) ProxyPass with flushpackets for immediate streaming

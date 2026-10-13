@@ -308,7 +308,8 @@
 				"Service_rsync",
 				"Service_smbd_nmbd",
 				"Service_vsftpd",
-				"Service_MQTT_localbroker"
+				"Service_MQTT_localbroker",
+				"AllowCrossOriginAPI"
 			]
 		},
 		"kiosk": {
@@ -3001,6 +3002,15 @@
 			"platforms": [
 				"!MacOS"
 			]
+		},
+		"AllowCrossOriginAPI": {
+			"name": "AllowCrossOriginAPI",
+			"description": "Let other websites read the API",
+			"gatherStats": true,
+			"tip": "Lets a web page served from somewhere else (a dashboard on another computer, say) read this player's API from the browser.  Any web site you visit can then read it too, including the cape serial number and the settings, unless a UI password is set.  FPP's own pages, xLights and other apps that are not web pages do not need this.",
+			"level": 1,
+			"type": "checkbox",
+			"default": "0"
 		},
 		"ShareCrashData": {
 			"name": "ShareCrashData",

@@ -1,7 +1,6 @@
 <?
 header("Content-Type: text/event-stream");
 header("Cache-Control: no-cache");
-header("Access-Control-Allow-Origin: *");
 header("X-Accel-Buffering: no");
 
 $skipJSsettings = 1;

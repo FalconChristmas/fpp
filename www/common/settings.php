@@ -405,6 +405,19 @@ function SetGPIOFanProperties()
     }
 }
 
+// Apache sends /api's CORS headers while this file exists (etc/apache2.site);
+// fppinit puts it in step with the setting at boot.  No reload needed.
+function SetupCrossOriginAPI($value)
+{
+    global $settings;
+    $marker = $settings['mediaDirectory'] . '/config/api-cross-origin';
+    if ($value == '1') {
+        @file_put_contents($marker, "Written by FPP for the AllowCrossOriginAPI setting\n");
+    } else {
+        @unlink($marker);
+    }
+}
+
 function SetupLocalMQTTBroker($value)
 {
     global $settings;
@@ -545,6 +558,9 @@ function ApplySetting($setting, $value)
             break;
         case 'Service_MQTT_localbroker':
             SetupLocalMQTTBroker($value);
+            break;
+        case 'AllowCrossOriginAPI':
+            SetupCrossOriginAPI($value);
             break;
         case 'MQTTPassword':
             if (GetSettingValue('Service_MQTT_localbroker') == '1') {

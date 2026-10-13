@@ -84,10 +84,11 @@ function GetSetting()
         $sInfo = array();
     }
 
-    // Credentials are write-only over the API.  /api answers any origin
-    // (Access-Control-Allow-Origin: *), so on a player without a UI password a
-    // web page the user merely visits could read them; settings pages print
-    // these fields server-side and never read them back from here.
+    // Credentials are write-only over the API.  With AllowCrossOriginAPI on,
+    // /api answers any origin (Access-Control-Allow-Origin: *), so on a player
+    // without a UI password a web page the user merely visits could read them;
+    // settings pages print these fields server-side and never read them back
+    // from here.
     // emailgpass and secret are stored but not declared in settings.json.
     $isSecret = (isset($sInfo['type']) && $sInfo['type'] === 'password') ||
         in_array($settingName, array('emailgpass', 'secret'), true);

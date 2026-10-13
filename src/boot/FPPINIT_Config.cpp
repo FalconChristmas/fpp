@@ -251,6 +251,17 @@ void setupApache() {
     if (!FileExists(HTPWD)) {
         PutFileContents(HTPWD, "");
     }
+    // Apache sends /api's CORS headers while this file exists; www's
+    // SetupCrossOriginAPI() keeps it in step when the setting changes.
+    static const std::string CROSSORIGIN = FPP_MEDIA_DIR + "/config/api-cross-origin";
+    std::string allow;
+    if (getRawSetting("AllowCrossOriginAPI", allow) && allow == "1") {
+        if (!FileExists(CROSSORIGIN)) {
+            PutFileContents(CROSSORIGIN, "Written by FPP for the AllowCrossOriginAPI setting\n");
+        }
+    } else if (FileExists(CROSSORIGIN)) {
+        unlink(CROSSORIGIN.c_str());
+    }
     /*     if (!FileExists("/opt/fpp/www/proxy/.htaccess")) {
             printf("Creating proxy .htaccess link\n");
             if (!FileExists("/home/fpp/media/config/proxies")) {
