@@ -427,10 +427,13 @@ function doRestore($restore_Area, $restore_Data, $restore_Filepath, $restore_kee
     // whatever DID land. A reboot is harmless if nothing needed it; skipping
     // it because something else in the same restore failed would leave
     // successfully-restored state unreconciled.
+    // /fpp_restored, not /fppos_upgraded: that one also says the OS was
+    // replaced, which resets the unknown-plugin record and holds every
+    // native plugin back until it is reinstalled.
     if ($restore_done) {
         WriteSettingToFile('BootActions', 'settings');
         WriteSettingToFile('rebootFlag', 1);
-        exec('sudo touch /fppos_upgraded');
+        exec('sudo touch /fpp_restored');
     }
 
     //$restore_done is set if we got to actually call the function to restore data, if there was some sort of error with the data beforehand it will never get set

@@ -1247,6 +1247,12 @@ void migrateRemoteCommands() {
     }
 }
 
+// Touched by a restore (www/backup.php, www/copystorage.php).  It asks for
+// the part of a reflash's reconciliation a restore needs -- the restored
+// userpackages.json installed, the restored settings migrated -- and not the
+// rest: the OS and the plugins built for it are still this box's.
+static const char* FPP_RESTORED_MARKER = "/fpp_restored";
+
 // Config-state migrations that must survive an FPPOS reflash, gated on the
 // same /fppos_upgraded marker as checkInstallPackages() (touched by
 // upgradeOS-part2.sh, which is always sourced from the target image being
@@ -1257,7 +1263,7 @@ void migrateRemoteCommands() {
 // here is written to be safely idempotent, so simply re-running on a later
 // boot is harmless. Add future OS-upgrade-surviving config migrations here.
 void checkConfigMigrations() {
-    if (FileExists("/fppos_upgraded")) {
+    if (FileExists("/fppos_upgraded") || FileExists(FPP_RESTORED_MARKER)) {
         migrateMultiSyncDefaultToMulticast();
     }
 }
@@ -1341,7 +1347,15 @@ static void resetPluginSourceAfterOS() {
 }
 
 void checkInstallPackages() {
-    if (FileExists("/fppos_upgraded")) {
+    bool reflashed = FileExists("/fppos_upgraded");
+    if (!reflashed && !FileExists(FPP_RESTORED_MARKER)) {
+        return;
+    }
+    if (reflashed) {
+        // Only a reflash: a restore keeps this OS, so whatever an unknown
+        // plugin's install did to it is still there, and the plugins on
+        // disk were built for it (a File Copy that brings plugins in asks
+        // for their reinstall itself, in copystorage.php).
         resetPluginSourceAfterOS();
         // An FPPOS reflash replaces /opt/fpp (new fppd, headers, plugin API
         // version) while /home/fpp/media -- including the plugin clones -- is
@@ -1359,17 +1373,18 @@ void checkInstallPackages() {
         if (anyPluginsInstalled()) {
             setRawSetting("pluginReinstallNeededAfterOS", "1");
         }
+    }
 
-        printf("Installing User Packages\n");
-        // Only consume the upgrade marker once the packages actually installed.
-        // If the install can't complete (e.g. no network yet at boot), leave
-        // /fppos_upgraded in place so it is retried on the next boot rather than
-        // silently never reinstalling the user's packages.
-        if (installPackagesFromJson("/home/fpp/media/config/userpackages.json")) {
-            unlink("/fppos_upgraded");
-        } else {
-            printf("User package install incomplete - leaving /fppos_upgraded set to retry next boot\n");
-        }
+    printf("Installing User Packages\n");
+    // Only consume the markers once the packages actually installed. If the
+    // install can't complete (e.g. no network yet at boot), leave them in
+    // place so it is retried on the next boot rather than silently never
+    // reinstalling the user's packages.
+    if (installPackagesFromJson("/home/fpp/media/config/userpackages.json")) {
+        unlink("/fppos_upgraded");
+        unlink(FPP_RESTORED_MARKER);
+    } else {
+        printf("User package install incomplete - leaving the upgrade/restore marker set to retry next boot\n");
     }
 }
 void startZRAMSwap() {

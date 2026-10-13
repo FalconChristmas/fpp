@@ -466,7 +466,8 @@ void PluginManager::loadUserPlugins() {
 // entry (drives the icon/grouping); the Fix button itself is rendered from the
 // fixUrl/fixText carried in the warning data.
 static constexpr int PLUGIN_REINSTALL_WARNING_ID = 57;
-static const std::string PLUGIN_REINSTALL_WARNING_MSG = "FPPOS upgraded, plugins must be reinstalled";
+// Not only after an FPPOS upgrade: a File Copy restore of plugins sets it too.
+static const std::string PLUGIN_REINSTALL_WARNING_MSG = "Plugins must be reinstalled";
 
 void PluginManager::checkPluginReinstallWarning() {
     if (getSetting("pluginReinstallNeededAfterOS") != "") {

@@ -417,7 +417,7 @@
         },
         {
             "id": 57,
-            "Title": "FPPOS upgraded, plugins must be reinstalled",
+            "Title": "Plugins must be reinstalled",
             "HelpTxt": "",
             "HelpPageType": "",
             "WarningGroup": "Plugin_Warnings"

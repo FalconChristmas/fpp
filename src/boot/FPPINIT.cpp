@@ -431,21 +431,19 @@ int main(int argc, char* argv[]) {
 
         // checkConfigMigrations doesn't need the network, but runs here anyway,
         // right beside checkInstallPackages -- both are gated on the same
-        // /fppos_upgraded marker, so keeping them together keeps that shared
-        // precondition visible in one place.
+        // markers, so keeping them together keeps that shared precondition
+        // visible in one place.
         //
-        // /fppos_upgraded is no longer touched only by an OS reflash
-        // (upgradeOS-part2.sh) -- www/backup.php touches it after ANY JSON
-        // restore area (network, virtualEEPROM, channelOutputs, etc
-        // included, even though some of those already set their own
-        // rebootFlag separately -- this just rides along on the same
-        // reboot), and www/copystorage.php touches it after a File Copy
-        // restore of Configuration or Plugins specifically.
+        // /fppos_upgraded is touched by an OS reflash (upgradeOS-part2.sh)
+        // and /fpp_restored by a restore: www/backup.php after any JSON
+        // restore area, www/copystorage.php after a File Copy restore of
+        // Configuration, Plugins or EEPROM.  A restore gets the packages and
+        // migrations, not the reflash's plugin handling.
         checkConfigMigrations();
 
         // Both of these must run after a join:
         //  - checkInstallPackages may apt-install user packages after an OS
-        //    upgrade or a restore (see the /fppos_upgraded note above), so
+        //    upgrade or a restore (see the marker note above), so
         //    it needs the network up (network thread joined).
         //  - setFileOwnership chowns /home/fpp/media, where setupAudio writes its
         //    PipeWire config as root, so it must follow the audio thread -- run it
