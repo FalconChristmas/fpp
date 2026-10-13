@@ -42,15 +42,18 @@ static int savedStreamSlotVolume(int slot) {
     // the normal case -- don't let LoadJsonFromFile() log it as an error.
     std::string file = FPP_DIR_CONFIG("/pipewire-stream-slots.json");
     Json::Value root;
-    if (!FileExists(file) || !LoadJsonFromFile(file, root) ||
-        !root.isMember("slots")) {
+    // Shape-checked, not trusted: a list root, a non-object "slots" or a
+    // volume saved as a string threw from here on every stream start.
+    if (!FileExists(file) || !LoadJsonFromFile(file, root, JsonRoot::Object) ||
+        !root["slots"].isObject()) {
         return -1;
     }
     std::string key = std::to_string(slot);
-    if (!root["slots"].isMember(key)) {
+    const Json::Value& vol = root["slots"][key];
+    if (!vol.isIntegral()) {
         return -1;
     }
-    int v = root["slots"][key].asInt();
+    int v = vol.asInt();
     if (v < 0 || v > 100) {
         return -1;
     }

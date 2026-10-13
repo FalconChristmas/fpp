@@ -185,11 +185,17 @@ void Variables::load() {
     Json::Value root = LoadJsonFromFile(file, JsonRoot::Object);
     std::unique_lock<std::mutex> lock(m_lock);
     for (auto const& name : root.getMemberNames()) {
-        VariableEntry e;
-        e.value = root[name]["value"].asString();
-        e.persist = root[name]["persist"].asBool();
-        e.lastUpdated = (time_t)root[name]["lastUpdated"].asInt64();
-        m_variables[name] = e;
+        // A hand-edited variable of the wrong JSON type threw at startup, to
+        // std::terminate; skip that one variable instead.
+        try {
+            VariableEntry e;
+            e.value = root[name]["value"].asString();
+            e.persist = root[name]["persist"].asBool();
+            e.lastUpdated = (time_t)root[name]["lastUpdated"].asInt64();
+            m_variables[name] = e;
+        } catch (const std::exception& ex) {
+            WarningHolder::InvalidConfigEntry("variables.json", name + ": " + ex.what());
+        }
     }
 }
 

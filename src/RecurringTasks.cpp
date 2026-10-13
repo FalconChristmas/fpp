@@ -18,6 +18,7 @@
 #include <thread>
 
 #include "RecurringTasks.h"
+#include "Warnings.h"
 #include "Timers.h"
 #include "Variables.h"
 #include "common.h"
@@ -159,7 +160,15 @@ void RecurringTasks::load() {
     }
     Json::Value root = LoadJsonFromFile(file, JsonRoot::Array);
     for (auto const& j : root) {
-        RecurringTask task = ParseTask(j);
+        // A task with a value of the wrong JSON type threw out of ParseTask()
+        // at startup, to std::terminate; skip that task instead.
+        RecurringTask task;
+        try {
+            task = ParseTask(j);
+        } catch (const std::exception& e) {
+            WarningHolder::InvalidConfigEntry("recurringtasks.json", e.what());
+            continue;
+        }
         if (task.name.empty() || task.intervalMS <= 0) {
             LogWarn(VB_GENERAL, "RecurringTasks: skipping invalid task entry (missing name or non-positive intervalMS)\n");
             continue;

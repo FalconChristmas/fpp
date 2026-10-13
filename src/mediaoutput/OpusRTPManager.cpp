@@ -204,12 +204,19 @@ bool OpusRTPManager::LoadConfig() {
     // iterate the vector while push_back() reallocates it.
     OpusRTPConfig cfg;
     static const OpusRTPConfig kDefault;
-    cfg.requireGroupSource =
-        root.get("requireGroupSource", kDefault.requireGroupSource).asBool();
+    // Values of the wrong JSON type threw from here to std::terminate; such
+    // a field is left at its default, such an instance skipped.
+    try {
+        cfg.requireGroupSource =
+            root.get("requireGroupSource", kDefault.requireGroupSource).asBool();
+    } catch (const std::exception& e) {
+        WarningHolder::InvalidConfigEntry("pipewire-opus-rtp-instances.json", e.what());
+    }
 
     if (root.isMember("instances") && root["instances"].isArray()) {
         for (const auto& instJson : root["instances"]) {
             OpusRTPInstance inst;
+            try {
             inst.id = instJson.get("id", 0).asInt();
             inst.name = instJson.get("name", "Opus RTP").asString();
             inst.enabled = instJson.get("enabled", true).asBool();
@@ -223,6 +230,10 @@ bool OpusRTPManager::LoadConfig() {
             inst.dtx = instJson.get("dtx", false).asBool();
             inst.fec = instJson.get("fec", true).asBool();
             inst.packetLoss = instJson.get("packetLoss", OpusRTP::DEFAULT_PACKET_LOSS).asInt();
+            } catch (const std::exception& e) {
+                WarningHolder::InvalidConfigEntry("pipewire-opus-rtp-instances.json", e.what());
+                continue;
+            }
 
             if (!OpusRTP::IsValidBitrate(inst.bitrate)) {
                 inst.bitrate = OpusRTP::DEFAULT_BITRATE;

@@ -424,61 +424,83 @@ bool LoadInputUniversesFromFile(void) {
     int count = 0;
 
     bool enabled = false;
+    // Every value comes out of a file a user or an API may have written with
+    // the wrong JSON type, and jsoncpp throws on those: an entry or a universe
+    // that can't be read is skipped (with a warning) instead of the exception
+    // reaching std::terminate during startup.
+    if (!outputs.isArray()) {
+        if (!outputs.isNull()) {
+            WarningHolder::InvalidConfigEntry("ci-universes.json", "channelInputs is not a list");
+        }
+        outputs = Json::Value(Json::arrayValue);
+    }
     for (int c = 0; c < outputs.size(); c++) {
-        if (outputs[c]["type"].asString() != "universes")
-            continue;
+        try {
+            const Json::Value& o = outputs[c];
+            if (o["type"].asString() != "universes")
+                continue;
 
-        if (outputs[c]["enabled"].asInt() == 0)
-            continue;
+            if (o["enabled"].asInt() == 0)
+                continue;
 
-        if (outputs[c].isMember("timeout")) {
-            if (!outputs[c]["timeout"].isNull()) {
-                expireOffSet = outputs[c]["timeout"].asInt();
-                if (expireOffSet < 10) {
-                    expireOffSet = 10;
+            if (o.isMember("timeout")) {
+                if (!o["timeout"].isNull()) {
+                    expireOffSet = o["timeout"].asInt();
+                    if (expireOffSet < 10) {
+                        expireOffSet = 10;
+                    }
                 }
             }
-        }
 
-        Json::Value univs = outputs[c]["universes"];
-        enabled = true;
-        for (int i = 0; i < univs.size(); i++) {
-            Json::Value u = univs[i];
-
-            if (u["active"].asInt()) {
-                int universe = u["id"].asInt();
-                int count = u.get("universeCount", Json::Value(1)).asInt();
-                int startChannel = u["startChannel"].asInt();
-                int channelCount = u["channelCount"].asInt();
-                for (int x = 0; x < count; ++x) {
-                    UniverseEntry entry;
-                    entry.active = u["active"].asInt();
-                    entry.universe = universe + x;
-                    entry.startAddress = startChannel;
-                    entry.size = channelCount;
-                    entry.type = u["type"].asInt();
-
-                    switch (entry.type) {
-                    case 0: // Multicast
-                        entry.unicastAddress[0] = 0;
-                        break;
-                    case 1: // UnicastAddress
-                        snprintf(entry.unicastAddress, sizeof(entry.unicastAddress),
-                                 "%s", u["address"].asString().c_str());
-                        break;
-                    case 2: // ArtNet
-                    case 3: // ArtNet
-                        entry.unicastAddress[0] = 0;
-                        break;
-                    default:
+            Json::Value univs = o["universes"];
+            if (!univs.isArray()) {
+                univs = Json::Value(Json::arrayValue);
+            }
+            enabled = true;
+            for (int i = 0; i < univs.size(); i++) {
+                try {
+                    const Json::Value& u = univs[i];
+                    int active = u["active"].asInt();
+                    if (!active) {
                         continue;
                     }
-
-                    entry.priority = u["priority"].asInt();
-                    startChannel += channelCount;
-                    newUniverses.push_back(entry);
+                    // read everything before adding anything, so a bad field
+                    // can't leave half a universe range behind
+                    int universe = u["id"].asInt();
+                    int count = u.get("universeCount", Json::Value(1)).asInt();
+                    int startChannel = u["startChannel"].asInt();
+                    int channelCount = u["channelCount"].asInt();
+                    int type = u["type"].asInt();
+                    std::string address = type == 1 ? u["address"].asString() : std::string();
+                    int priority = u["priority"].asInt();
+                    // universe numbers are 16 bits: a bigger count only built
+                    // entries nothing can address (and a huge one, millions)
+                    count = std::clamp(count, 0, 65536);
+                    if (type < 0 || type > 3) {
+                        continue;
+                    }
+                    for (int x = 0; x < count; ++x) {
+                        UniverseEntry entry;
+                        entry.active = active;
+                        entry.universe = universe + x;
+                        entry.startAddress = startChannel;
+                        entry.size = channelCount;
+                        entry.type = type;
+                        if (type == 1) { // UnicastAddress
+                            snprintf(entry.unicastAddress, sizeof(entry.unicastAddress), "%s", address.c_str());
+                        } else { // Multicast, ArtNet
+                            entry.unicastAddress[0] = 0;
+                        }
+                        entry.priority = priority;
+                        startChannel += channelCount;
+                        newUniverses.push_back(entry);
+                    }
+                } catch (const std::exception& e) {
+                    WarningHolder::InvalidConfigEntry("ci-universes.json", e.what());
                 }
             }
+        } catch (const std::exception& e) {
+            WarningHolder::InvalidConfigEntry("ci-universes.json", e.what());
         }
     }
 
@@ -1390,12 +1412,32 @@ static void BridgeReloadDMXInputs() {
         Json::Value root;
         if (LoadJsonFromFile(filename, root, JsonRoot::Object)) {
             Json::Value outputs = root["channelInputs"];
+            if (!outputs.isArray()) {
+                outputs = Json::Value(Json::arrayValue);
+            }
             for (int c = 0; c < outputs.size(); c++) {
-                if (outputs[c]["type"].asString() == "dmx") {
-                    int start = outputs[c]["startAddress"].asInt();
-                    int count = outputs[c]["channelCount"].asInt();
-                    bool denabled = outputs[c]["enabled"].asBool();
-                    std::string device = outputs[c]["device"].asString();
+                // Read the entry inside a try: a value of the wrong JSON type
+                // threw out of this file-monitor callback, at startup, to
+                // std::terminate.  Such an entry is skipped.
+                std::string type;
+                int start = 0;
+                int count = 0;
+                bool denabled = false;
+                std::string device;
+                try {
+                    const Json::Value& o = outputs[c];
+                    type = o["type"].asString();
+                    if (type == "dmx") {
+                        start = o["startAddress"].asInt();
+                        count = o["channelCount"].asInt();
+                        denabled = o["enabled"].asBool();
+                        device = o["device"].asString();
+                    }
+                } catch (const std::exception& e) {
+                    WarningHolder::InvalidConfigEntry("ci-dmx.json", e.what());
+                    continue;
+                }
+                if (type == "dmx") {
                     if (denabled) {
                         std::string devPath = "/dev/" + device;
                         PinCapabilities::getPinByUART(device + "-rx").configPin("uart");

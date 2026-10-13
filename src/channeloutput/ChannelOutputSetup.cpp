@@ -464,7 +464,11 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
             if (type == "LEDPanelMatrix") {
                 // for LED matrices, the driver is determined by the subType
                 libnamePfx = "matrix-";
-                type = outputs[c]["subType"].asString();
+                // outside the try below: a subType of the wrong JSON type
+                // threw from asString() to std::terminate at startup.  A
+                // non-string finds no driver, which is reported as usual.
+                const Json::Value& subType = outputs[c]["subType"];
+                type = subType.isString() ? subType.asString() : std::string("(invalid subType)");
             } else if (OUTPUT_REMAPS.find(type) != OUTPUT_REMAPS.end()) {
                 type = OUTPUT_REMAPS[type];
             }

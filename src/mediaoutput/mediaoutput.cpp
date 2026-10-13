@@ -354,7 +354,11 @@ static std::set<std::string> nonFppOutputSinkNames() {
                                                             : "/pipewire-audio-groups.json";
     std::string path = FPP_DIR_CONFIG(groupsFile);
     Json::Value root;
-    if (LoadJsonFromFile(path, root) && root.isMember("groups")) {
+    // Both files can hold values of the wrong JSON type (hand edits, API
+    // writes); jsoncpp throws on those, and this runs at startup from
+    // setVolume(), so a throw terminated fppd.  Take what can be read.
+    try {
+    if (LoadJsonFromFile(path, root, JsonRoot::Object) && root.isMember("groups")) {
         for (const auto& grp : root["groups"]) {
             if (!grp.get("enabled", false).asBool() || !grp.isMember("members")) {
                 continue;
@@ -377,10 +381,14 @@ static std::set<std::string> nonFppOutputSinkNames() {
             }
         }
     }
+    } catch (const std::exception& e) {
+        WarningHolder::InvalidConfigEntry(groupsFile + 1, e.what());
+    }
 
     Json::Value opusRoot;
     std::string opusPath = FPP_DIR_CONFIG("/pipewire-opus-rtp-instances.json");
-    if (LoadJsonFromFile(opusPath, opusRoot) && opusRoot.isMember("instances")) {
+    try {
+    if (LoadJsonFromFile(opusPath, opusRoot, JsonRoot::Object) && opusRoot.isMember("instances")) {
         for (const auto& inst : opusRoot["instances"]) {
             if (!inst.get("enabled", true).asBool()) {
                 continue;
@@ -391,6 +399,9 @@ static std::set<std::string> nonFppOutputSinkNames() {
             std::string name = inst.get("name", "Opus RTP").asString();
             names.insert(opusRtpSafeNodeName(name) + "_send");
         }
+    }
+    } catch (const std::exception& e) {
+        WarningHolder::InvalidConfigEntry("pipewire-opus-rtp-instances.json", e.what());
     }
 
     return names;

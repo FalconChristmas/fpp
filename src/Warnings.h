@@ -80,6 +80,13 @@ public:
     static void RemoveWarning(int id, const std::string& w, const std::string& plugin = "");
     static void RemoveAllWarnings();
 
+    // An entry of a config file that couldn't be read -- a value of the wrong
+    // JSON type, which jsoncpp throws on -- and was skipped.  Logs it and puts
+    // up a warning (id 73) for an hour; a load that still finds it raises it
+    // again.  Loaders call this from their catch, so one bad entry is left out
+    // instead of terminating fppd.
+    static void InvalidConfigEntry(const std::string& file, const std::string& detail);
+
     // Recompute the "A Log Level is set to Debug/Excessive" warnings from the
     // current logger levels.  Call after any change to log levels, whatever
     // path it came in on (settings page, REST API, command socket).

@@ -723,11 +723,21 @@ Sensor* Sensors::createSensor(Json::Value& s) {
 }
 
 void Sensors::addSensors(Json::Value& config) {
+    if (!config.isArray()) {
+        return;
+    }
     for (int x = 0; x < config.size(); x++) {
-        Json::Value v = config[x];
-        Sensor* sensor = createSensor(v);
-        if (sensor) {
-            sensors.push_back(sensor);
+        // A sensor with a value of the wrong JSON type threw out of its
+        // constructor at startup, to std::terminate; skip that one.  The
+        // constructors read all their fields before doing anything.
+        try {
+            Json::Value v = config[x];
+            Sensor* sensor = createSensor(v);
+            if (sensor) {
+                sensors.push_back(sensor);
+            }
+        } catch (const std::exception& e) {
+            WarningHolder::InvalidConfigEntry("sensors", e.what());
         }
     }
 }

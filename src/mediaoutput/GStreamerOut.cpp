@@ -623,14 +623,20 @@ static int GetMaxPipeWireGroupDelayMs() {
         return 0;
 
     int maxDelay = 0;
-    for (const auto& group : root["groups"]) {
-        if (!group.get("enabled", false).asBool())
-            continue;
-        for (const auto& member : group["members"]) {
-            int delayMs = member.get("delayMs", 0).asInt();
-            if (delayMs > maxDelay)
-                maxDelay = delayMs;
+    // A value of the wrong JSON type threw from here, on every media start,
+    // to std::terminate; use what could be read.
+    try {
+        for (const auto& group : root["groups"]) {
+            if (!group.get("enabled", false).asBool())
+                continue;
+            for (const auto& member : group["members"]) {
+                int delayMs = member.get("delayMs", 0).asInt();
+                if (delayMs > maxDelay)
+                    maxDelay = delayMs;
+            }
         }
+    } catch (const std::exception& e) {
+        WarningHolder::InvalidConfigEntry("pipewire-audio-groups.json", e.what());
     }
     return maxDelay;
 }
@@ -4931,28 +4937,34 @@ void GStreamerOutput::FlushPipeWireDelayBuffers() {
     };
     std::vector<DelayInfo> delays;
 
-    for (const auto& group : root["groups"]) {
-        int groupId = group.get("id", 0).asInt();
-        if (!group.isMember("members"))
-            continue;
-        for (const auto& member : group["members"]) {
-            std::string cardId = member.get("cardId", "").asString();
-            double delayMs = member.get("delayMs", 0.0).asDouble();
-            int channels = member.get("channels", 2).asInt();
-            if (cardId.empty() || delayMs <= 0)
-                continue; // no delay buffer to flush
+    // Values of the wrong JSON type threw from here, on media start, to
+    // std::terminate; flush what could be read.
+    try {
+        for (const auto& group : root["groups"]) {
+            int groupId = group.get("id", 0).asInt();
+            if (!group.isMember("members"))
+                continue;
+            for (const auto& member : group["members"]) {
+                std::string cardId = member.get("cardId", "").asString();
+                double delayMs = member.get("delayMs", 0.0).asDouble();
+                int channels = member.get("channels", 2).asInt();
+                if (cardId.empty() || delayMs <= 0)
+                    continue; // no delay buffer to flush
 
-            // Normalize card ID to match PHP: preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($cardId))
-            std::string cardIdNorm;
-            for (char c : cardId) {
-                if (std::isalnum(c) || c == '_')
-                    cardIdNorm += std::tolower(c);
-                else
-                    cardIdNorm += '_';
+                // Normalize card ID to match PHP: preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($cardId))
+                std::string cardIdNorm;
+                for (char c : cardId) {
+                    if (std::isalnum(c) || c == '_')
+                        cardIdNorm += std::tolower(c);
+                    else
+                        cardIdNorm += '_';
+                }
+                std::string fxNodeName = "fpp_fx_g" + std::to_string(groupId) + "_" + cardIdNorm;
+                delays.push_back({fxNodeName, std::min(channels, 8), delayMs / 1000.0});
             }
-            std::string fxNodeName = "fpp_fx_g" + std::to_string(groupId) + "_" + cardIdNorm;
-            delays.push_back({fxNodeName, std::min(channels, 8), delayMs / 1000.0});
         }
+    } catch (const std::exception& e) {
+        WarningHolder::InvalidConfigEntry("pipewire-audio-groups.json", e.what());
     }
 
     if (delays.empty())

@@ -19,6 +19,7 @@
 
 #include <array>
 #include <list>
+#include <memory>
 #include <map>
 #include <string.h>
 #include <string>
@@ -34,6 +35,7 @@
 #include "Player.h"
 #include "Timers.h"
 #include "gpio.h"
+#include "Warnings.h"
 
 GPIOManager GPIOManager::INSTANCE;
 
@@ -394,6 +396,11 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
         Json::Value root;
         if (LoadJsonFromFile(file, root, JsonRoot::Array)) {
             for (int x = 0; x < root.size(); x++) {
+                // An input with a value of the wrong JSON type threw at
+                // startup, to std::terminate; skip that input instead.  The
+                // state is owned here until addState() takes it, so a throw
+                // part way through frees it.
+                try {
                 Json::Value v = root[x];
                 if (!v["enabled"].asBool()) {
                     continue;
@@ -402,7 +409,8 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
                 std::string mode = v.isMember("mode") ? v["mode"].asString() : "gpio";
                 const PinCapabilities* pc = PinCapabilities::getPinByName(pin).ptr();
                 if (pc) {
-                    GPIOState* state = new GPIOState();
+                    std::unique_ptr<GPIOState> owned(new GPIOState());
+                    GPIOState* state = owned.get();
                     if (v.isMember("debounceTime")) {
                         state->debounceTime = v["debounceTime"].asInt() * 1000;
                     }
@@ -505,15 +513,15 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
                         if (!state->pin->isAcquired()) {
                             LogWarn(VB_GPIO, "GPIO Input %s: the line could not be acquired, so it cannot be read - input disabled\n",
                                     pin.c_str());
-                            delete state;
                             continue;
                         }
 
-                        addState(state);
+                        addState(owned.release());
                         enabledCount++;
-                    } else {
-                        delete state;
                     }
+                }
+                } catch (const std::exception& e) {
+                    WarningHolder::InvalidConfigEntry("gpio.json", e.what());
                 }
             }
         }

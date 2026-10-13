@@ -220,6 +220,15 @@ void WarningHolder::UpdateLogLevelWarnings() {
     else if (lowestLogLevel == LOG_DEBUG)
         AddWarning(3, DEBUG_LOG_LEVEL_WARNING);
 }
+
+// Comes down by its timeout: a loader that still finds the entry raises it again.
+static constexpr int INVALID_CONFIG_ENTRY_WARNING_ID = 73;
+
+void WarningHolder::InvalidConfigEntry(const std::string& file, const std::string& detail) {
+    LogErr(VB_GENERAL, "%s: skipping an entry that could not be read (%s)\n", file.c_str(), detail.c_str());
+    AddWarningTimeout(3600, INVALID_CONFIG_ENTRY_WARNING_ID, file + " has an entry that could not be read and was skipped: " + detail);
+}
+
 void WarningHolder::RemoveAllWarnings() {
     std::unique_lock<std::shared_mutex> lock(warningsLock);
     warnings.clear();
