@@ -38,10 +38,12 @@
 #include "channeloutputthread.h"
 
 /* used by external sync code */
-float RefreshRate = 20;
-int SequenceLightDelay = 50000;
-int BridgeLightDelay = 0;
-int LightDelay = 50000;
+// Atomic: the output thread, media sync (on the media or MultiSync thread)
+// and sequence start all read and write these.
+std::atomic<float> RefreshRate{ 20 };
+std::atomic_int SequenceLightDelay{ 50000 };
+std::atomic_int BridgeLightDelay{ 0 };
+std::atomic_int LightDelay{ 50000 };
 volatile int FrameSkip = 0;
 int MasterFramesPlayed = -1;
 volatile int OutputFrames = 1;
@@ -276,7 +278,7 @@ void RunChannelOutputThread(void) {
         if (slowFrameCount > 3) {
             LogWarn(VB_CHANNELOUT,
                     "SLOW Output Thread: Loop: %dus, Send: %lldus, Read: %lldus, Process: %lldus, FrameNum: %ld\n",
-                    LightDelay,
+                    LightDelay.load(),
                     sendTime - startTime,
                     readTime - sendTime,
                     processTime - readTime,
@@ -296,14 +298,14 @@ void RunChannelOutputThread(void) {
                 }
                 LogDebug(VB_CHANNELOUT,
                          "Output Thread: Loop: %dus, Send: %lldus, Read: %lldus, Process: %lldus, Sleep: %dus, FrameNum: %ld\n",
-                         LightDelay,
+                         LightDelay.load(),
                          sendTime - startTime,
                          readTime - sendTime,
                          processTime - readTime,
                          sleepTime, channelOutputFrame);
             }
         } else {
-            LightDelay = BridgeLightDelay;
+            LightDelay = BridgeLightDelay.load();
             if (onceMore) {
                 onceMore--;
             } else {
@@ -401,9 +403,17 @@ void RunChannelOutputThread(void) {
  * Set the step time
  */
 void SetChannelOutputRefreshRate(float rate) {
+    // Under the status lock, because the output thread sets LightDelay to the
+    // bridging interval, under that lock, when it finds no sequence running.
+    // Unlocked, that store could land just after this one when a sequence was
+    // starting, and the whole sequence then ran at the bridging interval
+    // (50ms by default) instead of its own frame time. StartSequence() marks
+    // the sequence running before calling this, so the thread either sees it
+    // running or finishes its store first.
+    std::unique_lock<std::mutex> statusLock(outputThreadStatusLock);
     RefreshRate = rate;
     SequenceLightDelay = 1000000 / RefreshRate;
-    LightDelay = SequenceLightDelay;
+    LightDelay = SequenceLightDelay.load();
 }
 float GetChannelOutputRefreshRate() {
     return RefreshRate;
@@ -592,7 +602,7 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent) {
                 LogDebug(VB_CHANNELOUT, "Skipping many frames - We are at %d, master is at: %d\n", channelOutputFrame, expectedFramesSent);
                 // more than 1/2 second behind, just jump
                 FrameSkip = expectedFramesSent - channelOutputFrame;
-                LightDelay = sequence->IsSequenceRunning() ? SequenceLightDelay : BridgeLightDelay;
+                LightDelay = sequence->IsSequenceRunning() ? SequenceLightDelay.load() : BridgeLightDelay.load();
                 return;
             }
         } else if (diff > 2) {
@@ -601,7 +611,7 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent) {
             diff--;
         }
     }
-    int DefaultLightDelay = sequence->IsSequenceRunning() ? SequenceLightDelay : BridgeLightDelay;
+    int DefaultLightDelay = sequence->IsSequenceRunning() ? SequenceLightDelay.load() : BridgeLightDelay.load();
     if (diff > 1 || diff < -1) {
         int timerOffset = diff * (DefaultLightDelay / 100);
         int newLightDelay = LightDelay;
@@ -633,7 +643,7 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent) {
             newLightDelay = DefaultLightDelay + 15000;
 
         LogDebug(VB_CHANNELOUT, "LightDelay: %d, newLightDelay: %d,   DiffFrames: %d     %d/%d\n",
-                 LightDelay, newLightDelay, diff, channelOutputFrame, expectedFramesSent);
+                 LightDelay.load(), newLightDelay, diff, channelOutputFrame, expectedFramesSent);
         LightDelay = newLightDelay;
     } else if (diff == -1) {
         // for the one frame off cases, keep the existing light delay unless the
