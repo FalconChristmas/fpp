@@ -575,3 +575,51 @@ test('Checked checkbox survives auto-refresh', async ({ page }) => {
 
     await expect(checkbox).toBeChecked();
 });
+
+test('Page scroll survives auto-refresh with logs open', async ({ page }) => {
+    // BUG: every status poll re-renders the table through initBody(), which
+    // replaces every row and so drops the browser's scroll anchor.  When a row
+    // above the viewport changed height -- constantly, while a fleet upgrade
+    // streams into the log rows -- the log the user had scrolled down to moved.
+    // FIX: the patched initBody() keeps the first row on screen where it was.
+    await page.setViewportSize({ width: 1920, height: 600 });
+    await loadMultisync(page);
+
+    // Open the log row on every system, as a fleet upgrade does.
+    await page.evaluate(() => {
+        document.querySelectorAll('#fppSystems tr.systemRow').forEach(r => {
+            if (document.getElementById(r.id + '_logs')) {
+                (window as any).showLogsRow(r.id);
+                (window as any).appendRowLog(r.id, 'line 1\nline 2\n');
+            }
+        });
+    });
+
+    const poll1 = nextStatusPoll(page);
+    await page.locator('#MultiSyncRefreshStatus').check();
+    await poll1;
+
+    // Scroll so a lower system's log sits at the top of the window.
+    const logs = page.locator('#fppSystems tr.child-row[id$="_logs"]:visible');
+    expect(await logs.count()).toBeGreaterThan(2);
+    const target = logs.nth(-2);
+    const before = await target.evaluate(el => {
+        el.scrollIntoView({ block: 'start', behavior: 'instant' as ScrollBehavior });
+        return el.getBoundingClientRect().top;
+    });
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+
+    // The first system grows a warning row, far above the viewport.
+    const grown = JSON.parse(JSON.stringify(MOCK_STATUS));
+    grown['192.168.0.13'].warnings = ['A warning that appears mid-upgrade'];
+    await page.unroute('**/api/system/status**');
+    await page.route('**/api/system/status**', route => route.fulfill({ json: grown }));
+
+    // Two polls: the second response means the first one has been rendered.
+    await nextStatusPoll(page);
+    await nextStatusPoll(page);
+    await expect(page.locator('#fppSystems tr.child-row[id$="_warnings"]:visible')).toHaveCount(2);
+
+    const after = await target.evaluate(el => el.getBoundingClientRect().top);
+    expect(Math.abs(after - before)).toBeLessThan(1);
+});

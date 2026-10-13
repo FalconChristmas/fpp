@@ -475,6 +475,55 @@
         }
 
         /**
+         * Keeps whatever the user scrolled down to in place while the systems
+         * table changes above it.
+         *
+         * Browsers do this themselves (scroll anchoring), but every poll's
+         * initBody() replaces the rows, which drops the browser's anchor, and
+         * the pollers show and hide warning rows around it.  So while a fleet
+         * upgrade streams into the log rows, each status update moved the page.
+         *
+         * The first row on screen is remembered whenever the page scrolls; when
+         * the table resizes, the page is scrolled back by however far that row
+         * moved.  ResizeObserver runs after layout and before paint, so the
+         * correction is never seen.  Rows are found by id, which survives the
+         * re-render.
+         */
+        function keepSystemsScrollAnchor() {
+            var table = document.getElementById('fppSystemsTable');
+            if (!table || typeof ResizeObserver === 'undefined') {
+                return;
+            }
+            var anchorId = null;
+            var anchorTop = 0;
+            var record = function () {
+                anchorId = null;
+                var rows = table.tBodies.length ? table.tBodies[0].rows : [];
+                for (var i = 0; i < rows.length; i++) {
+                    if (!rows[i].id) continue;
+                    var rect = rows[i].getBoundingClientRect();
+                    if (rect.bottom > 0) {
+                        anchorId = rows[i].id;
+                        anchorTop = rect.top;
+                        return;
+                    }
+                }
+            };
+            window.addEventListener('scroll', record, { passive: true });
+            new ResizeObserver(function () {
+                var anchor = anchorId ? document.getElementById(anchorId) : null;
+                if (anchor && anchor.offsetParent) {
+                    var delta = anchor.getBoundingClientRect().top - anchorTop;
+                    if (Math.abs(delta) >= 1) {
+                        // 'instant': the page's scroll-behavior is smooth.
+                        window.scrollBy({ top: delta, behavior: 'instant' });
+                    }
+                }
+                record();
+            }).observe(table);
+        }
+
+        /**
          * safeInitBody — wrapper around Bootstrap Table's initBody() that preserves
          * ephemeral UI state across every poll-driven re-render.
          *
@@ -4326,6 +4375,7 @@
     <script>
 
         $(document).ready(function () {
+            keepSystemsScrollAnchor();
 
             // Channel I/O icon tooltip popovers
             var activePopover = null;
