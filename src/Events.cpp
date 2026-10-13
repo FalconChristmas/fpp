@@ -259,6 +259,13 @@ void Events::RunPublishThread() {
 
         sleepDuration = seconds::max();
         for (auto& pNotifier : eventNotifiers) {
+            // next_time is wall-clock seconds (EventNotifier is plugin ABI, so
+            // its clock can't change).  A due time more than one period away
+            // can only mean the clock stepped back: publishing would otherwise
+            // stop for the size of the step.  Publish now and re-anchor.
+            if (system_clock::from_time_t(pNotifier->next_time) > now + seconds(pNotifier->frequency)) {
+                pNotifier->next_time = system_clock::to_time_t(now);
+            }
             if (system_clock::from_time_t(pNotifier->next_time) <= now) {
                 pNotifier->notify();
                 pNotifier->next_time = system_clock::to_time_t(now + seconds(pNotifier->frequency));
