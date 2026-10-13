@@ -1461,6 +1461,7 @@ void MultiSync::PerformTwinklyDiscovery() {
         m_twinklyDiscoverySeen.clear();
     }
 
+    // Under m_socketLock, which the sync sends need every frame: never block.
     std::unique_lock<std::mutex> lock(m_socketLock);
     for (auto& a : m_interfaces) {
         struct sockaddr_in bda;
@@ -1469,7 +1470,7 @@ void MultiSync::PerformTwinklyDiscovery() {
         bda.sin_port = htons(TWINKLY_DISCOVERY_PORT);
         bda.sin_addr.s_addr = a.second.broadcastAddress;
 
-        if (sendto(m_twinklyDiscoverySock, TWINKLY_DISCOVERY_MSG, sizeof(TWINKLY_DISCOVERY_MSG), 0,
+        if (sendto(m_twinklyDiscoverySock, TWINKLY_DISCOVERY_MSG, sizeof(TWINKLY_DISCOVERY_MSG), MSG_DONTWAIT,
                    (struct sockaddr*)&bda, sizeof(struct sockaddr_in)) < 0) {
             LogDebug(VB_SYNC, "Could not send Twinkly discovery on %s: %s\n",
                      a.second.interfaceName.c_str(), FPPstrerror(errno));
@@ -3098,6 +3099,34 @@ static void LogSendFailure(int err) {
     }
 }
 
+// How long one sync send may keep retrying a destination whose socket buffer is
+// full, before skipping it.  These sends run on the channel output thread ahead
+// of the frame's channel data, and under m_socketLock, which the main loop's
+// media sync sends also take -- so the bound covers both.  See
+// SendControlPacketViaMsgs() for why a dropped sync packet is the cheap side.
+static constexpr long long SEND_BUDGET_MS = 2;
+
+// One datagram, never blocking for longer than the budget left since startTime.
+// A blocking sendto() here once waited for good: Wi-Fi stopped transmitting
+// mid-show, the multicast socket's buffer filled, and the channel output thread
+// slept in sendto() holding m_socketLock while the main loop queued up behind
+// it -- all pixel output froze until a power cycle (issue #3072).
+// Returns 0, or the errno of the failed send.
+static int SendDatagramBounded(int sock, const void* buf, int len, const struct sockaddr_in& addr,
+                               long long startTime) {
+    while (true) {
+        if (sendto(sock, buf, len, MSG_DONTWAIT, (const struct sockaddr*)&addr, sizeof(addr)) >= 0) {
+            return 0;
+        }
+        int err = errno;
+        bool transient = err == EAGAIN || err == EWOULDBLOCK || err == ENOBUFS;
+        if (!transient || (GetMonotonicTimeMS() - startTime) >= SEND_BUDGET_MS) {
+            return err;
+        }
+        std::this_thread::sleep_for(std::chrono::microseconds(250));
+    }
+}
+
 void MultiSync::SendControlPacketViaMsgs(std::vector<struct mmsghdr>& msgs, struct iovec& iovec, void* outBuf, int len) {
     // The msgs vector (and the sockaddrs its entries point at) may be rebuilt
     // concurrently by UpdateUnicastDestinations(), so read its size, point the
@@ -3122,7 +3151,6 @@ void MultiSync::SendControlPacketViaMsgs(std::vector<struct mmsghdr>& msgs, stru
     // sends.  Retrying that for long turns one dead remote into a per-frame
     // stall for every controller, which is exactly what the budget prevents.
     // A skipped sync packet is cheap by comparison: the next frame sends another.
-    constexpr long long SEND_BUDGET_MS = 2;
     int outputCount = 0;
     int undelivered = 0;
     // monotonic: on the wall clock a step back during the budget kept this
@@ -3279,6 +3307,7 @@ void MultiSync::SendBroadcastPacket(void* outBuf, int len) {
     }
 
     std::unique_lock<std::mutex> lock(m_socketLock);
+    long long startTime = GetMonotonicTimeMS();
     for (auto& a : m_interfaces) {
         struct sockaddr_in bda;
         memset((void*)&bda, 0, sizeof(struct sockaddr_in));
@@ -3286,12 +3315,13 @@ void MultiSync::SendBroadcastPacket(void* outBuf, int len) {
         bda.sin_port = htons(FPP_CTRL_PORT);
         bda.sin_addr.s_addr = a.second.broadcastAddress;
 
-        if (sendto(m_broadcastSock, outBuf, len, 0, (struct sockaddr*)&bda, sizeof(struct sockaddr_in)) < 0)
-            LogSendFailure(errno);
+        if (int err = SendDatagramBounded(m_broadcastSock, outBuf, len, bda, startTime))
+            LogSendFailure(err);
     }
 }
 void MultiSync::SendMulticastPacket(void* outBuf, int len) {
     std::unique_lock<std::mutex> lock(m_socketLock);
+    long long startTime = GetMonotonicTimeMS();
     for (auto& a : m_interfaces) {
         struct sockaddr_in bda;
         memset((void*)&bda, 0, sizeof(struct sockaddr_in));
@@ -3324,8 +3354,8 @@ void MultiSync::SendMulticastPacket(void* outBuf, int len) {
         }
 
         if (a.second.multicastSocket >= 0) {
-            if (sendto(a.second.multicastSocket, outBuf, len, 0, (struct sockaddr*)&bda, sizeof(struct sockaddr_in)) < 0)
-                LogSendFailure(errno);
+            if (int err = SendDatagramBounded(a.second.multicastSocket, outBuf, len, bda, startTime))
+                LogSendFailure(err);
         }
     }
 }
