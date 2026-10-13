@@ -142,6 +142,13 @@ int LOROutput::Init(Json::Value config) {
             data->controllerOffset -= 1;
         }
     }
+    // SendData() refuses (and logged) every frame of an output larger than
+    // LOR can address: say so once, here, and don't start it.
+    if (m_channelCount > LOR_MAX_CHANNELS) {
+        LogErr(VB_CHANNELOUT, "LOR carries at most %d channels, %u configured\n",
+               LOR_MAX_CHANNELS, m_channelCount);
+        return 0;
+    }
     if (!data->setupSerialPort(config, data->speed, "8N1")) {
         return 0;
     }
