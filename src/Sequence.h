@@ -144,7 +144,10 @@ private:
 
     AtomicSharedPtr<FSEQFile> m_seqFile;
 
-    volatile int m_seqStarting;
+    // 2 while a file opens, 1 once its header is read, 0 when it plays. Set
+    // by whichever thread opens or starts the sequence; read by the
+    // read-ahead thread, the output thread and status.
+    std::atomic_int m_seqStarting;
     int m_seqPaused;
     int m_seqStepTime;
     int m_seqSingleStep;
