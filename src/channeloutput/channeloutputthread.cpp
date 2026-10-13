@@ -69,7 +69,7 @@ std::condition_variable outputThreadCond;
 std::condition_variable outputThreadSatusCond;
 
 // The pace of the media clock the sequence follows, relative to the system
-// clock, and when it was last reported (GetTime() us).  A card's crystal is
+// clock, and when it was last reported (GetMonotonicTimeMicros()).  A card's crystal is
 // tens to hundreds of ppm off; frames run at its pace so the lights don't walk
 // across media sync's whole-frame dead band over a song.  It goes stale (back
 // to 1.0) a second after the media stops reporting it.
@@ -78,7 +78,7 @@ static std::atomic<long long> mediaClockRateAt{ 0 };
 
 void SetMediaClockRate(double rate) {
     mediaClockRate = rate;
-    mediaClockRateAt = GetTime();
+    mediaClockRateAt = GetMonotonicTimeMicros();
 }
 
 static double CurrentMediaClockRate(long long now) {
@@ -177,7 +177,11 @@ void RunChannelOutputThread(void) {
     long long readTime;
     long long processTime;
     int onceMore = (getFPPmode() == REMOTE_MODE) ? 20 : 1;
-    // When the next frame is due (GetTime() microseconds), 0 before the first.
+    // When the next frame is due (GetMonotonicTimeMicros()), 0 before the
+    // first.  Every time in this loop is on the monotonic clock: the cadence
+    // carries nextFrameTime from frame to frame, so on the wall clock a step
+    // back (NTP, an RTC that boots in the past) left the next frame due that
+    // much later, and output stopped for as long as the step.
     long long nextFrameTime = 0;
     double frameTimeCarry = 0.0;
     struct timespec ts;
@@ -210,7 +214,7 @@ void RunChannelOutputThread(void) {
     bool doForceOutput = false;
     uint64_t forceSeen = outputForceRequests.load();
     while (RunThread) {
-        startTime = GetTime();
+        startTime = GetMonotonicTimeMicros();
         // A forced frame asked for before this pass's send is that send.
         uint64_t forceNow = outputForceRequests.load();
         if (forceNow != forceSeen) {
@@ -246,7 +250,7 @@ void RunChannelOutputThread(void) {
             sequence->SendSequenceData();
         }
 
-        sendTime = GetTime();
+        sendTime = GetMonotonicTimeMicros();
 
         if (sequence->IsSequenceRunning() || (onceMore >= 1)) {
             if (sequence->IsSequenceRunning()) {
@@ -258,7 +262,7 @@ void RunChannelOutputThread(void) {
             }
             sequence->ReadSequenceData();
         }
-        readTime = GetTime();
+        readTime = GetMonotonicTimeMicros();
 
         int msTime = 1000.0 * channelOutputFrame / RefreshRate;
         if (!sequence->IsSequenceRunning()) {
@@ -268,7 +272,7 @@ void RunChannelOutputThread(void) {
             // if bridging, we'll have to process later
             sequence->ProcessSequenceData(msTime);
         }
-        processTime = GetTime();
+        processTime = GetMonotonicTimeMicros();
 
         long long totalTime = processTime - startTime;
         if (totalTime > 150000) {
@@ -364,7 +368,7 @@ void RunChannelOutputThread(void) {
         }
         // else: a forced wake ran this pass early; the regular frame stays due
         // when it was.
-        long dt = (nextFrameTime - GetTime()) * 1000;
+        long dt = (nextFrameTime - GetMonotonicTimeMicros()) * 1000;
         if (RunThread && dt > 0) {
             if (outputThreadCond.wait_for(lock, std::chrono::nanoseconds(dt),
                                           [&forceSeen]() { return outputForceRequests.load() != forceSeen; })) {

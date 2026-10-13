@@ -84,6 +84,12 @@ long long GetMonotonicTimeMS(void) {
     return ts.tv_sec * 1000LL + ts.tv_nsec / 1000000;
 }
 
+long long GetMonotonicTimeMicros(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000000LL + ts.tv_nsec / 1000;
+}
+
 std::string GetTimeStr(std::string fmt) {
     auto t = std::time(nullptr);
     struct tm tm;

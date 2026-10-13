@@ -33,6 +33,8 @@ long long GetTimeMS();
 // durations.  GetTimeMS() is the wall clock: an NTP or RTC correction moves it
 // by hours or years, and a timer built on it then fires early or never.
 long long GetMonotonicTimeMS();
+// The same clock in microseconds.
+long long GetMonotonicTimeMicros();
 std::string GetTimeStr(std::string fmt);
 std::string GetDateStr(std::string fmt);
 
