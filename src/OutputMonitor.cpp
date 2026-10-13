@@ -1015,7 +1015,7 @@ bool OutputMonitor::checkEFuseRetry(PortPinInfo* port) {
 }
 void OutputMonitor::processRetries() {
     std::unique_lock<std::shared_mutex> lock(gpioLock);
-    long long ft = GetTimeMS();
+    long long ft = GetMonotonicTimeMS(); // retry timing: must not step with the wall clock
     std::list<PortPinInfo*> toRemove;
     for (auto p : eFuseRetries) {
         if (!p->eFusePin || !p->enablePin) {

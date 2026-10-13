@@ -125,7 +125,7 @@ void GPIOManager::CheckGPIOInputs(void) {
             } else {
                 // New transition detected — start the settle timer.
                 a->pendingValue = val;
-                a->pendingTime = GetTime();
+                a->pendingTime = GetMonotonicTimeMicros();
                 scheduleDebounceCheck(a);
             }
         }
@@ -135,7 +135,7 @@ void GPIOManager::CheckGPIOInputs(void) {
 // Timer-driven debounce check for all pins (event-based and poll-based).
 // Called when a debounce settle timer fires via Timers/EPollManager.
 void GPIOManager::checkDebounceTimers() {
-    long long tm = GetTime();
+    long long tm = GetMonotonicTimeMicros();
     auto checkList = [&](std::list<GPIOState*>& states) {
         for (auto a : states) {
             if (a->pendingValue != a->lastValue) {
@@ -162,7 +162,7 @@ void GPIOManager::checkDebounceTimers() {
 
 // Schedule a timer to re-check debounce for an event-based pin.
 void GPIOManager::scheduleDebounceCheck(GPIOState* state) {
-    long long remainingUS = (long long)state->debounceTime - (GetTime() - state->pendingTime);
+    long long remainingUS = (long long)state->debounceTime - (GetMonotonicTimeMicros() - state->pendingTime);
     long long remainingMS = (remainingUS + 999) / 1000; // round up to ms
     if (remainingMS < 1) {
         remainingMS = 1;
@@ -542,7 +542,7 @@ void GPIOManager::addGPIOCallback(GPIOState* a) {
                 // Settle-then-fire: start the settle timer if this is a new direction.
                 if (v != a->pendingValue) {
                     a->pendingValue = v;
-                    a->pendingTime = GetTime();
+                    a->pendingTime = GetMonotonicTimeMicros();
                 }
                 scheduleDebounceCheck(a);
             }
@@ -833,8 +833,8 @@ void GPIOManager::GPIOState::scheduleReEnable() {
         }
         case ReEnableMode::OnPlayerIdle: {
             // Give the player 200 ms to start before polling.
-            long long startMs = GetTimeMS();
-            Timers::INSTANCE.addTimer(timerName, startMs + 200, [this, startMs]() {
+            long long startMs = GetMonotonicTimeMS();
+            Timers::INSTANCE.addTimer(timerName, GetTimeMS() + 200, [this, startMs]() {
                 checkReEnable(startMs, false);
             });
             break;
@@ -845,12 +845,15 @@ void GPIOManager::GPIOState::scheduleReEnable() {
 void GPIOManager::GPIOState::checkReEnable(long long startMs, bool playerHasStarted) {
     if (!inputDisabled) return;
     std::string timerName = "gpio_reenable_" + pin->name;
-    long long now = GetTimeMS();
+    // startMs and now are monotonic (a wall-clock step back held the 2 s
+    // fallback off, and the input stayed disabled); timer deadlines are
+    // GetTimeMS() as Timers takes them.
+    long long now = GetMonotonicTimeMS();
     PlaylistStatus status = Player::INSTANCE.GetStatus();
 
     if (status != FPP_STATUS_IDLE) {
         // Player is active — keep polling every 500 ms.
-        Timers::INSTANCE.addTimer(timerName, now + 500, [this, startMs]() {
+        Timers::INSTANCE.addTimer(timerName, GetTimeMS() + 500, [this, startMs]() {
             checkReEnable(startMs, true);
         });
     } else if (playerHasStarted) {
@@ -865,7 +868,7 @@ void GPIOManager::GPIOState::checkReEnable(long long startMs, bool playerHasStar
         LogDebug(VB_GPIO, "GPIO %s re-enabled: player-idle timeout.\n", pin->name.c_str());
     } else {
         // Still waiting for player to start — check again soon.
-        Timers::INSTANCE.addTimer(timerName, now + 200, [this, startMs]() {
+        Timers::INSTANCE.addTimer(timerName, GetTimeMS() + 200, [this, startMs]() {
             checkReEnable(startMs, false);
         });
     }

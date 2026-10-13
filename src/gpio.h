@@ -66,7 +66,7 @@ private:
         long long lastTriggerTime;
         int futureValue;
         int pendingValue;       // candidate value waiting to settle
-        long long pendingTime;  // usec timestamp when pendingValue was first seen
+        long long pendingTime;  // GetMonotonicTimeMicros() when pendingValue was first seen
         int file;
 
         // Multiple commands per edge — old single-object format is normalised

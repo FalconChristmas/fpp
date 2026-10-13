@@ -276,7 +276,7 @@ int SerialWriteAll(int fd, const void* data, int len, int timeoutMs) {
         return -1;
     }
     const char* buf = (const char*)data;
-    uint64_t deadline = GetTimeMS() + timeoutMs;
+    uint64_t deadline = GetMonotonicTimeMS() + timeoutMs;
     int sent = 0;
     while (sent < len) {
         ssize_t w = write(fd, buf + sent, len - sent);
@@ -290,7 +290,7 @@ int SerialWriteAll(int fd, const void* data, int len, int timeoutMs) {
         if (w < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
             break;
         }
-        long long left = (long long)deadline - (long long)GetTimeMS();
+        long long left = (long long)deadline - (long long)GetMonotonicTimeMS();
         if (left <= 0) {
             break;
         }
@@ -304,13 +304,13 @@ int SerialWriteAll(int fd, const void* data, int len, int timeoutMs) {
 }
 
 bool SerialWaitDrained(int fd, int timeoutMs) {
-    uint64_t deadline = GetTimeMS() + timeoutMs;
+    uint64_t deadline = GetMonotonicTimeMS() + timeoutMs;
     while (true) {
         int queued = 0;
         if (ioctl(fd, TIOCOUTQ, &queued) < 0 || queued <= 0) {
             return true;
         }
-        if (GetTimeMS() >= deadline) {
+        if (GetMonotonicTimeMS() >= deadline) {
             return false;
         }
         usleep(500);

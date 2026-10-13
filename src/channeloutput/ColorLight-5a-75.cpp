@@ -753,7 +753,7 @@ void ColorLight5a75Output::OverlayTestData(unsigned char* channelData, int cycle
 }
 
 int ColorLight5a75Output::SendMessages(std::vector<struct mmsghdr>& msgsToSend) {
-    long long startTime = GetTimeMS();
+    long long startTime = GetMonotonicTimeMS();
     struct mmsghdr* msgs = &msgsToSend[0];
     int msgCount = msgsToSend.size();
     if (msgCount == 0)
@@ -777,7 +777,7 @@ int ColorLight5a75Output::SendMessages(std::vector<struct mmsghdr>& msgsToSend) 
             outputCount += oc;
         }
         if (outputCount != msgCount) {
-            long long tm = GetTimeMS();
+            long long tm = GetMonotonicTimeMS();
             long long totalTime = tm - startTime;
             if (totalTime < 22) {
                 // we'll keep trying for up to 22ms, but give the network stack some time to flush some buffers
@@ -787,7 +787,7 @@ int ColorLight5a75Output::SendMessages(std::vector<struct mmsghdr>& msgsToSend) 
             }
         }
     }
-    long long endTime = GetTimeMS();
+    long long endTime = GetMonotonicTimeMS();
     long long totalTime = endTime - startTime;
     if (outputCount != msgCount) {
         int tti = (int)totalTime;

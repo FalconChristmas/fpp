@@ -862,7 +862,7 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
         LogInfo(VB_CHANNELOUT, "KMSFrameBuffer %s: media finished, showing output again\n", m_connectorName.c_str());
     }
     {
-        long long syncStart = GetTimeMS();
+        long long syncStart = GetMonotonicTimeMS();
         if (DrmCards::EnsureMaster(m_cardFd)) {
             // If the previous flip hasn't retired yet, wait for its vblank
             // completion event instead of letting this flip return EBUSY and
@@ -952,7 +952,7 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
             // surface them (rate-limited) at Warn level so output stutters can
             // be correlated with (or ruled out of) the KMS flip path without
             // needing debug logging.
-            long long syncEnd = GetTimeMS();
+            long long syncEnd = GetMonotonicTimeMS();
             // The phase-alignment sleep is intentional; don't count it as a
             // flip-path delay.
             int tookMS = (int)(syncEnd - syncStart) - (int)(alignSleepUS / 1000);
@@ -1249,7 +1249,7 @@ void KMSFrameBuffer::HotplugMonitorLoop(int sock, int wakeFd) {
     // connectors).  Any event re-probes every output on its card.
     std::map<std::string, std::set<uint32_t>> pending;
     long long deadline = 0;
-    long long nextRecheck = GetTimeMS() + ABSENT_RECHECK_MS;
+    long long nextRecheck = GetMonotonicTimeMS() + ABSENT_RECHECK_MS;
     char buf[8192];
 
     while (true) {
@@ -1259,7 +1259,7 @@ void KMSFrameBuffer::HotplugMonitorLoop(int sock, int wakeFd) {
         pfds[1].fd = wakeFd;
         pfds[1].events = POLLIN;
         long long wake = deadline ? std::min(deadline, nextRecheck) : nextRecheck;
-        int timeout = (int)std::max(0LL, wake - GetTimeMS());
+        int timeout = (int)std::max(0LL, wake - GetMonotonicTimeMS());
         int r = poll(pfds, 2, timeout);
         if (r < 0 && errno != EINTR) {
             LogWarn(VB_CHANNELOUT, "KMSFrameBuffer: uevent poll failed, display hotplug will no longer be handled: %s\n", strerror(errno));
@@ -1292,17 +1292,17 @@ void KMSFrameBuffer::HotplugMonitorLoop(int sock, int wakeFd) {
                 }
                 LogDebug(VB_CHANNELOUT, "KMSFrameBuffer: hotplug uevent on %s connector %u\n", devname.c_str(), connectorId);
                 pending["/dev/" + devname].insert(connectorId);
-                deadline = GetTimeMS() + HOTPLUG_SETTLE_MS;
+                deadline = GetMonotonicTimeMS() + HOTPLUG_SETTLE_MS;
             }
         }
-        if (deadline && GetTimeMS() >= deadline) {
+        if (deadline && GetMonotonicTimeMS() >= deadline) {
             for (auto& [cardPath, connectorIds] : pending) {
                 HandleHotplug(cardPath, connectorIds, false);
             }
             pending.clear();
             deadline = 0;
         }
-        if (GetTimeMS() >= nextRecheck) {
+        if (GetMonotonicTimeMS() >= nextRecheck) {
             std::set<std::string> cards;
             {
                 std::unique_lock<std::mutex> lock(drmMasterLock);
@@ -1315,7 +1315,7 @@ void KMSFrameBuffer::HotplugMonitorLoop(int sock, int wakeFd) {
             for (auto& cardPath : cards) {
                 HandleHotplug(cardPath, {}, true);
             }
-            nextRecheck = GetTimeMS() + ABSENT_RECHECK_MS;
+            nextRecheck = GetMonotonicTimeMS() + ABSENT_RECHECK_MS;
         }
     }
 }

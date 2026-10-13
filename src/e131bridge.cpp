@@ -1417,7 +1417,7 @@ static void BridgeReloadDMXInputs() {
                                 int sz = read(i, buffer, sizeof(buffer));
                                 long long commitTime = 0;
                                 while (sz > 0) {
-                                    uint64_t ts = GetTimeMicros();
+                                    uint64_t ts = GetMonotonicTimeMicros(); // DMX break detection: an interval
                                     uint64_t diff = ts - entry->lastTimestamp;
                                     entry->lastTimestamp = ts;
 

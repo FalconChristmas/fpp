@@ -102,7 +102,7 @@ constexpr int STATE_DONE_GROUP = 998;
 constexpr int STATE_DISPLAY_PIXEL = 999;
 
 void CurrentBasedPixelCountPixelStringTester::prepareTestData(int cycleCount, float percentOfCycle) {
-    currentTimeMS = GetTimeMS();
+    currentTimeMS = GetMonotonicTimeMS();
     if (cycleCount == 0) {
         curGroup = 0;
         OutputMonitor::INSTANCE.lockToGroup(curGroup);
