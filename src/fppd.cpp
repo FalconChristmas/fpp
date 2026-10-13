@@ -2154,10 +2154,19 @@ void MainLoop(void) {
                 }
             }
 
+            // Read once: a stop from another thread (the API, MQTT) can land
+            // between two reads, and then the second recorded "idle" as the
+            // previous status and the playing-to-idle change was never seen,
+            // so the stopped playlist was never cleaned up and the scheduler
+            // never asked whether something should be playing.  For the same
+            // reason "stopping now" counts below: a stop holds it while the
+            // entry stops, and a pass that read it then never saw the change.
+            PlaylistStatus curStatus = Player::INSTANCE.GetStatus();
             int reactivated = 0;
-            if (Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) {
+            if (curStatus == FPP_STATUS_IDLE) {
                 if ((prevFPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
                     (prevFPPstatus == FPP_STATUS_PLAYLIST_PAUSED) ||
+                    (prevFPPstatus == FPP_STATUS_STOPPING_NOW) ||
                     (prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY) ||
                     (prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
                     MAIN_LOOP_PHASE("Player::Cleanup");
@@ -2178,7 +2187,7 @@ void MainLoop(void) {
             if (reactivated)
                 prevFPPstatus = FPP_STATUS_IDLE;
             else
-                prevFPPstatus = Player::INSTANCE.GetStatus();
+                prevFPPstatus = curStatus;
 
             // Process() frees retired playlists and entries, but only runs
             // while something plays; free them while idle too.
