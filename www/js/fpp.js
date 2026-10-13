@@ -212,22 +212,25 @@ function buildHttpURL(ip, path) {
 // inside an open modal pass that modal as container: Bootstrap's focus trap
 // pulls focus back out of a textarea on <body>, and the copy then silently
 // copies nothing.
+// Resolves once the text is on the clipboard and rejects if it could not be
+// put there, so callers only report a copy that happened.
 function CopyTextToClipboard (text, container) {
 	var fallback = function () {
 		var $ta = $('<textarea readonly>').val(text).css({ position: 'fixed', top: '-1000px', left: '-1000px' }).appendTo(container || 'body');
 		$ta[0].select();
+		var copied = false;
 		try {
-			document.execCommand('copy');
+			copied = document.execCommand('copy');
 		} catch (e) {
-			// nothing more we can do
+			copied = false;
 		}
 		$ta.remove();
+		return copied ? Promise.resolve() : Promise.reject(new Error('Copy to clipboard failed'));
 	};
 	if (navigator.clipboard && navigator.clipboard.writeText) {
 		return navigator.clipboard.writeText(text).catch(fallback);
 	}
-	fallback();
-	return Promise.resolve();
+	return fallback();
 }
 
 /* jQuery Colpick activation */
@@ -9191,12 +9194,17 @@ function DisplayErrorReportDialog () {
 	$dlg.find('.modal-header, .modal-footer').addClass('py-2');
 	$dlg.off('click.erCopy').on('click.erCopy', '.erCopyFileBtn', function () {
 		var $icon = $(this).find('i');
-		CopyTextToClipboard(erReportFile || '', $dlg).then(function () {
-			$icon.attr('class', 'fas fa-check text-success');
-			setTimeout(function () {
-				$icon.attr('class', 'fas fa-copy');
-			}, 1500);
-		});
+		CopyTextToClipboard(erReportFile || '', $dlg).then(
+			function () {
+				$icon.attr('class', 'fas fa-check text-success');
+				setTimeout(function () {
+					$icon.attr('class', 'fas fa-copy');
+				}, 1500);
+			},
+			function () {
+				$.jGrowl('Could not copy to the clipboard; select the name and copy it by hand', { themeState: 'danger' });
+			}
+		);
 	});
 
 	ErShowStep(1);

@@ -47,13 +47,16 @@
           $ta.style.left = '-1000px';
           document.body.appendChild($ta);
           $ta.select();
+          var copied = false;
           try {
-            document.execCommand('copy');
+            copied = document.execCommand('copy');
           } catch (e) {
-            // nothing more we can do
+            copied = false;
           }
           document.body.removeChild($ta);
-          return Promise.resolve();
+          // Reject a copy that didn't happen, so Scalar says it failed
+          // instead of claiming success.
+          return copied ? Promise.resolve() : Promise.reject(new Error('Copy to clipboard failed'));
         }
       });
     }
