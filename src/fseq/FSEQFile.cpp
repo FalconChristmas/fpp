@@ -769,9 +769,29 @@ void V1FSEQFile::writeHeader() {
     dumpInfo(true);
 }
 
+// Uncompressed channel data is frameSize bytes a frame from dataOffset, so a
+// file cut short (an interrupted upload, a full disk) holds fewer frames than
+// its header says.  Without this every frame past the end failed its read and
+// logged it -- a line a frame for the rest of the sequence.  Returns the frame
+// count the file can actually supply, having logged a short file once.
+static uint32_t FramesPresent(const std::string& fn, uint32_t headerFrames, uint64_t fileSize,
+                              uint64_t dataOffset, uint64_t frameSize) {
+    if (frameSize == 0) {
+        return headerFrames;
+    }
+    uint64_t present = fileSize > dataOffset ? (fileSize - dataOffset) / frameSize : 0;
+    if (present >= headerFrames) {
+        return headerFrames;
+    }
+    LogErr(VB_SEQUENCE, "FSEQ file %s is truncated: its header says %u frames but it holds %" PRIu64 ". Playing those.\n",
+           fn.c_str(), headerFrames, present);
+    return (uint32_t)present;
+}
+
 V1FSEQFile::V1FSEQFile(const std::string& fn, FILE* file, const std::vector<uint8_t>& header) :
     FSEQFile(fn, file, header) {
     parseVariableHeaders(header, V1FSEQ_HEADER_SIZE);
+    m_seqNumFrames = FramesPresent(fn, m_seqNumFrames, m_seqFileSize, m_seqChanDataOffset, m_seqChannelCount);
 
     // Use the last modified time for the uniqueId
     struct stat stats;
@@ -2558,6 +2578,9 @@ V2FSEQFile::V2FSEQFile(const std::string& fn, FILE* file, const std::vector<uint
         }
     }
 
+    if (m_compressionType == CompressionType::none) {
+        m_seqNumFrames = FramesPresent(fn, m_seqNumFrames, m_seqFileSize, m_seqChanDataOffset, m_seqChannelCount);
+    }
     createHandler();
 }
 V2FSEQFile::~V2FSEQFile() {
