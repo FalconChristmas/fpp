@@ -93,7 +93,7 @@ void StreamSlotManager::SetActiveOutput(int slot, GStreamerOutput* output) {
     }
 #endif
     // Every start (including a resume) re-arms the settle window.
-    m_slots[slot - 1].syncSettleMS = GetTimeMS() + SYNC_SETTLE_MS;
+    m_slots[slot - 1].syncSettleMS = GetMonotonicTimeMS() + SYNC_SETTLE_MS;
 #ifdef HAS_GSTREAMER
     if (output) {
         m_slots[slot - 1].mediaFilename = output->m_mediaFilename;
@@ -285,7 +285,7 @@ void StreamSlotManager::SetSyncToMaster(int slot, bool sync) {
 void StreamSlotManager::SyncSlotsToMaster(float masterPos) {
 #ifdef HAS_GSTREAMER
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
-    long long now = GetTimeMS();
+    long long now = GetMonotonicTimeMS();
     // Slot 1 IS the master (it is the playlist's own media), so start at 2.
     for (int i = 1; i < MAX_SLOTS; i++) {
         if (!m_slots[i].activeOutput || !m_slots[i].syncToMaster)
@@ -345,7 +345,7 @@ void StreamSlotManager::ProcessBackgroundSlots() {
 void StreamSlotManager::PumpSlotOutputs() {
 #ifdef HAS_GSTREAMER
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
-    long long now = GetTimeMS();
+    long long now = GetMonotonicTimeMS();
     if (now - m_lastPumpMS < PUMP_INTERVAL_MS / 2) {
         return;
     }

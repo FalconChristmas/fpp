@@ -199,7 +199,9 @@ private:
     gulong m_appsinkSignalId = 0;            // audio appsink signal handler ID
     gulong m_videoAppsinkSignalId = 0;       // video appsink signal handler ID
 
-    // Stall watchdog — detects when PipeWire sink stops consuming data
+    // Stall watchdog — detects when PipeWire sink stops consuming data.
+    // The *Ms stamps here are GetMonotonicTimeMS(): on the wall clock a step
+    // either way made the watchdogs stop playing media as stalled.
     gint64 m_lastPosition = -1;
     gint64 m_maxDuration = 0;   // highest observed duration (handles VBR fluctuations)
     uint64_t m_durationQueriedMs = 0;
@@ -223,7 +225,7 @@ private:
     int m_alsaRate = 0;
     bool m_loggedSinkLatency = false;
     bool m_warnedNoSinkLatency = false;
-    uint64_t m_playStartMs = 0;   // wall time Start() set m_playing=true — anchors the preroll watchdog
+    uint64_t m_playStartMs = 0;   // when Start() set m_playing=true (GetMonotonicTimeMS()) — anchors the preroll watchdog
     static constexpr int STALL_TIMEOUT_MS = 5000; // 5 seconds before declaring stall
     // Preroll watchdog: if the pipeline is set to PLAYING but never produces a
     // valid position (never actually starts), it is wedged in preroll/PAUSED —

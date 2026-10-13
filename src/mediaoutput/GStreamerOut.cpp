@@ -257,10 +257,10 @@ static bool SetPipelineToNullSupervised(GstElement* pipeline, int timeoutMs) {
     gst_object_ref(pipeline);
     std::thread([pipeline, ctx, timeoutMs]() {
         SetThreadName("FPP-GstReaper");
-        uint64_t start = GetTimeMS();
+        uint64_t start = GetMonotonicTimeMS();
         gst_element_set_state(pipeline, GST_STATE_NULL);
         gst_object_unref(pipeline);
-        uint64_t took = GetTimeMS() - start;
+        uint64_t took = GetMonotonicTimeMS() - start;
         if (took > (uint64_t)timeoutMs) {
             // The caller already gave up and abandoned this pipeline —
             // record that the kernel/GStreamer eventually let go so a
@@ -2234,7 +2234,7 @@ int GStreamerOutput::Start(int msTime) {
     m_playing = true;
     // Anchor the preroll watchdog (Process()): if the pipeline never reaches a
     // playing position, this is the reference point for declaring it wedged.
-    m_playStartMs = GetTimeMS();
+    m_playStartMs = GetMonotonicTimeMS();
 
     {
         int seekMs = msTime;
@@ -2325,13 +2325,13 @@ int GStreamerOutput::Start(int msTime) {
                 // driver while the ALSA node is still opening, and anything
                 // played then is lost.
                 gst_element_set_state(pipeline, GST_STATE_PAUSED);
-                uint64_t waitStart = GetTimeMS();
+                uint64_t waitStart = GetMonotonicTimeMS();
                 if (!pwStream->WaitReady(PW_STREAM_READY_TIMEOUT_MS)) {
                     LogWarn(VB_MEDIAOUT, "GStreamer: PipeWire output stream %d not ready after %d ms, starting anyway\n",
                             streamSlot, PW_STREAM_READY_TIMEOUT_MS);
-                } else if (GetTimeMS() - waitStart > 5) {
+                } else if (GetMonotonicTimeMS() - waitStart > 5) {
                     LogDebug(VB_MEDIAOUT, "GStreamer: waited %d ms for PipeWire output stream %d\n",
-                             (int)(GetTimeMS() - waitStart), streamSlot);
+                             (int)(GetMonotonicTimeMS() - waitStart), streamSlot);
                 }
                 // A track starting right behind another queues behind what
                 // that one left in the stream; start the clock only once it
@@ -3175,7 +3175,7 @@ int64_t GStreamerOutput::AudioSinkLatencyNs() {
     // The queue depth is essentially constant while a track plays; re-reading
     // it on every Process() would put a /proc read in the main loop at frame
     // rate for no benefit.
-    uint64_t now = GetTimeMS();
+    uint64_t now = GetMonotonicTimeMS();
     if (m_sinkLatencyCheckedMs != 0 && (now - m_sinkLatencyCheckedMs) < 250) {
         return m_sinkLatencyNs;
     }
@@ -3318,7 +3318,7 @@ int GStreamerOutput::Process(void) {
         // second is plenty; at the main loop's 100 Hz it was most of its
         // CPU on a single-core board.
         bool haveDur = false;
-        uint64_t nowMs = GetTimeMS();
+        uint64_t nowMs = GetMonotonicTimeMS();
         if (m_maxDuration <= 0 || nowMs - m_durationQueriedMs >= 1000) {
             m_durationQueriedMs = nowMs;
             SetMainLoopPhase("GStreamer query duration");
@@ -3329,7 +3329,7 @@ int GStreamerOutput::Process(void) {
 
         // One-shot: log pipeline clock and sink sync state on first position update
         if (havePos && m_wallStartMs == 0) {
-            m_wallStartMs = GetTimeMS();  // record wall time at first pos (also used by preroll watchdog)
+            m_wallStartMs = GetMonotonicTimeMS();  // record wall time at first pos (also used by preroll watchdog)
             // A valid position means the pipeline prerolled and the decoder
             // is producing — clear the consecutive-wedge escalation counter.
             s_consecutiveWedgeEvents = 0;
@@ -3399,7 +3399,7 @@ int GStreamerOutput::Process(void) {
         // Periodic wall-clock vs stream-position diagnostic (DEBUG only — the
         // stall/preroll watchdogs below run independently of this block).
         if (havePos && m_wallStartMs > 0 && WillLog(LOG_DEBUG, VB_MEDIAOUT)) {
-            uint64_t wallMs = GetTimeMS() - m_wallStartMs;
+            uint64_t wallMs = GetMonotonicTimeMS() - m_wallStartMs;
             float wallSec = wallMs / 1000.0f;
             float streamSec = (float)pos / GST_SECOND;
             if (wallMs - m_lastWallLogMs > 5000) {
@@ -3524,7 +3524,7 @@ int GStreamerOutput::Process(void) {
             } else if (nearEnd) {
                 // Position at/near end of media — this is natural completion, not a stall.
                 // Wait for EOS from the pipeline, or handle it ourselves after a grace period.
-                uint64_t now = GetTimeMS();
+                uint64_t now = GetMonotonicTimeMS();
                 if (m_stallStartMs == 0) {
                     m_stallStartMs = now;
                 } else if ((now - m_stallStartMs) > (STALL_TIMEOUT_MS * 2)) {
@@ -3541,7 +3541,7 @@ int GStreamerOutput::Process(void) {
                 }
             } else {
                 // Position unchanged — start or continue stall timer
-                uint64_t now = GetTimeMS();
+                uint64_t now = GetMonotonicTimeMS();
                 if (m_stallStartMs == 0) {
                     m_stallStartMs = now;
                     LogDebug(VB_MEDIAOUT, "GStreamer: position stalled at %.1fs, starting watchdog\n", elapsed);
@@ -3572,7 +3572,7 @@ int GStreamerOutput::Process(void) {
             // Force a stop so FinishPlay()/CloseMediaOutput() tears the pipeline
             // down and the playlist can move on to the next item.
             if (m_wallStartMs == 0 && m_playStartMs > 0 &&
-                (GetTimeMS() - m_playStartMs) > PREROLL_TIMEOUT_MS) {
+                (GetMonotonicTimeMS() - m_playStartMs) > PREROLL_TIMEOUT_MS) {
                 LogWarn(VB_MEDIAOUT, "GStreamer pipeline failed to preroll within %dms "
                         "(stuck in PAUSED — HW decoder may have wedged, see issue #2695). "
                         "Forcing stop so the playlist advances.\n", PREROLL_TIMEOUT_MS);
@@ -4825,7 +4825,7 @@ GstFlowReturn GStreamerOutput::OnNewSample(GstAppSink* appsink, gpointer userDat
                 s_sampleBuffer[s_sampleWritePos] = src[i];
                 s_sampleWritePos = (s_sampleWritePos + 1) % SAMPLE_BUFFER_SIZE;
             }
-            s_sampleLastWriteMs = GetTimeMS();
+            s_sampleLastWriteMs = GetMonotonicTimeMS();
         }
 
         gst_buffer_unmap(buffer, &map);
@@ -4837,7 +4837,7 @@ GstFlowReturn GStreamerOutput::OnNewSample(GstAppSink* appsink, gpointer userDat
 
 GstPadProbeReturn GStreamerOutput::GateSampleTap(GstPad* pad, GstPadProbeInfo* info, gpointer userData) {
     uint64_t lastRead = s_sampleTapReadMs.load(std::memory_order_relaxed);
-    if (lastRead && (uint64_t)GetTimeMS() - lastRead < SAMPLE_TAP_IDLE_MS) {
+    if (lastRead && (uint64_t)GetMonotonicTimeMS() - lastRead < SAMPLE_TAP_IDLE_MS) {
         return GST_PAD_PROBE_OK;
     }
     return GST_PAD_PROBE_DROP;
@@ -4858,7 +4858,7 @@ bool GStreamerOutput::GetAudioSamples(float* samples, int numSamples, int& sampl
     if (!m_currentInstance)
         return false;
 
-    uint64_t now = GetTimeMS();
+    uint64_t now = GetMonotonicTimeMS();
     uint64_t lastRead = s_sampleTapReadMs.exchange(now, std::memory_order_relaxed);
 
     if (!lastRead || now - lastRead >= SAMPLE_TAP_IDLE_MS) {
