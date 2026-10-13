@@ -3018,6 +3018,35 @@ void MultiSync::ReloadSyncDestinations() {
     }
 }
 
+// Malformed control packets come from whatever else is on the MultiSync port
+// (another program, an incompatible version), as fast as it sends them, and
+// each was logged with a hex dump: a line or more per packet.  Log the first
+// few in each minute, then say how many more were ignored.
+static std::mutex badPacketLock;
+static long long badPacketWindowMS = 0;
+static int badPacketsLogged = 0;
+static int badPacketsSuppressed = 0;
+static constexpr int BAD_PACKETS_LOGGED_PER_MINUTE = 5;
+
+static bool ShouldLogBadPacket() {
+    std::lock_guard<std::mutex> l(badPacketLock);
+    long long now = GetMonotonicTimeMS();
+    if (!badPacketWindowMS || now - badPacketWindowMS >= 60000) {
+        if (badPacketsSuppressed) {
+            LogWarn(VB_SYNC, "%d more malformed MultiSync packets ignored in the last minute\n", badPacketsSuppressed);
+        }
+        badPacketWindowMS = now ? now : 1;
+        badPacketsLogged = 0;
+        badPacketsSuppressed = 0;
+    }
+    if (badPacketsLogged < BAD_PACKETS_LOGGED_PER_MINUTE) {
+        badPacketsLogged++;
+        return true;
+    }
+    badPacketsSuppressed++;
+    return false;
+}
+
 // Undelivered sync packets since the last log line about them, and when that
 // was (GetMonotonicTimeMS()).  Guarded by m_socketLock; file-static rather
 // than members because MultiSync's layout is plugin ABI.  A remote that is
@@ -3534,9 +3563,6 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
         v.reserve(msgcnt);
         for (int msg = 0; msg < msgcnt; msg++) {
             int len = rcvMsgs[msg].msg_len;
-            if (len <= 0) {
-                LogErr(VB_SYNC, "Error: recvmsg failed: %s\n", FPPstrerror(errno));
-            }
             if (len < (int)sizeof(ControlPkt)) {
                 v.emplace_back(nullptr, 0);
                 continue;
@@ -3549,14 +3575,17 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
         for (int msg = 0; msg < msgcnt; msg++) {
             int len = rcvMsgs[msg].msg_len;
             if (len <= 0) {
-                LogErr(VB_SYNC, "Error: recvmsg failed: %s\n", FPPstrerror(errno));
+                // an empty datagram: recvmmsg() itself succeeded (a failure
+                // ends the batch), so there is no error to report
                 continue;
             }
             unsigned char* inBuf = rcvBuffers[msg];
 
             if (len < sizeof(ControlPkt)) {
-                LogErr(VB_SYNC, "Error: Received control packet too short\n");
-                HexDump("Received data:", (void*)inBuf, len, VB_SYNC);
+                if (ShouldLogBadPacket()) {
+                    LogErr(VB_SYNC, "Error: Received control packet too short\n");
+                    HexDump("Received data:", (void*)inBuf, len, VB_SYNC);
+                }
                 continue;
             }
             if (shouldSkipPacket(msg, msgcnt, v)) {
@@ -3610,15 +3639,19 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
                 (pkt->fppd[1] != 'P') ||
                 (pkt->fppd[2] != 'P') ||
                 (pkt->fppd[3] != 'D')) {
-                LogErr(VB_SYNC, "Error: Invalid Received Control Packet, missing 'FPPD' header\n");
-                HexDump("Received data:", (void*)inBuf, len, VB_SYNC);
+                if (ShouldLogBadPacket()) {
+                    LogErr(VB_SYNC, "Error: Invalid Received Control Packet, missing 'FPPD' header\n");
+                    HexDump("Received data:", (void*)inBuf, len, VB_SYNC);
+                }
                 continue;
             }
 
             if (len != (sizeof(ControlPkt) + pkt->extraDataLen)) {
-                LogErr(VB_SYNC, "Error: Expected %d data bytes, received %d\n",
-                       pkt->extraDataLen, len - sizeof(ControlPkt));
-                HexDump("Received data:", (void*)inBuf, len, VB_SYNC);
+                if (ShouldLogBadPacket()) {
+                    LogErr(VB_SYNC, "Error: Expected %d data bytes, received %d\n",
+                           pkt->extraDataLen, len - sizeof(ControlPkt));
+                    HexDump("Received data:", (void*)inBuf, len, VB_SYNC);
+                }
                 continue;
             }
 
@@ -3957,8 +3990,10 @@ static bool SyncFilenameToMediaRelative(std::string& name, uint8_t fileType) {
 
 void MultiSync::ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stats) {
     if (pkt->extraDataLen < sizeof(SyncPkt)) {
-        LogErr(VB_SYNC, "Error: Invalid length of received sync packet\n");
-        HexDump("Received data:", (void*)pkt, len, VB_SYNC);
+        if (ShouldLogBadPacket()) {
+            LogErr(VB_SYNC, "Error: Invalid length of received sync packet\n");
+            HexDump("Received data:", (void*)pkt, len, VB_SYNC);
+        }
         stats->pktError++;
         return;
     }
@@ -4064,8 +4099,10 @@ void MultiSync::ProcessCommandPacket(ControlPkt* pkt, int len, MultiSyncStats* s
     LogDebug(VB_SYNC, "ProcessCommandPacket()\n");
 
     if (pkt->extraDataLen < sizeof(CommandPkt)) {
-        LogErr(VB_SYNC, "Error: Invalid length of received command packet\n");
-        HexDump("Received data:", (void*)pkt, len, VB_SYNC);
+        if (ShouldLogBadPacket()) {
+            LogErr(VB_SYNC, "Error: Invalid length of received command packet\n");
+            HexDump("Received data:", (void*)pkt, len, VB_SYNC);
+        }
         stats->pktError++;
         return;
     }
@@ -4096,8 +4133,10 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
     LogDebug(VB_SYNC, "ProcessPingPacket()\n");
 
     if (pkt->extraDataLen < 169) { // v1 packet length
-        LogErr(VB_SYNC, "ERROR: Invalid length of received Ping packet\n");
-        HexDump("Received data:", (void*)pkt, len, VB_SYNC);
+        if (ShouldLogBadPacket()) {
+            LogErr(VB_SYNC, "ERROR: Invalid length of received Ping packet\n");
+            HexDump("Received data:", (void*)pkt, len, VB_SYNC);
+        }
         stats->pktError++;
         return;
     }
@@ -4107,14 +4146,18 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
     unsigned char pingVersion = extraData[0];
 
     if ((pingVersion == 1) && (pkt->extraDataLen > 169)) {
-        LogErr(VB_SYNC, "ERROR: Ping v1 packet too long: %d\n", pkt->extraDataLen);
-        HexDump("Received data:", (void*)pkt, len, VB_SYNC);
+        if (ShouldLogBadPacket()) {
+            LogErr(VB_SYNC, "ERROR: Ping v1 packet too long: %d\n", pkt->extraDataLen);
+            HexDump("Received data:", (void*)pkt, len, VB_SYNC);
+        }
         stats->pktError++;
         return;
     }
     if ((pingVersion == 2) && (pkt->extraDataLen > 214)) {
-        LogErr(VB_SYNC, "ERROR: Ping v2 packet too long %d\n", pkt->extraDataLen);
-        HexDump("Received data:", (void*)pkt, len, VB_SYNC);
+        if (ShouldLogBadPacket()) {
+            LogErr(VB_SYNC, "ERROR: Ping v2 packet too long %d\n", pkt->extraDataLen);
+            HexDump("Received data:", (void*)pkt, len, VB_SYNC);
+        }
         stats->pktError++;
         return;
     }
@@ -4254,7 +4297,9 @@ void MultiSync::ProcessPluginPacket(ControlPkt* pkt, int plen, MultiSyncStats* s
     // which they take as a size_t and read far past the buffer.
     int nlen = (int)strnlen(pn, (size_t)len);
     if (nlen >= len) {
-        LogErr(VB_SYNC, "Error: plugin packet name is not terminated within %d bytes of data\n", len);
+        if (ShouldLogBadPacket()) {
+            LogErr(VB_SYNC, "Error: plugin packet name is not terminated within %d bytes of data\n", len);
+        }
         stats->pktError++;
         return;
     }
@@ -4312,7 +4357,9 @@ void MultiSync::ProcessFPPCommandPacket(ControlPkt* pkt, int len, MultiSyncStats
     };
 
     if (pos >= end) {
-        LogErr(VB_SYNC, "Error: truncated FPP Command packet\n");
+        if (ShouldLogBadPacket()) {
+            LogErr(VB_SYNC, "Error: truncated FPP Command packet\n");
+        }
         stats->pktError++;
         return;
     }
@@ -4323,7 +4370,9 @@ void MultiSync::ProcessFPPCommandPacket(ControlPkt* pkt, int len, MultiSyncStats
     std::string host;
     std::string cmd;
     if (!readString(host) || !readString(cmd)) {
-        LogErr(VB_SYNC, "Error: truncated FPP Command packet\n");
+        if (ShouldLogBadPacket()) {
+            LogErr(VB_SYNC, "Error: truncated FPP Command packet\n");
+        }
         stats->pktError++;
         return;
     }
@@ -4332,8 +4381,10 @@ void MultiSync::ProcessFPPCommandPacket(ControlPkt* pkt, int len, MultiSyncStats
     for (uint8_t x = 0; x < numArgs; x++) {
         std::string arg;
         if (!readString(arg)) {
-            LogErr(VB_SYNC, "Error: FPP Command packet claims %d arguments but only holds %d\n",
-                   (int)numArgs, (int)args.size());
+            if (ShouldLogBadPacket()) {
+                LogErr(VB_SYNC, "Error: FPP Command packet claims %d arguments but only holds %d\n",
+                       (int)numArgs, (int)args.size());
+            }
             stats->pktError++;
             return;
         }
