@@ -1747,7 +1747,7 @@ void PlayerResource::GetPlaylistConfig(Json::Value& result) {
  * Report the configured Recurring Tasks merged with last-run status, for the
  * Recurring Tasks admin page (www/recurringtasks.php).
  *
- * @route GET /api/recurringtasks
+ * @route GET /api/fppd/recurringtasks
  * @response 200 {"tasks": [...]}
  */
 void PlayerResource::GetRecurringTasks(Json::Value& result) {
@@ -1899,7 +1899,7 @@ void PlayerResource::PostOutputsRemap(const Json::Value& data, Json::Value& resu
  * synchronously against the posted task definition (not a saved name), so
  * the admin page can preview unsaved edits.
  *
- * @route POST /api/recurringtasks
+ * @route POST /api/fppd/recurringtasks
  * @body {"command": "reload"}
  * @body {"command": "test", "task": {"name": "...", "type": "command", "command": "URL", "args": [...], "filterType": "json", "filterJsonPath": "data.temp"}}
  * @response 200 Recurring tasks reloaded, or {"ok":bool,"raw":string,"filtered":string,"error":string} for "test".
