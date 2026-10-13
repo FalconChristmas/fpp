@@ -340,22 +340,12 @@ function ApplyServiceSetting($setting, $value, $now)
 {
     global $settings;
     if ($settings["Platform"] != "MacOS") {
-        if (preg_match('/^Service_(rsync|smbd_nmbd|vsftpd)$/', $setting)) {
-            $services = preg_split('/_/', preg_replace("/^Service_/", "", $setting));
-            foreach ($services as $service) {
-                //enabling/disabling a service that is already in that state is very slow
-                //so query the current state and only set it if needed
-                $isEnabled = trim(shell_exec("sudo systemctl is-enabled $service"));
-                if ($value == '0') {
-                    if ($isEnabled != "disabled") {
-                        exec("sudo systemctl " . $now . " disable $service >/dev/null &");
-                    }
-                } else if ($value == '1') {
-                    if ($isEnabled != "enabled") {
-                        exec("sudo systemctl " . $now . " enable $service >/dev/null &");
-                    }
-                }
-            }
+        if (preg_match('/^Service_(rsync|smbd_nmbd|vsftpd)$/', $setting) && ($value == '0' || $value == '1')) {
+            // enabling/disabling a service is very slow, so it is done in the
+            // background.  The script applies whatever value is saved when it
+            // runs, serialized per setting, so an off/on toggle can't race
+            // (issue #3107); $value has already been written to the file.
+            exec("sudo " . $settings['fppDir'] . "/scripts/apply_service_setting " . $setting . ($now == "--now" ? " --now" : "") . " >/dev/null 2>&1 &");
         }
     }
 }
