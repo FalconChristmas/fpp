@@ -1378,11 +1378,17 @@ void PixelOverlayModel::getOverlayPixelValue(int x, int y, int& r, int& g, int& 
     w = (bytesPerPixel > 3) ? buf[idx] : 0;
 }
 
+// Neither of these allocates the overlay buffer. One that nobody has written
+// to is all zeros, and copying it out blanked whatever the model's channels
+// held: PUT .../fill with RGB filled the channels directly (the model had no
+// overlay buffer yet), then flushed, and the model went black.
 void PixelOverlayModel::flushOverlayBuffer() {
-    if (uint8_t* buf = getOverlayBuffer()) {
-        setData(buf);
+    OverlayBufferData* ob = __atomic_load_n(&overlayBufferData, __ATOMIC_ACQUIRE);
+    if (!ob) {
+        return;
     }
-    setOverlayBufferDirty(false);
+    setData(ob->data);
+    ob->flags &= ~0x1;
 }
 
 bool PixelOverlayModel::overlayBufferIsDirty() {
@@ -1390,13 +1396,14 @@ bool PixelOverlayModel::overlayBufferIsDirty() {
 }
 
 void PixelOverlayModel::setOverlayBufferDirty(bool dirty) {
-    if (!getOverlayBuffer()) {
+    OverlayBufferData* ob = __atomic_load_n(&overlayBufferData, __ATOMIC_ACQUIRE);
+    if (!ob) {
         return;
     }
     if (dirty)
-        overlayBufferData->flags |= 0x1;
+        ob->flags |= 0x1;
     else
-        overlayBufferData->flags &= ~0x1;
+        ob->flags &= ~0x1;
 }
 
 void PixelOverlayModel::setOverlayBufferScaledData(uint8_t* data, int w, int h) {
