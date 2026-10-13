@@ -6553,6 +6553,11 @@ function updateWarnings (jsonStatus) {
 		for (var i = 0; i < currentWarnings.length; i++) {
 			var warningID = currentWarnings[i]['id'];
 			var warningMessage = currentWarnings[i]['message'];
+			// Escaped: a warning's text can carry what someone else sent. Warning
+			// 61 names the command that wasn't found, which any HTTP, MQTT or
+			// MultiSync request chooses, so a "command" named <img onerror=...>
+			// ran its script on every page while the warning was up.
+			var safeMessage = EscapeHtml(warningMessage);
 			// Optional one-click "Fix" button: a warning may carry a fixUrl (a
 			// same-origin URL to navigate to) and fixText (the button label) in
 			// its data. Rendered next to the warning so the user can act on it
@@ -6564,14 +6569,14 @@ function updateWarnings (jsonStatus) {
 					' <a class="btn btn-sm btn-outline-primary warning-fix-btn" href="' +
 					encodeURI(warningData['fixUrl']) +
 					'"><i class="fas fa-wrench"></i> ' +
-					warningData['fixText'] +
+					EscapeHtml(warningData['fixText']) +
 					'</a>';
 			}
 			if (warningID == 0) {
 				//handle old style warnings with no id with legacy behavior
 				txt +=
 					'<li><i class="fas fa-solid fa-circle fa-2xs"></i>  ' +
-					currentWarnings[i]['message'] +
+					safeMessage +
 					fixButton +
 					'</li>';
 			} else if (warningDefinitions && warningDefinitions['Warnings']) {
@@ -6609,7 +6614,7 @@ function updateWarnings (jsonStatus) {
 						'"><i class="fas fa-' +
 						currentWarnings[i]['icon'] +
 						'"></i> ' +
-						currentWarnings[i]['message'] +
+						safeMessage +
 						' (<i class="fas fa-link"></i> Warning ID: ' +
 						warningID +
 						')</a></span>' +
@@ -6620,7 +6625,7 @@ function updateWarnings (jsonStatus) {
 						'<li><i class="fas fa-' +
 						currentWarnings[i]['icon'] +
 						'"></i> ' +
-						currentWarnings[i]['message'] +
+						safeMessage +
 						fixButton +
 						'</li>';
 				}
@@ -6662,7 +6667,7 @@ function updateWarnings (jsonStatus) {
 function doWarningPHPModal (id, message) {
 	var options = {
 		id: 'warningHelpDialog',
-		title: 'Warning ID: ' + id + ' - ' + message,
+		title: 'Warning ID: ' + id + ' - ' + EscapeHtml(message),
 		class: 'modal-dialog-scrollable',
 		keyboard: true,
 		backdrop: true
@@ -6684,7 +6689,7 @@ function doWarningMDModal (id, message) {
 	var mdFile = 'help/warning-helpers/warning-' + id + '.md';
 	var options = {
 		id: 'warningHelpDialog',
-		title: 'Warning ID: ' + id + ' - ' + message,
+		title: 'Warning ID: ' + id + ' - ' + EscapeHtml(message),
 		body: '<zero-md src="' + mdFile + '"></zero-md>',
 		class: 'modal-dialog-scrollable',
 		keyboard: true,
@@ -6705,7 +6710,7 @@ function doWarningMDModal (id, message) {
 function doWarningBasicModal (id, message, helptxt) {
 	var options = {
 		id: 'warningHelpDialog',
-		title: 'Warning ID: ' + id + ' - ' + message,
+		title: 'Warning ID: ' + id + ' - ' + EscapeHtml(message),
 		body: helptxt,
 		class: 'modal-dialog-scrollable',
 		keyboard: true,
