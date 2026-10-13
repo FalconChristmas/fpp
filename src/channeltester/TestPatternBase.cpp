@@ -71,7 +71,7 @@ int TestPatternBase::Init(Json::Value config) {
     int cycleMS = JsonInt(config, "cycleMS");
     if (m_cycleMS != cycleMS) {
         m_cycleMS = cycleMS;
-        m_nextCycleTime = GetTime() + (m_cycleMS * 1000);
+        m_nextCycleTime = GetMonotonicTimeMicros() + (m_cycleMS * 1000);
     }
 
     if (config.isMember("channelSet")) {
@@ -176,7 +176,7 @@ int TestPatternBase::SetChannelSet(std::string channelSetStr) {
  *
  */
 int TestPatternBase::SetupTest(void) {
-    m_nextCycleTime = GetTime() + (m_cycleMS * 1000);
+    m_nextCycleTime = GetMonotonicTimeMicros() + (m_cycleMS * 1000);
 
     return 1;
 }
@@ -208,9 +208,11 @@ int TestPatternBase::OverlayTestData(char* channelData) {
         copied += count;
     }
 
-    if (GetTime() >= m_nextCycleTime) {
+    // On the monotonic clock: on the wall clock a step back held the pattern
+    // still for as long as the step.
+    if (GetMonotonicTimeMicros() >= m_nextCycleTime) {
         CycleData();
-        m_nextCycleTime = GetTime() + (m_cycleMS * 1000);
+        m_nextCycleTime = GetMonotonicTimeMicros() + (m_cycleMS * 1000);
     }
 
     return 1;

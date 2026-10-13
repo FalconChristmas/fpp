@@ -41,11 +41,11 @@ int OutputTester::SetupTest(void) {
 }
 void OutputTester::CycleData(void) {
     cycleCount++;
-    startMS = GetTimeMS();
+    startMS = GetMonotonicTimeMS();
 }
 int OutputTester::OverlayTestData(char* channelData) {
     if (m_testEnabled) {
-        uint64_t now = GetTimeMS();
+        uint64_t now = GetMonotonicTimeMS(); // the same clock as startMS, which never steps
         int offset = now - startMS;
         float pct = offset;
         pct /= m_cycleMS;
