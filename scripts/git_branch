@@ -28,8 +28,11 @@ startUpgradeLog "fpp-branch-switch" "${REMOTE}/$1"
 # Same safe.directory hardening as git_pull -- /opt/fpp is owned by fpp:fpp,
 # so root running git via sudo (which keeps HOME=/home/fpp) trips the
 # "dubious ownership" guard unless /etc/gitconfig says otherwise.
-$SUDO git config --system --add safe.directory /opt/fpp 2>/dev/null || true
-$SUDO git config --system --add safe.directory '*' 2>/dev/null || true
+# --replace-all, not --add: --add appended another copy on every update
+# (hundreds of lines on a long-lived box), and replace-all also collapses the
+# copies already there into one.
+$SUDO git config --system --replace-all safe.directory /opt/fpp '^/opt/fpp$' 2>/dev/null || true
+$SUDO git config --system --replace-all safe.directory '*' '^\*$' 2>/dev/null || true
 
 echo "$0 running to switch branches to $1 from remote $REMOTE"
 

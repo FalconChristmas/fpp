@@ -12,8 +12,11 @@ BINDIR=$(cd $(dirname $0) && pwd)
 # get a chance to recover.
 # Kept ahead of startUpgradeLog so the branch lookup below cannot trip the same
 # guard; both lines are silenced anyway, so nothing is lost by not logging them.
-$SUDO git config --system --add safe.directory /opt/fpp 2>/dev/null || true
-$SUDO git config --system --add safe.directory '*' 2>/dev/null || true
+# --replace-all, not --add: --add appended another copy on every update
+# (hundreds of lines on a long-lived box), and replace-all also collapses the
+# copies already there into one.
+$SUDO git config --system --replace-all safe.directory /opt/fpp '^/opt/fpp$' 2>/dev/null || true
+$SUDO git config --system --replace-all safe.directory '*' '^\*$' 2>/dev/null || true
 
 # Unified upgrade logging -> logs/fpp_system_upgrades.log. Labelling the run with the
 # branch is best-effort: a detached or unreadable checkout logs as "unknown"
