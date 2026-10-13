@@ -1475,6 +1475,100 @@
         }
 
         // ============================================================
+        // SECTION: Remote update log viewer
+        // ============================================================
+
+        // A remote's running FPP/OS update, streamed from its
+        // updateActivity log tail (the same log its own banner opens).
+        // Viewing is read-only: Close at any time leaves the update alone.
+        var msUpdateLogTimer = null;
+        var msUpdateLogIp = '';
+
+        function msStopUpdateLog() {
+            if (msUpdateLogTimer) {
+                clearInterval(msUpdateLogTimer);
+                msUpdateLogTimer = null;
+            }
+            msUpdateLogIp = '';
+        }
+
+        function openRemoteUpdateLog(ip, host) {
+            msStopUpdateLog();
+            msUpdateLogIp = ip;
+            var first = true;
+            DoModalDialog({
+                id: 'msRemoteUpdateLog',
+                title: 'Update on ' + msEscape(host) + ' — Loading…',
+                body: "<textarea class='w-100' style='height: 55vh; min-height: 200px;' readonly id='msRemoteUpdateLogText'></textarea>",
+                class: 'modal-xl',
+                backdrop: true,
+                keyboard: true,
+                close: msStopUpdateLog,
+                buttons: {
+                    Close: function () {
+                        CloseModalDialog('msRemoteUpdateLog');
+                    }
+                }
+            });
+
+            $('#msRemoteUpdateLog').one('shown.bs.modal', function () {
+                var area = document.getElementById('msRemoteUpdateLogText');
+                if (area) {
+                    area.scrollTop = area.scrollHeight;
+                }
+            });
+
+            var tick = async function () {
+                var title;
+                try {
+                    const r = await fetch('api/remoteAction?ip=' + encodeURIComponent(ip) + '&action=updateLog');
+                    if (!r.ok) {
+                        throw new Error(r.status);
+                    }
+                    const data = await r.json();
+                    if (msUpdateLogIp !== ip) {
+                        return; // closed, or reopened for another host
+                    }
+                    var area = document.getElementById('msRemoteUpdateLogText');
+                    if (area && typeof data.logTail === 'string' && data.logTail !== '') {
+                        // Stay pinned to the bottom unless the user scrolled up to read.
+                        var nearBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 60;
+                        area.value = data.logTail;
+                        if (nearBottom || first) {
+                            area.scrollTop = area.scrollHeight;
+                        }
+                        // The first answer can land while the modal is still
+                        // opening, when scrolling does nothing; keep pinning
+                        // until the textarea has been laid out.
+                        if (area.clientHeight > 0) {
+                            first = false;
+                        }
+                    }
+                    var stage = data.stage || (data.inProgress ? 'Running…' : (data.failed ? 'Failed' : 'Done'));
+                    title = (data.kind || 'FPP Update') + ' on ' + host + ' — ' + stage;
+                    if (!data.inProgress) {
+                        msStopUpdateLog();
+                    }
+                } catch (e) {
+                    if (msUpdateLogIp !== ip) {
+                        return;
+                    }
+                    // The remote restarts its web server (or reboots) during an
+                    // update; keep retrying rather than giving up.
+                    title = 'Update on ' + host + ' — waiting for the device to respond…';
+                }
+                SetProgressDialogStatus('msRemoteUpdateLog', title);
+            };
+            tick();
+            msUpdateLogTimer = setInterval(tick, 3000);
+        }
+
+        $(document).on('click', '.msUpdateLogLink', function (e) {
+            e.preventDefault();
+            openRemoteUpdateLog($(this).attr('data-ip'), $(this).attr('data-host') || $(this).attr('data-ip'));
+        });
+
+        // ============================================================
         // SECTION: FPP system polling
         // ============================================================
 
@@ -1636,16 +1730,20 @@
                         // status_name alone reads "Idle".  A player still
                         // playing keeps its playing status with the update
                         // noted underneath; anything else becomes "Upgrading".
+                        // Either form links to the remote's live update log.
                         var ua = data.updateActivity;
                         if (ua && ua.inProgress && data.status_name != 'unreachable' && data.status_name != 'password') {
                             var uaDetail = msEscape(ua.kind || 'FPP Update');
                             if (ua.stage) {
                                 uaDetail += ': ' + msEscape(ua.stage);
                             }
+                            var uaHost = (data.advancedView && data.advancedView.HostName) ? data.advancedView.HostName : ip;
+                            var uaLink = "<a href='#' class='msUpdateLogLink' title='View update log' data-ip='" + msEscape(ip) +
+                                "' data-host='" + msEscape(uaHost) + "'>";
                             if (data.status_name == 'playing' || data.status_name == 'paused') {
-                                status += "<br><i class=\"fas fa-circle-notch fa-spin text-warning\"></i> <span class='warning-text'>" + uaDetail + "</span>";
+                                status += "<br>" + uaLink + "<i class=\"fas fa-circle-notch fa-spin text-warning\"></i> <span class='warning-text'>" + uaDetail + "</span></a>";
                             } else {
-                                status = "<i class=\"fas fa-circle-notch fa-spin text-warning\"></i> Upgrading<br><small class='text-muted'>" + uaDetail + "</small>";
+                                status = uaLink + "<i class=\"fas fa-circle-notch fa-spin text-warning\"></i> Upgrading</a><br><small class='text-muted'>" + uaDetail + "</small>";
                             }
                         }
 

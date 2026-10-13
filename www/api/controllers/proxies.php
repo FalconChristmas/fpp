@@ -5,7 +5,8 @@ require_once(__DIR__ . "/../../config.php");
  * Proxy a command to remote FPP
  *
  * Proxies a named action to a remote FPP instance by IP address.
- * Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`.
+ * Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`,
+ * `updateLog` (the remote's running FPP/OS update, with its log tail).
  *
  * @route GET /api/remoteAction
  * @response 400 Invalid action
@@ -24,6 +25,7 @@ function remoteAction()
         'reboot' => '/api/system/reboot',
         'restartFppd' => '/api/system/fppd/restart',
         'upgradeOS' => '/upgradeOS',
+        'updateLog' => '/api/system/updateActivity?logTail=1&lines=300',
     ];
 
     if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
