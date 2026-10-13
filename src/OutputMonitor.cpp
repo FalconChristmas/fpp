@@ -793,7 +793,9 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
         pi->receivers[0].isOn = outputsEnabled && pi->receivers[0].enabled;
         portPins[port] = pi;
     } else if (pinConfig.isMember("falconV5Listener")) {
-        int mr = -1;
+        // Rows are 1-based (the page addresses them with nth-child), so a cape
+        // with no monitored local ports still starts its first block on row 1.
+        int mr = 0;
         bool hasSR = false;
         for (auto a : portPins) {
             if (a) {
@@ -802,7 +804,16 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
             }
         }
 
-        int col = (portPins.empty() || portPins.back() == nullptr) ? 1 : portPins.back()->col;
+        // A new block goes beside the previous block, so the column comes from
+        // the last receiver port before this one.  Not portPins.back(): the
+        // resize above just made that this port's own, still unplaced, slot.
+        int col = 1;
+        for (int p = port - 1; p >= 0; --p) {
+            if (portPins[p] && portPins[p]->isSmartReceiver) {
+                col = portPins[p]->col;
+                break;
+            }
+        }
 
         pi->isSmartReceiver = true;
         pi->group = -1;
@@ -827,7 +838,12 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
         }
         for (int x = 1; x < 4; x++) {
             std::string name = "Port " + std::to_string(port + 1 + x);
-            pi = new PortPinInfo();
+            // after a reload the slot still holds the entry the last
+            // configuration placed, reset by RemovePortConfiguration()
+            pi = portPins[port + x];
+            if (!pi) {
+                pi = new PortPinInfo();
+            }
             pi->setConfig(name, pinConfig);
             if (pi->row == -1) {
                 pi->row = mr;
