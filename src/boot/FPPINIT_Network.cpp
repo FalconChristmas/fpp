@@ -218,6 +218,14 @@ void consumePendingDhcpLeaseReset() {
     unlink(marker.c_str());
 }
 
+// hostapd is up or on its way up or down.  `systemctl is-active` prints one
+// word; "inactive" contains "active", so compare the whole word.
+static bool hostapdRunning() {
+    std::string state = execAndReturn("/usr/bin/systemctl is-active hostapd");
+    TrimWhiteSpace(state);
+    return state == "active" || state == "activating" || state == "deactivating" || state == "reloading";
+}
+
 void setupNetwork(bool fullReload) {
     unblockWifi();
     auto dnsSettings = loadSettingsFile(FPP_MEDIA_DIR + "/config/dns");
@@ -586,6 +594,30 @@ void setupNetwork(bool fullReload) {
     if (changed) {
         bool localFullReload = false;
         printf("Need to restart/reload stuff.\n");
+        if (!hostapd) {
+            // Out of AP mode before the Wi-Fi client starts: while hostapd
+            // still holds the radio, a wpa_supplicant started beside it often
+            // fails to associate, and leaving AP mode from the UI then needed
+            // a power cycle (#2825).
+            if (contains(execAndReturn("/usr/bin/systemctl is-enabled hostapd"), "enabled")) {
+                execbg("/usr/bin/systemctl disable hostapd.service &");
+                localFullReload = true;
+            }
+            if (hostapdRunning()) {
+                // Bounded: an unresponsive hostapd (driver/dbus hiccup) must not be
+                // able to wedge fppinit indefinitely - this runs synchronously in
+                // the interactive "Restart Network" request (network_apply_interface),
+                // so a hang here blocks that whole HTTP request and can make the
+                // rest of the appliance look unresponsive until it clears.
+                exec("/usr/bin/timeout 10 /usr/bin/systemctl stop hostapd.service");
+                if (hostapdRunning()) {
+                    printf("FPP - hostapd did not stop within 10s, killing it\n");
+                    exec("/usr/bin/systemctl kill --signal=SIGKILL hostapd.service");
+                }
+                localFullReload = true;
+            }
+            exec("rm -f /home/fpp/media/tmp/wifi-*.ascii");
+        }
         // These end in "&" and must not be waited for: through exec()'s popen the
         // backgrounded systemctl keeps the pipe open, so exec() blocks until it
         // exits. A start job for an adapter that is not plugged in then held
@@ -602,26 +634,6 @@ void setupNetwork(bool fullReload) {
         if (hostapd) {
             unblockWifi();
             execbg("/usr/bin/systemctl reload-or-restart hostapd.service &");
-        } else {
-            if (contains(execAndReturn("/usr/bin/systemctl is-enabled hostapd"), "enabled")) {
-                execbg("/usr/bin/systemctl disable hostapd.service &");
-                execbg("/usr/bin/systemctl reload-or-restart systemd-networkd.service &");
-                localFullReload = true;
-            }
-            if (!contains(execAndReturn("/usr/bin/systemctl is-active hostapd"), "inactive")) {
-                // Bounded: an unresponsive hostapd (driver/dbus hiccup) must not be
-                // able to wedge fppinit indefinitely - this runs synchronously in
-                // the interactive "Restart Network" request (network_apply_interface),
-                // so a hang here blocks that whole HTTP request and can make the
-                // rest of the appliance look unresponsive until it clears.
-                exec("/usr/bin/timeout 10 /usr/bin/systemctl stop hostapd.service");
-                if (contains(execAndReturn("/usr/bin/systemctl is-active hostapd"), "active")) {
-                    printf("FPP - hostapd did not stop within 10s, killing it\n");
-                    exec("/usr/bin/systemctl kill --signal=SIGKILL hostapd.service");
-                }
-                localFullReload = true;
-            }
-            exec("rm -f /home/fpp/media/tmp/wifi-*.ascii");
         }
         if (fullReload && localFullReload) {
             exec("/usr/bin/systemctl daemon-reload");
