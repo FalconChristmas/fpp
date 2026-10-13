@@ -556,6 +556,8 @@ UDPOutput::~UDPOutput() {
 }
 
 int UDPOutput::Init(Json::Value config) {
+    // a reload may have dropped the ArtNet output that last wanted the socket
+    ResetArtNetSocketFailure();
     enabled = config["enabled"].asInt();
     hasArtNet = false;
     for (int i = 0; i < config["universes"].size(); i++) {

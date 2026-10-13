@@ -274,55 +274,115 @@ static void SetBridgeReceiveBufferSize(int sock) {
     }
 }
 
+// Why ArtNet is off (or is sending from another port), as shown in the
+// warning banner; empty while the socket is fine.  The ArtNet port is fixed
+// by the protocol, so another program holding it (a second player, xLights,
+// a plugin) is an ordinary condition, not a fault.
+static constexpr int WARNING_ID_ARTNET_PORT = 54;
+static std::string artnetPortWarning;
+// When the last attempt to open the socket failed (GetMonotonicTimeMS()), 0
+// if it didn't.  An ArtNet output asks for the socket on every frame while it
+// has none, and every attempt used to log an error: 20-40 lines a second to
+// the log for as long as the port stayed taken.  Attempts from there are made
+// at most every ARTNET_RETRY_MS.
+static long long artnetFailedAt = 0;
+static constexpr long long ARTNET_RETRY_MS = 10000;
+static std::mutex artnetSocketMutex;
+
+// Caller holds artnetSocketMutex.
+static void SetArtNetPortWarning(const std::string& msg) {
+    if (msg == artnetPortWarning) {
+        return;
+    }
+    if (!artnetPortWarning.empty()) {
+        WarningHolder::RemoveWarning(WARNING_ID_ARTNET_PORT, artnetPortWarning);
+    }
+    artnetPortWarning = msg;
+    if (!msg.empty()) {
+        LogWarn(VB_E131BRIDGE, "%s\n", msg.c_str());
+        WarningHolder::AddWarning(WARNING_ID_ARTNET_PORT, msg);
+    }
+}
+
 int CreateArtNetSocket(uint32_t sourceAddr, bool allowPortChange) {
-    static std::mutex artnetSocketMutex;
+    std::lock_guard<std::mutex> lock(artnetSocketMutex);
+    if (artnetSock >= 0) {
+        return artnetSock;
+    }
+    // Callers that can fall back to another port (output setup, a network
+    // change) always try: they are rare, and the fallback is what lets ArtNet
+    // output run at all while the port is taken.
+    long long now = GetMonotonicTimeMS();
+    if (!allowPortChange && artnetFailedAt && now - artnetFailedAt < ARTNET_RETRY_MS) {
+        return -1;
+    }
+    auto failed = [now](const std::string& msg) {
+        artnetFailedAt = now ? now : 1;
+        // Logged once, when it changes; the warning says it from then on.
+        SetArtNetPortWarning(msg);
+        return -1;
+    };
+
+    int artnetSockT = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+    if (artnetSockT < 0) {
+        // As for a failed bind below: run without ArtNet, don't exit().
+        return failed(std::string("ArtNet is off: could not create its socket (") + FPPstrerror(errno) + ")");
+    }
+    int enable = 1;
+    // need to be able to send broadcast for ArtPollReply
+    setsockopt(artnetSockT, SOL_SOCKET, SO_BROADCAST, &enable, sizeof(enable));
+    enable = 1;
+#ifdef PLATFORM_OSX
+    setsockopt(artnetSockT, IPPROTO_UDP, UDP_NOCKSUM, (void*)&enable, sizeof enable);
+#else
+    setsockopt(artnetSockT, SOL_SOCKET, SO_NO_CHECK, (void*)&enable, sizeof enable);
+#endif
+    SetBridgeReceiveBufferSize(artnetSockT);
+    int bufSize = 512 * 1024;
+    setsockopt(artnetSockT, SOL_SOCKET, SO_SNDBUF, &bufSize, sizeof(bufSize));
+
+    memset((char*)&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = sourceAddr == 0 ? htonl(INADDR_ANY) : (in_addr_t)sourceAddr;
+    addr.sin_port = htons(0x1936); // artnet port
+    addrlen = sizeof(addr);
+    std::string warning;
+    // Bind the socket to address/port
+    if (bind(artnetSockT, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        std::string why = FPPstrerror(errno);
+        if (!allowPortChange) {
+            close(artnetSockT);
+            return failed("ArtNet is off: could not open UDP port 6454 (" + why + ")");
+        }
+        addr.sin_port = htons(0); // let OS pick port
+        if (bind(artnetSockT, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+            std::string why2 = FPPstrerror(errno);
+            close(artnetSockT);
+            return failed("ArtNet is off: could not open UDP port 6454 (" + why + ") or any other port (" + why2 + ")");
+        }
+        // Output still works from here, but nothing reaches ArtNet input or
+        // ArtPoll on 6454 until the socket is opened again.
+        warning = "ArtNet input is off and ArtNet output is sent from another port: could not open UDP port 6454 (" + why + ")";
+    }
+    artnetFailedAt = 0;
+    SetArtNetPortWarning(warning);
+    if (warning.empty()) {
+        LogDebug(VB_E131BRIDGE, "ArtNet socket open on UDP port 6454\n");
+    }
+    artnetSock = artnetSockT;
+    return artnetSock;
+}
+
+void ResetArtNetSocketFailure() {
+    // A config reload may have removed whatever wanted ArtNet, and then
+    // nothing would ever retry and take the warning down.  Forget the failure
+    // instead: anything that still needs the socket asks again straight away
+    // and raises the warning again if the port is still taken.
     std::lock_guard<std::mutex> lock(artnetSocketMutex);
     if (artnetSock < 0) {
-        int artnetSockT = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
-        if (artnetSockT < 0) {
-            LogWarn(VB_E131BRIDGE, "ArtNet socket failed: %s", FPPstrerror(errno));
-            WarningHolder::AddWarning("Socket creation failed for ArtNet");
-            // As for a failed bind below: run without ArtNet, don't exit().
-            return -1;
-        }
-        int enable = 1;
-        // need to be able to send broadcast for ArtPollReply
-        setsockopt(artnetSockT, SOL_SOCKET, SO_BROADCAST, &enable, sizeof(enable));
-        enable = 1;
-#ifdef PLATFORM_OSX
-        setsockopt(artnetSockT, IPPROTO_UDP, UDP_NOCKSUM, (void*)&enable, sizeof enable);
-#else
-        setsockopt(artnetSockT, SOL_SOCKET, SO_NO_CHECK, (void*)&enable, sizeof enable);
-#endif
-        SetBridgeReceiveBufferSize(artnetSockT);
-        int bufSize = 512 * 1024;
-        setsockopt(artnetSockT, SOL_SOCKET, SO_SNDBUF, &bufSize, sizeof(bufSize));
-
-        memset((char*)&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = sourceAddr == 0 ? htonl(INADDR_ANY) : (in_addr_t)sourceAddr;
-        addr.sin_port = htons(0x1936); // artnet port
-        addrlen = sizeof(addr);
-        // Bind the socket to address/port
-        if (bind(artnetSockT, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            if (allowPortChange) {
-                addr.sin_port = htons(0); // let OS pick port
-                if (bind(artnetSockT, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-                    LogWarn(VB_E131BRIDGE, "ArtNet bind failed even after port change: %s", FPPstrerror(errno));
-                    WarningHolder::AddWarning(54, "Socket bind failed for ArtNet");
-                    close(artnetSockT);
-                    return -1;
-                }
-            } else {
-                LogWarn(VB_E131BRIDGE, "ArtNet bind failed: %s", FPPstrerror(errno));
-                WarningHolder::AddWarning(54, "Socket bind failed for ArtNet");
-                close(artnetSockT);
-                return -1;
-            }
-        }
-        artnetSock = artnetSockT;
+        artnetFailedAt = 0;
+        SetArtNetPortWarning("");
     }
-    return artnetSock;
 }
 
 /*
@@ -1401,6 +1461,7 @@ static void BridgeReloadDMXInputs() {
 }
 
 void BridgeReloadUDP() {
+    ResetArtNetSocketFailure();
     // close the existing sockets
     BridgeShutdownUDP(true);
 
