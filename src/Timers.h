@@ -20,6 +20,7 @@
 // (as Timers::addPeriodicTimer does) or bump FPP_PLUGIN_API_VERSION in
 // Plugin.h. See .claude/PLUGIN-ABI.md for which plugins use what.
 
+#include <atomic>
 #include <mutex>
 #include <vector>
 #include <functional>
@@ -63,8 +64,10 @@ public:
     void stopPeriodicTimer(const std::string& name);
 
 private:
-    bool hasTimers = false;
-    long long nextTimer = 0;
+    // Read by fireTimers() on the main loop without the lock; written under
+    // it by updateTimers() from whichever thread adds or stops a timer.
+    std::atomic<bool> hasTimers{ false };
+    std::atomic<long long> nextTimer{ 0 };
 
     class TimerInfo {
     public:

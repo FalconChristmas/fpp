@@ -177,16 +177,20 @@ void Timers::updateTimers() {
             timers.resize(timers.size() - 1);
         }
     }
-    hasTimers = !timers.empty();
-    if (hasTimers) {
-        nextTimer = LLONG_MAX;
+    if (!timers.empty()) {
+        // Worked out locally and stored once: fireTimers() reads nextTimer
+        // without the lock.
+        long long next = LLONG_MAX;
         for (int x = 0; x < timers.size(); x++) {
-            nextTimer = std::min(timers[x]->fireTimeMS, nextTimer);
+            next = std::min(timers[x]->fireTimeMS, next);
         }
+        nextTimer = next;
+        hasTimers = true;
         // armTimer() takes a GetTimeMS() deadline; converted at this moment
         // it is the same delay, whatever the wall clock does later.
-        EPollManager::INSTANCE.armTimer(GetTimeMS() + (nextTimer - GetMonotonicTimeMS()));
+        EPollManager::INSTANCE.armTimer(GetTimeMS() + (next - GetMonotonicTimeMS()));
     } else {
+        hasTimers = false;
         EPollManager::INSTANCE.disarmTimer();
     }
 }
