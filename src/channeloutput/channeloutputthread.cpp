@@ -276,8 +276,9 @@ void RunChannelOutputThread(void) {
 
         long long totalTime = processTime - startTime;
         if (totalTime > 150000) {
-            // very slow, log immediately
-            slowFrameCount = 3;
+            // very slow, log immediately (this was 3, which the "> 3" test
+            // below didn't pass, so it waited for the next slow frame)
+            slowFrameCount = 4;
         } else if (totalTime > 50000) {
             // could be a very transient blip, we'll log if
             // it happens 3 frames in a row
@@ -286,13 +287,24 @@ void RunChannelOutputThread(void) {
             slowFrameCount = 0;
         }
         if (slowFrameCount > 3) {
-            LogWarn(VB_CHANNELOUT,
-                    "SLOW Output Thread: Loop: %dus, Send: %lldus, Read: %lldus, Process: %lldus, FrameNum: %ld\n",
-                    LightDelay.load(),
-                    sendTime - startTime,
-                    readTime - sendTime,
-                    processTime - readTime,
-                    channelOutputFrame);
+            // Once slow, every frame is slow: logging each one wrote a line
+            // per frame to the SD card for as long as it lasted.  Log when it
+            // starts and then every 10 s, counting the slow frames between.
+            static long long lastSlowLogUS = 0;
+            static int slowFramesSinceLog = 0;
+            slowFramesSinceLog++;
+            if (!lastSlowLogUS || processTime - lastSlowLogUS >= 10000000) {
+                LogWarn(VB_CHANNELOUT,
+                        "SLOW Output Thread: Loop: %dus, Send: %lldus, Read: %lldus, Process: %lldus, FrameNum: %ld (%d slow frames%s)\n",
+                        LightDelay.load(),
+                        sendTime - startTime,
+                        readTime - sendTime,
+                        processTime - readTime,
+                        channelOutputFrame,
+                        slowFramesSinceLog, lastSlowLogUS ? " in the last 10 s" : "");
+                lastSlowLogUS = processTime;
+                slowFramesSinceLog = 0;
+            }
         }
 
         statusLock.lock();

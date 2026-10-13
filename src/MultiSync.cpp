@@ -3056,6 +3056,24 @@ static int undeliveredSinceLog = 0;
 static long long undeliveredLoggedAt = 0;
 static constexpr long long UNDELIVERED_LOG_INTERVAL_MS = 60000;
 
+// The same for the broadcast and multicast sends (ENOBUFS on Wi-Fi, an
+// interface that is down or firewalled): logged when it starts, then once a
+// minute with a count, rather than for every sync packet on every interface.
+// Callers hold m_socketLock.
+static int sendFailuresSinceLog = 0;
+static long long sendFailureLoggedAt = 0;
+
+static void LogSendFailure(int err) {
+    sendFailuresSinceLog++;
+    long long now = GetMonotonicTimeMS();
+    if (!sendFailureLoggedAt || now - sendFailureLoggedAt >= UNDELIVERED_LOG_INTERVAL_MS) {
+        LogErr(VB_SYNC, "Error: Unable to send packet: %s (%d failed sends%s)\n", FPPstrerror(err),
+               sendFailuresSinceLog, sendFailureLoggedAt ? " in the last minute" : "");
+        sendFailuresSinceLog = 0;
+        sendFailureLoggedAt = now ? now : 1;
+    }
+}
+
 void MultiSync::SendControlPacketViaMsgs(std::vector<struct mmsghdr>& msgs, struct iovec& iovec, void* outBuf, int len) {
     // The msgs vector (and the sockaddrs its entries point at) may be rebuilt
     // concurrently by UpdateUnicastDestinations(), so read its size, point the
@@ -3245,7 +3263,7 @@ void MultiSync::SendBroadcastPacket(void* outBuf, int len) {
         bda.sin_addr.s_addr = a.second.broadcastAddress;
 
         if (sendto(m_broadcastSock, outBuf, len, 0, (struct sockaddr*)&bda, sizeof(struct sockaddr_in)) < 0)
-            LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", FPPstrerror(errno));
+            LogSendFailure(errno);
     }
 }
 void MultiSync::SendMulticastPacket(void* outBuf, int len) {
@@ -3283,7 +3301,7 @@ void MultiSync::SendMulticastPacket(void* outBuf, int len) {
 
         if (a.second.multicastSocket >= 0) {
             if (sendto(a.second.multicastSocket, outBuf, len, 0, (struct sockaddr*)&bda, sizeof(struct sockaddr_in)) < 0)
-                LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", FPPstrerror(errno));
+                LogSendFailure(errno);
         }
     }
 }
