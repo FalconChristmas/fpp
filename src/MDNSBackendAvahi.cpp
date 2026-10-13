@@ -23,6 +23,8 @@
 #include "MDNSManager.h"
 
 #include "common.h"
+
+#include <atomic>
 #include "EPollManager.h"
 #include "log.h"
 
@@ -280,7 +282,7 @@ static void entry_group_callback(AvahiEntryGroup* g, AvahiEntryGroupState state,
 
 // Defined in fppd.cpp; cleared when FPP begins shutting down.  Declared the same way
 // httpAPI.cpp does rather than adding a header for one flag.
-extern volatile int runMainFPPDLoop;
+extern std::atomic_int runMainFPPDLoop;
 
 // WarningHolder matches on the id AND the exact message text, so the add and the
 // remove have to use the same string.  Naming them once is what keeps a warning from

@@ -119,7 +119,10 @@
 #endif
 
 pid_t pid, sid;
-volatile int runMainFPPDLoop = 1;
+// Cleared by the SIGINT/SIGTERM handler (httpAPI.cpp), which may only touch a
+// lock-free atomic, and read by the main loop and its watchdog thread.
+std::atomic_int runMainFPPDLoop{ 1 };
+static_assert(std::atomic_int::is_always_lock_free, "the signal handler stores to runMainFPPDLoop");
 volatile bool restartFPPD = 0;
 
 /* Prototypes for functions below */

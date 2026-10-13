@@ -24,11 +24,13 @@
 #include "fpphttp.h" // drogon/HTTP helpers used here; no longer pulled transitively (see fpphttp_types.h)
 #include "fpphttp_clientip.h" // getEffectiveClientIP() - FPP-internal, not in the plugin API
 #include "StatusWebSocket.h"
+#include <atomic>
 #include <fcntl.h>
+#include <signal.h>
 
 // Defined in fppd.cpp; setting it to 0 breaks the main loop and triggers
 // FPP's normal shutdown sequence, same as SIGQUIT or a graceful stop.
-extern volatile int runMainFPPDLoop;
+extern std::atomic_int runMainFPPDLoop;
 
 #ifdef PLATFORM_OSX
 #include <sys/sysctl.h>
@@ -986,14 +988,19 @@ void APIServer::Init(void) {
     app.setClientMaxBodySize(32 * 1024 * 1024);
     app.setClientMaxMemoryBodySize(4 * 1024 * 1024);
 
-    // Replace drogon's default SIGINT and SIGTERM handlers. Drogon's defaults
-    // only stop drogon's own threads, leaving fppd's main loop spinning.
-    // Drogon calls app().quit() itself before invoking these callbacks, so
-    // drogon is already stopping by the time the main loop sees
-    // runMainFPPDLoop == 0 and begins FPP's normal shutdown sequence.
-    auto fppShutdown = []() { runMainFPPDLoop = 0; };
-    app.setIntSignalHandler(fppShutdown);
-    app.setTermSignalHandler(fppShutdown);
+    // SIGINT and SIGTERM are FPP's, not drogon's. Drogon's handlers only stop
+    // drogon's own threads, leaving the main loop spinning, and they log (so
+    // allocate) and then run any callback given to them inside the signal
+    // handler: a signal landing in malloc could deadlock the shutdown. This
+    // handler only clears runMainFPPDLoop, a lock-free atomic. The main loop
+    // sees it and runs FPP's normal shutdown, which stops drogon from
+    // ~APIServer().
+    app.disableSigtermHandling();
+    struct sigaction stopAct = {};
+    stopAct.sa_handler = [](int) { runMainFPPDLoop = 0; };
+    sigemptyset(&stopAct.sa_mask);
+    sigaction(SIGINT, &stopAct, nullptr);
+    sigaction(SIGTERM, &stopAct, nullptr);
 
     // Register the /fppdws status push endpoint and its 1s change-poll timer.
     // The explicit call also keeps StatusWebSocket.o's controller
