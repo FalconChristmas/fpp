@@ -1057,9 +1057,7 @@ void Sequence::SendBlankingData(void) {
 
     BlankSequenceData(true);
 
-    if (ChannelOutputThreadIsRunning() && ChannelOutputThreadIsEnabled()) {
-        ForceChannelOutputNow();
-    } else {
+    if (!ChannelOutputThreadIsEnabled() || !ForceChannelOutputNow()) {
         // Driving the outputs from this thread: hold off an output reload's
         // teardown, which would otherwise free an output mid-send (it only
         // excluded the output thread).

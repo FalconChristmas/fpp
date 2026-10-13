@@ -115,10 +115,27 @@ void EnableChannelOutput(void) {
     OutputFrames = 1;
 }
 
-void ForceChannelOutputNow(void) {
+// Bumped under outputThreadStatusLock by every ForceChannelOutputNow().  The
+// thread sends a frame for each change it sees, whichever wait it is in.  A
+// bare notify was lost whenever the thread wasn't waiting on that condition
+// at that moment -- and the idle wait never listened for it at all -- so a
+// Stop Now landing within a frame of a sequence hand-over blanked the buffer
+// and nothing ever sent it: the last frame stayed lit.
+static std::atomic<uint64_t> outputForceRequests{ 0 };
+
+bool ForceChannelOutputNow(void) {
     LogDebug(VB_CHANNELOUT, "ForceChannelOutputNow()\n");
+    {
+        std::unique_lock<std::mutex> statusLock(outputThreadStatusLock);
+        if (!ThreadIsRunning || !RunThread) {
+            // Not running, or on its way out: it won't send again.
+            return false;
+        }
+        outputForceRequests++;
+    }
     outputThreadSatusCond.notify_all();
     outputThreadCond.notify_all();
+    return true;
 }
 
 static inline bool forceOutput() {
@@ -186,8 +203,15 @@ void RunChannelOutputThread(void) {
     }
 
     bool doForceOutput = false;
+    uint64_t forceSeen = outputForceRequests.load();
     while (RunThread) {
         startTime = GetTime();
+        // A forced frame asked for before this pass's send is that send.
+        uint64_t forceNow = outputForceRequests.load();
+        if (forceNow != forceSeen) {
+            forceSeen = forceNow;
+            doForceOutput = true;
+        }
         if (multiSync->isMultiSyncEnabled() && sequence->IsSequenceRunning()) {
             // Per-frame string copy under an uncontended leaf lock: the name is
             // short and the only writers are the open/close paths, so this costs
@@ -292,7 +316,10 @@ void RunChannelOutputThread(void) {
                 // thread's timeout below cleared RunThread under it.
                 const uint64_t seenStarts = outputStartRequests;
                 if (outputThreadSatusCond.wait_for(statusLock, std::chrono::milliseconds(2500),
-                                                   [seenStarts]() { return outputStartRequests != seenStarts; })) {
+                                                   [seenStarts, forceSeen]() {
+                                                       return outputStartRequests != seenStarts ||
+                                                              outputForceRequests.load() != forceSeen;
+                                                   })) {
                     // signal to keep going
                     ThreadIsExiting = 0;
                     statusLock.unlock();
@@ -331,9 +358,9 @@ void RunChannelOutputThread(void) {
         // when it was.
         long dt = (nextFrameTime - GetTime()) * 1000;
         if (RunThread && dt > 0) {
-            if (outputThreadCond.wait_for(lock, std::chrono::nanoseconds(dt)) == std::cv_status::no_timeout) {
+            if (outputThreadCond.wait_for(lock, std::chrono::nanoseconds(dt),
+                                          [&forceSeen]() { return outputForceRequests.load() != forceSeen; })) {
                 LogDebug(VB_CHANNELOUT, "Forced output\n");
-                doForceOutput = true;
             }
         }
     }

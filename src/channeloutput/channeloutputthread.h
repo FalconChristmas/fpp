@@ -43,7 +43,9 @@ void DisableChannelOutput(void);
 void EnableChannelOutput(void);
 void InitChannelOutputSyncVars(void);
 void DestroyChannelOutputSyncVars(void);
-void ForceChannelOutputNow(void);
+// Send a frame now rather than at the next due time.  False when the output
+// thread isn't running (or is stopping) and so won't: send it yourself.
+bool ForceChannelOutputNow(void);
 
 int ChannelOutputThreadIsRunning(void);
 int ChannelOutputThreadIsEnabled();
