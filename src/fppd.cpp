@@ -37,7 +37,9 @@
 #include <errno.h>
 #include <execinfo.h>
 #include <fcntl.h>
+#include <algorithm>
 #include <filesystem>
+#include <vector>
 #include <fstream>
 #include <functional>
 #include <getopt.h>
@@ -617,7 +619,8 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
         }
     }
     if (crashLog >= 0) {
-        std::set<std::string> filenames;
+        // (modification time, path) of every report in crashes/
+        std::vector<std::pair<std::filesystem::file_time_type, std::string>> reports;
         std::string mediaDir = getFPPMediaDir();
         std::string cdir = mediaDir + "/crashes";
 
@@ -626,13 +629,21 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
         SetFilePerms(cdir, true);
 
         bool hasRecent = false;
-        for (const auto& entry : std::filesystem::directory_iterator(cdir)) {
-            filenames.insert(entry.path());
+        // The error_code overloads throughout: a report removed while this
+        // runs (the UI deleting one, a manual report being pruned) made the
+        // throwing ones throw, and an exception here aborts the crash handler.
+        std::error_code ec;
+        for (std::filesystem::directory_iterator it(cdir, ec), end; !ec && it != end; it.increment(ec)) {
+            std::error_code fec;
+            auto ftime = it->last_write_time(fec);
+            if (fec) {
+                continue; // gone since it was listed
+            }
+            reports.emplace_back(ftime, it->path().string());
             // Reports the user asked for are not crashes (see ManualCrashReportCallback)
-            if (IsManualCrashReport(entry.path().c_str())) {
+            if (IsManualCrashReport(it->path().c_str())) {
                 continue;
             }
-            auto ftime = entry.last_write_time();
             std::chrono::system_clock::time_point stm;
 #if defined(PLATFORM_OSX)
     #if (__apple_build_version__ >= 14030022)
@@ -651,26 +662,40 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
                 hasRecent = true;
             }
         }
-        while (filenames.size() > 10) {
-            std::string f = *filenames.begin();
-            unlink(f.c_str());
-            filenames.erase(filenames.begin());
+        // Keep the ten newest.  By time, not name: names start with the FPP
+        // version, so after an upgrade the oldest by name could be the newest.
+        std::sort(reports.begin(), reports.end());
+        for (size_t i = 0; i + 10 < reports.size(); i++) {
+            unlink(reports[i].second.c_str());
         }
 
         if (!hasRecent) {
             char zfName[256];
             CrashReportName(zfName, sizeof(zfName), "");
 
-            // Use script to generate crash report with passwords redacted
-            char scriptCmd[512];
-            snprintf(scriptCmd, sizeof(scriptCmd), "/opt/fpp/scripts/generate_crash_report %d %s", crashLog == 0 ? 3 : crashLog, zfName);
-            system(scriptCmd);
+            // Use script to generate crash report with passwords redacted.
+            // A full report (gdb on every thread, the logs, the config) takes
+            // well over two minutes on a slow player with a slow card, and the
+            // watchdog armed above cut it off there.  This far the handler has
+            // not wedged, so give the script and the upload their own budget,
+            // and bound the script with timeout(1) so it still can't hang
+            // the restart.
+            constexpr unsigned int kReportScriptSec = 300;
+            constexpr unsigned int kUploadSec = 90;
+            alarm(kReportScriptSec + 15 + (crashLog >= 1 ? kUploadSec : 0));
+            std::string scriptCmd = getFPPDDir("/scripts/generate_crash_report") + " " +
+                                    std::to_string(crashLog == 0 ? 3 : crashLog) + " " + zfName;
+            if (FileExists("/usr/bin/timeout")) {
+                scriptCmd = "/usr/bin/timeout -k 10 " + std::to_string(kReportScriptSec) + " " + scriptCmd;
+            }
+            system(scriptCmd.c_str());
             SetFilePerms(zfName);
-            
+
             if (crashLog >= 1) {
                 // Upload crash report
                 char uploadCmd[512];
-                snprintf(uploadCmd, sizeof(uploadCmd), "curl https://crashes.falconplayer.com/crashUpload/index.php -F userfile=@%s", zfName);
+                snprintf(uploadCmd, sizeof(uploadCmd), "curl --connect-timeout 15 --max-time %u https://crashes.falconplayer.com/crashUpload/index.php -F userfile=@%s",
+                         kUploadSec - 5, zfName);
                 system(uploadCmd);
             }
         } else {
@@ -804,18 +829,21 @@ static std::string ManualCrashReportCallback(std::string& error) {
         }
     }
     // Keep at most two manual reports, counting the new one.  Pruned after the
-    // move so a failed move does not also lose the previous report.
-    std::set<std::string> manual;
+    // move so a failed move does not also lose the previous report.  Oldest
+    // first by time: the names start with the FPP version, so after an
+    // upgrade sorting by name kept the wrong one.
+    std::vector<std::pair<std::filesystem::file_time_type, std::string>> manual;
     ec.clear();
     for (std::filesystem::directory_iterator it(cdir, ec), end; !ec && it != end; it.increment(ec)) {
-        if (IsManualCrashReport(it->path().c_str())) {
-            manual.insert(it->path());
+        std::error_code fec;
+        auto t = it->last_write_time(fec);
+        if (!fec && IsManualCrashReport(it->path().c_str()) && it->path() != path) {
+            manual.emplace_back(t, it->path().string());
         }
     }
-    manual.erase(path);
-    while (manual.size() > 1) {
-        unlink(manual.begin()->c_str());
-        manual.erase(manual.begin());
+    std::sort(manual.begin(), manual.end());
+    for (size_t i = 0; i + 1 < manual.size(); i++) {
+        unlink(manual[i].second.c_str());
     }
     SetFilePerms(path);
     return base;
