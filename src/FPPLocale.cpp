@@ -34,11 +34,13 @@ Json::Value LocaleHolder::GetLocale() {
     if (localeName == "")
         localeName = "Global";
 
-    std::string localeFile = "/opt/fpp/etc/locale/";
-    localeFile += localeName + ".json";
+    // From fppd's own tree, not /opt/fpp: an install anywhere else (macOS, a
+    // test tree) found no locale file, so every holiday name in the schedule
+    // was unknown.
+    std::string localeFile = getFPPDDir("/etc/locale/" + localeName + ".json");
 
     if (!FileExists(localeFile)) {
-        localeFile = "/opt/fpp/etc/locale/Global.json";
+        localeFile = getFPPDDir("/etc/locale/Global.json");
     }
 
     bool result = LoadJsonFromFile(localeFile, locale, JsonRoot::Object);
