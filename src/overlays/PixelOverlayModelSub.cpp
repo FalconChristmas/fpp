@@ -300,6 +300,16 @@ void PixelOverlayModelSub::doOverlay(uint8_t* channels) {
     // reports the failure once instead.
     if (!parent)
         return;
+    // A submodel that no longer fits its parent (the parent's geometry changed
+    // after the submodel was saved) can't be drawn: setChildState() warned
+    // about it once.  Asking the parent anyway logged "region is out of
+    // bounds" on every frame an effect touched it.
+    if (xOffset < 0 || yOffset < 0 ||
+        (int64_t)xOffset + width > parent->getWidth() ||
+        (int64_t)yOffset + height > parent->getHeight()) {
+        dirtyBuffer = false;
+        return;
+    }
 
     dirtyBuffer = dirtyBuffer | parent->needRefresh();
     if (!dirtyBuffer)
