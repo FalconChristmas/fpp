@@ -178,6 +178,7 @@ static int ArtNetSocketFor(UDPOutputMessages& messages, unsigned int key) {
 }
 
 void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& messages) {
+    sequencePending = false;
     if (valid && active) {
         ArtNetSocketFor(messages, ARTNET_SYNC_KEY);
 
@@ -219,10 +220,11 @@ void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages
             cur += channelCount;
             start += channelCount;
         }
-        sequenceNumber++;
-        if (sequenceNumber == 0) {
-            sequenceNumber++;
+        pendingSequenceNumber = sequenceNumber + 1;
+        if (pendingSequenceNumber == 0) {
+            pendingSequenceNumber++;
         }
+        sequencePending = true;
         // the counter forces a full resend once 10 frames in a row skipped
         // something; without the reset, after the first 10 skips dedup was
         // off for the rest of the run
@@ -254,6 +256,13 @@ void ArtNetOutputData::PostPrepareData(unsigned char* channelData, UDPOutputMess
         msg.msg_hdr.msg_iovlen = 1;
         msg.msg_len = ARTNET_SYNC_PACKET_LENGTH;
         msgs[ARTNET_SYNC_KEY].push_back(msg);
+    }
+}
+
+void ArtNetOutputData::FrameSent() {
+    if (sequencePending) {
+        sequenceNumber = pendingSequenceNumber;
+        sequencePending = false;
     }
 }
 

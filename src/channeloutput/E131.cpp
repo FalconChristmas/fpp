@@ -123,6 +123,8 @@ E131OutputData::E131OutputData(const Json::Value& config) :
 
     e131Iovecs.resize(universeCount * 2);
     e131Headers.resize(universeCount);
+    e131SentSequence.assign(universeCount, 0);
+    e131Pending.assign(universeCount, false);
     e131Addresses.resize(universeCount);
     for (int x = 0; x < universeCount; x++) {
         if (type == E131_TYPE_MULTICAST) {
@@ -232,10 +234,12 @@ void E131OutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& 
                     msgs[e131Addresses[x].sin_addr.s_addr].push_back(msg);
                 }
 
-                ++e131Headers[x][E131_SEQUENCE_INDEX];
+                e131Headers[x][E131_SEQUENCE_INDEX] = e131SentSequence[x] + 1;
+                e131Pending[x] = true;
                 e131Iovecs[x * 2 + 1].iov_base = (void*)cur;
                 allSkipped = false;
             } else {
+                e131Pending[x] = false;
                 anySkipped = true;
             }
             cur += channelCount;
@@ -253,6 +257,7 @@ void E131OutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& 
 }
 
 void E131OutputData::PostPrepareData(unsigned char* channelData, UDPOutputMessages& msgs) {
+    e131SyncPending = false;
     if (!valid || !active || syncUniverse <= 0 || !e131SyncPacket) {
         return;
     }
@@ -267,7 +272,8 @@ void E131OutputData::PostPrepareData(unsigned char* channelData, UDPOutputMessag
         }
     }
 
-    ++e131SyncPacket[E131_SYNC_PACKET_SEQ_INDEX];
+    e131SyncPacket[E131_SYNC_PACKET_SEQ_INDEX] = e131SyncSentSequence + 1;
+    e131SyncPending = true;
 
     struct mmsghdr msg;
     memset(&msg, 0, sizeof(msg));
@@ -277,6 +283,19 @@ void E131OutputData::PostPrepareData(unsigned char* channelData, UDPOutputMessag
     msg.msg_hdr.msg_iovlen = 1;
     msg.msg_len = E131_SYNC_PACKET_LENGTH;
     syncMsgs.push_back(msg);
+}
+
+void E131OutputData::FrameSent() {
+    for (int x = 0; x < universeCount; x++) {
+        if (e131Pending[x]) {
+            e131SentSequence[x] = e131Headers[x][E131_SEQUENCE_INDEX];
+            e131Pending[x] = false;
+        }
+    }
+    if (e131SyncPending) {
+        e131SyncSentSequence = e131SyncPacket[E131_SYNC_PACKET_SEQ_INDEX];
+        e131SyncPending = false;
+    }
 }
 
 void E131OutputData::GetRequiredChannelRange(int& min, int& max) {

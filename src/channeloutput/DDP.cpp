@@ -194,8 +194,11 @@ DDPOutputData::~DDPOutputData() {
 }
 
 void DDPOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& msgs) {
+    sequencePending = false;
     if (valid && active) {
         int start = 0;
+        // numbered from the last frame sent, not the last one prepared
+        char seq = sequenceNumber;
         struct mmsghdr msg;
         memset(&msg, 0, sizeof(msg));
 
@@ -218,12 +221,8 @@ void DDPOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& m
                 msgs[ddpAddress.sin_addr.s_addr].push_back(msg);
 
                 unsigned char* header = ddpBuffers[p];
-                header[1] = sequenceNumber & 0xF;
-                if (sequenceNumber == 15) {
-                    sequenceNumber = 1;
-                } else {
-                    ++sequenceNumber;
-                }
+                header[1] = seq & 0xF;
+                seq = seq == 15 ? 1 : seq + 1;
 
                 // set the pointer to the channelData for the universe
                 ddpIovecs[p * 2 + 1].iov_base = (void*)(&channelData[startChannel - 1 + start]);
@@ -233,6 +232,8 @@ void DDPOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& m
             }
             start += ddpIovecs[p * 2 + 1].iov_len;
         }
+        pendingSequenceNumber = seq;
+        sequencePending = true;
         if (anySkipped) {
             skippedFrames++;
         } else {
@@ -241,6 +242,12 @@ void DDPOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& m
         if (!allSkipped) {
             SaveFrame(&channelData[startChannel - 1], start);
         }
+    }
+}
+void DDPOutputData::FrameSent() {
+    if (sequencePending) {
+        sequenceNumber = pendingSequenceNumber;
+        sequencePending = false;
     }
 }
 void DDPOutputData::DumpConfig() {

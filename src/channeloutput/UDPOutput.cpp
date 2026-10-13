@@ -1212,6 +1212,9 @@ int UDPOutput::SendData(unsigned char* channelData) {
     if (!enabled || messages.messages.empty()) {
         return 0;
     }
+    for (auto a : outputs) {
+        a->FrameSent();
+    }
     if (++statCheckCounter >= 1500) {
         // roughly once a minute at typical frame rates; run off-thread so the
         // tc fork in the qdisc check can't hiccup the frame

@@ -30,8 +30,12 @@ public:
     virtual void DumpConfig() override;
 
     virtual const std::string& GetOutputTypeString() const override;
+    virtual void FrameSent() override;
 
     char sequenceNumber;
+    // what sequenceNumber becomes once the prepared frame is sent (FrameSent())
+    char pendingSequenceNumber = 1;
+    bool sequencePending = false;
 
     sockaddr_in ddpAddress;
     int pktCount;

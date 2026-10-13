@@ -84,6 +84,13 @@ public:
 
     virtual const std::string& GetOutputTypeString() const;
 
+    // The messages last prepared are being sent.  A frame can be prepared
+    // more than once before it goes out (its data changed in between), and
+    // only the last preparation is sent, so a protocol sequence number
+    // assigned in PrepareData() is committed here: advanced as it was
+    // assigned, the discarded preparation skipped one on the wire.
+    virtual void FrameSent() {}
+
     static in_addr_t toInetAddr(const std::string& ip, bool& valid);
 
     std::string description;

@@ -33,6 +33,7 @@ public:
     virtual void GetRequiredChannelRange(int& min, int& max) override;
 
     virtual const std::string& GetOutputTypeString() const override;
+    virtual void FrameSent() override;
 
     int universe;
     int universeCount;
@@ -44,6 +45,12 @@ public:
     std::vector<unsigned char*> e131Headers;
 
     unsigned char* e131SyncPacket;
+    // Per universe: the sequence number last sent, and whether the prepared
+    // packet (carrying the next one) is pending -- see FrameSent().
+    std::vector<unsigned char> e131SentSequence;
+    std::vector<bool> e131Pending;
+    unsigned char e131SyncSentSequence = 0;
+    bool e131SyncPending = false;
     struct iovec e131SyncIovec;
     sockaddr_in e131SyncAddress;
 };
