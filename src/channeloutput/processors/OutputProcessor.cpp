@@ -15,6 +15,9 @@
 #include "fpp-json.h"
 
 #include <algorithm>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 #include "../../log.h"
 
@@ -119,18 +122,39 @@ void OutputProcessors::loadFromJSON(const Json::Value& config) {
     // current limit missing for a frame).  Only the processors created from
     // JSON are replaced; plugins may have added their own.
     std::list<OutputProcessor*> created;
+    // A processor whose JSON holds a value of the wrong type ("1" for a
+    // number, a list, null) threw Json::LogicError out of its constructor,
+    // past everything up to std::terminate -- at startup, so with the config
+    // saved fppd crash looped.  Refuse that one processor instead, with a
+    // warning (raised below, once last time's are retracted).
+    std::vector<std::string> failed;
+    auto tryCreate = [this, &created, &failed](const Json::Value& v) {
+        try {
+            if (OutputProcessor* p = create(v)) {
+                created.push_back(p);
+            }
+        } catch (const std::exception& e) {
+            std::string what;
+            if (v.isObject() && v["type"].isString()) {
+                what = v["type"].asString();
+            }
+            if (what.empty()) {
+                what = "an entry";
+            }
+            failed.push_back("Output processor " + what + " could not be loaded (" + e.what() +
+                             "). Processor disabled.");
+        }
+    };
     for (Json::Value::const_iterator itr = config.begin(); itr != config.end(); ++itr) {
         std::string name = itr.key().asString();
         if (name == "outputProcessors") {
             Json::Value val = *itr;
             if (val.isArray()) {
                 for (int x = 0; x < val.size(); x++) {
-                    if (OutputProcessor* p = create(val[x])) {
-                        created.push_back(p);
-                    }
+                    tryCreate(val[x]);
                 }
-            } else if (OutputProcessor* p = create(val)) {
-                created.push_back(p);
+            } else {
+                tryCreate(val);
             }
         }
     }
@@ -142,6 +166,11 @@ void OutputProcessors::loadFromJSON(const Json::Value& config) {
             WarningHolder::RemoveWarning(w);
         }
         rejectedWarnings.clear();
+        for (auto& w : failed) {
+            LogErr(VB_CHANNELOUT, "%s\n", w.c_str());
+            WarningHolder::AddWarning(w);
+            rejectedWarnings.push_back(w);
+        }
         for (auto a : fromJsonProcessors) {
             processors.remove(a);
         }
