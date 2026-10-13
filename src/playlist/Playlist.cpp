@@ -3122,15 +3122,18 @@ int Playlist::MQTTHandler(std::string topic, std::string msg) {
      * apply to the current running playlist even if the names don't match
      */
 
+    // Stops go through the Player, as the API's and the commands' do, so the
+    // force-stop is recorded and the scheduler does not start the playlist
+    // straight back up.
     // ALLPLAYLIST should be checked first to avoid name colision.
     if (topic == "ALLPLAYLISTS/stop/now") {
-        StopNow(1);
+        Player::INSTANCE.StopNow(1);
 
     } else if (topic == "ALLPLAYLISTS/stop/graceful") {
-        StopGracefully(1);
+        Player::INSTANCE.StopGracefully(1);
 
     } else if (topic == "ALLPLAYLISTS/stop/afterloop") {
-        StopGracefully(1, 1);
+        Player::INSTANCE.StopGracefully(1, 1);
 
     } else if (topicEnd == "/next") {
         NextItem();
@@ -3145,13 +3148,13 @@ int Playlist::MQTTHandler(std::string topic, std::string msg) {
         SetPosition(atoi(msg.c_str()));
 
     } else if (topicEnd == "/stop/now") {
-        StopNow(1);
+        Player::INSTANCE.StopNow(1);
 
     } else if (topicEnd == "/stop/graceful") {
-        StopGracefully(1);
+        Player::INSTANCE.StopGracefully(1);
 
     } else if (topicEnd == "/stop/afterloop") {
-        StopGracefully(1, 1);
+        Player::INSTANCE.StopGracefully(1, 1);
 
         // These three are depgrecated and should be removed
     } else if (topic == "name/set") {
