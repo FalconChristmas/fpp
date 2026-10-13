@@ -284,6 +284,11 @@ public:
 
     Json::Value getDescriptions();
     bool HasPreset(const std::string& name);
+    // A copy of the presets as loaded: name -> array of entries, each with a
+    // text "command" and an "args" array (or no args). Entries the file holds
+    // in any other shape were dropped by LoadPresets(), so a reader of this
+    // never has to check the file's shape again.
+    Json::Value GetPresets();
 
     virtual std::unique_ptr<Command::Result> run(const std::string& command, const std::vector<std::string>& args);
     virtual std::unique_ptr<Command::Result> run(const std::string& command, const Json::Value& argsArray);

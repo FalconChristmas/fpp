@@ -21,6 +21,7 @@
 #include "Scheduler.h"
 #include "Variables.h"
 #include "Warnings.h"
+#include "commands/Commands.h"
 #include "commands/Condition.h"
 #include "common.h"
 #include "log.h"
@@ -407,34 +408,36 @@ void Variables::fireListeners(const std::string& name, const std::string& value)
 
 std::set<std::string> Variables::getReferencedNamesInConfig() {
     std::set<std::string> referenced;
-    std::string presetsFile = FPP_DIR_CONFIG("/commandPresets.json");
-    if (!FileExists(presetsFile)) {
-        return referenced;
-    }
-    Json::Value root = LoadJsonFromFile(presetsFile, JsonRoot::Object);
-    if (!root.isMember("commands")) {
-        return referenced;
-    }
-    for (auto& cmd : root["commands"]) {
-        std::string commandName = cmd["command"].asString();
-        for (int i = 0; i < (int)cmd["args"].size(); i++) {
-            if (cmd["args"][i].isNull()) {
-                continue;
-            }
-            std::string arg = cmd["args"][i].asString();
-            // "Set Variable" writes to whatever's in its first arg.
-            if (commandName == "Set Variable" && i == 0 && !arg.empty()) {
-                referenced.insert(arg);
-            }
-            // %VAR:name% substitution reference, anywhere in any arg.
-            std::size_t pos = 0;
-            while ((pos = arg.find("%VAR:", pos)) != std::string::npos) {
-                std::size_t end = arg.find('%', pos + 5);
-                if (end == std::string::npos) {
-                    break;
+    // The presets as CommandManager loaded them, not the file: this read the
+    // file again and indexed whatever it held, so one entry of the wrong shape
+    // (a hand edit, an upload) threw, and GET /api/variables answered 500.
+    Json::Value presets = CommandManager::INSTANCE.GetPresets();
+    for (auto const& presetName : presets.getMemberNames()) {
+        for (auto const& cmd : presets[presetName]) {
+            std::string commandName = cmd["command"].asString();
+            const Json::Value& args = cmd["args"];
+            for (Json::ArrayIndex i = 0; i < args.size(); i++) {
+                if (args[i].isNull()) {
+                    continue;
                 }
-                referenced.insert(arg.substr(pos + 5, end - pos - 5));
-                pos = end + 1;
+                // An argument can be any JSON value. A list argument stored
+                // as JSON (an If's commands) is searched as its text.
+                std::string arg = args[i].isConvertibleTo(Json::stringValue) ? args[i].asString()
+                                                                             : SaveJsonToString(args[i]);
+                // "Set Variable" writes to whatever's in its first arg.
+                if (commandName == "Set Variable" && i == 0 && !arg.empty()) {
+                    referenced.insert(arg);
+                }
+                // %VAR:name% substitution reference, anywhere in any arg.
+                std::size_t pos = 0;
+                while ((pos = arg.find("%VAR:", pos)) != std::string::npos) {
+                    std::size_t end = arg.find('%', pos + 5);
+                    if (end == std::string::npos) {
+                        break;
+                    }
+                    referenced.insert(arg.substr(pos + 5, end - pos - 5));
+                    pos = end + 1;
+                }
             }
         }
     }

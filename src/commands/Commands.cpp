@@ -1364,3 +1364,8 @@ bool CommandManager::HasPreset(const std::string& name) {
     std::unique_lock<std::mutex> lock(presetsMutex);
     return presets.isMember(name);
 }
+
+Json::Value CommandManager::GetPresets() {
+    std::unique_lock<std::mutex> lock(presetsMutex);
+    return presets;
+}
