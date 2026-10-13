@@ -1797,8 +1797,12 @@ std::shared_ptr<SendSocketInfo> UDPOutput::findOrCreateSocket(unsigned int socke
 int UDPOutput::createSocket(int port, bool broadCast, bool multiCast) {
     int sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
     if (sendSocket < 0) {
-        LogErr(VB_CHANNELOUT, "Error opening datagram socket\n");
-        exit(1);
+        // Out of file descriptors, typically.  This used to exit(1) and take
+        // the show down; a -1 socket makes the sends to this destination fail
+        // and be counted, and a later send creates a new one, so output comes
+        // back once descriptors free up (as e131bridge does since 42183b6d4).
+        LogErr(VB_CHANNELOUT, "Error opening datagram socket: %s\n", FPPstrerror(errno));
+        return -1;
     }
 
     errno = 0;
@@ -1837,8 +1841,9 @@ int UDPOutput::createSocket(int port, bool broadCast, bool multiCast) {
     if (broadCast) {
         int broadcast = 1;
         if (setsockopt(sendSocket, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
-            LogErr(VB_SYNC, "Error setting SO_BROADCAST: \n", FPPstrerror(errno));
-            exit(1);
+            LogErr(VB_CHANNELOUT, "Error setting SO_BROADCAST: %s\n", FPPstrerror(errno));
+            close(sendSocket);
+            return -1;
         }
 #ifndef PLATFORM_OSX
     } else if (multiCast) {
