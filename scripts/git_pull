@@ -116,6 +116,7 @@ if curl --silent --head "${HTTPURL}" | grep -i "Content-Type: text/html; charset
     PULL_BUILD_RC=$?
 else
     echo "Can not access ${HTTPURL}, unable to pull git updates.  Check if you have Internet Access from this FPP by going to Help->System Health Check"
+    PULL_UNREACHABLE=1
 
     if [ ! -x ${FPPBINDIR}/fppd ]; then
         echo "${FPPBINDIR}/fppd doesn't exist, need to build it"
@@ -133,4 +134,16 @@ fi
 if [ "${PULL_BUILD_RC:-0}" != "0" ]; then
     echo "ERROR: build failed (rc=${PULL_BUILD_RC}) -- binaries were NOT rebuilt."
     exit 3
+fi
+
+# An unreachable update source is a failed update, not a successful no-op:
+# exiting 0 here had manualUpdate.php restart fppd and report "Upgrade
+# Complete" with nothing pulled. Exit 4 when the old tree was rebuilt in place
+# (fppd was missing), so the new binaries still get fppd restarted; otherwise
+# exit 1 like any other failed pull.
+if [ -n "${PULL_UNREACHABLE}" ]; then
+    if [ -n "${PULL_BUILD_RC}" ]; then
+        exit 4
+    fi
+    exit 1
 fi
