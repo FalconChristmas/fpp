@@ -1630,6 +1630,25 @@
                             unavailables[ip] = 0;
                         }
 
+                        // An FPP/OS update running on the remote (the same
+                        // updateActivity that drives its own update banner).
+                        // fppd usually keeps running for most of an update, so
+                        // status_name alone reads "Idle".  A player still
+                        // playing keeps its playing status with the update
+                        // noted underneath; anything else becomes "Upgrading".
+                        var ua = data.updateActivity;
+                        if (ua && ua.inProgress && data.status_name != 'unreachable' && data.status_name != 'password') {
+                            var uaDetail = msEscape(ua.kind || 'FPP Update');
+                            if (ua.stage) {
+                                uaDetail += ': ' + msEscape(ua.stage);
+                            }
+                            if (data.status_name == 'playing' || data.status_name == 'paused') {
+                                status += "<br><i class=\"fas fa-circle-notch fa-spin text-warning\"></i> <span class='warning-text'>" + uaDetail + "</span>";
+                            } else {
+                                status = "<i class=\"fas fa-circle-notch fa-spin text-warning\"></i> Upgrading<br><small class='text-muted'>" + uaDetail + "</small>";
+                            }
+                        }
+
                         if (data.rebootFlag == 1) {
                             status += "<br><i class=\"fas fa-exclamation-triangle text-danger\"></i><span class='warning-text'>Device Reboot Required</span>";
                         }
