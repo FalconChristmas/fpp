@@ -1,29 +1,56 @@
 #!/bin/bash
+#
+# Install a script from FPP's fpp-scripts repository into the media scripts
+# folder, then run the "# InstallAction:" lines it declares.  Runs as root
+# (plugins name these as dependencies: plugin.php's InstallDependencies).
+#
+# Usage: installScript <category> <file>
 
-BINDIR=$(cd $(dirname $0) && pwd)
+BINDIR=$(cd "$(dirname "$0")" && pwd)
 
-. ${BINDIR}/common
-. ${BINDIR}/functions
+. "${BINDIR}/common"
+. "${BINDIR}/functions"
 
 CATEGORY="$1"
 FILE="$2"
+
+# Both are one path component.  They become the download URL and the file
+# written as root, so "../" in either wrote outside the scripts folder and,
+# once the URL was normalised, fetched from outside FPP's repository - whose
+# install actions then ran as root.
+for part in "${CATEGORY}" "${FILE}"; do
+    case "${part}" in
+    "" | "." | ".." | */* | -* | *..*)
+        printf '%s\n' "Invalid script name: ${CATEGORY}/${FILE}" >&2
+        exit 1
+        ;;
+    esac
+done
+
 SCRIPT="${MEDIADIR}/scripts/${FILE}"
+URL="https://raw.githubusercontent.com/FalconChristmas/fpp-scripts/master/${CATEGORY// /%20}/${FILE// /%20}"
 
-# Install the script from the fpp-scripts repository
-wget -q -O ${SCRIPT} https://raw.githubusercontent.com/FalconChristmas/fpp-scripts/master/${CATEGORY}/${FILE}
+# Download aside and move it into place only when it arrived, so a failed
+# download neither leaves an empty script nor replaces a working one.
+DOWNLOAD=$(mktemp "${MEDIADIR}/scripts/.installScript.XXXXXX") || exit 1
+ACTIONS=$(mktemp /var/tmp/installactions.XXXXXX) || { rm -f "${DOWNLOAD}"; exit 1; }
+trap 'rm -f "${DOWNLOAD}" "${ACTIONS}"' EXIT
 
-# Grab out any Install Actions defined in the script and execute them
-grep "^# InstallAction:" ${SCRIPT} | sed -e "s/.*InstallAction: //" > /var/tmp/installactions.sh
+if ! wget -q -O "${DOWNLOAD}" -- "${URL}" || [ ! -s "${DOWNLOAD}" ]; then
+    printf '%s\n' "Could not download ${CATEGORY}/${FILE} from the fpp-scripts repository" >&2
+    exit 1
+fi
+mv -f -- "${DOWNLOAD}" "${SCRIPT}"
+chmod 0644 "${SCRIPT}" # mktemp made it 0600; wget used to leave 0644
 
 # Make fpp owner of the script (initially created with root as owner),
-# fixes after reboot, change owner so user can edit file straight away
+# so the user can edit it straight away
 if [ "${FPPPLATFORM}" != "MacOS" ]; then
-    chown fpp:fpp ${SCRIPT}
+    chown fpp:fpp "${SCRIPT}"
 fi
 
-if [ -s /var/tmp/installactions.sh ]
-then
-	/bin/bash /var/tmp/installactions.sh
+# Grab out any Install Actions defined in the script and execute them
+grep "^# InstallAction:" -- "${SCRIPT}" | sed -e "s/.*InstallAction: //" > "${ACTIONS}"
+if [ -s "${ACTIONS}" ]; then
+    /bin/bash "${ACTIONS}"
 fi
-rm /var/tmp/installactions.sh
-

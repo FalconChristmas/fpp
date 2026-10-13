@@ -1864,7 +1864,12 @@ function ResolveLocalDependencies($deps, $ownerRepo, $stream, $op = 'install')
 				continue;
 			}
 			list($category, $file) = explode('/', $entry, 2);
-			if (!preg_match('#^[A-Za-z0-9._ -]+$#', $category) || !preg_match('#^[A-Za-z0-9._ /-]+$#', $file)) {
+			// Each is one path component: installScript (run as root) builds
+			// both the download URL and the file it writes from them, and the
+			// old patterns let "..", and a "/" in the file, through.
+			$component = '#^[A-Za-z0-9_][A-Za-z0-9._ -]*$#';
+			if (!preg_match($component, $category) || !preg_match($component, $file) ||
+				strpos($category, '..') !== false || strpos($file, '..') !== false) {
 				PluginEchoLog($op, $ownerRepo, "\nSkipping script dependency with unsafe characters: '$entry'.\n", $stream);
 				continue;
 			}

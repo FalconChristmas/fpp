@@ -864,13 +864,12 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
         $script_filenames = array();
         $restore_areas = $system_config_areas[$restore_area_key]['file'];
 
-        // Returns the restored script names (empty when none); previously
-        // this collected into a function-local that never reached the caller,
-        // so InstallActions silently never ran.
-        $script_filenames = processRestoreDataArray($restore_area_key, $restore_area_sub_key, $restore_areas, $restore_area_data, $backup_version);
-
-        //Cause any InstallActions to be run for the restored scripts
-        RestoreScripts($script_filenames);
+        // Restored scripts are files only.  Their "# InstallAction:" lines are
+        // not run: a backup is a file anyone can hand you, and running shell
+        // lines out of it as root let a crafted one run anything.  A script
+        // that needs its install steps is reinstalled from the Script
+        // Repository, which fetches it from FPP's own scripts repository.
+        processRestoreDataArray($restore_area_key, $restore_area_sub_key, $restore_areas, $restore_area_data, $backup_version);
 
         //Set FPPD Restart flag
         WriteSettingToFile('restartFlag', 1);
@@ -1393,11 +1392,6 @@ function processRestoreDataArray($restore_area_key, $restore_area_sub_key, $rest
     //Version >7.2 backups - Panel layout is generated from the actual panel config (using col & row data) if the layout doesn't exist anywhere
     //                    - Single Panel size is generated from the same config and also written to the system settings
 
-    // Script filenames collected for InstallAction execution by the caller.
-    // Returned (not global) so existing callers that ignore the return value
-    // are unaffected.
-    $collected_script_filenames = array();
-
     //search through the files that should of been backed up for the specified area, eg. channelOutputs has multiple files
     //and then loop over the restore data and match up the data and restore it if anything exists.
     foreach ($restore_areas as $restore_areas_idx => $restore_areas_data) {
@@ -1458,11 +1452,6 @@ function processRestoreDataArray($restore_area_key, $restore_area_sub_key, $rest
                             //If backup/restore type of a sub-area is folder, then build the full path to where the file will be restored
                             if ($restore_type == "dir") {
                                 $restore_location .= "/" . $filename_to_restore;
-                            }
-
-                            //if restore sub-area is scripts, capture the file names so we can pass those along through RestoreScripts which will perform any InstallActions
-                            if (strtolower($restore_areas_idx) == "scripts" && IsSafeRestoreFilename($filename_to_restore)) {
-                                $collected_script_filenames[] = $filename_to_restore;
                             }
 
                             //if restore sub-area is LED panels, we need write the matrix size / layout setting to the settings file in case it's different to the backup
@@ -1591,7 +1580,6 @@ function processRestoreDataArray($restore_area_key, $restore_area_sub_key, $rest
         }
     }
 
-    return $collected_script_filenames;
 }
 
 /**
@@ -1601,8 +1589,7 @@ function processRestoreDataArray($restore_area_key, $restore_area_sub_key, $rest
  * like "../../config/settings" or absolute paths. Legitimate backups only
  * ever contain bare directory entries (see read_directory_files(): no
  * slashes, never "." or ".."), so anything else is skipped, never written
- * or executed. Mirrors the bare-name check in scripts/restoreScript so
- * rejected names never even reach the sudo fork. Allows spaces, unicode,
+ * or executed. Allows spaces, unicode,
  * leading dashes and dotfiles -- anything that stays a single entry.
  *
  * @param mixed $filename array key from the decoded backup payload
@@ -1623,28 +1610,6 @@ function IsSafeRestoreFilename($filename)
         return false;
     }
     return true;
-}
-
-/**
- * Looks after script restorations and running of associated InstallActions
- * @param $file_names array of script file names
- */
-function RestoreScripts($file_names)
-{
-    global $SUDO, $fppDir;
-    global $scriptDirectory;
-
-    if (!empty($file_names)) {
-        foreach ($file_names as $filename) {
-            // Filenames come from inside the uploaded backup: stay in the
-            // scripts dir (restoreScript enforces this too) and keep the arg
-            // a single shell word.
-            if (!IsSafeRestoreFilename($filename)) {
-                continue;
-            }
-            exec($SUDO . " " . escapeshellarg($fppDir . "/scripts/restoreScript") . " " . escapeshellarg($filename));
-        }
-    }
 }
 
 // SetAudioOutput() now lives in common.php: the settings API calls it too, and
