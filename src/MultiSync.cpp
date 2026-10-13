@@ -1147,12 +1147,19 @@ static std::map<std::string, std::string> GetConfiguredOutputRanges() {
 
     if (FileExists(FPP_DIR_CONFIG("/co-universes.json"))) {
         Json::Value outputs = LoadJsonFromFile(FPP_DIR_CONFIG("/co-universes.json"), JsonRoot::Object);
-        for (const auto& co : outputs["channelOutputs"]) {
-            if (!co.isMember("universes")) {
+        const Json::Value& cos = outputs["channelOutputs"];
+        for (Json::ArrayIndex i = 0; cos.isArray() && i < cos.size(); i++) {
+            const Json::Value& co = cos[i];
+            if (!co.isObject() || !co["universes"].isArray()) {
                 continue;
             }
             for (const auto& u : co["universes"]) {
-                if (!u.isMember("address") || !u.isMember("startChannel") || !u.isMember("channelCount")) {
+                // Read at startup: a universe with a field of the wrong type is
+                // left out here (ChannelOutputSetup reports it), not thrown on.
+                if (!u.isObject() || !u["address"].isString() ||
+                    !u["startChannel"].isIntegral() || !u["channelCount"].isIntegral() ||
+                    !u["startChannel"].isConvertibleTo(Json::uintValue) ||
+                    !u["channelCount"].isConvertibleTo(Json::uintValue)) {
                     continue;
                 }
                 std::string address = u["address"].asString();
@@ -1308,18 +1315,19 @@ void MultiSync::PerformHTTPDiscovery() {
 
     if (FileExists(FPP_DIR_CONFIG("/co-universes.json"))) {
         Json::Value outputs = LoadJsonFromFile(FPP_DIR_CONFIG("/co-universes.json"), JsonRoot::Object);
-        if (outputs.isMember("channelOutputs")) {
-            for (int co = 0; co < outputs["channelOutputs"].size(); co++) {
-                if (outputs["channelOutputs"][co].isMember("universes")) {
-                    for (int i = 0; i < outputs["channelOutputs"][co]["universes"].size(); i++) {
-                        if (outputs["channelOutputs"][co]["universes"][i].isMember("address")) {
-                            std::string ip = outputs["channelOutputs"][co]["universes"][i]["address"].asString();
-                            if (subnetsStr != "") {
-                                subnetsStr += ",";
-                            }
-                            subnetsStr += ip;
-                        }
+        const Json::Value& cos = outputs["channelOutputs"];
+        for (Json::ArrayIndex co = 0; cos.isArray() && co < cos.size(); co++) {
+            if (!cos[co].isObject() || !cos[co]["universes"].isArray()) {
+                continue;
+            }
+            const Json::Value& universes = cos[co]["universes"];
+            for (Json::ArrayIndex i = 0; i < universes.size(); i++) {
+                // shape-checked: this runs at startup, and a wrong type threw
+                if (universes[i].isObject() && universes[i]["address"].isString()) {
+                    if (subnetsStr != "") {
+                        subnetsStr += ",";
                     }
+                    subnetsStr += universes[i]["address"].asString();
                 }
             }
         }
