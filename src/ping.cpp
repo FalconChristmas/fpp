@@ -11,6 +11,7 @@
  */
 
 #include "fpp-pch.h"
+#include <atomic>
 #include <cstring>
 
 #include <arpa/inet.h>
@@ -388,7 +389,8 @@ public:
     }
 
     int pingSocket = -1;
-    volatile int isRunning = 0;
+    // The ping thread loops on it; Cleanup() clears it from another thread.
+    std::atomic_int isRunning{ 0 };
     std::thread* pingThread;
     std::list<PingTarget*> targets;
     std::list<PingTarget*> periodics;
