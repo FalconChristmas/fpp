@@ -60,8 +60,8 @@ public:
     std::atomic<FPPChannelOutputInstance*> next;
 };
 
-unsigned long channelOutputFrame = 0;
-float mediaElapsedSeconds = 0.0;
+std::atomic<unsigned long> channelOutputFrame{ 0 };
+std::atomic<float> mediaElapsedSeconds{ 0.0f };
 
 std::atomic<FPPChannelOutputInstance*> channelOutputs;
 std::atomic<FPPChannelOutputInstance*> lastChannelOutput;

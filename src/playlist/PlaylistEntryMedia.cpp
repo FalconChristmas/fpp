@@ -628,7 +628,7 @@ Json::Value PlaylistEntryMedia::GetConfig(void) {
     }
 
     if (hasMediaOutput) {
-        result["status"] = status.status;
+        result["status"] = status.status.load();
         result["secondsElapsed"] = status.secondsElapsed;
         result["subSecondsElapsed"] = status.subSecondsElapsed;
         result["secondsRemaining"] = status.secondsRemaining;

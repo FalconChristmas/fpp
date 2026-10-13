@@ -190,9 +190,8 @@ static void CheckAudioOutputCardPresence() {
 }
 #endif
 
-MediaOutputStatus mediaOutputStatus = {
-    MEDIAOUTPUTSTATUS_IDLE, // status
-};
+// Starts idle: status defaults to MEDIAOUTPUTSTATUS_IDLE (0).
+MediaOutputStatus mediaOutputStatus;
 
 /*
  *

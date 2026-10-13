@@ -11,11 +11,14 @@
  * included LICENSE.GPL file.
  */
 
+#include <atomic>
 #include <string>
 
 class MediaOutputStatus {
 public:
-    int status;
+    // Set from GStreamer's bus thread when media ends or fails, read by the
+    // playlist on the main loop.
+    std::atomic<int> status{ 0 };
     int secondsElapsed;
     int subSecondsElapsed;
     int secondsRemaining;
@@ -25,4 +28,22 @@ public:
     float mediaSeconds;
     std::string output;
     bool mediaLoading = false;
+
+    MediaOutputStatus() = default;
+    // Copyable as it was before status became atomic (slots reset theirs by
+    // assigning a fresh one).
+    MediaOutputStatus(const MediaOutputStatus& o) { *this = o; }
+    MediaOutputStatus& operator=(const MediaOutputStatus& o) {
+        status = o.status.load();
+        secondsElapsed = o.secondsElapsed;
+        subSecondsElapsed = o.subSecondsElapsed;
+        secondsRemaining = o.secondsRemaining;
+        subSecondsRemaining = o.subSecondsRemaining;
+        minutesTotal = o.minutesTotal;
+        secondsTotal = o.secondsTotal;
+        mediaSeconds = o.mediaSeconds;
+        output = o.output;
+        mediaLoading = o.mediaLoading;
+        return *this;
+    }
 };

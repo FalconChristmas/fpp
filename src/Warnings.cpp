@@ -125,7 +125,13 @@ void WarningHolder::WarningsThreadMain() {
     PruneWarnings();
     WriteWarningsFile();
     while (runNotifyThread) {
-        sema.try_acquire_until(wakeUpTime);
+        // Read under warningsLock, which every writer of wakeUpTime holds.
+        steady_clock::time_point wake;
+        {
+            std::shared_lock<std::shared_mutex> lock(warningsLock);
+            wake = wakeUpTime;
+        }
+        sema.try_acquire_until(wake);
         if (!runNotifyThread) {
             break;
         }

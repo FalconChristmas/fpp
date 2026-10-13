@@ -300,7 +300,7 @@ void RunChannelOutputThread(void) {
                         sendTime - startTime,
                         readTime - sendTime,
                         processTime - readTime,
-                        channelOutputFrame,
+                        channelOutputFrame.load(),
                         slowFramesSinceLog, lastSlowLogUS ? " in the last 10 s" : "");
                 lastSlowLogUS = processTime;
                 slowFramesSinceLog = 0;
@@ -324,7 +324,7 @@ void RunChannelOutputThread(void) {
                          sendTime - startTime,
                          readTime - sendTime,
                          processTime - readTime,
-                         sleepTime, channelOutputFrame);
+                         sleepTime, channelOutputFrame.load());
             }
         } else {
             LightDelay = BridgeLightDelay.load();
@@ -585,7 +585,7 @@ void CalculateNewChannelOutputDelay(float mediaPosition) {
 
     LogDebug(VB_CHANNELOUT,
              "Media Position: %.2f, Offset: %.3f, Frames Sent: %d, Expected: %d, Diff: %d\n",
-             mediaPosition, mediaOffset, channelOutputFrame, expectedFramesSent,
+             mediaPosition, mediaOffset, channelOutputFrame.load(), expectedFramesSent,
              channelOutputFrame - expectedFramesSent);
 
     CalculateNewChannelOutputDelayForFrame(expectedFramesSent);
@@ -614,14 +614,14 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent) {
         if (diff < -4) {
             // pretty far behind master, lets just skip forward
             if (diff > -(RefreshRate / 2)) {
-                LogDebug(VB_CHANNELOUT, "Skipping a few frames - We are at %d, master is at: %d\n", channelOutputFrame, expectedFramesSent);
+                LogDebug(VB_CHANNELOUT, "Skipping a few frames - We are at %d, master is at: %d\n", (int)channelOutputFrame.load(), expectedFramesSent);
                 // off, but not super off, we'll skip a few frames, but not too much to try and keep using
                 // the frames in the cache and avoid hitting the storage, we'll then have the OS preload
                 // the next bunch and we can skip a few more next time
                 FrameSkip = 4;
                 diff += 4;
             } else {
-                LogDebug(VB_CHANNELOUT, "Skipping many frames - We are at %d, master is at: %d\n", channelOutputFrame, expectedFramesSent);
+                LogDebug(VB_CHANNELOUT, "Skipping many frames - We are at %d, master is at: %d\n", (int)channelOutputFrame.load(), expectedFramesSent);
                 // more than 1/2 second behind, just jump
                 FrameSkip = expectedFramesSent - channelOutputFrame;
                 LightDelay = sequence->IsSequenceRunning() ? SequenceLightDelay.load() : BridgeLightDelay.load();
@@ -665,7 +665,7 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent) {
             newLightDelay = DefaultLightDelay + 15000;
 
         LogDebug(VB_CHANNELOUT, "LightDelay: %d, newLightDelay: %d,   DiffFrames: %d     %d/%d\n",
-                 LightDelay.load(), newLightDelay, diff, channelOutputFrame, expectedFramesSent);
+                 LightDelay.load(), newLightDelay, diff, channelOutputFrame.load(), expectedFramesSent);
         LightDelay = newLightDelay;
     } else if (diff == -1) {
         // for the one frame off cases, keep the existing light delay unless the

@@ -648,7 +648,8 @@ static int GetMaxPipeWireGroupDelayMs() {
 // and fppd restarts with it.
 // ──────────────────────────────────────────────────────────────────────────────
 static int GetPipeWireGraphRate() {
-    static int cachedRate = -1;
+    // Atomic: media starts on several threads can ask at once.
+    static std::atomic<int> cachedRate{ -1 };
     if (cachedRate >= 0)
         return cachedRate;
 
@@ -709,7 +710,7 @@ static int GetPipeWireGraphRate() {
     }
 
     cachedRate = rate > 0 ? rate : 0;
-    LogDebug(VB_MEDIAOUT, "GStreamer: PipeWire graph clock rate: %d\n", cachedRate);
+    LogDebug(VB_MEDIAOUT, "GStreamer: PipeWire graph clock rate: %d\n", cachedRate.load());
     return cachedRate;
 }
 

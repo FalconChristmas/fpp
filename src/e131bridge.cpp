@@ -178,7 +178,8 @@ static UniverseEntry unknownUniverse;
 // reach the bridge even when the sync universe isn't a configured input.
 static std::set<int> joinedSyncUniverses;
 
-static bool bridgeDataReceived = false;
+// Set by the receive path, read by status and the main loop.
+static std::atomic<bool> bridgeDataReceived{ false };
 
 static std::map<int, std::function<bool(uint8_t* data, long long packetTime)>> ArtNetOpcodeHandlers;
 
@@ -229,8 +230,9 @@ void RemoveArtNetOpcodeHandler(int opCode) {
     UpdateArtNetInputRegistration();
 }
 
-static bool hasUDP = false;
-static bool hasDMX = false;
+// Changed by input config reloads, read by the output thread.
+static std::atomic<bool> hasUDP{ false };
+static std::atomic<bool> hasDMX{ false };
 bool InputsEnabled() {
     return hasUDP || hasDMX;
 }
