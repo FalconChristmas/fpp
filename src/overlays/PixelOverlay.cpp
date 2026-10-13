@@ -40,6 +40,7 @@
 #include "../Sequence.h" // FPPD_MAX_CHANNELS bounds an overlay range
 #include "../log.h"
 #include "../settings.h"
+#include "../Warnings.h" // InvalidConfigEntry -- needed directly for NOPCH builds
 
 #include "PixelOverlay.h"
 #include "PixelOverlayEffects.h"
@@ -536,14 +537,21 @@ void PixelOverlayManager::loadSubModelIndex() {
         LogErr(VB_CHANNELOUT, "Error parsing xlights-submodels.json.\n");
         return;
     }
-    Json::Value subs = root["submodels"];
-    for (int c = 0; c < subs.size(); c++) {
-        if (subs[c].isMember("Name")) {
-            std::string nm = subs[c]["Name"].asString();
+    // Each entry is checked before it is read: the index is marked loaded
+    // above, so a throw here would leave every submodel missing until fppd
+    // restarts.  An entry without a string Name is skipped.
+    auto addEntries = [this](const Json::Value& list, const char* file) {
+        for (Json::ArrayIndex c = 0; list.isArray() && c < list.size(); c++) {
+            if (!list[c].isObject() || !list[c]["Name"].isString()) {
+                WarningHolder::InvalidConfigEntry(file, "entry " + std::to_string(c + 1) + " has no Name");
+                continue;
+            }
+            std::string nm = list[c]["Name"].asString();
             replaceAll(nm, "/", "_"); // match PixelOverlayModel name sanitization
-            subModelConfigs[nm] = SaveJsonToString(subs[c], "");
+            subModelConfigs[nm] = SaveJsonToString(list[c], "");
         }
-    }
+    };
+    addEntries(root["submodels"], "xlights-submodels.json");
 
     // Model groups share the same lazy index and the same "Sub" materialization
     // path (they are channelgrid Subs spanning multiple members).
@@ -551,14 +559,7 @@ void PixelOverlayManager::loadSubModelIndex() {
     if (FileExists(groupFile)) {
         Json::Value groot;
         if (LoadJsonFromFile(groupFile, groot, JsonRoot::Object)) {
-            Json::Value groups = groot["modelgroups"];
-            for (int c = 0; c < groups.size(); c++) {
-                if (groups[c].isMember("Name")) {
-                    std::string nm = groups[c]["Name"].asString();
-                    replaceAll(nm, "/", "_");
-                    subModelConfigs[nm] = SaveJsonToString(groups[c], "");
-                }
-            }
+            addEntries(groot["modelgroups"], "xlights-modelgroups.json");
         } else {
             LogErr(VB_CHANNELOUT, "Error parsing xlights-modelgroups.json.\n");
         }

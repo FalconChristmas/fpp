@@ -390,8 +390,17 @@ static void LoadPluginCommands(const std::string& dir) {
     std::string descriptions = commandDir + "/descriptions.json";
     if (FileExists(descriptions)) {
         Json::Value json = LoadJsonFromFile(descriptions, JsonRoot::Array);
-        for (int x = 0; x < json.size(); x++) {
+        for (Json::ArrayIndex x = 0; x < json.size(); x++) {
             Json::Value jscmd = json[x];
+            // Read at fppd startup: an entry ScriptCommand can't read (not an
+            // object, or a name or script that isn't a string) is skipped, not
+            // thrown on -- one plugin's typo would otherwise stop fppd starting.
+            if (!jscmd.isObject() || !jscmd["name"].isString() || jscmd["name"].asString().empty() ||
+                !jscmd["script"].isString()) {
+                WarningHolder::InvalidConfigEntry("plugins/" + dir + "/commands/descriptions.json",
+                                                  "command " + std::to_string(x + 1) + " needs a name and a script");
+                continue;
+            }
             ScriptCommand* cmd = new ScriptCommand(commandDir, jscmd);
             if (cmd->IsOk()) {
                 CommandManager::INSTANCE.addCommand(cmd);
