@@ -526,7 +526,7 @@ int ChannelTester::SetupTestInternal(const Json::Value& config) {
         std::string patternName = JsonString(config, "mode");
 
         if (m_testPattern) {
-            if (patternName != m_testPattern->Name()) {
+            if (patternName != m_testPattern.load()->Name()) {
                 delete m_testPattern;
                 m_testPattern = NULL;
             }
@@ -546,7 +546,7 @@ int ChannelTester::SetupTestInternal(const Json::Value& config) {
         }
 
         if (m_testPattern) {
-            result = m_testPattern->Init(config);
+            result = m_testPattern.load()->Init(config);
             if (!result) {
                 delete m_testPattern;
                 m_testPattern = NULL;
@@ -554,7 +554,7 @@ int ChannelTester::SetupTestInternal(const Json::Value& config) {
         }
     } else {
         if (m_testPattern) {
-            m_testPattern->DisableTest();
+            m_testPattern.load()->DisableTest();
             lock.unlock();
 
             // Give the channel output loop time to clear test data
@@ -593,7 +593,7 @@ void ChannelTester::OverlayTestData(char* channelData) {
         return;
     }
 
-    m_testPattern->OverlayTestData(channelData);
+    m_testPattern.load()->OverlayTestData(channelData);
 }
 
 /*

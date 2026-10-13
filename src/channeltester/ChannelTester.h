@@ -11,6 +11,7 @@
  * included LICENSE.LGPL file.
  */
 
+#include <atomic>
 #include <string>
 #include "fpp-json-fwd.h"
 
@@ -50,7 +51,10 @@ private:
     // malformed config can raise
     int SetupTestInternal(const Json::Value& config);
 
-    TestPatternBase* m_testPattern;
+    // Atomic: Testing() and the status calls read it as "is a test running"
+    // from HTTP and output threads while SetupTest() replaces it under
+    // m_testLock.
+    std::atomic<TestPatternBase*> m_testPattern;
     std::mutex m_testLock;
     // Guards m_configStr only.  Written at the end of SetupTestInternal() and
     // read from HTTP/WebSocket threads; it is deliberately not m_testLock so a
