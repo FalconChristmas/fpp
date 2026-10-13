@@ -109,6 +109,16 @@ populateCCACHE() {
         echo "populateCCACHE: unknown platform '${FPPPLATFORM}', skipping cache download"
     fi
 
+    # The published caches are built under 4K-page kernels. A precompiled
+    # header is only valid under the page size it was built with, and every
+    # PCH-using object is keyed on the .gch, so on any other page size (the
+    # Pi's 16K kernel) nothing in the download can ever hit.
+    PAGESIZE=$(getconf PAGESIZE 2>/dev/null)
+    if [ -n "${PLAT}" ] && [ "${PAGESIZE}" != "4096" ]; then
+        PLAT=""
+        echo "populateCCACHE: ${PAGESIZE}-byte kernel pages, the published 4K-page cache can't help, skipping cache download"
+    fi
+
     # The ccache tarballs are GitHub release assets attached to each release
     # tag (and to the rolling "nightly" pre-release). A custom UpgradeSource
     # mirror has no such assets, so only fetch when pulling from github.com.
