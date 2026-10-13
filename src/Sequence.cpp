@@ -479,7 +479,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     seqFile->prepareRead(*GetOutputRangesSnapshot(), startFrame < 0 ? 0 : startFrame);
     // Calculate duration
     m_seqMSRemaining = seqFile->getNumFrames() * seqFile->getStepTime();
-    m_seqMSDuration = m_seqMSRemaining;
+    m_seqMSDuration = m_seqMSRemaining.load();
     m_seqMSElapsed = 0;
     SetChannelOutputRefreshRate(m_seqRefreshRate);
 
@@ -500,8 +500,8 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 
     m_numSeek = 0;
     LogDebug(VB_SEQUENCE, "seqRefreshRate        : %f\n", m_seqRefreshRate);
-    LogDebug(VB_SEQUENCE, "seqMSDuration         : %d\n", m_seqMSDuration);
-    LogDebug(VB_SEQUENCE, "seqMSRemaining        : %d\n", m_seqMSRemaining);
+    LogDebug(VB_SEQUENCE, "seqMSDuration         : %d\n", m_seqMSDuration.load());
+    LogDebug(VB_SEQUENCE, "seqMSRemaining        : %d\n", m_seqMSRemaining.load());
     return 1;
 }
 void Sequence::ProcessVariableHeaders() {
@@ -863,7 +863,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
             m_dataProcessed = false;
         } else if (m_doneRead) {
             lock.unlock();
-            m_seqMSElapsed = m_seqMSDuration;
+            m_seqMSElapsed = m_seqMSDuration.load();
             m_seqMSRemaining = 0;
             // Remember it by the name sync packets use (see m_seqSyncName).
             std::string ended;

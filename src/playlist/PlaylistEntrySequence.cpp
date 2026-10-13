@@ -192,7 +192,7 @@ Json::Value PlaylistEntrySequence::GetConfig(void) {
             result["secondsElapsed"] = pos / 1000;
             result["secondsRemaining"] = (m_duration - pos) / 1000;
         } else {
-            result["millisecondsElapsed"] = sequence->m_seqMSElapsed;
+            result["millisecondsElapsed"] = sequence->m_seqMSElapsed.load();
             result["secondsElapsed"] = sequence->m_seqMSElapsed / 1000;
             result["secondsRemaining"] = sequence->m_seqMSRemaining / 1000;
         }
@@ -212,7 +212,7 @@ Json::Value PlaylistEntrySequence::GetMqttStatus(void) {
         result["secondsElapsed"] = sequence->m_seqMSElapsed / 1000;
         result["secondsRemaining"] = sequence->m_seqMSRemaining / 1000;
         result["secondsTotal"] = sequence->m_seqMSDuration / 1000;
-        result["millisecondsElapsed"] = sequence->m_seqMSElapsed;
+        result["millisecondsElapsed"] = sequence->m_seqMSElapsed.load();
     }
     return result;
 }

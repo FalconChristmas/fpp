@@ -70,9 +70,11 @@ public:
     bool isDataProcessed() const { return m_dataProcessed; }
     void setDataNotProcessed() { m_dataProcessed = false; }
 
-    int m_seqMSDuration;
-    int m_seqMSElapsed;
-    int m_seqMSRemaining;
+    // Advanced by the output thread every frame and read by status, the
+    // playlist and the crash handler from other threads.
+    std::atomic_int m_seqMSDuration;
+    std::atomic_int m_seqMSElapsed;
+    std::atomic_int m_seqMSRemaining;
     char* m_seqData;
     std::string m_seqFilename;
 
@@ -195,7 +197,8 @@ private:
 
     std::atomic_int m_lastFrameRead;
     volatile bool m_doneRead;
-    volatile bool m_shuttingDown;
+    // Set by the destructor while the read-ahead thread is still checking it.
+    std::atomic<bool> m_shuttingDown;
     std::thread* m_readThread;
     std::list<FSEQFile::FrameData*> frameCache;
     std::list<FSEQFile::FrameData*> pastFrameCache;

@@ -532,7 +532,7 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
     // and taking it here would self-deadlock the crash report.  A torn read is
     // the acceptable trade for a log line that is already best-effort.
     if (!sequence->m_seqFilename.empty()) {
-        LogErr(VB_ALL, "   while playing  %s  at  %d ms\n", sequence->m_seqFilename.c_str(), sequence->m_seqMSElapsed);
+        LogErr(VB_ALL, "   while playing  %s  at  %d ms\n", sequence->m_seqFilename.c_str(), sequence->m_seqMSElapsed.load());
     }
     const char* gdbFailReason = nullptr;
     if (!dumpstack_gdb(&gdbFailReason)) {
