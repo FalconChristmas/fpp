@@ -79,7 +79,10 @@ Sequence::Sequence() :
     m_lastFrameData(nullptr),
     m_dataProcessed(false),
     m_seqFilename(""),
-    m_bridgeData(nullptr),
+    // Allocated here, not on the first bridged packet: the receive thread
+    // allocating it while the output thread tested the pointer was a race.
+    // calloc'd pages cost nothing until something is written to them.
+    m_bridgeData((uint8_t*)calloc(1, FPPD_MAX_CHANNEL_NUM)),
     m_seqData(nullptr) {
 #ifndef PLATFORM_OSX
     m_seqData = (char*)mmap(NULL, FPPD_MAX_CHANNEL_NUM, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | HUGETLB_FLAG_ENCODE_2MB, -1, 0);
@@ -767,10 +770,10 @@ void Sequence::BlankSequenceData(bool clearBridge) {
         memset(&m_seqData[a.first], 0, a.second);
     }
     if (m_bridgeData && clearBridge) {
+        std::unique_lock<std::mutex> lock(m_bridgeRangesLock);
         for (auto& a : *ranges) {
             memset(&m_bridgeData[a.first], 0, a.second);
         }
-        std::unique_lock<std::mutex> lock(m_bridgeRangesLock);
         m_bridgeRanges.clear();
         m_hasBridgeRanges.store(false, std::memory_order_relaxed);
     }
@@ -919,13 +922,12 @@ void Sequence::ProcessSequenceData(int ms) {
     }
 
     if (m_bridgeData && hasBridgeData()) {
-        // Prune expired ranges and snapshot the live ones under the lock;
+        // Prune expired ranges and merge the live ones, all under the lock.
         // m_bridgeRanges is keyed by startChannel so the scratch vector comes
-        // out sorted. The memcpys below run after unlocking so the receive
-        // path is never blocked on the merge - the packet data itself was
-        // never protected by this lock anyway (the writer memcpys into
-        // m_bridgeData before taking it), so a concurrent packet can tear a
-        // universe mid-merge exactly as it always could.
+        // out sorted. WriteBridgeData() copies each packet in under the same
+        // lock, so a packet can no longer land halfway through this copy and
+        // send a universe half old, half new; the receive path waits at most
+        // for one merge's memcpys.
         uint64_t nt = GetMonotonicTimeMS(); // expiries are monotonic (CommitBridgeRanges)
         m_bridgeRangeScratch.clear();
         std::unique_lock<std::mutex> bridgesLock(m_bridgeRangesLock);
@@ -950,7 +952,6 @@ void Sequence::ProcessSequenceData(int ms) {
             }
         }
         m_hasBridgeRanges.store(!m_bridgeRanges.empty(), std::memory_order_relaxed);
-        bridgesLock.unlock();
 
         // copy the latest bridge data to the sequence data
         uint32_t curStart = 0xFFFFFFFF;
@@ -974,6 +975,7 @@ void Sequence::ProcessSequenceData(int ms) {
         if (curStart != 0xFFFFFFFF) {
             memcpy(&m_seqData[curStart], &m_bridgeData[curStart], nextStart - curStart);
         }
+        bridgesLock.unlock();
     }
     PluginManager::INSTANCE.modifySequenceData(ms, (uint8_t*)m_seqData);
 
@@ -1170,7 +1172,7 @@ bool Sequence::WriteBridgeData(uint8_t* data, int startChannel, int len) {
     }
 
     if (!m_bridgeData) {
-        m_bridgeData = (uint8_t*)calloc(1, FPPD_MAX_CHANNEL_NUM);
+        return false;
     }
     // Guard against out-of-range bridging data.  The bound is the real
     // channels, FPPD_MAX_CHANNELS: the bytes after them are the reserved OFF
@@ -1181,6 +1183,10 @@ bool Sequence::WriteBridgeData(uint8_t* data, int startChannel, int len) {
         ((unsigned long long)startChannel + (unsigned long long)len) > (unsigned long long)FPPD_MAX_CHANNELS) {
         return false;
     }
+    // Under the ranges lock, which ProcessSequenceData() holds while it
+    // copies the bridge buffer out: a packet landing mid-copy sent a universe
+    // half old, half new.
+    std::unique_lock<std::mutex> lock(m_bridgeRangesLock);
     memcpy(&m_bridgeData[startChannel], data, len);
     return true;
 }
