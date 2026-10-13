@@ -91,6 +91,9 @@ public:
     struct icmp* icp;
     bool valid = true;
     std::function<void(int)> callback;
+    // GetMonotonicTimeMS(): on the wall clock a step back stopped the periodic
+    // pings (and the timeouts) for the size of the step, so a controller that
+    // had dropped out was not added back to the output when it returned.
     long long startTime;
     long long timeoutMS;
     int period = 0;
@@ -99,7 +102,7 @@ public:
 
     PingTarget(const std::string& target, int timeout, std::function<void(int)> cb) :
         callback(cb) {
-        startTime = GetTimeMS();
+        startTime = GetMonotonicTimeMS();
         timeoutMS = timeout;
         hostname = target;
         memset(outpack, 0, sizeof(outpack));
@@ -220,7 +223,7 @@ public:
                 if (!t->pending) {
                     // a fresh deadline; the stale one timed the ping out at
                     // the next poll, before the host could possibly answer
-                    t->startTime = GetTimeMS();
+                    t->startTime = GetMonotonicTimeMS();
                     queuePing(t);
                 }
                 return;
@@ -275,7 +278,7 @@ public:
             // held for the rest of the pass, from the callbacks through the
             // last use of toCall/toRemove; see removePeriodicPing()
             std::lock_guard<std::recursive_mutex> dispatch(dispatchLock);
-            long long curTime = GetTimeMS();
+            long long curTime = GetMonotonicTimeMS();
             if (retval == -1) {
                 printf("select() -1\n");
             } else if (retval) {
@@ -341,7 +344,7 @@ public:
                         t->revalidate();
                     }
                     if (t->valid) {
-                        t->startTime = GetTimeMS();
+                        t->startTime = GetMonotonicTimeMS();
                         queuePing(t);
                     }
                 }
