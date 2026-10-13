@@ -1873,38 +1873,79 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
             int val = -1;
             bool deleteAll = false;
             if (p4 == "") {
+                // The body has to be a JSON object.  Anything else used to fall
+                // through as "no Value" -- a delete -- so a garbled request
+                // removed the range and answered OK; an array threw from
+                // isMember() and answered an empty 500.
                 Json::Value root;
-                if (LoadJsonFromString(std::string(getRequestContent(req)), root)) {
-                    if (root.isMember("delete") && root["delete"].asBool()) {
-                        val = -1;
-                    } else if (root.isMember("deleteAll") && root["deleteAll"].asBool()) {
-                        std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
-                        activeRanges.clear();
-                        updateActiveCountLocked();
-                        lock.unlock();
-                        if (numActive == 0) {
-                            holdOutputBriefly();
-                        }
-                        return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
-                    } else if (root.isMember("Value")) {
-                        val = root["Value"].asInt();
+                if (!LoadJsonFromString(std::string(getRequestContent(req)), root, JsonRoot::Object)) {
+                    return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Request body is not a JSON object\"}", 400);
+                }
+                if (root.isMember("delete") && root["delete"].asBool()) {
+                    val = -1;
+                } else if (root.isMember("deleteAll") && root["deleteAll"].asBool()) {
+                    std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
+                    activeRanges.clear();
+                    updateActiveCountLocked();
+                    lock.unlock();
+                    if (numActive == 0) {
+                        holdOutputBriefly();
                     }
+                    return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
+                } else if (root.isMember("Value")) {
+                    if (!root["Value"].isNumeric()) {
+                        return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Value must be a number\"}", 400);
+                    }
+                    val = root["Value"].asInt();
                 }
             } else if (p4 != "delete") {
-                val = std::stoi(p4, nullptr, 10);
+                // a value in the path: a number, or the request is refused
+                // (std::stoi threw on anything else, answering a 500)
+                char* endp = nullptr;
+                long v = strtol(p4.c_str(), &endp, 10);
+                if (p4.empty() || endp != p4.c_str() + p4.size() || v < 0 || v > 255) {
+                    return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Value must be 0-255\"}", 400);
+                }
+                val = (int)v;
+            }
+
+            // Parse every range before applying any: a syntax error part way
+            // along the list threw from std::stoi after the earlier ranges had
+            // already been changed, and answered a 500.
+            std::vector<std::pair<int, int>> ranges;
+            {
+                const char* c = p3.c_str();
+                while (*c) {
+                    char* endp = nullptr;
+                    long start = strtol(c, &endp, 10);
+                    if (endp == c) {
+                        return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Could not parse the channel ranges\"}", 400);
+                    }
+                    long end = start;
+                    c = endp;
+                    if (*c == '-') {
+                        end = strtol(c + 1, &endp, 10);
+                        if (endp == c + 1) {
+                            return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Could not parse the channel ranges\"}", 400);
+                        }
+                        c = endp;
+                    }
+                    if (*c == ',') {
+                        c++;
+                    } else if (*c) {
+                        return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Could not parse the channel ranges\"}", 400);
+                    }
+                    ranges.emplace_back((int)std::clamp(start, (long)INT_MIN, (long)INT_MAX),
+                                        (int)std::clamp(end, (long)INT_MIN, (long)INT_MAX));
+                }
+                if (c != p3.c_str() + p3.size()) {
+                    // an embedded NUL ended the walk early
+                    return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Could not parse the channel ranges\"}", 400);
+                }
             }
 
             bool badRange = false;
-            while (p3.size()) {
-                std::size_t pos = 0;
-                int start = std::stoi(p3, &pos, 10);
-                int end = start;
-                p3 = p3.substr(pos);
-                if (p3.size() && p3[0] == '-') {
-                    p3 = p3.substr(1);
-                    end = std::stoi(p3, &pos, 10);
-                    p3 = p3.substr(pos);
-                }
+            for (auto [start, end] : ranges) {
                 int startActive = numActive;
                 // doOverlays() writes every channel of the range into the
                 // sequence buffer on each frame, so a range past its end was
@@ -1940,10 +1981,6 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                         activeRanges.push_back(OverlayRange(start, end, val));
                     }
                     updateActiveCountLocked();
-                }
-                // skip the ','
-                if (p3.size()) {
-                    p3 = p3.substr(1);
                 }
                 if (numActive == 0 && startActive) {
                     // removed some, may need to wait to make sure the new values are output
