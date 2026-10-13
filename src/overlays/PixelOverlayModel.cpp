@@ -1392,7 +1392,10 @@ void PixelOverlayModel::flushOverlayBuffer() {
 }
 
 bool PixelOverlayModel::overlayBufferIsDirty() {
-    return (overlayBufferData && (overlayBufferData->flags & 0x1));
+    // Allocated on first use from any thread (getOverlayBuffer()), so read the
+    // pointer the way it is published.
+    OverlayBufferData* ob = __atomic_load_n(&overlayBufferData, __ATOMIC_ACQUIRE);
+    return ob && (ob->flags & 0x1);
 }
 
 void PixelOverlayModel::setOverlayBufferDirty(bool dirty) {
@@ -1524,7 +1527,7 @@ void PixelOverlayModel::saveOverlayAsImage(std::string filename) {
 }
 
 void PixelOverlayModel::clear() {
-    if (overlayBufferData) {
+    if (__atomic_load_n(&overlayBufferData, __ATOMIC_ACQUIRE)) {
         clearOverlayBuffer();
         flushOverlayBuffer();
     } else {
@@ -1535,7 +1538,7 @@ void PixelOverlayModel::fill(int r, int g, int b) {
     fill(r, g, b, 0);
 }
 void PixelOverlayModel::fill(int r, int g, int b, int w) {
-    if (overlayBufferData) {
+    if (__atomic_load_n(&overlayBufferData, __ATOMIC_ACQUIRE)) {
         fillOverlayBuffer(r, g, b, w);
         flushOverlayBuffer();
     } else {

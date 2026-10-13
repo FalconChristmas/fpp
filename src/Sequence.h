@@ -151,7 +151,9 @@ private:
     int m_seqSingleStepBack;
     float m_seqRefreshRate;
     int m_remoteBlankCount;
-    bool m_dataProcessed;
+    // Set by whichever thread processed the frame (normally the output
+    // thread) and cleared by the bridge receive path and sequence loads.
+    std::atomic<bool> m_dataProcessed;
     int m_numSeek;
 
     int m_blankBetweenSequences;
