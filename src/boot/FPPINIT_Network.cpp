@@ -236,7 +236,8 @@ void setupNetwork(bool fullReload) {
     
     // Migration: If no global gateway exists, check for old per-interface gateways
     if (globalGateway.empty()) {
-        for (const auto& entry : std::filesystem::directory_iterator(FPP_MEDIA_DIR + "/config")) {
+        std::error_code cfgEc;
+        for (const auto& entry : std::filesystem::directory_iterator(FPP_MEDIA_DIR + "/config", cfgEc)) {
             std::string filename = entry.path().filename();
             if (startsWith(filename, "interface.")) {
                 auto interfaceSettings = loadSettingsFile(entry.path());
@@ -290,13 +291,17 @@ void setupNetwork(bool fullReload) {
     std::list<std::string> filesToConsider;
     std::list<std::string> commandsToRun;
     std::list<std::string> postCommandsToRun;
-    for (const auto& entry : std::filesystem::directory_iterator("/etc/systemd/network")) {
+    // error_code forms: a directory that isn't there (no wpasupplicant
+    // package, say) is simply empty, not an uncaught exception that ends
+    // fppinit before any of the network is configured.
+    std::error_code dirEc;
+    for (const auto& entry : std::filesystem::directory_iterator("/etc/systemd/network", dirEc)) {
         std::string dev = entry.path().filename();
         if (startsWith(dev, "10-") && endsWith(dev, ".network")) {
             filesToConsider.emplace_back("/etc/systemd/network/" + dev);
         }
     }
-    for (const auto& entry : std::filesystem::directory_iterator("/etc/wpa_supplicant")) {
+    for (const auto& entry : std::filesystem::directory_iterator("/etc/wpa_supplicant", dirEc)) {
         std::string dev = entry.path().filename();
         if (startsWith(dev, "wpa_supplicant-wl") && endsWith(dev, ".conf")) {
             filesToConsider.emplace_back("/etc/wpa_supplicant/" + dev);
