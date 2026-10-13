@@ -11,6 +11,7 @@
  * included LICENSE.LGPL file.
  */
 
+#include <atomic>
 #include <mutex>
 #include "fpp-json-fwd.h"
 #include <string>
@@ -77,7 +78,8 @@ private:
     // Port the WLED responder listens on. Apache proxies /ws to this.
     int m_port = 32327;
     int m_socket = -1;
-    volatile bool m_running = false;
+    // Cleared by Cleanup() while the accept and client threads loop on it.
+    std::atomic<bool> m_running{ false };
 
     std::thread* m_acceptThread = nullptr;
 

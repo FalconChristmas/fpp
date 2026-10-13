@@ -229,12 +229,13 @@ void WLEDAPIResponder::Cleanup() {
     if (!m_running && m_socket < 0) return;
     m_running = false;
 
-    // shutdown() before close() — on Linux, plain close() on a socket
-    // that another thread is blocked inside accept()/recv() does not
-    // reliably wake that thread. shutdown(SHUT_RDWR) does.
+    // shutdown() wakes a thread blocked in accept() - on Linux a plain
+    // close() does not reliably. The descriptor is closed only after the
+    // accept thread has been joined below: closed while that thread could
+    // still loop back into accept(), it raced m_socket, and accept() could
+    // land on a closed descriptor or one already reused elsewhere.
     if (m_socket >= 0) {
         ::shutdown(m_socket, SHUT_RDWR);
-        closeFd(m_socket);
     }
 
     // Shut down every per-connection socket too — accept-thread might
@@ -249,6 +250,9 @@ void WLEDAPIResponder::Cleanup() {
         m_acceptThread->join();
         delete m_acceptThread;
         m_acceptThread = nullptr;
+    }
+    if (m_socket >= 0) {
+        closeFd(m_socket);
     }
     for (auto* t : m_clientThreads) {
         if (t->joinable()) t->join();
