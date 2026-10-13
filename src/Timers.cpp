@@ -29,6 +29,12 @@ Timers Timers::INSTANCE;
 
 Timers::Timers() {
 }
+
+// A caller's GetTimeMS() deadline as a GetMonotonicTimeMS() one.
+static long long WallToMonotonic(long long wallMS) {
+    return GetMonotonicTimeMS() + (wallMS - GetTimeMS());
+}
+
 Timers::~Timers() {
     for (auto a : timers) {
         if (a) {
@@ -42,7 +48,7 @@ void Timers::addTimer(const std::string& name, long long fireTimeMS, std::functi
     if (!name.empty()) {
         for (auto& a : timers) {
             if (a && a->id == name) {
-                a->fireTimeMS = fireTimeMS;
+                a->fireTimeMS = WallToMonotonic(fireTimeMS);
                 a->callback = callback;
                 a->commandPreset = "";
                 updateTimers();
@@ -53,7 +59,7 @@ void Timers::addTimer(const std::string& name, long long fireTimeMS, std::functi
     TimerInfo* i = new TimerInfo;
     i->id = name;
     i->callback = callback;
-    i->fireTimeMS = fireTimeMS;
+    i->fireTimeMS = WallToMonotonic(fireTimeMS);
     timers.push_back(i);
     updateTimers();
 }
@@ -69,7 +75,7 @@ void Timers::addTimer(const std::string& name, long long fireTimeMS, const std::
                 // the old entry's callback and periodic rate turned a preset
                 // aimed at an internal timer's id ("FileMonitor") into a preset
                 // fired every 2s for good, and that timer's own work never ran.
-                a->fireTimeMS = fireTimeMS;
+                a->fireTimeMS = WallToMonotonic(fireTimeMS);
                 a->commandPreset = preset;
                 a->callback = nullptr;
                 a->periodicRate = 0;
@@ -81,7 +87,7 @@ void Timers::addTimer(const std::string& name, long long fireTimeMS, const std::
     TimerInfo* i = new TimerInfo;
     i->id = name;
     i->commandPreset = preset;
-    i->fireTimeMS = fireTimeMS;
+    i->fireTimeMS = WallToMonotonic(fireTimeMS);
     timers.push_back(i);
     updateTimers();
 }
@@ -98,7 +104,7 @@ void Timers::addPeriodicTimer(const std::string& name, long long fireTimeMS, std
     if (!name.empty()) {
         for (auto& a : timers) {
             if (a && a->id == name) {
-                a->fireTimeMS = GetTimeMS() + firstDelay;
+                a->fireTimeMS = GetMonotonicTimeMS() + firstDelay;
                 a->periodicRate = fireTimeMS;
                 a->callback = callback;
                 a->commandPreset = "";
@@ -110,7 +116,7 @@ void Timers::addPeriodicTimer(const std::string& name, long long fireTimeMS, std
     TimerInfo* i = new TimerInfo;
     i->id = name;
     i->callback = callback;
-    i->fireTimeMS = GetTimeMS() + firstDelay;
+    i->fireTimeMS = GetMonotonicTimeMS() + firstDelay;
     i->periodicRate = fireTimeMS;
     timers.push_back(i);
     updateTimers();
@@ -145,7 +151,7 @@ void Timers::fireTimersInternal(long long t) {
         auto a = timers[x];
         if (a && (a->fireTimeMS <= t)) {
             if (a->periodicRate) {
-                a->fireTimeMS = GetTimeMS() + a->periodicRate;
+                a->fireTimeMS = GetMonotonicTimeMS() + a->periodicRate;
                 toFire.push_back(*a);
             } else {
                 toFire.push_back(std::move(*a));
@@ -177,7 +183,9 @@ void Timers::updateTimers() {
         for (int x = 0; x < timers.size(); x++) {
             nextTimer = std::min(timers[x]->fireTimeMS, nextTimer);
         }
-        EPollManager::INSTANCE.armTimer(nextTimer);
+        // armTimer() takes a GetTimeMS() deadline; converted at this moment
+        // it is the same delay, whatever the wall clock does later.
+        EPollManager::INSTANCE.armTimer(GetTimeMS() + (nextTimer - GetMonotonicTimeMS()));
     } else {
         EPollManager::INSTANCE.disarmTimer();
     }

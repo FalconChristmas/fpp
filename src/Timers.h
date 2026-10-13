@@ -25,6 +25,7 @@
 #include <functional>
 
 extern long long GetTimeMS();
+extern long long GetMonotonicTimeMS();
 
 class Timers {
 public:
@@ -35,13 +36,18 @@ public:
 
     void fireTimers() {
         if (hasTimers) {
-            long long t = GetTimeMS();
+            long long t = GetMonotonicTimeMS();
             if (t >= nextTimer) {
                 fireTimersInternal(t);
             }
         }
     }
 
+    // fireTimeMS is a deadline on the GetTimeMS() wall clock, as callers
+    // (plugins included) have always passed: "GetTimeMS() + delay".  It is
+    // turned into a delay on arrival, and the timer then runs on the
+    // monotonic clock, so a later clock step (NTP, an RTC that boots in the
+    // past) doesn't hold it back for the size of the step or fire it early.
     void addTimer(const std::string& name, long long fireTimeMS, std::function<void()>&& callback);
     void addTimer(const std::string& name, long long fireTimeMS, const std::string& preset);
 
@@ -66,7 +72,7 @@ private:
         ~TimerInfo() {}
 
         std::string id;
-        long long fireTimeMS;
+        long long fireTimeMS; // GetMonotonicTimeMS() deadline
         long long periodicRate = 0;
         std::string commandPreset;
         std::function<void()> callback;
