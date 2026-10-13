@@ -769,16 +769,45 @@
 
     class LOREnhanced extends OtherBaseDevice {
 
-        constructor(name = "LOREnhanced", friendlyName = "LOR Enhanced", maxChannels = FPPD_MAX_CHANNELS, fixedStart = false, fixedChans = false, devices = SerialDevices, config = { speed: 1000000, units: [] }) {
+        // The channel count is whatever the units reach, so it is kept up to date from them
+        // rather than typed.  A new output starts with one full unit.
+        constructor(name = "LOREnhanced", friendlyName = "LOR Enhanced", maxChannels = FPPD_MAX_CHANNELS, fixedStart = false, fixedChans = true, devices = SerialDevices, config = { speed: 1000000, units: [{ unitId: 1, numOfPixels: 170, lorStartPixel: 1, fppStartAddr: 1 }] }) {
             super(name, friendlyName, maxChannels, fixedStart, fixedChans, devices, config);
+        }
+
+        // Channels the output needs: through the last pixel of the unit that reaches furthest.
+        static ChannelCount(units) {
+            var count = 0;
+            for (const u of units) {
+                count = Math.max(count, (u.fppStartAddr || 1) - 1 + (u.numOfPixels || 0) * 3);
+            }
+            return count;
+        }
+
+        static UpdateChannelCount(item) {
+            var row = $(item).closest("tr");
+            var units = [];
+            row.find("span.unitConfig").each(function () {
+                units.push({
+                    fppStartAddr: parseInt($(this).find("input.fppStartAddr").val()),
+                    numOfPixels: parseInt($(this).find("input.numOfPixels").val())
+                });
+            });
+            row.find("td input.count").val(LOREnhanced.ChannelCount(units));
+        }
+
+        // the row's unit fields are not in it yet, so this counts from the config they come from
+        SetDefaults(row) {
+            super.SetDefaults(row);
+            row.find("td input.count").val(LOREnhanced.ChannelCount(this._config.units));
         }
 
         static CreateUnitConfigRow(uintId, numOfPixels, lorStartPixel, fppStartAddr) {
             var result = "<span class='unitConfig'>"
             result += "Unit Id: <input class='unitId' style='opacity: 1' type='number' value='" + uintId.toString() + "' min='1' max='240' />&nbsp;&nbsp;";
-            result += "Pixels: <input class='numOfPixels' style='opacity: 1' type='number' value='" + numOfPixels.toString() + "' min='1' max='170' />&nbsp;&nbsp;";
+            result += "Pixels: <input class='numOfPixels' style='opacity: 1' type='number' value='" + numOfPixels.toString() + "' min='1' max='170' oninput='LOREnhanced.UpdateChannelCount(this);' />&nbsp;&nbsp;";
             result += "LOR Start Pix: <input class='lorStartPixel' style='opacity: 1' type='number' value='" + lorStartPixel.toString() + "' min='1' max='170' />&nbsp;&nbsp;";
-            result += "<span title='Channel within this output where the unit&apos;s data starts. 1 is the output&apos;s Start Channel.'>Start Ch</span>: <input class='fppStartAddr' style='opacity: 1' type='number' value='" + fppStartAddr.toString() + "' min='1' max='" + FPPD_MAX_CHANNELS + "' />&nbsp;&nbsp;";
+            result += "<span title='Channel within this output where the unit&apos;s data starts. 1 is the output&apos;s Start Channel.'>Start Ch</span>: <input class='fppStartAddr' style='opacity: 1' type='number' value='" + fppStartAddr.toString() + "' min='1' max='" + FPPD_MAX_CHANNELS + "' oninput='LOREnhanced.UpdateChannelCount(this);' />&nbsp;&nbsp;";
             result += '<input class="buttons" type="button" value="Remove" onClick="LOREnhanced.RemoveUnit(this);" />';
             result += "<br>";
             result += "</span>"
@@ -786,7 +815,9 @@
         }
 
         static RemoveUnit(button) {
+            var row = $(button).closest("tr");
             $(button).parent().remove();
+            LOREnhanced.UpdateChannelCount(row);
         }
 
         static MaxUnits(units) {
@@ -813,6 +844,7 @@
             var max = LOREnhanced.MaxUnits(units);
             var newUnit = LOREnhanced.CreateUnitConfigRow(max.unitId + 1, 170, 1, max.channels + max.start);
             units.append(newUnit);
+            LOREnhanced.UpdateChannelCount(button);
         }
 
         PopulateHTMLRow(config) {
