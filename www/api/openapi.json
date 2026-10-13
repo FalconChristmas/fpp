@@ -4123,6 +4123,49 @@
         }
       }
     },
+    "/api/media/{MediaName}/audio": {
+      "parameters": [
+        {
+          "name": "MediaName",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Get audio info for a music file",
+        "description": "Returns the sample rate, bit rate, channels and codec of a music file, and how its sample rate sits against the audio system's engine and configured rates. Probes the file once and caches the result, so the Music tab can fill its Sample Rate and Bit Rate columns without waiting on the first listing.",
+        "responses": {
+          "200": {
+            "description": "Audio info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "sampleRate": 48000,
+                  "bitRate": 192000,
+                  "channels": 2,
+                  "codec": "mp3",
+                  "status": "resample",
+                  "engineRate": 44100,
+                  "configuredRate": 44100
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such music file"
+          }
+        }
+      }
+    },
     "/api/models": {
       "get": {
         "tags": [
