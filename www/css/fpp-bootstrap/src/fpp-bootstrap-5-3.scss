@@ -33,6 +33,9 @@
 @import './bootstrap-scss-src/images';
 @import './bootstrap-scss-src/containers';
 @import './bootstrap-scss-src/grid';
+// Pages use .table, .table-striped, -sm, -hover and -bordered; without this
+// import none of them had any style.
+@import './bootstrap-scss-src/tables';
 @import './bootstrap-scss-src/helpers';
 @import './bootstrap-scss-src/nav';
 @import './bootstrap-scss-src/navbar';
