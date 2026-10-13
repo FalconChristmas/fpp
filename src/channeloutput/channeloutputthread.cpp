@@ -132,6 +132,8 @@ void RunChannelOutputThread(void) {
     long long readTime;
     long long processTime;
     int onceMore = (getFPPmode() == REMOTE_MODE) ? 20 : 1;
+    // When the next frame is due (GetTime() microseconds), 0 before the first.
+    long long nextFrameTime = 0;
     struct timespec ts;
     struct timeval tv;
     int slowFrameCount = 0;
@@ -281,8 +283,22 @@ void RunChannelOutputThread(void) {
         }
         statusLock.unlock();
         doForceOutput = false;
-        // Calculate how long we need to nanosleep()
-        long dt = (LightDelay - (GetTime() - startTime)) * 1000;
+        // Frames are due on a fixed cadence: each one LightDelay after the
+        // previous one was due, not after this pass happened to start. Waking
+        // is always a little late, and measuring from the wake-up added that
+        // to every frame: on a Pi 5 the lights ran 125 ppm slow, and media
+        // sync, which only acts on whole frames, let them fall behind the
+        // sound by tens of ms over a song before correcting.
+        if (nextFrameTime == 0 || startTime >= nextFrameTime + LightDelay) {
+            // First frame, or more than a frame behind (back from idle, or a
+            // stall): start the cadence again here rather than racing to catch up.
+            nextFrameTime = startTime + LightDelay;
+        } else if (startTime >= nextFrameTime) {
+            nextFrameTime += LightDelay;
+        }
+        // else: a forced wake ran this pass early; the regular frame stays due
+        // when it was.
+        long dt = (nextFrameTime - GetTime()) * 1000;
         if (RunThread && dt > 0) {
             if (outputThreadCond.wait_for(lock, std::chrono::nanoseconds(dt)) == std::cv_status::no_timeout) {
                 LogDebug(VB_CHANNELOUT, "Forced output\n");
