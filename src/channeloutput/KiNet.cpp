@@ -93,6 +93,8 @@ KiNetOutputData::KiNetOutputData(const Json::Value& config) :
         channelCount = 512;
     }
 
+    sentSequence.assign(portCount, 0);
+    pendingSequence.assign(portCount, 0);
     kinetIovecs = (struct iovec*)calloc(portCount * 2, sizeof(struct iovec));
     kinetBuffers = (unsigned char**)calloc(portCount, sizeof(unsigned char*));
 
@@ -152,13 +154,15 @@ void KiNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages&
                 msgs[kinetAddress.sin_addr.s_addr].push_back(msg);
 
                 if (type == KINET_V2_TYPE) {
-                    if ((++kinetBuffers[p][8]) == 0) {
-                        if ((++kinetBuffers[p][9]) == 0) {
-                            if ((++kinetBuffers[p][10]) == 0) {
-                                ++kinetBuffers[p][11];
-                            }
-                        }
-                    }
+                    // Numbered from the last packet sent, not the last one
+                    // prepared: a frame prepared twice before it went out (as
+                    // one is when playback starts) skipped a number on the wire.
+                    uint32_t seq = sentSequence[p] + 1;
+                    pendingSequence[p] = seq;
+                    kinetBuffers[p][8] = seq & 0xFF;
+                    kinetBuffers[p][9] = (seq >> 8) & 0xFF;
+                    kinetBuffers[p][10] = (seq >> 16) & 0xFF;
+                    kinetBuffers[p][11] = (seq >> 24) & 0xFF;
                 }
                 // set the pointer to the channelData for the universe
                 kinetIovecs[p * 2 + 1].iov_base = (void*)(&channelData[startChannel - 1 + start]);
@@ -178,6 +182,10 @@ void KiNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages&
         }
     }
 }
+void KiNetOutputData::FrameSent() {
+    sentSequence = pendingSequence;
+}
+
 void KiNetOutputData::DumpConfig() {
     LogDebug(VB_CHANNELOUT, "KiNet: %s   %d:%d:%d:%d  %s\n",
              description.c_str(),

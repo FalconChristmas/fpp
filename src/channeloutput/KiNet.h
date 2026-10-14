@@ -13,7 +13,9 @@
 
 #include "UDPOutput.h"
 #include "fpp-json-fwd.h"
+#include <cstdint>
 #include <list>
+#include <vector>
 
 #define KINET_PORT 6038
 
@@ -24,6 +26,7 @@ public:
 
     virtual bool IsPingable() override { return true; }
     virtual void PrepareData(unsigned char* channelData, UDPOutputMessages& msgs) override;
+    virtual void FrameSent() override;
     virtual void DumpConfig() override;
 
     virtual const std::string& GetOutputTypeString() const override;
@@ -36,4 +39,9 @@ public:
 
     struct iovec* kinetIovecs = nullptr;
     unsigned char** kinetBuffers = nullptr;
+
+    // v2 sequence numbers per port: the last one sent, and the one the
+    // prepared packet carries, committed by FrameSent() (see UDPOutputData).
+    std::vector<uint32_t> sentSequence;
+    std::vector<uint32_t> pendingSequence;
 };
