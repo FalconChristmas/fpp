@@ -1449,9 +1449,9 @@ void BBShiftStringOutput::setFrameRateWarning(bool on) {
         return;
     }
     if (on) {
-        WarningHolder::AddWarning(61, BP_WARN);
+        WarningHolder::AddWarning(63, BP_WARN);
     } else {
-        WarningHolder::RemoveWarning(61, BP_WARN);
+        WarningHolder::RemoveWarning(63, BP_WARN);
     }
     m_bpWarned = on;
 }
