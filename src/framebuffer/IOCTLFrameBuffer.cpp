@@ -360,11 +360,13 @@ void IOCTLFrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
         uint8_t* ob = m_outputBuffer;
         int drow = 0;
 
+        // Only a direct draw may write the page.  Otherwise the frame goes to
+        // m_outputBuffer, which DrawLoop() then copies over the page.
         if (draw) {
             m_bufferLock.lock();
-        }
-        if (m_pixelSize == 1) {
-            ob = m_pageBuffers[m_cPage];
+            if (m_pixelSize == 1) {
+                ob = m_pageBuffers[m_cPage];
+            }
         }
 
         // Clipped to the page - see FrameBuffer::ClipToPage().
