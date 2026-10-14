@@ -65,6 +65,12 @@ std::recursive_mutex inlineOutputLock;
 std::mutex outputThreadStatusLock;
 // bumped under outputThreadStatusLock by every StartChannelOutputThread()
 static uint64_t outputStartRequests = 0;
+// Set (under outputThreadStatusLock) by StopChannelOutputThread(), which only
+// fppd's shutdown calls, and never cleared.  The teardown after it closes
+// outputs and removes overlay models, and a model state change restarts the
+// thread; one restarted there outlived the sequence it reads, which main()
+// deletes next.  So once stopped, the thread stays stopped.
+static bool outputThreadShutDown = false;
 std::condition_variable outputThreadCond;
 std::condition_variable outputThreadSatusCond;
 
@@ -192,6 +198,10 @@ void RunChannelOutputThread(void) {
 
     std::unique_lock<std::mutex> lock(outputThreadLock);
     std::unique_lock<std::mutex> statusLock(outputThreadStatusLock);
+    if (outputThreadShutDown) {
+        // created just before shutdown stopped the output; touch nothing
+        return;
+    }
     ThreadIsRunning = 1;
     ThreadIsExiting = 0;
     statusLock.unlock();
@@ -484,20 +494,29 @@ void StartChannelOutputThread(void) {
         }
     }
 
-    RunThread = 1;
-    ThreadIsExiting = 0;
-    // The thread is detached immediately (as the pthread version was via
-    // pthread_detach) — its lifecycle is coordinated through the
-    // RunThread/ThreadIsRunning/ThreadIsExiting flags and condition
-    // variables, never by joining.  std::thread reports creation failure
-    // by throwing std::system_error rather than returning an errno.
-    try {
-        std::thread(RunChannelOutputThread).detach();
-    } catch (const std::system_error& ex) {
-        RunThread = 0;
-        LogErr(VB_CHANNELOUT, "ERROR creating channel output thread: %s (code %d)\n",
-               ex.what(), ex.code().value());
-        return;
+    {
+        // Checked and started under the lock StopChannelOutputThread() latches
+        // outputThreadShutDown under, so a start can't slip in after it.
+        std::unique_lock<std::mutex> lock(outputThreadStatusLock);
+        if (outputThreadShutDown) {
+            LogDebug(VB_CHANNELOUT, "Not starting the channel output thread: fppd is shutting down\n");
+            return;
+        }
+        RunThread = 1;
+        ThreadIsExiting = 0;
+        // The thread is detached immediately (as the pthread version was via
+        // pthread_detach) — its lifecycle is coordinated through the
+        // RunThread/ThreadIsRunning/ThreadIsExiting flags and condition
+        // variables, never by joining.  std::thread reports creation failure
+        // by throwing std::system_error rather than returning an errno.
+        try {
+            std::thread(RunChannelOutputThread).detach();
+        } catch (const std::system_error& ex) {
+            RunThread = 0;
+            LogErr(VB_CHANNELOUT, "ERROR creating channel output thread: %s (code %d)\n",
+                   ex.what(), ex.code().value());
+            return;
+        }
     }
 
     // Wait for thread to start, but bounded (mirrors StopChannelOutputThread's
@@ -519,8 +538,12 @@ int StopChannelOutputThread(void) {
     int i = 0;
     LogDebug(VB_CHANNELOUT, "StopChannelOutputThread()\n");
 
-    // Stop the thread and wait a few seconds
-    RunThread = 0;
+    // Stop the thread for good (see outputThreadShutDown) and wait a few seconds
+    {
+        std::unique_lock<std::mutex> lock(outputThreadStatusLock);
+        outputThreadShutDown = true;
+        RunThread = 0;
+    }
     while (ThreadIsRunning && (i < 50)) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         i++;
