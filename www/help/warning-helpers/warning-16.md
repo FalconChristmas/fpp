@@ -6,6 +6,8 @@ A cape or smart receiver reported a problem with one of its pixel output ports. 
 2. Update the model/output configuration, or fix the wiring, so the counts agree.
 3. A large mismatch can also indicate a broken pixel, a bad connection, or power-injection issues partway down the string.
 
+On a cape, **Count Pixels** (Current Monitor page) counts from the current each port draws as pixels are lit in turn. Null nodes are counted as the pixels they are and then taken off. Spare pixels left on the end of a string show up as extra. Pixels that draw no current from the port, such as those powered from another supply partway down the string, can't be seen, so they show up as fewer. On ports whose current readings are noisy, a weak pixel at the very end can come out one either way.
+
 **eFUSE triggered** ("eFUSE Triggered for ...")
 1. Power down and inspect the wiring on the listed output for shorts or reversed polarity.
 2. Confirm the pixel count/current draw is within the port and power-injection limits.
