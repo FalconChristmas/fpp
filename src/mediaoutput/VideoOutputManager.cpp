@@ -1926,13 +1926,17 @@ void VideoOutputManager::StopConsumer(ConsumerInfo& consumer) {
     if (consumer.overlayState) {
         PixelOverlayManager::INSTANCE.removeModelListener(consumer.overlayModel,
             "VideoOutputManager_" + consumer.pipeWireNodeName);
-        std::lock_guard<std::mutex> lock(consumer.overlayState->mtx);
-        if (consumer.overlayState->wasDisabled && consumer.overlayState->model) {
-            consumer.overlayState->model->setState(PixelOverlayState(PixelOverlayState::Disabled));
-            consumer.overlayState->wasDisabled = false;
+        // Take the consumer's reference before locking: it is often the last
+        // one (the appsink's goes with the pipeline), and the state must
+        // outlive the lock on its own mutex.  `state` is declared first, so
+        // it is destroyed after `lock` has unlocked.
+        std::shared_ptr<OverlayState> state = std::move(consumer.overlayState);
+        std::lock_guard<std::mutex> lock(state->mtx);
+        if (state->wasDisabled && state->model) {
+            state->model->setState(PixelOverlayState(PixelOverlayState::Disabled));
+            state->wasDisabled = false;
         }
-        consumer.overlayState->model = nullptr;
-        consumer.overlayState.reset();
+        state->model = nullptr;
     }
 
     consumer.running = false;
