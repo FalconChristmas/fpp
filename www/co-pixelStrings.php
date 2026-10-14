@@ -517,7 +517,7 @@ function readCapes($cd, $capes)
             result += "class='circularButton circularButton-sm circularButton-visible circularVirtualStringButton circularAddButton' onClick='addVirtualString(this);'></button></td>";
         }
 
-        result += "<td><input type='text' class='vsDescription' size='25' maxlength='60' value='" + description + "'></td>";
+        result += "<td><input type='text' class='vsDescription' size='25' maxlength='60' value='" + EscapeHtmlAttr(description) + "'></td>";
         result += "<td><input type='number' class='vsStartChannel' data-bs-html='true' size='8' value='" + startChannel + "' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this); sanityCheckOutputs();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
         result += "<td><input type='number' class='vsPixelCount' size='4' min='0' max='1600' onkeypress='preventNonNumericalInput(event)' value='" + pixelCount + "' onChange='updateItemEndChannel(this); sanityCheckOutputs();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
         result += "<td><input type='number' class='vsGroupCount' size='3' value='" + groupCount + "' min='1' max='1000' onkeypress='preventNonNumericalInput(event)' onChange='updateItemEndChannel(this); sanityCheckOutputs();'></td>";

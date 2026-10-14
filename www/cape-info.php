@@ -368,7 +368,7 @@ if ($printSigningUI) {
                 return; // already added by the other path
             }
             eepromList[vendName] = eepromjson["capes"];
-            var options = "<option value='" + vendName + "'>" + vendName + '</option>';
+            var options = "<option value='" + EscapeHtmlAttr(vendName) + "'>" + EscapeHtml(vendName) + '</option>';
             $('#eepromVendorList').append(options);
             $('#eepromVendorList').removeAttr('disabled');
             $('#eepromVendorList').show();

@@ -550,7 +550,7 @@
                 result += "<option value='Servo'" + (type === "Servo" ? " selected" : "") + ">Servo</option>";
                 result += "</select>";
 
-                result += "&nbsp;Description:<input class='description" + x + "' type='text' size=30 maxlength=128 style='width: 6em' value='" + description + "'/>";
+                result += "&nbsp;Description:<input class='description" + x + "' type='text' size=30 maxlength=128 style='width: 6em' value='" + EscapeHtmlAttr(description) + "'/>";
                 result += "<br><br>LED Only:<br>";
                 result += "Brightness: ";
                 result += "<select class='brightness" + x + "'>";
@@ -659,7 +659,7 @@
                 result += "&nbsp;Threshold:<input class='threshold" + x + "' type='number' min='0' max='255' style='width: 6em' value='" + threshold + "'/>";
                 result += "&nbsp;Hysteresis On:<input class='hysteresisUpper" + x + "' type='number' min='0' max='255' style='width: 6em' value='" + hysteresisUpper + "'/>";
                 result += "&nbsp;Hysteresis Off:<input class='hysteresisLower" + x + "' type='number' min='0' max='254' style='width: 6em' value='" + hysteresisLower + "'/>";
-                result += "&nbsp;Description:<input class='description" + x + "' type='text' size=30 maxlength=128 style='width: 6em' value='" + description + "'/>";
+                result += "&nbsp;Description:<input class='description" + x + "' type='text' size=30 maxlength=128 style='width: 6em' value='" + EscapeHtmlAttr(description) + "'/>";
 
                 result += "</td></tr>";
             }
@@ -737,9 +737,9 @@
 
         PopulateHTMLRow(config) {
             var result = super.PopulateHTMLRow(config);
-            result += "IP: <input type='text' name='address' class='address' value='" + config.address + "'>&nbsp;";
+            result += "IP: <input type='text' name='address' class='address' value='" + EscapeHtmlAttr(config.address) + "'>&nbsp;";
             result += "Port: <input type='number' name='port' min='1' max='65536' class='port' value='" + config.port + "'>&nbsp;";
-            result += "Data: <input type='text' class='tokens' name='tokens' value='" + config.tokens + "' size='50' maxLength='256'><br>";
+            result += "Data: <input type='text' class='tokens' name='tokens' value='" + EscapeHtmlAttr(config.tokens) + "' size='50' maxLength='256'><br>";
             result += "Data tokens include {data} for channel data, {S1} or {S2} for onebyte or two bit channel count, or 0x00 for hex byte";
             return result;
         }
@@ -923,7 +923,7 @@
 
         PopulateHTMLRow(config) {
             var description = (config.description != null) ? config.description : "";
-            var result = "Description:&nbsp;<input class='description' type='text' size=30 maxlength=128 style='width: 6em; margin-right: 1em' value='" + description + "'/>";
+            var result = "Description:&nbsp;<input class='description' type='text' size=30 maxlength=128 style='width: 6em; margin-right: 1em' value='" + EscapeHtmlAttr(description) + "'/>";
             // Coerce an unset device to '' so CreateSelect renders the
             // "-- Port --" auto-select entry instead of a literal "undefined".
             result += DeviceSelect(UDMXDevices, config.device || '') + "&nbsp;";
@@ -1114,7 +1114,7 @@
             if (config.description != undefined) {
                 description = config.description;
             }
-            result += "Description:<input class='description' type='text' size=30 maxlength=128 style='width: 6em' value='" + description + "'/>";
+            result += "Description:<input class='description' type='text' size=30 maxlength=128 style='width: 6em' value='" + EscapeHtmlAttr(description) + "'/>";
             result += "&nbsp;";
             result += CreateSelect(GPIOPins, gpio, "GPIO", "", "form-select gpio", "GPIOHeaderPinChanged(this)");
             result += "\n";
@@ -1166,7 +1166,7 @@
             if (config.description != undefined) {
                 description = config.description;
             }
-            result += "Description:<input class='description' type='text' size=30 maxlength=128 style='width: 6em' value='" + description + "'/>";
+            result += "Description:<input class='description' type='text' size=30 maxlength=128 style='width: 6em' value='" + EscapeHtmlAttr(description) + "'/>";
             result += "&nbsp;";
             result += CreateSelect(GPIOPins, clock, "Clock", "", "clock", "");
             result += "&nbsp;";

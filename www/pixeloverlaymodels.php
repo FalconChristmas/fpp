@@ -388,7 +388,7 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                     postr += "<div class='rowGrip'><i class='rowGripIcon fpp-icon-grip'></i></div>";
                 }
 
-                postr += "</td><td><input class='blk' type='text' size='31' maxlength='31' value='" + model.Name + "'" + attr + "></td>";
+                postr += "</td><td><input class='blk' type='text' size='31' maxlength='31' value='" + EscapeHtmlAttr(model.Name) + "'" + attr + "></td>";
 
                 switch (model.Type) {
                     case "Channel":

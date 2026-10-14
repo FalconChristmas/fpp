@@ -10553,9 +10553,9 @@ function LoadCommandList (commandSelect, currentValue) {
 	var cats = Object.keys(groups).sort();
 
 	$.each(cats, function (i, cat) {
-		var og = $("<optgroup label='" + cat + "'></optgroup>");
+		var og = $("<optgroup label='" + EscapeHtmlAttr(cat) + "'></optgroup>");
 		$.each(groups[cat], function (i, name) {
-			og.append("<option value='" + name + "'>" + name + '</option>');
+			og.append("<option value='" + EscapeHtmlAttr(name) + "'>" + EscapeHtml(name) + '</option>');
 		});
 		commandSelect.append(og);
 	});

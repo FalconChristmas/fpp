@@ -2693,7 +2693,7 @@ if ($skipHTMLCodeOutput === false) {
                         desc += ' ' + data[i].model;
                     }
                     desc += ' - ' + data[i].size + 'GB';
-                    options += "<option value='" + data[i].name + "'>" + desc + "</option>";
+                    options += "<option value='" + EscapeHtmlAttr(data[i].name) + "'>" + EscapeHtml(desc) + "</option>";
                 }
                 $('#jsonConfigbackup\\.USBDevice').html(defaultOption + options);
                 GetJSONConfigBackupDevice();

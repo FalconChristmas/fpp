@@ -132,8 +132,8 @@
             $('#proxyTable tbody').append(
                 "<tr id='row'" + currentRows + " class='fppTableRow proxyRow'>" +
                 "<td>" + (currentRows + 1) + "</td>" +
-                "<td><input id='ipRow" + currentRows + "' class='ipaddress' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value='" + host + "'></td>" +
-                "<td><input id='descRow" + currentRows + "' class='description' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value='" + description + "'></td>" +
+                "<td><input id='ipRow" + currentRows + "' class='ipaddress' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value='" + EscapeHtmlAttr(host) + "'></td>" +
+                "<td><input id='descRow" + currentRows + "' class='description' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value='" + EscapeHtmlAttr(description) + "'></td>" +
                 "<td id='linkRow" + currentRows + "'>" +
                 <? if (!$settings['hideExternalURLs']) { ?>
                     "<a target='_blank' href='proxy/" + host + "'>" + host + "</a>" +

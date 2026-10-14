@@ -8,17 +8,17 @@ function SetupFileChooser(dir, target)
 
     var file = $(fileChooserTarget).val();
 
-    $('#fileChooserFile').html(file);
+    $('#fileChooserFile').text(file);
 
     $.get('api/files/' + dir, function(data) {
         var options = "";
         for (var i = 0; i < data.files.length; i++) {
-            options += "<option value='" + data.files[i].name + "'";
+            options += "<option value='" + EscapeHtmlAttr(data.files[i].name) + "'";
 
             if (file == data.files[i].name)
                 options += " selected";
 
-            options += ">" + data.files[i].name + "</option><br>";
+            options += ">" + EscapeHtml(data.files[i].name) + "</option><br>";
         }
         $('#fileChooserSelect').html(options);
     });
