@@ -152,7 +152,7 @@ CRASH_SECRET_KEYS="$(build_secret_key_list)"
 # lowercase and the "followed by uppercase" boundary collapses. The apostrophe
 # is written as itself: \x27 is a GNU-only escape, other seds read four characters.
 CRASH_BACKSTOP_LOOSE='[Pp]assword|PASSWORD|[Pp]asswd|PASSWD|[Pp]assphrase|PASSPHRASE|[Pp]asscode|PASSCODE|[Pp]wd|PWD|[Pp]sk|PSK|[Ss]ecret|SECRET|[Tt]oken|TOKEN|[Cc]redential|CREDENTIAL'
-CRASH_BACKSTOP_TIGHT="([Pp]ass|[Kk]ey|[Aa]uth|[Pp]at)([^a-z\"'[:space:]:=][A-Za-z0-9_.-]*)?|(PASS|KEY|AUTH|PAT)([^A-Za-z\"'[:space:]:=][A-Za-z0-9_.-]*)?"
+CRASH_BACKSTOP_TIGHT="([Pp]ass|[Kk]ey|[Aa]uth|[Pp]at)([^a-z\"'[:space:]:=][A-Za-z0-9_.-]*)?|(PASS|KEY|AUTH|PAT)([^A-Za-z\"'[:space:]:=][A-Za-z0-9_.-]*)?|[Pp][Ww]|PW"
 # Key plus separator (optional closing quote, whitespace, : or =) as ONE group
 # so the substitutions only ever need \1.
 CRASH_BACKSTOP_KEY="([A-Za-z0-9_.-]*((${CRASH_BACKSTOP_LOOSE})[A-Za-z0-9_.-]*|(${CRASH_BACKSTOP_TIGHT}))\"?[[:space:]]*[:=][[:space:]]*)"
@@ -180,7 +180,7 @@ redact_stream() {
         -e "s/^([[:space:]]*(\\\$_[A-Z]+)?${CRASH_ARROW_KEY}).*\$/\1**REDACTED**/" \
         -e "s/(^|[^A-Za-z0-9_.-]|[A-Za-z0-9_.-][[\"'])${CRASH_ARROW_KEY}(\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*'|[^\"'[:space:],]+)/\1\2**REDACTED**/g" \
         `#    phpinfo() HTML rows (cleanedphpinfo.php): <td class="e">KEY</td><td class="v">value` \
-        -e "s#(<td class=\"e\">[[:space:]]*(\\\$_[A-Z]+)?[[\"']*([A-Za-z0-9_.-]*((${CRASH_BACKSTOP_LOOSE})[A-Za-z0-9_.-]*|(${CRASH_BACKSTOP_TIGHT}))|${CRASH_SECRET_KEYS}|[A-Za-z0-9_]*AUTHORIZATION)[]\"']*[[:space:]]*</td><td class=\"v\">)[^<]*#\1**REDACTED**#g" \
+        -e "s#(<td class=\"e\">[[:space:]]*(\\\$_[A-Z]+)?[[\"']*([A-Za-z0-9_.-]*((${CRASH_BACKSTOP_LOOSE})[A-Za-z0-9_.-]*|(${CRASH_BACKSTOP_TIGHT}))|${CRASH_SECRET_KEYS}|[A-Za-z0-9_]*AUTHORIZATION|[A-Za-z0-9_]*COOKIE)[]\"']*[[:space:]]*</td><td class=\"v\">)[^<]*#\1**REDACTED**#g" \
         `#    JSON string values with escaped quotes (a\"b), whole.` \
         -e "/${CRASH_ENABLE_LINE}/! s/${CRASH_JSON_KEY}\"([^\"\\\\]|\\\\.)*\"/\1\"**REDACTED**\"/g" \
         `#    URL credentials, kept inside the URL's host part: a password with @ in` \
@@ -209,6 +209,27 @@ redact_stream() {
         -e "s#(authorization[]\"']*[[:space:]]*[:=]>?[[:space:]]*[\"']?((Bearer|Basic|token|Negotiate|NTLM)[[:space:]]+)?)[^\"'[:space:]]+#\1**REDACTED**#gI" \
         -e 's#(^|[^A-Za-z0-9_])(Bearer[[:space:]]+)[A-Za-z0-9._~+/=-]{20,}#\1\2**REDACTED**#g' \
         -e 's#(^|[^A-Za-z0-9_])eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]*#\1**REDACTED**#g' \
+        `# 8. Known secret and PII keys with a bare JSON value: a numeric PIN, or` \
+        `#    coordinates written as numbers ({"Latitude":40.7}), which rule 1 only` \
+        `#    catches one per line.` \
+        -e "/${CRASH_ENABLE_LINE}/! s/(\"(${CRASH_SECRET_KEYS})\"[[:space:]]*:[[:space:]]*)(-?[0-9][0-9.eE+-]*|true|false)/\1\"**REDACTED**\"/g" \
+        `# 9. Coordinates under any common name, as a decimal number: query strings` \
+        `#    (lat=..&lon=..), plugin configs, geolocation replies.` \
+        -e "s/(^|[^A-Za-z0-9_])((lat|lon|lng|latitude|longitude)[\"']?[[:space:]]*[:=][[:space:]]*[\"']?)-?[0-9]+\.[0-9]+/\1\2**REDACTED**/gI" \
+        `# 10. Command-line credentials: curl's -u/--user/--proxy-user user:pass (the` \
+        `#     password half), a --password/--pass/--pw/... flag's value, and` \
+        `#     mosquitto_pub/sub/rr's -P password.` \
+        -e "s/(^|[[:space:]])(-u|--user|--proxy-user)([[:space:]]+|=)?([^:[:space:]\"']*):[^[:space:]\"']+/\1\2\3\4:**REDACTED**/g" \
+        -e "s/(^|[[:space:]])(--?(password|passwd|pass|pw|psk|secret|token|api-key|apikey)([[:space:]]+|=))[^[:space:]\"']+/\1\2**REDACTED**/gI" \
+        -e "s/(mosquitto_[a-z]+[^|;&]*[[:space:]]-P[[:space:]]+)[^[:space:]\"']+/\1**REDACTED**/g" \
+        `# 11. Cookies: a Cookie or Set-Cookie header's whole value, and a PHP` \
+        `#     session id wherever it appears.` \
+        -e "s/((^|[^A-Za-z0-9_-])(Set-)?Cookie[]\"']*[[:space:]]*[:=]>?[[:space:]]*[\"']?)[^\"']*/\1**REDACTED**/gI" \
+        -e "s/(PHPSESSID[]\"']*[[:space:]]*(=>|[:=])[[:space:]]*[\"']?)[A-Za-z0-9,-]+/\1**REDACTED**/g" \
+        `# 12. Cloud and service API keys by their shape: AWS access key ids, OpenAI /` \
+        `#     Anthropic sk- keys, Stripe, Slack and Google API keys.` \
+        -e 's/(^|[^A-Za-z0-9])(AKIA|ASIA)[A-Z0-9]{16}([^A-Za-z0-9]|$)/\1**REDACTED**\3/g' \
+        -e 's/(^|[^A-Za-z0-9_-])(sk-[A-Za-z0-9_-]{20,}|[sr]k_(live|test)_[A-Za-z0-9]{16,}|xox[abprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35})/\1**REDACTED**/g' \
         `# 7. Tidy "key => v" that rule 2 re-matched as "key =**REDACTED** **REDACTED**"` \
         -e 's/([^[:space:]=])([[:space:]]*)=\*\*REDACTED\*\* \*\*REDACTED\*\*/\1\2=> **REDACTED**/g'
 }
@@ -512,9 +533,15 @@ with open(sys.argv[2], "w") as f:
                             echo "**REDACTED SSH/KEY FILE**" > "$TEMP_DIR/config/$filename"
                             ;;
                         cape-eeprom.bin)
-                            # The one binary FPP itself keeps here. Handled
-                            # exactly as before.
-                            redact_copy "$file" "$TEMP_DIR/config/$filename"
+                            # The one binary FPP itself keeps here. It holds
+                            # the cape's serial number, so it ships only where
+                            # the user lets that be shared (SendVendorSerial,
+                            # on unless turned off).
+                            if grep -qE '^[[:space:]]*SendVendorSerial[[:space:]]*=[[:space:]]*"?0"?[[:space:]]*$' settings 2>/dev/null; then
+                                echo "**OMITTED: cape EEPROM (serial number sharing is off)**" > "$TEMP_DIR/config/$filename"
+                            else
+                                redact_copy "$file" "$TEMP_DIR/config/$filename"
+                            fi
                             ;;
                         *)
                             # Everything else FPP writes here is text. Plugins
