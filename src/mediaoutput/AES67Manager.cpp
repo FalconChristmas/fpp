@@ -278,6 +278,20 @@ static bool IsPipelineSafeInterface(const std::string& iface) {
     return true;
 }
 
+// A top-level setting of the wrong JSON type ("ptpEnabled": "yes") threw from
+// LoadConfig() to std::terminate, at startup and again on every restart.  Such
+// a setting is reported and left at its default.
+template <typename T>
+static T ConfigField(const Json::Value& root, const char* key, const T& def, T (Json::Value::*as)() const) {
+    try {
+        return (root.get(key, Json::Value(def)).*as)();
+    } catch (const std::exception& e) {
+        WarningHolder::InvalidConfigEntry("pipewire-aes67-instances.json",
+                                          std::string(key) + ": " + e.what());
+        return def;
+    }
+}
+
 bool AES67Manager::LoadConfig() {
     Json::Value root;
     if (!LoadJsonFromFile(m_configPath, root, JsonRoot::Object)) {
@@ -298,16 +312,16 @@ bool AES67Manager::LoadConfig() {
     // and the commit message that changed it.
     AES67Config cfg;
     static const AES67Config kDefault;
-    cfg.ptpEnabled = root.get("ptpEnabled", kDefault.ptpEnabled).asBool();
-    cfg.ptpInterface = root.get("ptpInterface", kDefault.ptpInterface).asString();
+    cfg.ptpEnabled = ConfigField(root, "ptpEnabled", kDefault.ptpEnabled, &Json::Value::asBool);
+    cfg.ptpInterface = ConfigField(root, "ptpInterface", kDefault.ptpInterface, &Json::Value::asString);
     if (cfg.ptpInterface.empty()) {
         cfg.ptpInterface = FirstWiredInterface();
         LogInfo(VB_MEDIAOUT, "AES67Manager: no PTP interface configured, using %s\n",
                 cfg.ptpInterface.c_str());
     }
-    cfg.ptpDomain = root.get("ptpDomain", kDefault.ptpDomain).asInt();
-    cfg.ptpRole = root.get("ptpRole", kDefault.ptpRole).asString();
-    cfg.ptpLockWaitMs = root.get("ptpLockWaitMs", kDefault.ptpLockWaitMs).asInt();
+    cfg.ptpDomain = ConfigField(root, "ptpDomain", kDefault.ptpDomain, &Json::Value::asInt);
+    cfg.ptpRole = ConfigField(root, "ptpRole", kDefault.ptpRole, &Json::Value::asString);
+    cfg.ptpLockWaitMs = ConfigField(root, "ptpLockWaitMs", kDefault.ptpLockWaitMs, &Json::Value::asInt);
     // The wait runs inside ApplyConfig(), which holds the apply lock and, at
     // boot, fppd's startup; Shutdown() has to wait it out too.  Anything past
     // half a minute is not a wait for lock any more.
@@ -318,36 +332,35 @@ bool AES67Manager::LoadConfig() {
                 cfg.ptpLockWaitMs, clamped);
         cfg.ptpLockWaitMs = clamped;
     }
-    cfg.ptpMediaClock = root.get("ptpMediaClock", kDefault.ptpMediaClock).asBool();
-    cfg.sourcePacing = root.get("sourcePacing", kDefault.sourcePacing).asBool();
-    cfg.sinkPacing = root.get("sinkPacing", kDefault.sinkPacing).asBool();
-    cfg.sinkPacingMs = root.get("sinkPacingMs", kDefault.sinkPacingMs).asInt();
-    cfg.driftResample = root.get("driftResample", kDefault.driftResample).asBool();
-    cfg.pipelineStats = root.get("pipelineStats", kDefault.pipelineStats).asBool();
+    cfg.ptpMediaClock = ConfigField(root, "ptpMediaClock", kDefault.ptpMediaClock, &Json::Value::asBool);
+    cfg.sourcePacing = ConfigField(root, "sourcePacing", kDefault.sourcePacing, &Json::Value::asBool);
+    cfg.sinkPacing = ConfigField(root, "sinkPacing", kDefault.sinkPacing, &Json::Value::asBool);
+    cfg.sinkPacingMs = ConfigField(root, "sinkPacingMs", kDefault.sinkPacingMs, &Json::Value::asInt);
+    cfg.driftResample = ConfigField(root, "driftResample", kDefault.driftResample, &Json::Value::asBool);
+    cfg.pipelineStats = ConfigField(root, "pipelineStats", kDefault.pipelineStats, &Json::Value::asBool);
     cfg.nativeSourceRate =
-        root.get("nativeSourceRate", kDefault.nativeSourceRate).asBool();
+        ConfigField(root, "nativeSourceRate", kDefault.nativeSourceRate, &Json::Value::asBool);
     cfg.sourceBufferCopy =
-        root.get("sourceBufferCopy", kDefault.sourceBufferCopy).asBool();
+        ConfigField(root, "sourceBufferCopy", kDefault.sourceBufferCopy, &Json::Value::asBool);
     cfg.sourceMinBuffers =
-        root.get("sourceMinBuffers", kDefault.sourceMinBuffers).asInt();
+        ConfigField(root, "sourceMinBuffers", kDefault.sourceMinBuffers, &Json::Value::asInt);
     cfg.splitClockDomains =
-        root.get("splitClockDomains", kDefault.splitClockDomains).asBool();
-    cfg.targetLeadMs = root.get("targetLeadMs", kDefault.targetLeadMs).asInt();
+        ConfigField(root, "splitClockDomains", kDefault.splitClockDomains, &Json::Value::asBool);
+    cfg.targetLeadMs = ConfigField(root, "targetLeadMs", kDefault.targetLeadMs, &Json::Value::asInt);
     cfg.sourceSilenceFloor =
-        root.get("sourceSilenceFloor", kDefault.sourceSilenceFloor).asBool();
+        ConfigField(root, "sourceSilenceFloor", kDefault.sourceSilenceFloor, &Json::Value::asBool);
     cfg.sourcePtpGroup =
-        root.get("sourcePtpGroup", kDefault.sourcePtpGroup).asBool();
+        ConfigField(root, "sourcePtpGroup", kDefault.sourcePtpGroup, &Json::Value::asBool);
     cfg.sourcePtpGroupName =
-        root.get("sourcePtpGroupName", kDefault.sourcePtpGroupName).asString();
-    cfg.sourceAsync = root.get("sourceAsync", kDefault.sourceAsync).asBool();
-    cfg.rateMatch = root.get("rateMatch", kDefault.rateMatch).asBool();
+        ConfigField(root, "sourcePtpGroupName", kDefault.sourcePtpGroupName, &Json::Value::asString);
+    cfg.sourceAsync = ConfigField(root, "sourceAsync", kDefault.sourceAsync, &Json::Value::asBool);
+    cfg.rateMatch = ConfigField(root, "rateMatch", kDefault.rateMatch, &Json::Value::asBool);
     cfg.rateMatchToleranceNs =
-        (guint64)root.get("rateMatchToleranceNs",
-                          (Json::UInt64)kDefault.rateMatchToleranceNs)
-            .asUInt64();
-    cfg.adaptiveResample = root.get("adaptiveResample", false).asBool();
+        (guint64)ConfigField(root, "rateMatchToleranceNs",
+                             (Json::UInt64)kDefault.rateMatchToleranceNs, &Json::Value::asUInt64);
+    cfg.adaptiveResample = ConfigField(root, "adaptiveResample", false, &Json::Value::asBool);
     cfg.requireGroupSource =
-        root.get("requireGroupSource", kDefault.requireGroupSource).asBool();
+        ConfigField(root, "requireGroupSource", kDefault.requireGroupSource, &Json::Value::asBool);
 
     // A domain outside 0-127 is not representable in the PTP header; an
     // unknown role would silently fall through to the "auto" branch below,
@@ -367,6 +380,9 @@ bool AES67Manager::LoadConfig() {
     if (root.isMember("instances") && root["instances"].isArray()) {
         for (const auto& instJson : root["instances"]) {
             AES67Instance inst;
+            // A value of the wrong JSON type threw from here to
+            // std::terminate, at startup; skip such an instance instead.
+            try {
             inst.id = instJson.get("id", 0).asInt();
             inst.name = instJson.get("name", "AES67").asString();
             inst.enabled = instJson.get("enabled", true).asBool();
@@ -379,6 +395,10 @@ bool AES67Manager::LoadConfig() {
             inst.latency = instJson.get("latency", AES67::DEFAULT_LATENCY_MS).asInt();
             inst.sapEnabled = instJson.get("sapEnabled", true).asBool();
             inst.ptime = instJson.get("ptime", AES67::DEFAULT_PTIME_MS).asInt();
+            } catch (const std::exception& e) {
+                WarningHolder::InvalidConfigEntry("pipewire-aes67-instances.json", e.what());
+                continue;
+            }
 
             // Validate ptime
             if (!AES67::IsValidPtime(inst.ptime)) {
