@@ -264,18 +264,25 @@ void ScheduleEntry::CalculateIslamicDate(int year, int islamicMonth, int islamic
     // Simplified Islamic calendar conversion
     // Islamic calendar moves ~11 days earlier each year
     
-    // Ramadan (month 9) approximate start dates for 2024-2035
+    // Ramadan (month 9) approximate start dates for 2024-2035.  The Islamic
+    // year is ~354 days, so in 2030 Ramadan starts twice (January 6 and
+    // December 26); the table holds the first.  2031-2035 used to hold the
+    // previous Gregorian year's second date (Ramadan 2032 on December 15
+    // rather than the 4th); these are the tabular Islamic calendar's dates,
+    // which observation can move by a day.
     int ramadanDates[][3] = {
         {2024, 3, 11}, {2025, 3, 1}, {2026, 2, 18}, {2027, 2, 8},
-        {2028, 1, 28}, {2029, 1, 17}, {2030, 1, 6}, {2031, 12, 26},
-        {2032, 12, 15}, {2033, 12, 5}, {2034, 11, 24}, {2035, 11, 14}
+        {2028, 1, 28}, {2029, 1, 17}, {2030, 1, 6}, {2031, 12, 15},
+        {2032, 12, 4}, {2033, 11, 23}, {2034, 11, 12}, {2035, 11, 2}
     };
     
-    // Eid al-Fitr (month 10, day 1) - approximately 30 days after Ramadan
+    // Eid al-Fitr (month 10, day 1) - approximately 30 days after Ramadan.
+    // 2033 has two (January 3 and December 23); the table holds the first.
+    // 2034 and 2035 used to hold the previous year's second date.
     int eidFitrDates[][3] = {
         {2024, 4, 10}, {2025, 3, 31}, {2026, 3, 20}, {2027, 3, 10},
         {2028, 2, 27}, {2029, 2, 16}, {2030, 2, 5}, {2031, 1, 25},
-        {2032, 1, 14}, {2033, 1, 3}, {2034, 12, 24}, {2035, 12, 13}
+        {2032, 1, 14}, {2033, 1, 3}, {2034, 12, 12}, {2035, 12, 2}
     };
     
     if (islamicMonth == 9 && islamicDay == 1) {
