@@ -34,8 +34,14 @@
 @import './bootstrap-scss-src/containers';
 @import './bootstrap-scss-src/grid';
 // Pages use .table, .table-striped, -sm, -hover and -bordered; without this
-// import none of them had any style.
-@import './bootstrap-scss-src/tables';
+// import none of them had any style.  Scoped away from Bootstrap Table's own
+// tables (always direct children of .fixed-table-body/-header): the multisync,
+// file manager, effects and status tables were laid out without these styles,
+// and the classes Bootstrap Table adds by default would restyle them.  (The
+// dist file was patched by hand to match, rather than regenerated.)
+:not(.fixed-table-body):not(.fixed-table-header) > {
+    @import './bootstrap-scss-src/tables';
+}
 @import './bootstrap-scss-src/helpers';
 @import './bootstrap-scss-src/nav';
 @import './bootstrap-scss-src/navbar';

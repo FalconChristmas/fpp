@@ -5060,7 +5060,11 @@ progress {
 		--bs-gutter-y: 4.5rem;
 	}
 }
-.table {
+/* Not on Bootstrap Table's own tables (directly inside .fixed-table-body or
+   .fixed-table-header): those pages were laid out without these styles, and
+   the classes it adds by default (table-bordered, table-hover...) would
+   restyle them. */
+:not(.fixed-table-body):not(.fixed-table-header) > .table {
 	--bs-table-color-type: initial;
 	--bs-table-bg-type: initial;
 	--bs-table-color-state: initial;
@@ -5092,7 +5096,7 @@ progress {
 	vertical-align: top;
 	border-color: var(--bs-table-border-color);
 }
-.table > :not(caption) > * > * {
+:not(.fixed-table-body):not(.fixed-table-header) > .table > :not(caption) > * > * {
 	padding: 0.5rem 0.5rem;
 	color: var(
 		--bs-table-color-state,
@@ -5103,10 +5107,10 @@ progress {
 	box-shadow: inset 0 0 0 9999px
 		var(--bs-table-bg-state, var(--bs-table-bg-type, var(--bs-table-accent-bg)));
 }
-.table > tbody {
+:not(.fixed-table-body):not(.fixed-table-header) > .table > tbody {
 	vertical-align: inherit;
 }
-.table > thead {
+:not(.fixed-table-body):not(.fixed-table-header) > .table > thead {
 	vertical-align: bottom;
 }
 
@@ -5118,30 +5122,30 @@ progress {
 	caption-side: top;
 }
 
-.table-sm > :not(caption) > * > * {
+:not(.fixed-table-body):not(.fixed-table-header) > .table-sm > :not(caption) > * > * {
 	padding: 0.25rem 0.25rem;
 }
 
-.table-bordered > :not(caption) > * {
+:not(.fixed-table-body):not(.fixed-table-header) > .table-bordered > :not(caption) > * {
 	border-width: var(--bs-border-width) 0;
 }
-.table-bordered > :not(caption) > * > * {
+:not(.fixed-table-body):not(.fixed-table-header) > .table-bordered > :not(caption) > * > * {
 	border-width: 0 var(--bs-border-width);
 }
 
-.table-borderless > :not(caption) > * > * {
+:not(.fixed-table-body):not(.fixed-table-header) > .table-borderless > :not(caption) > * > * {
 	border-bottom-width: 0;
 }
-.table-borderless > :not(:first-child) {
+:not(.fixed-table-body):not(.fixed-table-header) > .table-borderless > :not(:first-child) {
 	border-top-width: 0;
 }
 
-.table-striped > tbody > tr:nth-of-type(odd) > * {
+:not(.fixed-table-body):not(.fixed-table-header) > .table-striped > tbody > tr:nth-of-type(odd) > * {
 	--bs-table-color-type: var(--bs-table-striped-color);
 	--bs-table-bg-type: var(--bs-table-striped-bg);
 }
 
-.table-striped-columns > :not(caption) > tr > :nth-child(even) {
+:not(.fixed-table-body):not(.fixed-table-header) > .table-striped-columns > :not(caption) > tr > :nth-child(even) {
 	--bs-table-color-type: var(--bs-table-striped-color);
 	--bs-table-bg-type: var(--bs-table-striped-bg);
 }
@@ -5151,7 +5155,7 @@ progress {
 	--bs-table-bg-state: var(--bs-table-active-bg);
 }
 
-.table-hover > tbody > tr:hover > * {
+:not(.fixed-table-body):not(.fixed-table-header) > .table-hover > tbody > tr:hover > * {
 	--bs-table-color-state: var(--bs-table-hover-color);
 	--bs-table-bg-state: var(--bs-table-hover-bg);
 }
