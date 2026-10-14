@@ -74,6 +74,7 @@ EPollManager::~EPollManager() {
     shutdown();
 }
 void EPollManager::shutdown() {
+    std::unique_lock<std::mutex> lock(timerLock);
     if (epollf < 0) {
         return;
     }
@@ -85,6 +86,7 @@ void EPollManager::shutdown() {
 #endif
     close(epollf);
     epollf = -1;
+    lock.unlock();
     callbacks.clear();
     timerCallback = nullptr;
 }
@@ -148,6 +150,7 @@ void EPollManager::setTimerCallback(std::function<void()>&& callback) {
 }
 
 void EPollManager::armTimer(long long deadlineMS) {
+    std::lock_guard<std::mutex> lock(timerLock);
     if (epollf == -1) {
         return;
     }
@@ -175,6 +178,7 @@ void EPollManager::armTimer(long long deadlineMS) {
 }
 
 void EPollManager::disarmTimer() {
+    std::lock_guard<std::mutex> lock(timerLock);
     if (epollf == -1) {
         return;
     }
