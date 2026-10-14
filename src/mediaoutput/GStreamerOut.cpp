@@ -1920,7 +1920,13 @@ int GStreamerOutput::Start(int msTime) {
                     GstCaps* i420 = gst_caps_from_string("video/x-raw,format=I420");
                     g_object_set(chCaps, "caps", i420, NULL);
                     gst_caps_unref(i420);
-                    g_object_set(chSink, "channel", channel.c_str(), "sync", FALSE, NULL);
+                    // sync: with no display there is no kmssink, and a file with
+                    // no audio track loses the audio sink too, so this may be the
+                    // only sink left to hold playback to the clock; without it the
+                    // file decodes as fast as it can and is over before a consumer
+                    // has started.  The leaky queue keeps a waiting sink from ever
+                    // backing up the tee.
+                    g_object_set(chSink, "channel", channel.c_str(), "sync", TRUE, NULL);
                     std::vector<GstElement*> chain = { chQueue, chConvert, chCaps, chSink };
                     GstPad* teeSrc = nullptr;
                     GstPad* qSink = nullptr;
