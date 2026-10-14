@@ -38,7 +38,7 @@
 <p>Columns: File, Duration, Date Modified.</p>
 <ul>
     <li><b>Listen</b> (single) — Plays the audio in the browser for quick preview.</li>
-    <li><b>MP3Gain</b> (when <code>mp3gain</code> is installed, single or multiple) — Normalizes volume across tracks.</li>
+    <li><b>MP3Gain</b> (when <code>mp3gain</code> is installed, single or multiple) — Normalizes volume across tracks by rewriting each selected MP3 to the same ReplayGain loudness, turning a track down further where raising it would clip. The change is lossless (1.5 dB steps) and can be undone with <code>mp3gain -u</code>. Other audio formats are skipped.</li>
     <li><b>Add To Playlist, Download, Rename, Delete</b> — As above, with the same single/multi rules.</li>
 </ul>
 

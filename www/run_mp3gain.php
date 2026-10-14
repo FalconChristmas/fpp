@@ -12,7 +12,7 @@ ignore_user_abort(true);
 print("Running MP3Gain\n\n");
 
 $files = json_decode(file_get_contents('php://input'));
-$params = "mp3gain ";
+$params = "mp3gain -r -k ";
 $dir = GetDirSetting("music");
 foreach ($files as $f) {
     $params = $params . " " . escapeshellarg($dir . "/" . $f);
