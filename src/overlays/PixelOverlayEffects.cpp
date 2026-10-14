@@ -22,6 +22,7 @@
 #include <Magick++/TypeMetric.h>
 #include <magick/image.h>
 #include <algorithm>
+#include <filesystem>
 #include <memory>
 #include <climits> // INT_MAX bounds the Bars effect args
 #include <atomic>
@@ -63,6 +64,24 @@ static const std::string MapOverlayPosition(const std::string& p) {
         return "T2B";
     }
     return "Center";
+}
+
+bool IsOverlayImageFile(const std::string& path) {
+    static const char* const IMAGE_EXTENSIONS[] = {
+        ".bmp", ".gif", ".jpeg", ".jpg", ".png", ".ppm", ".tga", ".tif", ".tiff", ".webp"
+    };
+    std::error_code ec;
+    if (!std::filesystem::is_regular_file(path, ec)) {
+        return false;
+    }
+    std::string ext = std::filesystem::path(path).extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    for (const char* known : IMAGE_EXTENSIONS) {
+        if (ext == known) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void ScaleOverlayImage(Magick::Image& image, int w, int h, const std::string& mode) {

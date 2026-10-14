@@ -846,10 +846,6 @@ static std::string normalizeOverlayModelName(const std::string& name) {
 // Collect the names of usable image files under the media images directory,
 // relative to it, sorted, for the Image overlay effect's file picker.
 static void collectOverlayImageNames(Json::Value& result) {
-    static const char* const IMAGE_EXTENSIONS[] = {
-        ".bmp", ".gif", ".jpeg", ".jpg", ".png", ".ppm", ".tga", ".tif", ".tiff", ".webp"
-    };
-
     std::string dir = FPP_DIR_IMAGE("");
     std::vector<std::string> names;
 
@@ -859,19 +855,7 @@ static void collectOverlayImageNames(Json::Value& result) {
             return;
         }
         for (const auto& entry : std::filesystem::recursive_directory_iterator(dir)) {
-            if (!entry.is_regular_file()) {
-                continue;
-            }
-            std::string ext = entry.path().extension().string();
-            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-            bool isImage = false;
-            for (const char* known : IMAGE_EXTENSIONS) {
-                if (ext == known) {
-                    isImage = true;
-                    break;
-                }
-            }
-            if (!isImage) {
+            if (!IsOverlayImageFile(entry.path().string())) {
                 continue;
             }
             names.push_back(std::filesystem::relative(entry.path(), dir).string());

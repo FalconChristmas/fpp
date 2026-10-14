@@ -228,9 +228,16 @@ void PlaylistEntryImage::SetFileList(void) {
     }
 
     if (is_directory(m_imageFullPath)) {
-        for (auto& cp : recursive_directory_iterator(m_imageFullPath)) {
-            std::string entry = cp.path().string();
-            m_files.push_back(entry);
+        // Only the images: the walk also yields the folders inside this one
+        // and whatever else is kept there, and one of those picked at random
+        // failed to read, so that pass of the entry drew nothing.
+        std::error_code ec;
+        for (auto it = recursive_directory_iterator(m_imageFullPath, ec);
+             !ec && it != recursive_directory_iterator(); it.increment(ec)) {
+            std::string entry = it->path().string();
+            if (IsOverlayImageFile(entry)) {
+                m_files.push_back(entry);
+            }
         }
 
         LogDebug(VB_PLAYLIST, "%d images in directory\n", m_files.size());
@@ -503,9 +510,18 @@ bool PlaylistEntryImage::GetImageFromCache(std::string fileName, Image& image) {
  *
  */
 void PlaylistEntryImage::CacheImage(std::string fileName, Image& image) {
-    std::string cacheFile = GetCacheFileName(fileName);
-
-    image.write(cacheFile.c_str());
+    // The cache only saves a later pass the decode and scale, so nothing here
+    // may stop this one: a write that threw (no cache folder, a full disk)
+    // used to skip the conversion after it, and the entry drew nothing.
+    try {
+        std::error_code ec;
+        std::filesystem::create_directories(m_cacheDir, ec);
+        std::string cacheFile = GetCacheFileName(fileName);
+        image.write(cacheFile.c_str());
+    } catch (const std::exception& ex) {
+        LogWarn(VB_PLAYLIST, "Could not cache the scaled %s: %s\n", fileName.c_str(), ex.what());
+        return;
+    }
 
     CleanupCache();
 }
