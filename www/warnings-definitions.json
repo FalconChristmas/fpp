@@ -470,6 +470,62 @@
             "HelpTxt": "",
             "HelpPageType": "md",
             "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 59,
+            "Title": "FPPD Main Loop Stalled",
+            "HelpTxt": "fppd's main loop has stopped running, so the status shown may be out of date and MultiSync packets are not being processed. The fppd log names where it stalled. The warning clears on its own if the loop resumes; otherwise restart FPPD.",
+            "HelpPageType": "",
+            "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 62,
+            "Title": "Invalid Playlist Branch",
+            "HelpTxt": "A Branch entry in a playlist has an invalid start time, end time or iteration count, so it cannot decide which way to branch. Edit the playlist and correct the Branch entry.",
+            "HelpPageType": "",
+            "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 63,
+            "Title": "Frame Rate Too High For Pixel Strings",
+            "HelpTxt": "The sequence's frame rate is higher than the configured pixel strings can output, so frames will be dropped. Lower the sequence's frame rate, or put fewer pixels on the longest strings.",
+            "HelpPageType": "",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 64,
+            "Title": "Pixel Overlay Model Out Of Memory",
+            "HelpTxt": "FPP ran out of memory allocating pixel overlay model buffers, so some models will not display. Reduce the number or size of the overlay models.",
+            "HelpPageType": "",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 70,
+            "Title": "Script Outside Scripts Directory Refused",
+            "HelpTxt": "A playlist, command or event asked FPP to run a script by a path outside the scripts directory, which FPP refuses. Put the script in the scripts directory and refer to it by name.",
+            "HelpPageType": "",
+            "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 71,
+            "Title": "Video Output Has No Display",
+            "HelpTxt": "A video output has no monitor or projector detected: it is unplugged or switched off. Expected while a projector is turned off; the warning clears as soon as a display is detected.",
+            "HelpPageType": "",
+            "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 72,
+            "Title": "Network Input Port Unavailable",
+            "HelpTxt": "FPP could not open the UDP port for a network input, usually because another program is already using it, so that input is off. Stop the other program, then save the input configuration again or restart FPPD.",
+            "HelpPageType": "",
+            "WarningGroup": "Network_Warnings"
+        },
+        {
+            "id": 73,
+            "Title": "Configuration Entry Could Not Be Read",
+            "HelpTxt": "An entry in a configuration file has a value of the wrong type and was skipped; the message names the file. Correct or re-save that entry. The warning clears after an hour unless the entry is still found to be bad.",
+            "HelpPageType": "",
+            "WarningGroup": "FPPD_Warnings"
         }
     ]
 }
