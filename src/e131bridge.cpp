@@ -368,7 +368,11 @@ int CreateArtNetSocket(uint32_t sourceAddr, bool allowPortChange) {
         }
         // Output still works from here, but nothing reaches ArtNet input or
         // ArtPoll on 6454 until the socket is opened again.
-        warning = "ArtNet input is off and ArtNet output is sent from another port: could not open UDP port 6454 (" + why + ")";
+        // Nothing retries 6454 once a socket is open on another port, so this
+        // stays up until FPPD restarts (or the output interface changes) --
+        // and says so.
+        warning = "ArtNet input is off and ArtNet output is sent from another port: could not open UDP port 6454 (" + why +
+                  "). Restart FPPD once the port is free.";
     }
     artnetFailedAt = 0;
     SetArtNetPortWarning(warning);
