@@ -201,7 +201,7 @@ char* ProcessCommand(char* command, char* response) {
             WarningHolder::UpdateLogLevelWarnings();
         } else {
             snprintf(response, MAX_RESPONSE_SIZE - 1, "%d,%d,Error Updating Log Level,%s,%s,,,,,,,,,\n",
-                     getFPPmode(), COMMAND_FAILED, s, s2);
+                     getFPPmode(), COMMAND_FAILED, s ? s : "", s2 ? s2 : "");
         }
         /*
     } else if (!strcmp(CommandStr, "LogMask")) {

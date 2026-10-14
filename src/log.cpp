@@ -324,9 +324,10 @@ bool FPPLogger::SetLevel(std::string name, LogLevel level) {
     std::vector<FPPLoggerInstance*>::iterator it;
     Init(); /* Just incase */
 
+    // "All" sets every logger (fpp --log-level LEVEL).
     for (it = all.begin(); it != all.end(); it++) {
         FPPLoggerInstance* ptr = *it;
-        if (name == ptr->name) {
+        if (name == ptr->name || name == "All") {
             ptr->level = level;
             madeChange = true;
         }

@@ -190,24 +190,15 @@ int main(int argc, char* argv[]) {
             snprintf(command, sizeof(command), "R");
             SendCommand(command);
         }
-        // Set new log level - "fpp --log-level info"   "fpp --log-level debug"
-        else if ((strcmp(argv[1], "--log-level") == 0) && argc > 2) {
-            snprintf(command, sizeof(command), "LogLevel,%s,", argv[2]);
+        // Set the log level of every logger, or of one:
+        //   "fpp --log-level debug"   "fpp --log-level MediaOut debug"
+        // The socket command is LogLevel,LOGGER,LEVEL; this used to send
+        // LogLevel,LEVEL, which fppd always refused.
+        else if ((strcmp(argv[1], "--log-level") == 0) && argc == 3) {
+            snprintf(command, sizeof(command), "LogLevel,All,%s,", argv[2]);
             SendCommand(command);
-        }
-        // Set new log mask - "fpp --log-mask channel,mediaout"   "fpp --log-mask all"
-        else if ((strcmp(argv[1], "--log-mask") == 0) && argc > 2) {
-            char newMask[128];
-            strncpy(newMask, argv[2], sizeof(newMask));
-            newMask[sizeof(newMask) - 1] = '\0';
-
-            char* s = strchr(argv[2], ',');
-            while (s) {
-                *s = ';';
-                s = strchr(s + 1, ',');
-            }
-
-            snprintf(command, sizeof(command), "LogMask,%s,", newMask);
+        } else if ((strcmp(argv[1], "--log-level") == 0) && argc == 4) {
+            snprintf(command, sizeof(command), "LogLevel,%s,%s,", argv[2], argv[3]);
             SendCommand(command);
         }
         // Configure the given GPIO to the given mode
@@ -336,7 +327,9 @@ void Usage(char* appname) {
            "                                 SoftPWM  - Set to Software PWM.\n"
            "  -g GPIO MODE VALUE           - Set the given GPIO to VALUE applicable to the given MODEs defined above\n"
            "                                 VALUE is ignored for Input mode\n"
-           "  -FB                          - Query usable framebuffer devices\n\n\n"
+           "  -FB                          - Query usable framebuffer devices\n"
+           "  --log-level [LOGGER] LEVEL   - Set the log level of every logger, or of LOGGER\n"
+           "                                 (General, MediaOut, ...): error, warn, info, debug, excess\n\n\n"
            " The following commands are now deprecated and the FPP API should be used instead.  Eg http://<fpp hostname>/api/command/Stop Now\n"
            " Further information on the FPP API can be found at http://<fpp hostname>/api/\n\n"
            "  -V                           - Print version information\n"
