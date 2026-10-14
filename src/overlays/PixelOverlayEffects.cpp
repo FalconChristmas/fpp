@@ -332,8 +332,11 @@ public:
             RunningEffect(m),
             autoEnable(false) {
             color = PixelOverlayManager::mapColor(args[0]);
-            fadeIn = std::stol(args[1]);
-            fadeOut = std::stol(args[2]);
+            // Neither declares a default, so a caller that doesn't set them
+            // (the WLED API, a preset saved without them) sends "", which
+            // std::stol threw on.  Unset or unreadable is no fade.
+            fadeIn = (int)std::clamp(std::strtol(args[1].c_str(), nullptr, 10), 0L, 3600000L);
+            fadeOut = (int)std::clamp(std::strtol(args[2].c_str(), nullptr, 10), 0L, 3600000L);
 
             PixelOverlayState st(ae);
             if (st.getState() != PixelOverlayState::PixelState::Disabled) {

@@ -23,6 +23,7 @@
 #include <netinet/in.h>
 #include <openssl/sha.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -111,6 +112,26 @@ std::string sha1Base64(const std::string& in) {
     unsigned char hash[SHA_DIGEST_LENGTH];
     SHA1(reinterpret_cast<const unsigned char*>(in.data()), in.size(), hash);
     return base64Encode(hash, SHA_DIGEST_LENGTH);
+}
+
+// Readers for JSON that came off the network: a field of the wrong type is
+// treated as absent rather than thrown on (jsoncpp's as*() throw, and an
+// exception on a client thread terminates fppd).
+int jsonInt(const Json::Value& v, int dflt) {
+    if (v.isNumeric() && v.isConvertibleTo(Json::intValue)) {
+        return v.asInt();
+    }
+    return dflt;
+}
+
+bool jsonBool(const Json::Value& v, bool dflt) {
+    if (v.isBool()) {
+        return v.asBool();
+    }
+    if (v.isNumeric()) {
+        return v.asDouble() != 0;
+    }
+    return dflt;
 }
 
 void closeFd(int& fd) {
@@ -254,9 +275,8 @@ void WLEDAPIResponder::Cleanup() {
     if (m_socket >= 0) {
         closeFd(m_socket);
     }
-    for (auto* t : m_clientThreads) {
-        if (t->joinable()) t->join();
-        delete t;
+    for (auto& t : m_clientThreads) {
+        if (t->thread.joinable()) t->thread.join();
     }
     m_clientThreads.clear();
     {
@@ -272,27 +292,67 @@ void WLEDAPIResponder::AcceptLoop() {
             if (m_running) LogWarn(VB_GENERAL, "WLEDAPIResponder: accept failed: %s\n", FPPstrerror(errno));
             continue;
         }
+        // Writes to a client happen under m_clientsLock (the state
+        // broadcast), so one that stops reading must not block them for
+        // good: give up on it after a couple of seconds.
+        struct timeval tv = { 2, 0 };
+        ::setsockopt(client, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+
         // Hand off to a per-connection thread. WebSocket streams are
         // long-lived, but there will only ever be a handful of clients
         // (one mobile app at a time, maybe a couple), so a dedicated
         // thread per connection is simpler than juggling select/epoll.
+        std::vector<std::unique_ptr<ClientThread>> finished;
         {
             // Track every connection fd so Cleanup() can shutdown
             // them all. ClientLoop is responsible for removing its
             // fd when the connection ends naturally.
             std::unique_lock<std::mutex> lock(m_clientsLock);
             m_clientFds.push_back(client);
+            for (auto it = m_clientThreads.begin(); it != m_clientThreads.end();) {
+                if ((*it)->done) {
+                    finished.push_back(std::move(*it));
+                    it = m_clientThreads.erase(it);
+                } else {
+                    ++it;
+                }
+            }
         }
-        auto* t = new std::thread([this, client]() {
+        for (auto& f : finished) {
+            f->thread.join(); // done is its last act, so this is immediate
+        }
+        auto ct = std::make_unique<ClientThread>();
+        ClientThread* self = ct.get();
+        ct->thread = std::thread([this, client, self]() {
             SetThreadName("FPP-WLEDAPI-cli");
-            ClientLoop(client);
-            std::unique_lock<std::mutex> lock(m_clientsLock);
-            m_clientFds.erase(
-                std::remove(m_clientFds.begin(), m_clientFds.end(), client),
-                m_clientFds.end());
+            bool threw = false;
+            try {
+                ClientLoop(client);
+            } catch (const std::exception& ex) {
+                // A request is never worth the daemon; ClientLoop's own
+                // checks should keep anything from getting here.
+                LogWarn(VB_GENERAL, "WLEDAPIResponder: dropped a request: %s\n", ex.what());
+                threw = true;
+            }
+            {
+                std::unique_lock<std::mutex> lock(m_clientsLock);
+                m_clientFds.erase(
+                    std::remove(m_clientFds.begin(), m_clientFds.end(), client),
+                    m_clientFds.end());
+                m_wsClients.erase(
+                    std::remove(m_wsClients.begin(), m_wsClients.end(), client),
+                    m_wsClients.end());
+            }
+            if (threw) {
+                // ClientLoop closes it on every path that returns; out of
+                // the lists first, so no broadcast writes to a closed fd
+                int fd = client;
+                closeFd(fd);
+            }
+            self->done = true;
         });
         std::unique_lock<std::mutex> lock(m_clientsLock);
-        m_clientThreads.push_back(t);
+        m_clientThreads.push_back(std::move(ct));
     }
 }
 
@@ -460,7 +520,11 @@ void WLEDAPIResponder::RunWebSocket(int fd) {
         // Apply incoming WledState JSON, then echo back the new combined
         // {state, info} just like the real WLED node does.
         ApplyStatePost(msg);
-        if (!SendTextFrame(fd, BuildCombinedJson())) break;
+        // Under m_clientsLock, as NotifyStateChanged() writes: two writers on
+        // one socket would interleave their frames.
+        std::string reply = BuildCombinedJson();
+        std::unique_lock<std::mutex> lock(m_clientsLock);
+        if (!SendTextFrame(fd, reply)) break;
     }
 }
 
@@ -703,6 +767,10 @@ void WLEDAPIResponder::ApplyStatePost(const std::string& jsonBody) {
     const auto& nameList = PixelOverlayManager::INSTANCE.getModelNames();
     std::vector<std::string> modelNames(nameList.begin(), nameList.end());
 
+    if (!root.isObject()) {
+        return;
+    }
+
     auto applyOnOff = [&](const std::string& modelName, bool on) {
         auto m = PixelOverlayManager::INSTANCE.getModelShared(modelName);
         if (!m) return;
@@ -710,8 +778,9 @@ void WLEDAPIResponder::ApplyStatePost(const std::string& jsonBody) {
                                           : PixelOverlayState::Disabled));
     };
 
-    if (root.isMember("on") && !root.isMember("seg")) {
-        bool on = root["on"].asBool();
+    if (root.isMember("on") && !root.isMember("seg") &&
+        (root["on"].isBool() || root["on"].isNumeric())) {
+        bool on = jsonBool(root["on"], false);
         for (auto& n : modelNames) applyOnOff(n, on);
     }
 
@@ -720,11 +789,12 @@ void WLEDAPIResponder::ApplyStatePost(const std::string& jsonBody) {
         std::vector<std::string> effects(effList.begin(), effList.end());
 
         for (auto& seg : root["seg"]) {
-            int id = seg.get("id", 0).asInt();
+            if (!seg.isObject()) continue;
+            int id = jsonInt(seg["id"], seg.isMember("id") ? -1 : 0);
             if (id < 0 || id >= (int)modelNames.size()) continue;
             const std::string& modelName = modelNames[id];
 
-            if (seg.isMember("on")) applyOnOff(modelName, seg["on"].asBool());
+            if (seg["on"].isBool() || seg["on"].isNumeric()) applyOnOff(modelName, jsonBool(seg["on"], false));
 
             // Effect change via WLED `fx` index → look up name. We also
             // rebuild the args from the rest of the segment fields any
@@ -734,7 +804,7 @@ void WLEDAPIResponder::ApplyStatePost(const std::string& jsonBody) {
                                   seg.isMember("ix") || seg.isMember("bri") ||
                                   seg.isMember("col") || seg.isMember("pal");
             if (hasParamUpdate) {
-                int fxIdx = seg.get("fx", 0).asInt();
+                int fxIdx = jsonInt(seg["fx"], seg.isMember("fx") ? -1 : 0);
                 if (fxIdx < 0 || fxIdx >= (int)effects.size()) continue;
                 auto m = PixelOverlayManager::INSTANCE.getModelShared(modelName);
                 auto* eff = PixelOverlayEffect::GetPixelOverlayEffect(effects[fxIdx]);
@@ -768,7 +838,7 @@ std::vector<std::string> WLEDAPIResponder::BuildEffectArgs(PixelOverlayEffect* e
         if (!c.isArray() || c.size() < 3) return "";
         char buf[16];
         snprintf(buf, sizeof(buf), "#%02X%02X%02X",
-                 c[0].asInt() & 0xFF, c[1].asInt() & 0xFF, c[2].asInt() & 0xFF);
+                 jsonInt(c[0], 0) & 0xFF, jsonInt(c[1], 0) & 0xFF, jsonInt(c[2], 0) & 0xFF);
         return buf;
     };
 
@@ -790,7 +860,14 @@ std::vector<std::string> WLEDAPIResponder::BuildEffectArgs(PixelOverlayEffect* e
     // matching by arg name for the hand-written effects (Blink, Bars,
     // ColorFade, Text, and the FPP-native ones) whose arg names match
     // the WLED slider naming convention.
-    auto roles = static_cast<WLEDEffect*>(eff)->getArgRoles();
+    // Only the WLED effects are WLEDEffects: the FPP-native ones (Bars,
+    // Text, Color Fade, Image, Stop Effects) are not, and calling
+    // getArgRoles() through a static_cast on one of those jumped through a
+    // vtable slot it doesn't have.
+    std::vector<WLEDArgRole> roles;
+    if (auto* we = dynamic_cast<WLEDEffect*>(eff)) {
+        roles = we->getArgRoles();
+    }
 
     int idx = 0;
     for (const auto& a : eff->args) {
@@ -812,31 +889,31 @@ std::vector<std::string> WLEDAPIResponder::BuildEffectArgs(PixelOverlayEffect* e
         std::string v = a.defaultValue;
         switch (role) {
         case WLEDArgRole::Brightness:
-            v = rangeScaled(seg.get("bri", 255).asInt(), a.min, a.max);
+            v = rangeScaled(jsonInt(seg["bri"], 255), a.min, a.max);
             break;
         case WLEDArgRole::Speed:
-            v = rangeScaled(seg.get("sx", 128).asInt(), a.min, a.max);
+            v = rangeScaled(jsonInt(seg["sx"], 128), a.min, a.max);
             break;
         case WLEDArgRole::Intensity:
-            v = rangeScaled(seg.get("ix", 128).asInt(), a.min, a.max);
+            v = rangeScaled(jsonInt(seg["ix"], 128), a.min, a.max);
             break;
         case WLEDArgRole::Custom1:
-            if (seg.isMember("c1")) v = rangeScaled(seg["c1"].asInt(), a.min, a.max);
+            if (seg.isMember("c1")) v = rangeScaled(jsonInt(seg["c1"], 0), a.min, a.max);
             break;
         case WLEDArgRole::Custom2:
-            if (seg.isMember("c2")) v = rangeScaled(seg["c2"].asInt(), a.min, a.max);
+            if (seg.isMember("c2")) v = rangeScaled(jsonInt(seg["c2"], 0), a.min, a.max);
             break;
         case WLEDArgRole::Custom3:
-            if (seg.isMember("c3")) v = rangeScaled(seg["c3"].asInt(), a.min, a.max);
+            if (seg.isMember("c3")) v = rangeScaled(jsonInt(seg["c3"], 0), a.min, a.max);
             break;
         case WLEDArgRole::Check1:
-            if (seg.isMember("o1")) v = seg["o1"].asBool() ? "1" : "0";
+            if (seg.isMember("o1")) v = jsonBool(seg["o1"], false) ? "1" : "0";
             break;
         case WLEDArgRole::Check2:
-            if (seg.isMember("o2")) v = seg["o2"].asBool() ? "1" : "0";
+            if (seg.isMember("o2")) v = jsonBool(seg["o2"], false) ? "1" : "0";
             break;
         case WLEDArgRole::Check3:
-            if (seg.isMember("o3")) v = seg["o3"].asBool() ? "1" : "0";
+            if (seg.isMember("o3")) v = jsonBool(seg["o3"], false) ? "1" : "0";
             break;
         case WLEDArgRole::Color1: { auto c = colHex(0); if (!c.empty()) v = c; break; }
         case WLEDArgRole::Color2: { auto c = colHex(1); if (!c.empty()) v = c; break; }

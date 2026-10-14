@@ -12,6 +12,7 @@
  */
 
 #include <atomic>
+#include <memory>
 #include <mutex>
 #include "fpp-json-fwd.h"
 #include <string>
@@ -86,5 +87,13 @@ private:
     std::mutex m_clientsLock;
     std::vector<int> m_wsClients;   // upgraded WebSocket fds (subset of m_clientFds)
     std::vector<int> m_clientFds;   // every accepted connection fd, so Cleanup() can wake each one
-    std::vector<std::thread*> m_clientThreads;
+    // One per connection. AcceptLoop() joins the finished ones as new
+    // connections arrive: a finished thread that is never joined keeps its
+    // stack, and a WLED app polls every second or two for as long as it is
+    // open, so they used to pile up until no thread could be created.
+    struct ClientThread {
+        std::thread thread;
+        std::atomic<bool> done{ false };
+    };
+    std::vector<std::unique_ptr<ClientThread>> m_clientThreads;
 };
