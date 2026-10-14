@@ -315,7 +315,7 @@ void HTTPVirtualDisplayOutput::SelectThread(void) {
                 FD_SET(m_connList[i], &active_fd_set);
             }
 
-            m_connListChanged = 0;
+            m_connListChanged = false;
         }
 
         timeout.tv_sec = 1;
