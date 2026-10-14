@@ -725,11 +725,20 @@ FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName,
     // succeed while the old code keeps running. Give the new file a name of its
     // own to open, then unlink that name - the mapping keeps the inode alive, so
     // nothing is left behind on disk.
+    //
+    // An UNCHANGED file has the opposite problem once that has happened: the
+    // plain path is still bound to the first build ever loaded from it, so
+    // opening it by that name brings the original build back - a second reload
+    // after an upgrade silently reverted to the pre-upgrade code. Reopen it
+    // under the name it was last opened as, which the loader matches to the
+    // build that is actually current.
     std::string openPath = shlibName;
     struct stat sb;
     bool haveStat = (stat(shlibName.c_str(), &sb) == 0);
     auto known = mLoadedShlibInodes.find(shlibName);
-    if (haveStat && known != mLoadedShlibInodes.end() && known->second != sb.st_ino) {
+    if (haveStat && known != mLoadedShlibInodes.end() && known->second.inode == sb.st_ino) {
+        openPath = known->second.openedAs;
+    } else if (haveStat && known != mLoadedShlibInodes.end()) {
         static int generation = 0;
         std::string genPath = shlibName + ".gen" + std::to_string(++generation);
         unlink(genPath.c_str());
@@ -747,7 +756,7 @@ FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName,
         unlink(openPath.c_str());
     }
     if (handle != nullptr && haveStat) {
-        mLoadedShlibInodes[shlibName] = sb.st_ino;
+        mLoadedShlibInodes[shlibName] = { sb.st_ino, openPath };
     }
     if (handle == nullptr) {
         if (!FileExists(shlibName) && !FileExists(getFPPDDir("/" + shlibName))) {

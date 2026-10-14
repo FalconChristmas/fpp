@@ -147,9 +147,15 @@ private:
         bool supportsUnload = false;
     };
     std::map<std::string, LoadedLibrary> mPluginLibraries;
-    // Which file each plugin library path was loaded FROM, so a reload can tell
-    // that the file was replaced underneath it. See loadSHLIBPlugin().
-    std::map<std::string, ino_t> mLoadedShlibInodes;
+    // Which file each plugin library path was loaded FROM, and the name it was
+    // dlopen()ed under, so a reload can tell that the file was replaced
+    // underneath it and can reopen an unchanged one as the same object. See
+    // loadSHLIBPlugin().
+    struct LoadedShlib {
+        ino_t inode = 0;
+        std::string openedAs;
+    };
+    std::map<std::string, LoadedShlib> mLoadedShlibInodes;
 
     // Which epoll file descriptors each plugin registered, so unloadPlugin() can
     // withdraw them. Attributed by diffing the callback map around each plugin's
