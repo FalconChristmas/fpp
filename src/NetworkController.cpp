@@ -124,11 +124,11 @@ public:
         if (blocking) {
             std::string resp;
             bool ok = urlGet(url, resp);
-            handler(ok, resp);
+            deliver(handler, ok, resp);
             return;
         }
         CurlManager::INSTANCE.addGet(url, [this, handler](int rc, const std::string& resp) {
-            handler(rc != 0, resp);
+            deliver(handler, rc != 0, resp);
         });
     }
 
@@ -141,15 +141,32 @@ public:
         if (blocking) {
             std::string resp;
             bool ok = urlHelper("POST", url, body, resp, { "Content-Type: " + contentType });
-            handler(ok, resp);
+            deliver(handler, ok, resp);
             return;
         }
         CurlManager::INSTANCE.addPost(url, body, contentType, [this, handler](int rc, const std::string& resp) {
-            handler(rc != 0, resp);
+            deliver(handler, rc != 0, resp);
         });
     }
 
 private:
+    // Runs a detector's reply handler.  The handlers read what a device sent
+    // with jsoncpp, which throws on a field of the wrong type ({"HostName":{}}),
+    // and a throw reached neither matched() nor noMatch(): the walk stopped
+    // where it was, this object leaked, and the caller's discovery slot was
+    // never given back -- enough of those and discovery stopped for good.  A
+    // reply that can't be read is a no-match.  Every handler calls matched(),
+    // noMatch() or the next fetch() as its last act, so a throw always comes
+    // before the walk has moved on.
+    void deliver(const std::function<void(bool, const std::string&)>& handler, bool ok, const std::string& resp) {
+        try {
+            handler(ok, resp);
+        } catch (const std::exception& e) {
+            LogWarn(VB_SYNC, "Controller detection at %s: could not read the reply: %s\n", ip.c_str(), e.what());
+            noMatch();
+        }
+    }
+
     void finish(NetworkController* result) {
         // Move the callback out and destroy ourselves before running it: it may
         // well start the next piece of work, and it must not do that while a
