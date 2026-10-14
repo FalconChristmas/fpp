@@ -1796,6 +1796,18 @@ public:
         PixelOverlayEffect("Stop Effects") {
     }
     virtual bool apply(PixelOverlayModel* model, const std::string& autoEnable, const std::vector<std::string>& args) override {
+        // The deferred stop blanks an enabled model for one output pass before
+        // disabling it, so its lights don't hold the effect's last frame.  A
+        // disabled model is on no lights, and with nothing else active the
+        // output thread is idle, so that pass never came: the stop stayed
+        // queued on the model and wiped and disabled whatever next enabled it
+        // (a Fill minutes later).  Stop it here instead.
+        if (model->getState().getState() == PixelOverlayState::PixelState::Disabled) {
+            model->clearRunningEffect();
+            model->clearOverlayBuffer();
+            model->flushOverlayBuffer();
+            return true;
+        }
         model->setRunningEffect(new StopRunningEffect(model, "Stop Effects", autoEnable), 25);
         return true;
     }
