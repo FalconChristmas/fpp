@@ -612,6 +612,21 @@ static bool isTTF(const std::string& mainStr) {
 static bool isPFB(const std::string& mainStr) {
     return (mainStr.size() >= 4) && (mainStr.compare(mainStr.size() - 4, 4, ".pfb") == 0);
 }
+// The newest thing asked of a model wins.  A fill or clear redraws the whole
+// model, so it ends whatever effect is running there -- the effect would
+// otherwise overwrite it on its next update -- as the bulk pixel PUT already
+// did.  A state change or a single pixel doesn't redraw the model, so a
+// running effect carries on under it; but a pending Stop Effects, which blanks
+// and disables the model a frame later, is cancelled by either: a fill, a
+// state or a pixel sent after the stop is the newer instruction.
+static void retireEffectFor(PixelOverlayModel* m, bool onlyAStop) {
+    std::unique_lock<std::recursive_mutex> l(m->getRunningEffectMutex());
+    RunningEffect* e = m->getRunningEffect();
+    if (e && (!onlyAStop || e->name() == "Stop Effects")) {
+        m->setRunningEffect(nullptr, 25); // one no-op tick, then dropped
+    }
+}
+
 static void findFonts(const std::string& dir, std::map<std::string, std::string>& fonts) {
     DIR* dp;
     struct dirent* ep;
@@ -1257,8 +1272,8 @@ static HttpResponsePtr bulkPixelDataPut(const HttpRequestPtr& req, PixelOverlayM
     // moving image) would overwrite whatever we draw on its very next update;
     // the Image effect's static path evicts the running effect for exactly this
     // reason. ?stopEffect=false opts out for a caller deliberately drawing over
-    // one. Note this differs from the older .../pixel and .../fill endpoints,
-    // which leave a running effect alone.
+    // one. The .../fill endpoint does the same, and .../pixel cancels only a
+    // pending Stop Effects (see retireEffectFor()).
     if (stopEffectArg != "false" && stopEffectArg != "0") {
         std::unique_lock<std::recursive_mutex> l(m->getRunningEffectMutex());
         if (m->getRunningEffect()) {
@@ -1480,6 +1495,7 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
                     result["isLocked"] = m->getRunningEffect() != nullptr; // compatibility
                     result["effectRunning"] = m->getRunningEffect() != nullptr;
                 } else if (p4 == "clear") {
+                    retireEffectFor(m, false);
                     m->clear();
                     return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
                 } else {
@@ -1614,6 +1630,7 @@ HttpResponsePtr PixelOverlayManager::render_POST(const HttpRequestPtr& req) {
 }
 /**
  * Set an overlay model's active state. Body: `{"State": <int>}`.
+ * A running effect carries on; a pending Stop Effects is cancelled.
  *
  * @route PUT /api/overlays/model/{model}/state
  * @response 200 State updated.
@@ -1621,6 +1638,7 @@ HttpResponsePtr PixelOverlayManager::render_POST(const HttpRequestPtr& req) {
 
 /**
  * Fill an overlay model with a solid color. Body: `{"RGB":[r,g,b]}` or `{"Value":v}`.
+ * Ends any effect running on the model, which would otherwise draw over the fill.
  *
  * @route PUT /api/overlays/model/{model}/fill
  * @response 200 Model filled.
@@ -1628,6 +1646,7 @@ HttpResponsePtr PixelOverlayManager::render_POST(const HttpRequestPtr& req) {
 
 /**
  * Set a single pixel in an overlay model. Body: `{"X":x,"Y":y,"RGB":[r,g,b]}`.
+ * A running effect carries on (and draws over it); a pending Stop Effects is cancelled.
  *
  * @route PUT /api/overlays/model/{model}/pixel
  * @response 200 Pixel set.
@@ -1730,6 +1749,7 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                     Json::Value root;
                     if (LoadJsonFromString(std::string(getRequestContent(req)), root)) {
                         if (root.isMember("State")) {
+                            retireEffectFor(m, true);
                             m->setState(PixelOverlayState(root["State"].asInt()));
                             return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
                         } else {
@@ -1742,12 +1762,14 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                     Json::Value root;
                     if (LoadJsonFromString(std::string(getRequestContent(req)), root)) {
                         if (root.isMember("RGB")) {
+                            retireEffectFor(m, false);
                             m->fill(root["RGB"][0].asInt(),
                                     root["RGB"][1].asInt(),
                                     root["RGB"][2].asInt());
                             m->flushOverlayBuffer();
                             return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
                         } else if (root.isMember("Value")) {
+                            retireEffectFor(m, false);
                             m->fill(root["Value"].asInt(),
                                     root["Value"].asInt(),
                                     root["Value"].asInt());
@@ -1758,6 +1780,7 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                     Json::Value root;
                     if (LoadJsonFromString(std::string(getRequestContent(req)), root)) {
                         if (root.isMember("RGB")) {
+                            retireEffectFor(m, true);
                             m->setPixelValue(root["X"].asInt(),
                                              root["Y"].asInt(),
                                              root["RGB"][0].asInt(),
@@ -2035,6 +2058,7 @@ public:
             }
         }
         for (auto m : models) {
+            retireEffectFor(m, true);
             m->setState(PixelOverlayState(args[1]));
         }
         return std::make_unique<Command::Result>("Model State Set");
@@ -2062,6 +2086,7 @@ public:
             }
         }
         for (auto m : models) {
+            retireEffectFor(m, false);
             m->clear();
         }
         return std::make_unique<Command::Result>("Models Cleared");
@@ -2099,6 +2124,7 @@ public:
                 state = args[1];
                 color = args[2];
             }
+            retireEffectFor(m, false);
             if (state != "Don't Set") {
                 m->setState(PixelOverlayState(state));
             }

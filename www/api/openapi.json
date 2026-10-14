@@ -5063,7 +5063,7 @@
           "overlays"
         ],
         "summary": "overlays/model/{model}/fill",
-        "description": "Fill an overlay model with a solid color. Body: `{\"RGB\":[r,g,b]}` or `{\"Value\":v}`.",
+        "description": "Fill an overlay model with a solid color. Body: `{\"RGB\":[r,g,b]}` or `{\"Value\":v}`. Ends any effect running on the model, which would otherwise draw over the fill.",
         "responses": {
           "200": {
             "description": "Model filled."
@@ -5111,7 +5111,7 @@
           "overlays"
         ],
         "summary": "overlays/model/{model}/pixel",
-        "description": "Set a single pixel in an overlay model. Body: `{\"X\":x,\"Y\":y,\"RGB\":[r,g,b]}`.",
+        "description": "Set a single pixel in an overlay model. Body: `{\"X\":x,\"Y\":y,\"RGB\":[r,g,b]}`. A running effect carries on (and draws over it); a pending Stop Effects is cancelled.",
         "responses": {
           "200": {
             "description": "Pixel set."
@@ -5183,7 +5183,7 @@
           "overlays"
         ],
         "summary": "overlays/model/{model}/state",
-        "description": "Set an overlay model's active state. Body: `{\"State\": <int>}`.",
+        "description": "Set an overlay model's active state. Body: `{\"State\": <int>}`. A running effect carries on; a pending Stop Effects is cancelled.",
         "responses": {
           "200": {
             "description": "State updated."
@@ -8012,7 +8012,7 @@
           "remoteAction"
         ],
         "summary": "Proxy a command to remote FPP",
-        "description": "Proxies a named action to a remote FPP instance by IP address. Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`.",
+        "description": "Proxies a named action to a remote FPP instance by IP address. Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`, `updateLog` (the remote's running FPP/OS update, with its log tail).",
         "responses": {
           "400": {
             "description": "Invalid action",
