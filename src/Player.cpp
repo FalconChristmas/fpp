@@ -318,11 +318,19 @@ void Player::RecordForceStop(int forceStop) {
 }
 
 int Player::StopNow(int forceStop) {
+    if (InHandedBackStoppedPreset()) {
+        LogInfo(VB_PLAYLIST, "Ignoring Stop Now from the PLAYLIST_STOPPED preset of an inserted playlist: it has already stopped, and the playlist it interrupted carries on\n");
+        return 1;
+    }
     RecordForceStop(forceStop);
     return PlaylistSnapshot()->StopNow(forceStop);
 }
 
 int Player::StopGracefully(int forceStop, int afterCurrentLoop) {
+    if (InHandedBackStoppedPreset()) {
+        LogInfo(VB_PLAYLIST, "Ignoring Stop Gracefully from the PLAYLIST_STOPPED preset of an inserted playlist: it has already stopped, and the playlist it interrupted carries on\n");
+        return 1;
+    }
     RecordForceStop(forceStop);
     return PlaylistSnapshot()->StopGracefully(forceStop, afterCurrentLoop);
 }

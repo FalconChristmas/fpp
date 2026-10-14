@@ -30,6 +30,10 @@ enum PlaylistStatus {
     FPP_STATUS_PLAYLIST_PAUSED
 };
 
+// True while a PLAYLIST_STOPPED preset runs for an inserted playlist that has
+// handed the player back to the one it interrupted (see Playlist.cpp).
+bool InHandedBackStoppedPreset();
+
 class Playlist {
 public:
     Playlist(Playlist* parent = NULL);

@@ -203,6 +203,34 @@ static int s_pendingStartRepeat = 0;
 static int s_pendingStartScheduleEntry = 0;
 static int s_pendingStartEndPosition = 0;
 
+// Set while a PLAYLIST_STOPPED preset runs for an inserted playlist that has
+// handed the player back to the playlist it interrupted.  That playlist has
+// already stopped; the preset runs after the transition (above), by which
+// time the parent has resumed, so a Stop in it would stop the parent -- a
+// show went dark after every Remote Falcon request (#3114).  FPP 9 ran the
+// preset while the inserted playlist was still current, where a Stop did
+// nothing; Player's stops do nothing here for the same reason.
+static thread_local int tl_handedBackStoppedPreset = 0;
+
+bool InHandedBackStoppedPreset() {
+    return tl_handedBackStoppedPreset > 0;
+}
+
+namespace {
+struct HandedBackStoppedPresetScope {
+    bool on;
+    explicit HandedBackStoppedPresetScope(bool b) :
+        on(b) {
+        if (on)
+            tl_handedBackStoppedPreset++;
+    }
+    ~HandedBackStoppedPresetScope() {
+        if (on)
+            tl_handedBackStoppedPreset--;
+    }
+};
+}
+
 static void QueuePlaylistNotification(std::function<void()>&& fn) {
     if (tl_transitionDepth == 0) {
         // Not inside a transition (shouldn't happen — all queue sites are in
@@ -1857,28 +1885,6 @@ void Playlist::SetIdle(bool exit) {
         keywords["PLAYLIST_NAME"] = m_name;
     }
     Cleanup();
-    // Both deferred (see PlaylistTransitionGuard): a PLAYLIST_STOPPED preset
-    // that starts another playlist used to run here, mid-SetIdle — the rest
-    // of this function then continued tearing down state the preset's Play()
-    // had just replaced, and the trailing "idle" publishes lied about the
-    // actual (playing) state.  The "stop" callback snapshot keeps the OLD
-    // playlist's info, which is what the plugin is being told stopped.
-    if (!keywords.empty()) {
-        if (CommandManager::INSTANCE.HasPreset("PLAYLIST_STOPPED")) {
-            QueuePlaylistNotification([keywords]() mutable {
-                CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPED", keywords);
-            });
-        }
-    }
-
-    {
-        Json::Value info = GetInfo();
-        std::string sec = m_currentSectionStr;
-        int pos = m_sectionPosition;
-        QueuePlaylistNotification([info, sec, pos]() {
-            PluginManager::INSTANCE.playlistCallback(info, "stop", sec, pos);
-        });
-    }
 
     bool publishIdle = true;
     // Walk up past parents that are already condemned to PL_CLEANUPS — making
@@ -1893,7 +1899,33 @@ void Playlist::SetIdle(bool exit) {
             par = par->m_parent.load();
         }
     }
-    if (par && exit) {
+    bool handingBack = par && exit;
+
+    // Both deferred (see PlaylistTransitionGuard): a PLAYLIST_STOPPED preset
+    // that starts another playlist used to run here, mid-SetIdle — the rest
+    // of this function then continued tearing down state the preset's Play()
+    // had just replaced, and the trailing "idle" publishes lied about the
+    // actual (playing) state.  The "stop" callback snapshot keeps the OLD
+    // playlist's info, which is what the plugin is being told stopped.
+    if (!keywords.empty()) {
+        if (CommandManager::INSTANCE.HasPreset("PLAYLIST_STOPPED")) {
+            QueuePlaylistNotification([keywords, handingBack]() mutable {
+                HandedBackStoppedPresetScope scope(handingBack);
+                CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPED", keywords);
+            });
+        }
+    }
+
+    {
+        Json::Value info = GetInfo();
+        std::string sec = m_currentSectionStr;
+        int pos = m_sectionPosition;
+        QueuePlaylistNotification([info, sec, pos]() {
+            PluginManager::INSTANCE.playlistCallback(info, "stop", sec, pos);
+        });
+    }
+
+    if (handingBack) {
         // par is still owned: it is on the parent chain and not condemned, so
         // the player has never released it.
         Player::INSTANCE.SetCurrentPlaylist(par);
