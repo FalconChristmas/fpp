@@ -2253,8 +2253,6 @@ int GStreamerOutput::Start(int msTime) {
         int seekMs = msTime;
         bool videoPW = m_videoPipeWireRouting;
         int streamSlot = m_streamSlot;
-        // Whether a kmssink (primary or consumer) paces the video clock.
-        bool kmsPaces = m_kmssink || !m_directConnectorIds.empty();
 
         // The thread must NOT capture `this`: it may still be running (blocked in
         // gst_element_set_state / pipewiresink) when this GStreamerOutput is torn
@@ -2275,7 +2273,7 @@ int GStreamerOutput::Start(int msTime) {
         // from this thread, possibly after this output has been stopped.
         const uint64_t producerGeneration = VideoOutputManager::Instance().ProducerGeneration();
         std::thread([pipeline, volume, cancel, seekPending, seekMs, videoPW, targetVolume,
-                     streamSlot, kmsPaces, pwStream,
+                     streamSlot, pwStream,
                      producerGeneration]() {
             // Releases our owning refs on exit no matter which path we return on.
             //
@@ -2438,6 +2436,15 @@ int GStreamerOutput::Start(int msTime) {
                     return;
                 }
 
+                // The consumers read the slot's intervideo channel, which the
+                // pipeline has published since before PLAYING; none of them
+                // reads the PipeWire node attached below.  Start them now:
+                // waiting for that node (2 s for a sink that nothing links,
+                // so never prerolls) left the first seconds of every video
+                // out of the overlay and RTP members.
+                std::string videoNodeName = StreamSlotManager::GetVideoNodeName(streamSlot);
+                VideoOutputManager::Instance().StartConsumers(videoNodeName, producerGeneration);
+
                 GstElement* vtee = gst_bin_get_by_name(GST_BIN(pipeline), "vtee");
                 if (!vtee) {
                     LogWarn(VB_MEDIAOUT, "GStreamer: vtee not found, cannot attach pipewiresink\n");
@@ -2448,11 +2455,9 @@ int GStreamerOutput::Start(int msTime) {
                 if (!pwvideosink) {
                     LogWarn(VB_MEDIAOUT, "GStreamer: pipewiresink not available\n");
                     gst_object_unref(vtee);
-                    VideoOutputManager::Instance().StartConsumers("", producerGeneration);
                     return;
                 }
 
-                std::string videoNodeName = StreamSlotManager::GetVideoNodeName(streamSlot);
                 std::string videoNodeDesc = StreamSlotManager::GetVideoNodeDescription(streamSlot);
                 GstStructure* vprops = gst_structure_new("props",
                     "media.class", G_TYPE_STRING, "Stream/Output/Video",
@@ -2464,29 +2469,22 @@ int GStreamerOutput::Start(int msTime) {
                 g_object_set(pwvideosink, "stream-properties", vprops, NULL);
                 gst_structure_free(vprops);
 
-                if (kmsPaces) {
-                    g_object_set(pwvideosink, "async", FALSE, "sync", FALSE, NULL);
-                    LogDebug(VB_MEDIAOUT, "GStreamer: pipewiresink sync=FALSE (kmssink paces)\n");
-                } else {
-                    g_object_set(pwvideosink, "sync", TRUE, NULL);
-                    LogDebug(VB_MEDIAOUT, "GStreamer: pipewiresink sync=TRUE (no kmssink, pipewiresink paces)\n");
-                }
+                g_object_set(pwvideosink, "async", FALSE, "sync", FALSE, NULL);
+                // Nothing links this node, so it never negotiates a format and
+                // never leaves READY.  A bin waits for EOS from every element
+                // flagged as a sink, and it never posts one: playback ran past
+                // the end of the file until the "media reached end" watchdog
+                // stopped it, 5-10 s later.  It is a tap for the PipeWire
+                // graph, not an output, so the pipeline doesn't count it.
+                GST_OBJECT_FLAG_UNSET(pwvideosink, GST_ELEMENT_FLAG_SINK);
 
                 GstElement* pwQueue = gst_element_factory_make("queue", "vpwq");
-                if (kmsPaces) {
-                    g_object_set(pwQueue,
-                                 "leaky", 2,
-                                 "max-size-buffers", 2,
-                                 "max-size-bytes", 0,
-                                 "max-size-time", (guint64)0,
-                                 NULL);
-                } else {
-                    g_object_set(pwQueue,
-                                 "max-size-buffers", 3,
-                                 "max-size-bytes", 0,
-                                 "max-size-time", (guint64)0,
-                                 NULL);
-                }
+                g_object_set(pwQueue,
+                             "leaky", 2,
+                             "max-size-buffers", 2,
+                             "max-size-bytes", 0,
+                             "max-size-time", (guint64)0,
+                             NULL);
 
                 gst_bin_add_many(GST_BIN(pipeline), pwQueue, pwvideosink, NULL);
                 if (!gst_element_link(pwQueue, pwvideosink)) {
@@ -2527,21 +2525,7 @@ int GStreamerOutput::Start(int msTime) {
                 LogDebug(VB_MEDIAOUT, "GStreamer: pipewiresink attached to vtee (node=%s)\n",
                         videoNodeName.c_str());
 
-                std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
                 gst_object_unref(vtee);
-
-                // Stop() may have run during the 200ms wait above and set the
-                // cancellation token — if so the producer pipeline is already
-                // being (or has been) torn down, and starting consumers now
-                // would strand their DRM planes/CMA against a dead producer
-                // that nothing will ever stop them against.  Bail out.
-                if (cancel->load()) {
-                    LogDebug(VB_MEDIAOUT, "GStreamer: Start() cancelled during deferred attach, skipping StartConsumers\n");
-                    return;
-                }
-
-                VideoOutputManager::Instance().StartConsumers(videoNodeName, producerGeneration);
             }
             // Owning refs on pipeline/volume released by refGuard on scope exit.
         }).detach();
