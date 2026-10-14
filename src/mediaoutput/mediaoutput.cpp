@@ -258,19 +258,25 @@ static std::string readCommandOutput(const std::string& cmd) {
     return out;
 }
 
+// A playback volume control, and whether amixer reports a dB scale for it.
+struct PlaybackVolumeControl {
+    std::string name;
+    bool hasDbScale = false;
+};
+
 // The playback volume controls on a card, cached: enumerating them costs an
 // amixer per control, and setVolume() is called repeatedly while a slider moves.
 // Most FPP capes are bare I2S DACs and return an empty list, so this is normally
 // one amixer at startup and nothing thereafter.
-static const std::vector<std::string>& playbackVolumeControls(int card) {
+static const std::vector<PlaybackVolumeControl>& playbackVolumeControls(int card) {
     static std::mutex cacheLock;
-    static std::map<int, std::vector<std::string>> cache;
+    static std::map<int, std::vector<PlaybackVolumeControl>> cache;
     std::unique_lock<std::mutex> lk(cacheLock);
     auto it = cache.find(card);
     if (it != cache.end()) {
         return it->second;
     }
-    std::vector<std::string> ctls;
+    std::vector<PlaybackVolumeControl> ctls;
     std::string list = readCommandOutput("amixer -c " + std::to_string(card) + " scontrols 2>/dev/null");
     std::istringstream iss(list);
     std::string line;
@@ -291,10 +297,11 @@ static const std::vector<std::string>& playbackVolumeControls(int card) {
         // Only controls that actually carry a playback volume.  A card like a
         // PCM512x cape also exposes switches and tuning enums (Deemphasis, DSP
         // Program, Auto Mute, Overclock...) that must not be written.
-        if (readCommandOutput("amixer -c " + std::to_string(card) + " sget \"" + name +
-                              "\" 2>/dev/null")
-                .find("pvolume") != std::string::npos) {
-            ctls.push_back(name);
+        std::string info = readCommandOutput("amixer -c " + std::to_string(card) + " sget \"" +
+                                             name + "\" 2>/dev/null");
+        if (info.find("pvolume") != std::string::npos) {
+            // A control with a dB scale prints its level as "[0.00dB]".
+            ctls.push_back({ name, info.find("dB]") != std::string::npos });
         }
     }
     return cache.emplace(card, std::move(ctls)).first->second;
@@ -421,15 +428,19 @@ static std::set<std::string> nonFppOutputSinkNames() {
 //
 // bcm2835 keeps the old behaviour deliberately: its mixer reaches +4 dB and FPP
 // wants that headroom available above the software stage.
+//
+// Whether to write 0dB or 100% is decided from the control's own description,
+// not from amixer's exit status: fppd sets SA_NOCLDWAIT, so system() cannot
+// collect the child and returns -1 even when amixer succeeded.  Falling back on
+// that "failure" wrote 100% straight after 0dB, which put a PCM512x's Digital
+// control back at +24 dB on every volume change.
 static void pinCardPlaybackToUnity(int card, bool useMax) {
-    for (const std::string& name : playbackVolumeControls(card)) {
-        const std::string base = "amixer -c " + std::to_string(card) + " sset \"" + name + "\" ";
-        if (useMax) {
-            system((base + "100% >/dev/null 2>&1").c_str());
-        } else if (system((base + "0dB >/dev/null 2>&1").c_str()) != 0) {
-            // No dB scale on this control; 100% is the top of a plain range.
-            system((base + "100% >/dev/null 2>&1").c_str());
-        }
+    for (const PlaybackVolumeControl& ctl : playbackVolumeControls(card)) {
+        // No dB scale: 100% is the top of a plain range.
+        const char* level = (useMax || !ctl.hasDbScale) ? "100%" : "0dB";
+        const std::string cmd = "amixer -c " + std::to_string(card) + " sset \"" + ctl.name + "\" " +
+                                level + " >/dev/null 2>&1";
+        system(cmd.c_str());
     }
 }
 #else
