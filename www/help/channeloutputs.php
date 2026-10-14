@@ -126,6 +126,8 @@
 </center>
 </p>
 
+<p><b>Generic UDP</b> — Sends each frame's channel data to an IP address and port as one UDP packet laid out by the <b>Data</b> tokens, separated by spaces: <code>{data}</code> is the channel data; <code>{S1}</code> the channel count as one byte; <code>{S2}</code> the channel count as two bytes, low byte first, and <code>{s2}</code> high byte first; <code>{P1}</code>, <code>{P2}</code> and <code>{p2}</code> the same for the pixel count (channels / 3); <code>0x41</code> or <code>#41</code> a byte given in hex.</p>
+
 <p><b>GPIO</b> — The GPIO output can drive a single GPIO pin high or low based on a channel's value being zero (low) or non-zero (high). This may be used to drive output relays or trigger other attached devices.</p>
 <p>
 <center>

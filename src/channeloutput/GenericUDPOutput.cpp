@@ -94,13 +94,17 @@ public:
                     } else if (token == "{S}" || token == "{s}" || token == "{S1}" || token == "{s1}") {
                         bytes.push_back(channelCount);
                     } else if (token == "{S2}") {
-                        addBigEndian(bytes, channelCount);
-                    } else if (token == "{s2}") {
+                        // Upper case is low byte first and lower case high
+                        // byte first, as these have always gone on the wire;
+                        // the helpers they called were named the other way
+                        // round.
                         addLittleEndian(bytes, channelCount);
+                    } else if (token == "{s2}") {
+                        addBigEndian(bytes, channelCount);
                     } else if (token == "{P2}") {
-                        addBigEndian(bytes, channelCount / 3);
-                    } else if (token == "{p2}") {
                         addLittleEndian(bytes, channelCount / 3);
+                    } else if (token == "{p2}") {
+                        addBigEndian(bytes, channelCount / 3);
                     } else {
                         LogWarn(VB_CHANNELOUT, "Unknown token -%s-\n", token.c_str());
                         for (int x = 0; x < token.size(); x++) {
@@ -141,16 +145,12 @@ public:
     }
 
     void addLittleEndian(std::vector<uint8_t>& bytes, int v) {
-        int a = v & 0xFF;
-        int b = (v >> 8) & 0xFF;
-        bytes.push_back(b);
-        bytes.push_back(a);
+        bytes.push_back(v & 0xFF);
+        bytes.push_back((v >> 8) & 0xFF);
     }
     void addBigEndian(std::vector<uint8_t>& bytes, int v) {
-        int a = v & 0xFF;
-        int b = (v >> 8) & 0xFF;
-        bytes.push_back(a);
-        bytes.push_back(b);
+        bytes.push_back((v >> 8) & 0xFF);
+        bytes.push_back(v & 0xFF);
     }
     virtual bool IsPingable() override {
         return !isMulticast && !isBroadcast;

@@ -740,7 +740,7 @@
             result += "IP: <input type='text' name='address' class='address' value='" + EscapeHtmlAttr(config.address) + "'>&nbsp;";
             result += "Port: <input type='number' name='port' min='1' max='65536' class='port' value='" + config.port + "'>&nbsp;";
             result += "Data: <input type='text' class='tokens' name='tokens' value='" + EscapeHtmlAttr(config.tokens) + "' size='50' maxLength='256'><br>";
-            result += "Data tokens include {data} for channel data, {S1} or {S2} for onebyte or two bit channel count, or 0x00 for hex byte";
+            result += "Data tokens: {data} for the channel data; {S1} channel count (one byte); {S2} channel count, two bytes low byte first, or {s2} high byte first; {P1}, {P2} and {p2} the same for the pixel count (channels / 3); 0x00 or #00 for a hex byte";
             return result;
         }
 
