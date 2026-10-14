@@ -85,6 +85,7 @@ public:
             &NetworkController::DetectSanDevicesController,
             &NetworkController::DetectESPixelStickController,
             &NetworkController::DetectBaldrickController,
+            &NetworkController::DetectJBoardsController,
             &NetworkController::DetectAlphaPixController,
             &NetworkController::DetectHinksPixController,
             &NetworkController::DetectDIYLEDExpressController,
@@ -561,6 +562,66 @@ void NetworkController::DetectBaldrickController(Detection* st) {
             // constructor seeds hostname with the IP.
             st->matched();
         });
+    });
+}
+
+void NetworkController::DetectJBoardsController(Detection* st) {
+    LogExcess(VB_SYNC, "Checking if %s is a JBoards controller\n", st->ip.c_str());
+
+    if (!contains(st->html, "JBoards")) {
+        st->noMatch();
+        return;
+    }
+
+    LogExcess(VB_SYNC, "%s is potentially a JBoards controller, checking further\n", st->ip.c_str());
+
+    st->fetch(buildHttpURL(st->ip, "/api/system/summary"), [this, st](bool ok, const std::string& resp) {
+        if (!ok) {
+            st->noMatch();
+            return;
+        }
+        Json::Value v;
+        LoadJsonFromString(resp, v, JsonRoot::Object);
+        if (v.get("product", "").asString() != "JBoards") {
+            st->noMatch();
+            return;
+        }
+
+        vendor = "JBoards";
+        vendorURL = "https://pixelpropshop.com";
+        typeId = kSysTypeJBoards;
+
+        typeStr = v.get("model", "").asString();
+        if (typeStr.empty()) {
+            typeStr = "JBoards";
+        }
+        hostname = v.get("hostname", "").asString();
+        if (hostname.empty()) {
+            hostname = ip;
+        }
+
+        std::string id = v.get("uuid", "").asString();
+        if (!id.empty()) {
+            uuid = id;
+        }
+        std::string r = v.get("channelRanges", "").asString();
+        if (!r.empty()) {
+            ranges = r;
+        }
+
+        systemMode = (v.get("syncRole", "").asString() == "remote") ? REMOTE_MODE : PLAYER_MODE;
+        sendingMultiSync = v.get("sendingSync", false).asBool();
+
+        version = v.get("firmwareVersion", "").asString();
+        std::size_t verDot = version.find(".");
+        if (verDot != std::string::npos) {
+            majorVersion = atoi(version.substr(0, verDot).c_str());
+            std::size_t verDot2 = version.find(".", verDot + 1);
+            minorVersion = atoi(version.substr(verDot + 1, verDot2 - (verDot + 1)).c_str());
+        }
+
+        DumpControllerInfo();
+        st->matched();
     });
 }
 

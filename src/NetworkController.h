@@ -87,6 +87,7 @@ private:
     void DetectDIYLEDExpressController(Detection* st);
     void DetectWLEDController(Detection* st);
     void DetectTwinklyController(Detection* st);
+    void DetectJBoardsController(Detection* st);
     void DetectExperienceController(Detection* st);
     void DetectFPP(Detection* st);
 
