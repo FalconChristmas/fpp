@@ -1659,19 +1659,6 @@ int Playlist::Process(void) {
                 m_loop++;
                 LogDebug(VB_PLAYLIST, "mainPlaylist loop now: %d\n", m_loop);
                 if ((m_repeat) && (!m_loopCount || (m_loop < m_loopCount))) {
-                    if ((m_loadStartPos > 0) && (m_loadEndPos < 0)) {
-                        // This pass started part-way in (Start Playlist At
-                        // Item, or a resume after an fppd restart), so Load()
-                        // trimmed off every entry before that point.  The
-                        // repeat is of the whole playlist: reload it untrimmed,
-                        // or the earlier entries never play again.
-                        int trimmedAt = m_loadStartPos;
-                        m_loadStartPos = -1;
-                        if (!ReloadPlaylist()) {
-                            LogWarn(VB_PLAYLIST, "Could not reload the full playlist to repeat it; repeating from entry %d\n", trimmedAt + 1);
-                            m_loadStartPos = trimmedAt;
-                        }
-                    }
                     ReloadIfNeeded();
 
                     if (m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) {
@@ -2128,8 +2115,8 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
         std::string fullfilename = FPP_DIR_PLAYLIST("/" + filename + ".json");
 
         // Only a fully loaded copy can be jumped within: SetPosition() indexes
-        // the loaded entries, and a copy Load() trimmed (started at an item,
-        // or given an end) no longer lines up with the playlist's positions.
+        // the loaded entries, and a copy Load() trimmed (given a start and
+        // end item) no longer lines up with the playlist's positions.
         bool loadedWhole = ((m_loadStartPos == -1) || (m_loadStartPos == 0)) && (m_loadEndPos < 0);
         if ((m_filename == fullfilename) && (repeat == m_repeat) && m_currentSection && position >= 0 &&
             loadedWhole && (endPosition < 0)) {
@@ -2184,6 +2171,18 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
         tmpEndPos = -1;
     }
 
+    // Only a range (a start AND an end, as Insert Playlist sends to play one
+    // item) trims the loaded copy.  A start alone -- Start Playlist At Item, or
+    // the resume after an fppd restart -- loads every entry and starts part-way
+    // in.  Trimming those left the status page, and every later reload of the
+    // file, showing only the entries from the start point on: a show resumed
+    // after a restart came back with part of its playlist missing.
+    int startRow = -1;
+    if ((tmpStartPos > 0) && (tmpEndPos < 0)) {
+        startRow = tmpStartPos;
+        tmpStartPos = -1;
+    }
+
     m_loadStartPos = tmpStartPos;
     m_loadEndPos = tmpEndPos;
 
@@ -2197,11 +2196,29 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
         tmpStartPos = 0;
     }
 
-    if ((tmpStartPos == 0 || tmpStartPos == -1) && (m_random > 0)) {
-        RandomizeMainPlaylist();
+    int p = tmpStartPos;
+    if (startRow > 0) {
+        // A row past the end maps to the end, which Start() wraps to the start.
+        p = FileRowToPosition(startRow);
     }
 
-    int p = tmpStartPos;
+    if ((tmpStartPos == 0 || tmpStartPos == -1) && (m_random > 0)) {
+        // Starting part-way into a shuffled main playlist: play the requested
+        // entry first, then the rest in a fresh shuffle.  Its row says nothing
+        // about which of the others have played.
+        PlaylistEntryBase* first = nullptr;
+        int mainPos = p - (int)m_leadIn.size();
+        if ((startRow > 0) && (mainPos >= 0) && (mainPos < (int)m_mainPlaylist.size())) {
+            first = m_mainPlaylist[mainPos];
+        }
+        RandomizeMainPlaylist();
+        if (first) {
+            m_mainPlaylist.erase(std::find(m_mainPlaylist.begin(), m_mainPlaylist.end(), first));
+            m_mainPlaylist.insert(m_mainPlaylist.begin(), first);
+            p = m_leadIn.size();
+        }
+    }
+
     if (p == -2) {
         // random
         int l = m_mainPlaylist.size();
@@ -2620,10 +2637,10 @@ int Playlist::GetPosition(void) {
  * here too.
  *
  * The position is counted in the playlist FILE, which is what the restarted
- * fppd loads.  A playlist that was itself started part-way through (a resume,
- * or Start Playlist At Item) was loaded with every entry before that point
- * trimmed off (see Load()), so GetPosition() counts from the trimmed start;
- * add the trimmed entries back or a second restart resumes too early.
+ * fppd loads.  A playlist that was itself given a start and end item (an
+ * Insert Playlist range) was loaded with every entry before the start trimmed
+ * off (see Load()), so GetPosition() counts from the trimmed start; add the
+ * trimmed entries back or a second restart resumes too early.
  *
  * A position past the end is wrapped back to the start by Start().
  */
