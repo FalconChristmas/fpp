@@ -12,6 +12,7 @@
  */
 
 #include <mutex>
+#include <string>
 #include "fpp-json.h"
 
 class LocaleHolder {
@@ -23,5 +24,8 @@ public:
 private:
     static std::mutex localeLock;
     static Json::Value locale;
+    // What the cached locale was built from: the Locale setting and the
+    // user holidays file's size and modification time.
+    static std::string localeKey;
 };
 

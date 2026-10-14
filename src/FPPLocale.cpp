@@ -14,6 +14,8 @@
 
 #include "fpp-json.h"
 
+#include <sys/stat.h>
+
 #include "common.h"
 #include "settings.h"
 #include "commands/Commands.h"
@@ -22,17 +24,42 @@
 
 Json::Value LocaleHolder::locale;
 std::mutex LocaleHolder::localeLock;
+std::string LocaleHolder::localeKey;
+
+// The cache is rebuilt whenever what it was built from changes, whoever
+// changed it: the holiday editor writes user-holidays.json through the
+// config file API, and Locale can change from the UI, an upload or a
+// restored backup.  Only clearing it on request left fppd scheduling with the
+// old holidays until it restarted.
+static std::string LocaleSourceKey(const std::string& localeName, const std::string& userHolidaysFile) {
+    std::string key = localeName;
+    struct stat st;
+    if (stat(userHolidaysFile.c_str(), &st) == 0) {
+#ifdef PLATFORM_OSX
+        const struct timespec& mt = st.st_mtimespec;
+#else
+        const struct timespec& mt = st.st_mtim;
+#endif
+        key += "|" + std::to_string((long long)st.st_size) + "|" +
+               std::to_string((long long)mt.tv_sec) + "." + std::to_string((long long)mt.tv_nsec);
+    }
+    return key;
+}
 
 Json::Value LocaleHolder::GetLocale() {
     std::unique_lock<std::mutex> lock(localeLock);
-
-    if (locale.size())
-        return locale;
 
     std::string localeName = getSetting("Locale");
 
     if (localeName == "")
         localeName = "Global";
+
+    std::string userHolidaysFile = FPP_DIR_CONFIG("/user-holidays.json");
+    std::string key = LocaleSourceKey(localeName, userHolidaysFile);
+    if (locale.size() && key == localeKey)
+        return locale;
+    locale.clear();
+    localeKey = key;
 
     // From fppd's own tree, not /opt/fpp: an install anywhere else (macOS, a
     // test tree) found no locale file, so every holiday name in the schedule
@@ -47,7 +74,6 @@ Json::Value LocaleHolder::GetLocale() {
 
     if (result) {
         // Load user-defined holidays and merge them with locale holidays
-        std::string userHolidaysFile = FPP_DIR_CONFIG("/user-holidays.json");
         if (FileExists(userHolidaysFile)) {
             Json::Value userHolidays;
             if (LoadJsonFromFile(userHolidaysFile, userHolidays, JsonRoot::Array)) {
@@ -75,6 +101,7 @@ Json::Value LocaleHolder::GetLocale() {
 void LocaleHolder::ClearCache() {
     std::unique_lock<std::mutex> lock(localeLock);
     locale.clear();
+    localeKey.clear();
 }
 
 /**********************************************************************/
