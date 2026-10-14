@@ -16,6 +16,8 @@
 
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <poll.h>
+#include <signal.h>
 #include <cstring>
 #include <dirent.h>
 #include <dlfcn.h>
@@ -618,16 +620,34 @@ FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name, bool 
     }
 
     if (pid == 0) {
+        // Its own process group, so a timeout below can end the script and
+        // anything it started.
+        setpgid(0, 0);
         dup2(output_pipe[1], STDOUT_FILENO);
         close(output_pipe[1]);
+        close(output_pipe[0]);
         execl(eventScript.c_str(), "eventScript", filename.c_str(), "--list", NULL);
-
-        LogErr(VB_PLUGIN, "We failed to exec our callbacks query!  %s  %s %s --list\n", eventScript.c_str(), "eventScript", filename.c_str());
         _exit(EXIT_FAILURE);
     } else {
         close(output_pipe[1]);
 
+        // This runs at startup, so a plugin whose script never answers (stuck
+        // on a network, say) would keep fppd from ever starting. Give it a
+        // while, then give up on the plugin.
+        constexpr int LIST_TIMEOUT_MS = 10000;
+        long long deadline = GetMonotonicTimeMS() + LIST_TIMEOUT_MS;
+        bool timedOut = false;
         while (true) {
+            long long left = deadline - GetMonotonicTimeMS();
+            struct pollfd pfd = { output_pipe[0], POLLIN, 0 };
+            int pr = left > 0 ? poll(&pfd, 1, (int)left) : 0;
+            if (pr < 0 && errno == EINTR) {
+                continue;
+            }
+            if (pr <= 0) {
+                timedOut = (pr == 0);
+                break;
+            }
             bytes_read = read(output_pipe[0], readbuffer, sizeof(readbuffer) - 1);
 
             if (bytes_read <= 0)
@@ -635,6 +655,16 @@ FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name, bool 
 
             readbuffer[bytes_read] = '\0';
             callback_list += readbuffer;
+        }
+        close(output_pipe[0]);
+
+        if (timedOut) {
+            kill(-pid, SIGKILL);
+            waitpid(pid, NULL, 0);
+            LogErr(VB_PLUGIN, "Plugin %s: %s --list did not answer within %d seconds; not loading it\n",
+                   name.c_str(), filename.c_str(), LIST_TIMEOUT_MS / 1000);
+            WarningHolder::AddWarning(5, "Could not load plugin " + name);
+            return nullptr;
         }
 
         TrimWhiteSpace(callback_list);
