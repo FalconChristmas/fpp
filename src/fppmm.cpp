@@ -14,7 +14,6 @@
 
 #include "fpp-json.h"
 
-#include <sys/mman.h>
 #include <sys/stat.h>
 #include <cstring>
 #include <errno.h>
@@ -156,7 +155,12 @@ void SetBlockActive(const std::string& blockName, int active) {
 }
 
 /*
- * Copy data in specified file to specified block in channel data memory map
+ * Copy the raw data in a file into a model's overlay buffer.
+ *
+ * Through fppd's API, as the other options here are.  This used to map the
+ * model's shared overlay buffer directly, sized for 3 bytes a pixel: an RGBW
+ * model's data overran the mapping, and a model whose buffer fppd hadn't made
+ * yet got an empty one created, and SIGBUS on the first write to it.
  */
 void CopyFileToMappedBlock(const std::string& blockName, char* inputFilename) {
     std::string url = "http://localhost:32322/overlays/model/" + blockName;
@@ -167,43 +171,38 @@ void CopyFileToMappedBlock(const std::string& blockName, char* inputFilename) {
     }
 
     Json::Value v = LoadJsonFromString(response);
+    if (!v.isObject() || !v.isMember("Name")) {
+        printf("ERROR: Could not find model %s\n", blockName.c_str());
+        return;
+    }
+    int width = v["width"].asInt();
+    int height = v["height"].asInt();
+    int bytesPerPixel = (width > 0 && height > 0) ? v["ChannelCount"].asInt() / (width * height) : 0;
+    if (bytesPerPixel != 1 && bytesPerPixel != 3 && bytesPerPixel != 4) {
+        printf("ERROR: Model %s is not a 1, 3 or 4 channel per pixel model\n", blockName.c_str());
+        return;
+    }
 
     if (!FileExists(inputFilename)) {
         printf("ERROR: Input file %s does not exist!\n", inputFilename);
         return;
     }
 
-    int fd = open(inputFilename, O_RDONLY);
-
-    if (fd < 0) {
-        printf("ERROR: Unable to open input file %s: %s",
-               inputFilename, FPPstrerror(errno));
+    std::string data = GetFileContents(inputFilename);
+    size_t expected = (size_t)width * height * bytesPerPixel;
+    if (data.size() < expected) {
+        printf("WARNING: Expected %zu bytes of data but only read %zu.\n", expected, data.size());
         return;
     }
+    data.resize(expected);
 
-    const int channelCount = v["ChannelCount"].asInt();
-    int width = v["width"].asInt();
-    int height = v["height"].asInt();
-
-    std::vector<char> data(channelCount);
-    int r = read(fd, &data[0], channelCount);
-    if (r != channelCount) {
-        printf("WARNING: Expected %d bytes of data but only read %d.\n",
-               channelCount, r);
-    } else {
-        std::string overlayBuferName = "/FPP-Model-Overlay-Buffer-" + blockName;
-        mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
-        int f = shm_open(overlayBuferName.c_str(), O_RDWR | O_CREAT, mode);
-        int size = width * height * 3 + 12;
-        uint8_t* overlayBufferData = (uint8_t*)mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, f, 0);
-        close(f);
-        memcpy(&overlayBufferData[12], &data[0], channelCount);
-        //data is copied, mark the overlay buffer as dirty so it gets copied into the data buffer
-        uint32_t* flags = (uint32_t*)&overlayBufferData[8];
-        *flags |= 1;
-        munmap(overlayBufferData, size);
-        printf("Data imported\n");
+    const char* fmt = bytesPerPixel == 4 ? "rgbw" : (bytesPerPixel == 1 ? "mono" : "rgb");
+    url += std::string("/data?target=overlay&stopEffect=false&fmt=") + fmt;
+    if (!urlPut(url, data, response)) {
+        printf("ERROR: Could not send the data to model %s\n", blockName.c_str());
+        return;
     }
+    printf("Response: %s\n", response.c_str());
 }
 
 /*
