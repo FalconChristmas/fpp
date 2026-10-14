@@ -251,9 +251,12 @@ CRGBPalette16 &Segment::loadPalette(CRGBPalette16 &targetPalette, uint8_t pal) {
       } else if (pal < 13) { // palette 6 - 12, fastled palettes
         targetPalette = *fastledPalettes[pal-6];
       } else {
-        byte tcp[72];
-        memcpy_P(tcp, (const byte*)gGradientPalettes[pal-13], 72);
-        targetPalette.loadDynamicGradientPalette(tcp);
+        // Straight from the table: the gradients are ordinary memory here, and
+        // loadDynamicGradientPalette() stops at the entry indexed 255 that ends
+        // each one.  WLED copied a fixed 72 bytes out of flash first, which on
+        // an ESP reads harmlessly past a short gradient; here it read past the
+        // end of the array (Fire, Fire 2012's default, among others).
+        targetPalette.loadDynamicGradientPalette((const byte*)gGradientPalettes[pal-13]);
       }
       break;
   }
