@@ -23,6 +23,7 @@
 #include <string>
 #include <unistd.h>
 #include <utility>
+#include <vector>
 
 #include "common.h"
 #include "log.h"
@@ -133,6 +134,7 @@ public:
 
 private:
     bool setSettingLocked(const std::string& key, const std::string& value, bool logInfo);
+    void notifyListeners(const std::map<std::string, std::string>& changed);
     void LoadSettingsInfo();
 
     Json::Value settingsInfo;
@@ -274,16 +276,32 @@ void SettingsConfig::setSetting(const std::string& key, const std::string& value
             PutFileContents(FPP_FILE_SETTINGS, contents);
         }
         lock.unlock();
-
-        // Notify listeners about the setting change
+        notifyListeners({ { key, value } });
+    }
+}
+// Listeners run with no settings lock held.  They take their own locks and
+// read settings back (MultiSync holds its lock and calls getSetting, which
+// takes settingsMutex), and settingsMutex is held while settingsListenersMutex
+// is taken, so calling them under either lock closes a cycle.  It also lets a
+// listener register or unregister listeners.
+void SettingsConfig::notifyListeners(const std::map<std::string, std::string>& changed) {
+    std::vector<std::pair<SettingListener, const std::string*>> toCall;
+    {
         std::shared_lock<std::shared_mutex> listenersLock(settingsListenersMutex);
-        if (settingsListeners.find(key) != settingsListeners.end()) {
-            for (const auto& listener : settingsListeners[key]) {
-                LogDebug(VB_SETTING, "Notifying listener %s for setting %s with value '%s'\n",
-                         listener.id.c_str(), key.c_str(), value.c_str());
-                listener.callback(value);
+        for (const auto& change : changed) {
+            auto it = settingsListeners.find(change.first);
+            if (it != settingsListeners.end()) {
+                for (const auto& listener : it->second) {
+                    toCall.emplace_back(listener, &change.first);
+                }
             }
         }
+    }
+    for (const auto& [listener, key] : toCall) {
+        const std::string& value = changed.at(*key);
+        LogDebug(VB_SETTING, "Notifying listener %s for setting %s with value '%s'\n",
+                 listener.id.c_str(), key->c_str(), value.c_str());
+        listener.callback(value);
     }
 }
 bool SettingsConfig::setSettingLocked(const std::string& key, const std::string& value, bool logInfo) {
@@ -476,16 +494,7 @@ int SettingsConfig::LoadSettings(const std::string& base, bool logChanges) {
         return -1;
     }
     lock.unlock();
-    if (!changed.empty()) {
-        std::shared_lock<std::shared_mutex> listenersLock(settingsListenersMutex);
-        for (const auto& change : changed) {
-            if (settingsListeners.find(change.first) != settingsListeners.end()) {
-                for (const auto& listener : settingsListeners[change.first]) {
-                    listener.callback(change.second);
-                }
-            }
-        }
-    }
+    notifyListeners(changed);
     return 0;
 }
 
