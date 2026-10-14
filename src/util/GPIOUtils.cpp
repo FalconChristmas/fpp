@@ -302,8 +302,12 @@ int GPIODCapabilities::configPin(const std::string& mode,
         }
     }
 #endif
-#endif
+    // -1 when the line could not be requested (the chip open above already
+    // says so): a failed request used to report success, warning and all.
+    return isAcquired() ? 0 : -1;
+#else
     return 0;
+#endif
 }
 void GPIODCapabilities::releaseGPIOD() const {
 #ifdef HASGPIOD

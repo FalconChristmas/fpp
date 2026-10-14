@@ -365,6 +365,7 @@ int BBBPinCapabilities::configPin(const std::string& m,
                                   bool directionOut,
                                   const std::string& desc) const {
     std::string mode = m;
+    int rc = 0;  // the gpio request's result; pinmux-only modes can't fail here
     bool enableI2C = mode == "i2c";
     if (i2cBus >= 0 && !enableI2C) {
         enableOledScreen(i2cBus, false);
@@ -435,7 +436,7 @@ int BBBPinCapabilities::configPin(const std::string& m,
 #endif
     } else {
         // gpio
-        GPIODCapabilities::configPin(m, directionOut, desc);
+        rc = GPIODCapabilities::configPin(m, directionOut, desc);
     }
 
     if (FileExists("/usr/bin/pinctrl") && pinName[0] == 'P' && pinName[2] == '_') {
@@ -461,7 +462,7 @@ int BBBPinCapabilities::configPin(const std::string& m,
     if (i2cBus >= 0 && enableI2C) {
         enableOledScreen(i2cBus, true);
     }
-    return 0;
+    return rc;
 }
 
 bool BBBPinCapabilities::setupPWM(int maxValue) const {
