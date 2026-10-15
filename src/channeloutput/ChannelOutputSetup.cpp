@@ -652,7 +652,8 @@ int InitializeChannelOutputs(void) {
  * Set the channel output frame counter to a specific value
  */
 void SetChannelOutputFrameNumber(int frameNumber) {
-    channelOutputFrame = frameNumber;
+    // Every frame; a value nothing else is published through.
+    channelOutputFrame.store(frameNumber, std::memory_order_relaxed);
 }
 
 /*
@@ -682,9 +683,12 @@ std::set<std::string> GetOutputTypes() {
     }
     return ret;
 }
+// The two per-frame walks load each link with acquire rather than seq_cst:
+// one barrier instead of two per node on an AM335x, and still enough to see
+// the fields of a node addChannelOutput() linked in.
 int PrepareChannelData(char* channelData) {
     outputProcessors.ProcessData((unsigned char*)channelData);
-    for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
+    for (auto inst = channelOutputs.load(std::memory_order_acquire); inst != nullptr; inst = inst->next.load(std::memory_order_acquire)) {
         auto output = inst->output;
         if (output) {
             output->PrepData((unsigned char*)channelData);
@@ -707,7 +711,7 @@ int SendChannelData(const char* channelData) {
         HexDump(buf, &channelData[minimumNeededChannel], 16, VB_CHANNELDATA);
     }
 
-    for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
+    for (auto inst = channelOutputs.load(std::memory_order_acquire); inst != nullptr; inst = inst->next.load(std::memory_order_acquire)) {
         auto output = inst->output;
         if (output) {
             output->SendData((unsigned char*)(channelData + inst->startChannel));

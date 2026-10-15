@@ -67,7 +67,7 @@ public:
     int SequenceIsPaused(void);
 
     bool hasBridgeData();
-    bool isDataProcessed() const { return m_dataProcessed; }
+    bool isDataProcessed() const { return m_dataProcessed.load(std::memory_order_acquire); }
     void setDataNotProcessed() { m_dataProcessed = false; }
 
     // Advanced by the output thread every frame and read by status, the
@@ -252,6 +252,18 @@ public:
     void queuePreset(const std::string& preset, std::map<std::string, std::string>&& keywords);
 
     void ReadFramesLoop();
+
+private:
+    // Whether m_seqFile and m_triggers are set, so the per-frame checks
+    // (IsSequenceRunning(), FireFrameTriggers()) need no lock: an
+    // AtomicSharedPtr load is a mutex and a refcount round trip, about 0.5 us
+    // on an AM335x, and the output thread asks several times a frame.  Both
+    // pointers are stored only through setSeqFile()/setTriggers(), which keep
+    // these in step.  Declared last so no existing member moves.
+    std::atomic<bool> m_haveSeqFile{ false };
+    std::atomic<bool> m_haveTriggers{ false };
+    void setSeqFile(std::shared_ptr<FSEQFile> f);
+    void setTriggers(std::shared_ptr<Triggers> t);
 };
 
 extern Sequence* sequence;

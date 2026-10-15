@@ -255,8 +255,15 @@ public:
 
     std::vector<int> sockets;
     // read/written by workers and the frame thread without a common lock;
-    // atomic so the errCount >= 3 re-ping trigger can't act on a torn value
+    // atomic so the errCount >= 3 re-ping trigger can't act on a torn value.
+    // A counter only, so relaxed throughout.
     std::atomic_int errCount;
+    // Runs on every successful send, per destination per frame: skip the
+    // store (two barriers on an AM335x) when there is nothing to clear.
+    void clearErrors() {
+        if (errCount.load(std::memory_order_relaxed) != 0)
+            errCount.store(0, std::memory_order_relaxed);
+    }
     int curSocket;
     bool preventClose = false;
     // kernel (fq) pacing is active on these sockets; drain waits are the
@@ -277,7 +284,9 @@ public:
     // Pacing-budget accounting, read and reset by CheckPacingBudget().
     // pacedRate is the rate (bytes/sec) the kernel clocks this destination at,
     // 0 while it isn't paced.  framesBehind counts frames that were folded
-    // into a still-queued item (late) or whose send came up short.
+    // into a still-queued item (late) or whose send came up short.  Counted
+    // per destination per frame, so the increments are relaxed: statistics,
+    // nothing published through them.
     std::atomic_uint pacedRate{ 0 };
     std::atomic<uint64_t> bytesQueued{ 0 };
     std::atomic_uint framesQueued{ 0 };
@@ -903,7 +912,7 @@ void UDPOutput::PrepData(unsigned char* channelData) {
         }
         skippedOutputs.clear();
         for (auto a : outputs) {
-            if (a->valid && a->active) {
+            if (a->valid.load(std::memory_order_relaxed) && a->active) {
                 if (!busy.empty()) {
                     auto k = outputKeys.find(a);
                     if (k != outputKeys.end() &&
@@ -931,7 +940,7 @@ void UDPOutput::PrepData(unsigned char* channelData) {
         }
         // add any sync packets or whatever that are needed
         for (auto a : outputs) {
-            if (a->valid && a->active && !skippedOutputs.count(a)) {
+            if (a->valid.load(std::memory_order_relaxed) && a->active && !skippedOutputs.count(a)) {
                 a->PostPrepareData(channelData, messages);
             }
         }
@@ -1209,7 +1218,7 @@ void UDPOutput::BackgroundOutputWork() {
 
             long diff = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
             if (outputCount != i.msgs.size())
-                i.socketInfo->framesBehind++;
+                i.socketInfo->framesBehind.fetch_add(1, std::memory_order_relaxed);
             if ((outputCount != i.msgs.size()) || (diff > 100)) {
                 i.socketInfo->errCount++;
 
@@ -1221,7 +1230,7 @@ void UDPOutput::BackgroundOutputWork() {
                            errno,
                            FPPstrerror(errno));
             } else {
-                i.socketInfo->errCount = 0;
+                i.socketInfo->clearErrors();
             }
 
             // only count work for the current frame; if SendData timed out and
@@ -1307,10 +1316,10 @@ int UDPOutput::SendData(unsigned char* channelData) {
                 // message the dedup logic left out of this frame but not that one.
                 auto pending = std::find_if(workQueue.begin(), workQueue.end(),
                                             [&](const WorkItem& w) { return w.id == msgs.first; });
-                socketInfo->bytesQueued += MessageBytes(msgs.second);
-                socketInfo->framesQueued++;
+                socketInfo->bytesQueued.fetch_add(MessageBytes(msgs.second), std::memory_order_relaxed);
+                socketInfo->framesQueued.fetch_add(1, std::memory_order_relaxed);
                 if (pending != workQueue.end()) {
-                    socketInfo->framesBehind++;
+                    socketInfo->framesBehind.fetch_add(1, std::memory_order_relaxed);
                     std::set<std::pair<const void*, const void*>> have;
                     for (auto& m : pending->msgs)
                         have.emplace(m.msg_hdr.msg_iov, m.msg_hdr.msg_name);
@@ -1420,13 +1429,13 @@ int UDPOutput::SendData(unsigned char* channelData) {
                                        errno,
                                        FPPstrerror(errno));
                         } else {
-                            socketInfo->errCount = 0;
+                            socketInfo->clearErrors();
                         }
                     }
-                    if (socketInfo->errCount >= 3) {
+                    if (socketInfo->errCount.load(std::memory_order_relaxed) >= 3) {
                         // we'll ping the controllers and rebuild the valid message list, this could take time
                         PingControllers(false);
-                        socketInfo->errCount = 0;
+                        socketInfo->clearErrors();
                     }
                 }
             }
@@ -1440,10 +1449,10 @@ int UDPOutput::SendData(unsigned char* channelData) {
             int outputCount = SendMessages(msgs.first, socketInfo.get(), msgs.second);
             auto t2 = clock.now();
             long diff = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
-            socketInfo->bytesQueued += MessageBytes(msgs.second);
-            socketInfo->framesQueued++;
+            socketInfo->bytesQueued.fetch_add(MessageBytes(msgs.second), std::memory_order_relaxed);
+            socketInfo->framesQueued.fetch_add(1, std::memory_order_relaxed);
             if (outputCount != msgs.second.size())
-                socketInfo->framesBehind++;
+                socketInfo->framesBehind.fetch_add(1, std::memory_order_relaxed);
             if ((outputCount != msgs.second.size()) || (diff > 100)) {
                 socketInfo->errCount++;
 
@@ -1455,13 +1464,13 @@ int UDPOutput::SendData(unsigned char* channelData) {
                            errno,
                            FPPstrerror(errno));
 
-                if (socketInfo->errCount >= 3) {
+                if (socketInfo->errCount.load(std::memory_order_relaxed) >= 3) {
                     // we'll ping the controllers and rebuild the valid message list, this could take time
                     PingControllers(false);
-                    socketInfo->errCount = 0;
+                    socketInfo->clearErrors();
                 }
             } else {
-                socketInfo->errCount = 0;
+                socketInfo->clearErrors();
             }
         }
     }

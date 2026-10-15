@@ -392,7 +392,9 @@ static void holdOutputBriefly() {
 }
 
 bool PixelOverlayManager::hasActiveOverlays() {
-    return numActive > 0 || s_holdOutput > 0;
+    // Asked a few times a frame and every main-loop pass.  A hint only:
+    // doOverlays() takes activeModelsLock for the models themselves.
+    return numActive.load(std::memory_order_relaxed) > 0 || s_holdOutput.load(std::memory_order_relaxed) > 0;
 }
 // Caller holds activeModelsLock.
 void PixelOverlayManager::updateActiveCountLocked() {

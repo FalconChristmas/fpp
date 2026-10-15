@@ -523,7 +523,9 @@ static std::vector<std::pair<uint32_t, uint32_t>> pendingBridgeRanges;
 
 inline void SetBridgeData(uint8_t* data, int startChannel, int len, long long packetTime) {
     last_packet_time = packetTime;
-    bridgeDataReceived = true;
+    // Every received packet.  Only status reads it ("bridging"), and nothing
+    // is published through it, so it needs no barriers.
+    bridgeDataReceived.store(true, std::memory_order_relaxed);
     if (sequence->WriteBridgeData(data, startChannel, len)) {
         pendingBridgeRanges.emplace_back(startChannel, len);
     }
@@ -1659,5 +1661,5 @@ void Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks) {
 }
 
 bool HasBridgeData() {
-    return bridgeDataReceived;
+    return bridgeDataReceived.load(std::memory_order_relaxed);
 }

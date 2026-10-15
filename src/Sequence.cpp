@@ -128,7 +128,7 @@ Sequence::~Sequence() {
     }
     SetLastFrameData(nullptr);
     clearCaches();
-    m_seqFile.store(nullptr);
+    setSeqFile(nullptr);
     if (m_bridgeData) {
         free(m_bridgeData);
     }
@@ -366,7 +366,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     std::unique_lock<std::mutex> lock(frameCacheLock);
     if (std::shared_ptr<FSEQFile> old = m_seqFile.load()) {
         std::string fn = old->getFilename();
-        m_seqFile.store(nullptr);
+        setSeqFile(nullptr);
         ForgetTriggers();
         checkForReplacementFile(fn);
     }
@@ -463,7 +463,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
         }
     }
 
-    m_seqFile.store(nullptr);
+    setSeqFile(nullptr);
     FSEQFile* seqFile = FSEQFile::openFSEQFile(tmpFilename);
     if (seqFile == NULL) {
         LogErr(VB_SEQUENCE, "Error opening sequence file: %s. FSEQFile::openFSEQFile returned NULL\n",
@@ -495,7 +495,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 
     // start reading frames
     lock.lock();
-    m_seqFile.store(std::shared_ptr<FSEQFile>(seqFile));
+    setSeqFile(std::shared_ptr<FSEQFile>(seqFile));
     lock.unlock();
     m_seqStarting = 1; // beyond header, read loop can start reading frames
     frameLoadSignal.notify_all();
@@ -594,7 +594,7 @@ void Sequence::ProcessVariableHeaders() {
     }
     if (!trig->commandPresets.empty() || !trig->effectsOn.empty() || !trig->effectsOff.empty()) {
         m_lastTriggeredFrame = -1;
-        m_triggers.store(trig);
+        setTriggers(trig);
     }
 }
 
@@ -603,7 +603,7 @@ void Sequence::ProcessVariableHeaders() {
 // output thread when a sequence reaches its end, and StopEffect() can blank
 // the outputs.
 void Sequence::ForgetTriggers() {
-    m_triggers.store(nullptr);
+    setTriggers(nullptr);
     m_lastTriggeredFrame = -1;
     std::vector<std::string> running;
     {
@@ -753,8 +753,31 @@ std::string Sequence::GetSeqFilenameCopy() const {
     return m_seqFilename;
 }
 
+// The flag is set after its pointer is stored and cleared before the pointer
+// is dropped, so a reader that sees it set finds the pointer set too, as far
+// as any unlocked check can promise that.
+void Sequence::setSeqFile(std::shared_ptr<FSEQFile> f) {
+    if (f) {
+        m_seqFile.store(std::move(f));
+        m_haveSeqFile.store(true, std::memory_order_release);
+    } else {
+        m_haveSeqFile.store(false, std::memory_order_release);
+        m_seqFile.store(nullptr);
+    }
+}
+
+void Sequence::setTriggers(std::shared_ptr<Triggers> t) {
+    if (t) {
+        m_triggers.store(std::move(t));
+        m_haveTriggers.store(true, std::memory_order_release);
+    } else {
+        m_haveTriggers.store(false, std::memory_order_release);
+        m_triggers.store(nullptr);
+    }
+}
+
 int Sequence::IsSequenceRunning(void) {
-    if (m_seqFile.load() && !m_seqStarting)
+    if (m_haveSeqFile.load(std::memory_order_acquire) && !m_seqStarting.load(std::memory_order_acquire))
         return 1;
 
     return 0;
@@ -815,7 +838,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
         return;
     }
 
-    if ((IsSequenceRunning()) && seqFlag(m_seqPaused).load()) {
+    if ((IsSequenceRunning()) && seqFlag(m_seqPaused).load(std::memory_order_relaxed)) {
         if (seqFlag(m_seqSingleStep).exchange(0)) {
             // one frame forward: read it as if playing
         } else if (seqFlag(m_seqSingleStepBack).exchange(0)) {
@@ -864,9 +887,12 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
 
             data->readFrame((uint8_t*)m_seqData, FPPD_MAX_CHANNELS);
             SetChannelOutputFrameNumber(data->frame);
-            m_seqMSElapsed = data->frame * m_seqStepTime;
-            m_seqMSRemaining = m_seqMSDuration - m_seqMSElapsed;
-            m_dataProcessed = false;
+            // Values for status and the playlist; nothing is published
+            // through them, so no ordering is needed.
+            const int elapsed = data->frame * m_seqStepTime;
+            m_seqMSElapsed.store(elapsed, std::memory_order_relaxed);
+            m_seqMSRemaining.store(m_seqMSDuration.load(std::memory_order_relaxed) - elapsed, std::memory_order_relaxed);
+            m_dataProcessed.store(false, std::memory_order_release);
         } else if (m_doneRead) {
             lock.unlock();
             m_seqMSElapsed = m_seqMSDuration.load();
@@ -916,7 +942,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
 }
 
 void Sequence::ProcessSequenceData(int ms) {
-    if (m_dataProcessed) {
+    if (m_dataProcessed.load(std::memory_order_acquire)) {
         // we shouldn't normally be reprocessing the same data, so
         // if we are then see if we can start with a pristine copy
         std::unique_lock<std::mutex> lock(frameCacheLock);
@@ -1006,7 +1032,7 @@ void Sequence::ProcessSequenceData(int ms) {
     PluginManager::INSTANCE.modifyChannelData(ms, (uint8_t*)m_seqData);
 
     PrepareChannelData(m_seqData);
-    m_dataProcessed = true;
+    m_dataProcessed.store(true, std::memory_order_release);
 }
 
 void Sequence::FireFrameTriggers() {
@@ -1019,6 +1045,9 @@ void Sequence::FireFrameTriggers() {
     // frame's triggers once, only once the sequence has started, including the
     // frames a small jump skipped; a large jump is a seek (a remote joining
     // mid-song) and fires only the frame it lands on.
+    // Most files have no triggers: skip the locked load on every frame.
+    if (!m_haveTriggers.load(std::memory_order_acquire))
+        return;
     std::shared_ptr<Triggers> trig = m_triggers.load();
     int64_t frame = m_lastFrameNumber.load();
     if (!trig || (frame < 0) || m_seqStarting)
@@ -1123,7 +1152,7 @@ void Sequence::CloseSequenceFile(void) {
     if (std::shared_ptr<FSEQFile> old = m_seqFile.load()) {
         std::string fn = old->getFilename();
         std::unique_lock<std::mutex> fclock(frameCacheLock);
-        m_seqFile.store(nullptr);
+        setSeqFile(nullptr);
         fclock.unlock();
         checkForReplacementFile(fn);
 

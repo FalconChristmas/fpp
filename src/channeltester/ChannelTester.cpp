@@ -600,7 +600,8 @@ void ChannelTester::OverlayTestData(char* channelData) {
  *
  */
 int ChannelTester::Testing(void) {
-    return m_testPattern ? 1 : 0;
+    // Only whether it is set: the pattern itself is used under m_testLock.
+    return m_testPattern.load(std::memory_order_relaxed) ? 1 : 0;
 }
 
 /*

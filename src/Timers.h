@@ -36,9 +36,12 @@ public:
     ~Timers();
 
     void fireTimers() {
-        if (hasTimers) {
+        // Every main-loop pass.  Relaxed: a stale value only fires late by a
+        // pass or calls in early, and fireTimersInternal() works from the
+        // list under the lock either way.
+        if (hasTimers.load(std::memory_order_relaxed)) {
             long long t = GetMonotonicTimeMS();
-            if (t >= nextTimer) {
+            if (t >= nextTimer.load(std::memory_order_relaxed)) {
                 fireTimersInternal(t);
             }
         }

@@ -82,18 +82,22 @@ std::condition_variable outputThreadSatusCond;
 static std::atomic<double> mediaClockRate{ 1.0 };
 static std::atomic<long long> mediaClockRateAt{ 0 };
 
+// Relaxed: two independent values read once a frame.  A reader that pairs a
+// new time with the previous rate uses a rate one report old for one frame.
+// On an AM335x each seq_cst access is a pair of barriers (~0.1 us), and the
+// 64-bit and double ones are ldrexd/strexd as well.
 void SetMediaClockRate(double rate) {
-    mediaClockRate = rate;
-    mediaClockRateAt = GetMonotonicTimeMicros();
+    mediaClockRate.store(rate, std::memory_order_relaxed);
+    mediaClockRateAt.store(GetMonotonicTimeMicros(), std::memory_order_relaxed);
 }
 
 static double CurrentMediaClockRate(long long now) {
     // A remote follows the master's frame numbers, not its own media.
-    if (now - mediaClockRateAt.load() > 1000000 || !sequence->IsSequenceRunning() ||
+    if (now - mediaClockRateAt.load(std::memory_order_relaxed) > 1000000 || !sequence->IsSequenceRunning() ||
         getFPPmode() == REMOTE_MODE) {
         return 1.0;
     }
-    return mediaClockRate.load();
+    return mediaClockRate.load(std::memory_order_relaxed);
 }
 
 /* prototypes for functions below */
@@ -103,11 +107,13 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent);
  * Check to see if the channel output thread is running
  */
 int ChannelOutputThreadIsRunning(void) {
-    return ThreadIsRunning;
+    // Acquire, not relaxed: callers wait on this for the thread's startup
+    // (StartingOutput()) to have happened.  The main loop asks every pass.
+    return ThreadIsRunning.load(std::memory_order_acquire);
 }
 
 int ChannelOutputThreadIsEnabled() {
-    return OutputFrames;
+    return OutputFrames.load(std::memory_order_relaxed);
 }
 
 /*
@@ -156,9 +162,9 @@ static inline bool forceOutput() {
            GStreamerOutput::IsOverlayingVideo() ||
 #endif
            ChannelTester::INSTANCE.Testing() ||
-           alwaysTransmit ||
+           alwaysTransmit.load(std::memory_order_relaxed) ||
            sequence->hasBridgeData() ||
-           outputForced;
+           outputForced.load(std::memory_order_relaxed);
 }
 
 /*
@@ -223,10 +229,16 @@ void RunChannelOutputThread(void) {
 
     bool doForceOutput = false;
     uint64_t forceSeen = outputForceRequests.load();
-    while (RunThread) {
+    // Every frame reads these shared values several times.  They are plain
+    // values (frame number, rate, delay, on/off flags) that publish no other
+    // data, so the per-frame reads below are relaxed: each seq_cst access is a
+    // pair of barriers on an AM335x, about 0.1 us apiece.
+    constexpr auto relaxed = std::memory_order_relaxed;
+    while (RunThread.load(relaxed)) {
         startTime = GetMonotonicTimeMicros();
         // A forced frame asked for before this pass's send is that send.
-        uint64_t forceNow = outputForceRequests.load();
+        // Acquire: the request is made after the state it wants sent.
+        uint64_t forceNow = outputForceRequests.load(std::memory_order_acquire);
         if (forceNow != forceSeen) {
             forceSeen = forceNow;
             doForceOutput = true;
@@ -235,24 +247,25 @@ void RunChannelOutputThread(void) {
             // Per-frame string copy under an uncontended leaf lock: the name is
             // short and the only writers are the open/close paths, so this costs
             // far less than the sync packet it feeds.
-            multiSync->SendSeqSyncPacket(sequence->GetSeqFilenameCopy(), channelOutputFrame, 1.0 * ((float)channelOutputFrame) / RefreshRate);
+            const unsigned long frame = channelOutputFrame.load(relaxed);
+            multiSync->SendSeqSyncPacket(sequence->GetSeqFilenameCopy(), frame, 1.0 * ((float)frame) / RefreshRate.load(relaxed));
         }
 
         doForceOutput |= forceOutput();
-        if (OutputFrames) {
+        if (OutputFrames.load(relaxed)) {
             if (!sequence->isDataProcessed() || sequence->hasBridgeData()) {
                 // first time through or immediately after sequence load, the data might not be
                 // processed yet, need to do it
-                int msTime = 1000.0 * channelOutputFrame / RefreshRate;
+                int msTime = 1000.0 * channelOutputFrame.load(relaxed) / RefreshRate.load(relaxed);
                 if (!sequence->IsSequenceRunning()) {
-                    msTime = mediaElapsedSeconds * 1000;
+                    msTime = mediaElapsedSeconds.load(relaxed) * 1000;
                 }
                 sequence->ProcessSequenceData(msTime);
             }
             if (getFPPmode() == REMOTE_MODE && !doForceOutput) {
                 // Sleep about 1 seconds waiting for the master
                 int loops = 0;
-                while ((MasterFramesPlayed < 0) && (loops < 1000) && !sequence->hasBridgeData()) {
+                while ((MasterFramesPlayed.load(relaxed) < 0) && (loops < 1000) && !sequence->hasBridgeData()) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(1));
                     loops++;
                 }
@@ -266,17 +279,21 @@ void RunChannelOutputThread(void) {
             if (sequence->IsSequenceRunning()) {
                 // Taken in one step: media sync sets it from another thread,
                 // and a skip it set between a read and a reset was lost.
-                if (int skip = FrameSkip.exchange(0)) {
-                    sequence->SeekSequenceFile(channelOutputFrame + skip + 1);
+                // The plain load first keeps the exchange (a locked RMW)
+                // off the frames with nothing to skip, which is nearly all.
+                if (FrameSkip.load(relaxed) != 0) {
+                    if (int skip = FrameSkip.exchange(0, relaxed)) {
+                        sequence->SeekSequenceFile(channelOutputFrame.load(relaxed) + skip + 1);
+                    }
                 }
             }
             sequence->ReadSequenceData();
         }
         readTime = GetMonotonicTimeMicros();
 
-        int msTime = 1000.0 * channelOutputFrame / RefreshRate;
+        int msTime = 1000.0 * channelOutputFrame.load(relaxed) / RefreshRate.load(relaxed);
         if (!sequence->IsSequenceRunning()) {
-            msTime = mediaElapsedSeconds * 1000;
+            msTime = mediaElapsedSeconds.load(relaxed) * 1000;
         }
         if (!sequence->hasBridgeData()) {
             // if bridging, we'll have to process later
@@ -321,8 +338,8 @@ void RunChannelOutputThread(void) {
         if (sequence->IsSequenceRunning() || doForceOutput || sequence->hasBridgeData()) {
             // REMOTE mode keeps looping a few extra times before we blank
             onceMore = (getFPPmode() == REMOTE_MODE) ? 20 : 1;
-            int sleepTime = LightDelay - (processTime - startTime);
-            if ((channelOutputFrame <= 1) || (sleepTime <= 0) || (startTime > (lastStatTime + 1000000))) {
+            int sleepTime = LightDelay.load(relaxed) - (processTime - startTime);
+            if ((channelOutputFrame.load(relaxed) <= 1) || (sleepTime <= 0) || (startTime > (lastStatTime + 1000000))) {
                 if (sleepTime < 0)
                     sleepTime = 0;
                 if (startTime > (lastStatTime + 1000000)) {
@@ -376,11 +393,12 @@ void RunChannelOutputThread(void) {
         // sound by tens of ms over a song before correcting.
         // The period is LightDelay of media time (see SetMediaClockRate()),
         // kept to a fraction of a microsecond so 100 fps doesn't round it off.
-        double period = LightDelay / CurrentMediaClockRate(startTime);
-        if (nextFrameTime == 0 || startTime >= nextFrameTime + LightDelay) {
+        const int lightDelay = LightDelay.load(relaxed);
+        double period = lightDelay / CurrentMediaClockRate(startTime);
+        if (nextFrameTime == 0 || startTime >= nextFrameTime + lightDelay) {
             // First frame, or more than a frame behind (back from idle, or a
             // stall): start the cadence again here rather than racing to catch up.
-            nextFrameTime = startTime + LightDelay;
+            nextFrameTime = startTime + lightDelay;
             frameTimeCarry = 0.0;
         } else if (startTime >= nextFrameTime) {
             frameTimeCarry += period;
@@ -391,7 +409,7 @@ void RunChannelOutputThread(void) {
         // else: a forced wake ran this pass early; the regular frame stays due
         // when it was.
         long dt = (nextFrameTime - GetMonotonicTimeMicros()) * 1000;
-        if (RunThread && dt > 0) {
+        if (RunThread.load(relaxed) && dt > 0) {
             if (outputThreadCond.wait_for(lock, std::chrono::nanoseconds(dt),
                                           [&forceSeen]() { return outputForceRequests.load() != forceSeen; })) {
                 LogDebug(VB_CHANNELOUT, "Forced output\n");

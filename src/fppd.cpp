@@ -2112,8 +2112,10 @@ void MainLoop(void) {
 
     StartMainLoopWatchdog();
 
-    while (runMainFPPDLoop) {
-        s_mainLoopHeartbeat.store(MonotonicMS());
+    // Relaxed: a stop flag and a timestamp for the watchdog, read or written
+    // on every pass, with nothing published through either.
+    while (runMainFPPDLoop.load(std::memory_order_relaxed)) {
+        s_mainLoopHeartbeat.store(MonotonicMS(), std::memory_order_relaxed);
         MAIN_LOOP_PHASE("epoll/callbacks");
         EPollManager::WaitResult epollresult = EPollManager::INSTANCE.waitForEvents(sleepms);
         bool pushBridgeData = epollresult == EPollManager::WaitResult::SOME_TRUE;
