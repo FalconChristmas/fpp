@@ -635,7 +635,12 @@ std::string WLEDAPIResponder::BuildInfoJson() {
     }
     info["udpport"]  = 21324;
     info["live"]     = false;
-    info["ws"]       = static_cast<int>(m_wsClients.size());
+    {
+        // Client threads add and remove themselves while others build this;
+        // every caller builds it before taking m_clientsLock.
+        std::unique_lock<std::mutex> lock(m_clientsLock);
+        info["ws"] = static_cast<int>(m_wsClients.size());
+    }
     info["str"]      = false;
 
     // The WLED Codable expects a `wifi` object even on wired devices.
