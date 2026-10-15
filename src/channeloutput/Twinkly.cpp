@@ -294,7 +294,7 @@ void TwinklyOutputData::authenticate() {
                 finishAuth();
                 return;
             }
-            if (!applyAuthToken(token)) {
+            if (base64Decode(token).empty()) {
                 LogWarn(VB_CHANNELOUT, "Twinkly %s: could not decode the authentication token, will retry\n", ipAddress.c_str());
                 finishAuth();
                 return;
@@ -317,6 +317,10 @@ void TwinklyOutputData::authenticate() {
                     finishAuth();
                     return;
                 }
+                // Only a token the device accepted becomes ours.  Installing it
+                // at login left a refused one in place, which stopped
+                // PrepareData()'s no-token retry from ever logging in again.
+                applyAuthToken(token);
                 const std::list<std::string> modeHeaders = { "Accept: application/json",
                                                              "Content-Type: application/json",
                                                              "X-Auth-Token: " + token };
