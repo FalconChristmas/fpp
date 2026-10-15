@@ -89,7 +89,7 @@ int IOCTLFrameBuffer::InitializeFrameBuffer() {
     }
     
     m_fbFd = open(devString.c_str(), O_RDWR);
-    if (!m_fbFd) {
+    if (m_fbFd < 0) {
         LogErr(VB_CHANNELOUT, "Error opening FrameBuffer device: %s\n", devString.c_str());
         WarningHolder::AddWarning(36, "Framebuffer output: could not open device " + devString);
         return 0;
@@ -225,18 +225,13 @@ int IOCTLFrameBuffer::InitializeFrameBuffer() {
 
     m_bpp = m_vInfo.bits_per_pixel;
     if (devString == "/dev/fb0") {
+        // Hide the text console.  Without one (a container, a headless
+        // service) there is nothing to hide, and the framebuffer works.
         m_ttyFd = open("/dev/console", O_RDWR);
-        if (!m_ttyFd) {
-            LogErr(VB_CHANNELOUT, "Error, unable to open /dev/console\n");
-            DestroyFrameBuffer();
-            return 0;
+        if (m_ttyFd >= 0) {
+            ioctl(m_ttyFd, KDSETMODE, KD_GRAPHICS);
+            close(m_ttyFd);
         }
-
-        // Hide the text console
-        ioctl(m_ttyFd, KDSETMODE, KD_GRAPHICS);
-
-        // Shouldn't need this anymore.
-        close(m_ttyFd);
         m_ttyFd = -1;
     }
 
