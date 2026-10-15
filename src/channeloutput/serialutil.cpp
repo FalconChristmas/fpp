@@ -19,7 +19,9 @@
 #include <algorithm>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <poll.h>
+#include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
@@ -85,11 +87,45 @@ speed_t SerialGetBaudRate(int baud) {
     }
 }
 
+// The kernel console carries boot messages and a login prompt.  On a
+// PocketBeagle 2 it is ttyS2, the name a PocketBeagle cape used for DMX, so a
+// config carried over from one would otherwise mix lighting data into it.
+bool SerialIsConsole(const char* device) {
+#ifdef PLATFORM_OSX
+    return false;
+#else
+    char resolved[PATH_MAX];
+    if (!realpath(device, resolved)) {
+        return false;
+    }
+    const char* name = strrchr(resolved, '/');
+    name = name ? name + 1 : resolved;
+    FILE* f = fopen("/sys/class/tty/console/active", "r");
+    if (!f) {
+        return false;
+    }
+    char con[64];
+    bool found = false;
+    while (!found && fscanf(f, "%63s", con) == 1) {
+        found = strcmp(con, name) == 0;
+    }
+    fclose(f);
+    return found;
+#endif
+}
+
 /*
  *
  * Example: SerialOpen("/dev/ttyUSB0", 115200, "N81");
  */
 int SerialOpen(const char* device, int baud, const char* mode, bool output, bool configurePin, const char* desc) {
+    if (SerialIsConsole(device)) {
+        // permanent, like the other open failures here: the console is set
+        // on the kernel command line and the config has to change
+        LogErr(VB_CHANNELOUT, "%s: is the system console, not opening it\n", device);
+        WarningHolder::AddWarning(38, std::string(device) + ": is the system console and cannot be used for channel data");
+        return -1;
+    }
     // some devices may multiplex pins and need to
     // specifically configure the output pin as a uart instead of gpio
     char buf[256];

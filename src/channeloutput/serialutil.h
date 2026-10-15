@@ -14,6 +14,8 @@
 int SerialOpen(const char* device, int baud, const char* mode, bool output = true);
 int SerialOpen(const char* device, int baud, const char* mode, bool output, bool configurePin, const char* desc);
 int SerialClose(int fd);
+// True when device (after resolving links) is the active kernel console.
+bool SerialIsConsole(const char* device);
 int SerialSendBreak(int fd, int duration);
 
 // The ports are opened O_NONBLOCK, so a plain write() of a frame larger than
