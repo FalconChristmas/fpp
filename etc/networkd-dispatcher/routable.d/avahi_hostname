@@ -1,0 +1,31 @@
+#!/bin/sh
+# Put avahi's mDNS host name back to the system host name if avahi renamed
+# itself to "<hostname>-N".
+#
+# avahi joins an interface's IPv6 multicast group on the link-local address
+# first. When the router advertisement lands a second or two later it moves
+# to the global address and withdraws the link-local record - and then hears
+# its own announcement, still in flight from the link-local address, as another
+# host claiming the name. It "resolves" that conflict by renaming itself to
+# <hostname>-2, which sticks until avahi restarts, so <hostname>.local stops
+# resolving even though nothing else on the network has that name.
+#
+# The interface goes routable on IPv4 before that happens, so check a few times
+# as the addresses settle. Backgrounded so the other routable hooks are not
+# held up; output detached so networkd-dispatcher doesn't wait on the pipe.
+
+(
+    for delay in 5 10 30; do
+        sleep $delay
+        want=$(hostname)
+        have=$(busctl --system call org.freedesktop.Avahi / org.freedesktop.Avahi.Server GetHostName 2>/dev/null | sed -n 's/^s "\(.*\)"$/\1/p')
+        [ -n "$want" ] && [ -n "$have" ] || continue
+        case "$have" in
+            "$want"-[0-9]*)
+                busctl --system call org.freedesktop.Avahi / org.freedesktop.Avahi.Server SetHostName s "$want"
+                ;;
+        esac
+    done
+) < /dev/null > /dev/null 2>&1 &
+
+exit 0
