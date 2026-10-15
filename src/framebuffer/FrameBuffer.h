@@ -146,6 +146,7 @@ protected:
 
     // Helpers
     void DrawSquare(int dx, int dy, int w, int h, int sx = -1, int sy = -1);
+    void CopyRows(int y, int rows);
 
     std::string m_name;
     std::string m_device;
