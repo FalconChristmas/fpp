@@ -40,6 +40,7 @@
 #include "GStreamerOut.h"
 #include "PipeWireOutputStream.h"
 #include "StreamSlotManager.h"
+#include "VideoOutputManager.h"
 #include "mediadetails.h"
 #include "settings.h"
 #include "../config.h"
@@ -232,6 +233,9 @@ void CleanupMediaOutput(void) {
 void PrewarmMediaOutput(int holdMs) {
 #ifdef HAS_GSTREAMER
     PipeWireOutputStream::Prewarm(1, holdMs);
+    // The playlist may open with a video; slot 1's overlay and RTP members
+    // (if it has any) are built and waiting.
+    VideoOutputManager::Instance().Prewarm(1, holdMs);
 #endif
 }
 

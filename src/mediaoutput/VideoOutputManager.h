@@ -191,8 +191,23 @@ public:
                         uint64_t producerGeneration = 0);
 
     /// Stop all running consumer pipelines.
-    /// Called by GStreamerOut when video playback ends.
+    /// Called by GStreamerOut when video playback ends.  Overlay and RTP
+    /// members are parked rather than torn down -- PAUSED, showing nothing,
+    /// the model handed back -- and kept for LINGER_MS, so the next video
+    /// needn't build them again.
     void StopConsumers();
+
+    /// Media is about to start on this slot (a video was opened, or a
+    /// scheduled playlist is near): build the slot's overlay and RTP members
+    /// now, PAUSED, so that StartConsumers() only has to set them PLAYING,
+    /// and keep them for holdMs if no video comes.  Building one takes about
+    /// half a second on a BeagleBone; done here it overlaps the producer's
+    /// own start.  Never blocks: the work is done on the warm worker.
+    void Prewarm(int streamSlot, int holdMs);
+
+    /// How long a parked or prewarmed member is kept, as the audio stream
+    /// lingers (PipeWireOutputStream::LINGER_MS).
+    static constexpr int LINGER_MS = 5000;
 
     /// Bumped by every StopConsumers().  A producer reads it when it is set
     /// up and hands it back to StartConsumers(), which then refuses to start
@@ -317,6 +332,18 @@ private:
         // Stood aside for media playback on its connector, to come back when
         // the media releases it (ReleaseConnectorFromMedia).
         bool suspendedForMedia = false;
+        // An on-demand overlay/RTP member that is built but PAUSED (Prewarm,
+        // or parked by StopConsumers), on `channel`, until holdUntilMs.
+        // `running` stays true: the pipeline exists.
+        bool parked = false;
+        std::string channel;
+        uint64_t holdUntilMs = 0;
+        // The PLAYING/PAUSED state the pipeline should be in, and the lock
+        // its start thread, ActivateConsumer and ParkConsumer take to set it,
+        // so a start thread can't PAUSE a member that was just activated.
+        // Fresh per run, like shutdownRequested.
+        std::shared_ptr<std::atomic<bool>> playing = std::make_shared<std::atomic<bool>>(false);
+        std::shared_ptr<std::mutex> stateLock = std::make_shared<std::mutex>();
 
         ConsumerInfo() = default;
         ConsumerInfo(ConsumerInfo&& o) noexcept
@@ -339,7 +366,9 @@ private:
               startThread(std::move(o.startThread)),
               shutdownRequested(std::move(o.shutdownRequested)),
               pipelineDead(std::move(o.pipelineDead)),
-              running(o.running), suspendedForMedia(o.suspendedForMedia) {
+              running(o.running), suspendedForMedia(o.suspendedForMedia),
+              parked(o.parked), channel(std::move(o.channel)), holdUntilMs(o.holdUntilMs),
+              playing(std::move(o.playing)), stateLock(std::move(o.stateLock)) {
 #ifdef HAS_GSTREAMER_VIDEO_OUTPUT
             o.pipeline = nullptr;
 #endif
@@ -351,8 +380,19 @@ private:
     /// Load consumer config from JSON file.
     bool LoadConfig();
 
-    /// Start a single consumer pipeline.
-    bool StartConsumer(ConsumerInfo& consumer);
+    /// Start a single consumer pipeline, on `channel` (default: its
+    /// sourceNode, or the active producer), PLAYING or (startPlaying false)
+    /// built and PAUSED.
+    bool StartConsumer(ConsumerInfo& consumer, const std::string& channel = "",
+                       bool startPlaying = true);
+
+    /// Set a parked member PLAYING and let it show again.
+    void ActivateConsumer(ConsumerInfo& consumer);
+    /// Pause a member, hand its overlay model back, and keep it until
+    /// holdUntilMs.
+    void ParkConsumer(ConsumerInfo& consumer, uint64_t holdUntilMs);
+    /// An on-demand overlay or RTP member that serves this stream slot.
+    static bool IsSlotChannelMember(const ConsumerInfo& c, int streamSlot);
 
     /// Start a group of HDMI consumers sharing the same PipeWire source
     /// as a single combined pipeline with tee.  PipeWire mode=provide
@@ -438,6 +478,18 @@ private:
     static constexpr int RESTART_MAX_DELAY_MS = 60000;
     static constexpr int RESTART_QUIET_RESET_MS = 5 * 60 * 1000;
     void RestartWorker();
+
+    // Prewarm()'s worker: builds the requested slots' members and tears down
+    // parked ones whose hold has run out.  m_warmMutex guards these; it is
+    // taken after m_mutex, never before (the worker drops it first).
+    std::mutex m_warmMutex;
+    std::condition_variable m_warmCv;
+    std::thread m_warmThread;
+    bool m_stopWarm = false;
+    std::map<int, uint64_t> m_prewarmRequests;  // slot -> hold until (GetTimeMS)
+    void KickWarmWorker();
+    void WarmWorker();
+    void ServiceWarm(const std::map<int, uint64_t>& requests);
 
     mutable std::mutex m_mutex;
     std::vector<ConsumerInfo> m_consumers;

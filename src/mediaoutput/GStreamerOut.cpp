@@ -1036,6 +1036,12 @@ GStreamerOutput::GStreamerOutput(const std::string& mediaFilename, MediaOutputSt
     // the master's media-open packet, well before the start packet arrives.
     if (m_videoOut == "--Disabled--" || m_videoOut.empty()) {
         PipeWireOutputStream::Prewarm(m_streamSlot, PipeWireOutputStream::LINGER_MS);
+    } else if (m_videoOut.starts_with("HDMI") || m_videoOut.starts_with("--HDMI") ||
+               m_videoOut.starts_with("DSI-") || m_videoOut.starts_with("Composite-")) {
+        // A video for a display, so for the slot's video group: build its
+        // overlay and RTP members while the video's own pipeline starts,
+        // rather than after.
+        VideoOutputManager::Instance().Prewarm(m_streamSlot, VideoOutputManager::LINGER_MS);
     }
     EnsureGStreamerInit();
     LogDebug(VB_MEDIAOUT, "GStreamer: CTOR done (%s)\n", mediaFilename.c_str());

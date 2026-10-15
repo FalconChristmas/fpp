@@ -16,6 +16,7 @@
 
 #include "VideoOutputManager.h"
 #include "VideoInputManager.h"
+#include "StreamSlotManager.h"
 #include "GStreamerOut.h"
 #include "common.h"
 #include "settings.h"
@@ -385,6 +386,18 @@ void VideoOutputManager::Shutdown() {
     if (restartWorker.joinable()) {
         restartWorker.join();
     }
+    // The warm worker takes m_mutex too.
+    std::thread warmWorker;
+    {
+        std::lock_guard<std::mutex> wl(m_warmMutex);
+        m_stopWarm = true;
+        m_prewarmRequests.clear();
+        warmWorker = std::move(m_warmThread);
+    }
+    m_warmCv.notify_all();
+    if (warmWorker.joinable()) {
+        warmWorker.join();
+    }
 
     std::lock_guard<std::mutex> lock(m_mutex);
     StopAllConsumers();
@@ -430,6 +443,7 @@ void VideoOutputManager::StartConsumers(const std::string& producerNodeName,
         // already running (started at Init).
         // If the consumer has streamSlots configured, only start it for matching slots.
         int started = 0;
+        int reused = 0;
         for (auto& consumer : m_consumers) {
             if (consumer.sourceNode.empty()) {
                 // Check stream slot filter
@@ -442,12 +456,24 @@ void VideoOutputManager::StartConsumers(const std::string& producerNodeName,
                 }
                 if (consumer.type == "rtp")
                     shouldStartSAP = true;
+                if (consumer.running && consumer.parked) {
+                    if (consumer.channel == producerNodeName) {
+                        // Prewarmed or parked from the last video: only
+                        // needs to go PLAYING.
+                        ActivateConsumer(consumer);
+                        started++;
+                        reused++;
+                        continue;
+                    }
+                    StopConsumer(consumer);  // parked on another slot's channel
+                }
                 StartConsumer(consumer);
                 started++;
             }
         }
-        LogInfo(VB_MEDIAOUT, "VideoOutputManager: Started %d on-demand consumer(s) targeting producer '%s' (slot %d)\n",
-                started, producerNodeName.c_str(), producerSlot);
+        LogInfo(VB_MEDIAOUT, "VideoOutputManager: Started %d on-demand consumer(s) (%d already built) "
+                "targeting producer '%s' (slot %d)\n",
+                started, reused, producerNodeName.c_str(), producerSlot);
         shouldStartSAP = shouldStartSAP && HasRunningRtpLocked();
     }
     // Start SAP announcer outside the lock (SAPAnnounceLoop needs m_mutex)
@@ -663,13 +689,17 @@ void VideoOutputManager::RestartWorker() {
 bool VideoOutputManager::HasSlotChannelConsumers(int streamSlot) const {
     std::lock_guard<std::mutex> lock(m_mutex);
     for (const auto& c : m_consumers) {
-        if ((c.type != "overlay" && c.type != "rtp") || !c.sourceNode.empty())
-            continue;
-        if (c.streamSlots.empty() ||
-            std::find(c.streamSlots.begin(), c.streamSlots.end(), streamSlot) != c.streamSlots.end())
+        if (IsSlotChannelMember(c, streamSlot))
             return true;
     }
     return false;
+}
+
+bool VideoOutputManager::IsSlotChannelMember(const ConsumerInfo& c, int streamSlot) {
+    if ((c.type != "overlay" && c.type != "rtp") || !c.sourceNode.empty())
+        return false;
+    return c.streamSlots.empty() || streamSlot <= 0 ||
+           std::find(c.streamSlots.begin(), c.streamSlots.end(), streamSlot) != c.streamSlots.end();
 }
 
 std::vector<VideoOutputManager::HdmiConsumerInfo> VideoOutputManager::GetHdmiConsumers(
@@ -795,26 +825,181 @@ void VideoOutputManager::StopConsumers() {
 
         // Only stop on-demand consumers (those without a fixed sourceNode).
         // Persistent-source consumers keep running independently of media playback.
+        // Overlay and RTP members are parked instead, for the next video.
         int stopped = 0;
+        int parked = 0;
+        const uint64_t holdUntil = GetTimeMS() + LINGER_MS;
         for (auto& consumer : m_consumers) {
-            if (consumer.sourceNode.empty() && consumer.running) {
+            if (!consumer.sourceNode.empty() || !consumer.running || consumer.parked)
+                continue;
+            if (IsSlotChannelMember(consumer, 0)) {
+                ParkConsumer(consumer, holdUntil);
+                parked++;
+            } else {
                 StopConsumer(consumer);
                 stopped++;
             }
         }
-        LogInfo(VB_MEDIAOUT, "VideoOutputManager: Stopped %d on-demand consumer(s) (producer gone)\n", stopped);
+        LogInfo(VB_MEDIAOUT, "VideoOutputManager: Stopped %d and parked %d on-demand consumer(s) (producer gone)\n",
+                stopped, parked);
         m_activeProducer.clear();
 
         // Check if any RTP consumers are still running (persistent-source)
-        bool hasRunningRtp = false;
-        for (const auto& c : m_consumers) {
-            if (c.type == "rtp" && c.running) { hasRunningRtp = true; break; }
+        shouldStopSAP = !HasRunningRtpLocked();
+        if (parked) {
+            KickWarmWorker();
         }
-        if (!hasRunningRtp)
-            shouldStopSAP = true;
     }
     if (shouldStopSAP)
         StopSAPAnnouncer();
+}
+
+void VideoOutputManager::ActivateConsumer(ConsumerInfo& consumer) {
+#ifdef HAS_GSTREAMER_VIDEO_OUTPUT
+    if (consumer.overlayState) {
+        std::lock_guard<std::mutex> lock(consumer.overlayState->mtx);
+        consumer.overlayState->wasDisabled = false;
+        consumer.overlayState->active = true;
+    }
+    {
+        std::lock_guard<std::mutex> sl(*consumer.stateLock);
+        consumer.playing->store(true);
+        if (consumer.pipeline) {
+            gst_element_set_state(consumer.pipeline, GST_STATE_PLAYING);
+        }
+    }
+    consumer.parked = false;
+    LogInfo(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' resumed on %s\n",
+            consumer.name.c_str(), consumer.channel.c_str());
+#endif
+}
+
+void VideoOutputManager::ParkConsumer(ConsumerInfo& consumer, uint64_t holdUntilMs) {
+#ifdef HAS_GSTREAMER_VIDEO_OUTPUT
+    // Stop showing first, then give the model back, as StopConsumer does.
+    if (consumer.overlayState) {
+        std::shared_ptr<OverlayState> state = consumer.overlayState;
+        std::lock_guard<std::mutex> lock(state->mtx);
+        state->active = false;
+        if (state->wasDisabled && state->model) {
+            state->model->setState(PixelOverlayState(PixelOverlayState::Disabled));
+        }
+        state->wasDisabled = false;
+    }
+    // PAUSED stops the source (it is live), so an RTP member stops sending
+    // too.  On its own thread, like StopConsumer's teardown: the streaming
+    // thread may be inside a callback the caller's locks could block.
+    if (consumer.pipeline) {
+        GstElement* p = GST_ELEMENT(gst_object_ref(consumer.pipeline));
+        std::shared_ptr<std::atomic<bool>> playing = consumer.playing;
+        std::shared_ptr<std::mutex> stateLock = consumer.stateLock;
+        playing->store(false);
+        std::thread([p, playing, stateLock]() {
+            {
+                std::lock_guard<std::mutex> sl(*stateLock);
+                if (!playing->load()) {
+                    gst_element_set_state(p, GST_STATE_PAUSED);
+                }
+            }
+            gst_object_unref(p);
+        }).detach();
+    }
+    consumer.parked = true;
+    consumer.holdUntilMs = holdUntilMs;
+    LogInfo(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' parked for %d ms\n",
+            consumer.name.c_str(), (int)(holdUntilMs - GetTimeMS()));
+#endif
+}
+
+void VideoOutputManager::Prewarm(int streamSlot, int holdMs) {
+    if (streamSlot <= 0) {
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (!m_initialized || !std::any_of(m_consumers.begin(), m_consumers.end(),
+                                           [streamSlot](const ConsumerInfo& c) { return IsSlotChannelMember(c, streamSlot); })) {
+            return;
+        }
+    }
+    {
+        std::lock_guard<std::mutex> wl(m_warmMutex);
+        uint64_t& until = m_prewarmRequests[streamSlot];
+        until = std::max<uint64_t>(until, GetTimeMS() + holdMs);
+    }
+    KickWarmWorker();
+}
+
+void VideoOutputManager::KickWarmWorker() {
+    std::lock_guard<std::mutex> wl(m_warmMutex);
+    if (m_stopWarm) {
+        return;
+    }
+    if (!m_warmThread.joinable()) {
+        m_warmThread = std::thread([this]() { WarmWorker(); });
+    }
+    m_warmCv.notify_all();
+}
+
+void VideoOutputManager::WarmWorker() {
+    SetThreadName("FPP-VideoWarm");
+    std::unique_lock<std::mutex> wl(m_warmMutex);
+    while (!m_stopWarm) {
+        std::map<int, uint64_t> requests;
+        requests.swap(m_prewarmRequests);
+        wl.unlock();
+        ServiceWarm(requests);
+        wl.lock();
+        if (m_stopWarm) {
+            break;
+        }
+        if (m_prewarmRequests.empty()) {
+            m_warmCv.wait_for(wl, std::chrono::milliseconds(250));
+        }
+    }
+}
+
+void VideoOutputManager::ServiceWarm(const std::map<int, uint64_t>& requests) {
+#ifdef HAS_GSTREAMER_VIDEO_OUTPUT
+    if (!requests.empty()) {
+        WaitForCmaIfLow();
+    }
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (!m_initialized) {
+        return;
+    }
+    for (const auto& [slot, holdUntil] : requests) {
+        const std::string channel = StreamSlotManager::GetVideoNodeName(slot);
+        for (auto& consumer : m_consumers) {
+            if (!IsSlotChannelMember(consumer, slot)) {
+                continue;
+            }
+            if (consumer.running) {
+                if (!consumer.parked) {
+                    continue;  // showing a video now
+                }
+                if (consumer.channel == channel) {
+                    consumer.holdUntilMs = std::max(consumer.holdUntilMs, holdUntil);
+                    continue;
+                }
+                StopConsumer(consumer);  // parked on another slot's channel
+            }
+            if (StartConsumer(consumer, channel, false)) {
+                consumer.holdUntilMs = holdUntil;
+                LogInfo(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' prewarmed on %s\n",
+                        consumer.name.c_str(), channel.c_str());
+            }
+        }
+    }
+    const uint64_t now = GetTimeMS();
+    for (auto& consumer : m_consumers) {
+        if (consumer.running && consumer.parked && now >= consumer.holdUntilMs) {
+            LogInfo(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' idle, tearing it down\n",
+                    consumer.name.c_str());
+            StopConsumer(consumer);
+        }
+    }
+#endif
 }
 
 bool VideoOutputManager::HasConsumers() const {
@@ -825,7 +1010,7 @@ bool VideoOutputManager::HasConsumers() const {
 bool VideoOutputManager::HasActiveConsumers() const {
     std::lock_guard<std::mutex> lock(m_mutex);
     for (const auto& c : m_consumers) {
-        if (c.running)
+        if (c.running && !c.parked)
             return true;
     }
     return false;
@@ -835,7 +1020,7 @@ int VideoOutputManager::ActiveConsumerCount() const {
     std::lock_guard<std::mutex> lock(m_mutex);
     int count = 0;
     for (const auto& c : m_consumers) {
-        if (c.running)
+        if (c.running && !c.parked)
             count++;
     }
     return count;
@@ -1188,7 +1373,8 @@ bool VideoOutputManager::StartHdmiConsumerGroup(const std::vector<size_t>& indic
 #endif
 }
 
-bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
+bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer, const std::string& channelArg,
+                                       bool startPlaying) {
 #ifdef HAS_GSTREAMER_VIDEO_OUTPUT
     GStreamerOutput::EnsureGStreamerInit();
 
@@ -1211,7 +1397,8 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
     // and added to g_get_monotonic_time(); UINT64_MAX caused spin-loop.
     // A consumer without a fixed source follows media playback, which
     // publishes the active slot's channel (StartConsumers() records which).
-    const std::string& channel = consumer.sourceNode.empty() ? m_activeProducer : consumer.sourceNode;
+    const std::string channel = !channelArg.empty() ? channelArg
+                              : consumer.sourceNode.empty() ? m_activeProducer : consumer.sourceNode;
     if (channel.empty()) {
         LogWarn(VB_MEDIAOUT, "VideoOutputManager: consumer '%s' has no source to read\n", consumer.name.c_str());
         return false;
@@ -1417,7 +1604,8 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
         consumer.overlayState->model = model;
         consumer.overlayState->width = overlayW;
         consumer.overlayState->height = overlayH;
-        consumer.overlayState->active = true;
+        // A prewarmed member stays dark until ActivateConsumer().
+        consumer.overlayState->active = startPlaying;
 
         // Register model listener so we track model replacement/deletion
         std::weak_ptr<OverlayState> weakState = consumer.overlayState;
@@ -1576,8 +1764,12 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
     // any) keeps its own copy and is unaffected by this restart.
     consumer.shutdownRequested = std::make_shared<std::atomic<bool>>(false);
     consumer.pipelineDead = std::make_shared<std::atomic<bool>>(false);
+    consumer.playing = std::make_shared<std::atomic<bool>>(startPlaying);
+    consumer.stateLock = std::make_shared<std::mutex>();
     consumer.running = true;
     consumer.suspendedForMedia = false;
+    consumer.parked = !startPlaying;
+    consumer.channel = channel;
 
     std::string consumerName = consumer.name;
     GstElement* pipeline = consumer.pipeline;
@@ -1591,8 +1783,11 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
     std::shared_ptr<std::atomic<bool>> shutdownFlag = consumer.shutdownRequested;
     std::shared_ptr<std::atomic<bool>> pipelineDead = consumer.pipelineDead;
     std::string sourceNode = consumer.sourceNode;
+    std::shared_ptr<std::atomic<bool>> playing = consumer.playing;
+    std::shared_ptr<std::mutex> stateLock = consumer.stateLock;
 
-    consumer.startThread = std::thread([pipeline, consumerName, shutdownFlag, pipelineDead, sourceNode]() {
+    consumer.startThread = std::thread([pipeline, consumerName, shutdownFlag, pipelineDead, sourceNode,
+                                        playing, stateLock]() {
         // A persistent consumer that dies while its source runs gets no
         // producer-ready notification to bring it back.
         auto scheduleRestart = [&sourceNode]() {
@@ -1608,10 +1803,18 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
         LogInfo(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' background thread starting pipeline\n",
                 consumerName.c_str());
 
-        // intervideosrc doesn't need PipeWire links — go straight to PLAYING.
-        GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
-        LogInfo(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' set_state(PLAYING) returned %d\n",
-                consumerName.c_str(), (int)ret);
+        // intervideosrc doesn't need PipeWire links — go straight to PLAYING,
+        // or to PAUSED for a prewarmed member (intervideosrc is live, so
+        // that is immediate and nothing flows until it is activated).
+        GstStateChangeReturn ret;
+        bool startPlaying;
+        {
+            std::lock_guard<std::mutex> sl(*stateLock);
+            startPlaying = playing->load();
+            ret = gst_element_set_state(pipeline, startPlaying ? GST_STATE_PLAYING : GST_STATE_PAUSED);
+        }
+        LogInfo(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' set_state(%s) returned %d\n",
+                consumerName.c_str(), startPlaying ? "PLAYING" : "PAUSED", (int)ret);
 
         if (ret == GST_STATE_CHANGE_FAILURE) {
             // Check if we were asked to shut down — don't log as error if so
@@ -1642,7 +1845,7 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
             if (busLoopIter % 10 == 1) {
                 GstState cur = GST_STATE_VOID_PENDING, pend = GST_STATE_VOID_PENDING;
                 gst_element_get_state(pipeline, &cur, &pend, 0);
-                if (cur != GST_STATE_PLAYING || pend != GST_STATE_VOID_PENDING) {
+                if (playing->load() && (cur != GST_STATE_PLAYING || pend != GST_STATE_VOID_PENDING)) {
                     LogInfo(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' state check: current=%d pending=%d\n",
                             consumerName.c_str(), (int)cur, (int)pend);
                 }
@@ -1731,12 +1934,18 @@ GstFlowReturn VideoOutputManager::OnOverlaySample(GstAppSink* appsink, gpointer 
     if (!stateRef)
         return GST_FLOW_EOS;
     OverlayState* state = stateRef->get();
-    if (!state || !state->active.load())
+    if (!state)
         return GST_FLOW_EOS;
 
     GstSample* sample = gst_app_sink_pull_sample(appsink);
     if (!sample)
         return GST_FLOW_OK;
+    // Inactive: parked or prewarmed (or being stopped).  Drop the frame
+    // rather than end the stream, which would end a parked pipeline.
+    if (!state->active.load()) {
+        gst_sample_unref(sample);
+        return GST_FLOW_OK;
+    }
 
     GstBuffer* buffer = gst_sample_get_buffer(sample);
     // The frame's own size comes from its caps.  state->width/height follow
@@ -1753,7 +1962,9 @@ GstFlowReturn VideoOutputManager::OnOverlaySample(GstAppSink* appsink, gpointer 
     GstMapInfo map;
     if (w > 0 && h > 0 && gst_buffer_map(buffer, &map, GST_MAP_READ)) {
         std::lock_guard<std::mutex> lock(state->mtx);
-        PixelOverlayModel* model = state->model;
+        // Checked again under the lock: ParkConsumer hands the model back
+        // under it, and a frame blitted after that would take it again.
+        PixelOverlayModel* model = state->active.load() ? state->model : nullptr;
         const size_t rowBytes = (size_t)w * 3;
         const size_t expectedSize = rowBytes * h;
         // Packed RGB rows are padded to 4 bytes unless the buffer is exactly
@@ -1940,6 +2151,7 @@ void VideoOutputManager::StopConsumer(ConsumerInfo& consumer) {
     }
 
     consumer.running = false;
+    consumer.parked = false;
 
     // Also mark any grouped members as stopped
     int myIdx = (int)(&consumer - &m_consumers[0]);
@@ -2074,7 +2286,7 @@ std::vector<uint8_t> VideoOutputManager::BuildSAPPacket(const std::string& sourc
 
 bool VideoOutputManager::HasRunningRtpLocked() const {
     for (const auto& c : m_consumers) {
-        if (c.type == "rtp" && c.running)
+        if (c.type == "rtp" && c.running && !c.parked)
             return true;
     }
     return false;
