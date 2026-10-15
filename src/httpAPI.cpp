@@ -1477,7 +1477,7 @@ HttpResponsePtr PlayerResource::render_POST(const HttpRequestPtr& req) {
             // they survive a restart and stay in sync with the Logging settings
             // page (which reads/writes the LogLevel_* settings).
             for (FPPLoggerInstance* logger : FPPLogger::INSTANCE.allInstances()) {
-                setSetting("LogLevel_" + logger->name, LogLevelToString(logger->level), true);
+                setSetting("LogLevel_" + logger->name, LogLevelToString(FacilityLevel(*logger)), true);
             }
             WarningHolder::UpdateLogLevelWarnings();
             SetOKResult(result, "Log Level Updated");
@@ -1651,7 +1651,7 @@ void PlayerResource::GetLogSettings(Json::Value& result) {
 
     for (it = allLoggers.begin(); it != allLoggers.end(); it++) {
         FPPLoggerInstance* ptr = *it;
-        log[ptr->name] = LogLevelToString(ptr->level);
+        log[ptr->name] = LogLevelToString(FacilityLevel(*ptr));
     }
 
     result["log"] = log;

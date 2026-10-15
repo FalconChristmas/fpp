@@ -328,7 +328,7 @@ bool FPPLogger::SetLevel(std::string name, LogLevel level) {
     for (it = all.begin(); it != all.end(); it++) {
         FPPLoggerInstance* ptr = *it;
         if (name == ptr->name || name == "All") {
-            ptr->level = level;
+            SetFacilityLevel(*ptr, level);
             madeChange = true;
         }
     }
@@ -345,7 +345,7 @@ int FPPLogger::MinimumLogLevel() {
     std::vector<FPPLoggerInstance*>::iterator it;
 
     for (it = all.begin(); it != all.end(); it++) {
-        int level = (*it)->level;
+        int level = FacilityLevel(**it);
         if (level > rc) {
             rc = level;
         }
@@ -362,14 +362,15 @@ std::string FPPLogger::GetLogLevelString() {
     std::vector<FPPLoggerInstance*>::iterator it;
 
     for (it = all.begin(); it != all.end(); it++) {
-        if ((currentLevel != (*it)->level) || firstLevel) {
+        LogLevel level = FacilityLevel(**it);
+        if ((currentLevel != level) || firstLevel) {
             if (!firstLevel) {
                 rc << ";";
             }
             firstLevel = false;
             firstLogger = true;
-            rc << LogLevelToString((*it)->level) << ":";
-            currentLevel = (*it)->level;
+            rc << LogLevelToString(level) << ":";
+            currentLevel = level;
         }
         if (firstLogger) {
             firstLogger = false;
@@ -386,7 +387,7 @@ void FPPLogger::SetAllLevel(LogLevel level) {
     Init(); /* Just incase */
 
     for (it = all.begin(); it != all.end(); it++) {
-        (*it)->level = level;
+        SetFacilityLevel(**it, level);
     }
 }
 
@@ -418,10 +419,19 @@ std::string TruncateForLog(const std::string& s, size_t maxLen) {
 
 bool WillLog(int level, FPPLoggerInstance& facility) {
     // Don't log if we're not concerned about anything at this level
-    if (facility.level < level)
+    if (FacilityLevel(facility) < level)
         return false;
 
     return true;
+}
+
+// atomic_ref rather than an atomic member: FPPLoggerInstance's layout is
+// compiled into plugins (see log.h).
+LogLevel FacilityLevel(FPPLoggerInstance& facility) {
+    return std::atomic_ref<LogLevel>(facility.level).load(std::memory_order_relaxed);
+}
+void SetFacilityLevel(FPPLoggerInstance& facility, LogLevel level) {
+    std::atomic_ref<LogLevel>(facility.level).store(level, std::memory_order_relaxed);
 }
 
 void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facility, const std::string& str, ...) {

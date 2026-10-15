@@ -138,6 +138,11 @@ void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facilit
 void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facility, const std::string &str, ...);
 bool WillLog(int level, FPPLoggerInstance& facility);
 
+// Every log call reads a facility's level, on whatever thread it runs, while
+// the API and settings change it on others: read and write it through these.
+LogLevel FacilityLevel(FPPLoggerInstance& facility);
+void SetFacilityLevel(FPPLoggerInstance& facility, LogLevel level);
+
 // True when a line at this level/facility is retained in the crash-time ring
 // even though the configured log level would otherwise discard it.
 bool CrashLogRingWillCapture(int level, FPPLoggerInstance& facility);
