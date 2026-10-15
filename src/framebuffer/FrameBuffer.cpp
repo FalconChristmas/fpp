@@ -18,6 +18,7 @@
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
+#include <chrono>
 #include <cstring>
 #include <ctime>
 #include <errno.h>
@@ -448,12 +449,16 @@ void FrameBuffer::DrawLoop(void) {
 
     std::unique_lock<std::mutex> lock(m_bufferLock);
     while (m_runLoop) {
-        if (m_imageReady) {
+        // Taken before drawing, not cleared after: an image that arrives while
+        // a transition runs (they take most of a second) was marked done along
+        // with the one being drawn, and never reached the screen.
+        if (m_imageReady.exchange(false)) {
             lock.unlock();
             // m_nextTransitionType = IT_WipeFromHCenter;
             switch (m_nextTransitionType) {
             case IT_Random:
                 m_nextTransitionType = (ImageTransitionType)(rand_r(&m_typeSeed) % ((int)IT_MAX - 1) + 1);
+                m_imageReady = true;
                 lock.lock();
                 continue;
                 break;
@@ -516,11 +521,14 @@ void FrameBuffer::DrawLoop(void) {
             }
 
             lock.lock();
-
-            m_imageReady = false;
+            continue;
         }
 
-        m_drawSignal.wait(lock);
+        // FBStartDraw() notifies without m_bufferLock, which a transition holds
+        // for its whole length, so a notify can land between the check above
+        // and the wait; the timeout bounds how long such an image waits.
+        m_drawSignal.wait_for(lock, std::chrono::milliseconds(50),
+                              [this] { return !m_runLoop || m_imageReady; });
     }
 }
 

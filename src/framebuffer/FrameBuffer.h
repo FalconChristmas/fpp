@@ -188,7 +188,9 @@ protected:
     unsigned int m_typeSeed;
 
     volatile bool m_runLoop = false;
-    volatile bool m_imageReady = false;
+    // Set by FBCopyData() when a new image is in m_outputBuffer; taken by
+    // DrawLoop() before it draws, so one that arrives mid-draw is drawn next.
+    std::atomic<bool> m_imageReady{ false };
     bool m_displayEnabledOnce = false;  // Track if EnableDisplay() has been called
 
     std::thread* m_drawThread = nullptr;
