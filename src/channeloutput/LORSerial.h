@@ -25,6 +25,7 @@
 #include "../common.h"
 
 #include "SerialChannelOutput.h"
+#include "serialutil.h"
 
 #define LOR_HEARTBEAT_SIZE 5
 
@@ -95,7 +96,7 @@ public:
     // never negative; anything short of len did not go out.
     int WriteBatch(const unsigned char* buf, int len) {
         std::unique_lock<std::mutex> lk(lock);
-        int written = write(getFD(), buf, len);
+        int written = SerialWrite(getFD(), buf, len);
         return written < 0 ? 0 : written;
     }
 
@@ -111,7 +112,7 @@ private:
             // for the size of the step, and the controllers dropped out
             long long now = GetMonotonicTimeMicros();
             if (now - lastHeartbeat >= LOR_HEARTBEAT_INTERVAL) {
-                write(getFD(), heartbeat, LOR_HEARTBEAT_SIZE);
+                SerialWrite(getFD(), heartbeat, LOR_HEARTBEAT_SIZE);
                 lastHeartbeat = now;
             }
             heartbeatCond.wait_for(lk, std::chrono::milliseconds(50));

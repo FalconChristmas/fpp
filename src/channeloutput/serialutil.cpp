@@ -17,6 +17,9 @@
 
 #include <sys/ioctl.h>
 #include <algorithm>
+#include <map>
+#include <memory>
+#include <mutex>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -28,6 +31,7 @@
 
 #include "../log.h"
 #include "../util/GPIOUtils.h"
+#include "serialutil.h"
 
 #ifdef PLATFORM_OSX
 #include <IOKit/serial/ioss.h>
@@ -85,6 +89,32 @@ speed_t SerialGetBaudRate(int baud) {
     default:
         return B38400;
     }
+}
+
+// Shared, so a write still running on an output's thread when the output
+// closes its port (USBDMX closes before stopping the thread) keeps the backend
+// alive until it returns.
+static std::mutex backendsLock;
+static std::map<int, std::shared_ptr<SerialPortBackend>> backends;
+
+static std::shared_ptr<SerialPortBackend> getBackend(int fd) {
+    std::lock_guard<std::mutex> l(backendsLock);
+    auto it = backends.find(fd);
+    return it == backends.end() ? nullptr : it->second;
+}
+
+int SerialAttachBackend(SerialPortBackend* backend) {
+    // a real descriptor, so the fd >= 0 checks callers make hold and nothing
+    // else can be handed the same number while the backend lives; a stray
+    // write() to it is discarded
+    int fd = open("/dev/null", O_WRONLY | O_CLOEXEC);
+    if (fd < 0) {
+        delete backend;
+        return -1;
+    }
+    std::lock_guard<std::mutex> l(backendsLock);
+    backends[fd].reset(backend);
+    return fd;
 }
 
 // The kernel console carries boot messages and a login prompt.  On a
@@ -284,12 +314,23 @@ int SerialClose(int fd) {
     if (fd < 0)
         return -1;
 
-    tcflush(fd, TCOFLUSH);
+    bool isBackend = false;
+    {
+        std::lock_guard<std::mutex> l(backendsLock);
+        isBackend = backends.erase(fd) != 0;
+    }
+    if (!isBackend) {
+        tcflush(fd, TCOFLUSH);
+    }
 
     return close(fd);
 }
 
 int SerialSendBreak(int fd, int duration) {
+    if (auto b = getBackend(fd)) {
+        b->sendBreak(duration);
+        return 0;
+    }
     ioctl(fd, TIOCSBRK);
     usleep(duration);
     ioctl(fd, TIOCCBRK);
@@ -298,6 +339,9 @@ int SerialSendBreak(int fd, int duration) {
 }
 
 int SerialResetRTS(int fd) {
+    if (getBackend(fd)) {
+        return 0;
+    }
     int CtrlFlag = TIOCM_RTS;
     if (ioctl(fd, TIOCMBIC, &CtrlFlag) < 0) {
         LogErr(VB_CHANNELOUT, "Error clearing RTS \n");
@@ -310,6 +354,9 @@ int SerialResetRTS(int fd) {
 int SerialWriteAll(int fd, const void* data, int len, int timeoutMs) {
     if (fd < 0) {
         return -1;
+    }
+    if (auto b = getBackend(fd)) {
+        return b->write((const uint8_t*)data, len, timeoutMs);
     }
     const char* buf = (const char*)data;
     uint64_t deadline = GetMonotonicTimeMS() + timeoutMs;
@@ -339,7 +386,17 @@ int SerialWriteAll(int fd, const void* data, int len, int timeoutMs) {
     return sent;
 }
 
+int SerialWrite(int fd, const void* data, int len) {
+    if (auto b = getBackend(fd)) {
+        return b->write((const uint8_t*)data, len, 0);
+    }
+    return write(fd, data, len);
+}
+
 bool SerialWaitDrained(int fd, int timeoutMs) {
+    if (auto b = getBackend(fd)) {
+        return b->waitDrained(timeoutMs);
+    }
     uint64_t deadline = GetMonotonicTimeMS() + timeoutMs;
     while (true) {
         int queued = 0;

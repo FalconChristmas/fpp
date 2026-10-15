@@ -22,6 +22,9 @@
 #include "SerialChannelOutput.h"
 #include "serialutil.h"
 #include "../util/GPIOUtils.h"
+#ifdef PLATFORM_BB64
+#include "../util/BBBPruSerial.h"
+#endif
 
 #ifdef HAS_CAPEUTILS
 #include "../non-gpl/CapeUtils/CapeUtils.h"
@@ -74,6 +77,17 @@ bool SerialChannelOutput::setupSerialPort(Json::Value& config, int baud, const c
                 // UART's receive line (P1-10 is UART2 TX on a PocketBeagle but
                 // UART6 RX on a PocketBeagle 2), and opening that UART would
                 // send the data out of some other pin while this one sits idle.
+#ifdef PLATFORM_BB64
+                // A PRU sends on the pin instead.
+                std::string pruDesc = desc + "-" + m_deviceName;
+                m_fd = BBBPruSerialOpen(*pin, baud, mode, pruDesc);
+                if (m_fd < 0) {
+                    return false; // BBBPruSerialOpen() raised the warning
+                }
+                this->pinName = pinName;
+                m_deviceName = pinName + " (PRU)";
+                return true;
+#else
                 // Permanent, like the other config errors here: only a
                 // different board or cape changes it.
                 std::string w = desc + ": " + m_deviceName + " is wired to " + pinName +
@@ -81,6 +95,7 @@ bool SerialChannelOutput::setupSerialPort(Json::Value& config, int baud, const c
                 LogErr(VB_CHANNELOUT, "%s\n", w.c_str());
                 WarningHolder::AddWarning(26, w);
                 return false;
+#endif
             }
             if (pin) {
                 std::string nd = pin->uart.substr(0, pin->uart.find("-"));

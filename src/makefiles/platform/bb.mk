@@ -14,7 +14,7 @@ LIBS_GPIO_ADDITIONS=
 OBJECTS_GPIO_ADDITIONS+=util/BBBUtils.o
 LIBS_GPIO_ADDITIONS+=-lgpiod -lgpiodcxx
 
-OBJECTS_fpp_so += util/BBBPruUtils.o
+OBJECTS_fpp_so += util/BBBPruUtils.o util/BBBPruSerial.o
 
 BUILD_FPPOLED=1
 BUILD_FPPCAPEDETECT=1
