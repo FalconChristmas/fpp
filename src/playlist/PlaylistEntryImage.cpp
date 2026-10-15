@@ -376,8 +376,8 @@ void PlaylistEntryImage::PrepImage(void) {
             size_t len = blob.length() < (size_t)m_bufferSize ? blob.length() : (size_t)m_bufferSize;
             memcpy(m_buffer, blob.data(), len);
         }
+        m_imagePrepped = true;
     }
-    m_imagePrepped = true;
 }
 
 /*

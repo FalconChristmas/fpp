@@ -84,9 +84,10 @@ private:
 
     unsigned int m_fileSeed;
 
-    volatile bool m_runLoop = false;
-    volatile bool m_imagePrepped = false;
-    volatile bool m_imageDrawn = false;
+    // Shared by the playlist thread (Process, Draw) and the prep thread.
+    std::atomic<bool> m_runLoop{ false };
+    std::atomic<bool> m_imagePrepped{ false };
+    std::atomic<bool> m_imageDrawn{ false };
     // Set by PrepImage() when there is no file to show (missing or empty
     // imagePath).  The prep counts as done so the prep thread waits instead
     // of retrying in a tight loop, and Draw() finishes the entry without
