@@ -371,7 +371,7 @@ static inline void scatterNode(uint8_t* dst, const uint8_t* src, int cpn, int st
 }
 
 void PixelOverlayModelSub::doGridOverlay(uint8_t* channels) {
-    int st = state.getState();
+    int st = getState().getState();
     if (st == 0) {
         dirtyBuffer = false;
         return;

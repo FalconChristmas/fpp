@@ -13,6 +13,7 @@
 #include "fpp-pch.h"
 
 #include <sys/stat.h>
+#include <atomic>
 #include <unordered_map>
 
 #include "fpp-json.h"
@@ -604,15 +605,19 @@ bool PixelOverlayModel::isAutoCreated() {
     return config.isMember("autoCreated") && config["autoCreated"].isBool() && config["autoCreated"].asBool();
 }
 
+// The state is set from the API, commands and effect threads, and read on
+// the output thread and by anything reporting it, not all under one lock.
+// atomic_ref rather than an atomic member: this class's layout is compiled
+// into plugins (see the header).
 PixelOverlayState PixelOverlayModel::getState() const {
-    return state;
+    return std::atomic_ref<PixelOverlayState>(const_cast<PixelOverlayState&>(state)).load(std::memory_order_relaxed);
 }
 bool PixelOverlayModel::needsOutput() const {
-    return state.getState() != PixelOverlayState::PixelState::Disabled || hasChildren();
+    return getState().getState() != PixelOverlayState::PixelState::Disabled || hasChildren();
 }
 
 void PixelOverlayModel::setState(const PixelOverlayState& st) {
-    if (st == state)
+    if (st == getState())
         return;
 
     if (!st.getState() && needRefresh()) {
@@ -623,9 +628,8 @@ void PixelOverlayModel::setState(const PixelOverlayState& st) {
         }
     }
 
-    PixelOverlayState old = state;
-    state = st;
-    PixelOverlayManager::INSTANCE.modelStateChanged(this, old, state);
+    PixelOverlayState old = std::atomic_ref<PixelOverlayState>(state).exchange(st, std::memory_order_relaxed);
+    PixelOverlayManager::INSTANCE.modelStateChanged(this, old, st);
 }
 // Copy-on-write publish of the child list.  See the note on `children` in the
 // header for why this must not take (or be called under) any overlay lock.
@@ -711,9 +715,9 @@ void PixelOverlayModel::setChildState(const std::string& n, const PixelOverlaySt
     // activeModelsLock, which the channel output thread holds while it is
     // inside the readers of `children`.
     if (hadChildren && !hasChildren) {
-        PixelOverlayManager::INSTANCE.modelStateChanged(this, PixelOverlayState::Enabled, state);
+        PixelOverlayManager::INSTANCE.modelStateChanged(this, PixelOverlayState::Enabled, getState());
     } else if (!hadChildren && hasChildren) {
-        PixelOverlayManager::INSTANCE.modelStateChanged(this, state, PixelOverlayState::Enabled);
+        PixelOverlayManager::INSTANCE.modelStateChanged(this, getState(), PixelOverlayState::Enabled);
     }
 }
 
@@ -865,7 +869,7 @@ const PolarBufferMap* PixelOverlayModel::getPolarMap(PolarMode mode) {
 }
 
 void PixelOverlayModel::doOverlay(uint8_t* channels) {
-    int st = state.getState();
+    int st = getState().getState();
     uint8_t* dst = &channels[startChannel];
     if (st == 0 && hasChildren()) {
         // this model is disable, but we have children that are
