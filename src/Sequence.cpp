@@ -59,6 +59,13 @@ using namespace std::literals::chrono_literals;
 #define SEQUENCE_CACHE_FRAMECOUNT 40
 
 Sequence* sequence = NULL;
+// The pause and single-step flags are set by commands on the main loop and
+// read by the output thread.  atomic_ref rather than atomic members: this
+// class's layout is compiled into plugins (see Sequence.h).
+static std::atomic_ref<int> seqFlag(int& flag) {
+    return std::atomic_ref<int>(flag);
+}
+
 Sequence::Sequence() :
     m_seqMSDuration(0),
     m_seqMSElapsed(0),
@@ -374,7 +381,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     lock.unlock();
     readLock.unlock();
 
-    m_seqPaused = 0;
+    seqFlag(m_seqPaused).store(0);
     m_seqMSDuration = 0;
     m_seqMSElapsed = 0;
     m_seqMSRemaining = 0;
@@ -492,9 +499,9 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     lock.unlock();
     m_seqStarting = 1; // beyond header, read loop can start reading frames
     frameLoadSignal.notify_all();
-    m_seqPaused = 0;
-    m_seqSingleStep = 0;
-    m_seqSingleStepBack = 0;
+    seqFlag(m_seqPaused).store(0);
+    seqFlag(m_seqSingleStep).store(0);
+    seqFlag(m_seqSingleStepBack).store(0);
     m_dataProcessed = false;
     ProcessVariableHeaders();
     ReadSequenceData(true);
@@ -785,23 +792,20 @@ void Sequence::BlankSequenceData(bool clearBridge) {
 }
 
 int Sequence::SequenceIsPaused(void) {
-    return m_seqPaused;
+    return seqFlag(m_seqPaused).load();
 }
 
 void Sequence::ToggleSequencePause(void) {
-    if (m_seqPaused)
-        m_seqPaused = 0;
-    else
-        m_seqPaused = 1;
+    seqFlag(m_seqPaused).fetch_xor(1);
 }
 
 void Sequence::SingleStepSequence(void) {
-    m_seqSingleStep = 1;
+    seqFlag(m_seqSingleStep).store(1);
 }
 
 // Broken per issue #986
 void Sequence::SingleStepSequenceBack(void) {
-    m_seqSingleStepBack = 1;
+    seqFlag(m_seqSingleStepBack).store(1);
 }
 
 void Sequence::ReadSequenceData(bool forceFirstFrame) {
@@ -811,11 +815,10 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
         return;
     }
 
-    if ((IsSequenceRunning()) && (m_seqPaused)) {
-        if (m_seqSingleStep) {
-            m_seqSingleStep = 0;
-        } else if (m_seqSingleStepBack) {
-            m_seqSingleStepBack = 0;
+    if ((IsSequenceRunning()) && seqFlag(m_seqPaused).load()) {
+        if (seqFlag(m_seqSingleStep).exchange(0)) {
+            // one frame forward: read it as if playing
+        } else if (seqFlag(m_seqSingleStepBack).exchange(0)) {
             std::unique_lock<std::mutex> lock(frameCacheLock);
             if (!pastFrameCache.empty()) {
                 frameCache.push_front(pastFrameCache.back());
@@ -1151,7 +1154,7 @@ void Sequence::CloseSequenceFile(void) {
         m_seqFilename = "";
     }
     m_seqSyncName.clear();
-    m_seqPaused = 0;
+    seqFlag(m_seqPaused).store(0);
 
     if ((!IsEffectRunning()) &&
             ((getFPPmode() != REMOTE_MODE) &&
