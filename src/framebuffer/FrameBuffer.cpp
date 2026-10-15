@@ -111,6 +111,10 @@ FrameBuffer::~FrameBuffer() {
         free(m_outputBuffer);
         m_outputBuffer = nullptr;
     }
+    if (m_stagingBuffer) {
+        free(m_stagingBuffer);
+        m_stagingBuffer = nullptr;
+    }
 
     // Only the base teardown - the vtable is already demoted to FrameBuffer here,
     // so this can never reach a subclass override.  Subclasses call their own
@@ -204,13 +208,13 @@ int FrameBuffer::FBInit(const Json::Value& config) {
             m_dirtyPages[i] = 0;
     }
 
-    m_outputBuffer = (uint8_t*)malloc(m_pageSize);
-    if (!m_outputBuffer) {
+    m_outputBuffer = (uint8_t*)calloc(1, m_pageSize);
+    m_stagingBuffer = (uint8_t*)calloc(1, m_pageSize);
+    if (!m_outputBuffer || !m_stagingBuffer) {
         LogErr(VB_CHANNELOUT, "Error, unable to allocate outputBuffer buffer\n");
         DestroyFrameBuffer();
         return 0;
     }
-    memset(m_outputBuffer, 0, m_pageSize);
 
     LogDebug(VB_CHANNELOUT, "Initialized %s frame buffer at %dx%d resolution.\n",
              m_device.c_str(), m_width, m_height);
@@ -351,11 +355,11 @@ void FrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
     const uint8_t* sR = buffer + 0; // Input always RGB
     const uint8_t* sG = buffer + 1;
     const uint8_t* sB = buffer + 2;
-    uint8_t* ob = m_outputBuffer;
+    uint8_t* ob = m_stagingBuffer;
 
-    if (draw && (m_pixelSize == 1)) {
-        m_bufferLock.lock();
-        ob = FB_CURRENT_PAGE_PTR;
+    std::unique_lock<std::mutex> lock(draw ? m_bufferLock : m_stagingLock);
+    if (draw) {
+        ob = (m_pixelSize == 1) ? FB_CURRENT_PAGE_PTR : m_outputBuffer;
     }
     uint8_t* dR;
     uint8_t* dG;
@@ -398,9 +402,8 @@ void FrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
         drow++;
     }
 
-    if (draw) {
-        m_bufferLock.unlock();
-    } else {
+    lock.unlock();
+    if (!draw) {
         m_imageReady = true;
     }
 }
@@ -455,6 +458,10 @@ void FrameBuffer::DrawLoop(void) {
         // with the one being drawn, and never reached the screen.
         if (m_imageReady.exchange(false)) {
             lock.unlock();
+            {
+                std::lock_guard<std::mutex> staged(m_stagingLock);
+                memcpy(m_outputBuffer, m_stagingBuffer, m_pageSize);
+            }
             // m_nextTransitionType = IT_WipeFromHCenter;
             switch (m_nextTransitionType) {
             case IT_Random:

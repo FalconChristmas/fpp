@@ -352,16 +352,14 @@ void IOCTLFrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
         const uint8_t* sR = buffer + 0; // Input always RGB
         const uint8_t* sG = buffer + 1;
         const uint8_t* sB = buffer + 2;
-        uint8_t* ob = m_outputBuffer;
+        uint8_t* ob = m_stagingBuffer;
         int drow = 0;
 
         // Only a direct draw may write the page.  Otherwise the frame goes to
-        // m_outputBuffer, which DrawLoop() then copies over the page.
+        // m_stagingBuffer, which DrawLoop() then draws (see FrameBuffer.h).
+        std::unique_lock<std::mutex> lock(draw ? m_bufferLock : m_stagingLock);
         if (draw) {
-            m_bufferLock.lock();
-            if (m_pixelSize == 1) {
-                ob = m_pageBuffers[m_cPage];
-            }
+            ob = (m_pixelSize == 1) ? m_pageBuffers[m_cPage] : m_outputBuffer;
         }
 
         // Clipped to the page - see FrameBuffer::ClipToPage().
@@ -390,9 +388,8 @@ void IOCTLFrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
             drow++;
         }
 
-        if (draw) {
-            m_bufferLock.unlock();
-        } else {
+        lock.unlock();
+        if (!draw) {
             m_imageReady = true;
         }
     } else {
