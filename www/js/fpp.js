@@ -4311,31 +4311,82 @@ function BrowserLocaleHints () {
  * timeout the caller has already waited out once.
  */
 function GeoIPBrowserFallback (label, wantCoords) {
-	// Accurate path first: ask the geolocation service from HERE. The player
+	// Accurate path first: ask the geolocation services from HERE. The player
 	// could not, but this browser evidently reached the player and is very
-	// likely online. Only the setup page is allowed to do this (see the
-	// <Location> block in scripts/ManageApacheContentPolicy.sh), and it is worth
-	// the allowance because the offline alternative below is a whole zone wide.
-	$.ajax({url: 'https://ipapi.co/json/', dataType: 'json', timeout: 8000})
-		.done(function (remote) {
-			if (!remote || !remote.country_code) {
-				GeoIPLocalFallback(label, wantCoords);
-				return;
+	// likely online. Only the setup and settings pages are allowed to do this
+	// (see the <LocationMatch> block in scripts/ManageApacheContentPolicy.sh),
+	// and it is worth the allowance because the offline alternative below is a
+	// whole zone wide.
+	GeoIPBrowserLookup(0, function (remote) {
+		if (!remote) {
+			GeoIPLocalFallback(label, wantCoords);
+			return;
+		}
+		SetFromGeoIP('#TimeZone', remote.timezone);
+		SetFromGeoIP('#Latitude', remote.latitude);
+		SetFromGeoIP('#Longitude', remote.longitude);
+		// The mapping stays on the device, against the same data files.
+		$.get('api/geoip?nolookup=1&country=' + encodeURIComponent(remote.country_code))
+			.done(function (data) {
+				ApplyGeoIPSettings(data);
+				DialogOK(label, 'This player could not reach the internet, so its ' +
+					'location was looked up from this browser instead.');
+			})
+			.fail(function () { GeoIPLocalFallback(label, wantCoords); });
+	});
+}
+
+/**
+ * The browser-side copy of GeoIPProviders() in api/controllers/geoip.php, in
+ * the same order and normalized to the same (ipapi.co) field names.
+ *
+ * A second service is here for the same reason it is there: the free tiers are
+ * rate limited per public address, and the browser's address is the one most
+ * likely to be spent. A phone on cellular data shares it with thousands of
+ * others, so ipapi.co often refuses it with a 429 {"error": true, "reason":
+ * "RateLimited"}. A refusal can also come back as a 200, which is why each reply
+ * is checked for an actual answer rather than trusting the status.
+ */
+var GeoIPProviders = [
+	{
+		url: 'https://ipapi.co/json/',
+		normalize: function (j) {
+			return j && !j.error && j.country_code ? j : null;
+		},
+	},
+	{
+		url: 'https://ipwho.is/',
+		normalize: function (j) {
+			if (!j || j.success !== true || !j.country_code) {
+				return null;
 			}
-			SetFromGeoIP('#TimeZone', remote.timezone);
-			SetFromGeoIP('#Latitude', remote.latitude);
-			SetFromGeoIP('#Longitude', remote.longitude);
-			// The mapping stays on the device, against the same data files.
-			$.get('api/geoip?nolookup=1&country=' + encodeURIComponent(remote.country_code))
-				.done(function (data) {
-					ApplyGeoIPSettings(data);
-					DialogOK(label, 'This player could not reach the internet, so its ' +
-						'location was looked up from this browser instead.');
-				})
-				.fail(function () { GeoIPLocalFallback(label, wantCoords); });
+			return {
+				country_code: j.country_code,
+				latitude: j.latitude,
+				longitude: j.longitude,
+				timezone: j.timezone ? j.timezone.id : undefined,
+			};
+		},
+	},
+];
+
+function GeoIPBrowserLookup (index, done) {
+	if (index >= GeoIPProviders.length) {
+		done(null);
+		return;
+	}
+	var provider = GeoIPProviders[index];
+	$.ajax({url: provider.url, dataType: 'json', timeout: 8000})
+		.done(function (j) {
+			var remote = provider.normalize(j);
+			if (remote) {
+				done(remote);
+			} else {
+				GeoIPBrowserLookup(index + 1, done);
+			}
 		})
 		.fail(function () {
-			GeoIPLocalFallback(label, wantCoords);
+			GeoIPBrowserLookup(index + 1, done);
 		});
 }
 
@@ -4432,8 +4483,8 @@ function GeoIPLocalFallback (label, wantCoords) {
 }
 
 function GetTimeZone () {
-	// Server-side proxy (api/geoip) - ipapi.co doesn't send
-	// Access-Control-Allow-Origin, so the browser can't call it directly.
+	// Server-side proxy (api/geoip), so only the player's address is disclosed
+	// and normal pages need no third-party host in their CSP.
 	$.get('api/geoip' + GeoIPTestQuery())
 		.done(function (data) {
 			SetFromGeoIP('#TimeZone', data.timezone);

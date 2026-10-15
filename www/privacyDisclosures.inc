@@ -206,7 +206,9 @@ able to recognise your device.</p>",
             'title' => 'Lookup Time Zone / Lookup Location',
             'body' => "
 <p>Either button asks <b>ipapi.co</b>, a geolocation company in the USA, to guess your time
-zone and location from a public internet address. If this player can reach the internet,
+zone and location from a public internet address. If ipapi.co does not answer (it limits
+how often one address may ask), the same question goes to <b>ipwho.is</b>, another
+geolocation service. If this player can reach the internet,
 that is the player's address; if it cannot, your browser asks instead and it is your
 browser's address. Nothing is sent unless you press a button; you can type the values in
 instead.</p>

@@ -4,13 +4,14 @@ require_once(__DIR__ . "/../../config.php");
 /**
  * GeoIP lookup
  *
- * Server-side proxy for ipapi.co's IP geolocation lookup, used by the
- * Timezone/GeoLocation "Lookup"/"Detect" buttons.
+ * Server-side proxy for an IP geolocation lookup, used by the
+ * Timezone/GeoLocation "Lookup"/"Detect" buttons.  ipapi.co is asked first and
+ * ipwho.is only if ipapi.co gives no answer (see GeoIPProviders()).
  *
  * It is fetched here rather than from the browser so that only the PLAYER's
  * address is disclosed, and only when somebody presses the button -- and so
  * that no third-party host has to appear in the CSP, which is where the rest of
- * the UI has deliberately ended up.  (ipapi.co does send
+ * the UI has deliberately ended up.  (Both services send
  * Access-Control-Allow-Origin: *, so a browser-side call is not blocked by CORS
  * the way an older comment here claimed; connect-src is the only thing stopping
  * it, and that is ours to decide rather than a technical obstacle.)
@@ -36,7 +37,7 @@ require_once(__DIR__ . "/../../config.php");
  * @queryParam nolookup int   With `country`, skip the network lookup entirely and
  *                            answer from local data.  For a caller whose own
  *                            lookup already failed.
- * @response 200 ipapi.co's JSON response, plus the settings it implies
+ * @response 200 The lookup's response in ipapi.co's field names, plus the settings it implies
  * ```json
  * {"ip": "1.2.3.4", "city": "Adelaide", "region": "South Australia", "timezone": "Australia/Adelaide",
  *  "latitude": -34.9, "longitude": 138.6, "country_code": "AU", "in_eu": false,
@@ -83,19 +84,11 @@ function GetGeoIP()
         return json(['error' => 'invalid timezone']);
     }
 
-    $data = false;
+    $j = null;
     if (!$noLookup && function_exists('curl_init')) {
-        $ch = curl_init('https://ipapi.co/json/');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 6);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'FPP');
-        $data = curl_exec($ch);
-        curl_close($ch);
+        $j = GeoIPLookup();
     }
 
-    $j = json_decode($data === false ? '' : $data, true);
     if (!is_array($j)) {
         // An overridden country is still answerable with no network at all: the
         // mapping is local, and it is the half worth testing.  Everything the
@@ -131,6 +124,116 @@ function GetGeoIP()
 
     header('Content-Type: application/json');
     echo json_encode($j);
+}
+
+/**
+ * The lookup services, in the order they are tried, each with the function that
+ * turns its reply into ipapi.co's field names (or null when it is not an answer).
+ *
+ * There are two because neither is reliable on its own.  The free tiers are
+ * rate limited per public address, and a phone on cellular data or a home on
+ * carrier-grade NAT shares its address with thousands of others, so the limit
+ * can be spent before anyone here asks.  ipapi.co then answers 429 with a
+ * well-formed {"error": true, "reason": "RateLimited"} body.
+ *
+ * www/js/fpp.js (GeoIPProviders) keeps the browser-side copy of this list, and
+ * scripts/ManageApacheContentPolicy.sh has to allow every host on it.
+ *
+ * @return array URL => normalizer function name.
+ */
+function GeoIPProviders()
+{
+    return array(
+        'https://ipapi.co/json/' => 'GeoIPFromIpapi',
+        'https://ipwho.is/' => 'GeoIPFromIpwhois',
+    );
+}
+
+/**
+ * Ask each provider in turn and return the first real answer.
+ *
+ * A timeout stops the chain: it means this player has no route out, not that
+ * one service is unwell, and the next provider would only wait out the same
+ * timeout before the browser gets its turn.
+ *
+ * @return array|null Response in ipapi.co's field names, or null if none answered.
+ */
+function GeoIPLookup()
+{
+    foreach (GeoIPProviders() as $url => $normalize) {
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'FPP');
+        $data = curl_exec($ch);
+        $errno = curl_errno($ch);
+        curl_close($ch);
+
+        if ($data !== false) {
+            $j = $normalize(json_decode($data, true));
+            if ($j !== null) {
+                return $j;
+            }
+        } elseif ($errno == CURLE_OPERATION_TIMEDOUT) {
+            break;
+        }
+    }
+    return null;
+}
+
+/**
+ * ipapi.co's reply, if it is an answer.  A refusal (rate limit, reserved
+ * address) is still valid JSON, so it has to be recognized by its content.
+ *
+ * @param mixed $j Decoded reply.
+ * @return array|null
+ */
+function GeoIPFromIpapi($j)
+{
+    if (!is_array($j) || !empty($j['error']) || empty($j['country_code'])) {
+        return null;
+    }
+    return $j;
+}
+
+/**
+ * ipwho.is's reply, renamed to ipapi.co's fields so nothing downstream needs to
+ * know which service answered.
+ *
+ * @param mixed $j Decoded reply.
+ * @return array|null
+ */
+function GeoIPFromIpwhois($j)
+{
+    if (!is_array($j) || ($j['success'] ?? false) !== true || empty($j['country_code'])) {
+        return null;
+    }
+    $out = array(
+        'country' => $j['country_code'],
+        'country_code' => $j['country_code'],
+    );
+    $names = array(
+        'ip' => 'ip',
+        'city' => 'city',
+        'region' => 'region',
+        'region_code' => 'region_code',
+        'country' => 'country_name',
+        'postal' => 'postal',
+        'latitude' => 'latitude',
+        'longitude' => 'longitude',
+        'is_eu' => 'in_eu',
+    );
+    foreach ($names as $from => $to) {
+        if (isset($j[$from])) {
+            $out[$to] = $j[$from];
+        }
+    }
+    if (isset($j['timezone']['id'])) {
+        $out['timezone'] = $j['timezone']['id'];
+    }
+    return $out;
 }
 
 /**

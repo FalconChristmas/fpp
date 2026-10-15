@@ -17,9 +17,9 @@ JSON_FILE=$MEDIADIR"/config/csp_allowed_domains.json"
 declare -A DEFAULT_VALUES
 DEFAULT_VALUES=( 
     ["default-src"]="'self'"
-    # No ipapi.co here on purpose: the timezone/geolocation lookup is fetched
-    # by api/geoip (see api/controllers/geoip.php) and handed back from this
-    # device, so on every normal page the browser never contacts ipapi.co and
+    # No ipapi.co or ipwho.is here on purpose: the timezone/geolocation lookup
+    # is fetched by api/geoip (see api/controllers/geoip.php) and handed back
+    # from this device, so on every normal page the browser never contacts them and
     # never needed the allowance.  The generated header is rebuilt at every
     # boot, so removing this needs no upgrade/ step of its own.
     #
@@ -348,7 +348,10 @@ generate_csp() {
     # settings.php, and a fetch is governed by the policy of the document that
     # made it -- so settings.php is the one that has to carry the allowance.  It
     # is named too, for a direct visit.
-    CSP_HEADER_LOOKUP=$(echo "$CSP_HEADER" | sed 's|\(connect-src [^;]*\)|\1 https://ipapi.co|')
+    #
+    # Every service in GeoIPProviders (api/controllers/geoip.php, www/js/fpp.js)
+    # has to be listed: the second exists for when the first is rate limiting.
+    CSP_HEADER_LOOKUP=$(echo "$CSP_HEADER" | sed 's|\(connect-src [^;]*\)|\1 https://ipapi.co https://ipwho.is|')
 
     cat <<EOL > $FPPDIR/etc/apache2.csp
 <IfModule mod_headers.c>
