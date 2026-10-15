@@ -47,6 +47,10 @@ public:
     void SetWLEDServiceBrowser(void* sb);
     void RegisterService(void* client); // register local _fppd._udp service
     void PickAlternativeServiceName();  // pick new name on collision
+    void WithdrawService();             // daemon re-establishing its host records
+    void ResetServiceName();            // back to the host name, retries cleared
+    void ScheduleServiceNameRetry();    // try the host name again after a collision
+    void RetryBaseServiceName();
 
     // Client liveness, driven from the backend's client state callback.  Only
     // Avahi has a client that can go away; the Bonjour backend leaves these
@@ -87,8 +91,16 @@ private:
     std::map<int, std::function<void(const std::string&)>> m_callbacks;
     int m_nextCallbackId = 1;
 
-    // Service name (may be modified on collision)
+    // Service name (may be modified on collision), and the host name it started
+    // as.  A collision is not always another box with the same name -- avahi
+    // re-announcing after a host name change can hear an echo of our own old
+    // records -- so an alternative name is only kept after the base name has
+    // been retried and lost a few times.
     std::string m_serviceName;
+    std::string m_baseServiceName;
+    void* m_nameRetryTimeout = nullptr; // Avahi only: AvahiTimeout* on m_pollAdapter
+    int m_nameRetryAttempts = 0;
+    void CancelServiceNameRetry();
 
     // Backend-owned handles.  Only the active backend file touches these, and
     // what they point at is that backend's business: AvahiPoll*, AvahiClient*,

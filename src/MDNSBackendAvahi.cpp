@@ -44,6 +44,7 @@
 #include <avahi-common/error.h>
 #include <avahi-common/malloc.h>
 #include <avahi-common/strlst.h>
+#include <avahi-common/timeval.h>
 #include <avahi-common/alternative.h>
 #include <sys/timerfd.h>
 
@@ -260,14 +261,16 @@ static void entry_group_callback(AvahiEntryGroup* g, AvahiEntryGroupState state,
         LogInfo(VB_SYNC, "MDNS service registered successfully\n");
         break;
     case AVAHI_ENTRY_GROUP_COLLISION: {
-        LogWarn(VB_SYNC, "MDNS service name collision, picking alternative name\n");
-
         AvahiClient* client = avahi_entry_group_get_client(g);
         if (client) {
+            std::string was = mgr->ServiceName();
             avahi_entry_group_reset(g);
             // Pick an alternative name to avoid re-colliding
             mgr->PickAlternativeServiceName();
+            LogWarn(VB_SYNC, "MDNS service name collision on '%s', publishing as '%s'\n",
+                    was.c_str(), mgr->ServiceName().c_str());
             mgr->RegisterService(client);
+            mgr->ScheduleServiceNameRetry();
         }
 
         break;
@@ -327,7 +330,10 @@ static void client_callback(AvahiClient* c, AvahiClientState state, void* userda
         // session.
         mgr->NoteClientRunning();
 
-        // Register local service
+        // Register local service.  Back under the host name: this is also where we
+        // land after avahi re-establishes its host records, which is exactly when a
+        // stale echo can have pushed us onto "<host> #2".
+        mgr->ResetServiceName();
         mgr->RegisterService(c);
 
         // Create a service browser for _fppd._udp
@@ -353,6 +359,11 @@ static void client_callback(AvahiClient* c, AvahiClientState state, void* userda
             mgr->SetWLEDServiceBrowser(wsb);
             WarningHolder::RemoveWarning(MDNS_WARNING_ID, MDNS_WARN_WLED);
         }
+    } else if (state == AVAHI_CLIENT_S_REGISTERING || state == AVAHI_CLIENT_S_COLLISION) {
+        // The daemon is (re)registering its host records, e.g. after its host name
+        // changed.  Our services point at the old host name, so withdraw them;
+        // S_RUNNING registers them again.
+        mgr->WithdrawService();
     } else if (state == AVAHI_CLIENT_FAILURE) {
         LogWarn(VB_SYNC, "Avahi client failure: %s - will rebuild the client\n",
                 avahi_strerror(avahi_client_errno(c)));
@@ -444,6 +455,7 @@ void MDNSManager::ScheduleClientReconnect() {
 // Runs on the main loop, not from inside an Avahi callback, so the dead client can
 // safely be freed here.
 void MDNSManager::ReconnectAvahiClient() {
+    CancelServiceNameRetry();
     if (m_client) {
         // avahi_client_free() frees every object the client owns, so drop our handles
         // to the browsers and the entry group first rather than free them twice.
@@ -480,6 +492,68 @@ void MDNSManager::PickAlternativeServiceName() {
         m_serviceName = alt;
         avahi_free(alt);
     }
+}
+
+// How long to wait before each retry of the host name after a collision.  An echo
+// of our own records is gone by the first one; a real second box with this name
+// is still there after the last, and then the alternative name stays.
+static constexpr int MDNS_NAME_RETRY_DELAYS_SEC[] = { 30, 120, 600 };
+
+static void name_retry_callback(AvahiTimeout* t, void* userdata) {
+    static_cast<MDNSManager*>(userdata)->RetryBaseServiceName();
+}
+
+void MDNSManager::WithdrawService() {
+    CancelServiceNameRetry();
+    if (m_entryGroup) {
+        avahi_entry_group_reset(static_cast<AvahiEntryGroup*>(m_entryGroup));
+    }
+}
+
+void MDNSManager::ResetServiceName() {
+    CancelServiceNameRetry();
+    m_nameRetryAttempts = 0;
+    m_serviceName = m_baseServiceName;
+}
+
+void MDNSManager::ScheduleServiceNameRetry() {
+    if (m_serviceName == m_baseServiceName || !m_pollAdapter) {
+        return;
+    }
+    constexpr int maxAttempts = sizeof(MDNS_NAME_RETRY_DELAYS_SEC) / sizeof(MDNS_NAME_RETRY_DELAYS_SEC[0]);
+    if (m_nameRetryAttempts >= maxAttempts) {
+        LogWarn(VB_SYNC, "MDNS service name '%s' is in use by another host, keeping '%s'\n",
+                m_baseServiceName.c_str(), m_serviceName.c_str());
+        return;
+    }
+    struct timeval tv;
+    avahi_elapse_time(&tv, MDNS_NAME_RETRY_DELAYS_SEC[m_nameRetryAttempts] * 1000, 0);
+    m_nameRetryAttempts++;
+
+    const AvahiPoll* poll = static_cast<const AvahiPoll*>(m_pollAdapter);
+    if (m_nameRetryTimeout) {
+        poll->timeout_update(static_cast<AvahiTimeout*>(m_nameRetryTimeout), &tv);
+    } else {
+        m_nameRetryTimeout = poll->timeout_new(poll, &tv, name_retry_callback, this);
+    }
+}
+
+void MDNSManager::RetryBaseServiceName() {
+    AvahiClient* c = static_cast<AvahiClient*>(m_client);
+    if (!c || avahi_client_get_state(c) != AVAHI_CLIENT_S_RUNNING || m_serviceName == m_baseServiceName) {
+        return;
+    }
+    LogInfo(VB_SYNC, "MDNS retrying service name '%s' (attempt %d)\n", m_baseServiceName.c_str(), m_nameRetryAttempts);
+    m_serviceName = m_baseServiceName;
+    RegisterService(c);
+}
+
+void MDNSManager::CancelServiceNameRetry() {
+    if (m_nameRetryTimeout && m_pollAdapter) {
+        const AvahiPoll* poll = static_cast<const AvahiPoll*>(m_pollAdapter);
+        poll->timeout_free(static_cast<AvahiTimeout*>(m_nameRetryTimeout));
+    }
+    m_nameRetryTimeout = nullptr;
 }
 
 void MDNSManager::RegisterService(void* client) {
@@ -580,6 +654,8 @@ void MDNSManager::StopBackend() {
         m_reconnectTimerFd = -1;
     }
     m_clientDownSinceMS = 0;
+    // Lives on the poll adapter, not the client, so freeing the client won't take it.
+    CancelServiceNameRetry();
 
     // Free Avahi objects in dependency order.
     // Freeing the client triggers watch_free / timeout_free for its internal

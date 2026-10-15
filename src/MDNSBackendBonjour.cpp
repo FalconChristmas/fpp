@@ -406,6 +406,11 @@ void MDNSManager::NoteClientRunning() {}
 void MDNSManager::NoteClientDown() {}
 void MDNSManager::PickAlternativeServiceName() {}
 void MDNSManager::RegisterService(void* client) {}
+void MDNSManager::WithdrawService() {}
+void MDNSManager::ResetServiceName() {}
+void MDNSManager::ScheduleServiceNameRetry() {}
+void MDNSManager::RetryBaseServiceName() {}
+void MDNSManager::CancelServiceNameRetry() {}
 void MDNSManager::SetServiceBrowser(void* sb) { m_serviceBrowser = sb; }
 void MDNSManager::SetWLEDServiceBrowser(void* sb) { m_wledServiceBrowser = sb; }
 
