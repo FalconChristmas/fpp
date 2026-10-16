@@ -55,24 +55,15 @@ struct sockaddr_un server_address;
 int integer_buffer;
 int fppdStartTime = 0;
 
-static void exit_handler(int signum) {
-    LogInfo(VB_GENERAL, "Caught signal %d\n", signum);
-    char buf[256] = { 0 };
-    if (mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING) {
-        CloseMediaOutput();
-    }
-    ShutdownFPPD();
-    sleep(1);
-
-    CloseCommand();
-}
-
+// SIGINT and SIGTERM are not handled here. They used to be, by a handler
+// that logged, closed media and ran ShutdownFPPD() inside the signal handler,
+// none of which is async-signal-safe. fppd's own handler (installed with the
+// HTTP server) only clears the main-loop flag; before that the default action
+// simply terminates the process, which is safe this early in startup.
 int Command_Initialize() {
     mode_t old_umask;
 
     LogInfo(VB_COMMAND, "Initializing Command Module\n");
-    signal(SIGINT, exit_handler);
-    signal(SIGTERM, exit_handler);
 
     if ((socket_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
         perror("server: socket");
@@ -238,7 +229,11 @@ char* ProcessCommand(char* command, char* response) {
             // would otherwise never call SetSetting() at all. saveptr points
             // at the start of the value here; split it on the next comma
             // manually so an empty value still comes through.
-            char* value = saveptr;
+            // With no comma after the name ("SetSetting,foo") glibc leaves
+            // saveptr at the terminating NUL but BSD/macOS strtok_r sets it to
+            // NULL, so treat a NULL saveptr as an empty value.
+            static char emptyValue[1] = { 0 };
+            char* value = saveptr ? saveptr : emptyValue;
             char* comma = strchr(value, ',');
             if (comma)
                 *comma = '\0';
@@ -369,8 +364,14 @@ void CommandProc() {
 
     struct sockaddr_un client_address;
     int bytes_received, bytes_sent;
-    socklen_t address_length = sizeof(struct sockaddr_un);
+    socklen_t address_length;
 
+    // recvfrom() shrinks address_length to the sender's address size, so it
+    // (and the address itself) must be reset before every call: otherwise a
+    // short sender address truncates the next sender's path, or leaves the
+    // previous sender's bytes behind it, and the reply goes nowhere.
+    address_length = sizeof(client_address);
+    memset(&client_address, 0, sizeof(client_address));
     memset(&command[0], 0, MAX_COMMAND_SIZE);
     bytes_received = recvfrom(socket_fd, &command[0], MAX_COMMAND_SIZE - 1, 0,
                               (struct sockaddr*)&(client_address),
@@ -422,6 +423,8 @@ void CommandProc() {
                      &command[0], bytes_sent, errno, FPPstrerror(errno), &response[0]);
         }
 
+        address_length = sizeof(client_address);
+        memset(&client_address, 0, sizeof(client_address));
         memset(&command[0], 0, MAX_COMMAND_SIZE);
         bytes_received = recvfrom(socket_fd, &command[0], MAX_COMMAND_SIZE - 1, 0,
                                   (struct sockaddr*)&(client_address),
