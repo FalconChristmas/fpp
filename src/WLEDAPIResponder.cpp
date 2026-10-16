@@ -22,6 +22,7 @@
 #include <net/if.h>
 #include <netinet/in.h>
 #include <openssl/sha.h>
+#include <strings.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <unistd.h>
@@ -402,9 +403,30 @@ void WLEDAPIResponder::ClientLoop(int fd) {
     }
 
     // Otherwise treat as plain HTTP. We need the body if Content-Length
-    // says so; recv any remainder.
-    int contentLen = std::atoi(headerValue(headers, "Content-Length").c_str());
-    while (static_cast<int>(body.size()) < contentLen) {
+    // says so; recv any remainder.  Apache proxies /ws here without the UI
+    // password, so the length is a stranger's claim: cap it (a WLED state
+    // post is a few hundred bytes; frames are capped the same in ReadFrame)
+    // and don't let a stalled sender hold this thread forever.
+    static constexpr long MAX_HTTP_BODY = 64 * 1024;
+    long contentLen = std::strtol(headerValue(headers, "Content-Length").c_str(), nullptr, 10);
+    if (contentLen < 0 || contentLen > MAX_HTTP_BODY) {
+        static const char tooLarge[] = "HTTP/1.1 413 Payload Too Large\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+        writeAll(fd, tooLarge, sizeof(tooLarge) - 1);
+        closeFd(fd);
+        return;
+    }
+    if (static_cast<long>(body.size()) < contentLen) {
+        // curl and others wait for this before sending the body; without it
+        // Apache and this thread wait on each other until the proxy timeout.
+        std::string expect = headerValue(headers, "Expect");
+        if (strcasecmp(expect.c_str(), "100-continue") == 0) {
+            static const char cont[] = "HTTP/1.1 100 Continue\r\n\r\n";
+            writeAll(fd, cont, sizeof(cont) - 1);
+        }
+        struct timeval tv = { 5, 0 };
+        ::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    }
+    while (static_cast<long>(body.size()) < contentLen) {
         char buf[1024];
         ssize_t n = ::recv(fd, buf, sizeof(buf), 0);
         if (n <= 0) break;
