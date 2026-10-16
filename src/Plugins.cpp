@@ -22,6 +22,8 @@
 #include <dirent.h>
 #include <dlfcn.h>
 #include <errno.h>
+#include <chrono>
+#include <thread>
 #include <list>
 #include <map>
 #include <memory>
@@ -1422,8 +1424,8 @@ void PlaylistCallback::run(const Json::Value& playlist, const std::string& actio
 void LifecycleCallback::run(const std::string& lifecycle) {
     int pid;
     if ((pid = fork()) == -1) {
-        LogErr(VB_PLUGIN, "Failed to fork\n");
-        exit(EXIT_FAILURE);
+        LogErr(VB_PLUGIN, "Failed to fork for %s's %s callback\n", mName.c_str(), lifecycle.c_str());
+        return;
     }
 
     if (pid == 0) {
@@ -1437,6 +1439,24 @@ void LifecycleCallback::run(const std::string& lifecycle) {
         _exit(EXIT_FAILURE);
     } else {
         LogExcess(VB_PLUGIN, "Lifecycle parent process, resuming work.\n");
-        waitpid(pid, NULL, 0);
+        // A plugin load or unload at runtime runs this on the main loop, so
+        // a script that takes its time (starting or stopping a daemon) held
+        // output for as long as it ran.  Wait a bounded time, then let it
+        // finish on its own; it isn't killed, since whatever it is starting
+        // may be meant to outlive it.
+        constexpr int LIFECYCLE_WAIT_MS = 5000;
+        long long deadline = GetMonotonicTimeMS() + LIFECYCLE_WAIT_MS;
+        while (true) {
+            int r = waitpid(pid, NULL, WNOHANG);
+            if (r == pid || (r < 0 && errno != EINTR)) {
+                break;
+            }
+            if (GetMonotonicTimeMS() >= deadline) {
+                LogWarn(VB_PLUGIN, "Plugin %s: %s callback still running after %d seconds; continuing without it\n",
+                        mName.c_str(), lifecycle.c_str(), LIFECYCLE_WAIT_MS / 1000);
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
     }
 }
