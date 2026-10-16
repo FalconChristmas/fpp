@@ -480,29 +480,38 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
         return;
     }
     inCrashHandler = true;
-    // Everything this handler logs from here on -- the signal line, the gdb
-    // stack -- would otherwise push the pre-crash history out of the ring.
-    CrashLogRingFreeze();
-    if (s != SIGQUIT && s != SIGUSR1) {
-        // Wedge-proofing: nearly everything below is async-signal-UNSAFE —
-        // fork()/gdb, LogErr (malloc), system()/curl.  When the fatal signal
-        // fired while this thread held a libc lock (a heap-corruption SIGABRT
-        // inside free() always does), any of it can self-deadlock; the process
-        // then hangs forever, systemd keeps seeing it as running, and
-        // Restart=always never fires.  Arm a watchdog with SIGALRM restored to
-        // its default (terminate) disposition — both calls are
-        // async-signal-safe — so a wedged handler still dies and gets
-        // restarted.  Normal paths finish in _exit(-1) long before it fires;
-        // the timeout is generous because the crash-report zip + curl upload
-        // legitimately take time.
-        constexpr unsigned int kCrashHandlerWatchdogSec = 120;
-        struct sigaction almAct;
-        memset(&almAct, 0, sizeof(almAct));
-        almAct.sa_handler = SIG_DFL;
-        sigemptyset(&almAct.sa_mask);
-        sigaction(SIGALRM, &almAct, nullptr);
-        alarm(kCrashHandlerWatchdogSec);
+    // SIGQUIT/SIGUSR1 (kill -3) ask for a stack dump of a running fppd, not a
+    // crash: fppd carries on afterwards, so they get the gdb stack and the
+    // context files but no ring freeze, crash report or upload.
+    const bool requestedDump = (s == SIGQUIT || s == SIGUSR1);
+    if (!requestedDump) {
+        // Everything this handler logs from here on -- the signal line, the gdb
+        // stack -- would otherwise push the pre-crash history out of the ring.
+        // Nothing unfreezes it, so a dump that carries on must not do this.
+        CrashLogRingFreeze();
     }
+    // Wedge-proofing: nearly everything below is async-signal-UNSAFE —
+    // fork()/gdb, LogErr (malloc), system()/curl.  When the fatal signal
+    // fired while this thread held a libc lock (a heap-corruption SIGABRT
+    // inside free() always does), any of it can self-deadlock; the process
+    // then hangs forever, systemd keeps seeing it as running, and
+    // Restart=always never fires.  Arm a watchdog with SIGALRM restored to
+    // its default (terminate) disposition — both calls are
+    // async-signal-safe — so a wedged handler still dies and gets
+    // restarted.  Normal paths finish in _exit(-1) long before it fires;
+    // the timeout is generous because the crash-report zip + curl upload
+    // legitimately take time.  A requested dump interrupts whatever the
+    // target thread was doing just the same, so it is armed for those too,
+    // and disarmed again when the dump returns.
+    constexpr unsigned int kCrashHandlerWatchdogSec = 120;
+    struct sigaction almAct;
+    struct sigaction prevAlmAct;
+    memset(&almAct, 0, sizeof(almAct));
+    memset(&prevAlmAct, 0, sizeof(prevAlmAct));
+    almAct.sa_handler = SIG_DFL;
+    sigemptyset(&almAct.sa_mask);
+    sigaction(SIGALRM, &almAct, &prevAlmAct);
+    unsigned int prevAlarm = alarm(kCrashHandlerWatchdogSec);
     // The value used only until the user has answered, which is now a short and
     // bounded window: the setup wizard writes ShareCrashData on Finish whether
     // it was touched or not, and menuHead.inc will not let a box reach the rest
@@ -533,8 +542,11 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
     // handler, so it can interrupt a thread that already holds m_seqFilenameLock
     // and taking it here would self-deadlock the crash report.  A torn read is
     // the acceptable trade for a log line that is already best-effort.
-    if (!sequence->m_seqFilename.empty()) {
-        LogErr(VB_ALL, "   while playing  %s  at  %d ms\n", sequence->m_seqFilename.c_str(), sequence->m_seqMSElapsed.load());
+    // sequence is null before main() creates it and after shutdown deletes it,
+    // and a crash in either window still needs its report.
+    Sequence* seq = sequence;
+    if (seq && !seq->m_seqFilename.empty()) {
+        LogErr(VB_ALL, "   while playing  %s  at  %d ms\n", seq->m_seqFilename.c_str(), seq->m_seqMSElapsed.load());
     }
     const char* gdbFailReason = nullptr;
     if (!dumpstack_gdb(&gdbFailReason)) {
@@ -618,7 +630,7 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
             close(rfd);
         }
     }
-    if (crashLog >= 0) {
+    if (crashLog >= 0 && !requestedDump) {
         // (modification time, path) of every report in crashes/
         std::vector<std::pair<std::filesystem::file_time_type, std::string>> reports;
         std::string mediaDir = getFPPMediaDir();
@@ -702,8 +714,12 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
             LogErr(VB_ALL, "Very recent crash report found, not uploading\n");
         }
     }
-    if (s == SIGQUIT || s == SIGUSR1) {
-        inCrashHandler = false; // a requested dump: fppd carries on
+    if (requestedDump) {
+        // fppd carries on: put SIGALRM and any alarm already pending (the
+        // loop watchdog's own exit timer) back as they were.
+        sigaction(SIGALRM, &prevAlmAct, nullptr);
+        alarm(prevAlarm);
+        inCrashHandler = false;
     } else {
         // For SIGBUS in non-main threads, terminate only the faulting thread
         // instead of the entire process.  This allows fppd to survive
@@ -1399,8 +1415,14 @@ int main(int argc, char* argv[]) {
     // window where a warning change reads freed objects.
     WarningHolder::StopNotifyThread();
 
-    delete scheduler;
-    delete sequence;
+    // Cleared before the delete, not left dangling: the crash handler and any
+    // straggler that checks these for null must not reach a freed object.
+    Scheduler* deadScheduler = scheduler;
+    scheduler = nullptr;
+    delete deadScheduler;
+    Sequence* deadSequence = sequence;
+    sequence = nullptr;
+    delete deadSequence;
     runMainFPPDLoop = -1;
     Sensors::INSTANCE.Close();
     RecurringTasks::INSTANCE.Close();
@@ -1412,8 +1434,10 @@ int main(int argc, char* argv[]) {
     }
     delete gpioUtil;
 
-    MagickLib::DestroyMagick();
-    curl_global_cleanup();
+    // No DestroyMagick()/curl_global_cleanup(): every path from here ends in
+    // execlp() or _exit(), which drop both libraries with the address space,
+    // and tearing them down first pulled their state out from under any
+    // detached thread (a scheduled command, an HTTP fetch) still inside them.
     std::string logLevelString = FPPLogger::INSTANCE.GetLogLevelString();
 
     // Decide the restart resume HERE, while the log file is still open:
@@ -1828,7 +1852,9 @@ static void MainLoopWatchdog(int warnSec, int restartSec, int shutdownSec) {
         if (warnSec <= 0) {
             continue; // disabled at runtime
         }
-        if (!runMainFPPDLoop) {
+        // <= 0, not !: main() sets it to -1 partway through teardown, and a
+        // shutdown that wedged after that point was reported as a loop stall.
+        if (runMainFPPDLoop <= 0) {
             // Teardown is underway.  It ends in _exit()/execlp(), so this
             // thread simply stops existing on a healthy shutdown; if it is
             // still here much later, the shutdown itself wedged and systemd
@@ -2022,20 +2048,27 @@ void MainLoop(void) {
             std::time_t latestRelease = 0;
             // Find the latest release date across all OS images
             for (const auto& osEntry : imagerRoot["os_list"]) {
-                if (osEntry.isMember("release_date")) {
-                    std::string releaseDate = osEntry["release_date"].asString();
-                    if (releaseDate.length() >= 10) {
-                        // Parse "YYYY-MM-DD" format
-                        std::tm releaseTime = {};
-                        releaseTime.tm_year = std::stoi(releaseDate.substr(0, 4)) - 1900;
-                        releaseTime.tm_mon = std::stoi(releaseDate.substr(5, 2)) - 1;
-                        releaseTime.tm_mday = std::stoi(releaseDate.substr(8, 2));
-                        std::time_t releaseTimestamp = std::mktime(&releaseTime);
-                        if (releaseTimestamp > latestRelease) {
-                            latestRelease = releaseTimestamp;
-                            minValidDate = releaseTime;
-                        }
-                    }
+                // Parsed without throwing: std::stoi on a malformed date (and
+                // isMember/asString on an entry of the wrong JSON type) threw
+                // out of MainLoop and took fppd down at startup.  An entry
+                // that doesn't parse is skipped.
+                if (!osEntry.isObject() || !osEntry["release_date"].isString()) {
+                    continue;
+                }
+                // Parse "YYYY-MM-DD" format
+                int year = 0, month = 0, day = 0;
+                if (sscanf(osEntry["release_date"].asCString(), "%4d-%2d-%2d", &year, &month, &day) != 3 ||
+                    year < 1970 || month < 1 || month > 12 || day < 1 || day > 31) {
+                    continue;
+                }
+                std::tm releaseTime = {};
+                releaseTime.tm_year = year - 1900;
+                releaseTime.tm_mon = month - 1;
+                releaseTime.tm_mday = day;
+                std::time_t releaseTimestamp = std::mktime(&releaseTime);
+                if (releaseTimestamp > latestRelease) {
+                    latestRelease = releaseTimestamp;
+                    minValidDate = releaseTime;
                 }
             }
         }
