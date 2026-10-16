@@ -373,6 +373,12 @@ public:
 
     virtual bool supportPWM() const override { return pwm != -1; }
     virtual bool setupPWM(int maxValue = 25500) const override {
+        if (pwm != -1 && dutyFile != nullptr) {
+            // Already set up. Each call opened another duty_cycle stream and
+            // leaked the last; reopening instead would close a FILE* that
+            // setPWMValue() on an output thread may be writing to.
+            return true;
+        }
         if (pwm != -1) {
             configPin("pwm", true, "PWM");
             char dir_name[128];
@@ -430,7 +436,7 @@ public:
                     try {
                         auto chip = gpiod::chip(entry.path().string());
                         auto info = chip.get_info();
-                        if (info.label() == "pinctrl-rpi1" || info.label() == "pinctrl-bcm2711" || info.label() == "pinctrl-bcm2835") {
+                        if (info.label() == "pinctrl-rp1" || info.label() == "pinctrl-bcm2711" || info.label() == "pinctrl-bcm2835") {
                             pinctrlRpiChip = std::stoi(entry.path().filename().string().substr(8));
                             pinctrlRpiChipName = info.name();
                             return pinctrlRpiChip;
