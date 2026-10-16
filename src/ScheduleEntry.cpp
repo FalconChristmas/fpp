@@ -16,6 +16,8 @@
 
 #include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
 
+#include <cerrno>
+#include <cmath>
 #include <ctime>
 #include <ctype.h>
 #include <math.h>
@@ -39,7 +41,31 @@
 static std::mutex s_loadWarningsLock;
 static std::vector<std::pair<int, std::string>> s_loadWarnings;
 
+// The innermost SchedulePreviewScope on this thread, if any.
+static thread_local SchedulePreviewScope* s_previewScope = nullptr;
+
+SchedulePreviewScope::SchedulePreviewScope() :
+    m_prev(s_previewScope) {
+    s_previewScope = this;
+}
+
+SchedulePreviewScope::~SchedulePreviewScope() {
+    s_previewScope = m_prev;
+}
+
 void ScheduleLoadWarning(int id, const std::string& msg) {
+    if (s_previewScope) {
+        // A preview expansion (the calendar) is not a load: nothing here
+        // would ever retract a banner it raised, and a year the viewer merely
+        // browsed to is not one the scheduler will run.
+        LogDebug(VB_SCHEDULE, "Schedule preview: %s\n", msg.c_str());
+        for (auto& w : s_previewScope->m_warnings) {
+            if ((w.first == id) && (w.second == msg))
+                return;
+        }
+        s_previewScope->m_warnings.emplace_back(id, msg);
+        return;
+    }
     WarningHolder::AddWarning(id, msg);
     std::lock_guard<std::mutex> l(s_loadWarningsLock);
     for (auto& w : s_loadWarnings) {
@@ -84,10 +110,12 @@ static void CivilFromDays(long z, int& y, int& m, int& d) {
     y = (int)(yoe + era * 400 + (m <= 2));
 }
 
-static time_t GetTimeOnDOW(int day, int hour, int minute, int second) {
-    time_t currTime = time(NULL);
+// 'base' is the schedule load's single "now".  Reading the clock here, per
+// call, let a load that ran across midnight anchor an occurrence's start to
+// one week and its end to the next (Saturday->Sunday): a week-long window.
+static time_t GetTimeOnDOW(time_t base, int day, int hour, int minute, int second) {
     struct tm now;
-    localtime_r(&currTime, &now);
+    localtime_r(&base, &now);
 
     // 'day' is an offset relative to Sunday of the current week so our
     // new mday is adjusted by the current day of the week we are on now
@@ -598,14 +626,14 @@ static void mapTimeString(const std::string& tm, int& h, int& m, int& s) {
     }
 }
 
-void ScheduleEntry::pushStartEndTimes(int dow, int& delta, time_t deltaThreshold) {
+void ScheduleEntry::pushStartEndTimes(int dow, int& delta, time_t deltaThreshold, time_t now) {
     // Local copies, as in GetOccurrencesOnDate(): GetTimeFromSun() writes the
     // day's resolved time into them, and writing it into the entry's own
     // fields made each day start from the previous day's sun time.
     int sh = startHour, sm = startMinute, ss = startSecond;
     int eh = endHour, em = endMinute, es = endSecond;
-    time_t startTime = GetTimeOnDOW(dow, sh, sm, ss);
-    time_t endTime = GetTimeOnDOW(dow, eh, em, es);
+    time_t startTime = GetTimeOnDOW(now, dow, sh, sm, ss);
+    time_t endTime = GetTimeOnDOW(now, dow, eh, em, es);
 
     if (startTimeStr.find(":") == std::string::npos) {
         GetTimeFromSun(startTime, startTimeStr, startTimeOffset, sh, sm, ss);
@@ -625,7 +653,7 @@ void ScheduleEntry::pushStartEndTimes(int dow, int& delta, time_t deltaThreshold
     bool crossesMidnight = sunTimes ? (endTime < startTime)
                                     : (WallSeconds(eh, em, es) < WallSeconds(sh, sm, ss));
     if (crossesMidnight) {
-        endTime = GetTimeOnDOW(dow + 1, eh, em, es);
+        endTime = GetTimeOnDOW(now, dow + 1, eh, em, es);
         if (endTimeStr.find(":") == std::string::npos) {
             GetTimeFromSun(endTime, endTimeStr, endTimeOffset, eh, em, es);
         }
@@ -634,7 +662,6 @@ void ScheduleEntry::pushStartEndTimes(int dow, int& delta, time_t deltaThreshold
         endTime = startTime;
     }
 
-    time_t now = time(NULL);
     // A command occurrence has no duration (the UI saves endTime = startTime),
     // so once its second passed it used to be dropped here -- by any reload in
     // the same second or a few seconds later, which is exactly the stall or
@@ -651,8 +678,8 @@ void ScheduleEntry::pushStartEndTimes(int dow, int& delta, time_t deltaThreshold
 
     if (delta != 0) {
         // Only adjust if the threshold and start times are in the future
-        if (deltaThreshold > time(NULL)) {
-            if (deltaThreshold > startTime && startTime > time(NULL)) {
+        if (deltaThreshold > now) {
+            if (deltaThreshold > startTime && startTime > now) {
                 startTime += delta;
             }
 
@@ -844,8 +871,11 @@ void ScheduleEntry::GetOccurrencesOnDate(int year, int month, int mday,
 static const char* LATLON_WARNING = "Schedule: Latitude/Longitude not set or not numeric — dawn/dusk times use default coordinates";
 
 // strtod() plus an end-pointer check.  A coordinate has to consume the whole
-// string, so "38.9N" is rejected rather than silently becoming 38.9.
-static bool ParseCoordinate(const std::string& str, double& out) {
+// string, so "38.9N" is rejected rather than silently becoming 38.9.  It also
+// has to be a real angle within +-limit: strtod() happily accepts "nan",
+// "inf" and 1e300, which went on into the sun calculation as garbage instead
+// of raising the "not usable" warning.
+static bool ParseCoordinate(const std::string& str, double limit, double& out) {
     if (str.empty()) {
         return false;
     }
@@ -864,6 +894,10 @@ static bool ParseCoordinate(const std::string& str, double& out) {
     }
 
     if (*end != '\0') {
+        return false;
+    }
+
+    if (!std::isfinite(v) || (std::fabs(v) > limit)) {
         return false;
     }
 
@@ -887,7 +921,7 @@ void ScheduleEntry::GetTimeFromSun(time_t& when, const std::string info,
     // (Scheduler ctor -> LoadScheduleFromFile -> pushStartEndTimes) with no
     // catch anywhere above it, which turned one bad character into a boot loop.
     // Parse without exceptions and fall back to the defaults instead.
-    if (!ParseCoordinate(latStr, lat) || !ParseCoordinate(lonStr, lon)) {
+    if (!ParseCoordinate(latStr, 90.0, lat) || !ParseCoordinate(lonStr, 180.0, lon)) {
         lat = 38.938524;
         lon = -104.600945;
 
@@ -934,10 +968,39 @@ void ScheduleEntry::GetTimeFromSun(time_t& when, const std::string info,
     mtm.tm_isdst = -1;
     time_t midnight = mktime(&mtm);
 
+    const bool isRise = (info == "SunRise") || (info == "Dawn");
+    const bool isSet = (info == "SunSet") || (info == "Dusk");
+
+    // Far enough north or south the sun can stay up (or down) all day, and
+    // then there is no rise or set to anchor to.  SunRise reports that as
+    // hasRise/hasSet false with the time left at 0, which the clamp below
+    // read as "before the day starts" and put a SunSet show at 8AM.  Use the
+    // same conventional times the clamp falls back to -- 8AM for a rise,
+    // 8PM for a set -- with the entry's offset still applied, so entries
+    // keep their order and a dusk show stays in the evening.
+    if ((isRise && !sr.hasRise) || (isSet && !sr.hasSet)) {
+        struct tm ftm = local;
+        ftm.tm_hour = isRise ? 8 : 20;
+        ftm.tm_min = 0;
+        ftm.tm_sec = 0;
+        ftm.tm_isdst = -1;
+        time_t target = mktime(&ftm) + (time_t)infoOffset * SECONDS_PER_MINUTE;
+        struct tm tt;
+        localtime_r(&target, &tt);
+        h = tt.tm_hour;
+        m = tt.tm_min;
+        s = tt.tm_sec;
+        when = target;
+        LogWarn(VB_SCHEDULE, "No %s on %02d/%02d/%04d at %.6f, %.6f (sun %s all day), using %02d:%02d:%02d\n",
+                info.c_str(), local.tm_mon + 1, local.tm_mday, local.tm_year + 1900, lat, lon,
+                sr.isVisible ? "up" : "down", h, m, s);
+        return;
+    }
+
     time_t event = midnight;
-    if ((info == "SunRise") || (info == "Dawn"))
+    if (isRise)
         event = sr.riseTime;
-    else if ((info == "SunSet") || (info == "Dusk"))
+    else if (isSet)
         event = sr.setTime;
 
     // Work from the absolute event time and let localtime() give the wall

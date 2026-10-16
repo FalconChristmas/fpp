@@ -233,7 +233,7 @@ void Scheduler::ReloadScheduleFile(void) {
     m_loadSchedule = true;
 }
 
-void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
+void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index, std::time_t loadTime) {
     if (!entry->enabled)
         return;
 
@@ -257,7 +257,7 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
     }
 
     int dayIndex = entry->dayIndex;
-    std::time_t currTime = std::time(nullptr);
+    std::time_t currTime = loadTime;
     struct tm now;
     localtime_r(&currTime, &now);
     int scheduleDistance = getSettingInt("ScheduleDistance");
@@ -309,10 +309,10 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
 
         // Schedule yesterday if needed to handle midnight crossovers
         if (dayOffset)
-            entry->pushStartEndTimes(now.tm_wday - 1, m_timeDelta, m_timeDeltaThreshold);
+            entry->pushStartEndTimes(now.tm_wday - 1, m_timeDelta, m_timeDeltaThreshold, currTime);
 
         for (int i = now.tm_wday + dayOffset; i <= scheduleDistance; i += 2) {
-            entry->pushStartEndTimes(i, m_timeDelta, m_timeDeltaThreshold);
+            entry->pushStartEndTimes(i, m_timeDelta, m_timeDeltaThreshold, currTime);
         }
     } else {
         dayIndex = ScheduleEntry::DayIndexToMask(dayIndex);
@@ -328,30 +328,30 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index) {
     if ((now.tm_wday == 0) &&
         (entry->dayIndex != INX_ODD_DAY) && (entry->dayIndex != INX_EVEN_DAY) &&
         (dayIndex & INX_DAY_MASK_SATURDAY))
-        entry->pushStartEndTimes(-1, m_timeDelta, m_timeDeltaThreshold);
+        entry->pushStartEndTimes(-1, m_timeDelta, m_timeDeltaThreshold, currTime);
 
     if ((entry->dayIndex != INX_ODD_DAY) && (entry->dayIndex != INX_EVEN_DAY)) {
         for (int weekOffset = 0; weekOffset <= scheduleDistance; weekOffset += 7) {
             if (dayIndex & INX_DAY_MASK_SUNDAY)
-                entry->pushStartEndTimes(INX_SUN + weekOffset, m_timeDelta, m_timeDeltaThreshold);
+                entry->pushStartEndTimes(INX_SUN + weekOffset, m_timeDelta, m_timeDeltaThreshold, currTime);
 
             if (dayIndex & INX_DAY_MASK_MONDAY)
-                entry->pushStartEndTimes(INX_MON + weekOffset, m_timeDelta, m_timeDeltaThreshold);
+                entry->pushStartEndTimes(INX_MON + weekOffset, m_timeDelta, m_timeDeltaThreshold, currTime);
 
             if (dayIndex & INX_DAY_MASK_TUESDAY)
-                entry->pushStartEndTimes(INX_TUE + weekOffset, m_timeDelta, m_timeDeltaThreshold);
+                entry->pushStartEndTimes(INX_TUE + weekOffset, m_timeDelta, m_timeDeltaThreshold, currTime);
 
             if (dayIndex & INX_DAY_MASK_WEDNESDAY)
-                entry->pushStartEndTimes(INX_WED + weekOffset, m_timeDelta, m_timeDeltaThreshold);
+                entry->pushStartEndTimes(INX_WED + weekOffset, m_timeDelta, m_timeDeltaThreshold, currTime);
 
             if (dayIndex & INX_DAY_MASK_THURSDAY)
-                entry->pushStartEndTimes(INX_THU + weekOffset, m_timeDelta, m_timeDeltaThreshold);
+                entry->pushStartEndTimes(INX_THU + weekOffset, m_timeDelta, m_timeDeltaThreshold, currTime);
 
             if (dayIndex & INX_DAY_MASK_FRIDAY)
-                entry->pushStartEndTimes(INX_FRI + weekOffset, m_timeDelta, m_timeDeltaThreshold);
+                entry->pushStartEndTimes(INX_FRI + weekOffset, m_timeDelta, m_timeDeltaThreshold, currTime);
 
             if (dayIndex & INX_DAY_MASK_SATURDAY)
-                entry->pushStartEndTimes(INX_SAT + weekOffset, m_timeDelta, m_timeDeltaThreshold);
+                entry->pushStartEndTimes(INX_SAT + weekOffset, m_timeDelta, m_timeDeltaThreshold, currTime);
         }
     }
 
@@ -798,8 +798,16 @@ void Scheduler::CheckScheduledItems(bool restarted) {
                         continue; // skip over any items that ran already
 
                     if (item.isPlaylist) {
-                        if (m_startsInFlight.count({ item.startTime, item.entryIndex }))
-                            continue; // being started by another thread right now
+                        // While any scheduled start is still being carried
+                        // out the player is busy, whatever its status says:
+                        // it reads idle until that playlist has loaded.
+                        // Guarding only the in-flight item let a concurrent
+                        // pass start the next, lower-priority item into the
+                        // same player and lose the higher one.  Skipped items
+                        // keep their ran flag clear, and the pass doing the
+                        // start rescans once it has finished.
+                        if (!m_startsInFlight.empty())
+                            continue;
                         if (item.priority > bestIdlePriority)
                             continue; // a higher-priority playlist is due; it goes first
                         if (!doScheduledPlaylist(now, itemTime.first, item, restarted, actions)) {
@@ -842,13 +850,22 @@ void Scheduler::CheckScheduledItems(bool restarted) {
             }
         }
 
-        RunPlayerActions(actions);
         {
-            std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
-            for (const auto& action : actions) {
-                if (action.type == PlayerAction::Type::StartPlaylist)
-                    m_startsInFlight.erase({ action.startTime, action.entryIndex });
-            }
+            // Clear this pass's in-flight marks however RunPlayerActions()
+            // leaves: every scheduled playlist start waits while any mark is
+            // set, so one leaked by an exception would stop the schedule.
+            struct InFlightGuard {
+                Scheduler* s;
+                const std::vector<PlayerAction>& actions;
+                ~InFlightGuard() {
+                    std::unique_lock<std::recursive_mutex> lock(s->m_scheduleLock);
+                    for (const auto& action : actions) {
+                        if (action.type == PlayerAction::Type::StartPlaylist)
+                            s->m_startsInFlight.erase({ action.startTime, action.entryIndex });
+                    }
+                }
+            } inFlightGuard{ this, actions };
+            RunPlayerActions(actions);
         }
         RunCountdownPresets(presets);
     } while (!actions.empty());
@@ -907,7 +924,17 @@ void Scheduler::LoadScheduleFromFile(void) {
     LogDebug(VB_SCHEDULE, "Loading Schedule from %s\n", SCHEDULE_FILE.c_str());
 
     m_loadSchedule = false;
-    m_lastLoadDate = GetCurrentDateInt();
+    // One clock reading for the whole load: every entry and every occurrence
+    // is placed relative to it, so a load that runs across midnight cannot
+    // anchor some of them to the old day (or week) and some to the new one.
+    // The load date comes from the same reading, so a load anchored to the
+    // old day is redone once the new day is seen.
+    const std::time_t loadTime = std::time(nullptr);
+    {
+        struct tm lt;
+        localtime_r(&loadTime, &lt);
+        m_lastLoadDate = (lt.tm_year + 1900) * 10000 + (lt.tm_mon + 1) * 100 + lt.tm_mday;
+    }
     m_schedulesExtendBeyondDistance = false;
 
     std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
@@ -974,7 +1001,7 @@ void Scheduler::LoadScheduleFromFile(void) {
     }
 
     for (int i = 0; i < m_Schedule.size(); i++) {
-        AddScheduledItems(&m_Schedule[i], i);
+        AddScheduledItems(&m_Schedule[i], i, loadTime);
     }
 
     SchedulePrint();
@@ -1448,6 +1475,10 @@ Json::Value Scheduler::GetScheduleRange(time_t rangeStart, time_t rangeEnd,
     timeStruct.tm_mday -= 1;
     time_t cursor = mktime(&timeStruct);
 
+    // This runs on an API thread for whatever range the calendar asks for;
+    // what the expansion finds wrong (a year past a lunar table) belongs in
+    // this response, not in the scheduler's load warnings.
+    SchedulePreviewScope previewScope;
     for (; cursor <= (rangeEnd + SECONDS_PER_DAY); cursor += SECONDS_PER_DAY) {
         localtime_r(&cursor, &timeStruct);
         int year = timeStruct.tm_year + 1900;
@@ -1552,6 +1583,12 @@ Json::Value Scheduler::GetScheduleRange(time_t rangeStart, time_t rangeEnd,
     }
 
     result["items"] = items;
+    if (!previewScope.warnings().empty()) {
+        Json::Value warnings(Json::arrayValue);
+        for (const auto& w : previewScope.warnings())
+            warnings.append(w.second);
+        result["warnings"] = warnings;
+    }
     result["rangeStart"] = (Json::UInt64)rangeStart;
     result["rangeEnd"] = (Json::UInt64)rangeEnd;
     result["daySummary"] = daySummary;

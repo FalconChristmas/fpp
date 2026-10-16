@@ -125,7 +125,7 @@ private:
     void RunPlayerActions(const std::vector<PlayerAction>& actions);
     void RunCountdownPresets(const std::vector<CountdownPreset>& presets);
 
-    void AddScheduledItems(ScheduleEntry* entry, int index);
+    void AddScheduledItems(ScheduleEntry* entry, int index, std::time_t loadTime);
     void DumpScheduledItem(const std::time_t itemTime, const ScheduledItem& item);
     void DumpScheduledItems();
     void CheckScheduledItems(bool restarted = false);
