@@ -71,6 +71,7 @@
 #include "mediaoutput/mediaoutput.h"
 
 #include "MultiSync.h"
+#include "Timers.h"
 
 MultiSync MultiSync::INSTANCE;
 MultiSync* multiSync = &MultiSync::INSTANCE;
@@ -2318,6 +2319,43 @@ void MultiSync::FinishHTTPPing() {
     PumpHTTPPings();
 }
 
+// Answering a discover ping: one broadcast ping plus a unicast one to the
+// asker.  This used to sleep up to 6ms on the main loop per discover ping
+// (so the remotes' answers are spread out) and answer every one, so a stream
+// of them stalled output and turned every packet into several.  The answer
+// now goes out from a one-shot timer a few ms later, and every discover ping
+// that arrives while one is pending joins it: one broadcast, plus a unicast to
+// each distinct asker (bounded).
+static std::mutex s_discoverReplyLock;
+static std::set<std::string> s_discoverReplyTargets;
+static bool s_discoverReplyArmed = false;
+
+void MultiSync::QueueDiscoverReply(const std::string& address, const std::string& srcIp) {
+    std::lock_guard<std::mutex> lock(s_discoverReplyLock);
+    for (const std::string* a : { &address, &srcIp }) {
+        if (!a->empty() && s_discoverReplyTargets.size() < 64) {
+            s_discoverReplyTargets.insert(*a);
+        }
+    }
+    if (s_discoverReplyArmed) {
+        return;
+    }
+    s_discoverReplyArmed = true;
+    // a slight random delay so all the remotes don't answer at the same time
+    Timers::INSTANCE.addTimer("MultiSyncDiscoverReply", GetTimeMS() + 1 + FPPrand() % 6, [this]() {
+        std::set<std::string> targets;
+        {
+            std::lock_guard<std::mutex> lock(s_discoverReplyLock);
+            targets.swap(s_discoverReplyTargets);
+            s_discoverReplyArmed = false;
+        }
+        Ping();
+        for (const auto& t : targets) {
+            PingSingleRemote(t.c_str(), 0);
+        }
+    });
+}
+
 void MultiSync::PingSingleRemote(const char* address, int discover) {
     MultiSyncSystem sys;
 
@@ -4414,17 +4452,7 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
     }
     if (discover) {
         if ((hostname != m_hostname) && !isLocal) {
-            // very slight random delay so all the remotes don't send
-            // packets out at the same time
-            int rand = FPPrand() % 5000;
-            std::this_thread::sleep_for(std::chrono::microseconds(rand));
-            multiSync->Ping();
-            rand = FPPrand() % 1000;
-            std::this_thread::sleep_for(std::chrono::microseconds(rand));
-            multiSync->PingSingleRemote(address.c_str(), 0);
-            if (address != srcIp) {
-                multiSync->PingSingleRemote(srcIp.c_str(), 0);
-            }
+            QueueDiscoverReply(address, srcIp);
         }
     }
 
