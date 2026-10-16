@@ -214,10 +214,16 @@ private:
     // file; the output thread reads a snapshot.  They used to be plain maps
     // that open/close cleared and refilled while the output thread was
     // looking things up in them.
+    //
+    // Each command/effect name is stored once in `names` and the frame maps
+    // hold indexes into it.  An FC/FE block gives a name followed by its frame
+    // ranges, and copying the name into every range let one long name with a
+    // few million ranges expand a small header into hundreds of MB.
     struct Triggers {
-        std::map<uint32_t, std::vector<std::string>> commandPresets;
-        std::map<uint32_t, std::vector<std::string>> effectsOn;
-        std::map<uint32_t, std::vector<std::string>> effectsOff;
+        std::vector<std::string> names;
+        std::map<uint32_t, std::vector<uint32_t>> commandPresets;
+        std::map<uint32_t, std::vector<uint32_t>> effectsOn;
+        std::map<uint32_t, std::vector<uint32_t>> effectsOff;
     };
     AtomicSharedPtr<Triggers> m_triggers;
     // Frame number of m_lastFrameData (-1 for none), set with it under
@@ -230,6 +236,15 @@ private:
     // the sequence closes rather than left running after it.
     std::mutex m_triggerEffectsLock;
     std::vector<std::string> m_triggerEffects;
+    // The trigger table m_triggerEffects belongs to, or null once it has been
+    // forgotten (closed).  Guarded by m_triggerEffectsLock.  The output thread
+    // can be inside FireFrameTriggers() with a snapshot of the old table while
+    // the close swaps m_triggerEffects out; an effect it starts after that
+    // swap would be recorded in a list nobody stops.  It checks this under the
+    // same lock and stops such an effect itself.  Compared only against a
+    // table the caller still holds a reference to, so the address cannot have
+    // been reused.
+    const Triggers* m_triggerEffectsOwner = nullptr;
     void FireFrameTriggers();
     void ForgetTriggers();
 

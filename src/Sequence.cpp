@@ -571,6 +571,9 @@ void Sequence::ProcessVariableHeaders() {
                 truncated = true;
                 break;
             }
+            // The name is stored once (an _END twin for commands) and each
+            // range records only its index; see Triggers.
+            const uint32_t idx = (uint32_t)trig->names.size();
             for (uint32_t cc1 = 0; cc1 < cc; cc1++) {
                 uint32_t start = 0;
                 uint32_t stop = 0;
@@ -578,12 +581,18 @@ void Sequence::ProcessVariableHeaders() {
                     truncated = true;
                     break;
                 }
+                if (cc1 == 0) {
+                    trig->names.push_back(cmd);
+                    if (vh.code[1] == 'C') {
+                        trig->names.push_back(cmd + "_END");
+                    }
+                }
                 if (vh.code[1] == 'C') {
-                    trig->commandPresets[start].push_back(cmd);
-                    trig->commandPresets[stop].push_back(cmd + "_END");
+                    trig->commandPresets[start].push_back(idx);
+                    trig->commandPresets[stop].push_back(idx + 1);
                 } else {
-                    trig->effectsOn[start].push_back(cmd);
-                    trig->effectsOff[stop].push_back(cmd);
+                    trig->effectsOn[start].push_back(idx);
+                    trig->effectsOff[stop].push_back(idx);
                 }
             }
         }
@@ -607,7 +616,11 @@ void Sequence::ForgetTriggers() {
     m_lastTriggeredFrame = -1;
     std::vector<std::string> running;
     {
+        // Clearing the owner in the same critical section as the swap is what
+        // closes the window for an effect FireFrameTriggers() is starting
+        // right now: it either lands in `running` or sees the table closed.
         std::unique_lock<std::mutex> l(m_triggerEffectsLock);
+        m_triggerEffectsOwner = nullptr;
         running.swap(m_triggerEffects);
     }
     if (running.empty())
@@ -768,6 +781,10 @@ void Sequence::setSeqFile(std::shared_ptr<FSEQFile> f) {
 
 void Sequence::setTriggers(std::shared_ptr<Triggers> t) {
     if (t) {
+        {
+            std::unique_lock<std::mutex> l(m_triggerEffectsLock);
+            m_triggerEffectsOwner = t.get();
+        }
         m_triggers.store(std::move(t));
         m_haveTriggers.store(true, std::memory_order_release);
     } else {
@@ -958,8 +975,12 @@ void Sequence::ProcessSequenceData(int ms) {
         // send a universe half old, half new; the receive path waits at most
         // for one merge's memcpys.
         uint64_t nt = GetMonotonicTimeMS(); // expiries are monotonic (CommitBridgeRanges)
-        m_bridgeRangeScratch.clear();
+        // The scratch vector is shared by every caller (the output thread and
+        // the inline SendBlankingData path), so it is cleared, filled and read
+        // only under the lock: a clear() racing another caller's emplace_back
+        // or iteration corrupts the vector.
         std::unique_lock<std::mutex> bridgesLock(m_bridgeRangesLock);
+        m_bridgeRangeScratch.clear();
         auto rit = m_bridgeRanges.begin();
         while (rit != m_bridgeRanges.end()) {
             BridgeRangeData& rd = rit->second;
@@ -1070,7 +1091,8 @@ void Sequence::FireFrameTriggers() {
         char timeBuf[16];
         snprintf(timeBuf, sizeof(timeBuf), "%02u:%02u.%03u",
                  totalSeconds / 60, totalSeconds % 60, elapsedMS % 1000);
-        for (auto& cmd : p->second) {
+        for (uint32_t idx : p->second) {
+            const std::string& cmd = trig->names[idx];
             LogDebug(VB_COMMAND, "Sequence \"%s\" @ %s triggering preset \"%s\"\n", seqName.c_str(), timeBuf, cmd.c_str());
             // Deferred to the main loop: this thread holds
             // outputThreadLock for the whole frame, so running a
@@ -1084,15 +1106,25 @@ void Sequence::FireFrameTriggers() {
     }
     for (auto e = trig->effectsOn.lower_bound((uint32_t)from);
          (e != trig->effectsOn.end()) && (e->first <= (uint64_t)frame); ++e) {
-        for (auto& eff : e->second) {
+        for (uint32_t idx : e->second) {
+            const std::string& eff = trig->names[idx];
             StartEffect(eff, 0, 1);
             std::unique_lock<std::mutex> l(m_triggerEffectsLock);
-            m_triggerEffects.push_back(eff);
+            if (m_triggerEffectsOwner == trig.get()) {
+                m_triggerEffects.push_back(eff);
+            } else {
+                // The file closed (ForgetTriggers) while this frame was
+                // firing, after it took the running list: nothing else will
+                // stop this effect, so stop it here, as effectsOff does.
+                l.unlock();
+                StopEffect(eff);
+            }
         }
     }
     for (auto e = trig->effectsOff.lower_bound((uint32_t)from);
          (e != trig->effectsOff.end()) && (e->first <= (uint64_t)frame); ++e) {
-        for (auto& eff : e->second) {
+        for (uint32_t idx : e->second) {
+            const std::string& eff = trig->names[idx];
             StopEffect(eff);
             std::unique_lock<std::mutex> l(m_triggerEffectsLock);
             auto it = std::find(m_triggerEffects.begin(), m_triggerEffects.end(), eff);
