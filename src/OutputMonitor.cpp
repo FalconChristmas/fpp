@@ -1038,6 +1038,12 @@ void OutputMonitor::processRetries() {
             // A port with an eFuse but no enable pin has no way to retry, and
             // a port reset by a config reload has neither.
             toRemove.push_back(p);
+        } else if (!p->receivers[0].isOn) {
+            // Turned off (Outputs Off, or the port switched off) while it was
+            // retrying.  Pulsing the enable pin now would power it back up
+            // behind the user's back, and leave it on with isOn false, where
+            // a later trip is ignored.
+            toRemove.push_back(p);
         } else if (p->eFusePin->getValue() == p->eFuseOKValue) {
             p->receivers[0].okCount++;
             // must be good for at least two seconds
