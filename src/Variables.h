@@ -50,6 +50,9 @@ public:
 
     void registerListener(const std::string& id, const std::string& name,
                           std::function<void(const std::string& name, const std::string& value)>&& cb);
+    // Waits for any call of that listener still running on another thread
+    // (so the caller may free what it uses), except when called from inside
+    // a listener. Don't call it holding a lock the listener takes.
     void unregisterListener(const std::string& id, const std::string& name);
 
     void reportVariables(Json::Value& root);

@@ -30,8 +30,10 @@
 #include "mediaoutput/mediaoutput.h"
 #include "util/ExpressionProcessor.h"
 
+#include <condition_variable>
 #include <ctime>
 #include <map>
+#include <utility>
 
 // std::to_string(double) always pads to 6 decimals ("45.000000"); use a
 // format that drops trailing zeros so integer-valued results stay readable.
@@ -199,7 +201,14 @@ void Variables::load() {
     }
 }
 
+// Held across a save's snapshot *and* its write. With only m_lock around
+// the snapshot, two threads saving at once could write in the opposite
+// order to their snapshots, leaving the older values on disk. Always taken
+// before m_lock, never inside it.
+static std::mutex s_saveLock;
+
 void Variables::save() {
+    std::unique_lock<std::mutex> saveLock(s_saveLock);
     Json::Value root;
     std::unique_lock<std::mutex> lock(m_lock);
     for (auto const& kv : m_variables) {
@@ -386,6 +395,17 @@ double Variables::incrementVariable(const std::string& name, double delta, bool 
     return newValue;
 }
 
+// fireListeners() runs copies of the callbacks outside m_lock, so a listener
+// could still be running after unregisterListener() returned, and its owner
+// then freed what it uses. Count the calls in flight per (name, id), under
+// m_lock, and have unregisterListener() wait for its listener's to finish.
+static std::map<std::pair<std::string, std::string>, int> s_listenersInFlight;
+static std::condition_variable s_listenerFinished;
+// Nonzero while this thread is inside a listener: a listener that
+// unregisters (itself or another) must not wait on a call that may be its
+// own, or one waiting on it.
+static thread_local int t_inListener = 0;
+
 void Variables::registerListener(const std::string& id, const std::string& name,
                                  std::function<void(const std::string&, const std::string&)>&& cb) {
     std::unique_lock<std::mutex> lock(m_lock);
@@ -397,20 +417,48 @@ void Variables::unregisterListener(const std::string& id, const std::string& nam
     if (it != m_listeners.end()) {
         it->second.erase(id);
     }
+    if (t_inListener == 0) {
+        auto key = std::make_pair(name, id);
+        s_listenerFinished.wait(lock, [&key]() { return s_listenersInFlight.count(key) == 0; });
+    }
 }
 void Variables::fireListeners(const std::string& name, const std::string& value) {
-    std::vector<std::function<void(const std::string&, const std::string&)>> cbs;
+    using CallList = std::vector<std::pair<std::string, std::function<void(const std::string&, const std::string&)>>>;
+    CallList cbs;
     {
         std::unique_lock<std::mutex> lock(m_lock);
         auto it = m_listeners.find(name);
         if (it != m_listeners.end()) {
             for (auto const& kv : it->second) {
-                cbs.push_back(kv.second);
+                cbs.emplace_back(kv.first, kv.second);
+                ++s_listenersInFlight[std::make_pair(name, kv.first)];
             }
         }
     }
+    if (cbs.empty()) {
+        return;
+    }
+    // Retires every call counted above when this returns or throws.
+    struct InFlight {
+        Variables* self;
+        const std::string& name;
+        const CallList& calls;
+        ~InFlight() {
+            --t_inListener;
+            std::unique_lock<std::mutex> lock(self->m_lock);
+            for (auto const& c : calls) {
+                auto f = s_listenersInFlight.find(std::make_pair(name, c.first));
+                if (f != s_listenersInFlight.end() && --f->second <= 0) {
+                    s_listenersInFlight.erase(f);
+                }
+            }
+            s_listenerFinished.notify_all();
+        }
+    };
+    ++t_inListener;
+    InFlight inFlight{ this, name, cbs };
     for (auto& cb : cbs) {
-        cb(name, value);
+        cb.second(name, value);
     }
 }
 
