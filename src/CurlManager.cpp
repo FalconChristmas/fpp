@@ -12,6 +12,7 @@
 
 #include "fpp-pch.h"
 
+#include <algorithm>
 #include <cstring>
 #include <list>
 #include <memory>
@@ -117,8 +118,18 @@ void CurlManager::addCURL(const std::string& furl, CURL* curl, std::function<voi
     curls.push_back(i);
 }
 
+// Every response here is an API reply or a web page, held whole in memory.
+// Discovery probes devices that are merely on the LAN, and one that streams an
+// endless body would otherwise grow fppd until the OOM killer stepped in (the
+// timeout alone allows ~100MB at LAN speed).  Returning short aborts the
+// transfer with CURLE_WRITE_ERROR, which callers already treat as a failure.
+static constexpr size_t MAX_CURL_RESPONSE = 16 * 1024 * 1024;
+
 static size_t urlWriteData(void* buffer, size_t size, size_t nmemb, void* userp) {
     std::vector<uint8_t>* str = (std::vector<uint8_t>*)userp;
+    if (size * nmemb > MAX_CURL_RESPONSE - std::min(str->size(), MAX_CURL_RESPONSE)) {
+        return 0;
+    }
     size_t pos = str->size();
     str->resize(str->size() + size * nmemb);
     memcpy(&str->data()[pos], buffer, size * nmemb);
