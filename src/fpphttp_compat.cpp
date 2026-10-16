@@ -51,6 +51,8 @@
 // drogon headers compile with LOG_DEBUG intact; fpphttp.h then cleans it up.
 #include <drogon/HttpAppFramework.h>
 #include "fpphttp.h"
+#include "log.h"
+#include <atomic>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -174,7 +176,28 @@ void dispatchPluginApi(const HttpRequestPtr& req, std::function<void(const HttpR
     } else if (!allowed) {
         callback(makeStringResponse("Method Not Allowed", 405, "text/plain"));
     } else {
-        (*fn)(req, std::move(callback));
+        // drogon wraps its own routes' handlers in a try/catch, but not the
+        // default handler: a plugin handler that throws would otherwise reach
+        // the event loop and terminate fppd.  Answer 500 instead, unless the
+        // handler already responded before it threw.
+        auto responded = std::make_shared<std::atomic<bool>>(false);
+        auto cb = std::make_shared<std::function<void(const HttpResponsePtr&)>>(std::move(callback));
+        try {
+            (*fn)(req, [responded, cb](const HttpResponsePtr& resp) {
+                responded->store(true);
+                (*cb)(resp);
+            });
+        } catch (const std::exception& ex) {
+            LogErr(VB_PLUGIN, "Plugin API handler for %s threw: %s\n", req->path().c_str(), ex.what());
+            if (!responded->exchange(true)) {
+                (*cb)(makeStringResponse("Plugin handler error", 500, "text/plain"));
+            }
+        } catch (...) {
+            LogErr(VB_PLUGIN, "Plugin API handler for %s threw a non-standard exception\n", req->path().c_str());
+            if (!responded->exchange(true)) {
+                (*cb)(makeStringResponse("Plugin handler error", 500, "text/plain"));
+            }
+        }
     }
 }
 
