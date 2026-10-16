@@ -25,7 +25,14 @@ class PinCapabilities;
 class GPIOManager {
 public:
     static GPIOManager INSTANCE;
+    // Last value set on each pin by the "GPIO" command / API.  Written from
+    // API threads, the main loop and the LED pulse timer at once, so FPP's
+    // own code only goes through the locked accessors below; the member stays
+    // public for out-of-tree code that read it directly.
     std::map<std::string, bool> fppCommandLastValue;
+    static void SetCommandLastValue(const std::string& pin, bool value);
+    static bool GetCommandLastValue(const std::string& pin, bool& value);
+    static bool ToggleCommandLastValue(const std::string& pin); // returns the new value
     HttpResponsePtr render_GET(const HttpRequestPtr& req);
     HttpResponsePtr render_POST(const HttpRequestPtr& req);
     void Initialize(std::map<int, std::function<bool(int)>>& callbacks);

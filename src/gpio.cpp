@@ -21,6 +21,7 @@
 #include <list>
 #include <memory>
 #include <map>
+#include <mutex>
 #include <string.h>
 #include <string>
 #include <vector>
@@ -38,6 +39,30 @@
 #include "Warnings.h"
 
 GPIOManager GPIOManager::INSTANCE;
+
+// Guards GPIOManager::INSTANCE.fppCommandLastValue (see gpio.h).  A file
+// static rather than a member so the class layout doesn't change.
+static std::mutex s_commandLastValueLock;
+
+void GPIOManager::SetCommandLastValue(const std::string& pin, bool value) {
+    std::lock_guard<std::mutex> lock(s_commandLastValueLock);
+    INSTANCE.fppCommandLastValue[pin] = value;
+}
+bool GPIOManager::GetCommandLastValue(const std::string& pin, bool& value) {
+    std::lock_guard<std::mutex> lock(s_commandLastValueLock);
+    auto it = INSTANCE.fppCommandLastValue.find(pin);
+    if (it == INSTANCE.fppCommandLastValue.end()) {
+        return false;
+    }
+    value = it->second;
+    return true;
+}
+bool GPIOManager::ToggleCommandLastValue(const std::string& pin) {
+    std::lock_guard<std::mutex> lock(s_commandLastValueLock);
+    bool& v = INSTANCE.fppCommandLastValue[pin];
+    v = !v;
+    return v;
+}
 
 class FPPGPIOCommand : public Command {
 public:
@@ -62,13 +87,12 @@ public:
             }
             if (v == "On" || v == "on" || v == "true" || v == "True" || v == "1") {
                 p.setValue(true);
-                GPIOManager::INSTANCE.fppCommandLastValue[n] = true;
+                GPIOManager::SetCommandLastValue(n, true);
             } else if (v == "Off" || v == "off" || v == "false" || v == "False" || v == "0") {
                 p.setValue(false);
-                GPIOManager::INSTANCE.fppCommandLastValue[n] = false;
+                GPIOManager::SetCommandLastValue(n, false);
             } else if (v == "Opposite" || v == "opposite") {
-                GPIOManager::INSTANCE.fppCommandLastValue[n] = !GPIOManager::INSTANCE.fppCommandLastValue[n];
-                p.setValue(GPIOManager::INSTANCE.fppCommandLastValue[n]);
+                p.setValue(GPIOManager::ToggleCommandLastValue(n));
             } else {
                 return std::make_unique<Command::ErrorResult>("Invalid Action" + v);
             }
@@ -245,12 +269,12 @@ HttpResponsePtr GPIOManager::render_GET(const HttpRequestPtr& req) {
 
             // Check if we have a tracked value for this pin FIRST (from previous SET operations)
             // This avoids touching the pin hardware which could interfere with output pins
-            auto it = GPIOManager::INSTANCE.fppCommandLastValue.find(pinName);
-            if (it != GPIOManager::INSTANCE.fppCommandLastValue.end()) {
+            bool cachedValue = false;
+            if (GPIOManager::GetCommandLastValue(pinName, cachedValue)) {
                 // Return the last set value without touching the pin
-                LogDebug(VB_HTTP, "GPIO GET: Returning cached value for %s: %d\n", pinName.c_str(), it->second ? 1 : 0);
+                LogDebug(VB_HTTP, "GPIO GET: Returning cached value for %s: %d\n", pinName.c_str(), cachedValue ? 1 : 0);
                 result["pin"] = pinName;
-                result["value"] = it->second ? 1 : 0;
+                result["value"] = cachedValue ? 1 : 0;
                 result["Status"] = "OK";
                 result["respCode"] = 200;
 
@@ -350,7 +374,7 @@ HttpResponsePtr GPIOManager::render_POST(const HttpRequestPtr& req) {
                 pin.setValue(value);
 
                 // Update the last value tracking (for Opposite command functionality and GET requests)
-                GPIOManager::INSTANCE.fppCommandLastValue[pinName] = value;
+                GPIOManager::SetCommandLastValue(pinName, value);
                 LogDebug(VB_COMMAND, "POST /api/gpio/%s from %s: set to %d, cached value\n", pinName.c_str(), getEffectiveClientIP(req).c_str(), value ? 1 : 0);
 
                 result["pin"] = pinName;
@@ -746,7 +770,7 @@ void GPIOManager::GPIOState::setLEDState(bool on) {
     bool pinState = on ? ledActiveHigh : !ledActiveHigh;
     ledCap->configPin("gpio", true);
     ledCap->setValue(pinState);
-    GPIOManager::INSTANCE.fppCommandLastValue[ledPin] = pinState;
+    GPIOManager::SetCommandLastValue(ledPin, pinState);
 }
 
 void GPIOManager::GPIOState::stopLEDIdle() {
