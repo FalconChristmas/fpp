@@ -92,10 +92,13 @@ private:
     bool IsLocalAddress(uint32_t ipv4_n) const; // network byte order
 
     // Reconfigure runs on the settings-callback thread; protect against
-    // concurrent calls (e.g. user toggles three settings at once).
+    // concurrent calls (e.g. user toggles three settings at once), and
+    // against Cleanup() stopping the threads it is starting.
     std::mutex m_reconfigureLock;
 
-    Mode m_mode = Off;
+    // Written by Reconfigure(), read by InjectCachedFrame() on the effect
+    // thread without m_reconfigureLock.
+    std::atomic<Mode> m_mode{ Off };
     int  m_port = 11988;
     std::string m_destAddr = "239.0.0.1";
 

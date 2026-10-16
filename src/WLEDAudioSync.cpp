@@ -21,6 +21,7 @@
 #include <net/if.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -102,11 +103,18 @@ void WLEDAudioSync::Cleanup() {
     unregisterSettingsListener("WLEDAudioSync", "WLEDAudioSyncMode");
     unregisterSettingsListener("WLEDAudioSync", "WLEDAudioSyncDest");
     unregisterSettingsListener("WLEDAudioSync", "WLEDAudioSyncPort");
+    // Under the lock Reconfigure() holds: a settings callback already in
+    // flight could otherwise be starting threads (and opening sockets) while
+    // this stops them. Reconfigure() sees m_cleanedUp and won't restart.
+    std::unique_lock<std::mutex> lock(m_reconfigureLock);
     StopAllThreads();
 }
 
 void WLEDAudioSync::Reconfigure() {
     std::unique_lock<std::mutex> lock(m_reconfigureLock);
+    if (m_cleanedUp) {
+        return; // shutting down; Cleanup() has stopped (or will stop) everything
+    }
 
     Mode newMode = Off;
     std::string modeStr = getSetting("WLEDAudioSyncMode");
@@ -177,17 +185,21 @@ void WLEDAudioSync::StopAllThreads() {
     m_running = false;
 
     if (m_recvSocket >= 0) {
-        // shutdown() before close() so the listener's blocking
-        // recvfrom() returns immediately (same lesson as the WLED
-        // API responder — close alone doesn't wake recvfrom).
+        // shutdown() wakes the listener's blocking recvfrom() (same
+        // lesson as the WLED API responder — close alone doesn't).
         ::shutdown(m_recvSocket, SHUT_RDWR);
-        ::close(m_recvSocket);
-        m_recvSocket = -1;
     }
     if (m_recvThread) {
         if (m_recvThread->joinable()) m_recvThread->join();
         delete m_recvThread;
         m_recvThread = nullptr;
+    }
+    // Closed only once the listener has been joined: closed under it, the
+    // descriptor number could be reused by another socket that its next
+    // recvfrom() would then read from.
+    if (m_recvSocket >= 0) {
+        ::close(m_recvSocket);
+        m_recvSocket = -1;
     }
     if (m_sendThread) {
         if (m_sendThread->joinable()) m_sendThread->join();
@@ -227,6 +239,12 @@ bool WLEDAudioSync::OpenReceiveSocket() {
     // kernels causes UDP packets to be silently dropped when the
     // sender and receiver are both on loopback. SO_REUSEADDR alone
     // gives us the bind-restart-without-TIME_WAIT semantics we want.
+
+    // Belt and braces for StopAllThreads(): not every platform wakes a
+    // recvfrom() on an unconnected UDP socket at shutdown(), so the
+    // listener also rechecks m_running at least this often.
+    struct timeval tv = { 0, 250000 };
+    ::setsockopt(m_recvSocket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
