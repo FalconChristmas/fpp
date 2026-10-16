@@ -154,8 +154,9 @@ ServerTokens Prod
     # Block fppd's internal-only routes (see src/httpAPI.cpp's
     # /internal/pluginApiRoutes) from the generic plugin-apis passthrough
     # below -- must come first, since that rule proxies any fppd path
-    # unconditionally and would otherwise forward these too.
-    RewriteRule ^plugin-apis/internal(/.*)?$ - [F,L]
+    # unconditionally and would otherwise forward these too.  NC because
+    # fppd matches its routes without regard to case.
+    RewriteRule ^plugin-apis/internal(/.*)?$ - [F,L,NC]
     RewriteRule ^plugin-apis/(.*)$ http://localhost:32322/$1 [P]
 
     # SSE endpoints - use dedicated proxy rules with immediate flushing
