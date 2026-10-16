@@ -22,11 +22,15 @@
 #include <string.h>
 
 #include <cstdio> // popen/pclose for the amixer control probe
+#include <algorithm>
+#include <atomic>
+#include <condition_variable>
 #include <map>
 #include <mutex>
 #include <set>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "MultiSync.h"
@@ -240,8 +244,10 @@ void PrewarmMediaOutput(int holdMs) {
 }
 
 #ifndef PLATFORM_OSX
-static int volume = 70;
-static int lastPipeWireVolume = -1;  // Track last volume to avoid redundant mute toggles
+// The volume last asked for: what getVolume() reports, at once, while the
+// worker below catches the mixers up.
+static std::atomic<int> volume{ 70 };
+static int lastPipeWireVolume = -1;  // Track last volume to avoid redundant mute toggles (volume worker only)
 int getVolume() {
     return volume;
 }
@@ -453,7 +459,7 @@ int getVolume() {
 }
 #endif
 
-void setVolume(int vol) {
+static void applyVolume(int vol) {
     // Only the amixer command below still uses this; the pactl commands are
     // built as std::strings because their length depends on the user's config.
     char buffer[1024];
@@ -473,8 +479,7 @@ void setVolume(int vol) {
     bool usePipeWireBackend = (mediaBackend == "pipewire" || mediaBackend == "pipewire-simple");
 
 #ifndef PLATFORM_OSX
-    volume = vol;
-    float fvol = volume;
+    float fvol = vol;
 
     // === Hardware mixer ===
     // PipeWire mode: put the card's playback controls at unity so the software
@@ -515,7 +520,7 @@ void setVolume(int vol) {
         // is of the control's own raw range, and cards routinely describe that
         // range uselessly (a USB DAC measured here spans 0.00 to -0.12 dB across
         // all 31 of its steps), so there is no portable dB to aim at.
-        const float v = volume / 100.0f;
+        const float v = vol / 100.0f;
         fvol = 100.0f * v * v * v;
 #ifdef PLATFORM_PI
         if (audioOutput == 0 && audio0Type == "bcm2") {
@@ -525,7 +530,7 @@ void setVolume(int vol) {
 #endif
         snprintf(buffer, sizeof(buffer), "amixer set -c %d '%s' -- %.2f%% >/dev/null 2>&1",
                  audioOutput, mixerDevice.c_str(), fvol);
-        LogDebug(VB_SETTING, "Volume change: %d \n", volume);
+        LogDebug(VB_SETTING, "Volume change: %d \n", vol);
         LogDebug(VB_MEDIAOUT, "Setting ALSA hardware volume: %s \n", buffer);
         system(buffer);
     }
@@ -551,7 +556,7 @@ void setVolume(int vol) {
     // needing a separate mute call; any non-zero restore includes an explicit
     // unmute in case a prior 0% left the sink muted.
     if (usePipeWireBackend) {
-        const bool shouldMute = (volume == 0);
+        const bool shouldMute = (vol == 0);
         std::string pwPrefix = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp "
                                "XDG_RUNTIME_DIR=/run/pipewire-fpp "
                                "PULSE_RUNTIME_PATH=/run/pipewire-fpp/pulse ";
@@ -595,17 +600,17 @@ void setVolume(int vol) {
             // Unmute and set volume together, undoing a prior 0%.
             cmd = pwPrefix + " sh -c '" + sinkList +
                   "for s in $S; do pactl set-sink-mute $s 0; pactl set-sink-volume $s " +
-                  std::to_string(volume) + "%; done' >/dev/null 2>&1";
+                  std::to_string(vol) + "%; done' >/dev/null 2>&1";
             LogDebug(VB_MEDIAOUT, "Unmuting and setting PipeWire output sink volume: %s \n", cmd.c_str());
         } else {
             cmd = pwPrefix + " sh -c '" + sinkList +
-                  "for s in $S; do pactl set-sink-volume $s " + std::to_string(volume) +
+                  "for s in $S; do pactl set-sink-volume $s " + std::to_string(vol) +
                   "%; done' >/dev/null 2>&1";
             LogDebug(VB_MEDIAOUT, "Setting PipeWire output sink volume: %s \n", cmd.c_str());
         }
         system(cmd.c_str());
 
-        lastPipeWireVolume = volume;
+        lastPipeWireVolume = vol;
     }
 #else
     MacOSSetVolume(vol);
@@ -618,6 +623,45 @@ void setVolume(int vol) {
     // (dB offset).  In ALSA mode, propagate to GStreamer as before.
     if (mediaOutput && !usePipeWireBackend)
         mediaOutput->SetVolume(vol);
+}
+
+
+// setVolume() shells out several times (pactl for every sink, amixer), and is
+// called from the main loop (the command socket, once per step of the UI's
+// volume slider), from API threads and from presets.  A slow or wedged
+// PipeWire stalled whichever of those asked.  Requests now only record the
+// target; one worker thread applies the latest, so a burst of slider steps
+// costs one round of shell-outs, not one per step.
+static std::mutex s_volumeWorkerLock;
+static std::condition_variable s_volumeWorkerWake;
+static int s_volumeTarget = -1; // -1: nothing pending
+static bool s_volumeWorkerStarted = false;
+
+void setVolume(int vol) {
+    vol = std::clamp(vol, 0, 100);
+#ifndef PLATFORM_OSX
+    volume = vol;
+#endif
+    std::lock_guard<std::mutex> lock(s_volumeWorkerLock);
+    s_volumeTarget = vol;
+    if (!s_volumeWorkerStarted) {
+        s_volumeWorkerStarted = true;
+        // Detached: it only ever waits for the next request, and fppd exits
+        // with _exit or exec, never by destroying it.
+        std::thread([]() {
+            SetThreadName("FPP-Volume");
+            std::unique_lock<std::mutex> lock(s_volumeWorkerLock);
+            while (true) {
+                s_volumeWorkerWake.wait(lock, []() { return s_volumeTarget >= 0; });
+                int v = s_volumeTarget;
+                s_volumeTarget = -1;
+                lock.unlock();
+                applyVolume(v);
+                lock.lock();
+            }
+        }).detach();
+    }
+    s_volumeWorkerWake.notify_one();
 }
 
 static std::set<std::string> AUDIO_EXTS = {
