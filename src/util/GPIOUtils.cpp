@@ -17,7 +17,9 @@
 
 #include <sys/mman.h>
 #include <sys/types.h>
+#include <array>
 #include <fcntl.h>
+#include <limits>
 #include <set>
 #include <thread>
 #include <unistd.h> // ftruncate -- needed directly for NOPCH builds
@@ -124,7 +126,11 @@ bool GPIODCapabilities::supportsPullDown() const {
 }
 
 #ifdef HASGPIOD
-constexpr int MAX_GPIOD_CHIPS = 32;
+// Indexed by PinCapabilities::gpioIdx unchecked, so the cache covers every
+// value that field can hold. It used to be 32 entries, and a pin on
+// gpiochip32 or above (an I2C expander on a board with many chips) indexed
+// past the end.
+constexpr int MAX_GPIOD_CHIPS = std::numeric_limits<decltype(PinCapabilities::gpioIdx)>::max() + 1;
 class GPIOChipHolder {
 public:
     static GPIOChipHolder INSTANCE;
