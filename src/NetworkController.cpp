@@ -184,7 +184,14 @@ private:
             delete nc;
         }
         delete this;
-        cb(result);
+        // Nothing may leave here by exception: finish() is reached from inside
+        // a detector's reply handler, and deliver() would catch the throw and
+        // call noMatch() on the Detection deleted just above.
+        try {
+            cb(result);
+        } catch (const std::exception& e) {
+            LogWarn(VB_SYNC, "Controller detection callback threw: %s\n", e.what());
+        }
     }
 };
 
