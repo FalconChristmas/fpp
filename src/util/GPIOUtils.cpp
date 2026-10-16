@@ -176,12 +176,31 @@ int GPIODCapabilities::configPin(const std::string& mode,
         chip = GPIOChipHolder::INSTANCE.chips[gpioIdx];
     }
 
-    openDrain = (mode == "gpio_od");
-
     std::string consumer = PROCESS_NAME;
     if (!desc.empty()) {
         consumer += "-" + desc;
     }
+
+    // Already configured exactly this way: keep the request.  Callers
+    // configure on every action (each GPIO command, each LED pulse tick), and
+    // releasing and re-requesting an output drives it low until the caller's
+    // setValue() -- a glitch on a relay that was already on.
+    {
+        bool wantOpenDrain = (mode == "gpio_od");
+        bool wantOut = directionOut || wantOpenDrain;
+        bool sameBias = true;
+        if (!wantOut) {
+            auto want = mode == "gpio_pu" ? gpiod::line::bias::PULL_UP
+                                          : (mode == "gpio_pd" ? gpiod::line::bias::PULL_DOWN : gpiod::line::bias::DISABLED);
+            sameBias = (lastBias == want);
+        }
+        if (request && lastRequestType == (wantOut ? 1 : 0) && openDrain == wantOpenDrain && sameBias &&
+            lastDesc == consumer) {
+            return 0;
+        }
+    }
+
+    openDrain = (mode == "gpio_od");
     lastDesc = consumer;
 
     // Build line settings for the requested mode. For open-drain, withBias
