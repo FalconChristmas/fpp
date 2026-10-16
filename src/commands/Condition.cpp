@@ -266,9 +266,9 @@ static std::string ReadConditionSourceValue(const std::string& source, const std
         // GPIO Input's actual live state. Check that too so this source
         // works for testing a real input, not just a previously-commanded
         // output.
-        auto it = GPIOManager::INSTANCE.fppCommandLastValue.find(name);
-        if (it != GPIOManager::INSTANCE.fppCommandLastValue.end()) {
-            return it->second ? "1" : "0";
+        bool commanded = false;
+        if (GPIOManager::GetCommandLastValue(name, commanded)) {
+            return commanded ? "1" : "0";
         }
         int inputValue = 0;
         if (GPIOManager::INSTANCE.GetInputPinValue(name, inputValue)) {

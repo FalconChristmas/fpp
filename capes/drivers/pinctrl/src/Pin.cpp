@@ -75,6 +75,15 @@ bool Pin::setMode(const std::string& m) const {
     }
     const auto& md = modes.find(m);
     if (md != modes.end()) {
+        // A pin mode naming a ball or ball mode the table doesn't have would
+        // otherwise reset every ball and then set nothing, and still report
+        // success.
+        auto& target = Ball::findBall(md->second.first);
+        if (target.name.empty() || !target.modesetCommands.contains(md->second.second)) {
+            printf("Mode %s for pin %s maps to %s %s, which is not defined\n", m.c_str(), name.c_str(),
+                   md->second.first.c_str(), md->second.second.c_str());
+            return false;
+        }
         // first, reset the "other" balls so they go into input mode
         for (auto& b : balls) {
             if (b != md->second.first) {

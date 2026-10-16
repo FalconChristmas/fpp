@@ -19,7 +19,9 @@
 
 #include <array>
 #include <list>
+#include <memory>
 #include <map>
+#include <mutex>
 #include <string.h>
 #include <string>
 #include <vector>
@@ -34,8 +36,33 @@
 #include "Player.h"
 #include "Timers.h"
 #include "gpio.h"
+#include "Warnings.h"
 
 GPIOManager GPIOManager::INSTANCE;
+
+// Guards GPIOManager::INSTANCE.fppCommandLastValue (see gpio.h).  A file
+// static rather than a member so the class layout doesn't change.
+static std::mutex s_commandLastValueLock;
+
+void GPIOManager::SetCommandLastValue(const std::string& pin, bool value) {
+    std::lock_guard<std::mutex> lock(s_commandLastValueLock);
+    INSTANCE.fppCommandLastValue[pin] = value;
+}
+bool GPIOManager::GetCommandLastValue(const std::string& pin, bool& value) {
+    std::lock_guard<std::mutex> lock(s_commandLastValueLock);
+    auto it = INSTANCE.fppCommandLastValue.find(pin);
+    if (it == INSTANCE.fppCommandLastValue.end()) {
+        return false;
+    }
+    value = it->second;
+    return true;
+}
+bool GPIOManager::ToggleCommandLastValue(const std::string& pin) {
+    std::lock_guard<std::mutex> lock(s_commandLastValueLock);
+    bool& v = INSTANCE.fppCommandLastValue[pin];
+    v = !v;
+    return v;
+}
 
 class FPPGPIOCommand : public Command {
 public:
@@ -51,6 +78,11 @@ public:
         std::string n = args[0];
         std::string v = args[1];
         const PinCapabilities& p = PinCapabilities::getPinByName(n);
+        int inputValue = 0;
+        if (p.ptr() && GPIOManager::INSTANCE.GetInputPinValue(n, inputValue)) {
+            // see POST /api/gpio: driving it would kill the configured input
+            return std::make_unique<Command::ErrorResult>("Pin " + n + " is configured as a GPIO input");
+        }
         if (p.ptr()) {
             p.configPin();
             // setValue() on a line that was never acquired is a silent no-op, so
@@ -60,13 +92,12 @@ public:
             }
             if (v == "On" || v == "on" || v == "true" || v == "True" || v == "1") {
                 p.setValue(true);
-                GPIOManager::INSTANCE.fppCommandLastValue[n] = true;
+                GPIOManager::SetCommandLastValue(n, true);
             } else if (v == "Off" || v == "off" || v == "false" || v == "False" || v == "0") {
                 p.setValue(false);
-                GPIOManager::INSTANCE.fppCommandLastValue[n] = false;
+                GPIOManager::SetCommandLastValue(n, false);
             } else if (v == "Opposite" || v == "opposite") {
-                GPIOManager::INSTANCE.fppCommandLastValue[n] = !GPIOManager::INSTANCE.fppCommandLastValue[n];
-                p.setValue(GPIOManager::INSTANCE.fppCommandLastValue[n]);
+                p.setValue(GPIOManager::ToggleCommandLastValue(n));
             } else {
                 return std::make_unique<Command::ErrorResult>("Invalid Action" + v);
             }
@@ -125,7 +156,7 @@ void GPIOManager::CheckGPIOInputs(void) {
             } else {
                 // New transition detected — start the settle timer.
                 a->pendingValue = val;
-                a->pendingTime = GetTime();
+                a->pendingTime = GetMonotonicTimeMicros();
                 scheduleDebounceCheck(a);
             }
         }
@@ -135,7 +166,7 @@ void GPIOManager::CheckGPIOInputs(void) {
 // Timer-driven debounce check for all pins (event-based and poll-based).
 // Called when a debounce settle timer fires via Timers/EPollManager.
 void GPIOManager::checkDebounceTimers() {
-    long long tm = GetTime();
+    long long tm = GetMonotonicTimeMicros();
     auto checkList = [&](std::list<GPIOState*>& states) {
         for (auto a : states) {
             if (a->pendingValue != a->lastValue) {
@@ -162,7 +193,7 @@ void GPIOManager::checkDebounceTimers() {
 
 // Schedule a timer to re-check debounce for an event-based pin.
 void GPIOManager::scheduleDebounceCheck(GPIOState* state) {
-    long long remainingUS = (long long)state->debounceTime - (GetTime() - state->pendingTime);
+    long long remainingUS = (long long)state->debounceTime - (GetMonotonicTimeMicros() - state->pendingTime);
     long long remainingMS = (remainingUS + 999) / 1000; // round up to ms
     if (remainingMS < 1) {
         remainingMS = 1;
@@ -243,12 +274,12 @@ HttpResponsePtr GPIOManager::render_GET(const HttpRequestPtr& req) {
 
             // Check if we have a tracked value for this pin FIRST (from previous SET operations)
             // This avoids touching the pin hardware which could interfere with output pins
-            auto it = GPIOManager::INSTANCE.fppCommandLastValue.find(pinName);
-            if (it != GPIOManager::INSTANCE.fppCommandLastValue.end()) {
+            bool cachedValue = false;
+            if (GPIOManager::GetCommandLastValue(pinName, cachedValue)) {
                 // Return the last set value without touching the pin
-                LogDebug(VB_HTTP, "GPIO GET: Returning cached value for %s: %d\n", pinName.c_str(), it->second ? 1 : 0);
+                LogDebug(VB_HTTP, "GPIO GET: Returning cached value for %s: %d\n", pinName.c_str(), cachedValue ? 1 : 0);
                 result["pin"] = pinName;
-                result["value"] = it->second ? 1 : 0;
+                result["value"] = cachedValue ? 1 : 0;
                 result["Status"] = "OK";
                 result["respCode"] = 200;
 
@@ -322,6 +353,19 @@ HttpResponsePtr GPIOManager::render_POST(const HttpRequestPtr& req) {
                 return makeStringResponse(errorStr, 400, "application/json");
             }
 
+            int inputValue = 0;
+            if (GPIOManager::INSTANCE.GetInputPinValue(pinName, inputValue)) {
+                // Reconfiguring it as an output releases the edge-event
+                // request and closes the fd the main loop watches: the input
+                // would go silently dead until fppd restarts.
+                Json::Value errorResult;
+                errorResult["pin"] = pinName;
+                errorResult["Status"] = "ERROR";
+                errorResult["respCode"] = 409;
+                errorResult["Message"] = "GPIO pin " + pinName + " is configured as a GPIO input";
+                return makeStringResponse(SaveJsonToString(errorResult), 409, "application/json");
+            }
+
             try {
                 // Configure the pin for output
                 pin.configPin("gpio", true, "GPIO Output");
@@ -348,7 +392,7 @@ HttpResponsePtr GPIOManager::render_POST(const HttpRequestPtr& req) {
                 pin.setValue(value);
 
                 // Update the last value tracking (for Opposite command functionality and GET requests)
-                GPIOManager::INSTANCE.fppCommandLastValue[pinName] = value;
+                GPIOManager::SetCommandLastValue(pinName, value);
                 LogDebug(VB_COMMAND, "POST /api/gpio/%s from %s: set to %d, cached value\n", pinName.c_str(), getEffectiveClientIP(req).c_str(), value ? 1 : 0);
 
                 result["pin"] = pinName;
@@ -394,6 +438,11 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
         Json::Value root;
         if (LoadJsonFromFile(file, root, JsonRoot::Array)) {
             for (int x = 0; x < root.size(); x++) {
+                // An input with a value of the wrong JSON type threw at
+                // startup, to std::terminate; skip that input instead.  The
+                // state is owned here until addState() takes it, so a throw
+                // part way through frees it.
+                try {
                 Json::Value v = root[x];
                 if (!v["enabled"].asBool()) {
                     continue;
@@ -402,7 +451,8 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
                 std::string mode = v.isMember("mode") ? v["mode"].asString() : "gpio";
                 const PinCapabilities* pc = PinCapabilities::getPinByName(pin).ptr();
                 if (pc) {
-                    GPIOState* state = new GPIOState();
+                    std::unique_ptr<GPIOState> owned(new GPIOState());
+                    GPIOState* state = owned.get();
                     if (v.isMember("debounceTime")) {
                         state->debounceTime = v["debounceTime"].asInt() * 1000;
                     }
@@ -505,15 +555,15 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>>& callba
                         if (!state->pin->isAcquired()) {
                             LogWarn(VB_GPIO, "GPIO Input %s: the line could not be acquired, so it cannot be read - input disabled\n",
                                     pin.c_str());
-                            delete state;
                             continue;
                         }
 
-                        addState(state);
+                        addState(owned.release());
                         enabledCount++;
-                    } else {
-                        delete state;
                     }
+                }
+                } catch (const std::exception& e) {
+                    WarningHolder::InvalidConfigEntry("gpio.json", e.what());
                 }
             }
         }
@@ -542,7 +592,7 @@ void GPIOManager::addGPIOCallback(GPIOState* a) {
                 // Settle-then-fire: start the settle timer if this is a new direction.
                 if (v != a->pendingValue) {
                     a->pendingValue = v;
-                    a->pendingTime = GetTime();
+                    a->pendingTime = GetMonotonicTimeMicros();
                 }
                 scheduleDebounceCheck(a);
             }
@@ -738,7 +788,7 @@ void GPIOManager::GPIOState::setLEDState(bool on) {
     bool pinState = on ? ledActiveHigh : !ledActiveHigh;
     ledCap->configPin("gpio", true);
     ledCap->setValue(pinState);
-    GPIOManager::INSTANCE.fppCommandLastValue[ledPin] = pinState;
+    GPIOManager::SetCommandLastValue(ledPin, pinState);
 }
 
 void GPIOManager::GPIOState::stopLEDIdle() {
@@ -833,8 +883,8 @@ void GPIOManager::GPIOState::scheduleReEnable() {
         }
         case ReEnableMode::OnPlayerIdle: {
             // Give the player 200 ms to start before polling.
-            long long startMs = GetTimeMS();
-            Timers::INSTANCE.addTimer(timerName, startMs + 200, [this, startMs]() {
+            long long startMs = GetMonotonicTimeMS();
+            Timers::INSTANCE.addTimer(timerName, GetTimeMS() + 200, [this, startMs]() {
                 checkReEnable(startMs, false);
             });
             break;
@@ -845,12 +895,15 @@ void GPIOManager::GPIOState::scheduleReEnable() {
 void GPIOManager::GPIOState::checkReEnable(long long startMs, bool playerHasStarted) {
     if (!inputDisabled) return;
     std::string timerName = "gpio_reenable_" + pin->name;
-    long long now = GetTimeMS();
+    // startMs and now are monotonic (a wall-clock step back held the 2 s
+    // fallback off, and the input stayed disabled); timer deadlines are
+    // GetTimeMS() as Timers takes them.
+    long long now = GetMonotonicTimeMS();
     PlaylistStatus status = Player::INSTANCE.GetStatus();
 
     if (status != FPP_STATUS_IDLE) {
         // Player is active — keep polling every 500 ms.
-        Timers::INSTANCE.addTimer(timerName, now + 500, [this, startMs]() {
+        Timers::INSTANCE.addTimer(timerName, GetTimeMS() + 500, [this, startMs]() {
             checkReEnable(startMs, true);
         });
     } else if (playerHasStarted) {
@@ -865,7 +918,7 @@ void GPIOManager::GPIOState::checkReEnable(long long startMs, bool playerHasStar
         LogDebug(VB_GPIO, "GPIO %s re-enabled: player-idle timeout.\n", pin->name.c_str());
     } else {
         // Still waiting for player to start — check again soon.
-        Timers::INSTANCE.addTimer(timerName, now + 200, [this, startMs]() {
+        Timers::INSTANCE.addTimer(timerName, GetTimeMS() + 200, [this, startMs]() {
             checkReEnable(startMs, false);
         });
     }

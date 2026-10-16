@@ -48,6 +48,10 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#if defined(__linux__)
+#include <poll.h>
+#include <sys/syscall.h>
+#endif
 
 #include <algorithm>
 #include <cctype>
@@ -146,19 +150,26 @@ void AES67Manager::Shutdown() {
 
     LogInfo(VB_MEDIAOUT, "AES67Manager: Shutting down\n");
 
-    // Clear the initialized flag up front so the watchdog rebuild thread
-    // (spawned by SAPAnnounceLoop(), see m_rebuildThread) observes
-    // shutdown-in-progress and skips calling ApplyConfig() instead of
-    // resurrecting pipelines after we tear them down below.
+    // Nothing may apply from here on, including a watchdog rebuild that is
+    // already scheduled: ApplyConfig() would re-Init() and bring back the
+    // pipelines this is about to tear down.
+    m_stopping.store(true);
+    m_applyGeneration++;
     m_initialized.store(false);
 
     // Join any in-flight watchdog rebuild thread FIRST, before touching
     // m_sapAnnounceThread/m_sapRecvThread.  The rebuild thread internally
     // calls ApplyConfig(), which itself joins those two threads -- joining
     // them here concurrently with the rebuild thread would be a double
-    // join on the same std::thread object (undefined behavior).
-    if (m_rebuildThread.joinable()) {
-        m_rebuildThread.join();
+    // join on the same std::thread object (undefined behavior).  Taken out
+    // under m_rebuildMutex: the watchdog thread assigns it.
+    std::thread rebuild;
+    {
+        std::lock_guard<std::mutex> rl(m_rebuildMutex);
+        rebuild = std::move(m_rebuildThread);
+    }
+    if (rebuild.joinable()) {
+        rebuild.join();
     }
 
     // Only now take the apply lock -- m_rebuildThread calls ApplyConfig(),
@@ -168,18 +179,7 @@ void AES67Manager::Shutdown() {
     std::lock_guard<std::mutex> applyLock(m_applyMutex);
 
     // Stop SAP threads
-    m_sapAnnounceRunning.store(false);
-    m_sapRecvRunning.store(false);
-    m_driftRunning.store(false);
-    if (m_driftThread.joinable()) {
-        m_driftThread.join();
-    }
-    if (m_sapAnnounceThread.joinable()) {
-        m_sapAnnounceThread.join();
-    }
-    if (m_sapRecvThread.joinable()) {
-        m_sapRecvThread.join();
-    }
+    StopWorkerThreads();
 
     StopAllPipelines();
     ShutdownPTP();
@@ -249,6 +249,49 @@ static std::string FirstWiredInterface() {
     return first.empty() ? "eth0" : first;
 }
 
+
+// Values that go into a gst_parse_launch() description unquoted.  Anything
+// outside these characters is refused at load: a space or '!' in a
+// destination address re-parses as extra pipeline elements (a udpsrc feeding
+// a filesink is a root file write), and no real address or interface name
+// needs them.
+static bool IsPipelineSafeHost(const std::string& host) {
+    if (host.empty() || host.size() > 253) {
+        return false;
+    }
+    for (unsigned char c : host) {
+        if (!std::isalnum(c) && c != '.' && c != '-' && c != ':') {
+            return false;
+        }
+    }
+    return true;
+}
+static bool IsPipelineSafeInterface(const std::string& iface) {
+    if (iface.size() > 15) {  // IFNAMSIZ - 1
+        return false;
+    }
+    for (unsigned char c : iface) {
+        if (!std::isalnum(c) && c != '.' && c != '-' && c != '_' && c != '@') {
+            return false;
+        }
+    }
+    return true;
+}
+
+// A top-level setting of the wrong JSON type ("ptpEnabled": "yes") threw from
+// LoadConfig() to std::terminate, at startup and again on every restart.  Such
+// a setting is reported and left at its default.
+template <typename T>
+static T ConfigField(const Json::Value& root, const char* key, const T& def, T (Json::Value::*as)() const) {
+    try {
+        return (root.get(key, Json::Value(def)).*as)();
+    } catch (const std::exception& e) {
+        WarningHolder::InvalidConfigEntry("pipewire-aes67-instances.json",
+                                          std::string(key) + ": " + e.what());
+        return def;
+    }
+}
+
 bool AES67Manager::LoadConfig() {
     Json::Value root;
     if (!LoadJsonFromFile(m_configPath, root, JsonRoot::Object)) {
@@ -269,46 +312,55 @@ bool AES67Manager::LoadConfig() {
     // and the commit message that changed it.
     AES67Config cfg;
     static const AES67Config kDefault;
-    cfg.ptpEnabled = root.get("ptpEnabled", kDefault.ptpEnabled).asBool();
-    cfg.ptpInterface = root.get("ptpInterface", kDefault.ptpInterface).asString();
+    cfg.ptpEnabled = ConfigField(root, "ptpEnabled", kDefault.ptpEnabled, &Json::Value::asBool);
+    cfg.ptpInterface = ConfigField(root, "ptpInterface", kDefault.ptpInterface, &Json::Value::asString);
     if (cfg.ptpInterface.empty()) {
         cfg.ptpInterface = FirstWiredInterface();
         LogInfo(VB_MEDIAOUT, "AES67Manager: no PTP interface configured, using %s\n",
                 cfg.ptpInterface.c_str());
     }
-    cfg.ptpDomain = root.get("ptpDomain", kDefault.ptpDomain).asInt();
-    cfg.ptpRole = root.get("ptpRole", kDefault.ptpRole).asString();
-    cfg.ptpLockWaitMs = root.get("ptpLockWaitMs", kDefault.ptpLockWaitMs).asInt();
-    cfg.ptpMediaClock = root.get("ptpMediaClock", kDefault.ptpMediaClock).asBool();
-    cfg.sourcePacing = root.get("sourcePacing", kDefault.sourcePacing).asBool();
-    cfg.sinkPacing = root.get("sinkPacing", kDefault.sinkPacing).asBool();
-    cfg.sinkPacingMs = root.get("sinkPacingMs", kDefault.sinkPacingMs).asInt();
-    cfg.driftResample = root.get("driftResample", kDefault.driftResample).asBool();
-    cfg.pipelineStats = root.get("pipelineStats", kDefault.pipelineStats).asBool();
+    cfg.ptpDomain = ConfigField(root, "ptpDomain", kDefault.ptpDomain, &Json::Value::asInt);
+    cfg.ptpRole = ConfigField(root, "ptpRole", kDefault.ptpRole, &Json::Value::asString);
+    cfg.ptpLockWaitMs = ConfigField(root, "ptpLockWaitMs", kDefault.ptpLockWaitMs, &Json::Value::asInt);
+    // The wait runs inside ApplyConfig(), which holds the apply lock and, at
+    // boot, fppd's startup; Shutdown() has to wait it out too.  Anything past
+    // half a minute is not a wait for lock any more.
+    static constexpr int MAX_PTP_LOCK_WAIT_MS = 30000;
+    if (cfg.ptpLockWaitMs < 0 || cfg.ptpLockWaitMs > MAX_PTP_LOCK_WAIT_MS) {
+        int clamped = cfg.ptpLockWaitMs < 0 ? 0 : MAX_PTP_LOCK_WAIT_MS;
+        LogWarn(VB_MEDIAOUT, "AES67Manager: ptpLockWaitMs %d out of range, using %d\n",
+                cfg.ptpLockWaitMs, clamped);
+        cfg.ptpLockWaitMs = clamped;
+    }
+    cfg.ptpMediaClock = ConfigField(root, "ptpMediaClock", kDefault.ptpMediaClock, &Json::Value::asBool);
+    cfg.sourcePacing = ConfigField(root, "sourcePacing", kDefault.sourcePacing, &Json::Value::asBool);
+    cfg.sinkPacing = ConfigField(root, "sinkPacing", kDefault.sinkPacing, &Json::Value::asBool);
+    cfg.sinkPacingMs = ConfigField(root, "sinkPacingMs", kDefault.sinkPacingMs, &Json::Value::asInt);
+    cfg.driftResample = ConfigField(root, "driftResample", kDefault.driftResample, &Json::Value::asBool);
+    cfg.pipelineStats = ConfigField(root, "pipelineStats", kDefault.pipelineStats, &Json::Value::asBool);
     cfg.nativeSourceRate =
-        root.get("nativeSourceRate", kDefault.nativeSourceRate).asBool();
+        ConfigField(root, "nativeSourceRate", kDefault.nativeSourceRate, &Json::Value::asBool);
     cfg.sourceBufferCopy =
-        root.get("sourceBufferCopy", kDefault.sourceBufferCopy).asBool();
+        ConfigField(root, "sourceBufferCopy", kDefault.sourceBufferCopy, &Json::Value::asBool);
     cfg.sourceMinBuffers =
-        root.get("sourceMinBuffers", kDefault.sourceMinBuffers).asInt();
+        ConfigField(root, "sourceMinBuffers", kDefault.sourceMinBuffers, &Json::Value::asInt);
     cfg.splitClockDomains =
-        root.get("splitClockDomains", kDefault.splitClockDomains).asBool();
-    cfg.targetLeadMs = root.get("targetLeadMs", kDefault.targetLeadMs).asInt();
+        ConfigField(root, "splitClockDomains", kDefault.splitClockDomains, &Json::Value::asBool);
+    cfg.targetLeadMs = ConfigField(root, "targetLeadMs", kDefault.targetLeadMs, &Json::Value::asInt);
     cfg.sourceSilenceFloor =
-        root.get("sourceSilenceFloor", kDefault.sourceSilenceFloor).asBool();
+        ConfigField(root, "sourceSilenceFloor", kDefault.sourceSilenceFloor, &Json::Value::asBool);
     cfg.sourcePtpGroup =
-        root.get("sourcePtpGroup", kDefault.sourcePtpGroup).asBool();
+        ConfigField(root, "sourcePtpGroup", kDefault.sourcePtpGroup, &Json::Value::asBool);
     cfg.sourcePtpGroupName =
-        root.get("sourcePtpGroupName", kDefault.sourcePtpGroupName).asString();
-    cfg.sourceAsync = root.get("sourceAsync", kDefault.sourceAsync).asBool();
-    cfg.rateMatch = root.get("rateMatch", kDefault.rateMatch).asBool();
+        ConfigField(root, "sourcePtpGroupName", kDefault.sourcePtpGroupName, &Json::Value::asString);
+    cfg.sourceAsync = ConfigField(root, "sourceAsync", kDefault.sourceAsync, &Json::Value::asBool);
+    cfg.rateMatch = ConfigField(root, "rateMatch", kDefault.rateMatch, &Json::Value::asBool);
     cfg.rateMatchToleranceNs =
-        (guint64)root.get("rateMatchToleranceNs",
-                          (Json::UInt64)kDefault.rateMatchToleranceNs)
-            .asUInt64();
-    cfg.adaptiveResample = root.get("adaptiveResample", false).asBool();
+        (guint64)ConfigField(root, "rateMatchToleranceNs",
+                             (Json::UInt64)kDefault.rateMatchToleranceNs, &Json::Value::asUInt64);
+    cfg.adaptiveResample = ConfigField(root, "adaptiveResample", false, &Json::Value::asBool);
     cfg.requireGroupSource =
-        root.get("requireGroupSource", kDefault.requireGroupSource).asBool();
+        ConfigField(root, "requireGroupSource", kDefault.requireGroupSource, &Json::Value::asBool);
 
     // A domain outside 0-127 is not representable in the PTP header; an
     // unknown role would silently fall through to the "auto" branch below,
@@ -328,6 +380,9 @@ bool AES67Manager::LoadConfig() {
     if (root.isMember("instances") && root["instances"].isArray()) {
         for (const auto& instJson : root["instances"]) {
             AES67Instance inst;
+            // A value of the wrong JSON type threw from here to
+            // std::terminate, at startup; skip such an instance instead.
+            try {
             inst.id = instJson.get("id", 0).asInt();
             inst.name = instJson.get("name", "AES67").asString();
             inst.enabled = instJson.get("enabled", true).asBool();
@@ -340,6 +395,10 @@ bool AES67Manager::LoadConfig() {
             inst.latency = instJson.get("latency", AES67::DEFAULT_LATENCY_MS).asInt();
             inst.sapEnabled = instJson.get("sapEnabled", true).asBool();
             inst.ptime = instJson.get("ptime", AES67::DEFAULT_PTIME_MS).asInt();
+            } catch (const std::exception& e) {
+                WarningHolder::InvalidConfigEntry("pipewire-aes67-instances.json", e.what());
+                continue;
+            }
 
             // Validate ptime
             if (!AES67::IsValidPtime(inst.ptime)) {
@@ -375,6 +434,14 @@ bool AES67Manager::LoadConfig() {
                         AES67::L24PayloadBytes(inst.ptime, inst.channels),
                         AES67::MAX_RTP_PACKET_BYTES, maxPtime);
                 inst.ptime = maxPtime;
+            }
+
+            if (!IsPipelineSafeHost(inst.multicastIP) || !IsPipelineSafeInterface(inst.interface)) {
+                LogErr(VB_MEDIAOUT, "AES67Manager: instance '%s' has an invalid address or interface, skipping it\n",
+                       inst.name.c_str());
+                WarningHolder::AddWarningTimeout(300, AES67::WARNING_ID_PIPELINE, "AES67: stream '" + inst.name +
+                                                              "' has an invalid address or interface and was not started");
+                continue;
             }
 
             cfg.instances.push_back(inst);
@@ -471,6 +538,15 @@ bool AES67Manager::ApplyConfig() {
     // thread joins below and both reach the std::thread assignments at the
     // end, where assigning over a joinable thread calls std::terminate().
     std::lock_guard<std::mutex> applyLock(m_applyMutex);
+    return ApplyConfigLocked();
+}
+
+bool AES67Manager::ApplyConfigLocked() {
+    if (m_stopping.load()) {
+        return false;
+    }
+    // Any rebuild scheduled before this apply is now redundant.
+    m_applyGeneration++;
 
     if (!m_initialized.load()) {
         if (!Init()) {
@@ -483,33 +559,24 @@ bool AES67Manager::ApplyConfig() {
         }
     }
 
-    // Stop existing pipelines and SAP threads
-    m_sapAnnounceRunning.store(false);
-    m_sapRecvRunning.store(false);
-    m_driftRunning.store(false);
-    if (m_driftThread.joinable()) {
-        m_driftThread.join();
-    }
-    if (m_sapAnnounceThread.joinable()) {
-        m_sapAnnounceThread.join();
-    }
-    if (m_sapRecvThread.joinable()) {
-        m_sapRecvThread.join();
-    }
+    // Stop existing pipelines and SAP threads.  ptp4l is left for now: it is
+    // only restarted below if the new config changes what it runs with.
+    StopWorkerThreads();
     StopAllPipelines();
-    ShutdownPTP();
     // Re-resolved below against the new config: the PTP interface (and so the
     // PHC backing the media clock) may have changed.
     ReleaseMediaClock();
 
     if (!FileExists(m_configPath)) {
         LogInfo(VB_MEDIAOUT, "AES67Manager: No config file, nothing to apply\n");
+        ShutdownPTP();
         ClearAES67PipelineWarnings(true, true);
         m_active.store(false);
         return true;
     }
 
     if (!LoadConfig()) {
+        ShutdownPTP();
         return false;
     }
 
@@ -521,16 +588,30 @@ bool AES67Manager::ApplyConfig() {
 
     if (enabledCount == 0) {
         LogInfo(VB_MEDIAOUT, "AES67Manager: No enabled instances\n");
+        ShutdownPTP();
         ClearAES67PipelineWarnings(true, true);
         m_active.store(false);
         return true;
     }
 
-    // Initialize PTP if enabled
+    // Initialize PTP if enabled.  A rebuild -- one stream's error, a watchdog
+    // pass, an Apply that changed only the streams -- keeps a running ptp4l
+    // whose settings are unchanged: restarting it takes every receiver in the
+    // domain off the clock, all of them when this box is the grandmaster.
     if (m_config.ptpEnabled) {
-        if (!InitPTP()) {
-            LogWarn(VB_MEDIAOUT, "AES67Manager: PTP init failed, continuing without PTP clock\n");
+        PtpParams wanted{ m_config.ptpInterface, m_config.ptpDomain, m_config.ptpRole };
+        if (m_ptpInitialized && IsPtp4lRunning() && wanted == m_ptpStartedWith) {
+            LogInfo(VB_MEDIAOUT, "AES67Manager: PTP settings unchanged, keeping ptp4l (PID %d)\n",
+                    (int)m_ptp4lPid);
+            AnchorToPtpLock();
+        } else {
+            ShutdownPTP();
+            if (!InitPTP()) {
+                LogWarn(VB_MEDIAOUT, "AES67Manager: PTP init failed, continuing without PTP clock\n");
+            }
         }
+    } else {
+        ShutdownPTP();
     }
 
     // Create pipelines for each enabled instance
@@ -620,20 +701,22 @@ bool AES67Manager::ApplyConfig() {
     // instead of the one after it.
     ResetPtpStepReference();
 
+    m_watchdogRunning.store(true);
+    m_watchdogThread = std::thread(&AES67Manager::WatchdogLoop, this);
+
     m_active.store(true);
     LogInfo(VB_MEDIAOUT, "AES67Manager: Applied config — %d send, %d receive pipelines\n",
             (int)m_sendPipelines.size(), (int)m_recvPipelines.size());
     return true;
 }
 
-void AES67Manager::Cleanup() {
-    LogInfo(VB_MEDIAOUT, "AES67Manager: Cleanup\n");
-
-    std::lock_guard<std::mutex> applyLock(m_applyMutex);
-
+// Stops and joins the drift, SAP and watchdog threads.  Caller holds
+// m_applyMutex.  Never call it from one of those threads.
+void AES67Manager::StopWorkerThreads() {
     m_sapAnnounceRunning.store(false);
     m_sapRecvRunning.store(false);
     m_driftRunning.store(false);
+    m_watchdogRunning.store(false);
     if (m_driftThread.joinable()) {
         m_driftThread.join();
     }
@@ -643,6 +726,78 @@ void AES67Manager::Cleanup() {
     if (m_sapRecvThread.joinable()) {
         m_sapRecvThread.join();
     }
+    if (m_watchdogThread.joinable()) {
+        m_watchdogThread.join();
+    }
+}
+
+// Pipeline recovery, ptp4l supervision, the PTP step detector and the
+// no-lock warning review, every SAP_ANNOUNCE_INTERVAL_S.  This used to run
+// inside the SAP announcer, which only exists when something sends with SAP
+// on: a receive-only box, or one with SAP turned off, got none of it -- a
+// dead pipeline or ptp4l stayed dead and the no-lock warning never cleared.
+void AES67Manager::WatchdogLoop() {
+    while (m_watchdogRunning.load()) {
+        for (int i = 0; i < AES67::SAP_ANNOUNCE_INTERVAL_S && m_watchdogRunning.load(); i++) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+        if (!m_watchdogRunning.load()) {
+            break;
+        }
+        // Evaluate both before deciding: PollPipelinesWatchdog() also drains
+        // each pipeline's bus, so short-circuiting past it would leave errors
+        // unread until the next pass.
+        const bool ptpStepped = CheckPtpWatchdog();
+        if (PollPipelinesWatchdog() || ptpStepped) {
+            // ApplyConfig() joins this thread, so the rebuild runs on its own
+            // thread once this one has stopped.
+            LogWarn(VB_MEDIAOUT, "AES67 watchdog: rebuild needed, scheduling ApplyConfig\n");
+            m_watchdogRunning.store(false);
+            ScheduleRebuild();
+            break;
+        }
+    }
+}
+
+void AES67Manager::ScheduleRebuild() {
+    std::lock_guard<std::mutex> rl(m_rebuildMutex);
+    if (m_stopping.load() || m_rebuildRunning.load()) {
+        // Shutting down, or a rebuild is already on its way.  Never join a
+        // running one here: its ApplyConfig() may be waiting to join the
+        // watchdog thread that is calling this.
+        return;
+    }
+    if (m_rebuildThread.joinable()) {
+        m_rebuildThread.join();  // finished: returns at once
+    }
+    uint64_t generation = m_applyGeneration.load();
+    m_rebuildRunning.store(true);
+    m_rebuildThread = std::thread([this, generation]() {
+        // Brief delay to let the SAP announce thread finish exiting and
+        // become joinable.
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        {
+            std::lock_guard<std::mutex> applyLock(m_applyMutex);
+            // Nothing to do if anything applied, cleaned up or shut down in
+            // the meantime -- it either did this rebuild's work or undid it
+            // on purpose.
+            if (!m_stopping.load() && generation == m_applyGeneration.load()) {
+                ApplyConfigLocked();
+            }
+        }
+        m_rebuildRunning.store(false);
+    });
+}
+
+void AES67Manager::Cleanup() {
+    LogInfo(VB_MEDIAOUT, "AES67Manager: Cleanup\n");
+
+    std::lock_guard<std::mutex> applyLock(m_applyMutex);
+    // A watchdog rebuild already scheduled must not bring back what this
+    // tears down.
+    m_applyGeneration++;
+
+    StopWorkerThreads();
     StopAllPipelines();
     ShutdownPTP();
     ReleaseMediaClock();
@@ -652,14 +807,6 @@ void AES67Manager::Cleanup() {
     ClearAES67PipelineWarnings(true, true);
 
     m_active.store(false);
-}
-
-void AES67Manager::OnPipeWireReady() {
-    // PipeWire has been restarted — if we have a config, apply it
-    if (FileExists(m_configPath)) {
-        LogInfo(VB_MEDIAOUT, "AES67Manager: PipeWire ready, applying AES67 config\n");
-        ApplyConfig();
-    }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -808,6 +955,61 @@ bool AES67Manager::WritePtpConf(const std::string& path, bool hwTimestamping, bo
     return true;
 }
 
+// A pidfd for our own child, or -1 with errno set (ESRCH: already gone;
+// ENOSYS: kernel or platform without pidfds, where callers fall back to
+// the PID).
+static int OpenPidfd(pid_t pid) {
+#if defined(__linux__) && defined(SYS_pidfd_open)
+    return (int)syscall(SYS_pidfd_open, pid, 0);  // close-on-exec by default
+#else
+    (void)pid;
+    errno = ENOSYS;
+    return -1;
+#endif
+}
+
+// Whether the child is alive.  A pidfd becomes readable when its process
+// exits.  Without one, the PID has to belong to a process with the
+// expected name: a dead child's PID may already be someone else's.
+static bool ChildAlive(pid_t pid, int pidfd, const char* name) {
+#if defined(__linux__)
+    if (pidfd >= 0) {
+        struct pollfd pfd = { pidfd, POLLIN, 0 };
+        return poll(&pfd, 1, 0) == 0;
+    }
+#endif
+    if (pid <= 0 || kill(pid, 0) != 0) {
+        return false;
+    }
+    std::ifstream f("/proc/" + std::to_string((int)pid) + "/comm");
+    if (!f.is_open()) {
+        return true;  // no procfs (macOS): the signal probe is all there is
+    }
+    std::string comm;
+    std::getline(f, comm);
+    return comm == name;
+}
+
+static void SignalChild(pid_t pid, int pidfd, int sig, const char* name) {
+#if defined(__linux__) && defined(SYS_pidfd_send_signal)
+    if (pidfd >= 0) {
+        syscall(SYS_pidfd_send_signal, pidfd, sig, nullptr, 0);
+        return;
+    }
+#endif
+    if (ChildAlive(pid, -1, name)) {
+        kill(pid, sig);
+    }
+}
+
+void AES67Manager::ForgetPtp4l() {
+    if (m_ptp4lPidfd >= 0) {
+        close(m_ptp4lPidfd);
+        m_ptp4lPidfd = -1;
+    }
+    m_ptp4lPid = -1;
+}
+
 bool AES67Manager::StartPtp4l(bool hwTimestamping, bool includeDscp) {
     if (!WritePtpConf(m_ptpConfPath, hwTimestamping, includeDscp)) {
         return false;
@@ -830,15 +1032,22 @@ bool AES67Manager::StartPtp4l(bool hwTimestamping, bool includeDscp) {
         _exit(127);
     }
     m_ptp4lPid = pid;
+    m_ptp4lPidfd = OpenPidfd(pid);
+    if (m_ptp4lPidfd < 0 && errno == ESRCH) {
+        // Exited and was reaped before we could even look.
+        ForgetPtp4l();
+        return false;
+    }
 
     // Give ptp4l a moment to start, then check it did not exit immediately
     // (bad config key, no hardware timestamping, interface down, ...).
     usleep(500000);  // 500ms
     if (!IsPtp4lRunning()) {
-        m_ptp4lPid = -1;
+        ForgetPtp4l();
         return false;
     }
 
+    m_ptpHwTimestamping.store(hwTimestamping);
     LogInfo(VB_MEDIAOUT, "AES67Manager: ptp4l started (PID %d) on %s — %s timestamping%s, domain %d, role %s\n",
             (int)m_ptp4lPid, m_config.ptpInterface.c_str(),
             hwTimestamping ? "hardware" : "software",
@@ -881,7 +1090,7 @@ bool AES67Manager::InitPTP() {
             if (!StartPtp4l(false, false)) {
                 LogErr(VB_MEDIAOUT, "AES67Manager: ptp4l failed to start\n");
                 WarningHolder::AddWarning(AES67::WARNING_ID_PTP, AES67::WARNING_PTP_START_FAILED);
-                m_ptp4lPid = -1;
+                ForgetPtp4l();
                 return false;
             }
         }
@@ -919,6 +1128,16 @@ bool AES67Manager::InitPTP() {
         m_ptpAnnounceThread = std::thread(&AES67Manager::PtpAnnounceListenLoop, this);
     }
 
+    AnchorToPtpLock();
+    m_ptpStartedWith = PtpParams{ m_config.ptpInterface, m_config.ptpDomain, m_config.ptpRole };
+
+    m_ptpInitialized = true;
+    LogInfo(VB_MEDIAOUT, "AES67Manager: PTP initialized — ptp4l PID %d on %s\n",
+            (int)m_ptp4lPid, m_config.ptpInterface.c_str());
+    return true;
+}
+
+void AES67Manager::AnchorToPtpLock() {
     // Do not let anything anchor to the clock until it has stopped moving.
     //
     // ptp4l being alive is not the same as the clock being right: as a
@@ -951,11 +1170,6 @@ bool AES67Manager::InitPTP() {
     // With ptpMediaClock off nothing is anchored to PTP at all, so there is
     // no anchor for a late lock to invalidate and the question does not apply.
     m_ptpLockedAtStart.store(locked || !m_config.ptpMediaClock);
-
-    m_ptpInitialized = true;
-    LogInfo(VB_MEDIAOUT, "AES67Manager: PTP initialized — ptp4l PID %d on %s\n",
-            (int)m_ptp4lPid, m_config.ptpInterface.c_str());
-    return true;
 }
 
 // SIGTERM then SIGKILL, polling until the process is really gone.
@@ -965,12 +1179,29 @@ bool AES67Manager::InitPTP() {
 // actually waited.  That let ApplyConfig() launch a replacement ptp4l while
 // the old one still held /var/run/ptp4l and the PTP ports, leaving two
 // daemons briefly running BMCA against each other on one interface.
-static void StopChildProcess(pid_t& pid, const char* name) {
+//
+// Signals go through the pidfd where there is one: under SA_NOCLDWAIT a
+// child that already died has given up its PID, and kill(pid) -- SIGKILL
+// included -- would land on whatever process took it.
+static void StopChildProcess(pid_t& pid, int& pidfd, const char* name) {
+    auto forget = [&]() {
+        if (pidfd >= 0) {
+            close(pidfd);
+            pidfd = -1;
+        }
+        pid = -1;
+    };
     if (pid <= 0) {
+        forget();
+        return;
+    }
+    if (!ChildAlive(pid, pidfd, name)) {
+        LogInfo(VB_MEDIAOUT, "AES67Manager: %s (PID %d) had already exited\n", name, (int)pid);
+        forget();
         return;
     }
     LogInfo(VB_MEDIAOUT, "AES67Manager: Stopping %s (PID %d)\n", name, (int)pid);
-    kill(pid, SIGTERM);
+    SignalChild(pid, pidfd, SIGTERM, name);
 
     // Up to ~3s for a clean exit, then insist.
     for (int i = 0; i < 60; i++) {
@@ -978,8 +1209,8 @@ static void StopChildProcess(pid_t& pid, const char* name) {
         // change turns that off.
         int status = 0;
         waitpid(pid, &status, WNOHANG);
-        if (kill(pid, 0) != 0) {
-            pid = -1;
+        if (!ChildAlive(pid, pidfd, name)) {
+            forget();
             return;
         }
         usleep(50000);
@@ -987,16 +1218,16 @@ static void StopChildProcess(pid_t& pid, const char* name) {
 
     LogWarn(VB_MEDIAOUT, "AES67Manager: %s (PID %d) did not exit, sending SIGKILL\n",
             name, (int)pid);
-    kill(pid, SIGKILL);
+    SignalChild(pid, pidfd, SIGKILL, name);
     for (int i = 0; i < 20; i++) {
         int status = 0;
         waitpid(pid, &status, WNOHANG);
-        if (kill(pid, 0) != 0) {
+        if (!ChildAlive(pid, pidfd, name)) {
             break;
         }
         usleep(50000);
     }
-    pid = -1;
+    forget();
 }
 
 void AES67Manager::ShutdownPTP() {
@@ -1009,8 +1240,9 @@ void AES67Manager::ShutdownPTP() {
         m_ptpAnnounceSources.clear();
     }
 
-    StopChildProcess(m_phc2sysPid, "phc2sys");
-    StopChildProcess(m_ptp4lPid, "ptp4l");
+    StopChildProcess(m_phc2sysPid, m_phc2sysPidfd, "phc2sys");
+    StopChildProcess(m_ptp4lPid, m_ptp4lPidfd, "ptp4l");
+    m_ptpHwTimestamping.store(false);
 
     if (!m_ptpConfPath.empty()) {
         unlink(m_ptpConfPath.c_str());
@@ -1036,24 +1268,9 @@ void AES67Manager::ShutdownPTP() {
 }
 
 bool AES67Manager::IsPtp4lRunning() const {
-    if (m_ptp4lPid <= 0) return false;
-    // kill(pid, 0) checks if process exists without sending a signal.  That
-    // alone is not enough here: SA_NOCLDWAIT means a dead ptp4l leaves no
-    // zombie holding its slot, so the PID can be recycled by an unrelated
-    // process and we would report a long-dead daemon as healthy.  Confirm the
-    // name too.
-    if (kill(m_ptp4lPid, 0) != 0) {
-        return false;
-    }
-    std::string comm = "/proc/" + std::to_string((int)m_ptp4lPid) + "/comm";
-    std::ifstream f(comm);
-    if (!f.is_open()) {
-        // No procfs (macOS) — fall back to the signal probe alone.
-        return true;
-    }
-    std::string name;
-    std::getline(f, name);
-    return name == "ptp4l";
+    // SA_NOCLDWAIT means a dead ptp4l leaves no zombie holding its slot, so
+    // the PID can be recycled by an unrelated process; see ChildAlive().
+    return m_ptp4lPid > 0 && ChildAlive(m_ptp4lPid, m_ptp4lPidfd, "ptp4l");
 }
 
 // Runs a `pmc` management query against ptp4l's UDS socket and returns the
@@ -1316,6 +1533,9 @@ bool AES67Manager::WaitForPtpLock(int timeoutMs) {
 
     std::string reported;
     for (;;) {
+        if (m_stopping.load()) {
+            return false;
+        }
         if (!IsPtp4lRunning()) {
             LogWarn(VB_MEDIAOUT,
                     "AES67Manager: ptp4l exited while waiting for it to lock\n");
@@ -1483,7 +1703,6 @@ void AES67Manager::HandlePtpAnnounce(const uint8_t* data, size_t len,
     src.address = senderAddr;
     src.direct = (stepsRemoved == 0);
     src.lastSeenMs = nowMs;
-    m_ptpAnnounceSources[gmId] = src;
 
     // Drop clocks that have stopped announcing.  A domain holds a handful of
     // masters at most, but BMCA churn would otherwise accumulate them for the
@@ -1495,6 +1714,16 @@ void AES67Manager::HandlePtpAnnounce(const uint8_t* data, size_t len,
             ++i;
         }
     }
+    it = m_ptpAnnounceSources.find(gmId);  // the prune may have erased it
+    if (it == m_ptpAnnounceSources.end() &&
+        m_ptpAnnounceSources.size() >= AES67::MAX_PTP_ANNOUNCE_SOURCES) {
+        auto oldest = std::min_element(m_ptpAnnounceSources.begin(), m_ptpAnnounceSources.end(),
+                                       [](const auto& a, const auto& b) {
+                                           return a.second.lastSeenMs < b.second.lastSeenMs;
+                                       });
+        m_ptpAnnounceSources.erase(oldest);
+    }
+    m_ptpAnnounceSources[gmId] = src;
 }
 
 bool AES67Manager::GetGrandmasterAddress(const std::string& gmId, std::string& address,
@@ -1756,7 +1985,16 @@ GstClock* AES67Manager::GetOrCreateMediaClock() {
     }
 
     std::string iface = GetPtpInterface();
-    int phcIndex = PhcIndexForInterface(iface);
+    // The PHC is the domain's time only while ptp4l disciplines it.  A NIC
+    // that has one but rejected hardware timestamping leaves ptp4l on
+    // software timestamping (it steers CLOCK_REALTIME), and with ptp4l not
+    // running at all CLOCK_REALTIME is at least NTP-steered -- a free-running
+    // PHC is neither, and every box would drift on its own crystal.
+    int phcIndex = m_ptpHwTimestamping.load() ? PhcIndexForInterface(iface) : -1;
+    if (phcIndex < 0 && PhcIndexForInterface(iface) >= 0) {
+        LogInfo(VB_MEDIAOUT, "AES67 media clock: %s has a PHC, but ptp4l is not running with "
+                "hardware timestamping, so it is not disciplined\n", iface.c_str());
+    }
     if (phcIndex >= 0) {
         std::string dev = "/dev/ptp" + std::to_string(phcIndex);
         int fd = open(dev.c_str(), O_RDONLY);
@@ -1787,7 +2025,7 @@ GstClock* AES67Manager::GetOrCreateMediaClock() {
     // its own clock, so that is the domain's time in both roles.
     clock->clkid = CLOCK_REALTIME;
     LogInfo(VB_MEDIAOUT, "AES67 media clock: using CLOCK_REALTIME "
-            "(no PHC on %s — software timestamping)\n", iface.c_str());
+            "(no disciplined PHC on %s — software timestamping)\n", iface.c_str());
     m_ptpClock = GST_CLOCK(clock);
     return m_ptpClock;
 }
@@ -2840,10 +3078,15 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
             gst_object_unref(payEl);
         }
 
+        // No reference to the sink here: the probe sits on the sink's own pad
+        // and pads only drop their probes when their element is disposed, so a
+        // ref held by the probe kept the sink -- and with it this struct, the
+        // PTP clock and its /dev/ptp fd -- alive forever after the pipeline was
+        // freed, one more on every rebuild.  The probe reads the sink off the
+        // pad instead.
         struct LeadServo {
             GstClock* ptp;
             GstClock* pipe;
-            GstElement* sink;
             gint64 targetNs;
             guint64 tick;
             int instanceId;
@@ -2855,13 +3098,17 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         if (sinkPad) {
             auto* sv = new LeadServo{ GST_CLOCK(gst_object_ref(ptpClock)),
                                       gst_pipeline_get_pipeline_clock(GST_PIPELINE(pipeline)),
-                                      sinkEl,
                                       (gint64)m_config.targetLeadMs * GST_MSECOND,
                                       0, inst.id, false, -1 };
             gst_pad_add_probe(
                 sinkPad, GST_PAD_PROBE_TYPE_BUFFER,
-                [](GstPad*, GstPadProbeInfo* info, gpointer user) -> GstPadProbeReturn {
+                [](GstPad* pad, GstPadProbeInfo* info, gpointer user) -> GstPadProbeReturn {
                     auto* v = static_cast<LeadServo*>(user);
+                    // Valid for the call: the pad's element is the one running it.
+                    GstElement* sink = GST_ELEMENT(GST_OBJECT_PARENT(pad));
+                    if (!sink) {
+                        return GST_PAD_PROBE_OK;
+                    }
                     GstBuffer* b = GST_PAD_PROBE_INFO_BUFFER(info);
                     // ~1Hz at any ptime; the correction is tens of microseconds
                     // and does not need to be finer.
@@ -2889,7 +3136,7 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                     // receiver-discards-everything failure.
                     if (v->latency < 0) {
                         GstQuery* lq = gst_query_new_latency();
-                        if (gst_element_query(v->sink, lq)) {
+                        if (gst_element_query(sink, lq)) {
                             gboolean live = FALSE;
                             GstClockTime minL = 0, maxL = 0;
                             gst_query_parse_latency(lq, &live, &minL, &maxL);
@@ -2901,8 +3148,8 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                         }
                     }
                     gint64 tsOff = 0;
-                    g_object_get(v->sink, "ts-offset", &tsOff, NULL);
-                    const GstClockTime baseT = gst_element_get_base_time(v->sink);
+                    g_object_get(sink, "ts-offset", &tsOff, NULL);
+                    const GstClockTime baseT = gst_element_get_base_time(sink);
                     const GstClockTime pipeNow = gst_clock_get_time(v->pipe);
                     const GstClockTime ptpNow = gst_clock_get_time(v->ptp);
                     // When the sink will put this packet on the wire, expressed
@@ -2945,7 +3192,7 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                         if (corr < -kSlew) corr = -kSlew;
                     }
                     if (corr != 0) {
-                        g_object_set(v->sink, "ts-offset", tsOff + corr, NULL);
+                        g_object_set(sink, "ts-offset", tsOff + corr, NULL);
                     }
                     // Diagnostic: the servo drove the lead to -56ms once and
                     // took 50 minutes to recover, which no combination of its
@@ -2981,11 +3228,11 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                     auto* v = static_cast<LeadServo*>(user);
                     if (v->ptp) gst_object_unref(v->ptp);
                     if (v->pipe) gst_object_unref(v->pipe);
-                    if (v->sink) gst_object_unref(v->sink);
                     delete v;
                 });
             gst_object_unref(sinkPad);
-        } else if (sinkEl) {
+        }
+        if (sinkEl) {
             gst_object_unref(sinkEl);
         }
     }
@@ -3268,6 +3515,7 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         auto [it, ok] = m_sendPipelines.try_emplace(inst.id);
         it->second.instanceId = inst.id;
         it->second.channels = inst.channels;
+        it->second.ptime = inst.ptime;
         it->second.isSend = true;
         it->second.pipeline = pipeline;
         it->second.bus = bus;
@@ -3380,6 +3628,7 @@ bool AES67Manager::CreateRecvPipeline(const AES67Instance& inst) {
         auto [it, ok] = m_recvPipelines.try_emplace(inst.id);
         it->second.instanceId = inst.id;
         it->second.channels = inst.channels;
+        it->second.ptime = inst.ptime;
         it->second.isSend = false;
         it->second.pipeline = pipeline;
         it->second.bus = bus;
@@ -3449,16 +3698,6 @@ void AES67Manager::StopAllPipelines() {
         LogDebug(VB_MEDIAOUT, "AES67Manager: Stopping recv pipeline [%d]\n", id);
         StopPipeline(p);
     }
-}
-
-void AES67Manager::PauseSendPipelines() {
-    // No-op: with node.autoconnect=false the send pipeline always outputs
-    // to multicast.  When no media is playing, the filter-chain delivers
-    // clean silence — no muting needed.
-}
-
-void AES67Manager::ResumeSendPipelines() {
-    // No-op: pipeline is always sending to multicast.
 }
 
 // Pad probe callback: drops buffers while dropCounter > 0, passes through otherwise.
@@ -3565,7 +3804,7 @@ void AES67Manager::FlushSendPipelines() {
 // ──────────────────────────────────────────────────────────────────────────────
 // ──────────────────────────────────────────────────────────────────────────────
 // Pipeline watchdog — polls bus messages and recovers crashed pipelines.
-// Called from the SAP announcer thread (every SAP_ANNOUNCE_INTERVAL_S seconds).
+// Called from WatchdogLoop() (every SAP_ANNOUNCE_INTERVAL_S seconds).
 // fppd does not run a GLib main loop, so gst_bus_add_watch() callbacks would
 // never fire.  We poll the bus manually and promote any ERROR/WARNING messages.
 // ──────────────────────────────────────────────────────────────────────────────
@@ -3573,7 +3812,7 @@ void AES67Manager::FlushSendPipelines() {
 // link flap, an OOM kill or a stray `killall ptp4l` left FPP silently running
 // with no clock discipline at all, reporting "not running" forever.
 //
-// Called from the SAP announcer alongside the pipeline watchdog, so it shares
+// Called from WatchdogLoop() alongside the pipeline watchdog, so it shares
 // that thread's cadence.  Note this means PTP is only supervised while the SAP
 // announcer runs (i.e. there is at least one SAP-enabled send instance).
 
@@ -3957,8 +4196,29 @@ bool AES67Manager::ReviewPtpNoLockWarning() {
 }
 
 bool AES67Manager::CheckPtpWatchdog() {
-    if (!m_config.ptpEnabled || !m_ptpInitialized) {
+    if (!m_config.ptpEnabled) {
         return false;
+    }
+    if (!m_ptpInitialized) {
+        // Its start at apply time or a restart below failed (interface down,
+        // the port briefly held).  Everything after this used to return here,
+        // so PTP stayed down until someone applied the config again.
+        auto now = std::chrono::steady_clock::now();
+        if (m_ptpRetryDelayS > 0 && now < m_ptpRetryAt) {
+            return false;
+        }
+        m_ptpRetryDelayS = m_ptpRetryDelayS == 0 ? 30 : std::min(m_ptpRetryDelayS * 2, 300);
+        m_ptpRetryAt = now + std::chrono::seconds(m_ptpRetryDelayS);
+        LogInfo(VB_MEDIAOUT, "AES67 watchdog: PTP is not running, starting it\n");
+        if (!InitPTP()) {
+            LogWarn(VB_MEDIAOUT, "AES67 watchdog: PTP start failed, trying again in %ds\n", m_ptpRetryDelayS);
+            return false;
+        }
+        m_ptpRetryDelayS = 0;
+        // The streams were built without it (or against the ptp4l that died):
+        // build them again on the clock that is disciplined now.
+        LogInfo(VB_MEDIAOUT, "AES67 watchdog: PTP started, rebuilding the streams on it\n");
+        return true;
     }
 
     if (!IsPtp4lRunning()) {
@@ -3969,6 +4229,8 @@ bool AES67Manager::CheckPtpWatchdog() {
         if (InitPTP()) {
             LogInfo(VB_MEDIAOUT, "AES67 watchdog: ptp4l restarted\n");
         } else {
+            // Retried on the next passes; see above.
+            m_ptpRetryDelayS = 0;
             LogErr(VB_MEDIAOUT, "AES67 watchdog: ptp4l restart failed\n");
         }
         // A fresh ptp4l may have stepped the clock on its way back to lock, and
@@ -4016,8 +4278,9 @@ bool AES67Manager::PollPipelinesWatchdog() {
                             LogErr(VB_MEDIAOUT,
                                    "AES67 %s pipeline [%d] bus error: %s\n",
                                    direction, p.instanceId, err->message);
+                            p.errorMessage = std::string("GStreamer error: ") + err->message;
+                            p.busError = true;
                             g_error_free(err); g_free(dbg);
-                            p.errorMessage = "GStreamer error";
                             break;
                         }
                         case GST_MESSAGE_WARNING: {
@@ -4034,6 +4297,10 @@ bool AES67Manager::PollPipelinesWatchdog() {
                     gst_message_unref(msg);
                 }
             }
+
+            // Already known dead; the bus-error backoff below decides when it
+            // is rebuilt, and the stall checks would only bypass it.
+            if (p.busError) continue;
 
             // Check current pipeline state
             GstState curState = GST_STATE_NULL, pendingState = GST_STATE_VOID_PENDING;
@@ -4153,15 +4420,21 @@ bool AES67Manager::PollPipelinesWatchdog() {
                     // Compare throughput against what this instance should
                     // be emitting.  Payload is ptime worth of 24-bit frames,
                     // and at nominal that is AUDIO_RATE * 3 * channels bytes a
-                    // second regardless of ptime.
+                    // second regardless of ptime.  bytes-served counts whole
+                    // RTP packets, though, so each packet's 12-byte header is
+                    // in it too: leaving that out had a healthy stream read
+                    // 104% at 1ms ptime (101% at 4ms), and a stream delivering
+                    // 94% of its audio read 98% and never tripped the check.
                     const auto nowT = std::chrono::steady_clock::now();
                     if (p.lastByteTime.time_since_epoch().count() != 0 &&
                         bytesSent > p.lastByteCount) {
                         const double secs =
                             std::chrono::duration<double>(nowT - p.lastByteTime)
                                 .count();
+                        constexpr double RTP_HEADER_BYTES = 12.0;
                         const double expected =
-                            (double)AES67::AUDIO_RATE * 3.0 * p.channels;
+                            (double)AES67::AUDIO_RATE * 3.0 * p.channels +
+                            (p.ptime > 0 ? RTP_HEADER_BYTES * 1000.0 / p.ptime : 0.0);
                         if (secs > 5.0 && expected > 0) {
                             const double got =
                                 (double)(bytesSent - p.lastByteCount) / secs;
@@ -4214,6 +4487,49 @@ bool AES67Manager::PollPipelinesWatchdog() {
     checkPipelines(m_sendPipelines, "send");
     checkPipelines(m_recvPipelines, "recv");
 
+    // An ERROR stops the pipeline's streaming for good, and a receive
+    // pipeline has nothing else that would ever notice.  The first one
+    // rebuilds at once; one that keeps coming back waits 30s, 60s, ... up to
+    // 8 minutes between rebuilds, and the count starts over after 10 quiet
+    // minutes.
+    {
+        const auto now = std::chrono::steady_clock::now();
+        std::vector<AES67Pipeline*> errored;
+        for (auto* pipelines : { &m_sendPipelines, &m_recvPipelines }) {
+            for (auto& kv : *pipelines) {
+                if (kv.second.pipeline && kv.second.busError) {
+                    errored.push_back(&kv.second);
+                }
+            }
+        }
+        if (m_errorRebuilds > 0 && now - m_lastErrorRebuild > std::chrono::minutes(10)) {
+            m_errorRebuilds = 0;
+        }
+        if (!errored.empty()) {
+            const auto wait = std::chrono::seconds(30) * (1 << std::min(std::max(m_errorRebuilds - 1, 0), 4));
+            if (needsRebuild || m_errorRebuilds == 0 || now - m_lastErrorRebuild >= wait) {
+                if (!needsRebuild) {
+                    m_errorRebuilds++;
+                    m_lastErrorRebuild = now;
+                }
+                needsRebuild = true;
+                for (AES67Pipeline* p : errored) {
+                    p->running = false;
+                }
+                LogWarn(VB_MEDIAOUT, "AES67 watchdog: %d pipeline(s) stopped on a bus error\n",
+                        (int)errored.size());
+            } else {
+                LogWarn(VB_MEDIAOUT,
+                        "AES67 watchdog: %d pipeline(s) stopped on a bus error, rebuilding in %llds "
+                        "(error rebuild %d)\n",
+                        (int)errored.size(),
+                        (long long)std::chrono::duration_cast<std::chrono::seconds>(
+                            wait - (now - m_lastErrorRebuild)).count(),
+                        m_errorRebuilds + 1);
+            }
+        }
+    }
+
     // If any pipeline needs rebuilding, re-apply config.
     // ApplyConfig() tears down all pipelines and recreates them with fresh
     // PipeWire connections.
@@ -4223,43 +4539,6 @@ bool AES67Manager::PollPipelinesWatchdog() {
     }  // end pipeline mutex scope
 
     return needsRebuild;
-}
-
-gboolean AES67Manager::OnBusMessage(GstBus* bus, GstMessage* msg, gpointer userData) {
-    switch (GST_MESSAGE_TYPE(msg)) {
-        case GST_MESSAGE_ERROR: {
-            GError* err = nullptr;
-            gchar* debug = nullptr;
-            gst_message_parse_error(msg, &err, &debug);
-            LogErr(VB_MEDIAOUT, "AES67 pipeline error: %s (debug: %s)\n",
-                   err->message, debug ? debug : "none");
-            g_error_free(err);
-            g_free(debug);
-            break;
-        }
-        case GST_MESSAGE_WARNING: {
-            GError* err = nullptr;
-            gchar* debug = nullptr;
-            gst_message_parse_warning(msg, &err, &debug);
-            LogWarn(VB_MEDIAOUT, "AES67 pipeline warning: %s\n", err->message);
-            g_error_free(err);
-            g_free(debug);
-            break;
-        }
-        case GST_MESSAGE_STATE_CHANGED: {
-            if (GST_MESSAGE_SRC(msg) == GST_OBJECT(msg)) {
-                GstState oldState, newState, pending;
-                gst_message_parse_state_changed(msg, &oldState, &newState, &pending);
-                LogDebug(VB_MEDIAOUT, "AES67 pipeline state: %s → %s\n",
-                         gst_element_state_get_name(oldState),
-                         gst_element_state_get_name(newState));
-            }
-            break;
-        }
-        default:
-            break;
-    }
-    return TRUE;  // keep watching
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -4696,46 +4975,8 @@ void AES67Manager::SAPAnnounceLoop() {
             }
         }
 
-        // Poll pipeline bus messages and recover any crashed pipelines.
-        // Runs every SAP_ANNOUNCE_INTERVAL_S (30s) — fast enough to detect
-        // silent failures without adding significant overhead.
-        if (m_sapAnnounceRunning.load()) {
-            // Evaluate both before deciding: PollPipelinesWatchdog() also
-            // drains each pipeline's bus, so short-circuiting past it would
-            // leave errors unread until the next pass.
-            const bool ptpStepped = CheckPtpWatchdog();
-            if (PollPipelinesWatchdog() || ptpStepped) {
-                // A full pipeline rebuild is needed.  We cannot call
-                // ApplyConfig() from this thread because ApplyConfig()
-                // joins m_sapAnnounceThread — which IS this thread — causing
-                // a deadlock ("Resource deadlock avoided" / SIGABRT).
-                // Instead, stop this loop and spawn a short-lived thread
-                // that calls ApplyConfig() after we exit.
-                LogWarn(VB_MEDIAOUT, "AES67 watchdog: rebuild needed, stopping SAP loop and scheduling ApplyConfig\n");
-                m_sapAnnounceRunning.store(false);
-                // Track this as m_rebuildThread (rather than detaching) so
-                // Shutdown() can join it before tearing anything else down
-                // -- a detached thread could otherwise call ApplyConfig()
-                // and resurrect pipelines after Shutdown() has already run,
-                // and a detached thread racing Shutdown()'s own joins of
-                // m_sapAnnounceThread/m_sapRecvThread is undefined behavior.
-                if (m_rebuildThread.joinable()) {
-                    m_rebuildThread.join();
-                }
-                m_rebuildThread = std::thread([this]() {
-                    // Brief delay to let the SAP announce thread finish
-                    // exiting and become joinable.
-                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-                    // If Shutdown() ran while we were sleeping, don't
-                    // resurrect pipelines -- just exit quietly.
-                    if (!m_initialized.load()) {
-                        return;
-                    }
-                    ApplyConfig();
-                });
-                break;
-            }
-        }
+        // Pipeline recovery and PTP supervision run in WatchdogLoop(), which
+        // doesn't depend on anything announcing.
     }
 
     // Send deletion packets on shutdown
@@ -4850,9 +5091,10 @@ void AES67Manager::HandleSAPPacket(const uint8_t* data, size_t len,
     std::string ourIP = GetInterfaceIP(m_config.ptpInterface);
     if (senderAddr == ourIP) return;
 
+    const auto key = std::make_pair(senderAddr, msgIdHash);
     if (isDeletion) {
         std::lock_guard<std::mutex> lock(m_discoveredMutex);
-        auto it = m_discoveredStreams.find(msgIdHash);
+        auto it = m_discoveredStreams.find(key);
         if (it != m_discoveredStreams.end()) {
             LogInfo(VB_MEDIAOUT, "AES67 SAP: Stream deleted: %s\n",
                     it->second.sessionName.c_str());
@@ -4863,6 +5105,12 @@ void AES67Manager::HandleSAPPacket(const uint8_t* data, size_t len,
 
     // Parse SDP for stream info
     std::string sdp((const char*)data + sdpStart, len - sdpStart);
+    auto clamp = [](std::string v) {
+        if (v.size() > AES67::MAX_SAP_FIELD_LEN) {
+            v.resize(AES67::MAX_SAP_FIELD_LEN);
+        }
+        return v;
+    };
 
     SAPDiscoveredStream stream;
     stream.msgIdHash = msgIdHash;
@@ -4878,7 +5126,7 @@ void AES67Manager::HandleSAPPacket(const uint8_t* data, size_t len,
         if (!line.empty() && line.back() == '\r') line.pop_back();
 
         if (line.substr(0, 2) == "s=") {
-            stream.sessionName = line.substr(2);
+            stream.sessionName = clamp(line.substr(2));
         } else if (line.substr(0, 2) == "c=") {
             // c=IN IP4 239.69.0.1/255
             size_t ip4Pos = line.find("IP4 ");
@@ -4886,7 +5134,7 @@ void AES67Manager::HandleSAPPacket(const uint8_t* data, size_t len,
                 std::string addr = line.substr(ip4Pos + 4);
                 size_t slash = addr.find('/');
                 if (slash != std::string::npos) addr = addr.substr(0, slash);
-                stream.multicastIP = addr;
+                stream.multicastIP = clamp(addr);
             }
         } else if (line.substr(0, 8) == "m=audio ") {
             // m=audio 5004 RTP/AVP 96
@@ -4902,22 +5150,35 @@ void AES67Manager::HandleSAPPacket(const uint8_t* data, size_t len,
             }
         } else if (line.substr(0, 8) == "a=ptime:") {
             stream.ptime = std::atoi(line.substr(8).c_str());
-        } else if (line.substr(0, 26) == "a=ts-refclk:ptp=IEEE1588-") {
+        } else if (line.rfind("a=ts-refclk:ptp=IEEE1588-", 0) == 0) {
             // a=ts-refclk:ptp=IEEE1588-2008:AA-BB-CC-FF-FE-DD-EE-FF:0
+            // (The domain suffix is optional.)  This used to compare a 26-char
+            // prefix against the 25-char literal, so it never matched and the
+            // grandmaster of a discovered stream was never reported.
             size_t colon1 = line.find(':', 15);
             if (colon1 != std::string::npos) {
                 size_t colon2 = line.find(':', colon1 + 1);
-                if (colon2 != std::string::npos) {
-                    stream.ptpClockId = line.substr(colon1 + 1, colon2 - colon1 - 1);
+                std::string id = line.substr(colon1 + 1, colon2 == std::string::npos ? std::string::npos
+                                                                                     : colon2 - colon1 - 1);
+                while (!id.empty() && (id.back() == '\r' || id.back() == ' ')) {
+                    id.pop_back();
                 }
+                stream.ptpClockId = clamp(id);
             }
         }
     }
 
     {
         std::lock_guard<std::mutex> lock(m_discoveredMutex);
-        bool isNew = (m_discoveredStreams.find(msgIdHash) == m_discoveredStreams.end());
-        m_discoveredStreams[msgIdHash] = stream;
+        bool isNew = (m_discoveredStreams.find(key) == m_discoveredStreams.end());
+        if (isNew && m_discoveredStreams.size() >= AES67::MAX_SAP_DISCOVERED) {
+            auto oldest = std::min_element(m_discoveredStreams.begin(), m_discoveredStreams.end(),
+                                           [](const auto& a, const auto& b) {
+                                               return a.second.lastSeenMs < b.second.lastSeenMs;
+                                           });
+            m_discoveredStreams.erase(oldest);
+        }
+        m_discoveredStreams[key] = stream;
 
         if (isNew) {
             LogInfo(VB_MEDIAOUT, "AES67 SAP: Discovered stream '%s' from %s → %s:%d (%dch)\n",
@@ -4945,183 +5206,6 @@ void AES67Manager::HandleSAPPacket(const uint8_t* data, size_t len,
             }
         }
     }
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Zero-hop inline RTP branches (7.9)
-// ──────────────────────────────────────────────────────────────────────────────
-bool AES67Manager::HasActiveSendInstances() {
-    if (!m_active.load()) return false;
-    std::lock_guard<std::mutex> lock(m_pipelineMutex);
-    return !m_sendPipelines.empty();
-}
-
-std::vector<AES67Manager::InlineRTPBranch> AES67Manager::AttachInlineRTPBranches(
-    GstElement* pipeline, GstElement* tee) {
-
-    std::vector<InlineRTPBranch> branches;
-
-    if (!m_active.load() || !pipeline || !tee) {
-        return branches;
-    }
-
-    // Get the current send config (not the pipelines — those capture from pipewiresrc).
-    // For each enabled send instance, we create a parallel RTP branch on the tee.
-    AES67Config config;
-    {
-        // Grab a snapshot of the config
-        config = m_config;
-    }
-
-    for (const auto& inst : config.instances) {
-        if (!inst.enabled) continue;
-        if (inst.mode != "send" && inst.mode != "both") continue;
-
-        LogInfo(VB_MEDIAOUT, "AES67 zero-hop: Attaching inline RTP branch for '%s' → %s:%d\n",
-                inst.name.c_str(), inst.multicastIP.c_str(), inst.port);
-
-        int64_t ptimeNs = (int64_t)inst.ptime * 1000000LL;
-        std::string branchName = "aes67_q_" + std::to_string(inst.id);
-
-        // Create branch elements
-        GstElement* queue = gst_element_factory_make("queue", branchName.c_str());
-        GstElement* aconv = gst_element_factory_make("audioconvert",
-            ("aes67_aconv_" + std::to_string(inst.id)).c_str());
-        GstElement* capsf = gst_element_factory_make("capsfilter",
-            ("aes67_caps_" + std::to_string(inst.id)).c_str());
-        GstElement* rtppay = gst_element_factory_make("rtpL24pay",
-            ("aes67_rtppay_" + std::to_string(inst.id)).c_str());
-        GstElement* udpsink = gst_element_factory_make("udpsink",
-            ("aes67_udpsink_" + std::to_string(inst.id)).c_str());
-
-        if (!queue || !aconv || !capsf || !rtppay || !udpsink) {
-            LogErr(VB_MEDIAOUT, "AES67 zero-hop: Failed to create elements for instance %d\n", inst.id);
-            if (queue) gst_object_unref(queue);
-            if (aconv) gst_object_unref(aconv);
-            if (capsf) gst_object_unref(capsf);
-            if (rtppay) gst_object_unref(rtppay);
-            if (udpsink) gst_object_unref(udpsink);
-            continue;
-        }
-
-        // Configure caps: S24BE at 48kHz
-        GstCaps* caps = gst_caps_new_simple("audio/x-raw",
-            "format", G_TYPE_STRING, AES67::AUDIO_FORMAT,
-            "rate", G_TYPE_INT, AES67::AUDIO_RATE,
-            "channels", G_TYPE_INT, inst.channels, NULL);
-        g_object_set(capsf, "caps", caps, NULL);
-        gst_caps_unref(caps);
-
-        // Configure rtpL24pay
-        g_object_set(rtppay,
-            "pt", (guint)AES67::RTP_PAYLOAD_TYPE,
-            "min-ptime", ptimeNs,
-            "max-ptime", ptimeNs,
-            NULL);
-
-        // Configure udpsink — sync=FALSE so packets go out immediately.
-        // The playback pipeline's tee delivers data at real-time rate;
-        // adding sync=true would cause the udpsink to buffer based on the
-        // pipeline clock, which can lag behind the stream position and
-        // block output entirely.
-        g_object_set(udpsink,
-            "host", inst.multicastIP.c_str(),
-            "port", inst.port,
-            "ttl-mc", AES67::AUDIO_RTP_TTL,
-            "qos-dscp", AES67::AUDIO_DSCP,
-            "auto-multicast", TRUE,
-            "sync", FALSE,
-            NULL);
-        if (!inst.interface.empty()) {
-            g_object_set(udpsink, "multicast-iface", inst.interface.c_str(), NULL);
-        }
-
-        // Configure queue: small buffer for low-latency, leaky to avoid
-        // blocking the main audio chain if the network stalls
-        g_object_set(queue, "max-size-buffers", 3, "leaky", 2 /* downstream */, NULL);
-
-        // Add elements to pipeline bin
-        gst_bin_add_many(GST_BIN(pipeline), queue, aconv, capsf, rtppay, udpsink, NULL);
-
-        // Link: queue → audioconvert → capsfilter → rtpL24pay → udpsink
-        if (!gst_element_link_many(queue, aconv, capsf, rtppay, udpsink, NULL)) {
-            LogErr(VB_MEDIAOUT, "AES67 zero-hop: Failed to link branch for instance %d\n", inst.id);
-            // Elements are owned by bin now, cleanup happens when pipeline is destroyed
-            continue;
-        }
-
-        // Sync element states to pipeline state
-        gst_element_sync_state_with_parent(queue);
-        gst_element_sync_state_with_parent(aconv);
-        gst_element_sync_state_with_parent(capsf);
-        gst_element_sync_state_with_parent(rtppay);
-        gst_element_sync_state_with_parent(udpsink);
-
-        // Request tee pad and link to queue
-        GstPad* teeSrcPad = gst_element_request_pad_simple(tee, "src_%u");
-        if (!teeSrcPad) {
-            LogErr(VB_MEDIAOUT, "AES67 zero-hop: Failed to request tee src pad for instance %d\n", inst.id);
-            continue;
-        }
-        GstPad* queueSinkPad = gst_element_get_static_pad(queue, "sink");
-
-        if (gst_pad_link(teeSrcPad, queueSinkPad) != GST_PAD_LINK_OK) {
-            LogErr(VB_MEDIAOUT, "AES67 zero-hop: Failed to link tee to queue for instance %d\n", inst.id);
-            // Release the request pad back to the tee before dropping our
-            // ref -- otherwise the tee is left with a pad slot that was
-            // never returned via gst_element_release_request_pad().
-            gst_element_release_request_pad(tee, teeSrcPad);
-            gst_object_unref(teeSrcPad);
-            gst_object_unref(queueSinkPad);
-            continue;
-        }
-        gst_object_unref(queueSinkPad);
-
-        // NOTE: Do NOT call gst_pipeline_use_clock() here.
-        // The playback pipeline's own clock (e.g. system clock) must remain.
-        // An unsynced PTP clock returns GST_CLOCK_TIME_NONE which crashes
-        // the pipeline.  (No AES67 pipeline sets a PTP clock today --
-        // CreateSendPipeline() does not either, despite what this note used
-        // to claim.)
-
-        InlineRTPBranch branch;
-        branch.instanceId = inst.id;
-        branch.queue = queue;
-        branch.teeSrcPad = teeSrcPad;
-        branches.push_back(branch);
-
-        // NOTE: We do NOT pause the standalone send pipeline.  Pausing it
-        // with pipewiresrc causes preroll issues when trying to resume
-        // (PAUSED→PLAYING can hang if pipewiresrc can't re-acquire buffers).
-        // Both streams (inline + standalone) will coexist briefly during
-        // playback — they have different SSRCs so receivers pick one.
-
-        LogInfo(VB_MEDIAOUT, "AES67 zero-hop: Branch active for '%s' → %s:%d (%dch, %dms)\n",
-                inst.name.c_str(), inst.multicastIP.c_str(), inst.port,
-                inst.channels, inst.ptime);
-    }
-
-    return branches;
-}
-
-void AES67Manager::DetachInlineRTPBranches(GstElement* pipeline,
-                                            std::vector<InlineRTPBranch>& branches) {
-    for (auto& branch : branches) {
-        if (branch.teeSrcPad) {
-            // Get the tee element from the pad's parent
-            GstElement* tee = gst_pad_get_parent_element(branch.teeSrcPad);
-            if (tee) {
-                gst_element_release_request_pad(tee, branch.teeSrcPad);
-                gst_object_unref(tee);
-            }
-            gst_object_unref(branch.teeSrcPad);
-            branch.teeSrcPad = nullptr;
-        }
-        // The queue and downstream elements are owned by the pipeline bin
-        // and will be destroyed when the pipeline is unreffed.
-        branch.queue = nullptr;
-    }
-    branches.clear();
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -5309,7 +5393,7 @@ AES67Manager::Status AES67Manager::GetStatus() {
     // Discovered streams
     {
         std::lock_guard<std::mutex> lock(m_discoveredMutex);
-        for (const auto& [hash, stream] : m_discoveredStreams) {
+        for (const auto& [key, stream] : m_discoveredStreams) {
             status.discoveredStreams.push_back(stream);
         }
     }

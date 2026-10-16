@@ -605,7 +605,7 @@ error_reporting(E_ALL);
             for (var i = 0; i < allHolidays.length; i++) {
                 var holiday = allHolidays[i];
 
-                result += "<option value='" + holiday['shortName'] + "'";
+                result += "<option value='" + EscapeHtmlAttr(holiday['shortName']) + "'";
 
                 if (holiday['shortName'] == userKey)
                     result += " selected";

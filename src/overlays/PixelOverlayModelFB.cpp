@@ -14,12 +14,18 @@
 
 #include "fpp-json.h"
 
+#include "../Sequence.h" // FPPD_OFF_CHANNEL
 #include "../log.h"
 
 #include "PixelOverlayModelFB.h"
 
 PixelOverlayModelFB::PixelOverlayModelFB(const Json::Value& c) :
     PixelOverlayModel(c) {
+    if (!isValid()) {
+        // The base class rejected the definition; don't claim a framebuffer
+        // for a model the manager is about to drop.
+        return;
+    }
     fb = FrameBuffer::createFrameBuffer(config);
     if (fb == nullptr) {
         LogErr(VB_CHANNELOUT, "Error initializing underlying FrameBuffer for Pixel Overlay Model '%s'\n", name.c_str());
@@ -54,4 +60,8 @@ void PixelOverlayModelFB::doOverlay(uint8_t* channels) {
 void PixelOverlayModelFB::setData(const uint8_t* data) {
     memcpy(channelData, data, width * height * bytesPerPixel);
     dirtyBuffer = true;
+}
+
+uint32_t PixelOverlayModelFB::outputChannelForData(uint32_t dataOffset) const {
+    return FPPD_OFF_CHANNEL;
 }

@@ -110,17 +110,22 @@ int PlaylistEntryRemap::StartPlaying(void) {
 
     PlaylistEntryBase::StartPlaying();
 
+    auto f = [this](OutputProcessor* p2) -> bool {
+        if (p2->getType() == OutputProcessor::REMAP) {
+            RemapOutputProcessor* rp = (RemapOutputProcessor*)p2;
+            return rp->getSourceChannel() == this->m_srcChannel && rp->getDestChannel() == this->m_dstChannel && rp->getLoops() == this->m_loops && rp->getCount() == this->m_channelCount && rp->getReverse() == this->m_reverse;
+        }
+        return false;
+    };
     if (m_action == "add") {
-        RemapOutputProcessor* processor = new RemapOutputProcessor(m_srcChannel, m_dstChannel, m_channelCount, m_loops, m_reverse);
-        outputProcessors.addProcessor(processor);
+        // Once per remap: an "add" in a repeating playlist used to stack
+        // another identical processor every loop, applying the remap again on
+        // each -- with overlapping ranges the data shifted further every pass.
+        if (!outputProcessors.find(f)) {
+            RemapOutputProcessor* processor = new RemapOutputProcessor(m_srcChannel, m_dstChannel, m_channelCount, m_loops, m_reverse);
+            outputProcessors.addProcessor(processor);
+        }
     } else if (m_action == "remove") {
-        auto f = [this](OutputProcessor* p2) -> bool {
-            if (p2->getType() == OutputProcessor::REMAP) {
-                RemapOutputProcessor* rp = (RemapOutputProcessor*)p2;
-                return rp->getSourceChannel() == this->m_srcChannel && rp->getDestChannel() == this->m_dstChannel && rp->getLoops() == this->m_loops && rp->getCount() == this->m_channelCount && rp->getReverse() == this->m_reverse;
-            }
-            return false;
-        };
         OutputProcessor* p = outputProcessors.find(f);
         if (p) {
             outputProcessors.removeProcessor(p);

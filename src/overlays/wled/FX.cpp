@@ -10,6 +10,8 @@
   Modified heavily for WLED
 */
 
+#include <ctime>
+
 #include "wled.h"
 #include "FX.h"
 #include "fcn_declare.h"
@@ -6511,6 +6513,9 @@ static const char _data_FX_MODE_2DBLOBS[] PROGMEM = "Blobs@!,# blobs,Blur,Trail;
 ////////////////////////////
 uint16_t mode_2Dscrollingtext(void) {
   if (!strip().isMatrix || !SEGMENT.is2D()) return mode_static(); // not a 2D set-up
+  // FPP: the global localTime is only set when the library loads, so #TIME
+  // and the rest showed fppd's start time. Read the clock each frame.
+  const time_t localTime = time(nullptr);
 
   const int cols = SEG_W;
   const int rows = SEG_H;
@@ -6534,8 +6539,12 @@ uint16_t mode_2Dscrollingtext(void) {
     rotLH = letterHeight;
   }
 
-  char text[WLED_MAX_SEGNAME_LEN+1] = {'\0'};
-  if (SEGMENT.name) for (size_t i=0,j=0; i<strlen(SEGMENT.name); i++) if (SEGMENT.name[i]>31 && SEGMENT.name[i]<128) text[j++] = SEGMENT.name[i];
+  // FPP: the segment name is the effect's Text argument, which is not held to
+  // WLED_MAX_SEGNAME_LEN, so the buffer is sized from it rather than fixed.
+  const size_t nameLen = SEGMENT.name ? strlen(SEGMENT.name) : 0;
+  std::vector<char> textBuf(std::max(nameLen, (size_t)WLED_MAX_SEGNAME_LEN) + 1, '\0');
+  char *text = textBuf.data();
+  if (SEGMENT.name) for (size_t i=0,j=0; i<nameLen; i++) if (SEGMENT.name[i]>31 && SEGMENT.name[i]<128) text[j++] = SEGMENT.name[i];
   const bool zero = strchr(text, '0') != nullptr;
 
   char sec[5];
@@ -6552,7 +6561,7 @@ uint16_t mode_2Dscrollingtext(void) {
   if (!strlen(text)) { // fallback if empty segment name: display date and time
     sprintf_P(text, PSTR("%s %d, %d %d:%02d%s"), monthShortStr(month(localTime)), day(localTime), year(localTime), AmPmHour, minute(localTime), sec);
   } else {
-    if (text[0] == '#') for (auto &c : text) c = std::toupper(c);
+    if (text[0] == '#') for (auto &c : textBuf) c = std::toupper(c);
     if      (!strncmp_P(text,PSTR("#DATE"),5)) sprintf_P(text, zero?PSTR("%02d.%02d.%04d"):PSTR("%d.%d.%d"),   day(localTime),   month(localTime),  year(localTime));
     else if (!strncmp_P(text,PSTR("#DDMM"),5)) sprintf_P(text, zero?PSTR("%02d.%02d")     :PSTR("%d.%d"),      day(localTime),   month(localTime));
     else if (!strncmp_P(text,PSTR("#MMDD"),5)) sprintf_P(text, zero?PSTR("%02d/%02d")     :PSTR("%d/%d"),      month(localTime), day(localTime));
@@ -6562,8 +6571,8 @@ uint16_t mode_2Dscrollingtext(void) {
     else if (!strncmp_P(text,PSTR("#MM"),3))   sprintf  (text, zero?    ("%02d")          :    ("%d"),         minute(localTime));
     else if (!strncmp_P(text,PSTR("#SS"),3))   sprintf  (text,          ("%02d")                     ,         second(localTime));
     else if (!strncmp_P(text,PSTR("#DD"),3))   sprintf  (text, zero?    ("%02d")          :    ("%d"),         day(localTime));
-    else if (!strncmp_P(text,PSTR("#DAY"),4))  sprintf  (text,          ("%s")                       ,         dayShortStr(day(localTime)));
-    else if (!strncmp_P(text,PSTR("#DDDD"),5)) sprintf  (text,          ("%s")                       ,         dayStr(day(localTime)));
+    else if (!strncmp_P(text,PSTR("#DAY"),4))  sprintf  (text,          ("%s")                       ,         dayShortStr(weekday(localTime)));
+    else if (!strncmp_P(text,PSTR("#DDDD"),5)) sprintf  (text,          ("%s")                       ,         dayStr(weekday(localTime)));
     else if (!strncmp_P(text,PSTR("#MO"),3))   sprintf  (text, zero?    ("%02d")          :    ("%d"),         month(localTime));
     else if (!strncmp_P(text,PSTR("#MON"),4))  sprintf  (text,          ("%s")                       ,         monthShortStr(month(localTime)));
     else if (!strncmp_P(text,PSTR("#MMMM"),5)) sprintf  (text,          ("%s")                       ,         monthStr(month(localTime)));

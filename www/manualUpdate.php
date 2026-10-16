@@ -89,10 +89,13 @@ UpgradeLog('fpp-update', $upgradeTarget, $elapsed . " (git_pull rc=" . $return_v
 // scripts/git_pull exits 3 when the pull succeeded but the build failed: the
 // tree is already on the new code, so fppd is still restarted and the Apache
 // config / CSP refreshed for it below, and the run is then reported failed.
+// It exits 4 when the update source was unreachable but the old tree had to
+// be rebuilt (fppd was missing): same handling, nothing was updated.
 // Any other nonzero status is a failed pull that left the old tree in place.
 $buildFailed = ($return_val === 3);
+$unreachableRebuilt = ($return_val === 4);
 
-if ($return_val === 0 || $buildFailed) {
+if ($return_val === 0 || $buildFailed || $unreachableRebuilt) {
   logStage("Restarting FPP");
 
   // Compare and copy apache config if needed
@@ -126,15 +129,17 @@ if ($return_val === 0 || $buildFailed) {
   }
 
   exec($SUDO . " rm -f /tmp/cache_*.cache");
-  if (!$buildFailed && file_exists($fppDir . "/src/fppd")) {
+  if ($return_val === 0 && file_exists($fppDir . "/src/fppd")) {
     logStage("Upgrade Complete");
   } else {
-    // The build failed, or git_pull returned 0 but produced no fppd binary.
-    // Record the reason: the banner below only shouts "FAILED" at the
-    // browser, and this is the one line that says why when it turns up in a
-    // Support Zip later.
+    // The build failed, the source was unreachable, or git_pull returned 0
+    // but produced no fppd binary. Record the reason: the banner below only
+    // shouts "FAILED" at the browser, and this is the one line that says why
+    // when it turns up in a Support Zip later.
     if ($buildFailed) {
       UpgradeLog('fpp-update', $upgradeTarget, "ERROR: updates were pulled but the build failed (git_pull rc=3).");
+    } else if ($unreachableRebuilt) {
+      UpgradeLog('fpp-update', $upgradeTarget, "ERROR: update source unreachable; rebuilt the existing code only (git_pull rc=4).");
     } else {
       UpgradeLog('fpp-update', $upgradeTarget, "ERROR: git_pull succeeded but " . $fppDir . "/src/fppd is missing -- build failed.");
     }

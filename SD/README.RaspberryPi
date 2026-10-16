@@ -65,8 +65,11 @@ What the script does
      - (Only with --kernel-update) rpi-update <SHA> with PRUNE_MODULES=1
        WANT_PI5=1 SKIP_BACKUP=1 SKIP_BOOTLOADER=1 SKIP_VCLIBS=1 SKIP_SDK=1,
        followed by old-kernel cleanup (modules + headers)
-     - 16K-page Pi5 kernel removal (kernel_2712.img + its modules) so the Pi5
-       boots the 4K kernel8.img -- always done, FPP libs dislike 16K pages
+     - 16K-page Pi5 kernel out of the boot path so the Pi5 boots the 4K
+       kernel8.img -- always done, FPP libs dislike 16K pages. 32-bit images
+       delete kernel_2712.img and its modules; 64-bit images rename it to
+       kernel_2712.img.fpp-disabled and keep its modules, and the
+       developer-level "Use 16K-Page Kernel" setting copies it back
      - apt clean, log/key/machine-id reset, etc.
 6. Touches /boot/firmware/fpp_expand_rootfs (FPP first-boot expand marker).
 7. Drops the chroot bind mounts, mksquashfs's the rootfs into a .fppos.

@@ -30,6 +30,7 @@ class RemoteJobHttp
     public $postFields = null;  // array => multipart POST (CURLFile for uploads)
     public $stream = true;      // true: body goes to the job's output; false: to $body
     public $progress = null;    // callable(dlTotal, dlNow, ulTotal, ulNow)
+    public $onData = null;      // callable(string), also given each chunk of the body as it arrives
 
     public $httpCode = 0;       // 0 = no response at all
     public $errno = 0;          // CURLE_* of the transfer
@@ -258,6 +259,9 @@ class RemoteJobRunner
             } else {
                 $step->body .= $data;
             }
+            if ($step->onData !== null) {
+                ($step->onData)($data);
+            }
             return strlen($data);
         });
         if ($step->postFields !== null) {
@@ -427,14 +431,48 @@ define('REMOTE_JOB_FAILED', 1);
 define('REMOTE_JOB_NO_RESPONSE', 2);
 
 /**
+ * Whether a line of a remote upgrade page's output reports that the upgrade
+ * failed.  The page itself always answers HTTP 200, so this is the only place
+ * the outcome shows.  Matches what every FPP since 9.5 prints, so an older
+ * remote is judged correctly too:
+ *   "Upgrade FAILED." / "===== Upgrade Failed ====="  manualUpdate.php
+ *   "FPP UPGRADE FAILED"                              upgradeOS.php
+ *   "Can not access ..., unable to pull git updates"  scripts/git_pull, which
+ *       before this version exited 0 there and so ended "Upgrade Complete"
+ *       without having updated anything.
+ */
+function RemoteJobIsFailureLine($line)
+{
+    $line = trim($line);
+    return preg_match('/^(=====\s*)?(FPP\s+)?Upgrade\s+Failed\b/i', $line)
+        || strpos($line, 'unable to pull git updates') !== false;
+}
+
+/**
  * Stream a remote "wrapped" page (manualUpdate.php, upgradeOS.php) into the
- * job's output. A connection that drops after the page started answering is
- * not a failure: an upgrade can restart the remote's web server, and an OS
- * upgrade reboots before it closes the response.
+ * job's output, failing the job if the page reports a failure.  A connection
+ * that drops after the page started answering is not a failure: an upgrade
+ * can restart the remote's web server, and an OS upgrade reboots before it
+ * closes the response.
  */
 function RemoteJobStreamPage($host, $path, callable $out)
 {
-    $r = yield new RemoteJobHttp(RemoteJobURL($host, $path));
+    $failed = false;
+    $partial = '';
+    $req = new RemoteJobHttp(RemoteJobURL($host, $path));
+    $req->onData = function ($data) use (&$failed, &$partial) {
+        $lines = explode("\n", $partial . $data);
+        $partial = array_pop($lines);
+        foreach ($lines as $line) {
+            if (RemoteJobIsFailureLine($line)) {
+                $failed = true;
+            }
+        }
+    };
+    $r = yield $req;
+    if ($partial !== '' && RemoteJobIsFailureLine($partial)) {
+        $failed = true;
+    }
     if ($r->httpCode == 0) {
         $out("ERROR: no response from $host: {$r->error}\n");
         return REMOTE_JOB_NO_RESPONSE;
@@ -445,6 +483,10 @@ function RemoteJobStreamPage($host, $path, callable $out)
     }
     if ($r->errno != 0) {
         $out("\n(The connection to $host closed before it finished reporting: {$r->error})\n");
+    }
+    if ($failed) {
+        $out("\nFAILED on $host, see above\n");
+        return REMOTE_JOB_FAILED;
     }
     $out("\nDone\n");
     return REMOTE_JOB_OK;

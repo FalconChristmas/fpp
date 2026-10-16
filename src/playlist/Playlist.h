@@ -30,6 +30,10 @@ enum PlaylistStatus {
     FPP_STATUS_PLAYLIST_PAUSED
 };
 
+// True while a PLAYLIST_STOPPED preset runs for an inserted playlist that has
+// handed the player back to the one it interrupted (see Playlist.cpp).
+bool InHandedBackStoppedPreset();
+
 class Playlist {
 public:
     Playlist(Playlist* parent = NULL);
@@ -55,6 +59,8 @@ public:
     int IsPlaying(void);
 
     int Process(void);
+    // Free retired playlists and entries.  Main thread only; see Playlist.cpp.
+    static void ReleaseRetired(void);
     void ProcessMedia(void);
     int Cleanup(void);
     // Cleanup(), but only if the playlist is idle when checked under
@@ -91,7 +97,7 @@ public:
     Json::Value GetCurrentEntry(void);
     Json::Value GetInfo(void);
     void GetInfo(Json::Value& v);
-    std::string GetPlaylistName(void) { return m_name; }
+    std::string GetPlaylistName(void);
     int GetRepeat(void) { return m_repeat; }
     int GetPosition(void);
     int GetResumePosition(void);
@@ -123,6 +129,10 @@ public:
     // old m_currentState string mirror had no paused value.
     static const char* PlaylistStatusToString(PlaylistStatus status);
 
+    // Number of playlists on the chain: 1 plus each one an insertion
+    // interrupted (the m_parent chain).
+    int GetLevelCount();
+
 private:
     void GetParentPlaylistNames(std::list<std::string>& names);
     int ReloadPlaylist(void);
@@ -131,6 +141,27 @@ private:
     void SwitchToLeadOut(void);
 
     bool WillStopAfterCurrent();
+
+    // LoadJSONIntoPlaylist(), recording where each of the section's rows (as
+    // the playlist file and editor number them) starts in the loaded entries.
+    int LoadSection(std::vector<PlaylistEntryBase*>& part, const Json::Value& entries, int startPos,
+                    int& maxEntries, std::vector<int>* rowStart);
+    const std::vector<int>& CurrentSectionRows() const;
+    static int RowToSectionPosition(const std::vector<int>& rows, int row, int sectionSize);
+    static int SectionPositionToRow(const std::vector<int>& rows, int pos);
+    int FileRowToPosition(int row);
+
+    // A command reaches a playlist through a snapshot of the current one taken
+    // before it gets this playlist's lock.  If the player switched playlists in
+    // between -- an inserted playlist started or finished -- the command is for
+    // whichever playlist is current now: a stop landing on the parent that was
+    // just paused, or a Next Item starting the parent's next entry alongside
+    // the inserted one.  Returns that playlist, or null if it is this one.
+    // The current playlist only changes while the outgoing playlist's lock is
+    // held, so called under m_playlistMutex the answer can't go stale.  Every
+    // public command method checks it first and forwards.
+    std::shared_ptr<Playlist> CurrentIfNotThis(void);
+    int StopGracefullyImpl(int forceStop, int afterCurrentLoop);
     Playlist* SwitchToInsertedPlaylist(bool isStopping = false);
 
     // The entry at the current section position, or nullptr if there is none.
@@ -146,7 +177,11 @@ private:
     // well-defined; volatile never made them so.
     std::atomic<PlaylistStatus> m_status;
 
-    Playlist* m_parent;
+    // Atomic (same size and place as the raw pointer it replaces): status
+    // threads walk the chain for breadcrumbs while the main loop retires
+    // levels, and a level is cut loose (nulled) when it is retired so nothing
+    // reaches a freed parent through it.
+    std::atomic<Playlist*> m_parent;
     std::string m_filename;
     std::string m_name;
     std::string m_desc;
@@ -187,6 +222,17 @@ private:
     bool m_shouldStartGlobalPause;
     long long m_globalPauseStartTime;
 
+    // A repeating main playlist whose every entry finishes at once (command
+    // entries only) used to restart on every main loop pass, about a
+    // thousand times a second. A pass shorter than MIN_INSTANT_PASS_MS holds
+    // the next one until m_loopHoldUntilMS (see the repeat in Process()).
+    // A command entry that navigates its own playlist (Next Playlist Item
+    // alone in a repeating list) restarts through Start() instead, which this
+    // does not cover; the notification cascade limit bounds that one.
+    long long m_loopStartMS = 0;
+    long long m_loopHoldUntilMS = 0;
+    bool m_warnedInstantLoop = false;
+
     std::string m_insertedPlaylist;
     int m_insertedPlaylistPosition;
     int m_insertedPlaylistEndPosition;
@@ -216,6 +262,22 @@ private:
     // The status Pause() replaced, restored by Resume().  A playlist paused
     // while stopping gracefully must keep stopping once resumed.
     PlaylistStatus m_statusBeforePause = FPP_STATUS_PLAYLIST_PLAYING;
+
+    // m_name is written under m_playlistMutex (Load, Cleanup) but read by the
+    // scheduler and status threads through GetPlaylistName() without it --
+    // a copy racing the assignment read a freed buffer.  Writers hold both;
+    // GetPlaylistName() takes only this one, so it never waits on a playlist
+    // transition and never orders this lock against the scheduler's.
+    mutable std::mutex m_nameLock;
+
+    // For each section, the index in m_leadIn / m_mainPlaylist / m_leadOut
+    // where each row of the playlist file starts (-1 for rows not loaded).
+    // A sub-playlist row expands to several entries, so file rows -- what a
+    // Branch's item number, a resume position and Start At Item count -- and
+    // loaded positions differ once one appears.
+    std::vector<int> m_leadInRows;
+    std::vector<int> m_mainRows;
+    std::vector<int> m_leadOutRows;
 };
 
 // Source-compatibility façade for the old `extern Playlist* playlist;` global.

@@ -21,6 +21,7 @@
 
 #include "Plugin.h"
 #include "USBRelay.h"
+#include "serialutil.h"
 
 class USBRelayPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
 public:
@@ -83,7 +84,7 @@ int USBRelayOutput::Init(Json::Value config) {
         unsigned char c_open = 0x51;
 
         sleep(1);
-        write(m_fd, &c_init, 1);
+        SerialWrite(m_fd, &c_init, 1);
         usleep(500000);
 
         bool foundICS = false;
@@ -109,7 +110,7 @@ int USBRelayOutput::Init(Json::Value config) {
         }
 
         if (foundICS)
-            write(m_fd, &c_open, 1);
+            SerialWrite(m_fd, &c_open, 1);
     } else if (m_subType == RELAY_DVC_CH340) {
         LogInfo(VB_CHANNELOUT, "Initializing CH340 USB Relay with %d channels\n", m_relayCount);
     }
@@ -174,7 +175,7 @@ int USBRelayOutput::SendData(unsigned char* channelData) {
     }
 
     if (len)
-        write(m_fd, m_outputBuffer.data(), len); // Write the frame's commands to the serial device (m_fd)
+        SerialWrite(m_fd, m_outputBuffer.data(), len); // Write the frame's commands to the serial device (m_fd)
 
     return m_relayCount;
 }

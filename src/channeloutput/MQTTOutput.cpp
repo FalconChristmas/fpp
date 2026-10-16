@@ -74,6 +74,12 @@ int MQTTOutput::Init(Json::Value config) {
     if (config.isMember("topic")) {
         m_topic = config["topic"].asString();
     }
+    // A publish topic may not contain the subscription wildcards: the library
+    // refused every publish, and each refusal was logged, up to once a frame.
+    if (m_topic.find_first_of("+#") != std::string::npos) {
+        LogErr(VB_CHANNELOUT, "MQTT Output topic '%s' contains a wildcard (+ or #); not starting it\n", m_topic.c_str());
+        return false;
+    }
     if (config.isMember("payload")) {
         auto payload = config["payload"].asString();
         if (!payload.empty()) {

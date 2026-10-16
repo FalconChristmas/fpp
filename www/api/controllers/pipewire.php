@@ -260,7 +260,7 @@ function SetFppdSetting($key, $value)
     WriteSettingToFile($key, $value);
     // SendCommand may fail if fppd is deadlocked/restarting — that's OK
     // because fppd will read the setting from the file on next pipeline start.
-    @SendCommand("setSetting,$key,$value");
+    @SendCommand("SetSetting,$key,$value");
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -8729,7 +8729,7 @@ function ApplyPipeWireVideoGroups($overrideData = null)
         for ($s = 1; $s <= 5; $s++) {
             $key = ($s === 1) ? 'PipeWireVideoSinkName' : "PipeWireVideoSinkName_$s";
             WriteSettingToFile($key, '');
-            @SendCommand("setSetting,$key,");
+            @SendCommand("SetSetting,$key,");
         }
     };
 
@@ -8935,7 +8935,7 @@ function ApplyPipeWireVideoGroups($overrideData = null)
                 SetFppdSetting($key, $videoSinkName);
             } else {
                 WriteSettingToFile($key, '');
-                @SendCommand("setSetting,$key,");
+                @SendCommand("SetSetting,$key,");
             }
         }
     } else {
@@ -9758,7 +9758,9 @@ function ApplyPipeWireSimpleConfig($skipRestart = false)
 {
     global $settings;
 
-    $audioOutput = isset($settings['AudioOutput']) ? $settings['AudioOutput'] : '0';
+    // The card this boot actually plays on: routing Simple mode to a selected
+    // HDMI card that had no display at boot would send the audio nowhere.
+    $audioOutput = EffectiveAudioOutput(isset($settings['AudioOutput']) ? $settings['AudioOutput'] : '0');
     $videoOutput = isset($settings['VideoOutput']) ? $settings['VideoOutput'] : '';
 
     $audioData = BuildSimpleAudioGroupsData($audioOutput);

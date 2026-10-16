@@ -141,10 +141,18 @@ $hasEeprom = stripos($flags, 'EEPROM') !== false;
 // of whether the actual copy succeeded, so it was never a real success
 // check. A partial/failed copy still needs whatever DID land reconciled,
 // same reasoning as backup.php's $restore_done-only gate.
+//
+// /fpp_restored, not the reflash's /fppos_upgraded (see backup.php).  The
+// plugins themselves were installed on another box, so their fpp_install.sh
+// never ran here and any native ones were built there: ask for a reinstall,
+// as a reflash does.
 if ($isRestore && ($hasConfig || $hasPlugins || $hasEeprom)) {
     WriteSettingToFile('rebootFlag', '1');
     WriteSettingToFile('BootActions', 'settings');
-    exec('sudo touch /fppos_upgraded');
+    exec('sudo touch /fpp_restored');
+}
+if ($isRestore && $hasPlugins) {
+    WriteSettingToFile('pluginReinstallNeededAfterOS', '1');
 }
 
 // Recorded in the plugin install history. An "All" restore replaces that file

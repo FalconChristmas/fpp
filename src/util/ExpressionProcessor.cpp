@@ -19,6 +19,7 @@
 #include <list>
 #include <map>
 
+#include "../log.h"
 #include "ExpressionProcessor.h"
 
 #include "tinyexpr.h"
@@ -40,6 +41,27 @@ static bool isValidExprIdentifier(const std::string& name) {
         }
     }
     return true;
+}
+
+// A character that continues a tinyexpr token - a name or a number - so a
+// variable name with one of these next to it is only part of a token.
+static bool isExprWordChar(char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '.';
+}
+
+// A variable named "2" or "1.5" can't be told apart from the number it
+// spells, so aliasing it would hijack that literal in every expression. Such a
+// variable is still reachable as "%%2%%".
+static bool isNumericLiteral(const std::string& name) {
+    // Digit- or point-led only: strtod() also takes "Inf", "NaN" and leading
+    // blanks, and those names still need their alias.
+    if (name.empty() || !((name[0] >= '0' && name[0] <= '9') || name[0] == '.')) {
+        return false;
+    }
+    const char* start = name.c_str();
+    char* end = nullptr;
+    strtod(start, &end);
+    return end != start && *end == 0;
 }
 
 ExpressionProcessor::ExpressionVariable::ExpressionVariable(const std::string& n) :
@@ -67,9 +89,23 @@ public:
 
 class TinyExprEvalStep : public EvalStep {
 public:
+    // tinyexpr recurses once per nesting level when it parses ("((((1))))",
+    // "abs abs abs 1"), and again per tree level when it evaluates and frees
+    // - so even a flat "1+1+1+..." becomes a left-deep tree as deep as it is
+    // long. With no limit, a ~60KB expression in a Set Variable or If command
+    // ran the calling thread out of stack. Every level costs at least one
+    // character, so capping the length caps all three; real expressions are
+    // a few dozen characters.
+    static constexpr size_t MAX_EXPRESSION_LENGTH = 4096;
+
     TinyExprEvalStep(const std::string& s, std::vector<te_variable>& exprVars) {
+        if (s.size() > MAX_EXPRESSION_LENGTH) {
+            LogWarn(VB_GENERAL, "Expression is %d characters long, the limit is %d - not evaluating it\n",
+                    (int)s.size(), (int)MAX_EXPRESSION_LENGTH);
+            return;
+        }
         int err = 0;
-        expr = te_compile(s.c_str(), &exprVars[0], exprVars.size(), &err);
+        expr = te_compile(s.c_str(), exprVars.data(), exprVars.size(), &err);
     }
     ~TinyExprEvalStep() {
         if (expr) {
@@ -82,18 +118,26 @@ public:
     virtual std::string eval() override {
         if (expr) {
             double d = te_eval(expr);
-            char buf[30];
-            snprintf(buf, sizeof(buf), "%lf", d);
-            int len = strlen(buf);
-            for (int x = len - 1; x >= 0; x--) {
+            // "%lf" of a large value is long - 1e30 prints 31 digits before
+            // the point, and DBL_MAX over 300 - so a fixed buffer truncated
+            // it, and the zero-stripping below then returned a number with
+            // the wrong magnitude. Size the buffer to what snprintf needs.
+            int need = snprintf(nullptr, 0, "%lf", d);
+            if (need <= 0) {
+                return "0";
+            }
+            std::string buf(need + 1, '\0');
+            snprintf(buf.data(), buf.size(), "%lf", d);
+            buf.resize(need);
+            for (int x = need - 1; x >= 0; x--) {
                 if (buf[x] == '.' || buf[x] == ',') {
-                    buf[x] = 0;
+                    buf.resize(x);
                     return buf;
                 }
                 if (buf[x] != '0') {
                     return buf;
                 }
-                buf[x] = 0;
+                buf.resize(x);
             }
             // if it gets here, everything is 0
             return "0";
@@ -135,18 +179,41 @@ class ExpressionProcessorData {
 public:
     ExpressionProcessorData() {}
     ~ExpressionProcessorData() {
+        clear();
+    }
+
+    // Steps first: a compiled tinyexpr tree only holds the variables'
+    // addresses, never the names, but nothing should outlive what it was
+    // compiled against.
+    void clear() {
         for (auto a : steps) {
             delete a;
         }
+        steps.clear();
         for (auto& a : exprVars) {
             free((void*)a.name);
         }
+        exprVars.clear();
     }
 
     void bind(ExpressionProcessor::ExpressionVariable* var) {
         variables[var->getName()] = var;
     }
     bool compile(const std::string& s) {
+        // A second compile() replaces the first rather than appending to
+        // its steps and leaking its strdup'd names.
+        clear();
+
+        // The "==...=="/"%%...%%" scan below re-copies the rest of the
+        // string at every marker, so it is quadratic: a 1MB input took over
+        // a second before the per-expression cap in TinyExprEvalStep was
+        // ever reached. Nothing legitimate is this long.
+        if (s.size() > TinyExprEvalStep::MAX_EXPRESSION_LENGTH) {
+            LogWarn(VB_GENERAL, "Expression is %d characters long, the limit is %d - not evaluating it\n",
+                    (int)s.size(), (int)TinyExprEvalStep::MAX_EXPRESSION_LENGTH);
+            return false;
+        }
+
         exprVars.resize(variables.size());
         // Names that aren't valid tinyexpr identifiers get a safe alias for
         // tinyexpr's benefit only - the real name is still what "%%name%%"
@@ -156,7 +223,7 @@ public:
         for (auto& a : variables) {
             const std::string& name = a.second->getName();
             std::string boundName = name;
-            if (!isValidExprIdentifier(name)) {
+            if (!isValidExprIdentifier(name) && !isNumericLiteral(name)) {
                 // Must itself satisfy isValidExprIdentifier() - lowercase-led.
                 boundName = "ev" + std::to_string(cur);
                 aliasForName[name] = boundName;
@@ -176,11 +243,21 @@ public:
         }
         std::sort(aliasedNames.begin(), aliasedNames.end(),
                   [](const std::string& a, const std::string& b) { return a.size() > b.size(); });
+        // Only a whole token is replaced: a match with a word character
+        // right before or after it is part of a longer name or number. A
+        // plain find() turned "12" into "1ev0" for a variable named "2", and
+        // could rewrite the digits of an alias already substituted.
         auto aliasExpr = [&](std::string expr) {
             for (auto& name : aliasedNames) {
                 const std::string& alias = aliasForName[name];
                 std::size_t pos = 0;
                 while ((pos = expr.find(name, pos)) != std::string::npos) {
+                    std::size_t end = pos + name.size();
+                    if ((pos > 0 && isExprWordChar(expr[pos - 1])) ||
+                        (end < expr.size() && isExprWordChar(expr[end]))) {
+                        pos++;
+                        continue;
+                    }
                     expr.replace(pos, name.size(), alias);
                     pos += alias.size();
                 }
@@ -209,10 +286,14 @@ public:
                                 }
                                 std::string expr = cur.substr(x + 1, y - x - 2);
                                 if (key == '%') {
-                                    if (variables.find(expr) == variables.end()) {
+                                    // find(), not operator[]: that inserted a
+                                    // null variable, which the next compile()
+                                    // dereferenced when binding.
+                                    auto it = variables.find(expr);
+                                    if (it == variables.end()) {
                                         success = false;
                                     }
-                                    steps.push_back(new VariableEvalStep(variables[expr]));
+                                    steps.push_back(new VariableEvalStep(it == variables.end() ? nullptr : it->second));
                                 } else if (key == '=') {
                                     auto step = new TinyExprEvalStep(aliasExpr(expr), exprVars);
                                     if (!step->ok()) {

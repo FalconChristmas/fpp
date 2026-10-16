@@ -16,6 +16,7 @@
 
 #include "VideoOutputManager.h"
 #include "VideoInputManager.h"
+#include "StreamSlotManager.h"
 #include "GStreamerOut.h"
 #include "common.h"
 #include "settings.h"
@@ -26,6 +27,7 @@
 #include <algorithm> // any_of -- one output per connector (needed directly for NOPCH builds)
 #include <cmath> // lround -- crop fractions to pixels (needed directly for NOPCH builds)
 #include <fstream>
+#include <cctype>
 #include <cstring>
 #include <thread>
 #include <arpa/inet.h>
@@ -177,6 +179,7 @@ GstElement* VideoOutputManager::CreateCropElement(const VideoCropRect& crop,
         LogErr(VB_MEDIAOUT, "VideoOutputManager: videocrop element not available — "
                "is gstreamer1.0-plugins-good installed?  Output '%s' will show the full frame\n",
                name.c_str());
+        // Permanent: the element appears only with a package install and a restart.
         WarningHolder::AddWarning(31, "Video crop unavailable: videocrop element missing (install gstreamer1.0-plugins-good)");
         return nullptr;
     }
@@ -285,7 +288,8 @@ void VideoOutputManager::Init() {
                 (int)m_consumers.size(), persistentCount,
                 (int)m_consumers.size() - persistentCount);
         // Start SAP multicast announcer for any persistent RTP consumers
-        StartSAPAnnouncer();
+        if (HasRunningRtpLocked())
+            StartSAPAnnouncer();
     }
 }
 
@@ -294,6 +298,10 @@ void VideoOutputManager::Reload() {
 
     // Stop SAP before taking the lock (SAP thread needs m_mutex)
     StopSAPAnnouncer();
+    {
+        std::lock_guard<std::mutex> rl(m_restartMutex);
+        m_restarts.clear();
+    }
 
     std::string savedProducer;
     {
@@ -348,9 +356,11 @@ void VideoOutputManager::Reload() {
                 LogInfo(VB_MEDIAOUT, "VideoOutputManager: Restarting consumer '%s' — source '%s' "
                         "is already running, so no producer-ready notification is coming\n",
                         consumer.name.c_str(), consumer.sourceNode.c_str());
-                StartConsumer(consumer);
+                if (!StartConsumer(consumer))
+                    ScheduleConsumerRestart(consumer.sourceNode);
             }
         }
+        shouldStartSAP = shouldStartSAP && HasRunningRtpLocked();
     }
     if (shouldStartSAP)
         StartSAPAnnouncer();
@@ -364,6 +374,30 @@ void VideoOutputManager::Shutdown() {
     }
     // Stop SAP announcer first — outside the lock because SAP thread needs m_mutex
     StopSAPAnnouncer();
+    // The restart worker takes m_mutex too.
+    std::thread restartWorker;
+    {
+        std::lock_guard<std::mutex> rl(m_restartMutex);
+        m_stopRestarts = true;
+        m_restarts.clear();
+        restartWorker = std::move(m_restartThread);
+    }
+    m_restartCv.notify_all();
+    if (restartWorker.joinable()) {
+        restartWorker.join();
+    }
+    // The warm worker takes m_mutex too.
+    std::thread warmWorker;
+    {
+        std::lock_guard<std::mutex> wl(m_warmMutex);
+        m_stopWarm = true;
+        m_prewarmRequests.clear();
+        warmWorker = std::move(m_warmThread);
+    }
+    m_warmCv.notify_all();
+    if (warmWorker.joinable()) {
+        warmWorker.join();
+    }
 
     std::lock_guard<std::mutex> lock(m_mutex);
     StopAllConsumers();
@@ -374,18 +408,24 @@ void VideoOutputManager::Shutdown() {
 }
 
 void VideoOutputManager::StartConsumers(const std::string& producerNodeName,
-                                        int primaryConnectorId,
-                                        const std::set<int>& directConnectorIds) {
+                                        uint64_t producerGeneration) {
     bool shouldStartSAP = false;
+    WaitForCmaIfLow();
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (!m_initialized || m_consumers.empty()) {
             return;
         }
+        if (producerGeneration != 0 && producerGeneration != m_producerGeneration.load()) {
+            // The producer was stopped between its start and this call (its
+            // deferred attach runs on another thread).  Consumers started now
+            // would run against a dead producer until the next track.
+            LogDebug(VB_MEDIAOUT, "VideoOutputManager: producer '%s' already stopped, not starting consumers\n",
+                     producerNodeName.c_str());
+            return;
+        }
 
         m_activeProducer = producerNodeName;
-        m_primaryConnectorId = primaryConnectorId;
-        m_directConnectorIds = directConnectorIds;
 
         // Extract stream slot number from producer node name (e.g. "fppd_video_stream_2" → 2)
         int producerSlot = 0;
@@ -403,6 +443,7 @@ void VideoOutputManager::StartConsumers(const std::string& producerNodeName,
         // already running (started at Init).
         // If the consumer has streamSlots configured, only start it for matching slots.
         int started = 0;
+        int reused = 0;
         for (auto& consumer : m_consumers) {
             if (consumer.sourceNode.empty()) {
                 // Check stream slot filter
@@ -415,97 +456,98 @@ void VideoOutputManager::StartConsumers(const std::string& producerNodeName,
                 }
                 if (consumer.type == "rtp")
                     shouldStartSAP = true;
+                if (consumer.running && consumer.parked) {
+                    if (consumer.channel == producerNodeName) {
+                        // Prewarmed or parked from the last video: only
+                        // needs to go PLAYING.
+                        ActivateConsumer(consumer);
+                        started++;
+                        reused++;
+                        continue;
+                    }
+                    StopConsumer(consumer);  // parked on another slot's channel
+                }
                 StartConsumer(consumer);
                 started++;
             }
         }
-        LogInfo(VB_MEDIAOUT, "VideoOutputManager: Started %d on-demand consumer(s) targeting producer '%s' (slot %d)\n",
-                started, producerNodeName.c_str(), producerSlot);
+        LogInfo(VB_MEDIAOUT, "VideoOutputManager: Started %d on-demand consumer(s) (%d already built) "
+                "targeting producer '%s' (slot %d)\n",
+                started, reused, producerNodeName.c_str(), producerSlot);
+        shouldStartSAP = shouldStartSAP && HasRunningRtpLocked();
     }
     // Start SAP announcer outside the lock (SAPAnnounceLoop needs m_mutex)
     if (shouldStartSAP)
         StartSAPAnnouncer();
 }
 
-void VideoOutputManager::SuspendPersistentHdmiConsumers() {
+void VideoOutputManager::ClaimConnectorForMedia(int connectorId) {
+    if (connectorId <= 0) {
+        return;
+    }
+    int stopped = 0;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        int stopped = 0;
-        for (auto& consumer : m_consumers) {
-            if (!consumer.sourceNode.empty() && consumer.type == "hdmi" && consumer.running) {
-                LogInfo(VB_MEDIAOUT, "VideoOutputManager: Suspending persistent HDMI consumer '%s' (connector %s) for DRM master handoff\n",
-                        consumer.name.c_str(), consumer.connector.c_str());
-                StopConsumer(consumer);
+        m_mediaConnectors[connectorId]++;
+        for (auto& c : m_consumers) {
+            if (c.sourceNode.empty() || c.type != "hdmi" || c.connectorId != connectorId) {
+                continue;
+            }
+            // Running or not, it waits for the media to finish: one that is
+            // between retries would otherwise start up under the video.
+            c.suspendedForMedia = true;
+            if (c.running) {
+                LogInfo(VB_MEDIAOUT, "VideoOutputManager: '%s' stands aside for media on connector %s\n",
+                        c.name.c_str(), c.connector.c_str());
+                StopConsumer(c);
                 stopped++;
             }
         }
-        if (stopped > 0)
-            LogInfo(VB_MEDIAOUT, "VideoOutputManager: Suspended %d persistent HDMI consumer(s)\n", stopped);
     }
-    // Wait for DRM/CMA resources to be freed before the main pipeline
-    // claims DRM master on the same device.
-    WaitForPendingTeardowns(5000);
+    if (stopped) {
+        // Its lease on the connector goes once its pipeline is down; the
+        // media's own lease needs it.
+        WaitForPendingTeardowns(2000);
+    }
 }
 
-void VideoOutputManager::ResumePersistentHdmiConsumers() {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    // Zombie sweep: a persistent consumer whose bus-monitor thread saw
-    // GST_MESSAGE_ERROR/EOS sets pipelineDead but leaves `running` true
-    // (nothing else clears it) — without this, such a consumer holds its
-    // DRM plane and CMA forever and is never considered for resume below.
-    // StopConsumer() clears `running` synchronously (its pipeline-NULL
-    // transition is what's detached/async), so it's safe to fold straight
-    // into the grouping loop right after.
-    for (auto& c : m_consumers) {
-        if (!c.sourceNode.empty() && c.type == "hdmi" &&
-            c.running && c.pipelineDead && c.pipelineDead->load()) {
-            LogWarn(VB_MEDIAOUT, "VideoOutputManager: persistent consumer '%s' pipeline died (ERROR/EOS) — tearing down for restart\n",
-                    c.name.c_str());
-            StopConsumer(c);
-        }
+void VideoOutputManager::ReleaseConnectorFromMedia(int connectorId) {
+    if (connectorId <= 0) {
+        return;
     }
-
-    // Group persistent HDMI consumers by sourceNode (same logic as Init)
-    std::map<std::string, std::vector<size_t>> hdmiSourceGroups;
-    for (size_t i = 0; i < m_consumers.size(); i++) {
-        auto& c = m_consumers[i];
-        if (!c.sourceNode.empty() && c.type == "hdmi" && !c.running) {
-            hdmiSourceGroups[c.sourceNode].push_back(i);
+    std::set<std::string> channels;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        auto it = m_mediaConnectors.find(connectorId);
+        if (it == m_mediaConnectors.end()) {
+            return;
         }
-    }
-
-    int started = 0;
-    std::set<size_t> startedAsGroup;
-    for (auto& [sourceNode, indices] : hdmiSourceGroups) {
-        if (indices.size() > 1) {
-            if (StartHdmiConsumerGroup(indices)) {
-                started += indices.size();
-                for (auto idx : indices) startedAsGroup.insert(idx);
+        if (--it->second > 0) {
+            return;  // another slot's media still shows here
+        }
+        m_mediaConnectors.erase(it);
+        for (auto& c : m_consumers) {
+            if (c.suspendedForMedia && c.connectorId == connectorId) {
+                channels.insert(c.sourceNode);
             }
         }
     }
-
-    for (size_t i = 0; i < m_consumers.size(); i++) {
-        auto& c = m_consumers[i];
-        if (!c.sourceNode.empty() && c.type == "hdmi" && !c.running
-            && startedAsGroup.find(i) == startedAsGroup.end()) {
-            LogInfo(VB_MEDIAOUT, "VideoOutputManager: Resuming persistent HDMI consumer '%s' (connector %s)\n",
-                    c.name.c_str(), c.connector.c_str());
-            StartConsumer(c);
-            started++;
-        }
+    // Through the retry worker, which brings a consumer back only while its
+    // source runs (a dead source restarts itself and notifies).
+    for (const auto& channel : channels) {
+        ScheduleConsumerResume(channel, MEDIA_RESUME_DELAY_MS);
     }
-    if (started > 0)
-        LogInfo(VB_MEDIAOUT, "VideoOutputManager: Resumed %d persistent HDMI consumer(s)\n", started);
 }
 
 void VideoOutputManager::NotifyProducerReady(const std::string& channelName) {
+    WaitForCmaIfLow();
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    // Zombie sweep — see ResumePersistentHdmiConsumers for rationale. Applies
-    // to all consumer types here (not just hdmi) since NotifyProducerReady
-    // is the general persistent-source restart path.
+    // Zombie sweep: a consumer whose bus-monitor thread saw ERROR/EOS sets
+    // pipelineDead but leaves `running` true (nothing else clears it), so it
+    // would hold its DRM lease and CMA forever and never be started again.
+    // StopConsumer() clears `running` synchronously (only its pipeline-NULL
+    // transition is detached), so the start loop below picks it straight up.
     for (auto& c : m_consumers) {
         if (c.sourceNode == channelName &&
             c.running && c.pipelineDead && c.pipelineDead->load()) {
@@ -539,14 +581,125 @@ void VideoOutputManager::NotifyProducerReady(const std::string& channelName) {
         auto& c = m_consumers[i];
         if (c.sourceNode == channelName && !c.running
             && startedAsGroup.find(i) == startedAsGroup.end()) {
-            StartConsumer(c);
-            started++;
+            if (StartConsumer(c))
+                started++;
         }
     }
 
     if (started > 0)
         LogInfo(VB_MEDIAOUT, "VideoOutputManager: Producer '%s' ready — started %d consumer(s)\n",
                 channelName.c_str(), started);
+
+    // StartConsumer() refuses a display that isn't connected, and nothing
+    // else will try it again while this source keeps running.  An HDMI
+    // consumer saved without a connector id is a config error a retry
+    // can't fix.
+    // One standing aside for media comes back when the media releases it.
+    for (const auto& c : m_consumers) {
+        if (c.sourceNode == channelName && !c.running && !c.suspendedForMedia &&
+            !(c.type == "hdmi" && (c.connectorId <= 0 || c.cardPath.empty()))) {
+            ScheduleConsumerRestart(channelName);
+            break;
+        }
+    }
+}
+
+void VideoOutputManager::ScheduleConsumerRestart(const std::string& channelName) {
+    std::lock_guard<std::mutex> rl(m_restartMutex);
+    if (m_stopRestarts) {
+        return;
+    }
+    RestartState& r = m_restarts[channelName];
+    if (r.pending) {
+        return;  // one retry covers every consumer on the channel
+    }
+    auto now = std::chrono::steady_clock::now();
+    if (r.delayMs == 0 || now - r.lastFailure > std::chrono::milliseconds(RESTART_QUIET_RESET_MS)) {
+        r.delayMs = RESTART_MIN_DELAY_MS;
+    } else {
+        r.delayMs = std::min(r.delayMs * 2, RESTART_MAX_DELAY_MS);
+    }
+    r.lastFailure = now;
+    r.due = now + std::chrono::milliseconds(r.delayMs);
+    r.pending = true;
+    LogInfo(VB_MEDIAOUT, "VideoOutputManager: Retrying consumers of '%s' in %d ms\n",
+            channelName.c_str(), r.delayMs);
+    if (!m_restartRunning) {
+        if (m_restartThread.joinable()) {
+            m_restartThread.join();  // a finished worker; it no longer needs the lock
+        }
+        m_restartRunning = true;
+        m_restartThread = std::thread([this]() { RestartWorker(); });
+    }
+    m_restartCv.notify_all();
+}
+
+void VideoOutputManager::ScheduleConsumerResume(const std::string& channelName, int delayMs) {
+    std::lock_guard<std::mutex> rl(m_restartMutex);
+    if (m_stopRestarts) {
+        return;
+    }
+    RestartState& r = m_restarts[channelName];
+    auto due = std::chrono::steady_clock::now() + std::chrono::milliseconds(delayMs);
+    if (!r.pending || due < r.due) {
+        r.due = due;
+    }
+    r.pending = true;
+    if (!m_restartRunning) {
+        if (m_restartThread.joinable()) {
+            m_restartThread.join();
+        }
+        m_restartRunning = true;
+        m_restartThread = std::thread([this]() { RestartWorker(); });
+    }
+    m_restartCv.notify_all();
+}
+
+void VideoOutputManager::RestartWorker() {
+    SetThreadName("FPP-VideoOutRst");
+    std::unique_lock<std::mutex> l(m_restartMutex);
+    while (!m_stopRestarts) {
+        std::string channel;
+        std::chrono::steady_clock::time_point due;
+        for (const auto& [name, r] : m_restarts) {
+            if (r.pending && (channel.empty() || r.due < due)) {
+                channel = name;
+                due = r.due;
+            }
+        }
+        if (channel.empty()) {
+            break;
+        }
+        if (std::chrono::steady_clock::now() < due) {
+            m_restartCv.wait_until(l, due);
+            continue;
+        }
+        m_restarts[channel].pending = false;
+        l.unlock();
+        // A source that is down restarts itself and calls
+        // NotifyProducerReady() when it is back, which is the same retry.
+        if (VideoInputManager::Instance().IsSourceRunning(channel)) {
+            NotifyProducerReady(channel);
+        }
+        l.lock();
+    }
+    m_restartRunning = false;
+}
+
+bool VideoOutputManager::HasSlotChannelConsumers(int streamSlot) const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    for (const auto& c : m_consumers) {
+        if (IsSlotChannelMember(c, streamSlot))
+            return true;
+    }
+    return false;
+}
+
+bool VideoOutputManager::IsSlotChannelMember(const ConsumerInfo& c, int streamSlot) {
+    if ((c.type != "overlay" && c.type != "rtp") || !c.sourceNode.empty())
+        return false;
+    return c.streamSlots.empty() || streamSlot <= 0 ||
+           std::find(c.streamSlots.begin(), c.streamSlots.end(), streamSlot) != c.streamSlots.end();
 }
 
 std::vector<VideoOutputManager::HdmiConsumerInfo> VideoOutputManager::GetHdmiConsumers(
@@ -667,30 +820,186 @@ void VideoOutputManager::StopConsumers() {
     bool shouldStopSAP = false;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
+        m_producerGeneration++;
         if (!m_initialized) return;
 
         // Only stop on-demand consumers (those without a fixed sourceNode).
         // Persistent-source consumers keep running independently of media playback.
+        // Overlay and RTP members are parked instead, for the next video.
         int stopped = 0;
+        int parked = 0;
+        const uint64_t holdUntil = GetTimeMS() + LINGER_MS;
         for (auto& consumer : m_consumers) {
-            if (consumer.sourceNode.empty() && consumer.running) {
+            if (!consumer.sourceNode.empty() || !consumer.running || consumer.parked)
+                continue;
+            if (IsSlotChannelMember(consumer, 0)) {
+                ParkConsumer(consumer, holdUntil);
+                parked++;
+            } else {
                 StopConsumer(consumer);
                 stopped++;
             }
         }
-        LogInfo(VB_MEDIAOUT, "VideoOutputManager: Stopped %d on-demand consumer(s) (producer gone)\n", stopped);
+        LogInfo(VB_MEDIAOUT, "VideoOutputManager: Stopped %d and parked %d on-demand consumer(s) (producer gone)\n",
+                stopped, parked);
         m_activeProducer.clear();
 
         // Check if any RTP consumers are still running (persistent-source)
-        bool hasRunningRtp = false;
-        for (const auto& c : m_consumers) {
-            if (c.type == "rtp" && c.running) { hasRunningRtp = true; break; }
+        shouldStopSAP = !HasRunningRtpLocked();
+        if (parked) {
+            KickWarmWorker();
         }
-        if (!hasRunningRtp)
-            shouldStopSAP = true;
     }
     if (shouldStopSAP)
         StopSAPAnnouncer();
+}
+
+void VideoOutputManager::ActivateConsumer(ConsumerInfo& consumer) {
+#ifdef HAS_GSTREAMER_VIDEO_OUTPUT
+    if (consumer.overlayState) {
+        std::lock_guard<std::mutex> lock(consumer.overlayState->mtx);
+        consumer.overlayState->wasDisabled = false;
+        consumer.overlayState->active = true;
+    }
+    {
+        std::lock_guard<std::mutex> sl(*consumer.stateLock);
+        consumer.playing->store(true);
+        if (consumer.pipeline) {
+            gst_element_set_state(consumer.pipeline, GST_STATE_PLAYING);
+        }
+    }
+    consumer.parked = false;
+    LogInfo(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' resumed on %s\n",
+            consumer.name.c_str(), consumer.channel.c_str());
+#endif
+}
+
+void VideoOutputManager::ParkConsumer(ConsumerInfo& consumer, uint64_t holdUntilMs) {
+#ifdef HAS_GSTREAMER_VIDEO_OUTPUT
+    // Stop showing first, then give the model back, as StopConsumer does.
+    if (consumer.overlayState) {
+        std::shared_ptr<OverlayState> state = consumer.overlayState;
+        std::lock_guard<std::mutex> lock(state->mtx);
+        state->active = false;
+        if (state->wasDisabled && state->model) {
+            state->model->setState(PixelOverlayState(PixelOverlayState::Disabled));
+        }
+        state->wasDisabled = false;
+    }
+    // PAUSED stops the source (it is live), so an RTP member stops sending
+    // too.  On its own thread, like StopConsumer's teardown: the streaming
+    // thread may be inside a callback the caller's locks could block.
+    if (consumer.pipeline) {
+        GstElement* p = GST_ELEMENT(gst_object_ref(consumer.pipeline));
+        std::shared_ptr<std::atomic<bool>> playing = consumer.playing;
+        std::shared_ptr<std::mutex> stateLock = consumer.stateLock;
+        playing->store(false);
+        std::thread([p, playing, stateLock]() {
+            {
+                std::lock_guard<std::mutex> sl(*stateLock);
+                if (!playing->load()) {
+                    gst_element_set_state(p, GST_STATE_PAUSED);
+                }
+            }
+            gst_object_unref(p);
+        }).detach();
+    }
+    consumer.parked = true;
+    consumer.holdUntilMs = holdUntilMs;
+    LogInfo(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' parked for %d ms\n",
+            consumer.name.c_str(), (int)(holdUntilMs - GetTimeMS()));
+#endif
+}
+
+void VideoOutputManager::Prewarm(int streamSlot, int holdMs) {
+    if (streamSlot <= 0) {
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (!m_initialized || !std::any_of(m_consumers.begin(), m_consumers.end(),
+                                           [streamSlot](const ConsumerInfo& c) { return IsSlotChannelMember(c, streamSlot); })) {
+            return;
+        }
+    }
+    {
+        std::lock_guard<std::mutex> wl(m_warmMutex);
+        uint64_t& until = m_prewarmRequests[streamSlot];
+        until = std::max<uint64_t>(until, GetTimeMS() + holdMs);
+    }
+    KickWarmWorker();
+}
+
+void VideoOutputManager::KickWarmWorker() {
+    std::lock_guard<std::mutex> wl(m_warmMutex);
+    if (m_stopWarm) {
+        return;
+    }
+    if (!m_warmThread.joinable()) {
+        m_warmThread = std::thread([this]() { WarmWorker(); });
+    }
+    m_warmCv.notify_all();
+}
+
+void VideoOutputManager::WarmWorker() {
+    SetThreadName("FPP-VideoWarm");
+    std::unique_lock<std::mutex> wl(m_warmMutex);
+    while (!m_stopWarm) {
+        std::map<int, uint64_t> requests;
+        requests.swap(m_prewarmRequests);
+        wl.unlock();
+        ServiceWarm(requests);
+        wl.lock();
+        if (m_stopWarm) {
+            break;
+        }
+        if (m_prewarmRequests.empty()) {
+            m_warmCv.wait_for(wl, std::chrono::milliseconds(250));
+        }
+    }
+}
+
+void VideoOutputManager::ServiceWarm(const std::map<int, uint64_t>& requests) {
+#ifdef HAS_GSTREAMER_VIDEO_OUTPUT
+    if (!requests.empty()) {
+        WaitForCmaIfLow();
+    }
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (!m_initialized) {
+        return;
+    }
+    for (const auto& [slot, holdUntil] : requests) {
+        const std::string channel = StreamSlotManager::GetVideoNodeName(slot);
+        for (auto& consumer : m_consumers) {
+            if (!IsSlotChannelMember(consumer, slot)) {
+                continue;
+            }
+            if (consumer.running) {
+                if (!consumer.parked) {
+                    continue;  // showing a video now
+                }
+                if (consumer.channel == channel) {
+                    consumer.holdUntilMs = std::max(consumer.holdUntilMs, holdUntil);
+                    continue;
+                }
+                StopConsumer(consumer);  // parked on another slot's channel
+            }
+            if (StartConsumer(consumer, channel, false)) {
+                consumer.holdUntilMs = holdUntil;
+                LogInfo(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' prewarmed on %s\n",
+                        consumer.name.c_str(), channel.c_str());
+            }
+        }
+    }
+    const uint64_t now = GetTimeMS();
+    for (auto& consumer : m_consumers) {
+        if (consumer.running && consumer.parked && now >= consumer.holdUntilMs) {
+            LogInfo(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' idle, tearing it down\n",
+                    consumer.name.c_str());
+            StopConsumer(consumer);
+        }
+    }
+#endif
 }
 
 bool VideoOutputManager::HasConsumers() const {
@@ -701,7 +1010,7 @@ bool VideoOutputManager::HasConsumers() const {
 bool VideoOutputManager::HasActiveConsumers() const {
     std::lock_guard<std::mutex> lock(m_mutex);
     for (const auto& c : m_consumers) {
-        if (c.running)
+        if (c.running && !c.parked)
             return true;
     }
     return false;
@@ -711,7 +1020,7 @@ int VideoOutputManager::ActiveConsumerCount() const {
     std::lock_guard<std::mutex> lock(m_mutex);
     int count = 0;
     for (const auto& c : m_consumers) {
-        if (c.running)
+        if (c.running && !c.parked)
             count++;
     }
     return count;
@@ -803,6 +1112,24 @@ bool VideoOutputManager::LoadConfig() {
             }
         }
 
+        // Both go into a gst_parse_launch() description unquoted; a space or
+        // '!' would re-parse as extra pipeline elements.  Real node names and
+        // addresses never need anything outside these characters.
+        auto onlyChars = [](const std::string& v, const char* extra) {
+            for (unsigned char c : v) {
+                if (!std::isalnum(c) && !strchr(extra, c)) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        if (!onlyChars(ci.sourceNode, "_.-") ||
+            (ci.type == "rtp" && (ci.address.empty() || !onlyChars(ci.address, ".-:")))) {
+            LogErr(VB_MEDIAOUT, "VideoOutputManager: consumer '%s' has an invalid source or address, skipping it\n",
+                   ci.name.c_str());
+            continue;
+        }
+
         m_consumers.push_back(std::move(ci));
     }
 
@@ -845,8 +1172,10 @@ bool VideoOutputManager::StartHdmiConsumerGroup(const std::vector<size_t>& indic
                 continue;
             }
         }
-        if (m_primaryConnectorId >= 0 && c.connectorId == m_primaryConnectorId) continue;
-        if (m_directConnectorIds.count(c.connectorId)) continue;
+        if (m_mediaConnectors.count(c.connectorId)) {
+            c.suspendedForMedia = true;
+            continue;
+        }
         validIndices.push_back(idx);
     }
     if (validIndices.empty()) return false;
@@ -1044,7 +1373,8 @@ bool VideoOutputManager::StartHdmiConsumerGroup(const std::vector<size_t>& indic
 #endif
 }
 
-bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
+bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer, const std::string& channelArg,
+                                       bool startPlaying) {
 #ifdef HAS_GSTREAMER_VIDEO_OUTPUT
     GStreamerOutput::EnsureGStreamerInit();
 
@@ -1065,8 +1395,16 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
     // cannot drive video graph cycles at rate=0).
     // timeout=5s — must not overflow gint64 when converted to microseconds
     // and added to g_get_monotonic_time(); UINT64_MAX caused spin-loop.
+    // A consumer without a fixed source follows media playback, which
+    // publishes the active slot's channel (StartConsumers() records which).
+    const std::string channel = !channelArg.empty() ? channelArg
+                              : consumer.sourceNode.empty() ? m_activeProducer : consumer.sourceNode;
+    if (channel.empty()) {
+        LogWarn(VB_MEDIAOUT, "VideoOutputManager: consumer '%s' has no source to read\n", consumer.name.c_str());
+        return false;
+    }
     const std::string srcDesc = "intervideosrc timeout=5000000000 channel="
-                              + consumer.sourceNode + " ! videoconvert ! ";
+                              + channel + " ! videoconvert ! ";
     pipelineDesc = srcDesc + "videoscale ! ";
 
     if (consumer.type == "hdmi") {
@@ -1098,22 +1436,15 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
             }
         }
 
-        // Check for conflict with the primary video output — the main GStreamerOut
-        // pipeline may have a direct kmssink on the primary connector.
-        // Two kmssinks cannot share the same DRM CRTC/connector.
-        // primaryConnectorId is -1 when the primary connector is disconnected
-        // (no kmssink in the main pipeline), so no consumer is skipped.
-        if (m_primaryConnectorId >= 0 && consumer.connectorId == m_primaryConnectorId) {
-            LogWarn(VB_MEDIAOUT, "VideoOutputManager: Skipping HDMI consumer '%s' — "
-                    "connector %s (id=%d) is used by the primary video output\n",
-                    consumer.name.c_str(), consumer.connector.c_str(), consumer.connectorId);
-            return false;
-        }
-        // Also skip connectors handled by direct kmssink branches on the
-        // producer's video tee (avoids DRM CRTC conflicts).
-        if (m_directConnectorIds.count(consumer.connectorId)) {
+        // Media playback shows on this connector (its kmssink holds it); a
+        // persistent consumer comes back when that ends.  Two kmssinks cannot
+        // share one connector.
+        if (m_mediaConnectors.count(consumer.connectorId)) {
+            if (!consumer.sourceNode.empty()) {
+                consumer.suspendedForMedia = true;
+            }
             LogInfo(VB_MEDIAOUT, "VideoOutputManager: Skipping HDMI consumer '%s' — "
-                    "connector %s (id=%d) handled by direct kmssink in main pipeline\n",
+                    "media is playing on connector %s (id=%d)\n",
                     consumer.name.c_str(), consumer.connector.c_str(), consumer.connectorId);
             return false;
         }
@@ -1122,36 +1453,17 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
         // ~16-24 MB of CMA for dumb buffers.  CmaFree may appear low because
         // the kernel uses CMA pages for general movable allocations; those
         // pages are migrated on demand when a real DMA allocation occurs.
-        // If a teardown is in progress, wait briefly for DRM buffers to be
-        // released.  Otherwise just warn and proceed — the kernel will
-        // attempt CMA migration, and if it truly fails the DRM ioctl
-        // (and hence pipeline start) will error out on its own.
+        // The wait for in-flight teardowns to give their buffers back happens
+        // before m_mutex is taken (WaitForCmaIfLow()); here just warn and
+        // proceed — the kernel will attempt CMA migration, and if it truly
+        // fails the DRM ioctl (and hence pipeline start) will error out on
+        // its own.
         {
-            auto readCmaFree = []() -> long {
-                FILE* f = fopen("/proc/meminfo", "r");
-                if (!f) return -1;
-                char line[256];
-                long kb = -1;
-                while (fgets(line, sizeof(line), f)) {
-                    if (sscanf(line, "CmaFree: %ld kB", &kb) == 1) break;
-                }
-                fclose(f);
-                return kb;
-            };
-
-            long cmaFreeKB = readCmaFree();
-            static constexpr long CMA_WARN_KB = 20480;
+            long cmaFreeKB = ReadCmaFreeKB();
             if (cmaFreeKB >= 0 && cmaFreeKB < CMA_WARN_KB) {
-                LogInfo(VB_MEDIAOUT, "VideoOutputManager: CMA low (%ld kB) for consumer '%s', "
-                        "waiting for pending teardowns then proceeding...\n",
+                LogWarn(VB_MEDIAOUT, "VideoOutputManager: CMA low (%ld kB) for '%s' — "
+                        "proceeding anyway (kernel will attempt CMA migration)\n",
                         cmaFreeKB, consumer.name.c_str());
-                WaitForPendingTeardowns(3000);
-                cmaFreeKB = readCmaFree();
-                if (cmaFreeKB >= 0 && cmaFreeKB < CMA_WARN_KB) {
-                    LogWarn(VB_MEDIAOUT, "VideoOutputManager: CMA still low (%ld kB) for '%s' — "
-                            "proceeding anyway (kernel will attempt CMA migration)\n",
-                            cmaFreeKB, consumer.name.c_str());
-                }
             }
         }
 
@@ -1206,7 +1518,8 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
                 LogErr(VB_MEDIAOUT, "VideoOutputManager: videocrop element not available for '%s' — "
                        "is gstreamer1.0-plugins-good installed?  Showing the full frame\n",
                        consumer.name.c_str());
-                WarningHolder::AddWarning(31, "Video crop unavailable: videocrop element missing (install gstreamer1.0-plugins-good)");
+                // Permanent: the element appears only with a package install and a restart.
+        WarningHolder::AddWarning(31, "Video crop unavailable: videocrop element missing (install gstreamer1.0-plugins-good)");
                 cropping = false;
                 // Without the crop there is no region and no fill.  Say so, so
                 // the missing plugin does not read as a scaling bug.
@@ -1291,7 +1604,8 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
         consumer.overlayState->model = model;
         consumer.overlayState->width = overlayW;
         consumer.overlayState->height = overlayH;
-        consumer.overlayState->active = true;
+        // A prewarmed member stays dark until ActivateConsumer().
+        consumer.overlayState->active = startPlaying;
 
         // Register model listener so we track model replacement/deletion
         std::weak_ptr<OverlayState> weakState = consumer.overlayState;
@@ -1357,7 +1671,10 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
     if (!consumer.pipeline) {
         LogErr(VB_MEDIAOUT, "VideoOutputManager: Failed to create pipeline for '%s': %s\n",
                consumer.name.c_str(), error ? error->message : "unknown error");
-        WarningHolder::AddWarning(31, "Video output pipeline creation failed for '" + consumer.name + "'");
+        // Re-raised by every later attempt (a persistent consumer is retried,
+        // an on-demand one starts with each video), so it ages out once the
+        // pipeline builds again.
+        WarningHolder::AddWarningTimeout(120, 31, "Video output pipeline creation failed for '" + consumer.name + "'");
         if (error) g_error_free(error);
         return false;
     }
@@ -1395,18 +1712,18 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
                     resolvedConnId = drmCheck.connectorId;
             }
             std::string cardForFd = !resolvedCard.empty() ? resolvedCard : consumer.cardPath;
-            int drmFd = cardForFd.empty() ? -1
-                : GStreamerOutput::AcquireSharedDrmFd(cardForFd);
+            if (!cardForFd.empty()) {
+                consumer.drmLease = DrmCards::AcquireLease(cardForFd, resolvedConnId);
+            }
+            int drmFd = consumer.drmLease.fd;
             if (drmFd >= 0) {
-                consumer.acquiredDrmCard = cardForFd;
                 g_object_set(sink, "fd", drmFd, NULL);
-                int planeId = GStreamerOutput::FindPrimaryPlaneForConnector(drmFd, resolvedConnId);
+                int planeId = consumer.drmLease.planeId;
                 if (planeId >= 0) {
                     g_object_set(sink, "plane-id", planeId, NULL);
-                    consumer.assignedPlaneId = planeId;
                 }
-                LogInfo(VB_MEDIAOUT, "VideoOutputManager: Set shared DRM fd=%d plane=%d on consumer '%s' kmssink\n",
-                        drmFd, planeId, consumer.name.c_str());
+                LogInfo(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' kmssink on DRM fd=%d (%s) plane=%d\n",
+                        consumer.name.c_str(), drmFd, consumer.drmLease.isLease ? "lease" : "card's shared fd", planeId);
             } else {
                 g_object_set(sink, "driver-name", "vc4", NULL);
                 LogInfo(VB_MEDIAOUT, "VideoOutputManager: No shared DRM fd for consumer '%s', using driver-name=vc4\n",
@@ -1447,7 +1764,12 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
     // any) keeps its own copy and is unaffected by this restart.
     consumer.shutdownRequested = std::make_shared<std::atomic<bool>>(false);
     consumer.pipelineDead = std::make_shared<std::atomic<bool>>(false);
+    consumer.playing = std::make_shared<std::atomic<bool>>(startPlaying);
+    consumer.stateLock = std::make_shared<std::mutex>();
     consumer.running = true;
+    consumer.suspendedForMedia = false;
+    consumer.parked = !startPlaying;
+    consumer.channel = channel;
 
     std::string consumerName = consumer.name;
     GstElement* pipeline = consumer.pipeline;
@@ -1460,8 +1782,19 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
     gst_object_ref(pipeline);
     std::shared_ptr<std::atomic<bool>> shutdownFlag = consumer.shutdownRequested;
     std::shared_ptr<std::atomic<bool>> pipelineDead = consumer.pipelineDead;
+    std::string sourceNode = consumer.sourceNode;
+    std::shared_ptr<std::atomic<bool>> playing = consumer.playing;
+    std::shared_ptr<std::mutex> stateLock = consumer.stateLock;
 
-    consumer.startThread = std::thread([pipeline, consumerName, shutdownFlag, pipelineDead]() {
+    consumer.startThread = std::thread([pipeline, consumerName, shutdownFlag, pipelineDead, sourceNode,
+                                        playing, stateLock]() {
+        // A persistent consumer that dies while its source runs gets no
+        // producer-ready notification to bring it back.
+        auto scheduleRestart = [&sourceNode]() {
+            if (!sourceNode.empty()) {
+                VideoOutputManager::Instance().ScheduleConsumerRestart(sourceNode);
+            }
+        };
         struct PipelineRefGuard {
             GstElement* p;
             ~PipelineRefGuard() { gst_object_unref(p); }
@@ -1470,10 +1803,18 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
         LogInfo(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' background thread starting pipeline\n",
                 consumerName.c_str());
 
-        // intervideosrc doesn't need PipeWire links — go straight to PLAYING.
-        GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
-        LogInfo(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' set_state(PLAYING) returned %d\n",
-                consumerName.c_str(), (int)ret);
+        // intervideosrc doesn't need PipeWire links — go straight to PLAYING,
+        // or to PAUSED for a prewarmed member (intervideosrc is live, so
+        // that is immediate and nothing flows until it is activated).
+        GstStateChangeReturn ret;
+        bool startPlaying;
+        {
+            std::lock_guard<std::mutex> sl(*stateLock);
+            startPlaying = playing->load();
+            ret = gst_element_set_state(pipeline, startPlaying ? GST_STATE_PLAYING : GST_STATE_PAUSED);
+        }
+        LogInfo(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' set_state(%s) returned %d\n",
+                consumerName.c_str(), startPlaying ? "PLAYING" : "PAUSED", (int)ret);
 
         if (ret == GST_STATE_CHANGE_FAILURE) {
             // Check if we were asked to shut down — don't log as error if so
@@ -1485,6 +1826,7 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
                 // of `running` staying true forever with a pipeline that
                 // will never produce frames.
                 pipelineDead->store(true);
+                scheduleRestart();
             }
             return;
         }
@@ -1503,7 +1845,7 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
             if (busLoopIter % 10 == 1) {
                 GstState cur = GST_STATE_VOID_PENDING, pend = GST_STATE_VOID_PENDING;
                 gst_element_get_state(pipeline, &cur, &pend, 0);
-                if (cur != GST_STATE_PLAYING || pend != GST_STATE_VOID_PENDING) {
+                if (playing->load() && (cur != GST_STATE_PLAYING || pend != GST_STATE_VOID_PENDING)) {
                     LogInfo(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' state check: current=%d pending=%d\n",
                             consumerName.c_str(), (int)cur, (int)pend);
                 }
@@ -1522,6 +1864,7 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
                         // Pipeline died on its own (not via StopConsumer) —
                         // see pipelineDead comment on the ConsumerInfo field.
                         pipelineDead->store(true);
+                        scheduleRestart();
                     }
                     if (err) g_error_free(err);
                     g_free(debug);
@@ -1534,6 +1877,7 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer) {
                             consumerName.c_str());
                     if (!shutdownFlag->load()) {
                         pipelineDead->store(true);
+                        scheduleRestart();
                     }
                     gst_message_unref(msg);
                     gst_object_unref(bus);
@@ -1590,35 +1934,55 @@ GstFlowReturn VideoOutputManager::OnOverlaySample(GstAppSink* appsink, gpointer 
     if (!stateRef)
         return GST_FLOW_EOS;
     OverlayState* state = stateRef->get();
-    if (!state || !state->active.load())
+    if (!state)
         return GST_FLOW_EOS;
 
     GstSample* sample = gst_app_sink_pull_sample(appsink);
     if (!sample)
         return GST_FLOW_OK;
+    // Inactive: parked or prewarmed (or being stopped).  Drop the frame
+    // rather than end the stream, which would end a parked pipeline.
+    if (!state->active.load()) {
+        gst_sample_unref(sample);
+        return GST_FLOW_OK;
+    }
 
     GstBuffer* buffer = gst_sample_get_buffer(sample);
+    // The frame's own size comes from its caps.  state->width/height follow
+    // the model, which a listener can swap for one of another size while
+    // frames negotiated for the old one are still arriving.
+    int w = 0;
+    int h = 0;
+    if (GstCaps* caps = gst_sample_get_caps(sample)) {
+        if (const GstStructure* st = gst_caps_get_structure(caps, 0)) {
+            gst_structure_get_int(st, "width", &w);
+            gst_structure_get_int(st, "height", &h);
+        }
+    }
     GstMapInfo map;
-    if (gst_buffer_map(buffer, &map, GST_MAP_READ)) {
+    if (w > 0 && h > 0 && gst_buffer_map(buffer, &map, GST_MAP_READ)) {
         std::lock_guard<std::mutex> lock(state->mtx);
-        PixelOverlayModel* model = state->model;
-        if (model) {
-            int w = state->width;
-            int h = state->height;
-            int rowBytes = w * 3;
-            int expectedSize = rowBytes * h;
-            int stride = (h > 0) ? (int)(map.size / h) : rowBytes;
-
-            if (stride == rowBytes && (int)map.size >= expectedSize) {
-                // No padding — push directly
-                model->setData(map.data);
-            } else if (stride > rowBytes) {
-                // GStreamer row padding — strip it
+        // Checked again under the lock: ParkConsumer hands the model back
+        // under it, and a frame blitted after that would take it again.
+        PixelOverlayModel* model = state->active.load() ? state->model : nullptr;
+        const size_t rowBytes = (size_t)w * 3;
+        const size_t expectedSize = rowBytes * h;
+        // Packed RGB rows are padded to 4 bytes unless the buffer is exactly
+        // the tightly packed size.
+        const size_t stride = (map.size == expectedSize) ? rowBytes : ((rowBytes + 3) & ~(size_t)3);
+        if (model && map.size >= stride * (h - 1) + rowBytes) {
+            // blitData(), not setData(): setData() reads
+            // width*height*bytesPerPixel, and an RGBW model has 4 bytes per
+            // pixel to this frame's 3.  blitData() converts and clips.
+            const PixelOverlayState enabled(PixelOverlayState::Enabled);
+            if (stride == rowBytes) {
+                model->blitData(map.data, w, h, 3, 0, 0, enabled);
+            } else {
                 std::vector<uint8_t> stripped(expectedSize);
                 for (int y = 0; y < h; y++) {
-                    memcpy(&stripped[y * rowBytes], map.data + y * stride, rowBytes);
+                    memcpy(&stripped[(size_t)y * rowBytes], map.data + (size_t)y * stride, rowBytes);
                 }
-                model->setData(stripped.data());
+                model->blitData(stripped.data(), w, h, 3, 0, 0, enabled);
             }
 
             // Auto-enable model if it was disabled
@@ -1634,6 +1998,31 @@ GstFlowReturn VideoOutputManager::OnOverlaySample(GstAppSink* appsink, gpointer 
     return GST_FLOW_OK;
 }
 #endif
+
+long VideoOutputManager::ReadCmaFreeKB() {
+    FILE* f = fopen("/proc/meminfo", "r");
+    if (!f) return -1;
+    char line[256];
+    long kb = -1;
+    while (fgets(line, sizeof(line), f)) {
+        if (sscanf(line, "CmaFree: %ld kB", &kb) == 1) break;
+    }
+    fclose(f);
+    return kb;
+}
+
+void VideoOutputManager::WaitForCmaIfLow() {
+    // When CMA is short and a teardown is still releasing its DRM buffers,
+    // give it a moment before starting consumers.  Called before m_mutex is
+    // taken: it can wait seconds, and media playback's Start() asks this
+    // manager for crop rectangles under that lock while holding
+    // mediaOutputLock.
+    long cmaFreeKB = ReadCmaFreeKB();
+    if (cmaFreeKB >= 0 && cmaFreeKB < CMA_WARN_KB) {
+        LogInfo(VB_MEDIAOUT, "VideoOutputManager: CMA low (%ld kB), waiting for pending teardowns\n", cmaFreeKB);
+        WaitForPendingTeardowns(3000);
+    }
+}
 
 bool VideoOutputManager::WaitForPendingTeardowns(int timeoutMs) {
     std::unique_lock<std::mutex> tl(m_teardownMutex);
@@ -1652,8 +2041,10 @@ bool VideoOutputManager::WaitForPendingTeardowns(int timeoutMs) {
         // too).  Surface it as a warning so a 24h soak-test log clearly
         // flags a wedged gst_element_set_state(NULL) instead of silently
         // bleeding memory.
-        WarningHolder::AddWarning(31, "Video output: " + std::to_string(m_pendingTeardowns) +
-                                   " pipeline teardown(s) stuck after " + std::to_string(timeoutMs) + "ms");
+        // Fixed text, so the teardown thread that finally finishes can take
+        // it down (the count used to be in it, which no removal could match).
+        WarningHolder::AddWarning(31, TEARDOWN_STUCK_WARNING);
+        m_teardownStuckWarned = true;
     } else {
         LogInfo(VB_MEDIAOUT, "VideoOutputManager: All pipeline teardowns completed\n");
     }
@@ -1705,65 +2096,62 @@ void VideoOutputManager::StopConsumer(ConsumerInfo& consumer) {
     if (consumer.pipeline) {
         GstElement* p = consumer.pipeline;
         consumer.pipeline = nullptr;
-        // Release the reserved overlay plane only after the pipeline reaches
-        // NULL (which destroys the kmssink and frees the plane in DRM).
-        // Releasing it earlier would let a new consumer claim a plane the old
-        // kmssink still holds.  -1 if this consumer never got a plane.
-        int planeId = consumer.assignedPlaneId;
-        consumer.assignedPlaneId = -1;
-        // Same ordering requirement for the shared DRM master fd: release it
-        // only after the pipeline (and its kmssink) is gone. Empty if this
-        // consumer never acquired one (non-HDMI, or the acquire failed).
-        std::string drmCard = consumer.acquiredDrmCard;
-        consumer.acquiredDrmCard.clear();
+        // Give the DRM lease back only after the pipeline reaches NULL (which
+        // destroys the kmssink): closing it frees any GEM handles/FBs the
+        // kmssink failed to release, and returns its plane for the next
+        // consumer -- neither may happen while the kmssink is alive.
+        DrmCards::Lease lease = consumer.drmLease;
+        consumer.drmLease = DrmCards::Lease();
         {
             std::lock_guard<std::mutex> tl(m_teardownMutex);
             m_pendingTeardowns++;
         }
-        std::thread([this, p, planeId, drmCard]() {
+        std::thread([this, p, lease]() mutable {
             uint64_t startMs = GetTimeMS();
             gst_element_set_state(p, GST_STATE_NULL);
             gst_object_unref(p);
-            // Release the DRM master fd AFTER the pipeline (and therefore its
-            // kmssink) has been destroyed — closing the fd is what actually
-            // frees any GEM handles/FBs the kmssink/vc4 driver failed to
-            // release explicitly, and doing so while the kmssink object was
-            // still alive would be premature (undefined behavior).
-            if (!drmCard.empty())
-                GStreamerOutput::ReleaseSharedDrmFd(drmCard);
-            if (planeId >= 0)
-                GStreamerOutput::ReleasePlane(planeId);
+            DrmCards::ReleaseLease(lease);
             {
                 std::lock_guard<std::mutex> tl(m_teardownMutex);
                 m_pendingTeardowns--;
+                if (m_pendingTeardowns == 0 && m_teardownStuckWarned) {
+                    m_teardownStuckWarned = false;
+                    WarningHolder::RemoveWarning(31, TEARDOWN_STUCK_WARNING);
+                }
             }
             m_teardownCV.notify_all();
             LogDebug(VB_MEDIAOUT, "VideoOutputManager: pipeline teardown completed in %llu ms\n",
                     (unsigned long long)(GetTimeMS() - startMs));
         }).detach();
-    } else if (!consumer.acquiredDrmCard.empty()) {
+    } else if (consumer.drmLease.fd >= 0) {
         // No pipeline to tear down (e.g. this consumer never fully started)
-        // but a DRM fd was still acquired while wiring up the kmssink —
-        // release it immediately since there's no teardown thread to do it
-        // for us later.
-        GStreamerOutput::ReleaseSharedDrmFd(consumer.acquiredDrmCard);
-        consumer.acquiredDrmCard.clear();
+        // but a lease was still taken while wiring up the kmssink — release
+        // it now since there's no teardown thread to do it later.
+        DrmCards::ReleaseLease(consumer.drmLease);
     }
 
-    // Restore overlay model state and remove listener
+    // Remove the listener, then restore the overlay model's state.  In that
+    // order: the listener runs under PixelOverlayManager's modelsLock and
+    // takes state->mtx, so removing it (which takes modelsLock) while holding
+    // state->mtx deadlocked against a model being re-added or auto-removed.
     if (consumer.overlayState) {
-        std::lock_guard<std::mutex> lock(consumer.overlayState->mtx);
-        if (consumer.overlayState->wasDisabled && consumer.overlayState->model) {
-            consumer.overlayState->model->setState(PixelOverlayState(PixelOverlayState::Disabled));
-            consumer.overlayState->wasDisabled = false;
-        }
-        consumer.overlayState->model = nullptr;
         PixelOverlayManager::INSTANCE.removeModelListener(consumer.overlayModel,
             "VideoOutputManager_" + consumer.pipeWireNodeName);
-        consumer.overlayState.reset();
+        // Take the consumer's reference before locking: it is often the last
+        // one (the appsink's goes with the pipeline), and the state must
+        // outlive the lock on its own mutex.  `state` is declared first, so
+        // it is destroyed after `lock` has unlocked.
+        std::shared_ptr<OverlayState> state = std::move(consumer.overlayState);
+        std::lock_guard<std::mutex> lock(state->mtx);
+        if (state->wasDisabled && state->model) {
+            state->model->setState(PixelOverlayState(PixelOverlayState::Disabled));
+            state->wasDisabled = false;
+        }
+        state->model = nullptr;
     }
 
     consumer.running = false;
+    consumer.parked = false;
 
     // Also mark any grouped members as stopped
     int myIdx = (int)(&consumer - &m_consumers[0]);
@@ -1896,22 +2284,22 @@ std::vector<uint8_t> VideoOutputManager::BuildSAPPacket(const std::string& sourc
     return packet;
 }
 
+bool VideoOutputManager::HasRunningRtpLocked() const {
+    for (const auto& c : m_consumers) {
+        if (c.type == "rtp" && c.running && !c.parked)
+            return true;
+    }
+    return false;
+}
+
 void VideoOutputManager::StartSAPAnnouncer() {
     // Serialize with StopSAPAnnouncer() and with any other Start. The flag on
     // its own was a test-then-set across two unsynchronized threads.
+    // The caller decides, under m_mutex, whether any RTP consumer is running
+    // (HasRunningRtpLocked()).  Walking m_consumers here under only m_sapLock
+    // raced Reload() clearing and refilling the vector.
     std::lock_guard<std::mutex> lock(m_sapLock);
     if (m_sapRunning.load())
-        return;
-
-    // Only start if we have at least one RTP consumer
-    bool hasRtp = false;
-    for (const auto& c : m_consumers) {
-        if (c.type == "rtp" && c.running) {
-            hasRtp = true;
-            break;
-        }
-    }
-    if (!hasRtp)
         return;
 
     // Never assign over a joinable thread -- that is an unconditional

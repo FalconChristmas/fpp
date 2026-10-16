@@ -107,6 +107,13 @@ public:
     }
 
     PixelOverlayState getState() const;
+    // The absolute output channel buffer cell (x, y)'s first byte lands on,
+    // or FPPD_OFF_CHANNEL for a hole or a cell outside the model.
+    uint32_t outputChannelForCell(int x, int y) const;
+    // Whether the channel output thread has to draw this model: its own state
+    // is enabled, or a submodel is enabled within it. The manager's active
+    // list is kept in step with this, not with individual state transitions.
+    bool needsOutput() const;
     virtual void setState(const PixelOverlayState& state);
 
     virtual void doOverlay(uint8_t* channels);
@@ -138,6 +145,9 @@ public:
     // then the channelData will be significantly smaller than WxHxBPP
     int getBytesPerPixel() const { return bytesPerPixel; }
     void saveOverlayAsImage(std::string filename = "");
+    // True for a name saveOverlayAsImage() accepts: no directory part,
+    // nothing hidden or relative.
+    static bool isPlainImageFileName(const std::string& f);
     virtual void setData(const uint8_t* data); // full pixel data, width*height*bytesPerPixel
     virtual void setData(const uint8_t* data, int xOffset, int yOffset, int w, int h, const PixelOverlayState& st = PixelOverlayState(PixelOverlayState::Enabled));
 
@@ -214,6 +224,13 @@ public:
     bool isAutoCreated();
 
 protected:
+    // Constructor helpers: read a config field without throwing (a number,
+    // or a number in a string; false for anything else), and reject the
+    // definition. See the constructor.
+    static bool configInt(const Json::Value& c, const char* key, int dflt, int& out);
+    static bool configString(const Json::Value& c, const char* key, std::string& out);
+    void markInvalid(const std::string& why);
+
     void setValue(uint8_t v, int startChannel = -1, int endChannel = -1);
     bool flushChildren(uint8_t* dst);
 

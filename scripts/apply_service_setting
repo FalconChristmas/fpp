@@ -1,0 +1,61 @@
+#!/bin/bash
+#
+# apply_service_setting <Service_xxx> [--now]
+#
+# Make the system services behind a Service_* setting match the value saved
+# in the settings file: enabled (and with --now, running) for "1", disabled
+# (and with --now, stopped) for "0".
+#
+# ApplyServiceSetting() in www/common/settings.php runs this in the background
+# because systemctl enable/disable is slow.  Runs are serialized with a lock
+# and each one acts on the value in the settings file when it gets the lock,
+# not the value it was started for, so quickly toggling a setting off and on
+# again always ends with the services in the state that was saved last.
+# Deciding from a value captured at the start let a pending "disable --now"
+# land after the "enable" had been skipped as already done, leaving the
+# setting on and the service off (issue #3107).
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+
+SETTING=$1
+NOW=$2
+
+case "$SETTING" in
+    Service_rsync|Service_smbd_nmbd|Service_vsftpd) ;;
+    *)
+        echo "apply_service_setting: unsupported setting '$SETTING'" >&2
+        exit 1
+        ;;
+esac
+if [ -n "$NOW" ] && [ "$NOW" != "--now" ]; then
+    echo "apply_service_setting: unsupported option '$NOW'" >&2
+    exit 1
+fi
+
+exec {LOCKFD}>/run/lock/fpp_${SETTING}.lock
+flock -w 120 ${LOCKFD} || echo "apply_service_setting: ${SETTING} still locked after 120s, applying anyway" >&2
+
+VALUE=$(getSetting "$SETTING")
+SERVICES=${SETTING#Service_}
+
+for SERVICE in ${SERVICES//_/ }; do
+    ENABLED=$(systemctl is-enabled "$SERVICE" 2>/dev/null)
+    ACTIVE=$(systemctl is-active "$SERVICE" 2>/dev/null)
+    if [ "$VALUE" = "1" ]; then
+        if [ "$ENABLED" != "enabled" ]; then
+            systemctl $NOW enable "$SERVICE"
+        elif [ -n "$NOW" ] && [ "$ACTIVE" != "active" ]; then
+            # Enabled but not running, e.g. it was stopped by hand or failed
+            # to start: an "on" that leaves it off is what #3107 reported.
+            systemctl start "$SERVICE"
+        fi
+    elif [ "$VALUE" = "0" ]; then
+        if [ "$ENABLED" != "disabled" ]; then
+            systemctl $NOW disable "$SERVICE"
+        elif [ -n "$NOW" ] && [ "$ACTIVE" = "active" ]; then
+            systemctl stop "$SERVICE"
+        fi
+    fi
+done

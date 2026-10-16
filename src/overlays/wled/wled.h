@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <array>
+#include <mutex>
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -46,6 +47,8 @@
 constexpr int NUM_SAMPLES = 1024;
 
 long long GetTimeMS(void);
+long long GetMonotonicTimeMS(void);
+long long GetMonotonicTimeMicros(void);
 long long GetTimeMicros(void);
 
 // Audio sample buffer + computed FFT frame, in the form used by both
@@ -71,15 +74,18 @@ bool fetchAudioSamples(std::array<float, NUM_SAMPLES>& samples, int& sampleRate)
 void computeAudioFrame(const std::array<float, NUM_SAMPLES>& samples,
                        int sampleRate,
                        AudioFrame& out);
+// Effects time themselves with these (as WLED does), so they are on the
+// monotonic clock: on the wall clock a step back froze every running WLED
+// effect for the size of the step.
 inline uint32_t millis() {
-    return GetTimeMS();
+    return GetMonotonicTimeMS();
 }
 inline uint32_t GET_MILLIS() {
-    return GetTimeMS();
+    return GetMonotonicTimeMS();
 }
 
 inline uint64_t micros() {
-    return GetTimeMicros();
+    return GetMonotonicTimeMicros();
 }
 
 #define PSTR(a) a
@@ -147,6 +153,7 @@ extern int second(time_t t); // the second for the given time
 extern int day(time_t t);    // the day for the given time
 extern int month(time_t t);  // the month for the given time
 extern int year(time_t t);   // the year for the given time
+extern int weekday(time_t t); // the day of the week, 1-7 with Sunday = 1
 extern const char* monthStr(uint8_t month);
 extern const char* monthShortStr(uint8_t month);
 extern const char* dayStr(uint8_t day);
@@ -259,10 +266,21 @@ public:
     static void clearInstance();
     static WS2812FXExt* getInstance();
 
+    // The WLED code was written for one strip per device: matrix geometry
+    // (Segment::maxWidth/maxHeight) and the segment-data budget are statics
+    // shared by every strip. Each model's effect is a strip, so construction,
+    // service() and destruction all hold this, and a strip restores its own
+    // geometry when it becomes current. Recursive; a leaf below effectLock.
+    static std::recursive_mutex& lock();
+
     um_data_t* getAudioSamples(int simulationId);
 
 private:
     WS2812FXExt* parent = nullptr;
+    // This strip's matrix geometry, saved after finalizeInit() and restored
+    // into the shared statics by pushCurrent(). 0 until saved.
+    uint16_t ownMaxWidth = 0;
+    uint16_t ownMaxHeight = 0;
 
     // Sound Reactive Stuff
     void processSamples(std::array<float, NUM_SAMPLES>& samples, int sampleRate);

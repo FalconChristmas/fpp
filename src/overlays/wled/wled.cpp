@@ -87,39 +87,49 @@ int day(time_t t) {
     localtime_r(&t, &tm);
     return tm.tm_mday;
 }
+// TimeLib semantics, which the WLED effects were written against: month()
+// is 1-12, year() the full year, weekday() 1-7 with Sunday = 1. These
+// returned tm_mon and tm_year as-is, so January printed "Err" and #YYYY "126".
 int month(time_t t) {
     struct tm tm;
     localtime_r(&t, &tm);
-    return tm.tm_mon;
+    return tm.tm_mon + 1;
 }
 int year(time_t t) {
     struct tm tm;
     localtime_r(&t, &tm);
-    return tm.tm_year;
+    return tm.tm_year + 1900;
+}
+int weekday(time_t t) {
+    struct tm tm;
+    localtime_r(&t, &tm);
+    return tm.tm_wday + 1;
 }
 static const char* monthShortNames_P[] = { "Err", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 static const char* monthNames_P[] = { "Err", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
+// Index 0 is "Err"; anything outside the table maps there too rather than
+// handing sprintf a pointer from past the end of the array.
 const char* monthStr(uint8_t m) {
-    return monthNames_P[m];
+    return monthNames_P[m <= 12 ? m : 0];
 }
 const char* monthShortStr(uint8_t m) {
-    return monthShortNames_P[m];
+    return monthShortNames_P[m <= 12 ? m : 0];
 }
 
 static const char* datStrShort_P[] = { "Err", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
 static const char* datStr_P[] = { "Err", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
 const char* dayStr(uint8_t day) {
-    return datStr_P[day];
+    return datStr_P[day <= 7 ? day : 0];
 }
 const char* dayShortStr(uint8_t day) {
-    return datStrShort_P[day];
+    return datStrShort_P[day <= 7 ? day : 0];
 }
 
 uint16_t XY(uint8_t x, uint8_t y) {
     return x;
 }
 uint32_t get_millisecond_timer() {
-    return GetTimeMS();
+    return GetMonotonicTimeMS();
 }
 
 // RMS average
@@ -377,12 +387,19 @@ bool fetchAudioSamples(std::array<float, NUM_SAMPLES>& samples, int& sampleRate)
 void computeAudioFrame(const std::array<float, NUM_SAMPLES>& samples,
                        int sampleRate,
                        AudioFrame& out) {
+    // The FFT config (with its scratch buffer) and the volume smoothing below
+    // are statics, used by every strip's service() and by the WLED Audio
+    // Sync sender on its own thread; concurrent calls corrupted each other's
+    // spectrum. Recursive: service() already holds it.
+    std::lock_guard<std::recursive_mutex> l(WS2812FXExt::lock());
     static kiss_fftr_cfg cfg = kiss_fftr_alloc(NUM_SAMPLES, false, 0, 0);
     kiss_fft_cpx fft_out[NUM_SAMPLES];
     kiss_fftr(cfg, (kiss_fft_scalar*)samples.data(), fft_out);
 
-    // Log-bin into 16 octave-ish buckets, mirroring WLED's binning.
-    std::array<float, 17> res{};
+    // Log-bin into 16 octave-ish buckets, mirroring WLED's binning. The loop
+    // below fills buckets 0..17 (it stops when it would start an 18th) - at
+    // 44.1/48kHz the top ~20 bins land in 17 - and only 0..15 are reported.
+    std::array<float, 18> res{};
     float rate = sampleRate;
     int curBucket = 0;
     double freqnext = 440.0 * exp2f(((float)((1 + 1) * 8) - 69.0) / 12.0);
@@ -436,7 +453,7 @@ void computeAudioFrame(const std::array<float, NUM_SAMPLES>& samples,
     // held for 50ms with a 100ms refractory window so receivers don't
     // miss it even with slower poll cadences.
     static uint64_t lastPeakMs = 0;
-    uint64_t nowMsLocal = GetTimeMS();
+    uint64_t nowMsLocal = GetMonotonicTimeMS();
     uint8_t peakOut = 0;
     if (instantVolume > 12.0f &&
         instantVolume > smoothedVolume + 25.0f &&
@@ -512,8 +529,10 @@ WS2812FXExt::WS2812FXExt(PixelOverlayModel* m, int map, int b,
     _segments[0].check2 = check2;
     _segments[0].check3 = check3;
     if (text != "") {
-        _segments[0].name = new char[text.length() + 1];
-        strncpy(_segments[0].name, text.c_str(), text.length() + 1);
+        // Not setName(): that caps the name at WLED_MAX_SEGNAME_LEN, and the
+        // Scrolling Text effect takes its message from here. malloc, not
+        // new[], because ~Segment free()s it.
+        _segments[0].name = strdup(text.c_str());
     }
     _segments[0].refreshLightCapabilities();
 
@@ -564,8 +583,13 @@ WS2812FXExt::WS2812FXExt(PixelOverlayModel* m, int map, int b,
     */
 
     panel.push_back(p);
-    pushCurrent(this);
+    // Already current (pushed at the top). This used to push a second time,
+    // which made the strip its own parent: the two pops that followed (here
+    // and in the caller) left it current on this thread forever, dangling
+    // once the effect was deleted, and clearInstance() then looped on it.
     finalizeInit();
+    ownMaxWidth = Segment::maxWidth;
+    ownMaxHeight = Segment::maxHeight;
     popCurrent();
 }
 
@@ -591,10 +615,22 @@ void WS2812FXExt::clearInstance() {
     }
 }
 
+std::recursive_mutex& WS2812FXExt::lock() {
+    static std::recursive_mutex m;
+    return m;
+}
+
 void WS2812FXExt::pushCurrent(WS2812FXExt* e) {
     if (e) {
         e->parent = currentStrip;
         currentStrip = e;
+        if (e->ownMaxWidth) {
+            // Another strip's construction may have reset the shared matrix
+            // geometry since this one was built; setPixelColorXY() indexes
+            // with it.
+            Segment::maxWidth = e->ownMaxWidth;
+            Segment::maxHeight = e->ownMaxHeight;
+        }
     } else if (currentStrip) {
         currentStrip = currentStrip->parent;
     }
@@ -803,7 +839,7 @@ um_data_t* WS2812FXExt::getAudioSamples(int simulationId) {
         processSamples(samples, sampleRate);
     } else {
         // arrays
-        auto ms = GetTimeMS();
+        auto ms = GetMonotonicTimeMS();
 
         switch (simulationId) {
         default:

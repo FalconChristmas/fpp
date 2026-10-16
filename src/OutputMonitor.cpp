@@ -412,6 +412,7 @@ void OutputMonitor::Cleanup() {
     eFuseRetries.clear();
     for (auto pi : portPins) {
         if (pi) {
+            clearReceiverWarnings(pi);
             delete pi;
         }
     }
@@ -622,6 +623,10 @@ void OutputMonitor::RemovePortConfiguration(int port, const Json::Value& config)
         // port would take processRetries() through a null eFusePin/enablePin.
         // The timer stops itself once the list empties.
         eFuseRetries.remove(pi);
+        // reset() also drops each receiver's stored warning text, which is
+        // the only handle RemoveWarning() can match on -- take the eFuse and
+        // pixel-count banners down first or they outlive the port.
+        clearReceiverWarnings(pi);
         pi->reset();
     }
 }
@@ -793,7 +798,9 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
         pi->receivers[0].isOn = outputsEnabled && pi->receivers[0].enabled;
         portPins[port] = pi;
     } else if (pinConfig.isMember("falconV5Listener")) {
-        int mr = -1;
+        // Rows are 1-based (the page addresses them with nth-child), so a cape
+        // with no monitored local ports still starts its first block on row 1.
+        int mr = 0;
         bool hasSR = false;
         for (auto a : portPins) {
             if (a) {
@@ -802,7 +809,16 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
             }
         }
 
-        int col = (portPins.empty() || portPins.back() == nullptr) ? 1 : portPins.back()->col;
+        // A new block goes beside the previous block, so the column comes from
+        // the last receiver port before this one.  Not portPins.back(): the
+        // resize above just made that this port's own, still unplaced, slot.
+        int col = 1;
+        for (int p = port - 1; p >= 0; --p) {
+            if (portPins[p] && portPins[p]->isSmartReceiver) {
+                col = portPins[p]->col;
+                break;
+            }
+        }
 
         pi->isSmartReceiver = true;
         pi->group = -1;
@@ -827,7 +843,12 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
         }
         for (int x = 1; x < 4; x++) {
             std::string name = "Port " + std::to_string(port + 1 + x);
-            pi = new PortPinInfo();
+            // after a reload the slot still holds the entry the last
+            // configuration placed, reset by RemovePortConfiguration()
+            pi = portPins[port + x];
+            if (!pi) {
+                pi = new PortPinInfo();
+            }
             pi->setConfig(name, pinConfig);
             if (pi->row == -1) {
                 pi->row = mr;
@@ -838,6 +859,7 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
             portPins[port + x] = pi;
         }
     } else {
+        clearReceiverWarnings(pi);
         if (portPins[port] == pi) {
             pi->reset();
         } else {
@@ -997,6 +1019,14 @@ void OutputMonitor::clearEFuseWarning(PortPinInfo* port, int rec) {
         port->receivers[rec].retryCount = 0;
     }
 }
+// Every receiver's warning (eFuse trip or pixel-count mismatch, both id 16)
+// is retracted by its stored text, so a PortPinInfo must not be reset or
+// deleted while one is still up.  gpioLock must be held exclusively.
+void OutputMonitor::clearReceiverWarnings(PortPinInfo* port) {
+    for (int r = 0; r < 6; r++) {
+        clearEFuseWarning(port, r);
+    }
+}
 bool OutputMonitor::checkEFuseRetry(PortPinInfo* port) {
     if (port && port->receivers[0].retryCount < eFuseRetryCount) {
         LogDebug(VB_CHANNELOUT, "eFuse triggered for %s.  Attempting reset retry #%d\n", port->name.c_str(), port->receivers[0].retryCount + 1);
@@ -1015,12 +1045,18 @@ bool OutputMonitor::checkEFuseRetry(PortPinInfo* port) {
 }
 void OutputMonitor::processRetries() {
     std::unique_lock<std::shared_mutex> lock(gpioLock);
-    long long ft = GetTimeMS();
+    long long ft = GetMonotonicTimeMS(); // retry timing: must not step with the wall clock
     std::list<PortPinInfo*> toRemove;
     for (auto p : eFuseRetries) {
         if (!p->eFusePin || !p->enablePin) {
             // A port with an eFuse but no enable pin has no way to retry, and
             // a port reset by a config reload has neither.
+            toRemove.push_back(p);
+        } else if (!p->receivers[0].isOn) {
+            // Turned off (Outputs Off, or the port switched off) while it was
+            // retrying.  Pulsing the enable pin now would power it back up
+            // behind the user's back, and leave it on with isOn false, where
+            // a later trip is ignored.
             toRemove.push_back(p);
         } else if (p->eFusePin->getValue() == p->eFuseOKValue) {
             p->receivers[0].okCount++;

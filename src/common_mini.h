@@ -29,6 +29,12 @@
 long long GetTime();
 long long GetTimeMicros();
 long long GetTimeMS();
+// Milliseconds on a clock that never steps (CLOCK_MONOTONIC), for measuring
+// durations.  GetTimeMS() is the wall clock: an NTP or RTC correction moves it
+// by hours or years, and a timer built on it then fires early or never.
+long long GetMonotonicTimeMS();
+// The same clock in microseconds.
+long long GetMonotonicTimeMicros();
 std::string GetTimeStr(std::string fmt);
 std::string GetDateStr(std::string fmt);
 
@@ -128,6 +134,10 @@ std::string toLowerCopy(const std::string& str);
 // Tools for getting settings directly from the settings file
 // Most programs should use the utilities in settings.h, but
 // for boot utilities, these are quicker and have less dependencies
+// The media directory the raw settings helpers below (and fppinit) work in:
+// $FPP_MEDIA_DIR when set and non-empty, else /home/fpp/media.  Lets a test
+// point fppinit at a media directory of its own.
+const std::string& getRawMediaDir();
 bool getRawSetting(const std::string& str, std::string& value);
 int getRawSettingInt(const std::string& str, int def);
 void setRawSetting(const std::string& str, const std::string& value);

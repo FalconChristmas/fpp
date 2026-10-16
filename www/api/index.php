@@ -41,6 +41,7 @@ dispatch_get('/channel/input/stats', 'channel_input_get_stats');
 dispatch_delete('/channel/input/stats', 'channel_input_delete_stats');
 dispatch_get('/channel/output/processors', 'channel_get_output_processors');
 dispatch_post('/channel/output/processors', 'channel_save_output_processors');
+dispatch_get('/channel/output/serialDevices', 'channel_get_serial_devices');
 dispatch_get('/channel/output/:file', 'channel_get_output');
 dispatch_post('/channel/output/:file', 'channel_save_output');
 

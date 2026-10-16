@@ -23,6 +23,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <ctime>
 #include <cstdio>
 #include <cstring>
@@ -58,6 +59,19 @@ constexpr int kNoCardSettleMs = 150;
 // dead until fppd restarts, so retrying hard would only fill the log.
 constexpr int kKeepOpenRetryMs = 30000;
 
+// The card clock (see DisciplineClock()).  How often the card's position is
+// read, how much of its history the rate is fitted over, how fast a phase
+// error is closed, and how far the clock may be pushed off the system's.
+constexpr int kClockSampleMs = 250;
+constexpr double kClockWindowS = 120.0;
+constexpr double kClockMinFitS = 4.0;
+constexpr double kClockPhaseGain = 1.0 / 20.0;   // per second of error, per second
+constexpr double kClockMaxPhaseSlew = 500e-6;
+constexpr double kClockMaxOffset = 2000e-6;
+// A jump this big in the card's position is a restart or an xrun, not drift:
+// start again from it rather than chase it.
+constexpr double kClockMaxPhaseError = 0.050;
+
 std::mutex s_slotsLock;
 std::array<PipeWireOutputStream*, StreamSlotManager::MAX_SLOTS + 1> s_slots{};
 
@@ -65,12 +79,16 @@ std::mutex s_workerLock;
 std::condition_variable s_workerWake;
 std::thread s_worker;
 bool s_workerRunning = false;
+// Set by ShutdownAll() and never cleared: a ForSlot() racing it (a prewarm, a
+// settings listener) must not start a worker again, let alone assign a new
+// std::thread over the one ShutdownAll() is joining.
+bool s_workerShutDown = false;
 bool s_workerKick = false;
 
 std::atomic<bool> s_keepOpen{ false };
 
 uint64_t NowMs() {
-    return (uint64_t)GetTimeMS();
+    return (uint64_t)GetMonotonicTimeMS(); // holds and timeouts: must not step with the wall clock
 }
 }
 
@@ -88,7 +106,7 @@ PipeWireOutputStream* PipeWireOutputStream::ForSlot(int slot) {
     }
     {
         std::unique_lock<std::mutex> wlock(s_workerLock);
-        if (!s_workerRunning) {
+        if (!s_workerRunning && !s_workerShutDown) {
             s_workerRunning = true;
             s_worker = std::thread(WorkerLoop);
         }
@@ -107,6 +125,7 @@ void PipeWireOutputStream::Prewarm(int slot, int holdMs) {
         s->m_wantTarget = target;
         s->m_holdUntilMs = std::max(s->m_holdUntilMs, NowMs() + (uint64_t)std::max(holdMs, 0));
         s->m_wantOpen = true;
+        s->ForgetFailureLocked();
     }
     WakeWorker();
 }
@@ -136,16 +155,19 @@ std::string PipeWireOutputStream::CapsFields() {
 }
 
 void PipeWireOutputStream::ShutdownAll() {
+    std::thread worker;
     {
         std::unique_lock<std::mutex> wlock(s_workerLock);
+        s_workerShutDown = true;
         if (!s_workerRunning) {
             return;
         }
         s_workerRunning = false;
+        worker = std::move(s_worker);
     }
     s_workerWake.notify_all();
-    if (s_worker.joinable()) {
-        s_worker.join();
+    if (worker.joinable()) {
+        worker.join();
     }
     std::unique_lock<std::mutex> lock(s_slotsLock);
     for (PipeWireOutputStream* s : s_slots) {
@@ -164,8 +186,18 @@ void PipeWireOutputStream::Acquire(const std::string& target) {
         m_users++;
         m_wantTarget = target;
         m_wantOpen = true;
+        ForgetFailureLocked();
     }
     WakeWorker();
+}
+
+// A failure belongs to the attempt that made it.  Left in place, the next
+// track's WaitReady() returned on it at once while the worker was already
+// opening the stream again, and the head of that track went nowhere.
+void PipeWireOutputStream::ForgetFailureLocked() {
+    if (m_state == State::Failed) {
+        m_state = State::Closed;
+    }
 }
 
 void PipeWireOutputStream::Release(GstElement* feed) {
@@ -220,12 +252,15 @@ void PipeWireOutputStream::WaitDrained(int maxMs) {
 }
 
 bool PipeWireOutputStream::WaitReady(int timeoutMs) {
+    // Ready only counts on the target asked for: a stream still Ready on the
+    // previous sink is about to be closed and reopened by the worker.
     std::unique_lock<std::mutex> lock(m_lock);
-    m_stateChanged.wait_for(lock, std::chrono::milliseconds(timeoutMs), [this] {
-        return m_state == State::Ready || m_state == State::Failed ||
+    auto readyHere = [this] { return m_state == State::Ready && m_target == m_wantTarget; };
+    m_stateChanged.wait_for(lock, std::chrono::milliseconds(timeoutMs), [this, &readyHere] {
+        return readyHere() || m_state == State::Failed ||
                (m_state == State::Closed && !m_wantOpen);
     });
-    return m_state == State::Ready;
+    return readyHere();
 }
 
 int64_t PipeWireOutputStream::LatencyNs() {
@@ -287,7 +322,7 @@ GstFlowReturn PipeWireOutputStream::OnFeedSample(GstElement* appsink, gpointer u
             ours = false;
         }
         if (ours) {
-            // Both pipelines run on the system clock, so a buffer's running
+            // Both pipelines run on the card clock, so a buffer's running
             // time in the feeding pipeline maps onto ours through the two base
             // times.  The sink doesn't sync on it (the feed already paced the
             // buffer); it is carried for PipeWire's own bookkeeping.
@@ -338,6 +373,7 @@ void PipeWireOutputStream::WorkerLoop() {
         uint64_t now = NowMs();
         for (PipeWireOutputStream* s : slots) {
             if (s) {
+                s->DisciplineClock();
                 s->Service(now);
                 std::unique_lock<std::mutex> slock(s->m_lock);
                 anyOpening |= (s->m_state == State::Opening);
@@ -536,11 +572,12 @@ bool PipeWireOutputStream::OpenLocked(std::unique_lock<std::mutex>& lock) {
     bool cardWasRunning = !cardStatus.empty() &&
                           GetFileContents(cardStatus).find("state: RUNNING") != std::string::npos;
 
-    // The system clock, like every pipeline feeding this one (see the note in
+    // The card clock, like every pipeline feeding this one, so that the base
+    // times OnFeedSample() maps between are on one clock (see the note in
     // Service() on why not pipewiresink's own).
-    GstClock* sysClock = gst_system_clock_obtain();
-    gst_pipeline_use_clock(GST_PIPELINE(pipeline), sysClock);
-    gst_object_unref(sysClock);
+    GstClock* clock = Clock();
+    gst_pipeline_use_clock(GST_PIPELINE(pipeline), clock);
+    gst_object_unref(clock);
 
     uint64_t started = NowMs();
     GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
@@ -587,9 +624,7 @@ void PipeWireOutputStream::PushSilenceLocked(int ms) {
     size_t frames = (size_t)m_rate * ms / 1000;
     GstBuffer* buf = gst_buffer_new_and_alloc(frames * kBytesPerFrame);
     gst_buffer_memset(buf, 0, 0, frames * kBytesPerFrame);
-    GstClock* clock = gst_system_clock_obtain();
-    GstClockTime now = gst_clock_get_time(clock);
-    gst_object_unref(clock);
+    GstClockTime now = gst_clock_get_time(m_clock);
     GstClockTime base = gst_element_get_base_time(m_pipeline);
     GST_BUFFER_PTS(buf) = now > base ? now - base : 0;
     GST_BUFFER_DURATION(buf) = gst_util_uint64_scale(frames, GST_SECOND, m_rate);
@@ -621,6 +656,162 @@ bool PipeWireOutputStream::StreamLinked() {
     return linked;
 }
 
+// ---------------------------------------------------------------------------
+// The card clock
+//
+// Nothing in this stream resamples: PipeWire takes the stream's samples at
+// the card's pace, which is whatever the card's crystal makes it -- 432 ppm
+// fast on an AM62x I2S cape, 47 ppm slow on a Pi 5 HAT, tens of ppm either way
+// for USB.  A feed paced by the system clock delivers at the system's pace
+// instead.  A fast card then drains the stream's cushion (one quantum) and
+// plays a quantum of silence: on the 432 ppm cape, 12 ms every 27 s.  A slow
+// one builds a queue that delays the sound further behind the lights for as
+// long as the stream is fed.
+//
+// So every pipeline feeding the stream runs on this clock, which is held to
+// the card.  Its rate is fitted to the card's own hardware pointer (hw_ptr in
+// /proc/asound/.../status, which ALSA updates from the DMA position when the
+// file is read) against CLOCK_MONOTONIC, the clock's internal time, over the
+// last two minutes.  On top of that, any accumulated phase error is closed
+// over ~20 s, so the queue between the feed and the card stays where it
+// started instead of wandering with every error in the fit.  The media
+// position the lights follow comes from the feed, so it is card time too;
+// ClockRate() lets the channel output thread run its frames at the same pace.
+//
+// Without a card (a group of network sinks) the clock is left at the system
+// rate.
+// ---------------------------------------------------------------------------
+
+GstClock* PipeWireOutputStream::Clock() {
+    std::unique_lock<std::mutex> lock(m_lock);
+    if (!m_clock) {
+        std::string name = "fpp-card-clock-" + std::to_string(m_slot);
+        m_clock = GST_CLOCK(g_object_new(GST_TYPE_SYSTEM_CLOCK, "name", name.c_str(),
+                                         "clock-type", GST_CLOCK_TYPE_MONOTONIC, NULL));
+        gst_object_ref_sink(m_clock);
+    }
+    return GST_CLOCK(gst_object_ref(m_clock));
+}
+
+void PipeWireOutputStream::ResetClockSyncLocked() {
+    m_syncAnchored = false;
+    m_syncWindow.clear();
+}
+
+static bool ReadCardPosition(const std::string& path, int64_t& hw) {
+    std::string status = GetFileContents(path);
+    if (status.find("state: RUNNING") == std::string::npos) {
+        return false;
+    }
+    std::size_t p = status.find("hw_ptr");
+    if (p == std::string::npos || (p = status.find(':', p)) == std::string::npos) {
+        return false;
+    }
+    hw = strtoll(status.c_str() + p + 1, nullptr, 10);
+    return true;
+}
+
+void PipeWireOutputStream::DisciplineClock() {
+    std::string path;
+    {
+        std::unique_lock<std::mutex> lock(m_lock);
+        if (!m_clock || m_state != State::Ready || m_cardStatusPath.empty()) {
+            ResetClockSyncLocked();
+            return;
+        }
+        GstClockTime nowInt = gst_clock_get_internal_time(m_clock);
+        if (m_syncAnchored && nowInt - m_syncLastInt < (GstClockTime)kClockSampleMs * GST_MSECOND) {
+            return;
+        }
+        path = m_cardStatusPath;
+        if (path != m_syncPath) {
+            // Another card: what was learnt about the last one doesn't apply.
+            m_syncPath = path;
+            m_syncCardRate = 0;
+            m_clockRate = 1.0;
+            ResetClockSyncLocked();
+        }
+    }
+    if (m_syncCardRate <= 0) {
+        std::string hwParams = path.substr(0, path.rfind('/')) + "/hw_params";
+        std::string text = GetFileContents(hwParams);
+        std::size_t p = text.find("rate:");
+        m_syncCardRate = p == std::string::npos ? 0 : atoi(text.c_str() + p + 5);
+        if (m_syncCardRate <= 0) {
+            return;
+        }
+    }
+    // The card's position and the clock's internal time, as close together
+    // as they can be read: the midpoint of the read.
+    GstClockTime before = gst_clock_get_internal_time(m_clock);
+    int64_t hw = 0;
+    bool running = ReadCardPosition(path, hw);
+    GstClockTime after = gst_clock_get_internal_time(m_clock);
+    GstClockTime internal = before + (after - before) / 2;
+
+    std::unique_lock<std::mutex> lock(m_lock);
+    if (path != m_cardStatusPath || m_state != State::Ready) {
+        return;
+    }
+    if (!running) {
+        ResetClockSyncLocked();
+        return;
+    }
+    GstClockTime cInt, cExt, num, den;
+    gst_clock_get_calibration(m_clock, &cInt, &cExt, &num, &den);
+    GstClockTime external = gst_clock_adjust_with_calibration(m_clock, internal, cInt, cExt, num, den);
+
+    double cardS = m_syncAnchored ? (double)(hw - m_syncHw0) / m_syncCardRate : 0.0;
+    double clockS = m_syncAnchored ? (double)(GstClockTimeDiff)(external - m_syncExt0) / GST_SECOND : 0.0;
+    double phase = cardS - clockS;  // > 0: the card is ahead of the clock
+    if (!m_syncAnchored || hw < m_syncLastHw || std::fabs(phase) > kClockMaxPhaseError) {
+        if (m_syncAnchored) {
+            LogDebug(VB_MEDIAOUT, "PipeWire output stream %d: card clock re-anchored (phase %.1f ms)\n",
+                     m_slot, phase * 1000.0);
+        }
+        // Start (again) from here, keeping the rate learnt so far.
+        m_syncAnchored = true;
+        m_syncHw0 = hw;
+        m_syncInt0 = internal;
+        m_syncExt0 = external;
+        m_syncWindow.clear();
+        cardS = clockS = phase = 0.0;
+    }
+    m_syncLastHw = hw;
+    m_syncLastInt = internal;
+
+    double intS = (double)(internal - m_syncInt0) / GST_SECOND;
+    m_syncWindow.emplace_back(intS, cardS);
+    while (m_syncWindow.size() > 2 && intS - m_syncWindow.front().first > kClockWindowS) {
+        m_syncWindow.pop_front();
+    }
+    double rate = m_clockRate.load(std::memory_order_relaxed);
+    if (intS - m_syncWindow.front().first >= kClockMinFitS) {
+        double mx = 0, my = 0;
+        for (auto& [x, y] : m_syncWindow) {
+            mx += x;
+            my += y;
+        }
+        mx /= m_syncWindow.size();
+        my /= m_syncWindow.size();
+        double sxy = 0, sxx = 0;
+        for (auto& [x, y] : m_syncWindow) {
+            sxy += (x - mx) * (y - my);
+            sxx += (x - mx) * (x - mx);
+        }
+        if (sxx > 0) {
+            rate = std::clamp(sxy / sxx, 1.0 - kClockMaxOffset, 1.0 + kClockMaxOffset);
+            m_clockRate = rate;
+        }
+    }
+    double applied = rate + std::clamp(phase * kClockPhaseGain, -kClockMaxPhaseSlew, kClockMaxPhaseSlew);
+    applied = std::clamp(applied, 1.0 - kClockMaxOffset, 1.0 + kClockMaxOffset);
+    // Continuous at `internal`: only the rate from here on changes.
+    gst_clock_set_calibration(m_clock, internal, external, (GstClockTime)llround(applied * 1e9), 1000000000ULL);
+    LogExcess(VB_MEDIAOUT, "PipeWire output stream %d: card %+.1f ppm, phase %+.2f ms, clock %+.1f ppm\n",
+              m_slot, (rate - 1.0) * 1e6, phase * 1000.0, (applied - 1.0) * 1e6);
+}
+
 bool PipeWireOutputStream::CardRunning() {
     if (m_cardStatusPath.empty()) {
         return false;
@@ -649,7 +840,10 @@ void PipeWireOutputStream::CloseLocked(const char* why) {
     m_queuedUntilUs = 0;
     m_pipeline = nullptr;
     m_src = nullptr;
-    m_feed = nullptr;
+    // m_feed stays: it belongs to the track using the slot (AttachFeed() /
+    // Release()), not to this stream.  Clearing it here orphaned a track
+    // whose start triggered a reopen -- a new target -- and the whole track
+    // played silent.  Its samples are dropped while there is no m_src.
     m_target.clear();
     m_linked = false;
     m_state = State::Closed;

@@ -251,12 +251,23 @@ void setupApache() {
     if (!FileExists(HTPWD)) {
         PutFileContents(HTPWD, "");
     }
+    // Apache sends /api's CORS headers while this file exists; www's
+    // SetupCrossOriginAPI() keeps it in step when the setting changes.
+    static const std::string CROSSORIGIN = FPP_MEDIA_DIR + "/config/api-cross-origin";
+    std::string allow;
+    if (getRawSetting("AllowCrossOriginAPI", allow) && allow == "1") {
+        if (!FileExists(CROSSORIGIN)) {
+            PutFileContents(CROSSORIGIN, "Written by FPP for the AllowCrossOriginAPI setting\n");
+        }
+    } else if (FileExists(CROSSORIGIN)) {
+        unlink(CROSSORIGIN.c_str());
+    }
     /*     if (!FileExists("/opt/fpp/www/proxy/.htaccess")) {
             printf("Creating proxy .htaccess link\n");
-            if (!FileExists("/home/fpp/media/config/proxies")) {
-                PutFileContents("/home/fpp/media/config/proxies", "");
+            if (!FileExists(FPP_MEDIA_DIR + "/config/proxies")) {
+                PutFileContents(FPP_MEDIA_DIR + "/config/proxies", "");
             }
-            symlink("/home/fpp/media/config/proxies", "/opt/fpp/www/proxy/.htaccess");
+            symlink((FPP_MEDIA_DIR + "/config/proxies").c_str(), "/opt/fpp/www/proxy/.htaccess");
         } */
 }
 
@@ -1236,6 +1247,12 @@ void migrateRemoteCommands() {
     }
 }
 
+// Touched by a restore (www/backup.php, www/copystorage.php).  It asks for
+// the part of a reflash's reconciliation a restore needs -- the restored
+// userpackages.json installed, the restored settings migrated -- and not the
+// rest: the OS and the plugins built for it are still this box's.
+static const char* FPP_RESTORED_MARKER = "/fpp_restored";
+
 // Config-state migrations that must survive an FPPOS reflash, gated on the
 // same /fppos_upgraded marker as checkInstallPackages() (touched by
 // upgradeOS-part2.sh, which is always sourced from the target image being
@@ -1246,7 +1263,7 @@ void migrateRemoteCommands() {
 // here is written to be safely idempotent, so simply re-running on a later
 // boot is harmless. Add future OS-upgrade-surviving config migrations here.
 void checkConfigMigrations() {
-    if (FileExists("/fppos_upgraded")) {
+    if (FileExists("/fppos_upgraded") || FileExists(FPP_RESTORED_MARKER)) {
         migrateMultiSyncDefaultToMulticast();
     }
 }
@@ -1330,7 +1347,15 @@ static void resetPluginSourceAfterOS() {
 }
 
 void checkInstallPackages() {
-    if (FileExists("/fppos_upgraded")) {
+    bool reflashed = FileExists("/fppos_upgraded");
+    if (!reflashed && !FileExists(FPP_RESTORED_MARKER)) {
+        return;
+    }
+    if (reflashed) {
+        // Only a reflash: a restore keeps this OS, so whatever an unknown
+        // plugin's install did to it is still there, and the plugins on
+        // disk were built for it (a File Copy that brings plugins in asks
+        // for their reinstall itself, in copystorage.php).
         resetPluginSourceAfterOS();
         // An FPPOS reflash replaces /opt/fpp (new fppd, headers, plugin API
         // version) while /home/fpp/media -- including the plugin clones -- is
@@ -1348,17 +1373,18 @@ void checkInstallPackages() {
         if (anyPluginsInstalled()) {
             setRawSetting("pluginReinstallNeededAfterOS", "1");
         }
+    }
 
-        printf("Installing User Packages\n");
-        // Only consume the upgrade marker once the packages actually installed.
-        // If the install can't complete (e.g. no network yet at boot), leave
-        // /fppos_upgraded in place so it is retried on the next boot rather than
-        // silently never reinstalling the user's packages.
-        if (installPackagesFromJson("/home/fpp/media/config/userpackages.json")) {
-            unlink("/fppos_upgraded");
-        } else {
-            printf("User package install incomplete - leaving /fppos_upgraded set to retry next boot\n");
-        }
+    printf("Installing User Packages\n");
+    // Only consume the markers once the packages actually installed. If the
+    // install can't complete (e.g. no network yet at boot), leave them in
+    // place so it is retried on the next boot rather than silently never
+    // reinstalling the user's packages.
+    if (installPackagesFromJson(FPP_MEDIA_DIR + "/config/userpackages.json")) {
+        unlink("/fppos_upgraded");
+        unlink(FPP_RESTORED_MARKER);
+    } else {
+        printf("User package install incomplete - leaving the upgrade/restore marker set to retry next boot\n");
     }
 }
 void startZRAMSwap() {
@@ -1742,24 +1768,88 @@ void setupWifiAntennaConfig(bool rebootIfChanged) {
 #endif
 }
 
+// The 64-bit Pi images keep the Pi 5's 16K-page kernel, and its modules, but
+// park the kernel under a name the firmware never loads; a Pi 5 would otherwise
+// prefer kernel_2712.img over the 4K-page kernel8.img.  The developer-level
+// Pi16KPageKernel setting copies it back into place.  The 32-bit images, images
+// from before this, and stock Raspberry Pi OS installs have no parked copy, and
+// are left alone.
+//
+// Runs at every boot as well as from the UI: an FPPOS upgrade replaces the boot
+// partition, which drops the active copy, and the boot pass puts it back.
+void setup16KPageKernel(bool rebootIfChanged) {
+#ifdef PLATFORM_PI
+    static const std::string ACTIVE = "/boot/firmware/kernel_2712.img";
+    static const std::string PARKED = "/boot/firmware/kernel_2712.img.fpp-disabled";
+    if (!FileExists(PARKED)) {
+        return;
+    }
+    bool want = getRawSettingInt("Pi16KPageKernel", 0) != 0;
+    bool have = FileExists(ACTIVE);
+    std::error_code ec;
+    if (want && !have) {
+        // Copy to a temporary name first so a power cut mid-copy can't leave a
+        // truncated kernel_2712.img for the firmware to boot.
+        std::string tmp = ACTIVE + ".tmp";
+        std::filesystem::copy_file(PARKED, tmp, std::filesystem::copy_options::overwrite_existing, ec);
+        if (!ec) {
+            std::filesystem::rename(tmp, ACTIVE, ec);
+        }
+        if (ec) {
+            printf("FPP - Could not enable the 16K-page kernel: %s\n", ec.message().c_str());
+            std::filesystem::remove(tmp, ec);
+            return;
+        }
+        printf("FPP - Enabled the 16K-page kernel\n");
+    } else if (!want && have) {
+        // Park the active copy rather than deleting it: it is the one that
+        // matches the 16K module tree, should anything have updated it.
+        std::filesystem::rename(ACTIVE, PARKED, ec);
+        if (ec) {
+            printf("FPP - Could not disable the 16K-page kernel: %s\n", ec.message().c_str());
+            return;
+        }
+        printf("FPP - Disabled the 16K-page kernel\n");
+    } else {
+        return;
+    }
+    sync();
+    // Only the Pi 5 family loads kernel_2712.img; elsewhere the change is inert.
+    if (rebootIfChanged && isPi5()) {
+        printf("\n\nRebooting to load new settings.\n\n");
+        exec("/usr/sbin/reboot");
+    }
+#endif
+}
+
 void setupChannelOutputs() {
 #ifdef PLATFORM_PI
     bool hasDPI = false;
     bool hasRPIMatrix = false;
     Json::Value v;
-    if (FileExists("/home/fpp/media/config/channeloutputs.json")) {
-        if (LoadJsonFromString(GetFileContents("/home/fpp/media/config/channeloutputs.json"), v)) {
-            for (int x = 0; x < v["channelOutputs"].size(); x++) {
-                if (v["channelOutputs"][x]["subType"].asString() == "RGBMatrix" && v["channelOutputs"][x]["enabled"].asInt() == 1) {
+    // Both files are read on every boot, and fppinit has no one to restart it:
+    // an entry with a field of the wrong JSON type is skipped, not thrown on.
+    auto isOutput = [](const Json::Value& co) {
+        return co.isObject() && co["type"].isConvertibleTo(Json::stringValue) &&
+               co["subType"].isConvertibleTo(Json::stringValue) && co["enabled"].isConvertibleTo(Json::intValue);
+    };
+    if (FileExists(FPP_MEDIA_DIR + "/config/channeloutputs.json")) {
+        if (LoadJsonFromString(GetFileContents(FPP_MEDIA_DIR + "/config/channeloutputs.json"), v, JsonRoot::Object)) {
+            const Json::Value& cos = v["channelOutputs"];
+            for (Json::ArrayIndex x = 0; cos.isArray() && x < cos.size(); x++) {
+                if (isOutput(cos[x]) && cos[x]["subType"].asString() == "RGBMatrix" && cos[x]["enabled"].asInt() == 1) {
                     hasRPIMatrix = true;
                 }
             }
         }
     }
-    if (FileExists("/home/fpp/media/config/co-pixelStrings.json")) {
-        if (LoadJsonFromString(GetFileContents("/home/fpp/media/config/co-pixelStrings.json"), v)) {
+    if (FileExists(FPP_MEDIA_DIR + "/config/co-pixelStrings.json")) {
+        if (LoadJsonFromString(GetFileContents(FPP_MEDIA_DIR + "/config/co-pixelStrings.json"), v, JsonRoot::Object)) {
             bool migrated = false;
-            for (int x = 0; x < v["channelOutputs"].size(); x++) {
+            for (Json::ArrayIndex x = 0; v["channelOutputs"].isArray() && x < v["channelOutputs"].size(); x++) {
+                if (!isOutput(v["channelOutputs"][x])) {
+                    continue;
+                }
                 if (v["channelOutputs"][x]["type"].asString() == "RPIWS281X") {
                     // The RPIWS281X driver has been removed.  DPI drives the same pins without
                     // conflicting with the onboard audio, so migrate the config to DPIPixels.
@@ -1775,9 +1865,11 @@ void setupChannelOutputs() {
                         // The rPi-28D's third output was ws2801 over SPI which DPI cannot drive.
                         // The 4 output variant drives CN1's clock and data pins as WS281x instead.
                         v["channelOutputs"][x]["subType"] = "rPi-28D-DPIPixels-4";
-                        for (int o = 0; o < v["channelOutputs"][x]["outputs"].size(); o++) {
-                            if (v["channelOutputs"][x]["outputs"][o]["protocol"].asString() == "ws2801") {
-                                v["channelOutputs"][x]["outputs"][o]["protocol"] = "ws2811";
+                        Json::Value& outputs = v["channelOutputs"][x]["outputs"];
+                        for (Json::ArrayIndex o = 0; outputs.isArray() && o < outputs.size(); o++) {
+                            if (outputs[o].isObject() && outputs[o]["protocol"].isString() &&
+                                outputs[o]["protocol"].asString() == "ws2801") {
+                                outputs[o]["protocol"] = "ws2811";
                             }
                         }
                     }
@@ -1788,7 +1880,7 @@ void setupChannelOutputs() {
                 }
             }
             if (migrated) {
-                PutFileContents("/home/fpp/media/config/co-pixelStrings.json", SaveJsonToString(v));
+                PutFileContents(FPP_MEDIA_DIR + "/config/co-pixelStrings.json", SaveJsonToString(v));
             }
         }
     }
@@ -1915,9 +2007,9 @@ static bool setNamedGPIO(const std::string& pin, int val) {
 }
 
 void handleRebootActions() {
-    if (FileExists("/home/fpp/media/tmp/cape-info.json")) {
+    if (FileExists(FPP_MEDIA_DIR + "/tmp/cape-info.json")) {
         Json::Value v;
-        if (LoadJsonFromString(GetFileContents("/home/fpp/media/tmp/cape-info.json"), v)) {
+        if (LoadJsonFromString(GetFileContents(FPP_MEDIA_DIR + "/tmp/cape-info.json"), v)) {
             if (v.isMember("rebootActions")) {
                 for (const auto& action : v["rebootActions"]) {
                     if (action["type"].asString() == "gpio") {

@@ -10,6 +10,7 @@
 - [MQTT.md](./MQTT.md) - Describes the topics supported by FPP for communicating via MQTT.
 - [Privacy Legitimate Interests Assessment](./Privacy_Legitimate_Interests_Assessment.md) - Records the Art 6(1)(f) basis FPP relies on for level 1 crash reports, and why the higher tiers rest on consent instead.
 - [DeveloperNotes.md](./DeveloperNotes.md) - Various developer topics including ASan, Valgrind, CCache, etc...
+- [Testing.md](./Testing.md) - The fppd runtime scenario suite (fpp-tests) and the Playwright UI tests: running them, and adding a scenario with each fix.
 - [WarningHandling.md](./WarningHandling.md) - Describes the warning framework and the steps required to define, set and display warning
 - [ApacheContentSecurityPolicy.md](./ApacheContentSecurityPolicy.md) - Describes the Apache2 CSP mechanism for trusting domains
 

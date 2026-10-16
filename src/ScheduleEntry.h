@@ -15,12 +15,22 @@
 #include "fpp-json.h"
 #include <time.h>
 #include <utility>
+#include <vector>
 
 #define SECONDS_PER_MINUTE 60
 #define SECONDS_PER_HOUR 3600
 #define SECONDS_PER_DAY 86400
 #define SECONDS_PER_WEEK 604800
 #define DAYS_PER_WEEK 7
+
+// Longest a scheduled FPP command may fire after its second has passed (a
+// stall, a clock step, a reload landing just after it).
+#define SCHEDULE_COMMAND_CATCHUP_S 60
+// How far ahead repeat-interval entries are expanded into occurrences.  The
+// schedule reloads every day, so two days always covers what can run; a full
+// schedule-distance expansion of a 5-minute repeat was hundreds of thousands
+// of items.
+#define SCHEDULE_REPEAT_HORIZON_S (2 * SECONDS_PER_DAY)
 
 // Values for ScheduleEntry::dayIndex
 #define INX_SUN 0
@@ -58,6 +68,35 @@
 #define INX_DAY_MASK_START_ODD 0x05500
 #define INX_DAY_MASK_START_EVEN 0x02A00
 
+// Warnings about the schedule's configuration (a bad time, an unknown
+// holiday, a missing playlist...).  Raised while the schedule is loaded or
+// expanded; ClearScheduleLoadWarnings() at the start of each load retracts the
+// previous set, so fixing and saving the schedule clears the banner and an
+// entry that was deleted stops warning.
+void ScheduleLoadWarning(int id, const std::string& msg);
+void ClearScheduleLoadWarnings();
+
+// While one of these is alive on a thread, ScheduleLoadWarning() on that
+// thread raises no banner and records nothing for ClearScheduleLoadWarnings();
+// the warnings are collected here instead.  For expanding the schedule outside
+// a load -- the calendar preview runs on an API thread over any range the
+// viewer browses to, and a far-future year past the lunar tables raised a
+// load warning that only the next schedule load would clear.
+class SchedulePreviewScope {
+public:
+    SchedulePreviewScope();
+    ~SchedulePreviewScope();
+    SchedulePreviewScope(const SchedulePreviewScope&) = delete;
+    SchedulePreviewScope& operator=(const SchedulePreviewScope&) = delete;
+
+    const std::vector<std::pair<int, std::string>>& warnings() const { return m_warnings; }
+
+private:
+    friend void ScheduleLoadWarning(int id, const std::string& msg);
+    std::vector<std::pair<int, std::string>> m_warnings;
+    SchedulePreviewScope* m_prev;
+};
+
 class ScheduleEntry {
 public:
     ScheduleEntry();
@@ -89,7 +128,9 @@ public:
     // entry's odd/even selection?  Meaningless for non-odd/even entries.
     bool IsOddEvenMatch(time_t dayTime) const;
 
-    void pushStartEndTimes(int day, int &delta, int deltaThreshold);
+    // 'now' is taken once per schedule load and passed to every call, so
+    // that every occurrence of the load is anchored to the same week.
+    void pushStartEndTimes(int day, int &delta, time_t deltaThreshold, time_t now);
 
     // Occurrence expansion anchored to an absolute calendar date rather than to
     // an offset from today.  pushStartEndTimes() can only ever describe the

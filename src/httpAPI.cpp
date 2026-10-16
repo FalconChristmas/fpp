@@ -24,11 +24,13 @@
 #include "fpphttp.h" // drogon/HTTP helpers used here; no longer pulled transitively (see fpphttp_types.h)
 #include "fpphttp_clientip.h" // getEffectiveClientIP() - FPP-internal, not in the plugin API
 #include "StatusWebSocket.h"
+#include <atomic>
 #include <fcntl.h>
+#include <signal.h>
 
 // Defined in fppd.cpp; setting it to 0 breaks the main loop and triggers
 // FPP's normal shutdown sequence, same as SIGQUIT or a graceful stop.
-extern volatile int runMainFPPDLoop;
+extern std::atomic_int runMainFPPDLoop;
 
 #ifdef PLATFORM_OSX
 #include <sys/sysctl.h>
@@ -92,8 +94,12 @@ extern volatile int runMainFPPDLoop;
 
 #include "httpAPI.h"
 
-static std::time_t startupTime = std::time(nullptr);
-static bool piPowerBad = false;
+// Monotonic, so the reported uptime survives a wall-clock step (NTP, an RTC
+// that boots in the past) instead of going negative or jumping by hours.
+static long long startupTimeMS = GetMonotonicTimeMS();
+// Read by status requests on the HTTP threads, written by periodicWork() on
+// the main loop.
+static std::atomic<bool> piPowerBad{ false };
 
 /*
  Build a Status JSON String
@@ -119,7 +125,7 @@ void GetCurrentFPPDStatus(Json::Value& result) {
     result["status"] = Player::INSTANCE.GetStatus();
     result["bridging"] = HasBridgeData();
     result["multisync"] = multiSync->isMultiSyncEnabled();
-    result["powerBad"] = piPowerBad;
+    result["powerBad"] = piPowerBad.load();
 
     result["channelInputsEnabled"] = InputsEnabled();
     result["channelOutputsEnabled"] = HasUniverseOutputs();
@@ -174,7 +180,7 @@ void GetCurrentFPPDStatus(Json::Value& result) {
     result["dateStr"] = GetDateStr(getSetting("DateFormat"));
 
     // FPPD process uptime (time since fppd started)
-    int totalseconds = (int)(std::time(nullptr) - startupTime);
+    int totalseconds = (int)((GetMonotonicTimeMS() - startupTimeMS) / 1000);
     int days = totalseconds / 86400;
     int hours = (totalseconds % 86400) / 3600;
     int minutes = (totalseconds % 3600) / 60;
@@ -289,10 +295,10 @@ void GetCurrentFPPDStatus(Json::Value& result) {
         //
         // Only the display fields move.  result["status"] deliberately stays
         // FPP_STATUS_IDLE, because the scheduler gates on it in eight places
-        // and both Player::StopNow() and Scheduler wait on
-        // `while (GetStatus() != FPP_STATUS_IDLE)`.  Those loops stop the
-        // playlist, not a slot, so reporting a slot as player activity would
-        // spin them forever.
+        // and Player::StopNowAllLevels() stops levels while
+        // `GetStatus() != FPP_STATUS_IDLE`.  It stops the playlist, not a
+        // slot, so reporting a slot as player activity would make it think
+        // a level was still playing.
         bool anyForeground = false, anyBackground = false;
         int lead = -1;
         for (Json::ArrayIndex i = 0; i < slots.size(); i++) {
@@ -711,7 +717,19 @@ void APIServer::Init(void) {
         // is by definition reached with a malformed name), so truncate before
         // logging rather than let a caller choose how many bytes of fppd.log a
         // single rejected request consumes.
-        if (name.empty() || name.find('/') != std::string::npos) {
+        // The name becomes a path under the plugin directory, so "." and ".."
+        // would name the plugin directory itself or the media directory above
+        // it.  Same rule as the PHP plugin API: ^[A-Za-z0-9_.-]+$, less those
+        // two.
+        bool validName = !name.empty() && name != "." && name != "..";
+        for (char c : name) {
+            if (!validName) {
+                break;
+            }
+            validName = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
+                        c == '_' || c == '.' || c == '-';
+        }
+        if (!validName) {
             LogWarn(VB_PLUGIN, "API - Rejected plugin %s request for invalid plugin name \"%s\" from %s\n",
                     TruncateForLog(action).c_str(), TruncateForLog(name).c_str(), clientIP.c_str());
             callback(makeStringResponse("{\"Status\":\"ERROR\",\"Message\":\"invalid plugin name\"}",
@@ -729,9 +747,22 @@ void APIServer::Init(void) {
         auto result = std::make_shared<std::promise<std::pair<bool, std::string>>>();
         auto done = result->get_future();
         Timers::INSTANCE.addTimer(timerName, GetTimeMS(), [result, name, load]() {
+            // This runs plugin code (constructor, registerApis, shutdown,
+            // destructor) on the main loop, where nothing else catches.
             std::string err;
-            bool ok = load ? PluginManager::INSTANCE.loadPlugin(name, err)
-                           : PluginManager::INSTANCE.unloadPlugin(name, err);
+            bool ok = false;
+            try {
+                ok = load ? PluginManager::INSTANCE.loadPlugin(name, err)
+                          : PluginManager::INSTANCE.unloadPlugin(name, err);
+            } catch (const std::exception& ex) {
+                err = std::string("plugin threw: ") + ex.what();
+                LogErr(VB_PLUGIN, "%s plugin \"%s\" threw: %s\n", load ? "Loading" : "Unloading",
+                       TruncateForLog(name).c_str(), ex.what());
+            } catch (...) {
+                err = "plugin threw a non-standard exception";
+                LogErr(VB_PLUGIN, "%s plugin \"%s\" threw a non-standard exception\n", load ? "Loading" : "Unloading",
+                       TruncateForLog(name).c_str());
+            }
             result->set_value({ ok, err });
         });
 
@@ -986,14 +1017,19 @@ void APIServer::Init(void) {
     app.setClientMaxBodySize(32 * 1024 * 1024);
     app.setClientMaxMemoryBodySize(4 * 1024 * 1024);
 
-    // Replace drogon's default SIGINT and SIGTERM handlers. Drogon's defaults
-    // only stop drogon's own threads, leaving fppd's main loop spinning.
-    // Drogon calls app().quit() itself before invoking these callbacks, so
-    // drogon is already stopping by the time the main loop sees
-    // runMainFPPDLoop == 0 and begins FPP's normal shutdown sequence.
-    auto fppShutdown = []() { runMainFPPDLoop = 0; };
-    app.setIntSignalHandler(fppShutdown);
-    app.setTermSignalHandler(fppShutdown);
+    // SIGINT and SIGTERM are FPP's, not drogon's. Drogon's handlers only stop
+    // drogon's own threads, leaving the main loop spinning, and they log (so
+    // allocate) and then run any callback given to them inside the signal
+    // handler: a signal landing in malloc could deadlock the shutdown. This
+    // handler only clears runMainFPPDLoop, a lock-free atomic. The main loop
+    // sees it and runs FPP's normal shutdown, which stops drogon from
+    // ~APIServer().
+    app.disableSigtermHandling();
+    struct sigaction stopAct = {};
+    stopAct.sa_handler = [](int) { runMainFPPDLoop = 0; };
+    sigemptyset(&stopAct.sa_mask);
+    sigaction(SIGINT, &stopAct, nullptr);
+    sigaction(SIGTERM, &stopAct, nullptr);
 
     // Register the /fppdws status push endpoint and its 1s change-poll timer.
     // The explicit call also keeps StatusWebSocket.o's controller
@@ -1468,7 +1504,7 @@ HttpResponsePtr PlayerResource::render_POST(const HttpRequestPtr& req) {
             // they survive a restart and stay in sync with the Logging settings
             // page (which reads/writes the LogLevel_* settings).
             for (FPPLoggerInstance* logger : FPPLogger::INSTANCE.allInstances()) {
-                setSetting("LogLevel_" + logger->name, LogLevelToString(logger->level), true);
+                setSetting("LogLevel_" + logger->name, LogLevelToString(FacilityLevel(*logger)), true);
             }
             WarningHolder::UpdateLogLevelWarnings();
             SetOKResult(result, "Log Level Updated");
@@ -1484,10 +1520,21 @@ HttpResponsePtr PlayerResource::render_POST(const HttpRequestPtr& req) {
     } else if (url == "schedule") {
         PostSchedule(data, result);
     } else if (url.find("volume/") == 0) {
-        int volume = atoi(url.substr(7).c_str());
-        setVolume(volume);
-        result["volume"] = volume;
-        SetOKResult(result, "Volume set");
+        // A whole number, or nothing changes: atoi() read garbage ("x", a
+        // number too big for an int) as 0 or -1, and that muted the show.
+        std::string v = url.substr(7);
+        char* endp = nullptr;
+        errno = 0;
+        long volume = strtol(v.c_str(), &endp, 10);
+        // the whole value must be digits: an embedded NUL ("%00") stops
+        // strtol() as if the string had ended
+        if (v.empty() || endp != v.c_str() + v.size() || errno == ERANGE) {
+            SetErrorResult(result, 400, "Volume must be a whole number, 0-100");
+        } else {
+            setVolume((int)std::clamp(volume, 0L, 100L));
+            result["volume"] = getVolume();
+            SetOKResult(result, "Volume set");
+        }
     } else if (url == "shutdown") {
         SetOKResult(result, "Shutting down fppd");
         ShutdownFPPD();
@@ -1631,7 +1678,7 @@ void PlayerResource::GetLogSettings(Json::Value& result) {
 
     for (it = allLoggers.begin(); it != allLoggers.end(); it++) {
         FPPLoggerInstance* ptr = *it;
-        log[ptr->name] = LogLevelToString(ptr->level);
+        log[ptr->name] = LogLevelToString(FacilityLevel(*ptr));
     }
 
     result["log"] = log;
@@ -1727,7 +1774,7 @@ void PlayerResource::GetPlaylistConfig(Json::Value& result) {
  * Report the configured Recurring Tasks merged with last-run status, for the
  * Recurring Tasks admin page (www/recurringtasks.php).
  *
- * @route GET /api/recurringtasks
+ * @route GET /api/fppd/recurringtasks
  * @response 200 {"tasks": [...]}
  */
 void PlayerResource::GetRecurringTasks(Json::Value& result) {
@@ -1879,7 +1926,7 @@ void PlayerResource::PostOutputsRemap(const Json::Value& data, Json::Value& resu
  * synchronously against the posted task definition (not a saved name), so
  * the admin page can preview unsaved edits.
  *
- * @route POST /api/recurringtasks
+ * @route POST /api/fppd/recurringtasks
  * @body {"command": "reload"}
  * @body {"command": "test", "task": {"name": "...", "type": "command", "command": "URL", "args": [...], "filterType": "json", "filterJsonPath": "data.temp"}}
  * @response 200 Recurring tasks reloaded, or {"ok":bool,"raw":string,"filtered":string,"error":string} for "test".
@@ -1943,15 +1990,31 @@ void PlayerResource::periodicWork() {
         if (s.starts_with("throttled=0x")) {
             s = s.substr(12);
             uint32_t res = std::stol(s, nullptr, 16);
-            piPowerBad = res & 0x1;
-            if (piPowerBad) {
+            bool bad = res & 0x1;
+            piPowerBad = bad;
+            // Shared by the add and the remove: RemoveWarning() matches on the
+            // exact text.
+            constexpr int PI_POWER_WARNING_ID = 15;
+            constexpr const char* PI_POWER_WARNING_MSG = "Raspberry Pi Voltage Too Low";
+            // The banner goes up after more than 5 bad readings in a row and
+            // comes down after more than 5 good ones, so a supply hovering at
+            // the threshold doesn't flap it.  It used to stay up until fppd
+            // restarted, long after the supply had been fixed.
+            static int goodCount = 0;
+            if (bad) {
+                goodCount = 0;
                 piPowerWarningCount++;
                 if (piPowerWarningCount > 5 && !piPowerWarningAdded) {
-                    WarningHolder::AddWarning(15, "Raspberry Pi Voltage Too Low");
+                    WarningHolder::AddWarning(PI_POWER_WARNING_ID, PI_POWER_WARNING_MSG);
                     piPowerWarningAdded = true;
                 }
             } else {
                 piPowerWarningCount = 0;
+                if (piPowerWarningAdded && ++goodCount > 5) {
+                    WarningHolder::RemoveWarning(PI_POWER_WARNING_ID, PI_POWER_WARNING_MSG);
+                    piPowerWarningAdded = false;
+                    goodCount = 0;
+                }
             }
         }
 #endif

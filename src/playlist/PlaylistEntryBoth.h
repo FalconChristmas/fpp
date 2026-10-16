@@ -51,7 +51,12 @@ private:
     std::string m_sequenceName;
     std::string m_mediaName;
 
+    // m_mediaEntry is the media for the current pass, null when this pass is
+    // running lights-only; m_mediaOwned owns the child.  A media start that
+    // fails once (an audio output not up yet) used to delete the child, so
+    // every later pass of a repeating playlist played without sound.
     PlaylistEntryMedia* m_mediaEntry;
+    PlaylistEntryMedia* m_mediaOwned = nullptr;
     PlaylistEntrySequence* m_sequenceEntry;
 
     // The sequence is held until the media is audible, so the lights don't

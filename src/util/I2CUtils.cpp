@@ -245,6 +245,13 @@ int I2CUtils::readI2CBlockData(int reg, uint8_t* buf, int count) {
 int I2CUtils::writeRawI2CBlockData(int reg, const uint8_t* buf, int count) {
     if (file != -1) {
         uint8_t bytes[257];
+        // A raw write goes out as one message, so a count that doesn't fit is
+        // refused rather than cut short like the SMBus calls above - half a
+        // register block is worse than none. It used to overrun the buffer.
+        // No log: output plugins call this every frame.
+        if (count < 0 || count > (int)sizeof(bytes) - 1) {
+            return -1;
+        }
         bytes[0] = reg;
         memcpy(bytes + 1, buf, count);
         ioctl(file, I2C_SLAVE, address);

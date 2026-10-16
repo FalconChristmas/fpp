@@ -21,9 +21,12 @@
 #include <net/if.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstring>
 
 #include "WLEDAudioSync.h"
@@ -100,11 +103,18 @@ void WLEDAudioSync::Cleanup() {
     unregisterSettingsListener("WLEDAudioSync", "WLEDAudioSyncMode");
     unregisterSettingsListener("WLEDAudioSync", "WLEDAudioSyncDest");
     unregisterSettingsListener("WLEDAudioSync", "WLEDAudioSyncPort");
+    // Under the lock Reconfigure() holds: a settings callback already in
+    // flight could otherwise be starting threads (and opening sockets) while
+    // this stops them. Reconfigure() sees m_cleanedUp and won't restart.
+    std::unique_lock<std::mutex> lock(m_reconfigureLock);
     StopAllThreads();
 }
 
 void WLEDAudioSync::Reconfigure() {
     std::unique_lock<std::mutex> lock(m_reconfigureLock);
+    if (m_cleanedUp) {
+        return; // shutting down; Cleanup() has stopped (or will stop) everything
+    }
 
     Mode newMode = Off;
     std::string modeStr = getSetting("WLEDAudioSyncMode");
@@ -175,17 +185,21 @@ void WLEDAudioSync::StopAllThreads() {
     m_running = false;
 
     if (m_recvSocket >= 0) {
-        // shutdown() before close() so the listener's blocking
-        // recvfrom() returns immediately (same lesson as the WLED
-        // API responder — close alone doesn't wake recvfrom).
+        // shutdown() wakes the listener's blocking recvfrom() (same
+        // lesson as the WLED API responder — close alone doesn't).
         ::shutdown(m_recvSocket, SHUT_RDWR);
-        ::close(m_recvSocket);
-        m_recvSocket = -1;
     }
     if (m_recvThread) {
         if (m_recvThread->joinable()) m_recvThread->join();
         delete m_recvThread;
         m_recvThread = nullptr;
+    }
+    // Closed only once the listener has been joined: closed under it, the
+    // descriptor number could be reused by another socket that its next
+    // recvfrom() would then read from.
+    if (m_recvSocket >= 0) {
+        ::close(m_recvSocket);
+        m_recvSocket = -1;
     }
     if (m_sendThread) {
         if (m_sendThread->joinable()) m_sendThread->join();
@@ -225,6 +239,12 @@ bool WLEDAudioSync::OpenReceiveSocket() {
     // kernels causes UDP packets to be silently dropped when the
     // sender and receiver are both on loopback. SO_REUSEADDR alone
     // gives us the bind-restart-without-TIME_WAIT semantics we want.
+
+    // Belt and braces for StopAllThreads(): not every platform wakes a
+    // recvfrom() on an unconnected UDP socket at shutdown(), so the
+    // listener also rechecks m_running at least this often.
+    struct timeval tv = { 0, 250000 };
+    ::setsockopt(m_recvSocket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
@@ -348,6 +368,26 @@ void WLEDAudioSync::ReceiveLoop() {
         if (n != sizeof(AudioSyncPacketV2)) continue;
         if (std::memcmp(pkt.header, WLED_HEADER_V2, 5) != 0) continue;
 
+        // The floats come from anyone on the LAN and go straight into the
+        // WLED effects: an Inf major peak never leaves Rocktaves'
+        // "while (f > 249) f /= 2" (holding the WLED lock), and NaN or huge
+        // values are undefined in the effects' integer casts.  Drop
+        // non-finite packets and clamp the rest to what WLED itself sends.
+        // (Copied out first: the packet is packed, so its floats can't bind
+        // to std::clamp's references.)
+        float sampleRaw = pkt.sampleRaw;
+        float sampleSmth = pkt.sampleSmth;
+        float fftMagnitude = pkt.FFT_Magnitude;
+        float fftMajorPeak = pkt.FFT_MajorPeak;
+        if (!std::isfinite(sampleRaw) || !std::isfinite(sampleSmth) ||
+            !std::isfinite(fftMagnitude) || !std::isfinite(fftMajorPeak)) {
+            continue;
+        }
+        sampleRaw = std::clamp(sampleRaw, 0.0f, 65535.0f);
+        sampleSmth = std::clamp(sampleSmth, 0.0f, 255.0f);
+        fftMagnitude = std::clamp(fftMagnitude, 0.0f, 1.0e7f);
+        fftMajorPeak = std::clamp(fftMajorPeak, 1.0f, 11025.0f); // FX.cpp MAX_FREQUENCY
+
         if (!firstPacketLogged) {
             char fromBuf[INET_ADDRSTRLEN] = {};
             inet_ntop(AF_INET, &from.sin_addr, fromBuf, sizeof(fromBuf));
@@ -363,11 +403,11 @@ void WLEDAudioSync::ReceiveLoop() {
         std::unique_lock<std::mutex> lock(m_cacheLock);
         m_cacheTimestampMs   = nowMs();
         std::memcpy(m_cachedFFT.data(), pkt.fftResult, 16);
-        m_cachedVolumeSmth   = pkt.sampleSmth;
-        m_cachedVolumeRaw    = static_cast<uint16_t>(pkt.sampleRaw);
+        m_cachedVolumeSmth   = sampleSmth;
+        m_cachedVolumeRaw    = static_cast<uint16_t>(sampleRaw);
         m_cachedSamplePeak   = pkt.samplePeak;
-        m_cachedFFTMagnitude = pkt.FFT_Magnitude;
-        m_cachedFFTMajorPeak = pkt.FFT_MajorPeak;
+        m_cachedFFTMagnitude = fftMagnitude;
+        m_cachedFFTMajorPeak = fftMajorPeak;
     }
 }
 

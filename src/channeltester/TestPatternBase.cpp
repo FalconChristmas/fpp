@@ -71,7 +71,7 @@ int TestPatternBase::Init(Json::Value config) {
     int cycleMS = JsonInt(config, "cycleMS");
     if (m_cycleMS != cycleMS) {
         m_cycleMS = cycleMS;
-        m_nextCycleTime = GetTime() + (m_cycleMS * 1000);
+        m_nextCycleTime = GetMonotonicTimeMicros() + (m_cycleMS * 1000);
     }
 
     if (config.isMember("channelSet")) {
@@ -138,7 +138,7 @@ int TestPatternBase::SetChannelSet(std::string channelSetStr) {
     }
 
     for (int r = 0; r < ranges.size(); r++) {
-        PixelOverlayModel* model = PixelOverlayManager::INSTANCE.getModel(ranges[r]);
+        auto model = PixelOverlayManager::INSTANCE.getModelShared(ranges[r]);
         if (model != nullptr) {
             start = model->getStartChannel();
             end = start + model->getChannelCount() - 1;
@@ -165,6 +165,22 @@ int TestPatternBase::SetChannelSet(std::string channelSetStr) {
         if (end < start) {
             end = start;
         }
+        // Only end was clamped to the outputs, so a range starting past them
+        // ("99999999-99999999") put the copy in OverlayTestData() that far
+        // past the channel buffer: corruption, or a SIGSEGV on the output
+        // thread.  Such a range has nothing to test; drop it.  The total is
+        // capped at the test buffer too, which overlapping ranges could
+        // otherwise outgrow.
+        if (start > max) {
+            LogWarn(VB_CHANNELOUT, "Test channel range '%s' is past the last output channel (%d), ignoring it\n",
+                    ranges[r].c_str(), max + 1);
+            continue;
+        }
+        int room = (int)FPPD_MAX_CHANNELS - m_channelCount;
+        if (room <= 0) {
+            break;
+        }
+        end = std::min(end, start + room - 1);
         m_channelSet.push_back(std::make_pair(start, end));
         m_channelCount += end - start + 1;
     }
@@ -176,7 +192,7 @@ int TestPatternBase::SetChannelSet(std::string channelSetStr) {
  *
  */
 int TestPatternBase::SetupTest(void) {
-    m_nextCycleTime = GetTime() + (m_cycleMS * 1000);
+    m_nextCycleTime = GetMonotonicTimeMicros() + (m_cycleMS * 1000);
 
     return 1;
 }
@@ -208,9 +224,13 @@ int TestPatternBase::OverlayTestData(char* channelData) {
         copied += count;
     }
 
-    if (GetTime() >= m_nextCycleTime) {
+    // On the monotonic clock: on the wall clock a step back held the pattern
+    // still for as long as the step.  Nothing to cycle when every range was
+    // dropped (the patterns' shifts take a channel off the count, and would
+    // underflow).
+    if (m_channelCount > 0 && GetMonotonicTimeMicros() >= m_nextCycleTime) {
         CycleData();
-        m_nextCycleTime = GetTime() + (m_cycleMS * 1000);
+        m_nextCycleTime = GetMonotonicTimeMicros() + (m_cycleMS * 1000);
     }
 
     return 1;

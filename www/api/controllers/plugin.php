@@ -1864,7 +1864,12 @@ function ResolveLocalDependencies($deps, $ownerRepo, $stream, $op = 'install')
 				continue;
 			}
 			list($category, $file) = explode('/', $entry, 2);
-			if (!preg_match('#^[A-Za-z0-9._ -]+$#', $category) || !preg_match('#^[A-Za-z0-9._ /-]+$#', $file)) {
+			// Each is one path component: installScript (run as root) builds
+			// both the download URL and the file it writes from them, and the
+			// old patterns let "..", and a "/" in the file, through.
+			$component = '#^[A-Za-z0-9_][A-Za-z0-9._ -]*$#';
+			if (!preg_match($component, $category) || !preg_match($component, $file) ||
+				strpos($category, '..') !== false || strpos($file, '..') !== false) {
 				PluginEchoLog($op, $ownerRepo, "\nSkipping script dependency with unsafe characters: '$entry'.\n", $stream);
 				continue;
 			}
@@ -2386,16 +2391,66 @@ function FPPDPluginLifecycle($plugin, $action)
     $url = 'http://localhost/api/fppd/plugin/' . rawurlencode($plugin) . '/' . $action;
     $resp = @file_get_contents($url, false, $ctx);
     if ($resp === false) {
-        return array('ok' => false, 'message' => 'fppd did not answer (not running?)');
+        // 'answered' tells "fppd is not running" (nothing to change; it loads
+        // what is on disk when it starts) apart from fppd refusing.
+        return array('ok' => false, 'answered' => false, 'message' => 'fppd did not answer (not running?)');
     }
     $json = json_decode($resp, true);
     if (!is_array($json) || !isset($json['Status'])) {
-        return array('ok' => false, 'message' => 'unexpected response from fppd');
+        return array('ok' => false, 'answered' => true, 'message' => 'unexpected response from fppd');
     }
     return array(
         'ok' => ($json['Status'] === 'OK'),
+        'answered' => true,
         'message' => isset($json['Message']) ? $json['Message'] : '',
     );
+}
+
+/*
+ * The plugin's shared libraries as they are on disk, so an upgrade can tell
+ * whether it replaced the code fppd is running. By content, not inode or mtime:
+ * a plugin that re-downloads its binary on every upgrade renames an identical
+ * file into place, and reloading it for that would be churn for nothing.
+ */
+function PluginSharedLibraryFingerprint($plugin)
+{
+    global $settings;
+    $out = array();
+    $dir = $settings['pluginDirectory'] . '/' . $plugin;
+    foreach (array_merge(glob($dir . '/*.so') ?: array(), glob($dir . '/*.dylib') ?: array()) as $f) {
+        $sum = @sha1_file($f);
+        if ($sum !== false) {
+            $out[basename($f)] = $sum;
+        }
+    }
+    ksort($out);
+    return $out;
+}
+
+/*
+ * After an upgrade changed what fppd runs for a plugin, swap it in without a
+ * restart: unload the running copy and load the new one, the same calls an
+ * install and an uninstall make. fppd opens a replaced library under a name of
+ * its own, so the new build really is what loads. Falls back to the restart
+ * flag when fppd refuses (a plugin with a channel output in use can only go by
+ * restarting) or fails to load the new build. With fppd not running there is
+ * nothing to do: it loads what is on disk when it starts.
+ */
+function PluginReloadAfterUpgrade($plugin, $stream)
+{
+    $unloaded = FPPDPluginLifecycle($plugin, 'unload');
+    if (!$unloaded['answered']) {
+        return true;
+    }
+    $loaded = $unloaded['ok'] ? FPPDPluginLifecycle($plugin, 'load') : null;
+    if ($unloaded['ok'] && $loaded['ok']) {
+        PluginEchoLog('upgrade', $plugin, "Reloaded $plugin in FPPD; no restart needed.\n", $stream);
+        return true;
+    }
+    $why = $unloaded['ok'] ? $loaded['message'] : $unloaded['message'];
+    PluginEchoLog('upgrade', $plugin, "FPPD could not swap in the updated $plugin ($why). Restart FPPD to finish the update.\n", $stream);
+    WriteSettingToFile('restartFlag', 1);
+    return false;
 }
 
 function UninstallPlugin()
@@ -3115,12 +3170,17 @@ function UpgradePlugin()
 		. '; export PLUGINDIR=' . escapeshellarg($settings['pluginDirectory'])
 		. '; export FPP_PLUGIN_NO_FETCH=1'
 		. '; export FPP_PLUGIN_TARGET_SHA=' . escapeshellarg($GLOBALS['PLUGIN_FETCHED_SHA'])
+		// Tells the plugin's fpp_upgrade.sh that FPP reloads it in fppd once the
+		// upgrade lands (below), so it neither reloads itself nor asks for a
+		// restart.
+		. '; export FPP_RELOADS_PLUGIN=1'
 		. '; export FPP_SKIP_UPGRADE_SCRIPT=1; ';
 	$cmd = $envPrefix . escapeshellarg($fppDir . '/scripts/upgrade_plugin') . ' ' . escapeshellarg($plugin);
 	$runCmd = $envPrefix . escapeshellarg($fppDir . '/scripts/upgrade_plugin')
 		. ' --run-upgrade-script ' . escapeshellarg($plugin);
 
 	$fromSha = PluginInstalledSha($plugin);
+	$libsBefore = PluginSharedLibraryFingerprint($plugin);
 	$pkgChanges = null;
 	if ($streaming) {
 		DisableOutputBuffering();
@@ -3153,6 +3213,15 @@ function UpgradePlugin()
 	}
 	if ($return_val == 0) {
 		PluginReinstallPendingSync($plugin); // rebuilt on this OS
+	}
+	// The running fppd still has the old code: FPP never reloaded a plugin
+	// after an upgrade, so every plugin had to ask for a restart. Reload it
+	// when what fppd runs changed -- the code moved, or a library was replaced
+	// without the code moving (a plugin that downloads prebuilt binaries in its
+	// upgrade script). Not after a failed script, which may have left things
+	// half done, and not for an Update All pass that changed nothing.
+	if ($return_val == 0 && (PluginInstalledSha($plugin) !== $fromSha || PluginSharedLibraryFingerprint($plugin) !== $libsBefore)) {
+		$result['restartRequired'] = !PluginReloadAfterUpgrade($plugin, $stream);
 	}
 	PluginRecordUpgradedPrivacy($plugin, $return_val, $changed, $pending, $stream);
 	// rc 0 and 2 both mean the code landed. Before the streaming return: the UI always streams.

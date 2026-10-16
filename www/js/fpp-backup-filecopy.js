@@ -96,7 +96,7 @@ fppFileCopy.getBackupDevices = function () {
                 desc += ' ' + data[i].model;
             }
             desc += ' - ' + data[i].size + 'GB';
-            options += "<option value='" + data[i].name + "'>" + desc + "</option>";
+            options += "<option value='" + EscapeHtmlAttr(data[i].name) + "'>" + EscapeHtml(desc) + "</option>";
         }
         $(fppFileCopy.config.usbDevice).html(options);
         $(fppFileCopy.config.usbDevice).parent().closest('td').removeClass('fpp-backup-action-loading');
@@ -210,7 +210,7 @@ fppFileCopy.getRemoteHostUSBStorage = function () {
                 desc += ' ' + data[i].model;
             }
             desc += ' - ' + data[i].size + 'GB';
-            options += "<option value='" + data[i].name + "'>" + desc + "</option>";
+            options += "<option value='" + EscapeHtmlAttr(data[i].name) + "'>" + EscapeHtml(desc) + "</option>";
         }
         $(fppFileCopy.config.remoteStorage).html(defaultOption + options);
         $(fppFileCopy.config.remoteStorage).parent().closest('td').removeClass('fpp-backup-action-loading');

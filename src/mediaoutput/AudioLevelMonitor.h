@@ -51,7 +51,7 @@ public:
     // A node to meter. isSink distinguishes a sink (a group, a member's filter
     // chain, an input bus) from a playback stream (fppd_stream_N): capturing a
     // sink needs stream.capture.sink, and setting it on a stream instead makes
-    // pipewiresrc fall back to the default sink -- see StartMeter().
+    // pipewiresrc fall back to the default sink -- see BuildMeter().
     struct Target {
         std::string name;
         bool isSink = true;
@@ -85,8 +85,8 @@ private:
         bool isSink = true;
     };
 
-    void StartMeter(const std::string& node, bool isSink);
-    void StopMeter(const std::string& node);
+    bool BuildMeter(const std::string& node, bool isSink, Meter& m);
+    void DestroyMeter(const std::string& node, Meter& m);
     void PollThread();
 
     mutable std::mutex m_lock;

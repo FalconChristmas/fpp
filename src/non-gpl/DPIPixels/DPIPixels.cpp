@@ -1049,7 +1049,7 @@ bool DPIPixelsOutput::FrameBufferIsConfigured(void) {
 
     WarningHolder::AddWarning(errStr);
     errStr += "\n";
-    LogErr(VB_CHANNELOUT, errStr.c_str());
+    LogErr(VB_CHANNELOUT, errStr);
     return false;
 }
 

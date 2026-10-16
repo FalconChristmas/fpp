@@ -12,6 +12,7 @@
 
 #include "fpp-pch.h"
 
+#include <algorithm>
 #include <cstring>
 #include <list>
 #include <memory>
@@ -117,8 +118,18 @@ void CurlManager::addCURL(const std::string& furl, CURL* curl, std::function<voi
     curls.push_back(i);
 }
 
+// Every response here is an API reply or a web page, held whole in memory.
+// Discovery probes devices that are merely on the LAN, and one that streams an
+// endless body would otherwise grow fppd until the OOM killer stepped in (the
+// timeout alone allows ~100MB at LAN speed).  Returning short aborts the
+// transfer with CURLE_WRITE_ERROR, which callers already treat as a failure.
+static constexpr size_t MAX_CURL_RESPONSE = 16 * 1024 * 1024;
+
 static size_t urlWriteData(void* buffer, size_t size, size_t nmemb, void* userp) {
     std::vector<uint8_t>* str = (std::vector<uint8_t>*)userp;
+    if (size * nmemb > MAX_CURL_RESPONSE - std::min(str->size(), MAX_CURL_RESPONSE)) {
+        return 0;
+    }
     size_t pos = str->size();
     str->resize(str->size() + size * nmemb);
     memcpy(&str->data()[pos], buffer, size * nmemb);
@@ -141,7 +152,17 @@ CURL* CurlManager::createCurl(const std::string& fullUrl, CurlPrivateData** cpd,
     static std::string USERAGENT = std::string("FPP/") + getFPPVersionTriplet();
 
     const std::string host = getHost(fullUrl);
-    HostData* hd = getHostData(host);
+    // Under the lock: requests are created from API and command threads as
+    // well as the main loop, and getHostData() inserts into the map.  Copy the
+    // credentials out (curl copies string options anyway).
+    std::string username;
+    std::string password;
+    {
+        std::unique_lock<std::mutex> l(lock);
+        HostData* hd = getHostData(host);
+        username = hd->username;
+        password = hd->password;
+    }
     CURL* c = curl_easy_init();
     curl_easy_setopt(c, CURLOPT_URL, fullUrl.c_str());
     if (share) {
@@ -164,9 +185,9 @@ CURL* CurlManager::createCurl(const std::string& fullUrl, CurlPrivateData** cpd,
     curl_easy_setopt(c, CURLOPT_ERRORBUFFER, data->errorResp);
     curl_easy_setopt(c, CURLOPT_WRITEDATA, &data->resp);
     curl_easy_setopt(c, CURLOPT_PRIVATE, data);
-    if (hd->username != "") {
-        curl_easy_setopt(c, CURLOPT_USERNAME, hd->username.c_str());
-        curl_easy_setopt(c, CURLOPT_PASSWORD, hd->password.c_str());
+    if (username != "") {
+        curl_easy_setopt(c, CURLOPT_USERNAME, username.c_str());
+        curl_easy_setopt(c, CURLOPT_PASSWORD, password.c_str());
         curl_easy_setopt(c, CURLOPT_HTTPAUTH, CURLAUTH_BASIC | CURLAUTH_DIGEST | CURLAUTH_NEGOTIATE);
     }
     if (upload) {
@@ -434,7 +455,24 @@ bool CurlManager::doProcessCurls() {
                 }
                 if (ci) {
                     l.unlock();
-                    ci->callback(e);
+                    // The callbacks parse what a remote or a probed device sent
+                    // back, on the main loop with nothing above to catch: one
+                    // jsoncpp throw on a field of the wrong type ({"Platform":{}}
+                    // from a MultiSync remote, {"majorVersion":"9"} from a
+                    // discovery probe) ended fppd.  Contain it here, for every
+                    // callback, and carry on with the cleanup.
+                    try {
+                        ci->callback(e);
+                    } catch (const std::exception& ex) {
+                        char* url = nullptr;
+                        curl_easy_getinfo(e, CURLINFO_EFFECTIVE_URL, &url);
+                        LogWarn(VB_GENERAL, "Ignoring the reply from %s: handling it failed: %s\n",
+                                url ? url : "(unknown)", ex.what());
+                    } catch (...) {
+                        char* url = nullptr;
+                        curl_easy_getinfo(e, CURLINFO_EFFECTIVE_URL, &url);
+                        LogWarn(VB_GENERAL, "Ignoring the reply from %s: handling it failed\n", url ? url : "(unknown)");
+                    }
                     l.lock();
                     if (ci->cleanCurl) {
                         CurlPrivateData* data = nullptr;

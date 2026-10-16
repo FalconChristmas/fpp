@@ -18,7 +18,7 @@ if (
 if (!isset($settings['AudioMixerDevice'])) {
     if ($settings['BeaglePlatform']) {
         // AudioOutput is a stable ALSA card ID; amixer needs the numeric index.
-        $mixerCardNum = ResolveAlsaCardIdToNumber($settings['AudioOutput']);
+        $mixerCardNum = ResolveAlsaCardIdToNumber(EffectiveAudioOutput($settings['AudioOutput']));
         if ($mixerCardNum === '') {
             $mixerCardNum = ctype_digit((string) $settings['AudioOutput']) ? $settings['AudioOutput'] : '0';
         }

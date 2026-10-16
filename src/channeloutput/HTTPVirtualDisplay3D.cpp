@@ -445,7 +445,7 @@ int HTTPVirtualDisplay3DOutput::WriteSSEPacket(int fd, const std::string& data, 
             // Bounded by the frame's budget, not per client per stall: a
             // client trickling a few bytes at a time otherwise held the
             // output thread (and every output) for as long as it liked.
-            long long left = (long long)deadlineMS - (long long)GetTimeMS();
+            long long left = (long long)deadlineMS - (long long)GetMonotonicTimeMS();
             if (left <= 0) {
                 LogDebug(VB_CHANNELOUT, "SSE client too slow for this frame (%zu/%zu bytes), closing connection\n", sent, total);
                 return -1;
@@ -501,7 +501,7 @@ void HTTPVirtualDisplay3DOutput::PrepData(unsigned char* channelData) {
     // that an update interval which isn't a multiple of the frame time still
     // averages out to the requested rate instead of aliasing down to the next
     // frame boundary (eg. 25ms against a 20ms sequence gives 40fps, not 25fps).
-    long long now = GetTimeMS();
+    long long now = GetMonotonicTimeMS();
     if (now < m_nextSendMS) {
         m_sseData.clear();
         return;
@@ -653,7 +653,7 @@ void HTTPVirtualDisplay3DOutput::PrepData(unsigned char* channelData) {
 int HTTPVirtualDisplay3DOutput::SendData(unsigned char* channelData) {
     if (m_sseData != "") {
         std::unique_lock<std::mutex> lock(m_connListLock);
-        const uint64_t deadline = GetTimeMS() + SSE_FRAME_BUDGET_MS;
+        const uint64_t deadline = GetMonotonicTimeMS() + SSE_FRAME_BUDGET_MS;
         // Iterate backwards so we can safely remove elements
         for (int i = m_connList.size() - 1; i >= 0; i--) {
             int result = WriteSSEPacket(m_connList[i], m_sseData, deadline);

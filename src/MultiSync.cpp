@@ -24,10 +24,14 @@
 #include <sys/types.h>
 #include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <condition_variable>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>
 #include <ctype.h>
+#include <deque>
 #include <errno.h>
 #include <functional>
 #include <ifaddrs.h>
@@ -35,6 +39,7 @@
 #include <map>
 #include <math.h>
 #include <memory>
+#include <string_view>
 #include <mutex>
 #include <netdb.h>
 #include <set>
@@ -67,6 +72,30 @@
 #include "mediaoutput/mediaoutput.h"
 
 #include "MultiSync.h"
+#include "Timers.h"
+
+// Quiescence for the MultiSync settings listeners.  The settings code copies
+// the listeners out and calls them with no lock held, so unregistering one
+// does not wait for a call already in progress (or about to start from a
+// copy).  Each call counts itself in here and gives up once ShutdownSync() has
+// set the flag; ShutdownSync() waits for the count to drain before it closes
+// the sockets ReloadSyncDestinations() works on.  Defined ahead of INSTANCE so
+// they outlive it during static destruction.
+static std::mutex s_listenerQuiesceLock;
+static std::condition_variable s_listenerQuiesceCV;
+static int s_listenersInFlight = 0;
+static bool s_listenersShutdown = false;
+
+// Serializes OpenControlSockets(): it is reached lazily from several threads
+// (the main loop, command and API threads), which could each see no socket
+// and open one, leaking all but the last.
+static std::mutex s_controlSockOpenLock;
+
+// Addresses with an HTTP re-ping queued or running.  PeriodicPing() re-queues
+// every stale non-MultiSync remote on each pass, and those probes mostly sit
+// out a connect timeout against boxes that are down, so without this the
+// queue grows faster than it drains.  Guarded by m_httpProbeLock.
+static std::set<std::string> s_httpPingPending;
 
 MultiSync MultiSync::INSTANCE;
 MultiSync* multiSync = &MultiSync::INSTANCE;
@@ -308,23 +337,39 @@ Json::Value MultiSyncCapeInfo::toJSON() const {
     return v;
 }
 
+// A field of what a remote sent us (system info, cape info), read so that a
+// value of the wrong type gives the default instead of throwing: the reply is
+// parsed in a curl callback on the main loop, and {"Platform":{}} ended fppd.
+static std::string ReplyString(const Json::Value& v, const char* key, const std::string& dflt = "") {
+    const Json::Value f = v.get(key, Json::Value());
+    return (f.isString() || f.isNumeric() || f.isBool()) ? f.asString() : dflt;
+}
+static bool ReplyBool(const Json::Value& v, const char* key, bool dflt) {
+    const Json::Value f = v.get(key, Json::Value());
+    return (f.isBool() || f.isNumeric()) ? f.asBool() : dflt;
+}
+static int ReplyInt(const Json::Value& v, const char* key, int dflt) {
+    const Json::Value f = v.get(key, Json::Value());
+    return f.isConvertibleTo(Json::intValue) && !f.isNull() ? f.asInt() : dflt;
+}
+
 MultiSyncCapeInfo MultiSyncCapeInfo::fromCapeJSON(const Json::Value& v) {
     MultiSyncCapeInfo cape;
     cape.valid = true;
     cape.present = true;
-    cape.id = v.get("id", "").asString();
-    cape.name = v.get("name", "").asString();
-    cape.description = v.get("description", "").asString();
-    cape.version = v.get("version", "").asString();
-    cape.designer = v.get("designer", "").asString();
+    cape.id = ReplyString(v, "id");
+    cape.name = ReplyString(v, "name");
+    cape.description = ReplyString(v, "description");
+    cape.version = ReplyString(v, "version");
+    cape.designer = ReplyString(v, "designer");
     // Absent (including on every unsigned cape) means no opt-out.
-    cape.sendStats = v.get("sendStats", 1).asInt() != 0;
+    cape.sendStats = ReplyInt(v, "sendStats", 1) != 0;
     if (JsonHas(v, "vendor") && v["vendor"].isObject()) {
         const Json::Value& vendor = v["vendor"];
-        cape.vendorName = vendor.get("name", "").asString();
-        cape.vendorURL = vendor.get("url", "").asString();
-        cape.vendorEmail = vendor.get("email", "").asString();
-        cape.vendorImage = vendor.get("image", "").asString();
+        cape.vendorName = ReplyString(vendor, "name");
+        cape.vendorURL = ReplyString(vendor, "url");
+        cape.vendorEmail = ReplyString(vendor, "email");
+        cape.vendorImage = ReplyString(vendor, "image");
     }
     return cape;
 }
@@ -478,6 +523,21 @@ int MultiSync::Init(void) {
     for (const char* s : { "MultiSyncRemotes", "MultiSyncExtraRemotes",
                            "MultiSyncBroadcast", "MultiSyncMulticast", "MultiSyncUnicast" }) {
         registerSettingsListener("MultiSync", s, [this](const std::string& v) {
+            {
+                std::unique_lock<std::mutex> lock(s_listenerQuiesceLock);
+                if (s_listenersShutdown) {
+                    return;
+                }
+                ++s_listenersInFlight;
+            }
+            struct InFlight {
+                ~InFlight() {
+                    std::unique_lock<std::mutex> lock(s_listenerQuiesceLock);
+                    if (--s_listenersInFlight == 0) {
+                        s_listenerQuiesceCV.notify_all();
+                    }
+                }
+            } inFlight;
             if (m_controlSock >= 0) {
                 ReloadSyncDestinations();
             }
@@ -631,6 +691,18 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
         }
     }
     if (!found) {
+        // Every ping carrying a new address adds a system, and pings come
+        // from anyone on the LAN; entries are otherwise only pruned after two
+        // hours.  Past the cap, the system seen longest ago makes room.
+        static constexpr size_t MAX_REMOTE_SYSTEMS = 2048;
+        if (m_remoteSystems.size() >= MAX_REMOTE_SYSTEMS) {
+            auto oldest = std::min_element(m_remoteSystems.begin(), m_remoteSystems.end(),
+                                           [](const MultiSyncSystem& a, const MultiSyncSystem& b) { return a.lastSeen < b.lastSeen; });
+            LogWarn(VB_SYNC, "More than %zu remote systems known; forgetting %s to make room\n",
+                    MAX_REMOTE_SYSTEMS, oldest->address.c_str());
+            unicastChanged |= oldest->supportsUnicast;
+            m_remoteSystems.erase(oldest);
+        }
         MultiSyncSystem sys;
         sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges, uuid, multiSync, sendingMultiSync);
         ApplyUUIDHint(sys);
@@ -1145,12 +1217,19 @@ static std::map<std::string, std::string> GetConfiguredOutputRanges() {
 
     if (FileExists(FPP_DIR_CONFIG("/co-universes.json"))) {
         Json::Value outputs = LoadJsonFromFile(FPP_DIR_CONFIG("/co-universes.json"), JsonRoot::Object);
-        for (const auto& co : outputs["channelOutputs"]) {
-            if (!co.isMember("universes")) {
+        const Json::Value& cos = outputs["channelOutputs"];
+        for (Json::ArrayIndex i = 0; cos.isArray() && i < cos.size(); i++) {
+            const Json::Value& co = cos[i];
+            if (!co.isObject() || !co["universes"].isArray()) {
                 continue;
             }
             for (const auto& u : co["universes"]) {
-                if (!u.isMember("address") || !u.isMember("startChannel") || !u.isMember("channelCount")) {
+                // Read at startup: a universe with a field of the wrong type is
+                // left out here (ChannelOutputSetup reports it), not thrown on.
+                if (!u.isObject() || !u["address"].isString() ||
+                    !u["startChannel"].isIntegral() || !u["channelCount"].isIntegral() ||
+                    !u["startChannel"].isConvertibleTo(Json::uintValue) ||
+                    !u["channelCount"].isConvertibleTo(Json::uintValue)) {
                     continue;
                 }
                 std::string address = u["address"].asString();
@@ -1306,18 +1385,19 @@ void MultiSync::PerformHTTPDiscovery() {
 
     if (FileExists(FPP_DIR_CONFIG("/co-universes.json"))) {
         Json::Value outputs = LoadJsonFromFile(FPP_DIR_CONFIG("/co-universes.json"), JsonRoot::Object);
-        if (outputs.isMember("channelOutputs")) {
-            for (int co = 0; co < outputs["channelOutputs"].size(); co++) {
-                if (outputs["channelOutputs"][co].isMember("universes")) {
-                    for (int i = 0; i < outputs["channelOutputs"][co]["universes"].size(); i++) {
-                        if (outputs["channelOutputs"][co]["universes"][i].isMember("address")) {
-                            std::string ip = outputs["channelOutputs"][co]["universes"][i]["address"].asString();
-                            if (subnetsStr != "") {
-                                subnetsStr += ",";
-                            }
-                            subnetsStr += ip;
-                        }
+        const Json::Value& cos = outputs["channelOutputs"];
+        for (Json::ArrayIndex co = 0; cos.isArray() && co < cos.size(); co++) {
+            if (!cos[co].isObject() || !cos[co]["universes"].isArray()) {
+                continue;
+            }
+            const Json::Value& universes = cos[co]["universes"];
+            for (Json::ArrayIndex i = 0; i < universes.size(); i++) {
+                // shape-checked: this runs at startup, and a wrong type threw
+                if (universes[i].isObject() && universes[i]["address"].isString()) {
+                    if (subnetsStr != "") {
+                        subnetsStr += ",";
                     }
+                    subnetsStr += universes[i]["address"].asString();
                 }
             }
         }
@@ -1327,6 +1407,20 @@ void MultiSync::PerformHTTPDiscovery() {
         std::vector<std::string> tokens = split(subnetsStr, ',');
         std::set<std::string> subnets;
         std::set<std::string> exacts;
+        // This runs at startup: an unbounded "10.0.0.0/8" (16.7M addresses,
+        // held twice) or "[1-100000000]" ran fppd out of memory on every
+        // start.  A /16 is the most a scan may cover, octet ranges stay
+        // within 0..255, and the total is capped.
+        static constexpr size_t MAX_DISCOVERY_ADDRESSES = 65536;
+        bool truncated = false;
+        auto addAddress = [&subnets, &truncated](const std::string& a) {
+            if (subnets.size() >= MAX_DISCOVERY_ADDRESSES) {
+                truncated = true;
+                return false;
+            }
+            subnets.insert(a);
+            return true;
+        };
         for (std::string token : tokens) {
             TrimWhiteSpace(token);
             if (token != "") {
@@ -1343,14 +1437,15 @@ void MultiSync::PerformHTTPDiscovery() {
                     std::vector<std::string> r1 = split(rng, ',');
                     for (const auto& a : r1) {
                         std::vector<std::string> r = split(a, '-');
-                        int start = atoi(r[0].c_str());
-                        int len = 1;
-                        if (r.size() == 2) {
-                            len = atoi(r[1].c_str()) - start + 1;
+                        if (r.empty()) {
+                            continue;
                         }
-
-                        for (int x = start; x < (start + len); x++) {
-                            subnets.insert(token + std::to_string(x) + postfix);
+                        int start = std::clamp(atoi(r[0].c_str()), 0, 255);
+                        int end = r.size() == 2 ? std::clamp(atoi(r[1].c_str()), 0, 255) : start;
+                        for (int x = start; x <= end; x++) {
+                            if (!addAddress(token + std::to_string(x) + postfix)) {
+                                break;
+                            }
                         }
                     }
                 } else if (posSlash != std::string::npos) {
@@ -1359,7 +1454,12 @@ void MultiSync::PerformHTTPDiscovery() {
                     if (parts.size() == 2) {
                         prefix = atoi(parts[1].c_str());
                     }
-                    int ips = (int)(powl(2, 32 - prefix));
+                    if (prefix < 16 || prefix > 32) {
+                        LogWarn(VB_SYNC, "MultiSync HTTP discovery: ignoring %s, only /16 to /32 can be scanned\n",
+                                token.c_str());
+                        continue;
+                    }
+                    int ips = 1 << (32 - prefix);
                     unsigned long firstIP = htonl(inet_addr(parts[0].c_str()));
                     // If prefix is a /31 or /32, we scan all IPs, otherwise skip network
                     // and broadcast
@@ -1372,17 +1472,22 @@ void MultiSync::PerformHTTPDiscovery() {
                     for (int i = 0; i < ips; i++) {
                         ia.s_addr = ntohl(firstIP + i);
                         inet_ntop(AF_INET, &ia, ip, sizeof(ip));
-                        subnets.insert(ip);
+                        if (!addAddress(ip)) {
+                            break;
+                        }
                     }
                 } else {
                     std::string address2 = token;
                     GetIPForHost(address2);
-                    if (isSupportedForMultisync(address2.c_str(), "")) {
-                        subnets.insert(token);
+                    if (isSupportedForMultisync(address2.c_str(), "") && addAddress(token)) {
                         exacts.insert(token);
                     }
                 }
             }
+        }
+        if (truncated) {
+            LogWarn(VB_SYNC, "MultiSync HTTP discovery: more than %zu addresses configured, scanning only the first %zu\n",
+                    MAX_DISCOVERY_ADDRESSES, MAX_DISCOVERY_ADDRESSES);
         }
         if (!subnets.empty()) {
             DiscoverViaHTTP(subnets, exacts);
@@ -1435,6 +1540,7 @@ void MultiSync::PerformTwinklyDiscovery() {
         m_twinklyDiscoverySeen.clear();
     }
 
+    // Under m_socketLock, which the sync sends need every frame: never block.
     std::unique_lock<std::mutex> lock(m_socketLock);
     for (auto& a : m_interfaces) {
         struct sockaddr_in bda;
@@ -1443,7 +1549,7 @@ void MultiSync::PerformTwinklyDiscovery() {
         bda.sin_port = htons(TWINKLY_DISCOVERY_PORT);
         bda.sin_addr.s_addr = a.second.broadcastAddress;
 
-        if (sendto(m_twinklyDiscoverySock, TWINKLY_DISCOVERY_MSG, sizeof(TWINKLY_DISCOVERY_MSG), 0,
+        if (sendto(m_twinklyDiscoverySock, TWINKLY_DISCOVERY_MSG, sizeof(TWINKLY_DISCOVERY_MSG), MSG_DONTWAIT,
                    (struct sockaddr*)&bda, sizeof(struct sockaddr_in)) < 0) {
             LogDebug(VB_SYNC, "Could not send Twinkly discovery on %s: %s\n",
                      a.second.interfaceName.c_str(), FPPstrerror(errno));
@@ -1632,9 +1738,10 @@ void MultiSync::WriteRuntimeInfoFile() {
     // If there is no network, then delete the file
     // to avoid confusion.
     if (systems.empty()) {
-        const int ok = remove(filename.c_str());
-        if (!ok) {
-            LogWarn(VB_ALL, "Failed to remove file: %s\n", filename.c_str());
+        // remove() returns 0 on success; a file that was never written is
+        // not a failure.
+        if (remove(filename.c_str()) != 0 && errno != ENOENT) {
+            LogWarn(VB_ALL, "Failed to remove file %s: %s\n", filename.c_str(), FPPstrerror(errno));
         }
         LogInfo(VB_ALL, "Not creating %s as no IP addresses found\n", filename.c_str());
         return;
@@ -1796,7 +1903,9 @@ void MultiSync::PeriodicPing() {
             {
                 std::unique_lock<std::mutex> plock(m_httpProbeLock);
                 for (auto& address : httpPingAddresses) {
-                    m_httpPingQueue.push_back(address);
+                    if (s_httpPingPending.insert(address).second) {
+                        m_httpPingQueue.push_back(address);
+                    }
                 }
             }
             PumpHTTPPings();
@@ -2104,23 +2213,23 @@ void MultiSync::FetchSystemInfo(const std::string& address) {
 
         MultiSyncSystemInfo info;
         info.valid = true;
-        info.platform = v.get("Platform", "").asString();
-        info.variant = v.get("Variant", "").asString();
-        info.subPlatform = v.get("SubPlatform", "").asString();
-        info.osVersion = v.get("OSVersion", "").asString();
-        info.osRelease = v.get("OSRelease", "").asString();
-        info.kernel = v.get("Kernel", "").asString();
-        info.hostDescription = v.get("HostDescription", "").asString();
-        info.backgroundColor = v.get("backgroundColor", "").asString();
-        info.branch = v.get("Branch", "").asString();
-        info.localGitVersion = v.get("LocalGitVersion", "").asString();
-        info.remoteGitVersion = v.get("RemoteGitVersion", "").asString();
-        info.upgradeSource = v.get("UpgradeSource", "").asString();
+        info.platform = ReplyString(v, "Platform");
+        info.variant = ReplyString(v, "Variant");
+        info.subPlatform = ReplyString(v, "SubPlatform");
+        info.osVersion = ReplyString(v, "OSVersion");
+        info.osRelease = ReplyString(v, "OSRelease");
+        info.kernel = ReplyString(v, "Kernel");
+        info.hostDescription = ReplyString(v, "HostDescription");
+        info.backgroundColor = ReplyString(v, "backgroundColor");
+        info.branch = ReplyString(v, "Branch");
+        info.localGitVersion = ReplyString(v, "LocalGitVersion");
+        info.remoteGitVersion = ReplyString(v, "RemoteGitVersion");
+        info.upgradeSource = ReplyString(v, "UpgradeSource");
         if (JsonHas(v, "channelInputsEnabled")) {
-            info.channelInputsEnabled = v["channelInputsEnabled"].asBool() ? 1 : 0;
+            info.channelInputsEnabled = ReplyBool(v, "channelInputsEnabled", false) ? 1 : 0;
         }
         if (JsonHas(v, "channelOutputsEnabled")) {
-            info.channelOutputsEnabled = v["channelOutputsEnabled"].asBool() ? 1 : 0;
+            info.channelOutputsEnabled = ReplyBool(v, "channelOutputsEnabled", false) ? 1 : 0;
         }
         if (JsonHas(v, "IPs") && v["IPs"].isArray()) {
             for (const auto& ip : v["IPs"]) {
@@ -2231,6 +2340,12 @@ void MultiSync::PingSingleRemoteViaHTTP(const std::string& address) {
 // slot; whichever path below finishes the probe releases it.
 void MultiSync::StartHTTPPing(const std::string& address) {
     CurlManager::INSTANCE.addGet(buildHttpURL(address), [this, address](int rc, const std::string& resp) {
+        // The address may be queued for a re-ping again from here on: the
+        // answer (or the failure) is in.
+        {
+            std::unique_lock<std::mutex> lock(m_httpProbeLock);
+            s_httpPingPending.erase(address);
+        }
         // rc == 0 is a transfer that never got an HTTP response at all; any
         // status code means something answered, and the old blocking probe
         // likewise fed a non-200 body to the detectors rather than dropping it.
@@ -2262,6 +2377,43 @@ void MultiSync::FinishHTTPPing() {
         --m_httpPingsInFlight;
     }
     PumpHTTPPings();
+}
+
+// Answering a discover ping: one broadcast ping plus a unicast one to the
+// asker.  This used to sleep up to 6ms on the main loop per discover ping
+// (so the remotes' answers are spread out) and answer every one, so a stream
+// of them stalled output and turned every packet into several.  The answer
+// now goes out from a one-shot timer a few ms later, and every discover ping
+// that arrives while one is pending joins it: one broadcast, plus a unicast to
+// each distinct asker (bounded).
+static std::mutex s_discoverReplyLock;
+static std::set<std::string> s_discoverReplyTargets;
+static bool s_discoverReplyArmed = false;
+
+void MultiSync::QueueDiscoverReply(const std::string& address, const std::string& srcIp) {
+    std::lock_guard<std::mutex> lock(s_discoverReplyLock);
+    for (const std::string* a : { &address, &srcIp }) {
+        if (!a->empty() && s_discoverReplyTargets.size() < 64) {
+            s_discoverReplyTargets.insert(*a);
+        }
+    }
+    if (s_discoverReplyArmed) {
+        return;
+    }
+    s_discoverReplyArmed = true;
+    // a slight random delay so all the remotes don't answer at the same time
+    Timers::INSTANCE.addTimer("MultiSyncDiscoverReply", GetTimeMS() + 1 + FPPrand() % 6, [this]() {
+        std::set<std::string> targets;
+        {
+            std::lock_guard<std::mutex> lock(s_discoverReplyLock);
+            targets.swap(s_discoverReplyTargets);
+            s_discoverReplyArmed = false;
+        }
+        Ping();
+        for (const auto& t : targets) {
+            PingSingleRemote(t.c_str(), 0);
+        }
+    });
 }
 
 void MultiSync::PingSingleRemote(const char* address, int discover) {
@@ -2323,18 +2475,26 @@ int MultiSync::CreatePingPacket(MultiSyncSystem& sysInfo, char* outBuf, int disc
     return sizeof(ControlPkt) + cpkt->extraDataLen;
 }
 
-// The sync senders below all write filename into a fixed-size SyncPkt within a
-// 2048-byte outBuf; a filename that wouldn't fit must be rejected before the
-// strcpy rather than silently truncated or overflowed.
-static bool FitsInSyncOutBuf(const std::string& filename, size_t bufSize) {
-    return (sizeof(ControlPkt) + sizeof(SyncPkt) + filename.length() + 1) <= bufSize;
+// The most a sender may put after the ControlPkt header.  Receivers read each
+// datagram into a MAX_MS_RCV_BUFSIZE buffer and drop anything that arrives
+// truncated, so a larger packet is sent but never acted on.  Every sender
+// checks against this one limit and refuses (with an error) rather than send
+// something no remote will accept.
+static constexpr size_t MAX_MS_PAYLOAD = MAX_MS_RCV_BUFSIZE - sizeof(ControlPkt);
+
+// The sync senders below write filename into a SyncPkt within a 2048-byte
+// outBuf; a filename that wouldn't fit in a packet must be rejected before the
+// strcpy rather than silently truncated or overflowed.  sizeof(SyncPkt)
+// already counts the filename's terminating NUL.
+static bool FitsInSyncPacket(const std::string& filename) {
+    return (sizeof(SyncPkt) + filename.length()) <= MAX_MS_PAYLOAD;
 }
 
 void MultiSync::SendSeqOpenPacket(const std::string& filename) {
     if (filename.empty()) {
         return;
     }
-    if (!FitsInSyncOutBuf(filename, 2048)) {
+    if (!FitsInSyncPacket(filename)) {
         LogErr(VB_SYNC, "ERROR: SendSeqOpenPacket filename '%s' is too long to send\n", filename.c_str());
         return;
     }
@@ -2375,7 +2535,7 @@ void MultiSync::SendSeqSyncStartPacket(const std::string& filename) {
     if (filename.empty()) {
         return;
     }
-    if (!FitsInSyncOutBuf(filename, 2048)) {
+    if (!FitsInSyncPacket(filename)) {
         LogErr(VB_SYNC, "ERROR: SendSeqSyncStartPacket filename '%s' is too long to send\n", filename.c_str());
         return;
     }
@@ -2419,7 +2579,7 @@ void MultiSync::SendSeqSyncStopPacket(const std::string& filename) {
     if (filename.empty()) {
         return;
     }
-    if (!FitsInSyncOutBuf(filename, 2048)) {
+    if (!FitsInSyncPacket(filename)) {
         LogErr(VB_SYNC, "ERROR: SendSeqSyncStopPacket filename '%s' is too long to send\n", filename.c_str());
         return;
     }
@@ -2463,7 +2623,7 @@ void MultiSync::SendSeqSyncPacket(const std::string& filename, int frames, float
     if (filename.empty()) {
         return;
     }
-    if (!FitsInSyncOutBuf(filename, 2048)) {
+    if (!FitsInSyncPacket(filename)) {
         LogErr(VB_SYNC, "ERROR: SendSeqSyncPacket filename '%s' is too long to send\n", filename.c_str());
         return;
     }
@@ -2514,7 +2674,7 @@ void MultiSync::SendMediaOpenPacket(const std::string& filename) {
     if (filename.empty()) {
         return;
     }
-    if (!FitsInSyncOutBuf(filename, 2048)) {
+    if (!FitsInSyncPacket(filename)) {
         LogErr(VB_SYNC, "ERROR: SendMediaOpenPacket filename '%s' is too long to send\n", filename.c_str());
         return;
     }
@@ -2554,7 +2714,7 @@ void MultiSync::SendMediaSyncStartPacket(const std::string& filename) {
     if (filename.empty()) {
         return;
     }
-    if (!FitsInSyncOutBuf(filename, 2048)) {
+    if (!FitsInSyncPacket(filename)) {
         LogErr(VB_SYNC, "ERROR: SendMediaSyncStartPacket filename '%s' is too long to send\n", filename.c_str());
         return;
     }
@@ -2598,7 +2758,7 @@ void MultiSync::SendMediaSyncStopPacket(const std::string& filename) {
     if (filename.empty()) {
         return;
     }
-    if (!FitsInSyncOutBuf(filename, 2048)) {
+    if (!FitsInSyncPacket(filename)) {
         LogErr(VB_SYNC, "ERROR: SendMediaSyncStopPacket filename '%s' is too long to send\n", filename.c_str());
         return;
     }
@@ -2639,7 +2799,7 @@ void MultiSync::SendMediaSyncPacket(const std::string& filename, float seconds) 
     if (filename.empty()) {
         return;
     }
-    if (!FitsInSyncOutBuf(filename, 2048)) {
+    if (!FitsInSyncPacket(filename)) {
         LogErr(VB_SYNC, "ERROR: SendMediaSyncPacket filename '%s' is too long to send\n", filename.c_str());
         return;
     }
@@ -2705,7 +2865,7 @@ void MultiSync::SendPluginData(const std::string& name, const uint8_t* data, int
 
     InitControlPacket(cpkt);
     int nlen = strlen(name.c_str()) + 1; // add the null
-    if ((sizeof(ControlPkt) + (size_t)nlen + (size_t)len) > sizeof(outBuf)) {
+    if (len < 0 || ((size_t)nlen + (size_t)len) > MAX_MS_PAYLOAD) {
         LogErr(VB_SYNC, "ERROR: Plugin data packet for '%s' (%d bytes) is too large to send\n",
                name.c_str(), len);
         return;
@@ -2769,16 +2929,19 @@ void MultiSync::ShutdownSync(void) {
     // Idempotent, like WLEDAudioSync::Cleanup(): fppd's shutdown calls this and
     // ~MultiSync() calls it again at static-destruction time, by which point the
     // global SettingsConfig may already be gone -- locking its destroyed mutex
-    // would throw out of a noexcept destructor.  Unregistering also acts as a
-    // barrier: unregisterSettingsListener() takes the listener list's write
-    // lock, which the firing loop holds for reading while a callback runs, so it
-    // cannot return while ReloadSyncDestinations() is still in flight on the
-    // settings-reload thread.
+    // would throw out of a noexcept destructor.  Unregistering is not a
+    // barrier: listeners are called from a copy with no settings lock held, so
+    // one may still be running ReloadSyncDestinations() on the settings-reload
+    // thread, or be about to start.  Close the gate and wait for those to
+    // finish before the sockets below are closed.
     if (!m_settingsListenersRemoved.exchange(true)) {
         for (const char* s : { "MultiSyncRemotes", "MultiSyncExtraRemotes",
                                "MultiSyncBroadcast", "MultiSyncMulticast", "MultiSyncUnicast" }) {
             unregisterSettingsListener("MultiSync", s);
         }
+        std::unique_lock<std::mutex> lock(s_listenerQuiesceLock);
+        s_listenersShutdown = true;
+        s_listenerQuiesceCV.wait(lock, []() { return s_listenersInFlight == 0; });
     }
 
     {
@@ -2852,24 +3015,37 @@ int MultiSync::OpenBroadcastSocket(void) {
  */
 int MultiSync::OpenControlSockets() {
     LogDebug(VB_SYNC, "OpenControlSockets()\n");
+    std::unique_lock<std::mutex> openLock(s_controlSockOpenLock);
     if (m_controlSock >= 0) {
         return 1;
     }
 
-    m_controlSock = socket(AF_INET, SOCK_DGRAM, 0);
+    // Set the socket up fully before publishing it, so a sender never sees a
+    // half-configured one, and a failed setsockopt() doesn't leave it behind
+    // as if the open had succeeded.
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
 
-    if (m_controlSock < 0) {
+    if (sock < 0) {
         LogErr(VB_SYNC, "Error opening MultiSync socket\n");
         WarningHolder::AddWarning(42, "MultiSync: could not open control socket");
         return 0;
     }
 
     char loopch = 0;
-    if (setsockopt(m_controlSock, IPPROTO_IP, IP_MULTICAST_LOOP, (char*)&loopch, sizeof(loopch)) < 0) {
-        LogErr(VB_SYNC, "Error setting IP_MULTICAST_LOOP: \n",
+    if (setsockopt(sock, IPPROTO_IP, IP_MULTICAST_LOOP, (char*)&loopch, sizeof(loopch)) < 0) {
+        LogErr(VB_SYNC, "Error setting IP_MULTICAST_LOOP: %s\n",
                FPPstrerror(errno));
+        close(sock);
         return 0;
     }
+
+    {
+        std::unique_lock<std::mutex> lock(m_socketLock);
+        m_controlSock = sock;
+    }
+    // The destination reload resolves hostnames, so don't make other threads
+    // wanting the socket wait on it; they can use the socket already.
+    openLock.unlock();
 
     ReloadSyncDestinations();
 
@@ -3016,6 +3192,90 @@ void MultiSync::ReloadSyncDestinations() {
     }
 }
 
+// Malformed control packets come from whatever else is on the MultiSync port
+// (another program, an incompatible version), as fast as it sends them, and
+// each was logged with a hex dump: a line or more per packet.  Log the first
+// few in each minute, then say how many more were ignored.
+static std::mutex badPacketLock;
+static long long badPacketWindowMS = 0;
+static int badPacketsLogged = 0;
+static int badPacketsSuppressed = 0;
+static constexpr int BAD_PACKETS_LOGGED_PER_MINUTE = 5;
+
+static bool ShouldLogBadPacket() {
+    std::lock_guard<std::mutex> l(badPacketLock);
+    long long now = GetMonotonicTimeMS();
+    if (!badPacketWindowMS || now - badPacketWindowMS >= 60000) {
+        if (badPacketsSuppressed) {
+            LogWarn(VB_SYNC, "%d more malformed MultiSync packets ignored in the last minute\n", badPacketsSuppressed);
+        }
+        badPacketWindowMS = now ? now : 1;
+        badPacketsLogged = 0;
+        badPacketsSuppressed = 0;
+    }
+    if (badPacketsLogged < BAD_PACKETS_LOGGED_PER_MINUTE) {
+        badPacketsLogged++;
+        return true;
+    }
+    badPacketsSuppressed++;
+    return false;
+}
+
+// Undelivered sync packets since the last log line about them, and when that
+// was (GetMonotonicTimeMS()).  Guarded by m_socketLock; file-static rather
+// than members because MultiSync's layout is plugin ABI.  A remote that is
+// gone stays gone: logging every failed packet wrote a line per sync packet
+// (several a second) to the SD card for the whole show.
+static int undeliveredSinceLog = 0;
+static long long undeliveredLoggedAt = 0;
+static constexpr long long UNDELIVERED_LOG_INTERVAL_MS = 60000;
+
+// The same for the broadcast and multicast sends (ENOBUFS on Wi-Fi, an
+// interface that is down or firewalled): logged when it starts, then once a
+// minute with a count, rather than for every sync packet on every interface.
+// Callers hold m_socketLock.
+static int sendFailuresSinceLog = 0;
+static long long sendFailureLoggedAt = 0;
+
+static void LogSendFailure(int err) {
+    sendFailuresSinceLog++;
+    long long now = GetMonotonicTimeMS();
+    if (!sendFailureLoggedAt || now - sendFailureLoggedAt >= UNDELIVERED_LOG_INTERVAL_MS) {
+        LogErr(VB_SYNC, "Error: Unable to send packet: %s (%d failed sends%s)\n", FPPstrerror(err),
+               sendFailuresSinceLog, sendFailureLoggedAt ? " in the last minute" : "");
+        sendFailuresSinceLog = 0;
+        sendFailureLoggedAt = now ? now : 1;
+    }
+}
+
+// How long one sync send may keep retrying a destination whose socket buffer is
+// full, before skipping it.  These sends run on the channel output thread ahead
+// of the frame's channel data, and under m_socketLock, which the main loop's
+// media sync sends also take -- so the bound covers both.  See
+// SendControlPacketViaMsgs() for why a dropped sync packet is the cheap side.
+static constexpr long long SEND_BUDGET_MS = 2;
+
+// One datagram, never blocking for longer than the budget left since startTime.
+// A blocking sendto() here once waited for good: Wi-Fi stopped transmitting
+// mid-show, the multicast socket's buffer filled, and the channel output thread
+// slept in sendto() holding m_socketLock while the main loop queued up behind
+// it -- all pixel output froze until a power cycle (issue #3072).
+// Returns 0, or the errno of the failed send.
+static int SendDatagramBounded(int sock, const void* buf, int len, const struct sockaddr_in& addr,
+                               long long startTime) {
+    while (true) {
+        if (sendto(sock, buf, len, MSG_DONTWAIT, (const struct sockaddr*)&addr, sizeof(addr)) >= 0) {
+            return 0;
+        }
+        int err = errno;
+        bool transient = err == EAGAIN || err == EWOULDBLOCK || err == ENOBUFS;
+        if (!transient || (GetMonotonicTimeMS() - startTime) >= SEND_BUDGET_MS) {
+            return err;
+        }
+        std::this_thread::sleep_for(std::chrono::microseconds(250));
+    }
+}
+
 void MultiSync::SendControlPacketViaMsgs(std::vector<struct mmsghdr>& msgs, struct iovec& iovec, void* outBuf, int len) {
     // The msgs vector (and the sockaddrs its entries point at) may be rebuilt
     // concurrently by UpdateUnicastDestinations(), so read its size, point the
@@ -3040,10 +3300,11 @@ void MultiSync::SendControlPacketViaMsgs(std::vector<struct mmsghdr>& msgs, stru
     // sends.  Retrying that for long turns one dead remote into a per-frame
     // stall for every controller, which is exactly what the budget prevents.
     // A skipped sync packet is cheap by comparison: the next frame sends another.
-    constexpr long long SEND_BUDGET_MS = 2;
     int outputCount = 0;
     int undelivered = 0;
-    long long startTime = GetTimeMS();
+    // monotonic: on the wall clock a step back during the budget kept this
+    // loop retrying, on the channel output thread, for the size of the step
+    long long startTime = GetMonotonicTimeMS();
     while (outputCount < msgCount) {
         int sent = sendmmsg(m_controlSock, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
         if (sent > 0) {
@@ -3051,7 +3312,7 @@ void MultiSync::SendControlPacketViaMsgs(std::vector<struct mmsghdr>& msgs, stru
             continue;
         }
         bool transient = (sent == 0) || errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS;
-        if (transient && (GetTimeMS() - startTime) < SEND_BUDGET_MS) {
+        if (transient && (GetMonotonicTimeMS() - startTime) < SEND_BUDGET_MS) {
             // Genuine buffer pressure clears in well under the budget.
             std::this_thread::sleep_for(std::chrono::microseconds(250));
             continue;
@@ -3064,12 +3325,63 @@ void MultiSync::SendControlPacketViaMsgs(std::vector<struct mmsghdr>& msgs, stru
         ++undelivered;
     }
     if (undelivered) {
-        LogErr(VB_SYNC, "Error: Unable to send multisync packet: %s   (%d/%d sent, %d undelivered)\n",
-               FPPstrerror(errno), msgCount - undelivered, msgCount, undelivered);
+        int err = errno;
+        undeliveredSinceLog += undelivered;
+        long long now = GetMonotonicTimeMS();
+        if (!undeliveredLoggedAt || now - undeliveredLoggedAt >= UNDELIVERED_LOG_INTERVAL_MS) {
+            LogErr(VB_SYNC, "Error: Unable to send multisync packet: %s   (%d/%d sent; %d undelivered %s)\n",
+                   FPPstrerror(err), msgCount - undelivered, msgCount, undeliveredSinceLog,
+                   undeliveredLoggedAt ? "in the last minute" : "");
+            undeliveredSinceLog = 0;
+            undeliveredLoggedAt = now ? now : 1;
+        }
     }
 }
 
+// A broadcast is looped back to this host's own sockets (multicast is not:
+// IP_MULTICAST_LOOP is off).  An FPP command sent to all hosts is already run
+// locally by its sender, and plugin data is meant for the other hosts, so the
+// copy that comes back must not be dispatched a second time.  Remember what
+// was just sent and drop the matching echo.  Only those two types: other
+// local senders (scripts, tools, tests on this box) still get through.
+static std::mutex s_ownSendsLock;
+static std::deque<std::pair<size_t, long long>> s_ownSends; // hash, monotonic ms
+
+static bool IsEchoCandidate(const void* buf, int len) {
+    if (len < (int)sizeof(ControlPkt)) {
+        return false;
+    }
+    uint8_t type = ((const ControlPkt*)buf)->pktType;
+    return type == CTRL_PKT_FPPCOMMAND || type == CTRL_PKT_PLUGIN;
+}
+static size_t HashPacket(const void* buf, int len) {
+    return std::hash<std::string_view>{}(std::string_view((const char*)buf, len));
+}
+static void RememberOwnSend(const void* buf, int len) {
+    long long now = GetMonotonicTimeMS();
+    std::lock_guard<std::mutex> lock(s_ownSendsLock);
+    while (!s_ownSends.empty() && (s_ownSends.size() >= 64 || now - s_ownSends.front().second > 2000)) {
+        s_ownSends.pop_front();
+    }
+    s_ownSends.emplace_back(HashPacket(buf, len), now);
+}
+static bool IsOwnEcho(const void* buf, int len) {
+    size_t h = HashPacket(buf, len);
+    long long now = GetMonotonicTimeMS();
+    std::lock_guard<std::mutex> lock(s_ownSendsLock);
+    for (auto it = s_ownSends.begin(); it != s_ownSends.end(); ++it) {
+        if (it->first == h && now - it->second <= 2000) {
+            s_ownSends.erase(it);
+            return true;
+        }
+    }
+    return false;
+}
+
 void MultiSync::SendControlPacket(void* outBuf, int len) {
+    if (IsEchoCandidate(outBuf, len)) {
+        RememberOwnSend(outBuf, len);
+    }
     if (WillLog(LOG_EXCESSIVE, VB_SYNC)) {
         LogExcess(VB_SYNC, "SendControlPacket()\n");
         HexDump("Sending Control packet with contents:", outBuf, len, VB_SYNC);
@@ -3187,6 +3499,7 @@ void MultiSync::SendBroadcastPacket(void* outBuf, int len) {
     }
 
     std::unique_lock<std::mutex> lock(m_socketLock);
+    long long startTime = GetMonotonicTimeMS();
     for (auto& a : m_interfaces) {
         struct sockaddr_in bda;
         memset((void*)&bda, 0, sizeof(struct sockaddr_in));
@@ -3194,12 +3507,13 @@ void MultiSync::SendBroadcastPacket(void* outBuf, int len) {
         bda.sin_port = htons(FPP_CTRL_PORT);
         bda.sin_addr.s_addr = a.second.broadcastAddress;
 
-        if (sendto(m_broadcastSock, outBuf, len, 0, (struct sockaddr*)&bda, sizeof(struct sockaddr_in)) < 0)
-            LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", FPPstrerror(errno));
+        if (int err = SendDatagramBounded(m_broadcastSock, outBuf, len, bda, startTime))
+            LogSendFailure(err);
     }
 }
 void MultiSync::SendMulticastPacket(void* outBuf, int len) {
     std::unique_lock<std::mutex> lock(m_socketLock);
+    long long startTime = GetMonotonicTimeMS();
     for (auto& a : m_interfaces) {
         struct sockaddr_in bda;
         memset((void*)&bda, 0, sizeof(struct sockaddr_in));
@@ -3232,8 +3546,8 @@ void MultiSync::SendMulticastPacket(void* outBuf, int len) {
         }
 
         if (a.second.multicastSocket >= 0) {
-            if (sendto(a.second.multicastSocket, outBuf, len, 0, (struct sockaddr*)&bda, sizeof(struct sockaddr_in)) < 0)
-                LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", FPPstrerror(errno));
+            if (int err = SendDatagramBounded(a.second.multicastSocket, outBuf, len, bda, startTime))
+                LogSendFailure(err);
         }
     }
 }
@@ -3513,9 +3827,6 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
         v.reserve(msgcnt);
         for (int msg = 0; msg < msgcnt; msg++) {
             int len = rcvMsgs[msg].msg_len;
-            if (len <= 0) {
-                LogErr(VB_SYNC, "Error: recvmsg failed: %s\n", FPPstrerror(errno));
-            }
             if (len < (int)sizeof(ControlPkt)) {
                 v.emplace_back(nullptr, 0);
                 continue;
@@ -3528,14 +3839,17 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
         for (int msg = 0; msg < msgcnt; msg++) {
             int len = rcvMsgs[msg].msg_len;
             if (len <= 0) {
-                LogErr(VB_SYNC, "Error: recvmsg failed: %s\n", FPPstrerror(errno));
+                // an empty datagram: recvmmsg() itself succeeded (a failure
+                // ends the batch), so there is no error to report
                 continue;
             }
             unsigned char* inBuf = rcvBuffers[msg];
 
             if (len < sizeof(ControlPkt)) {
-                LogErr(VB_SYNC, "Error: Received control packet too short\n");
-                HexDump("Received data:", (void*)inBuf, len, VB_SYNC);
+                if (ShouldLogBadPacket()) {
+                    LogErr(VB_SYNC, "Error: Received control packet too short\n");
+                    HexDump("Received data:", (void*)inBuf, len, VB_SYNC);
+                }
                 continue;
             }
             if (shouldSkipPacket(msg, msgcnt, v)) {
@@ -3569,6 +3883,38 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
                 }
             }
 
+            pkt = (ControlPkt*)inBuf;
+
+            if ((pkt->fppd[0] != 'F') ||
+                (pkt->fppd[1] != 'P') ||
+                (pkt->fppd[2] != 'P') ||
+                (pkt->fppd[3] != 'D')) {
+                if (ShouldLogBadPacket()) {
+                    LogErr(VB_SYNC, "Error: Invalid Received Control Packet, missing 'FPPD' header\n");
+                    HexDump("Received data:", (void*)inBuf, len, VB_SYNC);
+                }
+                continue;
+            }
+
+            if (len != (sizeof(ControlPkt) + pkt->extraDataLen)) {
+                if (ShouldLogBadPacket()) {
+                    LogErr(VB_SYNC, "Error: Expected %d data bytes, received %d\n",
+                           pkt->extraDataLen, len - sizeof(ControlPkt));
+                    HexDump("Received data:", (void*)inBuf, len, VB_SYNC);
+                }
+                continue;
+            }
+
+            if (WillLog(LOG_EXCESSIVE, VB_SYNC)) {
+                HexDump("Received MultiSync packet with contents:", (void*)inBuf, len, VB_SYNC);
+            }
+
+            // Per-sender stats, created only for a well-formed packet (any
+            // datagram from a new, possibly spoofed, source used to add one),
+            // and only up to MAX_SYNC_STATS senders.  Entries are never freed
+            // (their pointers are used after m_statsLock is released), so a
+            // sender past the cap simply isn't tracked.
+            static constexpr size_t MAX_SYNC_STATS = 1024;
             MultiSyncStats tempStats("", "");
             MultiSyncStats* stats = &tempStats;
             if (!isLocal) {
@@ -3576,33 +3922,15 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
                 auto a = m_syncStats.find(sourceIP);
                 if (a != m_syncStats.end()) {
                     stats = (MultiSyncStats*)a->second;
-                } else {
+                } else if (m_syncStats.size() < MAX_SYNC_STATS) {
                     stats = new MultiSyncStats(sourceIP, hostname);
                     m_syncStats[sourceIP] = stats;
                 }
                 stats->lastReceiveTime = time(NULL);
             }
 
-            pkt = (ControlPkt*)inBuf;
-
-            if ((pkt->fppd[0] != 'F') ||
-                (pkt->fppd[1] != 'P') ||
-                (pkt->fppd[2] != 'P') ||
-                (pkt->fppd[3] != 'D')) {
-                LogErr(VB_SYNC, "Error: Invalid Received Control Packet, missing 'FPPD' header\n");
-                HexDump("Received data:", (void*)inBuf, len, VB_SYNC);
-                continue;
-            }
-
-            if (len != (sizeof(ControlPkt) + pkt->extraDataLen)) {
-                LogErr(VB_SYNC, "Error: Expected %d data bytes, received %d\n",
-                       pkt->extraDataLen, len - sizeof(ControlPkt));
-                HexDump("Received data:", (void*)inBuf, len, VB_SYNC);
-                continue;
-            }
-
-            if (WillLog(LOG_EXCESSIVE, VB_SYNC)) {
-                HexDump("Received MultiSync packet with contents:", (void*)inBuf, len, VB_SYNC);
+            if (isLocal && IsEchoCandidate(inBuf, len) && IsOwnEcho(inBuf, len)) {
+                continue; // our own broadcast, looped back (see IsOwnEcho)
             }
 
             if (!pingOnly || pkt->pktType == CTRL_PKT_PING) {
@@ -3893,10 +4221,53 @@ void MultiSync::SyncSyncedMedia(const std::string& filename, int frameNumber, fl
 /*
  *
  */
+// A file name from a sync packet, as a name relative to the media folder it is
+// looked up in, or false if it can't be one.  Masters send what they play: a
+// name, a path below the folder, or -- for a random media item -- the full
+// path on the master.  That full path is cut down to what follows its
+// music/videos/sequences folder, which also makes it work on a remote whose
+// media directory is elsewhere.  Anything else absolute, and any "..", is
+// refused: the name is network input, and a remote opened whatever existing
+// file it named.
+static bool SyncFilenameToMediaRelative(std::string& name, uint8_t fileType) {
+    if (name.empty()) {
+        return false;
+    }
+    if (name[0] == '/') {
+        static const char* const seqDirs[] = { "/sequences/", nullptr };
+        static const char* const mediaDirs[] = { "/music/", "/videos/", nullptr };
+        bool found = false;
+        for (const char* const* d = (fileType == SYNC_FILE_SEQ) ? seqDirs : mediaDirs; *d && !found; d++) {
+            size_t pos = name.find(*d);
+            if (pos != std::string::npos) {
+                name = name.substr(pos + strlen(*d));
+                found = true;
+            }
+        }
+        if (!found) {
+            return false;
+        }
+    }
+    size_t start = 0;
+    while (start <= name.size()) {
+        size_t end = name.find('/', start);
+        if (end == std::string::npos) {
+            end = name.size();
+        }
+        if (name.compare(start, end - start, "..") == 0 && end - start == 2) {
+            return false;
+        }
+        start = end + 1;
+    }
+    return !name.empty() && name.back() != '/';
+}
+
 void MultiSync::ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stats) {
     if (pkt->extraDataLen < sizeof(SyncPkt)) {
-        LogErr(VB_SYNC, "Error: Invalid length of received sync packet\n");
-        HexDump("Received data:", (void*)&pkt, len, VB_SYNC);
+        if (ShouldLogBadPacket()) {
+            LogErr(VB_SYNC, "Error: Invalid length of received sync packet\n");
+            HexDump("Received data:", (void*)pkt, len, VB_SYNC);
+        }
         stats->pktError++;
         return;
     }
@@ -3910,60 +4281,90 @@ void MultiSync::ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stat
 
     SyncPkt* spkt = (SyncPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
+    // filename is a flexible char[1]: read it no further than the packet goes,
+    // terminated or not.
+    size_t nameMax = pkt->extraDataLen - offsetof(SyncPkt, filename);
+    std::string filename(spkt->filename, strnlen(spkt->filename, nameMax));
+    float secondsIn = spkt->secondsElapsed;
+
     LogDebug(VB_SYNC, "ProcessSyncPacket()   filename: %s    type: %d   filetype: %d   frameNumber: %d   secondsElapsed: %0.2f\n",
-             spkt->filename, spkt->pktType, spkt->fileType, spkt->frameNumber, spkt->secondsElapsed);
+             TruncateForLog(filename).c_str(), spkt->pktType, spkt->fileType, spkt->frameNumber, secondsIn);
+
+    if (!SyncFilenameToMediaRelative(filename, spkt->fileType)) {
+        // A master sends one of these several times a second; say it once.
+        static std::string s_lastRefused;
+        if (filename != s_lastRefused) {
+            s_lastRefused = filename;
+            LogWarn(VB_SYNC, "Ignoring sync packets from %s for '%s': not a name in the media folders\n",
+                    stats->sourceIP.c_str(), TruncateForLog(filename).c_str());
+        }
+        stats->pktError++;
+        return;
+    }
+    // A NaN passes every "< 0" test and the int conversions downstream are
+    // undefined for it, as for anything past INT_MAX milliseconds.
+    if (!std::isfinite(secondsIn) || secondsIn < 0.0f) {
+        secondsIn = 0.0f;
+    } else if (secondsIn > 86400.0f) {
+        secondsIn = 86400.0f;
+    }
+    // The same bound for the frame number, at the fastest frame rate (1 ms):
+    // it is unsigned on the wire and an int from here on, so 2^31 and up went
+    // negative, and the frameNumber - 1 downstream overflowed at INT_MIN.
+    uint32_t wireFrame = spkt->frameNumber;
+    const int frameNumber = (int)std::min<uint32_t>(wireFrame, 86400u * 1000u);
 
     float secondsElapsed = 0.0;
 
     if (spkt->fileType == SYNC_FILE_SEQ) {
         switch (spkt->pktType) {
         case SYNC_PKT_OPEN:
-            OpenSyncedSequence(spkt->filename);
+            OpenSyncedSequence(filename);
             stats->pktSyncSeqOpen++;
             break;
         case SYNC_PKT_START:
-            StartSyncedSequence(spkt->filename);
+            StartSyncedSequence(filename);
             stats->pktSyncSeqStart++;
             break;
         case SYNC_PKT_STOP:
-            StopSyncedSequence(spkt->filename);
+            StopSyncedSequence(filename);
             stats->pktSyncSeqStop++;
             break;
         case SYNC_PKT_SYNC:
-            secondsElapsed = spkt->secondsElapsed - m_remoteOffset;
+            secondsElapsed = secondsIn - m_remoteOffset;
             if (secondsElapsed < 0)
                 secondsElapsed = 0.0;
 
-            SyncSyncedSequence(spkt->filename,
-                               spkt->frameNumber, secondsElapsed);
+            SyncSyncedSequence(filename,
+                               frameNumber, secondsElapsed);
             stats->pktSyncSeqSync++;
             break;
         }
     } else if (spkt->fileType == SYNC_FILE_MEDIA) {
         switch (spkt->pktType) {
         case SYNC_PKT_OPEN:
-            OpenSyncedMedia(spkt->filename);
+            OpenSyncedMedia(filename);
             stats->pktSyncMedOpen++;
             break;
         case SYNC_PKT_START:
-            secondsElapsed = spkt->secondsElapsed - m_remoteOffset;
+            secondsElapsed = secondsIn - m_remoteOffset;
             if (secondsElapsed < 0)
                 secondsElapsed = 0.0;
 
-            StartSyncedMedia(spkt->filename, secondsElapsed);
+            StartSyncedMedia(filename, secondsElapsed);
             stats->pktSyncMedStart++;
             break;
         case SYNC_PKT_STOP:
-            StopSyncedMedia(spkt->filename);
+            StopSyncedMedia(filename);
             stats->pktSyncMedStop++;
             break;
         case SYNC_PKT_SYNC:
-            secondsElapsed = spkt->secondsElapsed - m_remoteOffset;
+            secondsElapsed = secondsIn - m_remoteOffset;
             if (secondsElapsed < 0)
                 secondsElapsed = 0.0;
 
-            SyncSyncedMedia(spkt->filename,
-                            spkt->frameNumber, secondsElapsed);
+            SyncSyncedMedia(filename,
+                            frameNumber, secondsElapsed);
             stats->pktSyncMedSync++;
             break;
         }
@@ -3977,8 +4378,10 @@ void MultiSync::ProcessCommandPacket(ControlPkt* pkt, int len, MultiSyncStats* s
     LogDebug(VB_SYNC, "ProcessCommandPacket()\n");
 
     if (pkt->extraDataLen < sizeof(CommandPkt)) {
-        LogErr(VB_SYNC, "Error: Invalid length of received command packet\n");
-        HexDump("Received data:", (void*)&pkt, len, VB_SYNC);
+        if (ShouldLogBadPacket()) {
+            LogErr(VB_SYNC, "Error: Invalid length of received command packet\n");
+            HexDump("Received data:", (void*)pkt, len, VB_SYNC);
+        }
         stats->pktError++;
         return;
     }
@@ -4009,8 +4412,10 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
     LogDebug(VB_SYNC, "ProcessPingPacket()\n");
 
     if (pkt->extraDataLen < 169) { // v1 packet length
-        LogErr(VB_SYNC, "ERROR: Invalid length of received Ping packet\n");
-        HexDump("Received data:", (void*)&pkt, len, VB_SYNC);
+        if (ShouldLogBadPacket()) {
+            LogErr(VB_SYNC, "ERROR: Invalid length of received Ping packet\n");
+            HexDump("Received data:", (void*)pkt, len, VB_SYNC);
+        }
         stats->pktError++;
         return;
     }
@@ -4020,14 +4425,18 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
     unsigned char pingVersion = extraData[0];
 
     if ((pingVersion == 1) && (pkt->extraDataLen > 169)) {
-        LogErr(VB_SYNC, "ERROR: Ping v1 packet too long: %d\n", pkt->extraDataLen);
-        HexDump("Received data:", (void*)&pkt, len, VB_SYNC);
+        if (ShouldLogBadPacket()) {
+            LogErr(VB_SYNC, "ERROR: Ping v1 packet too long: %d\n", pkt->extraDataLen);
+            HexDump("Received data:", (void*)pkt, len, VB_SYNC);
+        }
         stats->pktError++;
         return;
     }
     if ((pingVersion == 2) && (pkt->extraDataLen > 214)) {
-        LogErr(VB_SYNC, "ERROR: Ping v2 packet too long %d\n", pkt->extraDataLen);
-        HexDump("Received data:", (void*)&pkt, len, VB_SYNC);
+        if (ShouldLogBadPacket()) {
+            LogErr(VB_SYNC, "ERROR: Ping v2 packet too long %d\n", pkt->extraDataLen);
+            HexDump("Received data:", (void*)pkt, len, VB_SYNC);
+        }
         stats->pktError++;
         return;
     }
@@ -4138,17 +4547,7 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
     }
     if (discover) {
         if ((hostname != m_hostname) && !isLocal) {
-            // very slight random delay so all the remotes don't send
-            // packets out at the same time
-            int rand = FPPrand() % 5000;
-            std::this_thread::sleep_for(std::chrono::microseconds(rand));
-            multiSync->Ping();
-            rand = FPPrand() % 1000;
-            std::this_thread::sleep_for(std::chrono::microseconds(rand));
-            multiSync->PingSingleRemote(address.c_str(), 0);
-            if (address != srcIp) {
-                multiSync->PingSingleRemote(srcIp.c_str(), 0);
-            }
+            QueueDiscoverReply(address, srcIp);
         }
     }
 
@@ -4167,7 +4566,9 @@ void MultiSync::ProcessPluginPacket(ControlPkt* pkt, int plen, MultiSyncStats* s
     // which they take as a size_t and read far past the buffer.
     int nlen = (int)strnlen(pn, (size_t)len);
     if (nlen >= len) {
-        LogErr(VB_SYNC, "Error: plugin packet name is not terminated within %d bytes of data\n", len);
+        if (ShouldLogBadPacket()) {
+            LogErr(VB_SYNC, "Error: plugin packet name is not terminated within %d bytes of data\n", len);
+        }
         stats->pktError++;
         return;
     }
@@ -4225,7 +4626,9 @@ void MultiSync::ProcessFPPCommandPacket(ControlPkt* pkt, int len, MultiSyncStats
     };
 
     if (pos >= end) {
-        LogErr(VB_SYNC, "Error: truncated FPP Command packet\n");
+        if (ShouldLogBadPacket()) {
+            LogErr(VB_SYNC, "Error: truncated FPP Command packet\n");
+        }
         stats->pktError++;
         return;
     }
@@ -4236,7 +4639,9 @@ void MultiSync::ProcessFPPCommandPacket(ControlPkt* pkt, int len, MultiSyncStats
     std::string host;
     std::string cmd;
     if (!readString(host) || !readString(cmd)) {
-        LogErr(VB_SYNC, "Error: truncated FPP Command packet\n");
+        if (ShouldLogBadPacket()) {
+            LogErr(VB_SYNC, "Error: truncated FPP Command packet\n");
+        }
         stats->pktError++;
         return;
     }
@@ -4245,8 +4650,10 @@ void MultiSync::ProcessFPPCommandPacket(ControlPkt* pkt, int len, MultiSyncStats
     for (uint8_t x = 0; x < numArgs; x++) {
         std::string arg;
         if (!readString(arg)) {
-            LogErr(VB_SYNC, "Error: FPP Command packet claims %d arguments but only holds %d\n",
-                   (int)numArgs, (int)args.size());
+            if (ShouldLogBadPacket()) {
+                LogErr(VB_SYNC, "Error: FPP Command packet claims %d arguments but only holds %d\n",
+                       (int)numArgs, (int)args.size());
+            }
             stats->pktError++;
             return;
         }
@@ -4291,7 +4698,25 @@ void MultiSync::SendFPPCommandPacket(const std::string& host, const std::string&
     for (auto a : getPluginsCopy()) {
         a->SendFPPCommandPacket(host, cmd, args);
     }
+    // The argument count goes out as one byte, so more than 255 would wrap and
+    // the remote would read a different command than this host runs.
+    if (args.size() > 255) {
+        LogErr(VB_SYNC, "ERROR: FPP Command \"%s\" has %d arguments, more than a MultiSync packet can carry\n",
+               TruncateForLog(cmd).c_str(), (int)args.size());
+        return;
+    }
+    // Payload: arg count, then host, cmd and each arg NUL-terminated.  Sized
+    // up front so a command too large for one packet is refused as a whole
+    // rather than sent truncated (or dropped by every receiver) while this
+    // host runs it in full.
+    size_t payloadLen = 1 + host.length() + 1 + cmd.length() + 1;
+    for (auto& a : args) {
+        payloadLen += a.length() + 1;
+    }
+    const bool fits = payloadLen <= MAX_MS_PAYLOAD;
+
     char outBuf[2048];
+    static_assert(sizeof(ControlPkt) + MAX_MS_PAYLOAD <= sizeof(outBuf), "outBuf must hold the largest packet");
     bzero(outBuf, sizeof(outBuf));
 
     ControlPkt* cpkt = (ControlPkt*)outBuf;
@@ -4299,24 +4724,17 @@ void MultiSync::SendFPPCommandPacket(const std::string& host, const std::string&
     cpkt->pktType = CTRL_PKT_FPPCOMMAND;
 
     int pos = sizeof(ControlPkt);
-    int room = (int)sizeof(outBuf) - pos;
-    // Bounded writes so a long host/cmd/arg can never overflow outBuf; strings
-    // that don't fit are truncated rather than written past the buffer.
-    auto appendField = [&](const std::string& v) {
-        int n = std::min((int)v.length() + 1, room > 0 ? room : 0);
-        if (n > 0) {
-            memcpy(&outBuf[pos], v.c_str(), n);
-            outBuf[pos + n - 1] = '\0';
+    if (fits) {
+        auto appendField = [&](const std::string& v) {
+            memcpy(&outBuf[pos], v.c_str(), v.length() + 1);
+            pos += v.length() + 1;
+        };
+        outBuf[pos++] = (unsigned char)args.size();
+        appendField(host);
+        appendField(cmd);
+        for (auto& a : args) {
+            appendField(a);
         }
-        pos += n;
-        room -= n;
-    };
-    outBuf[pos++] = (unsigned char)args.size();
-    room--;
-    appendField(host);
-    appendField(cmd);
-    for (auto& a : args) {
-        appendField(a);
     }
     cpkt->extraDataLen = pos - sizeof(ControlPkt);
 
@@ -4334,9 +4752,15 @@ void MultiSync::SendFPPCommandPacket(const std::string& host, const std::string&
             // only targetting myself, just run and don't send the packet
             LogDebug(VB_COMMAND, "Command \"%s\" self-targeted, running locally without sending\n", cmd.c_str());
             CommandManager::INSTANCE.run(cmd, args);
+        } else if (!fits) {
+            LogErr(VB_SYNC, "ERROR: FPP Command \"%s\" (%d bytes) is too large for a MultiSync packet, not sent\n",
+                   TruncateForLog(cmd).c_str(), (int)payloadLen);
         } else {
             SendUnicastPacket(host, outBuf, pos);
         }
+    } else if (!fits) {
+        LogErr(VB_SYNC, "ERROR: FPP Command \"%s\" (%d bytes) is too large for a MultiSync packet, not sent or run\n",
+               TruncateForLog(cmd).c_str(), (int)payloadLen);
     } else {
         SendControlPacket(outBuf, pos);
         // the packet won't loop back so if it's supposed to run on this host as well,

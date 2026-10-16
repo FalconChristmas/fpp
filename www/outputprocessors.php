@@ -138,7 +138,7 @@
 
                 html += "></td>"
                     + "<td>" + type + "</td>"
-                    + "<td><input class='description' type='text' size='32' maxlength='64' value='" + output.description + "'></td><td>";
+                    + "<td><input class='description' type='text' size='32' maxlength='64' value='" + EscapeHtmlAttr(output.description) + "'></td><td>";
 
                 html += HTMLForOutputProcessorConfig(output, models);
                 html += "</td></tr>";

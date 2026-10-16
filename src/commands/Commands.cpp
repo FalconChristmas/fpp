@@ -16,7 +16,10 @@
 #include "fpphttp.h" // drogon/HTTP helpers used here; no longer pulled transitively (see fpphttp_types.h)
 #include "fpphttp_clientip.h" // getEffectiveClientIP() - FPP-internal, not in the plugin API
 
+#include <algorithm>
 #include <thread>
+
+#include <sys/stat.h>
 
 #include "../Variables.h"
 #include "../common.h"
@@ -41,6 +44,7 @@
 // gets run. Defined further down (needs Variables.h); forward-declared here
 // since run() is used well above that point in the file.
 static std::string ReplaceVariableKeywords(std::string str);
+static void ResolveCommandArgs(const Command* cmd, std::vector<std::string>& args);
 
 CommandManager CommandManager::INSTANCE;
 
@@ -234,7 +238,9 @@ void CommandManager::Init() {
     FileMonitor::INSTANCE.AddFile("CommandManager:CommandPresets.json",
                                   FPP_DIR_CONFIG("/commandPresets.json"),
                                   [this]() {
-                                      std::unique_lock<std::mutex> lock(presetsMutex);
+                                      // No presetsMutex here: LoadPresets()
+                                      // takes it for the swap, and it is not
+                                      // recursive.
                                       MaybeReloadPresets();
                                   });
 
@@ -302,7 +308,7 @@ void CommandManager::Init() {
                 Json::Value val;
                 bool success = LoadJsonFromString(payload, val);
                 if (success && val.isObject()) {
-                    LogDebug(VB_COMMAND, "MQTT topic \"%s\" running command \"%s\" (JSON payload)\n", topic.c_str(), val["command"].asString().c_str());
+                    LogDebug(VB_COMMAND, "MQTT topic \"%s\" running command (JSON payload)\n", topic.c_str());
                     CommandManager::INSTANCE.run(val);
                 } else {
                     LogWarn(VB_COMMAND, "Invalid JSON Payload: %s\n", payload.c_str());
@@ -359,14 +365,18 @@ void CommandManager::Cleanup() {
         return;
     }
     FileMonitor::INSTANCE.RemoveFile("CommandManager:CommandPresets.json", FPP_DIR_CONFIG("/commandPresets.json"));
-    while (!commands.empty()) {
-        Command* cmd = commands.begin()->second;
-        commands.erase(commands.begin());
-
-        delete cmd;
+    std::map<std::string, Command*> all;
+    {
+        std::unique_lock<std::shared_mutex> l(commandsLock);
+        all.swap(commands);
+        commandMeta.clear();
+        ++commandsGeneration;
     }
-    commands.clear();
-    ++commandsGeneration;
+    for (auto& c : all) {
+        // An MQTT or HTTP thread can still be inside one at shutdown.
+        waitForIdle(c.second);
+        delete c.second;
+    }
 }
 
 void CommandManager::addCommand(Command* cmd) {
@@ -378,27 +388,92 @@ void CommandManager::addCommand(Command* cmd) {
     addCategorizedCommand(cmd, "Plugins", 0);
 }
 void CommandManager::addCategorizedCommand(Command* cmd, const std::string& category, int level) {
+    std::unique_lock<std::shared_mutex> l(commandsLock);
+    auto a = commands.find(cmd->name);
+    if (a != commands.end() && a->second != cmd) {
+        LogWarn(VB_COMMAND, "Command \"%s\" registered twice; the later registration replaces the earlier\n", cmd->name.c_str());
+    }
     commands[cmd->name] = cmd;
     commandMeta[cmd->name] = { category, level };
     ++commandsGeneration;
 }
-void CommandManager::removeCommand(Command* cmd) {
-    auto a = commands.find(cmd->name);
-    if (a != commands.end()) {
-        commands.erase(a);
+
+// Commands this thread is running, innermost last. waitForIdle() discounts
+// them, so a command that unregisters itself from its own run() does not wait
+// on itself.
+static thread_local std::vector<Command*> tl_runningCommands;
+
+std::shared_ptr<Command> CommandManager::acquireCommand(const std::string& name) {
+    std::shared_lock<std::shared_mutex> l(commandsLock);
+    auto f = commands.find(name);
+    if (f == commands.end()) {
+        return nullptr;
     }
-    commandMeta.erase(cmd->name);
-    ++commandsGeneration;
+    Command* cmd = f->second;
+    {
+        std::lock_guard<std::mutex> il(inFlightLock);
+        inFlight[cmd]++;
+    }
+    // Releases the pin, never deletes: the command's owner does that.
+    return std::shared_ptr<Command>(cmd, [this](Command* c) {
+        std::lock_guard<std::mutex> il(inFlightLock);
+        auto it = inFlight.find(c);
+        if (it != inFlight.end() && --it->second <= 0) {
+            inFlight.erase(it);
+        }
+        inFlightCV.notify_all();
+    });
+}
+
+// Every caller of removeCommand() deletes the command straight after, so it
+// must not return while another thread is still inside that command's run().
+// Bounded, because a run that never ends (one blocked on the thread doing the
+// removal) would otherwise hang the removal for good; that case is logged.
+void CommandManager::waitForIdle(Command* cmd) {
+    const int own = (int)std::count(tl_runningCommands.begin(), tl_runningCommands.end(), cmd);
+    std::unique_lock<std::mutex> il(inFlightLock);
+    bool idle = inFlightCV.wait_for(il, std::chrono::seconds(10), [&] {
+        auto it = inFlight.find(cmd);
+        return it == inFlight.end() || it->second <= own;
+    });
+    if (!idle) {
+        LogErr(VB_COMMAND, "Command \"%s\" is still running 10s after it was unregistered; continuing anyway\n", cmd->name.c_str());
+    }
+}
+
+void CommandManager::removeCommand(Command* cmd) {
+    {
+        std::unique_lock<std::shared_mutex> l(commandsLock);
+        auto a = commands.find(cmd->name);
+        if (a == commands.end() || a->second != cmd) {
+            // Another object holds this name now (two outputs registering the
+            // same command); removing by name would unregister theirs.
+            return;
+        }
+        commands.erase(a);
+        commandMeta.erase(cmd->name);
+        ++commandsGeneration;
+    }
+    waitForIdle(cmd);
 }
 void CommandManager::removeCommand(const std::string& cmdName) {
-    auto a = commands.find(cmdName);
-    if (a != commands.end()) {
-        commands.erase(a);
+    Command* cmd = nullptr;
+    {
+        std::unique_lock<std::shared_mutex> l(commandsLock);
+        auto a = commands.find(cmdName);
+        if (a != commands.end()) {
+            cmd = a->second;
+            commands.erase(a);
+        }
+        commandMeta.erase(cmdName);
+        ++commandsGeneration;
     }
-    commandMeta.erase(cmdName);
-    ++commandsGeneration;
+    if (cmd) {
+        waitForIdle(cmd);
+    }
 }
 std::vector<std::pair<std::string, Command*>> CommandManager::getRegisteredCommands() const {
+    std::shared_lock<std::shared_mutex> l(commandsLock);
     std::vector<std::pair<std::string, Command*>> ret;
     ret.reserve(commands.size());
     for (const auto& c : commands) {
@@ -406,6 +481,7 @@ std::vector<std::pair<std::string, Command*>> CommandManager::getRegisteredComma
     }
     return ret;
 }
+// Caller holds commandsLock (shared).
 Json::Value CommandManager::describeCommand(Command* cmd) {
     Json::Value result = cmd->getDescription();
     auto m = commandMeta.find(cmd->name);
@@ -417,6 +493,7 @@ Json::Value CommandManager::describeCommand(Command* cmd) {
 }
 Json::Value CommandManager::getDescriptions() {
     Json::Value ret;
+    std::shared_lock<std::shared_mutex> l(commandsLock);
     for (auto& a : commands) {
         // Isolate each command's description: a single command that throws while
         // being described (e.g. a stale external plugin whose Command/CommandArg
@@ -491,17 +568,101 @@ static std::unique_ptr<Command::Result> invokeCommand(Command* cmd, const std::v
         return std::make_unique<Command::ErrorResult>(
             "Command \"" + cmd->name + "\" requires the \"" + argName + "\" argument");
     }
-    return cmd->run(args);
+    // ...and the one place every nested command passes through, so the one
+    // place runaway nesting can be bounded. Commands run commands: a preset, an
+    // If's Then/Else list, a playlist entry that restarts its own playlist, a
+    // %VAR: whose value is an If that expands the same variable again. Each
+    // path that recurses into itself on the same stack has its own fix, but
+    // anything missed - including a plugin command - would otherwise grow the
+    // stack until it faults. Real chains are a handful deep.
+    static constexpr int MAX_COMMAND_DEPTH = 32;
+    static thread_local int depth = 0;
+    if (depth >= MAX_COMMAND_DEPTH) {
+        LogErr(VB_COMMAND, "Command \"%s\" not run: commands nested more than %d deep - a command is running itself\n",
+               cmd->name.c_str(), MAX_COMMAND_DEPTH);
+        return std::make_unique<Command::ErrorResult>("Command \"" + cmd->name + "\" nested too deep");
+    }
+    struct DepthGuard {
+        Command* c;
+        explicit DepthGuard(Command* cmd) :
+            c(cmd) {
+            depth++;
+            tl_runningCommands.push_back(c);
+        }
+        ~DepthGuard() {
+            depth--;
+            tl_runningCommands.pop_back();
+        }
+    } depthGuard(cmd);
+
+    // ...and the one place a throwing command can be stopped from taking fppd
+    // down. Only the HTTP routes have a catch above them (drogon's); MQTT runs
+    // commands on libmosquitto's thread, MultiSync, GPIO, presets and playlist
+    // entries on the main loop, and none of those frames catch, so an exception
+    // out of run() - jsoncpp's LogicError on an argument of the wrong JSON type,
+    // std::stoi on a non-number, a Magick error, any plugin's own throw - was
+    // std::terminate. A malformed command is the sender's error; report it as
+    // one.
+    try {
+        return cmd->run(args);
+    } catch (const std::exception& e) {
+        LogErr(VB_COMMAND, "Command \"%s(%s)\" failed: %s\n", cmd->name.c_str(), FormatArgsForLog(args).c_str(), e.what());
+        return std::make_unique<Command::ErrorResult>("Command \"" + cmd->name + "\" failed: " + e.what());
+    } catch (...) {
+        LogErr(VB_COMMAND, "Command \"%s(%s)\" failed with an unknown exception\n", cmd->name.c_str(), FormatArgsForLog(args).c_str());
+        return std::make_unique<Command::ErrorResult>("Command \"" + cmd->name + "\" failed");
+    }
+}
+
+// A command's args as strings, whatever JSON type each one arrived as. Every
+// documented sender writes strings, but these come off MQTT payloads, MultiSync
+// packets and hand-edited presets, and asString() throws on an object or array
+// - and indexing a non-array by position throws too. Scalars convert the way
+// asString() always has; an object or array is passed on as its JSON text,
+// which is what the commands that take structured args (If) parse anyway.
+static bool JsonArgsToStrings(const Json::Value& argsArray, std::vector<std::string>& args, std::string& err) {
+    if (argsArray.isNull()) {
+        return true;
+    }
+    if (!argsArray.isArray()) {
+        err = "\"args\" must be an array";
+        return false;
+    }
+    for (Json::ArrayIndex x = 0; x < argsArray.size(); x++) {
+        const Json::Value& a = argsArray[x];
+        if (a.isNull()) {
+            args.push_back("");
+        } else if (a.isObject() || a.isArray()) {
+            args.push_back(SaveJsonToString(a));
+        } else {
+            args.push_back(a.asString());
+        }
+    }
+    return true;
+}
+
+// A boolean flag in a command's JSON, tolerating the "true"/"1" string forms a
+// hand-written payload uses; asBool() throws on a string.
+static bool JsonFlag(const Json::Value& v) {
+    if (v.isBool()) {
+        return v.asBool();
+    }
+    if (v.isIntegral()) {
+        return v.asLargestInt() != 0;
+    }
+    if (v.isString()) {
+        std::string s = v.asString();
+        return s == "true" || s == "1";
+    }
+    return false;
 }
 
 std::unique_ptr<Command::Result> CommandManager::run(const std::string& command, const std::vector<std::string>& args) {
-    auto f = commands.find(command);
-    if (f != commands.end()) {
-        std::vector<std::string> resolvedArgs;
-        resolvedArgs.reserve(args.size());
-        for (auto const& arg : args) {
-            resolvedArgs.push_back(ReplaceVariableKeywords(arg));
-        }
+    // Pinned: removeCommand() waits for it, so it cannot be freed mid-run.
+    std::shared_ptr<Command> pinned = acquireCommand(command);
+    if (pinned) {
+        std::vector<std::string> resolvedArgs = args;
+        ResolveCommandArgs(pinned.get(), resolvedArgs);
 
         // Logged after substitution (like the Json overload below) so the line
         // shows what actually ran, not the unresolved %VAR:name% that was
@@ -519,7 +680,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
         std::string topic = "command/run";
         Events::Publish(topic, SaveJsonToString(payload));
 
-        return invokeCommand(f->second, resolvedArgs);
+        return invokeCommand(pinned.get(), resolvedArgs);
     }
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
     // A playlist "FPP Command" entry (or preset, GPIO binding, etc.) can
@@ -535,16 +696,16 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
 }
 
 std::unique_ptr<Command::Result> CommandManager::run(const std::string& command, const Json::Value& argsArray) {
-    auto f = commands.find(command);
-    if (f != commands.end()) {
+    // Pinned: removeCommand() waits for it, so it cannot be freed mid-run.
+    std::shared_ptr<Command> pinned = acquireCommand(command);
+    if (pinned) {
         std::vector<std::string> args;
-        for (int x = 0; x < argsArray.size(); x++) {
-            if (argsArray[x].isNull()) {
-                args.push_back("");
-            } else {
-                args.push_back(ReplaceVariableKeywords(argsArray[x].asString()));
-            }
+        std::string err;
+        if (!JsonArgsToStrings(argsArray, args, err)) {
+            LogWarn(VB_COMMAND, "Command \"%s\" not run: %s\n", command.c_str(), err.c_str());
+            return std::make_unique<Command::ErrorResult>(err);
         }
+        ResolveCommandArgs(pinned.get(), args);
         LogInfo(VB_COMMAND, "Running command \"%s(%s)\"\n", command.c_str(), FormatArgsForLog(args).c_str());
 
         // Publish MQTT event for command execution
@@ -560,7 +721,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
         LogExcess(VB_COMMAND, "JSONVAL MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
         Events::Publish(topic, payloadStr);
 
-        return invokeCommand(f->second, args);
+        return invokeCommand(pinned.get(), args);
     }
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
     // A playlist "FPP Command" entry (or preset, GPIO binding, etc.) can
@@ -575,23 +736,28 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string& command,
     return std::make_unique<Command::ErrorResult>("No Command: " + command);
 }
 std::unique_ptr<Command::Result> CommandManager::run(const Json::Value& cmd) {
+    if (!cmd.isObject() || !cmd["command"].isString()) {
+        LogWarn(VB_COMMAND, "Command not run: \"command\" must be a string\n");
+        return std::make_unique<Command::ErrorResult>("\"command\" must be a string");
+    }
     std::string command = cmd["command"].asString();
     if (cmd.isMember("multisyncCommand")) {
-        bool multisync = cmd["multisyncCommand"].asBool();
+        bool multisync = JsonFlag(cmd["multisyncCommand"]);
         if (multisync) {
-            std::string hosts = cmd.isMember("multisyncHosts") ? cmd["multisyncHosts"].asString() : "";
+            std::string hosts = cmd["multisyncHosts"].isString() ? cmd["multisyncHosts"].asString() : "";
             std::vector<std::string> args;
-            for (int x = 0; x < cmd["args"].size(); x++) {
-                if (cmd["args"][x].isNull()) {
-                    args.push_back("");
-                } else {
-                    // Resolved against THIS host's Variables before sending -
-                    // a remote host has no way to resolve %VAR:name% itself
-                    // (and may not even have a same-named Variable), so it
-                    // must go out already substituted, unlike the
-                    // non-multisync path below where run() does this.
-                    args.push_back(ReplaceVariableKeywords(cmd["args"][x].asString()));
-                }
+            std::string err;
+            if (!JsonArgsToStrings(cmd["args"], args, err)) {
+                LogWarn(VB_COMMAND, "Command \"%s\" not sent: %s\n", command.c_str(), err.c_str());
+                return std::make_unique<Command::ErrorResult>(err);
+            }
+            // Resolved against THIS host's Variables before sending - a remote
+            // host has no way to resolve %VAR:name% itself (and may not even
+            // have a same-named Variable), so it must go out already
+            // substituted, unlike the non-multisync path below where run()
+            // does this.
+            for (auto& a : args) {
+                a = ReplaceVariableKeywords(a);
             }
             MultiSync::INSTANCE.SendFPPCommandPacket(hosts, command, args);
             return std::make_unique<Command::Result>("Command Sent");
@@ -666,6 +832,7 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
     if (p1 == "commands") {
         if (plen > 1) {
             std::string command = parts[1];
+            std::shared_lock<std::shared_mutex> cl(commandsLock);
             auto f = commands.find(command);
             if (f != commands.end()) {
                 Json::Value result = describeCommand(f->second);
@@ -719,14 +886,16 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
         std::string command = parts[1];
         std::vector<std::string> args;
         for (int x = 2; x < plen; x++) {
+            args.push_back(parts[x]);
+        }
+        // Pinned: removeCommand() waits for it, so it cannot be freed mid-run.
+        std::shared_ptr<Command> pinned = acquireCommand(command);
+        if (pinned) {
             // Substituted here rather than inherited from CommandManager::run():
             // this route calls the Command directly (see the MQTT publish below
             // for why), so without this %VAR:name% would pass through literally
             // on /api/command/... alone while resolving on every other path.
-            args.push_back(ReplaceVariableKeywords(parts[x]));
-        }
-        auto f = commands.find(command);
-        if (f != commands.end()) {
+            ResolveCommandArgs(pinned.get(), args);
             // This route calls the Command directly rather than through
             // CommandManager::run(), so it must log the args itself - see the
             // MQTT publish just below for why it can't simply delegate.
@@ -747,7 +916,7 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
             LogExcess(VB_COMMAND, "GET MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
             Events::Publish(topic, payloadStr);
 
-            std::unique_ptr<Command::Result> r = invokeCommand(f->second, args);
+            std::unique_ptr<Command::Result> r = invokeCommand(pinned.get(), args);
             int count = 0;
             while (!r->isDone() && count < 1000) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -807,13 +976,16 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
                 return makeStringResponse("Body is not valid JSON - expected an array of arguments", 400, "text/plain");
             }
             std::vector<std::string> args;
-            for (int x = 0; x < val.size(); x++) {
+            std::string err;
+            if (!JsonArgsToStrings(val, args, err)) {
+                return makeStringResponse("Body must be a JSON array of arguments", 400, "text/plain");
+            }
+            // Pinned: removeCommand() waits for it, so it cannot be freed mid-run.
+            std::shared_ptr<Command> pinned = acquireCommand(command);
+            if (pinned) {
                 // Direct Command call, so substitute here - same reason as the
                 // GET route above.
-                args.push_back(ReplaceVariableKeywords(val[x].asString()));
-            }
-            auto f = commands.find(command);
-            if (f != commands.end()) {
+                ResolveCommandArgs(pinned.get(), args);
                 // Direct Command call, not CommandManager::run() - log the
                 // args here too, same as the GET route above.
                 LogInfo(VB_COMMAND, "POST /api/command/%s from %s: running command \"%s(%s)\"\n",
@@ -833,7 +1005,7 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
                 LogExcess(VB_COMMAND, "POST MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
                 Events::Publish(topic, payloadStr);
 
-                std::unique_ptr<Command::Result> r = invokeCommand(f->second, args);
+                std::unique_ptr<Command::Result> r = invokeCommand(pinned.get(), args);
                 int count = 0;
                 while (!r->isDone() && count < 1000) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -853,6 +1025,9 @@ HttpResponsePtr CommandManager::render_POST(const HttpRequestPtr& req) {
             std::string command(getRequestContent(req));
             LogExcess(VB_COMMAND, "Received command: \"%s\"\n", TruncateForLog(command, 2000).c_str());
             Json::Value val = LoadJsonFromString(command);
+            if (!val.isObject() || !val["command"].isString()) {
+                return makeStringResponse("Body must be a JSON object with a \"command\" string", 400, "text/plain");
+            }
             LogDebug(VB_COMMAND, "POST /api/command (bare JSON body) from %s: running command \"%s\"\n",
                      getEffectiveClientIP(req).c_str(), val["command"].asString().c_str());
             std::unique_ptr<Command::Result> r = run(val);
@@ -900,6 +1075,40 @@ static std::string ReplaceVariableKeywords(std::string str) {
     return str;
 }
 
+static void ReplaceVariableKeywordsInJson(Json::Value& v) {
+    if (v.isString()) {
+        v = ReplaceVariableKeywords(v.asString());
+    } else if (v.isArray() || v.isObject()) {
+        for (auto& c : v) {
+            ReplaceVariableKeywordsInJson(c);
+        }
+    }
+}
+
+// %VAR: substitution for every arg of a command about to run. Most args are
+// text and take the value as-is. A condition list or command list (If's) is
+// JSON text, though, and pasting a value into that - one containing a quote,
+// say - broke the JSON, so If silently ran an empty list. Those are
+// substituted inside their string values and serialized again instead.
+static void ResolveCommandArgs(const Command* cmd, std::vector<std::string>& args) {
+    auto decl = cmd->args.begin();
+    for (size_t i = 0; i < args.size(); i++) {
+        bool structured = decl != cmd->args.end() &&
+                          (decl->type == "commandlist" || decl->type == "conditionlist");
+        Json::Value v;
+        if (structured && args[i].find("%VAR:") != std::string::npos && LoadJsonFromString(args[i], v) &&
+            (v.isArray() || v.isObject())) {
+            ReplaceVariableKeywordsInJson(v);
+            args[i] = SaveJsonToString(v);
+        } else {
+            args[i] = ReplaceVariableKeywords(args[i]);
+        }
+        if (decl != cmd->args.end()) {
+            ++decl;
+        }
+    }
+}
+
 // %VAR: substitution isn't done here - it's applied once, centrally, by
 // CommandManager::run() itself (see ReplaceVariableKeywords above), which
 // every caller of this function's result eventually goes through.
@@ -907,8 +1116,14 @@ Json::Value CommandManager::ReplaceCommandKeywords(Json::Value cmd, std::map<std
     if (!cmd.isMember("args"))
         return cmd;
 
-    for (int i = 0; i < cmd["args"].size(); i++) {
-        cmd["args"][i] = ReplaceKeywords(cmd["args"][i].asString(), keywords);
+    if (!cmd["args"].isArray())
+        return cmd;
+    for (Json::ArrayIndex i = 0; i < cmd["args"].size(); i++) {
+        // Only text has keywords in it; an object or array arg is passed on
+        // as JSON by run(), and asString() would throw on it here.
+        if (cmd["args"][i].isString()) {
+            cmd["args"][i] = ReplaceKeywords(cmd["args"][i].asString(), keywords);
+        }
     }
 
     return cmd;
@@ -1040,11 +1255,28 @@ int CommandManager::TriggerPreset(std::string name) {
     return TriggerPreset(name, keywords);
 }
 
+// The preset file's modification time in nanoseconds, 0 if it is missing.
+// Whole seconds were not enough: a save in the same second as the previous
+// load (two quick edits, or an edit right after startup) looked unchanged, and
+// the presets stayed stale until the next save.
+static uint64_t PresetFileStamp(const std::string& file) {
+    struct stat st;
+    if (stat(file.c_str(), &st) != 0) {
+        return 0;
+    }
+#ifdef PLATFORM_OSX
+    const struct timespec& ts = st.st_mtimespec;
+#else
+    const struct timespec& ts = st.st_mtim;
+#endif
+    return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
+}
+
 void CommandManager::MaybeReloadPresets() {
     std::string commandsFile = FPP_DIR_CONFIG("/commandPresets.json");
-    if (lastPresetTimeStamp < FileTimestamp(commandsFile)) {
-        presets.clear();
-        missingPresets.clear();
+    // Any change, not only a newer time: a restored backup can carry an
+    // older modification time than the file it replaces.
+    if (lastPresetTimeStamp != PresetFileStamp(commandsFile)) {
         LoadPresets();
     }
 }
@@ -1061,7 +1293,9 @@ void CommandManager::LoadPresets() {
 
     if (FileExists(commandsFile)) {
         // Load new config file
-        lastPresetTimeStamp = FileTimestamp(commandsFile);
+        // Stamped before the read, so an edit landing during it is seen as a
+        // change by the next check rather than recorded as already loaded.
+        lastPresetTimeStamp = PresetFileStamp(commandsFile);
         allCommands = LoadJsonFromFile(commandsFile, JsonRoot::Object);
     } else {
         // Convert any old events to new format
@@ -1089,23 +1323,49 @@ void CommandManager::LoadPresets() {
 
         allCommands["commands"] = commands;
         SaveJsonToFile(allCommands, commandsFile, "\t");
-        lastPresetTimeStamp = FileTimestamp(commandsFile);
+        lastPresetTimeStamp = PresetFileStamp(commandsFile);
     }
 
-    if (allCommands.isMember("commands")) {
-        for (int i = 0; i < allCommands["commands"].size(); i++) {
-            if (presets.isMember(allCommands["commands"][i]["name"].asString())) {
-                presets[allCommands["commands"][i]["name"].asString()].append(allCommands["commands"][i]);
-            } else {
-                Json::Value pArr(Json::arrayValue);
-                pArr.append(allCommands["commands"][i]);
-                presets[allCommands["commands"][i]["name"].asString()] = pArr;
-            }
-        }
+    // Built aside and swapped in under presetsMutex: TriggerPreset() reads
+    // `presets` under that lock from HTTP, MQTT and main-loop threads, and a
+    // reload used to clear and refill it in place with no lock at all.
+    //
+    // The file can be hand-edited or uploaded through the config file API, so
+    // every entry is checked here, once, rather than by asString()/asInt() at
+    // trigger time - where the wrong type threw on whichever thread fired the
+    // preset, and here at startup threw out of Init() on every boot.
+    Json::Value loaded(Json::objectValue);
+    const Json::Value& list = allCommands.isObject() ? allCommands["commands"] : Json::Value::nullSingleton();
+    if (!list.isNull() && !list.isArray()) {
+        LogErr(VB_COMMAND, "commandPresets.json: \"commands\" is not an array - no presets loaded\n");
     }
+    for (Json::ArrayIndex i = 0; list.isArray() && i < list.size(); i++) {
+        Json::Value entry = list[i];
+        if (!entry.isObject() || !entry["name"].isString() || entry["name"].asString().empty() ||
+            !entry["command"].isString() || (!entry["args"].isNull() && !entry["args"].isArray())) {
+            LogWarn(VB_COMMAND, "commandPresets.json: skipping entry %d - it needs a text \"name\" and \"command\" and an \"args\" array\n", (int)i);
+            continue;
+        }
+        if (!entry["presetSlot"].isConvertibleTo(Json::intValue)) {
+            entry["presetSlot"] = 0;
+        }
+        std::string name = entry["name"].asString();
+        if (!loaded.isMember(name)) {
+            loaded[name] = Json::Value(Json::arrayValue);
+        }
+        loaded[name].append(entry);
+    }
+    std::unique_lock<std::mutex> lock(presetsMutex);
+    presets.swap(loaded);
+    missingPresets.clear();
 }
 
 bool CommandManager::HasPreset(const std::string& name) {
     std::unique_lock<std::mutex> lock(presetsMutex);
     return presets.isMember(name);
+}
+
+Json::Value CommandManager::GetPresets() {
+    std::unique_lock<std::mutex> lock(presetsMutex);
+    return presets;
 }

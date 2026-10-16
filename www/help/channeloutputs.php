@@ -21,6 +21,8 @@
 
 <p><b>DMX Open</b> — The DMX Open output can send DMX data out generic FTDI-based USB to RS485 dongles. Other RS485 dongles may work if they support setting arbitrary bit rates. Support should include the following dongles: Entec Open DMX, LOR, and D-Light along with generic FTDI-based USB to RS485 adapters.</p>
 
+<p><b>LOR Enhanced</b> — Drives Light-O-Rama pixel controllers (Pixie, PixCon16) on an enhanced LOR network through a USB to RS485 adapter, at 500k or 1 Mbps. Each <b>Unit</b> row is one LOR unit ID: <b>Pixels</b> is how many pixels it carries (up to 170), <b>LOR Start Pix</b> is the first pixel on the unit they go to, and <b>Start Ch</b> is where the unit's data starts within this output (1 is the output's Start Channel). A Pixie port set for 340 pixels takes two unit IDs, so add a row for each. The output's channel count follows the units — it runs to the last pixel of the unit that reaches furthest — so it is not edited directly. Only pixels that changed are sent each frame, with unchanged pixels refreshed in the background, so the pixel counts shown next to each speed — which assume every pixel changes every frame at 40fps — are a floor, not a limit.</p>
+
 <p><b>DMX Pro</b> — The DMX Pro output can send DMX data out Entec-Pro compatible dongles. This should include the following dongles: Entec-Pro, Lynx USB dongle w/ DMX firmware, DIYC RPM, DMXking.com, and DIYblinky.com. If the dongle works using xLights DMX Pro output, it should work in the Falcon Player.</p>
 
 <p><b>RGBMatrix</b> — The RGBMatrix output can drive up to 36 of the HUB75 style 32x16 RGB LED Panels. These panels may be wired directly to the Pi's GPIO header or an adapter board may be used to handle the wiring. The RGBMatrix output uses librgbmatrix from Henner Zeller's rpi-rgb-led-matrix git repository to drive HUB75 panels connected to a Raspberry Pi. If you wish to make your own board or manually connect a panel, the wiring pinout is available at <a href='https://github.com/hzeller/rpi-rgb-led-matrix/blob/master/wiring.md'>https://github.com/hzeller/rpi-rgb-led-matrix/blob/master/wiring.md</a>.</p>
@@ -124,6 +126,8 @@
 </center>
 </p>
 
+<p><b>Generic UDP</b> — Sends each frame's channel data to an IP address and port as one UDP packet laid out by the <b>Data</b> tokens, separated by spaces: <code>{data}</code> is the channel data; <code>{S1}</code> the channel count as one byte; <code>{S2}</code> the channel count as two bytes, low byte first, and <code>{s2}</code> high byte first; <code>{P1}</code>, <code>{P2}</code> and <code>{p2}</code> the same for the pixel count (channels / 3); <code>0x41</code> or <code>#41</code> a byte given in hex.</p>
+
 <p><b>GPIO</b> — The GPIO output can drive a single GPIO pin high or low based on a channel's value being zero (low) or non-zero (high). This may be used to drive output relays or trigger other attached devices.</p>
 <p>
 <center>
@@ -204,6 +208,7 @@
 <h4>Tips for all outputs</h4>
 <ul>
     <li>When using a cape or hat, let FPP auto-detect it — the <b>Channel Outputs</b> header shows which cape was found. Follow the cape vendor’s wiring for pixel ports; the tables above show the underlying SoC mapping when no cape overrides it.</li>
+    <li>USB serial adapters are numbered in the order they are found, so with more than one plugged in, <code>ttyUSB0</code> can be a different adapter after a reboot. For a serial output on a USB adapter pick the port's <code>serial/by-id</code> name, which belongs to that adapter, or for an adapter with no serial number its <code>serial/by-path</code> name, which follows the USB socket it is plugged into. Each entry shows the <code>tty</code> it is now.</li>
     <li>Avoid channel overlaps unless you want two outputs to mirror each other. The Validation after Save warns about overlaps.</li>
     <li>For network outputs (E1.31, DDP, ArtNet), put FPP and the controllers on the same subnet and verify with <b>Network Settings</b> that the IP and netmask are correct. Test with <b>Display Testing</b> to confirm lights respond.</li>
     <li>Power injection is always separate from the Pi — never power large pixel strings from the Pi’s 5V pin.</li>

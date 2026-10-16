@@ -64,7 +64,7 @@ int PlaylistEntryPause::StartPlaying(void) {
     }
     m_pausedRemaining = 0;
     // Calculate end time as m_duation number of seconds from now
-    m_startTime = GetTimeMS();
+    m_startTime = GetMonotonicTimeMS();
 
     double tmp = m_duration;
     tmp *= 1000.0;
@@ -81,9 +81,9 @@ int PlaylistEntryPause::Process(void) {
         return 0;
     }
 
-    long long now = GetTimeMS();
+    long long now = GetMonotonicTimeMS();
     if (m_isStarted && m_isPlaying && (now >= m_endTime)) {
-        m_finishTime = GetTimeMS();
+        m_finishTime = GetMonotonicTimeMS();
         FinishPlay();
     }
 
@@ -96,7 +96,7 @@ int PlaylistEntryPause::Process(void) {
 int PlaylistEntryPause::Stop(void) {
     LogDebug(VB_PLAYLIST, "PlaylistEntryPause::Stop()\n");
 
-    m_finishTime = GetTimeMS();
+    m_finishTime = GetMonotonicTimeMS();
     FinishPlay();
     m_pausedRemaining = 0;
     return PlaylistEntryBase::Stop();
@@ -108,7 +108,7 @@ uint64_t PlaylistEntryPause::GetLengthInMS() {
     return f;
 }
 uint64_t PlaylistEntryPause::GetElapsedMS() {
-    long long now = GetTimeMS();
+    long long now = GetMonotonicTimeMS();
     if (m_isStarted && m_isPlaying) {
         return now - m_startTime;
     }
@@ -122,7 +122,7 @@ void PlaylistEntryPause::Dump(void) {
     PlaylistEntryBase::Dump();
 
     LogDebug(VB_PLAYLIST, "Duration:    %f\n", m_duration);
-    LogDebug(VB_PLAYLIST, "Cur Time:    %lld\n", GetTimeMS());
+    LogDebug(VB_PLAYLIST, "Cur Time:    %lld\n", GetMonotonicTimeMS());
     LogDebug(VB_PLAYLIST, "Start Time:  %lld\n", m_startTime);
     LogDebug(VB_PLAYLIST, "End Time:    %lld\n", m_endTime);
     LogDebug(VB_PLAYLIST, "Finish Time: %lld\n", m_finishTime);
@@ -134,19 +134,23 @@ void PlaylistEntryPause::Dump(void) {
 Json::Value PlaylistEntryPause::GetConfig(void) {
     Json::Value result = PlaylistEntryBase::GetConfig();
 
-    long long now = GetTimeMS();
+    long long now = GetMonotonicTimeMS();
     if (IsPaused()) {
         m_endTime = now + m_pausedRemaining;
         float d = m_duration * 1000;
         m_startTime = m_endTime - d;
     }
 
+    // The timers run on the monotonic clock (a wall-clock step used to stall
+    // a pause for as long as the clock jumped back -- years, for an unset RTC
+    // stepping to 2000).  Report them as wall-clock times, as before.
+    long long toWall = GetTimeMS() - now;
     result["duration"] = m_duration;
-    result["startTime"] = (Json::UInt64)m_startTime;
-    result["endTime"] = (Json::UInt64)m_endTime;
-    result["finishTime"] = (Json::UInt64)m_finishTime;
+    result["startTime"] = (Json::UInt64)(m_startTime ? m_startTime + toWall : 0);
+    result["endTime"] = (Json::UInt64)(m_endTime ? m_endTime + toWall : 0);
+    result["finishTime"] = (Json::UInt64)(m_finishTime ? m_finishTime + toWall : 0);
 
-    if (m_isPlaying)
+    if (m_isPlaying && (m_endTime > now))
         result["remaining"] = (Json::UInt64)((m_endTime - now) / 1000);
     else
         result["remaining"] = (Json::UInt64)0;
@@ -155,14 +159,14 @@ Json::Value PlaylistEntryPause::GetConfig(void) {
 }
 
 void PlaylistEntryPause::Pause() {
-    long long now = GetTimeMS();
+    long long now = GetMonotonicTimeMS();
     m_pausedRemaining = m_endTime - now;
 }
 bool PlaylistEntryPause::IsPaused() {
     return m_pausedRemaining != 0;
 }
 void PlaylistEntryPause::Resume() {
-    long long now = GetTimeMS();
+    long long now = GetMonotonicTimeMS();
     m_endTime = now + m_pausedRemaining;
     m_pausedRemaining = 0;
 }

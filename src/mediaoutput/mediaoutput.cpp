@@ -22,11 +22,15 @@
 #include <string.h>
 
 #include <cstdio> // popen/pclose for the amixer control probe
+#include <algorithm>
+#include <atomic>
+#include <condition_variable>
 #include <map>
 #include <mutex>
 #include <set>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "MultiSync.h"
@@ -40,6 +44,7 @@
 #include "GStreamerOut.h"
 #include "PipeWireOutputStream.h"
 #include "StreamSlotManager.h"
+#include "VideoOutputManager.h"
 #include "mediadetails.h"
 #include "settings.h"
 #include "../config.h"
@@ -51,6 +56,7 @@
 MediaOutputBase* mediaOutput = 0;
 float masterMediaPosition = 0.0;
 std::mutex mediaOutputLock;
+std::mutex drmMasterLock;
 
 static bool firstOutCreate = true;
 
@@ -61,8 +67,23 @@ static bool firstOutCreate = true;
 // it is matched against /proc/asound/cards by ID. Mirrors getAlsaCardNumForId()
 // in boot/FPPINIT_Audio.cpp (fppd and fppinit are separate binaries and cannot
 // share the static helper).
+std::string GetEffectiveAudioOutput() {
+    std::string selected = getSetting("AudioOutput");
+    TrimWhiteSpace(selected);
+    Json::Value eff;
+    if (FileExists("/run/fppd/audio-output.json") &&
+        LoadJsonFromFile("/run/fppd/audio-output.json", eff, JsonRoot::Object) &&
+        eff.get("selected", "").asString() == selected) {
+        std::string effective = eff.get("effective", "").asString();
+        if (!effective.empty()) {
+            return effective;
+        }
+    }
+    return selected;
+}
+
 static int resolveAudioOutputCardNum() {
-    std::string id = getSetting("AudioOutput");
+    std::string id = GetEffectiveAudioOutput();
     TrimWhiteSpace(id);
     if (id.empty()) {
         return 0;
@@ -131,14 +152,16 @@ static bool alsaCardIdPresent(const std::string& id) {
 static void CheckAudioOutputCardPresence() {
     static int missCount = 0;
     static bool warningActive = false;
+    // RemoveWarning() matches the exact text, and the text names the card, so
+    // keep what was added rather than retyping it at the removal sites.
+    static std::string warningText;
 
     std::string id = getSetting("AudioOutput");
     TrimWhiteSpace(id);
     if (id.empty() || id.find_first_not_of("0123456789") == std::string::npos) {
         // Nothing monitorable by ID; make sure any stale warning is cleared.
         if (warningActive) {
-            WarningHolder::RemoveWarning(AUDIO_CARD_MISSING_WARNING_ID,
-                                         "Audio output card is not present");
+            WarningHolder::RemoveWarning(AUDIO_CARD_MISSING_WARNING_ID, warningText);
             warningActive = false;
         }
         missCount = 0;
@@ -149,8 +172,7 @@ static void CheckAudioOutputCardPresence() {
         missCount = 0;
         if (warningActive) {
             LogInfo(VB_MEDIAOUT, "Audio output card '%s' is present again; clearing warning.\n", id.c_str());
-            WarningHolder::RemoveWarning(AUDIO_CARD_MISSING_WARNING_ID,
-                                         "Audio output card is not present");
+            WarningHolder::RemoveWarning(AUDIO_CARD_MISSING_WARNING_ID, warningText);
             warningActive = false;
         }
         return;
@@ -164,18 +186,17 @@ static void CheckAudioOutputCardPresence() {
     }
     if (!warningActive) {
         LogWarn(VB_MEDIAOUT, "Configured audio output card '%s' is no longer present.\n", id.c_str());
-        WarningHolder::AddWarning(AUDIO_CARD_MISSING_WARNING_ID,
-                                  "Audio output card '" + id + "' is not present - it may have been unplugged. "
-                                  "Audio will fall back to the default output device until it is reconnected.",
+        warningText = "Audio output card '" + id + "' is not present - it may have been unplugged. "
+                      "Audio will fall back to the default output device until it is reconnected.";
+        WarningHolder::AddWarning(AUDIO_CARD_MISSING_WARNING_ID, warningText,
                                   "pipewire-audio.php", "Audio Settings");
         warningActive = true;
     }
 }
 #endif
 
-MediaOutputStatus mediaOutputStatus = {
-    MEDIAOUTPUTSTATUS_IDLE, // status
-};
+// Starts idle: status defaults to MEDIAOUTPUTSTATUS_IDLE (0).
+MediaOutputStatus mediaOutputStatus;
 
 /*
  *
@@ -216,12 +237,17 @@ void CleanupMediaOutput(void) {
 void PrewarmMediaOutput(int holdMs) {
 #ifdef HAS_GSTREAMER
     PipeWireOutputStream::Prewarm(1, holdMs);
+    // The playlist may open with a video; slot 1's overlay and RTP members
+    // (if it has any) are built and waiting.
+    VideoOutputManager::Instance().Prewarm(1, holdMs);
 #endif
 }
 
 #ifndef PLATFORM_OSX
-static int volume = 70;
-static int lastPipeWireVolume = -1;  // Track last volume to avoid redundant mute toggles
+// The volume last asked for: what getVolume() reports, at once, while the
+// worker below catches the mixers up.
+static std::atomic<int> volume{ 70 };
+static int lastPipeWireVolume = -1;  // Track last volume to avoid redundant mute toggles (volume worker only)
 int getVolume() {
     return volume;
 }
@@ -242,19 +268,25 @@ static std::string readCommandOutput(const std::string& cmd) {
     return out;
 }
 
+// A playback volume control, and whether amixer reports a dB scale for it.
+struct PlaybackVolumeControl {
+    std::string name;
+    bool hasDbScale = false;
+};
+
 // The playback volume controls on a card, cached: enumerating them costs an
 // amixer per control, and setVolume() is called repeatedly while a slider moves.
 // Most FPP capes are bare I2S DACs and return an empty list, so this is normally
 // one amixer at startup and nothing thereafter.
-static const std::vector<std::string>& playbackVolumeControls(int card) {
+static const std::vector<PlaybackVolumeControl>& playbackVolumeControls(int card) {
     static std::mutex cacheLock;
-    static std::map<int, std::vector<std::string>> cache;
+    static std::map<int, std::vector<PlaybackVolumeControl>> cache;
     std::unique_lock<std::mutex> lk(cacheLock);
     auto it = cache.find(card);
     if (it != cache.end()) {
         return it->second;
     }
-    std::vector<std::string> ctls;
+    std::vector<PlaybackVolumeControl> ctls;
     std::string list = readCommandOutput("amixer -c " + std::to_string(card) + " scontrols 2>/dev/null");
     std::istringstream iss(list);
     std::string line;
@@ -275,10 +307,11 @@ static const std::vector<std::string>& playbackVolumeControls(int card) {
         // Only controls that actually carry a playback volume.  A card like a
         // PCM512x cape also exposes switches and tuning enums (Deemphasis, DSP
         // Program, Auto Mute, Overclock...) that must not be written.
-        if (readCommandOutput("amixer -c " + std::to_string(card) + " sget \"" + name +
-                              "\" 2>/dev/null")
-                .find("pvolume") != std::string::npos) {
-            ctls.push_back(name);
+        std::string info = readCommandOutput("amixer -c " + std::to_string(card) + " sget \"" +
+                                             name + "\" 2>/dev/null");
+        if (info.find("pvolume") != std::string::npos) {
+            // A control with a dB scale prints its level as "[0.00dB]".
+            ctls.push_back({ name, info.find("dB]") != std::string::npos });
         }
     }
     return cache.emplace(card, std::move(ctls)).first->second;
@@ -338,7 +371,11 @@ static std::set<std::string> nonFppOutputSinkNames() {
                                                             : "/pipewire-audio-groups.json";
     std::string path = FPP_DIR_CONFIG(groupsFile);
     Json::Value root;
-    if (LoadJsonFromFile(path, root) && root.isMember("groups")) {
+    // Both files can hold values of the wrong JSON type (hand edits, API
+    // writes); jsoncpp throws on those, and this runs at startup from
+    // setVolume(), so a throw terminated fppd.  Take what can be read.
+    try {
+    if (LoadJsonFromFile(path, root, JsonRoot::Object) && root.isMember("groups")) {
         for (const auto& grp : root["groups"]) {
             if (!grp.get("enabled", false).asBool() || !grp.isMember("members")) {
                 continue;
@@ -361,10 +398,14 @@ static std::set<std::string> nonFppOutputSinkNames() {
             }
         }
     }
+    } catch (const std::exception& e) {
+        WarningHolder::InvalidConfigEntry(groupsFile + 1, e.what());
+    }
 
     Json::Value opusRoot;
     std::string opusPath = FPP_DIR_CONFIG("/pipewire-opus-rtp-instances.json");
-    if (LoadJsonFromFile(opusPath, opusRoot) && opusRoot.isMember("instances")) {
+    try {
+    if (LoadJsonFromFile(opusPath, opusRoot, JsonRoot::Object) && opusRoot.isMember("instances")) {
         for (const auto& inst : opusRoot["instances"]) {
             if (!inst.get("enabled", true).asBool()) {
                 continue;
@@ -375,6 +416,9 @@ static std::set<std::string> nonFppOutputSinkNames() {
             std::string name = inst.get("name", "Opus RTP").asString();
             names.insert(opusRtpSafeNodeName(name) + "_send");
         }
+    }
+    } catch (const std::exception& e) {
+        WarningHolder::InvalidConfigEntry("pipewire-opus-rtp-instances.json", e.what());
     }
 
     return names;
@@ -394,15 +438,19 @@ static std::set<std::string> nonFppOutputSinkNames() {
 //
 // bcm2835 keeps the old behaviour deliberately: its mixer reaches +4 dB and FPP
 // wants that headroom available above the software stage.
+//
+// Whether to write 0dB or 100% is decided from the control's own description,
+// not from amixer's exit status: fppd sets SA_NOCLDWAIT, so system() cannot
+// collect the child and returns -1 even when amixer succeeded.  Falling back on
+// that "failure" wrote 100% straight after 0dB, which put a PCM512x's Digital
+// control back at +24 dB on every volume change.
 static void pinCardPlaybackToUnity(int card, bool useMax) {
-    for (const std::string& name : playbackVolumeControls(card)) {
-        const std::string base = "amixer -c " + std::to_string(card) + " sset \"" + name + "\" ";
-        if (useMax) {
-            system((base + "100% >/dev/null 2>&1").c_str());
-        } else if (system((base + "0dB >/dev/null 2>&1").c_str()) != 0) {
-            // No dB scale on this control; 100% is the top of a plain range.
-            system((base + "100% >/dev/null 2>&1").c_str());
-        }
+    for (const PlaybackVolumeControl& ctl : playbackVolumeControls(card)) {
+        // No dB scale: 100% is the top of a plain range.
+        const char* level = (useMax || !ctl.hasDbScale) ? "100%" : "0dB";
+        const std::string cmd = "amixer -c " + std::to_string(card) + " sset \"" + ctl.name + "\" " +
+                                level + " >/dev/null 2>&1";
+        system(cmd.c_str());
     }
 }
 #else
@@ -411,7 +459,7 @@ int getVolume() {
 }
 #endif
 
-void setVolume(int vol) {
+static void applyVolume(int vol) {
     // Only the amixer command below still uses this; the pactl commands are
     // built as std::strings because their length depends on the user's config.
     char buffer[1024];
@@ -431,8 +479,7 @@ void setVolume(int vol) {
     bool usePipeWireBackend = (mediaBackend == "pipewire" || mediaBackend == "pipewire-simple");
 
 #ifndef PLATFORM_OSX
-    volume = vol;
-    float fvol = volume;
+    float fvol = vol;
 
     // === Hardware mixer ===
     // PipeWire mode: put the card's playback controls at unity so the software
@@ -473,7 +520,7 @@ void setVolume(int vol) {
         // is of the control's own raw range, and cards routinely describe that
         // range uselessly (a USB DAC measured here spans 0.00 to -0.12 dB across
         // all 31 of its steps), so there is no portable dB to aim at.
-        const float v = volume / 100.0f;
+        const float v = vol / 100.0f;
         fvol = 100.0f * v * v * v;
 #ifdef PLATFORM_PI
         if (audioOutput == 0 && audio0Type == "bcm2") {
@@ -483,7 +530,7 @@ void setVolume(int vol) {
 #endif
         snprintf(buffer, sizeof(buffer), "amixer set -c %d '%s' -- %.2f%% >/dev/null 2>&1",
                  audioOutput, mixerDevice.c_str(), fvol);
-        LogDebug(VB_SETTING, "Volume change: %d \n", volume);
+        LogDebug(VB_SETTING, "Volume change: %d \n", vol);
         LogDebug(VB_MEDIAOUT, "Setting ALSA hardware volume: %s \n", buffer);
         system(buffer);
     }
@@ -509,7 +556,7 @@ void setVolume(int vol) {
     // needing a separate mute call; any non-zero restore includes an explicit
     // unmute in case a prior 0% left the sink muted.
     if (usePipeWireBackend) {
-        const bool shouldMute = (volume == 0);
+        const bool shouldMute = (vol == 0);
         std::string pwPrefix = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp "
                                "XDG_RUNTIME_DIR=/run/pipewire-fpp "
                                "PULSE_RUNTIME_PATH=/run/pipewire-fpp/pulse ";
@@ -553,17 +600,17 @@ void setVolume(int vol) {
             // Unmute and set volume together, undoing a prior 0%.
             cmd = pwPrefix + " sh -c '" + sinkList +
                   "for s in $S; do pactl set-sink-mute $s 0; pactl set-sink-volume $s " +
-                  std::to_string(volume) + "%; done' >/dev/null 2>&1";
+                  std::to_string(vol) + "%; done' >/dev/null 2>&1";
             LogDebug(VB_MEDIAOUT, "Unmuting and setting PipeWire output sink volume: %s \n", cmd.c_str());
         } else {
             cmd = pwPrefix + " sh -c '" + sinkList +
-                  "for s in $S; do pactl set-sink-volume $s " + std::to_string(volume) +
+                  "for s in $S; do pactl set-sink-volume $s " + std::to_string(vol) +
                   "%; done' >/dev/null 2>&1";
             LogDebug(VB_MEDIAOUT, "Setting PipeWire output sink volume: %s \n", cmd.c_str());
         }
         system(cmd.c_str());
 
-        lastPipeWireVolume = volume;
+        lastPipeWireVolume = vol;
     }
 #else
     MacOSSetVolume(vol);
@@ -576,6 +623,45 @@ void setVolume(int vol) {
     // (dB offset).  In ALSA mode, propagate to GStreamer as before.
     if (mediaOutput && !usePipeWireBackend)
         mediaOutput->SetVolume(vol);
+}
+
+
+// setVolume() shells out several times (pactl for every sink, amixer), and is
+// called from the main loop (the command socket, once per step of the UI's
+// volume slider), from API threads and from presets.  A slow or wedged
+// PipeWire stalled whichever of those asked.  Requests now only record the
+// target; one worker thread applies the latest, so a burst of slider steps
+// costs one round of shell-outs, not one per step.
+static std::mutex s_volumeWorkerLock;
+static std::condition_variable s_volumeWorkerWake;
+static int s_volumeTarget = -1; // -1: nothing pending
+static bool s_volumeWorkerStarted = false;
+
+void setVolume(int vol) {
+    vol = std::clamp(vol, 0, 100);
+#ifndef PLATFORM_OSX
+    volume = vol;
+#endif
+    std::lock_guard<std::mutex> lock(s_volumeWorkerLock);
+    s_volumeTarget = vol;
+    if (!s_volumeWorkerStarted) {
+        s_volumeWorkerStarted = true;
+        // Detached: it only ever waits for the next request, and fppd exits
+        // with _exit or exec, never by destroying it.
+        std::thread([]() {
+            SetThreadName("FPP-Volume");
+            std::unique_lock<std::mutex> lock(s_volumeWorkerLock);
+            while (true) {
+                s_volumeWorkerWake.wait(lock, []() { return s_volumeTarget >= 0; });
+                int v = s_volumeTarget;
+                s_volumeTarget = -1;
+                lock.unlock();
+                applyVolume(v);
+                lock.lock();
+            }
+        }).detach();
+    }
+    s_volumeWorkerWake.notify_one();
 }
 
 static std::set<std::string> AUDIO_EXTS = {
@@ -606,7 +692,7 @@ std::string GetVideoFilenameForMedia(const std::string& filename, std::string& e
     std::string hostname = getSetting("HostName");
     std::string hostVideoPath = "";
     if (hostname != "") {
-        hostVideoPath = videoPath.substr(0, videoPath.length() - 2) + "-" + hostname + ".";
+        hostVideoPath = videoPath.substr(0, videoPath.length() - 1) + "-" + hostname + ".";
         hbfile = filename.substr(0, found) + "-" + hostname + ".";
     }
 
@@ -806,6 +892,12 @@ int OpenMediaOutput(const std::string& filename) {
                 // video doesn't exist, punt
                 tmpFile = filename;
                 if (alreadyWarned.find(tmpFile) == alreadyWarned.end()) {
+                    // The names come from sync packets; a show has a few
+                    // hundred at most, and a stream of made-up ones must not
+                    // grow this for good.
+                    if (alreadyWarned.size() >= 1000) {
+                        alreadyWarned.clear();
+                    }
                     alreadyWarned.emplace(tmpFile);
                     LogDebug(VB_MEDIAOUT, "No video found for remote playing of %s\n", filename.c_str());
                 }

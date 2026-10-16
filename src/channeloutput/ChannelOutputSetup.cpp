@@ -60,8 +60,8 @@ public:
     std::atomic<FPPChannelOutputInstance*> next;
 };
 
-unsigned long channelOutputFrame = 0;
-float mediaElapsedSeconds = 0.0;
+std::atomic<unsigned long> channelOutputFrame{ 0 };
+std::atomic<float> mediaElapsedSeconds{ 0.0f };
 
 std::atomic<FPPChannelOutputInstance*> channelOutputs;
 std::atomic<FPPChannelOutputInstance*> lastChannelOutput;
@@ -358,6 +358,9 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
         // not.
         std::list<FPPChannelOutputInstance*> toDelete;
         std::unique_lock<std::mutex> lock(outputThreadLock);
+        // And against a blank being sent inline from another thread (see
+        // inlineOutputLock); that send doesn't hold outputThreadLock.
+        std::unique_lock<std::recursive_mutex> inlineLock(inlineOutputLock);
         for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
             // remove everything in the list that was loaded from the cfgFile
             if (inst->sourceFile == cfgFile) {
@@ -461,7 +464,11 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
             if (type == "LEDPanelMatrix") {
                 // for LED matrices, the driver is determined by the subType
                 libnamePfx = "matrix-";
-                type = outputs[c]["subType"].asString();
+                // outside the try below: a subType of the wrong JSON type
+                // threw from asString() to std::terminate at startup.  A
+                // non-string finds no driver, which is reported as usual.
+                const Json::Value& subType = outputs[c]["subType"];
+                type = subType.isString() ? subType.asString() : std::string("(invalid subType)");
             } else if (OUTPUT_REMAPS.find(type) != OUTPUT_REMAPS.end()) {
                 type = OUTPUT_REMAPS[type];
             }
@@ -527,7 +534,7 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
                     } else if (channelOutput->output) {
                         std::string warning = "Could not initialize output type " + type + ". Check logs for details.";
                         WarningHolder::AddWarning(26, warning);
-                        LogErr(VB_CHANNELOUT, warning.c_str());
+                        LogErr(VB_CHANNELOUT, warning);
                         outputLoadWarnings[cfgFile].insert(warning);
                         delete channelOutput->output;
                         channelOutput->output = nullptr;
@@ -536,12 +543,12 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
                     std::string warning = "Could not create output type " + type + ". Check logs for details.";
                     WarningHolder::AddWarning(26, warning);
                     outputLoadWarnings[cfgFile].insert(warning);
-                    LogErr(VB_CHANNELOUT, warning.c_str());
+                    LogErr(VB_CHANNELOUT, warning);
                 }
             } catch (const std::exception& ex) {
                 std::string warning = "Could not initialize output type " + type + ". (" + ex.what() + ")";
                 WarningHolder::AddWarning(26, warning);
-                LogErr(VB_CHANNELOUT, warning.c_str());
+                LogErr(VB_CHANNELOUT, warning);
                 outputLoadWarnings[cfgFile].insert(warning);
                 if (channelOutput && channelOutput->output) {
                     delete channelOutput->output;
@@ -645,7 +652,8 @@ int InitializeChannelOutputs(void) {
  * Set the channel output frame counter to a specific value
  */
 void SetChannelOutputFrameNumber(int frameNumber) {
-    channelOutputFrame = frameNumber;
+    // Every frame; a value nothing else is published through.
+    channelOutputFrame.store(frameNumber, std::memory_order_relaxed);
 }
 
 /*
@@ -675,9 +683,12 @@ std::set<std::string> GetOutputTypes() {
     }
     return ret;
 }
+// The two per-frame walks load each link with acquire rather than seq_cst:
+// one barrier instead of two per node on an AM335x, and still enough to see
+// the fields of a node addChannelOutput() linked in.
 int PrepareChannelData(char* channelData) {
     outputProcessors.ProcessData((unsigned char*)channelData);
-    for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
+    for (auto inst = channelOutputs.load(std::memory_order_acquire); inst != nullptr; inst = inst->next.load(std::memory_order_acquire)) {
         auto output = inst->output;
         if (output) {
             output->PrepData((unsigned char*)channelData);
@@ -700,7 +711,7 @@ int SendChannelData(const char* channelData) {
         HexDump(buf, &channelData[minimumNeededChannel], 16, VB_CHANNELDATA);
     }
 
-    for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
+    for (auto inst = channelOutputs.load(std::memory_order_acquire); inst != nullptr; inst = inst->next.load(std::memory_order_acquire)) {
         auto output = inst->output;
         if (output) {
             output->SendData((unsigned char*)(channelData + inst->startChannel));

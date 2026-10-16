@@ -937,8 +937,11 @@
                             class: 'btn-outline-primary',
                             disabled: true,
                             click: function () {
-                                CopyTextToClipboard(currentSDP.text);
-                                $.jGrowl('SDP copied to clipboard', { themeState: 'success' });
+                                CopyTextToClipboard(currentSDP.text).then(function () {
+                                    $.jGrowl('SDP copied to clipboard', { themeState: 'success' });
+                                }, function () {
+                                    $.jGrowl('Could not copy the SDP to the clipboard', { themeState: 'danger' });
+                                });
                             }
                         },
                         Download: {

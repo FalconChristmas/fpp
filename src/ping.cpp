@@ -11,6 +11,7 @@
  */
 
 #include "fpp-pch.h"
+#include <atomic>
 #include <cstring>
 
 #include <arpa/inet.h>
@@ -24,7 +25,12 @@
 #include <unistd.h>
 
 #include <mutex>
+#include <algorithm>
 #include <list>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 #include <thread>
 
 #include "common.h"
@@ -74,13 +80,17 @@ inline void in_cksum(struct icmp* icp, unsigned len) {
 }
 
 int ping(std::string target, int timeoutMs) {
-    volatile int ret = -2;
-    PingManager::INSTANCE.ping(target, timeoutMs, [&ret](int i) { ret = i; });
-    while (ret == -2 && timeoutMs > 0) {
+    // The result lives in state the callback shares, not in this frame: the
+    // wait below gives up on its own count, and the ping thread still times
+    // the ping out (and calls back) after this has returned.  A captured
+    // reference to a local was a write into a dead stack frame.
+    auto ret = std::make_shared<std::atomic_int>(-2);
+    PingManager::INSTANCE.ping(target, timeoutMs, [ret](int i) { *ret = i; });
+    while (*ret == -2 && timeoutMs > 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         --timeoutMs;
     }
-    return ret;
+    return *ret;
 }
 
 class PingTarget {
@@ -91,15 +101,22 @@ public:
     struct icmp* icp;
     bool valid = true;
     std::function<void(int)> callback;
+    // GetMonotonicTimeMS(): on the wall clock a step back stopped the periodic
+    // pings (and the timeouts) for the size of the step, so a controller that
+    // had dropped out was not added back to the output when it returned.
     long long startTime;
     long long timeoutMS;
     int period = 0;
     // in PingInfo::targets awaiting a reply or timeout; guarded by targetLock
     bool pending = false;
 
+    // Resolves the name on the calling thread, which can take seconds for one
+    // that doesn't exist: never construct one under targetLock.  A name that
+    // doesn't resolve leaves the target !valid, and it is the caller's to
+    // report that.
     PingTarget(const std::string& target, int timeout, std::function<void(int)> cb) :
         callback(cb) {
-        startTime = GetTimeMS();
+        startTime = GetMonotonicTimeMS();
         timeoutMS = timeout;
         hostname = target;
         memset(outpack, 0, sizeof(outpack));
@@ -107,61 +124,48 @@ public:
 
         to.sin_family = AF_INET;
 
-        // try to convert as dotted decimal address, else if that fails assume it's a hostname
-        to.sin_addr.s_addr = inet_addr(target.c_str());
-        if (to.sin_addr.s_addr != (u_int)-1)
-            hostname = target;
-        else {
-            // gethostbyname() is not thread-safe (shared static hostent); the
-            // ping loop runs on its own thread, so use the reentrant
-            // getaddrinfo() instead.
-            struct addrinfo hints{};
-            hints.ai_family = AF_INET;
-            hints.ai_socktype = SOCK_DGRAM;
-            struct addrinfo* res = nullptr;
-            if (getaddrinfo(target.c_str(), nullptr, &hints, &res) != 0 || res == nullptr) {
-                valid = false;
-                cb(-1);
-                return;
-            }
-            struct sockaddr_in* a = (struct sockaddr_in*)res->ai_addr;
-            to.sin_family = a->sin_family;
-            to.sin_addr = a->sin_addr;
-            freeaddrinfo(res);
-        }
-
+        // The header is filled in whether or not the name resolves, so a
+        // target that resolves later only needs its address (setAddress()).
         icp = (struct icmp*)outpack;
         icp->icmp_type = ICMP_ECHO;
         icp->icmp_code = 0;
         icp->icmp_cksum = 0;
+        icp->icmp_id = FPPrand() & 0xFF;
 
+        struct in_addr addr;
+        valid = resolve(target, addr);
+        if (valid) {
+            setAddress(addr);
+        }
+    }
+
+    static bool resolve(const std::string& target, struct in_addr& addr) {
+        // try to convert as dotted decimal address, else if that fails assume it's a hostname
+        addr.s_addr = inet_addr(target.c_str());
+        if (addr.s_addr != (u_int)-1) {
+            return true;
+        }
+        // gethostbyname() is not thread-safe (shared static hostent); the
+        // ping loop runs on its own thread, so use the reentrant
+        // getaddrinfo() instead.
+        struct addrinfo hints{};
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_DGRAM;
+        struct addrinfo* res = nullptr;
+        if (getaddrinfo(target.c_str(), nullptr, &hints, &res) != 0 || res == nullptr) {
+            return false;
+        }
+        addr = ((struct sockaddr_in*)res->ai_addr)->sin_addr;
+        freeaddrinfo(res);
+        return true;
+    }
+
+    void setAddress(const struct in_addr& addr) {
+        to.sin_addr = addr;
         int ipad = to.sin_addr.s_addr;
         ipad >>= 16;
         ipad &= 0xFFFF;
         icp->icmp_seq = ipad; /* seq and id must be reflected */
-        icp->icmp_id = FPPrand() & 0xFF;
-
-        int cc = DEFDATALEN + ICMP_MINLEN;
-        in_cksum(icp, cc);
-
-        icp = (struct icmp*)outpack;
-        icp->icmp_type = ICMP_ECHO;
-        icp->icmp_code = 0;
-        icp->icmp_cksum = 0;
-    }
-    void revalidate() {
-        if (!valid) {
-            struct addrinfo hints{};
-            hints.ai_family = AF_INET;
-            hints.ai_socktype = SOCK_DGRAM;
-            struct addrinfo* res = nullptr;
-            if (getaddrinfo(hostname.c_str(), nullptr, &hints, &res) != 0 || res == nullptr) {
-                callback(-1);
-            } else {
-                freeaddrinfo(res);
-                valid = true;
-            }
-        }
     }
 };
 
@@ -198,14 +202,22 @@ public:
             close(pingSocket);
         }
         isRunning = 0;
+        // a periodic target is in targets only while a ping is pending, and
+        // one whose name never resolved never is
         for (auto& t : targets) {
-            delete t;
+            if (t->period == 0) {
+                delete t;
+            }
         }
         targets.clear();
+        for (auto& t : periodics) {
+            delete t;
+        }
+        periodics.clear();
     }
 
-    void addPeriodicPing(const std::string& target, int timeout, int period, std::function<void(int)> callback) {
-        std::unique_lock<std::mutex> lock(targetLock);
+    // caller holds targetLock; true if `target` already has a periodic ping
+    bool refreshPeriodic(const std::string& target, int timeout, int period) {
         for (auto t : periodics) {
             if (t->hostname == target && t->period) {
                 t->timeoutMS = timeout;
@@ -216,26 +228,48 @@ public:
                 // to targets, every one of which fired the callback on timeout
                 // -- hundreds per second, each failure able to start an HTTP
                 // HEAD probe, until fppd ran out of file descriptors.  The
-                // pending ping answers this request too.
-                if (!t->pending) {
+                // pending ping answers this request too.  A name that hasn't
+                // resolved yet is left to the ping thread, which retries it
+                // once a period.
+                if (!t->pending && t->valid) {
                     // a fresh deadline; the stale one timed the ping out at
                     // the next poll, before the host could possibly answer
-                    t->startTime = GetTimeMS();
+                    t->startTime = GetMonotonicTimeMS();
                     queuePing(t);
                 }
+                return true;
+            }
+        }
+        return false;
+    }
+    void addPeriodicPing(const std::string& target, int timeout, int period, std::function<void(int)> callback) {
+        {
+            std::unique_lock<std::mutex> lock(targetLock);
+            if (refreshPeriodic(target, timeout, period)) {
                 return;
             }
         }
-        // didn't find it
+        // Didn't find it.  The new target resolves its name with the lock
+        // released: that can stall for seconds on a name that doesn't exist,
+        // and under the lock it stalled the ping thread and every other
+        // caller with it.  A name that doesn't resolve is kept rather than
+        // dropped, so the callers' repeated requests find it above instead of
+        // each paying for the lookup again; the ping thread retries it.
         PingTarget* t = new PingTarget(target, timeout, callback);
-        if (t->valid) {
-            t->callback = callback;
-            t->period = period;
-            periodics.push_back(t);
-            queuePing(t);
-        } else {
+        t->period = period;
+        std::unique_lock<std::mutex> lock(targetLock);
+        if (refreshPeriodic(target, timeout, period)) {
+            // another thread added it while this one was resolving
             delete t;
+            return;
         }
+        periodics.push_back(t);
+        if (t->valid) {
+            queuePing(t);
+            return;
+        }
+        lock.unlock();
+        callback(-1);
     }
     void removePeriodicPing(const std::string& target) {
         // Waits out the ping thread's current pass: it holds dispatchLock
@@ -271,19 +305,18 @@ public:
         while (isRunning == 1) {
             std::list<PingTarget*> toRemove;
 
+            std::vector<std::pair<std::string, std::pair<bool, struct in_addr>>> resolved = resolveDuePeriodics();
+
             int retval = poll(rfds, 1, 250);
             // held for the rest of the pass, from the callbacks through the
             // last use of toCall/toRemove; see removePeriodicPing()
             std::lock_guard<std::recursive_mutex> dispatch(dispatchLock);
-            long long curTime = GetTimeMS();
+            long long curTime = GetMonotonicTimeMS();
             if (retval == -1) {
                 printf("select() -1\n");
             } else if (retval) {
                 int fromlen = sizeof(sockaddr_in);
                 int ret = recvfrom(pingSocket, (char*)packet, sizeof(packet), 0, (struct sockaddr*)&from, (socklen_t*)&fromlen);
-                if (ret < 0) {
-                    continue;
-                }
                 // Check the IP header
                 ip = (struct ip*)((char*)packet);
                 int hlen = sizeof(struct ip);
@@ -313,17 +346,22 @@ public:
                         // printf("Not echo\n");
                     }
                 }
-            } else {
+            }
+            // Time out on every pass, not only when poll() saw nothing for
+            // 250ms: this raw socket receives every ICMP packet sent to the
+            // box, and a few a second (port-unreachables from a device getting
+            // output on a port it doesn't listen on) used to keep this sweep
+            // from ever running, so a dead controller was never reported down.
+            {
                 std::unique_lock<std::mutex> lock(targetLock);
                 for (auto t : targets) {
                     long long tt = t->startTime;
                     tt += t->timeoutMS;
-                    if (curTime > tt) {
+                    if (curTime > tt && std::find(toRemove.begin(), toRemove.end(), t) == toRemove.end()) {
                         t->callback(0);
                         toRemove.push_back(t);
                     }
                 }
-                lock.unlock();
             }
             std::unique_lock<std::mutex> lock(targetLock);
             for (auto t : toRemove) {
@@ -333,22 +371,64 @@ public:
                     delete t;
                 }
             }
-            for (auto t : periodics) {
-                long long st = t->startTime;
-                st += t->period;
-                if (curTime > st && !t->pending) {
-                    if (!t->valid) {
-                        t->revalidate();
-                    }
-                    if (t->valid) {
-                        t->startTime = GetTimeMS();
-                        queuePing(t);
+            std::list<PingTarget*> unresolved;
+            for (auto& r : resolved) {
+                for (auto t : periodics) {
+                    if (t->hostname == r.first && !t->valid) {
+                        if (r.second.first) {
+                            t->setAddress(r.second.second);
+                            t->valid = true;
+                            t->startTime = GetMonotonicTimeMS();
+                            queuePing(t);
+                        } else {
+                            unresolved.push_back(t);
+                        }
                     }
                 }
             }
+            for (auto t : periodics) {
+                long long st = t->startTime;
+                st += t->period;
+                if (curTime > st && !t->pending && t->valid) {
+                    t->startTime = GetMonotonicTimeMS();
+                    queuePing(t);
+                }
+            }
             lock.unlock();
+            // still under dispatchLock, like the other callbacks
+            for (auto t : unresolved) {
+                t->callback(-1);
+            }
         }
         isRunning = -1;
+    }
+
+    // Looks up, with no lock held, the names of periodic targets that haven't
+    // resolved, each at most once a period.  A lookup can stall for seconds
+    // (no DNS server reachable); under targetLock that stalled every caller
+    // adding a ping, and under dispatchLock it would stall removePeriodicPing().
+    // The results are applied by name in the pass that follows, since a
+    // target can be removed (and freed) in the meantime.
+    std::vector<std::pair<std::string, std::pair<bool, struct in_addr>>> resolveDuePeriodics() {
+        std::vector<std::string> names;
+        {
+            std::unique_lock<std::mutex> lock(targetLock);
+            long long curTime = GetMonotonicTimeMS();
+            for (auto t : periodics) {
+                if (!t->valid && curTime > t->startTime + t->period) {
+                    // the next retry is a period from now, whatever the outcome
+                    t->startTime = curTime;
+                    names.push_back(t->hostname);
+                }
+            }
+        }
+        std::vector<std::pair<std::string, std::pair<bool, struct in_addr>>> results;
+        for (auto& n : names) {
+            struct in_addr addr{};
+            bool ok = PingTarget::resolve(n, addr);
+            results.emplace_back(n, std::make_pair(ok, addr));
+        }
+        return results;
     }
 
     // caller holds targetLock
@@ -381,11 +461,13 @@ public:
             queuePing(t);
         } else {
             delete t;
+            callback(-1);
         }
     }
 
     int pingSocket = -1;
-    volatile int isRunning = 0;
+    // The ping thread loops on it; Cleanup() clears it from another thread.
+    std::atomic_int isRunning{ 0 };
     std::thread* pingThread;
     std::list<PingTarget*> targets;
     std::list<PingTarget*> periodics;

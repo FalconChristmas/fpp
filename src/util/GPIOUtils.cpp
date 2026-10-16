@@ -17,7 +17,9 @@
 
 #include <sys/mman.h>
 #include <sys/types.h>
+#include <array>
 #include <fcntl.h>
+#include <limits>
 #include <set>
 #include <thread>
 #include <unistd.h> // ftruncate -- needed directly for NOPCH builds
@@ -124,7 +126,11 @@ bool GPIODCapabilities::supportsPullDown() const {
 }
 
 #ifdef HASGPIOD
-constexpr int MAX_GPIOD_CHIPS = 32;
+// Indexed by PinCapabilities::gpioIdx unchecked, so the cache covers every
+// value that field can hold. It used to be 32 entries, and a pin on
+// gpiochip32 or above (an I2C expander on a board with many chips) indexed
+// past the end.
+constexpr int MAX_GPIOD_CHIPS = std::numeric_limits<decltype(PinCapabilities::gpioIdx)>::max() + 1;
 class GPIOChipHolder {
 public:
     static GPIOChipHolder INSTANCE;
@@ -176,12 +182,31 @@ int GPIODCapabilities::configPin(const std::string& mode,
         chip = GPIOChipHolder::INSTANCE.chips[gpioIdx];
     }
 
-    openDrain = (mode == "gpio_od");
-
     std::string consumer = PROCESS_NAME;
     if (!desc.empty()) {
         consumer += "-" + desc;
     }
+
+    // Already configured exactly this way: keep the request.  Callers
+    // configure on every action (each GPIO command, each LED pulse tick), and
+    // releasing and re-requesting an output drives it low until the caller's
+    // setValue() -- a glitch on a relay that was already on.
+    {
+        bool wantOpenDrain = (mode == "gpio_od");
+        bool wantOut = directionOut || wantOpenDrain;
+        bool sameBias = true;
+        if (!wantOut) {
+            auto want = mode == "gpio_pu" ? gpiod::line::bias::PULL_UP
+                                          : (mode == "gpio_pd" ? gpiod::line::bias::PULL_DOWN : gpiod::line::bias::DISABLED);
+            sameBias = (lastBias == want);
+        }
+        if (request && lastRequestType == (wantOut ? 1 : 0) && openDrain == wantOpenDrain && sameBias &&
+            lastDesc == consumer) {
+            return 0;
+        }
+    }
+
+    openDrain = (mode == "gpio_od");
     lastDesc = consumer;
 
     // Build line settings for the requested mode. For open-drain, withBias
@@ -302,8 +327,12 @@ int GPIODCapabilities::configPin(const std::string& mode,
         }
     }
 #endif
-#endif
+    // -1 when the line could not be requested (the chip open above already
+    // says so): a failed request used to report success, warning and all.
+    return isAcquired() ? 0 : -1;
+#else
     return 0;
+#endif
 }
 void GPIODCapabilities::releaseGPIOD() const {
 #ifdef HASGPIOD

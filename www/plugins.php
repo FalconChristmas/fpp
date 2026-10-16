@@ -2771,6 +2771,34 @@
             $('#popularStripNext').on('click', function () { ScrollPopularStrip(1); });
         }
 
+        // The same edge fade for the two tab rows (the top tabs and the category
+        // pills), which scroll sideways on a phone with nothing else to say so:
+        // the last tab showed as a sliver.  Styled by .pluginScrollRow in fpp.css.
+        function UpdateScrollRowFade(el) {
+            var max = el.scrollWidth - el.clientWidth;
+            var overflows = max > 1;    // 1px of slack for sub-pixel layout
+            el.classList.toggle('is-scrollable-start', overflows && el.scrollLeft > 1);
+            el.classList.toggle('is-scrollable-end', overflows && el.scrollLeft < max - 1);
+        }
+
+        function BindScrollRowFades() {
+            ['pluginTopTabs', 'pluginCategoryPills'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                var raf = null;
+                var update = function () { UpdateScrollRowFade(el); };
+                el.addEventListener('scroll', function () {
+                    if (raf) return;
+                    raf = requestAnimationFrame(function () { raf = null; update(); });
+                }, { passive: true });
+                if (window.ResizeObserver) new ResizeObserver(update).observe(el);
+                // The pills and the tab counts arrive with the plugin list, which
+                // changes the row's content without changing its size.
+                if (window.MutationObserver) new MutationObserver(update).observe(el, { childList: true, subtree: true, characterData: true });
+                update();
+            });
+        }
+
         function PluginVersionsText(data) {
             var html = '';
             for (var i = 0; i < data.versions.length; i++) {
@@ -3207,6 +3235,24 @@
         // LoadPlugins' per-plugin AJAX success callback, so with N listed
         // plugins the same handler ended up attached N times to the same input,
         // and every keystroke re-ran this whole body N times.
+        // What the URL box can name: a pluginInfo.json URL, as before, or a
+        // GitHub repository by its page URL -- with or without https:// or
+        // www., and with or without .git, a trailing slash or /tree/<branch>.
+        // Returns the pluginInfo.json URL to load, or '' for search text.  A
+        // bare "github.com/owner/repo" used to be searched for as text.  HEAD
+        // is the repository's default branch, whatever it is called.
+        function PluginInfoUrlFromInput(raw) {
+            var v = (raw || '').trim();
+            if (/plugininfo\.json$/i.test(v)) {
+                return v.indexOf('://') > -1 ? v : 'https://' + v;
+            }
+            var m = v.match(/^(?:https?:\/\/)?(?:www\.)?github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?(?:\/tree\/([^\s?#]+?))?\/?(?:[?#].*)?$/i);
+            if (!m) {
+                return '';
+            }
+            return 'https://raw.githubusercontent.com/' + m[1] + '/' + m[2] + '/' + (m[3] || 'HEAD') + '/pluginInfo.json';
+        }
+
         function HandlePluginInputChange() {
             var val = $('#pluginInput').val() || '';
             pluginUrlError = '';
@@ -3217,7 +3263,7 @@
                 $('#pluginInput').removeClass('has-text');
                 $('#pluginClearBtn').css('display', '');
             }
-            if (uiLevel >= 3 && /plugininfo\.json$/i.test(val)) {
+            if (uiLevel >= 3 && PluginInfoUrlFromInput(val)) {
                 if (val !== lastAutoLoadedUrl) {
                     if (urlLoadedRepo) {
                         RowEl(urlLoadedRepo).remove();
@@ -3251,9 +3297,9 @@
         }
 
         function ManualLoadInfo(auto) {
-            var url = $('#pluginInput').val();
+            var url = PluginInfoUrlFromInput($('#pluginInput').val());
 
-            if (url.indexOf('://') > -1) {
+            if (url) {
                 if (url.indexOf('https://github.com/') > -1) {
                     url = url.replace(/https:\/\/github.com\//, 'https://raw.githubusercontent.com/').replace(/\/blob\//, '/');
                 }
@@ -3451,7 +3497,7 @@
             var raw = $('#pluginInput').val() || '';
             var value = raw.toLowerCase();
 
-            var isUrlInput = uiLevel >= 3 && /plugininfo\.json$/i.test(raw);
+            var isUrlInput = uiLevel >= 3 && PluginInfoUrlFromInput(raw) !== '';
             var urlLoadedMode = isUrlInput && urlLoadedRepo;
             var searching = (value !== '' && !isUrlInput);
             pluginSearchActive = searching;
@@ -3642,6 +3688,7 @@
             });
 
             BindPopularStripControls();
+            BindScrollRowFades();
             GetPluginPopularity();   // parallel with the list/installed loads
             GetInstalledPlugins();
 
@@ -3704,7 +3751,7 @@
                                     <div class="col d-flex position-relative">
                                         <input type="text" id="pluginInput" autocomplete="off"
                                             class="form-control form-control-rounded has-shadow flex-grow-1"
-                                            placeholder="Find a Plugin or Enter a pluginInfo.json URL" />
+                                            placeholder="Find a Plugin, or paste its GitHub or pluginInfo.json URL" />
                                         <i id="pluginClearBtn" class="fas fa-times-circle pluginClearBtn"
                                             title="Clear search"></i>
                                     </div>
@@ -3718,7 +3765,7 @@
                                      the tabs. Horizontal scroll is still needed -- the tabs do not
                                      fit on a phone. (The old overflow-md-visible here was a no-op:
                                      Bootstrap 5.3 ships no responsive overflow utilities.) -->
-                                <ul class="nav nav-tabs flex-nowrap flex-md-wrap overflow-x-auto overflow-y-hidden" id="pluginTopTabs" role="tablist">
+                                <ul class="nav nav-tabs flex-nowrap flex-md-wrap overflow-x-auto overflow-y-hidden pluginScrollRow" id="pluginTopTabs" role="tablist">
                                     <li class="nav-item" role="presentation">
                                         <button type="button" class="nav-link active text-nowrap" data-top-tab="available" role="tab">
                                             <i class="fas fa-store"></i> Available
@@ -3744,7 +3791,7 @@
                         <div id="pane-available" class="pluginTopPane">
                             <div class="fppPluginAvailableHead">
                                 <h2 class="h5 mb-2"><i class="fas fa-tags text-secondary"></i> Categories</h2>
-                                <ul class="nav nav-pills mb-3 pageContent-tabs flex-nowrap flex-md-wrap overflow-x-auto gap-1 pb-1" id="pluginCategoryPills" role="tablist"></ul>
+                                <ul class="nav nav-pills mb-3 pageContent-tabs flex-nowrap flex-md-wrap overflow-x-auto gap-1 pb-1 pluginScrollRow" id="pluginCategoryPills" role="tablist"></ul>
                             </div>
 
                             <!-- Lives inside pane-available, below the pills that drive it: the strip

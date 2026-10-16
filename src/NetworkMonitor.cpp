@@ -33,6 +33,33 @@
 
 NetworkMonitor NetworkMonitor::INSTANCE;
 
+#ifndef PLATFORM_OSX
+// IFF_UP/IFF_RUNNING of each interface as of its last RTM_NEWLINK, by index.
+// RTM_NEWLINK is not only a state change: a Wi-Fi driver sends one for every
+// scan result and statistics update, several a second, and each used to flush
+// the resolver cache, so a name that doesn't resolve was looked up again
+// (seconds of stall against a dead DNS server) after every one of them instead
+// of once per negative TTL.  Only the netlink callback touches this, on one thread.
+static std::map<int, unsigned> s_linkState;
+
+// True when this link event moves the interface up or down (or is the first
+// seen for it): the only link events that can change which DNS servers are
+// reachable.
+static bool linkStateChanged(int index, unsigned flags, bool deleted) {
+    if (deleted) {
+        s_linkState.erase(index);
+        return true;
+    }
+    unsigned state = flags & (IFF_UP | IFF_RUNNING);
+    auto it = s_linkState.find(index);
+    if (it != s_linkState.end() && it->second == state) {
+        return false;
+    }
+    s_linkState[index] = state;
+    return true;
+}
+#endif
+
 void NetworkMonitor::Init(std::map<int, std::function<bool(int)>>& callbacks) {
 #ifndef PLATFORM_OSX
     int nl_socket = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
@@ -83,6 +110,14 @@ void NetworkMonitor::Init(std::map<int, std::function<bool(int)>>& callbacks) {
                     if (if_indextoname(ifi->ifi_index, name)) {
                         strName = name;
                     }
+                    // A link coming up brings reachable DNS servers with it,
+                    // so names that failed while it was down have to be
+                    // retried now rather than at the end of their negative
+                    // TTL.  Flushed ahead of the callbacks so none of them
+                    // resolves against a cache filled under the old network.
+                    if (linkStateChanged(ifi->ifi_index, ifi->ifi_flags, h->nlmsg_type == RTM_DELLINK)) {
+                        FlushHostResolveCache();
+                    }
                     callCallbacks(h->nlmsg_type == RTM_NEWLINK ? NetEventType::NEW_LINK : NetEventType::DEL_LINK,
                                   (ifi->ifi_flags & IFF_RUNNING) ? 1 : 0, strName);
                 } break;
@@ -94,6 +129,9 @@ void NetworkMonitor::Init(std::map<int, std::function<bool(int)>>& callbacks) {
                         if (if_indextoname(ifi->ifa_index, name)) {
                             strName = name;
                         }
+                        // a new or lost address can change the route to the
+                        // DNS servers (or, with DHCP, the servers themselves)
+                        FlushHostResolveCache();
                         callCallbacks(h->nlmsg_type == RTM_NEWADDR ? NetEventType::NEW_ADDR : NetEventType::DEL_ADDR,
                                       h->nlmsg_type == RTM_NEWADDR ? 1 : 0, strName);
                     }
@@ -110,12 +148,8 @@ void NetworkMonitor::Init(std::map<int, std::function<bool(int)>>& callbacks) {
 #endif
 }
 void NetworkMonitor::callCallbacks(NetEventType nl, int up, const std::string& n) {
-    // Every network event lands here, ahead of any registered callback, which
-    // makes this the one place that can guarantee nobody resolves a name
-    // against a cache filled in under the old network.  A link coming up brings
-    // reachable DNS servers with it, so names that failed while it was down
-    // have to be retried now rather than at the end of their negative TTL.
-    FlushHostResolveCache();
+    // The resolver cache is flushed by the netlink handler above, before this
+    // runs, and only for the events that can change name resolution.
 
     // Held for the whole dispatch: this both keeps the map stable while we walk
     // it and makes removeCallback() block until an in-flight callback returns,

@@ -13,7 +13,27 @@
 #include "fpp-pch.h"
 
 #include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
+#include <algorithm>
+#include <atomic>
 #include <cmath>
+#include <map>
+#include <mutex>
+#include <set>
+#include <vector>
+
+#include <fcntl.h>
+#include <poll.h>
+#include <signal.h>
+#include <spawn.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#ifdef __APPLE__
+#include <crt_externs.h>
+#define FPP_ENVIRON (*_NSGetEnviron())
+#else
+extern char** environ;
+#define FPP_ENVIRON environ
+#endif
 
 #include "GStreamerOut.h"
 #include "V4L2Device.h"
@@ -97,28 +117,104 @@ struct YtDlpResult {
 // stderr is folded into the capture and reported instead: yt-dlp's own
 // diagnostics are line-oriented and never begin with "http", so the URL line
 // stays unambiguous among them.
+//
+// Bounded, and killable: it talks to YouTube, and a stalled connection would
+// otherwise hold the caller for as long as the network stays silent.  It runs
+// in its own process group, so the deadline and Shutdown() (which has only a
+// few seconds before fppd_stop kills fppd) can take down yt-dlp and anything
+// it started.  Spawned directly rather than through a shell, so the URI is an
+// argument, not shell text.
+static constexpr int YTDLP_TIMEOUT_SEC = 45;
+static std::atomic<pid_t> s_ytDlpPgid{ 0 };
+
+static void KillRunningYtDlp() {
+    pid_t pgid = s_ytDlpPgid.load();
+    if (pgid > 0) {
+        kill(-pgid, SIGKILL);
+    }
+}
+
 static YtDlpResult RunYtDlp(const std::string& format, const std::string& uri, bool wantFps) {
     YtDlpResult res;
-    std::string cmd = "yt-dlp -f '" + format + "' --print url";
+    std::vector<std::string> args = { "yt-dlp", "-f", format, "--print", "url" };
     if (wantFps) {
-        cmd += " --print fps";
+        args.push_back("--print");
+        args.push_back("fps");
     }
-    cmd += " '" + ShellSafeUri(uri) + "' 2>&1";
+    args.push_back(ShellSafeUri(uri));
+    std::vector<char*> argv;
+    for (auto& a : args) {
+        argv.push_back(a.data());
+    }
+    argv.push_back(nullptr);
 
-    FILE* pipe = popen(cmd.c_str(), "r");
-    if (!pipe) {
+    int fds[2];
+    if (pipe(fds) != 0) {
         res.diagnostics = "could not run yt-dlp";
         return res;
     }
+    fcntl(fds[0], F_SETFD, FD_CLOEXEC);
+    posix_spawn_file_actions_t actions;
+    posix_spawn_file_actions_init(&actions);
+    posix_spawn_file_actions_adddup2(&actions, fds[1], STDOUT_FILENO);
+    posix_spawn_file_actions_adddup2(&actions, fds[1], STDERR_FILENO);
+    posix_spawn_file_actions_addclose(&actions, fds[1]);
+    posix_spawnattr_t attr;
+    posix_spawnattr_init(&attr);
+    posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETPGROUP);
+    posix_spawnattr_setpgroup(&attr, 0);
+    pid_t pid = -1;
+    int rc = posix_spawnp(&pid, "yt-dlp", &actions, &attr, argv.data(), FPP_ENVIRON);
+    posix_spawn_file_actions_destroy(&actions);
+    posix_spawnattr_destroy(&attr);
+    close(fds[1]);
+    if (rc != 0) {
+        close(fds[0]);
+        res.diagnostics = "could not run yt-dlp";
+        return res;
+    }
+    s_ytDlpPgid = pid;
+
+    // stderr is folded into the capture (see above); read until yt-dlp exits
+    // and closes the pipe, or the deadline passes.
     std::string output;
     char buf[4096];
-    while (fgets(buf, sizeof(buf), pipe)) {
-        output += buf;
+    uint64_t deadline = GetMonotonicTimeMS() + (uint64_t)YTDLP_TIMEOUT_SEC * 1000;
+    bool timedOut = false;
+    for (;;) {
+        uint64_t now = GetMonotonicTimeMS();
+        if (now >= deadline) {
+            timedOut = true;
+            break;
+        }
+        struct pollfd pfd = { fds[0], POLLIN, 0 };
+        int pr = poll(&pfd, 1, (int)std::min<uint64_t>(deadline - now, 1000));
+        if (pr < 0 && errno != EINTR) {
+            break;
+        }
+        if (pr <= 0) {
+            continue;
+        }
+        ssize_t n = read(fds[0], buf, sizeof(buf));
+        if (n > 0) {
+            output.append(buf, (size_t)n);
+        } else if (n == 0 || errno != EINTR) {
+            break;
+        }
     }
-    // pclose() may return -1 when SA_NOCLDWAIT is set on SIGCHLD (the kernel
-    // auto-reaps the child, so waitpid fails with ECHILD), so the exit status
-    // can't be trusted here - validate the output content instead.
-    pclose(pipe);
+    if (timedOut) {
+        kill(-pid, SIGKILL);
+        res.diagnostics = "yt-dlp did not answer within " + std::to_string(YTDLP_TIMEOUT_SEC) + "s";
+    }
+    s_ytDlpPgid = 0;
+    close(fds[0]);
+    // fppd sets SA_NOCLDWAIT, so the kernel reaps yt-dlp itself and this
+    // usually fails with ECHILD; it only matters where that isn't set.  The
+    // exit status can't be relied on either way - validate the output instead.
+    waitpid(pid, nullptr, WNOHANG);
+    if (timedOut) {
+        return res;
+    }
 
     std::istringstream iss(output);
     std::string line;
@@ -151,6 +247,41 @@ static YtDlpResult RunYtDlp(const std::string& format, const std::string& uri, b
     return res;
 }
 
+// The formats StartSource() and StartSourceWithAudio() ask yt-dlp for.
+static std::string YtVideoFormat(int height) {
+    // Select the best H.264 video-only stream that fits the configured
+    // output height.  This avoids fetching 240p when the user wants
+    // 720p/1080p, while still capping bandwidth to what the Pi can
+    // actually decode and display.
+    return "bestvideo[height<=" + std::to_string(height) + "][vcodec^=avc1]/worst[vcodec^=avc1]";
+}
+// 234 = high quality HLS audio, 233 = low quality HLS audio
+// 140 = AAC 128k from DASH (non-live fallback), 139 = HE-AAC 48k
+static const char* const YT_AUDIO_FORMAT = "234/233/140/139/bestaudio";
+
+static bool IsYouTubeUri(const std::string& uri) {
+    return uri.find("youtube.com/") != std::string::npos ||
+           uri.find("youtu.be/") != std::string::npos;
+}
+
+// yt-dlp results fetched before StartSource() runs (see StartLoadedSources()),
+// keyed by format and URI.  Only touched under VideoInputManager::m_mutex.
+static std::map<std::string, YtDlpResult> s_ytPrefetched;
+
+static std::string YtKey(const std::string& format, const std::string& uri) {
+    return format + "\n" + uri;
+}
+
+// What StartSource() calls: the prefetched answer when there is one, else a
+// live lookup (a source started outside StartLoadedSources()).
+static YtDlpResult ResolveYtDlp(const std::string& format, const std::string& uri, bool wantFps) {
+    auto it = s_ytPrefetched.find(YtKey(format, uri));
+    if (it != s_ytPrefetched.end()) {
+        return it->second;
+    }
+    return RunYtDlp(format, uri, wantFps);
+}
+
 // Adopt the stream's native framerate, but never above the configured one -
 // don't push a source to 60fps just because the stream is 60fps natively when
 // the user asked for 30. videorate handles the downsampling.
@@ -168,6 +299,33 @@ static void ApplyDetectedFps(double detectedFps, int& framerate, const char* nam
             detected, name, configFps, framerate);
 }
 
+// Warnings about a source's config or its stream (an invalid value, no URI,
+// an RTSP stream with no video).  Each is recorded as it is raised and all
+// come down at the next reload -- which raises again whichever is still true
+// -- and at shutdown; nothing else retracts them.  "Failed to start" also
+// comes down once the source reaches PLAYING.
+static std::mutex s_sourceWarningsLock;
+static std::set<std::string> s_sourceWarnings;
+
+static void AddSourceWarning(const std::string& msg) {
+    {
+        std::lock_guard<std::mutex> lock(s_sourceWarningsLock);
+        s_sourceWarnings.insert(msg);
+    }
+    WarningHolder::AddWarning(56, msg);
+}
+
+static void ClearSourceWarnings() {
+    std::set<std::string> warnings;
+    {
+        std::lock_guard<std::mutex> lock(s_sourceWarningsLock);
+        warnings.swap(s_sourceWarnings);
+    }
+    for (const auto& msg : warnings) {
+        WarningHolder::RemoveWarning(56, msg);
+    }
+}
+
 // Control characters have no representation in the description grammar and
 // never belong in a URI, device path or element name, so reject them up front
 // rather than trying to encode them. Checked once per source in StartSource()
@@ -178,7 +336,7 @@ static bool GstValueUsable(const std::string& value, const char* what,
         if (c < 0x20 || c == 0x7f) {
             LogWarn(VB_MEDIAOUT, "VideoInputManager: %s for '%s' contains a control character\n",
                     what, sourceName.c_str());
-            WarningHolder::AddWarning(56, "Video input '" + sourceName + "' has an invalid " + what);
+            AddSourceWarning("Video input '" + sourceName + "' has an invalid " + what);
             return false;
         }
     }
@@ -264,7 +422,7 @@ static void RtspNoMorePads(GstElement*, gpointer userData) {
     }
     LogErr(VB_MEDIAOUT, "VideoInputManager: '%s' RTSP stream offers no video track\n",
            filter->sourceName.c_str());
-    WarningHolder::AddWarning(56, "Video input '" + filter->sourceName +
+    AddSourceWarning("Video input '" + filter->sourceName +
                                       "': the RTSP stream contains no video track");
 }
 
@@ -446,7 +604,7 @@ VideoInputManager::~VideoInputManager() {
 }
 
 void VideoInputManager::Init() {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::unique_lock<std::mutex> lock(m_mutex);
     if (m_initialized)
         return;
 
@@ -464,28 +622,209 @@ void VideoInputManager::Init() {
     // (re)starting sources here, a future Shutdown() must be allowed to
     // run its teardown again.
     m_shutdownDone = false;
+    lock.unlock();
+    {
+        std::lock_guard<std::mutex> rl(m_reloadMutex);
+        m_stopReloads = false;
+    }
 
-    if (LoadConfig()) {
-        LogInfo(VB_MEDIAOUT, "VideoInputManager: Loaded %d source(s), starting enabled ones\n",
-                (int)m_sources.size());
-        for (auto& source : m_sources) {
-            if (source.enabled) {
-                StartSource(source);
+    // Load and start the sources on the worker: a YouTube source can take
+    // yt-dlp's whole timeout to resolve, and fppd's startup shouldn't wait.
+    RequestReload();
+}
+
+void VideoInputManager::RequestReload() {
+    std::lock_guard<std::mutex> rl(m_reloadMutex);
+    if (m_stopReloads) {
+        return;
+    }
+    m_reloadPending = true;
+    EnsureReloadWorkerLocked();
+    m_reloadCv.notify_all();
+}
+
+void VideoInputManager::ScheduleSourceRestart(int sourceId) {
+    std::lock_guard<std::mutex> rl(m_reloadMutex);
+    if (m_stopReloads) {
+        return;
+    }
+    auto now = std::chrono::steady_clock::now();
+    RestartState& r = m_restarts[sourceId];
+    if (r.delayMs == 0 || now - r.lastFailure > std::chrono::milliseconds(RESTART_QUIET_RESET_MS)) {
+        r.delayMs = RESTART_MIN_DELAY_MS;
+    } else {
+        r.delayMs = std::min(r.delayMs * 2, RESTART_MAX_DELAY_MS);
+    }
+    r.lastFailure = now;
+    r.due = now + std::chrono::milliseconds(r.delayMs);
+    r.pending = true;
+    LogInfo(VB_MEDIAOUT, "VideoInputManager: Restarting source %d in %d ms\n", sourceId, r.delayMs);
+    EnsureReloadWorkerLocked();
+    m_reloadCv.notify_all();
+}
+
+void VideoInputManager::EnsureReloadWorkerLocked() {
+    if (m_reloadRunning) {
+        return;  // the running worker sees the new request and acts on it
+    }
+    if (m_reloadThread.joinable()) {
+        m_reloadThread.join();  // a finished worker; it no longer needs the lock
+    }
+    m_reloadRunning = true;
+    m_reloadThread = std::thread([this]() {
+        SetThreadName("FPP-VideoInReload");
+        std::unique_lock<std::mutex> l(m_reloadMutex);
+        while (!m_stopReloads) {
+            if (m_reloadPending) {
+                // A reload restarts every source from the new config, so
+                // queued restarts and their backoff go with the old one.
+                m_reloadPending = false;
+                m_restarts.clear();
+                l.unlock();
+                Reload();
+                l.lock();
+                continue;
+            }
+            int id = -1;
+            std::chrono::steady_clock::time_point due;
+            for (const auto& [sid, r] : m_restarts) {
+                if (r.pending && (id < 0 || r.due < due)) {
+                    id = sid;
+                    due = r.due;
+                }
+            }
+            if (id < 0) {
+                break;
+            }
+            if (std::chrono::steady_clock::now() < due) {
+                m_reloadCv.wait_until(l, due);
+                continue;
+            }
+            m_restarts[id].pending = false;
+            l.unlock();
+            RestartSource(id);
+            l.lock();
+        }
+        m_reloadRunning = false;
+    });
+}
+
+void VideoInputManager::RestartSource(int sourceId) {
+    std::unique_lock<std::mutex> lock(m_mutex);
+    auto find = [this, sourceId]() -> SourceInfo* {
+        for (auto& s : m_sources) {
+            if (s.id == sourceId) {
+                return &s;
             }
         }
-    } else {
-        LogDebug(VB_MEDIAOUT, "VideoInputManager: No video input sources configured\n");
+        return nullptr;
+    };
+    SourceInfo* source = find();
+    if (!m_initialized || !source || !source->enabled || source->running) {
+        return;
     }
+    LogInfo(VB_MEDIAOUT, "VideoInputManager: Restarting source '%s'\n", source->name.c_str());
+    // The run thread cleared `running` on its way out and takes no lock after
+    // that, so this join is immediate.
+    StopSource(*source);
+
+    bool youTube = source->type == "urisrc" && IsYouTubeUri(source->uri);
+    std::string uri = source->uri;
+    int height = source->height;
+    bool audio = source->audioEnabled;
+    lock.unlock();
+
+    // As in Reload(): the old pipeline must let go of the device or socket
+    // before the new one opens it, and a wedged teardown or a yt-dlp lookup
+    // must not hold m_mutex.
+    JoinTeardownThreads();
+    std::map<std::string, YtDlpResult> results;
+    if (youTube) {
+        results[YtKey(YtVideoFormat(height), uri)] = RunYtDlp(YtVideoFormat(height), uri, true);
+        if (audio) {
+            results[YtKey(YT_AUDIO_FORMAT, uri)] = RunYtDlp(YT_AUDIO_FORMAT, uri, false);
+        }
+    }
+
+    lock.lock();
+    {
+        std::lock_guard<std::mutex> rl(m_reloadMutex);
+        if (m_stopReloads) {
+            return;
+        }
+    }
+    source = find();
+    if (!m_initialized || !source || !source->enabled || source->running) {
+        return;
+    }
+    s_ytPrefetched = std::move(results);
+    bool started = StartSource(*source);
+    s_ytPrefetched.clear();
+    if (!started) {
+        // It started before, so the config is good: this is a lookup or a
+        // resource that isn't back yet (a YouTube URL that won't resolve).
+        ScheduleSourceRestart(sourceId);
+    }
+}
+
+void VideoInputManager::StartLoadedSources(std::unique_lock<std::mutex>& lock) {
+    // Resolving a YouTube source runs yt-dlp, which can take as long as its
+    // timeout.  Holding m_mutex across that stalled everything that asks this
+    // manager about its sources -- the video output manager starting media
+    // playback among them, under its own lock.  Collect what needs resolving,
+    // resolve it unlocked, and start the sources from the results.
+    struct YtJob {
+        std::string format;
+        std::string uri;
+        bool wantFps;
+    };
+    std::vector<YtJob> jobs;
+    for (const auto& source : m_sources) {
+        if (source.enabled && source.type == "urisrc" && IsYouTubeUri(source.uri)) {
+            jobs.push_back({ YtVideoFormat(source.height), source.uri, true });
+            if (source.audioEnabled) {
+                jobs.push_back({ YT_AUDIO_FORMAT, source.uri, false });
+            }
+        }
+    }
+    if (!jobs.empty()) {
+        lock.unlock();
+        std::map<std::string, YtDlpResult> results;
+        for (const auto& job : jobs) {
+            {
+                // Shutdown() waits for this; don't make it wait for every
+                // source when one lookup would do.
+                std::lock_guard<std::mutex> rl(m_reloadMutex);
+                if (m_stopReloads) {
+                    break;
+                }
+            }
+            results[YtKey(job.format, job.uri)] = RunYtDlp(job.format, job.uri, job.wantFps);
+        }
+        lock.lock();
+        s_ytPrefetched = std::move(results);
+        std::lock_guard<std::mutex> rl(m_reloadMutex);
+        if (m_stopReloads) {
+            // Shutting down: don't start what it is about to tear down.
+            s_ytPrefetched.clear();
+            return;
+        }
+    }
+    for (auto& source : m_sources) {
+        if (source.enabled) {
+            StartSource(source);
+        }
+    }
+    s_ytPrefetched.clear();
 }
 
 void VideoInputManager::Reload() {
     LogInfo(VB_MEDIAOUT, "VideoInputManager: Reloading configuration\n");
+    // The sources are rebuilt from the new config, and raise again what
+    // still applies.
+    ClearSourceWarnings();
 
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        StopAllSources();
-        m_sources.clear();
-    }
+    StopAllSources();
 
     // Join the teardown threads spawned by the StopAllSources() above (plus
     // any still outstanding from an earlier cycle) before touching the
@@ -494,18 +833,14 @@ void VideoInputManager::Reload() {
     // v4l2/rtsp resource that's still held (EBUSY).
     JoinTeardownThreads();
 
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::unique_lock<std::mutex> lock(m_mutex);
     m_initialized = true;
     // See Init(): allow a subsequent Shutdown() to run its teardown again.
     m_shutdownDone = false;
 
     if (LoadConfig()) {
         LogInfo(VB_MEDIAOUT, "VideoInputManager: Reloaded with %d source(s)\n", (int)m_sources.size());
-        for (auto& source : m_sources) {
-            if (source.enabled) {
-                StartSource(source);
-            }
-        }
+        StartLoadedSources(lock);
     }
 }
 
@@ -515,16 +850,33 @@ void VideoInputManager::Shutdown() {
     if (m_shutdownDone.exchange(true)) {
         return;
     }
+    // No reloads from here on, and wait out one in progress: it is about to
+    // start sources this is tearing down.
+    std::thread reloadWorker;
+    {
+        std::lock_guard<std::mutex> rl(m_reloadMutex);
+        m_stopReloads = true;
+        m_reloadPending = false;
+        m_restarts.clear();
+        reloadWorker = std::move(m_reloadThread);
+    }
+    m_reloadCv.notify_all();
+    // A YouTube lookup can run for its full timeout, far longer than
+    // fppd_stop waits before it kills fppd.
+    KillRunningYtDlp();
+    if (reloadWorker.joinable()) {
+        reloadWorker.join();
+    }
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        StopAllSources();
-        m_sources.clear();
         m_initialized = false;
     }
+    StopAllSources();
     // Make sure every teardown thread spawned above (and any left over from
     // a prior Reload) has actually finished before we consider Shutdown()
     // complete, so nothing outlives the process.
     JoinTeardownThreads();
+    ClearSourceWarnings();
     LogInfo(VB_MEDIAOUT, "VideoInputManager: Shutdown complete\n");
 }
 
@@ -761,14 +1113,14 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
     } else if (source.type == "v4l2src") {
         if (source.device.empty()) {
             LogWarn(VB_MEDIAOUT, "VideoInputManager: v4l2src '%s' has no device path\n", source.name.c_str());
-            WarningHolder::AddWarning(56, "Video input '" + source.name + "' has no capture device path configured");
+            AddSourceWarning("Video input '" + source.name + "' has no capture device path configured");
             return false;
         }
         srcElement = "v4l2src device=" + GstQuote(source.device);
     } else if (source.type == "rtspsrc") {
         if (source.uri.empty()) {
             LogWarn(VB_MEDIAOUT, "VideoInputManager: rtspsrc '%s' has no URI\n", source.name.c_str());
-            WarningHolder::AddWarning(56, "Video input '" + source.name + "' (RTSP) has no URI configured");
+            AddSourceWarning("Video input '" + source.name + "' (RTSP) has no URI configured");
             return false;
         }
         // rtspsrc → decodebin handles codec negotiation (H.264, H.265, MJPEG, etc.)
@@ -786,7 +1138,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
     } else if (source.type == "urisrc") {
         if (source.uri.empty()) {
             LogWarn(VB_MEDIAOUT, "VideoInputManager: urisrc '%s' has no URI\n", source.name.c_str());
-            WarningHolder::AddWarning(56, "Video input '" + source.name + "' has no URI configured");
+            AddSourceWarning("Video input '" + source.name + "' has no URI configured");
             return false;
         }
         std::string resolvedUri = source.uri;
@@ -801,13 +1153,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
              resolvedUri.find("youtu.be/") != std::string::npos)) {
             LogInfo(VB_MEDIAOUT, "VideoInputManager: Resolving YouTube URL for '%s' via yt-dlp\n",
                     source.name.c_str());
-            // Select the best H.264 video-only stream that fits the
-            // configured output height.  This avoids fetching 240p when
-            // the user wants 720p/1080p, while still capping bandwidth
-            // to what the Pi can actually decode and display.
-            std::string ytFmt = "bestvideo[height<=" + std::to_string(source.height)
-                + "][vcodec^=avc1]/worst[vcodec^=avc1]";
-            YtDlpResult yt = RunYtDlp(ytFmt, resolvedUri, true);
+            YtDlpResult yt = ResolveYtDlp(YtVideoFormat(source.height), resolvedUri, true);
             if (yt.url.empty()) {
                 // Do not fall back to the original page URL. uridecodebin will
                 // happily fetch it, get text/html back, and fail with "Your
@@ -819,7 +1165,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
                 LogErr(VB_MEDIAOUT, "VideoInputManager: yt-dlp could not resolve the URL for '%s': %s\n",
                        source.name.c_str(),
                        yt.diagnostics.empty() ? "no output" : yt.diagnostics.c_str());
-                WarningHolder::AddWarning(56, "Video input '" + source.name
+                AddSourceWarning("Video input '" + source.name
                     + "': yt-dlp could not resolve the YouTube URL - it may need updating");
                 return false;
             }
@@ -874,7 +1220,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
         useDecodebin = true;
     } else {
         LogWarn(VB_MEDIAOUT, "VideoInputManager: Unknown source type '%s'\n", source.type.c_str());
-        WarningHolder::AddWarning(56, "Video input '" + source.name + "' has unknown source type '" + source.type + "'");
+        AddSourceWarning("Video input '" + source.name + "' has unknown source type '" + source.type + "'");
         return false;
     }
 
@@ -1078,6 +1424,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
 
     std::string sourceName = source.name;
     std::string nodeNameCopy = source.pipeWireNodeName;
+    const int sourceId = source.id;
     GstElement* pipeline = source.pipeline;
     std::atomic<bool>* shutdownFlag = &source.shutdownRequested;
     std::atomic<bool>* runningFlag = &source.running;
@@ -1095,7 +1442,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
     }
 
     source.runThread = std::thread([pipeline, sourceName, nodeNameCopy, shutdownFlag, runningFlag,
-                                    deviceCopy, controls]() {
+                                    deviceCopy, controls, sourceId]() {
         LogInfo(VB_MEDIAOUT, "VideoInputManager: Source '%s' thread starting pipeline (node=%s)\n",
                 sourceName.c_str(), nodeNameCopy.c_str());
 
@@ -1119,9 +1466,12 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
         if (ret == GST_STATE_CHANGE_FAILURE) {
             if (!shutdownFlag->load()) {
                 LogWarn(VB_MEDIAOUT, "VideoInputManager: Source '%s' failed to start\n", sourceName.c_str());
-                WarningHolder::AddWarning(56, "Video input '" + sourceName + "' failed to start");
+                AddSourceWarning("Video input '" + sourceName + "' failed to start");
             }
             *runningFlag = false;
+            if (!shutdownFlag->load()) {
+                VideoInputManager::Instance().ScheduleSourceRestart(sourceId);
+            }
             return;
         }
 
@@ -1134,6 +1484,8 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
         if (ret == GST_STATE_CHANGE_SUCCESS) {
             applyControls();
             VideoOutputManager::Instance().NotifyProducerReady(nodeNameCopy);
+            // Up again after a restart: retract the banner its failure raised.
+            WarningHolder::RemoveWarning(56, "Video input '" + sourceName + "' failed to start");
         }
 
         // Monitor the pipeline bus for errors / EOS
@@ -1162,6 +1514,9 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
                     // days). StopSource() still owns unref'ing source.pipeline.
                     gst_element_set_state(pipeline, GST_STATE_NULL);
                     *runningFlag = false;
+                    if (!shutdownFlag->load()) {
+                        VideoInputManager::Instance().ScheduleSourceRestart(sourceId);
+                    }
                     return;
                 }
                 case GST_MESSAGE_BUFFERING: {
@@ -1191,6 +1546,8 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
                         if (newState == GST_STATE_PLAYING && pending == GST_STATE_VOID_PENDING) {
                             applyControls();
                             VideoOutputManager::Instance().NotifyProducerReady(nodeNameCopy);
+                            // Up again after a restart: retract the banner its failure raised.
+                            WarningHolder::RemoveWarning(56, "Video input '" + sourceName + "' failed to start");
                         }
                     }
                     break;
@@ -1206,6 +1563,9 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
                     // left in PLAYING.
                     gst_element_set_state(pipeline, GST_STATE_NULL);
                     *runningFlag = false;
+                    if (!shutdownFlag->load()) {
+                        VideoInputManager::Instance().ScheduleSourceRestart(sourceId);
+                    }
                     return;
                 default:
                     break;
@@ -1222,6 +1582,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
     return true;
 #else
     LogWarn(VB_MEDIAOUT, "VideoInputManager: GStreamer not available\n");
+    // Permanent: a build without GStreamer stays one until it is replaced.
     WarningHolder::AddWarning(56, "Video input requires GStreamer, which is not available on this device");
     return false;
 #endif
@@ -1248,17 +1609,14 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
     // Resolve video-only URL and detect native framerate
     std::string videoUrl;
     {
-        // Select best H.264 stream fitting the configured height
-        std::string ytFmt = "bestvideo[height<=" + std::to_string(source.height)
-            + "][vcodec^=avc1]/worst[vcodec^=avc1]";
         LogInfo(VB_MEDIAOUT, "VideoInputManager: Resolving YouTube video URL for '%s'\n",
                 source.name.c_str());
-        YtDlpResult yt = RunYtDlp(ytFmt, source.uri, true);
+        YtDlpResult yt = ResolveYtDlp(YtVideoFormat(source.height), source.uri, true);
         if (yt.url.empty()) {
             LogWarn(VB_MEDIAOUT, "VideoInputManager: Failed to resolve video URL for '%s': %s\n",
                     source.name.c_str(),
                     yt.diagnostics.empty() ? "no output" : yt.diagnostics.c_str());
-            WarningHolder::AddWarning(56, "Video input '" + source.name + "': could not resolve the video URL");
+            AddSourceWarning("Video input '" + source.name + "': could not resolve the video URL");
             return false;
         }
         videoUrl = yt.url;
@@ -1269,11 +1627,9 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
     // Resolve audio-only URL
     std::string audioUrl;
     {
-        // 234 = high quality HLS audio, 233 = low quality HLS audio
-        // 140 = AAC 128k from DASH (non-live fallback), 139 = HE-AAC 48k
         LogInfo(VB_MEDIAOUT, "VideoInputManager: Resolving YouTube audio URL for '%s'\n",
                 source.name.c_str());
-        YtDlpResult yt = RunYtDlp("234/233/140/139/bestaudio", source.uri, false);
+        YtDlpResult yt = ResolveYtDlp(YT_AUDIO_FORMAT, source.uri, false);
         if (yt.url.empty()) {
             LogWarn(VB_MEDIAOUT, "VideoInputManager: Failed to resolve audio URL for '%s' (%s), "
                     "falling back to video-only\n", source.name.c_str(),
@@ -1375,11 +1731,12 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
 
     std::string sourceName = source.name;
     std::string nodeNameCopy = source.pipeWireNodeName;
+    const int sourceId = source.id;
     GstElement* combinedPipeline = source.pipeline;
     std::atomic<bool>* shutdownFlag = &source.shutdownRequested;
     std::atomic<bool>* runningFlag = &source.running;
 
-    source.runThread = std::thread([combinedPipeline, sourceName, nodeNameCopy, shutdownFlag, runningFlag]() {
+    source.runThread = std::thread([combinedPipeline, sourceName, nodeNameCopy, shutdownFlag, runningFlag, sourceId]() {
         LogInfo(VB_MEDIAOUT, "VideoInputManager: Source '%s' A/V thread starting (node=%s)\n",
                 sourceName.c_str(), nodeNameCopy.c_str());
 
@@ -1388,9 +1745,12 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
             if (!shutdownFlag->load()) {
                 LogWarn(VB_MEDIAOUT, "VideoInputManager: Source '%s' failed to start\n",
                         sourceName.c_str());
-                WarningHolder::AddWarning(56, "Video input '" + sourceName + "' failed to start");
+                AddSourceWarning("Video input '" + sourceName + "' failed to start");
             }
             *runningFlag = false;
+            if (!shutdownFlag->load()) {
+                VideoInputManager::Instance().ScheduleSourceRestart(sourceId);
+            }
             return;
         }
 
@@ -1401,6 +1761,8 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
 
         if (ret == GST_STATE_CHANGE_SUCCESS) {
             VideoOutputManager::Instance().NotifyProducerReady(nodeNameCopy);
+            // Up again after a restart: retract the banner its failure raised.
+            WarningHolder::RemoveWarning(56, "Video input '" + sourceName + "' failed to start");
         }
 
         GstBus* bus = gst_pipeline_get_bus(GST_PIPELINE(combinedPipeline));
@@ -1431,6 +1793,9 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
                     // source.pipeline.
                     gst_element_set_state(combinedPipeline, GST_STATE_NULL);
                     *runningFlag = false;
+                    if (!shutdownFlag->load()) {
+                        VideoInputManager::Instance().ScheduleSourceRestart(sourceId);
+                    }
                     return;
                 }
                 case GST_MESSAGE_BUFFERING: {
@@ -1455,6 +1820,8 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
                                 gst_element_state_get_name(pending));
                         if (newState == GST_STATE_PLAYING && pending == GST_STATE_VOID_PENDING) {
                             VideoOutputManager::Instance().NotifyProducerReady(nodeNameCopy);
+                            // Up again after a restart: retract the banner its failure raised.
+                            WarningHolder::RemoveWarning(56, "Video input '" + sourceName + "' failed to start");
                         }
                     }
                     break;
@@ -1469,6 +1836,9 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
                     // Same reasoning as the ERROR case above.
                     gst_element_set_state(combinedPipeline, GST_STATE_NULL);
                     *runningFlag = false;
+                    if (!shutdownFlag->load()) {
+                        VideoInputManager::Instance().ScheduleSourceRestart(sourceId);
+                    }
                     return;
                 default:
                     break;
@@ -1487,6 +1857,7 @@ bool VideoInputManager::StartSourceWithAudio(SourceInfo& source) {
     return true;
 #else
     LogWarn(VB_MEDIAOUT, "VideoInputManager: GStreamer not available\n");
+    // Permanent: a build without GStreamer stays one until it is replaced.
     WarningHolder::AddWarning(56, "Video input requires GStreamer, which is not available on this device");
     return false;
 #endif
@@ -1539,7 +1910,15 @@ void VideoInputManager::StopSource(SourceInfo& source) {
 }
 
 void VideoInputManager::StopAllSources() {
-    for (auto& source : m_sources) {
+    // The swap moves the vector's buffer, so the run threads' pointers to
+    // each source's flags stay valid until the sources are destroyed below,
+    // after StopSource() has joined those threads.
+    std::vector<SourceInfo> sources;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        sources.swap(m_sources);
+    }
+    for (auto& source : sources) {
         StopSource(source);
     }
 }

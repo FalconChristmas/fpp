@@ -14,6 +14,11 @@
 
 #include "fpp-json.h"
 
+#include <algorithm>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
 #include "../../log.h"
 
 #include "OutputProcessor.h"
@@ -87,11 +92,20 @@ void OutputProcessors::addProcessor(OutputProcessor* p) {
     std::lock_guard<std::mutex> lock(processorsLock);
     if (rangeIsValid(p)) {
         processors.push_back(p);
+    } else {
+        delete p; // rejected; nothing else owns it
     }
 }
 void OutputProcessors::removeProcessor(OutputProcessor* p) {
+    // ProcessData() walks the chain under processorsLock, so once the
+    // processor is out of the list (under the same lock) nothing can be using
+    // it.  Removed processors used to be leaked.
     std::lock_guard<std::mutex> lock(processorsLock);
-    processors.remove(p);
+    auto it = std::find(processors.begin(), processors.end(), p);
+    if (it != processors.end()) {
+        processors.erase(it);
+        delete p;
+    }
 }
 void OutputProcessors::removeAll() {
     std::lock_guard<std::mutex> lock(processorsLock);
@@ -108,18 +122,39 @@ void OutputProcessors::loadFromJSON(const Json::Value& config) {
     // current limit missing for a frame).  Only the processors created from
     // JSON are replaced; plugins may have added their own.
     std::list<OutputProcessor*> created;
+    // A processor whose JSON holds a value of the wrong type ("1" for a
+    // number, a list, null) threw Json::LogicError out of its constructor,
+    // past everything up to std::terminate -- at startup, so with the config
+    // saved fppd crash looped.  Refuse that one processor instead, with a
+    // warning (raised below, once last time's are retracted).
+    std::vector<std::string> failed;
+    auto tryCreate = [this, &created, &failed](const Json::Value& v) {
+        try {
+            if (OutputProcessor* p = create(v)) {
+                created.push_back(p);
+            }
+        } catch (const std::exception& e) {
+            std::string what;
+            if (v.isObject() && v["type"].isString()) {
+                what = v["type"].asString();
+            }
+            if (what.empty()) {
+                what = "an entry";
+            }
+            failed.push_back("Output processor " + what + " could not be loaded (" + e.what() +
+                             "). Processor disabled.");
+        }
+    };
     for (Json::Value::const_iterator itr = config.begin(); itr != config.end(); ++itr) {
         std::string name = itr.key().asString();
         if (name == "outputProcessors") {
             Json::Value val = *itr;
             if (val.isArray()) {
                 for (int x = 0; x < val.size(); x++) {
-                    if (OutputProcessor* p = create(val[x])) {
-                        created.push_back(p);
-                    }
+                    tryCreate(val[x]);
                 }
-            } else if (OutputProcessor* p = create(val)) {
-                created.push_back(p);
+            } else {
+                tryCreate(val);
             }
         }
     }
@@ -131,6 +166,11 @@ void OutputProcessors::loadFromJSON(const Json::Value& config) {
             WarningHolder::RemoveWarning(w);
         }
         rejectedWarnings.clear();
+        for (auto& w : failed) {
+            LogErr(VB_CHANNELOUT, "%s\n", w.c_str());
+            WarningHolder::AddWarning(w);
+            rejectedWarnings.push_back(w);
+        }
         for (auto a : fromJsonProcessors) {
             processors.remove(a);
         }
@@ -211,7 +251,7 @@ void ProcessModelConfig(const Json::Value& config, std::string& model, int& star
     if (config.isMember("model")) {
         model = config["model"].asString();
         if (model != "<Use Start Channel>") {
-            auto m_model = PixelOverlayManager::INSTANCE.getModel(model);
+            auto m_model = PixelOverlayManager::INSTANCE.getModelShared(model);
             if (!m_model) {
                 LogErr(VB_CHANNELOUT, "Invalid Pixel Overlay Model: '%s'\n", model.c_str());
             } else {

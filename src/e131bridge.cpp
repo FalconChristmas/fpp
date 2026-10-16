@@ -41,6 +41,7 @@
 #include "EPollManager.h"
 #include "FileMonitor.h"
 #include "Sequence.h"
+#include "Timers.h"
 #include "Warnings.h"
 #include "common.h"
 #include "e131defs.h"
@@ -59,14 +60,8 @@
 
 #define BRIDGE_INVALID_UNIVERSE_INDEX 0xFFFFFF
 // Cached "looked it up, not configured" marker, distinct from the
-// "never looked up" state above. Internal to the UniverseCache.
+// "never looked up" state above. Internal to the universe caches.
 #define BRIDGE_UNIVERSE_NOT_FOUND 0xFFFFFE
-
-// File-local: libfpp.so is linked with default visibility, so a generic
-// exported name like `addr` is bound through the GOT and resolves to the
-// first definition in the process's global scope, not necessarily this one.
-static struct sockaddr_in addr;
-static socklen_t addrlen;
 
 static int bridgeSock = -1;
 static int ddpSock = -1;
@@ -100,9 +95,13 @@ static int currentArtNetPacketLen = 0;
 static inline bool EvaluateSource(UniverseEntry& entry,
                                   const uint8_t* sourceId,
                                   uint8_t priority,
-                                  long long packetTime,
                                   bool& sourceJustSwitched) {
     sourceJustSwitched = false;
+    // The active source's age is on the monotonic clock.  It was the packets'
+    // wall-clock time: a step back kept a stopped source "active" for the size
+    // of the step, so the backup source stayed suppressed and the output froze
+    // on the last frame of the one that stopped.
+    long long packetTime = GetMonotonicTimeMS();
     bool idMatches = entry.activeSourceValid &&
                      memcmp(entry.activeSourceId, sourceId, 16) == 0;
     bool expired = entry.activeSourceValid &&
@@ -136,7 +135,12 @@ static struct iovec iovecs[MAX_MSG];
 static uint8_t buffers[MAX_MSG][BUFSIZE + 1];
 static struct sockaddr_in inAddress[MAX_MSG];
 
-static unsigned int UniverseCache[65536];
+// One lookup cache per protocol: E1.31 and ArtNet number their universes
+// independently, so ArtNet universe N and E1.31 universe N are different
+// inputs and a packet must only ever land on an entry of its own protocol.
+// ArtNet's Port-Address is 15 bits.
+static unsigned int E131UniverseCache[65536];
+static unsigned int ArtNetUniverseCache[32768];
 
 static std::vector<UniverseEntry> InputUniverses;
 static int InputUniverseCount;
@@ -172,9 +176,16 @@ static UniverseEntry unknownUniverse;
 // Sync universes we've auto-joined the multicast group for, based on the
 // sync-address field advertised in received data packets. Lets sync packets
 // reach the bridge even when the sync universe isn't a configured input.
+// Capped: every new one costs a getifaddrs() and a join per interface on the
+// main loop, and the field comes from whoever sends a packet, so a stream
+// with a different sync address in each packet would otherwise join groups
+// (and stall the loop) without limit.  A real show uses one or two.
 static std::set<int> joinedSyncUniverses;
+static constexpr size_t MAX_JOINED_SYNC_UNIVERSES = 16;
+static bool syncUniverseCapLogged = false;
 
-static bool bridgeDataReceived = false;
+// Set by the receive path, read by status and the main loop.
+static std::atomic<bool> bridgeDataReceived{ false };
 
 static std::map<int, std::function<bool(uint8_t* data, long long packetTime)>> ArtNetOpcodeHandlers;
 
@@ -191,6 +202,17 @@ static std::map<int, std::function<bool(uint8_t* data, long long packetTime)>> A
 // here also means the callback is always FPP's own, never a plugin's, so an
 // unloaded plugin can never leave the loop dispatching into an unmapped
 // library.
+//
+// While a handler is waiting for a socket that could not be opened (another
+// program holds 6454), a main-loop timer keeps calling back in here.  The
+// socket can appear without this function running at all -- the ArtNet
+// output asks for it from the output thread on every frame -- and nothing
+// else would put it in the epoll set: ArtNet input stayed dead after the
+// port came free, with the warning that said so already taken down.  The
+// timer also retries the port itself when nothing else asks for it.
+static constexpr const char* ARTNET_INPUT_RETRY_TIMER = "ArtNetInputRetry";
+static bool artnetInputRetryRunning = false;
+
 static void UpdateArtNetInputRegistration() {
     bool wanted = !ArtNetOpcodeHandlers.empty();
     if (wanted && artnetSock < 0) {
@@ -199,7 +221,19 @@ static void UpdateArtNetInputRegistration() {
         // callers who used to register the descriptor themselves were doing by
         // calling CreateArtNetSocket(), and without it a plugin's triggers
         // would silently stop working wherever the bridge has no ArtNet.
+        // After a failure this returns at once until its retry interval is up.
         CreateArtNetSocket();
+    }
+    bool waiting = wanted && artnetSock < 0;
+    if (waiting != artnetInputRetryRunning) {
+        artnetInputRetryRunning = waiting;
+        if (waiting) {
+            Timers::INSTANCE.addPeriodicTimer(ARTNET_INPUT_RETRY_TIMER, 1000, []() {
+                UpdateArtNetInputRegistration();
+            });
+        } else {
+            Timers::INSTANCE.stopPeriodicTimer(ARTNET_INPUT_RETRY_TIMER);
+        }
     }
     if (artnetSock < 0) {
         return;
@@ -225,8 +259,9 @@ void RemoveArtNetOpcodeHandler(int opCode) {
     UpdateArtNetInputRegistration();
 }
 
-static bool hasUDP = false;
-static bool hasDMX = false;
+// Changed by input config reloads, read by the output thread.
+static std::atomic<bool> hasUDP{ false };
+static std::atomic<bool> hasDMX{ false };
 bool InputsEnabled() {
     return hasUDP || hasDMX;
 }
@@ -235,10 +270,10 @@ bool InputsEnabled() {
 bool Bridge_StoreData(uint8_t* bridgeBuffer, long long packetTime, int msgLen);
 bool Bridge_StoreDDPData(uint8_t* bridgeBuffer, long long packetTime, int msgLen);
 void BridgeShutdownUDP(bool reloading);
-int Bridge_GetIndexFromUniverseNumber(int universe);
+int Bridge_GetIndexFromUniverseNumber(int universe, bool artnet);
 void InputUniversesPrint();
 inline void SetBridgeData(uint8_t* data, int startChannel, int len, long long packetTime);
-inline void CommitBridgeData(long long packetTime);
+inline void CommitBridgeData();
 
 // Size the receive buffer on a bridge input socket. A show pushing several
 // hundred universes delivers a full frame as one back-to-back burst (hundreds
@@ -274,63 +309,149 @@ static void SetBridgeReceiveBufferSize(int sock) {
     }
 }
 
-int CreateArtNetSocket(uint32_t sourceAddr, bool allowPortChange) {
-    static std::mutex artnetSocketMutex;
-    std::lock_guard<std::mutex> lock(artnetSocketMutex);
-    if (artnetSock < 0) {
-        int artnetSockT = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
-        if (artnetSockT < 0) {
-            LogWarn(VB_E131BRIDGE, "ArtNet socket failed: %s", FPPstrerror(errno));
-            WarningHolder::AddWarning("Socket creation failed for ArtNet");
-            exit(1);
-        }
-        int enable = 1;
-        // need to be able to send broadcast for ArtPollReply
-        setsockopt(artnetSockT, SOL_SOCKET, SO_BROADCAST, &enable, sizeof(enable));
-        enable = 1;
-#ifdef PLATFORM_OSX
-        setsockopt(artnetSockT, IPPROTO_UDP, UDP_NOCKSUM, (void*)&enable, sizeof enable);
-#else
-        setsockopt(artnetSockT, SOL_SOCKET, SO_NO_CHECK, (void*)&enable, sizeof enable);
-#endif
-        SetBridgeReceiveBufferSize(artnetSockT);
-        int bufSize = 512 * 1024;
-        setsockopt(artnetSockT, SOL_SOCKET, SO_SNDBUF, &bufSize, sizeof(bufSize));
+// Why ArtNet is off (or is sending from another port), as shown in the
+// warning banner; empty while the socket is fine.  The ArtNet port is fixed
+// by the protocol, so another program holding it (a second player, xLights,
+// a plugin) is an ordinary condition, not a fault.
+static constexpr int WARNING_ID_ARTNET_PORT = 54;
+static std::string artnetPortWarning;
+// When the last attempt to open the socket failed (GetMonotonicTimeMS()), 0
+// if it didn't.  An ArtNet output asks for the socket on every frame while it
+// has none, and every attempt used to log an error: 20-40 lines a second to
+// the log for as long as the port stayed taken.  Attempts from there are made
+// at most every ARTNET_RETRY_MS.
+static long long artnetFailedAt = 0;
+static constexpr long long ARTNET_RETRY_MS = 10000;
+static std::mutex artnetSocketMutex;
 
-        memset((char*)&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = sourceAddr == 0 ? htonl(INADDR_ANY) : (in_addr_t)sourceAddr;
-        addr.sin_port = htons(0x1936); // artnet port
-        addrlen = sizeof(addr);
-        // Bind the socket to address/port
-        if (bind(artnetSockT, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            if (allowPortChange) {
-                addr.sin_port = htons(0); // let OS pick port
-                if (bind(artnetSockT, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-                    LogWarn(VB_E131BRIDGE, "ArtNet bind failed even after port change: %s", FPPstrerror(errno));
-                    WarningHolder::AddWarning(54, "Socket bind failed for ArtNet");
-                    close(artnetSockT);
-                    return -1;
-                }
-            } else {
-                LogWarn(VB_E131BRIDGE, "ArtNet bind failed: %s", FPPstrerror(errno));
-                WarningHolder::AddWarning(54, "Socket bind failed for ArtNet");
-                close(artnetSockT);
-                return -1;
-            }
-        }
-        artnetSock = artnetSockT;
+// Caller holds artnetSocketMutex.
+static void SetArtNetPortWarning(const std::string& msg) {
+    if (msg == artnetPortWarning) {
+        return;
     }
+    if (!artnetPortWarning.empty()) {
+        WarningHolder::RemoveWarning(WARNING_ID_ARTNET_PORT, artnetPortWarning);
+    }
+    artnetPortWarning = msg;
+    if (!msg.empty()) {
+        LogWarn(VB_E131BRIDGE, "%s\n", msg.c_str());
+        WarningHolder::AddWarning(WARNING_ID_ARTNET_PORT, msg);
+    }
+}
+
+int CreateArtNetSocket(uint32_t sourceAddr, bool allowPortChange) {
+    std::lock_guard<std::mutex> lock(artnetSocketMutex);
+    if (artnetSock >= 0) {
+        return artnetSock;
+    }
+    // Callers that can fall back to another port (output setup, a network
+    // change) always try: they are rare, and the fallback is what lets ArtNet
+    // output run at all while the port is taken.
+    long long now = GetMonotonicTimeMS();
+    if (!allowPortChange && artnetFailedAt && now - artnetFailedAt < ARTNET_RETRY_MS) {
+        return -1;
+    }
+    auto failed = [now](const std::string& msg) {
+        artnetFailedAt = now ? now : 1;
+        // Logged once, when it changes; the warning says it from then on.
+        SetArtNetPortWarning(msg);
+        return -1;
+    };
+
+    int artnetSockT = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+    if (artnetSockT < 0) {
+        // As for a failed bind below: run without ArtNet, don't exit().
+        return failed(std::string("ArtNet is off: could not create its socket (") + FPPstrerror(errno) + ")");
+    }
+    int enable = 1;
+    // need to be able to send broadcast for ArtPollReply
+    setsockopt(artnetSockT, SOL_SOCKET, SO_BROADCAST, &enable, sizeof(enable));
+    enable = 1;
+#ifdef PLATFORM_OSX
+    setsockopt(artnetSockT, IPPROTO_UDP, UDP_NOCKSUM, (void*)&enable, sizeof enable);
+#else
+    setsockopt(artnetSockT, SOL_SOCKET, SO_NO_CHECK, (void*)&enable, sizeof enable);
+#endif
+    SetBridgeReceiveBufferSize(artnetSockT);
+    int bufSize = 512 * 1024;
+    setsockopt(artnetSockT, SOL_SOCKET, SO_SNDBUF, &bufSize, sizeof(bufSize));
+
+    // A local: CreateArtNetSocket runs on the output thread as well as the
+    // main loop, and a bind address shared with OpenBridgeSocket could be
+    // rewritten between filling it in and bind().
+    struct sockaddr_in addr;
+    memset((char*)&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = sourceAddr == 0 ? htonl(INADDR_ANY) : (in_addr_t)sourceAddr;
+    addr.sin_port = htons(0x1936); // artnet port
+    std::string warning;
+    // Bind the socket to address/port
+    if (bind(artnetSockT, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        std::string why = FPPstrerror(errno);
+        if (!allowPortChange) {
+            close(artnetSockT);
+            return failed("ArtNet is off: could not open UDP port 6454 (" + why + ")");
+        }
+        addr.sin_port = htons(0); // let OS pick port
+        if (bind(artnetSockT, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+            std::string why2 = FPPstrerror(errno);
+            close(artnetSockT);
+            return failed("ArtNet is off: could not open UDP port 6454 (" + why + ") or any other port (" + why2 + ")");
+        }
+        // Output still works from here, but nothing reaches ArtNet input or
+        // ArtPoll on 6454 until the socket is opened again.
+        // Nothing retries 6454 once a socket is open on another port, so this
+        // stays up until FPPD restarts (or the output interface changes) --
+        // and says so.
+        warning = "ArtNet input is off and ArtNet output is sent from another port: could not open UDP port 6454 (" + why +
+                  "). Restart FPPD once the port is free.";
+    }
+    artnetFailedAt = 0;
+    SetArtNetPortWarning(warning);
+    if (warning.empty()) {
+        LogDebug(VB_E131BRIDGE, "ArtNet socket open on UDP port 6454\n");
+    }
+    artnetSock = artnetSockT;
     return artnetSock;
 }
+
+void ResetArtNetSocketFailure() {
+    // A config reload may have removed whatever wanted ArtNet, and then
+    // nothing would ever retry and take the warning down.  Forget the failure
+    // instead: anything that still needs the socket asks again straight away
+    // and raises the warning again if the port is still taken.
+    std::lock_guard<std::mutex> lock(artnetSocketMutex);
+    if (artnetSock < 0) {
+        artnetFailedAt = 0;
+        SetArtNetPortWarning("");
+    }
+}
+
+// Network/DMX input problems.  Shares its id with the ArtNet port warning
+// above; each message is stored where it is raised and retracted by the next
+// reload of the config that produced it.
+static constexpr int WARNING_ID_INPUT = 54;
+
+// Total universe entries across every row of ci-universes.json.  Each row is
+// already held to 65536 (a universe number is 16 bits), but a hundred such
+// rows built millions of entries -- hundreds of MB on a device with 512MB.
+// 65536 is more than any real input config: every E1.31 universe.
+static constexpr size_t MAX_INPUT_UNIVERSES = 65536;
+static std::string universeCapWarning;
 
 /*
  *
  */
 bool LoadInputUniversesFromFile(void) {
+    // The previous load's cap warning; raised again below if still true.
+    if (!universeCapWarning.empty()) {
+        WarningHolder::RemoveWarning(WARNING_ID_INPUT, universeCapWarning);
+        universeCapWarning.clear();
+    }
     // Built locally and swapped in under universesStructureLock at the end so
     // an HTTP-thread stats reader never sees the vector mid-rebuild.
     std::vector<UniverseEntry> newUniverses;
+    bool truncated = false;
     std::string filename = FPP_DIR_CONFIG("/ci-universes.json");
 
     LogDebug(VB_E131BRIDGE, "Opening File Now %s\n", filename.c_str());
@@ -357,62 +478,94 @@ bool LoadInputUniversesFromFile(void) {
     int count = 0;
 
     bool enabled = false;
+    // Every value comes out of a file a user or an API may have written with
+    // the wrong JSON type, and jsoncpp throws on those: an entry or a universe
+    // that can't be read is skipped (with a warning) instead of the exception
+    // reaching std::terminate during startup.
+    if (!outputs.isArray()) {
+        if (!outputs.isNull()) {
+            WarningHolder::InvalidConfigEntry("ci-universes.json", "channelInputs is not a list");
+        }
+        outputs = Json::Value(Json::arrayValue);
+    }
     for (int c = 0; c < outputs.size(); c++) {
-        if (outputs[c]["type"].asString() != "universes")
-            continue;
+        try {
+            const Json::Value& o = outputs[c];
+            if (o["type"].asString() != "universes")
+                continue;
 
-        if (outputs[c]["enabled"].asInt() == 0)
-            continue;
+            if (o["enabled"].asInt() == 0)
+                continue;
 
-        if (outputs[c].isMember("timeout")) {
-            if (!outputs[c]["timeout"].isNull()) {
-                expireOffSet = outputs[c]["timeout"].asInt();
-                if (expireOffSet < 10) {
-                    expireOffSet = 10;
+            if (o.isMember("timeout")) {
+                if (!o["timeout"].isNull()) {
+                    expireOffSet = o["timeout"].asInt();
+                    if (expireOffSet < 10) {
+                        expireOffSet = 10;
+                    }
                 }
             }
-        }
 
-        Json::Value univs = outputs[c]["universes"];
-        enabled = true;
-        for (int i = 0; i < univs.size(); i++) {
-            Json::Value u = univs[i];
-
-            if (u["active"].asInt()) {
-                int universe = u["id"].asInt();
-                int count = u.get("universeCount", Json::Value(1)).asInt();
-                int startChannel = u["startChannel"].asInt();
-                int channelCount = u["channelCount"].asInt();
-                for (int x = 0; x < count; ++x) {
-                    UniverseEntry entry;
-                    entry.active = u["active"].asInt();
-                    entry.universe = universe + x;
-                    entry.startAddress = startChannel;
-                    entry.size = channelCount;
-                    entry.type = u["type"].asInt();
-
-                    switch (entry.type) {
-                    case 0: // Multicast
-                        entry.unicastAddress[0] = 0;
-                        break;
-                    case 1: // UnicastAddress
-                        snprintf(entry.unicastAddress, sizeof(entry.unicastAddress),
-                                 "%s", u["address"].asString().c_str());
-                        break;
-                    case 2: // ArtNet
-                    case 3: // ArtNet
-                        entry.unicastAddress[0] = 0;
-                        break;
-                    default:
+            Json::Value univs = o["universes"];
+            if (!univs.isArray()) {
+                univs = Json::Value(Json::arrayValue);
+            }
+            enabled = true;
+            for (int i = 0; i < univs.size(); i++) {
+                try {
+                    const Json::Value& u = univs[i];
+                    int active = u["active"].asInt();
+                    if (!active) {
                         continue;
                     }
-
-                    entry.priority = u["priority"].asInt();
-                    startChannel += channelCount;
-                    newUniverses.push_back(entry);
+                    // read everything before adding anything, so a bad field
+                    // can't leave half a universe range behind
+                    int universe = u["id"].asInt();
+                    int count = u.get("universeCount", Json::Value(1)).asInt();
+                    int startChannel = u["startChannel"].asInt();
+                    int channelCount = u["channelCount"].asInt();
+                    int type = u["type"].asInt();
+                    std::string address = type == 1 ? u["address"].asString() : std::string();
+                    int priority = u["priority"].asInt();
+                    // universe numbers are 16 bits: a bigger count only built
+                    // entries nothing can address (and a huge one, millions)
+                    count = std::clamp(count, 0, 65536);
+                    if (type < 0 || type > 3) {
+                        continue;
+                    }
+                    for (int x = 0; x < count; ++x) {
+                        if (newUniverses.size() >= MAX_INPUT_UNIVERSES) {
+                            truncated = true;
+                            break;
+                        }
+                        UniverseEntry entry;
+                        entry.active = active;
+                        entry.universe = universe + x;
+                        entry.startAddress = startChannel;
+                        entry.size = channelCount;
+                        entry.type = type;
+                        if (type == 1) { // UnicastAddress
+                            snprintf(entry.unicastAddress, sizeof(entry.unicastAddress), "%s", address.c_str());
+                        } else { // Multicast, ArtNet
+                            entry.unicastAddress[0] = 0;
+                        }
+                        entry.priority = priority;
+                        startChannel += channelCount;
+                        newUniverses.push_back(entry);
+                    }
+                } catch (const std::exception& e) {
+                    WarningHolder::InvalidConfigEntry("ci-universes.json", e.what());
                 }
             }
+        } catch (const std::exception& e) {
+            WarningHolder::InvalidConfigEntry("ci-universes.json", e.what());
         }
+    }
+    if (truncated) {
+        universeCapWarning = "Channel Inputs: only the first " + std::to_string(MAX_INPUT_UNIVERSES) +
+                             " input universes are used; the rest of ci-universes.json is ignored";
+        LogWarn(VB_E131BRIDGE, "%s\n", universeCapWarning.c_str());
+        WarningHolder::AddWarning(WARNING_ID_INPUT, universeCapWarning);
     }
 
     std::lock_guard<std::mutex> lg(universesStructureLock);
@@ -430,14 +583,21 @@ static std::vector<std::pair<uint32_t, uint32_t>> pendingBridgeRanges;
 
 inline void SetBridgeData(uint8_t* data, int startChannel, int len, long long packetTime) {
     last_packet_time = packetTime;
-    bridgeDataReceived = true;
+    // Every received packet.  Only status reads it ("bridging"), and nothing
+    // is published through it, so it needs no barriers.
+    bridgeDataReceived.store(true, std::memory_order_relaxed);
     if (sequence->WriteBridgeData(data, startChannel, len)) {
         pendingBridgeRanges.emplace_back(startChannel, len);
     }
 }
-inline void CommitBridgeData(long long packetTime) {
+inline void CommitBridgeData() {
     if (!pendingBridgeRanges.empty()) {
-        sequence->CommitBridgeRanges(pendingBridgeRanges, packetTime + expireOffSet);
+        // Expiry is on the monotonic clock (as Sequence compares it).  It was
+        // the packets' wall-clock time, so a clock stepping back kept stale
+        // bridge pixels over the sequence for as long as the step; and the
+        // serial-input path, whose time already included the timeout, got it
+        // added twice.
+        sequence->CommitBridgeRanges(pendingBridgeRanges, GetMonotonicTimeMS() + expireOffSet);
         pendingBridgeRanges.clear();
     }
 }
@@ -502,7 +662,7 @@ bool Bridge_ReceiveE131Data(void) {
         }
         msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     }
-    CommitBridgeData(packetTime);
+    CommitBridgeData();
     return sync;
 }
 bool Bridge_ReceiveDDPData(void) {
@@ -516,7 +676,7 @@ bool Bridge_ReceiveDDPData(void) {
         }
         msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     }
-    CommitBridgeData(packetTime);
+    CommitBridgeData();
     return sync;
 }
 bool Bridge_ReceiveArtNetData(void) {
@@ -545,12 +705,53 @@ bool Bridge_ReceiveArtNetData(void) {
         }
         msgcnt = recvmmsg(artnetSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     }
-    CommitBridgeData(packetTime);
+    CommitBridgeData();
     return sync;
+}
+
+// A bridge input port that can't be opened (another program already has it)
+// leaves that input off with a warning; fppd used to exit(1) here, which on a
+// reload of the input config took a running show down from the main loop, and
+// systemd's restart then failed the same way. Each (re)initialization retracts
+// what the last one raised, so the banner clears once the port is free and the
+// input config is saved again or fppd restarts.
+static constexpr int WARNING_ID_BRIDGE_PORT = 72;
+static std::vector<std::string> bridgePortWarnings;
+
+static int OpenBridgeSocket(const char* what, int port) {
+    int sock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+    const char* step = "socket";
+    if (sock >= 0) {
+        struct sockaddr_in addr;
+        memset((char*)&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        addr.sin_port = htons(port);
+        if (bind(sock, (struct sockaddr*)&addr, sizeof(addr)) == 0) {
+            SetBridgeReceiveBufferSize(sock);
+            return sock;
+        }
+        step = "bind";
+    }
+    int err = errno;
+    LogErr(VB_E131BRIDGE, "e131bridge %s %s failed on UDP port %d: %s\n", what, step, port, FPPstrerror(err));
+    if (sock >= 0) {
+        close(sock);
+    }
+    std::string msg = std::string(what) + " input is off: could not open UDP port " + std::to_string(port) +
+                      " (" + FPPstrerror(err) + ")";
+    WarningHolder::AddWarning(WARNING_ID_BRIDGE_PORT, msg);
+    bridgePortWarnings.push_back(msg);
+    return -1;
 }
 
 bool Bridge_Initialize_Internal(bool& hasArtNet) {
     LogExcess(VB_E131BRIDGE, "Bridge_Initialize()\n");
+
+    for (const auto& w : bridgePortWarnings) {
+        WarningHolder::RemoveWarning(WARNING_ID_BRIDGE_PORT, w);
+    }
+    bridgePortWarnings.clear();
 
     // prepare the msg receive buffers
     memset(msgs, 0, sizeof(msgs));
@@ -563,9 +764,12 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
         msgs[i].msg_hdr.msg_name = &inAddress[i];
     }
 
-    /* Initialize our Universe Index lookup cache */
-    for (int i = 0; i < 65536; i++) {
-        UniverseCache[i] = BRIDGE_INVALID_UNIVERSE_INDEX;
+    /* Initialize our Universe Index lookup caches */
+    for (auto& c : E131UniverseCache) {
+        c = BRIDGE_INVALID_UNIVERSE_INDEX;
+    }
+    for (auto& c : ArtNetUniverseCache) {
+        c = BRIDGE_INVALID_UNIVERSE_INDEX;
     }
 
     bool enabled = LoadInputUniversesFromFile();
@@ -584,22 +788,7 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
     int i3 = socket(AF_INET, SOCK_DGRAM, 0);
 
     if (enabled || !disableFakeBridges) {
-        ddpSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
-        if (ddpSock < 0) {
-            LogErr(VB_E131BRIDGE, "e131bridge DDP socket failed: %s", FPPstrerror(errno));
-            exit(1);
-        }
-        memset((char*)&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        addr.sin_port = htons(DDP_PORT);
-        addrlen = sizeof(addr);
-        // Bind the socket to address/port
-        if (bind(ddpSock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            LogErr(VB_E131BRIDGE, "e131bridge DDP bind failed: %s", FPPstrerror(errno));
-            exit(1);
-        }
-        SetBridgeReceiveBufferSize(ddpSock);
+        ddpSock = OpenBridgeSocket("DDP", DDP_PORT);
     }
 
     hasArtNet = false;
@@ -618,27 +807,7 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
         int UniverseOctet[2];
         struct ip_mreq mreq;
         char strMulticastGroup[16];
-        /* set up socket */
-        bridgeSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
-        if (bridgeSock < 0) {
-            LogErr(VB_E131BRIDGE, "e131bridge socket failed: %s", FPPstrerror(errno));
-            exit(1);
-        }
-
-        // net.ipv4.igmp_max_memberships is raised at boot by FPPINIT_Network.
-
-        memset((char*)&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        addr.sin_port = htons(E131_DEST_PORT);
-        addrlen = sizeof(addr);
-        // Bind the socket to address/port
-        if (bind(bridgeSock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-            LogErr(VB_E131BRIDGE, "e131bridge bind failed: %s", FPPstrerror(errno));
-            exit(1);
-        }
-
-        SetBridgeReceiveBufferSize(bridgeSock);
+        bridgeSock = OpenBridgeSocket("E1.31", E131_DEST_PORT);
 
         // get all the addresses
         struct ifaddrs *interfaces, *tmp;
@@ -646,8 +815,8 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
 
         char address[16];
         address[0] = 0;
-        // Join the multicast groups
-        for (int i = 0; i < InputUniverseCount; i++) {
+        // Join the multicast groups (none without a socket to join them on)
+        for (int i = 0; bridgeSock >= 0 && i < InputUniverseCount; i++) {
             if (InputUniverses[i].type == E131_TYPE_MULTICAST) {
                 UniverseOctet[0] = InputUniverses[i].universe / 256;
                 UniverseOctet[1] = InputUniverses[i].universe % 256;
@@ -716,6 +885,7 @@ static void removeMulticastGroups() {
         ChangeE131MulticastMembership(u, IP_DROP_MEMBERSHIP);
     }
     joinedSyncUniverses.clear();
+    syncUniverseCapLogged = false;
 }
 
 bool Bridge_StoreData(uint8_t* bridgeBuffer, long long packetTime, int msgLen) {
@@ -737,12 +907,19 @@ bool Bridge_StoreData(uint8_t* bridgeBuffer, long long packetTime, int msgLen) {
         int syncUniverse = ((int)bridgeBuffer[E131_SYNC_ADDRESS_INDEX] << 8) +
                            bridgeBuffer[E131_SYNC_ADDRESS_INDEX + 1];
         if (syncUniverse > 0 &&
-            Bridge_GetIndexFromUniverseNumber(syncUniverse) == BRIDGE_INVALID_UNIVERSE_INDEX &&
-            joinedSyncUniverses.insert(syncUniverse).second) {
-            ChangeE131MulticastMembership(syncUniverse, IP_ADD_MEMBERSHIP);
+            Bridge_GetIndexFromUniverseNumber(syncUniverse, false) == BRIDGE_INVALID_UNIVERSE_INDEX &&
+            !joinedSyncUniverses.contains(syncUniverse)) {
+            if (joinedSyncUniverses.size() < MAX_JOINED_SYNC_UNIVERSES) {
+                joinedSyncUniverses.insert(syncUniverse);
+                ChangeE131MulticastMembership(syncUniverse, IP_ADD_MEMBERSHIP);
+            } else if (!syncUniverseCapLogged) {
+                syncUniverseCapLogged = true;
+                LogWarn(VB_E131BRIDGE, "Not joining E1.31 sync universe %d: already joined %d sync universes\n",
+                        syncUniverse, (int)MAX_JOINED_SYNC_UNIVERSES);
+            }
         }
 
-        uint32_t universeIndex = Bridge_GetIndexFromUniverseNumber(universe);
+        uint32_t universeIndex = Bridge_GetIndexFromUniverseNumber(universe, false);
         if (universeIndex != BRIDGE_INVALID_UNIVERSE_INDEX) {
             bool sourceJustSwitched = false;
             if (sourcePriorityEnabled.load(std::memory_order_relaxed)) {
@@ -750,7 +927,7 @@ bool Bridge_StoreData(uint8_t* bridgeBuffer, long long packetTime, int msgLen) {
                 memcpy(sourceId, &bridgeBuffer[E131_CID_INDEX], E131_CID_LENGTH);
                 if (!EvaluateSource(InputUniverses[universeIndex], sourceId,
                                     bridgeBuffer[E131_PRIORITY_INDEX],
-                                    packetTime, sourceJustSwitched)) {
+                                    sourceJustSwitched)) {
                     return false;
                 }
             }
@@ -831,7 +1008,7 @@ bool Bridge_StoreArtNetData(uint8_t* bridgeBuffer, long long packetTime) {
         len += bridgeBuffer[17];
         // never trust the header's length beyond what actually arrived
         len = std::min(len, (uint32_t)(currentArtNetPacketLen - 18));
-        uint32_t universeIndex = Bridge_GetIndexFromUniverseNumber(univ);
+        uint32_t universeIndex = Bridge_GetIndexFromUniverseNumber(univ, true);
         if (universeIndex != BRIDGE_INVALID_UNIVERSE_INDEX) {
             bool sourceJustSwitched = false;
             if (sourcePriorityEnabled.load(std::memory_order_relaxed)) {
@@ -841,7 +1018,7 @@ bool Bridge_StoreArtNetData(uint8_t* bridgeBuffer, long long packetTime) {
                 uint8_t sourceId[16] = {};
                 memcpy(sourceId, &currentArtNetSourceIP, sizeof(currentArtNetSourceIP));
                 if (!EvaluateSource(InputUniverses[universeIndex], sourceId,
-                                    100, packetTime, sourceJustSwitched)) {
+                                    100, sourceJustSwitched)) {
                     return false;
                 }
             }
@@ -1019,7 +1196,7 @@ bool Bridge_StoreDDPData(uint8_t* bridgeBuffer, long long packetTime, int msgLen
         // stale data or corrupt memory. 64-bit arithmetic avoids uint32 overflow
         // of the channel+length sum.
         if ((uint64_t)len > (uint64_t)(msgLen - ddpOffset) ||
-            (uint64_t)chan + (uint64_t)len > (uint64_t)FPPD_MAX_CHANNEL_NUM) {
+            (uint64_t)chan + (uint64_t)len > (uint64_t)FPPD_MAX_CHANNELS) { // not into the reserved OFF/WHITE channels
             ddpErrors++;
             return false;
         }
@@ -1053,25 +1230,35 @@ bool Bridge_StoreDDPData(uint8_t* bridgeBuffer, long long packetTime, int msgLen
                       packetTime);
         ddpBytesReceived += len;
     } else if (bridgeBuffer[0] & 0x02 && bridgeBuffer[3] == 250) {
-        printf("Query config packet: %d \n", (int)bridgeBuffer[3]);
+        // Queries and other non-data packets are ordinary DDP traffic FPP
+        // doesn't answer; printed one per packet, they filled the journal.
+        LogExcess(VB_E131BRIDGE, "DDP query config packet: %d\n", (int)bridgeBuffer[3]);
     } else if (bridgeBuffer[0] & 0x02 && bridgeBuffer[3] == 251) {
-        printf("Query status packet: %d \n", (int)bridgeBuffer[3]);
+        LogExcess(VB_E131BRIDGE, "DDP query status packet: %d\n", (int)bridgeBuffer[3]);
     } else {
-        printf("Unknown packet: %d \n", (int)bridgeBuffer[3]);
+        LogExcess(VB_E131BRIDGE, "DDP packet for id %d ignored\n", (int)bridgeBuffer[3]);
     }
     return push;
 }
 
-inline int Bridge_GetIndexFromUniverseNumber(int universe) {
-    unsigned int cached = UniverseCache[universe];
+static inline bool IsArtNetInputType(int type) {
+    return type == ARTNET_TYPE_BROADCAST || type == ARTNET_TYPE_UNICAST;
+}
+
+// universe is a received packet's universe number (16 bits for E1.31, 15 for
+// ArtNet), so it is always inside its protocol's cache.
+inline int Bridge_GetIndexFromUniverseNumber(int universe, bool artnet) {
+    unsigned int* cache = artnet ? ArtNetUniverseCache : E131UniverseCache;
+    unsigned int cached = cache[universe];
     if (cached == BRIDGE_UNIVERSE_NOT_FOUND)
         return BRIDGE_INVALID_UNIVERSE_INDEX;
     if (cached != BRIDGE_INVALID_UNIVERSE_INDEX)
         return cached;
 
     for (int index = 0; index < InputUniverseCount; index++) {
-        if (universe == InputUniverses[index].universe) {
-            UniverseCache[universe] = index;
+        if (universe == InputUniverses[index].universe &&
+            IsArtNetInputType(InputUniverses[index].type) == artnet) {
+            cache[universe] = index;
             return index;
         }
     }
@@ -1079,7 +1266,7 @@ inline int Bridge_GetIndexFromUniverseNumber(int universe) {
     // packet, and the advertised sync universe is normally not a configured
     // input, so an uncached miss meant a full scan of the universe list per
     // packet. The cache is rebuilt from scratch on every UDP reload.
-    UniverseCache[universe] = BRIDGE_UNIVERSE_NOT_FOUND;
+    cache[universe] = BRIDGE_UNIVERSE_NOT_FOUND;
     return BRIDGE_INVALID_UNIVERSE_INDEX;
 }
 
@@ -1261,8 +1448,29 @@ void InputUniversesPrint() {
     }
 }
 
+// "Received <protocol> data from <ip>" warnings for data arriving with no
+// input configured.  Each source's warning times out 10s after it was last
+// raised, so it is re-raised at most every 5s while the source keeps sending,
+// rather than on every wakeup; and only the first few sources get their own
+// warning -- the source address is whatever the packet says, so a flood with
+// a new one per packet grew the warning list (walked on every add) without
+// limit.  The rest share one warning.  Main loop only.
+static constexpr int FAKE_BRIDGE_WARNING_SECONDS = 10;
+static constexpr long long FAKE_BRIDGE_RERAISE_MS = 5000;
+static constexpr size_t MAX_FAKE_BRIDGE_SOURCES = 8;
+struct FakeBridgeSources {
+    std::map<in_addr_t, long long> raisedAt; // GetMonotonicTimeMS()
+    long long othersRaisedAt = 0;
+};
+static std::map<std::string, FakeBridgeSources> fakeBridgeSources;
+
 bool AddWarningForProtocol(int sock, const std::string& protocol) {
-    std::map<in_addr_t, std::string> errrors;
+    FakeBridgeSources& seen = fakeBridgeSources[protocol];
+    long long now = GetMonotonicTimeMS();
+    // A source whose warning has timed out no longer holds a slot.
+    std::erase_if(seen.raisedAt, [now](const auto& e) {
+        return now - e.second > FAKE_BRIDGE_WARNING_SECONDS * 1000;
+    });
     int msgcnt = recvmmsg(sock, msgs, MAX_MSG, 0, nullptr);
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
@@ -1275,22 +1483,46 @@ bool AddWarningForProtocol(int sock, const std::string& protocol) {
                 // non pixel DDP data, possibly a broadcast discovery packet or sync packet or similar
                 continue;
             }
-            if (errrors[at] == "") {
-                char abuf[INET_ADDRSTRLEN] = {0};
-                inet_ntop(AF_INET, &inAddress[x].sin_addr, abuf, sizeof(abuf));
-                std::string ne = "Received " + protocol + " data from " + abuf;
+            auto it = seen.raisedAt.find(at);
+            if (it != seen.raisedAt.end()) {
+                if (now - it->second < FAKE_BRIDGE_RERAISE_MS) {
+                    continue;
+                }
+                it->second = now;
+            } else if (seen.raisedAt.size() < MAX_FAKE_BRIDGE_SOURCES) {
+                seen.raisedAt[at] = now;
+            } else {
+                if (seen.othersRaisedAt && now - seen.othersRaisedAt < FAKE_BRIDGE_RERAISE_MS) {
+                    continue;
+                }
+                seen.othersRaisedAt = now;
+                std::string ne = "Received " + protocol + " data from other sources as well";
                 LogDebug(VB_E131BRIDGE, "%s\n", ne.c_str());
-                WarningHolder::AddWarningTimeout(ne, 10);
-                errrors[at] = ne;
+                WarningHolder::AddWarningTimeout(ne, FAKE_BRIDGE_WARNING_SECONDS);
+                continue;
             }
+            char abuf[INET_ADDRSTRLEN] = {0};
+            inet_ntop(AF_INET, &inAddress[x].sin_addr, abuf, sizeof(abuf));
+            std::string ne = "Received " + protocol + " data from " + abuf;
+            LogDebug(VB_E131BRIDGE, "%s\n", ne.c_str());
+            WarningHolder::AddWarningTimeout(ne, FAKE_BRIDGE_WARNING_SECONDS);
         }
         msgcnt = recvmmsg(sock, msgs, MAX_MSG, 0, nullptr);
     }
     return false;
 }
 
+// The "could not open" warnings the last DMX reload raised, retracted by the
+// next one: saving the DMX input config again is how a user retries after
+// plugging the adapter in or fixing the device name.
+static std::vector<std::string> dmxInputWarnings;
+
 static void BridgeReloadDMXInputs() {
     hasDMX = false;
+    for (const auto& w : dmxInputWarnings) {
+        WarningHolder::RemoveWarning(WARNING_ID_INPUT, w);
+    }
+    dmxInputWarnings.clear();
     // remove any existing DMX inputs
     std::vector<std::shared_ptr<UniverseEntry>> oldDMX;
     {
@@ -1310,12 +1542,32 @@ static void BridgeReloadDMXInputs() {
         Json::Value root;
         if (LoadJsonFromFile(filename, root, JsonRoot::Object)) {
             Json::Value outputs = root["channelInputs"];
+            if (!outputs.isArray()) {
+                outputs = Json::Value(Json::arrayValue);
+            }
             for (int c = 0; c < outputs.size(); c++) {
-                if (outputs[c]["type"].asString() == "dmx") {
-                    int start = outputs[c]["startAddress"].asInt();
-                    int count = outputs[c]["channelCount"].asInt();
-                    bool denabled = outputs[c]["enabled"].asBool();
-                    std::string device = outputs[c]["device"].asString();
+                // Read the entry inside a try: a value of the wrong JSON type
+                // threw out of this file-monitor callback, at startup, to
+                // std::terminate.  Such an entry is skipped.
+                std::string type;
+                int start = 0;
+                int count = 0;
+                bool denabled = false;
+                std::string device;
+                try {
+                    const Json::Value& o = outputs[c];
+                    type = o["type"].asString();
+                    if (type == "dmx") {
+                        start = o["startAddress"].asInt();
+                        count = o["channelCount"].asInt();
+                        denabled = o["enabled"].asBool();
+                        device = o["device"].asString();
+                    }
+                } catch (const std::exception& e) {
+                    WarningHolder::InvalidConfigEntry("ci-dmx.json", e.what());
+                    continue;
+                }
+                if (type == "dmx") {
                     if (denabled) {
                         std::string devPath = "/dev/" + device;
                         PinCapabilities::getPinByUART(device + "-rx").configPin("uart");
@@ -1341,7 +1593,7 @@ static void BridgeReloadDMXInputs() {
                                 int sz = read(i, buffer, sizeof(buffer));
                                 long long commitTime = 0;
                                 while (sz > 0) {
-                                    uint64_t ts = GetTimeMicros();
+                                    uint64_t ts = GetMonotonicTimeMicros(); // DMX break detection: an interval
                                     uint64_t diff = ts - entry->lastTimestamp;
                                     entry->lastTimestamp = ts;
 
@@ -1372,14 +1624,16 @@ static void BridgeReloadDMXInputs() {
                                     sz = read(i, buffer, sizeof(buffer));
                                 }
                                 if (commitTime) {
-                                    CommitBridgeData(commitTime);
+                                    CommitBridgeData();
                                 }
                                 return 0;
                             };
                             EPollManager::INSTANCE.addFileDescriptor(dmxIn, f);
                             hasDMX = true;
                         } else {
-                            WarningHolder::AddWarning(54, "Could not open DMX input device " + device);
+                            std::string msg = "Could not open DMX input device " + device;
+                            WarningHolder::AddWarning(WARNING_ID_INPUT, msg);
+                            dmxInputWarnings.push_back(msg);
                         }
                     }
                 }
@@ -1389,6 +1643,7 @@ static void BridgeReloadDMXInputs() {
 }
 
 void BridgeReloadUDP() {
+    ResetArtNetSocketFailure();
     // close the existing sockets
     BridgeShutdownUDP(true);
 
@@ -1423,16 +1678,16 @@ void BridgeReloadUDP() {
             EPollManager::INSTANCE.addFileDescriptor(ddpSock, f);
         }
     }
-    if (artnetSock > 0) {
-        if (enabled && hasArtNet) {
-            // Registering the handlers is what puts the socket in the epoll
-            // set - see UpdateArtNetInputRegistration().
-            AddArtNetOpcodeHandler(0x5000, Bridge_StoreArtNetData);  // ArtOutput
-            AddArtNetOpcodeHandler(0x5200, Bridge_HandleArtNetSync); // ArtSync
-            AddArtNetOpcodeHandler(0x2000, Bridge_HandleArtNetPoll); // ArtPoll
-        }
-        UpdateArtNetInputRegistration();
+    if (enabled && hasArtNet) {
+        // Registering the handlers is what puts the socket in the epoll set -
+        // see UpdateArtNetInputRegistration().  Registered even when the
+        // socket couldn't be opened just now: that function keeps retrying,
+        // and picks the socket up if the output thread opens it first.
+        ArtNetOpcodeHandlers[0x5000] = Bridge_StoreArtNetData;  // ArtOutput
+        ArtNetOpcodeHandlers[0x5200] = Bridge_HandleArtNetSync; // ArtSync
+        ArtNetOpcodeHandlers[0x2000] = Bridge_HandleArtNetPoll; // ArtPoll
     }
+    UpdateArtNetInputRegistration();
 }
 void BridgeShutdownUDP(bool reloading) {
     removeMulticastGroups();
@@ -1454,23 +1709,26 @@ void BridgeShutdownUDP(bool reloading) {
         close(ddpSock);
         ddpSock = -1;
     }
-    if (artnetSock >= 0) {
-        // Give back the bridge's own handlers and let the shared registration
-        // re-evaluate, rather than pulling the descriptor out from under
-        // everyone: a plugin may still want ArtNet delivered across a reload.
-        RemoveArtNetOpcodeHandler(0x5000);
-        RemoveArtNetOpcodeHandler(0x5200);
-        RemoveArtNetOpcodeHandler(0x2000);
-        if (!reloading) {
-            // don't close the artNet socket if we are reloading
-            // as outputs or inputs may still be using it
-            if (artnetSocketAsInput) {
-                EPollManager::INSTANCE.removeFileDescriptor(artnetSock);
-                artnetSocketAsInput = false;
-            }
-            close(artnetSock);
-            artnetSock = -1;
+    // Give back the bridge's own handlers and let the shared registration
+    // re-evaluate, rather than pulling the descriptor out from under
+    // everyone: a plugin may still want ArtNet delivered across a reload.
+    // Done whether or not there is a socket: the handlers are registered
+    // while one is still being waited for.  All three go before the one
+    // re-evaluation, which would otherwise try to open the port for the
+    // bridge handlers still left.
+    ArtNetOpcodeHandlers.erase(0x5000);
+    ArtNetOpcodeHandlers.erase(0x5200);
+    ArtNetOpcodeHandlers.erase(0x2000);
+    UpdateArtNetInputRegistration();
+    if (!reloading && artnetSock >= 0) {
+        // don't close the artNet socket if we are reloading
+        // as outputs or inputs may still be using it
+        if (artnetSocketAsInput) {
+            EPollManager::INSTANCE.removeFileDescriptor(artnetSock);
+            artnetSocketAsInput = false;
         }
+        close(artnetSock);
+        artnetSock = -1;
     }
 }
 void Bridge_Shutdown(void) {
@@ -1495,6 +1753,10 @@ void Bridge_Shutdown(void) {
     FileMonitor::INSTANCE.RemoveFile("ci-dmx.json", dmxInFile);
 
     ArtNetOpcodeHandlers.clear();
+    if (artnetInputRetryRunning) {
+        artnetInputRetryRunning = false;
+        Timers::INSTANCE.stopPeriodicTimer(ARTNET_INPUT_RETRY_TIMER);
+    }
 }
 
 void Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks) {
@@ -1532,5 +1794,5 @@ void Bridge_Initialize(std::map<int, std::function<bool(int)>>& callbacks) {
 }
 
 bool HasBridgeData() {
-    return bridgeDataReceived;
+    return bridgeDataReceived.load(std::memory_order_relaxed);
 }

@@ -176,6 +176,7 @@ void MDNSManager::Initialize(std::map<int, std::function<bool(int)>>& callbacks)
         hostname[sizeof(hostname) - 1] = '\0';
     }
     m_serviceName = hostname;
+    m_baseServiceName = m_serviceName;
 
     StartBackend();
 }
@@ -196,6 +197,11 @@ void MDNSManager::SetServiceBrowser(void* sb) {}
 void MDNSManager::SetWLEDServiceBrowser(void* sb) {}
 void MDNSManager::RegisterService(void* client) {}
 void MDNSManager::PickAlternativeServiceName() {}
+void MDNSManager::WithdrawService() {}
+void MDNSManager::ResetServiceName() {}
+void MDNSManager::ScheduleServiceNameRetry() {}
+void MDNSManager::RetryBaseServiceName() {}
+void MDNSManager::CancelServiceNameRetry() {}
 void MDNSManager::NoteClientRunning() {}
 void MDNSManager::NoteClientDown() {}
 #endif

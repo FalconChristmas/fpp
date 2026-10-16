@@ -204,24 +204,21 @@ if (!isset($simplifiedPlaylist)) {
         });
     }
 
+    // An Offset moves back or forward from this entry; an Index is a
+    // 1-based position.  The same rule for both branches: the false branch
+    // used to have them swapped, so a negative offset there became 1.
     function BranchTypeChanged() {
-        var type = $('.arg_trueNextBranchType').val();
-        if (type == 'Offset') {
-            $('.arg_trueNextItem').attr({ "min": -99, "max": 99 });
-        } else if (type == 'Index') {
-            $('.arg_trueNextItem').attr({ "min": 1, "max": 99 });
-            if ($('.arg_trueNextItem').val() < 1)
-                $('.arg_trueNextItem').val(1);
-        }
-
-        type = $('.arg_falseNextBranchType').val();
-        if (type == 'Index') {
-            $('.arg_falseNextItem').attr({ "min": -99, "max": 99 });
-        } else if (type == 'Offset') {
-            $('.arg_falseNextItem').attr({ "min": 1, "max": 99 });
-            if ($('.arg_falseNextItem').val() < 1)
-                $('.arg_falseNextItem').val(1);
-        }
+        ['true', 'false'].forEach(function (branch) {
+            var type = $('.arg_' + branch + 'NextBranchType').val();
+            var item = $('.arg_' + branch + 'NextItem');
+            if (type == 'Offset') {
+                item.attr({ "min": -99, "max": 99 });
+            } else if (type == 'Index') {
+                item.attr({ "min": 1, "max": 99 });
+                if (item.val() < 1)
+                    item.val(1);
+            }
+        });
     }
 
     $(document).ready(function () {

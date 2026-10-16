@@ -31,11 +31,21 @@
 // with it, which rules out making it recursive.
 extern std::mutex outputThreadLock;
 
+// Held by a thread that drives the outputs itself instead of the output thread
+// (Sequence::SendBlankingData() when the output thread isn't sending), and by
+// an output reload around its teardown, so a reload can't free an output that
+// such a send is in the middle of using.  Always taken after outputThreadLock
+// when both are held.  Recursive: the inline send can re-enter
+// SendBlankingData() through OverlayEffects().
+extern std::recursive_mutex inlineOutputLock;
+
 void DisableChannelOutput(void);
 void EnableChannelOutput(void);
 void InitChannelOutputSyncVars(void);
 void DestroyChannelOutputSyncVars(void);
-void ForceChannelOutputNow(void);
+// Send a frame now rather than at the next due time.  False when the output
+// thread isn't running (or is stopping) and so won't: send it yourself.
+bool ForceChannelOutputNow(void);
 
 int ChannelOutputThreadIsRunning(void);
 int ChannelOutputThreadIsEnabled();
@@ -48,4 +58,7 @@ void StopForcingChannelOutput(void);
 void ResetMasterPosition(void);
 void UpdateMasterPosition(int frameNumber);
 void CalculateNewChannelOutputDelay(float mediaPosition);
+// The media clock the sequence follows runs at `rate` times the system clock's
+// pace; call it with each position update.  Frames go out at that pace.
+void SetMediaClockRate(double rate);
 void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent);

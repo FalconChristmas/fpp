@@ -34,8 +34,9 @@ define('CRASH_REPORT_CONSENT_MESSAGE', 'The user must agree to send this report 
 
 // JSON only: a cross-site page can post text/plain without a CORS preflight,
 // but application/json needs one, and that fails because Limonade answers
-// OPTIONS with 501.  Apache already sends Access-Control-Allow-Origin: *, so a
-// preflight that succeeded would let any site build and send reports.
+// OPTIONS with 501.  Apache sends Access-Control-Allow-Origin: * when
+// AllowCrossOriginAPI is on, so a preflight that succeeded would then let any
+// site build and send reports.
 function CrashReportJsonBody()
 {
     $ctype = isset($_SERVER['CONTENT_TYPE']) ? $_SERVER['CONTENT_TYPE'] : '';

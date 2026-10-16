@@ -374,6 +374,7 @@ public:
 
     void Ping(int discover = 0, bool broadcast = true);
     void PingSingleRemote(const char* address, int discover = 0);
+    void QueueDiscoverReply(const std::string& address, const std::string& srcIp);
     // Detect/refresh a single non-multisync remote (e.g. a WLED node found
     // via mDNS) by fetching its HTTP root and running controller detection.
     void PingSingleRemoteViaHTTP(const std::string& address);

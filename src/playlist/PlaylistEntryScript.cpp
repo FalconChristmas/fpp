@@ -30,7 +30,8 @@
 PlaylistEntryScript::PlaylistEntryScript(Playlist* playlist, PlaylistEntryBase* parent) :
     PlaylistEntryBase(playlist, parent),
     m_blocking(0),
-    m_scriptProcess(0) {
+    m_scriptProcess(0),
+    m_startTime(0) {
     LogDebug(VB_PLAYLIST, "PlaylistEntryScript::PlaylistEntryScript()\n");
 
     m_type = "script";
@@ -71,9 +72,17 @@ int PlaylistEntryScript::StartPlaying(void) {
         return 0;
     }
 
-    m_startTime = GetTime();
+    m_startTime = GetMonotonicTimeMicros();
     PlaylistEntryBase::StartPlaying();
     m_scriptProcess = RunScript(m_scriptFilename, m_scriptArgs);
+    if (m_scriptProcess <= 0) {
+        // Refused or failed to start.  m_scriptProcess is only ever 0 or a
+        // live child: Stop() signals it, and kill(-1) would signal every
+        // process on the box.
+        m_scriptProcess = 0;
+        FinishPlay();
+        return 0;
+    }
     if (!m_blocking) {
         m_scriptProcess = 0;
         FinishPlay();
@@ -95,7 +104,7 @@ int PlaylistEntryScript::Process(void) {
 int PlaylistEntryScript::Stop(void) {
     LogDebug(VB_PLAYLIST, "PlaylistEntryScript::Stop()\n");
 
-    if (m_scriptProcess) {
+    if (m_scriptProcess > 0) {
         kill(m_scriptProcess, SIGTERM);
         FinishPlay();
     }
@@ -126,7 +135,7 @@ void PlaylistEntryScript::Dump(void) {
 }
 
 uint64_t PlaylistEntryScript::GetElapsedMS() {
-    long long t = GetTime();
+    long long t = GetMonotonicTimeMicros();
     t -= m_startTime;
     t /= 1000;
     return t;
@@ -138,7 +147,7 @@ uint64_t PlaylistEntryScript::GetElapsedMS() {
 Json::Value PlaylistEntryScript::GetConfig(void) {
     Json::Value result = PlaylistEntryBase::GetConfig();
 
-    long long t = GetTime();
+    long long t = GetMonotonicTimeMicros();
     t -= m_startTime;
     t /= 1000;
     t /= 1000;
@@ -152,7 +161,7 @@ Json::Value PlaylistEntryScript::GetConfig(void) {
 Json::Value PlaylistEntryScript::GetMqttStatus(void) {
     Json::Value result = PlaylistEntryBase::GetMqttStatus();
 
-    long long t = GetTime();
+    long long t = GetMonotonicTimeMicros();
     t -= m_startTime;
     t /= 1000;
     t /= 1000;

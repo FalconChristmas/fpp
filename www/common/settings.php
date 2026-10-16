@@ -233,17 +233,39 @@ function SetOSPassword($value)
     system("echo " . escapeshellarg('fpp:' . $value) . " | sudo chpasswd");
 }
 
+// cmdline.txt's text with every vc4.force_hotplug= option removed, and one
+// added back when $force.
+function CmdlineWithForceHotplug($cmdline, $force)
+{
+    $options = array_values(array_filter(
+        preg_split('/\s+/', trim($cmdline), -1, PREG_SPLIT_NO_EMPTY),
+        function ($o) {
+            return strpos($o, 'vc4.force_hotplug=') !== 0;
+        }
+    ));
+    if ($force) {
+        $options[] = 'vc4.force_hotplug=0x03';
+    }
+    return implode(' ', $options) . "\n";
+}
+
 function SetForceHDMI($value)
 {
     global $settings;
     if ($settings["Platform"] == "Raspberry Pi") {
-        if ($value == 0) {
-            $cmd = "sudo sed -i -e 's/^c\(.*\)vc4.force_hotplug=[x0-9]*\(.*\)/c\\1 \\2/' " . GetDirSetting('boot') . "/cmdline.txt";
-        } else {
-            $cmd = "sudo sed -i -e 's/^c\(.*\) */c\\1 vc4.force_hotplug=0x03 /' " . GetDirSetting('boot') . "/cmdline.txt";
+        // cmdline.txt is one line of space-separated options.  Every
+        // vc4.force_hotplug= option is dropped and, when forcing HDMI, exactly
+        // one added back: ticking the box used to append another copy each
+        // time, and unticking removed only the last one.
+        $file = GetDirSetting('boot') . "/cmdline.txt";
+        $current = @file_get_contents($file);
+        if ($current === false || trim($current) === '') {
+            return;
         }
-        exec($cmd, $output, $return_val);
-        exec("sudo sed -i -e 's/  */ /g' " . GetDirSetting('boot') . "/cmdline.txt", $output, $return_val);
+        $updated = CmdlineWithForceHotplug($current, $value != 0);
+        if ($updated !== $current) {
+            exec("printf %s " . escapeshellarg($updated) . " | sudo tee " . escapeshellarg($file) . " > /dev/null", $output, $return_val);
+        }
     }
 }
 function SetEnableBBBHDMI($value)
@@ -318,22 +340,12 @@ function ApplyServiceSetting($setting, $value, $now)
 {
     global $settings;
     if ($settings["Platform"] != "MacOS") {
-        if (preg_match('/^Service_(rsync|smbd_nmbd|vsftpd)$/', $setting)) {
-            $services = preg_split('/_/', preg_replace("/^Service_/", "", $setting));
-            foreach ($services as $service) {
-                //enabling/disabling a service that is already in that state is very slow
-                //so query the current state and only set it if needed
-                $isEnabled = trim(shell_exec("sudo systemctl is-enabled $service"));
-                if ($value == '0') {
-                    if ($isEnabled != "disabled") {
-                        exec("sudo systemctl " . $now . " disable $service >/dev/null &");
-                    }
-                } else if ($value == '1') {
-                    if ($isEnabled != "enabled") {
-                        exec("sudo systemctl " . $now . " enable $service >/dev/null &");
-                    }
-                }
-            }
+        if (preg_match('/^Service_(rsync|smbd_nmbd|vsftpd)$/', $setting) && ($value == '0' || $value == '1')) {
+            // enabling/disabling a service is very slow, so it is done in the
+            // background.  The script applies whatever value is saved when it
+            // runs, serialized per setting, so an off/on toggle can't race
+            // (issue #3107); $value has already been written to the file.
+            exec("sudo " . $settings['fppDir'] . "/scripts/apply_service_setting " . $setting . ($now == "--now" ? " --now" : "") . " >/dev/null 2>&1 &");
         }
     }
 }
@@ -390,6 +402,19 @@ function SetGPIOFanProperties()
     } else {
         exec("sudo sed -i -e 's/^dtoverlay=gpio-fan\(.*\)$/" . $pfx . "dtoverlay=gpio-fan,gpiopin=14,temp=" . $fanTemp . "/g' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
         exec("sudo sed -i -e 's/^#dtoverlay=gpio-fan\(.*\)$/" . $pfx . "dtoverlay=gpio-fan,gpiopin=14,temp=" . $fanTemp . "/g' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
+    }
+}
+
+// Apache sends /api's CORS headers while this file exists (etc/apache2.site);
+// fppinit puts it in step with the setting at boot.  No reload needed.
+function SetupCrossOriginAPI($value)
+{
+    global $settings;
+    $marker = $settings['mediaDirectory'] . '/config/api-cross-origin';
+    if ($value == '1') {
+        @file_put_contents($marker, "Written by FPP for the AllowCrossOriginAPI setting\n");
+    } else {
+        @unlink($marker);
     }
 }
 
@@ -523,11 +548,19 @@ function ApplySetting($setting, $value)
             // "reboot": 1, so the UI already prompts for reboot.
             exec("sudo " . $settings['fppDir'] . "/src/fppinit setupWifiAntenna", $output);
             break;
+        case 'Pi16KPageKernel':
+            // fppinit owns the kernel swap and re-applies it at boot. The setting
+            // is declared "reboot": 1, so the UI already prompts for reboot.
+            exec("sudo " . $settings['fppDir'] . "/src/fppinit setup16KPageKernel", $output);
+            break;
         case 'screensaver':
             SetupScreenBlanking($value);
             break;
         case 'Service_MQTT_localbroker':
             SetupLocalMQTTBroker($value);
+            break;
+        case 'AllowCrossOriginAPI':
+            SetupCrossOriginAPI($value);
             break;
         case 'MQTTPassword':
             if (GetSettingValue('Service_MQTT_localbroker') == '1') {

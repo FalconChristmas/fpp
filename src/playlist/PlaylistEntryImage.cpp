@@ -23,7 +23,9 @@
 #include "PlaylistEntryImage.h"
 #include <sys/stat.h>
 
+#include <cstdio>
 #include <filesystem>
+#include <functional>
 using namespace std::filesystem;
 
 #include <Magick++.h>
@@ -58,7 +60,13 @@ PlaylistEntryImage::PlaylistEntryImage(Playlist* playlist, PlaylistEntryBase* pa
  *
  */
 PlaylistEntryImage::~PlaylistEntryImage() {
-    m_runLoop = false;
+    {
+        // Under the lock: PrepLoop() checks m_runLoop and then waits, and a
+        // write between the two was a lost wakeup -- the prep thread slept on
+        // and the join() below hung whichever thread was deleting the entry.
+        std::lock_guard<std::mutex> lock(m_bufferLock);
+        m_runLoop = false;
+    }
     m_prepSignal.notify_all();
     if (m_prepThread) {
         m_prepThread->join();
@@ -71,7 +79,7 @@ PlaylistEntryImage::~PlaylistEntryImage() {
     delete[] m_buffer;
 
     if (m_modelOrigState == PixelOverlayState::PixelState::Disabled) {
-        m_model = PixelOverlayManager::INSTANCE.getModel(m_modelName);
+        m_model = PixelOverlayManager::INSTANCE.getModelShared(m_modelName);
 
         if (m_model) {
             m_model->clear();
@@ -89,15 +97,15 @@ int PlaylistEntryImage::Init(Json::Value& config) {
 
     if (m_modelName == "") {
         LogErr(VB_PLAYLIST, "Empty Pixel Overlay Model name\n");
-        WarningHolder::AddWarning(35, "Playlist image entry has an empty Pixel Overlay Model name");
+        WarningHolder::AddWarningTimeout(60, 35, "Playlist image entry has an empty Pixel Overlay Model name");
         return 0;
     }
 
-    m_model = PixelOverlayManager::INSTANCE.getModel(m_modelName);
+    m_model = PixelOverlayManager::INSTANCE.getModelShared(m_modelName);
 
     if (!m_model) {
         LogErr(VB_PLAYLIST, "Invalid Pixel Overlay Model: '%s'\n", m_modelName.c_str());
-        WarningHolder::AddWarning(35, "Invalid Pixel Overlay Model: '" + m_modelName + "'");
+        WarningHolder::AddWarningTimeout(60, 35, "Invalid Pixel Overlay Model: '" + m_modelName + "'");
         return 0;
     }
     m_width = m_model->getWidth();
@@ -142,6 +150,10 @@ int PlaylistEntryImage::StartPlaying(void) {
         FinishPlay();
         return 0;
     }
+
+    // Each pass draws afresh.  m_imageDrawn was only ever set, so on a repeat
+    // whose image wasn't ready yet the entry "finished" without drawing.
+    m_imageDrawn = false;
 
     if (m_imagePrepped)
         Draw();
@@ -216,9 +228,16 @@ void PlaylistEntryImage::SetFileList(void) {
     }
 
     if (is_directory(m_imageFullPath)) {
-        for (auto& cp : recursive_directory_iterator(m_imageFullPath)) {
-            std::string entry = cp.path().string();
-            m_files.push_back(entry);
+        // Only the images: the walk also yields the folders inside this one
+        // and whatever else is kept there, and one of those picked at random
+        // failed to read, so that pass of the entry drew nothing.
+        std::error_code ec;
+        for (auto it = recursive_directory_iterator(m_imageFullPath, ec);
+             !ec && it != recursive_directory_iterator(); it.increment(ec)) {
+            std::string entry = it->path().string();
+            if (IsOverlayImageFile(entry)) {
+                m_files.push_back(entry);
+            }
         }
 
         LogDebug(VB_PLAYLIST, "%d images in directory\n", m_files.size());
@@ -357,8 +376,8 @@ void PlaylistEntryImage::PrepImage(void) {
             size_t len = blob.length() < (size_t)m_bufferSize ? blob.length() : (size_t)m_bufferSize;
             memcpy(m_buffer, blob.data(), len);
         }
+        m_imagePrepped = true;
     }
-    m_imagePrepped = true;
 }
 
 /*
@@ -374,11 +393,14 @@ void PlaylistEntryImage::Draw(void) {
         std::lock_guard<std::mutex> lock(m_bufferLock);
 
         // We need to look this up again since the model may have disappeared
-        m_model = PixelOverlayManager::INSTANCE.getModel(m_modelName);
+        m_model = PixelOverlayManager::INSTANCE.getModelShared(m_modelName);
 
         if (!m_model) {
+            // The model went away mid-playlist.  Finish the entry rather than
+            // retrying (and re-raising the warning) on every tick forever.
             LogErr(VB_PLAYLIST, "Invalid Pixel Overlay Model: '%s'\n", m_modelName.c_str());
-            WarningHolder::AddWarning(35, "Invalid Pixel Overlay Model: '" + m_modelName + "'");
+            WarningHolder::AddWarningTimeout(60, 35, "Invalid Pixel Overlay Model: '" + m_modelName + "'");
+            m_imageDrawn = true;
             return;
         }
 
@@ -386,13 +408,21 @@ void PlaylistEntryImage::Draw(void) {
             // Nothing to show; count it as drawn so the entry finishes.
             LogWarn(VB_PLAYLIST, "No image found for '%s', skipping\n", m_imagePath.c_str());
         } else {
-            m_model->setData(m_buffer);
+            // m_buffer is m_width x m_height RGB.  setData() reads the model's
+            // own pixel size -- 4 bytes on an RGBW model, a third past the end
+            // of this buffer -- and assumes the model is still the size it was
+            // at Init().  blitData() converts to the model's format and clips.
+            m_model->blitData(m_buffer, m_width, m_height, 3, 0, 0,
+                              PixelOverlayState(PixelOverlayState::Enabled));
+            // Reported as imageFilename in status; it was never set.
+            m_curFileName = m_nextFileName;
         }
+
+        // Under the lock for the same lost-wakeup reason as the destructor.
+        m_imageDrawn = true;
+        m_imagePrepped = false;
     }
 
-    m_imageDrawn = true;
-
-    m_imagePrepped = false;
     m_prepSignal.notify_all();
 }
 
@@ -431,8 +461,16 @@ std::string PlaylistEntryImage::GetCacheFileName(std::string fileName) {
     std::string baseFile = fileName.substr(found + 1);
     std::string result = m_cacheDir;
 
+    // Keyed by the full path and the model size, not just the file name: two
+    // images with the same name in different folders used to share a cache
+    // file and show each other.  The base name stays in it for readability;
+    // the "pei-" prefix and ".png" suffix are what CleanupCache() matches.
+    char key[64];
+    snprintf(key, sizeof(key), "-%016zx-%dx%d", std::hash<std::string>{}(fileName), m_width, m_height);
+
     result += "/pei-";
     result += baseFile;
+    result += key;
     result += ".png";
 
     return result;
@@ -447,8 +485,10 @@ bool PlaylistEntryImage::GetImageFromCache(std::string fileName, Image& image) {
     struct stat cs;
 
     if (FileExists(cacheFile)) {
-        stat(fileName.c_str(), &os);
-        stat(cacheFile.c_str(), &cs);
+        // Either stat failing leaves its st_mtime uninitialized; treat that as
+        // a cache miss rather than comparing garbage.
+        if ((stat(fileName.c_str(), &os) != 0) || (stat(cacheFile.c_str(), &cs) != 0))
+            return false;
 
         if (os.st_mtime > cs.st_mtime)
             return false;
@@ -470,9 +510,18 @@ bool PlaylistEntryImage::GetImageFromCache(std::string fileName, Image& image) {
  *
  */
 void PlaylistEntryImage::CacheImage(std::string fileName, Image& image) {
-    std::string cacheFile = GetCacheFileName(fileName);
-
-    image.write(cacheFile.c_str());
+    // The cache only saves a later pass the decode and scale, so nothing here
+    // may stop this one: a write that threw (no cache folder, a full disk)
+    // used to skip the conversion after it, and the entry drew nothing.
+    try {
+        std::error_code ec;
+        std::filesystem::create_directories(m_cacheDir, ec);
+        std::string cacheFile = GetCacheFileName(fileName);
+        image.write(cacheFile.c_str());
+    } catch (const std::exception& ex) {
+        LogWarn(VB_PLAYLIST, "Could not cache the scaled %s: %s\n", fileName.c_str(), ex.what());
+        return;
+    }
 
     CleanupCache();
 }

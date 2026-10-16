@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cstdint>
 #include <cstring>
 #include <fnmatch.h>
@@ -62,7 +63,8 @@ public:
 };
 
 static int effectCount = 0;
-static volatile int pauseBackgroundEffects = 0;
+// Changed by the settings listener while the output thread reads it.
+static std::atomic_int pauseBackgroundEffects{ 0 };
 static std::array<FPPeffect*, MAX_EFFECTS> effects;
 static std::list<std::pair<uint32_t, uint32_t>> clearRanges;
 static std::mutex effectsLock;

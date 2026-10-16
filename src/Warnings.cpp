@@ -100,18 +100,35 @@ void WarningHolder::StopNotifyThread() {
     // been joined (normal shutdown joins it, then a later crash re-enters the
     // signal handler). join() on a non-joinable thread throws std::system_error
     // on both Linux and macOS -> terminate. joinable() makes it safe/idempotent.
-    if (notifyThread.joinable()) {
+    // Nor from the notify thread itself (a crash inside a warnings listener
+    // reaches here on that thread): joining yourself throws, which would
+    // terminate from inside the crash handler.
+    if (notifyThread.joinable() && notifyThread.get_id() != std::this_thread::get_id()) {
         notifyThread.join();
     }
 }
 void WarningHolder::WriteWarningsFile() {
-    std::shared_lock<std::shared_mutex> lock(warningsLock);
     Json::Value result = Json::Value(Json::ValueType::arrayValue);
     Json::Value resultFull = Json::Value(Json::ValueType::arrayValue);
-    for (auto& warn : warnings) {
-        result.append(warn.message());
-        resultFull.append(warn.toJsonValue());
+    {
+        // Only the copy is made under the lock.  The writes below are file
+        // I/O on the SD card, and every AddWarning/RemoveWarning -- some on
+        // the output and media timing paths -- waits for this lock.
+        std::shared_lock<std::shared_mutex> lock(warningsLock);
+        for (auto& warn : warnings) {
+            result.append(warn.message());
+            resultFull.append(warn.toJsonValue());
+        }
     }
+    SaveJsonToFile(result, getFPPDDir("/www/warnings.json"));
+    SaveJsonToFile(resultFull, getFPPDDir("/www/warnings_full.json"));
+}
+void WarningHolder::WriteCrashedWarningsFile(int id, const std::string& message) {
+    FPPWarning warn(id, message, "");
+    Json::Value result = Json::Value(Json::ValueType::arrayValue);
+    Json::Value resultFull = Json::Value(Json::ValueType::arrayValue);
+    result.append(warn.message());
+    resultFull.append(warn.toJsonValue());
     SaveJsonToFile(result, getFPPDDir("/www/warnings.json"));
     SaveJsonToFile(resultFull, getFPPDDir("/www/warnings_full.json"));
 }
@@ -125,7 +142,13 @@ void WarningHolder::WarningsThreadMain() {
     PruneWarnings();
     WriteWarningsFile();
     while (runNotifyThread) {
-        sema.try_acquire_until(wakeUpTime);
+        // Read under warningsLock, which every writer of wakeUpTime holds.
+        steady_clock::time_point wake;
+        {
+            std::shared_lock<std::shared_mutex> lock(warningsLock);
+            wake = wakeUpTime;
+        }
+        sema.try_acquire_until(wake);
         if (!runNotifyThread) {
             break;
         }
@@ -214,6 +237,15 @@ void WarningHolder::UpdateLogLevelWarnings() {
     else if (lowestLogLevel == LOG_DEBUG)
         AddWarning(3, DEBUG_LOG_LEVEL_WARNING);
 }
+
+// Comes down by its timeout: a loader that still finds the entry raises it again.
+static constexpr int INVALID_CONFIG_ENTRY_WARNING_ID = 73;
+
+void WarningHolder::InvalidConfigEntry(const std::string& file, const std::string& detail) {
+    LogErr(VB_GENERAL, "%s: skipping an entry that could not be read (%s)\n", file.c_str(), detail.c_str());
+    AddWarningTimeout(3600, INVALID_CONFIG_ENTRY_WARNING_ID, file + " has an entry that could not be read and was skipped: " + detail);
+}
+
 void WarningHolder::RemoveAllWarnings() {
     std::unique_lock<std::shared_mutex> lock(warningsLock);
     warnings.clear();

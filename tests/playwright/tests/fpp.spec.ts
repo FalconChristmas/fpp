@@ -1,4 +1,4 @@
-import { test } from './fixtures';
+import { test, expect } from './fixtures';
 import type { Page } from '@playwright/test';
 
 const SETTINGS_TABS = [
@@ -86,6 +86,74 @@ test('Network Overview', async ({ page }) => {
   }
 
   await page.waitForTimeout(400);
+});
+
+test('Playlists Add New Playlist', async ({ page }) => {
+  const name = 'PlaywrightNewPlaylist';
+  await page.request.delete(`/api/playlist/${name}`);
+
+  // Adding a playlist once loaded 'api/playlist/null' before the new one,
+  // which became an error dialog when a missing playlist started to 404.
+  const playlistGets: string[] = [];
+  page.on('request', (req) => {
+    const m = req.url().match(/\/api\/playlist\/([^?]*)/);
+    if (m && req.method() === 'GET') {
+      playlistGets.push(decodeURIComponent(m[1]));
+    }
+  });
+
+  try {
+    await gotoPage(page, '/playlists.php');
+    await page.locator('.playlistAddNewBtn').first().click();
+    await page.fill('#txtAddPlaylistName', name);
+    await page.locator('#AddPlaylistDialog button', { hasText: 'Add' }).first().click();
+
+    await expect(page.locator('#playlistEditor')).toHaveClass(/hasPlaylistDetailsLoaded/);
+    await expect(page.locator('.playlistEditorHeaderTitle').first()).toHaveText(name);
+    // The stray request went out before the real one, so it is recorded by now.
+    await expect.poll(() => playlistGets.includes(name)).toBe(true);
+    expect(playlistGets).toEqual([name]);
+    await expect(page.locator('.modal.show')).toHaveCount(0);
+    expect(await page.evaluate(() => history.state)).toEqual({ view: 'editor', playlist: name });
+  } finally {
+    await page.request.delete(`/api/playlist/${name}`);
+  }
+});
+
+test('Playlists Unsaved Changes Prompt', async ({ page }) => {
+  const name = 'PlaywrightUnsavedPlaylist';
+  await page.request.delete(`/api/playlist/${name}`);
+  await page.request.post(`/api/playlist/${name}`, {
+    data: { name, version: 4, leadIn: [], mainPlaylist: [], leadOut: [], playlistInfo: {} }
+  });
+  const onDisk = async () => (await (await page.request.get(`/api/playlist/${name}`)).json()).mainPlaylist.length;
+  const dialog = page.locator('#UnsavedPlaylistDialog.show');
+
+  try {
+    await gotoPage(page, '/playlists.php');
+    await page.locator('.playlistCard h3', { hasText: new RegExp(`^${name}$`) }).click();
+    await expect(page.locator('#playlistEditor')).toHaveClass(/hasPlaylistDetailsLoaded/);
+
+    await page.locator('.playlistEntriesAddNewBtn').first().click();
+    await page.selectOption('#pe_type', 'pause');
+    await page.locator('.ui-dialog:visible button, .modal.show button', { hasText: /^Add$/ }).first().click();
+    await expect(page.locator('tr.playlistRow')).toHaveCount(1);
+
+    // Leaving through the FPP menu used to drop the edit without a word.
+    await page.evaluate(() => (document.querySelector('a[href="about.php"]') as HTMLElement).click());
+    await expect(dialog).toBeVisible();
+    await dialog.locator('button', { hasText: 'Cancel' }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page).toHaveURL(/playlists\.php/);
+    await expect(page.locator('tr.playlistRow')).toHaveCount(1);
+
+    await page.evaluate(() => (document.querySelector('a[href="about.php"]') as HTMLElement).click());
+    await dialog.locator('button', { hasText: 'Save' }).click();
+    await expect(page).toHaveURL(/about\.php/);
+    expect(await onDisk()).toBe(1);
+  } finally {
+    await page.request.delete(`/api/playlist/${name}`);
+  }
 });
 
 test('Plugins Overview', async ({ page }) => {

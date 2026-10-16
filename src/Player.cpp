@@ -212,50 +212,56 @@ void Player::Init() {
 int Player::StartPlaylist(const std::string& name, const int repeat,
                           const int startPosition, const int endPosition, const int manualPriority,
                           const bool allowScheduleOverride) {
-    if ((GetStatus() == FPP_STATUS_IDLE) ||
-        (name != playlistName)) {
-        playlistName = name;
-        startTime = std::time(nullptr);
-        stopTime = 0;
-        origStopTime = 0;
-        stopMethod = 0;
-        priority = manualPriority;
-        this->allowScheduleOverride = allowScheduleOverride;
-    }
+    {
+        std::lock_guard<std::mutex> lk(m_stateLock);
+        if ((GetStatus() == FPP_STATUS_IDLE) ||
+            (name != playlistName)) {
+            playlistName = name;
+            startTime = std::time(nullptr);
+            stopTime = 0;
+            origStopTime = 0;
+            stopMethod = 0;
+            priority = manualPriority;
+            this->allowScheduleOverride = allowScheduleOverride;
+        }
 
-    forceStopped = false;
-    forceStoppedPlaylist = "";
+        forceStopped = false;
+        forceStoppedPlaylist = "";
+    }
 
     std::shared_ptr<Playlist> pl = PlaylistSnapshot();
     LogDebug(VB_PLAYLIST, "Manually starting %srepeating playlist '%s'\n",
              (repeat == -1 ? pl->GetRepeat() : repeat) ? "" : "non-",
-             playlistName.c_str());
+             name.c_str());
 
-    return pl->Play(playlistName.c_str(), startPosition, repeat, -1, endPosition);
+    return pl->Play(name, startPosition, repeat, -1, endPosition);
 }
 
 int Player::StartScheduledPlaylist(const std::string& name, const int position,
                                    const int repeat, const int scheduleEntry, const int scheduledPriority,
                                    const time_t sTime, const time_t eTime, const int method) {
-    playlistName = name;
-    origStartTime = sTime;
-    origStopTime = eTime;
-    startTime = std::time(nullptr);
-    stopTime = eTime;
-    stopMethod = method;
-    priority = scheduledPriority;
-    forceStopped = false;
-    forceStoppedPlaylist = "";
+    {
+        std::lock_guard<std::mutex> lk(m_stateLock);
+        playlistName = name;
+        origStartTime = sTime;
+        origStopTime = eTime;
+        startTime = std::time(nullptr);
+        stopTime = eTime;
+        stopMethod = method;
+        priority = scheduledPriority;
+        forceStopped = false;
+        forceStoppedPlaylist = "";
+    }
 
     LogDebug(VB_PLAYLIST, "Starting %srepeating playlist '%s' with scheduled '%s' in %d seconds\n",
              repeat ? "" : "non-",
-             playlistName.c_str(),
-             stopMethod == 0 ? "Graceful Stop" : stopMethod == 1 ? "Hard Stop"
-                                             : stopMethod == 2   ? "Graceful Stop After Loop"
-                                                                 : "",
-             (int)(stopTime - std::time(nullptr)));
+             name.c_str(),
+             method == 0 ? "Graceful Stop" : method == 1 ? "Hard Stop"
+                                         : method == 2   ? "Graceful Stop After Loop"
+                                                         : "",
+             (int)(eTime - std::time(nullptr)));
 
-    return PlaylistSnapshot()->Play(playlistName.c_str(), position, repeat, scheduleEntry);
+    return PlaylistSnapshot()->Play(name, position, repeat, scheduleEntry);
 }
 
 int Player::AdjustPlaylistStopTime(const int seconds) {
@@ -277,6 +283,7 @@ int Player::AdjustPlaylistStopTime(const int seconds) {
         return 0;
     }
 
+    std::lock_guard<std::mutex> lk(m_stateLock);
     if (seconds >= 0) {
         LogDebug(VB_PLAYLIST, "Extending scheduled playlist '%s' by %d seconds\n",
                  playlistName.c_str(), seconds);
@@ -301,37 +308,108 @@ void Player::InsertPlaylistImmediate(const std::string& filename, const int star
     PlaylistSnapshot()->InsertPlaylistImmediate(filename, startPosition, endPos);
 }
 
-int Player::StopNow(int forceStop) {
+void Player::RecordForceStop(int forceStop) {
+    std::lock_guard<std::mutex> lk(m_stateLock);
     forceStopped = (bool)forceStop;
     if (forceStopped)
         forceStoppedPlaylist = playlistName;
     else
         forceStoppedPlaylist = "";
+}
+
+int Player::StopNow(int forceStop) {
+    if (InHandedBackStoppedPreset()) {
+        LogInfo(VB_PLAYLIST, "Ignoring Stop Now from the PLAYLIST_STOPPED preset of an inserted playlist: it has already stopped, and the playlist it interrupted carries on\n");
+        return 1;
+    }
+    RecordForceStop(forceStop);
     return PlaylistSnapshot()->StopNow(forceStop);
 }
 
 int Player::StopGracefully(int forceStop, int afterCurrentLoop) {
-    forceStopped = (bool)forceStop;
-    if (forceStopped)
-        forceStoppedPlaylist = playlistName;
-    else
-        forceStoppedPlaylist = "";
-
+    if (InHandedBackStoppedPreset()) {
+        LogInfo(VB_PLAYLIST, "Ignoring Stop Gracefully from the PLAYLIST_STOPPED preset of an inserted playlist: it has already stopped, and the playlist it interrupted carries on\n");
+        return 1;
+    }
+    RecordForceStop(forceStop);
     return PlaylistSnapshot()->StopGracefully(forceStop, afterCurrentLoop);
+}
+
+void Player::StopNowAllLevels(int forceStop) {
+    int levels = PlaylistSnapshot()->GetLevelCount();
+    for (int i = 0; i < levels && GetStatus() != FPP_STATUS_IDLE; i++) {
+        StopNow(forceStop);
+    }
+}
+
+std::time_t Player::GetOrigStartTime() {
+    std::lock_guard<std::mutex> lk(m_stateLock);
+    return origStartTime;
+}
+std::time_t Player::GetOrigStopTime() {
+    std::lock_guard<std::mutex> lk(m_stateLock);
+    return origStopTime;
+}
+std::time_t Player::GetStartTime() {
+    std::lock_guard<std::mutex> lk(m_stateLock);
+    return startTime;
+}
+std::time_t Player::GetStopTime() {
+    std::lock_guard<std::mutex> lk(m_stateLock);
+    return stopTime;
+}
+void Player::ClearForceStopped() {
+    std::lock_guard<std::mutex> lk(m_stateLock);
+    forceStopped = false;
+}
+bool Player::GetForceStopped() {
+    std::lock_guard<std::mutex> lk(m_stateLock);
+    return forceStopped;
+}
+std::string Player::GetForceStoppedPlaylist() {
+    std::lock_guard<std::mutex> lk(m_stateLock);
+    return forceStoppedPlaylist;
+}
+int Player::GetPriority() {
+    std::lock_guard<std::mutex> lk(m_stateLock);
+    return priority;
+}
+bool Player::GetAllowScheduleOverride() {
+    std::lock_guard<std::mutex> lk(m_stateLock);
+    return allowScheduleOverride;
 }
 
 int Player::Process() {
     std::time_t procTime = std::time(nullptr);
+    PlaylistStatus status = PlaylistSnapshot()->getPlaylistStatus();
 
-    // See if we need to stop a scheduled playlist
-    if ((PlaylistSnapshot()->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING) &&
-        (stopTime) &&
-        (lastCheckTime != procTime)) {
-        lastCheckTime = procTime;
+    // See if we need to stop a scheduled playlist.  A paused one counts: it
+    // used to be skipped, so a playlist paused during its window never
+    // stopped, and as the scheduler waits for idle, every later scheduled show
+    // was skipped too.
+    bool check = false;
+    std::time_t stop = 0;
+    std::time_t origStop = 0;
+    int method = 0;
+    std::string name;
+    {
+        std::lock_guard<std::mutex> lk(m_stateLock);
+        if (((status == FPP_STATUS_PLAYLIST_PLAYING) || (status == FPP_STATUS_PLAYLIST_PAUSED)) &&
+            (stopTime) &&
+            (lastCheckTime != procTime)) {
+            lastCheckTime = procTime;
+            check = true;
+            stop = stopTime;
+            origStop = origStopTime;
+            method = stopMethod;
+            name = playlistName;
+        }
+    }
 
-        if (stopTime > procTime) {
+    if (check) {
+        if (stop > procTime) {
             bool logSwitch = false;
-            int diff = stopTime - procTime;
+            int diff = stop - procTime;
 
             // Print the countdown more frequently as we get closer
             if (((diff > 300) && ((diff % 300) == 0)) ||
@@ -343,20 +421,26 @@ int Player::Process() {
 
             if (logSwitch) {
                 LogDebug(VB_PLAYLIST, "Playlist '%s' will switch to '%s' in %d second%s\n",
-                         playlistName.c_str(),
-                         stopMethod == 0 ? "Stopping Gracefully" : stopMethod == 1 ? "Hard Stop"
-                                                               : stopMethod == 2   ? "Stopping Gracefully After Loop"
-                                                                                   : "",
+                         name.c_str(),
+                         method == 0 ? "Stopping Gracefully" : method == 1 ? "Hard Stop"
+                                                           : method == 2   ? "Stopping Gracefully After Loop"
+                                                                           : "",
                          diff,
                          diff == 1 ? "" : "s");
             }
         }
 
-        if (stopTime <= procTime) {
+        if (stop <= procTime) {
             // if user shortened the scheduled end time mark as force stopped
-            int forceStop = (stopTime < origStopTime) ? 1 : 0;
+            int forceStop = (stop < origStop) ? 1 : 0;
 
-            switch (stopMethod) {
+            // A paused playlist just stops at the end of its window: a
+            // graceful stop would first resume it, bringing the show back on
+            // after its time to finish the interrupted entry.
+            if (status == FPP_STATUS_PLAYLIST_PAUSED)
+                method = 1;
+
+            switch (method) {
             case 0: // Gracefully
                 StopGracefully(forceStop);
                 break;
@@ -365,8 +449,7 @@ int Player::Process() {
                 break;
             case 1: // Hard Stop
             default:
-                while (GetStatus() != FPP_STATUS_IDLE)
-                    StopNow(forceStop);
+                StopNowAllLevels(forceStop);
                 break;
             }
         }
@@ -405,6 +488,7 @@ void Player::SetRepeat(int repeat) {
 }
 
 int Player::GetStopMethod() {
+    std::lock_guard<std::mutex> lk(m_stateLock);
     return stopMethod;
 }
 
@@ -505,6 +589,7 @@ Json::Value Player::GetStatusJSON() {
 
     // things we store locally that would need to be in an array if we can
     // play multiple playlists concurrently
+    std::lock_guard<std::mutex> lk(m_stateLock);
     pl["origStartTime"] = (Json::UInt64)origStartTime;
     pl["origStopTime"] = (Json::UInt64)origStopTime;
     pl["startTime"] = (Json::UInt64)startTime;

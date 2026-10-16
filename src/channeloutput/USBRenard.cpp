@@ -22,6 +22,7 @@
 #include "../log.h"
 
 #include "SerialChannelOutput.h"
+#include "serialutil.h"
 #include "USBRenard.h"
 
 /////////////////////////////////////////////////////////////////////////////
@@ -198,19 +199,19 @@ int USBRenardOutput::SendData(unsigned char* channelData) {
     }
 
     // Send start of packet byte
-    write(data->getFD(), "\x7E\x80", 2);
+    SerialWrite(data->getFD(), "\x7E\x80", 2);
     dptr = data->outputData;
 
     // Assume clocks are accurate to 1%, so insert a pad byte every 100 bytes.
     for (i = 0; i * PAD_DISTANCE < m_channelCount; i++) {
         // Send our pad byte
-        write(data->getFD(), "\x7D", 1);
+        SerialWrite(data->getFD(), "\x7D", 1);
 
         // Send Renard Data (Only send the channels we're given, not max)
         if ((i + 1) * PAD_DISTANCE > m_channelCount)
-            write(data->getFD(), dptr, (m_channelCount - (i * PAD_DISTANCE)));
+            SerialWrite(data->getFD(), dptr, (m_channelCount - (i * PAD_DISTANCE)));
         else
-            write(data->getFD(), dptr, PAD_DISTANCE);
+            SerialWrite(data->getFD(), dptr, PAD_DISTANCE);
 
         dptr += PAD_DISTANCE;
     }

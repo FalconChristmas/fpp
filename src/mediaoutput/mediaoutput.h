@@ -18,6 +18,12 @@
 
 extern MediaOutputBase* mediaOutput;
 extern std::mutex mediaOutputLock;
+// Serializes DRM work on the display cards' shared master fds (see
+// mediaoutput/DrmCards.h) -- the KMS framebuffer outputs' flips and modesets,
+// and media pipelines taking leases -- and the KMS page-flip bookkeeping.  A
+// flip holds it for most of a refresh, so take it only for DRM work, and never
+// take mediaOutputLock while holding it.
+extern std::mutex drmMasterLock;
 extern MediaOutputStatus mediaOutputStatus;
 
 void InitMediaOutput(void);
@@ -45,6 +51,14 @@ bool HasVideoForMedia(std::string& filename);
 
 bool IsExtensionVideo(const std::string& ext);
 bool IsExtensionAudio(const std::string& ext);
+
+// The ALSA card this boot plays on: AudioOutput, unless boot fell back to
+// another card (the selected HDMI has no display, or the card is missing), in
+// which case fppinit recorded the fallback in /run/fppd/audio-output.json
+// while leaving AudioOutput as the user's choice.  Use this where the card
+// that is actually playing matters (mixer, sink latency); use AudioOutput
+// where the user's choice does (the missing-card warning, the settings UI).
+std::string GetEffectiveAudioOutput();
 
 // volume control
 void setVolume(int volume);

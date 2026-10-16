@@ -255,8 +255,15 @@ public:
 
     std::vector<int> sockets;
     // read/written by workers and the frame thread without a common lock;
-    // atomic so the errCount >= 3 re-ping trigger can't act on a torn value
+    // atomic so the errCount >= 3 re-ping trigger can't act on a torn value.
+    // A counter only, so relaxed throughout.
     std::atomic_int errCount;
+    // Runs on every successful send, per destination per frame: skip the
+    // store (two barriers on an AM335x) when there is nothing to clear.
+    void clearErrors() {
+        if (errCount.load(std::memory_order_relaxed) != 0)
+            errCount.store(0, std::memory_order_relaxed);
+    }
     int curSocket;
     bool preventClose = false;
     // kernel (fq) pacing is active on these sockets; drain waits are the
@@ -277,7 +284,9 @@ public:
     // Pacing-budget accounting, read and reset by CheckPacingBudget().
     // pacedRate is the rate (bytes/sec) the kernel clocks this destination at,
     // 0 while it isn't paced.  framesBehind counts frames that were folded
-    // into a still-queued item (late) or whose send came up short.
+    // into a still-queued item (late) or whose send came up short.  Counted
+    // per destination per frame, so the increments are relaxed: statistics,
+    // nothing published through them.
     std::atomic_uint pacedRate{ 0 };
     std::atomic<uint64_t> bytesQueued{ 0 };
     std::atomic_uint framesQueued{ 0 };
@@ -290,9 +299,9 @@ public:
 };
 
 static bool ShouldLogSendError(SendSocketInfo* si, SendErrLogSite site) {
-    long long now = GetTimeMS();
+    long long now = GetMonotonicTimeMS(); // the wall clock stepping back silenced it
     long long last = si->lastSendErrLog[site].load();
-    return now - last >= SEND_ERR_LOG_INTERVAL_MS && si->lastSendErrLog[site].compare_exchange_strong(last, now);
+    return (last == 0 || now - last >= SEND_ERR_LOG_INTERVAL_MS) && si->lastSendErrLog[site].compare_exchange_strong(last, now);
 }
 
 static uint64_t MessageBytes(const std::vector<struct mmsghdr>& msgs) {
@@ -371,6 +380,9 @@ void UDPOutputMessages::ForceSocket(unsigned int key, int socket, bool preventCl
     info->sockets.push_back(socket);
 }
 std::vector<struct mmsghdr>& UDPOutputMessages::GetMessages(unsigned int key) {
+    if (recordKeys && std::find(recordKeys->begin(), recordKeys->end(), key) == recordKeys->end()) {
+        recordKeys->push_back(key);
+    }
     return messages[key];
 }
 void UDPOutputMessages::clearMessages() {
@@ -556,6 +568,8 @@ UDPOutput::~UDPOutput() {
 }
 
 int UDPOutput::Init(Json::Value config) {
+    // a reload may have dropped the ArtNet output that last wanted the socket
+    ResetArtNetSocketFailure();
     enabled = config["enabled"].asInt();
     hasArtNet = false;
     for (int i = 0; i < config["universes"].size(); i++) {
@@ -741,7 +755,7 @@ int UDPOutput::Init(Json::Value config) {
                     // trying to send UDP data to myself, that's bad.  Disable
                     std::string msg = "UDP Output set to send data to myself.  Disabling ";
                     msg += host.c_str();
-                    LogWarn(VB_CHANNELOUT, msg.c_str());
+                    LogWarn(VB_CHANNELOUT, msg);
                     AddOutputConfigWarning(6, msg);
                     o->active = false;
                 }
@@ -881,8 +895,33 @@ void UDPOutput::PrepData(unsigned char* channelData) {
     if (enabled) {
         std::unique_lock<std::mutex> lk(socketMutex);
         messages.clearMessages();
+        // A destination that couldn't keep up still has a work item from an
+        // earlier frame, queued or being sent, whose iovecs point at its
+        // outputs' packet buffers (headers, sequence numbers, the dedup copy).
+        // Preparing those outputs again rewrote the buffers while a worker
+        // read them, so packets went out half one frame, half the next. Leave
+        // them as they are this frame: the destination is behind anyway, and
+        // its pending item still goes out.
+        std::set<unsigned int> busy;
+        if (useThreadedOutput) {
+            std::lock_guard<std::mutex> wl(workMutex);
+            for (auto& w : workQueue) {
+                busy.insert(w.id);
+            }
+            busy.insert(sendingKeys.begin(), sendingKeys.end());
+        }
+        skippedOutputs.clear();
         for (auto a : outputs) {
-            if (a->valid && a->active) {
+            if (a->valid.load(std::memory_order_relaxed) && a->active) {
+                if (!busy.empty()) {
+                    auto k = outputKeys.find(a);
+                    if (k != outputKeys.end() &&
+                        std::any_of(k->second.begin(), k->second.end(),
+                                    [&busy](unsigned int key) { return busy.count(key) != 0; })) {
+                        skippedOutputs.insert(a);
+                        continue;
+                    }
+                }
                 if (outputRunning && !a->started) {
                     // StartingOutput() only starts the outputs that were
                     // reachable then; one whose controller answers later (a
@@ -892,12 +931,16 @@ void UDPOutput::PrepData(unsigned char* channelData) {
                     a->started = true;
                     a->StartingOutput();
                 }
+                std::vector<unsigned int>& keys = outputKeys[a];
+                keys.clear();
+                messages.recordKeys = &keys;
                 a->PrepareData(channelData, messages);
+                messages.recordKeys = nullptr;
             }
         }
         // add any sync packets or whatever that are needed
         for (auto a : outputs) {
-            if (a->valid && a->active) {
+            if (a->valid.load(std::memory_order_relaxed) && a->active && !skippedOutputs.count(a)) {
                 a->PostPrepareData(channelData, messages);
             }
         }
@@ -1166,6 +1209,7 @@ void UDPOutput::BackgroundOutputWork() {
         if (!workQueue.empty()) {
             WorkItem i = std::move(workQueue.front());
             workQueue.pop_front();
+            sendingKeys.insert(i.id);
             lock.unlock();
 
             auto t1 = clock.now();
@@ -1174,7 +1218,7 @@ void UDPOutput::BackgroundOutputWork() {
 
             long diff = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
             if (outputCount != i.msgs.size())
-                i.socketInfo->framesBehind++;
+                i.socketInfo->framesBehind.fetch_add(1, std::memory_order_relaxed);
             if ((outputCount != i.msgs.size()) || (diff > 100)) {
                 i.socketInfo->errCount++;
 
@@ -1186,7 +1230,7 @@ void UDPOutput::BackgroundOutputWork() {
                            errno,
                            FPPstrerror(errno));
             } else {
-                i.socketInfo->errCount = 0;
+                i.socketInfo->clearErrors();
             }
 
             // only count work for the current frame; if SendData timed out and
@@ -1195,6 +1239,7 @@ void UDPOutput::BackgroundOutputWork() {
             // generation bump between them counts old work toward the new frame.
             {
                 std::unique_lock<std::mutex> countLock(workMutex);
+                sendingKeys.erase(sendingKeys.find(i.id));
                 if (i.generation == workGeneration) {
                     doneWorkCount++;
                 }
@@ -1209,6 +1254,12 @@ int UDPOutput::SendData(unsigned char* channelData) {
     std::unique_lock<std::mutex> lk(socketMutex);
     if (!enabled || messages.messages.empty()) {
         return 0;
+    }
+    for (auto a : outputs) {
+        // A skipped output prepared nothing, so it has nothing to commit.
+        if (!skippedOutputs.count(a)) {
+            a->FrameSent();
+        }
     }
     if (++statCheckCounter >= 1500) {
         // roughly once a minute at typical frame rates; run off-thread so the
@@ -1265,10 +1316,10 @@ int UDPOutput::SendData(unsigned char* channelData) {
                 // message the dedup logic left out of this frame but not that one.
                 auto pending = std::find_if(workQueue.begin(), workQueue.end(),
                                             [&](const WorkItem& w) { return w.id == msgs.first; });
-                socketInfo->bytesQueued += MessageBytes(msgs.second);
-                socketInfo->framesQueued++;
+                socketInfo->bytesQueued.fetch_add(MessageBytes(msgs.second), std::memory_order_relaxed);
+                socketInfo->framesQueued.fetch_add(1, std::memory_order_relaxed);
                 if (pending != workQueue.end()) {
-                    socketInfo->framesBehind++;
+                    socketInfo->framesBehind.fetch_add(1, std::memory_order_relaxed);
                     std::set<std::pair<const void*, const void*>> have;
                     for (auto& m : pending->msgs)
                         have.emplace(m.msg_hdr.msg_iov, m.msg_hdr.msg_name);
@@ -1378,13 +1429,13 @@ int UDPOutput::SendData(unsigned char* channelData) {
                                        errno,
                                        FPPstrerror(errno));
                         } else {
-                            socketInfo->errCount = 0;
+                            socketInfo->clearErrors();
                         }
                     }
-                    if (socketInfo->errCount >= 3) {
+                    if (socketInfo->errCount.load(std::memory_order_relaxed) >= 3) {
                         // we'll ping the controllers and rebuild the valid message list, this could take time
                         PingControllers(false);
-                        socketInfo->errCount = 0;
+                        socketInfo->clearErrors();
                     }
                 }
             }
@@ -1398,10 +1449,10 @@ int UDPOutput::SendData(unsigned char* channelData) {
             int outputCount = SendMessages(msgs.first, socketInfo.get(), msgs.second);
             auto t2 = clock.now();
             long diff = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
-            socketInfo->bytesQueued += MessageBytes(msgs.second);
-            socketInfo->framesQueued++;
+            socketInfo->bytesQueued.fetch_add(MessageBytes(msgs.second), std::memory_order_relaxed);
+            socketInfo->framesQueued.fetch_add(1, std::memory_order_relaxed);
             if (outputCount != msgs.second.size())
-                socketInfo->framesBehind++;
+                socketInfo->framesBehind.fetch_add(1, std::memory_order_relaxed);
             if ((outputCount != msgs.second.size()) || (diff > 100)) {
                 socketInfo->errCount++;
 
@@ -1413,13 +1464,13 @@ int UDPOutput::SendData(unsigned char* channelData) {
                            errno,
                            FPPstrerror(errno));
 
-                if (socketInfo->errCount >= 3) {
+                if (socketInfo->errCount.load(std::memory_order_relaxed) >= 3) {
                     // we'll ping the controllers and rebuild the valid message list, this could take time
                     PingControllers(false);
-                    socketInfo->errCount = 0;
+                    socketInfo->clearErrors();
                 }
             } else {
-                socketInfo->errCount = 0;
+                socketInfo->clearErrors();
             }
         }
     }
@@ -1755,8 +1806,12 @@ std::shared_ptr<SendSocketInfo> UDPOutput::findOrCreateSocket(unsigned int socke
 int UDPOutput::createSocket(int port, bool broadCast, bool multiCast) {
     int sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
     if (sendSocket < 0) {
-        LogErr(VB_CHANNELOUT, "Error opening datagram socket\n");
-        exit(1);
+        // Out of file descriptors, typically.  This used to exit(1) and take
+        // the show down; a -1 socket makes the sends to this destination fail
+        // and be counted, and a later send creates a new one, so output comes
+        // back once descriptors free up (as e131bridge does since 42183b6d4).
+        LogErr(VB_CHANNELOUT, "Error opening datagram socket: %s\n", FPPstrerror(errno));
+        return -1;
     }
 
     errno = 0;
@@ -1795,8 +1850,9 @@ int UDPOutput::createSocket(int port, bool broadCast, bool multiCast) {
     if (broadCast) {
         int broadcast = 1;
         if (setsockopt(sendSocket, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
-            LogErr(VB_SYNC, "Error setting SO_BROADCAST: \n", FPPstrerror(errno));
-            exit(1);
+            LogErr(VB_CHANNELOUT, "Error setting SO_BROADCAST: %s\n", FPPstrerror(errno));
+            close(sendSocket);
+            return -1;
         }
 #ifndef PLATFORM_OSX
     } else if (multiCast) {

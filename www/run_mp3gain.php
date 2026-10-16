@@ -5,11 +5,14 @@ require_once("common.php");
 require_once("common/oplog.inc.php");
 
 DisableOutputBuffering();
+// Finish the job if the browser goes away: a closed tab or dropped connection
+// used to abort PHP part way through, leaving the command it ran half done.
+ignore_user_abort(true);
 
 print("Running MP3Gain\n\n");
 
 $files = json_decode(file_get_contents('php://input'));
-$params = "mp3gain ";
+$params = "mp3gain -r -k ";
 $dir = GetDirSetting("music");
 foreach ($files as $f) {
     $params = $params . " " . escapeshellarg($dir . "/" . $f);

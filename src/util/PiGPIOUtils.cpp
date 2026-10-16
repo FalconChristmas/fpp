@@ -17,6 +17,7 @@
 #include <filesystem>
 #include <fstream>
 #include <mutex>
+#include <map>
 #include <set>
 
 #include "PiFaceUtils.h"
@@ -157,10 +158,15 @@ static bool releasePinFromKernelDriver(int gpio, const std::string& pinName, con
     // configPin() is reachable from the REST API as well as from startup, so the
     // once-per-pin bookkeeping needs to be serialized.
     static std::mutex handledLock;
-    static std::set<int> handled;
+    // What became of each pin already dealt with this boot: true if it was
+    // freed, false if it couldn't be (and was warned about).  A later caller
+    // gets the same answer; this used to say "freed" to every later caller,
+    // even for a pin that is still claimed.
+    static std::map<int, bool> handled;
     std::unique_lock<std::mutex> lock(handledLock);
-    if (handled.count(gpio)) {
-        return true; // already dealt with (either freed or warned about) this boot
+    auto done = handled.find(gpio);
+    if (done != handled.end()) {
+        return done->second;
     }
 
     PinMuxOwner owner;
@@ -172,7 +178,7 @@ static bool releasePinFromKernelDriver(int gpio, const std::string& pinName, con
         // function stays requestable under strict mode via .function_is_gpio.
         return true;
     }
-    handled.insert(gpio);
+    handled[gpio] = false; // until it is shown to be free below
 
     const std::string devPath = "/sys/bus/platform/devices/" + owner.device;
     std::error_code ec;
@@ -210,6 +216,7 @@ static bool releasePinFromKernelDriver(int gpio, const std::string& pinName, con
         LogWarn(VB_GPIO, "%s\n", w.c_str());
         return false;
     }
+    handled[gpio] = true;
     return true;
 }
 
@@ -366,6 +373,12 @@ public:
 
     virtual bool supportPWM() const override { return pwm != -1; }
     virtual bool setupPWM(int maxValue = 25500) const override {
+        if (pwm != -1 && dutyFile != nullptr) {
+            // Already set up. Each call opened another duty_cycle stream and
+            // leaked the last; reopening instead would close a FILE* that
+            // setPWMValue() on an output thread may be writing to.
+            return true;
+        }
         if (pwm != -1) {
             configPin("pwm", true, "PWM");
             char dir_name[128];
@@ -423,7 +436,7 @@ public:
                     try {
                         auto chip = gpiod::chip(entry.path().string());
                         auto info = chip.get_info();
-                        if (info.label() == "pinctrl-rpi1" || info.label() == "pinctrl-bcm2711" || info.label() == "pinctrl-bcm2835") {
+                        if (info.label() == "pinctrl-rp1" || info.label() == "pinctrl-bcm2711" || info.label() == "pinctrl-bcm2835") {
                             pinctrlRpiChip = std::stoi(entry.path().filename().string().substr(8));
                             pinctrlRpiChipName = info.name();
                             return pinctrlRpiChip;

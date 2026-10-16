@@ -48,6 +48,11 @@ namespace Magick
 // Any other value (including "None") leaves the image untouched.
 void ScaleOverlayImage(Magick::Image& image, int w, int h, const std::string& mode);
 
+// Whether a path names a regular file with an image extension the overlays
+// read (.png, .jpg, .gif, ...).  Shared by the Image effect's file list and
+// PlaylistEntryImage's folders, so both offer and pick the same files.
+bool IsOverlayImageFile(const std::string& path);
+
 // Decode an encoded image held in memory (PNG/JPEG/GIF/BMP/...) and draw it on
 // a model. Shared by the Image overlay effect's file path and the bulk-data
 // HTTP endpoint so an uploaded image is sized and placed exactly like a local

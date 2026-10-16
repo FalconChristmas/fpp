@@ -11,6 +11,10 @@
 <p>Install plugins from authors you trust. Plugins marked <b>Official</b> are maintained by the FPP team.
     Each listed plugin shows the month it joined the plugin list; that says nothing about how recently its
     code changed.</p>
+<p>At the Developer UI level the search box also loads a plugin that isn't in the list: paste the URL of
+    its <code>pluginInfo.json</code>, or the address of its GitHub repository, such as
+    <code>github.com/owner/repo</code> (add <code>/tree/</code> and a branch name to use a branch other than
+    the repository's default).</p>
 <p>FPP keeps a history of the plugins installed, updated and removed on this player, including any system
     packages that changed while FPP installed or removed a plugin's dependencies or while its own script
     ran, and lists settings and packages left behind by removed plugins: see

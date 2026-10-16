@@ -162,12 +162,25 @@ bool ArtNetOutputData::IsPingable() {
     return type == ARTNET_TYPE_UNICAST || type == ARTNET_TYPE_UNICAST_ARTNETPORT;
 }
 
-void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& messages) {
-    if (valid && active) {
-        if (messages.GetSocket(ARTNET_SYNC_KEY) == -1) {
-            // we MAY be bridging ArtNet so we need to use that same socket
-            messages.ForceSocket(ARTNET_SYNC_KEY, CreateArtNetSocket(), true);
+// The shared ArtNet socket for `key`, or -1 while it can't be opened (the
+// port is taken; CreateArtNetSocket() warns about that once and retries now
+// and then).  Never hand the sender -1: every frame it would fail on it.
+static int ArtNetSocketFor(UDPOutputMessages& messages, unsigned int key) {
+    int sock = messages.GetSocket(key);
+    if (sock == -1) {
+        // we MAY be bridging ArtNet so we need to use that same socket
+        sock = CreateArtNetSocket();
+        if (sock != -1) {
+            messages.ForceSocket(key, sock, true);
         }
+    }
+    return sock;
+}
+
+void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages& messages) {
+    sequencePending = false;
+    if (valid && active) {
+        ArtNetSocketFor(messages, ARTNET_SYNC_KEY);
 
         int key = ARTNET_MESSAGES_KEY;
         if (type == ARTNET_TYPE_UNICAST) {
@@ -177,9 +190,8 @@ void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages
             // and the socket MUST have the source port of ARTNET_DEST_PORT
             // as per the ArtNet protocol
             // Use a reserved key that won't collide with IP addresses
-            if (messages.GetSocket(ARTNET_MESSAGES_KEY) == -1) {
-                // we MAY be bridging ArtNet so we need to use that same socket
-                messages.ForceSocket(ARTNET_MESSAGES_KEY, CreateArtNetSocket(), true);
+            if (ArtNetSocketFor(messages, ARTNET_MESSAGES_KEY) == -1) {
+                return;
             }
         }
         unsigned char* cur = channelData + startChannel - 1;
@@ -208,10 +220,11 @@ void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages
             cur += channelCount;
             start += channelCount;
         }
-        sequenceNumber++;
-        if (sequenceNumber == 0) {
-            sequenceNumber++;
+        pendingSequenceNumber = sequenceNumber + 1;
+        if (pendingSequenceNumber == 0) {
+            pendingSequenceNumber++;
         }
+        sequencePending = true;
         // the counter forces a full resend once 10 frames in a row skipped
         // something; without the reset, after the first 10 skips dedup was
         // off for the rest of the run
@@ -226,7 +239,7 @@ void ArtNetOutputData::PrepareData(unsigned char* channelData, UDPOutputMessages
     }
 }
 void ArtNetOutputData::PostPrepareData(unsigned char* channelData, UDPOutputMessages& msgs) {
-    if (valid && active) {
+    if (valid && active && msgs.GetSocket(ARTNET_SYNC_KEY) != -1) {
         for (auto msg : msgs[ARTNET_SYNC_KEY]) {
             if (msg.msg_hdr.msg_iov == &ArtNetSyncIovecs) {
                 // already added, skip
@@ -243,6 +256,13 @@ void ArtNetOutputData::PostPrepareData(unsigned char* channelData, UDPOutputMess
         msg.msg_hdr.msg_iovlen = 1;
         msg.msg_len = ARTNET_SYNC_PACKET_LENGTH;
         msgs[ARTNET_SYNC_KEY].push_back(msg);
+    }
+}
+
+void ArtNetOutputData::FrameSent() {
+    if (sequencePending) {
+        sequenceNumber = pendingSequenceNumber;
+        sequencePending = false;
     }
 }
 

@@ -12,6 +12,7 @@
  */
 
 #include <array>
+#include <atomic>
 #include <mutex>
 #include <string>
 
@@ -55,6 +56,18 @@ public:
     /// finished tearing down) must not blank out the newer stream's tracking.
     void ClearSlot(int slot, GStreamerOutput* owner = nullptr);
 
+    /// First step of an output's Close(): stop handing it out.  Waits for any
+    /// call the manager is making into it, so once this returns the manager
+    /// can no longer reach the output.  The slot's status and the KMS gate
+    /// stay as they are until the ClearSlot() that ends the Close(), which
+    /// still recognizes the same owner.
+    void DetachOutput(int slot, GStreamerOutput* owner);
+
+    /// Ask whatever is playing on a slot to stop, without stopping it from
+    /// the calling thread (see GStreamerOutput::RequestStop()).  Returns
+    /// false if the slot is idle.
+    bool RequestStop(int slot);
+
     /// Get the PipeWire node name for a slot (e.g. "fppd_stream_1").
     static std::string GetNodeName(int slot);
 
@@ -80,13 +93,15 @@ public:
     /// Count of currently active (playing) slots.
     int ActiveSlotCount();
 
-    /// Stop active background slots (2-5). Called during playlist stop.
-    /// Slot 1 is owned by the playlist entry, which must stop it itself so
-    /// the MultiSync media stop packet is sent before pipeline teardown.
+    /// Ask the media on background slots (2-5) to stop. Called during playlist
+    /// stop. Slot 1 is owned by the playlist entry, which must stop it itself
+    /// so the MultiSync media stop packet is sent before pipeline teardown.
     void StopBackgroundSlots();
 
     /// Process all active background slots (call from Playlist::Process).
     void ProcessBackgroundSlots();
+    /// Process() the outputs nothing else pumps; see the definition.
+    void PumpSlotOutputs();
 
     /// Mark a slot as following the primary media's clock.  Off by default:
     /// two unrelated videos on two displays should each run at their own pace,
@@ -106,6 +121,7 @@ private:
     struct SlotState {
         MediaOutputStatus status = {};
         GStreamerOutput* activeOutput = nullptr;
+        GStreamerOutput* closingOutput = nullptr;  // detached, Close() not finished
         std::string mediaFilename;
         bool isBackground = false;  // background slots don't block playlist
         bool syncToMaster = false;  // follow the primary media's clock
@@ -127,5 +143,12 @@ private:
     static constexpr long long SYNC_SETTLE_MS = 3000;
 
     std::array<SlotState, MAX_SLOTS> m_slots;
+
+    // PumpSlotOutputs() cadence: a main-loop timer, started with the first
+    // output that needs it, plus the playlist's tick while one is playing.
+    static constexpr long long PUMP_INTERVAL_MS = 50;
+    long long m_lastPumpMS = 0;
+    std::atomic<bool> m_pumpTimerStarted{ false };
+    void StartPumpTimer();
     std::recursive_mutex m_mutex;
 };

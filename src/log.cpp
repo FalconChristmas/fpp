@@ -13,6 +13,7 @@
 #include "fpp-pch.h"
 #include <cstring>
 
+#include <algorithm>
 #include <atomic>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -324,10 +325,11 @@ bool FPPLogger::SetLevel(std::string name, LogLevel level) {
     std::vector<FPPLoggerInstance*>::iterator it;
     Init(); /* Just incase */
 
+    // "All" sets every logger (fpp --log-level LEVEL).
     for (it = all.begin(); it != all.end(); it++) {
         FPPLoggerInstance* ptr = *it;
-        if (name == ptr->name) {
-            ptr->level = level;
+        if (name == ptr->name || name == "All") {
+            SetFacilityLevel(*ptr, level);
             madeChange = true;
         }
     }
@@ -344,7 +346,7 @@ int FPPLogger::MinimumLogLevel() {
     std::vector<FPPLoggerInstance*>::iterator it;
 
     for (it = all.begin(); it != all.end(); it++) {
-        int level = (*it)->level;
+        int level = FacilityLevel(**it);
         if (level > rc) {
             rc = level;
         }
@@ -361,14 +363,15 @@ std::string FPPLogger::GetLogLevelString() {
     std::vector<FPPLoggerInstance*>::iterator it;
 
     for (it = all.begin(); it != all.end(); it++) {
-        if ((currentLevel != (*it)->level) || firstLevel) {
+        LogLevel level = FacilityLevel(**it);
+        if ((currentLevel != level) || firstLevel) {
             if (!firstLevel) {
                 rc << ";";
             }
             firstLevel = false;
             firstLogger = true;
-            rc << LogLevelToString((*it)->level) << ":";
-            currentLevel = (*it)->level;
+            rc << LogLevelToString(level) << ":";
+            currentLevel = level;
         }
         if (firstLogger) {
             firstLogger = false;
@@ -385,7 +388,7 @@ void FPPLogger::SetAllLevel(LogLevel level) {
     Init(); /* Just incase */
 
     for (it = all.begin(); it != all.end(); it++) {
-        (*it)->level = level;
+        SetFacilityLevel(**it, level);
     }
 }
 
@@ -398,9 +401,14 @@ std::string TruncateForLog(const std::string& s, size_t maxLen) {
     // several prefixed-but-uncorrelated-looking lines. A short multi-line
     // value is just as confusing as a long one, so this isn't gated behind
     // the length check below.
+    // Only the part that survives truncation is escaped, so logging a large
+    // body costs maxLen rather than a copy of the whole thing.
     std::string escaped;
-    escaped.reserve(s.size());
+    escaped.reserve(std::min(s.size(), maxLen + 1));
     for (char c : s) {
+        if (escaped.size() > maxLen) {
+            break;
+        }
         if (c == '\n') {
             escaped += "\\n";
         } else if (c == '\r') {
@@ -417,17 +425,29 @@ std::string TruncateForLog(const std::string& s, size_t maxLen) {
 
 bool WillLog(int level, FPPLoggerInstance& facility) {
     // Don't log if we're not concerned about anything at this level
-    if (facility.level < level)
+    if (FacilityLevel(facility) < level)
         return false;
 
     return true;
+}
+
+// atomic_ref rather than an atomic member: FPPLoggerInstance's layout is
+// compiled into plugins (see log.h).
+LogLevel FacilityLevel(FPPLoggerInstance& facility) {
+    return std::atomic_ref<LogLevel>(facility.level).load(std::memory_order_relaxed);
+}
+void SetFacilityLevel(FPPLoggerInstance& facility, LogLevel level) {
+    std::atomic_ref<LogLevel>(facility.level).store(level, std::memory_order_relaxed);
 }
 
 void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facility, const std::string& str, ...) {
     // Same gate as the char* overload -- a ring-only line still has to reach it.
     if (!WillLog(level, facility) && !CrashLogRingWillCapture(level, facility))
         return;
-    _LogWrite(file, line, level, facility, str.c_str());
+    // The string is the message, not a format: callers build it from
+    // sequence names, config values and exception text, and a '%' there
+    // used to be read as a conversion with no argument behind it.
+    _LogWrite(file, line, level, facility, "%s", str.c_str());
 }
 
 // Append msg to out, applying prefix to EVERY physical line.
@@ -738,13 +758,17 @@ void logVersionInfo(void) {
     LogErr(VB_ALL, "FPP %s\n", getFPPVersion());
     LogErr(VB_ALL, "Branch: %s\n", getFPPBranch());
     int o = open("/proc/device-tree/model", O_RDONLY);
-    if (o > 0) {
+    if (o >= 0) {
+        // A short read continues at buf + c; reading back into buf replaced
+        // the start of the model with its tail.
         char buf[256];
-        int i = read(o, buf, 255);
-        int c = i;
-        while (i > 0) {
-            i = read(o, buf, 255 - c);
-            c += i > 0 ? i : 0;
+        int c = 0;
+        while (c < 255) {
+            ssize_t i = read(o, buf + c, 255 - c);
+            if (i <= 0) {
+                break;
+            }
+            c += i;
         }
         if (c > 0) {
             buf[c] = 0;

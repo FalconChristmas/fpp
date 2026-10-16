@@ -475,6 +475,55 @@
         }
 
         /**
+         * Keeps whatever the user scrolled down to in place while the systems
+         * table changes above it.
+         *
+         * Browsers do this themselves (scroll anchoring), but every poll's
+         * initBody() replaces the rows, which drops the browser's anchor, and
+         * the pollers show and hide warning rows around it.  So while a fleet
+         * upgrade streams into the log rows, each status update moved the page.
+         *
+         * The first row on screen is remembered whenever the page scrolls; when
+         * the table resizes, the page is scrolled back by however far that row
+         * moved.  ResizeObserver runs after layout and before paint, so the
+         * correction is never seen.  Rows are found by id, which survives the
+         * re-render.
+         */
+        function keepSystemsScrollAnchor() {
+            var table = document.getElementById('fppSystemsTable');
+            if (!table || typeof ResizeObserver === 'undefined') {
+                return;
+            }
+            var anchorId = null;
+            var anchorTop = 0;
+            var record = function () {
+                anchorId = null;
+                var rows = table.tBodies.length ? table.tBodies[0].rows : [];
+                for (var i = 0; i < rows.length; i++) {
+                    if (!rows[i].id) continue;
+                    var rect = rows[i].getBoundingClientRect();
+                    if (rect.bottom > 0) {
+                        anchorId = rows[i].id;
+                        anchorTop = rect.top;
+                        return;
+                    }
+                }
+            };
+            window.addEventListener('scroll', record, { passive: true });
+            new ResizeObserver(function () {
+                var anchor = anchorId ? document.getElementById(anchorId) : null;
+                if (anchor && anchor.offsetParent) {
+                    var delta = anchor.getBoundingClientRect().top - anchorTop;
+                    if (Math.abs(delta) >= 1) {
+                        // 'instant': the page's scroll-behavior is smooth.
+                        window.scrollBy({ top: delta, behavior: 'instant' });
+                    }
+                }
+                record();
+            }).observe(table);
+        }
+
+        /**
          * safeInitBody — wrapper around Bootstrap Table's initBody() that preserves
          * ephemeral UI state across every poll-driven re-render.
          *
@@ -1426,6 +1475,100 @@
         }
 
         // ============================================================
+        // SECTION: Remote update log viewer
+        // ============================================================
+
+        // A remote's running FPP/OS update, streamed from its
+        // updateActivity log tail (the same log its own banner opens).
+        // Viewing is read-only: Close at any time leaves the update alone.
+        var msUpdateLogTimer = null;
+        var msUpdateLogIp = '';
+
+        function msStopUpdateLog() {
+            if (msUpdateLogTimer) {
+                clearInterval(msUpdateLogTimer);
+                msUpdateLogTimer = null;
+            }
+            msUpdateLogIp = '';
+        }
+
+        function openRemoteUpdateLog(ip, host) {
+            msStopUpdateLog();
+            msUpdateLogIp = ip;
+            var first = true;
+            DoModalDialog({
+                id: 'msRemoteUpdateLog',
+                title: 'Update on ' + msEscape(host) + ' — Loading…',
+                body: "<textarea class='w-100' style='height: 55vh; min-height: 200px;' readonly id='msRemoteUpdateLogText'></textarea>",
+                class: 'modal-xl',
+                backdrop: true,
+                keyboard: true,
+                close: msStopUpdateLog,
+                buttons: {
+                    Close: function () {
+                        CloseModalDialog('msRemoteUpdateLog');
+                    }
+                }
+            });
+
+            $('#msRemoteUpdateLog').one('shown.bs.modal', function () {
+                var area = document.getElementById('msRemoteUpdateLogText');
+                if (area) {
+                    area.scrollTop = area.scrollHeight;
+                }
+            });
+
+            var tick = async function () {
+                var title;
+                try {
+                    const r = await fetch('api/remoteAction?ip=' + encodeURIComponent(ip) + '&action=updateLog');
+                    if (!r.ok) {
+                        throw new Error(r.status);
+                    }
+                    const data = await r.json();
+                    if (msUpdateLogIp !== ip) {
+                        return; // closed, or reopened for another host
+                    }
+                    var area = document.getElementById('msRemoteUpdateLogText');
+                    if (area && typeof data.logTail === 'string' && data.logTail !== '') {
+                        // Stay pinned to the bottom unless the user scrolled up to read.
+                        var nearBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 60;
+                        area.value = data.logTail;
+                        if (nearBottom || first) {
+                            area.scrollTop = area.scrollHeight;
+                        }
+                        // The first answer can land while the modal is still
+                        // opening, when scrolling does nothing; keep pinning
+                        // until the textarea has been laid out.
+                        if (area.clientHeight > 0) {
+                            first = false;
+                        }
+                    }
+                    var stage = data.stage || (data.inProgress ? 'Running…' : (data.failed ? 'Failed' : 'Done'));
+                    title = (data.kind || 'FPP Update') + ' on ' + host + ' — ' + stage;
+                    if (!data.inProgress) {
+                        msStopUpdateLog();
+                    }
+                } catch (e) {
+                    if (msUpdateLogIp !== ip) {
+                        return;
+                    }
+                    // The remote restarts its web server (or reboots) during an
+                    // update; keep retrying rather than giving up.
+                    title = 'Update on ' + host + ' — waiting for the device to respond…';
+                }
+                SetProgressDialogStatus('msRemoteUpdateLog', title);
+            };
+            tick();
+            msUpdateLogTimer = setInterval(tick, 3000);
+        }
+
+        $(document).on('click', '.msUpdateLogLink', function (e) {
+            e.preventDefault();
+            openRemoteUpdateLog($(this).attr('data-ip'), $(this).attr('data-host') || $(this).attr('data-ip'));
+        });
+
+        // ============================================================
         // SECTION: FPP system polling
         // ============================================================
 
@@ -1579,6 +1722,29 @@
                         }
                         if (data.status_name != 'unreachable') {
                             unavailables[ip] = 0;
+                        }
+
+                        // An FPP/OS update running on the remote (the same
+                        // updateActivity that drives its own update banner).
+                        // fppd usually keeps running for most of an update, so
+                        // status_name alone reads "Idle".  A player still
+                        // playing keeps its playing status with the update
+                        // noted underneath; anything else becomes "Upgrading".
+                        // Either form links to the remote's live update log.
+                        var ua = data.updateActivity;
+                        if (ua && ua.inProgress && data.status_name != 'unreachable' && data.status_name != 'password') {
+                            var uaDetail = msEscape(ua.kind || 'FPP Update');
+                            if (ua.stage) {
+                                uaDetail += ': ' + msEscape(ua.stage);
+                            }
+                            var uaHost = (data.advancedView && data.advancedView.HostName) ? data.advancedView.HostName : ip;
+                            var uaLink = "<a href='#' class='msUpdateLogLink' title='View update log' data-ip='" + msEscape(ip) +
+                                "' data-host='" + msEscape(uaHost) + "'>";
+                            if (data.status_name == 'playing' || data.status_name == 'paused') {
+                                status += "<br>" + uaLink + "<i class=\"fas fa-circle-notch fa-spin text-warning\"></i> <span class='warning-text'>" + uaDetail + "</span></a>";
+                            } else {
+                                status = uaLink + "<i class=\"fas fa-circle-notch fa-spin text-warning\"></i> Upgrading</a><br><small class='text-muted'>" + uaDetail + "</small>";
+                            }
                         }
 
                         if (data.rebootFlag == 1) {
@@ -2229,6 +2395,9 @@
                     "<tr><td></td><td><div class='right' id='" + rowID + "_doneButtons' style='display: none;'>" +
                     "<input type='button' class='buttons' value='Restart FPPD' onClick='restartSystem(\"" + rowID + "\");' style='float: left;'>" +
                     "<input type='button' class='buttons' value='Reboot' onClick='rebootSystem(\"" + rowID + "\");' style='float: left;'>" +
+                    "<input type='button' class='buttons' value='Close Log' onClick='$(\"#" + rowID + "_logs\").hide(); rowSpanSet(\"" + rowID + "\");'>" +
+                    "</div><div class='right' id='" + rowID + "_failButtons' style='display: none;'>" +
+                    "<input type='button' class='buttons' value='Retry' onClick='retryRow(\"" + rowID + "\");' style='float: left;'>" +
                     "<input type='button' class='buttons' value='Close Log' onClick='$(\"#" + rowID + "_logs\").hide(); rowSpanSet(\"" + rowID + "\");'>" +
                     "</div></td></tr></table></td></tr>"
                 );
@@ -3289,6 +3458,31 @@
             log.scrollTop = log.scrollHeight;
         }
 
+        // What a row's Retry button re-runs, set when its last action failed.
+        var rowRetry = {};
+
+        function clearRowResult(rowID) {
+            delete rowRetry[rowID];
+            $('#' + rowID + '_doneButtons').hide();
+            $('#' + rowID + '_failButtons').hide();
+        }
+
+        // A failed action gets Retry and Close Log in place of the follow-up
+        // buttons, which need a system that answered.
+        function showRowFailed(rowID, retry) {
+            rowRetry[rowID] = retry;
+            $('#' + rowID + '_doneButtons').hide();
+            $('#' + rowID + '_failButtons').show();
+        }
+
+        function retryRow(rowID) {
+            var retry = rowRetry[rowID];
+            clearRowResult(rowID);
+            if (retry) {
+                retry();
+            }
+        }
+
         /**
          * Runs a long action on several systems over ONE streaming request
          * (StreamJobs / streamRemoteJobs.php).  Over plain http the browser
@@ -3311,7 +3505,10 @@
             var heldLF = {};
             var failed = [];
 
+            var jobByID = {};
             jobs.forEach(function (job) {
+                jobByID[job.id] = job;
+                clearRowResult(job.id);
                 $('#' + job.id).find('input.remoteCheckbox').prop('checked', false);
                 streamCount++;
                 showLogsRow(job.id);
@@ -3344,6 +3541,12 @@
                         }
                     } else {
                         failed.push(ipFromRowID(rowID));
+                        // A retry runs alone, so it no longer waits on an origin.
+                        var job = Object.assign({}, jobByID[rowID]);
+                        delete job.after;
+                        var retryOpts = Object.assign({}, opts);
+                        delete retryOpts.waiting;
+                        showRowFailed(rowID, function () { runRemoteJobs([job], retryOpts); });
                     }
                     EnableDisableStreamButtons();
                 },
@@ -3436,9 +3639,10 @@
             EnableDisableStreamButtons();
         }
 
-        function actionFailed(id) {
+        function actionFailed(id, url) {
             id = id.replace('_logText', '');
             var ip = ipFromRowID(id);
+            showRowFailed(id, function () { queueQuickStream(url, id); });
 
             alert('Action failed for FPP system at ' + ip);
 
@@ -3457,6 +3661,7 @@
         var quickStreamQueue = [];
 
         function queueQuickStream(url, rowID) {
+            clearRowResult(rowID);
             streamCount++;
             EnableDisableStreamButtons();
 
@@ -3476,9 +3681,10 @@
                 };
             };
             while (quickStreamActive < quickStreamLimit && quickStreamQueue.length) {
-                var q = quickStreamQueue.shift();
+                const q = quickStreamQueue.shift();
                 quickStreamActive++;
-                StreamURL(q.url, q.rowID + '_logText', settle(actionDone), settle(actionFailed));
+                StreamURL(q.url, q.rowID + '_logText', settle(actionDone),
+                    settle(function (id) { actionFailed(id, q.url); }));
             }
         }
 
@@ -4286,6 +4492,7 @@
     <script>
 
         $(document).ready(function () {
+            keepSystemsScrollAnchor();
 
             // Channel I/O icon tooltip popovers
             var activePopover = null;

@@ -34,11 +34,15 @@ public:
     virtual void GetRequiredChannelRange(int& min, int& max) override;
 
     virtual const std::string& GetOutputTypeString() const override;
+    virtual void FrameSent() override;
 
     int universe;
     int universeCount;
     int priority;
     char sequenceNumber;
+    // what sequenceNumber becomes once the prepared frame is sent (FrameSent())
+    char pendingSequenceNumber = 1;
+    bool sequencePending = false;
 
     sockaddr_in anAddress;
 

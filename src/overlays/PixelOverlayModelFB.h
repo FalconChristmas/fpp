@@ -23,6 +23,11 @@ public:
     virtual void doOverlay(uint8_t* channels) override;
     virtual void setData(const uint8_t* data) override;
 
+protected:
+    // A framebuffer has no output channels, so no cell of it is in the
+    // channel-keyed display layout.
+    uint32_t outputChannelForData(uint32_t dataOffset) const override;
+
 private:
     FrameBuffer* fb = nullptr;
     bool displayEnabled = false;

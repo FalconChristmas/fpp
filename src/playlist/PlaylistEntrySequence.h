@@ -41,6 +41,7 @@ public:
     virtual uint64_t GetElapsedMS() override;
 
     void disableAdjustTiming() { m_adjustTiming = false; }
+    void setAdjustTiming(bool adjust) { m_adjustTiming = adjust; }
 
     const std::string& GetSequenceName(void) const { return m_sequenceName; }
 

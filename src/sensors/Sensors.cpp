@@ -476,18 +476,28 @@ void Sensors::Init(std::map<int, std::function<bool(int)>>& callbacks) {
 }
 
 void Sensors::addSensorSources(Json::Value& config) {
+    if (!config.isArray()) {
+        return;
+    }
     for (int x = 0; x < config.size(); x++) {
-        Json::Value v = config[x];
-        std::string type = v["type"].asString();
+        // Read from the cape's config at startup: a source with a value of the
+        // wrong JSON type is skipped, as addSensors() does, not thrown on.
         SensorSource* ss = nullptr;
-        if (type == "ads7828" || type == "ads7830") {
-            ss = new ADS7828Sensor(v);
-        } else if (type == "iio") {
-            ss = new IIOSensorSource(v);
-        } else if (type == "mux") {
-            ss = new MuxSensorSource(v);
-        } else if (type == "multi") {
-            ss = new MultiSensorSource(v);
+        try {
+            Json::Value v = config[x];
+            std::string type = v["type"].asString();
+            if (type == "ads7828" || type == "ads7830") {
+                ss = new ADS7828Sensor(v);
+            } else if (type == "iio") {
+                ss = new IIOSensorSource(v);
+            } else if (type == "mux") {
+                ss = new MuxSensorSource(v);
+            } else if (type == "multi") {
+                ss = new MultiSensorSource(v);
+            }
+        } catch (const std::exception& e) {
+            WarningHolder::InvalidConfigEntry("sensorSources", e.what());
+            continue;
         }
         if (ss && ss->isOK()) {
             sensorSources.push_back(ss);
@@ -723,11 +733,21 @@ Sensor* Sensors::createSensor(Json::Value& s) {
 }
 
 void Sensors::addSensors(Json::Value& config) {
+    if (!config.isArray()) {
+        return;
+    }
     for (int x = 0; x < config.size(); x++) {
-        Json::Value v = config[x];
-        Sensor* sensor = createSensor(v);
-        if (sensor) {
-            sensors.push_back(sensor);
+        // A sensor with a value of the wrong JSON type threw out of its
+        // constructor at startup, to std::terminate; skip that one.  The
+        // constructors read all their fields before doing anything.
+        try {
+            Json::Value v = config[x];
+            Sensor* sensor = createSensor(v);
+            if (sensor) {
+                sensors.push_back(sensor);
+            }
+        } catch (const std::exception& e) {
+            WarningHolder::InvalidConfigEntry("sensors", e.what());
         }
     }
 }

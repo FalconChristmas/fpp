@@ -18,6 +18,7 @@
 #define HAS_KMS_FB
 
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -96,15 +97,15 @@ private:
     // since been deleted. The handler resolves the token through FLIP_TARGETS
     // and drops one that no longer names a live instance. Never reused.
     uint32_t m_flipToken = 0;
-    static std::map<uint32_t, KMSFrameBuffer*> FLIP_TARGETS; // guarded by mediaOutputLock
-    static uint32_t NEXT_FLIP_TOKEN;                          // guarded by mediaOutputLock
+    static std::map<uint32_t, KMSFrameBuffer*> FLIP_TARGETS; // guarded by drmMasterLock
+    static uint32_t NEXT_FLIP_TOKEN;                          // guarded by drmMasterLock
 
     // True while a drmModePageFlip has been queued but its vblank completion
-    // event has not yet been drained.  Guarded by mediaOutputLock (only touched
+    // event has not yet been drained.  Guarded by drmMasterLock (only touched
     // from SyncDisplay / WaitForPendingFlip, both of which hold that lock).
     bool m_flipPending = false;
 
-    // Flip-path health counters (guarded by mediaOutputLock like m_flipPending).
+    // Flip-path health counters (guarded by drmMasterLock like m_flipPending).
     // Logged rate-limited at Warn so brief output hitches are visible without
     // debug logging: a stutter on the panel with these counters unchanged means
     // the delay is NOT in the KMS flip path.
@@ -134,6 +135,49 @@ private:
     uint32_t m_phaseNudges = 0;
 
     CardInfo* m_cardInfo = nullptr;
+
+    // Display hotplug.  A KMS client that is DRM master owns recovery after a
+    // sink disconnects and comes back: the kernel keeps the CRTC scanning out
+    // and keeps accepting page flips, but nothing restarts the link, and some
+    // sinks (projectors in particular) stay black until a full modeset.  A
+    // thread listens for the kernel's DRM hotplug uevents, re-probes this
+    // output's connector, and redoes the modeset when the sink returns.
+    static void StartHotplugMonitor();
+    static void StopHotplugMonitor();
+    static void HotplugMonitorLoop(int sock, int wakeFd);
+    // onlyAbsent: re-probe just the outputs that have no display (the periodic
+    // recheck), leaving the others - and their EDID reads - alone.
+    static void HandleHotplug(const std::string& cardPath, const std::set<uint32_t>& connectorIds, bool onlyAbsent);
+    static bool SinkPresent(int fd, drmModeConnectorPtr conn);
+    static bool PickMode(drmModeConnectorPtr conn, drmModeModeInfo& mode);
+    static drmModeConnectorPtr ProbeConnectorLocked(int fd, uint32_t connectorId);
+    // Full off/on modeset of this output; caller holds drmMasterLock.
+    void RestartDisplayLocked();
+
+    // A media pipeline's kmssink holds this connector (DrmCards.h).
+    bool MediaHoldsConnector() const;
+    // While it does, our plane shows this black buffer instead of the last
+    // frame, which would otherwise show around a letterboxed video.  Made on
+    // first use; m_mediaBlanked says it is up.  Both under drmMasterLock.
+    DumbBuffer m_blankFb = {};
+    bool m_mediaBlanked = false;
+    void BlankForMediaLocked();
+    // Light the CRTC in m_mode and show the current page on our plane.  Caller
+    // holds drmMasterLock and DRM master.  Returns the plane commit's result.
+    int ModesetLocked();
+
+    // Set (under drmMasterLock) once InitializeFrameBuffer() has filled in the
+    // card/connector/CRTC, cleared again before DestroyFrameBuffer() releases
+    // them; the hotplug thread only looks at instances with it set.
+    bool m_hotplugReady = false;
+    // Whether a display was there at the last probe (see SinkPresent()).
+    // False from the start when the output came up without one, running the
+    // stand-in mode.
+    bool m_sinkPresent = false; // guarded by drmMasterLock
+    // Whether the "no display" warning is up for this output; moves with
+    // m_sinkPresent, both only through SetSinkPresentLocked().
+    bool m_noDisplayWarned = false; // guarded by drmMasterLock
+    void SetSinkPresentLocked(bool present);
 };
 
 #endif

@@ -4702,6 +4702,12 @@ pre.release-notes-body {
 	--fpp-pop-fade-start: 0;
 	--fpp-pop-fade-end: 0;
 }
+/* The Plugins page's top tabs and category pills scroll sideways on a phone
+   too, and get the same fade (UpdateScrollRowFade() in plugins.php). */
+.pluginScrollRow {
+	--fpp-pop-fade-start: 0;
+	--fpp-pop-fade-end: 0;
+}
 /* Edge fade marking that more cards exist off-screen. Overlay scrollbars are
    invisible until you scroll (macOS/iOS/Android), so the scrollbar is not an
    affordance -- this is. Masked rather than overlaid with a gradient because a
@@ -4712,7 +4718,9 @@ pre.release-notes-body {
    .is-scrollable-start/.is-scrollable-end, which also gate the mask entirely so
    a non-overflowing strip gets no compositing layer and no soft edge. */
 .pluginPopularScroll.is-scrollable-start,
-.pluginPopularScroll.is-scrollable-end {
+.pluginPopularScroll.is-scrollable-end,
+.pluginScrollRow.is-scrollable-start,
+.pluginScrollRow.is-scrollable-end {
 	-webkit-mask-image: linear-gradient(to right,
 			transparent 0,
 			black var(--fpp-pop-fade-start),
@@ -4724,10 +4732,12 @@ pre.release-notes-body {
 			black calc(100% - var(--fpp-pop-fade-end)),
 			transparent 100%);
 }
-.pluginPopularScroll.is-scrollable-start {
+.pluginPopularScroll.is-scrollable-start,
+.pluginScrollRow.is-scrollable-start {
 	--fpp-pop-fade-start: 2rem;
 }
-.pluginPopularScroll.is-scrollable-end {
+.pluginPopularScroll.is-scrollable-end,
+.pluginScrollRow.is-scrollable-end {
 	--fpp-pop-fade-end: 2rem;
 }
 .pluginPopularScroll > .pluginPopularCard {

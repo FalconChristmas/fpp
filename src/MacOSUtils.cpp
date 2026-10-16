@@ -13,11 +13,15 @@
 #include "fpp-pch.h"
 
 #include <getopt.h>
+#include <algorithm>
+#include <cstddef>
 #include <map>
+#include <mutex>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <vector>
 
 #include "settings.h"
 
@@ -109,33 +113,50 @@ extern OSStatus AudioDeviceGetProperty(AudioDeviceID inDevice, UInt32 inChannel,
                                        UInt32* ioPropertyDataSize, void* outPropertyData);
 }
 
+constexpr OSStatus kAudioNoErr = 0;
+
 bool hasOutputChannels(AudioDeviceID id) {
     UInt32 outputChannelCount = 0;
-    UInt32 sz;
-    AudioDeviceGetPropertyInfo(id, 0, false,
-                               kAudioDevicePropertyStreamConfiguration,
-                               &sz, nullptr);
-    if (sz > 8) {
+    // CoreAudio leaves the size untouched when a call fails (a device unplugged
+    // since the list was read), so it starts at 0; and the list is walked only
+    // as far as the bytes actually returned, not as far as mNumberBuffers
+    // claims, which is the driver's word and was read past the allocation.
+    UInt32 sz = 0;
+    if (AudioDeviceGetPropertyInfo(id, 0, false,
+                                   kAudioDevicePropertyStreamConfiguration,
+                                   &sz, nullptr) != kAudioNoErr) {
+        return false;
+    }
+    if (sz > offsetof(AudioBufferList, mBuffers)) {
         AudioBufferList* bufferList = (AudioBufferList*)malloc(sz);
-        AudioDeviceGetProperty(id, 0, false,
-                               kAudioDevicePropertyStreamConfiguration,
-                               &sz, bufferList);
-
-        for (int c = 0; c < bufferList->mNumberBuffers; c++) {
-            outputChannelCount += bufferList->mBuffers[c].mNumberChannels;
+        if (bufferList == nullptr) {
+            return false;
+        }
+        if (AudioDeviceGetProperty(id, 0, false,
+                                   kAudioDevicePropertyStreamConfiguration,
+                                   &sz, bufferList) == kAudioNoErr &&
+            sz > offsetof(AudioBufferList, mBuffers)) {
+            size_t fits = (sz - offsetof(AudioBufferList, mBuffers)) / sizeof(AudioBuffer);
+            size_t count = std::min((size_t)bufferList->mNumberBuffers, fits);
+            for (size_t c = 0; c < count; c++) {
+                outputChannelCount += bufferList->mBuffers[c].mNumberChannels;
+            }
         }
         free(bufferList);
     }
     return outputChannelCount > 0;
 }
 
+// The volume is set from the media worker and read from the HTTP threads, and
+// both look the device up here.
+static std::mutex OUT_DEVICE_LOCK;
 static std::map<std::string, AudioDeviceID> OUT_DEVICE_MAP;
 
 static AudioDeviceID getAudioDeviceID(const char* deviceName) {
     std::string dn = deviceName;
+    std::lock_guard<std::mutex> lock(OUT_DEVICE_LOCK);
     if (OUT_DEVICE_MAP.find(dn) == OUT_DEVICE_MAP.end()) {
-        UInt32 propertySize;
-        int numberOfDevices = 0;
+        UInt32 propertySize = 0;
         AudioObjectID defaultID = kAudioObjectSystemObject;
 
         // Get address for all hardware devices
@@ -146,18 +167,26 @@ static AudioDeviceID getAudioDeviceID(const char* deviceName) {
         };
 
         // Retreive property size within devices address
-        AudioObjectGetPropertyDataSize(defaultID, &devicesAddress, 0, nullptr, &propertySize);
+        std::vector<AudioDeviceID> ids;
+        if (AudioObjectGetPropertyDataSize(defaultID, &devicesAddress, 0, nullptr, &propertySize) == kAudioNoErr) {
+            ids.resize(propertySize / sizeof(AudioObjectID));
+        }
 
-        numberOfDevices = propertySize / sizeof(AudioObjectID);
-        std::vector<AudioDeviceID> ids(numberOfDevices);
+        // Populate ids from devices address.  The list can shrink between the
+        // two calls, so keep only what was written.
+        if (!ids.empty()) {
+            propertySize = ids.size() * sizeof(AudioObjectID);
+            if (AudioObjectGetPropertyData(defaultID, &devicesAddress, 0, nullptr, &propertySize, ids.data()) == kAudioNoErr) {
+                ids.resize(std::min(ids.size(), (size_t)(propertySize / sizeof(AudioObjectID))));
+            } else {
+                ids.clear();
+            }
+        }
 
-        // Populate ids from devices address
-        AudioObjectGetPropertyData(defaultID, &devicesAddress, 0, nullptr, &propertySize, &ids[0]);
-
-        for (int i = 0; i < numberOfDevices; i++) {
+        for (size_t i = 0; i < ids.size(); i++) {
             if (hasOutputChannels(ids[i])) {
-                UInt32 nameSize = 256;
                 char name[256];
+                UInt32 nameSize = sizeof(name) - 1;
 
                 AudioObjectPropertyAddress deviceNameAddress = {
                     kAudioDevicePropertyDeviceName,
@@ -165,8 +194,12 @@ static AudioDeviceID getAudioDeviceID(const char* deviceName) {
                     kAudioObjectPropertyElementMain
                 };
 
-                // Get device name from id
-                AudioObjectGetPropertyData(ids[i], &deviceNameAddress, 0, nullptr, &nameSize, (char*)name);
+                // Get device name from id.  Nothing promises a terminator
+                // within the size given, and a failed call writes nothing.
+                if (AudioObjectGetPropertyData(ids[i], &deviceNameAddress, 0, nullptr, &nameSize, (char*)name) != kAudioNoErr) {
+                    continue;
+                }
+                name[std::min(nameSize, (UInt32)(sizeof(name) - 1))] = 0;
                 // Check if names match
                 if (strcmp(deviceName, (char*)name) == 0) {
                     OUT_DEVICE_MAP[dn] = ids[i];
@@ -180,8 +213,12 @@ static AudioDeviceID getAudioDeviceID(const char* deviceName) {
             kAudioObjectPropertyScopeGlobal,
             kAudioObjectPropertyElementMain
         };
-        unsigned int didSize = sizeof(defaultID);
-        AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &deviceAddress, 0, nullptr, &didSize, &defaultID);
+        UInt32 didSize = sizeof(defaultID);
+        if (AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &deviceAddress, 0, nullptr, &didSize, &defaultID) != kAudioNoErr) {
+            // not cached, so the next call asks again rather than keeping the
+            // system object as this name's device until fppd restarts
+            return kAudioObjectSystemObject;
+        }
         OUT_DEVICE_MAP[dn] = defaultID;
     }
     return OUT_DEVICE_MAP[dn];

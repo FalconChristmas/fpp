@@ -291,6 +291,16 @@ constexpr int PTP_GENERAL_PORT           = 320;
 // the live path to the clock and must not be reported as if it were.
 constexpr int PTP_ANNOUNCE_STALE_MS      = 10000;
 
+// Anything on the LAN can send Announce and SAP packets, and each one with a
+// new identity used to add an entry that only aged out minutes later -- a
+// flood of made-up ones grew both maps until the board ran out of memory.
+// A real domain has a handful of masters and a real network a few dozen
+// streams; past these caps the entry heard from longest ago makes room.
+constexpr size_t MAX_PTP_ANNOUNCE_SOURCES = 32;
+constexpr size_t MAX_SAP_DISCOVERED       = 256;
+// SDP fields kept from an announcement, which can be up to a datagram long.
+constexpr size_t MAX_SAP_FIELD_LEN        = 256;
+
 constexpr const char* DEFAULT_MULTICAST_IP = "239.69.0.1";
 constexpr const char* AUDIO_FORMAT         = "S24BE";
 constexpr const char* SAP_MCAST_ADDRESS    = "239.255.255.255";
@@ -902,6 +912,10 @@ struct AES67Pipeline {
     // Pipeline state
     bool running = false;
     std::string errorMessage;
+    // Posted an ERROR on its bus.  The pipeline stays in PLAYING with its
+    // streaming stopped and says so only once, so the watchdog keeps this
+    // until the rebuild replaces the pipeline.
+    bool busError = false;
 
     // Buffer-drop probe: while > 0, the probe drops buffers and subtracts
     // each one's duration.  Used by FlushSendPipelines() to discard stale
@@ -963,6 +977,7 @@ struct AES67Pipeline {
     std::chrono::steady_clock::time_point lastByteTime{};
     int     lowRateCount = 0;
     int     channels = AES67::DEFAULT_CHANNELS;  // for the expected byte rate
+    int     ptime = AES67::DEFAULT_PTIME_MS;     // packets/s, for the header bytes in it
     bool    pacingTuned = false;         // latency-derived shift applied yet?
 };
 
@@ -1070,43 +1085,17 @@ public:
     };
     std::vector<TestResult> RunSelfTest();
 
-    // Signal from fppd that PipeWire is ready (called after PipeWire restart)
-    void OnPipeWireReady();
-
     // Check if manager is active
     bool IsActive() const { return m_active.load(); }
 
-    // Returns true if there are active AES67 send instances that want
-    // zero-hop direct RTP branches from media pipelines.
-    bool HasActiveSendInstances();
-
-    // Zero-hop optimization (7.9): Attach RTP send branches directly to an
-    // existing GStreamer tee element inside a media pipeline, bypassing the
-    // PipeWire→pipewiresrc→AES67 path for lower latency.
-    //
-    // For each active send instance, creates:
-    //   queue → audioconvert → S24BE,48kHz,Nch caps → rtpL24pay → udpsink
-    // and links it as a new branch on the tee.
-    //
-    // Returns a list of GstElement* branch entry queues (one per send instance).
-    // The caller must call DetachInlineRTPBranches() before destroying the pipeline.
+    // A zero-hop RTP branch on a media pipeline's tee.  The branches are
+    // disabled (see GStreamerOutput::AttachAES67Branches()); the type stays
+    // for that member.
     struct InlineRTPBranch {
         int instanceId;
         GstElement* queue = nullptr;     // branch entry point (added to caller's bin)
         GstPad* teeSrcPad = nullptr;     // requested pad on tee (must be released)
     };
-    std::vector<InlineRTPBranch> AttachInlineRTPBranches(GstElement* pipeline, GstElement* tee);
-
-    // Detach and clean up inline RTP branches attached by AttachInlineRTPBranches.
-    void DetachInlineRTPBranches(GstElement* pipeline, std::vector<InlineRTPBranch>& branches);
-
-    // Pause/resume standalone send pipelines.
-    // Called by GStreamerOutput so that send pipelines only run PLAYING
-    // while media is actually being played, preventing digital noise on
-    // the AES67 output when nothing is playing (pipewiresrc would capture
-    // uninitialized data from the idle PipeWire node).
-    void PauseSendPipelines();
-    void ResumeSendPipelines();
     void FlushSendPipelines();
 
     AES67Manager();
@@ -1146,8 +1135,36 @@ private:
     bool m_ptpInitialized = false;
     pid_t m_ptp4lPid = -1;               // ptp4l child process ID
     pid_t m_phc2sysPid = -1;             // phc2sys child process ID
+    // pidfds for the two, or -1 (no pidfd support).  fppd's SA_NOCLDWAIT
+    // reaps a child the moment it exits, so its PID can be reused at once;
+    // a pidfd always refers to our child, where kill(pid) could hit
+    // whatever took the number.
+    int m_ptp4lPidfd = -1;
+    // ptp4l is running with hardware timestamping, i.e. disciplining the
+    // NIC's PHC.  With software timestamping it disciplines CLOCK_REALTIME
+    // and leaves the PHC free-running, so only this makes the PHC the
+    // domain's time.
+    std::atomic<bool> m_ptpHwTimestamping{false};
+    int m_phc2sysPidfd = -1;
+    void ForgetPtp4l();
     std::string m_ptpConfPath;           // temp config file for ptp4l
     bool InitPTP();
+    // Wait (up to ptpLockWaitMs) for the clock to settle before the streams
+    // anchor to it, and record whether it did.  Part of InitPTP(), and run on
+    // its own when a rebuild keeps the running ptp4l.
+    void AnchorToPtpLock();
+    // What the running ptp4l was started with.  A rebuild that leaves these
+    // alone keeps it: restarting it drops every receiver in the domain off
+    // the clock, and with this box as grandmaster that is all of them.
+    struct PtpParams {
+        std::string interface;
+        int domain = 0;
+        std::string role;
+        bool operator==(const PtpParams& o) const {
+            return interface == o.interface && domain == o.domain && role == o.role;
+        }
+    };
+    PtpParams m_ptpStartedWith;
     void ShutdownPTP();
     bool IsPtp4lRunning() const;         // check if ptp4l process is alive
     std::string GetPTPClockId();         // EUI-64 from interface MAC (this node's own identity)
@@ -1194,7 +1211,7 @@ private:
     // Restart ptp4l/phc2sys if they have died (link flap, OOM, manual kill),
     // and notice a PTP clock that has stepped out from under the pipelines'
     // RTP anchors.  Returns true when the caller should rebuild everything.
-    // Called from the SAP announce loop alongside the pipeline watchdog.
+    // Called from WatchdogLoop() alongside the pipeline watchdog.
     bool CheckPtpWatchdog();
 
     // Retract WARNING_PTP_NO_LOCK once the clock it complains about has
@@ -1324,17 +1341,39 @@ private:
     std::atomic<bool> m_driftRunning{false};
     void DriftControlLoop();
 
-    // Pipeline watchdog — called from SAP thread to poll bus messages
+    // Pipeline watchdog — called from WatchdogLoop() to poll bus messages
     // and restart any pipeline that isn't in PLAYING state.
     // Returns true if a full pipeline rebuild is needed.
     bool PollPipelinesWatchdog();
+    // Rebuilds asked for by bus errors, for the backoff.  A rebuild restarts
+    // ptp4l for the whole domain, so an error that comes straight back must
+    // not do that every pass.  Watchdog thread only.
+    int m_errorRebuilds = 0;
+    // PTP enabled but not running (its start, or a watchdog restart, failed):
+    // when the watchdog tries again, backing off 30s..5min.  Watchdog thread
+    // only; reset by a successful start.
+    std::chrono::steady_clock::time_point m_ptpRetryAt{};
+    int m_ptpRetryDelayS = 0;
+    std::chrono::steady_clock::time_point m_lastErrorRebuild{};
 
-    // Deferred pipeline-rebuild thread — spawned by SAPAnnounceLoop()'s
+    // Deferred pipeline-rebuild thread — spawned by WatchdogLoop()'s
     // watchdog rebuild path to call ApplyConfig() from a thread other than
     // the one ApplyConfig() needs to join (m_sapAnnounceThread).  Tracked
     // as a member (rather than detached) so Shutdown() can join it before
-    // tearing anything else down -- see Shutdown() and SAPAnnounceLoop().
+    // tearing anything else down -- see Shutdown() and WatchdogLoop().
     std::thread m_rebuildThread;
+
+    // Rebuild bookkeeping.  m_rebuildMutex guards m_rebuildThread.  A rebuild
+    // is scheduled with the apply generation it was asked for and runs only
+    // if nothing has applied, cleaned up or shut down since (see
+    // ScheduleRebuild()); m_stopping is set once by Shutdown() and keeps
+    // ApplyConfig() from bringing anything back after it.
+    std::mutex m_rebuildMutex;
+    std::atomic<bool> m_rebuildRunning{false};
+    std::atomic<bool> m_stopping{false};
+    std::atomic<uint64_t> m_applyGeneration{0};
+    void ScheduleRebuild();
+    bool ApplyConfigLocked();
 
     // Serializes the whole tear-down/rebuild sequence in ApplyConfig(),
     // Shutdown() and Cleanup().  ApplyConfig() joins the SAP threads at the
@@ -1376,6 +1415,12 @@ private:
     std::thread m_sapAnnounceThread;
     std::atomic<bool> m_sapAnnounceRunning{false};
     void SAPAnnounceLoop();
+
+    // Recovery and PTP supervision; see WatchdogLoop().
+    std::thread m_watchdogThread;
+    std::atomic<bool> m_watchdogRunning{false};
+    void WatchdogLoop();
+    void StopWorkerThreads();
     std::string BuildSDP(const AES67Instance& inst, const std::string& sourceIP,
                          const std::string& ptpClockId, uint32_t sdpVersion);
     std::vector<uint8_t> BuildSAPPacket(const std::string& sourceIP,
@@ -1418,13 +1463,13 @@ private:
     std::thread m_sapRecvThread;
     std::atomic<bool> m_sapRecvRunning{false};
     void SAPReceiveLoop();
-    std::map<uint16_t, SAPDiscoveredStream> m_discoveredStreams;
+    // Keyed by (origin address, message id hash): RFC 2974 identifies an
+    // announcement by both, and the 16-bit hash alone collides between
+    // senders.
+    std::map<std::pair<std::string, uint16_t>, SAPDiscoveredStream> m_discoveredStreams;
     std::mutex m_discoveredMutex;
     void HandleSAPPacket(const uint8_t* data, size_t len,
                          const std::string& senderAddr);
-
-    // GStreamer bus callback
-    static gboolean OnBusMessage(GstBus* bus, GstMessage* msg, gpointer userData);
 
     // State
     std::atomic<bool> m_active{false};

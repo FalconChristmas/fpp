@@ -11,9 +11,30 @@
  * included LICENSE.LGPL file.
  */
 
+#include <cstdint>
+
+// A serial port that is not a kernel tty: a PRU sending on a GPIO pin, for a
+// header pin with no UART transmit.  SerialAttachBackend() takes ownership and
+// returns an fd that stands for it in the calls below, so an output written
+// against them drives either kind of port.  SerialClose() releases it; it is
+// deleted once no call is still using it.
+class SerialPortBackend {
+public:
+    virtual ~SerialPortBackend() {}
+    // queues up to len bytes, waiting up to timeoutMs for room; returns the
+    // number queued
+    virtual int write(const uint8_t* data, int len, int timeoutMs) = 0;
+    // holds the line low for us microseconds, then marks before what follows
+    virtual void sendBreak(int us) = 0;
+    virtual bool waitDrained(int timeoutMs) = 0;
+};
+int SerialAttachBackend(SerialPortBackend* backend);
+
 int SerialOpen(const char* device, int baud, const char* mode, bool output = true);
 int SerialOpen(const char* device, int baud, const char* mode, bool output, bool configurePin, const char* desc);
 int SerialClose(int fd);
+// True when device (after resolving links) is the active kernel console.
+bool SerialIsConsole(const char* device);
 int SerialSendBreak(int fd, int duration);
 
 // The ports are opened O_NONBLOCK, so a plain write() of a frame larger than
@@ -26,3 +47,6 @@ int SerialWriteAll(int fd, const void* data, int len, int timeoutMs);
 // Returns false on timeout.
 bool SerialWaitDrained(int fd, int timeoutMs);
 int SerialResetRTS(int fd);
+// write() for an output that must not wait: sends what fits now and returns
+// the bytes taken, as a plain write() to a non-blocking tty does
+int SerialWrite(int fd, const void* data, int len);

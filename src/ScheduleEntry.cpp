@@ -16,13 +16,17 @@
 
 #include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
 
+#include <cerrno>
+#include <cmath>
 #include <ctime>
 #include <ctype.h>
 #include <math.h>
 #include <memory>
+#include <mutex>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "FPPLocale.h"
@@ -34,10 +38,84 @@
 
 #include "ScheduleEntry.h"
 
-static time_t GetTimeOnDOW(int day, int hour, int minute, int second) {
-    time_t currTime = time(NULL);
+static std::mutex s_loadWarningsLock;
+static std::vector<std::pair<int, std::string>> s_loadWarnings;
+
+// The innermost SchedulePreviewScope on this thread, if any.
+static thread_local SchedulePreviewScope* s_previewScope = nullptr;
+
+SchedulePreviewScope::SchedulePreviewScope() :
+    m_prev(s_previewScope) {
+    s_previewScope = this;
+}
+
+SchedulePreviewScope::~SchedulePreviewScope() {
+    s_previewScope = m_prev;
+}
+
+void ScheduleLoadWarning(int id, const std::string& msg) {
+    if (s_previewScope) {
+        // A preview expansion (the calendar) is not a load: nothing here
+        // would ever retract a banner it raised, and a year the viewer merely
+        // browsed to is not one the scheduler will run.
+        LogDebug(VB_SCHEDULE, "Schedule preview: %s\n", msg.c_str());
+        for (auto& w : s_previewScope->m_warnings) {
+            if ((w.first == id) && (w.second == msg))
+                return;
+        }
+        s_previewScope->m_warnings.emplace_back(id, msg);
+        return;
+    }
+    WarningHolder::AddWarning(id, msg);
+    std::lock_guard<std::mutex> l(s_loadWarningsLock);
+    for (auto& w : s_loadWarnings) {
+        if ((w.first == id) && (w.second == msg))
+            return;
+    }
+    s_loadWarnings.emplace_back(id, msg);
+}
+
+void ClearScheduleLoadWarnings() {
+    std::vector<std::pair<int, std::string>> old;
+    {
+        std::lock_guard<std::mutex> l(s_loadWarningsLock);
+        old.swap(s_loadWarnings);
+    }
+    for (auto& w : old) {
+        WarningHolder::RemoveWarning(w.first, w.second);
+    }
+}
+
+// Days since 1970-01-01 for a proleptic Gregorian civil date (Howard
+// Hinnant's days_from_civil).  Pure calendar arithmetic: no time zone, no DST.
+static long DaysFromCivil(long y, unsigned m, unsigned d) {
+    y -= m <= 2;
+    const long era = (y >= 0 ? y : y - 399) / 400;
+    const unsigned yoe = (unsigned)(y - era * 400);
+    const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+    const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    return era * 146097 + (long)doe - 719468;
+}
+
+// The inverse of DaysFromCivil (Hinnant's civil_from_days).
+static void CivilFromDays(long z, int& y, int& m, int& d) {
+    z += 719468;
+    const long era = (z >= 0 ? z : z - 146096) / 146097;
+    const unsigned doe = (unsigned)(z - era * 146097);
+    const unsigned yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    const unsigned doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    const unsigned mp = (5 * doy + 2) / 153;
+    d = (int)(doy - (153 * mp + 2) / 5 + 1);
+    m = (int)(mp < 10 ? mp + 3 : mp - 9);
+    y = (int)(yoe + era * 400 + (m <= 2));
+}
+
+// 'base' is the schedule load's single "now".  Reading the clock here, per
+// call, let a load that ran across midnight anchor an occurrence's start to
+// one week and its end to the next (Saturday->Sunday): a week-long window.
+static time_t GetTimeOnDOW(time_t base, int day, int hour, int minute, int second) {
     struct tm now;
-    localtime_r(&currTime, &now);
+    localtime_r(&base, &now);
 
     // 'day' is an offset relative to Sunday of the current week so our
     // new mday is adjusted by the current day of the week we are on now
@@ -158,7 +236,9 @@ void ScheduleEntry::CalculateChineseNewYear(int year, int& month, int& day) {
         }
     }
     
-    // Default fallback if year not in table
+    // Not in the table: say so rather than silently scheduling on a made-up
+    // date.  The table needs extending for later years.
+    ScheduleLoadWarning(47, "Schedule: no Chinese New Year date known for " + std::to_string(year) + "; FPP's table needs updating");
     month = 2;
     day = 1;
 }
@@ -201,7 +281,9 @@ void ScheduleEntry::CalculateHebrewDate(int year, const std::string& hebrewMonth
         }
     }
     
-    // Default fallback
+    // Not in the table (or not a date it covers): say so rather than silently
+    // scheduling on Jan 1.
+    ScheduleLoadWarning(47, "Schedule: no Hebrew calendar date known for " + std::to_string(year) + "; FPP's table needs updating");
     month = 1;
     day = 1;
 }
@@ -210,18 +292,25 @@ void ScheduleEntry::CalculateIslamicDate(int year, int islamicMonth, int islamic
     // Simplified Islamic calendar conversion
     // Islamic calendar moves ~11 days earlier each year
     
-    // Ramadan (month 9) approximate start dates for 2024-2035
+    // Ramadan (month 9) approximate start dates for 2024-2035.  The Islamic
+    // year is ~354 days, so in 2030 Ramadan starts twice (January 6 and
+    // December 26); the table holds the first.  2031-2035 used to hold the
+    // previous Gregorian year's second date (Ramadan 2032 on December 15
+    // rather than the 4th); these are the tabular Islamic calendar's dates,
+    // which observation can move by a day.
     int ramadanDates[][3] = {
         {2024, 3, 11}, {2025, 3, 1}, {2026, 2, 18}, {2027, 2, 8},
-        {2028, 1, 28}, {2029, 1, 17}, {2030, 1, 6}, {2031, 12, 26},
-        {2032, 12, 15}, {2033, 12, 5}, {2034, 11, 24}, {2035, 11, 14}
+        {2028, 1, 28}, {2029, 1, 17}, {2030, 1, 6}, {2031, 12, 15},
+        {2032, 12, 4}, {2033, 11, 23}, {2034, 11, 12}, {2035, 11, 2}
     };
     
-    // Eid al-Fitr (month 10, day 1) - approximately 30 days after Ramadan
+    // Eid al-Fitr (month 10, day 1) - approximately 30 days after Ramadan.
+    // 2033 has two (January 3 and December 23); the table holds the first.
+    // 2034 and 2035 used to hold the previous year's second date.
     int eidFitrDates[][3] = {
         {2024, 4, 10}, {2025, 3, 31}, {2026, 3, 20}, {2027, 3, 10},
         {2028, 2, 27}, {2029, 2, 16}, {2030, 2, 5}, {2031, 1, 25},
-        {2032, 1, 14}, {2033, 1, 3}, {2034, 12, 24}, {2035, 12, 13}
+        {2032, 1, 14}, {2033, 1, 3}, {2034, 12, 12}, {2035, 12, 2}
     };
     
     if (islamicMonth == 9 && islamicDay == 1) {
@@ -244,7 +333,9 @@ void ScheduleEntry::CalculateIslamicDate(int year, int islamicMonth, int islamic
         }
     }
     
-    // Default fallback
+    // Not in the table (or not a date it covers): say so rather than silently
+    // scheduling on Jan 1.
+    ScheduleLoadWarning(47, "Schedule: no Islamic calendar date known for " + std::to_string(year) + "; FPP's table needs updating");
     month = 1;
     day = 1;
 }
@@ -266,7 +357,8 @@ void ScheduleEntry::CalculateHinduDiwali(int year, int& month, int& day) {
         }
     }
     
-    // Default fallback
+    // Not in the table: say so rather than silently scheduling on Nov 1.
+    ScheduleLoadWarning(47, "Schedule: no Diwali date known for " + std::to_string(year) + "; FPP's table needs updating");
     month = 11;
     day = 1;
 }
@@ -298,7 +390,7 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday, int refYe
             month = c["month"].asInt();
             if ((month < 1) || (month > 12)) {
                 LogErr(VB_SCHEDULE, "Invalid month %d in holiday definition, using January\n", month);
-                WarningHolder::AddWarning(47, "Schedule: invalid month in holiday definition");
+                ScheduleLoadWarning(47, "Schedule: invalid month in holiday definition");
                 month = 1;
             }
             if (rollForward && (month < (now.tm_mon + 1)))
@@ -336,17 +428,12 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday, int refYe
 
             // We have Easter, see if we are looking for something offset from Easter
             if (offset != 0) {
-                time_t t = (365 * year) + (year / 4) - (year / 100) + (year / 400); // get years
-                t += (30 * month) + (3 * (month + 1) / 5) + (day + 1);              // add months and days
-                t -= 719561;                                                        // convert to epoch
-                t += offset;                                                        // apply our days offset
-                t *= 86400;                                                         // multiple to seconds
-
-                struct tm ts;
-                localtime_r(&t, &ts);
-
-                month = ts.tm_mon + 1;
-                day = ts.tm_mday;
+                // Calendar arithmetic, no time zone.  This used to build UTC
+                // midnight of the day after and convert with localtime(),
+                // which is right west of UTC and a day late east of it (UK
+                // Mothering Sunday, Easter - 21, came out a Monday).
+                int y = year;
+                CivilFromDays(DaysFromCivil(year, month, day) + offset, y, month, day);
             }
         } else if (type == "head") {
             day = ((dow + 7 - wday) % 7) + ((week - 1) * 7) + 1;
@@ -387,7 +474,7 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday, int refYe
                 CalculateHinduDiwali(year, month, day);
             } else {
                 LogErr(VB_SCHEDULE, "Unknown lunar calendar type %s\n", calendar.c_str());
-                WarningHolder::AddWarning(47, "Schedule: unknown lunar calendar type '" + calendar + "'");
+                ScheduleLoadWarning(47, "Schedule: unknown lunar calendar type '" + calendar + "'");
                 return "0000-00-00";
             }
             
@@ -413,7 +500,7 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday, int refYe
             }
         } else {
             LogErr(VB_SCHEDULE, "Unknown holiday calculation type %s\n", type.c_str());
-            WarningHolder::AddWarning(47, "Schedule: unknown holiday calculation type '" + type + "'");
+            ScheduleLoadWarning(47, "Schedule: unknown holiday calculation type '" + type + "'");
             return "0000-00-00";
         }
 
@@ -525,34 +612,64 @@ std::string ScheduleEntry::ResolveDate(const std::string& date, int offsetDays, 
     return resolved;
 }
 
+static int WallSeconds(int h, int m, int s) {
+    return (h * SECONDS_PER_HOUR) + (m * SECONDS_PER_MINUTE) + s;
+}
+
 static void mapTimeString(const std::string& tm, int& h, int& m, int& s) {
     if (!ParseTimeString(tm, h, m, s)) {
         LogErr(VB_SCHEDULE, "Invalid time '%s' in schedule, using midnight\n", tm.c_str());
-        WarningHolder::AddWarning(47, "Schedule: invalid time '" + tm + "'");
+        ScheduleLoadWarning(47, "Schedule: invalid time '" + tm + "'");
         h = 0;
         m = 0;
         s = 0;
     }
 }
 
-void ScheduleEntry::pushStartEndTimes(int dow, int& delta, int deltaThreshold) {
-    time_t startTime = GetTimeOnDOW(dow, startHour, startMinute, startSecond);
-    time_t endTime = GetTimeOnDOW(dow, endHour, endMinute, endSecond);
+void ScheduleEntry::pushStartEndTimes(int dow, int& delta, time_t deltaThreshold, time_t now) {
+    // Local copies, as in GetOccurrencesOnDate(): GetTimeFromSun() writes the
+    // day's resolved time into them, and writing it into the entry's own
+    // fields made each day start from the previous day's sun time.
+    int sh = startHour, sm = startMinute, ss = startSecond;
+    int eh = endHour, em = endMinute, es = endSecond;
+    time_t startTime = GetTimeOnDOW(now, dow, sh, sm, ss);
+    time_t endTime = GetTimeOnDOW(now, dow, eh, em, es);
 
     if (startTimeStr.find(":") == std::string::npos) {
-        GetTimeFromSun(startTime, startTimeStr, startTimeOffset, startHour, startMinute, startSecond);
+        GetTimeFromSun(startTime, startTimeStr, startTimeOffset, sh, sm, ss);
     }
     if (endTimeStr.find(":") == std::string::npos) {
-        GetTimeFromSun(endTime, endTimeStr, endTimeOffset, endHour, endMinute, endSecond);
+        GetTimeFromSun(endTime, endTimeStr, endTimeOffset, eh, em, es);
     }
-    if (endTime < startTime) {
-        endTime += 24 * 60 * 60;
+    // Decide "runs past midnight" from the wall-clock times, not the epoch
+    // times: on a DST change day those differ by an hour, and a 02:30 start
+    // on the spring-forward day normalizes to 03:30, past a 03:00 end, which
+    // turned a half-hour entry into a 23.5 hour one.  And build the next-day
+    // end with mktime rather than adding 86400, which is an hour off across
+    // the change.
+    // A sun-relative time can itself fall after midnight, so with one of
+    // those compare the actual times; the wall-clock test is for fixed times.
+    bool sunTimes = (startTimeStr.find(":") == std::string::npos) || (endTimeStr.find(":") == std::string::npos);
+    bool crossesMidnight = sunTimes ? (endTime < startTime)
+                                    : (WallSeconds(eh, em, es) < WallSeconds(sh, sm, ss));
+    if (crossesMidnight) {
+        endTime = GetTimeOnDOW(now, dow + 1, eh, em, es);
         if (endTimeStr.find(":") == std::string::npos) {
-            GetTimeFromSun(endTime, endTimeStr, endTimeOffset, endHour, endMinute, endSecond);
+            GetTimeFromSun(endTime, endTimeStr, endTimeOffset, eh, em, es);
         }
+    } else if (endTime < startTime) {
+        // Same-day window squeezed by the spring-forward gap.
+        endTime = startTime;
     }
 
-    if (endTime < time(NULL))
+    // A command occurrence has no duration (the UI saves endTime = startTime),
+    // so once its second passed it used to be dropped here -- by any reload in
+    // the same second or a few seconds later, which is exactly the stall or
+    // clock step the scheduler's command catch-up exists for.  Keep commands
+    // through the catch-up window; the scheduler's check window stops them
+    // firing twice.
+    time_t cutoff = playlist.empty() ? now - SCHEDULE_COMMAND_CATCHUP_S : now;
+    if (endTime < cutoff)
         return;
 
     if (!DateInRange(startTime, startDate, endDate)) {
@@ -561,8 +678,8 @@ void ScheduleEntry::pushStartEndTimes(int dow, int& delta, int deltaThreshold) {
 
     if (delta != 0) {
         // Only adjust if the threshold and start times are in the future
-        if (deltaThreshold > time(NULL)) {
-            if (deltaThreshold > startTime && startTime > time(NULL)) {
+        if (deltaThreshold > now) {
+            if (deltaThreshold > startTime && startTime > now) {
                 startTime += delta;
             }
 
@@ -576,9 +693,12 @@ void ScheduleEntry::pushStartEndTimes(int dow, int& delta, int deltaThreshold) {
     }
 
     if ((repeatInterval > 0) && (startTime != endTime)) {
+        time_t horizon = now + SCHEDULE_REPEAT_HORIZON_S;
         time_t newEnd = startTime + repeatInterval - 1;
-        while (startTime < endTime) {
-            startEndTimes.emplace_back(startTime, newEnd);
+        while ((startTime < endTime) && (startTime < horizon)) {
+            if (newEnd >= cutoff) {
+                startEndTimes.emplace_back(startTime, newEnd);
+            }
             newEnd += repeatInterval;
             if (newEnd > endTime) {
                 newEnd = endTime;
@@ -651,10 +771,15 @@ int ScheduleEntry::DayIndexToMask(int dayIndex) {
 
 bool ScheduleEntry::IsOddEvenMatch(time_t dayTime) const {
     // Odd/Even is based on the FPP 'epoch', the date of the first commit to
-    // the FPP repository on github, July 15, 2013.
-    struct std::tm FPPEpoch = { 0, 0, 0, 15, 6, 113 };
-    std::time_t FPPEpochTimeT = std::mktime(&FPPEpoch);
-    int daysSince = (int)std::difftime(dayTime, FPPEpochTimeT) / SECONDS_PER_DAY;
+    // the FPP repository on github, July 15, 2013.  Count calendar days, not
+    // seconds: the epoch used to be built with tm_isdst=0, an hour off during
+    // DST, so from 00:00 to 00:59 in summer -- exactly when the midnight
+    // schedule reload runs -- the count came out a day short and odd entries
+    // were scheduled on even days.
+    struct tm local;
+    localtime_r(&dayTime, &local);
+    long daysSince = DaysFromCivil(local.tm_year + 1900, local.tm_mon + 1, local.tm_mday) -
+                     DaysFromCivil(2013, 7, 15);
 
     if (daysSince % 2)
         return dayIndex == INX_ODD_DAY;
@@ -697,20 +822,25 @@ void ScheduleEntry::GetOccurrencesOnDate(int year, int month, int mday,
     time_t startTime = GetTimeOnDate(year, month, mday, startHour, startMinute, startSecond);
     time_t endTime = GetTimeOnDate(year, month, mday, endHour, endMinute, endSecond);
 
+    int sh = startHour, sm = startMinute, ss = startSecond;
+    int eh = endHour, em = endMinute, es = endSecond;
     if (startTimeStr.find(":") == std::string::npos) {
-        int h = startHour, m = startMinute, s = startSecond;
-        GetTimeFromSun(startTime, startTimeStr, startTimeOffset, h, m, s);
+        GetTimeFromSun(startTime, startTimeStr, startTimeOffset, sh, sm, ss);
     }
     if (endTimeStr.find(":") == std::string::npos) {
-        int h = endHour, m = endMinute, s = endSecond;
-        GetTimeFromSun(endTime, endTimeStr, endTimeOffset, h, m, s);
+        GetTimeFromSun(endTime, endTimeStr, endTimeOffset, eh, em, es);
     }
-    if (endTime < startTime) {
-        endTime += SECONDS_PER_DAY;
+    // As in pushStartEndTimes(): wall-clock crossover test, next-day end via
+    // mktime.
+    bool sunTimes = (startTimeStr.find(":") == std::string::npos) || (endTimeStr.find(":") == std::string::npos);
+    bool crossesMidnight = sunTimes ? (endTime < startTime) : (WallSeconds(eh, em, es) < WallSeconds(sh, sm, ss));
+    if (crossesMidnight) {
+        endTime = GetTimeOnDate(year, month, mday + 1, eh, em, es);
         if (endTimeStr.find(":") == std::string::npos) {
-            int h = endHour, m = endMinute, s = endSecond;
-            GetTimeFromSun(endTime, endTimeStr, endTimeOffset, h, m, s);
+            GetTimeFromSun(endTime, endTimeStr, endTimeOffset, eh, em, es);
         }
+    } else if (endTime < startTime) {
+        endTime = startTime;
     }
 
     int sDate = 0;
@@ -741,8 +871,11 @@ void ScheduleEntry::GetOccurrencesOnDate(int year, int month, int mday,
 static const char* LATLON_WARNING = "Schedule: Latitude/Longitude not set or not numeric — dawn/dusk times use default coordinates";
 
 // strtod() plus an end-pointer check.  A coordinate has to consume the whole
-// string, so "38.9N" is rejected rather than silently becoming 38.9.
-static bool ParseCoordinate(const std::string& str, double& out) {
+// string, so "38.9N" is rejected rather than silently becoming 38.9.  It also
+// has to be a real angle within +-limit: strtod() happily accepts "nan",
+// "inf" and 1e300, which went on into the sun calculation as garbage instead
+// of raising the "not usable" warning.
+static bool ParseCoordinate(const std::string& str, double limit, double& out) {
     if (str.empty()) {
         return false;
     }
@@ -761,6 +894,10 @@ static bool ParseCoordinate(const std::string& str, double& out) {
     }
 
     if (*end != '\0') {
+        return false;
+    }
+
+    if (!std::isfinite(v) || (std::fabs(v) > limit)) {
         return false;
     }
 
@@ -784,7 +921,7 @@ void ScheduleEntry::GetTimeFromSun(time_t& when, const std::string info,
     // (Scheduler ctor -> LoadScheduleFromFile -> pushStartEndTimes) with no
     // catch anywhere above it, which turned one bad character into a boot loop.
     // Parse without exceptions and fall back to the defaults instead.
-    if (!ParseCoordinate(latStr, lat) || !ParseCoordinate(lonStr, lon)) {
+    if (!ParseCoordinate(latStr, 90.0, lat) || !ParseCoordinate(lonStr, 180.0, lon)) {
         lat = 38.938524;
         lon = -104.600945;
 
@@ -795,59 +932,101 @@ void ScheduleEntry::GetTimeFromSun(time_t& when, const std::string info,
         // Coordinates are usable - clear the warning if it was previously raised.
         WarningHolder::RemoveWarning(48, LATLON_WARNING);
     }
-    double sunOffset = 0;
     time_t currTime = when;
-    time_t midnight = when;
     struct tm local;
     struct tm mtm;
 
     localtime_r(&currTime, &local);
     localtime_r(&currTime, &mtm);
 
-    int daySecond = (local.tm_hour * SECONDS_PER_HOUR) + (local.tm_min * SECONDS_PER_MINUTE) + local.tm_sec;
-
     LogExcess(VB_SCHEDULE, "Lat/Lon: %.6f, %.6f\n", lat, lon);
     LogExcess(VB_SCHEDULE, "Lookup Date is %02d/%02d/%04d\n",
               local.tm_mon + 1, local.tm_mday, local.tm_year + 1900);
 
+    // Ask about local noon of the day. SunRise finds the events within 12
+    // hours either side of the time it is given, so asked from a time near
+    // midnight it returned the other day's sunset or sunrise -- and the time
+    // passed in here can be any time on the day.
+    struct tm noonTm = local;
+    noonTm.tm_hour = 12;
+    noonTm.tm_min = 0;
+    noonTm.tm_sec = 0;
+    noonTm.tm_isdst = -1;
+    time_t noon = mktime(&noonTm);
+
     SunRise sr;
     if ((info == "Dawn") || (info == "Dusk"))
-        sr.calculate(lat, lon, when, TT_CIVIL);
+        sr.calculate(lat, lon, noon, TT_CIVIL);
     else
-        sr.calculate(lat, lon, when);
+        sr.calculate(lat, lon, noon);
 
-    // Find midnight on the 'when' day
+    // Find midnight on the 'when' day.  tm_isdst = -1: on a DST change day
+    // midnight and 'when' are on different sides of the change.
     mtm.tm_hour = 0;
     mtm.tm_min = 0;
     mtm.tm_sec = 0;
-    midnight = mktime(&mtm);
+    mtm.tm_isdst = -1;
+    time_t midnight = mktime(&mtm);
 
-    if (info == "SunRise")
-        sunOffset = sr.riseTime - midnight;
-    else if (info == "SunSet")
-        sunOffset = sr.setTime - midnight;
-    else if (info == "Dawn")
-        sunOffset = sr.riseTime - midnight;
-    else if (info == "Dusk")
-        sunOffset = sr.setTime - midnight;
-    else
-        sunOffset = 0;
+    const bool isRise = (info == "SunRise") || (info == "Dawn");
+    const bool isSet = (info == "SunSet") || (info == "Dusk");
 
-    // convert sunOffset to minutes for later calculations
-    sunOffset /= 60.0;
+    // Far enough north or south the sun can stay up (or down) all day, and
+    // then there is no rise or set to anchor to.  SunRise reports that as
+    // hasRise/hasSet false with the time left at 0, which the clamp below
+    // read as "before the day starts" and put a SunSet show at 8AM.  Use the
+    // same conventional times the clamp falls back to -- 8AM for a rise,
+    // 8PM for a set -- with the entry's offset still applied, so entries
+    // keep their order and a dusk show stays in the evening.
+    if ((isRise && !sr.hasRise) || (isSet && !sr.hasSet)) {
+        struct tm ftm = local;
+        ftm.tm_hour = isRise ? 8 : 20;
+        ftm.tm_min = 0;
+        ftm.tm_sec = 0;
+        ftm.tm_isdst = -1;
+        time_t target = mktime(&ftm) + (time_t)infoOffset * SECONDS_PER_MINUTE;
+        struct tm tt;
+        localtime_r(&target, &tt);
+        h = tt.tm_hour;
+        m = tt.tm_min;
+        s = tt.tm_sec;
+        when = target;
+        LogWarn(VB_SCHEDULE, "No %s on %02d/%02d/%04d at %.6f, %.6f (sun %s all day), using %02d:%02d:%02d\n",
+                info.c_str(), local.tm_mon + 1, local.tm_mday, local.tm_year + 1900, lat, lon,
+                sr.isVisible ? "up" : "down", h, m, s);
+        return;
+    }
 
-    sunOffset += infoOffset;
+    time_t event = midnight;
+    if (isRise)
+        event = sr.riseTime;
+    else if (isSet)
+        event = sr.setTime;
 
-    if ((sunOffset < 0) || (sunOffset >= (24 * 60))) {
-        if (sunOffset < 0) {
-            LogWarn(VB_SCHEDULE, "%s offset calculated as %.2f minutes, using 8AM. "
+    // Work from the absolute event time and let localtime() give the wall
+    // clock.  This used to add "seconds since midnight" to the wall-clock
+    // midnight, which is an hour off on a DST change day: a 17:00 sunset on
+    // the fall-back day was scheduled at 18:00.
+    time_t target = event + (time_t)infoOffset * SECONDS_PER_MINUTE;
+    struct tm tt;
+    localtime_r(&target, &tt);
+    struct tm et;
+    localtime_r(&event, &et);
+
+    // Clamp only when the sun event itself is not on this day, which means
+    // the time zone or location is wrong.  An offset may legitimately carry
+    // the time past midnight (SunSet + 4 hours far north in summer); that used
+    // to be clamped to 8PM, hours from what was asked for.
+    if ((et.tm_year != local.tm_year) || (et.tm_yday != local.tm_yday)) {
+        if (event < midnight) {
+            LogWarn(VB_SCHEDULE, "%s with offset %d falls before the day starts, using 8AM. "
                                  "Check your time zone to make sure it is valid.\n",
-                    info.c_str(), sunOffset);
+                    info.c_str(), infoOffset);
             h = 8;
         } else {
-            LogWarn(VB_SCHEDULE, "%s offset calculated as %.2f minutes, using 8PM. "
+            LogWarn(VB_SCHEDULE, "%s with offset %d falls after the day ends, using 8PM. "
                                  "Check your time zone to make sure it is valid.\n",
-                    info.c_str(), sunOffset);
+                    info.c_str(), infoOffset);
             h = 20;
         }
         m = 0;
@@ -856,20 +1035,22 @@ void ScheduleEntry::GetTimeFromSun(time_t& when, const std::string info,
         // FIXME, move the following to Excess once the issues are worked out with SunRise class
         LogWarn(VB_SCHEDULE, "w: %lld, m: %lld, rt: %lld, st: %lld\n",
                 (long long)when, (long long)midnight, (long long)sr.riseTime, (long long)sr.setTime);
-        LogWarn(VB_SCHEDULE, "info: %s, infoOffset: %d, sunOffset: %.4f, lat: %.6f, lon: %.6f, date: %02d/%02d/%04d\n",
-                info.c_str(), infoOffset, sunOffset, lat, lon,
+        LogWarn(VB_SCHEDULE, "info: %s, infoOffset: %d, lat: %.6f, lon: %.6f, date: %02d/%02d/%04d\n",
+                info.c_str(), infoOffset, lat, lon,
                 local.tm_mon + 1, local.tm_mday, local.tm_year + 1900);
 
-        when = when - daySecond + (h * SECONDS_PER_HOUR);
+        mtm.tm_hour = h;
+        mtm.tm_min = 0;
+        mtm.tm_sec = 0;
+        mtm.tm_isdst = -1;
+        when = mktime(&mtm);
         return;
     }
 
-    LogExcess(VB_SCHEDULE, "%s Time Offset: %.2f minutes\n", info.c_str(), sunOffset);
-    h = (int)sunOffset / 60;
-    m = (int)sunOffset % 60;
-    s = (int)(((int)(sunOffset * 100) % 100) * 0.01 * 60);
-
-    when = when - daySecond + (h * SECONDS_PER_HOUR) + (m * SECONDS_PER_MINUTE) + s;
+    h = tt.tm_hour;
+    m = tt.tm_min;
+    s = tt.tm_sec;
+    when = target;
 
     LogExcess(VB_SCHEDULE, "%s on %0d/%d/%d is at %02d:%02d:%02d\n", info.c_str(),
               local.tm_mon + 1, local.tm_mday, local.tm_year + 1900, h, m, s);
@@ -888,7 +1069,7 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
         // memory - on the scheduler thread or the calendar API thread.
         LogErr(VB_SCHEDULE, "Negative repeat interval %d for playlist %s, treating as no repeat\n",
                repeatInterval, playlist.c_str());
-        WarningHolder::AddWarning(47, "Schedule: negative repeat interval for playlist '" + playlist + "'");
+        ScheduleLoadWarning(47, "Schedule: negative repeat interval for playlist '" + playlist + "'");
         repeatInterval = 0;
     }
     repeat = repeatInterval == 1;
@@ -918,7 +1099,7 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
     if (!entry.isMember("startTime") || (entry["startTime"].asString() == "")) {
         LogErr(VB_SCHEDULE, "Missing or invalid startTime for playlist %s\n",
                playlist.c_str());
-        WarningHolder::AddWarning(47, "Schedule: missing or invalid start time for playlist '" + playlist + "'");
+        ScheduleLoadWarning(47, "Schedule: missing or invalid start time for playlist '" + playlist + "'");
         return 0;
     }
     startTimeStr = entry["startTime"].asString();
@@ -929,7 +1110,7 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
     if (!entry.isMember("endTime") || (entry["endTime"].asString() == "")) {
         LogErr(VB_SCHEDULE, "Missing or invalid endTime for playlist %s\n",
                playlist.c_str());
-        WarningHolder::AddWarning(47, "Schedule: missing or invalid end time for playlist '" + playlist + "'");
+        ScheduleLoadWarning(47, "Schedule: missing or invalid end time for playlist '" + playlist + "'");
         return 0;
     }
     endTimeStr = entry["endTime"].asString();
@@ -937,26 +1118,13 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
     if (found != std::string::npos)
         mapTimeString(endTimeStr, endHour, endMinute, endSecond);
 
-    if (entry.isMember("startTimeOffset")) {
-        if (entry["startTimeOffset"].isString()) {
-            startTimeOffset = atoi(entry["startTimeOffset"].asString().c_str());
-        } else {
-            startTimeOffset = entry["startTimeOffset"].asLargestInt();
-        }
-    }
-
-    if (entry.isMember("endTimeOffset")) {
-        if (entry["endTimeOffset"].isString()) {
-            endTimeOffset = atoi(entry["endTimeOffset"].asString().c_str());
-        } else {
-            endTimeOffset = entry["endTimeOffset"].asLargestInt();
-        }
-    }
-
-    // The UI limits these to a year either way; keep API/hand-edited files
-    // honest too, clamping before the int64 -> int narrowing so huge values
-    // can't wrap into range.
-    auto dateOffsetFromJson = [&entry](const char* key) -> int {
+    // The UI limits these offsets (date offsets to a year, sun-relative time
+    // offsets to two hours); keep API/hand-edited files honest too, checking
+    // before the int64 -> int narrowing so huge values can't wrap into range.
+    // An unbounded time offset put an occurrence decades away, and the repeat
+    // expansion then stepped from there: billions of iterations on the main
+    // loop at every schedule load.
+    auto offsetFromJson = [&entry](const char* key, int limit, const char* unit) -> int {
         if (!entry.isMember(key))
             return 0;
         const Json::Value& e = entry[key];
@@ -971,18 +1139,21 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
             v = e.asLargestInt();
         } else {
             LogErr(VB_SCHEDULE, "Invalid %s in schedule (not a number), using 0\n", key);
-            WarningHolder::AddWarning(47, std::string("Schedule: ") + key + " is not a number");
+            ScheduleLoadWarning(47, std::string("Schedule: ") + key + " is not a number");
             return 0;
         }
-        if ((v < -366) || (v > 366)) {
+        if ((v < -limit) || (v > limit)) {
             LogErr(VB_SCHEDULE, "Invalid %s %lld in schedule, using 0\n", key, (long long)v);
-            WarningHolder::AddWarning(47, std::string("Schedule: ") + key + " out of range (-366..366)");
+            ScheduleLoadWarning(47, std::string("Schedule: ") + key + " out of range (-" + std::to_string(limit) +
+                                        ".." + std::to_string(limit) + " " + unit + ")");
             return 0;
         }
         return (int)v;
     };
-    startDateOffset = dateOffsetFromJson("startDateOffset");
-    endDateOffset = dateOffsetFromJson("endDateOffset");
+    startTimeOffset = offsetFromJson("startTimeOffset", 1440, "minutes");
+    endTimeOffset = offsetFromJson("endTimeOffset", 1440, "minutes");
+    startDateOffset = offsetFromJson("startDateOffset", 366, "days");
+    endDateOffset = offsetFromJson("endDateOffset", 366, "days");
 
     if (!entry.isMember("startDate") || (entry["startDate"].asString() == "")) {
         entry["startDate"] = "2019-01-01";

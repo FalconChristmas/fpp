@@ -71,15 +71,28 @@ void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& fa
     int i = 0;
     int x = 0;
     int y = 0;
+    if (perLine <= 0) {
+        perLine = 16;
+    }
     unsigned char* ch = (unsigned char*)data;
     unsigned char* str = new unsigned char[perLine + 1];
 
     int maxLen = perLine * 7 + 20;
     char* tmpStr = new char[maxLen];
+    tmpStr[0] = 0;
 
-    if (strlen(title)) {
+    // The title is data, not a format string.
+    if (title && strlen(title)) {
         snprintf(tmpStr, maxLen, "%s: (%d bytes)\n", title, len);
-        LogInfo(facility, tmpStr);
+        LogInfo(facility, "%s", tmpStr);
+    }
+    // Nothing to dump.  The tail below appends to tmpStr, which was never
+    // started with an offset (left uninitialized with no title) and would
+    // be logged again.
+    if (len <= 0 || !data) {
+        delete[] tmpStr;
+        delete[] str;
+        return;
     }
 
     while (l < len) {
@@ -106,7 +119,7 @@ void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& fa
             }
 
             snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), "\n");
-            LogInfo(facility, tmpStr);
+            LogInfo(facility, "%s", tmpStr);
             x = 0;
 
             snprintf(tmpStr, maxLen, "%06x: ", i);
@@ -135,7 +148,7 @@ void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& fa
     }
 
     snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), "\n");
-    LogInfo(facility, tmpStr);
+    LogInfo(facility, "%s", tmpStr);
     delete[] tmpStr;
     delete[] str;
 }
@@ -205,7 +218,10 @@ char* FindInterfaceForIP(char* ip) {
     int family, s, n;
     char host[NI_MAXHOST];
     char interfaceIP[16];
-    static char interface[IFNAMSIZ] = "";
+    // Per thread, and cleared on every call: a lookup that found nothing
+    // returned the previous call's interface.
+    static thread_local char interface[IFNAMSIZ] = "";
+    interface[0] = 0;
 
     if (getifaddrs(&ifaddr) == -1) {
         LogErr(VB_SETTING, "Error getting interfaces list: %s\n",
@@ -234,6 +250,7 @@ char* FindInterfaceForIP(char* ip) {
         }
     }
 
+    freeifaddrs(ifaddr);
     return interface;
 }
 
@@ -242,7 +259,11 @@ static void ReplaceString(std::string& str, std::string pattern, std::string rep
     while (found != std::string::npos) {
         str.replace(found, pattern.length(), replacement);
 
-        found = str.find(pattern);
+        // Resume after what was inserted, not from the start: a value that
+        // contains its own keyword (a playlist named "%PLAYLIST_NAME%") was
+        // found again inside the replacement, forever, hanging whichever
+        // thread fired the preset.
+        found = str.find(pattern, found + replacement.length());
     }
 }
 std::string ReplaceKeywords(std::string str, std::map<std::string, std::string>& keywords) {
@@ -331,13 +352,15 @@ bool LoadJsonFromString(const std::string& str, Json::Value& root) {
     delete reader;
 
     if (!success) {
-        LogErr(VB_GENERAL, "Error parsing JSON string in LoadJsonFromString(): '%s'\n", str.c_str());
+        // Bodies parsed here include HTTP requests and config files that carry
+        // credentials; log only the start, which is enough to see what it was.
+        LogErr(VB_GENERAL, "Error parsing JSON string in LoadJsonFromString(): '%s'\n", TruncateForLog(str).c_str());
         Json::Value empty;
         root = empty;
         return false;
     }
 
-    LogDebug(VB_GENERAL, "LoadJsonFromString() loaded: '%s'\n", str.c_str());
+    LogDebug(VB_GENERAL, "LoadJsonFromString() loaded: '%s'\n", TruncateForLog(str).c_str());
 
     return true;
 }
@@ -641,7 +664,7 @@ bool ResolveHostToIPv4(const std::string& host, uint32_t& addr) {
         return true;
     }
 
-    uint64_t now = (uint64_t)GetTimeMS();
+    uint64_t now = (uint64_t)GetMonotonicTimeMS();
     {
         std::unique_lock<std::mutex> lock(resolveCacheLock);
         auto it = resolveCache.find(host);
@@ -673,7 +696,7 @@ bool ResolveHostToIPv4(const std::string& host, uint32_t& addr) {
     {
         std::unique_lock<std::mutex> lock(resolveCacheLock);
         if (resolveCache.size() >= RESOLVE_CACHE_MAX) {
-            uint64_t cutoff = (uint64_t)GetTimeMS();
+            uint64_t cutoff = (uint64_t)GetMonotonicTimeMS();
             for (auto it = resolveCache.begin(); it != resolveCache.end();) {
                 it = (it->second.expiresMS <= cutoff) ? resolveCache.erase(it) : std::next(it);
             }
@@ -776,6 +799,9 @@ bool urlHelper(const std::string method, const std::string& url, const std::stri
     }
 
     if ((method == "POST") || (method == "PUT")) {
+        // The size first: without it curl takes strlen() of the body, which
+        // cuts a binary body short at its first zero byte.
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE_LARGE, (curl_off_t)data.size());
         status = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
         if (status != CURLE_OK) {
             LogErr(VB_GENERAL, "curl_easy_setopt() Error setting postfields data: %s\n", curl_easy_strerror(status));

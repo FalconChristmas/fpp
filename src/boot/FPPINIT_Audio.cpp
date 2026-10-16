@@ -45,13 +45,29 @@ static std::string getAlsaCardProductName(int cardNum, const std::string& fallba
             std::string productFile = parentDir.substr(0, pos) + "/product";
             std::string product = GetFileContents(productFile);
             TrimWhiteSpace(product);
-            if (!product.empty()) {
-                return product;
+            // It is written into PipeWire's SPA-JSON config as a quoted
+            // string, and the device chose it: a '"' or '\\' would end the
+            // string early, and a config PipeWire can't parse brings audio
+            // down at every boot.
+            std::string safe;
+            for (unsigned char ch : product) {
+                if (ch == '"' || ch == '\\') {
+                    safe += '\'';
+                } else if (ch >= 0x20 && ch != 0x7f) {
+                    safe += (char)ch;
+                }
+            }
+            TrimWhiteSpace(safe);
+            if (!safe.empty()) {
+                return safe;
             }
         }
     }
     return fallback;
 }
+
+// Written at boot by setupAudio(); see the comment where it is written.
+static const char* const EFFECTIVE_AUDIO_OUTPUT_PATH = "/run/fppd/audio-output.json";
 
 static std::string getAlsaCardId(int cardNum) {
     std::string cardsContent = GetFileContents("/proc/asound/cards");
@@ -245,6 +261,43 @@ static void loadPendingSoundDrivers() {
     closedir(dp);
 }
 
+// Load a PipeWire audio-groups config (pipewire-audio-groups[-simple].json).
+// The UI writes these, but fppinit reads them at boot with no one to restart
+// it, so every field the readers below touch is checked for the type they read
+// it as: a file that fails is reported unusable, which each caller already
+// treats as a missing or stale config (regenerate it, or skip it), instead of
+// throwing out of fppinit on a wrong-typed value.
+static bool loadAudioGroupsConfig(const std::string& path, Json::Value& root) {
+    root = Json::Value();
+    if (!FileExists(path) || !LoadJsonFromString(GetFileContents(path), root, JsonRoot::Object)) {
+        return false;
+    }
+    auto fits = [](const Json::Value& o, const char* key, Json::ValueType t) {
+        return !o.isMember(key) || o[key].isConvertibleTo(t);
+    };
+    const Json::Value& groups = root["groups"];
+    if (!groups.isNull() && !groups.isArray()) {
+        return false;
+    }
+    for (const auto& grp : groups) {
+        if (!grp.isObject() || !fits(grp, "enabled", Json::booleanValue) || !fits(grp, "id", Json::intValue) ||
+            !fits(grp, "volume", Json::intValue) || !fits(grp, "name", Json::stringValue)) {
+            return false;
+        }
+        const Json::Value& members = grp["members"];
+        if (!members.isNull() && !members.isArray()) {
+            return false;
+        }
+        for (const auto& mbr : members) {
+            if (!mbr.isObject() || !fits(mbr, "cardId", Json::stringValue) ||
+                !fits(mbr, "nodeTarget", Json::stringValue) || !fits(mbr, "volume", Json::intValue)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 // Returns true if every ALSA card referenced by the PipeWire audio-groups JSON
 // is currently present (by stable card ID, as listed in /proc/asound/cards).
 // Used to decide whether the cached PipeWire group config is still valid for the
@@ -254,11 +307,8 @@ static void loadPendingSoundDrivers() {
 // (not card number), so a card that's still present but renumbered keeps a valid
 // config -- which is why presence-by-ID is a sufficient check.
 static bool pipewireConfigCardsPresent(const std::string& jsonPath) {
-    if (!FileExists(jsonPath)) {
-        return false;
-    }
     Json::Value root;
-    if (!LoadJsonFromString(GetFileContents(jsonPath), root)) {
+    if (!loadAudioGroupsConfig(jsonPath, root)) {
         return false;
     }
     std::vector<std::string> present;
@@ -313,7 +363,7 @@ static std::string normalizeCardIdForNode(const std::string& cardId) {
 static std::string pipewireConfigSuppressedTarget(const std::string& jsonPath,
                                                   const std::set<std::string>& ownedCids) {
     Json::Value root;
-    if (!FileExists(jsonPath) || !LoadJsonFromString(GetFileContents(jsonPath), root)) {
+    if (!loadAudioGroupsConfig(jsonPath, root)) {
         return "";
     }
     for (const auto& grp : root["groups"]) {
@@ -354,9 +404,8 @@ static int quirkMinChannelsForCard(const std::string& aplayLine) {
 // or "" if the file is absent/empty/unparseable or has no member. Simple mode
 // always has exactly one group with one member (the selected output card).
 static std::string simpleConfigCardId(const std::string& jsonPath) {
-    if (!FileExists(jsonPath)) return "";
     Json::Value root;
-    if (!LoadJsonFromString(GetFileContents(jsonPath), root)) return "";
+    if (!loadAudioGroupsConfig(jsonPath, root)) return "";
     const Json::Value& groups = root["groups"];
     if (!groups.isArray() || groups.empty()) return "";
     const Json::Value& members = groups[0]["members"];
@@ -419,7 +468,10 @@ static int achievedRateForFormat(const std::string& alsaPath, const std::string&
     }
     std::smatch m;
     if (std::regex_search(out, m, std::regex(R"(not accurate \(requested = \d+Hz, got = (\d+)Hz\))"))) {
-        return std::stoi(m[1].str());
+        try {
+            return std::stoi(m[1].str());
+        } catch (...) {
+        }
     }
     return rate; // negotiated exactly what was asked for
 }
@@ -614,11 +666,8 @@ static constexpr int kHeadroomNonUsb = 256;
 // the point the decision has to be made.
 static std::map<std::string, int> pipewireGroupSizeByCard(const std::string& jsonPath) {
     std::map<std::string, int> sizes;
-    if (!FileExists(jsonPath)) {
-        return sizes;
-    }
     Json::Value root;
-    if (!LoadJsonFromString(GetFileContents(jsonPath), root) || !root.isMember("groups")) {
+    if (!loadAudioGroupsConfig(jsonPath, root) || !root.isMember("groups")) {
         return sizes;
     }
     for (const auto& grp : root["groups"]) {
@@ -989,6 +1038,15 @@ static void restorePipeWireInputGroupVolumes() {
         return;
     }
     for (const auto& ig : root["inputGroups"]) {
+        // Read at boot: an entry with a field of the wrong JSON type is skipped,
+        // not thrown on (see loadAudioGroupsConfig()).
+        auto fits = [&ig](const char* key, Json::ValueType t) {
+            return !ig.isMember(key) || ig[key].isConvertibleTo(t);
+        };
+        if (!ig.isObject() || !fits("enabled", Json::booleanValue) || !fits("name", Json::stringValue) ||
+            !fits("volume", Json::intValue) || !fits("mute", Json::booleanValue)) {
+            continue;
+        }
         if (!ig.get("enabled", false).asBool()) {
             continue;
         }
@@ -1033,8 +1091,7 @@ static void restorePipeWireVolumes() {
                                             ? "pipewire-audio-groups-simple.json"
                                             : "pipewire-audio-groups.json");
     Json::Value root;
-    const bool haveGroups = FileExists(groupsJsonPath)
-                            && LoadJsonFromString(GetFileContents(groupsJsonPath), root)
+    const bool haveGroups = loadAudioGroupsConfig(groupsJsonPath, root)
                             && root.isMember("groups");
 
     // The filter-chain/combine-stream nodes appear a moment after the daemon
@@ -1267,8 +1324,17 @@ static void runAudioSetup(bool recoveryPass) {
 
     std::string aplay;
     std::vector<std::string> lines;
-    std::map<std::string, std::string> cards;
-    std::map<std::string, std::string> cardLines; // full aplay line per "card N"
+    // Keyed "card N", in card-number order: as plain strings "card 10" sorts
+    // before "card 2", and the fallback below takes the first usable card.
+    struct CardKeyLess {
+        bool operator()(const std::string& a, const std::string& b) const {
+            int na = atoi(a.c_str() + std::min<size_t>(5, a.size()));
+            int nb = atoi(b.c_str() + std::min<size_t>(5, b.size()));
+            return na != nb ? na < nb : a < b;
+        }
+    };
+    std::map<std::string, std::string, CardKeyLess> cards;
+    std::map<std::string, std::string, CardKeyLess> cardLines; // full aplay line per "card N"
     // Normalised card IDs that got an fpp_alsa_* sink node in 95-fpp-alsa-sink.conf
     // below; consulted by the Simple-mode C++ config generator to know whether a
     // card already has a boot-time adapter or needs a custom one inline.
@@ -1293,11 +1359,14 @@ static void runAudioSetup(bool recoveryPass) {
         cardLines.clear();
         hasNonHDMI = false;
         for (auto& l : lines) {
-            if (l.starts_with("card ")) {
-                std::string k = l.substr(0, 6);
-                std::string v = l.substr(8);
-                int idx = v.find(' ');
-                v = v.substr(0, idx);
+            // "card 10: S3 [USB Audio Device], device 0: ..." -- the number is
+            // as wide as it is.  Fixed offsets made card 10 "card 1" with no
+            // id, overwriting card 1.
+            size_t colon = l.find(':');
+            if (l.starts_with("card ") && colon != std::string::npos && colon > 5) {
+                std::string k = l.substr(0, colon);
+                std::string v = colon + 2 <= l.size() ? l.substr(colon + 2) : "";
+                v = v.substr(0, v.find(' '));
                 cards[k] = v;
                 cardLines[k] = l;
                 // The synthetic snd-dummy is not real hardware; with an explicit
@@ -1378,6 +1447,14 @@ static void runAudioSetup(bool recoveryPass) {
     // unplugged for the evening), so a fallback must not be written back over
     // it -- doing so silently loses the selection across a reboot.
     bool selectedCardMissing = false;
+    // True when this boot plays on some other card than the selection --
+    // the selected card is missing, is HDMI with no display, or never
+    // answered.  The fallback is used for this boot only and recorded in
+    // EFFECTIVE_AUDIO_OUTPUT_PATH; AudioOutput keeps the user's choice.
+    // Writing the fallback into AudioOutput lost that choice for good: a show
+    // controller whose TV was off at boot came back on the headphone jack
+    // every boot after, display or not.
+    bool onFallback = false;
     int card = 0;
     if (audioOutputId.empty()) {
         card = 0;
@@ -1389,6 +1466,7 @@ static void runAudioSetup(bool recoveryPass) {
             printf("FPP - Audio device '%s' not currently present; falling back to card 0 for this boot\n", audioOutputId.c_str());
             card = 0;
             selectedCardMissing = true;
+            onFallback = true;
         }
     }
     std::string cstr = "card " + std::to_string(card);
@@ -1432,22 +1510,19 @@ static void runAudioSetup(bool recoveryPass) {
             }
         }
         if (fallback >= 0 && fallback != card) {
-            printf("FPP - Audio device %d has no HDMI connected, switching to card %d (%s)\n",
+            printf("FPP - Audio device %d has no HDMI connected, using card %d (%s) for this boot\n",
                    card, fallback, cards["card " + std::to_string(fallback)].c_str());
             card = fallback;
-            if (!selectedCardMissing) {
-                setRawSetting("AudioOutput", getAlsaCardId(card));
-            }
         } else {
             card = cards.size();
             found = true;
-            if (!selectedCardMissing) {
-                setRawSetting("AudioOutput", getAlsaCardId(card));
-            }
         }
+        onFallback = true;
     }
     while (!found && count < 50) {
-        std::string amixer = execAndReturn("/usr/bin/amixer -c " + std::to_string(card) + " cset numid=3 1  2>&1");
+        // A read: "cset numid=3" was the old probe, which wrote whatever
+        // control 3 is on any card but the Pi's own (output routing there).
+        std::string amixer = execAndReturn("/usr/bin/amixer -c " + std::to_string(card) + " info 2>&1");
         if (contains(amixer, "Invalid ")) {
             ++count;
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -1456,11 +1531,10 @@ static void runAudioSetup(bool recoveryPass) {
         }
     }
     if (!found) {
+        // The probe below is an amixer control write, which a working card
+        // can refuse; don't record card 0 over the selection on its word.
         printf("FPP - Could not find audio device %d, defaulting to device 0.\n", card);
         CopyFileContents("/opt/fpp/etc/asoundrc.plain", "/root/.asoundrc");
-        if (!selectedCardMissing) {
-            setRawSetting("AudioOutput", getAlsaCardId(0));
-        }
     } else {
         printf("FPP - Waited for %d seconds for audio device\n", (count / 5));
         // Persist the selection as the stable ALSA card ID. This migrates a
@@ -1468,7 +1542,7 @@ static void runAudioSetup(bool recoveryPass) {
         // boot matches by name regardless of probe order. Skipped when we're on
         // a fallback card: that would overwrite the user's choice with whatever
         // happened to be present (typically the synthetic Dummy).
-        std::string canonicalId = selectedCardMissing ? "" : getAlsaCardId(card);
+        std::string canonicalId = onFallback ? "" : getAlsaCardId(card);
         if (!canonicalId.empty() && canonicalId != audioOutputId) {
             printf("FPP - Persisting selected audio device as ID '%s'\n", canonicalId.c_str());
             setRawSetting("AudioOutput", canonicalId);
@@ -1483,6 +1557,18 @@ static void runAudioSetup(bool recoveryPass) {
             pos += cardLine.size();
         }
         PutFileContents("/root/.asoundrc", arc);
+    }
+    // What this boot plays on, for whatever reads AudioOutput later (Simple
+    // mode's PHP apply, fppd's volume control).  They use "effective" while
+    // AudioOutput still equals "selected", and AudioOutput once the user has
+    // changed it.
+    if (!runningInDocker) {
+        mkdir("/run/fppd", 0755);
+        Json::Value eff;
+        eff["selected"] = audioOutputId;
+        eff["effective"] = getAlsaCardId(card);
+        eff["fallback"] = onFallback;
+        PutFileContents(EFFECTIVE_AUDIO_OUTPUT_PATH, SaveJsonToString(eff));
     }
     int v = getRawSettingInt("volume", -1);
     if (v == -1) {
@@ -1516,10 +1602,10 @@ static void runAudioSetup(bool recoveryPass) {
         }
         asoundrc = GetFileContents("/opt/fpp/etc/asoundrc.pipewire");
     } else {
-        if (FileExists("/home/fpp/media/tmp/asoundrc")) {
+        if (FileExists(FPP_MEDIA_DIR + "/tmp/asoundrc")) {
             if (contains(cardType, "pcm510")) {
                 printf("FPP - Using Cape Provided asoundrc\n");
-                asoundrc = GetFileContents("/home/fpp/media/tmp/asoundrc");
+                asoundrc = GetFileContents(FPP_MEDIA_DIR + "/tmp/asoundrc");
             } else {
                 asoundrc = GetFileContents("/opt/fpp/etc/asoundrc.dmix");
             }
@@ -2121,7 +2207,14 @@ static void runAudioSetup(bool recoveryPass) {
         printf("FPP - Setting mixer device to %s\n", mixer.c_str());
         setRawSetting("AudioMixerDevice", mixer);
     }
-    exec("/usr/bin/amixer -c " + std::to_string(card) + " set " + mixer + " " + std::to_string(v) + "% > /dev/null 2>&1");
+    // Quoted for the shell: control names have spaces ("PCM Playback"), and
+    // AudioMixerDevice is a setting.
+    std::string quotedMixer = "'";
+    for (char ch : mixer) {
+        quotedMixer += (ch == '\'') ? std::string("'\\''") : std::string(1, ch);
+    }
+    quotedMixer += "'";
+    exec("/usr/bin/amixer -c " + std::to_string(card) + " set " + quotedMixer + " " + std::to_string(v) + "% > /dev/null 2>&1");
     setRawSetting("AudioCardType", cardType);
 
     if (!runningInDocker) {

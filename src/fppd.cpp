@@ -37,7 +37,9 @@
 #include <errno.h>
 #include <execinfo.h>
 #include <fcntl.h>
+#include <algorithm>
 #include <filesystem>
+#include <vector>
 #include <fstream>
 #include <functional>
 #include <getopt.h>
@@ -119,7 +121,10 @@
 #endif
 
 pid_t pid, sid;
-volatile int runMainFPPDLoop = 1;
+// Cleared by the SIGINT/SIGTERM handler (httpAPI.cpp), which may only touch a
+// lock-free atomic, and read by the main loop and its watchdog thread.
+std::atomic_int runMainFPPDLoop{ 1 };
+static_assert(std::atomic_int::is_always_lock_free, "the signal handler stores to runMainFPPDLoop");
 volatile bool restartFPPD = 0;
 
 /* Prototypes for functions below */
@@ -475,30 +480,38 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
         return;
     }
     inCrashHandler = true;
-    // Everything this handler logs from here on -- the signal line, the gdb
-    // stack -- would otherwise push the pre-crash history out of the ring.
-    CrashLogRingFreeze();
-    if (s != SIGQUIT && s != SIGUSR1) {
-        // Wedge-proofing: nearly everything below is async-signal-UNSAFE —
-        // fork()/gdb, LogErr (malloc), system()/curl.  When the fatal signal
-        // fired while this thread held a libc lock (a heap-corruption SIGABRT
-        // inside free() always does), any of it can self-deadlock; the process
-        // then hangs forever, systemd keeps seeing it as running, and
-        // Restart=always never fires.  Arm a watchdog with SIGALRM restored to
-        // its default (terminate) disposition — both calls are
-        // async-signal-safe — so a wedged handler still dies and gets
-        // restarted.  Normal paths finish in exit(-1) long before it fires;
-        // the timeout is generous because the crash-report zip + curl upload
-        // legitimately take time.  Left armed across exit(-1) on purpose:
-        // atexit/global destructors can hit the same held locks.
-        constexpr unsigned int kCrashHandlerWatchdogSec = 120;
-        struct sigaction almAct;
-        memset(&almAct, 0, sizeof(almAct));
-        almAct.sa_handler = SIG_DFL;
-        sigemptyset(&almAct.sa_mask);
-        sigaction(SIGALRM, &almAct, nullptr);
-        alarm(kCrashHandlerWatchdogSec);
+    // SIGQUIT/SIGUSR1 (kill -3) ask for a stack dump of a running fppd, not a
+    // crash: fppd carries on afterwards, so they get the gdb stack and the
+    // context files but no ring freeze, crash report or upload.
+    const bool requestedDump = (s == SIGQUIT || s == SIGUSR1);
+    if (!requestedDump) {
+        // Everything this handler logs from here on -- the signal line, the gdb
+        // stack -- would otherwise push the pre-crash history out of the ring.
+        // Nothing unfreezes it, so a dump that carries on must not do this.
+        CrashLogRingFreeze();
     }
+    // Wedge-proofing: nearly everything below is async-signal-UNSAFE —
+    // fork()/gdb, LogErr (malloc), system()/curl.  When the fatal signal
+    // fired while this thread held a libc lock (a heap-corruption SIGABRT
+    // inside free() always does), any of it can self-deadlock; the process
+    // then hangs forever, systemd keeps seeing it as running, and
+    // Restart=always never fires.  Arm a watchdog with SIGALRM restored to
+    // its default (terminate) disposition — both calls are
+    // async-signal-safe — so a wedged handler still dies and gets
+    // restarted.  Normal paths finish in _exit(-1) long before it fires;
+    // the timeout is generous because the crash-report zip + curl upload
+    // legitimately take time.  A requested dump interrupts whatever the
+    // target thread was doing just the same, so it is armed for those too,
+    // and disarmed again when the dump returns.
+    constexpr unsigned int kCrashHandlerWatchdogSec = 120;
+    struct sigaction almAct;
+    struct sigaction prevAlmAct;
+    memset(&almAct, 0, sizeof(almAct));
+    memset(&prevAlmAct, 0, sizeof(prevAlmAct));
+    almAct.sa_handler = SIG_DFL;
+    sigemptyset(&almAct.sa_mask);
+    sigaction(SIGALRM, &almAct, &prevAlmAct);
+    unsigned int prevAlarm = alarm(kCrashHandlerWatchdogSec);
     // The value used only until the user has answered, which is now a short and
     // bounded window: the setup wizard writes ShareCrashData on Finish whether
     // it was touched or not, and menuHead.inc will not let a box reach the rest
@@ -529,8 +542,11 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
     // handler, so it can interrupt a thread that already holds m_seqFilenameLock
     // and taking it here would self-deadlock the crash report.  A torn read is
     // the acceptable trade for a log line that is already best-effort.
-    if (!sequence->m_seqFilename.empty()) {
-        LogErr(VB_ALL, "   while playing  %s  at  %d ms\n", sequence->m_seqFilename.c_str(), sequence->m_seqMSElapsed);
+    // sequence is null before main() creates it and after shutdown deletes it,
+    // and a crash in either window still needs its report.
+    Sequence* seq = sequence;
+    if (seq && !seq->m_seqFilename.empty()) {
+        LogErr(VB_ALL, "   while playing  %s  at  %d ms\n", seq->m_seqFilename.c_str(), seq->m_seqMSElapsed.load());
     }
     const char* gdbFailReason = nullptr;
     if (!dumpstack_gdb(&gdbFailReason)) {
@@ -614,8 +630,9 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
             close(rfd);
         }
     }
-    if (crashLog >= 0) {
-        std::set<std::string> filenames;
+    if (crashLog >= 0 && !requestedDump) {
+        // (modification time, path) of every report in crashes/
+        std::vector<std::pair<std::filesystem::file_time_type, std::string>> reports;
         std::string mediaDir = getFPPMediaDir();
         std::string cdir = mediaDir + "/crashes";
 
@@ -624,13 +641,21 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
         SetFilePerms(cdir, true);
 
         bool hasRecent = false;
-        for (const auto& entry : std::filesystem::directory_iterator(cdir)) {
-            filenames.insert(entry.path());
+        // The error_code overloads throughout: a report removed while this
+        // runs (the UI deleting one, a manual report being pruned) made the
+        // throwing ones throw, and an exception here aborts the crash handler.
+        std::error_code ec;
+        for (std::filesystem::directory_iterator it(cdir, ec), end; !ec && it != end; it.increment(ec)) {
+            std::error_code fec;
+            auto ftime = it->last_write_time(fec);
+            if (fec) {
+                continue; // gone since it was listed
+            }
+            reports.emplace_back(ftime, it->path().string());
             // Reports the user asked for are not crashes (see ManualCrashReportCallback)
-            if (IsManualCrashReport(entry.path().c_str())) {
+            if (IsManualCrashReport(it->path().c_str())) {
                 continue;
             }
-            auto ftime = entry.last_write_time();
             std::chrono::system_clock::time_point stm;
 #if defined(PLATFORM_OSX)
     #if (__apple_build_version__ >= 14030022)
@@ -649,34 +674,53 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
                 hasRecent = true;
             }
         }
-        while (filenames.size() > 10) {
-            std::string f = *filenames.begin();
-            unlink(f.c_str());
-            filenames.erase(filenames.begin());
+        // Keep the ten newest.  By time, not name: names start with the FPP
+        // version, so after an upgrade the oldest by name could be the newest.
+        std::sort(reports.begin(), reports.end());
+        for (size_t i = 0; i + 10 < reports.size(); i++) {
+            unlink(reports[i].second.c_str());
         }
 
         if (!hasRecent) {
             char zfName[256];
             CrashReportName(zfName, sizeof(zfName), "");
 
-            // Use script to generate crash report with passwords redacted
-            char scriptCmd[512];
-            snprintf(scriptCmd, sizeof(scriptCmd), "/opt/fpp/scripts/generate_crash_report %d %s", crashLog == 0 ? 3 : crashLog, zfName);
-            system(scriptCmd);
+            // Use script to generate crash report with passwords redacted.
+            // A full report (gdb on every thread, the logs, the config) takes
+            // well over two minutes on a slow player with a slow card, and the
+            // watchdog armed above cut it off there.  This far the handler has
+            // not wedged, so give the script and the upload their own budget,
+            // and bound the script with timeout(1) so it still can't hang
+            // the restart.
+            constexpr unsigned int kReportScriptSec = 300;
+            constexpr unsigned int kUploadSec = 90;
+            alarm(kReportScriptSec + 15 + (crashLog >= 1 ? kUploadSec : 0));
+            std::string scriptCmd = getFPPDDir("/scripts/generate_crash_report") + " " +
+                                    std::to_string(crashLog == 0 ? 3 : crashLog) + " " + zfName;
+            if (FileExists("/usr/bin/timeout")) {
+                scriptCmd = "/usr/bin/timeout -k 10 " + std::to_string(kReportScriptSec) + " " + scriptCmd;
+            }
+            system(scriptCmd.c_str());
             SetFilePerms(zfName);
-            
+
             if (crashLog >= 1) {
                 // Upload crash report
                 char uploadCmd[512];
-                snprintf(uploadCmd, sizeof(uploadCmd), "curl https://crashes.falconplayer.com/crashUpload/index.php -F userfile=@%s", zfName);
+                snprintf(uploadCmd, sizeof(uploadCmd), "curl --connect-timeout 15 --max-time %u https://crashes.falconplayer.com/crashUpload/index.php -F userfile=@%s",
+                         kUploadSec - 5, zfName);
                 system(uploadCmd);
             }
         } else {
             LogErr(VB_ALL, "Very recent crash report found, not uploading\n");
         }
     }
-    inCrashHandler = false;
-    if (s != SIGQUIT && s != SIGUSR1) {
+    if (requestedDump) {
+        // fppd carries on: put SIGALRM and any alarm already pending (the
+        // loop watchdog's own exit timer) back as they were.
+        sigaction(SIGALRM, &prevAlmAct, nullptr);
+        alarm(prevAlarm);
+        inCrashHandler = false;
+    } else {
         // For SIGBUS in non-main threads, terminate only the faulting thread
         // instead of the entire process.  This allows fppd to survive
         // DRM/KMS buffer crashes in video consumer threads while keeping
@@ -702,15 +746,26 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
             sigaction(SIGBUS, &sa, NULL);
             // The process survives this path — disarm the crash watchdog.
             alarm(0);
+            inCrashHandler = false;
             pthread_exit(NULL);
             return; // unreachable, but satisfies compiler
         }
         runMainFPPDLoop = 0;
         WarningHolder::StopNotifyThread();
-        WarningHolder::RemoveAllWarnings();
-        WarningHolder::AddWarning(1, "FPPD has crashed.  Check crash reports.");
-        WarningHolder::WriteWarningsFile();
-        exit(-1);
+        // Written without warningsLock: the crashed thread may hold it, and
+        // waiting on it here left fppd dark until the watchdog fired.
+        // inCrashHandler stays set until _exit, so a fault from here on
+        // doesn't re-run the whole handler.
+        WarningHolder::WriteCrashedWarningsFile(1, "FPPD has crashed.  Check crash reports.");
+        // _exit(), not exit(): exit() runs the global/static destructors, and
+        // those take locks the crashed thread may still hold -- a crash inside
+        // RTSPOutputManager::ApplyConfig() left ~RTSPOutputManager waiting on
+        // its apply lock until the watchdog above killed fppd two minutes
+        // later, leaving the show dark all that time.  main() skips them for
+        // the same reason on a normal exit (see its end), so nothing depends
+        // on them running.
+        fflush(nullptr);
+        _exit(-1);
     }
 }
 
@@ -794,18 +849,21 @@ static std::string ManualCrashReportCallback(std::string& error) {
         }
     }
     // Keep at most two manual reports, counting the new one.  Pruned after the
-    // move so a failed move does not also lose the previous report.
-    std::set<std::string> manual;
+    // move so a failed move does not also lose the previous report.  Oldest
+    // first by time: the names start with the FPP version, so after an
+    // upgrade sorting by name kept the wrong one.
+    std::vector<std::pair<std::filesystem::file_time_type, std::string>> manual;
     ec.clear();
     for (std::filesystem::directory_iterator it(cdir, ec), end; !ec && it != end; it.increment(ec)) {
-        if (IsManualCrashReport(it->path().c_str())) {
-            manual.insert(it->path());
+        std::error_code fec;
+        auto t = it->last_write_time(fec);
+        if (!fec && IsManualCrashReport(it->path().c_str()) && it->path() != path) {
+            manual.emplace_back(t, it->path().string());
         }
     }
-    manual.erase(path);
-    while (manual.size() > 1) {
-        unlink(manual.begin()->c_str());
-        manual.erase(manual.begin());
+    std::sort(manual.begin(), manual.end());
+    for (size_t i = 0; i + 1 < manual.size(); i++) {
+        unlink(manual[i].second.c_str());
     }
     SetFilePerms(path);
     return base;
@@ -879,6 +937,16 @@ static void initCapeFromFile(const std::string& f) {
 }
 static void initCape() {
     initCapeFromFile(FPP_DIR_MEDIA("/tmp/cape-sensors.json"));
+}
+
+// Leave without running the global/static destructors, as main()'s normal
+// exit and the crash handler already do (see the end of main()). An early
+// failure that called exit() ran them with fppd half started: the warnings
+// notify thread read WarningHolder's map while __cxa_finalize freed it, and
+// ~PluginManager's cleanup read settings that were already destroyed.
+[[noreturn]] static void ExitWithoutTeardown(int code) {
+    fflush(nullptr);
+    _exit(code);
 }
 
 void usage(char* appname) {
@@ -963,7 +1031,7 @@ int parseArguments(int argc, char** argv) {
         switch (c) {
         case 'V':
             printVersionInfo();
-            exit(0);
+            ExitWithoutTeardown(0);
         case 2: // log-level
             if (SetLogLevelComplex(optarg)) {
                 std::cout << FPPLogger::INSTANCE.GetLogLevelString() << std::endl;
@@ -1005,11 +1073,11 @@ int parseArguments(int argc, char** argv) {
             break;
         case 'h': // help
             usage(argv[0]);
-            exit(EXIT_SUCCESS);
+            ExitWithoutTeardown(EXIT_SUCCESS);
             break;
         default:
             usage(argv[0]);
-            exit(EXIT_FAILURE);
+            ExitWithoutTeardown(EXIT_FAILURE);
         }
     }
 
@@ -1091,7 +1159,7 @@ int main(int argc, char* argv[]) {
     FPPLogger::INSTANCE.Init();
 
     if (!checkASan(argc, argv))
-        return 1;
+        ExitWithoutTeardown(1);
 
     LoadSettings(argv[0]);
 
@@ -1229,7 +1297,7 @@ int main(int argc, char* argv[]) {
     LogInfo(VB_GENERAL, "Creation of Scheduler, Playlist, and Sequence Complete\n");
 
     if (!MultiSync::INSTANCE.Init()) {
-        exit(EXIT_FAILURE);
+        ExitWithoutTeardown(EXIT_FAILURE);
     }
 
     Sensors::INSTANCE.DetectHWSensors();
@@ -1299,6 +1367,11 @@ int main(int argc, char* argv[]) {
     // events while we are shutting down
     Events::PrepareForShutdown();
 
+    // Scheduled commands run on detached threads; give any still running a
+    // moment to finish before the media, outputs and command registry below go
+    // away under them.  Bounded so a stuck command can't hold up shutdown.
+    Scheduler::WaitForCommandThreads(2000);
+
     // Tear down mDNS *first* so the goodbye packets for our advertised
     // services go out on the wire before anything slower (media output
     // shutdown, channel-output close, or the WS responder draining its
@@ -1342,8 +1415,14 @@ int main(int argc, char* argv[]) {
     // window where a warning change reads freed objects.
     WarningHolder::StopNotifyThread();
 
-    delete scheduler;
-    delete sequence;
+    // Cleared before the delete, not left dangling: the crash handler and any
+    // straggler that checks these for null must not reach a freed object.
+    Scheduler* deadScheduler = scheduler;
+    scheduler = nullptr;
+    delete deadScheduler;
+    Sequence* deadSequence = sequence;
+    sequence = nullptr;
+    delete deadSequence;
     runMainFPPDLoop = -1;
     Sensors::INSTANCE.Close();
     RecurringTasks::INSTANCE.Close();
@@ -1355,8 +1434,10 @@ int main(int argc, char* argv[]) {
     }
     delete gpioUtil;
 
-    MagickLib::DestroyMagick();
-    curl_global_cleanup();
+    // No DestroyMagick()/curl_global_cleanup(): every path from here ends in
+    // execlp() or _exit(), which drop both libraries with the address space,
+    // and tearing them down first pulled their state out from under any
+    // detached thread (a scheduled command, an HTTP fetch) still inside them.
     std::string logLevelString = FPPLogger::INSTANCE.GetLogLevelString();
 
     // Decide the restart resume HERE, while the log file is still open:
@@ -1771,7 +1852,9 @@ static void MainLoopWatchdog(int warnSec, int restartSec, int shutdownSec) {
         if (warnSec <= 0) {
             continue; // disabled at runtime
         }
-        if (!runMainFPPDLoop) {
+        // <= 0, not !: main() sets it to -1 partway through teardown, and a
+        // shutdown that wedged after that point was reported as a loop stall.
+        if (runMainFPPDLoop <= 0) {
             // Teardown is underway.  It ends in _exit()/execlp(), so this
             // thread simply stops existing on a healthy shutdown; if it is
             // still here much later, the shutdown itself wedged and systemd
@@ -1965,20 +2048,27 @@ void MainLoop(void) {
             std::time_t latestRelease = 0;
             // Find the latest release date across all OS images
             for (const auto& osEntry : imagerRoot["os_list"]) {
-                if (osEntry.isMember("release_date")) {
-                    std::string releaseDate = osEntry["release_date"].asString();
-                    if (releaseDate.length() >= 10) {
-                        // Parse "YYYY-MM-DD" format
-                        std::tm releaseTime = {};
-                        releaseTime.tm_year = std::stoi(releaseDate.substr(0, 4)) - 1900;
-                        releaseTime.tm_mon = std::stoi(releaseDate.substr(5, 2)) - 1;
-                        releaseTime.tm_mday = std::stoi(releaseDate.substr(8, 2));
-                        std::time_t releaseTimestamp = std::mktime(&releaseTime);
-                        if (releaseTimestamp > latestRelease) {
-                            latestRelease = releaseTimestamp;
-                            minValidDate = releaseTime;
-                        }
-                    }
+                // Parsed without throwing: std::stoi on a malformed date (and
+                // isMember/asString on an entry of the wrong JSON type) threw
+                // out of MainLoop and took fppd down at startup.  An entry
+                // that doesn't parse is skipped.
+                if (!osEntry.isObject() || !osEntry["release_date"].isString()) {
+                    continue;
+                }
+                // Parse "YYYY-MM-DD" format
+                int year = 0, month = 0, day = 0;
+                if (sscanf(osEntry["release_date"].asCString(), "%4d-%2d-%2d", &year, &month, &day) != 3 ||
+                    year < 1970 || month < 1 || month > 12 || day < 1 || day > 31) {
+                    continue;
+                }
+                std::tm releaseTime = {};
+                releaseTime.tm_year = year - 1900;
+                releaseTime.tm_mon = month - 1;
+                releaseTime.tm_mday = day;
+                std::time_t releaseTimestamp = std::mktime(&releaseTime);
+                if (releaseTimestamp > latestRelease) {
+                    latestRelease = releaseTimestamp;
+                    minValidDate = releaseTime;
                 }
             }
         }
@@ -2059,8 +2149,10 @@ void MainLoop(void) {
 
     StartMainLoopWatchdog();
 
-    while (runMainFPPDLoop) {
-        s_mainLoopHeartbeat.store(MonotonicMS());
+    // Relaxed: a stop flag and a timestamp for the watchdog, read or written
+    // on every pass, with nothing published through either.
+    while (runMainFPPDLoop.load(std::memory_order_relaxed)) {
+        s_mainLoopHeartbeat.store(MonotonicMS(), std::memory_order_relaxed);
         MAIN_LOOP_PHASE("epoll/callbacks");
         EPollManager::WaitResult epollresult = EPollManager::INSTANCE.waitForEvents(sleepms);
         bool pushBridgeData = epollresult == EPollManager::WaitResult::SOME_TRUE;
@@ -2101,10 +2193,19 @@ void MainLoop(void) {
                 }
             }
 
+            // Read once: a stop from another thread (the API, MQTT) can land
+            // between two reads, and then the second recorded "idle" as the
+            // previous status and the playing-to-idle change was never seen,
+            // so the stopped playlist was never cleaned up and the scheduler
+            // never asked whether something should be playing.  For the same
+            // reason "stopping now" counts below: a stop holds it while the
+            // entry stops, and a pass that read it then never saw the change.
+            PlaylistStatus curStatus = Player::INSTANCE.GetStatus();
             int reactivated = 0;
-            if (Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) {
+            if (curStatus == FPP_STATUS_IDLE) {
                 if ((prevFPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
                     (prevFPPstatus == FPP_STATUS_PLAYLIST_PAUSED) ||
+                    (prevFPPstatus == FPP_STATUS_STOPPING_NOW) ||
                     (prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY) ||
                     (prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
                     MAIN_LOOP_PHASE("Player::Cleanup");
@@ -2125,7 +2226,13 @@ void MainLoop(void) {
             if (reactivated)
                 prevFPPstatus = FPP_STATUS_IDLE;
             else
-                prevFPPstatus = Player::INSTANCE.GetStatus();
+                prevFPPstatus = curStatus;
+
+            // Process() frees retired playlists and entries, but only runs
+            // while something plays; free them while idle too.
+            if (!Player::INSTANCE.IsPlaying()) {
+                Playlist::ReleaseRetired();
+            }
 
         } else if (getFPPmode() == REMOTE_MODE) {
             if (mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING) {
@@ -2279,8 +2386,9 @@ void PublishStatsBackground(std::string reason) {
     // configuration signature has moved and stays quiet when it has not, and a
     // device that never changes still checks in on the publish interval so the
     // project can see it is alive.
-    static auto lastAsk = std::chrono::system_clock::now() - std::chrono::hours(STATS_PUBLISH_ASK_HOURS);
-    auto now_ts = std::chrono::system_clock::now();
+    // steady_clock: a wall-clock step back held the ask off for the size of the step
+    static auto lastAsk = std::chrono::steady_clock::now() - std::chrono::hours(STATS_PUBLISH_ASK_HOURS);
+    auto now_ts = std::chrono::steady_clock::now();
     auto hours = std::chrono::duration_cast<std::chrono::hours>(now_ts - lastAsk);
 
     if (hours.count() >= STATS_PUBLISH_ASK_HOURS) {
@@ -2301,7 +2409,7 @@ void PublishStatsBackground(std::string reason) {
             // tick rather than daily, so the message needs its own limiter or it
             // becomes a per-second log. The setting lookup itself is a cheap map
             // read and is fine to repeat.
-            static auto lastLog = std::chrono::system_clock::now() - std::chrono::hours(STATS_PUBLISH_ASK_HOURS);
+            static auto lastLog = std::chrono::steady_clock::now() - std::chrono::hours(STATS_PUBLISH_ASK_HOURS);
             if (std::chrono::duration_cast<std::chrono::hours>(now_ts - lastLog).count() >= STATS_PUBLISH_ASK_HOURS) {
                 lastLog = now_ts;
                 LogInfo(VB_GENERAL, "Not Publishing statistics as mode is '%s'\n", mode.c_str());

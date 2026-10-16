@@ -89,7 +89,7 @@ int IOCTLFrameBuffer::InitializeFrameBuffer() {
     }
     
     m_fbFd = open(devString.c_str(), O_RDWR);
-    if (!m_fbFd) {
+    if (m_fbFd < 0) {
         LogErr(VB_CHANNELOUT, "Error opening FrameBuffer device: %s\n", devString.c_str());
         WarningHolder::AddWarning(36, "Framebuffer output: could not open device " + devString);
         return 0;
@@ -195,23 +195,43 @@ int IOCTLFrameBuffer::InitializeFrameBuffer() {
         return 0;
     }
     
-    LogDebug(VB_CHANNELOUT, "IOCTLFrameBuffer: After FBIOPUT - line_length: %d, xres: %d, yres: %d, xres_virtual: %d, yres_virtual: %d\n",
-             m_fInfo.line_length, m_vInfo.xres, m_vInfo.yres, m_vInfo.xres_virtual, m_vInfo.yres_virtual);
-    
-    m_bpp = m_vInfo.bits_per_pixel;
-    if (devString == "/dev/fb0") {
-        m_ttyFd = open("/dev/console", O_RDWR);
-        if (!m_ttyFd) {
-            LogErr(VB_CHANNELOUT, "Error, unable to open /dev/console\n");
-            DestroyFrameBuffer();
+    LogDebug(VB_CHANNELOUT, "IOCTLFrameBuffer: After FBIOPUT - line_length: %d, xres: %d, yres: %d, xres_virtual: %d, yres_virtual: %d, smem_len: %u\n",
+             m_fInfo.line_length, m_vInfo.xres, m_vInfo.yres, m_vInfo.xres_virtual, m_vInfo.yres_virtual, m_fInfo.smem_len);
+
+    // A successful FBIOPUT does not mean the pages were granted.  A driver
+    // with no fb_check_var (fbtft SPI displays) returns success without
+    // applying the request, and its video memory holds a single page, so
+    // mapping and clearing m_pages pages runs off the end of it (SIGBUS).
+    // Take the page count from what the device reports it has.
+    if (m_vInfo.yres && m_fInfo.line_length) {
+        uint32_t pageBytes = m_vInfo.yres * m_fInfo.line_length;
+        int avail = std::min<uint32_t>(m_vInfo.yres_virtual / m_vInfo.yres, m_fInfo.smem_len / pageBytes);
+        if (avail < 1) {
+            LogErr(VB_CHANNELOUT, "FrameBuffer %s has %u bytes of video memory, less than one %ux%u page\n",
+                   devString.c_str(), m_fInfo.smem_len, m_vInfo.xres, m_vInfo.yres);
+            close(m_fbFd);
             return 0;
         }
+        if (avail < m_pages) {
+            LogWarn(VB_CHANNELOUT, "FrameBuffer %s only has room for %d of %d pages, using %d\n",
+                    devString.c_str(), avail, m_pages, avail);
+            m_pages = avail;
+            if (m_cPage >= m_pages || m_pPage >= m_pages) {
+                m_cPage = 0;
+                m_pPage = 0;
+            }
+        }
+    }
 
-        // Hide the text console
-        ioctl(m_ttyFd, KDSETMODE, KD_GRAPHICS);
-
-        // Shouldn't need this anymore.
-        close(m_ttyFd);
+    m_bpp = m_vInfo.bits_per_pixel;
+    if (devString == "/dev/fb0") {
+        // Hide the text console.  Without one (a container, a headless
+        // service) there is nothing to hide, and the framebuffer works.
+        m_ttyFd = open("/dev/console", O_RDWR);
+        if (m_ttyFd >= 0) {
+            ioctl(m_ttyFd, KDSETMODE, KD_GRAPHICS);
+            close(m_ttyFd);
+        }
         m_ttyFd = -1;
     }
 
@@ -332,14 +352,14 @@ void IOCTLFrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
         const uint8_t* sR = buffer + 0; // Input always RGB
         const uint8_t* sG = buffer + 1;
         const uint8_t* sB = buffer + 2;
-        uint8_t* ob = m_outputBuffer;
+        uint8_t* ob = m_stagingBuffer;
         int drow = 0;
 
+        // Only a direct draw may write the page.  Otherwise the frame goes to
+        // m_stagingBuffer, which DrawLoop() then draws (see FrameBuffer.h).
+        std::unique_lock<std::mutex> lock(draw ? m_bufferLock : m_stagingLock);
         if (draw) {
-            m_bufferLock.lock();
-        }
-        if (m_pixelSize == 1) {
-            ob = m_pageBuffers[m_cPage];
+            ob = (m_pixelSize == 1) ? m_pageBuffers[m_cPage] : m_outputBuffer;
         }
 
         // Clipped to the page - see FrameBuffer::ClipToPage().
@@ -368,9 +388,8 @@ void IOCTLFrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
             drow++;
         }
 
-        if (draw) {
-            m_bufferLock.unlock();
-        } else {
+        lock.unlock();
+        if (!draw) {
             m_imageReady = true;
         }
     } else {

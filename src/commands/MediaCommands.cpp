@@ -19,9 +19,12 @@
 
 #include <curl/curl.h>
 
+#include <atomic>
+#include <cstdint>
 #include <functional>
 #include <mutex>
 #include <thread>
+#include <vector>
 
 #include "../Timers.h"
 #include "../fppversion.h"
@@ -68,6 +71,75 @@ static size_t URL_write_data(void* buffer, size_t size, size_t nmemb, void* user
     return size * nmemb;
 }
 
+// A URL command's transfer outlives its Result. Fire-and-forget callers
+// (presets, an If's Parallel branch, GPIO, MultiSync) drop the Result at
+// once, and ~CURLResult used to busy-wait up to a second for the transfer and
+// then abort it: every webhook to a slow or dead host stalled the calling
+// thread - usually the main loop - for a second, and any response slower than
+// that was silently cut off. The destructor now hands the still-running
+// transfer here, whole (moving the easy handle to another multi would restart
+// it, and could send a POST twice), and the main loop finishes it.
+static constexpr long URL_TRANSFER_TIMEOUT_MS = 30000;
+static constexpr long URL_CONNECT_TIMEOUT_MS = 10000;
+namespace {
+struct OrphanTransfer {
+    CURLM* multi;
+    CURL* easy;
+    long long deadline;
+    std::string url;
+};
+std::mutex s_orphanLock;
+std::vector<OrphanTransfer> s_orphans;
+bool s_reaperArmed = false;
+
+size_t DiscardBody(void*, size_t size, size_t nmemb, void*) {
+    return size * nmemb;
+}
+
+void PumpOrphanTransfers() {
+    std::vector<OrphanTransfer> work;
+    {
+        std::lock_guard<std::mutex> l(s_orphanLock);
+        work.swap(s_orphans);
+    }
+    std::vector<OrphanTransfer> keep;
+    long long now = GetMonotonicTimeMS();
+    for (auto& o : work) {
+        int running = 0;
+        CURLMcode mc = curl_multi_perform(o.multi, &running);
+        if (mc == CURLM_OK && running > 0 && now < o.deadline) {
+            keep.push_back(o);
+            continue;
+        }
+        if (running > 0) {
+            LogWarn(VB_COMMAND, "URL \"%s\" did not finish; abandoning it\n", o.url.c_str());
+        }
+        curl_multi_remove_handle(o.multi, o.easy);
+        curl_multi_cleanup(o.multi);
+        curl_easy_cleanup(o.easy);
+    }
+    std::lock_guard<std::mutex> l(s_orphanLock);
+    s_orphans.insert(s_orphans.end(), keep.begin(), keep.end());
+    if (s_orphans.empty()) {
+        s_reaperArmed = false;
+    } else {
+        Timers::INSTANCE.addTimer("URLCommandTransfers", GetTimeMS() + 10, PumpOrphanTransfers);
+    }
+}
+
+void AdoptOrphanTransfer(CURLM* multi, CURL* easy, const std::string& url) {
+    // The body has nowhere to go once the Result is gone.
+    curl_easy_setopt(easy, CURLOPT_WRITEFUNCTION, DiscardBody);
+    curl_easy_setopt(easy, CURLOPT_WRITEDATA, nullptr);
+    std::lock_guard<std::mutex> l(s_orphanLock);
+    s_orphans.push_back({ multi, easy, GetMonotonicTimeMS() + URL_TRANSFER_TIMEOUT_MS + 5000, url });
+    if (!s_reaperArmed) {
+        s_reaperArmed = true;
+        Timers::INSTANCE.addTimer("URLCommandTransfers", GetTimeMS() + 10, PumpOrphanTransfers);
+    }
+}
+} // namespace
+
 class CURLResult : public Command::Result {
 public:
     CURLResult(const std::vector<std::string>& args) :
@@ -101,6 +173,10 @@ public:
         curl_easy_setopt(m_curl, CURLOPT_USERAGENT, userAgent.c_str());
         curl_easy_setopt(m_curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(m_curl, CURLOPT_MAXREDIRS, 10L);
+        // A transfer may now outlive its Result (see AdoptOrphanTransfer()),
+        // so it needs its own end.
+        curl_easy_setopt(m_curl, CURLOPT_CONNECTTIMEOUT_MS, URL_CONNECT_TIMEOUT_MS);
+        curl_easy_setopt(m_curl, CURLOPT_TIMEOUT_MS, URL_TRANSFER_TIMEOUT_MS);
 
         CURLcode status;
         status = curl_easy_setopt(m_curl, CURLOPT_URL, url.c_str());
@@ -138,10 +214,11 @@ public:
         m_isDone = false;
     }
     virtual ~CURLResult() {
-        int count = 0;
-        while (!isDone() && count < 1000) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            count++;
+        if (!isDone() && m_curl && m_curlm) {
+            AdoptOrphanTransfer(m_curlm, m_curl, m_url);
+            m_curl = nullptr;
+            m_curlm = nullptr;
+            return;
         }
         cleanupCurl();
     }
@@ -203,9 +280,13 @@ public:
     }
 
 private:
-    CURL* m_curl;
-    CURLM* m_curlm;
-    bool m_isDone;
+    // Initialized here, not in the constructor: a setup failure (a URL curl
+    // rejects, curl_easy_init() returning NULL) calls cleanupCurl() before
+    // m_curlm is assigned, and it then handed a garbage pointer to
+    // curl_multi_remove_handle()/curl_multi_cleanup().
+    CURL* m_curl = nullptr;
+    CURLM* m_curlm = nullptr;
+    bool m_isDone = true;
     bool m_transferFailed = false;
     std::string m_url;
 };
@@ -312,7 +393,7 @@ static void RemoveRunningMedia(const std::string& filename, MediaOutputBase* sel
     MediaOutputBase* dt = self;
     std::string fn = filename;
 
-    Timers::INSTANCE.addTimer(std::to_string(i), GetTimeMS() + 1, [dt, fn]() {
+    Timers::INSTANCE.addTimer("RemoveRunningMedia-" + std::to_string(i), GetTimeMS() + 1, [dt, fn]() {
         // Unregister first: the preset below can start the same file again,
         // and it should get the name back rather than a "_" suffix.  This
         // object stays alive until the delete at the end, so a preset that
@@ -352,6 +433,8 @@ public:
                       const std::string& videoOut = "");
     virtual ~GStreamerPlayData();
     virtual void Stopped() override;
+    virtual void RequestStop() override;
+    virtual bool NeedsSlotPump() const override { return true; }
     // Declared first so it is destroyed last, remaining valid throughout ~GStreamerPlayData()
     // even if the GStreamer bus fires a second Stopped() callback during our destruction.
     std::atomic<bool> m_stoppedOnce{ false };
@@ -359,6 +442,15 @@ public:
     int volumeAdjust = 0;
     int streamSlot = 1;
     MediaOutputStatus status;
+    // Names this output in a deferred stop.  A pointer can't: by the time the
+    // stop runs, the output may have been freed and its address reused.
+    const uint64_t playId = NextPlayId();
+
+private:
+    static uint64_t NextPlayId() {
+        static std::atomic<uint64_t> next{ 1 };
+        return next++;
+    }
 };
 
 GStreamerPlayData::GStreamerPlayData(const std::string& file, int l, int vol, int slot,
@@ -373,10 +465,41 @@ GStreamerPlayData::GStreamerPlayData(const std::string& file, int l, int vol, in
     streamSlot(slot) {
     SetLoopCount(l > 0 ? l - 1 : 0);
     SetVolumeAdjustment(vol);
+    // Media played by command runs beside the show; it must not pace a
+    // running sequence (a companion keeps in step through the slot manager's
+    // sync instead).
+    SetDrivesShowClock(false);
     filename = RegisterRunningMedia(file, this);
 }
 
 GStreamerPlayData::~GStreamerPlayData() {
+    // Detach while this class is still whole. ~GStreamerOutput's Close() runs
+    // only after filename, status and the slot-1 status target are destroyed
+    // and the vtable no longer reaches RequestStop()/Stopped() here, yet until
+    // that Close() the slot manager (under its lock, from an HTTP thread) and
+    // a late bus message could still call them. Close() is idempotent, so the
+    // base destructor's own call is then a no-op.
+    Close();
+}
+
+// Stops this media from the main loop, through runningCommandMedia like every
+// other stop of command media.  Called by the slot manager while it holds its
+// own lock, so the stop itself -- up to half a second for video -- must not
+// run here.
+void GStreamerPlayData::RequestStop() {
+    uint64_t id = playId;
+    Timers::INSTANCE.addTimer("PlayMediaStop" + std::to_string(id), GetTimeMS(), [id]() {
+        std::lock_guard<std::recursive_mutex> lock(runningMediaLock);
+        for (const auto& item : runningCommandMedia) {
+            GStreamerPlayData* gpd = dynamic_cast<GStreamerPlayData*>(item.second);
+            if (gpd && gpd->playId == id) {
+                if (!gpd->m_stoppedOnce.load()) {
+                    gpd->Stop();
+                }
+                return;
+            }
+        }
+    });
 }
 
 void GStreamerPlayData::Stopped() {
@@ -475,17 +598,21 @@ std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::st
     // unstoppable via any command, and the two streams mix audibly. Stop
     // whatever already holds the slot first so only one stream ever owns it.
 #ifdef HAS_GSTREAMER
+    // Stop-then-start is one step per slot. Two Play Media on the same slot at
+    // once (two HTTP or MQTT requests) both found it empty, both started, and
+    // the slot went on tracking only the later stream while the two mixed.
+    // Recursive: a preset reached from Start() may play onto the same slot on
+    // this thread. Released before the MEDIA_STARTED preset below.
+    static std::recursive_mutex slotStartLocks[StreamSlotManager::MAX_SLOTS + 1];
+    std::unique_lock<std::recursive_mutex> slotStartLock(slotStartLocks[slot]);
     std::string stoppedMedia = StopCommandMediaInSlot(slot);
     if (!stoppedMedia.empty()) {
         LogInfo(VB_COMMAND, "Play Media: slot %d was playing %s, stopped it before starting %s\n", slot, stoppedMedia.c_str(), args[0].c_str());
-    } else {
-        // Not command media - a playlist-owned stream, which the playlist
-        // frees on its own thread rather than through runningCommandMedia.
-        GStreamerOutput* existingSlotOutput = StreamSlotManager::Instance().GetActiveOutput(slot);
-        if (existingSlotOutput) {
-            LogInfo(VB_COMMAND, "Play Media: slot %d already active, stopping previous stream before starting %s\n", slot, args[0].c_str());
-            existingSlotOutput->Stop();
-        }
+    } else if (StreamSlotManager::Instance().RequestStop(slot)) {
+        // Not command media - a playlist-owned stream.  Its owner stops and
+        // frees it on its own thread; stopping it from here raced the owner's
+        // Process() and its delete.  It stops on the owner's next pass.
+        LogInfo(VB_COMMAND, "Play Media: slot %d already active, asked its owner to stop it before starting %s\n", slot, args[0].c_str());
     }
 #endif
 
@@ -532,6 +659,9 @@ std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::st
     if (syncToShow) {
         StreamSlotManager::Instance().SetSyncToMaster(slot, true);
     }
+#ifdef HAS_GSTREAMER
+    slotStartLock.unlock();
+#endif
 
     std::map<std::string, std::string> keywords;
     keywords["MEDIA_NAME"] = args[0];
@@ -608,12 +738,13 @@ std::unique_ptr<Command::Result> StopMediaSlotCommand::run(const std::vector<std
         return std::make_unique<Command::Result>("Stopped slot " + std::to_string(slot));
     }
 
-    // Fall back to StreamSlotManager (catches playlist-started media)
-    GStreamerOutput* output = StreamSlotManager::Instance().GetActiveOutput(slot);
-    if (output) {
-        output->Stop();
-        LogInfo(VB_COMMAND, "Stop Media Slot %d: stopped active output\n", slot);
-        return std::make_unique<Command::Result>("Stopped slot " + std::to_string(slot));
+    // Fall back to StreamSlotManager (catches playlist-started media), which
+    // asks the owner to stop it on its own thread -- see Play Media above.
+    if (StreamSlotManager::Instance().RequestStop(slot)) {
+        LogInfo(VB_COMMAND, "Stop Media Slot %d: asked the slot's owner to stop it\n", slot);
+        // Not "Stopped": the owner stops it on its next pass, and only if it
+        // is still processing that output.
+        return std::make_unique<Command::Result>("Stop requested for slot " + std::to_string(slot));
     }
 
     return std::make_unique<Command::Result>("Slot " + std::to_string(slot) + " not playing");
@@ -707,7 +838,11 @@ std::unique_ptr<Command::Result> ApplyRoutingPresetCommand::run(const std::vecto
     }
     // Build the API call — POST to the live-apply endpoint with the preset name
     std::string url = "http://localhost/api/pipewire/audio/routing/presets/live-apply";
-    std::string postData = "{\"name\":\"" + args[0] + "\"}";
+    // Serialized, not concatenated: a preset name with a quote or backslash
+    // in it made invalid JSON (or a different request).
+    Json::Value body;
+    body["name"] = args[0];
+    std::string postData = SaveJsonToString(body);
     std::vector<std::string> curlArgs = { url, "POST", postData };
     return std::make_unique<CURLResult>(curlArgs);
 }

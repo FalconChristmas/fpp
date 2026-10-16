@@ -1,12 +1,13 @@
 <h3>Services and Kiosk</h3>
 <p>Enables background services that let other devices reach files on this FPP, and optionally a local HDMI kiosk.</p>
 
-<h4>OS Services (4 checkboxes)</h4>
+<h4>OS Services (5 checkboxes)</h4>
 <ul>
     <li><b>Enable rsync</b> (checkbox) — Starts the rsync daemon so other FPP systems can copy sequences/media/OS files <i>to</i> this device via <i>Content Setup → MultiSync / File Copy</i>. Enable on the <b>destination</b> FPP whenever you plan to push files to it.</li>
     <li><b>Enable Samba/CIFS</b> (checkbox, Advanced) — Starts Samba (<code>smbd</code>/<code>nmbd</code>) for Windows file sharing to browse this device as a network share.</li>
     <li><b>Enable FTP</b> (checkbox, Advanced) — Starts vsftpd for FTP file access.</li>
     <li><b>Enable Local MQTT Broker</b> (checkbox, Advanced) — Starts a Mosquitto broker on localhost:1883 using the <code>fpp</code> user’s credentials. Use it when you want this FPP itself to act as the broker rather than an external host.</li>
+    <li><b>Let other websites read the API</b> (checkbox, Advanced) — Sends CORS headers on <code>/api</code>, so a web page served from somewhere else (a dashboard on another computer) can read this player's API from the browser. Every web site you visit can then read it too, including the cape serial number and the settings, unless a UI password is set. Off by default. FPP's own pages, other FPP players, xLights and apps that are not web pages never need it. Takes effect immediately.</li>
 </ul>
 
 <h4>Kiosk Mode (Raspberry Pi, Advanced)</h4>

@@ -1433,6 +1433,16 @@ static bool capeMayRemoveSetting(const std::string& key, std::string& why) {
 static CapeSettingAction capeMaySetSetting(const std::vector<std::string>& lines, const std::string& key,
                                            const std::string& value, bool strict, std::string& why,
                                            bool userRequestedReset = false) {
+    // Settings no cape sets, signed or not, and however it asks: they decide
+    // where this device sends secrets.  SigningAPIHost is where the cape pages
+    // send the SoC serial, the order ID and the FalconPlayer account password
+    // (voucher redeem); unset by default, so an unsigned cape could point it
+    // at its own server.
+    static const std::set<std::string> kCapeNeverSets = { "SigningAPIHost" };
+    if (kCapeNeverSets.count(key)) {
+        why = "it decides where this device sends its serial and account credentials";
+        return CapeSettingAction::Refuse;
+    }
     // Never-override protects the user from the CAPE deciding. It is not meant to
     // stop the user deciding: `fppcapedetect -force-defaults` is what the "reset
     // to defaults" action in the firmware-upgrade UI passes, so there the
@@ -2075,8 +2085,11 @@ private:
                             // risk is which file is read, not that the path is absolute: the
                             // shipped asoundrc pattern names /opt/fpp/etc/... and must keep
                             // working, while /home/fpp/media/settings as a source would copy every
-                            // password on the box somewhere the web UI serves.
-                            if (srcAbsolute && !validSignature && src.rfind("/opt/fpp/", 0) != 0) {
+                            // password on the box somewhere the web UI serves. That holds for a
+                            // relative source too: only a signed image's is taken from the image
+                            // itself, so an unsigned "etc/shadow" resolved against the working
+                            // directory -- / at boot.
+                            if (!validSignature && src.rfind("/opt/fpp/", 0) != 0) {
                                 printf("CapeUtils: refusing copyFiles from %s: unsigned EEPROMs may "
                                        "only copy from /opt/fpp/\n", src.c_str());
                                 continue;

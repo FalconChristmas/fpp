@@ -14,6 +14,7 @@
 
 #include "fpp-json.h"
 
+#include <algorithm>
 #include <cstring>
 
 #include "../Sequence.h" // FPPD_OFF_CHANNEL
@@ -25,12 +26,20 @@
 
 PixelOverlayModelSub::PixelOverlayModelSub(const Json::Value& c) :
     PixelOverlayModel(c) {
-    if (config.isMember("XOffset")) {
-        xOffset = config["XOffset"].asInt();
+    if (!isValid()) {
+        // The base class rejected the definition; the manager drops it.
+        return;
     }
-
-    if (config.isMember("YOffset")) {
-        yOffset = config["YOffset"].asInt();
+    // Same type tolerance as the base class: these come from the same
+    // unchecked files, and asInt()/asString() throw.
+    std::string parentName, subType, grid;
+    int parentStart = 0;
+    if (!configInt(config, "XOffset", 0, xOffset) || !configInt(config, "YOffset", 0, yOffset) ||
+        !configInt(config, "ParentStartChannel", 0, parentStart) ||
+        !configString(config, "Parent", parentName) || !configString(config, "SubType", subType) ||
+        !configString(config, "Grid", grid)) {
+        markInvalid("XOffset, YOffset, ParentStartChannel, Parent, SubType or Grid has the wrong type");
+        return;
     }
 
     if (config.isMember("SubType")) {
@@ -83,7 +92,8 @@ void PixelOverlayModelSub::buildChannelGrid() {
                     continue;
                 }
                 int ch1 = std::atoi(chStr.c_str()); // 1-based absolute start channel
-                if (ch1 > 0) {
+                // Same bound as buildGrid(): scattered to on the output thread.
+                if (ch1 > 0 && (int64_t)ch1 - 1 + cpn <= FPPD_MAX_CHANNELS) {
                     outputCells[slot].push_back((uint32_t)(ch1 - 1));
                 }
             }
@@ -98,9 +108,8 @@ void PixelOverlayModelSub::buildChannelGrid() {
 // base orientation mapping.
 void PixelOverlayModelSub::buildGrid() {
     int parentStart0 = 0;
-    if (config.isMember("ParentStartChannel")) {
-        parentStart0 = config["ParentStartChannel"].asInt() - 1;
-    }
+    configInt(config, "ParentStartChannel", 0, parentStart0); // type checked in the constructor
+    parentStart0--;
     if (parentStart0 < 0) {
         parentStart0 = 0;
     }
@@ -133,8 +142,12 @@ void PixelOverlayModelSub::buildGrid() {
                 continue;
             }
             int slot = cd / cpn;
-            if (slot >= 0 && slot < (int)outputMap.size()) {
-                outputMap[slot] = (uint32_t)(parentStart0 + (node - 1) * cpn);
+            // doGridOverlay() writes cpn channels at this base on the output
+            // thread, so it has to lie inside the channel buffer; a stale or
+            // corrupt grid could name any node.
+            int64_t ob = (int64_t)parentStart0 + (int64_t)(node - 1) * cpn;
+            if (slot >= 0 && slot < (int)outputMap.size() && ob + cpn <= FPPD_MAX_CHANNELS) {
+                outputMap[slot] = (uint32_t)ob;
             }
         }
     }
@@ -167,6 +180,31 @@ bool PixelOverlayModelSub::foundParent() {
         // modelsLock contended and not ours; do not log -- the parent may be
         // perfectly valid, we just can't look it up without risking deadlock.
         return false;
+    }
+
+    // Refuse a parent chain that leads back here: a submodel naming itself
+    // (the Parent picker lists every model, this one included) or a loop of
+    // them. doOverlay() calls parent->setData() then parent->doOverlay(), and
+    // with this model somewhere up the chain that never returned - the channel
+    // output thread recursed until its stack overflowed. Grid submodels end
+    // the walk: they scatter to output channels and never call their parent.
+    constexpr int MAX_SUBMODEL_DEPTH = 16;
+    PixelOverlayModel* a = p;
+    for (int depth = 0; a; depth++) {
+        if (a == this || depth >= MAX_SUBMODEL_DEPTH) {
+            LogErr(VB_CHANNELOUT, "Submodel \"%s\" cannot use \"%s\" as its parent: the parent chain leads back to it\n",
+                   name.c_str(), config["Parent"].asString().c_str());
+            return false;
+        }
+        PixelOverlayModelSub* s = dynamic_cast<PixelOverlayModelSub*>(a);
+        if (!s || s->gridMode) {
+            break;
+        }
+        PixelOverlayModel* next = nullptr;
+        if (!PixelOverlayManager::INSTANCE.tryGetModel(s->config["Parent"].asString(), next)) {
+            return false;
+        }
+        a = next;
     }
     parent = p;
 
@@ -203,15 +241,30 @@ void PixelOverlayModelSub::setState(const PixelOverlayState& st) {
     }
 }
 void PixelOverlayModelSub::resetParent() {
-    parent = nullptr;
+    // Disable first: that takes this model out of the active list under
+    // activeModelsLock, which waits out a doOverlay() already reading
+    // `parent` on the channel output thread. Only then is it safe to clear.
     PixelOverlayModel::setState(PixelOverlayState(PixelOverlayState::Disabled));
+    parent = nullptr;
+}
+std::string PixelOverlayModelSub::getParentName() const {
+    return config["Parent"].asString();
 }
 
 uint32_t PixelOverlayModelSub::outputChannelForData(uint32_t dataOffset) const {
     if (!gridMode) {
-        // A rectangular submodel is a contiguous window of its parent, which
-        // the base class's arithmetic already describes correctly.
-        return PixelOverlayModel::outputChannelForData(dataOffset);
+        // A rectangular submodel draws through its parent, so its cells land
+        // wherever the parent's do at the offset cell; the base class's
+        // startChannel arithmetic is meaningless here (startChannel is forced
+        // to 0 for a submodel), and joined the polar layout against channels
+        // 0..N. channelData is node-major at channelsPerNode.
+        if (!parent || channelsPerNode <= 0) {
+            return FPPD_OFF_CHANNEL;
+        }
+        int node = dataOffset / channelsPerNode;
+        int k = dataOffset % channelsPerNode;
+        uint32_t ch = parent->outputChannelForCell(node % width + xOffset, node / width + yOffset);
+        return ch == FPPD_OFF_CHANNEL ? ch : ch + k;
     }
     int slot = dataOffset / channelsPerNode;
     if (channelGridMode) {
@@ -247,12 +300,39 @@ void PixelOverlayModelSub::doOverlay(uint8_t* channels) {
     // reports the failure once instead.
     if (!parent)
         return;
+    // A submodel that no longer fits its parent (the parent's geometry changed
+    // after the submodel was saved) can't be drawn: setChildState() warned
+    // about it once.  Asking the parent anyway logged "region is out of
+    // bounds" on every frame an effect touched it.
+    if (xOffset < 0 || yOffset < 0 ||
+        (int64_t)xOffset + width > parent->getWidth() ||
+        (int64_t)yOffset + height > parent->getHeight()) {
+        dirtyBuffer = false;
+        return;
+    }
 
     dirtyBuffer = dirtyBuffer | parent->needRefresh();
     if (!dirtyBuffer)
         return;
 
-    parent->setData(channelData, xOffset, yOffset, width, height, state);
+    // channelData is packed at this model's node width, but the parent reads
+    // the region at its own bytes per pixel. A UI-made submodel is 3 channels
+    // per node, so on an RGBW parent that read ran a third past the end of
+    // channelData (and shifted every colour). Repack when they differ; this
+    // runs only on the channel output thread, hence the thread_local.
+    const uint8_t* data = channelData;
+    const int pb = parent->getBytesPerPixel();
+    if (pb != channelsPerNode) {
+        static thread_local std::vector<uint8_t> repacked;
+        const size_t px = (size_t)width * height;
+        const int n = std::min(pb, channelsPerNode);
+        repacked.assign(px * pb, 0);
+        for (size_t p = 0; p < px; p++) {
+            memcpy(&repacked[p * pb], &channelData[p * channelsPerNode], n);
+        }
+        data = repacked.data();
+    }
+    parent->setData(data, xOffset, yOffset, width, height, state);
     parent->doOverlay(channels);
     dirtyBuffer = false;
 }
@@ -291,7 +371,7 @@ static inline void scatterNode(uint8_t* dst, const uint8_t* src, int cpn, int st
 }
 
 void PixelOverlayModelSub::doGridOverlay(uint8_t* channels) {
-    int st = state.getState();
+    int st = getState().getState();
     if (st == 0) {
         dirtyBuffer = false;
         return;

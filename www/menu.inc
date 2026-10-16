@@ -296,10 +296,10 @@ function list_plugin_entries($menu)
                 }
             });
             </script>
-            <div id='updateInProgressFlag' class="alert detract" style="display: none;">
-                <span class='inlineBlock'><i class='fas fa-circle-notch fa-spin'></i> <span
+            <div id='updateInProgressFlag' class="alert detract" style="display: none;"><div class="d-flex flex-wrap align-items-center gap-2">
+                <span><i class='fas fa-circle-notch fa-spin'></i> <span
                         id='updateInProgressFlagText'>FPP update in progress</span></span>
-                <span class='inlineBlock'>
+                <span>
                     <button name="btnViewUpdateProgress" type="button" id='updateInProgressViewBtn'
                         class="buttons btn-outline-light">
                         <i class='fas fa-fw fa-eye fa-nbsp'></i>View progress</button>
@@ -307,9 +307,11 @@ function list_plugin_entries($menu)
                         class="buttons btn-outline-light">
                         <i class='fas fa-fw fa-times fa-nbsp'></i>Dismiss</button>
                 </span>
-            </div>
-            <div id='restartFlag' class="alert detract"><span class='inlineBlock'>Settings have changed. FPPD Restart
-                    Required</span><span class='inlineBlock'><button name="btnRestartFPPD" type="button"
+            </div></div>
+            <?php // The inner flex row wraps the message and its buttons with a gap: on a phone the
+                  // message took two lines and the button sat on its last one. ?>
+            <div id='restartFlag' class="alert detract"><div class="d-flex flex-wrap align-items-center gap-2"><span>Settings have changed. FPPD Restart
+                    Required</span><span><button name="btnRestartFPPD" type="button"
                         onClick="RestartFPPD();common_ViewPortChange();" class="buttons btn-outline-light"><i
                             class='fas fa-fw fa-sync fa-nbsp'></i>Restart FPPD</button>
 
@@ -320,7 +322,7 @@ function list_plugin_entries($menu)
                         <?
                     }
                     ?>
-                </span>
+                </span></div>
             </div>
             <? if (!file_exists(__DIR__ . "/../src/fppd")) { ?>
                 <div id='rebuildPopup' title='FPP Upgrade' style="display: none">
@@ -363,8 +365,8 @@ function list_plugin_entries($menu)
             // flag, and the button would restart the developer's desktop.
             if ($settings['Platform'] != 'MacOS') {
                 ?>
-                <div id='rebootFlag' class="alert detract"><span class='inlineBlock'>Base configuration has changed. Reboot
-                        Required</span><span class='inlineBlock'><input name="btnReboot" onClick="Reboot();" type="button"
+                <div id='rebootFlag' class="alert detract"><div class="d-flex flex-wrap align-items-center gap-2"><span>Base configuration has changed. Reboot
+                        Required</span><span><input name="btnReboot" onClick="Reboot();" type="button"
                             class="buttons btn-outline-light" value="Reboot">
                         <?
                         if (basename($_SERVER['PHP_SELF']) == "developer.php") {
@@ -373,7 +375,7 @@ function list_plugin_entries($menu)
                             <?
                         }
                         ?>
-                    </span>
+                    </span></div>
                 </div>
                 <?
             }

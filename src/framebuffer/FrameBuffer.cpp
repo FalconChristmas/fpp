@@ -18,6 +18,8 @@
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
+#include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <ctime>
 #include <errno.h>
@@ -108,6 +110,10 @@ FrameBuffer::~FrameBuffer() {
     if (m_outputBuffer) {
         free(m_outputBuffer);
         m_outputBuffer = nullptr;
+    }
+    if (m_stagingBuffer) {
+        free(m_stagingBuffer);
+        m_stagingBuffer = nullptr;
     }
 
     // Only the base teardown - the vtable is already demoted to FrameBuffer here,
@@ -202,13 +208,13 @@ int FrameBuffer::FBInit(const Json::Value& config) {
             m_dirtyPages[i] = 0;
     }
 
-    m_outputBuffer = (uint8_t*)malloc(m_pageSize);
-    if (!m_outputBuffer) {
+    m_outputBuffer = (uint8_t*)calloc(1, m_pageSize);
+    m_stagingBuffer = (uint8_t*)calloc(1, m_pageSize);
+    if (!m_outputBuffer || !m_stagingBuffer) {
         LogErr(VB_CHANNELOUT, "Error, unable to allocate outputBuffer buffer\n");
         DestroyFrameBuffer();
         return 0;
     }
-    memset(m_outputBuffer, 0, m_pageSize);
 
     LogDebug(VB_CHANNELOUT, "Initialized %s frame buffer at %dx%d resolution.\n",
              m_device.c_str(), m_width, m_height);
@@ -349,11 +355,11 @@ void FrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
     const uint8_t* sR = buffer + 0; // Input always RGB
     const uint8_t* sG = buffer + 1;
     const uint8_t* sB = buffer + 2;
-    uint8_t* ob = m_outputBuffer;
+    uint8_t* ob = m_stagingBuffer;
 
-    if (draw && (m_pixelSize == 1)) {
-        m_bufferLock.lock();
-        ob = FB_CURRENT_PAGE_PTR;
+    std::unique_lock<std::mutex> lock(draw ? m_bufferLock : m_stagingLock);
+    if (draw) {
+        ob = (m_pixelSize == 1) ? FB_CURRENT_PAGE_PTR : m_outputBuffer;
     }
     uint8_t* dR;
     uint8_t* dG;
@@ -396,9 +402,8 @@ void FrameBuffer::FBCopyData(const uint8_t* buffer, int draw) {
         drow++;
     }
 
-    if (draw) {
-        m_bufferLock.unlock();
-    } else {
+    lock.unlock();
+    if (!draw) {
         m_imageReady = true;
     }
 }
@@ -448,12 +453,20 @@ void FrameBuffer::DrawLoop(void) {
 
     std::unique_lock<std::mutex> lock(m_bufferLock);
     while (m_runLoop) {
-        if (m_imageReady) {
+        // Taken before drawing, not cleared after: an image that arrives while
+        // a transition runs (they take most of a second) was marked done along
+        // with the one being drawn, and never reached the screen.
+        if (m_imageReady.exchange(false)) {
             lock.unlock();
+            {
+                std::lock_guard<std::mutex> staged(m_stagingLock);
+                memcpy(m_outputBuffer, m_stagingBuffer, m_pageSize);
+            }
             // m_nextTransitionType = IT_WipeFromHCenter;
             switch (m_nextTransitionType) {
             case IT_Random:
                 m_nextTransitionType = (ImageTransitionType)(rand_r(&m_typeSeed) % ((int)IT_MAX - 1) + 1);
+                m_imageReady = true;
                 lock.lock();
                 continue;
                 break;
@@ -516,11 +529,20 @@ void FrameBuffer::DrawLoop(void) {
             }
 
             lock.lock();
-
-            m_imageReady = false;
+            if (m_nextTransitionType != IT_Normal) {
+                // Whatever a transition's step sizes left undrawn, it ends
+                // with the whole image on screen.
+                memcpy(FB_CURRENT_PAGE_PTR, m_outputBuffer, m_pageSize);
+                SyncDisplay();
+            }
+            continue;
         }
 
-        m_drawSignal.wait(lock);
+        // FBStartDraw() notifies without m_bufferLock, which a transition holds
+        // for its whole length, so a notify can land between the check above
+        // and the wait; the timeout bounds how long such an image waits.
+        m_drawSignal.wait_for(lock, std::chrono::milliseconds(50),
+                              [this] { return !m_runLoop || m_imageReady; });
     }
 }
 
@@ -634,7 +656,7 @@ void FrameBuffer::FBDrawWipeUp(void) {
 
     m_bufferLock.lock();
     for (int i = m_height - rEach; i >= 0;) {
-        memcpy(FB_CURRENT_PAGE_PTR + (m_rowStride * i), m_outputBuffer + (m_rowStride * i), m_rowStride * rEach);
+        CopyRows(i, rEach);
         SyncDisplay();
 
         usleep(sleepTime);
@@ -657,7 +679,7 @@ void FrameBuffer::FBDrawWipeDown(void) {
 
     m_bufferLock.lock();
     for (int i = 0; i < m_height;) {
-        memcpy(FB_CURRENT_PAGE_PTR + (m_rowStride * i), m_outputBuffer + (m_rowStride * i), m_rowStride * rEach);
+        CopyRows(i, rEach);
         SyncDisplay();
 
         usleep(sleepTime);
@@ -719,10 +741,8 @@ void FrameBuffer::FBDrawWipeToHCenter(void) {
 
     m_bufferLock.lock();
     for (int i = 0; i < mid; i += rEach) {
-        memcpy(FB_CURRENT_PAGE_PTR + (m_rowStride * i), m_outputBuffer + (m_rowStride * i), m_rowStride * rEach);
-        memcpy(FB_CURRENT_PAGE_PTR + (m_rowStride * (m_height - i - rEach)),
-               m_outputBuffer + (m_rowStride * (m_height - i - rEach)),
-               m_rowStride * rEach);
+        CopyRows(i, rEach);
+        CopyRows(m_height - i - rEach, rEach);
         SyncDisplay();
 
         usleep(sleepTime);
@@ -742,12 +762,8 @@ void FrameBuffer::FBDrawWipeFromHCenter(void) {
 
     int t = mid - 2;
     for (int b = mid; b < m_height; b += rowsEachUpdate, t -= rowsEachUpdate) {
-        memcpy(FB_CURRENT_PAGE_PTR + (m_rowStride * b), m_outputBuffer + (m_rowStride * b),
-               m_rowStride * rowsEachUpdate);
-
-        if (t >= 0)
-            memcpy(FB_CURRENT_PAGE_PTR + (m_rowStride * t), m_outputBuffer + (m_rowStride * t),
-                   m_rowStride * rowsEachUpdate);
+        CopyRows(b, rowsEachUpdate);
+        CopyRows(t, rowsEachUpdate);
 
         SyncDisplay();
 
@@ -766,10 +782,9 @@ void FrameBuffer::FBDrawHorzBlindsOpen(void) {
     int sleepTime = 800 * 1000 * rowsEachUpdate / blindSize;
 
     m_bufferLock.lock();
-    for (int i = (blindSize - 1); i >= 0; i -= rowsEachUpdate) {
+    for (int i = blindSize - rowsEachUpdate; i >= 0; i -= rowsEachUpdate) {
         for (int y = i; y < m_height; y += blindSize) {
-            memcpy(FB_CURRENT_PAGE_PTR + (m_rowStride * y), m_outputBuffer + (m_rowStride * y),
-                   m_rowStride * rowsEachUpdate);
+            CopyRows(y, rowsEachUpdate);
         }
 
         SyncDisplay();
@@ -790,8 +805,7 @@ void FrameBuffer::FBDrawHorzBlindsClose(void) {
     m_bufferLock.lock();
     for (int i = 0; i < blindSize; i += rowsEachUpdate) {
         for (int y = i; y < m_height; y += blindSize) {
-            memcpy(FB_CURRENT_PAGE_PTR + (m_rowStride * y), m_outputBuffer + (m_rowStride * y),
-                   m_rowStride * rowsEachUpdate);
+            CopyRows(y, rowsEachUpdate);
         }
 
         SyncDisplay();
@@ -806,8 +820,8 @@ void FrameBuffer::FBDrawHorzBlindsClose(void) {
  */
 void FrameBuffer::FBDrawMosaic(void) {
     int squareSize = 32;
-    int xSquares = m_width / squareSize + 1;
-    int ySquares = m_height / squareSize + 1;
+    int xSquares = (m_width + squareSize - 1) / squareSize;
+    int ySquares = (m_height + squareSize - 1) / squareSize;
     std::vector<std::vector<int>> squares;
     squares.resize(ySquares, std::vector<int>(xSquares, 0));
     
@@ -818,7 +832,7 @@ void FrameBuffer::FBDrawMosaic(void) {
     m_bufferLock.lock();
 
     for (int i = 0; i < (count * 10); i++) {
-        int square = rand_r(&m_typeSeed) % (count - 1);
+        int square = rand_r(&m_typeSeed) % count;
         int x = square % xSquares;
         int y = square / xSquares;
 
@@ -855,17 +869,38 @@ void FrameBuffer::FBDrawMosaic(void) {
  *
  */
 void FrameBuffer::DrawSquare(int dx, int dy, int w, int h, int sx, int sy) {
-    int dRowOffset = dx * m_bpp / 8;
-    int sRowOffset = ((sx == -1) ? dx : sx) * m_bpp / 8;
-    int bytesWide = w * m_bpp / 8;
-
+    if (sx == -1)
+        sx = dx;
     if (sy == -1)
         sy = dy;
+    // Both rectangles stay on the page: a square past the right or bottom
+    // edge ran into the next row, and off the end of the buffers.
+    w = std::min({ w, m_width - dx, m_width - sx });
+    h = std::min({ h, m_height - dy, m_height - sy });
+    if (dx < 0 || dy < 0 || sx < 0 || sy < 0 || w <= 0 || h <= 0)
+        return;
+
+    int dRowOffset = dx * m_bpp / 8;
+    int sRowOffset = sx * m_bpp / 8;
+    int bytesWide = w * m_bpp / 8;
 
     for (int i = 0; i < h; i++) {
         memcpy(FB_CURRENT_PAGE_PTR + (m_rowStride * (dy + i)) + dRowOffset,
                m_outputBuffer + (m_rowStride * (sy + i)) + sRowOffset, bytesWide);
     }
+}
+
+// Rows [y, y + rows) of the new image onto the page, clipped to it: the
+// row-band transitions step in fixed sizes that need not divide the height.
+void FrameBuffer::CopyRows(int y, int rows) {
+    if (y < 0) {
+        rows += y;
+        y = 0;
+    }
+    rows = std::min(rows, m_height - y);
+    if (rows <= 0)
+        return;
+    memcpy(FB_CURRENT_PAGE_PTR + (m_rowStride * y), m_outputBuffer + (m_rowStride * y), m_rowStride * rows);
 }
 
 void FrameBuffer::ClearAllPages() {

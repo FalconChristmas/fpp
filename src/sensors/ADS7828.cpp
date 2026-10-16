@@ -36,7 +36,6 @@ ADS7828Sensor::ADS7828Sensor(Json::Value& config) :
     } else {
         i2cAddress = config["i2cAddress"].asInt();
     }
-    i2c = new I2CUtils(i2cBus, i2cAddress);
     if (config["type"].asString() == "ads7830") {
         bits = 8;
     } else {
@@ -46,6 +45,9 @@ ADS7828Sensor::ADS7828Sensor(Json::Value& config) :
     for (int x = 0; x < 8; x++) {
         enabled[x] = false;
     }
+    // Last, once every field has been read: a wrong-typed one throws out of
+    // this constructor, and the destructor that frees this would not run.
+    i2c = new I2CUtils(i2cBus, i2cAddress);
 }
 
 ADS7828Sensor::~ADS7828Sensor() {

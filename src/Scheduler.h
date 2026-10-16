@@ -15,6 +15,7 @@
 #include <map>
 #include "fpp-json.h"
 #include <mutex>
+#include <set>
 #include <vector>
 
 #include <pthread.h>
@@ -38,6 +39,11 @@ public:
     time_t endTime;
     std::string command;
     Json::Value args;
+    // A playlist entry's start (as opposed to an FPP command entry).  The
+    // command string can't tell them apart: a command entry can run the
+    // "Start Playlist" command, and was then taken for a playlist entry with
+    // no playlist -- marked ran, never run.
+    bool isPlaylist = false;
 };
 
 class Scheduler {
@@ -50,6 +56,11 @@ public:
     void ReloadScheduleFile(void);
     void SetTimeDelta(int delta, int timeLimit);
     bool StartNextScheduledItemNow();
+
+    // Scheduled FPP commands run on their own detached threads.  At shutdown,
+    // wait (up to timeoutMS) for any still running, before the media, outputs
+    // and command registry they use are torn down.
+    static void WaitForCommandThreads(int timeoutMS);
 
     std::string GetNextPlaylistName();
     std::string GetNextPlaylistStartStr();
@@ -114,7 +125,7 @@ private:
     void RunPlayerActions(const std::vector<PlayerAction>& actions);
     void RunCountdownPresets(const std::vector<CountdownPreset>& presets);
 
-    void AddScheduledItems(ScheduleEntry* entry, int index);
+    void AddScheduledItems(ScheduleEntry* entry, int index, std::time_t loadTime);
     void DumpScheduledItem(const std::time_t itemTime, const ScheduledItem& item);
     void DumpScheduledItems();
     void CheckScheduledItems(bool restarted = false);
@@ -168,6 +179,14 @@ private:
     std::recursive_mutex m_scheduleLock;
     std::vector<ScheduleEntry> m_Schedule;
     std::map<std::time_t, std::vector<ScheduledItem>> m_scheduledItems;
+
+    // Scheduled starts decided under m_scheduleLock but not yet carried out
+    // (RunPlayerActions runs unlocked), keyed by start time and entry index.
+    // The player still reads idle while such a start loads, and a concurrent
+    // CheckIfShouldBePlayingNow() -- an API "Start Playlist At Item" runs one
+    // on its own thread -- used to reset the item's ran flag in that window
+    // and start it a second time.  Guarded by m_scheduleLock.
+    std::set<std::pair<std::time_t, int>> m_startsInFlight;
     std::map<std::time_t, std::vector<ScheduledItem>> m_oldItems;
     std::map<std::time_t, std::vector<ScheduledItem>> m_ranItems;
 

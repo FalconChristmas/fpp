@@ -21,6 +21,7 @@
 #include "Scheduler.h"
 #include "Variables.h"
 #include "Warnings.h"
+#include "commands/Commands.h"
 #include "commands/Condition.h"
 #include "common.h"
 #include "log.h"
@@ -29,8 +30,10 @@
 #include "mediaoutput/mediaoutput.h"
 #include "util/ExpressionProcessor.h"
 
+#include <condition_variable>
 #include <ctime>
 #include <map>
+#include <utility>
 
 // std::to_string(double) always pads to 6 decimals ("45.000000"); use a
 // format that drops trailing zeros so integer-valued results stay readable.
@@ -43,7 +46,9 @@ static std::string DoubleToCleanString(double v) {
 // Same "static initialized at process start" convention as httpAPI.cpp's own
 // (private) startupTime - duplicated rather than shared across translation
 // units for one time_t.
-static std::time_t FPP_STARTUP_TIME = std::time(nullptr);
+// On the monotonic clock, as httpAPI.cpp's: a wall-clock step made the
+// uptime negative or hours off.
+static long long FPP_STARTUP_MS = GetMonotonicTimeMS();
 
 // FPP_STATUS_* -> name, mirroring GetCurrentFPPDStatus()'s switch
 // (httpAPI.cpp) - not shared code since it's a small, stable 6-case mapping
@@ -107,7 +112,7 @@ static std::map<std::string, std::string> ComputeFppStatusVariables() {
     vars["fpp_mode_name"] = toStdStringAndFree(modeToString(getFPPmode()));
     vars["fpp_volume"] = std::to_string(getVolume());
     vars["fpp_multisync"] = (multiSync && multiSync->isMultiSyncEnabled()) ? "1" : "0";
-    vars["fpp_uptime_seconds"] = std::to_string((long long)(std::time(nullptr) - FPP_STARTUP_TIME));
+    vars["fpp_uptime_seconds"] = std::to_string((GetMonotonicTimeMS() - FPP_STARTUP_MS) / 1000);
     vars["fpp_is_playing"] = Player::INSTANCE.IsPlaying() ? "1" : "0";
     vars["fpp_was_scheduled"] = Player::INSTANCE.WasScheduled() ? "1" : "0";
     vars["fpp_scheduler_enabled"] = (scheduler && scheduler->IsEnabled()) ? "1" : "0";
@@ -182,15 +187,28 @@ void Variables::load() {
     Json::Value root = LoadJsonFromFile(file, JsonRoot::Object);
     std::unique_lock<std::mutex> lock(m_lock);
     for (auto const& name : root.getMemberNames()) {
-        VariableEntry e;
-        e.value = root[name]["value"].asString();
-        e.persist = root[name]["persist"].asBool();
-        e.lastUpdated = (time_t)root[name]["lastUpdated"].asInt64();
-        m_variables[name] = e;
+        // A hand-edited variable of the wrong JSON type threw at startup, to
+        // std::terminate; skip that one variable instead.
+        try {
+            VariableEntry e;
+            e.value = root[name]["value"].asString();
+            e.persist = root[name]["persist"].asBool();
+            e.lastUpdated = (time_t)root[name]["lastUpdated"].asInt64();
+            m_variables[name] = e;
+        } catch (const std::exception& ex) {
+            WarningHolder::InvalidConfigEntry("variables.json", name + ": " + ex.what());
+        }
     }
 }
 
+// Held across a save's snapshot *and* its write. With only m_lock around
+// the snapshot, two threads saving at once could write in the opposite
+// order to their snapshots, leaving the older values on disk. Always taken
+// before m_lock, never inside it.
+static std::mutex s_saveLock;
+
 void Variables::save() {
+    std::unique_lock<std::mutex> saveLock(s_saveLock);
     Json::Value root;
     std::unique_lock<std::mutex> lock(m_lock);
     for (auto const& kv : m_variables) {
@@ -377,6 +395,17 @@ double Variables::incrementVariable(const std::string& name, double delta, bool 
     return newValue;
 }
 
+// fireListeners() runs copies of the callbacks outside m_lock, so a listener
+// could still be running after unregisterListener() returned, and its owner
+// then freed what it uses. Count the calls in flight per (name, id), under
+// m_lock, and have unregisterListener() wait for its listener's to finish.
+static std::map<std::pair<std::string, std::string>, int> s_listenersInFlight;
+static std::condition_variable s_listenerFinished;
+// Nonzero while this thread is inside a listener: a listener that
+// unregisters (itself or another) must not wait on a call that may be its
+// own, or one waiting on it.
+static thread_local int t_inListener = 0;
+
 void Variables::registerListener(const std::string& id, const std::string& name,
                                  std::function<void(const std::string&, const std::string&)>&& cb) {
     std::unique_lock<std::mutex> lock(m_lock);
@@ -388,53 +417,83 @@ void Variables::unregisterListener(const std::string& id, const std::string& nam
     if (it != m_listeners.end()) {
         it->second.erase(id);
     }
+    if (t_inListener == 0) {
+        auto key = std::make_pair(name, id);
+        s_listenerFinished.wait(lock, [&key]() { return s_listenersInFlight.count(key) == 0; });
+    }
 }
 void Variables::fireListeners(const std::string& name, const std::string& value) {
-    std::vector<std::function<void(const std::string&, const std::string&)>> cbs;
+    using CallList = std::vector<std::pair<std::string, std::function<void(const std::string&, const std::string&)>>>;
+    CallList cbs;
     {
         std::unique_lock<std::mutex> lock(m_lock);
         auto it = m_listeners.find(name);
         if (it != m_listeners.end()) {
             for (auto const& kv : it->second) {
-                cbs.push_back(kv.second);
+                cbs.emplace_back(kv.first, kv.second);
+                ++s_listenersInFlight[std::make_pair(name, kv.first)];
             }
         }
     }
+    if (cbs.empty()) {
+        return;
+    }
+    // Retires every call counted above when this returns or throws.
+    struct InFlight {
+        Variables* self;
+        const std::string& name;
+        const CallList& calls;
+        ~InFlight() {
+            --t_inListener;
+            std::unique_lock<std::mutex> lock(self->m_lock);
+            for (auto const& c : calls) {
+                auto f = s_listenersInFlight.find(std::make_pair(name, c.first));
+                if (f != s_listenersInFlight.end() && --f->second <= 0) {
+                    s_listenersInFlight.erase(f);
+                }
+            }
+            s_listenerFinished.notify_all();
+        }
+    };
+    ++t_inListener;
+    InFlight inFlight{ this, name, cbs };
     for (auto& cb : cbs) {
-        cb(name, value);
+        cb.second(name, value);
     }
 }
 
 std::set<std::string> Variables::getReferencedNamesInConfig() {
     std::set<std::string> referenced;
-    std::string presetsFile = FPP_DIR_CONFIG("/commandPresets.json");
-    if (!FileExists(presetsFile)) {
-        return referenced;
-    }
-    Json::Value root = LoadJsonFromFile(presetsFile, JsonRoot::Object);
-    if (!root.isMember("commands")) {
-        return referenced;
-    }
-    for (auto& cmd : root["commands"]) {
-        std::string commandName = cmd["command"].asString();
-        for (int i = 0; i < (int)cmd["args"].size(); i++) {
-            if (cmd["args"][i].isNull()) {
-                continue;
-            }
-            std::string arg = cmd["args"][i].asString();
-            // "Set Variable" writes to whatever's in its first arg.
-            if (commandName == "Set Variable" && i == 0 && !arg.empty()) {
-                referenced.insert(arg);
-            }
-            // %VAR:name% substitution reference, anywhere in any arg.
-            std::size_t pos = 0;
-            while ((pos = arg.find("%VAR:", pos)) != std::string::npos) {
-                std::size_t end = arg.find('%', pos + 5);
-                if (end == std::string::npos) {
-                    break;
+    // The presets as CommandManager loaded them, not the file: this read the
+    // file again and indexed whatever it held, so one entry of the wrong shape
+    // (a hand edit, an upload) threw, and GET /api/variables answered 500.
+    Json::Value presets = CommandManager::INSTANCE.GetPresets();
+    for (auto const& presetName : presets.getMemberNames()) {
+        for (auto const& cmd : presets[presetName]) {
+            std::string commandName = cmd["command"].asString();
+            const Json::Value& args = cmd["args"];
+            for (Json::ArrayIndex i = 0; i < args.size(); i++) {
+                if (args[i].isNull()) {
+                    continue;
                 }
-                referenced.insert(arg.substr(pos + 5, end - pos - 5));
-                pos = end + 1;
+                // An argument can be any JSON value. A list argument stored
+                // as JSON (an If's commands) is searched as its text.
+                std::string arg = args[i].isConvertibleTo(Json::stringValue) ? args[i].asString()
+                                                                             : SaveJsonToString(args[i]);
+                // "Set Variable" writes to whatever's in its first arg.
+                if (commandName == "Set Variable" && i == 0 && !arg.empty()) {
+                    referenced.insert(arg);
+                }
+                // %VAR:name% substitution reference, anywhere in any arg.
+                std::size_t pos = 0;
+                while ((pos = arg.find("%VAR:", pos)) != std::string::npos) {
+                    std::size_t end = arg.find('%', pos + 5);
+                    if (end == std::string::npos) {
+                        break;
+                    }
+                    referenced.insert(arg.substr(pos + 5, end - pos - 5));
+                    pos = end + 1;
+                }
             }
         }
     }

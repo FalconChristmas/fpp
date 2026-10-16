@@ -87,7 +87,7 @@ static long long mqttLastRefusalLogMS = 0;
 void mosq_connect_callback(struct mosquitto* mosq, void* userdata, int rc) {
     if (rc != 0) {
         mqttConnectRefusals++;
-        long long now = GetTimeMS();
+        long long now = GetMonotonicTimeMS();
         if ((mqttConnectRefusals == 1) || ((now - mqttLastRefusalLogMS) >= 60000)) {
             mqttLastRefusalLogMS = now;
             LogErr(VB_CONTROL, "MQTT broker refused connection: %s (%d attempts so far)\n",
@@ -117,6 +117,16 @@ void mosq_msg_callback(struct mosquitto* mosq, void* userdata, const struct mosq
 /*
  *
  */
+// callbackTopics is walked on libmosquitto's thread for every message, and
+// changed on the main loop and API threads as callbacks come and go.  A file
+// static rather than a member so MosquittoClient's layout doesn't change.
+static std::mutex s_callbackTopicsLock;
+
+static std::list<std::string> CopyTopics(const std::list<std::string>& topics) {
+    std::lock_guard<std::mutex> lock(s_callbackTopicsLock);
+    return topics;
+}
+
 MosquittoClient::MosquittoClient(const std::string& host, const int port,
                                  const std::string& topicPrefix) :
     m_port(port),
@@ -150,9 +160,23 @@ MosquittoClient::MosquittoClient(const std::string& host, const int port,
  *
  */
 MosquittoClient::~MosquittoClient() {
-    mosquitto_loop_stop(m_mosq, true);
-
-    sleep(1);
+    // Stop the network thread by disconnecting and joining it, not by
+    // cancelling it.  A cancel lands at whatever cancellation point the thread
+    // has reached, which can be inside a message callback running a command,
+    // and the catch (...) that guards those callbacks swallows the forced
+    // unwind, which aborts the process on the way out.  A clean disconnect
+    // means the broker drops our will, but shutdown has already published
+    // "ready" = 0 itself (Events::PrepareForShutdown), ahead of the
+    // DISCONNECT in the same queue.
+    //
+    // The connect/disconnect callbacks go first: the disconnect this causes
+    // would otherwise run HandleDisconnect(), whose timer captures this object.
+    if (m_mosq) {
+        mosquitto_connect_callback_set(m_mosq, nullptr);
+        mosquitto_disconnect_callback_set(m_mosq, nullptr);
+        mosquitto_disconnect(m_mosq);
+        mosquitto_loop_stop(m_mosq, false);
+    }
 
     mosquitto_destroy(m_mosq);
     mqtt = NULL;
@@ -161,8 +185,7 @@ MosquittoClient::~MosquittoClient() {
 }
 
 void MosquittoClient::PrepareForShutdown() {
-    while (!callbackTopics.empty()) {
-        const std::string& n = callbackTopics.front();
+    for (const std::string& n : CopyTopics(callbackTopics)) {
         RemoveCallback(n);
     }
     if (m_canProcessMessages && m_isConnected) {
@@ -347,7 +370,10 @@ bool MosquittoClient::IsConnected() {
 
 void MosquittoClient::RegisterCallback(const std::string& topic) {
     LogDebug(VB_CONTROL, "MQTT: In AddCallback with %s\n", topic.c_str());
-    callbackTopics.push_back(topic);
+    {
+        std::lock_guard<std::mutex> lock(s_callbackTopicsLock);
+        callbackTopics.push_back(topic);
+    }
     if (m_canProcessMessages && m_isConnected) {
         if (topic.rfind("/set/", 0) != 0) {
             // we are registered on all "/set/" already, no need to re-register
@@ -372,6 +398,7 @@ void MosquittoClient::RemoveCallback(const std::string& topic) {
             }
         }
     }
+    std::lock_guard<std::mutex> lock(s_callbackTopicsLock);
     callbackTopics.remove(topic);
 }
 void MosquittoClient::SetReady() {
@@ -433,7 +460,7 @@ void MosquittoClient::HandleConnect() {
     }
 
 
-    for (auto& topic : callbackTopics) {
+    for (auto& topic : CopyTopics(callbackTopics)) {
         if (topic.rfind("/set/", 0) != 0) {
             std::string tp = m_baseTopic + topic;
             subscribe_topics.push_back(tp);
@@ -503,7 +530,7 @@ void MosquittoClient::MessageCallback(void* obj, const struct mosquitto_message*
 
     CacheSetMessage(topic, payload);
 
-    for (auto& a : callbackTopics) {
+    for (auto& a : CopyTopics(callbackTopics)) {
         std::string s = m_baseTopic + a;
         LogDebug(VB_CONTROL, "Testing Callback '%s'\n", s.c_str());
         mosquitto_topic_matches_sub(s.c_str(), message->topic, &match);

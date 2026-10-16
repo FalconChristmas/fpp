@@ -32,6 +32,12 @@ public:
     // StartPlaying() clears that, so without this a repeating playlist's
     // second pass sees the first pass's state.
     void ResetPlayState(void);
+    // StartPlaying(), then finish an entry that came back neither playing nor
+    // finished -- an early return that skipped FinishPlay() (e.g. a random
+    // media entry with no files).  Callers only advance past a finished entry,
+    // so such an entry stalled the playlist for good.  Use this wherever a
+    // playlist starts one of its entries.
+    int StartPlayingOrFinish(void);
     virtual int IsStarted(void);
     virtual int IsPlaying(void);
     virtual int IsFinished(void);

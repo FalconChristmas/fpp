@@ -84,7 +84,7 @@
             description = config.description;
         }
 
-        result += "Description:&nbsp;<input class='description' type='text' size=30 maxlength=128 style='width: 6em; margin-right: 1em' value='" + description + "'/>";
+        result += "Description:&nbsp;<input class='description' type='text' size=30 maxlength=128 style='width: 6em; margin-right: 1em' value='" + EscapeHtmlAttr(description) + "'/>";
         result += DeviceSelect(SerialDevices, config.device) + "&nbsp;";
 
         return result;

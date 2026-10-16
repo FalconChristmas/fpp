@@ -20,12 +20,15 @@
 #include <unistd.h>
 #include <vector>
 
+#include "Warnings.h"
 #include "common.h"
 #include "log.h"
 #include "settings.h"
 #include "commands/Commands.h"
 
 #include "scripts.h"
+
+extern char** environ;
 
 /*
  * Fork and run a script with accompanying args
@@ -36,6 +39,10 @@ pid_t RunScript(std::string script, std::string scriptArgs) {
     return RunScript(script, scriptArgs, envVars);
 }
 
+// Refused a script path outside the scripts directory.  Timed: it is raised
+// per attempt, so it ages out once nothing asks for that path any more.
+static constexpr int WARNING_ID_SCRIPT_OUTSIDE_DIR = 70;
+
 pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pair<std::string, std::string>> envVars) {
     pid_t pid = 0;
     char userScript[1024];
@@ -43,11 +50,26 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
 
     LogDebug(VB_COMMAND, "Script %s:  Args: %s\n", script.c_str(), scriptArgs.c_str());
 
-    // Setup the script from our user - snprintf is truncation-safe
+    // Only scripts in the scripts directory run.  The name is appended to that
+    // directory, so a ".." component was the one way out of it -- and names
+    // arrive from dynamic playlist sources (a remote URL) and from commands,
+    // not just from the UI's script picker.  Everything up to the first space
+    // is the path; the rest are arguments.
+    std::string scriptPath = script.substr(0, script.find(' '));
+    for (auto& part : split(scriptPath, '/')) {
+        if (part == "..") {
+            LogErr(VB_COMMAND, "RunScript: refusing script outside the scripts directory: %s\n", script.c_str());
+            WarningHolder::AddWarningTimeout(60, WARNING_ID_SCRIPT_OUTSIDE_DIR, "Refused to run a script outside the scripts directory: " + scriptPath);
+            return -1;
+        }
+    }
+
+    // Setup the script from our user
     int n = snprintf(userScript, sizeof(userScript), "%s%s", FPP_DIR_SCRIPT("/").c_str(), script.c_str());
     if (n < 0 || n >= (int)sizeof(userScript)) {
-        LogWarn(VB_COMMAND, "RunScript: script path truncated: %s\n", script.c_str());
-        userScript[sizeof(userScript) - 1] = '\0';
+        // Truncated: running a prefix of the requested path is never right.
+        LogErr(VB_COMMAND, "RunScript: script path too long: %s\n", script.c_str());
+        return -1;
     }
 
     // Setup the wrapper
@@ -57,60 +79,43 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
         eventScript[sizeof(eventScript) - 1] = '\0';
     }
 
-    pid = fork();
-
-    if (pid == 0) // Event Script process
+    // Everything the child needs is built here, before fork().  fppd is
+    // multithreaded, and after fork() the child may only make async-signal-
+    // safe calls: it used to read a setting (a lock), log (locks), strdup and
+    // setenv (malloc) and exit() (static destructors) -- if another thread
+    // held any of those locks at the fork, the child deadlocked before exec,
+    // and a blocking script entry waited on it forever.
+    std::vector<std::string> argStrs;
     {
-        CloseOpenFiles(getSettingInt("daemonize"));
-
-        char* args[128];
-        char* saveptr = nullptr;
-        char* token = strtok_r(userScript, " ", &saveptr);
-        int i = 1;
-
-        args[0] = strdup(userScript);
-        while (token && i < 126) {
-            args[i] = strdup(token);
-            i++;
-
-            token = strtok_r(NULL, " ", &saveptr);
+        std::string userScriptStr = userScript;
+        argStrs.push_back(userScriptStr.substr(0, userScriptStr.find(' ')));
+        for (auto& t : split(userScriptStr, ' ')) {
+            if (!t.empty() && argStrs.size() < 126)
+                argStrs.push_back(t);
         }
 
         std::vector<std::string> parts = split(scriptArgs, ' ');
         std::string tmpPart = "";
         std::string quote = "";
         for (int p = 0; p < parts.size(); p++) {
+            if (argStrs.size() >= 127) {
+                LogWarn(VB_COMMAND, "RunScript: too many args, truncating\n");
+                break;
+            }
             if (tmpPart == "") {
                 if (startsWith(parts[p], "\"")) {
                     quote = std::string("\"");
-
                     tmpPart = parts[p].substr(1);
                 } else if (startsWith(parts[p], "'")) {
                     quote = std::string("'");
                     tmpPart = parts[p].substr(1);
                 } else {
-                    if (i < 127) {
-                        args[i] = strdup(parts[p].c_str());
-                        i++;
-                    } else {
-                        LogWarn(VB_COMMAND, "RunScript: too many args, truncating\n");
-                        break;
-                    }
+                    argStrs.push_back(parts[p]);
                 }
 
                 if ((tmpPart != "") && (quote != "") && (endsWith(tmpPart, quote))) {
-                    if (i < 127) {
-                        args[i] = strdup(tmpPart.c_str());
-
-                        // Chop off the ending quote
-                        args[i][strlen(args[i]) - 1] = 0;
-
-                        i++;
-                    } else {
-                        LogWarn(VB_COMMAND, "RunScript: too many args, truncating\n");
-                        break;
-                    }
-
+                    // Chop off the ending quote
+                    argStrs.push_back(tmpPart.substr(0, tmpPart.size() - 1));
                     quote = "";
                     tmpPart = "";
                 }
@@ -119,47 +124,71 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
                 tmpPart += parts[p];
 
                 if (endsWith(parts[p], quote)) {
-                    if (i < 127) {
-                        args[i] = strdup(tmpPart.c_str());
-
-                        // Chop off the ending quote
-                        args[i][strlen(args[i]) - 1] = 0;
-
-                        i++;
-                    } else {
-                        LogWarn(VB_COMMAND, "RunScript: too many args, truncating\n");
-                        break;
-                    }
-
+                    argStrs.push_back(tmpPart.substr(0, tmpPart.size() - 1));
                     quote = "";
                     tmpPart = "";
                 }
             }
         }
+    }
+    for (int x = 0; x < argStrs.size(); x++) {
+        LogExcess(VB_COMMAND, "Script Arg %d:  %s\n", x, argStrs[x].c_str());
+    }
 
-        args[i] = NULL;
-
-        setenv("FPP_SCRIPT", script.c_str(), 0);
-        setenv("FPP_SCRIPTARGS", scriptArgs.c_str(), 0);
-
-        for (int ev = 0; ev < envVars.size(); ev++) {
-            setenv(envVars[ev].first.c_str(), envVars[ev].second.c_str(), 0);
+    // The child's environment: ours, plus FPP_SCRIPT, FPP_SCRIPTARGS and the
+    // caller's variables -- each only if not already set, as setenv(..., 0)
+    // did in the child.
+    std::vector<std::string> envStrs;
+    for (char** e = environ; e && *e; e++) {
+        envStrs.push_back(*e);
+    }
+    auto addEnv = [&envStrs](const std::string& k, const std::string& v) {
+        std::string prefix = k + "=";
+        for (auto& e : envStrs) {
+            if (e.compare(0, prefix.size(), prefix) == 0)
+                return;
         }
+        envStrs.push_back(prefix + v);
+    };
+    addEnv("FPP_SCRIPT", script);
+    addEnv("FPP_SCRIPTARGS", scriptArgs);
+    for (auto& ev : envVars) {
+        addEnv(ev.first, ev.second);
+    }
 
-        if (chdir(FPP_DIR_SCRIPT("").c_str())) {
-            LogErr(VB_COMMAND, "Unable to change directory to %s: %s\n",
-                   FPP_DIR_SCRIPT("").c_str(), FPPstrerror(errno));
-            exit(EXIT_FAILURE);
-        }
-        for (int x = 0; x < i; x++) {
-            LogExcess(VB_COMMAND, "Script Arg %d:  %s\n", x, args[x]);
-        }
-        execvp(eventScript, args);
+    std::vector<char*> argv;
+    argv.reserve(argStrs.size() + 1);
+    for (auto& a : argStrs)
+        argv.push_back(const_cast<char*>(a.c_str()));
+    argv.push_back(nullptr);
+    std::vector<char*> envp;
+    envp.reserve(envStrs.size() + 1);
+    for (auto& e : envStrs)
+        envp.push_back(const_cast<char*>(e.c_str()));
+    envp.push_back(nullptr);
 
-        LogErr(VB_COMMAND, "RunScript(), ERROR, we shouldn't be here, "
-                           "this means that execvp() failed trying to run '%s %s': %s\n",
-               eventScript, args[0], FPPstrerror(errno));
-        exit(EXIT_FAILURE);
+    const std::string scriptDir = FPP_DIR_SCRIPT("");
+    const int daemonize = getSettingInt("daemonize");
+    static const char chdirFailed[] = "RunScript: unable to change to the scripts directory\n";
+    static const char execFailed[] = "RunScript: execve() of the eventScript wrapper failed\n";
+
+    pid = fork();
+
+    if (pid == 0) // Event Script process: async-signal-safe calls only
+    {
+        CloseOpenFiles(daemonize);
+        if (chdir(scriptDir.c_str())) {
+            if (!daemonize)
+                (void)!write(2, chdirFailed, sizeof(chdirFailed) - 1);
+            _exit(EXIT_FAILURE);
+        }
+        execve(eventScript, argv.data(), envp.data());
+        if (!daemonize)
+            (void)!write(2, execFailed, sizeof(execFailed) - 1);
+        _exit(EXIT_FAILURE);
+    }
+    if (pid < 0) {
+        LogErr(VB_COMMAND, "RunScript: fork() failed: %s\n", FPPstrerror(errno));
     }
     return pid;
 }

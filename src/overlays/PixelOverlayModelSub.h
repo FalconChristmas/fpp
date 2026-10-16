@@ -27,6 +27,7 @@ public:
     virtual void setState(const PixelOverlayState& st) override;
 
     void resetParent();
+    std::string getParentName() const;
 
 protected:
     // Grid submodels and groups SCATTER: a buffer cell lands on an arbitrary

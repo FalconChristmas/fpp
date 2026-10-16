@@ -11,8 +11,10 @@
  */
 #include "fpp-json.h"
 
+#include <cerrno>
 #include <cstring>
 #include <ctype.h>
+#include <fcntl.h>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -21,8 +23,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include <sys/file.h>
 #include <unistd.h>
 #include <utility>
+#include <vector>
 
 #include "common.h"
 #include "log.h"
@@ -33,10 +37,22 @@
 #endif
 #include <sys/fcntl.h>
 
-static std::string FPP_BIN_DIR("");
-static std::string FPP_MEDIA_DIR("");
+// Built on first use and never destroyed. Both are reached from other static
+// objects: AES67Manager's constructor asks for the media directory during
+// static initialization, and ~PluginManager -> CommandManager::Cleanup() asks
+// again when fppd leaves through exit(). File-scope strings could be used
+// there before they were constructed, or after they were destroyed.
+static std::string& FPPBinDir() {
+    static std::string* dir = new std::string();
+    return *dir;
+}
+static std::string& FPPMediaDir() {
+    static std::string* dir = new std::string();
+    return *dir;
+}
 
 std::string getFPPDDir(const std::string& path) {
+    std::string& FPP_BIN_DIR = FPPBinDir();
     if (FPP_BIN_DIR == "") {
         char exePath[2048];
         exePath[0] = 0;
@@ -59,6 +75,7 @@ std::string getFPPDDir(const std::string& path) {
     return FPP_BIN_DIR + path;
 }
 std::string getFPPMediaDir(const std::string& path) {
+    std::string& FPP_MEDIA_DIR = FPPMediaDir();
     if (FPP_MEDIA_DIR == "") {
         std::string filename = getFPPDDir("/www/media_root.txt");
         std::string fc = "";
@@ -120,11 +137,16 @@ public:
 
 private:
     bool setSettingLocked(const std::string& key, const std::string& value, bool logInfo);
+    bool persistSetting(const std::string& key, const std::string& value);
+    void notifyListeners(const std::map<std::string, std::string>& changed);
     void LoadSettingsInfo();
 
     Json::Value settingsInfo;
     Json::Value settings;
     std::shared_mutex settingsMutex;
+    // Serializes setSetting(persist) so the file is written in the same order
+    // the in-memory values changed.  Taken before settingsMutex, never after.
+    std::mutex persistMutex;
 
     std::map<std::string, std::list<SettingListener>> settingsListeners;
     std::shared_mutex settingsListenersMutex;
@@ -239,38 +261,139 @@ void SettingsConfig::LoadSettingsInfo() {
 #endif
 }
 void SettingsConfig::setSetting(const std::string& key, const std::string& value, bool persist) {
+    std::unique_lock<std::mutex> persistLock(persistMutex, std::defer_lock);
+    if (persist) {
+        // The file is line based and nothing escapes a value, so a line break
+        // would start a new setting.  Same rule as WriteSettingToFile().
+        if (value.find_first_of(std::string("\r\n\0", 3)) != std::string::npos) {
+            LogWarn(VB_SETTING, "Not saving setting %s: value contains a line break or NUL\n", key.c_str());
+            return;
+        }
+        persistLock.lock();
+    }
     std::unique_lock<std::shared_mutex> lock(settingsMutex);
     if (setSettingLocked(key, value, false)) {
-        if (persist) {
-            std::string contents = GetFileContents(FPP_FILE_SETTINGS);
-            auto pos = contents.find(key + " = ");
-            if (pos != std::string::npos) {
-                // Found the key, replace its value
-                size_t endPos = contents.find('\n', pos);
-                if (endPos == std::string::npos) {
-                    endPos = contents.size();
-                } else {
-                    endPos++; // Include the newline in the replacement
-                }
-                std::string oldLine = contents.substr(pos, endPos - pos);
-                std::string newLine = key + " = \"" + value + "\"\n";
-                contents.replace(pos, oldLine.size(), newLine);
-            } else {
-                contents += key + " = \"" + value + "\"\n";
-            }
-            PutFileContents(FPP_FILE_SETTINGS, contents);
-        }
         lock.unlock();
+        if (persist) {
+            persistSetting(key, value);
+            persistLock.unlock();
+        }
+        notifyListeners({ { key, value } });
+    }
+}
+// Rewrites one key in the settings file under a single LOCK_EX held across
+// the read and the write, so a concurrent writer (the PHP side holds the
+// same lock) can't slip in between and have its change lost.  Called without
+// settingsMutex: LoadSettings() takes settingsMutex and then the file lock.
+bool SettingsConfig::persistSetting(const std::string& key, const std::string& value) {
+    int fd = open(FPP_FILE_SETTINGS.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0666);
+    if (fd == -1) {
+        LogWarn(VB_SETTING, "Could not open %s to save %s: %s\n", FPP_FILE_SETTINGS.c_str(), key.c_str(), strerror(errno));
+        return false;
+    }
+    while (flock(fd, LOCK_EX) == -1 && errno == EINTR) {
+    }
+    std::string contents;
+    char buf[4096];
+    ssize_t n;
+    while ((n = read(fd, buf, sizeof(buf))) != 0) {
+        if (n < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            LogWarn(VB_SETTING, "Could not read %s to save %s: %s\n", FPP_FILE_SETTINGS.c_str(), key.c_str(), strerror(errno));
+            flock(fd, LOCK_UN);
+            close(fd);
+            return false;
+        }
+        contents.append(buf, n);
+    }
 
-        // Notify listeners about the setting change
-        std::shared_lock<std::shared_mutex> listenersLock(settingsListenersMutex);
-        if (settingsListeners.find(key) != settingsListeners.end()) {
-            for (const auto& listener : settingsListeners[key]) {
-                LogDebug(VB_SETTING, "Notifying listener %s for setting %s with value '%s'\n",
-                         listener.id.c_str(), key.c_str(), value.c_str());
-                listener.callback(value);
+    // Match the key the way LoadSettings() reads it (the text before the
+    // first '=', trimmed) rather than searching for "key = " anywhere, which
+    // also hit a key that ends with this one or a value containing that text.
+    // The first line for the key is replaced and any later duplicates are
+    // dropped, since the last one would win on the next load.
+    const std::string newLine = key + " = \"" + value + "\"\n";
+    std::string out;
+    out.reserve(contents.size() + newLine.size());
+    bool found = false;
+    size_t pos = 0;
+    while (pos < contents.size()) {
+        size_t end = contents.find('\n', pos);
+        end = (end == std::string::npos) ? contents.size() : end + 1;
+        std::string line = contents.substr(pos, end - pos);
+        pos = end;
+        size_t eq = line.find('=');
+        if (eq != std::string::npos) {
+            char* k = trimwhitespace(line.substr(0, eq).c_str());
+            bool match = (key == k);
+            free(k);
+            if (match) {
+                if (!found) {
+                    out += newLine;
+                    found = true;
+                }
+                continue;
             }
         }
+        out += line;
+        if (out.back() != '\n') {
+            out += '\n';
+        }
+    }
+    if (!found) {
+        out += newLine;
+    }
+
+    bool ok = ftruncate(fd, 0) == 0;
+    const char* p = out.data();
+    size_t left = out.size();
+    off_t off = 0;
+    while (ok && left > 0) {
+        ssize_t w = pwrite(fd, p, left, off);
+        if (w < 0 && errno == EINTR) {
+            continue;
+        }
+        if (w <= 0) {
+            ok = false;
+            break;
+        }
+        p += w;
+        left -= w;
+        off += w;
+    }
+    if (!ok) {
+        LogWarn(VB_SETTING, "Could not write %s to save %s: %s\n", FPP_FILE_SETTINGS.c_str(), key.c_str(), strerror(errno));
+    }
+    flock(fd, LOCK_UN);
+    close(fd);
+    SetFilePerms(FPP_FILE_SETTINGS);
+    return ok;
+}
+// Listeners run with no settings lock held.  They take their own locks and
+// read settings back (MultiSync holds its lock and calls getSetting, which
+// takes settingsMutex), and settingsMutex is held while settingsListenersMutex
+// is taken, so calling them under either lock closes a cycle.  It also lets a
+// listener register or unregister listeners.
+void SettingsConfig::notifyListeners(const std::map<std::string, std::string>& changed) {
+    std::vector<std::pair<SettingListener, const std::string*>> toCall;
+    {
+        std::shared_lock<std::shared_mutex> listenersLock(settingsListenersMutex);
+        for (const auto& change : changed) {
+            auto it = settingsListeners.find(change.first);
+            if (it != settingsListeners.end()) {
+                for (const auto& listener : it->second) {
+                    toCall.emplace_back(listener, &change.first);
+                }
+            }
+        }
+    }
+    for (const auto& [listener, key] : toCall) {
+        const std::string& value = changed.at(*key);
+        LogDebug(VB_SETTING, "Notifying listener %s for setting %s with value '%s'\n",
+                 listener.id.c_str(), key->c_str(), value.c_str());
+        listener.callback(value);
     }
 }
 bool SettingsConfig::setSettingLocked(const std::string& key, const std::string& value, bool logInfo) {
@@ -415,42 +538,32 @@ int SettingsConfig::LoadSettings(const std::string& base, bool logChanges) {
             if ((!line) || (!read) || (read == 1))
                 continue;
 
-            char *key = NULL, *value = NULL; // These are values we're looking for and will
-                                             // run through trimwhitespace which means they
-                                             // must be freed before we are done.
-
-            char* saveptr = nullptr;
-            char* token = strtok_r(line, "=", &saveptr);
-            if (!token) {
-                continue;
-            }
-
-            key = trimwhitespace(token);
+            // Split on the first '=' only and drop exactly one pair of
+            // surrounding quotes, the way the PHP side and getRawSetting()
+            // read this file.  Splitting on every '=' cut base64 passwords
+            // and JSON values short, and trimming every quote ate quotes
+            // that belong to the value.
+            std::string l(line, read);
+            size_t eq = l.find('=');
+            char* key = trimwhitespace(l.substr(0, eq).c_str());
             if (!strlen(key)) {
                 free(key);
                 continue;
             }
-
-            token = strtok_r(NULL, "=", &saveptr);
-            if (!token) {
+            if (eq == std::string::npos) {
                 fprintf(stderr, "Error tokenizing value for %s setting\n", key);
                 free(key);
                 continue;
             }
-            value = trimwhitespace(token);
+            std::string value = l.substr(eq + 1);
+            TrimWhiteSpace(value);
+            if (value.size() >= 2 && value.front() == '"' && value.back() == '"') {
+                value = value.substr(1, value.size() - 2);
+            }
             if (setSettingLocked(key, value, logChanges)) {
                 changed[key] = value; // Store the changed setting
             }
-
-            if (key) {
-                free(key);
-                key = NULL;
-            }
-
-            if (value) {
-                free(value);
-                value = NULL;
-            }
+            free(key);
         }
 
         if (line) {
@@ -463,16 +576,7 @@ int SettingsConfig::LoadSettings(const std::string& base, bool logChanges) {
         return -1;
     }
     lock.unlock();
-    if (!changed.empty()) {
-        std::shared_lock<std::shared_mutex> listenersLock(settingsListenersMutex);
-        for (const auto& change : changed) {
-            if (settingsListeners.find(change.first) != settingsListeners.end()) {
-                for (const auto& listener : settingsListeners[change.first]) {
-                    listener.callback(change.second);
-                }
-            }
-        }
-    }
+    notifyListeners(changed);
     return 0;
 }
 

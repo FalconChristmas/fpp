@@ -22,11 +22,19 @@
 #include <cstring>
 #include <cerrno>
 #include <fcntl.h>
+#include <linux/netlink.h>
 #include <poll.h>
+#include <sys/eventfd.h>
+#include <sys/socket.h>
 #include <unistd.h>
+#include <algorithm>
+#include <thread>
 
+#include "../common.h"
 #include "../common_mini.h"
+#include "../Warnings.h"
 #include "../log.h"
+#include "../mediaoutput/DrmCards.h"
 #include "../mediaoutput/mediaoutput.h"
 
 std::atomic_int KMSFrameBuffer::FRAMEBUFFER_COUNT(0);
@@ -41,10 +49,133 @@ std::string KMSFrameBuffer::ConnectorFullName(int fd, drmModeConnectorPtr conn) 
     return name;
 }
 
+// A plugged-in display: HDMI, DVI, DisplayPort and VGA can be unplugged, and a
+// sink on them answers with an EDID.  Panels (DPI, DSI, ...) are there for good.
+static bool IsExternalConnector(uint32_t type) {
+    switch (type) {
+    case DRM_MODE_CONNECTOR_HDMIA:
+    case DRM_MODE_CONNECTOR_HDMIB:
+    case DRM_MODE_CONNECTOR_DVII:
+    case DRM_MODE_CONNECTOR_DVID:
+    case DRM_MODE_CONNECTOR_DVIA:
+    case DRM_MODE_CONNECTOR_DisplayPort:
+    case DRM_MODE_CONNECTOR_VGA:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// Whether a display is actually on the connector.  For an external connector
+// that takes an EDID: vc4.force_hotplug (the ForceHDMI setting) pins it to
+// "connected" and the kernel then makes up a few modes (up to 1024x768) even
+// with nothing plugged in.
+bool KMSFrameBuffer::SinkPresent(int fd, drmModeConnectorPtr conn) {
+    if (!conn || conn->connection != DRM_MODE_CONNECTED || conn->count_modes == 0) {
+        return false;
+    }
+    if (!IsExternalConnector(conn->connector_type)) {
+        return true;
+    }
+    bool edid = false;
+    for (int i = 0; i < conn->count_props && !edid; i++) {
+        drmModePropertyPtr prop = drmModeGetProperty(fd, conn->props[i]);
+        if (prop) {
+            edid = !strcmp(prop->name, "EDID") && conn->prop_values[i] != 0;
+            drmModeFreeProperty(prop);
+        }
+    }
+    return edid;
+}
+
+// The display's preferred mode, else its first.
+bool KMSFrameBuffer::PickMode(drmModeConnectorPtr conn, drmModeModeInfo& mode) {
+    for (int mi = 0; mi < conn->count_modes; mi++) {
+        if (conn->modes[mi].type & DRM_MODE_TYPE_PREFERRED) {
+            mode = conn->modes[mi];
+            return true;
+        }
+    }
+    if (conn->count_modes > 0) {
+        mode = conn->modes[0];
+        return true;
+    }
+    return false;
+}
+
+// What an external connector runs until a display shows up: CEA-861 1080p60,
+// which any HDMI sink takes.
+static drmModeModeInfo FallbackMode() {
+    drmModeModeInfo m = {};
+    m.clock = 148500;
+    m.hdisplay = 1920;
+    m.hsync_start = 2008;
+    m.hsync_end = 2052;
+    m.htotal = 2200;
+    m.vdisplay = 1080;
+    m.vsync_start = 1084;
+    m.vsync_end = 1089;
+    m.vtotal = 1125;
+    m.vrefresh = 60;
+    m.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC;
+    m.type = DRM_MODE_TYPE_DRIVER;
+    snprintf(m.name, sizeof(m.name), "1920x1080");
+    return m;
+}
+
+// "1920x1080@60 148500kHz h 1920/2008/2052/2200 v 1080/1084/1089/1125 flags 0x5"
+static std::string ModeLine(const drmModeModeInfo& m) {
+    char buf[160];
+    snprintf(buf, sizeof(buf), "%dx%d@%d %ukHz h %d/%d/%d/%d v %d/%d/%d/%d flags 0x%x",
+             m.hdisplay, m.vdisplay, m.vrefresh, m.clock, m.hdisplay, m.hsync_start, m.hsync_end, m.htotal,
+             m.vdisplay, m.vsync_start, m.vsync_end, m.vtotal, m.flags);
+    return buf;
+}
+
+static bool SameTiming(const drmModeModeInfo& a, const drmModeModeInfo& b) {
+    return a.clock == b.clock && a.hdisplay == b.hdisplay && a.hsync_start == b.hsync_start &&
+           a.hsync_end == b.hsync_end && a.htotal == b.htotal && a.vdisplay == b.vdisplay &&
+           a.vsync_start == b.vsync_start && a.vsync_end == b.vsync_end && a.vtotal == b.vtotal &&
+           a.flags == b.flags;
+}
+
+// Up while an output is running with no display on its connector, which on a
+// show night usually means a projector that is off or lost its signal.  Comes
+// down when the display appears and when the output is torn down; built by one
+// function so the add and the remove always match.
+static constexpr int WARNING_ID_NO_DISPLAY = 71;
+static std::string NoDisplayWarning(const std::string& connector) {
+    return "Video output " + connector + ": no display detected - check that the projector or monitor is on and connected";
+}
+
+// The flag and the banner move together; caller holds drmMasterLock.
+void KMSFrameBuffer::SetSinkPresentLocked(bool present) {
+    m_sinkPresent = present;
+    if (!present && !m_noDisplayWarned) {
+        WarningHolder::AddWarning(WARNING_ID_NO_DISPLAY, NoDisplayWarning(m_connectorName));
+        m_noDisplayWarned = true;
+    } else if (present && m_noDisplayWarned) {
+        WarningHolder::RemoveWarning(WARNING_ID_NO_DISPLAY, NoDisplayWarning(m_connectorName));
+        m_noDisplayWarned = false;
+    }
+}
+
+// Only the DRM master gets a real probe; for anyone else the kernel reads back
+// its cached state, which after a hotplug can be "connected" with no modes -
+// the HPD interrupt updates the status but not the mode list.  The real probe
+// reads the EDID over DDC and also refreshes the sysfs mode list.  The card's
+// shared fd is master (see DrmCards.h).  Caller holds drmMasterLock.
+drmModeConnectorPtr KMSFrameBuffer::ProbeConnectorLocked(int fd, uint32_t connectorId) {
+    DrmCards::EnsureMaster(fd);
+    return drmModeGetConnector(fd, connectorId);
+}
+
 bool KMSFrameBuffer::CreateDumbBuffer(int fd, uint32_t width, uint32_t height, uint32_t format, DumbBuffer& buf) {
     uint32_t bpp;
     if (format == DRM_FORMAT_RGB888) {
         bpp = 24;
+    } else if (format == DRM_FORMAT_RGB565) {
+        bpp = 16;
     } else {
         bpp = 32;
     }
@@ -165,7 +296,8 @@ uint32_t KMSFrameBuffer::FindPlaneForCrtc(int fd, uint32_t crtcId, uint32_t form
             }
             if (reserved) break;
         }
-        if (reserved) {
+        // Or that a media pipeline's lease holds.
+        if (reserved || DrmCards::InUse(fd, plane->plane_id)) {
             drmModeFreePlane(plane);
             continue;
         }
@@ -189,22 +321,24 @@ KMSFrameBuffer::KMSFrameBuffer() {
         for (int cn = 0; cn < 10; cn++) {
             std::string path = "/dev/dri/card" + std::to_string(cn);
             if (FileExists(path)) {
-                int fd = open(path.c_str(), O_RDWR | O_CLOEXEC);
+                // The card's one fd for all of fppd, which stays DRM master:
+                // media pipelines get leases from it rather than a master of
+                // their own, so nothing has to take turns (DrmCards.h).
+                int fd = DrmCards::Acquire(path);
                 if (fd < 0) {
                     continue;
                 }
-                drmSetClientCap(fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1);
-                ioctl(fd, DRM_IOCTL_DROP_MASTER, 0);
                 CardInfo* info = new CardInfo();
                 info->fd = fd;
                 info->path = path;
                 CARDS.push_back(info);
             }
         }
+        StartHotplugMonitor();
     }
     ++FRAMEBUFFER_COUNT;
 
-    std::unique_lock<std::mutex> lock(mediaOutputLock);
+    std::unique_lock<std::mutex> lock(drmMasterLock);
     m_flipToken = ++NEXT_FLIP_TOKEN;
     FLIP_TARGETS[m_flipToken] = this;
 }
@@ -217,7 +351,7 @@ KMSFrameBuffer::~KMSFrameBuffer() {
     StopDrawLoop();
 
     {
-        std::unique_lock<std::mutex> lock(mediaOutputLock);
+        std::unique_lock<std::mutex> lock(drmMasterLock);
         // Retire our last flip while this object can still take its event.
         // Past this point one that is still queued is dropped by token.
         if (m_flipPending) {
@@ -228,12 +362,10 @@ KMSFrameBuffer::~KMSFrameBuffer() {
 
         if (m_displayEnabled && m_crtcId && m_planeId) {
             LogInfo(VB_CHANNELOUT, "KMSFrameBuffer::~KMSFrameBuffer() disabling display before destruction\n");
-            int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
-            if (im == 0) {
+            if (DrmCards::EnsureMaster(m_cardFd)) {
                 drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, m_fb[m_cPage].fb_id, 0,
                                 0, 0, 0, 0, 0, 0, 0, 0);
                 m_displayEnabled = false;
-                ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
             }
         }
     }
@@ -246,9 +378,10 @@ KMSFrameBuffer::~KMSFrameBuffer() {
 
     --FRAMEBUFFER_COUNT;
     if (FRAMEBUFFER_COUNT == 0) {
+        StopHotplugMonitor();
         for (auto* card : CARDS) {
             if (card->fd >= 0) {
-                close(card->fd);
+                DrmCards::Release(card->path);
             }
             delete card;
         }
@@ -266,15 +399,31 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
         }
 
         for (int ci = 0; ci < res->count_connectors; ci++) {
-            drmModeConnectorPtr conn = drmModeGetConnector(card->fd, res->connectors[ci]);
+            drmModeConnectorPtr conn = drmModeGetConnectorCurrent(card->fd, res->connectors[ci]);
+            if (!conn) {
+                continue;
+            }
+            std::string cname = ConnectorFullName(card->fd, conn);
+            if (m_device != cname) {
+                drmModeFreeConnector(conn);
+                continue;
+            }
+            drmModeFreeConnector(conn);
+            {
+                std::unique_lock<std::mutex> lock(drmMasterLock);
+                conn = ProbeConnectorLocked(card->fd, res->connectors[ci]);
+            }
             if (!conn) {
                 continue;
             }
 
-            std::string cname = ConnectorFullName(card->fd, conn);
-            bool connected = (conn->connection == DRM_MODE_CONNECTED);
-
-            if (m_device != cname || !connected) {
+            // An external display that is off or unplugged right now is not a
+            // reason to have no output: run a standard mode until it shows up
+            // and the hotplug handler adopts its own.  Before, the output was
+            // simply never created, and only a restart brought it back.
+            bool present = SinkPresent(card->fd, conn);
+            bool external = IsExternalConnector(conn->connector_type);
+            if (!present && !external && conn->connection != DRM_MODE_CONNECTED) {
                 drmModeFreeConnector(conn);
                 continue;
             }
@@ -328,7 +477,7 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
                                     break;
                                 }
                             }
-                            if (!crtcReserved) {
+                            if (!crtcReserved && !DrmCards::InUse(card->fd, res->crtcs[ci2])) {
                                 crtcId = res->crtcs[ci2];
                             }
                         }
@@ -343,19 +492,15 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
                 return 0;
             }
 
-            // Get default mode (first preferred, or first available)
             drmModeModeInfo mode = {};
             bool foundMode = false;
-            for (int mi = 0; mi < conn->count_modes; mi++) {
-                if (conn->modes[mi].type & DRM_MODE_TYPE_PREFERRED) {
-                    mode = conn->modes[mi];
-                    foundMode = true;
-                    break;
-                }
-            }
-            if (!foundMode && conn->count_modes > 0) {
-                mode = conn->modes[0];
+            if (present || !external) {
+                foundMode = PickMode(conn, mode);
+            } else {
+                mode = FallbackMode();
                 foundMode = true;
+                LogInfo(VB_CHANNELOUT, "KMSFrameBuffer: no display on %s yet, running %dx%d @ %dHz until one appears\n",
+                        cname.c_str(), mode.hdisplay, mode.vdisplay, mode.vrefresh);
             }
 
             if (!foundMode) {
@@ -385,6 +530,8 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
 
             card->reservedConnectors.push_back(m_connectorId);
             card->reservedCrtcs.push_back(m_crtcId);
+            DrmCards::Claim(card->fd, m_connectorId);
+            DrmCards::Claim(card->fd, m_crtcId);
 
             if (m_variableRefresh) {
                 // DPI Pixels: drive our own vertical timing.  Keep the
@@ -440,6 +587,8 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
                         rc.erase(std::remove(rc.begin(), rc.end(), m_connectorId), rc.end());
                         auto& rcr = card->reservedCrtcs;
                         rcr.erase(std::remove(rcr.begin(), rcr.end(), m_crtcId), rcr.end());
+                        DrmCards::Unclaim(card->fd, m_connectorId);
+                        DrmCards::Unclaim(card->fd, m_crtcId);
                         m_connectorId = 0;
                         m_crtcId = 0;
                         drmModeFreeConnector(conn);
@@ -453,6 +602,7 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
             m_planeId = FindPlaneForCrtc(card->fd, m_crtcId, format);
             if (m_planeId) {
                 card->reservedPlanes.push_back(m_planeId);
+                DrmCards::Claim(card->fd, m_planeId);
             }
             m_pages = 2;
 
@@ -471,6 +621,12 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
 
             drmModeFreeConnector(conn);
             drmModeFreeResources(res);
+
+            {
+                std::unique_lock<std::mutex> lock(drmMasterLock);
+                SetSinkPresentLocked(present);
+                m_hotplugReady = true;
+            }
             return 1;
         }
         drmModeFreeResources(res);
@@ -479,24 +635,39 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
 }
 
 void KMSFrameBuffer::DestroyFrameBuffer(void) {
+    {
+        std::unique_lock<std::mutex> lock(drmMasterLock);
+        m_hotplugReady = false;
+        if (m_noDisplayWarned) {
+            WarningHolder::RemoveWarning(WARNING_ID_NO_DISPLAY, NoDisplayWarning(m_connectorName));
+            m_noDisplayWarned = false;
+        }
+    }
     for (int x = 0; x < 3; x++) {
         if (m_fb[x].handle) {
             DestroyDumbBuffer(m_cardFd, m_fb[x]);
             m_pageBuffers[x] = nullptr;
         }
     }
+    if (m_blankFb.handle) {
+        DestroyDumbBuffer(m_cardFd, m_blankFb);
+    }
+    m_mediaBlanked = false;
     if (m_cardInfo) {
         if (m_planeId) {
             auto& planes = m_cardInfo->reservedPlanes;
             planes.erase(std::remove(planes.begin(), planes.end(), m_planeId), planes.end());
+            DrmCards::Unclaim(m_cardInfo->fd, m_planeId);
         }
         if (m_crtcId) {
             auto& crtcs = m_cardInfo->reservedCrtcs;
             crtcs.erase(std::remove(crtcs.begin(), crtcs.end(), m_crtcId), crtcs.end());
+            DrmCards::Unclaim(m_cardInfo->fd, m_crtcId);
         }
         if (m_connectorId) {
             auto& conns = m_cardInfo->reservedConnectors;
             conns.erase(std::remove(conns.begin(), conns.end(), m_connectorId), conns.end());
+            DrmCards::Unclaim(m_cardInfo->fd, m_connectorId);
         }
     }
 
@@ -533,11 +704,43 @@ void KMSFrameBuffer::SyncLoop() {
     }
 }
 
+// Whether a media pipeline is showing on this connector, so this output must
+// leave it alone.  Its kmssink holds the connector through a DRM lease from
+// before the pipeline starts until it is gone, whichever slot it plays on and
+// whatever the output is called -- the old test compared slot 1's status to
+// the connector name, which Play Media and "--HDMI--" never matched.
+bool KMSFrameBuffer::MediaHoldsConnector() const {
+    return m_connectorId && DrmCards::HeldByMedia(m_cardFd, m_connectorId);
+}
+
+// Put black on our plane in place of the last frame.  The CRTC stays lit for
+// the video on top of it.  Caller holds drmMasterLock.
+void KMSFrameBuffer::BlankForMediaLocked() {
+    if (m_mediaBlanked || !m_planeId || !m_displayEnabled || !DrmCards::EnsureMaster(m_cardFd)) {
+        return;
+    }
+    if (m_flipPending) {
+        int vr = m_mode.vrefresh > 0 ? m_mode.vrefresh : 60;
+        WaitForPendingFlip((1000 / vr) + 20);
+    }
+    if (!m_blankFb.handle) {
+        if (!CreateDumbBuffer(m_cardFd, m_fb[0].width, m_fb[0].height, m_fb[0].format, m_blankFb)) {
+            return;
+        }
+        memset(m_blankFb.mapped, 0, m_blankFb.size);
+    }
+    drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, m_blankFb.fb_id, 0,
+                    0, 0, m_mode.hdisplay, m_mode.vdisplay,
+                    0, 0, (uint32_t)m_width << 16, (uint32_t)m_height << 16);
+    m_mediaBlanked = true;
+    LogInfo(VB_CHANNELOUT, "KMSFrameBuffer %s: media is playing here, standing aside\n", m_connectorName.c_str());
+}
+
 void KMSFrameBuffer::PageFlipHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void* data) {
     // data is the flip token of the instance that queued this flip, so even if
     // we drain an event that belongs to another KMSFrameBuffer sharing the same
     // card fd, the correct instance's pending flag is cleared. Runs inside
-    // drmHandleEvent under mediaOutputLock, which also guards FLIP_TARGETS.
+    // drmHandleEvent under drmMasterLock, which also guards FLIP_TARGETS.
     uint32_t token = (uint32_t)(uintptr_t)data;
     auto it = FLIP_TARGETS.find(token);
     if (it == FLIP_TARGETS.end()) {
@@ -548,7 +751,7 @@ void KMSFrameBuffer::PageFlipHandler(int fd, unsigned int frame, unsigned int se
     {
         self->m_flipPending = false;
         // "frame" is the vblank sequence number at flip completion; track the
-        // cadence.  Runs inside drmHandleEvent under mediaOutputLock.
+        // cadence.  Runs inside drmHandleEvent under drmMasterLock.
         if (self->m_lastFlipSeq != 0 && frame > self->m_lastFlipSeq) {
             uint32_t delta = frame - self->m_lastFlipSeq;
             self->m_vblankDeltaCounts[delta > 4 ? 4 : delta]++;
@@ -592,7 +795,7 @@ void KMSFrameBuffer::WaitForPageFree() {
     if (m_pages == 1) {
         return;
     }
-    std::unique_lock<std::mutex> lock(mediaOutputLock);
+    std::unique_lock<std::mutex> lock(drmMasterLock);
     if (m_flipPending) {
         int vr = m_mode.vrefresh > 0 ? m_mode.vrefresh : 60;
         uint32_t timeoutsBefore = m_flipWaitTimeouts;
@@ -639,14 +842,28 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
     if (!pageChanged || m_pages == 1)
         return;
 
-    std::unique_lock<std::mutex> lock(mediaOutputLock);
-    if (mediaOutputStatus.mediaLoading) {
+    std::unique_lock<std::mutex> lock(drmMasterLock);
+    if (MediaHoldsConnector()) {
+        BlankForMediaLocked();
         return;
     }
-    if (mediaOutputStatus.output != m_connectorName) {
-        long long syncStart = GetTimeMS();
-        int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
-        if (im == 0) {
+    if (m_mediaBlanked) {
+        // The media is gone.  Its kmssink may have left the CRTC in another
+        // state, so put our page back with a plane commit rather than
+        // trusting a flip from what was there before.
+        m_mediaBlanked = false;
+        m_flipPending = false;
+        if (m_displayEnabled && m_planeId && DrmCards::EnsureMaster(m_cardFd) &&
+            drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, m_fb[m_cPage].fb_id, 0,
+                            0, 0, m_mode.hdisplay, m_mode.vdisplay,
+                            0, 0, (uint32_t)m_width << 16, (uint32_t)m_height << 16) != 0) {
+            m_displayEnabled = false;  // relight it below with a full modeset
+        }
+        LogInfo(VB_CHANNELOUT, "KMSFrameBuffer %s: media finished, showing output again\n", m_connectorName.c_str());
+    }
+    {
+        long long syncStart = GetMonotonicTimeMS();
+        if (DrmCards::EnsureMaster(m_cardFd)) {
             // If the previous flip hasn't retired yet, wait for its vblank
             // completion event instead of letting this flip return EBUSY and
             // fall into the expensive SetPlane/SetCrtc modeset path.  poll()
@@ -718,11 +935,9 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
                 // First flip after enable, or the flip was rejected: bring the
                 // display up with a full modeset/plane commit, then queue a flip.
                 if (!m_displayEnabled) {
-                    drmModeSetCrtc(m_cardFd, m_crtcId, m_fb[m_cPage].fb_id, 0, 0,
-                                   &m_connectorId, 1, &m_mode);
+                    ModesetLocked();
                     m_displayEnabled = true;
-                }
-                if (m_planeId) {
+                } else if (m_planeId) {
                     drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, m_fb[m_cPage].fb_id, 0,
                                     0, 0, m_mode.hdisplay, m_mode.vdisplay,
                                     0, 0, (uint32_t)m_width << 16, (uint32_t)m_height << 16);
@@ -731,14 +946,13 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
                                       DRM_MODE_PAGE_FLIP_EVENT, (void*)(uintptr_t)m_flipToken);
             }
             m_flipPending = (ret == 0);
-            ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
 
             // Track flip-path health.  A single sync should normally complete
             // well inside one refresh interval; count the ones that don't and
             // surface them (rate-limited) at Warn level so output stutters can
             // be correlated with (or ruled out of) the KMS flip path without
             // needing debug logging.
-            long long syncEnd = GetTimeMS();
+            long long syncEnd = GetMonotonicTimeMS();
             // The phase-alignment sleep is intentional; don't count it as a
             // flip-path delay.
             int tookMS = (int)(syncEnd - syncStart) - (int)(alignSleepUS / 1000);
@@ -768,13 +982,12 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
 }
 
 void KMSFrameBuffer::DisableDisplay() {
-    std::unique_lock<std::mutex> lock(mediaOutputLock);
-    if (mediaOutputStatus.mediaLoading) {
+    std::unique_lock<std::mutex> lock(drmMasterLock);
+    if (MediaHoldsConnector()) {
         return;
     }
-    if (mediaOutputStatus.output != m_connectorName) {
-        int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
-        if (im == 0) {
+    {
+        if (DrmCards::EnsureMaster(m_cardFd)) {
             if (m_crtcId && m_planeId) {
                 drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, m_fb[m_cPage].fb_id, 0,
                                 0, 0, 0, 0, 0, 0, 0, 0);
@@ -782,34 +995,75 @@ void KMSFrameBuffer::DisableDisplay() {
                 m_displayEnabled = false;
                 m_flipPending = false;
             }
-            ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
         }
     }
 }
 
+int KMSFrameBuffer::ModesetLocked() {
+    if (!m_planeId) {
+        return drmModeSetCrtc(m_cardFd, m_crtcId, m_fb[m_cPage].fb_id, 0, 0,
+                              &m_connectorId, 1, &m_mode);
+    }
+
+    // Legacy SetCrtc scans the CRTC's primary plane out at the full mode size,
+    // so it rejects (ENOSPC) a framebuffer smaller than the mode - and ours is
+    // only the model times its pixel size, which is often short of the panel.
+    // Without this, a CRTC that went off could never be turned back on: every
+    // earlier "modeset" here failed and only worked because the console had
+    // left the CRTC running.  Light it with a blank mode-sized buffer instead,
+    // put the picture on our (scaling) plane, then take the blank one away.
+    DumbBuffer blank;
+    bool useBlank = m_fb[m_cPage].width < m_mode.hdisplay || m_fb[m_cPage].height < m_mode.vdisplay;
+    if (useBlank && !CreateDumbBuffer(m_cardFd, m_mode.hdisplay, m_mode.vdisplay, DRM_FORMAT_RGB565, blank) &&
+        !CreateDumbBuffer(m_cardFd, m_mode.hdisplay, m_mode.vdisplay, DRM_FORMAT_XRGB8888, blank)) {
+        useBlank = false;
+    }
+    if (useBlank) {
+        memset(blank.mapped, 0, blank.size);
+    }
+    int ret = drmModeSetCrtc(m_cardFd, m_crtcId, useBlank ? blank.fb_id : m_fb[m_cPage].fb_id, 0, 0,
+                             &m_connectorId, 1, &m_mode);
+    if (ret) {
+        // Still place the plane: that is enough when the CRTC is already
+        // running this mode, which is all the old code ever managed.
+        LogWarn(VB_CHANNELOUT, "KMSFrameBuffer %s: modeset failed: %d (%s)\n", m_connectorName.c_str(), ret, strerror(errno));
+    }
+    ret = drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, m_fb[m_cPage].fb_id, 0,
+                          0, 0, m_mode.hdisplay, m_mode.vdisplay,
+                          0, 0, (uint32_t)m_width << 16, (uint32_t)m_height << 16);
+    if (useBlank) {
+        // Unless our plane is the primary (and has just replaced it), the blank
+        // buffer is still on the primary plane.  Take it off explicitly: removing
+        // an in-use framebuffer can make the kernel turn the whole CRTC off.
+        drmModePlaneResPtr planes = drmModeGetPlaneResources(m_cardFd);
+        for (uint32_t i = 0; planes && i < planes->count_planes; i++) {
+            drmModePlanePtr plane = drmModeGetPlane(m_cardFd, planes->planes[i]);
+            if (plane && plane->fb_id == blank.fb_id) {
+                drmModeSetPlane(m_cardFd, plane->plane_id, m_crtcId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+            }
+            if (plane) {
+                drmModeFreePlane(plane);
+            }
+        }
+        if (planes) {
+            drmModeFreePlaneResources(planes);
+        }
+        DestroyDumbBuffer(m_cardFd, blank);
+    }
+    return ret;
+}
+
 void KMSFrameBuffer::EnableDisplay() {
     LogDebug(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay() called for %s\n", m_connectorName.c_str());
-    std::unique_lock<std::mutex> lock(mediaOutputLock);
-    if (mediaOutputStatus.mediaLoading) {
-        LogDebug(VB_CHANNELOUT, "  Skipping: media is loading\n");
+    std::unique_lock<std::mutex> lock(drmMasterLock);
+    if (MediaHoldsConnector()) {
+        LogDebug(VB_CHANNELOUT, "  Skipping: media is playing on this connector\n");
         return;
     }
-    if (mediaOutputStatus.output != m_connectorName) {
-        LogDebug(VB_CHANNELOUT, "  mediaOutputStatus.output='%s', proceeding with enable\n", mediaOutputStatus.output.c_str());
-        int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
-        if (im == 0) {
+    {
+        if (DrmCards::EnsureMaster(m_cardFd)) {
             if (m_crtcId && m_planeId) {
-                int ret = drmModeSetCrtc(m_cardFd, m_crtcId, m_fb[m_cPage].fb_id, 0, 0,
-                                         &m_connectorId, 1, &m_mode);
-                if (ret) {
-                    LogErr(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay set_mode failed: %d\n", ret);
-                } else {
-                    LogInfo(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay: set mode for %s\n", m_connectorName.c_str());
-                }
-
-                ret = drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, m_fb[m_cPage].fb_id, 0,
-                                      0, 0, m_mode.hdisplay, m_mode.vdisplay,
-                                      0, 0, (uint32_t)m_width << 16, (uint32_t)m_height << 16);
+                int ret = ModesetLocked();
                 if (ret) {
                     LogErr(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay set_plane failed: %d\n", ret);
                 } else {
@@ -817,12 +1071,9 @@ void KMSFrameBuffer::EnableDisplay() {
                     LogInfo(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay: SUCCESS for %s\n", m_connectorName.c_str());
                 }
             }
-            ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
         } else {
-            LogWarn(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay: Failed to get DRM master (ioctl returned %d)\n", im);
+            LogWarn(VB_CHANNELOUT, "KMSFrameBuffer::EnableDisplay: Failed to get DRM master for %s\n", m_connectorName.c_str());
         }
-    } else {
-        LogDebug(VB_CHANNELOUT, "  Skipping: mediaOutputStatus.output matches connector\n");
     }
 }
 
@@ -885,15 +1136,14 @@ bool KMSFrameBuffer::SetRefreshRate(int fps) {
     mode.vtotal = newVtotal;
     mode.vrefresh = (uint32_t)llround((double)mode.clock * 1000.0 / ((double)mode.htotal * (double)newVtotal));
 
-    std::unique_lock<std::mutex> lock(mediaOutputLock);
-    if (mediaOutputStatus.output == m_connectorName) {
+    std::unique_lock<std::mutex> lock(drmMasterLock);
+    if (MediaHoldsConnector()) {
         // The connector is currently presenting media playback; don't fight it.
         // Report "not applied" so the caller's idea of the live rate stays
         // honest and it asks again next frame.
         return false;
     }
-    int im = ioctl(m_cardFd, DRM_IOCTL_SET_MASTER, 0);
-    if (im != 0) {
+    if (!DrmCards::EnsureMaster(m_cardFd)) {
         // Couldn't grab master right now.  As above, not applied; the caller
         // asks again.
         return false;
@@ -923,8 +1173,250 @@ bool KMSFrameBuffer::SetRefreshRate(int fps) {
     } else {
         LogErr(VB_CHANNELOUT, "KMSFrameBuffer::SetRefreshRate modeset failed: %d (%s)\n", ret, strerror(errno));
     }
-    ioctl(m_cardFd, DRM_IOCTL_DROP_MASTER, 0);
     return ret == 0;
+}
+
+// ---------------------------------------------------------------------------
+// Display hotplug
+// ---------------------------------------------------------------------------
+
+// Quiet time after the last uevent before acting on a batch.  A sink powering
+// up can bounce HPD a few times, and acting once on the settled state avoids a
+// modeset per bounce.
+static constexpr int HOTPLUG_SETTLE_MS = 1000;
+// How often an output without a display re-probes for one.  Events cover
+// most of it, but vc4.force_hotplug (the ForceHDMI setting) makes the kernel
+// ignore HPD: a projector switched on later sends nothing, and without this
+// the output would run the stand-in mode, under a stale warning, for good.
+static constexpr int ABSENT_RECHECK_MS = 10000;
+
+static std::mutex s_hotplugLock; // guards the three below
+static std::thread* s_hotplugThread = nullptr;
+static int s_hotplugSock = -1;
+static int s_hotplugWakeFd = -1;
+
+void KMSFrameBuffer::StartHotplugMonitor() {
+    std::unique_lock<std::mutex> lock(s_hotplugLock);
+    if (s_hotplugThread) {
+        return;
+    }
+    // The kernel's own uevent multicast group (1), not udevd's re-broadcast:
+    // it needs no udevd and no libudev, and fppd runs as root.
+    int sock = socket(AF_NETLINK, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, NETLINK_KOBJECT_UEVENT);
+    if (sock < 0) {
+        LogWarn(VB_CHANNELOUT, "KMSFrameBuffer: no uevent socket, display hotplug will not be handled: %s\n", strerror(errno));
+        return;
+    }
+    struct sockaddr_nl addr = {};
+    addr.nl_family = AF_NETLINK;
+    addr.nl_groups = 1;
+    if (bind(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        LogWarn(VB_CHANNELOUT, "KMSFrameBuffer: could not bind the uevent socket, display hotplug will not be handled: %s\n", strerror(errno));
+        close(sock);
+        return;
+    }
+    int wakeFd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+    if (wakeFd < 0) {
+        close(sock);
+        return;
+    }
+    s_hotplugSock = sock;
+    s_hotplugWakeFd = wakeFd;
+    s_hotplugThread = new std::thread(HotplugMonitorLoop, sock, wakeFd);
+}
+
+void KMSFrameBuffer::StopHotplugMonitor() {
+    std::unique_lock<std::mutex> lock(s_hotplugLock);
+    if (!s_hotplugThread) {
+        return;
+    }
+    uint64_t one = 1;
+    write(s_hotplugWakeFd, &one, sizeof(one));
+    s_hotplugThread->join();
+    delete s_hotplugThread;
+    s_hotplugThread = nullptr;
+    close(s_hotplugSock);
+    close(s_hotplugWakeFd);
+    s_hotplugSock = -1;
+    s_hotplugWakeFd = -1;
+}
+
+void KMSFrameBuffer::HotplugMonitorLoop(int sock, int wakeFd) {
+    SetThreadName("FPP-DRMHotplug");
+
+    // card path ("/dev/dri/card1") -> connector ids named by the batch's
+    // events; 0 for an event that named none (a sysfs status write, polled
+    // connectors).  Any event re-probes every output on its card.
+    std::map<std::string, std::set<uint32_t>> pending;
+    long long deadline = 0;
+    long long nextRecheck = GetMonotonicTimeMS() + ABSENT_RECHECK_MS;
+    char buf[8192];
+
+    while (true) {
+        struct pollfd pfds[2] = {};
+        pfds[0].fd = sock;
+        pfds[0].events = POLLIN;
+        pfds[1].fd = wakeFd;
+        pfds[1].events = POLLIN;
+        long long wake = deadline ? std::min(deadline, nextRecheck) : nextRecheck;
+        int timeout = (int)std::max(0LL, wake - GetMonotonicTimeMS());
+        int r = poll(pfds, 2, timeout);
+        if (r < 0 && errno != EINTR) {
+            LogWarn(VB_CHANNELOUT, "KMSFrameBuffer: uevent poll failed, display hotplug will no longer be handled: %s\n", strerror(errno));
+            return;
+        }
+        if (pfds[1].revents & POLLIN) {
+            return;
+        }
+        if (pfds[0].revents & POLLIN) {
+            ssize_t len;
+            while ((len = recv(sock, buf, sizeof(buf) - 1, 0)) > 0) {
+                // "change@/devices/...\0ACTION=change\0SUBSYSTEM=drm\0HOTPLUG=1\0..."
+                buf[len] = 0;
+                std::string subsystem, devname;
+                bool hotplug = false;
+                uint32_t connectorId = 0;
+                for (char* p = buf; p < buf + len; p += strlen(p) + 1) {
+                    if (!strncmp(p, "SUBSYSTEM=", 10)) {
+                        subsystem = p + 10;
+                    } else if (!strncmp(p, "DEVNAME=", 8)) {
+                        devname = p + 8;
+                    } else if (!strcmp(p, "HOTPLUG=1")) {
+                        hotplug = true;
+                    } else if (!strncmp(p, "CONNECTOR=", 10)) {
+                        connectorId = (uint32_t)strtoul(p + 10, nullptr, 10);
+                    }
+                }
+                if (subsystem != "drm" || !hotplug || devname.empty()) {
+                    continue;
+                }
+                LogDebug(VB_CHANNELOUT, "KMSFrameBuffer: hotplug uevent on %s connector %u\n", devname.c_str(), connectorId);
+                pending["/dev/" + devname].insert(connectorId);
+                deadline = GetMonotonicTimeMS() + HOTPLUG_SETTLE_MS;
+            }
+        }
+        if (deadline && GetMonotonicTimeMS() >= deadline) {
+            for (auto& [cardPath, connectorIds] : pending) {
+                HandleHotplug(cardPath, connectorIds, false);
+            }
+            pending.clear();
+            deadline = 0;
+        }
+        if (GetMonotonicTimeMS() >= nextRecheck) {
+            std::set<std::string> cards;
+            {
+                std::unique_lock<std::mutex> lock(drmMasterLock);
+                for (auto& [token, fb] : FLIP_TARGETS) {
+                    if (fb->m_hotplugReady && !fb->m_sinkPresent) {
+                        cards.insert(fb->m_cardInfo->path);
+                    }
+                }
+            }
+            for (auto& cardPath : cards) {
+                HandleHotplug(cardPath, {}, true);
+            }
+            nextRecheck = GetMonotonicTimeMS() + ABSENT_RECHECK_MS;
+        }
+    }
+}
+
+void KMSFrameBuffer::HandleHotplug(const std::string& cardPath, const std::set<uint32_t>& connectorIds, bool onlyAbsent) {
+    std::unique_lock<std::mutex> lock(drmMasterLock);
+    std::vector<std::pair<uint32_t, std::string>> outputs;
+    for (auto& [token, fb] : FLIP_TARGETS) {
+        if (fb->m_hotplugReady && fb->m_cardInfo->path == cardPath && !(onlyAbsent && fb->m_sinkPresent)) {
+            outputs.emplace_back(token, fb->m_connectorName);
+        }
+    }
+    for (auto& [token, name] : outputs) {
+        auto it = FLIP_TARGETS.find(token);
+        if (it == FLIP_TARGETS.end() || !it->second->m_hotplugReady) {
+            continue;
+        }
+        KMSFrameBuffer* fb = it->second;
+
+        // A real probe (see ProbeConnectorLocked()), so it also refills the
+        // sysfs mode list that was emptied while the display was away.  Every
+        // output's flips wait out this EDID read, once per hotplug.
+        drmModeConnectorPtr conn = ProbeConnectorLocked(fb->m_cardFd, fb->m_connectorId);
+        bool present = SinkPresent(fb->m_cardFd, conn);
+        drmModeModeInfo mode = {};
+        bool haveMode = present && PickMode(conn, mode);
+        if (conn) {
+            drmModeFreeConnector(conn);
+        }
+
+        bool wasPresent = fb->m_sinkPresent;
+        fb->SetSinkPresentLocked(present);
+        if (!present) {
+            if (wasPresent) {
+                LogInfo(VB_CHANNELOUT, "KMSFrameBuffer %s: display disconnected\n", name.c_str());
+            }
+            continue;
+        }
+        // Back after we saw it gone.  An event naming this connector while it
+        // looks present also counts: the sink went away and came back before
+        // the batch settled, or (with force_hotplug) its EDID changed.  A
+        // card-wide event alone does not: it may be about another connector,
+        // and a needless modeset blanks this one (or glitches DPI pixels).
+        if (wasPresent && !connectorIds.count(fb->m_connectorId)) {
+            continue;
+        }
+        LogInfo(VB_CHANNELOUT, "KMSFrameBuffer %s: display %s\n", name.c_str(),
+                wasPresent ? "re-announced itself" : "reconnected");
+        if (fb->MediaHoldsConnector()) {
+            LogInfo(VB_CHANNELOUT, "KMSFrameBuffer %s: media owns the connector, not restarting the display\n", name.c_str());
+            continue;
+        }
+        // Run the display's own mode: the one we have may have been the stand-in
+        // for a display that wasn't there yet, or this may be another display.
+        // The framebuffer stays as it is; the plane scales it onto whatever mode
+        // the CRTC runs.  (DPI Pixels sets its own timing, but is never
+        // external, so never gets here.)
+        if (haveMode && !fb->m_variableRefresh && !SameTiming(mode, fb->m_mode)) {
+            LogInfo(VB_CHANNELOUT, "KMSFrameBuffer %s: switching to the display's own mode %s (was %s)\n",
+                    name.c_str(), ModeLine(mode).c_str(), ModeLine(fb->m_mode).c_str());
+            fb->m_mode = mode;
+        }
+        if (fb->m_displayEnabled) {
+            fb->RestartDisplayLocked();
+        }
+        // Otherwise it isn't lit yet, and EnableDisplay() or SyncDisplay()
+        // will light it in m_mode.
+    }
+}
+
+void KMSFrameBuffer::RestartDisplayLocked() {
+    if (!DrmCards::EnsureMaster(m_cardFd)) {
+        LogWarn(VB_CHANNELOUT, "KMSFrameBuffer %s: could not get DRM master to restart the display\n", m_connectorName.c_str());
+        return;
+    }
+    if (m_flipPending) {
+        int vr = m_mode.vrefresh > 0 ? m_mode.vrefresh : 60;
+        WaitForPendingFlip((1000 / vr) + 20);
+    }
+    // Off first.  SetCrtc with the mode the CRTC already runs is not a modeset
+    // to the atomic helpers - it just swaps the framebuffer - and it is the
+    // modeset that restarts the HDMI link the sink has to lock onto.
+    if (m_planeId) {
+        drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    }
+    drmModeSetCrtc(m_cardFd, m_crtcId, 0, 0, 0, nullptr, 0, nullptr);
+
+    int ret = ModesetLocked();
+    if (ret == 0) {
+        LogInfo(VB_CHANNELOUT, "KMSFrameBuffer %s: display restarted at %dx%d @ %dHz\n",
+                m_connectorName.c_str(), m_mode.hdisplay, m_mode.vdisplay, m_mode.vrefresh);
+    } else {
+        // Leave it disabled so the next SyncDisplay() tries the modeset again.
+        LogWarn(VB_CHANNELOUT, "KMSFrameBuffer %s: display restart failed: %d (%s)\n",
+                m_connectorName.c_str(), ret, strerror(errno));
+    }
+    m_displayEnabled = (ret == 0);
+    // The modeset restarts the vblank stream; don't count it as a stutter.
+    m_lastFlipSeq = 0;
+    m_prevVblankDelta = 0;
+    m_lastFlipTimeUS = 0;
 }
 
 #endif

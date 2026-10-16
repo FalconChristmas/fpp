@@ -42,8 +42,8 @@ PlaylistEntryBoth::~PlaylistEntryBoth() {
     if (m_sequenceEntry) {
         delete m_sequenceEntry;
     }
-    if (m_mediaEntry) {
-        delete m_mediaEntry;
+    if (m_mediaOwned) {
+        delete m_mediaOwned;
     }
 }
 
@@ -57,22 +57,19 @@ int PlaylistEntryBoth::Init(Json::Value& config) {
     if (!m_sequenceEntry)
         return 0;
 
-    m_mediaEntry = new PlaylistEntryMedia(m_parentPlaylist, this);
-    if (!m_mediaEntry)
-        return 0;
+    m_mediaOwned = new PlaylistEntryMedia(m_parentPlaylist, this);
+    m_mediaEntry = m_mediaOwned;
 
     if (!m_mediaEntry->Init(config)) {
         // Media init failed — run sequence-only.  The rest of this class
         // already null-checks m_mediaEntry; the unconditional GetMediaName()
         // call that used to sit below this branch dereferenced the pointer
         // just nulled here.
-        delete m_mediaEntry;
+        delete m_mediaOwned;
+        m_mediaOwned = nullptr;
         m_mediaEntry = nullptr;
     } else {
         m_mediaName = m_mediaEntry->GetMediaName();
-
-        // the media will drive the timing, not the fseq
-        m_sequenceEntry->disableAdjustTiming();
     }
 
     if (!m_sequenceEntry->Init(config))
@@ -102,19 +99,23 @@ int PlaylistEntryBoth::StartPlaying(void) {
     // of a second at the wrap and never played again.
     m_sequenceEntry->ResetPlayState();
 
+    // Each pass decides afresh whether it has media.
+    m_mediaEntry = m_mediaOwned;
     if (m_mediaEntry && !m_mediaEntry->PreparePlay()) {
-        delete m_mediaEntry;
         m_mediaEntry = nullptr;
     }
     if (!m_mediaEntry) {
         LogDebug(VB_PLAYLIST, "Skipping media playlist entry, likely blacklisted audio: %s\n", m_mediaName.c_str());
     }
+    // The media drives the timing when there is media; without it this pass,
+    // the sequence has to keep its own time.
+    m_sequenceEntry->setAdjustTiming(m_mediaEntry == nullptr);
     if (!m_sequenceEntry->PreparePlay()) {
         LogDebug(VB_PLAYLIST, "Problems starting sequence: %s\n", m_sequenceEntry->GetSequenceName().c_str());
     }
 
     if (multiSync->isMultiSyncEnabled() && m_mediaEntry && m_mediaEntry->m_openTime) {
-        long long st = GetTimeMS() - m_mediaEntry->m_openTime;
+        long long st = GetMonotonicTimeMS() - m_mediaEntry->m_openTime;
         if (st < PlaylistEntryMedia::m_openStartDelay) {
             std::this_thread::sleep_for(std::chrono::milliseconds(PlaylistEntryMedia::m_openStartDelay - st - 2));
         }
@@ -135,14 +136,14 @@ int PlaylistEntryBoth::StartPlaying(void) {
     }
     if (m_mediaEntry && !m_mediaEntry->StartPlaying()) {
         LogDebug(VB_PLAYLIST, "Could not start media: %s\n", m_mediaName.c_str());
-        delete m_mediaEntry;
+        m_mediaEntry->Stop();
         m_mediaEntry = nullptr;
         m_holdingForAudio = false;
         m_sequenceEntry->Stop();
         FinishPlay();
         return 0;
     }
-    m_holdStartMS = GetTimeMS();
+    m_holdStartMS = GetMonotonicTimeMS();
 
     return PlaylistEntryBase::StartPlaying();
 }
@@ -158,7 +159,7 @@ int PlaylistEntryBoth::Process(void) {
         m_mediaEntry->Process();
 
     if (m_holdingForAudio && m_mediaEntry) {
-        long long held = GetTimeMS() - m_holdStartMS;
+        long long held = GetMonotonicTimeMS() - m_holdStartMS;
         if (m_mediaEntry->IsAudible() || held >= AUDIO_START_HOLD_MS) {
             m_holdingForAudio = false;
             if (held >= AUDIO_START_HOLD_MS) {
@@ -178,7 +179,7 @@ int PlaylistEntryBoth::Process(void) {
     }
 
     if (m_mediaEntry && m_mediaEntry->GetMediaOffsetMS() > 0) {
-        long long ct = GetTimeMS();
+        long long ct = GetMonotonicTimeMS();
         long long df = ct - m_mediaEntry->m_startTime;
         if (df > (m_mediaEntry->GetMediaOffsetMS() - m_sequenceEntry->GetSequenceFrameTime())) {
             if (!m_sequenceEntry->IsStarted()) {

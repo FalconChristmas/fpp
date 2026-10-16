@@ -42,6 +42,15 @@ int TestPatternSingleChase::Init(Json::Value config) {
     m_configChanged = 0;
 
     int chaseSize = JsonInt(config, "chaseSize");
+    // SetupTest() steps through the channels by the chase size and
+    // CycleData() reads the channel one chase size in, so a size below 1
+    // looped forever (0) or wrote before the test buffer (negative), and one
+    // past the buffer read beyond it.  2 is the smallest the API offers.
+    if (chaseSize < 2 || chaseSize > FPPD_MAX_CHANNELS) {
+        LogWarn(VB_CHANNELOUT, "Single Channel Chase size %d is out of range, using %d\n",
+                chaseSize, chaseSize < 2 ? 2 : (int)FPPD_MAX_CHANNELS);
+        chaseSize = chaseSize < 2 ? 2 : FPPD_MAX_CHANNELS;
+    }
     if (m_chaseSize != chaseSize) {
         m_chaseSize = chaseSize;
         m_configChanged = 1;

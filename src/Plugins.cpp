@@ -16,10 +16,14 @@
 
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <poll.h>
+#include <signal.h>
 #include <cstring>
 #include <dirent.h>
 #include <dlfcn.h>
 #include <errno.h>
+#include <chrono>
+#include <thread>
 #include <list>
 #include <map>
 #include <memory>
@@ -75,42 +79,29 @@ namespace FPPPlugins
                         continue;
                     }
 
-                    char *key = NULL, *value = NULL; // These are values we're looking for and will
-                    // run through trimwhitespace which means they
-                    // must be freed before we are done.
-
-                    char* saveptr = nullptr;
-                    char* token = strtok_r(line, "=", &saveptr);
-                    if (!token) {
-                        continue;
-                    }
-
-                    key = trimwhitespace(token);
+                    // Split on the first '=' only and drop exactly one pair of
+                    // surrounding quotes, as LoadSettings() reads FPP's own
+                    // settings file: splitting on every '=' cut values such as
+                    // base64 secrets short, and every quote was trimmed.
+                    std::string l(line, read);
+                    size_t eq = l.find('=');
+                    char* key = trimwhitespace(l.substr(0, eq).c_str());
                     if (!strlen(key)) {
                         free(key);
                         continue;
                     }
-
-                    token = strtok_r(NULL, "=", &saveptr);
-                    if (!token) {
+                    if (eq == std::string::npos) {
                         fprintf(stderr, "Error tokenizing value for %s setting\n", key);
                         free(key);
                         continue;
                     }
-                    value = trimwhitespace(token);
-
-                    if (key) {
-                        if (value) {
-                            settings[key] = value;
-                        }
-                        free(key);
-                        key = NULL;
+                    std::string value = l.substr(eq + 1);
+                    TrimWhiteSpace(value);
+                    if (value.size() >= 2 && value.front() == '"' && value.back() == '"') {
+                        value = value.substr(1, value.size() - 2);
                     }
-
-                    if (value) {
-                        free(value);
-                        value = NULL;
-                    }
+                    settings[key] = value;
+                    free(key);
                 }
 
                 if (line) {
@@ -294,8 +285,10 @@ public:
     virtual std::unique_ptr<Result> run(const std::vector<std::string>& args) override {
         int pid = fork();
         if (pid == -1) {
-            LogErr(VB_PLUGIN, "Failed to fork\n");
-            exit(EXIT_FAILURE);
+            // Usually out of memory.  This runs on whatever thread ran the
+            // command, so exiting took all of fppd down for one plugin call.
+            LogErr(VB_PLUGIN, "Failed to fork for plugin command %s: %s\n", name.c_str(), FPPstrerror(errno));
+            return std::make_unique<Command::ErrorResult>(name + " failed: could not start the script");
         }
         if (pid == 0) {
             LogDebug(VB_PLUGIN, "Child process, calling %s for command: %s\n", script.c_str(), name.c_str());
@@ -390,8 +383,17 @@ static void LoadPluginCommands(const std::string& dir) {
     std::string descriptions = commandDir + "/descriptions.json";
     if (FileExists(descriptions)) {
         Json::Value json = LoadJsonFromFile(descriptions, JsonRoot::Array);
-        for (int x = 0; x < json.size(); x++) {
+        for (Json::ArrayIndex x = 0; x < json.size(); x++) {
             Json::Value jscmd = json[x];
+            // Read at fppd startup: an entry ScriptCommand can't read (not an
+            // object, or a name or script that isn't a string) is skipped, not
+            // thrown on -- one plugin's typo would otherwise stop fppd starting.
+            if (!jscmd.isObject() || !jscmd["name"].isString() || jscmd["name"].asString().empty() ||
+                !jscmd["script"].isString()) {
+                WarningHolder::InvalidConfigEntry("plugins/" + dir + "/commands/descriptions.json",
+                                                  "command " + std::to_string(x + 1) + " needs a name and a script");
+                continue;
+            }
             ScriptCommand* cmd = new ScriptCommand(commandDir, jscmd);
             if (cmd->IsOk()) {
                 CommandManager::INSTANCE.addCommand(cmd);
@@ -457,7 +459,8 @@ void PluginManager::loadUserPlugins() {
 // entry (drives the icon/grouping); the Fix button itself is rendered from the
 // fixUrl/fixText carried in the warning data.
 static constexpr int PLUGIN_REINSTALL_WARNING_ID = 57;
-static const std::string PLUGIN_REINSTALL_WARNING_MSG = "FPPOS upgraded, plugins must be reinstalled";
+// Not only after an FPPOS upgrade: a File Copy restore of plugins sets it too.
+static const std::string PLUGIN_REINSTALL_WARNING_MSG = "Plugins must be reinstalled";
 
 void PluginManager::checkPluginReinstallWarning() {
     if (getSetting("pluginReinstallNeededAfterOS") != "") {
@@ -597,27 +600,51 @@ FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name, bool 
     char readbuffer[128];
     std::string callback_list = "";
 
+    // A failure here (out of memory or fds) skips this one plugin rather
+    // than exiting fppd over it.
     if (pipe(output_pipe) == -1) {
-        LogErr(VB_PLUGIN, "Failed to make pipe\n");
-        exit(EXIT_FAILURE);
+        LogErr(VB_PLUGIN, "Plugin %s: failed to make a pipe for %s --list: %s; not loading it\n",
+               name.c_str(), filename.c_str(), FPPstrerror(errno));
+        return nullptr;
     }
 
     if ((pid = fork()) == -1) {
-        LogErr(VB_PLUGIN, "Failed to fork\n");
-        exit(EXIT_FAILURE);
+        LogErr(VB_PLUGIN, "Plugin %s: failed to fork for %s --list: %s; not loading it\n",
+               name.c_str(), filename.c_str(), FPPstrerror(errno));
+        close(output_pipe[0]);
+        close(output_pipe[1]);
+        return nullptr;
     }
 
     if (pid == 0) {
+        // Its own process group, so a timeout below can end the script and
+        // anything it started.
+        setpgid(0, 0);
         dup2(output_pipe[1], STDOUT_FILENO);
         close(output_pipe[1]);
+        close(output_pipe[0]);
         execl(eventScript.c_str(), "eventScript", filename.c_str(), "--list", NULL);
-
-        LogErr(VB_PLUGIN, "We failed to exec our callbacks query!  %s  %s %s --list\n", eventScript.c_str(), "eventScript", filename.c_str());
         _exit(EXIT_FAILURE);
     } else {
         close(output_pipe[1]);
 
+        // This runs at startup, so a plugin whose script never answers (stuck
+        // on a network, say) would keep fppd from ever starting. Give it a
+        // while, then give up on the plugin.
+        constexpr int LIST_TIMEOUT_MS = 10000;
+        long long deadline = GetMonotonicTimeMS() + LIST_TIMEOUT_MS;
+        bool timedOut = false;
         while (true) {
+            long long left = deadline - GetMonotonicTimeMS();
+            struct pollfd pfd = { output_pipe[0], POLLIN, 0 };
+            int pr = left > 0 ? poll(&pfd, 1, (int)left) : 0;
+            if (pr < 0 && errno == EINTR) {
+                continue;
+            }
+            if (pr <= 0) {
+                timedOut = (pr == 0);
+                break;
+            }
             bytes_read = read(output_pipe[0], readbuffer, sizeof(readbuffer) - 1);
 
             if (bytes_read <= 0)
@@ -625,6 +652,16 @@ FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name, bool 
 
             readbuffer[bytes_read] = '\0';
             callback_list += readbuffer;
+        }
+        close(output_pipe[0]);
+
+        if (timedOut) {
+            kill(-pid, SIGKILL);
+            waitpid(pid, NULL, 0);
+            LogErr(VB_PLUGIN, "Plugin %s: %s --list did not answer within %d seconds; not loading it\n",
+                   name.c_str(), filename.c_str(), LIST_TIMEOUT_MS / 1000);
+            WarningHolder::AddWarning(5, "Could not load plugin " + name);
+            return nullptr;
         }
 
         TrimWhiteSpace(callback_list);
@@ -685,11 +722,20 @@ FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName,
     // succeed while the old code keeps running. Give the new file a name of its
     // own to open, then unlink that name - the mapping keeps the inode alive, so
     // nothing is left behind on disk.
+    //
+    // An UNCHANGED file has the opposite problem once that has happened: the
+    // plain path is still bound to the first build ever loaded from it, so
+    // opening it by that name brings the original build back - a second reload
+    // after an upgrade silently reverted to the pre-upgrade code. Reopen it
+    // under the name it was last opened as, which the loader matches to the
+    // build that is actually current.
     std::string openPath = shlibName;
     struct stat sb;
     bool haveStat = (stat(shlibName.c_str(), &sb) == 0);
     auto known = mLoadedShlibInodes.find(shlibName);
-    if (haveStat && known != mLoadedShlibInodes.end() && known->second != sb.st_ino) {
+    if (haveStat && known != mLoadedShlibInodes.end() && known->second.inode == sb.st_ino) {
+        openPath = known->second.openedAs;
+    } else if (haveStat && known != mLoadedShlibInodes.end()) {
         static int generation = 0;
         std::string genPath = shlibName + ".gen" + std::to_string(++generation);
         unlink(genPath.c_str());
@@ -707,7 +753,7 @@ FPPPlugins::Plugin* PluginManager::loadSHLIBPlugin(const std::string& shlibName,
         unlink(openPath.c_str());
     }
     if (handle != nullptr && haveStat) {
-        mLoadedShlibInodes[shlibName] = sb.st_ino;
+        mLoadedShlibInodes[shlibName] = { sb.st_ino, openPath };
     }
     if (handle == nullptr) {
         if (!FileExists(shlibName) && !FileExists(getFPPDDir("/" + shlibName))) {
@@ -1163,7 +1209,7 @@ bool PluginManager::unloadPlugin(const std::string& name, std::string& error) {
     pending.ready = std::move(ready);
     // Cap the wait so a predicate that never returns true delays teardown
     // rather than holding the plugin forever.
-    pending.deadlineMS = GetTimeMS() + 60000;
+    pending.deadlineMS = GetMonotonicTimeMS() + 60000;
 
     if (!pending.ready) {
         finishUnload(pending);
@@ -1189,7 +1235,7 @@ void PluginManager::pollPendingUnload(const std::string& name) {
                 continue;
             }
             bool done = false;
-            long long now = GetTimeMS();
+            long long now = GetMonotonicTimeMS();
             if (now >= it->deadlineMS) {
                 LogWarn(VB_PLUGIN, "Plugin %s never reported finished; tearing down anyway\n", name.c_str());
                 done = true;
@@ -1230,21 +1276,41 @@ void PluginManager::finishUnload(PendingUnload& p) {
         LogInfo(VB_PLUGIN, "Unloaded plugin %s\n", p.name.c_str());
     }
 }
+// Plugin callbacks run on the main loop (MultiSync plugin packets arrive from
+// any LAN sender) and on API threads.  Nothing above them catches, so a plugin
+// that throws would terminate fppd; contain it here and log which plugin it was.
+template<class P, class F>
+static void CallIntoPlugin(P* p, const char* what, F&& f) {
+    try {
+        f();
+    } catch (...) {
+        FPPPlugins::Plugin* named = dynamic_cast<FPPPlugins::Plugin*>(p);
+        std::string name = named ? named->getName() : "(unnamed)";
+        try {
+            throw;
+        } catch (const std::exception& ex) {
+            LogErr(VB_PLUGIN, "Plugin %s threw from %s: %s\n", name.c_str(), what, ex.what());
+        } catch (...) {
+            LogErr(VB_PLUGIN, "Plugin %s threw a non-standard exception from %s\n", name.c_str(), what);
+        }
+    }
+}
+
 void PluginManager::multiSyncData(const std::string& pn, uint8_t* data, int len) {
     for (auto a : mPlugins) {
         if (a->getName() == pn) {
-            a->multiSyncData(data, len);
+            CallIntoPlugin(a, "multiSyncData", [&]() { a->multiSyncData(data, len); });
         }
     }
 }
 void PluginManager::playlistCallback(const Json::Value& playlist, const std::string& action, const std::string& section, int item) {
     for (auto a : mPlaylistPlugins) {
-        a->playlistCallback(playlist, action, section, item);
+        CallIntoPlugin(a, "playlistCallback", [&]() { a->playlistCallback(playlist, action, section, item); });
     }
 }
 void PluginManager::playlistInserted(const std::string& playlist, const int position, int endPosition, bool immediate) {
     for (auto a : mPlaylistPlugins) {
-        a->playlistInserted(playlist, position, endPosition, immediate);
+        CallIntoPlugin(a, "playlistInserted", [&]() { a->playlistInserted(playlist, position, endPosition, immediate); });
     }
 }
 
@@ -1253,8 +1319,10 @@ void MediaCallback::run(const Json::Value& playlist, const MediaDetails& mediaDe
     int pid;
 
     if ((pid = fork()) == -1) {
-        LogErr(VB_PLUGIN, "Failed to fork\n");
-        exit(EXIT_FAILURE);
+        // Skip this callback, as LifecycleCallback does: exiting from here
+        // took fppd down mid-show for one plugin's notification.
+        LogErr(VB_PLUGIN, "Failed to fork for %s's media callback: %s\n", mName.c_str(), FPPstrerror(errno));
+        return;
     }
 
     if (pid == 0) {
@@ -1324,8 +1392,8 @@ void MediaCallback::run(const Json::Value& playlist, const MediaDetails& mediaDe
 void PlaylistCallback::run(const Json::Value& playlist, const std::string& action, const std::string& section, int idx) {
     int pid;
     if ((pid = fork()) == -1) {
-        LogErr(VB_PLUGIN, "Failed to fork\n");
-        exit(EXIT_FAILURE);
+        LogErr(VB_PLUGIN, "Failed to fork for %s's playlist callback: %s\n", mName.c_str(), FPPstrerror(errno));
+        return;
     }
 
     if (pid == 0) {
@@ -1353,8 +1421,8 @@ void PlaylistCallback::run(const Json::Value& playlist, const std::string& actio
 void LifecycleCallback::run(const std::string& lifecycle) {
     int pid;
     if ((pid = fork()) == -1) {
-        LogErr(VB_PLUGIN, "Failed to fork\n");
-        exit(EXIT_FAILURE);
+        LogErr(VB_PLUGIN, "Failed to fork for %s's %s callback\n", mName.c_str(), lifecycle.c_str());
+        return;
     }
 
     if (pid == 0) {
@@ -1368,6 +1436,24 @@ void LifecycleCallback::run(const std::string& lifecycle) {
         _exit(EXIT_FAILURE);
     } else {
         LogExcess(VB_PLUGIN, "Lifecycle parent process, resuming work.\n");
-        waitpid(pid, NULL, 0);
+        // A plugin load or unload at runtime runs this on the main loop, so
+        // a script that takes its time (starting or stopping a daemon) held
+        // output for as long as it ran.  Wait a bounded time, then let it
+        // finish on its own; it isn't killed, since whatever it is starting
+        // may be meant to outlive it.
+        constexpr int LIFECYCLE_WAIT_MS = 5000;
+        long long deadline = GetMonotonicTimeMS() + LIFECYCLE_WAIT_MS;
+        while (true) {
+            int r = waitpid(pid, NULL, WNOHANG);
+            if (r == pid || (r < 0 && errno != EINTR)) {
+                break;
+            }
+            if (GetMonotonicTimeMS() >= deadline) {
+                LogWarn(VB_PLUGIN, "Plugin %s: %s callback still running after %d seconds; continuing without it\n",
+                        mName.c_str(), lifecycle.c_str(), LIFECYCLE_WAIT_MS / 1000);
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
     }
 }

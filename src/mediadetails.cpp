@@ -31,7 +31,7 @@
 MediaDetails MediaDetails::INSTANCE;
 
 MediaDetails::MediaDetails() :
-    year(0), track(0), length(0), seconds(0), minutes(0), bitrate(0), sampleRate(0), channels(0) {
+    year(0), track(0), length(0), seconds(0), minutes(0), lengthMS(0), bitrate(0), sampleRate(0), channels(0) {
 }
 MediaDetails::~MediaDetails() {
 }
@@ -46,6 +46,7 @@ void MediaDetails::Clear() {
     genre.clear();
 
     length = 0;
+    lengthMS = 0;
     seconds = 0;
     minutes = 0;
 
@@ -104,6 +105,9 @@ void MediaDetails::ParseMedia(const char* mediaFilename) {
     int seconds;
     int minutes;
 
+    // Cleared before any early return: a failed parse must not leave the
+    // previous file's details (or, for a fresh object, garbage) behind.
+    Clear();
     if (!mediaFilename)
         return;
 
@@ -136,8 +140,6 @@ void MediaDetails::ParseMedia(const char* mediaFilename) {
             }
         }
     }
-
-    Clear();
 
     TagLib::FileRef f(fullMediaPath);
 

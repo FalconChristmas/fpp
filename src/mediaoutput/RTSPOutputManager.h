@@ -141,6 +141,10 @@ public:
     /// Read the config and rebuild the server, its mounts and audio bridges.
     bool ApplyConfig();
 
+    /// True when an enabled stream reads stream slot `slot`'s video channel,
+    /// so media playback on that slot has to publish it.
+    bool ServesStreamSlot(int slot);
+
     struct Status {
         struct MountStatus {
             std::string name;
@@ -180,8 +184,18 @@ private:
     /// gst-launch description for one mount's GstRTSPMediaFactory.
     std::string BuildFactoryLaunch(const RTSPOutputMount& mount) const;
 
+    struct AudioBridge {
+        std::string mountPoint;
+        std::string nodeName;
+        GstElement* pipeline = nullptr;
+        bool waitingForSource = false;
+    };
     /// Start/stop the always-present pipewiresrc -> interaudiosink bridge.
-    bool StartAudioBridge(const RTSPOutputMount& mount);
+    /// Started without m_configMutex held (a pipewiresrc talks to the
+    /// PipeWire daemon) into `bridges`, which the caller swaps into
+    /// m_audioBridges under the lock so GetStatus() can walk it safely.
+    bool StartAudioBridge(const RTSPOutputMount& mount, bool requireGroupSource,
+                          std::vector<AudioBridge>& bridges);
     void StopAudioBridges();
 
     bool StartServer();
@@ -198,17 +212,13 @@ private:
 
     GstRTSPServer* m_server = nullptr;
     guint m_serverSourceId = 0;
+    // Expires sessions whose client went away without a TEARDOWN; see StartServer().
+    GSource* m_sessionCleanup = nullptr;
     GMainContext* m_mainContext = nullptr;
     GMainLoop* m_mainLoop = nullptr;
     std::thread m_loopThread;
 
-    struct AudioBridge {
-        std::string mountPoint;
-        std::string nodeName;
-        GstElement* pipeline = nullptr;
-        bool waitingForSource = false;
-    };
-    std::vector<AudioBridge> m_audioBridges;
+    std::vector<AudioBridge> m_audioBridges;  // guarded by m_configMutex
 };
 
 #endif // __has_include(<gst/rtsp-server/rtsp-server.h>)

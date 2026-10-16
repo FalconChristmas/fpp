@@ -69,8 +69,12 @@ RASPI_FW_EOF
 fi
 
 # 3. Defuse one that is already sitting on the boot partition. Only ever with
-#    kernel8.img present to fall back to.
-if [ -f /boot/firmware/kernel_2712.img ]; then
+#    kernel8.img present to fall back to. A 64-bit image that parks FPP's own
+#    16K-page kernel as kernel_2712.img.fpp-disabled ships its modules too, and
+#    fppinit owns kernel_2712.img there (the Pi16KPageKernel setting).
+if [ -f /boot/firmware/kernel_2712.img.fpp-disabled ]; then
+    echo "  kernel_2712.img is managed by fppinit on this image, leaving it alone"
+elif [ -f /boot/firmware/kernel_2712.img ]; then
     if [ -f /boot/firmware/kernel8.img ]; then
         rm -f /boot/firmware/kernel_2712.img
         sync

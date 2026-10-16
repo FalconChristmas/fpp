@@ -39,7 +39,10 @@ AudioLevelMonitor::~AudioLevelMonitor() {
     Shutdown();
 }
 
-void AudioLevelMonitor::StartMeter(const std::string& node, bool isSink) {
+// Builds and starts a meter's pipeline.  Never called with m_lock held: it
+// talks to the PipeWire daemon (pipewiresrc connects as the state rises), and
+// the status websocket reads levels under m_lock.
+bool AudioLevelMonitor::BuildMeter(const std::string& node, bool isSink, Meter& m) {
     // Node names are validated by the callers that accept them from outside
     // (the HTTP endpoint), but this builds a pipeline description string, so
     // anything unexpected is a reason to refuse rather than to quote around.
@@ -48,7 +51,7 @@ void AudioLevelMonitor::StartMeter(const std::string& node, bool isSink) {
                                "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                "0123456789_.-") != std::string::npos) {
         LogWarn(VB_MEDIAOUT, "AudioLevelMonitor: refusing node with unexpected name: %s\n", node.c_str());
-        return;
+        return false;
     }
 
     // Capturing what a sink is playing needs stream.capture.sink; a playback
@@ -90,38 +93,34 @@ void AudioLevelMonitor::StartMeter(const std::string& node, bool isSink) {
         if (pipeline) {
             gst_object_unref(pipeline);
         }
-        return;
+        return false;
     }
 
-    Meter m;
     m.isSink = isSink;
     m.pipeline = pipeline;
     m.bus = gst_element_get_bus(pipeline);
-    m.updatedMS = GetTimeMS();
+    m.updatedMS = GetMonotonicTimeMS();
     gst_element_set_state(pipeline, GST_STATE_PLAYING);
-    m_meters[node] = m;
     LogDebug(VB_MEDIAOUT, "AudioLevelMonitor: metering %s\n", node.c_str());
+    return true;
 }
 
-void AudioLevelMonitor::StopMeter(const std::string& node) {
-    auto it = m_meters.find(node);
-    if (it == m_meters.end()) {
-        return;
+// Stops and frees a meter taken out of m_meters.  Never called with m_lock
+// held, for the same reason as BuildMeter().
+void AudioLevelMonitor::DestroyMeter(const std::string& node, Meter& m) {
+    if (m.bus) {
+        gst_object_unref(m.bus);
+        m.bus = nullptr;
     }
-    if (it->second.bus) {
-        gst_object_unref(it->second.bus);
+    if (m.pipeline) {
+        gst_element_set_state(m.pipeline, GST_STATE_NULL);
+        gst_object_unref(m.pipeline);
+        m.pipeline = nullptr;
     }
-    if (it->second.pipeline) {
-        gst_element_set_state(it->second.pipeline, GST_STATE_NULL);
-        gst_object_unref(it->second.pipeline);
-    }
-    m_meters.erase(it);
     LogDebug(VB_MEDIAOUT, "AudioLevelMonitor: stopped metering %s\n", node.c_str());
 }
 
 void AudioLevelMonitor::Subscribe(const std::vector<Target>& nodes, int ttlMs) {
-    std::unique_lock<std::mutex> lk(m_lock);
-
     // Bounded: this is reachable from the web UI, and each entry is a real
     // pipeline against a real audio device.
     std::map<std::string, bool> wanted;
@@ -135,30 +134,62 @@ void AudioLevelMonitor::Subscribe(const std::vector<Target>& nodes, int ttlMs) {
         wanted[t.name] = t.isSink;
     }
 
-    for (auto it = m_meters.begin(); it != m_meters.end();) {
-        auto w = wanted.find(it->first);
-        // A node whose kind changed has to be rebuilt: the capture mode is
-        // fixed when the pipeline is created.
-        if (w == wanted.end() || w->second != it->second.isSink) {
-            std::string dead = it->first;
-            ++it;
-            StopMeter(dead);
-        } else {
-            ++it;
+    // Decide under m_lock; build and tear down pipelines outside it (see
+    // BuildMeter()).
+    std::map<std::string, Meter> dead;
+    std::vector<std::pair<std::string, bool>> toStart;
+    {
+        std::lock_guard<std::mutex> lk(m_lock);
+        for (auto it = m_meters.begin(); it != m_meters.end();) {
+            auto w = wanted.find(it->first);
+            // A node whose kind changed has to be rebuilt: the capture mode is
+            // fixed when the pipeline is created.
+            if (w == wanted.end() || w->second != it->second.isSink) {
+                dead[it->first] = it->second;
+                it = m_meters.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        // Already-running nodes are left as they are: a keepalive must not
+        // restart a pipeline and blank the meter every few seconds.
+        for (const auto& kv : wanted) {
+            if (m_meters.find(kv.first) == m_meters.end()) {
+                toStart.push_back(kv);
+            }
         }
     }
-    // Already-running nodes are left as they are: a keepalive must not restart
-    // a pipeline and blank the meter every few seconds.
-    for (const auto& kv : wanted) {
-        if (m_meters.find(kv.first) == m_meters.end()) {
-            StartMeter(kv.first, kv.second);
+    for (auto& kv : dead) {
+        DestroyMeter(kv.first, kv.second);
+    }
+    dead.clear();
+
+    std::map<std::string, Meter> built;
+    for (const auto& n : toStart) {
+        Meter m;
+        if (BuildMeter(n.first, n.second, m)) {
+            built[n.first] = m;
         }
     }
 
-    m_expiresMS = m_meters.empty() ? 0 : GetTimeMS() + std::max(1000, ttlMs);
-    m_active.store(!m_meters.empty());
-    bool needThread = !m_meters.empty();
-    lk.unlock();
+    bool needThread;
+    {
+        std::lock_guard<std::mutex> lk(m_lock);
+        for (auto& kv : built) {
+            if (m_meters.find(kv.first) != m_meters.end()) {
+                // Another subscribe started the same node meanwhile.
+                dead[kv.first] = kv.second;
+            } else {
+                m_meters[kv.first] = kv.second;
+            }
+        }
+        m_expiresMS = m_meters.empty() ? 0 : GetMonotonicTimeMS() + std::max(1000, ttlMs);
+        m_active.store(!m_meters.empty());
+        needThread = !m_meters.empty();
+    }
+    for (auto& kv : dead) {
+        DestroyMeter(kv.first, kv.second);
+    }
 
     // Thread lifecycle is handled outside m_lock, and the previous thread is
     // joined before a new one is assigned: the poll thread retires itself once
@@ -182,19 +213,15 @@ void AudioLevelMonitor::Subscribe(const std::vector<Target>& nodes, int ttlMs) {
 // to, and adding a second is a bigger commitment than a 20ms poll.
 void AudioLevelMonitor::PollThread() {
     while (m_running.load()) {
+        std::map<std::string, Meter> expired;
         {
             std::lock_guard<std::mutex> lk(m_lock);
 
             // Nobody has re-subscribed: tear everything down. This is what
-            // keeps a closed browser tab from metering forever.
-            if (!m_meters.empty() && GetTimeMS() > m_expiresMS) {
-                std::vector<std::string> all;
-                for (const auto& kv : m_meters) {
-                    all.push_back(kv.first);
-                }
-                for (const auto& n : all) {
-                    StopMeter(n);
-                }
+            // keeps a closed browser tab from metering forever.  The
+            // pipelines are stopped below, once m_lock is released.
+            if (!m_meters.empty() && GetMonotonicTimeMS() > m_expiresMS) {
+                expired.swap(m_meters);
                 m_active.store(false);
             }
 
@@ -248,7 +275,7 @@ void AudioLevelMonitor::PollThread() {
                         }
                         if (v && G_VALUE_HOLDS_DOUBLE(v)) {
                             kv.second.rmsDb = g_value_get_double(v);
-                            kv.second.updatedMS = GetTimeMS();
+                            kv.second.updatedMS = GetMonotonicTimeMS();
                         }
                     }
                     gst_message_unref(msg);
@@ -259,6 +286,9 @@ void AudioLevelMonitor::PollThread() {
                 m_running.store(false);
             }
         }
+        for (auto& kv : expired) {
+            DestroyMeter(kv.first, kv.second);
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 }
@@ -266,7 +296,7 @@ void AudioLevelMonitor::PollThread() {
 Json::Value AudioLevelMonitor::GetLevels() {
     Json::Value out(Json::objectValue);
     std::lock_guard<std::mutex> lk(m_lock);
-    long long now = GetTimeMS();
+    long long now = GetMonotonicTimeMS();
     for (const auto& kv : m_meters) {
         // A pipeline that has stopped reporting (device gone, node removed)
         // reads as silent rather than freezing at its last value.
@@ -285,15 +315,15 @@ void AudioLevelMonitor::Shutdown() {
             m_thread.join();
         }
     }
-    std::lock_guard<std::mutex> lk(m_lock);
-    std::vector<std::string> all;
-    for (const auto& kv : m_meters) {
-        all.push_back(kv.first);
+    std::map<std::string, Meter> all;
+    {
+        std::lock_guard<std::mutex> lk(m_lock);
+        all.swap(m_meters);
+        m_active.store(false);
     }
-    for (const auto& n : all) {
-        StopMeter(n);
+    for (auto& kv : all) {
+        DestroyMeter(kv.first, kv.second);
     }
-    m_active.store(false);
 }
 
 #endif

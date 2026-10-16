@@ -23,11 +23,13 @@
 
 #include <atomic>
 #include <cstdint>
+#include <vector>
 #include "fpp-json-fwd.h"
 #include <condition_variable>
 #include "fpphttp_types.h"
 #include <list>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -51,6 +53,10 @@ public:
 
     void addModel(Json::Value config);
     PixelOverlayModel* getModel(const std::string& name);
+    // A reference that keeps the model alive after modelsLock is released.
+    // removeAutoOverlayModel() can free a model at any time; anything that
+    // goes on using one after unlocking must hold this, not a raw pointer.
+    std::shared_ptr<PixelOverlayModel> getModelShared(const std::string& name);
     // Non-blocking lookup for callers that may hold a model's effectLock (the
     // effect update threads).  modelsLock -> effectLock is the sanctioned
     // order everywhere else; blocking on modelsLock from under an effectLock
@@ -78,7 +84,11 @@ public:
     void removeAutoOverlayModel(const std::string& name);
 
     const std::string& mapFont(const std::string& f);
+    // Never throws: an unparseable colour logs a warning and maps to black.
+    // Colour args arrive off MQTT topics and hand-written presets.
     static uint32_t mapColor(const std::string& c);
+    // As mapColor(), but reports whether c parsed instead of logging.
+    static bool parseColor(const std::string& c, uint32_t& color);
 
     void addPeriodicUpdate(int32_t initialDelayMS, PixelOverlayModel* m);
     // Takes the model out of the update schedule and stamps any update already
@@ -102,7 +112,12 @@ public:
 
     Json::Value getActiveOverlayEffects();
 
+    // The list itself: only safe to walk while holding modelsLock, since an
+    // output reload removes auto-created models from it on the main loop.
+    // Kept (inline, plugin ABI) for plugins; FPP's own threads that don't
+    // hold the lock use getModelNamesSnapshot().
     const std::list<std::string>& getModelNames() const { return modelNames; };
+    std::vector<std::string> getModelNamesSnapshot();
 
     // Bumped whenever the set of models changes -- a (re)load of
     // model-overlays.json, an auto-created model appearing or going away, or a
@@ -116,7 +131,10 @@ public:
 private:
     class PixelOverlayModelHolder {
     public:
-        PixelOverlayModel* model;
+        // `owner` holds the model; `model` is owner.get(), kept for the many
+        // callers that only use it under modelsLock.
+        PixelOverlayModel* model = nullptr;
+        std::shared_ptr<PixelOverlayModel> owner;
         std::map<std::string, std::function<void(PixelOverlayModel*)>> listeners;
 
         void toJson(Json::Value& json) const;
@@ -139,7 +157,10 @@ private:
     std::map<std::string, std::string> subModelConfigs;
     bool subModelIndexLoaded = false;
 
+    // activeModels.size() + activeRanges.size(), set by
+    // updateActiveCountLocked() and nothing else.
     std::atomic_int numActive;
+    void updateActiveCountLocked();
     std::list<PixelOverlayModel*> activeModels;
     std::list<OverlayRange> activeRanges;
     std::recursive_mutex activeModelsLock;

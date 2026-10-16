@@ -365,6 +365,7 @@ int BBBPinCapabilities::configPin(const std::string& m,
                                   bool directionOut,
                                   const std::string& desc) const {
     std::string mode = m;
+    int rc = 0;  // the gpio request's result; pinmux-only modes can't fail here
     bool enableI2C = mode == "i2c";
     if (i2cBus >= 0 && !enableI2C) {
         enableOledScreen(i2cBus, false);
@@ -435,7 +436,7 @@ int BBBPinCapabilities::configPin(const std::string& m,
 #endif
     } else {
         // gpio
-        GPIODCapabilities::configPin(m, directionOut, desc);
+        rc = GPIODCapabilities::configPin(m, directionOut, desc);
     }
 
     if (FileExists("/usr/bin/pinctrl") && pinName[0] == 'P' && pinName[2] == '_') {
@@ -461,7 +462,7 @@ int BBBPinCapabilities::configPin(const std::string& m,
     if (i2cBus >= 0 && enableI2C) {
         enableOledScreen(i2cBus, true);
     }
-    return 0;
+    return rc;
 }
 
 bool BBBPinCapabilities::setupPWM(int maxValue) const {
@@ -691,14 +692,18 @@ void BBBPinProvider::Init() {
 #endif
 #ifdef PLATFORM_BB64
         BeagleBoneType tp = getBeagleBoneType();
-        if (tp == PocketBeagle || tp == BeaglePlay) {
+        if (tp == PocketBeagle) {
+            // The ttyS numbers are the PocketBeagle 2 device tree's serial
+            // aliases, not TI's UART numbers: UART0 is ttyS7, UART2 is ttyS6
+            // and UART6 is ttyS2 (the console).  ttyS0 is the wakeup UART that
+            // the firmware owns, and reaches no header pin.
             BBB_PINS.emplace_back("P1-02", 3, 10).setPRU(1, 0);
             BBB_PINS.emplace_back("P1-04", 3, 12).setPRU(1, 2);
             BBB_PINS.emplace_back("P1-06", 3, 13).setUART("ttyS1-rx");
             BBB_PINS.emplace_back("P1-08", 3, 14).setUART("ttyS1-tx");
-            BBB_PINS.emplace_back("P1-10", 3, 7).setUART("ttyS6-rx");
-            BBB_PINS.emplace_back("P1-12", 3, 8).setUART("ttyS6-tx");
-            BBB_PINS.emplace_back("P1-13", 2, 36);
+            BBB_PINS.emplace_back("P1-10", 3, 7).setUART("ttyS2-rx");
+            BBB_PINS.emplace_back("P1-12", 3, 8).setUART("ttyS2-tx");
+            BBB_PINS.emplace_back("P1-13", 2, 36).setPRU(0, 13);
             BBB_PINS.emplace_back("P1-19", 3, 1).setPRU(0, 0);
             BBB_PINS.emplace_back("P1-20", 2, 50).setPRU(1, 5).setPRU(0, 13).setUART("ttyS4-tx");
             BBB_PINS.emplace_back("P1-21", 3, 6).setPRU(0, 16);
@@ -708,9 +713,9 @@ void BBBPinProvider::Init() {
             BBB_PINS.emplace_back("P1-27", 3, 3).setPRU(0, 2);
             BBB_PINS.emplace_back("P1-28", 2, 43).setPRU(0, 19).setUART("ttyS4-rx").setI2C(2);
             BBB_PINS.emplace_back("P1-29", 2, 62).setPRU(1, 17).setPRU(0, 7);
-            BBB_PINS.emplace_back("P1-30", 3, 21).setUART("ttyS0-tx");
-            BBB_PINS.emplace_back("P1-31", 2, 59).setPRU(1, 17).setPRU(0, 4);
-            BBB_PINS.emplace_back("P1-32", 3, 20).setUART("ttyS4-rx");
+            BBB_PINS.emplace_back("P1-30", 3, 21).setUART("ttyS7-tx");
+            BBB_PINS.emplace_back("P1-31", 2, 59).setPRU(1, 13).setPRU(0, 4);
+            BBB_PINS.emplace_back("P1-32", 3, 20).setUART("ttyS7-rx");
             BBB_PINS.emplace_back("P1-33", 2, 56).setPRU(1, 10).setPRU(0, 1);
             BBB_PINS.emplace_back("P1-33b", 3, 29);
             BBB_PINS.emplace_back("P1-34", 3, 2).setPRU(0, 1);
@@ -719,18 +724,18 @@ void BBBPinProvider::Init() {
             BBB_PINS.emplace_back("P1-36b", 3, 28);
 
             BBB_PINS.emplace_back("P2-01", 3, 11);
-            BBB_PINS.emplace_back("P2-02", 2, 45).setUART("ttyS2-rx").setPRU(1, 0).setPRU(0, 8);
+            BBB_PINS.emplace_back("P2-02", 2, 45).setUART("ttyS6-rx").setPRU(1, 0).setPRU(0, 8);
             BBB_PINS.emplace_back("P2-03", 3, 9);
-            BBB_PINS.emplace_back("P2-04", 2, 46).setUART("ttyS2-tx").setPRU(1, 1).setPRU(0, 9);
+            BBB_PINS.emplace_back("P2-04", 2, 46).setUART("ttyS6-tx").setPRU(1, 1).setPRU(0, 9);
             BBB_PINS.emplace_back("P2-05", 3, 24).setUART("ttyS5-rx");
             BBB_PINS.emplace_back("P2-06", 2, 47).setUART("ttyS3-rx").setPRU(1, 2).setPRU(0, 10);
             BBB_PINS.emplace_back("P2-07", 3, 25).setUART("ttyS5-tx");
-            BBB_PINS.emplace_back("P2-08", 2, 48).setPRU(1, 3).setPRU(0, 11);
-            BBB_PINS.emplace_back("P2-09", 3, 22).setUART("ttyS2-rx");
+            BBB_PINS.emplace_back("P2-08", 2, 48).setUART("ttyS3-tx").setPRU(1, 3).setPRU(0, 11);
+            BBB_PINS.emplace_back("P2-09", 3, 22).setUART("ttyS6-rx");
             BBB_PINS.emplace_back("P2-10", 2, 91).setPRU(1, 4); ///?
-            BBB_PINS.emplace_back("P2-11", 3, 23).setUART("ttyS3-tx");
+            BBB_PINS.emplace_back("P2-11", 3, 23).setUART("ttyS6-tx");
             BBB_PINS.emplace_back("P2-17", 2, 64).setPRU(1, 19).setPRU(0, 19); ///?
-            BBB_PINS.emplace_back("P2-18", 2, 53).setUART("ttyS6-rx").setPRU(1, 16).setPRU(0, 17);
+            BBB_PINS.emplace_back("P2-18", 2, 53).setUART("ttyS2-rx").setPRU(1, 16).setPRU(0, 17);
             BBB_PINS.emplace_back("P2-19", 3, 0).setPRU(1, 16);
             BBB_PINS.emplace_back("P2-20", 2, 49).setUART("ttyS4-rx").setPRU(1, 4).setPRU(0, 12);
             BBB_PINS.emplace_back("P2-22", 2, 63).setPRU(1, 18).setPRU(0, 18);
@@ -745,7 +750,7 @@ void BBBPinProvider::Init() {
             BBB_PINS.emplace_back("P2-32", 2, 57).setPRU(1, 11).setPRU(0, 2);
             BBB_PINS.emplace_back("P2-33", 2, 52).setPRU(1, 7).setPRU(0, 15).setUART("ttyS5-tx");
             BBB_PINS.emplace_back("P2-34", 2, 60).setPRU(1, 14).setPRU(0, 5);
-            BBB_PINS.emplace_back("P2-35", 2, 54).setPRU(1, 8).setPRU(0, 16);
+            BBB_PINS.emplace_back("P2-35", 2, 54).setUART("ttyS2-tx").setPRU(1, 8).setPRU(0, 16);
             BBB_PINS.emplace_back("P2-36", 3, 16);
         } else {
             printf("Unknown type: %d\n", getBeagleBoneType());

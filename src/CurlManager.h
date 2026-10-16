@@ -24,6 +24,7 @@
 #pragma once
 
 #include <curl/curl.h>
+#include <atomic>
 #include <functional>
 #include <list>
 #include <map>
@@ -132,7 +133,13 @@ private:
     CURLSH* getCookieShare(const std::string& token);
 
     CURLM* curlMulti = nullptr;
-    int numCurls = 0;
+    // Read without the lock by the inline processCurls(), from every thread
+    // that pumps curl, while addCURL() and completions change it. Atomic, and
+    // the same size and alignment as the int it replaces, so a plugin built
+    // against the old header still reads it at the same place.
+    std::atomic<int> numCurls{ 0 };
+    static_assert(sizeof(std::atomic<int>) == sizeof(int) && alignof(std::atomic<int>) == alignof(int),
+                  "numCurls must keep the layout of an int (PLUGIN ABI)");
 
     class CurlInfo {
     public:

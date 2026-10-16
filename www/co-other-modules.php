@@ -324,6 +324,14 @@
             }
         }
     }
+    // An adapter with no serial number shares its by-id name with any other of its make,
+    // so the name that stays with it is the USB socket it is in.
+    foreach (GetSerialDevices() as $dev) {
+        if (str_starts_with($dev['stable'], 'serial/by-path/')) {
+            $label = basename($dev['stable']) . ' -> ' . $dev['device'];
+            echo "SerialDevices[" . json_encode($dev['stable']) . "] = " . json_encode($label) . ";\n";
+        }
+    }
     ?>
 
     var UDMXDevices = new Array();
@@ -542,7 +550,7 @@
                 result += "<option value='Servo'" + (type === "Servo" ? " selected" : "") + ">Servo</option>";
                 result += "</select>";
 
-                result += "&nbsp;Description:<input class='description" + x + "' type='text' size=30 maxlength=128 style='width: 6em' value='" + description + "'/>";
+                result += "&nbsp;Description:<input class='description" + x + "' type='text' size=30 maxlength=128 style='width: 6em' value='" + EscapeHtmlAttr(description) + "'/>";
                 result += "<br><br>LED Only:<br>";
                 result += "Brightness: ";
                 result += "<select class='brightness" + x + "'>";
@@ -651,7 +659,7 @@
                 result += "&nbsp;Threshold:<input class='threshold" + x + "' type='number' min='0' max='255' style='width: 6em' value='" + threshold + "'/>";
                 result += "&nbsp;Hysteresis On:<input class='hysteresisUpper" + x + "' type='number' min='0' max='255' style='width: 6em' value='" + hysteresisUpper + "'/>";
                 result += "&nbsp;Hysteresis Off:<input class='hysteresisLower" + x + "' type='number' min='0' max='254' style='width: 6em' value='" + hysteresisLower + "'/>";
-                result += "&nbsp;Description:<input class='description" + x + "' type='text' size=30 maxlength=128 style='width: 6em' value='" + description + "'/>";
+                result += "&nbsp;Description:<input class='description" + x + "' type='text' size=30 maxlength=128 style='width: 6em' value='" + EscapeHtmlAttr(description) + "'/>";
 
                 result += "</td></tr>";
             }
@@ -729,10 +737,10 @@
 
         PopulateHTMLRow(config) {
             var result = super.PopulateHTMLRow(config);
-            result += "IP: <input type='text' name='address' class='address' value='" + config.address + "'>&nbsp;";
+            result += "IP: <input type='text' name='address' class='address' value='" + EscapeHtmlAttr(config.address) + "'>&nbsp;";
             result += "Port: <input type='number' name='port' min='1' max='65536' class='port' value='" + config.port + "'>&nbsp;";
-            result += "Data: <input type='text' class='tokens' name='tokens' value='" + config.tokens + "' size='50' maxLength='256'><br>";
-            result += "Data tokens include {data} for channel data, {S1} or {S2} for onebyte or two bit channel count, or 0x00 for hex byte";
+            result += "Data: <input type='text' class='tokens' name='tokens' value='" + EscapeHtmlAttr(config.tokens) + "' size='50' maxLength='256'><br>";
+            result += "Data tokens: {data} for the channel data; {S1} channel count (one byte); {S2} channel count, two bytes low byte first, or {s2} high byte first; {P1}, {P2} and {p2} the same for the pixel count (channels / 3); 0x00 or #00 for a hex byte";
             return result;
         }
 
@@ -750,24 +758,56 @@
     /////////////////////////////////////////////////////////////////////////////
     // LOR Enhanced
     var LOREnhancedSpeeds = new Array();
-    LOREnhancedSpeeds["19200"] = "19.2k, 15 pixels max";
-    LOREnhancedSpeeds["57600"] = "57.6k, 45 pixels";
-    LOREnhancedSpeeds["115400"] = "115.4k, 90 pixels max";
-    LOREnhancedSpeeds["500000"] = "500 k, 400 pixels max";
-    LOREnhancedSpeeds["1000000"] = "1 Mbps, 800 pixels max";
+    // The pixel counts are for every pixel changing every frame at 40fps;
+    // only changed pixels are sent, so typical sequences fit several times
+    // more.
+    LOREnhancedSpeeds["19200"] = "19.2k, 15 pixels all changing (40fps)";
+    LOREnhancedSpeeds["57600"] = "57.6k, 45 pixels all changing (40fps)";
+    LOREnhancedSpeeds["115200"] = "115.2k, 90 pixels all changing (40fps)";
+    LOREnhancedSpeeds["500000"] = "500k, 400 pixels all changing (40fps)";
+    LOREnhancedSpeeds["1000000"] = "1 Mbps, 800 pixels all changing (40fps)";
 
     class LOREnhanced extends OtherBaseDevice {
 
-        constructor(name = "LOREnhanced", friendlyName = "LOR Enhanced", maxChannels = FPPD_MAX_CHANNELS, fixedStart = false, fixedChans = false, devices = SerialDevices, config = { speed: 500000, units: [] }) {
+        // The channel count is whatever the units reach, so it is kept up to date from them
+        // rather than typed.  A new output starts with one full unit.
+        constructor(name = "LOREnhanced", friendlyName = "LOR Enhanced", maxChannels = FPPD_MAX_CHANNELS, fixedStart = false, fixedChans = true, devices = SerialDevices, config = { speed: 1000000, units: [{ unitId: 1, numOfPixels: 170, lorStartPixel: 1, fppStartAddr: 1 }] }) {
             super(name, friendlyName, maxChannels, fixedStart, fixedChans, devices, config);
+        }
+
+        // Channels the output needs: through the last pixel of the unit that reaches furthest.
+        static ChannelCount(units) {
+            var count = 0;
+            for (const u of units) {
+                count = Math.max(count, (u.fppStartAddr || 1) - 1 + (u.numOfPixels || 0) * 3);
+            }
+            return count;
+        }
+
+        static UpdateChannelCount(item) {
+            var row = $(item).closest("tr");
+            var units = [];
+            row.find("span.unitConfig").each(function () {
+                units.push({
+                    fppStartAddr: parseInt($(this).find("input.fppStartAddr").val()),
+                    numOfPixels: parseInt($(this).find("input.numOfPixels").val())
+                });
+            });
+            row.find("td input.count").val(LOREnhanced.ChannelCount(units));
+        }
+
+        // the row's unit fields are not in it yet, so this counts from the config they come from
+        SetDefaults(row) {
+            super.SetDefaults(row);
+            row.find("td input.count").val(LOREnhanced.ChannelCount(this._config.units));
         }
 
         static CreateUnitConfigRow(uintId, numOfPixels, lorStartPixel, fppStartAddr) {
             var result = "<span class='unitConfig'>"
             result += "Unit Id: <input class='unitId' style='opacity: 1' type='number' value='" + uintId.toString() + "' min='1' max='240' />&nbsp;&nbsp;";
-            result += "Pixels: <input class='numOfPixels' style='opacity: 1' type='number' value='" + numOfPixels.toString() + "' min='1' max='170' />&nbsp;&nbsp;";
+            result += "Pixels: <input class='numOfPixels' style='opacity: 1' type='number' value='" + numOfPixels.toString() + "' min='1' max='170' oninput='LOREnhanced.UpdateChannelCount(this);' />&nbsp;&nbsp;";
             result += "LOR Start Pix: <input class='lorStartPixel' style='opacity: 1' type='number' value='" + lorStartPixel.toString() + "' min='1' max='170' />&nbsp;&nbsp;";
-            result += "FPP Start Ch: <input class='fppStartAddr' style='opacity: 1' type='number' value='" + fppStartAddr.toString() + "' min='1' max='" + this._maxChannels + "' />&nbsp;&nbsp;";
+            result += "<span title='Channel within this output where the unit&apos;s data starts. 1 is the output&apos;s Start Channel.'>Start Ch</span>: <input class='fppStartAddr' style='opacity: 1' type='number' value='" + fppStartAddr.toString() + "' min='1' max='" + FPPD_MAX_CHANNELS + "' oninput='LOREnhanced.UpdateChannelCount(this);' />&nbsp;&nbsp;";
             result += '<input class="buttons" type="button" value="Remove" onClick="LOREnhanced.RemoveUnit(this);" />';
             result += "<br>";
             result += "</span>"
@@ -775,7 +815,9 @@
         }
 
         static RemoveUnit(button) {
+            var row = $(button).closest("tr");
             $(button).parent().remove();
+            LOREnhanced.UpdateChannelCount(row);
         }
 
         static MaxUnits(units) {
@@ -802,6 +844,7 @@
             var max = LOREnhanced.MaxUnits(units);
             var newUnit = LOREnhanced.CreateUnitConfigRow(max.unitId + 1, 170, 1, max.channels + max.start);
             units.append(newUnit);
+            LOREnhanced.UpdateChannelCount(button);
         }
 
         PopulateHTMLRow(config) {
@@ -809,15 +852,17 @@
 
             result += "<br>Speed: <select class='speed'>";
 
+            // Older versions offered a mistyped 115400.
+            var speed = (config.speed == 115400) ? 115200 : config.speed;
             for (var key in LOREnhancedSpeeds) {
                 result += "<option value='" + key + "'";
 
-                if (config.speed == key) {
+                if (speed == key) {
                     result += " selected";
                 }
 
-                // Make 500k the default
-                if ((config.speed == "") && (key == "500000")) {
+                // Make 1 Mbps the default
+                if ((speed == "") && (key == "1000000")) {
                     result += " selected";
                 }
 
@@ -878,7 +923,7 @@
 
         PopulateHTMLRow(config) {
             var description = (config.description != null) ? config.description : "";
-            var result = "Description:&nbsp;<input class='description' type='text' size=30 maxlength=128 style='width: 6em; margin-right: 1em' value='" + description + "'/>";
+            var result = "Description:&nbsp;<input class='description' type='text' size=30 maxlength=128 style='width: 6em; margin-right: 1em' value='" + EscapeHtmlAttr(description) + "'/>";
             // Coerce an unset device to '' so CreateSelect renders the
             // "-- Port --" auto-select entry instead of a literal "undefined".
             result += DeviceSelect(UDMXDevices, config.device || '') + "&nbsp;";
@@ -1069,7 +1114,7 @@
             if (config.description != undefined) {
                 description = config.description;
             }
-            result += "Description:<input class='description' type='text' size=30 maxlength=128 style='width: 6em' value='" + description + "'/>";
+            result += "Description:<input class='description' type='text' size=30 maxlength=128 style='width: 6em' value='" + EscapeHtmlAttr(description) + "'/>";
             result += "&nbsp;";
             result += CreateSelect(GPIOPins, gpio, "GPIO", "", "form-select gpio", "GPIOHeaderPinChanged(this)");
             result += "\n";
@@ -1121,7 +1166,7 @@
             if (config.description != undefined) {
                 description = config.description;
             }
-            result += "Description:<input class='description' type='text' size=30 maxlength=128 style='width: 6em' value='" + description + "'/>";
+            result += "Description:<input class='description' type='text' size=30 maxlength=128 style='width: 6em' value='" + EscapeHtmlAttr(description) + "'/>";
             result += "&nbsp;";
             result += CreateSelect(GPIOPins, clock, "Clock", "", "clock", "");
             result += "&nbsp;";

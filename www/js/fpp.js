@@ -212,22 +212,25 @@ function buildHttpURL(ip, path) {
 // inside an open modal pass that modal as container: Bootstrap's focus trap
 // pulls focus back out of a textarea on <body>, and the copy then silently
 // copies nothing.
+// Resolves once the text is on the clipboard and rejects if it could not be
+// put there, so callers only report a copy that happened.
 function CopyTextToClipboard (text, container) {
 	var fallback = function () {
 		var $ta = $('<textarea readonly>').val(text).css({ position: 'fixed', top: '-1000px', left: '-1000px' }).appendTo(container || 'body');
 		$ta[0].select();
+		var copied = false;
 		try {
-			document.execCommand('copy');
+			copied = document.execCommand('copy');
 		} catch (e) {
-			// nothing more we can do
+			copied = false;
 		}
 		$ta.remove();
+		return copied ? Promise.resolve() : Promise.reject(new Error('Copy to clipboard failed'));
 	};
 	if (navigator.clipboard && navigator.clipboard.writeText) {
 		return navigator.clipboard.writeText(text).catch(fallback);
 	}
-	fallback();
-	return Promise.resolve();
+	return fallback();
 }
 
 /* jQuery Colpick activation */
@@ -3211,6 +3214,8 @@ function RefreshPlaylistRowWarnings (name) {
 function LoadPlaylistDetails (name) {
 	$.get('api/playlist/' + name)
 		.done(function (data) {
+			// The editor now shows what is on disk; any earlier edits are gone.
+			markCurrentPlaylistModified(false);
 			var issues = {};
 			for (var i = 0; i < playListArray.length; i++) {
 				if (playListArray[i].name == name) {
@@ -3270,8 +3275,9 @@ function CreateNewPlaylist () {
 	DisableButtonClass('playlistDetailsEditButton');
 }
 
-function EditPlaylist () {
-	var name = $('#playlistSelect').val();
+function EditPlaylist (name) {
+	if (name === undefined) name = $('#playlistSelect').val();
+	if (!name) return;
 	EnableButtonClass('playlistEditButton');
 	DisableButtonClass('playlistDetailsEditButton');
 
@@ -4209,6 +4215,7 @@ function RandomizePlaylistEntries () {
 	}
 
 	RenumberPlaylistEditorEntries();
+	markCurrentPlaylistModified();
 
 	//    $('.playlistEntriesBody').sortable('refresh').sortable('refreshPositions');
 }
@@ -4304,31 +4311,82 @@ function BrowserLocaleHints () {
  * timeout the caller has already waited out once.
  */
 function GeoIPBrowserFallback (label, wantCoords) {
-	// Accurate path first: ask the geolocation service from HERE. The player
+	// Accurate path first: ask the geolocation services from HERE. The player
 	// could not, but this browser evidently reached the player and is very
-	// likely online. Only the setup page is allowed to do this (see the
-	// <Location> block in scripts/ManageApacheContentPolicy.sh), and it is worth
-	// the allowance because the offline alternative below is a whole zone wide.
-	$.ajax({url: 'https://ipapi.co/json/', dataType: 'json', timeout: 8000})
-		.done(function (remote) {
-			if (!remote || !remote.country_code) {
-				GeoIPLocalFallback(label, wantCoords);
-				return;
+	// likely online. Only the setup and settings pages are allowed to do this
+	// (see the <LocationMatch> block in scripts/ManageApacheContentPolicy.sh),
+	// and it is worth the allowance because the offline alternative below is a
+	// whole zone wide.
+	GeoIPBrowserLookup(0, function (remote) {
+		if (!remote) {
+			GeoIPLocalFallback(label, wantCoords);
+			return;
+		}
+		SetFromGeoIP('#TimeZone', remote.timezone);
+		SetFromGeoIP('#Latitude', remote.latitude);
+		SetFromGeoIP('#Longitude', remote.longitude);
+		// The mapping stays on the device, against the same data files.
+		$.get('api/geoip?nolookup=1&country=' + encodeURIComponent(remote.country_code))
+			.done(function (data) {
+				ApplyGeoIPSettings(data);
+				DialogOK(label, 'This player could not reach the internet, so its ' +
+					'location was looked up from this browser instead.');
+			})
+			.fail(function () { GeoIPLocalFallback(label, wantCoords); });
+	});
+}
+
+/**
+ * The browser-side copy of GeoIPProviders() in api/controllers/geoip.php, in
+ * the same order and normalized to the same (ipapi.co) field names.
+ *
+ * A second service is here for the same reason it is there: the free tiers are
+ * rate limited per public address, and the browser's address is the one most
+ * likely to be spent. A phone on cellular data shares it with thousands of
+ * others, so ipapi.co often refuses it with a 429 {"error": true, "reason":
+ * "RateLimited"}. A refusal can also come back as a 200, which is why each reply
+ * is checked for an actual answer rather than trusting the status.
+ */
+var GeoIPProviders = [
+	{
+		url: 'https://ipapi.co/json/',
+		normalize: function (j) {
+			return j && !j.error && j.country_code ? j : null;
+		},
+	},
+	{
+		url: 'https://ipwho.is/',
+		normalize: function (j) {
+			if (!j || j.success !== true || !j.country_code) {
+				return null;
 			}
-			SetFromGeoIP('#TimeZone', remote.timezone);
-			SetFromGeoIP('#Latitude', remote.latitude);
-			SetFromGeoIP('#Longitude', remote.longitude);
-			// The mapping stays on the device, against the same data files.
-			$.get('api/geoip?nolookup=1&country=' + encodeURIComponent(remote.country_code))
-				.done(function (data) {
-					ApplyGeoIPSettings(data);
-					DialogOK(label, 'This player could not reach the internet, so its ' +
-						'location was looked up from this browser instead.');
-				})
-				.fail(function () { GeoIPLocalFallback(label, wantCoords); });
+			return {
+				country_code: j.country_code,
+				latitude: j.latitude,
+				longitude: j.longitude,
+				timezone: j.timezone ? j.timezone.id : undefined,
+			};
+		},
+	},
+];
+
+function GeoIPBrowserLookup (index, done) {
+	if (index >= GeoIPProviders.length) {
+		done(null);
+		return;
+	}
+	var provider = GeoIPProviders[index];
+	$.ajax({url: provider.url, dataType: 'json', timeout: 8000})
+		.done(function (j) {
+			var remote = provider.normalize(j);
+			if (remote) {
+				done(remote);
+			} else {
+				GeoIPBrowserLookup(index + 1, done);
+			}
 		})
 		.fail(function () {
-			GeoIPLocalFallback(label, wantCoords);
+			GeoIPBrowserLookup(index + 1, done);
 		});
 }
 
@@ -4425,8 +4483,8 @@ function GeoIPLocalFallback (label, wantCoords) {
 }
 
 function GetTimeZone () {
-	// Server-side proxy (api/geoip) - ipapi.co doesn't send
-	// Access-Control-Allow-Origin, so the browser can't call it directly.
+	// Server-side proxy (api/geoip), so only the player's address is disclosed
+	// and normal pages need no third-party host in their CSP.
 	$.get('api/geoip' + GeoIPTestQuery())
 		.done(function (data) {
 			SetFromGeoIP('#TimeZone', data.timezone);
@@ -4681,7 +4739,7 @@ function PingIP (ip, count) {
 	// this dialog and by ping.php, so render it as inert text and encode it
 	// for the query string. The response keeps its server-rendered markup
 	// (ping.php escapes the command output before sending it).
-	var safeIp = escapeHtml(ip);
+	var safeIp = EscapeHtml(ip);
 	var opts = {
 		id: 'pingDialog',
 		title: 'Ping ' + safeIp,
@@ -6492,19 +6550,6 @@ function GetFPPStatus () {
    */
 }
 
-// Encodes the five HTML-significant characters so untrusted strings (warning
-// messages, icon names, user input reflected by plugins) render as inert text
-// when concatenated into HTML. Same output contract as msEscape() in
-// multisync.php: every input maps to text that displays verbatim.
-function escapeHtml (s) {
-	return String(s)
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&#39;');
-}
-
 // Fix buttons must navigate within this FPP instance (all current fixUrls are
 // page-relative, e.g. "channeloutputs.php#tab-e131"). Only relative URLs are
 // allowed: any scheme (javascript:, data:, https:, ...) is rejected so a
@@ -6588,6 +6633,11 @@ function updateWarnings (jsonStatus) {
 		for (var i = 0; i < currentWarnings.length; i++) {
 			var warningID = currentWarnings[i]['id'];
 			var warningMessage = currentWarnings[i]['message'];
+			// Escaped: a warning's text can carry what someone else sent. Warning
+			// 61 names the command that wasn't found, which any HTTP, MQTT or
+			// MultiSync request chooses, so a "command" named <img onerror=...>
+			// ran its script on every page while the warning was up.
+			var safeMessage = EscapeHtml(warningMessage);
 			// Optional one-click "Fix" button: a warning may carry a fixUrl (a
 			// same-origin URL to navigate to) and fixText (the button label) in
 			// its data. Rendered next to the warning so the user can act on it
@@ -6597,16 +6647,16 @@ function updateWarnings (jsonStatus) {
 			if (warningData && isSafeFixUrl(warningData['fixUrl']) && warningData['fixText']) {
 				fixButton =
 					' <a class="btn btn-sm btn-outline-primary warning-fix-btn" href="' +
-					escapeHtml(warningData['fixUrl']) +
+					EscapeHtmlAttr(warningData['fixUrl']) +
 					'"><i class="fas fa-wrench"></i> ' +
-					escapeHtml(warningData['fixText']) +
+					EscapeHtml(warningData['fixText']) +
 					'</a>';
 			}
 			if (warningID == 0) {
 				//handle old style warnings with no id with legacy behavior
 				txt +=
 					'<li><i class="fas fa-solid fa-circle fa-2xs"></i>  ' +
-					escapeHtml(currentWarnings[i]['message']) +
+					safeMessage +
 					fixButton +
 					'</li>';
 			} else if (warningDefinitions && warningDefinitions['Warnings']) {
@@ -6642,20 +6692,20 @@ function updateWarnings (jsonStatus) {
 						'<li><span class="warning-link"><a href="javascript:void(0)" data-warning-idx="' +
 						i +
 						'"><i class="fas fa-' +
-						escapeHtml(currentWarnings[i]['icon']) +
+						EscapeHtmlAttr(currentWarnings[i]['icon']) +
 						'"></i> ' +
-						escapeHtml(currentWarnings[i]['message']) +
+						safeMessage +
 						' (<i class="fas fa-link"></i> Warning ID: ' +
-						escapeHtml(warningID) +
+						EscapeHtml(warningID) +
 						')</a></span>' +
 						fixButton +
 						'</li>';
 				} else {
 					txt +=
 						'<li><i class="fas fa-' +
-						escapeHtml(currentWarnings[i]['icon']) +
+						EscapeHtmlAttr(currentWarnings[i]['icon']) +
 						'"></i> ' +
-						escapeHtml(currentWarnings[i]['message']) +
+						safeMessage +
 						fixButton +
 						'</li>';
 				}
@@ -6699,7 +6749,7 @@ function doWarningPHPModal (id, message) {
 	// server/plugin-supplied (hostnames, filenames) and must render as text.
 	var options = {
 		id: 'warningHelpDialog',
-		title: 'Warning ID: ' + escapeHtml(id) + ' - ' + escapeHtml(message),
+		title: 'Warning ID: ' + EscapeHtml(id) + ' - ' + EscapeHtml(message),
 		class: 'modal-dialog-scrollable',
 		keyboard: true,
 		backdrop: true
@@ -6723,7 +6773,7 @@ function doWarningMDModal (id, message) {
 	var mdFile = 'help/warning-helpers/warning-' + encodeURIComponent(id) + '.md';
 	var options = {
 		id: 'warningHelpDialog',
-		title: 'Warning ID: ' + escapeHtml(id) + ' - ' + escapeHtml(message),
+		title: 'Warning ID: ' + EscapeHtml(id) + ' - ' + EscapeHtml(message),
 		body: '<zero-md src="' + mdFile + '"></zero-md>',
 		class: 'modal-dialog-scrollable',
 		keyboard: true,
@@ -6744,7 +6794,7 @@ function doWarningMDModal (id, message) {
 function doWarningBasicModal (id, message, helptxt) {
 	var options = {
 		id: 'warningHelpDialog',
-		title: 'Warning ID: ' + escapeHtml(id) + ' - ' + escapeHtml(message),
+		title: 'Warning ID: ' + EscapeHtml(id) + ' - ' + EscapeHtml(message),
 		body: helptxt,
 		class: 'modal-dialog-scrollable',
 		keyboard: true,
@@ -9233,12 +9283,17 @@ function DisplayErrorReportDialog () {
 	$dlg.find('.modal-header, .modal-footer').addClass('py-2');
 	$dlg.off('click.erCopy').on('click.erCopy', '.erCopyFileBtn', function () {
 		var $icon = $(this).find('i');
-		CopyTextToClipboard(erReportFile || '', $dlg).then(function () {
-			$icon.attr('class', 'fas fa-check text-success');
-			setTimeout(function () {
-				$icon.attr('class', 'fas fa-copy');
-			}, 1500);
-		});
+		CopyTextToClipboard(erReportFile || '', $dlg).then(
+			function () {
+				$icon.attr('class', 'fas fa-check text-success');
+				setTimeout(function () {
+					$icon.attr('class', 'fas fa-copy');
+				}, 1500);
+			},
+			function () {
+				$.jGrowl('Could not copy to the clipboard; select the name and copy it by hand', { themeState: 'danger' });
+			}
+		);
 	});
 
 	ErShowStep(1);
@@ -10582,9 +10637,9 @@ function LoadCommandList (commandSelect, currentValue) {
 	var cats = Object.keys(groups).sort();
 
 	$.each(cats, function (i, cat) {
-		var og = $("<optgroup label='" + cat + "'></optgroup>");
+		var og = $("<optgroup label='" + EscapeHtmlAttr(cat) + "'></optgroup>");
 		$.each(groups[cat], function (i, name) {
-			og.append("<option value='" + name + "'>" + name + '</option>');
+			og.append("<option value='" + EscapeHtmlAttr(name) + "'>" + EscapeHtml(name) + '</option>');
 		});
 		commandSelect.append(og);
 	});

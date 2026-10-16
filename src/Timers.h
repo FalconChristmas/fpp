@@ -20,11 +20,13 @@
 // (as Timers::addPeriodicTimer does) or bump FPP_PLUGIN_API_VERSION in
 // Plugin.h. See .claude/PLUGIN-ABI.md for which plugins use what.
 
+#include <atomic>
 #include <mutex>
 #include <vector>
 #include <functional>
 
 extern long long GetTimeMS();
+extern long long GetMonotonicTimeMS();
 
 class Timers {
 public:
@@ -34,14 +36,22 @@ public:
     ~Timers();
 
     void fireTimers() {
-        if (hasTimers) {
-            long long t = GetTimeMS();
-            if (t >= nextTimer) {
+        // Every main-loop pass.  Relaxed: a stale value only fires late by a
+        // pass or calls in early, and fireTimersInternal() works from the
+        // list under the lock either way.
+        if (hasTimers.load(std::memory_order_relaxed)) {
+            long long t = GetMonotonicTimeMS();
+            if (t >= nextTimer.load(std::memory_order_relaxed)) {
                 fireTimersInternal(t);
             }
         }
     }
 
+    // fireTimeMS is a deadline on the GetTimeMS() wall clock, as callers
+    // (plugins included) have always passed: "GetTimeMS() + delay".  It is
+    // turned into a delay on arrival, and the timer then runs on the
+    // monotonic clock, so a later clock step (NTP, an RTC that boots in the
+    // past) doesn't hold it back for the size of the step or fire it early.
     void addTimer(const std::string& name, long long fireTimeMS, std::function<void()>&& callback);
     void addTimer(const std::string& name, long long fireTimeMS, const std::string& preset);
 
@@ -57,8 +67,10 @@ public:
     void stopPeriodicTimer(const std::string& name);
 
 private:
-    bool hasTimers = false;
-    long long nextTimer = 0;
+    // Read by fireTimers() on the main loop without the lock; written under
+    // it by updateTimers() from whichever thread adds or stops a timer.
+    std::atomic<bool> hasTimers{ false };
+    std::atomic<long long> nextTimer{ 0 };
 
     class TimerInfo {
     public:
@@ -66,7 +78,7 @@ private:
         ~TimerInfo() {}
 
         std::string id;
-        long long fireTimeMS;
+        long long fireTimeMS; // GetMonotonicTimeMS() deadline
         long long periodicRate = 0;
         std::string commandPreset;
         std::function<void()> callback;

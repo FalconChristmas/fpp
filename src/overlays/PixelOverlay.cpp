@@ -20,9 +20,12 @@
 #include <dirent.h>
 
 #include <algorithm> // std::sort/std::transform in the image file listing, preview ordering
+#include <cctype> // tolower/isspace in parseColor
+#include <cerrno> // strtoull range check in parseColor
 #include <climits> // INT_MAX in the preview node numbering
 #include <fcntl.h>
 #include <filesystem> // image file listing for the Image effect's picker
+#include <set>
 #include <fstream> // virtualdisplaymap parse for model preview endpoint
 #include <unistd.h> // write -- needed directly for NOPCH builds
 #include <vector>
@@ -34,8 +37,10 @@
 #include "../channeloutput/channeloutputthread.h"
 #include "../common.h"
 #include "../effects.h"
+#include "../Sequence.h" // FPPD_MAX_CHANNELS bounds an overlay range
 #include "../log.h"
 #include "../settings.h"
+#include "../Warnings.h" // InvalidConfigEntry -- needed directly for NOPCH builds
 
 #include "PixelOverlay.h"
 #include "PixelOverlayEffects.h"
@@ -69,41 +74,80 @@ public:
     }
 };
 
-uint32_t PixelOverlayManager::mapColor(const std::string& c) {
+bool PixelOverlayManager::parseColor(const std::string& c, uint32_t& color) {
+    static const std::map<std::string, uint32_t> NAMES = {
+        { "red", 0xFF0000 }, { "green", 0x00FF00 }, { "blue", 0x0000FF },
+        { "yellow", 0xFFFF00 }, { "black", 0x000000 }, { "white", 0xFFFFFF },
+        { "cyan", 0x00FFFF }, { "magenta", 0xFF00FF }, { "gray", 0x808080 },
+        { "grey", 0x808080 }
+    };
+    color = 0;
     if (c.empty()) {
-        return 0x000000;
+        return true;
     }
+    std::string lc = c;
+    std::transform(lc.begin(), lc.end(), lc.begin(), [](unsigned char ch) { return std::tolower(ch); });
+    auto it = NAMES.find(lc);
+    if (it != NAMES.end()) {
+        color = it->second;
+        return true;
+    }
+    // "#RRGGBB" (or "#RRGGBBWW") is hex; anything else is a number in C
+    // notation ("0xFF0000", "16711680"). strtoull, not std::stoul: the latter
+    // throws on garbage, and these strings come off MQTT topics.
+    const char* digits = c.c_str();
+    int base = 0;
     if (c[0] == '#') {
-        std::string color = "0x" + c.substr(1);
-        return std::stoul(color, nullptr, 0);
-    } else if (c == "red") {
-        return 0xFF0000;
-    } else if (c == "green") {
-        return 0x00FF00;
-    } else if (c == "blue") {
-        return 0x0000FF;
-    } else if (c == "yellow") {
-        return 0xFFFF00;
-    } else if (c == "black") {
-        return 0x000000;
-    } else if (c == "white") {
-        return 0xFFFFFF;
-    } else if (c == "cyan") {
-        return 0x00FFFF;
-    } else if (c == "magenta") {
-        return 0xFF00FF;
-    } else if (c == "gray") {
-        return 0x808080;
-    } else if (c == "grey") {
-        return 0x808080;
+        digits++;
+        base = 16;
     }
-    return std::stoul(c, nullptr, 0);
+    if (*digits == '\0' || *digits == '-' || *digits == '+' || std::isspace((unsigned char)*digits)) {
+        return false;
+    }
+    char* end = nullptr;
+    errno = 0;
+    unsigned long long v = strtoull(digits, &end, base);
+    if (errno != 0 || *end != '\0' || v > 0xFFFFFFFFull) {
+        return false;
+    }
+    color = (uint32_t)v;
+    return true;
+}
+
+uint32_t PixelOverlayManager::mapColor(const std::string& c) {
+    uint32_t color = 0;
+    if (!parseColor(c, color)) {
+        LogWarn(VB_CHANNELOUT, "Unrecognized color \"%s\", using black\n", c.c_str());
+        return 0x000000;
+    }
+    return color;
 }
 void PixelOverlayManager::PixelOverlayModelHolder::toJson(Json::Value& v) const {
     if (model) {
         model->toJson(v);
     }
 }
+// Models removed from the map whose memory is still alive because something
+// holds a reference (getModelShared()). A retired model must not be put back
+// on the effect schedule or the active list: both hold raw pointers that
+// outlive the last reference. Entries leave the set when the model is freed,
+// so a new model at the same address is not mistaken for it. Leaf lock.
+static std::mutex s_retiredLock;
+static std::set<const PixelOverlayModel*> s_retired;
+static bool isRetired(const PixelOverlayModel* m) {
+    std::lock_guard<std::mutex> l(s_retiredLock);
+    return s_retired.count(m) != 0;
+}
+static std::shared_ptr<PixelOverlayModel> makeModelOwner(PixelOverlayModel* m) {
+    return std::shared_ptr<PixelOverlayModel>(m, [](PixelOverlayModel* p) {
+        {
+            std::lock_guard<std::mutex> l(s_retiredLock);
+            s_retired.erase(p);
+        }
+        delete p;
+    });
+}
+
 PixelOverlayManager::PixelOverlayManager() :
     numActive(0) {
 }
@@ -117,10 +161,9 @@ PixelOverlayManager::~PixelOverlayManager() {
         delete updateThread;
         updateThread = nullptr;
     }
-    for (auto a : models) {
-        if (a.second.model) {
-            delete a.second.model;
-        }
+    for (auto& a : models) {
+        a.second.model = nullptr;
+        a.second.owner.reset();
     }
     models.clear();
     modelNames.clear();
@@ -128,11 +171,18 @@ PixelOverlayManager::~PixelOverlayManager() {
 void PixelOverlayManager::Initialize() {
     loadModelMap();
     loadFonts();
+    RegisterCommands();
 }
 
 void PixelOverlayManager::addModel(Json::Value config) {
     PixelOverlayModel* pmodel = nullptr;
 
+    // The definition comes from an unchecked file; isMember() and asString()
+    // throw on the wrong JSON types, and nothing above here catches.
+    if (!config.isObject() || (config.isMember("Type") && !config["Type"].isString())) {
+        LogErr(VB_CHANNELOUT, "PixelOverlayManager::addModel() - skipping a model definition that is not an object with a text Type\n");
+        return;
+    }
     if (!config.isMember("Type"))
         config["Type"] = "Channel";
 
@@ -143,7 +193,7 @@ void PixelOverlayManager::addModel(Json::Value config) {
             pmodel = new PixelOverlayModel(config);
         } else {
             std::string name;
-            if (config.isMember("Name")) {
+            if (config["Name"].isString()) {
                 name = config["Name"].asString();
             }
             LogWarn(VB_CHANNELOUT, "PixelOverlayManager::loadModelMap() - invalid configuration for model %s\n", name.c_str());
@@ -155,26 +205,34 @@ void PixelOverlayManager::addModel(Json::Value config) {
     }
 
     if (pmodel && !pmodel->isValid()) {
-        // Its channel data could not be allocated, so every accessor on it
-        // would index a null pointer.  Drop it; the warning is already up.
-        LogErr(VB_CHANNELOUT, "PixelOverlayManager::addModel() - could not allocate memory for model %s\n",
+        // Its definition was rejected, or its channel data could not be
+        // allocated, so every accessor on it would index a null pointer. Drop
+        // it; the constructor has already logged why.
+        LogErr(VB_CHANNELOUT, "PixelOverlayManager::addModel() - model %s was not created\n",
                pmodel->getName().c_str());
         delete pmodel;
         pmodel = nullptr;
     }
 
     std::unique_lock<std::recursive_mutex> lock(modelsLock);
-    bool wasEmpty = models.empty();
+    if (pmodel && models.count(pmodel->getName()) && models[pmodel->getName()].model) {
+        // Replacing the live model in place used to leak it, and freeing it
+        // here instead would pull it out from under the active list and the
+        // effect thread. The first definition of a name wins; anything that
+        // genuinely replaces a model removes the old one first.
+        LogWarn(VB_CHANNELOUT, "A pixel overlay model named \"%s\" already exists; ignoring the second definition\n",
+                pmodel->getName().c_str());
+        delete pmodel;
+        pmodel = nullptr;
+    }
     if (pmodel) {
+        models[pmodel->getName()].owner = makeModelOwner(pmodel);
         models[pmodel->getName()].model = pmodel;
         modelNames.push_back(pmodel->getName());
         ++modelsGeneration;
         for (auto& l : models[pmodel->getName()].listeners) {
             l.second(pmodel);
         }
-    }
-    if (wasEmpty) {
-        RegisterCommands();
     }
 }
 
@@ -190,11 +248,12 @@ void PixelOverlayManager::loadModelMap() {
         delete updateThread;
         updateThread = nullptr;
     }
-    for (auto a : models) {
+    for (auto& a : models) {
         for (auto& l : a.second.listeners) {
             l.second(a.second.model);
         }
-        delete a.second.model;
+        a.second.model = nullptr;
+        a.second.owner.reset();
     }
     models.clear();
     modelNames.clear();
@@ -214,12 +273,22 @@ void PixelOverlayManager::loadModelMap() {
             return;
         }
 
-        if (root.isMember("autoCreate")) {
+        if (root["autoCreate"].isBool()) {
             autoCreate = root["autoCreate"].asBool();
         }
-        Json::Value models = root["models"];
-        for (int c = 0; c < models.size(); c++) {
-            addModel(models[c]);
+        // Runs at startup with nothing above it to catch: a throw here was a
+        // crash on every boot until someone fixed the file by hand.
+        const Json::Value& models = root["models"];
+        if (!models.isNull() && !models.isArray()) {
+            LogErr(VB_CHANNELOUT, "model-overlays.json: \"models\" is not an array - no models loaded from it\n");
+            return;
+        }
+        for (Json::ArrayIndex c = 0; c < models.size(); c++) {
+            try {
+                addModel(models[c]);
+            } catch (const std::exception& e) {
+                LogErr(VB_CHANNELOUT, "model-overlays.json: skipping model %d: %s\n", (int)c, e.what());
+            }
         }
     }
 }
@@ -312,8 +381,24 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
     SaveJsonToFile(result, filename);
 }
 
+// Holds output running for a moment after the last overlay goes away, so the
+// frame that clears its channels is actually sent. Kept apart from numActive,
+// which is recomputed from the active lists and would erase a bump made to it.
+static std::atomic_int s_holdOutput{ 0 };
+static void holdOutputBriefly() {
+    s_holdOutput++;
+    std::this_thread::sleep_for(std::chrono::milliseconds(125));
+    s_holdOutput--;
+}
+
 bool PixelOverlayManager::hasActiveOverlays() {
-    return numActive > 0;
+    // Asked a few times a frame and every main-loop pass.  A hint only:
+    // doOverlays() takes activeModelsLock for the models themselves.
+    return numActive.load(std::memory_order_relaxed) > 0 || s_holdOutput.load(std::memory_order_relaxed) > 0;
+}
+// Caller holds activeModelsLock.
+void PixelOverlayManager::updateActiveCountLocked() {
+    numActive = (int)(activeModels.size() + activeRanges.size());
 }
 void PixelOverlayManager::resetChildParent(const std::string& name) {
     std::unique_lock<std::recursive_mutex> lock(modelsLock);
@@ -326,18 +411,27 @@ void PixelOverlayManager::resetChildParent(const std::string& name) {
     }
 }
 
+// Brings m's membership of activeModels in line with m->needsOutput(). The
+// old/new states are deliberately ignored: a model is active for two reasons
+// (its own state, and enabled submodels within it) that change on different
+// threads, and acting on each transition separately pushed a parent twice
+// (children first, then its own enable) and later dropped it while children
+// still needed it - and the counter drifted with every duplicate, so output
+// never idled again. Recomputing under the lock converges whatever order the
+// calls arrive in.
 void PixelOverlayManager::modelStateChanged(PixelOverlayModel* m, const PixelOverlayState& old, const PixelOverlayState& state) {
-    if (old.getState() == 0) {
-        // enabling, add
-        std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
+    std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
+    // A removed model still referenced elsewhere can have its state set, but
+    // must never reach the output thread again.
+    bool want = m->needsOutput() && !isRetired(m);
+    bool present = std::find(activeModels.begin(), activeModels.end(), m) != activeModels.end();
+    if (want && !present) {
         activeModels.push_back(m);
-        numActive++;
-    } else if (state.getState() == 0) {
-        // disabling, remove
-        std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
+    } else if (!want && present) {
         activeModels.remove(m);
-        numActive--;
     }
+    updateActiveCountLocked();
+    lock.unlock();
     if (numActive > 0) {
         StartChannelOutputThread();
     }
@@ -402,6 +496,14 @@ PixelOverlayModel* PixelOverlayManager::getModel(const std::string& name) {
     std::unique_lock<std::recursive_mutex> lock(modelsLock);
     return getModelLocked(name);
 }
+std::shared_ptr<PixelOverlayModel> PixelOverlayManager::getModelShared(const std::string& name) {
+    std::unique_lock<std::recursive_mutex> lock(modelsLock);
+    PixelOverlayModel* m = getModelLocked(name); // materializes a lazy submodel
+    if (!m) {
+        return nullptr;
+    }
+    return models[m->getName()].owner;
+}
 bool PixelOverlayManager::tryGetModel(const std::string& name, PixelOverlayModel*& model) {
     std::unique_lock<std::recursive_mutex> lock(modelsLock, std::try_to_lock);
     if (!lock.owns_lock()) {
@@ -437,14 +539,21 @@ void PixelOverlayManager::loadSubModelIndex() {
         LogErr(VB_CHANNELOUT, "Error parsing xlights-submodels.json.\n");
         return;
     }
-    Json::Value subs = root["submodels"];
-    for (int c = 0; c < subs.size(); c++) {
-        if (subs[c].isMember("Name")) {
-            std::string nm = subs[c]["Name"].asString();
+    // Each entry is checked before it is read: the index is marked loaded
+    // above, so a throw here would leave every submodel missing until fppd
+    // restarts.  An entry without a string Name is skipped.
+    auto addEntries = [this](const Json::Value& list, const char* file) {
+        for (Json::ArrayIndex c = 0; list.isArray() && c < list.size(); c++) {
+            if (!list[c].isObject() || !list[c]["Name"].isString()) {
+                WarningHolder::InvalidConfigEntry(file, "entry " + std::to_string(c + 1) + " has no Name");
+                continue;
+            }
+            std::string nm = list[c]["Name"].asString();
             replaceAll(nm, "/", "_"); // match PixelOverlayModel name sanitization
-            subModelConfigs[nm] = SaveJsonToString(subs[c], "");
+            subModelConfigs[nm] = SaveJsonToString(list[c], "");
         }
-    }
+    };
+    addEntries(root["submodels"], "xlights-submodels.json");
 
     // Model groups share the same lazy index and the same "Sub" materialization
     // path (they are channelgrid Subs spanning multiple members).
@@ -452,14 +561,7 @@ void PixelOverlayManager::loadSubModelIndex() {
     if (FileExists(groupFile)) {
         Json::Value groot;
         if (LoadJsonFromFile(groupFile, groot, JsonRoot::Object)) {
-            Json::Value groups = groot["modelgroups"];
-            for (int c = 0; c < groups.size(); c++) {
-                if (groups[c].isMember("Name")) {
-                    std::string nm = groups[c]["Name"].asString();
-                    replaceAll(nm, "/", "_");
-                    subModelConfigs[nm] = SaveJsonToString(groups[c], "");
-                }
-            }
+            addEntries(groot["modelgroups"], "xlights-modelgroups.json");
         } else {
             LogErr(VB_CHANNELOUT, "Error parsing xlights-modelgroups.json.\n");
         }
@@ -482,7 +584,15 @@ PixelOverlayModel* PixelOverlayManager::materializeSubModelLocked(const std::str
         LogErr(VB_CHANNELOUT, "Error parsing cached submodel config for %s\n", name.c_str());
         return nullptr;
     }
-    addModel(config);
+    try {
+        addModel(config);
+    } catch (const std::exception& e) {
+        // Reached from effect threads and MQTT commands, where nothing
+        // catches. addModel() is not expected to throw any more; this keeps
+        // a lazy lookup from ever being the thing that does.
+        LogErr(VB_CHANNELOUT, "Could not create submodel %s: %s\n", name.c_str(), e.what());
+        return nullptr;
+    }
     auto a = models.find(name);
     return (a != models.end()) ? a->second.model : nullptr;
 }
@@ -504,6 +614,21 @@ static bool isTTF(const std::string& mainStr) {
 static bool isPFB(const std::string& mainStr) {
     return (mainStr.size() >= 4) && (mainStr.compare(mainStr.size() - 4, 4, ".pfb") == 0);
 }
+// The newest thing asked of a model wins.  A fill or clear redraws the whole
+// model, so it ends whatever effect is running there -- the effect would
+// otherwise overwrite it on its next update -- as the bulk pixel PUT already
+// did.  A state change or a single pixel doesn't redraw the model, so a
+// running effect carries on under it; but a pending Stop Effects, which blanks
+// and disables the model a frame later, is cancelled by either: a fill, a
+// state or a pixel sent after the stop is the newer instruction.
+static void retireEffectFor(PixelOverlayModel* m, bool onlyAStop) {
+    std::unique_lock<std::recursive_mutex> l(m->getRunningEffectMutex());
+    RunningEffect* e = m->getRunningEffect();
+    if (e && (!onlyAStop || e->name() == "Stop Effects")) {
+        m->setRunningEffect(nullptr, 25); // one no-op tick, then dropped
+    }
+}
+
 static void findFonts(const std::string& dir, std::map<std::string, std::string>& fonts) {
     DIR* dp;
     struct dirent* ep;
@@ -565,12 +690,21 @@ void PixelOverlayManager::loadFonts() {
     }
 }
 
+// find(), not operator[]: every unknown name used to be inserted into
+// `fonts`, which GET /api/overlays/fonts iterates from other HTTP threads, and
+// stayed in the font list for good.
 const std::string& PixelOverlayManager::mapFont(const std::string& f) {
     static std::string EMPTY_STR;
-    if (fonts[f] != "") {
-        return fonts[f];
+    auto it = fonts.find(f);
+    if (it != fonts.end()) {
+        return it->second;
     }
     return EMPTY_STR;
+}
+
+std::vector<std::string> PixelOverlayManager::getModelNamesSnapshot() {
+    std::unique_lock<std::recursive_mutex> lock(modelsLock);
+    return std::vector<std::string>(modelNames.begin(), modelNames.end());
 }
 
 Json::Value PixelOverlayManager::getModelsAsJson() {
@@ -719,10 +853,6 @@ static std::string normalizeOverlayModelName(const std::string& name) {
 // Collect the names of usable image files under the media images directory,
 // relative to it, sorted, for the Image overlay effect's file picker.
 static void collectOverlayImageNames(Json::Value& result) {
-    static const char* const IMAGE_EXTENSIONS[] = {
-        ".bmp", ".gif", ".jpeg", ".jpg", ".png", ".ppm", ".tga", ".tif", ".tiff", ".webp"
-    };
-
     std::string dir = FPP_DIR_IMAGE("");
     std::vector<std::string> names;
 
@@ -732,19 +862,7 @@ static void collectOverlayImageNames(Json::Value& result) {
             return;
         }
         for (const auto& entry : std::filesystem::recursive_directory_iterator(dir)) {
-            if (!entry.is_regular_file()) {
-                continue;
-            }
-            std::string ext = entry.path().extension().string();
-            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-            bool isImage = false;
-            for (const char* known : IMAGE_EXTENSIONS) {
-                if (ext == known) {
-                    isImage = true;
-                    break;
-                }
-            }
-            if (!isImage) {
+            if (!IsOverlayImageFile(entry.path().string())) {
                 continue;
             }
             names.push_back(std::filesystem::relative(entry.path(), dir).string());
@@ -1090,8 +1208,13 @@ static HttpResponsePtr bulkPixelDataPut(const HttpRequestPtr& req, PixelOverlayM
         if (!srcBpp) {
             return errorResp("Unknown fmt \"" + fmtArg + "\"; expected rgb, rgbw, mono, or image");
         }
-        std::size_t expect = (std::size_t)w * h * srcBpp;
-        if (dataLen != expect) {
+        // 64-bit on every platform: size_t is 32 bits on armhf, where
+        // w=1073741825 h=4 mono wrapped to 4 and a 4-byte body passed, sending
+        // blitData() striding a gigabyte per row through the request buffer.
+        // With an exact match against the body, w*h*bpp can be no larger than
+        // the bytes actually received, which bounds every index blitData uses.
+        uint64_t expect = (uint64_t)w * (uint64_t)h * (uint64_t)srcBpp;
+        if ((uint64_t)dataLen != expect) {
             // Wrong length for the geometry given. If the bytes are an encoded
             // image, the caller almost certainly meant to post one, so take it
             // rather than making them add ?fmt=image.
@@ -1140,8 +1263,8 @@ static HttpResponsePtr bulkPixelDataPut(const HttpRequestPtr& req, PixelOverlayM
     // moving image) would overwrite whatever we draw on its very next update;
     // the Image effect's static path evicts the running effect for exactly this
     // reason. ?stopEffect=false opts out for a caller deliberately drawing over
-    // one. Note this differs from the older .../pixel and .../fill endpoints,
-    // which leave a running effect alone.
+    // one. The .../fill endpoint does the same, and .../pixel cancels only a
+    // pending Stop Effects (see retireEffectFor()).
     if (stopEffectArg != "false" && stopEffectArg != "0") {
         std::unique_lock<std::recursive_mutex> l(m->getRunningEffectMutex());
         if (m->getRunningEffect()) {
@@ -1329,7 +1452,18 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
                 // 4-byte JSON literal that a caller would read as pixel data.
                 return makeStringResponse("Model not found: " + p3, 404);
             }
-            if (m) {
+            if (m && p4 == "preview") {
+                // Needs only the name. The virtualdisplaymap parse is the
+                // slowest thing this route does, and under modelsLock and the
+                // model's effectLock it stalled the effect thread - and the
+                // channel output thread too, when the effect updates after
+                // output - for as long as it took.
+                std::string modelName = m->getName();
+                lock.unlock();
+                Json::Value pixels(Json::arrayValue);
+                collectModelPreviewPixels(modelName, pixels);
+                result["pixels"] = pixels;
+            } else if (m) {
                 std::unique_lock<std::recursive_mutex> lock(m->getRunningEffectMutex());
                 if (p4 == "data") {
                     if (p5 == "raw") {
@@ -1352,12 +1486,9 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
                     result["isLocked"] = m->getRunningEffect() != nullptr; // compatibility
                     result["effectRunning"] = m->getRunningEffect() != nullptr;
                 } else if (p4 == "clear") {
+                    retireEffectFor(m, false);
                     m->clear();
                     return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
-                } else if (p4 == "preview") {
-                    Json::Value pixels(Json::arrayValue);
-                    collectModelPreviewPixels(m->getName(), pixels);
-                    result["pixels"] = pixels;
                 } else {
                     m->toJson(result);
                     result["isActive"] = (int)m->getState().getState();
@@ -1454,6 +1585,20 @@ HttpResponsePtr PixelOverlayManager::render_POST(const HttpRequestPtr& req) {
             urlPut("http://127.0.0.1/api/settings/restartFlag", "1", nvresults);
             return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
         } else if (parts.size() == 1) {
+            // Check the shape before replacing the file: whatever lands there
+            // is loaded at the next start, and a file fppd cannot read leaves
+            // the box with no models (it used to crash fppd on every boot).
+            Json::Value posted;
+            std::string body(getRequestContent(req));
+            if (!LoadJsonFromString(body, posted) || !posted.isObject() ||
+                (posted.isMember("models") && !posted["models"].isArray())) {
+                return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Body must be a JSON object whose \\\"models\\\" member is an array\"}", 400);
+            }
+            for (const auto& m : posted["models"]) {
+                if (!m.isObject()) {
+                    return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Every entry in \\\"models\\\" must be an object\"}", 400);
+                }
+            }
             char filename[2048];
             strcpy(filename, FPP_DIR_CONFIG("/model-overlays.json").c_str());
 
@@ -1476,6 +1621,7 @@ HttpResponsePtr PixelOverlayManager::render_POST(const HttpRequestPtr& req) {
 }
 /**
  * Set an overlay model's active state. Body: `{"State": <int>}`.
+ * A running effect carries on; a pending Stop Effects is cancelled.
  *
  * @route PUT /api/overlays/model/{model}/state
  * @response 200 State updated.
@@ -1483,6 +1629,7 @@ HttpResponsePtr PixelOverlayManager::render_POST(const HttpRequestPtr& req) {
 
 /**
  * Fill an overlay model with a solid color. Body: `{"RGB":[r,g,b]}` or `{"Value":v}`.
+ * Ends any effect running on the model, which would otherwise draw over the fill.
  *
  * @route PUT /api/overlays/model/{model}/fill
  * @response 200 Model filled.
@@ -1490,6 +1637,7 @@ HttpResponsePtr PixelOverlayManager::render_POST(const HttpRequestPtr& req) {
 
 /**
  * Set a single pixel in an overlay model. Body: `{"X":x,"Y":y,"RGB":[r,g,b]}`.
+ * A running effect carries on (and draws over it); a pending Stop Effects is cancelled.
  *
  * @route PUT /api/overlays/model/{model}/pixel
  * @response 200 Pixel set.
@@ -1592,6 +1740,7 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                     Json::Value root;
                     if (LoadJsonFromString(std::string(getRequestContent(req)), root)) {
                         if (root.isMember("State")) {
+                            retireEffectFor(m, true);
                             m->setState(PixelOverlayState(root["State"].asInt()));
                             return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
                         } else {
@@ -1604,12 +1753,14 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                     Json::Value root;
                     if (LoadJsonFromString(std::string(getRequestContent(req)), root)) {
                         if (root.isMember("RGB")) {
+                            retireEffectFor(m, false);
                             m->fill(root["RGB"][0].asInt(),
                                     root["RGB"][1].asInt(),
                                     root["RGB"][2].asInt());
                             m->flushOverlayBuffer();
                             return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
                         } else if (root.isMember("Value")) {
+                            retireEffectFor(m, false);
                             m->fill(root["Value"].asInt(),
                                     root["Value"].asInt(),
                                     root["Value"].asInt());
@@ -1620,6 +1771,7 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                     Json::Value root;
                     if (LoadJsonFromString(std::string(getRequestContent(req)), root)) {
                         if (root.isMember("RGB")) {
+                            retireEffectFor(m, true);
                             m->setPixelValue(root["X"].asInt(),
                                              root["Y"].asInt(),
                                              root["RGB"][0].asInt(),
@@ -1629,13 +1781,20 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                         }
                     }
                 } else if (p4 == "data") {
-                    // Takes over `lock` and releases it before the slow work.
+                    // Takes over `lock` and releases it before the slow work,
+                    // so the model has to be pinned for the rest of the call:
+                    // an output reload can remove it meanwhile.
+                    std::shared_ptr<PixelOverlayModel> pin = models[m->getName()].owner;
                     return bulkPixelDataPut(req, m, lock);
                 } else if (p4 == "save") {
                     Json::Value root;
                     if (LoadJsonFromString(std::string(getRequestContent(req)), root)) {
                         if (root.isMember("File")) {
-                            m->saveOverlayAsImage(root["File"].asString());
+                            std::string file = root["File"].asString();
+                            if (file != "" && !PixelOverlayModel::isPlainImageFileName(file)) {
+                                return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"File must be a plain file name\"}", 400);
+                            }
+                            m->saveOverlayAsImage(file);
                             return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
                         }
                     }
@@ -1656,11 +1815,6 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                             bool autoEnable = false;
                             if (root.isMember("AutoEnable")) {
                                 autoEnable = root["AutoEnable"].asBool();
-                            }
-
-                            std::string f = fonts[font];
-                            if (f == "") {
-                                f = font;
                             }
 
                             std::vector<std::string> args;
@@ -1734,42 +1888,88 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
             int val = -1;
             bool deleteAll = false;
             if (p4 == "") {
+                // The body has to be a JSON object.  Anything else used to fall
+                // through as "no Value" -- a delete -- so a garbled request
+                // removed the range and answered OK; an array threw from
+                // isMember() and answered an empty 500.
                 Json::Value root;
-                if (LoadJsonFromString(std::string(getRequestContent(req)), root)) {
-                    if (root.isMember("delete") && root["delete"].asBool()) {
-                        val = -1;
-                    } else if (root.isMember("deleteAll") && root["deleteAll"].asBool()) {
-                        std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
-                        int sz = activeRanges.size();
-                        activeRanges.clear();
-                        numActive -= sz;
-                        lock.unlock();
-                        if (numActive == 0) {
-                            numActive++;
-                            std::this_thread::sleep_for(std::chrono::milliseconds(125));
-                            numActive--;
-                        }
-                        return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
-                    } else if (root.isMember("Value")) {
-                        val = root["Value"].asInt();
+                if (!LoadJsonFromString(std::string(getRequestContent(req)), root, JsonRoot::Object)) {
+                    return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Request body is not a JSON object\"}", 400);
+                }
+                if (root.isMember("delete") && root["delete"].asBool()) {
+                    val = -1;
+                } else if (root.isMember("deleteAll") && root["deleteAll"].asBool()) {
+                    std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
+                    activeRanges.clear();
+                    updateActiveCountLocked();
+                    lock.unlock();
+                    if (numActive == 0) {
+                        holdOutputBriefly();
                     }
+                    return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
+                } else if (root.isMember("Value")) {
+                    if (!root["Value"].isNumeric()) {
+                        return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Value must be a number\"}", 400);
+                    }
+                    val = root["Value"].asInt();
                 }
             } else if (p4 != "delete") {
-                val = std::stoi(p4, nullptr, 10);
+                // a value in the path: a number, or the request is refused
+                // (std::stoi threw on anything else, answering a 500)
+                char* endp = nullptr;
+                long v = strtol(p4.c_str(), &endp, 10);
+                if (p4.empty() || endp != p4.c_str() + p4.size() || v < 0 || v > 255) {
+                    return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Value must be 0-255\"}", 400);
+                }
+                val = (int)v;
             }
 
-            while (p3.size()) {
-                std::size_t pos = 0;
-                int start = std::stoi(p3, &pos, 10);
-                int end = start;
-                p3 = p3.substr(pos);
-                if (p3.size() && p3[0] == '-') {
-                    p3 = p3.substr(1);
-                    end = std::stoi(p3, &pos, 10);
-                    p3 = p3.substr(pos);
+            // Parse every range before applying any: a syntax error part way
+            // along the list threw from std::stoi after the earlier ranges had
+            // already been changed, and answered a 500.
+            std::vector<std::pair<int, int>> ranges;
+            {
+                const char* c = p3.c_str();
+                while (*c) {
+                    char* endp = nullptr;
+                    long start = strtol(c, &endp, 10);
+                    if (endp == c) {
+                        return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Could not parse the channel ranges\"}", 400);
+                    }
+                    long end = start;
+                    c = endp;
+                    if (*c == '-') {
+                        end = strtol(c + 1, &endp, 10);
+                        if (endp == c + 1) {
+                            return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Could not parse the channel ranges\"}", 400);
+                        }
+                        c = endp;
+                    }
+                    if (*c == ',') {
+                        c++;
+                    } else if (*c) {
+                        return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Could not parse the channel ranges\"}", 400);
+                    }
+                    ranges.emplace_back((int)std::clamp(start, (long)INT_MIN, (long)INT_MAX),
+                                        (int)std::clamp(end, (long)INT_MIN, (long)INT_MAX));
                 }
+                if (c != p3.c_str() + p3.size()) {
+                    // an embedded NUL ended the walk early
+                    return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Could not parse the channel ranges\"}", 400);
+                }
+            }
+
+            bool badRange = false;
+            for (auto [start, end] : ranges) {
                 int startActive = numActive;
-                if (start > 0 && end >= start) {
+                // doOverlays() writes every channel of the range into the
+                // sequence buffer on each frame, so a range past its end was
+                // a heap overwrite on the output thread.
+                if (start <= 0 || end < start || end > FPPD_MAX_CHANNELS) {
+                    LogWarn(VB_CHANNELOUT, "Ignoring overlay range %d-%d: channels must be 1-%d\n",
+                            start, end, FPPD_MAX_CHANNELS);
+                    badRange = true;
+                } else {
                     end--;
                     start--;
                     std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
@@ -1784,27 +1984,26 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                             } else {
                                 activeRanges.erase(it);
                                 it = activeRanges.begin();
-                                numActive--;
                             }
                         } else {
                             it++;
                         }
                     }
-                    if (!found) {
+                    // val < 0 is a delete (or a PUT with no usable Value); a
+                    // range that was not there stays absent rather than being
+                    // added with -1, which wrote 0xFF - every channel full on.
+                    if (!found && val >= 0) {
                         activeRanges.push_back(OverlayRange(start, end, val));
-                        numActive++;
                     }
-                }
-                // skip the ','
-                if (p3.size()) {
-                    p3 = p3.substr(1);
+                    updateActiveCountLocked();
                 }
                 if (numActive == 0 && startActive) {
                     // removed some, may need to wait to make sure the new values are output
-                    numActive++;
-                    std::this_thread::sleep_for(std::chrono::milliseconds(125));
-                    numActive--;
+                    holdOutputBriefly();
                 }
+            }
+            if (badRange) {
+                return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Channel range out of bounds\"}", 400);
             }
             return makeStringResponse("{ \"Status\": \"OK\", \"Message\": \"\"}", 200);
         }
@@ -1850,6 +2049,7 @@ public:
             }
         }
         for (auto m : models) {
+            retireEffectFor(m, true);
             m->setState(PixelOverlayState(args[1]));
         }
         return std::make_unique<Command::Result>("Model State Set");
@@ -1877,6 +2077,7 @@ public:
             }
         }
         for (auto m : models) {
+            retireEffectFor(m, false);
             m->clear();
         }
         return std::make_unique<Command::Result>("Models Cleared");
@@ -1914,12 +2115,13 @@ public:
                 state = args[1];
                 color = args[2];
             }
+            retireEffectFor(m, false);
             if (state != "Don't Set") {
                 m->setState(PixelOverlayState(state));
             }
             if (color.size() == 9 && color[0] == '#') {
                 // #RRGGBBWW - explicit white channel for RGBW models
-                uint32_t x = (uint32_t)std::stoul(color.substr(1), nullptr, 16);
+                uint32_t x = PixelOverlayManager::mapColor(color);
                 m->fillOverlayBuffer((x >> 24) & 0xFF,
                                      (x >> 16) & 0xFF,
                                      (x >> 8) & 0xFF,
@@ -2023,10 +2225,11 @@ public:
     }
 };
 
+// Once, from Initialize(). This used to run when the first model was added,
+// which missed the commands entirely when a model listener had already put an
+// empty holder in the map, and registered them a second time (leaking the
+// first set) whenever the map emptied and refilled.
 void PixelOverlayManager::RegisterCommands() {
-    if (models.empty()) {
-        return;
-    }
     CommandManager::INSTANCE.addCategorizedCommand(new EnableOverlayCommand(this), "Pixel Overlay", 1);
     CommandManager::INSTANCE.addCategorizedCommand(new FillOverlayCommand(this), "Pixel Overlay", 1);
     CommandManager::INSTANCE.addCategorizedCommand(new TextOverlayCommand(this), "Pixel Overlay", 1);
@@ -2059,6 +2262,27 @@ void PixelOverlayManager::removeAutoOverlayModel(const std::string& name) {
     std::unique_lock<std::recursive_mutex> lock(modelsLock);
     PixelOverlayModel* pmodel = models[name].model;
     if (pmodel && pmodel->isAutoCreated()) {
+        // Every submodel of this model lets go of it before it is freed. A
+        // submodel caches its parent pointer the first time it resolves it,
+        // and the parent's destructor only reaches the children currently
+        // enabled within it, so a disabled one (or one refused for lying
+        // outside the parent) kept a dangling pointer across an output
+        // reload. Enabling it again called into the freed model and put it
+        // back on the active list. Done under modelsLock, before the model
+        // leaves the map, so nothing can resolve it again in between.
+        for (auto& m : models) {
+            PixelOverlayModelSub* sub = dynamic_cast<PixelOverlayModelSub*>(m.second.model);
+            if (sub && sub->getParentName() == name) {
+                sub->resetParent();
+            }
+        }
+        // Retired before it leaves the map: from here a reference holder can
+        // still use it, but nothing may schedule it or make it active again.
+        {
+            std::lock_guard<std::mutex> l(s_retiredLock);
+            s_retired.insert(pmodel);
+        }
+        std::shared_ptr<PixelOverlayModel> owner = std::move(models[name].owner);
         modelNames.remove(name);
         models[name].model = nullptr;
         ++modelsGeneration;
@@ -2067,15 +2291,18 @@ void PixelOverlayManager::removeAutoOverlayModel(const std::string& name) {
         }
         lock.unlock();
 
-        // The only caller that actually deletes the model, so the only one
-        // that needs to wait for a running update to finish.  modelsLock was
+        // The only caller that actually frees a model, so the only one that
+        // needs to wait for a running update to finish.  modelsLock was
         // released above, which this variant requires.
         removePeriodicUpdateAndWait(pmodel);
         std::unique_lock<std::recursive_mutex> alock(activeModelsLock);
         activeModels.remove(pmodel);
+        updateActiveCountLocked();
         alock.unlock();
 
-        delete pmodel;
+        // Frees it now, or when the last getModelShared() holder lets go -
+        // a bulk data PUT or effect start that looked it up before this.
+        owner.reset();
     }
 }
 
@@ -2086,9 +2313,21 @@ Json::Value PixelOverlayManager::getActiveOverlayEffects() {
     // so we don't hold the lock while iterating through them
     // and to avoid deadlocks if the model is being modified
     // while we are iterating through it
-    std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
-    auto am = activeModels;
-    lock.unlock();
+    //
+    // The snapshot holds references, not the raw active-list pointers: it is
+    // walked with no lock held, and removeAutoOverlayModel() can free a model
+    // meanwhile. modelsLock -> activeModelsLock is the sanctioned order.
+    std::vector<std::shared_ptr<PixelOverlayModel>> am;
+    {
+        std::unique_lock<std::recursive_mutex> mlock(modelsLock);
+        std::unique_lock<std::recursive_mutex> lock(activeModelsLock);
+        for (auto* raw : activeModels) {
+            auto it = models.find(raw->getName());
+            if (it != models.end() && it->second.owner.get() == raw) {
+                am.push_back(it->second.owner);
+            }
+        }
+    }
 
     for (auto& m : am) {
         std::unique_lock<std::recursive_mutex> l(m->getRunningEffectMutex());
@@ -2103,13 +2342,17 @@ Json::Value PixelOverlayManager::getActiveOverlayEffects() {
     return ret;
 }
 
+// `updates` is keyed by GetMonotonicTimeMS().  It was the wall clock: a step
+// back (NTP, an RTC that boots in the past) froze every running overlay
+// effect for the size of the step, and a step forward ran an hour of 25ms
+// requeues back to back.
 void PixelOverlayManager::doOverlayModelEffects() {
     SetThreadName("FPP-OverlayME");
     std::unique_lock<std::mutex> l(threadLock);
     while (threadKeepRunning) {
         uint32_t waitTime = 1000;
         if (!updates.empty()) {
-            uint64_t curTime = GetTimeMS();
+            uint64_t curTime = GetMonotonicTimeMS();
             while (!updates.empty() && updates.begin()->first <= curTime) {
                 // Drain the due batch one model at a time while holding
                 // threadLock rather than snapshotting the whole list and
@@ -2140,7 +2383,7 @@ void PixelOverlayManager::doOverlayModelEffects() {
                     updates.begin()->second.empty()) {
                     updates.erase(updates.begin());
                 }
-                curTime = GetTimeMS();
+                curTime = GetMonotonicTimeMS();
             }
             if (!updates.empty()) {
                 waitTime = updates.begin()->first - curTime;
@@ -2243,12 +2486,20 @@ void PixelOverlayManager::removePeriodicUpdateAndWait(PixelOverlayModel* m) {
 
 void PixelOverlayManager::addPeriodicUpdate(int32_t initialDelayMS, PixelOverlayModel* m) {
     std::unique_lock<std::mutex> l(threadLock);
+    // Checked under threadLock so the check and the push below are one step
+    // against removeAutoOverlayModel(), which retires the model before it
+    // drains the schedule under this lock. Without it a reference holder
+    // setting an effect afterwards (the bulk data PUT stops the running one
+    // with a 25ms requeue) put the model back, to be run after it was freed.
+    if (isRetired(m)) {
+        return;
+    }
     if (updateThread == nullptr) {
         threadKeepRunning = true;
         updateThread = new std::thread(&PixelOverlayManager::doOverlayModelEffects, this);
     }
     if (initialDelayMS > 0) {
-        uint64_t nextTime = GetTimeMS();
+        uint64_t nextTime = GetMonotonicTimeMS();
         nextTime += initialDelayMS;
         updates[nextTime].push_back(m);
     } else {

@@ -25,6 +25,10 @@ OutputTester::OutputTester() {
 OutputTester::~OutputTester() {
 }
 int OutputTester::Init(Json::Value config) {
+    // a test (re)started counts its cycles from 0: the string testers and the
+    // outputs key their start off cycle 0
+    cycleCount = 0;
+    startMS = GetMonotonicTimeMS();
     outputTypes.clear();
     testType = JsonInt(config, "type");
     std::string s = JsonString(config, "outputs");
@@ -40,12 +44,17 @@ int OutputTester::SetupTest(void) {
     return TestPatternBase::SetupTest();
 }
 void OutputTester::CycleData(void) {
-    cycleCount++;
-    startMS = GetTimeMS();
+    // cycled in OverlayTestData(): TestPatternBase only cycles a pattern with
+    // channels of its own to copy, and this one has none -- each output draws
+    // its own test
 }
 int OutputTester::OverlayTestData(char* channelData) {
     if (m_testEnabled) {
-        uint64_t now = GetTimeMS();
+        uint64_t now = GetMonotonicTimeMS(); // the same clock as startMS, which never steps
+        if (m_cycleMS > 0 && now >= startMS + m_cycleMS) {
+            cycleCount++;
+            startMS = now;
+        }
         int offset = now - startMS;
         float pct = offset;
         pct /= m_cycleMS;

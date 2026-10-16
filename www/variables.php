@@ -179,12 +179,15 @@
         // decodes for us - safe for any name containing a quote/apostrophe,
         // unlike hand-escaping text into an inline onclick string.
         $(document).on('click', '.variableCopyBtn', function () {
-            CopyTextToClipboard($(this).attr('data-copy'));
             var $icon = $(this).find('i');
-            $icon.removeClass('fa-copy').addClass('fa-check text-success');
-            setTimeout(function () {
-                $icon.removeClass('fa-check text-success').addClass('fa-copy');
-            }, 1000);
+            CopyTextToClipboard($(this).attr('data-copy')).then(function () {
+                $icon.removeClass('fa-copy').addClass('fa-check text-success');
+                setTimeout(function () {
+                    $icon.removeClass('fa-check text-success').addClass('fa-copy');
+                }, 1000);
+            }, function () {
+                $.jGrowl('Could not copy to the clipboard', { themeState: 'danger' });
+            });
         });
 
         // Truncates from the START, not the end, when the name doesn't fit
@@ -469,7 +472,9 @@
                 },
                 buttons: {
                     'Copy to Clipboard': function () {
-                        CopyTextToClipboard(value);
+                        CopyTextToClipboard(value).catch(function () {
+                            $.jGrowl('Could not copy to the clipboard', { themeState: 'danger' });
+                        });
                     },
                     'Close': function () {
                         $popup.fppDialog('close');

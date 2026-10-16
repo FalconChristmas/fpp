@@ -45,6 +45,7 @@ PlaylistEntrySequence::PlaylistEntrySequence(Playlist* playlist, PlaylistEntryBa
     m_duration(0),
     m_prepared(false),
     m_adjustTiming(true),
+    m_sequenceFrameTime(0),
     m_pausedFrame(-1) {
     LogDebug(VB_PLAYLIST, "PlaylistEntrySequence::PlaylistEntrySequence()\n");
 
@@ -72,7 +73,9 @@ int PlaylistEntrySequence::Init(Json::Value& config) {
 
 int PlaylistEntrySequence::PreparePlay(int frame) {
     if (sequence->OpenSequenceFile(m_sequenceName, frame) <= 0) {
-        LogErr(VB_PLAYLIST, "Error opening sequence %s\n", m_sequenceName.c_str());
+        // OpenSequenceFile() has logged why (once per name); a playlist that
+        // keeps coming round to a missing sequence must not log it each time.
+        LogDebug(VB_PLAYLIST, "Error opening sequence %s\n", m_sequenceName.c_str());
         return 0;
     }
     m_prepared = true;
@@ -189,7 +192,7 @@ Json::Value PlaylistEntrySequence::GetConfig(void) {
             result["secondsElapsed"] = pos / 1000;
             result["secondsRemaining"] = (m_duration - pos) / 1000;
         } else {
-            result["millisecondsElapsed"] = sequence->m_seqMSElapsed;
+            result["millisecondsElapsed"] = sequence->m_seqMSElapsed.load();
             result["secondsElapsed"] = sequence->m_seqMSElapsed / 1000;
             result["secondsRemaining"] = sequence->m_seqMSRemaining / 1000;
         }
@@ -209,7 +212,7 @@ Json::Value PlaylistEntrySequence::GetMqttStatus(void) {
         result["secondsElapsed"] = sequence->m_seqMSElapsed / 1000;
         result["secondsRemaining"] = sequence->m_seqMSRemaining / 1000;
         result["secondsTotal"] = sequence->m_seqMSDuration / 1000;
-        result["millisecondsElapsed"] = sequence->m_seqMSElapsed;
+        result["millisecondsElapsed"] = sequence->m_seqMSElapsed.load();
     }
     return result;
 }

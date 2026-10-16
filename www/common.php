@@ -211,6 +211,20 @@ function MissingSetupSettings()
     return $missing;
 }
 
+// The host the cape pages send the SoC serial, order ID and account password
+// to when signing an EEPROM or redeeming a voucher.  A developer override in
+// the settings file; anything but a plain host[:port] falls back to the real
+// one, because the value is put into URLs and echoed into the page's script.
+function SigningAPIHost()
+{
+    global $settings;
+    $host = isset($settings['SigningAPIHost']) ? trim($settings['SigningAPIHost']) : '';
+    if (preg_match('/^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,252})(?::[0-9]{1,5})?$/', $host)) {
+        return $host;
+    }
+    return 'api.FalconPlayer.com';
+}
+
 function ReadSettingFromFile($settingName, $plugin = "")
 {
     global $settingsFile;
@@ -749,6 +763,26 @@ function NormalizeAudioOutputToCardId($value)
         return '';
     }
     return $value;
+}
+
+/*
+ * The audio card this boot plays on.  Boot (fppinit) falls back to another
+ * card when the selected one is missing or is HDMI with no display, uses it
+ * for this boot only, and records it in /run/fppd/audio-output.json; the
+ * AudioOutput setting keeps the user's choice.  Returns the fallback while
+ * $stored is still what boot saw as the selection, otherwise $stored (the
+ * user has picked something since).  Use it where the card actually playing
+ * matters, not where the user's choice is shown.
+ */
+function EffectiveAudioOutput($stored)
+{
+    $stored = trim((string) $stored);
+    $eff = @json_decode(@file_get_contents('/run/fppd/audio-output.json'), true);
+    if (is_array($eff) && isset($eff['selected'], $eff['effective'])
+        && trim((string) $eff['selected']) === $stored && $eff['effective'] !== '') {
+        return $eff['effective'];
+    }
+    return $stored;
 }
 
 function DeleteSettingFromFile($settingName, $plugin = "")
@@ -5670,6 +5704,94 @@ function GPIOPinLabel($pin, $chip, $line)
     }
 
     return $pin . " (GPIO " . $chip . "/" . $line . ")";
+}
+
+/**
+ * The serial devices on this system, as a list of arrays with:
+ *   device      - the tty under /dev, e.g. "ttyUSB0"
+ *   stable      - a name for it under /dev that survives a reboot, or the tty itself
+ *                 where there is none; see below
+ *   byId/byPath - its /dev/serial/by-id and by-path links, "" where it has none
+ *   usbSerial   - the USB serial number of the adapter it is on, "" if none
+ *   description - manufacturer and product of the USB adapter, "" if not USB
+ *
+ * USB adapters are numbered in the order they are found, so ttyUSB0 can be a
+ * different adapter after a reboot.  An adapter with a USB serial number has a
+ * by-id link unique to it; one without shares its by-id link with any other adapter
+ * of the same make, so its stable name is the by-path link, which follows the USB
+ * socket it is plugged into.
+ */
+function SerialStableName($tty, $byId, $byPath, $usbSerial)
+{
+    if ($byId != "" && $usbSerial != "") {
+        return $byId;
+    }
+    if ($byPath != "") {
+        return $byPath;
+    }
+    if ($byId != "") {
+        return $byId;
+    }
+    return $tty;
+}
+
+function GetSerialDevices()
+{
+    $links = array("by-id" => array(), "by-path" => array());
+    foreach (array_keys($links) as $kind) {
+        $dir = "/dev/serial/" . $kind;
+        if (!is_dir($dir)) {
+            continue;
+        }
+        foreach (scandir($dir) as $name) {
+            if ($name == "." || $name == "..") {
+                continue;
+            }
+            $target = basename((string) readlink($dir . "/" . $name));
+            // udev makes a "usbv2" by-path link beside each "usb" one; keep the first
+            if ($target != "" && !isset($links[$kind][$target])) {
+                $links[$kind][$target] = "serial/" . $kind . "/" . $name;
+            }
+        }
+    }
+
+    $devices = array();
+    foreach (scandir("/dev/") as $tty) {
+        if (!preg_match("/^tty(SC?[0-9]+|ACM[0-9]+|O[0-9]+|AMA[0-9]+|USB[0-9]+)$/", $tty)) {
+            continue;
+        }
+        $usbSerial = "";
+        $description = "";
+        // the USB device is a few levels up from the tty's interface
+        $dir = realpath("/sys/class/tty/" . $tty . "/device");
+        for ($i = 0; $dir !== false && $i < 4; $i++) {
+            if (file_exists($dir . "/idVendor")) {
+                if (file_exists($dir . "/serial")) {
+                    $usbSerial = trim(file_get_contents($dir . "/serial"));
+                }
+                $parts = array();
+                foreach (array("manufacturer", "product") as $f) {
+                    if (file_exists($dir . "/" . $f)) {
+                        $parts[] = trim(file_get_contents($dir . "/" . $f));
+                    }
+                }
+                $description = implode(" ", $parts);
+                break;
+            }
+            $dir = dirname($dir);
+        }
+        $byId = isset($links["by-id"][$tty]) ? $links["by-id"][$tty] : "";
+        $byPath = isset($links["by-path"][$tty]) ? $links["by-path"][$tty] : "";
+        $devices[] = array(
+            "device" => $tty,
+            "stable" => SerialStableName($tty, $byId, $byPath, $usbSerial),
+            "byId" => $byId,
+            "byPath" => $byPath,
+            "usbSerial" => $usbSerial,
+            "description" => $description,
+        );
+    }
+    return $devices;
 }
 
 ?>

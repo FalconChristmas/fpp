@@ -17,10 +17,13 @@
 
 #include <gst/gst.h>
 
+#include <atomic>
 #include <condition_variable>
 #include <cstdint>
+#include <deque>
 #include <mutex>
 #include <string>
+#include <utility>
 
 // A PipeWire playback stream that outlives the media played through it.
 //
@@ -92,7 +95,7 @@ public:
     // Route `appsink`'s samples into this stream, replacing any previous
     // feed.  Samples from a feed that has since been replaced are dropped, so
     // a track still tearing down can't interleave with the next one.  The
-    // appsink must sync (on the system clock): it paces the audio, and this
+    // appsink must sync (on Clock()): it paces the audio, and this
     // stream forwards each buffer as soon as it arrives.
     void AttachFeed(GstElement* appsink);
 
@@ -102,6 +105,13 @@ public:
     int64_t LatencyNs();
     // How far ahead of the clock a feed delivers (see AttachFeed()).
     static int64_t FeedLeadNs();
+    // The clock every pipeline feeding this stream must run on (a new
+    // reference).  It runs at the rate the card plays samples, not the
+    // system's: see DisciplineClock().
+    GstClock* Clock();
+    // That rate, relative to the system clock, smoothed over the last couple
+    // of minutes (1.000432 for a card 432 ppm fast).  1.0 until measured.
+    double ClockRate() const { return m_clockRate.load(std::memory_order_relaxed); }
 
 private:
     explicit PipeWireOutputStream(int slot);
@@ -117,12 +127,15 @@ private:
     void Service(uint64_t now);  // takes and may drop/retake m_lock
     bool OpenLocked(std::unique_lock<std::mutex>& lock);
     void CloseLocked(const char* why);
+    void ForgetFailureLocked();
     void PushSilenceLocked(int ms);
     bool CardRunning();
     static int TailFlushMs();
     bool StreamLinked();
 
     static GstFlowReturn OnFeedSample(GstElement* appsink, gpointer userData);
+    void DisciplineClock();
+    void ResetClockSyncLocked();
 
     const int m_slot;
     std::mutex m_lock;
@@ -152,6 +165,20 @@ private:
     bool m_warnedCaps = false;         // logged a feed in the wrong format
     GstElement* m_feed = nullptr;      // appsink currently allowed to feed (no ref held)
     std::string m_cardStatusPath;      // /proc/asound/.../status of the sink's card, "" if none
+
+    // The card clock (DisciplineClock()).  Created on first use, never freed.
+    GstClock* m_clock = nullptr;
+    std::atomic<double> m_clockRate{ 1.0 };
+    std::string m_syncPath;            // the card the fields below describe
+    int m_syncCardRate = 0;            // its nominal rate
+    bool m_syncAnchored = false;
+    int64_t m_syncHw0 = 0;             // hw_ptr at the anchor...
+    GstClockTime m_syncInt0 = 0;       // ...the clock's internal time then...
+    GstClockTime m_syncExt0 = 0;       // ...and its own time then
+    int64_t m_syncLastHw = 0;
+    GstClockTime m_syncLastInt = 0;
+    // (seconds of internal time, seconds of card time) since the anchor.
+    std::deque<std::pair<double, double>> m_syncWindow;
 };
 
 #endif

@@ -15,9 +15,11 @@
 #include "fpp-json.h"
 
 #include <chrono>
+#include <set>
 #include <thread>
 
 #include "RecurringTasks.h"
+#include "Warnings.h"
 #include "Timers.h"
 #include "Variables.h"
 #include "common.h"
@@ -44,6 +46,14 @@ static constexpr long long MIN_TASK_INTERVAL_MS = 30000;
 // value lands in its Variable - plenty fine against a 30s interval floor.
 static constexpr long long PENDING_POLL_MS = 100;
 static const std::string PENDING_POLL_TIMER_NAME = "RecurringTasks-pendingPoll";
+
+// Timers is one namespace shared by every subsystem, and a task's name is
+// whatever the user typed: a task named after a core timer (or the poll timer
+// above) replaced that timer when it started and stopped it on the next
+// Reload().  Every task timer carries this prefix, which no other timer uses.
+static std::string TaskTimerName(const std::string& taskName) {
+    return "RecurringTask:" + taskName;
+}
 
 RecurringTasks RecurringTasks::INSTANCE;
 
@@ -134,10 +144,20 @@ std::string RecurringTasks::ApplyResultFilter(const std::string& raw, const std:
         if (regexPattern.empty()) {
             return raw;
         }
+        // libstdc++'s std::regex recurses per repeated character, so a
+        // pattern like ".*x" over a long response overflows the main loop's
+        // stack (a crash no catch stops), every time the task runs.  Only
+        // search the start of the result.
+        static constexpr size_t MAX_REGEX_INPUT = 16 * 1024;
+        const std::string searched = raw.size() > MAX_REGEX_INPUT ? raw.substr(0, MAX_REGEX_INPUT) : raw;
+        if (searched.size() < raw.size()) {
+            LogDebug(VB_GENERAL, "RecurringTasks: regex filter applied to the first %zu of %zu bytes\n",
+                     searched.size(), raw.size());
+        }
         try {
             RegExCache re(regexPattern);
             std::smatch m;
-            if (!std::regex_search(raw, m, *re.regex)) {
+            if (!std::regex_search(searched, m, *re.regex)) {
                 return "";
             }
             return m.size() > 1 ? m[1].str() : m[0].str();
@@ -158,8 +178,17 @@ void RecurringTasks::load() {
         return;
     }
     Json::Value root = LoadJsonFromFile(file, JsonRoot::Array);
+    std::set<std::string> names;
     for (auto const& j : root) {
-        RecurringTask task = ParseTask(j);
+        // A task with a value of the wrong JSON type threw out of ParseTask()
+        // at startup, to std::terminate; skip that task instead.
+        RecurringTask task;
+        try {
+            task = ParseTask(j);
+        } catch (const std::exception& e) {
+            WarningHolder::InvalidConfigEntry("recurringtasks.json", e.what());
+            continue;
+        }
         if (task.name.empty() || task.intervalMS <= 0) {
             LogWarn(VB_GENERAL, "RecurringTasks: skipping invalid task entry (missing name or non-positive intervalMS)\n");
             continue;
@@ -175,6 +204,14 @@ void RecurringTasks::load() {
             LogWarn(VB_GENERAL, "RecurringTasks: task \"%s\" intervalMS %lld is below the %lldms floor, clamping\n",
                     task.name.c_str(), (long long)task.intervalMS, (long long)MIN_TASK_INTERVAL_MS);
             task.intervalMS = MIN_TASK_INTERVAL_MS;
+        }
+        // The name keys the timer, the overlap guard and the status column,
+        // so a second task with the same name would replace the first one's
+        // timer and share its bookkeeping.  Keep the first.
+        if (!names.insert(task.name).second) {
+            LogWarn(VB_GENERAL, "RecurringTasks: skipping task \"%s\" - another task already has that name\n",
+                    task.name.c_str());
+            continue;
         }
         tasks.push_back(task);
     }
@@ -199,7 +236,7 @@ void RecurringTasks::startTimers() {
         }
         long long stagger = (index * 1000LL) % task.intervalMS;
         Timers::INSTANCE.addPeriodicTimer(
-            task.name, task.intervalMS, [this, task]() {
+            TaskTimerName(task.name), task.intervalMS, [this, task]() {
                 runTask(task);
             },
             stagger);
@@ -215,7 +252,7 @@ void RecurringTasks::Init() {
 void RecurringTasks::Close() {
     std::unique_lock<std::mutex> l(m_tasksLock);
     for (auto& task : m_tasks) {
-        Timers::INSTANCE.stopPeriodicTimer(task.name);
+        Timers::INSTANCE.stopPeriodicTimer(TaskTimerName(task.name));
     }
 }
 
@@ -271,7 +308,7 @@ void RecurringTasks::runTask(const RecurringTask& task) {
     pending.result = std::move(result);
     pending.resultVariable = task.resultVariable;
     pending.persistResult = task.persistResult;
-    pending.startTimeMS = GetTimeMS();
+    pending.startTimeMS = GetMonotonicTimeMS();
     pending.taskName = task.name;
     pending.filterType = task.filterType;
     pending.filterJsonPath = task.filterJsonPath;
@@ -450,7 +487,7 @@ void RecurringTasks::pollPending() {
         std::unique_lock<std::mutex> l(m_pendingLock);
         std::vector<PendingResult> stillPending;
         for (auto& pending : m_pending) {
-            bool timedOut = (GetTimeMS() - pending.startTimeMS) > PENDING_RESULT_MAX_MS;
+            bool timedOut = (GetMonotonicTimeMS() - pending.startTimeMS) > PENDING_RESULT_MAX_MS;
             if (pending.result->isDone() || timedOut) {
                 if (timedOut && !pending.result->isDone()) {
                     LogWarn(VB_GENERAL, "RecurringTasks: a task's Result did not finish within %lldms, giving up\n", PENDING_RESULT_MAX_MS);

@@ -43,6 +43,7 @@
 
 #include <functional>
 #include <map>
+#include <mutex>
 
 
 class EPollManager {
@@ -88,6 +89,12 @@ private:
 
     int epollf = -1;
     int timerFd = -1;
+    // Timers arm the wakeup timer from any thread (a media player's bus thread
+    // finishing, a REST handler), while shutdown() closes the descriptors on the
+    // main thread.  Held around every use of epollf/timerFd off the main thread,
+    // so a descriptor is never used after it is closed, or once its number has
+    // been reused by something else.
+    std::mutex timerLock;
     std::function<void()> timerCallback;
     std::map<int, std::function<bool(int)>> callbacks;
 #ifdef USE_KQUEUE

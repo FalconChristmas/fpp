@@ -17,15 +17,21 @@
 
 #include <sys/ioctl.h>
 #include <algorithm>
+#include <map>
+#include <memory>
+#include <mutex>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <poll.h>
+#include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
 
 #include "../log.h"
 #include "../util/GPIOUtils.h"
+#include "serialutil.h"
 
 #ifdef PLATFORM_OSX
 #include <IOKit/serial/ioss.h>
@@ -85,11 +91,71 @@ speed_t SerialGetBaudRate(int baud) {
     }
 }
 
+// Shared, so a write still running on an output's thread when the output
+// closes its port (USBDMX closes before stopping the thread) keeps the backend
+// alive until it returns.
+static std::mutex backendsLock;
+static std::map<int, std::shared_ptr<SerialPortBackend>> backends;
+
+static std::shared_ptr<SerialPortBackend> getBackend(int fd) {
+    std::lock_guard<std::mutex> l(backendsLock);
+    auto it = backends.find(fd);
+    return it == backends.end() ? nullptr : it->second;
+}
+
+int SerialAttachBackend(SerialPortBackend* backend) {
+    // a real descriptor, so the fd >= 0 checks callers make hold and nothing
+    // else can be handed the same number while the backend lives; a stray
+    // write() to it is discarded
+    int fd = open("/dev/null", O_WRONLY | O_CLOEXEC);
+    if (fd < 0) {
+        delete backend;
+        return -1;
+    }
+    std::lock_guard<std::mutex> l(backendsLock);
+    backends[fd].reset(backend);
+    return fd;
+}
+
+// The kernel console carries boot messages and a login prompt.  On a
+// PocketBeagle 2 it is ttyS2, the name a PocketBeagle cape used for DMX, so a
+// config carried over from one would otherwise mix lighting data into it.
+bool SerialIsConsole(const char* device) {
+#ifdef PLATFORM_OSX
+    return false;
+#else
+    char resolved[PATH_MAX];
+    if (!realpath(device, resolved)) {
+        return false;
+    }
+    const char* name = strrchr(resolved, '/');
+    name = name ? name + 1 : resolved;
+    FILE* f = fopen("/sys/class/tty/console/active", "r");
+    if (!f) {
+        return false;
+    }
+    char con[64];
+    bool found = false;
+    while (!found && fscanf(f, "%63s", con) == 1) {
+        found = strcmp(con, name) == 0;
+    }
+    fclose(f);
+    return found;
+#endif
+}
+
 /*
  *
  * Example: SerialOpen("/dev/ttyUSB0", 115200, "N81");
  */
 int SerialOpen(const char* device, int baud, const char* mode, bool output, bool configurePin, const char* desc) {
+    if (SerialIsConsole(device)) {
+        // permanent, like the other open failures here: the console is set
+        // on the kernel command line and the config has to change
+        LogErr(VB_CHANNELOUT, "%s: is the system console, not opening it\n", device);
+        WarningHolder::AddWarning(38, std::string(device) + ": is the system console and cannot be used for channel data");
+        return -1;
+    }
     // some devices may multiplex pins and need to
     // specifically configure the output pin as a uart instead of gpio
     char buf[256];
@@ -99,8 +165,14 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output, bool
         snprintf(buf, sizeof(buf), "%s-rx", &device[5]); // "ttyS1-rx" or "ttyUSB0-rx"
     }
     if (configurePin && strncmp(device, "/dev/ttyUSB", 11) != 0) {
-        // don't attempt to configure USB uarts  as they wouldn't have a pin
-        PinCapabilities::getPinByUART(buf).configPin("uart", output, desc);
+        // don't attempt to configure USB uarts  as they wouldn't have a pin.
+        // Nor anything else with no UART pin: a USB adapter named by its
+        // stable /dev/serial/by-id path, or a ttyACM, finds no pin, and
+        // configuring the empty placeholder raises a warning banner.
+        const PinCapabilities& pin = PinCapabilities::getPinByUART(buf);
+        if (pin.ptr()) {
+            pin.configPin("uart", output, desc);
+        }
     }
 
     int fd = 0;
@@ -242,12 +314,23 @@ int SerialClose(int fd) {
     if (fd < 0)
         return -1;
 
-    tcflush(fd, TCOFLUSH);
+    bool isBackend = false;
+    {
+        std::lock_guard<std::mutex> l(backendsLock);
+        isBackend = backends.erase(fd) != 0;
+    }
+    if (!isBackend) {
+        tcflush(fd, TCOFLUSH);
+    }
 
     return close(fd);
 }
 
 int SerialSendBreak(int fd, int duration) {
+    if (auto b = getBackend(fd)) {
+        b->sendBreak(duration);
+        return 0;
+    }
     ioctl(fd, TIOCSBRK);
     usleep(duration);
     ioctl(fd, TIOCCBRK);
@@ -256,6 +339,9 @@ int SerialSendBreak(int fd, int duration) {
 }
 
 int SerialResetRTS(int fd) {
+    if (getBackend(fd)) {
+        return 0;
+    }
     int CtrlFlag = TIOCM_RTS;
     if (ioctl(fd, TIOCMBIC, &CtrlFlag) < 0) {
         LogErr(VB_CHANNELOUT, "Error clearing RTS \n");
@@ -269,8 +355,11 @@ int SerialWriteAll(int fd, const void* data, int len, int timeoutMs) {
     if (fd < 0) {
         return -1;
     }
+    if (auto b = getBackend(fd)) {
+        return b->write((const uint8_t*)data, len, timeoutMs);
+    }
     const char* buf = (const char*)data;
-    uint64_t deadline = GetTimeMS() + timeoutMs;
+    uint64_t deadline = GetMonotonicTimeMS() + timeoutMs;
     int sent = 0;
     while (sent < len) {
         ssize_t w = write(fd, buf + sent, len - sent);
@@ -284,7 +373,7 @@ int SerialWriteAll(int fd, const void* data, int len, int timeoutMs) {
         if (w < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
             break;
         }
-        long long left = (long long)deadline - (long long)GetTimeMS();
+        long long left = (long long)deadline - (long long)GetMonotonicTimeMS();
         if (left <= 0) {
             break;
         }
@@ -297,14 +386,24 @@ int SerialWriteAll(int fd, const void* data, int len, int timeoutMs) {
     return sent;
 }
 
+int SerialWrite(int fd, const void* data, int len) {
+    if (auto b = getBackend(fd)) {
+        return b->write((const uint8_t*)data, len, 0);
+    }
+    return write(fd, data, len);
+}
+
 bool SerialWaitDrained(int fd, int timeoutMs) {
-    uint64_t deadline = GetTimeMS() + timeoutMs;
+    if (auto b = getBackend(fd)) {
+        return b->waitDrained(timeoutMs);
+    }
+    uint64_t deadline = GetMonotonicTimeMS() + timeoutMs;
     while (true) {
         int queued = 0;
         if (ioctl(fd, TIOCOUTQ, &queued) < 0 || queued <= 0) {
             return true;
         }
-        if (GetTimeMS() >= deadline) {
+        if (GetMonotonicTimeMS() >= deadline) {
             return false;
         }
         usleep(500);

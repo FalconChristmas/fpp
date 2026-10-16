@@ -146,6 +146,7 @@ protected:
 
     // Helpers
     void DrawSquare(int dx, int dy, int w, int h, int sx = -1, int sy = -1);
+    void CopyRows(int y, int rows);
 
     std::string m_name;
     std::string m_device;
@@ -158,6 +159,13 @@ protected:
     bool m_variableRefresh = false;
     uint8_t* m_buffer = nullptr;
     uint8_t* m_outputBuffer = nullptr;
+    // FBCopyData() writes the next image here, under m_stagingLock, and
+    // DrawLoop() copies it to m_outputBuffer before drawing: a transition
+    // reads m_outputBuffer for most of a second, and the next image must not
+    // be written into it meanwhile.  m_bufferLock can't guard that, since a
+    // transition holds it throughout and the output thread can't wait.
+    uint8_t* m_stagingBuffer = nullptr;
+    std::mutex m_stagingLock;
     // m_pages must always be in [1, MAX_PAGES] and m_cPage/m_pPage must always
     // be valid indices into m_pageBuffers, i.e. < m_pages.  Everything that
     // dereferences a page goes through m_pageBuffers[m_cPage], so a page index
@@ -182,13 +190,15 @@ protected:
     std::string m_clipWarning;
 
     ImageTransitionType m_transitionType = IT_Normal;
-    volatile ImageTransitionType m_nextTransitionType = IT_Normal;
+    std::atomic<ImageTransitionType> m_nextTransitionType{ IT_Normal };
     int m_transitionTime = 800;
 
     unsigned int m_typeSeed;
 
     volatile bool m_runLoop = false;
-    volatile bool m_imageReady = false;
+    // Set by FBCopyData() when a new image is in m_outputBuffer; taken by
+    // DrawLoop() before it draws, so one that arrives mid-draw is drawn next.
+    std::atomic<bool> m_imageReady{ false };
     bool m_displayEnabledOnce = false;  // Track if EnableDisplay() has been called
 
     std::thread* m_drawThread = nullptr;

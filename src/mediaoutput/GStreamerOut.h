@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "AES67Manager.h"
+#include "DrmCards.h"
 #include "OpusRTPManager.h"
 
 class PixelOverlayModel;
@@ -54,6 +55,18 @@ public:
     bool SeekTo(float seconds);
     virtual void SetVolume(int volume) override;
 
+    /// Ask the output's owner to stop it, from a thread that doesn't own it
+    /// (a command, or the slot manager stopping a playlist's background
+    /// slots).  Only the owner may Stop()/Close()/delete an output: the base
+    /// version flags it for the next Process() on the owner's thread; Play
+    /// Media's outputs override it to stop through their own registry.
+    virtual void RequestStop() { m_stopRequested = true; }
+
+    /// Whether StreamSlotManager must call Process() for this output.  False
+    /// for outputs whose owner already does (a playlist entry, the remote's
+    /// synced media); Play Media's outputs have no other pump.
+    virtual bool NeedsSlotPump() const { return false; }
+
     // Static methods matching SDLOutput interface
     static bool IsOverlayingVideo();
     static bool ProcessVideoOverlay(unsigned int msTimestamp);
@@ -61,6 +74,10 @@ public:
 
     // One-time GStreamer + PipeWire env initialization (safe to call repeatedly)
     static void EnsureGStreamerInit();
+    // Take `pipeline` to NULL on a reaper thread, waiting at most timeoutMs.
+    // False if it wedged: the reaper keeps its own ref and the pipeline (with
+    // whatever it holds) is left to it.  The caller's ref is untouched.
+    static bool SetPipelineToNullBounded(GstElement* pipeline, int timeoutMs);
     // Set the environment now, on the calling thread, and run gst_init() in the
     // background so the first play doesn't pay for it (~1 s on an AM335x, and
     // ~20 s the very first time, when GStreamer builds its plugin registry).
@@ -91,41 +108,13 @@ public:
     };
     static DrmConnectorInfo ResolveDrmConnector(const std::string& connectorName);
 
-    // Acquire a shared, refcounted DRM master fd for the given card (e.g.
-    // "/dev/dri/card1").  All kmssink elements should use this fd to avoid
-    // DRM master contention.  Opens the device and takes DRM master on the
-    // first acquire for a given card; subsequent acquires just bump the
-    // refcount and return the same fd.  Every successful call MUST be
-    // matched by a later ReleaseSharedDrmFd() call for the same cardPath —
-    // closing the fd once the refcount drops to zero is the kernel's
-    // cleanup backstop that frees any GEM handles/framebuffers a kmssink
-    // failed to release explicitly, which is what keeps CMA/GPU memory from
-    // growing unbounded across many pipeline build/teardown cycles.
-    static int AcquireSharedDrmFd(const std::string& cardPath);
-
-    // Release a reference taken by AcquireSharedDrmFd().  When the refcount
-    // for cardPath reaches zero the fd is closed (dropping DRM master and
-    // freeing any leaked GEM handles/FBs).  Must only be called after the
-    // pipeline holding kmssink(s) on that fd has been fully unreffed —
-    // releasing (and possibly closing the fd) while a kmssink still holds
-    // it open is undefined behavior.
-    static void ReleaseSharedDrmFd(const std::string& cardPath);
-
-    // Find a DRM OVERLAY plane for the CRTC currently bound to a connector.
-    // Uses overlay planes (not primary) because fbcon holds the primary planes.
-    // Tracks allocated planes to avoid collisions between consumers.
-    // Returns -1 if not found.  Requires the shared DRM fd.
-    static int FindPrimaryPlaneForConnector(int drmFd, int connectorId);
-
-    // Return a plane previously handed out by FindPrimaryPlaneForConnector to
-    // the free pool so it can be reused.  Must be called when the kmssink that
-    // owned the plane is torn down, otherwise the allocated-plane set grows
-    // until no overlay planes remain and HDMI video silently stops working.
-    // A negative id or an id that was never allocated is ignored.
-    static void ReleasePlane(int planeId);
 
     // GStreamer-specific
     void SetLoopCount(int loops) { m_loopCount = loops; }
+    // Whether this output's position paces the running sequence (the channel
+    // output servo).  True for the show's own media -- a playlist entry's, or
+    // a remote's synced media -- and false for media played alongside it.
+    void SetDrivesShowClock(bool drives) { m_drivesShowClock = drives; }
     void SetVolumeAdjustment(int volAdj);
 
     // Event callbacks (matching VLCOutput pattern).
@@ -142,6 +131,44 @@ public:
     virtual void Stopped() {}
 
 private:
+    // Serializes Start(), Stop() and Close() against each other and against
+    // Process(), SeekTo() and AdjustSpeed(), which a slot's pump and MultiSync
+    // run on the main loop while a command may be stopping the same output on
+    // an HTTP thread.  The pump side only ever try-locks and skips a tick when
+    // the output is busy, so it never waits here; holders may take
+    // StreamSlotManager's lock, never the other way round.
+    std::recursive_mutex m_opMutex;
+    std::atomic<bool> m_stopRequested{false};
+
+    // An optional video branch -- a secondary display's kmssink, or the
+    // PipeWire video tap -- whose sink failed.  Its GST_FLOW_ERROR would
+    // otherwise reach the tee and fail the whole pipeline, so the bus sync
+    // handler cuts it off at the tee (CutFailedBranch, on the failing sink's
+    // streaming thread) and Process() takes it out of the pipeline
+    // (RemoveFailedBranches, op lock held).  Holds a ref on every object.
+    struct FailedBranch {
+        GstElement* tee = nullptr;
+        GstPad* teePad = nullptr;
+        std::vector<GstElement*> elements;  // sink first, back to the queue
+    };
+    std::mutex m_failedBranchLock;
+    std::vector<FailedBranch> m_failedBranches;
+    std::atomic<bool> m_haveFailedBranches{false};
+    bool CutFailedBranch(GstElement* sink);
+    // The head of an optional branch, between the tee and the branch's
+    // queue: turns a sink's GST_FLOW_ERROR into OK, so even a buffer already
+    // waiting on the branch's full queue can't carry it back to the tee.
+    // nullptr where errorignore isn't installed.
+    static GstElement* MakeBranchErrorGuard();
+    void RemoveFailedBranches();
+    void ReleaseFailedBranches();
+    bool m_drivesShowClock = true;
+    // Cuts the decodebin and bus callbacks off from this object and waits for
+    // any that are running.  See CallbackGuard.
+    void DetachCallbacks();
+    // This output's id for its PixelOverlayManager model listener.
+    std::string OverlayListenerId() const;
+
     GstElement* m_pipeline = nullptr;
     GstElement* m_volume = nullptr;
     GstElement* m_appsink = nullptr;       // audio sample tap
@@ -172,12 +199,17 @@ private:
     gulong m_appsinkSignalId = 0;            // audio appsink signal handler ID
     gulong m_videoAppsinkSignalId = 0;       // video appsink signal handler ID
 
-    // Stall watchdog — detects when PipeWire sink stops consuming data
+    // Stall watchdog — detects when PipeWire sink stops consuming data.
+    // The *Ms stamps here are GetMonotonicTimeMS(): on the wall clock a step
+    // either way made the watchdogs stop playing media as stalled.
     gint64 m_lastPosition = -1;
     gint64 m_maxDuration = 0;   // highest observed duration (handles VBR fluctuations)
     uint64_t m_durationQueriedMs = 0;
     uint64_t m_stallStartMs = 0;
     uint64_t m_wallStartMs = 0;
+    // A SeekTo() that arrived before the pipeline prerolled, applied by
+    // Process() at the first position.  -1 when none is waiting.
+    gint64 m_pendingSeekNs = -1;
     uint64_t m_lastWallLogMs = 0;
 
     // Audio still queued between pipewiresink's reported position and the DAC.
@@ -193,7 +225,7 @@ private:
     int m_alsaRate = 0;
     bool m_loggedSinkLatency = false;
     bool m_warnedNoSinkLatency = false;
-    uint64_t m_playStartMs = 0;   // wall time Start() set m_playing=true — anchors the preroll watchdog
+    uint64_t m_playStartMs = 0;   // when Start() set m_playing=true (GetMonotonicTimeMS()) — anchors the preroll watchdog
     static constexpr int STALL_TIMEOUT_MS = 5000; // 5 seconds before declaring stall
     // Preroll watchdog: if the pipeline is set to PLAYING but never produces a
     // valid position (never actually starts), it is wedged in preroll/PAUSED —
@@ -212,7 +244,16 @@ private:
     static std::array<float, SAMPLE_BUFFER_SIZE> s_sampleBuffer;
     static int s_sampleWritePos;
     static int s_sampleRate;
+    // Guards the ring above and m_currentInstance, the one output allowed to
+    // write it.
     static std::mutex s_sampleMutex;
+    // When the tap owner last wrote the ring.  A paused or stalled owner
+    // stops writing, and its last half second of audio must not read as
+    // live.
+    static uint64_t s_sampleLastWriteMs;
+    static constexpr int SAMPLE_STALE_MS = 500;
+    // Make `o` the tap owner and empty the ring.  s_sampleMutex held.
+    static void SetSampleTapOwnerLocked(GStreamerOutput* o);
     static GstFlowReturn OnNewSample(GstAppSink* appsink, gpointer userData);
     // The tap's branch only carries audio while something is reading it.
     static constexpr int SAMPLE_TAP_IDLE_MS = 1000;
@@ -229,6 +270,8 @@ private:
 
     // Latest video frame buffer — written by OnNewVideoSample, read by ProcessVideoOverlay
     std::vector<uint8_t> m_videoFrameData;
+    int m_videoFrameWidth = 0;    // dimensions of m_videoFrameData (packed RGB)
+    int m_videoFrameHeight = 0;
     std::mutex m_videoFrameMutex;
     bool m_videoFrameReady = false;
     uint64_t m_videoFramesReceived = 0;    // diagnostic counter
@@ -242,13 +285,14 @@ private:
     GstElement* m_kmssink = nullptr;       // kmssink element (owned by pipeline bin)
     int m_hdmiConnectorId = -1;            // DRM connector ID from sysfs
     std::string m_hdmiCardPath;            // e.g. "/dev/dri/card1"
-    std::vector<int> m_allocatedPlanes;    // overlay planes reserved for this pipeline's kmssinks; released in Close()
-    // Cards this pipeline called AcquireSharedDrmFd() on — one entry per
-    // acquire call (the same card can be acquired more than once, e.g. one
-    // primary kmssink plus several dkms_* consumer branches).  Released with
-    // matching ReleaseSharedDrmFd() calls in Close(), strictly after the
-    // pipeline (and therefore every kmssink) has been unreffed.
-    std::vector<std::string> m_acquiredDrmCards;
+    // The DRM lease of each of this pipeline's kmssinks (the primary one and
+    // any dkms_* branches).  Released in Close(), strictly after the pipeline
+    // (and therefore every kmssink) has been unreffed.
+    std::vector<DrmCards::Lease> m_drmLeases;
+    // HDMI connectors this pipeline claimed from the video output manager's
+    // persistent consumers (ClaimConnectorForMedia); released in Close()
+    // after the leases, which brings those consumers back.
+    std::vector<int> m_mediaConnectors;
     int m_hdmiDisplayWidth = 0;            // display resolution
     int m_hdmiDisplayHeight = 0;
 
@@ -373,6 +417,9 @@ private:
 
     std::atomic<bool> m_audible{false};
 
+    // The output whose audio feeds the WLED tap.  Only read or written
+    // under s_sampleMutex, and never dereferenced by the tap's reader: the
+    // owner can be closing on another thread.
     static GStreamerOutput* m_currentInstance;
 
     // Every output currently driving a PixelOverlay model.  The overlay push

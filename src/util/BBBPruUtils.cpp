@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <algorithm>
+#include <cerrno>
 #include <cstring>
 #include <elf.h>
 #include <fcntl.h>
@@ -33,14 +34,6 @@
 #include "../log.h"
 
 #include "BBBPruUtils.h"
-
-static unsigned int proc_read(const char* const fname) {
-    FILE* const f = fopen(fname, "r");
-    unsigned int x;
-    fscanf(f, "%x", &x);
-    fclose(f);
-    return x;
-}
 
 class PRUCoreInfo {
 public:
@@ -85,6 +78,10 @@ public:
         std::string filename = getRemoteProcStateFile();
         if (FileExists(filename)) {
             FILE* rp = fopen(filename.c_str(), "w");
+            if (rp == nullptr) {
+                LogWarn(VB_CHANNELOUT, "BBBPru::Pru::disable() - could not open %s: %s\n", filename.c_str(), strerror(errno));
+                return;
+            }
             fprintf(rp, "stop");
             fclose(rp);
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -126,6 +123,10 @@ public:
                 }
             }
             FILE* rp = fopen(filename.c_str(), "w");
+            if (rp == nullptr) {
+                LogWarn(VB_CHANNELOUT, "BBBPru::Pru::enable() - could not open %s: %s\n", filename.c_str(), strerror(errno));
+                return false;
+            }
             fprintf(rp, "start");
             fclose(rp);
             cnt = 0;

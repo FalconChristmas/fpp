@@ -253,7 +253,9 @@ int main(int argc, char* argv[]) {
             // dup2 replaces that fd before we print anything, so this capture
             // still works even though the parent shell redirected us away.
             teeOutput(logFile, "fppinit", "Audio", getpid());
-        } else if (action == "configureBBB" || action == "applyThermal" || action == "resetThermal" || action == "installKiosk" || action == "setupPiRTC" || action == "setupHDMICEC" || action == "setupWifiAntenna") {
+        } else if (action == "configureBBB" || action == "applyThermal" || action == "resetThermal" || action == "installKiosk" || action == "setupPiRTC" || action == "setupHDMICEC" || action == "setupWifiAntenna" ||
+                   action == "setupChannelOutputs" || action == "checkConfigMigrations" || action == "detectCape" ||
+                   action == "setupTimezone" || action == "checkHostName" || action == "handleBootActions") {
             // Same gap as setupNetwork: invoked directly via PHP exec(), output
             // otherwise lives only in that request's $output/HTTP response.
             teeOutput(logFile, "fppinit", "Config", getpid());
@@ -279,7 +281,7 @@ int main(int argc, char* argv[]) {
         if (!FileExists("/etc/fpp/container")) {
 #ifdef CAPEDETECT
             printf("FPP - Cleaning tmp\n");
-            remove_recursive("/home/fpp/media/tmp/", false);
+            remove_recursive((FPP_MEDIA_DIR + "/tmp/").c_str(), false);
 #endif
         }
         createDirectories();
@@ -297,6 +299,7 @@ int main(int argc, char* argv[]) {
         setupPiRTCConfig();
         setupHDMICECConfig();
         setupWifiAntennaConfig();
+        setup16KPageKernel();
         int reboot = getRawSettingInt("rebootFlag", 0);
         if (reboot && !needReboot) {
             printf("FPP - Clearing reboot flags\n");
@@ -430,21 +433,19 @@ int main(int argc, char* argv[]) {
 
         // checkConfigMigrations doesn't need the network, but runs here anyway,
         // right beside checkInstallPackages -- both are gated on the same
-        // /fppos_upgraded marker, so keeping them together keeps that shared
-        // precondition visible in one place.
+        // markers, so keeping them together keeps that shared precondition
+        // visible in one place.
         //
-        // /fppos_upgraded is no longer touched only by an OS reflash
-        // (upgradeOS-part2.sh) -- www/backup.php touches it after ANY JSON
-        // restore area (network, virtualEEPROM, channelOutputs, etc
-        // included, even though some of those already set their own
-        // rebootFlag separately -- this just rides along on the same
-        // reboot), and www/copystorage.php touches it after a File Copy
-        // restore of Configuration or Plugins specifically.
+        // /fppos_upgraded is touched by an OS reflash (upgradeOS-part2.sh)
+        // and /fpp_restored by a restore: www/backup.php after any JSON
+        // restore area, www/copystorage.php after a File Copy restore of
+        // Configuration, Plugins or EEPROM.  A restore gets the packages and
+        // migrations, not the reflash's plugin handling.
         checkConfigMigrations();
 
         // Both of these must run after a join:
         //  - checkInstallPackages may apt-install user packages after an OS
-        //    upgrade or a restore (see the /fppos_upgraded note above), so
+        //    upgrade or a restore (see the marker note above), so
         //    it needs the network up (network thread joined).
         //  - setFileOwnership chowns /home/fpp/media, where setupAudio writes its
         //    PipeWire config as root, so it must follow the audio thread -- run it
@@ -497,6 +498,9 @@ int main(int argc, char* argv[]) {
     } else if (action == "setupWifiAntenna") {
         // The UI's "reboot": 1 on WifiAntenna prompts the user; don't reboot here.
         setupWifiAntennaConfig(false);
+    } else if (action == "setup16KPageKernel") {
+        // The UI's "reboot": 1 on Pi16KPageKernel prompts the user; don't reboot here.
+        setup16KPageKernel(false);
     } else if (action == "setupNetwork") {
         PutFileContents(networkSetupMut, "1");
         setupNetwork(true);
@@ -528,7 +532,7 @@ int main(int argc, char* argv[]) {
                 std::string iface = argv[2];
                 if (FindTetherWIFIAdapater() != iface && !iface.starts_with("usb") && !iface.starts_with("lo") && waitForInterfacesUp(10)) {
                     exec("rm -f /etc/systemd/network/10-" + FindTetherWIFIAdapater() + ".network");
-                    exec("rm -f /home/fpp/media/tmp/wifi-*.ascii");
+                    exec("rm -f " + FPP_MEDIA_DIR + "/tmp/wifi-*.ascii");
                     exec("systemctl stop hostapd.service");
                     exec("systemctl disable hostapd.service");
                     exec("systemctl reload-or-restart systemd-networkd.service");
@@ -537,6 +541,21 @@ int main(int argc, char* argv[]) {
         }
     } else if (action == "detectNetworkModules") {
         detectNetworkModules();
+    } else if (action == "setupChannelOutputs") {
+        // The single steps below normally run inside start/bootPre; as actions
+        // of their own they can be run, and tested, one at a time
+        // (FPP_MEDIA_DIR points them at another media directory).
+        setupChannelOutputs();
+    } else if (action == "checkConfigMigrations") {
+        checkConfigMigrations();
+    } else if (action == "detectCape") {
+        DetectCape();
+    } else if (action == "setupTimezone") {
+        setupTimezone();
+    } else if (action == "checkHostName") {
+        checkHostName();
+    } else if (action == "handleBootActions") {
+        handleBootActions();
     } else if (action == "reboot") {
         handleRebootActions();
     } else if (action == "resizeRootFS") {

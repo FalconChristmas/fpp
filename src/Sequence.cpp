@@ -24,6 +24,7 @@
 #include <list>
 #include <map>
 #include <mutex>
+#include <set>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -58,6 +59,13 @@ using namespace std::literals::chrono_literals;
 #define SEQUENCE_CACHE_FRAMECOUNT 40
 
 Sequence* sequence = NULL;
+// The pause and single-step flags are set by commands on the main loop and
+// read by the output thread.  atomic_ref rather than atomic members: this
+// class's layout is compiled into plugins (see Sequence.h).
+static std::atomic_ref<int> seqFlag(int& flag) {
+    return std::atomic_ref<int>(flag);
+}
+
 Sequence::Sequence() :
     m_seqMSDuration(0),
     m_seqMSElapsed(0),
@@ -65,10 +73,12 @@ Sequence::Sequence() :
     m_seqFile(nullptr),
     m_seqStarting(0),
     m_seqPaused(0),
+    m_seqStepTime(50),
     m_seqSingleStep(0),
     m_seqSingleStepBack(0),
     m_seqRefreshRate(20),
     m_remoteBlankCount(0),
+    m_numSeek(0),
     m_readThread(nullptr),
     m_lastFrameRead(-1),
     m_doneRead(false),
@@ -76,7 +86,10 @@ Sequence::Sequence() :
     m_lastFrameData(nullptr),
     m_dataProcessed(false),
     m_seqFilename(""),
-    m_bridgeData(nullptr),
+    // Allocated here, not on the first bridged packet: the receive thread
+    // allocating it while the output thread tested the pointer was a race.
+    // calloc'd pages cost nothing until something is written to them.
+    m_bridgeData((uint8_t*)calloc(1, FPPD_MAX_CHANNEL_NUM)),
     m_seqData(nullptr) {
 #ifndef PLATFORM_OSX
     m_seqData = (char*)mmap(NULL, FPPD_MAX_CHANNEL_NUM, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | HUGETLB_FLAG_ENCODE_2MB, -1, 0);
@@ -115,11 +128,11 @@ Sequence::~Sequence() {
     }
     SetLastFrameData(nullptr);
     clearCaches();
-    m_seqFile.store(nullptr);
+    setSeqFile(nullptr);
     if (m_bridgeData) {
         free(m_bridgeData);
     }
-    munmap(m_seqData, FPPD_MAX_CHANNELS);
+    munmap(m_seqData, FPPD_MAX_CHANNEL_NUM); // the size mmap()ed in the constructor
 }
 
 void Sequence::setBridgePrioritySetting(const std::string& value) {
@@ -169,6 +182,7 @@ void Sequence::SetLastFrameData(FSEQFile::FrameData* data) {
     }
 
     m_lastFrameData = data;
+    m_lastFrameNumber = data ? (int64_t)data->frame : -1;
 }
 
 /*
@@ -259,6 +273,21 @@ inline void checkForReplacementFile(const std::string &fname) {
 static constexpr int MISSING_SEQUENCE_WARNING_ID = 25;
 static constexpr int MISSING_SEQUENCE_WARNING_TIMEOUT = 30;
 
+// Sequence names already reported missing or invalid, so a playlist that keeps
+// coming round to them (or a master that keeps naming one in sync packets)
+// logs each once instead of every time: a repeating playlist of missing
+// sequences wrote some 150 KB of log every 5 s.  A name leaves the set when
+// it opens.  File-static (guarded by m_sequenceLock) because Sequence is
+// plugin-visible.
+static std::set<std::string> reportedMissingSequences;
+
+static bool FirstReportOfMissing(const std::string& name) {
+    if (reportedMissingSequences.size() > 256) {
+        reportedMissingSequences.clear();
+    }
+    return reportedMissingSequences.insert(name).second;
+}
+
 void Sequence::SetMissingSequenceWarning(const std::string& filename, const std::string& warning) {
     ClearMissingSequenceWarning();
     m_missingSeqFilename = filename;
@@ -301,17 +330,23 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     if (filename.find_first_of("/\\") != std::string::npos ||
         filename.find("..") != std::string::npos ||
         filename.find('\0') != std::string::npos) {
-        LogErr(VB_SEQUENCE, "Invalid Sequence Filename '%s'\n", filename.c_str());
         // The missing-sequence warning state is guarded by m_sequenceLock.
         // Leave m_seqStarting alone: a sequence that is open but not yet
         // started must not be flipped to "running" by a rejected request.
         std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+        if (FirstReportOfMissing(filename)) {
+            LogErr(VB_SEQUENCE, "Invalid Sequence Filename '%s'\n", filename.c_str());
+        } else {
+            LogDebug(VB_SEQUENCE, "Invalid Sequence Filename '%s'\n", filename.c_str());
+        }
         SetMissingSequenceWarning(filename, "Invalid sequence filename " + filename + "\n");
         return 0;
     }
 
     size_t bytesRead = 0;
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+    m_endedSeqFilename.clear();
+    const uint64_t openGeneration = ++m_openGeneration;
 
     if (m_seqFile.load()) {
         if (m_seqFilename == filename && m_seqStarting) {
@@ -331,10 +366,8 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     std::unique_lock<std::mutex> lock(frameCacheLock);
     if (std::shared_ptr<FSEQFile> old = m_seqFile.load()) {
         std::string fn = old->getFilename();
-        m_seqFile.store(nullptr);
-        commandPresets.clear();
-        effectsOn.clear();
-        effectsOff.clear();
+        setSeqFile(nullptr);
+        ForgetTriggers();
         checkForReplacementFile(fn);
     }
 
@@ -348,7 +381,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     lock.unlock();
     readLock.unlock();
 
-    m_seqPaused = 0;
+    seqFlag(m_seqPaused).store(0);
     m_seqMSDuration = 0;
     m_seqMSElapsed = 0;
     m_seqMSRemaining = 0;
@@ -361,6 +394,7 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
         std::unique_lock<std::mutex> nameLock(m_seqFilenameLock);
         m_seqFilename = filename;
     }
+    m_seqSyncName = filename;
 
     char tmpFilename[2048];
     unsigned char tmpData[2048];
@@ -404,7 +438,11 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
             }
 
         } else {
-            LogErr(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
+            if (FirstReportOfMissing(filename)) {
+                LogErr(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
+            } else {
+                LogDebug(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
+            }
             SetMissingSequenceWarning(filename, warning);
             m_seqStarting = 0;
             return 0;
@@ -413,14 +451,19 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 
     // We have a file to play (the requested one, or the fallback)
     ClearMissingSequenceWarning();
+    reportedMissingSequences.erase(filename);
 
     if (multiSync->isMultiSyncEnabled()) {
         seqLock.unlock();
         multiSync->SendSeqOpenPacket(filename);
         seqLock.lock();
+        if (openGeneration != m_openGeneration) {
+            LogDebug(VB_SEQUENCE, "Open of %s superseded by a later open while sending the open packet\n", filename.c_str());
+            return 0;
+        }
     }
 
-    m_seqFile.store(nullptr);
+    setSeqFile(nullptr);
     FSEQFile* seqFile = FSEQFile::openFSEQFile(tmpFilename);
     if (seqFile == NULL) {
         LogErr(VB_SEQUENCE, "Error opening sequence file: %s. FSEQFile::openFSEQFile returned NULL\n",
@@ -446,19 +489,19 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     seqFile->prepareRead(*GetOutputRangesSnapshot(), startFrame < 0 ? 0 : startFrame);
     // Calculate duration
     m_seqMSRemaining = seqFile->getNumFrames() * seqFile->getStepTime();
-    m_seqMSDuration = m_seqMSRemaining;
+    m_seqMSDuration = m_seqMSRemaining.load();
     m_seqMSElapsed = 0;
     SetChannelOutputRefreshRate(m_seqRefreshRate);
 
     // start reading frames
     lock.lock();
-    m_seqFile.store(std::shared_ptr<FSEQFile>(seqFile));
+    setSeqFile(std::shared_ptr<FSEQFile>(seqFile));
     lock.unlock();
     m_seqStarting = 1; // beyond header, read loop can start reading frames
     frameLoadSignal.notify_all();
-    m_seqPaused = 0;
-    m_seqSingleStep = 0;
-    m_seqSingleStepBack = 0;
+    seqFlag(m_seqPaused).store(0);
+    seqFlag(m_seqSingleStep).store(0);
+    seqFlag(m_seqSingleStepBack).store(0);
     m_dataProcessed = false;
     ProcessVariableHeaders();
     ReadSequenceData(true);
@@ -467,8 +510,8 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 
     m_numSeek = 0;
     LogDebug(VB_SEQUENCE, "seqRefreshRate        : %f\n", m_seqRefreshRate);
-    LogDebug(VB_SEQUENCE, "seqMSDuration         : %d\n", m_seqMSDuration);
-    LogDebug(VB_SEQUENCE, "seqMSRemaining        : %d\n", m_seqMSRemaining);
+    LogDebug(VB_SEQUENCE, "seqMSDuration         : %d\n", m_seqMSDuration.load());
+    LogDebug(VB_SEQUENCE, "seqMSRemaining        : %d\n", m_seqMSRemaining.load());
     return 1;
 }
 void Sequence::ProcessVariableHeaders() {
@@ -476,6 +519,7 @@ void Sequence::ProcessVariableHeaders() {
     if (!seqFile) {
         return;
     }
+    auto trig = std::make_shared<Triggers>();
     for (auto& vh : seqFile->getVariableHeaders()) {
         if (vh.code[0] != 'F' || (vh.code[1] != 'C' && vh.code[1] != 'E')) {
             continue;
@@ -527,6 +571,9 @@ void Sequence::ProcessVariableHeaders() {
                 truncated = true;
                 break;
             }
+            // The name is stored once (an _END twin for commands) and each
+            // range records only its index; see Triggers.
+            const uint32_t idx = (uint32_t)trig->names.size();
             for (uint32_t cc1 = 0; cc1 < cc; cc1++) {
                 uint32_t start = 0;
                 uint32_t stop = 0;
@@ -534,12 +581,18 @@ void Sequence::ProcessVariableHeaders() {
                     truncated = true;
                     break;
                 }
+                if (cc1 == 0) {
+                    trig->names.push_back(cmd);
+                    if (vh.code[1] == 'C') {
+                        trig->names.push_back(cmd + "_END");
+                    }
+                }
                 if (vh.code[1] == 'C') {
-                    commandPresets[start].push_back(cmd);
-                    commandPresets[stop].push_back(cmd + "_END");
+                    trig->commandPresets[start].push_back(idx);
+                    trig->commandPresets[stop].push_back(idx + 1);
                 } else {
-                    effectsOn[start].push_back(cmd);
-                    effectsOff[stop].push_back(cmd);
+                    trig->effectsOn[start].push_back(idx);
+                    trig->effectsOff[stop].push_back(idx);
                 }
             }
         }
@@ -548,6 +601,37 @@ void Sequence::ProcessVariableHeaders() {
                     vh.code[0], vh.code[1], m_seqFilename.c_str());
         }
     }
+    if (!trig->commandPresets.empty() || !trig->effectsOn.empty() || !trig->effectsOff.empty()) {
+        m_lastTriggeredFrame = -1;
+        setTriggers(trig);
+    }
+}
+
+// Drop the current file's triggers (open/close).  Effects the file started
+// are stopped from the main loop: this runs under m_sequenceLock, and on the
+// output thread when a sequence reaches its end, and StopEffect() can blank
+// the outputs.
+void Sequence::ForgetTriggers() {
+    setTriggers(nullptr);
+    m_lastTriggeredFrame = -1;
+    std::vector<std::string> running;
+    {
+        // Clearing the owner in the same critical section as the swap is what
+        // closes the window for an effect FireFrameTriggers() is starting
+        // right now: it either lands in `running` or sees the table closed.
+        std::unique_lock<std::mutex> l(m_triggerEffectsLock);
+        m_triggerEffectsOwner = nullptr;
+        running.swap(m_triggerEffects);
+    }
+    if (running.empty())
+        return;
+    {
+        std::unique_lock<std::mutex> l(m_pendingPresetsLock);
+        m_pendingEffectStops.insert(m_pendingEffectStops.end(), running.begin(), running.end());
+    }
+    Timers::INSTANCE.addTimer("SequencePresets", GetTimeMS(), [this]() {
+        drainPendingPresets();
+    });
 }
 
 void Sequence::queuePreset(const std::string& preset, std::map<std::string, std::string>&& keywords) {
@@ -570,6 +654,13 @@ void Sequence::queuePreset(const std::string& preset, std::map<std::string, std:
 
 void Sequence::drainPendingPresets() {
     std::unique_lock<std::mutex> l(m_pendingPresetsLock);
+    while (!m_pendingEffectStops.empty()) {
+        std::string eff = std::move(m_pendingEffectStops.front());
+        m_pendingEffectStops.pop_front();
+        l.unlock();
+        StopEffect(eff);
+        l.lock();
+    }
     while (!m_pendingPresets.empty()) {
         auto p = std::move(m_pendingPresets.front());
         m_pendingPresets.pop_front();
@@ -591,18 +682,28 @@ void Sequence::StartSequence() {
         m_seqStarting = 0;
         SetChannelOutputRefreshRate(m_seqRefreshRate);
         StartChannelOutputThread();
-    }
 
-    // Deferred to the main loop: callers can hold m_sequenceLock (recursively,
-    // via StartSequence(filename, frame)), and a preset that starts/stops a
-    // playlist takes m_playlistMutex - the reverse of the playlist thread's
-    // m_playlistMutex -> m_sequenceLock order.
-    queuePreset("SEQUENCE_STARTED", { { "SEQUENCE_NAME", seqName } });
+        // Only on an actual start.  It used to be queued on every call, and a
+        // remote whose copy of the sequence is missing calls this for every
+        // sync packet: the user's SEQUENCE_STARTED preset ran several times a
+        // second for the whole song, with no matching SEQUENCE_STOPPED.
+        //
+        // Deferred to the main loop: callers can hold m_sequenceLock
+        // (recursively, via StartSequence(filename, frame)), and a preset that
+        // starts/stops a playlist takes m_playlistMutex - the reverse of the
+        // playlist thread's m_playlistMutex -> m_sequenceLock order.
+        queuePreset("SEQUENCE_STARTED", { { "SEQUENCE_NAME", seqName } });
+    }
 }
 
 void Sequence::StartSequence(const std::string& filename, int frameNumber) {
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
-    if (sequence->m_seqFilename != filename) {
+    if ((frameNumber > 0) && (filename == m_endedSeqFilename)) {
+        // A sync packet for a sequence that already played to its end here
+        // (see m_endedSeqFilename).  A start (frame 0) or an open replays it.
+        return;
+    }
+    if ((sequence->m_seqFilename != filename) && (m_seqSyncName != filename)) {
         CloseSequenceFile();
         OpenSequenceFile(filename, frameNumber);
     } else if (!m_seqFile.load() && m_missingSeqFilename == filename) {
@@ -650,7 +751,9 @@ void Sequence::SeekSequenceFile(int frameNumber) {
         if ((frameNumber < 100) && (getFPPmode() == REMOTE_MODE)) {
             m_numSeek++;
             if (m_numSeek > 6) {
-                WarningHolder::AddWarning(17, "Multiple Frame Skips During Playback - Likely Slow Network");
+                // Timed: it is re-raised while the skipping continues and
+                // otherwise ages out, rather than staying up until a restart.
+                WarningHolder::AddWarningTimeout(600, 17, "Multiple Frame Skips During Playback - Likely Slow Network");
             }
         }
     }
@@ -663,8 +766,35 @@ std::string Sequence::GetSeqFilenameCopy() const {
     return m_seqFilename;
 }
 
+// The flag is set after its pointer is stored and cleared before the pointer
+// is dropped, so a reader that sees it set finds the pointer set too, as far
+// as any unlocked check can promise that.
+void Sequence::setSeqFile(std::shared_ptr<FSEQFile> f) {
+    if (f) {
+        m_seqFile.store(std::move(f));
+        m_haveSeqFile.store(true, std::memory_order_release);
+    } else {
+        m_haveSeqFile.store(false, std::memory_order_release);
+        m_seqFile.store(nullptr);
+    }
+}
+
+void Sequence::setTriggers(std::shared_ptr<Triggers> t) {
+    if (t) {
+        {
+            std::unique_lock<std::mutex> l(m_triggerEffectsLock);
+            m_triggerEffectsOwner = t.get();
+        }
+        m_triggers.store(std::move(t));
+        m_haveTriggers.store(true, std::memory_order_release);
+    } else {
+        m_haveTriggers.store(false, std::memory_order_release);
+        m_triggers.store(nullptr);
+    }
+}
+
 int Sequence::IsSequenceRunning(void) {
-    if (m_seqFile.load() && !m_seqStarting)
+    if (m_haveSeqFile.load(std::memory_order_acquire) && !m_seqStarting.load(std::memory_order_acquire))
         return 1;
 
     return 0;
@@ -674,7 +804,7 @@ int Sequence::IsSequenceRunning(const std::string& filename) {
     int result = 0;
 
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
-    if (sequence->m_seqFilename == filename)
+    if ((sequence->m_seqFilename == filename) || (!filename.empty() && (sequence->m_seqSyncName == filename)))
         result = sequence->IsSequenceRunning();
 
     return result;
@@ -687,10 +817,10 @@ void Sequence::BlankSequenceData(bool clearBridge) {
         memset(&m_seqData[a.first], 0, a.second);
     }
     if (m_bridgeData && clearBridge) {
+        std::unique_lock<std::mutex> lock(m_bridgeRangesLock);
         for (auto& a : *ranges) {
             memset(&m_bridgeData[a.first], 0, a.second);
         }
-        std::unique_lock<std::mutex> lock(m_bridgeRangesLock);
         m_bridgeRanges.clear();
         m_hasBridgeRanges.store(false, std::memory_order_relaxed);
     }
@@ -702,23 +832,20 @@ void Sequence::BlankSequenceData(bool clearBridge) {
 }
 
 int Sequence::SequenceIsPaused(void) {
-    return m_seqPaused;
+    return seqFlag(m_seqPaused).load();
 }
 
 void Sequence::ToggleSequencePause(void) {
-    if (m_seqPaused)
-        m_seqPaused = 0;
-    else
-        m_seqPaused = 1;
+    seqFlag(m_seqPaused).fetch_xor(1);
 }
 
 void Sequence::SingleStepSequence(void) {
-    m_seqSingleStep = 1;
+    seqFlag(m_seqSingleStep).store(1);
 }
 
 // Broken per issue #986
 void Sequence::SingleStepSequenceBack(void) {
-    m_seqSingleStepBack = 1;
+    seqFlag(m_seqSingleStepBack).store(1);
 }
 
 void Sequence::ReadSequenceData(bool forceFirstFrame) {
@@ -728,11 +855,10 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
         return;
     }
 
-    if ((IsSequenceRunning()) && (m_seqPaused)) {
-        if (m_seqSingleStep) {
-            m_seqSingleStep = 0;
-        } else if (m_seqSingleStepBack) {
-            m_seqSingleStepBack = 0;
+    if ((IsSequenceRunning()) && seqFlag(m_seqPaused).load(std::memory_order_relaxed)) {
+        if (seqFlag(m_seqSingleStep).exchange(0)) {
+            // one frame forward: read it as if playing
+        } else if (seqFlag(m_seqSingleStepBack).exchange(0)) {
             std::unique_lock<std::mutex> lock(frameCacheLock);
             if (!pastFrameCache.empty()) {
                 frameCache.push_front(pastFrameCache.back());
@@ -778,14 +904,25 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
 
             data->readFrame((uint8_t*)m_seqData, FPPD_MAX_CHANNELS);
             SetChannelOutputFrameNumber(data->frame);
-            m_seqMSElapsed = data->frame * m_seqStepTime;
-            m_seqMSRemaining = m_seqMSDuration - m_seqMSElapsed;
-            m_dataProcessed = false;
+            // Values for status and the playlist; nothing is published
+            // through them, so no ordering is needed.
+            const int elapsed = data->frame * m_seqStepTime;
+            m_seqMSElapsed.store(elapsed, std::memory_order_relaxed);
+            m_seqMSRemaining.store(m_seqMSDuration.load(std::memory_order_relaxed) - elapsed, std::memory_order_relaxed);
+            m_dataProcessed.store(false, std::memory_order_release);
         } else if (m_doneRead) {
             lock.unlock();
-            m_seqMSElapsed = m_seqMSDuration;
+            m_seqMSElapsed = m_seqMSDuration.load();
             m_seqMSRemaining = 0;
+            // Remember it by the name sync packets use (see m_seqSyncName).
+            std::string ended;
+            {
+                std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+                ended = m_seqSyncName.empty() ? m_seqFilename : m_seqSyncName;
+            }
             CloseSequenceFile();
+            std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+            m_endedSeqFilename = ended;
         } else {
             if (m_lastFrameRead > 0) {
                 // we'll have the read thread discard the frame
@@ -822,7 +959,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
 }
 
 void Sequence::ProcessSequenceData(int ms) {
-    if (m_dataProcessed) {
+    if (m_dataProcessed.load(std::memory_order_acquire)) {
         // we shouldn't normally be reprocessing the same data, so
         // if we are then see if we can start with a pristine copy
         std::unique_lock<std::mutex> lock(frameCacheLock);
@@ -831,16 +968,19 @@ void Sequence::ProcessSequenceData(int ms) {
     }
 
     if (m_bridgeData && hasBridgeData()) {
-        // Prune expired ranges and snapshot the live ones under the lock;
+        // Prune expired ranges and merge the live ones, all under the lock.
         // m_bridgeRanges is keyed by startChannel so the scratch vector comes
-        // out sorted. The memcpys below run after unlocking so the receive
-        // path is never blocked on the merge - the packet data itself was
-        // never protected by this lock anyway (the writer memcpys into
-        // m_bridgeData before taking it), so a concurrent packet can tear a
-        // universe mid-merge exactly as it always could.
-        uint64_t nt = GetTimeMS();
-        m_bridgeRangeScratch.clear();
+        // out sorted. WriteBridgeData() copies each packet in under the same
+        // lock, so a packet can no longer land halfway through this copy and
+        // send a universe half old, half new; the receive path waits at most
+        // for one merge's memcpys.
+        uint64_t nt = GetMonotonicTimeMS(); // expiries are monotonic (CommitBridgeRanges)
+        // The scratch vector is shared by every caller (the output thread and
+        // the inline SendBlankingData path), so it is cleared, filled and read
+        // only under the lock: a clear() racing another caller's emplace_back
+        // or iteration corrupts the vector.
         std::unique_lock<std::mutex> bridgesLock(m_bridgeRangesLock);
+        m_bridgeRangeScratch.clear();
         auto rit = m_bridgeRanges.begin();
         while (rit != m_bridgeRanges.end()) {
             BridgeRangeData& rd = rit->second;
@@ -862,7 +1002,6 @@ void Sequence::ProcessSequenceData(int ms) {
             }
         }
         m_hasBridgeRanges.store(!m_bridgeRanges.empty(), std::memory_order_relaxed);
-        bridgesLock.unlock();
 
         // copy the latest bridge data to the sequence data
         uint32_t curStart = 0xFFFFFFFF;
@@ -875,15 +1014,18 @@ void Sequence::ProcessSequenceData(int ms) {
                 memcpy(&m_seqData[curStart], &m_bridgeData[curStart], nextStart - curStart);
                 curStart = a.first;
                 nextStart = a.first + a.second;
-            } else if (a.first == nextStart) {
-                nextStart += a.second;
             } else {
-                nextStart += a.second - (nextStart - a.first);
+                // Adjacent or overlapping: extend the run, but never shrink it.
+                // This used to set it to the end of 'a', which cut the run
+                // short when 'a' lay entirely inside it (one input's universe
+                // inside another's range), dropping the earlier range's tail.
+                nextStart = std::max(nextStart, a.first + a.second);
             }
         }
         if (curStart != 0xFFFFFFFF) {
             memcpy(&m_seqData[curStart], &m_bridgeData[curStart], nextStart - curStart);
         }
+        bridgesLock.unlock();
     }
     PluginManager::INSTANCE.modifySequenceData(ms, (uint8_t*)m_seqData);
 
@@ -911,54 +1053,89 @@ void Sequence::ProcessSequenceData(int ms) {
     PluginManager::INSTANCE.modifyChannelData(ms, (uint8_t*)m_seqData);
 
     PrepareChannelData(m_seqData);
-    m_dataProcessed = true;
+    m_dataProcessed.store(true, std::memory_order_release);
 }
 
-void Sequence::SendSequenceData() {
-    if (m_lastFrameData) {
-        uint32_t frame = m_lastFrameData->frame;
-        if (!commandPresets.empty()) {
-            const auto& p = commandPresets.find(frame);
-            if (p != commandPresets.end()) {
-                // This runs on the channel output thread while the open/close
-                // paths can be reassigning the name on another thread.
-                std::string seqName = GetSeqFilenameCopy();
-                std::map<std::string, std::string> keywords({ { "SEQUENCE_NAME", seqName } });
-                uint32_t elapsedMS = frame * (uint32_t)m_seqStepTime;
-                uint32_t totalSeconds = elapsedMS / 1000;
-                char timeBuf[16];
-                snprintf(timeBuf, sizeof(timeBuf), "%02u:%02u.%03u",
-                         totalSeconds / 60, totalSeconds % 60, elapsedMS % 1000);
-                for (auto& cmd : p->second) {
-                    LogDebug(VB_COMMAND, "Sequence \"%s\" @ %s triggering preset \"%s\"\n", seqName.c_str(), timeBuf, cmd.c_str());
-                    // Deferred to the main loop: this thread holds
-                    // outputThreadLock for the whole frame, so running a
-                    // command here couples the output thread to every lock
-                    // any command can take (playlist, scheduler via
-                    // %VAR:fpp_*%, media...). The preset fires on the next
-                    // main-loop tick, a few ms after the frame it was
-                    // authored on.
-                    queuePreset(cmd, std::map<std::string, std::string>(keywords));
-                }
-            }
+void Sequence::FireFrameTriggers() {
+    // Triggers belong to frames, not to sends.  This runs on every output
+    // send, and used to fire whatever frame was current: the first frame's
+    // triggers went off two or three times (it is sent before the sequence
+    // starts, and a remote resends it until the start packet arrives), a held
+    // or paused frame re-fired every send, and a frame skipped by a catch-up
+    // jump -- often the one carrying an _END preset -- never fired.  Fire each
+    // frame's triggers once, only once the sequence has started, including the
+    // frames a small jump skipped; a large jump is a seek (a remote joining
+    // mid-song) and fires only the frame it lands on.
+    // Most files have no triggers: skip the locked load on every frame.
+    if (!m_haveTriggers.load(std::memory_order_acquire))
+        return;
+    std::shared_ptr<Triggers> trig = m_triggers.load();
+    int64_t frame = m_lastFrameNumber.load();
+    if (!trig || (frame < 0) || m_seqStarting)
+        return;
+    int64_t last = m_lastTriggeredFrame.load();
+    if (frame == last)
+        return;
+    int64_t maxCatchup = (m_seqStepTime > 0) ? (2000 / m_seqStepTime) : 40;
+    int64_t from = ((frame < last) || ((frame - last) > maxCatchup)) ? frame : last + 1;
+    m_lastTriggeredFrame = frame;
+
+    for (auto p = trig->commandPresets.lower_bound((uint32_t)from);
+         (p != trig->commandPresets.end()) && (p->first <= (uint64_t)frame); ++p) {
+        // This runs on the channel output thread while the open/close
+        // paths can be reassigning the name on another thread.
+        std::string seqName = GetSeqFilenameCopy();
+        std::map<std::string, std::string> keywords({ { "SEQUENCE_NAME", seqName } });
+        uint32_t elapsedMS = p->first * (uint32_t)m_seqStepTime;
+        uint32_t totalSeconds = elapsedMS / 1000;
+        char timeBuf[16];
+        snprintf(timeBuf, sizeof(timeBuf), "%02u:%02u.%03u",
+                 totalSeconds / 60, totalSeconds % 60, elapsedMS % 1000);
+        for (uint32_t idx : p->second) {
+            const std::string& cmd = trig->names[idx];
+            LogDebug(VB_COMMAND, "Sequence \"%s\" @ %s triggering preset \"%s\"\n", seqName.c_str(), timeBuf, cmd.c_str());
+            // Deferred to the main loop: this thread holds
+            // outputThreadLock for the whole frame, so running a
+            // command here couples the output thread to every lock
+            // any command can take (playlist, scheduler via
+            // %VAR:fpp_*%, media...). The preset fires on the next
+            // main-loop tick, a few ms after the frame it was
+            // authored on.
+            queuePreset(cmd, std::map<std::string, std::string>(keywords));
         }
-        if (!effectsOn.empty()) {
-            const auto& eop = effectsOn.find(frame);
-            if (eop != effectsOn.end()) {
-                for (auto& eff : eop->second) {
-                    StartEffect(eff, 0, 1);
-                }
-            }
-        }
-        if (!effectsOff.empty()) {
-            const auto& efp = effectsOff.find(frame);
-            if (efp != effectsOff.end()) {
-                for (auto& eff : efp->second) {
-                    StopEffect(eff);
-                }
+    }
+    for (auto e = trig->effectsOn.lower_bound((uint32_t)from);
+         (e != trig->effectsOn.end()) && (e->first <= (uint64_t)frame); ++e) {
+        for (uint32_t idx : e->second) {
+            const std::string& eff = trig->names[idx];
+            StartEffect(eff, 0, 1);
+            std::unique_lock<std::mutex> l(m_triggerEffectsLock);
+            if (m_triggerEffectsOwner == trig.get()) {
+                m_triggerEffects.push_back(eff);
+            } else {
+                // The file closed (ForgetTriggers) while this frame was
+                // firing, after it took the running list: nothing else will
+                // stop this effect, so stop it here, as effectsOff does.
+                l.unlock();
+                StopEffect(eff);
             }
         }
     }
+    for (auto e = trig->effectsOff.lower_bound((uint32_t)from);
+         (e != trig->effectsOff.end()) && (e->first <= (uint64_t)frame); ++e) {
+        for (uint32_t idx : e->second) {
+            const std::string& eff = trig->names[idx];
+            StopEffect(eff);
+            std::unique_lock<std::mutex> l(m_triggerEffectsLock);
+            auto it = std::find(m_triggerEffects.begin(), m_triggerEffects.end(), eff);
+            if (it != m_triggerEffects.end())
+                m_triggerEffects.erase(it);
+        }
+    }
+}
+
+void Sequence::SendSequenceData() {
+    FireFrameTriggers();
     SendChannelData(m_seqData);
 }
 
@@ -971,9 +1148,11 @@ void Sequence::SendBlankingData(void) {
 
     BlankSequenceData(true);
 
-    if (ChannelOutputThreadIsRunning() && ChannelOutputThreadIsEnabled()) {
-        ForceChannelOutputNow();
-    } else {
+    if (!ChannelOutputThreadIsEnabled() || !ForceChannelOutputNow()) {
+        // Driving the outputs from this thread: hold off an output reload's
+        // teardown, which would otherwise free an output mid-send (it only
+        // excluded the output thread).
+        std::unique_lock<std::recursive_mutex> inlineLock(inlineOutputLock);
         ProcessSequenceData(0);
         SendSequenceData();
     }
@@ -981,7 +1160,7 @@ void Sequence::SendBlankingData(void) {
 
 void Sequence::CloseIfOpen(const std::string& filename) {
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
-    if (m_seqFilename == filename)
+    if ((m_seqFilename == filename) || (m_seqSyncName == filename))
         CloseSequenceFile();
 }
 
@@ -1005,7 +1184,7 @@ void Sequence::CloseSequenceFile(void) {
     if (std::shared_ptr<FSEQFile> old = m_seqFile.load()) {
         std::string fn = old->getFilename();
         std::unique_lock<std::mutex> fclock(frameCacheLock);
-        m_seqFile.store(nullptr);
+        setSeqFile(nullptr);
         fclock.unlock();
         checkForReplacementFile(fn);
 
@@ -1013,10 +1192,14 @@ void Sequence::CloseSequenceFile(void) {
         // readFileLock (and on the channel output thread when the sequence
         // ends via ReadSequenceData), so firing the preset here inverts
         // against the playlist thread's m_playlistMutex -> m_sequenceLock.
-        queuePreset("SEQUENCE_STOPPED", { { "SEQUENCE_NAME", m_seqFilename } });
-        commandPresets.clear();
-        effectsOn.clear();
-        effectsOff.clear();
+        if (!m_seqStarting) {
+            // Only for a sequence that started, to pair with SEQUENCE_STARTED
+            // (which fires only on an actual start).  Closing one that was
+            // opened and never started -- the next playlist entry prepared,
+            // then a stop -- used to fire a STOPPED with no STARTED.
+            queuePreset("SEQUENCE_STOPPED", { { "SEQUENCE_NAME", m_seqFilename } });
+        }
+        ForgetTriggers();
     }
     readLock.unlock();
 
@@ -1031,7 +1214,8 @@ void Sequence::CloseSequenceFile(void) {
         std::unique_lock<std::mutex> nameLock(m_seqFilenameLock);
         m_seqFilename = "";
     }
-    m_seqPaused = 0;
+    m_seqSyncName.clear();
+    seqFlag(m_seqPaused).store(0);
 
     if ((!IsEffectRunning()) &&
             ((getFPPmode() != REMOTE_MODE) &&
@@ -1052,14 +1236,21 @@ bool Sequence::WriteBridgeData(uint8_t* data, int startChannel, int len) {
     }
 
     if (!m_bridgeData) {
-        m_bridgeData = (uint8_t*)calloc(1, FPPD_MAX_CHANNEL_NUM);
-    }
-    // Guard against out-of-range bridging data so it cannot write past
-    // m_bridgeData (FPPD_MAX_CHANNEL_NUM). Unsigned arithmetic avoids overflow.
-    if (startChannel < 0 || len < 0 ||
-        ((unsigned long long)startChannel + (unsigned long long)len) > (unsigned long long)FPPD_MAX_CHANNEL_NUM) {
         return false;
     }
+    // Guard against out-of-range bridging data.  The bound is the real
+    // channels, FPPD_MAX_CHANNELS: the bytes after them are the reserved OFF
+    // and WHITE channels, which outputs read as "always 0" for null pixels and
+    // smart-receiver lead-in/out, and bridged data merged into them turned
+    // those on.  Unsigned arithmetic avoids overflow.
+    if (startChannel < 0 || len < 0 ||
+        ((unsigned long long)startChannel + (unsigned long long)len) > (unsigned long long)FPPD_MAX_CHANNELS) {
+        return false;
+    }
+    // Under the ranges lock, which ProcessSequenceData() holds while it
+    // copies the bridge buffer out: a packet landing mid-copy sent a universe
+    // half old, half new.
+    std::unique_lock<std::mutex> lock(m_bridgeRangesLock);
     memcpy(&m_bridgeData[startChannel], data, len);
     return true;
 }

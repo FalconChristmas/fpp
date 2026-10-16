@@ -11,6 +11,7 @@
  * included LICENSE.LGPL file.
  */
 
+#include <atomic>
 #include <pthread.h>
 #include "fpp-json-fwd.h"
 #include <memory>
@@ -22,8 +23,10 @@
 class ChannelOutput;
 class OutputProcessors;
 
-extern unsigned long channelOutputFrame;
-extern float mediaElapsedSeconds;
+// Advanced by the output thread and set by MultiSync and media sync from
+// theirs; read by status from any thread.
+extern std::atomic<unsigned long> channelOutputFrame;
+extern std::atomic<float> mediaElapsedSeconds;
 extern OutputProcessors outputProcessors;
 
 bool HasChannelOutputs();

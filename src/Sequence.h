@@ -67,12 +67,14 @@ public:
     int SequenceIsPaused(void);
 
     bool hasBridgeData();
-    bool isDataProcessed() const { return m_dataProcessed; }
+    bool isDataProcessed() const { return m_dataProcessed.load(std::memory_order_acquire); }
     void setDataNotProcessed() { m_dataProcessed = false; }
 
-    int m_seqMSDuration;
-    int m_seqMSElapsed;
-    int m_seqMSRemaining;
+    // Advanced by the output thread every frame and read by status, the
+    // playlist and the crash handler from other threads.
+    std::atomic_int m_seqMSDuration;
+    std::atomic_int m_seqMSElapsed;
+    std::atomic_int m_seqMSRemaining;
     char* m_seqData;
     std::string m_seqFilename;
 
@@ -93,6 +95,7 @@ public:
     int GetSeqStepTime() const { return m_seqStepTime; }
     void BlankSequenceData(bool clearBridge = false);
 
+    // expireMS is on the GetMonotonicTimeMS() clock.
     void SetBridgeData(uint8_t* data, int startChannel, int len, uint64_t expireMS);
 
     // Bridge data arrives in bursts (one recvmmsg drain can be hundreds of
@@ -143,17 +146,43 @@ private:
 
     AtomicSharedPtr<FSEQFile> m_seqFile;
 
-    volatile int m_seqStarting;
+    // 2 while a file opens, 1 once its header is read, 0 when it plays. Set
+    // by whichever thread opens or starts the sequence; read by the
+    // read-ahead thread, the output thread and status.
+    std::atomic_int m_seqStarting;
     int m_seqPaused;
     int m_seqStepTime;
     int m_seqSingleStep;
     int m_seqSingleStepBack;
     float m_seqRefreshRate;
     int m_remoteBlankCount;
-    bool m_dataProcessed;
+    // Set by whichever thread processed the frame (normally the output
+    // thread) and cleared by the bridge receive path and sequence loads.
+    std::atomic<bool> m_dataProcessed;
     int m_numSeek;
 
     int m_blankBetweenSequences;
+
+    // A sequence that played to its end, until the next open.  Guarded by
+    // m_sequenceLock.  A remote whose copy is shorter than the master's
+    // finishes first, and every later sync packet for it used to reopen the
+    // file at a frame past its end -- several reopens a second, each firing
+    // SEQUENCE_STARTED/STOPPED, until the master stopped.
+    std::string m_endedSeqFilename;
+
+    // The name the sequence was opened as -- the master's name for it -- even
+    // when a remote is playing fallback.fseq in its place.  m_seqFilename names
+    // the file actually playing; sync packets and stop packets carry this one.
+    // Matching sync against m_seqFilename alone meant a fallback never took the
+    // master's position (so the output thread gave up after two seconds) and
+    // was never stopped by the master's stop.  Guarded by m_sequenceLock.
+    std::string m_seqSyncName;
+
+    // Bumped by every OpenSequenceFile() under m_sequenceLock.  The open drops
+    // that lock while it sends the MultiSync open packet; if another open ran
+    // in that window, the older one stands down instead of replacing the newer
+    // file with its own (leaving the newer one's caches and triggers behind).
+    uint64_t m_openGeneration = 0;
 
     // Both guarded by m_sequenceLock.
     std::string m_missingSeqFilename;
@@ -168,7 +197,8 @@ private:
 
     std::atomic_int m_lastFrameRead;
     volatile bool m_doneRead;
-    volatile bool m_shuttingDown;
+    // Set by the destructor while the read-ahead thread is still checking it.
+    std::atomic<bool> m_shuttingDown;
     std::thread* m_readThread;
     std::list<FSEQFile::FrameData*> frameCache;
     std::list<FSEQFile::FrameData*> pastFrameCache;
@@ -179,9 +209,44 @@ private:
     std::condition_variable frameLoadSignal;
     std::condition_variable frameLoadedSignal;
 
-    std::map<uint32_t, std::vector<std::string>> commandPresets;
-    std::map<uint32_t, std::vector<std::string>> effectsOn;
-    std::map<uint32_t, std::vector<std::string>> effectsOff;
+    // Frame-triggered presets and effects from the file's FC/FE variable
+    // headers.  Built whole by ProcessVariableHeaders() and published with the
+    // file; the output thread reads a snapshot.  They used to be plain maps
+    // that open/close cleared and refilled while the output thread was
+    // looking things up in them.
+    //
+    // Each command/effect name is stored once in `names` and the frame maps
+    // hold indexes into it.  An FC/FE block gives a name followed by its frame
+    // ranges, and copying the name into every range let one long name with a
+    // few million ranges expand a small header into hundreds of MB.
+    struct Triggers {
+        std::vector<std::string> names;
+        std::map<uint32_t, std::vector<uint32_t>> commandPresets;
+        std::map<uint32_t, std::vector<uint32_t>> effectsOn;
+        std::map<uint32_t, std::vector<uint32_t>> effectsOff;
+    };
+    AtomicSharedPtr<Triggers> m_triggers;
+    // Frame number of m_lastFrameData (-1 for none), set with it under
+    // frameCacheLock, so the output thread can read it without the lock --
+    // and without touching a frame another thread may be freeing.
+    std::atomic<int64_t> m_lastFrameNumber{ -1 };
+    // Last frame whose triggers have fired; reset when a file opens.
+    std::atomic<int64_t> m_lastTriggeredFrame{ -1 };
+    // FE-started effects still running.  They loop, so they are stopped when
+    // the sequence closes rather than left running after it.
+    std::mutex m_triggerEffectsLock;
+    std::vector<std::string> m_triggerEffects;
+    // The trigger table m_triggerEffects belongs to, or null once it has been
+    // forgotten (closed).  Guarded by m_triggerEffectsLock.  The output thread
+    // can be inside FireFrameTriggers() with a snapshot of the old table while
+    // the close swaps m_triggerEffects out; an effect it starts after that
+    // swap would be recorded in a list nobody stops.  It checks this under the
+    // same lock and stops such an effect itself.  Compared only against a
+    // table the caller still holds a reference to, so the address cannot have
+    // been reused.
+    const Triggers* m_triggerEffectsOwner = nullptr;
+    void FireFrameTriggers();
+    void ForgetTriggers();
 
     // Sequence-fired presets (SEQUENCE_STARTED/SEQUENCE_STOPPED and the FSEQ
     // frame-triggered commands) must never run at the call site: the open/close
@@ -193,6 +258,8 @@ private:
     // in FIFO order by a main-loop timer with no sequence locks held.
     std::mutex m_pendingPresetsLock;
     std::list<std::pair<std::string, std::map<std::string, std::string>>> m_pendingPresets;
+    // Effects to stop, drained with the presets for the same reason.
+    std::list<std::string> m_pendingEffectStops;
 
 public:
     // Also used by outputs that fire presets from the output thread (the
@@ -200,6 +267,18 @@ public:
     void queuePreset(const std::string& preset, std::map<std::string, std::string>&& keywords);
 
     void ReadFramesLoop();
+
+private:
+    // Whether m_seqFile and m_triggers are set, so the per-frame checks
+    // (IsSequenceRunning(), FireFrameTriggers()) need no lock: an
+    // AtomicSharedPtr load is a mutex and a refcount round trip, about 0.5 us
+    // on an AM335x, and the output thread asks several times a frame.  Both
+    // pointers are stored only through setSeqFile()/setTriggers(), which keep
+    // these in step.  Declared last so no existing member moves.
+    std::atomic<bool> m_haveSeqFile{ false };
+    std::atomic<bool> m_haveTriggers{ false };
+    void setSeqFile(std::shared_ptr<FSEQFile> f);
+    void setTriggers(std::shared_ptr<Triggers> t);
 };
 
 extern Sequence* sequence;

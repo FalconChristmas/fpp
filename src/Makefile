@@ -141,8 +141,29 @@ fpp-pch.h.gch: CFLAGS := $(CFLAGS)
 # as was common_mini.h one level under common.h).  Editing one of those left
 # make reporting the .gch up to date, and every TU then compiled against the
 # stale declarations in it.
-fpp-pch.h.gch: fpp-pch.h Makefile makefiles/*.mk makefiles/platform/*.mk
-	CCACHE_NOHARDLINK=true CCACHE_COMPRESS=true $(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(DEPFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
+#
+# A .gch is only valid under the kernel page size it was written with: gcc lays
+# out its GC pages in it by getpagesize() and mmaps the body from a page-aligned
+# file offset, and checks neither when loading it.  One written under a 4K-page
+# kernel and loaded under a 16K one makes cc1plus segfault at a different place
+# in every TU.  Nothing else notices a kernel switch: make sees the .gch as up
+# to date, and ccache caches .gch creation (FPP images set sloppiness
+# pch_defines,time_macros) keyed on the compiler and inputs only, so even a
+# clean rebuild gets the old page size's .gch back.  Rebuild it when the page
+# size changes, and put the page size in its ccache key.  4K is the implicit
+# default for both -- no stamp means 4096, and a 4K .gch keeps an unchanged
+# ccache key -- so the common case never writes a stamp or rebuilds the .gch
+# for it, and still hits the published caches and every existing one.
+PCH_PAGESIZE := $(shell getconf PAGESIZE)
+PCH_PAGESIZE_STAMP := .pch-pagesize
+ifneq ($(shell cat $(PCH_PAGESIZE_STAMP) 2>/dev/null || echo 4096),$(PCH_PAGESIZE))
+$(shell echo "$(PCH_PAGESIZE)" > $(PCH_PAGESIZE_STAMP))
+endif
+ifneq '$(PCH_PAGESIZE)' '4096'
+PCH_CCACHE_NAMESPACE := CCACHE_NAMESPACE="$${CCACHE_NAMESPACE}pagesize$(PCH_PAGESIZE)"
+endif
+fpp-pch.h.gch: fpp-pch.h Makefile makefiles/*.mk makefiles/platform/*.mk $(wildcard $(PCH_PAGESIZE_STAMP))
+	$(PCH_CCACHE_NAMESPACE) CCACHE_NOHARDLINK=true CCACHE_COMPRESS=true $(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(DEPFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $(SRCDIR)$< -o $@
 	shasum $(PCH_FILE) > $(PCH_FILE).sum
 endif
 
@@ -183,7 +204,7 @@ cleanfpp:
 # leave the PCH_FILE versions there so if a different filename contruct is used
 # in the future, it may be cleaned
 clean::
-	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(DEPFILES) $(TARGETS) $(TARGETS_PHP) $(PCH_FILE) $(PCH_FILE).sum fpp-pch.h.gch fpp-pch.h.gch.sum fpp-pch.h.d
+	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(DEPFILES) $(TARGETS) $(TARGETS_PHP) $(PCH_FILE) $(PCH_FILE).sum fpp-pch.h.gch fpp-pch.h.gch.sum fpp-pch.h.d .pch-pagesize
 
 restart: fppd
 	sudo ../scripts/fppd_stop

@@ -118,9 +118,6 @@
       "name": "proxy"
     },
     {
-      "name": "recurringtasks"
-    },
-    {
       "name": "remoteAction"
     },
     {
@@ -1302,6 +1299,40 @@
         }
       }
     },
+    "/api/channel/output/serialDevices": {
+      "get": {
+        "tags": [
+          "channel"
+        ],
+        "summary": "Get serial devices",
+        "description": "Lists the serial devices on the system and, for each, a name for it that survives a reboot. USB adapters are numbered in the order they are found, so ttyUSB0 can be a different adapter after a reboot; `stable` is its /dev/serial/by-id link where the adapter has a USB serial number, else its by-path link, which follows the USB socket. Any of these names can be used as the `device` of a serial channel output.",
+        "responses": {
+          "200": {
+            "description": "Serial devices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "devices": [
+                    {
+                      "device": "ttyUSB0",
+                      "stable": "serial/by-id/usb-FTDI_USB__-__Serial_Converter_A1B2C3D4-if00-port0",
+                      "byId": "serial/by-id/usb-FTDI_USB__-__Serial_Converter_A1B2C3D4-if00-port0",
+                      "byPath": "serial/by-path/platform-xhci-hcd.0-usb-0:1.3:1.0-port0",
+                      "usbSerial": "A1B2C3D4",
+                      "description": "FTDI USB <-> Serial Converter"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/channel/output/{file}": {
       "parameters": [
         {
@@ -1758,6 +1789,10 @@
         "x-badges": [
           {
             "name": "FPP UI ONLY",
+            "color": "#b25e00"
+          },
+          {
+            "name": "USER CONSENT REQUIRED",
             "color": "#b25e00"
           }
         ],
@@ -3155,6 +3190,47 @@
         }
       }
     },
+    "/api/fppd/recurringtasks": {
+      "get": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/recurringtasks",
+        "description": "Report the configured Recurring Tasks merged with last-run status, for the Recurring Tasks admin page (www/recurringtasks.php).",
+        "responses": {
+          "200": {
+            "description": "{\"tasks\": [...]}"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "fppd"
+        ],
+        "summary": "fppd/recurringtasks",
+        "description": "Re-read config/recurringtasks.json and re-schedule all Recurring Task timers to match, so a save on www/recurringtasks.php (which writes that file via the generic api/configfile endpoint) takes effect without an fppd restart. Also handles an immediate \"Test Run\" of one task, run synchronously against the posted task definition (not a saved name), so the admin page can preview unsaved edits.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "command": "reload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recurring tasks reloaded, or {\"ok\":bool,\"raw\":string,\"filtered\":string,\"error\":string} for \"test\"."
+          },
+          "400": {
+            "description": "'command' field not specified."
+          }
+        }
+      }
+    },
     "/api/fppd/schedule": {
       "get": {
         "tags": [
@@ -3494,10 +3570,10 @@
           "geoip"
         ],
         "summary": "GeoIP lookup",
-        "description": "Server-side proxy for ipapi.co's IP geolocation lookup, used by the Timezone/GeoLocation \"Lookup\"/\"Detect\" buttons. It is fetched here rather than from the browser so that only the PLAYER's address is disclosed, and only when somebody presses the button -- and so that no third-party host has to appear in the CSP, which is where the rest of the UI has deliberately ended up.  (ipapi.co does send Access-Control-Allow-Origin: *, so a browser-side call is not blocked by CORS the way an older comment here claimed; connect-src is the only thing stopping it, and that is ours to decide rather than a technical obstacle.) The response also carries an `fpp` object naming the settings the lookup implies, so the mapping lives in one place instead of being reimplemented in the browser.  Every one of them is a SEED: the buttons fill the fields in, the user sees the result and can change it, and nothing is saved until they finish setup.  Any field the lookup cannot determine is simply absent, so the caller leaves that control alone rather than asserting a wrong answer. Note geoip resolves the PUBLIC IP: it says where the device reaches the internet, not where the device is.  Fine for something shown and correctable, which is the only way it is used.",
+        "description": "Server-side proxy for an IP geolocation lookup, used by the Timezone/GeoLocation \"Lookup\"/\"Detect\" buttons.  ipapi.co is asked first and ipwho.is only if ipapi.co gives no answer (see GeoIPProviders()). It is fetched here rather than from the browser so that only the PLAYER's address is disclosed, and only when somebody presses the button -- and so that no third-party host has to appear in the CSP, which is where the rest of the UI has deliberately ended up.  (Both services send Access-Control-Allow-Origin: *, so a browser-side call is not blocked by CORS the way an older comment here claimed; connect-src is the only thing stopping it, and that is ours to decide rather than a technical obstacle.) The response also carries an `fpp` object naming the settings the lookup implies, so the mapping lives in one place instead of being reimplemented in the browser.  Every one of them is a SEED: the buttons fill the fields in, the user sees the result and can change it, and nothing is saved until they finish setup.  Any field the lookup cannot determine is simply absent, so the caller leaves that control alone rather than asserting a wrong answer. Note geoip resolves the PUBLIC IP: it says where the device reaches the internet, not where the device is.  Fine for something shown and correctable, which is the only way it is used.",
         "responses": {
           "200": {
-            "description": "ipapi.co's JSON response, plus the settings it implies",
+            "description": "The lookup's response in ipapi.co's field names, plus the settings it implies",
             "content": {
               "application/json": {
                 "schema": {
@@ -4987,7 +5063,7 @@
           "overlays"
         ],
         "summary": "overlays/model/{model}/fill",
-        "description": "Fill an overlay model with a solid color. Body: `{\"RGB\":[r,g,b]}` or `{\"Value\":v}`.",
+        "description": "Fill an overlay model with a solid color. Body: `{\"RGB\":[r,g,b]}` or `{\"Value\":v}`. Ends any effect running on the model, which would otherwise draw over the fill.",
         "responses": {
           "200": {
             "description": "Model filled."
@@ -5035,7 +5111,7 @@
           "overlays"
         ],
         "summary": "overlays/model/{model}/pixel",
-        "description": "Set a single pixel in an overlay model. Body: `{\"X\":x,\"Y\":y,\"RGB\":[r,g,b]}`.",
+        "description": "Set a single pixel in an overlay model. Body: `{\"X\":x,\"Y\":y,\"RGB\":[r,g,b]}`. A running effect carries on (and draws over it); a pending Stop Effects is cancelled.",
         "responses": {
           "200": {
             "description": "Pixel set."
@@ -5062,7 +5138,7 @@
         "description": "Get the per-pixel virtual-display coordinates for a model, for a lightweight layout preview. Sourced from config/virtualdisplaymap (the xLights-exported layout) and returned on demand so the UI never has to inline this data (which can be hundreds of thousands of points per model) for every model at once.",
         "responses": {
           "200": {
-            "description": "Object with a `pixels` array of [x, y, channel] triples."
+            "description": "Object with a `pixels` array of [x, y, z, node] entries in node"
           }
         }
       }
@@ -5107,7 +5183,7 @@
           "overlays"
         ],
         "summary": "overlays/model/{model}/state",
-        "description": "Set an overlay model's active state. Body: `{\"State\": <int>}`.",
+        "description": "Set an overlay model's active state. Body: `{\"State\": <int>}`. A running effect carries on; a pending Stop Effects is cancelled.",
         "responses": {
           "200": {
             "description": "State updated."
@@ -6345,6 +6421,23 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "No playlist by that name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "Error",
+                  "Message": "Playlist not found: UploadTest"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The playlist file is not valid JSON"
           }
         }
       },
@@ -7913,54 +8006,13 @@
         }
       }
     },
-    "/api/recurringtasks": {
-      "get": {
-        "tags": [
-          "recurringtasks"
-        ],
-        "summary": "recurringtasks",
-        "description": "Report the configured Recurring Tasks merged with last-run status, for the Recurring Tasks admin page (www/recurringtasks.php).",
-        "responses": {
-          "200": {
-            "description": "{\"tasks\": [...]}"
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "recurringtasks"
-        ],
-        "summary": "recurringtasks",
-        "description": "Re-read config/recurringtasks.json and re-schedule all Recurring Task timers to match, so a save on www/recurringtasks.php (which writes that file via the generic api/configfile endpoint) takes effect without an fppd restart. Also handles an immediate \"Test Run\" of one task, run synchronously against the posted task definition (not a saved name), so the admin page can preview unsaved edits.",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              },
-              "example": {
-                "command": "reload"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Recurring tasks reloaded, or {\"ok\":bool,\"raw\":string,\"filtered\":string,\"error\":string} for \"test\"."
-          },
-          "400": {
-            "description": "'command' field not specified."
-          }
-        }
-      }
-    },
     "/api/remoteAction": {
       "get": {
         "tags": [
           "remoteAction"
         ],
         "summary": "Proxy a command to remote FPP",
-        "description": "Proxies a named action to a remote FPP instance by IP address. Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`.",
+        "description": "Proxies a named action to a remote FPP instance by IP address. Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`, `updateLog` (the remote's running FPP/OS update, with its log tail).",
         "responses": {
           "400": {
             "description": "Invalid action",
@@ -9246,6 +9298,36 @@
         }
       }
     },
+    "/api/system/updateActivity": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Update activity for the persistent progress UI",
+        "description": "Reports whether an FPP software or OS update is currently running, derived from logs/fpp_system_upgrades.log markers plus worker process liveness, so any browser (including one opened mid-update or after a refresh) can show the live progress. Pass `?logTail=1&lines=200` to include the run's log.",
+        "responses": {
+          "200": {
+            "description": "Update activity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "inProgress": true,
+                  "op": "fpp-update",
+                  "kind": "FPP Update",
+                  "runId": "abc",
+                  "stage": "Building FPP (longest step, please wait)",
+                  "fppdBinaryExists": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/system/updateStatus": {
       "get": {
         "tags": [
@@ -9275,41 +9357,6 @@
                   "isEndOfLife": false,
                   "latestMajorVersion": 9,
                   "checked": true
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/system/updateActivity": {
-      "get": {
-        "tags": [
-          "system"
-        ],
-        "summary": "Get update activity",
-        "description": "Reports whether an FPP software or OS update is currently running, derived from logs/fpp_system_upgrades.log markers plus worker process liveness, so any browser can show the live progress. Pass `?logTail=1&lines=200` to include the run's log.",
-        "responses": {
-          "200": {
-            "description": "Update activity",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                },
-                "example": {
-                  "status": "OK",
-                  "inProgress": true,
-                  "op": "fpp-update",
-                  "target": "master",
-                  "kind": "FPP Update",
-                  "runId": "abc123",
-                  "stage": "Building FPP (longest step, please wait)",
-                  "logUpdatedAt": 1728000000,
-                  "logSize": 123456,
-                  "stale": false,
-                  "fppdBinaryExists": true,
-                  "failed": false
                 }
               }
             }

@@ -196,7 +196,9 @@ foreach ($areas as $area) {
         if (preg_match('/[?\*]/', $file)) {
             $filesInDir = glob($base . $file); // get all file names
             foreach ($filesInDir as $fileToRemove) { // iterate files
-                if (is_file($fileToRemove)) {
+                // A link goes, never what it points at: plugins/, music/ and
+                // the like are often links to a USB stick or another folder.
+                if (is_link($fileToRemove) || is_file($fileToRemove)) {
                     printf("%s\n", $fileToRemove);
                     unlink($fileToRemove); // delete file
                 } else if (is_dir($fileToRemove)) {
@@ -204,12 +206,14 @@ foreach ($areas as $area) {
                     $ri = new RecursiveIteratorIterator($di, RecursiveIteratorIterator::CHILD_FIRST);
                     foreach ($ri as $fileToRemove2) {
                         printf("%s\n", $fileToRemove2);
-                        $fileToRemove2->isDir() ? rmdir($fileToRemove2) : unlink($fileToRemove2);
+                        // Not followed (no FOLLOW_SYMLINKS), but isDir() is
+                        // true for a link to a directory, and rmdir() on it fails.
+                        (!$fileToRemove2->isLink() && $fileToRemove2->isDir()) ? rmdir($fileToRemove2) : unlink($fileToRemove2);
                     }
                     rmdir($fileToRemove);
                 }
             }
-        } else if (file_exists($base . $file)) {
+        } else if (is_link($base . $file) || file_exists($base . $file)) {
             printf("%s%s\n", $base, $file);
             unlink($base . $file); // delete file
         }

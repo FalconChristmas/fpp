@@ -308,7 +308,8 @@
 				"Service_rsync",
 				"Service_smbd_nmbd",
 				"Service_vsftpd",
-				"Service_MQTT_localbroker"
+				"Service_MQTT_localbroker",
+				"AllowCrossOriginAPI"
 			]
 		},
 		"kiosk": {
@@ -1848,6 +1849,9 @@
 				],
 				"nocc": [
 					"DistccHosts"
+				],
+				"nocc-zeroconf": [
+					"NoccDiscoverWireless"
 				]
 			}
 		},
@@ -1863,6 +1867,37 @@
 			"type": "text",
 			"size": 60,
 			"maxlength": 256
+		},
+		"NoccDiscoverWireless": {
+			"name": "NoccDiscoverWireless",
+			"description": "Enable NOCC discovery across Wireless Networks",
+			"tip": "When enabled this will add an additional 3 seconds to allow NOCC helper discovery over Wi-Fi networks.",
+			"level": 3,
+			"restart": 0,
+			"reboot": 0,
+			"default": "0",
+			"type": "checkbox",
+			"checkedValue": "1",
+			"uncheckedValue": "0"
+		},
+		"Pi16KPageKernel": {
+			"name": "Pi16KPageKernel",
+			"description": "Use 16K-Page Kernel",
+			"tip": "Pi 5 family only, 64-bit images only.  Boots the Pi 5's 16K-page kernel (kernel_2712.img) instead of the 4K-page kernel8.img.  The 64-bit image ships it disabled, as some libraries FPP uses are not compatible with 16K pages; this is for testing them.  Reboot required.",
+			"level": 3,
+			"gatherStats": true,
+			"restart": 0,
+			"reboot": 1,
+			"default": "0",
+			"platforms": [
+				"Raspberry Pi"
+			],
+			"checkFile": [
+				"/boot/firmware/kernel_2712.img.fpp-disabled"
+			],
+			"type": "checkbox",
+			"checkedValue": "1",
+			"uncheckedValue": "0"
 		},
 		"gitBranch": {
 			"name": "gitBranch",
@@ -2967,6 +3002,15 @@
 			"platforms": [
 				"!MacOS"
 			]
+		},
+		"AllowCrossOriginAPI": {
+			"name": "AllowCrossOriginAPI",
+			"description": "Let other websites read the API",
+			"gatherStats": true,
+			"tip": "Lets a web page served from somewhere else (a dashboard on another computer, say) read this player's API from the browser.  Any web site you visit can then read it too, including the cape serial number and the settings, unless a UI password is set.  FPP's own pages, xLights and other apps that are not web pages do not need this.",
+			"level": 1,
+			"type": "checkbox",
+			"default": "0"
 		},
 		"ShareCrashData": {
 			"name": "ShareCrashData",

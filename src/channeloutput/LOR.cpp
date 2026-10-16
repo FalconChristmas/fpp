@@ -14,99 +14,35 @@
 
 #include "fpp-json.h"
 
-#include <sys/ioctl.h>
-#include <algorithm>
-#include <condition_variable>
 #include <cstdint>
 #include <fcntl.h>
-#include <mutex>
 #include <termios.h>
-#include <thread>
 #include <unistd.h>
 
 #include "../Warnings.h"
 #include "../common.h"
 #include "../log.h"
 
-#include "SerialChannelOutput.h"
+#include "LORSerial.h"
 
 #include "LOR.h"
 
 #define LOR_INTENSITY_SIZE 6
-#define LOR_HEARTBEAT_SIZE 5
 #define LOR_MAX_CHANNELS 3840
 #define LOR_MAX_UNIT_ID 0xF0
-
-// Marks a channel whose state on the unit is not known: never sent since the
-// output opened, or its command was cut off by a short write.
-#define LOR_UNKNOWN 0x100
-
-// A frame's commands go out in one write(), capped below what the tty can
-// queue so the non-blocking fd never drops the tail of a batch.
-#define LOR_MAX_BATCH_SIZE 4096
 #define LOR_MAX_BATCH_CMDS (LOR_MAX_BATCH_SIZE / LOR_INTENSITY_SIZE)
-
-// Units go inactive after 2 seconds without a heartbeat and can need several
-// before they act on commands again, so the heartbeat runs for as long as the
-// port is open, not only while frames are being sent.
-#define LOR_HEARTBEAT_INTERVAL 300000
-
-// Frame interval assumed for the first frame, and the range a measured
-// interval is clamped to when sizing a frame's byte budget.
-#define LOR_DEFAULT_FRAME_TIME 50000
-#define LOR_MIN_FRAME_TIME 10000
-#define LOR_MAX_FRAME_TIME 100000
-
-// Shortest time the background refresh takes to resend every channel.
-#define LOR_REFRESH_PERIOD 1000000
 
 /////////////////////////////////////////////////////////////////////////////
 
-class LOROutputData : public SerialChannelOutput {
+class LOROutputData : public LORSerialOutput {
 public:
-    LOROutputData() :
-        SerialChannelOutput() {
+    LOROutputData() {
         for (int i = 0; i < LOR_MAX_CHANNELS; i++) {
             lastValue[i] = LOR_UNKNOWN;
         }
     }
-    ~LOROutputData() {
-        StopHeartbeat();
-    }
 
-    void StartHeartbeat() {
-        stopHeartbeat = false;
-        heartbeatThread = std::thread([this]() { HeartbeatLoop(); });
-    }
-    void StopHeartbeat() {
-        if (heartbeatThread.joinable()) {
-            {
-                std::unique_lock<std::mutex> lk(lock);
-                stopHeartbeat = true;
-            }
-            heartbeatCond.notify_all();
-            heartbeatThread.join();
-        }
-    }
-    void HeartbeatLoop() {
-        static const unsigned char heartbeat[LOR_HEARTBEAT_SIZE] = { 0x00, 0xFF, 0x81, 0x56, 0x00 };
-        std::unique_lock<std::mutex> lk(lock);
-        while (!stopHeartbeat) {
-            long long now = GetTime();
-            if (now - lastHeartbeat >= LOR_HEARTBEAT_INTERVAL) {
-                // Holding the lock keeps the heartbeat from landing inside a
-                // frame's write; it always starts on a command boundary.
-                write(getFD(), heartbeat, LOR_HEARTBEAT_SIZE);
-                lastHeartbeat = now;
-            }
-            heartbeatCond.wait_for(lk, std::chrono::milliseconds(50));
-        }
-    }
-
-    int speed = 19200;
     int controllerOffset = 0;
-    long long lastHeartbeat = 0;
-    long long lastFrame = 0;
     unsigned char intensityMap[256];
 
     // What each unit was last sent, or LOR_UNKNOWN.
@@ -125,11 +61,6 @@ public:
     unsigned char batchData[LOR_MAX_BATCH_SIZE];
     int batchChannel[LOR_MAX_BATCH_CMDS];
     int batchCount = 0;
-
-    std::mutex lock;
-    std::condition_variable heartbeatCond;
-    std::thread heartbeatThread;
-    bool stopHeartbeat = false;
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -211,6 +142,13 @@ int LOROutput::Init(Json::Value config) {
             data->controllerOffset -= 1;
         }
     }
+    // SendData() refuses (and logged) every frame of an output larger than
+    // LOR can address: say so once, here, and don't start it.
+    if (m_channelCount > LOR_MAX_CHANNELS) {
+        LogErr(VB_CHANNELOUT, "LOR carries at most %d channels, %u configured\n",
+               LOR_MAX_CHANNELS, m_channelCount);
+        return 0;
+    }
     if (!data->setupSerialPort(config, data->speed, "8N1")) {
         return 0;
     }
@@ -256,21 +194,9 @@ int LOROutput::SendData(unsigned char* channelData) {
         return m_channelCount;
     }
 
-    // Budget the frame to what the wire can carry before the next one, less
-    // whatever is still queued in the tty.  Writing more only builds a backlog
-    // that delays the lights behind the audio, and once the tty is full the
-    // non-blocking write drops bytes.  Changes that do not fit stay pending
-    // (lastValue is untouched) and go out on a later frame.
-    long long now = GetTime();
-    long long frameTime = data->lastFrame ? now - data->lastFrame : LOR_DEFAULT_FRAME_TIME;
-    data->lastFrame = now;
-    frameTime = std::clamp(frameTime, (long long)LOR_MIN_FRAME_TIME, (long long)LOR_MAX_FRAME_TIME);
-    long long budget = (long long)data->speed / 10 * frameTime / 1000000;
-    int queued = 0;
-    if (ioctl(data->getFD(), TIOCOUTQ, &queued) == 0 && queued > 0) {
-        budget -= queued;
-    }
-    int maxCmds = (int)std::clamp(budget / LOR_INTENSITY_SIZE, 0LL, (long long)LOR_MAX_BATCH_CMDS);
+    // Changes that do not fit the frame's budget stay pending (lastValue is
+    // untouched) and go out on a later frame.
+    int maxCmds = data->FrameBudget() / LOR_INTENSITY_SIZE;
 
     data->frameNumber++;
     data->batchCount = 0;
@@ -294,7 +220,7 @@ int LOROutput::SendData(unsigned char* channelData) {
     // channels per LOR_REFRESH_PERIOD so a small setup is not resent
     // constantly.
     int refreshCmds = std::min(maxCmds - data->batchCount, std::max(1, maxCmds / 4));
-    refreshCmds = std::min(refreshCmds, (int)((count * frameTime + LOR_REFRESH_PERIOD - 1) / LOR_REFRESH_PERIOD));
+    refreshCmds = std::min(refreshCmds, (int)((count * data->frameTime + LOR_REFRESH_PERIOD - 1) / LOR_REFRESH_PERIOD));
     for (int checked = 0; checked < count && refreshCmds > 0; checked++) {
         int ch = data->refreshAt;
         if (++data->refreshAt >= count) {
@@ -308,16 +234,12 @@ int LOROutput::SendData(unsigned char* channelData) {
 
     if (data->batchCount) {
         int len = data->batchCount * LOR_INTENSITY_SIZE;
-        int written;
-        {
-            std::unique_lock<std::mutex> lk(data->lock);
-            written = write(data->getFD(), data->batchData, len);
-        }
+        int written = data->WriteBatch(data->batchData, len);
         if (written < len) {
             // Every command starts with 0x00, which flushes the unit's
             // buffer, so a cut-off command is discarded.  Its channel and
             // every one after it has to be resent.
-            for (int c = std::max(written, 0) / LOR_INTENSITY_SIZE; c < data->batchCount; c++) {
+            for (int c = written / LOR_INTENSITY_SIZE; c < data->batchCount; c++) {
                 data->lastValue[data->batchChannel[c]] = LOR_UNKNOWN;
             }
         }
