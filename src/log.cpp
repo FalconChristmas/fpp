@@ -438,7 +438,10 @@ void _LogWrite(const char* file, int line, int level, FPPLoggerInstance& facilit
     // Same gate as the char* overload -- a ring-only line still has to reach it.
     if (!WillLog(level, facility) && !CrashLogRingWillCapture(level, facility))
         return;
-    _LogWrite(file, line, level, facility, str.c_str());
+    // The string is the message, not a format: callers build it from
+    // sequence names, config values and exception text, and a '%' there
+    // used to be read as a conversion with no argument behind it.
+    _LogWrite(file, line, level, facility, "%s", str.c_str());
 }
 
 // Append msg to out, applying prefix to EVERY physical line.

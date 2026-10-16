@@ -149,7 +149,7 @@ int RGBMatrixOutput::Init(Json::Value config) {
         std::string errStr = "RGBMatrix cannot run with snd_bcm2835 enabled.   Please reboot.";
         AddOutputConfigWarning(50, errStr);
         errStr += "\n";
-        LogErr(VB_CHANNELOUT, errStr.c_str());
+        LogErr(VB_CHANNELOUT, errStr);
         return false;
     }
 

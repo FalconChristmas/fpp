@@ -755,7 +755,7 @@ int UDPOutput::Init(Json::Value config) {
                     // trying to send UDP data to myself, that's bad.  Disable
                     std::string msg = "UDP Output set to send data to myself.  Disabling ";
                     msg += host.c_str();
-                    LogWarn(VB_CHANNELOUT, msg.c_str());
+                    LogWarn(VB_CHANNELOUT, msg);
                     AddOutputConfigWarning(6, msg);
                     o->active = false;
                 }
