@@ -122,18 +122,26 @@ static void finishOp(MDNSManager* mgr, BonjourState* st, DNSServiceRef ref) {
 
 // Put a ref's socket in the main loop.  Returns false if the ref has no usable
 // socket, in which case the caller frees it.
-static bool watchRef(MDNSManager* mgr, BonjourState* st, DNSServiceRef ref, const char* what) {
+//
+// onDead clears whatever slot owns the ref when it fails (mDNSResponder
+// restarting fails every ref at once): finishOp() frees it here, and a slot
+// left pointing at it made StopBackend() free it a second time.
+static bool watchRef(MDNSManager* mgr, BonjourState* st, DNSServiceRef ref, const char* what,
+                     std::function<void()> onDead = nullptr) {
     int fd = DNSServiceRefSockFD(ref);
     if (fd < 0) {
         LogWarn(VB_SYNC, "MDNS: no socket for %s\n", what);
         return false;
     }
-    std::function<bool(int)> f = [mgr, st, ref, what](int) {
+    std::function<bool(int)> f = [mgr, st, ref, what, onDead](int) {
         DNSServiceErrorType err = DNSServiceProcessResult(ref);
         if (err != kDNSServiceErr_NoError) {
             // The ref is dead once this fails; nothing further will arrive on it.
             LogWarn(VB_SYNC, "MDNS: %s failed (%d), dropping it\n", what, (int)err);
             finishOp(mgr, st, ref);
+            if (onDead) {
+                onDead();
+            }
         }
         // Never true: a true return is fppd's signal that bridge data is ready
         // to push out, which this is not.
@@ -290,7 +298,8 @@ void MDNSManager::StartBackend() {
     DNSServiceErrorType err = DNSServiceRegister(&reg, 0, 0, m_serviceName.c_str(), FPPD_SERVICE,
                                                  nullptr, nullptr, htons(FPPD_PORT), 0, nullptr,
                                                  register_callback, this);
-    if (err == kDNSServiceErr_NoError && reg && watchRef(this, st, reg, "_fppd._udp registration")) {
+    if (err == kDNSServiceErr_NoError && reg &&
+        watchRef(this, st, reg, "_fppd._udp registration", [this]() { m_entryGroup = nullptr; })) {
         m_entryGroup = reg;
         LogInfo(VB_SYNC, "MDNS service registration initiated for %s.%s on port %d\n",
                 m_serviceName.c_str(), FPPD_SERVICE, (int)FPPD_PORT);
@@ -318,7 +327,7 @@ void MDNSManager::StartBackend() {
                                                       register_callback, this);
         TXTRecordDeallocate(&txt);
         if (werr == kDNSServiceErr_NoError && wreg &&
-            watchRef(this, st, wreg, "_wled._tcp registration")) {
+            watchRef(this, st, wreg, "_wled._tcp registration", [st]() { st->wledRegisterRef = nullptr; })) {
             st->wledRegisterRef = wreg;
             LogDebug(VB_SYNC, "MDNS %s on port %d (mac=%s)\n", WLED_SERVICE, (int)WLED_PORT, mac.c_str());
         } else {
@@ -344,7 +353,14 @@ void MDNSManager::StartBackend() {
         DNSServiceRef bref = nullptr;
         DNSServiceErrorType berr = DNSServiceBrowse(&bref, 0, 0, b.type, nullptr,
                                                     browse_callback, op);
-        if (berr == kDNSServiceErr_NoError && bref && watchRef(this, st, bref, b.type)) {
+        void** slot = b.slot;
+        if (berr == kDNSServiceErr_NoError && bref &&
+            watchRef(this, st, bref, b.type, [slot, op]() {
+                if (*slot == op) {
+                    *slot = nullptr;
+                }
+                delete op;
+            })) {
             op->ref = bref;
             *b.slot = op; // the op owns the ref; freed in StopBackend()
             WarningHolder::RemoveWarning(43, std::string("Network discovery: could not browse for ") + b.type);
