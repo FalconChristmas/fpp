@@ -160,9 +160,23 @@ MosquittoClient::MosquittoClient(const std::string& host, const int port,
  *
  */
 MosquittoClient::~MosquittoClient() {
-    mosquitto_loop_stop(m_mosq, true);
-
-    sleep(1);
+    // Stop the network thread by disconnecting and joining it, not by
+    // cancelling it.  A cancel lands at whatever cancellation point the thread
+    // has reached, which can be inside a message callback running a command,
+    // and the catch (...) that guards those callbacks swallows the forced
+    // unwind, which aborts the process on the way out.  A clean disconnect
+    // means the broker drops our will, but shutdown has already published
+    // "ready" = 0 itself (Events::PrepareForShutdown), ahead of the
+    // DISCONNECT in the same queue.
+    //
+    // The connect/disconnect callbacks go first: the disconnect this causes
+    // would otherwise run HandleDisconnect(), whose timer captures this object.
+    if (m_mosq) {
+        mosquitto_connect_callback_set(m_mosq, nullptr);
+        mosquitto_disconnect_callback_set(m_mosq, nullptr);
+        mosquitto_disconnect(m_mosq);
+        mosquitto_loop_stop(m_mosq, false);
+    }
 
     mosquitto_destroy(m_mosq);
     mqtt = NULL;
