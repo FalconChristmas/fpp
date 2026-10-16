@@ -23,6 +23,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <vector>
 #include "fpp-json-fwd.h"
 #include <condition_variable>
 #include "fpphttp_types.h"
@@ -111,7 +112,12 @@ public:
 
     Json::Value getActiveOverlayEffects();
 
+    // The list itself: only safe to walk while holding modelsLock, since an
+    // output reload removes auto-created models from it on the main loop.
+    // Kept (inline, plugin ABI) for plugins; FPP's own threads that don't
+    // hold the lock use getModelNamesSnapshot().
     const std::list<std::string>& getModelNames() const { return modelNames; };
+    std::vector<std::string> getModelNamesSnapshot();
 
     // Bumped whenever the set of models changes -- a (re)load of
     // model-overlays.json, an auto-created model appearing or going away, or a

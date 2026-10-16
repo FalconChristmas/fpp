@@ -702,6 +702,11 @@ const std::string& PixelOverlayManager::mapFont(const std::string& f) {
     return EMPTY_STR;
 }
 
+std::vector<std::string> PixelOverlayManager::getModelNamesSnapshot() {
+    std::unique_lock<std::recursive_mutex> lock(modelsLock);
+    return std::vector<std::string>(modelNames.begin(), modelNames.end());
+}
+
 Json::Value PixelOverlayManager::getModelsAsJson() {
     Json::Value ret;
     std::unique_lock<std::recursive_mutex> lock(modelsLock);

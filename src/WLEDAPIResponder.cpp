@@ -627,7 +627,7 @@ std::string WLEDAPIResponder::BuildInfoJson() {
     Json::Value leds(Json::objectValue);
     int totalPixels = 0;
     int segCount = 0;
-    for (const auto& name : PixelOverlayManager::INSTANCE.getModelNames()) {
+    for (const auto& name : PixelOverlayManager::INSTANCE.getModelNamesSnapshot()) {
         auto m = PixelOverlayManager::INSTANCE.getModelShared(name);
         if (!m) continue;
         int w = m->getWidth();
@@ -685,7 +685,7 @@ std::string WLEDAPIResponder::BuildStateJson() {
     bool anyOn = false;
     int idx = 0;
     const auto& effects = PixelOverlayEffect::GetPixelOverlayEffects();
-    for (const auto& name : PixelOverlayManager::INSTANCE.getModelNames()) {
+    for (const auto& name : PixelOverlayManager::INSTANCE.getModelNamesSnapshot()) {
         auto m = PixelOverlayManager::INSTANCE.getModelShared(name);
         if (!m) continue;
 
@@ -791,8 +791,7 @@ void WLEDAPIResponder::ApplyStatePost(const std::string& jsonBody) {
     }
 
     // Snapshot the current model name list as a vector so we can index it.
-    const auto& nameList = PixelOverlayManager::INSTANCE.getModelNames();
-    std::vector<std::string> modelNames(nameList.begin(), nameList.end());
+    std::vector<std::string> modelNames = PixelOverlayManager::INSTANCE.getModelNamesSnapshot();
 
     if (!root.isObject()) {
         return;
