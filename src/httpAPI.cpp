@@ -97,7 +97,9 @@ extern std::atomic_int runMainFPPDLoop;
 // Monotonic, so the reported uptime survives a wall-clock step (NTP, an RTC
 // that boots in the past) instead of going negative or jumping by hours.
 static long long startupTimeMS = GetMonotonicTimeMS();
-static bool piPowerBad = false;
+// Read by status requests on the HTTP threads, written by periodicWork() on
+// the main loop.
+static std::atomic<bool> piPowerBad{ false };
 
 /*
  Build a Status JSON String
@@ -123,7 +125,7 @@ void GetCurrentFPPDStatus(Json::Value& result) {
     result["status"] = Player::INSTANCE.GetStatus();
     result["bridging"] = HasBridgeData();
     result["multisync"] = multiSync->isMultiSyncEnabled();
-    result["powerBad"] = piPowerBad;
+    result["powerBad"] = piPowerBad.load();
 
     result["channelInputsEnabled"] = InputsEnabled();
     result["channelOutputsEnabled"] = HasUniverseOutputs();
@@ -715,7 +717,19 @@ void APIServer::Init(void) {
         // is by definition reached with a malformed name), so truncate before
         // logging rather than let a caller choose how many bytes of fppd.log a
         // single rejected request consumes.
-        if (name.empty() || name.find('/') != std::string::npos) {
+        // The name becomes a path under the plugin directory, so "." and ".."
+        // would name the plugin directory itself or the media directory above
+        // it.  Same rule as the PHP plugin API: ^[A-Za-z0-9_.-]+$, less those
+        // two.
+        bool validName = !name.empty() && name != "." && name != "..";
+        for (char c : name) {
+            if (!validName) {
+                break;
+            }
+            validName = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
+                        c == '_' || c == '.' || c == '-';
+        }
+        if (!validName) {
             LogWarn(VB_PLUGIN, "API - Rejected plugin %s request for invalid plugin name \"%s\" from %s\n",
                     TruncateForLog(action).c_str(), TruncateForLog(name).c_str(), clientIP.c_str());
             callback(makeStringResponse("{\"Status\":\"ERROR\",\"Message\":\"invalid plugin name\"}",
@@ -1976,15 +1990,31 @@ void PlayerResource::periodicWork() {
         if (s.starts_with("throttled=0x")) {
             s = s.substr(12);
             uint32_t res = std::stol(s, nullptr, 16);
-            piPowerBad = res & 0x1;
-            if (piPowerBad) {
+            bool bad = res & 0x1;
+            piPowerBad = bad;
+            // Shared by the add and the remove: RemoveWarning() matches on the
+            // exact text.
+            constexpr int PI_POWER_WARNING_ID = 15;
+            constexpr const char* PI_POWER_WARNING_MSG = "Raspberry Pi Voltage Too Low";
+            // The banner goes up after more than 5 bad readings in a row and
+            // comes down after more than 5 good ones, so a supply hovering at
+            // the threshold doesn't flap it.  It used to stay up until fppd
+            // restarted, long after the supply had been fixed.
+            static int goodCount = 0;
+            if (bad) {
+                goodCount = 0;
                 piPowerWarningCount++;
                 if (piPowerWarningCount > 5 && !piPowerWarningAdded) {
-                    WarningHolder::AddWarning(15, "Raspberry Pi Voltage Too Low");
+                    WarningHolder::AddWarning(PI_POWER_WARNING_ID, PI_POWER_WARNING_MSG);
                     piPowerWarningAdded = true;
                 }
             } else {
                 piPowerWarningCount = 0;
+                if (piPowerWarningAdded && ++goodCount > 5) {
+                    WarningHolder::RemoveWarning(PI_POWER_WARNING_ID, PI_POWER_WARNING_MSG);
+                    piPowerWarningAdded = false;
+                    goodCount = 0;
+                }
             }
         }
 #endif
