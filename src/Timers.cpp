@@ -17,6 +17,7 @@
 #include <list>
 #include <mutex>
 #include <string>
+#include <map>
 #include <vector>
 
 #include "common.h"
@@ -28,6 +29,20 @@
 Timers Timers::INSTANCE;
 
 Timers::Timers() {
+}
+
+// Bumped (under Timers::lock) whenever a named timer is stopped or replaced.
+// fireTimersInternal() copies every due timer before running any of them, so
+// without this a timer that an earlier callback in the same pass stopped --
+// a plugin's unload stopping its own periodic timer, then deleting the
+// plugin -- still ran once from its copy.  Kept here rather than in TimerInfo
+// because Timers.h is plugin ABI.
+static std::map<std::string, uint64_t> s_timerEpoch;
+
+static void BumpTimerEpoch(const std::string& name) {
+    if (!name.empty()) {
+        s_timerEpoch[name]++;
+    }
 }
 
 // A caller's GetTimeMS() deadline as a GetMonotonicTimeMS() one.
@@ -48,6 +63,7 @@ void Timers::addTimer(const std::string& name, long long fireTimeMS, std::functi
     if (!name.empty()) {
         for (auto& a : timers) {
             if (a && a->id == name) {
+                BumpTimerEpoch(name);
                 a->fireTimeMS = WallToMonotonic(fireTimeMS);
                 a->callback = callback;
                 a->commandPreset = "";
@@ -75,6 +91,7 @@ void Timers::addTimer(const std::string& name, long long fireTimeMS, const std::
                 // the old entry's callback and periodic rate turned a preset
                 // aimed at an internal timer's id ("FileMonitor") into a preset
                 // fired every 2s for good, and that timer's own work never ran.
+                BumpTimerEpoch(name);
                 a->fireTimeMS = WallToMonotonic(fireTimeMS);
                 a->commandPreset = preset;
                 a->callback = nullptr;
@@ -104,6 +121,7 @@ void Timers::addPeriodicTimer(const std::string& name, long long fireTimeMS, std
     if (!name.empty()) {
         for (auto& a : timers) {
             if (a && a->id == name) {
+                BumpTimerEpoch(name);
                 a->fireTimeMS = GetMonotonicTimeMS() + firstDelay;
                 a->periodicRate = fireTimeMS;
                 a->callback = callback;
@@ -124,6 +142,9 @@ void Timers::addPeriodicTimer(const std::string& name, long long fireTimeMS, std
 void Timers::stopPeriodicTimer(const std::string& name) {
     std::unique_lock<std::mutex> l(lock);
     if (!name.empty()) {
+        // Even if it isn't in the list: a one-shot already taken out to fire
+        // in the current pass must not run after being stopped either.
+        BumpTimerEpoch(name);
         for (int x = 0; x < timers.size(); ++x) {
             auto a = timers[x];
             if (a && a->id == name) {
@@ -142,7 +163,7 @@ void Timers::fireTimersInternal(long long t) {
     // stopPeriodicTimer() from another thread deletes it, and a periodic timer
     // that stops or re-adds itself from its own callback destroys or replaces
     // the std::function that is executing. Fire private copies instead.
-    std::list<TimerInfo> toFire;
+    std::list<std::pair<TimerInfo, uint64_t>> toFire; // copy, epoch when copied
 
     std::unique_lock<std::mutex> l(lock);
     int m = timers.size();
@@ -150,20 +171,29 @@ void Timers::fireTimersInternal(long long t) {
     for (int x = 0; x < m; ++x) {
         auto a = timers[x];
         if (a && (a->fireTimeMS <= t)) {
+            uint64_t epoch = a->id.empty() ? 0 : s_timerEpoch[a->id];
             if (a->periodicRate) {
                 a->fireTimeMS = GetMonotonicTimeMS() + a->periodicRate;
-                toFire.push_back(*a);
+                toFire.emplace_back(*a, epoch);
             } else {
-                toFire.push_back(std::move(*a));
+                toFire.emplace_back(std::move(*a), epoch);
                 delete a;
                 timers[x] = nullptr;
             }
         }
     }
     l.unlock();
-    for (auto& a : toFire) {
+    // The list changed (one-shots taken out, periodic deadlines moved) even
+    // if every callback below turns out to be skipped, so re-arm regardless.
+    fired = !toFire.empty();
+    for (auto& [a, epoch] : toFire) {
+        if (!a.id.empty()) {
+            std::unique_lock<std::mutex> el(lock);
+            if (s_timerEpoch[a.id] != epoch) {
+                continue; // stopped or replaced by an earlier callback this pass
+            }
+        }
         fireTimer(&a);
-        fired = true;
     }
     if (fired) {
         l.lock();
