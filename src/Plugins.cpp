@@ -1279,21 +1279,41 @@ void PluginManager::finishUnload(PendingUnload& p) {
         LogInfo(VB_PLUGIN, "Unloaded plugin %s\n", p.name.c_str());
     }
 }
+// Plugin callbacks run on the main loop (MultiSync plugin packets arrive from
+// any LAN sender) and on API threads.  Nothing above them catches, so a plugin
+// that throws would terminate fppd; contain it here and log which plugin it was.
+template<class P, class F>
+static void CallIntoPlugin(P* p, const char* what, F&& f) {
+    try {
+        f();
+    } catch (...) {
+        FPPPlugins::Plugin* named = dynamic_cast<FPPPlugins::Plugin*>(p);
+        std::string name = named ? named->getName() : "(unnamed)";
+        try {
+            throw;
+        } catch (const std::exception& ex) {
+            LogErr(VB_PLUGIN, "Plugin %s threw from %s: %s\n", name.c_str(), what, ex.what());
+        } catch (...) {
+            LogErr(VB_PLUGIN, "Plugin %s threw a non-standard exception from %s\n", name.c_str(), what);
+        }
+    }
+}
+
 void PluginManager::multiSyncData(const std::string& pn, uint8_t* data, int len) {
     for (auto a : mPlugins) {
         if (a->getName() == pn) {
-            a->multiSyncData(data, len);
+            CallIntoPlugin(a, "multiSyncData", [&]() { a->multiSyncData(data, len); });
         }
     }
 }
 void PluginManager::playlistCallback(const Json::Value& playlist, const std::string& action, const std::string& section, int item) {
     for (auto a : mPlaylistPlugins) {
-        a->playlistCallback(playlist, action, section, item);
+        CallIntoPlugin(a, "playlistCallback", [&]() { a->playlistCallback(playlist, action, section, item); });
     }
 }
 void PluginManager::playlistInserted(const std::string& playlist, const int position, int endPosition, bool immediate) {
     for (auto a : mPlaylistPlugins) {
-        a->playlistInserted(playlist, position, endPosition, immediate);
+        CallIntoPlugin(a, "playlistInserted", [&]() { a->playlistInserted(playlist, position, endPosition, immediate); });
     }
 }
 

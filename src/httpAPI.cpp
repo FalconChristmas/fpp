@@ -733,9 +733,22 @@ void APIServer::Init(void) {
         auto result = std::make_shared<std::promise<std::pair<bool, std::string>>>();
         auto done = result->get_future();
         Timers::INSTANCE.addTimer(timerName, GetTimeMS(), [result, name, load]() {
+            // This runs plugin code (constructor, registerApis, shutdown,
+            // destructor) on the main loop, where nothing else catches.
             std::string err;
-            bool ok = load ? PluginManager::INSTANCE.loadPlugin(name, err)
-                           : PluginManager::INSTANCE.unloadPlugin(name, err);
+            bool ok = false;
+            try {
+                ok = load ? PluginManager::INSTANCE.loadPlugin(name, err)
+                          : PluginManager::INSTANCE.unloadPlugin(name, err);
+            } catch (const std::exception& ex) {
+                err = std::string("plugin threw: ") + ex.what();
+                LogErr(VB_PLUGIN, "%s plugin \"%s\" threw: %s\n", load ? "Loading" : "Unloading",
+                       TruncateForLog(name).c_str(), ex.what());
+            } catch (...) {
+                err = "plugin threw a non-standard exception";
+                LogErr(VB_PLUGIN, "%s plugin \"%s\" threw a non-standard exception\n", load ? "Loading" : "Unloading",
+                       TruncateForLog(name).c_str());
+            }
             result->set_value({ ok, err });
         });
 
