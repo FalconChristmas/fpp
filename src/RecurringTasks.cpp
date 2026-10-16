@@ -15,6 +15,7 @@
 #include "fpp-json.h"
 
 #include <chrono>
+#include <set>
 #include <thread>
 
 #include "RecurringTasks.h"
@@ -45,6 +46,14 @@ static constexpr long long MIN_TASK_INTERVAL_MS = 30000;
 // value lands in its Variable - plenty fine against a 30s interval floor.
 static constexpr long long PENDING_POLL_MS = 100;
 static const std::string PENDING_POLL_TIMER_NAME = "RecurringTasks-pendingPoll";
+
+// Timers is one namespace shared by every subsystem, and a task's name is
+// whatever the user typed: a task named after a core timer (or the poll timer
+// above) replaced that timer when it started and stopped it on the next
+// Reload().  Every task timer carries this prefix, which no other timer uses.
+static std::string TaskTimerName(const std::string& taskName) {
+    return "RecurringTask:" + taskName;
+}
 
 RecurringTasks RecurringTasks::INSTANCE;
 
@@ -169,6 +178,7 @@ void RecurringTasks::load() {
         return;
     }
     Json::Value root = LoadJsonFromFile(file, JsonRoot::Array);
+    std::set<std::string> names;
     for (auto const& j : root) {
         // A task with a value of the wrong JSON type threw out of ParseTask()
         // at startup, to std::terminate; skip that task instead.
@@ -195,6 +205,14 @@ void RecurringTasks::load() {
                     task.name.c_str(), (long long)task.intervalMS, (long long)MIN_TASK_INTERVAL_MS);
             task.intervalMS = MIN_TASK_INTERVAL_MS;
         }
+        // The name keys the timer, the overlap guard and the status column,
+        // so a second task with the same name would replace the first one's
+        // timer and share its bookkeeping.  Keep the first.
+        if (!names.insert(task.name).second) {
+            LogWarn(VB_GENERAL, "RecurringTasks: skipping task \"%s\" - another task already has that name\n",
+                    task.name.c_str());
+            continue;
+        }
         tasks.push_back(task);
     }
     std::unique_lock<std::mutex> l(m_tasksLock);
@@ -218,7 +236,7 @@ void RecurringTasks::startTimers() {
         }
         long long stagger = (index * 1000LL) % task.intervalMS;
         Timers::INSTANCE.addPeriodicTimer(
-            task.name, task.intervalMS, [this, task]() {
+            TaskTimerName(task.name), task.intervalMS, [this, task]() {
                 runTask(task);
             },
             stagger);
@@ -234,7 +252,7 @@ void RecurringTasks::Init() {
 void RecurringTasks::Close() {
     std::unique_lock<std::mutex> l(m_tasksLock);
     for (auto& task : m_tasks) {
-        Timers::INSTANCE.stopPeriodicTimer(task.name);
+        Timers::INSTANCE.stopPeriodicTimer(TaskTimerName(task.name));
     }
 }
 
