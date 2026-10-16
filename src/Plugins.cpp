@@ -79,42 +79,29 @@ namespace FPPPlugins
                         continue;
                     }
 
-                    char *key = NULL, *value = NULL; // These are values we're looking for and will
-                    // run through trimwhitespace which means they
-                    // must be freed before we are done.
-
-                    char* saveptr = nullptr;
-                    char* token = strtok_r(line, "=", &saveptr);
-                    if (!token) {
-                        continue;
-                    }
-
-                    key = trimwhitespace(token);
+                    // Split on the first '=' only and drop exactly one pair of
+                    // surrounding quotes, as LoadSettings() reads FPP's own
+                    // settings file: splitting on every '=' cut values such as
+                    // base64 secrets short, and every quote was trimmed.
+                    std::string l(line, read);
+                    size_t eq = l.find('=');
+                    char* key = trimwhitespace(l.substr(0, eq).c_str());
                     if (!strlen(key)) {
                         free(key);
                         continue;
                     }
-
-                    token = strtok_r(NULL, "=", &saveptr);
-                    if (!token) {
+                    if (eq == std::string::npos) {
                         fprintf(stderr, "Error tokenizing value for %s setting\n", key);
                         free(key);
                         continue;
                     }
-                    value = trimwhitespace(token);
-
-                    if (key) {
-                        if (value) {
-                            settings[key] = value;
-                        }
-                        free(key);
-                        key = NULL;
+                    std::string value = l.substr(eq + 1);
+                    TrimWhiteSpace(value);
+                    if (value.size() >= 2 && value.front() == '"' && value.back() == '"') {
+                        value = value.substr(1, value.size() - 2);
                     }
-
-                    if (value) {
-                        free(value);
-                        value = NULL;
-                    }
+                    settings[key] = value;
+                    free(key);
                 }
 
                 if (line) {
@@ -298,8 +285,10 @@ public:
     virtual std::unique_ptr<Result> run(const std::vector<std::string>& args) override {
         int pid = fork();
         if (pid == -1) {
-            LogErr(VB_PLUGIN, "Failed to fork\n");
-            exit(EXIT_FAILURE);
+            // Usually out of memory.  This runs on whatever thread ran the
+            // command, so exiting took all of fppd down for one plugin call.
+            LogErr(VB_PLUGIN, "Failed to fork for plugin command %s: %s\n", name.c_str(), FPPstrerror(errno));
+            return std::make_unique<Command::ErrorResult>(name + " failed: could not start the script");
         }
         if (pid == 0) {
             LogDebug(VB_PLUGIN, "Child process, calling %s for command: %s\n", script.c_str(), name.c_str());
@@ -611,14 +600,20 @@ FPPPlugins::Plugin* PluginManager::loadUserPlugin(const std::string& name, bool 
     char readbuffer[128];
     std::string callback_list = "";
 
+    // A failure here (out of memory or fds) skips this one plugin rather
+    // than exiting fppd over it.
     if (pipe(output_pipe) == -1) {
-        LogErr(VB_PLUGIN, "Failed to make pipe\n");
-        exit(EXIT_FAILURE);
+        LogErr(VB_PLUGIN, "Plugin %s: failed to make a pipe for %s --list: %s; not loading it\n",
+               name.c_str(), filename.c_str(), FPPstrerror(errno));
+        return nullptr;
     }
 
     if ((pid = fork()) == -1) {
-        LogErr(VB_PLUGIN, "Failed to fork\n");
-        exit(EXIT_FAILURE);
+        LogErr(VB_PLUGIN, "Plugin %s: failed to fork for %s --list: %s; not loading it\n",
+               name.c_str(), filename.c_str(), FPPstrerror(errno));
+        close(output_pipe[0]);
+        close(output_pipe[1]);
+        return nullptr;
     }
 
     if (pid == 0) {
@@ -1324,8 +1319,10 @@ void MediaCallback::run(const Json::Value& playlist, const MediaDetails& mediaDe
     int pid;
 
     if ((pid = fork()) == -1) {
-        LogErr(VB_PLUGIN, "Failed to fork\n");
-        exit(EXIT_FAILURE);
+        // Skip this callback, as LifecycleCallback does: exiting from here
+        // took fppd down mid-show for one plugin's notification.
+        LogErr(VB_PLUGIN, "Failed to fork for %s's media callback: %s\n", mName.c_str(), FPPstrerror(errno));
+        return;
     }
 
     if (pid == 0) {
@@ -1395,8 +1392,8 @@ void MediaCallback::run(const Json::Value& playlist, const MediaDetails& mediaDe
 void PlaylistCallback::run(const Json::Value& playlist, const std::string& action, const std::string& section, int idx) {
     int pid;
     if ((pid = fork()) == -1) {
-        LogErr(VB_PLUGIN, "Failed to fork\n");
-        exit(EXIT_FAILURE);
+        LogErr(VB_PLUGIN, "Failed to fork for %s's playlist callback: %s\n", mName.c_str(), FPPstrerror(errno));
+        return;
     }
 
     if (pid == 0) {
