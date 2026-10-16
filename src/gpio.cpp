@@ -78,6 +78,11 @@ public:
         std::string n = args[0];
         std::string v = args[1];
         const PinCapabilities& p = PinCapabilities::getPinByName(n);
+        int inputValue = 0;
+        if (p.ptr() && GPIOManager::INSTANCE.GetInputPinValue(n, inputValue)) {
+            // see POST /api/gpio: driving it would kill the configured input
+            return std::make_unique<Command::ErrorResult>("Pin " + n + " is configured as a GPIO input");
+        }
         if (p.ptr()) {
             p.configPin();
             // setValue() on a line that was never acquired is a silent no-op, so
@@ -346,6 +351,19 @@ HttpResponsePtr GPIOManager::render_POST(const HttpRequestPtr& req) {
 
                 std::string errorStr = SaveJsonToString(errorResult);
                 return makeStringResponse(errorStr, 400, "application/json");
+            }
+
+            int inputValue = 0;
+            if (GPIOManager::INSTANCE.GetInputPinValue(pinName, inputValue)) {
+                // Reconfiguring it as an output releases the edge-event
+                // request and closes the fd the main loop watches: the input
+                // would go silently dead until fppd restarts.
+                Json::Value errorResult;
+                errorResult["pin"] = pinName;
+                errorResult["Status"] = "ERROR";
+                errorResult["respCode"] = 409;
+                errorResult["Message"] = "GPIO pin " + pinName + " is configured as a GPIO input";
+                return makeStringResponse(SaveJsonToString(errorResult), 409, "application/json");
             }
 
             try {
