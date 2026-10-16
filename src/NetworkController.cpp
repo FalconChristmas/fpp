@@ -41,6 +41,12 @@ NetworkController::NetworkController(const std::string& ipStr) :
     systemMode(PLAYER_MODE) {
 }
 
+// Detector regexes run over text a LAN device sends us.  libstdc++'s std::regex
+// recurses once per repeated character (GCC 14 overflows the 8MB stack on a
+// ~30KB run of digits), so every quantifier in them is bounded, and the page
+// is truncated to this before any detector sees it.
+static constexpr size_t MAX_DETECT_HTML = 256 * 1024;
+
 // One in-progress detection.  The detectors below are tried in order, and any
 // of them may have to ask the device a question before it can say yes or no --
 // so the walk cannot be a loop.  Each step either claims the device
@@ -56,7 +62,9 @@ public:
     Detection(const std::string& ipStr, const std::string& htmlStr,
               std::function<void(NetworkController*)>&& cb, bool blockingCalls = false) :
         ip(ipStr),
-        html(htmlStr),
+        // Every detector matches near the top of a controller's page; the cap
+        // bounds the regex work a hostile LAN device can make us do.
+        html(htmlStr.substr(0, MAX_DETECT_HTML)),
         nc(new NetworkController(ipStr)),
         callback(std::move(cb)),
         blocking(blockingCalls) {
@@ -256,7 +264,7 @@ void NetworkController::DetectFPP(Detection* st) {
 void NetworkController::DetectFalconController(Detection* st) {
     LogExcess(VB_SYNC, "Checking if %s is a Falcon controller\n", st->ip.c_str());
 
-    RegExCache re("\"css/falcon.css\"|\"/f16v2.js\"|\"js/cntrlr_(\\d+).js\"");
+    RegExCache re("\"css/falcon.css\"|\"/f16v2.js\"|\"js/cntrlr_(\\d{1,8}).js\"");
     std::smatch m;
 
     if (!std::regex_search(st->html, m, *re.regex)) {
@@ -370,7 +378,7 @@ void NetworkController::DetectFalconController(Detection* st) {
 
 void NetworkController::DetectSanDevicesController(Detection* st) {
     LogExcess(VB_SYNC, "Checking if %s is a SanDevices controller\n", st->ip.c_str());
-    RegExCache re("Controller Model (E[0-9]+)");
+    RegExCache re("Controller Model (E[0-9]{1,8})");
     std::smatch m;
 
     if (!std::regex_search(st->html, m, *re.regex)) {
@@ -404,8 +412,8 @@ void NetworkController::DetectSanDevicesController(Detection* st) {
         }
     }
 
-    RegExCache v4re("Firmware Version:</th></td><td></td><td>([0-9]+.[0-9]+)</td>");
-    RegExCache v5re("Firmware Version:</th></td><td>\\s?([0-9]+.[0-9]+)(-W\\d+)?</td>");
+    RegExCache v4re("Firmware Version:</th></td><td></td><td>([0-9]{1,8}.[0-9]{1,8})</td>");
+    RegExCache v5re("Firmware Version:</th></td><td>\\s?([0-9]{1,8}.[0-9]{1,8})(-W\\d{1,8})?</td>");
 
     if ((std::regex_search(st->html, m, *v4re.regex)) ||
         (std::regex_search(st->html, m, *v5re.regex))) {
@@ -584,8 +592,8 @@ void NetworkController::DetectBaldrickController(Detection* st) {
 void NetworkController::DetectAlphaPixController(Detection* st) {
     LogExcess(VB_SYNC, "Checking if %s is a AlphaPix controller\n", st->ip.c_str());
 
-    RegExCache re("AlphaPix (\\d+|Flex|Evolution)");
-    RegExCache re2("(\\d+) Port Ethernet to SPI Controller");
+    RegExCache re("AlphaPix (\\d{1,8}|Flex|Evolution)");
+    RegExCache re2("(\\d{1,8}) Port Ethernet to SPI Controller");
     std::smatch m, m2;
 
     // These boards serve one client at a time.  While another computer holds
@@ -638,7 +646,7 @@ void NetworkController::DetectAlphaPixController(Detection* st) {
     // Spelled as the MAC it encodes rather than as an id of its own, so a board
     // identified from this page and one identified only from the ARP table land
     // on the same value instead of on two names for one device.
-    RegExCache didre("Device ID:\\s*([0-9]+)");
+    RegExCache didre("Device ID:\\s{0,16}([0-9]{1,16})");
     if (std::regex_search(st->html, m, *didre.regex)) {
         long id = strtol(m[1].str().c_str(), nullptr, 10); // base 10: the id is zero-padded
         if (id > 0 && id <= 0xFFFFFF) {
@@ -650,7 +658,7 @@ void NetworkController::DetectAlphaPixController(Detection* st) {
         }
     }
 
-    RegExCache vre("Currently Installed Firmware Version:  ([0-9]+.[0-9]+)");
+    RegExCache vre("Currently Installed Firmware Version:  ([0-9]{1,8}.[0-9]{1,8})");
 
     // The version is reported when it can be read, but is NOT what decides
     // whether this is an AlphaPix -- the model above already settled that.
@@ -745,7 +753,7 @@ void NetworkController::DetectDIYLEDExpressController(Detection* st) {
     systemMode = BRIDGE_MODE;
 
     // Firmware Rev: 4.02
-    RegExCache vre("Firmware Rev: ([0-9]+.[0-9]+)");
+    RegExCache vre("Firmware Rev: ([0-9]{1,8}.[0-9]{1,8})");
 
     if (std::regex_search(st->html, m, *vre.regex)) {
         version = m[1];
@@ -851,7 +859,7 @@ void NetworkController::DetectExperienceController(Detection* st) {
         // than dropped.
         std::string fw = sys.get("firmware_version", "").asString();
         std::smatch m;
-        RegExCache re("(?:^|v)([0-9]+)\\.([0-9]+)(?:\\.([0-9]+))?");
+        RegExCache re("(?:^|v)([0-9]{1,8})\\.([0-9]{1,8})(?:\\.([0-9]{1,8}))?");
         if (std::regex_search(fw, m, *re.regex)) {
             version = m[1].str() + "." + m[2].str();
             if (m[3].matched) {
