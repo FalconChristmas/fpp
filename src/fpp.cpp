@@ -45,7 +45,9 @@ struct sockaddr_un client_address;
 int bytes_received, bytes_sent;
 
 char command[8192];
-char response[256];
+// fppd's replies are up to 1500 bytes (MAX_RESPONSE_SIZE in command.cpp); one
+// byte is kept back for the terminating NUL added after recvfrom().
+char response[2048];
 
 void SendCommand(const char* com);
 void SetupDomainSocket(void);
@@ -290,7 +292,7 @@ void SendCommand(const char* com) {
     address_length = sizeof(struct sockaddr_un);
     while (i < max_timeout) {
         i++;
-        bytes_received = recvfrom(socket_fd, response, 256, MSG_DONTWAIT,
+        bytes_received = recvfrom(socket_fd, response, sizeof(response) - 1, MSG_DONTWAIT,
                                   (struct sockaddr*)&(server_address),
                                   &address_length);
         if ((bytes_received > 0) || ((bytes_received < 0) && (errno != EAGAIN))) {
