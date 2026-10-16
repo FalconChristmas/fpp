@@ -493,9 +493,7 @@ void Scheduler::RunPlayerActions(const std::vector<PlayerAction>& actions) {
     for (const auto& action : actions) {
         switch (action.type) {
         case PlayerAction::Type::StopUntilIdle:
-            while (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
-                Player::INSTANCE.StopNow(action.forceStop);
-            }
+            Player::INSTANCE.StopNowAllLevels(action.forceStop);
             break;
         case PlayerAction::Type::StopNow:
             Player::INSTANCE.StopNow(action.forceStop);

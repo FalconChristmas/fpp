@@ -293,10 +293,10 @@ void GetCurrentFPPDStatus(Json::Value& result) {
         //
         // Only the display fields move.  result["status"] deliberately stays
         // FPP_STATUS_IDLE, because the scheduler gates on it in eight places
-        // and both Player::StopNow() and Scheduler wait on
-        // `while (GetStatus() != FPP_STATUS_IDLE)`.  Those loops stop the
-        // playlist, not a slot, so reporting a slot as player activity would
-        // spin them forever.
+        // and Player::StopNowAllLevels() stops levels while
+        // `GetStatus() != FPP_STATUS_IDLE`.  It stops the playlist, not a
+        // slot, so reporting a slot as player activity would make it think
+        // a level was still playing.
         bool anyForeground = false, anyBackground = false;
         int lead = -1;
         for (Json::ArrayIndex i = 0; i < slots.size(); i++) {

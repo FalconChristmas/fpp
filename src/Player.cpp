@@ -335,6 +335,13 @@ int Player::StopGracefully(int forceStop, int afterCurrentLoop) {
     return PlaylistSnapshot()->StopGracefully(forceStop, afterCurrentLoop);
 }
 
+void Player::StopNowAllLevels(int forceStop) {
+    int levels = PlaylistSnapshot()->GetLevelCount();
+    for (int i = 0; i < levels && GetStatus() != FPP_STATUS_IDLE; i++) {
+        StopNow(forceStop);
+    }
+}
+
 std::time_t Player::GetOrigStartTime() {
     std::lock_guard<std::mutex> lk(m_stateLock);
     return origStartTime;
@@ -442,8 +449,7 @@ int Player::Process() {
                 break;
             case 1: // Hard Stop
             default:
-                while (GetStatus() != FPP_STATUS_IDLE)
-                    StopNow(forceStop);
+                StopNowAllLevels(forceStop);
                 break;
             }
         }

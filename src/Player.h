@@ -52,6 +52,12 @@ public:
     void InsertPlaylistImmediate(const std::string& filename, const int startPosition = -1, const int endPos = -1);
 
     int StopNow(int forceStop = 0);
+    // Hard stop of every level that is playing now (an inserted playlist and
+    // the ones it interrupted).  Bounded by that depth rather than "until
+    // idle": a PLAYLIST_STOPPED preset may legitimately start a new playlist
+    // as the last level stops, and "until idle" would then stop and restart
+    // it forever on the main loop.
+    void StopNowAllLevels(int forceStop = 0);
     int StopGracefully(int forceStop = 0, int afterCurrentLoop = 0);
 
     int Process();

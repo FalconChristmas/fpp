@@ -3061,6 +3061,13 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
         }
     }
 }
+int Playlist::GetLevelCount() {
+    int levels = 1;
+    for (Playlist* par = m_parent.load(); par; par = par->m_parent.load()) {
+        levels++;
+    }
+    return levels;
+}
 void Playlist::GetParentPlaylistNames(std::list<std::string>& names) {
     if (Playlist* par = m_parent.load()) {
         par->GetParentPlaylistNames(names);

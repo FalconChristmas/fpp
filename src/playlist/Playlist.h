@@ -129,6 +129,10 @@ public:
     // old m_currentState string mirror had no paused value.
     static const char* PlaylistStatusToString(PlaylistStatus status);
 
+    // Number of playlists on the chain: 1 plus each one an insertion
+    // interrupted (the m_parent chain).
+    int GetLevelCount();
+
 private:
     void GetParentPlaylistNames(std::list<std::string>& names);
     int ReloadPlaylist(void);
