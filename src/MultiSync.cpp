@@ -1353,6 +1353,20 @@ void MultiSync::PerformHTTPDiscovery() {
         std::vector<std::string> tokens = split(subnetsStr, ',');
         std::set<std::string> subnets;
         std::set<std::string> exacts;
+        // This runs at startup: an unbounded "10.0.0.0/8" (16.7M addresses,
+        // held twice) or "[1-100000000]" ran fppd out of memory on every
+        // start.  A /16 is the most a scan may cover, octet ranges stay
+        // within 0..255, and the total is capped.
+        static constexpr size_t MAX_DISCOVERY_ADDRESSES = 65536;
+        bool truncated = false;
+        auto addAddress = [&subnets, &truncated](const std::string& a) {
+            if (subnets.size() >= MAX_DISCOVERY_ADDRESSES) {
+                truncated = true;
+                return false;
+            }
+            subnets.insert(a);
+            return true;
+        };
         for (std::string token : tokens) {
             TrimWhiteSpace(token);
             if (token != "") {
@@ -1369,14 +1383,15 @@ void MultiSync::PerformHTTPDiscovery() {
                     std::vector<std::string> r1 = split(rng, ',');
                     for (const auto& a : r1) {
                         std::vector<std::string> r = split(a, '-');
-                        int start = atoi(r[0].c_str());
-                        int len = 1;
-                        if (r.size() == 2) {
-                            len = atoi(r[1].c_str()) - start + 1;
+                        if (r.empty()) {
+                            continue;
                         }
-
-                        for (int x = start; x < (start + len); x++) {
-                            subnets.insert(token + std::to_string(x) + postfix);
+                        int start = std::clamp(atoi(r[0].c_str()), 0, 255);
+                        int end = r.size() == 2 ? std::clamp(atoi(r[1].c_str()), 0, 255) : start;
+                        for (int x = start; x <= end; x++) {
+                            if (!addAddress(token + std::to_string(x) + postfix)) {
+                                break;
+                            }
                         }
                     }
                 } else if (posSlash != std::string::npos) {
@@ -1385,7 +1400,12 @@ void MultiSync::PerformHTTPDiscovery() {
                     if (parts.size() == 2) {
                         prefix = atoi(parts[1].c_str());
                     }
-                    int ips = (int)(powl(2, 32 - prefix));
+                    if (prefix < 16 || prefix > 32) {
+                        LogWarn(VB_SYNC, "MultiSync HTTP discovery: ignoring %s, only /16 to /32 can be scanned\n",
+                                token.c_str());
+                        continue;
+                    }
+                    int ips = 1 << (32 - prefix);
                     unsigned long firstIP = htonl(inet_addr(parts[0].c_str()));
                     // If prefix is a /31 or /32, we scan all IPs, otherwise skip network
                     // and broadcast
@@ -1398,17 +1418,22 @@ void MultiSync::PerformHTTPDiscovery() {
                     for (int i = 0; i < ips; i++) {
                         ia.s_addr = ntohl(firstIP + i);
                         inet_ntop(AF_INET, &ia, ip, sizeof(ip));
-                        subnets.insert(ip);
+                        if (!addAddress(ip)) {
+                            break;
+                        }
                     }
                 } else {
                     std::string address2 = token;
                     GetIPForHost(address2);
-                    if (isSupportedForMultisync(address2.c_str(), "")) {
-                        subnets.insert(token);
+                    if (isSupportedForMultisync(address2.c_str(), "") && addAddress(token)) {
                         exacts.insert(token);
                     }
                 }
             }
+        }
+        if (truncated) {
+            LogWarn(VB_SYNC, "MultiSync HTTP discovery: more than %zu addresses configured, scanning only the first %zu\n",
+                    MAX_DISCOVERY_ADDRESSES, MAX_DISCOVERY_ADDRESSES);
         }
         if (!subnets.empty()) {
             DiscoverViaHTTP(subnets, exacts);
