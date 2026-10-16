@@ -35,6 +35,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <algorithm>
+#include <climits>
 #include <cstdint>
 #include <ctime>
 #include <ctype.h>
@@ -310,13 +311,12 @@ uint8_t ReverseBitsInByte(uint8_t n) {
  * Convert a string of the form "YYYY-MM-DD to an integer YYYYMMDD
  */
 int DateStrToInt(const char* str) {
-    if ((!str) || (str[4] != '-') || (str[7] != '-') || (str[10] != 0x0))
+    // Check the length before indexing: a short string put str[7] and
+    // str[10] past its terminator.
+    if ((!str) || (strnlen(str, 11) != 10) || (str[4] != '-') || (str[7] != '-'))
         return 0;
 
     int result = 0;
-    char tmpStr[11];
-
-    snprintf(tmpStr, sizeof(tmpStr), "%s", str);
 
     result += atoi(str) * 10000;   // Year
     result += atoi(str + 5) * 100; // Month
@@ -617,25 +617,39 @@ std::vector<std::string> splitWithQuotes(const std::string& s, char delim) {
     return ret;
 }
 
+// Upper bound on what GetFileContents() returns.  Its callers read configs,
+// sysfs/proc nodes and small data files; this stops a runaway file or a
+// device node from being read into an allocation that throws.
+static constexpr size_t MAX_FILE_CONTENTS = 64 * 1024 * 1024;
+
 std::string GetFileContents(const std::string& filename) {
     FILE* fd = fopen(filename.c_str(), "r");
     std::string contents;
     if (fd != nullptr) {
+        // A directory opens fine for reading on Linux, and its seek-to-end
+        // offset is not a size (ext4 reports LLONG_MAX), which made the
+        // resize below throw.
+        struct stat st;
+        if (fstat(fileno(fd), &st) != 0 || S_ISDIR(st.st_mode)) {
+            fclose(fd);
+            return contents;
+        }
         flock(fileno(fd), LOCK_SH);
-        fseeko(fd, 0, SEEK_END);
-        size_t sz = ftello(fd);
-        fseeko(fd, 0, SEEK_SET);
-        if (sz == 0) {
-            char buf[4097];
-            size_t i = fread(buf, 1, 4096, fd);
-            while (i > 0) {
-                buf[i] = 0;
-                contents += buf;
-                i = fread(buf, 1, 4096, fd);
+        // st_size is only a hint: /proc reports 0 and sysfs 4096 whatever
+        // the real length, and the file can change under us.  Read to EOF
+        // and keep what fread actually returned.
+        if (S_ISREG(st.st_mode) && st.st_size > 0 && (uint64_t)st.st_size <= MAX_FILE_CONTENTS) {
+            contents.reserve(st.st_size);
+        }
+        char buf[4096];
+        size_t i;
+        while ((i = fread(buf, 1, sizeof(buf), fd)) > 0) {
+            if (contents.size() + i > MAX_FILE_CONTENTS) {
+                fprintf(stderr, "ERROR: %s is larger than %zu bytes, not reading it.\n", filename.c_str(), MAX_FILE_CONTENTS);
+                contents.clear();
+                break;
             }
-        } else {
-            contents.resize(sz);
-            fread(&contents[0], contents.size(), 1, fd);
+            contents.append(buf, i);
         }
         flock(fileno(fd), LOCK_UN);
         fclose(fd);
@@ -917,37 +931,24 @@ bool getRawSetting(const std::string& setting, std::string& value) {
     return false;
 }
 int getRawSettingInt(const std::string& setting, int def) {
-    const std::string settingsFile = getRawMediaDir() + "/settings";
-    if (!FileExists(settingsFile)) {
+    // Parse with strtol and check where it stopped: the hand-rolled digit
+    // loop turned "" into -14, read past the end of a file without a final
+    // newline, and accepted any junk as digits.
+    std::string s;
+    if (!getRawSetting(setting, s)) {
         return def;
     }
-    std::string c = GetFileContents(settingsFile);
-    size_t idx = c.find(setting + " = ");
-    if (idx != std::string::npos) {
-        int offset = idx + setting.size() + 3;
-        if (c[offset] == '\"') {
-            ++offset; // skip the opening quote
-        }
-        int ch1 = c[offset];
-        if (ch1 == '-') {
-            ++offset;
-            ch1 = c[offset] - '0';
-            ch1 = 0 - ch1;
-        } else {
-            ch1 = ch1 - '0';
-        }
-        int ch = ch1;
-        ++offset;
-        uint8_t ch2 = c[offset];
-        while (ch2 != '\"' && ch2 != '\n' && ch2 != '\r') {
-            ch *= 10;
-            ch += ch2 - '0';
-            ++offset;
-            ch2 = c[offset];
-        }
-        return ch;
+    TrimWhiteSpace(s);
+    if (s.empty()) {
+        return def;
     }
-    return def;
+    errno = 0;
+    char* end = nullptr;
+    long v = strtol(s.c_str(), &end, 10);
+    if (end == s.c_str() || *end != '\0' || errno == ERANGE || v < INT_MIN || v > INT_MAX) {
+        return def;
+    }
+    return (int)v;
 }
 
 void setRawSetting(const std::string& setting, const std::string& value) {

@@ -71,15 +71,28 @@ void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& fa
     int i = 0;
     int x = 0;
     int y = 0;
+    if (perLine <= 0) {
+        perLine = 16;
+    }
     unsigned char* ch = (unsigned char*)data;
     unsigned char* str = new unsigned char[perLine + 1];
 
     int maxLen = perLine * 7 + 20;
     char* tmpStr = new char[maxLen];
+    tmpStr[0] = 0;
 
-    if (strlen(title)) {
+    // The title is data, not a format string.
+    if (title && strlen(title)) {
         snprintf(tmpStr, maxLen, "%s: (%d bytes)\n", title, len);
-        LogInfo(facility, tmpStr);
+        LogInfo(facility, "%s", tmpStr);
+    }
+    // Nothing to dump.  The tail below appends to tmpStr, which was never
+    // started with an offset (left uninitialized with no title) and would
+    // be logged again.
+    if (len <= 0 || !data) {
+        delete[] tmpStr;
+        delete[] str;
+        return;
     }
 
     while (l < len) {
@@ -106,7 +119,7 @@ void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& fa
             }
 
             snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), "\n");
-            LogInfo(facility, tmpStr);
+            LogInfo(facility, "%s", tmpStr);
             x = 0;
 
             snprintf(tmpStr, maxLen, "%06x: ", i);
@@ -135,7 +148,7 @@ void HexDump(const char* title, const void* data, int len, FPPLoggerInstance& fa
     }
 
     snprintf(tmpStr + strlen(tmpStr), maxLen - strlen(tmpStr), "\n");
-    LogInfo(facility, tmpStr);
+    LogInfo(facility, "%s", tmpStr);
     delete[] tmpStr;
     delete[] str;
 }
@@ -205,7 +218,10 @@ char* FindInterfaceForIP(char* ip) {
     int family, s, n;
     char host[NI_MAXHOST];
     char interfaceIP[16];
-    static char interface[IFNAMSIZ] = "";
+    // Per thread, and cleared on every call: a lookup that found nothing
+    // returned the previous call's interface.
+    static thread_local char interface[IFNAMSIZ] = "";
+    interface[0] = 0;
 
     if (getifaddrs(&ifaddr) == -1) {
         LogErr(VB_SETTING, "Error getting interfaces list: %s\n",
@@ -234,6 +250,7 @@ char* FindInterfaceForIP(char* ip) {
         }
     }
 
+    freeifaddrs(ifaddr);
     return interface;
 }
 
@@ -335,13 +352,15 @@ bool LoadJsonFromString(const std::string& str, Json::Value& root) {
     delete reader;
 
     if (!success) {
-        LogErr(VB_GENERAL, "Error parsing JSON string in LoadJsonFromString(): '%s'\n", str.c_str());
+        // Bodies parsed here include HTTP requests and config files that carry
+        // credentials; log only the start, which is enough to see what it was.
+        LogErr(VB_GENERAL, "Error parsing JSON string in LoadJsonFromString(): '%s'\n", TruncateForLog(str).c_str());
         Json::Value empty;
         root = empty;
         return false;
     }
 
-    LogDebug(VB_GENERAL, "LoadJsonFromString() loaded: '%s'\n", str.c_str());
+    LogDebug(VB_GENERAL, "LoadJsonFromString() loaded: '%s'\n", TruncateForLog(str).c_str());
 
     return true;
 }

@@ -13,6 +13,7 @@
 #include "fpp-pch.h"
 #include <cstring>
 
+#include <algorithm>
 #include <atomic>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -400,9 +401,14 @@ std::string TruncateForLog(const std::string& s, size_t maxLen) {
     // several prefixed-but-uncorrelated-looking lines. A short multi-line
     // value is just as confusing as a long one, so this isn't gated behind
     // the length check below.
+    // Only the part that survives truncation is escaped, so logging a large
+    // body costs maxLen rather than a copy of the whole thing.
     std::string escaped;
-    escaped.reserve(s.size());
+    escaped.reserve(std::min(s.size(), maxLen + 1));
     for (char c : s) {
+        if (escaped.size() > maxLen) {
+            break;
+        }
         if (c == '\n') {
             escaped += "\\n";
         } else if (c == '\r') {
@@ -752,13 +758,17 @@ void logVersionInfo(void) {
     LogErr(VB_ALL, "FPP %s\n", getFPPVersion());
     LogErr(VB_ALL, "Branch: %s\n", getFPPBranch());
     int o = open("/proc/device-tree/model", O_RDONLY);
-    if (o > 0) {
+    if (o >= 0) {
+        // A short read continues at buf + c; reading back into buf replaced
+        // the start of the model with its tail.
         char buf[256];
-        int i = read(o, buf, 255);
-        int c = i;
-        while (i > 0) {
-            i = read(o, buf, 255 - c);
-            c += i > 0 ? i : 0;
+        int c = 0;
+        while (c < 255) {
+            ssize_t i = read(o, buf + c, 255 - c);
+            if (i <= 0) {
+                break;
+            }
+            c += i;
         }
         if (c > 0) {
             buf[c] = 0;
