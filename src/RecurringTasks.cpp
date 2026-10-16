@@ -135,10 +135,20 @@ std::string RecurringTasks::ApplyResultFilter(const std::string& raw, const std:
         if (regexPattern.empty()) {
             return raw;
         }
+        // libstdc++'s std::regex recurses per repeated character, so a
+        // pattern like ".*x" over a long response overflows the main loop's
+        // stack (a crash no catch stops), every time the task runs.  Only
+        // search the start of the result.
+        static constexpr size_t MAX_REGEX_INPUT = 16 * 1024;
+        const std::string searched = raw.size() > MAX_REGEX_INPUT ? raw.substr(0, MAX_REGEX_INPUT) : raw;
+        if (searched.size() < raw.size()) {
+            LogDebug(VB_GENERAL, "RecurringTasks: regex filter applied to the first %zu of %zu bytes\n",
+                     searched.size(), raw.size());
+        }
         try {
             RegExCache re(regexPattern);
             std::smatch m;
-            if (!std::regex_search(raw, m, *re.regex)) {
+            if (!std::regex_search(searched, m, *re.regex)) {
                 return "";
             }
             return m.size() > 1 ? m[1].str() : m[0].str();
