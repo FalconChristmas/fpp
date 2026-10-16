@@ -25,6 +25,7 @@
 #include <unistd.h>
 
 #include <mutex>
+#include <algorithm>
 #include <list>
 #include <thread>
 
@@ -285,9 +286,6 @@ public:
             } else if (retval) {
                 int fromlen = sizeof(sockaddr_in);
                 int ret = recvfrom(pingSocket, (char*)packet, sizeof(packet), 0, (struct sockaddr*)&from, (socklen_t*)&fromlen);
-                if (ret < 0) {
-                    continue;
-                }
                 // Check the IP header
                 ip = (struct ip*)((char*)packet);
                 int hlen = sizeof(struct ip);
@@ -317,17 +315,22 @@ public:
                         // printf("Not echo\n");
                     }
                 }
-            } else {
+            }
+            // Time out on every pass, not only when poll() saw nothing for
+            // 250ms: this raw socket receives every ICMP packet sent to the
+            // box, and a few a second (port-unreachables from a device getting
+            // output on a port it doesn't listen on) used to keep this sweep
+            // from ever running, so a dead controller was never reported down.
+            {
                 std::unique_lock<std::mutex> lock(targetLock);
                 for (auto t : targets) {
                     long long tt = t->startTime;
                     tt += t->timeoutMS;
-                    if (curTime > tt) {
+                    if (curTime > tt && std::find(toRemove.begin(), toRemove.end(), t) == toRemove.end()) {
                         t->callback(0);
                         toRemove.push_back(t);
                     }
                 }
-                lock.unlock();
             }
             std::unique_lock<std::mutex> lock(targetLock);
             for (auto t : toRemove) {
