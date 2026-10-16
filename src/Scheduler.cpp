@@ -1398,6 +1398,17 @@ Json::Value Scheduler::GetScheduleRange(time_t rangeStart, time_t rangeEnd,
     Json::Value items(Json::arrayValue);
     std::vector<Occurrence> expanded;
 
+    // The walk below steps a day at a time from rangeStart; a start whose
+    // year doesn't fit in a struct tm makes localtime_r fail and leaves the
+    // cursor at -1, i.e. trillions of steps.  Keep both ends in 1970..9999
+    // here rather than trusting every caller to.
+    static constexpr time_t MAX_RANGE_TIME = 253402300799; // 9999-12-31 23:59:59 UTC
+    if (rangeStart < 0 || rangeEnd < rangeStart || rangeEnd > MAX_RANGE_TIME) {
+        result["entries"] = entries;
+        result["items"] = items;
+        return result;
+    }
+
     // Work from a copy of the schedule so the expansion below never holds the
     // scheduler lock.  ScheduleProc() takes the same lock to start and stop
     // playlists, and expanding a large range takes long enough that holding it
@@ -1426,7 +1437,10 @@ Json::Value Scheduler::GetScheduleRange(time_t rangeStart, time_t rangeEnd,
     // early to catch occurrences that overlap into the requested range.  Walk
     // the range from midday to midday: a 23 or 25 hour DST day would otherwise
     // let a fixed 86400s step skip or repeat a calendar date.
-    localtime_r(&rangeStart, &timeStruct);
+    if (!localtime_r(&rangeStart, &timeStruct)) {
+        result["items"] = items;
+        return result;
+    }
     timeStruct.tm_hour = 12;
     timeStruct.tm_min = 0;
     timeStruct.tm_sec = 0;
