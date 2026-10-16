@@ -30,6 +30,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <ctype.h>
+#include <deque>
 #include <errno.h>
 #include <functional>
 #include <ifaddrs.h>
@@ -37,6 +38,7 @@
 #include <map>
 #include <math.h>
 #include <memory>
+#include <string_view>
 #include <mutex>
 #include <netdb.h>
 #include <set>
@@ -3214,7 +3216,50 @@ void MultiSync::SendControlPacketViaMsgs(std::vector<struct mmsghdr>& msgs, stru
     }
 }
 
+// A broadcast is looped back to this host's own sockets (multicast is not:
+// IP_MULTICAST_LOOP is off).  An FPP command sent to all hosts is already run
+// locally by its sender, and plugin data is meant for the other hosts, so the
+// copy that comes back must not be dispatched a second time.  Remember what
+// was just sent and drop the matching echo.  Only those two types: other
+// local senders (scripts, tools, tests on this box) still get through.
+static std::mutex s_ownSendsLock;
+static std::deque<std::pair<size_t, long long>> s_ownSends; // hash, monotonic ms
+
+static bool IsEchoCandidate(const void* buf, int len) {
+    if (len < (int)sizeof(ControlPkt)) {
+        return false;
+    }
+    uint8_t type = ((const ControlPkt*)buf)->pktType;
+    return type == CTRL_PKT_FPPCOMMAND || type == CTRL_PKT_PLUGIN;
+}
+static size_t HashPacket(const void* buf, int len) {
+    return std::hash<std::string_view>{}(std::string_view((const char*)buf, len));
+}
+static void RememberOwnSend(const void* buf, int len) {
+    long long now = GetMonotonicTimeMS();
+    std::lock_guard<std::mutex> lock(s_ownSendsLock);
+    while (!s_ownSends.empty() && (s_ownSends.size() >= 64 || now - s_ownSends.front().second > 2000)) {
+        s_ownSends.pop_front();
+    }
+    s_ownSends.emplace_back(HashPacket(buf, len), now);
+}
+static bool IsOwnEcho(const void* buf, int len) {
+    size_t h = HashPacket(buf, len);
+    long long now = GetMonotonicTimeMS();
+    std::lock_guard<std::mutex> lock(s_ownSendsLock);
+    for (auto it = s_ownSends.begin(); it != s_ownSends.end(); ++it) {
+        if (it->first == h && now - it->second <= 2000) {
+            s_ownSends.erase(it);
+            return true;
+        }
+    }
+    return false;
+}
+
 void MultiSync::SendControlPacket(void* outBuf, int len) {
+    if (IsEchoCandidate(outBuf, len)) {
+        RememberOwnSend(outBuf, len);
+    }
     if (WillLog(LOG_EXCESSIVE, VB_SYNC)) {
         LogExcess(VB_SYNC, "SendControlPacket()\n");
         HexDump("Sending Control packet with contents:", outBuf, len, VB_SYNC);
@@ -3754,6 +3799,10 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
 
             if (WillLog(LOG_EXCESSIVE, VB_SYNC)) {
                 HexDump("Received MultiSync packet with contents:", (void*)inBuf, len, VB_SYNC);
+            }
+
+            if (isLocal && IsEchoCandidate(inBuf, len) && IsOwnEcho(inBuf, len)) {
+                continue; // our own broadcast, looped back (see IsOwnEcho)
             }
 
             if (!pingOnly || pkt->pktType == CTRL_PKT_PING) {
