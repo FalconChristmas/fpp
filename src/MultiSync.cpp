@@ -652,6 +652,18 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
         }
     }
     if (!found) {
+        // Every ping carrying a new address adds a system, and pings come
+        // from anyone on the LAN; entries are otherwise only pruned after two
+        // hours.  Past the cap, the system seen longest ago makes room.
+        static constexpr size_t MAX_REMOTE_SYSTEMS = 2048;
+        if (m_remoteSystems.size() >= MAX_REMOTE_SYSTEMS) {
+            auto oldest = std::min_element(m_remoteSystems.begin(), m_remoteSystems.end(),
+                                           [](const MultiSyncSystem& a, const MultiSyncSystem& b) { return a.lastSeen < b.lastSeen; });
+            LogWarn(VB_SYNC, "More than %zu remote systems known; forgetting %s to make room\n",
+                    MAX_REMOTE_SYSTEMS, oldest->address.c_str());
+            unicastChanged |= oldest->supportsUnicast;
+            m_remoteSystems.erase(oldest);
+        }
         MultiSyncSystem sys;
         sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges, uuid, multiSync, sendingMultiSync);
         ApplyUUIDHint(sys);
@@ -3799,20 +3811,6 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
                 }
             }
 
-            MultiSyncStats tempStats("", "");
-            MultiSyncStats* stats = &tempStats;
-            if (!isLocal) {
-                std::unique_lock<std::recursive_mutex> slock(m_statsLock);
-                auto a = m_syncStats.find(sourceIP);
-                if (a != m_syncStats.end()) {
-                    stats = (MultiSyncStats*)a->second;
-                } else {
-                    stats = new MultiSyncStats(sourceIP, hostname);
-                    m_syncStats[sourceIP] = stats;
-                }
-                stats->lastReceiveTime = time(NULL);
-            }
-
             pkt = (ControlPkt*)inBuf;
 
             if ((pkt->fppd[0] != 'F') ||
@@ -3837,6 +3835,26 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
 
             if (WillLog(LOG_EXCESSIVE, VB_SYNC)) {
                 HexDump("Received MultiSync packet with contents:", (void*)inBuf, len, VB_SYNC);
+            }
+
+            // Per-sender stats, created only for a well-formed packet (any
+            // datagram from a new, possibly spoofed, source used to add one),
+            // and only up to MAX_SYNC_STATS senders.  Entries are never freed
+            // (their pointers are used after m_statsLock is released), so a
+            // sender past the cap simply isn't tracked.
+            static constexpr size_t MAX_SYNC_STATS = 1024;
+            MultiSyncStats tempStats("", "");
+            MultiSyncStats* stats = &tempStats;
+            if (!isLocal) {
+                std::unique_lock<std::recursive_mutex> slock(m_statsLock);
+                auto a = m_syncStats.find(sourceIP);
+                if (a != m_syncStats.end()) {
+                    stats = (MultiSyncStats*)a->second;
+                } else if (m_syncStats.size() < MAX_SYNC_STATS) {
+                    stats = new MultiSyncStats(sourceIP, hostname);
+                    m_syncStats[sourceIP] = stats;
+                }
+                stats->lastReceiveTime = time(NULL);
             }
 
             if (isLocal && IsEchoCandidate(inBuf, len) && IsOwnEcho(inBuf, len)) {
