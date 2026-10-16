@@ -100,6 +100,9 @@ public:
     static void StopNotifyThread();
 
     static void WriteWarningsFile();
+    // For the crash handler only: replace the warnings files with this one
+    // message without taking warningsLock, which the crashed thread may hold.
+    static void WriteCrashedWarningsFile(int id, const std::string& message);
     static void ClearWarningsFile();
 
 private:

@@ -702,8 +702,9 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
             LogErr(VB_ALL, "Very recent crash report found, not uploading\n");
         }
     }
-    inCrashHandler = false;
-    if (s != SIGQUIT && s != SIGUSR1) {
+    if (s == SIGQUIT || s == SIGUSR1) {
+        inCrashHandler = false; // a requested dump: fppd carries on
+    } else {
         // For SIGBUS in non-main threads, terminate only the faulting thread
         // instead of the entire process.  This allows fppd to survive
         // DRM/KMS buffer crashes in video consumer threads while keeping
@@ -729,14 +730,17 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
             sigaction(SIGBUS, &sa, NULL);
             // The process survives this path — disarm the crash watchdog.
             alarm(0);
+            inCrashHandler = false;
             pthread_exit(NULL);
             return; // unreachable, but satisfies compiler
         }
         runMainFPPDLoop = 0;
         WarningHolder::StopNotifyThread();
-        WarningHolder::RemoveAllWarnings();
-        WarningHolder::AddWarning(1, "FPPD has crashed.  Check crash reports.");
-        WarningHolder::WriteWarningsFile();
+        // Written without warningsLock: the crashed thread may hold it, and
+        // waiting on it here left fppd dark until the watchdog fired.
+        // inCrashHandler stays set until _exit, so a fault from here on
+        // doesn't re-run the whole handler.
+        WarningHolder::WriteCrashedWarningsFile(1, "FPPD has crashed.  Check crash reports.");
         // _exit(), not exit(): exit() runs the global/static destructors, and
         // those take locks the crashed thread may still hold -- a crash inside
         // RTSPOutputManager::ApplyConfig() left ~RTSPOutputManager waiting on
