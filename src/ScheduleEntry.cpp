@@ -1055,26 +1055,13 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
     if (found != std::string::npos)
         mapTimeString(endTimeStr, endHour, endMinute, endSecond);
 
-    if (entry.isMember("startTimeOffset")) {
-        if (entry["startTimeOffset"].isString()) {
-            startTimeOffset = atoi(entry["startTimeOffset"].asString().c_str());
-        } else {
-            startTimeOffset = entry["startTimeOffset"].asLargestInt();
-        }
-    }
-
-    if (entry.isMember("endTimeOffset")) {
-        if (entry["endTimeOffset"].isString()) {
-            endTimeOffset = atoi(entry["endTimeOffset"].asString().c_str());
-        } else {
-            endTimeOffset = entry["endTimeOffset"].asLargestInt();
-        }
-    }
-
-    // The UI limits these to a year either way; keep API/hand-edited files
-    // honest too, clamping before the int64 -> int narrowing so huge values
-    // can't wrap into range.
-    auto dateOffsetFromJson = [&entry](const char* key) -> int {
+    // The UI limits these offsets (date offsets to a year, sun-relative time
+    // offsets to two hours); keep API/hand-edited files honest too, checking
+    // before the int64 -> int narrowing so huge values can't wrap into range.
+    // An unbounded time offset put an occurrence decades away, and the repeat
+    // expansion then stepped from there: billions of iterations on the main
+    // loop at every schedule load.
+    auto offsetFromJson = [&entry](const char* key, int limit, const char* unit) -> int {
         if (!entry.isMember(key))
             return 0;
         const Json::Value& e = entry[key];
@@ -1092,15 +1079,18 @@ int ScheduleEntry::LoadFromJson(Json::Value& entry) {
             ScheduleLoadWarning(47, std::string("Schedule: ") + key + " is not a number");
             return 0;
         }
-        if ((v < -366) || (v > 366)) {
+        if ((v < -limit) || (v > limit)) {
             LogErr(VB_SCHEDULE, "Invalid %s %lld in schedule, using 0\n", key, (long long)v);
-            ScheduleLoadWarning(47, std::string("Schedule: ") + key + " out of range (-366..366)");
+            ScheduleLoadWarning(47, std::string("Schedule: ") + key + " out of range (-" + std::to_string(limit) +
+                                        ".." + std::to_string(limit) + " " + unit + ")");
             return 0;
         }
         return (int)v;
     };
-    startDateOffset = dateOffsetFromJson("startDateOffset");
-    endDateOffset = dateOffsetFromJson("endDateOffset");
+    startTimeOffset = offsetFromJson("startTimeOffset", 1440, "minutes");
+    endTimeOffset = offsetFromJson("endTimeOffset", 1440, "minutes");
+    startDateOffset = offsetFromJson("startDateOffset", 366, "days");
+    endDateOffset = offsetFromJson("endDateOffset", 366, "days");
 
     if (!entry.isMember("startDate") || (entry["startDate"].asString() == "")) {
         entry["startDate"] = "2019-01-01";
