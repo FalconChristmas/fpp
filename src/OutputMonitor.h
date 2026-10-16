@@ -115,6 +115,7 @@ private:
     const PinCapabilities* addOutputPinInternal(const std::string& name, const std::string& pin, bool addToList);
     void addEFuseWarning(PortPinInfo* port, int rec = 0);
     void clearEFuseWarning(PortPinInfo* port, int rec = 0);
+    void clearReceiverWarnings(PortPinInfo* port);
     bool checkEFuseRetry(PortPinInfo* port);
     void processRetries();
     void triggerEFusePresets();

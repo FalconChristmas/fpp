@@ -412,6 +412,7 @@ void OutputMonitor::Cleanup() {
     eFuseRetries.clear();
     for (auto pi : portPins) {
         if (pi) {
+            clearReceiverWarnings(pi);
             delete pi;
         }
     }
@@ -622,6 +623,10 @@ void OutputMonitor::RemovePortConfiguration(int port, const Json::Value& config)
         // port would take processRetries() through a null eFusePin/enablePin.
         // The timer stops itself once the list empties.
         eFuseRetries.remove(pi);
+        // reset() also drops each receiver's stored warning text, which is
+        // the only handle RemoveWarning() can match on -- take the eFuse and
+        // pixel-count banners down first or they outlive the port.
+        clearReceiverWarnings(pi);
         pi->reset();
     }
 }
@@ -854,6 +859,7 @@ void OutputMonitor::AddPortConfiguration(int port, const Json::Value& pinConfig,
             portPins[port + x] = pi;
         }
     } else {
+        clearReceiverWarnings(pi);
         if (portPins[port] == pi) {
             pi->reset();
         } else {
@@ -1011,6 +1017,14 @@ void OutputMonitor::clearEFuseWarning(PortPinInfo* port, int rec) {
             port->receivers[rec].warning.clear();
         }
         port->receivers[rec].retryCount = 0;
+    }
+}
+// Every receiver's warning (eFuse trip or pixel-count mismatch, both id 16)
+// is retracted by its stored text, so a PortPinInfo must not be reset or
+// deleted while one is still up.  gpioLock must be held exclusively.
+void OutputMonitor::clearReceiverWarnings(PortPinInfo* port) {
+    for (int r = 0; r < 6; r++) {
+        clearEFuseWarning(port, r);
     }
 }
 bool OutputMonitor::checkEFuseRetry(PortPinInfo* port) {
