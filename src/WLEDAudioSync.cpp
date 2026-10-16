@@ -23,7 +23,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstring>
 
 #include "WLEDAudioSync.h"
@@ -348,6 +350,26 @@ void WLEDAudioSync::ReceiveLoop() {
         if (n != sizeof(AudioSyncPacketV2)) continue;
         if (std::memcmp(pkt.header, WLED_HEADER_V2, 5) != 0) continue;
 
+        // The floats come from anyone on the LAN and go straight into the
+        // WLED effects: an Inf major peak never leaves Rocktaves'
+        // "while (f > 249) f /= 2" (holding the WLED lock), and NaN or huge
+        // values are undefined in the effects' integer casts.  Drop
+        // non-finite packets and clamp the rest to what WLED itself sends.
+        // (Copied out first: the packet is packed, so its floats can't bind
+        // to std::clamp's references.)
+        float sampleRaw = pkt.sampleRaw;
+        float sampleSmth = pkt.sampleSmth;
+        float fftMagnitude = pkt.FFT_Magnitude;
+        float fftMajorPeak = pkt.FFT_MajorPeak;
+        if (!std::isfinite(sampleRaw) || !std::isfinite(sampleSmth) ||
+            !std::isfinite(fftMagnitude) || !std::isfinite(fftMajorPeak)) {
+            continue;
+        }
+        sampleRaw = std::clamp(sampleRaw, 0.0f, 65535.0f);
+        sampleSmth = std::clamp(sampleSmth, 0.0f, 255.0f);
+        fftMagnitude = std::clamp(fftMagnitude, 0.0f, 1.0e7f);
+        fftMajorPeak = std::clamp(fftMajorPeak, 1.0f, 11025.0f); // FX.cpp MAX_FREQUENCY
+
         if (!firstPacketLogged) {
             char fromBuf[INET_ADDRSTRLEN] = {};
             inet_ntop(AF_INET, &from.sin_addr, fromBuf, sizeof(fromBuf));
@@ -363,11 +385,11 @@ void WLEDAudioSync::ReceiveLoop() {
         std::unique_lock<std::mutex> lock(m_cacheLock);
         m_cacheTimestampMs   = nowMs();
         std::memcpy(m_cachedFFT.data(), pkt.fftResult, 16);
-        m_cachedVolumeSmth   = pkt.sampleSmth;
-        m_cachedVolumeRaw    = static_cast<uint16_t>(pkt.sampleRaw);
+        m_cachedVolumeSmth   = sampleSmth;
+        m_cachedVolumeRaw    = static_cast<uint16_t>(sampleRaw);
         m_cachedSamplePeak   = pkt.samplePeak;
-        m_cachedFFTMagnitude = pkt.FFT_Magnitude;
-        m_cachedFFTMajorPeak = pkt.FFT_MajorPeak;
+        m_cachedFFTMagnitude = fftMagnitude;
+        m_cachedFFTMajorPeak = fftMajorPeak;
     }
 }
 
