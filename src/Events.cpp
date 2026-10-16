@@ -17,14 +17,18 @@
 #include <algorithm>
 #include <chrono>
 #include <climits>
+#include <condition_variable>
 #include <ctime>
 #include <list>
 #include <map>
+#include <memory>
+#include <mutex>
 #include <semaphore>
 #include <string>
 #include <thread>
 #include <unistd.h>
 #include <utility>
+#include <vector>
 
 #include "OutputMonitor.h"
 #include "Player.h"
@@ -41,7 +45,28 @@ using namespace std::chrono;
 using namespace std::chrono_literals;
 
 static std::list<EventHandler*> EVENT_HANDLERS;
-static std::map<std::string, std::function<void(const std::string& topic, const std::string& payload)>> EVENT_CALLBACKS;
+// Callbacks run on the event handler's thread (libmosquitto's for MQTT) while
+// the main loop and API threads add and remove them -- plugins re-register on
+// every config reload, and unload removes theirs before their code goes away.
+// So the map is locked, a call runs from a slot the caller holds a reference
+// to (never from the map), and RemoveCallback waits for calls in flight.
+struct EventCallbackSlot {
+    std::function<void(const std::string& topic, const std::string& payload)> fn;
+    int inFlight = 0; // guarded by EVENT_CALLBACKS_LOCK
+};
+static std::mutex EVENT_CALLBACKS_LOCK;
+static std::condition_variable EVENT_CALLBACKS_IDLE;
+static std::map<std::string, std::shared_ptr<EventCallbackSlot>> EVENT_CALLBACKS;
+static thread_local int tl_invokingCallback = 0;
+
+static std::vector<std::string> EventCallbackTopics() {
+    std::lock_guard<std::mutex> lock(EVENT_CALLBACKS_LOCK);
+    std::vector<std::string> topics;
+    for (auto& c : EVENT_CALLBACKS) {
+        topics.push_back(c.first);
+    }
+    return topics;
+}
 // Intentionally leaked: if this were a plain file-static, __cxa_finalize would
 // run ~thread() on ANY exit() call (early startup failures like a bridge-port
 // bind error call exit(1) long before the orderly _exit(0) at the end of
@@ -159,15 +184,14 @@ void Events::Ready() {
 }
 
 void Events::AddEventHandler(EventHandler* handler) {
-    for (auto& c : EVENT_CALLBACKS) {
-        std::string topic = c.first;
+    for (auto& topic : EventCallbackTopics()) {
         handler->RegisterCallback(topic);
     }
     EVENT_HANDLERS.push_back(handler);
 }
 void Events::RemoveEventHandler(EventHandler* handler) {
-    for (auto& c : EVENT_CALLBACKS) {
-        handler->RemoveCallback(c.first);
+    for (auto& topic : EventCallbackTopics()) {
+        handler->RemoveCallback(topic);
     }
     EVENT_HANDLERS.remove(handler);
 }
@@ -193,7 +217,12 @@ bool Events::Publish(const std::string& topic, const int valueconst) {
 }
 
 void Events::AddCallback(const std::string& topic, std::function<void(const std::string& topic, const std::string& payload)>& callback) {
-    EVENT_CALLBACKS[topic] = callback;
+    auto slot = std::make_shared<EventCallbackSlot>();
+    slot->fn = callback;
+    {
+        std::lock_guard<std::mutex> lock(EVENT_CALLBACKS_LOCK);
+        EVENT_CALLBACKS[topic] = slot;
+    }
     for (auto handler : EVENT_HANDLERS) {
         handler->RegisterCallback(topic);
     }
@@ -202,25 +231,53 @@ void Events::RemoveCallback(const std::string& topic) {
     for (auto handler : EVENT_HANDLERS) {
         handler->RemoveCallback(topic);
     }
-    EVENT_CALLBACKS.erase(topic);
+    std::unique_lock<std::mutex> lock(EVENT_CALLBACKS_LOCK);
+    auto it = EVENT_CALLBACKS.find(topic);
+    if (it == EVENT_CALLBACKS.end()) {
+        return;
+    }
+    std::shared_ptr<EventCallbackSlot> slot = it->second;
+    EVENT_CALLBACKS.erase(it);
+    // Wait for a call already running on the handler's thread to finish, so
+    // the caller can then free what the callback uses (or unload its
+    // plugin).  Not from inside a callback: that would wait on itself.  Not
+    // forever either: a callback stuck waiting on the remover's thread would
+    // otherwise deadlock both.
+    if (tl_invokingCallback == 0 &&
+        !EVENT_CALLBACKS_IDLE.wait_for(lock, std::chrono::seconds(5), [&slot]() { return slot->inFlight == 0; })) {
+        LogWarn(VB_CONTROL, "Event callback for \"%s\" still running 5s after its removal\n", topic.c_str());
+    }
 }
 void Events::InvokeCallback(const std::string& topic, const std::string& topic_in, const std::string& payload) {
-    // find(), not operator[]: an unknown topic would otherwise insert an empty
-    // std::function and calling it throws bad_function_call.
-    auto it = EVENT_CALLBACKS.find(topic);
-    if (it == EVENT_CALLBACKS.end() || !it->second) {
-        return;
+    std::shared_ptr<EventCallbackSlot> slot;
+    {
+        // find(), not operator[]: an unknown topic would otherwise insert an
+        // empty entry.
+        std::lock_guard<std::mutex> lock(EVENT_CALLBACKS_LOCK);
+        auto it = EVENT_CALLBACKS.find(topic);
+        if (it == EVENT_CALLBACKS.end() || !it->second->fn) {
+            return;
+        }
+        slot = it->second;
+        slot->inFlight++;
     }
     // Callbacks run on the event handler's own thread (libmosquitto's for
     // MQTT), where nothing above us catches - an exception escaping here is
     // std::terminate. The payload is whatever a broker client sent.
+    tl_invokingCallback++;
     try {
-        it->second(topic_in, payload);
+        slot->fn(topic_in, payload);
     } catch (const std::exception& e) {
         LogErr(VB_CONTROL, "Event callback for \"%s\" threw: %s\n", topic_in.c_str(), e.what());
     } catch (...) {
         LogErr(VB_CONTROL, "Event callback for \"%s\" threw an unknown exception\n", topic_in.c_str());
     }
+    tl_invokingCallback--;
+    {
+        std::lock_guard<std::mutex> lock(EVENT_CALLBACKS_LOCK);
+        slot->inFlight--;
+    }
+    EVENT_CALLBACKS_IDLE.notify_all();
 }
 
 void Events::PrepareForShutdown() {
