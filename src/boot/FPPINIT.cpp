@@ -15,6 +15,7 @@
 #include <chrono>
 #include <cctype>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <dirent.h>
@@ -174,6 +175,12 @@ void modprobe(const char* mod) {
 }
 
 int main(int argc, char* argv[]) {
+    // Everything fppinit runs, it runs to parse: aplay, arecord, amixer and
+    // the network tools all translate their output, and systemd hands every
+    // service the system locale.  Under fr_FR "aplay -l" lists "carte 0:",
+    // and the audio setup found no sound card at all.  C.UTF-8 keeps UTF-8
+    // file names intact and has no translations.
+    setenv("LC_ALL", "C.UTF-8", 1);
     std::string networkSetupMut = FPP_MEDIA_DIR + "/tmp/networkSetup";
     std::string action = "start";
     if (argc > 1) {

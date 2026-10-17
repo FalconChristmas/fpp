@@ -63,7 +63,7 @@ function ApplyAudioCardAlias($cardId, $original, $aliases = null)
 // Returns: [{ cardNum, cardId, cardName, alias }, ...]
 function GetAudioCardAliases()
 {
-    global $SUDO, $settings;
+    global $settings;
 
     $aliases = LoadAudioCardAliases();
     $cards = array();
@@ -122,23 +122,19 @@ function GetAudioCardAliases()
         }
     }
 
-    // Also pull short bracketed names from `aplay -l` so the modal shows the
+    // Also take the short card names `aplay -l` prints so the modal shows the
     // same display names users see elsewhere.
-    $shortNameMap = array(); // cardNum -> short bracketed name
-    exec($SUDO . " env LC_ALL=C aplay -l 2>/dev/null | grep '^card'", $aplayOut);
-    foreach ($aplayOut as $line) {
-        if (preg_match('/^card\s+(\d+):\s*[^[]*\[([^\]]+)\]/', $line, $m)) {
-            $cn = intval($m[1]);
-            if (!isset($shortNameMap[$cn])) {
-                $shortNameMap[$cn] = trim($m[2]);
-            }
+    $shortNameMap = array(); // cardNum -> short card name
+    foreach (GetAlsaPcmDevices('playback') as $d) {
+        if (!isset($shortNameMap[$d['cardNum']])) {
+            $shortNameMap[$d['cardNum']] = $d['cardName'];
         }
     }
 
     foreach ($cardIdMap as $cardNum => $cardId) {
         // Only include cards that have PCM playback devices — same filter used by
-        // other audio dropdowns (aplay -l). MIDI-only and other non-audio USB
-        // devices appear in /proc/asound/cards but not in aplay -l output.
+        // the other audio dropdowns. MIDI-only and other non-audio USB devices
+        // appear in /proc/asound/cards but have no playback PCM.
         if (!isset($shortNameMap[$cardNum])) {
             continue;
         }

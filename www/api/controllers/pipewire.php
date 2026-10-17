@@ -1133,7 +1133,7 @@ function GetPipeWireAudioCards()
     }
     unset($cardOutput);
 
-    exec($SUDO . " aplay -l 2>/dev/null | grep '^card'", $output, $return_val);
+    $playbackDevices = GetAlsaPcmDevices('playback');
 
     // Build by-path and by-id lookup tables for stable hardware identifiers
     $byPathMap = array();  // controlCN -> path string
@@ -1223,110 +1223,110 @@ function GetPipeWireAudioCards()
         }
     }
 
-    if (!$return_val && !empty($output)) {
+    if (!empty($playbackDevices)) {
         $seenCards = array();
-        foreach ($output as $line) {
-            // Parse: card 0: S3 [Sound Blaster Play! 3], device 0: USB Audio [USB Audio]
-            if (preg_match('/^card (\d+):\s*(.+?)\s*\[([^\]]+)\],\s*device\s*(\d+):\s*(.+?)\s*\[([^\]]+)\]/', $line, $matches)) {
-                $cardNum = $matches[1];
-                $cardId = $matches[2];
-                $cardName = $matches[3];
-                $deviceNum = $matches[4];
-                $deviceId = $matches[5];
-                $deviceName = $matches[6];
+        foreach ($playbackDevices as $pcmDevice) {
+            // The line `aplay -l` prints for it: the USB and channel-quirk
+            // checks below match on its text.
+            $line = AlsaPcmDeviceLine($pcmDevice);
+            $cardNum = $pcmDevice['cardNum'];
+            $cardId = $pcmDevice['cardId'];
+            $cardName = $pcmDevice['cardName'];
+            $deviceNum = $pcmDevice['deviceNum'];
+            $deviceId = $pcmDevice['deviceId'];
+            $deviceName = $pcmDevice['deviceName'];
 
-                if (!isset($seenCards[$cardId])) {
-                    $seenCards[$cardId] = true;
+            if (!isset($seenCards[$cardId])) {
+                $seenCards[$cardId] = true;
 
-                    // Get channel info for this card
-                    $channelInfo = array();
-                    exec($SUDO . " amixer -c $cardNum scontrols 2>/dev/null | cut -f2 -d\"'\"", $mixerOutput, $mixerRet);
-                    if (!$mixerRet && !empty($mixerOutput)) {
-                        foreach ($mixerOutput as $mixer) {
-                            $channelInfo[] = trim($mixer);
-                        }
+                // Get channel info for this card
+                $channelInfo = array();
+                exec($SUDO . " amixer -c $cardNum scontrols 2>/dev/null | cut -f2 -d\"'\"", $mixerOutput, $mixerRet);
+                if (!$mixerRet && !empty($mixerOutput)) {
+                    foreach ($mixerOutput as $mixer) {
+                        $channelInfo[] = trim($mixer);
                     }
-                    unset($mixerOutput);
-
-                    $isUsbCard = strpos($line, 'USB Audio') !== false;
-                    $channels = DetectAlsaCardMaxChannels($cardNum, $line, $isUsbCard);
-
-                    // Stable identifiers
-                    $controlKey = 'controlC' . $cardNum;
-                    $byPath = isset($byPathMap[$controlKey]) ? $byPathMap[$controlKey] : '';
-                    $byId = isset($byIdMap[$controlKey]) ? $byIdMap[$controlKey] : '';
-
-                    // Resolve actual PipeWire sink node name
-                    $pwNodeName = '';
-                    // Determine the PipeWire card identifier for this ALSA card
-                    $pwCardIdentifier = '';
-
-                    // PRIMARY: pw-dump alsa.card → node.name mapping.
-                    // Most reliable for identical USB cards where by-id symlinks
-                    // may only exist for one of the two devices.
-                    if (isset($pwSinkByAlsaCardNum[intval($cardNum)])) {
-                        $pwNodeName = $pwSinkByAlsaCardNum[intval($cardNum)];
-                    }
-
-                    // FALLBACK: by-id / by-path heuristics (for cards not resolved above)
-                    if (empty($pwNodeName)) {
-                        if ($byId && isset($pwSinkNames[$byId])) {
-                            $pwNodeName = $pwSinkNames[$byId];
-                            $pwCardIdentifier = $byId;
-                        } elseif ($byPath) {
-                            // Strip trailing -audio if present for matching
-                            $byPathBase = preg_replace('/-audio$/', '', $byPath);
-                            if (isset($pwSinkNames[$byPathBase])) {
-                                $pwNodeName = $pwSinkNames[$byPathBase];
-                                $pwCardIdentifier = $byPathBase;
-                            } elseif (isset($pwSinkNames[$byPath])) {
-                                $pwNodeName = $pwSinkNames[$byPath];
-                                $pwCardIdentifier = $byPath;
-                            } else {
-                                $pwCardIdentifier = $byPathBase;
-                            }
-                        }
-                        // Fallback: try fpp_card pattern
-                        if (empty($pwNodeName) && isset($pwSinkNames['fpp_card' . $cardNum])) {
-                            $pwNodeName = $pwSinkNames['fpp_card' . $cardNum];
-                        }
-                        // Fallback: try fpp_alsa_* adapter by ALSA card ID
-                        if (empty($pwNodeName) && isset($pwSinkByAlsaId[$cardId])) {
-                            $pwNodeName = $pwSinkByAlsaId[$cardId];
-                        }
-                        // If still no active sink, derive expected sink name from PipeWire card profiles
-                        // Card: alsa_card.{id} -> Sink: alsa_output.{id}.{profile}
-                        if (empty($pwNodeName) && !empty($pwCardIdentifier) && isset($pwCardProfiles[$pwCardIdentifier])) {
-                            $profiles = $pwCardProfiles[$pwCardIdentifier];
-                            if (!empty($profiles)) {
-                                $pwNodeName = 'alsa_output.' . $pwCardIdentifier . '.' . $profiles[0];
-                            }
-                        }
-                    }
-
-                    // The resolved PipeWire sink knows how many channels the
-                    // adapter was configured with (boot-time detection in
-                    // FPPINIT_Audio.cpp) — trust it when it exceeds what we
-                    // detected here without opening the device.
-                    if (!empty($pwNodeName) && isset($pwChannelsByNodeName[$pwNodeName])) {
-                        $channels = max($channels, min($pwChannelsByNodeName[$pwNodeName], 8));
-                    }
-
-                    $cards[] = array(
-                        "cardNum" => intval($cardNum),
-                        "cardId" => $cardId,
-                        "cardName" => $cardName,
-                        "device" => intval($deviceNum),
-                        "deviceName" => $deviceName,
-                        "channels" => $channels,
-                        "mixerControls" => $channelInfo,
-                        "alsaPath" => "hw:" . $cardNum,
-                        "byPath" => $byPath,
-                        "byId" => $byId,
-                        "pwNodeName" => $pwNodeName,
-                        "alias" => isset($audioCardAliases[$cardId]) ? $audioCardAliases[$cardId] : ""
-                    );
                 }
+                unset($mixerOutput);
+
+                $isUsbCard = strpos($line, 'USB Audio') !== false;
+                $channels = DetectAlsaCardMaxChannels($cardNum, $line, $isUsbCard);
+
+                // Stable identifiers
+                $controlKey = 'controlC' . $cardNum;
+                $byPath = isset($byPathMap[$controlKey]) ? $byPathMap[$controlKey] : '';
+                $byId = isset($byIdMap[$controlKey]) ? $byIdMap[$controlKey] : '';
+
+                // Resolve actual PipeWire sink node name
+                $pwNodeName = '';
+                // Determine the PipeWire card identifier for this ALSA card
+                $pwCardIdentifier = '';
+
+                // PRIMARY: pw-dump alsa.card → node.name mapping.
+                // Most reliable for identical USB cards where by-id symlinks
+                // may only exist for one of the two devices.
+                if (isset($pwSinkByAlsaCardNum[intval($cardNum)])) {
+                    $pwNodeName = $pwSinkByAlsaCardNum[intval($cardNum)];
+                }
+
+                // FALLBACK: by-id / by-path heuristics (for cards not resolved above)
+                if (empty($pwNodeName)) {
+                    if ($byId && isset($pwSinkNames[$byId])) {
+                        $pwNodeName = $pwSinkNames[$byId];
+                        $pwCardIdentifier = $byId;
+                    } elseif ($byPath) {
+                        // Strip trailing -audio if present for matching
+                        $byPathBase = preg_replace('/-audio$/', '', $byPath);
+                        if (isset($pwSinkNames[$byPathBase])) {
+                            $pwNodeName = $pwSinkNames[$byPathBase];
+                            $pwCardIdentifier = $byPathBase;
+                        } elseif (isset($pwSinkNames[$byPath])) {
+                            $pwNodeName = $pwSinkNames[$byPath];
+                            $pwCardIdentifier = $byPath;
+                        } else {
+                            $pwCardIdentifier = $byPathBase;
+                        }
+                    }
+                    // Fallback: try fpp_card pattern
+                    if (empty($pwNodeName) && isset($pwSinkNames['fpp_card' . $cardNum])) {
+                        $pwNodeName = $pwSinkNames['fpp_card' . $cardNum];
+                    }
+                    // Fallback: try fpp_alsa_* adapter by ALSA card ID
+                    if (empty($pwNodeName) && isset($pwSinkByAlsaId[$cardId])) {
+                        $pwNodeName = $pwSinkByAlsaId[$cardId];
+                    }
+                    // If still no active sink, derive expected sink name from PipeWire card profiles
+                    // Card: alsa_card.{id} -> Sink: alsa_output.{id}.{profile}
+                    if (empty($pwNodeName) && !empty($pwCardIdentifier) && isset($pwCardProfiles[$pwCardIdentifier])) {
+                        $profiles = $pwCardProfiles[$pwCardIdentifier];
+                        if (!empty($profiles)) {
+                            $pwNodeName = 'alsa_output.' . $pwCardIdentifier . '.' . $profiles[0];
+                        }
+                    }
+                }
+
+                // The resolved PipeWire sink knows how many channels the
+                // adapter was configured with (boot-time detection in
+                // FPPINIT_Audio.cpp) — trust it when it exceeds what we
+                // detected here without opening the device.
+                if (!empty($pwNodeName) && isset($pwChannelsByNodeName[$pwNodeName])) {
+                    $channels = max($channels, min($pwChannelsByNodeName[$pwNodeName], 8));
+                }
+
+                $cards[] = array(
+                    "cardNum" => intval($cardNum),
+                    "cardId" => $cardId,
+                    "cardName" => $cardName,
+                    "device" => intval($deviceNum),
+                    "deviceName" => $deviceName,
+                    "channels" => $channels,
+                    "mixerControls" => $channelInfo,
+                    "alsaPath" => "hw:" . $cardNum,
+                    "byPath" => $byPath,
+                    "byId" => $byId,
+                    "pwNodeName" => $pwNodeName,
+                    "alias" => isset($audioCardAliases[$cardId]) ? $audioCardAliases[$cardId] : ""
+                );
             }
         }
     }

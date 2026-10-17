@@ -664,6 +664,65 @@ function ResolveAlsaCardIdToNumber($cardId)
 }
 
 /**
+ * The ALSA PCM devices that can play ($stream 'playback') or record
+ * ('capture'), in card then device order: what `aplay -l` / `arecord -l` list,
+ * read from /proc/asound instead.  Those tools translate their output -- under
+ * fr_FR every line starts "carte", not "card" -- so parsing them found no cards
+ * at all on a non-English system.  The kernel's files are never translated,
+ * and need no sudo or subprocess.
+ *
+ * Each entry has cardNum, cardId (the stable ID, e.g. "S3"), cardName (the
+ * bracketed card name aplay prints), deviceNum, deviceId and deviceName.
+ * Empty when there is no ALSA (macOS) or no card.
+ */
+function GetAlsaPcmDevices($stream = 'playback')
+{
+    $cards = array(); // cardNum -> array(id, name)
+    $cardsFile = @file_get_contents('/proc/asound/cards');
+    // " 2 [S3             ]: USB-Audio - Sound Blaster Play! 3" -- the driver
+    // name never contains " - ", so the first one ends it.
+    if ($cardsFile && preg_match_all('/^\s*(\d+)\s*\[([^\]]*)\]:\s*.*? - (.*)$/m', $cardsFile, $m, PREG_SET_ORDER)) {
+        foreach ($m as $row) {
+            $cards[intval($row[1])] = array(trim($row[2]), trim($row[3]));
+        }
+    }
+    $devices = array();
+    $pcmFile = @file_get_contents('/proc/asound/pcm');
+    if (!$pcmFile) {
+        return $devices;
+    }
+    // "02-00: <id> : <name> : playback 1 : capture 1"
+    foreach (explode("\n", $pcmFile) as $line) {
+        if (!preg_match('/^(\d+)-(\d+): (.*?) : (.*?)((?: : (?:playback|capture) \d+)+)$/', $line, $pm)) {
+            continue;
+        }
+        $cardNum = intval($pm[1]);
+        if (!isset($cards[$cardNum]) || !preg_match('/ : ' . $stream . ' \d+/', $pm[5])) {
+            continue;
+        }
+        $devices[] = array(
+            'cardNum' => $cardNum,
+            'cardId' => $cards[$cardNum][0],
+            'cardName' => $cards[$cardNum][1],
+            'deviceNum' => intval($pm[2]),
+            'deviceId' => trim($pm[3]),
+            'deviceName' => trim($pm[4]),
+        );
+    }
+    return $devices;
+}
+
+/**
+ * A GetAlsaPcmDevices() entry as the line `LC_ALL=C aplay -l` prints for it,
+ * for code that matches on that text (channel quirks, Pi onboard audio).
+ */
+function AlsaPcmDeviceLine($d)
+{
+    return sprintf("card %d: %s [%s], device %d: %s [%s]", $d['cardNum'], $d['cardId'], $d['cardName'],
+        $d['deviceNum'], $d['deviceId'], $d['deviceName']);
+}
+
+/**
  * Sets the Audio Output device
  *
  * Lives here, beside ResolveAlsaCardIdToNumber() which it depends on, because
@@ -718,13 +777,17 @@ function SetAudioOutput($card)
     if ($return_val == 0) {
         WriteSettingToFile("AudioMixerDevice", $AudioMixerDevice);
         if ($settings['Platform'] == "Raspberry Pi" && $cardNum == 0) {
-            $type = exec("sudo aplay -l | grep \"card $cardNum\"", $output, $return_val);
+            $type = '';
+            foreach (GetAlsaPcmDevices('playback') as $d) {
+                if ($d['cardNum'] == $cardNum) {
+                    $type = AlsaPcmDeviceLine($d);
+                }
+            }
             if (strpos($type, '[bcm') !== false) {
                 WriteSettingToFile("AudioCard0Type", "bcm");
             } else {
                 WriteSettingToFile("AudioCard0Type", "unknown");
             }
-            unset($output);
         } else {
             WriteSettingToFile("AudioCard0Type", "unknown");
         }

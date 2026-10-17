@@ -183,7 +183,7 @@ function GetOptions_PipeWireNodes($mediaClass, $valueKey)
  */
 function GetOptions_AudioOutputDevice($fulllist = false)
 {
-    global $SUDO, $GET, $settings;
+    global $GET, $settings;
 
     // In PipeWire mode with fulllist, enumerate PipeWire Audio/Sink nodes.
     //
@@ -225,85 +225,71 @@ function GetOptions_AudioOutputDevice($fulllist = false)
     } else {
         $CurrentCard = GetAudioCurrentCard();
         $AlsaCards = array();
+        $devices = GetAlsaPcmDevices('playback');
         if ($fulllist) {
-            exec($SUDO . " env LC_ALL=C aplay -l | grep '^card' | sed -e 's/^card //' -e 's/.*\[\(.*\)\].*\[\(.*\)\]/\\1, \\2/'", $output, $return_val);
-        } else {
-            exec($SUDO . " env LC_ALL=C aplay -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
+            // One entry per device: "<card name>, <device name>"
+            foreach ($devices as $d) {
+                $AlsaCards[] = $d['cardName'] . ', ' . $d['deviceName'];
+            }
+            return json($AlsaCards);
         }
-        if ($return_val) {
-            error_log("Error getting alsa cards for output!");
+        // One entry per card
+        $cards = array(); // cardNum -> device entry
+        foreach ($devices as $d) {
+            if (!isset($cards[$d['cardNum']])) {
+                $cards[$d['cardNum']] = $d;
+            }
+        }
+        if (empty($cards)) {
+            error_log("No ALSA cards for output!");
         } else {
             $foundOurCard = 0;
             // First pass: collect all card names to detect duplicates
             $cardNameCounts = array();
-            foreach ($output as $card) {
-                $values = explode(':', $card);
-                if (count($values) >= 2) {
-                    $name = $values[1];
-                    if (!isset($cardNameCounts[$name])) {
-                        $cardNameCounts[$name] = 0;
-                    }
-                    $cardNameCounts[$name]++;
+            foreach ($cards as $d) {
+                $name = $d['cardName'];
+                if (!isset($cardNameCounts[$name])) {
+                    $cardNameCounts[$name] = 0;
                 }
-            }
-
-            // Build the ALSA card ID map from /proc/asound/cards
-            // Format: " 0 [S3             ]: USB-Audio - ..."
-            $cardIdMap = array(); // card number -> ALSA card ID
-            $cardsFile = @file_get_contents('/proc/asound/cards');
-            if ($cardsFile) {
-                if (preg_match_all('/^\s*(\d+)\s*\[([^\]]+)\]/m', $cardsFile, $cmatches, PREG_SET_ORDER)) {
-                    foreach ($cmatches as $cm) {
-                        $cardIdMap[$cm[1]] = trim($cm[2]);
-                    }
-                }
+                $cardNameCounts[$name]++;
             }
 
             // User-defined sound card aliases (issue #2586)
             $audioCardAliases = LoadAudioCardAliases();
 
-            foreach ($output as $card) {
-                $values = explode(':', $card);
-                $cardNum = $values[0];
+            foreach ($cards as $cardNum => $d) {
                 // The stable ALSA card ID is the persisted/selected value now,
                 // so identify "our card" by ID rather than the volatile number.
-                $thisCardId = isset($cardIdMap[$cardNum]) ? $cardIdMap[$cardNum] : '';
+                $thisCardId = $d['cardId'];
 
                 if (($thisCardId !== '' && $thisCardId == $CurrentCard) || $cardNum == $CurrentCard) {
                     $foundOurCard = 1;
                 }
 
-                if ($fulllist) {
-                    $AlsaCards[] = $card;
-                } else {
-                    $cardName = $values[1];
-                    // Disambiguate duplicate names by appending ALSA card ID
-                    $displayName = $cardName;
-                    if (isset($cardNameCounts[$cardName]) && $cardNameCounts[$cardName] > 1) {
-                        $cardId = $thisCardId !== '' ? $thisCardId : $cardNum;
-                        $displayName = $cardName . ' [' . $cardId . ']';
-                    }
-                    if ($cardName == "bcm2835 ALSA") {
-                        $displayName = $cardName . " (Pi Onboard Audio)";
-                    } else if ($cardName == "CD002") {
-                        $displayName = $cardName . " (FM Transmitter)";
-                    }
-                    // Apply user-defined alias (issue #2586) keyed by ALSA card ID
-                    $displayName = ApplyAudioCardAlias($thisCardId, $displayName, $audioCardAliases);
-                    // Store the stable card ID as the value so the selection
-                    // survives card-number reordering (fall back to the number
-                    // only when the ID can't be resolved).
-                    $AlsaCards[$displayName] = $thisCardId !== '' ? $thisCardId : $cardNum;
+                $cardName = $d['cardName'];
+                // Disambiguate duplicate names by appending ALSA card ID
+                $displayName = $cardName;
+                if (isset($cardNameCounts[$cardName]) && $cardNameCounts[$cardName] > 1) {
+                    $cardId = $thisCardId !== '' ? $thisCardId : $cardNum;
+                    $displayName = $cardName . ' [' . $cardId . ']';
                 }
+                if ($cardName == "bcm2835 ALSA") {
+                    $displayName = $cardName . " (Pi Onboard Audio)";
+                } else if ($cardName == "CD002") {
+                    $displayName = $cardName . " (FM Transmitter)";
+                }
+                // Apply user-defined alias (issue #2586) keyed by ALSA card ID
+                $displayName = ApplyAudioCardAlias($thisCardId, $displayName, $audioCardAliases);
+                // Store the stable card ID as the value so the selection
+                // survives card-number reordering (fall back to the number
+                // only when the ID can't be resolved).
+                $AlsaCards[$displayName] = $thisCardId !== '' ? $thisCardId : strval($cardNum);
             }
 
             if (!$foundOurCard) {
-                if (!$fulllist) {
-                    $AlsaCards['-- Select an Audio Device --'] = $CurrentCard;
-                }
+                $AlsaCards['-- Select an Audio Device --'] = $CurrentCard;
             }
         }
-        unset($output);
 
         return json($AlsaCards);
     }
@@ -324,7 +310,7 @@ function GetOptions_AudioOutputDevice($fulllist = false)
 function GetOptions_AudioInputDevice($fulllist = false, $allowMedia = false, $valueKey = 'node.name')
 {
 
-    global $SUDO, $settings;
+    global $settings;
 
     $AlsaCards = array();
 
@@ -351,52 +337,38 @@ function GetOptions_AudioInputDevice($fulllist = false, $allowMedia = false, $va
         }
     }
 
+    $devices = GetAlsaPcmDevices('capture');
     if ($fulllist) {
-        // Extract ALSA short card name (before '[') + device description (last '[...]').
-        // Using the short name rather than the long description means identical-model cards
-        // are distinguished (e.g. ICUSBAUDIO7D vs ICUSBAUDIO7D_1) via ALSA's own dedup
-        // suffix, which is more stable than volatile card numbers.
-        // awk splits on [] chars: field 1 = "card N: SHORTNAME ", field 2 = "card desc", etc.
-        // Last word of field 1 = ALSA short name; $(NF-1) = last bracketed value = device name.
-        exec($SUDO . " env LC_ALL=C arecord -l | grep '^card' | awk -F'[][]+' '{gsub(/ *\$/, \"\", \$1); split(\$1, a, \" \"); print a[length(a)]\", \"\$(NF-1)}'", $output, $return_val);
-    } else {
-        exec($SUDO . " env LC_ALL=C arecord -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
-    }
-    if ($return_val) {
-        error_log("Error getting alsa cards for input!");
+        // ALSA card ID + device name.  The card ID rather than the card's
+        // name means identical-model cards are distinguished (e.g.
+        // ICUSBAUDIO7D vs ICUSBAUDIO7D_1) via ALSA's own dedup suffix, which
+        // is more stable than volatile card numbers.
+        foreach ($devices as $d) {
+            $AlsaCards[] = $d['cardId'] . ', ' . $d['deviceName'];
+        }
     } else {
         // User-defined sound card aliases (issue #2586) keyed by ALSA card ID
         $audioCardAliases = LoadAudioCardAliases();
-        $cardIdMap = array(); // cardNum -> ALSA card ID
-        $cardsFile = @file_get_contents('/proc/asound/cards');
-        if ($cardsFile && preg_match_all('/^\s*(\d+)\s*\[([^\]]+)\]/m', $cardsFile, $cm, PREG_SET_ORDER)) {
-            foreach ($cm as $row) {
-                $cardIdMap[$row[1]] = trim($row[2]);
+        $seenCards = array();
+        foreach ($devices as $d) {
+            // One entry per card
+            if (isset($seenCards[$d['cardNum']])) {
+                continue;
             }
-        }
-
-        foreach ($output as $card) {
-            if ($fulllist) {
-                $AlsaCards[] = $card;
+            $seenCards[$d['cardNum']] = true;
+            $cardNum = strval($d['cardNum']);
+            $cardName = ApplyAudioCardAlias($d['cardId'], $d['cardName'], $audioCardAliases);
+            if (isset($AlsaCards[$cardName])) {
+                // Duplicate name — rename the existing entry to include its card number
+                $existingNum = $AlsaCards[$cardName];
+                unset($AlsaCards[$cardName]);
+                $AlsaCards[$cardName . ' (Card ' . $existingNum . ')'] = $existingNum;
+                $AlsaCards[$cardName . ' (Card ' . $cardNum . ')'] = $cardNum;
             } else {
-                $values = explode(':', $card);
-                $cardNum = $values[0];
-                $cardName = $values[1];
-                $thisCardId = isset($cardIdMap[$cardNum]) ? $cardIdMap[$cardNum] : '';
-                $cardName = ApplyAudioCardAlias($thisCardId, $cardName, $audioCardAliases);
-                if (isset($AlsaCards[$cardName])) {
-                    // Duplicate name — rename the existing entry to include its card number
-                    $existingNum = $AlsaCards[$cardName];
-                    unset($AlsaCards[$cardName]);
-                    $AlsaCards[$cardName . ' (Card ' . $existingNum . ')'] = $existingNum;
-                    $AlsaCards[$cardName . ' (Card ' . $cardNum . ')'] = $cardNum;
-                } else {
-                    $AlsaCards[$cardName] = $cardNum;
-                }
+                $AlsaCards[$cardName] = $cardNum;
             }
         }
     }
-    unset($output);
 
     return json($AlsaCards);
 }
