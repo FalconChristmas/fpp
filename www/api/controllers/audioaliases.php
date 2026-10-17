@@ -125,7 +125,7 @@ function GetAudioCardAliases()
     // Also pull short bracketed names from `aplay -l` so the modal shows the
     // same display names users see elsewhere.
     $shortNameMap = array(); // cardNum -> short bracketed name
-    exec($SUDO . " aplay -l 2>/dev/null | grep '^card'", $aplayOut);
+    exec($SUDO . " env LC_ALL=C aplay -l 2>/dev/null | grep '^card'", $aplayOut);
     foreach ($aplayOut as $line) {
         if (preg_match('/^card\s+(\d+):\s*[^[]*\[([^\]]+)\]/', $line, $m)) {
             $cn = intval($m[1]);

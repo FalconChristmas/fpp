@@ -226,9 +226,9 @@ function GetOptions_AudioOutputDevice($fulllist = false)
         $CurrentCard = GetAudioCurrentCard();
         $AlsaCards = array();
         if ($fulllist) {
-            exec($SUDO . " aplay -l | grep '^card' | sed -e 's/^card //' -e 's/.*\[\(.*\)\].*\[\(.*\)\]/\\1, \\2/'", $output, $return_val);
+            exec($SUDO . " env LC_ALL=C aplay -l | grep '^card' | sed -e 's/^card //' -e 's/.*\[\(.*\)\].*\[\(.*\)\]/\\1, \\2/'", $output, $return_val);
         } else {
-            exec($SUDO . " aplay -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
+            exec($SUDO . " env LC_ALL=C aplay -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
         }
         if ($return_val) {
             error_log("Error getting alsa cards for output!");
@@ -358,9 +358,9 @@ function GetOptions_AudioInputDevice($fulllist = false, $allowMedia = false, $va
         // suffix, which is more stable than volatile card numbers.
         // awk splits on [] chars: field 1 = "card N: SHORTNAME ", field 2 = "card desc", etc.
         // Last word of field 1 = ALSA short name; $(NF-1) = last bracketed value = device name.
-        exec($SUDO . " arecord -l | grep '^card' | awk -F'[][]+' '{gsub(/ *\$/, \"\", \$1); split(\$1, a, \" \"); print a[length(a)]\", \"\$(NF-1)}'", $output, $return_val);
+        exec($SUDO . " env LC_ALL=C arecord -l | grep '^card' | awk -F'[][]+' '{gsub(/ *\$/, \"\", \$1); split(\$1, a, \" \"); print a[length(a)]\", \"\$(NF-1)}'", $output, $return_val);
     } else {
-        exec($SUDO . " arecord -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
+        exec($SUDO . " env LC_ALL=C arecord -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
     }
     if ($return_val) {
         error_log("Error getting alsa cards for input!");
