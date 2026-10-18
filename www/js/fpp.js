@@ -803,6 +803,17 @@ function ParseLastStageMarker (text) {
 function DoModalDialog (options) {
 	var dlg = $('#' + options.id);
 	var isNewDialog = dlg.length == 0;
+	// A new dialog is cloned from #modalDialogBase, which comes in with the
+	// footer at the end of the page. A slow page shows its buttons long before
+	// that, and a dialog opened from one in the meantime (a lookup that answers
+	// quickly) cloned nothing and threw inside bootstrap.Modal. Open it once
+	// the page has finished parsing instead.
+	if (isNewDialog && $('#modalDialogBase').length == 0 && document.readyState === 'loading') {
+		$(function () {
+			DoModalDialog(options);
+		});
+		return;
+	}
 	if (isNewDialog) {
 		dlg = $('#modalDialogBase').clone();
 		dlg.attr('id', options.id);
