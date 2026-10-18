@@ -80,7 +80,9 @@ because `run.sh` builds from commits. Then commit the scenario to fpp-tests.
 - Hardware-only bugs (PRU, DPI, panels, serial) can't run in Docker. Write the scenario anyway,
   verify it with `run-local.sh` on matching hardware, and say so in the docstring.
 
-UI changes under `www/` are covered by the Playwright suite in `tests/playwright/`.
+UI changes under `www/` are covered by the Playwright suite in fpp-tests' `web/`: `./run-web.sh`
+serves a commit's UI from Docker and runs it. A UI fix gets a test there the same way, proved with
+`scripts/verify-fix.sh <fix> web/tests/<spec>`.
 
 ## Plugin Compatibility
 

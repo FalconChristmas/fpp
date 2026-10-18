@@ -1,15 +1,16 @@
 # Testing
 
-FPP has two test suites:
+FPP's tests live in [FalconChristmas/fpp-tests](https://github.com/FalconChristmas/fpp-tests),
+in two suites:
 
-- **Runtime scenarios**: [FalconChristmas/fpp-tests](https://github.com/FalconChristmas/fpp-tests).
-  They start a real `fppd`, drive it through its HTTP API, and check what it does. This is
-  where tests for fppd itself belong: playlists, the scheduler, commands and presets, channel
-  outputs, overlays, MultiSync, the bridge, and startup and shutdown.
-- **Web UI**: `tests/playwright/` in this repository. These are browser tests for the pages
-  under `www/`.
+- **Runtime scenarios** (`scenarios/`). They start a real `fppd`, drive it through its HTTP
+  API, and check what it does. This is where tests for fppd itself belong: playlists, the
+  scheduler, commands and presets, channel outputs, overlays, MultiSync, the bridge, and
+  startup and shutdown.
+- **Web UI** (`web/`). Playwright tests for the pages under `www/`, run against a commit's
+  UI served from Docker the way a player serves it. See [Web UI tests](#web-ui-tests).
 
-The scenario suite lives in its own repository because every FPP device has a full clone of
+The tests live in their own repository because every FPP device has a full clone of
 this one. Tests, fixtures and the CI harness add nothing at runtime, so they stay out of the
 history that every device downloads.
 
@@ -107,6 +108,30 @@ Some fixes need extra care:
   so in the docstring.
 - **Pure logic** (date math, parsers, bounds checks) can still be driven end to end through
   the config and API that reach it. That is usually only a few lines.
+
+## Web UI tests
+
+`run-web.sh` in fpp-tests builds a commit the way `run.sh` does, serves its UI from Docker
+(Apache, php-fpm, the commit's own site config and a freshly generated CSP, with that build's
+`fppd` behind it), and runs the Playwright suite in `web/` against it from your machine. It
+needs Docker and Node.js 20+.
+
+```sh
+cd ../fpp-tests
+./run-web.sh                               # ../fpp at HEAD
+./run-web.sh --ref <commit> tests/fpp.spec.ts -g Playlists
+./run-web.sh --serve                       # serve the UI on 127.0.0.1:8080 to write a test against
+```
+
+The `fppd` behind the pages is checked as in a scenario: the run fails if it crashed, wedged
+or reported a sanitizer error. A UI fix gets a test that fails without it, proved the same way
+as a scenario:
+
+```sh
+scripts/verify-fix.sh <fix-commit> web/tests/<spec>.spec.ts
+```
+
+The suite runs nightly against `master` alongside the scenarios.
 
 ## Old commits that don't build
 
