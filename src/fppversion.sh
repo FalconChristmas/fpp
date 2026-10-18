@@ -33,22 +33,6 @@ git status > /dev/null 2>&1
 # nightly job moves onto the master tip can never be picked up here -- it would
 # make MAJOR_VERSION below literally "nightly" and break every version check.
 SOURCE_VERSION=$(git describe --tags --match='[0-9]*' --dirty || git describe --tags --match='[0-9]*' || echo Unknown)
-MAJOR_VERSION=$(echo ${SOURCE_VERSION} | cut -f1 -d\.)
-MINOR_VERSION=$(echo ${SOURCE_VERSION} | cut -f1 -d- | cut -f2 -d\.)
-PATCH_VERSION=$(echo ${SOURCE_VERSION} | cut -f1 -d- | cut -f3 -d\.)
-
-
-if [ "x${MINOR_VERSION}" = "xx" ]; then
-	SUBV=$(echo ${SOURCE_VERSION} | cut -f2 -d-)
-	MINOR_VERSION=$((1000 + $SUBV))
-    PATCH_VERSION=""
-    TRIPLET_VERSION="${MAJOR_VERSION}.${MINOR_VERSION}"
-elif [ "x${PATCH_VERSION}" = "x"  ]; then
-    TRIPLET_VERSION="${MAJOR_VERSION}.${MINOR_VERSION}.0"
-else
-    TRIPLET_VERSION="${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}"
-fi
-
 case "${SOURCE_VERSION}" in
     exported|Unknown)
         if ! grep -q Format $GITTREEDIR/EXPORTED_VERSION; then
@@ -65,6 +49,25 @@ case "${SOURCE_VERSION}" in
         fi
     ;;
 esac
+
+# After the case above: an exported tree's version comes from EXPORTED_VERSION,
+# and deriving these from "Unknown" left getFPPVersionFloat() returning the
+# bare Unknown.Unknown, a fatal error in every PHP page.
+MAJOR_VERSION=$(echo ${SOURCE_VERSION} | cut -f1 -d\.)
+MINOR_VERSION=$(echo ${SOURCE_VERSION} | cut -f1 -d- | cut -f2 -d\.)
+PATCH_VERSION=$(echo ${SOURCE_VERSION} | cut -f1 -d- | cut -f3 -d\.)
+
+
+if [ "x${MINOR_VERSION}" = "xx" ]; then
+	SUBV=$(echo ${SOURCE_VERSION} | cut -f2 -d-)
+	MINOR_VERSION=$((1000 + $SUBV))
+    PATCH_VERSION=""
+    TRIPLET_VERSION="${MAJOR_VERSION}.${MINOR_VERSION}"
+elif [ "x${PATCH_VERSION}" = "x"  ]; then
+    TRIPLET_VERSION="${MAJOR_VERSION}.${MINOR_VERSION}.0"
+else
+    TRIPLET_VERSION="${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}"
+fi
 
 cat > fppversion.c.new <<EOF
 #include <stdio.h>
