@@ -251,6 +251,12 @@
         // Reading the live DOM from a setTimeout (poll tick) turns out to be
         // unreliable — the DOM may appear reverted by the time the tick fires.
         var _reorderCommittedOrder = null;
+        // True while a reorder grip is held. A render then pulls the row out from
+        // under jQuery UI sortable: a poll landing between mousedown and the drag
+        // starting made it throw creating its drag helper, and the row never moved.
+        // The patched initBody() defers such a render until the grip is released.
+        var _reorderGripHeld = false;
+        var _reorderRenderDeferred = false;
 
         var channelOutputConfigCache = {};
         var channelInputConfigCache = {};
@@ -1202,6 +1208,20 @@
             }
         }
 
+        // Runs the render deferred while a reorder grip was held (see
+        // _reorderGripHeld), once sortable's own mouseup handling -- whose 'stop'
+        // records the order that render has to keep -- has run.
+        function releaseReorderGrip() {
+            if (!_reorderGripHeld) return;
+            _reorderGripHeld = false;
+            setTimeout(function () {
+                if (_reorderRenderDeferred && !_reorderGripHeld) {
+                    _reorderRenderDeferred = false;
+                    safeInitBody($('#fppSystemsTable'));
+                }
+            }, 0);
+        }
+
         /**
          * Toggles reorder mode on/off.
          * When enabled: adds drag handles, enables jQuery UI sortable on tbody,
@@ -1223,6 +1243,12 @@
                 $table.find('th').css('pointer-events', 'none');
                 // Disable filter inputs
                 $table.find('.filter-control input, .filter-control select').prop('disabled', true);
+
+                $tbody.on('mousedown.fppReorder touchstart.fppReorder', '.reorder-grip', function () {
+                    _reorderGripHeld = true;
+                });
+                $(document).on('mouseup.fppReorder touchend.fppReorder touchcancel.fppReorder', releaseReorderGrip);
+                $(window).on('blur.fppReorder', releaseReorderGrip);
 
                 // Enable jQuery UI sortable on tbody
                 $tbody.sortable({
@@ -1265,6 +1291,10 @@
                 if ($tbody.sortable('instance')) {
                     $tbody.sortable('destroy');
                 }
+                $tbody.off('.fppReorder');
+                $(document).off('.fppReorder');
+                $(window).off('.fppReorder');
+                releaseReorderGrip();
 
                 // Re-enable header click sorting
                 $table.find('th').css('pointer-events', '');
@@ -2516,6 +2546,10 @@
             if (bt) {
                 var origInitBody = bt.initBody;
                 bt.initBody = function (fixedScroll, updatedUid) {
+                    if (_reorderGripHeld) {
+                        _reorderRenderDeferred = true;
+                        return;
+                    }
                     var $body = this.$el.find('>tbody');
                     // Capture log <textarea> scroll positions BEFORE detaching the
                     // child rows.  Detaching an element from the DOM destroys its
