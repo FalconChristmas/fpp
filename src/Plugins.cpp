@@ -90,12 +90,15 @@ static void ForEachPlaylistPlugin(const std::vector<FPPPlugins::PlaylistEventPlu
         snapshot = plugins;
     }
     for (auto a : snapshot) {
-        FPPPlugins::Plugin* key = dynamic_cast<FPPPlugins::Plugin*>(a);
+        FPPPlugins::Plugin* key = nullptr;
         {
             std::lock_guard<std::mutex> lock(playlistPluginsLock);
             if (std::find(plugins.begin(), plugins.end(), a) == plugins.end()) {
-                continue; // unloaded since the copy was taken
+                continue; // unloaded since the copy was taken, maybe freed
             }
+            // Only now: the cast reads the object, which is live only while
+            // it is still listed.
+            key = dynamic_cast<FPPPlugins::Plugin*>(a);
             playlistPluginCallsInFlight[key]++;
         }
         struct Done {
