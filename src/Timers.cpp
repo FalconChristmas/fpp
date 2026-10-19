@@ -31,17 +31,26 @@ Timers Timers::INSTANCE;
 Timers::Timers() {
 }
 
-// Bumped (under Timers::lock) whenever a named timer is stopped or replaced.
-// fireTimersInternal() copies every due timer before running any of them, so
-// without this a timer that an earlier callback in the same pass stopped --
-// a plugin's unload stopping its own periodic timer, then deleting the
-// plugin -- still ran once from its copy.  Kept here rather than in TimerInfo
-// because Timers.h is plugin ABI.
-static std::map<std::string, uint64_t> s_timerEpoch;
+// Named timers that fireTimersInternal() has copied out to fire and not yet
+// fired, with an epoch bumped (under Timers::lock) whenever one is stopped or
+// replaced.  fireTimersInternal() copies every due timer before running any of
+// them, so without this a timer that an earlier callback in the same pass
+// stopped -- a plugin's unload stopping its own periodic timer, then deleting
+// the plugin -- still ran once from its copy.  An entry lives only while a
+// copy is pending: a name per fired timer would grow without bound, since
+// some timers take a fresh name every time (a per-play media stop, each pass
+// of looping media).  Kept here rather than in TimerInfo because Timers.h is
+// plugin ABI.
+struct PendingFire {
+    uint64_t epoch = 0;
+    int copies = 0;
+};
+static std::map<std::string, PendingFire> s_pendingFires;
 
 static void BumpTimerEpoch(const std::string& name) {
-    if (!name.empty()) {
-        s_timerEpoch[name]++;
+    auto it = s_pendingFires.find(name);
+    if (it != s_pendingFires.end()) {
+        it->second.epoch++;
     }
 }
 
@@ -171,7 +180,12 @@ void Timers::fireTimersInternal(long long t) {
     for (int x = 0; x < m; ++x) {
         auto a = timers[x];
         if (a && (a->fireTimeMS <= t)) {
-            uint64_t epoch = a->id.empty() ? 0 : s_timerEpoch[a->id];
+            uint64_t epoch = 0;
+            if (!a->id.empty()) {
+                PendingFire& pf = s_pendingFires[a->id];
+                pf.copies++;
+                epoch = pf.epoch;
+            }
             if (a->periodicRate) {
                 a->fireTimeMS = GetMonotonicTimeMS() + a->periodicRate;
                 toFire.emplace_back(*a, epoch);
@@ -189,7 +203,12 @@ void Timers::fireTimersInternal(long long t) {
     for (auto& [a, epoch] : toFire) {
         if (!a.id.empty()) {
             std::unique_lock<std::mutex> el(lock);
-            if (s_timerEpoch[a.id] != epoch) {
+            auto it = s_pendingFires.find(a.id);
+            bool stale = it->second.epoch != epoch;
+            if (--it->second.copies == 0) {
+                s_pendingFires.erase(it);
+            }
+            if (stale) {
                 continue; // stopped or replaced by an earlier callback this pass
             }
         }
