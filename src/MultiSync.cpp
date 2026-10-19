@@ -3083,8 +3083,21 @@ void MultiSync::ReloadSyncDestinations() {
     // remote list under m_systemsLock and then takes this lock itself.
     std::unique_lock<std::mutex> updateLock(m_unicastUpdateLock);
 
-    std::string remotesString = getSetting("MultiSyncRemotes");
-    std::string extraRemotes = getSetting("MultiSyncExtraRemotes");
+    // The web UI used to PUT the whole list as a JSON string, which stores it as
+    // "a,b,c" with the quotes as part of the value.  Strip them from each list
+    // before the two are joined and split: per-entry stripping below only helps
+    // an entry that has both quotes, so the first and last entries of a quoted
+    // list were rejected as invalid addresses and never sent sync packets.
+    auto stripListQuotes = [](std::string v) {
+        TrimWhiteSpace(v);
+        while (v.size() >= 2 && v.front() == '"' && v.back() == '"') {
+            v = v.substr(1, v.size() - 2);
+            TrimWhiteSpace(v);
+        }
+        return v;
+    };
+    std::string remotesString = stripListQuotes(getSetting("MultiSyncRemotes"));
+    std::string extraRemotes = stripListQuotes(getSetting("MultiSyncExtraRemotes"));
     if (extraRemotes != "") {
         if (remotesString == "") {
             remotesString = extraRemotes;

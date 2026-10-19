@@ -4147,8 +4147,11 @@
             try {
                 const r = await fetch("api/settings/MultiSyncRemotes", {
                     method: 'PUT',
-                    body: JSON.stringify(remotes),
-                    headers: { 'Content-Type': 'application/json' }
+                    // The raw list, not JSON.stringify(): the API stores the body as
+                    // given, and the quotes a JSON string adds became part of the
+                    // value, which fppd then read as part of the first and last IPs.
+                    body: remotes,
+                    headers: { 'Content-Type': 'text/plain' }
                 });
                 if (!r.ok) throw new Error(r.status);
                 settings['MultiSyncRemotes'] = remotes;
