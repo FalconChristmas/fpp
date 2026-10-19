@@ -14,6 +14,7 @@
 
 #include "../log.h"
 
+#include "../Sequence.h"
 #include "Matrix.h"
 #include <cstring> // memcpy -- needed directly for NOPCH builds
 
@@ -46,6 +47,16 @@ void Matrix::AddSubMatrix(int enabled, int startChannel, int width, int height,
     LogDebug(VB_CHANNELOUT,
              "New SubMatrix: %dx%d+%d+%d @ channel %d, enabled: %d\n",
              width, height, xOffset, yOffset, startChannel, enabled);
+    // Every frame copies the sub-matrix into m_buffer row by row, from its
+    // own channels: one that does not fit inside the matrix overran the heap
+    // buffer, and channels outside the channel data read past it.
+    if (width <= 0 || height <= 0 || xOffset < 0 || yOffset < 0 ||
+        (int64_t)xOffset + width > m_width || (int64_t)yOffset + height > m_height ||
+        startChannel < 0 || (int64_t)startChannel + (int64_t)width * height * 3 > FPPD_MAX_CHANNELS) {
+        LogErr(VB_CHANNELOUT, "Ignoring sub-matrix %dx%d+%d+%d at channel %d: it does not fit the %dx%d matrix or the channel data\n",
+               width, height, xOffset, yOffset, startChannel + 1, m_width, m_height);
+        return;
+    }
     SubMatrix newSub;
 
     newSub.enabled = enabled;
@@ -62,12 +73,14 @@ void Matrix::AddSubMatrix(int enabled, int startChannel, int width, int height,
  *
  */
 void Matrix::OverlaySubMatrix(unsigned char* channelData, int i) {
-    if (subMatrix.size() < i)
+    if (i < 0 || i >= (int)subMatrix.size())
         return;
 
-    // Check to see if this submatrix is enabled
-    if ((!subMatrix[i].enabled) &&
-        (!channelData[m_enableFlagOffset + i]))
+    // Check to see if this submatrix is enabled.  The enable flags follow the
+    // matrix's own channels, so a matrix that ends at the top of the channel
+    // data has none.
+    if (!subMatrix[i].enabled &&
+        ((int64_t)m_enableFlagOffset + i >= FPPD_MAX_CHANNELS || !channelData[m_enableFlagOffset + i]))
         return;
 
     int startChannel = subMatrix[i].startChannel;
