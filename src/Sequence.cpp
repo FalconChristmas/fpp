@@ -1149,10 +1149,26 @@ void Sequence::SendBlankingData(void) {
     BlankSequenceData(true);
 
     if (!ChannelOutputThreadIsEnabled() || !ForceChannelOutputNow()) {
-        // Driving the outputs from this thread: hold off an output reload's
-        // teardown, which would otherwise free an output mid-send (it only
-        // excluded the output thread).
+        // Driving the outputs from this thread.  With output disabled (the
+        // outputs API's "disable") the output thread can still be running: it
+        // stops sending, not preparing, so it runs PrepareChannelData() and
+        // every output's PrepData() each frame on the same buffers this does.
+        // Take its lock as well, so the two never run at once.  Not on the
+        // output thread itself, which already holds it (its OUTPUTS_DISABLED
+        // presets can stop a playlist), nor when this send re-enters itself
+        // through OverlayEffects() on the same thread: the lock is a plain
+        // mutex.  Then hold off an output reload's teardown, which would
+        // otherwise free an output mid-send.
+        static thread_local int inlineSendDepth = 0;
+        std::unique_lock<std::mutex> threadLock(outputThreadLock, std::defer_lock);
+        if (inlineSendDepth == 0 && !IsChannelOutputThread()) {
+            threadLock.lock();
+        }
         std::unique_lock<std::recursive_mutex> inlineLock(inlineOutputLock);
+        struct Depth {
+            Depth() { inlineSendDepth++; }
+            ~Depth() { inlineSendDepth--; }
+        } depth;
         ProcessSequenceData(0);
         SendSequenceData();
     }

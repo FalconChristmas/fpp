@@ -48,6 +48,9 @@ void DestroyChannelOutputSyncVars(void);
 bool ForceChannelOutputNow(void);
 
 int ChannelOutputThreadIsRunning(void);
+// Whether the caller is the channel output thread (which holds
+// outputThreadLock for the whole of each cycle).
+bool IsChannelOutputThread(void);
 int ChannelOutputThreadIsEnabled();
 void SetChannelOutputRefreshRate(float rate);
 float GetChannelOutputRefreshRate();

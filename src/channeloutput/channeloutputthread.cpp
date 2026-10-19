@@ -112,6 +112,11 @@ int ChannelOutputThreadIsRunning(void) {
     return ThreadIsRunning.load(std::memory_order_acquire);
 }
 
+static std::atomic<std::thread::id> outputThreadId{};
+bool IsChannelOutputThread(void) {
+    return outputThreadId.load(std::memory_order_relaxed) == std::this_thread::get_id();
+}
+
 int ChannelOutputThreadIsEnabled() {
     return OutputFrames.load(std::memory_order_relaxed);
 }
@@ -208,6 +213,10 @@ void RunChannelOutputThread(void) {
         // created just before shutdown stopped the output; touch nothing
         return;
     }
+    outputThreadId = std::this_thread::get_id();
+    struct ClearThreadId {
+        ~ClearThreadId() { outputThreadId = std::thread::id(); }
+    } clearThreadId;
     ThreadIsRunning = 1;
     ThreadIsExiting = 0;
     statusLock.unlock();
