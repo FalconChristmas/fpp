@@ -2117,7 +2117,13 @@
           "events"
         ],
         "summary": "Trigger event",
-        "description": "Triggers the specified event by sending a `Trigger Event` command to `fppd`.",
+        "description": "Events became Command Presets in FPP 5: fppd turned each event file into a preset named after the event. This triggers the preset named in the event file `{eventId}.fevt`, as the `Trigger Command Preset` command does.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
         "deprecated": true,
         "responses": {
           "200": {
@@ -2132,6 +2138,20 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "No such event, or no Command Preset by its name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "ERROR",
+                  "message": "No Command Preset named \"My Event\" (from event 01_01)"
+                }
+              }
+            }
           }
         }
       },
@@ -2140,7 +2160,13 @@
           "events"
         ],
         "summary": "Trigger event",
-        "description": "Triggers the specified event by sending a `Trigger Event` command to `fppd`.",
+        "description": "Events became Command Presets in FPP 5: fppd turned each event file into a preset named after the event. This triggers the preset named in the event file `{eventId}.fevt`, as the `Trigger Command Preset` command does.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Event triggered",
@@ -2151,6 +2177,20 @@
                 },
                 "example": {
                   "status": "OK"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such event, or no Command Preset by its name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "ERROR",
+                  "message": "No Command Preset named \"My Event\" (from event 01_01)"
                 }
               }
             }
@@ -8444,7 +8484,7 @@
           "remoteAction"
         ],
         "summary": "Proxy a command to remote FPP",
-        "description": "Proxies a named action to a remote FPP instance by IP address. Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`, `updateLog` (the remote's running FPP/OS update, with its log tail). `reboot`, `restartFppd` and `upgradeOS` change the remote: send them by POST, which FPP 11 will require of them. The others read and stay GETs.",
+        "description": "Proxies a named action to a remote FPP instance by IP address. Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `updateLog` (the remote's running FPP/OS update, with its log tail). `reboot` and `restartFppd` change the remote: send them by POST, which FPP 11 will require of them. The others read and stay GETs. An OS upgrade of another player is a MultiSync job (`streamRemoteJobs.php`, type `upgradeOS`), which streams its progress.",
         "responses": {
           "400": {
             "description": "Invalid action",
@@ -8466,7 +8506,7 @@
           "remoteAction"
         ],
         "summary": "Proxy a command to remote FPP",
-        "description": "Proxies a named action to a remote FPP instance by IP address. Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`, `updateLog` (the remote's running FPP/OS update, with its log tail). `reboot`, `restartFppd` and `upgradeOS` change the remote: send them by POST, which FPP 11 will require of them. The others read and stay GETs.",
+        "description": "Proxies a named action to a remote FPP instance by IP address. Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `updateLog` (the remote's running FPP/OS update, with its log tail). `reboot` and `restartFppd` change the remote: send them by POST, which FPP 11 will require of them. The others read and stay GETs. An OS upgrade of another player is a MultiSync job (`streamRemoteJobs.php`, type `upgradeOS`), which streams its progress.",
         "responses": {
           "400": {
             "description": "Invalid action",

@@ -5,10 +5,12 @@ require_once(__DIR__ . "/../../config.php");
  * Proxy a command to remote FPP
  *
  * Proxies a named action to a remote FPP instance by IP address.
- * Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`,
- * `updateLog` (the remote's running FPP/OS update, with its log tail).
- * `reboot`, `restartFppd` and `upgradeOS` change the remote: send them by
- * POST, which FPP 11 will require of them. The others read and stay GETs.
+ * Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `updateLog`
+ * (the remote's running FPP/OS update, with its log tail). `reboot` and
+ * `restartFppd` change the remote: send them by POST, which FPP 11 will
+ * require of them. The others read and stay GETs. An OS upgrade of another
+ * player is a MultiSync job (`streamRemoteJobs.php`, type `upgradeOS`), which
+ * streams its progress.
  *
  * @route GET /api/remoteAction
  * @route POST /api/remoteAction
@@ -27,7 +29,6 @@ function remoteAction()
         'listUpgrades' => '/api/git/releases/os',
         'reboot' => '/api/system/reboot',
         'restartFppd' => '/api/system/fppd/restart',
-        'upgradeOS' => '/upgradeOS',
         'updateLog' => '/api/system/updateActivity?logTail=1&lines=300',
     ];
 

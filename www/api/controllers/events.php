@@ -91,14 +91,20 @@ function event_get()
 /**
  * Trigger event
  *
- * Triggers the specified event by sending a `Trigger Event` command to `fppd`.
+ * Events became Command Presets in FPP 5: fppd turned each event file into a
+ * preset named after the event. This triggers the preset named in the
+ * event file `{eventId}.fevt`, as the `Trigger Command Preset` command does.
  *
- * @badges "FPP REQUIRED" critical
+ * @badge "FPP REQUIRED" critical
  * @route POST /api/events/{eventId}/trigger
  * @route GET /api/events/{eventId}/trigger deprecated
  * @response 200 Event triggered
  * ```json
  * {"status": "OK"}
+ * ```
+ * @response 404 No such event, or no Command Preset by its name
+ * ```json
+ * {"status": "ERROR", "message": "No Command Preset named \"My Event\" (from event 01_01)"}
  * ```
  */
 function event_trigger()
@@ -113,12 +119,25 @@ function event_trigger()
         http_response_code(400);
         return json(array("status" => "ERROR", "message" => "Invalid event id"));
     }
-    $curl = curl_init('http://localhost:32322/commands/Trigger%20Event/' . rawurlencode($event));
-    curl_setopt($curl, CURLOPT_FAILONERROR, true);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
-    $request_content = curl_exec($curl);
-    return $request_content;
+    $file = $settings['eventDirectory'] . '/' . $event . '.fevt';
+    $info = is_file($file) ? json_decode(file_get_contents($file), true) : null;
+    $name = is_array($info) && isset($info['name']) && is_string($info['name']) ? $info['name'] : '';
+    if ($name === '') {
+        http_response_code(404);
+        return json(array("status" => "ERROR", "message" => "No event $event"));
+    }
+
+    // The command fppd had for this, "Trigger Event", went with the events.
+    $body = FppdCommand('Trigger Command Preset', array($name), 200, 10, false, $code);
+    if ($code == 200) {
+        return json(array("status" => "OK"));
+    }
+    if ($code == 500 && trim((string) $body) == 'Not found') {
+        http_response_code(404);
+        return json(array("status" => "ERROR", "message" => "No Command Preset named \"$name\" (from event $event)"));
+    }
+    http_response_code(500);
+    return json(array("status" => "ERROR", "message" => $body === false ? "Unable to contact fppd" : trim($body)));
 }
 
 ?>

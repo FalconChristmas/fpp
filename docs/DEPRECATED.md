@@ -67,7 +67,7 @@ covers these routes only when the UI is reached over HTTPS.
   `sequence/current/{stop,togglePause}`, `sequence/:name/start/:sec`,
   `scripts/:name/run`, `system/{reboot,shutdown}`,
   `system/fppd/{start,stop,restart}`, and `remoteAction` with
-  `action=reboot`, `restartFppd` or `upgradeOS` (its other actions are reads).
+  `action=reboot` or `restartFppd` (its other actions are reads).
 - fppd: `GET /api/command/<name>/<args...>` (`CommandManager::render_GET`) runs
   any command. The `/commands` and `/commandPresets` GETs are reads and stay.
 - Pages: `changebranch`, `copystorage`, `disableKiosk`, `flash-storage`,
