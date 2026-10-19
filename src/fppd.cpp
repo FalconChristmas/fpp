@@ -1182,6 +1182,15 @@ int main(int argc, char* argv[]) {
     // Initialize Magick, but we don't want the Magick signal handlers as they interfere with our own
     MagickLib::InitializeMagickEx(nullptr, MAGICK_OPT_NO_SIGNAL_HANDER, nullptr);
     Magick::InitializeMagick(NULL);
+    // Cap the size of any image decoded in fppd (overlay image uploads over
+    // HTTP, Image effects, playlist images, virtual display backgrounds).
+    // GraphicsMagick allocates whatever the image header asks for: a 1 MB PNG
+    // claiming 30000x30000 took 4+ GB and fppd was OOM-killed.  A header past
+    // these limits now fails to read.  32M pixels is ~256 MB of pixel cache at
+    // QuantumDepth 16, and leaves room for a full-size phone photo.
+    MagickLib::SetMagickResourceLimit(MagickLib::WidthResource, 16384);
+    MagickLib::SetMagickResourceLimit(MagickLib::HeightResource, 16384);
+    MagickLib::SetMagickResourceLimit(MagickLib::PixelsResource, 32 * 1024 * 1024);
 
     // Parse our arguments first, override any defaults
     parseArguments(argc, argv);
