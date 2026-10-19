@@ -1003,6 +1003,7 @@ static void SignalChild(pid_t pid, int pidfd, int sig, const char* name) {
 }
 
 void AES67Manager::ForgetPtp4l() {
+    std::lock_guard<std::mutex> lock(m_ptp4lProcMutex);
     if (m_ptp4lPidfd >= 0) {
         close(m_ptp4lPidfd);
         m_ptp4lPidfd = -1;
@@ -1031,9 +1032,14 @@ bool AES67Manager::StartPtp4l(bool hwTimestamping, bool includeDscp) {
         // If exec fails
         _exit(127);
     }
-    m_ptp4lPid = pid;
-    m_ptp4lPidfd = OpenPidfd(pid);
-    if (m_ptp4lPidfd < 0 && errno == ESRCH) {
+    int pidfd = OpenPidfd(pid);
+    bool gone = pidfd < 0 && errno == ESRCH;
+    {
+        std::lock_guard<std::mutex> lock(m_ptp4lProcMutex);
+        m_ptp4lPid = pid;
+        m_ptp4lPidfd = pidfd;
+    }
+    if (gone) {
         // Exited and was reaped before we could even look.
         ForgetPtp4l();
         return false;
@@ -1241,7 +1247,20 @@ void AES67Manager::ShutdownPTP() {
     }
 
     StopChildProcess(m_phc2sysPid, m_phc2sysPidfd, "phc2sys");
-    StopChildProcess(m_ptp4lPid, m_ptp4lPidfd, "ptp4l");
+    {
+        // out of the members first, so a reader never polls the pidfd as it
+        // is closed; the wait for the child is made without the lock
+        pid_t pid;
+        int pidfd;
+        {
+            std::lock_guard<std::mutex> lock(m_ptp4lProcMutex);
+            pid = m_ptp4lPid;
+            pidfd = m_ptp4lPidfd;
+            m_ptp4lPid = -1;
+            m_ptp4lPidfd = -1;
+        }
+        StopChildProcess(pid, pidfd, "ptp4l");
+    }
     m_ptpHwTimestamping.store(false);
 
     if (!m_ptpConfPath.empty()) {
@@ -1270,6 +1289,7 @@ void AES67Manager::ShutdownPTP() {
 bool AES67Manager::IsPtp4lRunning() const {
     // SA_NOCLDWAIT means a dead ptp4l leaves no zombie holding its slot, so
     // the PID can be recycled by an unrelated process; see ChildAlive().
+    std::lock_guard<std::mutex> lock(m_ptp4lProcMutex);
     return m_ptp4lPid > 0 && ChildAlive(m_ptp4lPid, m_ptp4lPidfd, "ptp4l");
 }
 

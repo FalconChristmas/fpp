@@ -1140,6 +1140,12 @@ private:
     // a pidfd always refers to our child, where kill(pid) could hit
     // whatever took the number.
     int m_ptp4lPidfd = -1;
+    // m_ptp4lPid and m_ptp4lPidfd: IsPtp4lRunning() reads them from HTTP
+    // threads (status, self-test) while the main loop starts and stops
+    // ptp4l, and closing the pidfd under a reader polled a closed -- or
+    // reused -- descriptor.  Held only to read or swap them, never across a
+    // wait for the child.
+    mutable std::mutex m_ptp4lProcMutex;
     // ptp4l is running with hardware timestamping, i.e. disciplining the
     // NIC's PHC.  With software timestamping it disciplines CLOCK_REALTIME
     // and leaves the PHC free-running, so only this makes the PHC the
