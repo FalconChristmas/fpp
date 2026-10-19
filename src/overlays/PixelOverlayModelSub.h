@@ -11,6 +11,8 @@
  * included LICENSE.LGPL file.
  */
 
+#include <memory>
+#include <mutex>
 #include <vector>
 
 #include "PixelOverlayModel.h"
@@ -39,7 +41,14 @@ protected:
 private:
     bool foundParent();
 
+    // `parent` is the raw pointer doOverlay() uses on the output thread (made
+    // safe there by the active list, see resetParent()); `parentRef` owns a
+    // share of the same model, so setState() can call into the parent from
+    // any thread without modelsLock.  Both are set and cleared together under
+    // parentLock (a leaf lock), always with modelsLock held as well.
     PixelOverlayModel* parent = nullptr;
+    std::weak_ptr<PixelOverlayModel> parentRef;
+    std::mutex parentLock;
 
     int xOffset = 0;
     int yOffset = 0;
