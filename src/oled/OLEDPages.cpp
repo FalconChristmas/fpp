@@ -229,21 +229,30 @@ static inline uint8_t reverse(uint8_t n) {
 }
 
 void OLEDPage::readCapeImage() {
+    // The image comes from the cape (its EEPROM, via fppcapedetect), so it is
+    // parsed as untrusted: a short "#define" line indexed past the split, a
+    // byte that wasn't hex threw out of stoi and ended fppoled, and nothing
+    // checked the bytes covered width x height before drawBitmap() read them.
+    // Anything off leaves no image.
     if (FileExists("/home/fpp/media/tmp/cape-image.xbm") || FileExists("/var/tmp/cape-image.xbm")) {
         std::string fn = FileExists("/home/fpp/media/tmp/cape-image.xbm") ? "/home/fpp/media/tmp/cape-image.xbm" : "/var/tmp/cape-image.xbm";
         std::ifstream file(fn);
         if (file.is_open()) {
             std::string line;
             bool readingBytes = false;
-            while (std::getline(file, line)) {
+            bool ok = true;
+            int width = 0;
+            int height = 0;
+            std::vector<uint8_t> image;
+            while (ok && std::getline(file, line)) {
                 trim(line);
                 if (!readingBytes) {
                     if (line.find("_width") != std::string::npos) {
                         std::vector<std::string> v = splitAndTrim(line, ' ');
-                        _capeImageWidth = std::atoi(v[2].c_str());
+                        width = v.size() > 2 ? std::atoi(v[2].c_str()) : 0;
                     } else if (line.find("_height") != std::string::npos) {
                         std::vector<std::string> v = splitAndTrim(line, ' ');
-                        _capeImageHeight = std::atoi(v[2].c_str());
+                        height = v.size() > 2 ? std::atoi(v[2].c_str()) : 0;
                     } else if (line.find("{") != std::string::npos) {
                         readingBytes = true;
                         line = line.substr(line.find("{") + 1);
@@ -256,15 +265,29 @@ void OLEDPage::readCapeImage() {
                             readingBytes = false;
                             break;
                         }
-                        int i = std::stoi(s, 0, 16);
+                        if (s.empty()) {
+                            continue;
+                        }
+                        char* end = nullptr;
+                        long i = strtol(s.c_str(), &end, 16);
+                        if (end == s.c_str() || *end || i < 0 || i > 255 || image.size() >= 65536) {
+                            ok = false;
+                            break;
+                        }
                         uint8_t t8 = (uint8_t)i;
                         t8 = ~t8;
                         t8 = reverse(t8);
-                        _capeImage.push_back((uint8_t)t8);
+                        image.push_back((uint8_t)t8);
                     }
                 }
             }
             file.close();
+            if (ok && width > 0 && width <= 256 && height > 0 && height <= 256 &&
+                image.size() >= (size_t)((width + 7) / 8) * height) {
+                _capeImageWidth = width;
+                _capeImageHeight = height;
+                _capeImage = std::move(image);
+            }
         }
     }
 }

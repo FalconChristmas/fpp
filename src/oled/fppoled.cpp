@@ -41,16 +41,16 @@ void WarningHolder::AddWarning(int id, const std::string& w, const std::map<std:
 }
 
 static FPPOLEDUtils* oled = nullptr;
+// Only the flag: cleanup() frees memory and displayOff() talks I2C, neither
+// safe in a handler (one landing inside malloc or a bus transfer deadlocked
+// or corrupted them), and a signal before `oled` existed dereferenced null.
+// run() sees the flag and main() tidies up.
 void sigInteruptHandler(int sig) {
-    oled->cleanup();
-    OLEDPage::displayOff();
-    exit(1);
+    FPPOLEDUtils::exitSignal = SIGINT;
 }
 
 void sigTermHandler(int sig) {
-    oled->cleanup();
-    OLEDPage::displayOff();
-    exit(0);
+    FPPOLEDUtils::exitSignal = SIGTERM;
 }
 
 int main(int argc, char* argv[]) {
@@ -162,4 +162,7 @@ int main(int argc, char* argv[]) {
 
     oled = new FPPOLEDUtils(ledType);
     oled->run();
+    oled->cleanup();
+    OLEDPage::displayOff();
+    return FPPOLEDUtils::exitSignal.load() == SIGTERM ? 0 : 1;
 }

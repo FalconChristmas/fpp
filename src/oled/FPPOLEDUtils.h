@@ -8,6 +8,8 @@
 class FPPStatusOLEDPage;
 class PinCapabilities;
 
+#include <atomic>
+
 class FPPOLEDUtils {
 public:
     FPPOLEDUtils(int ledType);
@@ -15,6 +17,10 @@ public:
 
     void run();
     void cleanup();
+
+    // Set by fppoled's SIGINT/SIGTERM handlers (a lock-free atomic is all a
+    // handler may touch); run() returns once it is non-zero.
+    static std::atomic<int> exitSignal;
 
     class InputAction {
     public:

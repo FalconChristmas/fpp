@@ -69,6 +69,8 @@ void FPPOLEDUtils::cleanup() {
     actions.clear();
 }
 
+std::atomic<int> FPPOLEDUtils::exitSignal{ 0 };
+
 static const std::string EMPTY_STRING = "";
 
 // gpio.json "rising"/"falling" entries were a single command object in FPP 9
@@ -524,7 +526,7 @@ void FPPOLEDUtils::run() {
     long long lastUpdateTime = 0;
     long long ntime = MonotonicMicros();
     long long lastActionTime = MonotonicMicros();
-    while (true) {
+    while (exitSignal.load() == 0) {
         bool forcedOff = currentStatus->forceOff;
         if (OLEDPage::IsForcedOff() && !forcedOff) {
             // turning back on
