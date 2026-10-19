@@ -12,6 +12,9 @@
 
 #include "fpp-pch.h"
 
+#include <mutex>
+#include <set>
+
 #include "fpp-json.h"
 #include "fpphttp.h" // drogon/HTTP helpers used here; see fpphttp_types.h
 
@@ -107,6 +110,27 @@ static std::string NormaliseMountPoint(const std::string& raw, int id) {
 // ──────────────────────────────────────────────────────────────────────────────
 // Config
 // ──────────────────────────────────────────────────────────────────────────────
+// The warnings the last apply raised, retracted by the next: saving the
+// config again, or the Restart that follows freeing the port, is how a user
+// retries, and they used to stay up until fppd restarted.  RemoveWarning()
+// needs the exact text, so it is kept as raised.
+static std::mutex s_rtspWarningsLock;
+static std::set<std::string> s_rtspWarnings;
+
+static void RaiseRtspWarning(const std::string& w) {
+    std::lock_guard<std::mutex> l(s_rtspWarningsLock);
+    s_rtspWarnings.insert(w);
+    WarningHolder::AddWarning(31, w);
+}
+
+static void RetractRtspWarnings() {
+    std::lock_guard<std::mutex> l(s_rtspWarningsLock);
+    for (const auto& w : s_rtspWarnings) {
+        WarningHolder::RemoveWarning(31, w);
+    }
+    s_rtspWarnings.clear();
+}
+
 bool RTSPOutputManager::LoadConfig() {
     RTSPOutputConfig fresh;
 
@@ -393,7 +417,7 @@ bool RTSPOutputManager::StartAudioBridge(const RTSPOutputMount& mount, bool requ
         if (gst_element_set_state(startRef, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
             LogErr(VB_MEDIAOUT, "RTSPOutputManager: audio bridge for '%s' failed to start\n",
                    mountName.c_str());
-            WarningHolder::AddWarning(31, "RTSP output '" + mountName + "': audio bridge failed to start");
+            RaiseRtspWarning("RTSP output '" + mountName + "': audio bridge failed to start");
         }
         gst_object_unref(startRef);
     }).detach();
@@ -483,7 +507,7 @@ bool RTSPOutputManager::StartServer() {
         LogErr(VB_MEDIAOUT, "RTSPOutputManager: could not bind RTSP port %d "
                             "(in use, or not permitted)\n",
                m_config.port);
-        WarningHolder::AddWarning(31, "RTSP output: could not bind port " + std::to_string(m_config.port));
+        RaiseRtspWarning("RTSP output: could not bind port " + std::to_string(m_config.port));
         StopServer();
         return false;
     }
@@ -606,6 +630,7 @@ bool RTSPOutputManager::ApplyConfig() {
     StopServer();
     StopAudioBridges();
     m_active = false;
+    RetractRtspWarnings();
 
     LoadConfig();
 
