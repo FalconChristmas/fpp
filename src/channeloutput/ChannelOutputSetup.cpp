@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include <shared_mutex>
+
 #include "fpp-json.h"
 
 #include <dlfcn.h>
@@ -97,16 +99,19 @@ bool HasChannelOutputs() {
     return channelOutputs.load() != nullptr;
 }
 
-// NOTE: this and GetOutputTypes() below walk the list from HTTP/MultiSync
-// threads without outputThreadLock, so they can still read an instance the
-// reload path is freeing.  Taking the lock here is NOT safe: the output thread
-// holds it across Sequence::SendSequenceData(), which runs FSEQ-triggered
-// commands (Sequence.cpp), and a command that reaches back into either of
-// these would deadlock the output thread outright.  Closing this properly
-// wants a read-side that cannot block the writer -- an RCU/epoch scheme or a
-// shared_ptr snapshot of the list -- rather than this mutex.
+// This and GetOutputTypes() below walk the list from HTTP/MultiSync threads.
+// They can't take outputThreadLock: the output thread holds it across
+// Sequence::SendSequenceData(), which runs FSEQ-triggered commands, and a
+// command that reached back into either of these would deadlock the output
+// thread.  They read under outputListFreeLock instead, which the reload path
+// takes last, only while it unlinks and frees instances, and which these
+// walks hold alone -- a leaf, so nothing can wait on it in a cycle.  Without
+// it they could read an instance the reload was freeing.
+static std::shared_mutex outputListFreeLock;
+
 bool HasUniverseOutputs() {
     std::string universeFile = FPP_DIR_CONFIG("/co-universes.json");
+    std::shared_lock<std::shared_mutex> l(outputListFreeLock);
     for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
         if (inst->sourceFile == universeFile) {
             return true;
@@ -361,6 +366,8 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
         // And against a blank being sent inline from another thread (see
         // inlineOutputLock); that send doesn't hold outputThreadLock.
         std::unique_lock<std::recursive_mutex> inlineLock(inlineOutputLock);
+        // and against HasUniverseOutputs()/GetOutputTypes(); see there
+        std::unique_lock<std::shared_mutex> freeLock(outputListFreeLock);
         for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
             // remove everything in the list that was loaded from the cfgFile
             if (inst->sourceFile == cfgFile) {
@@ -676,9 +683,10 @@ void OverlayOutputTestData(std::set<std::string> types, unsigned char* channelDa
         }
     }
 }
-// see the note on HasUniverseOutputs() for why this walk stays unlocked
+// see the note on HasUniverseOutputs() for the lock this walk takes
 std::set<std::string> GetOutputTypes() {
     std::set<std::string> ret;
+    std::shared_lock<std::shared_mutex> l(outputListFreeLock);
     for (auto inst = channelOutputs.load(); inst != nullptr; inst = inst->next) {
         auto output = inst->output;
         if (output && output->SupportsTesting()) {
