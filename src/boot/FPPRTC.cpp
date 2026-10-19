@@ -206,8 +206,12 @@ int main(int argc, char* argv[]) {
         return 0;
     }
     int count = 0;
+    // Bounded at 1 s: with an RTC selected but no chip answering, the device
+    // never appears, and this oneshot unit holds up sysinit (and with it fppd
+    // and apache) for as long as it runs.
     while (!FileExists(rtc) && count < 100) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        count++;
     }
     if (FileExists(rtc)) {
         std::string action = "get";
