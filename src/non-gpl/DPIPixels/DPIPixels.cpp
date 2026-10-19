@@ -305,11 +305,45 @@ int DPIPixelsOutput::Init(Json::Value config) {
         if (i >= root["outputs"].size()) {
             continue;
         }
+        // bitPos and the string maps hold one entry per DPI bit and latch
+        if (i >= MAX_DPI_PIXEL_LATCHES * 24) {
+            LogErr(VB_CHANNELOUT, "DPIPixels: only %d outputs are supported, ignoring the rest\n",
+                   MAX_DPI_PIXEL_LATCHES * 24);
+            break;
+        }
         Json::Value s = config["outputs"][i];
         PixelString* newString = new PixelString(true);
 
         if (!newString->Init(s, &root["outputs"][i]))
             return 0;
+
+        // The license limit is applied first: the lengths recorded below
+        // (longestString, stringLengths) size and bound what PrepData reads,
+        // and taken before the limit they kept the unlicensed length.
+        if ((i >= licensedOutputs) && (newString->m_outputBytes > 0)) {
+            // apply limit at the source, same code as BBB48StringOutput
+            int pixels = 50;
+            int chanCount = 0;
+            for (auto& a : newString->m_virtualStrings) {
+                if (pixels < a.pixelCount) {
+                    a.pixelCount = pixels;
+                    if (outputList != "") {
+                        outputList += ", ";
+                    }
+                    outputList += std::to_string(i + 1);
+                }
+                pixels -= a.pixelCount;
+                chanCount += a.pixelCount * a.channelsPerNode();
+            }
+            if (newString->m_isSmartReceiver) {
+                chanCount = 0;
+                if (outputList != "") {
+                    outputList += ", ";
+                }
+                outputList += std::to_string(i + 1);
+            }
+            newString->setPixelDataChannels(chanCount);
+        }
 
         if (newString->m_outputBytes > longestString)
             longestString = newString->m_outputBytes;
@@ -342,8 +376,17 @@ int DPIPixelsOutput::Init(Json::Value config) {
                 outputPinMap.push_back("");
             }
         } else if (root["outputs"][i].isMember("sharedOutput")) {
-            std::string pinName = outputPinMap[root["outputs"][i]["sharedOutput"].asInt()];
-            bitPos[i] = GetDPIPinBitPosition(pinName);
+            int shared = root["outputs"][i]["sharedOutput"].asInt();
+            std::string pinName = (shared >= 0 && shared < (int)outputPinMap.size()) ? outputPinMap[shared] : std::string();
+            int sharedBitPos = pinName.empty() ? -1 : GetDPIPinBitPosition(pinName);
+            if (sharedBitPos < 0) {
+                // an index outside the outputs before it, or one with no DPI pin
+                LogErr(VB_CHANNELOUT, "DPIPixels: output %d shares output %d, which has no DPI pin\n", i + 1, shared + 1);
+                outputPinMap.push_back("");
+                pixelStrings.push_back(newString);
+                continue;
+            }
+            bitPos[i] = sharedBitPos;
             for (int latch = 1; latch < MAX_DPI_PIXEL_LATCHES; latch++) {
                 if ((firstStringInBank[latch] == 0) &&
                     (std::count(outputPinMap.begin(), outputPinMap.end(), pinName) == latch)) {
@@ -366,30 +409,6 @@ int DPIPixelsOutput::Init(Json::Value config) {
             outputPinMap.push_back("");
         }
 
-        if ((i >= licensedOutputs) && (newString->m_outputBytes > 0)) {
-            // apply limit at the source, same code as BBB48StringOutput
-            int pixels = 50;
-            int chanCount = 0;
-            for (auto& a : newString->m_virtualStrings) {
-                if (pixels < a.pixelCount) {
-                    a.pixelCount = pixels;
-                    if (outputList != "") {
-                        outputList += ", ";
-                    }
-                    outputList += std::to_string(i + 1);
-                }
-                pixels -= a.pixelCount;
-                chanCount += a.pixelCount * a.channelsPerNode();
-            }
-            if (newString->m_isSmartReceiver) {
-                chanCount = 0;
-                if (outputList != "") {
-                    outputList += ", ";
-                }
-                outputList += std::to_string(i + 1);
-            }
-            newString->setPixelDataChannels(chanCount);
-        }
         pixelStrings.push_back(newString);
     }
 
@@ -497,7 +516,8 @@ int DPIPixelsOutput::Init(Json::Value config) {
             for (auto& a : pixelStrings[s]->m_gpioCommands) {
                 if (a.type == 0) {
                     start = a.channelOffset;
-                } else if ((a.type == 1) && (start != -1)) {
+                } else if ((a.type == 1) && (start != -1) && (stringToOutputMap[s] >= 0)) {
+                    // a string on no DPI pin (-1) has no bit to mask
                     usingSmartReceivers = true;
 
                     int lp = stringToOutputMap[s] / 24;

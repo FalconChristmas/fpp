@@ -12,6 +12,8 @@
 
 #include "fpp-pch.h"
 
+#include <climits>
+
 #include "fpp-json.h"
 
 #include <X11/Xutil.h>
@@ -84,6 +86,17 @@ int X11MatrixOutput::Init(Json::Value config) {
 
     if (!m_scale)
         m_scale = 10;
+
+    // RawSendData() reads width * height * 3 channels and scales them into
+    // the image: a matrix larger than the output's channels over-read the
+    // channel data, and a large scale overflowed the image size.
+    if (m_width < 1 || m_height < 1 || m_scale < 1 || m_scale > 100 ||
+        (int64_t)m_width * m_height * 3 > m_channelCount ||
+        (int64_t)m_width * m_height * m_scale * m_scale * 4 > (int64_t)INT_MAX) {
+        LogErr(VB_CHANNELOUT, "X11Matrix: invalid size %dx%d at scale %d for %u channels\n",
+               m_width, m_height, m_scale, m_channelCount);
+        return 0;
+    }
 
     m_scaleWidth = m_scale * m_width;
     m_scaleHeight = m_scale * m_height;
