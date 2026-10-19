@@ -353,14 +353,23 @@ public:
             // output on a port it doesn't listen on) used to keep this sweep
             // from ever running, so a dead controller was never reported down.
             {
+                // Called after targetLock is released, as replies are: a
+                // callback that pings again (ping(), addPeriodicPing()) takes
+                // targetLock, which is not recursive, and deadlocked here.
+                // dispatchLock, still held, keeps the targets alive.
+                std::list<PingTarget*> timedOut;
                 std::unique_lock<std::mutex> lock(targetLock);
                 for (auto t : targets) {
                     long long tt = t->startTime;
                     tt += t->timeoutMS;
                     if (curTime > tt && std::find(toRemove.begin(), toRemove.end(), t) == toRemove.end()) {
-                        t->callback(0);
+                        timedOut.push_back(t);
                         toRemove.push_back(t);
                     }
+                }
+                lock.unlock();
+                for (auto t : timedOut) {
+                    t->callback(0);
                 }
             }
             std::unique_lock<std::mutex> lock(targetLock);
