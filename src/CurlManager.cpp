@@ -13,6 +13,8 @@
 #include "fpp-pch.h"
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstring>
 #include <list>
 #include <memory>
@@ -301,16 +303,31 @@ int CurlManager::cancelRequests(const std::string& owner) {
     return (int)doomed.size();
 }
 
+// Runs one synchronous request to completion.  The main loop pumps curl
+// too, and when it completes this request it drops numCurls before calling
+// the callback: processCurls() here then returned false with `done` still
+// unset, this frame returned, and the callback wrote `done` into it.  The
+// flag is shared instead, and the wait is for this request only (doPut
+// waited for every request in flight).
+static void runToCompletion(CurlManager& mgr, const std::string& furl, CURL* curl) {
+    auto done = std::make_shared<std::atomic<bool>>(false);
+    mgr.addCURL(
+        furl, curl, [done](CURL* c) { *done = true; }, false);
+    while (!*done) {
+        if (!mgr.processCurls()) {
+            // another thread holds it between completion and the callback
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        } else {
+            std::this_thread::yield();
+        }
+    }
+}
+
 std::string CurlManager::doGet(const std::string& furl, int& rc, const std::string& cookieSession) {
     CURLSH* share = cookieSession.empty() ? nullptr : getCookieShare(cookieSession);
     CURL* curl = createCurl(furl, nullptr, false, share);
 
-    bool done = false;
-    addCURL(
-        furl, curl, [&done](CURL* c) { done = true; }, false);
-    while (!done && processCurls()) {
-        std::this_thread::yield();
-    }
+    runToCompletion(*this, furl, curl);
 
     CurlPrivateData* data = nullptr;
     long rc2 = 0;
@@ -364,12 +381,7 @@ std::string CurlManager::doPost(const std::string& furl, const std::string& cont
     curl_easy_setopt(curl, CURLOPT_READFUNCTION, read_callback);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)data.size());
 
-    bool done = false;
-    addCURL(
-        furl, curl, [&done](CURL* c) { done = true; }, false);
-    while (!done && processCurls()) {
-        std::this_thread::yield();
-    }
+    runToCompletion(*this, furl, curl);
 
     CurlPrivateData* cdata = nullptr;
     long rc2 = 0;
@@ -408,11 +420,7 @@ std::string CurlManager::doPut(const std::string& furl, const std::string& conte
     curl_easy_setopt(curl, CURLOPT_READFUNCTION, read_callback);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)data.size());
 
-    addCURL(
-        furl, curl, [](CURL* c) {}, false);
-    while (processCurls()) {
-        std::this_thread::yield();
-    }
+    runToCompletion(*this, furl, curl);
 
     CurlPrivateData* cdata = nullptr;
     long rc2 = 0;
