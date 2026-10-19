@@ -4303,11 +4303,28 @@ void GStreamerOutput::ApplyRate(float rate) {
     }
 }
 
+// A reference to the volume element, or null.  OnNoMorePads() removes the
+// audio chain from a video-only pipeline and drops m_volume -- freeing the
+// element -- on a streaming thread, under the callback guard, while the
+// volume setters run on the playlist or an HTTP thread (a slot's saved volume
+// is restored while the pipeline is still prerolling, which is exactly when
+// no-more-pads fires).  Taken under the same guard, the reference keeps the
+// element alive for the caller's g_object_set().
+GstElement* GStreamerOutput::RefVolumeElement() {
+    std::shared_ptr<CallbackGuard> guard = m_cbGuard;
+    std::unique_lock<std::recursive_mutex> lock;
+    if (guard) {
+        lock = std::unique_lock<std::recursive_mutex>(guard->mtx);
+    }
+    return m_volume ? GST_ELEMENT(gst_object_ref(m_volume)) : nullptr;
+}
+
 void GStreamerOutput::SetVolume(int volume) {
-    if (m_volume) {
+    if (GstElement* vol = RefVolumeElement()) {
         // volume parameter is 0-100 percentage
         double linearVol = volume / 100.0;
-        g_object_set(m_volume, "volume", linearVol, NULL);
+        g_object_set(vol, "volume", linearVol, NULL);
+        gst_object_unref(vol);
         LogDebug(VB_MEDIAOUT, "GStreamer volume set to %d%% (%.2f)\n", volume, linearVol);
     }
 }
@@ -4442,9 +4459,13 @@ void GStreamerOutput::ReleaseFailedBranches() {
 
 void GStreamerOutput::SetVolumeAdjustment(int volAdj) {
     m_volumeAdjust = volAdj;
-    if (m_volume && m_playing) {
+    if (!m_playing) {
+        return;
+    }
+    if (GstElement* vol = RefVolumeElement()) {
         double linearVol = pow(10.0, volAdj / 2000.0);
-        g_object_set(m_volume, "volume", linearVol, NULL);
+        g_object_set(vol, "volume", linearVol, NULL);
+        gst_object_unref(vol);
     }
 }
 

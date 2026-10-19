@@ -328,6 +328,7 @@ private:
         std::condition_variable_any busIdle;
     };
     std::shared_ptr<CallbackGuard> m_cbGuard;
+    GstElement* RefVolumeElement();
     // Connects pad-added (and optionally no-more-pads) on `decoder`, passing a
     // guard reference as the closure data.  Takes no ref on `decoder`.
     void ConnectPadSignals(GstElement* decoder, bool wantNoMorePads);
