@@ -114,6 +114,26 @@ static bool compareAndCopyFiles(std::map<std::string, std::string> filesNeeded) 
     }
     return changed;
 }
+// One single-quoted shell word: nothing inside single quotes is expanded.
+static std::string ShellSingleQuote(const std::string& v) {
+    std::string out = "'";
+    for (char ch : v) {
+        out += (ch == '\'') ? std::string("'\\''") : std::string(1, ch);
+    }
+    out += "'";
+    return out;
+}
+// A value for a WIFI: QR code field, where \ ; , : and " are escaped.
+static std::string WifiQREscape(const std::string& v) {
+    std::string out;
+    for (char ch : v) {
+        if (ch == '\\' || ch == ';' || ch == ',' || ch == ':' || ch == '"') {
+            out += '\\';
+        }
+        out += ch;
+    }
+    return out;
+}
 static std::string CreateHostAPDConfig(const std::string& interface) {
     std::string ssid = "FPP";
     std::string psk = "Christmas";
@@ -129,16 +149,17 @@ static std::string CreateHostAPDConfig(const std::string& interface) {
     content.append("wpa_key_mgmt=WPA-PSK\nwpa_pairwise=TKIP\nrsn_pairwise=CCMP\nwmm_enabled=0\nignore_broadcast_ssid=0\nwpa_group_rekey=3600\nwpa_gmk_rekey=86400\n");
     content.append("reassociation_deadline=3000\npmk_r1_push=1\nft_over_ds=0\nbss_transition=1\n");
     if (FileExists("/usr/bin/qrencode")) {
+        // The SSID and PSK are single-quoted for the shell: inside the double
+        // quotes they used to sit in, "$(...)" in either setting ran as root.
+        std::string payload = ShellSingleQuote("WIFI:T:WPA;S:" + WifiQREscape(ssid) + ";P:" + WifiQREscape(psk) + ";;");
         // Low error correction MAY result in a QR that can be pixel doubled which generally works better for phones to pick up
-        std::string cmd = "/usr/bin/qrencode -t ASCII -m 0 -s 6 -l L -o \"";
-        cmd.append(FPP_MEDIA_DIR).append("/tmp/wifi-L.ascii\" \"WIFI:T:WPA;S:");
-        cmd.append(ssid).append(";P:").append(psk).append(";;\"");
+        std::string cmd = "/usr/bin/qrencode -t ASCII -m 0 -s 6 -l L -o ";
+        cmd.append(ShellSingleQuote(FPP_MEDIA_DIR + "/tmp/wifi-L.ascii")).append(" ").append(payload);
         exec(cmd);
         // Generate a High error correction as well.  If we cannot pixel double, this will give more info to the phone/device
 
-        cmd = "/usr/bin/qrencode -t ASCII -m 3 -s 6 -l H -o \"";
-        cmd.append(FPP_MEDIA_DIR).append("/tmp/wifi-H.ascii\" \"WIFI:T:WPA;S:");
-        cmd.append(ssid).append(";P:").append(psk).append(";;\"");
+        cmd = "/usr/bin/qrencode -t ASCII -m 3 -s 6 -l H -o ";
+        cmd.append(ShellSingleQuote(FPP_MEDIA_DIR + "/tmp/wifi-H.ascii")).append(" ").append(payload);
         exec(cmd);
     }
 
