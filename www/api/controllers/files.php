@@ -712,11 +712,23 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
     $fullPath = FilesValidatePathOrFail($dir, $filename);
     if (!file_exists($fullPath) || !is_file($fullPath)) {
         http_response_code(404);
+        header('Content-type: text/plain');
         echo "File $fullPath does not exist.";
         return;
     }
 
+    // These are the user's files, served from this player's origin: an
+    // upload, a MultiSync push or a sequence package can put anything in
+    // them.  Never let one run as a page here.  The type comes from the
+    // extension, never from sniffing the content (an "x.png" holding HTML
+    // came back as text/html), anything else is plain bytes, and the
+    // sandbox stops script even in an SVG opened directly.  An <img>,
+    // <audio> or <video> loading the file is unaffected.
+    header('X-Content-Type-Options: nosniff');
+    header('Content-Security-Policy: sandbox');
+
     if ($play) {
+        header('Content-type: application/octet-stream');
         if (preg_match('/mp3$/i', $filename)) {
             header('Content-type: audio/mp3');
         } else if (preg_match('/ogg$/i', $filename)) {
@@ -744,7 +756,12 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
         }
 
     } else if ($isImage) {
-        header('Content-type: ' . mime_content_type($fullPath));
+        static $imageTypes = array(
+            'png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif', 'webp' => 'image/webp', 'bmp' => 'image/bmp',
+            'ico' => 'image/x-icon', 'svg' => 'image/svg+xml', 'avif' => 'image/avif');
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        header('Content-type: ' . ($imageTypes[$ext] ?? 'application/octet-stream'));
 
         if ($attach == 1) {
             header('Content-disposition: attachment;filename="' . SanitizeDownloadFilename($filename) . '"');
