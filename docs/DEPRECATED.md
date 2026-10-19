@@ -80,11 +80,33 @@ covers these routes only when the UI is reached over HTTPS.
 Remote Falcon, Stream Deck plugins and many user scripts use
 `GET /api/command/...` in particular.
 
+**What a GET to one of them can do today:** over plain HTTP, a page on any site
+can, with nothing more than an `<img>` tag:
+- flash an unsigned OS image from a URL it chooses (`upgradeOS.php?os=`);
+- check out and build any public pull request as root (`changebranch.php`);
+- reboot the player, run its scripts, or run any FPP command.
+
+The 10.3 review weighed refusing browser GETs that lack a same-host `Referer`. It
+deferred that to FPP 11, because user scripts, plugins and third-party pages may
+still call these routes by GET from a browser.
+
+**Done in 10.3:** every GET to one of these routes is marked:
+- **Deprecation header:** the response carries `Deprecation: true`.
+- **Log line:** fppd.log gets a warning naming the route, the client and its
+  User-Agent, at most once an hour per route and client.
+- **Where it's done:** `www/common.php`
+  (`NoteDeprecatedStateChangingGet()`, which holds the list for the PHP routes
+  and pages) and fppd's `CommandManager::render_GET` (for `/api/command/...`).
+  Keep the list in common.php in step with rule 2 of the gate.
+
 **Plan:**
-1. 10.x: accept POST on every route above alongside GET; move FPP's own UI and
-   the MultiSync job runner to POST; mark GET deprecated (a `Deprecation`
-   response header and a rate-limited log line); update `www/api/openapi.json`
-   and the API help page; tell integrators.
+1. 10.x:
+   - Accept POST on every route above alongside GET. `/api/command` already
+     takes POST.
+   - Move FPP's own UI and the MultiSync job runner (`www/common/remoteJobs.inc.php`)
+     to POST.
+   - Update `www/api/openapi.json` and the API help page, and tell integrators,
+     pointing them at the log lines above to find their own GET callers.
 2. 11: these routes answer GET with 405, and rule 2 of the gate is removed.
 
 **Removal condition:** FPP 11. Until then, keep rule 2's route list in step with

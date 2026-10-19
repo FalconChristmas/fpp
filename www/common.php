@@ -5857,4 +5857,74 @@ function GetSerialDevices()
     return $devices;
 }
 
+/**
+ * The state-changing route this GET request is for, or '' if it is none.
+ *
+ * These routes (docs/DEPRECATED.md, "HTTP API: routes that change state but
+ * answer GET") will require POST in FPP 11: over plain HTTP any web page can
+ * make a browser send them a GET.  Until then they keep working by GET and
+ * are only marked.  Keep this list in step with rule 2 of the cross-site gate
+ * in etc/apache2.site.  GET /api/command/... is fppd's and is marked there.
+ *
+ * @return string
+ */
+function DeprecatedStateChangingGetRoute()
+{
+    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') {
+        return '';
+    }
+    static $pages = array('changebranch', 'copystorage', 'disableKiosk', 'flash-storage', 'formatstorage',
+        'gitCheckoutVersion', 'growsd', 'installKiosk', 'manualUpdate', 'newpartitionsd', 'packagesHelper',
+        'rebootRemoteFPP', 'rebuildfpp', 'resetConfig', 'restartRemoteFPPD', 'run_mp3gain', 'runEventScript',
+        'shutdownRemoteFPP', 'upgradeCapeFirmware', 'upgradefpp', 'upgradeOS');
+    $script = basename($_SERVER['SCRIPT_NAME'] ?? '', '.php');
+    if (in_array($script, $pages, true)) {
+        return $script . '.php';
+    }
+    $path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+    if (is_string($path) && preg_match('#^/api/(events/[^/]+/trigger|file/move/|git/reset$|network/interface/add/|playlists/(stop|pause|resume|stopgracefully|stopgracefullyafterloop)$|playlist/[^/]+/start|playlist/repeat/|plugin/[^/]+/upgrade$|sequence/current/(stop|togglePause)$|sequence/[^/]+/start/|scripts/[^/]+/run$|system/(reboot|shutdown)$|system/fppd/(start|stop|restart)$)#i', $path, $m)) {
+        return '/api/' . $m[1];
+    }
+    return '';
+}
+
+/**
+ * Mark a GET to a state-changing route as deprecated: a Deprecation response
+ * header every time, and a line in fppd.log at most once an hour per route and
+ * client, so whoever still calls it by GET can be found before FPP 11.
+ *
+ * @return void
+ */
+function NoteDeprecatedStateChangingGet()
+{
+    $route = DeprecatedStateChangingGetRoute();
+    if ($route === '') {
+        return;
+    }
+    if (!headers_sent()) {
+        header('Deprecation: true');
+    }
+    $client = $_SERVER['REMOTE_ADDR'] ?? '?';
+    if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        $client .= ' for ' . $_SERVER['HTTP_X_FORWARDED_FOR'];
+    }
+    $client = substr(preg_replace('/[^\x20-\x7e]/', '', $client), 0, 100);
+    $agent = substr(preg_replace('/[^\x20-\x7e]/', '', $_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 100);
+
+    $dir = sys_get_temp_dir() . '/fpp-deprecated-get';
+    $stamp = $dir . '/' . md5($route . '|' . $client);
+    $last = @filemtime($stamp);
+    if ($last !== false && $last > time() - 3600) {
+        return;
+    }
+    @mkdir($dir, 0775, true);
+    @touch($stamp);
+    require_once __DIR__ . '/common/oplog.inc.php';
+    FppdLogLine('apache', 'General', 'Deprecated: GET ' . $route . ' from ' . $client .
+        ($agent !== '' ? ' (' . $agent . ')' : '') .
+        ' changes state; FPP 11 will require POST for it (docs/DEPRECATED.md)');
+}
+
+NoteDeprecatedStateChangingGet();
+
 ?>

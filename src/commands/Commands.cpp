@@ -824,6 +824,29 @@ std::unique_ptr<Command::Result> CommandManager::run(const Json::Value& cmd) {
  * @response 404 No command with that name exists.
  * @response 500 The command errored or timed out.
  */
+// GET /api/command/<name>/... runs a command, so over plain HTTP any web page
+// can make a browser run one. FPP 11 will require POST (docs/DEPRECATED.md);
+// until then it works, carries a Deprecation header, and is logged at most
+// once an hour per command and client so its callers can be found.
+static void NoteDeprecatedCommandGet(const std::string& command, const std::string& client) {
+    static std::mutex lock;
+    static std::map<std::string, uint64_t> lastLogged;
+    uint64_t now = GetTimeMS();
+    std::string key = command + "|" + client;
+    std::unique_lock<std::mutex> l(lock);
+    auto it = lastLogged.find(key);
+    if (it != lastLogged.end() && now - it->second < 3600 * 1000ULL) {
+        return;
+    }
+    if (lastLogged.size() > 256) {
+        lastLogged.clear();
+    }
+    lastLogged[key] = now;
+    l.unlock();
+    LogWarn(VB_COMMAND, "Deprecated: GET /api/command/%s from %s; FPP 11 will require POST /api/command (docs/DEPRECATED.md)\n",
+            command.c_str(), client.c_str());
+}
+
 HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
     auto parts = getPathPieces(req->path());
     int plen = parts.size();
@@ -916,6 +939,12 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
             LogExcess(VB_COMMAND, "GET MQTT Publishing command: %s, payload: %s\n", topic.c_str(), TruncateForLog(payloadStr, 2000).c_str());
             Events::Publish(topic, payloadStr);
 
+            NoteDeprecatedCommandGet(command, getEffectiveClientIP(req));
+            auto deprecated = [](HttpResponsePtr resp) {
+                resp->addHeader("Deprecation", "true");
+                return resp;
+            };
+
             std::unique_ptr<Command::Result> r = invokeCommand(pinned.get(), args);
             int count = 0;
             while (!r->isDone() && count < 1000) {
@@ -924,11 +953,11 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
             }
             if (r->isDone()) {
                 if (r->isError()) {
-                    return makeStringResponse(r->get(), 500, "text/plain");
+                    return deprecated(makeStringResponse(r->get(), 500, "text/plain"));
                 }
-                return makeStringResponse(r->get(), 200, "text/plain");
+                return deprecated(makeStringResponse(r->get(), 200, "text/plain"));
             } else {
-                return makeStringResponse("Timeout running command", 500, "text/plain");
+                return deprecated(makeStringResponse("Timeout running command", 500, "text/plain"));
             }
         }
         WarningHolder::AddWarningTimeout(900, 61, "No command found for \"" + command + "\" - it may have come from a plugin that is no longer installed or was updated");
