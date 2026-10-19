@@ -44,11 +44,11 @@ function remoteAction()
 
     $curl = curl_init('http://' . $ip . $action_map[$action]);
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
-    // A remote that redirects is followed, but only over http(s) and only so
-    // far: unrestricted, the redirect decided what this player fetched.
-    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($curl, CURLOPT_MAXREDIRS, 5);
-    curl_setopt($curl, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+    // Redirects are not followed: the remote would decide what this player
+    // fetches, and a Location of http://127.0.0.1/... reaches this player's
+    // own local-only pages, which the IP check above exists to keep out.
+    // No player redirects any of these paths.
+    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
     $request_content = curl_exec($curl);
