@@ -112,7 +112,13 @@ HC_FPPD() {
     if [ ! -f "${FPPDIR}/src/fppd" ]
     then
         STATUS=0
-        STATUSSTR="FPPD executable is missing. Rebuild requied."
+        STATUSSTR="FPPD executable is missing. Rebuild required."
+
+    elif ! fppdBinaryValid
+    then
+        # Checked even while fppd runs: a damaged file only fails at the next start.
+        STATUS=0
+        STATUSSTR="FPPD executable is damaged. Rebuild required."
 
     elif [ "x${PID}" != "x" ]
     then

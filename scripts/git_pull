@@ -121,8 +121,8 @@ else
     echo "Can not access ${HTTPURL}, unable to pull git updates.  Check if you have Internet Access from this FPP by going to Help->System Health Check"
     PULL_UNREACHABLE=1
 
-    if [ ! -x ${FPPBINDIR}/fppd ]; then
-        echo "${FPPBINDIR}/fppd doesn't exist, need to build it"
+    if ! fppdBinaryValid; then
+        echo "${FPPBINDIR}/fppd is missing or damaged, need to build it"
         logStage "Building FPP (longest step, please wait)"
         compileBinaries
         PULL_BUILD_RC=$?

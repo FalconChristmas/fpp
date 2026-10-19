@@ -429,7 +429,7 @@
         function updateCardSubtitles() {
             var $fpp = $('#fppCardSubtitle');
             if (needsRebuild) {
-                $fpp.text('FPP has not been built on this system. Rebuild to restore the FPP daemon.');
+                $fpp.text('FPP is not built, or its program files are damaged. Rebuild to restore the FPP daemon.');
             } else if (isMajorVersionUpgrade) {
                 $fpp.text('Cannot upgrade across major versions from here. Use the OS upgrade instead.' +
                     (sameBranchUpdateAvailable ? ' Updates for your current version can still be installed.' : ''));
@@ -1709,7 +1709,7 @@
                                 <span class="fpp-version-indicator__current">Not built</span>
                                 <span class="fpp-upd-dot fpp-upd-dot--required">Rebuild required</span>
                                 <span class="fpp-version-indicator__label fpp-version-indicator__label--subtle">FPP
-                                    has not been built on this system</span>
+                                    is not built, or its program files are damaged</span>
                             </div>
 
                             <!-- Standard View Version Indicators (uiLevel 0 - Basic) -->

@@ -3303,6 +3303,33 @@ function MatchesDeviceOSImage($name, $settings)
 }
 
 /**
+ * Built binaries start with an ELF/Mach-O header; a power loss after a build can
+ * leave them zero-filled (#3120).  Mirrors fppdBinaryValid() in scripts/common.
+ * @return bool
+ */
+function fppdBinaryValid()
+{
+    global $settings;
+
+    $binDir = $settings['fppBinDir'];
+    if (!is_executable($binDir . '/fppd')) {
+        return false;
+    }
+    $validMagic = array("\x7fELF", "\xcf\xfa\xed\xfe", "\xce\xfa\xed\xfe", "\xca\xfe\xba\xbe");
+    foreach (array('fppd', 'fppinit', 'libfpp.so', 'libfpp.dylib') as $name) {
+        $path = $binDir . '/' . $name;
+        if (!file_exists($path)) {
+            continue;
+        }
+        $magic = @file_get_contents($path, false, null, 0, 4);
+        if (!in_array($magic, $validMagic, true)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
  * Check for FPP updates via fppstats API
  * Returns unified update status for both branch upgrades and commit updates
  * @param string $latestReleaseVersion Optional pre-fetched latest release version (from GitHub API)
@@ -3329,9 +3356,10 @@ function check_fppstats_updates($latestReleaseVersion = null, $latestReleaseHasD
     // state: the branch matches no remote branch, and every release branch looks
     // newer than a version we cannot read, which previously produced a bogus
     // "FPP vX.Y is available for install" offer.  Report no updates at all and
-    // let the UI offer a rebuild instead.
+    // let the UI offer a rebuild instead.  A damaged build (#3120) does too.
     $versionUnknown = ($fppVersion === '' || $fppVersion === 'Unknown' ||
-        $currentBranch === '' || $currentBranch === 'Unknown');
+        $currentBranch === '' || $currentBranch === 'Unknown' ||
+        !fppdBinaryValid());
 
     $result = [
         'branchUpgradeAvailable' => false,

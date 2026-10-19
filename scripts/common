@@ -374,6 +374,22 @@ logStage() {
     echo "===== $1 ====="
 }
 
+# Built binaries start with an ELF/Mach-O header; a power loss after a build can
+# leave them zero-filled (#3120). Mirrors fppdBinaryValid() in www/common.php.
+fppdBinaryValid() {
+    local f magic
+    [ -x "${FPPBINDIR}/fppd" ] || return 1
+    for f in "${FPPBINDIR}/fppd" "${FPPBINDIR}/fppinit" "${FPPBINDIR}/libfpp.so" "${FPPBINDIR}/libfpp.dylib"; do
+        [ -e "$f" ] || continue
+        magic=$(head -c 4 "$f" 2>/dev/null | od -An -tx1 | tr -d ' \n')
+        case "$magic" in
+            7f454c46|cffaedfe|cefaedfe|cafebabe) ;;
+            *) return 1 ;;
+        esac
+    done
+    return 0
+}
+
 getSetting() {
     SETTING=$1
     if [ -f "${CFGFILE}" ]; then
