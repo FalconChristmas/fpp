@@ -366,15 +366,23 @@ static void put_file_contents(const std::string& path, const uint8_t* data, int 
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
     chmod(path.c_str(), mode);
 }
+// An unreadable file comes back empty (len 0, still a terminated buffer the
+// caller frees), which the callers already treat as "nothing there"; a null
+// FILE* used to go straight into fseek().
 static uint8_t* get_file_contents(const std::string& path, int& len) {
+    len = 0;
     FILE* fp = fopen(path.c_str(), "rb");
-    fseek(fp, 0L, SEEK_END);
-    len = ftell(fp);
-    fseek(fp, 0L, SEEK_SET);
-
+    if (fp != nullptr) {
+        fseek(fp, 0L, SEEK_END);
+        long l = ftell(fp);
+        fseek(fp, 0L, SEEK_SET);
+        len = l > 0 ? (int)l : 0;
+    }
     uint8_t* data = (uint8_t*)malloc(len + 1);
-    fread(data, 1, len, fp);
-    fclose(fp);
+    if (fp != nullptr) {
+        len = (int)fread(data, 1, len, fp);
+        fclose(fp);
+    }
     data[len] = 0;
     return data;
 }
@@ -1646,8 +1654,12 @@ private:
 
             if (a[a.length() - 1] != '/') {
                 int len = fileSize(src);
+                FILE* f = len > 0 ? fopen(src.c_str(), "rb") : nullptr;
+                if (f == nullptr) {
+                    fileMap[a].clear();
+                    continue;
+                }
                 fileMap[a].resize(len);
-                FILE* f = fopen(src.c_str(), "rb");
                 int l2 = fread(&fileMap[a][0], 1, len, f);
                 fclose(f);
             }
@@ -1779,8 +1791,8 @@ private:
         printf("Using %s\n", EEPROM.c_str());
         uint8_t buffer[12];
         FILE* file = fopen(EEPROM.c_str(), "rb");
-        int l = fread(buffer, 1, 6, file);
-        if (buffer[0] != 'F' || buffer[1] != 'P' || buffer[2] != 'P' || buffer[3] != '0' || buffer[4] != '2') {
+        int l = file ? fread(buffer, 1, 6, file) : 0;
+        if (l < 6 || buffer[0] != 'F' || buffer[1] != 'P' || buffer[2] != 'P' || buffer[3] != '0' || buffer[4] != '2') {
             printf("EEPROM header miss-match\n");
             EEPROM = "/home/fpp/media/config/cape-eeprom.bin";
             if (!file_exists(EEPROM)) {
@@ -1790,7 +1802,9 @@ private:
                 // Otherwise an eeprom that is present but unreadable keeps the
                 // old overlay applied forever, and the i2c addresses it binds
                 // then block rewriting the eeprom that would fix it.
-                fclose(file);
+                if (file) {
+                    fclose(file);
+                }
                 if (!readOnly) {
                     handleReboot(handleCapeOverlay("/home/fpp/media/"));
                 }
@@ -1798,17 +1812,23 @@ private:
             }
             printf("Using %s\n", EEPROM.c_str());
         }
-        fclose(file);
+        if (file) {
+            fclose(file);
+        }
     }
 
     void parseEEPROM() {
-        uint8_t* buffer = new uint8_t[32768]; // 32K is the largest eeprom we support, more than enough
+        // Owned here: the section parser throws on a malformed image, and the
+        // buffer and file both leaked on every throw (and on the early return).
+        std::unique_ptr<uint8_t[]> bufferHolder(new uint8_t[32768]); // 32K is the largest eeprom we support, more than enough
+        uint8_t* buffer = bufferHolder.get();
         FILE* file = fopen(EEPROM.c_str(), "rb");
         if (file == nullptr) {
             printf("Failed to open eeprom: %s\n", EEPROM.c_str());
             printf("   error: %s\n", strerror(errno));
             return;
         }
+        std::unique_ptr<FILE, int (*)(FILE*)> fileHolder(file, fclose);
         int l = fread(buffer, 1, 6, file);
 
         if (buffer[0] == 'F' && buffer[1] == 'P' && buffer[2] == 'P' && buffer[3] == '0' && buffer[4] == '2') {
@@ -1916,8 +1936,6 @@ private:
                 flen = read_section_length(file); // length of the section
             }
         }
-        fclose(file);
-        delete[] buffer;
 
         if (signedExtras.find("deviceSerial") != signedExtras.end()) {
             char serialCmd[] = "sed -n 's/^Serial.*: //p' /proc/cpuinfo";
