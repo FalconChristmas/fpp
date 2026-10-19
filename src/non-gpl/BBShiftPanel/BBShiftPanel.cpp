@@ -998,6 +998,11 @@ bool BBShiftPanelManager::parseCapeConfig(const Json::Value& root) {
         Json::Value s = root["outputs"][i];
         std::string pinName = s["pin"].asString();
         const BBBPinCapabilities* pin = (const BBBPinCapabilities*)(PinCapabilities::getPinByName(pinName).ptr());
+        if (pin == nullptr) {
+            // a pin name the cape's config gives that this board lacks
+            LogErr(VB_CHANNELOUT, "BBShiftPanel: output %d uses unknown pin '%s'\n", i + 1, pinName.c_str());
+            return false;
+        }
         outputPin[i] = pin->pruPin(1);
         outputBank[i] = 0;
         if (s.isMember("index")) {
@@ -1986,6 +1991,22 @@ static int outputRegData(int curidx, uint8_t* odata, uint16_t r, uint16_t g, uin
 }
 
 void BBShiftPanelManager::setupPWMRegisters() {
+    // This runs from Init(), on the main loop while outputs load.  The waits
+    // for the PRU to take a command had no limit, so a PRU that stopped
+    // answering (firmware that failed to load, or wedged) hung fppd at
+    // startup.  Same budget as the panel init registers above.
+    auto pruIdle = [this]() {
+        for (int cnt = 0; pruData->command && cnt < 2500; cnt++) {
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            __asm__ __volatile__("" ::
+                                     : "memory");
+        }
+        if (pruData->command) {
+            LogWarn(VB_CHANNELOUT, "BBShiftPanel: PWM panel registers were not sent (PRU did not respond)\n");
+            return false;
+        }
+        return true;
+    };
     /*
     // FM6363 from colorlight + logic analyzer
     // Confirmed via "advanced" tab in LEDVision
@@ -2026,10 +2047,8 @@ void BBShiftPanelManager::setupPWMRegisters() {
         pruData->numRows = numRows;
         m_pwmSeqIdx = 0;
         for (int i = 0; i < DP3364_SEQ_LEN; i++) {
-            while (pruData->command) {
-                std::this_thread::sleep_for(std::chrono::microseconds(100));
-                __asm__ __volatile__("" ::
-                                         : "memory");
+            if (!pruIdle()) {
+                return;
             }
             writeDP3364SeqWord(i);
             pruData->cmd = PWM_COMMAND_REGISTERS;
@@ -2082,10 +2101,8 @@ void BBShiftPanelManager::setupPWMRegisters() {
         pruData->numRows = numRows;
         m_pwmSeqIdx = 0;
         for (int i = 0; i < seq->len; i++) {
-            while (pruData->command) {
-                std::this_thread::sleep_for(std::chrono::microseconds(100));
-                __asm__ __volatile__("" ::
-                                         : "memory");
+            if (!pruIdle()) {
+                return;
             }
             writeFM6373SeqWord(i);
             pruData->cmd = PWM_COMMAND_REGISTERS;
@@ -2165,10 +2182,8 @@ void BBShiftPanelManager::setupPWMRegisters() {
 
     pru->memcpyToPRU(&pruData->registers[0], &odata[0], curidx);
 
-    while (pruData->command) {
-        std::this_thread::sleep_for(std::chrono::microseconds(100));
-        __asm__ __volatile__("" ::
-                                 : "memory");
+    if (!pruIdle()) {
+        return;
     }
 
     // Send the command to setup the registers
