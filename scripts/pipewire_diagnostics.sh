@@ -2125,14 +2125,23 @@ section_performance() {
             #
             # Split, because the two halves do not mean the same thing.  An xrun
             # on an ALSA adapter (fpp_alsa_* / fpp_alsain_*) is the card missing
-            # its deadline: audible, and worth chasing.  An xrun on a client node
-            # means that client was late handing over a buffer, which the sink's
-            # own buffer usually absorbs inaudibly -- and those nodes are created
-            # per playback (see StreamSlotManager: a slot holds a GStreamerOutput
-            # only while it plays), so their counts belong to whichever instance
-            # happens to be alive right now.  Comparing them between runs reads
-            # as a trend that is really just a fresh node paying its start-up
-            # cost again, which is exactly how a looping file looks.
+            # its deadline: audible, and worth chasing.  An xrun on any other
+            # node means that node was late with its part of a cycle.
+            #
+            # Those other nodes do not all live the same length of time.  FPP's
+            # group and effects nodes (fpp_group_*, fpp_fx_*) live until the
+            # PipeWire services restart, like the adapters, so their counts are
+            # comparable between runs.  fppd's playback stream (fppd_stream_N) is
+            # held open across tracks and closes only after ~5 s with nothing
+            # playing (never, with Keep Audio Output Open), so its count covers
+            # however long it has been open.  Only probes such as gst-launch-1.0
+            # are created per use and start again from 0.
+            #
+            # A late cycle in the playback path is not always harmless: audio
+            # the graph failed to take on time stays queued in fppd's stream, so
+            # the sound runs behind the lights.  fppd flushes that queue between
+            # tracks (6f07f92a1, issue #3083), so it lasts for the rest of the
+            # track, not the rest of the show.
             splitErrs=$(awk '
                 /^S +ID/ { errcol = 0
                            for (i = 1; i <= NF; i++) if ($i == "ERR") errcol = i
@@ -2172,13 +2181,16 @@ section_performance() {
                 fi
                 if [ -n "${cliErrs}" ]; then
                     xc=$(echo "${cliErrs}" | awk '{s += $1} END {print s+0}')
-                    info "${xc} xrun(s) on client nodes (context, not a fault)"
+                    info "${xc} xrun(s) on group, stream and client nodes"
                     echo "${cliErrs}" | awk '{printf "       %s  %s\n", $1, $2}'
-                    note "Playback nodes (fppd_stream_N) and short-lived client"
-                    note "pipelines are rebuilt per track, and a few xruns while a"
-                    note "node's links are being built are normal.  Each new"
-                    note "instance starts its own count, so these numbers are not"
-                    note "a trend and do not accumulate across tracks."
+                    note "fpp_group_* and fpp_fx_* nodes live until the PipeWire"
+                    note "services restart, so their counts are comparable between"
+                    note "runs, like the device's.  fppd_stream_N stays open across"
+                    note "tracks and counts from when it opened.  Probes such as"
+                    note "gst-launch-1.0 start from 0 each time; a few xruns while"
+                    note "a node's links are being built are normal."
+                    note "A climbing count in the playback path can leave the sound"
+                    note "behind the lights; fppd realigns it at the next track."
                 fi
             fi
         else
