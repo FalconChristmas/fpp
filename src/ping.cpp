@@ -315,35 +315,50 @@ public:
             if (retval == -1) {
                 printf("select() -1\n");
             } else if (retval) {
-                int fromlen = sizeof(sockaddr_in);
-                int ret = recvfrom(pingSocket, (char*)packet, sizeof(packet), 0, (struct sockaddr*)&from, (socklen_t*)&fromlen);
-                // Check the IP header
-                ip = (struct ip*)((char*)packet);
-                int hlen = sizeof(struct ip);
-                if (ret >= (hlen + ICMP_MINLEN)) {
-                    // Now the ICMP part
-                    icp = (struct icmp*)(packet + hlen);
-                    if (icp->icmp_type == ICMP_ECHOREPLY) {
-                        std::list<PingTarget*> toCall;
-                        std::unique_lock<std::mutex> lock(targetLock);
-                        int ipadf = from.sin_addr.s_addr;
-                        for (auto t : targets) {
-                            int ipad = t->to.sin_addr.s_addr;
-                            if (t->icp->icmp_seq == icp->icmp_seq && ipad == ipadf && icp->icmp_id == t->icp->icmp_id) {
-                                toCall.push_back(t);
-                                toRemove.push_back(t);
+                // Read every reply that is waiting, not just one, before the
+                // timeout sweep below.  With one per pass, any stall of this
+                // thread longer than a ping's timeout -- a name lookup in
+                // resolveDuePeriodics(), a busy single-core board -- left
+                // answered pings queued here, and the sweep then timed them
+                // out: controllers that were up were dropped from the output.
+                // Bounded, so a flood of ICMP can't hold the sweep off.
+                for (int n = 0; n < 256; n++) {
+                    int fromlen = sizeof(sockaddr_in);
+                    int ret = recvfrom(pingSocket, (char*)packet, sizeof(packet), MSG_DONTWAIT, (struct sockaddr*)&from, (socklen_t*)&fromlen);
+                    if (ret < 0) {
+                        break;
+                    }
+                    // Check the IP header
+                    ip = (struct ip*)((char*)packet);
+                    int hlen = sizeof(struct ip);
+                    if (ret >= (hlen + ICMP_MINLEN)) {
+                        // Now the ICMP part
+                        icp = (struct icmp*)(packet + hlen);
+                        if (icp->icmp_type == ICMP_ECHOREPLY) {
+                            std::list<PingTarget*> toCall;
+                            std::unique_lock<std::mutex> lock(targetLock);
+                            int ipadf = from.sin_addr.s_addr;
+                            for (auto t : targets) {
+                                int ipad = t->to.sin_addr.s_addr;
+                                if (t->icp->icmp_seq == icp->icmp_seq && ipad == ipadf && icp->icmp_id == t->icp->icmp_id &&
+                                    std::find(toRemove.begin(), toRemove.end(), t) == toRemove.end()) {
+                                    // (a duplicate reply read in the same pass
+                                    // is not counted, or removed, twice)
+                                    toCall.push_back(t);
+                                    toRemove.push_back(t);
+                                }
                             }
-                        }
-                        lock.unlock();
-                        for (auto t : toCall) {
-                            long long l = curTime - t->startTime;
-                            if (l == 0) {
-                                l = 1;
+                            lock.unlock();
+                            for (auto t : toCall) {
+                                long long l = curTime - t->startTime;
+                                if (l == 0) {
+                                    l = 1;
+                                }
+                                t->callback((int)l);
                             }
-                            t->callback((int)l);
+                        } else {
+                            // printf("Not echo\n");
                         }
-                    } else {
-                        // printf("Not echo\n");
                     }
                 }
             }
