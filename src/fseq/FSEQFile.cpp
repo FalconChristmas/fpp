@@ -1966,6 +1966,13 @@ public:
         if (m_outBuffer) {
             free(m_outBuffer);
         }
+        // Only a writer still holds a stream here: the read side ends and
+        // frees its inflate stream after every block. The writer's last
+        // block was finished by finalize() but its deflate state never ended.
+        if (m_stream) {
+            deflateEnd(m_stream);
+            free(m_stream);
+        }
     }
     virtual uint8_t getCompressionType() override { return 2; }
     virtual std::string GetType() const override { return "Compressed ZLIB"; }
