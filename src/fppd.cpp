@@ -1186,11 +1186,19 @@ int main(int argc, char* argv[]) {
     // HTTP, Image effects, playlist images, virtual display backgrounds).
     // GraphicsMagick allocates whatever the image header asks for: a 1 MB PNG
     // claiming 30000x30000 took 4+ GB and fppd was OOM-killed.  A header past
-    // these limits now fails to read.  32M pixels is ~256 MB of pixel cache at
-    // QuantumDepth 16, and leaves room for a full-size phone photo.
-    MagickLib::SetMagickResourceLimit(MagickLib::WidthResource, 16384);
-    MagickLib::SetMagickResourceLimit(MagickLib::HeightResource, 16384);
-    MagickLib::SetMagickResourceLimit(MagickLib::PixelsResource, 32 * 1024 * 1024);
+    // this limit now fails to read.  Only the pixel count is capped, not the
+    // width or height: the limits apply to every image fppd makes, and the
+    // Text effect draws a long message as one strip tens of thousands of
+    // pixels wide (it bounds its own size).  The cap is a quarter of RAM in
+    // pixel cache (8 bytes a pixel at QuantumDepth 16), between 32M pixels
+    // (a 12 MP photo fits on a BeagleBone) and 128M (a 61 MP camera photo
+    // fits on a 4 GB Pi).
+    {
+        long long ram = (long long)sysconf(_SC_PHYS_PAGES) * sysconf(_SC_PAGESIZE);
+        long long pixels = ram > 0 ? ram / 4 / 8 : 0;
+        pixels = std::clamp(pixels, 32LL * 1024 * 1024, 128LL * 1024 * 1024);
+        MagickLib::SetMagickResourceLimit(MagickLib::PixelsResource, (MagickLib::magick_int64_t)pixels);
+    }
 
     // Parse our arguments first, override any defaults
     parseArguments(argc, argv);
