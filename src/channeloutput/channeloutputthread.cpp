@@ -144,20 +144,37 @@ void EnableChannelOutput(void) {
 // Stop Now landing within a frame of a sequence hand-over blanked the buffer
 // and nothing ever sent it: the last frame stayed lit.
 static std::atomic<uint64_t> outputForceRequests{ 0 };
+// Set with a force request by ForceChannelOutputSendNow(): the pass that picks
+// the request up sends even while output is disabled.
+static std::atomic<bool> sendWhileDisabledRequested{ false };
 
-bool ForceChannelOutputNow(void) {
-    LogDebug(VB_CHANNELOUT, "ForceChannelOutputNow()\n");
+static bool RequestForcedOutput(bool evenIfDisabled) {
     {
         std::unique_lock<std::mutex> statusLock(outputThreadStatusLock);
         if (!ThreadIsRunning || !RunThread) {
             // Not running, or on its way out: it won't send again.
             return false;
         }
-        outputForceRequests++;
+        if (evenIfDisabled) {
+            // Before the request it rides on: the thread reads it on seeing
+            // the request (acquire on outputForceRequests).
+            sendWhileDisabledRequested.store(true, std::memory_order_relaxed);
+        }
+        outputForceRequests.fetch_add(1, std::memory_order_release);
     }
     outputThreadSatusCond.notify_all();
     outputThreadCond.notify_all();
     return true;
+}
+
+bool ForceChannelOutputNow(void) {
+    LogDebug(VB_CHANNELOUT, "ForceChannelOutputNow()\n");
+    return RequestForcedOutput(false);
+}
+
+bool ForceChannelOutputSendNow(void) {
+    LogDebug(VB_CHANNELOUT, "ForceChannelOutputSendNow()\n");
+    return RequestForcedOutput(true);
 }
 
 static inline bool forceOutput() {
@@ -215,7 +232,12 @@ void RunChannelOutputThread(void) {
     }
     outputThreadId = std::this_thread::get_id();
     struct ClearThreadId {
-        ~ClearThreadId() { outputThreadId = std::thread::id(); }
+        // Only our own id: this runs after outputThreadLock is released, by
+        // which time a replacement thread may already have stored its id.
+        ~ClearThreadId() {
+            std::thread::id self = std::this_thread::get_id();
+            outputThreadId.compare_exchange_strong(self, std::thread::id());
+        }
     } clearThreadId;
     ThreadIsRunning = 1;
     ThreadIsExiting = 0;
@@ -237,6 +259,7 @@ void RunChannelOutputThread(void) {
     }
 
     bool doForceOutput = false;
+    bool sendWhileDisabled = false;
     uint64_t forceSeen = outputForceRequests.load();
     // Every frame reads these shared values several times.  They are plain
     // values (frame number, rate, delay, on/off flags) that publish no other
@@ -251,6 +274,7 @@ void RunChannelOutputThread(void) {
         if (forceNow != forceSeen) {
             forceSeen = forceNow;
             doForceOutput = true;
+            sendWhileDisabled = sendWhileDisabledRequested.exchange(false, std::memory_order_relaxed);
         }
         if (multiSync->isMultiSyncEnabled() && sequence->IsSequenceRunning()) {
             // Per-frame string copy under an uncontended leaf lock: the name is
@@ -261,7 +285,8 @@ void RunChannelOutputThread(void) {
         }
 
         doForceOutput |= forceOutput();
-        if (OutputFrames.load(relaxed)) {
+        if (OutputFrames.load(relaxed) || sendWhileDisabled) {
+            sendWhileDisabled = false;
             if (!sequence->isDataProcessed() || sequence->hasBridgeData()) {
                 // first time through or immediately after sequence load, the data might not be
                 // processed yet, need to do it
