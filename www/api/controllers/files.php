@@ -1295,6 +1295,10 @@ function DeleteFile()
 
     if (!$allowedDir || !$fullPath || !PathIsWithin($fullPath, $allowedDir)) {
         $status = "Invalid path: directory traversal detected or file outside allowed directory";
+    } else if ($fullPath === $allowedDir) {
+        // An empty name (DELETE /api/file/sequences/) or "." resolved to the
+        // directory itself, which removeDir() below emptied and removed.
+        $status = "Invalid path: refusing to delete the whole directory";
     } else if (!file_exists($fullPath)) {
         $status = "File Not Found";
     } else if ($blobRefusal !== '') {
