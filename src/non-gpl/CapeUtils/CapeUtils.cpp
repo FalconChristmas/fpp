@@ -553,9 +553,46 @@ static bool configContainsDirective(const std::string& config, const std::string
 // What an unsigned cape may do to the boot config: add or drop device tree
 // overlays and parameters, which is what capes use it for.  Anything else
 // there (kernel=, initramfs, cmdline=, init=) decides what the box boots, and
-// an unsigned image is as often an uploaded file as it is a chip.
+// an unsigned image is as often an uploaded file as it is a chip.  One line
+// only: an embedded newline would carry any directive in behind an allowed
+// prefix.
 static bool UnsignedBootConfigLineAllowed(const std::string& v) {
-    return v.rfind("dtoverlay=", 0) == 0 || v.rfind("dtparam=", 0) == 0;
+    for (char ch : v) {
+        if ((unsigned char)ch < 0x20 && ch != '\t') {
+            return false;
+        }
+    }
+    auto startsWith = [&v](const char* p) { return v.rfind(p, 0) == 0 && v.size() > strlen(p); };
+#if defined(PLATFORM_BBB)
+    // uEnv.txt: overlay slots 0 and 1 hold FPP's own base and cape overlays.
+    return startsWith("uboot_overlay_addr") && v.size() > 20 && v[18] >= '2' && v[18] <= '7' && v[19] == '=';
+#elif defined(PLATFORM_ARMBIAN)
+    return startsWith("overlays=") || startsWith("param_");
+#else
+    return startsWith("dtoverlay=") || startsWith("dtparam=");
+#endif
+}
+
+// Remove every line of config that is exactly directive (ignoring the
+// surrounding blanks configContainsDirective() ignores).  An unsigned cape's
+// remove is held to whole lines: as a substring erase, "dtparam=" stripped
+// that prefix from every dtparam line in the file.
+static void removeDirectiveLines(std::string& config, const std::string& directive) {
+    std::string out;
+    size_t pos = 0;
+    while (pos < config.size()) {
+        size_t end = config.find('\n', pos);
+        size_t next = (end == std::string::npos) ? config.size() : end + 1;
+        std::string line = config.substr(pos, (end == std::string::npos ? config.size() : end) - pos);
+        size_t b = line.find_first_not_of(" \t");
+        size_t e = line.find_last_not_of(" \t\r");
+        bool match = b != std::string::npos && line.compare(b, e - b + 1, directive) == 0;
+        if (!match) {
+            out.append(config, pos, next - pos);
+        }
+        pos = next;
+    }
+    config = out;
 }
 
 static bool processBootConfig(Json::Value& bootConfig, bool trusted) {
@@ -593,6 +630,10 @@ static bool processBootConfig(Json::Value& bootConfig, bool trusted) {
             }
             if (!trusted && !UnsignedBootConfigLineAllowed(v)) {
                 printf("CapeUtils: unsigned cape may not remove \"%s\" from the boot config\n", v.c_str());
+                continue;
+            }
+            if (!trusted) {
+                removeDirectiveLines(current, v);
                 continue;
             }
             size_t pos = std::string::npos;
