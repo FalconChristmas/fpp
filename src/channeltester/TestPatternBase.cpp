@@ -146,12 +146,20 @@ int TestPatternBase::SetChannelSet(std::string channelSetStr) {
             std::vector<std::string> parts = split(ranges[r], '-');
 
             if (parts.size()) {
-                start = atoi(parts[0].c_str());
+                // atoi() wrapped "3000000000" to a negative start, which the
+                // checks below never caught, so OverlayTestData() copied to
+                // ~1.3 GB before the channel buffer every frame.  Parse wide
+                // and clamp into int range; a negative value is rejected below.
+                auto channelNum = [](const std::string& v) {
+                    long long n = strtoll(v.c_str(), nullptr, 10);
+                    return (int)std::clamp<long long>(n, -1, INT_MAX);
+                };
+                start = channelNum(parts[0]);
                 if (start > 0)
                     start--;
 
                 if (parts.size() > 1)
-                    end = atoi(parts[1].c_str());
+                    end = channelNum(parts[1]);
                 else
                     end = start;
 
@@ -171,8 +179,8 @@ int TestPatternBase::SetChannelSet(std::string channelSetStr) {
         // thread.  Such a range has nothing to test; drop it.  The total is
         // capped at the test buffer too, which overlapping ranges could
         // otherwise outgrow.
-        if (start > max) {
-            LogWarn(VB_CHANNELOUT, "Test channel range '%s' is past the last output channel (%d), ignoring it\n",
+        if (start < 0 || start > max) {
+            LogWarn(VB_CHANNELOUT, "Test channel range '%s' is outside the output channels (1-%d), ignoring it\n",
                     ranges[r].c_str(), max + 1);
             continue;
         }
