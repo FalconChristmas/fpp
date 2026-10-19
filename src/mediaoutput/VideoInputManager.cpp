@@ -141,7 +141,19 @@ static YtDlpResult RunYtDlp(const std::string& format, const std::string& uri, b
         args.push_back("--print");
         args.push_back("fps");
     }
-    args.push_back(ShellSafeUri(uri));
+    // Only a web URL, and after "--" so it can never be read as an option:
+    // ShellSafeUri() keeps '-' and '=', and IsYouTubeUri() only looks for
+    // "youtube.com/" anywhere in it, so "--config-locations=.../youtube.com/x"
+    // had yt-dlp load an uploaded config, which can carry --exec.
+    std::string safeUri = ShellSafeUri(uri);
+    std::string scheme = safeUri.substr(0, 8);
+    std::transform(scheme.begin(), scheme.end(), scheme.begin(), ::tolower);
+    if (!startsWith(scheme, "http://") && !startsWith(scheme, "https://")) {
+        res.diagnostics = "not an http(s) URL";
+        return res;
+    }
+    args.push_back("--");
+    args.push_back(safeUri);
     std::vector<char*> argv;
     for (auto& a : args) {
         argv.push_back(a.data());
