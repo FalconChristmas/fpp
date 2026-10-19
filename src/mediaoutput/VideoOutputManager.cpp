@@ -399,11 +399,17 @@ void VideoOutputManager::Shutdown() {
         warmWorker.join();
     }
 
-    std::lock_guard<std::mutex> lock(m_mutex);
-    StopAllConsumers();
-    m_consumers.clear();
-    m_activeProducer.clear();
-    m_initialized = false;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        StopAllConsumers();
+        m_consumers.clear();
+        m_activeProducer.clear();
+        m_initialized = false;
+    }
+    // The teardown threads StopAllConsumers() started use this object's
+    // teardown mutex and condition variable; at exit this object is destroyed
+    // next, under them.  Bounded: a wedged teardown must not hang shutdown.
+    WaitForPendingTeardowns(5000);
     LogInfo(VB_MEDIAOUT, "VideoOutputManager: Shutdown complete\n");
 }
 
@@ -893,11 +899,15 @@ void VideoOutputManager::ParkConsumer(ConsumerInfo& consumer, uint64_t holdUntil
         GstElement* p = GST_ELEMENT(gst_object_ref(consumer.pipeline));
         std::shared_ptr<std::atomic<bool>> playing = consumer.playing;
         std::shared_ptr<std::mutex> stateLock = consumer.stateLock;
+        std::shared_ptr<std::atomic<bool>> stopping = consumer.shutdownRequested;
         playing->store(false);
-        std::thread([p, playing, stateLock]() {
+        std::thread([p, playing, stateLock, stopping]() {
             {
+                // Not once StopConsumer() has begun tearing this run down:
+                // running after its NULL, PAUSED brought the pipeline back
+                // up -- kmssink and all -- after its DRM lease was returned.
                 std::lock_guard<std::mutex> sl(*stateLock);
-                if (!playing->load()) {
+                if (!playing->load() && !stopping->load()) {
                     gst_element_set_state(p, GST_STATE_PAUSED);
                 }
             }
@@ -2117,9 +2127,14 @@ void VideoOutputManager::StopConsumer(ConsumerInfo& consumer) {
             std::lock_guard<std::mutex> tl(m_teardownMutex);
             m_pendingTeardowns++;
         }
-        std::thread([this, p, lease]() mutable {
+        std::shared_ptr<std::mutex> stateLock = consumer.stateLock;
+        std::thread([this, p, lease, stateLock]() mutable {
             uint64_t startMs = GetTimeMS();
-            gst_element_set_state(p, GST_STATE_NULL);
+            {
+                // after any park's PAUSED already under way; see ParkConsumer()
+                std::lock_guard<std::mutex> sl(*stateLock);
+                gst_element_set_state(p, GST_STATE_NULL);
+            }
             gst_object_unref(p);
             DrmCards::ReleaseLease(lease);
             {
