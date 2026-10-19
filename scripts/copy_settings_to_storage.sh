@@ -54,6 +54,36 @@ IgnoreWarnings() {
     egrep -v "(failed to set|chown|attrs were not)"
 }
 
+# Exit code for "the remote host couldn't mount its device, nothing was
+# copied"; copystorage.php skips the restore markers on it. Not one rsync uses,
+# since rsync's own codes are passed through as the script's exit code.
+RC_REMOTE_MOUNT_FAILED=90
+
+# Stop if the remote's reply in $REMOTE_MOUNT says its device didn't mount:
+# every rsync would only fail with "@ERROR: chroot failed". A refused mount
+# isn't unmounted -- the device may be mounted for someone else.
+CheckRemoteMount() {
+    if ! echo "$REMOTE_MOUNT" | grep -q '"Status": *"OK"'; then
+        echo "Remote Host: $DEVICE could not mount $RSTORAGE, so nothing was copied."
+        # A host that couldn't be reached already has curl's error above.
+        if [ "$CURL_RC" -eq 0 ] && ! echo "$REMOTE_MOUNT" | grep -q '"Message"'; then
+            echo "It gave no reason; check apache2-error.log on $DEVICE."
+        fi
+        # No reply at all (timeout, dropped connection): it may have mounted
+        # anyway. The remote only unmounts if that device is the one there.
+        if [ "$CURL_RC" -ne 0 ]; then
+            curl -sS --max-time 60 -X POST -H "Content-Type:application/json" -- "$DEVICE/api/backups/devices/unmount/$RSTORAGE/remote_filecopy" > /dev/null 2>&1
+        fi
+        rm -rf -- /home/fpp/media/tmp/backups
+        echo " "
+        echo "========================================="
+        echo "BACKUP FAILED (rc=$RC_REMOTE_MOUNT_FAILED)"
+        echo "This output is also saved in logs/fppd.log."
+        echo "========================================="
+        exit $RC_REMOTE_MOUNT_FAILED
+    fi
+}
+
 if [ "$DIRECTION" == "TOUSB" -o "$DIRECTION" == "FROMUSB" ]; then
     FSTYPE=$(file -sL -- "/dev/$DEVICE")
     EXTRA_ARGS=""
@@ -142,11 +172,12 @@ elif [ "$DIRECTION" == "TOREMOTE" ]; then
       then
         # Call the backup API to mount the specified device
         # Build up these variables so the can be called easier (now and unmount at end of script)
-        REMOTE_MOUNT=$(curl --location --request POST -H "Content-Type:application/json" -- "$DEVICE/api/backups/devices/mount/$RSTORAGE/remote_filecopy")
+        REMOTE_MOUNT=$(curl -sS --max-time 60 -X POST -H "Content-Type:application/json" -- "$DEVICE/api/backups/devices/mount/$RSTORAGE/remote_filecopy"); CURL_RC=$?
         echo " "
         echo -n "Remote Host: $DEVICE reported..."
-        echo "$REMOTE_MOUNT" | grep -Po '"Message": *\K"[^"]*"'
+        echo "$REMOTE_MOUNT" | grep -Po '"Message": *\K"[^"]*"' | sed 's|\\/|/|g'
         echo " "
+        CheckRemoteMount
         # Remote storage device will be mounted to /mnt/remote_filecopy (at the destination), so adjust the destination to accommodate this.
         DEST="${DEVICE}::remote_filecopy/$DPATH"
         # Going to a different storage device so modify the directory and copy over the base directory structure
@@ -167,11 +198,12 @@ elif [ "$DIRECTION" == "FROMREMOTE" ]; then
       then
         # Call the backup API to mount the specified device
         # Build up these variables so the can be called easier (now and unmount at end of script)
-        REMOTE_MOUNT=$(curl --location --request POST -H "Content-Type:application/json" -- "$DEVICE/api/backups/devices/mount/$RSTORAGE/remote_filecopy")
+        REMOTE_MOUNT=$(curl -sS --max-time 60 -X POST -H "Content-Type:application/json" -- "$DEVICE/api/backups/devices/mount/$RSTORAGE/remote_filecopy"); CURL_RC=$?
         echo " "
         echo -n "Remote Host: $DEVICE reported..."
-        echo "$REMOTE_MOUNT" | grep -Po '"Message": *\K"[^"]*"'
+        echo "$REMOTE_MOUNT" | grep -Po '"Message": *\K"[^"]*"' | sed 's|\\/|/|g'
         echo " "
+        CheckRemoteMount
         # Remote storage device will be mounted to /mnt/remote_filecopy (at the destination), so adjust the source (where to pull from) to accommodate this.
         SOURCE="${DEVICE}::remote_filecopy/$DPATH"
     fi
@@ -294,10 +326,10 @@ if [ "$DIRECTION" == "TOREMOTE" -o "$DIRECTION" == "FROMREMOTE" ]; then
           #Wait 4 seconds before requesting a unmount
           sleep 4
           #Unmount the specified device from the remote location if going to or from remote host and a device has been specified
-          REMOTE_UNMOUNT=$(curl --location --request POST -H "Content-Type:application/json" -- "$DEVICE/api/backups/devices/unmount/$RSTORAGE/remote_filecopy")
+          REMOTE_UNMOUNT=$(curl -sS --max-time 60 -X POST -H "Content-Type:application/json" -- "$DEVICE/api/backups/devices/unmount/$RSTORAGE/remote_filecopy")
           echo " "
           echo -n  "Remote Host: $DEVICE reported..."
-          echo "$REMOTE_UNMOUNT" | grep -Po '"Message": *\K"[^"]*"'
+          echo "$REMOTE_UNMOUNT" | grep -Po '"Message": *\K"[^"]*"' | sed 's|\\/|/|g'
           echo " "
     fi
 fi
@@ -311,7 +343,7 @@ echo "========================================="
 if [ "$OVERALL_RC" -ne 0 ]; then
     echo "BACKUP FAILED (rc=$OVERALL_RC)"
     echo "One or more items failed to copy - see errors above."
-    echo "Check fppd.log and logs/fpp_backup_filecopy.log for details."
+    echo "This output is also saved in logs/fppd.log."
 else
     echo "BACKUP COMPLETE"
     echo "All selected items have been successfully copied."

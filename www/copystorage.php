@@ -135,23 +135,22 @@ $hasEeprom = stripos($flags, 'EEPROM') !== false;
 // Both markers require a full reboot, not just an fppd restart (fppinit
 // start/postNetwork don't run on an fppd-only restart).
 //
-// Not gated on $backupRc === 0: system()'s pipe here ("... | tee -a
-// $tee_log_file") runs via /bin/sh without pipefail, so $backupRc is tee's
-// exit code, not copy_settings_to_storage.sh's -- it's ~always 0 regardless
-// of whether the actual copy succeeded, so it was never a real success
-// check. A partial/failed copy still needs whatever DID land reconciled,
-// same reasoning as backup.php's $restore_done-only gate.
+// Not gated on $backupRc === 0: a partial/failed copy still needs whatever
+// DID land reconciled, same reasoning as backup.php's $restore_done-only gate.
+// The one exception is rc 90 (RC_REMOTE_MOUNT_FAILED in the script), returned
+// when the remote host couldn't mount its device and nothing was copied.
 //
 // /fpp_restored, not the reflash's /fppos_upgraded (see backup.php).  The
 // plugins themselves were installed on another box, so their fpp_install.sh
 // never ran here and any native ones were built there: ask for a reinstall,
 // as a reflash does.
-if ($isRestore && ($hasConfig || $hasPlugins || $hasEeprom)) {
+$nothingCopied = ($backupRc == 90);
+if ($isRestore && !$nothingCopied && ($hasConfig || $hasPlugins || $hasEeprom)) {
     WriteSettingToFile('rebootFlag', '1');
     WriteSettingToFile('BootActions', 'settings');
     exec('sudo touch /fpp_restored');
 }
-if ($isRestore && $hasPlugins) {
+if ($isRestore && !$nothingCopied && $hasPlugins) {
     WriteSettingToFile('pluginReinstallNeededAfterOS', '1');
 }
 
@@ -160,7 +159,7 @@ if ($isRestore && $hasPlugins) {
 // ends; "Plugins" brings in plugins outside the Plugin Manager, and
 // "Configuration" replaces the settings file (plugin source flags included).
 $copiedModes = array_values(array_intersect(array('All', 'Configuration', 'Plugins'), (array) $flagWords));
-if ($isRestore && !empty($copiedModes)) {
+if ($isRestore && !$nothingCopied && !empty($copiedModes)) {
     require_once __DIR__ . '/common/pluginhistory.inc.php';
     AppendPluginHistory('', 'copied', array('modes' => $copiedModes, 'direction' => $direction));
 }
