@@ -60,6 +60,7 @@
 #include "PixelOverlay.h"
 #include "PixelOverlayEffects.h"
 #include "PixelOverlayModel.h"
+#include "../channeloutput/channeloutputthread.h"
 
 // The channel order a model reads and writes.  This is the order of fppd's
 // channel data, not of the wire: setPixelValue() stores r, then g, then b,
@@ -620,8 +621,11 @@ void PixelOverlayModel::setState(const PixelOverlayState& st) {
     if (st == getState())
         return;
 
-    if (!st.getState() && needRefresh()) {
-        // Give the buffer a little time to flush before disabling
+    // Give the buffer a little time to flush before disabling -- but not on
+    // the output thread, which is what flushes it: an effect that ends by
+    // disabling its model after the next output (EFFECT_AFTER_NEXT_OUTPUT
+    // runs there) waited out the whole 100 ms, and every output stalled.
+    if (!st.getState() && needRefresh() && !IsChannelOutputThread()) {
         int x = 0;
         while (needRefresh() && (x++ < 10)) {
             usleep(10000);
