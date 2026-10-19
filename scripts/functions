@@ -581,6 +581,9 @@ compileBinaries() {
             ${SUDO} rm -f "${FPPHOME}/media/tmp/swapfile"
         fi
     fi
+    # Flush the new binaries before fppd restarts; a power loss can zero them (#3120).
+    sync
+
     # Propagate the src build status (see above): the swap cleanup must not
     # mask a failed make with its own success.
     return ${BUILD_RC:-0}

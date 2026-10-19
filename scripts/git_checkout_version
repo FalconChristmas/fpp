@@ -109,6 +109,8 @@ SetupBuildEnv
 
 ${SUDO} make -j ${BUILD_CPUS} optimized
 BUILD_RC=$?
+# Flush the new binaries before fppd restarts; a power loss can zero them (#3120).
+sync
 
 echo "======================================================================"
 echo "Restarting fppd"

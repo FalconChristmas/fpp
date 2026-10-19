@@ -15,4 +15,8 @@ SetupBuildEnv
 make clean
 
 make -j ${BUILD_CPUS} optimized
+BUILD_RC=$?
+# Flush the new binaries; a power loss can zero them (#3120).
+sync
+exit ${BUILD_RC}
 
