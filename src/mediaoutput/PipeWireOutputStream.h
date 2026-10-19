@@ -91,9 +91,10 @@ public:
     // from PLAYING, so audio still queued ahead of it would leave the lights
     // ahead of the sound for the whole track.
     //
-    // Then, if anything was fed since the last time, flush the stream: what
-    // that wait can't see -- audio held up by a stall in the graph -- would
-    // otherwise sit ahead of every track to come (see FlushLocked()).
+    // Then flush the stream, unless nothing was handed to it since the last
+    // flush: what that wait can't see -- audio held up by a stall in the
+    // graph -- would otherwise sit ahead of every track to come, and every
+    // track starts from the same empty queue (see Flush()).
     void WaitDrained(int maxMs);
 
     // Route `appsink`'s samples into this stream, replacing any previous
@@ -103,10 +104,6 @@ public:
     // stream forwards each buffer as soon as it arrives.
     void AttachFeed(GstElement* appsink);
 
-    // Time from a buffer entering this stream to it being handed to the
-    // graph -- what a position read at the feed has to be backed up by, on
-    // top of the card's own queue.
-    int64_t LatencyNs();
     // How far ahead of the clock a feed delivers (see AttachFeed()).
     static int64_t FeedLeadNs();
     // The clock every pipeline feeding this stream must run on (a new
@@ -168,8 +165,8 @@ private:
     // have played, assuming the graph takes it at real time once queued.
     int64_t m_queuedUntilUs = 0;
     void NoteQueuedLocked(size_t bytes);
-    // A feed has delivered since the stream opened or was last flushed.
-    bool m_fedSinceFlush = false;
+    // Nothing has been handed to the stream since it was last flushed.
+    bool m_flushed = false;
     int m_rate = 0;                    // ...and their rate
     bool m_warnedCaps = false;         // logged a feed in the wrong format
     GstElement* m_feed = nullptr;      // appsink currently allowed to feed (no ref held)

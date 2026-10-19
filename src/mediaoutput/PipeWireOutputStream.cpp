@@ -278,9 +278,12 @@ void PipeWireOutputStream::WaitDrained(int maxMs) {
 // So between tracks, once the estimate says the last one has played, flush:
 // pipewiresink drops whatever its stream still holds (pw_stream_flush()),
 // which is nothing unless there was a stall, and every track starts from an
-// empty queue.  The stream goes inactive and back, and drops the first few
-// tens of ms handed to it after that, so between tracks it is primed with
-// silence.
+// empty queue.  The first track on a newly opened stream is flushed as well.
+// Left as it opened, the stream's queue settled a whole graph cycle deeper on
+// some opens than others, and the sound landed anywhere from 1 to 28 ms off
+// the lights from one show start to the next on a Pi 5; flushed, 12-20 ms.
+// The stream goes inactive and back, and drops the first few tens of ms
+// handed to it after that, so between tracks it is primed with silence.
 //
 // When the stall is an xrun on the card itself, DisciplineClock() sees the
 // card stop or restart, and the stream is flushed right then, mid-track,
@@ -292,10 +295,10 @@ void PipeWireOutputStream::Flush(bool prime) {
     GstElement* src = nullptr;
     {
         std::unique_lock<std::mutex> lock(m_lock);
-        if (!m_src || m_state != State::Ready || !m_fedSinceFlush) {
+        if (!m_src || m_state != State::Ready || m_flushed) {
             return;
         }
-        m_fedSinceFlush = false;
+        m_flushed = true;
         src = GST_ELEMENT(gst_object_ref(m_src));
     }
     // Outside the lock: the flush takes the sink's own locks.
@@ -324,10 +327,6 @@ bool PipeWireOutputStream::WaitReady(int timeoutMs) {
                (m_state == State::Closed && !m_wantOpen);
     });
     return readyHere();
-}
-
-int64_t PipeWireOutputStream::LatencyNs() {
-    return kGraphQuantum * 1000000000LL / GStreamerOutput::PipeWireGraphRate();
 }
 
 int PipeWireOutputStream::TailFlushMs() {
@@ -400,7 +399,7 @@ GstFlowReturn PipeWireOutputStream::OnFeedSample(GstElement* appsink, gpointer u
             }
             GST_BUFFER_DTS(out) = GST_CLOCK_TIME_NONE;
             self->NoteQueuedLocked(gst_buffer_get_size(out));
-            self->m_fedSinceFlush = true;
+            self->m_flushed = false;
             src = GST_ELEMENT(gst_object_ref(self->m_src));
         }
     }
@@ -672,7 +671,9 @@ bool PipeWireOutputStream::OpenLocked(std::unique_lock<std::mutex>& lock) {
     m_rate = rate;
     m_warnedCaps = false;
     m_queuedUntilUs = 0;
-    m_fedSinceFlush = false;
+    // The silence that connects the stream counts: the first track is
+    // flushed too, so it starts from the same state as every later one.
+    m_flushed = false;
     m_target = target;
     m_cardStatusPath = cardStatus;
     m_cardWasRunning = cardWasRunning;

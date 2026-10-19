@@ -100,8 +100,49 @@ static double CurrentMediaClockRate(long long now) {
     return mediaClockRate.load(std::memory_order_relaxed);
 }
 
+// Media phase servo.  Media sync used to compare whole frame counts once a
+// second and leave anything within a frame alone, so the lights sat anywhere
+// up to two frames (100 ms at 20 fps) from the sound.  Now the output thread
+// publishes which frame it sends next and when that is due, each media
+// position report works out when the media says it should be due, and the
+// difference is closed a little each frame.  Whole-frame skips and holds
+// (CalculateNewChannelOutputDelayForFrame()) still handle anything larger.
+//
+// Pending correction in us: > 0 delays the frames to come, < 0 brings them
+// forward.  The output thread takes at most kMaxPhaseStep of a period from it
+// per frame, so the cadence never visibly jumps.  It goes stale a second after
+// the media stops reporting, like the clock rate.
+static constexpr double kMaxPhaseStep = 0.1;
+static std::atomic<long long> mediaPhaseCorrUs{ 0 };
+static std::atomic<long long> mediaPhaseCorrAt{ 0 };
+// The next frame the thread sends and when it is due, published together.
+static std::mutex nextSendLock;
+static long nextSendFrame = -1;
+static long long nextSendDueUs = 0;
+
+static void PublishNextSend(long frame, long long dueUs) {
+    std::unique_lock<std::mutex> l(nextSendLock);
+    nextSendFrame = frame;
+    nextSendDueUs = dueUs;
+}
+
+static double TakeMediaPhaseStep(long long now, double period) {
+    if (now - mediaPhaseCorrAt.load(std::memory_order_relaxed) > 1000000 || !sequence->IsSequenceRunning() ||
+        getFPPmode() == REMOTE_MODE) {
+        return 0.0;
+    }
+    long long pending = mediaPhaseCorrUs.load(std::memory_order_relaxed);
+    long long maxStep = (long long)(period * kMaxPhaseStep);
+    long long step = std::clamp(pending, -maxStep, maxStep);
+    if (step) {
+        mediaPhaseCorrUs.fetch_sub(step, std::memory_order_relaxed);
+    }
+    return (double)step;
+}
+
 /* prototypes for functions below */
 void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent);
+static void AdjustForFrame(int expectedFramesSent, bool phaseServo);
 
 /*
  * Check to see if the channel output thread is running
@@ -435,13 +476,17 @@ void RunChannelOutputThread(void) {
             nextFrameTime = startTime + lightDelay;
             frameTimeCarry = 0.0;
         } else if (startTime >= nextFrameTime) {
-            frameTimeCarry += period;
-            long long whole = (long long)frameTimeCarry;
+            frameTimeCarry += period + TakeMediaPhaseStep(startTime, period);
+            long long whole = (long long)std::floor(frameTimeCarry);
             frameTimeCarry -= whole;
             nextFrameTime += whole;
         }
         // else: a forced wake ran this pass early; the regular frame stays due
         // when it was.
+        if (sequence->IsSequenceRunning()) {
+            // The frame just read goes out at the next wake.
+            PublishNextSend((long)channelOutputFrame.load(relaxed), nextFrameTime);
+        }
         long dt = (nextFrameTime - GetMonotonicTimeMicros()) * 1000;
         if (RunThread.load(relaxed) && dt > 0) {
             if (outputThreadCond.wait_for(lock, std::chrono::nanoseconds(dt),
@@ -642,12 +687,41 @@ void UpdateMasterPosition(int frameNumber) {
  */
 void CalculateNewChannelOutputDelay(float mediaPosition) {
     static float nextSyncCheck = 0.5;
+    static double phaseErrUs = 0.0;
+    static long long phaseErrAt = 0;
 
     float offsetMediaPosition = mediaPosition - mediaOffset;
     mediaElapsedSeconds = offsetMediaPosition < 0.0 ? 0.0 : offsetMediaPosition;
 
     if (getFPPmode() == REMOTE_MODE || !sequence->IsSequenceRunning())
         return;
+
+    // Frame F belongs on the wire when the media reaches F / RefreshRate.
+    long long now = GetMonotonicTimeMicros();
+    long frame;
+    long long due;
+    {
+        std::unique_lock<std::mutex> l(nextSendLock);
+        frame = nextSendFrame;
+        due = nextSendDueUs;
+    }
+    double frameUs = 1000000.0 / RefreshRate;
+    bool phaseServo = false;
+    if (frame >= 0 && due > 0 && offsetMediaPosition > 0.0) {
+        double rate = CurrentMediaClockRate(now);
+        double ideal = now + ((double)frame / RefreshRate - offsetMediaPosition) * 1000000.0 / rate;
+        double err = (double)due - ideal;  // > 0: the lights are late
+        if (std::fabs(err) < 3 * frameUs) {
+            // Smoothed: each report is only as good as the position query.
+            phaseErrUs = (now - phaseErrAt > 1000000) ? err : phaseErrUs + 0.2 * (err - phaseErrUs);
+            phaseErrAt = now;
+            mediaPhaseCorrUs.store(llround(-phaseErrUs), std::memory_order_relaxed);
+            mediaPhaseCorrAt.store(now, std::memory_order_relaxed);
+            phaseServo = true;
+        } else {
+            phaseErrAt = 0;
+        }
+    }
 
     if ((mediaPosition <= nextSyncCheck) &&
         (nextSyncCheck < (mediaPosition + 2.0))) {
@@ -663,13 +737,17 @@ void CalculateNewChannelOutputDelay(float mediaPosition) {
              mediaPosition, mediaOffset, channelOutputFrame.load(), expectedFramesSent,
              channelOutputFrame - expectedFramesSent);
 
-    CalculateNewChannelOutputDelayForFrame(expectedFramesSent);
+    AdjustForFrame(expectedFramesSent, phaseServo);
 }
 
 /*
  * Calculate the new sync offset based on a desired frame number
  */
 void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent) {
+    AdjustForFrame(expectedFramesSent, false);
+}
+
+static void AdjustForFrame(int expectedFramesSent, bool phaseServo) {
     int diff = channelOutputFrame - expectedFramesSent;
     bool allowFrameSkip = !multiSync->isMultiSyncEnabled();
     if (!allowFrameSkip && diff <= -(RefreshRate / 2)) {
@@ -709,6 +787,11 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent) {
         }
     }
     int DefaultLightDelay = sequence->IsSequenceRunning() ? SequenceLightDelay.load() : BridgeLightDelay.load();
+    if (phaseServo && diff >= -3 && diff <= 3) {
+        // Within a few frames the phase servo has it, to well under a frame.
+        LightDelay = DefaultLightDelay;
+        return;
+    }
     if (diff > 1 || diff < -1) {
         int timerOffset = diff * (DefaultLightDelay / 100);
         int newLightDelay = LightDelay;

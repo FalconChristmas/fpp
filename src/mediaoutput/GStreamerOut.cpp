@@ -3294,8 +3294,13 @@ int64_t GStreamerOutput::AudioSinkLatencyNs() {
         m_sinkLatencyNs = 0;
         return 0;
     }
-    m_sinkLatencyNs = ns;
-    return ns;
+    // The queue saw-tooths through a whole graph quantum (~21 ms) as PipeWire
+    // refills it, and each reading lands anywhere on the tooth.  What the
+    // sound is behind by on average is the mean, so average the readings
+    // (~2 s at one every 250 ms): taken raw, they moved the position, and the
+    // lights with it, by up to a quantum every quarter second.
+    m_sinkLatencyNs = m_sinkLatencyNs > 0 ? m_sinkLatencyNs + (ns - m_sinkLatencyNs) / 8 : ns;
+    return m_sinkLatencyNs;
 }
 
 int GStreamerOutput::Process(void) {
@@ -3527,12 +3532,13 @@ int GStreamerOutput::Process(void) {
             // sequence servo and the MultiSync packets both follow the sound
             // rather than the graph's write pointer.  See AudioSinkLatencyNs().
             if (posFromAudioSink) {
+                // Feeding the persistent stream adds nothing to this: the feed
+                // hands each buffer over a graph cycle early (FeedLeadNs()),
+                // which is the cycle the stream takes to pass it to the graph.
+                // Adding that cycle as well put the lights a quantum (21 ms)
+                // behind the sound on a Pi 5 once media sync stopped hiding
+                // anything under a frame.
                 int64_t latNs = AudioSinkLatencyNs();
-                if (m_pwStream) {
-                    // ...and, when feeding the persistent stream, the time it
-                    // takes to get from the feed into the graph.
-                    latNs += m_pwStream->LatencyNs();
-                }
                 float latSec = (float)latNs / 1000000000.0f;
                 if (latSec > 0.0f) {
                     elapsed -= latSec;
