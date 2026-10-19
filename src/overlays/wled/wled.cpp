@@ -20,6 +20,7 @@
 #include "../PixelOverlayModel.h"
 
 #include <cmath>
+#include <mutex>
 #include <math.h>
 #include <time.h>
 
@@ -356,6 +357,11 @@ public:
     }
 
     bool getAudioSamples(std::array<float, NUM_SAMPLES>& samples, int& sampleRate) {
+        // Called from the overlay effect thread (reactive effects) and the
+        // WLEDAudioSync thread: both opened the capture on first use (one
+        // pipeline leaked) and filled inputSamples at once.  Every pull is
+        // non-blocking, so holding this over the call costs little.
+        std::lock_guard<std::mutex> lk(sourceLock);
         if (sourceType == -1) {
             std::string source = getSetting("WLEDAudioInput", "-- Playing Media --");
             if (source == "-- Playing Media --") {
@@ -387,6 +393,7 @@ public:
         return retValue;
     }
 
+    std::mutex sourceLock;
     int sourceType = -1;
     std::array<float, NUM_SAMPLES> inputSamples;
     int inputSampleRate = 44100;
