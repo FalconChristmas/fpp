@@ -4,22 +4,28 @@ require_once 'config.php';
 $endTimes = array();
 $depth = 0;
 
+// These go into style attributes unescaped: only a bare hex color is used.
+function SchedulePreviewColor($setting, $default)
+{
+    $v = (string) GetSettingValue($setting, $default);
+    return preg_match('/^[0-9A-Fa-f]{6}$/', $v) ? $v : $default;
+}
 $colors = array(
     array(
-        GetSettingValue('tableColorPair1A', '00FFFF'),
-        GetSettingValue('tableColorPair1B', 'ADD8E6')
+        SchedulePreviewColor('tableColorPair1A', '00FFFF'),
+        SchedulePreviewColor('tableColorPair1B', 'ADD8E6')
     ),
     array(
-        GetSettingValue('tableColorPair2A', '008000'),
-        GetSettingValue('tableColorPair2B', '808000')
+        SchedulePreviewColor('tableColorPair2A', '008000'),
+        SchedulePreviewColor('tableColorPair2B', '808000')
     ),
     array(
-        GetSettingValue('tableColorPair3A', '808080'),
-        GetSettingValue('tableColorPair3B', 'C0C0C0')
+        SchedulePreviewColor('tableColorPair3A', '808080'),
+        SchedulePreviewColor('tableColorPair3B', 'C0C0C0')
     ),
     array(
-        GetSettingValue('tableColorPair4A', 'A52A2A'),
-        GetSettingValue('tableColorPair4B', 'FFFF00')
+        SchedulePreviewColor('tableColorPair4A', 'A52A2A'),
+        SchedulePreviewColor('tableColorPair4B', 'FFFF00')
     ),
 );
 $colorIndexes = array(0, 0, 0, 0);

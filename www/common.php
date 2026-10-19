@@ -2203,6 +2203,12 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
         echo "</datalist>\n";
     }
     if ($subType == 'color') {
+        // Also into a style attribute and a JS string below, where the
+        // escaping above doesn't reach: only a bare hex color goes there.
+        $curValue = (string)$curValue;
+        if (!preg_match('/^[0-9A-Fa-f]{6}$/', $curValue)) {
+            $curValue = preg_match('/^[0-9A-Fa-f]{6}$/', (string)$defaultValue) ? (string)$defaultValue : "000000";
+        }
         echo "<span id='$setting" . "_colorBox' class='color-box' style='background-color: #" . $curValue . ";'></span>";
         echo "<script>";
         echo "var $setting" . "SaveTimer = null;\n";
