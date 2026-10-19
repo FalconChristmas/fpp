@@ -125,7 +125,7 @@ if (isset($_GET['cpu'])) {
             }
             var btn = $('#btnRestartFPPDMedia');
             btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Restarting...');
-            $.get('api/system/fppd/restart')
+            $.post('api/system/fppd/restart')
                 .done(function () {
                     $.jGrowl('FPPD restart requested', { themeState: 'success' });
                 })

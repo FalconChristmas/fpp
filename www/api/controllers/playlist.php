@@ -923,7 +923,8 @@ function PlaylistSectionInsertItem()
  * Immediately stop the currently running playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/stop
+ * @route POST /api/playlists/stop
+ * @route GET /api/playlists/stop deprecated
  * @response 200 Playlist stopped
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -932,13 +933,7 @@ function PlaylistSectionInsertItem()
 function playlist_stop()
 {
     global $settings;
-    $curl = curl_init();
-    curl_setopt($curl, CURLOPT_URL, "http://localhost:32322/command/Stop%20Now");
-    curl_setopt($curl, CURLOPT_FAILONERROR, true);
-    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
-    $request_content = curl_exec($curl);
+    $request_content = FppdCommand('Stop Now');
     return $request_content;
 }
 
@@ -948,7 +943,8 @@ function playlist_stop()
  * Gracefully stop the currently running playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/stopgracefully
+ * @route POST /api/playlists/stopgracefully
+ * @route GET /api/playlists/stopgracefully deprecated
  * @response 200 Graceful stop initiated
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -958,12 +954,7 @@ function playlist_stopgracefully()
 {
     global $settings;
 
-    $curl = curl_init('http://localhost:32322/command/Stop%20Gracefully');
-    curl_setopt($curl, CURLOPT_FAILONERROR, true);
-    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
-    $request_content = curl_exec($curl);
+    $request_content = FppdCommand('Stop Gracefully');
     return $request_content;
 }
 
@@ -974,7 +965,8 @@ function playlist_stopgracefully()
  * current loop.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/stopgracefullyafterloop
+ * @route POST /api/playlists/stopgracefullyafterloop
+ * @route GET /api/playlists/stopgracefullyafterloop deprecated
  * @response 200 Stop after loop initiated
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -984,12 +976,7 @@ function playlist_stopgracefullyafterloop()
 {
     global $settings;
 
-    $curl = curl_init('http://localhost:32322/command/Stop%20Gracefully/true');
-    curl_setopt($curl, CURLOPT_FAILONERROR, true);
-    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
-    $request_content = curl_exec($curl);
+    $request_content = FppdCommand('Stop Gracefully', array('true'));
     return $request_content;
 }
 
@@ -1001,7 +988,8 @@ function playlist_stopgracefullyafterloop()
  * this playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlist/{PlaylistName}/start
+ * @route POST /api/playlist/{PlaylistName}/start
+ * @route GET /api/playlist/{PlaylistName}/start deprecated
  * @response 200 Playlist started
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -1014,12 +1002,7 @@ function playlist_start()
     $playlistName = rawurldecode(params('PlaylistName'));
     $scheduleProtected = isset($_GET['scheduleProtected']) ? $_GET['scheduleProtected'] : 'false';
 
-    $curl = curl_init('http://localhost:32322/command/Start%20Playlist/' . $playlistName . '/false/false/' . $scheduleProtected);
-    curl_setopt($curl, CURLOPT_FAILONERROR, true);
-    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
-    $request_content = curl_exec($curl);
+    $request_content = FppdCommand('Start Playlist', array($playlistName, 'false', 'false', $scheduleProtected));
     return $request_content;
 }
 
@@ -1031,7 +1014,8 @@ function playlist_start()
  * scheduler from stopping this playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlist/{PlaylistName}/start/{Repeat}
+ * @route POST /api/playlist/{PlaylistName}/start/{Repeat}
+ * @route GET /api/playlist/{PlaylistName}/start/{Repeat} deprecated
  * @param bool scheduleProtected Prevent schedule from stopping this playlist
  * @response 200 Playlist started
  * ```json
@@ -1046,12 +1030,7 @@ function playlist_start_repeat()
     $repeat = urldecode(params('Repeat'));
     $scheduleProtected = isset($_GET['scheduleProtected']) ? $_GET['scheduleProtected'] : 'false';
 
-    $curl = curl_init('http://localhost:32322/command/Start%20Playlist/' . $playlistName . '/' . $repeat . '/false/' . $scheduleProtected);
-    curl_setopt($curl, CURLOPT_FAILONERROR, true);
-    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
-    $request_content = curl_exec($curl);
+    $request_content = FppdCommand('Start Playlist', array($playlistName, $repeat, 'false', $scheduleProtected));
     return $request_content;
 }
 
@@ -1063,7 +1042,8 @@ function playlist_start_repeat()
  * stop this playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}
+ * @route POST /api/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected}
+ * @route GET /api/playlist/{PlaylistName}/start/{Repeat}/{ScheduleProtected} deprecated
  * @response 200 Playlist started
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -1077,12 +1057,7 @@ function playlist_start_repeat_protected()
     $repeat = urldecode(params('Repeat'));
     $scheduleProtected = urldecode(params('ScheduleProtected'));
 
-    $curl = curl_init('http://localhost:32322/command/Start%20Playlist/' . $playlistName . '/' . $repeat . '/false/' . $scheduleProtected);
-    curl_setopt($curl, CURLOPT_FAILONERROR, true);
-    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
-    $request_content = curl_exec($curl);
+    $request_content = FppdCommand('Start Playlist', array($playlistName, $repeat, 'false', $scheduleProtected));
     return $request_content;
 }
 
@@ -1102,7 +1077,8 @@ function playlist_start_repeat_protected()
  * repeating.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlist/repeat/{Repeat}
+ * @route POST /api/playlist/repeat/{Repeat}
+ * @route GET /api/playlist/repeat/{Repeat} deprecated
  * @response 200 Repeat state changed, or `Status` is `Error` with the reason in `Message`
  * ```json
  * {"Status": "OK", "Message": "Repeat Enabled"}
@@ -1127,13 +1103,7 @@ function playlist_repeat()
     // with a 500 carrying the reason, and "no playlist is running" is a routine
     // answer for this endpoint rather than a fault - FAILONERROR would throw
     // that body away and hand the caller an empty response instead.
-    $curl = curl_init('http://localhost:32322/command/Set%20Playlist%20Repeat/' . $repeat);
-    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
-    $request_content = curl_exec($curl);
-    $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    curl_close($curl);
+    $request_content = FppdCommand('Set Playlist Repeat', array($repeat), 200, 0, false, $httpCode);
 
     if ($request_content === false) {
         return json(array(
@@ -1154,7 +1124,8 @@ function playlist_repeat()
  * Pause the currently running playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/pause
+ * @route POST /api/playlists/pause
+ * @route GET /api/playlists/pause deprecated
  * @response 200 Playlist paused
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -1164,12 +1135,7 @@ function playlist_pause()
 {
     global $settings;
 
-    $curl = curl_init('http://localhost:32322/command/Pause%20Playlist');
-    curl_setopt($curl, CURLOPT_FAILONERROR, true);
-    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
-    $request_content = curl_exec($curl);
+    $request_content = FppdCommand('Pause Playlist');
     return $request_content;
 }
 
@@ -1179,7 +1145,8 @@ function playlist_pause()
  * Resume a previously paused playlist.
  *
  * @badge "FPP REQUIRED" critical
- * @route GET /api/playlists/resume
+ * @route POST /api/playlists/resume
+ * @route GET /api/playlists/resume deprecated
  * @response 200 Playlist resumed
  * ```json
  * {"Status": "OK", "Message": ""}
@@ -1189,11 +1156,6 @@ function playlist_resume()
 {
     global $settings;
 
-    $curl = curl_init('http://localhost:32322/command/Resume%20Playlist');
-    curl_setopt($curl, CURLOPT_FAILONERROR, true);
-    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
-    $request_content = curl_exec($curl);
+    $request_content = FppdCommand('Resume Playlist');
     return $request_content;
 }

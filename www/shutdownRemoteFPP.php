@@ -21,13 +21,6 @@ if (!filter_var($ip, FILTER_VALIDATE_IP) || !IsRemotePeerHost($ip)) {
 echo "Shutting down FPP system @ $ip\n";
 
 // FPP 5.0+
-$curl = curl_init('http://' . $ip . '/api/system/shutdown');
-curl_setopt($curl, CURLOPT_FAILONERROR, true);
-curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false); // a redirect could point back at loopback
-curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
-$request_content = curl_exec($curl);
-$rc = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
-curl_close($curl);
+$request_content = RemotePlayerAction('http://' . $ip . '/api/system/shutdown', 200, $rc);
 
 echo "\nSystem Shutdown";

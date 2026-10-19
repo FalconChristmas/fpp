@@ -122,7 +122,8 @@ function script_save()
  *
  * Runs a locally installed script.
  *
- * @route GET /api/scripts/{scriptName}/run
+ * @route POST /api/scripts/{scriptName}/run
+ * @route GET /api/scripts/{scriptName}/run deprecated
  * @response 200 Script output
  * ```text
  * The output of the script as a String
@@ -137,12 +138,7 @@ function script_run()
         http_response_code(400);
         return json(array("status" => "Invalid scriptName"));
     }
-    $curl = curl_init('http://localhost:32322/command/Run%20Script/' . rawurlencode($script));
-    curl_setopt($curl, CURLOPT_FAILONERROR, true);
-    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
-    $request_content = curl_exec($curl);
+    $request_content = FppdCommand('Run Script', array($script));
     return $request_content;
 }
 

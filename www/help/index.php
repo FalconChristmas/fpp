@@ -35,7 +35,7 @@
     <li><b>Player Controls</b> (<code>#controlsSection</code>, pinned to top via <code>Zebra_Pin</code> when scrolled) — Large buttons:
         <ul>
             <li><b>Play</b> (green, <code>StartPlaylistNow()</code>) — Starts the selected playlist from the beginning.</li>
-            <li><b>Previous</b> (<code>PreviousPlaylistEntry()</code> via <code>api/command/Prev Playlist Item</code>) — Jumps to previous entry.</li>
+            <li><b>Previous</b> (<code>PreviousPlaylistEntry()</code> via <code>POST api/command</code> “Prev Playlist Item”) — Jumps to previous entry.</li>
             <li><b>Next</b> (<code>NextPlaylistEntry()</code> via <code>Next Playlist Item</code>) — Jumps to next entry.</li>
             <li><b>Stop Gracefully</b> (<code>StopGracefully()</code>) — Lets the current sequence finish, then stops.</li>
             <li><b>Stop After Loop</b> (<code>StopGracefullyAfterLoop()</code>) — Finishes the current Main Playlist loop, then stops (honors Lead Out).</li>

@@ -199,7 +199,7 @@ function PrintGitBranchOptions()
     }
 
     function GitReset() {
-        $.get("api/git/reset"
+        $.post("api/git/reset"
         ).done(function () {
             reloadGitStatus();
         });
@@ -399,13 +399,13 @@ function PrintGitBranchOptions()
                 if (!branch || !confirm("Are you really sure you want to switch to PR #" + num + " ('" + branch + "') branch?  This may take some time and it may not be fully compatible with this FPP OS version.  Click 'OK' to continue.")) {
                     location.reload(true); return;
                 }
-                location.href = 'changebranch.php?branch=' + encodeURIComponent(branch) + '&remote=pull-requests&pr=' + encodeURIComponent(num);
+                PostNavigate('changebranch.php?branch=' + encodeURIComponent(branch) + '&remote=pull-requests&pr=' + encodeURIComponent(num));
                 return;
             }
             if (typeof _origChangeGitBranch === 'function') return _origChangeGitBranch(branch);
             // fallback
             if (!branch || !confirm("Are you really sure you want to switch to the '" + branch + "' branch?  This may take some time and it may not be fully compatible with this FPP OS version.  Click 'OK' to continue.")) { location.reload(true); return; }
-            location.href = 'changebranch.php?branch=' + encodeURIComponent(branch) + '&remote=' + encodeURIComponent(remote);
+            PostNavigate('changebranch.php?branch=' + encodeURIComponent(branch) + '&remote=' + encodeURIComponent(remote));
         };
 
         // Keep branch meta in sync for PR mode

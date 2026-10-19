@@ -192,7 +192,10 @@ if ($prFetchDone && ($_GET['ackcfg'] ?? '') !== '1') {
 		echo "==================================================================================\n";
 		?>
 </pre>
-		<a href='<?= htmlspecialchars($continueUrl) ?>'>Continue and switch to PR #<?= intval($prNumber) ?></a><br>
+		<!-- POST, as every request that changes state should be (docs/DEPRECATED.md). -->
+		<form method='post' action='<?= htmlspecialchars($continueUrl) ?>'>
+			<button type='submit'>Continue and switch to PR #<?= intval($prNumber) ?></button>
+		</form>
 		<a href='settings.php#settings-developer'>Cancel and go back to Developer Settings</a>
 	</body>
 

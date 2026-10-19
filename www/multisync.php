@@ -3718,7 +3718,7 @@
                 const q = quickStreamQueue.shift();
                 quickStreamActive++;
                 StreamURL(q.url, q.rowID + '_logText', settle(actionDone),
-                    settle(function (id) { actionFailed(id, q.url); }));
+                    settle(function (id) { actionFailed(id, q.url); }), 'POST');
             }
         }
 

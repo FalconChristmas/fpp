@@ -50,7 +50,7 @@ Upgrading FPP
 <link rel="stylesheet" href="css/jquery.jgrowl.min.css?ref=<?= filemtime('css/jquery.jgrowl.min.css'); ?>" />
 <script>
 function Reboot() {
-    $.get({
+    $.post({
         url: "api/system/reboot",
         data: "",
         success: function(data) {

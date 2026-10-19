@@ -1076,7 +1076,7 @@
                 FPPUpdate_AddHideButton('fppUpgrade');
             }
             SetProgressDialogStatus('fppUpgrade', fppUpgradeTitle + ' — Starting…');
-            StreamURL('manualUpdate.php?wrapped=1', 'fppUpgradeText', 'FPPUpgradeDone', 'FPPUpgradeDone', 'GET', null, null, true, false, 'FPPUpgradeProgress'); // trailing arg: generic stage-status hook
+            StreamURL('manualUpdate.php?wrapped=1', 'fppUpgradeText', 'FPPUpgradeDone', 'FPPUpgradeDone', 'POST', null, null, true, false, 'FPPUpgradeProgress'); // trailing arg: generic stage-status hook
         }
 
         function FPPUpgradeDone() {
@@ -1258,7 +1258,7 @@
                     FPPUpdate_AddHideButton('osUpgrade');
                 }
                 SetProgressDialogStatus('osUpgrade', 'FPP OS Upgrade — Starting…');
-                StreamURL('upgradeOS.php?wrapped=1&os=' + os + keepOptFPP, 'osUpgradeText', 'OSUpgradeDone', 'OSUpgradeDone', 'GET', null, null, true, false, 'OSUpgradeProgress'); // trailing arg: generic stage-status hook
+                StreamURL('upgradeOS.php?wrapped=1&os=' + os + keepOptFPP, 'osUpgradeText', 'OSUpgradeDone', 'OSUpgradeDone', 'POST', null, null, true, false, 'OSUpgradeProgress'); // trailing arg: generic stage-status hook
             }
         }
 
@@ -1295,7 +1295,7 @@
 
             var url = osAssetMap[os].url;
             DisplayProgressDialog('osDownload', 'FPP Download OS Image');
-            StreamURL('upgradeOS.php?wrapped=1&downloadOnly=1&os=' + url, 'osDownloadText', 'OSDownloadDone');
+            StreamURL('upgradeOS.php?wrapped=1&downloadOnly=1&os=' + url, 'osDownloadText', 'OSDownloadDone', '', 'POST');
         }
 
         function OSDownloadDone() {

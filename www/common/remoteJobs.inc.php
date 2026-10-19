@@ -27,7 +27,7 @@ class RemoteJobHttp
     public $url;
     public $connectTimeoutMs = 3000;
     public $timeout = 0;        // whole-transfer limit in seconds, 0 = none
-    public $postFields = null;  // array => multipart POST (CURLFile for uploads)
+    public $postFields = null;  // array => multipart POST (CURLFile for uploads), '' => empty POST
     public $stream = true;      // true: body goes to the job's output; false: to $body
     public $progress = null;    // callable(dlTotal, dlNow, ulTotal, ulNow)
     public $onData = null;      // callable(string), also given each chunk of the body as it arrives
@@ -414,6 +414,26 @@ function RemoteJobURL($host, $path)
     return 'http://' . $host . $path;
 }
 
+/**
+ * A request to one of the remote's API routes that change state
+ * (docs/DEPRECATED.md): POST, which FPP 11 will require, then GET when the
+ * remote is older than 10.3 and answers the POST 404 or 405.  Not streamed.
+ */
+function RemoteJobAction($host, $path, $timeout = 0)
+{
+    foreach (array('', null) as $postFields) {
+        $req = new RemoteJobHttp(RemoteJobURL($host, $path));
+        $req->postFields = $postFields;
+        $req->timeout = $timeout;
+        $req->stream = false;
+        $req = yield $req;
+        if ($req->httpCode != 404 && $req->httpCode != 405) {
+            break;
+        }
+    }
+    return $req;
+}
+
 /** The job's validated host, followed by its "fallback" host if it has one. */
 function RemoteJobHosts(array $job)
 {
@@ -460,6 +480,7 @@ function RemoteJobStreamPage($host, $path, callable $out)
     $failed = false;
     $partial = '';
     $req = new RemoteJobHttp(RemoteJobURL($host, $path));
+    $req->postFields = ''; // the pages change state; any FPP takes them by POST
     $req->onData = function ($data) use (&$failed, &$partial) {
         $lines = explode("\n", $partial . $data);
         $partial = array_pop($lines);
@@ -648,11 +669,17 @@ function RemoteJobPushFiles(array $job, callable $out)
         $out("Complete:" . $up->body . "\n");
 
         // Uploads land in the remote's upload dir; this files them where they belong.
-        $mv = new RemoteJobHttp(RemoteJobURL($host, '/api/file/move/' . rawurlencode($filename)));
-        $mv->timeout = 10;
-        $mv->stream = false;
-        $mv = yield $mv;
+        $mv = yield from RemoteJobAction($host, '/api/file/move/' . rawurlencode($filename), 10);
         $status = json_decode($mv->body, true);
+        if (is_array($status) && ($status['status'] ?? '') == 'Invalid Directory' && ($status['dir'] ?? '') == 'move') {
+            // Older than 10.3: its POST /api/file/:DirName/:Name took the
+            // POST as an upload to a directory named "move" and wrote nothing.
+            $mv = new RemoteJobHttp(RemoteJobURL($host, '/api/file/move/' . rawurlencode($filename)));
+            $mv->timeout = 10;
+            $mv->stream = false;
+            $mv = yield $mv;
+            $status = json_decode($mv->body, true);
+        }
         if ($mv->errno != 0 || $mv->httpCode >= 400 || $mv->httpCode == 0) {
             $out("ERROR finalizing copied file on remote\n");
             $ok = false;
@@ -686,11 +713,11 @@ function RemoteJobChangeBranch(array $job, callable $out)
 
     $out("Changing branch @$ip to $branch (remote: $remote)\n");
 
-    $stop = new RemoteJobHttp(RemoteJobURL($ip, '/api/system/fppd/stop'));
-    $stop->stream = false;
-    yield $stop;
+    yield from RemoteJobAction($ip, '/api/system/fppd/stop');
 
-    $r = yield new RemoteJobHttp(RemoteJobURL($ip, '/changebranch.php?branch=' . urlencode($branch) . '&remote=' . urlencode($remote)));
+    $r = new RemoteJobHttp(RemoteJobURL($ip, '/changebranch.php?branch=' . urlencode($branch) . '&remote=' . urlencode($remote)));
+    $r->postFields = '';
+    $r = yield $r;
     if ($r->httpCode == 0) {
         $out("ERROR: no response from $ip: {$r->error}\n");
         return false;
@@ -708,9 +735,7 @@ function RemoteJobChangeBranch(array $job, callable $out)
     while (time() < $endTime) {
         $out('.');
         if (++$count == 15) {
-            $restart = new RemoteJobHttp(RemoteJobURL($ip, '/api/system/fppd/restart'));
-            $restart->stream = false;
-            yield $restart;
+            yield from RemoteJobAction($ip, '/api/system/fppd/restart');
             $count = 1;
         }
         $status = new RemoteJobHttp(RemoteJobURL($ip, '/api/fppd/status'));

@@ -12,10 +12,10 @@
 
 
         function OnEnableClicked(name) {
-            $.get("api/command/Set Port Status/" + encodeURIComponent(name) + "/true");
+            PostCommand('Set Port Status', [name, true]);
         }
         function OnDisableClicked(name) {
-            $.get("api/command/Set Port Status/" + encodeURIComponent(name) + "/false");
+            PostCommand('Set Port Status', [name, false]);
         }
 
         function CountPixels() {

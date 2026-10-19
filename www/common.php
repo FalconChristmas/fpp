@@ -412,6 +412,72 @@ function IsRemotePeerHost($host)
 }
 
 /**
+ * Ask another player to act through one of the API routes that change state
+ * (docs/DEPRECATED.md): by POST, which FPP 11 will require, and by GET when
+ * the player is older than 10.3 and answers the POST 404 or 405.  Redirects
+ * are not followed (see IsRemotePeerHost()).
+ *
+ * @param string $url              http://<peer>/api/...
+ * @param int    $connectTimeoutMs
+ * @param int    $httpCode         set to the answer's HTTP status, 0 for none
+ * @return string|false            the body, or false on no answer or an HTTP error
+ */
+function RemotePlayerAction($url, $connectTimeoutMs, &$httpCode = null)
+{
+    foreach (array('POST', 'GET') as $method) {
+        $curl = curl_init($url);
+        curl_setopt($curl, CURLOPT_FAILONERROR, true);
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, $connectTimeoutMs);
+        if ($method == 'POST') {
+            curl_setopt($curl, CURLOPT_POST, true);
+            curl_setopt($curl, CURLOPT_POSTFIELDS, '');
+        }
+        $body = curl_exec($curl);
+        $httpCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+        curl_close($curl);
+        if ($httpCode != 404 && $httpCode != 405) {
+            break;
+        }
+    }
+    return $body;
+}
+
+/**
+ * Run an fppd command by POST /command/<name>, its arguments a JSON array.
+ * GET /command/<name>/<args> is deprecated (docs/DEPRECATED.md), and needed
+ * every argument URL-encoded besides.
+ *
+ * @param string $command
+ * @param array  $args             strings; fppd takes a bool or number as its text
+ * @param int    $connectTimeoutMs
+ * @param int    $timeout          whole-request limit in seconds, 0 = none
+ * @param bool   $failOnError      false keeps the body of fppd's 500, which
+ *                                 says why it refused the command
+ * @param int    $httpCode         set to the answer's HTTP status, 0 for none
+ * @return string|false            the body, or false on no answer (and on an
+ *                                 HTTP error, with $failOnError)
+ */
+function FppdCommand($command, array $args = array(), $connectTimeoutMs = 200, $timeout = 0, $failOnError = true, &$httpCode = null)
+{
+    $curl = curl_init('http://localhost:32322/command/' . rawurlencode($command));
+    curl_setopt($curl, CURLOPT_POST, true);
+    curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode(array_values($args)));
+    curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+    curl_setopt($curl, CURLOPT_FAILONERROR, $failOnError);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, $connectTimeoutMs);
+    if ($timeout > 0) {
+        curl_setopt($curl, CURLOPT_TIMEOUT, $timeout);
+    }
+    $body = curl_exec($curl);
+    $httpCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    curl_close($curl);
+    return $body;
+}
+
+/**
  * Whether a string can be a plugin's directory name.
  *
  * A plugin name becomes a path component under the plugins directory, so "."
@@ -5248,7 +5314,8 @@ function DoJsonBackupToUSB()
         //Build up the URL, include the necessary params so we can call it and have JSON Backups copied across
         $url = 'http://localhost/copystorage.php?wrapped=1&direction=TOUSB&path=' . urlencode($fileCopy_BackupPath) . '&storageLocation=' . $selected_jsonConfigBackupUSBLocation . '&flags=JsonBackups&delete=no';
 
-        if (file_get_contents($url, false) === false) {
+        $ctx = stream_context_create(array('http' => array('method' => 'POST')));
+        if (file_get_contents($url, false, $ctx) === false) {
             /* Handle error */
             error_log(
                 'DoJsonBackupToUSB: Something went wrong trying to call filecopy endpoint to copy JSON Backups to the specified device. (' . json_encode(

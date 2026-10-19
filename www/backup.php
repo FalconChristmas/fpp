@@ -2897,7 +2897,7 @@ if ($skipHTMLCodeOutput === false) {
                 $('#copyPopup_ModalCloseButton').prop('disabled', true).text('Please Wait');
                 $('#copyText').val('');
 
-                StreamURL(url, 'copyText', 'CopyDone', 'CopyTimeoutError');
+                StreamURL(url, 'copyText', 'CopyDone', 'CopyTimeoutError', 'POST');
 
             }
 
@@ -2973,7 +2973,7 @@ if ($skipHTMLCodeOutput === false) {
 
                 $.ajax({
                     url: url,
-                    type: 'GET',
+                    type: 'POST',
                     success: function (data) {
                         $.jGrowl('JSON Configuration Backups copied to: ' + selected_jsonConfigBackupUSBLocation, { themeState: 'success' });
                     },

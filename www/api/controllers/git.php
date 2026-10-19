@@ -61,7 +61,8 @@ function GetGitOriginLog()
  * Discard local changes
  * Performs a hard reset on the current branch, discarding any local changes.
  *
- * @route GET /api/git/reset
+ * @route POST /api/git/reset
+ * @route GET /api/git/reset deprecated
  * @response 200 Reset complete
  * ```json
  * {

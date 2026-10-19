@@ -1776,7 +1776,7 @@
                             // 5. Auto-restart FPPD
                             $.ajax({
                                 url: 'api/system/fppd/restart',
-                                method: 'GET',
+                                method: 'POST',
                                 success: function () {
                                     ShowApplyProgress('Waiting for FPPD to come back online...');
                                     WaitForFPPD(function () {
@@ -1891,7 +1891,7 @@
             $.jGrowl('Restarting FPPD...', { themeState: 'highlight' });
             $.ajax({
                 url: 'api/system/fppd/restart',
-                method: 'GET',
+                method: 'POST',
                 success: function () {
                     $.jGrowl('FPPD restarting — audio will use the new output group', { themeState: 'highlight' });
                     setTimeout(function () { CheckPipeWireStatus(); }, 5000);

@@ -4884,7 +4884,8 @@ function UpgradeFPPVersion (newVersion) {
 			'upgradefpp.php?version=v' + version,
 			'upgradeFPPDialogText',
 			'VersionUpgradeDone',
-			'VersionUpgradeDone'
+			'VersionUpgradeDone',
+			'POST'
 		);
 	}
 }
@@ -4915,8 +4916,9 @@ function ChangeGitBranch (newBranch) {
 					"') branch?  This may take some time and it may not be fully compatible with this FPP OS version.  Click 'OK' to continue."
 			)
 		) {
-			location.href =
-				'changebranch.php?branch=' + encodeURIComponent(newBranch) + '&remote=pull-requests&pr=' + encodeURIComponent(prNum);
+			PostNavigate(
+				'changebranch.php?branch=' + encodeURIComponent(newBranch) + '&remote=pull-requests&pr=' + encodeURIComponent(prNum)
+			);
 		} else {
 			location.reload(true);
 		}
@@ -4929,15 +4931,16 @@ function ChangeGitBranch (newBranch) {
 				"' branch?  This may take some time and it may not be fully compatible with this FPP OS version.  Click 'OK' to continue."
 		)
 	) {
-		location.href =
-			'changebranch.php?branch=' + encodeURIComponent(newBranch) + '&remote=' + encodeURIComponent(remote);
+		PostNavigate(
+			'changebranch.php?branch=' + encodeURIComponent(newBranch) + '&remote=' + encodeURIComponent(remote)
+		);
 	} else {
 		location.reload(true);
 	}
 }
 
 function RebuildFPPSource () {
-	location.href = 'rebuildfpp.php';
+	PostNavigate('rebuildfpp.php');
 }
 
 // Single source of truth for the per-row fields in the universe output/input
@@ -6045,8 +6048,7 @@ function validateNumber (textbox, minimum, maximum) {
 }
 
 function StartNextScheduledItemNow () {
-	var url = 'api/command/Start Next Scheduled Item';
-	$.get(url)
+	PostCommand('Start Next Scheduled Item')
 		.done(function (data) {
 			$.jGrowl(data, { themeState: 'success' });
 		})
@@ -6059,8 +6061,7 @@ function StartNextScheduledItemNow () {
 
 function ExtendSchedule (minutes) {
 	var seconds = minutes * 60;
-	var url = 'api/command/Extend Schedule/' + seconds;
-	$.get(url)
+	PostCommand('Extend Schedule', [seconds])
 		.done(function (data) {
 			$.jGrowl(data, { themeState: 'success' });
 		})
@@ -6279,7 +6280,7 @@ function show_details (args) {
 }
 
 function moveFile (file, callback = null) {
-	$.get('api/file/move/' + encodeURIComponent(file))
+	$.post('api/file/move/' + encodeURIComponent(file))
 		.done(function (data) {
 			if ('OK' != data.status) {
 				DialogError('File Move Error', data.status);
@@ -7480,30 +7481,25 @@ function UpdateCurrentEntryPlaying (index, lastIndex) {
 function SetIconForCurrentPlayingEntry (index) {}
 
 function StopGracefully () {
-	var url = 'api/playlists/stopgracefully';
-	$.get(url)
+	$.post('api/playlists/stopgracefully')
 		.done(function () {})
 		.fail(function () {});
 }
 
 function StopGracefullyAfterLoop () {
-	var url = 'api/playlists/stopgracefullyafterloop';
-	$.get(url)
+	$.post('api/playlists/stopgracefullyafterloop')
 		.done(function () {})
 		.fail(function () {});
 }
 
 function StopNow () {
-	var url = 'api/playlists/stop';
-	$.get(url)
+	$.post('api/playlists/stop')
 		.done(function () {})
 		.fail(function () {});
 }
 
 function ToggleSequencePause () {
-	var url = 'api/sequence/current/togglePause';
-
-	$.get(url)
+	$.post('api/sequence/current/togglePause')
 		.done(function () {
 			$.jGrowl('Pause/Resume', { themeState: 'success' });
 		})
@@ -7942,7 +7938,7 @@ function RestartFPPD () {
 
 	clearTimeout(statusTimeout);
 	$('html,body').css('cursor', 'wait');
-	$.get('api/system/fppd/restart' + args)
+	$.post('api/system/fppd/restart' + args)
 		.done(function () {
 			$('html,body').css('cursor', 'auto');
 			$.jGrowl('FPPD Restarted', { themeState: 'success' });
@@ -8173,12 +8169,7 @@ function PlayPlaylist (Playlist, goToStatus = 0) {
 		settings.hasOwnProperty('UIStartedPlaylistsProtected') &&
 		settings['UIStartedPlaylistsProtected'] == '1';
 
-	var url =
-		'api/command/Start Playlist/' +
-		Playlist +
-		'/0/false/' +
-		(scheduleProtected ? 'true' : 'false');
-	$.get(url)
+	PostCommand('Start Playlist', [Playlist, 0, false, scheduleProtected])
 		.done(function () {
 			if (goToStatus) location.href = 'index.php';
 			else $.jGrowl('Playlist Started', { themeState: 'success' });
@@ -8406,7 +8397,7 @@ function RebootFPP () {
 
 	// Delay reboot for 1 second to allow flags to be cleared
 	setTimeout(function () {
-		$.get({
+		$.post({
 			url: 'api/system/reboot',
 			data: '',
 			success: function (data) {
@@ -8463,7 +8454,7 @@ function Shutdown () {
 }
 
 function ShutdownFPP () {
-	$.get({
+	$.post({
 		url: 'api/system/shutdown',
 		data: '',
 		success: function (data) {
@@ -14968,6 +14959,29 @@ function RunCommandJSON (cmdJSON) {
 
 function RunCommand (cmd) {
 	RunCommandJSON(JSON.stringify(cmd));
+}
+
+// Run a command by POST api/command, the form FPP 11 requires; GET
+// api/command/<name>/<args> is deprecated (docs/DEPRECATED.md). Returns the
+// jqXHR, for .done()/.fail().
+function PostCommand (command, args = []) {
+	return $.ajax({
+		url: 'api/command',
+		type: 'POST',
+		contentType: 'application/json',
+		data: JSON.stringify({ command: command, args: args })
+	});
+}
+
+// Open a page that changes state (changebranch.php, rebuildfpp.php) by POST,
+// which FPP 11 requires of it (docs/DEPRECATED.md). Its parameters stay in the
+// query string, where the page reads them.
+function PostNavigate (url) {
+	var form = document.createElement('form');
+	form.method = 'POST';
+	form.action = url;
+	document.body.appendChild(form);
+	form.submit();
 }
 
 function RunCommandSaved (item, data) {

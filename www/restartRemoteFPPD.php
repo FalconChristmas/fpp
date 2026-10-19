@@ -35,14 +35,7 @@ if (isset($_GET['mode'])) {
 echo "Restarting FPPD @ " . htmlspecialchars($ip) . "\n";
 
 // FPP 5.0+
-$curl = curl_init('http://' . $ip . '/api/system/fppd/restart?quick=true');
-curl_setopt($curl, CURLOPT_FAILONERROR, true);
-curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false); // a redirect could point back at loopback
-curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
-$request_content = curl_exec($curl);
-$rc = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
-curl_close($curl);
+$request_content = RemotePlayerAction('http://' . $ip . '/api/system/fppd/restart?quick=true', 200, $rc);
 
 echo "Waiting for fppd to come back up:\n";
 

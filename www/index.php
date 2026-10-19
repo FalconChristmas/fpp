@@ -299,15 +299,13 @@
         }
 
         function PreviousPlaylistEntry() {
-            var url = 'api/command/Prev Playlist Item';
-            $.get(url)
+            PostCommand('Prev Playlist Item')
                 .done(function () { })
                 .fail(function () { });
         }
 
         function NextPlaylistEntry() {
-            var url = 'api/command/Next Playlist Item';
-            $.get(url)
+            PostCommand('Next Playlist Item')
                 .done(function () { })
                 .fail(function () { });
         }

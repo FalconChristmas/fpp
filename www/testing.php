@@ -779,7 +779,7 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 			var sequence = $('#selSequence').val();
 			var startSecond = $('#startSecond').val();
 
-			$.get("api/sequence/" + sequence + "/start/" + startSecond
+			$.post("api/sequence/" + encodeURIComponent(sequence) + "/start/" + startSecond
 			).done(function () {
 				$.jGrowl("Started sequence " + sequence, { themeState: 'success' });
 			}).fail(function () {
@@ -791,7 +791,7 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 			var url = "api/sequence/current/stop";
 			var sequence = $('#selSequence').val();
 
-			$.get(url
+			$.post(url
 			).done(function () {
 				$.jGrowl("Stop sequence " + sequence, { themeState: 'danger' });
 			}).fail(function () {

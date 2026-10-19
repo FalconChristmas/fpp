@@ -94,7 +94,8 @@ function event_get()
  * Triggers the specified event by sending a `Trigger Event` command to `fppd`.
  *
  * @badges "FPP REQUIRED" critical
- * @route GET /api/events/{eventId}/trigger
+ * @route POST /api/events/{eventId}/trigger
+ * @route GET /api/events/{eventId}/trigger deprecated
  * @response 200 Event triggered
  * ```json
  * {"status": "OK"}

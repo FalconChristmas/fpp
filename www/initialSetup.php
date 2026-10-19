@@ -480,7 +480,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
 
             $('#fileCopyPopup_ModalCloseButton').prop('disabled', true).text('Please Wait');
             $('#fileCopyText').val('');
-            StreamURL(url, 'fileCopyText', 'FileCopyDone', 'FileCopyTimeoutError');
+            StreamURL(url, 'fileCopyText', 'FileCopyDone', 'FileCopyTimeoutError', 'POST');
         }
 
         function CloseFileCopyDialog() {

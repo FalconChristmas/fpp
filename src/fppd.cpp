@@ -1267,10 +1267,10 @@ int main(int argc, char* argv[]) {
 
             if (0 == topic_in.compare(topic_in.length() - 9, 9, "/shutdown")) {
                 LogInfo(VB_CONTROL, "Shutting down OS for request:   %s\n", topic_in.c_str());
-                urlGet("http://localhost/api/system/shutdown", rc);
+                urlPost("http://localhost/api/system/shutdown", "", rc);
             } else if (0 == topic_in.compare(topic_in.length() - 8, 8, "/restart")) {
                 LogInfo(VB_CONTROL, "Restarting FPP for request:   %s\n", topic_in.c_str());
-                urlGet("http://localhost/api/system/reboot", rc);
+                urlPost("http://localhost/api/system/reboot", "", rc);
             } else {
                 LogWarn(VB_CONTROL, "Invalid  request in mqtt_system_callback  %s\n", topic_in.c_str());
             }

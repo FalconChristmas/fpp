@@ -74,15 +74,9 @@
       const model = $(this).data('model');
       SelectedOverlayModel = model;
 
-      const url = 'api/command/' +
-        encodeURIComponent('Overlay Model Effect') + '/' +
-        encodeURIComponent(model) + '/' +
-        'Enabled/' +
-        encodeURIComponent('Stop Effects');
-
       const $btn = $(this).prop('disabled', true);
 
-      $.get(url)
+      PostCommand('Overlay Model Effect', [model, 'Enabled', 'Stop Effects'])
         .done(() => {
           $.jGrowl('Stopped all effects on ' + model, { themeState: 'success' });
           GetRunningOverlayEffects();
@@ -111,15 +105,14 @@
       if ($('#backgroundEffect').is(':checked'))
         background = 1;
 
-      var url = '';
+      var req;
       if (EffectSelectedType == 'eseq') {
-        url = 'api/command/Effect Start/' + EffectSelectedName + '/' + startChannel + '/' + loop + '/' + background;
+        req = PostCommand('Effect Start', [EffectSelectedName, startChannel, loop, background]);
       } else {
-        url = 'api/command/FSEQ Effect Start/' + EffectSelectedName + '/' + loop + '/' + background;
+        req = PostCommand('FSEQ Effect Start', [EffectSelectedName, loop, background]);
       }
 
-      $.get(url
-      ).done(function () {
+      req.done(function () {
         $.jGrowl('Effect Started', { themeState: 'success' });
         GetRunningEffects();
       }).fail(function () {

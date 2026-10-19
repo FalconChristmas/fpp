@@ -17,13 +17,13 @@ function KioskInstallDone() {
 function DisableKiosk() {
     SetSetting("Kiosk", 0, 0, 1);
     DisplayProgressDialog("enableKioskPopup", "Kiosk Frontend");
-    StreamURL('disableKiosk.php', 'enableKioskPopupText', 'KioskInstallDone');
+    StreamURL('disableKiosk.php', 'enableKioskPopupText', 'KioskInstallDone', '', 'POST');
 }
 
 function EnableKiosk() {
     if (confirm('Installing Kiosk components will take some time and consume around 470MB of space.')) {
         DisplayProgressDialog("enableKioskPopup", "Kiosk Frontend");
-        StreamURL('installKiosk.php', 'enableKioskPopupText', 'KioskInstallDone');
+        StreamURL('installKiosk.php', 'enableKioskPopupText', 'KioskInstallDone', '', 'POST');
     }
 }
 

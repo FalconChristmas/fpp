@@ -860,7 +860,8 @@ function findFile($dir, $filename)
  * subfolder based on its extension, returning a status of `OK` or an error
  * message if not successful.
  *
- * @route GET /api/file/move/{fileName}
+ * @route POST /api/file/move/{fileName}
+ * @route GET /api/file/move/{fileName} deprecated
  * @response 200 File moved to media directory
  * ```json
  * {"status": "OK"}

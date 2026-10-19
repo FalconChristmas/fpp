@@ -96,118 +96,126 @@ def parse_docblocks(php_source):
     blocks = [(m.end(), strip_stars(m.group(1))) for m in DOCBLOCK_RE.finditer(php_source)]
 
     for end_pos, text in blocks:
-        route_match = re.search(r'@route\s+(GET|POST|PUT|DELETE|PATCH)\s+(\S+)', text)
-        if not route_match:
-            continue
+        # A block may name the same operation under several methods, e.g. the
+        # POST a state-changing route takes and the GET it still answers:
+        #   @route POST /api/system/reboot
+        #   @route GET /api/system/reboot deprecated
+        for route_match in re.finditer(r'@route\s+(GET|POST|PUT|DELETE|PATCH)\s+(\S+)([ \t]+deprecated)?', text):
+            yield from parse_route(text, route_match)
 
-        method = route_match.group(1).lower()
-        full_path = route_match.group(2)
-        oapi_path = full_path if full_path else '/'
 
-        desc_raw = text[:text.find('@')].strip() if '@' in text else text.strip()
-        # Split into blank-line-separated paragraphs; each paragraph is one
-        # or more consecutive non-empty lines joined into a single string.
-        paragraphs = []
-        current = []
-        for ln in desc_raw.splitlines():
-            stripped = ln.strip()
-            if stripped:
-                current.append(stripped)
-            elif current:
-                paragraphs.append(' '.join(current))
-                current = []
-        if current:
+def parse_route(text, route_match):
+    """The endpoint dict for one @route line of a docblock."""
+    method = route_match.group(1).lower()
+    full_path = route_match.group(2)
+    deprecated = route_match.group(3) is not None
+    oapi_path = full_path if full_path else '/'
+
+    desc_raw = text[:text.find('@')].strip() if '@' in text else text.strip()
+    # Split into blank-line-separated paragraphs; each paragraph is one
+    # or more consecutive non-empty lines joined into a single string.
+    paragraphs = []
+    current = []
+    for ln in desc_raw.splitlines():
+        stripped = ln.strip()
+        if stripped:
+            current.append(stripped)
+        elif current:
             paragraphs.append(' '.join(current))
+            current = []
+    if current:
+        paragraphs.append(' '.join(current))
 
-        if len(paragraphs) == 0:
-            summary = None
-            description = None
-        elif len(paragraphs) == 1:
-            summary = None  # falls back to route slug in build_openapi
-            description = paragraphs[0]
+    if len(paragraphs) == 0:
+        summary = None
+        description = None
+    elif len(paragraphs) == 1:
+        summary = None  # falls back to route slug in build_openapi
+        description = paragraphs[0]
+    else:
+        summary = paragraphs[0]
+        description = ' '.join(paragraphs[1:])
+
+    body_match = re.search(r'@body\s+(.+)', text)
+    body_raw = body_match.group(1).strip() if body_match else None
+
+    path_param_names = set(extract_path_params(oapi_path))
+
+    # @pathparam <name> [enum:a,b,c] [example:x] [free-text description]
+    # Lets a path parameter advertise valid values / a default so the API
+    # tester (Scalar) sends something usable instead of a placeholder.
+    path_param_meta = {}
+    for pm in re.finditer(r'@pathparam\s+(\S+)\s+(.*)', text):
+        pname = pm.group(1)
+        rest = pm.group(2).strip()
+        meta = {}
+        m_enum = re.search(r'enum:(\S+)', rest)
+        if m_enum:
+            meta['enum'] = m_enum.group(1).split(',')
+            rest = rest.replace(m_enum.group(0), '', 1).strip()
+        m_ex = re.search(r'example:(\S+)', rest)
+        if m_ex:
+            meta['example'] = m_ex.group(1)
+            rest = rest.replace(m_ex.group(0), '', 1).strip()
+        if rest:
+            meta['description'] = rest
+        path_param_meta[pname] = meta
+
+    params = []
+    for pm in re.finditer(r'@param\s+(\S+)\s+(\S+)\s*(.*)', text):
+        php_type, pname, pdesc = pm.group(1), pm.group(2), pm.group(3).strip()
+        if pname in path_param_names:
+            continue  # path params are handled via extract_path_params
+        type_map = {'int': 'integer', 'integer': 'integer',
+                    'bool': 'boolean', 'boolean': 'boolean',
+                    'float': 'number', 'number': 'number'}
+        # PHPDoc literal-string types ('1', or a union like 'a'|'b') carry
+        # the accepted values, not just the kind -- so emit them as an
+        # OpenAPI enum. Without this the spec can only say "some string",
+        # and a hand-written enum in openapi.json is silently dropped the
+        # next time the file is regenerated.
+        literals = re.findall(r"^'([^']*)'$|'([^']*)'", php_type)
+        if literals and re.fullmatch(r"'[^']*'(?:\|'[^']*')*", php_type):
+            values = [a or b for a, b in literals]
+            schema = {'type': 'string', 'enum': values}
         else:
-            summary = paragraphs[0]
-            description = ' '.join(paragraphs[1:])
+            schema = {'type': type_map.get(php_type.lower(), 'string')}
+        params.append({
+            'name':        pname,
+            'in':          'query',
+            'required':    False,
+            'schema':      schema,
+            'description': pdesc or None,
+        })
 
-        body_match = re.search(r'@body\s+(.+)', text)
-        body_raw = body_match.group(1).strip() if body_match else None
+    responses = []
+    for rm in RESPONSE_RE.finditer(text):
+        status = int(rm.group(1)) if rm.group(1) else 200
+        resp_desc = rm.group(2).strip()
+        media_hint = rm.group(3)           # e.g. 'json', 'text', 'bytes' or None
+        content = rm.group(4).strip() if rm.group(4) is not None else None
+        responses.append((status, resp_desc, media_hint, content))
 
-        path_param_names = set(extract_path_params(oapi_path))
+    badges = []
+    for bm in re.finditer(r'@badge\s+"([^"]+)"\s+(\w+)', text):
+        level = bm.group(2).lower()
+        badges.append({
+            'name':  bm.group(1),
+            'color': BADGE_COLORS.get(level, BADGE_COLORS['info']),
+        })
 
-        # @pathparam <name> [enum:a,b,c] [example:x] [free-text description]
-        # Lets a path parameter advertise valid values / a default so the API
-        # tester (Scalar) sends something usable instead of a placeholder.
-        path_param_meta = {}
-        for pm in re.finditer(r'@pathparam\s+(\S+)\s+(.*)', text):
-            pname = pm.group(1)
-            rest = pm.group(2).strip()
-            meta = {}
-            m_enum = re.search(r'enum:(\S+)', rest)
-            if m_enum:
-                meta['enum'] = m_enum.group(1).split(',')
-                rest = rest.replace(m_enum.group(0), '', 1).strip()
-            m_ex = re.search(r'example:(\S+)', rest)
-            if m_ex:
-                meta['example'] = m_ex.group(1)
-                rest = rest.replace(m_ex.group(0), '', 1).strip()
-            if rest:
-                meta['description'] = rest
-            path_param_meta[pname] = meta
-
-        params = []
-        for pm in re.finditer(r'@param\s+(\S+)\s+(\S+)\s*(.*)', text):
-            php_type, pname, pdesc = pm.group(1), pm.group(2), pm.group(3).strip()
-            if pname in path_param_names:
-                continue  # path params are handled via extract_path_params
-            type_map = {'int': 'integer', 'integer': 'integer',
-                        'bool': 'boolean', 'boolean': 'boolean',
-                        'float': 'number', 'number': 'number'}
-            # PHPDoc literal-string types ('1', or a union like 'a'|'b') carry
-            # the accepted values, not just the kind -- so emit them as an
-            # OpenAPI enum. Without this the spec can only say "some string",
-            # and a hand-written enum in openapi.json is silently dropped the
-            # next time the file is regenerated.
-            literals = re.findall(r"^'([^']*)'$|'([^']*)'", php_type)
-            if literals and re.fullmatch(r"'[^']*'(?:\|'[^']*')*", php_type):
-                values = [a or b for a, b in literals]
-                schema = {'type': 'string', 'enum': values}
-            else:
-                schema = {'type': type_map.get(php_type.lower(), 'string')}
-            params.append({
-                'name':        pname,
-                'in':          'query',
-                'required':    False,
-                'schema':      schema,
-                'description': pdesc or None,
-            })
-
-        responses = []
-        for rm in RESPONSE_RE.finditer(text):
-            status = int(rm.group(1)) if rm.group(1) else 200
-            resp_desc = rm.group(2).strip()
-            media_hint = rm.group(3)           # e.g. 'json', 'text', 'bytes' or None
-            content = rm.group(4).strip() if rm.group(4) is not None else None
-            responses.append((status, resp_desc, media_hint, content))
-
-        badges = []
-        for bm in re.finditer(r'@badge\s+"([^"]+)"\s+(\w+)', text):
-            level = bm.group(2).lower()
-            badges.append({
-                'name':  bm.group(1),
-                'color': BADGE_COLORS.get(level, BADGE_COLORS['info']),
-            })
-
-        yield {
-            'method':      method,
-            'path':        oapi_path,
-            'summary':     summary,
-            'description': description,
-            'body_raw':    body_raw,
-            'responses':   responses,
-            'badges':      badges,
-            'params':      params,
-            'path_param_meta': path_param_meta,
-        }
+    yield {
+        'method':      method,
+        'path':        oapi_path,
+        'deprecated':  deprecated,
+        'summary':     summary,
+        'description': description,
+        'body_raw':    body_raw,
+        'responses':   responses,
+        'badges':      badges,
+        'params':      params,
+        'path_param_meta': path_param_meta,
+    }
 
 
 def load_endpoints():
@@ -322,6 +330,9 @@ def build_openapi(endpoints):
 
             if ep['badges']:
                 operation['x-badges'] = ep['badges']
+
+            if ep['deprecated']:
+                operation['deprecated'] = True
 
             if ep['params']:
                 operation['parameters'] = [

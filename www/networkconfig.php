@@ -920,7 +920,7 @@
                         class: 'btn-success', click: function () {
                             CloseModalDialog("addNewInterfaceDialog");
                             var newInterfaceName = $("#addNewInterfaceDialog").find(".newInterfaceName").val();
-                            $.get("api/network/interface/add/" + newInterfaceName, "", function () { location.reload(true); });
+                            $.post("api/network/interface/add/" + encodeURIComponent(newInterfaceName), "", function () { location.reload(true); });
                         }
                     },
                     "Cancel": {

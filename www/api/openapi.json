@@ -1456,7 +1456,8 @@
           "command"
         ],
         "summary": "Run a command by name via GET, passing arguments as extra path segments (e.g. /api/command/Volume%20Set/50).",
-        "description": "An argument may contain `%VAR:name%` to substitute a User Variable's current value, as anywhere else a command's arguments are given. Percent-encode it as `%25VAR:name%25`: sent raw, `%VA` is an invalid escape and Apache rejects the request with a 400 before it reaches FPP. An unset variable substitutes as an empty string. Note that empty path segments collapse, so an argument that should be empty cannot be passed this way - use the POST form below for that.",
+        "description": "An argument may contain `%VAR:name%` to substitute a User Variable's current value, as anywhere else a command's arguments are given. Percent-encode it as `%25VAR:name%25`: sent raw, `%VA` is an invalid escape and Apache rejects the request with a 400 before it reaches FPP. An unset variable substitutes as an empty string. Note that empty path segments collapse, so an argument that should be empty cannot be passed this way - use the POST form below for that. Deprecated: FPP 11 will require one of the POST forms below.",
+        "deprecated": true,
         "responses": {
           "200": {
             "description": "Command result (text/plain)."
@@ -2117,6 +2118,29 @@
         ],
         "summary": "Trigger event",
         "description": "Triggers the specified event by sending a `Trigger Event` command to `fppd`.",
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "Event triggered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Trigger event",
+        "description": "Triggers the specified event by sending a `Trigger Event` command to `fppd`.",
         "responses": {
           "200": {
             "description": "Event triggered",
@@ -2191,6 +2215,29 @@
         ],
         "summary": "Move file",
         "description": "Moves the specified file from the `uploads` directory to the correct media subfolder based on its extension, returning a status of `OK` or an error message if not successful.",
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "File moved to media directory",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "file"
+        ],
+        "summary": "Move file",
+        "description": "Moves the specified file from the `uploads` directory to the correct media subfolder based on its extension, returning a status of `OK` or an error message if not successful.",
         "responses": {
           "200": {
             "description": "File moved to media directory",
@@ -2253,6 +2300,31 @@
           }
         }
       ],
+      "patch": {
+        "tags": [
+          "file"
+        ],
+        "summary": "Upload file",
+        "description": "Handles chunked file uploads via `PATCH` (TUS-style). A `POST` to the same route initiates the session and returns a unique upload ID. Each `PATCH` request delivers a chunk identified by `Upload-Name`, `Upload-Offset`, and `Upload-Length` headers; when all chunks arrive, the file is assembled.",
+        "responses": {
+          "200": {
+            "description": "Upload chunk received",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "file": "block_driveways.xbkp",
+                  "dir": "uploads",
+                  "size": 1048576
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "file"
@@ -3853,6 +3925,34 @@
         ],
         "summary": "git/reset",
         "description": "Discard local changes Performs a hard reset on the current branch, discarding any local changes.",
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "Reset complete",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "log": [
+                    "HEAD is now at a1b65d43 Git Reset moved - #944",
+                    "Entering 'external/RF24'",
+                    "HEAD is now at ebc3abe Fix typo, missing space."
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "git"
+        ],
+        "summary": "git/reset",
+        "description": "Discard local changes Performs a hard reset on the current branch, discarding any local changes.",
         "responses": {
           "200": {
             "description": "Reset complete",
@@ -4400,6 +4500,29 @@
         }
       ],
       "get": {
+        "tags": [
+          "network"
+        ],
+        "summary": "Create DHCP interface",
+        "description": "Creates a new blank DHCP interface configuration file for the specified network interface (e.g. `eth1`, `wlan0`).",
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "DHCP interface created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "New Blank Interface created"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
         "tags": [
           "network"
         ],
@@ -6326,6 +6449,36 @@
             "color": "#c62828"
           }
         ],
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "Repeat state changed, or `Status` is `Error` with the reason in `Message`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": "Repeat Enabled"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "playlist"
+        ],
+        "summary": "Set playlist repeat on or off",
+        "description": "Turn repeat on or off for the running playlist without starting, stopping or restarting it - the API equivalent of the Repeat checkbox in the web UI. `{Repeat}` may be `true`/`false` or `1`/`0`.  The new setting is read when the playlist reaches the end of its current loop, and is reflected immediately in `repeat_mode` from `GET /api/fppd/status`. Repeat belongs to a playlist that is actually running, so this returns `{\"Status\": \"Error\"}` when the player is idle, when `{Repeat}` is not one of `true`/`false`/`1`/`0`, or when fppd cannot be reached; use the repeat flag on `GET /api/playlist/{PlaylistName}/start/{Repeat}` to start a playlist repeating.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Repeat state changed, or `Status` is `Error` with the reason in `Message`",
@@ -6525,6 +6678,36 @@
             "color": "#c62828"
           }
         ],
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "Playlist started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "playlist"
+        ],
+        "summary": "Start playlist",
+        "description": "Start the playlist named `{PlaylistName}`. The optional query parameter `scheduleProtected` (`true`/`false`) prevents the scheduler from stopping this playlist.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Playlist started",
@@ -6563,6 +6746,47 @@
         }
       ],
       "get": {
+        "tags": [
+          "playlist"
+        ],
+        "summary": "Start playlist on repeat",
+        "description": "Start the playlist named `{PlaylistName}` with repeat mode. The optional query parameter `scheduleProtected` (`true`/`false`) prevents the scheduler from stopping this playlist.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "scheduleProtected",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Prevent schedule from stopping this playlist"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Playlist started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
         "tags": [
           "playlist"
         ],
@@ -6631,6 +6855,36 @@
         }
       ],
       "get": {
+        "tags": [
+          "playlist"
+        ],
+        "summary": "Start playlist on repeat (alt)",
+        "description": "Start the playlist named `{PlaylistName}` with repeat mode and schedule protection. When `{ScheduleProtected}` is `true`, the scheduler cannot stop this playlist.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "Playlist started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
         "tags": [
           "playlist"
         ],
@@ -6817,6 +7071,36 @@
             "color": "#c62828"
           }
         ],
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "Playlist paused",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Pause currently running playlist",
+        "description": "Pause the currently running playlist.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Playlist paused",
@@ -6874,6 +7158,36 @@
             "color": "#c62828"
           }
         ],
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "Playlist resumed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Resume paused playlist",
+        "description": "Resume a previously paused playlist.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Playlist resumed",
@@ -6894,6 +7208,36 @@
     },
     "/api/playlists/stop": {
       "get": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Stop playlist",
+        "description": "Immediately stop the currently running playlist.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "Playlist stopped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
         "tags": [
           "playlists"
         ],
@@ -6936,6 +7280,36 @@
             "color": "#c62828"
           }
         ],
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "Graceful stop initiated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Gracefully stop playlist",
+        "description": "Gracefully stop the currently running playlist.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Graceful stop initiated",
@@ -6956,6 +7330,36 @@
     },
     "/api/playlists/stopgracefullyafterloop": {
       "get": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Gracefully stop at end of loop",
+        "description": "Gracefully stop the currently running playlist after completion of the current loop.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          }
+        ],
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "Stop after loop initiated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "OK",
+                  "Message": ""
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
         "tags": [
           "playlists"
         ],
@@ -7619,6 +8023,39 @@
             }
           }
         }
+      },
+      "put": {
+        "tags": [
+          "plugin"
+        ],
+        "summary": "Set setting for plugin",
+        "description": "Sets `{SettingName}` for plugin `{RepoName}` and returns the updated value.",
+        "requestBody": {
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              },
+              "example": "SettingValue"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Plugin setting updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "SettingName": "SettingValue"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/plugin/{RepoName}/updates": {
@@ -7690,8 +8127,9 @@
         "tags": [
           "plugin"
         ],
-        "summary": "Update plugin (no body)",
-        "description": "The same update as POST /api/plugin/{RepoName}/upgrade, sent without a body: it is refused (`Code: \"PrivacyMismatch\"`) whenever the privacy disclosure the update would land differs from the one accepted for this plugin. This is the form for scripts and other API clients, which must never send `privacyAccepted`.",
+        "summary": "Update plugin by GET (deprecated)",
+        "description": "The same update as POST /api/plugin/{RepoName}/upgrade sent without a body: it is refused (`Code: \"PrivacyMismatch\"`) whenever the privacy disclosure the update would land differs from the one accepted for this plugin. FPP 11 will require the POST.",
+        "deprecated": true,
         "responses": {
           "200": {
             "description": "Plugin upgraded",
@@ -7714,13 +8152,7 @@
           "plugin"
         ],
         "summary": "Update plugin",
-        "description": "Pull in git updates for plugin {RepoName}: the checked-out branch's tip, or, when the versions[] entry for this FPP pins a sha the clone has not passed, that sha and no further. Before the plugin's own fpp_upgrade.sh (or fpp_install.sh) runs, its declared dependencies are reconciled against the new version: newly declared apt, Python and script dependencies are installed, and package claims the new version no longer declares are released (apt-removed once nothing else needs them). A newly declared dependency plugin is reported, not installed -- the operator has to see its privacy disclosure on the Plugins page. Supports ?stream=true. When the privacy block the update would land differs materially from the one accepted for this plugin, the update is refused unless the POST body is `{\"privacyAccepted\": <block>}` with that block. Only the FPP Plugins page may send `privacyAccepted`, and only with a block it actually showed the operator (GET /plugin/{RepoName}/privacy; its Update and Update All both do). Scripts and other API clients must not send it -- not even by echoing `pending` back from a refusal: on `Code: \"PrivacyMismatch\"` they stop and send the operator to the Plugins page. The server cannot tell callers apart, so this is a rule for clients, not something it enforces. Refused on privacy grounds (the same shape as POST /api/plugin): `{\"Status\": \"Error\", \"Code\": \"PrivacyMismatch\", \"reason\": \"mismatch\", \"Message\": \"\u2026\", \"privacyChanged\": true, \"plugin\": \"fpp-matrixtools\", \"pending\": {\"sends\": [], \"remoteAccess\": \"none\"}}`.",
-        "x-badges": [
-          {
-            "name": "FPP UI ONLY",
-            "color": "#b25e00"
-          }
-        ],
+        "description": "Pull in git updates for plugin {RepoName}: the checked-out branch's tip, or, when the versions[] entry for this FPP pins a sha the clone has not passed, that sha and no further. Before the plugin's own fpp_upgrade.sh (or fpp_install.sh) runs, its declared dependencies are reconciled against the new version: newly declared apt, Python and script dependencies are installed, and package claims the new version no longer declares are released (apt-removed once nothing else needs them). A newly declared dependency plugin is reported, not installed -- the operator has to see its privacy disclosure on the Plugins page. Supports ?stream=true. When the privacy block the update would land differs materially from the one accepted for this plugin, the update is refused unless the POST body is `{\"privacyAccepted\": <block>}` with that block. Only the FPP Plugins page may send `privacyAccepted`, and only with a block it actually showed the operator (GET /plugin/{RepoName}/privacy; its Update and Update All both do). Scripts and other API clients POST no body -- not even by echoing `pending` back from a refusal: on `Code: \"PrivacyMismatch\"` they stop and send the operator to the Plugins page. The server cannot tell callers apart, so this is a rule for clients, not something it enforces. Refused on privacy grounds (the same shape as POST /api/plugin): `{\"Status\": \"Error\", \"Code\": \"PrivacyMismatch\", \"reason\": \"mismatch\", \"Message\": \"\u2026\", \"privacyChanged\": true, \"plugin\": \"fpp-matrixtools\", \"pending\": {\"sends\": [], \"remoteAccess\": \"none\"}}`.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -8012,7 +8444,29 @@
           "remoteAction"
         ],
         "summary": "Proxy a command to remote FPP",
-        "description": "Proxies a named action to a remote FPP instance by IP address. Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`, `updateLog` (the remote's running FPP/OS update, with its log tail).",
+        "description": "Proxies a named action to a remote FPP instance by IP address. Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`, `updateLog` (the remote's running FPP/OS update, with its log tail). `reboot`, `restartFppd` and `upgradeOS` change the remote: send them by POST, which FPP 11 will require of them. The others read and stay GETs.",
+        "responses": {
+          "400": {
+            "description": "Invalid action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "error": "Invalid action given: badaction"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "remoteAction"
+        ],
+        "summary": "Proxy a command to remote FPP",
+        "description": "Proxies a named action to a remote FPP instance by IP address. Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`, `updateLog` (the remote's running FPP/OS update, with its log tail). `reboot`, `restartFppd` and `upgradeOS` change the remote: send them by POST, which FPP 11 will require of them. The others read and stay GETs.",
         "responses": {
           "400": {
             "description": "Invalid action",
@@ -8297,6 +8751,27 @@
         ],
         "summary": "Run script",
         "description": "Runs a locally installed script.",
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "Script output",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "The output of the script as a String"
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "scripts"
+        ],
+        "summary": "Run script",
+        "description": "Runs a locally installed script.",
         "responses": {
           "200": {
             "description": "Script output",
@@ -8385,6 +8860,39 @@
             "color": "#546e7a"
           }
         ],
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "Sequence stopped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "sequence"
+        ],
+        "summary": "Stop sequence",
+        "description": "Stops the currently playing sequence. Only valid if the sequence was started via `/api/sequence/{SequenceName}/start/{startSecond}`.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          },
+          {
+            "name": "DEVELOPER ONLY",
+            "color": "#546e7a"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Sequence stopped",
@@ -8404,6 +8912,39 @@
     },
     "/api/sequence/current/togglePause": {
       "get": {
+        "tags": [
+          "sequence"
+        ],
+        "summary": "Toggle play/pause on sequence",
+        "description": "Pauses or resumes the currently playing sequence. Only valid if the sequence was started via `/api/sequence/{SequenceName}/start/{startSecond}`.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          },
+          {
+            "name": "DEVELOPER ONLY",
+            "color": "#546e7a"
+          }
+        ],
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "Sequence play/pause toggled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
         "tags": [
           "sequence"
         ],
@@ -8606,6 +9147,41 @@
         }
       ],
       "get": {
+        "tags": [
+          "sequence"
+        ],
+        "summary": "Start sequence at time",
+        "description": "Starts the given sequence at the specified time frame. Only intended for testing. In most situations, use the \"Start Playlist\" command from the command API and pass the sequence name as the playlist name.",
+        "x-badges": [
+          {
+            "name": "FPP REQUIRED",
+            "color": "#c62828"
+          },
+          {
+            "name": "DEVELOPER ONLY",
+            "color": "#546e7a"
+          }
+        ],
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "Sequence started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK",
+                  "SequenceName": "single_line.fseq",
+                  "startSecond": "9"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
         "tags": [
           "sequence"
         ],
@@ -8946,6 +9522,29 @@
         ],
         "summary": "Restart fppd process",
         "description": "Restarts the `fppd` process. Pass `?quick=1` to reload some configuration without a full restart.",
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "fppd restarted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Restart fppd process",
+        "description": "Restarts the `fppd` process. Pass `?quick=1` to reload some configuration without a full restart.",
         "responses": {
           "200": {
             "description": "fppd restarted",
@@ -9022,6 +9621,29 @@
         ],
         "summary": "Start fppd",
         "description": "Starts the `fppd` process idempotently (if it isn't already running).",
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "fppd started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Start fppd",
+        "description": "Starts the `fppd` process idempotently (if it isn't already running).",
         "responses": {
           "200": {
             "description": "fppd started",
@@ -9041,6 +9663,29 @@
     },
     "/api/system/fppd/stop": {
       "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Stop fppd",
+        "description": "Stops the `fppd` process if it is running.",
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "fppd stopped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
         "tags": [
           "system"
         ],
@@ -9181,6 +9826,29 @@
         ],
         "summary": "Reboot the operating system",
         "description": "Reboots the operating system.",
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "Reboot initiated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Reboot the operating system",
+        "description": "Reboots the operating system.",
         "responses": {
           "200": {
             "description": "Reboot initiated",
@@ -9238,6 +9906,29 @@
     },
     "/api/system/shutdown": {
       "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Shutdown the operating system",
+        "description": "Executes a clean shutdown of the operating system.",
+        "deprecated": true,
+        "responses": {
+          "200": {
+            "description": "Shutdown initiated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "OK"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
         "tags": [
           "system"
         ],

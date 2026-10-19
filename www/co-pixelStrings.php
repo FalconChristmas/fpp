@@ -121,7 +121,7 @@ function readCapes($cd, $capes)
             if (confirm(msg)) {
                 var filename = $('#virtualEEPROM').val();
                 $('#upgradeText').html('');
-                StreamURL('upgradeCapeFirmware.php?force=true&resetDefaults=true&filename=' + filename, 'InstallVirtualEEPROMText', 'ProgressDialogDone', 'ProgressDialogDone', 'GET', null, false, false);
+                StreamURL('upgradeCapeFirmware.php?force=true&resetDefaults=true&filename=' + filename, 'InstallVirtualEEPROMText', 'ProgressDialogDone', 'ProgressDialogDone', 'POST', null, false, false);
                 // The forced re-flash is now streaming; let its own callback enable
                 // Close so the dialog can't be closed mid-flash.
                 return;
@@ -141,7 +141,7 @@ function readCapes($cd, $capes)
         }
 
         DisplayProgressDialog("InstallVirtualEEPROM", "Install Cape Firmware");
-        StreamURL('upgradeCapeFirmware.php?resetDefaults=true&filename=' + filename, 'InstallVirtualEEPROMText', 'InstallFirmwareDone', 'InstallFirmwareDone', 'GET', null, false, false);
+        StreamURL('upgradeCapeFirmware.php?resetDefaults=true&filename=' + filename, 'InstallVirtualEEPROMText', 'InstallFirmwareDone', 'InstallFirmwareDone', 'POST', null, false, false);
     }
 
     // Fallback driver for a cape that declares none of its own.

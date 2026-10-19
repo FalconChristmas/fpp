@@ -411,7 +411,8 @@
                 url,
                 'packageProgressPopupText',
                 'ProgressDialogDone',
-                'ProgressDialogDone'
+                'ProgressDialogDone',
+                'POST'
             );
         }
 
@@ -427,7 +428,8 @@
                 url,
                 'packageProgressPopupText',
                 'ProgressDialogDone',
-                'ProgressDialogDone'
+                'ProgressDialogDone',
+                'POST'
             );
         }
 
@@ -443,7 +445,8 @@
                 'packagesHelper.php?action=installmissing',
                 'packageProgressPopupText',
                 'ProgressDialogDone',
-                'ProgressDialogDone'
+                'ProgressDialogDone',
+                'POST'
             );
         }
 
@@ -454,7 +457,8 @@
                 url,
                 'packageProgressPopupText',
                 'ProgressDialogDone',
-                'ProgressDialogDone'
+                'ProgressDialogDone',
+                'POST'
             );
         }
 

@@ -373,7 +373,7 @@ std::unique_ptr<Command::Result> RebootCommand::run(const std::vector<std::strin
     }
     LogInfo(VB_CONTROL, "Reboot Command: rebooting Ddevice by FPP Command\n");
     std::string rc;
-    urlGet("http://localhost/api/system/reboot", rc);
+    urlPost("http://localhost/api/system/reboot", "", rc);
     return std::make_unique<Command::Result>("Reboot initiated");
 }
 
@@ -394,7 +394,7 @@ std::unique_ptr<Command::Result> ShutdownCommand::run(const std::vector<std::str
     }
     LogInfo(VB_CONTROL, "Shutdown Command: shutting down OS by FPP Command\n");
     std::string rc;
-    urlGet("http://localhost/api/system/shutdown", rc);
+    urlPost("http://localhost/api/system/shutdown", "", rc);
     return std::make_unique<Command::Result>("Shutdown initiated");
 }
 

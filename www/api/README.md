@@ -128,7 +128,7 @@ function CreateWidget() { ... }
 
 | Tag | Required | Notes |
 | --- | --- | --- |
-| `@route METHOD /api/path/{Param}` | Yes | `METHOD` is `GET`, `POST`, `PUT`, `DELETE`, or `PATCH`. The `/api/` prefix is required. `{Param}` becomes an OpenAPI path parameter. |
+| `@route METHOD /api/path/{Param} [deprecated]` | Yes | `METHOD` is `GET`, `POST`, `PUT`, `DELETE`, or `PATCH`. The `/api/` prefix is required. `{Param}` becomes an OpenAPI path parameter. A block may carry several `@route` lines, one per method that runs the same operation; each gets the block's description. A trailing `deprecated` marks that method `deprecated` in the spec, as the GET a state-changing route still answers (`@route POST /api/system/reboot` then `@route GET /api/system/reboot deprecated`). |
 | `@response [statusCode] <description>` | Yes | Plain-text description. `statusCode` defaults to `200` if omitted. Follow with a fenced block for the body (see [Responses](#responses)). |
 | `@body <json>` | No | JSON example for the request body. Omit for `GET`/`DELETE`. |
 | `@param type name Description` | No | Adds an OpenAPI query parameter. `type` is `int`, `bool`, `float`, or `string`. Names matching a `{Param}` in the route are ignored (path params are auto-detected). |

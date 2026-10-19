@@ -2932,7 +2932,7 @@ function PluginFetchReinstallTargetByURL($plugin, $branch, $url)
  * is `{"privacyAccepted": <block>}` with that block. Only the FPP Plugins
  * page may send `privacyAccepted`, and only with a block it actually showed
  * the operator (GET /plugin/{RepoName}/privacy; its Update and Update All
- * both do). Scripts and other API clients must not send it -- not even by
+ * both do). Scripts and other API clients POST no body -- not even by
  * echoing `pending` back from a refusal: on `Code: "PrivacyMismatch"` they
  * stop and send the operator to the Plugins page. The server cannot tell callers apart, so
  * this is a rule for clients, not something it enforces.
@@ -2943,7 +2943,6 @@ function PluginFetchReinstallTargetByURL($plugin, $branch, $url)
  * "pending": {"sends": [], "remoteAccess": "none"}}`.
  *
  * @route POST /api/plugin/{RepoName}/upgrade
- * @badge "FPP UI ONLY" warning
  * @body {"privacyAccepted": {"sends": [], "remoteAccess": "none"}}
  * @response 200 Plugin upgraded
  * ```json
@@ -2951,15 +2950,14 @@ function PluginFetchReinstallTargetByURL($plugin, $branch, $url)
  * ```
  */
 /**
- * Update plugin (no body)
+ * Update plugin by GET (deprecated)
  *
- * The same update as POST /api/plugin/{RepoName}/upgrade, sent without a
+ * The same update as POST /api/plugin/{RepoName}/upgrade sent without a
  * body: it is refused (`Code: "PrivacyMismatch"`) whenever the privacy
  * disclosure the update would land differs from the one accepted for this
- * plugin. This is the form for scripts and other API clients, which must
- * never send `privacyAccepted`.
+ * plugin. FPP 11 will require the POST.
  *
- * @route GET /api/plugin/{RepoName}/upgrade
+ * @route GET /api/plugin/{RepoName}/upgrade deprecated
  * @response 200 Plugin upgraded
  * ```json
  * {"Status": "OK", "Message": ""}

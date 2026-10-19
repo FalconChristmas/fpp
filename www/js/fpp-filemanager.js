@@ -1477,9 +1477,11 @@ function RunScript (scriptName) {
 	DoModalDialog(options);
 
 	StreamURL(
-		'runEventScript.php?scriptName=' + scriptName + '&nohtml=1',
+		'runEventScript.php?scriptName=' + encodeURIComponent(scriptName) + '&nohtml=1',
 		'runScriptText',
-		'RunScriptDone'
+		'RunScriptDone',
+		'',
+		'POST'
 	);
 }
 

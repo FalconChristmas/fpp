@@ -115,7 +115,7 @@ function ResetConfig() {
         if (args != '')
             args = '?areas=' + args + 'dummy';
 
-        StreamURL('resetConfig.php' + args, 'resetConfigText', 'ResetConfigDone');
+        StreamURL('resetConfig.php' + args, 'resetConfigText', 'ResetConfigDone', '', 'POST');
     }
 }
 

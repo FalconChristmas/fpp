@@ -785,7 +785,7 @@
             }
 
             function RestartFPPD() {
-                $.get('api/system/fppd/restart')
+                $.post('api/system/fppd/restart')
                     .done(function () {
                         $.jGrowl('FPPD restart requested', { themeState: 'success' });
                     })

@@ -217,7 +217,8 @@ function DeleteSequences()
  * @badge "FPP REQUIRED" critical
  * @badge "DEVELOPER ONLY" info
  *
- * @route GET /api/sequence/{SequenceName}/start/{startSecond}
+ * @route POST /api/sequence/{SequenceName}/start/{startSecond}
+ * @route GET /api/sequence/{SequenceName}/start/{startSecond} deprecated
  * @response 200 Sequence started
  * ```json
  * {
@@ -285,7 +286,8 @@ function GetSequenceStep()
  *
  * @badge "FPP REQUIRED" critical
  * @badge "DEVELOPER ONLY" info
- * @route GET /api/sequence/current/togglePause
+ * @route POST /api/sequence/current/togglePause
+ * @route GET /api/sequence/current/togglePause deprecated
  * @response 200 Sequence play/pause toggled
  * ```json
  * {"status": "OK"}
@@ -306,7 +308,8 @@ function GetSequenceTogglePause()
  *
  * @badge "FPP REQUIRED" critical
  * @badge "DEVELOPER ONLY" info
- * @route GET /api/sequence/current/stop
+ * @route POST /api/sequence/current/stop
+ * @route GET /api/sequence/current/stop deprecated
  * @response 200 Sequence stopped
  * ```json
  * {"status": "OK"}

@@ -1001,10 +1001,9 @@
                 done: 0,
                 itemName: function (plugin) { return plugin; },
                 urlFor: function (plugin) { return 'api/plugin/' + plugin + '/upgrade?stream=true'; },
-                // An accepted disclosure travels in a POST body, as the single
-                // Update button sends it; the rest are the plain GET.
-                method: 'GET',
-                methodFor: function (plugin) { return Object.prototype.hasOwnProperty.call(accepted, plugin) ? 'POST' : 'GET'; },
+                // An accepted disclosure travels in the POST body, as the single
+                // Update button sends it; the rest post none.
+                method: 'POST',
                 dataFor: function (plugin) { return Object.prototype.hasOwnProperty.call(accepted, plugin) ? JSON.stringify({ privacyAccepted: accepted[plugin] }) : null; },
                 onDone: UpdateAllFinish
             });
@@ -1108,7 +1107,7 @@
                 StreamURL(url, 'pluginsProgressPopupText', 'PluginUpgradeStreamDone', 'PluginUpgradeStreamDone',
                     'POST', JSON.stringify(ack), 'application/json');
             } else {
-                StreamURL(url, 'pluginsProgressPopupText', 'PluginUpgradeStreamDone', 'PluginUpgradeStreamDone');
+                StreamURL(url, 'pluginsProgressPopupText', 'PluginUpgradeStreamDone', 'PluginUpgradeStreamDone', 'POST');
             }
         }
 

@@ -25,7 +25,7 @@
     <li><b>Recovery actions</b> (<code>#healthRecoveryActions</code>, below the lists) — Appear only when <b>PipeWire</b> or <b>GStreamer</b> is degraded:
         <ul>
             <li>If <b>PipeWire</b> is <code>warn</code> or <code>fail</code>: yellow callout <i>“The PipeWire audio stack needs attention…”</i> with <b>Restart Audio Services</b> → <code>POST api/pipewire/audio/services/restart</code> (which bounces PipeWire and then restarts FPPD). Interrupts playback; auto re-checks after 5 s.</li>
-            <li>Else if <b>GStreamer</b> alone is <code>warn</code>/<code>fail</code>: callout <i>“GStreamer reported a problem…”</i> with <b>Restart FPPD</b> → <code>GET api/system/fppd/restart</code>, also re-checking after 5 s.</li>
+            <li>Else if <b>GStreamer</b> alone is <code>warn</code>/<code>fail</code>: callout <i>“GStreamer reported a problem…”</i> with <b>Restart FPPD</b> → <code>POST api/system/fppd/restart</code>, also re-checking after 5 s.</li>
         </ul>
     </li>
     <li><b>Badges on warnings</b> — Inline <code>[FAIL]</code>/<code>[WARN]</code> markers in command output are highlighted (red bold / amber bold) and counted into badges beside the command heading, its hot link and the group tab (compact “3” vs full “3 failures”). Only indented explanation lines under a failing verdict are tinted.</li>

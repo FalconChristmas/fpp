@@ -250,7 +250,7 @@ if ($printSigningUI) {
                     var filename = $('#backupFile').val();
                     var resetDefaults = $('#resetDefaultsConfig').is(':checked') ? '&resetDefaults=true' : '';
                     $('#RestoreEEPROMText').html('');
-                    StreamURL('upgradeCapeFirmware.php?force=true&filename=' + filename + resetDefaults, 'RestoreEEPROMText', 'ProgressDialogDone', 'ProgressDialogDone', 'GET', null, false, false);
+                    StreamURL('upgradeCapeFirmware.php?force=true&filename=' + filename + resetDefaults, 'RestoreEEPROMText', 'ProgressDialogDone', 'ProgressDialogDone', 'POST', null, false, false);
                     // The forced re-flash is now streaming; let its own callback enable
                     // Close so the dialog can't be closed mid-flash.
                     return;
@@ -264,7 +264,7 @@ if ($printSigningUI) {
             var resetDefaults = $('#resetDefaultsConfig').is(':checked') ? '&resetDefaults=true' : '';
 
             DisplayProgressDialog("RestoreEEPROM", "Restore Cape Firmware");
-            StreamURL('upgradeCapeFirmware.php?filename=' + filename + resetDefaults, 'RestoreEEPROMText', 'RestoreFirmwareDone', 'RestoreFirmwareDone', 'GET', null, false, false);
+            StreamURL('upgradeCapeFirmware.php?filename=' + filename + resetDefaults, 'RestoreEEPROMText', 'RestoreFirmwareDone', 'RestoreFirmwareDone', 'POST', null, false, false);
         }
 
         function UpgradeFirmwareDone() {

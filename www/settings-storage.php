@@ -14,13 +14,13 @@ require_once('common.php');
     function growSDCardFS() {
         DisplayConfirmationDialog("growSDCard", "Grow Filesystem", $("#dialog-confirm"), function () {
             DisplayProgressDialog("storageSettingsProgress", "Storage Expand");
-            StreamURL('growsd.php?wrapped=1', 'storageSettingsProgressText', 'StorageDialogDone');
+            StreamURL('growsd.php?wrapped=1', 'storageSettingsProgressText', 'StorageDialogDone', '', 'POST');
         });
     }
     function newSDCardPartition() {
         DisplayConfirmationDialog("growSDCard", "Grow Filesystem", $("#dialog-confirm-newpartition"), function () {
             DisplayProgressDialog("storageSettingsProgress", "Storage Expand");
-            StreamURL('newpartitionsd.php?wrapped=1', 'storageSettingsProgressText', 'StorageDialogDone');
+            StreamURL('newpartitionsd.php?wrapped=1', 'storageSettingsProgressText', 'StorageDialogDone', '', 'POST');
         });
     }
 
@@ -33,7 +33,7 @@ require_once('common.php');
             success: function (result) {
                 if (result == "Yes") {
                     DisplayProgressDialog("storageSettingsProgress", "Storage Expand");
-                    StreamURL("copystorage.php?wrapped=1&storageLocation=" + $('#storageDevice').val() + "&direction=TOUSB&delete=no&path=/&flags=All", 'storageSettingsProgressText', 'StorageDialogDone');
+                    StreamURL("copystorage.php?wrapped=1&storageLocation=" + $('#storageDevice').val() + "&direction=TOUSB&delete=no&path=/&flags=All", 'storageSettingsProgressText', 'StorageDialogDone', '', 'POST');
                 }
             }
         });
@@ -62,6 +62,7 @@ require_once('common.php');
                     if (v != "none") {
                         $.ajax({
                             url: "formatstorage.php?fs=" + v + "&storageLocation=" + $('#storageDevice').val(),
+                            type: 'POST',
                             async: false,
                             success: function (data) {
                                 checkForStorageCopy();
@@ -90,7 +91,7 @@ require_once('common.php');
             if (btrfs) {
                 url += "&btrfs=true";
             }
-            StreamURL(url, 'flashStorageProgressText', 'ProgressDialogDone', 'ProgressDialogDone');
+            StreamURL(url, 'flashStorageProgressText', 'ProgressDialogDone', 'ProgressDialogDone', 'POST');
         });
     }
 

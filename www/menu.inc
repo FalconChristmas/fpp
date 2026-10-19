@@ -349,7 +349,7 @@ function list_plugin_entries($menu)
                         if (typeof FPPUpdate_AddHideButton === 'function') {
                             FPPUpdate_AddHideButton('rebuildFPP');
                         }
-                        StreamURL('manualUpdate.php?wrapped=1', 'rebuildFPPText', 'RebuildFPPDDone', 'RebuildFPPDDone');
+                        StreamURL('manualUpdate.php?wrapped=1', 'rebuildFPPText', 'RebuildFPPDDone', 'RebuildFPPDDone', 'POST');
                     }
                 </script>
                 <div id="compileFPPDBanner" class="alert alert-danger"><span class='inlineBlock'>FPPD is missing or damaged. Rebuild

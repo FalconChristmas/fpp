@@ -164,7 +164,7 @@ function StopFppdPlaybackSafe($timeoutSec = 3)
 
     // Stop playback with timeout — if fppd hangs during GStreamer teardown
     // the context timeout prevents PHP from blocking forever.
-    @file_get_contents('http://localhost:32322/command/Stop%20Now', false, $ctx);
+    FppdCommand('Stop Now', array(), $timeoutSec * 1000, $timeoutSec);
 
     // Wait for fppd to release PipeWire streams
     usleep(500000);
@@ -709,9 +709,7 @@ function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
     if ($wasPlaying && !empty($resumePlaylist)) {
         usleep(500000);
         $repeat = $resumeRepeat ? 'true' : 'false';
-        $ctx = stream_context_create(array('http' => array('timeout' => 5)));
-        @file_get_contents('http://localhost:32322/command/Start%20Playlist/'
-            . rawurlencode($resumePlaylist) . '/' . $repeat, false, $ctx);
+        FppdCommand('Start Playlist', array($resumePlaylist, $repeat), 5000, 5);
     }
 
     return json(array(
@@ -2033,8 +2031,9 @@ function StopSyncCalibrationInternal()
 
     // Also stop any legacy fppd-driven click track in case an older session
     // started one before this fix shipped.
-    $url = 'http://localhost/api/command/Stop%20Media/fpp_sync_click.wav';
-    $ctx = stream_context_create(array('http' => array('method' => 'GET', 'timeout' => 5)));
+    $url = 'http://localhost/api/command/Stop%20Media';
+    $ctx = stream_context_create(array('http' => array('method' => 'POST', 'timeout' => 5,
+        'header' => "Content-Type: application/json\r\n", 'content' => '["fpp_sync_click.wav"]')));
     @file_get_contents($url, false, $ctx);
 }
 
@@ -2345,9 +2344,7 @@ function ApplyPipeWireInputGroups($skipRestart = false)
     if ($wasPlaying && !empty($resumePlaylist)) {
         usleep(500000);
         $repeat = $resumeRepeat ? 'true' : 'false';
-        $ctx = stream_context_create(array('http' => array('timeout' => 5)));
-        @file_get_contents('http://localhost:32322/command/Start%20Playlist/'
-            . rawurlencode($resumePlaylist) . '/' . $repeat, false, $ctx);
+        FppdCommand('Start Playlist', array($resumePlaylist, $repeat), 5000, 5);
     }
 
     return json(array(
@@ -6606,7 +6603,9 @@ function SignalFPPDCommand($command, $timeoutSeconds = 120)
     $url = 'http://localhost:32322/command/' . rawurlencode($command);
     $ctx = stream_context_create(array(
         'http' => array(
-            'method' => 'GET',
+            'method' => 'POST',
+            'header' => "Content-Type: application/json\r\n",
+            'content' => '[]',
             'timeout' => $timeoutSeconds,
             'ignore_errors' => true
         )

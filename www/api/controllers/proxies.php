@@ -7,8 +7,11 @@ require_once(__DIR__ . "/../../config.php");
  * Proxies a named action to a remote FPP instance by IP address.
  * Supported actions: `listUpgrades`, `reboot`, `restartFppd`, `upgradeOS`,
  * `updateLog` (the remote's running FPP/OS update, with its log tail).
+ * `reboot`, `restartFppd` and `upgradeOS` change the remote: send them by
+ * POST, which FPP 11 will require of them. The others read and stay GETs.
  *
  * @route GET /api/remoteAction
+ * @route POST /api/remoteAction
  * @response 400 Invalid action
  * ```json
  * {"error": "Invalid action given: badaction"}
@@ -42,28 +45,28 @@ function remoteAction()
         return json(['error' => 'HTTP Error: 400', 'details' => "Invalid action given: $action"]);
     }
 
-    $curl = curl_init('http://' . $ip . $action_map[$action]);
-    curl_setopt($curl, CURLOPT_FAILONERROR, true);
-    // Redirects are not followed: the remote would decide what this player
-    // fetches, and a Location of http://127.0.0.1/... reaches this player's
-    // own local-only pages, which the IP check above exists to keep out.
-    // No player redirects any of these paths.
-    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
-    $request_content = curl_exec($curl);
-    $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    if ($http_code !== 200) {
+    if (in_array($action, array('reboot', 'restartFppd'), true)) {
+        $request_content = RemotePlayerAction('http://' . $ip . $action_map[$action], 2000, $http_code);
+    } else {
+        $curl = curl_init('http://' . $ip . $action_map[$action]);
+        curl_setopt($curl, CURLOPT_FAILONERROR, true);
+        // Redirects are not followed: the remote would decide what this player
+        // fetches, and a Location of http://127.0.0.1/... reaches this player's
+        // own local-only pages, which the IP check above exists to keep out.
+        // No player redirects any of these paths.
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
+        $request_content = curl_exec($curl);
+        $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
         curl_close($curl);
+    }
+    if ($http_code !== 200) {
         http_response_code($http_code);
         $details = $request_content ? $request_content : 'No response content';
-        if ($http_code < 200) {
-            $details = curl_error($curl);
-        }
         http_response_code(400);
         return json(['error' => 'HTTP Error: ' . $http_code, 'details' => $request_content]);
     }
-    curl_close($curl);
 
     return($request_content);
 

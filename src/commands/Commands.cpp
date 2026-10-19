@@ -821,7 +821,9 @@ std::unique_ptr<Command::Result> CommandManager::run(const Json::Value& cmd) {
  * Note that empty path segments collapse, so an argument that should be empty
  * cannot be passed this way - use the POST form below for that.
  *
- * @route GET /api/command/{command}
+ * Deprecated: FPP 11 will require one of the POST forms below.
+ *
+ * @route GET /api/command/{command} deprecated
  * @response 200 Command result (text/plain).
  * @response 404 No command with that name exists.
  * @response 500 The command errored or timed out.
