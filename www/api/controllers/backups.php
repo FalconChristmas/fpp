@@ -438,6 +438,20 @@ function UnmountDevice()
 
 	//Make sure we have a valid device name supplied
 	if (isset($deviceName) && ($deviceName !== "no" || $deviceName !== "")) {
+		// Nothing mounted there is not a failure (the copy dialog may unmount
+		// after the backup script already has), and a different device mounted
+		// there belongs to someone else, so leave it alone.
+		$mountedSource = trim(shell_exec($SUDO . $nsEnter . ' findmnt -n --nofsroot -o SOURCE --mountpoint ' . escapeshellarg($drive_mount_location) . ' 2>/dev/null'));
+		if ($mountedSource === '') {
+			exec($SUDO . ' rmdir -- ' . escapeshellarg($drive_mount_location) . ' 2>/dev/null');
+			return json(array('Status' => 'OK', 'Message' => 'Nothing mounted at (' . $drive_mount_location . ')', 'MountLocation' => $drive_mount_location));
+		}
+		if ($mountedSource !== '/dev/' . $deviceName) {
+			$result = array('Status' => 'Error', 'Message' => 'Not unmounting (' . $drive_mount_location . '): it holds ' . $mountedSource . ', not ' . $deviceName, 'MountLocation' => $drive_mount_location);
+			error_log('UnmountDevice: ( ' . json($result) . ' )');
+			return json($result);
+		}
+
 		//Unmount device from the root namespace (it will be mounted there)
 		$umountCmd = exec($SUDO . $nsEnter . ' umount -l -- ' . escapeshellarg($drive_mount_location), $unmountCmdOutput, $unmountCmdResultCode);
 		//This could be incorrect as this result codes are for the mount command, but will give us an idea

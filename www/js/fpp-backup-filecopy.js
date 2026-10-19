@@ -248,7 +248,9 @@ fppFileCopy.closeCopyDialog = function () {
     var cd_remoteHost = $(fppFileCopy.config.host).val();
     var cd_remoteStorage = $(fppFileCopy.config.remoteStorage).val();
 
-    if (cd_remoteHost && cd_remoteStorage && cd_remoteStorage !== 'none') {
+    // Once the copy has finished, the backup script has already unmounted the
+    // remote's device; unmounting again could pull a mount someone else made.
+    if (!fppFileCopy.copyFinished && cd_remoteHost && cd_remoteStorage && cd_remoteStorage !== 'none') {
         $.post('api/backups/devices/unmount/' + encodeURIComponent(cd_remoteStorage) + '/remote_filecopy?ip=' + encodeURIComponent(cd_remoteHost));
     }
 
@@ -256,6 +258,7 @@ fppFileCopy.closeCopyDialog = function () {
 };
 
 fppFileCopy.copyDone = function () {
+    fppFileCopy.copyFinished = true;
     EnableModalDialogCloseButton(fppFileCopy.config.popupModalId);
     if (fppFileCopy.config.onCopyDone) {
         fppFileCopy.config.onCopyDone();
@@ -266,6 +269,7 @@ fppFileCopy.copyDone = function () {
 // id, which copyTimeoutError polls if the stream times out.
 fppFileCopy.newFeedId = function () {
     fppFileCopy.feedId = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    fppFileCopy.copyFinished = false;
     return fppFileCopy.feedId;
 };
 
