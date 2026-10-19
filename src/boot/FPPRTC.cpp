@@ -44,7 +44,8 @@ static void exec(const std::string& cmd) {
         throw std::runtime_error("popen() failed!");
     }
     while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-        printf(buffer.data());
+        // not printf(): the command's output is not a format string
+        fputs(buffer.data(), stdout);
     }
 }
 static std::string execAndReturn(const std::string& cmd) {
@@ -162,7 +163,7 @@ static std::string getRTCDev() {
         if (contains(drv, "omap_rtc")) {
             // built in OMAP RTC, (not battery backed, kind of useless)
             rtc = "/dev/rtc1";
-        } else if (contains("drv", " 0-00")) {
+        } else if (contains(drv, " 0-00")) {
             // Beaglebone Green Gateway has a ds1307 on i2c0
             // but no battery (by default) so cape would
             // be rtc1 and that's what we should use
@@ -226,7 +227,7 @@ int main(int argc, char* argv[]) {
             if (contains(ret, "Remote I/O error")) {
                 removeI2CDevice(dev, getBus());
             } else {
-#if defined(PLATFORM_BBB) || defined(PLATFORMBB64)
+#if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
                 // set the built in rtc to the same time as read from the RTC
                 if (rtc != "/dev/rtc0") {
                     hwclock("-w", rtc.c_str());
