@@ -59,6 +59,14 @@ FoldOutputProcessor::FoldOutputProcessor(const Json::Value& config) {
         sourceChannel = 0;
         count = 0;
     }
+    // sourceChannel + count is reported in an int: keep both where it can't
+    // overflow into the inverted, "nothing to do" range rangeIsValid() passes.
+    if (sourceChannel > (int)FPPD_MAX_CHANNELS) {
+        sourceChannel = FPPD_MAX_CHANNELS;
+    }
+    if (count > (int)FPPD_MAX_CHANNELS + 1) {
+        count = FPPD_MAX_CHANNELS + 1;
+    }
     LogInfo(VB_CHANNELOUT, "Fold: channels: %d-%d, node size: %d\n",
             sourceChannel, sourceChannel + count, nodesize);
     if (count % nodesize != 0) {
