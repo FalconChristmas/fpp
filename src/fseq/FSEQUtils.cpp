@@ -348,6 +348,7 @@ int main(int argc, char* argv[]) {
                     HexDump(title, data + r.first, (int)len, VB_SEQUENCE, 16);
                 }
             }
+            free(data);
         } else {
             for (auto& f : mergeFseqs) {
                 FSEQFile* src = FSEQFile::openFSEQFile(f.filename);
