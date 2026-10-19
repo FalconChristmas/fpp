@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <map>
 /*
  * This file is part of the Falcon Player (FPP) and is Copyright (C)
@@ -54,8 +55,8 @@ private:
 
     std::string m_sseData;
 
-    volatile bool m_running;
-    volatile bool m_connListChanged;
+    std::atomic<bool> m_running;
+    std::atomic<bool> m_connListChanged;
     std::thread* m_connThread;
     std::thread* m_selectThread;
 
