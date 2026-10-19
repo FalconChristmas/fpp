@@ -1983,6 +1983,12 @@ GstClock* AES67Manager::GetOrCreateMediaClock() {
     if (!clock) {
         return nullptr;
     }
+    // A GstClock is born floating, and m_ptpClock is our own reference,
+    // released in ReleaseMediaClock().  The pipelines it goes to only ref it
+    // (gst_object_replace), so the counts balance today, but anything that
+    // ref_sinks it would take our reference over and our unref would then
+    // free a clock still in use.  Sink it here, as its owner.
+    gst_object_ref_sink(clock);
 
     std::string iface = GetPtpInterface();
     // The PHC is the domain's time only while ptp4l disciplines it.  A NIC

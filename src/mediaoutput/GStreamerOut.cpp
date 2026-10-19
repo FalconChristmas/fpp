@@ -1419,6 +1419,31 @@ int GStreamerOutput::Start(int msTime) {
         gst_caps_unref(rateCaps);
 
         // Add audio elements to pipeline
+        // gst_bin_add_many() stops at the first NULL, taking it for the end
+        // of the list: an element that couldn't be made (no pipewiresink, no
+        // ALSA sink plugin) left the rest of the chain out of the pipeline,
+        // floating, and every link after it failed.
+        {
+            GstElement* parts[] = { audioconvert, audioresample, rateCapsfilter, tee, queue1, m_volume, sink,
+                                    queue2, audioconvert2, capsfilterAudio, m_appsink };
+            bool missing = false;
+            for (GstElement* e : parts) {
+                missing |= (e == nullptr);
+            }
+            if (missing) {
+                LogErr(VB_MEDIAOUT, "GStreamer: could not create the audio chain (a GStreamer plugin is missing)\n");
+                for (GstElement* e : parts) {
+                    if (e) {
+                        gst_object_unref(gst_object_ref_sink(e));
+                    }
+                }
+                m_volume = nullptr;
+                m_appsink = nullptr;
+                gst_object_unref(m_pipeline);
+                m_pipeline = nullptr;
+                return 0;
+            }
+        }
         gst_bin_add_many(GST_BIN(m_pipeline), audioconvert, audioresample, rateCapsfilter, tee,
                          queue1, m_volume, sink,
                          queue2, audioconvert2, capsfilterAudio, m_appsink, NULL);
@@ -1589,6 +1614,31 @@ int GStreamerOutput::Start(int msTime) {
         g_object_set(rateCapsfilter, "caps", rateCaps, NULL);
         gst_caps_unref(rateCaps);
 
+        // gst_bin_add_many() stops at the first NULL, taking it for the end
+        // of the list: an element that couldn't be made (no pipewiresink, no
+        // ALSA sink plugin) left the rest of the chain out of the pipeline,
+        // floating, and every link after it failed.
+        {
+            GstElement* parts[] = { audioconvert, audioresample, rateCapsfilter, tee, queue1, m_volume, sink,
+                                    queue2, audioconvert2, capsfilterAudio, m_appsink };
+            bool missing = false;
+            for (GstElement* e : parts) {
+                missing |= (e == nullptr);
+            }
+            if (missing) {
+                LogErr(VB_MEDIAOUT, "GStreamer: could not create the audio chain (a GStreamer plugin is missing)\n");
+                for (GstElement* e : parts) {
+                    if (e) {
+                        gst_object_unref(gst_object_ref_sink(e));
+                    }
+                }
+                m_volume = nullptr;
+                m_appsink = nullptr;
+                gst_object_unref(m_pipeline);
+                m_pipeline = nullptr;
+                return 0;
+            }
+        }
         gst_bin_add_many(GST_BIN(m_pipeline), audioconvert, audioresample, rateCapsfilter, tee,
                          queue1, m_volume, sink,
                          queue2, audioconvert2, capsfilterAudio, m_appsink, NULL);
