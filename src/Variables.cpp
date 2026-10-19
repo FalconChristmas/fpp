@@ -304,10 +304,9 @@ std::vector<std::string> Variables::getVariableNames() {
 std::vector<std::string> Variables::getAllVariableNames() {
     std::vector<std::string> names = getVariableNames();
 
-    Json::Value fppVars;
-    reportFppVariables(fppVars);
-    for (auto const& name : fppVars.getMemberNames()) {
-        names.push_back(name);
+    // Names only: no need for the change tracking reportFppVariables() does.
+    for (auto const& kv : ComputeFppStatusVariables()) {
+        names.push_back(kv.first);
     }
 
     Json::Value mqttVars;
@@ -544,9 +543,15 @@ static std::mutex fppVarChangeLock;
 static std::map<std::string, std::pair<std::string, time_t>> fppVarLastChange;
 
 void Variables::reportFppVariables(Json::Value& root) {
+    // Computed before taking fppVarChangeLock, never under it: computing them
+    // takes the playlist's lock (Player::GetCurrentStatus), and the main loop
+    // holds that lock while a playlist's If / Set Variable command entry runs
+    // and lists the variables.  Holding this lock across it was the other
+    // half of a lock-order deadlock that hung fppd.
+    auto vars = ComputeFppStatusVariables();
     std::unique_lock<std::mutex> lock(fppVarChangeLock);
     time_t now = time(nullptr);
-    for (auto const& kv : ComputeFppStatusVariables()) {
+    for (auto const& kv : vars) {
         auto it = fppVarLastChange.find(kv.first);
         if (it == fppVarLastChange.end() || it->second.first != kv.second) {
             fppVarLastChange[kv.first] = { kv.second, now };
