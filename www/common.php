@@ -2045,12 +2045,14 @@ function PrintSettingText($setting, $restart = 1, $reboot = 0, $maxlength = 32, 
     echo "
 <input type='text' id='$setting' class='mw-100' maxlength='$maxlength' size='$size' value=\"";
 
+    // Escaped: inside value="...", a saved value holding a quote ended the
+    // attribute, and with markup after it ran as part of the page.
     if (($pluginName == "") && isset($settings[$setting])) {
-        echo $settings[$setting];
+        echo htmlspecialchars((string)$settings[$setting], ENT_QUOTES);
     } elseif (isset($pluginSettings[$setting])) {
-        echo $pluginSettings[$setting];
+        echo htmlspecialchars((string)$pluginSettings[$setting], ENT_QUOTES);
     } else {
-        echo $defaultValue;
+        echo htmlspecialchars((string)$defaultValue, ENT_QUOTES);
     }
 
     echo "\">\n";
@@ -2172,7 +2174,8 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
         }
 
     }
-    echo $curValue;
+    // escaped, as in PrintSettingText()
+    echo htmlspecialchars((string)$curValue, ENT_QUOTES);
 
     echo "\" \n";
 
