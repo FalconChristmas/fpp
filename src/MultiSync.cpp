@@ -3818,6 +3818,10 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
     ControlPkt* pkt;
 
     int msgcnt = recvmmsg(m_receiveSock, rcvMsgs, MAX_MS_RCV_MSG, MSG_DONTWAIT, nullptr);
+    // Batches read per wakeup: the socket is level-triggered, so the rest is
+    // read on the next pass.  Draining until empty let a flood of packets keep
+    // the main loop in here for as long as it lasted.
+    int batches = 1;
     while (msgcnt > 0) {
         // One entry per received message, buffer and length, so that the
         // indexes shouldSkipPacket() walks are the same msg indexes used below.
@@ -3969,7 +3973,7 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
                 }
             }
         }
-        msgcnt = recvmmsg(m_receiveSock, rcvMsgs, MAX_MS_RCV_MSG, MSG_DONTWAIT, nullptr);
+        msgcnt = ++batches > 64 ? 0 : recvmmsg(m_receiveSock, rcvMsgs, MAX_MS_RCV_MSG, MSG_DONTWAIT, nullptr);
     }
 }
 

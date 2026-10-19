@@ -129,6 +129,10 @@ static inline bool EvaluateSource(UniverseEntry& entry,
 }
 
 #define MAX_MSG 64
+// Batches of MAX_MSG read per wakeup.  The sockets are level-triggered, so
+// what is left is read on the next pass; draining until empty let a sender
+// faster than fppd keep the main loop in here for good.
+static constexpr int MAX_BATCHES_PER_WAKEUP = 64;
 #define BUFSIZE 1500
 static struct mmsghdr msgs[MAX_MSG];
 static struct iovec iovecs[MAX_MSG];
@@ -656,11 +660,12 @@ bool Bridge_ReceiveE131Data(void) {
     bool sync = false;
     long long packetTime = GetTimeMS();
     int msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
+    int batches = 1;
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
             sync |= Bridge_StoreData((uint8_t*)buffers[x], packetTime, msgs[x].msg_len);
         }
-        msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
+        msgcnt = ++batches > MAX_BATCHES_PER_WAKEUP ? 0 : recvmmsg(bridgeSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     }
     CommitBridgeData();
     return sync;
@@ -668,19 +673,21 @@ bool Bridge_ReceiveE131Data(void) {
 bool Bridge_ReceiveDDPData(void) {
     //    LogExcess(VB_E131BRIDGE, "Bridge_ReceiveData()\n");
     int msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
+    int batches = 1;
     bool sync = false;
     long long packetTime = GetTimeMS();
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
             sync |= Bridge_StoreDDPData((uint8_t*)buffers[x], packetTime, msgs[x].msg_len);
         }
-        msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
+        msgcnt = ++batches > MAX_BATCHES_PER_WAKEUP ? 0 : recvmmsg(ddpSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     }
     CommitBridgeData();
     return sync;
 }
 bool Bridge_ReceiveArtNetData(void) {
     int msgcnt = recvmmsg(artnetSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
+    int batches = 1;
     bool sync = false;
     long long packetTime = GetTimeMS();
     while (msgcnt > 0) {
@@ -703,7 +710,7 @@ bool Bridge_ReceiveArtNetData(void) {
                 sync |= cb->second(bridgeBuffer, packetTime);
             }
         }
-        msgcnt = recvmmsg(artnetSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
+        msgcnt = ++batches > MAX_BATCHES_PER_WAKEUP ? 0 : recvmmsg(artnetSock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     }
     CommitBridgeData();
     return sync;
@@ -1472,6 +1479,7 @@ bool AddWarningForProtocol(int sock, const std::string& protocol) {
         return now - e.second > FAKE_BRIDGE_WARNING_SECONDS * 1000;
     });
     int msgcnt = recvmmsg(sock, msgs, MAX_MSG, 0, nullptr);
+    int batches = 1;
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
             struct in_addr i = inAddress[x].sin_addr;
@@ -1507,7 +1515,7 @@ bool AddWarningForProtocol(int sock, const std::string& protocol) {
             LogDebug(VB_E131BRIDGE, "%s\n", ne.c_str());
             WarningHolder::AddWarningTimeout(ne, FAKE_BRIDGE_WARNING_SECONDS);
         }
-        msgcnt = recvmmsg(sock, msgs, MAX_MSG, 0, nullptr);
+        msgcnt = ++batches > MAX_BATCHES_PER_WAKEUP ? 0 : recvmmsg(sock, msgs, MAX_MSG, 0, nullptr);
     }
     return false;
 }
