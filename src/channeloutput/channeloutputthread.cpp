@@ -13,8 +13,10 @@
 #include "../fpp-pch.h"
 
 #include <sys/time.h>
+#include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <condition_variable>
 #include <cstring>
 #include <ctime>
