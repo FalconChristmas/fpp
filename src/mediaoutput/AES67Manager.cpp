@@ -3270,14 +3270,57 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
     // survivable: fppd.service sets LimitRTPRIO, but a hand-started fppd or
     // a container without CAP_SYS_NICE will not have it, and the stream is
     // still conformant without it, just with a wider tail.
+    //
+    // The thread is GStreamer's, from a pool it shares with every pipeline,
+    // so it has to be handed back as it was: left at SCHED_FIFO, each rebuild
+    // (config apply, watchdog, PTP step, bus error) put one more pool thread
+    // at FIFO 80 that later media decode or video pipelines could land on,
+    // above the channel output thread (RT 10).  The task that runs the thread
+    // gets a leave callback that drops it back to SCHED_OTHER when the task
+    // stops.
     {
         GstElement* snk = gst_bin_get_by_name(GST_BIN(pipeline), "usink");
         GstPad* kp = snk ? gst_element_get_static_pad(snk, "sink") : nullptr;
         if (kp) {
             gst_pad_add_probe(
                 kp, GST_PAD_PROBE_TYPE_BUFFER,
-                [](GstPad*, GstPadProbeInfo*, gpointer user) -> GstPadProbeReturn {
+                [](GstPad* pad, GstPadProbeInfo*, gpointer user) -> GstPadProbeReturn {
                     const int id = GPOINTER_TO_INT(user);
+                    // The task whose thread carried this buffer: the nearest
+                    // pad upstream that runs one (sinkq's, with sink pacing).
+                    GstTask* task = nullptr;
+                    GstPad* up = gst_pad_get_peer(pad);
+                    for (int hop = 0; up && !task && hop < 16; hop++) {
+                        GST_OBJECT_LOCK(up);
+                        if (GST_PAD_TASK(up)) {
+                            task = GST_TASK(gst_object_ref(GST_PAD_TASK(up)));
+                        }
+                        GST_OBJECT_UNLOCK(up);
+                        if (task) {
+                            break;
+                        }
+                        GstElement* el = gst_pad_get_parent_element(up);
+                        gst_object_unref(up);
+                        up = nullptr;
+                        GstPad* in = el ? gst_element_get_static_pad(el, "sink") : nullptr;
+                        if (el) gst_object_unref(el);
+                        if (in) {
+                            up = gst_pad_get_peer(in);
+                            gst_object_unref(in);
+                        }
+                    }
+                    if (up) gst_object_unref(up);
+                    if (!task) {
+                        // Without a task to hand it back through, don't raise it.
+                        LogWarn(VB_MEDIAOUT, "AES67 send [%d]: pacing thread not raised: "
+                                             "could not find its streaming task\n", id);
+                        return GST_PAD_PROBE_REMOVE;
+                    }
+                    gst_task_set_leave_callback(task, [](GstTask*, GThread*, gpointer) {
+                        struct sched_param param = {};
+                        pthread_setschedparam(pthread_self(), SCHED_OTHER, &param);
+                    }, nullptr, nullptr);
+                    gst_object_unref(task);
                     if (SetThreadRealtimePriority(AES67::SINK_RT_PRIORITY)) {
                         LogInfo(VB_MEDIAOUT,
                                 "AES67 send [%d]: pacing thread raised to "
