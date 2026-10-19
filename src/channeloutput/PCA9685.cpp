@@ -68,7 +68,9 @@ PCA9685Output::~PCA9685Output() {
     LogDebug(VB_CHANNELOUT, "PCA9685Output::~PCA9685Output()\n");
     
     if (m_servoCommand) {
-        CommandManager::INSTANCE.removeCommand("Servo Position");
+        // By pointer: an output reload registers the new output's command
+        // before this runs, and removing by name unregistered that one.
+        CommandManager::INSTANCE.removeCommand(m_servoCommand);
         delete m_servoCommand;
         m_servoCommand = nullptr;
     }
@@ -556,6 +558,7 @@ std::unique_ptr<Command::Result> PCA9685Output::ServoPositionCommand::run(const 
         return std::make_unique<Command::ErrorResult>("PCA9685 output is not available");
     }
 
+    std::lock_guard<std::recursive_mutex> lk(m_output->m_portsLock);
     int internal_index = servo_index - 1;
     if (internal_index < 0 || (uint32_t)internal_index >= m_output->numPorts) {
         return std::make_unique<Command::ErrorResult>("Servo index is out of configured ports range");
@@ -629,6 +632,7 @@ void PCA9685Output::StoppingOutput() {
 }
 
 void PCA9685Output::PrepData(unsigned char* channelData) {
+    std::lock_guard<std::recursive_mutex> lk(m_portsLock);
     for (int x = 0; x < numPorts; x++) {
         m_ports[x].readValue(channelData, m_actualFrequency, x);
     }
@@ -639,6 +643,7 @@ void PCA9685Output::PrepData(unsigned char* channelData) {
  */
 int PCA9685Output::SendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "PCA9685Output::SendData(%p)\n", channelData);
+    std::lock_guard<std::recursive_mutex> lk(m_portsLock);
     lastFrameTime = GetTimeMicros();
 
     for (int x = 0; x < numPorts; x++) {
@@ -665,6 +670,7 @@ static inline void writeChannelValue(unsigned char* channelData, uint32_t sc, bo
 }
 
 void PCA9685Output::OverlayTestData(unsigned char* channelData, int cycleNum, float percentOfCycle, int testType, const Json::Value& config) {
+    std::lock_guard<std::recursive_mutex> lk(m_portsLock);
     if (!origConfig.isMember("deviceID")) {
         if (testType != lastTestType) {
             restoreOriginalConfig();

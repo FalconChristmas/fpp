@@ -445,15 +445,17 @@ void CommandManager::removeCommand(Command* cmd) {
     {
         std::unique_lock<std::shared_mutex> l(commandsLock);
         auto a = commands.find(cmd->name);
-        if (a == commands.end() || a->second != cmd) {
-            // Another object holds this name now (two outputs registering the
-            // same command); removing by name would unregister theirs.
-            return;
+        if (a != commands.end() && a->second == cmd) {
+            commands.erase(a);
+            commandMeta.erase(cmd->name);
+            ++commandsGeneration;
         }
-        commands.erase(a);
-        commandMeta.erase(cmd->name);
-        ++commandsGeneration;
+        // else another object holds this name now (two outputs registering
+        // the same command, or a reload's replacement registering first);
+        // removing by name would unregister theirs.
     }
+    // Waited for either way: a replaced command can still be running from
+    // before its replacement, and the caller deletes it next.
     waitForIdle(cmd);
 }
 void CommandManager::removeCommand(const std::string& cmdName) {

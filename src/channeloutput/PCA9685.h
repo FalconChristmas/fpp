@@ -16,6 +16,8 @@
 #include "util/I2CUtils.h"
 #include "commands/Commands.h"
 
+#include <mutex>
+
 class PCA9685Output : public ChannelOutput {
 public:
     class ServoPositionCommand : public Command {
@@ -117,6 +119,12 @@ private:
     std::array<uint16_t, 32> data;
     Json::Value origConfig;
     int lastTestType = 0;
+
+    // The Servo Position command runs on a command thread and sets the ports
+    // and sends, while the output thread prepares and sends frames (and the
+    // test overlay reloads the port config): both write data[] and the bus.
+    // Recursive: the command calls SendData().
+    std::recursive_mutex m_portsLock;
 
     // Servo Position Command
     ServoPositionCommand* m_servoCommand = nullptr;
