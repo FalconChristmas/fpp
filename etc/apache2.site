@@ -356,8 +356,12 @@ ProxyPassReverse /fppdws ws://localhost:32322/fppdws
     # "Require local" counts as local; the local exemptions below and in the
     # UI password config refuse a request carrying this, so /proxy/<own IP>/
     # cannot skip the password.  A client cannot use it to gain anything:
-    # it only ever takes the local exemption away.
-    RequestHeader set X-FPP-Proxied 1
+    # it only ever takes the local exemption away.  Not set for a client that
+    # is itself on loopback (a kiosk browser at http://localhost): it was
+    # local already, and its UI lists this player by its LAN address, so its
+    # own proxied requests would otherwise ask it for a password it never
+    # gave.  A mark an earlier hop set is passed on all the same.
+    RequestHeader set X-FPP-Proxied 1 "expr=! -R '127.0.0.0/8' && ! -R '::1/128'"
 
     # Expand gzip only for clients that cannot decode it themselves; everything
     # else is passed through exactly as the controller sent it.

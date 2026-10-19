@@ -19,9 +19,33 @@ echo "FPP - Upgrade 155: refuse proxied requests as local"
 
 cat /opt/fpp/etc/apache2.site > /etc/apache2/sites-enabled/000-default.conf
 
+# A password config with "Require local" is rewritten whole, in the form
+# SetupHtaccess(1) in www/common/settings.php now writes, rather than edited
+# in place: an older layout without <RequireAll> would have taken an added
+# "Require expr" line as one more alternative, letting every request in.
 PWCONF="${MEDIADIR}/config/ui-password-config.conf"
-if [ -f "${PWCONF}" ] && grep -q '^[[:space:]]*Require local[[:space:]]*$' "${PWCONF}" && ! grep -q 'X-FPP-Proxied' "${PWCONF}"; then
-    sed -i "s/^\([[:space:]]*\)Require local[[:space:]]*\$/\1Require local\n\1Require expr \"%{HTTP:X-FPP-Proxied} == ''\"/" "${PWCONF}"
+if [ -f "${PWCONF}" ] && grep -q '^[[:space:]]*Require local' "${PWCONF}" && ! grep -q 'X-FPP-Proxied' "${PWCONF}"; then
+    cat > "${PWCONF}" <<EOF
+AuthUserFile ${MEDIADIR}/config/.htpasswd
+AuthType Basic
+AuthName "Falcon Player"
+<RequireAny>
+  <RequireAll>
+    Require local
+    Require expr "%{HTTP:X-FPP-Proxied} == ''"
+  </RequireAll>
+  <RequireAll>
+    Require valid-user
+  </RequireAll>
+</RequireAny>
+
+SetEnvIf Host ^ LOCAL_PROTECT=1
+
+<FilesMatch "^(favicon)\.ico\$">
+Allow from All
+Satisfy Any
+</FilesMatch>
+EOF
 fi
 
 gracefullyReloadApacheConf
