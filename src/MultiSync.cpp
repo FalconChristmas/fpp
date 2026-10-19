@@ -3397,9 +3397,6 @@ static bool IsOwnEcho(const void* buf, int len) {
 }
 
 void MultiSync::SendControlPacket(void* outBuf, int len) {
-    if (IsEchoCandidate(outBuf, len)) {
-        RememberOwnSend(outBuf, len);
-    }
     if (WillLog(LOG_EXCESSIVE, VB_SYNC)) {
         LogExcess(VB_SYNC, "SendControlPacket()\n");
         HexDump("Sending Control packet with contents:", outBuf, len, VB_SYNC);
@@ -3516,6 +3513,7 @@ void MultiSync::SendBroadcastPacket(void* outBuf, int len) {
         HexDump("Sending Broadcast packet with contents:", outBuf, len, VB_SYNC);
     }
 
+    bool echoes = IsEchoCandidate(outBuf, len);
     std::unique_lock<std::mutex> lock(m_socketLock);
     long long startTime = GetMonotonicTimeMS();
     for (auto& a : m_interfaces) {
@@ -3524,6 +3522,12 @@ void MultiSync::SendBroadcastPacket(void* outBuf, int len) {
         bda.sin_family = AF_INET;
         bda.sin_port = htons(FPP_CTRL_PORT);
         bda.sin_addr.s_addr = a.second.broadcastAddress;
+
+        // One datagram per interface, and each comes back to us: remember
+        // each one, or the second interface's echo runs the command again.
+        if (echoes) {
+            RememberOwnSend(outBuf, len);
+        }
 
         if (int err = SendDatagramBounded(m_broadcastSock, outBuf, len, bda, startTime))
             LogSendFailure(err);
@@ -4785,8 +4789,8 @@ void MultiSync::SendFPPCommandPacket(const std::string& host, const std::string&
                TruncateForLog(cmd).c_str(), (int)payloadLen);
     } else {
         SendControlPacket(outBuf, pos);
-        // the packet won't loop back so if it's supposed to run on this host as well,
-        // we need to force it
+        // Run it here directly: multicast and unicast don't loop back, and the
+        // broadcast copies that do are dropped as our own (IsOwnEcho).
         if (host == "" || MyHostMatches(host, m_hostname, localSystems)) {
             LogDebug(VB_COMMAND, "Command \"%s\" broadcast includes this host, running locally too\n", cmd.c_str());
             CommandManager::INSTANCE.run(cmd, args);
