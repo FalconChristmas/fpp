@@ -744,7 +744,9 @@ void APIServer::Init(void) {
         static std::atomic<uint64_t> seq{ 0 };
         std::string timerName = "PluginLifecycle-" + std::to_string(seq++);
 
-        auto result = std::make_shared<std::promise<std::pair<bool, std::string>>>();
+        // The result carries whether the plugin is loaded afterwards too: the
+        // plugin lists are the main loop's, so they are read there, not here.
+        auto result = std::make_shared<std::promise<std::tuple<bool, std::string, bool>>>();
         auto done = result->get_future();
         Timers::INSTANCE.addTimer(timerName, GetTimeMS(), [result, name, load]() {
             // This runs plugin code (constructor, registerApis, shutdown,
@@ -763,7 +765,7 @@ void APIServer::Init(void) {
                 LogErr(VB_PLUGIN, "%s plugin \"%s\" threw a non-standard exception\n", load ? "Loading" : "Unloading",
                        TruncateForLog(name).c_str());
             }
-            result->set_value({ ok, err });
+            result->set_value({ ok, err, PluginManager::INSTANCE.isPluginLoaded(name) });
         });
 
         if (done.wait_for(std::chrono::seconds(30)) != std::future_status::ready) {
@@ -773,7 +775,7 @@ void APIServer::Init(void) {
                                         503, "application/json"));
             return;
         }
-        auto [ok, err] = done.get();
+        auto [ok, err, loaded] = done.get();
         // err can carry dlerror() text, which is not length-bounded either.
         LogInfo(VB_PLUGIN, "API - %s plugin \"%s\" (from %s): %s%s%s\n",
                 load ? "Load" : "Unload", TruncateForLog(name).c_str(), clientIP.c_str(),
@@ -782,7 +784,7 @@ void APIServer::Init(void) {
         resp["Status"] = ok ? "OK" : "ERROR";
         resp["Message"] = err;
         resp["plugin"] = name;
-        resp["loaded"] = PluginManager::INSTANCE.isPluginLoaded(name);
+        resp["loaded"] = loaded;
         callback(makeStringResponse(SaveJsonToString(resp), ok ? 200 : 400, "application/json"));
     };
     app.registerHandler("/fppd/plugin/{1}/{2}", handlePluginLifecycle, {drogon::Post});

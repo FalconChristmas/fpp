@@ -27,6 +27,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <condition_variable>
 #include <mutex>
 #include <optional>
 #include <set>
@@ -61,6 +62,46 @@ PluginManager PluginManager::INSTANCE;
 // still inside that plugin's code and it is safe to destroy. File-static rather
 // than a member so PluginManager's layout is unchanged for plugins.
 static std::mutex channelDataPluginsLock;
+
+// mPlaylistPlugins is walked from whichever thread made the playlist or media
+// transition - the main loop, an HTTP or MQTT thread, a scheduler command -
+// while a runtime load or unload edits it on the main loop and an unload then
+// deletes the plugin. A walk copies the list under this lock and counts each
+// plugin it will call as in flight; finishUnload() waits for a plugin's count
+// to drain before deleting it. Nothing is held across the calls themselves:
+// script plugins block in waitpid() for seconds, and a callback can start
+// another transition, which walks the list again on the same thread.
+// File-static, like channelDataPluginsLock, so PluginManager's layout is
+// unchanged for plugins.
+static std::mutex playlistPluginsLock;
+static std::condition_variable playlistPluginCallDone;
+static std::map<FPPPlugins::Plugin*, int> playlistPluginCallsInFlight;
+
+template<class F>
+static void ForEachPlaylistPlugin(const std::vector<FPPPlugins::PlaylistEventPlugin*>& plugins, F&& f) {
+    std::vector<FPPPlugins::PlaylistEventPlugin*> snapshot;
+    {
+        std::lock_guard<std::mutex> lock(playlistPluginsLock);
+        snapshot = plugins;
+        for (auto a : snapshot) {
+            playlistPluginCallsInFlight[dynamic_cast<FPPPlugins::Plugin*>(a)]++;
+        }
+    }
+    for (auto a : snapshot) {
+        struct Done {
+            FPPPlugins::Plugin* key;
+            ~Done() {
+                std::lock_guard<std::mutex> lock(playlistPluginsLock);
+                auto it = playlistPluginCallsInFlight.find(key);
+                if (it != playlistPluginCallsInFlight.end() && --it->second <= 0) {
+                    playlistPluginCallsInFlight.erase(it);
+                    playlistPluginCallDone.notify_all();
+                }
+            }
+        } done{ dynamic_cast<FPPPlugins::Plugin*>(a) };
+        f(a);
+    }
+}
 
 namespace FPPPlugins
 {
@@ -882,6 +923,7 @@ void PluginManager::addPlugin(FPPPlugins::Plugin* p) {
 
     FPPPlugin::PlaylistEventPlugin* pep = dynamic_cast<FPPPlugin::PlaylistEventPlugin*>(p);
     if (pep) {
+        std::lock_guard<std::mutex> lock(playlistPluginsLock);
         mPlaylistPlugins.push_back(pep);
     }
     FPPPlugin::ChannelOutputPlugin* coep = dynamic_cast<FPPPlugin::ChannelOutputPlugin*>(p);
@@ -898,10 +940,13 @@ void PluginManager::addPlugin(FPPPlugins::Plugin* p) {
         mAPIProviderPlugins.push_back(app);
     }
 }
+template<class P, class F>
+static void CallIntoPlugin(P* p, const char* what, F&& f);
+
 void PluginManager::mediaCallback(const Json::Value& playlist, const MediaDetails& mediaDetails) {
-    for (auto a : mPlaylistPlugins) {
-        a->mediaCallback(playlist, mediaDetails);
-    }
+    ForEachPlaylistPlugin(mPlaylistPlugins, [&](FPPPlugins::PlaylistEventPlugin* a) {
+        CallIntoPlugin(a, "mediaCallback", [&]() { a->mediaCallback(playlist, mediaDetails); });
+    });
 }
 void PluginManager::registerApis() {
     for (auto a : mAPIProviderPlugins) {
@@ -1027,7 +1072,10 @@ void PluginManager::detachPlugin(FPPPlugins::Plugin* plugin) {
             }
         }
     };
-    drop(mPlaylistPlugins);
+    {
+        std::lock_guard<std::mutex> lock(playlistPluginsLock);
+        drop(mPlaylistPlugins);
+    }
     drop(mChannelOutputPlugins);
     {
         std::lock_guard<std::mutex> lock(channelDataPluginsLock);
@@ -1264,6 +1312,16 @@ void PluginManager::pollPendingUnload(const std::string& name) {
 void PluginManager::finishUnload(PendingUnload& p) {
     // Drop the predicate before the library goes: it is the plugin's code too.
     p.ready = nullptr;
+    // Detached already, but a playlist or media callback that took its copy of
+    // the list before then may still be inside the plugin on another thread.
+    {
+        std::unique_lock<std::mutex> lock(playlistPluginsLock);
+        if (!playlistPluginCallDone.wait_for(lock, std::chrono::seconds(30), [&p]() {
+                return playlistPluginCallsInFlight.find(p.plugin) == playlistPluginCallsInFlight.end();
+            })) {
+            LogWarn(VB_PLUGIN, "Plugin %s still had a playlist callback running after 30 s; deleting it anyway\n", p.name.c_str());
+        }
+    }
     mPluginDirNames.erase(p.plugin); // so the map never holds a freed pointer
     delete p.plugin;                 // the plugin's own full teardown
     if (p.unmap && p.handle) {
@@ -1304,14 +1362,14 @@ void PluginManager::multiSyncData(const std::string& pn, uint8_t* data, int len)
     }
 }
 void PluginManager::playlistCallback(const Json::Value& playlist, const std::string& action, const std::string& section, int item) {
-    for (auto a : mPlaylistPlugins) {
+    ForEachPlaylistPlugin(mPlaylistPlugins, [&](FPPPlugins::PlaylistEventPlugin* a) {
         CallIntoPlugin(a, "playlistCallback", [&]() { a->playlistCallback(playlist, action, section, item); });
-    }
+    });
 }
 void PluginManager::playlistInserted(const std::string& playlist, const int position, int endPosition, bool immediate) {
-    for (auto a : mPlaylistPlugins) {
+    ForEachPlaylistPlugin(mPlaylistPlugins, [&](FPPPlugins::PlaylistEventPlugin* a) {
         CallIntoPlugin(a, "playlistInserted", [&]() { a->playlistInserted(playlist, position, endPosition, immediate); });
-    }
+    });
 }
 
 // blocking
