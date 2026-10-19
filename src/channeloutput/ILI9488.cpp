@@ -125,7 +125,16 @@ int ILI9488Output::Init(Json::Value config) {
     if (config.isMember("bpp"))
         m_bpp = config["bpp"].asInt();
 
-    ILI9488_Init();
+    // RawSendData() sends 3 channels a pixel for the whole panel
+    if (m_channelCount < (unsigned int)m_pixels * 3) {
+        LogErr(VB_CHANNELOUT, "ILI9488: the panel needs %d channels, the output has %u\n",
+               m_pixels * 3, m_channelCount);
+        return 0;
+    }
+
+    if (!ILI9488_Init()) {
+        return 0;
+    }
 
     return ThreadedChannelOutput::Init(config);
 }
@@ -156,15 +165,15 @@ int ILI9488Output::RawSendData(unsigned char* channelData) {
 
     GPIO_SET = m_bitDCX; // Set the 'data mode' bit
 
-    unsigned long RGBx;
     unsigned int rgb565;
 
     for (int p = 0; p < m_pixels; p++) {
         if (m_bpp == 16) {
-            RGBx = *(unsigned long*)c;
-            rgb565 = (((RGBx & 0x000000FF) << 8) & 0b1111100000000000) |
-                     (((RGBx & 0x0000FF00) >> 5) & 0b0000011111100000) |
-                     (((RGBx & 0x00FF0000) >> 19)); // & 0b0000000000011111);
+            // byte by byte: an unsigned long load read 8 bytes at each
+            // 3 byte pixel, past the end of the data at the last ones
+            rgb565 = ((c[0] << 8) & 0b1111100000000000) |
+                     ((c[1] << 3) & 0b0000011111100000) |
+                     (c[2] >> 3);
 
             ILI9488_SendByte(rgb565 >> 8);
             ILI9488_SendByte(rgb565);
@@ -197,14 +206,15 @@ void ILI9488Output::DumpConfig(void) {
 /*
  *
  */
-void ILI9488Output::ILI9488_Init(void) {
+bool ILI9488Output::ILI9488_Init(void) {
     LogDebug(VB_CHANNELOUT, "ILI9488Output::ILI9488_Init()\n");
 
     int mem_fd = 0;
 
     if ((mem_fd = open("/dev/gpiomem", O_RDWR | O_SYNC)) < 0) {
-        LogErr(VB_CHANNELOUT, "Can't open /dev/mem\n");
-        exit(-1);
+        // not exit(): fppd outlives an output that cannot start
+        LogErr(VB_CHANNELOUT, "Can't open /dev/gpiomem\n");
+        return false;
     }
     LogDebug(VB_CHANNELOUT, "Opened /dev/gpiomem, mem_fd = %d\n", mem_fd);
 
@@ -223,7 +233,8 @@ void ILI9488Output::ILI9488_Init(void) {
 
     if (m_gpio_map == MAP_FAILED) {
         LogErr(VB_CHANNELOUT, "mmap error %p\n", m_gpio_map); //errno also set!
-        exit(-1);
+        m_gpio_map = NULL;
+        return false;
     }
 
     // Always use volatile pointer!
@@ -331,6 +342,7 @@ void ILI9488Output::ILI9488_Init(void) {
     m_initialized = 1;
 
     LogDebug(VB_CHANNELOUT, "Initialization complete\n");
+    return true;
 }
 
 /*

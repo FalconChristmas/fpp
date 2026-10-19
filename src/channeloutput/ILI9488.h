@@ -45,7 +45,7 @@ private:
 
     volatile unsigned int* m_gpio;
 
-    void ILI9488_Init(void);
+    bool ILI9488_Init(void);
     void ILI9488_SendByte(unsigned char byte);
     void ILI9488_Command(unsigned char cmd);
     void ILI9488_Data(unsigned char cmd);

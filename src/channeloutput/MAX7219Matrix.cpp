@@ -106,6 +106,19 @@ int MAX7219MatrixOutput::Init(Json::Value config) {
 
     m_panels = config["panels"].asInt();
     m_channelsPerPixel = config["channelsPerPixel"].asInt();
+    // SendData() builds each line in a 256 byte stack buffer, two bytes a
+    // panel, and reads 64 pixels a panel from the channel data: more than
+    // 128 panels overflowed the stack, and a short channel count over-read.
+    if (m_panels < 1 || m_panels > 128 || (m_channelsPerPixel != 1 && m_channelsPerPixel != 3)) {
+        LogErr(VB_CHANNELOUT, "MAX7219: invalid config, %d panels (1-128) with %d channels per pixel (1 or 3)\n",
+               m_panels, m_channelsPerPixel);
+        return 0;
+    }
+    if (m_channelCount < m_panels * 64 * m_channelsPerPixel) {
+        LogErr(VB_CHANNELOUT, "MAX7219: %d panels need %d channels, the output has %d\n",
+               m_panels, m_panels * 64 * m_channelsPerPixel, m_channelCount);
+        return 0;
+    }
 
     m_csPin->configPin("gpio", true);
     m_usedGPIOS.push_back(m_csPin->name);
