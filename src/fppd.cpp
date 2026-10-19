@@ -997,6 +997,13 @@ void usage(char* appname) {
            appname);
 }
 
+// The "-v" volume, applied once fppd has daemonized.  Setting it while
+// parsing the arguments started the volume worker, which runs amixer and
+// pactl holding locks of its own, in the process that then forks into the
+// background: the daemon could inherit one of those locks held by a thread it
+// doesn't have, and never apply another volume change.
+static int s_argVolume = -1;
+
 int parseArguments(int argc, char** argv) {
     char* s = NULL;
     int c;
@@ -1063,7 +1070,8 @@ int parseArguments(int argc, char** argv) {
             SetSetting("resumeRepeat", atoi(optarg));
             break;
         case 'v': // volume
-            setVolume(atoi(optarg));
+            // Applied after daemonizing (see s_argVolume), not here.
+            s_argVolume = atoi(optarg);
             break;
         case 'm': // mode
             SetSetting("fppMode", optarg);
@@ -1225,6 +1233,9 @@ int main(int argc, char* argv[]) {
     // Start functioning
     if (getSettingInt("daemonize")) {
         CreateDaemon();
+    }
+    if (s_argVolume >= 0) {
+        setVolume(s_argVolume);
     }
     PLAT_GPIO_CLASS* gpioUtil = new PLAT_GPIO_CLASS();
     PinCapabilities::InitGPIO("FPPD", gpioUtil);
@@ -2337,9 +2348,9 @@ void MainLoop(void) {
 }
 
 // Each process CreateDaemon() leaves behind exits without running static
-// destructors: they belong to the daemon.  One of them destroys the condition
-// variable the volume worker (started by "-v", before the fork) waits on, and
-// glibc's pthread_cond_destroy() waits for its waiters, so exit() never
+// destructors: they belong to the daemon.  A destructor can block on a thread
+// started before the fork: glibc's pthread_cond_destroy() waits for its
+// waiters, and when "-v" started the volume worker that early, exit() never
 // returned and whatever ran "fppd -d" never saw its process end.
 static void LeaveForkedProcess(int code) {
     fflush(nullptr);

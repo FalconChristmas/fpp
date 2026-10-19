@@ -648,22 +648,6 @@ static int s_volumeTarget = -1; // -1: nothing pending
 static uint64_t s_volumeTargetRequest = 0;
 static bool s_volumeWorkerStarted = false;
 
-// fppd's "-v" sets the volume while parsing its arguments, which, without
-// "-f", is before it forks into the background.  A fork copies the worker's
-// state but not the thread, so the daemon would queue every later change for
-// a worker that doesn't exist.  Hold the lock across any fork, so the child
-// gets it in a known state, and let the child start its own worker.
-static void volumeForkPrepare() {
-    s_volumeWorkerLock.lock();
-}
-static void volumeForkParent() {
-    s_volumeWorkerLock.unlock();
-}
-static void volumeForkChild() {
-    s_volumeWorkerStarted = false;
-    s_volumeWorkerLock.unlock();
-}
-
 void setVolume(int vol) {
     vol = std::clamp(vol, 0, 100);
     std::lock_guard<std::mutex> lock(s_volumeWorkerLock);
@@ -671,11 +655,6 @@ void setVolume(int vol) {
     s_volumeTarget = vol;
     s_volumeTargetRequest = ++s_volumeRequested;
     if (!s_volumeWorkerStarted) {
-        static bool forkHandlers = false;
-        if (!forkHandlers) {
-            forkHandlers = true;
-            pthread_atfork(volumeForkPrepare, volumeForkParent, volumeForkChild);
-        }
         s_volumeWorkerStarted = true;
         // Detached: it only ever waits for the next request, and fppd exits
         // with _exit or exec, never by destroying it.
