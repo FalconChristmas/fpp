@@ -2336,17 +2336,27 @@ void MainLoop(void) {
     LogInfo(VB_GENERAL, "Main Loop complete, shutting down.\n");
 }
 
+// Each process CreateDaemon() leaves behind exits without running static
+// destructors: they belong to the daemon.  One of them destroys the condition
+// variable the volume worker (started by "-v", before the fork) waits on, and
+// glibc's pthread_cond_destroy() waits for its waiters, so exit() never
+// returned and whatever ran "fppd -d" never saw its process end.
+static void LeaveForkedProcess(int code) {
+    fflush(nullptr);
+    _exit(code);
+}
+
 void CreateDaemon(void) {
     /* Fork and terminate parent so we can run in the background */
     /* Fork off the parent process */
     pid = fork();
     if (pid < 0) {
-        exit(EXIT_FAILURE);
+        LeaveForkedProcess(EXIT_FAILURE);
     }
     /* If we got a good PID, then
         we can exit the parent process. */
     if (pid > 0) {
-        exit(EXIT_SUCCESS);
+        LeaveForkedProcess(EXIT_SUCCESS);
     }
 
     /* Change the file mode mask */
@@ -2356,19 +2366,19 @@ void CreateDaemon(void) {
     sid = setsid();
     if (sid < 0) {
         /* Log any failures here */
-        exit(EXIT_FAILURE);
+        LeaveForkedProcess(EXIT_FAILURE);
     }
 
     /* Fork a second time to get rid of session leader */
     /* Fork off the parent process */
     pid = fork();
     if (pid < 0) {
-        exit(EXIT_FAILURE);
+        LeaveForkedProcess(EXIT_FAILURE);
     }
     /* If we got a good PID, then
       we can exit the parent process. */
     if (pid > 0) {
-        exit(EXIT_SUCCESS);
+        LeaveForkedProcess(EXIT_SUCCESS);
     }
 
     /* Close out the standard file descriptors */
