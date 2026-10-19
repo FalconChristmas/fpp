@@ -77,6 +77,9 @@ function FilesValidatePathOrFail($baseDir, $requested, $allowMissingParent = fal
     if ($requested === '' || strpos($requested, "\\") !== false || strpos($requested, "\0") !== false) { http_response_code(400); echo json_encode(["status"=>"Invalid path"]); exit; }
     $decoded = rawurldecode($requested);
     if (strpos($requested, '..') !== false || strpos($decoded, '..') !== false || (isset($decoded[0]) && $decoded[0] === '/') || preg_match('/%2e/i', $requested)) { http_response_code(403); echo json_encode(["status"=>"Invalid path"]); exit; }
+    // realpath("") is the working directory -- php-fpm's is this script's --
+    // so an unmapped directory key would make that the base
+    if (!is_string($baseDir) || $baseDir === '') { http_response_code(400); echo json_encode(["status"=>"Invalid Directory"]); exit; }
     $baseReal = realpath($baseDir);
     if ($baseReal === false) { http_response_code(500); exit; }
     $candidate = $baseReal . '/' . $requested;
@@ -1278,6 +1281,14 @@ function DeleteFile()
     $dir = MapDirectoryKey($dirName);
     $fileName = params(0);
 
+    if ($dir == "") {
+        // An unknown key, or "plugins", maps to "".  realpath("") below is the
+        // working directory (www/api under php-fpm), which then passed the
+        // containment check as the base: DELETE /api/file/plugins/opt/fpp/www/api/...
+        // removed FPP's own files.
+        http_response_code(400);
+        return json(array("status" => "Invalid Directory", "file" => $fileName, "dir" => $dirName));
+    }
     if ($fileName == "" && $dir == $uploadDirectory) {
         // Hitting cancel on an upload will call delete with no filename
         return json(array("status" => "Invalid parameters", "file" => $fileName, "dir" => $dirName));
