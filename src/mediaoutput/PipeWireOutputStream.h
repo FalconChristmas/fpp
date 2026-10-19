@@ -134,13 +134,14 @@ private:
     void ForgetFailureLocked();
     void PushSilenceLocked(int ms);
     bool WaitQueuedUntil(int64_t deadlineUs);
-    void Flush();
+    void Flush(bool prime);
     bool CardRunning();
     static int TailFlushMs();
     bool StreamLinked();
 
     static GstFlowReturn OnFeedSample(GstElement* appsink, gpointer userData);
-    void DisciplineClock();
+    // Whether the card lost time (an xrun) while a track was feeding the stream.
+    bool DisciplineClock();
     void ResetClockSyncLocked();
 
     const int m_slot;

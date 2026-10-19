@@ -260,7 +260,7 @@ bool PipeWireOutputStream::WaitQueuedUntil(int64_t deadlineUs) {
 void PipeWireOutputStream::WaitDrained(int maxMs) {
     int64_t deadline = MonoUs() + (int64_t)maxMs * 1000;
     WaitQueuedUntil(deadline);
-    Flush();
+    Flush(true);
     // The silence Flush() pushed must play before the track goes to PLAYING,
     // or the track starts that much behind its position.
     WaitQueuedUntil(MonoUs() + (int64_t)(kFlushPrimeMs + 20) * 1000);
@@ -279,8 +279,16 @@ void PipeWireOutputStream::WaitDrained(int maxMs) {
 // pipewiresink drops whatever its stream still holds (pw_stream_flush()),
 // which is nothing unless there was a stall, and every track starts from an
 // empty queue.  The stream goes inactive and back, and drops the first few
-// tens of ms handed to it after that, so it is primed with silence.
-void PipeWireOutputStream::Flush() {
+// tens of ms handed to it after that, so between tracks it is primed with
+// silence.
+//
+// When the stall is an xrun on the card itself, DisciplineClock() sees the
+// card stop or restart, and the stream is flushed right then, mid-track,
+// unprimed: the sound skips what the stall held up -- the xrun was already
+// audible -- and is back with the lights at once rather than at the next
+// track.  A stall that never reaches the card (a late group node) is left to
+// the flush between tracks.
+void PipeWireOutputStream::Flush(bool prime) {
     GstElement* src = nullptr;
     {
         std::unique_lock<std::mutex> lock(m_lock);
@@ -297,11 +305,13 @@ void PipeWireOutputStream::Flush() {
         std::unique_lock<std::mutex> lock(m_lock);
         if (m_src == src) {
             m_queuedUntilUs = 0;
-            PushSilenceLocked(kFlushPrimeMs);
+            if (prime) {
+                PushSilenceLocked(kFlushPrimeMs);
+            }
         }
     }
     gst_object_unref(src);
-    LogDebug(VB_MEDIAOUT, "PipeWire output stream %d flushed between tracks\n", m_slot);
+    LogDebug(VB_MEDIAOUT, "PipeWire output stream %d flushed%s\n", m_slot, prime ? " between tracks" : "");
 }
 
 bool PipeWireOutputStream::WaitReady(int timeoutMs) {
@@ -427,7 +437,11 @@ void PipeWireOutputStream::WorkerLoop() {
         uint64_t now = NowMs();
         for (PipeWireOutputStream* s : slots) {
             if (s) {
-                s->DisciplineClock();
+                if (s->DisciplineClock()) {
+                    LogInfo(VB_MEDIAOUT, "PipeWire output stream %d: the card lost time (xrun) while playing; "
+                                         "flushing so the sound stays with the lights\n", s->m_slot);
+                    s->Flush(false);
+                }
                 s->Service(now);
                 std::unique_lock<std::mutex> slock(s->m_lock);
                 anyOpening |= (s->m_state == State::Opening);
@@ -769,17 +783,17 @@ static bool ReadCardPosition(const std::string& path, int64_t& hw) {
     return true;
 }
 
-void PipeWireOutputStream::DisciplineClock() {
+bool PipeWireOutputStream::DisciplineClock() {
     std::string path;
     {
         std::unique_lock<std::mutex> lock(m_lock);
         if (!m_clock || m_state != State::Ready || m_cardStatusPath.empty()) {
             ResetClockSyncLocked();
-            return;
+            return false;
         }
         GstClockTime nowInt = gst_clock_get_internal_time(m_clock);
         if (m_syncAnchored && nowInt - m_syncLastInt < (GstClockTime)kClockSampleMs * GST_MSECOND) {
-            return;
+            return false;
         }
         path = m_cardStatusPath;
         if (path != m_syncPath) {
@@ -796,7 +810,7 @@ void PipeWireOutputStream::DisciplineClock() {
         std::size_t p = text.find("rate:");
         m_syncCardRate = p == std::string::npos ? 0 : atoi(text.c_str() + p + 5);
         if (m_syncCardRate <= 0) {
-            return;
+            return false;
         }
     }
     // The card's position and the clock's internal time, as close together
@@ -809,11 +823,16 @@ void PipeWireOutputStream::DisciplineClock() {
 
     std::unique_lock<std::mutex> lock(m_lock);
     if (path != m_cardStatusPath || m_state != State::Ready) {
-        return;
+        return false;
     }
+    // The card stopping, or its position going back, while a track feeds the
+    // stream is an xrun: PipeWire restarted the device, and what the feed
+    // delivered meanwhile is now queued behind it (see Flush()).
+    bool lostTime = false;
     if (!running) {
+        lostTime = m_syncAnchored && m_feed;
         ResetClockSyncLocked();
-        return;
+        return lostTime;
     }
     GstClockTime cInt, cExt, num, den;
     gst_clock_get_calibration(m_clock, &cInt, &cExt, &num, &den);
@@ -823,6 +842,7 @@ void PipeWireOutputStream::DisciplineClock() {
     double clockS = m_syncAnchored ? (double)(GstClockTimeDiff)(external - m_syncExt0) / GST_SECOND : 0.0;
     double phase = cardS - clockS;  // > 0: the card is ahead of the clock
     if (!m_syncAnchored || hw < m_syncLastHw || std::fabs(phase) > kClockMaxPhaseError) {
+        lostTime = m_syncAnchored && m_feed && (hw < m_syncLastHw || phase < -kClockMaxPhaseError);
         if (m_syncAnchored) {
             LogDebug(VB_MEDIAOUT, "PipeWire output stream %d: card clock re-anchored (phase %.1f ms)\n",
                      m_slot, phase * 1000.0);
@@ -868,6 +888,7 @@ void PipeWireOutputStream::DisciplineClock() {
     gst_clock_set_calibration(m_clock, internal, external, (GstClockTime)llround(applied * 1e9), 1000000000ULL);
     LogExcess(VB_MEDIAOUT, "PipeWire output stream %d: card %+.1f ppm, phase %+.2f ms, clock %+.1f ppm\n",
               m_slot, (rate - 1.0) * 1e6, phase * 1000.0, (applied - 1.0) * 1e6);
+    return lostTime;
 }
 
 bool PipeWireOutputStream::CardRunning() {
