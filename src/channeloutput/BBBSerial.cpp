@@ -124,7 +124,13 @@ int BBBSerialOutput::Init(Json::Value config) {
     for (int i = 0; i < config["outputs"].size(); i++) {
         Json::Value s = config["outputs"][i];
 
-        m_startChannels[s["outputNumber"].asInt()] = s["startChannel"].asInt() - 1;
+        // straight from the config: out of range it wrote past m_startChannels
+        int outputNumber = s["outputNumber"].asInt();
+        if (outputNumber < 0 || outputNumber >= m_outputs) {
+            LogErr(VB_CHANNELOUT, "BBBSerial: ignoring output %d, the cape has %d\n", outputNumber + 1, m_outputs);
+            continue;
+        }
+        m_startChannels[outputNumber] = s["startChannel"].asInt() - 1;
         int l = s["channelCount"].asInt();
         if (l > maxLen) {
             maxLen = l;

@@ -102,16 +102,21 @@ static void compilePRUMatrixCode(std::vector<std::string>& sargs) {
 void BBBMatrix::calcBrightnessFlags(std::vector<std::string>& sargs) {
     LogDebug(VB_CHANNELOUT, "Calc Brightness:   maxPanel:  %d    maxOutput: %d     Brightness: %d    rpo: %d    ph:  %d    pw:  %d\n", m_longestChain, m_outputs, m_brightness, m_panelScan, m_panelHeight, m_panelWidth);
 
+    // The tables stop at 8 outputs and 16 panels a chain, and the cape
+    // takes 16 outputs: past the tables this read beyond them.  Use the
+    // nearest entry, the slowest timing the tables know.
+    int to = std::clamp(m_outputs, 1, 8) - 1;
+    int tc = std::clamp(m_longestChain, 1, 16) - 1;
     uint32_t max = 0xB00;
     switch (m_timing) {
     case 2:
-        max = psTimings[m_outputs - 1][m_longestChain - 1];
+        max = psTimings[to][tc];
         break;
     case 1:
-        max = v2Timings[m_outputs - 1][m_longestChain - 1];
+        max = v2Timings[to][tc];
         break;
     default:
-        max = v1Timings[m_outputs - 1][m_longestChain - 1];
+        max = v1Timings[to][tc];
         break;
     }
 
