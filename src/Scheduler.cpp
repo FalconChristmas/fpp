@@ -67,6 +67,32 @@ static std::string missingEntryWarning(const ScheduleEntry& entry) {
 
 /////////////////////////////////////////////////////////////////////////////
 
+// A schedule entry's args are stored as given, and the command layer accepts
+// objects and arrays among them (an If command's condition), so asString()
+// and operator[] can't be used on them blindly: either throws LogicError, and
+// on the main loop nothing catches it - fppd aborted at every countdown to
+// such an entry.
+static std::string ScheduleArgToString(const Json::Value& v) {
+    if (v.isObject() || v.isArray()) {
+        return SaveJsonToString(v);
+    }
+    if (v.isNull()) {
+        return "";
+    }
+    return v.asString();
+}
+
+// Whether two items carry the same first argument (how a ran item is matched).
+static bool SameFirstScheduleArg(const Json::Value& a, const Json::Value& b) {
+    if (!a.isArray() || !b.isArray()) {
+        return a == b;
+    }
+    if (a.empty() || b.empty()) {
+        return a.empty() && b.empty();
+    }
+    return a[0] == b[0];
+}
+
 Scheduler::Scheduler() :
     m_schedulerDisabled(false),
     m_loadSchedule(true),
@@ -404,8 +430,7 @@ void Scheduler::AddScheduledItems(ScheduleEntry* entry, int index, std::time_t l
                         (newItem.startTime == item.startTime) &&
                         (newItem.endTime == item.endTime) &&
                         (newItem.args.size() == item.args.size()) &&
-                        ((!newItem.args.size() && !item.args.size()) ||
-                         (newItem.args[0].asString() == item.args[0].asString()))) {
+                        SameFirstScheduleArg(newItem.args, item.args)) {
                         LogDebug(VB_SCHEDULE, "Marking playlist item as already ran:\n");
                         DumpScheduledItem(newItem.startTime, newItem);
                         newItem.ran = true;
@@ -425,10 +450,14 @@ void Scheduler::DumpScheduledItem(const std::time_t itemTime, const ScheduledIte
     std::string timeStr = ctime_r(&itemTime, timeBuf);
 
     std::string argStr;
-    for (int i = 0; i < item.args.size(); i++) {
-        argStr += "\"";
-        argStr += item.args[i].asString();
-        argStr += "\" ";
+    if (item.args.isArray()) {
+        for (const auto& a : item.args) {
+            argStr += "\"";
+            argStr += ScheduleArgToString(a);
+            argStr += "\" ";
+        }
+    } else {
+        argStr = ScheduleArgToString(item.args);
     }
 
     LogDebug(VB_SCHEDULE, "%s: %2d '%s' - '%s'\n",
@@ -900,7 +929,7 @@ void Scheduler::SetItemRan(ScheduledItem& item, bool ran) {
                item.startTime == ranItem.startTime &&
                item.endTime == ranItem.endTime &&
                item.args.size() == ranItem.args.size() &&
-               (item.args.empty() || item.args[0].asString() == ranItem.args[0].asString());
+               SameFirstScheduleArg(item.args, ranItem.args);
     });
     if (it != vec.end()) {
         it->ran = ran;
