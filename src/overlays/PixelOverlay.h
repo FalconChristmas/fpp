@@ -226,4 +226,7 @@ private:
     bool autoCreate = true;
 
     friend class OverlayCommand;
+    // try-locks modelsLock around its parent (PixelOverlayModelSub::setState).
+    // A friend declaration changes no layout.
+    friend class PixelOverlayModelSub;
 };

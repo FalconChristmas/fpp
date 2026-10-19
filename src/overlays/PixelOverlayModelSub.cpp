@@ -232,12 +232,29 @@ void PixelOverlayModelSub::setState(const PixelOverlayState& st) {
     // foundParent(). Doing it here is free: setState() already runs under
     // modelsLock on every path that reaches it, so this is a recursive
     // re-acquire rather than a new one.
-    bool haveParent = foundParent();
+    //
+    // Not every path does hold modelsLock, though: an effect that disables its
+    // model when it finishes (Stop Effects, Text/Image with disableWhenDone,
+    // WLED autoDisable) gets here from the effect or output thread. Meanwhile
+    // an output reload's removeAutoOverlayModel() clears `parent` and frees
+    // it under modelsLock, so `parent` was read here after it was freed.
+    // Hold modelsLock across both uses so that cannot happen in between --
+    // try-locked, as foundParent() is, because those threads hold effectLock
+    // and modelsLock -> effectLock is the order everywhere else. Contended,
+    // retry briefly; a reload that keeps it past that is retiring the parent
+    // anyway, so the child state is moot.
+    std::unique_lock<std::recursive_mutex> lock(PixelOverlayManager::INSTANCE.modelsLock, std::try_to_lock);
+    for (int tries = 0; !lock.owns_lock() && tries < 20; tries++) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        lock.try_lock();
+    }
+    bool haveParent = lock.owns_lock() && foundParent();
 
     PixelOverlayModel::setState(st);
 
-    if (haveParent) {
-        parent->setChildState(name, st, xOffset, yOffset, width, height);
+    PixelOverlayModel* p = haveParent ? parent : nullptr;
+    if (p) {
+        p->setChildState(name, st, xOffset, yOffset, width, height);
     }
 }
 void PixelOverlayModelSub::resetParent() {
