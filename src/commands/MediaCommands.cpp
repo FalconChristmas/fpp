@@ -65,10 +65,19 @@ std::unique_ptr<Command::Result> DecreaseVolumeCommand::run(const std::vector<st
     return std::make_unique<Command::Result>("Volume Set");
 }
 
+// A URL command's response is kept whole for the caller, so it is capped:
+// unbounded, one URL at a large or endless body (file:///dev/zero, before
+// the protocols were limited below, or any HTTP server that streams) grew it
+// until fppd was OOM-killed.  Returning short aborts the transfer.
+static constexpr size_t URL_MAX_RESPONSE = 4 * 1024 * 1024;
 static size_t URL_write_data(void* buffer, size_t size, size_t nmemb, void* userp) {
     std::string* msg = (std::string*)userp;
-    msg->append(static_cast<const char*>(buffer), size * nmemb);
-    return size * nmemb;
+    size_t n = size * nmemb;
+    if (msg->size() + n > URL_MAX_RESPONSE) {
+        return 0;
+    }
+    msg->append(static_cast<const char*>(buffer), n);
+    return n;
 }
 
 // A URL command's transfer outlives its Result. Fire-and-forget callers
@@ -173,6 +182,17 @@ public:
         curl_easy_setopt(m_curl, CURLOPT_USERAGENT, userAgent.c_str());
         curl_easy_setopt(m_curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(m_curl, CURLOPT_MAXREDIRS, 10L);
+        // HTTP(S) only, for the URL and every redirect.  libcurl speaks file://,
+        // gopher://, dict:// and more by default, and this command is reachable
+        // from the API and MultiSync: "file:///etc/shadow" read any file as
+        // root, and gopher:// could put arbitrary bytes on a local port.
+#if LIBCURL_VERSION_NUM >= 0x075500
+        curl_easy_setopt(m_curl, CURLOPT_PROTOCOLS_STR, "http,https");
+        curl_easy_setopt(m_curl, CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
+#else
+        curl_easy_setopt(m_curl, CURLOPT_PROTOCOLS, (long)(CURLPROTO_HTTP | CURLPROTO_HTTPS));
+        curl_easy_setopt(m_curl, CURLOPT_REDIR_PROTOCOLS, (long)(CURLPROTO_HTTP | CURLPROTO_HTTPS));
+#endif
         // A transfer may now outlive its Result (see AdoptOrphanTransfer()),
         // so it needs its own end.
         curl_easy_setopt(m_curl, CURLOPT_CONNECTTIMEOUT_MS, URL_CONNECT_TIMEOUT_MS);
