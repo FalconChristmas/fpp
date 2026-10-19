@@ -43,6 +43,11 @@ GPIOManager GPIOManager::INSTANCE;
 // Guards GPIOManager::INSTANCE.fppCommandLastValue (see gpio.h).  A file
 // static rather than a member so the class layout doesn't change.
 static std::mutex s_commandLastValueLock;
+// eventStates/pollStates change (and their states are deleted) on the main
+// loop, during an output reload (OutputMonitor's eFuse pins) and at
+// shutdown.  The main loop's own walks need no lock; GetInputPinValue() is
+// also called from HTTP and command threads, and takes this.
+static std::mutex s_statesLock;
 
 void GPIOManager::SetCommandLastValue(const std::string& pin, bool value) {
     std::lock_guard<std::mutex> lock(s_commandLastValueLock);
@@ -121,6 +126,7 @@ void GPIOManager::Initialize(std::map<int, std::function<bool(int)>>& callbacks)
 }
 
 bool GPIOManager::GetInputPinValue(const std::string& name, int& value) const {
+    std::lock_guard<std::mutex> lock(s_statesLock);
     for (auto* s : eventStates) {
         if (s->pin && s->pin->name == name) {
             value = s->lastValue;
@@ -205,22 +211,28 @@ void GPIOManager::scheduleDebounceCheck(GPIOState* state) {
 }
 
 void GPIOManager::Cleanup() {
-    for (auto a : eventStates) {
+    // out of the lists first, so GetInputPinValue() can't find one being deleted
+    decltype(eventStates) events;
+    decltype(pollStates) polls;
+    {
+        std::lock_guard<std::mutex> lock(s_statesLock);
+        events.swap(eventStates);
+        polls.swap(pollStates);
+    }
+    for (auto a : events) {
         if (!a->ledPin.empty())
             Timers::INSTANCE.stopPeriodicTimer("gpio_led_pulse_" + a->pin->name);
         if (a->file != -1)
             a->pin->releaseGPIOD();
         delete a;
     }
-    for (auto a : pollStates) {
+    for (auto a : polls) {
         if (!a->ledPin.empty())
             Timers::INSTANCE.stopPeriodicTimer("gpio_led_pulse_" + a->pin->name);
         if (a->file != -1)
             a->pin->releaseGPIOD();
         delete a;
     }
-    eventStates.clear();
-    pollStates.clear();
 }
 
 // --------------------------------------------------------------------------
@@ -618,16 +630,22 @@ void GPIOManager::RemoveGPIOCallback(const PinCapabilities* pin) {
                 EPollManager::INSTANCE.removeFileDescriptor(a->file);
                 a->pin->releaseGPIOD();
             }
-            eventStates.erase(it);
-            delete a;
+            {
+                std::lock_guard<std::mutex> lock(s_statesLock);
+                eventStates.erase(it);
+                delete a;
+            }
             return;
         }
     }
     for (auto it = pollStates.begin(); it != pollStates.end(); ++it) {
         GPIOState* a = *it;
         if (a->pin == pin) {
-            pollStates.erase(it);
-            delete a;
+            {
+                std::lock_guard<std::mutex> lock(s_statesLock);
+                pollStates.erase(it);
+                delete a;
+            }
             return;
         }
     }
@@ -675,9 +693,13 @@ void GPIOManager::addState(GPIOState* state) {
     }
 
     if (state->file > 0) {
-        eventStates.push_back(state);
+        {
+            std::lock_guard<std::mutex> lock(s_statesLock);
+            eventStates.push_back(state);
+        }
         addGPIOCallback(state);
     } else {
+        std::lock_guard<std::mutex> lock(s_statesLock);
         pollStates.push_back(state);
     }
 }
