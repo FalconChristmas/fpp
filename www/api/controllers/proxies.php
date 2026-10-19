@@ -28,7 +28,10 @@ function remoteAction()
         'updateLog' => '/api/system/updateActivity?logTail=1&lines=300',
     ];
 
-    if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+    // Another player, never this one: 127.0.0.1 reached this player's own
+    // local-only pages (Apache counts a request from itself as local).
+    $ipLong = filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) ? ip2long($ip) : false;
+    if ($ipLong === false || ($ipLong & 0xFF000000) == 0x7F000000 || $ipLong == 0) {
         http_response_code(400);
         echo json_encode(['error' => "Invalid IP address: $ip"]);
         exit(0);
@@ -41,7 +44,11 @@ function remoteAction()
 
     $curl = curl_init('http://' . $ip . $action_map[$action]);
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
+    // A remote that redirects is followed, but only over http(s) and only so
+    // far: unrestricted, the redirect decided what this player fetched.
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($curl, CURLOPT_MAXREDIRS, 5);
+    curl_setopt($curl, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
     $request_content = curl_exec($curl);

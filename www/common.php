@@ -5882,6 +5882,12 @@ function DeprecatedStateChangingGetRoute()
         return $script . '.php';
     }
     $path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+    // remoteAction also serves reads (listUpgrades, updateLog) to the
+    // MultiSync page; only the actions that change the remote are marked.
+    if (is_string($path) && preg_match('#^/api/remoteAction$#i', $path) &&
+        in_array($_GET['action'] ?? '', array('reboot', 'restartFppd', 'upgradeOS'), true)) {
+        return '/api/remoteAction?action=' . $_GET['action'];
+    }
     if (is_string($path) && preg_match('#^/api/(events/[^/]+/trigger|file/move/|git/reset$|network/interface/add/|playlists/(stop|pause|resume|stopgracefully|stopgracefullyafterloop)$|playlist/[^/]+/start|playlist/repeat/|plugin/[^/]+/upgrade$|sequence/current/(stop|togglePause)$|sequence/[^/]+/start/|scripts/[^/]+/run$|system/(reboot|shutdown)$|system/fppd/(start|stop|restart)$)#i', $path, $m)) {
         return '/api/' . $m[1];
     }
