@@ -15,6 +15,7 @@
 #include "../common.h"
 #include "../log.h"
 
+#include "../Sequence.h"
 #include "PanelMatrix.h"
 
 PanelMatrix::PanelMatrix(int panelWidth, int panelHeight, int invertedData) :
@@ -94,6 +95,17 @@ int PanelMatrix::AddPanel(int output, int chain, char orientation,
     } else if ((orientation != 'N') && (orientation != 'U')) {
         LogErr(VB_CHANNELOUT, "Invalid orientation '%c'\n",
                orientation);
+        return 0;
+    }
+
+    // Nor may an offset grow the matrix past what the channel buffer holds:
+    // m_width * m_height * 3 is the outputs' channel count, and offsets in
+    // the millions overflowed it (and the pixel maps sized from it).
+    int64_t newWidth = std::max<int64_t>(m_width, (int64_t)xOffset + pWidth);
+    int64_t newHeight = std::max<int64_t>(m_height, (int64_t)yOffset + pHeight);
+    if (newWidth * newHeight * 3 > (int64_t)FPPD_MAX_CHANNELS) {
+        LogErr(VB_CHANNELOUT, "Invalid panel: offset %d,%d makes the matrix %lldx%lld, more than %d channels\n",
+               xOffset, yOffset, (long long)newWidth, (long long)newHeight, FPPD_MAX_CHANNELS);
         return 0;
     }
 
