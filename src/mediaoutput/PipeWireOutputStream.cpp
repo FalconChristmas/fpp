@@ -535,9 +535,6 @@ bool PipeWireOutputStream::OpenLocked(std::unique_lock<std::mutex>& lock) {
     std::string launch = std::string("appsrc name=src is-live=true format=time do-timestamp=false block=false "
                                      "max-time=1000000000 leaky-type=downstream caps=\"") +
                          capsStr + "\" ! pipewiresink name=pwsink sync=false";
-    if (!target.empty()) {
-        launch += " target-object=" + target;
-    }
     GError* error = nullptr;
     GstElement* pipeline = gst_parse_launch(launch.c_str(), &error);
     if (error || !pipeline) {
@@ -555,6 +552,12 @@ bool PipeWireOutputStream::OpenLocked(std::unique_lock<std::mutex>& lock) {
     // The identity every per-track pipewiresink used to present, so anything
     // that matches or routes fppd_stream_N sees no difference.
     if (GstElement* pwsink = gst_bin_get_by_name(GST_BIN(pipeline), "pwsink")) {
+        // The target is a property, not part of the description: it comes
+        // from the PipeWireSinkName setting, and pasted in, a crafted value
+        // added elements to the pipeline.
+        if (!target.empty()) {
+            g_object_set(pwsink, "target-object", target.c_str(), nullptr);
+        }
         std::string nodeName = StreamSlotManager::GetNodeName(m_slot);
         std::string nodeDesc = StreamSlotManager::GetNodeDescription(m_slot);
         GstStructure* props = gst_structure_new("props",

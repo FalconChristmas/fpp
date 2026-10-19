@@ -200,8 +200,12 @@ public:
 
         // Build pipeline: pipewiresrc target-object=<node> ! audioconvert ! audioresample !
         //   audio/x-raw,format=S16LE,channels=1,rate=44100 ! appsink name=wledsink
+        // The node name is set as a property after parsing, never pasted into
+        // the description: it comes from the WLEDAudioInput setting (writable
+        // over the network), and pasted in, "x ! filesrc location=... ! ..."
+        // added elements that read or wrote any file as root.
         std::string pipelineStr =
-            "pipewiresrc target-object=" + dev + " ! audioconvert ! audioresample ! "
+            "pipewiresrc name=wledsrc ! audioconvert ! audioresample ! "
             "audio/x-raw,format=S16LE,channels=1,rate=44100 ! "
             "appsink name=wledsink max-buffers=2 drop=true";
 
@@ -211,7 +215,15 @@ public:
             WarningHolder::AddWarning(52, "WLED Sound Reactive - GStreamer pipeline error: " + std::string(error->message));
             LogErr(VB_MEDIAOUT, "WLED GStreamer capture pipeline error: %s\n", error->message);
             g_error_free(error);
+            if (gstPipeline) {
+                gst_object_unref(gstPipeline);
+                gstPipeline = nullptr;
+            }
             return;
+        }
+        if (GstElement* src = gst_bin_get_by_name(GST_BIN(gstPipeline), "wledsrc")) {
+            g_object_set(src, "target-object", dev.c_str(), nullptr);
+            gst_object_unref(src);
         }
 
         GstElement* appsink = gst_bin_get_by_name(GST_BIN(gstPipeline), "wledsink");
@@ -278,8 +290,10 @@ public:
 
         // Build pipeline: alsasrc device=<dev> ! audioconvert ! audioresample !
         //   audio/x-raw,format=S16LE,channels=1,rate=44100 ! appsink
+        // The device is set as a property, not pasted into the description;
+        // see openGStreamerCapture().
         std::string pipelineStr =
-            "alsasrc device=" + dev + " ! audioconvert ! audioresample ! "
+            "alsasrc name=wledsrc ! audioconvert ! audioresample ! "
             "audio/x-raw,format=S16LE,channels=1,rate=44100 ! "
             "appsink name=wledsink max-buffers=2 drop=true";
 
@@ -289,7 +303,15 @@ public:
             WarningHolder::AddWarning(52, "WLED Sound Reactive - Could not open Audio Input Device: " + dev + "  Error: " + std::string(error->message));
             LogErr(VB_MEDIAOUT, "WLED GStreamer ALSA capture pipeline error: %s\n", error->message);
             g_error_free(error);
+            if (gstPipeline) {
+                gst_object_unref(gstPipeline);
+                gstPipeline = nullptr;
+            }
             return;
+        }
+        if (GstElement* src = gst_bin_get_by_name(GST_BIN(gstPipeline), "wledsrc")) {
+            g_object_set(src, "device", dev.c_str(), nullptr);
+            gst_object_unref(src);
         }
 
         GstElement* appsink = gst_bin_get_by_name(GST_BIN(gstPipeline), "wledsink");

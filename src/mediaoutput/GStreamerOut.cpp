@@ -1312,7 +1312,10 @@ int GStreamerOutput::Start(int msTime) {
     if (!pipelineSinkName.empty()) {
         // stream-properties cannot be set inline in gst_parse_launch (GstStructure
         // values with spaces break the parser).  Set it post-launch instead.
-        sinkStr = "pipewiresink name=pwsink sync=true target-object=" + pipelineSinkName;
+        // target-object is set post-launch too (below), never pasted in: it
+        // comes from the PipeWireSinkName setting, and in the description a
+        // crafted value added elements that read or wrote files as root.
+        sinkStr = "pipewiresink name=pwsink sync=true";
     } else if (usePipeWire) {
         // PipeWire backend with no specific sink configured — use pipewiresink
         // and let PipeWire route to the default output.
@@ -2084,9 +2087,12 @@ int GStreamerOutput::Start(int msTime) {
         // Set stream-properties on pipewiresink (must be done post-launch;
         // gst_parse_launch can't deserialize GstStructure with spaced values).
         // Always set when using PipeWire backend to disable channel remixing.
-        if (usePipeWire) {
+        if (usePipeWire || !pipelineSinkName.empty()) {
             GstElement* pwsink = gst_bin_get_by_name(GST_BIN(m_pipeline), "pwsink");
             if (pwsink) {
+                if (!pipelineSinkName.empty()) {
+                    g_object_set(pwsink, "target-object", pipelineSinkName.c_str(), NULL);
+                }
                 GstStructure* props = gst_structure_new("props",
                     "node.name", G_TYPE_STRING, streamNodeName.c_str(),
                     "node.description", G_TYPE_STRING, streamNodeDesc.c_str(),
