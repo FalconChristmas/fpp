@@ -244,7 +244,14 @@ ProxyPassReverse /fppdws ws://localhost:32322/fppdws
     <FilesMatch "\.(ph(ar|p[0-9]?|t|tml)|phps)$">
         Require all denied
     </FilesMatch>
-    Header always set Content-Security-Policy "sandbox"
+    # Inside <If>, which is merged after every <Files>/<FilesMatch> section:
+    # set directly here, the server-wide mod_headers rules further down, which
+    # unset Content-Security-Policy for .rss, .atom, .rdf, .txt, .json and
+    # others, ran after it and took the sandbox off those -- and browsers
+    # render the XML ones, script and all.
+    <If "true">
+        Header always set Content-Security-Policy "sandbox"
+    </If>
 </Directory>
 
 <Directory "/opt/fpp/www/localonly">
