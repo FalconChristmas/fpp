@@ -261,11 +261,22 @@ void OLEDPage::readCapeImage() {
                 if (readingBytes) {
                     std::vector<std::string> v = splitAndTrim(line, ',');
                     for (auto& s : v) {
-                        if (s.find("}") != std::string::npos) {
+                        // The closing brace can share a token with the last
+                        // byte ("0x00 };", no trailing comma): keep that byte.
+                        bool last = false;
+                        size_t brace = s.find("}");
+                        if (brace != std::string::npos) {
                             readingBytes = false;
-                            break;
+                            last = true;
+                            s.erase(brace);
+                            while (!s.empty() && isspace((unsigned char)s.back())) {
+                                s.pop_back();
+                            }
                         }
                         if (s.empty()) {
+                            if (last) {
+                                break;
+                            }
                             continue;
                         }
                         char* end = nullptr;
@@ -278,6 +289,9 @@ void OLEDPage::readCapeImage() {
                         t8 = ~t8;
                         t8 = reverse(t8);
                         image.push_back((uint8_t)t8);
+                        if (last) {
+                            break;
+                        }
                     }
                 }
             }
