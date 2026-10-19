@@ -33,6 +33,20 @@
 
 #include "FPPINIT.h"
 
+// One single-quoted shell word: nothing inside single quotes is expanded.
+// Every name below that reaches a shell goes through this, as well as the
+// isShellSafeWord() checks the settings among them (TetherInterface,
+// WifiRegulatoryDomain) already get: this runs as root, and one missed
+// check should not be all that stands between a setting and the shell.
+static std::string ShellSingleQuote(const std::string& v) {
+    std::string out = "'";
+    for (char ch : v) {
+        out += (ch == '\'') ? std::string("'\\''") : std::string(1, ch);
+    }
+    out += "'";
+    return out;
+}
+
 std::string FindTetherWIFIAdapater() {
     std::string ret;
     if (!getRawSetting("TetherInterface", ret) || ret.empty()) {
@@ -40,7 +54,7 @@ std::string FindTetherWIFIAdapater() {
         for (const auto& entry : std::filesystem::directory_iterator("/sys/class/net/")) {
             std::string dev = entry.path().filename();
             if (startsWith(dev, "wl")) {
-                std::string output = execAndReturn("/usr/sbin/iw dev " + dev + " link");
+                std::string output = execAndReturn("/usr/sbin/iw dev " + ShellSingleQuote(dev) + " link");
                 if (contains(output, "Not connected")) {
                     return dev;
                 }
@@ -113,15 +127,6 @@ static bool compareAndCopyFiles(std::map<std::string, std::string> filesNeeded) 
         }
     }
     return changed;
-}
-// One single-quoted shell word: nothing inside single quotes is expanded.
-static std::string ShellSingleQuote(const std::string& v) {
-    std::string out = "'";
-    for (char ch : v) {
-        out += (ch == '\'') ? std::string("'\\''") : std::string(1, ch);
-    }
-    out += "'";
-    return out;
 }
 // A value for a WIFI: QR code field, where \ ; , : and " are escaped.
 static std::string WifiQREscape(const std::string& v) {
@@ -297,7 +302,7 @@ void setupNetwork(bool fullReload) {
     std::string WifiRegulatoryDomain = "US";
     getRawSetting("WifiRegulatoryDomain", WifiRegulatoryDomain);
     if (isShellSafeWord(WifiRegulatoryDomain)) {
-        exec("/usr/sbin/iw reg set " + WifiRegulatoryDomain);
+        exec("/usr/sbin/iw reg set " + ShellSingleQuote(WifiRegulatoryDomain));
     }
 
     int tetherEnabled = getRawSettingInt("EnableTethering", 0);
@@ -468,7 +473,7 @@ void setupNetwork(bool fullReload) {
                     ipForward = true;
                     exec("/usr/sbin/nft add table nat");
                     exec("/usr/sbin/nft 'add chain nat postrouting { type nat hook postrouting priority 100 ; }'");
-                    exec("/usr/sbin/nft add rule nat postrouting oif " + interface + " masquerade");
+                    exec("/usr/sbin/nft add rule nat postrouting oif " + ShellSingleQuote(interface) + " masquerade");
                 }
                 content.append(addressLines);
                 // some of the FPP7 images don't support this setting.  They use older gcc
@@ -696,7 +701,7 @@ void setupNetwork(bool fullReload) {
             }
             // Energy Efficient Ethernet causes latency spikes and drops with
             // bursty traffic on several NICs (including the Pi's)
-            exec("/usr/sbin/ethtool --set-eee " + dev + " eee off > /dev/null 2>&1");
+            exec("/usr/sbin/ethtool --set-eee " + ShellSingleQuote(dev) + " eee off > /dev/null 2>&1");
         }
     }
     if (ipForward) {
@@ -1460,7 +1465,7 @@ void disableWLANPowerManagement() {
     }
     for (const auto& nm : wireless) {
         printf("FPP - Disabling power saving for %s\n", nm.c_str());
-        exec("/usr/sbin/iw dev " + nm + " set power_save off 2>/dev/null > /dev/null");
+        exec("/usr/sbin/iw dev " + ShellSingleQuote(nm) + " set power_save off 2>/dev/null > /dev/null");
     }
 }
 
@@ -1556,7 +1561,7 @@ void maybeEnableTethering() {
                         }
                         // Also check if connected to AP (even without IP yet)
                         if (!gotIP && waitCount > 10) { // After 5 seconds, start checking connection status
-                            std::string iwOutput = execAndReturn("/usr/sbin/iw " + tetherInterface + " link");
+                            std::string iwOutput = execAndReturn("/usr/sbin/iw " + ShellSingleQuote(tetherInterface) + " link");
                             if (contains(iwOutput, "Connected to")) {
                                 printf("FPP - %s connected to WiFi, keeping WiFi config active\n", tetherInterface.c_str());
                                 connected = true;
@@ -1596,8 +1601,8 @@ void maybeEnableTethering() {
         if (FileExists(wpaConfig)) {
             printf("FPP - Removing wpa_supplicant config for %s to enable tethering\n", tetherInterface.c_str());
             unlink(wpaConfig.c_str());
-            exec("/usr/bin/systemctl stop wpa_supplicant@" + tetherInterface + ".service");
-            exec("/usr/bin/systemctl disable wpa_supplicant@" + tetherInterface + ".service");
+            exec("/usr/bin/systemctl stop " + ShellSingleQuote("wpa_supplicant@" + tetherInterface + ".service"));
+            exec("/usr/bin/systemctl disable " + ShellSingleQuote("wpa_supplicant@" + tetherInterface + ".service"));
         }
 
         std::string content = "[Match]\nName=";
