@@ -145,6 +145,33 @@ static bool IsIPv4LinkLocal(const std::string& address) {
     return startsWith(address, "169.254.");
 }
 
+// Adds the hosts in a comma-separated remote list setting (MultiSyncRemotes,
+// MultiSyncExtraRemotes) to `remotes`.  Quotes are stripped from each end of an
+// entry on its own, not only as a pair: the web UI used to PUT
+// MultiSyncRemotes as a JSON string, which stores the whole list quoted
+// ("a,b,c", so the first entry has only an opening quote and the last only a
+// closing one) and an empty list as a bare pair of quotes, while an entry
+// typed with its own quotes has both.  Left in, a quote fails inet_addr(), and
+// a lone "" becomes a host name that costs a full DNS timeout (~4s, on the
+// settings-reload thread) on every reload.
+static void AddRemotesFromSetting(const char* setting, std::set<std::string>& remotes) {
+    for (auto& token : split(getSetting(setting), ',')) {
+        TrimWhiteSpace(token);
+        while (!token.empty() && (token.front() == '"' || token.back() == '"')) {
+            if (token.front() == '"') {
+                token.erase(0, 1);
+            }
+            if (!token.empty() && token.back() == '"') {
+                token.pop_back();
+            }
+            TrimWhiteSpace(token);
+        }
+        if (token != "") {
+            remotes.insert(token);
+        }
+    }
+}
+
 // Whether `sys` is the device reporting (hostname, fppMode, type, uuid) from
 // some other address.  A ping packet carries no UUID, so a ping alone can only
 // be matched on what it does carry; when both sides do know a UUID of the same
@@ -1813,16 +1840,10 @@ void MultiSync::Ping(int discover, bool broadcast) {
     }
 
     if (discover) {
-        std::string extraRemotes = getSetting("MultiSyncExtraRemotes");
-        if (extraRemotes != "") {
-            std::vector<std::string> tokens = split(extraRemotes, ',');
-            std::set<std::string> remotes;
-            for (auto& token : tokens) {
-                TrimWhiteSpace(token);
-                if (token != "") {
-                    PingSingleRemote(token.c_str(), 1);
-                }
-            }
+        std::set<std::string> remotes;
+        AddRemotesFromSetting("MultiSyncExtraRemotes", remotes);
+        for (auto& remote : remotes) {
+            PingSingleRemote(remote.c_str(), 1);
         }
     }
 }
@@ -3083,55 +3104,19 @@ void MultiSync::ReloadSyncDestinations() {
     // remote list under m_systemsLock and then takes this lock itself.
     std::unique_lock<std::mutex> updateLock(m_unicastUpdateLock);
 
-    // The web UI used to PUT the whole list as a JSON string, which stores it as
-    // "a,b,c" with the quotes as part of the value.  Strip them from each list
-    // before the two are joined and split: per-entry stripping below only helps
-    // an entry that has both quotes, so the first and last entries of a quoted
-    // list were rejected as invalid addresses and never sent sync packets.
-    auto stripListQuotes = [](std::string v) {
-        TrimWhiteSpace(v);
-        while (v.size() >= 2 && v.front() == '"' && v.back() == '"') {
-            v = v.substr(1, v.size() - 2);
-            TrimWhiteSpace(v);
-        }
-        return v;
-    };
-    std::string remotesString = stripListQuotes(getSetting("MultiSyncRemotes"));
-    std::string extraRemotes = stripListQuotes(getSetting("MultiSyncExtraRemotes"));
-    if (extraRemotes != "") {
-        if (remotesString == "") {
-            remotesString = extraRemotes;
-        } else {
-            remotesString += ",";
-            remotesString += extraRemotes;
-        }
-    }
-
-    std::vector<std::string> tokens = split(remotesString, ',');
     std::set<std::string> remotes;
-    for (auto& token : tokens) {
-        TrimWhiteSpace(token);
-        // The web UI PUTs this setting as a JSON string, so an empty list is
-        // stored as a literal pair of quote characters rather than as an empty
-        // value.  Left in, that becomes a "hostname" of "" and every reload
-        // spends a full DNS timeout (~4s, on the settings-reload thread)
-        // failing to resolve it.
-        while (token.size() >= 2 && token.front() == '"' && token.back() == '"') {
-            token = token.substr(1, token.size() - 2);
-            TrimWhiteSpace(token);
-        }
-        if (token != "") {
-            remotes.insert(token);
-        }
-    }
+    AddRemotesFromSetting("MultiSyncRemotes", remotes);
+    AddRemotesFromSetting("MultiSyncExtraRemotes", remotes);
 
     // Assign rather than |=: this runs again on every settings change, so a
     // method the user just turned off has to go back to false.
     bool sendBroadcast = getSettingInt("MultiSyncBroadcast") != 0;
     bool sendMulticast = getSettingInt("MultiSyncMulticast") != 0;
     bool sendUnicast = getSettingInt("MultiSyncUnicast") != 0;
-    if (remotesString == "" && !sendBroadcast && !sendMulticast && !sendUnicast && m_multiSyncEnabled) {
+    if (remotes.empty() && !sendBroadcast && !sendMulticast && !sendUnicast && m_multiSyncEnabled) {
         // No explicit remotes or send method configured; default to multicast.
+        // A list that names no host (only quotes or commas, which is how the
+        // old UI saved an empty one) counts as no remotes.
         sendMulticast = true;
     }
 
