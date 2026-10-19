@@ -228,9 +228,13 @@ int main(int argc, char* argv[]) {
                 removeI2CDevice(dev, getBus());
             } else {
 #if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
-                // set the built in rtc to the same time as read from the RTC
-                if (rtc != "/dev/rtc0") {
-                    hwclock("-w", rtc.c_str());
+                // Set the built-in RTC (rtc0, not battery backed) to the time
+                // just read from the cape's.  This wrote `rtc` -- the cape's
+                // own clock -- back to itself, and so never set the built-in
+                // one.  Only after a clean read (hwclock prints nothing then):
+                // otherwise the time copied would be the early-boot guess.
+                if (rtc != "/dev/rtc0" && ret.empty() && FileExists("/dev/rtc0")) {
+                    hwclock("-w", "/dev/rtc0");
                 }
 #endif
                 exec("cp /opt/fpp/etc/update-RTC /etc/cron.daily/");
