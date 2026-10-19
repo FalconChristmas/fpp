@@ -547,11 +547,35 @@ void MosquittoClient::MessageCallback(void* obj, const struct mosquitto_message*
             message->topic);
 }
 
+// Every message on every subscribed topic is cached, for conditions,
+// variables and playlist branches to read.  Unbounded, a broker with many
+// topics -- or anyone who can publish under the subscribed wildcards, one
+// topic name after another -- grew fppd until it ran out of memory.  Past
+// these, the topic updated longest ago makes room, and a payload too large
+// to be a value anything here compares is not kept.
+static constexpr size_t MQTT_CACHE_MAX_TOPICS = 4096;
+static constexpr size_t MQTT_CACHE_MAX_PAYLOAD = 64 * 1024;
+
 void MosquittoClient::CacheSetMessage(std::string& topic, std::string& message) {
     std::unique_lock<std::mutex> lock(messageCacheLock);
 
     LogDebug(VB_CONTROL, "MosquittoClient::CacheSetMessage('%s', '%s')\n", topic.c_str(), message.c_str());
 
+    if (message.size() > MQTT_CACHE_MAX_PAYLOAD) {
+        // not an older, smaller value standing in for it either
+        messageCache.erase(topic);
+        return;
+    }
+    auto it = messageCache.find(topic);
+    if (it == messageCache.end() && messageCache.size() >= MQTT_CACHE_MAX_TOPICS) {
+        auto oldest = messageCache.begin();
+        for (auto e = messageCache.begin(); e != messageCache.end(); ++e) {
+            if (e->second.lastUpdated < oldest->second.lastUpdated) {
+                oldest = e;
+            }
+        }
+        messageCache.erase(oldest);
+    }
     messageCache[topic] = { message, time(nullptr) };
 }
 
