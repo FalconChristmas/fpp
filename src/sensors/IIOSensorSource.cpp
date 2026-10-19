@@ -62,6 +62,12 @@ IIOSensorSource::IIOSensorSource(Json::Value& config) :
 #endif
     }
     readIterations = config.get("readIterations", 3).asInt();
+    // update() averages over readIterations reads: 0 divided by zero
+    if (readIterations < 1) {
+        readIterations = 1;
+    } else if (readIterations > 100) {
+        readIterations = 100;
+    }
 
     // usingBuffers = false;
     std::string base = "/sys/bus/iio/devices/iio:device" + std::to_string(iioDevNumber) + "/in_voltage";
@@ -204,7 +210,8 @@ void IIOSensorSource::update(bool forceInstant, bool fromSelect) {
                 for (int m = 0; m < readIterations; m++) {
                     lseek(channelMapping[x], 0, SEEK_SET);
                     int r = read(channelMapping[x], buf, 23);
-                    buf[r] = 0;
+                    // a failed read (-1) wrote buf[-1]
+                    buf[r > 0 ? r : 0] = 0;
                     s += std::atoi(buf);
                 }
                 s /= ((float)readIterations);

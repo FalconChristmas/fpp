@@ -108,6 +108,7 @@ void MuxSensorSource::Init(std::map<int, std::function<bool(int)>>& callbacks) {
         for (auto& c : cb) {
             auto call = c.second;
             callbacks[c.first] = [call, this](int i) {
+                std::lock_guard<std::recursive_mutex> lk(muxLock);
                 call(i);
                 if (updateCount > 0) {
                     getValues();
@@ -176,6 +177,7 @@ void MuxSensorSource::setGroupPins() {
     }
 }
 void MuxSensorSource::lockToGroup(int i) {
+    std::lock_guard<std::recursive_mutex> lk(muxLock);
     if (!source || channelsPerMux <= 0 || muxCount <= 0) {
         return;
     }
@@ -215,6 +217,7 @@ void MuxSensorSource::getValues() {
 }
 
 void MuxSensorSource::update(bool forceInstant) {
+    std::lock_guard<std::recursive_mutex> lk(muxLock);
     if (!source || channelsPerMux <= 0 || muxCount <= 0) {
         return;
     }
@@ -237,6 +240,7 @@ void MuxSensorSource::update(bool forceInstant) {
     }
 }
 void MuxSensorSource::enable(int id) {
+    std::lock_guard<std::recursive_mutex> lk(muxLock);
     if (!source || channelsPerMux <= 0 || muxCount <= 0 || id < 0) {
         return;
     }
@@ -261,6 +265,7 @@ void MuxSensorSource::enable(int id) {
     values[(size_t)id] = 0;
 }
 int32_t MuxSensorSource::getValue(int id) {
+    std::lock_guard<std::recursive_mutex> lk(muxLock);
     if (!source || channelsPerMux <= 0 || id < 0 || (size_t)id >= values.size()) {
         return 0;
     }

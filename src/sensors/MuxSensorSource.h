@@ -48,6 +48,14 @@ private:
     int muxSwitchDelay = 0;
     int muxSwitchReadCount = 0;
 
+    // update() runs on the OutputMonitor and string tester threads,
+    // getValue() on HTTP threads (sensor reports), lockToGroup() on the
+    // string tester's, and the IIO callback on the select thread: all of
+    // them walk and resize the vectors above and move the mux pins.
+    // Recursive: update() -> nextMux() -> getValues() and the like.  Taken
+    // before the source's own lock, never after it.
+    std::recursive_mutex muxLock;
+
     volatile int curMux = 0;
     volatile int updateCount = 0;
     volatile bool lockedToGroup = false;

@@ -463,6 +463,12 @@ Sensors Sensors::INSTANCE;
 
 Sensors::Sensors() {
 }
+// sensorSources is walked on the OutputMonitor and string tester threads and
+// appended to by getSensorSource() during an output reload (the default
+// "iio" source, created on first use).  Sources are never removed while
+// fppd runs.  Recursive: a source's constructor looks up the one it reads.
+static std::recursive_mutex sensorSourcesLock;
+
 Sensors::~Sensors() {
     for (auto x : sensorSources) {
         delete x;
@@ -476,6 +482,7 @@ void Sensors::Init(std::map<int, std::function<bool(int)>>& callbacks) {
 }
 
 void Sensors::addSensorSources(Json::Value& config) {
+    std::lock_guard<std::recursive_mutex> lk(sensorSourcesLock);
     if (!config.isArray()) {
         return;
     }
@@ -508,11 +515,13 @@ void Sensors::addSensorSources(Json::Value& config) {
     }
 }
 void Sensors::updateSensorSources(bool forceInstant) {
+    std::lock_guard<std::recursive_mutex> lk(sensorSourcesLock);
     for (auto& ss : sensorSources) {
         ss->update(forceInstant);
     }
 }
 SensorSource* Sensors::getSensorSource(const std::string& name) {
+    std::lock_guard<std::recursive_mutex> lk(sensorSourcesLock);
     for (auto ss : sensorSources) {
         if (ss->getID() == name) {
             return ss;
@@ -536,6 +545,7 @@ SensorSource* Sensors::getSensorSource(const std::string& name) {
     return nullptr;
 }
 void Sensors::lockToGroup(int i) {
+    std::lock_guard<std::recursive_mutex> lk(sensorSourcesLock);
     for (auto ss : sensorSources) {
         ss->lockToGroup(i);
     }
