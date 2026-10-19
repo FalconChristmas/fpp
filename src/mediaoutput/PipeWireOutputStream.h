@@ -181,7 +181,10 @@ private:
     int64_t m_syncHw0 = 0;             // hw_ptr at the anchor...
     GstClockTime m_syncInt0 = 0;       // ...the clock's internal time then...
     GstClockTime m_syncExt0 = 0;       // ...and its own time then
-    int64_t m_syncLastHw = 0;
+    int64_t m_syncLastHw = 0;          // hw_ptr as last read
+    int64_t m_syncWrap = 0;            // added to hw_ptr for each time it wrapped
+    std::string m_syncTrigger;         // the card's trigger_time as last read
+    uint64_t m_lastFlushMs = 0;        // NowMs() of the last Flush() (under m_lock)
     GstClockTime m_syncLastInt = 0;
     // (seconds of internal time, seconds of card time) since the anchor.
     std::deque<std::pair<double, double>> m_syncWindow;

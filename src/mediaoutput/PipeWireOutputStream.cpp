@@ -75,6 +75,12 @@ constexpr double kClockMaxOffset = 2000e-6;
 // A jump this big in the card's position is a restart or an xrun, not drift:
 // start again from it rather than chase it.
 constexpr double kClockMaxPhaseError = 0.050;
+// How long after one of our own flushes the card stopping or restarting is
+// put down to the flush.  A flush takes the stream inactive and back, and
+// where it is the card's only follower (a Pi 4's headphone jack) PipeWire
+// stops the device and starts it again; the samples a few hundred ms later
+// see that.
+constexpr uint64_t kFlushRestartMs = 1000;
 
 std::mutex s_slotsLock;
 std::array<PipeWireOutputStream*, StreamSlotManager::MAX_SLOTS + 1> s_slots{};
@@ -299,6 +305,7 @@ void PipeWireOutputStream::Flush(bool prime) {
             return;
         }
         m_flushed = true;
+        m_lastFlushMs = NowMs();
         src = GST_ELEMENT(gst_object_ref(m_src));
     }
     // Outside the lock: the flush takes the sink's own locks.
@@ -771,7 +778,9 @@ void PipeWireOutputStream::ResetClockSyncLocked() {
     m_syncWindow.clear();
 }
 
-static bool ReadCardPosition(const std::string& path, int64_t& hw) {
+// `trigger` is when the stream was last started (trigger_time), "" if the
+// file has none: a restart changes it, hw_ptr wrapping doesn't.
+static bool ReadCardPosition(const std::string& path, int64_t& hw, std::string& trigger) {
     std::string status = GetFileContents(path);
     if (status.find("state: RUNNING") == std::string::npos) {
         return false;
@@ -781,7 +790,28 @@ static bool ReadCardPosition(const std::string& path, int64_t& hw) {
         return false;
     }
     hw = strtoll(status.c_str() + p + 1, nullptr, 10);
+    trigger.clear();
+    std::size_t t = status.find("trigger_time");
+    if (t != std::string::npos && (t = status.find(':', t)) != std::string::npos) {
+        std::size_t e = status.find('\n', t);
+        trigger = status.substr(t + 1, e == std::string::npos ? std::string::npos : e - t - 1);
+        TrimWhiteSpace(trigger);
+    }
     return true;
+}
+
+// Where the card's hw_ptr wraps back to 0 (sw_params "boundary"), 0 if it
+// can't be read.  ALSA picks the largest power-of-two multiple of the buffer
+// below LONG_MAX: 2^62 frames with a 64-bit kernel, but 2^30 with a 32-bit
+// one (a BBB) -- about 6 h at 48 kHz, which a card kept running across songs
+// reaches in a long show.
+static int64_t ReadCardBoundary(const std::string& statusPath) {
+    std::string text = GetFileContents(statusPath.substr(0, statusPath.rfind('/')) + "/sw_params");
+    std::size_t p = text.find("boundary");
+    if (p == std::string::npos || (p = text.find(':', p)) == std::string::npos) {
+        return 0;
+    }
+    return strtoll(text.c_str() + p + 1, nullptr, 10);
 }
 
 bool PipeWireOutputStream::DisciplineClock() {
@@ -818,7 +848,8 @@ bool PipeWireOutputStream::DisciplineClock() {
     // as they can be read: the midpoint of the read.
     GstClockTime before = gst_clock_get_internal_time(m_clock);
     int64_t hw = 0;
-    bool running = ReadCardPosition(path, hw);
+    std::string trigger;
+    bool running = ReadCardPosition(path, hw, trigger);
     GstClockTime after = gst_clock_get_internal_time(m_clock);
     GstClockTime internal = before + (after - before) / 2;
 
@@ -826,31 +857,60 @@ bool PipeWireOutputStream::DisciplineClock() {
     if (path != m_cardStatusPath || m_state != State::Ready) {
         return false;
     }
-    // The card stopping, or its position going back, while a track feeds the
-    // stream is an xrun: PipeWire restarted the device, and what the feed
-    // delivered meanwhile is now queued behind it (see Flush()).
+    // The card stopping, or restarting, while a track feeds the stream is an
+    // xrun: PipeWire restarted the device, and what the feed delivered
+    // meanwhile is now queued behind it (see Flush()).
+    //
+    // A stop or restart right after one of our own flushes is the flush's
+    // doing, not lost time.  Taken for an xrun, it was flushed again, which
+    // restarted the card again: on a card that restarts on a flush, one xrun
+    // -- or the flush before a track -- had the stream flushed every 250 ms
+    // for as long as it played.
     bool lostTime = false;
+    bool ownRestart = NowMs() - m_lastFlushMs < kFlushRestartMs;
     if (!running) {
-        lostTime = m_syncAnchored && m_feed;
+        lostTime = m_syncAnchored && m_feed && !ownRestart;
         ResetClockSyncLocked();
         return lostTime;
     }
+    // A restart resets hw_ptr and changes trigger_time.  hw_ptr also goes back
+    // when it wraps at the ALSA boundary, with the card running on -- on a
+    // 32-bit kernel every ~6 h -- and taking that for an xrun flushed a song
+    // in mid-play.  A wrap is told apart by an unchanged trigger_time and an
+    // advance across the boundary no longer than the time since the last
+    // sample allows; the position is then carried on past it.
+    bool restarted = m_syncAnchored && trigger != m_syncTrigger;
+    if (m_syncAnchored && !restarted && hw < m_syncLastHw) {
+        int64_t boundary = trigger.empty() ? 0 : ReadCardBoundary(path);
+        double sinceS = (double)(internal - m_syncLastInt) / GST_SECOND;
+        double advanceS = boundary > m_syncLastHw ? (double)(hw + boundary - m_syncLastHw) / m_syncCardRate : -1.0;
+        if (advanceS >= 0.0 && advanceS <= sinceS + 1.0) {
+            m_syncWrap += boundary;
+            LogDebug(VB_MEDIAOUT, "PipeWire output stream %d: card position wrapped at %lld\n",
+                     m_slot, (long long)boundary);
+        } else {
+            restarted = true;
+        }
+    }
+    m_syncTrigger = trigger;
+    int64_t pos = hw + m_syncWrap;
+
     GstClockTime cInt, cExt, num, den;
     gst_clock_get_calibration(m_clock, &cInt, &cExt, &num, &den);
     GstClockTime external = gst_clock_adjust_with_calibration(m_clock, internal, cInt, cExt, num, den);
 
-    double cardS = m_syncAnchored ? (double)(hw - m_syncHw0) / m_syncCardRate : 0.0;
+    double cardS = m_syncAnchored ? (double)(pos - m_syncHw0) / m_syncCardRate : 0.0;
     double clockS = m_syncAnchored ? (double)(GstClockTimeDiff)(external - m_syncExt0) / GST_SECOND : 0.0;
     double phase = cardS - clockS;  // > 0: the card is ahead of the clock
-    if (!m_syncAnchored || hw < m_syncLastHw || std::fabs(phase) > kClockMaxPhaseError) {
-        lostTime = m_syncAnchored && m_feed && (hw < m_syncLastHw || phase < -kClockMaxPhaseError);
+    if (!m_syncAnchored || restarted || std::fabs(phase) > kClockMaxPhaseError) {
+        lostTime = m_syncAnchored && m_feed && (restarted ? !ownRestart : phase < -kClockMaxPhaseError);
         if (m_syncAnchored) {
             LogDebug(VB_MEDIAOUT, "PipeWire output stream %d: card clock re-anchored (phase %.1f ms)\n",
                      m_slot, phase * 1000.0);
         }
         // Start (again) from here, keeping the rate learnt so far.
         m_syncAnchored = true;
-        m_syncHw0 = hw;
+        m_syncHw0 = pos;
         m_syncInt0 = internal;
         m_syncExt0 = external;
         m_syncWindow.clear();
