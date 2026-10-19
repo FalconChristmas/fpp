@@ -19,14 +19,14 @@ function ConfigFileWithinBase($baseDir, $requested) {
             if (strpos($p, '..') !== false) return false;
             $cur .= '/' . $p;
             $rp = realpath($cur);
-            if ($rp !== false && strpos($rp, $base) !== 0) return false;
+            if ($rp !== false && !PathIsWithin($rp, $base)) return false;
         }
         $rpBase = $realParent !== false ? $realParent : $base;
-        return strpos($rpBase, $base) === 0 ? $base . '/' . $requested : false;
+        return PathIsWithin($rpBase, $base) ? $base . '/' . $requested : false;
     }
     $realCandidate = realpath($candidate);
-    if ($realCandidate !== false) return strpos($realCandidate, $base) === 0 ? $realCandidate : false;
-    return strpos($realParent, $base) === 0 ? $realParent . '/' . basename($candidate) : false;
+    if ($realCandidate !== false) return PathIsWithin($realCandidate, $base) ? $realCandidate : false;
+    return PathIsWithin($realParent, $base) ? $realParent . '/' . basename($candidate) : false;
 }
 function ConfigFileValidateOrFail($baseDir, $requested) {
     if ($requested === '' || strpos($requested, '\\') !== false || strpos($requested, "\0") !== false) { http_response_code(400); echo json_encode(["Status"=>"Error","Message"=>"Invalid path"]); exit; }

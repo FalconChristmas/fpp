@@ -1878,7 +1878,7 @@ function StartSyncCalibration()
         // Resolve the file under the music directory; reject anything escaping it.
         $musicDir = $settings['mediaDirectory'] . "/music";
         $resolved = realpath($musicDir . "/" . $mediaFile);
-        if ($resolved === false || strpos($resolved, realpath($musicDir)) !== 0 || !is_file($resolved)) {
+        if ($resolved === false || !PathIsWithin($resolved, realpath($musicDir)) || !is_file($resolved)) {
             return json(array("status" => "ERROR", "message" => "Media file not found: " . $mediaFile));
         }
         return StartSyncCalibrationPlayback($sinkName, $resolved, false);

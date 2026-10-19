@@ -87,12 +87,12 @@ function FilesValidatePathOrFail($baseDir, $requested, $allowMissingParent = fal
         $parts = explode('/', $requested);
         array_pop($parts);
         $cur = $baseReal;
-        foreach ($parts as $p) { if ($p === '' || $p === '.') continue; if (strpos($p, '..') !== false) { http_response_code(403); exit; } $cur .= '/' . $p; $rp = realpath($cur); if ($rp !== false && strpos($rp, $baseReal) !== 0) { http_response_code(403); exit; } }
+        foreach ($parts as $p) { if ($p === '' || $p === '.') continue; if (strpos($p, '..') !== false) { http_response_code(403); exit; } $cur .= '/' . $p; $rp = realpath($cur); if ($rp !== false && !PathIsWithin($rp, $baseReal)) { http_response_code(403); exit; } }
         $realParent = $baseReal;
     }
-    if (strpos($realParent, $baseReal) !== 0) { http_response_code(403); echo json_encode(["status"=>"Invalid path: directory traversal"]); exit; }
+    if (!PathIsWithin($realParent, $baseReal)) { http_response_code(403); echo json_encode(["status"=>"Invalid path: directory traversal"]); exit; }
     $realLeaf = realpath($candidate);
-    if ($realLeaf !== false && strpos($realLeaf, $baseReal) !== 0) { http_response_code(403); exit; }
+    if ($realLeaf !== false && !PathIsWithin($realLeaf, $baseReal)) { http_response_code(403); exit; }
     return $candidate;
 }
 
@@ -1293,7 +1293,7 @@ function DeleteFile()
     //here rather than as a prompt on the page so it holds for every caller.
     $blobRefusal = ($fullPath !== false) ? DescribeBackupBlobDeletion($fullPath) : '';
 
-    if (!$allowedDir || !$fullPath || strpos($fullPath, $allowedDir) !== 0) {
+    if (!$allowedDir || !$fullPath || !PathIsWithin($fullPath, $allowedDir)) {
         $status = "Invalid path: directory traversal detected or file outside allowed directory";
     } else if (!file_exists($fullPath)) {
         $status = "File Not Found";
@@ -1871,7 +1871,7 @@ function TailFollowFile()
     $realDir = realpath($dir);
     $realPath = realpath($fullPath);
 
-    if (!$realDir || !$realPath || strpos($realPath, $realDir) !== 0) {
+    if (!$realDir || !$realPath || !PathIsWithin($realPath, $realDir)) {
         http_response_code(403);
         echo "Invalid file path.";
         return;

@@ -5861,6 +5861,24 @@ function GetSerialDevices()
 }
 
 /**
+ * Whether resolved path $path is $base itself or lies under it.  A bare
+ * prefix test also let a sibling through: /home/fpp/media/config-old
+ * starts with /home/fpp/media/config.
+ *
+ * @param string $path a realpath()ed path
+ * @param string $base a realpath()ed directory
+ * @return bool
+ */
+function PathIsWithin($path, $base)
+{
+    if (!is_string($path) || !is_string($base) || $base === '') {
+        return false;
+    }
+    $base = rtrim($base, '/');
+    return $path === $base || strncmp($path, $base . '/', strlen($base) + 1) === 0;
+}
+
+/**
  * The state-changing route this GET request is for, or '' if it is none.
  *
  * These routes (docs/DEPRECATED.md, "HTTP API: routes that change state but

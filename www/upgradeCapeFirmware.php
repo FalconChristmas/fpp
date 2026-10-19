@@ -217,7 +217,7 @@ if (isset($_FILES['firmware']) && isset($_FILES['firmware']['tmp_name'])) {
         $realPath = realpath($fn);
         // realpath returns false if file doesn't exist yet — fall back to string prefix check
         if ($realPath) {
-            if (!$realBase || strpos($realPath, $realBase) !== 0) {
+            if (!$realBase || !PathIsWithin($realPath, $realBase)) {
                 echo "Invalid cape file path\n";
                 $file = '';
             } else {
@@ -249,7 +249,7 @@ if (isset($_FILES['firmware']) && isset($_FILES['firmware']['tmp_name'])) {
             // Extra containment: ensure parent dir is still uploadDirectory
             $realBase = realpath($uploadDirectory);
             $realParent = realpath(dirname($file));
-            if ($realBase && $realParent && strpos($realParent, $realBase) !== 0) {
+            if ($realBase && $realParent && !PathIsWithin($realParent, $realBase)) {
                 echo "Invalid filename\n";
                 $file = '';
             }
