@@ -376,7 +376,25 @@ public:
         if (pwm != -1 && dutyFile != nullptr) {
             // Already set up. Each call opened another duty_cycle stream and
             // leaked the last; reopening instead would close a FILE* that
-            // setPWMValue() on an output thread may be writing to.
+            // setPWMValue() on an output thread may be writing to.  The pin
+            // itself is muxed again, though: an output reload closes the old
+            // output first, and its releasePin() put the pin back to its reset
+            // mode, so the new output's PWM never reached it.  A caller that
+            // wants another period (SetupExtGPIO vs the GPIO output) gets it.
+            configPin("pwm", true, "PWM");
+            if (maxValue != pwmPeriod) {
+                char name[128];
+                // duty_cycle may not exceed period: zero it before a shorter one
+                fprintf(dutyFile, "0");
+                fflush(dutyFile);
+                snprintf(name, sizeof(name), "/sys/class/pwm/pwmchip0/pwm%d/period", subPwm);
+                FILE* f = fopen(name, "w");
+                if (f) {
+                    fprintf(f, "%d", maxValue);
+                    fclose(f);
+                    pwmPeriod = maxValue;
+                }
+            }
             return true;
         }
         if (pwm != -1) {
@@ -396,6 +414,7 @@ public:
             }
             fprintf(dir, "%d", maxValue);
             fclose(dir);
+            pwmPeriod = maxValue;
 
             snprintf(dir_name, sizeof(dir_name), "/sys/class/pwm/pwmchip0/pwm%d/duty_cycle", subPwm);
             dutyFile = fopen(dir_name, "w");
@@ -477,6 +496,7 @@ public:
         return pinctrlRpiChip;
     }
     mutable FILE* dutyFile = nullptr;
+    mutable int pwmPeriod = 0; // ns, as last written to the period file
     static int pinctrlRpiChip;
     static std::string pinctrlRpiChipName;
     std::string resetMode = "a0";
