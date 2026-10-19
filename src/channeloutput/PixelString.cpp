@@ -261,6 +261,12 @@ PixelString::~PixelString() {
  */
 int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
     m_portNumber = config["portNumber"].asInt();
+    // Drivers index per-port arrays (smart receiver packets, GPIO commands,
+    // current monitoring) by this, unchecked.
+    if (m_portNumber < 0) {
+        LogErr(VB_CHANNELOUT, "Pixel string has an invalid port number %d\n", m_portNumber);
+        return 0;
+    }
     m_outputBytes = 0;
     // needed before the virtual strings are read so their lookup tables are
     // built at the right width

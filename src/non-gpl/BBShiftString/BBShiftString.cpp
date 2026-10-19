@@ -1874,7 +1874,9 @@ void BBShiftStringOutput::encodeFalconV5Packet(std::vector<std::array<uint8_t, 6
 
 void BBShiftStringOutput::applySendOnlyConfigPackets(std::vector<std::array<uint8_t, 64>>& packets) {
     for (auto& [port, packet] : m_sendOnlyConfigPackets) {
-        packets[port] = packet;
+        if (port >= 0 && port < (int)packets.size()) {
+            packets[port] = packet;
+        }
     }
 }
 
@@ -1951,6 +1953,9 @@ void BBShiftStringOutput::setupFalconV5Support(const Json::Value& root, uint8_t*
             bool any = false;
             for (auto& rc : falconV5Support->getReceiverChains()) {
                 int port = rc->getPixelStrings()[0]->m_portNumber;
+                if (port < 0 || port >= (int)packets.size() || port >= (int)packets2.size()) {
+                    continue; // a port past the strings would write past the packets
+                }
                 if (x > 0 && rc->isSendOnly()) {
                     // V4 receivers never get number/fuse/query packets; their
                     // slot in those frames is filled by applySendOnlyConfigPackets

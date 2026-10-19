@@ -328,7 +328,11 @@ void BBB48StringOutput::setupFalconV4Support(Json::Value& root, std::vector<std:
         memset(&pk[0], 0, 64);
     }
     for (auto& rc : falconV5Support->getReceiverChains()) {
-        rc->generateConfigPacket(&packets[rc->getPixelStrings()[0]->m_portNumber][0]);
+        int port = rc->getPixelStrings()[0]->m_portNumber;
+        if (port < 0 || port >= (int)packets.size()) {
+            continue; // a port past the strings would write past the packets
+        }
+        rc->generateConfigPacket(&packets[port][0]);
     }
     setupFalconV4Lanes(m_gpioData, packets, root, args1);
     setupFalconV4Lanes(m_gpio0Data, packets, root, args0);

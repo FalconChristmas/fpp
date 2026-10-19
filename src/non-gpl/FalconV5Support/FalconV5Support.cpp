@@ -547,11 +547,14 @@ bool FalconV5Support::generateDynamicPacket(std::vector<std::array<uint8_t, 64>>
             rc = g.second.front();
         }
         int rcP = rc->getPixelStrings().front()->m_portNumber;
+        if (rcP < 0 || rcP >= (int)packets.size()) {
+            continue; // a port past the strings would write past the packets
+        }
         if (toggle.cmd != ToggleCommand::None && rcP <= toggle.port && (rcP + 4) > toggle.port) {
             if (toggle.cmd == ToggleCommand::Toggle) {
-                rc->generateToggleEFusePacket(&packets[rc->getPixelStrings().front()->m_portNumber][0], toggle.index, toggle.port % 4);
+                rc->generateToggleEFusePacket(&packets[rcP][0], toggle.index, toggle.port % 4);
             } else {
-                rc->generateResetEFusePacket(&packets[rc->getPixelStrings().front()->m_portNumber][0], toggle.index, toggle.port % 4);
+                rc->generateResetEFusePacket(&packets[rcP][0], toggle.index, toggle.port % 4);
             }
             // Clear only the toggle we just acted on: a compare_exchange keeps
             // a request that arrived since the snapshot from being dropped.
@@ -560,10 +563,10 @@ bool FalconV5Support::generateDynamicPacket(std::vector<std::array<uint8_t, 64>>
             pendingToggle.compare_exchange_strong(expected, PendingToggle());
             toggle = PendingToggle();
         } else if (triggerPixelCount) {
-            rc->generatePixelCountPacket(&packets[rc->getPixelStrings().front()->m_portNumber][0]);
+            rc->generatePixelCountPacket(&packets[rcP][0]);
             listen = false;
         } else {
-            rc->generateQueryPacket(&packets[rc->getPixelStrings().front()->m_portNumber][0]);
+            rc->generateQueryPacket(&packets[rcP][0]);
             listen = true;
         }
     }
