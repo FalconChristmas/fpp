@@ -120,22 +120,49 @@ void CurlManager::addCURL(const std::string& furl, CURL* curl, std::function<voi
     curls.push_back(i);
 }
 
-// Every response here is an API reply or a web page, held whole in memory.
-// Discovery probes devices that are merely on the LAN, and one that streams an
-// endless body would otherwise grow fppd until the OOM killer stepped in (the
-// timeout alone allows ~100MB at LAN speed).  Returning short aborts the
-// transfer with CURLE_WRITE_ERROR, which callers already treat as a failure.
-static constexpr size_t MAX_CURL_RESPONSE = 16 * 1024 * 1024;
-
 static size_t urlWriteData(void* buffer, size_t size, size_t nmemb, void* userp) {
     std::vector<uint8_t>* str = (std::vector<uint8_t>*)userp;
-    if (size * nmemb > MAX_CURL_RESPONSE - std::min(str->size(), MAX_CURL_RESPONSE)) {
-        return 0;
-    }
     size_t pos = str->size();
     str->resize(str->size() + size * nmemb);
     memcpy(&str->data()[pos], buffer, size * nmemb);
     return size * nmemb;
+}
+
+// The requests FPP makes itself (add*(), do*()) and its discovery probes hold
+// the whole response in memory, and discovery reaches devices that are merely
+// on the LAN: one that streamed an endless body grew fppd until the OOM killer
+// stepped in (the timeout alone allows ~100MB at LAN speed).  Returning short
+// aborts the transfer with CURLE_WRITE_ERROR -- but the HTTP status already
+// received still reads 200, so the request paths below report that result as
+// a failure themselves.  A plugin's own handle from createCurl() keeps no
+// limit: it reads the status and the body itself, and a cut-off body with a
+// 200 is what its proxy then served (limitResponseSize() opts a handle in).
+static constexpr size_t MAX_CURL_RESPONSE = 16 * 1024 * 1024;
+
+static size_t urlWriteDataLimited(void* buffer, size_t size, size_t nmemb, void* userp) {
+    std::vector<uint8_t>* str = (std::vector<uint8_t>*)userp;
+    if (size * nmemb > MAX_CURL_RESPONSE - std::min(str->size(), MAX_CURL_RESPONSE)) {
+        return 0;
+    }
+    return urlWriteData(buffer, size, nmemb, userp);
+}
+
+void CurlManager::limitResponseSize(CURL* c) {
+    curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, urlWriteDataLimited);
+}
+
+// The result of the transfer whose callback is running on this thread, set by
+// doProcessCurls() around it: the callbacks take only the handle, and the
+// result isn't one of its infos.
+static thread_local CURLcode t_completedResult = CURLE_OK;
+
+static bool cutShort(CURLcode result) {
+    // only urlWriteDataLimited() returns short on these handles
+    return result == CURLE_WRITE_ERROR;
+}
+static const std::string& cutShortMessage() {
+    static const std::string msg = "the response was larger than " + std::to_string(MAX_CURL_RESPONSE / (1024 * 1024)) + " MB";
+    return msg;
 }
 static size_t urlReadData(void* ptr, size_t size, size_t nmemb, void* userp) {
     size_t buffer_size = size * nmemb;
@@ -209,6 +236,7 @@ void CurlManager::add(const std::string& furl, const std::string& method, const 
                       const std::string& owner, const std::string& cookieSession) {
     CURLSH* share = cookieSession.empty() ? nullptr : getCookieShare(cookieSession);
     CURL* curl = createCurl(furl, nullptr, false, share);
+    limitResponseSize(curl);
 
     if (method == "POST") {
         curl_easy_setopt(curl, CURLOPT_POST, 1);
@@ -244,6 +272,10 @@ void CurlManager::add(const std::string& furl, const std::string& method, const 
     });
 
     addCURL(furl, curl, [callback, headerList](CURL* c) {
+        if (cutShort(t_completedResult)) {
+            callback(0, cutShortMessage());
+            return;
+        }
         CurlPrivateData* data = nullptr;
         long rc = 0;
         curl_easy_getinfo(c, CURLINFO_PRIVATE, &data);
@@ -309,11 +341,16 @@ int CurlManager::cancelRequests(const std::string& owner) {
 // unset, this frame returned, and the callback wrote `done` into it.  The
 // flag is shared instead, and the wait is for this request only (doPut
 // waited for every request in flight).
-static void runToCompletion(CurlManager& mgr, const std::string& furl, CURL* curl) {
-    auto done = std::make_shared<std::atomic<bool>>(false);
+// Returns the transfer's result.
+static CURLcode runToCompletion(CurlManager& mgr, const std::string& furl, CURL* curl) {
+    struct State {
+        std::atomic<bool> done{ false };
+        CURLcode result = CURLE_OK; // written before done, read after
+    };
+    auto state = std::make_shared<State>();
     mgr.addCURL(
-        furl, curl, [done](CURL* c) { *done = true; }, false);
-    while (!*done) {
+        furl, curl, [state](CURL* c) { state->result = t_completedResult; state->done = true; }, false);
+    while (!state->done) {
         if (!mgr.processCurls()) {
             // another thread holds it between completion and the callback
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -321,21 +358,25 @@ static void runToCompletion(CurlManager& mgr, const std::string& furl, CURL* cur
             std::this_thread::yield();
         }
     }
+    return state->result;
 }
 
 std::string CurlManager::doGet(const std::string& furl, int& rc, const std::string& cookieSession) {
     CURLSH* share = cookieSession.empty() ? nullptr : getCookieShare(cookieSession);
     CURL* curl = createCurl(furl, nullptr, false, share);
+    limitResponseSize(curl);
 
-    runToCompletion(*this, furl, curl);
+    CURLcode result = runToCompletion(*this, furl, curl);
 
     CurlPrivateData* data = nullptr;
     long rc2 = 0;
     curl_easy_getinfo(curl, CURLINFO_PRIVATE, &data);
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc2);
-    rc = rc2;
+    rc = cutShort(result) ? 0 : rc2;
     std::string resp;
-    if (rc) {
+    if (cutShort(result)) {
+        resp = cutShortMessage();
+    } else if (rc) {
         resp.assign(reinterpret_cast<char*>(data->resp.data()), data->resp.size());
     } else {
         resp = data->errorResp;
@@ -363,6 +404,7 @@ static size_t read_callback(void* ptr, size_t size, size_t nmemb, void* userp) {
 }
 std::string CurlManager::doPost(const std::string& furl, const std::string& contentType, const std::vector<uint8_t>& data, int& rc) {
     CURL* curl = createCurl(furl);
+    limitResponseSize(curl);
 
     struct curl_slist* head = nullptr;
     std::string ct = "Content-Type: " + contentType;
@@ -381,15 +423,17 @@ std::string CurlManager::doPost(const std::string& furl, const std::string& cont
     curl_easy_setopt(curl, CURLOPT_READFUNCTION, read_callback);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)data.size());
 
-    runToCompletion(*this, furl, curl);
+    CURLcode result = runToCompletion(*this, furl, curl);
 
     CurlPrivateData* cdata = nullptr;
     long rc2 = 0;
     curl_easy_getinfo(curl, CURLINFO_PRIVATE, &cdata);
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc2);
-    rc = rc2;
+    rc = cutShort(result) ? 0 : rc2;
     std::string resp;
-    if (rc) {
+    if (cutShort(result)) {
+        resp = cutShortMessage();
+    } else if (rc) {
         resp.assign(reinterpret_cast<char*>(cdata->resp.data()), cdata->resp.size());
     } else {
         resp = cdata->errorResp;
@@ -401,6 +445,7 @@ std::string CurlManager::doPost(const std::string& furl, const std::string& cont
 }
 std::string CurlManager::doPut(const std::string& furl, const std::string& contentType, const std::vector<uint8_t>& data, int& rc) {
     CURL* curl = createCurl(furl);
+    limitResponseSize(curl);
 
     struct curl_slist* head = nullptr;
     std::string ct = "Content-Type: " + contentType;
@@ -420,15 +465,17 @@ std::string CurlManager::doPut(const std::string& furl, const std::string& conte
     curl_easy_setopt(curl, CURLOPT_READFUNCTION, read_callback);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)data.size());
 
-    runToCompletion(*this, furl, curl);
+    CURLcode result = runToCompletion(*this, furl, curl);
 
     CurlPrivateData* cdata = nullptr;
     long rc2 = 0;
     curl_easy_getinfo(curl, CURLINFO_PRIVATE, &cdata);
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc2);
-    rc = rc2;
+    rc = cutShort(result) ? 0 : rc2;
     std::string resp;
-    if (rc) {
+    if (cutShort(result)) {
+        resp = cutShortMessage();
+    } else if (rc) {
         resp.assign(reinterpret_cast<char*>(cdata->resp.data()), cdata->resp.size());
     } else {
         resp = cdata->errorResp;
@@ -451,6 +498,8 @@ bool CurlManager::doProcessCurls() {
             m = curl_multi_info_read(curlMulti, &msgq);
             if (m && (m->msg == CURLMSG_DONE)) {
                 CURL* e = m->easy_handle;
+                // m is invalid once the handle is removed
+                CURLcode result = m->data.result;
                 curl_multi_remove_handle(curlMulti, e);
                 CurlInfo* ci = nullptr;
                 for (int x = 0; x < curls.size(); x++) {
@@ -463,6 +512,7 @@ bool CurlManager::doProcessCurls() {
                 }
                 if (ci) {
                     l.unlock();
+                    t_completedResult = result;
                     // The callbacks parse what a remote or a probed device sent
                     // back, on the main loop with nothing above to catch: one
                     // jsoncpp throw on a field of the wrong type ({"Platform":{}}
@@ -481,6 +531,7 @@ bool CurlManager::doProcessCurls() {
                         curl_easy_getinfo(e, CURLINFO_EFFECTIVE_URL, &url);
                         LogWarn(VB_GENERAL, "Ignoring the reply from %s: handling it failed\n", url ? url : "(unknown)");
                     }
+                    t_completedResult = CURLE_OK;
                     l.lock();
                     if (ci->cleanCurl) {
                         CurlPrivateData* data = nullptr;

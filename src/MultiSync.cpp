@@ -1689,6 +1689,9 @@ void MultiSync::DiscoverIPViaHTTP(const std::string& ip, const std::string& html
 // than CurlManager's defaults for the reason above: most addresses are dead.
 static void discoveryGet(const std::string& url, std::function<void(int rc, const std::string& resp)>&& callback) {
     CURL* curl = CurlManager::INSTANCE.createCurl(url);
+    // a device merely on the LAN can stream an endless body; detection only
+    // ever looks at the start of a page, so a cut-off one is still fine
+    CurlManager::limitResponseSize(curl);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 1000L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 5000L);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);

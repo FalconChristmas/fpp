@@ -72,6 +72,12 @@ public:
     // Raw methods for working directly with the CURL* objects. `share`, when
     // non-null, is a CURLSH from getCookieShare()/a cookie session.
     CURL* createCurl(const std::string& fullUrl, CurlPrivateData** data = nullptr, bool upload = false, CURLSH* share = nullptr);
+    // Caps the body a handle from createCurl() will hold (16MB): past it the
+    // transfer ends with CURLE_WRITE_ERROR, although the HTTP status still
+    // reads as received.  FPP's own add*()/do*() requests have it and report
+    // that as a failure (rc 0); a handle from createCurl() has no limit unless
+    // this is called on it.
+    static void limitResponseSize(CURL* c);
     void addCURL(const std::string& furl, CURL* curl, std::function<void(CURL*)>&& callback, bool autoCleanCurl = true,
                  const std::string& owner = "");
 
