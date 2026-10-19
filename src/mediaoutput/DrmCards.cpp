@@ -38,7 +38,12 @@ struct Card {
     int refCount = 0;
     bool master = false;
     std::set<uint32_t> claimed;  // driven by a framebuffer output
-    std::set<uint32_t> leased;   // held by a live lease
+    // Held by a live lease or a lease-less holder, counted per holder: the
+    // fallback in AcquireLease() hands a second holder the shared fd for a
+    // connector someone already holds, and with a plain set the first
+    // holder's release cleared the mark the second was still relying on (its
+    // framebuffer output then drew over the video).
+    std::map<uint32_t, int> leased;
 };
 // Guards the table and the per-card sets.  Never held across a blocking DRM
 // call that waits on the display.
@@ -263,7 +268,7 @@ Lease AcquireLease(const std::string& cardPath, int connectorId) {
             lease.isLease = true;
             lease.lesseeId = lessee;
             for (int i = 0; i < lease.objectCount; i++) {
-                card.leased.insert(lease.objects[i]);
+                card.leased[lease.objects[i]]++;
             }
             LogDebug(VB_MEDIAOUT, "DRM: lease %u on %s: connector %d crtc %u primary %u overlay %u\n",
                      lessee, cardPath.c_str(), connectorId, crtcId, primary, overlay);
@@ -278,16 +283,14 @@ Lease AcquireLease(const std::string& cardPath, int connectorId) {
     // No lease: kmssink on the shared, master fd, as before leases.  Mark the
     // connector and the overlay it gets as held all the same, so a
     // framebuffer output there stands aside and no one else takes the plane.
-    // Only what this call took is recorded, so its release can't clear a
-    // mark that belongs to another holder of the connector.
+    // Each holder counts once, so a release drops only its own hold and a
+    // mark another holder of the connector still relies on stays.
     lease.objectCount = 0;
-    if (!card.leased.count((uint32_t)connectorId)) {
-        lease.objects[lease.objectCount++] = (uint32_t)connectorId;
-        card.leased.insert((uint32_t)connectorId);
-    }
+    lease.objects[lease.objectCount++] = (uint32_t)connectorId;
+    card.leased[(uint32_t)connectorId]++;
     if (overlay) {
         lease.objects[lease.objectCount++] = overlay;
-        card.leased.insert(overlay);
+        card.leased[overlay]++;
     }
     lease.fd = fd;
     return lease;
@@ -302,7 +305,10 @@ void ReleaseLease(Lease& lease) {
         auto it = s_cards.find(lease.cardPath);
         if (it != s_cards.end()) {
             for (int i = 0; i < lease.objectCount; i++) {
-                it->second.leased.erase(lease.objects[i]);
+                auto held = it->second.leased.find(lease.objects[i]);
+                if (held != it->second.leased.end() && --held->second <= 0) {
+                    it->second.leased.erase(held);
+                }
             }
         }
     }
