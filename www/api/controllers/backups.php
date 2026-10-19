@@ -190,7 +190,8 @@ function GetAvailableBackupsOnDevice()
  * @param bool   $unmountWhenDone         Whether to automatically unmount the device when done.
  * @param bool   $globalNameSpace         Whether to use nsenter to mount under the root mount namespace.
  * @param bool   $returnResultCodes       Whether to return output and result codes of the commands that were run.
- * @return mixed Callback return value, or an array with detailed command results when $returnResultCodes is true.
+ * @return mixed Callback return value, or an array with detailed command results when $returnResultCodes is true
+ *               (just array('error' => <reason>) if it refused to mount).
  */
 function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = array(), $mountPath = '/mnt/tmp', $unmountWhenDone = true, $globalNameSpace = false, $returnResultCodes = false)
 {
@@ -203,12 +204,12 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 	// Validate deviceName strictly — only real block devices. Prevents injection like "sda1; rm -rf /".
 	if (!preg_match('/^(sd[a-z][0-9]*|mmcblk[0-9]+p[0-9]+|nvme[0-9]+n[0-9]+p[0-9]+)$/', $deviceName)) {
 		array_push($dirs, "ERROR: Invalid device name");
-		return json($dirs);
+		return $returnResultCodes ? array('error' => end($dirs)) : json($dirs);
 	}
 	// Validate mountPath stays under /mnt — prevents traversal like "/mnt/tmp; rm -rf /".
 	if (!preg_match('#^/mnt(/[A-Za-z0-9._-]+)?$#', $mountPath)) {
 		array_push($dirs, "ERROR: Invalid mount path");
-		return json($dirs);
+		return $returnResultCodes ? array('error' => end($dirs)) : json($dirs);
 	}
 
 	// Prevent concurrent mounts to the same mountpoint from racing.
@@ -244,7 +245,7 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 			flock($lockFp, LOCK_UN);
 			fclose($lockFp);
 		}
-		return json($dirs);
+		return $returnResultCodes ? array('error' => $unusable) : json($dirs);
 	}
 
 	exec($SUDO . $nsEnter . ' mkdir -p -- ' . escapeshellarg($mountPath));
@@ -358,6 +359,15 @@ function MountDevice()
 		}
 		//Mount the device at the specified location
 		$mountResult = DriveMountHelper($deviceName, '', array(), $drive_mount_location, false, true, true);
+
+		// Refused before mounting, e.g. already mounted elsewhere. The reason goes
+		// in Message, which is what a remote's backup output shows.
+		if (isset($mountResult['error'])) {
+			$reason = preg_replace('/^ERROR: /', '', $mountResult['error']);
+			$result = array('Status' => 'Error', 'Message' => 'Unable to mount device (' . $deviceName . ') under (' . $drive_mount_location . '): ' . $reason, 'MountLocation' => $drive_mount_location, 'Error' => $reason);
+			error_log('MountDevice: ( ' . json($result) . ' )');
+			return json($result);
+		}
 
 		//Check the relevant result code keys exist in the returned data
 		if (array_key_exists('mountCmd', $mountResult) && array_key_exists('mountCmdResultCode', $mountResult['mountCmd'])) {
