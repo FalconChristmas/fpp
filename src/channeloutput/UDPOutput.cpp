@@ -34,6 +34,7 @@
 #include <sstream>
 
 #include "../CurlManager.h"
+#include "../Sequence.h"
 #include "../Warnings.h"
 #include "../common.h"
 #include "../log.h"
@@ -567,6 +568,40 @@ UDPOutput::~UDPOutput() {
     }
 }
 
+// Each output sends straight out of the sequence buffer from the range its
+// startChannel/channelCount (times universeCount) describe.  A startChannel
+// of 0 made that range start at -1, and a large universeCount overflowed the
+// int it is computed in, wrapping it to the "nothing to send" form the range
+// check lets through; both then read outside the buffer every frame.  Worked
+// out in 64 bits from the config, before the output allocates per universe.
+static bool UniverseRangeFits(const Json::Value& s, int type) {
+    int64_t start = s["startChannel"].asInt64();
+    int64_t count = s["channelCount"].asInt64();
+    int64_t universes = 1;
+    if (type <= 3 || type == 6 || type == 7 || type == 9) {
+        // E1.31, ArtNet and KiNet repeat channelCount per universe/port
+        if (s.isMember("universeCount")) {
+            universes = std::max<int64_t>(1, s["universeCount"].asInt64());
+        }
+    }
+    bool active = !s.isMember("active") || s["active"].asInt();
+    if (!active) {
+        return true;
+    }
+    if (start >= 1 && count >= 0 && universes <= 64000 &&
+        start - 1 + count * universes <= (int64_t)FPPD_MAX_CHANNELS) {
+        return true;
+    }
+    std::string desc = s.isMember("description") ? s["description"].asString() : std::string();
+    std::string warning = "Network output " + (desc.empty() ? s["address"].asString() : desc) +
+                          " needs channels outside 1-" + std::to_string(FPPD_MAX_CHANNELS) +
+                          " (start " + std::to_string(start) + ", " + std::to_string(count) +
+                          " channels x " + std::to_string(universes) + "). Output disabled.";
+    AddOutputConfigWarning(26, warning);
+    LogErr(VB_CHANNELOUT, "%s\n", warning.c_str());
+    return false;
+}
+
 int UDPOutput::Init(Json::Value config) {
     // a reload may have dropped the ArtNet output that last wanted the socket
     ResetArtNetSocketFailure();
@@ -575,6 +610,9 @@ int UDPOutput::Init(Json::Value config) {
     for (int i = 0; i < config["universes"].size(); i++) {
         Json::Value s = config["universes"][i];
         int type = s["type"].asInt();
+        if (!UniverseRangeFits(s, type)) {
+            continue;
+        }
         switch (type) {
         case 0:
         case 1:

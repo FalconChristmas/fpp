@@ -501,21 +501,25 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
                         // drops an out-of-bounds range from the read set, but the
                         // output itself would still walk off the end of the
                         // buffer every frame, so it must not be started at all.
+                        bool bad = false;
                         int badMin = 0;
                         int badMax = -1;
-                        channelOutput->output->GetRequiredChannelRanges([&badMin, &badMax](int m1, int m2) {
-                            // Only a non-empty range past the end: an inverted
-                            // one is how an output with nothing to send reports.
-                            if (badMax < 0 && m2 >= m1 && m2 >= (int)FPPD_MAX_CHANNELS) {
+                        channelOutput->output->GetRequiredChannelRanges([&bad, &badMin, &badMax](int m1, int m2) {
+                            // Only a non-empty range outside the buffer: an
+                            // inverted one is how an output with nothing to
+                            // send reports.  Before channel 1 is as bad as past
+                            // the end: an output reads channelData[m1] either way.
+                            if (!bad && m2 >= m1 && (m1 < 0 || m2 >= (int)FPPD_MAX_CHANNELS)) {
+                                bad = true;
                                 badMin = m1;
                                 badMax = m2;
                             }
                         });
-                        if (badMax >= 0) {
+                        if (bad) {
                             std::string warning = "Output type " + type + " needs channels " +
                                                   std::to_string(badMin + 1) + "-" + std::to_string(badMax + 1) +
-                                                  ", beyond the " + std::to_string(FPPD_MAX_CHANNELS) +
-                                                  " channel limit. Output disabled.";
+                                                  ", outside 1-" + std::to_string(FPPD_MAX_CHANNELS) +
+                                                  ". Output disabled.";
                             WarningHolder::AddWarning(26, warning);
                             LogErr(VB_CHANNELOUT, "%s\n", warning.c_str());
                             outputLoadWarnings[cfgFile].insert(warning);
