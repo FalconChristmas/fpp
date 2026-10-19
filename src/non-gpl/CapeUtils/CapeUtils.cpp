@@ -542,6 +542,11 @@ static bool processBootConfig(Json::Value& bootConfig) {
     if (bootConfig.isMember("remove")) {
         for (int x = 0; x < bootConfig["remove"].size(); x++) {
             std::string v = bootConfig["remove"][x].asString();
+            // find("") matches at 0 forever and erasing it removes nothing, so
+            // an empty entry spun here for good and boot never finished.
+            if (v.empty()) {
+                continue;
+            }
             size_t pos = std::string::npos;
             while ((pos = current.find(v)) != std::string::npos) {
                 // If found then erase it from string
