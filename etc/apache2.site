@@ -233,6 +233,15 @@ ProxyPassReverse /fppdws ws://localhost:32322/fppdws
     Header always set Access-Control-Allow-Methods "GET,POST,OPTIONS,DELETE,PUT"
 </Directory>
 
+# The media directory's virtualdisplay_assets is linked into the web root and
+# is writable through the file API (/api/file/virtualdisplay_assets/...), so a
+# PHP file put there would run as the web server: assets only, no scripts.
+<Directory ~ "^(/opt/fpp/www|/home/fpp/media)/virtualdisplay_assets">
+    <FilesMatch "\.(ph(ar|p[0-9]?|t|tml)|phps)$">
+        Require all denied
+    </FilesMatch>
+</Directory>
+
 <Directory "/opt/fpp/www/localonly">
     Options FollowSymLinks
     AllowOverride None
