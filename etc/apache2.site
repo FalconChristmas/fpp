@@ -236,10 +236,15 @@ ProxyPassReverse /fppdws ws://localhost:32322/fppdws
 # The media directory's virtualdisplay_assets is linked into the web root and
 # is writable through the file API (/api/file/virtualdisplay_assets/...), so a
 # PHP file put there would run as the web server: assets only, no scripts.
+# Nor in the browser: an uploaded .html or .svg opened from here would run its
+# script with this player's origin and full use of its API.  The sandbox only
+# applies to a document opened from here; the 3D view's fetches and image
+# loads of these files are unaffected.
 <Directory ~ "^(/opt/fpp/www|/home/fpp/media)/virtualdisplay_assets">
     <FilesMatch "\.(ph(ar|p[0-9]?|t|tml)|phps)$">
         Require all denied
     </FilesMatch>
+    Header always set Content-Security-Policy "sandbox"
 </Directory>
 
 <Directory "/opt/fpp/www/localonly">
