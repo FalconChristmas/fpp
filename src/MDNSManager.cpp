@@ -222,7 +222,10 @@ void MDNSManager::HandleResolveIP(const std::string& ip, bool isWled) {
     bool isNew = false;
     {
         std::unique_lock<std::recursive_mutex> lk(m_callbackLock);
-        if (m_knownHosts.insert(ip).second) {
+        // Anything on the LAN can announce addresses, one after another, and
+        // each new one costs a ping and an HTTP probe; past far more devices
+        // than a network has, an unseen address is left to other discovery.
+        if (m_knownHosts.size() < 4096 && m_knownHosts.insert(ip).second) {
             isNew = true;
         }
     }

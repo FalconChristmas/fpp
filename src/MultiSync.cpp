@@ -1568,7 +1568,9 @@ void MultiSync::PerformTwinklyDiscovery() {
 // signal that bridge data is ready to push out, which this is not.
 bool MultiSync::ProcessTwinklyDiscoveryReplies() {
     char buf[256];
-    while (true) {
+    // a bounded number of replies a wakeup, like the other sockets the main
+    // loop reads; the socket is level-triggered, so the rest come next pass
+    for (int n = 0; n < 1024; n++) {
         struct sockaddr_in src;
         memset(&src, 0, sizeof(src));
         socklen_t slen = sizeof(src);
@@ -1593,9 +1595,19 @@ bool MultiSync::ProcessTwinklyDiscoveryReplies() {
             }
         }
         LogInfo(VB_SYNC, "Twinkly device answered discovery at %s\n", address.c_str());
-        // Not under any lock: this queues an HTTP probe and can complete inline.
-        PingSingleRemoteViaHTTP(address);
+        // Through the queue, under the in-flight cap.  Started directly, one
+        // per answering address, a burst of replies -- or of datagrams
+        // claiming to be replies, from as many addresses -- started that many
+        // HTTP probes at once.
+        {
+            std::unique_lock<std::mutex> lock(m_httpProbeLock);
+            if (s_httpPingPending.insert(address).second) {
+                m_httpPingQueue.push_back(address);
+            }
+        }
+        PumpHTTPPings();
     }
+    return false;
 }
 
 void MultiSync::DiscoverIPViaHTTP(const std::string& ip, const std::string& html, bool allowUnknown) {
@@ -2105,6 +2117,12 @@ void MultiSync::ApplyPeerUUIDs(const std::map<std::string, std::string>& peerUUI
     std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
     for (const auto& [addr, uuid] : peerUUIDs) {
         if (!addr.empty() && !uuid.empty()) {
+            // One device's reply decides how many entries it lists, so a
+            // device (or anything answering as one) could grow this for good.
+            // Far more than any network's worth of devices.
+            if (m_peerUUIDHints.size() >= 4096 && !m_peerUUIDHints.contains(addr)) {
+                continue;
+            }
             m_peerUUIDHints[addr] = uuid;
         }
     }
