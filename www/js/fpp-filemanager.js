@@ -50,13 +50,14 @@ var FPP_OWN_LOGS = [
 	'fppd.log', // the timeline: fppd, init/boot, lifecycle, breadcrumbs
 	'fpp_system_upgrades.log', // FPP + fppos upgrades
 	'fpp_plugin_manager.log', // plugin install/upgrade/uninstall
-	'fpp_backup_filecopy.log' // transient: exists only during a backup
+	'fpp_backup_filecopy.log' // LogBaseName files each backup's progress feed (fpp_backup_filecopy_<id>.log) under this name
 ];
 
 // logrotate leaves fppd.log.1 and fppd.log.2.gz next to fppd.log; those are the
 // same log and belong in the same group, so compare on the base name.
 function LogBaseName (name) {
-	return name.replace(/\.gz$/, '').replace(/\.\d+$/, '');
+	return name.replace(/\.gz$/, '').replace(/\.\d+$/, '')
+		.replace(/^fpp_backup_filecopy_[A-Za-z0-9]+\.log$/, 'fpp_backup_filecopy.log');
 }
 
 // How far back a rotation is: the live log (no numeric suffix) is -1 so it sorts

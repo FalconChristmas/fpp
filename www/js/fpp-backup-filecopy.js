@@ -262,8 +262,15 @@ fppFileCopy.copyDone = function () {
     }
 };
 
+// Starts a run: copystorage.php writes its progress to the feed named by this
+// id, which copyTimeoutError polls if the stream times out.
+fppFileCopy.newFeedId = function () {
+    fppFileCopy.feedId = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    return fppFileCopy.feedId;
+};
+
 fppFileCopy.copyTimeoutError = function () {
-    var logUrl = 'api/file/Logs/fpp_backup_filecopy.log';
+    var logUrl = 'api/file/Logs/fpp_backup_filecopy_' + fppFileCopy.feedId + '.log';
     var timeoutMsg = '!!! Attempting to track file copy process via its fallback log file...\n The file copy is still running in the background and will complete in due course.\n\n';
     var iterations = 0;
     var iterationsWithNoDataWarningsIssued = 1;

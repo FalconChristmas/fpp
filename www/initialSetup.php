@@ -420,7 +420,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             }
 
             var storageLocation;
-            var url = 'copystorage.php?wrapped=1&direction=' + direction;
+            var url = 'copystorage.php?wrapped=1&feed=' + fppFileCopy.newFeedId() + '&direction=' + direction;
 
             if (direction == 'FROMUSB') {
                 storageLocation = $('#fcUSBDevice').val();

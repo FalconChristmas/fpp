@@ -2798,7 +2798,7 @@ if ($skipHTMLCodeOutput === false) {
                 var direction = document.getElementById("backup.Direction").value;
                 var flags = GetCopyFlags();
 
-                var url = "copystorage.php?wrapped=1&direction=" + direction;
+                var url = "copystorage.php?wrapped=1&feed=" + fppFileCopy.newFeedId() + "&direction=" + direction;
 
                 // Substite back in case we changed \ to /
                 document.getElementById("backup.Path").value = path;
