@@ -243,10 +243,13 @@ void PrewarmMediaOutput(int holdMs) {
 #endif
 }
 
-#ifndef PLATFORM_OSX
 // The volume last asked for: what getVolume() reports, at once, while the
-// worker below catches the mixers up.
+// worker below catches the mixers up.  Bumped with each request, and copied to
+// s_volumeApplied once the worker has applied that request.
 static std::atomic<int> volume{ 70 };
+static std::atomic<uint64_t> s_volumeRequested{ 0 };
+static std::atomic<uint64_t> s_volumeApplied{ 0 };
+#ifndef PLATFORM_OSX
 static int lastPipeWireVolume = -1;  // Track last volume to avoid redundant mute toggles (volume worker only)
 int getVolume() {
     return volume;
@@ -455,6 +458,13 @@ static void pinCardPlaybackToUnity(int card, bool useMax) {
 }
 #else
 int getVolume() {
+    // The device's own level (the user can change it outside fppd), except
+    // while a change is still on its way to it: a caller that sets the
+    // volume and reads it straight back, or steps it twice in a row, must
+    // see the level it asked for, not the one the worker hasn't replaced yet.
+    if (s_volumeApplied.load() != s_volumeRequested.load()) {
+        return volume;
+    }
     return MacOSGetVolume();
 }
 #endif
@@ -635,16 +645,37 @@ static void applyVolume(int vol) {
 static std::mutex s_volumeWorkerLock;
 static std::condition_variable s_volumeWorkerWake;
 static int s_volumeTarget = -1; // -1: nothing pending
+static uint64_t s_volumeTargetRequest = 0;
 static bool s_volumeWorkerStarted = false;
+
+// fppd's "-v" sets the volume while parsing its arguments, which, without
+// "-f", is before it forks into the background.  A fork copies the worker's
+// state but not the thread, so the daemon would queue every later change for
+// a worker that doesn't exist.  Hold the lock across any fork, so the child
+// gets it in a known state, and let the child start its own worker.
+static void volumeForkPrepare() {
+    s_volumeWorkerLock.lock();
+}
+static void volumeForkParent() {
+    s_volumeWorkerLock.unlock();
+}
+static void volumeForkChild() {
+    s_volumeWorkerStarted = false;
+    s_volumeWorkerLock.unlock();
+}
 
 void setVolume(int vol) {
     vol = std::clamp(vol, 0, 100);
-#ifndef PLATFORM_OSX
-    volume = vol;
-#endif
     std::lock_guard<std::mutex> lock(s_volumeWorkerLock);
+    volume = vol;
     s_volumeTarget = vol;
+    s_volumeTargetRequest = ++s_volumeRequested;
     if (!s_volumeWorkerStarted) {
+        static bool forkHandlers = false;
+        if (!forkHandlers) {
+            forkHandlers = true;
+            pthread_atfork(volumeForkPrepare, volumeForkParent, volumeForkChild);
+        }
         s_volumeWorkerStarted = true;
         // Detached: it only ever waits for the next request, and fppd exits
         // with _exit or exec, never by destroying it.
@@ -654,9 +685,11 @@ void setVolume(int vol) {
             while (true) {
                 s_volumeWorkerWake.wait(lock, []() { return s_volumeTarget >= 0; });
                 int v = s_volumeTarget;
+                uint64_t request = s_volumeTargetRequest;
                 s_volumeTarget = -1;
                 lock.unlock();
                 applyVolume(v);
+                s_volumeApplied = request;
                 lock.lock();
             }
         }).detach();
