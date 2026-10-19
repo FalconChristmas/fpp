@@ -131,15 +131,24 @@ bool RTSPOutputManager::LoadConfig() {
         return false;
     }
 
-    fresh.enabled = root.get("enabled", false).asBool();
-    fresh.port = root.get("port", RTSPOutput::DEFAULT_PORT).asInt();
+    // asBool()/asInt() throw on a value of the wrong type ("enabled": "yes"),
+    // and this runs at startup with nothing above to catch it: fppd crash
+    // looped on a hand-edited file.  Keep the last good config instead.
+    try {
+        fresh.enabled = root.get("enabled", false).asBool();
+        fresh.port = root.get("port", RTSPOutput::DEFAULT_PORT).asInt();
+        fresh.requireGroupSource = root.get("requireGroupSource", true).asBool();
+        fresh.latencyMs = root.get("latencyMs", RTSPOutput::DEFAULT_LATENCY_MS).asInt();
+    } catch (const std::exception& ex) {
+        LogWarn(VB_MEDIAOUT, "RTSPOutputManager: ignoring %s, a value has the wrong type: %s\n",
+                m_configPath.c_str(), ex.what());
+        return false;
+    }
     if (fresh.port < 1024 || fresh.port > 65535) {
         LogWarn(VB_MEDIAOUT, "RTSPOutputManager: port %d out of range, using %d\n",
                 fresh.port, RTSPOutput::DEFAULT_PORT);
         fresh.port = RTSPOutput::DEFAULT_PORT;
     }
-    fresh.requireGroupSource = root.get("requireGroupSource", true).asBool();
-    fresh.latencyMs = root.get("latencyMs", RTSPOutput::DEFAULT_LATENCY_MS).asInt();
     if (fresh.latencyMs < 0 || fresh.latencyMs > 5000) {
         LogWarn(VB_MEDIAOUT, "RTSPOutputManager: latencyMs %d out of range, using %d\n",
                 fresh.latencyMs, RTSPOutput::DEFAULT_LATENCY_MS);
@@ -181,27 +190,34 @@ void RTSPOutputManager::LoadMounts(RTSPOutputConfig& cfg) {
     }
 
     for (const auto& entry : root) {
-        if (entry.get("type", "").asString() != "rtsp") {
+        RTSPOutputMount m;
+        // as in LoadConfig(): a value of the wrong type skips that stream
+        try {
+            if (!entry.isObject() || entry.get("type", "").asString() != "rtsp") {
+                continue;
+            }
+            m.name = entry.get("name", "").asString();
+            m.mountPoint = NormaliseMountPoint(entry.get("mountPoint", "").asString(),
+                                               static_cast<int>(cfg.mounts.size() + 1));
+            m.sourceNode = entry.get("sourceNode", "").asString();
+            if (entry.isMember("streamSlots") && entry["streamSlots"].isArray()) {
+                for (const auto& sl : entry["streamSlots"]) {
+                    m.streamSlots.push_back(sl.asInt());
+                }
+            }
+            m.width = entry.get("width", RTSPOutput::DEFAULT_WIDTH).asInt();
+            m.height = entry.get("height", RTSPOutput::DEFAULT_HEIGHT).asInt();
+            m.framerate = entry.get("framerate", RTSPOutput::DEFAULT_FRAMERATE).asInt();
+            m.videoEncoding = entry.get("videoEncoding", "h264").asString();
+            m.videoBitrate = entry.get("videoBitrate", RTSPOutput::DEFAULT_VIDEO_BITRATE).asInt();
+            m.audioEnabled = entry.get("audioEnabled", false).asBool();
+            m.audioNodeName = entry.get("audioNodeName", "").asString();
+            m.audioBitrate = entry.get("audioBitrate", RTSPOutput::DEFAULT_AUDIO_BITRATE).asInt();
+        } catch (const std::exception& ex) {
+            LogWarn(VB_MEDIAOUT, "RTSPOutputManager: skipping a stream in %s, a value has the wrong type: %s\n",
+                    m_consumersPath.c_str(), ex.what());
             continue;
         }
-        RTSPOutputMount m;
-        m.name = entry.get("name", "").asString();
-        m.mountPoint = NormaliseMountPoint(entry.get("mountPoint", "").asString(),
-                                           static_cast<int>(cfg.mounts.size() + 1));
-        m.sourceNode = entry.get("sourceNode", "").asString();
-        if (entry.isMember("streamSlots") && entry["streamSlots"].isArray()) {
-            for (const auto& sl : entry["streamSlots"]) {
-                m.streamSlots.push_back(sl.asInt());
-            }
-        }
-        m.width = entry.get("width", RTSPOutput::DEFAULT_WIDTH).asInt();
-        m.height = entry.get("height", RTSPOutput::DEFAULT_HEIGHT).asInt();
-        m.framerate = entry.get("framerate", RTSPOutput::DEFAULT_FRAMERATE).asInt();
-        m.videoEncoding = entry.get("videoEncoding", "h264").asString();
-        m.videoBitrate = entry.get("videoBitrate", RTSPOutput::DEFAULT_VIDEO_BITRATE).asInt();
-        m.audioEnabled = entry.get("audioEnabled", false).asBool();
-        m.audioNodeName = entry.get("audioNodeName", "").asString();
-        m.audioBitrate = entry.get("audioBitrate", RTSPOutput::DEFAULT_AUDIO_BITRATE).asInt();
 
         if (m.ResolveSourceNode().empty()) {
             // The group names neither a video source nor a stream slot, so

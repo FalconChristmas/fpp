@@ -1055,61 +1055,72 @@ bool VideoOutputManager::LoadConfig() {
 
     for (const auto& entry : root) {
         ConsumerInfo ci;
-        ci.id = entry.get("id", 0).asInt();
-        ci.name = entry.get("name", "").asString();
-        ci.type = entry.get("type", "").asString();
-        ci.pipeWireNodeName = entry.get("pipeWireNodeName", "").asString();
-
-        if (ci.type == "hdmi") {
-            ci.connector = entry.get("connector", "").asString();
-            ci.cardPath = entry.get("cardPath", "").asString();
-            ci.connectorId = entry.get("connectorId", -1).asInt();
-            ci.width = entry.get("width", 0).asInt();
-            ci.height = entry.get("height", 0).asInt();
-            ci.scaling = entry.get("scaling", "fit").asString();
-            // Anything else would silently land in the "not stretch, not fill"
-            // bucket and look like fit without saying so.
-            if (ci.scaling != "fit" && ci.scaling != "fill" && ci.scaling != "stretch") {
-                LogWarn(VB_MEDIAOUT, "VideoOutputManager: consumer '%s' has unknown scaling "
-                        "mode '%s' — using fit\n", ci.name.c_str(), ci.scaling.c_str());
-                ci.scaling = "fit";
+        // asInt()/asString() throw on a value of the wrong type, and this
+        // runs at startup with nothing above to catch it; skip that consumer.
+        try {
+            if (!entry.isObject()) {
+                continue;
             }
-            // Optional sub-region of the source, as fractions of the frame.
-            // Absent (the common case) leaves the full-frame default.
-            if (entry.isMember("crop") && entry["crop"].isObject()) {
-                const Json::Value& c = entry["crop"];
-                ci.crop.x = c.get("x", 0.0).asDouble();
-                ci.crop.y = c.get("y", 0.0).asDouble();
-                ci.crop.width = c.get("width", 1.0).asDouble();
-                ci.crop.height = c.get("height", 1.0).asDouble();
-                if (!ci.crop.IsValid()) {
-                    LogWarn(VB_MEDIAOUT, "VideoOutputManager: consumer '%s' has an out-of-range "
-                            "crop region (%.3f,%.3f %.3fx%.3f) — using the full frame\n",
-                            ci.name.c_str(), ci.crop.x, ci.crop.y, ci.crop.width, ci.crop.height);
-                    ci.crop = VideoCropRect();
+            ci.id = entry.get("id", 0).asInt();
+            ci.name = entry.get("name", "").asString();
+            ci.type = entry.get("type", "").asString();
+            ci.pipeWireNodeName = entry.get("pipeWireNodeName", "").asString();
+
+            if (ci.type == "hdmi") {
+                ci.connector = entry.get("connector", "").asString();
+                ci.cardPath = entry.get("cardPath", "").asString();
+                ci.connectorId = entry.get("connectorId", -1).asInt();
+                ci.width = entry.get("width", 0).asInt();
+                ci.height = entry.get("height", 0).asInt();
+                ci.scaling = entry.get("scaling", "fit").asString();
+                // Anything else would silently land in the "not stretch, not fill"
+                // bucket and look like fit without saying so.
+                if (ci.scaling != "fit" && ci.scaling != "fill" && ci.scaling != "stretch") {
+                    LogWarn(VB_MEDIAOUT, "VideoOutputManager: consumer '%s' has unknown scaling "
+                            "mode '%s' — using fit\n", ci.name.c_str(), ci.scaling.c_str());
+                    ci.scaling = "fit";
+                }
+                // Optional sub-region of the source, as fractions of the frame.
+                // Absent (the common case) leaves the full-frame default.
+                if (entry.isMember("crop") && entry["crop"].isObject()) {
+                    const Json::Value& c = entry["crop"];
+                    ci.crop.x = c.get("x", 0.0).asDouble();
+                    ci.crop.y = c.get("y", 0.0).asDouble();
+                    ci.crop.width = c.get("width", 1.0).asDouble();
+                    ci.crop.height = c.get("height", 1.0).asDouble();
+                    if (!ci.crop.IsValid()) {
+                        LogWarn(VB_MEDIAOUT, "VideoOutputManager: consumer '%s' has an out-of-range "
+                                "crop region (%.3f,%.3f %.3fx%.3f) — using the full frame\n",
+                                ci.name.c_str(), ci.crop.x, ci.crop.y, ci.crop.width, ci.crop.height);
+                        ci.crop = VideoCropRect();
+                    }
+                }
+            } else if (ci.type == "overlay") {
+                ci.overlayModel = entry.get("overlayModel", "").asString();
+            } else if (ci.type == "rtp") {
+                ci.address = entry.get("address", "239.0.0.1").asString();
+                ci.port = entry.get("port", 5004).asInt();
+                ci.rtpEncoding = entry.get("encoding", "raw").asString();
+            }
+
+            if (ci.type.empty() || ci.pipeWireNodeName.empty()) {
+                LogWarn(VB_MEDIAOUT, "VideoOutputManager: Skipping consumer with missing type or node name\n");
+                continue;
+            }
+
+            ci.sourceNode = entry.get("sourceNode", "").asString();
+
+            if (entry.isMember("streamSlots") && entry["streamSlots"].isArray()) {
+                for (const auto& s : entry["streamSlots"]) {
+                    int slot = s.asInt();
+                    if (slot >= 1 && slot <= 5)
+                        ci.streamSlots.push_back(slot);
                 }
             }
-        } else if (ci.type == "overlay") {
-            ci.overlayModel = entry.get("overlayModel", "").asString();
-        } else if (ci.type == "rtp") {
-            ci.address = entry.get("address", "239.0.0.1").asString();
-            ci.port = entry.get("port", 5004).asInt();
-            ci.rtpEncoding = entry.get("encoding", "raw").asString();
-        }
-
-        if (ci.type.empty() || ci.pipeWireNodeName.empty()) {
-            LogWarn(VB_MEDIAOUT, "VideoOutputManager: Skipping consumer with missing type or node name\n");
+        } catch (const std::exception& ex) {
+            LogWarn(VB_MEDIAOUT, "VideoOutputManager: skipping a consumer in %s, a value has the wrong type: %s\n",
+                    configPath.c_str(), ex.what());
             continue;
-        }
-
-        ci.sourceNode = entry.get("sourceNode", "").asString();
-
-        if (entry.isMember("streamSlots") && entry["streamSlots"].isArray()) {
-            for (const auto& s : entry["streamSlots"]) {
-                int slot = s.asInt();
-                if (slot >= 1 && slot <= 5)
-                    ci.streamSlots.push_back(slot);
-            }
         }
 
         // Both go into a gst_parse_launch() description unquoted; a space or
