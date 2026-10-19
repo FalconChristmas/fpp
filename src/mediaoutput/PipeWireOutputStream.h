@@ -90,6 +90,10 @@ public:
     // behind another must not go to PLAYING before then: its position runs
     // from PLAYING, so audio still queued ahead of it would leave the lights
     // ahead of the sound for the whole track.
+    //
+    // Then, if anything was fed since the last time, flush the stream: what
+    // that wait can't see -- audio held up by a stall in the graph -- would
+    // otherwise sit ahead of every track to come (see FlushLocked()).
     void WaitDrained(int maxMs);
 
     // Route `appsink`'s samples into this stream, replacing any previous
@@ -129,6 +133,8 @@ private:
     void CloseLocked(const char* why);
     void ForgetFailureLocked();
     void PushSilenceLocked(int ms);
+    bool WaitQueuedUntil(int64_t deadlineUs);
+    void Flush();
     bool CardRunning();
     static int TailFlushMs();
     bool StreamLinked();
@@ -161,6 +167,8 @@ private:
     // have played, assuming the graph takes it at real time once queued.
     int64_t m_queuedUntilUs = 0;
     void NoteQueuedLocked(size_t bytes);
+    // A feed has delivered since the stream opened or was last flushed.
+    bool m_fedSinceFlush = false;
     int m_rate = 0;                    // ...and their rate
     bool m_warnedCaps = false;         // logged a feed in the wrong format
     GstElement* m_feed = nullptr;      // appsink currently allowed to feed (no ref held)

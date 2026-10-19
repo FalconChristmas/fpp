@@ -58,6 +58,10 @@ constexpr int kNoCardSettleMs = 150;
 // PipeWire restart under a running fppd leaves GStreamer's PipeWire connection
 // dead until fppd restarts, so retrying hard would only fill the log.
 constexpr int kKeepOpenRetryMs = 30000;
+// Silence fed after a flush between tracks, which the reactivated stream
+// drops in place of the next track's head (see Flush()).  Measured on a Pi 5
+// I2S HAT: with none, 30-60 ms of the head went; with 60 ms, none did.
+constexpr int kFlushPrimeMs = 60;
 
 // The card clock (see DisciplineClock()).  How often the card's position is
 // read, how much of its history the rate is fitted over, how fast a phase
@@ -208,9 +212,8 @@ void PipeWireOutputStream::Release(GstElement* feed) {
             // Push the track's last fragment out behind some silence.  PipeWire
             // holds a partial cycle until there is more data, so with nothing
             // behind it the tail of a stopped track sat in the stream and played
-            // at the head of the next one.  (Flushing it instead deactivates and
-            // reactivates the stream, and pipewiresink drops whatever arrives
-            // before that settles -- the next track's first ~40 ms.)
+            // at the head of the next one.  (Flushing here instead would drop
+            // the tail; WaitDrained() flushes only once it has played.)
             PushSilenceLocked(TailFlushMs());
         }
         if (m_users > 0) {
@@ -236,19 +239,69 @@ void PipeWireOutputStream::NoteQueuedLocked(size_t bytes) {
     m_queuedUntilUs = std::max(m_queuedUntilUs, now) + durUs;
 }
 
-void PipeWireOutputStream::WaitDrained(int maxMs) {
-    int64_t deadline = MonoUs() + (int64_t)maxMs * 1000;
+// Whether the queue drained before the deadline.
+bool PipeWireOutputStream::WaitQueuedUntil(int64_t deadlineUs) {
     while (true) {
         int64_t remaining;
         {
             std::unique_lock<std::mutex> lock(m_lock);
             remaining = m_queuedUntilUs - MonoUs();
         }
-        if (remaining <= 0 || MonoUs() >= deadline) {
-            return;
+        if (remaining <= 0) {
+            return true;
+        }
+        if (MonoUs() >= deadlineUs) {
+            return false;
         }
         std::this_thread::sleep_for(std::chrono::microseconds(std::min<int64_t>(remaining, 5000)));
     }
+}
+
+void PipeWireOutputStream::WaitDrained(int maxMs) {
+    int64_t deadline = MonoUs() + (int64_t)maxMs * 1000;
+    WaitQueuedUntil(deadline);
+    Flush();
+    // The silence Flush() pushed must play before the track goes to PLAYING,
+    // or the track starts that much behind its position.
+    WaitQueuedUntil(MonoUs() + (int64_t)(kFlushPrimeMs + 20) * 1000);
+}
+
+// m_queuedUntilUs only knows what was handed to the stream and assumes the
+// graph takes it at real time.  When the graph stalls instead -- an overloaded
+// board, an xrun -- the card falls behind, the feed doesn't (it runs on the
+// clock), and the difference stays queued inside pipewiresink, where nothing
+// here can see it.  With the stream held open and fed track after track it
+// never drains: the sound stays that far behind the lights until fppd
+// restarts.  One 300 ms stall on a Pi 5 left every later song 280 ms behind
+// (issue #3083).
+//
+// So between tracks, once the estimate says the last one has played, flush:
+// pipewiresink drops whatever its stream still holds (pw_stream_flush()),
+// which is nothing unless there was a stall, and every track starts from an
+// empty queue.  The stream goes inactive and back, and drops the first few
+// tens of ms handed to it after that, so it is primed with silence.
+void PipeWireOutputStream::Flush() {
+    GstElement* src = nullptr;
+    {
+        std::unique_lock<std::mutex> lock(m_lock);
+        if (!m_src || m_state != State::Ready || !m_fedSinceFlush) {
+            return;
+        }
+        m_fedSinceFlush = false;
+        src = GST_ELEMENT(gst_object_ref(m_src));
+    }
+    // Outside the lock: the flush takes the sink's own locks.
+    gst_element_send_event(src, gst_event_new_flush_start());
+    gst_element_send_event(src, gst_event_new_flush_stop(FALSE));
+    {
+        std::unique_lock<std::mutex> lock(m_lock);
+        if (m_src == src) {
+            m_queuedUntilUs = 0;
+            PushSilenceLocked(kFlushPrimeMs);
+        }
+    }
+    gst_object_unref(src);
+    LogDebug(VB_MEDIAOUT, "PipeWire output stream %d flushed between tracks\n", m_slot);
 }
 
 bool PipeWireOutputStream::WaitReady(int timeoutMs) {
@@ -337,6 +390,7 @@ GstFlowReturn PipeWireOutputStream::OnFeedSample(GstElement* appsink, gpointer u
             }
             GST_BUFFER_DTS(out) = GST_CLOCK_TIME_NONE;
             self->NoteQueuedLocked(gst_buffer_get_size(out));
+            self->m_fedSinceFlush = true;
             src = GST_ELEMENT(gst_object_ref(self->m_src));
         }
     }
@@ -604,6 +658,7 @@ bool PipeWireOutputStream::OpenLocked(std::unique_lock<std::mutex>& lock) {
     m_rate = rate;
     m_warnedCaps = false;
     m_queuedUntilUs = 0;
+    m_fedSinceFlush = false;
     m_target = target;
     m_cardStatusPath = cardStatus;
     m_cardWasRunning = cardWasRunning;
