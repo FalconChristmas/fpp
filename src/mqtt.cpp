@@ -17,7 +17,9 @@
 
 #include <atomic>
 #include <cstring>
+#include <chrono>
 #include <functional>
+#include <future>
 #include <list>
 #include <map>
 #include <memory>
@@ -25,6 +27,7 @@
 #include <mutex>
 #include <stdlib.h>
 #include <string>
+#include <thread>
 #include <unistd.h>
 #include <vector>
 
@@ -169,13 +172,34 @@ MosquittoClient::~MosquittoClient() {
     // "ready" = 0 itself (Events::PrepareForShutdown), ahead of the
     // DISCONNECT in the same queue.
     //
-    // The connect/disconnect callbacks go first: the disconnect this causes
-    // would otherwise run HandleDisconnect(), whose timer captures this object.
+    // The callbacks go first: the disconnect this causes would otherwise run
+    // HandleDisconnect(), whose timer captures this object, and the others
+    // reach this object through the global `mqtt`.
+    //
+    // The join is bounded.  With the broker unreachable the thread can be
+    // inside a blocking connect() (about two minutes when SYNs are dropped),
+    // or a message callback can be stuck in a command, and fppd's restart and
+    // shutdown waited on it.  Every path from here ends in exec or _exit, so
+    // past the bound the client is left to the thread and never freed.
     if (m_mosq) {
+        mosquitto_message_callback_set(m_mosq, nullptr);
+        mosquitto_log_callback_set(m_mosq, nullptr);
         mosquitto_connect_callback_set(m_mosq, nullptr);
         mosquitto_disconnect_callback_set(m_mosq, nullptr);
         mosquitto_disconnect(m_mosq);
-        mosquitto_loop_stop(m_mosq, false);
+
+        struct mosquitto* m = m_mosq;
+        auto stopped = std::make_shared<std::promise<void>>();
+        std::future<void> joined = stopped->get_future();
+        std::thread([m, stopped]() {
+            mosquitto_loop_stop(m, false);
+            stopped->set_value();
+        }).detach();
+        if (joined.wait_for(std::chrono::seconds(3)) != std::future_status::ready) {
+            LogWarn(VB_CONTROL, "MQTT network thread did not stop within 3 s; leaving it\n");
+            mqtt = NULL;
+            return;
+        }
     }
 
     mosquitto_destroy(m_mosq);
