@@ -113,7 +113,11 @@ function SetupHtaccess($enablePW)
 
     if ($enablePW) {
         $data .= "AuthUserFile " . $settings['mediaDirectory'] . "/config/.htpasswd\nAuthType Basic\nAuthName \"Falcon Player\"\n";
-        $data .= "<RequireAny>\n  <RequireAll>\n    Require local\n  </RequireAll>\n  <RequireAll>\n    Require valid-user\n  </RequireAll>\n</RequireAny>\n\n";
+        // "Require local" also matches a request whose client address is the
+        // server's own, which is what /proxy/<this player's IP>/ produces:
+        // without the X-FPP-Proxied test (the header /proxy adds), anyone on
+        // the LAN skipped the password that way.
+        $data .= "<RequireAny>\n  <RequireAll>\n    Require local\n    Require expr \"%{HTTP:X-FPP-Proxied} == ''\"\n  </RequireAll>\n  <RequireAll>\n    Require valid-user\n  </RequireAll>\n</RequireAny>\n\n";
     } else {
         $data .= "<RequireAny>\n  Require all granted\n</RequireAny>\n\n";
     }

@@ -30,7 +30,9 @@ ServerTokens Prod
 	# Browsers send Sec-Fetch-Site only to HTTPS (and localhost) origins, so on
 	# a plain-HTTP player it is Origin, sent with every cross-origin
 	# POST/PUT/DELETE, that does the work in rule 1; rule 2 can only act on
-	# Sec-Fetch-Site and so applies only when the UI is reached over HTTPS.  Clients that are not browsers
+	# Sec-Fetch-Site and so applies only when the UI is reached over HTTPS.
+	# Over plain HTTP those GETs stay open until FPP 11 (docs/DEPRECATED.md);
+	# www/common.php marks them deprecated meanwhile.  Clients that are not browsers
 	# (xLights, other players, scripts, curl) send neither header and are not
 	# affected, and a page served by this player is "same-origin" -- also
 	# when another player's UI reaches it through /proxy/, which forwards
@@ -53,7 +55,8 @@ ServerTokens Prod
 	# 2. GETs that act rather than read, when another site's page sent them
 	#    (a link, an <img>, a fetch).  Reading stays open cross-origin.
 	#    Only effective over HTTPS (see above): over plain HTTP these routes
-	#    stay reachable until they stop answering GET.  Keep this list in
+	#    stay reachable until they stop answering GET in FPP 11.  Keep this
+	#    list, and the copy in www/common.php that marks them deprecated, in
 	#    step with any GET route that changes state.
 	RewriteCond %{ENV:REDIRECT_STATUS} ^$
 	RewriteCond %{HTTP:Sec-Fetch-Site} ^(cross-site|same-site)$ [NC]
@@ -71,7 +74,13 @@ ServerTokens Prod
 	<Directory /opt/fpp/www/>
 		Options Indexes FollowSymLinks
 		AllowOverride None
-     Require local
+     # Local, but not by way of /proxy/: proxied back to this player's own
+     # address, a request arrives from the server's address, which "Require
+     # local" counts as local -- and so skipped the UI password.
+     <RequireAll>
+       Require local
+       Require expr "%{HTTP:X-FPP-Proxied} == ''"
+     </RequireAll>
 
     # Equivalent to 'Satisfy Any'
     # Apache 2.4 uses logical OR when multiple Require directives are present
@@ -228,8 +237,12 @@ ProxyPassReverse /fppdws ws://localhost:32322/fppdws
     Options FollowSymLinks
     AllowOverride None
 
-    # Restrict access to local requests only
-    Require local
+    # Restrict access to local requests only (not ones /proxy/ sent back
+    # to this player's own address; see /opt/fpp/www/ above)
+    <RequireAll>
+      Require local
+      Require expr "%{HTTP:X-FPP-Proxied} == ''"
+    </RequireAll>
 </Directory>
 
 <Directory "/opt/fpp/www/css/plugin">
@@ -324,6 +337,13 @@ ProxyPassReverse /fppdws ws://localhost:32322/fppdws
     # on, its Origin (this player) would not match the next player's Host, so
     # that player's gate would refuse this player's own UI.
     RequestHeader unset Origin
+    # Marks what /proxy forwards.  Proxied back to this player's own
+    # address, a request arrives from the server's own address, which
+    # "Require local" counts as local; the local exemptions below and in the
+    # UI password config refuse a request carrying this, so /proxy/<own IP>/
+    # cannot skip the password.  A client cannot use it to gain anything:
+    # it only ever takes the local exemption away.
+    RequestHeader set X-FPP-Proxied 1
 
     # Expand gzip only for clients that cannot decode it themselves; everything
     # else is passed through exactly as the controller sent it.
