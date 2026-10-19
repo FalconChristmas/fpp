@@ -200,6 +200,7 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
     // Use set for O(log n) duplicate checking instead of O(n) linear search
     std::set<std::tuple<int, int, int>> seenPixels;
     int offscreen = 0;
+    int badChannel = 0;
 
     while ((read = getline(&line, &len, file)) != -1) {
         if ((!line) || (!read) || (read == 1))
@@ -290,6 +291,15 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
             }
 
             customR = customG = customB = 0;
+
+            // Every channel of the pixel is read straight out of the sequence
+            // buffer (GetPixelRGB), and GetRequiredChannelRanges() lost a pixel
+            // whose ch + 3 overflowed, so a channel outside the buffer read
+            // past it each frame.
+            if (ch < 0 || ch > (int)FPPD_MAX_CHANNELS - 4) {
+                badChannel++;
+                continue;
+            }
 
             // The map is written by the exporter and not trusted: a model with
             // no defined layout position arrives as INT_MIN, and pushing that
@@ -402,6 +412,10 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
         }
     }
 
+    if (badChannel) {
+        LogWarn(VB_CHANNELOUT, "Virtual Display: %d pixel(s) in %s use channels outside 1-%d and were skipped\n",
+                badChannel, virtualDisplayMapFilename.c_str(), FPPD_MAX_CHANNELS);
+    }
     if (offscreen) {
         LogWarn(VB_CHANNELOUT, "Virtual Display: %d pixel(s) in %s lie outside the %dx%d preview and were skipped\n",
                 offscreen, virtualDisplayMapFilename.c_str(), m_width, m_height);
