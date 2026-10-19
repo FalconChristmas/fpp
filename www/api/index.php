@@ -109,9 +109,12 @@ dispatch_post('/network/gateway', 'network_save_gateway');
 dispatch_get('/network/interface', 'network_list_interfaces');
 dispatch_get('/network/interface/:interface', 'network_get_interface');
 dispatch_get('/network/interface/add/:interface', 'network_add_interface');
-dispatch_post('/network/interface/add/:interface', 'network_add_interface');
 dispatch_post('/network/interface/:interface', 'network_set_interface');
 dispatch_post('/network/interface/:interface/apply', 'network_apply_interface');
+// Below the generic POST: limonade compiles ':param' to an optional group, so
+// above it this would also take POST /network/interface/add (an interface
+// named "add").  The GET forms are in the same order.
+dispatch_post('/network/interface/add/:interface', 'network_add_interface');
 dispatch_delete('/network/interface/:interface', 'network_delete_interface');
 
 dispatch_delete('/network/presisentNames', 'network_persistentNames_delete');
@@ -239,12 +242,16 @@ dispatch_get('/playlist/:PlaylistName', 'playlist_get');
 dispatch_get('/playlist/:PlaylistName/start', 'playlist_start');
 dispatch_get('/playlist/:PlaylistName/start/:Repeat', 'playlist_start_repeat');
 dispatch_get('/playlist/:PlaylistName/start/:Repeat/:ScheduleProtected', 'playlist_start_repeat_protected');
-dispatch_post('/playlist/:PlaylistName/start', 'playlist_start');
-dispatch_post('/playlist/:PlaylistName/start/:Repeat', 'playlist_start_repeat');
-dispatch_post('/playlist/:PlaylistName/start/:Repeat/:ScheduleProtected', 'playlist_start_repeat_protected');
 dispatch_post('/playlist/:PlaylistName', 'playlist_update');
 dispatch_delete('/playlist/:PlaylistName', 'playlist_delete');
 dispatch_post('/playlist/:PlaylistName/:SectionName/item', 'PlaylistSectionInsertItem');
+// The POST starts go below the routes above, as their GETs do: limonade
+// compiles ':param' to an optional group, so registered first
+// '/playlist/:PlaylistName/start' also took POST /playlist/start (saving a
+// playlist named "start", in any case) and the item insert into one.
+dispatch_post('/playlist/:PlaylistName/start', 'playlist_start');
+dispatch_post('/playlist/:PlaylistName/start/:Repeat', 'playlist_start_repeat');
+dispatch_post('/playlist/:PlaylistName/start/:Repeat/:ScheduleProtected', 'playlist_start_repeat_protected');
 // Must stay BELOW the /playlist/:PlaylistName routes.  limonade compiles a
 // trailing ':param' to an OPTIONAL group, so this pattern also matches the
 // two-segment '/playlist/repeat' and '/playlist/repeat/start' - registered
@@ -301,8 +308,9 @@ dispatch_post('/sequence/current/togglePause', 'GetSequenceTogglePause');
 dispatch_get('/sequence/:SequenceName', 'GetSequence');
 dispatch_get('/sequence/:SequenceName/meta', 'GetSequenceMetaData');
 dispatch_get('/sequence/:SequenceName/start/:startSecond', 'GetSequenceStart');
-dispatch_post('/sequence/:SequenceName/start/:startSecond', 'GetSequenceStart');
 dispatch_post('/sequence/:SequenceName', 'PostSequence');
+// below PostSequence, or it takes POST /sequence/start (see /playlist above)
+dispatch_post('/sequence/:SequenceName/start/:startSecond', 'GetSequenceStart');
 dispatch_delete('/sequence/:SequenceName', 'DeleteSequences');
 
 dispatch_post('/schedule/reload', 'ReloadSchedule');
