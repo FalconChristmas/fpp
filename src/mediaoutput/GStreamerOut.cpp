@@ -3337,9 +3337,21 @@ int GStreamerOutput::Process(void) {
         // (sync=TRUE), then the pipeline as fallback.
         GstElement* posSource = nullptr;
         bool ownPosSource = false;
-        if (m_kmssink) {
-            posSource = m_kmssink;
-        } else if (!m_directConnectorIds.empty()) {
+        {
+            // OnNoMorePads() removes the kmssink of a file that turned out to
+            // have no video, on a streaming thread, under the callback guard;
+            // the bin's was the only reference, so take our own under it.
+            std::shared_ptr<CallbackGuard> guard = m_cbGuard;
+            std::unique_lock<std::recursive_mutex> lock;
+            if (guard) {
+                lock = std::unique_lock<std::recursive_mutex>(guard->mtx);
+            }
+            if (m_kmssink) {
+                posSource = GST_ELEMENT(gst_object_ref(m_kmssink));
+                ownPosSource = true;
+            }
+        }
+        if (!posSource && !m_directConnectorIds.empty()) {
             std::string name = "dkms_" + std::to_string(*m_directConnectorIds.begin());
             posSource = gst_bin_get_by_name(GST_BIN(m_pipeline), name.c_str());
             if (posSource) ownPosSource = true;
@@ -4856,6 +4868,30 @@ void GStreamerOutput::OnNoMorePads(GstElement* element, gpointer userData) {
                 gst_element_set_state(el, GST_STATE_NULL);
                 gst_bin_remove(GST_BIN(self->m_pipeline), el);
                 gst_object_unref(el);
+            }
+        }
+
+        // The consumers' direct kmssink chains hang off vtee, gone now, and
+        // their elements are unnamed but for the sink.  Left in, a sink that
+        // never negotiates never posts EOS, and the bin waits for one from
+        // every sink.  Walk each up from its sink until the link runs out.
+        // m_directConnectorIds stays: Close() releases their DRM leases.
+        for (int cid : self->m_directConnectorIds) {
+            std::string name = "dkms_" + std::to_string(cid);
+            GstElement* el = gst_bin_get_by_name(GST_BIN(self->m_pipeline), name.c_str());
+            while (el) {
+                GstElement* up = nullptr;
+                if (GstPad* sp = gst_element_get_static_pad(el, "sink")) {
+                    if (GstPad* peer = gst_pad_get_peer(sp)) {
+                        up = gst_pad_get_parent_element(peer);
+                        gst_object_unref(peer);
+                    }
+                    gst_object_unref(sp);
+                }
+                gst_element_set_state(el, GST_STATE_NULL);
+                gst_bin_remove(GST_BIN(self->m_pipeline), el);
+                gst_object_unref(el);
+                el = up;
             }
         }
 
