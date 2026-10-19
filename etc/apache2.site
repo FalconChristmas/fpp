@@ -46,10 +46,17 @@ ServerTokens Prod
 	RewriteEngine On
 
 	# 1. Anything but GET/HEAD/OPTIONS that another site's page sent.
+	#    An Origin that names the host a reverse proxy was asked for
+	#    (X-Forwarded-Host) is this UI too: an older player's /proxy/ passes
+	#    the browser's Origin -- that player -- on unchanged, and without
+	#    this every POST control of this player's UI seen through it was
+	#    refused.  A page on another site cannot add that
+	#    header: a custom header needs a CORS preflight, and nothing here
+	#    allows it (Access-Control-Allow-Headers is Content-Type only).
 	RewriteCond %{ENV:REDIRECT_STATUS} ^$
 	RewriteCond %{REQUEST_URI} !^/(json|win|ws)(/|$)
 	RewriteCond %{REQUEST_METHOD} !^(GET|HEAD|OPTIONS)$
-	RewriteCond expr "%{HTTP:Sec-Fetch-Site} -in {'cross-site', 'same-site'} || (%{HTTP:Sec-Fetch-Site} == '' && %{HTTP:Origin} != '' && %{HTTP:Origin} != 'http://' . %{HTTP_HOST} && %{HTTP:Origin} != 'https://' . %{HTTP_HOST})"
+	RewriteCond expr "%{HTTP:Sec-Fetch-Site} -in {'cross-site', 'same-site'} || (%{HTTP:Sec-Fetch-Site} == '' && %{HTTP:Origin} != '' && %{HTTP:Origin} != 'http://' . %{HTTP_HOST} && %{HTTP:Origin} != 'https://' . %{HTTP_HOST} && %{HTTP:Origin} != 'http://' . %{HTTP:X-Forwarded-Host} && %{HTTP:Origin} != 'https://' . %{HTTP:X-Forwarded-Host})"
 	RewriteRule ^ - [F]
 
 	# 2. GETs that act rather than read, when another site's page sent them
