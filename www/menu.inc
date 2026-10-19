@@ -324,7 +324,7 @@ function list_plugin_entries($menu)
                     ?>
                 </span></div>
             </div>
-            <? if (!file_exists(__DIR__ . "/../src/fppd")) { ?>
+            <? if (!fppdBinaryValid()) { ?>
                 <div id='rebuildPopup' title='FPP Upgrade' style="display: none">
                     <textarea style='width: 99%; height: 97%;' disabled id='rebuildText'>
                                                                                                                                                                                                     </textarea>
@@ -352,7 +352,7 @@ function list_plugin_entries($menu)
                         StreamURL('manualUpdate.php?wrapped=1', 'rebuildFPPText', 'RebuildFPPDDone', 'RebuildFPPDDone');
                     }
                 </script>
-                <div id="compileFPPDBanner" class="alert alert-danger"><span class='inlineBlock'>FPPD not found. Rebuild
+                <div id="compileFPPDBanner" class="alert alert-danger"><span class='inlineBlock'>FPPD is missing or damaged. Rebuild
                         required</span><span class='inlineBlock'><input name="btnRebuild" onClick="RebuildFPPD();"
                             type="button" class="buttons btn-outline-light" value="Rebuild"></span></div>
             <? } ?>

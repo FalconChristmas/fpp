@@ -798,12 +798,12 @@ function UpdateActivityWriteCache($size, $mtime, $activity)
  */
 function GetUpdateActivityInternal($withLogTail = false)
 {
-    // Whether the fppd binary exists right now. Same condition menu.inc's
-    // "FPPD not found. Rebuild required" banner renders from
-    // (__DIR__ . "/../src/fppd" there, i.e. parent-of-www/src/fppd), so the
-    // UI can retire that banner without a refresh once a rebuild recreates
-    // the binary — or (re)show it when the build failed. One stat call.
-    $fppdBinaryExists = @file_exists(__DIR__ . '/../../../src/fppd');
+    // Whether the built fppd is present and runnable (fppdBinaryValid(), #3120).
+    // Same condition menu.inc's "FPPD is missing or damaged. Rebuild required"
+    // banner renders from, so the UI can retire that banner without a refresh
+    // once a rebuild recreates the binary — or (re)show it when the build
+    // failed. A few stats and 4-byte reads.
+    $fppdBinaryExists = fppdBinaryValid();
 
     // Version vector for stale-echo ordering (see js/fpp-update.js): every
     // payload carries the log's mtime+size, and the client drops anything
