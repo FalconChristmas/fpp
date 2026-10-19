@@ -50,6 +50,7 @@ extern std::atomic_int runMainFPPDLoop;
 #include <list>
 #include <stdint.h>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 #include "MultiSync.h"
@@ -470,7 +471,11 @@ static bool drogonVersionMatches() {
 
 void APIServer::Init(void) {
     if (!drogonVersionMatches()) {
-        exit(EXIT_FAILURE);
+        // _exit(), not exit(): fppd is half started, and the static
+        // destructors exit() runs can block on, or free memory under, the
+        // threads already running (see ExitWithoutTeardown() in fppd.cpp).
+        fflush(nullptr);
+        _exit(EXIT_FAILURE);
     }
     m_pr = std::make_shared<PlayerResource>();
 

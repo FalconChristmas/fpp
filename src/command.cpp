@@ -60,6 +60,15 @@ int fppdStartTime = 0;
 // none of which is async-signal-safe. fppd's own handler (installed with the
 // HTTP server) only clears the main-loop flag; before that the default action
 // simply terminates the process, which is safe this early in startup.
+// A startup failure here leaves fppd half started, with threads running
+// (the volume worker, the warnings notifier) that the static destructors
+// exit() would run can block on or free memory under.  Leave without them,
+// as fppd's own ExitWithoutTeardown() does.
+[[noreturn]] static void ExitEarly(int code) {
+    fflush(nullptr);
+    _exit(code);
+}
+
 int Command_Initialize() {
     mode_t old_umask;
 
@@ -67,7 +76,7 @@ int Command_Initialize() {
 
     if ((socket_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
         perror("server: socket");
-        exit(1);
+        ExitEarly(1);
     }
 
     mkdir(FPP_SOCKET_PATH, 0777);
@@ -84,7 +93,7 @@ int Command_Initialize() {
     if (bind(socket_fd, (const struct sockaddr*)&server_address, sizeof(server_address)) < 0) {
         close(socket_fd);
         perror("command socket bind");
-        exit(1);
+        ExitEarly(1);
     }
 
     symlink(FPP_SERVER_SOCKET, FPP_SERVER_SOCKET_OLD);

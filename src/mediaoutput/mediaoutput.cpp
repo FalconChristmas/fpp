@@ -642,8 +642,15 @@ static void applyVolume(int vol) {
 // PipeWire stalled whichever of those asked.  Requests now only record the
 // target; one worker thread applies the latest, so a burst of slider steps
 // costs one round of shell-outs, not one per step.
-static std::mutex s_volumeWorkerLock;
-static std::condition_variable s_volumeWorkerWake;
+//
+// The lock and the condition variable are leaked, not file-statics: the
+// worker waits on them for the life of the process, and an exit() from
+// startup (the command socket or the HTTP server failing, after
+// InitMediaOutput() has started the worker) ran their destructors.  glibc's
+// pthread_cond_destroy() waits for the blocked worker, so fppd never exited
+// and systemd never restarted it.
+static std::mutex& s_volumeWorkerLock = *new std::mutex();
+static std::condition_variable& s_volumeWorkerWake = *new std::condition_variable();
 static int s_volumeTarget = -1; // -1: nothing pending
 static uint64_t s_volumeTargetRequest = 0;
 static bool s_volumeWorkerStarted = false;
@@ -656,8 +663,8 @@ void setVolume(int vol) {
     s_volumeTargetRequest = ++s_volumeRequested;
     if (!s_volumeWorkerStarted) {
         s_volumeWorkerStarted = true;
-        // Detached: it only ever waits for the next request, and fppd exits
-        // with _exit or exec, never by destroying it.
+        // Detached: it only ever waits for the next request, on a lock and
+        // condition variable that are never destroyed (see above).
         std::thread([]() {
             SetThreadName("FPP-Volume");
             std::unique_lock<std::mutex> lock(s_volumeWorkerLock);
