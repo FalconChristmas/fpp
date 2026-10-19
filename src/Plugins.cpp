@@ -22,6 +22,7 @@
 #include <dirent.h>
 #include <dlfcn.h>
 #include <errno.h>
+#include <algorithm>
 #include <chrono>
 #include <thread>
 #include <list>
@@ -66,13 +67,17 @@ static std::mutex channelDataPluginsLock;
 // mPlaylistPlugins is walked from whichever thread made the playlist or media
 // transition - the main loop, an HTTP or MQTT thread, a scheduler command -
 // while a runtime load or unload edits it on the main loop and an unload then
-// deletes the plugin. A walk copies the list under this lock and counts each
-// plugin it will call as in flight; finishUnload() waits for a plugin's count
-// to drain before deleting it. Nothing is held across the calls themselves:
-// script plugins block in waitpid() for seconds, and a callback can start
-// another transition, which walks the list again on the same thread.
-// File-static, like channelDataPluginsLock, so PluginManager's layout is
-// unchanged for plugins.
+// deletes the plugin. A walk copies the list under this lock, then, just
+// before each call, checks under it again that the plugin is still listed and
+// counts it as in flight for that one call; finishUnload() waits for a
+// plugin's count to drain before deleting it. Checking per call matters: an
+// unload that lands mid-walk must keep the plugins later in the copy from
+// being entered after their shutdown(), and must wait only on a call that is
+// really running, not on a slow callback into some other plugin. Nothing is
+// held across the calls themselves: script plugins block in waitpid() for
+// seconds, and a callback can start another transition, which walks the list
+// again on the same thread. File-static, like channelDataPluginsLock, so
+// PluginManager's layout is unchanged for plugins.
 static std::mutex playlistPluginsLock;
 static std::condition_variable playlistPluginCallDone;
 static std::map<FPPPlugins::Plugin*, int> playlistPluginCallsInFlight;
@@ -83,11 +88,16 @@ static void ForEachPlaylistPlugin(const std::vector<FPPPlugins::PlaylistEventPlu
     {
         std::lock_guard<std::mutex> lock(playlistPluginsLock);
         snapshot = plugins;
-        for (auto a : snapshot) {
-            playlistPluginCallsInFlight[dynamic_cast<FPPPlugins::Plugin*>(a)]++;
-        }
     }
     for (auto a : snapshot) {
+        FPPPlugins::Plugin* key = dynamic_cast<FPPPlugins::Plugin*>(a);
+        {
+            std::lock_guard<std::mutex> lock(playlistPluginsLock);
+            if (std::find(plugins.begin(), plugins.end(), a) == plugins.end()) {
+                continue; // unloaded since the copy was taken
+            }
+            playlistPluginCallsInFlight[key]++;
+        }
         struct Done {
             FPPPlugins::Plugin* key;
             ~Done() {
@@ -98,7 +108,7 @@ static void ForEachPlaylistPlugin(const std::vector<FPPPlugins::PlaylistEventPlu
                     playlistPluginCallDone.notify_all();
                 }
             }
-        } done{ dynamic_cast<FPPPlugins::Plugin*>(a) };
+        } done{ key };
         f(a);
     }
 }
