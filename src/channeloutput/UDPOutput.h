@@ -188,7 +188,8 @@ private:
     // InitNetwork() takes it down when the address arrives, Close() otherwise
     std::string interfaceWarning;
 
-    bool InitNetwork();
+    // rebuildSockets: the address changed; drop the sockets made on the old one
+    bool InitNetwork(bool rebuildSockets = false);
     std::shared_ptr<SendSocketInfo> findOrCreateSocket(unsigned int key, int sc = 1);
 
     // Reachability is a property of the controller, not of each universe sent
@@ -199,7 +200,6 @@ private:
     std::map<std::string, std::shared_ptr<PingHost>> pingHosts;
     void OnPingResult(const std::shared_ptr<PingHost>& host, int ms);
     void SetHostValid(PingHost& host, bool valid);
-    void CloseNetwork();
 
     std::mutex socketMutex;
     UDPOutputMessages messages;
@@ -232,7 +232,7 @@ private:
     // A WorkItem owns a copy of the mmsghdr list and a reference on the socket
     // info so a worker that outlives its frame (stuck send to a dead controller)
     // cannot hit freed memory when PrepData rebuilds the message vectors or
-    // CloseNetwork drops the sockets.  Note the copy is shallow: the iovecs
+    // an address change drops the sockets.  Note the copy is shallow: the iovecs
     // still point at per-output buffers, so a late send may transmit the
     // *current* frame's bytes - acceptable, and no worse than it ever was.
     // generation identifies which frame queued it.

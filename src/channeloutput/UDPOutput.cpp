@@ -855,19 +855,27 @@ int UDPOutput::Init(Json::Value config) {
                 // the frame thread kept creating sockets while the address was
                 // missing, bound to (and multicasting out of) loopback or the
                 // old address; drop them so they are rebuilt on the new one
-                {
-                    std::unique_lock<std::mutex> lk(socketMutex);
-                    messages.clearSockets();
-                }
-                interfaceUp = InitNetwork();
+                interfaceUp = InitNetwork(true);
                 if (interfaceUp && hasArtNet) {
                     CreateArtNetSocket(localAddress.sin_addr.s_addr, true);
                 }
             }
         } else if (s == interface && i == NetworkMonitor::NetEventType::DEL_ADDR) {
-            LogInfo(VB_CHANNELOUT, "UDP Interface %s now down\n", s.c_str());
-            interfaceUp = false;
-            CloseNetwork();
+            // The interface can still have an address: a DHCP lease that
+            // replaces a fallback address arrives before the old one goes, and
+            // its NEW_ADDR was ignored because the interface was up.  Re-read
+            // the address, as NEW_ADDR does, or the sockets are rebuilt bound
+            // to (and multicasting out of) the address just deleted.
+            interfaceUp = InitNetwork(true);
+            if (interfaceUp) {
+                LogInfo(VB_CHANNELOUT, "UDP Interface %s address changed\n", s.c_str());
+                if (hasArtNet) {
+                    CreateArtNetSocket(localAddress.sin_addr.s_addr, true);
+                }
+            } else {
+                LogInfo(VB_CHANNELOUT, "UDP Interface %s now down\n", s.c_str());
+            }
+            PingControllers(false);
         }
     };
     networkCallbackId = NetworkMonitor::INSTANCE.registerCallback(f);
@@ -1812,12 +1820,6 @@ void UDPOutput::DumpConfig() {
     }
 }
 
-void UDPOutput::CloseNetwork() {
-    std::unique_lock<std::mutex> lk(socketMutex);
-    messages.clearSockets();
-    lk.unlock();
-    PingControllers(false);
-}
 std::shared_ptr<SendSocketInfo> UDPOutput::findOrCreateSocket(unsigned int socketKey, int sc) {
     auto it = messages.sendSockets.find(socketKey);
     std::shared_ptr<SendSocketInfo> info;
@@ -1997,7 +1999,7 @@ int UDPOutput::createSocket(int port, bool broadCast, bool multiCast) {
     return sendSocket;
 }
 
-bool UDPOutput::InitNetwork() {
+bool UDPOutput::InitNetwork(bool rebuildSockets) {
     // Returns true when the output interface has a usable address.
     char E131LocalAddress[16];
     int rv = GetInterfaceAddress(outInterface.c_str(), E131LocalAddress, NULL, NULL);
@@ -2011,11 +2013,16 @@ bool UDPOutput::InitNetwork() {
     // socketMutex, so the address changes under that lock too.  It is
     // refreshed every time: resetting it to loopback and then returning early
     // because sockets already existed is what left multicast going out of lo
-    // after an address change.
+    // after an address change.  After an address change the sockets are
+    // dropped in the same critical section, so a frame can't rebuild them on
+    // the old address between the two.
     std::unique_lock<std::mutex> lk(socketMutex);
     memset(&localAddress, 0, sizeof(struct sockaddr_in));
     localAddress.sin_family = AF_INET;
     localAddress.sin_addr.s_addr = inet_addr(E131LocalAddress);
+    if (rebuildSockets) {
+        messages.clearSockets();
+    }
     if (rv == 0 && !interfaceWarning.empty()) {
         // An interface that had no address yet (DHCP still waiting, cable
         // out) is usable once NEW_ADDR brings one; the banner was otherwise
