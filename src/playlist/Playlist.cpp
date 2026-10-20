@@ -2273,6 +2273,9 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
  *
  */
 void Playlist::SetPosition(int position) {
+    // The MQTT position topics call this from the MQTT thread, while the
+    // playlist thread reads m_startPosition in Start() under the lock.
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     m_startPosition = position;
 
     Events::Publish("playlist/position/status", position);
@@ -3262,7 +3265,14 @@ int Playlist::MQTTHandler(std::string topic, std::string msg) {
     } else if (topic == "name/set") {
         LogInfo(VB_CONTROL, "playlist/%s is deprecated and will be removed in a future release\n",
                 topic.c_str());
-        Play(msg, m_sectionPosition, m_repeat);
+        // On the MQTT thread: the playlist thread moves m_sectionPosition
+        // under the lock as it advances.
+        int position;
+        {
+            std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+            position = m_sectionPosition;
+        }
+        Play(msg, position, m_repeat);
 
     } else if (topic == "repeat/set") {
         LogInfo(VB_PLAYLIST, "playlist/%s is deprecated and will be removed in a future release\n",
