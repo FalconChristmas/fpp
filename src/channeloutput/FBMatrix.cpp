@@ -14,11 +14,11 @@
 
 #include "fpp-json.h"
 
-#include "../Warnings.h"
 #include "../common.h"
 #include "../log.h"
 
 #include "FBMatrix.h"
+#include "ChannelOutputSetup.h"
 #include "overlays/PixelOverlay.h"
 
 #include "../Plugin.h"
@@ -123,12 +123,12 @@ int FBMatrixOutput::Init(Json::Value config) {
                 m_autoCreatedFBModelName = modelName;
             } else {
                 LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
-                WarningHolder::AddWarning(35, "VirtualMatrix: Empty Pixel Overlay Model name");
+                AddOutputConfigWarning(35, "VirtualMatrix: Empty Pixel Overlay Model name");
                 return 0;
             }
         } else {
             LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
-            WarningHolder::AddWarning(35, "VirtualMatrix: Empty Pixel Overlay Model name");
+            AddOutputConfigWarning(35, "VirtualMatrix: Empty Pixel Overlay Model name");
             return 0;
         }
     }
@@ -159,7 +159,7 @@ int FBMatrixOutput::Init(Json::Value config) {
 
     if (!model) {
         LogErr(VB_CHANNELOUT, "Invalid Pixel Overlay Model: '%s'\n", modelName.c_str());
-        WarningHolder::AddWarning(35, "VirtualMatrix: Invalid Pixel Overlay Model: " + modelName);
+        AddOutputConfigWarning(35, "VirtualMatrix: Invalid Pixel Overlay Model: " + modelName);
         return 0;
     }
 
@@ -167,7 +167,7 @@ int FBMatrixOutput::Init(Json::Value config) {
     // the model's own bytes per pixel (4 for an RGBW submodel)
     if (model->getBytesPerPixel() != 3) {
         LogErr(VB_CHANNELOUT, "Pixel Overlay Model '%s' is not RGB\n", modelName.c_str());
-        WarningHolder::AddWarning(35, "VirtualMatrix: model " + modelName + " is not an RGB model");
+        AddOutputConfigWarning(35, "VirtualMatrix: model " + modelName + " is not an RGB model");
         model = nullptr;
         return 0;
     }
@@ -183,7 +183,7 @@ int FBMatrixOutput::Init(Json::Value config) {
 
     if (m_channelCount != (width * height * 3)) {
         LogErr(VB_CHANNELOUT, "Error, channel count is incorrect\n");
-        WarningHolder::AddWarning(35, "VirtualMatrix: Invalid Pixel Overlay Model: " + modelName);
+        AddOutputConfigWarning(35, "VirtualMatrix: Invalid Pixel Overlay Model: " + modelName);
         return 0;
     }
 

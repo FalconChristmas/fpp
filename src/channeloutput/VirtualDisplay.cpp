@@ -14,7 +14,6 @@
 
 #include "fpp-json.h"
 
-#include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
 
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -25,6 +24,7 @@
 #include "../log.h"
 
 #include "VirtualDisplay.h"
+#include "ChannelOutputSetup.h"
 #include "overlays/PixelOverlay.h"
 
 #include "Plugin.h"
@@ -111,19 +111,19 @@ int VirtualDisplayOutput::Init(Json::Value config) {
                 modelCreated = true;
             } else {
                 LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
-                WarningHolder::AddWarning(35, "Virtual Matrix output has an empty Pixel Overlay Model name");
+                AddOutputConfigWarning(35, "Virtual Matrix output has an empty Pixel Overlay Model name");
                 return 0;
             }
         } else {
             LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
-            WarningHolder::AddWarning(35, "Virtual Matrix output has an empty Pixel Overlay Model name");
+            AddOutputConfigWarning(35, "Virtual Matrix output has an empty Pixel Overlay Model name");
             return 0;
         }
     }
 
     if (m_modelName == "") {
         LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
-        WarningHolder::AddWarning(35, "Virtual Matrix output has an empty Pixel Overlay Model name");
+        AddOutputConfigWarning(35, "Virtual Matrix output has an empty Pixel Overlay Model name");
         return 0;
     }
 
@@ -131,7 +131,7 @@ int VirtualDisplayOutput::Init(Json::Value config) {
 
     if (!m_model) {
         LogErr(VB_CHANNELOUT, "Invalid Pixel Overlay Model: '%s'\n", m_modelName.c_str());
-        WarningHolder::AddWarning(35, "Invalid Pixel Overlay Model: '" + m_modelName + "'");
+        AddOutputConfigWarning(35, "Invalid Pixel Overlay Model: '" + m_modelName + "'");
         return 0;
     }
 
@@ -139,7 +139,7 @@ int VirtualDisplayOutput::Init(Json::Value config) {
     // model's own bytes per pixel from it (4 for an RGBW submodel)
     if (m_model->getBytesPerPixel() != 3) {
         LogErr(VB_CHANNELOUT, "Pixel Overlay Model '%s' is not RGB\n", m_modelName.c_str());
-        WarningHolder::AddWarning(35, "Virtual Display: model '" + m_modelName + "' is not an RGB model");
+        AddOutputConfigWarning(35, "Virtual Display: model '" + m_modelName + "' is not an RGB model");
         m_model = nullptr;
         return 0;
     }
