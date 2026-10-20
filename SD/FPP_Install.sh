@@ -114,7 +114,16 @@ fi
 if [ ! -d /run/systemd/system ]; then
     _real_systemctl="$(command -v systemctl)"
     systemctl() {
-        case "$1" in
+        # Dispatch on the verb, not $1: options such as --global or --now
+        # can come first ("systemctl --global mask ...").
+        local _verb="" _arg
+        for _arg in "$@"; do
+            case "$_arg" in
+                -*) ;;
+                *) _verb="$_arg"; break ;;
+            esac
+        done
+        case "$_verb" in
             disable|unmask)
                 "$_real_systemctl" --no-reload --no-warn "$@" 2>/dev/null || true
                 ;;
