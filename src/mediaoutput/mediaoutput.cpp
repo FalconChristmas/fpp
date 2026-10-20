@@ -691,11 +691,14 @@ static std::map<std::string, std::string> VIDEO_EXTS = {
     { "mp4", "mp4" }, { "MP4", "mp4" }, { "avi", "avi" }, { "AVI", "avi" }, { "mov", "mov" }, { "MOV", "mov" }, { "mkv", "mkv" }, { "MKV", "mkv" }, { "mpg", "mpg" }, { "MPG", "mpg" }, { "mpeg", "mpeg" }, { "MPEG", "mpeg" }
 };
 
+// Case-insensitive: the tables list only the all-lower and all-upper
+// spellings (VIDEO_EXTS' are also the names GetVideoFilenameForMedia()
+// probes for), and a folder ripped as "Song.Mp3" must still count as media.
 bool IsExtensionVideo(const std::string& ext) {
-    return VIDEO_EXTS.find(ext) != VIDEO_EXTS.end();
+    return VIDEO_EXTS.find(toLowerCopy(ext)) != VIDEO_EXTS.end();
 }
 bool IsExtensionAudio(const std::string& ext) {
-    return AUDIO_EXTS.find(ext) != AUDIO_EXTS.end();
+    return AUDIO_EXTS.find(toLowerCopy(ext)) != AUDIO_EXTS.end();
 }
 
 std::string GetVideoFilenameForMedia(const std::string& filename, std::string& ext) {
