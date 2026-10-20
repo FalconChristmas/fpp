@@ -11,6 +11,7 @@
  */
 #include "fpp-json.h"
 
+#include <atomic>
 #include <cerrno>
 #include <condition_variable>
 #include <cstring>
@@ -124,7 +125,8 @@ public:
 
     void Init();
 
-    FPPMode fppMode;
+    // written by the settings-file reload, read unlocked by getFPPmode()
+    std::atomic<FPPMode> fppMode;
 
     std::string getSetting(const std::string& setting, const std::string& defaultVal);
     int getSettingInt(const std::string& setting, int defaultVal);
