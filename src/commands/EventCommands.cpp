@@ -14,6 +14,7 @@
 
 #include "fpp-json.h"
 
+#include <cmath>
 #include <functional>
 
 #include "../Sequence.h"
@@ -27,6 +28,20 @@
 #include "../settings.h"
 
 #include "EventCommands.h"
+
+// A slot is a whole number 1..255 ("3.0" and spaces round it are fine);
+// anything else is 0, which is what a preset with no slot holds.
+static int ParsePresetSlot(const std::string& s) {
+    char* end = nullptr;
+    double v = strtod(s.c_str(), &end);
+    while (end && isspace((unsigned char)*end)) {
+        end++;
+    }
+    if (end == s.c_str() || *end != '\0' || v != floor(v) || v < 1 || v > 255) {
+        return 0;
+    }
+    return (int)v;
+}
 
 TriggerPresetCommand::TriggerPresetCommand() :
     Command("Trigger Command Preset") {
@@ -74,11 +89,13 @@ std::unique_ptr<Command::Result> TriggerPresetSlotCommand::run(const std::vector
     if (args.size() != 1) {
         return std::make_unique<Command::ErrorResult>("Not found");
     }
-    int val = std::atoi(args[0].c_str());
+    int val = ParsePresetSlot(args[0]);
+    if (val == 0) {
+        return std::make_unique<Command::ErrorResult>("Invalid preset slot \"" + args[0] + "\"");
+    }
     if (CommandManager::INSTANCE.TriggerPreset(val))
         return std::make_unique<Command::Result>("Preset Triggered");
-    else
-        return std::make_unique<Command::ErrorResult>("Not found");
+    return std::make_unique<Command::Result>("No preset in slot " + std::to_string(val));
 }
 
 TriggerMultiplePresetSlotsCommand::TriggerMultiplePresetSlotsCommand() :
@@ -101,7 +118,12 @@ std::unique_ptr<Command::Result> TriggerMultiplePresetSlotsCommand::run(const st
     LogDebug(VB_COMMAND, "\"Trigger Multiple Command Preset Slots\" command triggering slots: %s\n", slotList.c_str());
     for (auto& a : args) {
         if (a.length() > 0) {
-            CommandManager::INSTANCE.TriggerPreset(std::atoi(a.c_str()));
+            int slot = ParsePresetSlot(a);
+            if (slot == 0) {
+                LogWarn(VB_COMMAND, "\"Trigger Multiple Command Preset Slots\" skipping invalid slot \"%s\"\n", a.c_str());
+                continue;
+            }
+            CommandManager::INSTANCE.TriggerPreset(slot);
         }
     }
     return std::make_unique<Command::Result>("Presets Triggered");

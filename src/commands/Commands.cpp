@@ -1229,6 +1229,9 @@ private:
 };
 
 int CommandManager::TriggerPreset(int slot, std::map<std::string, std::string>& keywords) {
+    if (slot < 1) {
+        return 0; // 0 is "no slot": never run every unslotted preset
+    }
     std::unique_lock<std::mutex> lock(presetsMutex);
     std::list<Json::Value> slotPresets;
     std::list<std::string> slotPresetNames;
@@ -1264,7 +1267,7 @@ int CommandManager::TriggerPreset(int slot, std::map<std::string, std::string>& 
         }
         ++nameIt;
     }
-    return 1;
+    return slotPresets.empty() ? 0 : 1;
 }
 
 int CommandManager::TriggerPreset(int slot) {

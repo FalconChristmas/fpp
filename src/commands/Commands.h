@@ -302,6 +302,7 @@ public:
     HttpResponsePtr render_GET(const HttpRequestPtr& req);
     HttpResponsePtr render_POST(const HttpRequestPtr& req);
 
+    // By slot: 1 if a preset in the slot ran, 0 if none is in it (or slot < 1).
     int TriggerPreset(int slot, std::map<std::string, std::string>& keywords);
     int TriggerPreset(int slot);
     int TriggerPreset(std::string name, std::map<std::string, std::string>& keywords);
