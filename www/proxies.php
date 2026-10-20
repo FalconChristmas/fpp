@@ -292,13 +292,13 @@
                                         if (data && data.HostName) {
                                             let cell = $("#" + descCellId);
                                             // Set Description for DHCP
-                                            cell.html("DHCP (FPP Instance: " + data.HostName + ")");
+                                            cell.text("DHCP (FPP Instance: " + data.HostName + ")");
                                         }
                                     },
                                     error: function () {
                                         // Set Description when not FPP
                                         let cell = $("#" + descCellId);
-                                        cell.html("DHCP - System Type not recognised");
+                                        cell.text("DHCP - System Type not recognised");
                                     }
                                 });
                             })(proxyInfos[i].host);
