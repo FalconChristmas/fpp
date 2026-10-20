@@ -586,6 +586,11 @@ void BBShiftPanelManager::removeMember(BBShiftPanelOutput* m) {
 void BBShiftPanelManager::teardownHardware() {
     stopBackgroundThreads();
     StopPRU();
+    m_pwmPruStalled = false;
+    if (!m_pwmStallWarning.empty()) {
+        WarningHolder::RemoveWarning(m_pwmStallWarning);
+        m_pwmStallWarning.clear();
+    }
     if (m_heapBuffers) {
         for (auto& b : outputBuffers) {
             if (b) {
@@ -1248,7 +1253,13 @@ bool BBShiftPanelManager::rebuild() {
         return false;
     }
     if (isPWMPanel()) {
-        setupPWMRegisters();
+        // A PRU that doesn't take the registers won't take frames either, and
+        // started anyway the output thread would wait on it every frame.
+        if (!setupPWMRegisters()) {
+            LogErr(VB_CHANNELOUT, "BBShiftPanel: the PRU did not take the PWM panel registers; output not started\n");
+            AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBShiftPanel: the PRU did not respond to the PWM panel setup. May require a reboot.");
+            return false;
+        }
     } else {
         setupBrightnessValues();
     }
@@ -1713,14 +1724,16 @@ void BBShiftPanelManager::prepMember(BBShiftPanelOutput* m, unsigned char* chann
         return;
     }
     if (isPWMPanel()) {
-        PrepDataPWM();
+        if (!PrepDataPWM()) {
+            return; // dropped: the PRU didn't take the previous command
+        }
     } else {
         PrepDataShift();
     }
     m_framePrepped = true;
 }
 
-void BBShiftPanelManager::PrepDataPWM() {
+bool BBShiftPanelManager::PrepDataPWM() {
     uint8_t* buf = outputBuffers[currOutputBuffer];
 
     std::unique_lock<std::mutex> lock(bgTaskMutex);
@@ -1764,10 +1777,8 @@ void BBShiftPanelManager::PrepDataPWM() {
     */
 
     // wait for the PRU to take the previous command before queueing the next
-    while (pruData->command && bgThreadsRunning) {
-        std::this_thread::sleep_for(std::chrono::microseconds(100));
-        __asm__ __volatile__("" ::
-                                 : "memory");
+    if (!waitForPWMCommandTaken()) {
+        return false;
     }
 
     // hand the frame to the pump thread
@@ -1790,6 +1801,40 @@ void BBShiftPanelManager::PrepDataPWM() {
     pruData->cmd = PWM_COMMAND_DATA;
     __asm__ __volatile__("" ::
                              : "memory");
+    return true;
+}
+
+// The PRU clears the command word when it takes a command.  These waits run on
+// the output thread holding outputThreadLock and m_memberLock, so a PRU that
+// stopped answering (a wedged or crashed firmware) must not hold them forever:
+// that stopped all output, wedged the next config reload and kept fppd from
+// shutting down.  Give it a few frame periods, then drop the frame.  Once it
+// has missed one, later frames don't wait at all until it answers again.
+bool BBShiftPanelManager::waitForPWMCommandTaken() {
+    int limit = m_pwmPruStalled ? 0 : 1000; // 100ms
+    for (int cnt = 0; pruData->command && bgThreadsRunning && cnt < limit; cnt++) {
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
+        __asm__ __volatile__("" ::
+                                 : "memory");
+    }
+    if (!pruData->command) {
+        if (m_pwmPruStalled) {
+            LogInfo(VB_CHANNELOUT, "BBShiftPanel: the PRU is taking PWM panel frames again\n");
+            m_pwmPruStalled = false;
+            if (!m_pwmStallWarning.empty()) {
+                WarningHolder::RemoveWarning(m_pwmStallWarning);
+                m_pwmStallWarning.clear();
+            }
+        }
+        return bgThreadsRunning;
+    }
+    if (bgThreadsRunning && !m_pwmPruStalled) {
+        m_pwmPruStalled = true;
+        LogErr(VB_CHANNELOUT, "BBShiftPanel: the PRU stopped taking PWM panel frames; dropping frames until it answers\n");
+        m_pwmStallWarning = "BBShiftPanel: the PRU stopped responding; LED panel frames are being dropped. May require a reboot.";
+        WarningHolder::AddWarning(m_pwmStallWarning);
+    }
+    return false;
 }
 
 void BBShiftPanelManager::PrepDataShift() {
@@ -1889,10 +1934,8 @@ void BBShiftPanelManager::publishFrame() {
         pruData->numStrides = m_strideSchedule.size() * numRows;
         pruData->pixelsPerStride = rowLen;
     } else {
-        while (pruData->command && bgThreadsRunning) {
-            std::this_thread::sleep_for(std::chrono::microseconds(100));
-            __asm__ __volatile__("" ::
-                                     : "memory");
+        if (!waitForPWMCommandTaken()) {
+            return; // dropped: the PRU didn't take the frame's DATA command
         }
 
         // Send the command to setup the registers
@@ -1990,7 +2033,7 @@ static int outputRegData(int curidx, uint8_t* odata, uint16_t r, uint16_t g, uin
     return curidx;
 }
 
-void BBShiftPanelManager::setupPWMRegisters() {
+bool BBShiftPanelManager::setupPWMRegisters() {
     // This runs from Init(), on the main loop while outputs load.  The waits
     // for the PRU to take a command had no limit, so a PRU that stopped
     // answering (firmware that failed to load, or wedged) hung fppd at
@@ -2048,7 +2091,7 @@ void BBShiftPanelManager::setupPWMRegisters() {
         m_pwmSeqIdx = 0;
         for (int i = 0; i < DP3364_SEQ_LEN; i++) {
             if (!pruIdle()) {
-                return;
+                return false;
             }
             writeDP3364SeqWord(i);
             pruData->cmd = PWM_COMMAND_REGISTERS;
@@ -2058,7 +2101,8 @@ void BBShiftPanelManager::setupPWMRegisters() {
             // give it time to finish before rewriting the rotating slot
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
-        return;
+        // and that it took the last one
+        return pruIdle();
     }
 
     if (const PWMChipSeq* seq = activePWMSeq()) {
@@ -2102,7 +2146,7 @@ void BBShiftPanelManager::setupPWMRegisters() {
         m_pwmSeqIdx = 0;
         for (int i = 0; i < seq->len; i++) {
             if (!pruIdle()) {
-                return;
+                return false;
             }
             writeFM6373SeqWord(i);
             pruData->cmd = PWM_COMMAND_REGISTERS;
@@ -2112,7 +2156,8 @@ void BBShiftPanelManager::setupPWMRegisters() {
             // give it time to finish before rewriting the rotating slot
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
-        return;
+        // and that it took the last one
+        return pruIdle();
     }
 
     // register 1 contains the number of scan lines (rows)
@@ -2183,7 +2228,7 @@ void BBShiftPanelManager::setupPWMRegisters() {
     pru->memcpyToPRU(&pruData->registers[0], &odata[0], curidx);
 
     if (!pruIdle()) {
-        return;
+        return false;
     }
 
     // Send the command to setup the registers
@@ -2193,6 +2238,7 @@ void BBShiftPanelManager::setupPWMRegisters() {
     pruData->cmd = PWM_COMMAND_REGISTERS;
     __asm__ __volatile__("" ::
                              : "memory");
+    return pruIdle();
 }
 
 // Adopt an imported register profile, if the config carried one and this chip

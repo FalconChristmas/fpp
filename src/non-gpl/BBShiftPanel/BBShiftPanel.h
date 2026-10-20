@@ -186,7 +186,8 @@ private:
     void computeGeometry();
 
     void PrepDataShift();
-    void PrepDataPWM();
+    bool PrepDataPWM();
+    bool waitForPWMCommandTaken();
 
     void StopPRU(bool wait = true);
     int StartPRU();
@@ -195,7 +196,7 @@ private:
     void sendPanelInitPackets();
     uint32_t computeMaxBrightnessCycles();
     void setupBrightnessValues();
-    void setupPWMRegisters();
+    bool setupPWMRegisters();
     void setupGCLKConfig();
     void writeFM6373SeqWord(int idx);
     void writeDP3364SeqWord(int idx);
@@ -350,6 +351,11 @@ private:
 
     bool singlePRU = false;
     std::string m_refreshWarning;
+    // set while a PWM PRU has stopped taking commands (see
+    // waitForPWMCommandTaken); the warning comes down when it answers again
+    // or the hardware is torn down
+    bool m_pwmPruStalled = false;
+    std::string m_pwmStallWarning;
 
     std::queue<std::function<void()>> bgTasks;
     volatile bool bgThreadsRunning = false;
