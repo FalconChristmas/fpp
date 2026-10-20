@@ -2129,7 +2129,15 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
             m_sectionPosition = 0;
             // position is a row of the playlist file; the loaded copy counts
             // a sub-playlist row's entries separately.
-            SetPosition(FileRowToPosition(position));
+            int p = FileRowToPosition(position);
+            int mainPos = p - (int)m_leadIn.size();
+            if ((m_random > 0) && (mainPos >= 0) && (mainPos < (int)m_mainPlaylist.size())) {
+                // The row maps to where the entry was loaded, and the main
+                // playlist is shuffled by now: as when starting part-way in
+                // below, play that entry next and the rest in a fresh shuffle.
+                p = ShuffleMainPlaylistFrom(p);
+            }
+            SetPosition(p);
             // Deliberate here, unlike the call at the end of this function:
             // this branch is a jump inside a playlist that is already running
             // (possibly stopping gracefully), so normalising to PLAYING is what
@@ -2203,19 +2211,11 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
     }
 
     if ((tmpStartPos == 0 || tmpStartPos == -1) && (m_random > 0)) {
-        // Starting part-way into a shuffled main playlist: play the requested
-        // entry first, then the rest in a fresh shuffle.  Its row says nothing
-        // about which of the others have played.
-        PlaylistEntryBase* first = nullptr;
         int mainPos = p - (int)m_leadIn.size();
         if ((startRow > 0) && (mainPos >= 0) && (mainPos < (int)m_mainPlaylist.size())) {
-            first = m_mainPlaylist[mainPos];
-        }
-        RandomizeMainPlaylist();
-        if (first) {
-            m_mainPlaylist.erase(std::find(m_mainPlaylist.begin(), m_mainPlaylist.end(), first));
-            m_mainPlaylist.insert(m_mainPlaylist.begin(), first);
-            p = m_leadIn.size();
+            p = ShuffleMainPlaylistFrom(p);
+        } else {
+            RandomizeMainPlaylist();
         }
     }
 
@@ -2311,6 +2311,29 @@ void Playlist::RandomizeMainPlaylist() {
             tmpPlaylist.pop_back();
         }
     }
+}
+
+// Starting part-way into a shuffled main playlist: the entry loaded at
+// position (counted across the whole playlist, as loaded) plays first, then
+// the rest in a fresh shuffle -- its row says nothing about which of the
+// others have played.  The entry is found by its load position, not by
+// index, since the main playlist may already be shuffled.  Returns the
+// position it now starts at.
+int Playlist::ShuffleMainPlaylistFrom(int position) {
+    PlaylistEntryBase* first = nullptr;
+    for (auto* e : m_mainPlaylist) {
+        if (e->GetPositionInPlaylist() == position) {
+            first = e;
+            break;
+        }
+    }
+    RandomizeMainPlaylist();
+    if (!first) {
+        return position;
+    }
+    m_mainPlaylist.erase(std::find(m_mainPlaylist.begin(), m_mainPlaylist.end(), first));
+    m_mainPlaylist.insert(m_mainPlaylist.begin(), first);
+    return m_leadIn.size();
 }
 
 /*

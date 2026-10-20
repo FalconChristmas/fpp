@@ -83,6 +83,7 @@ public:
     void SetRepeat(int repeat);
 
     void RandomizeMainPlaylist();
+    int ShuffleMainPlaylistFrom(int position);
 
     void Dump(void);
 
