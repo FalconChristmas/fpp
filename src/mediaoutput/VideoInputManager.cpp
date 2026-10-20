@@ -981,55 +981,68 @@ bool VideoInputManager::LoadConfig() {
 
     for (const auto& entry : root) {
         SourceInfo si;
-        si.id = entry.get("id", 0).asInt();
-        si.name = entry.get("name", "").asString();
-        si.type = entry.get("type", "").asString();
-        si.pipeWireNodeName = entry.get("pipeWireNodeName", "").asString();
-        si.enabled = entry.get("enabled", true).asBool();
+        // asInt()/asBool()/asString() throw on a value of the wrong type, and
+        // this runs on the reload worker thread, where an escaping exception
+        // terminates fppd (at every start, since Init() asks for a reload);
+        // skip that source.
+        try {
+            if (!entry.isObject()) {
+                continue;
+            }
+            si.id = entry.get("id", 0).asInt();
+            si.name = entry.get("name", "").asString();
+            si.type = entry.get("type", "").asString();
+            si.pipeWireNodeName = entry.get("pipeWireNodeName", "").asString();
+            si.enabled = entry.get("enabled", true).asBool();
 
-        si.width = entry.get("width", 320).asInt();
-        si.height = entry.get("height", 240).asInt();
-        si.framerate = entry.get("framerate", 10).asInt();
+            si.width = entry.get("width", 320).asInt();
+            si.height = entry.get("height", 240).asInt();
+            si.framerate = entry.get("framerate", 10).asInt();
 
-        if (si.type == "videotestsrc") {
-            si.pattern = entry.get("pattern", "smpte").asString();
-        } else if (si.type == "v4l2src") {
-            si.device = entry.get("device", "/dev/video0").asString();
-            si.powerLineFrequency = entry.get("powerLineFrequency", -1).asInt();
-            si.exposureMode = entry.get("exposureMode", "camera").asString();
-            si.exposureTime100us = entry.get("exposureTime100us", -1).asInt();
-            si.dynamicFramerate = entry.get("dynamicFramerate", -1).asInt();
-            if (si.powerLineFrequency < 0 || si.powerLineFrequency > 2)
-                si.powerLineFrequency = -1;
-            if (si.exposureMode != "auto" && si.exposureMode != "manual")
-                si.exposureMode = "camera";
-            if (si.dynamicFramerate < 0 || si.dynamicFramerate > 1)
-                si.dynamicFramerate = -1;
-            // 100us units: 1 .. 1s.  The device's own range is applied on
-            // top of this in V4L2Device::ApplyControls.
-            if (si.exposureTime100us < 1 || si.exposureTime100us > 10000)
-                si.exposureTime100us = -1;
-        } else if (si.type == "rtspsrc") {
-            si.uri = entry.get("uri", "").asString();
-            si.latency = entry.get("latency", 200).asInt();
-            if (si.latency < 0) si.latency = 0;
-            if (si.latency > 10000) si.latency = 10000;
-        } else if (si.type == "urisrc") {
-            si.uri = entry.get("uri", "").asString();
-            si.bufferSec = entry.get("bufferSec", 3.0).asDouble();
-            if (si.bufferSec < 0) si.bufferSec = 0;
-            if (si.bufferSec > 30) si.bufferSec = 30;
-        } else if (si.type == "rtpsrc") {
-            si.port = entry.get("port", 5004).asInt();
-            si.encoding = entry.get("encoding", "H264").asString();
-            si.multicastGroup = entry.get("multicastGroup", "").asString();
-            if (si.port < 1024) si.port = 1024;
-            if (si.port > 65535) si.port = 65535;
+            if (si.type == "videotestsrc") {
+                si.pattern = entry.get("pattern", "smpte").asString();
+            } else if (si.type == "v4l2src") {
+                si.device = entry.get("device", "/dev/video0").asString();
+                si.powerLineFrequency = entry.get("powerLineFrequency", -1).asInt();
+                si.exposureMode = entry.get("exposureMode", "camera").asString();
+                si.exposureTime100us = entry.get("exposureTime100us", -1).asInt();
+                si.dynamicFramerate = entry.get("dynamicFramerate", -1).asInt();
+                if (si.powerLineFrequency < 0 || si.powerLineFrequency > 2)
+                    si.powerLineFrequency = -1;
+                if (si.exposureMode != "auto" && si.exposureMode != "manual")
+                    si.exposureMode = "camera";
+                if (si.dynamicFramerate < 0 || si.dynamicFramerate > 1)
+                    si.dynamicFramerate = -1;
+                // 100us units: 1 .. 1s.  The device's own range is applied on
+                // top of this in V4L2Device::ApplyControls.
+                if (si.exposureTime100us < 1 || si.exposureTime100us > 10000)
+                    si.exposureTime100us = -1;
+            } else if (si.type == "rtspsrc") {
+                si.uri = entry.get("uri", "").asString();
+                si.latency = entry.get("latency", 200).asInt();
+                if (si.latency < 0) si.latency = 0;
+                if (si.latency > 10000) si.latency = 10000;
+            } else if (si.type == "urisrc") {
+                si.uri = entry.get("uri", "").asString();
+                si.bufferSec = entry.get("bufferSec", 3.0).asDouble();
+                if (si.bufferSec < 0) si.bufferSec = 0;
+                if (si.bufferSec > 30) si.bufferSec = 30;
+            } else if (si.type == "rtpsrc") {
+                si.port = entry.get("port", 5004).asInt();
+                si.encoding = entry.get("encoding", "H264").asString();
+                si.multicastGroup = entry.get("multicastGroup", "").asString();
+                if (si.port < 1024) si.port = 1024;
+                if (si.port > 65535) si.port = 65535;
+            }
+
+            // Audio extraction settings
+            si.audioEnabled = entry.get("audioEnabled", false).asBool();
+            si.audioPipeWireNodeName = entry.get("audioPipeWireNodeName", "").asString();
+        } catch (const std::exception& ex) {
+            LogWarn(VB_MEDIAOUT, "VideoInputManager: skipping a source in %s, a value has the wrong type: %s\n",
+                    configPath.c_str(), ex.what());
+            continue;
         }
-
-        // Audio extraction settings
-        si.audioEnabled = entry.get("audioEnabled", false).asBool();
-        si.audioPipeWireNodeName = entry.get("audioPipeWireNodeName", "").asString();
 
         if (si.type.empty() || si.pipeWireNodeName.empty()) {
             LogWarn(VB_MEDIAOUT, "VideoInputManager: Skipping source with missing type or node name\n");
