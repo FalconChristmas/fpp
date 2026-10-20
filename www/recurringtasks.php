@@ -744,7 +744,7 @@
                                                 <tr class='ptTmplFilterRegexRow d-none'>
                                                     <td>Pattern:
                                                         <span class='argHelpIcon' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto'
-                                                            data-bs-title='A regular expression matched against the raw result. The first capture group (in parentheses) is used, or the whole match if the pattern has no group.'>
+                                                            data-bs-title='A regular expression matched against the raw result. The first capture group (in parentheses) is used, or the whole match if the pattern has no group. Results over 16 KB are not searched: the run fails, so use JSON Field or Between Markers for those.'>
                                                             <img src='images/redesign/help-icon.svg' class='icon-help' alt='Help icon'></span>
                                                     </td>
                                                     <td><input type='text' size='20' class='ptTmplFilterRegex'

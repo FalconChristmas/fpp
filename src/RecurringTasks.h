@@ -106,9 +106,12 @@ private:
     };
 
     static RecurringTask ParseTask(const Json::Value& j);
-    static std::string ApplyResultFilter(const std::string& raw, const std::string& filterType,
-                                         const std::string& jsonPath, const std::string& betweenStart,
-                                         const std::string& betweenEnd, const std::string& regexPattern);
+    // False when the filter could not be applied at all (out is then why),
+    // as opposed to applied and finding nothing (true, out empty).
+    static bool ApplyResultFilter(const std::string& raw, const std::string& filterType,
+                                  const std::string& jsonPath, const std::string& betweenStart,
+                                  const std::string& betweenEnd, const std::string& regexPattern,
+                                  std::string& out);
     void load();
     void startTimers();
     // Polls in-flight (async) task results to completion. Driven by a

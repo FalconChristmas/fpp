@@ -15,6 +15,9 @@
 #include "fpp-json.h"
 
 #include <chrono>
+#include <cstring>
+#include <pthread.h>
+#include <regex>
 #include <set>
 #include <thread>
 
@@ -25,7 +28,6 @@
 #include "common.h"
 #include "log.h"
 #include "settings.h"
-#include "util/RegExCache.h"
 
 // A single async task's Result shouldn't be allowed to accumulate forever if
 // its command never finishes (e.g. a hung URL fetch) - drop it and warn past
@@ -81,19 +83,10 @@ RecurringTasks::RecurringTask RecurringTasks::ParseTask(const Json::Value& j) {
     return task;
 }
 
-// filterType == "json": walk a dot-path ("data.temperature") through the
-// parsed raw response. Object-key traversal only, no array indices - covers
-// the common "pluck one field out of a JSON API response" case without
-// pulling in a real JSON-path library. filterType == "between": substring
-// between two literal markers (either may be empty to mean start/end of raw
-// instead). filterType == "regex": capture group 1 of the first match, or
-// the whole match if the pattern has no group - listed last since it's the
-// most powerful but least approachable option (regex syntax vs. a plain
-// field name or literal markers). Anything else (empty/"none"/unrecognized)
-// passes raw through unchanged.
-std::string RecurringTasks::ApplyResultFilter(const std::string& raw, const std::string& filterType,
-                                              const std::string& jsonPath, const std::string& betweenStart,
-                                              const std::string& betweenEnd, const std::string& regexPattern) {
+// The JSON Field and Between Markers filters (see ApplyResultFilter()).
+static std::string FilterResult(const std::string& raw, const std::string& filterType,
+                                const std::string& jsonPath, const std::string& betweenStart,
+                                const std::string& betweenEnd) {
     if (filterType == "json") {
         if (jsonPath.empty()) {
             return raw;
@@ -140,33 +133,102 @@ std::string RecurringTasks::ApplyResultFilter(const std::string& raw, const std:
         }
         return raw.substr(startPos, endPos - startPos);
     }
-    if (filterType == "regex") {
-        if (regexPattern.empty()) {
-            return raw;
-        }
-        // libstdc++'s std::regex recurses per repeated character, so a
-        // pattern like ".*x" over a long response overflows the main loop's
-        // stack (a crash no catch stops), every time the task runs.  Only
-        // search the start of the result.
-        static constexpr size_t MAX_REGEX_INPUT = 16 * 1024;
-        const std::string searched = raw.size() > MAX_REGEX_INPUT ? raw.substr(0, MAX_REGEX_INPUT) : raw;
-        if (searched.size() < raw.size()) {
-            LogDebug(VB_GENERAL, "RecurringTasks: regex filter applied to the first %zu of %zu bytes\n",
-                     searched.size(), raw.size());
-        }
-        try {
-            RegExCache re(regexPattern);
-            std::smatch m;
-            if (!std::regex_search(searched, m, *re.regex)) {
-                return "";
-            }
-            return m.size() > 1 ? m[1].str() : m[0].str();
-        } catch (const std::regex_error& e) {
-            LogErr(VB_GENERAL, "RecurringTasks: invalid filter regex \"%s\": %s\n", regexPattern.c_str(), e.what());
-            return "";
-        }
-    }
     return raw;
+}
+
+// The most a regex filter searches, and the stack its search runs on.
+// libstdc++'s std::regex backtracks by recursing once per character a repeat
+// consumes, so the stack a search needs grows with the input, and nothing
+// catches a stack overflow.  Measured per character: up to ~0.7 KB in an
+// optimized build and ~2.5 KB under ASan ("(.|\n)*", "((a|b)+)c"), so 16 KB of
+// input needs ~11 MB, or ~40 MB under ASan: more than the 8 MB the main loop
+// and the HTTP threads have, which is why the search gets a thread of its
+// own.  Its stack is only reserved address space, committed as the recursion
+// touches it, and it leaves 4x room for ASan.  The limit also bounds time: a
+// search that finds nothing is quadratic in the input.
+static constexpr size_t MAX_REGEX_INPUT = 16 * 1024;
+static constexpr size_t REGEX_STACK_SIZE = 192 * 1024 * 1024;
+
+namespace {
+struct RegexSearch {
+    const std::string* raw;
+    const std::string* pattern;
+    bool ok = false;
+    std::string out;
+};
+} // namespace
+
+static void* RunRegexSearch(void* arg) {
+    RegexSearch* r = (RegexSearch*)arg;
+    try {
+        std::regex re(*r->pattern);
+        std::smatch m;
+        r->ok = true;
+        if (std::regex_search(*r->raw, m, re)) {
+            r->out = m.size() > 1 ? m[1].str() : m[0].str();
+        }
+    } catch (const std::regex_error& e) {
+        LogErr(VB_GENERAL, "RecurringTasks: invalid filter regex \"%s\": %s\n", r->pattern->c_str(), e.what());
+        r->ok = false;
+        r->out = std::string("Invalid Regex filter pattern: ") + e.what();
+    } catch (const std::exception& e) {
+        // std::regex_error(error_complexity / error_stack) and bad_alloc
+        r->ok = false;
+        r->out = std::string("Regex filter failed: ") + e.what();
+    }
+    return nullptr;
+}
+
+static bool RegexFilter(const std::string& raw, const std::string& pattern, std::string& out) {
+    if (pattern.empty()) {
+        out = raw;
+        return true;
+    }
+    // Refused rather than cut to the limit: a value past it came back empty,
+    // which a task reported as a successful run.
+    if (raw.size() > MAX_REGEX_INPUT) {
+        out = "The result is " + std::to_string(raw.size()) + " bytes; a Regex filter searches at most " +
+              std::to_string(MAX_REGEX_INPUT / 1024) + " KB (use a JSON Field or Between Markers filter)";
+        return false;
+    }
+    RegexSearch search;
+    search.raw = &raw;
+    search.pattern = &pattern;
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr, REGEX_STACK_SIZE);
+    pthread_t thread;
+    int err = pthread_create(&thread, &attr, RunRegexSearch, &search);
+    pthread_attr_destroy(&attr);
+    if (err != 0) {
+        out = std::string("Could not start the Regex filter: ") + FPPstrerror(err);
+        LogErr(VB_GENERAL, "RecurringTasks: %s\n", out.c_str());
+        return false;
+    }
+    pthread_join(thread, nullptr);
+    out = std::move(search.out);
+    return search.ok;
+}
+
+// filterType == "json": walk a dot-path ("data.temperature") through the
+// parsed raw response. Object-key traversal only, no array indices - covers
+// the common "pluck one field out of a JSON API response" case without
+// pulling in a real JSON-path library. filterType == "between": substring
+// between two literal markers (either may be empty to mean start/end of raw
+// instead). filterType == "regex": capture group 1 of the first match, or
+// the whole match if the pattern has no group - listed last since it's the
+// most powerful but least approachable option (regex syntax vs. a plain
+// field name or literal markers). Anything else (empty/"none"/unrecognized)
+// passes raw through unchanged.
+bool RecurringTasks::ApplyResultFilter(const std::string& raw, const std::string& filterType,
+                                       const std::string& jsonPath, const std::string& betweenStart,
+                                       const std::string& betweenEnd, const std::string& regexPattern,
+                                       std::string& out) {
+    if (filterType == "regex") {
+        return RegexFilter(raw, regexPattern, out);
+    }
+    out = FilterResult(raw, filterType, jsonPath, betweenStart, betweenEnd);
+    return true;
 }
 
 void RecurringTasks::load() {
@@ -345,12 +407,18 @@ void RecurringTasks::armPollTimer() {
 
 void RecurringTasks::finish(PendingResult& pending) {
     bool ok = !pending.result->isError();
+    std::string err = ok ? "" : pending.result->get();
     if (!pending.resultVariable.empty() && ok) {
-        std::string filtered = ApplyResultFilter(pending.result->get(), pending.filterType, pending.filterJsonPath,
-                                                 pending.filterBetweenStart, pending.filterBetweenEnd, pending.filterRegex);
-        Variables::INSTANCE.setVariable(pending.resultVariable, filtered, pending.persistResult);
+        std::string filtered;
+        ok = ApplyResultFilter(pending.result->get(), pending.filterType, pending.filterJsonPath,
+                               pending.filterBetweenStart, pending.filterBetweenEnd, pending.filterRegex, filtered);
+        if (ok) {
+            Variables::INSTANCE.setVariable(pending.resultVariable, filtered, pending.persistResult);
+        } else {
+            err = filtered; // the Variable keeps its last value
+        }
     }
-    recordStatus(pending.taskName, ok, ok ? "" : pending.result->get());
+    recordStatus(pending.taskName, ok, err);
 }
 
 Json::Value RecurringTasks::TestRunTask(const Json::Value& taskJson) {
@@ -412,22 +480,26 @@ Json::Value RecurringTasks::TestRunTask(const Json::Value& taskJson) {
 
     bool ok = !r->isError();
     std::string raw = r->get();
-    result["ok"] = ok;
+    std::string err = ok ? "" : raw;
     result["raw"] = raw;
+    result["filtered"] = "";
     if (ok) {
-        std::string filtered = ApplyResultFilter(raw, task.filterType, task.filterJsonPath,
-                                                 task.filterBetweenStart, task.filterBetweenEnd, task.filterRegex);
-        result["filtered"] = filtered;
-        result["error"] = "";
-        if (!task.resultVariable.empty()) {
-            Variables::INSTANCE.setVariable(task.resultVariable, filtered, task.persistResult);
+        std::string filtered;
+        ok = ApplyResultFilter(raw, task.filterType, task.filterJsonPath,
+                               task.filterBetweenStart, task.filterBetweenEnd, task.filterRegex, filtered);
+        if (!ok) {
+            err = filtered;
+        } else {
+            result["filtered"] = filtered;
+            if (!task.resultVariable.empty()) {
+                Variables::INSTANCE.setVariable(task.resultVariable, filtered, task.persistResult);
+            }
         }
-    } else {
-        result["filtered"] = "";
-        result["error"] = raw;
     }
+    result["ok"] = ok;
+    result["error"] = err;
     if (!task.name.empty()) {
-        recordStatus(task.name, ok, ok ? "" : raw);
+        recordStatus(task.name, ok, err);
     }
     return result;
 }

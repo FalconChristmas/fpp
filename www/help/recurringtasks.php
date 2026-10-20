@@ -39,7 +39,7 @@
         <b>None (use raw result)</b> — store the whole raw output as-is;
         <b>JSON Field</b> — dotted path (e.g. <code>data.temperature</code>, object keys only, no array indices) pulls one field from a JSON response;
         <b>Between Markers</b> — keeps text between two literal markers (<b>After</b> + <b>Before</b> fields, each blank means from start/to end);
-        <b>Regex (advanced)</b> — regular expression; the first capture group is used, or the whole match if no group. Each choice reveals its own row(s): Field path, After/Before, or Pattern (<code>e.g. Temp: ([0-9.]+)</code>), with inline help icons explaining the semantics.</li>
+        <b>Regex (advanced)</b> — regular expression; the first capture group is used, or the whole match if no group. It searches results of up to 16 KB: a longer result fails the run with that reason (use JSON Field or Between Markers for long results), as does an invalid pattern. Each choice reveals its own row(s): Field path, After/Before, or Pattern (<code>e.g. Temp: ([0-9.]+)</code>), with inline help icons explaining the semantics.</li>
 </ul>
 
 <h4>Test Run</h4>
