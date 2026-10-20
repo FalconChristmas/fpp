@@ -532,6 +532,7 @@ UDPOutput::UDPOutput(unsigned int startChannel, unsigned int channelCount) :
     INSTANCE = this;
 }
 UDPOutput::~UDPOutput() {
+    StopPinging();
     {
         // under workMutex: a worker between its runWorkThreads check and its
         // wait() would otherwise miss this notify and sleep forever, and the
@@ -902,7 +903,7 @@ int UDPOutput::Init(Json::Value config) {
         // or kept across a co-universes reload that replaced the previous one
         std::lock_guard<std::mutex> lk(externalLock);
         for (auto& [owner, create] : externalFactories) {
-            attachExternalOutput(owner, create());
+            attachExternalOutput(owner, createExternalOutput(create));
         }
     }
     return ChannelOutput::Init(config);
@@ -911,16 +912,7 @@ int UDPOutput::Close() {
     NetworkMonitor::INSTANCE.removeCallback(networkCallbackId);
     messages.clearMessages();
     messages.clearSockets();
-    for (auto& h : pingHosts) {
-        PingManager::INSTANCE.removePeriodicPing(h.first);
-        // the replacement output raises it again if the controller is still
-        // down; one removed from the config would otherwise keep its
-        // "unreachable" banner until fppd restarted
-        std::unique_lock<std::mutex> l(h.second->lock);
-        if (!h.second->valid) {
-            WarningHolder::RemoveWarning(27, h.second->warning);
-        }
-    }
+    StopPinging();
     if (dropWarningActive) {
         // the replacement instance starts with dropWarningActive false and
         // would never remove this one
@@ -1002,6 +994,37 @@ void UDPOutput::addOutput(UDPOutputData* out) {
     outputs.push_back(out);
 }
 
+void UDPOutput::StopPinging() {
+    if (pingsStopped) {
+        return;
+    }
+    pingsStopped = true;
+    for (auto& h : pingHosts) {
+        PingManager::INSTANCE.removePeriodicPing(h.first);
+        // the replacement output raises it again if the controller is still
+        // down; one removed from the config would otherwise keep its
+        // "unreachable" banner until fppd restarted
+        std::unique_lock<std::mutex> l(h.second->lock);
+        if (!h.second->valid) {
+            WarningHolder::RemoveWarning(27, h.second->warning);
+        }
+    }
+}
+
+// An external output whose config can't be read (a GenericUDP output with a
+// list for its port) throws from its constructor.  That failed this whole
+// output, every E1.31/DDP universe with it, at each rebuild; skip just that one.
+UDPOutputData* UDPOutput::createExternalOutput(const std::function<UDPOutputData*()>& create) {
+    try {
+        return create();
+    } catch (const std::exception& e) {
+        std::string warning = std::string("Could not create a network output from its config (") + e.what() + "). Output disabled.";
+        LogErr(VB_CHANNELOUT, "%s\n", warning.c_str());
+        AddOutputConfigWarning(26, warning);
+        return nullptr;
+    }
+}
+
 void UDPOutput::attachExternalOutput(const void* owner, UDPOutputData* d) {
     if (d == nullptr) {
         return;
@@ -1015,7 +1038,7 @@ void UDPOutput::RegisterExternalOutput(const void* owner, std::function<UDPOutpu
     std::lock_guard<std::mutex> lk(externalLock);
     externalFactories[owner] = create;
     if (INSTANCE) {
-        INSTANCE->attachExternalOutput(owner, create());
+        INSTANCE->attachExternalOutput(owner, createExternalOutput(create));
     }
 }
 

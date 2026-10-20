@@ -208,10 +208,18 @@ private:
     static std::map<const void*, std::function<UDPOutputData*()>> externalFactories;
     std::map<const void*, UDPOutputData*> externalOutputs;
     void attachExternalOutput(const void* owner, UDPOutputData* d);
+    static UDPOutputData* createExternalOutput(const std::function<UDPOutputData*()>& create);
 
     int networkCallbackId;
 
     void PingControllers(bool failedOnly);
+    // Takes this output's periodic pings back out of the PingManager (their
+    // callbacks capture this) and its "unreachable" warnings down. Close()
+    // does it; the destructor does it for an output deleted without Close(),
+    // as the loader deletes one whose Init() failed. Once only: after
+    // Close(), a replacement output may hold pings for the same hosts.
+    void StopPinging();
+    bool pingsStopped = false;
     // controllers that have not answered yet; Init() waits on it
     std::atomic_int failedCount;
     std::string HexToIP(unsigned int hex);
