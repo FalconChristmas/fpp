@@ -256,6 +256,26 @@
 };
 
 /*
+ * The PocketBeagle base dtb gives the PRUs a "default" pin group that muxes
+ * nine P1/P2 pads to PRU r30/r31 the moment the PRU device probes, before FPP
+ * runs. P2-28 is one of them, and as a PRU output it sits low; on a cape that
+ * gates its i2c2 buffer with that pin (PocketScroller v2's I2CEnable), the
+ * EEPROM and OLED disappear and detection falls back to the built-in config.
+ * FPP muxes PRU pins itself from the cape config, as with the peripherals
+ * above, so leave the pads at their reset state. No-op on the BeagleBone
+ * dtbs, which give the PRUs no pins.
+ */
+&pru0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <>;
+};
+
+&pru1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <>;
+};
+
+/*
  * The per-pin BONE_PIN pinmux definitions (under &am33xx_pinmux) and the
  * bone-pinmux-helper device nodes (under &ocp) that used to follow here were
  * removed: FPP now programs pin mux directly via the am335xpm kernel driver
