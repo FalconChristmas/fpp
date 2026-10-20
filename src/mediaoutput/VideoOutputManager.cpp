@@ -1599,9 +1599,16 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer, const std::string
 
         // kmssink sync=true paces frame rendering by intervideosrc timestamps
         // (fresh monotonic timestamps, independent of HLS timing).
+        // skip-vsync=true, as on every other kmssink here: without it kmssink
+        // waits for its page-flip event with drmHandleEvent() on its fd. When
+        // DrmCards::AcquireLease() can't lease the connector (a restart while
+        // the old consumer still holds it), that fd is the card's shared one,
+        // whose events the framebuffer outputs drain: kmssink then stalled 3 s
+        // on an event they took, or ran its handler on one of theirs, whose
+        // user data is a flip token, not its pointer (SIGSEGV).
         pipelineDesc += "kmssink name=sink sync=true"
                      " connector-id=" + std::to_string(consumer.connectorId)
-                     + " restore-crtc=true";
+                     + " restore-crtc=true skip-vsync=true";
 
     } else if (consumer.type == "overlay") {
         // Resolve the pixel overlay model to get its dimensions
