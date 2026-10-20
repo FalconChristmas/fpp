@@ -305,7 +305,8 @@ public:
         while (isRunning == 1) {
             std::list<PingTarget*> toRemove;
 
-            std::vector<std::pair<std::string, std::pair<bool, struct in_addr>>> resolved = resolveDuePeriodics();
+            startDueLookups();
+            std::vector<std::pair<std::string, std::pair<bool, struct in_addr>>> resolved = takeLookupResults();
 
             int retval = poll(rfds, 1, 250);
             // held for the rest of the pass, from the callbacks through the
@@ -317,9 +318,8 @@ public:
             } else if (retval) {
                 // Read every reply that is waiting, not just one, before the
                 // timeout sweep below.  With one per pass, any stall of this
-                // thread longer than a ping's timeout -- a name lookup in
-                // resolveDuePeriodics(), a busy single-core board -- left
-                // answered pings queued here, and the sweep then timed them
+                // thread longer than a ping's timeout -- a busy single-core
+                // board -- left answered pings queued here, and the sweep then timed them
                 // out: controllers that were up were dropped from the output.
                 // Bounded, so a flood of ICMP can't hold the sweep off.
                 for (int n = 0; n < 256; n++) {
@@ -427,13 +427,21 @@ public:
         isRunning = -1;
     }
 
-    // Looks up, with no lock held, the names of periodic targets that haven't
+    // Starts a lookup of the names of periodic targets that haven't
     // resolved, each at most once a period.  A lookup can stall for seconds
-    // (no DNS server reachable); under targetLock that stalled every caller
-    // adding a ping, and under dispatchLock it would stall removePeriodicPing().
-    // The results are applied by name in the pass that follows, since a
-    // target can be removed (and freed) in the meantime.
-    std::vector<std::pair<std::string, std::pair<bool, struct in_addr>>> resolveDuePeriodics() {
+    // per name (no DNS server reachable, a .local name through nss-mdns), so
+    // it runs on a short-lived thread of its own: on this one it held off
+    // every send, reply and timeout for that long, and Cleanup()'s join
+    // waited for it.  One lookup thread at a time; names that fall due while
+    // it runs wait for the next pass.  The results are applied by name in a
+    // later pass, since a target can be removed (and freed) in the meantime.
+    void startDueLookups() {
+        {
+            std::lock_guard<std::mutex> l(lookups->lock);
+            if (lookups->running) {
+                return;
+            }
+        }
         std::vector<std::string> names;
         {
             std::unique_lock<std::mutex> lock(targetLock);
@@ -446,13 +454,36 @@ public:
                 }
             }
         }
-        std::vector<std::pair<std::string, std::pair<bool, struct in_addr>>> results;
-        for (auto& n : names) {
-            struct in_addr addr{};
-            bool ok = PingTarget::resolve(n, addr);
-            results.emplace_back(n, std::make_pair(ok, addr));
+        if (names.empty()) {
+            return;
         }
-        return results;
+        std::lock_guard<std::mutex> l(lookups->lock);
+        lookups->running = true;
+        try {
+            // Detached, and holding only the shared results: a lookup still
+            // stalled when fppd stops must not hold up Cleanup(), nor write
+            // into a PingInfo that has gone.
+            std::thread([state = lookups, names]() {
+                SetThreadName("FPP-PingLookup");
+                std::vector<std::pair<std::string, std::pair<bool, struct in_addr>>> results;
+                for (auto& n : names) {
+                    struct in_addr addr{};
+                    bool ok = PingTarget::resolve(n, addr);
+                    results.emplace_back(n, std::make_pair(ok, addr));
+                }
+                std::lock_guard<std::mutex> l(state->lock);
+                state->results.insert(state->results.end(), results.begin(), results.end());
+                state->running = false;
+            }).detach();
+        } catch (const std::system_error&) {
+            lookups->running = false; // retried a period from now
+        }
+    }
+    std::vector<std::pair<std::string, std::pair<bool, struct in_addr>>> takeLookupResults() {
+        std::vector<std::pair<std::string, std::pair<bool, struct in_addr>>> r;
+        std::lock_guard<std::mutex> l(lookups->lock);
+        r.swap(lookups->results);
+        return r;
     }
 
     // caller holds targetLock
@@ -499,6 +530,12 @@ public:
     // taken before targetLock; recursive so a callback could remove a ping
     // on the ping thread without deadlocking (none does today)
     std::recursive_mutex dispatchLock;
+    struct Lookups {
+        std::mutex lock;
+        bool running = false;
+        std::vector<std::pair<std::string, std::pair<bool, struct in_addr>>> results;
+    };
+    std::shared_ptr<Lookups> lookups = std::make_shared<Lookups>();
 };
 
 PingManager PingManager::INSTANCE;
