@@ -927,10 +927,11 @@ void ScheduleEntry::GetTimeFromSun(time_t& when, const std::string info,
 
         LogErr(VB_SCHEDULE, "Error, Latitude/Longitude not usable ('%s', '%s'), using Falcon, Colorado coordinates!\n",
                latStr.c_str(), lonStr.c_str());
-        WarningHolder::AddWarning(48, LATLON_WARNING);
-    } else {
-        // Coordinates are usable - clear the warning if it was previously raised.
-        WarningHolder::RemoveWarning(48, LATLON_WARNING);
+        // A load warning, so the next load retracts it: removing it only here,
+        // when sun times are next computed with good coordinates, left it up
+        // for good once the last sun-relative entry was deleted instead.  A
+        // Latitude/Longitude change reloads the schedule (see Scheduler()).
+        ScheduleLoadWarning(48, LATLON_WARNING);
     }
     time_t currTime = when;
     struct tm local;

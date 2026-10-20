@@ -125,9 +125,20 @@ Scheduler::Scheduler() :
     // loop.
     m_lastCommandCheckTime = m_lastProcTime;
     LoadScheduleFromFile();
+
+    // Sun-relative times and the coordinates warning come from these, and
+    // are only worked out when the schedule is loaded.
+    for (const char* s : { "Latitude", "Longitude" }) {
+        registerSettingsListener("Scheduler", s, [this](const std::string&) {
+            ReloadScheduleFile();
+        });
+    }
 }
 
-Scheduler::~Scheduler() = default;
+Scheduler::~Scheduler() {
+    unregisterSettingsListener("Scheduler", "Latitude");
+    unregisterSettingsListener("Scheduler", "Longitude");
+}
 
 void Scheduler::ScheduleProc(void) {
     time_t procTime = time(NULL);
