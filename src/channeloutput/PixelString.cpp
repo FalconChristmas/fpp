@@ -15,6 +15,7 @@
 #include "fpp-json.h"
 
 // not in fpp-pch.h; libc++ pulls them in transitively but libstdc++ does not
+#include <cmath>
 #include <memory>
 #include <tuple>
 
@@ -597,9 +598,15 @@ int PixelString::ReadVirtualString(Json::Value& vsc, VirtualString& vs) const {
     if (vs.brightness > 100 || vs.brightness < 0) {
         vs.brightness = 100;
     }
-    if (!(vs.gamma >= 0.01)) {
-        // also catches NaN, which compares false either way
-        vs.gamma = 0.01;
+    if (!std::isfinite(vs.gamma)) {
+        // "nan" or "inf" in a hand-edited config: not a gamma anyone chose,
+        // so use the default rather than clamping it to an end of the range
+        // (NaN fails both clamps below and landed on 0.01, a curve that
+        // drives every lit channel near full brightness)
+        vs.gamma = 1.0f;
+    }
+    if (vs.gamma < 0.01f) {
+        vs.gamma = 0.01f;
     }
     if (vs.gamma > 50.0f) {
         vs.gamma = 50.0f;
