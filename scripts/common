@@ -449,6 +449,9 @@ setSetting() {
     fi
 }
 
+# Apache that is not running (a container, an image build) is not a failure:
+# it reads the new config when it starts. Config upgrades end with this call,
+# and a non-zero status there stops upgrade_config and every later migration.
 gracefullyReloadApacheConf() {
     if [[ "$OSTYPE" == "darwin"* ]]; then
         # macOS
@@ -465,8 +468,7 @@ gracefullyReloadApacheConf() {
             sudo systemctl reload apache2
             echo "Apache configuration reloaded successfully."
         else
-            echo "Apache is not running."
-            return 1
+            echo "Apache is not running - nothing to reload."
         fi
     elif [[ -f /etc/redhat-release ]]; then
         # RHEL/CentOS/Fedora
@@ -474,8 +476,7 @@ gracefullyReloadApacheConf() {
             sudo systemctl reload httpd
             echo "Apache configuration reloaded successfully."
         else
-            echo "Apache is not running."
-            return 1
+            echo "Apache is not running - nothing to reload."
         fi
     else
         echo "Unsupported OS"
