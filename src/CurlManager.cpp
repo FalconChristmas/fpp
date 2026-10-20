@@ -133,8 +133,9 @@ static size_t urlWriteData(void* buffer, size_t size, size_t nmemb, void* userp)
 // on the LAN: one that streamed an endless body grew fppd until the OOM killer
 // stepped in (the timeout alone allows ~100MB at LAN speed).  Returning short
 // aborts the transfer with CURLE_WRITE_ERROR -- but the HTTP status already
-// received still reads 200, so the request paths below report that result as
-// a failure themselves.  A plugin's own handle from createCurl() keeps no
+// received still reads 200, so the request paths below report that result,
+// like any other failed transfer, as a failure themselves (failedTransfer()).
+// A plugin's own handle from createCurl() keeps no
 // limit: it reads the status and the body itself, and a cut-off body with a
 // 200 is what its proxy then served (limitResponseSize() opts a handle in).
 static constexpr size_t MAX_CURL_RESPONSE = 16 * 1024 * 1024;
@@ -156,13 +157,23 @@ void CurlManager::limitResponseSize(CURL* c) {
 // result isn't one of its infos.
 static thread_local CURLcode t_completedResult = CURLE_OK;
 
-static bool cutShort(CURLcode result) {
-    // only urlWriteDataLimited() returns short on these handles
-    return result == CURLE_WRITE_ERROR;
-}
-static const std::string& cutShortMessage() {
-    static const std::string msg = "the response was larger than " + std::to_string(MAX_CURL_RESPONSE / (1024 * 1024)) + " MB";
-    return msg;
+// Why a transfer failed, or "" if it completed.  CURLINFO_RESPONSE_CODE is
+// the last status received even when the transfer then failed: a body cut
+// off by the size cap, a timeout or a reset partway through, or a server
+// that closed before its Content-Length all read as a 200 with part of the
+// body.  So the requests below go by the transfer's result, not the status.
+static std::string failedTransfer(CURLcode result, const CurlManager::CurlPrivateData* data) {
+    if (result == CURLE_OK) {
+        return "";
+    }
+    if (result == CURLE_WRITE_ERROR) {
+        // only urlWriteDataLimited() returns short on these handles
+        return "the response was larger than " + std::to_string(MAX_CURL_RESPONSE / (1024 * 1024)) + " MB";
+    }
+    if (data && data->errorResp[0]) {
+        return data->errorResp;
+    }
+    return curl_easy_strerror(result);
 }
 static size_t urlReadData(void* ptr, size_t size, size_t nmemb, void* userp) {
     size_t buffer_size = size * nmemb;
@@ -272,13 +283,14 @@ void CurlManager::add(const std::string& furl, const std::string& method, const 
     });
 
     addCURL(furl, curl, [callback, headerList](CURL* c) {
-        if (cutShort(t_completedResult)) {
-            callback(0, cutShortMessage());
+        CurlPrivateData* data = nullptr;
+        curl_easy_getinfo(c, CURLINFO_PRIVATE, &data);
+        std::string failure = failedTransfer(t_completedResult, data);
+        if (!failure.empty()) {
+            callback(0, failure);
             return;
         }
-        CurlPrivateData* data = nullptr;
         long rc = 0;
-        curl_easy_getinfo(c, CURLINFO_PRIVATE, &data);
         curl_easy_getinfo(c, CURLINFO_RESPONSE_CODE, &rc);
 
         char* urlp = nullptr;
@@ -372,14 +384,11 @@ std::string CurlManager::doGet(const std::string& furl, int& rc, const std::stri
     long rc2 = 0;
     curl_easy_getinfo(curl, CURLINFO_PRIVATE, &data);
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc2);
-    rc = cutShort(result) ? 0 : rc2;
-    std::string resp;
-    if (cutShort(result)) {
-        resp = cutShortMessage();
-    } else if (rc) {
+    // On a failed transfer, rc 0 and the reason, as for one that never connected.
+    std::string resp = failedTransfer(result, data);
+    rc = resp.empty() ? rc2 : 0;
+    if (resp.empty()) {
         resp.assign(reinterpret_cast<char*>(data->resp.data()), data->resp.size());
-    } else {
-        resp = data->errorResp;
     }
     delete data;
     curl_easy_cleanup(curl);
@@ -429,14 +438,11 @@ std::string CurlManager::doPost(const std::string& furl, const std::string& cont
     long rc2 = 0;
     curl_easy_getinfo(curl, CURLINFO_PRIVATE, &cdata);
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc2);
-    rc = cutShort(result) ? 0 : rc2;
-    std::string resp;
-    if (cutShort(result)) {
-        resp = cutShortMessage();
-    } else if (rc) {
+    // On a failed transfer, rc 0 and the reason, as for one that never connected.
+    std::string resp = failedTransfer(result, cdata);
+    rc = resp.empty() ? rc2 : 0;
+    if (resp.empty()) {
         resp.assign(reinterpret_cast<char*>(cdata->resp.data()), cdata->resp.size());
-    } else {
-        resp = cdata->errorResp;
     }
     delete cdata;
     curl_slist_free_all(head);
@@ -471,14 +477,11 @@ std::string CurlManager::doPut(const std::string& furl, const std::string& conte
     long rc2 = 0;
     curl_easy_getinfo(curl, CURLINFO_PRIVATE, &cdata);
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &rc2);
-    rc = cutShort(result) ? 0 : rc2;
-    std::string resp;
-    if (cutShort(result)) {
-        resp = cutShortMessage();
-    } else if (rc) {
+    // On a failed transfer, rc 0 and the reason, as for one that never connected.
+    std::string resp = failedTransfer(result, cdata);
+    rc = resp.empty() ? rc2 : 0;
+    if (resp.empty()) {
         resp.assign(reinterpret_cast<char*>(cdata->resp.data()), cdata->resp.size());
-    } else {
-        resp = cdata->errorResp;
     }
     delete cdata;
     curl_slist_free_all(head);
