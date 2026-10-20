@@ -4101,6 +4101,41 @@ function network_redact_interface_config($cfg)
     return $cfg;
 }
 
+/**
+ * A config directory file that holds a credential: a dotfile (.htpasswd holds
+ * the UI password hash) or a saved interface (interface.* holds the WiFi
+ * keys).  The generic file routes -- /api/configfile and /api/file -- refuse
+ * these for read, write and delete alike, because /api can answer other
+ * origins.  Their own routes manage them without ever returning the secret:
+ * the UI password setting and /api/network/interface
+ * (network_redact_interface_config()).  $path is absolute; a path outside the
+ * config directory is never one.
+ */
+function ConfigPathIsCredential($path)
+{
+    global $settings;
+    $base = realpath($settings['configDirectory']);
+    if ($base === false || !is_string($path)) {
+        return false;
+    }
+    // The path as asked for and as resolved, so a link cannot name either.
+    foreach (array($path, realpath($path)) as $p) {
+        if (!is_string($p) || $p === $base || !PathIsWithin($p, $base)) {
+            continue;
+        }
+        $rel = substr($p, strlen($base) + 1);
+        foreach (explode('/', $rel) as $part) {
+            if ($part !== '' && $part[0] === '.') {
+                return true;
+            }
+        }
+        if (strpos($rel, '/') === false && stripos($rel, 'interface.') === 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function network_list_interfaces_obj()
 {
     global $settings;

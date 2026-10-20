@@ -96,6 +96,9 @@ function FilesValidatePathOrFail($baseDir, $requested, $allowMissingParent = fal
     if (!PathIsWithin($realParent, $baseReal)) { http_response_code(403); echo json_encode(["status"=>"Invalid path: directory traversal"]); exit; }
     $realLeaf = realpath($candidate);
     if ($realLeaf !== false && !PathIsWithin($realLeaf, $baseReal)) { http_response_code(403); exit; }
+    // .htpasswd and the saved interfaces (WiFi keys) belong to their own
+    // routes, which never return the secret; see ConfigPathIsCredential().
+    if (ConfigPathIsCredential($candidate)) { http_response_code(403); echo json_encode(["status"=>"Invalid path"]); exit; }
     return $candidate;
 }
 
@@ -382,10 +385,16 @@ function GetFiles()
         return json(array("status" => "Invalid Directory"));
     }
 
+    // Credential files in the config directory are not served
+    // (ConfigPathIsCredential()), so not listed.
+    $files = array_values(array_filter(GetFilesHelper($dirName), function ($f) use ($dirName) {
+        $name = is_array($f) ? $f['name'] : $f;
+        return !ConfigPathIsCredential($dirName . '/' . $name);
+    }));
     if (isset($_GET['nameOnly']) && ($_GET['nameOnly'] == '1')) {
-        return json(GetFilesHelper($dirName));
+        return json($files);
     } else {
-        return json(array("status" => "ok", "files" => GetFilesHelper($dirName)));
+        return json(array("status" => "ok", "files" => $files));
     }
 }
 
@@ -1311,6 +1320,10 @@ function DeleteFile()
         // An empty name (DELETE /api/file/sequences/) or "." resolved to the
         // directory itself, which removeDir() below emptied and removed.
         $status = "Invalid path: refusing to delete the whole directory";
+    } else if (ConfigPathIsCredential($constructedPath)) {
+        // .htpasswd or a saved interface; see ConfigPathIsCredential().
+        http_response_code(403);
+        $status = "Invalid path";
     } else if (!file_exists($fullPath)) {
         $status = "File Not Found";
     } else if ($blobRefusal !== '') {

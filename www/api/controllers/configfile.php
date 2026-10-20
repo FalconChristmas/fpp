@@ -32,14 +32,11 @@ function ConfigFileValidateOrFail($baseDir, $requested) {
     if ($requested === '' || strpos($requested, '\\') !== false || strpos($requested, "\0") !== false) { http_response_code(400); echo json_encode(["Status"=>"Error","Message"=>"Invalid path"]); exit; }
     $decoded = rawurldecode($requested);
     if (strpos($requested, '..') !== false || strpos($decoded, '..') !== false || (isset($decoded[0]) && $decoded[0] === '/') || preg_match('/%2e/i', $requested)) { http_response_code(403); echo json_encode(["Status"=>"Error","Message"=>"Invalid path"]); exit; }
-    // Dotfiles are not config the UI manages: .htpasswd holds the UI password
-    // hash (and writing it would change the password), and none are needed by
-    // xLights or the config editor.  Refused for read, write and delete alike.
-    foreach (explode('/', $decoded) as $part) {
-        if ($part !== '' && $part[0] === '.') { http_response_code(403); echo json_encode(["Status"=>"Error","Message"=>"Invalid path"]); exit; }
-    }
     $san = ConfigFileWithinBase($baseDir, $requested);
     if ($san === false) { http_response_code(403); echo json_encode(["Status"=>"Error","Message"=>"Invalid path: outside config directory"]); exit; }
+    // .htpasswd and the saved interfaces (WiFi keys) are refused for read,
+    // write and delete alike; see ConfigPathIsCredential().
+    if (ConfigPathIsCredential($san)) { http_response_code(403); echo json_encode(["Status"=>"Error","Message"=>"Invalid path"]); exit; }
     return $san;
 }
 
@@ -60,8 +57,8 @@ function GetFilesInDir($dir, $subdir = '')
 		$subdir .= '/';
 
 	foreach (scandir($dir . '/' . $subdir) as $file) {
-		// Dotfiles are not served (ConfigFileValidateOrFail), so not listed.
-		if ($file[0] !== '.') {
+		// Credential files are not served (ConfigFileValidateOrFail), so not listed.
+		if ($file[0] !== '.' && !ConfigPathIsCredential($dir . '/' . $subdir . $file)) {
 			if (is_dir($dir . '/' . $subdir . $file))
 				$result = array_merge($result, GetFilesInDir($dir, $subdir . $file));
 			else

@@ -105,7 +105,7 @@
 </ul>
 
 <h5>Config (Developer visibility only)</h5>
-<p>Shown only when <code>Settings → UI → UI Level</code> is Developer. Raw config files with <b>maxdepth=1</b> listing. Use with caution — editing directly can break FPP.</p>
+<p>Shown only when <code>Settings → UI → UI Level</code> is Developer. Raw config files with <b>maxdepth=1</b> listing. Use with caution — editing directly can break FPP. Files holding credentials are not listed: the saved network interfaces (<code>interface.*</code>, which hold the WiFi keys; edit them under Network) and dotfiles such as <code>.htpasswd</code> (the UI password; set it under Settings → UI).</p>
 
 <h5>Plugin tabs</h5>
 <p>Some plugins add their own tabs (declared via <code>pluginInfo.json → fileExtensions → tab</code>). Each plugin-added tab appears between Scripts and Logs and provides its own table and controls defined by that plugin. The folder for each is created automatically if it does not already exist in the media directory.</p>
