@@ -61,8 +61,8 @@ public:
 
     // The chain owns its processors.  addProcessor() takes ownership and
     // deletes one it rejects; removeProcessor() deletes the processor it
-    // removes, and does nothing to one that is no longer in the chain (a
-    // config reload may already have replaced it).
+    // removes (a JSON-loaded one included), and does nothing to one that is
+    // no longer in the chain (a config reload may already have replaced it).
     void addProcessor(OutputProcessor* p);
     void removeProcessor(OutputProcessor* p);
 

@@ -40,10 +40,7 @@
 OutputProcessors::OutputProcessors() {
 }
 OutputProcessors::~OutputProcessors() {
-    for (OutputProcessor* a : processors) {
-        delete a;
-    }
-    processors.clear();
+    removeAll();
 }
 
 void OutputProcessors::ProcessData(unsigned char* channelData) const {
@@ -106,11 +103,23 @@ void OutputProcessors::removeProcessor(OutputProcessor* p) {
     auto it = std::find(processors.begin(), processors.end(), p);
     if (it != processors.end()) {
         processors.erase(it);
+        // One loaded from outputprocessors.json (a playlist Remap "remove"
+        // matches those too) is also on fromJsonProcessors, which the next
+        // loadFromJSON() frees: take it off, or that frees it a second time.
+        fromJsonProcessors.remove(p);
         delete p;
     }
 }
 void OutputProcessors::removeAll() {
     std::lock_guard<std::mutex> lock(processorsLock);
+    // Everything in the chain, and the JSON processors rangeIsValid() kept
+    // out of it, which are on fromJsonProcessors alone.
+    for (OutputProcessor* a : fromJsonProcessors) {
+        if (std::find(processors.begin(), processors.end(), a) == processors.end()) {
+            delete a;
+        }
+    }
+    fromJsonProcessors.clear();
     for (OutputProcessor* a : processors) {
         delete a;
     }
