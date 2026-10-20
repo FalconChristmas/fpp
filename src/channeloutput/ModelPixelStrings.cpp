@@ -100,14 +100,25 @@ int ModelPixelStringsOutput::Init(Json::Value config) {
     m_modelListenerName = "ModelPixelStrings" + std::to_string((uintptr_t)this);
     PixelOverlayManager::INSTANCE.addModelListener(modelName, m_modelListenerName,
         [this](PixelOverlayModel* m) {
-            std::lock_guard<std::mutex> lock(m_modelLock);
-            // only follow a replacement the buffers still fit
-            if (m && (m->getWidth() != m_modelWidth || m->getHeight() != m_modelHeight ||
-                      m->getBytesPerPixel() != m_modelBpp)) {
-                LogWarn(VB_CHANNELOUT, "ModelPixelStrings: model '%s' changed shape; detaching\n", modelName.c_str());
-                m = nullptr;
+            {
+                std::lock_guard<std::mutex> lock(m_modelLock);
+                // only follow a replacement the buffers still fit
+                if (m && (m->getWidth() != m_modelWidth || m->getHeight() != m_modelHeight ||
+                          m->getBytesPerPixel() != m_modelBpp)) {
+                    LogWarn(VB_CHANNELOUT, "ModelPixelStrings: model '%s' changed shape; detaching\n", modelName.c_str());
+                    m = nullptr;
+                }
+                model = m;
             }
-            model = m;
+            // A re-created model starts disabled, and a disabled model's data
+            // is never overlaid onto the channels: enable the replacement as
+            // Init() enabled the original, or the strings stop showing after
+            // the owning output's next reload.  Outside m_modelLock, which
+            // SendData holds; setState() takes activeModelsLock, which goes
+            // after modelsLock (held by our caller) and nowhere before it.
+            if (m) {
+                m->setState(PixelOverlayState(PixelOverlayState::PixelState::Enabled));
+            }
         });
 
     model->setState(PixelOverlayState(PixelOverlayState::PixelState::Enabled));
