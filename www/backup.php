@@ -2313,8 +2313,10 @@ function retrievePluginList()
                 $plugin_name = explode(".", $fname);
                 $plugin_name = $plugin_name[1];
 
-                //Store config file locations here
-                $locations = array();
+                //Store config file locations here.  plugin.X and plugin.X.json
+                //both map to X, so add to the plugin's entry rather than replacing
+                //it: replacing kept whichever file readdir returned last.
+                $locations = isset($plugin_names[$plugin_name]) ? $plugin_names[$plugin_name]['location'] : array();
                 //Normal Plugin config file location
                 $locations[$fname] = ($settings['configDirectory'] . "/" . $fname);
                 //                //Check the extra backup locations where the plugin name matches this plugin and extra the extra path
