@@ -65,8 +65,11 @@ std::atomic_int alwaysTransmit{ 0 };
 std::mutex outputThreadLock;
 std::recursive_mutex inlineOutputLock;
 std::mutex outputThreadStatusLock;
-// bumped under outputThreadStatusLock by every StartChannelOutputThread()
-static uint64_t outputStartRequests = 0;
+// Bumped under outputThreadStatusLock by every StartChannelOutputThread(),
+// which its callers make after setting up what they want output for (an
+// effect, an active overlay, a video).  The thread reads it at the top of each
+// pass, before it samples what needs output, and won't idle past a change.
+static std::atomic<uint64_t> outputStartRequests{ 0 };
 // Set (under outputThreadStatusLock) by StopChannelOutputThread(), which only
 // fppd's shutdown calls, and never cleared.  The teardown after it closes
 // outputs and removes overlay models, and a model state change restarts the
@@ -321,6 +324,13 @@ void RunChannelOutputThread(void) {
             doForceOutput = true;
             sendWhileDisabled = sendWhileDisabledRequested.exchange(false, std::memory_order_relaxed);
         }
+        // Before forceOutput() below: what a start counted by now set up is
+        // seen there, and the idle wait catches any start counted after.
+        // Taken at the wait, it missed a start made while this pass sent and
+        // processed: the effect was set up too late for forceOutput(), the
+        // starter saw a running thread and returned, and the thread idled
+        // out under the effect.  Acquire, as for outputForceRequests.
+        const uint64_t startsSeen = outputStartRequests.load(std::memory_order_acquire);
         if (multiSync->isMultiSyncEnabled() && sequence->IsSequenceRunning()) {
             // Per-frame string copy under an uncontended leaf lock: the name is
             // short and the only writers are the open/close paths, so this costs
@@ -444,10 +454,9 @@ void RunChannelOutputThread(void) {
                 // the lock, and a notify that landed before this wait began
                 // was lost - the start then spawned a replacement and this
                 // thread's timeout below cleared RunThread under it.
-                const uint64_t seenStarts = outputStartRequests;
                 if (outputThreadSatusCond.wait_for(statusLock, std::chrono::milliseconds(2500),
-                                                   [seenStarts, forceSeen]() {
-                                                       return outputStartRequests != seenStarts ||
+                                                   [startsSeen, forceSeen]() {
+                                                       return outputStartRequests.load() != startsSeen ||
                                                               outputForceRequests.load() != forceSeen;
                                                    })) {
                     // signal to keep going
