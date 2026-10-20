@@ -3742,6 +3742,16 @@ int MultiSync::OpenReceiveSocket(void) {
     }
     LogDebug(VB_SYNC, "Receive socket: %d\n", m_receiveSock);
 
+    // The default buffer (212992 bytes) holds about 166 datagrams -- each
+    // costs ~1.3KB of it whatever its size -- so any stall of the main loop
+    // (an output reload, a burst of pings from a large show) dropped sync and
+    // ping packets in the kernel.  1MB (the kernel doubles it) holds ~1600;
+    // fppinit raises rmem_max to 8MB, so the request isn't clamped.
+    int rcvBuf = 1024 * 1024;
+    if (setsockopt(m_receiveSock, SOL_SOCKET, SO_RCVBUF, &rcvBuf, sizeof(rcvBuf)) < 0) {
+        LogWarn(VB_SYNC, "Error setting SO_RCVBUF on the receive socket; %s\n", FPPstrerror(errno));
+    }
+
     bzero((char*)&m_receiveSrcAddr, sizeof(m_receiveSrcAddr));
     m_receiveSrcAddr.sin_family = AF_INET;
     m_receiveSrcAddr.sin_addr.s_addr = htonl(INADDR_ANY);
