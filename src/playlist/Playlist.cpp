@@ -2701,12 +2701,23 @@ int Playlist::GetResumePosition(void) {
     // entries.  Resuming inside a sub-playlist restarts that sub-playlist: a
     // row is as fine as a position in the file can be.
     int pos = m_sectionPosition + (done ? 1 : 0);
-    int row = (pos >= (int)m_currentSection->size()) ? (int)rows.size() : SectionPositionToRow(rows, pos);
     int base = 0;
+    int loadedBase = 0;
     if (m_currentSection == &m_mainPlaylist) {
         base = m_leadInRows.size();
+        loadedBase = m_leadIn.size();
     } else if (m_currentSection == &m_leadOut) {
         base = m_leadInRows.size() + m_mainRows.size();
+        loadedBase = m_leadIn.size() + m_mainPlaylist.size();
+    }
+    int row = (int)rows.size();
+    if (pos < (int)m_currentSection->size()) {
+        // The row table is in load order, and a random playlist's main
+        // section is shuffled: go by where the entry was loaded, not by its
+        // index, or the resume lands on whichever entry was loaded at that
+        // index -- one that may already have played.
+        int loadedPos = (*m_currentSection)[pos]->GetPositionInPlaylist() - loadedBase;
+        row = SectionPositionToRow(rows, loadedPos);
     }
     return base + row;
 }
