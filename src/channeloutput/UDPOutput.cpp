@@ -938,6 +938,11 @@ int UDPOutput::Close() {
         WarningHolder::RemoveWarning(LOCAL_DROP_WARNING_ID, LOCAL_DROP_WARNING);
         dropWarningActive = false;
     }
+    if (!interfaceWarning.empty()) {
+        // the replacement raises its own if the interface still has no address
+        WarningHolder::RemoveWarning(22, interfaceWarning);
+        interfaceWarning.clear();
+    }
     return ChannelOutput::Close();
 }
 void UDPOutput::PrepData(unsigned char* channelData) {
@@ -2011,6 +2016,13 @@ bool UDPOutput::InitNetwork() {
     memset(&localAddress, 0, sizeof(struct sockaddr_in));
     localAddress.sin_family = AF_INET;
     localAddress.sin_addr.s_addr = inet_addr(E131LocalAddress);
+    if (rv == 0 && !interfaceWarning.empty()) {
+        // An interface that had no address yet (DHCP still waiting, cable
+        // out) is usable once NEW_ADDR brings one; the banner was otherwise
+        // only retracted at the next config load.
+        WarningHolder::RemoveWarning(22, interfaceWarning);
+        interfaceWarning.clear();
+    }
 
     if (!messages.sendSockets.empty()) {
         return haveAddress;
@@ -2018,7 +2030,8 @@ bool UDPOutput::InitNetwork() {
     if (needsBroadcast) {
         if (rv) {
             LogErr(VB_CHANNELOUT, "Invalid interface %s\n", outInterface.c_str());
-            AddOutputConfigWarning(22, "Invalid interface for UDP broadcast/multicast: " + outInterface);
+            interfaceWarning = "Invalid interface for UDP broadcast/multicast: " + outInterface;
+            AddOutputConfigWarning(22, interfaceWarning);
             return false;
         }
         if (!haveAddress) {

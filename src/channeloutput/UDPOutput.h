@@ -184,6 +184,9 @@ private:
     // tags this output's CurlManager requests so the destructor can cancel them
     const std::string curlOwner = "UDPOutput-" + std::to_string((uintptr_t)this);
     bool interfaceUp;
+    // the "Invalid interface" banner InitNetwork() raised, while it is up;
+    // InitNetwork() takes it down when the address arrives, Close() otherwise
+    std::string interfaceWarning;
 
     bool InitNetwork();
     std::shared_ptr<SendSocketInfo> findOrCreateSocket(unsigned int key, int sc = 1);
