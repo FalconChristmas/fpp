@@ -107,6 +107,12 @@ public:
     }
 
     PixelOverlayState getState() const;
+    // For the manager, when it retires this model (removeAutoOverlayModel()):
+    // gives up the shared memory names, which a replacement of the same name
+    // is about to take. The model may live on for a while in a reference
+    // holder's hands, and its destructor then leaves the names alone; a
+    // buffer it allocates after this is private memory.
+    void releaseSharedMemoryNames();
     // The absolute output channel buffer cell (x, y)'s first byte lands on,
     // or FPPD_OFF_CHANNEL for a hole or a cell outside the model.
     uint32_t outputChannelForCell(int x, int y) const;

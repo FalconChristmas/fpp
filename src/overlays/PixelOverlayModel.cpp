@@ -38,6 +38,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <list>
+#include <set>
 #include <memory>
 #include <mutex>
 #include <stdio.h>
@@ -101,7 +102,8 @@ static uint8_t* createModelMemory(const std::string& dataName, uint32_t size, bo
     }
 
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
-    int f = shm_open(dataName.c_str(), O_RDWR | O_CREAT, mode);
+    // No name: private memory, for a model that has given its names up.
+    int f = dataName.empty() ? -1 : shm_open(dataName.c_str(), O_RDWR | O_CREAT, mode);
     if (f != -1) {
         int rc = ftruncate(f, size);
         if (rc == -1) {
@@ -116,8 +118,10 @@ static uint8_t* createModelMemory(const std::string& dataName, uint32_t size, bo
         }
     }
     if (f == -1) {
-        LogWarn(VB_CHANNELOUT, "Could not create shared memory block for %s:  %s\n",
-                dataName.c_str(), FPPstrerror(errno));
+        if (!dataName.empty()) {
+            LogWarn(VB_CHANNELOUT, "Could not create shared memory block for %s:  %s\n",
+                    dataName.c_str(), FPPstrerror(errno));
+        }
     } else {
         uint8_t* data = (uint8_t*)mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, f, 0);
         close(f);
@@ -149,6 +153,14 @@ static uint8_t* createModelMemory(const std::string& dataName, uint32_t size, bo
     }
     return data;
 }
+
+// Serializes the lazy overlay buffer allocation (see getOverlayBuffer()) and
+// guards s_namesReleased.
+static std::mutex s_overlayBufferAllocLock;
+// Models that have given up their shm names (releaseSharedMemoryNames()). A
+// member would change the plugin-visible layout. The destructor erases its
+// entry, so a new model at the same address starts with its names.
+static std::set<const PixelOverlayModel*> s_namesReleased;
 
 // The shm name for a model buffer, shortened where the system's limit demands it.
 static std::string modelMemoryName(const std::string& prefix, const std::string& shortPrefix,
@@ -576,10 +588,25 @@ PixelOverlayModel::~PixelOverlayModel() {
         delete runningEffect;
         runningEffect = nullptr;
     }
+    // A retired model can be freed long after its replacement took its name,
+    // so nothing here may act on the name: the shm names were unlinked at
+    // retirement if it was retired. Nor does it reset its submodels: the
+    // manager has reset them by parent name at retirement, and a full reload
+    // or shutdown frees them along with it. Resetting them here, by
+    // name, disabled the replacement's submodel, and took modelsLock on
+    // whatever thread dropped the last reference -- the effect thread holds a
+    // submodel's effectLock there, the reverse of the sanctioned order.
+    bool namesReleased;
+    {
+        std::lock_guard<std::mutex> l(s_overlayBufferAllocLock);
+        namesReleased = s_namesReleased.erase(this) != 0;
+    }
     if (channelData) {
         if (channelDataMapped) {
             munmap(channelData, std::max(channelCount, 8));
-            shm_unlink(modelMemoryName("/FPP-Model-Data-", "/FPPMD-", name).c_str());
+            if (!namesReleased) {
+                shm_unlink(modelMemoryName("/FPP-Model-Data-", "/FPPMD-", name).c_str());
+            }
         } else {
             free(channelData);
         }
@@ -587,18 +614,27 @@ PixelOverlayModel::~PixelOverlayModel() {
     if (overlayBufferData) {
         if (overlayBufferMapped) {
             munmap(overlayBufferData, width * height * bytesPerPixel + sizeof(OverlayBufferData));
-            shm_unlink(modelMemoryName("/FPP-Model-Overlay-Buffer-", "/FPPMB-", name).c_str());
+            if (!namesReleased) {
+                shm_unlink(modelMemoryName("/FPP-Model-Overlay-Buffer-", "/FPPMB-", name).c_str());
+            }
         } else {
             free(overlayBufferData);
         }
     }
-    auto snapshot = children.load();
-    if (snapshot) {
-        // Iterate the snapshot, not under childrenWriteLock: resetChildParent()
-        // takes modelsLock.
-        for (auto& c : *snapshot) {
-            PixelOverlayManager::INSTANCE.resetChildParent(c.name);
-        }
+}
+
+void PixelOverlayModel::releaseSharedMemoryNames() {
+    // Under the allocation lock, so a buffer allocated concurrently either
+    // exists to be unlinked here or sees the release and stays private.
+    std::lock_guard<std::mutex> l(s_overlayBufferAllocLock);
+    if (!s_namesReleased.insert(this).second) {
+        return;
+    }
+    if (channelData && channelDataMapped) {
+        shm_unlink(modelMemoryName("/FPP-Model-Data-", "/FPPMD-", name).c_str());
+    }
+    if (overlayBufferData && overlayBufferMapped) {
+        shm_unlink(modelMemoryName("/FPP-Model-Overlay-Buffer-", "/FPPMB-", name).c_str());
     }
 }
 
@@ -1292,7 +1328,6 @@ void PixelOverlayModel::setBufferIsDirty(bool dirty) {
 // change the plugin-visible layout), and published with release so the
 // channel output thread, which reads the pointer unlocked, never sees it
 // before its header is filled in.
-static std::mutex s_overlayBufferAllocLock;
 uint8_t* PixelOverlayModel::getOverlayBuffer() {
     OverlayBufferData* ob = __atomic_load_n(&overlayBufferData, __ATOMIC_ACQUIRE);
     if (!ob) {
@@ -1300,8 +1335,10 @@ uint8_t* PixelOverlayModel::getOverlayBuffer() {
         ob = overlayBufferData;
         if (!ob) {
             uint32_t size = width * height * bytesPerPixel + sizeof(OverlayBufferData);
-            ob = (OverlayBufferData*)createModelMemory(
-                modelMemoryName("/FPP-Model-Overlay-Buffer-", "/FPPMB-", name), size, overlayBufferMapped);
+            // A retired model's name may be its replacement's by now.
+            std::string shmName = s_namesReleased.count(this) ? std::string()
+                                                              : modelMemoryName("/FPP-Model-Overlay-Buffer-", "/FPPMB-", name);
+            ob = (OverlayBufferData*)createModelMemory(shmName, size, overlayBufferMapped);
             if (!ob) {
                 // Nothing left to hand back. Callers check, because the alternative
                 // was dereferencing this null a few instructions from here.

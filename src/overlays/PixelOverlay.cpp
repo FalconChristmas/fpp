@@ -2282,6 +2282,10 @@ void PixelOverlayManager::removeAutoOverlayModel(const std::string& name) {
             std::lock_guard<std::mutex> l(s_retiredLock);
             s_retired.insert(pmodel);
         }
+        // Its shm names go now, under modelsLock, before a replacement can
+        // be created with them: a holder can keep it alive past that, and its
+        // destructor unlinked the replacement's segments.
+        pmodel->releaseSharedMemoryNames();
         std::shared_ptr<PixelOverlayModel> owner = std::move(models[name].owner);
         modelNames.remove(name);
         models[name].model = nullptr;
@@ -2301,7 +2305,11 @@ void PixelOverlayManager::removeAutoOverlayModel(const std::string& name) {
         alock.unlock();
 
         // Frees it now, or when the last getModelShared() holder lets go -
-        // a bulk data PUT or effect start that looked it up before this.
+        // a bulk data PUT or effect start that looked it up before this, a
+        // playlist image entry until its next draw, or a submodel's
+        // setState() on the effect or output thread. The destructor takes no
+        // overlay lock and touches nothing by name, so any of those threads
+        // can run it.
         owner.reset();
     }
 }

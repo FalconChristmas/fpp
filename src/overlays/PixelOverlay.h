@@ -106,6 +106,8 @@ public:
     // delete it (removeAutoOverlayModel()).  MUST NOT be called while holding
     // effectLock or modelsLock -- see the note on the definition.
     void removePeriodicUpdateAndWait(PixelOverlayModel* m);
+    // FPP no longer calls this (a model's destructor did, by name, and so
+    // reset a replacement's submodel); kept for plugins.
     void resetChildParent(const std::string& name);
 
     Json::Value getModelsAsJson();
