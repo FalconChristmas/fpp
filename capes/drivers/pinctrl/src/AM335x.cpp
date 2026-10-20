@@ -170,8 +170,8 @@ void InitAM335xBalls() {
     addBall("UART0_TXD", MAIN_DOMAIN, 0x974, 5, 6).addMode("uart", { PIN_OUTPUT_PULLUP | INPUT_EN | 0 }).addMode("uart_tx", "uart").addMode("ttyS0-tx", "uart").addMode("i2c", { PIN_INPUT_PULLUP | 3 }).addMode("i2c_scl", "i2c");
     addBall("UART1_CTSN", MAIN_DOMAIN, 0x978).addMode("i2c", { PIN_INPUT_PULLUP | 3 }).addMode("i2c_sda", "i2c");
     addBall("UART1_RTSN", MAIN_DOMAIN, 0x97c).addMode("i2c", { PIN_INPUT_PULLUP | 3 }).addMode("i2c_scl", "i2c");
-    addBall("UART1_RXD", MAIN_DOMAIN, 0x980, -1, 6).addMode("uart", { PIN_OUTPUT_PULLUP | INPUT_EN | 0 }).addMode("uart_rx", "uart").addMode("ttyS1-rx", "uart");
-    addBall("UART1_TXD", MAIN_DOMAIN, 0x984, -1, 6).addMode("uart", { PIN_OUTPUT_PULLUP | INPUT_EN | 0 }).addMode("uart_tx", "uart").addMode("ttyS1-tx", "uart");
+    addBall("UART1_RXD", MAIN_DOMAIN, 0x980, -1, 6).addMode("uart", { PIN_OUTPUT_PULLUP | INPUT_EN | 0 }).addMode("uart_rx", "uart").addMode("ttyS1-rx", "uart").addMode("i2c", { PIN_INPUT_PULLUP | 3 }).addMode("i2c_sda", "i2c");
+    addBall("UART1_TXD", MAIN_DOMAIN, 0x984, -1, 6).addMode("uart", { PIN_OUTPUT_PULLUP | INPUT_EN | 0 }).addMode("uart_tx", "uart").addMode("ttyS1-tx", "uart").addMode("i2c", { PIN_INPUT_PULLUP | 3 }).addMode("i2c_scl", "i2c");
     addBall("I2C0_SDA", MAIN_DOMAIN, 0x988);
     addBall("I2C0_SCL", MAIN_DOMAIN, 0x98c);
     addBall("MCASP0_ACLKX", MAIN_DOMAIN, 0x990, 5, 6).addMode("pwm", { PIN_OUTPUT_PULLDOWN | 1 });
