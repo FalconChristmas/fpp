@@ -1337,6 +1337,20 @@ int GStreamerOutput::Start(int msTime) {
 
     GError* error = nullptr;
 
+    // A video's sound (one or two channels) plays through the slot's
+    // persistent output stream, as an audio file's does, not a pipewiresink of
+    // its own: that per-track stream ran on the system clock, so the sound
+    // drifted off the card's own rate; it lost the head of every track to the
+    // stream coming up; it sat behind the picture and the lights by the
+    // card's queue, which nothing corrected; and on a MultiSync remote each
+    // rate change queued sound it then played late (~180 ms on a Pi 5).  Run
+    // on the stream's feed clock, the picture keeps time with the sound -- and
+    // a remote steers both (AdjustFeedSpeed()).  A video with no sound, or
+    // more than two channels, keeps the old sink.
+    PipeWireOutputStream* videoPwStream = (usePipeWire && mediaChannels >= 1 && mediaChannels <= 2)
+                                              ? PipeWireOutputStream::ForSlot(m_streamSlot)
+                                              : nullptr;
+
     if (wantVideo) {
         // Build pipeline with decodebin pad-added for dynamic audio+video linking
         std::string pipelineStr =
@@ -1362,7 +1376,12 @@ int GStreamerOutput::Start(int msTime) {
                      "max-size-buffers", 0, "max-size-bytes", 0, NULL);
         m_volume = gst_element_factory_make("volume", "vol");
         GstElement* sink = nullptr;
-        if (!pipelineSinkName.empty()) {
+        if (videoPwStream) {
+            sink = gst_element_factory_make("appsink", "pwfeed");
+            if (sink) {
+                g_object_set(sink, "sync", TRUE, "enable-last-sample", FALSE, NULL);
+            }
+        } else if (!pipelineSinkName.empty()) {
             sink = gst_element_factory_make("pipewiresink", "pwsink");
             g_object_set(sink, "target-object", pipelineSinkName.c_str(), NULL);
             // sync=TRUE: gate audio buffer delivery by PTS against
@@ -1412,9 +1431,11 @@ int GStreamerOutput::Start(int msTime) {
                      "max-buffers", 3, "drop", TRUE, NULL);
 
         GstElement* rateCapsfilter = gst_element_factory_make("capsfilter", "ratecaps");
-        GstCaps* rateCaps = decodeRate
-                                ? gst_caps_new_simple("audio/x-raw", "rate", G_TYPE_INT, decodeRate, NULL)
-                                : gst_caps_new_empty_simple("audio/x-raw");
+        // Feeding the output stream, the sound must arrive in its one fixed
+        // format (see PipeWireOutputStream::CapsFields()).
+        GstCaps* rateCaps = videoPwStream ? gst_caps_from_string(("audio/x-raw" + PipeWireOutputStream::CapsFields()).c_str())
+                            : decodeRate  ? gst_caps_new_simple("audio/x-raw", "rate", G_TYPE_INT, decodeRate, NULL)
+                                          : gst_caps_new_empty_simple("audio/x-raw");
         g_object_set(rateCapsfilter, "caps", rateCaps, NULL);
         gst_caps_unref(rateCaps);
 
@@ -1452,6 +1473,10 @@ int GStreamerOutput::Start(int msTime) {
         // gst_bin_add sinks the floating ref; we need our own ref so Close() can safely unref.
         gst_object_ref(m_volume);
         gst_object_ref(m_appsink);
+        if (videoPwStream) {
+            m_pwFeed = GST_ELEMENT(gst_object_ref(sink));
+            m_pwStream = videoPwStream;
+        }
 
         // Link audio chain
         if (!gst_element_link_many(audioconvert, audioresample, rateCapsfilter, tee, NULL)) {
@@ -1567,7 +1592,12 @@ int GStreamerOutput::Start(int msTime) {
                      "max-size-buffers", 0, "max-size-bytes", 0, NULL);
         m_volume = gst_element_factory_make("volume", "vol");
         GstElement* sink = nullptr;
-        if (!pipelineSinkName.empty()) {
+        if (videoPwStream) {
+            sink = gst_element_factory_make("appsink", "pwfeed");
+            if (sink) {
+                g_object_set(sink, "sync", TRUE, "enable-last-sample", FALSE, NULL);
+            }
+        } else if (!pipelineSinkName.empty()) {
             sink = gst_element_factory_make("pipewiresink", "pwsink");
             g_object_set(sink, "target-object", pipelineSinkName.c_str(), NULL);
             // sync=TRUE: same rationale as the wantVideo branch above.
@@ -1608,9 +1638,11 @@ int GStreamerOutput::Start(int msTime) {
                      "max-buffers", 3, "drop", TRUE, NULL);
 
         GstElement* rateCapsfilter = gst_element_factory_make("capsfilter", "ratecaps");
-        GstCaps* rateCaps = decodeRate
-                                ? gst_caps_new_simple("audio/x-raw", "rate", G_TYPE_INT, decodeRate, NULL)
-                                : gst_caps_new_empty_simple("audio/x-raw");
+        // Feeding the output stream, the sound must arrive in its one fixed
+        // format (see PipeWireOutputStream::CapsFields()).
+        GstCaps* rateCaps = videoPwStream ? gst_caps_from_string(("audio/x-raw" + PipeWireOutputStream::CapsFields()).c_str())
+                            : decodeRate  ? gst_caps_new_simple("audio/x-raw", "rate", G_TYPE_INT, decodeRate, NULL)
+                                          : gst_caps_new_empty_simple("audio/x-raw");
         g_object_set(rateCapsfilter, "caps", rateCaps, NULL);
         gst_caps_unref(rateCaps);
 
@@ -1645,6 +1677,10 @@ int GStreamerOutput::Start(int msTime) {
 
         gst_object_ref(m_volume);
         gst_object_ref(m_appsink);
+        if (videoPwStream) {
+            m_pwFeed = GST_ELEMENT(gst_object_ref(sink));
+            m_pwStream = videoPwStream;
+        }
 
         if (!gst_element_link_many(audioconvert, audioresample, rateCapsfilter, tee, NULL)) {
             LogErr(VB_MEDIAOUT, "GStreamer HDMI: Failed to link audioconvert->audioresample->ratecaps->tee\n");
@@ -2872,6 +2908,44 @@ bool GStreamerOutput::SetPipelineToNullBounded(GstElement* pipeline, int timeout
     return SetPipelineToNullSupervised(pipeline, timeoutMs);
 }
 
+// A video whose sound feeds the output stream shows each frame when the feed
+// clock reaches it; the sound of that moment leaves the card a card's queue
+// later.  Hold the picture back by that queue (a sink's ts-offset), so picture,
+// sound and the lights, which follow the sound, all meet.  Re-applied only as
+// the queue's average moves.
+void GStreamerOutput::AlignPictureToSound(int64_t latNs) {
+    if (latNs <= 0 || std::llabs(latNs - m_pictureDelayNs) < 2 * GST_MSECOND) {
+        return;
+    }
+    m_pictureDelayNs = latNs;
+    std::vector<GstElement*> sinks;
+    {
+        // OnNoMorePads() can remove the kmssink on a streaming thread.
+        std::shared_ptr<CallbackGuard> guard = m_cbGuard;
+        std::unique_lock<std::recursive_mutex> lock;
+        if (guard) {
+            lock = std::unique_lock<std::recursive_mutex>(guard->mtx);
+        }
+        if (m_kmssink) {
+            sinks.push_back(GST_ELEMENT(gst_object_ref(m_kmssink)));
+        }
+        if (m_videoAppsink) {
+            sinks.push_back(GST_ELEMENT(gst_object_ref(m_videoAppsink)));
+        }
+    }
+    for (int cid : m_directConnectorIds) {
+        std::string name = "dkms_" + std::to_string(cid);
+        if (GstElement* dkms = gst_bin_get_by_name(GST_BIN(m_pipeline), name.c_str())) {
+            sinks.push_back(dkms);
+        }
+    }
+    for (GstElement* sink : sinks) {
+        g_object_set(sink, "ts-offset", (gint64)latNs, NULL);
+        gst_object_unref(sink);
+    }
+    LogDebug(VB_MEDIAOUT, "GStreamer: picture held back %.1f ms to meet the sound\n", latNs / 1e6);
+}
+
 void GStreamerOutput::ReleasePipeWireStream() {
     if (m_pwStream) {
         m_pwStream->Release(m_pwFeed);
@@ -3321,6 +3395,10 @@ int GStreamerOutput::Process(void) {
     if (!m_pipeline || !m_bus) {
         return 0;
     }
+    if (m_pwFeedOrphaned.exchange(false)) {
+        LogDebug(VB_MEDIAOUT, "GStreamer: %s has no sound; releasing its output stream\n", m_mediaFilename.c_str());
+        ReleasePipeWireStream();
+    }
     if (m_haveFailedBranches.load(std::memory_order_acquire) && !m_teardownComplete &&
         !m_shutdownFlag.load(std::memory_order_acquire)) {
         SetMainLoopPhase("GStreamer remove failed branch");
@@ -3353,12 +3431,15 @@ int GStreamerOutput::Process(void) {
             if (guard) {
                 lock = std::unique_lock<std::recursive_mutex>(guard->mtx);
             }
-            if (m_kmssink) {
+            // A video whose sound feeds the output stream follows the sound
+            // (below), and its picture is held back to match (see
+            // AlignPictureToSound()).
+            if (m_kmssink && !m_pwFeed) {
                 posSource = GST_ELEMENT(gst_object_ref(m_kmssink));
                 ownPosSource = true;
             }
         }
-        if (!posSource && !m_directConnectorIds.empty()) {
+        if (!posSource && !m_pwFeed && !m_directConnectorIds.empty()) {
             std::string name = "dkms_" + std::to_string(*m_directConnectorIds.begin());
             posSource = gst_bin_get_by_name(GST_BIN(m_pipeline), name.c_str());
             if (posSource) ownPosSource = true;
@@ -3541,6 +3622,9 @@ int GStreamerOutput::Process(void) {
                 // behind the sound on a Pi 5 once media sync stopped hiding
                 // anything under a frame.
                 int64_t latNs = AudioSinkLatencyNs();
+                if (m_pwFeed) {
+                    AlignPictureToSound(latNs);
+                }
                 float latSec = (float)latNs / 1000000000.0f;
                 if (latSec > 0.0f) {
                     elapsed -= latSec;
@@ -4924,7 +5008,7 @@ void GStreamerOutput::OnNoMorePads(GstElement* element, gpointer userData) {
         LogDebug(VB_MEDIAOUT, "GStreamer: Removing unconnected audio chain (video-only media)\n");
 
         // Get all audio elements by name and remove them
-        const char* audioNames[] = {"aconv", "aresample", "t", "q1", "vol", "pwsink", "audiosink",
+        const char* audioNames[] = {"aconv", "aresample", "t", "q1", "vol", "pwsink", "audiosink", "pwfeed",
                                     "q2", "aconv2", "acapsf", "sampletap", nullptr};
         for (int i = 0; audioNames[i]; i++) {
             GstElement* el = gst_bin_get_by_name(GST_BIN(self->m_pipeline), audioNames[i]);
@@ -4946,6 +5030,12 @@ void GStreamerOutput::OnNoMorePads(GstElement* element, gpointer userData) {
         }
         self->m_audioChain = nullptr;
         self->m_appsinkSignalId = 0;
+        // A video that turned out to have no sound fed the output stream
+        // nothing: Process() hands the stream back (on the main loop, where
+        // the feed is used).
+        if (self->m_pwFeed) {
+            self->m_pwFeedOrphaned = true;
+        }
     }
 
     // If video chain was never connected, remove orphaned video elements.

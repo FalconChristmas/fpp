@@ -407,6 +407,13 @@ private:
     // Apply playback rate change via GStreamer instant-rate-change seek
     void ApplyRate(float rate);
 
+    // A video whose sound feeds the output stream: its picture is held back by
+    // the card's queue (AlignPictureToSound()), and a video that turns out to
+    // have no sound hands the stream back from the main loop.
+    void AlignPictureToSound(int64_t latNs);
+    int64_t m_pictureDelayNs = 0;
+    std::atomic<bool> m_pwFeedOrphaned{ false };
+
     // A MultiSync remote's media through the persistent output stream: held to
     // the master by the speed of the stream's feed (see AdjustFeedSpeed()).
     int AdjustFeedSpeed(float masterMediaPosition);
