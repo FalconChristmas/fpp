@@ -354,13 +354,13 @@ uint64_t PlaylistEntryMedia::GetLengthInMS() {
     return m_duration;
 }
 uint64_t PlaylistEntryMedia::GetElapsedMS() {
+    // Before m_mediaOutput: Pause() closes the media output.
+    if (IsPaused()) {
+        return m_pausedTime;
+    }
     if (m_mediaOutput) {
         float f = m_slotStatus->secondsElapsed * 1000;
         f += m_slotStatus->subSecondsElapsed * 10; // subSec is in 1/100th second
-        if (IsPaused()) {
-            f = m_pausedStatus.secondsElapsed * 1000;
-            f += m_pausedStatus.subSecondsElapsed * 10; // subSec is in 1/100th second
-        }
         if (m_duration == 0) {
             float f = m_slotStatus->minutesTotal * 60 + m_slotStatus->secondsTotal;
             f *= 1000;
