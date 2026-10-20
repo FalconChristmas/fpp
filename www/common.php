@@ -384,8 +384,11 @@ function JsonForScript($jsonText)
  * together without DHCP talk over it).  It refuses what can only be this
  * device: loopback, the unspecified address and "localhost" -- through those a
  * request would reach fppd's internal port or localonly/ pages that trust the
- * local address.  Callers must also not follow redirects, or a peer could
- * send the request back to loopback.
+ * local address.  A name is judged by every address it resolves to, the way
+ * curl will resolve it: inet_aton() reads 127.1, 2130706433, 0x7f000001 and
+ * 0177.0.0.1 as 127.0.0.1, and /etc/hosts maps ip6-localhost and this
+ * player's own HostName to loopback.  Callers must also not follow redirects,
+ * or a peer could send the request back to loopback.
  */
 function IsRemotePeerHost($host)
 {
@@ -393,22 +396,89 @@ function IsRemotePeerHost($host)
         return false;
     }
     if (filter_var($host, FILTER_VALIDATE_IP)) {
-        $packed = @inet_pton($host);
-        if ($packed === false) {
+        return RemotePeerAddressAllowed($host);
+    }
+    if (strcasecmp($host, 'localhost') == 0 || preg_match('/\.localhost$/i', $host) ||
+        preg_match('/^(?=.{1,253}$)([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$/', $host) !== 1) {
+        return false;
+    }
+    // A name that does not resolve could not be reached anyway.
+    $addrs = RemotePeerResolve($host);
+    if (empty($addrs)) {
+        return false;
+    }
+    foreach ($addrs as $addr) {
+        if (!RemotePeerAddressAllowed($addr)) {
             return false;
         }
-        // IPv4-mapped IPv6 (::ffff:a.b.c.d) is judged as the IPv4 address.
-        if (strlen($packed) == 16 && substr($packed, 0, 12) === str_repeat("\0", 10) . "\xff\xff") {
-            $packed = substr($packed, 12);
-        }
-        if (strlen($packed) == 4) {
-            $b = ord($packed[0]);
-            return !($b == 127 || $b == 0);
-        }
-        return !($packed === str_repeat("\0", 16) || $packed === str_repeat("\0", 15) . "\x01");
     }
-    return strcasecmp($host, 'localhost') != 0 && !preg_match('/\.localhost$/i', $host) &&
-        preg_match('/^(?=.{1,253}$)([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$/', $host) === 1;
+    return true;
+}
+
+/** An IP address IsRemotePeerHost() accepts: not loopback or unspecified. */
+function RemotePeerAddressAllowed($ip)
+{
+    $packed = @inet_pton($ip);
+    if ($packed === false) {
+        return false;
+    }
+    // IPv4-mapped IPv6 (::ffff:a.b.c.d) is judged as the IPv4 address.
+    if (strlen($packed) == 16 && substr($packed, 0, 12) === str_repeat("\0", 10) . "\xff\xff") {
+        $packed = substr($packed, 12);
+    }
+    if (strlen($packed) == 4) {
+        $b = ord($packed[0]);
+        return !($b == 127 || $b == 0);
+    }
+    return !($packed === str_repeat("\0", 16) || $packed === str_repeat("\0", 15) . "\x01");
+}
+
+define('REMOTE_PEER_RESOLVE_SECONDS', 3);
+
+/**
+ * Every address a host name resolves to through the system resolver
+ * (getaddrinfo, as curl uses), IPv4 and IPv6; empty when it does not resolve.
+ * Bounded: a name whose DNS or mDNS lookup never answers comes back empty
+ * after REMOTE_PEER_RESOLVE_SECONDS, rather than holding the request for the
+ * resolver's own retries, and empty is refused.  getaddrinfo() takes no
+ * timeout, so on Linux the lookup runs in getent under timeout(1); elsewhere
+ * (macOS, a development host) it runs in-process.
+ */
+function RemotePeerResolve($host)
+{
+    $out = array();
+    if (is_executable('/usr/bin/getent') && is_executable('/usr/bin/timeout')) {
+        $lines = array();
+        @exec('/usr/bin/timeout ' . REMOTE_PEER_RESOLVE_SECONDS . ' /usr/bin/getent ahosts ' . escapeshellarg($host) . ' 2>/dev/null', $lines, $rc);
+        if ($rc !== 0) {
+            return array();
+        }
+        // "<address>  STREAM <name>" per address and socket type.
+        foreach ($lines as $line) {
+            $addr = strtok(trim($line), " \t");
+            if ($addr !== false && $addr !== '' && !in_array($addr, $out, true)) {
+                $out[] = $addr;
+            }
+        }
+        return $out;
+    }
+    if (!function_exists('socket_addrinfo_lookup')) {
+        // IPv4 only, through the same resolver.
+        $v4 = @gethostbynamel($host);
+        return is_array($v4) ? $v4 : array();
+    }
+    $infos = @socket_addrinfo_lookup($host, null, array('ai_socktype' => SOCK_STREAM));
+    if (is_array($infos)) {
+        foreach ($infos as $info) {
+            $e = socket_addrinfo_explain($info);
+            if (isset($e['ai_addr']['sin_addr'])) {
+                $out[] = $e['ai_addr']['sin_addr'];
+            } else if (isset($e['ai_addr']['sin6_addr'])) {
+                $out[] = $e['ai_addr']['sin6_addr'];
+            }
+        }
+    }
+    return $out;
 }
 
 /**
