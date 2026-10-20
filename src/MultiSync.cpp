@@ -97,6 +97,23 @@ static std::mutex s_controlSockOpenLock;
 // queue grows faster than it drains.  Guarded by m_httpProbeLock.
 static std::set<std::string> s_httpPingPending;
 
+// The most HTTP re-pings that may wait in the queue.  Every path that queues
+// one is fed from the network, and the Twinkly discovery replies by anyone
+// on the LAN, so the queue needs a bound of its own; real remotes and lights
+// come to far fewer.
+#define HTTP_PING_MAX_QUEUED 512
+
+// caller holds m_httpProbeLock
+static void QueueHTTPPing(std::deque<std::string>& queue, const std::string& address) {
+    if (queue.size() >= HTTP_PING_MAX_QUEUED) {
+        LogDebug(VB_SYNC, "Not probing %s over HTTP: %d probes already queued\n", address.c_str(), (int)queue.size());
+        return;
+    }
+    if (s_httpPingPending.insert(address).second) {
+        queue.push_back(address);
+    }
+}
+
 MultiSync MultiSync::INSTANCE;
 MultiSync* multiSync = &MultiSync::INSTANCE;
 
@@ -1534,6 +1551,15 @@ void MultiSync::PerformHTTPDiscovery() {
 // invalidate the token a running Twinkly channel output is streaming with.
 #define TWINKLY_DISCOVERY_PORT 5555
 static const char TWINKLY_DISCOVERY_MSG[] = { 0x01, 'd', 'i', 's', 'c', 'o', 'v', 'e', 'r' };
+// Replies are taken only this long after a discovery broadcast, and from at
+// most this many addresses per broadcast.  The socket stays open for the life
+// of fppd and its port is in every broadcast, so without them any host on the
+// LAN could grow the seen set and the probe queue by one entry per source
+// address it sent from, for as long as fppd ran.  The lights answer within
+// milliseconds.
+#define TWINKLY_REPLY_WINDOW_MS 5000
+#define TWINKLY_MAX_REPLIES 128
+static std::atomic<long long> s_twinklyRepliesUntilMS{ 0 };
 
 bool MultiSync::OpenTwinklyDiscoverySocket() {
     if (m_twinklyDiscoverySock >= 0) {
@@ -1566,6 +1592,7 @@ void MultiSync::PerformTwinklyDiscovery() {
         std::unique_lock<std::mutex> lock(m_httpProbeLock);
         m_twinklyDiscoverySeen.clear();
     }
+    s_twinklyRepliesUntilMS = GetMonotonicTimeMS() + TWINKLY_REPLY_WINDOW_MS;
 
     // Under m_socketLock, which the sync sends need every frame: never block.
     std::unique_lock<std::mutex> lock(m_socketLock);
@@ -1606,7 +1633,7 @@ bool MultiSync::ProcessTwinklyDiscoveryReplies() {
         if (len <= 0) {
             return false;
         }
-        if (len < 7 || buf[4] != 'O' || buf[5] != 'K') {
+        if (len < 7 || buf[4] != 'O' || buf[5] != 'K' || GetMonotonicTimeMS() > s_twinklyRepliesUntilMS) {
             continue;
         }
         char ipStr[INET_ADDRSTRLEN] = { 0 };
@@ -1616,6 +1643,9 @@ bool MultiSync::ProcessTwinklyDiscoveryReplies() {
         std::string address(ipStr);
         {
             std::unique_lock<std::mutex> lock(m_httpProbeLock);
+            if (m_twinklyDiscoverySeen.size() >= TWINKLY_MAX_REPLIES) {
+                continue;
+            }
             if (!m_twinklyDiscoverySeen.insert(address).second) {
                 // the lights answer each broadcast more than once
                 continue;
@@ -1628,9 +1658,7 @@ bool MultiSync::ProcessTwinklyDiscoveryReplies() {
         // HTTP probes at once.
         {
             std::unique_lock<std::mutex> lock(m_httpProbeLock);
-            if (s_httpPingPending.insert(address).second) {
-                m_httpPingQueue.push_back(address);
-            }
+            QueueHTTPPing(m_httpPingQueue, address);
         }
         PumpHTTPPings();
     }
@@ -1939,9 +1967,7 @@ void MultiSync::PeriodicPing() {
             {
                 std::unique_lock<std::mutex> plock(m_httpProbeLock);
                 for (auto& address : httpPingAddresses) {
-                    if (s_httpPingPending.insert(address).second) {
-                        m_httpPingQueue.push_back(address);
-                    }
+                    QueueHTTPPing(m_httpPingQueue, address);
                 }
             }
             PumpHTTPPings();
