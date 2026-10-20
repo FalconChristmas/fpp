@@ -99,19 +99,21 @@ int ThreadedChannelOutput::SendData(unsigned char* channelData) {
     if (m_useDoubleBuffer) {
         std::lock_guard<std::mutex> lock(m_bufLock);
         memcpy(m_inBuf, channelData, m_channelCount);
-    } else {
-        m_outBuf = channelData;
     }
 
     // The flag has to be raised under m_sendLock: a store outside it can land
     // between the worker's predicate check and its wait(), and the notify that
     // follows is then delivered to nobody.  The two locks are taken in
     // sequence, never nested, so no ordering against the worker exists to
-    // violate.  Publishing m_outBuf/m_inBuf before the lock is enough for the
-    // worker to see them - it reads them only after acquiring m_sendLock and
-    // observing the flag.
+    // violate.  Without a double buffer the frame is handed over by pointer,
+    // and m_outBuf is written here and read by the worker for the frame it is
+    // still sending: it changes only under m_sendLock, and the worker copies
+    // it out under the same lock when it claims a frame.
     {
         std::lock_guard<std::mutex> lock(m_sendLock);
+        if (!m_useDoubleBuffer) {
+            m_outBuf = channelData;
+        }
         m_dataWaiting = 1;
     }
 
@@ -128,17 +130,19 @@ int ThreadedChannelOutput::SendOutputBuffer(void) {
     // blanking frame, which has no successor.  Claim-first means a frame
     // arriving mid-send leaves the flag raised and the newer data goes out on
     // the worker's next pass (at worst the newest frame is sent twice).
+    unsigned char* outBuf;
     {
         std::lock_guard<std::mutex> lock(m_sendLock);
         m_dataWaiting = 0;
+        outBuf = m_outBuf; // see SendData(): SendData() may replace it next
     }
 
     if (m_useDoubleBuffer) {
         std::lock_guard<std::mutex> lock(m_bufLock);
-        memcpy(m_outBuf, m_inBuf, m_channelCount);
+        memcpy(outBuf, m_inBuf, m_channelCount);
     }
 
-    RawSendData(m_outBuf);
+    RawSendData(outBuf);
     return m_channelCount;
 }
 
