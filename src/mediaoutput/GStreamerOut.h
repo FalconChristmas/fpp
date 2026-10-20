@@ -265,7 +265,10 @@ private:
     std::mutex m_videoOverlayModelLock;
     int m_videoOverlayWidth = 0;
     int m_videoOverlayHeight = 0;
-    bool m_hasVideoStream = false;
+    // Read by the channel output thread through the overlay registry
+    // (IsOverlayingVideo(), ProcessVideoOverlay()) while Close() and a removed
+    // video branch clear it, before the output leaves the registry.
+    std::atomic<bool> m_hasVideoStream{false};
     bool m_wasOverlayDisabled = false;
 
     // Latest video frame buffer — written by OnNewVideoSample, read by ProcessVideoOverlay
