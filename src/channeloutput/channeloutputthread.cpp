@@ -20,6 +20,7 @@
 #include <condition_variable>
 #include <cstring>
 #include <ctime>
+#include <deque>
 #include <errno.h>
 #include <mutex>
 #include <thread>
@@ -679,11 +680,57 @@ void StopForcingChannelOutput(void) {
         outputForced = 0;
 }
 
+// Where the master's recent sync packets put its frame 0 on our clock.  A
+// packet can arrive late -- the master's own loop, the network, this box's
+// scheduling -- but never early, so the earliest of the last couple of
+// seconds is the master's timeline; following each packet as it came put
+// half of every delay on the lights, frame to frame.
+static constexpr long long kMasterWindowUs = 2000000;
+struct MasterEpoch {
+    long long at;
+    double frame0Us;
+};
+static std::mutex masterEpochLock;
+static std::deque<MasterEpoch> masterEpochs;
+static int masterLastFrame = -1;
+static double masterFrameUs = 0.0;
+
 /*
  * Reset the master frames played position
  */
 void ResetMasterPosition(void) {
     MasterFramesPlayed = -1;
+    std::unique_lock<std::mutex> l(masterEpochLock);
+    masterEpochs.clear();
+}
+
+// The master's frame 0 on our clock, from the packet for frameNumber that
+// arrived now and the ones before it.
+static double MasterFrame0(int frameNumber, long long now, double frameUs) {
+    double frame0 = now - (double)frameNumber * frameUs;
+    std::unique_lock<std::mutex> l(masterEpochLock);
+    if (frameUs != masterFrameUs || frameNumber < masterLastFrame) {
+        // Another rate, or the master went back: a new timeline.
+        masterEpochs.clear();
+    }
+    masterFrameUs = frameUs;
+    masterLastFrame = frameNumber;
+    while (!masterEpochs.empty() && now - masterEpochs.front().at > kMasterWindowUs) {
+        masterEpochs.pop_front();
+    }
+    double best = frame0;
+    for (auto& e : masterEpochs) {
+        best = std::min(best, e.frame0Us);
+    }
+    if (frame0 - best > 3 * frameUs) {
+        // Far later than all of them: the master held or paused, or this
+        // packet is very late.  Start over from it; a late one is replaced
+        // by the next packet, and is too far off to steer by meanwhile.
+        masterEpochs.clear();
+        best = frame0;
+    }
+    masterEpochs.push_back({ now, frame0 });
+    return best;
 }
 
 /*
@@ -692,21 +739,22 @@ void ResetMasterPosition(void) {
 void UpdateMasterPosition(int frameNumber) {
     MasterFramesPlayed = frameNumber;
     // The master sends frame F's sync packet just before it puts F on the
-    // wire, so F is going out there about now.  The frame this thread sends
-    // next is due (next - F) frames from now; the difference from when it is
+    // wire, so F goes out there about when the packet arrives (the earliest
+    // arrival of the last few, MasterFrame0()).  The frame this thread sends
+    // next is due that many frames on; the difference from when it is
     // actually due is closed by the phase servo, as a player's lights follow
-    // its media.  Frame counts alone left a remote anywhere from on time to
-    // two frames late, never early: its own frame counter is already the
-    // next frame between passes, so in step it reads one ahead of the
-    // master's, and only differences of two frames or more were corrected
-    // (47-87 ms late at 20 fps on a BBB).
+    // its media.  Frame counts alone left a remote's lights most of a frame
+    // late at 40 fps, and one also playing the show's audio settled a
+    // different distance late each start, up to most of a frame at 20 fps.
     //
     // A packet comes every ten frames, so the correction left from the last
     // one has been taken by the next; each takes half the error it measures,
-    // which closes it without overshoot and halves the packets' jitter.
+    // which closes it without overshoot.
     bool phaseServo = false;
     if (sequence->IsSequenceRunning() && RefreshRate > 0) {
         long long now = GetMonotonicTimeMicros();
+        double frameUs = 1000000.0 / RefreshRate;
+        double frame0 = MasterFrame0(frameNumber, now, frameUs);
         long frame;
         long long due;
         {
@@ -714,9 +762,8 @@ void UpdateMasterPosition(int frameNumber) {
             frame = nextSendFrame;
             due = nextSendDueUs;
         }
-        double frameUs = 1000000.0 / RefreshRate;
         if (frame >= 0 && due > 0) {
-            double ideal = now + (double)(frame - frameNumber) * frameUs;
+            double ideal = frame0 + (double)frame * frameUs;
             double err = (double)due - ideal;  // > 0: our frames are late
             if (std::fabs(err) < 3 * frameUs) {
                 mediaPhaseCorrUs.store(llround(-0.5 * err), std::memory_order_relaxed);
