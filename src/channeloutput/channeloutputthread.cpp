@@ -110,10 +110,13 @@ static double CurrentMediaClockRate(long long now) {
 // difference is closed a little each frame.  Whole-frame skips and holds
 // (CalculateNewChannelOutputDelayForFrame()) still handle anything larger.
 //
+// A MultiSync remote has no media of its own to follow; it holds its frames
+// to the master's sync packets the same way (UpdateMasterPosition()).
+//
 // Pending correction in us: > 0 delays the frames to come, < 0 brings them
 // forward.  The output thread takes at most kMaxPhaseStep of a period from it
 // per frame, so the cadence never visibly jumps.  It goes stale a second after
-// the media stops reporting, like the clock rate.
+// the media (or the master) stops reporting, like the clock rate.
 static constexpr double kMaxPhaseStep = 0.1;
 static std::atomic<long long> mediaPhaseCorrUs{ 0 };
 static std::atomic<long long> mediaPhaseCorrAt{ 0 };
@@ -129,8 +132,7 @@ static void PublishNextSend(long frame, long long dueUs) {
 }
 
 static double TakeMediaPhaseStep(long long now, double period) {
-    if (now - mediaPhaseCorrAt.load(std::memory_order_relaxed) > 1000000 || !sequence->IsSequenceRunning() ||
-        getFPPmode() == REMOTE_MODE) {
+    if (now - mediaPhaseCorrAt.load(std::memory_order_relaxed) > 1000000 || !sequence->IsSequenceRunning()) {
         return 0.0;
     }
     long long pending = mediaPhaseCorrUs.load(std::memory_order_relaxed);
@@ -680,7 +682,41 @@ void ResetMasterPosition(void) {
  */
 void UpdateMasterPosition(int frameNumber) {
     MasterFramesPlayed = frameNumber;
-    CalculateNewChannelOutputDelayForFrame(frameNumber);
+    // The master sends frame F's sync packet just before it puts F on the
+    // wire, so F is going out there about now.  The frame this thread sends
+    // next is due (next - F) frames from now; the difference from when it is
+    // actually due is closed by the phase servo, as a player's lights follow
+    // its media.  Frame counts alone left a remote anywhere from on time to
+    // two frames late, never early: its own frame counter is already the
+    // next frame between passes, so in step it reads one ahead of the
+    // master's, and only differences of two frames or more were corrected
+    // (47-87 ms late at 20 fps on a BBB).
+    //
+    // A packet comes every ten frames, so the correction left from the last
+    // one has been taken by the next; each takes half the error it measures,
+    // which closes it without overshoot and halves the packets' jitter.
+    bool phaseServo = false;
+    if (sequence->IsSequenceRunning() && RefreshRate > 0) {
+        long long now = GetMonotonicTimeMicros();
+        long frame;
+        long long due;
+        {
+            std::unique_lock<std::mutex> l(nextSendLock);
+            frame = nextSendFrame;
+            due = nextSendDueUs;
+        }
+        double frameUs = 1000000.0 / RefreshRate;
+        if (frame >= 0 && due > 0) {
+            double ideal = now + (double)(frame - frameNumber) * frameUs;
+            double err = (double)due - ideal;  // > 0: our frames are late
+            if (std::fabs(err) < 3 * frameUs) {
+                mediaPhaseCorrUs.store(llround(-0.5 * err), std::memory_order_relaxed);
+                mediaPhaseCorrAt.store(now, std::memory_order_relaxed);
+                phaseServo = true;
+            }
+        }
+    }
+    AdjustForFrame(frameNumber, phaseServo);
 }
 
 /*
