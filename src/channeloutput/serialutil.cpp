@@ -12,7 +12,6 @@
 
 #include "fpp-pch.h"
 
-#include "Warnings.h"       // WarningHolder -- needed directly for NOPCH builds
 #include "../common_mini.h" // FPPstrerror() -- needed directly for NOPCH builds
 
 #include <sys/ioctl.h>
@@ -32,6 +31,7 @@
 #include "../log.h"
 #include "../util/GPIOUtils.h"
 #include "serialutil.h"
+#include "ChannelOutputSetup.h"
 
 #ifdef PLATFORM_OSX
 #include <IOKit/serial/ioss.h>
@@ -150,10 +150,11 @@ bool SerialIsConsole(const char* device) {
  */
 int SerialOpen(const char* device, int baud, const char* mode, bool output, bool configurePin, const char* desc) {
     if (SerialIsConsole(device)) {
-        // permanent, like the other open failures here: the console is set
-        // on the kernel command line and the config has to change
+        // the console is set on the kernel command line, so the config has
+        // to change; like the other open failures here it comes down when
+        // the output's config is next loaded (see AddOutputConfigWarning)
         LogErr(VB_CHANNELOUT, "%s: is the system console, not opening it\n", device);
-        WarningHolder::AddWarning(38, std::string(device) + ": is the system console and cannot be used for channel data");
+        AddOutputConfigWarning(38, std::string(device) + ": is the system console and cannot be used for channel data");
         return -1;
     }
     // some devices may multiplex pins and need to
@@ -181,7 +182,7 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output, bool
 
     if (strlen(mode) != 3) {
         LogErr(VB_CHANNELOUT, "%s: Invalid Serial Port Mode: %s\n", device, mode);
-        WarningHolder::AddWarning(38, std::string(device) + ": invalid serial port mode '" + mode + "'");
+        AddOutputConfigWarning(38, std::string(device) + ": invalid serial port mode '" + mode + "'");
         return -1;
     }
 
@@ -190,27 +191,27 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output, bool
         // errno has to be captured before LogErr, which can clobber it
         int err = errno;
         LogErr(VB_CHANNELOUT, "%s: Error opening serial port: %s\n", device, FPPstrerror(err));
-        WarningHolder::AddWarning(38, std::string(device) + ": could not open serial port (" + FPPstrerror(err) + ")");
+        AddOutputConfigWarning(38, std::string(device) + ": could not open serial port (" + FPPstrerror(err) + ")");
         return -1;
     }
 
     if (ioctl(fd, TIOCEXCL) == -1) {
         LogErr(VB_CHANNELOUT, "%s: Error setting port to exclusive mode\n", device);
-        WarningHolder::AddWarning(38, std::string(device) + ": could not set serial port to exclusive mode (in use by another process?)");
+        AddOutputConfigWarning(38, std::string(device) + ": could not set serial port to exclusive mode (in use by another process?)");
         close(fd);
         return -1;
     }
 
     if (tcgetattr(fd, &tty) == -1) {
         LogErr(VB_CHANNELOUT, "%s: Error getting port attributes\n", device);
-        WarningHolder::AddWarning(38, std::string(device) + ": could not read serial port attributes");
+        AddOutputConfigWarning(38, std::string(device) + ": could not read serial port attributes");
         close(fd);
         return -1;
     }
 
     if (cfsetspeed(&tty, adjustedBaud) == -1) {
         LogErr(VB_CHANNELOUT, "%s: Error setting port speed\n", device);
-        WarningHolder::AddWarning(38, std::string(device) + ": could not set serial port speed");
+        AddOutputConfigWarning(38, std::string(device) + ": could not set serial port speed");
         close(fd);
         return -1;
     }
@@ -267,7 +268,7 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output, bool
 
     if (tcsetattr(fd, TCSANOW, &tty) == -1) {
         LogErr(VB_CHANNELOUT, "%s: Error setting port attributes\n", device);
-        WarningHolder::AddWarning(38, std::string(device) + ": could not set serial port attributes");
+        AddOutputConfigWarning(38, std::string(device) + ": could not set serial port attributes");
         close(fd);
         return -1;
     }
@@ -298,7 +299,7 @@ int SerialOpen(const char* device, int baud, const char* mode, bool output, bool
 
         if (ioctl(fd, TCSETS2, &tio) < 0) {
             LogErr(VB_CHANNELOUT, "%s: Error setting custom baud rate\n", device);
-            WarningHolder::AddWarning(38, std::string(device) + ": could not set custom baud rate");
+            AddOutputConfigWarning(38, std::string(device) + ": could not set custom baud rate");
             close(fd);
             return -1;
         }

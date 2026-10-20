@@ -23,6 +23,7 @@
 
 #include "LOREnhanced.h"
 #include "LORSerial.h"
+#include "ChannelOutputSetup.h"
 
 // A Pixie port set for 340 pixels takes two unit IDs, so a unit ID never
 // carries more than 170 pixels.
@@ -185,7 +186,7 @@ int LOREnhancedOutput::Init(Json::Value config) {
             if (newUnit.fppStartAddr < 1) {
                 LogErr(VB_CHANNELOUT, "Invalid FPP Start Channel %d for LOR unit %d, ignoring the unit\n",
                        newUnit.fppStartAddr, newUnit.unitId);
-                WarningHolder::AddWarning(39, "LOR unit " + std::to_string(newUnit.unitId) + ": invalid FPP start channel " + std::to_string(newUnit.fppStartAddr) + " - unit disabled");
+                AddOutputConfigWarning(39, "LOR unit " + std::to_string(newUnit.unitId) + ": invalid FPP start channel " + std::to_string(newUnit.fppStartAddr) + " - unit disabled");
                 continue;
             }
             newUnit.lastSent.assign(std::max(newUnit.numOfPixels, 0) * 3, LOR_UNKNOWN);

@@ -21,6 +21,7 @@
 #include "../common_mini.h"
 #include "../log.h"
 #include "../channeloutput/serialutil.h"
+#include "../channeloutput/ChannelOutputSetup.h"
 
 #include "BBBPruSerial.h"
 #include "BBBPruUtils.h"
@@ -174,8 +175,9 @@ int BBBPruSerialOpen(const PinCapabilities& pin, int baud, const char* mode, con
     auto fail = [&](const std::string& why) {
         std::string w = desc + ": cannot send on " + pin.name + " (" + why + ")";
         LogErr(VB_CHANNELOUT, "%s\n", w.c_str());
-        // permanent, like the other serial output config errors
-        WarningHolder::AddWarning(26, w);
+        // comes down when the output's config is next loaded, like the
+        // other serial output config errors
+        AddOutputConfigWarning(26, w);
         return -1;
     };
     int dataBits = (mode && mode[0] >= '5' && mode[0] <= '8') ? mode[0] - '0' : 8;

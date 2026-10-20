@@ -19,10 +19,10 @@
 #include <stdint.h>
 
 #include "../Sequence.h"
-#include "../Warnings.h"
 #include "../log.h"
 
 #include "ModelPixelStrings.h"
+#include "ChannelOutputSetup.h"
 #include "overlays/PixelOverlay.h"
 
 /////////////////////////////////////////////////////////////////////////////
@@ -83,7 +83,7 @@ int ModelPixelStringsOutput::Init(Json::Value config) {
 
     if (modelName == "") {
         LogErr(VB_CHANNELOUT, "Empty Pixel Overlay Model name\n");
-        WarningHolder::AddWarning(35, "ModelPixelStringsOutput: Empty Pixel Overlay Model name");
+        AddOutputConfigWarning(35, "ModelPixelStringsOutput: Empty Pixel Overlay Model name");
         return 0;
     }
 
@@ -91,7 +91,7 @@ int ModelPixelStringsOutput::Init(Json::Value config) {
 
     if (!model) {
         LogErr(VB_CHANNELOUT, "Invalid Pixel Overlay Model: '%s'\n", modelName.c_str());
-        WarningHolder::AddWarning(35, "ModelPixelStringsOutput: Invalid Pixel Overlay Model: " + modelName);
+        AddOutputConfigWarning(35, "ModelPixelStringsOutput: Invalid Pixel Overlay Model: " + modelName);
         return 0;
     }
     m_modelWidth = model->getWidth();
@@ -144,7 +144,7 @@ int ModelPixelStringsOutput::Init(Json::Value config) {
         }
         if (!rgbOnly) {
             LogErr(VB_CHANNELOUT, "ERROR, ModelPixelStrings only supports 8 bit RGB strings\n");
-            WarningHolder::AddWarning(35, "ModelPixelStringsOutput: model " + modelName + " has a string that is not 8 bit RGB");
+            AddOutputConfigWarning(35, "ModelPixelStringsOutput: model " + modelName + " has a string that is not 8 bit RGB");
             delete newString;
         } else if ((newString->m_outputBytes / 3) > model->getWidth()) {
             LogErr(VB_CHANNELOUT, "ERROR, string length of %d is too long for model width of %d\n",
@@ -155,7 +155,7 @@ int ModelPixelStringsOutput::Init(Json::Value config) {
             // row would write off the end of the buffer.
             LogErr(VB_CHANNELOUT, "ERROR, more strings configured than the model height of %d\n",
                    model->getHeight());
-            WarningHolder::AddWarning(35, "ModelPixelStringsOutput: model " + modelName + " has fewer rows than the configured strings");
+            AddOutputConfigWarning(35, "ModelPixelStringsOutput: model " + modelName + " has fewer rows than the configured strings");
             delete newString;
         } else {
             strings.push_back(newString);
@@ -174,7 +174,7 @@ int ModelPixelStringsOutput::Init(Json::Value config) {
     if (!buffer || !prepBuffer) {
         LogErr(VB_CHANNELOUT, "ERROR, could not allocate %zu bytes for model '%s'\n",
                bufSize, modelName.c_str());
-        WarningHolder::AddWarning(35, "ModelPixelStringsOutput: could not allocate buffers for model " + modelName);
+        AddOutputConfigWarning(35, "ModelPixelStringsOutput: could not allocate buffers for model " + modelName);
         return 0;
     }
 

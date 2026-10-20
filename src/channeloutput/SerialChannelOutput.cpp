@@ -14,13 +14,13 @@
 
 #include "fpp-json.h"
 
-#include "../Warnings.h"
 #include "../config.h"
 #include "../log.h"
 #include <unistd.h>
 
 #include "SerialChannelOutput.h"
 #include "serialutil.h"
+#include "ChannelOutputSetup.h"
 #include "../util/GPIOUtils.h"
 #ifdef PLATFORM_BB64
 #include "../util/BBBPruSerial.h"
@@ -53,7 +53,7 @@ bool SerialChannelOutput::setupSerialPort(Json::Value& config, int baud, const c
     }
     if (m_deviceName == "UNKNOWN") {
         LogErr(VB_CHANNELOUT, "Invalid Config.  Unknown device.\n");
-        WarningHolder::AddWarning(26, "SerialChannelOutput: Invalid Config.  Unknown device.");
+        AddOutputConfigWarning(26, "SerialChannelOutput: Invalid Config.  Unknown device.");
         return false;
     }
     std::string desc = "";
@@ -88,12 +88,13 @@ bool SerialChannelOutput::setupSerialPort(Json::Value& config, int baud, const c
                 m_deviceName = pinName + " (PRU)";
                 return true;
 #else
-                // Permanent, like the other config errors here: only a
-                // different board or cape changes it.
+                // Only a different board or cape changes it; like the other
+                // config errors here it comes down when the config is next
+                // loaded, and is raised again if it still holds.
                 std::string w = desc + ": " + m_deviceName + " is wired to " + pinName +
                                 ", which has no serial transmit on this board";
                 LogErr(VB_CHANNELOUT, "%s\n", w.c_str());
-                WarningHolder::AddWarning(26, w);
+                AddOutputConfigWarning(26, w);
                 return false;
 #endif
             }
@@ -125,7 +126,7 @@ bool SerialChannelOutput::setupSerialPort(Json::Value& config, int baud, const c
     // but by then this would already have put console output on the pin
     if (SerialIsConsole(m_deviceName.c_str())) {
         LogErr(VB_CHANNELOUT, "%s: is the system console, not opening it\n", m_deviceName.c_str());
-        WarningHolder::AddWarning(26, desc + ": " + m_deviceName + " is the system console and cannot be used for serial output");
+        AddOutputConfigWarning(26, desc + ": " + m_deviceName + " is the system console and cannot be used for serial output");
         return false;
     }
     if (pin) {
@@ -134,7 +135,7 @@ bool SerialChannelOutput::setupSerialPort(Json::Value& config, int baud, const c
     m_fd = SerialOpen(m_deviceName.c_str(), baud, mode, true, pin == nullptr, desc.c_str());
     if (m_fd < 0) {
         LogErr(VB_CHANNELOUT, "Could not open serial port %s\n", m_deviceName.c_str());
-        WarningHolder::AddWarning(26, desc + ": could not open " + m_deviceName + ". Is the device connected?");
+        AddOutputConfigWarning(26, desc + ": could not open " + m_deviceName + ". Is the device connected?");
         return false;
     }
     return true;
