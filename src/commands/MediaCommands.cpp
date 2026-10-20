@@ -499,6 +499,12 @@ GStreamerPlayData::~GStreamerPlayData() {
     // that Close() the slot manager (under its lock, from an HTTP thread) and
     // a late bus message could still call them. Close() is idempotent, so the
     // base destructor's own call is then a no-op.
+    //
+    // Whoever is deleting this owns it, so the Stopped() that Close() can
+    // reach must not hand it to RemoveRunningMedia's deferred delete as well
+    // (a second free, and a MEDIA_STOPPED for media that may never have
+    // played): a failed Start() can leave a pipeline for Close() to stop.
+    m_stoppedOnce.store(true);
     Close();
 }
 
@@ -656,9 +662,10 @@ std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::st
         // watch/state-change thread is ever installed, so Stopped() (and
         // thus RemoveRunningMedia()) will never be called. Without this,
         // the object -- and its map entry -- leaks forever. Deregister
-        // directly and delete; it is safe to delete here since Start()
-        // failing this early guarantees m_pipeline is still null, so the
-        // destructor's teardown path is a no-op (no double-stop/hang risk).
+        // directly and delete. Start() can fail with a pipeline already
+        // built (gst_parse_launch() returns one alongside a recoverable
+        // error), which the destructor's Close() stops; the destructor
+        // keeps that stop from scheduling a deferred delete of its own.
         LogErr(VB_COMMAND, "Play Media: could not start media %s\n", args[0].c_str());
         WarningHolder::AddWarningTimeout(60, 30, "Could not start media " + args[0]);
         runningMediaLock.lock();
