@@ -8064,9 +8064,9 @@ function PopulatePlaylists (sequencesAlso, options) {
 			for (let j = 0; j < playListArray.length; j++) {
 				playlistOptionsText +=
 					'<option value="' +
-					playListArray[j].name +
+					EscapeHtmlAttr(playListArray[j].name) +
 					'">' +
-					playListArray[j].name +
+					EscapeHtmlAttr(playListArray[j].name) +
 					'</option>';
 			}
 			if (sequencesAlso) {
@@ -8074,18 +8074,18 @@ function PopulatePlaylists (sequencesAlso, options) {
 				for (let j = 0; j < sequenceArray.length; j++) {
 					playlistOptionsText +=
 						'<option value="' +
-						sequenceArray[j] +
+						EscapeHtmlAttr(sequenceArray[j]) +
 						'.fseq">' +
-						sequenceArray[j] +
+						EscapeHtmlAttr(sequenceArray[j]) +
 						'.fseq</option>';
 				}
 				playlistOptionsText += '</optgroup><optgroup label="Media">';
 				for (let j = 0; j < mediaArray.length; j++) {
 					playlistOptionsText +=
 						'<option value="' +
-						mediaArray[j] +
+						EscapeHtmlAttr(mediaArray[j]) +
 						'">' +
-						mediaArray[j] +
+						EscapeHtmlAttr(mediaArray[j]) +
 						'</option>';
 				}
 				playlistOptionsText += '</optgroup>';
@@ -13450,22 +13450,23 @@ function PrintArgsInputsForEditable (
 				url: OverlayModelContentListUrl(val['contentListUrl']),
 				async: false,
 				success: function (data) {
+					// The lists are playlist, file and other stored names.
 					if (Array.isArray(data)) {
 						$.each(data, function (key, v) {
-							var line = '<option value="' + v + '"';
+							var line = '<option value="' + EscapeHtmlAttr(v) + '"';
 							if (v == dv) {
 								line += ' selected';
 							}
-							line += '>' + v + '</option>';
+							line += '>' + EscapeHtmlAttr(v) + '</option>';
 							$(selId).append(line);
 						});
 					} else {
 						$.each(data, function (key, v) {
-							var line = '<option value="' + key + '"';
+							var line = '<option value="' + EscapeHtmlAttr(key) + '"';
 							if (key == dv) {
 								line += ' selected';
 							}
-							line += '>' + v + '</option>';
+							line += '>' + EscapeHtmlAttr(v) + '</option>';
 							$(selId).append(line);
 						});
 					}
@@ -14183,14 +14184,11 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 							if (filterSequences.length > 0 && filterSequences.includes(v)) {
 								return true; // continue to next iteration
 							}
-							var line = '<option value="' + v.replace('"', '&quot;') + '"';
+							var line = '<option value="' + EscapeHtmlAttr(v) + '"';
 							if (v == dv) {
 								line += ' selected';
 							}
-							line +=
-								'>' +
-								v.replace(/&/g, '&amp;').replace(/</g, '&lt;') +
-								'</option>';
+							line += '>' + EscapeHtmlAttr(v) + '</option>';
 							$(selId).append(line);
 						});
 					} else {
@@ -14199,14 +14197,11 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 							if (filterSequences.length > 0 && filterSequences.includes(key)) {
 								return true; // continue to next iteration
 							}
-							var line = '<option value="' + key.replace('"', '&quot;') + '"';
+							var line = '<option value="' + EscapeHtmlAttr(key) + '"';
 							if (key == dv) {
 								line += ' selected';
 							}
-							line +=
-								'>' +
-								v.replace(/&/g, '&amp;').replace(/</g, '&lt;') +
-								'</option>';
+							line += '>' + EscapeHtmlAttr(v) + '</option>';
 							$(selId).append(line);
 						});
 					}
