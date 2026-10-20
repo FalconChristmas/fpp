@@ -254,6 +254,10 @@ public:
         }
     }
 
+    // Never holds -1: a socket that couldn't be opened (out of descriptors)
+    // is left out, so the list stays empty and findOrCreateSocket() tries
+    // again on the next frame.  A -1 kept here made the list look complete,
+    // and every later send failed on it with EBADF until the config reloaded.
     std::vector<int> sockets;
     // read/written by workers and the frame thread without a common lock;
     // atomic so the errCount >= 3 re-ping trigger can't act on a torn value.
@@ -366,6 +370,10 @@ int UDPOutputMessages::GetSocket(unsigned int key) {
     return -1;
 }
 void UDPOutputMessages::ForceSocket(unsigned int key, int socket, bool preventClose) {
+    if (socket < 0) {
+        // left for findOrCreateSocket() to make on a later frame
+        return;
+    }
     std::shared_ptr<SendSocketInfo>& info = sendSockets[key];
     if (!info) {
         info = std::make_shared<SendSocketInfo>();
@@ -1204,20 +1212,17 @@ int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo* socketInfo, 
             } else if (socketKey != BROADCAST_MESSAGES_KEY) {
                 ++socketInfo->curSocket;
                 if (socketInfo->curSocket == socketInfo->sockets.size()) {
-                    if (socketInfo->sockets.size() < 5) {
-                        // this will trigger a create socket
-                        socketInfo->sockets.push_back(-1);
+                    // the extra socket must keep the multicast setup or the
+                    // packets will egress the default route instead of the
+                    // show network
+                    int s = socketInfo->sockets.size() < 5 ? createSocket(0, false, isMulticastKey(socketKey)) : -1;
+                    if (s != -1) {
+                        socketInfo->sockets.push_back(s);
                     } else {
                         socketInfo->curSocket = 0;
                     }
                 }
                 sendSocket = socketInfo->sockets[socketInfo->curSocket];
-                if (sendSocket == -1) {
-                    // replacement must keep the multicast setup or the packets
-                    // will egress the default route instead of the show network
-                    socketInfo->sockets[socketInfo->curSocket] = createSocket(0, false, isMulticastKey(socketKey));
-                    sendSocket = socketInfo->sockets[socketInfo->curSocket];
-                }
             } else {
                 return outputCount;
             }
@@ -1798,6 +1803,9 @@ std::shared_ptr<SendSocketInfo> UDPOutput::findOrCreateSocket(unsigned int socke
         bool multiCast = isMulticastKey(socketKey);
         for (int x = info->sockets.size(); x < sc; x++) {
             int s = createSocket(0, broadCast, multiCast);
+            if (s == -1) {
+                break;
+            }
             info->sockets.push_back(s);
         }
     }
@@ -1808,7 +1816,9 @@ std::shared_ptr<SendSocketInfo> UDPOutput::findOrCreateSocket(unsigned int socke
     // and other non-fq routes keep the legacy drain-based pacing).  The
     // shared multicast socket is left unpaced - it carries the aggregate
     // of all multicast controllers so a per-controller rate would be wrong.
-    if (pacingEnabled && !info->pacedChecked &&
+    // Not while the socket couldn't be opened: the decision latches, and the
+    // socket made later would never get the rate and buffer it applies.
+    if (pacingEnabled && !info->pacedChecked && !info->sockets.empty() &&
         socketKey > ARTNET_MESSAGES_KEY && socketKey < LATE_MESSAGES_START) {
         if (info->pacedCheckCountdown > 0) {
             --info->pacedCheckCountdown;
@@ -1867,11 +1877,19 @@ std::shared_ptr<SendSocketInfo> UDPOutput::findOrCreateSocket(unsigned int socke
 int UDPOutput::createSocket(int port, bool broadCast, bool multiCast) {
     int sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
     if (sendSocket < 0) {
+        int err = errno;
         // Out of file descriptors, typically.  This used to exit(1) and take
-        // the show down; a -1 socket makes the sends to this destination fail
-        // and be counted, and a later send creates a new one, so output comes
-        // back once descriptors free up (as e131bridge does since 42183b6d4).
-        LogErr(VB_CHANNELOUT, "Error opening datagram socket: %s\n", FPPstrerror(errno));
+        // the show down; the destination is left without a socket, its sends
+        // fail and are counted, and the next frame tries again, so output
+        // comes back once descriptors free up (as e131bridge does since
+        // 42183b6d4).  That is a try per destination per frame, so the log
+        // line is limited to one every few seconds.
+        static std::atomic<long long> lastLog{ 0 };
+        long long now = GetMonotonicTimeMS();
+        long long last = lastLog.load();
+        if ((last == 0 || now - last >= SEND_ERR_LOG_INTERVAL_MS) && lastLog.compare_exchange_strong(last, now)) {
+            LogErr(VB_CHANNELOUT, "Error opening datagram socket: %s\n", FPPstrerror(err));
+        }
         return -1;
     }
 
