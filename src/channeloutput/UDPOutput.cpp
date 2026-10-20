@@ -1014,7 +1014,11 @@ void UDPOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& ad
             if (a->active) {
                 int mi, mx;
                 a->GetRequiredChannelRange(mi, mx);
-                addRange(mi, mx);
+                // max is one past the last channel here and inclusive in
+                // addRange(): handed on as it was, an output ending on the
+                // last channel of the buffer failed the loader's range check
+                // and took every UDP output down with it
+                addRange(mi, mx - 1);
             }
         }
     }

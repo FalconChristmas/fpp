@@ -78,6 +78,9 @@ public:
 
     virtual void DumpConfig() = 0;
 
+    // min is the first channel, 0-based; max is one past the last (every
+    // protocol works it out as startChannel + count - 1 from the 1-based
+    // startChannel).  UDPOutput converts it for ChannelOutput's inclusive max.
     virtual void GetRequiredChannelRange(int& min, int& max) {
         min = startChannel - 1;
         max = startChannel + channelCount - 1;
