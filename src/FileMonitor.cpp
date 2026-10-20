@@ -110,7 +110,11 @@ FileMonitor& FileMonitor::AddFile(const std::string& id, const std::string& file
         }
     }
     if (FileExists(file) && fileInfo.inotify_watch_fd < 0) {
-        int inotify_watch_fd = inotify_add_watch(inotify_fd_, file.c_str(), IN_MODIFY);
+        // IN_CLOSE_WRITE, not IN_MODIFY: one save is an open with O_TRUNC and
+        // one or more writes, each its own IN_MODIFY, so every save ran the
+        // callbacks two or more times -- the first time on a truncated file.
+        // A channel output reload per event re-created every output twice.
+        int inotify_watch_fd = inotify_add_watch(inotify_fd_, file.c_str(), IN_CLOSE_WRITE);
         if (inotify_watch_fd < 0) {
             return *this;
         }
@@ -234,7 +238,7 @@ void FileMonitor::fileChangedEvent() {
             // A watched file appeared: either created in place (IN_CREATE) or
             // atomically renamed into place (IN_MOVED_TO). For a rename over an
             // existing file the previous inode watch is gone (its IN_IGNORED is
-            // handled above or still queued), so re-arm an IN_MODIFY watch on the
+            // handled above or still queued), so re-arm an IN_CLOSE_WRITE watch on the
             // current inode before notifying.
             path += pevent->name;
             auto it = files_.find(path);
@@ -250,7 +254,7 @@ void FileMonitor::fileChangedEvent() {
                     notify = true;
                 }
                 if (it->second.inotify_watch_fd < 0) {
-                    int wd = inotify_add_watch(inotify_fd_, path.c_str(), IN_MODIFY);
+                    int wd = inotify_add_watch(inotify_fd_, path.c_str(), IN_CLOSE_WRITE);
                     if (wd >= 0) {
                         it->second.inotify_watch_fd = wd;
                         fileMapping_[wd] = path;
@@ -276,7 +280,7 @@ void FileMonitor::fileChangedEvent() {
                     }
                 }
             }
-        } else if (pevent->mask & IN_MODIFY) {
+        } else if (pevent->mask & IN_CLOSE_WRITE) {
             auto it = files_.find(path);
             if (it != files_.end()) {
                 for (const auto& callback : it->second.callbacks) {
