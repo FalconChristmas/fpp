@@ -54,29 +54,17 @@
             //kill any existing instance in the browser
             if (typeof zp_playerControls !== 'undefined') {
                 zp_playerControls.destroy();
+                zp_playerControls = undefined;
             }
-            zp_playerControls = new $.Zebra_Pin($('#controlsSection'), {
-                top_spacing: $('.header').css('position') == 'fixed' ?
-                    $('.header').outerHeight() : 0,
-                contain: false,
-                position: "relative"
+            PinPlayerControls();
 
-            });
-
-            //Reset the player controls when the visibility of the PlayerInfoMode section VolumeChangeInProgress
+            //Reset the player controls when the visibility of the PlayerInfoMode section changes
             respondToVisibility(document.getElementById("playerModeInfo"), visible => {
-                if (visible) {
-                    //visible
-                    zp_playerControls.update();
-                }
-                else {
-                    //not visible
-                    zp_playerControls.update();
-                }
+                PinPlayerControls();
             });
 
             //refresh player control positioning - tiny delay to help chromium based browsers
-            setTimeout(function () { zp_playerControls.update(); }, 50);
+            setTimeout(PinPlayerControls, 50);
 
 
         }
@@ -152,10 +140,36 @@
                         break;
                     default:
                 }
-                //refresh player control positioning
+            }
+            //refresh player control positioning
+            PinPlayerControls();
+
+        }
+
+        // Zebra_Pin measures #controlsSection when it pins. While #playerModeInfo
+        // is display:none (every page load until the status call picks a mode)
+        // that measures 0,0, and since any scroll offset is >= 0 it pins the
+        // controls position:fixed at the left edge. Showing #playerModeInfo then
+        // paints them in the top-left corner until the next update() -- in
+        // Firefox, for a visible frame. So only pin while the section is shown.
+        function PinPlayerControls() {
+            if (!$('#playerModeInfo').is(':visible')) {
+                if (typeof zp_playerControls !== 'undefined') {
+                    zp_playerControls.destroy();
+                    zp_playerControls = undefined;
+                }
+                return;
+            }
+            if (typeof zp_playerControls === 'undefined') {
+                zp_playerControls = new $.Zebra_Pin($('#controlsSection'), {
+                    top_spacing: $('.header').css('position') == 'fixed' ?
+                        $('.header').outerHeight() : 0,
+                    contain: false,
+                    position: "relative"
+                });
+            } else {
                 zp_playerControls.update();
             }
-
         }
 
         //Define Volume change event steps for Player Mode
