@@ -176,7 +176,11 @@ std::unique_ptr<Command::Result> RunScriptEvent::run(const std::vector<std::stri
     if (args.size() > 2) {
         std::vector<std::string> s = splitWithQuotes(args[2], ',');
         for (auto& a : s) {
-            int idx = a.find('=');
+            size_t idx = a.find('=');
+            // skip an entry with no "=" or no name, such as the empty one the UI sends
+            if (idx == std::string::npos || idx == 0) {
+                continue;
+            }
             envVars.push_back(std::pair<std::string, std::string>(a.substr(0, idx), a.substr(idx + 1)));
         }
     }
