@@ -162,6 +162,13 @@ static double hsv(double h, double s, double v) {
         return rgb(v, v, v);
     }
     double red, green, blue;
+    if (!isfinite(h)) {
+        h = 0.0;
+    }
+    h -= floor(h); // wrap round the colour wheel, so 1.0 is red again
+    if (h >= 1.0) { // a tiny negative h rounds up to 1.0
+        h = 0.0;
+    }
     double hue = h * 6.0;      // sector 0 to 5
     int i = (int)floor(hue);
     double f = hue - i;          // fractional part of h
