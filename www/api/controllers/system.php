@@ -819,6 +819,15 @@ function GetUpdateActivityInternal($withLogTail = false)
     if ($logStatSize === false) {
         $logStatSize = 0;
     }
+    // 0 for a missing log, so that state is cached like any other: a player
+    // never updated from the UI has no log at all, and every status poll
+    // forked ps for it.  Every update starter writes the log or takes the
+    // lock before anything else, so neither a new run nor markerless work
+    // is hidden behind a cached idle payload.
+    $logStatMtime = @filemtime($logFileForStat);
+    if ($logStatMtime === false) {
+        $logStatMtime = 0;
+    }
 
     $empty = array(
         'inProgress' => false,
@@ -840,14 +849,11 @@ function GetUpdateActivityInternal($withLogTail = false)
     // open+flock; a held lock bypasses the cache so a starting update (or
     // a markerless rebuild) is never served stale. Skipped for the modal's
     // logTail path, which needs a fresh tail.
-    if (!$withLogTail && $logStatSize > 0) {
-        $logStatMtime = @filemtime($logFileForStat);
-        if ($logStatMtime !== false && !UpdateActivityLockHeld()) {
-            $cached = UpdateActivityReadCache($logStatSize, $logStatMtime);
-            if ($cached !== null) {
-                $cached['fppdBinaryExists'] = $fppdBinaryExists;
-                return $cached;
-            }
+    if (!$withLogTail && !UpdateActivityLockHeld()) {
+        $cached = UpdateActivityReadCache($logStatSize, $logStatMtime);
+        if ($cached !== null) {
+            $cached['fppdBinaryExists'] = $fppdBinaryExists;
+            return $cached;
         }
     }
 
@@ -861,11 +867,8 @@ function GetUpdateActivityInternal($withLogTail = false)
         if ($holder !== false || UpdateActivityProcessAlive()) {
             return UpdateActivityWorkersActive($empty, $holder, $tail['mtime'], $logStatSize, $withLogTail);
         }
-        if (!$withLogTail && $logStatSize > 0) {
-            $logCacheMtime = @filemtime($logFileForStat);
-            if ($logCacheMtime !== false) {
-                UpdateActivityWriteCache($logStatSize, $logCacheMtime, $empty);
-            }
+        if (!$withLogTail) {
+            UpdateActivityWriteCache($logStatSize, $logStatMtime, $empty);
         }
         return $empty;
     }
@@ -922,6 +925,9 @@ function GetUpdateActivityInternal($withLogTail = false)
         $holder = UpdateActivityLockHolder();
         if ($holder !== false || UpdateActivityProcessAlive()) {
             return UpdateActivityWorkersActive($empty, $holder, $tail['mtime'], $logStatSize, $withLogTail);
+        }
+        if (!$withLogTail) {
+            UpdateActivityWriteCache($logStatSize, $logStatMtime, $empty);
         }
         return $empty;
     }
@@ -1084,11 +1090,8 @@ function GetUpdateActivityInternal($withLogTail = false)
             // the previous finished run.
             return UpdateActivityWorkersActive($empty, $holder, $tail['mtime'], $logStatSize, $withLogTail);
         }
-        if (!$withLogTail && $logStatSize > 0) {
-            $logCacheMtime = @filemtime($logFileForStat);
-            if ($logCacheMtime !== false) {
-                UpdateActivityWriteCache($logStatSize, $logCacheMtime, $base);
-            }
+        if (!$withLogTail) {
+            UpdateActivityWriteCache($logStatSize, $logStatMtime, $base);
         }
         return $base;
     }
@@ -1103,11 +1106,8 @@ function GetUpdateActivityInternal($withLogTail = false)
         return $base;
     }
     $base['stale'] = true;
-    if (!$withLogTail && $logStatSize > 0) {
-        $logCacheMtime = @filemtime($logFileForStat);
-        if ($logCacheMtime !== false) {
-            UpdateActivityWriteCache($logStatSize, $logCacheMtime, $base);
-        }
+    if (!$withLogTail) {
+        UpdateActivityWriteCache($logStatSize, $logStatMtime, $base);
     }
     return $base;
 }
