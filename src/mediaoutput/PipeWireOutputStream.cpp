@@ -19,6 +19,10 @@
 #include <gst/app/gstappsink.h>
 #include <gst/app/gstappsrc.h>
 
+#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+#include <arm_neon.h>
+#endif
+
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -28,6 +32,7 @@
 #include <cstdio>
 #include <cstring>
 #include <thread>
+#include <vector>
 
 #include "common.h"
 #include "common_mini.h"
@@ -349,6 +354,17 @@ void PipeWireOutputStream::AttachFeed(GstElement* appsink) {
     {
         std::unique_lock<std::mutex> lock(m_lock);
         m_feed = appsink;
+        // Each feed starts at the card's own pace.  The feed clock is put back
+        // on the card clock now, before this feed's pipeline has a base time
+        // on it, so a speed the last track was steered at doesn't carry over.
+        m_feedSpeed = 1.0;
+        m_feedDiverged = false;
+        m_rsActive = false;
+        m_rsPos = 0.0;
+        m_rsHistFrames = 0;
+        if (m_clock && m_feedClock) {
+            RecalibrateFeedClockLocked(gst_clock_get_internal_time(m_clock));
+        }
     }
     // Run the feed one graph cycle ahead of the clock.  Handed over exactly
     // on time, a buffer can miss the cycle that needed it by a hair; PipeWire
@@ -391,18 +407,41 @@ GstFlowReturn PipeWireOutputStream::OnFeedSample(GstElement* appsink, gpointer u
             ours = false;
         }
         if (ours) {
-            // Both pipelines run on the card clock, so a buffer's running
-            // time in the feeding pipeline maps onto ours through the two base
-            // times.  The sink doesn't sync on it (the feed already paced the
-            // buffer); it is carried for PipeWire's own bookkeeping.
-            out = gst_buffer_copy(in);
+            // Steered to another speed (SetFeedSpeed()), the media is
+            // resampled to the card's rate here; otherwise it goes in as it
+            // came, and only its last frames are kept for a later start.
+            if (self->m_rsActive) {
+                out = self->ResampleLocked(in);
+            } else {
+                self->KeepResampleHistoryLocked(in);
+                out = gst_buffer_copy(in);
+            }
+            ours = out != nullptr;
+        }
+        if (ours) {
+            // The feed clock is the card clock (until it is steered, then off
+            // it by however far it has run ahead or behind), so a buffer's
+            // running time in the feeding pipeline maps onto ours through the
+            // two base times and that offset.  The sink doesn't sync on it
+            // (the feed already paced the buffer); it is carried for
+            // PipeWire's own bookkeeping.
             GstClockTime rt = gst_segment_to_running_time(segment, GST_FORMAT_TIME, GST_BUFFER_PTS(in));
             if (GST_CLOCK_TIME_IS_VALID(rt)) {
                 GstClockTime abs = gst_element_get_base_time(appsink) + rt;
+                if (self->m_feedDiverged) {
+                    GstClockTimeDiff ahead = GST_CLOCK_DIFF(gst_clock_get_time(self->m_clock),
+                                                            gst_clock_get_time(self->m_feedClock));
+                    abs = ahead > 0 && (GstClockTime)ahead > abs ? 0 : abs - ahead;
+                }
                 GstClockTime ourBase = gst_element_get_base_time(self->m_pipeline);
                 GST_BUFFER_PTS(out) = abs > ourBase ? abs - ourBase : 0;
             } else {
                 GST_BUFFER_PTS(out) = GST_CLOCK_TIME_NONE;
+            }
+            if (self->m_rsActive) {
+                GST_BUFFER_DURATION(out) = self->m_rate > 0
+                                               ? gst_util_uint64_scale(gst_buffer_get_size(out) / kBytesPerFrame, GST_SECOND, self->m_rate)
+                                               : GST_CLOCK_TIME_NONE;
             }
             GST_BUFFER_DTS(out) = GST_CLOCK_TIME_NONE;
             self->NoteQueuedLocked(gst_buffer_get_size(out));
@@ -762,15 +801,263 @@ bool PipeWireOutputStream::StreamLinked() {
 // rate.
 // ---------------------------------------------------------------------------
 
-GstClock* PipeWireOutputStream::Clock() {
-    std::unique_lock<std::mutex> lock(m_lock);
+void PipeWireOutputStream::EnsureClocksLocked() {
     if (!m_clock) {
         std::string name = "fpp-card-clock-" + std::to_string(m_slot);
         m_clock = GST_CLOCK(g_object_new(GST_TYPE_SYSTEM_CLOCK, "name", name.c_str(),
                                          "clock-type", GST_CLOCK_TYPE_MONOTONIC, NULL));
         gst_object_ref_sink(m_clock);
     }
+    if (!m_feedClock) {
+        // Both read CLOCK_MONOTONIC as their internal time, and start out
+        // calibrated alike, so at speed 1 the feed clock reads exactly what
+        // the card clock does.
+        std::string name = "fpp-feed-clock-" + std::to_string(m_slot);
+        m_feedClock = GST_CLOCK(g_object_new(GST_TYPE_SYSTEM_CLOCK, "name", name.c_str(),
+                                             "clock-type", GST_CLOCK_TYPE_MONOTONIC, NULL));
+        gst_object_ref_sink(m_feedClock);
+        GstClockTime cInt, cExt, num, den;
+        gst_clock_get_calibration(m_clock, &cInt, &cExt, &num, &den);
+        gst_clock_set_calibration(m_feedClock, cInt, cExt, num, den);
+    }
+}
+
+GstClock* PipeWireOutputStream::Clock() {
+    std::unique_lock<std::mutex> lock(m_lock);
+    EnsureClocksLocked();
     return GST_CLOCK(gst_object_ref(m_clock));
+}
+
+GstClock* PipeWireOutputStream::FeedClock() {
+    std::unique_lock<std::mutex> lock(m_lock);
+    EnsureClocksLocked();
+    return GST_CLOCK(gst_object_ref(m_feedClock));
+}
+
+void PipeWireOutputStream::RecalibrateFeedClockLocked(GstClockTime internal) {
+    if (!m_clock || !m_feedClock) {
+        return;
+    }
+    GstClockTime cInt, cExt, num, den;
+    gst_clock_get_calibration(m_clock, &cInt, &cExt, &num, &den);
+    if (!m_feedDiverged) {
+        // Not yet steered: keep it the card clock exactly, no rounding.
+        gst_clock_set_calibration(m_feedClock, cInt, cExt, num, den);
+        return;
+    }
+    // Where the feed clock is now on its current calibration, from here on
+    // running at the card clock's rate times the speed: continuous at
+    // `internal`, so a feed waiting on it never sees it step.
+    GstClockTime fInt, fExt, fNum, fDen;
+    gst_clock_get_calibration(m_feedClock, &fInt, &fExt, &fNum, &fDen);
+    GstClockTime external = gst_clock_adjust_with_calibration(m_feedClock, internal, fInt, fExt, fNum, fDen);
+    double rate = (double)num / (double)(den ? den : 1) * m_feedSpeed;
+    gst_clock_set_calibration(m_feedClock, internal, external, (GstClockTime)llround(rate * 1e9), 1000000000ULL);
+}
+
+void PipeWireOutputStream::SetFeedSpeed(GstElement* feed, double speed) {
+    std::unique_lock<std::mutex> lock(m_lock);
+    if (!feed || feed != m_feed || !m_clock || !m_feedClock || speed <= 0.0) {
+        return;
+    }
+    if (speed == m_feedSpeed && m_feedDiverged) {
+        return;
+    }
+    // A speed of 1 before any other leaves everything untouched.
+    if (speed == 1.0 && !m_feedDiverged) {
+        return;
+    }
+    GstClockTime internal = gst_clock_get_internal_time(m_clock);
+    if (!m_feedDiverged) {
+        m_feedDiverged = true;
+        m_rsActive = true;
+        // The next output frame is the next buffer's first: everything up to
+        // it has gone out as it came, and m_rsHist holds the frames before.
+        m_rsPos = 0.0;
+    }
+    // Recalibrate at the old speed first (a no-op continuation), then switch.
+    RecalibrateFeedClockLocked(internal);
+    m_feedSpeed = speed;
+    RecalibrateFeedClockLocked(internal);
+}
+
+void PipeWireOutputStream::FlushFeed(GstElement* feed) {
+    {
+        std::unique_lock<std::mutex> lock(m_lock);
+        if (!feed || feed != m_feed) {
+            return;
+        }
+        // What comes next doesn't follow on from what was resampled before.
+        m_rsHistFrames = 0;
+        m_rsPos = 0.0;
+    }
+    // Unprimed, as for an xrun: the seek is already a jump in the sound, and
+    // priming would only put silence ahead of where the feed lands.
+    Flush(false);
+}
+
+// The feed's resampler (SetFeedSpeed()): a 16-tap Kaiser-windowed sinc, its
+// fractional delay taken from a 256-phase table with linear interpolation
+// between phases.  A speed servo only moves the ratio a few tenths of a
+// percent from 1, but every sample then sits at a fraction that sweeps
+// through the whole range, and a short interpolator's response changes with
+// that fraction: a 4-point cubic measured -33 dB THD+N on an 8 kHz tone,
+// audible as warbling highs.  This one measures -81 dB at 1 kHz, -88 dB at
+// 8 kHz and -74 dB at 15 kHz (44.1 kHz, ratios 0.9995-1.003), and with NEON
+// costs 1.7% of a BBB's core (0.3% of a PocketBeagle2's) for 44.1 kHz stereo.
+namespace {
+constexpr int kRsTaps = 16;
+constexpr int kRsHalf = kRsTaps / 2;
+constexpr int kRsPhases = 256;
+constexpr int kRsHist = kRsTaps - 1;  // frames before the next buffer it reaches back to
+constexpr double kRsKaiserBeta = 7.0;
+
+const float* ResampleTable() {
+    static const std::vector<float> table = [] {
+        auto bessel0 = [](double x) {
+            double sum = 1.0, term = 1.0;
+            for (int k = 1; k < 30; k++) {
+                term *= (x / (2 * k)) * (x / (2 * k));
+                sum += term;
+            }
+            return sum;
+        };
+        std::vector<float> t((kRsPhases + 1) * kRsTaps);
+        for (int ph = 0; ph <= kRsPhases; ph++) {
+            double frac = (double)ph / kRsPhases;
+            double sum = 0.0;
+            for (int k = 0; k < kRsTaps; k++) {
+                // Tap k reads input frame i + k - (kRsHalf - 1).
+                double x = (double)(k - (kRsHalf - 1)) - frac;
+                double sinc = x == 0.0 ? 1.0 : std::sin(M_PI * x) / (M_PI * x);
+                double r = x / kRsHalf;
+                double w = std::fabs(r) >= 1.0 ? 0.0 : bessel0(kRsKaiserBeta * std::sqrt(1.0 - r * r)) / bessel0(kRsKaiserBeta);
+                t[ph * kRsTaps + k] = (float)(sinc * w);
+                sum += sinc * w;
+            }
+            for (int k = 0; k < kRsTaps; k++) {
+                t[ph * kRsTaps + k] = (float)(t[ph * kRsTaps + k] / sum);  // unity gain at DC
+            }
+        }
+        return t;
+    }();
+    return table.data();
+}
+}
+
+void PipeWireOutputStream::KeepResampleHistoryLocked(GstBuffer* in) {
+    GstMapInfo map;
+    if (!gst_buffer_map(in, &map, GST_MAP_READ)) {
+        return;
+    }
+    const float* x = reinterpret_cast<const float*>(map.data);
+    int n = (int)(map.size / kBytesPerFrame);
+    int take = std::min(n, kRsHist);
+    // Shift out what the new frames replace, then append them.
+    int keep = std::min(m_rsHistFrames, kRsHist - take);
+    std::memmove(m_rsHist, m_rsHist + (m_rsHistFrames - keep) * kChannels, keep * kChannels * sizeof(float));
+    std::memcpy(m_rsHist + keep * kChannels, x + (n - take) * kChannels, take * kChannels * sizeof(float));
+    m_rsHistFrames = keep + take;
+    gst_buffer_unmap(in, &map);
+}
+
+GstBuffer* PipeWireOutputStream::ResampleLocked(GstBuffer* in) {
+    static_assert(sizeof(m_rsHist) == kRsHist * kChannels * sizeof(float), "m_rsHist holds kRsHist frames");
+    GstMapInfo im;
+    if (!gst_buffer_map(in, &im, GST_MAP_READ)) {
+        return nullptr;
+    }
+    const float* x = reinterpret_cast<const float*>(im.data);
+    const long n = (long)(im.size / kBytesPerFrame);
+    const double step = m_feedSpeed;
+    const float* table = ResampleTable();
+    // Input frame i of this buffer, or of the history for i in -kRsHist..-1
+    // (a frame before the first of the track reads as silence).
+    const int hist = m_rsHistFrames;
+    auto at = [&](long i, int c) -> float {
+        if (i >= 0) {
+            return x[i * kChannels + c];
+        }
+        long h = hist + i;
+        return h >= 0 ? m_rsHist[h * kChannels + c] : 0.0f;
+    };
+    size_t cap = (size_t)((double)(n + kRsHist) / step) + 4;
+    GstBuffer* out = gst_buffer_new_allocate(nullptr, cap * kBytesPerFrame, nullptr);
+    GstMapInfo om;
+    if (!out || !gst_buffer_map(out, &om, GST_MAP_WRITE)) {
+        gst_buffer_unmap(in, &im);
+        if (out) {
+            gst_buffer_unref(out);
+        }
+        return nullptr;
+    }
+    float* y = reinterpret_cast<float*>(om.data);
+    size_t m = 0;
+    double p = m_rsPos;
+    float coef[kRsTaps];
+    while (m < cap) {
+        long i = (long)std::floor(p);
+        if (i + kRsHalf > n - 1) {
+            break;
+        }
+        double fph = (p - (double)i) * kRsPhases;
+        int ph = std::min((int)fph, kRsPhases - 1);
+        float fr = (float)(fph - ph);
+        const float* c0 = table + ph * kRsTaps;
+        const float* c1 = c0 + kRsTaps;
+        long first = i - (kRsHalf - 1);
+#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+        if (first >= 0) {
+            // Both channels four taps at a time: 1.7% of a BBB's core for
+            // 44.1 kHz stereo, against 8.7% for the plain loop below (GCC
+            // won't vectorize a float sum without -ffast-math).
+            static_assert(kChannels == 2 && kRsTaps % 4 == 0, "the NEON path is stereo, four taps a step");
+            const float* xs = x + first * kChannels;
+            float32x4_t accL = vdupq_n_f32(0.0f);
+            float32x4_t accR = vdupq_n_f32(0.0f);
+            for (int k = 0; k < kRsTaps; k += 4) {
+                float32x4_t a = vld1q_f32(c0 + k);
+                float32x4_t co = vmlaq_n_f32(a, vsubq_f32(vld1q_f32(c1 + k), a), fr);
+                float32x4x2_t lr = vld2q_f32(xs + 2 * k);
+                accL = vmlaq_f32(accL, lr.val[0], co);
+                accR = vmlaq_f32(accR, lr.val[1], co);
+            }
+            float32x2_t l2 = vadd_f32(vget_low_f32(accL), vget_high_f32(accL));
+            float32x2_t r2 = vadd_f32(vget_low_f32(accR), vget_high_f32(accR));
+            vst1_f32(y + m * kChannels, vpadd_f32(l2, r2));
+            m++;
+            p += step;
+            continue;
+        }
+#endif
+        for (int k = 0; k < kRsTaps; k++) {
+            coef[k] = c0[k] + fr * (c1[k] - c0[k]);
+        }
+        for (int c = 0; c < kChannels; c++) {
+            float acc = 0.0f;
+            if (first >= 0) {
+                const float* xs = x + first * kChannels + c;
+                for (int k = 0; k < kRsTaps; k++) {
+                    acc += coef[k] * xs[k * kChannels];
+                }
+            } else {
+                for (int k = 0; k < kRsTaps; k++) {
+                    acc += coef[k] * at(first + k, c);
+                }
+            }
+            y[m * kChannels + c] = acc;
+        }
+        m++;
+        p += step;
+    }
+    // At the exit p >= n - kRsHalf, so the next buffer reaches back no
+    // further than the history's kRsHist frames.
+    m_rsPos = p - (double)n;
+    gst_buffer_unmap(out, &om);
+    gst_buffer_unmap(in, &im);
+    gst_buffer_set_size(out, (gssize)(m * kBytesPerFrame));
+    KeepResampleHistoryLocked(in);
+    return out;
 }
 
 void PipeWireOutputStream::ResetClockSyncLocked() {
@@ -947,6 +1234,7 @@ bool PipeWireOutputStream::DisciplineClock() {
     applied = std::clamp(applied, 1.0 - kClockMaxOffset, 1.0 + kClockMaxOffset);
     // Continuous at `internal`: only the rate from here on changes.
     gst_clock_set_calibration(m_clock, internal, external, (GstClockTime)llround(applied * 1e9), 1000000000ULL);
+    RecalibrateFeedClockLocked(internal);
     LogExcess(VB_MEDIAOUT, "PipeWire output stream %d: card %+.1f ppm, phase %+.2f ms, clock %+.1f ppm\n",
               m_slot, (rate - 1.0) * 1e6, phase * 1000.0, (applied - 1.0) * 1e6);
     return lostTime;

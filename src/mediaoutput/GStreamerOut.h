@@ -407,6 +407,17 @@ private:
     // Apply playback rate change via GStreamer instant-rate-change seek
     void ApplyRate(float rate);
 
+    // A MultiSync remote's media through the persistent output stream: held to
+    // the master by the speed of the stream's feed (see AdjustFeedSpeed()).
+    int AdjustFeedSpeed(float masterMediaPosition);
+    double m_feedSpeedErrInt = 0.0;     // integral of the error, s*s
+    uint64_t m_feedSpeedLastMs = 0;     // when the servo last ran
+    uint64_t m_feedResyncMs = 0;        // when the last resync seek was made
+    bool m_feedResyncLanding = false;   // the next error is how far it landed off
+    // How far ahead of the master a resync seek aims: what a flushing seek
+    // takes to be heard again.  Learnt from each landing, for the whole run.
+    static double s_feedResyncLeadS;
+
     int m_streamSlot = 1;  // stream slot number (1-5), determines PipeWire node name
 
     // Audio-only PipeWire playback feeds the slot's persistent output stream

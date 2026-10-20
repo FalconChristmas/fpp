@@ -2273,9 +2273,11 @@ int GStreamerOutput::Start(int msTime) {
     // system's, but held to the rate the card actually plays at, so the feed
     // delivers exactly what the card takes (the "sub-ms per minute" above is
     // not true of real cards -- see PipeWireOutputStream::DisciplineClock()).
-    // Video in the same pipeline then keeps time with its own sound.
+    // Video in the same pipeline then keeps time with its own sound.  (It is
+    // the stream's feed clock: the card clock, unless a MultiSync remote
+    // steers this track's speed -- see AdjustFeedSpeed().)
     if (m_pwStream) {
-        GstClock* cardClock = m_pwStream->Clock();
+        GstClock* cardClock = m_pwStream->FeedClock();
         gst_pipeline_use_clock(GST_PIPELINE(m_pipeline), cardClock);
         gst_object_unref(cardClock);
         LogDebug(VB_MEDIAOUT, "GStreamer: pipeline clock is the output stream's card clock\n");
@@ -4150,6 +4152,10 @@ int GStreamerOutput::AdjustSpeed(float masterMediaPosition) {
         return 1;
     }
 
+    if (m_pwStream && m_pwFeed) {
+        return AdjustFeedSpeed(masterMediaPosition);
+    }
+
     float rate = m_currentRate;
 
     if (m_lastRates.empty()) {
@@ -4305,6 +4311,85 @@ int GStreamerOutput::AdjustSpeed(float masterMediaPosition) {
     m_lastDiff = rawdiff;
     return 1;
 }
+
+// A remote holding its copy of the show audio to the master, when that audio
+// plays through the slot's persistent output stream.
+//
+// AdjustSpeed()'s rate seeks never moved the sound there.  The stream plays at
+// the card's fixed rate, so a pipeline sped up 2% only handed it audio faster
+// than the card took it: the surplus queued where neither the position nor
+// the card's delay shows it, and the remote settled ~0.6 s behind the master
+// while reporting itself in sync (slowing down starved the stream instead).
+// And mp3 and FLAC -- most shows -- refuse instant rate changes outright
+// (GstBaseParse), so every adjustment was a flushing seek.
+//
+// Here the speed is the stream's feed speed: the feed clock runs that much
+// faster or slower and the stream resamples to the card's rate, so the media
+// really plays faster or slower (PipeWireOutputStream::SetFeedSpeed()).  A
+// PI servo on the error holds it, within +-0.5% (under 9 cents of pitch;
+// card-to-card drift needs well under 0.1%).  An error too big to slew away
+// in a few seconds -- a remote starting late, a missed sync -- is one
+// accurate seek to where the master will be once the seek is heard, aimed
+// using what earlier seeks took.
+int GStreamerOutput::AdjustFeedSpeed(float masterMediaPosition) {
+    constexpr double kResyncS = 0.050;        // beyond this, seek rather than slew
+    constexpr double kMaxSpeedOffset = 0.005; // +-0.5%
+    constexpr double kKp = 0.1;               // per second of error
+    constexpr double kKi = kKp * kKp / 4;     // critically damped
+    constexpr uint64_t kResyncSettleMs = 2000;
+
+    uint64_t now = GetMonotonicTimeMS();
+    // Where the sound is now, as Process() reports it (what the feed has
+    // handed over, less the card's queue) -- but read now: the last
+    // Process() can be tens of ms old on a remote, which made every error
+    // reading tens of ms off.
+    double local = m_mediaOutputStatus->mediaSeconds;
+    gint64 pos = 0;
+    if (gst_element_query_position(m_pwFeed, GST_FORMAT_TIME, &pos) && pos >= 0) {
+        local = std::max(0.0, (double)(pos - AudioSinkLatencyNs()) / GST_SECOND - mediaOffset);
+    }
+    double err = local - masterMediaPosition;  // > 0: this remote is ahead
+
+    if (m_feedResyncMs && now - m_feedResyncMs < kResyncSettleMs) {
+        return 1;  // still landing
+    }
+    if (m_feedResyncLanding) {
+        // How far the last seek landed off is how much more (or less) lead
+        // the next one needs.
+        m_feedResyncLanding = false;
+        if (std::fabs(err) < 1.0) {
+            s_feedResyncLeadS = std::clamp(s_feedResyncLeadS - 0.8 * err, 0.0, 2.0);
+        }
+        LogDebug(VB_MEDIAOUT, "GStreamer feed sync: resync landed %+.1f ms from the master; seeks now aim %.0f ms ahead\n",
+                 err * 1000.0, s_feedResyncLeadS * 1000.0);
+    }
+    if (std::fabs(err) > kResyncS) {
+        double target = masterMediaPosition + s_feedResyncLeadS;
+        LogInfo(VB_MEDIAOUT, "GStreamer feed sync: %+.0f ms from the master (%.3f vs %.3f), seeking to %.3f\n",
+                err * 1000.0, local, masterMediaPosition, target);
+        m_pwStream->SetFeedSpeed(m_pwFeed, 1.0);
+        m_feedSpeedErrInt = 0.0;
+        m_feedSpeedLastMs = 0;
+        m_feedResyncMs = now;
+        m_feedResyncLanding = true;
+        gst_element_seek(m_pipeline, 1.0, GST_FORMAT_TIME,
+                         (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE),
+                         GST_SEEK_TYPE_SET, (gint64)(target * GST_SECOND), GST_SEEK_TYPE_NONE, 0);
+        m_pwStream->FlushFeed(m_pwFeed);
+        return 1;
+    }
+
+    double dt = m_feedSpeedLastMs ? std::clamp((double)(now - m_feedSpeedLastMs) / 1000.0, 0.0, 1.0) : 0.0;
+    m_feedSpeedLastMs = now;
+    m_feedSpeedErrInt = std::clamp(m_feedSpeedErrInt + err * dt, -kMaxSpeedOffset / kKi, kMaxSpeedOffset / kKi);
+    double speed = 1.0 - std::clamp(kKp * err + kKi * m_feedSpeedErrInt, -kMaxSpeedOffset, kMaxSpeedOffset);
+    m_pwStream->SetFeedSpeed(m_pwFeed, speed);
+    LogDebug(VB_MEDIAOUT, "GStreamer feed sync: master %.3f local %.3f error %+.1f ms, speed %+.0f ppm\n",
+             masterMediaPosition, local, err * 1000.0, (speed - 1.0) * 1e6);
+    return 1;
+}
+
+double GStreamerOutput::s_feedResyncLeadS = 0.06;
 
 void GStreamerOutput::pushDiff(int diff, float rate) {
     m_diffSum += diff;
