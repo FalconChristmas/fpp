@@ -12,6 +12,7 @@
 #include "fpp-json.h"
 
 #include <cerrno>
+#include <condition_variable>
 #include <cstring>
 #include <ctype.h>
 #include <fcntl.h>
@@ -150,7 +151,19 @@ private:
 
     std::map<std::string, std::list<SettingListener>> settingsListeners;
     std::shared_mutex settingsListenersMutex;
+    // Listener calls copied out by notifyListeners() and not yet returned,
+    // per (setting, id): unregisterSettingsListener() waits for its own.
+    // listenerCallsLock is a leaf lock; no callback runs under it.
+    std::map<std::pair<std::string, std::string>, int> listenerCallsInFlight;
+    std::mutex listenerCallsLock;
+    std::condition_variable listenerCallFinished;
+    void retireListenerCalls(const std::vector<std::pair<SettingListener, const std::string*>>& calls,
+                             size_t from, size_t to);
 };
+// Nonzero while this thread is inside a settings listener: a listener that
+// unregisters (itself or another) must not wait on a call that may be its
+// own, or one waiting on it.
+static thread_local int t_inSettingsListener = 0;
 static SettingsConfig settings;
 
 SettingsConfig::SettingsConfig() {
@@ -204,20 +217,48 @@ void SettingsConfig::registerSettingsListener(const std::string& id, const std::
     LogDebug(VB_SETTING, "Registered settings listener for %s setting with id %s\n", setting.c_str(), id.c_str());
 }
 void SettingsConfig::unregisterSettingsListener(const std::string& id, const std::string& setting) {
-    std::unique_lock<std::shared_mutex> lock(settingsListenersMutex);
-    if (settingsListeners.find(setting) != settingsListeners.end()) {
-        auto& listeners = settingsListeners[setting];
-        for (auto it = listeners.begin(); it != listeners.end();) {
-            if (it->id == id) {
-                it = listeners.erase(it);
-            } else {
-                ++it;
+    {
+        std::unique_lock<std::shared_mutex> lock(settingsListenersMutex);
+        if (settingsListeners.find(setting) != settingsListeners.end()) {
+            auto& listeners = settingsListeners[setting];
+            for (auto it = listeners.begin(); it != listeners.end();) {
+                if (it->id == id) {
+                    it = listeners.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+            if (listeners.empty()) {
+                settingsListeners.erase(setting);
             }
         }
-        if (listeners.empty()) {
-            settingsListeners.erase(setting);
+    }
+    // Listeners are called from a copy with no lock held, so one copied out
+    // before the erase above can still be running, or about to run. Its
+    // owner frees what it captured once this returns (an output deleted by a
+    // reload), so wait for those calls to finish. Not under
+    // settingsListenersMutex: a running listener may register or unregister.
+    if (t_inSettingsListener == 0) {
+        std::unique_lock<std::mutex> lock(listenerCallsLock);
+        auto key = std::make_pair(setting, id);
+        listenerCallFinished.wait(lock, [this, &key]() { return listenerCallsInFlight.count(key) == 0; });
+    }
+}
+void SettingsConfig::retireListenerCalls(const std::vector<std::pair<SettingListener, const std::string*>>& calls,
+                                         size_t from, size_t to) {
+    if (from >= to) {
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(listenerCallsLock);
+        for (size_t i = from; i < to; i++) {
+            auto f = listenerCallsInFlight.find(std::make_pair(*calls[i].second, calls[i].first.id));
+            if (f != listenerCallsInFlight.end() && --f->second <= 0) {
+                listenerCallsInFlight.erase(f);
+            }
         }
     }
+    listenerCallFinished.notify_all();
 }
 
 void SettingsConfig::LoadSettingsInfo() {
@@ -375,25 +416,47 @@ bool SettingsConfig::persistSetting(const std::string& key, const std::string& v
 // read settings back (MultiSync holds its lock and calls getSetting, which
 // takes settingsMutex), and settingsMutex is held while settingsListenersMutex
 // is taken, so calling them under either lock closes a cycle.  It also lets a
-// listener register or unregister listeners.
+// listener register or unregister listeners.  Each call is counted until it
+// returns, for unregisterSettingsListener() to wait on.
 void SettingsConfig::notifyListeners(const std::map<std::string, std::string>& changed) {
     std::vector<std::pair<SettingListener, const std::string*>> toCall;
     {
         std::shared_lock<std::shared_mutex> listenersLock(settingsListenersMutex);
+        std::lock_guard<std::mutex> callsLock(listenerCallsLock);
         for (const auto& change : changed) {
             auto it = settingsListeners.find(change.first);
             if (it != settingsListeners.end()) {
                 for (const auto& listener : it->second) {
                     toCall.emplace_back(listener, &change.first);
+                    ++listenerCallsInFlight[std::make_pair(change.first, listener.id)];
                 }
             }
         }
     }
-    for (const auto& [listener, key] : toCall) {
+    if (toCall.empty()) {
+        return;
+    }
+    // Each call is retired as it returns; a throw retires the rest.
+    size_t next = 0;
+    struct InFlight {
+        SettingsConfig* self;
+        const std::vector<std::pair<SettingListener, const std::string*>>& calls;
+        const size_t& next;
+        ~InFlight() {
+            --t_inSettingsListener;
+            self->retireListenerCalls(calls, next, calls.size());
+        }
+    };
+    ++t_inSettingsListener;
+    InFlight inFlight{ this, toCall, next };
+    while (next < toCall.size()) {
+        const auto& [listener, key] = toCall[next];
         const std::string& value = changed.at(*key);
         LogDebug(VB_SETTING, "Notifying listener %s for setting %s with value '%s'\n",
                  listener.id.c_str(), key->c_str(), value.c_str());
         listener.callback(value);
+        retireListenerCalls(toCall, next, next + 1);
+        ++next;
     }
 }
 bool SettingsConfig::setSettingLocked(const std::string& key, const std::string& value, bool logInfo) {

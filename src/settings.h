@@ -65,6 +65,9 @@ bool isPipeWireBackend();
 
 // listeners
 void registerSettingsListener(const std::string& id, const std::string& setting, std::function<void(const std::string&)>&& cb);
+// Waits for any call of that listener still running on another thread (so
+// the caller may free what it captured), except when called from inside a
+// listener. Don't call it holding a lock the listener takes.
 void unregisterSettingsListener(const std::string& id, const std::string& setting);
 
 FPPMode getFPPmode(void);
