@@ -1294,6 +1294,41 @@ static std::string pluginOriginURL(const std::string& dir) {
     return "";
 }
 
+// A clone URL without what could carry a credential: the userinfo before the
+// host and any query or fragment, as PluginHistoryURL() does in PHP. A plugin
+// cloned while gitHubUser/gitHubPAT were set has the token in its origin URL
+// (InjectGitHubCredentials()), and the settings file is readable through the
+// API and carried by every backup.
+static std::string pluginURLWithoutCredentials(std::string url) {
+    url = url.substr(0, url.find_first_of("?#"));
+    size_t scheme = url.find("://");
+    size_t hostStart = scheme == std::string::npos ? 0 : scheme + 3;
+    size_t hostEnd = url.find('/', hostStart);
+    size_t at = url.rfind('@', hostEnd == std::string::npos ? std::string::npos : hostEnd);
+    if (at != std::string::npos && at >= hostStart) {
+        url.erase(hostStart, at + 1 - hostStart);
+    }
+    return url;
+}
+
+// IsOfficialPluginSrcURL(): published by the FPP project, judged on the host
+// and the owner, not on a prefix that any userinfo or port defeats.
+static bool isOfficialPluginURL(const std::string& url) {
+    size_t scheme = url.find("://");
+    if (scheme == std::string::npos) {
+        return false;
+    }
+    std::string rest = toLowerCopy(url.substr(scheme + 3));
+    size_t slash = rest.find('/');
+    std::string host = rest.substr(0, std::min(slash, rest.find(':')));
+    if (host != "github.com" || slash == std::string::npos) {
+        return false;
+    }
+    size_t owner = rest.find_first_not_of('/', slash);
+    return owner != std::string::npos && rest.compare(owner, 15, "falconchristmas") == 0 &&
+           (owner + 15 == rest.size() || rest[owner + 15] == '/');
+}
+
 // "repoName|srcURL" records, comma-separated (the PluginUnverifiedRepos form,
 // see www/api/controllers/plugin.php), for every plugin installed in
 // pluginDir that the FPP project did not publish. A linkName alias is a
@@ -1311,10 +1346,9 @@ static std::string pluginSourceRecordsToVerify(const std::string& pluginDir) {
     }
     std::sort(names.begin(), names.end());
     for (const auto& name : names) {
-        std::string url = pluginOriginURL(pluginDir + "/" + name);
-        // IsOfficialPluginSrcURL(): published by the FPP project, never flagged.
-        std::string lower = toLowerCopy(url);
-        if (lower.rfind("https://github.com/falconchristmas/", 0) == 0 || lower.rfind("http://github.com/falconchristmas/", 0) == 0) {
+        std::string url = pluginURLWithoutCredentials(pluginOriginURL(pluginDir + "/" + name));
+        // Published by the FPP project, never flagged.
+        if (isOfficialPluginURL(url)) {
             continue;
         }
         // ',' and '|' separate records and fields, '"' would end the setting.

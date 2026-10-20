@@ -489,7 +489,9 @@ function SetPluginRepoRecords($setting, $pending)
 			return str_replace(array(',', '|'), '', is_string($v) ? $v : '');
 		};
 		$repoName = $clean($p['repoName']);
-		$srcURL = $clean(isset($p['srcURL']) ? $p['srcURL'] : '');
+		// Without credentials, as the install history stores it: these
+		// settings are served by the settings API and kept in every backup.
+		$srcURL = $clean(PluginHistoryURL(isset($p['srcURL']) ? $p['srcURL'] : ''));
 		if ($repoName === '' && $srcURL === '') {
 			continue;
 		}
@@ -499,13 +501,12 @@ function SetPluginRepoRecords($setting, $pending)
 }
 
 // Raises the certain flag and records which plugin raised it. The caller
-// holds PluginUnverifiedLock(), which also serialises this list. srcURL is
-// stored without credentials, as the install history stores it.
+// holds PluginUnverifiedLock(), which also serialises this list.
 function RecordPluginUnknown($repoName, $srcURL)
 {
 	WriteSettingToFile($GLOBALS['PLUGIN_UNKNOWN_SETTING'], '1');
 	$known = GetPluginRepoRecords($GLOBALS['PLUGIN_UNKNOWN_REPOS_SETTING']);
-	$known[] = array('repoName' => $repoName, 'srcURL' => PluginHistoryURL($srcURL));
+	$known[] = array('repoName' => $repoName, 'srcURL' => $srcURL);
 	SetPluginRepoRecords($GLOBALS['PLUGIN_UNKNOWN_REPOS_SETTING'], $known);
 }
 
