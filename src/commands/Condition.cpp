@@ -65,7 +65,7 @@ public:
     }
 };
 
-static std::string EvaluateConditionExpression(const std::string& expr) {
+static std::string EvaluateConditionExpression(const std::string& expr, bool* compiled = nullptr) {
     ExpressionProcessor proc;
     std::map<std::string, ExpressionProcessor::ExpressionVariable> boundVars;
     // getAllVariableNames() (User + read-only fpp-/mqtt- vars), matching what
@@ -77,13 +77,33 @@ static std::string EvaluateConditionExpression(const std::string& expr) {
         inserted.first->second.setValue(Variables::INSTANCE.getVariable(varName));
         proc.bindVariable(&inserted.first->second);
     }
-    if (!proc.compile(expr)) {
+    bool ok = proc.compile(expr);
+    if (compiled) {
+        *compiled = ok;
+    }
+    if (!ok) {
         // Debug, not Warn - a broken Expression source is re-evaluated on
         // every check of an If wired to a frame/GPIO trigger, so a Warn
         // here would spam the log continuously instead of once.
         LogDebug(VB_COMMAND, "If: Expression source \"%s\" failed to compile\n", TruncateForLog(expr).c_str());
     }
     return proc.evaluate("string");
+}
+
+// Once per formula, so a Check re-run on every frame doesn't fill the log.
+static void WarnFormulaOnce(const std::string& text) {
+    static std::mutex m;
+    static std::set<std::string> warned;
+    std::lock_guard<std::mutex> l(m);
+    if (warned.size() > 100 || !warned.insert(text).second) {
+        return;
+    }
+    if (warned.size() > 100) {
+        LogWarn(VB_COMMAND, "If: more formulas do not compile; no more are logged\n");
+        return;
+    }
+    LogWarn(VB_COMMAND, "If: formula \"%s\" does not compile; the Check reads it as not found\n",
+            TruncateForLog(text).c_str());
 }
 
 // Does `text` contain a math/comparison operator character that ISN'T
@@ -94,12 +114,10 @@ static std::string EvaluateConditionExpression(const std::string& expr) {
 // name, hyphen/slashes and all) doesn't look like a formula, but
 // "fpp_next_playlist_start+1" does (the "+1" left over after removing the
 // real name is the actual signal).
-// Deliberately conservative: plain non-matching literal text like "ON" or
-// "5-star-review" that happens to contain '-' with no real variable name
-// nearby will also be flagged - see EvaluateNameOrExpression's caller
-// comment for why that's an accepted, documented trade-off rather than a
-// silent bug.
-static bool LooksLikeFormula(const std::string& text) {
+// Plain text with '-' or '/' and no variable name in it ("on-air",
+// "5-star-review") looks like a formula here too; ReadsAsWords() below
+// takes it back as text when it doesn't compile.
+static std::string WithoutVariableNames(const std::string& text) {
     std::vector<std::string> names = Variables::INSTANCE.getAllVariableNames();
     std::sort(names.begin(), names.end(), [](const std::string& a, const std::string& b) { return a.size() > b.size(); });
     std::string remaining = text;
@@ -112,7 +130,26 @@ static bool LooksLikeFormula(const std::string& text) {
             remaining.erase(pos, n.size());
         }
     }
-    return remaining.find_first_of("+-*/()<>=!^") != std::string::npos;
+    return remaining;
+}
+static bool LooksLikeFormula(const std::string& text) {
+    return WithoutVariableNames(text).find_first_of("+-*/()<>=!^") != std::string::npos;
+}
+
+// A formula-looking text that fails to compile is literal text when it reads
+// as words: no variable name in it, no operator but '-' and '/', and each of
+// those followed by a letter ("on-air", "Front/Back", "5-star-review"; not
+// "count-1" or "count+").
+static bool ReadsAsWords(const std::string& text) {
+    if (WithoutVariableNames(text) != text || text.find_first_of("+*()<>=!^") != std::string::npos) {
+        return false;
+    }
+    for (size_t i = 0; i < text.size(); i++) {
+        if ((text[i] == '-' || text[i] == '/') && (i + 1 == text.size() || !isalpha((unsigned char)text[i + 1]))) {
+            return false;
+        }
+    }
+    return true;
 }
 
 // The merged "Variable"/"Expression" behavior: a naive "does this contain
@@ -150,7 +187,12 @@ static bool LooksLikeFormula(const std::string& text) {
 //      string would break any plain literal Value that isn't purely
 //      numeric/formula-shaped (compile failure -> empty result, not a
 //      crash, but silently wrong).
-static std::string EvaluateNameOrExpression(const std::string& text) {
+//
+// An "=" formula, template or bare formula that doesn't compile sets compiled
+// false: its value is no value, so callers treat it as not found. A bare one
+// that ReadsAsWords() is the literal text after all ("on-air").
+static std::string EvaluateNameOrExpression(const std::string& text, bool& compiled) {
+    compiled = true;
     size_t start = text.find_first_not_of(" \t");
     if (start != std::string::npos) {
         size_t end = text.find_last_not_of(" \t");
@@ -161,14 +203,17 @@ static std::string EvaluateNameOrExpression(const std::string& text) {
             }
         }
     }
-    if (!text.empty() && text[0] == '=') {
-        return EvaluateConditionExpression(text);
-    }
-    if (text.find("%%") != std::string::npos || text.find("==") != std::string::npos) {
-        return EvaluateConditionExpression(text);
+    if ((!text.empty() && text[0] == '=') || text.find("%%") != std::string::npos ||
+        text.find("==") != std::string::npos) {
+        return EvaluateConditionExpression(text, &compiled);
     }
     if (LooksLikeFormula(text)) {
-        return EvaluateConditionExpression("=" + text);
+        std::string v = EvaluateConditionExpression("=" + text, &compiled);
+        if (!compiled && ReadsAsWords(text)) {
+            compiled = true;
+            return text;
+        }
+        return v;
     }
     return EvaluateConditionExpression(text);
 }
@@ -201,6 +246,10 @@ ConditionNode::ExpressionKind ConditionNode::ClassifyNameOrExpression(const std:
             proc.bindVariable(&inserted.first->second);
         }
         compileOk = proc.compile(explicitExpr ? text : ("=" + text));
+        if (!compileOk && !explicitExpr && ReadsAsWords(text)) {
+            compileOk = true;
+            return ExpressionKind::Literal; // as EvaluateNameOrExpression() reads it
+        }
         return ExpressionKind::Formula;
     }
     return ExpressionKind::Literal;
@@ -257,7 +306,10 @@ static std::string ReadConditionSourceValue(const std::string& source, const std
         // typing '=' or "%%...%%" by hand - see EvaluateNameOrExpression's
         // own comment). Any existing saved condition still using
         // "source":"Variable" now reads as not-found until re-edited.
-        return EvaluateNameOrExpression(name);
+        bool compiled;
+        std::string v = EvaluateNameOrExpression(name, compiled);
+        found = compiled;
+        return v;
     } else if (source == "Time") {
         return CurrentTimeHHMM();
     } else if (source == "GPIO Pin") {
@@ -514,6 +566,9 @@ public:
         bool found = true;
         std::string lhs = ReadConditionSourceValue(source, name, found);
         if (!found) {
+            if (source == "Expression") {
+                WarnFormulaOnce(name);
+            }
             bool result = negate; // "not found" reads as false, unless negated
             LogDebug(VB_COMMAND, "If: Leaf[%s:%s] not found -> %s\n", source.c_str(), name.c_str(),
                      result ? "true" : "false");
@@ -527,7 +582,15 @@ public:
         // through unchanged - so Value can reference variables/math (e.g.
         // comparing one computed value against another) without needing any
         // manual "=" or "%%...%%" syntax.
-        std::string rhs = EvaluateNameOrExpression(value);
+        bool rhsCompiled;
+        std::string rhs = EvaluateNameOrExpression(value, rhsCompiled);
+        if (!rhsCompiled) {
+            WarnFormulaOnce(value);
+            bool result = negate; // not found, as above
+            LogDebug(VB_COMMAND, "If: Leaf[%s:%s] value \"%s\" failed to compile -> %s\n", source.c_str(),
+                     name.c_str(), TruncateForLog(value).c_str(), result ? "true" : "false");
+            return result;
+        }
         bool cmp = CompareValues(comparatorStr, lhs, rhs);
         bool result = negate ? !cmp : cmp;
         // lhs/rhs are unbounded (e.g. a Variable can hold an entire fetched
@@ -551,8 +614,9 @@ void ConditionNode::PreviewLeafResult(const std::string& source, const std::stri
                                        bool& lhsFound, std::string& lhsValue, std::string& rhsValue, bool& result) {
     lhsFound = true;
     lhsValue = ReadConditionSourceValue(source, name, lhsFound);
-    rhsValue = EvaluateNameOrExpression(value);
-    if (!lhsFound) {
+    bool rhsCompiled;
+    rhsValue = EvaluateNameOrExpression(value, rhsCompiled);
+    if (!lhsFound || !rhsCompiled) {
         result = negate;
         return;
     }
