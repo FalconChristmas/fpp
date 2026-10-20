@@ -1195,8 +1195,15 @@ bool PluginManager::unloadPlugin(const std::string& name, std::string& error) {
             if (it == current.end() || it->second != c.second) {
                 continue;
             }
-            CommandManager::INSTANCE.removeCommand(c.first); // unregisters only
-            delete c.second;
+            if (dynamic_cast<ScriptCommand*>(c.second)) {
+                // FPP's own class, so it may outlive this call: a script can
+                // run for any length of time, and its run must finish on a
+                // live object.
+                CommandManager::INSTANCE.retireCommand(c.second);
+            } else {
+                CommandManager::INSTANCE.removeCommand(c.first); // unregisters only
+                delete c.second;
+            }
             leftBehind.push_back(c.first);
         }
         // Say so rather than quietly covering for it: a C++ plugin reaching this

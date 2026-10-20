@@ -414,14 +414,22 @@ std::shared_ptr<Command> CommandManager::acquireCommand(const std::string& name)
         std::lock_guard<std::mutex> il(inFlightLock);
         inFlight[cmd]++;
     }
-    // Releases the pin, never deletes: the command's owner does that.
+    // Releases the pin. Deletes only a command retireCommand() handed over
+    // while it ran; otherwise the command's owner does that.
     return std::shared_ptr<Command>(cmd, [this](Command* c) {
-        std::lock_guard<std::mutex> il(inFlightLock);
-        auto it = inFlight.find(c);
-        if (it != inFlight.end() && --it->second <= 0) {
-            inFlight.erase(it);
+        Command* toDelete = nullptr;
+        {
+            std::lock_guard<std::mutex> il(inFlightLock);
+            auto it = inFlight.find(c);
+            if (it != inFlight.end() && --it->second <= 0) {
+                inFlight.erase(it);
+                if (retired.erase(c)) {
+                    toDelete = c;
+                }
+            }
+            inFlightCV.notify_all();
         }
-        inFlightCV.notify_all();
+        delete toDelete;
     });
 }
 
@@ -457,6 +465,28 @@ void CommandManager::removeCommand(Command* cmd) {
     // Waited for either way: a replaced command can still be running from
     // before its replacement, and the caller deletes it next.
     waitForIdle(cmd);
+}
+void CommandManager::retireCommand(Command* cmd) {
+    {
+        std::unique_lock<std::shared_mutex> l(commandsLock);
+        auto a = commands.find(cmd->name);
+        if (a != commands.end() && a->second == cmd) {
+            commands.erase(a);
+            commandMeta.erase(cmd->name);
+            ++commandsGeneration;
+        }
+    }
+    // Unregistered first, so no new run can pin it: any run still counted
+    // here started before, and the last one to return deletes it. Nothing
+    // waits, so a run that outlasts any bound is not freed under itself.
+    {
+        std::lock_guard<std::mutex> il(inFlightLock);
+        if (inFlight.find(cmd) != inFlight.end()) {
+            retired.insert(cmd);
+            return;
+        }
+    }
+    delete cmd;
 }
 void CommandManager::removeCommand(const std::string& cmdName) {
     Command* cmd = nullptr;

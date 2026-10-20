@@ -274,6 +274,11 @@ public:
     void addCategorizedCommand(Command* cmd, const std::string& category, int level = 0);
     void removeCommand(Command* cmd);
     void removeCommand(const std::string& cmdName);
+    // Unregisters cmd and deletes it once no run is inside it: at once when it
+    // is idle, otherwise when its last run returns, however long that takes.
+    // The delete can land after the caller has moved on, so only for commands
+    // whose class lives in libfpp, never in a library that may be unloaded.
+    void retireCommand(Command* cmd);
 
     // Every currently registered command, name and object. PluginManager diffs
     // this around a plugin's load to work out which commands that plugin
@@ -349,6 +354,9 @@ private:
     std::mutex inFlightLock;
     std::condition_variable inFlightCV;
     std::map<Command*, int> inFlight;
+    // Retired commands still running; the last pin's release deletes each.
+    // Guarded by inFlightLock.
+    std::set<Command*> retired;
 
     std::shared_ptr<Command> acquireCommand(const std::string& name);
     void waitForIdle(Command* cmd);
