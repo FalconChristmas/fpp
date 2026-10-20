@@ -1530,6 +1530,17 @@ static bool capeMayRemoveSetting(const std::string& key, std::string& why) {
 static CapeSettingAction capeMaySetSetting(const std::vector<std::string>& lines, const std::string& key,
                                            const std::string& value, bool strict, std::string& why,
                                            bool userRequestedReset = false) {
+    // Every setting is one `key = "value"` line, written as is. A line break
+    // in either half would add lines of the cape's choosing -- any key, past
+    // every rule below, SigningAPIHost included -- and a quote or `=` in the
+    // key would make it read back as some other key. The settings API and
+    // fppd's own writer refuse these too; this is the cape's writer.
+    static const std::string kLineBreaks("\r\n\0", 3);
+    if (key.empty() || key.find_first_of(kLineBreaks + "\"=") != std::string::npos ||
+        value.find_first_of(kLineBreaks) != std::string::npos) {
+        why = "it would not stay a single settings line";
+        return CapeSettingAction::Refuse;
+    }
     // Settings no cape sets, signed or not, and however it asks: they decide
     // where this device sends secrets.  SigningAPIHost is where the cape pages
     // send the SoC serial, the order ID and the FalconPlayer account password
