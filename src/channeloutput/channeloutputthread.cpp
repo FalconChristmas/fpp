@@ -704,10 +704,10 @@ void ResetMasterPosition(void) {
     masterEpochs.clear();
 }
 
-// The master's frame 0 on our clock, from the packet for frameNumber that
-// arrived now and the ones before it.
-static double MasterFrame0(int frameNumber, long long now, double frameUs) {
-    double frame0 = now - (double)frameNumber * frameUs;
+// The master's frame 0 on our clock, from the packet that put it at
+// framePosition (frameNumber rounded) arriving now, and the ones before it.
+static double MasterFrame0(int frameNumber, double framePosition, long long now, double frameUs) {
+    double frame0 = now - framePosition * frameUs;
     std::unique_lock<std::mutex> l(masterEpochLock);
     if (frameUs != masterFrameUs || frameNumber < masterLastFrame) {
         // Another rate, or the master went back: a new timeline.
@@ -737,6 +737,10 @@ static double MasterFrame0(int frameNumber, long long now, double frameUs) {
  * Update the count of frames that the master has played so we can sync to it
  */
 void UpdateMasterPosition(int frameNumber) {
+    UpdateMasterPosition(frameNumber, (double)frameNumber);
+}
+
+void UpdateMasterPosition(int frameNumber, double framePosition) {
     MasterFramesPlayed = frameNumber;
     // The master sends frame F's sync packet just before it puts F on the
     // wire, so F goes out there about when the packet arrives (the earliest
@@ -754,7 +758,7 @@ void UpdateMasterPosition(int frameNumber) {
     if (sequence->IsSequenceRunning() && RefreshRate > 0) {
         long long now = GetMonotonicTimeMicros();
         double frameUs = 1000000.0 / RefreshRate;
-        double frame0 = MasterFrame0(frameNumber, now, frameUs);
+        double frame0 = MasterFrame0(frameNumber, framePosition, now, frameUs);
         long frame;
         long long due;
         {

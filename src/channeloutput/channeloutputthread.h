@@ -64,6 +64,9 @@ void StartForcingChannelOutput(void);
 void StopForcingChannelOutput(void);
 void ResetMasterPosition(void);
 void UpdateMasterPosition(int frameNumber);
+// framePosition is where the master is in frames, fractions included (a
+// remoteOffset that is not a whole number of frames); frameNumber is it rounded.
+void UpdateMasterPosition(int frameNumber, double framePosition);
 void CalculateNewChannelOutputDelay(float mediaPosition);
 // The media clock the sequence follows runs at `rate` times the system clock's
 // pace; call it with each position update.  Frames go out at that pace.

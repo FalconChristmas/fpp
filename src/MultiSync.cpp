@@ -4147,13 +4147,15 @@ void MultiSync::SyncSyncedSequence(const std::string& filename, int frameNumber,
         sequence->StartSequence(filename, frameNumber);
     }
     if (sequence->IsSequenceRunning(filename)) {
+        double framePosition = frameNumber;
         if (secondsElapsed > 0.0001f) {
-            // recalculate the frame number based on the seconds
-            float step = sequence->GetSeqStepTime();
-            float newFrame = secondsElapsed * 1000.0f / step;
-            frameNumber = std::round(newFrame);
+            // recalculate the frame number based on the seconds, which carry
+            // remoteOffset: kept whole, the lights would move by the offset
+            // rounded to a frame (+30 ms at 20 fps moved them 50 ms).
+            framePosition = secondsElapsed * 1000.0 / sequence->GetSeqStepTime();
+            frameNumber = std::round(framePosition);
         }
-        UpdateMasterPosition(frameNumber);
+        UpdateMasterPosition(frameNumber, framePosition);
     }
 }
 
