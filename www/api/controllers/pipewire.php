@@ -4989,7 +4989,9 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
                 $opusCfgFile = $settings['mediaDirectory'] . "/config/pipewire-opus-rtp-instances.json";
                 $sourceTarget = '';
                 if (file_exists($opusCfgFile)) {
-                    $opusCfg = json_decode(file_get_contents($opusCfgFile), true);
+                    // Read here, after the top-of-function sanitize: the
+                    // instance name is written into a comment and a string.
+                    $opusCfg = PwConfSanitize(json_decode(file_get_contents($opusCfgFile), true));
                     if ($opusCfg && isset($opusCfg['instances'])) {
                         foreach ($opusCfg['instances'] as $oi) {
                             if (isset($oi['id']) && intval($oi['id']) === $opusInstId && !empty($oi['enabled'])) {
@@ -5018,7 +5020,9 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
                 $vbanCfgFile = $settings['mediaDirectory'] . "/config/pipewire-vban-instances.json";
                 $sourceTarget = '';
                 if (file_exists($vbanCfgFile)) {
-                    $vbanCfg = json_decode(file_get_contents($vbanCfgFile), true);
+                    // Sanitized as GenerateVBANConfig() does, so the node name
+                    // matches it and the name stays inside its comment and string.
+                    $vbanCfg = PwConfSanitize(json_decode(file_get_contents($vbanCfgFile), true));
                     if ($vbanCfg && isset($vbanCfg['instances'])) {
                         foreach ($vbanCfg['instances'] as $vi) {
                             if (isset($vi['id']) && intval($vi['id']) === $vbanInstId && !empty($vi['enabled'])) {
@@ -6977,6 +6981,10 @@ function SaveOpusRTPInstances()
         http_response_code(400);
         return json(array("status" => "ERROR", "message" => "Missing instances array"));
     }
+    // Store names the way the generators will write them (PwConfSanitize()),
+    // so the node names fppd derives from the saved names match the generated
+    // config.
+    $parsed = PwConfSanitize($parsed);
     $nextId = 1;
     foreach ($parsed['instances'] as &$inst) {
         if (!isset($inst['id'])) {
