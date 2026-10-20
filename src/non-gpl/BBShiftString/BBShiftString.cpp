@@ -33,6 +33,7 @@
 #include "../../Sequence.h"
 #include "../../channeloutput/channeloutputthread.h"
 #include "../../Warnings.h"
+#include "../../channeloutput/ChannelOutputSetup.h"
 #include "../../common.h"
 #include "../../log.h"
 
@@ -186,7 +187,7 @@ void BBShiftStringOutput::resolveTiming(const Json::Value& config) {
         }
         LogErr(VB_CHANNELOUT, "Ports on one controller must share a bit timing; using %d/%d/%dns. Port(s) %s want a different one and will not work\n",
                m_t0Ns, m_t1Ns, m_lowNs, odd.c_str());
-        WarningHolder::AddWarning("BBShiftString: port(s) " + odd +
+        AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBShiftString: port(s) " + odd +
                                   " use a pixel protocol whose timing differs from the rest of the controller");
     } else if (!(best->first == PixelString::Timing{ 320, 750, 1120 })) {
         LogInfo(VB_CHANNELOUT, "BBShiftString: bit timing %d/%d/%dns\n", m_t0Ns, m_t1Ns, m_lowNs);
@@ -224,7 +225,7 @@ void BBShiftStringOutput::demoteInvertedReceiverChains() {
 
         LogWarn(VB_CHANNELOUT, "Falcon smart receivers on port %d disabled: %s\n",
                 head->m_portNumber + 1, why.c_str());
-        WarningHolder::AddWarning("BBShiftString: smart receivers on port " +
+        AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBShiftString: smart receivers on port " +
                                   std::to_string(head->m_portNumber + 1) +
                                   " disabled, " + why);
         head->smartReceiverType = PixelString::ReceiverType::None;
@@ -312,7 +313,7 @@ void BBShiftStringOutput::createOutputLengths(FrameData& d, const std::string& p
             if (curCommandTable + entriesPerRecord + 1 > maxEntries) {
                 LogErr(VB_CHANNELOUT, "%s: GPIO command table full at channel offset %d; later commands dropped\n",
                        pfx.c_str(), i->first);
-                WarningHolder::AddWarning("BBShiftString: too many smart receiver GPIO commands to fit the PRU command table");
+                AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBShiftString: too many smart receiver GPIO commands to fit the PRU command table");
                 break;
             }
             commandTable[curCommandTable++] = min;
@@ -412,7 +413,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
         std::string capeDriver = root.get("driver", "BBB48String").asString();
         LogErr(VB_CHANNELOUT, "Cape %s is not a BBShiftString cape - its string configuration names header pins, so it needs the %s output type\n",
                m_subType.c_str(), capeDriver.c_str());
-        WarningHolder::AddWarning("BBShiftString: " + m_subType + " needs the " + capeDriver +
+        AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBShiftString: " + m_subType + " needs the " + capeDriver +
                                   " output type - open the Pixel Strings page and save to correct it");
         return 0;
     }
@@ -434,7 +435,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
         int spp = config.isMember("stringsPerPin") ? config["stringsPerPin"].asInt() : root["stringsPerPin"].asInt();
         if (spp != 8 && spp != 16) {
             LogErr(VB_CHANNELOUT, "Cape declares stringsPerPin %d; only 8 and 16 are supported, using 8\n", spp);
-            WarningHolder::AddWarning("BBShiftString: unsupported stringsPerPin, falling back to 8");
+            AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBShiftString: unsupported stringsPerPin, falling back to 8");
         } else {
             m_stringsPerPin = spp;
         }
@@ -445,7 +446,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
         // against a 1120ns bit budget, leaving no room for the data block
         // read - and the AM335x already reaches 128 strings using both PRUs.
         LogErr(VB_CHANNELOUT, "16 strings per pin requires the AM62x; using 8\n");
-        WarningHolder::AddWarning("BBShiftString: 16 strings per pin is not supported on this SBC");
+        AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBShiftString: 16 strings per pin is not supported on this SBC");
         m_stringsPerPin = 8;
     }
 #endif
@@ -486,7 +487,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
                 int bit = bp ? (int8_t)bp->pruPin(p) : -1;
                 if (bit < 0) {
                     LogErr(VB_CHANNELOUT, "%s %s has no known PRU%d r30 bit\n", nm, pinName.c_str(), p);
-                    WarningHolder::AddWarning("BBShiftString: unusable control pin " + pinName);
+                    AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBShiftString: unusable control pin " + pinName);
                 } else if (strcmp(nm, "clockPin") == 0) {
                     m_clockBit[p] = bit;
                 } else {
@@ -580,7 +581,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
                 // pru 0 / pin 0 / stage 0, colliding with a real port)
                 LogErr(VB_CHANNELOUT, "Output %d is past the %d the %s cape declares\n",
                        x + 1, capeOutputCount, m_subType.c_str());
-                WarningHolder::AddWarning("BBShiftString: output " + std::to_string(x + 1) +
+                AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBShiftString: output " + std::to_string(x + 1) +
                                           " is past the end of the cape's pinout");
                 continue;
             }
@@ -592,13 +593,13 @@ int BBShiftStringOutput::Init(Json::Value config) {
                 // cape pinout written for a different driver can name a pru
                 // outside that range and would index straight past them
                 LogErr(VB_CHANNELOUT, "Output %d names pru %d but only pru 0 and 1 exist\n", x, pru);
-                WarningHolder::AddWarning("BBShiftString: output " + std::to_string(x) + " names an invalid pru");
+                AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBShiftString: output " + std::to_string(x) + " names an invalid pru");
                 continue;
             }
             if (pinIdx < 0 || pinIdx >= m_stringsPerPin) {
                 LogErr(VB_CHANNELOUT, "Output %d has shift stage index %d but the cape declares %d strings per pin\n",
                        x, pinIdx, m_stringsPerPin);
-                WarningHolder::AddWarning("BBShiftString: output " + std::to_string(x) + " shift stage index out of range");
+                AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBShiftString: output " + std::to_string(x) + " shift stage index out of range");
                 continue;
             }
             for (auto& a : m_ctrlPins[pru]) {
@@ -624,7 +625,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
                 if (bit < 0 || bit >= MAX_PINS_PER_PRU) {
                     LogErr(VB_CHANNELOUT, "Data pin %s maps to PRU%d r30 bit %d; the firmware supports bits 0-%d\n",
                            pinName.c_str(), pru, bit, MAX_PINS_PER_PRU - 1);
-                    WarningHolder::AddWarning("BBShiftString: unusable data pin " + pinName);
+                    AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBShiftString: unusable data pin " + pinName);
                     continue;
                 }
             }
@@ -704,7 +705,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
     uint8_t* start = BBBPru::ddrAlloc("BBShiftString", 2 * offset0 + 2 * offset1 + v5Size, ddrPhys);
     if (!start) {
         LogErr(VB_CHANNELOUT, "BBShiftString: no room in the PRU DDR region\n");
-        WarningHolder::AddWarning(20, "BBShiftString: no room in the PRU DDR region - reduce string lengths or other outputs' buffers");
+        AddOutputConfigWarning(20, "BBShiftString: no room in the PRU DDR region - reduce string lengths or other outputs' buffers");
         return 0;
     }
     m_pru0.curData = start;
@@ -878,13 +879,13 @@ int BBShiftStringOutput::StartPRU() {
             // is asking for something the shared RAM cannot feed.
             LogErr(VB_CHANNELOUT, "BBShiftString: 16 strings per pin needs sole use of one PRU%s\n",
                    m_sharedPRUSS ? " and cannot share the PRUSS with a panel driver" : "");
-            WarningHolder::AddWarning("BBShiftString: 16 strings per pin requires all strings on one PRU");
+            AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBShiftString: 16 strings per pin requires all strings on one PRU");
         } else {
             int p = m_pru1.maxStringLen ? 1 : 0;
             if (willListen && p == 0) {
                 // the listener is a PRU0 program; strings must leave it free
                 LogErr(VB_CHANNELOUT, "BBShiftString: FalconV5 listeners need PRU0, so the strings must be on PRU1\n");
-                WarningHolder::AddWarning("BBShiftString: FalconV5 listeners require the strings on PRU1");
+                AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBShiftString: FalconV5 listeners require the strings on PRU1");
             }
             ringBase[p] = willListen ? SMEM_RING_V5_BASE : SMEM_RING_DEFAULT_BASE;
             ringSize[p] = willListen ? SMEM_RING_V5_SIZE : SMEM_RING_DEFAULT_SIZE;
@@ -898,7 +899,7 @@ int BBShiftStringOutput::StartPRU() {
         m_pru1.pruData = (BBShiftStringData*)m_pru1.pru->data_ram;
         if (!m_pru1.pru->run(pruFirmware(1, m_stringsPerPin), !m_sharedPRUSS)) {
             LogErr(VB_CHANNELOUT, "BBShiftString: Unable to start PRU1. May require a reboot.\n");
-            WarningHolder::AddWarning("BBShiftString: Unable to start PRU1. May require a reboot.");
+            AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBShiftString: Unable to start PRU1. May require a reboot.");
             return 0;
         }
         publishPinConfig(m_pru1.pru, m_clockBit[1], m_latchBit[1]);
@@ -916,7 +917,7 @@ int BBShiftStringOutput::StartPRU() {
         m_pru0.pruData = (BBShiftStringData*)m_pru0.pru->data_ram;
         if (!m_pru0.pru->run(pruFirmware(0, m_stringsPerPin), !m_sharedPRUSS)) {
             LogErr(VB_CHANNELOUT, "BBShiftString: Unable to start PRU0. May require a reboot.\n");
-            WarningHolder::AddWarning("BBShiftString: Unable to start PRU0. May require a reboot.");
+            AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBShiftString: Unable to start PRU0. May require a reboot.");
             return 0;
         }
         publishPinConfig(m_pru0.pru, m_clockBit[0], m_latchBit[0]);

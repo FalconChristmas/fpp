@@ -32,6 +32,7 @@
 #include "../../Sequence.h"
 #include "../FalconV5Support/FalconV5Support.h"
 #include "../../Warnings.h"
+#include "../../channeloutput/ChannelOutputSetup.h"
 #include "../../common.h"
 #include "../../log.h"
 
@@ -254,7 +255,7 @@ void BBB48StringOutput::groupFalconV4Chains() {
         PixelString* p4 = x < m_strings.size() ? m_strings[x++] : nullptr;
 
         if (p1->m_isInverted) {
-            WarningHolder::AddWarning("BBB48String: Falcon smart receivers are not supported on inverted output " + std::to_string(p + 1));
+            AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBB48String: Falcon smart receivers are not supported on inverted output " + std::to_string(p + 1));
             continue;
         }
         if (!falconV5Support) {
@@ -361,7 +362,7 @@ int BBB48StringOutput::Init(Json::Value config) {
         if (!CapeUtils::INSTANCE.getStringConfig(m_subType + verPostf, root)) {
             LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n",
                    m_subType.c_str(), verPostf.c_str());
-            WarningHolder::AddWarning(
+            AddOutputConfigWarning(
                 13, "BBB48String: Could not read pin configuration for " + m_subType +
                         verPostf);
             return 0;
@@ -383,7 +384,7 @@ int BBB48StringOutput::Init(Json::Value config) {
         std::string capeDriver = root.get("driver", "BBShiftString").asString();
         LogErr(VB_CHANNELOUT, "Cape %s is not a BBB48String cape - its string configuration gives shift register stages, so it needs the %s output type\n",
                m_subType.c_str(), capeDriver.c_str());
-        WarningHolder::AddWarning("BBB48String: " + m_subType + " needs the " + capeDriver +
+        AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBB48String: " + m_subType + " needs the " + capeDriver +
                                   " output type - open the Pixel Strings page and save to correct it");
         return 0;
     }
@@ -410,7 +411,7 @@ int BBB48StringOutput::Init(Json::Value config) {
         // drive the port 8 bit rather than produce garbage.
         if (newString->m_bytesPerChannel != 1) {
             LogWarn(VB_CHANNELOUT, "16 bit protocols are not supported on this cape; output %d will be driven as 8 bit\n", i + 1);
-            WarningHolder::AddWarning("BBB48String: 16 bit protocols are not supported on this cape, output " + std::to_string(i + 1));
+            AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBB48String: 16 bit protocols are not supported on this cape, output " + std::to_string(i + 1));
             int pre = (int)newString->m_preamble.size();
             newString->m_outputBytes = (newString->m_outputBytes - pre) / newString->m_bytesPerChannel + pre;
             newString->m_bytesPerChannel = 1;
@@ -421,7 +422,7 @@ int BBB48StringOutput::Init(Json::Value config) {
 
         if (newString->m_protocolInverted) {
             LogWarn(VB_CHANNELOUT, "Inverted protocols are not supported on this cape; output %d will be driven as ws2811\n", i + 1);
-            WarningHolder::AddWarning("BBB48String: inverted protocols are not supported on this cape, output " + std::to_string(i + 1));
+            AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBB48String: inverted protocols are not supported on this cape, output " + std::to_string(i + 1));
             newString->invertOutput();
             newString->dropPreamble();
             newString->m_protocolInverted = false;
@@ -468,7 +469,7 @@ int BBB48StringOutput::Init(Json::Value config) {
             if (x >= capeOutputCount) {
                 LogErr(VB_CHANNELOUT, "Output %d is past the %d the %s cape declares\n",
                        x + 1, capeOutputCount, m_subType.c_str());
-                WarningHolder::AddWarning("BBB48String: output " + std::to_string(x + 1) +
+                AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBB48String: output " + std::to_string(x + 1) +
                                           " is past the end of the cape's pinout");
                 continue;
             }
@@ -521,7 +522,7 @@ int BBB48StringOutput::Init(Json::Value config) {
         warning += " outputs, but one or more outputs is configured for more than "
                    "50 pixels.  Output(s): ";
         warning += outputList;
-        WarningHolder::AddWarning(warning);
+        AddOutputConfigWarning(UNKNOWN_WARNING_ID, warning);
         LogWarn(VB_CHANNELOUT, "WARNING: %s\n", warning.c_str());
     }
 
@@ -580,7 +581,7 @@ int BBB48StringOutput::Init(Json::Value config) {
     if (m_gpioData.gpioStringMap.size() > 48 || m_gpio0Data.gpioStringMap.size() > 48) {
         LogErr(VB_CHANNELOUT, "%s uses %d outputs on one PRU, more than the 48 the firmware supports\n",
                m_subType.c_str(), (int)std::max(m_gpioData.gpioStringMap.size(), m_gpio0Data.gpioStringMap.size()));
-        WarningHolder::AddWarning("BBB48String: " + m_subType + " uses more than 48 outputs on one PRU");
+        AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBB48String: " + m_subType + " uses more than 48 outputs on one PRU");
         return 0;
     }
 
@@ -643,7 +644,7 @@ int BBB48StringOutput::Init(Json::Value config) {
 
     compilePRUCode(args, split0args, split1args, !hasSerial);
     if (!StartPRU(!hasSerial)) {
-        WarningHolder::AddWarning("BBB48String: Could not start PRU");
+        AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBB48String: Could not start PRU");
         return 0;
     }
 
@@ -666,7 +667,7 @@ int BBB48StringOutput::Init(Json::Value config) {
     uint8_t* ddrBase = BBBPru::ddrAlloc("BBB48String", 2 * offset + 2 * offset0, ddrPhys);
     if (!ddrBase) {
         LogErr(VB_CHANNELOUT, "BBB48String: no room in the PRU DDR region\n");
-        WarningHolder::AddWarning(20, "BBB48String: no room in the PRU DDR region - reduce string lengths or other outputs' buffers");
+        AddOutputConfigWarning(20, "BBB48String: no room in the PRU DDR region - reduce string lengths or other outputs' buffers");
         return 0;
     }
     m_gpioData.curData = ddrBase;
@@ -703,8 +704,8 @@ int BBB48StringOutput::StartPRU(bool both) {
 
     // The firmware is assembled per configuration just before this, so a
     // missing program is a build failure (the assembler's errors are in the
-    // fppd output), not a PRU that needs a reboot.  Like the warning below,
-    // it stays up until fppd restarts with a configuration that builds.
+    // fppd output), not a PRU that needs a reboot.  Like the others here it
+    // is a config warning: it comes down when the outputs are next loaded.
     std::vector<std::string> programs = { "/tmp/FalconWS281x.out" };
     if (both) {
         programs.push_back("/tmp/FalconWS281x_gpio0.out");
@@ -712,7 +713,7 @@ int BBB48StringOutput::StartPRU(bool both) {
     for (auto& fw : programs) {
         if (!FileExists(fw)) {
             LogErr(VB_CHANNELOUT, "BBB48String: PRU firmware %s failed to build\n", fw.c_str());
-            WarningHolder::AddWarning("BBB48String: PRU firmware failed to build for this configuration");
+            AddOutputConfigWarning(UNKNOWN_WARNING_ID, "BBB48String: PRU firmware failed to build for this configuration");
             return 0;
         }
     }
@@ -729,7 +730,7 @@ int BBB48StringOutput::StartPRU(bool both) {
     if (!m_pru->run("/tmp/FalconWS281x.out", true, false)) {
         LogErr(VB_CHANNELOUT,
                "BBB48String: Unable to start PRU. May require a reboot.\n");
-        WarningHolder::AddWarning(
+        AddOutputConfigWarning(UNKNOWN_WARNING_ID,
             "BBB48String: Unable to start PRU. May require a reboot.");
         return 0;
     }
@@ -742,7 +743,7 @@ int BBB48StringOutput::StartPRU(bool both) {
         if (!m_pru0->run("/tmp/FalconWS281x_gpio0.out", true, false)) {
             LogErr(VB_CHANNELOUT,
                    "BBB48String: Unable to start PRU0. May require a reboot.\n");
-            WarningHolder::AddWarning(
+            AddOutputConfigWarning(UNKNOWN_WARNING_ID,
                 "BBB48String: Unable to start PRU0. May require a reboot.");
             return 0;
         }
