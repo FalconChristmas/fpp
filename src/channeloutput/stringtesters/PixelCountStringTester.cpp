@@ -346,6 +346,12 @@ void CurrentBasedPixelCountPixelStringTester::prepareTestData(int cycleCount, fl
         SetChannelOutputRefreshRate(20);
         for (int x = 0; x < (int)ports.size(); x++) {
             OutputMonitor::INSTANCE.SetPixelCount(x, -1, -1);
+            // Start each port from its configuration as it is now: the
+            // configured count, nulls and search limit are worked out from
+            // the string on the port's next frame.  Kept from the first run,
+            // a string fixed after a count was still searched (and reported)
+            // against the old configuration until fppd restarted.
+            ports[x] = PortSearch();
         }
         state = STATE_WARMUP;
         stateStartMS = now;
