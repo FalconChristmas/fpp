@@ -1355,6 +1355,11 @@ private:
     // ptp4l for the whole domain, so an error that comes straight back must
     // not do that every pass.  Watchdog thread only.
     int m_errorRebuilds = 0;
+    // Streams whose pipeline failed to build or start in the last apply
+    // (PipeWire not up yet, say).  Nothing else would try them again, so the
+    // watchdog rebuilds for them on the bus-error backoff.  Set by
+    // ApplyConfig() under m_pipelineMutex.
+    int m_failedStarts = 0;
     // PTP enabled but not running (its start, or a watchdog restart, failed):
     // when the watchdog tries again, backing off 30s..5min.  Watchdog thread
     // only; reset by a successful start.

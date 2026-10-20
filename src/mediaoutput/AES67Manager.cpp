@@ -620,6 +620,7 @@ bool AES67Manager::ApplyConfigLocked() {
     bool anySAP = false;
     bool sendFailed = false;
     bool recvFailed = false;
+    int failedStarts = 0;
     // Senders held idle because nothing feeds them -- published to
     // m_deferredSenders below, once the whole pass has run.
     std::map<int, std::string> deferred;
@@ -647,6 +648,7 @@ bool AES67Manager::ApplyConfigLocked() {
                 anySend = true;
             } else {
                 sendFailed = true;
+                failedStarts++;
             }
         }
 
@@ -655,6 +657,7 @@ bool AES67Manager::ApplyConfigLocked() {
                 anyRecv = true;
             } else {
                 recvFailed = true;
+                failedStarts++;
             }
         }
 
@@ -666,6 +669,7 @@ bool AES67Manager::ApplyConfigLocked() {
     {
         std::lock_guard<std::mutex> lock(m_pipelineMutex);
         m_deferredSenders = std::move(deferred);
+        m_failedStarts = failedStarts;
     }
 
     // Every enabled pipeline of that kind started, so whatever raised the
@@ -4560,7 +4564,8 @@ bool AES67Manager::PollPipelinesWatchdog() {
     // pipeline has nothing else that would ever notice.  The first one
     // rebuilds at once; one that keeps coming back waits 30s, 60s, ... up to
     // 8 minutes between rebuilds, and the count starts over after 10 quiet
-    // minutes.
+    // minutes.  A stream that failed to start at all is never stored, so
+    // nothing above sees it; it is retried on the same backoff.
     {
         const auto now = std::chrono::steady_clock::now();
         std::vector<AES67Pipeline*> errored;
@@ -4574,7 +4579,7 @@ bool AES67Manager::PollPipelinesWatchdog() {
         if (m_errorRebuilds > 0 && now - m_lastErrorRebuild > std::chrono::minutes(10)) {
             m_errorRebuilds = 0;
         }
-        if (!errored.empty()) {
+        if (!errored.empty() || m_failedStarts > 0) {
             const auto wait = std::chrono::seconds(30) * (1 << std::min(std::max(m_errorRebuilds - 1, 0), 4));
             if (needsRebuild || m_errorRebuilds == 0 || now - m_lastErrorRebuild >= wait) {
                 if (!needsRebuild) {
@@ -4585,13 +4590,14 @@ bool AES67Manager::PollPipelinesWatchdog() {
                 for (AES67Pipeline* p : errored) {
                     p->running = false;
                 }
-                LogWarn(VB_MEDIAOUT, "AES67 watchdog: %d pipeline(s) stopped on a bus error\n",
-                        (int)errored.size());
+                LogWarn(VB_MEDIAOUT, "AES67 watchdog: %d pipeline(s) stopped on a bus error, "
+                        "%d failed to start\n",
+                        (int)errored.size(), m_failedStarts);
             } else {
                 LogWarn(VB_MEDIAOUT,
-                        "AES67 watchdog: %d pipeline(s) stopped on a bus error, rebuilding in %llds "
-                        "(error rebuild %d)\n",
-                        (int)errored.size(),
+                        "AES67 watchdog: %d pipeline(s) stopped on a bus error, %d failed to start, "
+                        "rebuilding in %llds (error rebuild %d)\n",
+                        (int)errored.size(), m_failedStarts,
                         (long long)std::chrono::duration_cast<std::chrono::seconds>(
                             wait - (now - m_lastErrorRebuild)).count(),
                         m_errorRebuilds + 1);

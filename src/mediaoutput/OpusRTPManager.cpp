@@ -335,6 +335,7 @@ bool OpusRTPManager::ApplyConfigLocked() {
     std::map<int, std::string> deferred;
     bool sendFailed = false;
     bool recvFailed = false;
+    int failedStarts = 0;
 
     for (const auto& inst : m_config.instances) {
         if (!inst.enabled) continue;
@@ -357,11 +358,13 @@ bool OpusRTPManager::ApplyConfigLocked() {
                     "Waiting for audio — not a member of any enabled Audio Output Group";
             } else if (!CreateSendPipeline(inst)) {
                 sendFailed = true;
+                failedStarts++;
             }
         }
 
         if (wantRecv && !CreateRecvPipeline(inst)) {
             recvFailed = true;
+            failedStarts++;
         }
     }
     ClearOpusPipelineWarnings(!sendFailed, !recvFailed);
@@ -369,6 +372,7 @@ bool OpusRTPManager::ApplyConfigLocked() {
     {
         std::lock_guard<std::mutex> lock(m_pipelineMutex);
         m_deferredSenders = std::move(deferred);
+        m_failedStarts = failedStarts;
     }
 
     // Start watchdog thread
@@ -954,6 +958,27 @@ bool OpusRTPManager::PollPipelinesWatchdog() {
 
     checkPipelines(m_sendPipelines, "send");
     checkPipelines(m_recvPipelines, "recv");
+
+    // A stream that failed to start is never stored, so nothing above sees
+    // it.  The first retry is this pass; one that keeps failing waits 30s,
+    // 60s, ... up to 8 minutes, and the count starts over after 10 quiet
+    // minutes.
+    if (m_failedStarts > 0) {
+        const auto now = std::chrono::steady_clock::now();
+        if (m_failedStartRebuilds > 0 && now - m_lastFailedStartRebuild > std::chrono::minutes(10)) {
+            m_failedStartRebuilds = 0;
+        }
+        const auto wait = std::chrono::seconds(30) * (1 << std::min(std::max(m_failedStartRebuilds - 1, 0), 4));
+        if (needsRebuild || m_failedStartRebuilds == 0 || now - m_lastFailedStartRebuild >= wait) {
+            if (!needsRebuild) {
+                m_failedStartRebuilds++;
+                m_lastFailedStartRebuild = now;
+            }
+            needsRebuild = true;
+            LogWarn(VB_MEDIAOUT, "Opus RTP watchdog: %d stream(s) failed to start, trying again\n",
+                    m_failedStarts);
+        }
+    }
 
     return needsRebuild;
 }

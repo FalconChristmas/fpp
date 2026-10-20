@@ -32,6 +32,7 @@
 #include "fpphttp_types.h"
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <map>
 #include <mutex>
@@ -208,6 +209,14 @@ private:
 
     // Pipeline watchdog -- polls bus messages and recovers crashed pipelines
     bool PollPipelinesWatchdog();
+    // Streams whose pipeline failed to build or start in the last apply
+    // (PipeWire not up yet, say).  Nothing else would try them again, so the
+    // watchdog rebuilds for them, waiting 30s, 60s, ... up to 8 minutes
+    // between tries: a rebuild restarts every stream.  m_failedStarts is set
+    // by ApplyConfig() under m_pipelineMutex; the rest is watchdog thread only.
+    int m_failedStarts = 0;
+    int m_failedStartRebuilds = 0;
+    std::chrono::steady_clock::time_point m_lastFailedStartRebuild{};
 
     // Watchdog thread
     std::thread m_watchdogThread;
