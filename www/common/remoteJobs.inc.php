@@ -246,6 +246,11 @@ class RemoteJobRunner
     {
         $runner = $this;
         $ch = curl_init($step->url);
+        // To the addresses the host was judged by, not a fresh lookup.
+        if (!RemotePeerPinCurl($ch, $step->url)) {
+            curl_close($ch);
+            throw new RuntimeException('invalid host');
+        }
         // Never follow: a peer could redirect the request back to loopback,
         // which IsRemotePeerHost() keeps out of the URL itself.
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
@@ -599,7 +604,8 @@ function RemoteJobCopyFiles(array $job, callable $out)
             $compress = "-z";
         }
         $src = escapeshellarg($fppHome . "/media/" . $dir . "/");
-        $dest = escapeshellarg($ip . "::media/" . $dir . "/");
+        // rsync resolves a name itself; give it the address that was judged.
+        $dest = escapeshellarg(RemotePeerConnectHost($ip) . "::media/" . $dir . "/");
         $command = "rsync -rtDlv --modify-window=1 $compress --stats $src $dest 2>&1";
         $out("Command: $command\n");
         $out("----------------------------------------------------------------------------------\n");

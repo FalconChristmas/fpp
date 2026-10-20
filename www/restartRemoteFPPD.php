@@ -21,6 +21,7 @@ if (isset($_GET['mode'])) {
     echo "Setting FPPD mode @ " . htmlspecialchars($ip) . " to " . htmlspecialchars($_GET['mode']) . "\n";
     $mode = $_GET['mode'];
     $curl = curl_init('http://' . $ip . '/api/settings/fppMode');
+    RemotePeerPinCurl($curl, 'http://' . $ip . '/api/settings/fppMode');
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false); // a redirect could point back at loopback
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -46,6 +47,7 @@ $endTime = time() + $maxWait; // already waited $x seconds
 while ((time() < $endTime) && ($request_content === false)) {
     echo '.';
     $curl = curl_init('http://' . $ip . '/api/fppd/status');
+    RemotePeerPinCurl($curl, 'http://' . $ip . '/api/fppd/status');
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false); // a redirect could point back at loopback
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);

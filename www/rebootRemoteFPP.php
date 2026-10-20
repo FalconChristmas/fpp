@@ -36,6 +36,7 @@ $endTime = time() + $maxWait - $x; // already waited $x seconds
 while ((time() < $endTime) && ($request_content === false)) {
     echo '.';
     $curl = curl_init('http://' . $ip . '/api/fppd/status');
+    RemotePeerPinCurl($curl, 'http://' . $ip . '/api/fppd/status');
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false); // a redirect could point back at loopback
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);

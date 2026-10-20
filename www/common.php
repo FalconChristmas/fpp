@@ -388,7 +388,9 @@ function JsonForScript($jsonText)
  * curl will resolve it: inet_aton() reads 127.1, 2130706433, 0x7f000001 and
  * 0177.0.0.1 as 127.0.0.1, and /etc/hosts maps ip6-localhost and this
  * player's own HostName to loopback.  Callers must also not follow redirects,
- * or a peer could send the request back to loopback.
+ * or a peer could send the request back to loopback, and must send the
+ * request to the addresses judged here (RemotePeerPinCurl(),
+ * RemotePeerConnectHost()): a name resolved again could answer differently.
  */
 function IsRemotePeerHost($host)
 {
@@ -412,7 +414,80 @@ function IsRemotePeerHost($host)
             return false;
         }
     }
+    RemotePeerApprovedAddresses($host, $addrs);
     return true;
+}
+
+/**
+ * The addresses IsRemotePeerHost() approved for a name earlier in this
+ * request, or null; given $addrs, records them.
+ */
+function RemotePeerApprovedAddresses($host, $addrs = null)
+{
+    static $approved = array();
+    $key = strtolower($host);
+    if ($addrs !== null) {
+        $approved[$key] = array_values($addrs);
+    }
+    return $approved[$key] ?? null;
+}
+
+/**
+ * The approved addresses of a peer name, judging it first if this request
+ * has not; null when it is refused.  A literal address is its own answer.
+ */
+function RemotePeerPinnedAddresses($host)
+{
+    $bare = trim((string) $host, '[]');
+    if (filter_var($bare, FILTER_VALIDATE_IP)) {
+        return RemotePeerAddressAllowed($bare) ? array($bare) : null;
+    }
+    $addrs = RemotePeerApprovedAddresses($host);
+    if ($addrs === null && IsRemotePeerHost($host)) {
+        $addrs = RemotePeerApprovedAddresses($host);
+    }
+    return $addrs;
+}
+
+/**
+ * Point a curl handle for a peer URL at the addresses IsRemotePeerHost()
+ * approved for its host.  Left to itself curl resolves the name again, and a
+ * name with a short TTL can answer a LAN address to the check and loopback
+ * to curl (DNS rebinding).  Returns false, and leaves the handle unpinned,
+ * when the host is refused.
+ */
+function RemotePeerPinCurl($ch, $url)
+{
+    $parts = parse_url($url);
+    $host = isset($parts['host']) ? $parts['host'] : '';
+    $addrs = RemotePeerPinnedAddresses($host);
+    if (empty($addrs)) {
+        return false;
+    }
+    if (filter_var(trim($host, '[]'), FILTER_VALIDATE_IP)) {
+        return true;
+    }
+    $port = isset($parts['port']) ? $parts['port'] : ((($parts['scheme'] ?? 'http') == 'https') ? 443 : 80);
+    $list = array();
+    foreach ($addrs as $addr) {
+        $list[] = (strpos($addr, ':') !== false) ? '[' . $addr . ']' : $addr;
+    }
+    curl_setopt($ch, CURLOPT_RESOLVE, array($host . ':' . $port . ':' . implode(',', $list)));
+    return true;
+}
+
+/**
+ * The host to hand a tool that resolves names itself (rsync): the first
+ * address approved for a peer name, so it connects where the check looked.
+ * Null when the host is refused.
+ */
+function RemotePeerConnectHost($host)
+{
+    $addrs = RemotePeerPinnedAddresses($host);
+    if (empty($addrs)) {
+        return null;
+    }
+    return (strpos($addrs[0], ':') !== false) ? '[' . $addrs[0] . ']' : $addrs[0];
 }
 
 /** An IP address IsRemotePeerHost() accepts: not loopback or unspecified. */
@@ -496,6 +571,11 @@ function RemotePlayerAction($url, $connectTimeoutMs, &$httpCode = null)
 {
     foreach (array('POST', 'GET') as $method) {
         $curl = curl_init($url);
+        if (!RemotePeerPinCurl($curl, $url)) {
+            curl_close($curl);
+            $httpCode = 0;
+            return false;
+        }
         curl_setopt($curl, CURLOPT_FAILONERROR, true);
         curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
