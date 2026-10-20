@@ -950,7 +950,7 @@ function GetUpdateActivityInternal($withLogTail = false)
         if (preg_match('/=====\s*' . preg_quote($startOp, '/') . '\s+FINISH:/', $lines[$j])) {
             break;
         }
-        if (preg_match('/^.*?=====\s*(Upgrade Complete|Upgrade Failed|Rebooting|Upgrade complete[^=]*)\s*=====\s*$/i', $lines[$j])) {
+        if (preg_match('/^.*?=====\s*(Upgrade Complete|Upgrade Failed|Rebooting|Rebuild Complete|Upgrade complete[^=]*)\s*=====\s*$/i', $lines[$j])) {
             break;
         }
     }
@@ -966,10 +966,14 @@ function GetUpdateActivityInternal($withLogTail = false)
         // switches and version checkouts can fail with only this marker
         // (no "Upgrade Failed" stage), so a nonzero rc is a failure outcome.
         // No break: a later "Upgrade Failed" terminal still overrides an
-        // rc=0 FINISH (see above).
+        // rc=0 FINISH (see above).  git_pull's rc=4 is not a failure: the
+        // update source was unreachable but the missing fppd was rebuilt,
+        // which is what a Rebuild is for (manualUpdate.php logs "Rebuild
+        // Complete"); a failed build exits 3.
         if (preg_match('/=====\s*' . preg_quote($startOp, '/') . '\s+FINISH:/', $line)) {
             $finished = true;
-            if (preg_match('/\(rc=(\d+)\)/', $line, $rcm) && intval($rcm[1]) !== 0) {
+            if (preg_match('/\(rc=(\d+)\)/', $line, $rcm) && intval($rcm[1]) !== 0
+                && !($startOp === 'fpp-update' && intval($rcm[1]) === 4)) {
                 $finishFailed = true;
                 $finishRc = intval($rcm[1]);
             }
@@ -977,7 +981,7 @@ function GetUpdateActivityInternal($withLogTail = false)
         }
         // Terminal stage logged after the script's tee is gone (PHP side of
         // manualUpdate.php / upgradeOS.php / upgradefpp.php).
-        if (preg_match('/^.*?=====\s*(Upgrade Complete|Upgrade Failed|Rebooting|Upgrade complete[^=]*)\s*=====\s*$/i', $line, $tm)) {
+        if (preg_match('/^.*?=====\s*(Upgrade Complete|Upgrade Failed|Rebooting|Rebuild Complete|Upgrade complete[^=]*)\s*=====\s*$/i', $line, $tm)) {
             $finished = true;
             if (stripos($tm[1], 'fail') !== false) {
                 $finishFailed = true;

@@ -90,7 +90,9 @@ UpgradeLog('fpp-update', $upgradeTarget, $elapsed . " (git_pull rc=" . $return_v
 // tree is already on the new code, so fppd is still restarted and the Apache
 // config / CSP refreshed for it below, and the run is then reported failed.
 // It exits 4 when the update source was unreachable but the old tree had to
-// be rebuilt (fppd was missing): same handling, nothing was updated.
+// be rebuilt (fppd was missing): same handling, and reported as a completed
+// rebuild, since fppd works again -- what the "Rebuild" buttons shown for a
+// missing fppd ask for.  Nothing was updated, and the output says so.
 // Any other nonzero status is a failed pull that left the old tree in place.
 $buildFailed = ($return_val === 3);
 $unreachableRebuilt = ($return_val === 4);
@@ -131,6 +133,10 @@ if ($return_val === 0 || $buildFailed || $unreachableRebuilt) {
   exec($SUDO . " rm -f /tmp/cache_*.cache");
   if ($return_val === 0 && file_exists($fppDir . "/src/fppd")) {
     logStage("Upgrade Complete");
+  } else if ($unreachableRebuilt && file_exists($fppDir . "/src/fppd")) {
+    UpgradeLog('fpp-update', $upgradeTarget, "Update source unreachable; rebuilt the existing code only (git_pull rc=4).");
+    logStage("Rebuild Complete");
+    print ("FPP was rebuilt from the code already installed.  The update source could not be reached, so no updates were pulled.\n");
   } else {
     // The build failed, the source was unreachable, or git_pull returned 0
     // but produced no fppd binary. Record the reason: the banner below only

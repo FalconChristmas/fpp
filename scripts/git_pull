@@ -142,8 +142,9 @@ fi
 # An unreachable update source is a failed update, not a successful no-op:
 # exiting 0 here had manualUpdate.php restart fppd and report "Upgrade
 # Complete" with nothing pulled. Exit 4 when the old tree was rebuilt in place
-# (fppd was missing), so the new binaries still get fppd restarted; otherwise
-# exit 1 like any other failed pull.
+# (fppd was missing), so the new binaries still get fppd restarted and the run
+# is reported as a completed rebuild, not an update; otherwise exit 1 like any
+# other failed pull.
 if [ -n "${PULL_UNREACHABLE}" ]; then
     if [ -n "${PULL_BUILD_RC}" ]; then
         exit 4
