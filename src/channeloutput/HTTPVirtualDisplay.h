@@ -66,6 +66,9 @@ private:
 
     std::atomic<bool> m_running;
     std::atomic<bool> m_connListChanged;
+    // Set by the connection thread when a client joins; the output thread,
+    // which alone touches m_virtualDisplay, clears the cache on its next frame.
+    std::atomic<bool> m_resetCache;
     std::thread* m_connThread;
     std::thread* m_selectThread;
 

@@ -62,6 +62,7 @@ HTTPVirtualDisplayOutput::HTTPVirtualDisplayOutput(unsigned int startChannel,
     m_socket(-1),
     m_running(true),
     m_connListChanged(true),
+    m_resetCache(false),
     m_connThread(nullptr),
     m_selectThread(nullptr) {
     LogDebug(VB_CHANNELOUT, "HTTPVirtualDisplayOutput::HTTPVirtualDisplayOutput(%u, %u)\n",
@@ -275,10 +276,11 @@ void HTTPVirtualDisplayOutput::ConnectionThread(void) {
                        "Access-Control-Allow-Credentials: true\r\n"
                        "\r\n";
 
-            // Reset our display cache so we draw everything needed
-            bzero(m_virtualDisplay, m_screenSize);
-
+            // Have the output thread reset its display cache so the next frame
+            // draws everything; set before the client is listed, so a frame that
+            // sees the client also sees the reset.
             std::unique_lock<std::mutex> lock(m_connListLock);
+            m_resetCache = true;
             m_connList.push_back(client);
 
             write(client, sseResp.c_str(), sseResp.length());
@@ -489,6 +491,11 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
 
     // Start a fresh rollback record for this frame's cache writes
     m_cacheRollback.clear();
+
+    // A client joined: it has nothing yet, so diff this frame against black.
+    if (m_resetCache.exchange(false)) {
+        bzero(m_virtualDisplay, m_screenSize);
+    }
 
     // Fast black detection - check if all channel data is zero (sequence ended/stopped)
     // Only do this check occasionally to reduce CPU overhead
