@@ -23,6 +23,9 @@ int CreateArtNetSocket(uint32_t addr = 0, bool allowPortChange = false);
 // config reload; whoever still needs ArtNet then retries at once.
 void ResetArtNetSocketFailure();
 bool Bridge_ReceiveArtNetData();
+// Re-size the DDP input buffer to the channels the outputs now use.  Main
+// loop only, as for the rest of the bridge.
+void Bridge_OutputRangesChanged();
 void AddArtNetOpcodeHandler(int opCode, std::function<bool(uint8_t* data, long long packetTime)> handler);
 void RemoveArtNetOpcodeHandler(int opCode);
 

@@ -43,6 +43,7 @@
 #include "../Plugins.h"
 #include "../config.h"
 #include "../MultiSync.h"
+#include "../e131bridge.h"
 
 #include "processors/OutputProcessor.h"
 
@@ -292,6 +293,7 @@ static void ComputeOutputRanges() {
     }
     preciseOutputRanges.store(std::make_shared<const OutputRangeVec>(std::move(precise)));
     outputRanges.store(std::make_shared<const OutputRangeVec>(std::move(normal)));
+    Bridge_OutputRangesChanged();
     MultiSync::INSTANCE.Ping();
     MultiSync::INSTANCE.WriteRuntimeInfoFile();
 }

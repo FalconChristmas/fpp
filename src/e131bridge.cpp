@@ -48,6 +48,7 @@
 #include "fppversion.h"
 #include "log.h"
 #include "settings.h"
+#include "channeloutput/ChannelOutputSetup.h"
 #include "channeloutput/DDP.h"
 #include "channeloutput/Universe.h"
 #include "channeloutput/channeloutputthread.h"
@@ -284,13 +285,13 @@ inline void CommitBridgeData();
 // of packets), and the main loop can stall for a frame or two doing output
 // processing before it drains the socket. If the receive buffer is too small
 // the kernel tail-drops that burst. A plain SO_RCVBUF request is silently
-// clamped to net.core.rmem_max, so scale the request to the configured universe
-// count and try SO_RCVBUFFORCE first (fppd runs as root, so CAP_NET_ADMIN lets
-// it bypass rmem_max); fall back to the clamped SO_RCVBUF otherwise.
-static void SetBridgeReceiveBufferSize(int sock) {
-    // ~4KB/universe leaves several frames of burst headroom even after the
+// clamped to net.core.rmem_max, so scale the request to the packets in a frame
+// and try SO_RCVBUFFORCE first (fppd runs as root, so CAP_NET_ADMIN lets it
+// bypass rmem_max); fall back to the clamped SO_RCVBUF otherwise.
+static void SetBridgeReceiveBufferSize(int sock, long packetsPerFrame) {
+    // ~4KB/packet leaves several frames of burst headroom even after the
     // kernel's per-packet accounting overhead; clamp to a floor and ceiling.
-    long desired = (long)InputUniverseCount * 4096;
+    long desired = packetsPerFrame * 4096;
     if (desired < 512 * 1024) {
         desired = 512 * 1024;
     } else if (desired > 16 * 1024 * 1024) {
@@ -310,6 +311,27 @@ static void SetBridgeReceiveBufferSize(int sock) {
     if (getsockopt(sock, SOL_SOCKET, SO_RCVBUF, &actual, &len) == 0) {
         LogDebug(VB_E131BRIDGE, "Bridge socket %d recv buffer: requested %d, granted %d\n",
                  sock, bufSize, actual);
+    }
+}
+
+// E1.31 and ArtNet send a packet per configured input universe.  DDP input
+// is not configured by universe -- it lands anywhere in the channel buffer --
+// so a box fed only DDP counted no universes and got the floor, about 450
+// full packets: two frames of a few hundred thousand channels.  A sender
+// sends the channels the outputs here use, up to 1440 to a packet, so count
+// the packets that cover each output range.
+static long DDPPacketsPerFrame() {
+    long packets = 0;
+    auto ranges = GetOutputRangesSnapshot();
+    for (const auto& r : *ranges) {
+        packets += ((long)r.second + 1439) / 1440;
+    }
+    return packets;
+}
+
+void Bridge_OutputRangesChanged() {
+    if (ddpSock >= 0) {
+        SetBridgeReceiveBufferSize(ddpSock, DDPPacketsPerFrame());
     }
 }
 
@@ -376,7 +398,7 @@ int CreateArtNetSocket(uint32_t sourceAddr, bool allowPortChange) {
 #else
     setsockopt(artnetSockT, SOL_SOCKET, SO_NO_CHECK, (void*)&enable, sizeof enable);
 #endif
-    SetBridgeReceiveBufferSize(artnetSockT);
+    SetBridgeReceiveBufferSize(artnetSockT, InputUniverseCount);
     int bufSize = 512 * 1024;
     setsockopt(artnetSockT, SOL_SOCKET, SO_SNDBUF, &bufSize, sizeof(bufSize));
 
@@ -725,7 +747,7 @@ bool Bridge_ReceiveArtNetData(void) {
 static constexpr int WARNING_ID_BRIDGE_PORT = 72;
 static std::vector<std::string> bridgePortWarnings;
 
-static int OpenBridgeSocket(const char* what, int port) {
+static int OpenBridgeSocket(const char* what, int port, long packetsPerFrame) {
     int sock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
     const char* step = "socket";
     if (sock >= 0) {
@@ -735,7 +757,7 @@ static int OpenBridgeSocket(const char* what, int port) {
         addr.sin_addr.s_addr = htonl(INADDR_ANY);
         addr.sin_port = htons(port);
         if (bind(sock, (struct sockaddr*)&addr, sizeof(addr)) == 0) {
-            SetBridgeReceiveBufferSize(sock);
+            SetBridgeReceiveBufferSize(sock, packetsPerFrame);
             return sock;
         }
         step = "bind";
@@ -795,7 +817,7 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
     int i3 = socket(AF_INET, SOCK_DGRAM, 0);
 
     if (enabled || !disableFakeBridges) {
-        ddpSock = OpenBridgeSocket("DDP", DDP_PORT);
+        ddpSock = OpenBridgeSocket("DDP", DDP_PORT, DDPPacketsPerFrame());
     }
 
     hasArtNet = false;
@@ -814,7 +836,7 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
         int UniverseOctet[2];
         struct ip_mreq mreq;
         char strMulticastGroup[16];
-        bridgeSock = OpenBridgeSocket("E1.31", E131_DEST_PORT);
+        bridgeSock = OpenBridgeSocket("E1.31", E131_DEST_PORT, InputUniverseCount);
 
         // get all the addresses
         struct ifaddrs *interfaces, *tmp;
