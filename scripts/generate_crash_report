@@ -167,6 +167,26 @@ CRASH_JSON_KEY="(\"([A-Za-z0-9_.-]*((${CRASH_BACKSTOP_LOOSE})[A-Za-z0-9_.-]*|(${
 CRASH_KEY_RE="[A-Za-z0-9_.-]*((${CRASH_BACKSTOP_LOOSE})[A-Za-z0-9_.-]*|(${CRASH_BACKSTOP_TIGHT}))|${CRASH_SECRET_KEYS}"
 CRASH_ENABLE_LINE='^[[:space:]]*"?[A-Za-z0-9_.-]*[Ee]nable"?[[:space:]]*[:=]'
 
+# The cape's serial number ships only where the user lets it be shared
+# (SendVendorSerial, on unless turned off). Withholding cape-eeprom.bin is not
+# enough: fppcapedetect prints the serial at every boot, and that line reaches
+# fppd.log, the journal and the crash log ring. So with sharing off, the
+# redactor takes the serial out of every file: the capedetect line by its
+# shape, and the serial itself, read from the cape info, wherever else it is.
+CRASH_SERIAL_RULES=()
+CRASH_SERIAL_SHARING_OFF=0
+if grep -qE '^[[:space:]]*SendVendorSerial[[:space:]]*=[[:space:]]*"?0"?[[:space:]]*$' settings 2>/dev/null; then
+    CRASH_SERIAL_SHARING_OFF=1
+    CRASH_SERIAL_RULES=(-e 's/(Serial Number:[[:space:]]*)[^[:space:]]+/\1**REDACTED**/g')
+    crash_cape_serial=$(sed -nE 's/.*"serialNumber"[[:space:]]*:[[:space:]]*"([^"\\]*)".*/\1/p' tmp/cape-info.json 2>/dev/null | head -n 1)
+    # Too short a serial would match ordinary text too; the shape rule above
+    # still covers the capedetect line.
+    if [ "${#crash_cape_serial}" -ge 4 ]; then
+        crash_cape_serial=$(printf '%s' "$crash_cape_serial" | sed -e 's/[]\/$*.^[|(){}+?]/\\&/g')
+        CRASH_SERIAL_RULES+=(-e "s/(^|[^A-Za-z0-9])${crash_cape_serial}([^A-Za-z0-9]|\$)/\1**REDACTED**\2/g")
+    fi
+fi
+
 # Redact stdin to stdout. Used for every file that leaves the device, so there
 # is exactly one copy of this policy rather than the six divergent ones this
 # replaced.  LC_ALL=C: ~12x faster than UTF-8, and a value with invalid UTF-8 is
@@ -231,7 +251,8 @@ redact_stream() {
         -e 's/(^|[^A-Za-z0-9])(AKIA|ASIA)[A-Z0-9]{16}([^A-Za-z0-9]|$)/\1**REDACTED**\3/g' \
         -e 's/(^|[^A-Za-z0-9_-])(sk-[A-Za-z0-9_-]{20,}|[sr]k_(live|test)_[A-Za-z0-9]{16,}|xox[abprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35})/\1**REDACTED**/g' \
         `# 7. Tidy "key => v" that rule 2 re-matched as "key =**REDACTED** **REDACTED**"` \
-        -e 's/([^[:space:]=])([[:space:]]*)=\*\*REDACTED\*\* \*\*REDACTED\*\*/\1\2=> **REDACTED**/g'
+        -e 's/([^[:space:]=])([[:space:]]*)=\*\*REDACTED\*\* \*\*REDACTED\*\*/\1\2=> **REDACTED**/g' \
+        "${CRASH_SERIAL_RULES[@]}"
 }
 
 # Interface config fields that may leave the device. Declared in
@@ -500,8 +521,10 @@ with open(sys.argv[2], "w") as f:
         
         # Boot logs
         mkdir -p "$TEMP_DIR/tmp"
-        dmesg -T > "$TEMP_DIR/tmp/boot.log" 2>/dev/null || true
-        journalctl -b -u fppinit -u fppoled -u fpp_postnetwork >> "$TEMP_DIR/tmp/boot.log" 2>/dev/null || true
+        # Through the redactor like every other file: fppinit's journal holds
+        # the same output its fppd.log copy has redacted.
+        { dmesg -T; journalctl -b -u fppinit -u fppoled -u fpp_postnetwork; } 2>/dev/null \
+            | redact_stream > "$TEMP_DIR/tmp/boot.log" 2>/dev/null
         
         # Config directory (scrub sensitive files)
         if [ -d "config" ]; then
@@ -537,7 +560,7 @@ with open(sys.argv[2], "w") as f:
                             # the cape's serial number, so it ships only where
                             # the user lets that be shared (SendVendorSerial,
                             # on unless turned off).
-                            if grep -qE '^[[:space:]]*SendVendorSerial[[:space:]]*=[[:space:]]*"?0"?[[:space:]]*$' settings 2>/dev/null; then
+                            if [ "$CRASH_SERIAL_SHARING_OFF" -eq 1 ]; then
                                 echo "**OMITTED: cape EEPROM (serial number sharing is off)**" > "$TEMP_DIR/config/$filename"
                             else
                                 redact_copy "$file" "$TEMP_DIR/config/$filename"
