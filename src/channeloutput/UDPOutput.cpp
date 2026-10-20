@@ -246,13 +246,7 @@ public:
         errCount = 0;
         curSocket = -1;
     }
-    ~SendSocketInfo() {
-        if (!preventClose) {
-            for (int x : sockets) {
-                close(x);
-            }
-        }
-    }
+    ~SendSocketInfo();
 
     // Never holds -1: a socket that couldn't be opened (out of descriptors)
     // is left out, so the list stays empty and findOrCreateSocket() tries
@@ -296,7 +290,9 @@ public:
     std::atomic<uint64_t> bytesQueued{ 0 };
     std::atomic_uint framesQueued{ 0 };
     std::atomic_uint framesBehind{ 0 };
-    // only the stats thread touches these, and only one runs at a time
+    // only the stats thread touches these, and only one runs at a time.
+    // budgetWarning is the pacing-budget banner raised for this destination;
+    // it comes down with this record (see ~SendSocketInfo).
     std::chrono::steady_clock::time_point budgetCheckTime = std::chrono::steady_clock::now();
     std::string budgetWarning;
 
@@ -341,6 +337,22 @@ static void ClearPacingBudgetWarning(SendSocketInfo* si) {
     if (!si->budgetWarning.empty()) {
         WarningHolder::RemoveWarning(PACING_BUDGET_WARNING_ID, si->budgetWarning);
         si->budgetWarning.clear();
+    }
+}
+
+// A destination's record is dropped whenever its sockets are: by Close()
+// when the outputs reload, and by an address change.  Its banner goes with
+// it; a destination still over budget raises it again from its new record.
+// Clearing it from ~UDPOutput instead found the map already emptied by
+// Close(), and the banner stayed for its whole timeout.  The last reference
+// can be a worker's or the stats thread's, so this is the one place that
+// sees every record go.
+SendSocketInfo::~SendSocketInfo() {
+    ClearPacingBudgetWarning(this);
+    if (!preventClose) {
+        for (int x : sockets) {
+            close(x);
+        }
     }
 }
 
@@ -560,11 +572,6 @@ UDPOutput::~UDPOutput() {
     }
     while (statCheckRunning) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-    // a reload builds a new output set, which raises its own if still over
-    for (auto& si : messages.sendSockets) {
-        if (si.second)
-            ClearPacingBudgetWarning(si.second.get());
     }
     // Requests in flight capture this (the HEAD probe) or an output deleted
     // below (Twinkly, which cancels its own).  Cancel ours rather than
