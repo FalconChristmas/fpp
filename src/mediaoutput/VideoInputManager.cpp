@@ -773,8 +773,8 @@ void VideoInputManager::RestartSource(int sourceId) {
     bool started = StartSource(*source);
     s_ytPrefetched.clear();
     if (!started) {
-        // It started before, so the config is good: this is a lookup or a
-        // resource that isn't back yet (a YouTube URL that won't resolve).
+        // A lookup or a resource that isn't back yet (a YouTube URL that
+        // won't resolve): keep trying, on the backoff.
         ScheduleSourceRestart(sourceId);
     }
 }
@@ -823,8 +823,11 @@ void VideoInputManager::StartLoadedSources(std::unique_lock<std::mutex>& lock) {
         }
     }
     for (auto& source : m_sources) {
-        if (source.enabled) {
-            StartSource(source);
+        // A source that can't start yet (yt-dlp with no network at boot, a
+        // camera still coming up) is retried on the backoff, like one whose
+        // pipeline dies later; nothing else would try it again before Apply.
+        if (source.enabled && !StartSource(source)) {
+            ScheduleSourceRestart(source.id);
         }
     }
     s_ytPrefetched.clear();
