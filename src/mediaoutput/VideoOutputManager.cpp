@@ -534,6 +534,11 @@ void VideoOutputManager::ReleaseConnectorFromMedia(int connectorId) {
         m_mediaConnectors.erase(it);
         for (auto& c : m_consumers) {
             if (c.suspendedForMedia && c.connectorId == connectorId) {
+                // No media holds the connector now.  Cleared here, not on a
+                // successful start: a comeback that fails (display off, a
+                // pipeline that won't build) must leave it to the ordinary
+                // retry, which skips a consumer still standing aside.
+                c.suspendedForMedia = false;
                 channels.insert(c.sourceNode);
             }
         }
