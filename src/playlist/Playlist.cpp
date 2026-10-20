@@ -295,6 +295,11 @@ public:
     }
 };
 } // namespace
+// The atomic members replaced plain ones in place; a plugin's inline getter
+// built against the old header must still find the same bytes.
+static_assert(sizeof(std::atomic<int>) == sizeof(int) && alignof(std::atomic<int>) == alignof(int));
+static_assert(sizeof(std::atomic<time_t>) == sizeof(time_t) && alignof(std::atomic<time_t>) == alignof(time_t));
+
 /*
  *
  */
@@ -307,6 +312,7 @@ Playlist::Playlist(Playlist* parent) :
     m_blankAtEnd(1),
     m_startTime(0),
     m_subPlaylistDepth(0),
+    m_scheduleEntry(-1),
     m_forceStop(0),
     m_stopAtPos(-1),
     m_loadStartPos(-1),
@@ -1180,7 +1186,7 @@ int Playlist::StopNowImpl(int forceStop) {
     StreamSlotManager::Instance().StopBackgroundSlots();
 
     std::map<std::string, std::string> keywords;
-    keywords["PLAYLIST_NAME"] = m_name;
+    keywords["PLAYLIST_NAME"] = GetPlaylistName();
     if (CommandManager::INSTANCE.HasPreset("PLAYLIST_STOPPING_NOW")) {
         // Deferred — preset commands run inline and can re-enter the
         // playlist; fired after this stop completes (PlaylistTransitionGuard).
@@ -1260,7 +1266,7 @@ int Playlist::StopGracefullyImpl(int forceStop, int afterCurrentLoop) {
 }
 
 void Playlist::Pause() {
-    LogDebug(VB_PLAYLIST, "Playlist::Pause called on %s\n", m_filename.c_str());
+    LogDebug(VB_PLAYLIST, "Playlist::Pause called on %s\n", GetPlaylistName().c_str());
     PlaylistTransitionGuard guard;
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     if (std::shared_ptr<Playlist> cur = CurrentIfNotThis()) {
@@ -1279,7 +1285,7 @@ void Playlist::Pause() {
     }
 }
 void Playlist::Resume() {
-    LogDebug(VB_PLAYLIST, "Playlist::Resume called on %s\n", m_filename.c_str());
+    LogDebug(VB_PLAYLIST, "Playlist::Resume called on %s\n", GetPlaylistName().c_str());
     PlaylistTransitionGuard guard;
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
     if (std::shared_ptr<Playlist> cur = CurrentIfNotThis()) {
@@ -1657,7 +1663,7 @@ int Playlist::Process(void) {
                 }
             } else if (m_currentSectionStr == "MainPlaylist") {
                 m_loop++;
-                LogDebug(VB_PLAYLIST, "mainPlaylist loop now: %d\n", m_loop);
+                LogDebug(VB_PLAYLIST, "mainPlaylist loop now: %d\n", m_loop.load());
                 if ((m_repeat) && (!m_loopCount || (m_loop < m_loopCount))) {
                     ReloadIfNeeded();
 
@@ -1676,7 +1682,7 @@ int Playlist::Process(void) {
                     if (!m_loopCount)
                         LogDebug(VB_PLAYLIST, "mainPlaylist repeating for another loop, loopCount == 0\n");
                     else
-                        LogDebug(VB_PLAYLIST, "mainPlaylist repeating for another loop, %d <= %d\n", m_loop, m_loopCount);
+                        LogDebug(VB_PLAYLIST, "mainPlaylist repeating for another loop, %d <= %d\n", m_loop.load(), m_loopCount);
 
                     // A pass this short has nothing in it that takes time;
                     // repeated as-is it would spin the main loop. Hold the next
@@ -2343,7 +2349,7 @@ void Playlist::Dump(void) {
     LogDebug(VB_PLAYLIST, "Playlist: %s\n", m_name.c_str());
 
     LogDebug(VB_PLAYLIST, "  Description      : %s\n", m_desc.c_str());
-    LogDebug(VB_PLAYLIST, "  Repeat           : %d\n", m_repeat);
+    LogDebug(VB_PLAYLIST, "  Repeat           : %d\n", m_repeat.load());
     LogDebug(VB_PLAYLIST, "  Loop Count       : %d\n", m_loopCount);
     LogDebug(VB_PLAYLIST, "  Current Section  : %s\n", m_currentSectionStr.c_str());
     LogDebug(VB_PLAYLIST, "  Section Position : %d\n", m_sectionPosition);
@@ -2459,7 +2465,7 @@ static bool DeferIfReentrant(const char* what, void (Playlist::*fn)(void)) {
 }
 
 void Playlist::RestartItem(void) {
-    LogDebug(VB_PLAYLIST, "RestartItem called for '%s'\n", m_name.c_str());
+    LogDebug(VB_PLAYLIST, "RestartItem called for '%s'\n", GetPlaylistName().c_str());
     PlaylistTransitionGuard guard;
     if (DeferIfReentrant("RestartItem", &Playlist::RestartItem)) {
         return;
@@ -2491,7 +2497,7 @@ void Playlist::RestartItem(void) {
     Start();
 }
 void Playlist::NextItem(void) {
-    LogDebug(VB_PLAYLIST, "NextItem called for '%s'\n", m_name.c_str());
+    LogDebug(VB_PLAYLIST, "NextItem called for '%s'\n", GetPlaylistName().c_str());
     PlaylistTransitionGuard guard;
     if (DeferIfReentrant("NextItem", &Playlist::NextItem)) {
         return;
@@ -2566,7 +2572,7 @@ void Playlist::NextItem(void) {
  *
  */
 void Playlist::PrevItem(void) {
-    LogDebug(VB_PLAYLIST, "PrevItem called for '%s'\n", m_name.c_str());
+    LogDebug(VB_PLAYLIST, "PrevItem called for '%s'\n", GetPlaylistName().c_str());
     PlaylistTransitionGuard guard;
     if (DeferIfReentrant("PrevItem", &Playlist::PrevItem)) {
         return;
@@ -2924,7 +2930,7 @@ Json::Value Playlist::GetMqttStatusJSON(void) {
         entryArray.append(playlistEntry);
 
         playlist["name"] = m_name;
-        playlist["repeat"] = m_repeat;
+        playlist["repeat"] = m_repeat.load();
         playlist["description"] = m_desc;
         playlist["currentItems"] = entryArray;
         playlistArray.append(playlist);
@@ -2961,7 +2967,7 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
     }
 
     std::string plname = m_name;
-    result["repeat_mode"] = m_repeat;
+    result["repeat_mode"] = m_repeat.load();
     result["current_playlist"]["description"] = m_desc;
     result["current_playlist"]["count"] = std::to_string(GetSize());
     result["current_playlist"]["index"] = std::to_string(GetPosition());
@@ -3122,8 +3128,8 @@ void Playlist::GetInfo(Json::Value& result) {
     } else {
         result["name"] = m_name;
         result["desc"] = m_desc;
-        result["repeat"] = m_repeat;
-        result["loop"] = m_loop;
+        result["repeat"] = m_repeat.load();
+        result["loop"] = m_loop.load();
         result["loopCount"] = m_loopCount;
         result["random"] = m_random;
         result["blankAtEnd"] = m_blankAtEnd;
@@ -3188,7 +3194,7 @@ Json::Value Playlist::GetConfig(void) {
  */
 int Playlist::MQTTHandler(std::string topic, std::string msg) {
     LogDebug(VB_PLAYLIST, "Playlist::MQTTHandler('%s', '%s') while playing '%s'\n",
-             topic.c_str(), msg.c_str(), m_name.c_str());
+             topic.c_str(), msg.c_str(), GetPlaylistName().c_str());
 
     // note the leading /set/playlist will be removed from topic by now
 

@@ -99,17 +99,19 @@ public:
     Json::Value GetInfo(void);
     void GetInfo(Json::Value& v);
     std::string GetPlaylistName(void);
-    int GetRepeat(void) { return m_repeat; }
+    // These getters are called from the scheduler, status, MQTT and API
+    // threads without m_playlistMutex, so the members behind them are atomic.
+    int GetRepeat(void) { return m_repeat.load(std::memory_order_relaxed); }
     int GetPosition(void);
     int GetResumePosition(void);
     int GetSize(void);
-    int GetLoopNumber(void) { return (m_loop + 1); }
+    int GetLoopNumber(void) { return (m_loop.load(std::memory_order_relaxed) + 1); }
     std::string GetConfigStr(void);
     Json::Value GetConfig(void);
-    uint64_t GetFileTime(void) { return (Json::UInt64)m_fileTime; }
-    int GetForceStop(void) { return m_forceStop; }
-    int WasScheduled(void) { return (m_scheduleEntry != -1) ? 1 : 0; }
-    int GetScheduleEntry(void) { return m_scheduleEntry; }
+    uint64_t GetFileTime(void) { return (Json::UInt64)m_fileTime.load(std::memory_order_relaxed); }
+    int GetForceStop(void) { return m_forceStop.load(std::memory_order_relaxed); }
+    int WasScheduled(void) { return (GetScheduleEntry() != -1) ? 1 : 0; }
+    int GetScheduleEntry(void) { return m_scheduleEntry.load(std::memory_order_relaxed); }
 
     // these Positions are 0 based and includes the leadIn entries
     uint64_t GetCurrentPosInMS();
@@ -195,20 +197,23 @@ private:
     // file" apart from "a saved playlist is playing".  Never true for a
     // playlist loaded from a .json file.
     bool m_generatedOnTheFly = false;
-    int m_repeat;
-    int m_loop;
+    // Atomic, read lock-free by the inline getters above.  Each is the same
+    // size and in the same place as the plain field it replaces, so a plugin
+    // built against the old header still reads the right value.
+    std::atomic<int> m_repeat;
+    std::atomic<int> m_loop;
     int m_loopCount;
     int m_random;
     int m_blankAtEnd;
     long long m_startTime;
     int m_subPlaylistDepth;
-    int m_scheduleEntry;
-    int m_forceStop;
+    std::atomic<int> m_scheduleEntry;
+    std::atomic<int> m_forceStop;
     int m_stopAtPos;
     int m_loadStartPos;
     int m_loadEndPos;
 
-    time_t m_fileTime;
+    std::atomic<time_t> m_fileTime;
     Json::Value m_config;
     time_t m_configTime;
     Json::Value m_playlistInfo;
