@@ -283,13 +283,17 @@ public:
     // Pacing-budget accounting, read and reset by CheckPacingBudget().
     // pacedRate is the rate (bytes/sec) the kernel clocks this destination at,
     // 0 while it isn't paced.  framesBehind counts frames that were folded
-    // into a still-queued item (late) or whose send came up short.  Counted
-    // per destination per frame, so the increments are relaxed: statistics,
-    // nothing published through them.
+    // into a still-queued item or left out because the destination was still
+    // busy (late), or whose send came up short.  Counted per destination per
+    // frame, so the increments are relaxed: statistics, nothing published
+    // through them.
     std::atomic_uint pacedRate{ 0 };
     std::atomic<uint64_t> bytesQueued{ 0 };
     std::atomic_uint framesQueued{ 0 };
     std::atomic_uint framesBehind{ 0 };
+    // the size of the last frame queued for this destination, which a frame
+    // it misses would have been; frame thread only, under socketMutex
+    uint64_t lastFrameBytes = 0;
     // only the stats thread touches these, and only one runs at a time.
     // budgetWarning is the pacing-budget banner raised for this destination;
     // it comes down with this record (see ~SendSocketInfo).
@@ -1328,10 +1332,30 @@ int UDPOutput::SendData(unsigned char* channelData) {
     if (!enabled || messages.messages.empty()) {
         return 0;
     }
+    std::set<unsigned int> skippedKeys;
     for (auto a : outputs) {
         // A skipped output prepared nothing, so it has nothing to commit.
         if (!skippedOutputs.count(a)) {
             a->FrameSent();
+        } else {
+            auto k = outputKeys.find(a);
+            if (k != outputKeys.end()) {
+                skippedKeys.insert(k->second.begin(), k->second.end());
+            }
+        }
+    }
+    // A destination PrepData() left alone because it was still busy misses
+    // this frame.  It has no messages, so the loop below counts nothing for
+    // it: count the frame as late here, or a controller that keeps up with
+    // only every other frame (each send slower than a frame, but inside the
+    // send budget, so never short) never raises the pacing-budget banner.
+    for (unsigned int key : skippedKeys) {
+        auto m = messages.messages.find(key);
+        auto si = messages.sendSockets.find(key);
+        if ((m == messages.messages.end() || m->second.empty()) && si != messages.sendSockets.end() && si->second) {
+            si->second->bytesQueued.fetch_add(si->second->lastFrameBytes, std::memory_order_relaxed);
+            si->second->framesQueued.fetch_add(1, std::memory_order_relaxed);
+            si->second->framesBehind.fetch_add(1, std::memory_order_relaxed);
         }
     }
     if (++statCheckCounter >= 1500) {
@@ -1389,7 +1413,8 @@ int UDPOutput::SendData(unsigned char* channelData) {
                 // message the dedup logic left out of this frame but not that one.
                 auto pending = std::find_if(workQueue.begin(), workQueue.end(),
                                             [&](const WorkItem& w) { return w.id == msgs.first; });
-                socketInfo->bytesQueued.fetch_add(MessageBytes(msgs.second), std::memory_order_relaxed);
+                socketInfo->lastFrameBytes = MessageBytes(msgs.second);
+                socketInfo->bytesQueued.fetch_add(socketInfo->lastFrameBytes, std::memory_order_relaxed);
                 socketInfo->framesQueued.fetch_add(1, std::memory_order_relaxed);
                 if (pending != workQueue.end()) {
                     socketInfo->framesBehind.fetch_add(1, std::memory_order_relaxed);
