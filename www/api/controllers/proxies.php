@@ -37,8 +37,7 @@ function remoteAction()
     $ipLong = filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) ? ip2long($ip) : false;
     if ($ipLong === false || ($ipLong & 0xFF000000) == 0x7F000000 || $ipLong == 0) {
         http_response_code(400);
-        echo json_encode(['error' => "Invalid IP address: $ip"]);
-        exit(0);
+        return json(['error' => "Invalid IP address: $ip"]);
     }
 
     if (!array_key_exists($action, $action_map)) {
@@ -69,8 +68,16 @@ function remoteAction()
         return json(['error' => 'HTTP Error: ' . $http_code, 'details' => $request_content]);
     }
 
-    return($request_content);
-
+    // The answer is the remote's, not this player's: never hand it back as
+    // the page (limonade's default text/html), where a host answering with
+    // markup would run script on this player's origin. Every action here
+    // answers JSON; anything else (an old player's plain-text reboot reply)
+    // goes back as a JSON string.
+    $decoded = json_decode($request_content);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        $decoded = ['response' => $request_content];
+    }
+    return json($decoded, JSON_HEX_TAG | JSON_HEX_AMP);
 }
 
 /**
