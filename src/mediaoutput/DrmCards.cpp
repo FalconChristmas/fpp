@@ -37,6 +37,7 @@ struct Card {
     int fd = -1;
     int refCount = 0;
     bool master = false;
+    bool masterWarned = false;
     std::set<uint32_t> claimed;  // driven by a framebuffer output
     // Held by a live lease or a lease-less holder, counted per holder: the
     // fallback in AcquireLease() hands a second holder the shared fd for a
@@ -57,6 +58,32 @@ Card* CardForFdLocked(int fd) {
         }
     }
     return nullptr;
+}
+
+bool EnsureMasterLocked(const std::string& cardPath, Card& card) {
+    if (!card.master) {
+        card.master = ioctl(card.fd, DRM_IOCTL_SET_MASTER, 0) == 0;
+        if (!card.master && !card.masterWarned) {
+            LogWarn(VB_MEDIAOUT, "DRM: no DRM master on %s (%s); another process holds it\n",
+                    cardPath.c_str(), strerror(errno));
+            card.masterWarned = true;
+        } else if (card.master) {
+            card.masterWarned = false;
+        }
+    }
+    return card.master;
+}
+
+// Master is held only while something here needs it: a framebuffer output
+// driving the card, or a live lease, whose lessee is master only while its
+// lessor is.  Kept on a card fppd merely opened, it locked out every other
+// DRM client there: X or a kiosk started after fppd stayed dark, and fbcon
+// could no longer relight a monitor plugged in later.
+void DropMasterIfIdleLocked(Card& card) {
+    if (card.master && card.claimed.empty() && card.leased.empty()) {
+        ioctl(card.fd, DRM_IOCTL_DROP_MASTER, 0);
+        card.master = false;
+    }
 }
 
 int PlaneType(int fd, uint32_t planeId) {
@@ -94,15 +121,13 @@ int Acquire(const std::string& cardPath) {
     Card card;
     card.fd = fd;
     card.refCount = 1;
-    // A new fd on a card with no master becomes master by itself; asking
-    // covers the case where it didn't.
-    card.master = ioctl(fd, DRM_IOCTL_SET_MASTER, 0) == 0;
-    if (!card.master) {
-        LogWarn(VB_MEDIAOUT, "DRM: %s opened without DRM master (%s); another process holds it\n",
-                cardPath.c_str(), strerror(errno));
-    }
+    // A new fd on a card with no master becomes master by itself.  Nothing
+    // is claimed or leased yet, so give it back; EnsureMaster() takes it
+    // when there is something to drive.
+    card.master = true;
+    DropMasterIfIdleLocked(card);
     s_cards[cardPath] = card;
-    LogDebug(VB_MEDIAOUT, "DRM: opened %s fd=%d master=%d\n", cardPath.c_str(), fd, card.master);
+    LogDebug(VB_MEDIAOUT, "DRM: opened %s fd=%d\n", cardPath.c_str(), fd);
     return fd;
 }
 
@@ -125,14 +150,12 @@ void Release(const std::string& cardPath) {
 
 bool EnsureMaster(int fd) {
     std::lock_guard<std::mutex> lock(s_lock);
-    Card* card = CardForFdLocked(fd);
-    if (!card) {
-        return ioctl(fd, DRM_IOCTL_SET_MASTER, 0) == 0;
+    for (auto& [path, card] : s_cards) {
+        if (card.fd == fd) {
+            return EnsureMasterLocked(path, card);
+        }
     }
-    if (!card->master) {
-        card->master = ioctl(fd, DRM_IOCTL_SET_MASTER, 0) == 0;
-    }
-    return card->master;
+    return ioctl(fd, DRM_IOCTL_SET_MASTER, 0) == 0;
 }
 
 void Claim(int fd, uint32_t objectId) {
@@ -146,6 +169,7 @@ void Unclaim(int fd, uint32_t objectId) {
     std::lock_guard<std::mutex> lock(s_lock);
     if (Card* card = CardForFdLocked(fd)) {
         card->claimed.erase(objectId);
+        DropMasterIfIdleLocked(*card);
     }
 }
 
@@ -175,10 +199,12 @@ Lease AcquireLease(const std::string& cardPath, int connectorId) {
     // drmModeCreateLease, and keeping the framebuffer outputs off the card
     // while it is chosen.
     std::unique_lock<std::mutex> masterLock(drmMasterLock);
-    EnsureMaster(fd);
 
+    // Master is taken under the same lock that records the lease, so an
+    // Unclaim() in between can't see an idle card and drop it again.
     std::unique_lock<std::mutex> lock(s_lock);
     Card& card = s_cards[cardPath];
+    EnsureMasterLocked(cardPath, card);
     auto leasable = [&card](uint32_t id) { return !card.leased.count(id); };
     auto unused = [&card](uint32_t id) { return !card.leased.count(id) && !card.claimed.count(id); };
 
@@ -310,6 +336,7 @@ void ReleaseLease(Lease& lease) {
                     it->second.leased.erase(held);
                 }
             }
+            DropMasterIfIdleLocked(it->second);
         }
     }
     if (lease.isLease) {
