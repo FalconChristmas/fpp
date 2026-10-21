@@ -753,6 +753,29 @@ uint32_t Bus::getPixelColor(int i) const {
 
     int r, g, b, wh;
     currentStrip->model->getOverlayPixelValue(x, y, r, g, b, wh);
+
+    // Undo setPixelColor()'s brightness scale, as WLED does, or effects that
+    // read pixels back apply it again each frame. Rounded up, so a pixel
+    // written back unchanged stores the same value.
+    int brightness = currentStrip->brightness;
+    if (brightness != 128) {
+        if (brightness <= 0) {
+            return 0;
+        }
+        // No divide per pixel: ARMv6 (Pi Zero) and the BBB have none in hardware.
+        static thread_local int lutBrightness = -1;
+        static thread_local uint8_t lut[256];
+        if (lutBrightness != brightness) {
+            for (int v = 0; v < 256; v++) {
+                lut[v] = std::min((v * 128 + brightness - 1) / brightness, 255);
+            }
+            lutBrightness = brightness;
+        }
+        r = lut[r & 0xFF];
+        g = lut[g & 0xFF];
+        b = lut[b & 0xFF];
+        wh = lut[wh & 0xFF];
+    }
     return (wh << 24) | (r << 16) | (g << 8) | b;
 }
 void Bus::setPixelColor(int i, uint32_t c) {
