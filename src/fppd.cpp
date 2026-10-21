@@ -88,6 +88,7 @@
 #include "channeltester/ChannelTester.h"
 #include "commands/Commands.h"
 #include "mediaoutput/AES67Manager.h"
+#include "mediaoutput/AudioLevelMonitor.h"
 #include "mediaoutput/OpusRTPManager.h"
 #include "mediaoutput/RTSPOutputManager.h"
 #include "mediaoutput/MediaOutputBase.h"
@@ -1410,6 +1411,12 @@ int main(int argc, char* argv[]) {
     // discovery clients won't keep our entries cached for the TTL.
     MDNSManager::INSTANCE.Cleanup();
 
+#ifdef HAS_AUDIO_LEVEL_MONITOR
+    // Its poll thread reads the level elements of the pipelines torn down
+    // below; stop it, and drop the meters, first.  Nothing else ever joined
+    // that thread, so it outlived the pipelines and was never reaped.
+    AudioLevelMonitor::INSTANCE.Shutdown();
+#endif
 #ifdef HAS_RTSP_OUTPUT_GSTREAMER
     // Before the video managers it reads from, so no client is still being
     // served off an intervideo channel that is about to go away.
