@@ -77,6 +77,9 @@
 
             $('#frmUniverses').on("submit", function (event) {
                 event.preventDefault();
+                if (!UniverseSaveAllowed()) {
+                    return false;
+                }
                 var success = validateUniverseData();
                 if (success == true) {
                     postUniverseJSON(true);
@@ -243,7 +246,7 @@
                                                 <input id="btnCloneUniverses" class="buttons" type="button"
                                                     value="Clone" onClick="CloneUniverse();" />
                                                 <input id="btnSaveUniverses" class="buttons btn-success ms-1"
-                                                    type="submit" value="Save" />
+                                                    type="submit" value="Save" disabled />
                                             </div>
                                         </div>
                                     </div>

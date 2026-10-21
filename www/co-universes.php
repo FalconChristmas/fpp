@@ -65,6 +65,9 @@ if (file_exists(__DIR__ . "/fppdefines.php")) {
 
 		$('#frmUniverses').on("submit", function (event) {
 			event.preventDefault();
+			if (!UniverseSaveAllowed()) {
+				return false;
+			}
 			var success = validateUniverseData();
 			if (success == true) {
 				postUniverseJSON(false);
@@ -141,7 +144,7 @@ if (file_exists(__DIR__ . "/fppdefines.php")) {
 								onClick="CloneUniverse();">
 
 
-							<input id="btnSaveUniverses" class="buttons btn-success ms-1" type="submit" value="Save">
+							<input id="btnSaveUniverses" class="buttons btn-success ms-1" type="submit" value="Save" disabled>
 
 						</div>
 					</div>

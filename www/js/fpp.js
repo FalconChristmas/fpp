@@ -5532,10 +5532,22 @@ function getUniverses (reload, input) {
 	if (input) {
 		url = 'api/channel/output/universeInputs';
 	}
+	// Save stays off until the saved config is on the page: before that the
+	// page shows no universes and output disabled, and saving that wipes it.
+	var save = $('#frmUniverses input[type=submit]');
+	save.prop('disabled', true);
 	$.getJSON(url, function (data) {
 		populateUniverseData(data, reload, input);
 		SetUniverseInputShownFields(); // hide fields based on output type
-	}).fail(function () {
+		save.prop('disabled', false);
+	}).fail(function (jqXHR) {
+		if (jqXHR.status != 404) {
+			$.jGrowl(
+				'Unable to load the universe configuration, so Save is disabled to keep it from being overwritten.  Reload the page to try again.',
+				{ themeState: 'danger', sticky: true }
+			);
+			return;
+		}
 		// no config saved yet; still need the Sending options set up to
 		// match the default pacing selection
 		UniverseCount = 0;
@@ -5543,7 +5555,14 @@ function getUniverses (reload, input) {
 		if (!input) {
 			UpdateSendingModeOptions();
 		}
+		save.prop('disabled', false);
 	});
+}
+
+// Save is disabled while getUniverses() loads, but Enter in a field submits
+// the form whatever state its button is in.
+function UniverseSaveAllowed () {
+	return !$('#frmUniverses input[type=submit]').prop('disabled');
 }
 
 function SetUniverseRowInputNames (row, id) {

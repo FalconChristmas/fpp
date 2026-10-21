@@ -14,7 +14,7 @@
     <li><b>Inputs Count</b> (text, default “Enter Universe Count”, size 3, max 3) — Type how many input universes you want and click <b>Set</b> to add or remove rows in the table to reach that count.</li>
     <li><b>Delete</b> (red outline) — Removes the currently selected table rows (click a row to select it; selected rows get the <code>selectedEntry</code> class). Not saved until you press <b>Save</b>.</li>
     <li><b>Clone</b> — Duplicates the selected rows, appending the copies. Use to quickly create multiple similar inputs.</li>
-    <li><b>Save</b> (green, submit) — Validates the table and posts the JSON to the channel-inputs API. The form uses <code>frmUniverses</code> submit handling with <code>validateUniverseData()</code> before posting.</li>
+    <li><b>Save</b> (green, submit) — Validates the table and posts the JSON to the channel-inputs API. The form uses <code>frmUniverses</code> submit handling with <code>validateUniverseData()</code> before posting. It stays greyed out until the page has loaded the saved universes, so the empty table shown while it loads can't be saved over them; if they can't be loaded, an error is shown and Save stays off until you reload the page.</li>
 </ul>
 
 <h4>E1.31 / ArtNet / DDP Inputs — Table columns</h4>
