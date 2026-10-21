@@ -1,0 +1,16 @@
+[Unit]
+Description=FPP Install the PHP Security Updates
+# Started by fpp-php-security-update.timer, which upgrade 160 (or the image
+# build) enables only while the installed PHP is older than the release with
+# the security fix; the script turns the timer off once it is installed.
+After=network-online.target fpp_postnetwork.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/fpp/scripts/php_security_update --timer
+# 1 = apt couldn't run (offline, mirrors unreachable), 2 = the apt sources
+# don't carry the fix yet: both just mean try again on the next run.
+SuccessExitStatus=1 2
+Nice=19
+IOSchedulingClass=idle

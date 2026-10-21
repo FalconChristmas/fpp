@@ -67,7 +67,7 @@ FPPBRANCH=${FPPBRANCH:-"master"}
 # user-supplied --os-version so the .img / .fppos filenames match what's
 # baked into the image itself).
 FPPIMAGEVER=${FPPIMAGEVER:-"2026-09"}
-FPPCFGVER="159"
+FPPCFGVER="160"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -1526,6 +1526,11 @@ do
         sed -i -e "s/^pm.start_servers.*/pm.start_servers = 3/" ${PHPDIR}/${FILE}
         sed -i -e "s/^;pm.max_requests.*/pm.max_requests = 300/" ${PHPDIR}/${FILE}
         sed -i -e "s+^;clear_env.*+clear_env = no+g" ${PHPDIR}/${FILE}
+        # Never used by FPP; off, where nothing can turn it back on, as PHP's
+        # workaround for CVE-2026-109619. See upgrade/160.
+        if ! grep -q '^php_admin_value\[session\.upload_progress\.enabled\]' ${PHPDIR}/${FILE}; then
+            printf '\n; FPP: upload progress is never used; off as the CVE-2026-109619 workaround\nphp_admin_value[session.upload_progress.enabled] = 0\n' >> ${PHPDIR}/${FILE}
+        fi
     fi
 done
 
@@ -2438,6 +2443,17 @@ install_fpp_services() {
     systemctl disable exim4.service 2>/dev/null || true
     cp /opt/fpp/etc/systemd/fpp-exim-queue.timer /lib/systemd/system/
     systemctl enable fpp-exim-queue.timer
+
+    # Built before the distribution published the fixed PHP (Raspbian, for
+    # 32-bit Pi's, lags Debian by days): retry after each boot and daily until
+    # it is installed; the timer turns itself off then. See upgrade/160.
+    if [ "${OSID}" = "debian" ] || [ "${OSID}" = "raspbian" ]; then
+        if ! /opt/fpp/scripts/php_security_update --check; then
+            cp /opt/fpp/etc/systemd/fpp-php-security-update.service \
+               /opt/fpp/etc/systemd/fpp-php-security-update.timer /lib/systemd/system/
+            systemctl enable fpp-php-security-update.timer
+        fi
+    fi
     systemctl daemon-reload
 
     local svc
