@@ -222,13 +222,37 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 	// The device is locked too, and first: a remote's mount of sda1 on
 	// /mnt/remote_filecopy otherwise lands while a listing still has it on
 	// /mnt/tmp_sda1, and is refused as "Partition is mounted on" (issue #3107).
+	// The wait is limited to 30 s, inside copy_settings_to_storage.sh's 60 s
+	// curl limit: a mount that got the lock after the remote had given up and
+	// sent its unmount would stay mounted for good.
+	// Never call DriveMountHelper from a callback: the inner call would wait on
+	// the outer call's lock.
 	$lockFps = array();
 	foreach (array('dev_' . $deviceName, preg_replace('/[^A-Za-z0-9]/', '_', $mountPath)) as $lockKey) {
-		$lockFp = @fopen('/tmp/fpp_backup_mount_' . $lockKey . '.lock', 'c');
-		if ($lockFp) {
-			flock($lockFp, LOCK_EX);
-			$lockFps[] = $lockFp;
+		$lockFile = '/tmp/fpp_backup_mount_' . $lockKey . '.lock';
+		$lockFp = @fopen($lockFile, 'c');
+		if (!$lockFp) {
+			// Made by another user (root): flock only needs it open.
+			$lockFp = @fopen($lockFile, 'r');
 		}
+		if (!$lockFp) {
+			error_log("DriveMountHelper: can't open $lockFile, so $deviceName is not locked");
+			continue;
+		}
+		$deadline = time() + 30;
+		while (!flock($lockFp, LOCK_EX | LOCK_NB)) {
+			if (time() >= $deadline) {
+				fclose($lockFp);
+				foreach (array_reverse($lockFps) as $heldFp) {
+					flock($heldFp, LOCK_UN);
+					fclose($heldFp);
+				}
+				array_push($dirs, "ERROR: $deviceName is busy with another request, try again shortly");
+				return $returnResultCodes ? array('error' => end($dirs)) : json($dirs);
+			}
+			usleep(200000);
+		}
+		$lockFps[] = $lockFp;
 	}
 	$releaseLocks = function () use ($lockFps) {
 		foreach (array_reverse($lockFps) as $lockFp) {
