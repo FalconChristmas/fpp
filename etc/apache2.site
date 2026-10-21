@@ -682,8 +682,15 @@ AddDefaultCharset utf-8
         # though the server is serving the new file correctly. Ctrl+F5 is the
         # only way out, which is exactly the trap the note above set out to
         # avoid.
+        #
+        # The separator goes with it. And when PHP set its own Cache-Control
+        # (the file-backed /api routes send no-cache), the merge above added
+        # `immutable` as a second Cache-Control header rather than to PHP's,
+        # and taking the word out of it left an empty one: the two went out
+        # as "Cache-Control: no-cache, ". An emptied header is dropped.
         <FilesMatch "\.(appcache|css|cur|geojson|m?js|json(ld)?|php|x?html?|topojson|xml)$">
-            Header edit Cache-Control immutable ""
+            Header edit Cache-Control "\s*,?\s*\bimmutable\b" ""
+            Header unset Cache-Control "expr=-z resp('Cache-Control')"
         </FilesMatch>
 
         # 3) And remove it from anything that says max-age=0, whatever it is
