@@ -847,6 +847,9 @@ void NetworkController::DetectExperienceController(Detection* st) {
         }
 
         vendor = "Experience";
+        // A guess: it can run as a player too, and then its own MultiSync pings,
+        // which win over this, carry the mode it really has.
+        systemMode = BRIDGE_MODE;
 
         // Deliberately the generic Experience type rather than a model-code lookup.
         // A table mapping every retail code to its own kSysTypeExperience* value
