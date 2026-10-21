@@ -219,13 +219,23 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 	// appear as "/" only. A file lock serializes the mount/scan/umount.
 	// Use a per-mountpoint lock so sda1 and sdb1 (now on /mnt/tmp_sda1 etc.)
 	// can run concurrently; requests for the same device remain serialized.
-	$lockFp = null;
-	$lockKey = preg_replace('/[^A-Za-z0-9]/', '_', $mountPath);
-	$lockFile = '/tmp/fpp_backup_mount_' . $lockKey . '.lock';
-	$lockFp = @fopen($lockFile, 'c');
-	if ($lockFp) {
-		flock($lockFp, LOCK_EX);
+	// The device is locked too, and first: a remote's mount of sda1 on
+	// /mnt/remote_filecopy otherwise lands while a listing still has it on
+	// /mnt/tmp_sda1, and is refused as "Partition is mounted on" (issue #3107).
+	$lockFps = array();
+	foreach (array('dev_' . $deviceName, preg_replace('/[^A-Za-z0-9]/', '_', $mountPath)) as $lockKey) {
+		$lockFp = @fopen('/tmp/fpp_backup_mount_' . $lockKey . '.lock', 'c');
+		if ($lockFp) {
+			flock($lockFp, LOCK_EX);
+			$lockFps[] = $lockFp;
+		}
 	}
+	$releaseLocks = function () use ($lockFps) {
+		foreach (array_reverse($lockFps) as $lockFp) {
+			flock($lockFp, LOCK_UN);
+			fclose($lockFp);
+		}
+	};
 
 	//Run commands so mount is available to entire system
 	if ($globalNameSpace === true) {
@@ -241,10 +251,7 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 	$unusable = CheckIfDeviceIsUsable($deviceName);
 	if ($unusable != '') {
 		array_push($dirs, $unusable);
-		if ($lockFp) {
-			flock($lockFp, LOCK_UN);
-			fclose($lockFp);
-		}
+		$releaseLocks();
 		return $returnResultCodes ? array('error' => $unusable) : json($dirs);
 	}
 
@@ -300,10 +307,7 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 
 	//Return more detail about the what has happened with each command
 	if ($returnResultCodes === true) {
-		if ($lockFp) {
-			flock($lockFp, LOCK_UN);
-			fclose($lockFp);
-		}
+		$releaseLocks();
 		return (array('dirs' => $dirs,
 			'fsType' => array('fsTypeOutput' => $fsTypeOutput, 'fsTypeResultCode' => $fsTypeResultCode),
 			'mountCmd' => array('mountCmdOutput' => $mountCmdOutput, 'mountCmdResultCode' => $mountCmdResultCode, 'mountCmdResultCodeText' => MountReturnCodeMap($mountCmdResultCode), 'actualMountCmd' => $mountCmd),
@@ -313,10 +317,7 @@ function DriveMountHelper($deviceName, $usercallback_function, $functionArgs = a
 		);
 	}
 
-	if ($lockFp) {
-		flock($lockFp, LOCK_UN);
-		fclose($lockFp);
-	}
+	$releaseLocks();
 	return ($dirs);
 }
 

@@ -176,8 +176,12 @@ fppFileCopy.getBackupDirsViaAPI = function (host, remoteStorageSelected, exclude
 };
 
 fppFileCopy.getBackupHostBackupDirs = function (remoteStorageSelected) {
-    var selStorage = (remoteStorageSelected && remoteStorageSelected !== 'none') ? remoteStorageSelected : '';
-    fppFileCopy.getBackupDirsViaAPI($(fppFileCopy.config.host).val(), selStorage, true);
+    // Only a restore shows the list. Listing a remote's drive mounts it there,
+    // and a backup started meanwhile could not mount it (issue #3107).
+    if ($(fppFileCopy.config.direction).val() == 'FROMREMOTE') {
+        var selStorage = (remoteStorageSelected && remoteStorageSelected !== 'none') ? remoteStorageSelected : '';
+        fppFileCopy.getBackupDirsViaAPI($(fppFileCopy.config.host).val(), selStorage, true);
+    }
     fppFileCopy.checkRemoteHasRsyncdEnabled($(fppFileCopy.config.host).val());
 };
 
