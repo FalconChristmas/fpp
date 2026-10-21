@@ -2716,7 +2716,7 @@ function CheckForPluginUpdates()
 	}
 
 	// Held until return; released when $fetchLock goes out of scope.
-	$waitedFrom = time();
+	$waitedFrom = microtime(true);
 	$fetchLock = PluginFetchLock($plugin, true, $lockHeld);
 	if ($lockHeld) {
 		// Another fetch of this plugin (a sweep, an upgrade) has held the lock
@@ -2725,7 +2725,7 @@ function CheckForPluginUpdates()
 		// would make them. Otherwise say so rather than fetch against it.
 		$state = PluginUpdateStateRead();
 		$e = isset($state['plugins'][$plugin]) ? $state['plugins'][$plugin] : null;
-		if (!is_array($e) || !array_key_exists('updates', $e) || (int) $e['checkedAt'] < $waitedFrom) {
+		if (!is_array($e) || !array_key_exists('updates', $e) || PluginUpdateStateRecordedAt($e) < $waitedFrom) {
 			$result['Status'] = 'Error';
 			$result['reason'] = 'another check of this plugin is still running; try again in a moment';
 			$result['Message'] = 'Could not check ' . $plugin . ': ' . $result['reason'];
@@ -5188,20 +5188,31 @@ function PluginUpdateStateUpdate($fn)
 	return $ok;
 }
 
+// When a verdict was recorded, to compare with a microtime(true) instant.
+// Whole seconds for an entry an older FPP wrote.
+function PluginUpdateStateRecordedAt($e)
+{
+	if (isset($e['recordedAt']) && is_numeric($e['recordedAt'])) {
+		return (float) $e['recordedAt'];
+	}
+	return (float) (isset($e['checkedAt']) ? (int) $e['checkedAt'] : 0);
+}
+
 /**
  * Record one plugin's verdict (true/false/null, as PluginUpdateVerdict() returns);
  * $source ('sweep', 'check', 'upgrade', 'install') is kept for the support zip.
  *
- * $since: when the caller's fetch began. The sweep drops the fetch lock before
- * computing its verdict (the plugin's own script can take minutes), so an upgrade
- * or hand check can land in that gap; a verdict older than what is already
- * recorded is then discarded rather than written over the fresher one.
+ * $since: when the caller's fetch began (microtime(true)). The sweep drops the
+ * fetch lock before computing its verdict (the plugin's own script can take
+ * minutes), so an upgrade or hand check can land in that gap; a verdict older
+ * than what is already recorded is then discarded rather than written over the
+ * fresher one.
  */
 function PluginUpdateStateSet($plugin, $updates, $error = '', $source = 'check', $since = 0)
 {
 	PluginUpdateStateUpdate(function (&$state) use ($plugin, $updates, $error, $source, $since) {
-		if ($since > 0 && isset($state['plugins'][$plugin]['checkedAt'])
-			&& (int) $state['plugins'][$plugin]['checkedAt'] >= $since
+		if ($since > 0 && isset($state['plugins'][$plugin])
+			&& PluginUpdateStateRecordedAt($state['plugins'][$plugin]) >= $since
 			&& isset($state['plugins'][$plugin]['source'])
 			&& $state['plugins'][$plugin]['source'] !== $source) {
 			return false;
@@ -5209,6 +5220,9 @@ function PluginUpdateStateSet($plugin, $updates, $error = '', $source = 'check',
 		$entry = array(
 			'updates' => ($updates === null) ? null : (bool) $updates,
 			'checkedAt' => time(),
+			// Sub-second: an install's verdict and a sweep's fetch often fall in
+			// the same second, and must still be told apart.
+			'recordedAt' => microtime(true),
 			'error' => (string) $error,
 			'source' => $source,
 		);

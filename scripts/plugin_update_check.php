@@ -112,7 +112,7 @@ function PluginSweepOne($plugin)
     // Same cap as a user's check: a large fetch that is still progressing
     // must not fail here and succeed from the button.
     $cmd = PluginGitFetchCmd($dir, '', true, array('background' => true));
-    $since = time();
+    $since = microtime(true);
     unset($output);
     exec($cmd, $output, $rv);
     // Only the fetch needs the lock; the verdict can run the plugin's script
