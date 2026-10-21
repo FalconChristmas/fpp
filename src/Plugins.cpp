@@ -530,16 +530,44 @@ void PluginManager::Cleanup() {
         mPendingUnloads.pop_back();
         finishUnload(p);
     }
+    // A playlist or media callback can still be inside a plugin on another
+    // thread: the MQTT thread handling a playlist command, or a command thread.
+    // Nothing waited for those, so the deletes below could free a plugin (a
+    // script plugin blocks in waitpid() for as long as its script runs) while
+    // it was still running.  Detach them all, as an unload does, and wait for
+    // the calls in flight -- briefly: shutdown has a budget.  A plugin still
+    // busy past that is left alive, and so is every plugin library, since its
+    // code may still be running: each path from here ends in exec or _exit.
+    std::set<FPPPlugins::Plugin*> busy;
+    {
+        std::unique_lock<std::mutex> lock(playlistPluginsLock);
+        mPlaylistPlugins.clear();
+        if (!playlistPluginCallDone.wait_for(lock, std::chrono::seconds(2), []() {
+                return playlistPluginCallsInFlight.empty();
+            })) {
+            for (auto& [plugin, n] : playlistPluginCallsInFlight) {
+                busy.insert(plugin);
+            }
+        }
+    }
+    for (auto* a : busy) {
+        LogWarn(VB_PLUGIN, "Plugin %s is still in a playlist callback at shutdown; leaving it\n",
+                a->getName().c_str());
+    }
     // Inbound HTTP is disarmed above and the routes have drained, so no request
     // is inside plugin code. Now let each plugin stop its own activity - threads,
     // timers, connections - while it is still a whole object. Destructors are too
     // late for that: a thread calling in during destruction reads a plugin that
     // is half gone.
     for (auto& a : mPlugins) {
-        a->shutdown();
+        if (!busy.count(a)) {
+            a->shutdown();
+        }
     }
     while (!mPlugins.empty()) {
-        delete mPlugins.back();
+        if (!busy.count(mPlugins.back())) {
+            delete mPlugins.back();
+        }
         mPlugins.pop_back();
     }
     mPluginDirNames.clear();
@@ -549,8 +577,10 @@ void PluginManager::Cleanup() {
     // destructor dispatch doesn't hit unmapped memory. The call is idempotent
     // (guarded by an atomic flag), so the subsequent call in main() is a no-op.
     CommandManager::INSTANCE.Cleanup();
-    for (auto& a : mShlibHandles) {
-        dlclose(a);
+    if (busy.empty()) {
+        for (auto& a : mShlibHandles) {
+            dlclose(a);
+        }
     }
     mShlibHandles.clear();
 }
