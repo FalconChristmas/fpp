@@ -310,17 +310,20 @@ void LEDPanel::drawTestPattern(unsigned char* channelData, int cycleNum, float p
                 }
             }
 
-            channelData[pixelMap[yw1 + x * 3]] = r;
-            channelData[pixelMap[yw1 + x * 3 + 1]] = g;
-            channelData[pixelMap[yw1 + x * 3 + 2]] = b;
-
-            channelData[pixelMap[yw2 + x * 3]] = r2;
-            channelData[pixelMap[yw2 + x * 3 + 1]] = g2;
-            channelData[pixelMap[yw2 + x * 3 + 2]] = b2;
+            setPixel(channelData, yw1 + x * 3, r, g, b);
+            setPixel(channelData, yw2 + x * 3, r2, g2, b2);
         }
     }
     drawNumber(output + 1, width / 2 + 1, height > 16 ? 2 : 1, channelData);
     drawNumber(chain + 1, width / 2 + 8, height > 16 ? 2 : 1, channelData);
+}
+
+// Write r,g,b to the pixel's own channels so the output applies the color order
+void LEDPanel::setPixel(unsigned char* channelData, int idx, int r, int g, int b) {
+    int base = std::min(pixelMap[idx], std::min(pixelMap[idx + 1], pixelMap[idx + 2]));
+    channelData[base] = r;
+    channelData[base + 1] = g;
+    channelData[base + 2] = b;
 }
 
 void LEDPanel::drawFadePattern(unsigned char* channelData, float percentOfCycle, int testType) {
@@ -345,9 +348,7 @@ void LEDPanel::drawFadePattern(unsigned char* channelData, float percentOfCycle,
     for (int y = 0; y < actualHeight; y++) {
         int yw = y * actualWidth * 3;
         for (int x = 0; x < actualWidth; ++x) {
-            channelData[pixelMap[yw + x * 3]] = r;
-            channelData[pixelMap[yw + x * 3 + 1]] = g;
-            channelData[pixelMap[yw + x * 3 + 2]] = b;
+            setPixel(channelData, yw + x * 3, r, g, b);
         }
     }
 }

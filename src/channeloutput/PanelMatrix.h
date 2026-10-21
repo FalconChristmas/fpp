@@ -38,6 +38,7 @@ public:
 
 private:
     void drawFadePattern(unsigned char* channelData, float percentOfCycle, int testType);
+    void setPixel(unsigned char* channelData, int idx, int r, int g, int b);
     void drawNumber(int v, int x, int y, unsigned char* channelData);
 };
 
