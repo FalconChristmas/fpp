@@ -18,7 +18,12 @@
             PostCommand('Set Port Status', [name, false]);
         }
 
+        // Set once Count Pixels starts a count, so leaving the page stops only
+        // that test and not one started on another page (Channel Outputs).
+        var pixelCountStarted = false;
+
         function CountPixels() {
+            pixelCountStarted = true;
             $.get("api/fppd/ports/pixelCount");
         }
 
@@ -135,6 +140,9 @@
             });
         }
         function StopPixelCount() {
+            if (!pixelCountStarted) {
+                return;
+            }
             // keepalive so the request survives the page going away.  A normal
             // XHR started from an unload handler is cancelled with the rest of
             // the document's requests by some browsers (Firefox) before it is

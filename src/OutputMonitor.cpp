@@ -35,6 +35,7 @@
 #include "log.h"
 #include "settings.h"
 #include "channeloutput/stringtesters/PixelCountStringTester.h"
+#include "channeltester/ChannelTester.h"
 #include "commands/Commands.h"
 #include "sensors/Sensors.h"
 #include "util/GPIOUtils.h"
@@ -1150,7 +1151,8 @@ void OutputMonitor::setSmartReceiverInfo(int port, int index, bool enabled, bool
  */
 
 /**
- * Stop any running port test, then return current port status.
+ * Stop a running pixel-count test, then return current port status.
+ * Any other test is left running.
  *
  * @route GET /api/fppd/ports/stop
  * @response 200 Array of port status objects.
@@ -1194,9 +1196,16 @@ HttpResponsePtr OutputMonitor::render_GET(const HttpRequestPtr& req) {
             CommandManager::INSTANCE.run("Test Start", args);
         }
         if (plen > 2 && parts[2] == "stop") {
-            std::vector<std::string> args;
-            LogDebug(VB_COMMAND, "GET /api/fppd/ports/stop from %s stopping Test Mode\n", getEffectiveClientIP(req).c_str());
-            CommandManager::INSTANCE.run("Test Stop", args);
+            // Only the pixel count the "pixelCount" route starts.  The Port
+            // Status page calls this as it is left, and any other test running
+            // then was started elsewhere (Channel Outputs, the Display Testing
+            // page) and is not the page's to end.
+            Json::Value test = ChannelTester::INSTANCE.GetStatusJson();
+            if (test.isObject() && test.get("mode", "").asString() == "Outputs" && test.get("type", 0).asInt() == 999) {
+                std::vector<std::string> args;
+                LogDebug(VB_COMMAND, "GET /api/fppd/ports/stop from %s stopping Test Mode\n", getEffectiveClientIP(req).c_str());
+                CommandManager::INSTANCE.run("Test Stop", args);
+            }
         }
         Sensors::INSTANCE.updateSensorSources();
         Json::Value result = Json::arrayValue;
