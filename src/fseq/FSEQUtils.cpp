@@ -405,6 +405,9 @@ int main(int argc, char* argv[]) {
                 for (auto& m : mergeFseqs) {
                     if (m.srcFile) {
                         FSEQFile::FrameData* fdata = m.srcFile->getFrame(x);
+                        if (!fdata) {
+                            continue; // past the end of a shorter merge file
+                        }
                         fdata->readFrame(mergedata, CHANNEL_SPACE);
                         delete fdata;
                         for (auto& r : m.ranges) {
