@@ -357,7 +357,8 @@ int FPPStatusOLEDPage::outputTopPart(int startY, int count) {
             }
         }
     } else {
-        if (count < 60) {
+        // fppd answering means boot is done; past that, no address is "No Network"
+        if (count < 60 && !_fppdSeen) {
             printString(0, startY, "FPP Booting...");
         } else {
             printString(0, startY, "No Network");
@@ -487,6 +488,7 @@ bool FPPStatusOLEDPage::doIteration(bool& displayOn) {
     Json::Value result;
     bool statusValid = getCurrentStatus(result);
     if (statusValid) {
+        _fppdSeen = true;
         if (!displayOn || _lastStatusLines.empty()) {
             displayOn = checkIfStatusChanged(result);
             if (displayOn) {

@@ -54,6 +54,7 @@ private:
     std::vector<int> signalStrength;
 
     int _iterationCount;
+    bool _fppdSeen = false;
     std::string _currentTest;
     int _testSpeed;
     bool _multisyncTest = false;
