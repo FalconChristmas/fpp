@@ -417,24 +417,28 @@
         }
 
         function ipLink(ip) {
+            // Escaped: besides fppd's own list, this also renders the addresses a
+            // remote reports for itself (advancedView.IPs).
+            var e = msEscape(ip);
             if (fppConfig.hideExternalURLs) {
-                return ip;
+                return e;
             }
-            return "<a target='host_" + ip + "' href='" + wrapUrlWithProxy(ip, "/") + "' data-ip='" + ip + "'>" + ip + "</a>";
+            return "<a target='host_" + e + "' href='" + msEscape(wrapUrlWithProxy(ip, "/")) + "' data-ip='" + e + "'>" + e + "</a>";
         }
 
         // Build the wifi signal-strength icon span from an interface's wifi object.
         function buildWifiIconHtml(w) {
+            // Every field comes from the remote's status, so all of it is escaped.
             var h = ['<span title="'];
             if (w.pct) {
-                h.push(w.pct + '%');
+                h.push(msEscape(w.pct) + '%');
                 if (w.unit == 'dBm') {
-                    h.push(' ' + w.level + 'dBm');
+                    h.push(' ' + msEscape(w.level) + 'dBm');
                 }
             } else {
-                h.push(w.level + w.unit);
+                h.push(msEscape(w.level) + msEscape(w.unit));
             }
-            h.push('" class="wifi-icon wifi-', w.desc, '"></span>');
+            h.push('" class="wifi-icon wifi-', msEscape(w.desc), '"></span>');
             return h.join('');
         }
 
@@ -1748,7 +1752,7 @@
                                     elapsed = data.time_elapsed;
                             }
                         } else {
-                            status = data.status_name;
+                            status = msEscape(data.status_name);
                         }
                         if (data.status_name != 'unreachable') {
                             unavailables[ip] = 0;
@@ -1836,7 +1840,8 @@
 
                         if (item._dataIp !== ip) item._dataIp = ip;
 
-                        item.elapsed = elapsed;
+                        // time_elapsed is the remote's own string; nothing above escapes it.
+                        item.elapsed = msEscape(elapsed);
 
                         if (data.warnings != null && data.warnings.length > 0) {
                             $('#' + rowID + '_warnings').removeAttr('style');
@@ -2020,7 +2025,11 @@
                                         var uf = formatUptime(uptimeSec);
                                         u += "<tr><td><small class='text-muted'>UP:</small></td><td>";
                                         u += '<span title="since ' + uf.since + '">' + uf.short + '</span>';
-                                        u += ' <span data-bs-html="true" title="<span class=\'tooltipSpan\'>' + diskHtml + '<br><b>Since:</b> ' + uf.since + '</span>">...</span>';
+                                        // An HTML tooltip whose markup rides in title="...": the
+                                        // browser decodes one level when it parses the attribute,
+                                        // so the finished markup is escaped once more (diskHtml
+                                        // holds the remote's own disk names, escaped as content).
+                                        u += ' <span data-bs-html="true" title="' + msEscape("<span class='tooltipSpan'>" + diskHtml + '<br><b>Since:</b> ' + uf.since + '</span>') + '">...</span>';
                                         u += "</td></tr>";
                                     }
                                 }
@@ -2037,6 +2046,7 @@
                                 var changed = false;
                                 var extra = item._extraIpHtml || '';
                                 data.advancedView.IPs.forEach(function(avIp) {
+                                    if (typeof avIp !== 'string') return;
                                     // Skip addresses not reachable from the browser: IPv4 APIPA
                                     // (169.254/16, no DHCP lease), IPv6 link-local (fe80::/10, the
                                     // zone id is host-specific), and loopback (127.x / ::1).
@@ -2878,9 +2888,9 @@
                         if (!item) return;
 
                         var u = "<table class='multiSyncVerboseTable'>";
-                        u += "<tr><td>Uptime:</td><td>" + data['u'] + "</td></tr>";
-                        u += "<tr><td>V1 Voltage:</td><td> " + data['v1'] + "</td></tr>";
-                        u += "<tr><td>V2 Voltage:</td><td> " + data['v2'] + "</td></tr>";
+                        u += "<tr><td>Uptime:</td><td>" + msEscape(data['u']) + "</td></tr>";
+                        u += "<tr><td>V1 Voltage:</td><td> " + msEscape(data['v1']) + "</td></tr>";
+                        u += "<tr><td>V2 Voltage:</td><td> " + msEscape(data['v2']) + "</td></tr>";
                         u += "</table>";
 
                         item.utilization = u;
@@ -2931,7 +2941,7 @@
                         if (!item) return;
 
                         item.utilization = u;
-                        item.status = s.status_name;
+                        item.status = (s.status_name == null) ? s.status_name : msEscape(s.status_name);
 
                         if (testmode == true || overtemp == true) {
                             $('#' + rowId + '_warnings').removeAttr('style');
