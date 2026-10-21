@@ -241,6 +241,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
         // Store all pending setting changes
         var pendingSettings = {};
 
+        // All settings on this page, none of which is saved before Finish.  The
+        // controls' own onChange handlers (from PrintSetting) save at once, and
+        // $(document).ready replaces them with ones that only track the change --
+        // so until the page has loaded, a change still reaches SetSetting.  A
+        // Location lookup answered while the page was still arriving did exactly
+        // that, and saved the time zone, locale and position on the spot.
+        var settingsToOverride = [
+            'passwordEnable', 'password', 'passwordVerify',
+            'osPasswordEnable', 'osPassword', 'osPasswordVerify',
+            'fppMode', 'HostName', 'HostDescription', 'InstalledCape', 'uiLevel',
+            'Locale', 'TimeZone', 'Latitude', 'Longitude', 'WifiRegulatoryDomain', 'LegalJurisdiction'
+        ];
+        var setupSaveSetting = SetSetting;
+        SetSetting = function (key, value) {
+            if (settingsToOverride.indexOf(key) === -1) {
+                return setupSaveSetting.apply(this, arguments);
+            }
+            pendingSettings[key] = value;
+            settings[key] = value;
+            if (typeof window['Update' + key + 'Children'] === 'function') {
+                window['Update' + key + 'Children'](0);
+            }
+        };
+
         // Generic function to track setting changes without saving
         function trackSettingChange(settingName) {
             var value = $('#' + settingName.replace(/\./g, '\\.')).val();
@@ -508,7 +532,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
         //
         // Nothing here persists anything.  The page already routes every
         // tracked control's onChange into pendingSettings instead of saving
-        // (see the settingsToOverride block below), so steps are pure
+        // (see settingsToOverride and the SetSetting hold above), so steps are pure
         // show/hide and Back costs nothing.  Only finishSetup() writes.
         // ---------------------------------------------------------------
         // Every setting this page puts in front of the user, from the same groups
@@ -1392,13 +1416,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             });
 
             // Override all auto-generated onChange handlers to track changes instead of saving immediately
-            // List of all settings on this page
-            var settingsToOverride = [
-                'passwordEnable', 'password', 'passwordVerify',
-                'osPasswordEnable', 'osPassword', 'osPasswordVerify',
-                'fppMode', 'HostName', 'HostDescription', 'InstalledCape', 'uiLevel',
-                'Locale', 'TimeZone', 'Latitude', 'Longitude', 'WifiRegulatoryDomain', 'LegalJurisdiction'
-            ];
+            // (settingsToOverride, above, lists the settings on this page)
 
             // Replace onChange handlers for each setting
             $.each(settingsToOverride, function (index, settingName) {
