@@ -19,6 +19,7 @@ fppFileCopy.config = {
     popupCloseBtnId: 'copyPopup_ModalCloseButton',
     copyPopupBodyId: 'copyPopup',
     onDevicesLoaded: null,
+    onRemoteStorageLoaded: null,
     onCopyDone: null,
     hostChangeFunction: null,
     usbChangeFunction: null
@@ -202,6 +203,7 @@ fppFileCopy.getRemoteHostUSBStorage = function () {
     if (!host) return;
     var requestUrl = 'api/backups/devices?ip=' + encodeURIComponent(host);
     var defaultOption = "<option value='none' selected>Default FPP Storage</option>";
+    $(fppFileCopy.config.remoteStorage).parent().find('.remoteStorageWarning').remove();
     $(fppFileCopy.config.remoteStorage).parent().closest('td').addClass('fpp-backup-action-loading');
     $.get(requestUrl).done(function (data) {
         var options = '';
@@ -218,7 +220,12 @@ fppFileCopy.getRemoteHostUSBStorage = function () {
         }
         $(fppFileCopy.config.remoteStorage).html(defaultOption + options);
         $(fppFileCopy.config.remoteStorage).parent().closest('td').removeClass('fpp-backup-action-loading');
-        fppFileCopy.getBackupHostBackupDirs($(fppFileCopy.config.remoteStorage).val());
+        // A page that remembers the chosen storage selects it again first (or
+        // says it's gone), and then lists the folders on it itself.
+        if (fppFileCopy.config.onRemoteStorageLoaded)
+            fppFileCopy.config.onRemoteStorageLoaded(data);
+        else
+            fppFileCopy.getBackupHostBackupDirs($(fppFileCopy.config.remoteStorage).val());
     }).fail(function () {
         $(fppFileCopy.config.remoteStorage).html(defaultOption);
         $(fppFileCopy.config.remoteStorage).parent().closest('td').removeClass('fpp-backup-action-loading');

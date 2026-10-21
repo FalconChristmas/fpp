@@ -3262,48 +3262,38 @@ if ($skipHTMLCodeOutput === false) {
                 });
             }
 
-            //Get the current setting for the remote hosts remote backup storage device (where the file copy will go to)
+            //Select the remote storage device saved for the File Copy again once the host's devices are loaded.
             function GetBackupRemoteStorageDevice() {
-                //Add a the loading spinner to show something is happening
-                $('#backup\\.RemoteStorage').parent().closest('div').addClass('fpp-backup-action-loading');
+                var storageSelect = $('#backup\\.RemoteStorage');
+                var shown = storageSelect.val();
+                storageSelect.parent().find('.remoteStorageWarning').remove();
 
                 $.ajax({
                     url: 'api/settings/backup.RemoteStorage',
                     type: 'GET',
                     success: function (data) {
-                        if (data.value !== "" && data.value !== 'undefined' && typeof (data.value) !== "undefined") {
-                            //Check if the chosen USB device/location exists in the dropdown list
-                            //The USB device dropdown list only lists devices which are available for use, so if the chosen device is not in the list
-                            //it's likely unavailable or still mounted (as such not available for use)
-                            var remote_storage_ddl_selector = $('#backup\\.RemoteStorage option[value="' + data.value + '"]');
-                            if (remote_storage_ddl_selector.length) {
-                                //Change the JSON Config backup location to the one set by the user if a valid value is set
-                                remote_storage_ddl_selector.attr('selected', true);
+                        var saved = (typeof (data.value) === 'string') ? data.value : '';
+                        //A device the user picked while this was loading wins (and is already saved)
+                        if (saved !== '' && storageSelect.val() === shown) {
+                            //The list only has devices the host can use, so a missing one is unplugged or mounted elsewhere
+                            if (storageSelect.find('option').filter(function () { return this.value === saved; }).length) {
+                                storageSelect.val(saved);
                             } else {
                                 var host = document.getElementById("backup.Host").value;
-                                $('#backup\\.RemoteStorage').parent().append("<span> <b>Warning:</b> " + data.value + " is not available. Check device is attached to host and that is not currently mounted. Check <a href='http://" + host + "/settings.php#settings-storage' target='_blank'>" + host + " - Mounted USB Devices</a></span>");
-                            }
-                            //
-                            $('#backup\\.RemoteStorage').parent().closest('div').removeClass('fpp-backup-action-loading');
-
-                            //Get the backup directories avaiable on the selected storage device if were restoring from remote,
-                            if (document.getElementById("backup.Direction").value == 'FROMREMOTE') {
-                                //If no Remote Storage device is selected don't pass anything to this function telling it to look at another device
-                                //so we just get what is on the default FPP storage device
-                                var selectedStorage = encodeURIComponent($('#backup\\.RemoteStorage').val());
-
-                                GetBackupHostBackupDirs(selectedStorage);
+                                storageSelect.parent().append("<span class='remoteStorageWarning'> <b>Warning:</b> " + EscapeHtml(saved) + " is not available. Check device is attached to host and that is not currently mounted. Check <a href='http://" + EscapeHtmlAttr(host) + "/settings.php#settings-storage' target='_blank'>" + EscapeHtml(host) + " - Mounted USB Devices</a></span>");
                             }
                         }
                     },
-                    error: function (data) {
-                        //do nothing
+                    error: function () {
                         DialogError('Remote Host Backup Storage Location', 'Failed to read remote storage location.');
-
-                        $('#backup\\.RemoteStorage').parent().closest('div').removeClass('fpp-backup-action-loading');
                     }
+                }).always(function () {
+                    //List the folders on whatever ended up selected (only done for a copy from the remote)
+                    GetBackupHostBackupDirs(storageSelect.val());
                 });
             }
+
+            fppFileCopy.config.onRemoteStorageLoaded = GetBackupRemoteStorageDevice;
 
 
 
