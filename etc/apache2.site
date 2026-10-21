@@ -71,6 +71,23 @@ ServerTokens Prod
 	RewriteCond %{REQUEST_URI} ^/(changebranch|copystorage|disableKiosk|flash-storage|formatstorage|gitCheckoutVersion|growsd|installKiosk|manualUpdate|newpartitionsd|packagesHelper|rebootRemoteFPP|rebuildfpp|resetConfig|restartRemoteFPPD|run_mp3gain|runEventScript|shutdownRemoteFPP|upgradeCapeFirmware|upgradefpp|upgradeOS)\.php$ [NC]
 	RewriteRule ^ - [F]
 
+	# A plugin's own assets: /js/plugin/<plugin>/<file>, and the same under
+	# /css/plugin/ and /images/plugin/, are handed to plugin.php, which serves
+	# the file from the plugin's directory.  There are no such directories
+	# under www/, and must not need to be: a <Directory> section only applies
+	# to a directory that exists, so rules kept in one never ran for a path
+	# that is only a URL, and every plugin script and stylesheet 404d.
+	#
+	# Split on the FIRST slash after the plugin name: the plugin name is one
+	# path component and everything after it is the file, which may sit in a
+	# subdirectory (images/foo.png).  A greedy split handed plugin.php a
+	# plugin of "myplugin/images", and its name allow-list rejects the slash.
+	# PT, so the rewritten /plugin.php is mapped (and password-protected) like
+	# any other page.
+	RewriteRule ^/(js|css|images)/plugin/([^/]+)/(.+)$ /plugin.php?plugin=$2&file=$3&nopage=1 [NC,QSA,B,PT,L,E=FPP_PLUGIN_ASSET:1]
+	Header always set Access-Control-Allow-Origin "*" env=FPP_PLUGIN_ASSET
+	Header always set Access-Control-Allow-Methods "GET,POST,OPTIONS,DELETE,PUT" env=FPP_PLUGIN_ASSET
+
 	DocumentRoot /opt/fpp/www
 
 	<Directory />
@@ -221,25 +238,6 @@ ProxyPassReverse /api/http-virtual-display/ http://localhost:32328/
 ProxyPass /fppdws ws://localhost:32322/fppdws
 ProxyPassReverse /fppdws ws://localhost:32322/fppdws
 
-<Directory "/opt/fpp/www/js/plugin">
-    Options FollowSymLinks
-    AllowOverride None
-
-    # Enable rewriting
-    RewriteEngine On
-
-    # Split on the FIRST slash only: the plugin name is one path component and
-    # everything after it is the file, which may sit in a subdirectory
-    # (images/foo.png). A greedy '^(.*)/(.*)$' handed plugin.php a plugin of
-    # "myplugin/images", and its name allow-list rejects the slash, so every
-    # nested plugin asset 404d.
-    RewriteRule ^([^/]+)/(.+)$ /plugin.php?plugin=$1&file=$2&nopage=1 [NC,L,QSA,B]
-
-    # CORS headers
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET,POST,OPTIONS,DELETE,PUT"
-</Directory>
-
 # The media directory's virtualdisplay_assets is linked into the web root and
 # is writable through the file API (/api/file/virtualdisplay_assets/...), so a
 # PHP file put there would run as the web server: assets only, no scripts.
@@ -271,48 +269,6 @@ ProxyPassReverse /fppdws ws://localhost:32322/fppdws
       Require local
       Require expr "%{HTTP:X-FPP-Proxied} == ''"
     </RequireAll>
-</Directory>
-
-<Directory "/opt/fpp/www/css/plugin">
-    Options FollowSymLinks
-    AllowOverride None
-
-    # Enable mod_rewrite
-    RewriteEngine On
-
-    # Split on the FIRST slash only: the plugin name is one path component and
-    # everything after it is the file, which may sit in a subdirectory
-    # (images/foo.png). A greedy '^(.*)/(.*)$' handed plugin.php a plugin of
-    # "myplugin/images", and its name allow-list rejects the slash, so every
-    # nested plugin asset 404d.
-    RewriteRule ^([^/]+)/(.+)$ /plugin.php?plugin=$1&file=$2&nopage=1 [NC,L,QSA,B]
-
-    # CORS headers
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET,POST,OPTIONS,DELETE,PUT"
-</Directory>
-
-# This directory must exist or none of the below applies: Apache only merges a
-# <Directory> section for a directory that is actually there, so a missing one
-# means the rewrite never runs and every plugin image 404s silently. It holds no
-# files - see www/images/plugin/.gitkeep, which exists to keep it in the tree.
-<Directory "/opt/fpp/www/images/plugin">
-    Options FollowSymLinks
-    AllowOverride None
-
-    # Enable mod_rewrite
-    RewriteEngine On
-
-    # Split on the FIRST slash only: the plugin name is one path component and
-    # everything after it is the file, which may sit in a subdirectory
-    # (images/foo.png). A greedy '^(.*)/(.*)$' handed plugin.php a plugin of
-    # "myplugin/images", and its name allow-list rejects the slash, so every
-    # nested plugin asset 404d.
-    RewriteRule ^([^/]+)/(.+)$ /plugin.php?plugin=$1&file=$2&nopage=1 [NC,L,QSA,B]
-
-    # CORS headers
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET,POST,OPTIONS,DELETE,PUT"
 </Directory>
 
 
