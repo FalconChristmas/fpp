@@ -185,7 +185,9 @@ std::unique_ptr<Command::Result> RunScriptEvent::run(const std::vector<std::stri
         }
     }
 
-    RunScript(script, scriptArgs, envVars);
+    if (RunScript(script, scriptArgs, envVars) < 1) {
+        return std::make_unique<Command::ErrorResult>("Script Not Started");
+    }
     return std::make_unique<Command::Result>("Script Started");
 }
 
