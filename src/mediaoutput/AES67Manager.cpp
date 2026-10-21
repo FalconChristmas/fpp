@@ -3077,6 +3077,18 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
     // and setting it from a probe on the first buffer was measured to do
     // nothing at all.
     //
+    // That makes it provisional.  It is taken when the pipeline is built, and
+    // the first audio reaches the sink whenever the graph first feeds this node
+    // -- 100 ms later on a Pi, a second or more when a group links it late.
+    // Every packet then carries an RTP time that much earlier than it should,
+    // and the servo below could only ever answer that by moving transmission
+    // earlier, past the point where the audio has arrived at all: from then on
+    // udpsink sent each buffer the moment it arrived, a quantum at a time, and
+    // the lead it measured (its own projection) still read +3 ms while the
+    // wire was tens of ms late.  So the servo's probe re-anchors the timeline
+    // on the first packet that actually reaches the sink, by shifting the RTP
+    // timestamp it carries -- and every one after it by the same amount.
+    //
     // On its own that anchor does not hold.  Every source discontinuity makes
     // the drift loop re-anchor its PTS timeline to absorb the gap ("-231 ms gap
     // absorbed"), while the RTP sample counter does not move with it, so the
@@ -3122,6 +3134,9 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
             int instanceId;
             bool logged;
             gint64 latency;   // sink render delay; -1 until queried
+            gint64 anchorNs;  // RTP time ahead of PTP at the first packet
+            bool anchored;    // rtpShift taken from the first packet
+            guint32 rtpShift; // added to every RTP timestamp from then on
         };
         GstElement* sinkEl = gst_bin_get_by_name(GST_BIN(pipeline), "usink");
         GstPad* sinkPad = sinkEl ? gst_element_get_static_pad(sinkEl, "sink") : nullptr;
@@ -3129,7 +3144,9 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
             auto* sv = new LeadServo{ GST_CLOCK(gst_object_ref(ptpClock)),
                                       gst_pipeline_get_pipeline_clock(GST_PIPELINE(pipeline)),
                                       (gint64)m_config.targetLeadMs * GST_MSECOND,
-                                      0, inst.id, false, -1 };
+                                      0, inst.id, false, -1,
+                                      (gint64)m_config.sinkPacingMs * GST_MSECOND,
+                                      false, 0 };
             gst_pad_add_probe(
                 sinkPad, GST_PAD_PROBE_TYPE_BUFFER,
                 [](GstPad* pad, GstPadProbeInfo* info, gpointer user) -> GstPadProbeReturn {
@@ -3140,9 +3157,46 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                         return GST_PAD_PROBE_OK;
                     }
                     GstBuffer* b = GST_PAD_PROBE_INFO_BUFFER(info);
+                    if (!b) {
+                        return GST_PAD_PROBE_OK;
+                    }
+                    // Anchor the RTP timeline where the build-time anchor would
+                    // have put it had the first audio arrived at once -- see
+                    // above.  The payloader counts samples from there, so one
+                    // fixed shift keeps every later timestamp contiguous.
+                    if (!v->anchored || v->rtpShift != 0) {
+                        b = gst_buffer_make_writable(b);
+                        GST_PAD_PROBE_INFO_DATA(info) = b;
+                        GstMapInfo wm;
+                        if (gst_buffer_map(b, &wm, GST_MAP_READWRITE)) {
+                            if (wm.size >= 12) {
+                                guint32 ts = ((guint32)wm.data[4] << 24) |
+                                             ((guint32)wm.data[5] << 16) |
+                                             ((guint32)wm.data[6] << 8) | wm.data[7];
+                                if (!v->anchored) {
+                                    v->anchored = true;
+                                    const guint32 want = (guint32)gst_util_uint64_scale(
+                                        gst_clock_get_time(v->ptp) + (GstClockTime)v->anchorNs,
+                                        AES67::AUDIO_RATE, GST_SECOND);
+                                    v->rtpShift = want - ts;
+                                    LogInfo(VB_MEDIAOUT,
+                                            "AES67 send [%d]: RTP timeline re-anchored at the "
+                                            "first packet (%+.1f ms from the build-time anchor)\n",
+                                            v->instanceId,
+                                            (double)(gint32)v->rtpShift * 1000.0 / AES67::AUDIO_RATE);
+                                }
+                                ts += v->rtpShift;
+                                wm.data[4] = (guint8)(ts >> 24);
+                                wm.data[5] = (guint8)(ts >> 16);
+                                wm.data[6] = (guint8)(ts >> 8);
+                                wm.data[7] = (guint8)ts;
+                            }
+                            gst_buffer_unmap(b, &wm);
+                        }
+                    }
                     // ~1Hz at any ptime; the correction is tens of microseconds
                     // and does not need to be finer.
-                    if (!b || (++v->tick % 250) != 0 || !GST_BUFFER_PTS_IS_VALID(b)) {
+                    if ((++v->tick % 250) != 0 || !GST_BUFFER_PTS_IS_VALID(b)) {
                         return GST_PAD_PROBE_OK;
                     }
                     GstMapInfo m;
@@ -3184,9 +3238,13 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                     const GstClockTime ptpNow = gst_clock_get_time(v->ptp);
                     // When the sink will put this packet on the wire, expressed
                     // in PTP time so it is comparable with the RTP timestamp.
+                    // A buffer whose render time has already passed is sent as it
+                    // arrives, now, so that is when it goes out.
                     const gint64 txPipe = (gint64)GST_BUFFER_PTS(b) + (gint64)baseT +
                                           v->latency + tsOff;
-                    const gint64 txPtp = (gint64)ptpNow + (txPipe - (gint64)pipeNow);
+                    const bool late = txPipe < (gint64)pipeNow;
+                    const gint64 txPtp = (gint64)ptpNow +
+                                         (late ? 0 : txPipe - (gint64)pipeNow);
                     if (txPtp <= 0) {
                         return GST_PAD_PROBE_OK;
                     }
@@ -3221,6 +3279,11 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                         if (corr > kSlew) corr = kSlew;
                         if (corr < -kSlew) corr = -kSlew;
                     }
+                    // Transmitting earlier cannot help a packet that is already
+                    // late; it only moves every later one into the past too.
+                    if (late && corr < 0) {
+                        corr = 0;
+                    }
                     if (corr != 0) {
                         g_object_set(sink, "ts-offset", tsOff + corr, NULL);
                     }
@@ -3232,14 +3295,15 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                     if ((v->tick % 15000) == 0) {
                         LogInfo(VB_MEDIAOUT,
                                 "AES67 send [%d]: servo lead %+.2f ms err %+.2f "
-                                "corr %+.3f ms ts-offset %+.2f ms%s\n",
+                                "corr %+.3f ms ts-offset %+.2f ms%s%s\n",
                                 v->instanceId,
                                 (double)leadNs / GST_MSECOND,
                                 (double)err / GST_MSECOND,
                                 (double)corr / GST_MSECOND,
                                 (double)(tsOff + corr) / GST_MSECOND,
                                 (err > kStepThreshold || err < -kStepThreshold)
-                                    ? " STEP" : "");
+                                    ? " STEP" : "",
+                                late ? " LATE" : "");
                     }
                     if (!v->logged) {
                         v->logged = true;
