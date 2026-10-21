@@ -399,7 +399,11 @@ function SetGPIOFanProperties()
         $pfx = "#";
     }
     $contents = file_get_contents($configFile);
-    if (strpos($contents, "dtoverlay=gpio-fan") === false) {
+    // Ours is a line-anchored "dtoverlay=gpio-fan", commented out or not: the
+    // only kind the sed rewrite below (and the removal above) can touch.  Any
+    // other mention -- an indented copy, a comment -- used to count too, and
+    // then no line was written at all.
+    if (!preg_match('/^#?dtoverlay=gpio-fan/m', $contents)) {
         $contents = $contents . "\n";
         exec("echo \"\" | sudo tee -a " . GetDirSetting('boot') . "/config.txt");
         exec("echo \"[all]\" | sudo tee -a " . GetDirSetting('boot') . "/config.txt");
