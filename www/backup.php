@@ -1051,20 +1051,25 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
 
                 //COMMAND PRESET RESTORE
                 if ($restore_areas_idx == "commandPresets") {
-                    $settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = true;
+                    //Get the restore data out of the array.  A backup that carries no
+                    //presets -- made on a player that had none, where the section is
+                    //[null], or by hand without it -- has nothing to restore here:
+                    //json_encode() of its absence wrote "null" over this player's
+                    //presets.  As with the proxies, ATTEMPT only when there is data.
+                    $restore_data = isset($restore_area_data['commandPresets'][0]) ? $restore_area_data['commandPresets'][0] : null;
+                    if (is_array($restore_data)) {
+                        $settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = true;
 
-                    //Get the restore data out of the array
-                    $restore_data = $restore_area_data['commandPresets'][0];
+                        //Generate the filepath for the config file to be restored
+                        $commandPresets_filepath = $settings['configDirectory'] . "/commandPresets.json";
 
-                    //Generate the filepath for the config file to be restored
-                    $commandPresets_filepath = $settings['configDirectory'] . "/commandPresets.json";
-
-                    //PrettyPrint the JSON data and save it
-                    $commandPresets_data_restore = prettyPrintJSON(json_encode($restore_data));
-                    if (file_put_contents($commandPresets_filepath, $commandPresets_data_restore) === false) {
-                        $save_result = false;
-                    } else {
-                        $save_result = true;
+                        //PrettyPrint the JSON data and save it
+                        $commandPresets_data_restore = prettyPrintJSON(json_encode($restore_data));
+                        if (file_put_contents($commandPresets_filepath, $commandPresets_data_restore) === false) {
+                            $save_result = false;
+                        } else {
+                            $save_result = true;
+                        }
                     }
                 }
 
@@ -1177,7 +1182,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
                 //TIMEZONE RESTORATION
                 if ($restore_areas_idx == "timezone") {
                     //get data out of nested array
-                    $restore_data = $restore_area_data['timezone'][0];
+                    $restore_data = isset($restore_area_data['timezone'][0]) ? $restore_area_data['timezone'][0] : null;
 
                     //Make sure we have an array, there will be 2 indexes, 0 the timezone and 1 a linebreak
                     if (is_array($restore_data) || !is_null($restore_data)) {
