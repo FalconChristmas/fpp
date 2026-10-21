@@ -2576,8 +2576,8 @@ void MultiSync::SendSeqOpenPacket(const std::string& filename) {
     for (auto a : getPluginsCopy()) {
         a->SendSeqOpenPacket(filename);
     }
-    m_lastFrame = -1;
-    m_lastFrameSent = -1;
+    __atomic_store_n(&m_lastFrame, -1, __ATOMIC_RELAXED);
+    __atomic_store_n(&m_lastFrameSent, -1, __ATOMIC_RELAXED);
 
     char outBuf[2048];
     bzero(outBuf, sizeof(outBuf));
@@ -2617,8 +2617,8 @@ void MultiSync::SendSeqSyncStartPacket(const std::string& filename) {
     for (auto a : getPluginsCopy()) {
         a->SendSeqSyncStartPacket(filename);
     }
-    m_lastFrame = -1;
-    m_lastFrameSent = -1;
+    __atomic_store_n(&m_lastFrame, -1, __ATOMIC_RELAXED);
+    __atomic_store_n(&m_lastFrameSent, -1, __ATOMIC_RELAXED);
 
     char outBuf[2048];
     bzero(outBuf, sizeof(outBuf));
@@ -2680,8 +2680,8 @@ void MultiSync::SendSeqSyncStopPacket(const std::string& filename) {
 
     SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + filename.length());
 
-    m_lastFrame = -1;
-    m_lastFrameSent = -1;
+    __atomic_store_n(&m_lastFrame, -1, __ATOMIC_RELAXED);
+    __atomic_store_n(&m_lastFrameSent, -1, __ATOMIC_RELAXED);
 }
 
 /*
@@ -2702,8 +2702,12 @@ void MultiSync::SendSeqSyncPacket(const std::string& filename, int frames, float
     for (auto a : getPluginsCopy()) {
         a->SendSeqSyncPacket(filename, frames, seconds);
     }
-    m_lastFrame = frames;
-    int diff = frames - m_lastFrameSent;
+    // The output thread sends these while the sequence's open, start and
+    // stop -- on the playlist's thread -- reset them, so every access is a
+    // relaxed atomic one (the members are plain ints in a plugin-facing
+    // header).
+    __atomic_store_n(&m_lastFrame, frames, __ATOMIC_RELAXED);
+    int diff = frames - __atomic_load_n(&m_lastFrameSent, __ATOMIC_RELAXED);
     if (frames > 32) {
         // after 32 frames, we send every 10
         //  that's either twice a second (50ms sequences) or 4 times (25ms)
@@ -2714,7 +2718,7 @@ void MultiSync::SendSeqSyncPacket(const std::string& filename, int frames, float
         // under 32 frames, we send every 4
         return;
     }
-    m_lastFrameSent = frames;
+    __atomic_store_n(&m_lastFrameSent, frames, __ATOMIC_RELAXED);
 
     LogDebug(VB_SYNC, "SendSeqSyncPacket( '%s', %d, %.2f)\n",
              filename.c_str(), frames, seconds);
