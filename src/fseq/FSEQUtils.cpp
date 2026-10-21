@@ -394,7 +394,7 @@ int main(int argc, char* argv[]) {
             dest->initializeFromFSEQ(*src);
             dest->writeHeader();
 
-            uint8_t* data = (uint8_t*)malloc(CHANNEL_SPACE);
+            uint8_t* data = (uint8_t*)calloc(1, CHANNEL_SPACE);
             uint8_t* mergedata = (uint8_t*)malloc(CHANNEL_SPACE);
             memset(mergedata, 0, CHANNEL_SPACE);
             for (int x = 0; x < src->getNumFrames(); x++) {
