@@ -466,7 +466,12 @@ function env($reset = null)
     if ((isset($_SERVER['CONTENT_TYPE'])) && (strpos($_SERVER['CONTENT_TYPE'], 'application/json') === 0))
     {
       // handle PUT//POST requests which have JSON in request body
-      $GLOBALS[$varname] = json_decode(file_get_contents('php://input'), true);
+      $decoded = json_decode(file_get_contents('php://input'), true);
+      // Always an array, like the request globals everywhere else: a body
+      // that is valid JSON but a scalar ("x", 42, true) left a scalar here,
+      // and request_method() then died on array_key_exists() before any
+      // route ran.  The handlers read the raw body when they want it.
+      $GLOBALS[$varname] = is_array($decoded) ? $decoded : array();
     }
     elseif($method == 'PUT' || $method == 'DELETE')
     {
