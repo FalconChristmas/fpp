@@ -570,6 +570,14 @@ bool OpusRTPManager::CreateSendPipeline(const OpusRTPInstance& inst) {
         gst_object_unref(pwsrc);
     }
 
+    // On the system clock, not pipewiresrc's GstPipeWireClock, which stops
+    // advancing for a follower stream once the graph's real driver takes it
+    // over; pipewiresrc waits on it before every buffer, and the sender went
+    // quiet after its first packets.  Same as RTSPOutputManager's audio bridge.
+    GstClock* sysClock = gst_system_clock_obtain();
+    gst_pipeline_use_clock(GST_PIPELINE(pipeline), sysClock);
+    gst_object_unref(sysClock);
+
     GstBus* bus = gst_pipeline_get_bus(GST_PIPELINE(pipeline));
 
     GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);

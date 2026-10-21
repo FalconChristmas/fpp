@@ -403,6 +403,17 @@ bool RTSPOutputManager::StartAudioBridge(const RTSPOutputMount& mount, bool requ
         gst_object_unref(pwsrc);
     }
 
+    // On the system clock, not the GstPipeWireClock pipewiresrc offers: for
+    // a follower stream that clock stops advancing once the graph's real
+    // driver takes the node over (it reads the stream's time, whose rate is
+    // then 0), and pipewiresrc waits on it before every buffer.  Linked while
+    // it was starting -- an audio group targeting the node links it as soon
+    // as it appears -- the bridge passed a buffer or two and then nothing, so
+    // RTSP clients heard silence.
+    GstClock* sysClock = gst_system_clock_obtain();
+    gst_pipeline_use_clock(GST_PIPELINE(pipeline), sysClock);
+    gst_object_unref(sysClock);
+
     // Started on its own thread.  A pipewiresrc whose node nothing feeds
     // (requireGroupSource off) takes 30 s to fail the state change, and the
     // caller is ApplyConfig() -- fppd's main loop for reloadRTSPOutputs, and
