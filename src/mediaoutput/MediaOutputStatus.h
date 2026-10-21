@@ -12,10 +12,21 @@
  */
 
 #include <atomic>
+#include <mutex>
 #include <string>
 
 class MediaOutputStatus {
 public:
+    // The timing fields are written by whoever owns the output -- the
+    // playlist on the main loop, a command's thread -- and read for status by
+    // the API threads, and a resume or a slot's reset writes them from another
+    // thread again.  Writes and those cross-thread reads hold this.  A leaf:
+    // held only to copy or write fields, never across a call.
+    static std::mutex& FieldsLock() {
+        static std::mutex m;
+        return m;
+    }
+
     // Set from GStreamer's bus thread when media ends or fails, read by the
     // playlist on the main loop.
     std::atomic<int> status{ 0 };

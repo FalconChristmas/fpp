@@ -1128,6 +1128,7 @@ int GStreamerOutput::Start(int msTime) {
         mediaRate = details.sampleRate;
         if (details.lengthMS > 0) {
             int totalSecs = details.lengthMS / 1000;
+            std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
             m_mediaOutputStatus->minutesTotal = totalSecs / 60;
             m_mediaOutputStatus->secondsTotal = totalSecs % 60;
             m_maxDuration = (gint64)details.lengthMS * GST_MSECOND;
@@ -3668,6 +3669,7 @@ int GStreamerOutput::Process(void) {
                 int totalSecs = (int)(effectiveDur / GST_SECOND);
                 int newMin = totalSecs / 60;
                 int newSec = totalSecs % 60;
+                std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
                 if (newMin != m_mediaOutputStatus->minutesTotal ||
                     newSec != m_mediaOutputStatus->secondsTotal) {
                     m_mediaOutputStatus->minutesTotal = newMin;

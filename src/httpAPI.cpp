@@ -254,6 +254,7 @@ void GetCurrentFPPDStatus(Json::Value& result) {
             std::unique_lock<std::mutex> lock(mediaOutputLock);
             if (mediaOutput) {
                 mediaFilename = mediaOutput->m_mediaFilename;
+                std::lock_guard<std::mutex> fl(MediaOutputStatus::FieldsLock());
                 secsElapsed = mediaOutputStatus.secondsElapsed;
                 secsRemaining = mediaOutputStatus.secondsRemaining;
             }

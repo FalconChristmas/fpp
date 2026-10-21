@@ -169,6 +169,7 @@ void StreamSlotManager::ClearSlot(int slot, GStreamerOutput* owner) {
     // numbers behind makes a freshly started stream read as though it were
     // already minutes in until its first Process() lands.  Slot 1 aliases the
     // global mediaOutputStatus, which is not ours to wipe.
+    std::lock_guard<std::mutex> fieldsLock(MediaOutputStatus::FieldsLock());
     if (slot > 1) {
         m_slots[slot - 1].status = {};
     }
@@ -250,6 +251,7 @@ Json::Value StreamSlotManager::GetAllSlotsStatus() {
                                 : (i == 0)                         ? &mediaOutputStatus
                                                                    : &m_slots[i].status;
         if (out) {
+            std::lock_guard<std::mutex> fieldsLock(MediaOutputStatus::FieldsLock());
             slotJson["status"] = "playing";
             slotJson["mediaFilename"] = m_slots[i].mediaFilename;
             slotJson["secondsElapsed"] = st->secondsElapsed;
@@ -340,7 +342,12 @@ void StreamSlotManager::SyncSlotsToMaster(float masterPos) {
         // flush seek, which moves the position enough to feed the next
         // correction -- measured 0.9-2.5s oscillating, never converging, on
         // streams that were exactly locked before the "sync" was applied.
-        float drift = m_slots[i].status.mediaSeconds - masterPos;
+        float slotPos;
+        {
+            std::lock_guard<std::mutex> fieldsLock(MediaOutputStatus::FieldsLock());
+            slotPos = m_slots[i].status.mediaSeconds;
+        }
+        float drift = slotPos - masterPos;
         if (drift > -MAX_DRIFT_SEC && drift < MAX_DRIFT_SEC)
             continue;
         LogInfo(VB_MEDIAOUT, "StreamSlotManager: slot %d drifted %0.3fs from the primary, seeking to %0.3f\n",

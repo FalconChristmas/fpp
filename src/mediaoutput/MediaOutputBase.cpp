@@ -88,27 +88,27 @@ int MediaOutputBase::IsPlaying(void) {
 }
 
 void MediaOutputBase::setMediaElapsed(float curtime, float remaining) {
-    m_mediaOutputStatus->mediaSeconds = curtime;
+    float secs = curtime;
     float rem = remaining;
     if (mediaOffset > 0) {
-        m_mediaOutputStatus->mediaSeconds -= mediaOffset;
+        secs -= mediaOffset;
     } else {
         rem -= mediaOffset;
     }
-    if (m_mediaOutputStatus->mediaSeconds < 0.0) {
-        m_mediaOutputStatus->mediaSeconds = 0.0;
+    if (secs < 0.0) {
+        secs = 0.0;
     }
     if (rem < 0.0) {
         rem = 0.0;
     }
-    float ss, s;
-    ss = std::modf(m_mediaOutputStatus->mediaSeconds, &s);
-    m_mediaOutputStatus->secondsElapsed = s;
-    ss *= 100;
-    m_mediaOutputStatus->subSecondsElapsed = ss;
+    float elapsed, elapsedSub, remain, remainSub;
+    elapsedSub = std::modf(secs, &elapsed) * 100;
+    remainSub = std::modf(rem, &remain) * 100;
 
-    ss = std::modf(rem, &s);
-    m_mediaOutputStatus->secondsRemaining = s;
-    ss *= 100;
-    m_mediaOutputStatus->subSecondsRemaining = ss;
+    std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
+    m_mediaOutputStatus->mediaSeconds = secs;
+    m_mediaOutputStatus->secondsElapsed = elapsed;
+    m_mediaOutputStatus->subSecondsElapsed = elapsedSub;
+    m_mediaOutputStatus->secondsRemaining = remain;
+    m_mediaOutputStatus->subSecondsRemaining = remainSub;
 }

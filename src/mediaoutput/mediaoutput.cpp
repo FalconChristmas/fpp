@@ -1040,11 +1040,14 @@ int StartMediaOutput(const std::string& filename, int msTime) {
     // issues a flushing seek into a pipeline that has not even prerolled yet
     // (issue #2727).  Start every item from zero instead; AdjustSpeed()'s own
     // "not playing yet" guard then holds until a real position arrives.
-    mediaOutputStatus.mediaSeconds = 0.0;
-    mediaOutputStatus.secondsElapsed = 0;
-    mediaOutputStatus.subSecondsElapsed = 0;
-    mediaOutputStatus.secondsRemaining = 0;
-    mediaOutputStatus.subSecondsRemaining = 0;
+    {
+        std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
+        mediaOutputStatus.mediaSeconds = 0.0;
+        mediaOutputStatus.secondsElapsed = 0;
+        mediaOutputStatus.subSecondsElapsed = 0;
+        mediaOutputStatus.secondsRemaining = 0;
+        mediaOutputStatus.subSecondsRemaining = 0;
+    }
 
     LogWarn(VB_MEDIAOUT, "StartMediaOutput: Calling Start(%d) on mediaOutput=%p\n", msTime, out);
     if (!out->Start(msTime)) {

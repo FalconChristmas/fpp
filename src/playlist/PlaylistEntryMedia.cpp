@@ -180,10 +180,13 @@ int PlaylistEntryMedia::PreparePlay() {
         FinishPlay();
         return 0;
     }
-    m_slotStatus->minutesTotal = 0;
-    m_slotStatus->secondsTotal = 0;
-    m_slotStatus->secondsElapsed = 0;
-    m_slotStatus->subSecondsElapsed = 0;
+    {
+        std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
+        m_slotStatus->minutesTotal = 0;
+        m_slotStatus->secondsTotal = 0;
+        m_slotStatus->secondsElapsed = 0;
+        m_slotStatus->subSecondsElapsed = 0;
+    }
 
     if ((m_fileMode != "single") && !m_resuming) {
         if (m_files.size()) {
@@ -430,10 +433,13 @@ int PlaylistEntryMedia::Stop(void) {
     Events::Publish("playlist/media/title", "");
     Events::Publish("playlist/media/artist", "");
 
-    m_slotStatus->minutesTotal = 0;
-    m_slotStatus->secondsTotal = 0;
-    m_slotStatus->secondsElapsed = 0;
-    m_slotStatus->subSecondsElapsed = 0;
+    {
+        std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
+        m_slotStatus->minutesTotal = 0;
+        m_slotStatus->secondsTotal = 0;
+        m_slotStatus->secondsElapsed = 0;
+        m_slotStatus->subSecondsElapsed = 0;
+    }
 
     return PlaylistEntryBase::Stop();
 }
@@ -613,7 +619,11 @@ std::string PlaylistEntryMedia::GetNextRandomFile(void) {
  */
 Json::Value PlaylistEntryMedia::GetConfig(void) {
     Json::Value result = PlaylistEntryBase::GetConfig();
-    MediaOutputStatus status = IsPaused() ? m_pausedStatus : *m_slotStatus;
+    MediaOutputStatus status;
+    {
+        std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
+        status = IsPaused() ? m_pausedStatus : *m_slotStatus;
+    }
     result["mediaFilename"] = m_mediaFilename;
     result["streamSlot"] = m_streamSlot;
 
@@ -645,7 +655,11 @@ Json::Value PlaylistEntryMedia::GetConfig(void) {
 
 Json::Value PlaylistEntryMedia::GetMqttStatus(void) {
     Json::Value result = PlaylistEntryBase::GetMqttStatus();
-    MediaOutputStatus status = IsPaused() ? m_pausedStatus : *m_slotStatus;
+    MediaOutputStatus status;
+    {
+        std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
+        status = IsPaused() ? m_pausedStatus : *m_slotStatus;
+    }
     result["secondsElapsed"] = status.secondsElapsed;
     result["millisecondsElapsed"] = status.secondsElapsed * 1000 + status.subSecondsElapsed * 10;
     result["secondsRemaining"] = status.secondsRemaining;
@@ -658,7 +672,10 @@ Json::Value PlaylistEntryMedia::GetMqttStatus(void) {
 }
 
 void PlaylistEntryMedia::Pause() {
-    m_pausedStatus = *m_slotStatus;
+    {
+        std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
+        m_pausedStatus = *m_slotStatus;
+    }
     m_pausedTime = GetElapsedMS();
     // Pausing a media entry tears the output down rather than pausing the
     // pipeline, so companions are stopped and rebuilt the same way; Resume()
@@ -698,7 +715,10 @@ void PlaylistEntryMedia::Resume() {
             // itself as paused forever.
             LogErr(VB_MEDIAOUT, "Could not resume media %s, no media output available\n", m_mediaFilename.c_str());
             m_pausedTime = -1;
-            *m_slotStatus = m_pausedStatus;
+            {
+                std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
+                *m_slotStatus = m_pausedStatus;
+            }
             return;
         }
 
@@ -719,7 +739,10 @@ void PlaylistEntryMedia::Resume() {
         // The lock (RAII) is released exactly once here on every path,
         // when it goes out of scope.
         m_pausedTime = -1;
-        *m_slotStatus = m_pausedStatus;
+        {
+            std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
+            *m_slotStatus = m_pausedStatus;
+        }
         }
         delete failed;
 
