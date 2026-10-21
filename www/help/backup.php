@@ -35,6 +35,7 @@
 <ul>
     <li><b>Direction</b> — <b>FROM FPP</b> (backup files to this browser/computer) vs <b>TO FPP</b> (restore files to this FPP) — the title text swaps between “FPP File Copy Backup” and “FPP File Copy Restore” accordingly.</li>
     <li><b>File groups</b> — Checkboxes for raw file areas: Sequences, Media, Effects, Scripts, etc. Copies the actual files, not JSON config.</li>
+    <li><b>Copy</b> — Greyed out while the page is still loading the list of drives, the remote host's storage devices or the folders on a drive. For a copy to a remote host, the storage device you picked last time is selected again.</li>
     <li><b>Copy dialog</b> (<code>#copyPopup</code> title “FPP Backup/Restore”) — Streams the copy with progress. For restores, files are placed in their proper directories on the target.</li>
     <li><b>Do You Want To Copy Existing Backups to USB?</b> (<code>#dialog_copyToUsb</code>) — Confirmation prompt shown when the alternative location is first configured, offering to retroactively copy all existing local backups there.</li>
 </ul>

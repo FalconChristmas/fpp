@@ -2672,7 +2672,8 @@ if ($skipHTMLCodeOutput === false) {
                 showCompressed: '.sendCompressed',
                 popupModalId: 'copyPopup_Modal',
                 popupCloseBtnId: 'copyPopup_ModalCloseButton',
-                copyPopupBodyId: 'copyPopup'
+                copyPopupBodyId: 'copyPopup',
+                copyButton: '#backupCopyBtn'
             };
 
             function BackupDirectionChanged() {
@@ -3240,8 +3241,8 @@ if ($skipHTMLCodeOutput === false) {
                 //Add the loading spinner
                 $('#backup\\.RemoteStorage').parent().closest('td').addClass('fpp-backup-action-loading');
 
-                //Write setting to system
-                $.ajax({
+                //Write setting to system (Copy waits for it and the folder lookup it starts)
+                fppFileCopy.trackLookup($.ajax({
                     url: 'api/settings/backup.RemoteStorage/',
                     type: 'PUT',
                     data: value,
@@ -3259,16 +3260,17 @@ if ($skipHTMLCodeOutput === false) {
                         //remove the spinner
                         $('#backup\\.RemoteStorage').parent().closest('td').removeClass('fpp-backup-action-loading');
                     }
-                });
+                }));
             }
 
             //Select the remote storage device saved for the File Copy again once the host's devices are loaded.
+            //Copy stays disabled until this has finished, so it can't go to the wrong device.
             function GetBackupRemoteStorageDevice() {
                 var storageSelect = $('#backup\\.RemoteStorage');
                 var shown = storageSelect.val();
                 storageSelect.parent().find('.remoteStorageWarning').remove();
 
-                $.ajax({
+                fppFileCopy.trackLookup($.ajax({
                     url: 'api/settings/backup.RemoteStorage',
                     type: 'GET',
                     success: function (data) {
@@ -3290,7 +3292,7 @@ if ($skipHTMLCodeOutput === false) {
                 }).always(function () {
                     //List the folders on whatever ended up selected (only done for a copy from the remote)
                     GetBackupHostBackupDirs(storageSelect.val());
-                });
+                }));
             }
 
             fppFileCopy.config.onRemoteStorageLoaded = GetBackupRemoteStorageDevice;
@@ -3809,7 +3811,7 @@ if ($skipHTMLCodeOutput === false) {
                                             <tr>
                                                 <td></td>
                                                 <td>
-                                                    <input type='button' class="buttons" value="Copy"
+                                                    <input type='button' id='backupCopyBtn' class="buttons" value="Copy"
                                                         onClick="PerformCopy();">
                                         </table>
 

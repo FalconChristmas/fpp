@@ -18,6 +18,7 @@ fppFileCopy.config = {
     popupModalId: 'copyPopup_Modal',
     popupCloseBtnId: 'copyPopup_ModalCloseButton',
     copyPopupBodyId: 'copyPopup',
+    copyButton: null,
     onDevicesLoaded: null,
     onRemoteStorageLoaded: null,
     onCopyDone: null,
@@ -79,11 +80,26 @@ fppFileCopy.directionChanged = function () {
     }
 };
 
+// Copy stays disabled while any device or folder lookup is still running.
+// Listing a drive's folders mounts it, so a copy started meanwhile finds the
+// drive busy and fails ("Partition is mounted on: /mnt/tmp_sda1", issue #3107).
+fppFileCopy.pendingLookups = 0;
+
+fppFileCopy.trackLookup = function (request) {
+    fppFileCopy.pendingLookups++;
+    $(fppFileCopy.config.copyButton).prop('disabled', true);
+    return request.always(function () {
+        fppFileCopy.pendingLookups = Math.max(0, fppFileCopy.pendingLookups - 1);
+        if (fppFileCopy.pendingLookups == 0)
+            $(fppFileCopy.config.copyButton).prop('disabled', false);
+    });
+};
+
 fppFileCopy.getBackupDevices = function () {
     $(fppFileCopy.config.usbDevice).html('<option>Loading...</option>');
     $(fppFileCopy.config.usbDevice).parent().closest('td').addClass('fpp-backup-action-loading');
 
-    $.get('api/backups/devices').done(function (data) {
+    fppFileCopy.trackLookup($.get('api/backups/devices')).done(function (data) {
         var options = '';
         for (var i = 0; i < data.length; i++) {
             var desc = data[i].name;
@@ -125,7 +141,7 @@ fppFileCopy.getBackupDeviceDirectories = function () {
         return;
     }
     $(fppFileCopy.config.pathSelect).html('<option>Loading...</option>');
-    $.get('api/backups/list/' + dev).done(function (data) {
+    fppFileCopy.trackLookup($.get('api/backups/list/' + dev)).done(function (data) {
         fppFileCopy.populateBackupDirs(data);
     }).fail(function () {
         $(fppFileCopy.config.pathSelect).html('');
@@ -139,7 +155,7 @@ fppFileCopy.getRestoreDeviceDirectories = function () {
         return;
     }
     $('#usbDirectories').html('');
-    $.get('api/backups/list/' + dev).done(function (data) {
+    fppFileCopy.trackLookup($.get('api/backups/list/' + dev)).done(function (data) {
         var options = '';
         for (i = 0; i < data.length; i++) {
             if (data[i].substring(0, 5) != 'ERROR')
@@ -167,7 +183,7 @@ fppFileCopy.getBackupDirsViaAPI = function (host, remoteStorageSelected, exclude
         url += (url.indexOf('?') === -1 ? '?' : '&') + 'ip=' + encodeURIComponent(host);
     }
     $(fppFileCopy.config.pathSelect).parent().closest('td').addClass('fpp-backup-action-loading');
-    $.get(url).done(function (data) {
+    fppFileCopy.trackLookup($.get(url)).done(function (data) {
         fppFileCopy.populateBackupDirs(data, excludeRoot);
         $(fppFileCopy.config.pathSelect).parent().closest('td').removeClass('fpp-backup-action-loading');
     }).fail(function () {
@@ -205,7 +221,7 @@ fppFileCopy.getRemoteHostUSBStorage = function () {
     var defaultOption = "<option value='none' selected>Default FPP Storage</option>";
     $(fppFileCopy.config.remoteStorage).parent().find('.remoteStorageWarning').remove();
     $(fppFileCopy.config.remoteStorage).parent().closest('td').addClass('fpp-backup-action-loading');
-    $.get(requestUrl).done(function (data) {
+    fppFileCopy.trackLookup($.get(requestUrl)).done(function (data) {
         var options = '';
         for (var i = 0; i < data.length; i++) {
             var desc = data[i].name;

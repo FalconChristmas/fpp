@@ -235,7 +235,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             showCompressed: '.fcCompressed',
             popupModalId: 'fileCopyPopup_Modal',
             popupCloseBtnId: 'fileCopyPopup_ModalCloseButton',
-            copyPopupBodyId: 'fileCopyPopup'
+            copyPopupBodyId: 'fileCopyPopup',
+            copyButton: '#fileCopyRestoreBtn'
         };
 
         // Store all pending setting changes
