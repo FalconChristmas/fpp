@@ -105,9 +105,13 @@ bool HasChannelOutputs() {
 // Sequence::SendSequenceData(), which runs FSEQ-triggered commands, and a
 // command that reached back into either of these would deadlock the output
 // thread.  They read under outputListFreeLock instead, which the reload path
-// takes last, only while it unlinks and frees instances, and which these
-// walks hold alone -- a leaf, so nothing can wait on it in a cycle.  Without
-// it they could read an instance the reload was freeing.
+// takes last, only while it unlinks instances, and which these walks hold
+// alone -- a leaf, so nothing can wait on it in a cycle.  Without it they
+// could read an instance the reload was freeing.  The reload frees what it
+// unlinked only after letting go: an output's Close() takes other locks
+// (UDPOutput's removes its NetworkMonitor callback, whose dispatch takes
+// MultiSync's lock, which is held around these walks), and the walk that
+// could still see an unlinked instance is one the exclusive lock waited out.
 static std::shared_mutex outputListFreeLock;
 
 bool HasUniverseOutputs() {
@@ -389,6 +393,9 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
                 }
             }
         }
+        // Unlinked: no walk under it can reach these any more.  Let go before
+        // closing them -- see HasUniverseOutputs().
+        freeLock.unlock();
         if (ChannelOutputThreadIsRunning()) {
             // StoppingOutput() is the pair of the StartingOutput() the output
             // thread makes when it comes up, so it is only owed to the outputs
