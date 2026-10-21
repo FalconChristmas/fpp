@@ -175,7 +175,7 @@ void MQTTOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "MQTTOutput::DumpConfig()\n");
 
     LogDebug(VB_CHANNELOUT, "    Topic           : %s\n", m_topic.c_str());
-    LogDebug(VB_CHANNELOUT, "    Payload         : %s\n", m_topic.c_str());
+    LogDebug(VB_CHANNELOUT, "    Payload         : %s\n", m_payload.c_str());
     LogDebug(VB_CHANNELOUT, "    Type            : %d\n", (int)m_type);
 
     ThreadedChannelOutput::DumpConfig();
