@@ -88,6 +88,7 @@ jobs:
       version: ${{ steps.ver.outputs.version }}
       is_release: ${{ steps.ver.outputs.is_release }}
       is_nightly: ${{ steps.ver.outputs.is_nightly }}
+      os_version: ${{ steps.osver.outputs.os_version }}
     steps:
       - name: Determine version string
         id: ver
@@ -145,6 +146,45 @@ jobs:
           fi
           echo "version=$V" >> "$GITHUB_OUTPUT"
           echo "Selected version: $V"
+
+      - name: Determine OS level
+        id: osver
+        # The OS level is the build month (2026-10). It is written into the
+        # image as /etc/fpp/rfs_version and into every .fppos name, and it is
+        # what about.php compares to decide whether a player is offered an OS
+        # update. A second release in the same month (a new OS-level security
+        # fix, say) must not reuse the month: a player that took the first
+        # release's image, and then the second release by git update, would be
+        # told its OS is current. So a release gets the next letter after the
+        # last one any other release used that month: 2026-10, then 2026-10b,
+        # then 2026-10c. The release being built is left out, so a rebuild of
+        # it keeps its level. Nightlies and one-off builds use the bare month.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          MONTH="$(date -u +%Y-%m)"
+          OSV="$MONTH"
+          if [ "${{ steps.ver.outputs.is_release }}" = "true" ]; then
+            V="${{ steps.ver.outputs.version }}"
+            # Fail rather than guess: reusing a level would hide the update.
+            NAMES="$(gh api --paginate "repos/${{ github.repository }}/releases" \
+                       -q ".[] | select(.tag_name != \"$V\" and .tag_name != \"nightly\") | .assets[].name")"
+            # The letter each one used; no letter is the month's first, "a".
+            USED="$(printf '%s\n' "$NAMES" | sed -n -E "s/.*_${MONTH}([a-z]?)\.fppos\$/\1/p" | sed 's/^$/a/' | sort -u)"
+            if [ -n "$USED" ]; then
+              # The next level is one past the highest.
+              LAST="$(printf '%s\n' "$USED" | tail -1)"
+              if [ "$LAST" = "z" ]; then
+                echo "::error::every OS level letter for $MONTH is used"
+                exit 1
+              fi
+              NEXT="$(printf '%s' "$LAST" | tr 'a-y' 'b-z')"
+              OSV="${MONTH}${NEXT}"
+              echo "OS level $MONTH already used by a release (letters: $(echo $USED)); using $OSV"
+            fi
+          fi
+          echo "os_version=$OSV" >> "$GITHUB_OUTPUT"
+          echo "OS level: $OSV"
 
   build:
     needs: prep
@@ -355,7 +395,7 @@ jobs:
         run: |
           sudo ./${{ matrix.script }} \
             --version "${{ needs.prep.outputs.version }}" \
-            --os-version "$(date -u +%Y-%m)" \
+            --os-version "${{ needs.prep.outputs.os_version }}" \
             --branch "${{ steps.relbranch.outputs.branch }}" \
             --use-local-src \
             ${{ matrix.extra_args }}
