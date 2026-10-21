@@ -482,6 +482,8 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday, int refYe
             if (rollForward &&
                 ((month < (now.tm_mon + 1)) ||
                  (month == (now.tm_mon + 1) && day < now.tm_mday))) {
+                int thisMonth = month;
+                int thisDay = day;
                 year++;
                 // Recalculate for next year
                 if (calendar == "chinese") {
@@ -496,6 +498,13 @@ std::string ScheduleEntry::DateFromLocaleHoliday(Json::Value& holiday, int refYe
                     CalculateIslamicDate(year, islamicMonth, islamicDay, month, day);
                 } else if (calendar == "hindu") {
                     CalculateHinduDiwali(year, month, day);
+                }
+                // Yearless, next year's date matches this year too if it is
+                // still to come: keep this year's, which has passed. The daily
+                // reload picks up next year's.
+                if ((month > (now.tm_mon + 1)) || (month == (now.tm_mon + 1) && day >= now.tm_mday)) {
+                    month = thisMonth;
+                    day = thisDay;
                 }
             }
         } else {
