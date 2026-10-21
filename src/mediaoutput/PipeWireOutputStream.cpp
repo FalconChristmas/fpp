@@ -753,9 +753,12 @@ void PipeWireOutputStream::PushSilenceLocked(int ms) {
 
 // Whether this slot's stream has an output port linked to anything, per
 // pw-link.  Only run while a stream is opening, every kLinkCheckIntervalMs.
+// Time-limited, like the other PipeWire tools fppd runs: a pw-link that never
+// answers (a wedged daemon) would otherwise hold this worker for good, and
+// shutdown joins it.
 bool PipeWireOutputStream::StreamLinked() {
     std::string prefix = StreamSlotManager::GetNodeName(m_slot) + ":";
-    FILE* f = popen("pw-link -o -l 2>/dev/null", "r");
+    FILE* f = popen("timeout -k 1 2 pw-link -o -l 2>/dev/null", "r");
     if (!f) {
         return false;
     }
