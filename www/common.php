@@ -5408,9 +5408,10 @@ function SaveBackupMetadataCache($cache)
  * @param string $backup_comment
  * @param string|null $backup_trigger_source
  * @param array $blob_refs Blob hashes the backup references, as keys.
+ * @param int|null $backup_taken The backup's own backup_taken (UNIX time).
  * @return bool
  */
-function RememberBackupMetadata($backup_file_path, $backup_comment, $backup_trigger_source, $blob_refs = array())
+function RememberBackupMetadata($backup_file_path, $backup_comment, $backup_trigger_source, $blob_refs = array(), $backup_taken = null)
 {
     clearstatcache(true, $backup_file_path);
     $size = @filesize($backup_file_path);
@@ -5427,6 +5428,7 @@ function RememberBackupMetadata($backup_file_path, $backup_comment, $backup_trig
         'backup_comment' => $backup_comment,
         'backup_trigger_source' => $backup_trigger_source,
         'blob_refs' => array_values($blob_refs),
+        'backup_taken' => $backup_taken,
     );
 
     return SaveBackupMetadataCache($cache);

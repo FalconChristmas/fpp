@@ -576,6 +576,7 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 		$backup_data_comment = '';
 		$backup_data_trigger_source = null;
 		$backup_blob_refs = array();
+		$backup_taken = null;
 		$backup_alternative = false;
 		$backup_filepath = $source_directory;
 		//Check to see if the source direct is the same as the default or not, if it is't then the the directory is the alternative backup directory (USB or something)
@@ -594,11 +595,13 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 		if (isset($metadata_cache[$backup_fullpath]) &&
 			$metadata_cache[$backup_fullpath]['size'] === $backup_file_size &&
 			$metadata_cache[$backup_fullpath]['mtime'] === $backup_file_mtime &&
-			isset($metadata_cache[$backup_fullpath]['blob_refs'])) {
+			isset($metadata_cache[$backup_fullpath]['blob_refs']) &&
+			array_key_exists('backup_taken', $metadata_cache[$backup_fullpath])) {
 			//Cached: the file has not changed since we last read it
 			$backup_data_comment = $metadata_cache[$backup_fullpath]['backup_comment'];
 			$backup_data_trigger_source = $metadata_cache[$backup_fullpath]['backup_trigger_source'];
 			$backup_blob_refs = $metadata_cache[$backup_fullpath]['blob_refs'];
+			$backup_taken = $metadata_cache[$backup_fullpath]['backup_taken'];
 		} else {
 			//Read the backup file so we can extract some metadata
 			$raw_backup_data = file_get_contents($backup_fullpath);
@@ -620,6 +623,9 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 			if (is_array($decoded_backup_data) && array_key_exists('backup_trigger_source', $decoded_backup_data)) {
 				$backup_data_trigger_source = $decoded_backup_data['backup_trigger_source'];
 			}
+			if (is_array($decoded_backup_data) && array_key_exists('backup_taken', $decoded_backup_data)) {
+				$backup_taken = $decoded_backup_data['backup_taken'];
+			}
 
 			//Only cache a file we could actually stat and decode - caching the
 			//fallback values for an unreadable file would hide the problem behind
@@ -631,6 +637,7 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 					'backup_comment' => $backup_data_comment,
 					'backup_trigger_source' => $backup_data_trigger_source,
 					'blob_refs' => $backup_blob_refs,
+					'backup_taken' => $backup_taken,
 				);
 				$metadata_cache_dirty = true;
 			}
@@ -638,11 +645,24 @@ function process_jsonbackup_file_data_helper($json_config_backup_Data, $source_d
 			unset($decoded_backup_data);
 		}
 
+		//When the backup was taken.  The backup's own backup_taken first: it is
+		//UNIX time, so it says the same thing whatever the time zone.  The name
+		//is local wall-clock time in the zone of the moment it was written, and
+		//two names a time zone change apart do not even sort right -- after the
+		//zone moves west every new backup's name is hours "older" than the last
+		//one's, and pruning to the newest by this time deleted each new backup
+		//as it was written.  Names also step a second forward for a backup that
+		//lost the race for its second.  The name is only for a backup without
+		//backup_taken (from before it was recorded, or not one of ours).
+		$backup_date_time_obj = false;
+		if (is_numeric($backup_taken) && intval($backup_taken) > 0) {
+			$backup_date_time_obj = new DateTime('@' . intval($backup_taken));
+			$backup_date_time_obj->setTimezone(new DateTimeZone(date_default_timezone_get()));
+		}
 		//Locate the last underscore, this appears before the date/time in the filename,
 		//and extract everything after it - that will be the date time in full.
 		$backup_date_time_pos = strrpos($backup_filename_clean, '_');
-		$backup_date_time_obj = false;
-		if ($backup_date_time_pos !== false) {
+		if ($backup_date_time_obj === false && $backup_date_time_pos !== false) {
 			$backup_date_time_str = substr($backup_filename_clean, $backup_date_time_pos + 1);
 			//Insist on exactly the 14 digits we write, rather than letting
 			//createFromFormat() have a lenient go at whatever is there and hand back
@@ -1146,7 +1166,12 @@ function DeleteJsonBackup(){
  */
 function sort_backup_time_asc($a, $b)
 {
-	return $b['backup_time_unix'] - $a['backup_time_unix'];
+	$d = $b['backup_time_unix'] - $a['backup_time_unix'];
+	//Taken in the same second: the later name was the one that stepped forward
+	if ($d == 0) {
+		return strcmp($b['backup_filename'], $a['backup_filename']);
+	}
+	return $d;
 }
 
 /**

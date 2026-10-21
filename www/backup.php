@@ -2150,7 +2150,8 @@ function doBackupDownload($settings_data, $area)
                 $backup_local_fpath,
                 isset($settings_data['backup_comment']) ? $settings_data['backup_comment'] : '',
                 isset($settings_data['backup_trigger_source']) ? $settings_data['backup_trigger_source'] : null,
-                $backup_blob_refs
+                $backup_blob_refs,
+                isset($settings_data['backup_taken']) ? $settings_data['backup_taken'] : null
             );
 
             //Once the backup has been written into our local directory, prune/remove any backups older than the max set age
