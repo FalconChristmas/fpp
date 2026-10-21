@@ -581,6 +581,12 @@ if ($fd) {
     fclose($fd);
 }
 
+// An empty UpgradeSource means the default, github.com, as scripts/git_pull
+// reads it.  Left set, every reader here took "" for a custom mirror.
+if (isset($settings['UpgradeSource']) && trim($settings['UpgradeSource']) === '') {
+    unset($settings['UpgradeSource']);
+}
+
 if ($settings["IsDesktop"]) {
     $settings["HostName"] = explode(".", gethostname())[0];
 }

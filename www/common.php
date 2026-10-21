@@ -3393,8 +3393,18 @@ function get_remote_git_version()
         $cache_age = 900;
         $git_remote_version = "Unknown";
 
+        // A failed check is not cached (see below), so without this every
+        // status poll would pay for it again -- up to the whole timeout of an
+        // unreachable source, or of a ping that gets no reply.  Hold off
+        // re-checking for a minute after one fails.
+        $fail_marker = "/tmp/cache_" . $cachefile_name . ".failed";
+        if (file_exists($fail_marker) && time() - filemtime($fail_marker) < 60) {
+            $cached = @file_get_contents("/tmp/cache_" . $cachefile_name . ".cache");
+            return ($cached !== false && trim($cached) !== "") ? trim($cached) : "Unknown";
+        }
+
         //Check the cache for git_<branch>, if null is returned no cache file exists or it's expired, so then off to github
-        $git_remote_version = file_cache($cachefile_name, function () use ($origin) {
+        $git_remote_version = file_cache($cachefile_name, function () use ($origin, $fail_marker) {
             global $settings;
 
             $git_branch = getFPPBranch();
@@ -3445,7 +3455,7 @@ function get_remote_git_version()
                 // use ssh to access github, so fallback and check for a
                 // 'github' origin which can be setup to use https://
                 if ($git_remote_version == "") {
-                    $git_remote_version = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=" . $settings["fppDir"] . "/.git/ ls-remote -q -h github $git_branch 2>/dev/null | awk '$1 > 0 { print substr(\$1,1,9)}')", $output, $return_val);
+                    $git_remote_version = exec("ping -q -c 1 -W 1 github.com > /dev/null && (git --git-dir=" . $settings["fppDir"] . "/.git/ ls-remote -q -h github $git_branch 2>/dev/null | awk '$1 > 0 { print substr(\$1,1,9)}')", $output, $return_val);
                     if ($return_val != 0) {
                         $git_remote_version = "Unknown";
                     }
@@ -3461,8 +3471,10 @@ function get_remote_git_version()
             // window.  The "Unknown" default is re-applied below when no cached
             // value exists yet.
             if ($git_remote_version === "Unknown" || $git_remote_version === "") {
+                @touch($fail_marker);
                 return null;
             }
+            @unlink($fail_marker);
             return $git_remote_version;
         }, $cache_age, 30);
         if ($git_remote_version === "") {
