@@ -1280,6 +1280,8 @@ function removeDir(string $dir): void
  *   "dir": "uploads"
  * }
  * ```
+ * @response 403 The path resolves outside the directory
+ * @response 404 No such file
  */
 function DeleteFile()
 {
@@ -1314,7 +1316,14 @@ function DeleteFile()
     //here rather than as a prompt on the page so it holds for every caller.
     $blobRefusal = ($fullPath !== false) ? DescribeBackupBlobDeletion($fullPath) : '';
 
-    if (!$allowedDir || !$fullPath || !PathIsWithin($fullPath, $allowedDir)) {
+    if (!$allowedDir || !$fullPath) {
+        // realpath() fails for a name that is not there.
+        http_response_code(404);
+        $status = "File Not Found";
+    } else if (!PathIsWithin($fullPath, $allowedDir)) {
+        // Refused, and said so in the status like the GET and POST routes do;
+        // it used to come back as a 200.
+        http_response_code(403);
         $status = "Invalid path: directory traversal detected or file outside allowed directory";
     } else if ($fullPath === $allowedDir) {
         // An empty name (DELETE /api/file/sequences/) or "." resolved to the

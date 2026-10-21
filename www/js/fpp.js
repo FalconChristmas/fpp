@@ -9892,8 +9892,15 @@ function DeleteFile (dir, row, file, silent = false) {
 					);
 			}
 		})
-		.fail(function () {
-			if (!silent) DialogError('ERROR', 'Error deleting file: ' + file);
+		.fail(function (xhr) {
+			// A refusal (missing file, a path outside the directory) carries
+			// its reason in the body, as an OK-status reply used to.
+			var reason = xhr.responseJSON && xhr.responseJSON.status;
+			if (!silent)
+				DialogError(
+					'ERROR',
+					'Error deleting file "' + file + '"' + (reason ? ': ' + reason : '')
+				);
 		});
 }
 
