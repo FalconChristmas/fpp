@@ -465,6 +465,15 @@ void RunChannelOutputThread(void) {
                     statusLock.unlock();
                     outputThreadSatusCond.notify_all();
                     onceMore = 1;
+                    // Back from idle: the cadence starts again at this wake.
+                    // Left to the "more than a frame behind" test below, a
+                    // start within a frame of the last idle pass (a playlist's
+                    // next sequence, as the last one's blanking ends) kept the
+                    // old phase: the first frame went out at the wake and the
+                    // second at the old tick, a few ms later, and the
+                    // sequence's timing sync then slowed the next frames by up
+                    // to 15 ms each to give the lead back.
+                    nextFrameTime = 0;
                     continue;
                 } else {
                     RunThread = 0;
