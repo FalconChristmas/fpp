@@ -56,7 +56,7 @@
 #############################################################################
 FPPBRANCH=${FPPBRANCH:-"master"}
 FPPIMAGEVER="2025-11"
-FPPCFGVER="102"
+FPPCFGVER="103"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -1083,6 +1083,11 @@ do
         sed -i -e "s/^pm.start_servers.*/pm.start_servers = 3/" ${PHPDIR}/${FILE}
         sed -i -e "s/^;pm.max_requests.*/pm.max_requests = 300/" ${PHPDIR}/${FILE}
         sed -i -e "s+^;clear_env.*+clear_env = no+g" ${PHPDIR}/${FILE}
+        # Never used by FPP; off, where nothing can turn it back on, as PHP's
+        # workaround for CVE-2026-109619. See upgrade/103.
+        if ! grep -q '^php_admin_value\[session\.upload_progress\.enabled\]' ${PHPDIR}/${FILE}; then
+            printf '\n; FPP: upload progress is never used; off as the CVE-2026-109619 workaround\nphp_admin_value[session.upload_progress.enabled] = 0\n' >> ${PHPDIR}/${FILE}
+        fi
     fi
 done
 

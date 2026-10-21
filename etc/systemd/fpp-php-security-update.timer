@@ -1,0 +1,13 @@
+[Unit]
+Description=FPP Retry the PHP Security Updates daily until installed
+
+[Timer]
+# Shortly after each boot, and mid-morning every day: away from show hours,
+# and spread out so a fleet doesn't hit the mirrors at once.
+OnBootSec=15min
+OnCalendar=*-*-* 10:00
+RandomizedDelaySec=1h
+Persistent=false
+
+[Install]
+WantedBy=timers.target

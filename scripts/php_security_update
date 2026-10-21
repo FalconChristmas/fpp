@@ -1,0 +1,141 @@
+#!/bin/bash
+#####################################
+# Install the distribution's PHP security updates, without restarting php-fpm.
+#
+#   php_security_update           upgrade the installed PHP packages once
+#   php_security_update --timer   the same, and once PHP is fixed, turn off
+#                                 fpp-php-security-update.timer (its caller)
+#   php_security_update --check   no apt: exit 0 if PHP is fixed, 2 if not
+#
+# Exit status: 0 = PHP is at or past the fixed release (or there is nothing
+# to judge), 2 = still older than it, 1 = could not run.
+#
+# FIXED holds the first release of each PHP branch with the PHP2Shell fix
+# (CVE-2026-109618, CVE-2026-109619). It is compared against the upstream part
+# of the package version, which Debian keeps (8.2.35-1~deb12u1).
+#
+# php-fpm is NOT restarted. An FPP update started from the web UI runs as a
+# child of a php-fpm worker, inside php-fpm's cgroup, so the restart the
+# package scripts would do kills that update half way through its rebuild. A
+# policy-rc.d refuses that one restart while apt runs, and the reboot flag is
+# set instead: the new PHP is on disk, and runs from the next boot.
+#####################################
+
+BINDIR=$(cd $(dirname $0) && pwd)
+. ${BINDIR}/common
+
+MODE="$1"
+TIMER=fpp-php-security-update.timer
+
+declare -A FIXED=(
+    [8.2]=8.2.35
+    [8.3]=8.3.36
+    [8.4]=8.4.27
+    [8.5]=8.5.12
+)
+
+# Installed packages built from a php8.x source: "package source version".
+phpPackages() {
+    dpkg-query -W -f='${db:Status-Abbrev} ${Package} ${source:Package} ${Version}\n' 2>/dev/null \
+        | awk '$1 == "ii" && $3 ~ /^php8\.[0-9]+$/ { print $2, $3, $4 }'
+}
+
+# 0 when every installed PHP package is at or past its branch's fixed release.
+phpIsFixed() {
+    local pkg src ver branch upstream need rc=0
+    while read -r pkg src ver; do
+        [ -z "${pkg}" ] && continue
+        branch="${src#php}"
+        need="${FIXED[${branch}]}"
+        # A branch the table doesn't know can't be judged; don't keep retrying.
+        [ -z "${need}" ] && continue
+        upstream="${ver#*:}"
+        upstream="${upstream%%-*}"
+        if ! dpkg --compare-versions "${upstream}" ge "${need}"; then
+            echo "  ${pkg} ${ver} is older than the fixed ${need}"
+            rc=2
+        fi
+    done < <(phpPackages)
+    return ${rc}
+}
+
+stopTimer() {
+    if [ "${MODE}" = "--timer" ]; then
+        echo "  PHP has the fix - turning off ${TIMER}"
+        systemctl disable --now "${TIMER}" > /dev/null 2>&1 || true
+    fi
+}
+
+if [ -z "$(phpPackages)" ]; then
+    echo "  No PHP packages installed"
+    stopTimer
+    exit 0
+fi
+
+if [ "${MODE}" = "--check" ]; then
+    phpIsFixed
+    exit $?
+fi
+
+if phpIsFixed > /dev/null; then
+    echo "  PHP already has the security fix"
+    stopTimer
+    exit 0
+fi
+
+POLICY=/usr/sbin/policy-rc.d
+if [ -e "${POLICY}" ]; then
+    # Someone else's policy is in place; replacing it could start services it
+    # holds back, and without one apt would restart php-fpm under us.
+    echo "  WARNING: ${POLICY} already exists - not upgrading PHP"
+    exit 1
+fi
+trap 'rm -f "${POLICY}"' EXIT
+cat > "${POLICY}" <<'EOF'
+#!/bin/sh
+# Written by FPP's php_security_update while it upgrades PHP, and removed when
+# it ends: refuse a php-fpm (re)start, allow everything else.
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --*) shift ;;
+        *) break ;;
+    esac
+done
+case "$1" in
+    php*-fpm|php*-fpm.service) exit 101 ;;
+esac
+exit 0
+EOF
+chmod 755 "${POLICY}"
+
+BEFORE=$(phpPackages)
+
+# Offline, apt-get update fails in seconds; the timeouts bound a network that
+# drops packets instead, since upgrade 103 runs this inside an FPP update.
+APT_OPTS="-o DPkg::Lock::Timeout=120 -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
+# Unattended: answer dpkg's conffile prompt too, not just debconf's.
+DPKG_OPTS="-o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold"
+export DEBIAN_FRONTEND=noninteractive
+
+if ! apt-get $APT_OPTS update; then
+    echo "  WARNING: apt-get update failed - PHP was not upgraded"
+    exit 1
+fi
+if ! apt-get $APT_OPTS $DPKG_OPTS install -y --only-upgrade $(phpPackages | awk '{ print $1 }'); then
+    echo "  WARNING: could not upgrade PHP"
+    apt-get clean
+    exit 1
+fi
+apt-get clean
+
+if [ "${BEFORE}" != "$(phpPackages)" ]; then
+    echo "  PHP upgraded; php-fpm runs the new version after a reboot"
+    setSetting rebootFlag 1
+fi
+
+if phpIsFixed; then
+    stopTimer
+    exit 0
+fi
+echo "  The apt sources do not carry the fixed PHP yet"
+exit 2
