@@ -134,97 +134,110 @@ if (empty($plugins)) {
     exit(0);
 }
 
-// A hand-run --force means "check now", so nothing is too fresh to re-check.
-$maxAge = $force ? 0 : PLUGIN_UPDATE_SWEEP_INTERVAL;
-$retryAge = $force ? 0 : PLUGIN_UPDATE_SWEEP_RETRY;
-$prevSweep = PluginUpdateStateRead()['sweep'];
+// Check for Updates can ask for a forced pass while this one runs; then the
+// sweep goes round again, forced (PluginUpdateStateFinishSweep()).
+$repeat = false;
+while (true) {
+    // A hand-run --force means "check now", so nothing is too fresh to re-check.
+    $maxAge = $force ? 0 : PLUGIN_UPDATE_SWEEP_INTERVAL;
+    $retryAge = $force ? 0 : PLUGIN_UPDATE_SWEEP_RETRY;
+    $prevSweep = PluginUpdateStateRead()['sweep'];
 
-PluginUpdateStateRecordSweep('in-progress', '', $trigger, true);
+    if (!$repeat) {
+        PluginUpdateStateRecordSweep('in-progress', '', $trigger, true);
+    }
 
-$deadline = time() + PLUGIN_UPDATE_SWEEP_MAX_RUNTIME;
-$done = 0;
-$checkedNow = array();
-$fetchTried = 0;
-$fetchFailed = 0;
-$outOfTime = false;
-$due = PluginSweepDueList($maxAge, $retryAge);
-$total = count($due);
-PluginUpdateStateRecordSweepProgress(0, $total);
-foreach ($due as $i => $plugin) {
-    if (time() > $deadline) {
-        $outOfTime = true;
-        break;
+    $deadline = time() + PLUGIN_UPDATE_SWEEP_MAX_RUNTIME;
+    $done = 0;
+    $checkedNow = array();
+    $fetchTried = 0;
+    $fetchFailed = 0;
+    $outOfTime = false;
+    $due = PluginSweepDueList($maxAge, $retryAge);
+    $total = count($due);
+    PluginUpdateStateRecordSweepProgress(0, $total);
+    foreach ($due as $i => $plugin) {
+        if (time() > $deadline) {
+            $outOfTime = true;
+            break;
+        }
+        $outcome = PluginSweepOne($plugin);
+        if ($outcome !== 'skipped') {
+            $done++;
+            $checkedNow[] = $plugin;
+        }
+        if ($outcome === 'fetched' || $outcome === 'fetch-failed') {
+            $fetchTried++;
+            if ($outcome === 'fetch-failed') {
+                $fetchFailed++;
+            }
+        }
+        PluginUpdateStateRecordSweepProgress($i + 1, $total);
     }
-    $outcome = PluginSweepOne($plugin);
-    if ($outcome !== 'skipped') {
-        $done++;
-        $checkedNow[] = $plugin;
-    }
-    if ($outcome === 'fetched' || $outcome === 'fetch-failed') {
-        $fetchTried++;
-        if ($outcome === 'fetch-failed') {
-            $fetchFailed++;
+
+    // Count only what this pass established.
+    $state = PluginUpdateStateRead();
+    $failedNames = array();
+    foreach ($checkedNow as $p) {
+        if (isset($state['plugins'][$p]) && array_key_exists('updates', $state['plugins'][$p])
+            && $state['plugins'][$p]['updates'] === null) {
+            $failedNames[] = $p;
         }
     }
-    PluginUpdateStateRecordSweepProgress($i + 1, $total);
-}
-
-// Count only what this pass established.
-$state = PluginUpdateStateRead();
-$failedNames = array();
-foreach ($checkedNow as $p) {
-    if (isset($state['plugins'][$p]) && array_key_exists('updates', $state['plugins'][$p])
-        && $state['plugins'][$p]['updates'] === null) {
-        $failedNames[] = $p;
+    $failed = count($failedNames);
+    // Named on the summary line, written on every pass that checks something: the
+    // per-plugin line is written only when a verdict changes, so a lasting failure
+    // is otherwise named once and then only counted.
+    $failedList = $failed ? (' (' . implode(', ', $failedNames) . ')') : '';
+    // The last FINISHED pass. Read from lastResult, not result: the endpoint
+    // wrote in-progress before this script started, so result is never it.
+    $prevResult = isset($prevSweep['lastResult']) ? (string) $prevSweep['lastResult'] : '';
+    $prevRetryAfter = isset($prevSweep['retryAfter']) ? (int) $prevSweep['retryAfter'] : 0;
+    if (empty($checkedNow)) {
+        // Nothing was due (or every due plugin was being checked by hand): this
+        // pass learned nothing, so the previous result stands rather than "ok".
+        $result = ($prevResult !== '') ? $prevResult : 'ok';
+        $message = isset($prevSweep['lastMessage']) ? (string) $prevSweep['lastMessage'] : '';
+    } else if ($fetchFailed > 0 && $fetchFailed === $fetchTried) {
+        // Every fetch failed: most likely the network. Archive installs don't count.
+        $result = 'offline';
+        $message = 'nothing could be reached';
+    } else {
+        $result = ($failed > 0) ? 'partial' : 'ok';
+        $message = ($failed > 0) ? ($failed . ' of ' . count($checkedNow) . ' could not be checked' . $failedList) : '';
     }
-}
-$failed = count($failedNames);
-// Named on the summary line, written on every pass that checks something: the
-// per-plugin line is written only when a verdict changes, so a lasting failure
-// is otherwise named once and then only counted.
-$failedList = $failed ? (' (' . implode(', ', $failedNames) . ')') : '';
-// The last FINISHED pass. Read from lastResult, not result: the endpoint
-// wrote in-progress before this script started, so result is never it.
-$prevResult = isset($prevSweep['lastResult']) ? (string) $prevSweep['lastResult'] : '';
-$prevRetryAfter = isset($prevSweep['retryAfter']) ? (int) $prevSweep['retryAfter'] : 0;
-if (empty($checkedNow)) {
-    // Nothing was due (or every due plugin was being checked by hand): this
-    // pass learned nothing, so the previous result stands rather than "ok".
-    $result = ($prevResult !== '') ? $prevResult : 'ok';
-    $message = isset($prevSweep['lastMessage']) ? (string) $prevSweep['lastMessage'] : '';
-} else if ($fetchFailed > 0 && $fetchFailed === $fetchTried) {
-    // Every fetch failed: most likely the network. Archive installs don't count.
-    $result = 'offline';
-    $message = 'nothing could be reached';
-} else {
-    $result = ($failed > 0) ? 'partial' : 'ok';
-    $message = ($failed > 0) ? ($failed . ' of ' . count($checkedNow) . ' could not be checked' . $failedList) : '';
-}
-if ($outOfTime) {
-    $result = ($result === 'offline') ? $result : 'partial';
-    $message = trim($message . ($message !== '' ? '; ' : '') . 'ran out of time, the rest are checked next time');
-}
-// When the next sweep may start. Out of time: the retry clock, there is more
-// to do. Offline: the retry clock the first time, then doubling towards the
-// full interval, so a show network with no route out is not fetched every
-// 15 minutes for as long as someone is in the UI.
-if ($outOfTime) {
-    $retryAfter = PLUGIN_UPDATE_SWEEP_RETRY;
-} else if (empty($checkedNow)) {
-    // Learned nothing, so no reason to change the clock either.
-    $retryAfter = ($prevRetryAfter > 0) ? $prevRetryAfter : PLUGIN_UPDATE_SWEEP_INTERVAL;
-} else if ($result === 'offline') {
-    $retryAfter = ($prevResult === 'offline' && $prevRetryAfter > 0)
-        ? min($prevRetryAfter * 2, PLUGIN_UPDATE_SWEEP_INTERVAL)
-        : PLUGIN_UPDATE_SWEEP_RETRY;
-} else {
-    $retryAfter = PLUGIN_UPDATE_SWEEP_INTERVAL;
-}
-PluginUpdateStateRecordSweep($result, $message, $trigger, false, $retryAfter);
-// One line per pass that did something; a pass with nothing due is silent.
-if ($done > 0) {
-    SweepLog('checked ' . $done . ' plugin' . ($done == 1 ? '' : 's')
-        . ($failed ? (', ' . $failed . ' could not be checked' . $failedList) : '')
-        . ($result === 'offline' ? ' (offline)' : '') . ($outOfTime ? ' (ran out of time)' : ''));
+    if ($outOfTime) {
+        $result = ($result === 'offline') ? $result : 'partial';
+        $message = trim($message . ($message !== '' ? '; ' : '') . 'ran out of time, the rest are checked next time');
+    }
+    // When the next sweep may start. Out of time: the retry clock, there is more
+    // to do. Offline: the retry clock the first time, then doubling towards the
+    // full interval, so a show network with no route out is not fetched every
+    // 15 minutes for as long as someone is in the UI.
+    if ($outOfTime) {
+        $retryAfter = PLUGIN_UPDATE_SWEEP_RETRY;
+    } else if (empty($checkedNow)) {
+        // Learned nothing, so no reason to change the clock either.
+        $retryAfter = ($prevRetryAfter > 0) ? $prevRetryAfter : PLUGIN_UPDATE_SWEEP_INTERVAL;
+    } else if ($result === 'offline') {
+        $retryAfter = ($prevResult === 'offline' && $prevRetryAfter > 0)
+            ? min($prevRetryAfter * 2, PLUGIN_UPDATE_SWEEP_INTERVAL)
+            : PLUGIN_UPDATE_SWEEP_RETRY;
+    } else {
+        $retryAfter = PLUGIN_UPDATE_SWEEP_INTERVAL;
+    }
+    $finished = PluginUpdateStateFinishSweep($result, $message, $trigger, $retryAfter);
+    // One line per pass that did something; a pass with nothing due is silent.
+    if ($done > 0) {
+        SweepLog('checked ' . $done . ' plugin' . ($done == 1 ? '' : 's')
+            . ($failed ? (', ' . $failed . ' could not be checked' . $failedList) : '')
+            . ($result === 'offline' ? ' (offline)' : '') . ($outOfTime ? ' (ran out of time)' : ''));
+    }
+    if ($finished) {
+        break;
+    }
+    $force = true;
+    $trigger = 'manual';
+    $repeat = true;
 }
 exit(0);
