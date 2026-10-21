@@ -80,8 +80,10 @@ public:
     /// Get the PipeWire video node description for a slot.
     static std::string GetVideoNodeDescription(int slot);
 
-    /// Set volume on a specific slot (0-100). Returns true on success.
-    bool SetSlotVolume(int slot, int volume);
+    /// Set volume on a specific slot (0-100). An idle slot keeps it for its
+    /// next start, and *deferred (if given) says so. Returns false only for an
+    /// invalid slot or a build without media playback.
+    bool SetSlotVolume(int slot, int volume, bool* deferred = nullptr);
 
     /// Seek a slot to an absolute position in seconds.  Returns false if the
     /// slot is idle or the seek failed.
@@ -127,6 +129,7 @@ private:
         bool syncToMaster = false;  // follow the primary media's clock
         long long lastSyncMS = 0;   // last drift check (see SyncSlotsToMaster)
         long long syncSettleMS = 0; // no drift checks until this time
+        int pendingVolume = -1;     // set while idle, applied at the next start
     };
 
     /// How often a sync-enabled slot's position is checked against the primary.

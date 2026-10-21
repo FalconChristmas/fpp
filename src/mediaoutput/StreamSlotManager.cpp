@@ -102,7 +102,13 @@ void StreamSlotManager::SetActiveOutput(int slot, GStreamerOutput* output) {
         m_slots[slot - 1].mediaFilename = output->m_mediaFilename;
         LogDebug(VB_MEDIAOUT, "StreamSlotManager: slot %d active (%s)\n", slot,
                 output->m_mediaFilename.c_str());
-        int saved = savedStreamSlotVolume(slot);
+        // A volume set while the slot was idle is newer than the saved one
+        // (and is all there is when it came from a command, not the mixer).
+        int saved = m_slots[slot - 1].pendingVolume;
+        m_slots[slot - 1].pendingVolume = -1;
+        if (saved < 0) {
+            saved = savedStreamSlotVolume(slot);
+        }
         if (saved >= 0) {
             output->SetVolume(saved);
             LogDebug(VB_MEDIAOUT, "StreamSlotManager: restored slot %d volume to %d%%\n", slot, saved);
@@ -192,17 +198,25 @@ std::string StreamSlotManager::GetVideoNodeDescription(int slot) {
     return "FPP Video Stream " + std::to_string(slot);
 }
 
-bool StreamSlotManager::SetSlotVolume(int slot, int volume) {
+bool StreamSlotManager::SetSlotVolume(int slot, int volume, bool* deferred) {
 #ifdef HAS_GSTREAMER
     if (slot < 1 || slot > MAX_SLOTS) return false;
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
     GStreamerOutput* output = m_slots[slot - 1].activeOutput;
     if (output) {
         output->SetVolume(volume);
-        return true;
+    } else {
+        // Nothing to apply it to yet: the slot's next stream starts at it,
+        // as it does at the level the mixer saves.
+        m_slots[slot - 1].pendingVolume = volume;
     }
-#endif
+    if (deferred) {
+        *deferred = !output;
+    }
+    return true;
+#else
     return false;
+#endif
 }
 
 bool StreamSlotManager::SeekSlot(int slot, float seconds) {

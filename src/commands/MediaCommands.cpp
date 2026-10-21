@@ -794,10 +794,15 @@ std::unique_ptr<Command::Result> SetSlotVolumeCommand::run(const std::vector<std
     if (volume < 0) volume = 0;
     if (volume > 100) volume = 100;
 
-    if (StreamSlotManager::Instance().SetSlotVolume(slot, volume)) {
+    bool deferred = false;
+    if (StreamSlotManager::Instance().SetSlotVolume(slot, volume, &deferred)) {
+        if (deferred) {
+            return std::make_unique<Command::Result>("Slot " + std::to_string(slot) +
+                                                     " is idle; the volume applies when it next plays");
+        }
         return std::make_unique<Command::Result>("Volume set on slot " + std::to_string(slot));
     }
-    return std::make_unique<Command::ErrorResult>("Slot " + std::to_string(slot) + " not active");
+    return std::make_unique<Command::ErrorResult>("Slot volume is not available");
 }
 
 MediaSlotStatusCommand::MediaSlotStatusCommand() :

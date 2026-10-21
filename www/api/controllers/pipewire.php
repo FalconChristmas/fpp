@@ -2747,9 +2747,10 @@ function SetStreamSlotVolume($bodyOverride = null)
             "message" => "fppd did not accept the slot volume command (HTTP $code)"));
     }
 
-    // An idle slot has no stream to apply to; the value is saved either way and
-    // takes effect when it next plays.
-    return json(array("status" => "OK", "slot" => $slot, "volume" => $volume));
+    // An idle slot has no stream to apply to: fppd accepts it for the slot's
+    // next start, and its answer says so.
+    return json(array("status" => "OK", "slot" => $slot, "volume" => $volume,
+        "message" => trim($result)));
 }
 
 /////////////////////////////////////////////////////////////////////////////
