@@ -1209,17 +1209,22 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
 
                 //PROXY CONFIG RESTORATION
                 if ($restore_areas_idx == "proxies") {
-                    $settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = true;
+                    //Get the restore data out of the array.  A backup with no proxies
+                    //section (one made by hand, or before proxies were backed up) has
+                    //nothing to restore here: implode() on its absence was a fatal that
+                    //took every later sub-area of the restore with it.  As with the
+                    //plugin privacy record, ATTEMPT is only set when there is data.
+                    $restore_data = isset($restore_area_data['proxies'][0]) ? $restore_area_data['proxies'][0] : null;
+                    if (is_array($restore_data)) {
+                        $settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = true;
+                        $data = implode("\n", $restore_data);
 
-                    //Get the restore data out of the array
-                    $restore_data = $restore_area_data['proxies'][0];
-                    $data = implode("\n", $restore_data);
-
-                    //This is a standard file with webserver config, just write it out
-                    if (file_put_contents($settings['configDirectory'] . "/proxies", $data) === false) {
-                        $save_result = false;
-                    } else {
-                        $save_result = true;
+                        //This is a standard file with webserver config, just write it out
+                        if (file_put_contents($settings['configDirectory'] . "/proxies", $data) === false) {
+                            $save_result = false;
+                        } else {
+                            $save_result = true;
+                        }
                     }
                 }
 
