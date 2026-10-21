@@ -225,6 +225,10 @@ if (isset($_GET['plugin'])) {
 if (!isset($_GET['plugin'])) {
     echo "Please don't access this page directly";
 } elseif (empty($_GET['plugin']) || $pluginName === '') {
+    // Names no installed plugin: a 404, as for a missing file of an installed
+    // one, so a page loading a removed plugin's script or stylesheet gets an
+    // error rather than this text as its content.
+    http_response_code(404);
     echo "Plugin variable empty, please don't access this page directly";
 } elseif (isset($_GET['page']) && !empty($_GET['page'])) {
     $pageName = $_GET['page'];
