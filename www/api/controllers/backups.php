@@ -173,9 +173,15 @@ function GetAvailableBackupsOnDevice()
 	// do not race on the shared /mnt/tmp (see DriveMountHelper locking).
 	// Validation in DriveMountHelper allows /mnt/tmp_<dev>.
 	$mountPath = '/mnt/tmp_' . $deviceName;
-	$dirs = DriveMountHelper($deviceName, 'GetAvailableBackupsFromDir', array($mountPath . '/'), $mountPath);
+	// With result codes a refusal comes back as array('error' => ...), not as
+	// already-encoded JSON, which json() here would encode a second time and
+	// the dialog would list one character per row.
+	$result = DriveMountHelper($deviceName, 'GetAvailableBackupsFromDir', array($mountPath . '/'), $mountPath, true, false, true);
+	if (isset($result['error'])) {
+		return json(array($result['error']));
+	}
 
-	return json($dirs);
+	return json($result['dirs']);
 }
 
 /**
