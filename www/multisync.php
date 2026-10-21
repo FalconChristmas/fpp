@@ -2810,7 +2810,17 @@
                     open.send("XJ");
                 }
             } else {
-                var ws = new WebSocket(wsProxyUrl(ip, "/ws"));
+                // This runs while parseFPPSystems() is still building the
+                // table, so a throw here (a browser refusing the URL, or one it
+                // cannot parse) would unwind the render and leave every row
+                // out.  One device's probe failing leaves just its status blank.
+                var ws;
+                try {
+                    ws = new WebSocket(wsProxyUrl(ip, "/ws"));
+                } catch (err) {
+                    console.log("Could not open the ESPixelStick socket for " + ip + ": " + err);
+                    return;
+                }
                 ESPSockets[ips] = ws;
 
                 ws.binaryType = "arraybuffer";
