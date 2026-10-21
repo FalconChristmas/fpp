@@ -3,7 +3,9 @@
  * Convert Rate, on the File Manager's Music tab.
  *
  * Takes a JSON list of music file names in the POST body and converts each one
- * to the audio system's configured sample rate, replacing the file in place
+ * that is being resampled while it plays to the audio system's configured sample
+ * rate (a file that already plays without conversion is skipped), replacing the
+ * file in place
  * under the same name (as MP3Gain does), so playlists and sequences that name it
  * keep working.  There is no backup: keep your originals elsewhere.
  *
@@ -29,11 +31,21 @@ require_once("common.php");
 require_once("common/metadata.php");
 require_once("common/oplog.inc.php");
 
-// It rewrites files, so only a POST is accepted: a GET is something any web page
-// can make a browser send.  (The File Manager always POSTs.)
+// It rewrites files and cannot be undone, so it takes only a POST with a JSON
+// body, which is what the File Manager sends.  A GET is something any web page
+// can make a browser send; POST alone is not a defence, since a page on another
+// site can POST text/plain without a preflight (Apache's cross-site rule in
+// etc/apache2.site is what refuses those).  Requiring application/json is a
+// second, independent check: another site cannot send it without a CORS
+// preflight, and nothing here allows one.
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     http_response_code(405);
     echo "This must be requested with POST.\n";
+    exit;
+}
+if (stripos($_SERVER['CONTENT_TYPE'] ?? '', 'application/json') !== 0) {
+    http_response_code(415);
+    echo "The request body must be JSON.\n";
     exit;
 }
 
@@ -72,6 +84,12 @@ if (!is_array($files) || count($files) == 0) {
 
 $rates = GetAudioRates();
 $target = !empty($rates['configured']) ? (int) $rates['configured'] : 0;
+// Convert to the configured rate, unless the hardware cannot use it directly
+// (it is resampled anyway): then the rate the engine runs at is the one that
+// really plays without conversion.
+if ($target > 0 && AudioRateStatus($target, $rates) === 'stuck') {
+    $target = (int) $rates['engine'];
+}
 if ($target <= 0) {
     echo "No audio sample rate is configured on this system, so there is nothing to convert to.\n";
     exit;
@@ -97,7 +115,12 @@ if (!is_dir($tmpDir)) {
 
 // One conversion at a time: two at once would swamp a small board.
 $lock = @fopen($tmpDir . '/audio_convert.lock', 'c');
-if ($lock === false || !flock($lock, LOCK_EX | LOCK_NB)) {
+if ($lock === false) {
+    echo "Cannot create the lock file in " . $tmpDir . ", so no conversion was started.\n";
+    echo "Check that the folder exists and the web server can write to it.\n";
+    exit;
+}
+if (!flock($lock, LOCK_EX | LOCK_NB)) {
     echo "Another conversion is already running. Try again when it has finished.\n";
     exit;
 }
@@ -139,8 +162,18 @@ foreach ($files as $name) {
         $skipped++;
         continue;
     }
-    if ($info['sampleRate'] === $target) {
-        convertLog('Skipping ' . $name . ': already at ' . $target . ' Hz');
+    // Convert only a file that is resampled while it plays.  A file at the
+    // engine's rate is already fine, whatever rate is configured, and converting
+    // it would make it resample; one at the configured rate is either free (the
+    // card upsamples it) or resampled anyway, and converting would change nothing.
+    $status = AudioRateStatus($info['sampleRate'], $rates);
+    if ($status !== 'resample') {
+        $why = array(
+            'ok' => 'already at the audio system\'s rate (' . $info['sampleRate'] . ' Hz)',
+            'hardware' => 'at the configured rate, and the audio hardware upsamples it at no CPU cost',
+            'stuck' => 'at the configured rate, but the audio hardware cannot use it, so converting would change nothing',
+        );
+        convertLog('Skipping ' . $name . ': ' . (isset($why[$status]) ? $why[$status] : 'its rate is not known'));
         $skipped++;
         continue;
     }
@@ -172,8 +205,14 @@ foreach ($files as $name) {
         array_push($cmd, $nice, '-n', '19');
     }
     array_push($cmd, $ffmpeg, '-hide_banner', '-loglevel', 'warning', '-nostdin', '-n', '-i', $src,
-        '-map', '0:a:0', '-map', '0:v?', '-c:v', 'copy', '-map_metadata', '0',
-        '-af', $filter, '-c:a', $codec);
+        '-map', '0:a:0');
+    // Carry an embedded cover picture across, but only into containers that can
+    // hold one: ffmpeg refuses a picture stream in a WAV or a raw AAC file, which
+    // would fail the whole conversion.
+    if (in_array($extLower, array('mp3', 'flac', 'm4a'), true)) {
+        array_push($cmd, '-map', '0:v?', '-c:v', 'copy');
+    }
+    array_push($cmd, '-map_metadata', '0', '-af', $filter, '-c:a', $codec);
     $cmd = array_merge($cmd, $bitrateArgs);
     if ($extLower === 'mp3') {
         array_push($cmd, '-id3v2_version', '3');

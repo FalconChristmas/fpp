@@ -2597,6 +2597,88 @@ function get_sequence_file_info($mediaName)
 }
 
 /**
+ * The cache files behind media_duration_cache() and media_audio_info_cache():
+ * a JSON object keyed by relative file name, each entry holding the file size it
+ * was read at plus one field of data.  The whole file is thrown away after 30
+ * days without a write.  Kept in one place so a fix to the locking or the
+ * expiry reaches both.
+ */
+
+/**
+ * Read a cache file.  Lookup only, and no lock: a torn read fails to decode and
+ * reads as an empty cache, which every caller handles by probing.
+ *
+ * @param string $file_path the cache file
+ * @return array its entries; empty when the file is absent, expired or unreadable
+ */
+function media_file_cache_read($file_path)
+{
+    $time = 86400 * 30; //seconds - cache for 24hrs * 30days
+    if (!file_exists($file_path) || (time() - filemtime($file_path) > $time)) {
+        return array();
+    }
+    $raw = file_get_contents($file_path);
+    $cache = ($raw === false || $raw === '') ? null : json_decode($raw, true);
+    return is_array($cache) ? $cache : array();
+}
+
+/**
+ * One file's cached value from entries read by media_file_cache_read().
+ *
+ * @param array $entries
+ * @param string $media relative file name (cache key)
+ * @param string $field the entry's data field
+ * @param int|string|null $filesize if the sizes are the same, it is the same file
+ * @return mixed|null the value, or null on a miss
+ */
+function media_file_cache_lookup($entries, $media, $field, $filesize)
+{
+    if (array_key_exists($media, $entries) && $entries[$media]['filesize'] == $filesize) {
+        return $entries[$media][$field];
+    }
+    return null;
+}
+
+/**
+ * Store one file's value: read-modify-write under an exclusive lock.  Concurrent
+ * callers (two browsers on the file manager, the playlist editor) each did an
+ * unlocked read/write and clobbered each other's entries: 70 files probed 3 at
+ * a time left 13 in the cache.
+ *
+ * @param string $file_path the cache file
+ * @param string $media relative file name (cache key)
+ * @param string $field the entry's data field
+ * @param mixed $value
+ * @param int|string|null $filesize
+ * @return mixed $value, whether or not it could be stored
+ */
+function media_file_cache_store($file_path, $media, $field, $value, $filesize)
+{
+    $time = 86400 * 30; //seconds - cache for 24hrs * 30days
+    $fp = fopen($file_path, 'c+');
+    if ($fp === false) {
+        return $value;
+    }
+    if (flock($fp, LOCK_EX)) {
+        $expired = (time() - filemtime($file_path) > $time);
+        $raw = $expired ? '' : stream_get_contents($fp);
+        $cache = ($raw === false || $raw === '') ? null : json_decode($raw, true);
+        if (!is_array($cache)) {
+            $cache = array();
+        }
+        $cache[$media] = array('filesize' => $filesize, $field => $value);
+        ftruncate($fp, 0);
+        rewind($fp);
+        fwrite($fp, json_encode($cache, JSON_PRETTY_PRINT));
+        fflush($fp);
+        flock($fp, LOCK_UN);
+    }
+    fclose($fp);
+
+    return $value;
+}
+
+/**
  * Retrieving the duration of media files takes roughly 100+ms on a Pi2, over large playlists the delays can add up
  * to speed things up we'll try cache the durations so we don't unnecessarily keep hitting the media files
  *
@@ -2610,51 +2692,11 @@ function media_duration_cache($media, $duration_seconds = null, $filesize = null
 {
     global $settings;
     $file_path = $settings['configDirectory'] . "/media_durations.cache";
-    $time = 86400 * 30; //seconds - cache for 24hrs * 30days
-
-    $decode = function ($raw) {
-        if ($raw === false || $raw === '') {
-            return array();
-        }
-        $cache = json_decode($raw, true);
-        return is_array($cache) ? $cache : array();
-    };
 
     if ($duration_seconds === null) {
-        // Lookup only. No lock: a torn read fails to decode and reads as a
-        // miss, which the caller handles by probing.
-        if (!file_exists($file_path) || (time() - filemtime($file_path) > $time)) {
-            return null;
-        }
-        $cache = $decode(file_get_contents($file_path));
-        //if file sizes are the same - then it's the same file
-        if (array_key_exists($media, $cache) && $cache[$media]['filesize'] == $filesize) {
-            return $cache[$media]['duration'];
-        }
-        return null;
+        return media_file_cache_lookup(media_file_cache_read($file_path), $media, 'duration', $filesize);
     }
-
-    // Store. Read-modify-write under an exclusive lock. Concurrent callers
-    // (two browsers on the file manager, the playlist editor) each did an
-    // unlocked read/write and clobbered each other's entries: 70 files
-    // probed 3 at a time left 13 in the cache.
-    $fp = fopen($file_path, 'c+');
-    if ($fp === false) {
-        return $duration_seconds;
-    }
-    if (flock($fp, LOCK_EX)) {
-        $expired = (time() - filemtime($file_path) > $time);
-        $cache = $expired ? array() : $decode(stream_get_contents($fp));
-        $cache[$media] = array('filesize' => $filesize, 'duration' => $duration_seconds);
-        ftruncate($fp, 0);
-        rewind($fp);
-        fwrite($fp, json_encode($cache, JSON_PRETTY_PRINT));
-        fflush($fp);
-        flock($fp, LOCK_UN);
-    }
-    fclose($fp);
-
-    return $duration_seconds;
+    return media_file_cache_store($file_path, $media, 'duration', $duration_seconds, $filesize);
 }
 
 /**
@@ -2664,59 +2706,41 @@ function media_duration_cache($media, $duration_seconds = null, $filesize = null
  *
  * Mirrors media_duration_cache(): keyed on the relative filename and validated
  * against the file size, so a replaced file of a different size is probed again.
- * A file with no audio stream is cached with a sample rate of 0, so it is not
- * probed on every listing either.
+ * A file ffprobe reports no audio stream in is cached with a sample rate of 0,
+ * so it is not probed on every listing either; a probe that failed is not cached
+ * (see AudioInfoIsCacheable()).
  *
  * @param string $media relative music filename (cache key)
  * @param array|null $info ['sampleRate','bitRate','channels','codec'] to store, or null to only look up
  * @param int|string|null $filesize file size used to validate the cache entry
+ * @param array|null $entries on a lookup, the result of media_audio_info_cache_entries() if already read
  * @return array|null the cached/stored info, or null on a miss with nothing to store
  */
-function media_audio_info_cache($media, $info = null, $filesize = null)
+function media_audio_info_cache($media, $info = null, $filesize = null, $entries = null)
 {
     global $settings;
     $file_path = $settings['configDirectory'] . "/media_audio_info.cache";
-    $time = 86400 * 30; //seconds - cache for 24hrs * 30days
-
-    $decode = function ($raw) {
-        if ($raw === false || $raw === '') {
-            return array();
-        }
-        $cache = json_decode($raw, true);
-        return is_array($cache) ? $cache : array();
-    };
 
     if ($info === null) {
-        // Lookup only. No lock: a torn read fails to decode and reads as a miss.
-        if (!file_exists($file_path) || (time() - filemtime($file_path) > $time)) {
-            return null;
+        if ($entries === null) {
+            $entries = media_audio_info_cache_entries();
         }
-        $cache = $decode(file_get_contents($file_path));
-        if (array_key_exists($media, $cache) && $cache[$media]['filesize'] == $filesize) {
-            return $cache[$media]['info'];
-        }
-        return null;
+        return media_file_cache_lookup($entries, $media, 'info', $filesize);
     }
+    return media_file_cache_store($file_path, $media, 'info', $info, $filesize);
+}
 
-    // Store: read-modify-write under an exclusive lock, for the same reason as
-    // media_duration_cache() (concurrent callers clobber each other otherwise).
-    $fp = fopen($file_path, 'c+');
-    if ($fp === false) {
-        return $info;
-    }
-    if (flock($fp, LOCK_EX)) {
-        $expired = (time() - filemtime($file_path) > $time);
-        $cache = $expired ? array() : $decode(stream_get_contents($fp));
-        $cache[$media] = array('filesize' => $filesize, 'info' => $info);
-        ftruncate($fp, 0);
-        rewind($fp);
-        fwrite($fp, json_encode($cache, JSON_PRETTY_PRINT));
-        fflush($fp);
-        flock($fp, LOCK_UN);
-    }
-    fclose($fp);
-
-    return $info;
+/**
+ * The whole audio info cache, read once.  Pass it as the fourth argument of
+ * media_audio_info_cache() when looking up many files, so a listing of n files
+ * reads and decodes the cache file once rather than n times.
+ *
+ * @return array
+ */
+function media_audio_info_cache_entries()
+{
+    global $settings;
+    return media_file_cache_read($settings['configDirectory'] . "/media_audio_info.cache");
 }
 
 /**

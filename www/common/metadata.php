@@ -36,7 +36,10 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
             media_duration_cache($mediaName, $resp['format']['duration'], $media_filesize);
             // The same probe tells the Music tab this file's sample rate and
             // bit rate; keep them so it does not probe the file a second time.
-            media_audio_info_cache($mediaName, AudioInfoFromProbe($resp), $media_filesize);
+            $audioInfo = AudioInfoFromProbe($resp);
+            if (AudioInfoIsCacheable($resp, $audioInfo)) {
+                media_audio_info_cache($mediaName, $audioInfo, $media_filesize);
+            }
             $total_duration = $resp['format']['duration'] + $total_duration;
         } else {
             $total_duration = $cache_duration + $total_duration;
@@ -303,6 +306,27 @@ function AudioInfoFromProbe($resp)
         }
     }
     return array('sampleRate' => 0, 'bitRate' => 0, 'channels' => 0, 'codec' => '');
+}
+
+/**
+ * Whether a probe's audio info is worth caching.  It is when the probe found a
+ * sample rate, or when ffprobe itself ran and listed the file's streams without
+ * an audio one (a video, a picture).  It is not when the probe failed -- ffprobe
+ * missing, timed out, or only GStreamer's discoverer answered, which never
+ * reports a sample rate -- because a cached "no audio" would stand for 30 days.
+ * The file is simply probed again on the next listing.
+ *
+ * @param array $resp the structure from GetMetaDataFromFFProbe()
+ * @param array $info the result of AudioInfoFromProbe($resp)
+ * @return bool
+ */
+function AudioInfoIsCacheable($resp, $info)
+{
+    if ($info['sampleRate'] > 0) {
+        return true;
+    }
+    // format_name is ffprobe's; the GStreamer fallback does not set it.
+    return isset($resp['format']['format_name']) && isset($resp['streams']) && is_array($resp['streams']);
 }
 
 /**

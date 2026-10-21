@@ -331,8 +331,10 @@ function GetFilesHelper($dirName, $prefix = '')
                 if (strpos(strtolower($dirName), "music") !== false) {
                     if (!isset($audioRates)) {
                         $audioRates = GetAudioRates();
+                        // Read the cache once for the whole listing, not once per file.
+                        $audioEntries = media_audio_info_cache_entries();
                     }
-                    $audioInfo = media_audio_info_cache($fileName, null, $Size);
+                    $audioInfo = media_audio_info_cache($fileName, null, $Size, $audioEntries);
                     if ($audioInfo === null) {
                         $current["sampleRate"] = null;
                         $current["bitRate"] = null;

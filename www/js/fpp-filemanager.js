@@ -374,7 +374,21 @@ function HumanPlaytime (seconds) {
 // Pi running several probes at once. Follows LoadSequenceFPS() for how the
 // table is updated: through the Bootstrap Table data model once it is
 // initialized, or the raw cells while its tab is still hidden.
+// One duration sweep per tab at a time, for the same reason as LoadAudioInfo():
+// listings overlap after an upload, and a second sweep would run its own probes
+// (and the same file twice) beside the first on a board that can hardly afford
+// one.  A request that arrives meanwhile is replayed, with its callback, when
+// the running sweep is done.
+var durationsLoading = {};
+var durationsQueued = {};
 function LoadMediaDurations (dir, whenDone) {
+	if (durationsLoading[dir]) {
+		durationsQueued[dir] = durationsQueued[dir] || [];
+		if (whenDone) {
+			durationsQueued[dir].push(whenDone);
+		}
+		return;
+	}
 	var pending = (fileData[dir] || []).filter(function (f) {
 		return f.playtimeSeconds === null;
 	});
@@ -384,6 +398,22 @@ function LoadMediaDurations (dir, whenDone) {
 		}
 		return;
 	}
+	durationsLoading[dir] = true;
+	var finish = function () {
+		durationsLoading[dir] = false;
+		if (whenDone) {
+			whenDone();
+		}
+		var queued = durationsQueued[dir];
+		if (queued) {
+			delete durationsQueued[dir];
+			LoadMediaDurations(dir, function () {
+				queued.forEach(function (cb) {
+					cb();
+				});
+			});
+		}
+	};
 
 	var decoder = document.createElement('textarea');
 	var decode = function (s) {
@@ -430,9 +460,7 @@ function LoadMediaDurations (dir, whenDone) {
 	var next = function () {
 		var f = pending.shift();
 		if (!f) {
-			if (whenDone) {
-				whenDone();
-			}
+			finish();
 			return;
 		}
 		$.ajax({
@@ -481,7 +509,13 @@ function SampleRateCellHtml (hz, status) {
 	var tip = '';
 	if (status == 'resample') {
 		tip =
-			"This file's sample rate is not the audio system's, so it is converted on the CPU every time it plays. Use Convert Rate to make a copy at the configured rate.";
+			"This file's sample rate is not the audio system's, so it is converted on the CPU every time it plays.";
+		// Offer the fix only where it exists: the button is not on the page
+		// when ffmpeg is not installed.
+		if ($('#btnConvertMusicRate').length) {
+			tip +=
+				" Use Convert Rate to replace it with a copy at the audio system's rate.";
+		}
 	} else if (status == 'stuck') {
 		tip =
 			"This file is at the configured rate, but the audio hardware runs at a rate that is not a whole multiple of it, so it is converted on the CPU every time it plays.";
@@ -1224,9 +1258,9 @@ function ButtonHandler (table, button) {
 			'Convert Sample Rate',
 			'<p>Convert ' +
 				(files.length == 1 ? 'the selected file' : 'each of the ' + files.length + ' selected files') +
-				' to the audio system&#39;s configured sample rate?</p>' +
+				' to the audio system&#39;s sample rate?</p>' +
 				'<p>The file is <strong>replaced</strong> under the same name, and no backup is kept, so keep your originals elsewhere. ' +
-				'Files already at that rate are skipped. Lossy files (MP3, OGG, AAC) are encoded again, ' +
+				'Files that already play without conversion are skipped. Lossy files (MP3, OGG, AAC) are encoded again, ' +
 				'so they lose a little quality. This can take a while on a small device.</p>',
 			function () {
 				DisplayProgressDialog('convertRateProgress', 'Convert Sample Rate');

@@ -147,7 +147,9 @@ function GetMediaAudioInfo()
     if ($info === null) {
         $resp = GetMetaDataFromFFProbe($file);
         $info = AudioInfoFromProbe($resp);
-        media_audio_info_cache($file, $info, $size);
+        if (AudioInfoIsCacheable($resp, $info)) {
+            media_audio_info_cache($file, $info, $size);
+        }
         // The probe already has the duration; keep it so the Duration column
         // does not probe the file again.
         if (isset($resp['format']['duration'])) {

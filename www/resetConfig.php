@@ -18,6 +18,7 @@ $files['scripts'] = array(
 $files['caches'] = array(
     'cache/*',
     'config/media_durations.cache',
+    'config/media_audio_info.cache',
     'tmp/*',
 );
 $files['backups'] = array(
