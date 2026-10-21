@@ -255,8 +255,15 @@ char* ProcessCommand(char* command, char* response) {
             s2 = strtok_r(NULL, ",", &saveptr);
             if (s && s2) {
                 i = atoi(s2);
-                sequence->OpenSequenceFile(s, 0, i);
-                sequence->StartSequence();
+                // Start only what this request opened.  A refused name leaves
+                // any sequence already open but not started (a remote's,
+                // waiting for its master) in place, and StartSequence() would
+                // start that one instead.
+                if (sequence->OpenSequenceFile(s, 0, i) > 0) {
+                    sequence->StartSequence();
+                } else {
+                    LogWarn(VB_COMMAND, "Not starting sequence %s: it could not be opened\n", s);
+                }
             } else {
                 LogDebug(VB_COMMAND, "Invalid command: %s\n", command);
             }
