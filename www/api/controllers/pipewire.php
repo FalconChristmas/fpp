@@ -6503,8 +6503,10 @@ function SaveAES67Instances()
             $inst['channels'] = 2;
         if (empty($inst['sessionName']))
             $inst['sessionName'] = $inst['name'];
+        // AES67::DEFAULT_PTIME_MS -- what fppd uses for an instance with no
+        // ptime, and what the page offers as the default.
         if (!isset($inst['ptime']))
-            $inst['ptime'] = 4;
+            $inst['ptime'] = 1;
         if (!isset($inst['latency']))
             $inst['latency'] = 10;
         if (!isset($inst['sapEnabled']))
