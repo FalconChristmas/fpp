@@ -522,31 +522,29 @@ WS2812FXExt::WS2812FXExt(PixelOverlayModel* m, int map, int b,
             mapping = 0;
         }
     }
-
     Panel p;
+    int segW, segH;
     if (polar) {
         // The segment IS the polar buffer: x = radius, y = angle (or the other
         // way round for the Angular modes). getLength() below must agree with
         // this or effects index past the LUT.
-        _segments.push_back(Segment(0, polar->width, 0, polar->height));
-        p.width = polar->width;
-        p.height = polar->height;
-        isMatrix = polar->width > 1 && polar->height > 1;
+        segW = polar->width;
+        segH = polar->height;
     } else if (mapping == 0 || mapping == 2) {
-        if (m->getWidth() > 1 && m->getHeight() > 1) {
-            isMatrix = true;
-        }
-        _segments.push_back(Segment(0, m->getWidth(), 0, m->getHeight()));
-        p.width = m->getWidth();
-        p.height = m->getHeight();
+        segW = m->getWidth();
+        segH = m->getHeight();
     } else {
-        if (m->getWidth() > 1 && m->getHeight() > 1) {
-            isMatrix = true;
-        }
-        _segments.push_back(Segment(0, m->getHeight(), 0, m->getWidth()));
-        p.width = m->getHeight();
-        p.height = m->getWidth();
+        segW = m->getHeight();
+        segH = m->getWidth();
     }
+    // WLED takes a 1 x N segment as one pixel long; N x 1 is the same to busPixelXY().
+    if (segW == 1 && segH > 1) {
+        std::swap(segW, segH);
+    }
+    _segments.push_back(Segment(0, segW, 0, segH));
+    p.width = segW;
+    p.height = segH;
+    isMatrix = segW > 1 && segH > 1;
     _segments[0].setMode(mode, true);
     _segments[0].speed = s;
     _segments[0].intensity = i;
