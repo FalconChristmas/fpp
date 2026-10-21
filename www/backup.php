@@ -2719,10 +2719,14 @@ if ($skipHTMLCodeOutput === false) {
             }
 
             function GetBackupHostBackupDirs(remoteStorageSelected) {
-                fppFileCopy.getBackupHostBackupDirs(remoteStorageSelected);
+                // The Backup Host select passes its setting name. A new host
+                // means new storage choices, and reloading them lists the
+                // folders too.
                 if (remoteStorageSelected === 'backup.Host') {
                     GetRemoteHostUSBStorage();
+                    return;
                 }
+                fppFileCopy.getBackupHostBackupDirs(remoteStorageSelected);
             }
 
             function PopulateBackupDirs(data, excludeRoot) {

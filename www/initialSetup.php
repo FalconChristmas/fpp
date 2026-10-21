@@ -1716,7 +1716,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                                 <tr class="fcHost" style="display: none;">
                                     <td class="pe-3 pb-2">Remote Host:</td>
                                     <td class="pb-2">
-                                        <select id="fcHost" class="form-select" onchange="GetRemoteHostUSBStorage(); GetBackupHostBackupDirs($('#fcRemoteStorage').val())">
+                                        <select id="fcHost" class="form-select" onchange="GetRemoteHostUSBStorage()">
                                             <option value="">-- Select Remote Host --</option>
                                             <?php echo $hostOptions; ?>
                                         </select>

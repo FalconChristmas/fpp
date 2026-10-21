@@ -218,10 +218,13 @@ fppFileCopy.getRemoteHostUSBStorage = function () {
         }
         $(fppFileCopy.config.remoteStorage).html(defaultOption + options);
         $(fppFileCopy.config.remoteStorage).parent().closest('td').removeClass('fpp-backup-action-loading');
-        if (options) fppFileCopy.getBackupHostBackupDirs($(fppFileCopy.config.remoteStorage).val());
+        fppFileCopy.getBackupHostBackupDirs($(fppFileCopy.config.remoteStorage).val());
     }).fail(function () {
         $(fppFileCopy.config.remoteStorage).html(defaultOption);
         $(fppFileCopy.config.remoteStorage).parent().closest('td').removeClass('fpp-backup-action-loading');
+        // Don't leave the previous host's folders to be picked for this one.
+        $(fppFileCopy.config.pathSelect).html('');
+        fppFileCopy.checkRemoteHasRsyncdEnabled(host);
     });
 };
 
