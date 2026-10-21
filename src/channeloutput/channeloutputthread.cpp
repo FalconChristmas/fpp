@@ -50,7 +50,9 @@ std::atomic_int LightDelay{ 50000 };
 std::atomic_int FrameSkip{ 0 };
 std::atomic_int MasterFramesPlayed{ -1 };
 std::atomic_int OutputFrames{ 1 };
-float mediaOffset = 0.0;
+// Set by every StartChannelOutputThread(), which an overlay model switched on
+// from an API thread calls too, and read on the playlist's thread.
+std::atomic<float> mediaOffset{ 0.0 };
 
 /* local variables */
 // Atomic, not volatile: volatile orders nothing between threads, and the main
@@ -594,7 +596,7 @@ void StartChannelOutputThread(void) {
         } else {
             mediaOffset = 0.0;
         }
-        LogDebug(VB_MEDIAOUT, "Using mediaOffset of %.3f\n", mediaOffset);
+        LogDebug(VB_MEDIAOUT, "Using mediaOffset of %.3f\n", mediaOffset.load());
     }
 
     {
@@ -797,7 +799,8 @@ void CalculateNewChannelOutputDelay(float mediaPosition) {
     static double phaseErrUs = 0.0;
     static long long phaseErrAt = 0;
 
-    float offsetMediaPosition = mediaPosition - mediaOffset;
+    const float offset = mediaOffset;
+    float offsetMediaPosition = mediaPosition - offset;
     mediaElapsedSeconds = offsetMediaPosition < 0.0 ? 0.0 : offsetMediaPosition;
 
     if (getFPPmode() == REMOTE_MODE || !sequence->IsSequenceRunning())
@@ -841,7 +844,7 @@ void CalculateNewChannelOutputDelay(float mediaPosition) {
 
     LogDebug(VB_CHANNELOUT,
              "Media Position: %.2f, Offset: %.3f, Frames Sent: %d, Expected: %d, Diff: %d\n",
-             mediaPosition, mediaOffset, channelOutputFrame.load(), expectedFramesSent,
+             mediaPosition, offset, channelOutputFrame.load(), expectedFramesSent,
              channelOutputFrame - expectedFramesSent);
 
     AdjustForFrame(expectedFramesSent, phaseServo);
