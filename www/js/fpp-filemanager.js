@@ -121,6 +121,25 @@ function SortLogFiles (files) {
 	});
 }
 
+// The page asks for its first listings from its <head>, so they overlap the
+// rest of the page loading -- which means one can answer before the parser
+// has reached its table, and rows written then go nowhere (the tab stays
+// empty, not even "No files found"). Hold a listing's handlers until the
+// tables exist; once the page has loaded they run at once, as before.
+function AfterTablesParsed (fn) {
+	return function () {
+		var self = this;
+		var args = arguments;
+		if (document.readyState === 'loading') {
+			$(function () {
+				fn.apply(self, args);
+			});
+		} else {
+			fn.apply(self, args);
+		}
+	};
+}
+
 function GetFiles (dir, extraParams, seq) {
 	if (seq === undefined) {
 		// A standalone refresh (rename/copy/save follow-ups, initial Config
@@ -130,7 +149,7 @@ function GetFiles (dir, extraParams, seq) {
 	$.ajax({
 		dataType: 'json',
 		url: 'api/files/' + dir + (extraParams ? '?' + extraParams : ''),
-		success: function (data) {
+		success: AfterTablesParsed(function (data) {
 			let i = 0;
 
 			// Ignore responses from a superseded round: a newer listing for
@@ -295,8 +314,8 @@ function GetFiles (dir, extraParams, seq) {
 					.append(tableRow);
 				++i;
 			});
-		},
-		error: function (x, t, e) {
+		}),
+		error: AfterTablesParsed(function (x, t, e) {
 			// A superseded round failing after a newer one already refreshed
 			// this dir is not worth an error dialog: the listing is current.
 			if ((fileListApplied[dir] || 0) > seq) {
@@ -309,8 +328,8 @@ function GetFiles (dir, extraParams, seq) {
 					' directory' +
 					show_details([x, t, e])
 			);
-		},
-		complete: function () {
+		}),
+		complete: AfterTablesParsed(function () {
 			// A superseded round must not touch the table at all: reaching
 			// SetupTableSorter() would destroy/rebuild for nothing, dropping
 			// the newer listing's view state.
@@ -330,7 +349,7 @@ function GetFiles (dir, extraParams, seq) {
 			} else if (dir == 'Music' || dir == 'Videos') {
 				LoadMediaDurations(dir);
 			}
-		}
+		})
 	});
 }
 
