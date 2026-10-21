@@ -196,7 +196,9 @@ private:
     mutable std::mutex m_seqFilenameLock;
 
     std::atomic_int m_lastFrameRead;
-    volatile bool m_doneRead;
+    // Read by the read-ahead thread outside frameCacheLock (under readFileLock
+    // only), written by CloseSequenceFile() under frameCacheLock.
+    std::atomic<bool> m_doneRead;
     // Set by the destructor while the read-ahead thread is still checking it.
     std::atomic<bool> m_shuttingDown;
     std::thread* m_readThread;
