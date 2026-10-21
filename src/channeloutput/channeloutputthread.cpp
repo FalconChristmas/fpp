@@ -457,11 +457,15 @@ void RunChannelOutputThread(void) {
                 // the lock, and a notify that landed before this wait began
                 // was lost - the start then spawned a replacement and this
                 // thread's timeout below cleared RunThread under it.
+                // Shutdown ends the wait too: left to time out, every fppd
+                // stop took the rest of the 2.5 s.
                 if (outputThreadSatusCond.wait_for(statusLock, std::chrono::milliseconds(2500),
                                                    [startsSeen, forceSeen]() {
-                                                       return outputStartRequests.load() != startsSeen ||
+                                                       return outputThreadShutDown ||
+                                                              outputStartRequests.load() != startsSeen ||
                                                               outputForceRequests.load() != forceSeen;
-                                                   })) {
+                                                   }) &&
+                    !outputThreadShutDown) {
                     // signal to keep going
                     ThreadIsExiting = 0;
                     statusLock.unlock();
@@ -657,24 +661,20 @@ void StartChannelOutputThread(void) {
  *
  */
 int StopChannelOutputThread(void) {
-    int i = 0;
     LogDebug(VB_CHANNELOUT, "StopChannelOutputThread()\n");
 
-    // Stop the thread for good (see outputThreadShutDown) and wait a few seconds
-    {
-        std::unique_lock<std::mutex> lock(outputThreadStatusLock);
-        outputThreadShutDown = true;
-        RunThread = 0;
-    }
-    while (ThreadIsRunning && (i < 50)) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        i++;
-    }
-
-    // Didn't stop for some reason, so it was hung somewhere
-    if (ThreadIsRunning)
+    // Stop the thread for good (see outputThreadShutDown), wake it from
+    // whichever wait it is in, and wait a few seconds for it to exit (it
+    // notifies outputThreadSatusCond once ThreadIsRunning is clear).
+    std::unique_lock<std::mutex> lock(outputThreadStatusLock);
+    outputThreadShutDown = true;
+    RunThread = 0;
+    outputThreadSatusCond.notify_all();
+    outputThreadCond.notify_all();
+    if (!outputThreadSatusCond.wait_for(lock, std::chrono::seconds(5), []() { return !ThreadIsRunning; })) {
+        // Didn't stop for some reason, so it was hung somewhere
         return -1;
-
+    }
     return 0;
 }
 
