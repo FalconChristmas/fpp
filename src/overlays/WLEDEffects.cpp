@@ -163,10 +163,9 @@ public:
 //
 // The four Radial/Angular entries lay the buffer out in POLAR order (radius and
 // angle) using the model's geometry from config/virtualdisplaymap; see
-// PolarBufferMap.h. A player with no xLights layout cannot build one, and a
-// build that predates these names will not match them -- both cases land on
-// index >= size(), which fails every mapping test below and behaves as
-// Horizontal, exactly as an unrecognised value always has.
+// PolarBufferMap.h. A player with no xLights layout cannot build one, and
+// then the strip behaves as Horizontal. A name not in this list (empty, a
+// typo, or from a newer build) is Horizontal too: it is read as index 0.
 static std::array<std::string_view, 8> BUFFERMAPS{
     "Horizontal", "Vertical", "Horizontal Flipped", "Vertical Flipped",
     "Radial Out", "Radial In", "Angular CW", "Angular CCW"
@@ -432,6 +431,9 @@ public:
                 switch (argMap[x]) {
                 case ArgMapping::Mapping:
                     mapping = std::find(BUFFERMAPS.begin(), BUFFERMAPS.end(), std::string_view(args[x])) - BUFFERMAPS.begin();
+                    if (mapping >= (int)BUFFERMAPS.size()) {
+                        mapping = 0;
+                    }
                     mappingName = args[x];
                     break;
                 case ArgMapping::Brightness:
