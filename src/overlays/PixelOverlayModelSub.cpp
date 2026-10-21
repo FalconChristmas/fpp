@@ -162,10 +162,11 @@ PixelOverlayModelSub::~PixelOverlayModelSub() {
 // doOverlay() from PixelOverlayManager::doOverlays() with activeModelsLock
 // already held, and every HTTP handler takes modelsLock before
 // activeModelsLock (via setState() -> modelStateChanged()), so a lookup from
-// that side would invert them. setState() below is the only caller, and the
-// resolution itself only try-locks modelsLock: setState() can also run on the effect
-// update threads (an effect stopping calls model->setState() under this
-// model's effectLock), where BLOCKING on modelsLock is the reverse of the
+// that side would invert them. Callers are setState() below and
+// readyForPolarJoin() (effect start), and the resolution itself only
+// try-locks modelsLock: setState() can also run on the effect update threads
+// (an effect stopping calls model->setState() under this model's
+// effectLock), where BLOCKING on modelsLock is the reverse of the
 // HTTP/command paths' modelsLock -> effectLock order and deadlocks outright --
 // the same shape 37c8f92a8 fixed one lock over. The try-acquire never blocks:
 // from the manager paths (which already hold modelsLock recursively) it always

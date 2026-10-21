@@ -30,6 +30,9 @@ public:
 
     void resetParent();
     std::string getParentName() const;
+    // For getPolarMap(): a rectangle submodel needs its parent to place its
+    // cells. Not from the channel output thread, as foundParent().
+    bool readyForPolarJoin() { return gridMode || foundParent(); }
 
 protected:
     // Grid submodels and groups SCATTER: a buffer cell lands on an arbitrary

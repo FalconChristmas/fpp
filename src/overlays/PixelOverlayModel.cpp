@@ -61,6 +61,7 @@
 #include "PixelOverlay.h"
 #include "PixelOverlayEffects.h"
 #include "PixelOverlayModel.h"
+#include "PixelOverlayModelSub.h"
 #include "../channeloutput/channeloutputthread.h"
 
 // The channel order a model reads and writes.  This is the order of fppd's
@@ -837,10 +838,15 @@ uint32_t PixelOverlayModel::outputChannelForCell(int x, int y) const {
  * up on (outputChannelForData, overridden by the scattering subclasses).
  *
  * Any failure returns nullptr and is remembered, so a model with no geometry
- * costs one attempt rather than one per effect start.
+ * costs one attempt rather than one per effect start. A submodel whose parent
+ * can't be resolved yet is not an attempt: it has no channels to join.
  */
 const PolarBufferMap* PixelOverlayModel::getPolarMap(PolarMode mode) {
     if (mode == PolarMode::None) {
+        return nullptr;
+    }
+    PixelOverlayModelSub* sub = dynamic_cast<PixelOverlayModelSub*>(this);
+    if (sub && !sub->readyForPolarJoin()) {
         return nullptr;
     }
     // Rebuild when the layout has been re-uploaded since the map was built.
