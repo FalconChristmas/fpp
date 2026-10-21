@@ -1365,6 +1365,15 @@ Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps) {
     return result;
 }
 
+// The packet counters are bumped as packets are processed, on the main loop,
+// without m_statsLock (only the lookup of a sender's stats takes it), while
+// GetSyncStats() reads them and ResetSyncStats() zeroes them from API threads.
+// So every access is a relaxed atomic one; MultiSyncStats keeps plain fields,
+// as MultiSync.h is a plugin-facing header.
+static inline void BumpStat(uint32_t& c) {
+    __atomic_fetch_add(&c, 1, __ATOMIC_RELAXED);
+}
+
 Json::Value MultiSync::GetSyncStats() {
     Json::Value result;
     Json::Value systems(Json::arrayValue);
@@ -1401,20 +1410,20 @@ void MultiSync::ResetSyncStats() {
     std::unique_lock<std::recursive_mutex> slock(m_statsLock);
     for (auto& a : m_syncStats) {
         MultiSyncStats* stats = (MultiSyncStats*)a.second;
-        stats->pktCommand = 0;
-        stats->pktSyncSeqOpen = 0;
-        stats->pktSyncSeqStart = 0;
-        stats->pktSyncSeqStop = 0;
-        stats->pktSyncSeqSync = 0;
-        stats->pktSyncMedOpen = 0;
-        stats->pktSyncMedStart = 0;
-        stats->pktSyncMedStop = 0;
-        stats->pktSyncMedSync = 0;
-        stats->pktBlank = 0;
-        stats->pktPing = 0;
-        stats->pktPlugin = 0;
-        stats->pktFPPCommand = 0;
-        stats->pktError = 0;
+        __atomic_store_n(&stats->pktCommand, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&stats->pktSyncSeqOpen, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&stats->pktSyncSeqStart, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&stats->pktSyncSeqStop, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&stats->pktSyncSeqSync, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&stats->pktSyncMedOpen, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&stats->pktSyncMedStart, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&stats->pktSyncMedStop, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&stats->pktSyncMedSync, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&stats->pktBlank, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&stats->pktPing, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&stats->pktPlugin, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&stats->pktFPPCommand, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&stats->pktError, 0, __ATOMIC_RELAXED);
     }
 }
 
@@ -4015,7 +4024,7 @@ void MultiSync::ProcessControlPacket(bool pingOnly) {
                         for (auto a : getPluginsCopy()) {
                             a->ReceivedBlankingDataPacket();
                         }
-                        stats->pktBlank++;
+                        BumpStat(stats->pktBlank);
                         sequence->SendBlankingData();
                     }
                     break;
@@ -4337,7 +4346,7 @@ void MultiSync::ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stat
             LogErr(VB_SYNC, "Error: Invalid length of received sync packet\n");
             HexDump("Received data:", (void*)pkt, len, VB_SYNC);
         }
-        stats->pktError++;
+        BumpStat(stats->pktError);
         return;
     }
 
@@ -4367,7 +4376,7 @@ void MultiSync::ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stat
             LogWarn(VB_SYNC, "Ignoring sync packets from %s for '%s': not a name in the media folders\n",
                     stats->sourceIP.c_str(), TruncateForLog(filename).c_str());
         }
-        stats->pktError++;
+        BumpStat(stats->pktError);
         return;
     }
     // A NaN passes every "< 0" test and the int conversions downstream are
@@ -4389,15 +4398,15 @@ void MultiSync::ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stat
         switch (spkt->pktType) {
         case SYNC_PKT_OPEN:
             OpenSyncedSequence(filename);
-            stats->pktSyncSeqOpen++;
+            BumpStat(stats->pktSyncSeqOpen);
             break;
         case SYNC_PKT_START:
             StartSyncedSequence(filename);
-            stats->pktSyncSeqStart++;
+            BumpStat(stats->pktSyncSeqStart);
             break;
         case SYNC_PKT_STOP:
             StopSyncedSequence(filename);
-            stats->pktSyncSeqStop++;
+            BumpStat(stats->pktSyncSeqStop);
             break;
         case SYNC_PKT_SYNC:
             secondsElapsed = secondsIn - m_remoteOffset;
@@ -4406,14 +4415,14 @@ void MultiSync::ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stat
 
             SyncSyncedSequence(filename,
                                frameNumber, secondsElapsed);
-            stats->pktSyncSeqSync++;
+            BumpStat(stats->pktSyncSeqSync);
             break;
         }
     } else if (spkt->fileType == SYNC_FILE_MEDIA) {
         switch (spkt->pktType) {
         case SYNC_PKT_OPEN:
             OpenSyncedMedia(filename);
-            stats->pktSyncMedOpen++;
+            BumpStat(stats->pktSyncMedOpen);
             break;
         case SYNC_PKT_START:
             secondsElapsed = secondsIn - m_remoteOffset;
@@ -4421,11 +4430,11 @@ void MultiSync::ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stat
                 secondsElapsed = 0.0;
 
             StartSyncedMedia(filename, secondsElapsed);
-            stats->pktSyncMedStart++;
+            BumpStat(stats->pktSyncMedStart);
             break;
         case SYNC_PKT_STOP:
             StopSyncedMedia(filename);
-            stats->pktSyncMedStop++;
+            BumpStat(stats->pktSyncMedStop);
             break;
         case SYNC_PKT_SYNC:
             secondsElapsed = secondsIn - m_remoteOffset;
@@ -4434,7 +4443,7 @@ void MultiSync::ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stat
 
             SyncSyncedMedia(filename,
                             frameNumber, secondsElapsed);
-            stats->pktSyncMedSync++;
+            BumpStat(stats->pktSyncMedSync);
             break;
         }
     }
@@ -4451,11 +4460,11 @@ void MultiSync::ProcessCommandPacket(ControlPkt* pkt, int len, MultiSyncStats* s
             LogErr(VB_SYNC, "Error: Invalid length of received command packet\n");
             HexDump("Received data:", (void*)pkt, len, VB_SYNC);
         }
-        stats->pktError++;
+        BumpStat(stats->pktError);
         return;
     }
 
-    stats->pktCommand++;
+    BumpStat(stats->pktCommand);
 
     CommandPkt* cpkt = (CommandPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
@@ -4485,7 +4494,7 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
             LogErr(VB_SYNC, "ERROR: Invalid length of received Ping packet\n");
             HexDump("Received data:", (void*)pkt, len, VB_SYNC);
         }
-        stats->pktError++;
+        BumpStat(stats->pktError);
         return;
     }
 
@@ -4498,7 +4507,7 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
             LogErr(VB_SYNC, "ERROR: Ping v1 packet too long: %d\n", pkt->extraDataLen);
             HexDump("Received data:", (void*)pkt, len, VB_SYNC);
         }
-        stats->pktError++;
+        BumpStat(stats->pktError);
         return;
     }
     if ((pingVersion == 2) && (pkt->extraDataLen > 214)) {
@@ -4506,7 +4515,7 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
             LogErr(VB_SYNC, "ERROR: Ping v2 packet too long %d\n", pkt->extraDataLen);
             HexDump("Received data:", (void*)pkt, len, VB_SYNC);
         }
-        stats->pktError++;
+        BumpStat(stats->pktError);
         return;
     }
     int discover = extraData[1];
@@ -4620,7 +4629,7 @@ void MultiSync::ProcessPingPacket(ControlPkt* pkt, int len, const std::string& s
         }
     }
 
-    stats->pktPing++;
+    BumpStat(stats->pktPing);
 }
 
 void MultiSync::ProcessPluginPacket(ControlPkt* pkt, int plen, MultiSyncStats* stats) {
@@ -4638,7 +4647,7 @@ void MultiSync::ProcessPluginPacket(ControlPkt* pkt, int plen, MultiSyncStats* s
         if (ShouldLogBadPacket()) {
             LogErr(VB_SYNC, "Error: plugin packet name is not terminated within %d bytes of data\n", len);
         }
-        stats->pktError++;
+        BumpStat(stats->pktError);
         return;
     }
     nlen++; // include the terminator
@@ -4650,7 +4659,7 @@ void MultiSync::ProcessPluginPacket(ControlPkt* pkt, int plen, MultiSyncStats* s
     }
     PluginManager::INSTANCE.multiSyncData(pn, data, len);
 
-    stats->pktPlugin++;
+    BumpStat(stats->pktPlugin);
 }
 
 static bool MyHostMatches(const std::string& host, const std::string& hostName, std::vector<MultiSyncSystem>& localSystems) {
@@ -4698,7 +4707,7 @@ void MultiSync::ProcessFPPCommandPacket(ControlPkt* pkt, int len, MultiSyncStats
         if (ShouldLogBadPacket()) {
             LogErr(VB_SYNC, "Error: truncated FPP Command packet\n");
         }
-        stats->pktError++;
+        BumpStat(stats->pktError);
         return;
     }
     // Unsigned: as a signed char an argument count above 127 reads as negative
@@ -4711,7 +4720,7 @@ void MultiSync::ProcessFPPCommandPacket(ControlPkt* pkt, int len, MultiSyncStats
         if (ShouldLogBadPacket()) {
             LogErr(VB_SYNC, "Error: truncated FPP Command packet\n");
         }
-        stats->pktError++;
+        BumpStat(stats->pktError);
         return;
     }
 
@@ -4723,7 +4732,7 @@ void MultiSync::ProcessFPPCommandPacket(ControlPkt* pkt, int len, MultiSyncStats
                 LogErr(VB_SYNC, "Error: FPP Command packet claims %d arguments but only holds %d\n",
                        (int)numArgs, (int)args.size());
             }
-            stats->pktError++;
+            BumpStat(stats->pktError);
             return;
         }
         args.push_back(std::move(arg));
@@ -4742,7 +4751,7 @@ void MultiSync::ProcessFPPCommandPacket(ControlPkt* pkt, int len, MultiSyncStats
         matches = MyHostMatches(host, m_hostname, localSystems);
     }
     if (matches) {
-        stats->pktFPPCommand++;
+        BumpStat(stats->pktFPPCommand);
         // Remote-supplied and unbounded - truncate. (The args are covered by
         // CommandManager::run()'s own log line below.)
         LogDebug(VB_COMMAND, "Command \"%s\" received from remote host %s (%s)\n",
@@ -4876,20 +4885,20 @@ Json::Value MultiSyncStats::toJSON() {
              tm.tm_hour, tm.tm_min, tm.tm_sec);
 
     result["lastReceiveTime"] = timeStr;
-    result["pktCommand"] = pktCommand;
-    result["pktSyncSeqOpen"] = pktSyncSeqOpen;
-    result["pktSyncSeqStart"] = pktSyncSeqStart;
-    result["pktSyncSeqStop"] = pktSyncSeqStop;
-    result["pktSyncSeqSync"] = pktSyncSeqSync;
-    result["pktSyncMedOpen"] = pktSyncMedOpen;
-    result["pktSyncMedStart"] = pktSyncMedStart;
-    result["pktSyncMedStop"] = pktSyncMedStop;
-    result["pktSyncMedSync"] = pktSyncMedSync;
-    result["pktBlank"] = pktBlank;
-    result["pktPing"] = pktPing;
-    result["pktPlugin"] = pktPlugin;
-    result["pktFPPCommand"] = pktFPPCommand;
-    result["pktError"] = pktError;
+    result["pktCommand"] = __atomic_load_n(&pktCommand, __ATOMIC_RELAXED);
+    result["pktSyncSeqOpen"] = __atomic_load_n(&pktSyncSeqOpen, __ATOMIC_RELAXED);
+    result["pktSyncSeqStart"] = __atomic_load_n(&pktSyncSeqStart, __ATOMIC_RELAXED);
+    result["pktSyncSeqStop"] = __atomic_load_n(&pktSyncSeqStop, __ATOMIC_RELAXED);
+    result["pktSyncSeqSync"] = __atomic_load_n(&pktSyncSeqSync, __ATOMIC_RELAXED);
+    result["pktSyncMedOpen"] = __atomic_load_n(&pktSyncMedOpen, __ATOMIC_RELAXED);
+    result["pktSyncMedStart"] = __atomic_load_n(&pktSyncMedStart, __ATOMIC_RELAXED);
+    result["pktSyncMedStop"] = __atomic_load_n(&pktSyncMedStop, __ATOMIC_RELAXED);
+    result["pktSyncMedSync"] = __atomic_load_n(&pktSyncMedSync, __ATOMIC_RELAXED);
+    result["pktBlank"] = __atomic_load_n(&pktBlank, __ATOMIC_RELAXED);
+    result["pktPing"] = __atomic_load_n(&pktPing, __ATOMIC_RELAXED);
+    result["pktPlugin"] = __atomic_load_n(&pktPlugin, __ATOMIC_RELAXED);
+    result["pktFPPCommand"] = __atomic_load_n(&pktFPPCommand, __ATOMIC_RELAXED);
+    result["pktError"] = __atomic_load_n(&pktError, __ATOMIC_RELAXED);
 
     return result;
 }
