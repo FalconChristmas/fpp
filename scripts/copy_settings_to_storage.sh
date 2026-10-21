@@ -143,7 +143,10 @@ elif [ "$DIRECTION" == "TOLOCAL" ]; then
     SOURCE=/home/fpp/media
     DEST="/home/fpp/media/backups/$DPATH"
     DEST_REAL=$(realpath -m -- "$DEST")
-    if [[ "$DEST_REAL" != /home/fpp/media/backups* ]]; then
+    # Against the backups directory resolved the same way: a media directory
+    # that is a link resolves elsewhere, and every path was refused.
+    BACKUPS_REAL=$(realpath -m -- /home/fpp/media/backups)
+    if [[ "$DEST_REAL" != "$BACKUPS_REAL" && "$DEST_REAL" != "$BACKUPS_REAL"/* ]]; then
         echo "Invalid destination path: $DPATH" >&2
         exit 1
     fi
@@ -152,7 +155,8 @@ elif [ "$DIRECTION" == "TOLOCAL" ]; then
 elif [ "$DIRECTION" == "FROMLOCAL" ]; then
     SOURCE="/home/fpp/media/backups/$DPATH"
     SOURCE_REAL=$(realpath -m -- "$SOURCE")
-    if [[ "$SOURCE_REAL" != /home/fpp/media/backups* ]]; then
+    BACKUPS_REAL=$(realpath -m -- /home/fpp/media/backups)
+    if [[ "$SOURCE_REAL" != "$BACKUPS_REAL" && "$SOURCE_REAL" != "$BACKUPS_REAL"/* ]]; then
         echo "Invalid source path: $DPATH" >&2
         exit 1
     fi
