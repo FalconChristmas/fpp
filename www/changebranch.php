@@ -31,16 +31,26 @@ if ($remote === 'pull-requests') {
 		exit(0);
 	}
 }
+
+$skipJSsettings = 1;
+require_once("common.php");
+// Atomic server-side update lock (see common/updateLock.inc.php).
+require_once("common/updateLock.inc.php");
+
+// The update lock is taken here, before anything is sent: taken after the page
+// head, as it was, its 409 could no longer change the status and a refused
+// switch reached the client as a 200. It is held for the whole switch so a
+// concurrent starter is refused instead of stacking a second mutation, and
+// before the PR fetch and the remote add/set-url mutations below, so two
+// racers serialize before either touches the repo. The PR-mode config warning
+// (the ack gate) ends its request, and the lock with it, so it is not held
+// while the user reads that warning.
+UpdateLockAcquireOrConflict('fpp-branch-switch', ($remote === 'pull-requests') ? 'origin/pr-' . $prNumber : $remote . '/' . $branch);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <?
 include 'common/htmlMeta.inc';
-$skipJSsettings = 1;
-require_once("common.php");
-// Atomic server-side update lock helper (acquired after the ack gate below,
-// before any remote/branch mutation).
-require_once("common/updateLock.inc.php");
 
 DisableOutputBuffering();
 // Survive a closed tab mid-switch like the other update endpoints.
@@ -208,13 +218,6 @@ if ($prFetchDone && ($_GET['ackcfg'] ?? '') !== '1') {
 		exit(0);
 	}
 }
-
-// The update lock is taken here, right after the ack gate above (which must
-// not hold it while the user reads the warning) and BEFORE the remote
-// add/set-url mutations below: two racers must serialize before either
-// touches the repo, not after. Held for the whole switch so a concurrent
-// starter gets 409 instead of stacking a second mutation.
-UpdateLockAcquireOrConflict('fpp-branch-switch', $remote . '/' . $branch);
 
 // If remote is a GitHub fork (matches saved gitHubUser), ensure the git remote exists
 $isForkRemote = false;
