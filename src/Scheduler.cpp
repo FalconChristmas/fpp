@@ -975,9 +975,10 @@ void Scheduler::LoadScheduleFromFile(void) {
         localtime_r(&loadTime, &lt);
         m_lastLoadDate = (lt.tm_year + 1900) * 10000 + (lt.tm_mon + 1) * 100 + lt.tm_mday;
     }
-    m_schedulesExtendBeyondDistance = false;
-
+    // Under the lock, like the AddScheduledItems() writes below and the read
+    // in GetSchedule(), which an API thread makes while this reloads.
     std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
+    m_schedulesExtendBeyondDistance = false;
     m_Schedule.clear();
     ClearScheduledItems();
 
