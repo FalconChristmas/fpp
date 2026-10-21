@@ -345,7 +345,9 @@ function playlistIssueText($issue)
 function playlist_list_validate()
 {
     $ctx = validationContext();
-    $playlists = array_keys($ctx['playlists']);
+    // PHP turns an all-digit key like "2026" into an int, which
+    // PlaylistFilePath() rejects.
+    $playlists = array_map('strval', array_keys($ctx['playlists']));
     sort($playlists);
 
     $rc = array();
