@@ -144,12 +144,33 @@ GStreamerOutput* StreamSlotManager::GetActiveOutput(int slot) {
     return m_slots[slot - 1].activeOutput;
 }
 
+void StreamSlotManager::ClaimSlot(int slot, GStreamerOutput* output) {
+    if (slot < 1 || slot > MAX_SLOTS) return;
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+    m_slots[slot - 1].claimedBy = output;
+}
+
 void StreamSlotManager::ClearSlot(int slot, GStreamerOutput* owner) {
     if (slot < 1 || slot > MAX_SLOTS) return;
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
     bool closing = owner && m_slots[slot - 1].closingOutput == owner;
     if (closing) {
         m_slots[slot - 1].closingOutput = nullptr;
+    }
+    GStreamerOutput* claimedBy = m_slots[slot - 1].claimedBy;
+    if (owner && claimedBy && claimedBy != owner) {
+        // A newer stream has started on this slot (ClaimSlot) and may already
+        // have written its status -- its duration, say -- though it has not
+        // registered yet: leave the slot to it.  Only our own registration,
+        // if it is somehow still there, goes.
+        if (m_slots[slot - 1].activeOutput == owner) {
+            m_slots[slot - 1].activeOutput = nullptr;
+        }
+        LogDebug(VB_MEDIAOUT, "StreamSlotManager: slot %d clear skipped, claimed by a newer stream\n", slot);
+        return;
+    }
+    if (!owner || claimedBy == owner) {
+        m_slots[slot - 1].claimedBy = nullptr;
     }
     if (owner && m_slots[slot - 1].activeOutput != owner &&
         !(closing && !m_slots[slot - 1].activeOutput)) {

@@ -49,6 +49,13 @@ public:
     /// Get the active output for a slot (nullptr if idle).
     GStreamerOutput* GetActiveOutput(int slot);
 
+    /// First thing an output's Start() does: from here on the slot's status
+    /// is the new output's, before it is registered (SetActiveOutput) at the
+    /// end of a Start() that can take seconds.  An older output's ClearSlot()
+    /// that lands in between leaves the slot alone instead of wiping what the
+    /// new one has already written.
+    void ClaimSlot(int slot, GStreamerOutput* output);
+
     /// Clear a slot when playback finishes.  If `owner` is non-null, the slot
     /// is only cleared when it is still registered to that instance -- a
     /// stream whose teardown was already superseded by a newer stream on the
@@ -124,6 +131,7 @@ private:
         MediaOutputStatus status = {};
         GStreamerOutput* activeOutput = nullptr;
         GStreamerOutput* closingOutput = nullptr;  // detached, Close() not finished
+        GStreamerOutput* claimedBy = nullptr;      // started on this slot (ClaimSlot)
         std::string mediaFilename;
         bool isBackground = false;  // background slots don't block playlist
         bool syncToMaster = false;  // follow the primary media's clock

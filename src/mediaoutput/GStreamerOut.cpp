@@ -1071,6 +1071,8 @@ int GStreamerOutput::Start(int msTime) {
     m_stallStartMs = 0;
     m_pendingSeekNs = -1;
     m_stopRequested = false;
+    // Before anything below writes the slot's status.
+    StreamSlotManager::Instance().ClaimSlot(m_streamSlot, this);
 
     // Flush PipeWire filter-chain delay ring-buffers EARLY in Start().
     // This runs as a fire-and-forget thread (pw-cli calls take ~200ms+).
