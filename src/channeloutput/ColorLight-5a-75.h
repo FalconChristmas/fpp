@@ -80,6 +80,7 @@ public:
     void GetReceiverInfo();
 
 private:
+    void BuildRemap(void);
     void SetHostMACs(void* data);
     int SendMessagesHelper(struct mmsghdr* msgs, int cnt);
     int SendMessages(std::vector<struct mmsghdr>& msgsToSend);
@@ -110,6 +111,17 @@ private:
     std::unique_ptr<Matrix> m_matrix;
     std::unique_ptr<PanelMatrix> m_panelMatrix;
     uint8_t m_gammaCurve[256];
+
+    // PrepData()'s remap, flattened by BuildRemap(): the source channel of
+    // each output-frame pixel, in frame order, consumed by runs of pixels
+    // that are contiguous in the frame and share one color order
+    struct RemapRun {
+        uint32_t dst;      // byte offset into m_outputFrame
+        uint32_t count;    // pixels
+        uint32_t order[3]; // channel offset of each output byte from the pixel's base
+    };
+    std::vector<RemapRun> m_remapRuns;
+    std::vector<uint32_t> m_remapSrc;
     int m_flippedLayout;
     bool m_colorlightDisable;
 

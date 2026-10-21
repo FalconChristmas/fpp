@@ -384,6 +384,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
     m_channelCount = m_width * m_height * 3;
 
     m_outputFrame = std::make_unique<char[]>(m_outputs * m_longestChain * m_panelHeight * m_panelWidth * 3);
+    BuildRemap();
 
     m_matrix = std::make_unique<Matrix>(m_startChannel, m_width, m_height);
 
@@ -811,43 +812,73 @@ int ColorLight5a75Output::SendMessages(std::vector<struct mmsghdr>& msgsToSend) 
 void ColorLight5a75Output::PrepData(unsigned char* channelData) {
     m_matrix->OverlaySubMatrices(channelData);
 
-    unsigned char* r = NULL;
-    unsigned char* g = NULL;
-    unsigned char* b = NULL;
-    unsigned char* s = NULL;
-    unsigned char* dst = NULL;
-    int pw3 = m_panelWidth * 3;
+    // Every pointer is a local __restrict copy: the stores are through a
+    // char pointer, which may alias anything, so reading the maps through
+    // members would reload them for every byte.
+    const unsigned char* __restrict src = channelData + m_startChannel; // FIXME, this function gets offset 0
+    unsigned char* __restrict frame = (unsigned char*)m_outputFrame.get();
+    const uint8_t* __restrict gamma = m_gammaCurve;
+    const uint32_t* __restrict pixel = m_remapSrc.data();
 
-    channelData += m_startChannel; // FIXME, this function gets offset 0
+    for (const RemapRun& run : m_remapRuns) {
+        unsigned char* __restrict dst = frame + run.dst;
+        const uint32_t o0 = run.order[0];
+        const uint32_t o1 = run.order[1];
+        const uint32_t o2 = run.order[2];
+
+        for (uint32_t x = 0; x < run.count; x++, dst += 3) {
+            const unsigned char* s = src + *(pixel++);
+            dst[0] = gamma[s[o0]];
+            dst[1] = gamma[s[o1]];
+            dst[2] = gamma[s[o2]];
+        }
+    }
+
+    SendMessages(m_msgs);
+}
+
+/*
+ * Flatten the panel maps into the order PrepData() writes the output frame.
+ * A map with one int per byte is three times the reads of one per pixel, and
+ * on a single-core Beagle it does not fit in cache, so the color order is
+ * pulled out into per-run offsets.  PanelMatrix gives every pixel a single
+ * color order, so a run is normally a whole panel row; a pixel whose offsets
+ * differ from its neighbor's just starts a new run.
+ */
+void ColorLight5a75Output::BuildRemap(void) {
+    m_remapRuns.clear();
+    m_remapSrc.clear();
 
     for (int output = 0; output < m_outputs; output++) {
-        int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
-
-        for (int i = 0; i < panelsOnOutput; i++) {
-            int panel = m_panelMatrix->m_outputPanels[output][i];
-            int chain = (m_longestChain - 1) - m_panelMatrix->m_panels[panel].chain;
+        for (int panel : m_panelMatrix->m_outputPanels[output]) {
+            const LEDPanel& p = m_panelMatrix->m_panels[panel];
+            int chain = (m_longestChain - 1) - p.chain;
 
             if (m_flippedLayout)
-                chain = m_panelMatrix->m_panels[panel].chain;
+                chain = p.chain;
 
             for (int y = 0; y < m_panelHeight; y++) {
-                int px = chain * m_panelWidth;
-                int yw = y * m_panelWidth * 3;
+                uint32_t dst = (((((output * m_panelHeight) + y) * m_panelWidth * m_longestChain) + (chain * m_panelWidth)) * 3);
+                const int* map = &p.pixelMap[y * m_panelWidth * 3];
+                RemapRun* run = nullptr;
 
-                dst = (unsigned char*)(m_outputFrame.get() + (((((output * m_panelHeight) + y) * m_panelWidth * m_longestChain) + px) * 3));
+                for (int x = 0; x < m_panelWidth; x++, map += 3, dst += 3) {
+                    uint32_t base = std::min(map[0], std::min(map[1], map[2]));
+                    uint32_t order[3] = { map[0] - base, map[1] - base, map[2] - base };
 
-                for (int x = 0; x < pw3; x += 3) {
-                    *(dst++) = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw + x]]];
-                    *(dst++) = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw + x + 1]]];
-                    *(dst++) = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw + x + 2]]];
-
-                    px++;
+                    if (!run || memcmp(run->order, order, sizeof(order))) {
+                        m_remapRuns.push_back({ dst, 0, { order[0], order[1], order[2] } });
+                        run = &m_remapRuns.back();
+                    }
+                    run->count++;
+                    m_remapSrc.push_back(base);
                 }
             }
         }
     }
 
-    SendMessages(m_msgs);
+    LogDebug(VB_CHANNELOUT, "ColorLight remap: %d pixels in %d runs\n",
+             (int)m_remapSrc.size(), (int)m_remapRuns.size());
 }
 
 int ColorLight5a75Output::SendMessagesHelper(struct mmsghdr* msgs, int msgCount) {
