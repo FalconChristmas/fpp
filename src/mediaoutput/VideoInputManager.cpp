@@ -327,6 +327,14 @@ static void AddSourceWarning(const std::string& msg) {
     WarningHolder::AddWarning(56, msg);
 }
 
+static void RemoveSourceWarning(const std::string& msg) {
+    {
+        std::lock_guard<std::mutex> lock(s_sourceWarningsLock);
+        s_sourceWarnings.erase(msg);
+    }
+    WarningHolder::RemoveWarning(56, msg);
+}
+
 static void ClearSourceWarnings() {
     std::set<std::string> warnings;
     {
@@ -358,9 +366,9 @@ static bool GstValueUsable(const std::string& value, const char* what,
 #ifdef HAS_GSTREAMER_VIDEO_INPUT
 // Per-pipeline state behind the rtspsrc stream decisions below.
 //
-// Heap-allocated and owned by the signal closure -- freed by the
-// GClosureNotify when rtspsrc is finalised along with the pipeline -- rather
-// than living in the SourceInfo.  The pipeline outlives StartSource() and a
+// Heap-allocated and owned by the rtspsrc element as object data -- freed
+// when rtspsrc is finalised along with the pipeline -- rather than living in
+// the SourceInfo.  The pipeline outlives StartSource() and a
 // Reload can reallocate m_sources while it is still running, which is the
 // same hazard the run thread's copied-by-value locals guard against.
 struct RtspStreamFilter {
@@ -368,7 +376,24 @@ struct RtspStreamFilter {
     bool wantAudio = false;    // mirrors SourceInfo::audioEnabled
     bool videoSelected = false;
     bool audioSelected = false;
+    int offered = 0;           // SDP media select-stream has been asked about
 };
+
+static const char* RTSP_FILTER_KEY = "fpp-rtsp-stream-filter";
+
+static std::string NoVideoTrackWarning(const std::string& sourceName) {
+    return "Video input '" + sourceName + "': the RTSP stream contains no video track";
+}
+
+// The camera's SDP offered media, none of it video.  Retried on the backoff
+// like any failed source, since the camera's own configuration can add the
+// video track back; the warning comes down when a video media is selected
+// again (RtspSelectStream), or at the next reload.
+static void ReportNoVideoTrack(const RtspStreamFilter* filter) {
+    LogErr(VB_MEDIAOUT, "VideoInputManager: '%s' RTSP stream offers no video track\n",
+           filter->sourceName.c_str());
+    AddSourceWarning(NoVideoTrackWarning(filter->sourceName));
+}
 
 // rtspsrc's "select-stream" signal: return FALSE to keep it from ever
 // SETUPing a given SDP media.
@@ -401,6 +426,7 @@ static gboolean RtspSelectStream(GstElement*, guint idx, GstCaps* caps, gpointer
     // same benefit-of-the-doubt the original video-only filter gave it.
     const bool isVideo = !media || g_strcmp0(media, "video") == 0;
     const bool isAudio = media && g_strcmp0(media, "audio") == 0;
+    filter->offered++;
 
     if (isVideo) {
         if (filter->videoSelected) {
@@ -410,6 +436,7 @@ static gboolean RtspSelectStream(GstElement*, guint idx, GstCaps* caps, gpointer
             return FALSE;
         }
         filter->videoSelected = true;
+        RemoveSourceWarning(NoVideoTrackWarning(filter->sourceName));
         return TRUE;
     }
 
@@ -432,10 +459,27 @@ static void RtspNoMorePads(GstElement*, gpointer userData) {
     if (!filter || filter->videoSelected) {
         return;
     }
-    LogErr(VB_MEDIAOUT, "VideoInputManager: '%s' RTSP stream offers no video track\n",
-           filter->sourceName.c_str());
-    AddSourceWarning("Video input '" + filter->sourceName +
-                                      "': the RTSP stream contains no video track");
+    ReportNoVideoTrack(filter);
+}
+
+// When select-stream refused every media -- an audio-only camera on a source
+// with audio off -- rtspsrc creates no pads, so "no-more-pads" never fires:
+// it fails instead with "No supported stream was found", which reads as a
+// transport problem.  Called for a pipeline error; reports the real cause and
+// returns true if that is what happened.
+static bool RtspFailedForNoVideo(GstElement* pipeline) {
+    GstElement* rtspEl = gst_bin_get_by_name(GST_BIN(pipeline), "rtspvsrc");
+    if (!rtspEl) {
+        return false;
+    }
+    // Written on rtspsrc's thread before it posted the error this is called for.
+    auto* filter = static_cast<RtspStreamFilter*>(g_object_get_data(G_OBJECT(rtspEl), RTSP_FILTER_KEY));
+    bool noVideo = filter && filter->offered > 0 && !filter->videoSelected;
+    if (noVideo) {
+        ReportNoVideoTrack(filter);
+    }
+    gst_object_unref(rtspEl);
+    return noVideo;
 }
 
 // Route each rtspsrc pad to the branch matching its media type.
@@ -1405,21 +1449,19 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
     if (source.type == "rtspsrc") {
         GstElement* rtspEl = gst_bin_get_by_name(GST_BIN(source.pipeline), "rtspvsrc");
         if (rtspEl) {
-            // Owned by the closure: the last handler to be disconnected frees
-            // it, which happens when rtspsrc is finalised with the pipeline.
-            // All three handlers run on rtspsrc's own thread, one media at a
-            // time, so the shared state needs no locking.
+            // Owned by the element: freed when rtspsrc is finalised with the
+            // pipeline, so it outlives every handler below and the run
+            // thread's error check (RtspFailedForNoVideo).  The three handlers
+            // run on rtspsrc's own thread, one media at a time, so the shared
+            // state needs no locking.
             auto* filter = new RtspStreamFilter{ source.name, useRtspAudio, false, false };
+            g_object_set_data_full(G_OBJECT(rtspEl), RTSP_FILTER_KEY, filter,
+                                   [](gpointer d) { delete static_cast<RtspStreamFilter*>(d); });
             g_signal_connect(rtspEl, "select-stream", G_CALLBACK(RtspSelectStream), filter);
             if (useRtspAudio) {
                 g_signal_connect(rtspEl, "pad-added", G_CALLBACK(RtspLinkPadToBranch), filter);
             }
-            // "no-more-pads" is connected either way and carries the destroy
-            // notify that frees the shared state, so it outlives the handlers
-            // above and is released once with the element.
-            g_signal_connect_data(rtspEl, "no-more-pads", G_CALLBACK(RtspNoMorePads), filter,
-                                  [](gpointer d, GClosure*) { delete static_cast<RtspStreamFilter*>(d); },
-                                  GConnectFlags(0));
+            g_signal_connect(rtspEl, "no-more-pads", G_CALLBACK(RtspNoMorePads), filter);
             gst_object_unref(rtspEl);
         }
     }
@@ -1527,7 +1569,7 @@ bool VideoInputManager::StartSource(SourceInfo& source) {
                     GError* err = nullptr;
                     gchar* debug = nullptr;
                     gst_message_parse_error(msg, &err, &debug);
-                    if (!shutdownFlag->load()) {
+                    if (!shutdownFlag->load() && !RtspFailedForNoVideo(pipeline)) {
                         LogWarn(VB_MEDIAOUT, "VideoInputManager: Source '%s' error: %s (%s)\n",
                                 sourceName.c_str(), err ? err->message : "?", debug ? debug : "");
                     }
