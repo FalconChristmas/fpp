@@ -805,6 +805,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                 'passwordEnable', 'osPasswordEnable'),
             function ($k) { return ReadSettingFromFile($k) !== false; }))) ?>;
 
+        // The password choices as the settings file holds them now (false when
+        // never recorded), so Finish can tell turning a password off from
+        // recording that there never was one.
+        var recordedPasswordChoices = <?= json_encode(array(
+            'passwordEnable' => ReadSettingFromFile('passwordEnable'),
+            'osPasswordEnable' => ReadSettingFromFile('osPasswordEnable'))) ?>;
+
         // Same question for the jurisdiction, asked the same way and for the same
         // reason: PHP's $settings has defaults merged in, so isset() is useless.
         var jurisdictionAnswered = <?= json_encode(ReadSettingFromFile('LegalJurisdiction') !== false) ?>;
@@ -1040,14 +1047,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             // If UI/OS password auth is disabled, ignore password field writes even if
             // browser autofill or prior UI events populated pendingSettings.
             var filteredSettings = {};
+            // A "no password" answer is saved on its own (saveNoPasswordChoicesThen):
+            // it must be recorded, or the next run of setup asks for it again, but
+            // it goes through none of the password ordering below.
+            var noPasswordChoices = {};
             $.each(pendingSettings, function (key, value) {
                 if (key !== 'passwordVerify' && key !== 'osPasswordVerify') {
                     // During initial setup, disabled password auth should not try to
-                    // persist password-related fields at all.
+                    // persist the password fields themselves.
                     if (key === 'passwordEnable' && passwordEnable !== '1') {
+                        noPasswordChoices[key] = value;
                         return;
                     }
                     if (key === 'osPasswordEnable' && osPasswordEnable !== '1') {
+                        noPasswordChoices[key] = value;
                         return;
                     }
                     filteredSettings[key] = value;
@@ -1280,6 +1293,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                 savePut('rebootFlag', '1', true, done);
             }
 
+            // Record a "no password" answer.  It is only applied when it turns off
+            // a password the settings file says is on: otherwise nothing changes,
+            // and applying it would only rewrite the Apache config, or reset the
+            // fpp account's password to the default with chpasswd (~3s), for a
+            // choice that was already in effect.
+            function saveNoPasswordChoicesThen(done) {
+                var keys = Object.keys(noPasswordChoices);
+                function step(i) {
+                    if (failedSettings.length > 0 || i >= keys.length) {
+                        done();
+                        return;
+                    }
+                    var key = keys[i];
+                    savePut(key, noPasswordChoices[key], true, function () {
+                        step(i + 1);
+                    }, recordedPasswordChoices[key] !== '1');
+                }
+                step(0);
+            }
+
             function saveHostNameThen(done) {
                 if (failedSettings.length > 0 || hostNameKeys.length === 0) {
                     done();
@@ -1326,10 +1359,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             function startSaving() {
                 var afterOthers = function () {
                     saveOsPasswordThen(function () {
-                        saveHostNameThen(function () {
-                            saveSSHKeysThen(function () {
-                                saveRebootFlagThen(function () {
-                                    recordConsentThen(saveCompletionAndPasswords);
+                        saveNoPasswordChoicesThen(function () {
+                            saveHostNameThen(function () {
+                                saveSSHKeysThen(function () {
+                                    saveRebootFlagThen(function () {
+                                        recordConsentThen(saveCompletionAndPasswords);
+                                    });
                                 });
                             });
                         });
