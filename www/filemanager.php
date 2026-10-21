@@ -62,8 +62,12 @@
     </script>
 
     <?php
-    exec("df -k " . $mediaDirectory . "/upload |awk '/\/dev\//{printf(\"%d\\n\", $5);}'", $output, $return_val);
-    $freespace = (int) $output[0];
+    // Percent of the upload directory's filesystem in use.  -P keeps each
+    // filesystem on one line and its second line is the one asked about,
+    // whatever the device is called: matching "/dev/" found nothing for media
+    // on an overlay, tmpfs or network mount, and indexed an empty result.
+    exec("df -kP " . escapeshellarg($mediaDirectory . "/upload") . " | awk 'NR==2 {print $5+0}'", $output, $return_val);
+    $freespace = isset($output[0]) ? (int) $output[0] : 0;
     unset($output);
     ?>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
