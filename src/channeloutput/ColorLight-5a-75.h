@@ -83,7 +83,11 @@ private:
     void BuildRemap(void);
     void SetHostMACs(void* data);
     int SendMessagesHelper(struct mmsghdr* msgs, int cnt);
-    int SendMessages(std::vector<struct mmsghdr>& msgsToSend);
+    bool SendMessages(std::vector<struct mmsghdr>& msgsToSend);
+    bool FrameFits(void);
+    void NoteDroppedFrame(void);
+    void RaiseSendErrorWarning(int err);
+    void ClearSendErrorWarning(void);
 
     int m_width;
     int m_height;
@@ -98,7 +102,14 @@ private:
     int m_rfd;
     int m_rowSize;
 
-    int m_slowCount;
+    // Send-buffer accounting: what one frame's packets cost the kernel
+    // (payload plus per-packet overhead), and the buffer that holds them
+    int m_frameCharge;
+    int m_sendBufferSize;
+    bool m_frameSent;
+    int m_droppedFrames;
+    long long m_droppedLogTime;
+    std::string m_sendErrorWarning;
 
     int m_panelWidth;
     int m_panelHeight;

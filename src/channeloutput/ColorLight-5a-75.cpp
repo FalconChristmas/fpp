@@ -162,6 +162,7 @@
 
 #ifndef PLATFORM_OSX
 #include <linux/if_packet.h>
+#include <linux/sockios.h>
 #include <netinet/ether.h>
 #else
 #include <net/bpf.h>
@@ -188,6 +189,8 @@
 #include "overlays/PixelOverlay.h"
 
 #include "Plugin.h"
+
+static constexpr const char* CL_DROPPED_FRAMES_WARNING = "ColorLight: The network is not keeping up, frames are being dropped";
 
 #ifdef PLATFORM_OSX
 int bindBPFSocket(const std::string iface) {
@@ -259,7 +262,11 @@ ColorLight5a75Output::ColorLight5a75Output(unsigned int startChannel, unsigned i
     m_outputs(0),
     m_longestChain(0),
     m_invertedData(0),
-    m_slowCount(0),
+    m_frameCharge(0),
+    m_sendBufferSize(0),
+    m_frameSent(false),
+    m_droppedFrames(0),
+    m_droppedLogTime(0),
     m_flippedLayout(0),
     m_highestFirmwareVersion(0) {
     LogDebug(VB_CHANNELOUT, "ColorLight5a75Output::ColorLight5a75Output(%u, %u)\n",
@@ -694,6 +701,36 @@ int ColorLight5a75Output::Init(Json::Value config) {
         m_syncMsgs[m] = msg;
     }
 
+#ifndef PLATFORM_OSX
+    // Size the send buffer for two whole frames, so a frame normally queues
+    // in one go and FrameFits() can let one frame wait behind another before
+    // dropping.  The kernel charges each packet its skb overhead on top of
+    // the payload, measured at ~1.3KB on a 32 bit Beagle kernel; 2048 bytes
+    // leaves room for 64 bit kernels.  An estimate that comes up short only
+    // means the odd frame is found not to fit while it is being queued,
+    // and is dropped then instead.  The kernel doubles what is asked for,
+    // so asking for one frame gets two.
+    m_frameCharge = 0;
+    for (auto* msgs : { &m_msgs, &m_syncMsgs }) {
+        for (auto& msg : *msgs) {
+            for (size_t i = 0; i < msg.msg_hdr.msg_iovlen; i++)
+                m_frameCharge += msg.msg_hdr.msg_iov[i].iov_len;
+            m_frameCharge += 2048;
+        }
+    }
+    int sendBuffer = m_frameCharge;
+    if (setsockopt(m_fd, SOL_SOCKET, SO_SNDBUFFORCE, &sendBuffer, sizeof(sendBuffer)) == -1)
+        setsockopt(m_fd, SOL_SOCKET, SO_SNDBUF, &sendBuffer, sizeof(sendBuffer));
+    socklen_t len = sizeof(m_sendBufferSize);
+    if (getsockopt(m_fd, SOL_SOCKET, SO_SNDBUF, &m_sendBufferSize, &len) == -1)
+        m_sendBufferSize = 0;
+    if (m_sendBufferSize < m_frameCharge) {
+        // Without room for a whole frame, FrameFits() would drop them all
+        LogWarn(VB_CHANNELOUT, "ColorLight: Send buffer is %d bytes, a frame needs %d\n", m_sendBufferSize, m_frameCharge);
+        m_sendBufferSize = 0;
+    }
+#endif
+
     // Create Pixel Overlay Models if needed
     if (PixelOverlayManager::INSTANCE.isAutoCreatePixelOverlayModels()) {
         std::string dd = "LED Panels";
@@ -729,8 +766,9 @@ int ColorLight5a75Output::Close(void) {
         m_autoCreatedModelName.clear();
     }
     for (auto& m : m_warnings) {
-        WarningHolder::RemoveWarning(m);
+        WarningHolder::RemoveWarning(9, m);
     }
+    ClearSendErrorWarning();
     return ChannelOutput::Close();
 }
 
@@ -753,57 +791,90 @@ void ColorLight5a75Output::OverlayTestData(unsigned char* channelData, int cycle
     }
 }
 
-int ColorLight5a75Output::SendMessages(std::vector<struct mmsghdr>& msgsToSend) {
-    long long startTime = GetMonotonicTimeMS();
-    struct mmsghdr* msgs = &msgsToSend[0];
+/*
+ * Queue packets without ever waiting for the NIC: this runs on the channel
+ * output thread, and every other output on the box waits behind it.
+ * PrepData() has already checked that the whole frame fits in the socket's
+ * send buffer, so a short send means the network fell behind after all, or
+ * the interface is gone.  Returns whether every packet was queued.
+ */
+bool ColorLight5a75Output::SendMessages(std::vector<struct mmsghdr>& msgsToSend) {
+    struct mmsghdr* msgs = msgsToSend.data();
     int msgCount = msgsToSend.size();
-    if (msgCount == 0)
-        return 0;
+    int sent = 0;
+    int oc = 0;
 
-    errno = 0;
-
-    int oc = SendMessagesHelper(msgs, msgCount);
-    int outputCount = 0;
-    if (oc > 0) {
-        outputCount = oc;
-    }
-
-    int errCount = 0;
-    bool done = false;
-    while ((outputCount != msgCount) && !done) {
-        errCount++;
+    while (sent < msgCount) {
         errno = 0;
-        oc = SendMessagesHelper(&msgs[outputCount], msgCount - outputCount);
-        if (oc > 0) {
-            outputCount += oc;
-        }
-        if (outputCount != msgCount) {
-            long long tm = GetMonotonicTimeMS();
-            long long totalTime = tm - startTime;
-            if (totalTime < 22) {
-                // we'll keep trying for up to 22ms, but give the network stack some time to flush some buffers
-                std::this_thread::sleep_for(std::chrono::microseconds(500));
-            } else {
-                done = true;
-            }
-        }
-    }
-    long long endTime = GetMonotonicTimeMS();
-    long long totalTime = endTime - startTime;
-    if (outputCount != msgCount) {
-        int tti = (int)totalTime;
-        LogWarn(VB_CHANNELOUT, "sendmmsg() failed for ColorLight output (Socket: %d   output count: %d/%d   time: %dms) with error: %d   %s, errorcount: %d\n",
-                m_fd, outputCount, msgCount, tti, errno, FPPstrerror(errno), errCount);
-        m_slowCount++;
-        if (m_slowCount > 3) {
-            LogWarn(VB_CHANNELOUT, "Repeated frames taking more than 20ms to send to ColorLight");
-            WarningHolder::AddWarningTimeout(30, 21, "Repeated frames taking more than 20ms to send to ColorLight");
-        }
-    } else {
-        m_slowCount = 0;
+        oc = SendMessagesHelper(&msgs[sent], msgCount - sent);
+        if (oc <= 0)
+            break;
+        sent += oc;
     }
 
-    return oc;
+    if (sent == msgCount) {
+        ClearSendErrorWarning();
+        return true;
+    }
+
+    int err = errno;
+    if (oc < 0 && err != EAGAIN && err != EWOULDBLOCK && err != ENOBUFS) {
+        RaiseSendErrorWarning(err);
+    } else {
+        NoteDroppedFrame();
+    }
+    return false;
+}
+
+// Raised when sends fail outright (interface down, USB NIC unplugged), and
+// cleared by the first frame that is sent whole.
+void ColorLight5a75Output::RaiseSendErrorWarning(int err) {
+    std::string warning = "ColorLight: Unable to send on interface " + m_ifName + ": " + FPPstrerror(err);
+    if (warning == m_sendErrorWarning)
+        return;
+
+    ClearSendErrorWarning();
+    LogErr(VB_CHANNELOUT, "%s\n", warning.c_str());
+    WarningHolder::AddWarning(7, warning);
+    m_sendErrorWarning = warning;
+}
+
+void ColorLight5a75Output::ClearSendErrorWarning() {
+    if (m_sendErrorWarning.empty())
+        return;
+
+    LogInfo(VB_CHANNELOUT, "ColorLight: Sending on interface %s again\n", m_ifName.c_str());
+    WarningHolder::RemoveWarning(7, m_sendErrorWarning);
+    m_sendErrorWarning.clear();
+}
+
+// A frame the network could not take is dropped whole.  The warning times
+// out on its own once frames stop being dropped; the log gets one summary
+// per interval rather than a line per frame.
+void ColorLight5a75Output::NoteDroppedFrame() {
+    WarningHolder::AddWarningTimeout(30, 21, CL_DROPPED_FRAMES_WARNING);
+
+    m_droppedFrames++;
+
+    long long now = GetMonotonicTimeMS();
+    if (now - m_droppedLogTime >= 10000) {
+        LogWarn(VB_CHANNELOUT, "ColorLight: Interface %s is not keeping up, %d frame(s) dropped since the last report\n",
+                m_ifName.c_str(), m_droppedFrames);
+        m_droppedFrames = 0;
+        m_droppedLogTime = now;
+    }
+}
+
+// Whether a whole frame fits in what is left of the socket's send buffer.
+// If the previous frames have not drained by now, the network (or the USB
+// NIC behind it) cannot keep up, and queueing more only adds latency.
+bool ColorLight5a75Output::FrameFits() {
+#ifndef PLATFORM_OSX
+    int queued = 0;
+    if (m_sendBufferSize && ioctl(m_fd, SIOCOUTQ, &queued) == 0)
+        return queued + m_frameCharge <= m_sendBufferSize;
+#endif
+    return true;
 }
 
 /*
@@ -811,6 +882,12 @@ int ColorLight5a75Output::SendMessages(std::vector<struct mmsghdr>& msgsToSend) 
  */
 void ColorLight5a75Output::PrepData(unsigned char* channelData) {
     m_matrix->OverlaySubMatrices(channelData);
+
+    m_frameSent = false;
+    if (!FrameFits()) {
+        NoteDroppedFrame();
+        return;
+    }
 
     // Every pointer is a local __restrict copy: the stores are through a
     // char pointer, which may alias anything, so reading the maps through
@@ -834,7 +911,7 @@ void ColorLight5a75Output::PrepData(unsigned char* channelData) {
         }
     }
 
-    SendMessages(m_msgs);
+    m_frameSent = SendMessages(m_msgs);
 }
 
 /*
@@ -907,7 +984,10 @@ int ColorLight5a75Output::SendMessagesHelper(struct mmsghdr* msgs, int msgCount)
 int ColorLight5a75Output::SendData(unsigned char* channelData) {
     LogExcess(VB_CHANNELOUT, "ColorLight5a75Output::SendData(%p)\n", channelData);
 
-    SendMessages(m_syncMsgs);
+    // Latching a frame whose rows did not all go out would show part of it
+    // over the last one, so the receiver keeps the last whole frame instead.
+    if (m_frameSent)
+        SendMessages(m_syncMsgs);
 
     return m_channelCount;
 }
