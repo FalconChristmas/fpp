@@ -105,8 +105,8 @@ function SetupHtaccess($enablePW)
 
     if (!file_exists($filename)) {
         // Use sudo to create the file and set ownership to fpp:fpp
-        system("sudo touch " . escapeshellarg($filename));
-        system("sudo chown fpp:fpp " . escapeshellarg($filename));
+        exec("sudo touch " . escapeshellarg($filename));
+        exec("sudo chown fpp:fpp " . escapeshellarg($filename));
     }
 
     $data = "";
@@ -132,8 +132,10 @@ function SetupHtaccess($enablePW)
 
     file_put_contents($filename, $data, LOCK_EX);
 
-    //reload apache config
-    system("sudo service apache2 reload", $output);
+    //reload apache config.  exec(), not system(): this runs inside API calls
+    //and backup restores, whose JSON reply the service's "Reloading ..." line
+    //was being written into.
+    exec("sudo service apache2 reload 2>&1", $output);
 }
 
 function EnableUIPassword($value)
