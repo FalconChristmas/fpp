@@ -1121,7 +1121,12 @@ function ClearSelections (table) {
 
 function HandleMouseClick (event, row, table) {
 	HandleTableRowMouseClick(event, row);
+	UpdateSelectionButtons(table);
+}
 
+// Enables the buttons that apply to what is selected in a table, and disables
+// the rest.
+function UpdateSelectionButtons (table) {
 	var selectedCount = $('#tbl' + table + ' tr.selectedEntry').length;
 	var dirCount = $('#tbl' + table + ' tr.selectedEntry.fileIsDirectory').length;
 
@@ -1141,6 +1146,39 @@ function HandleMouseClick (event, row, table) {
 
 function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 	//setup the pageLoad actions unique for the file manager page
+
+	// The selection is a class on the rendered rows, and Bootstrap Table
+	// renders a table's body again whenever it resets its view -- a dialog
+	// opening and closing is enough -- which dropped the selection while the
+	// buttons stayed enabled for it. Carry the selection across the redraw,
+	// and put the buttons back in step with what is still selected (a filter
+	// can leave a selected row out). Bound on the document, since destroying
+	// a table drops the handlers bound to it.
+	var redrawSelection = {};
+	$(document)
+		.on('pre-body.bs.table', '#fileManager table', function () {
+			redrawSelection[this.id] = $(this)
+				.find('tbody tr.selectedEntry')
+				.map(function () {
+					return $(this).find('td:first').text();
+				})
+				.get();
+		})
+		.on('post-body.bs.table', '#fileManager table', function () {
+			var selected = redrawSelection[this.id] || [];
+			delete redrawSelection[this.id];
+			if (selected.length) {
+				$(this)
+					.find('tbody tr')
+					.each(function () {
+						if (selected.indexOf($(this).find('td:first').text()) != -1) {
+							$(this).addClass('selectedEntry');
+						}
+					});
+			}
+			UpdateSelectionButtons(this.id.substring(3));
+		});
+
 	$('#tblSequences').on('mousedown', 'tbody tr', function (event, ui) {
 		HandleMouseClick(event, $(this), 'Sequences');
 	});
