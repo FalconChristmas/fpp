@@ -1668,5 +1668,6 @@ bool PixelOverlayModel::applyEffect(const std::string& autoState, const std::str
         }
         return pe->apply(this, autoState, args);
     }
+    LogWarn(VB_CHANNELOUT, "Pixel Overlay effect '%s' does not exist -- ignoring\n", effect.c_str());
     return false;
 }

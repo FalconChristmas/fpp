@@ -601,33 +601,77 @@ public:
     std::vector<WLEDArgRole> getArgRoles() const override { return argMap; }
 };
 
-std::list<PixelOverlayEffect*> WLEDEffect::getWLEDEffects() {
-    std::list<PixelOverlayEffect*> v;
-    v.push_back(new BlinkEffect());
+// Copy Segment mirrors another segment of the same strip, and FPP gives each
+// model's effect exactly one segment: whatever its source id, there is
+// nothing to copy and it can only fade to black.  The port keeps the mode
+// (upstream syncs stay simple); FPP doesn't offer it, so a preset still naming
+// it is refused as an unknown effect.
+static bool isRetiredWLEDMode(int mode) {
+    return mode == FX_MODE_COPY;
+}
 
+static WS2812FX* wledInstance() {
     WS2812FX* inst = WS2812FXExt::getInstance();
     if (inst == nullptr) {
         inst = new WS2812FXExt();
     }
+    return inst;
+}
+
+// FPP's name for WLED mode `x` (its mode data in `ename`), or "" for a
+// reserved slot.
+static std::string wledEffectName(WS2812FX* inst, int x, std::string& ename) {
+    std::string name = "WLED - ";
+    ename = inst->getModeData(x);
+    if (ename.find("si=0") != std::string::npos) {
+        // audio reactive effects, add a note so people know these are special
+        name = "WLED♪ - ";
+    }
+    if (ename == "RSVD") {
+        return "";
+    }
+    while (ename.find('+') != std::string::npos) {
+        int idx = ename.find('+');
+        ename = ename.substr(0, idx) + "-Plus" + ename.substr(idx + 1);
+    }
+    if (ename.find('@') != std::string::npos) {
+        name += ename.substr(0, ename.find('@'));
+    } else {
+        name += ename;
+    }
+    return name;
+}
+
+std::list<PixelOverlayEffect*> WLEDEffect::getWLEDEffects() {
+    std::list<PixelOverlayEffect*> v;
+    v.push_back(new BlinkEffect());
+
+    WS2812FX* inst = wledInstance();
     int i = inst->getModeCount();
     for (int x = 2; x < i; x++) {
-        std::string name = "WLED - ";
-        std::string ename = inst->getModeData(x);
-        if (ename.find("si=0") != std::string::npos) {
-            // audio reactive effects, add a note so people know these are special
-            name = "WLED♪ - ";
+        if (isRetiredWLEDMode(x)) {
+            continue;
         }
-        if (ename != "RSVD") {
-            while (ename.find('+') != std::string::npos) {
-                int idx = ename.find('+');
-                ename = ename.substr(0, idx) + "-Plus" + ename.substr(idx + 1);
-            }
-            if (ename.find('@') != std::string::npos) {
-                name += ename.substr(0, ename.find('@'));
-            } else {
-                name += ename;
-            }
+        std::string ename;
+        std::string name = wledEffectName(inst, x, ename);
+        if (name != "") {
             v.push_back(new RawWLEDEffect(name, ename, x));
+        }
+    }
+    return v;
+}
+
+std::list<std::string> WLEDEffect::getRetiredWLEDEffectNames() {
+    std::list<std::string> v;
+    WS2812FX* inst = wledInstance();
+    int i = inst->getModeCount();
+    for (int x = 2; x < i; x++) {
+        if (isRetiredWLEDMode(x)) {
+            std::string ename;
+            std::string name = wledEffectName(inst, x, ename);
+            if (name != "") {
+                v.push_back(name);
+            }
         }
     }
     return v;

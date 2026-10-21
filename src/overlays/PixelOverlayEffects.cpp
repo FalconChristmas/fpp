@@ -1848,8 +1848,22 @@ public:
             add(a);
         }
         effectNames.sort();
+
+        // The WLED JSON API's numbering: the same sorted list with each
+        // retired effect still in the place it sorted to, as "RSVD".
+        std::list<std::string> retired = WLEDEffect::getRetiredWLEDEffectNames();
+        wledAPINames = effectNames;
+        wledAPINames.insert(wledAPINames.end(), retired.begin(), retired.end());
+        wledAPINames.sort();
+        for (auto& n : wledAPINames) {
+            if (std::find(retired.begin(), retired.end(), n) != retired.end()) {
+                n = "RSVD";
+            }
+        }
+
         StopEffect* pe = new StopEffect();
         effectNames.push_front(pe->name);
+        wledAPINames.push_front(pe->name);
         effects[pe->name] = pe;
     }
     ~PixelOverlayEffectHolder() {
@@ -1862,6 +1876,7 @@ public:
     void add(PixelOverlayEffect* pe) {
         effects[pe->name] = pe;
         effectNames.push_back(pe->name);
+        wledAPINames.push_back(pe->name);
         ++generation;
     }
     void remove(PixelOverlayEffect* pe) {
@@ -1869,6 +1884,10 @@ public:
         auto it = std::find(effectNames.begin(), effectNames.end(), pe->name);
         if (it != effectNames.end()) {
             effectNames.erase(it);
+        }
+        it = std::find(wledAPINames.begin(), wledAPINames.end(), pe->name);
+        if (it != wledAPINames.end()) {
+            wledAPINames.erase(it);
         }
         ++generation;
     }
@@ -1882,6 +1901,9 @@ public:
     const std::list<std::string>& names() const {
         return effectNames;
     }
+    const std::list<std::string>& apiNames() const {
+        return wledAPINames;
+    }
     uint64_t gen() const {
         return generation;
     }
@@ -1889,6 +1911,7 @@ public:
 private:
     std::map<std::string, PixelOverlayEffect*> effects;
     std::list<std::string> effectNames;
+    std::list<std::string> wledAPINames;
     std::atomic<uint64_t> generation{ 0 };
 };
 
@@ -1900,6 +1923,10 @@ PixelOverlayEffect* PixelOverlayEffect::GetPixelOverlayEffect(const std::string&
 
 const std::list<std::string>& PixelOverlayEffect::GetPixelOverlayEffects() {
     return EFFECTS.names();
+}
+
+const std::list<std::string>& WLEDEffect::getWLEDAPIEffectNames() {
+    return EFFECTS.apiNames();
 }
 
 uint64_t PixelOverlayEffect::GetPixelOverlayEffectsGeneration() {

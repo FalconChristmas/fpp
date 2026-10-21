@@ -50,4 +50,14 @@ public:
 
     static std::list<PixelOverlayEffect*> getWLEDEffects();
     static void cleanupWLEDEffects();
+
+    // WLED modes FPP no longer offers (getWLEDEffects() leaves them out), by
+    // the names they had.
+    static std::list<std::string> getRetiredWLEDEffectNames();
+    // The effect list as the WLED JSON API numbers it: every effect FPP
+    // offers, in the same order, with a retired effect's slot kept as "RSVD"
+    // (WLED's own placeholder for a removed effect).  WLED apps and Home
+    // Assistant store effects by that number, so a retired effect must not
+    // move the ones after it.
+    static const std::list<std::string>& getWLEDAPIEffectNames();
 };
