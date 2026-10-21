@@ -6,9 +6,17 @@ if (isset($_GET['wrapped'])) {
     $wrapped = 1;
 }
 
-if (!$wrapped) {
-    echo "<html>\n";
+// Checked before anything is sent: once output has started (buffering is off
+// below) http_response_code() can no longer change the status, and the
+// refusal reached the client as a 200.
+$rawVersion = $_GET['version'] ?? '';
+// Allow branch/tag/SHA names (e.g. master, v10.0, HEAD, a1b2c3d4) — letters, numbers, _, ., -, / only, no .. or leading -.
+if (!preg_match('/^[A-Za-z0-9_.\/-]+$/', $rawVersion) || strpos($rawVersion, '..') !== false || $rawVersion === '' || $rawVersion[0] === '-') {
+    http_response_code(400);
+    echo "Invalid version";
+    exit(0);
 }
+$version = $rawVersion;
 
 $skipJSsettings = 1;
 require_once "common.php";
@@ -22,15 +30,11 @@ DisableOutputBuffering();
 // survive a closed tab mid-run like the other update endpoints.
 ignore_user_abort(true);
 
-$rawVersion = $_GET['version'] ?? '';
-// Allow branch/tag/SHA names (e.g. master, v10.0, HEAD, a1b2c3d4) — letters, numbers, _, ., -, / only, no .. or leading -.
-if (!preg_match('/^[A-Za-z0-9_.\/-]+$/', $rawVersion) || strpos($rawVersion, '..') !== false || $rawVersion === '' || $rawVersion[0] === '-') {
-    http_response_code(400);
-    echo "Invalid version";
-    exit(0);
-}
-$version = $rawVersion;
 UpdateLockAcquireOrConflict('fpp-version-checkout', $version);
+// After the lock, so its 409 is not lost behind the page's first bytes either.
+if (!$wrapped) {
+    echo "<html>\n";
+}
 if (!$wrapped) {
     ?>
 <head>

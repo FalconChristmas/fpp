@@ -1,30 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
 <?
-include 'common/htmlMeta.inc';
-$skipJSsettings = 1;
-require_once("common.php");
-// Atomic server-side update lock helper (acquired after the ack gate below,
-// before any remote/branch mutation).
-require_once("common/updateLock.inc.php");
-
-DisableOutputBuffering();
-// Survive a closed tab mid-switch like the other update endpoints.
-ignore_user_abort(true);
-?>
-
-<head>
-	<title>
-		Change Branch
-	</title>
-</head>
-
-<body>
-	<h2>Changing Branch</h2>
-	<pre id="output">
-<?php
-echo "==================================================================================\n";
-
+// The request is checked before anything is sent: once the page head is out
+// (output buffering is off below) http_response_code() can no longer change
+// the status, and a refusal reached the client as a 200.
 $rawBranch = $_GET['branch'] ?? '';
 if (!preg_match('/^[A-Za-z0-9_.\/-]+$/', $rawBranch) || strpos($rawBranch, '..') !== false || $rawBranch === '' || $rawBranch[0] === '-') {
 	http_response_code(400);
@@ -54,6 +31,33 @@ if ($remote === 'pull-requests') {
 		exit(0);
 	}
 }
+?>
+<!DOCTYPE html>
+<html lang="en">
+<?
+include 'common/htmlMeta.inc';
+$skipJSsettings = 1;
+require_once("common.php");
+// Atomic server-side update lock helper (acquired after the ack gate below,
+// before any remote/branch mutation).
+require_once("common/updateLock.inc.php");
+
+DisableOutputBuffering();
+// Survive a closed tab mid-switch like the other update endpoints.
+ignore_user_abort(true);
+?>
+
+<head>
+	<title>
+		Change Branch
+	</title>
+</head>
+
+<body>
+	<h2>Changing Branch</h2>
+	<pre id="output">
+<?php
+echo "==================================================================================\n";
 
 // Pull Requests synthetic remote – fetch pull/<num>/head from origin via lock
 $gitDir = escapeshellarg(dirname(dirname(__FILE__)) . "/.git");
