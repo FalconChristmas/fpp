@@ -2841,11 +2841,22 @@ function readCapes($cd, $capes)
             defaultData.channelOutputs.push(output);
         <? } ?>
 
+        // The defaults drawn first have the cape disabled and no strings, so
+        // Save stays off until the saved config replaces them (issue #3124).
+        $('#savePixelStringsButton').prop('disabled', true);
         populatePixelStringOutputs(defaultData);
         $.getJSON("api/channel/output/" + PIXEL_STRING_FILE_NAME, function (data) {
             ValidateBBBStrings(data);
             populatePixelStringOutputs(data)
             displayCapeLimits();
+            $('#savePixelStringsButton').prop('disabled', false);
+        }).fail(function (jqXHR) {
+            if (jqXHR.status == 404) {
+                // Nothing saved yet (new cape, Reset Config): the defaults are the config.
+                $('#savePixelStringsButton').prop('disabled', false);
+                return;
+            }
+            $.jGrowl("Unable to load the Pixel String configuration, so Save is disabled to keep it from being overwritten.  Click Revert to try again.", { themeState: 'danger', sticky: true });
         });
     }
     function savePixelStringOutputs() {
@@ -2967,7 +2978,9 @@ function readCapes($cd, $capes)
                         if (file_exists($mediaDirectory . "/upload/xlights_rgbeffects.xml")) {
                             echo "<input type='button' class='buttons' onClick='importStrings();' value='Import Strings'>\n";
                         }
-                        echo "<input type='button' class='buttons btn-success ml-1' onClick='savePixelStringOutputs();' value='Save'>\n";
+                        // Off until loadPixelStringOutputs() has the saved config: before
+                        // that the page shows its defaults, and saving them wipes it.
+                        echo "<input type='button' id='savePixelStringsButton' class='buttons btn-success ms-1' onClick='savePixelStringOutputs();' value='Save' disabled>\n";
                     }
                     ?>
                 </div>
