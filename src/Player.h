@@ -133,7 +133,7 @@ public:
 
     // Construct a Playlist and take ownership of it.  Returns the reference so
     // the caller can use it before publishing it as current.
-    std::shared_ptr<Playlist> CreatePlaylist(Playlist* parent);
+    std::shared_ptr<Playlist> CreatePlaylist(std::shared_ptr<Playlist> parent);
 
     // Publish an already-owned instance as the current playlist.
     void SetCurrentPlaylist(Playlist* p);
@@ -152,8 +152,9 @@ private:
     void RecordForceStop(int forceStop);
 
     // Every live instance, keyed by nothing but its own identity: the current
-    // playlist plus every ancestor still on the m_parent chain.  A parent is
-    // reachable only by raw pointer, so this is what keeps it alive.
+    // playlist plus every ancestor still on the m_parent chain.  Each level
+    // also holds its own parent, so a parent released here lives on until no
+    // level links to it any more.
     AtomicSharedPtr<Playlist> m_playlist;
     std::mutex m_ownedPlaylistsLock;
     std::vector<std::shared_ptr<Playlist>> m_ownedPlaylists;

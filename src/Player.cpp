@@ -75,8 +75,8 @@ Player::~Player() {
     DrainRetiredPlaylists();
 }
 
-std::shared_ptr<Playlist> Player::CreatePlaylist(Playlist* parent) {
-    std::shared_ptr<Playlist> pl(new Playlist(parent), RetirePlaylist);
+std::shared_ptr<Playlist> Player::CreatePlaylist(std::shared_ptr<Playlist> parent) {
+    std::shared_ptr<Playlist> pl(new Playlist(std::move(parent)), RetirePlaylist);
     std::lock_guard<std::mutex> lk(m_ownedPlaylistsLock);
     m_ownedPlaylists.push_back(pl);
     return pl;

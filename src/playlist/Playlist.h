@@ -12,6 +12,7 @@
  */
 
 #include <atomic>
+#include "AtomicSharedPtr.h"
 #include "fpp-json.h"
 #include <list>
 #include <memory>
@@ -34,9 +35,11 @@ enum PlaylistStatus {
 // handed the player back to the one it interrupted (see Playlist.cpp).
 bool InHandedBackStoppedPreset();
 
-class Playlist {
+// Owned through Player::CreatePlaylist(); weak_from_this() hands an inserted
+// child an owning reference to the level it interrupted.
+class Playlist : public std::enable_shared_from_this<Playlist> {
 public:
-    Playlist(Playlist* parent = NULL);
+    Playlist(std::shared_ptr<Playlist> parent = nullptr);
     ~Playlist();
 
     PlaylistStatus getPlaylistStatus();
@@ -180,11 +183,13 @@ private:
     // well-defined; volatile never made them so.
     std::atomic<PlaylistStatus> m_status;
 
-    // Atomic (same size and place as the raw pointer it replaces): status
-    // threads walk the chain for breadcrumbs while the main loop retires
-    // levels, and a level is cut loose (nulled) when it is retired so nothing
-    // reaches a freed parent through it.
-    std::atomic<Playlist*> m_parent;
+    // The level this one interrupted, owned: a thread holding a snapshot of a
+    // level can walk to every parent it still links to (status breadcrumbs,
+    // SetIdle's hand-back, a graceful stop) while the main loop releases
+    // levels, and each parent stays alive until the last level linking to it
+    // lets go.  A level is cut loose (nulled) when it is retired, so a retired
+    // level doesn't keep its parent alive either.
+    AtomicSharedPtr<Playlist> m_parent;
     std::string m_filename;
     std::string m_name;
     std::string m_desc;
