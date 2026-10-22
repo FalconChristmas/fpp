@@ -62,7 +62,11 @@ extern std::atomic_int runMainFPPDLoop;
 #include "Timers.h"
 
 #include <chrono>
+#include <condition_variable>
 #include <future>
+#include <memory>
+#include <mutex>
+#include <trantor/net/EventLoop.h>
 #include "Scheduler.h"
 #include "Sequence.h"
 #include "Variables.h"
@@ -392,6 +396,51 @@ APIServer::APIServer() {
 /*
  *
  */
+// Set once fppd is stopping: the sync advice registered in Init() then turns
+// every new request (and WebSocket upgrade) away before it reaches a router.
+static std::atomic<bool> s_httpQuiescing{ false };
+
+// drogon's quit() frees its routers on the main loop *before* it stops the IO
+// loops: an IO thread still routing a request (the UI's status poll, say)
+// then reads a freed router (TSan: StaticFileRouter::route() reading the
+// default handler of a router the main loop just deleted). So before quit(),
+// new requests are refused, and each IO loop is made to run a task: a loop
+// runs queued tasks only between requests, so once every loop has run one,
+// none is inside a router, and none will enter one again.
+static void QuiesceHttpServer() {
+    s_httpQuiescing = true;
+    if (!drogon::app().isRunning()) {
+        return;
+    }
+    struct Barrier {
+        std::mutex lock;
+        std::condition_variable done;
+        size_t left = 0;
+    };
+    // Shared with the tasks: one still queued when the wait gives up runs later.
+    auto barrier = std::make_shared<Barrier>();
+    size_t loops = drogon::app().getThreadNum();
+    for (size_t i = 0; i < loops; i++) {
+        trantor::EventLoop* loop = drogon::app().getIOLoop(i);
+        if (!loop) {
+            continue;
+        }
+        {
+            std::lock_guard<std::mutex> l(barrier->lock);
+            barrier->left++;
+        }
+        loop->queueInLoop([barrier]() {
+            std::lock_guard<std::mutex> l(barrier->lock);
+            barrier->left--;
+            barrier->done.notify_all();
+        });
+    }
+    std::unique_lock<std::mutex> l(barrier->lock);
+    if (!barrier->done.wait_for(l, std::chrono::seconds(2), [&barrier]() { return barrier->left == 0; })) {
+        LogWarn(VB_HTTP, "%d HTTP IO loops still busy at shutdown\n", (int)barrier->left);
+    }
+}
+
 APIServer::~APIServer() {
     // Before drogon stops: the status push registers a WarningHolder listener
     // and holds connection pointers, both of which outlive quit() (which only
@@ -399,6 +448,7 @@ APIServer::~APIServer() {
     // on from here, so it gets turned off from here too.
     StatusWebSocketShutdown();
 
+    QuiesceHttpServer();
     drogon::app().quit();
     // Join the server thread so Drogon is fully stopped before we return.
     // PluginManager::Cleanup() (called from main() after MainLoop() exits)
@@ -1024,6 +1074,18 @@ void APIServer::Init(void) {
     // still work, they just go through a temp file.
     app.setClientMaxBodySize(32 * 1024 * 1024);
     app.setClientMaxMemoryBodySize(4 * 1024 * 1024);
+
+    // A sync advice runs before any router, for plain requests and WebSocket
+    // upgrades alike; see QuiesceHttpServer().
+    app.registerSyncAdvice([](const drogon::HttpRequestPtr&) -> drogon::HttpResponsePtr {
+        if (!s_httpQuiescing) {
+            return nullptr;
+        }
+        auto resp = drogon::HttpResponse::newHttpResponse();
+        resp->setStatusCode(drogon::k503ServiceUnavailable);
+        resp->setCloseConnection(true);
+        return resp;
+    });
 
     // SIGINT and SIGTERM are FPP's, not drogon's. Drogon's handlers only stop
     // drogon's own threads, leaving the main loop spinning, and they log (so
