@@ -61,6 +61,8 @@ struct Lease {
     bool isLease = false;  // false: fd is the card's shared fd (no lease support)
     std::string cardPath;
     uint32_t lesseeId = 0;
+    int connectorId = 0;
+    bool retired = false;  // RetireLease() was called on it
     uint32_t objects[4] = {};
     int objectCount = 0;
 };
@@ -73,5 +75,11 @@ struct Lease {
 // using it is gone.
 Lease AcquireLease(const std::string& cardPath, int connectorId);
 void ReleaseLease(Lease& lease);
+
+// A lease still in use by a kmssink being torn down on a thread of its own,
+// which releases it once the kmssink is gone.  Until then AcquireLease() for
+// the same connector waits for that release (for a couple of seconds at
+// most), rather than find the connector held and fall back to the shared fd.
+void RetireLease(Lease& lease);
 
 } // namespace DrmCards

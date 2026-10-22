@@ -14,6 +14,8 @@
 
 #include "DrmCards.h"
 
+#include <chrono>
+#include <condition_variable>
 #include <map>
 #include <mutex>
 #include <set>
@@ -45,11 +47,15 @@ struct Card {
     // holder's release cleared the mark the second was still relying on (its
     // framebuffer output then drew over the video).
     std::map<uint32_t, int> leased;
+    // Connectors whose lease a teardown still has to release (RetireLease()).
+    std::map<uint32_t, int> retiring;
 };
 // Guards the table and the per-card sets.  Never held across a blocking DRM
 // call that waits on the display.
 std::mutex s_lock;
 std::map<std::string, Card> s_cards;
+// Notified, under s_lock, by every ReleaseLease() of a retiring lease.
+std::condition_variable s_retired;
 
 Card* CardForFdLocked(int fd) {
     for (auto& [path, card] : s_cards) {
@@ -191,6 +197,25 @@ Lease AcquireLease(const std::string& cardPath, int connectorId) {
     if (connectorId <= 0) {
         return lease;
     }
+    lease.connectorId = connectorId;
+    {
+        // A consumer restarted after its pipeline died asks for the connector
+        // within milliseconds of the stop, while the old pipeline's teardown
+        // thread still holds its lease.  Found held, the connector got no
+        // CRTC and the new kmssink the card's shared fd, the one the
+        // framebuffer outputs flip on.  Wait for that release instead; a
+        // teardown wedged past this still falls back as before.  Before
+        // drmMasterLock, which the framebuffer outputs' flips take.
+        std::unique_lock<std::mutex> lock(s_lock);
+        auto retiring = [&cardPath, connectorId]() {
+            auto card = s_cards.find(cardPath);
+            return card != s_cards.end() && card->second.retiring.count((uint32_t)connectorId);
+        };
+        if (retiring() && !s_retired.wait_for(lock, std::chrono::seconds(2), [&retiring]() { return !retiring(); })) {
+            LogWarn(VB_MEDIAOUT, "DRM: %s connector %d is still held by a teardown after 2 s\n",
+                    cardPath.c_str(), connectorId);
+        }
+    }
     int fd = Acquire(cardPath);
     if (fd < 0) {
         LogErr(VB_MEDIAOUT, "DRM: cannot open %s: %s\n", cardPath.c_str(), strerror(errno));
@@ -322,6 +347,15 @@ Lease AcquireLease(const std::string& cardPath, int connectorId) {
     return lease;
 }
 
+void RetireLease(Lease& lease) {
+    if (lease.fd < 0 || lease.connectorId <= 0 || lease.retired) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(s_lock);
+    s_cards[lease.cardPath].retiring[(uint32_t)lease.connectorId]++;
+    lease.retired = true;
+}
+
 void ReleaseLease(Lease& lease) {
     if (lease.fd < 0) {
         return;
@@ -330,6 +364,13 @@ void ReleaseLease(Lease& lease) {
         std::lock_guard<std::mutex> lock(s_lock);
         auto it = s_cards.find(lease.cardPath);
         if (it != s_cards.end()) {
+            auto retiring = it->second.retiring.find((uint32_t)lease.connectorId);
+            if (lease.retired && retiring != it->second.retiring.end()) {
+                if (--retiring->second <= 0) {
+                    it->second.retiring.erase(retiring);
+                }
+                s_retired.notify_all();
+            }
             for (int i = 0; i < lease.objectCount; i++) {
                 auto held = it->second.leased.find(lease.objects[i]);
                 if (held != it->second.leased.end() && --held->second <= 0) {
@@ -364,6 +405,7 @@ Lease AcquireLease(const std::string& cardPath, int) {
     l.cardPath = cardPath;
     return l;
 }
+void RetireLease(Lease&) {}
 void ReleaseLease(Lease& lease) { lease = Lease(); }
 } // namespace DrmCards
 

@@ -2136,6 +2136,8 @@ void VideoOutputManager::StopConsumer(ConsumerInfo& consumer) {
         // consumer -- neither may happen while the kmssink is alive.
         DrmCards::Lease lease = consumer.drmLease;
         consumer.drmLease = DrmCards::Lease();
+        // A restart may ask for the connector before this thread is done.
+        DrmCards::RetireLease(lease);
         {
             std::lock_guard<std::mutex> tl(m_teardownMutex);
             m_pendingTeardowns++;
