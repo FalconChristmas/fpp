@@ -36,5 +36,6 @@
 <ul>
     <li>Use the color dots to group Players vs Remotes or by yard/zone — then <b>Sort by Color</b> to bring each group together for bulk actions.</li>
     <li>If a Remote’s sync counters stop advancing while the Player’s do, check network reachability (Ping/Errors) and that the Remote is actually in Remote mode (mode badge in the Host column).</li>
+    <li>With <b>Auto refresh Multisync Screen</b> on, status updates every couple of seconds and the system list is re-read every 15 seconds, so a system that joins the network appears without reloading the page; <b>Refresh</b> re-reads it immediately. A new system waits to be added while rows are checked, a filter is set, an update log is open or an action is running, because adding it rebuilds the table.</li>
     <li>View options (columns shown, order) are per-browser; saving the order makes the arrangement stick across reloads and other browsers on the same account.</li>
 </ul>

@@ -3208,6 +3208,62 @@
             baldrickPoller.cancel();
         }
 
+        // The pollers above only refresh the status of rows already in the
+        // table; the system list itself (api/fppd/multiSyncSystems) was read
+        // once, by getFPPSystems() at page load.  So a system joining the
+        // network never appeared until the page was reloaded.  This re-reads
+        // the list on a slower cadence and rebuilds the table when fppd knows
+        // an address the table doesn't.
+        const discoveryPoller = new AutoRefreshController(15000);
+
+        /**
+         * A rebuild goes through parseFPPSystems(), which recreates the table
+         * from scratch: row checkboxes, filters and open update logs would be
+         * lost.  While any of those is in use the rebuild waits for a later
+         * check rather than throw the user's work away.
+         */
+        function systemListRebuildBlocked() {
+            if (streamCount || isUserInteracting()) return true;
+            if ($('#fppSystems input.multisyncRowCheckbox:checked').length) return true;
+            if ($('#fppSystems > tr.logRow:visible').length) return true;
+            var $filters = $('#fppSystemsTable').closest('.bootstrap-table')
+                .find('.filter-control input, .filter-control select');
+            return $filters.filter(function () { return this.value !== ''; }).length > 0;
+        }
+
+        async function checkForNewSystems() {
+            try {
+                const r = await fetch('api/fppd/multiSyncSystems');
+                if (!r.ok) {
+                    throw new Error("HTTP " + r.status);
+                }
+                const data = await r.json();
+                if (!data || !Array.isArray(data.systems)) return;
+                var known = {};
+                systemsList.forEach(function (s) { known[s.address] = true; });
+                var added = data.systems.some(function (s) {
+                    return s.address && !known[s.address];
+                });
+                if (added && !systemListRebuildBlocked()) {
+                    data.systems.forEach(foldSystemInfo);
+                    systemsList = data.systems;
+                    parseFPPSystems(data.systems);
+                }
+            } catch (e) {
+                console.warn('System list check failed', e);
+            } finally {
+                scheduleSystemDiscovery();
+            }
+        }
+
+        function scheduleSystemDiscovery() {
+            if ($('#MultiSyncRefreshStatus').is(":checked")) {
+                discoveryPoller.schedule(checkForNewSystems);
+            } else {
+                discoveryPoller.cancel();
+            }
+        }
+
         function RefreshStats() {
             var $tbl = $('#fppSystemsTable');
             var ips = [], gips = [], wips = [], bips = [], fv3ips = [], fv4ips = [];
@@ -3261,6 +3317,7 @@
             if ($('#MultiSyncRefreshStatus').is(":checked")) {
                 RefreshStats();
             }
+            scheduleSystemDiscovery();
         }
 
         function syncModeUpdated(setting = '') {
@@ -4422,7 +4479,7 @@
                             <button id='exportStatsButton' type='button' class='buttons' value='Export'
                                 onClick='exportMultisync();'><i class="fas fa-scroll"></i> Export </button>
                             <button id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats'
-                                onClick='clearRefreshTimers(); RefreshStats();'><i class="fas fa-redo"></i> Refresh
+                                onClick='clearRefreshTimers(); RefreshStats(); checkForNewSystems();'><i class="fas fa-redo"></i> Refresh
                                 Stats</button>
                             <div class="ms-2">
                             </div>
