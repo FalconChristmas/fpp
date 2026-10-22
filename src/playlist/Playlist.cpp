@@ -1893,6 +1893,9 @@ void Playlist::SetIdle(bool exit) {
         keywords["PLAYLIST_NAME"] = m_name;
     }
     Cleanup();
+    // An insert still waiting for the current item to end goes with the
+    // playlist it was for.  Not in Cleanup(), which a reload also runs.
+    m_insertedPlaylist = "";
 
     bool publishIdle = true;
     // Walk up past parents that are already condemned to PL_CLEANUPS — making
