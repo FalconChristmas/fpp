@@ -1098,6 +1098,12 @@ public:
     };
     void FlushSendPipelines();
 
+    // Apply the master volume to every send pipeline.  A sender's PipeWire
+    // node is a capture stream, not a sink, so the master's pactl pass over
+    // the output sinks never reaches it; the gain is a volume element in the
+    // pipeline instead.  New pipelines take it from getVolume() as they start.
+    void SetMasterVolume(int volume);
+
     AES67Manager();
     virtual ~AES67Manager();
 

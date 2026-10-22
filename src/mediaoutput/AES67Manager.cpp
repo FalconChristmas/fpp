@@ -66,6 +66,7 @@
 
 #include "common.h"
 #include "log.h"
+#include "mediaoutput.h"
 #include "settings.h"
 #include "../SysSocket.h"
 
@@ -92,6 +93,15 @@ const char* GetSDPChannelNames(int channels) {
 // ──────────────────────────────────────────────────────────────────────────────
 static AES67Manager s_aes67Manager;
 AES67Manager& AES67Manager::INSTANCE = s_aes67Manager;
+
+// Set a send pipeline's master volume element (see SetMasterVolume()).
+static void SetPipelineMasterVolume(GstElement* pipeline, int volume) {
+    GstElement* vol = gst_bin_get_by_name(GST_BIN(pipeline), "mastervol");
+    if (vol) {
+        g_object_set(vol, "volume", masterVolumeGain(volume), nullptr);
+        gst_object_unref(vol);
+    }
+}
 
 AES67Manager::AES67Manager() {
     m_configPath = getFPPMediaDir("/config/pipewire-aes67-instances.json");
@@ -2803,6 +2813,9 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         << "! audioconvert "
         << "! audioresample "
         << "! audioconvert "
+        // The master volume (see SetMasterVolume()).  Passes buffers through
+        // untouched at 100%.
+        << "! volume name=mastervol volume=" << masterVolumeGain(getVolume()) << " "
         // Rate trim for the drift control loop.  Sits in the float domain
         // because that is all this element accepts, and ahead of the S24BE
         // conversion and the packet split so both still see a clean stream.
@@ -3658,6 +3671,9 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
         it->second.pipeline = pipeline;
         it->second.bus = bus;
         it->second.running = true;
+        // The gain in the description is the one when it was built; a change
+        // since then went to the pipelines already in this map, not this one.
+        SetPipelineMasterVolume(pipeline, getVolume());
     }
 
     LogInfo(VB_MEDIAOUT, "AES67 send pipeline [%d] %s started → %s:%d (%dch, %dms ptime)\n",
@@ -3871,6 +3887,15 @@ static GstPadProbeReturn DropBufferProbe(GstPad* pad, GstPadProbeInfo* info, gpo
     }
     remaining->fetch_sub((gint64)dur);
     return GST_PAD_PROBE_DROP;
+}
+
+void AES67Manager::SetMasterVolume(int volume) {
+    std::lock_guard<std::mutex> lock(m_pipelineMutex);
+    for (auto& kv : m_sendPipelines) {
+        if (kv.second.pipeline) {
+            SetPipelineMasterVolume(kv.second.pipeline, volume);
+        }
+    }
 }
 
 void AES67Manager::FlushSendPipelines() {

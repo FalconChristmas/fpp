@@ -183,6 +183,10 @@ public:
     // Flush send pipelines (media playback integration)
     void FlushSendPipelines();
 
+    // Apply the master volume to every send pipeline (see
+    // AES67Manager::SetMasterVolume()).
+    void SetMasterVolume(int volume);
+
     OpusRTPManager();
     virtual ~OpusRTPManager();
 

@@ -39,6 +39,7 @@
 
 #include "common.h"
 #include "log.h"
+#include "mediaoutput.h"
 #include "settings.h"
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -46,6 +47,15 @@
 // ──────────────────────────────────────────────────────────────────────────────
 static OpusRTPManager s_opusRTPManager;
 OpusRTPManager& OpusRTPManager::INSTANCE = s_opusRTPManager;
+
+// Set a send pipeline's master volume element (see SetMasterVolume()).
+static void SetPipelineMasterVolume(GstElement* pipeline, int volume) {
+    GstElement* vol = gst_bin_get_by_name(GST_BIN(pipeline), "mastervol");
+    if (vol) {
+        g_object_set(vol, "volume", masterVolumeGain(volume), nullptr);
+        gst_object_unref(vol);
+    }
+}
 
 OpusRTPManager::OpusRTPManager() {
     m_configPath = getFPPMediaDir("/config/pipewire-opus-rtp-instances.json");
@@ -516,6 +526,8 @@ bool OpusRTPManager::CreateSendPipeline(const OpusRTPInstance& inst) {
         << "! audioconvert "
         << "! audioresample "
         << "! audioconvert "
+        // The master volume (see SetMasterVolume()).
+        << "! volume name=mastervol volume=" << masterVolumeGain(getVolume()) << " "
         << "! audiorate "
         << "! audio/x-raw,rate=" << OpusRTP::AUDIO_RATE
         << ",channels=" << inst.channels << " "
@@ -617,6 +629,9 @@ bool OpusRTPManager::CreateSendPipeline(const OpusRTPInstance& inst) {
         it->second.pipeline = pipeline;
         it->second.bus = bus;
         it->second.running = true;
+        // The gain in the description is the one when it was built; a change
+        // since then went to the pipelines already in this map, not this one.
+        SetPipelineMasterVolume(pipeline, getVolume());
     }
 
     LogInfo(VB_MEDIAOUT, "Opus RTP send pipeline [%d] %s started -> %s:%d (%dch, %d kbps%s)\n",
@@ -804,6 +819,15 @@ static GstPadProbeReturn OpusDropBufferProbe(GstPad* pad, GstPadProbeInfo* info,
         return GST_PAD_PROBE_OK;
     (*counter)--;
     return GST_PAD_PROBE_DROP;
+}
+
+void OpusRTPManager::SetMasterVolume(int volume) {
+    std::lock_guard<std::mutex> lock(m_pipelineMutex);
+    for (auto& kv : m_sendPipelines) {
+        if (kv.second.pipeline) {
+            SetPipelineMasterVolume(kv.second.pipeline, volume);
+        }
+    }
 }
 
 void OpusRTPManager::FlushSendPipelines() {

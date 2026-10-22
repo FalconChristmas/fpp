@@ -41,7 +41,9 @@
 
 #include "Plugins.h"
 #include "Sequence.h"
+#include "AES67Manager.h"
 #include "GStreamerOut.h"
+#include "OpusRTPManager.h"
 #include "PipeWireOutputStream.h"
 #include "StreamSlotManager.h"
 #include "VideoOutputManager.h"
@@ -320,25 +322,6 @@ static const std::vector<PlaybackVolumeControl>& playbackVolumeControls(int card
     return cache.emplace(card, std::move(ctls)).first->second;
 }
 
-// Opus RTP send nodes are named "opusrtp_<safe(name)>_send" by
-// OpusRTPManager::SafeNodeName()+ApplyConfig() (OpusRTPManager.cpp), never
-// fpp_/aes67_ prefixed.  Reimplemented here rather than including
-// OpusRTPManager.h: that header only exists under
-// "#if __has_include(<gst/gst.h>)", so a translation unit that isn't already
-// guarded the same way can't reference it unconditionally.  KEEP IN SYNC with
-// OpusRTPManager::SafeNodeName().
-static std::string opusRtpSafeNodeName(const std::string& name) {
-    std::string result = "opusrtp_";
-    for (char c : name) {
-        if (std::isalnum((unsigned char)c) || c == '_') {
-            result += std::tolower((unsigned char)c);
-        } else {
-            result += '_';
-        }
-    }
-    return result;
-}
-
 // Output sinks the master volume has to attenuate that are NOT FPP-owned.
 //
 // The master targets the terminal output sinks so it multiplies with the group
@@ -355,14 +338,14 @@ static std::string opusRtpSafeNodeName(const std::string& name) {
 // (it pins them to 100% because WirePlumber initialises them at ~40%), so read
 // the same member list it does and hand the names to the master too.
 //
-// Opus RTP send nodes are a second, separate category: they're FPP-owned but
-// don't carry the fpp_/aes67_ prefix (see opusRtpSafeNodeName() above), so
-// they were being silently skipped the same way HDMI members once were --
-// the master did nothing at all for a box whose only output is Opus RTP.
+// The AES67 and Opus RTP senders (aes67_*_send, opusrtp_*_send) are not
+// here: their nodes are capture streams, so pactl set-sink-volume finds no
+// such sink.  Their pipelines apply the master themselves (see
+// AES67Manager::SetMasterVolume()).
 //
 // KEEP IN SYNC with restorePipeWireVolumes() in FPPINIT_Audio.cpp and
 // RestorePipeWireGroupVolumes() in pipewire.php -- same file selection, same
-// "not fpp_/aes67_" test. Also KEEP IN SYNC with OpusRTPManager::SafeNodeName().
+// "not fpp_/aes67_" test.
 static std::set<std::string> nonFppOutputSinkNames() {
     std::set<std::string> names;
     // Same default as settings.json: a missing key must not select the retired
@@ -405,26 +388,30 @@ static std::set<std::string> nonFppOutputSinkNames() {
         WarningHolder::InvalidConfigEntry(groupsFile + 1, e.what());
     }
 
-    Json::Value opusRoot;
-    std::string opusPath = FPP_DIR_CONFIG("/pipewire-opus-rtp-instances.json");
-    try {
-    if (LoadJsonFromFile(opusPath, opusRoot, JsonRoot::Object) && opusRoot.isMember("instances")) {
-        for (const auto& inst : opusRoot["instances"]) {
-            if (!inst.get("enabled", true).asBool()) {
+    return names;
+}
+
+// Whether any AES67 or Opus RTP sender is configured.  Read from the config
+// files, not the managers: the volume restore at startup can run before they
+// have loaded theirs.
+static bool networkSendersConfigured() {
+    for (const char* file : { "/pipewire-aes67-instances.json", "/pipewire-opus-rtp-instances.json" }) {
+        Json::Value root;
+        try {
+            if (!LoadJsonFromFile(FPP_DIR_CONFIG(file), root, JsonRoot::Object) || !root.isMember("instances")) {
                 continue;
             }
-            if (inst.get("mode", "send").asString() != "send") {
-                continue; // recv nodes are inputs, not outputs the master should touch
+            for (const auto& inst : root["instances"]) {
+                std::string mode = inst.get("mode", "send").asString();
+                if (inst.get("enabled", true).asBool() && (mode == "send" || mode == "both")) {
+                    return true;
+                }
             }
-            std::string name = inst.get("name", "Opus RTP").asString();
-            names.insert(opusRtpSafeNodeName(name) + "_send");
+        } catch (const std::exception& e) {
+            WarningHolder::InvalidConfigEntry(file + 1, e.what());
         }
     }
-    } catch (const std::exception& e) {
-        WarningHolder::InvalidConfigEntry("pipewire-opus-rtp-instances.json", e.what());
-    }
-
-    return names;
+    return false;
 }
 
 // Put the card's hardware playback path at unity, so PipeWire's software volume
@@ -571,18 +558,20 @@ static void applyVolume(int vol) {
                                "XDG_RUNTIME_DIR=/run/pipewire-fpp "
                                "PULSE_RUNTIME_PATH=/run/pipewire-fpp/pulse ";
 
-        // Every FPP-owned output sink -- local cards and AES67 senders alike, so
-        // the master stays a master for a box whose output is a network stream --
-        // plus the WirePlumber-managed nodes group members target directly (an
-        // HDMI output, say), which match no FPP prefix and were being skipped.
+        // Every FPP card sink, plus the WirePlumber-managed nodes group members
+        // target directly (an HDMI output, say), which match no FPP prefix and
+        // were being skipped.  The network senders are not sinks and take the
+        // master in their own pipelines (below).
         // Those are appended by name rather than folded into the grep: they may
         // legitimately be absent from the graph right now (an unplugged card
         // whose stored nodeTarget is still in the config), and pactl shrugging
         // at a name it does not know is exactly what the volume-restore path
         // already relies on.
         // Falls back to the default sink only when that leaves nothing at all
-        // (no 95-fpp-alsa-sink.conf adapters and no member targets), which is
-        // the old behaviour and still better than attenuating nothing.
+        // (no 95-fpp-alsa-sink.conf adapters, no member targets and no network
+        // sender), which is the old behaviour and still better than attenuating
+        // nothing.  Not with a sender: the default sink can be the group that
+        // feeds it, and the sender would then be attenuated twice.
         // Deliberately no single quotes in here: the whole thing is embedded in
         // an sh -c '...' string, so an inner ' would close it early (awk
         // '{print $2}' silently truncated the command and left the volume
@@ -591,10 +580,11 @@ static void applyVolume(int vol) {
         for (const std::string& n : nonFppOutputSinkNames()) {
             extraSinks += " " + n;
         }
+        std::string fallback = networkSendersConfigured() ? "" : "[ -z \"$S\" ] && [ -z \"$E\" ] && S=@DEFAULT_SINK@; ";
         std::string sinkList = "E=\"" + extraSinks + "\"; " +
                                "S=$(pactl list sinks short 2>/dev/null | cut -f2 | "
-                               "grep -e ^fpp_alsa_ -e ^aes67_); "
-                               "[ -z \"$S\" ] && [ -z \"$E\" ] && S=@DEFAULT_SINK@; "
+                               "grep -e ^fpp_alsa_); " +
+                               fallback +
                                "S=\"$S $E\"; ";
 
         // Built as a string, not into the fixed buffer above: the member-target
@@ -621,6 +611,15 @@ static void applyVolume(int vol) {
         system(cmd.c_str());
 
         lastPipeWireVolume = vol;
+
+        // The AES67 and Opus RTP senders: capture streams, which the sink pass
+        // above cannot reach.
+#ifdef HAS_AES67_GSTREAMER
+        AES67Manager::INSTANCE.SetMasterVolume(vol);
+#endif
+#ifdef HAS_OPUS_RTP_GSTREAMER
+        OpusRTPManager::INSTANCE.SetMasterVolume(vol);
+#endif
     }
 #else
     MacOSSetVolume(vol);
@@ -635,6 +634,11 @@ static void applyVolume(int vol) {
         mediaOutput->SetVolume(vol);
 }
 
+
+double masterVolumeGain(int volume) {
+    const double v = std::clamp(volume, 0, 100) / 100.0;
+    return v * v * v;
+}
 
 // setVolume() shells out several times (pactl for every sink, amixer), and is
 // called from the main loop (the command socket, once per step of the UI's

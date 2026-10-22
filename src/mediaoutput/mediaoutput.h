@@ -63,3 +63,8 @@ std::string GetEffectiveAudioOutput();
 // volume control
 void setVolume(int volume);
 int getVolume(void);
+// The linear gain a master volume (0-100) stands for: the cube of the
+// fraction, as pactl's percentage is.  For an output the master reaches
+// without pactl (the AES67 and Opus RTP senders), so the same number still
+// means the same loudness there.
+double masterVolumeGain(int volume);
