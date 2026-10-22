@@ -2401,10 +2401,18 @@ void CreateDaemon(void) {
         LeaveForkedProcess(EXIT_SUCCESS);
     }
 
-    /* Close out the standard file descriptors */
-    close(STDIN_FILENO);
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);
+    /* Point the standard file descriptors at /dev/null.  Closed, they were
+       taken by whatever fppd opened next (see OpenStandardDescriptors() in
+       common_mini.cpp) */
+    int devNull = open("/dev/null", O_RDWR);
+    if (devNull >= 0) {
+        dup2(devNull, STDIN_FILENO);
+        dup2(devNull, STDOUT_FILENO);
+        dup2(devNull, STDERR_FILENO);
+        if (devNull > STDERR_FILENO) {
+            close(devNull);
+        }
+    }
 }
 
 void PublishStatsForce(std::string reason) {

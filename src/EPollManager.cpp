@@ -30,27 +30,7 @@ EPollManager::EPollManager() {
 #ifdef USE_KQUEUE
     epollf = kqueue();
 #else
-
-    if (FileExists("/etc/fpp/container")) {
-        // FIXME - On Docker, when running as a daemon, the epol_ctl() in
-        // addFileDescriptor() fails when epollf is < 3.  This is a similar
-        // issue to what was seen in Bridge_Initialize_Internal() in
-        // e131bridge.cpp, so it may be the same issue causing both of
-        // these problems and may not be related to Docker at all.
-        int f0, f1, f2 = -1;
-
-        f0 = open("/dev/null", O_RDONLY);
-        f1 = open("/dev/null", O_RDONLY);
-        f2 = open("/dev/null", O_RDONLY);
-
-        epollf = epoll_create1(EPOLL_CLOEXEC);
-
-        close(f0);
-        close(f1);
-        close(f2);
-    } else {
-        epollf = epoll_create1(EPOLL_CLOEXEC);
-    }
+    epollf = epoll_create1(EPOLL_CLOEXEC);
 
     // Create a single timerfd for waking epoll on timer deadlines
     timerFd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);

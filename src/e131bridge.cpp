@@ -824,14 +824,6 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
     LogInfo(VB_E131BRIDGE, "Universe Count = %d\n", InputUniverseCount);
     InputUniversesPrint();
 
-    // FIXME FIXME FIXME FIXME
-    // This is a total hack to get a file descriptor greater than 2
-    // because otherwise, the bind() call later will fail for some reason.
-    // FIXME FIXME FIXME FIXME
-    int i1 = OpenSocket(AF_INET, SOCK_DGRAM, 0);
-    int i2 = OpenSocket(AF_INET, SOCK_DGRAM, 0);
-    int i3 = OpenSocket(AF_INET, SOCK_DGRAM, 0);
-
     if (enabled || !disableFakeBridges) {
         ddpSock = OpenBridgeSocket("DDP", DDP_PORT, DDPPacketsPerFrame());
     }
@@ -909,13 +901,6 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
     if (hasArtNet) {
         CreateArtNetSocket();
     }
-
-    if (i1 >= 0)
-        close(i1);
-    if (i2 >= 0)
-        close(i2);
-    if (i3 >= 0)
-        close(i3);
 
     return enabled;
 }

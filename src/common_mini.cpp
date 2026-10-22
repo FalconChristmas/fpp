@@ -370,13 +370,31 @@ std::string secondsToTime(int i) {
     sstr << std::setw(2) << std::setfill('0') << sec;
     return sstr.str();
 }
+// fds 0-2 are always open: on /dev/null, when the process was started
+// without them. This runs before the static initializers, because they open
+// descriptors too: drogon's main loop (its epoll, timerfd and eventfd) took
+// 0-2 in an fppd started without them (a "-d" restart closed them before its
+// exec), and CreateDaemon() then closed them, so nothing on that loop ran
+// again.
+__attribute__((constructor(101))) static void OpenStandardDescriptors() {
+    int fd;
+    while ((fd = open("/dev/null", O_RDWR)) >= 0 && fd <= STDERR_FILENO) {
+    }
+    if (fd > STDERR_FILENO) {
+        close(fd);
+    }
+}
+
 /*
  * Close all open file descriptors (used after fork())
+ *
+ * stdin/stdout/stderr are left open, daemonMode or not: a daemon's are
+ * /dev/null, and closed, they were taken by the next files the process
+ * opened. daemonMode is kept for plugins that call this.
  */
 void CloseOpenFiles(int daemonMode) {
     int maxfd = sysconf(_SC_OPEN_MAX);
-    // daemon mode closes stdin/stdout/stderr so start at 0
-    for (int fd = daemonMode ? 0 : 3; fd < maxfd; fd++) {
+    for (int fd = 3; fd < maxfd; fd++) {
         if (fcntl(fd, F_GETFD) != -1) {
             bool doClose = false;
             struct stat statBuf;
