@@ -2068,6 +2068,9 @@
                     });
             safeInitBody($('#fppSystemsTable'));
             SetupToolTips();
+            } catch (e) {
+                // fppd busy or unreachable for a moment; the next tick retries.
+                console.warn('FPP system status poll failed', e);
             } finally {
                 if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked") && !isUserInteracting()) {
                     fppPoller.schedule(() => getFPPSystemStatus(ipAddresses, true));
@@ -2085,6 +2088,7 @@
             // Destroy Bootstrap Table before manipulating DOM so destroy
             // doesn't restore a stale snapshot over our new rows
             var $tbl = $('#fppSystemsTable');
+            disposeRowPopups($('#fppSystems'));
             if ($tbl.closest('.bootstrap-table').length) {
                 $tbl.bootstrapTable('destroy');
             }
@@ -2575,6 +2579,7 @@
                         scrollState[this.id] = { top: this.scrollTop, atBottom: atBottom };
                     });
                     var $childRows = $liveChildRows.detach();
+                    disposeRowPopups($body);
                     origInitBody.call(this, fixedScroll, updatedUid);
                     // Every render — the initial 'load' and every poll-driven
                     // safeInitBody() — funnels through here, so this is the one
@@ -2601,6 +2606,21 @@
             reattachChildRows($tbl, $detachedChildren);
 
             if (typeof buildColumnSelector === 'function') buildColumnSelector();
+        }
+
+        /**
+         * Dispose the Bootstrap tooltips and popovers inside rows that are about
+         * to be thrown away.  Bootstrap holds every instance in a global Map keyed
+         * by its element until dispose(), so a row replaced without this stays in
+         * memory -- and with it the whole detached tbody -- on every poll.
+         * Covers instances SetupToolTips() made as well as the lazily created
+         * .ms-play-tip tooltips and channel I/O popovers.
+         */
+        function disposeRowPopups($scope) {
+            $scope.find('*').each(function () {
+                bootstrap.Tooltip.getInstance(this)?.dispose();
+                bootstrap.Popover.getInstance(this)?.dispose();
+            });
         }
 
         /**

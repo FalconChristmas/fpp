@@ -2363,6 +2363,14 @@ function HideAllToolTips () {
 	});
 }
 
+// Elements SetupToolTips() has given a tooltip instance.  Bootstrap keeps every
+// instance in a global Map keyed by its element, and its listeners in a global
+// registry, so an element whose instance is never disposed is never freed --
+// nor is the detached subtree it still points at through parentNode.  Pages
+// such as multisync.php rebuild a table and call SetupToolTips() on every
+// status poll, which leaked a whole table every couple of seconds.
+var fppToolTipElements = new Set();
+
 function SetupToolTips (delay = 100) {
 	// Delegated on document so it covers dialogs built long after this sweep,
 	// and namespaced + rebound because several pages call SetupToolTips again
@@ -2372,6 +2380,14 @@ function SetupToolTips (delay = 100) {
 	$(document)
 		.off('show.bs.modal.fppTooltips')
 		.on('show.bs.modal.fppTooltips', HideAllToolTips);
+
+	// Release the instances of elements that have since left the page.
+	fppToolTipElements.forEach(el => {
+		if (!el.isConnected) {
+			bootstrap.Tooltip.getInstance(el)?.dispose();
+			fppToolTipElements.delete(el);
+		}
+	});
 
 	var titles = document.querySelectorAll('[title]');
 
@@ -2387,7 +2403,16 @@ function SetupToolTips (delay = 100) {
 		'[data-bs-toggle="tooltip"]'
 	);
 	const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => {
-		let tooltipInstance;
+		let tooltipInstance = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+		if (tooltipInstance) {
+			// Already set up by an earlier call.  A new title attribute means
+			// the page retitled it, so rebuild it to pick that up; otherwise a
+			// second instance would only orphan the first one's listeners.
+			if (!tooltipTriggerEl.hasAttribute('title')) {
+				return tooltipInstance;
+			}
+			tooltipInstance.dispose();
+		}
 		try {
 			// Bootstrap treats an empty data-bs-title attribute as null and
 			// throws while type-checking the config. A single bad tooltip
@@ -2398,19 +2423,25 @@ function SetupToolTips (delay = 100) {
 			console.warn('Skipping invalid tooltip', tooltipTriggerEl, e);
 			return null;
 		}
+		fppToolTipElements.add(tooltipTriggerEl);
 
-		// Auto-hide tooltip after 3 seconds if mouse is not hovering
-		tooltipTriggerEl.addEventListener('mouseenter', () => {
-			clearTimeout(tooltipTriggerEl.tooltipTimeout);
-		});
+		// Auto-hide tooltip after 3 seconds if mouse is not hovering.  Bound
+		// once per element, looking the instance up when it fires, because a
+		// retitled element gets a new instance above.
+		if (!tooltipTriggerEl.fppToolTipAutoHide) {
+			tooltipTriggerEl.fppToolTipAutoHide = true;
+			tooltipTriggerEl.addEventListener('mouseenter', () => {
+				clearTimeout(tooltipTriggerEl.tooltipTimeout);
+			});
 
-		tooltipTriggerEl.addEventListener('mouseleave', () => {
-			tooltipTriggerEl.tooltipTimeout = setTimeout(() => {
-				if (!tooltipTriggerEl.matches(':hover')) {
-					tooltipInstance.hide();
-				}
-			}, 3000);
-		});
+			tooltipTriggerEl.addEventListener('mouseleave', () => {
+				tooltipTriggerEl.tooltipTimeout = setTimeout(() => {
+					if (!tooltipTriggerEl.matches(':hover')) {
+						bootstrap.Tooltip.getInstance(tooltipTriggerEl)?.hide();
+					}
+				}, 3000);
+			});
+		}
 
 		return tooltipInstance;
 	});
