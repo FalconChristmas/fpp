@@ -240,6 +240,34 @@ static void RecordWedgeEventAndMaybeRestart(const char* what, bool hwDecoder) {
     RestartFPPDResumingPlaylist();
 }
 
+// Reaper threads still inside gst_element_set_state(NULL): the teardowns in
+// progress, plus every abandoned one that has not let go.
+static std::atomic<int> s_liveReapers{ 0 };
+// How many of those may be stuck before fppd restarts.  Each abandoned
+// teardown keeps its pipeline, its streaming threads and its reaper for good,
+// and the decoder-wedge ladder above does not bound that: a pipeline without
+// a hardware decoder is never counted, and the count resets whenever a clip
+// plays.  A box whose every teardown wedged (a leaked DRM lease left each
+// kmssink after it sharing the card's fd) abandoned 226 pipelines in 50
+// minutes, until a 32-bit fppd could not create another thread and aborted.
+// A teardown that stalls and then lets go leaves this count again, so only
+// pipelines that are genuinely stuck add up.
+static constexpr int STUCK_TEARDOWN_RESTART_LIMIT = 4;
+
+// Restart fppd, resuming the playlist, because abandoned teardowns are piling
+// up.  Not a decoder recovery: it does not feed the reboot rung.
+static void RestartForStuckTeardowns(const char* why) {
+    if (getSettingInt("GStreamerWedgeRestartLimit", 3) <= 0) {
+        return; // self-restarts are turned off; the pipelines stay leaked
+    }
+    if (s_wedgeShutdownTriggered.exchange(true)) {
+        return; // restart/reboot already in flight
+    }
+    LogErr(VB_MEDIAOUT, "GStreamer: %s, restarting fppd\n", why);
+    WarningHolder::AddWarningTimeout(300, 37, "Restarting fppd: media pipeline teardowns stuck");
+    RestartFPPDResumingPlaylist();
+}
+
 // Drive a pipeline to GST_STATE_NULL on a reaper thread with a deadline.
 // Returns true when the pipeline reached NULL in time.  Returns false when
 // the transition wedged: the reaper thread keeps its own ref and either
@@ -255,28 +283,50 @@ static bool SetPipelineToNullSupervised(GstElement* pipeline, int timeoutMs) {
     };
     auto ctx = std::make_shared<TeardownCtx>();
     gst_object_ref(pipeline);
-    std::thread([pipeline, ctx, timeoutMs]() {
-        SetThreadName("FPP-GstReaper");
-        uint64_t start = GetMonotonicTimeMS();
-        gst_element_set_state(pipeline, GST_STATE_NULL);
-        gst_object_unref(pipeline);
-        uint64_t took = GetMonotonicTimeMS() - start;
-        if (took > (uint64_t)timeoutMs) {
-            // The caller already gave up and abandoned this pipeline —
-            // record that the kernel/GStreamer eventually let go so a
-            // "late but not never" wedge is distinguishable in soak logs.
-            LogWarn(VB_MEDIAOUT, "GStreamer: abandoned pipeline teardown eventually completed after %llu ms\n",
-                    (unsigned long long)took);
-        }
-        {
-            std::lock_guard<std::mutex> l(ctx->m);
-            ctx->done = true;
-        }
-        ctx->cv.notify_all();
-    }).detach();
+    s_liveReapers++;
+    try {
+        std::thread([pipeline, ctx, timeoutMs]() {
+            SetThreadName("FPP-GstReaper");
+            uint64_t start = GetMonotonicTimeMS();
+            gst_element_set_state(pipeline, GST_STATE_NULL);
+            gst_object_unref(pipeline);
+            s_liveReapers--;
+            uint64_t took = GetMonotonicTimeMS() - start;
+            if (took > (uint64_t)timeoutMs) {
+                // The caller already gave up and abandoned this pipeline —
+                // record that the kernel/GStreamer eventually let go so a
+                // "late but not never" wedge is distinguishable in soak logs.
+                LogWarn(VB_MEDIAOUT, "GStreamer: abandoned pipeline teardown eventually completed after %llu ms\n",
+                        (unsigned long long)took);
+            }
+            {
+                std::lock_guard<std::mutex> l(ctx->m);
+                ctx->done = true;
+            }
+            ctx->cv.notify_all();
+        }).detach();
+    } catch (const std::system_error& e) {
+        // Out of threads.  The pipeline is still running, so its last unref
+        // must not happen here: keep the reaper's ref and abandon it like a
+        // wedged one.
+        s_liveReapers--;
+        LogErr(VB_MEDIAOUT, "GStreamer: could not start a teardown thread (%s), abandoning the pipeline\n", e.what());
+        RestartForStuckTeardowns("out of threads for pipeline teardowns");
+        return false;
+    }
 
     std::unique_lock<std::mutex> l(ctx->m);
-    return ctx->cv.wait_for(l, std::chrono::milliseconds(timeoutMs), [&] { return ctx->done; });
+    if (ctx->cv.wait_for(l, std::chrono::milliseconds(timeoutMs), [&] { return ctx->done; })) {
+        return true;
+    }
+    l.unlock();
+    int stuck = s_liveReapers.load();
+    if (stuck >= STUCK_TEARDOWN_RESTART_LIMIT) {
+        char why[96];
+        snprintf(why, sizeof(why), "%d abandoned pipeline teardowns are still stuck", stuck);
+        RestartForStuckTeardowns(why);
+    }
+    return false;
 }
 
 // Static audio sample buffer for WLED audio-reactive effects
@@ -4109,8 +4159,8 @@ int GStreamerOutput::Close(void) {
     //
     // EXCEPT after an abandoned (wedged) teardown: the pipeline and its
     // kmssinks are still alive on the reaper thread and still using these.
-    // Leak them with the pipeline; the wedge-escalation restart bounds the
-    // loss.
+    // Leak them with the pipeline; the restart once teardowns pile up
+    // (STUCK_TEARDOWN_RESTART_LIMIT) bounds the loss.
     if (!m_teardownAbandoned) {
         for (DrmCards::Lease& lease : m_drmLeases) {
             DrmCards::ReleaseLease(lease);
