@@ -1054,7 +1054,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
             $.each(pendingSettings, function (key, value) {
                 if (key !== 'passwordVerify' && key !== 'osPasswordVerify') {
                     // During initial setup, disabled password auth should not try to
-                    // persist the password fields themselves.
+                    // persist the password fields themselves.  A value typed (or
+                    // autofilled) before "No Password" was chosen is still pending,
+                    // and saving it would apply it: osPassword runs chpasswd.
+                    if (key === 'password' && passwordEnable !== '1') {
+                        return;
+                    }
+                    if (key === 'osPassword' && osPasswordEnable !== '1') {
+                        return;
+                    }
                     if (key === 'passwordEnable' && passwordEnable !== '1') {
                         noPasswordChoices[key] = value;
                         return;
