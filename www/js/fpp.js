@@ -5465,7 +5465,7 @@ function populateUniverseData (data, reload, input) {
 			PacingRateOptionsHTML(pacingRateVal) +
 			'</select></td>';
 		bodyHTML +=
-			'<td ' +
+			"<td class='text-center' " +
 			inputStyle +
 			"><input class='txtMonitor' id='txtMonitor' type='checkbox' size='4' maxlength='4' " +
 			(monitor == 1 ? 'checked' : '') +
