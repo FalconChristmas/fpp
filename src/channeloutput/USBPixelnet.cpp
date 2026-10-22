@@ -16,11 +16,11 @@
 
 #include <unistd.h>
 
-#include "../Warnings.h"
 #include "../log.h"
 
 #include "USBPixelnet.h"
 #include "serialutil.h"
+#include "ChannelOutputSetup.h"
 
 #include "Plugin.h"
 class USBPixelnetPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
@@ -90,7 +90,7 @@ int USBPixelnetOutput::Init(Json::Value config) {
         }
     } else {
         LogErr(VB_CHANNELOUT, "Invalid Config.  Unknown dongle type.\n");
-        WarningHolder::AddWarning(28, "USBPixelnet: Invalid Config.  Unknown dongle type.");
+        AddOutputConfigWarning(28, "USBPixelnet: Invalid Config.  Unknown dongle type.");
         return 0;
     }
 

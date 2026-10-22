@@ -18,6 +18,7 @@
 #include "../log.h"
 
 #include "GPIO.h"
+#include "ChannelOutputSetup.h"
 #include "../common_mini.h"
 
 #include "Plugin.h"
@@ -71,7 +72,7 @@ int GPIOOutput::Init(Json::Value config) {
         m_GPIOPin = PinCapabilities::getPinByName(pinName).ptr();
         if (m_GPIOPin == nullptr) {
             LogErr(VB_CHANNELOUT, "GPIO Pin '%s' not found\n", pinName.c_str());
-            WarningHolder::AddWarning(51, "GPIO Pin '" + pinName + "' not found");
+            AddOutputConfigWarning(51, "GPIO Pin '" + pinName + "' not found");
             return 0;
         }
         m_usedGPIOS.push_back(pinName);
@@ -80,7 +81,7 @@ int GPIOOutput::Init(Json::Value config) {
         m_GPIOPin = PinCapabilities::getPinByGPIO(0, gpio).ptr();
         if (m_GPIOPin == nullptr) {
             LogErr(VB_CHANNELOUT, "GPIO %d not found\n", gpio);
-            WarningHolder::AddWarning(51, "GPIO " + std::to_string(gpio) + " not found");
+            AddOutputConfigWarning(51, "GPIO " + std::to_string(gpio) + " not found");
             return 0;
         }
         m_usedGPIOS.push_back(m_GPIOPin->name);

@@ -23,6 +23,7 @@
 #include "../log.h"
 
 #include "PixelString.h"
+#include "ChannelOutputSetup.h"
 #include "../OutputMonitor.h"
 #include "../Warnings.h"
 #include "overlays/PixelOverlay.h"
@@ -37,11 +38,11 @@ constexpr uint32_t SMART_RECEIVER_LEADOUT = 6 * 3;
 
 constexpr uint32_t SMART_RECEIVER_V2_GAP = 10;
 
-#define CHECKPS_SETTING(SETTING)                                                           \
-    if (SETTING) {                                                                         \
-        LogErr(VB_CHANNELOUT, "Invalid PixelString Config %s\n", #SETTING);                \
-        WarningHolder::AddWarning(26, "Invalid PixelString Config: " + std::string(#SETTING)); \
-        return 0;                                                                          \
+#define CHECKPS_SETTING(SETTING)                                                            \
+    if (SETTING) {                                                                          \
+        LogErr(VB_CHANNELOUT, "Invalid PixelString Config %s\n", #SETTING);                 \
+        AddOutputConfigWarning(26, "Invalid PixelString Config: " + std::string(#SETTING)); \
+        return 0;                                                                           \
     }
 
 // one config key per receiver; the hasChannels array in Init() is sized to
@@ -300,9 +301,9 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
                 // edited differentialType is the only way to get here
                 LogWarn(VB_CHANNELOUT, "Invalid smart receiver count %d on port %d; using %d\n",
                         receiverCount, m_portNumber + 1, MAX_SMART_RECEIVERS);
-                WarningHolder::AddWarning("PixelString: invalid smart receiver count on port " +
-                                          std::to_string(m_portNumber + 1) + ", using " +
-                                          std::to_string(MAX_SMART_RECEIVERS));
+                AddOutputConfigWarning(UNKNOWN_WARNING_ID, "PixelString: invalid smart receiver count on port " +
+                                                               std::to_string(m_portNumber + 1) + ", using " +
+                                                               std::to_string(MAX_SMART_RECEIVERS));
                 receiverCount = MAX_SMART_RECEIVERS;
             }
         }
@@ -313,7 +314,7 @@ int PixelString::Init(Json::Value config, Json::Value* pinConfig) {
             // pixel data, so a wide part would need two widths in one stream.
             // Falcon v4/v5 markers are zero length, so those are fine.
             LogWarn(VB_CHANNELOUT, "16 bit protocols are not supported with v1/v2 smart receivers on port %d; using 8 bit\n", m_portNumber + 1);
-            WarningHolder::AddWarning("PixelString: 16 bit protocol not supported with v1/v2 smart receivers on port " + std::to_string(m_portNumber + 1));
+            AddOutputConfigWarning(UNKNOWN_WARNING_ID, "PixelString: 16 bit protocol not supported with v1/v2 smart receivers on port " + std::to_string(m_portNumber + 1));
             m_bytesPerChannel = 1;
         }
     } else {

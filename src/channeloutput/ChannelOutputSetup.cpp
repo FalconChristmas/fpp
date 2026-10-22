@@ -490,6 +490,11 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
             }
 
             try {
+                // the output's constructor raises warnings too, not just Init()
+                struct ConfigWarningScope {
+                    ConfigWarningScope(const std::string& f) { outputConfigWarningFile = f; }
+                    ~ConfigWarningScope() { outputConfigWarningFile.clear(); }
+                } warningScope(cfgFile);
                 LogInfo(VB_CHANNELOUT, "Loading output plugin: type=%s, libname=%s\n", type.c_str(), ("fpp-co-" + libnamePfx + type).c_str());
                 FPPPlugins::ChannelOutputPlugin* p = dynamic_cast<FPPPlugins::ChannelOutputPlugin*>(PluginManager::INSTANCE.findPlugin(libnamePfx + type, "fpp-co-" + libnamePfx + type));
                 if (p) {
@@ -505,10 +510,6 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
                 }
                 if (channelOutput->output) {
                     LogInfo(VB_CHANNELOUT, "Calling Init() on %s output\n", type.c_str());
-                    struct ConfigWarningScope {
-                        ConfigWarningScope(const std::string& f) { outputConfigWarningFile = f; }
-                        ~ConfigWarningScope() { outputConfigWarningFile.clear(); }
-                    } warningScope(cfgFile);
                     bool initOK = channelOutput->output->Init(outputs[c]);
                     if (initOK) {
                         // Every output reads (PrepData) or sends from exactly the
