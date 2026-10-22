@@ -15897,11 +15897,12 @@ function BuildPluginHeaderIndicator (indicator) {
 }
 
 /*
- * The player badge's tooltip is rendered as HTML (data-bs-html), and its markup
- * travels in a title="..." attribute.  The browser decodes one level of
- * escaping when it parses the attribute, so the HTML -- whose filenames were
- * already escaped as content -- has to be escaped once more here.  Escaping
- * only once would hand the raw filename to the tooltip's HTML renderer.
+ * The header's tooltips (the player badge's, the interfaces') are rendered as
+ * HTML (data-bs-html), and their markup travels in a title="..." attribute.
+ * The browser decodes one level of escaping when it parses the attribute, so
+ * the HTML -- whose filenames and names were already escaped as content -- has
+ * to be escaped once more here.  Escaping only once would hand the raw name to
+ * the tooltip's HTML renderer.
  */
 function EscapeHeaderTooltipAttr (html) {
 	return EscapeHtml(html).replace(/"/g, '&quot;');
@@ -15976,6 +15977,9 @@ function RefreshHeaderBar () {
 			if (e.ifname.startsWith('can.')) {
 				return 0;
 			}
+			// Everything below goes into markup (and the tooltips render theirs
+			// as HTML), so the interface's fields are escaped as they're added.
+			var ifname = EscapeHtmlAttr(e.ifname);
 
 			if (!e.flags.some(flag => flag === 'NO-CARRIER')) {
 				// Show up interfaces even if they do not have IP configured - eg Colorlight
@@ -15984,15 +15988,15 @@ function RefreshHeaderBar () {
 						var icon = 'text-success';
 						var row =
 							'<span ifname="' +
-							e.ifname +
-							'" class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="IP: ' +
-							e.local +
+							ifname +
+							'" class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="' +
+							EscapeHeaderTooltipAttr('IP: ' + EscapeHtml(e.local)) +
 							'" ><i class="fas fa-network-wired ' +
 							icon +
 							'"></i><small>' +
-							e.ifname +
+							ifname +
 							'<div class="divIPAddress">: ' +
-							e.local +
+							EscapeHtml(e.local) +
 							'</div></small></span>';
 						rc.push(row);
 					}
@@ -16008,35 +16012,38 @@ function RefreshHeaderBar () {
 						var ipWithCIDR = formatIPWithCIDR(n.local, n.prefixlen);
 						var row =
 							'<span ifname="' +
-							e.ifname +
-							'" class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="Tether IP: ' +
-							ipWithCIDR +
+							ifname +
+							'" class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="' +
+							EscapeHeaderTooltipAttr('Tether IP: ' + EscapeHtml(ipWithCIDR)) +
 							'"><i class="fas fa-broadcast-tower"></i><small>' +
-							e.ifname +
+							ifname +
 							'<div class="divIPAddress">: ' +
-							n.local +
+							EscapeHtml(n.local) +
 							'</div></small></span>';
 						rc.push(row);
 					} else if (n.family === 'inet' && 'wifi' in e) {
 						var ipWithCIDR = formatIPWithCIDR(n.local, n.prefixlen);
 						var row =
 							'<span ifname="' +
-							e.ifname +
-							'" class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="IP: ' +
-							ipWithCIDR +
-							'<br/>Strength: ' +
-							e.wifi.level +
-							e.wifi.unit +
+							ifname +
+							'" class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="' +
+							EscapeHeaderTooltipAttr(
+								'IP: ' +
+									EscapeHtml(ipWithCIDR) +
+									'<br/>Strength: ' +
+									EscapeHtml(e.wifi.level) +
+									EscapeHtml(e.wifi.unit)
+							) +
 							'">';
 						row +=
 							'<img title="WiFi Strength" src="images/redesign/wifi-' +
-							e.wifi.desc +
+							EscapeHtmlAttr(e.wifi.desc) +
 							'.svg" height="14px"/>';
 						row +=
 							'<small>' +
-							e.ifname +
+							ifname +
 							'<div class="divIPAddress">: ' +
-							n.local +
+							EscapeHtml(n.local) +
 							'</div></small></span>';
 						rc.push(row);
 					} else if (n.family === 'inet') {
@@ -16049,15 +16056,15 @@ function RefreshHeaderBar () {
 						var ipWithCIDR = formatIPWithCIDR(n.local, n.prefixlen);
 						var row =
 							'<span ifname="' +
-							e.ifname +
-							'" class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="IP: ' +
-							ipWithCIDR +
+							ifname +
+							'" class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="' +
+							EscapeHeaderTooltipAttr('IP: ' + EscapeHtml(ipWithCIDR)) +
 							'" ><i class="fas fa-network-wired ' +
 							icon +
 							'"></i><small>' +
-							e.ifname +
+							ifname +
 							'<div class="divIPAddress">: ' +
-							n.local +
+							EscapeHtml(n.local) +
 							'</div></small></span>';
 						rc.push(row);
 					}
@@ -16082,9 +16089,11 @@ function RefreshHeaderBar () {
 			return s.valueType !== 'FanSpeed';
 		});
 		var tooltip = '';
-		// Tooltip shows all sensors (including fans)
+		// Tooltip shows all sensors (including fans).  Labels and readings come
+		// from cape EEPROMs and sensors.json, so they're escaped into its HTML
+		// and into the header spans below.
 		data.sensors.forEach(function (e) {
-			var tv = e.formatted;
+			var tv = EscapeHtml(e.formatted);
 			if (
 				e.valueType === 'Temperature' &&
 				typeof temperatureUnit !== 'undefined' &&
@@ -16092,7 +16101,7 @@ function RefreshHeaderBar () {
 			) {
 				tv = (parseFloat(e.value) * 1.8 + 32).toFixed(2) + '&deg;F';
 			}
-			tooltip += '<b>' + e.label + '</b>' + tv + '<br/>';
+			tooltip += '<b>' + EscapeHtml(e.label) + '</b>' + tv + '<br/>';
 		});
 		// The tooltip text changes on every refresh.  Bootstrap resolves a
 		// function title at show time, so stash the current text here and the
@@ -16106,11 +16115,11 @@ function RefreshHeaderBar () {
 		var sensorValues = [];
 		nonFanSensors.forEach(function (e) {
 			var icon = 'bolt';
-			var val = e.formatted;
+			var val = EscapeHtml(e.formatted);
 			if (e.valueType == 'Temperature') {
 				icon = 'thermometer-half';
 				if (typeof temperatureUnit !== 'undefined' && temperatureUnit) {
-					val = parseFloat(val * 1.8 + 32).toFixed(2);
+					val = parseFloat(e.formatted * 1.8 + 32).toFixed(2);
 					val += '&deg;F';
 				} else {
 					val += '&deg;C';
@@ -16118,7 +16127,7 @@ function RefreshHeaderBar () {
 			}
 			sensorIcons.push(icon);
 			sensorLabels.push(e.label);
-			sensorValues.push(e.label + val);
+			sensorValues.push(EscapeHtml(e.label) + val);
 		});
 
 		// Only the readings change from one refresh to the next, so rebuild the
