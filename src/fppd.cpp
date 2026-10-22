@@ -22,6 +22,7 @@
 #include <sys/epoll.h>
 #include <sys/prctl.h>
 #include <sys/sysinfo.h>
+#include <sys/uio.h>
 #include <syscall.h>
 #endif
 
@@ -386,6 +387,10 @@ static void safeWriteFaultRegisters(int fd, void* ctx) {
     safeWriteReg(fd, "pc", (uintptr_t)uc->uc_mcontext.arm_pc);
     safeWriteReg(fd, "sp", (uintptr_t)uc->uc_mcontext.arm_sp);
     safeWriteReg(fd, "lr", (uintptr_t)uc->uc_mcontext.arm_lr);
+    // Bit 5 (T) says whether pc was running Thumb or ARM code, which is what
+    // decides how the bytes under "code at pc" disassemble: Debian's armhf is
+    // Thumb-2, Raspbian's is ARM.
+    safeWriteReg(fd, "cpsr", (uintptr_t)uc->uc_mcontext.arm_cpsr);
     safeWrite(fd, "\n");
     safeWriteReg(fd, "r0", (uintptr_t)uc->uc_mcontext.arm_r0);
     safeWriteReg(fd, "r1", (uintptr_t)uc->uc_mcontext.arm_r1);
@@ -404,6 +409,58 @@ static void safeWriteFaultRegisters(int fd, void* ctx) {
 #else
     (void)ctx;
     safeWrite(fd, "(register dump not implemented for this architecture)\n");
+#endif
+}
+
+// The instruction bytes around the faulting pc, as they were in memory.
+//
+// A SIGILL at an instruction that disassembles as perfectly valid in the
+// packaged library can only mean the bytes the CPU ran were not the packaged
+// ones -- a library damaged on disk, or overwritten under the running process.
+// Without the bytes that can only be argued from the stack; with them it is
+// a comparison.  generate_crash_report compares them against the file on disk.
+//
+// Read with process_vm_readv rather than by dereferencing pc: a jump to an
+// unmapped address is itself a common crash, and a fault in here would
+// re-enter the handler.  The syscall returns EFAULT instead, and reading our
+// own process needs no ptrace permission.  The two halves are read separately
+// so a pc at the start of a mapping still gets the bytes from pc onwards.
+static void safeWriteCodeAtFault(int fd, void* ctx) {
+#if defined(__linux__) && (defined(__aarch64__) || defined(__arm__) || defined(__x86_64__))
+    if (!ctx) {
+        return;
+    }
+    const ucontext_t* uc = (const ucontext_t*)ctx;
+#if defined(__aarch64__)
+    uintptr_t pc = (uintptr_t)uc->uc_mcontext.pc;
+#elif defined(__arm__)
+    uintptr_t pc = (uintptr_t)uc->uc_mcontext.arm_pc;
+#else
+    uintptr_t pc = (uintptr_t)uc->uc_mcontext.gregs[REG_RIP];
+#endif
+    constexpr size_t kHalf = 16;
+    safeWrite(fd, "\n=== code at pc (memory order, pc-16 to pc+16) ===\n");
+    for (int half = 0; half < 2; half++) {
+        uintptr_t addr = half == 0 ? pc - kHalf : pc;
+        unsigned char buf[kHalf];
+        struct iovec local = { buf, kHalf };
+        struct iovec remote = { (void*)addr, kHalf };
+        ssize_t n = process_vm_readv(getpid(), &local, 1, &remote, 1, 0);
+        safeWriteHex(fd, addr);
+        safeWrite(fd, ":");
+        if (n != (ssize_t)kHalf) {
+            safeWrite(fd, " unreadable\n");
+            continue;
+        }
+        for (size_t i = 0; i < kHalf; i++) {
+            char hex[4] = { ' ', "0123456789abcdef"[buf[i] >> 4], "0123456789abcdef"[buf[i] & 0xF], '\0' };
+            safeWrite(fd, hex);
+        }
+        safeWrite(fd, "\n");
+    }
+#else
+    (void)fd;
+    (void)ctx;
 #endif
 }
 
@@ -614,6 +671,8 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
             // the thread it happens to unwind, not necessarily the faulting
             // one, and this costs nothing.
             safeWriteFaultRegisters(cfd, ctx);
+            // Before the module map, which parsers read to the end of file.
+            safeWriteCodeAtFault(cfd, ctx);
             // Also written even when gdb succeeded, and this is the half that
             // was missing: gdb resolves what it can and leaves everything else
             // as a bare address, and a frame it fails to unwind past is simply
