@@ -19,6 +19,8 @@
 #include "../log.h" // LogErr/VB_CHANNELOUT -- needed directly for NOPCH builds
 
 #include "SocketFrameBuffer.h"
+#include "../SysSocket.h"
+
 #ifdef USE_FRAMEBUFFER_SOCKET
 
 #include <sys/ioctl.h>
@@ -91,7 +93,7 @@ int SocketFrameBuffer::InitializeFrameBuffer(void) {
     m_pageSize = m_width * m_height * 4;
     m_bufferSize = m_pageSize * m_pages;
 
-    m_fbFd = socket(AF_UNIX, SOCK_DGRAM, 0);
+    m_fbFd = OpenSocket(AF_UNIX, SOCK_DGRAM, 0);
     if (m_fbFd < 0) {
         LogErr(VB_CHANNELOUT, "Error opening FrameBuffer device: %s\n", devString.c_str());
         WarningHolder::AddWarning(36, "Framebuffer output: could not open device " + devString);

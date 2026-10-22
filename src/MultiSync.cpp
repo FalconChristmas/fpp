@@ -1574,7 +1574,7 @@ bool MultiSync::OpenTwinklyDiscoverySocket() {
     if (m_twinklyDiscoverySock >= 0) {
         return true;
     }
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    int sock = OpenSocket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) {
         LogWarn(VB_SYNC, "Could not open Twinkly discovery socket: %s\n", FPPstrerror(errno));
         return false;
@@ -3067,7 +3067,7 @@ void MultiSync::ShutdownSync(void) {
 int MultiSync::OpenBroadcastSocket(void) {
     LogDebug(VB_SYNC, "OpenBroadcastSocket()\n");
 
-    m_broadcastSock = socket(AF_INET, SOCK_DGRAM, 0);
+    m_broadcastSock = OpenSocket(AF_INET, SOCK_DGRAM, 0);
 
     if (m_broadcastSock < 0) {
         LogErr(VB_SYNC, "Error opening MultiSync broadcast socket\n");
@@ -3104,7 +3104,7 @@ int MultiSync::OpenControlSockets() {
     // Set the socket up fully before publishing it, so a sender never sees a
     // half-configured one, and a failed setsockopt() doesn't leave it behind
     // as if the open had succeeded.
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    int sock = OpenSocket(AF_INET, SOCK_DGRAM, 0);
 
     if (sock < 0) {
         LogErr(VB_SYNC, "Error opening MultiSync socket\n");
@@ -3585,7 +3585,7 @@ void MultiSync::SendMulticastPacket(void* outBuf, int len) {
 
         if (a.second.multicastSocket == -1) {
             // create the socket
-            a.second.multicastSocket = socket(AF_INET, SOCK_DGRAM, 0);
+            a.second.multicastSocket = OpenSocket(AF_INET, SOCK_DGRAM, 0);
 
             if (a.second.multicastSocket < 0) {
                 LogErr(VB_SYNC, "Error opening Multicast socket for %s\n", a.second.interfaceName.c_str());
@@ -3633,7 +3633,7 @@ void MultiSync::SendUnicastPacket(const std::string& address, void* outBuf, int 
     if (m_controlSock >= 0) {
         sendto(m_controlSock, outBuf, len, MSG_DONTWAIT, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
     } else {
-        int uSock = socket(AF_INET, SOCK_DGRAM, 0);
+        int uSock = OpenSocket(AF_INET, SOCK_DGRAM, 0);
         if (uSock < 0) {
             LogErr(VB_SYNC, "Error opening Unicast socket\n");
             return;
@@ -3747,7 +3747,7 @@ int MultiSync::OpenReceiveSocket(void) {
     char strMulticastGroup[16];
 
     /* set up socket */
-    m_receiveSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+    m_receiveSock = OpenSocket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
     if (m_receiveSock < 0) {
         LogErr(VB_SYNC, "Error opening Receive socket; %s\n", FPPstrerror(errno));
         WarningHolder::AddWarning(42, "MultiSync: could not open receive socket");

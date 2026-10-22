@@ -30,6 +30,7 @@
 #include "commands/Commands.h"
 
 #include "NetworkMonitor.h"
+#include "SysSocket.h"
 
 NetworkMonitor NetworkMonitor::INSTANCE;
 
@@ -62,7 +63,7 @@ static bool linkStateChanged(int index, unsigned flags, bool deleted) {
 
 void NetworkMonitor::Init(std::map<int, std::function<bool(int)>>& callbacks) {
 #ifndef PLATFORM_OSX
-    int nl_socket = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+    int nl_socket = OpenSocket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
     if (nl_socket < 0) {
         LogWarn(VB_GENERAL, "Could not create NETLINK socket.\n");
         return;

@@ -479,7 +479,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
     }
 
     // Open our raw socket
-    if ((m_fd = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1) {
+    if ((m_fd = OpenSocket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1) {
         LogErr(VB_CHANNELOUT, "Error creating raw socket: %s\n", FPPstrerror(errno));
         return 0;
     }
@@ -1061,7 +1061,7 @@ void ColorLight5a75Output::GetReceiverInfo() {
 
 #ifndef PLATFORM_OSX
     // Setup socket to receive response(s)
-    if ((sockfd = socket(PF_PACKET, SOCK_RAW, htons(0x0805))) == -1) {
+    if ((sockfd = OpenSocket(PF_PACKET, SOCK_RAW, htons(0x0805))) == -1) {
         LogErr(VB_CHANNELOUT, "Unable to open receive socket\n");
         return;
     }

@@ -36,6 +36,7 @@
 #include "settings.h"
 
 #include "overlays/wled/wled.h"   // AudioFrame, fetchAudioSamples, computeAudioFrame
+#include "SysSocket.h"
 
 WLEDAudioSync WLEDAudioSync::INSTANCE;
 
@@ -213,7 +214,7 @@ void WLEDAudioSync::StopAllThreads() {
 }
 
 bool WLEDAudioSync::OpenSendSocket() {
-    m_sendSocket = ::socket(AF_INET, SOCK_DGRAM, 0);
+    m_sendSocket = OpenSocket(AF_INET, SOCK_DGRAM, 0);
     if (m_sendSocket < 0) return false;
 
     // Enable broadcast (allows 255.255.255.255 / x.x.x.255 destinations).
@@ -229,7 +230,7 @@ bool WLEDAudioSync::OpenSendSocket() {
 }
 
 bool WLEDAudioSync::OpenReceiveSocket() {
-    m_recvSocket = ::socket(AF_INET, SOCK_DGRAM, 0);
+    m_recvSocket = OpenSocket(AF_INET, SOCK_DGRAM, 0);
     if (m_recvSocket < 0) return false;
 
     int yes = 1;

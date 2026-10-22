@@ -32,6 +32,8 @@
 #include "ChannelOutputSetup.h"
 
 #include "Plugin.h"
+#include "../SysSocket.h"
+
 class HTTPVirtualDisplayPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
 public:
     HTTPVirtualDisplayPlugin() :
@@ -175,7 +177,7 @@ int HTTPVirtualDisplayOutput::Init(Json::Value config) {
     // is reachable on both IPv4 and IPv6 clients without needing two
     // listeners. Apache's mod_proxy talks to us on localhost; both
     // 127.0.0.1 and ::1 land here.
-    m_socket = socket(AF_INET6, SOCK_STREAM, 0);
+    m_socket = OpenSocket(AF_INET6, SOCK_STREAM, 0);
     if (m_socket < 0) {
         LogErr(VB_CHANNELOUT, "Could not create socket: %s\n", FPPstrerror(errno));
         AddOutputConfigWarning(37, "Virtual Display preview: could not create socket");
@@ -237,7 +239,7 @@ void HTTPVirtualDisplayOutput::ConnectionThread(void) {
     int client;
 
     while (m_running) {
-        client = accept(m_socket, NULL, NULL);
+        client = AcceptSocket(m_socket, NULL, NULL);
 
         if (client >= 0) {
             // Enable TCP keepalive to detect dead connections

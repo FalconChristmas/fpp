@@ -1,6 +1,37 @@
 #pragma once
 
+#include <fcntl.h>
 #include <sys/socket.h>
+
+// Every socket fppd opens goes through these, so none survives into a child.
+// The shells and tools fppd runs (system(), popen()) inherit every descriptor
+// that is not close-on-exec, and one still running when fppd exits -- a pactl
+// waiting on a wedged PipeWire, say -- kept fppd's ports: the restarted fppd
+// bound MultiSync's 32320 again beside it (SO_REUSEPORT), and the kernel
+// handed part of the incoming packets to the orphan.
+inline int OpenSocket(int domain, int type, int protocol) {
+#ifdef SOCK_CLOEXEC
+    return ::socket(domain, type | SOCK_CLOEXEC, protocol);
+#else
+    int s = ::socket(domain, type, protocol);
+    if (s >= 0) {
+        fcntl(s, F_SETFD, FD_CLOEXEC);
+    }
+    return s;
+#endif
+}
+
+inline int AcceptSocket(int s, struct sockaddr* addr, socklen_t* len) {
+#ifdef SOCK_CLOEXEC
+    return ::accept4(s, addr, len, SOCK_CLOEXEC);
+#else
+    int c = ::accept(s, addr, len);
+    if (c >= 0) {
+        fcntl(c, F_SETFD, FD_CLOEXEC);
+    }
+    return c;
+#endif
+}
 
 
 #ifdef PLATFORM_OSX

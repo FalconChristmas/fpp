@@ -33,6 +33,8 @@
 #include "ChannelOutputSetup.h"
 
 #include "Plugin.h"
+#include "../SysSocket.h"
+
 class HTTPVirtualDisplay3DPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
 public:
     HTTPVirtualDisplay3DPlugin() :
@@ -200,7 +202,7 @@ int HTTPVirtualDisplay3DOutput::Init(Json::Value config) {
 
     // Bind a dual-stack socket (IPv6 with V6ONLY off) so the SSE feed
     // is reachable on both IPv4 and IPv6 clients without two listeners.
-    m_socket = socket(AF_INET6, SOCK_STREAM, 0);
+    m_socket = OpenSocket(AF_INET6, SOCK_STREAM, 0);
     if (m_socket < 0) {
         LogErr(VB_CHANNELOUT, "Could not create socket: %s\n", FPPstrerror(errno));
         AddOutputConfigWarning(37, "3D Virtual Display preview: could not create socket");
@@ -265,7 +267,7 @@ void HTTPVirtualDisplay3DOutput::ConnectionThread(void) {
     int client;
 
     while (m_running) {
-        client = accept(m_socket, NULL, NULL);
+        client = AcceptSocket(m_socket, NULL, NULL);
 
         if (client >= 0) {
             // Enable TCP keepalive to detect dead connections

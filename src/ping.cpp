@@ -35,6 +35,7 @@
 
 #include "common.h"
 #include "ping.h"
+#include "SysSocket.h"
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -181,9 +182,9 @@ public:
         flags = SOCK_NONBLOCK;
 #endif
         if (getuid()) {
-            pingSocket = socket(AF_INET, SOCK_DGRAM | flags, IPPROTO_ICMP);
+            pingSocket = OpenSocket(AF_INET, SOCK_DGRAM | flags, IPPROTO_ICMP);
         } else {
-            pingSocket = socket(AF_INET, SOCK_RAW | flags, IPPROTO_ICMP);
+            pingSocket = OpenSocket(AF_INET, SOCK_RAW | flags, IPPROTO_ICMP);
         }
         isRunning = 1;
 

@@ -44,6 +44,7 @@
 #include "overlays/PixelOverlayEffects.h"
 #include "overlays/PixelOverlayModel.h"
 #include "overlays/WLEDEffects.h"
+#include "SysSocket.h"
 
 WLEDAPIResponder WLEDAPIResponder::INSTANCE;
 
@@ -232,7 +233,7 @@ void WLEDAPIResponder::Initialize() {
     int p = getSettingInt("WLEDAPIPort", 0);
     if (p > 0 && p < 65536) m_port = p;
 
-    m_socket = ::socket(AF_INET, SOCK_STREAM, 0);
+    m_socket = OpenSocket(AF_INET, SOCK_STREAM, 0);
     if (m_socket < 0) {
         LogErr(VB_GENERAL, "WLEDAPIResponder: socket() failed: %s\n", FPPstrerror(errno));
         return;
@@ -310,7 +311,7 @@ void WLEDAPIResponder::AcceptLoop() {
     std::chrono::steady_clock::time_point lastAcceptWarn{};
     int acceptFailures = 0;
     while (m_running) {
-        int client = ::accept(m_socket, nullptr, nullptr);
+        int client = AcceptSocket(m_socket, nullptr, nullptr);
         if (client < 0) {
             int err = errno;
             if (!m_running) {

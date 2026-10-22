@@ -47,6 +47,7 @@
 #include "mediaoutput/mediaoutput.h"
 #include "playlist/Playlist.h"
 #include "util/GPIOUtils.h"
+#include "SysSocket.h"
 
 constexpr int MAX_RESPONSE_SIZE = 1501;
 
@@ -74,7 +75,7 @@ int Command_Initialize() {
 
     LogInfo(VB_COMMAND, "Initializing Command Module\n");
 
-    if ((socket_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
+    if ((socket_fd = OpenSocket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
         perror("server: socket");
         ExitEarly(1);
     }

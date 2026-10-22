@@ -14,6 +14,7 @@
 #define __STDC_FORMAT_MACROS
 
 #include "common_mini.h"
+#include "SysSocket.h"
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -214,7 +215,7 @@ int GetInterfaceAddress(const char* interface, char* addr, char* mask, char* gw)
 
     memset(&ifr, 0, sizeof(ifr));
 
-    fd = socket(AF_INET, SOCK_DGRAM, 0);
+    fd = OpenSocket(AF_INET, SOCK_DGRAM, 0);
     ifr.ifr_addr.sa_family = AF_INET;
 
     /* I want IP address attached to E131interface */

@@ -67,6 +67,7 @@
 #include "common.h"
 #include "log.h"
 #include "settings.h"
+#include "../SysSocket.h"
 
 // ──────────────────────────────────────────────────────────────────────────────
 // AES67 namespace helpers
@@ -1777,7 +1778,7 @@ bool AES67Manager::GetGrandmasterAddress(const std::string& gmId, std::string& a
 void AES67Manager::PtpAnnounceListenLoop() {
     LogInfo(VB_MEDIAOUT, "AES67 PTP announce listener thread started\n");
 
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    int sock = OpenSocket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) {
         LogWarn(VB_MEDIAOUT, "AES67 PTP announce: socket failed: %s\n", FPPstrerror(errno));
         return;
@@ -1923,7 +1924,7 @@ static int PhcIndexForInterface(const std::string& iface) {
     if (iface.empty()) {
         return -1;
     }
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    int sock = OpenSocket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) {
         return -1;
     }
@@ -4959,7 +4960,7 @@ void AES67Manager::SAPAnnounceLoop() {
     LogInfo(VB_MEDIAOUT, "AES67 SAP announcer thread started\n");
 
     // Create UDP socket for SAP multicast
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    int sock = OpenSocket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) {
         LogErr(VB_MEDIAOUT, "AES67 SAP: Failed to create socket: %s\n", FPPstrerror(errno));
         return;
@@ -5134,7 +5135,7 @@ void AES67Manager::SAPAnnounceLoop() {
 void AES67Manager::SAPReceiveLoop() {
     LogInfo(VB_MEDIAOUT, "AES67 SAP receiver thread started\n");
 
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    int sock = OpenSocket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) {
         LogErr(VB_MEDIAOUT, "AES67 SAP recv: Failed to create socket: %s\n", FPPstrerror(errno));
         return;
@@ -5764,7 +5765,7 @@ std::vector<AES67Manager::TestResult> AES67Manager::RunSelfTest() {
     {
         TestResult r;
         r.testName = "multicast_capability";
-        int sock = socket(AF_INET, SOCK_DGRAM, 0);
+        int sock = OpenSocket(AF_INET, SOCK_DGRAM, 0);
         if (sock >= 0) {
             int reuse = 1;
             setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));

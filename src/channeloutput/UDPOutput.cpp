@@ -198,7 +198,7 @@ static int pacedSndBufSize() {
 // helper returns a static buffer and round-trips through strings; comparing
 // s_addr directly is thread-safe and exact.)
 static std::string egressInterfaceFor(in_addr_t dest) {
-    int s = socket(AF_INET, SOCK_DGRAM, 0);
+    int s = OpenSocket(AF_INET, SOCK_DGRAM, 0);
     if (s < 0) {
         return "";
     }
@@ -1918,7 +1918,7 @@ std::shared_ptr<SendSocketInfo> UDPOutput::findOrCreateSocket(unsigned int socke
 }
 
 int UDPOutput::createSocket(int port, bool broadCast, bool multiCast) {
-    int sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
+    int sendSocket = OpenSocket(AF_INET, SOCK_DGRAM, 0);
     if (sendSocket < 0) {
         int err = errno;
         // Out of file descriptors, typically.  This used to exit(1) and take

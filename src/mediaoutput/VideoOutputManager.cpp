@@ -43,6 +43,7 @@
 #endif
 
 #include "fpp-json.h"
+#include "../SysSocket.h"
 
 // SAP (Session Announcement Protocol) constants — RFC 2974
 static constexpr const char* SAP_MCAST_ADDR = "239.255.255.255";
@@ -2368,7 +2369,7 @@ void VideoOutputManager::StopSAPAnnouncer() {
 void VideoOutputManager::SAPAnnounceLoop() {
     LogInfo(VB_MEDIAOUT, "VideoOutputManager SAP announcer thread started\n");
 
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    int sock = OpenSocket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) {
         LogErr(VB_MEDIAOUT, "VideoOutputManager SAP: Failed to create socket: %s\n", FPPstrerror(errno));
         return;

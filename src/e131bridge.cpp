@@ -59,6 +59,7 @@
 #include "util/GPIOUtils.h"
 
 #include "e131bridge.h"
+#include "SysSocket.h"
 
 #define BRIDGE_INVALID_UNIVERSE_INDEX 0xFFFFFF
 // Cached "looked it up, not configured" marker, distinct from the
@@ -399,7 +400,7 @@ int CreateArtNetSocket(uint32_t sourceAddr, bool allowPortChange) {
         return -1;
     };
 
-    int artnetSockT = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+    int artnetSockT = OpenSocket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
     if (artnetSockT < 0) {
         // As for a failed bind below: run without ArtNet, don't exit().
         return failed(std::string("ArtNet is off: could not create its socket (") + FPPstrerror(errno) + ")");
@@ -763,7 +764,7 @@ static constexpr int WARNING_ID_BRIDGE_PORT = 72;
 static std::vector<std::string> bridgePortWarnings;
 
 static int OpenBridgeSocket(const char* what, int port, long packetsPerFrame) {
-    int sock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+    int sock = OpenSocket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
     const char* step = "socket";
     if (sock >= 0) {
         struct sockaddr_in addr;
@@ -827,9 +828,9 @@ bool Bridge_Initialize_Internal(bool& hasArtNet) {
     // This is a total hack to get a file descriptor greater than 2
     // because otherwise, the bind() call later will fail for some reason.
     // FIXME FIXME FIXME FIXME
-    int i1 = socket(AF_INET, SOCK_DGRAM, 0);
-    int i2 = socket(AF_INET, SOCK_DGRAM, 0);
-    int i3 = socket(AF_INET, SOCK_DGRAM, 0);
+    int i1 = OpenSocket(AF_INET, SOCK_DGRAM, 0);
+    int i2 = OpenSocket(AF_INET, SOCK_DGRAM, 0);
+    int i3 = OpenSocket(AF_INET, SOCK_DGRAM, 0);
 
     if (enabled || !disableFakeBridges) {
         ddpSock = OpenBridgeSocket("DDP", DDP_PORT, DDPPacketsPerFrame());
