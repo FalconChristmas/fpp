@@ -35,6 +35,7 @@
 #include "../mediaoutput/GStreamerOut.h"
 #include "../mediaoutput/mediaoutput.h" // ResolveVideoOutput()
 #include "../mediaoutput/StreamSlotManager.h"
+#include "../CurlSocket.h"
 
 IncreaseVolumeCommand::IncreaseVolumeCommand() :
     Command("Volume Increase", "Increases the volume by the given amount (0 - 100)") {
@@ -169,6 +170,7 @@ public:
             data = args[2];
         }
         m_curl = curl_easy_init();
+        SetCurlCloseOnExec(m_curl);
         curl_easy_setopt(m_curl, CURLOPT_NOSIGNAL, 1);
         // Without these, a plain-HTTP URL that 301/302s to HTTPS (extremely
         // common) captures the redirect response instead of the real page -

@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "CurlManager.h"
+#include "CurlSocket.h"
 #include "fppversion.h"
 #include "log.h"
 
@@ -204,6 +205,7 @@ CURL* CurlManager::createCurl(const std::string& fullUrl, CurlPrivateData** cpd,
         password = hd->password;
     }
     CURL* c = curl_easy_init();
+    SetCurlCloseOnExec(c);
     curl_easy_setopt(c, CURLOPT_URL, fullUrl.c_str());
     if (share) {
         // Join the cookie session: arm the cookie engine (empty COOKIEFILE) and

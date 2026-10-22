@@ -60,6 +60,7 @@
 #include <vector>
 
 #include "common.h"
+#include "CurlSocket.h"
 #include "fppversion.h"
 #include "log.h"
 
@@ -763,6 +764,7 @@ bool urlHelper(const std::string method, const std::string& url, const std::stri
         LogDebug(VB_GENERAL, "Unable to create curl instance in urlHelper()\n");
         return false;
     }
+    SetCurlCloseOnExec(curl);
 
     CURLcode status;
     status = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, urlWriteData);

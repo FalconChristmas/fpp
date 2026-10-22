@@ -17,6 +17,7 @@
 
 #include <atomic>
 #include <cstring>
+#include <fcntl.h>
 #include <chrono>
 #include <functional>
 #include <future>
@@ -87,7 +88,19 @@ void mosq_disc_callback(struct mosquitto* mosq, void* userdata, int level) {
 static int mqttConnectRefusals = 0;
 static long long mqttLastRefusalLogMS = 0;
 
+// libmosquitto opens its connection to the broker without close-on-exec, and
+// has no hook to open it another way, so every shell and tool fppd ran
+// inherited it. Mark it once it is open: here, on each connect, since a
+// reconnect opens a new one, and straight after the first connect starts.
+static void MarkBrokerSocketCloseOnExec(struct mosquitto* mosq) {
+    int fd = mosquitto_socket(mosq);
+    if (fd >= 0) {
+        fcntl(fd, F_SETFD, FD_CLOEXEC);
+    }
+}
+
 void mosq_connect_callback(struct mosquitto* mosq, void* userdata, int rc) {
+    MarkBrokerSocketCloseOnExec(mosq);
     if (rc != 0) {
         mqttConnectRefusals++;
         long long now = GetMonotonicTimeMS();
@@ -285,6 +298,7 @@ int MosquittoClient::Init(const std::string& username, const std::string& passwo
     }
 
     rc = mosquitto_connect_async(m_mosq, m_host.c_str(), m_port, m_keepalive);
+    MarkBrokerSocketCloseOnExec(m_mosq);
 
     if (rc) {
         LogErr(VB_CONTROL, "Error, unable to connect to Mosquitto Broker at %s: %d\n",

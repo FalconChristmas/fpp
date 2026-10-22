@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include "../common.h"
+#include "../CurlSocket.h"
 
 #include "FPPMainMenu.h"
 #include "FPPStatusOLEDPage.h"
@@ -158,6 +159,7 @@ FPPStatusOLEDPage::FPPStatusOLEDPage() :
     _iterationCount(0),
     _hasSensors(false) {
     curl = curl_easy_init();
+    SetCurlCloseOnExec(curl);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:32322/fppd/status");
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
@@ -646,6 +648,7 @@ void FPPStatusOLEDPage::runTest(const std::string& test, bool ms) {
 
     buffer.clear();
     CURL* curl = curl_easy_init();
+    SetCurlCloseOnExec(curl);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_URL, "http://localhost/api/command");
 

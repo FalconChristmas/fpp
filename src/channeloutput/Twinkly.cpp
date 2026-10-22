@@ -34,6 +34,7 @@
 #include "Twinkly.h"
 
 #include "../CurlManager.h"
+#include "../CurlSocket.h"
 #include "../Timers.h"
 
 static const std::string TWINKLYTYPE = "Twinkly";
@@ -367,6 +368,7 @@ Json::Value TwinklyOutputData::callRestAPI(bool isPost, const std::string& path,
     std::string url = "http://" + ipAddress + "/" + path;
 
     CURL* curl = curl_easy_init();
+    SetCurlCloseOnExec(curl);
     struct curl_slist* headers = NULL;
     std::string userAgent = "FPP/";
     userAgent += getFPPVersionTriplet();

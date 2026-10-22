@@ -11,6 +11,7 @@
 #include "../fppversion.h"
 #include "../log.h"
 #include "../settings.h"
+#include "../CurlSocket.h"
 
 #include "FPPStatusOLEDPage.h"
 #include "NetworkOLEDPage.h"
@@ -37,6 +38,7 @@ static std::string escapeURL(const std::string& url) {
 static std::string doCurlGet(const std::string& url, int timeout = 250) {
     const std::string buffer;
     CURL* curl = curl_easy_init();
+    SetCurlCloseOnExec(curl);
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
