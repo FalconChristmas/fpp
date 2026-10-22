@@ -478,7 +478,7 @@
                 "FPPMediaSettings": {
                     "title": "FPP Media Backend Settings",
                     "description": "Active FPP settings for media backend, audio output, and video output",
-                    "cmd": "grep -E \"MediaBackend|ForceAudioId|AudioOutput|VideoOutput\" /home/fpp/media/settings 2>/dev/null || echo \"No media settings found\"",
+                    "cmd": "grep -E \"MediaBackend|AudioOutput|VideoOutput\" /home/fpp/media/settings 2>/dev/null || echo \"No media settings found\"",
                     "platforms": [
                         "all"
                     ]

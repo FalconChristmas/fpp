@@ -1419,8 +1419,8 @@ function stats_getSettings()
         // else it says -- the same declarations scripts/generate_crash_report
         // redacts on, so the two cannot drift on what counts as personal data.
         //
-        // This deliberately does NOT extend to device names such as AudioOutput
-        // or ForceAudioId.  Those are hardware identifiers and the specific
+        // This deliberately does NOT extend to device names such as
+        // AudioOutput.  Those are hardware identifiers and the specific
         // string is the point: it says which kernel module an image needs and
         // which USB device to support.  Their problem was that the server
         // republished raw values on a public endpoint, which is fixed there, not

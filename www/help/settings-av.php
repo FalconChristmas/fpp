@@ -24,7 +24,6 @@
     <li><b>Audio Output Device</b> (dropdown) — Which sound card plays audio. Stored by the card’s stable ALSA ID so adding/removing a USB device does not lose the selection. If empty, FPP picks the first available card. <i>Requires reboot to apply.</i></li>
     <li><b>Audio Sample Rate</b> (dropdown) — Rate the PipeWire graph runs at. <b>Default</b> = 44100 unless the card clocks elsewhere. Options: Default, 44100, 48000, 96000. In Advanced, per-card rates are set in Audio Output Groups.</li>
     <li><b>Audio Period Size</b> (dropdown) — Buffer size handed to the card (graph quantum). Smaller = lower latency; larger = more stable on a busy player. Options: 1024,1536,2048,2560,3072,3584,4096,5120,6144,7168,8192. In Advanced, per-card in Output Groups.</li>
-    <li><b>Force Audio Card ID</b> (text, Advanced+) — Override the probed ALSA card ID if the system reports a wrong one. Leave blank unless you see “Could not open audio device: Invalid argument”.</li>
 </ul>
 
 <h4>General PipeWire (Advanced only)</h4>

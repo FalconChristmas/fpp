@@ -277,7 +277,7 @@ if (in_array('audiobackend', $areas)) {
         'PipeWireSinkName_4', 'PipeWireSinkName_5',
         'PipeWireVideoSinkName', 'PipeWireVideoSinkName_2', 'PipeWireVideoSinkName_3',
         'PipeWireVideoSinkName_4', 'PipeWireVideoSinkName_5',
-        'PipeWirePrimaryOutput', 'ForceAudioId',
+        'PipeWirePrimaryOutput',
         'AES67Enabled',
     );
     foreach ($pipewireSettings as $setting) {
