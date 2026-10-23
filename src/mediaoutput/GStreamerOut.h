@@ -30,6 +30,7 @@
 #include "AES67Manager.h"
 #include "AtomicSharedPtr.h"
 #include "DrmCards.h"
+#include "FeedSyncWindow.h"
 #include "OpusRTPManager.h"
 
 class PixelOverlayModel;
@@ -431,6 +432,7 @@ private:
     uint64_t m_feedSpeedLastMs = 0;     // when the servo last ran
     uint64_t m_feedResyncMs = 0;        // when the last resync seek was made
     bool m_feedResyncLanding = false;   // the next error is how far it landed off
+    FeedSyncWindow m_feedErrWindow;     // the last two seconds of error readings
     // How far ahead of the master a resync seek aims: what a flushing seek
     // takes to be heard again.  Learnt from each landing, for the whole run.
     static double s_feedResyncLeadS;
