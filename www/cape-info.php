@@ -1080,13 +1080,9 @@ if ($printSigningUI) {
                                                                 echo "<tr><td valign='top'><b>EEPROM&nbsp;Location:</b></td><td>$location$locationMsg</td></tr>";
                                                             }
                                                             if (isset($currentCapeInfo['description'])) {
-                                                                echo "<tr><td colspan=\"2\">";
-                                                                if (isset($currentCapeInfo['vendor']) || $currentCapeInfo['name'] == "Unknown") {
-                                                                    echo $currentCapeInfo['description'];
-                                                                } else {
-                                                                    echo htmlspecialchars($currentCapeInfo['description']);
-                                                                }
-                                                                echo "</td></tr>";
+                                                                // Escaped whatever the cape claims to be: vendor and
+                                                                // description come from any EEPROM, signed or not.
+                                                                echo "<tr><td colspan=\"2\">" . htmlspecialchars($currentCapeInfo['description'], ENT_QUOTES | ENT_SUBSTITUTE) . "</td></tr>";
                                                             }
                                                             ?>
                                                         </table>
