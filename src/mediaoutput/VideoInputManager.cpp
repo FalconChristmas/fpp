@@ -879,10 +879,6 @@ void VideoInputManager::StartLoadedSources(std::unique_lock<std::mutex>& lock) {
 
 void VideoInputManager::Reload() {
     LogInfo(VB_MEDIAOUT, "VideoInputManager: Reloading configuration\n");
-    // The sources are rebuilt from the new config, and raise again what
-    // still applies.
-    ClearSourceWarnings();
-
     StopAllSources();
 
     // Join the teardown threads spawned by the StopAllSources() above (plus
@@ -891,6 +887,13 @@ void VideoInputManager::Reload() {
     // pipeline's gst_element_set_state(..., NULL) and fail to reopen a
     // v4l2/rtsp resource that's still held (EBUSY).
     JoinTeardownThreads();
+
+    // The sources are rebuilt from the new config, and raise again what
+    // still applies.  Cleared only now: until the old run threads were
+    // joined and their pipelines set to NULL (which stops rtspsrc's
+    // streaming thread), they could still raise "failed to start" or "no
+    // video track" for a source the new config may not have.
+    ClearSourceWarnings();
 
     std::unique_lock<std::mutex> lock(m_mutex);
     m_initialized = true;
