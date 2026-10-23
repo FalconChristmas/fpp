@@ -35,6 +35,7 @@
 #include "Events.h"
 #include "Timers.h"
 #include "Warnings.h"
+#include "common.h"      // SetThreadName() -- needed directly for NOPCH builds
 #include "common_mini.h" // FPPstrerror(), FPPrand() -- needed directly for NOPCH builds
 #include "log.h"
 #include "mqtt.h"
@@ -87,6 +88,12 @@ void mosq_disc_callback(struct mosquitto* mosq, void* userdata, int level) {
 // flooding at the retry rate.
 static int mqttConnectRefusals = 0;
 static long long mqttLastRefusalLogMS = 0;
+
+// The network thread, running mosquitto_loop_forever(), and its signal that
+// the loop has returned (see ~MosquittoClient()).  Kept here rather than in
+// MosquittoClient, whose layout plugins compile in (see mqtt.h).
+static std::thread mqttLoopThread;
+static std::future<void> mqttLoopStopped;
 
 // libmosquitto opens its connection to the broker without close-on-exec, and
 // has no hook to open it another way, so every shell and tool fppd ran
@@ -194,6 +201,12 @@ MosquittoClient::~MosquittoClient() {
     // or a message callback can be stuck in a command, and fppd's restart and
     // shutdown waited on it.  Every path from here ends in exec or _exit, so
     // past the bound the client is left to the thread and never freed.
+    //
+    // The thread is ours, not mosquitto_loop_start()'s, so the join does not
+    // depend on libmosquitto still seeing it running: its own thread clears
+    // mosq->threaded on the way out, and a mosquitto_loop_stop() that read
+    // that first returned MOSQ_ERR_INVAL without joining, leaving
+    // mosquitto_destroy() to free the client under the exiting thread.
     if (m_mosq) {
         mosquitto_message_callback_set(m_mosq, nullptr);
         mosquitto_log_callback_set(m_mosq, nullptr);
@@ -201,17 +214,14 @@ MosquittoClient::~MosquittoClient() {
         mosquitto_disconnect_callback_set(m_mosq, nullptr);
         mosquitto_disconnect(m_mosq);
 
-        struct mosquitto* m = m_mosq;
-        auto stopped = std::make_shared<std::promise<void>>();
-        std::future<void> joined = stopped->get_future();
-        std::thread([m, stopped]() {
-            mosquitto_loop_stop(m, false);
-            stopped->set_value();
-        }).detach();
-        if (joined.wait_for(std::chrono::seconds(3)) != std::future_status::ready) {
-            LogWarn(VB_CONTROL, "MQTT network thread did not stop within 3 s; leaving it\n");
-            mqtt = NULL;
-            return;
+        if (mqttLoopThread.joinable()) {
+            if (mqttLoopStopped.wait_for(std::chrono::seconds(3)) != std::future_status::ready) {
+                LogWarn(VB_CONTROL, "MQTT network thread did not stop within 3 s; leaving it\n");
+                mqttLoopThread.detach();
+                mqtt = NULL;
+                return;
+            }
+            mqttLoopThread.join();
         }
     }
 
@@ -263,6 +273,9 @@ int MosquittoClient::Init(const std::string& username, const std::string& passwo
         return 0;
     }
     mosquitto_user_data_set(m_mosq, this);
+    // The network loop runs on a thread of our own (below), so libmosquitto
+    // has to lock as it would for mosquitto_loop_start().
+    mosquitto_threaded_set(m_mosq, true);
     mosquitto_log_callback_set(m_mosq, mosq_log_callback);
     mosquitto_disconnect_callback_set(m_mosq, mosq_disc_callback);
     mosquitto_connect_callback_set(m_mosq, mosq_connect_callback);
@@ -307,9 +320,21 @@ int MosquittoClient::Init(const std::string& username, const std::string& passwo
         return 0;
     }
 
-    int loop = mosquitto_loop_start(m_mosq);
-    if (loop != MOSQ_ERR_SUCCESS) {
-        LogErr(VB_CONTROL, "Error, unable to start Mosquitto loop: %d\n", loop);
+    // What mosquitto_loop_start() would run, on a thread the destructor can
+    // join: sleep for the keepalive (or a day without one) between packets,
+    // since publish() and disconnect() wake the loop.
+    struct mosquitto* m = m_mosq;
+    int timeout = m_keepalive ? m_keepalive * 1000 : 1000 * 86400;
+    auto stopped = std::make_shared<std::promise<void>>();
+    mqttLoopStopped = stopped->get_future();
+    try {
+        mqttLoopThread = std::thread([m, timeout, stopped]() {
+            SetThreadName("FPP-MQTT");
+            mosquitto_loop_forever(m, timeout, 1);
+            stopped->set_value();
+        });
+    } catch (const std::system_error& e) {
+        LogErr(VB_CONTROL, "Error, unable to start Mosquitto loop: %s\n", e.what());
         return 0;
     }
 
