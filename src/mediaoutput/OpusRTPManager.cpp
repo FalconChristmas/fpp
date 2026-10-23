@@ -188,10 +188,14 @@ static bool IsPipelineSafeInterface(const std::string& iface) {
 
 // The pipeline-start warnings.  Kept as constants because RemoveWarning()
 // matches the exact text: an apply where every stream of a kind started
-// retracts that kind's warning, and Cleanup() retracts both -- before this,
-// nothing ever did, and the banner outlived the fix until fppd restarted.
+// retracts that kind's warning, and an apply with nothing to run or Cleanup()
+// retracts both -- before this, nothing ever did, and the banner outlived the
+// fix until fppd restarted.
 static const char* const OPUS_WARNING_SEND_FAILED = "Opus RTP: audio send stream failed to start";
 static const char* const OPUS_WARNING_RECV_FAILED = "Opus RTP: audio receive stream failed to start";
+// Raised when an apply can't read the config, so nothing runs; the next apply
+// (any outcome) or Cleanup() retracts it.
+static const char* const OPUS_WARNING_CONFIG_UNREADABLE = "Opus RTP: pipewire-opus-rtp-instances.json could not be read, so no stream is running";
 static void ClearOpusPipelineWarnings(bool send, bool recv) {
     if (send) {
         WarningHolder::RemoveWarning(44, OPUS_WARNING_SEND_FAILED);
@@ -316,14 +320,23 @@ bool OpusRTPManager::ApplyConfigLocked() {
         m_watchdogThread.join();
     }
     StopAllPipelines();
+    WarningHolder::RemoveWarning(44, OPUS_WARNING_CONFIG_UNREADABLE);
 
     if (!FileExists(m_configPath)) {
         LogInfo(VB_MEDIAOUT, "OpusRTPManager: No config file, nothing to apply\n");
+        // No stream is meant to run, so none is failing to start.
+        ClearOpusPipelineWarnings(true, true);
         m_active.store(false);
         return true;
     }
 
     if (!LoadConfig()) {
+        // The old pipelines are stopped and none replaces them, so nothing
+        // is failing to start: it is the config that is wrong, and that is
+        // what the banner says instead.
+        ClearOpusPipelineWarnings(true, true);
+        WarningHolder::AddWarning(44, OPUS_WARNING_CONFIG_UNREADABLE);
+        m_active.store(false);
         return false;
     }
 
@@ -334,6 +347,7 @@ bool OpusRTPManager::ApplyConfigLocked() {
 
     if (enabledCount == 0) {
         LogInfo(VB_MEDIAOUT, "OpusRTPManager: No enabled instances\n");
+        ClearOpusPipelineWarnings(true, true);
         m_active.store(false);
         return true;
     }
@@ -431,6 +445,7 @@ void OpusRTPManager::Cleanup() {
     std::lock_guard<std::mutex> applyLock(m_applyMutex);
     // Nothing runs after this, so no stream is failing to start.
     ClearOpusPipelineWarnings(true, true);
+    WarningHolder::RemoveWarning(44, OPUS_WARNING_CONFIG_UNREADABLE);
     // A watchdog rebuild already scheduled must not bring back what this
     // tears down.
     m_applyGeneration++;
