@@ -181,11 +181,16 @@ int PlaylistEntryMedia::PreparePlay() {
         return 0;
     }
     {
+        // mediaSeconds too: it still holds where the previous media on this
+        // slot ended, and StartPlaying() takes it as a lower bound for
+        // m_duration -- a longer clip before this one became this entry's
+        // length.  A resume restores the whole slot status after this.
         std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
         m_slotStatus->minutesTotal = 0;
         m_slotStatus->secondsTotal = 0;
         m_slotStatus->secondsElapsed = 0;
         m_slotStatus->subSecondsElapsed = 0;
+        m_slotStatus->mediaSeconds = 0.0;
     }
 
     if ((m_fileMode != "single") && !m_resuming) {
@@ -439,6 +444,7 @@ int PlaylistEntryMedia::Stop(void) {
         m_slotStatus->secondsTotal = 0;
         m_slotStatus->secondsElapsed = 0;
         m_slotStatus->subSecondsElapsed = 0;
+        m_slotStatus->mediaSeconds = 0.0;
     }
 
     return PlaylistEntryBase::Stop();
