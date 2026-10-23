@@ -553,7 +553,10 @@
          *
          *   3. CHECKS — the row action checkboxes (.multisyncRowCheckbox) are
          *               generated as static HTML strings without a "checked" attr.
-         *               initBody() rebuilds them all unchecked.
+         *               initBody() rebuilds them all unchecked.  Handled in the
+         *               patched initBody() inside parseFPPSystems(), not here:
+         *               bootstrap-table's own renders (the filter-control search)
+         *               don't come through this function.
          *
          *               The per-remote unicast checkboxes (.syncCheckbox) are NOT
          *               handled here.  Their state is persisted config, not
@@ -565,16 +568,15 @@
          *
          * HOW IT WORKS
          * ------------
-         * Before calling origInitBody():
-         *   a. Snapshot every checked checkbox (keyed by name=IP).
-         *   b. If reorder mode is active, sync bt.options.data to the current DOM
+         * Before calling initBody():
+         *   a. If reorder mode is active, sync bt.options.data to the current DOM
          *      row order so the re-render preserves what the user dragged.
-         *   c. Record the focused element's id and value (only if it is inside the
+         *   b. Record the focused element's id and value (only if it is inside the
          *      filter-control row; other focus contexts are intentionally left alone).
          *
-         * After calling origInitBody():
-         *   d. Restore checked state on the freshly rendered checkboxes.
-         *   e. Re-focus the saved element and restore its value.
+         * After calling initBody():
+         *   c. Re-apply the drag order, which initBody() may have re-sorted.
+         *   d. Re-focus the saved element and restore its value.
          *
          * WHEN TO USE
          * -----------
@@ -594,14 +596,7 @@
             var bt = $tbl.data('bootstrap.table');
             if (!bt) return;
 
-            // (a) Snapshot checked action-checkboxes by IP/name so we can restore
-            //     them after initBody() rebuilds the rows from static HTML.
-            var checkedNames = {};
-            $tbl.find('input.multisyncRowCheckbox').each(function () {
-                if (this.checked) checkedNames[this.name] = true;
-            });
-
-            // (b) In reorder mode, use the order captured synchronously in the jQuery
+            // (a) In reorder mode, use the order captured synchronously in the jQuery
             //     UI sortable 'stop' callback (_reorderCommittedOrder).  This is more
             //     reliable than reading the live DOM here, because by the time this
             //     setTimeout-based poll tick fires the browser's DOM can appear to have
@@ -620,7 +615,7 @@
                 bt.options.sortOrder = undefined;
             }
 
-            // (c) Record the focused element's id and value if it lives inside a
+            // (b) Record the focused element's id and value if it lives inside a
             //     filter-control cell.  Other focus contexts (buttons, inputs in
             //     modals, etc.) are intentionally ignored.
             var focusedId = null;
@@ -633,7 +628,7 @@
 
             bt.initBody();
 
-            // (d) Re-apply the user's drag order if we are in reorder mode.
+            // (c) Re-apply the user's drag order if we are in reorder mode.
             //     initBody() may have re-sorted rows; we move them back to the
             //     position the user dragged them to.  Each system row is moved with
             //     its immediately-following child rows (warnings / logs) so that they
@@ -654,16 +649,7 @@
                 });
             }
 
-            // (f) Restore checked state on freshly rebuilt checkbox nodes.
-            //     (.syncCheckbox is handled by applyUnicastCheckboxes() — see the
-            //     CHECKS note in this function's header comment.)
-            if (Object.keys(checkedNames).length) {
-                $tbl.find('input.multisyncRowCheckbox').each(function () {
-                    if (checkedNames[this.name]) this.checked = true;
-                });
-            }
-
-            // (g) Re-focus the filter element and restore its value.
+            // (d) Re-focus the filter element and restore its value.
             if (focusedId) {
                 var el = document.getElementById(focusedId);
                 if (el) {
@@ -2580,7 +2566,23 @@
                     });
                     var $childRows = $liveChildRows.detach();
                     disposeRowPopups($body);
+                    // The row action checkboxes are static HTML with no "checked"
+                    // attr, so a render rebuilds them unchecked.  Not every render
+                    // comes from safeInitBody(): the filter-control extension runs
+                    // a column search 500 ms after it builds its controls (every
+                    // 'load', show/hide column) and on each filter keystroke, and
+                    // that re-renders straight through here.  A row checked in
+                    // that window, or before typing in a filter, was cleared.
+                    var checkedNames = {};
+                    $body.find('input.multisyncRowCheckbox').each(function () {
+                        if (this.checked) checkedNames[this.name] = true;
+                    });
                     origInitBody.call(this, fixedScroll, updatedUid);
+                    if (Object.keys(checkedNames).length) {
+                        $tbl.find('input.multisyncRowCheckbox').each(function () {
+                            if (checkedNames[this.name]) this.checked = true;
+                        });
+                    }
                     // Every render — the initial 'load' and every poll-driven
                     // safeInitBody() — funnels through here, so this is the one
                     // place the unicast checkboxes need re-applying.
