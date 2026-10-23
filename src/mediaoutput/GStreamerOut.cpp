@@ -4481,6 +4481,12 @@ int GStreamerOutput::AdjustSpeed(float masterMediaPosition) {
 // in a few seconds -- a remote starting late, a missed sync -- is one
 // accurate seek to where the master will be once the seek is heard, aimed
 // using what earlier seeks took.
+//
+// Every decision is made on the lowest reading of the last two seconds, not
+// the latest (FeedSyncWindow): a late sync packet can only make this remote
+// look ahead, so one alone never seeks, never moves the servo, and never
+// teaches the next seek its aim.  An error the window agrees on is acted on
+// as before -- behind at once, ahead once two seconds of packets say so.
 int GStreamerOutput::AdjustFeedSpeed(float masterMediaPosition) {
     constexpr double kResyncS = 0.050;        // beyond this, seek rather than slew
     constexpr double kMaxSpeedOffset = 0.005; // +-0.5%
@@ -4498,12 +4504,16 @@ int GStreamerOutput::AdjustFeedSpeed(float masterMediaPosition) {
     if (gst_element_query_position(m_pwFeed, GST_FORMAT_TIME, &pos) && pos >= 0) {
         local = std::max(0.0, (double)(pos - AudioSinkLatencyNs()) / GST_SECOND - mediaOffset);
     }
-    double err = local - masterMediaPosition;  // > 0: this remote is ahead
+    double raw = local - masterMediaPosition;  // > 0: this remote is ahead
 
     if (m_feedResyncMs && now - m_feedResyncMs < kResyncSettleMs) {
         return 1;  // still landing
     }
-    if (m_feedResyncLanding) {
+    // The lowest of the last two seconds (FeedSyncWindow).  Until a second
+    // reading agrees, nothing is seeked or learnt on it.
+    double err = m_feedErrWindow.Add(now, raw, masterMediaPosition);
+    bool agreed = m_feedErrWindow.Agreed();
+    if (m_feedResyncLanding && agreed) {
         // How far the last seek landed off is how much more (or less) lead
         // the next one needs.
         m_feedResyncLanding = false;
@@ -4513,7 +4523,7 @@ int GStreamerOutput::AdjustFeedSpeed(float masterMediaPosition) {
         LogDebug(VB_MEDIAOUT, "GStreamer feed sync: resync landed %+.1f ms from the master; seeks now aim %.0f ms ahead\n",
                  err * 1000.0, s_feedResyncLeadS * 1000.0);
     }
-    if (std::fabs(err) > kResyncS) {
+    if (agreed && std::fabs(err) > kResyncS) {
         double target = masterMediaPosition + s_feedResyncLeadS;
         LogInfo(VB_MEDIAOUT, "GStreamer feed sync: %+.0f ms from the master (%.3f vs %.3f), seeking to %.3f\n",
                 err * 1000.0, local, masterMediaPosition, target);
@@ -4522,6 +4532,7 @@ int GStreamerOutput::AdjustFeedSpeed(float masterMediaPosition) {
         m_feedSpeedLastMs = 0;
         m_feedResyncMs = now;
         m_feedResyncLanding = true;
+        m_feedErrWindow.Clear();  // the seek starts a new timeline
         gst_element_seek(m_pipeline, 1.0, GST_FORMAT_TIME,
                          (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE),
                          GST_SEEK_TYPE_SET, (gint64)(target * GST_SECOND), GST_SEEK_TYPE_NONE, 0);
@@ -4534,8 +4545,10 @@ int GStreamerOutput::AdjustFeedSpeed(float masterMediaPosition) {
     m_feedSpeedErrInt = std::clamp(m_feedSpeedErrInt + err * dt, -kMaxSpeedOffset / kKi, kMaxSpeedOffset / kKi);
     double speed = 1.0 - std::clamp(kKp * err + kKi * m_feedSpeedErrInt, -kMaxSpeedOffset, kMaxSpeedOffset);
     m_pwStream->SetFeedSpeed(m_pwFeed, speed);
-    LogDebug(VB_MEDIAOUT, "GStreamer feed sync: master %.3f local %.3f error %+.1f ms, speed %+.0f ppm\n",
-             masterMediaPosition, local, err * 1000.0, (speed - 1.0) * 1e6);
+    // `error` is what the servo steered by; `this packet` its own reading,
+    // larger when it arrived late.
+    LogDebug(VB_MEDIAOUT, "GStreamer feed sync: master %.3f local %.3f error %+.1f ms, speed %+.0f ppm (this packet %+.1f ms)\n",
+             masterMediaPosition, local, err * 1000.0, (speed - 1.0) * 1e6, raw * 1000.0);
     return 1;
 }
 
