@@ -102,8 +102,6 @@ static void UseCachedProbeDuration(MediaDetails& details, const std::string& ful
 
 void MediaDetails::ParseMedia(const char* mediaFilename) {
     char fullMediaPath[2048];
-    int seconds;
-    int minutes;
 
     // Cleared before any early return: a failed parse must not leave the
     // previous file's details (or, for a fresh object, garbage) behind.
