@@ -1163,13 +1163,14 @@ int parseArguments(int argc, char** argv) {
 
 // Workaround ASan bug 27790 (https://bugs.llvm.org//show_bug.cgi?id=27790)
 // by logging if LD_LIBRARY_PATH doesn't include the path to argv[0] (our binary).
-// This is because ASan intercepts dlopen and causes calls to dlopen to use ASan's
-// rpath instead of the rpath of the calling DSO. We cannot change the
-// LD_LIBRARY_PATH env var because the loader has already processed it by the time
-// that main() is called. We could fork()/execvpe(), but this has implications for
-// things like debugging that may be monitoring our pid.
+// This is because ASan (and TSan, which shares the interceptor) intercepts dlopen
+// and causes calls to dlopen to use the sanitizer's rpath instead of the rpath of
+// the calling DSO, so the libfpp-co-*.so output plugins are not found. We cannot
+// change the LD_LIBRARY_PATH env var because the loader has already processed it
+// by the time that main() is called. We could fork()/execvpe(), but this has
+// implications for things like debugging that may be monitoring our pid.
 bool checkASan(int argc, char** argv) {
-#if __SANITIZE_ADDRESS__
+#if __SANITIZE_ADDRESS__ || __SANITIZE_THREAD__
     {
         struct FreeString {
             void operator()(char* p) {
@@ -1202,7 +1203,7 @@ bool checkASan(int argc, char** argv) {
         }
 
         if (!found) {
-            constexpr static char str[] = "When built with ASan, LD_LIBRARY_PATH must be set to include the path to fppd. Exiting.\n";
+            constexpr static char str[] = "When built with ASan or TSan, LD_LIBRARY_PATH must be set to include the path to fppd. Exiting.\n";
             LogErr(VB_GENERAL, str);
             fprintf(stderr, str);
             return false;
