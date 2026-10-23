@@ -88,8 +88,26 @@ bool KMSFrameBuffer::SinkPresent(int fd, drmModeConnectorPtr conn) {
     return edid;
 }
 
-// The display's preferred mode, else its first.
+// The mode forced with video=<connector>:<mode> on the kernel command line,
+// which is what the Force HDMI Resolution settings write.  The kernel flags
+// the matching probed mode USERDEF, or adds one of its own if none matches.
+static bool CommandLineMode(drmModeConnectorPtr conn, drmModeModeInfo& mode) {
+    for (int mi = 0; conn && mi < conn->count_modes; mi++) {
+        if (conn->modes[mi].type & DRM_MODE_TYPE_USERDEF) {
+            mode = conn->modes[mi];
+            return true;
+        }
+    }
+    return false;
+}
+
+// The mode forced on the kernel command line, else the display's preferred
+// mode, else its first.  Not the preferred mode first: with two displays that
+// prefer different modes, that ran each in its own one whatever was forced.
 bool KMSFrameBuffer::PickMode(drmModeConnectorPtr conn, drmModeModeInfo& mode) {
+    if (CommandLineMode(conn, mode)) {
+        return true;
+    }
     for (int mi = 0; mi < conn->count_modes; mi++) {
         if (conn->modes[mi].type & DRM_MODE_TYPE_PREFERRED) {
             mode = conn->modes[mi];
@@ -497,7 +515,11 @@ int KMSFrameBuffer::InitializeFrameBuffer(void) {
             if (present || !external) {
                 foundMode = PickMode(conn, mode);
             } else {
-                mode = FallbackMode();
+                // A forced connector (video=...e, or ForceHDMI) with no EDID
+                // still carries the command line's mode: run that.
+                if (!CommandLineMode(conn, mode)) {
+                    mode = FallbackMode();
+                }
                 foundMode = true;
                 LogInfo(VB_CHANNELOUT, "KMSFrameBuffer: no display on %s yet, running %dx%d @ %dHz until one appears\n",
                         cname.c_str(), mode.hdisplay, mode.vdisplay, mode.vrefresh);
