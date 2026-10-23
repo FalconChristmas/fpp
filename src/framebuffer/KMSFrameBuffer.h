@@ -156,12 +156,16 @@ private:
 
     // A media pipeline's kmssink holds this connector (DrmCards.h).
     bool MediaHoldsConnector() const;
-    // While it does, our plane shows this black buffer instead of the last
-    // frame, which would otherwise show around a letterboxed video.  Made on
-    // first use; m_mediaBlanked says it is up.  Both under drmMasterLock.
+    // While it does, our plane is off: hidden under the video it would still
+    // count against the display load the video needs.  Where the driver won't
+    // take it off, it shows this black buffer instead, made on first use.
+    // m_mediaBlanked says we stood aside.  Both under drmMasterLock.
     DumbBuffer m_blankFb = {};
     bool m_mediaBlanked = false;
     void BlankForMediaLocked();
+    void ShowAfterMediaLocked();
+    // DrmCards' media-hold listener: a lease on connectorId was taken or given back.
+    static void MediaHoldChanged(int fd, uint32_t connectorId);
     // Light the CRTC in m_mode and show the current page on our plane.  Caller
     // holds drmMasterLock and DRM master.  Returns the plane commit's result.
     int ModesetLocked();
