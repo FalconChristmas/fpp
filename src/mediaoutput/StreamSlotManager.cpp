@@ -90,6 +90,11 @@ void StreamSlotManager::SetActiveOutput(int slot, GStreamerOutput* output) {
     if (slot < 1 || slot > MAX_SLOTS) return;
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
     m_slots[slot - 1].activeOutput = output;
+    // Started again after its Start() detached it (DetachOutput()): it is no
+    // longer closing.
+    if (output && m_slots[slot - 1].closingOutput == output) {
+        m_slots[slot - 1].closingOutput = nullptr;
+    }
 #ifdef HAS_GSTREAMER
     if (output && output->NeedsSlotPump()) {
         StartPumpTimer();
@@ -225,15 +230,17 @@ bool StreamSlotManager::SetSlotVolume(int slot, int volume, bool* deferred) {
     if (slot < 1 || slot > MAX_SLOTS) return false;
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
     GStreamerOutput* output = m_slots[slot - 1].activeOutput;
-    if (output) {
-        output->SetVolume(volume);
-    } else {
+    // An output being stopped stays registered until its Close() but no
+    // longer takes a volume, and one playing media with no sound has nothing
+    // to take it with: either way the slot's next stream starts at it.
+    bool applied = output && output->TrySetVolume(volume);
+    if (!applied) {
         // Nothing to apply it to yet: the slot's next stream starts at it,
         // as it does at the level the mixer saves.
         m_slots[slot - 1].pendingVolume = volume;
     }
     if (deferred) {
-        *deferred = !output;
+        *deferred = !applied;
     }
     return true;
 #else

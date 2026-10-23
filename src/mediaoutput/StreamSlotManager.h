@@ -67,7 +67,8 @@ public:
     /// call the manager is making into it, so once this returns the manager
     /// can no longer reach the output.  The slot's status and the KMS gate
     /// stay as they are until the ClearSlot() that ends the Close(), which
-    /// still recognizes the same owner.
+    /// still recognizes the same owner.  Start() does the same for an output
+    /// started again, which SetActiveOutput() registers once more.
     void DetachOutput(int slot, GStreamerOutput* owner);
 
     /// Ask whatever is playing on a slot to stop, without stopping it from

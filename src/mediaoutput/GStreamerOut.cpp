@@ -1105,6 +1105,18 @@ int GStreamerOutput::Start(int msTime) {
     LogDebug(VB_MEDIAOUT, "GStreamer: Start(%d) enter - %s\n", msTime, m_mediaFilename.c_str());
     std::lock_guard<std::recursive_mutex> opLock(m_opMutex);
 
+    // Off the slot table until SetActiveOutput() at the end, as in Close():
+    // an output started again below is still registered from its last run,
+    // and the slot manager's calls into it (SetVolume() from Set Slot Volume
+    // on an HTTP thread) would meet the guard, m_volume and the pipeline
+    // being rebuilt here without the guard lock.  Waits out any such call in
+    // progress.  m_opMutex before the slot manager's lock, as documented on
+    // m_opMutex.  The manager's pump try-locks m_opMutex under its own lock,
+    // but a Process() it runs can go on to Stop() (and so into the slot
+    // manager again) on the same thread; no path does that while another
+    // thread sits here, but it is the exception to the order.
+    StreamSlotManager::Instance().DetachOutput(m_streamSlot, this);
+
     // An output can be started again once its media has ended (a remote that
     // missed the stop and open packets is handed the same file again).  That
     // run's pipeline, bus, guard and slot registration are all still here and
@@ -1138,8 +1150,9 @@ int GStreamerOutput::Start(int msTime) {
     // Fresh lifetime guard for this pipeline's decodebin pad callbacks.  Any
     // connection left over from a previous pipeline holds the previous guard,
     // which Close() already cleared, so it can never reach this object again.
-    m_cbGuard = std::make_shared<CallbackGuard>();
-    m_cbGuard->self = this;
+    auto cbGuard = std::make_shared<CallbackGuard>();
+    cbGuard->self = this;
+    m_cbGuard.store(cbGuard);
 
     // Reset MultiSync rate-matching state for the new track
     m_currentRate = 1.0f;
@@ -2325,7 +2338,7 @@ int GStreamerOutput::Start(int msTime) {
     // It runs on streaming threads, so it gets the lifetime guard rather than
     // `this`; the bus drops that reference once no call is in flight.
     gst_bus_set_sync_handler(m_bus, BusSyncHandler,
-                             new std::shared_ptr<CallbackGuard>(m_cbGuard),
+                             new std::shared_ptr<CallbackGuard>(m_cbGuard.load()),
                              ReleaseBusCallbackGuard);
 
     // Force the pipeline to use GstSystemClock instead of auto-selecting
@@ -2936,14 +2949,13 @@ void GStreamerOutput::DetachCallbacks() {
     // and makes every later one a no-op.  The bus sync handler doesn't hold
     // the lock while it runs, so wait for it separately.  Never call this from
     // a streaming thread: it waits for the handlers running on them.
-    if (m_cbGuard) {
+    if (auto guard = m_cbGuard.load()) {
         {
-            std::unique_lock<std::recursive_mutex> lock(m_cbGuard->mtx);
-            m_cbGuard->self = nullptr;
-            auto guard = m_cbGuard;
+            std::unique_lock<std::recursive_mutex> lock(guard->mtx);
+            guard->self = nullptr;
             guard->busIdle.wait(lock, [&guard] { return guard->busInFlight == 0; });
         }
-        m_cbGuard.reset();
+        m_cbGuard.store(nullptr);
     }
 }
 
@@ -2974,7 +2986,7 @@ void GStreamerOutput::AlignPictureToSound(int64_t latNs) {
     std::vector<GstElement*> sinks;
     {
         // OnNoMorePads() can remove the kmssink on a streaming thread.
-        std::shared_ptr<CallbackGuard> guard = m_cbGuard;
+        std::shared_ptr<CallbackGuard> guard = m_cbGuard.load();
         std::unique_lock<std::recursive_mutex> lock;
         if (guard) {
             lock = std::unique_lock<std::recursive_mutex>(guard->mtx);
@@ -3479,7 +3491,7 @@ int GStreamerOutput::Process(void) {
             // OnNoMorePads() removes the kmssink of a file that turned out to
             // have no video, on a streaming thread, under the callback guard;
             // the bin's was the only reference, so take our own under it.
-            std::shared_ptr<CallbackGuard> guard = m_cbGuard;
+            std::shared_ptr<CallbackGuard> guard = m_cbGuard.load();
             std::unique_lock<std::recursive_mutex> lock;
             if (guard) {
                 lock = std::unique_lock<std::recursive_mutex>(guard->mtx);
@@ -4601,23 +4613,44 @@ void GStreamerOutput::ApplyRate(float rate) {
 // is restored while the pipeline is still prerolling, which is exactly when
 // no-more-pads fires).  Taken under the same guard, the reference keeps the
 // element alive for the caller's g_object_set().
+//
+// Stop() races this too: an output stays on its slot until Close(), so Set
+// Slot Volume reaches one that Play Media is replacing or Stop Media Slot is
+// stopping on another HTTP thread.  DetachCallbacks() clears `self` under the
+// guard lock before Stop() hands m_volume to the teardown thread and before
+// Close() unrefs it, so with `self` gone m_volume is not ours to read, and the
+// guard pointer itself is read atomically because DetachCallbacks() drops it.
+// `self` being set says only that no teardown has begun: Start() builds the
+// pipeline, m_volume included, without the guard lock, and is kept safe by
+// taking the output off its slot first, not by anything here.
+// Not m_opMutex: SetSlotVolume() calls in holding StreamSlotManager's lock,
+// which m_opMutex holders take, and Process() holds m_opMutex every tick.
 GstElement* GStreamerOutput::RefVolumeElement() {
-    std::shared_ptr<CallbackGuard> guard = m_cbGuard;
-    std::unique_lock<std::recursive_mutex> lock;
-    if (guard) {
-        lock = std::unique_lock<std::recursive_mutex>(guard->mtx);
+    std::shared_ptr<CallbackGuard> guard = m_cbGuard.load();
+    if (!guard) {
+        return nullptr;
     }
-    return m_volume ? GST_ELEMENT(gst_object_ref(m_volume)) : nullptr;
+    std::unique_lock<std::recursive_mutex> lock(guard->mtx);
+    if (!guard->self || !m_volume) {
+        return nullptr;
+    }
+    return GST_ELEMENT(gst_object_ref(m_volume));
 }
 
 void GStreamerOutput::SetVolume(int volume) {
-    if (GstElement* vol = RefVolumeElement()) {
+    TrySetVolume(volume);
+}
+
+bool GStreamerOutput::TrySetVolume(int volume) {
+    GstElement* vol = RefVolumeElement();
+    if (vol) {
         // volume parameter is 0-100 percentage
         double linearVol = volume / 100.0;
         g_object_set(vol, "volume", linearVol, NULL);
         gst_object_unref(vol);
         LogDebug(VB_MEDIAOUT, "GStreamer volume set to %d%% (%.2f)\n", volume, linearVol);
     }
+    return vol != nullptr;
 }
 
 GstElement* GStreamerOutput::MakeBranchErrorGuard() {
@@ -4943,17 +4976,18 @@ GStreamerOutput::BusCallbackScope::~BusCallbackScope() {
 }
 
 void GStreamerOutput::ConnectPadSignals(GstElement* decoder, bool wantNoMorePads) {
-    if (!decoder || !m_cbGuard)
+    std::shared_ptr<CallbackGuard> guard = m_cbGuard.load();
+    if (!decoder || !guard)
         return;
     // The closure owns its own shared_ptr to the guard, released by
     // ReleaseCallbackGuard when the signal connection dies with the decoder --
     // which can be well after this output is gone.
     g_signal_connect_data(decoder, "pad-added", G_CALLBACK(OnPadAdded),
-                          new std::shared_ptr<CallbackGuard>(m_cbGuard),
+                          new std::shared_ptr<CallbackGuard>(guard),
                           ReleaseCallbackGuard, (GConnectFlags)0);
     if (wantNoMorePads) {
         g_signal_connect_data(decoder, "no-more-pads", G_CALLBACK(OnNoMorePads),
-                              new std::shared_ptr<CallbackGuard>(m_cbGuard),
+                              new std::shared_ptr<CallbackGuard>(guard),
                               ReleaseCallbackGuard, (GConnectFlags)0);
     }
 }

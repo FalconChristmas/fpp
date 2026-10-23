@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "AES67Manager.h"
+#include "AtomicSharedPtr.h"
 #include "DrmCards.h"
 #include "OpusRTPManager.h"
 
@@ -54,6 +55,10 @@ public:
     /// timeline, not for routine correction.  Returns false if the seek failed.
     bool SeekTo(float seconds);
     virtual void SetVolume(int volume) override;
+    /// SetVolume() that says whether the output took the volume: false when
+    /// it has no volume element to set -- before Start(), once its teardown
+    /// (Stop() or Close()) has begun, and for media with no sound.
+    bool TrySetVolume(int volume);
 
     /// Ask the output's owner to stop it, from a thread that doesn't own it
     /// (a command, or the slot manager stopping a playlist's background
@@ -330,7 +335,9 @@ private:
         int busInFlight = 0;
         std::condition_variable_any busIdle;
     };
-    std::shared_ptr<CallbackGuard> m_cbGuard;
+    // Written only under m_opMutex (Start(), DetachCallbacks()), but read
+    // without it by RefVolumeElement() and from streaming threads.
+    AtomicSharedPtr<CallbackGuard> m_cbGuard;
     GstElement* RefVolumeElement();
     // Connects pad-added (and optionally no-more-pads) on `decoder`, passing a
     // guard reference as the closure data.  Takes no ref on `decoder`.
