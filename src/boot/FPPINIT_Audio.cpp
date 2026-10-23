@@ -1018,6 +1018,46 @@ static void setPipeWireSinkVolume(const std::string& node, int volPct) {
          node + "' " + std::to_string(volPct) + "% 2>/dev/null");
 }
 
+// Make the sink fppd plays to (PipeWireSinkName) the graph's default sink, so a
+// client that names no target -- a plugin's player, anything speaking plain
+// PulseAudio -- takes the same route as show audio (issue #3063).  The UI's
+// applies already do this, but a boot never did: what WirePlumber remembered
+// from the last apply stood, and with nothing remembered (a first boot, whose
+// Simple config is generated here in C++) every FPP sink ties on priority and
+// the first adapter wins -- card 0, whichever card AudioOutput selected.
+//
+// pactl rather than the metadata directly: pipewire-pulse refuses a sink that
+// is not in the graph, so a name that never came up leaves the old default
+// rather than pointing everything at nothing.
+//
+// KEEP IN SYNC with the pactl set-default-sink calls in
+// www/api/controllers/pipewire.php, which choose the same sink.
+static void syncPipeWireDefaultSink() {
+    std::string target;
+    getRawSetting("PipeWireSinkName", target);
+    TrimWhiteSpace(target);
+    // Node names FPP generates are slugged to [a-z0-9_]; refuse anything that
+    // could escape the shell's quotes.
+    if (target.empty() || target.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-") != std::string::npos) {
+        return;
+    }
+    const std::string env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp "
+                            "PULSE_RUNTIME_PATH=/run/pipewire-fpp/pulse ";
+    std::string current = execAndReturn(env + "/usr/bin/pactl get-default-sink 2>/dev/null");
+    TrimWhiteSpace(current);
+    if (current == target) {
+        return;
+    }
+    // "<id>\t<name>\t..." -- match the whole name, not a prefix of a longer one.
+    const std::string sinks = execAndReturn(env + "/usr/bin/pactl list short sinks 2>/dev/null");
+    if (sinks.find("\t" + target + "\t") == std::string::npos) {
+        printf("FPP - PipeWire default sink left as '%s': %s is not in the graph\n", current.c_str(), target.c_str());
+        return;
+    }
+    printf("FPP - PipeWire default sink: %s (was '%s')\n", target.c_str(), current.c_str());
+    exec(env + "/usr/bin/pactl set-default-sink '" + target + "' 2>/dev/null");
+}
+
 // Reapply the saved mix bus levels.  A mix bus is an input group's own
 // combine-stream sink (fpp_input_<name>) -- the output of the mix, a stage of
 // its own between the sources feeding it and the routing paths leaving it.
@@ -2756,6 +2796,13 @@ static void runAudioSetup(bool recoveryPass) {
         //
         if (audioStackTouched && hasGroupsConfig && !noRealSoundcard && !cppGeneratedSimpleConfig) {
             restorePipeWireVolumes();
+        }
+
+        // Every boot, not only when the stack was touched: what WirePlumber
+        // remembers is exactly what goes stale.  On a healthy box the sinks are
+        // already up and this costs two pactl calls.
+        if ((audioStackTouched || pipewireRunning) && waitForPipeWireSinks(10)) {
+            syncPipeWireDefaultSink();
         }
 
         // fppd cannot survive the daemon being restarted underneath it.  The
