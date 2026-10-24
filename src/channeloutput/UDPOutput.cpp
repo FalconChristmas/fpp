@@ -884,18 +884,13 @@ int UDPOutput::Init(Json::Value config) {
     // down: the NEW_ADDR event for it then rebuilds the sockets on the real
     // address instead of being ignored.
     interfaceUp = InitNetwork();
-    for (auto o : outputs) {
-        if (o->IsPingable() && o->Monitor() && o->active) {
-            std::shared_ptr<PingHost>& host = pingHosts[o->ipAddress];
-            if (!host) {
-                host = std::make_shared<PingHost>();
-                host->address = o->ipAddress;
-                host->warning = createWarning(o->ipAddress, o->GetOutputTypeString(), o->description);
-            }
-            host->outputs.push_back(o);
+    {
+        std::lock_guard<std::mutex> l(pingHostsLock);
+        for (auto o : outputs) {
+            addPingTarget(o);
         }
+        failedCount = (int)pingHosts.size();
     }
-    failedCount = (int)pingHosts.size();
     // need to do three pings to detect down hosts
     PingControllers(false);
     int sleepCount = 0;
@@ -924,6 +919,12 @@ int UDPOutput::Init(Json::Value config) {
         // shared ArtNet socket to loopback for good, and if ArtNet sends
         // first it creates its own socket on INADDR_ANY.
         CreateArtNetSocket(localAddress.sin_addr.s_addr, true);
+    }
+    {
+        // From here an attached output's controller is pinged as it attaches;
+        // left in the list above, the ones attached below were never pinged.
+        std::lock_guard<std::mutex> l(pingHostsLock);
+        pingsStarted = true;
     }
     {
         // outputs registered by other plugins before this instance existed,
@@ -1031,6 +1032,7 @@ void UDPOutput::addOutput(UDPOutputData* out) {
 }
 
 void UDPOutput::StopPinging() {
+    std::lock_guard<std::mutex> lk(pingHostsLock);
     if (pingsStopped) {
         return;
     }
@@ -1065,9 +1067,69 @@ void UDPOutput::attachExternalOutput(const void* owner, UDPOutputData* d) {
     if (d == nullptr) {
         return;
     }
-    std::lock_guard<std::mutex> lk(socketMutex);
-    outputs.push_back(d);
-    externalOutputs[owner] = d;
+    {
+        std::lock_guard<std::mutex> lk(socketMutex);
+        outputs.push_back(d);
+        externalOutputs[owner] = d;
+    }
+    // Under pingHostsLock to the end, as in PingControllers().
+    std::lock_guard<std::mutex> lk(pingHostsLock);
+    if (!pingsStarted || pingsStopped) {
+        // Init() pings what is attached before it starts the pings
+        return;
+    }
+    if (std::shared_ptr<PingHost> host = addPingTarget(d)) {
+        ++failedCount;
+        PingManager::INSTANCE.addPeriodicPing(host->address, UDP_PING_TIMEOUT, 15000, [this, host](int ms) {
+            OnPingResult(host, ms);
+        });
+    }
+}
+
+std::shared_ptr<UDPOutput::PingHost> UDPOutput::addPingTarget(UDPOutputData* o) {
+    if (!o->IsPingable() || !o->Monitor() || !o->active) {
+        return nullptr;
+    }
+    std::shared_ptr<PingHost>& host = pingHosts[o->ipAddress];
+    bool created = !host;
+    if (created) {
+        host = std::make_shared<PingHost>();
+        host->address = o->ipAddress;
+        host->warning = createWarning(o->ipAddress, o->GetOutputTypeString(), o->description);
+    }
+    std::unique_lock<std::mutex> l(host->lock);
+    host->outputs.push_back(o);
+    if (!host->valid) {
+        // one joining a controller already found down starts out of the frame too
+        o->valid = false;
+    }
+    return created ? host : nullptr;
+}
+
+void UDPOutput::removePingTarget(UDPOutputData* o) {
+    auto it = pingHosts.find(o->ipAddress);
+    if (it == pingHosts.end()) {
+        return;
+    }
+    std::shared_ptr<PingHost> host = it->second;
+    {
+        std::unique_lock<std::mutex> l(host->lock);
+        auto& outs = host->outputs;
+        outs.erase(std::remove(outs.begin(), outs.end(), o), outs.end());
+        if (!outs.empty()) {
+            return;
+        }
+    }
+    // Nothing sends there any more.  Not under host->lock: this waits out a
+    // running ping callback, which takes it.
+    pingHosts.erase(it);
+    if (!pingsStopped) {
+        PingManager::INSTANCE.removePeriodicPing(host->address);
+    }
+    std::unique_lock<std::mutex> l(host->lock);
+    if (!host->valid) {
+        WarningHolder::RemoveWarning(27, host->warning);
+    }
 }
 
 void UDPOutput::RegisterExternalOutput(const void* owner, std::function<UDPOutputData*()> create) {
@@ -1090,6 +1152,10 @@ void UDPOutput::UnregisterExternalOutput(const void* owner) {
             // PrepData skips it and the destructor frees it once the workers
             // have exited.
             it->second->active = false;
+            {
+                std::lock_guard<std::mutex> plk(INSTANCE->pingHostsLock);
+                INSTANCE->removePingTarget(it->second);
+            }
             INSTANCE->externalOutputs.erase(it);
         }
     }
@@ -1731,6 +1797,13 @@ void UDPOutput::CheckLocalDrops() {
 
 void UDPOutput::PingControllers(bool failedOnly) {
     LogExcess(VB_CHANNELOUT, "Pinging controllers to see what is online\n");
+    // Held across the pings: a host removed meanwhile (its output deleted)
+    // would be pinged again after removePingTarget() stopped it, and that
+    // ping's callback would outlive this output.
+    std::lock_guard<std::mutex> lk(pingHostsLock);
+    if (pingsStopped) {
+        return;
+    }
     for (auto& h : pingHosts) {
         std::shared_ptr<PingHost> host = h.second;
         if (failedOnly) {

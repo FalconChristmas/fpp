@@ -201,6 +201,21 @@ private:
     // frame, and it is pinged once rather than once per universe.
     struct PingHost;
     std::map<std::string, std::shared_ptr<PingHost>> pingHosts;
+    // Guards pingHosts, pingsStarted and pingsStopped.  Init() fills the map,
+    // and outputs attached later (GenericUDP's, from the thread loading the
+    // other outputs) add to and take from it while the output thread and the
+    // network callback ping through it.  Taken after socketMutex when both are
+    // held, and never with a PingHost's lock held.
+    std::mutex pingHostsLock;
+    // Init() has started the pings: outputs attached after that are pinged as
+    // they attach.
+    bool pingsStarted = false;
+    // Adds a pingable output to its controller's PingHost, creating the host
+    // if it is new (returned, so the caller can ping it).  pingHostsLock held.
+    std::shared_ptr<PingHost> addPingTarget(UDPOutputData* o);
+    // Takes an output back off its controller's host, and stops pinging a
+    // controller left with no outputs.  pingHostsLock held.
+    void removePingTarget(UDPOutputData* o);
     void OnPingResult(const std::shared_ptr<PingHost>& host, int ms);
     void SetHostValid(PingHost& host, bool valid);
 
