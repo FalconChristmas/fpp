@@ -237,6 +237,16 @@ public:
         gst_app_sink_set_emit_signals(GST_APP_SINK(appsink), FALSE);
         gstAppsink = appsink;
 
+        // On the system clock, not the GstPipeWireClock pipewiresrc offers,
+        // as the RTSP audio bridge and Opus sender do: that clock reads the
+        // stream's driver position and stops advancing when the stream's
+        // time reports no rate, and the appsink waits on it before taking
+        // each buffer, so audio sync sent nothing more and reactive effects
+        // went still.
+        GstClock* sysClock = gst_system_clock_obtain();
+        gst_pipeline_use_clock(GST_PIPELINE(gstPipeline), sysClock);
+        gst_object_unref(sysClock);
+
         GstStateChangeReturn ret = gst_element_set_state(gstPipeline, GST_STATE_PLAYING);
         if (ret == GST_STATE_CHANGE_FAILURE) {
             WarningHolder::AddWarning(52, "WLED Sound Reactive - Could not start GStreamer capture pipeline for: " + dev);
