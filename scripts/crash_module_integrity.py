@@ -16,14 +16,27 @@ report is, from three checks:
     fppd loaded it; equal but the file mismatching its package means it was
     already damaged when it was loaded.
 
+An ordinary read cannot tell RAM damage from disk damage. A mapped library's
+code pages ARE its page cache pages, so a bit flipped in RAM shows up in
+open().read() too: the code at pc "matches the file" and the md5 mismatches the
+package, which reads as a library damaged on disk. So wherever the answer turns
+on it -- the code at pc, a file whose md5 mismatches its package, and the
+module the pc is in -- the file is read again with O_DIRECT, which bypasses
+the page cache and returns what the storage holds. The page cache disagreeing
+with the storage is memory damage (or a write that never reached the disk),
+not a damaged file. O_DIRECT also flushes dirty pages first, so a write still
+waiting for writeback does not look like damage.
+
 Usage: crash_module_integrity.py <fppd_crash_context.log> <output.json>
 
 Writes nothing when the context log has no module map (macOS, old builds).
 """
 
+import errno
 import glob
 import hashlib
 import json
+import mmap
 import os
 import re
 import sys
@@ -74,6 +87,58 @@ def hash_file(path):
     return md5.hexdigest(), sha.hexdigest()
 
 
+# O_DIRECT needs the buffer, file offset and length aligned to the device's
+# logical block size; a page covers both 512 byte and 4K devices.
+DIRECT_ALIGN = 4096
+DIRECT_CHUNK = 1 << 20
+
+
+def direct_chunks(path, offset=0, length=None):
+    """The file's bytes as the storage holds them, bypassing the page cache.
+
+    Raises OSError where O_DIRECT is not supported (tmpfs, some overlay
+    setups, macOS)."""
+    flag = getattr(os, 'O_DIRECT', 0)
+    if not flag:
+        raise OSError(errno.EINVAL, 'O_DIRECT not available')
+    fd = os.open(path, os.O_RDONLY | flag)
+    try:
+        buf = mmap.mmap(-1, DIRECT_CHUNK)  # anonymous, so page aligned
+        pos = offset - offset % DIRECT_ALIGN
+        skip = offset - pos
+        while length is None or length > 0:
+            n = os.preadv(fd, [buf], pos)
+            if n <= skip:
+                break
+            data = buf[skip:n]
+            skip = 0
+            if length is not None:
+                data = data[:length]
+                length -= len(data)
+            yield data
+            if n < DIRECT_CHUNK:
+                break  # end of file
+            pos += n
+    finally:
+        os.close(fd)
+
+
+def read_direct(path, offset, length):
+    return b''.join(direct_chunks(path, offset, length))
+
+
+def hash_file_direct(path):
+    md5, sha = hashlib.md5(), hashlib.sha256()
+    for chunk in direct_chunks(path):
+        md5.update(chunk)
+        sha.update(chunk)
+    return md5.hexdigest(), sha.hexdigest()
+
+
+def module_for(maps, addr, length):
+    return next((m for m in maps if m['start'] <= addr and addr + length <= m['end']), None)
+
+
 def dpkg_md5s(wanted):
     """{path without leading /: (md5, package)} for the paths in wanted."""
     found = {}
@@ -95,7 +160,7 @@ def check_code(maps, code):
     out = []
     for addr, mem in code:
         entry = {'address': hex(addr), 'memory': mem.hex()}
-        m = next((m for m in maps if m['start'] <= addr and addr + len(mem) <= m['end']), None)
+        m = module_for(maps, addr, len(mem))
         if not m:
             entry['result'] = 'not in a file mapping'
             out.append(entry)
@@ -116,7 +181,25 @@ def check_code(maps, code):
             out.append(entry)
             continue
         entry['file'] = disk.hex()
-        entry['result'] = 'matches file' if disk == mem else 'DIFFERS from file'
+        if disk != mem:
+            entry['result'] = 'DIFFERS from file'
+            out.append(entry)
+            continue
+        # disk above came through the page cache, which shares its pages with
+        # the mapping; only the storage itself can disagree with a flipped bit
+        try:
+            stored = read_direct(path, offset, len(mem))
+        except OSError as e:
+            entry['storage'] = 'unreadable: %s' % e.strerror
+            entry['result'] = 'matches file'
+            out.append(entry)
+            continue
+        if stored == mem:
+            entry['storage'] = 'matches'
+            entry['result'] = 'matches file'
+        else:
+            entry['storage'] = stored.hex()
+            entry['result'] = 'page cache DIFFERS from storage'
         out.append(entry)
     return out
 
@@ -143,6 +226,8 @@ def main():
         # merged-/usr system dpkg records /lib/... as usr/lib/...
         real[p] = os.path.realpath(p)
     owned = dpkg_md5s({r.lstrip('/') for r in real.values()} | {p.lstrip('/') for p in real})
+    # an unpackaged module has nothing to compare against but its own storage
+    pc_modules = {m['path'] for m in (module_for(maps, a, len(c)) for a, c in code) if m}
 
     counts = {}
     for p, r in real.items():
@@ -165,6 +250,19 @@ def main():
         else:
             entry['status'] = 'unpackaged'
             entry['sha256'] = sha
+        if entry['status'] != 'ok' and (pkg or p in pc_modules):
+            try:
+                smd5, ssha = hash_file_direct(r)
+            except OSError as e:
+                entry['storage'] = 'unreadable: %s' % e.strerror
+            else:
+                if (smd5, ssha) == (md5, sha):
+                    entry['storage'] = 'matches page cache'
+                else:
+                    entry['storage_md5'] = smd5
+                    if not pkg:
+                        entry['storage_sha256'] = ssha
+                    entry['status'] = 'page cache DIFFERS from storage'
         modules.append(entry)
     for e in modules:
         counts[e['status']] = counts.get(e['status'], 0) + 1
@@ -172,6 +270,7 @@ def main():
     report = {
         'summary': counts,
         'differs_from_package': [e['path'] for e in modules if e['status'] == 'DIFFERS from package'],
+        'page_cache_differs': [e['path'] for e in modules if e['status'] == 'page cache DIFFERS from storage'],
         'code_at_pc': check_code(maps, code),
         'modules': modules,
     }
