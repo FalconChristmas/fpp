@@ -207,6 +207,14 @@ void Player::Init() {
 
                 LogDebug(VB_CONTROL, "Starting Playlist '%s' with message '%s'\n",
                          newPlaylistName.c_str(), payload.c_str());
+                // Stop the running playlist first, as Start Playlist does.
+                // Stopped inside the start instead, its PLAYLIST_STOPPED
+                // preset and plugin "stop" callback are deferred and run
+                // after the new playlist has started, undoing its lead-in.
+                Player::SwitchScope switching;
+                if (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
+                    Player::INSTANCE.StopNow(1);
+                }
                 Player::INSTANCE.StartPlaylist(newPlaylistName, -1, pos);
                 LogDebug(VB_CONTROL, "Call to Player::INSTANCE.StartPlaylist complete\n");
             } else {
