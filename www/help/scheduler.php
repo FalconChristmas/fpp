@@ -1,5 +1,5 @@
 <h3>Scheduler</h3>
-<p>The Scheduler decides <em>when</em> playlists and commands run automatically. Each row in the table is one schedule entry. While its date, day and time window is active, FPP runs the chosen playlist or command. Only one scheduled playlist runs at a time; overlapping entries are resolved by the most recently started entry taking priority. Your device clock (Settings → Time) and location (Settings → System) must be correct for sunrise/sunset times to work.</p>
+<p>The Scheduler decides <em>when</em> playlists and commands run automatically. Each row in the table is one schedule entry. While its date, day and time window is active, FPP runs the chosen playlist or command. Only one scheduled playlist runs at a time; when entries overlap, the one higher in the list takes priority. A playlist you start by hand keeps playing over the schedule. One started over MQTT gives way to a schedule entry that comes due while it plays; an entry that was already due when it started waits until it ends. Your device clock (Settings → Time) and location (Settings → System) must be correct for sunrise/sunset times to work.</p>
 
 <h4>Top controls</h4>
 <ul>

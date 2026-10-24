@@ -665,6 +665,16 @@ bool Scheduler::doScheduledPlaylist(const std::time_t now, const std::time_t ite
                 return false;
             }
 
+            if (item.startTime < Player::INSTANCE.GetStartTime()) {
+                // Due before the playlist was started by hand: waiting behind
+                // the scheduled one it replaced, or a repeating entry owed a
+                // restart.  It plays once that playlist ends.  Only an entry
+                // that comes due while it plays can pre-empt it.
+                LogDebug(VB_SCHEDULE, "Scheduled playlist '%s' was due before manual playlist '%s' started, waiting for it to end\n",
+                         item.entry->playlist.c_str(), Player::INSTANCE.GetPlaylistName().c_str());
+                return false;
+            }
+
             // Check priority
             if (Player::INSTANCE.GetPriority() > item.priority) {
                 // Scheduled playlist has higher priority, stop the manual one
