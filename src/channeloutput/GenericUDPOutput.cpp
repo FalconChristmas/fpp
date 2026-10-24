@@ -179,6 +179,11 @@ public:
 
             if (isBroadcast) {
                 msgs[BROADCAST_MESSAGES_KEY].push_back(msg);
+            } else if (isMulticast) {
+                // With the other multicast: that socket has IP_MULTICAST_IF on
+                // the output interface.  One keyed by the group's address
+                // doesn't, and its packets followed the default route instead.
+                msgs[MULTICAST_MESSAGES_KEY].push_back(msg);
             } else {
                 msgs[udpAddress.sin_addr.s_addr].push_back(msg);
             }
