@@ -14,6 +14,7 @@
 
 #include "DrmCards.h"
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <map>
@@ -56,6 +57,14 @@ std::mutex s_lock;
 std::map<std::string, Card> s_cards;
 // Notified, under s_lock, by every ReleaseLease() of a retiring lease.
 std::condition_variable s_retired;
+std::atomic<void (*)(int, uint32_t)> s_mediaHoldListener{ nullptr };
+
+// Caller holds drmMasterLock, and not s_lock: the listener asks HeldByMedia().
+void NotifyMediaHold(int fd, uint32_t connectorId) {
+    if (auto listener = s_mediaHoldListener.load()) {
+        listener(fd, connectorId);
+    }
+}
 
 Card* CardForFdLocked(int fd) {
     for (auto& [path, card] : s_cards) {
@@ -191,6 +200,10 @@ bool HeldByMedia(int fd, uint32_t objectId) {
     return card && card->leased.count(objectId);
 }
 
+void SetMediaHoldListener(void (*listener)(int fd, uint32_t connectorId)) {
+    s_mediaHoldListener = listener;
+}
+
 Lease AcquireLease(const std::string& cardPath, int connectorId) {
     Lease lease;
     lease.cardPath = cardPath;
@@ -323,6 +336,8 @@ Lease AcquireLease(const std::string& cardPath, int connectorId) {
             }
             LogDebug(VB_MEDIAOUT, "DRM: lease %u on %s: connector %d crtc %u primary %u overlay %u\n",
                      lessee, cardPath.c_str(), connectorId, crtcId, primary, overlay);
+            lock.unlock();
+            NotifyMediaHold(fd, (uint32_t)connectorId);
             return lease;  // the card's ref is held until ReleaseLease()
         }
         LogWarn(VB_MEDIAOUT, "DRM: lease on %s connector %d refused (%s); kmssink will share the card's fd\n",
@@ -344,6 +359,8 @@ Lease AcquireLease(const std::string& cardPath, int connectorId) {
         card.leased[overlay]++;
     }
     lease.fd = fd;
+    lock.unlock();
+    NotifyMediaHold(fd, (uint32_t)connectorId);
     return lease;
 }
 
@@ -380,9 +397,24 @@ void ReleaseLease(Lease& lease) {
             DropMasterIfIdleLocked(it->second);
         }
     }
+    int cardFd = -1;
     if (lease.isLease) {
         // Revokes the lease and frees what kmssink left behind on it.
         close(lease.fd);
+    } else {
+        cardFd = lease.fd;
+    }
+    if (lease.connectorId > 0) {
+        // The card's fd stays open on our ref until the Release() below.
+        if (cardFd < 0) {
+            std::lock_guard<std::mutex> lock(s_lock);
+            auto it = s_cards.find(lease.cardPath);
+            cardFd = it != s_cards.end() ? it->second.fd : -1;
+        }
+        if (cardFd >= 0) {
+            std::lock_guard<std::mutex> masterLock(drmMasterLock);
+            NotifyMediaHold(cardFd, (uint32_t)lease.connectorId);
+        }
     }
     Release(lease.cardPath);
     lease = Lease();
@@ -400,6 +432,7 @@ void Claim(int, uint32_t) {}
 void Unclaim(int, uint32_t) {}
 bool InUse(int, uint32_t) { return false; }
 bool HeldByMedia(int, uint32_t) { return false; }
+void SetMediaHoldListener(void (*)(int, uint32_t)) {}
 Lease AcquireLease(const std::string& cardPath, int) {
     Lease l;
     l.cardPath = cardPath;

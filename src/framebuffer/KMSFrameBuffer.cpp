@@ -353,6 +353,7 @@ KMSFrameBuffer::KMSFrameBuffer() {
             }
         }
         StartHotplugMonitor();
+        DrmCards::SetMediaHoldListener(&KMSFrameBuffer::MediaHoldChanged);
     }
     ++FRAMEBUFFER_COUNT;
 
@@ -735,8 +736,11 @@ bool KMSFrameBuffer::MediaHoldsConnector() const {
     return m_connectorId && DrmCards::HeldByMedia(m_cardFd, m_connectorId);
 }
 
-// Put black on our plane in place of the last frame.  The CRTC stays lit for
-// the video on top of it.  Caller holds drmMasterLock.
+// Take our plane off the CRTC, which stays lit for the video on top of it.
+// Black would hide the last frame as well, but a plane showing black still
+// counts against the HVS load: on a Pi 0-3 a framebuffer scaled to the mode
+// under a full-screen 1080p video is over the kernel's limit, and the video's
+// first frame fails with ENOSPC.  Caller holds drmMasterLock.
 void KMSFrameBuffer::BlankForMediaLocked() {
     if (m_mediaBlanked || !m_planeId || !m_displayEnabled || !DrmCards::EnsureMaster(m_cardFd)) {
         return;
@@ -745,17 +749,56 @@ void KMSFrameBuffer::BlankForMediaLocked() {
         int vr = m_mode.vrefresh > 0 ? m_mode.vrefresh : 60;
         WaitForPendingFlip((1000 / vr) + 20);
     }
-    if (!m_blankFb.handle) {
-        if (!CreateDumbBuffer(m_cardFd, m_fb[0].width, m_fb[0].height, m_fb[0].format, m_blankFb)) {
-            return;
+    if (drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) != 0) {
+        // A driver that needs a plane on a lit CRTC: black, then.
+        LogDebug(VB_CHANNELOUT, "KMSFrameBuffer %s: can't take the plane off (%s), blanking it\n",
+                 m_connectorName.c_str(), strerror(errno));
+        if (!m_blankFb.handle) {
+            if (!CreateDumbBuffer(m_cardFd, m_fb[0].width, m_fb[0].height, m_fb[0].format, m_blankFb)) {
+                return;
+            }
+            memset(m_blankFb.mapped, 0, m_blankFb.size);
         }
-        memset(m_blankFb.mapped, 0, m_blankFb.size);
+        drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, m_blankFb.fb_id, 0,
+                        0, 0, m_mode.hdisplay, m_mode.vdisplay,
+                        0, 0, (uint32_t)m_width << 16, (uint32_t)m_height << 16);
     }
-    drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, m_blankFb.fb_id, 0,
-                    0, 0, m_mode.hdisplay, m_mode.vdisplay,
-                    0, 0, (uint32_t)m_width << 16, (uint32_t)m_height << 16);
     m_mediaBlanked = true;
     LogInfo(VB_CHANNELOUT, "KMSFrameBuffer %s: media is playing here, standing aside\n", m_connectorName.c_str());
+}
+
+// The media is gone.  Its kmssink may have left the CRTC in another state, so
+// put our page back with a plane commit rather than trusting a flip from what
+// was there before.  Caller holds drmMasterLock.
+void KMSFrameBuffer::ShowAfterMediaLocked() {
+    if (!m_mediaBlanked) {
+        return;
+    }
+    m_mediaBlanked = false;
+    m_flipPending = false;
+    if (m_displayEnabled && m_planeId && DrmCards::EnsureMaster(m_cardFd) &&
+        drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, m_fb[m_cPage].fb_id, 0,
+                        0, 0, m_mode.hdisplay, m_mode.vdisplay,
+                        0, 0, (uint32_t)m_width << 16, (uint32_t)m_height << 16) != 0) {
+        m_displayEnabled = false;  // relit with a full modeset on the next flip
+    }
+    LogInfo(VB_CHANNELOUT, "KMSFrameBuffer %s: media finished, showing output again\n", m_connectorName.c_str());
+}
+
+// At once, not on our next flip: an output nothing is sending data to has
+// none, and would sit under the video at full cost.  Caller (DrmCards) holds
+// drmMasterLock, which also guards FLIP_TARGETS.
+void KMSFrameBuffer::MediaHoldChanged(int fd, uint32_t connectorId) {
+    for (auto& [token, fb] : FLIP_TARGETS) {
+        if (fb->m_cardFd != fd || fb->m_connectorId != connectorId) {
+            continue;
+        }
+        if (fb->MediaHoldsConnector()) {
+            fb->BlankForMediaLocked();
+        } else {
+            fb->ShowAfterMediaLocked();
+        }
+    }
 }
 
 void KMSFrameBuffer::PageFlipHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void* data) {
@@ -869,20 +912,7 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
         BlankForMediaLocked();
         return;
     }
-    if (m_mediaBlanked) {
-        // The media is gone.  Its kmssink may have left the CRTC in another
-        // state, so put our page back with a plane commit rather than
-        // trusting a flip from what was there before.
-        m_mediaBlanked = false;
-        m_flipPending = false;
-        if (m_displayEnabled && m_planeId && DrmCards::EnsureMaster(m_cardFd) &&
-            drmModeSetPlane(m_cardFd, m_planeId, m_crtcId, m_fb[m_cPage].fb_id, 0,
-                            0, 0, m_mode.hdisplay, m_mode.vdisplay,
-                            0, 0, (uint32_t)m_width << 16, (uint32_t)m_height << 16) != 0) {
-            m_displayEnabled = false;  // relight it below with a full modeset
-        }
-        LogInfo(VB_CHANNELOUT, "KMSFrameBuffer %s: media finished, showing output again\n", m_connectorName.c_str());
-    }
+    ShowAfterMediaLocked();
     {
         long long syncStart = GetMonotonicTimeMS();
         if (DrmCards::EnsureMaster(m_cardFd)) {

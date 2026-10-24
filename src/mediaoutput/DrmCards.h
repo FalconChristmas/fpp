@@ -55,6 +55,15 @@ bool InUse(int fd, uint32_t objectId);
 // stands aside until it is released.
 bool HeldByMedia(int fd, uint32_t objectId);
 
+// Told, holding drmMasterLock, each time a lease on connectorId (on the card
+// behind `fd`) is taken or given back: AcquireLease() calls it before it
+// returns, so before the kmssink exists, and ReleaseLease() after the lease is
+// closed.  A framebuffer output can't wait for its own next frame to notice --
+// an idle one may have none -- and its plane still counts against the display
+// load under the video (the HVS on a Pi 0-3 refuses a plane commit over its
+// limit).  HeldByMedia() says which way it went.  One listener.
+void SetMediaHoldListener(void (*listener)(int fd, uint32_t connectorId));
+
 struct Lease {
     int fd = -1;           // for kmssink's "fd" property
     int planeId = -1;      // for its "plane-id", or -1 to let it choose
