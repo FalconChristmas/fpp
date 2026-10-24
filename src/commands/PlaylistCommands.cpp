@@ -115,6 +115,9 @@ std::unique_ptr<Command::Result> StartPlaylistCommand::run(const std::vector<std
         scheduleProtected = args[3] == "true" || args[3] == "1";
     }
     if (!iNR || args[0] != Player::INSTANCE.GetPlaylistName()) {
+        // The stop and the wait below are part of the start: the scheduler
+        // must not act on the player being idle in between.
+        Player::SwitchScope switching;
         LogInfo(VB_COMMAND, "StartPlaylistCommand: Requesting playlist '%s', current='%s', status=%d\n",
                 args[0].c_str(), Player::INSTANCE.GetPlaylistName().c_str(), Player::INSTANCE.GetStatus());
         
@@ -168,6 +171,7 @@ std::unique_ptr<Command::Result> TogglePlaylistCommand::run(const std::vector<st
     LogInfo(VB_COMMAND, "TogglePlaylistCommand: Requesting playlist '%s', current='%s', status=%d\n",
             args[0].c_str(), Player::INSTANCE.GetPlaylistName().c_str(), Player::INSTANCE.GetStatus());
     
+    Player::SwitchScope switching; // see StartPlaylistCommand
     // If a different playlist is playing, stop it first to avoid race conditions
     if (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
         LogInfo(VB_COMMAND, "TogglePlaylistCommand: Stopping current playlist\n");
@@ -234,6 +238,7 @@ std::unique_ptr<Command::Result> StartPlaylistAtCommand::run(const std::vector<s
             Player::INSTANCE.ClearForceStopped();
             scheduler->CheckIfShouldBePlayingNow(1);
         } else {
+            Player::SwitchScope switching; // see StartPlaylistCommand
             // Always directly start the playlist if:
             // 1. Something is already playing (even if it's the scheduled playlist)
             // 2. The requested playlist doesn't match what's scheduled
@@ -277,6 +282,7 @@ std::unique_ptr<Command::Result> StartPlaylistAtRandomCommand::run(const std::ve
         iNR = args[2] == "true" || args[2] == "1";
     }
     if (!iNR || args[0] != Player::INSTANCE.GetPlaylistName()) {
+        Player::SwitchScope switching; // see StartPlaylistCommand
         LogInfo(VB_COMMAND, "StartPlaylistAtRandomCommand: Requesting playlist '%s', current='%s', status=%d\n",
                 args[0].c_str(), Player::INSTANCE.GetPlaylistName().c_str(), Player::INSTANCE.GetStatus());
         

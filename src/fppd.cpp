@@ -2299,6 +2299,8 @@ void MainLoop(void) {
             // entry stops, and a pass that read it then never saw the change.
             PlaylistStatus curStatus = Player::INSTANCE.GetStatus();
             int reactivated = 0;
+            // Set when the change to idle is left for a later pass to see.
+            bool unrecorded = false;
             if (curStatus == FPP_STATUS_IDLE) {
                 if ((prevFPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
                     (prevFPPstatus == FPP_STATUS_PLAYLIST_PAUSED) ||
@@ -2306,23 +2308,31 @@ void MainLoop(void) {
                     (prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY) ||
                     (prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
                     MAIN_LOOP_PHASE("Player::Cleanup");
-                    Player::INSTANCE.Cleanup();
+                    // Read after the status: a switch holds its scope from
+                    // before its stop, so idle in one is seen with it held.
+                    // Cleanup() returns 0 if a start landed since the read.
+                    // Either way nothing stopped, and asking the scheduler
+                    // would pre-empt the new playlist (issue #3140).  If the
+                    // start fails, a later pass sees the idle and acts.
+                    if (Player::Switching() || !Player::INSTANCE.Cleanup()) {
+                        unrecorded = true;
+                    } else {
+                        if (Player::INSTANCE.GetForceStopped())
+                            scheduler->CheckIfShouldBePlayingNow(0, Player::INSTANCE.GetScheduleEntry());
+                        else
+                            scheduler->CheckIfShouldBePlayingNow();
 
-                    if (Player::INSTANCE.GetForceStopped())
-                        scheduler->CheckIfShouldBePlayingNow(0, Player::INSTANCE.GetScheduleEntry());
-                    else
-                        scheduler->CheckIfShouldBePlayingNow();
-
-                    if (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE)
-                        reactivated = 1;
-                    else
-                        sleepms = 50;
+                        if (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE)
+                            reactivated = 1;
+                        else
+                            sleepms = 50;
+                    }
                 }
             }
 
             if (reactivated)
                 prevFPPstatus = FPP_STATUS_IDLE;
-            else
+            else if (!unrecorded)
                 prevFPPstatus = curStatus;
 
             // Process() frees retired playlists and entries, but only runs

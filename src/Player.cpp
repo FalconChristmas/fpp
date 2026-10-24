@@ -15,6 +15,8 @@
 #include "fpp-json.h"
 #include "fpphttp.h" // drogon/HTTP helpers used here; no longer pulled transitively (see fpphttp_types.h)
 
+#include <atomic>
+#include <chrono>
 #include <cstdlib>
 #include <ctime>
 #include <functional>
@@ -47,6 +49,45 @@ static void RetirePlaylist(Playlist* p) {
 }
 
 Player Player::INSTANCE;
+
+// A count: a command holds one around StartPlaylist(), whose PlayImpl() holds
+// its own.
+static std::atomic<int> s_switchesInFlight{ 0 };
+// When the count last left 0.  A command's scope also covers the presets and
+// plugin callbacks its stop and start fire, and a script plugin's callback is
+// waited for with no timeout: past this long, the switch no longer holds the
+// scheduler back.
+static std::atomic<int64_t> s_switchSinceMs{ 0 };
+static std::atomic<bool> s_switchOverdueLogged{ false };
+static constexpr int64_t MAX_SWITCH_MS = 5000;
+
+static int64_t SteadyMs() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
+
+Player::SwitchScope::SwitchScope() {
+    if (s_switchesInFlight++ == 0) {
+        s_switchSinceMs = SteadyMs();
+        s_switchOverdueLogged = false;
+    }
+}
+
+Player::SwitchScope::~SwitchScope() {
+    s_switchesInFlight--;
+}
+
+bool Player::Switching() {
+    if (s_switchesInFlight == 0)
+        return false;
+    int64_t ms = SteadyMs() - s_switchSinceMs;
+    if (ms < MAX_SWITCH_MS)
+        return true;
+    if (!s_switchOverdueLogged.exchange(true))
+        LogWarn(VB_PLAYLIST, "A playlist switch is still running after %lld ms (a slow PLAYLIST_STOPPED/STARTED preset or plugin callback?); the scheduler carries on\n", (long long)ms);
+    return false;
+}
 
 Player::Player() :
     lastCheckTime(std::time(nullptr)),

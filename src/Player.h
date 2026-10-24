@@ -45,6 +45,19 @@ public:
                                const int repeat, const int scheduleEntry, const int scheduledPriority,
                                const time_t sTime, const time_t eTime, const int method);
 
+    // fppd-internal, not plugin API.  Held while one playlist is replaced by
+    // another, as the player reads idle in between.  While any is held the
+    // main loop doesn't treat that idle as a stop and the scheduler starts,
+    // pre-empts and re-arms nothing (issue #3140), for at most 5 s.
+    class SwitchScope {
+    public:
+        SwitchScope();
+        ~SwitchScope();
+        SwitchScope(const SwitchScope&) = delete;
+        SwitchScope& operator=(const SwitchScope&) = delete;
+    };
+    static bool Switching();
+
     int AdjustPlaylistStopTime(const int seconds = 300);
 
     // wrappers for Playlist class methods we'll just call directly for now

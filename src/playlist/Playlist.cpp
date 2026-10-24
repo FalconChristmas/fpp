@@ -2130,6 +2130,9 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
     LogDebug(VB_PLAYLIST, "Playlist::Play('%s', %d, %d, %d, %d)\n",
              filename.c_str(), position, repeat, scheduleEntry, endPosition);
 
+    // From before the stop below until the new playlist has started, and no
+    // longer: the deferred presets and plugin callbacks run after this.
+    Player::SwitchScope switching;
     std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
 
     // Paused counts as running: it used to fall through to the load below,
