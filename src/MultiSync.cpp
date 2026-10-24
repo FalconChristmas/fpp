@@ -3758,10 +3758,16 @@ int MultiSync::OpenReceiveSocket(void) {
     // The default buffer (212992 bytes) holds about 166 datagrams -- each
     // costs ~1.3KB of it whatever its size -- so any stall of the main loop
     // (an output reload, a burst of pings from a large show) dropped sync and
-    // ping packets in the kernel.  1MB (the kernel doubles it) holds ~1600;
-    // fppinit raises rmem_max to 8MB, so the request isn't clamped.
+    // ping packets in the kernel.  1MB (the kernel doubles it) holds ~1600.
+    // A plain SO_RCVBUF is clamped to rmem_max, which only fppinit raises (to
+    // 8MB): where it hasn't run, the request came back at the default.  So
+    // force it first, as the bridge sockets do (fppd runs as root).
     int rcvBuf = 1024 * 1024;
-    if (setsockopt(m_receiveSock, SOL_SOCKET, SO_RCVBUF, &rcvBuf, sizeof(rcvBuf)) < 0) {
+    bool forced = false;
+#ifdef SO_RCVBUFFORCE
+    forced = setsockopt(m_receiveSock, SOL_SOCKET, SO_RCVBUFFORCE, &rcvBuf, sizeof(rcvBuf)) == 0;
+#endif
+    if (!forced && setsockopt(m_receiveSock, SOL_SOCKET, SO_RCVBUF, &rcvBuf, sizeof(rcvBuf)) < 0) {
         LogWarn(VB_SYNC, "Error setting SO_RCVBUF on the receive socket; %s\n", FPPstrerror(errno));
     }
 
