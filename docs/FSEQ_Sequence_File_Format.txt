@@ -78,3 +78,20 @@ the header is ED, the actual data for the header is stored elsewhere.
     vh[14-17] = uint32_t length of header data
 Normally, the actual data of for the header is written to the
 file immediately after the channel data.
+
+Sparse ranges past 255 (FSEQ 2.3)
+The sparse range count in byte 22 is a single byte.  Starting in
+FSEQ 2.3, a file with more than 255 sparse ranges sets byte 22 to
+255 and stores the first 255 ranges in the header as usual, so
+readers that predate 2.3 still play the channels of those ranges.
+The complete table, including those first 255, is stored in an
+'SR' variable header, normally as extended data ('ED'):
+  - 'SR' - Sparse Ranges
+    vh[2] = 'S'
+    vh[3] = 'R'
+    numberOfSparseRanges*6 - sparse range definitions, same format
+                             as the table in the fixed header
+The channel count in bytes 10-13 is the total length of all the
+ranges in the 'SR' table, and each frame carries every range in
+that order.  Writers using an older minor version must keep the
+table to 255 ranges, e.g. by merging ranges across the smallest gaps.
