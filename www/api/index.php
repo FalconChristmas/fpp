@@ -101,6 +101,7 @@ dispatch_get('/git/pullRequests', 'GitPullRequests');
 dispatch_get('/media', 'GetMedia');
 dispatch_get('/media/:MediaName/duration', 'GetMediaDuration');
 dispatch_get('/media/:MediaName/meta', 'GetMediaMetaData');
+dispatch_get('/media/:MediaName/audio', 'GetMediaAudioInfo');
 
 dispatch_get('/network/dns', 'network_get_dns');
 dispatch_post('/network/dns', 'network_save_dns');

@@ -146,6 +146,24 @@ const bootstrapTableOptions_Music = {
 			filterControl: 'input'
 		},
 		{
+			field: 'bitrate',
+			title: 'Bit Rate',
+			sortable: true,
+			searchable: true,
+			align: 'right',
+			sorter: 'numericSorter',
+			filterControl: 'input'
+		},
+		{
+			field: 'samplerate',
+			title: 'Sample Rate',
+			sortable: true,
+			searchable: true,
+			align: 'right',
+			sorter: 'numericSorter',
+			filterControl: 'input'
+		},
+		{
 			field: 'dateModified',
 			title: 'Date Modified',
 			sortable: true,
@@ -683,7 +701,13 @@ window.metricSorter = function (a, b) {
 // contain a placeholder (e.g. "…") while the value is loading; those sort as 0.
 window.numericSorter = function (a, b) {
 	const parseNum = val => {
-		const num = parseFloat(String(val).replace(/[^\d.-]/g, ''));
+		// Cells can carry markup (the Music tab's sample rate has a warning
+		// icon); only the text is the number.
+		const num = parseFloat(
+			String(val)
+				.replace(/<[^>]*>/g, '')
+				.replace(/[^\d.-]/g, '')
+		);
 		return isNaN(num) ? 0 : num;
 	};
 	return parseNum(a) - parseNum(b);

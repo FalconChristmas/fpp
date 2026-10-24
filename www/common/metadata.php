@@ -34,6 +34,12 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
             $resp = GetMetaDataFromFFProbe($mediaName);
             //cache it
             media_duration_cache($mediaName, $resp['format']['duration'], $media_filesize);
+            // The same probe tells the Music tab this file's sample rate and
+            // bit rate; keep them so it does not probe the file a second time.
+            $audioInfo = AudioInfoFromProbe($resp);
+            if (AudioInfoIsCacheable($resp, $audioInfo)) {
+                media_audio_info_cache($mediaName, $audioInfo, $media_filesize);
+            }
             $total_duration = $resp['format']['duration'] + $total_duration;
         } else {
             $total_duration = $cache_duration + $total_duration;
@@ -201,6 +207,126 @@ function ProbeMediaWithGstDiscoverer($filename)
     }
 
     return $result;
+}
+
+/**
+ * The sample rates FPP's audio system is using.
+ *
+ *   engine      default.clock.rate: the rate the audio graph really runs at.
+ *   configured  the "# configured rate:" tag in 95-fpp-alsa-sink.conf: the rate
+ *               the AudioFormat setting asked for.  The two differ when a card
+ *               cannot clock as low as the request and refines it upward (a
+ *               PCM5102A cape runs a 44.1 kHz request at 88.2 kHz).  With no
+ *               tag the configured rate is the engine rate.
+ *
+ * 95-fpp-alsa-sink.conf is generated from the audio setting and overrides the
+ * base default in 90-fpp.conf, so it is read first.
+ *
+ * @return array ['engine' => int|null, 'configured' => int|null, 'source' => string];
+ *               nulls where there is no PipeWire configuration (macOS, Docker)
+ */
+function GetAudioRates()
+{
+    $confd = '/etc/pipewire/pipewire.conf.d';
+    $sink = @file_get_contents($confd . '/95-fpp-alsa-sink.conf');
+    $configured = null;
+    if ($sink !== false && preg_match('/^#\s*configured rate:\s*(\d+)/m', $sink, $m)) {
+        $configured = (int) $m[1];
+    }
+    $sources = array('95-fpp-alsa-sink.conf' => $sink, '90-fpp.conf' => @file_get_contents($confd . '/90-fpp.conf'));
+    foreach ($sources as $file => $text) {
+        if ($text !== false && preg_match('/default\.clock\.rate\s*=\s*(\d+)/', $text, $m)) {
+            $engine = (int) $m[1];
+            return array('engine' => $engine, 'configured' => ($configured !== null ? $configured : $engine), 'source' => $file);
+        }
+    }
+    return array('engine' => null, 'configured' => null, 'source' => '');
+}
+
+/**
+ * How a file's sample rate sits against the audio system's rates.
+ *
+ *   'ok'        at the engine rate: nothing to do
+ *   'hardware'  at the configured rate, with the hardware running a whole
+ *               multiple of it: the card upsamples, so there is no CPU cost
+ *   'stuck'     at the configured rate, but the hardware does not run a whole
+ *               multiple of it, so it is resampled anyway and converting the
+ *               file to the configured rate would change nothing
+ *   'resample'  any other rate: resampled on the CPU while it plays; convert it
+ *               to the configured rate
+ *   ''          not known (no sample rate, or no audio configuration)
+ *
+ * Same grouping as the Media Files report on the Troubleshooting page.
+ *
+ * @param int $rate the file's sample rate in Hz
+ * @param array $rates the result of GetAudioRates()
+ * @return string
+ */
+function AudioRateStatus($rate, $rates)
+{
+    $rate = (int) $rate;
+    if ($rate <= 0 || empty($rates['engine'])) {
+        return '';
+    }
+    $engine = (int) $rates['engine'];
+    $configured = !empty($rates['configured']) ? (int) $rates['configured'] : $engine;
+    if ($rate === $engine) {
+        return 'ok';
+    }
+    if ($rate === $configured) {
+        return ($engine > $configured && $engine % $configured === 0) ? 'hardware' : 'stuck';
+    }
+    return 'resample';
+}
+
+/**
+ * Pull the facts the Music tab shows out of an ffprobe structure: the first
+ * audio stream's sample rate, channels and codec, and its bit rate (falling back
+ * to the container's for formats that do not carry one per stream, such as VBR
+ * MP3).  A file with no audio stream comes back with a sample rate of 0.
+ *
+ * @param array $resp the structure from GetMetaDataFromFFProbe()
+ * @return array ['sampleRate' => int, 'bitRate' => int, 'channels' => int, 'codec' => string]
+ */
+function AudioInfoFromProbe($resp)
+{
+    $streams = (isset($resp['streams']) && is_array($resp['streams'])) ? $resp['streams'] : array();
+    foreach ($streams as $s) {
+        if (isset($s['codec_type']) && $s['codec_type'] === 'audio') {
+            $bitRate = isset($s['bit_rate']) ? (int) $s['bit_rate'] : 0;
+            if ($bitRate <= 0 && isset($resp['format']['bit_rate'])) {
+                $bitRate = (int) $resp['format']['bit_rate'];
+            }
+            return array(
+                'sampleRate' => isset($s['sample_rate']) ? (int) $s['sample_rate'] : 0,
+                'bitRate' => $bitRate,
+                'channels' => isset($s['channels']) ? (int) $s['channels'] : 0,
+                'codec' => isset($s['codec_name']) ? (string) $s['codec_name'] : '',
+            );
+        }
+    }
+    return array('sampleRate' => 0, 'bitRate' => 0, 'channels' => 0, 'codec' => '');
+}
+
+/**
+ * Whether a probe's audio info is worth caching.  It is when the probe found a
+ * sample rate, or when ffprobe itself ran and listed the file's streams without
+ * an audio one (a video, a picture).  It is not when the probe failed -- ffprobe
+ * missing, timed out, or only GStreamer's discoverer answered, which never
+ * reports a sample rate -- because a cached "no audio" would stand for 30 days.
+ * The file is simply probed again on the next listing.
+ *
+ * @param array $resp the structure from GetMetaDataFromFFProbe()
+ * @param array $info the result of AudioInfoFromProbe($resp)
+ * @return bool
+ */
+function AudioInfoIsCacheable($resp, $info)
+{
+    if ($info['sampleRate'] > 0) {
+        return true;
+    }
+    // format_name is ffprobe's; the GStreamer fallback does not set it.
+    return isset($resp['format']['format_name']) && isset($resp['streams']) && is_array($resp['streams']);
 }
 
 /**
