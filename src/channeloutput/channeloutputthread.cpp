@@ -66,6 +66,9 @@ std::atomic_int alwaysTransmit{ 0 };
 
 // declared in channeloutputthread.h, which documents what it protects
 std::mutex outputThreadLock;
+// Threads blocked in LockOutputThread(); the output thread hands the lock over
+// at the end of a pass while this is non-zero.
+static std::atomic_int outputThreadLockWaiters{ 0 };
 std::recursive_mutex inlineOutputLock;
 std::mutex outputThreadStatusLock;
 // Bumped under outputThreadStatusLock by every StartChannelOutputThread(),
@@ -164,6 +167,13 @@ int ChannelOutputThreadIsRunning(void) {
 }
 
 static std::atomic<std::thread::id> outputThreadId{};
+std::unique_lock<std::mutex> LockOutputThread(void) {
+    ++outputThreadLockWaiters;
+    std::unique_lock<std::mutex> lock(outputThreadLock);
+    --outputThreadLockWaiters;
+    return lock;
+}
+
 bool IsChannelOutputThread(void) {
     return outputThreadId.load(std::memory_order_relaxed) == std::this_thread::get_id();
 }
@@ -522,6 +532,18 @@ void RunChannelOutputThread(void) {
                                           [&forceSeen]() { return outputForceRequests.load() != forceSeen; })) {
                 LogDebug(VB_CHANNELOUT, "Forced output\n");
             }
+        }
+        if (outputThreadLockWaiters.load(relaxed)) {
+            // Another thread is waiting in LockOutputThread() (an output
+            // reload).  The wait above lets it in, but not while the next
+            // frame is already due, and while every cycle runs over its frame
+            // time that is every pass.  Let go until it has the lock: a bare
+            // unlock() and lock() would most likely take it straight back.
+            lock.unlock();
+            for (int i = 0; i < 100 && outputThreadLockWaiters.load(); ++i) {
+                std::this_thread::sleep_for(std::chrono::microseconds(500));
+            }
+            lock.lock();
         }
     }
 

@@ -16,7 +16,8 @@
 // Held by the channel output thread for the whole of each output cycle -- the
 // cycle that runs PrepareChannelData()/SendChannelData(), both of which walk
 // the channelOutputs list and call into every ChannelOutput on it.  It is
-// released only while the thread waits out the rest of the frame interval, so
+// released only while the thread waits out the rest of the frame interval, or
+// hands it to a LockOutputThread() caller (below), so
 // anything that mutates that list, and in particular anything that destroys a
 // ChannelOutput, has to hold this to avoid pulling an instance out from under
 // a walk that is already in progress.
@@ -30,6 +31,15 @@
 // a plain mutex on purpose: the output thread waits on a condition_variable
 // with it, which rules out making it recursive.
 extern std::mutex outputThreadLock;
+
+// Take outputThreadLock from any thread but the output thread.  That thread
+// lets go of it only in its wait for the next frame, which it skips while it
+// is behind, so a plain lock() waited for as long as every cycle ran over its
+// frame time: an output reload then stopped the main loop until the outputs
+// sped up, and slow outputs could not be replaced to fix them.  This counts
+// the caller as waiting, and the thread hands the lock over at the end of its
+// pass.
+std::unique_lock<std::mutex> LockOutputThread(void);
 
 // Held by a thread that drives the outputs itself instead of the output thread
 // (Sequence::SendBlankingData() when the output thread isn't sending), and by

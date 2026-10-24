@@ -71,7 +71,7 @@ std::atomic<FPPChannelOutputInstance*> lastChannelOutput;
 inline void addChannelOutput(FPPChannelOutputInstance* inst) {
     // the output thread walks this list under outputThreadLock; linking a node
     // in takes several stores, so publish them all before it can see any
-    std::unique_lock<std::mutex> lock(outputThreadLock);
+    std::unique_lock<std::mutex> lock = LockOutputThread();
     // An output added while the output thread is already up -- a config reload,
     // which is what an xLights auto-upload does -- missed the StartingOutput()
     // that thread made when it came up, and would otherwise run in the stopped
@@ -368,7 +368,7 @@ static bool ReloadChannelOutputsForFile(const std::string& cfgFile) {
         // time; a half-populated list is harmless, an unlinked-but-live one is
         // not.
         std::list<FPPChannelOutputInstance*> toDelete;
-        std::unique_lock<std::mutex> lock(outputThreadLock);
+        std::unique_lock<std::mutex> lock = LockOutputThread();
         // And against a blank being sent inline from another thread (see
         // inlineOutputLock); that send doesn't hold outputThreadLock.
         std::unique_lock<std::recursive_mutex> inlineLock(inlineOutputLock);
