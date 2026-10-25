@@ -89,13 +89,19 @@ if ($isDirectView) {
 Rebuild Complete.
 <?
 if (!$wrapped) {
-    ?>
+    // The links and the final scroll are for a browser, like the per-step
+    // scrolls above; curl gets the output alone.
+    if ($isDirectView) {
+        ?>
             <a href='index.php'>Go to FPP Main Status Page</a><br>
             <a href='about.php'>Go back to FPP Upgrade page</a><br>
         <script>
             // Ensure we scroll to bottom on page load
             window.scrollTo(0, document.body.scrollHeight);
         </script>
+        <?
+    }
+    ?>
 
         </body>
         </html>
