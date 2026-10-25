@@ -16,7 +16,6 @@ if (isset($_GET['cpu'])) {
     include 'common/htmlMeta.inc';
     require_once 'config.php';
     require_once 'common.php';
-    include 'common/htmlMeta.inc';
 
     include 'common/menuHead.inc';
     ?>
