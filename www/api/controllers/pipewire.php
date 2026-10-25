@@ -121,8 +121,10 @@ function pw_node_channel_count($obj)
 // channelVolumes is the same stage pactl drives, so it also reads back.
 //
 // The gain is linear here rather than a pactl percentage because that is what
-// the generated config's channelmix.volume values are: a path re-applied by
-// Apply and one set live this way then land on the same level.
+// the generated config's channelmix.volume values are.  Those are not applied
+// when the node is created either (PipeWire 1.4 keeps channelmix.volume as a
+// node property and nothing more), so RestorePipeWireInputGroupVolumes() sets
+// the saved levels this way once the stack is up.
 function pw_set_node_volume_linear($nodeId, $linear, $channels = 2)
 {
     global $SUDO;
@@ -2321,9 +2323,10 @@ function ApplyPipeWireInputGroups($skipRestart = false)
         RestartPipeWireStack();
     }
 
-    // The rebuilt combine-stream sinks come up at full volume, so put the saved
-    // bus levels back before anything starts playing through them.
-    RestorePipeWireInputGroupVolumes();
+    // The rebuilt sinks and streams come up at full volume, so put the saved
+    // levels back before anything starts playing through them: the output
+    // groups' as well as the buses', since the restart rebuilt those too.
+    RestorePipeWireGroupVolumes();
 
     // Set PipeWire default sink and push setting to fppd (best-effort)
     if (!empty($fppdTarget)) {
@@ -2363,6 +2366,57 @@ function ApplyPipeWireInputGroups($skipRestart = false)
 function InputGroupNodeName($groupName)
 {
     return "fpp_input_" . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($groupName));
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// The combine-stream an input group's routing paths leave from: the bus
+// itself, or with effects on, the route node after its filter chain.
+// KEEP IN SYNC with GeneratePipeWireInputGroupsConfig().
+function InputGroupRoutingNodeName($ig)
+{
+    $hasEffects = isset($ig['effects']['eq']['enabled']) && $ig['effects']['eq']['enabled']
+        && isset($ig['effects']['eq']['bands']) && !empty($ig['effects']['eq']['bands']);
+    return $hasEffects ? "fpp_route_ig_" . intval($ig['id']) : InputGroupNodeName(isset($ig['name']) ? $ig['name'] : '');
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// The loopback that carries an input group member's send level into the bus.
+// An fppd stream that fans out to several buses has one per bus, named by its
+// source; one that feeds a single bus has none (it connects straight to the
+// bus), and the name then matches nothing in the graph.
+// KEEP IN SYNC with GeneratePipeWireInputGroupsConfig().
+function InputGroupMemberLoopbackName($groupId, $mbr, $memberIndex)
+{
+    if ((isset($mbr['type']) ? $mbr['type'] : '') === 'fppd_stream') {
+        $slug = isset($mbr['sourceId']) ? $mbr['sourceId'] : 'fppd_stream_1';
+    } else {
+        $slug = isset($mbr['name']) ? $mbr['name'] : "Member $memberIndex";
+    }
+    return "fpp_loopback_ig{$groupId}_" . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($slug));
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// The node(s) a loopback's level is set on, node id => channel count.
+// PipeWire loopback modules create sub-nodes named input.NAME and output.NAME
+// (there is no bare parent node); the level belongs on the playback side
+// alone -- set on both, one member's trim would be applied twice.
+function pw_find_loopback_level_nodes($objects, $loopbackNodeName)
+{
+    $nodeIds = array();
+    $fallbackIds = array();
+    foreach ($objects as $obj) {
+        $type = isset($obj['type']) ? $obj['type'] : '';
+        if ($type !== 'PipeWire:Interface:Node')
+            continue;
+        $props = isset($obj['info']['props']) ? $obj['info']['props'] : array();
+        $nm = isset($props['node.name']) ? $props['node.name'] : '';
+        if ($nm === 'output.' . $loopbackNodeName) {
+            $nodeIds[$obj['id']] = pw_node_channel_count($obj);
+        } elseif ($nm === $loopbackNodeName || $nm === 'input.' . $loopbackNodeName) {
+            $fallbackIds[$obj['id']] = pw_node_channel_count($obj);
+        }
+    }
+    return empty($nodeIds) ? $fallbackIds : $nodeIds;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2447,10 +2501,14 @@ function SetInputGroupVolume($bodyOverride = null)
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Reapply the saved mix bus levels.  The combine-stream sinks are rebuilt at
-// full volume every time the PipeWire stack starts, so without this a bus
-// fader lasts only until the next apply or reboot.
-// KEEP IN SYNC with restorePipeWireVolumes() in FPPINIT_Audio.cpp.
+// Reapply the saved mix bus levels, and the levels inside the input groups:
+// each member's send into its bus and each routing path from a bus to an
+// output group.  Every one of those nodes is rebuilt at full volume each time
+// the PipeWire stack starts, so without this a fader lasts only until the next
+// apply or reboot.  The generated config does carry the member and path levels
+// (channelmix.volume), but PipeWire keeps that as a node property and does not
+// apply it.
+// KEEP IN SYNC with restorePipeWireInputGroupVolumes() in FPPINIT_Audio.cpp.
 function RestorePipeWireInputGroupVolumes($inputGroups = null)
 {
     global $SUDO, $settings;
@@ -2474,6 +2532,68 @@ function RestorePipeWireInputGroupVolumes($inputGroups = null)
         $vol = isset($ig['volume']) ? intval($ig['volume']) : 100;
         exec($SUDO . " " . $env . " pactl set-sink-volume $nodeName {$vol}% 2>/dev/null");
         exec($SUDO . " " . $env . " pactl set-sink-mute $nodeName " . (!empty($ig['mute']) ? "1" : "0") . " 2>/dev/null");
+    }
+
+    RestoreInputGroupSendAndPathLevels($inputGroups);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// The member send and routing path levels RestorePipeWireInputGroupVolumes()
+// puts back, set as the live faders set them (SetInputGroupMemberVolume(),
+// SetRoutingPathVolume()).  Every level is set, 100% included: WirePlumber
+// restores a stream's last live level when the stream comes back, which need
+// not be the saved one.  A muted member or path has no node to set -- the
+// generated config leaves it out of the graph.
+function RestoreInputGroupSendAndPathLevels($inputGroups)
+{
+    global $SUDO, $settings;
+
+    $outputNodes = array();
+    $ogFile = $settings['mediaDirectory'] . "/config/pipewire-audio-groups.json";
+    $ogData = file_exists($ogFile) ? json_decode(file_get_contents($ogFile), true) : null;
+    if (is_array($ogData) && isset($ogData['groups']) && is_array($ogData['groups'])) {
+        foreach ($ogData['groups'] as $og) {
+            if (is_array($og) && isset($og['id'])) {
+                $outputNodes[intval($og['id'])] = "fpp_group_" .
+                    preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower(isset($og['name']) ? $og['name'] : 'Group'));
+            }
+        }
+    }
+
+    $env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp";
+    $objects = json_decode((string) shell_exec($SUDO . " " . $env . " pw-dump 2>/dev/null"), true);
+    if (!is_array($objects))
+        return;
+
+    foreach ($inputGroups as $ig) {
+        if (!is_array($ig) || empty($ig['enabled']) || !isset($ig['id']))
+            continue;
+        $groupId = intval($ig['id']);
+
+        $members = isset($ig['members']) && is_array($ig['members']) ? $ig['members'] : array();
+        foreach ($members as $mi => $mbr) {
+            if (!is_array($mbr) || !empty($mbr['mute']))
+                continue;
+            $level = isset($mbr['volume']) ? intval($mbr['volume']) : 100;
+            foreach (pw_find_loopback_level_nodes($objects, InputGroupMemberLoopbackName($groupId, $mbr, $mi)) as $nid => $channels) {
+                pw_set_node_volume_linear($nid, $level / 100.0, $channels);
+            }
+        }
+
+        // Every path the bus has (its outputs), at its saved level or the
+        // generator's default of 100% when the routing matrix has none.
+        $outputs = isset($ig['outputs']) && is_array($ig['outputs']) ? $ig['outputs'] : array();
+        $routing = isset($ig['routing']) && is_array($ig['routing']) ? $ig['routing'] : array();
+        $routingNodeName = InputGroupRoutingNodeName($ig);
+        foreach ($outputs as $ogId) {
+            $path = isset($routing[strval($ogId)]) && is_array($routing[strval($ogId)]) ? $routing[strval($ogId)] : array();
+            if (!empty($path['mute']) || !isset($outputNodes[intval($ogId)]))
+                continue;
+            $level = isset($path['volume']) ? intval($path['volume']) : 100;
+            foreach (pw_find_combine_streams($objects, $routingNodeName, $outputNodes[intval($ogId)]) as $nid => $channels) {
+                pw_set_node_volume_linear($nid, $level / 100.0, $channels);
+            }
+        }
     }
 }
 
@@ -2558,15 +2678,10 @@ function SetInputGroupMemberVolume($bodyOverride = null)
     $groupName = isset($targetGroup['name']) ? $targetGroup['name'] : "Input Group";
     $mbrName = isset($mbr['name']) ? $mbr['name'] : "Member $memberIndex";
 
-    if ($mbrType === 'fppd_stream') {
-        // fppd_stream members: primary group has no loopback (volume via fppd),
-        // non-primary groups have a fan-out loopback whose name uses sourceId
-        $sourceId = isset($mbr['sourceId']) ? $mbr['sourceId'] : 'fppd_stream_1';
-        $streamSlug = preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($sourceId));
-        $loopbackNodeName = "fpp_loopback_ig{$groupId}_{$streamSlug}";
-    } else {
-        $loopbackNodeName = "fpp_loopback_ig{$groupId}_" . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($mbrName));
-    }
+    // fppd_stream members: primary group has no loopback (volume via fppd),
+    // non-primary groups have a fan-out loopback whose name uses sourceId
+    $sourceId = isset($mbr['sourceId']) ? $mbr['sourceId'] : 'fppd_stream_1';
+    $loopbackNodeName = InputGroupMemberLoopbackName($groupId, $mbr, $memberIndex);
 
     // Find the PipeWire node ID for this loopback
     $env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp";
@@ -2580,27 +2695,7 @@ function SetInputGroupMemberVolume($bodyOverride = null)
         return json(array("status" => "error", "message" => "Invalid PipeWire dump"));
     }
 
-    // Find the node that carries this loopback's level.  PipeWire loopback
-    // modules create sub-nodes named input.NAME and output.NAME (there is no
-    // bare parent node); the level belongs on the playback side alone -- set
-    // on both, one member's trim would be applied twice.
-    $nodeIds = array();
-    $fallbackIds = array();
-    foreach ($objects as $obj) {
-        $type = isset($obj['type']) ? $obj['type'] : '';
-        if ($type !== 'PipeWire:Interface:Node')
-            continue;
-        $props = isset($obj['info']['props']) ? $obj['info']['props'] : array();
-        $nm = isset($props['node.name']) ? $props['node.name'] : '';
-        if ($nm === 'output.' . $loopbackNodeName) {
-            $nodeIds[$obj['id']] = pw_node_channel_count($obj);
-        } elseif ($nm === $loopbackNodeName || $nm === 'input.' . $loopbackNodeName) {
-            $fallbackIds[$obj['id']] = pw_node_channel_count($obj);
-        }
-    }
-    if (empty($nodeIds)) {
-        $nodeIds = $fallbackIds;
-    }
+    $nodeIds = pw_find_loopback_level_nodes($objects, $loopbackNodeName);
 
     if (empty($nodeIds) && $mbrType === 'fppd_stream') {
         // No loopback, because this stream feeds only this one bus:
@@ -3447,13 +3542,10 @@ function SetRoutingPathVolume($bodyOverride = null)
     $ogData = json_decode(file_get_contents($outputGroupsFile), true);
 
     // Find input group
-    $igName = '';
-    $hasEffects = false;
+    $routingNodeName = InputGroupRoutingNodeName(array('id' => $igId));
     foreach ($igData['inputGroups'] as $ig) {
         if (intval($ig['id']) === $igId) {
-            $igName = isset($ig['name']) ? $ig['name'] : '';
-            $hasEffects = isset($ig['effects']['eq']['enabled']) && $ig['effects']['eq']['enabled']
-                && isset($ig['effects']['eq']['bands']) && !empty($ig['effects']['eq']['bands']);
+            $routingNodeName = InputGroupRoutingNodeName($ig);
             break;
         }
     }
@@ -3474,8 +3566,6 @@ function SetRoutingPathVolume($bodyOverride = null)
 
     // The combine-stream that routes to output groups is either:
     // - fpp_input_<name> (no effects) or fpp_route_ig_<id> (with effects)
-    $routingNodeName = $hasEffects ? "fpp_route_ig_$igId" : InputGroupNodeName($igName);
-
     // Find the internal combine-stream output that targets this output group
     // The internal stream name pattern: <combine_name>.<target_name>
     $env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp";
@@ -6355,7 +6445,9 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
 /////////////////////////////////////////////////////////////////////////////
 // RestorePipeWireGroupVolumes
 // Apply per-group and per-member volume levels from the audio groups JSON
-// to the running PipeWire sinks via pactl.  Call after PipeWire restart.
+// to the running PipeWire sinks via pactl, then the input groups' levels
+// (RestorePipeWireInputGroupVolumes()): a restart rebuilds those nodes at full
+// level too.  Call after PipeWire restart.
 function RestorePipeWireGroupVolumes($groups = null)
 {
     global $SUDO, $settings;
@@ -6370,12 +6462,8 @@ function RestorePipeWireGroupVolumes($groups = null)
         $backend = isset($settings['MediaBackend']) ? strtolower($settings['MediaBackend']) : 'pipewire-simple';
         $configFile = $settings['mediaDirectory'] . "/config/" .
             ($backend === 'pipewire-simple' ? "pipewire-audio-groups-simple.json" : "pipewire-audio-groups.json");
-        if (!file_exists($configFile))
-            return;
-        $data = json_decode(file_get_contents($configFile), true);
-        if (!is_array($data) || !isset($data['groups']))
-            return;
-        $groups = $data['groups'];
+        $data = file_exists($configFile) ? json_decode(file_get_contents($configFile), true) : null;
+        $groups = is_array($data) && isset($data['groups']) && is_array($data['groups']) ? $data['groups'] : array();
     }
 
     $env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp PULSE_RUNTIME_PATH=/run/pipewire-fpp/pulse";
@@ -6420,6 +6508,11 @@ function RestorePipeWireGroupVolumes($groups = null)
             }
         }
     }
+
+    // A missing or unreadable groups file is not a reason to skip the mix
+    // buses: they live in their own file and come up just as loud.  As
+    // restorePipeWireVolumes() in FPPINIT_Audio.cpp does.
+    RestorePipeWireInputGroupVolumes();
 }
 
 /////////////////////////////////////////////////////////////////////////////

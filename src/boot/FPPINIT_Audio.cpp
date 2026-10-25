@@ -1058,11 +1058,181 @@ static void syncPipeWireDefaultSink() {
     exec(env + "/usr/bin/pactl set-default-sink '" + target + "' 2>/dev/null");
 }
 
+// A playback stream's level, as a linear gain set on the running node with
+// pw-cli -- the stage pactl and the UI's faders drive (channelVolumes).  The
+// generated config's channelmix.volume is not applied by PipeWire, and a
+// stream node is no sink for pactl set-sink-volume.
+// KEEP IN SYNC with pw_set_node_volume_linear() in pipewire.php.
+static void setPipeWireNodeVolumeLinear(int nodeId, int volPct, int channels) {
+    volPct = std::max(0, std::min(100, volPct));
+    std::string vals;
+    for (int i = 0; i < std::max(1, channels); i++) {
+        char v[16];
+        snprintf(v, sizeof(v), "%s%.4g", i ? ", " : "", volPct / 100.0);
+        vals += v;
+    }
+    exec("PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp "
+         "/usr/bin/pw-cli set-param " +
+         std::to_string(nodeId) + " Props '{ channelVolumes: [ " + vals + " ] }' >/dev/null 2>&1");
+}
+
+// A node in the running graph, as the input group levels below look for it.
+struct PipeWireStreamNode {
+    int id = 0;
+    int channels = 2;
+    std::string name;
+    std::string target;
+};
+
+// Every node in the running graph, from one pw-dump: its name, what it was
+// told to connect to, and how many channels its volume has (from the
+// channelVolumes it reports; stereo if it reports none).
+// KEEP IN SYNC with pw_node_channel_count() in pipewire.php.
+static std::vector<PipeWireStreamNode> pipeWireStreamNodes() {
+    std::vector<PipeWireStreamNode> nodes;
+    const std::string out = execAndReturn("PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp "
+                                          "/usr/bin/pw-dump 2>/dev/null");
+    Json::Value dump;
+    if (out.find('[') == std::string::npos || !LoadJsonFromString(out, dump, JsonRoot::Array)) {
+        return nodes;
+    }
+    auto str = [](const Json::Value& o, const char* key) {
+        return o.isObject() && o[key].isString() ? o[key].asString() : std::string();
+    };
+    for (const auto& obj : dump) {
+        if (str(obj, "type") != "PipeWire:Interface:Node" || !obj["id"].isIntegral() || !obj["info"].isObject()) {
+            continue;
+        }
+        const Json::Value& info = obj["info"];
+        PipeWireStreamNode n;
+        n.id = obj["id"].asInt();
+        n.name = str(info["props"], "node.name");
+        n.target = str(info["props"], "node.target");
+        if (n.target.empty()) {
+            n.target = str(info["props"], "target.object");
+        }
+        const Json::Value& params = info["params"];
+        if (params.isObject() && params["Props"].isArray()) {
+            for (const auto& p : params["Props"]) {
+                if (p.isObject() && p["channelVolumes"].isArray() && !p["channelVolumes"].empty()) {
+                    n.channels = p["channelVolumes"].size();
+                    break;
+                }
+            }
+        }
+        nodes.push_back(n);
+    }
+    return nodes;
+}
+
+// The levels inside the input groups: each member's send into its bus (the
+// playback half, output.<name>, of its loopback) and each routing path from a
+// bus to an output group (the bus's combine-stream output to that group).
+// They are rebuilt at full level on every start like the buses.  Every saved
+// level is set, 100% included: WirePlumber restores a stream's last live level
+// when it comes back, which need not be the saved one.  A muted member or path
+// has no node -- the generated config leaves it out.
+//
+// KEEP IN SYNC with RestoreInputGroupSendAndPathLevels() in
+// www/api/controllers/pipewire.php, and the node names with
+// GeneratePipeWireInputGroupsConfig().
+static void restoreInputGroupSendAndPathLevels(const Json::Value& inputGroups) {
+    std::map<int, std::string> outputNodes;
+    Json::Value og;
+    if (loadAudioGroupsConfig(FPP_MEDIA_DIR + "/config/pipewire-audio-groups.json", og)) {
+        for (const auto& grp : og["groups"]) {
+            if (grp.isMember("id")) {
+                outputNodes[grp["id"].asInt()] = "fpp_group_" + normalizeCardIdForNode(grp.get("name", "Group").asString());
+            }
+        }
+    }
+    // A level as the PHP's intval() reads it; anything that is not a number is 100.
+    auto level = [](const Json::Value& o) {
+        const Json::Value& v = o["volume"];
+        return v.isNumeric() ? (int)std::max(0.0, std::min(100.0, v.asDouble())) : 100;
+    };
+    auto muted = [](const Json::Value& o) {
+        return o["mute"].isConvertibleTo(Json::booleanValue) && o["mute"].asBool();
+    };
+
+    std::vector<PipeWireStreamNode> nodes;
+    bool dumped = false;
+    for (const auto& ig : inputGroups) {
+        if (!ig.isObject() || !ig["enabled"].isConvertibleTo(Json::booleanValue) || !ig["enabled"].asBool() ||
+            !ig["id"].isIntegral()) {
+            continue;
+        }
+        if (!dumped) {
+            nodes = pipeWireStreamNodes();
+            dumped = true;
+            if (nodes.empty()) {
+                return;
+            }
+        }
+        const int groupId = ig["id"].asInt();
+
+        if (ig["members"].isArray()) {
+            for (Json::ArrayIndex mi = 0; mi < ig["members"].size(); mi++) {
+                const Json::Value& mbr = ig["members"][mi];
+                if (!mbr.isObject() || muted(mbr)) {
+                    continue;
+                }
+                std::string slug = mbr["type"].isString() && mbr["type"].asString() == "fppd_stream"
+                                       ? (mbr["sourceId"].isString() ? mbr["sourceId"].asString() : "fppd_stream_1")
+                                       : (mbr["name"].isString() ? mbr["name"].asString() : "Member " + std::to_string(mi));
+                const std::string loopback = "fpp_loopback_ig" + std::to_string(groupId) + "_" + normalizeCardIdForNode(slug);
+                std::vector<const PipeWireStreamNode*> found, fallback;
+                for (const auto& n : nodes) {
+                    if (n.name == "output." + loopback) {
+                        found.push_back(&n);
+                    } else if (n.name == loopback || n.name == "input." + loopback) {
+                        fallback.push_back(&n);
+                    }
+                }
+                for (const auto* n : found.empty() ? fallback : found) {
+                    setPipeWireNodeVolumeLinear(n->id, level(mbr), n->channels);
+                }
+            }
+        }
+
+        // Every path the bus has (its outputs), at its saved level or the
+        // generator's default of 100% when the routing matrix has none.
+        if (ig["outputs"].isArray()) {
+            const Json::Value& eq = ig["effects"].isObject() ? ig["effects"]["eq"] : Json::Value::nullSingleton();
+            const bool hasEffects = eq.isObject() && eq["enabled"].isConvertibleTo(Json::booleanValue) &&
+                                    eq["enabled"].asBool() && eq["bands"].isArray() && !eq["bands"].empty();
+            const std::string route = hasEffects ? "fpp_route_ig_" + std::to_string(groupId)
+                                                 : "fpp_input_" + normalizeCardIdForNode(ig["name"].isString() ? ig["name"].asString() : "");
+            for (const auto& out : ig["outputs"]) {
+                if (!out.isIntegral()) {
+                    continue;
+                }
+                const std::string key = std::to_string(out.asInt());
+                const Json::Value& path = ig["routing"].isObject() && ig["routing"][key].isObject()
+                                              ? ig["routing"][key]
+                                              : Json::Value::nullSingleton();
+                auto target = outputNodes.find(out.asInt());
+                if ((path.isObject() && muted(path)) || target == outputNodes.end()) {
+                    continue;
+                }
+                for (const auto& n : nodes) {
+                    const bool ours = n.name == route || startsWith(n.name, route + ".") ||
+                                      startsWith(n.name, "output." + route + "_");
+                    if (ours && n.target == target->second) {
+                        setPipeWireNodeVolumeLinear(n.id, level(path), n.channels);
+                    }
+                }
+            }
+        }
+    }
+}
+
 // Reapply the saved mix bus levels.  A mix bus is an input group's own
 // combine-stream sink (fpp_input_<name>) -- the output of the mix, a stage of
 // its own between the sources feeding it and the routing paths leaving it.
 // PipeWire rebuilds those sinks at full volume on every start, so without this
-// a bus fader lasts only until the next reboot.
+// a bus fader lasts only until the next reboot.  The members' and routing
+// paths' levels follow (restoreInputGroupSendAndPathLevels()).
 //
 // Advanced mode only: Simple mode has no input groups, and no file.
 //
@@ -1094,6 +1264,7 @@ static void restorePipeWireInputGroupVolumes() {
         setPipeWireSinkVolume(busNode, ig.get("volume", 100).asInt());
         setPipeWireSinkMute(busNode, ig.get("mute", false).asBool());
     }
+    restoreInputGroupSendAndPathLevels(root["inputGroups"]);
 }
 
 // Reapply the user's configured group/member volumes after the PipeWire stack has
