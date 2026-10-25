@@ -216,7 +216,12 @@ function WaitForFppdReady($timeoutSec = 20)
 // Playback is deliberately NOT stopped here.  Callers that resume afterwards
 // have to stop it themselves, because stopping is how they capture what to
 // resume; doing it here as well would double-stop and lose that state.
-function RestartPipeWireStack($restartFppd = true)
+//
+// The saved levels are put back here too, for every caller: the restart
+// rebuilds the output groups', buses' and routing paths' nodes at full level.
+// $groups is the output groups the graph was generated from (an Apply of an
+// in-memory Simple mode config); null reads the saved ones.
+function RestartPipeWireStack($restartFppd = true, $groups = null)
 {
     global $SUDO;
 
@@ -249,6 +254,8 @@ function RestartPipeWireStack($restartFppd = true)
         @SendCommand('restart');
         WaitForFppdReady();
     }
+
+    RestorePipeWireGroupVolumes($groups);
 
     return $services;
 }
@@ -645,8 +652,10 @@ function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
     // which left it holding a dead PipeWire connection after every audio-groups
     // Apply -- silent playback with nothing logged, until its own preroll
     // watchdog gave up 45s later and restarted it anyway.  Playback was already
-    // stopped above, and is resumed at the end of this function.
-    RestartPipeWireStack();
+    // stopped above, and is resumed at the end of this function.  The restart
+    // also restores the configured levels: WirePlumber may have restored stale
+    // volume state.
+    RestartPipeWireStack(true, $data['groups']);
 
     // Restore ALSA hardware mixer levels to 100% for every member card.
     // WirePlumber auto-detects ALSA devices and may restore saved volume
@@ -702,10 +711,6 @@ function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
             SetFppdSetting('PipeWireSinkName', $activeGroup);
         }
     }
-
-    // Restore configured volume levels to PipeWire sinks.
-    // WirePlumber may have restored stale volume state after restart.
-    RestorePipeWireGroupVolumes($data['groups']);
 
     // Resume playback if it was active before the restart
     if ($wasPlaying && !empty($resumePlaylist)) {
@@ -2317,16 +2322,13 @@ function ApplyPipeWireInputGroups($skipRestart = false)
 
     // Restart the stack, and fppd with it (skipped when $skipRestart=true — the
     // caller owns the sequence).  fppd was not being restarted here either, so
-    // applying input groups left it on a dead PipeWire connection.
+    // applying input groups left it on a dead PipeWire connection.  The restart
+    // puts the saved levels back before anything plays through the rebuilt
+    // sinks and streams.
     if (!$skipRestart) {
         StopFppdPlaybackSafe();
         RestartPipeWireStack();
     }
-
-    // The rebuilt sinks and streams come up at full volume, so put the saved
-    // levels back before anything starts playing through them: the output
-    // groups' as well as the buses', since the restart rebuilt those too.
-    RestorePipeWireGroupVolumes();
 
     // Set PipeWire default sink and push setting to fppd (best-effort)
     if (!empty($fppdTarget)) {
