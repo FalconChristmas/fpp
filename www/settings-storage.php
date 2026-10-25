@@ -149,7 +149,7 @@ function PrintStorageDeviceSelect($platform)
             (preg_match("/^nvme[0-9]n[0-9]p[0-9]/", $fileName))
         ) {
             exec($SUDO . " sfdisk -s /dev/$fileName", $output, $return_val);
-            $GB = intval($output[0]) / 1024.0 / 1024.0;
+            $GB = isset($output[0]) ? intval($output[0]) / 1024.0 / 1024.0 : 0;
             unset($output);
 
             if ($GB <= 0.1)
@@ -209,7 +209,8 @@ function PrintStorageDeviceSelect($platform)
 
 $addnewfsbutton = false;
 exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
-$rootDevice = $output[0];
+$rootDevice = isset($output[0]) ? $output[0] : "";
+unset($output);
 if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2' || $rootDevice == 'mmcblk0p3' || $rootDevice == 'nvme0n1p2' || $rootDevice == 'sda2') {
     if (isset($settings["UnpartitionedSpace"]) && $settings['UnpartitionedSpace'] > 0) {
         $addnewfsbutton = true;
