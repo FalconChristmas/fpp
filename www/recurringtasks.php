@@ -213,7 +213,10 @@
 
             task.type = row.find('.ptTmplType').val();
             if (task.type === 'preset') {
-                task.preset = row.find('.ptTmplPreset').val().trim();
+                // The selected option's own value: jQuery's .val() reads a
+                // disabled "(unavailable)" one as null, which threw here and
+                // saved nothing.  An unavailable preset is kept, as shown.
+                task.preset = (row.find('.ptTmplPreset option:selected').val() || '').trim();
                 task.command = '';
                 task.args = [];
                 task.resultVariable = '';
