@@ -335,6 +335,11 @@ if ($printSigningUI) {
         // dropdowns fully selectable so the user is never locked out of an unknown/older cape.
         var eepromCurrentVendorSelected = false;
         var eepromCurrentCapeSelected = false;
+        // How closely the auto-selected vendor's name matched (see eepromVendorNamesMatch()), and
+        // which one it was: a closer match arriving later replaces it unless the user has since
+        // picked another.
+        var eepromCurrentVendorMatch = 0;
+        var eepromAutoVendor = '';
 
         // Normalize a vendor name for loose matching: lowercase, alphanumerics only.  The vendor
         // name baked into a cape's EEPROM is often a fuller form than the vendor-list name -- e.g.
@@ -344,16 +349,21 @@ if ($printSigningUI) {
         function normalizeEEPROMVendorName(name) {
             return (name || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
         }
-        // Match if the names are equal or one is a prefix of the other.  The real-world differences
-        // are all trailing suffixes ("LLC", ".com"), so prefix matching catches them without the
-        // false positives that arbitrary substring matching could cause.
+        // 2 if the names are equal, 1 if one is a prefix of the other, 0 if neither.  The real-world
+        // differences are all trailing suffixes ("LLC", ".com"), so prefix matching catches them
+        // without the false positives that arbitrary substring matching could cause.  Equal beats
+        // a prefix: the vendor lists arrive in any order, and one vendor's name can be a prefix of
+        // another's.
         function eepromVendorNamesMatch(listName, capeVendor) {
             var a = normalizeEEPROMVendorName(listName);
             var b = normalizeEEPROMVendorName(capeVendor);
             if (a == '' || b == '') {
-                return false;
+                return 0;
             }
-            return a == b || a.indexOf(b) === 0 || b.indexOf(a) === 0;
+            if (a == b) {
+                return 2;
+            }
+            return (a.indexOf(b) === 0 || b.indexOf(a) === 0) ? 1 : 0;
         }
         var eepromIndexURL = 'https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/eepromVendors.json';
         function addEEPROMVendorList(eepromjson) {
@@ -373,10 +383,19 @@ if ($printSigningUI) {
             $('#eepromVendorList').removeAttr('disabled');
             $('#eepromVendorList').show();
             // Default the dropdowns to the currently-installed cape (issue #2564).
-            // Vendor files load asynchronously, so attempt the match as each arrives.
-            if (!eepromCurrentVendorSelected && currentCapeVendor != ''
-                && eepromVendorNamesMatch(eepromjson.name, currentCapeVendor)) {
+            // Vendor files load asynchronously, so attempt the match as each arrives,
+            // keeping the closest one.
+            var match = currentCapeVendor != '' ? eepromVendorNamesMatch(eepromjson.name, currentCapeVendor) : 0;
+            if (match > eepromCurrentVendorMatch
+                && (!eepromCurrentVendorSelected || $('#eepromVendorList').val() == eepromAutoVendor)) {
                 eepromCurrentVendorSelected = true;
+                eepromCurrentVendorMatch = match;
+                eepromAutoVendor = vendName;
+                // The installed cape is looked for again in this vendor's list, and the
+                // hardware locked again only if it is there.
+                eepromCurrentCapeSelected = false;
+                $('#eepromVendorList').prop('disabled', false);
+                $('#eepromHardwareLockedNote').hide();
                 $('#eepromVendorList').val(vendName).trigger("change");
             }
         }
