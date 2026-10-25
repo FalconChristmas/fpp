@@ -22,6 +22,7 @@
 #include <net/if.h>
 #include <netinet/in.h>
 #include <openssl/sha.h>
+#include <poll.h>
 #include <strings.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -258,6 +259,22 @@ void WLEDAPIResponder::Initialize() {
         closeFd(m_socket);
         return;
     }
+    // The accept thread waits in poll() on the socket and this pipe, and
+    // Cleanup() wakes it through the pipe. It used to wait in accept() and be
+    // woken by shutdown() on the listening socket, which only Linux honours:
+    // on macOS accept() went on waiting and fppd hung on every stop. The
+    // socket is non-blocking so a connection that goes away between poll()
+    // and accept() can't leave the thread in accept() either.
+    if (::pipe(m_wakePipe) < 0) {
+        LogErr(VB_GENERAL, "WLEDAPIResponder: pipe() failed: %s\n", FPPstrerror(errno));
+        closeFd(m_socket);
+        return;
+    }
+    for (int fd : m_wakePipe) {
+        fcntl(fd, F_SETFD, FD_CLOEXEC);
+    }
+    fcntl(m_wakePipe[1], F_SETFL, fcntl(m_wakePipe[1], F_GETFL) | O_NONBLOCK);
+    fcntl(m_socket, F_SETFL, fcntl(m_socket, F_GETFL) | O_NONBLOCK);
 
     m_running = true;
     m_acceptThread = new std::thread([this]() {
@@ -272,13 +289,15 @@ void WLEDAPIResponder::Cleanup() {
     if (!m_running && m_socket < 0) return;
     m_running = false;
 
-    // shutdown() wakes a thread blocked in accept() - on Linux a plain
-    // close() does not reliably. The descriptor is closed only after the
-    // accept thread has been joined below: closed while that thread could
-    // still loop back into accept(), it raced m_socket, and accept() could
-    // land on a closed descriptor or one already reused elsewhere.
-    if (m_socket >= 0) {
-        ::shutdown(m_socket, SHUT_RDWR);
+    // Wake the accept thread out of its poll(). The descriptors are closed
+    // only after it has been joined below: closed while that thread could
+    // still loop back into poll() and accept(), they raced it, and accept()
+    // could land on a closed descriptor or one already reused elsewhere.
+    if (m_wakePipe[1] >= 0) {
+        char c = 0;
+        if (::write(m_wakePipe[1], &c, 1) < 0) {
+            LogWarn(VB_GENERAL, "WLEDAPIResponder: could not wake the accept thread: %s\n", FPPstrerror(errno));
+        }
     }
 
     // Shut down every per-connection socket too — accept-thread might
@@ -294,9 +313,9 @@ void WLEDAPIResponder::Cleanup() {
         delete m_acceptThread;
         m_acceptThread = nullptr;
     }
-    if (m_socket >= 0) {
-        closeFd(m_socket);
-    }
+    closeFd(m_socket);
+    closeFd(m_wakePipe[0]);
+    closeFd(m_wakePipe[1]);
     for (auto& t : m_clientThreads) {
         if (t->thread.joinable()) t->thread.join();
     }
@@ -311,13 +330,24 @@ void WLEDAPIResponder::AcceptLoop() {
     std::chrono::steady_clock::time_point lastAcceptWarn{};
     int acceptFailures = 0;
     while (m_running) {
+        struct pollfd fds[2] = { { m_socket, POLLIN, 0 }, { m_wakePipe[0], POLLIN, 0 } };
+        if (::poll(fds, 2, -1) < 0 && errno != EINTR) {
+            LogErr(VB_GENERAL, "WLEDAPIResponder: poll() failed: %s\n", FPPstrerror(errno));
+            break;
+        }
+        if (!m_running || fds[1].revents) {
+            break;
+        }
+        if (!fds[0].revents) {
+            continue;
+        }
         int client = AcceptSocket(m_socket, nullptr, nullptr);
         if (client < 0) {
             int err = errno;
             if (!m_running) {
                 break;
             }
-            if (err == EINTR || err == ECONNABORTED) {
+            if (err == EINTR || err == ECONNABORTED || err == EAGAIN || err == EWOULDBLOCK) {
                 continue;
             }
             // Out of descriptors (EMFILE/ENFILE) or memory, the pending
@@ -334,6 +364,9 @@ void WLEDAPIResponder::AcceptLoop() {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
+        // The client thread reads with blocking calls; on macOS an accepted
+        // socket inherits the listening socket's O_NONBLOCK.
+        fcntl(client, F_SETFL, fcntl(client, F_GETFL) & ~O_NONBLOCK);
         // Writes to a client happen under m_clientsLock (the state
         // broadcast), so one that stops reading must not block them for
         // good: give up on it after a couple of seconds.

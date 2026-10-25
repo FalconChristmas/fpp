@@ -79,6 +79,9 @@ private:
     // Port the WLED responder listens on. Apache proxies /ws to this.
     int m_port = 32327;
     int m_socket = -1;
+    // Cleanup() writes a byte to [1] to wake the accept thread, which polls
+    // [0] beside the listening socket.
+    int m_wakePipe[2] = { -1, -1 };
     // Cleared by Cleanup() while the accept and client threads loop on it.
     std::atomic<bool> m_running{ false };
 
