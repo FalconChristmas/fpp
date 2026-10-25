@@ -224,7 +224,8 @@ while read -r wifi_device || [[ -n $wifi_device ]]; do
         # wpa_supplicant's own background/roam scans do - so run the normal
         # scans and just prefer the low-priority hint where the driver has it.
         printf "%s: connected to '%s'\n\n" "$wifi_device" "$ssid"
-        if iw_scan=$(iw dev "$wifi_device" scan low-priority 2>&1); then
+        # "lowpri", as iw spells it: "low-priority" is a usage error.
+        if iw_scan=$(iw dev "$wifi_device" scan lowpri 2>&1); then
             show "iw dev $wifi_device scan (nl80211, low-priority)" '^BSS ' parse_iw "$iw_scan"
         else
             # Most in-kernel drivers (brcmfmac on the Pi's onboard radio

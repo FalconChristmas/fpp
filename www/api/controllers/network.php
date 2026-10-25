@@ -412,7 +412,10 @@ function network_wifi_run_scan($interface, $connected)
 
     if ($connected) {
         // Kindest to the live link where the driver implements it.
-        $attempts[] = array("sudo /sbin/iw dev $iface scan low-priority 2>/dev/null", 'network_parse_iw_scan');
+        // "lowpri" is iw's word for it; iw refuses anything else as a usage
+        // error, so "low-priority" never scanned and every connected scan fell
+        // through to a full one.
+        $attempts[] = array("sudo /sbin/iw dev $iface scan lowpri 2>/dev/null", 'network_parse_iw_scan');
     }
 
     // Preferred path: nl80211 via `iw`. Works on modern in-kernel drivers
