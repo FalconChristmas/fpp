@@ -62,6 +62,17 @@ function ServeOpenApiSpec() {
     exit;
 }
 
+// Whether an fppd path is one of fppd's /internal/ routes (its route list,
+// /internal/pluginApiRoutes, and /internal/crashReport).  Those are for this
+// player's own PHP: Apache refuses /api/plugin-apis/internal... with a 403
+// (etc/apache2.site), so the spec must not list one -- it could only fail.
+// Without regard to case, as Apache's rule matches it and as fppd matches its
+// routes.
+function DocsInternalFppdPath($rawPath)
+{
+    return preg_match('#^/internal(/|$)#i', $rawPath) === 1;
+}
+
 // Plugins that serve HTTP routes from C++ can describe them in an
 // apiDocs.json at the top of the plugin directory, and those descriptions are
 // merged into the spec here so they appear on the API page like anything else
@@ -131,6 +142,10 @@ function MergePluginApiDocs(&$spec)
         foreach ($docs['paths'] as $rawPath => $methods) {
             if (!is_array($methods) || $rawPath === '' || $rawPath[0] !== '/') {
                 error_log("FPP: ignoring path '$rawPath' in $docFile -- paths start with '/'");
+                continue;
+            }
+            if (DocsInternalFppdPath($rawPath)) {
+                error_log("FPP: ignoring path '$rawPath' in $docFile -- fppd's /internal/ routes are not served");
                 continue;
             }
             $namespace = ltrim(strtok($rawPath, '/'), '/');
@@ -208,12 +223,10 @@ function MergeUndocumentedFppdRoutes(&$spec)
 
     // fppd registers this at /fppdws, an entirely separate websocket proxy
     // (see etc/apache2.site's ProxyPass /fppdws ws://...) -- not a REST path
-    // under /api/ at all, so it can't be expressed as one here. And this
-    // function's own data source lists itself along with everything else --
-    // deliberately undocumented (see the comment on its registerHandler()
-    // call in httpAPI.cpp), so exclude it explicitly rather than relying on
-    // it happening to fall outside $directProxyNamespaces.
-    $nonApiRoutes = array('/fppdws', '/internal/pluginApiRoutes');
+    // under /api/ at all, so it can't be expressed as one here.  fppd's
+    // /internal/ routes, this function's own data source among them, are
+    // left out by DocsInternalFppdPath().
+    $nonApiRoutes = array('/fppdws');
 
     // Routes drogon registers with positional placeholders, documented by hand
     // at the same path with readable parameter names. The "already documented?"
@@ -257,6 +270,10 @@ function MergeUndocumentedFppdRoutes(&$spec)
             continue;
         }
         if (in_array($route['method'] . ' ' . $rawPath, $nonFunctionalMethodPaths, true)) {
+            continue;
+        }
+
+        if (DocsInternalFppdPath($rawPath)) {
             continue;
         }
 
