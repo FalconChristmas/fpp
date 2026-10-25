@@ -2002,6 +2002,14 @@ HttpResponsePtr PixelOverlayManager::render_PUT(const HttpRequestPtr& req) {
                     holdOutputBriefly();
                 }
             }
+            if (numActive > 0) {
+                // As modelStateChanged() does for a model. The output thread
+                // idles only past a start request, so a range set while it
+                // waited out its 2.5 s idle wait (as it does just after fppd
+                // starts) went unsent until the wait timed out, the thread
+                // stopped outputs, and the main loop started it again.
+                StartChannelOutputThread();
+            }
             if (badRange) {
                 return makeStringResponse("{ \"Status\": \"Error\", \"Message\": \"Channel range out of bounds\"}", 400);
             }
