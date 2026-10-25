@@ -143,23 +143,40 @@ static int RecordWedgeRestartAndCount() {
     return (int)stamps.size();
 }
 
+// Set on a decodebin that chose a hardware video decoder (OnAutoplugSelect).
+static constexpr const char* HW_DECODER_CHOSEN_KEY = "fpp-hw-decoder-chosen";
+
 // Whether `pipeline` holds a hardware video decoder (element class
-// "Codec/Decoder/Video/Hardware" -- the V4L2 stateful and stateless decoders).
+// "Codec/Decoder/Video/Hardware" -- the V4L2 stateful and stateless decoders),
+// or its decodebin chose one that never got made.  decodebin chooses from the
+// registry, and making the element loads its plugin, whose init opens every
+// V4L2 device to register the decoders.  A decoder driver that has died (a
+// bcm2835-codec oops leaves its mutex held) blocks that open() for good, and
+// every later load waits behind it, so no decoder shows up in the pipeline.
+// A pipeline that chose one and holds no video decoder at all is stuck there;
+// one that fell back to a software decoder is not.
 static bool PipelineHasHwVideoDecoder(GstElement* pipeline) {
     if (!pipeline || !GST_IS_BIN(pipeline)) {
         return false;
     }
     bool found = false;
+    bool chosen = false;
+    bool videoDecoder = false;
     GstIterator* it = gst_bin_iterate_recurse(GST_BIN(pipeline));
     GValue item = G_VALUE_INIT;
     bool done = false;
     while (!done && !found) {
         switch (gst_iterator_next(it, &item)) {
         case GST_ITERATOR_OK: {
-            GstElementFactory* f = gst_element_get_factory(GST_ELEMENT(g_value_get_object(&item)));
+            GstElement* element = GST_ELEMENT(g_value_get_object(&item));
+            GstElementFactory* f = gst_element_get_factory(element);
             const gchar* klass = f ? gst_element_factory_get_metadata(f, GST_ELEMENT_METADATA_KLASS) : nullptr;
-            if (klass && strstr(klass, "Decoder") && strstr(klass, "Video") && strstr(klass, "Hardware")) {
-                found = true;
+            if (klass && strstr(klass, "Decoder") && strstr(klass, "Video")) {
+                videoDecoder = true;
+                found = strstr(klass, "Hardware") != nullptr;
+            }
+            if (g_object_get_data(G_OBJECT(element), HW_DECODER_CHOSEN_KEY)) {
+                chosen = true;
             }
             g_value_reset(&item);
             break;
@@ -174,7 +191,7 @@ static bool PipelineHasHwVideoDecoder(GstElement* pipeline) {
     }
     g_value_unset(&item);
     gst_iterator_free(it);
-    return found;
+    return found || (chosen && !videoDecoder);
 }
 
 // The restart and reboot rungs below exist for one failure: a hardware video
@@ -504,8 +521,27 @@ static void GuardVideoConvert(GstElement* element) {
     }
 }
 
+// decodebin's "autoplug-select", asked before it makes each element: note a
+// hardware video decoder on the decodebin (see PipelineHasHwVideoDecoder) and
+// let it go ahead.  0 is GST_AUTOPLUG_SELECT_TRY, whose enum is not public.
+static gint OnAutoplugSelect(GstElement* decodebin, GstPad*, GstCaps*, GstElementFactory* factory, gpointer) {
+    const gchar* klass = gst_element_factory_get_metadata(factory, GST_ELEMENT_METADATA_KLASS);
+    if (klass && strstr(klass, "Decoder") && strstr(klass, "Video") && strstr(klass, "Hardware")) {
+        g_object_set_data(G_OBJECT(decodebin), HW_DECODER_CHOSEN_KEY, GINT_TO_POINTER(1));
+    }
+    return 0;
+}
+
+static void WatchDecoderChoice(GstElement* element) {
+    GstElementFactory* factory = gst_element_get_factory(element);
+    if (factory && strcmp(gst_plugin_feature_get_name(GST_PLUGIN_FEATURE(factory)), "decodebin") == 0) {
+        g_signal_connect(element, "autoplug-select", G_CALLBACK(OnAutoplugSelect), nullptr);
+    }
+}
+
 static void OnDeepElementAdded(GstBin*, GstBin*, GstElement* element, gpointer) {
     GuardVideoConvert(element);
+    WatchDecoderChoice(element);
 }
 
 void GStreamerOutput::GuardVideoConvertInputs(GstElement* pipeline) {
@@ -523,6 +559,7 @@ void GStreamerOutput::GuardVideoConvertInputs(GstElement* pipeline) {
         switch (gst_iterator_next(it, &item)) {
         case GST_ITERATOR_OK:
             GuardVideoConvert(GST_ELEMENT(g_value_get_object(&item)));
+            WatchDecoderChoice(GST_ELEMENT(g_value_get_object(&item)));
             g_value_reset(&item);
             break;
         case GST_ITERATOR_RESYNC:

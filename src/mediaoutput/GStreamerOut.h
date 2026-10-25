@@ -91,6 +91,8 @@ public:
     // Make every videoconvert in `pipeline` -- including ones added later --
     // read decoded frames from padded system memory rather than straight out
     // of a hardware decoder's buffers.  See the comment at the definition.
+    // Also has each decodebin note a hardware video decoder it chooses, for
+    // the wedge ladder.
     static void GuardVideoConvertInputs(GstElement* pipeline);
 
     // The PipeWire sink a slot's audio is routed to ("" = PipeWire's default).
