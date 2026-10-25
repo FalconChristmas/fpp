@@ -169,6 +169,16 @@ ServerTokens Prod
     RewriteEngine On
     RewriteBase /api/
 
+    # A browser's CORS preflight (an OPTIONS carrying
+    # Access-Control-Request-Method) is answered here, with the CORS headers
+    # below and no body.  Neither fppd nor the PHP router has a route for
+    # OPTIONS -- they answered 404 and 501 -- and a browser takes only a 2xx
+    # preflight, so a cross-origin request that needs one (a JSON body, a PUT)
+    # was never sent, whatever Access-Control-Allow-Headers said.
+    RewriteCond %{REQUEST_METHOD} =OPTIONS
+    RewriteCond %{HTTP:Access-Control-Request-Method} !=""
+    RewriteRule ^ - [R=204,L]
+
     # Only rewrite if not a file or directory
     RewriteCond %{SCRIPT_FILENAME} !-f
     RewriteCond %{SCRIPT_FILENAME} !-d
