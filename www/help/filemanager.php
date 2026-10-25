@@ -38,7 +38,7 @@
 <p>Columns: File, Duration, Date Modified.</p>
 <ul>
     <li><b>Listen</b> (single) — Plays the audio in the browser for quick preview.</li>
-    <li><b>Normalize</b> (single or multiple) — Makes the selected songs equally loud. Each song's loudness is measured (LUFS, ITU-R BS.1770) and one fixed volume change is applied, so the mix is untouched; <i>show speakers / FM</i> matching also allows for deep bass that outdoor speakers barely reproduce. Peaks are kept under -1.5 dBTP (an optional limiter catches sharp peaks so quiet songs can still be raised). The file keeps its name, format, sample rate, tags and exact length, so sequences stay in sync. Works on MP3, M4A, AAC, WAV, FLAC and OGG. The first original of each song is kept in <code>backups/normalize</code>; <b>Restore Originals</b> in the same dialog puts it back.</li>
+    <li><b>Normalize</b> (single or multiple) — Makes the selected songs play equally loud. Each song's loudness and true peak are measured (LUFS, ITU-R BS.1770) and a volume change for it is stored in <code>config/media_gain.json</code>; fppd applies it whenever that song plays. The files themselves are never changed, so quality, timing and sync are untouched, and any format FPP plays works. <i>Show speakers / FM</i> matching also allows for deep bass that outdoor speakers barely reproduce. A song is never turned up past the point where its peaks would exceed -1.5 dBTP, nor by more than +20 dB. <b>Remove Normalization</b> in the same dialog makes a song play as recorded again. If a song is replaced by a new upload, its old setting is ignored until it is measured again.</li>
     <li><b>Add To Playlist, Download, Rename, Delete</b> — As above, with the same single/multi rules.</li>
 </ul>
 

@@ -1681,14 +1681,16 @@ function SetupTableSorter (tableName) {
 }
 
 
-// Normalize: make the selected songs equally loud (replaces MP3Gain). The
-// options are remembered per browser; the work itself streams from
-// run_normalize.php into the usual progress dialog.
+// Normalize: make the selected songs play equally loud (replaces MP3Gain).
+// run_normalize.php measures each song and stores a gain that fppd applies at
+// playback -- the files themselves are never changed. The options are
+// remembered per browser; progress streams into the usual progress dialog.
 function NormalizeAudioDialog (files) {
-	var opts = { target: '-14', match: 'speakers', limiter: true };
+	var opts = { target: '-14', match: 'speakers' };
 	try {
 		var saved = JSON.parse(localStorage.getItem('fppNormalizeOptions') || '{}');
-		$.extend(opts, saved);
+		if (saved.target) opts.target = String(saved.target);
+		if (saved.match) opts.match = saved.match;
 	} catch (e) {}
 	var targets = [
 		['-12', '-12 LUFS (loud)'],
@@ -1705,8 +1707,9 @@ function NormalizeAudioDialog (files) {
 	var body =
 		'<p>Makes the ' +
 		files.length +
-		' selected song(s) equally loud by measuring loudness (LUFS) and applying one fixed volume change per song. ' +
-		'Same format, sample rate and length, so sequences stay in sync. The first original of each song is kept so it can be restored.</p>' +
+		' selected song(s) play equally loud. Each song is measured (LUFS) and its volume change is applied when it plays; ' +
+		'the files themselves are not changed, so quality, timing and sync are untouched. ' +
+		'A song is never turned up so far that its peaks would clip.</p>' +
 		'<div class="mb-2"><label for="normalizeTarget"><b>Loudness</b></label> ' +
 		'<select id="normalizeTarget" class="form-select form-select-sm d-inline-block w-auto">' +
 		targetOptions +
@@ -1718,16 +1721,13 @@ function NormalizeAudioDialog (files) {
 		'<label><input type="radio" name="normalizeMatch" value="lufs"' +
 		(opts.match === 'lufs' ? ' checked' : '') +
 		'> Standard loudness (LUFS)</label></div>' +
-		'<div class="mb-2"><label><input type="checkbox" id="normalizeLimiter"' +
-		(opts.limiter ? ' checked' : '') +
-		'> Limit sharp peaks so quiet songs can be raised all the way</label></div>' +
-		'<p class="text-muted small mb-0">Runs one song at a time at low priority. Each song takes about as long as it plays on a Raspberry Pi.</p>';
+		'<p class="text-muted small mb-0">Measuring decodes each song once, one song at a time at low priority. ' +
+		'On a single-core board such as a BeagleBone Black that can take about as long as the song plays; multi-core Pis are faster.</p>';
 
 	var start = function (action) {
 		opts = {
 			target: $('#normalizeTarget').val(),
-			match: $('input[name=normalizeMatch]:checked').val(),
-			limiter: $('#normalizeLimiter').is(':checked')
+			match: $('input[name=normalizeMatch]:checked').val()
 		};
 		try {
 			localStorage.setItem('fppNormalizeOptions', JSON.stringify(opts));
@@ -1738,10 +1738,9 @@ function NormalizeAudioDialog (files) {
 			files: files,
 			target: parseFloat(opts.target),
 			peak: -1.5,
-			match: opts.match,
-			limiter: opts.limiter
+			match: opts.match
 		});
-		DisplayProgressDialog('normalizeProgress', action == 'restore' ? 'Restore Originals' : 'Normalize');
+		DisplayProgressDialog('normalizeProgress', action == 'remove' ? 'Remove Normalization' : 'Normalize');
 		StreamURL(
 			'run_normalize.php',
 			'normalizeProgressText',
@@ -1767,8 +1766,8 @@ function NormalizeAudioDialog (files) {
 					start('normalize');
 				}
 			},
-			'Restore Originals': function () {
-				start('restore');
+			'Remove Normalization': function () {
+				start('remove');
 			},
 			Cancel: function () {
 				CloseModalDialog('normalizeOptions');
