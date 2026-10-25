@@ -37,7 +37,7 @@
 <h5>Audio — .mp3 / .ogg / .m4a / .flac / .aac / .wav / .m4p</h5>
 <p>Columns: File, Duration, Date Modified.</p>
 <ul>
-    <li><b>Listen</b> (single) — Plays the audio in the browser for quick preview.</li>
+    <li><b>Listen</b> (single) — Plays the audio in a player on this page for a quick preview, with a working seek bar. Closing the player stops it.</li>
     <li><b>MP3Gain</b> (when <code>mp3gain</code> is installed, single or multiple) — Normalizes volume across tracks by rewriting each selected MP3 to the same ReplayGain loudness, turning a track down further where raising it would clip. The change is lossless (1.5 dB steps) and can be undone with <code>mp3gain -u</code>. Other audio formats are skipped.</li>
     <li><b>Add To Playlist, Download, Rename, Delete</b> — As above, with the same single/multi rules.</li>
 </ul>
@@ -45,7 +45,7 @@
 <h5>Video — .mp4 / .mkv / .avi / .mpg / .mov</h5>
 <p>Columns: File, Duration, Date Modified.</p>
 <ul>
-    <li><b>View</b> (single) — Plays the video in the browser.</li>
+    <li><b>View</b> (single) — Plays the video in a player on this page. Formats the browser can't decode (some MKV/AVI) still play on FPP; the player offers a download instead.</li>
     <li><b>Video Info</b> (single) — Shows codec, resolution and duration.</li>
     <li><b>Add To Playlist, Download, Rename, Delete</b> — As above.</li>
 </ul>
