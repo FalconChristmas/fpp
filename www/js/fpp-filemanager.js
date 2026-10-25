@@ -1047,22 +1047,12 @@ function ButtonHandler (table, button) {
 				'Error, unable to view multiple files at the same time.'
 			);
 		}
-	} else if (button == 'mp3gain') {
+	} else if (button == 'normalize') {
 		var files = [];
 		$('#tbl' + table + ' tr.selectedEntry').each(function () {
 			files.push($(this).find('td:first').text());
 		});
-		var postData = JSON.stringify(files);
-		DisplayProgressDialog('mp3GainProgress', 'MP3Gain');
-		StreamURL(
-			'run_mp3gain.php',
-			'mp3GainProgressText',
-			'ProgressDialogDone',
-			'ProgressDialogDone',
-			'POST',
-			postData,
-			'application/json'
-		);
+		NormalizeAudioDialog(files);
 	} else if (button == 'addToPlaylist') {
 		var files = [];
 		$('#tbl' + table + ' tr.selectedEntry').each(function () {
@@ -1690,3 +1680,99 @@ function SetupTableSorter (tableName) {
 	}
 }
 
+
+// Normalize: make the selected songs equally loud (replaces MP3Gain). The
+// options are remembered per browser; the work itself streams from
+// run_normalize.php into the usual progress dialog.
+function NormalizeAudioDialog (files) {
+	var opts = { target: '-14', match: 'speakers', limiter: true };
+	try {
+		var saved = JSON.parse(localStorage.getItem('fppNormalizeOptions') || '{}');
+		$.extend(opts, saved);
+	} catch (e) {}
+	var targets = [
+		['-12', '-12 LUFS (loud)'],
+		['-14', '-14 LUFS (recommended)'],
+		['-16', '-16 LUFS'],
+		['-18', '-18 LUFS'],
+		['-23', '-23 LUFS (broadcast)']
+	];
+	var targetOptions = targets
+		.map(function (t) {
+			return '<option value="' + t[0] + '"' + (t[0] == opts.target ? ' selected' : '') + '>' + t[1] + '</option>';
+		})
+		.join('');
+	var body =
+		'<p>Makes the ' +
+		files.length +
+		' selected song(s) equally loud by measuring loudness (LUFS) and applying one fixed volume change per song. ' +
+		'Same format, sample rate and length, so sequences stay in sync. The first original of each song is kept so it can be restored.</p>' +
+		'<div class="mb-2"><label for="normalizeTarget"><b>Loudness</b></label> ' +
+		'<select id="normalizeTarget" class="form-select form-select-sm d-inline-block w-auto">' +
+		targetOptions +
+		'</select></div>' +
+		'<div class="mb-2"><b>Match songs by</b><br>' +
+		'<label><input type="radio" name="normalizeMatch" value="speakers"' +
+		(opts.match !== 'lufs' ? ' checked' : '') +
+		'> How they sound on show speakers / FM (recommended)</label><br>' +
+		'<label><input type="radio" name="normalizeMatch" value="lufs"' +
+		(opts.match === 'lufs' ? ' checked' : '') +
+		'> Standard loudness (LUFS)</label></div>' +
+		'<div class="mb-2"><label><input type="checkbox" id="normalizeLimiter"' +
+		(opts.limiter ? ' checked' : '') +
+		'> Limit sharp peaks so quiet songs can be raised all the way</label></div>' +
+		'<p class="text-muted small mb-0">Runs one song at a time at low priority. Each song takes about as long as it plays on a Raspberry Pi.</p>';
+
+	var start = function (action) {
+		opts = {
+			target: $('#normalizeTarget').val(),
+			match: $('input[name=normalizeMatch]:checked').val(),
+			limiter: $('#normalizeLimiter').is(':checked')
+		};
+		try {
+			localStorage.setItem('fppNormalizeOptions', JSON.stringify(opts));
+		} catch (e) {}
+		CloseModalDialog('normalizeOptions');
+		var postData = JSON.stringify({
+			action: action,
+			files: files,
+			target: parseFloat(opts.target),
+			peak: -1.5,
+			match: opts.match,
+			limiter: opts.limiter
+		});
+		DisplayProgressDialog('normalizeProgress', action == 'restore' ? 'Restore Originals' : 'Normalize');
+		StreamURL(
+			'run_normalize.php',
+			'normalizeProgressText',
+			'ProgressDialogDone',
+			'ProgressDialogDone',
+			'POST',
+			postData,
+			'application/json'
+		);
+	};
+
+	DoModalDialog({
+		id: 'normalizeOptions',
+		title: 'Normalize',
+		class: 'modal-m',
+		backdrop: true,
+		keyboard: true,
+		body: body,
+		buttons: {
+			Normalize: {
+				class: 'btn-success',
+				click: function () {
+					start('normalize');
+				}
+			},
+			'Restore Originals': function () {
+				start('restore');
+			},
+			Cancel: function () {
+				CloseModalDialog('normalizeOptions');
+			}
+		}
+	});
+}

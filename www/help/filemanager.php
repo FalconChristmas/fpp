@@ -38,7 +38,7 @@
 <p>Columns: File, Duration, Date Modified.</p>
 <ul>
     <li><b>Listen</b> (single) — Plays the audio in the browser for quick preview.</li>
-    <li><b>MP3Gain</b> (when <code>mp3gain</code> is installed, single or multiple) — Normalizes volume across tracks by rewriting each selected MP3 to the same ReplayGain loudness, turning a track down further where raising it would clip. The change is lossless (1.5 dB steps) and can be undone with <code>mp3gain -u</code>. Other audio formats are skipped.</li>
+    <li><b>Normalize</b> (single or multiple) — Makes the selected songs equally loud. Each song's loudness is measured (LUFS, ITU-R BS.1770) and one fixed volume change is applied, so the mix is untouched; <i>show speakers / FM</i> matching also allows for deep bass that outdoor speakers barely reproduce. Peaks are kept under -1.5 dBTP (an optional limiter catches sharp peaks so quiet songs can still be raised). The file keeps its name, format, sample rate, tags and exact length, so sequences stay in sync. Works on MP3, M4A, AAC, WAV, FLAC and OGG. The first original of each song is kept in <code>backups/normalize</code>; <b>Restore Originals</b> in the same dialog puts it back.</li>
     <li><b>Add To Playlist, Download, Rename, Delete</b> — As above, with the same single/multi rules.</li>
 </ul>
 
