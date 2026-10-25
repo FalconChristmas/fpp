@@ -675,8 +675,12 @@
                     if (eqNode && !absorbed.has(eqNode.id)) {
                         absorbed.add(n.id);
                         nodeIdRemap[n.id] = eqNode.id;
+                        // Only the hub's outputs move onto the EQ.  Its inputs
+                        // are fed by the EQ alone (a self-link once merged), so
+                        // they stay behind for the orphan-port filter; moved,
+                        // they were a second FL/FR on the EQ's input side.
                         graphData.ports.forEach(p => {
-                            if (p.nodeId === n.id) p.nodeId = eqNode.id;
+                            if (p.nodeId === n.id && p.direction === 'output') p.nodeId = eqNode.id;
                         });
                         if (n.state === 'running' && eqNode.state !== 'running') {
                             eqNode.state = n.state;
