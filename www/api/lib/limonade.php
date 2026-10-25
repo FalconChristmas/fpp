@@ -463,7 +463,12 @@ function env($reset = null)
     $method = request_method($env);
 
     $varname = "_$method";
-    if ((isset($_SERVER['CONTENT_TYPE'])) && (strpos($_SERVER['CONTENT_TYPE'], 'application/json') === 0))
+    // Not for GET or HEAD: their parameters are the query string, the route
+    // itself (uri) among them.  A GET that said it carried JSON -- as a
+    // browser's fetch() with a Content-Type header does, body or not -- had
+    // $_GET replaced with its (empty) body, lost its route and got a 404.
+    if ($method != 'GET' && $method != 'HEAD' &&
+        isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'application/json') === 0)
     {
       // handle PUT//POST requests which have JSON in request body
       $decoded = json_decode(file_get_contents('php://input'), true);
