@@ -1609,6 +1609,17 @@
                 const r = await fetch("api/system/status?type=FPP" + ips);
                 const alldata = await r.json();
                 systemStatusCache = alldata;
+                // The rows some address answered in this poll.  A remote listed
+                // at several addresses (wired and wireless) is polled at each;
+                // one that doesn't answer must not mark the row Unreachable, or
+                // redraw it from its empty status, while another one answers.
+                var answeredRows = {};
+                Object.entries(alldata).forEach(function (entry) {
+                    var data = entry[1];
+                    if (data && data != "null" && data.status_name && data.status_name != 'unreachable') {
+                        answeredRows[hostRows[entry[0].replace(/\./g, '_')]] = true;
+                    }
+                });
                 Object.entries(alldata).forEach(function (entry) {
                         var ip = entry[0], data = entry[1];
                         var status = 'Idle';
@@ -1616,6 +1627,9 @@
                         var elapsed = "";
                         var files = "";
                         if (data == null || data == "" || data == "null") {
+                            return;
+                        }
+                        if (data.status_name == 'unreachable' && answeredRows[hostRows[ip.replace(/\./g, '_')]]) {
                             return;
                         }
 
