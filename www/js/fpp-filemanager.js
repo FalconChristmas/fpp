@@ -1686,17 +1686,17 @@ function SetupTableSorter (tableName) {
 // playback -- the files themselves are never changed. The options are
 // remembered per browser; progress streams into the usual progress dialog.
 function NormalizeAudioDialog (files) {
-	var opts = { target: '-14', match: 'speakers' };
+	var opts = { target: '-18', match: 'speakers' };
 	try {
 		var saved = JSON.parse(localStorage.getItem('fppNormalizeOptions') || '{}');
 		if (saved.target) opts.target = String(saved.target);
 		if (saved.match) opts.match = saved.match;
 	} catch (e) {}
 	var targets = [
-		['-12', '-12 LUFS (loud)'],
-		['-14', '-14 LUFS (recommended)'],
+		['-14', '-14 LUFS (loud; quiet songs may not reach it)'],
 		['-16', '-16 LUFS'],
-		['-18', '-18 LUFS'],
+		['-18', '-18 LUFS (recommended)'],
+		['-20', '-20 LUFS'],
 		['-23', '-23 LUFS (broadcast)']
 	];
 	var targetOptions = targets
@@ -1709,7 +1709,8 @@ function NormalizeAudioDialog (files) {
 		files.length +
 		' selected song(s) play equally loud. Each song is measured (LUFS) and its volume change is applied when it plays; ' +
 		'the files themselves are not changed, so quality, timing and sync are untouched. ' +
-		'A song is never turned up so far that its peaks would clip.</p>' +
+		'A song is never turned up so far that its peaks would clip, so pick a level every song can reach: ' +
+		'commercial songs usually peak near full scale, and -18 LUFS lets almost all of them match. Make up the overall level with the amplifier, FM transmitter or FPP volume.</p>' +
 		'<div class="mb-2"><label for="normalizeTarget"><b>Loudness</b></label> ' +
 		'<select id="normalizeTarget" class="form-select form-select-sm d-inline-block w-auto">' +
 		targetOptions +

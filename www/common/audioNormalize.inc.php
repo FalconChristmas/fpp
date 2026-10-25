@@ -23,7 +23,8 @@
 //                   lands on the target, capped at +/-4 dB from plain LUFS.
 // A song is never raised past the point where its true peak would exceed the
 // ceiling (playback has no limiter), so a quiet song with sharp peaks may end
-// up a little under the target.
+// up a little under the target; with commercial masters peaking near 0 dBTP,
+// -18 LUFS (the UI default) is a level nearly every song can reach.
 //
 // Each entry records the file's size; fppd ignores an entry whose size no
 // longer matches, so a song replaced by a new upload plays as-is until it is

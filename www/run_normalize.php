@@ -24,7 +24,7 @@ if (!is_array($req) || !is_array($req['files'] ?? null) || !count($req['files'])
     exit(0);
 }
 $action = ($req['action'] ?? 'normalize') === 'remove' ? 'remove' : 'normalize';
-$target = is_numeric($req['target'] ?? null) ? floatval($req['target']) : -14.0;
+$target = is_numeric($req['target'] ?? null) ? floatval($req['target']) : -18.0;
 $peak = is_numeric($req['peak'] ?? null) ? floatval($req['peak']) : -1.5;
 if ($target < -30 || $target > -5 || $peak < -9 || $peak > 0) {
     http_response_code(400);
@@ -67,6 +67,7 @@ foreach ($req['files'] as $f) {
 }
 
 $ok = 0;
+$held = 0;
 $failed = 0;
 if ($action === 'remove') {
     try {
@@ -95,12 +96,20 @@ if ($action === 'remove') {
     foreach ($names as $i => $n) {
         Say(sprintf("[%d/%d] %s", $i + 1, count($names), $n));
         try {
-            Say("  " . AN_Process($dir, $n, $opts, $tools, 'Say'));
+            $result = AN_Process($dir, $n, $opts, $tools, 'Say');
+            Say("  " . $result);
             $ok++;
+            if (strpos($result, 'held back by peaks') !== false) {
+                $held++;
+            }
         } catch (Exception $e) {
             Say("  FAILED: " . $e->getMessage());
             $failed++;
         }
+    }
+    if ($held) {
+        Say(sprintf("\n%d song(s) could not be turned up all the way without clipping, so they will play quieter than the rest. " .
+            "Normalize all the songs again at a lower loudness (e.g. %d LUFS) to match them.", $held, $opts['target'] - 2));
     }
     if ($ok) {
         Say("\nThe files were not changed. The volume change is applied when a song plays; it takes effect the next time each song starts.");
