@@ -4495,23 +4495,24 @@ function PipeWireChannelPositions($channels)
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Helper: Channel count of a PipeWire node, by node.name.
-// Returns 0 when the node is not in the graph -- which is normal for nodes
-// fppd publishes, because PipeWire is started before fppd.  Callers must treat
-// 0 as "unknown", not as "no channels".
+// Helper: Channel count and channel positions of a PipeWire node, by
+// node.name: array('channels' => int, 'positions' => array of names).
+// Neither is known (0, array()) when the node is not in the graph -- which is
+// normal for nodes fppd publishes, because PipeWire is started before fppd.
 // pw-dump is cached for the life of the request: config generation asks about
 // several nodes and the graph cannot change underneath a single generation.
-function ResolvePipeWireNodeChannels($nodeName)
+function ResolvePipeWireNodeAudio($nodeName)
 {
     global $SUDO;
-    static $channelsByNode = null;
+    static $audioByNode = null;
 
+    $unknown = array('channels' => 0, 'positions' => array());
     if (empty($nodeName)) {
-        return 0;
+        return $unknown;
     }
 
-    if ($channelsByNode === null) {
-        $channelsByNode = array();
+    if ($audioByNode === null) {
+        $audioByNode = array();
         $env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp";
         $raw = shell_exec($SUDO . " " . $env . " pw-dump 2>/dev/null");
         $objects = $raw ? json_decode($raw, true) : null;
@@ -4521,20 +4522,47 @@ function ResolvePipeWireNodeChannels($nodeName)
                 if (!$props || !isset($props['node.name'])) {
                     continue;
                 }
+                $format = isset($obj['info']['params']['Format'][0]) ? $obj['info']['params']['Format'][0] : array();
                 $ch = 0;
                 if (isset($props['audio.channels'])) {
                     $ch = intval($props['audio.channels']);
-                } elseif (isset($obj['info']['params']['Format'][0]['channels'])) {
-                    $ch = intval($obj['info']['params']['Format'][0]['channels']);
+                } elseif (isset($format['channels'])) {
+                    $ch = intval($format['channels']);
+                }
+                // audio.position is "FL,FR" from the ALSA monitor and
+                // "[ FL FR ]" from a config file; the negotiated Format has
+                // an array.
+                $pos = array();
+                if (isset($props['audio.position']) && is_string($props['audio.position'])) {
+                    $pos = preg_split('/[\s,\[\]]+/', $props['audio.position'], -1, PREG_SPLIT_NO_EMPTY);
+                } elseif (isset($format['position']) && is_array($format['position'])) {
+                    $pos = $format['position'];
+                }
+                $pos = array_values(array_filter($pos, function ($p) {
+                    return is_string($p) && preg_match('/^[A-Z][A-Z0-9]*$/', $p);
+                }));
+                if ($ch <= 0) {
+                    $ch = count($pos);
                 }
                 if ($ch > 0) {
-                    $channelsByNode[$props['node.name']] = $ch;
+                    // Positions only when there is one per channel.
+                    $audioByNode[$props['node.name']] = array('channels' => $ch,
+                        'positions' => count($pos) === $ch ? $pos : array());
                 }
             }
         }
     }
 
-    return isset($channelsByNode[$nodeName]) ? $channelsByNode[$nodeName] : 0;
+    return isset($audioByNode[$nodeName]) ? $audioByNode[$nodeName] : $unknown;
+}
+
+// Helper: Channel count of a PipeWire node, by node.name (see
+// ResolvePipeWireNodeAudio()).  Callers must treat 0 as "unknown", not as "no
+// channels".
+function ResolvePipeWireNodeChannels($nodeName)
+{
+    $audio = ResolvePipeWireNodeAudio($nodeName);
+    return $audio['channels'];
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -5031,6 +5059,11 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
                 $conf .= "        node.target = \"$teeName\"\n";
                 $conf .= "        stream.capture.sink = true\n";
                 $conf .= "        stream.dont-remix = true\n";
+                // The tee's own layout (above).  Unpositioned, the capture
+                // stream's ports are UNK, linked by port order rather than
+                // by channel.
+                $conf .= "        audio.channels = 2\n";
+                $conf .= "        audio.position = [ FL FR ]\n";
                 $conf .= "      }\n";
                 $conf .= "      playback.props = {\n";
                 $conf .= "        node.target = \"$nodeName\"\n";
@@ -5153,9 +5186,10 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
             // -- so a mono source lines up with neither FL nor FR and the member
             // passes silence instead of audio.  That is what made the SMPTE
             // plugin's mono LTC node inaudible in a stereo mix bus (issue #2754).
+            $srcAudio = ResolvePipeWireNodeAudio($sourceTarget);
             $srcChannels = isset($mbr['channels']) ? intval($mbr['channels']) : 0;
             if ($srcChannels <= 0) {
-                $srcChannels = ResolvePipeWireNodeChannels($sourceTarget);
+                $srcChannels = $srcAudio['channels'];
             }
             $capturePos = null;
             $playbackPos = null;
@@ -5170,6 +5204,12 @@ function GeneratePipeWireInputGroupsConfig($inputGroups, $outputGroups)
             } elseif ($srcChannels > 0 && $srcChannels !== $groupChannels) {
                 $capturePos = PipeWireChannelPositions($srcChannels);
                 $playbackPos = PipeWireChannelPositions($groupChannels);
+            } elseif (count($srcAudio['positions']) === $srcChannels && $srcChannels > 0) {
+                // Same width: the capture end takes the source's own layout.
+                // Left unpositioned (with dont-remix) its ports are UNK, so
+                // they are linked by port order rather than by channel, and
+                // the graph shows them as UNK.
+                $capturePos = $srcAudio['positions'];
             }
 
             $conf .= "  # Loopback: $loopbackDesc\n";
