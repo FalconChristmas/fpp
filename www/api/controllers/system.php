@@ -149,7 +149,9 @@ function StopFPPD()
 function RestartFPPD()
 {
     global $_GET;
-    if ((isset($_GET['quick'])) && ($_GET['quick'] == 1)) {
+    // quick=true too: older players' MultiSync Restart FPPD sends that, and in
+    // PHP "true" == 1 is false.
+    if (isset($_GET['quick']) && filter_var($_GET['quick'], FILTER_VALIDATE_BOOLEAN)) {
         $status = exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
         if ($status == 'true') {
             SendCommand('restart');

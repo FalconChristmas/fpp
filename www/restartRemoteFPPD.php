@@ -35,8 +35,9 @@ if (isset($_GET['mode'])) {
 
 echo "Restarting FPPD @ " . htmlspecialchars($ip) . "\n";
 
-// FPP 5.0+
-$request_content = RemotePlayerAction('http://' . $ip . '/api/system/fppd/restart?quick=true', 200, $rc);
+// FPP 5.0+.  quick=1: a remote's RestartFPPD() has only ever taken 1, so the
+// quick=true this sent got every remote a full stop and start.
+$request_content = RemotePlayerAction('http://' . $ip . '/api/system/fppd/restart?quick=1', 200, $rc);
 
 echo "Waiting for fppd to come back up:\n";
 
