@@ -787,7 +787,11 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
     if (ob_get_level()) {
         ob_end_clean();
     }
-    flush();
+    //Each branch below flushes the headers only once it has set the last of
+    //them (an error status included): after flush() has sent them, header()
+    //and http_response_code() change nothing.  No Content-Length: Apache
+    //2.4.59 and later (mod_proxy_fcgi, the CVE-2024-24795 fix) drops the one
+    //a FastCGI reply sets, so a download goes out chunked whatever PHP says.
     if ($lines == -1) {
         //A configuration backup keeps its large, unchanged areas in a shared blob
         //store instead of a copy per backup (see InlineBackupBlobs).  Anything
@@ -817,15 +821,15 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
                     exit;
                 }
 
-                header('Content-Length: ' . strlen($whole));
                 echo $whole;
                 exit;
             }
         }
 
-        header('Content-Length: ' . real_filesize($fullPath));
+        flush();
         passthru($SUDO . " cat " . escapeshellarg($fullPath));
     } else {
+        flush();
         passthru($SUDO . ' tail -' . $lines . ' ' . escapeshellarg($fullPath));
     }
     exit;
