@@ -304,7 +304,9 @@
                 return;
             }
 
-            $.get('api/git/originLog', function (data) {
+            // forceRefresh is an explicit request for fresh data; otherwise the
+            // player reuses a fetch from the last few minutes.
+            $.get('api/git/originLog' + (forceRefresh ? '?refresh=1' : ''), function (data) {
                 gitOriginLogCache = data;
                 callback(data);
             }).fail(function () {

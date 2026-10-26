@@ -9579,7 +9579,7 @@ function GetGitOriginLog () {
 
 	$.get({
 		url: 'api/git/originLog',
-		data: '',
+		data: { refresh: 1 }, // opened on purpose: fetch fresh data
 		success: function (data) {
 			if ('rows' in data) {
 				html = [];

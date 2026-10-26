@@ -31,7 +31,10 @@ function GetGitOriginLog()
     $rows = array();
     global $fppDir;
 
-    exec("$fppDir/scripts/git_fetch", $log);
+    // Page loads reuse a recent fetch (scripts/git_fetch throttles them); an
+    // explicit request for fresh data, such as opening the pending changes view,
+    // passes ?refresh=1.
+    exec("$fppDir/scripts/git_fetch" . (isset($_GET['refresh']) ? ' --force' : ''), $log);
     unset($log);
     exec("$fppDir/scripts/git_origin_log", $log);
 
