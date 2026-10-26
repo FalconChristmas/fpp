@@ -265,6 +265,9 @@ ColorLight5a75Output::ColorLight5a75Output(unsigned int startChannel, unsigned i
     m_frameCharge(0),
     m_sendBufferSize(0),
     m_frameSent(false),
+    m_rowsSentTime(0),
+    m_rowsWireUS(0),
+    m_syncGapUS(500),
     m_droppedFrames(0),
     m_droppedLogTime(0),
     m_flippedLayout(0),
@@ -439,6 +442,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
     }
 
     m_highestFirmwareVersion = getSettingInt("ColorlightFirmwareVersion");
+    m_syncGapUS = std::clamp(getSettingInt("ColorlightSyncGapUS", 500), 0, 20000);
     m_colorlightDisable = true;
     m_colorlightDisable = getSettingInt("ColorlightLinkDownDisable") == 1;
 
@@ -653,7 +657,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
     }
 
     ////////////////////////////////////////////////////////////////////
-    // Prep the Display Frame packet(s) - sent in PrepData()
+    // Prep the Display Frame packet(s) - sent in SendData()
     if (m_highestFirmwareVersion >= 13) {
         m_syncMsgs.resize(2);
         m_synciovecs.resize(2);
@@ -700,6 +704,16 @@ int ColorLight5a75Output::Init(Json::Value config) {
         msg.msg_hdr.msg_iovlen = 1;
         m_syncMsgs[m] = msg;
     }
+
+    // Wire time of the rows: payload plus preamble, FCS and inter-frame gap
+    // (24 bytes) per packet, at the link speed (1000 if unknown).
+    long long rowBits = 0;
+    for (auto& msg : m_msgs) {
+        for (size_t i = 0; i < msg.msg_hdr.msg_iovlen; i++)
+            rowBits += msg.msg_hdr.msg_iov[i].iov_len * 8;
+        rowBits += 24 * 8;
+    }
+    m_rowsWireUS = rowBits / (ifspeed > 0 ? ifspeed : 1000);
 
 #ifndef PLATFORM_OSX
     // Size the send buffer for two whole frames, so a frame normally queues
@@ -912,6 +926,7 @@ void ColorLight5a75Output::PrepData(unsigned char* channelData) {
     }
 
     m_frameSent = SendMessages(m_msgs);
+    m_rowsSentTime = GetMonotonicTimeMicros();
 }
 
 /*
@@ -986,8 +1001,34 @@ int ColorLight5a75Output::SendData(unsigned char* channelData) {
 
     // Latching a frame whose rows did not all go out would show part of it
     // over the last one, so the receiver keeps the last whole frame instead.
-    if (m_frameSent)
+    if (m_frameSent) {
+        // The receiver latches on the sync, and one that follows the last
+        // row too closely on the wire arrives before it has stored that row:
+        // the row then lights only part way.  Normally a whole frame has
+        // passed since PrepData(), but while bridging the two run back to
+        // back, so wait until the rows have left (the socket's queue is
+        // empty) and then m_syncGapUS more.  Bounded at 20ms after the rows,
+        // and only while bridging, so the output thread does not otherwise
+        // wait.
+        long long now = GetMonotonicTimeMicros();
+        const long long limit = m_rowsSentTime + 20000;
+        bool drainSeen = false;
+        int queued = 0;
+#ifndef PLATFORM_OSX
+        while (now < limit && ioctl(m_fd, SIOCOUTQ, &queued) == 0 && queued > 0) {
+            drainSeen = true;
+            std::this_thread::sleep_for(std::chrono::microseconds(50));
+            now = GetMonotonicTimeMicros();
+        }
+#endif
+        // Already empty: the rows left no later than now, nor than their
+        // estimated wire time after they were queued.
+        long long rowsOut = drainSeen ? now : std::min(now, m_rowsSentTime + m_rowsWireUS);
+        long long wait = std::min(rowsOut + m_syncGapUS, limit) - now;
+        if (wait > 0)
+            std::this_thread::sleep_for(std::chrono::microseconds(wait));
         SendMessages(m_syncMsgs);
+    }
 
     return m_channelCount;
 }

@@ -107,6 +107,11 @@ private:
     int m_frameCharge;
     int m_sendBufferSize;
     bool m_frameSent;
+    // When PrepData() queued the rows, roughly how long they take on the
+    // wire, and how long the sync waits after the last of them has gone
+    long long m_rowsSentTime;
+    int m_rowsWireUS;
+    int m_syncGapUS;
     int m_droppedFrames;
     long long m_droppedLogTime;
     std::string m_sendErrorWarning;
