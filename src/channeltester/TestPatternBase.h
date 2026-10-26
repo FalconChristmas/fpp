@@ -11,6 +11,8 @@
  * included LICENSE.LGPL file.
  */
 
+#include <cstdint>
+#include <memory>
 #include <string>
 #include "fpp-json-fwd.h"
 #include <utility>
@@ -49,4 +51,7 @@ protected:
     int m_configChanged;
 
     std::vector<std::pair<int, int>> m_channelSet;
+    // The output ranges m_channelSet was resolved against (SetChannelSet()
+    // clips a range to the outputs' last channel).
+    std::shared_ptr<const std::vector<std::pair<uint32_t, uint32_t>>> m_channelSetRanges;
 };

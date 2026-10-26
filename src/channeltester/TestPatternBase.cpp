@@ -117,6 +117,7 @@ int TestPatternBase::SetChannelSet(std::string channelSetStr) {
 
     m_channelSet.clear();
     m_channelCount = 0;
+    m_channelSetRanges = outputRanges;
 
     // Ranges may be separated by ';' or ','.  Only ';' was ever parsed, but the
     // value the API advertises for this argument - GetOutputRangesAsString(),
@@ -221,6 +222,19 @@ int TestPatternBase::OverlayTestData(char* channelData) {
         }
 
         return 1;
+    }
+
+    // The channel set was clipped to the outputs as they were when it was
+    // resolved, so resolve it again once they change.  Resolved only when
+    // its text changed, a test started before its outputs were loaded (or
+    // while they were being reloaded) stayed clipped to the 1-8 placeholder
+    // there is with no outputs: 1-150 lit channels 1-9 for the whole test.
+    if (!m_channelSetStr.empty() && GetOutputRangesSnapshot() != m_channelSetRanges) {
+        auto was = m_channelSet;
+        SetChannelSet(m_channelSetStr);
+        if (m_channelSet != was) {
+            SetupTest();
+        }
     }
 
     for (int s = 0; s < m_channelSet.size(); s++) {
