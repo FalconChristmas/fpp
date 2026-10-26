@@ -11282,6 +11282,20 @@ function BackendJSONToTree (json) {
 	};
 }
 
+// The editor's tree is always rooted at a group (the Match toggle and the
+// Add buttons act on one), but fppd also runs a Check that is a single
+// condition with no group around it (FromJSON takes a leaf at the top too),
+// and a hand-written or API-sent If can carry one. Such a Check opens as a
+// one-condition AND group, which saves back as the same test. An object
+// that is neither a group nor a condition is no Check at all (FromJSON
+// rejects it), so it opens empty rather than as a blank condition.
+function BackendJSONToRootTree (json) {
+	if (json && typeof json === 'object' && !json.op) {
+		return { type: 'group', op: 'AND', items: 'source' in json ? [BackendJSONToTree(json)] : [], label: '' };
+	}
+	return BackendJSONToTree(json);
+}
+
 function TreeToBackendJSON (item) {
 	if (item.type === 'group') {
 		var out = { op: item.op, conditions: item.items.map(TreeToBackendJSON) };
@@ -11300,7 +11314,7 @@ function LoadConditionListFromHiddenField (id) {
 	var tree;
 	if (raw) {
 		try {
-			tree = BackendJSONToTree(JSON.parse(raw));
+			tree = BackendJSONToRootTree(JSON.parse(raw));
 		} catch (e) {
 			tree = NewGroup();
 		}
@@ -14807,7 +14821,7 @@ function FillInCommandTemplate (row, data) {
 			// condition with no visible actions would otherwise look like
 			// the preset does nothing at all.
 			try {
-				var condTree = BackendJSONToTree(JSON.parse(data.args[0] || '{}'));
+				var condTree = BackendJSONToRootTree(JSON.parse(data.args[0] || '{}'));
 				var formula = condTree.items.length ? BuildConditionFormula(condTree) : 'No conditions configured';
 				var summarizeCmdList = function (jsonStr) {
 					var cmds = JSON.parse(jsonStr || '[]');
