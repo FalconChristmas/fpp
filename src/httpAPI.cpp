@@ -366,9 +366,12 @@ void GetCurrentFPPDStatus(Json::Value& result) {
         // agree on what is playing.  A concurrent media slot keeps its
         // current_song, so sequence + media outside a playlist names both.
         //
-        // Only the display fields move.  result["status"] deliberately stays
-        // FPP_STATUS_IDLE for the same reason as above: the scheduler gates
-        // on it and Player::StopNow()/Scheduler wait on it.
+        // status goes with status_name, as it does for a playlist and for a
+        // remote playing a sequence: "playing" is FPP_STATUS_PLAYLIST_PLAYING.
+        // It was left at FPP_STATUS_IDLE, and the status page, which goes by
+        // status, said Idle beside a "playing" header badge.  Only this JSON
+        // copy changes: the scheduler and Player::StopNowAllLevels() ask
+        // Player::GetStatus(), which stays idle.
         //
         // The allowlist matters: "testing" sets its own status_name above and
         // must keep it, and the paused/stopping states are never idle, so
@@ -381,6 +384,7 @@ void GetCurrentFPPDStatus(Json::Value& result) {
             const std::string sf = sequence->GetSeqFilenameCopy();
             if (sf != "") {
                 result["current_sequence"] = sf.substr(sf.find_last_of("/\\") + 1);
+                result["status"] = FPP_STATUS_PLAYLIST_PLAYING;
                 result["status_name"] = "playing";
             }
         }
