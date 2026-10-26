@@ -372,6 +372,11 @@
                                         <input onclick="ButtonHandler('Videos', 'videoInfo');"
                                             class="disableButtons noDirButton singleVideosButton" type="button"
                                             value="Video Info" />
+                                        <? if (file_exists("/usr/bin/ffmpeg") || file_exists("/usr/local/bin/ffmpeg") || file_exists("/opt/homebrew/bin/ffmpeg")) { ?>
+                                            <input onclick="ButtonHandler('Videos', 'normalize');" id="btnNormalizeVideos"
+                                                class="disableButtons noDirButton singleVideosButton multiVideosButton"
+                                                type="button" value="Normalize" />
+                                        <? } ?>
                                         <input onclick="ButtonHandler('Videos', 'addToPlaylist');"
                                             class="disableButtons noDirButton singleVideosButton multiVideosButton"
                                             type="button" value="Add To Playlist" />

@@ -1052,7 +1052,7 @@ function ButtonHandler (table, button) {
 		$('#tbl' + table + ' tr.selectedEntry').each(function () {
 			files.push($(this).find('td:first').text());
 		});
-		NormalizeAudioDialog(files);
+		NormalizeAudioDialog(files, table);
 	} else if (button == 'addToPlaylist') {
 		var files = [];
 		$('#tbl' + table + ' tr.selectedEntry').each(function () {
@@ -1685,7 +1685,8 @@ function SetupTableSorter (tableName) {
 // run_normalize.php measures each song and stores a gain that fppd applies at
 // playback -- the files themselves are never changed. The options are
 // remembered per browser; progress streams into the usual progress dialog.
-function NormalizeAudioDialog (files) {
+function NormalizeAudioDialog (files, dir) {
+	dir = dir == 'Videos' ? 'Videos' : 'Music';
 	var opts = { target: '-18', match: 'speakers' };
 	try {
 		var saved = JSON.parse(localStorage.getItem('fppNormalizeOptions') || '{}');
@@ -1707,7 +1708,8 @@ function NormalizeAudioDialog (files) {
 	var body =
 		'<p>Makes the ' +
 		files.length +
-		' selected song(s) play equally loud. Each song is measured (LUFS) and its volume change is applied when it plays; ' +
+		(dir == 'Videos' ? ' selected video(s) play as loud as your normalized songs. The sound of each video' : ' selected song(s) play equally loud. Each song') +
+		' is measured (LUFS) and its volume change is applied when it plays; ' +
 		'the files themselves are not changed, so quality, timing and sync are untouched. ' +
 		'A song is never turned up so far that its peaks would clip, so pick a level every song can reach: ' +
 		'commercial songs usually peak near full scale, and -18 LUFS lets almost all of them match. Make up the overall level with the amplifier, FM transmitter or FPP volume.</p>' +
@@ -1736,6 +1738,7 @@ function NormalizeAudioDialog (files) {
 		CloseModalDialog('normalizeOptions');
 		var postData = JSON.stringify({
 			action: action,
+			dir: dir,
 			files: files,
 			target: parseFloat(opts.target),
 			peak: -1.5,

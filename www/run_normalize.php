@@ -11,8 +11,9 @@ DisableOutputBuffering();
 ignore_user_abort(true);
 set_time_limit(0);
 
-// Body: {"files": [...], "action": "normalize"|"remove",
-//        "target": -14, "peak": -1.5, "match": "speakers"|"lufs"}
+// Body: {"files": [...], "dir": "Music"|"Videos", "action": "normalize"|"remove",
+//        "target": -18, "peak": -1.5, "match": "speakers"|"lufs"}
+// Videos: the sound of each video is measured; stored under "videos/<name>".
 // A bare array of names (the old run_mp3gain.php body) is accepted too.
 $req = json_decode(file_get_contents('php://input'), true);
 if (is_array($req) && array_keys($req) === range(0, count($req) - 1)) {
@@ -37,7 +38,8 @@ $opts = array(
     'match' => ($req['match'] ?? 'speakers') === 'lufs' ? 'lufs' : 'speakers',
 );
 
-$dir = GetDirSetting("music");
+$tab = ($req['dir'] ?? 'Music') === 'Videos' ? 'Videos' : 'Music';
+$dir = GetDirSetting($tab === 'Videos' ? "videos" : "music");
 
 function Say($line)
 {
@@ -68,12 +70,13 @@ foreach ($req['files'] as $f) {
 
 $ok = 0;
 $held = 0;
+$skipped = 0;
 $failed = 0;
 if ($action === 'remove') {
     try {
-        $removed = AN_Remove($names);
+        $removed = AN_Remove(array_map(function ($n) use ($tab) { return AN_Key($tab, $n); }, $names));
         foreach ($names as $n) {
-            Say($n . (in_array($n, $removed, true) ? ": normalization removed (plays as recorded)" : ": was not normalized"));
+            Say($n . (in_array(AN_Key($tab, $n), $removed, true) ? ": normalization removed (plays as recorded)" : ": was not normalized"));
         }
         $ok = count($removed);
     } catch (Exception $e) {
@@ -96,20 +99,23 @@ if ($action === 'remove') {
     foreach ($names as $i => $n) {
         Say(sprintf("[%d/%d] %s", $i + 1, count($names), $n));
         try {
-            $result = AN_Process($dir, $n, $opts, $tools, 'Say');
+            $result = AN_Process($dir, $n, AN_Key($tab, $n), $opts, $tools, 'Say');
             Say("  " . $result);
             $ok++;
             if (strpos($result, 'held back by peaks') !== false) {
                 $held++;
             }
+        } catch (AN_NoAudio $e) {
+            Say("  skipped: no audio track");
+            $skipped++;
         } catch (Exception $e) {
             Say("  FAILED: " . $e->getMessage());
             $failed++;
         }
     }
     if ($held) {
-        Say(sprintf("\n%d song(s) could not be turned up all the way without clipping, so they will play quieter than the rest. " .
-            "Normalize all the songs again at a lower loudness (e.g. %d LUFS) to match them.", $held, $opts['target'] - 2));
+        Say(sprintf("\n%d file(s) could not be turned up all the way without clipping, so they will play quieter than the rest. " .
+            "Normalize all your songs and videos again at a lower loudness (e.g. %d LUFS) to match them.", $held, $opts['target'] - 2));
     }
     if ($ok) {
         Say("\nThe files were not changed. The volume change is applied when a song plays; it takes effect the next time each song starts.");
@@ -118,5 +124,6 @@ if ($action === 'remove') {
 
 flock($lock, LOCK_UN);
 fclose($lock);
-printf("\n%s complete: %d done, %d failed.", $action === 'remove' ? 'Remove' : 'Normalize', $ok, $failed);
+printf("\n%s complete: %d done, %s%d failed.", $action === 'remove' ? 'Remove' : 'Normalize', $ok,
+    $skipped ? $skipped . " without sound skipped, " : '', $failed);
 ?>

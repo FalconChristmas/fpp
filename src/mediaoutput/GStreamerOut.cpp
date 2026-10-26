@@ -98,15 +98,22 @@ std::vector<GStreamerOutput*> GStreamerOutput::m_overlayOutputs;
 // ──────────────────────────────────────────────────────────────────────────────
 static constexpr int PIPELINE_TEARDOWN_TIMEOUT_MS = 10000;
 
-// Gain the File Manager's Normalize stored for a song in the music folder
-// (<config>/media_gain.json, written by www/common/audioNormalize.inc.php):
-// { "<name relative to the music dir>": { "gainDb": -3.2, "size": 1234, ... } }.
+// Gain the File Manager's Normalize stored for a song in the music folder or a
+// video's sound (<config>/media_gain.json, written by
+// www/common/audioNormalize.inc.php): { "<name relative to the music dir>" or
+// "videos/<name relative to the videos dir>": { "gainDb": -3.2, "size": 1234, ... } }.
 // Applied at playback instead of rewriting the file, so timing, quality and
 // format never change.  An entry whose size no longer matches the file (the
 // song was replaced) is ignored.  Returns a linear factor; 1.0 = none.
 static double LookupNormalizeGain(const std::string& fullPath) {
     const std::string musicDir = FPP_DIR_MUSIC("/");
-    if (fullPath.compare(0, musicDir.size(), musicDir) != 0) {
+    const std::string videoDir = FPP_DIR_VIDEO("/");
+    std::string name;
+    if (fullPath.compare(0, musicDir.size(), musicDir) == 0) {
+        name = fullPath.substr(musicDir.size());
+    } else if (fullPath.compare(0, videoDir.size(), videoDir) == 0) {
+        name = "videos/" + fullPath.substr(videoDir.size());
+    } else {
         return 1.0;
     }
     const std::string gainFile = FPP_DIR_CONFIG("/media_gain.json");
@@ -117,7 +124,6 @@ static double LookupNormalizeGain(const std::string& fullPath) {
     if (!LoadJsonFromFile(gainFile, root) || !root.isObject()) {
         return 1.0;
     }
-    const std::string name = fullPath.substr(musicDir.size());
     const Json::Value& e = root[name];
     if (!e.isObject() || !e["gainDb"].isNumeric() || !e["size"].isNumeric()) {
         return 1.0;

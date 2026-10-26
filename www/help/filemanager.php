@@ -47,6 +47,7 @@
 <ul>
     <li><b>View</b> (single) — Plays the video in the browser.</li>
     <li><b>Video Info</b> (single) — Shows codec, resolution and duration.</li>
+    <li><b>Normalize</b> (single or multiple) — Measures the sound of the selected videos and stores a volume change fppd applies when they play, the same way as for audio files, so a video's sound matches your normalized songs. The video files are never changed. Videos without sound are skipped. <b>Remove Normalization</b> in the same dialog undoes it.</li>
     <li><b>Add To Playlist, Download, Rename, Delete</b> — As above.</li>
 </ul>
 

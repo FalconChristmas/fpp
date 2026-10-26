@@ -29,6 +29,13 @@
 // Each entry records the file's size; fppd ignores an entry whose size no
 // longer matches, so a song replaced by a new upload plays as-is until it is
 // measured again.
+//
+// Videos: a video's sound plays through the same GStreamer volume element, so
+// its audio track is measured like a song. Music entries are keyed by the name
+// relative to the music folder; video entries by "videos/" + the name relative
+// to the videos folder. (A music sub-folder literally named "videos" holding a
+// file with the same name as a video would share a key; the size check means
+// the wrong file's gain is never applied -- the other one plays as recorded.)
 
 define('AN_SPEAKER_OFFSET_DB', 3.0);
 define('AN_SPEAKER_MAX_DEV_DB', 4.0);
@@ -37,6 +44,13 @@ define('AN_SPEAKER_HIGHPASS', 'highpass=f=120,highpass=f=120');
 // (+20 dB); larger values are rejected.
 define('AN_MAX_GAIN_DB', 20.0);
 define('AN_MIN_GAIN_DB', -30.0);
+define('AN_VIDEO_PREFIX', 'videos/');
+
+// media_gain.json key for a name in the Music or Videos tab.
+function AN_Key($dir, $name)
+{
+    return ($dir === 'Videos' ? AN_VIDEO_PREFIX : '') . $name;
+}
 
 function AN_Ffmpeg()
 {
@@ -197,6 +211,9 @@ function AN_Measure($file, $speakers)
     }
     array_push($args, '-f', 'null', '-');
     list($rc, $out, $err) = AN_Run($args);
+    if ($rc !== 0 && preg_match('/matches no streams|does not contain any stream/i', $err)) {
+        throw new AN_NoAudio('no audio track');
+    }
     if ($rc !== 0) {
         throw new Exception('measuring failed (' . AN_LastLine($err) . ')');
     }
@@ -288,10 +305,16 @@ function AN_SafeName($name)
     return $s;
 }
 
-// Measure one song and store its gain. $say($line) reports progress.
-function AN_Process($musicDir, $name, $opts, $tools, $say)
+// A video without sound: nothing to even out, so not a failure.
+class AN_NoAudio extends Exception
 {
-    $path = $musicDir . '/' . $name;
+}
+
+// Measure one song (or a video's sound) and store its gain under $key.
+// $say($line) reports progress.
+function AN_Process($baseDir, $name, $key, $opts, $tools, $say)
+{
+    $path = $baseDir . '/' . $name;
     if (!is_file($path)) {
         throw new Exception('file not found');
     }
@@ -309,7 +332,7 @@ function AN_Process($musicDir, $name, $opts, $tools, $say)
     }
 
     $all = AN_LoadGains();
-    $all[$name] = array(
+    $all[$key] = array(
         'gainDb' => $g['gain'],
         'size' => $size,
         'lufs' => AN_R1($m['i']),
