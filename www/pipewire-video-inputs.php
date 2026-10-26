@@ -240,13 +240,13 @@
                                     <i class="fas fa-arrow-left"></i> Pipewire Settings
                                 </a>
                             <?php } ?>
-                            <button class="buttons btn-outline-success" onclick="AddSource()">
+                            <button class="buttons btn-outline-success waitsForLoad" disabled onclick="AddSource()">
                                 <i class="fas fa-plus"></i> Add Source
                             </button>
-                            <button class="buttons" onclick="SaveSources()">
+                            <button class="buttons waitsForLoad" disabled onclick="SaveSources()">
                                 <i class="fas fa-save"></i> Save
                             </button>
-                            <button class="buttons btn-outline-primary" onclick="ApplySources()">
+                            <button class="buttons btn-outline-primary waitsForLoad" disabled onclick="ApplySources()">
                                 <i class="fas fa-sync"></i> Save &amp; Apply
                             </button>
                         </div>
@@ -258,7 +258,7 @@
                             <h4>No Video Input Sources Configured</h4>
                             <p>Add a source to create a persistent video signal in the PipeWire graph
                                 (test patterns, cameras, etc.).</p>
-                            <button class="buttons btn-outline-success" onclick="AddSource()">
+                            <button class="buttons btn-outline-success waitsForLoad" disabled onclick="AddSource()">
                                 <i class="fas fa-plus"></i> Add First Source
                             </button>
                         </div>
@@ -267,10 +267,10 @@
                     <div id="bottomToolbar" class="toolbar d-none mt-3">
                         <div class="toolbar-left"></div>
                         <div class="toolbar-right">
-                            <button class="buttons" onclick="SaveSources()">
+                            <button class="buttons waitsForLoad" disabled onclick="SaveSources()">
                                 <i class="fas fa-save"></i> Save
                             </button>
-                            <button class="buttons btn-outline-primary" onclick="ApplySources()">
+                            <button class="buttons btn-outline-primary waitsForLoad" disabled onclick="ApplySources()">
                                 <i class="fas fa-sync"></i> Save &amp; Apply
                             </button>
                         </div>
@@ -341,7 +341,9 @@
 
         $(document).ready(function () {
             CheckPipeWireStatus();
-            LoadV4l2Devices().then(function () {
+            // always, not then: the sources load even when the device list
+            // does not, or the page would never take an edit.
+            LoadV4l2Devices().always(function () {
                 LoadSources();
             });
         });
@@ -374,6 +376,11 @@
 
         function LoadSources() {
             hasUnsavedChanges = false;
+            // Add and Save wait for the saved sources (waitsForLoad, disabled in
+            // the markup too, for the page's first load): until they answer,
+            // the page's list is not the saved one, so an add would be replaced
+            // by them and a Save would write over them.
+            $('.waitsForLoad').prop('disabled', true);
             $.getJSON('api/pipewire/video/input-sources')
                 .done(function (data) {
                     videoInputSources = data || { videoInputSources: [] };
@@ -390,6 +397,9 @@
                 .fail(function () {
                     videoInputSources = { videoInputSources: [] };
                     RenderSources();
+                })
+                .always(function () {
+                    $('.waitsForLoad').prop('disabled', false);
                 });
         }
 
@@ -779,7 +789,7 @@
                     '<i class="fas fa-video fs-1 text-secondary"></i>' +
                     '<h4>No Video Input Sources Configured</h4>' +
                     '<p>Add a source to create a persistent video signal in the PipeWire graph.</p>' +
-                    '<button class="buttons btn-outline-success" onclick="AddSource()">' +
+                    '<button class="buttons btn-outline-success waitsForLoad" onclick="AddSource()">' +
                     '<i class="fas fa-plus"></i> Add First Source</button>' +
                     '</div>'
                 );

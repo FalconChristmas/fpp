@@ -401,13 +401,13 @@
                                 status...</span>
                         </div>
                         <div class="toolbar-right">
-                            <button class="buttons btn-outline-success" onclick="AddGroup()">
+                            <button class="buttons btn-outline-success waitsForLoad" disabled onclick="AddGroup()">
                                 <i class="fas fa-plus"></i> Add Group
                             </button>
-                            <button class="buttons" onclick="SaveGroups()">
+                            <button class="buttons waitsForLoad" disabled onclick="SaveGroups()">
                                 <i class="fas fa-save"></i> Save
                             </button>
-                            <button class="buttons btn-outline-primary" onclick="ApplyGroups()">
+                            <button class="buttons btn-outline-primary waitsForLoad" disabled onclick="ApplyGroups()">
                                 <i class="fas fa-sync"></i> Save &amp; Apply
                             </button>
                         </div>
@@ -422,7 +422,7 @@
                             <p>Create audio output groups to combine multiple sound cards into virtual sinks.<br>
                                 Each group becomes an independent audio output that can be targeted by different streams.
                             </p>
-                            <button class="buttons btn-outline-success" onclick="AddGroup()">
+                            <button class="buttons btn-outline-success waitsForLoad" disabled onclick="AddGroup()">
                                 <i class="fas fa-plus"></i> Create First Group
                             </button>
                         </div>
@@ -431,10 +431,10 @@
                     <div id="bottomToolbar" class="toolbar" style="display:none; margin-top:1rem;">
                         <div class="toolbar-left"></div>
                         <div class="toolbar-right">
-                            <button class="buttons" onclick="SaveGroups()">
+                            <button class="buttons waitsForLoad" disabled onclick="SaveGroups()">
                                 <i class="fas fa-save"></i> Save
                             </button>
-                            <button class="buttons btn-outline-primary" onclick="ApplyGroups()">
+                            <button class="buttons btn-outline-primary waitsForLoad" disabled onclick="ApplyGroups()">
                                 <i class="fas fa-sync"></i> Save &amp; Apply
                             </button>
                         </div>
@@ -691,6 +691,11 @@
         // Load saved groups
         function LoadGroups() {
             hasUnsavedChanges = false;
+            // Add and Save wait for the saved groups (waitsForLoad, disabled in
+            // the markup too, for the page's first load): until they answer,
+            // the page's list is not the saved one, so an add would be replaced
+            // by them and a Save would write over them.
+            $('.waitsForLoad').prop('disabled', true);
             $.getJSON('api/pipewire/audio/groups')
                 .done(function (data) {
                     audioGroups = data || { groups: [] };
@@ -706,6 +711,9 @@
                 .fail(function () {
                     audioGroups = { groups: [] };
                     RenderGroups();
+                })
+                .always(function () {
+                    $('.waitsForLoad').prop('disabled', false);
                 });
         }
 
@@ -742,7 +750,7 @@
                     '<h4>No Audio Groups Configured</h4>' +
                     '<p>Create audio output groups to combine multiple sound cards into virtual sinks.<br>' +
                     'Each group becomes an independent audio output that can be targeted by different streams.</p>' +
-                    '<button class="buttons btn-outline-success" onclick="AddGroup()">' +
+                    '<button class="buttons btn-outline-success waitsForLoad" onclick="AddGroup()">' +
                     '<i class="fas fa-plus"></i> Create First Group</button>' +
                     '</div>'
                 );

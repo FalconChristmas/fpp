@@ -323,13 +323,13 @@
                                 title="Refresh capture device list">
                                 <i class="fas fa-redo"></i> Refresh Sources
                             </button>
-                            <button class="buttons btn-outline-success btn-group-action" onclick="AddInputGroup()">
+                            <button class="buttons btn-outline-success btn-group-action waitsForLoad" disabled onclick="AddInputGroup()">
                                 <i class="fas fa-plus"></i> Add Input Group
                             </button>
-                            <button class="buttons" onclick="SaveInputGroups()">
+                            <button class="buttons waitsForLoad" disabled onclick="SaveInputGroups()">
                                 <i class="fas fa-save"></i> Save
                             </button>
-                            <button class="buttons btn-outline-primary" onclick="ApplyInputGroups()">
+                            <button class="buttons btn-outline-primary waitsForLoad" disabled onclick="ApplyInputGroups()">
                                 <i class="fas fa-sync"></i> Save &amp; Apply
                             </button>
                             <a class="buttons btn-outline-secondary" href="#" title="Open Routing Matrix"
@@ -346,7 +346,7 @@
                             <p>Create input groups (mix buses) to combine multiple audio sources.<br>
                                 Route fppd streams, ALSA line-in, and AES67 receives into mix buses,<br>
                                 then send them to your Audio Output Groups.</p>
-                            <button class="buttons btn-outline-success" onclick="AddInputGroup()">
+                            <button class="buttons btn-outline-success waitsForLoad" disabled onclick="AddInputGroup()">
                                 <i class="fas fa-plus"></i> Create First Input Group
                             </button>
                         </div>
@@ -355,10 +355,10 @@
                     <div id="bottomToolbar" class="toolbar" style="display:none; margin-top:1rem;">
                         <div class="toolbar-left"></div>
                         <div class="toolbar-right">
-                            <button class="buttons" onclick="SaveInputGroups()">
+                            <button class="buttons waitsForLoad" disabled onclick="SaveInputGroups()">
                                 <i class="fas fa-save"></i> Save
                             </button>
-                            <button class="buttons btn-outline-primary" onclick="ApplyInputGroups()">
+                            <button class="buttons btn-outline-primary waitsForLoad" disabled onclick="ApplyInputGroups()">
                                 <i class="fas fa-sync"></i> Save &amp; Apply
                             </button>
                         </div>
@@ -414,6 +414,11 @@
 
         function LoadAll() {
             hasUnsavedChanges = false;
+            // Add and Save wait for the saved input groups (waitsForLoad,
+            // disabled in the markup too, for the page's first load): until
+            // they answer, the page's list is not the saved one, so an add
+            // would be replaced by them and a Save would write over them.
+            $('.waitsForLoad').prop('disabled', true);
             // Load all data in parallel
             var p1 = $.get('/api/pipewire/audio/input-groups');
             var p2 = $.get('/api/pipewire/audio/sources');
@@ -476,11 +481,13 @@
                 }
 
                 RenderAll();
+                $('.waitsForLoad').prop('disabled', false);
             }).fail(function () {
                 // Load what we can
                 $.get('/api/pipewire/audio/input-groups', function (data) {
                     inputGroups = data || { inputGroups: [] };
                     RenderAll();
+                    $('.waitsForLoad').prop('disabled', false);
                 });
             });
         }
@@ -537,7 +544,7 @@
                     '<p>Create input groups (mix buses) to combine multiple audio sources.<br>' +
                     'Route fppd streams, ALSA line-in, and AES67 receives into mix buses,<br>' +
                     'then send them to your Audio Output Groups.</p>' +
-                    '<button class="buttons btn-outline-success" onclick="AddInputGroup()">' +
+                    '<button class="buttons btn-outline-success waitsForLoad" onclick="AddInputGroup()">' +
                     '<i class="fas fa-plus"></i> Create First Input Group</button>' +
                     '</div>'
                 );

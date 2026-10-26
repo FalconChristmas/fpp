@@ -250,13 +250,13 @@
                                 status...</span>
                         </div>
                         <div class="toolbar-right">
-                            <button class="buttons btn-outline-success" onclick="AddGroup()">
+                            <button class="buttons btn-outline-success waitsForLoad" disabled onclick="AddGroup()">
                                 <i class="fas fa-plus"></i> Add Group
                             </button>
-                            <button class="buttons" onclick="SaveGroups()">
+                            <button class="buttons waitsForLoad" disabled onclick="SaveGroups()">
                                 <i class="fas fa-save"></i> Save
                             </button>
-                            <button class="buttons btn-outline-primary" onclick="ApplyGroups()">
+                            <button class="buttons btn-outline-primary waitsForLoad" disabled onclick="ApplyGroups()">
                                 <i class="fas fa-sync"></i> Save &amp; Apply
                             </button>
                         </div>
@@ -268,7 +268,7 @@
                             <h4>No Video Output Groups Configured</h4>
                             <p>Add a group to route video streams through PipeWire to additional displays,
                                 pixel overlays, or network destinations.</p>
-                            <button class="buttons btn-outline-success" onclick="AddGroup()">
+                            <button class="buttons btn-outline-success waitsForLoad" disabled onclick="AddGroup()">
                                 <i class="fas fa-plus"></i> Add First Group
                             </button>
                         </div>
@@ -277,10 +277,10 @@
                     <div id="bottomToolbar" class="toolbar" style="display:none; margin-top:1rem;">
                         <div class="toolbar-left"></div>
                         <div class="toolbar-right">
-                            <button class="buttons" onclick="SaveGroups()">
+                            <button class="buttons waitsForLoad" disabled onclick="SaveGroups()">
                                 <i class="fas fa-save"></i> Save
                             </button>
-                            <button class="buttons btn-outline-primary" onclick="ApplyGroups()">
+                            <button class="buttons btn-outline-primary waitsForLoad" disabled onclick="ApplyGroups()">
                                 <i class="fas fa-sync"></i> Save &amp; Apply
                             </button>
                         </div>
@@ -350,7 +350,9 @@
 
         $(document).ready(function () {
             CheckPipeWireStatus();
-            $.when(LoadTargets(), LoadVideoSources()).then(function () {
+            // always, not then: the groups load even when a target list
+            // does not, or the page would never take an edit.
+            $.when(LoadTargets(), LoadVideoSources()).always(function () {
                 LoadGroups();
             });
         });
@@ -413,6 +415,11 @@
         // Load saved groups
         function LoadGroups() {
             hasUnsavedChanges = false;
+            // Add and Save wait for the saved groups (waitsForLoad, disabled in
+            // the markup too, for the page's first load): until they answer,
+            // the page's list is not the saved one, so an add would be replaced
+            // by them and a Save would write over them.
+            $('.waitsForLoad').prop('disabled', true);
             $.getJSON('api/pipewire/video/groups')
                 .done(function (data) {
                     videoGroups = data || { videoOutputGroups: [] };
@@ -428,6 +435,9 @@
                 .fail(function () {
                     videoGroups = { videoOutputGroups: [] };
                     RenderGroups();
+                })
+                .always(function () {
+                    $('.waitsForLoad').prop('disabled', false);
                 });
         }
 
@@ -470,7 +480,7 @@
                     '<h4>No Video Output Groups Configured</h4>' +
                     '<p>Add a group to route video streams through PipeWire to additional displays, ' +
                     'pixel overlays, or network destinations.</p>' +
-                    '<button class="buttons btn-outline-success" onclick="AddGroup()">' +
+                    '<button class="buttons btn-outline-success waitsForLoad" onclick="AddGroup()">' +
                     '<i class="fas fa-plus"></i> Add First Group</button>' +
                     '</div>'
                 );
