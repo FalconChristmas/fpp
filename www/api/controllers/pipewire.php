@@ -159,9 +159,16 @@ function StopFppdPlaybackSafe($timeoutSec = 3)
     if (!is_array($status) || !isset($status['status']) || $status['status'] != 1)
         return $result;
 
-    $result['wasPlaying'] = true;
+    // A playlist's playback is what is stopped here, and resumed afterwards
+    // by its name.  A sequence played on its own reports status 1 too, with
+    // no playlist; Stop Now would not stop it, but would mark the last
+    // playlist force-stopped for the scheduler, so it is left alone.
     $cp = isset($status['current_playlist']) ? $status['current_playlist'] : array();
-    $result['playlist'] = isset($cp['playlist']) ? $cp['playlist'] : '';
+    if (!isset($cp['playlist']) || $cp['playlist'] === '')
+        return $result;
+
+    $result['wasPlaying'] = true;
+    $result['playlist'] = $cp['playlist'];
     $result['repeat'] = isset($cp['count']) && $cp['count'] === '0';
 
     // Stop playback with timeout — if fppd hangs during GStreamer teardown
