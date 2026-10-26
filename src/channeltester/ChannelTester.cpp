@@ -22,6 +22,7 @@
 
 #include "ChannelTester.h"
 #include "channeloutput/ChannelOutputSetup.h"
+#include "channeloutput/channeloutputthread.h"
 #include "commands/Commands.h"
 
 // Test Patterns
@@ -574,6 +575,16 @@ int ChannelTester::SetupTestInternal(const Json::Value& config) {
     {
         std::lock_guard<std::mutex> cl(m_configLock);
         m_configStr = SaveJsonToString(config);
+    }
+
+    // Ask for output, as an effect or an overlay does when it starts.  The
+    // main loop starts the output thread for a test only when it is not
+    // running, and a thread that has just gone idle -- after a Test Stop, say
+    // -- still counts as running for the 2.5 s it waits to be asked, so a
+    // test started then put nothing out until that wait ran out.  Outside
+    // m_testLock: the output thread takes it every frame.
+    if (result) {
+        StartChannelOutputThread();
     }
     return result;
 }
