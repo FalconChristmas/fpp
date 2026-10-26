@@ -24,6 +24,7 @@
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
 #include <cstdlib>
+#include <cctype>
 #include <cstring>
 #include <dirent.h>
 #include <fcntl.h>
@@ -73,6 +74,9 @@
 GStreamerOutput* GStreamerOutput::m_currentInstance = nullptr;
 std::mutex GStreamerOutput::m_overlayOutputsLock;
 std::vector<GStreamerOutput*> GStreamerOutput::m_overlayOutputs;
+
+// Raised once per run, so long enough to outlast a looping playlist's pass.
+static constexpr int MEDIA_FAILURE_WARNING_SECONDS = 300;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Wedged-decoder recovery (issue #2695).
@@ -1170,6 +1174,10 @@ int GStreamerOutput::Start(int msTime) {
     m_stallStartMs = 0;
     m_pendingSeekNs = -1;
     m_stopRequested = false;
+    m_reportedFailure = false;
+    m_reportedNoAudio = false;
+    m_sawAudioPad = false;
+    m_dkmsConnectorNames.clear();
     // Before anything below writes the slot's status.
     StreamSlotManager::Instance().ClaimSlot(m_streamSlot, this);
 
@@ -1983,6 +1991,7 @@ int GStreamerOutput::Start(int msTime) {
                         LogWarn(VB_MEDIAOUT, "GStreamer: kmssink not available for connector %d\n", resolvedConnId);
                         continue;
                     }
+                    m_dkmsConnectorNames[resolvedConnId] = hc.connector;
 
                     // sync=TRUE: pace video rendering to PTS timestamps via
                     // the PipeWire pipeline clock, keeping A/V in sync.
@@ -3815,6 +3824,11 @@ int GStreamerOutput::Process(void) {
                     LogWarn(VB_MEDIAOUT, "GStreamer pipeline stalled for %dms at position %.1fs — "
                             "audio sink may be blocked (HDMI unplugged?). Stopping playback.\n",
                             STALL_TIMEOUT_MS, elapsed);
+                    // The cause, when it showed itself, already has its banner.
+                    if (!m_reportedFailure.exchange(true, std::memory_order_acq_rel)) {
+                        WarningHolder::AddWarningTimeout(MEDIA_FAILURE_WARNING_SECONDS, 30,
+                                                        "Playback of " + m_mediaFilename + " stalled and was stopped");
+                    }
                     m_playing = false;
                     if (m_mediaOutputStatus) {
                         m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
@@ -3923,6 +3937,92 @@ void GStreamerOutput::ProcessMessages() {
     }
 }
 
+// What a playback error says is wrong with the file, or nullptr when it isn't
+// the file's fault.  STREAM_ERROR_FAILED ("Internal data stream error") is left
+// out: a demuxer posts it when anything downstream fails, a sink included.
+static const char* MediaFileFault(GstMessage* msg, const GError* err, bool audioOnly) {
+    GstElement* src = GST_IS_ELEMENT(GST_MESSAGE_SRC(msg)) ? GST_ELEMENT(GST_MESSAGE_SRC(msg)) : nullptr;
+    GstElementFactory* f = src ? gst_element_get_factory(src) : nullptr;
+    const char* factory = f ? GST_OBJECT_NAME(f) : "";
+    if (err->domain == GST_STREAM_ERROR) {
+        switch (err->code) {
+        case GST_STREAM_ERROR_CODEC_NOT_FOUND:
+            return "it uses a format this device can't decode";
+        case GST_STREAM_ERROR_DECODE: {
+            // A hardware decoder's own fault (issue #2695) is not the file's.
+            const char* klass = f ? gst_element_factory_get_metadata(f, GST_ELEMENT_METADATA_KLASS) : nullptr;
+            if (strncmp(factory, "v4l2", 4) == 0 || (klass && strstr(klass, "Hardware"))) {
+                return nullptr;
+            }
+            return "the file looks damaged or is not a media file";
+        }
+        case GST_STREAM_ERROR_TYPE_NOT_FOUND:
+        case GST_STREAM_ERROR_WRONG_TYPE:
+        case GST_STREAM_ERROR_DEMUX:
+        case GST_STREAM_ERROR_FORMAT:
+            return "the file looks damaged or is not a media file";
+        default:
+            return nullptr;
+        }
+    }
+    // The audio-only pipeline's missing plug-in is the no-audio case, not this.
+    if (err->domain == GST_CORE_ERROR && err->code == GST_CORE_ERROR_MISSING_PLUGIN && !audioOnly) {
+        return "it uses a format this device can't decode";
+    }
+    if (err->domain == GST_RESOURCE_ERROR && strcmp(factory, "filesrc") == 0) {
+        return "the file could not be read";
+    }
+    return nullptr;
+}
+
+// A sink's message is often just "general resource error"; the reason is the
+// last line of its debug text ("drmModeSetPlane failed: No space left on device (-28)").
+static std::string ErrorReason(const GError* err, const gchar* debug) {
+    std::string d = debug ? debug : "";
+    while (!d.empty() && isspace((unsigned char)d.back())) {
+        d.pop_back();
+    }
+    size_t nl = d.find_last_of('\n');
+    if (nl != std::string::npos && nl + 1 < d.size()) {
+        return d.substr(nl + 1);
+    }
+    return err->message ? err->message : "unknown error";
+}
+
+void GStreamerOutput::ReportFileFailure(const char* what, const std::string& reason) {
+    if (m_reportedFailure.exchange(true, std::memory_order_acq_rel)) {
+        return;
+    }
+    WarningHolder::AddWarningTimeout(MEDIA_FAILURE_WARNING_SECONDS, 30,
+                                    "Can't play " + m_mediaFilename + ": " + what + " (" + reason + ")");
+}
+
+// Keyed on the display and the reason, not the file, so a playlist of videos
+// failing the same way shares one banner.
+void GStreamerOutput::ReportVideoOutputFailure(const char* sinkName, const std::string& reason) {
+    if (m_reportedFailure.exchange(true, std::memory_order_acq_rel)) {
+        return;
+    }
+    std::string display;
+#ifdef PLATFORM_OSX
+    display = "the video window";
+#else
+    if (strncmp(sinkName, "dkms_", 5) == 0) {
+        int connId = atoi(sinkName + 5);
+        auto it = m_dkmsConnectorNames.find(connId);
+        display = (it != m_dkmsConnectorNames.end() && !it->second.empty()) ? it->second
+                                                                             : "display connector " + std::to_string(connId);
+    } else {
+        display = m_videoOut;
+        if (display == "--HDMI--" || display == "--hdmi--" || display == "HDMI") {
+            display = "HDMI-A-1";
+        }
+    }
+#endif
+    WarningHolder::AddWarningTimeout(MEDIA_FAILURE_WARNING_SECONDS, 31,
+                                    "Video output to " + display + " failed (" + reason + ")");
+}
+
 GstBusSyncReply GStreamerOutput::BusSyncHandler(GstBus* bus, GstMessage* msg, gpointer userData) {
     // Everything this handler doesn't act on is dropped without touching the
     // output.  Passing it on queued it on the bus for Process() to pop, and
@@ -4024,7 +4124,10 @@ GstBusSyncReply GStreamerOutput::BusSyncHandler(GstBus* bus, GstMessage* msg, gp
                 break;
             }
         }
-        if (self->m_audioOnlyPipeline && errorFromDecoder &&
+        // A damaged file is not one with no audio, nor is the follow-on error after it.
+        const char* fileFault = MediaFileFault(msg, err, self->m_audioOnlyPipeline);
+        if (self->m_audioOnlyPipeline && errorFromDecoder && !fileFault &&
+            !self->m_reportedFailure.load(std::memory_order_acquire) &&
             !self->m_sawAudioPad.load(std::memory_order_acquire)) {
             if (!self->m_reportedNoAudio.exchange(true, std::memory_order_acq_rel)) {
                 LogErr(VB_MEDIAOUT,
@@ -4054,8 +4157,12 @@ GstBusSyncReply GStreamerOutput::BusSyncHandler(GstBus* bus, GstMessage* msg, gp
                          srcName, err->message);
             }
         } else if (isAES67Branch || isVideoPWSink || isDirectKmsSink) {
-            LogWarn(VB_MEDIAOUT, "GStreamer non-fatal error (src=%s): %s\n",
-                    srcName, err->message);
+            std::string reason = ErrorReason(err, debug);
+            LogWarn(VB_MEDIAOUT, "GStreamer non-fatal error (src=%s) playing %s: %s\n",
+                    srcName, self->m_mediaFilename.c_str(), reason.c_str());
+            if (isDirectKmsSink) {
+                self->ReportVideoOutputFailure(srcName, reason);
+            }
             // Logging it as non-fatal isn't enough: the sink is about to
             // return GST_FLOW_ERROR, which travels back through its queue to
             // the tee and the demuxer, and that ends the media.  This runs on
@@ -4067,8 +4174,17 @@ GstBusSyncReply GStreamerOutput::BusSyncHandler(GstBus* bus, GstMessage* msg, gp
             LogDebug(VB_MEDIAOUT, "GStreamer AES67 branch debug: %s\n",
                      debug ? debug : "(none)");
         } else {
-            LogErr(VB_MEDIAOUT, "GStreamer sync error (src=%s): %s\n", srcName, err->message);
+            bool primaryVideoSink = strcmp(srcName, "kmsvideosink") == 0;
+            std::string reason = (primaryVideoSink || (fileFault && err->domain == GST_CORE_ERROR))
+                                     ? ErrorReason(err, debug)
+                                     : std::string(err->message ? err->message : "unknown error");
+            LogErr(VB_MEDIAOUT, "GStreamer sync error (src=%s): %s\n", srcName, reason.c_str());
             LogDebug(VB_MEDIAOUT, "GStreamer sync debug: %s\n", debug ? debug : "(none)");
+            if (fileFault) {
+                self->ReportFileFailure(fileFault, reason);
+            } else if (primaryVideoSink) {
+                self->ReportVideoOutputFailure(srcName, reason);
+            }
 #ifdef HAS_AES67_GSTREAMER
             self->DetachAES67Branches();
 #endif

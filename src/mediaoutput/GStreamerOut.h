@@ -22,6 +22,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <list>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <set>
@@ -384,6 +385,14 @@ private:
     // demuxer's follow-on "Internal data stream error" is not logged as a second,
     // unrelated-looking failure.
     std::atomic<bool> m_reportedNoAudio{false};
+
+    // A banner is up for this run's failure.  The first one wins: the errors
+    // after it (a demuxer's follow-on) describe the same event.
+    std::atomic<bool> m_reportedFailure{false};
+    void ReportFileFailure(const char* what, const std::string& reason);
+    void ReportVideoOutputFailure(const char* sinkName, const std::string& reason);
+    // dkms_<id> -> its connector's name, for that banner.  Built before the pipeline runs.
+    std::map<int, std::string> m_dkmsConnectorNames;
 
 #ifdef HAS_AES67_GSTREAMER
     // Zero-hop AES67 RTP branches attached to the audio tee (Phase 7.9)
