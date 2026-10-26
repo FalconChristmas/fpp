@@ -325,6 +325,26 @@ function GetFilesHelper($dirName, $prefix = '')
                     $current["playtimeSeconds"] = null;
                 }
 
+                // Music files also carry the sample rate and bit rate for the
+                // Music tab.  Cache only, like the duration above: null tells
+                // the file manager to fetch it via /api/media/:name/audio.
+                if (strpos(strtolower($dirName), "music") !== false) {
+                    if (!isset($audioRates)) {
+                        $audioRates = GetAudioRates();
+                        // Read the cache once for the whole listing, not once per file.
+                        $audioEntries = media_audio_info_cache_entries();
+                    }
+                    $audioInfo = media_audio_info_cache($fileName, null, $Size, $audioEntries);
+                    if ($audioInfo === null) {
+                        $current["sampleRate"] = null;
+                        $current["bitRate"] = null;
+                    } else {
+                        $current["sampleRate"] = $audioInfo['sampleRate'];
+                        $current["bitRate"] = $audioInfo['bitRate'];
+                        $current["audioStatus"] = AudioRateStatus($audioInfo['sampleRate'], $audioRates);
+                    }
+                }
+
             }
 
             $entries = array($current);

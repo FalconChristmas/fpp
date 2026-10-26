@@ -106,3 +106,61 @@ function GetMediaMetaData()
 
     return json($resp);
 }
+
+/**
+ * Get audio info for a music file
+ *
+ * Returns the sample rate, bit rate, channels and codec of a music file, and how
+ * its sample rate sits against the audio system's engine and configured rates.
+ * Probes the file once and caches the result, so the Music tab can fill its
+ * Sample Rate and Bit Rate columns without waiting on the first listing.
+ *
+ * @route GET /api/media/{MediaName}/audio
+ * @response 200 Audio info
+ * ```json
+ * {
+ *   "sampleRate": 48000,
+ *   "bitRate": 192000,
+ *   "channels": 2,
+ *   "codec": "mp3",
+ *   "status": "resample",
+ *   "engineRate": 44100,
+ *   "configuredRate": 44100
+ * }
+ * ```
+ * `status` is `ok`, `hardware`, `stuck`, `resample`, or empty when unknown.
+ * @response 404 No such music file
+ */
+function GetMediaAudioInfo()
+{
+    global $settings;
+
+    $file = params('MediaName');
+    $path = $settings['musicDirectory'] . '/' . $file;
+    if (strpos($file, '/') !== false || strpos($file, '..') !== false || !is_file($path)) {
+        http_response_code(404);
+        return json(array('error' => 'No such music file'));
+    }
+
+    $size = real_filesize($path);
+    $info = media_audio_info_cache($file, null, $size);
+    if ($info === null) {
+        $resp = GetMetaDataFromFFProbe($file);
+        $info = AudioInfoFromProbe($resp);
+        if (AudioInfoIsCacheable($resp, $info)) {
+            media_audio_info_cache($file, $info, $size);
+        }
+        // The probe already has the duration; keep it so the Duration column
+        // does not probe the file again.
+        if (isset($resp['format']['duration'])) {
+            media_duration_cache($file, $resp['format']['duration'], $size);
+        }
+    }
+
+    $rates = GetAudioRates();
+    return json(array_merge($info, array(
+        'status' => AudioRateStatus($info['sampleRate'], $rates),
+        'engineRate' => $rates['engine'],
+        'configuredRate' => $rates['configured'],
+    )));
+}
