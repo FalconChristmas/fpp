@@ -82,6 +82,16 @@ static std::mutex playlistPluginsLock;
 static std::condition_variable playlistPluginCallDone;
 static std::map<FPPPlugins::Plugin*, int> playlistPluginCallsInFlight;
 
+// Plugins whose settings-file watch detachPlugin() has already removed. The
+// watch is registered under the plugin's name, and a runtime reload constructs
+// the new instance -- registering its watch under that same name -- while the
+// old one is still waiting to be deleted. The old one's destructor removing the
+// watch again would take the new instance's with it, and the reloaded plugin
+// would never hear of a settings change until fppd restarted. File-static, like
+// the locks above, so Plugin's layout is unchanged for plugins.
+static std::mutex settingsUnwatchedLock;
+static std::set<const FPPPlugins::Plugin*> settingsUnwatched;
+
 template<class F>
 static void ForEachPlaylistPlugin(const std::vector<FPPPlugins::PlaylistEventPlugin*>& plugins, F&& f) {
     std::vector<FPPPlugins::PlaylistEventPlugin*> snapshot;
@@ -191,6 +201,12 @@ namespace FPPPlugins
     }
 
     Plugin::~Plugin() {
+        {
+            std::lock_guard<std::mutex> lock(settingsUnwatchedLock);
+            if (settingsUnwatched.erase(this)) {
+                return;
+            }
+        }
         FileMonitor::INSTANCE.RemoveFile(name, FPP_DIR_CONFIG("/plugin." + name));
     }
 
@@ -1116,6 +1132,15 @@ void PluginManager::detachPlugin(FPPPlugins::Plugin* plugin) {
             mPlugins.erase(it);
             break;
         }
+    }
+    // The settings watch calls settingChanged() on the plugin, so it goes too --
+    // and it has to go now, while nothing else holds this name: a reload
+    // registers the new instance's watch under it before the old one is
+    // deleted. See settingsUnwatched.
+    FileMonitor::INSTANCE.RemoveFile(plugin->getName(), FPP_DIR_CONFIG("/plugin." + plugin->getName()));
+    {
+        std::lock_guard<std::mutex> lock(settingsUnwatchedLock);
+        settingsUnwatched.insert(plugin);
     }
 }
 
