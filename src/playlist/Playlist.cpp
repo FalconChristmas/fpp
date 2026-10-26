@@ -1947,6 +1947,15 @@ void Playlist::SetIdle(bool exit) {
         // Unconditional: Resume() is a no-op unless par is paused, and par
         // may be STOPPING_* over a paused entry (stopped while we played).
         par->Resume();
+        // Resume() only republishes when par was paused (Insert Immediate).
+        // After an Insert After Current par never paused, so the MQTT name and
+        // status topics would still describe the finished insert.
+        if (par->IsPlaying()) {
+            Events::Publish("playlist/name/status", par->m_name);
+            Events::Publish("status", PlaylistStatusToString(par->m_status));
+            Events::Publish("playlist/section/status", par->m_currentSectionStr);
+            Events::Publish("playlist/sectionPosition/status", par->m_sectionPosition);
+        }
         {
             std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
             PL_CLEANUPS.push_back(this);
