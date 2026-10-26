@@ -3496,7 +3496,8 @@
             var raw = $('#pluginInput').val() || '';
             var value = raw.toLowerCase();
 
-            var isUrlInput = uiLevel >= 3 && PluginInfoUrlFromInput(raw) !== '';
+            var infoUrl = uiLevel >= 3 ? PluginInfoUrlFromInput(raw) : '';
+            var isUrlInput = infoUrl !== '';
             var urlLoadedMode = isUrlInput && urlLoadedRepo;
             var searching = (value !== '' && !isUrlInput);
             pluginSearchActive = searching;
@@ -3586,8 +3587,10 @@
             $('#manageHeading').toggleClass('invisible', activeTopTab === 'updates' && updateVisible === 0);
 
             var installedTotal = $('#installedGrid').children('.pluginCard').length;
-            var hasUrlScheme = /^https?:\/\//i.test(raw);
-            var hasUrlSchemeError = isUrlInput && !hasUrlScheme;
+            // Goes by the URL the loader fetches, not what was typed: it adds
+            // https:// to a bare github.com or pluginInfo.json address, so only
+            // another scheme (ftp://, file://) is one it cannot load.
+            var hasUrlSchemeError = isUrlInput && !/^https?:\/\//i.test(infoUrl);
             var hasUrlError = pluginUrlError && raw === pluginUrlError;
             if (hasUrlSchemeError) {
                 $('#noAvailableResults').addClass('d-none');
