@@ -698,9 +698,11 @@ void Sequence::StartSequence() {
 
 void Sequence::StartSequence(const std::string& filename, int frameNumber) {
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
-    if ((frameNumber > 0) && (filename == m_endedSeqFilename)) {
+    if ((frameNumber > 0) && (filename == m_endedSeqFilename) && (frameNumber >= m_endedSeqIgnoreFrom)) {
         // A sync packet for a sequence that already played to its end here
-        // (see m_endedSeqFilename).  A start (frame 0) or an open replays it.
+        // (see m_endedSeqFilename).  A start (frame 0) or an open replays it,
+        // and so does a sync packet for a frame before the last two seconds
+        // (see m_endedSeqIgnoreFrom).
         return;
     }
     if ((sequence->m_seqFilename != filename) && (m_seqSyncName != filename)) {
@@ -916,13 +918,18 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
             m_seqMSRemaining = 0;
             // Remember it by the name sync packets use (see m_seqSyncName).
             std::string ended;
+            int ignoreFrom = 0;
             {
                 std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
                 ended = m_seqSyncName.empty() ? m_seqFilename : m_seqSyncName;
+                if (m_seqStepTime > 0) {
+                    ignoreFrom = std::max(0, (m_seqMSDuration.load() - 2000) / m_seqStepTime);
+                }
             }
             CloseSequenceFile();
             std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
             m_endedSeqFilename = ended;
+            m_endedSeqIgnoreFrom = ignoreFrom;
         } else {
             if (m_lastFrameRead > 0) {
                 // we'll have the read thread discard the frame
