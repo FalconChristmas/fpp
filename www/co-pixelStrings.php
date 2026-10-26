@@ -692,14 +692,18 @@ function readCapes($cd, $capes)
             alert('Select the string to clone from first.');
             return;
         }
-        var rowCount = row.parent().find('tr').length;
-        var curRow = row.closest("tr")[0].rowIndex - 1;
+        // The selected row's place among the rows it is counted with, not its
+        // rowIndex: that counts the header rows too, and how many of those
+        // the table holds depends on its floating header.
+        var bodyRows = row.parent().find('tr');
+        var rowCount = bodyRows.length;
+        var curRow = bodyRows.index(row.closest("tr"));
         var rowsAbove = 0;
         var rowsBelow = 0;
 
         // Calculate how many rows actually have string data on them
         for (var r = 0; r < rowCount; r++) {
-            var tRow = row.parent().find('tr').eq(r);
+            var tRow = bodyRows.eq(r);
             if (isClonableStringRow(tRow)) {
                 if (r < curRow)
                     rowsAbove--;
