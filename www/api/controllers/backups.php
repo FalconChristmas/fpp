@@ -1053,7 +1053,7 @@ function DownloadJsonBackup(){
 			//Content type will always be json so see the header
 			header("Content-Type: application/json");
 			header("Content-Disposition: attachment; filename=\"" . SanitizeDownloadFilename(basename($fileName)) . "\"");
-			header("Content-Length: " . strlen($outgoing));
+			//No Content-Length: Apache drops a FastCGI reply's (see GetFileImpl)
 
 			//Empty the output buffers
 			ob_clean();
@@ -1089,7 +1089,7 @@ function DownloadJsonBackup(){
 			//Content type will always be json so see the header
 			header("Content-Type: application/json");
 			header("Content-Disposition: attachment; filename=\"" . SanitizeDownloadFilename(basename($fileName)) . "\"");
-			header("Content-Length: " . strlen($outgoing));
+			//No Content-Length: Apache drops a FastCGI reply's (see GetFileImpl)
 
 			//Empty the output buffers
 			ob_clean();

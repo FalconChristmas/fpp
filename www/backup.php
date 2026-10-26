@@ -2172,7 +2172,7 @@ function doBackupDownload($settings_data, $area)
                 ///Generate the headers to prompt browser to start download
                 header("Content-Disposition: attachment; filename=\"" . SanitizeDownloadFilename(basename($backup_fname)) . "\"");
                 header("Content-Type: application/json");
-                header("Content-Length: " . filesize($backup_local_fpath));
+                //No Content-Length: Apache drops a FastCGI reply's (see GetFileImpl)
                 header("Connection: close");
                 //Output the file
                 readfile($backup_local_fpath);

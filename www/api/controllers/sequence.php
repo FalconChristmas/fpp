@@ -64,7 +64,7 @@ function GetSequence()
         header('Expires: 0');
         header('Cache-Control: must-revalidate');
         header('Pragma: public');
-        header('Content-Length: ' . real_filesize($file));
+        //No Content-Length: Apache drops a FastCGI reply's (see GetFileImpl)
         readfile($file);
     } else {
         halt(404, "Not found: " . $sequence);
