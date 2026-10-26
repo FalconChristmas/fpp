@@ -169,6 +169,12 @@ private:
     // file at a frame past its end -- several reopens a second, each firing
     // SEQUENCE_STARTED/STOPPED, until the master stopped.
     std::string m_endedSeqFilename;
+    // Sync packets for the ended sequence are ignored only from this frame
+    // on: the last two seconds of our copy, or past its end.  One asking for
+    // an earlier frame means we ended early (a stale sync packet from the
+    // previous play-through of the same file jumped us to the end), and it
+    // reopens the file there, as remotes did before m_endedSeqFilename.
+    int m_endedSeqIgnoreFrom = 0;
 
     // The name the sequence was opened as -- the master's name for it -- even
     // when a remote is playing fallback.fseq in its place.  m_seqFilename names
