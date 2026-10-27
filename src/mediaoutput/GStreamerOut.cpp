@@ -101,6 +101,47 @@ static constexpr int MEDIA_FAILURE_WARNING_SECONDS = 300;
 //      reports a valid playback position (decoder demonstrably healthy).
 // ──────────────────────────────────────────────────────────────────────────────
 static constexpr int PIPELINE_TEARDOWN_TIMEOUT_MS = 10000;
+
+// Gain the File Manager's Normalize stored for a song in the music folder or a
+// video's sound (<config>/media_gain.json, written by
+// www/common/audioNormalize.inc.php): { "<name relative to the music dir>" or
+// "videos/<name relative to the videos dir>": { "gainDb": -3.2, "size": 1234, ... } }.
+// Applied at playback instead of rewriting the file, so timing, quality and
+// format never change.  An entry whose size no longer matches the file (the
+// song was replaced) is ignored.  Returns a linear factor; 1.0 = none.
+static double LookupNormalizeGain(const std::string& fullPath) {
+    const std::string musicDir = FPP_DIR_MUSIC("/");
+    const std::string videoDir = FPP_DIR_VIDEO("/");
+    std::string name;
+    if (fullPath.compare(0, musicDir.size(), musicDir) == 0) {
+        name = fullPath.substr(musicDir.size());
+    } else if (fullPath.compare(0, videoDir.size(), videoDir) == 0) {
+        name = "videos/" + fullPath.substr(videoDir.size());
+    } else {
+        return 1.0;
+    }
+    const std::string gainFile = FPP_DIR_CONFIG("/media_gain.json");
+    if (!FileExists(gainFile)) {
+        return 1.0;
+    }
+    Json::Value root;
+    if (!LoadJsonFromFile(gainFile, root) || !root.isObject()) {
+        return 1.0;
+    }
+    const Json::Value& e = root[name];
+    if (!e.isObject() || !e["gainDb"].isNumeric() || !e["size"].isNumeric()) {
+        return 1.0;
+    }
+    struct stat st;
+    if (stat(fullPath.c_str(), &st) != 0 || (Json::Int64)st.st_size != e["size"].asInt64()) {
+        LogDebug(VB_MEDIAOUT, "GStreamer: normalize gain for %s ignored (file changed since it was measured)\n", name.c_str());
+        return 1.0;
+    }
+    // +20 dB = 10.0, the volume element's maximum.
+    double db = std::clamp(e["gainDb"].asDouble(), -30.0, 20.0);
+    LogDebug(VB_MEDIAOUT, "GStreamer: normalize gain for %s: %+.1f dB\n", name.c_str(), db);
+    return pow(10.0, db / 20.0);
+}
 // Longest a track waits for its slot's PipeWire output stream to reach the
 // card.  A cold open is ~0.6 s on an AM335x.
 static constexpr int PW_STREAM_READY_TIMEOUT_MS = 3000;
@@ -1230,6 +1271,7 @@ int GStreamerOutput::Start(int msTime) {
         WarningHolder::AddWarningTimeout(60, 30, "Media file not found: " + m_mediaFilename);
         return 0;
     }
+    m_fileGain = LookupNormalizeGain(fullPath);
 
     // Pre-populate duration from file metadata so that
     // PlaylistEntryMedia::GetLengthInMS() returns a valid value immediately.
@@ -2371,10 +2413,13 @@ int GStreamerOutput::Start(int msTime) {
     }
 
     // Compute the target volume (1.0 unless dB adjustment is set)
-    double targetVolume = 1.0;
+    double targetVolume = m_fileGain;
     if (m_volumeAdjust != 0) {
-        targetVolume = pow(10.0, m_volumeAdjust / 2000.0); // volAdj is in 0.01dB units
+        targetVolume *= pow(10.0, m_volumeAdjust / 2000.0); // volAdj is in 0.01dB units
     }
+    // The volume element rejects anything over 10.0 (+20 dB) and keeps the
+    // old value -- mid-ramp that would leave the song stuck at a fraction.
+    targetVolume = std::min(targetVolume, 10.0);
 
     // Start muted — the background thread will ramp up to targetVolume
     // after the pipeline reaches PLAYING.  This eliminates audible clicks
@@ -4861,7 +4906,7 @@ bool GStreamerOutput::TrySetVolume(int volume) {
     GstElement* vol = RefVolumeElement();
     if (vol) {
         // volume parameter is 0-100 percentage
-        double linearVol = volume / 100.0;
+        double linearVol = volume / 100.0 * m_fileGain;
         g_object_set(vol, "volume", linearVol, NULL);
         gst_object_unref(vol);
         LogDebug(VB_MEDIAOUT, "GStreamer volume set to %d%% (%.2f)\n", volume, linearVol);
@@ -5003,7 +5048,7 @@ void GStreamerOutput::SetVolumeAdjustment(int volAdj) {
         return;
     }
     if (GstElement* vol = RefVolumeElement()) {
-        double linearVol = pow(10.0, volAdj / 2000.0);
+        double linearVol = std::min(m_fileGain * pow(10.0, volAdj / 2000.0), 10.0);
         g_object_set(vol, "volume", linearVol, NULL);
         gst_object_unref(vol);
     }

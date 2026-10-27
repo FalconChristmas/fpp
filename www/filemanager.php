@@ -304,10 +304,10 @@
                                             id="btnPlayMusicInBrowser"
                                             class="disableButtons noDirButton singleMusicButton" type="button"
                                             value="Listen" />
-                                        <? if (file_exists("/bin/mp3gain") || file_exists("/usr/bin/mp3gain") || file_exists("/opt/homebrew/bin/mp3gain") || file_exists("/usr/local/bin/mp3gain")) { ?>
-                                            <input onclick="ButtonHandler('Music', 'mp3gain');" id="btnPlayMusicInBrowser"
+                                        <? if (file_exists("/usr/bin/ffmpeg") || file_exists("/usr/local/bin/ffmpeg") || file_exists("/opt/homebrew/bin/ffmpeg")) { ?>
+                                            <input onclick="ButtonHandler('Music', 'normalize');" id="btnNormalizeMusic"
                                                 class="disableButtons noDirButton singleMusicButton multiMusicButton"
-                                                type="button" value="MP3Gain" />
+                                                type="button" value="Normalize" />
                                         <? } ?>
 
                                         <input onclick="ButtonHandler('Music', 'addToPlaylist');"
@@ -372,6 +372,11 @@
                                         <input onclick="ButtonHandler('Videos', 'videoInfo');"
                                             class="disableButtons noDirButton singleVideosButton" type="button"
                                             value="Video Info" />
+                                        <? if (file_exists("/usr/bin/ffmpeg") || file_exists("/usr/local/bin/ffmpeg") || file_exists("/opt/homebrew/bin/ffmpeg")) { ?>
+                                            <input onclick="ButtonHandler('Videos', 'normalize');" id="btnNormalizeVideos"
+                                                class="disableButtons noDirButton singleVideosButton multiVideosButton"
+                                                type="button" value="Normalize" />
+                                        <? } ?>
                                         <input onclick="ButtonHandler('Videos', 'addToPlaylist');"
                                             class="disableButtons noDirButton singleVideosButton multiVideosButton"
                                             type="button" value="Add To Playlist" />

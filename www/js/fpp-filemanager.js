@@ -1047,22 +1047,12 @@ function ButtonHandler (table, button) {
 				'Error, unable to view multiple files at the same time.'
 			);
 		}
-	} else if (button == 'mp3gain') {
+	} else if (button == 'normalize') {
 		var files = [];
 		$('#tbl' + table + ' tr.selectedEntry').each(function () {
 			files.push($(this).find('td:first').text());
 		});
-		var postData = JSON.stringify(files);
-		DisplayProgressDialog('mp3GainProgress', 'MP3Gain');
-		StreamURL(
-			'run_mp3gain.php',
-			'mp3GainProgressText',
-			'ProgressDialogDone',
-			'ProgressDialogDone',
-			'POST',
-			postData,
-			'application/json'
-		);
+		NormalizeAudioDialog(files, table);
 	} else if (button == 'addToPlaylist') {
 		var files = [];
 		$('#tbl' + table + ' tr.selectedEntry').each(function () {
@@ -1690,3 +1680,102 @@ function SetupTableSorter (tableName) {
 	}
 }
 
+
+// Normalize: make the selected songs play equally loud (replaces MP3Gain).
+// run_normalize.php measures each song and stores a gain that fppd applies at
+// playback -- the files themselves are never changed. The options are
+// remembered per browser; progress streams into the usual progress dialog.
+function NormalizeAudioDialog (files, dir) {
+	dir = dir == 'Videos' ? 'Videos' : 'Music';
+	var opts = { target: '-18', match: 'speakers' };
+	try {
+		var saved = JSON.parse(localStorage.getItem('fppNormalizeOptions') || '{}');
+		if (saved.target) opts.target = String(saved.target);
+		if (saved.match) opts.match = saved.match;
+	} catch (e) {}
+	var targets = [
+		['-14', '-14 LUFS (loud; quiet songs may not reach it)'],
+		['-16', '-16 LUFS'],
+		['-18', '-18 LUFS (recommended)'],
+		['-20', '-20 LUFS'],
+		['-23', '-23 LUFS (broadcast)']
+	];
+	var targetOptions = targets
+		.map(function (t) {
+			return '<option value="' + t[0] + '"' + (t[0] == opts.target ? ' selected' : '') + '>' + t[1] + '</option>';
+		})
+		.join('');
+	var body =
+		'<p>Makes the ' +
+		files.length +
+		(dir == 'Videos' ? ' selected video(s) play as loud as your normalized songs. The sound of each video' : ' selected song(s) play equally loud. Each song') +
+		' is measured (LUFS) and its volume change is applied when it plays; ' +
+		'the files themselves are not changed, so quality, timing and sync are untouched. ' +
+		'A song is never turned up so far that its peaks would clip, so pick a level every song can reach: ' +
+		'commercial songs usually peak near full scale, and -18 LUFS lets almost all of them match. Make up the overall level with the amplifier, FM transmitter or FPP volume.</p>' +
+		'<div class="mb-2"><label for="normalizeTarget"><b>Loudness</b></label> ' +
+		'<select id="normalizeTarget" class="form-select form-select-sm d-inline-block w-auto">' +
+		targetOptions +
+		'</select></div>' +
+		'<div class="mb-2"><b>Match songs by</b><br>' +
+		'<label><input type="radio" name="normalizeMatch" value="speakers"' +
+		(opts.match !== 'lufs' ? ' checked' : '') +
+		'> How they sound on show speakers / FM (recommended)</label><br>' +
+		'<label><input type="radio" name="normalizeMatch" value="lufs"' +
+		(opts.match === 'lufs' ? ' checked' : '') +
+		'> Standard loudness (LUFS)</label></div>' +
+		'<p class="text-muted small mb-0">Measuring decodes each song once, one song at a time at low priority. ' +
+		'On a single-core board such as a BeagleBone Black that can take about as long as the song plays; multi-core Pis are faster.</p>';
+
+	var start = function (action) {
+		opts = {
+			target: $('#normalizeTarget').val(),
+			match: $('input[name=normalizeMatch]:checked').val()
+		};
+		try {
+			localStorage.setItem('fppNormalizeOptions', JSON.stringify(opts));
+		} catch (e) {}
+		CloseModalDialog('normalizeOptions');
+		var postData = JSON.stringify({
+			action: action,
+			dir: dir,
+			files: files,
+			target: parseFloat(opts.target),
+			peak: -1.5,
+			match: opts.match
+		});
+		DisplayProgressDialog('normalizeProgress', action == 'remove' ? 'Remove Normalization' : 'Normalize');
+		StreamURL(
+			'run_normalize.php',
+			'normalizeProgressText',
+			'ProgressDialogDone',
+			'ProgressDialogDone',
+			'POST',
+			postData,
+			'application/json'
+		);
+	};
+
+	DoModalDialog({
+		id: 'normalizeOptions',
+		title: 'Normalize',
+		class: 'modal-m',
+		backdrop: true,
+		keyboard: true,
+		body: body,
+		buttons: {
+			Normalize: {
+				class: 'btn-success',
+				click: function () {
+					start('normalize');
+				}
+			},
+			'Remove Normalization': function () {
+				start('remove');
+			},
+			Cancel: function () {
+				CloseModalDialog('normalizeOptions');
+			}
+		}
+	});
+}

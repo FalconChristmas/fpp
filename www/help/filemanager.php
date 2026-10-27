@@ -38,7 +38,7 @@
 <p>Columns: File, Duration, Date Modified.</p>
 <ul>
     <li><b>Listen</b> (single) — Plays the audio in the browser for quick preview.</li>
-    <li><b>MP3Gain</b> (when <code>mp3gain</code> is installed, single or multiple) — Normalizes volume across tracks by rewriting each selected MP3 to the same ReplayGain loudness, turning a track down further where raising it would clip. The change is lossless (1.5 dB steps) and can be undone with <code>mp3gain -u</code>. Other audio formats are skipped.</li>
+    <li><b>Normalize</b> (single or multiple) — Makes the selected songs play equally loud. Each song's loudness and true peak are measured (LUFS, ITU-R BS.1770) and a volume change for it is stored in <code>config/media_gain.json</code>; fppd applies it whenever that song plays. The files themselves are never changed, so quality, timing and sync are untouched, and any format FPP plays works. <i>Show speakers / FM</i> matching also allows for deep bass that outdoor speakers barely reproduce. A song is never turned up past the point where its peaks would exceed -1.5 dBTP, nor by more than +20 dB. <b>Remove Normalization</b> in the same dialog makes a song play as recorded again. If a song is replaced by a new upload, its old setting is ignored until it is measured again.</li>
     <li><b>Add To Playlist, Download, Rename, Delete</b> — As above, with the same single/multi rules.</li>
 </ul>
 
@@ -47,6 +47,7 @@
 <ul>
     <li><b>View</b> (single) — Plays the video in the browser.</li>
     <li><b>Video Info</b> (single) — Shows codec, resolution and duration.</li>
+    <li><b>Normalize</b> (single or multiple) — Measures the sound of the selected videos and stores a volume change fppd applies when they play, the same way as for audio files, so a video's sound matches your normalized songs. The video files are never changed. Videos without sound are skipped. <b>Remove Normalization</b> in the same dialog undoes it.</li>
     <li><b>Add To Playlist, Download, Rename, Delete</b> — As above.</li>
 </ul>
 

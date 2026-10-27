@@ -6196,7 +6196,7 @@ function DeprecatedStateChangingGetRoute()
     }
     static $pages = array('changebranch', 'copystorage', 'disableKiosk', 'flash-storage', 'formatstorage',
         'gitCheckoutVersion', 'growsd', 'installKiosk', 'manualUpdate', 'newpartitionsd', 'packagesHelper',
-        'rebootRemoteFPP', 'rebuildfpp', 'resetConfig', 'restartRemoteFPPD', 'run_mp3gain', 'runEventScript',
+        'rebootRemoteFPP', 'rebuildfpp', 'resetConfig', 'restartRemoteFPPD', 'run_normalize', 'runEventScript',
         'shutdownRemoteFPP', 'upgradeCapeFirmware', 'upgradefpp', 'upgradeOS');
     $script = basename($_SERVER['SCRIPT_NAME'] ?? '', '.php');
     if (in_array($script, $pages, true)) {

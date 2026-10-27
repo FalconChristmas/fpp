@@ -68,7 +68,7 @@ ServerTokens Prod
 	RewriteCond %{ENV:REDIRECT_STATUS} ^$
 	RewriteCond %{HTTP:Sec-Fetch-Site} ^(cross-site|same-site)$ [NC]
 	RewriteCond %{REQUEST_URI} ^(/proxy/[^/]+)?/api/(index\.php|api\.php|command/|events/[^/]+/trigger|file/move/|git/reset|network/interface/add/|playlists/(stop|pause|resume|stopgracefully|stopgracefullyafterloop)$|playlist/[^/]+/start|playlist/repeat/|plugin/[^/]+/upgrade|sequence/current/(stop|togglePause)|sequence/[^/]+/start/|scripts/[^/]+/run|system/(reboot|shutdown)$|system/fppd/(start|stop|restart)$) [NC,OR]
-	RewriteCond %{REQUEST_URI} ^/(changebranch|copystorage|disableKiosk|flash-storage|formatstorage|gitCheckoutVersion|growsd|installKiosk|manualUpdate|newpartitionsd|packagesHelper|rebootRemoteFPP|rebuildfpp|resetConfig|restartRemoteFPPD|run_mp3gain|runEventScript|shutdownRemoteFPP|upgradeCapeFirmware|upgradefpp|upgradeOS)\.php$ [NC]
+	RewriteCond %{REQUEST_URI} ^/(changebranch|copystorage|disableKiosk|flash-storage|formatstorage|gitCheckoutVersion|growsd|installKiosk|manualUpdate|newpartitionsd|packagesHelper|rebootRemoteFPP|rebuildfpp|resetConfig|restartRemoteFPPD|run_normalize|runEventScript|shutdownRemoteFPP|upgradeCapeFirmware|upgradefpp|upgradeOS)\.php$ [NC]
 	RewriteRule ^ - [F]
 
 	# A plugin's own assets: /js/plugin/<plugin>/<file>, and the same under
