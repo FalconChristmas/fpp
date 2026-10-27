@@ -384,9 +384,7 @@ void RunChannelOutputThread(void) {
                 // The plain load first keeps the exchange (a locked RMW)
                 // off the frames with nothing to skip, which is nearly all.
                 if (FrameSkip.load(relaxed) != 0) {
-                    if (int skip = FrameSkip.exchange(0, relaxed)) {
-                        sequence->SeekSequenceFile(channelOutputFrame.load(relaxed) + skip + 1);
-                    }
+                    sequence->SkipFrames(FrameSkip);
                 }
             }
             sequence->ReadSequenceData();
@@ -735,6 +733,10 @@ void ResetMasterPosition(void) {
     MasterFramesPlayed = -1;
     std::unique_lock<std::mutex> l(masterEpochLock);
     masterEpochs.clear();
+}
+
+void CancelFrameSkip(void) {
+    FrameSkip = 0;
 }
 
 // The master's frame 0 on our clock, from the packet that put it at

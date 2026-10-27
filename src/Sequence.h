@@ -56,6 +56,13 @@ public:
     void StartSequence();
     void ProcessSequenceData(int ms);
     void SeekSequenceFile(int frameNumber);
+    // Takes the channel output thread's pending frame skip and seeks that
+    // many frames on from the frame being output.  Under m_sequenceLock, which
+    // every open holds while it cancels the pending skip, so a skip counted
+    // from one open's position is never applied to the next: a remote's stale
+    // sync packet from the last play-through of the same file used to jump the
+    // next one to its end.
+    void SkipFrames(std::atomic_int& skip);
     void ReadSequenceData(bool forceFirstFrame = false);
     void SendSequenceData(void);
     void SendBlankingData(void);

@@ -347,6 +347,9 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
     m_endedSeqFilename.clear();
     const uint64_t openGeneration = ++m_openGeneration;
+    // A pending frame skip counts from the old file's position (see
+    // SkipFrames()).
+    CancelFrameSkip();
 
     if (m_seqFile.load()) {
         if (m_seqFilename == filename && m_seqStarting) {
@@ -761,6 +764,13 @@ void Sequence::SeekSequenceFile(int frameNumber) {
     }
     lock.unlock();
     frameLoadSignal.notify_all();
+}
+
+void Sequence::SkipFrames(std::atomic_int& skip) {
+    std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+    if (int frames = skip.exchange(0, std::memory_order_relaxed)) {
+        SeekSequenceFile(channelOutputFrame.load(std::memory_order_relaxed) + frames + 1);
+    }
 }
 
 std::string Sequence::GetSeqFilenameCopy() const {

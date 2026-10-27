@@ -73,6 +73,9 @@ int StopChannelOutputThread(void);
 void StartForcingChannelOutput(void);
 void StopForcingChannelOutput(void);
 void ResetMasterPosition(void);
+// Drops a pending frame skip.  Call it under the sequence lock when opening a
+// file (see Sequence::SkipFrames()).
+void CancelFrameSkip(void);
 void UpdateMasterPosition(int frameNumber);
 // framePosition is where the master is in frames, fractions included (a
 // remoteOffset that is not a whole number of frames); frameNumber is it rounded.
