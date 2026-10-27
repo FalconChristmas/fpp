@@ -30,13 +30,15 @@ public:
     // Set from GStreamer's bus thread when media ends or fails, read by the
     // playlist on the main loop.
     std::atomic<int> status{ 0 };
-    int secondsElapsed;
-    int subSecondsElapsed;
-    int secondsRemaining;
-    int subSecondsRemaining;
-    int minutesTotal;
-    int secondsTotal;
-    float mediaSeconds;
+    // Zero until the output first reports: Play Media's private status is a
+    // member of a heap object, and Media Slot Status read it before then.
+    int secondsElapsed = 0;
+    int subSecondsElapsed = 0;
+    int secondsRemaining = 0;
+    int subSecondsRemaining = 0;
+    int minutesTotal = 0;
+    int secondsTotal = 0;
+    float mediaSeconds = 0.0f;
     std::string output;
     bool mediaLoading = false;
 
