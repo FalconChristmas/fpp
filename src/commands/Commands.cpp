@@ -233,7 +233,7 @@ CommandManager::CommandManager() {
 }
 
 void CommandManager::Init() {
-    LoadPresets();
+    LoadPresets(true);
 
     FileMonitor::INSTANCE.AddFile("CommandManager:CommandPresets.json",
                                   FPP_DIR_CONFIG("/commandPresets.json"),
@@ -1347,7 +1347,7 @@ void CommandManager::MaybeReloadPresets() {
     }
 }
 
-void CommandManager::LoadPresets() {
+void CommandManager::LoadPresets(bool atStartup) {
     LogDebug(VB_COMMAND, "Loading Command Presets\n");
 
     char id[6];
@@ -1363,6 +1363,12 @@ void CommandManager::LoadPresets() {
         // change by the next check rather than recorded as already loaded.
         lastPresetTimeStamp = PresetFileStamp(commandsFile);
         allCommands = LoadJsonFromFile(commandsFile, JsonRoot::Object);
+    } else if (!atStartup) {
+        // Deleted while running (Reset Config's Configuration area does it):
+        // no presets, and no file written back.  The old events were
+        // converted when fppd started, and writing an empty file here put
+        // back what the reset had just removed.
+        lastPresetTimeStamp = 0;
     } else {
         // Convert any old events to new format
         Json::Value commands(Json::arrayValue);

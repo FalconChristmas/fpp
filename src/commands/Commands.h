@@ -314,7 +314,9 @@ private:
     CommandManager();
     ~CommandManager();
 
-    void LoadPresets();
+    // atStartup: a missing file is created, from any old events/*.fevt.  A
+    // reload (the file changed or was deleted while running) only reads.
+    void LoadPresets(bool atStartup = false);
     void MaybeReloadPresets();
 
     Json::Value ReplaceCommandKeywords(Json::Value cmd, std::map<std::string, std::string>& keywords);
