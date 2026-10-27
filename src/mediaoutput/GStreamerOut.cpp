@@ -205,6 +205,13 @@ static bool PipelineHasHwVideoDecoder(GstElement* pipeline) {
 // never prerolled on a BeagleBone -- has nothing a reboot fixes, and counting
 // it restarted fppd and rebooted show controllers that have no such decoder.
 // Those are logged and left at that.
+// The UI warning for a pipeline that never got to PLAYING with no hardware
+// decoder to blame: in practice a PipeWire daemon restarted under fppd.
+// Raised by whichever of the start thread and Process()'s preroll watchdog
+// sees it first; the two are the same warning, so it shows once.
+static const char* const kMediaDidNotStartWarning =
+    "Media playback did not start (audio backend connection lost — restart FPPD)";
+
 static void RecordWedgeEventAndMaybeRestart(const char* what, bool hwDecoder) {
     if (!hwDecoder) {
         LogErr(VB_MEDIAOUT, "GStreamer: %s (no hardware decoder involved, not counted toward a restart)\n", what);
@@ -2608,10 +2615,10 @@ int GStreamerOutput::Start(int msTime) {
             // nothing above notices.  That is exactly what a PipeWire daemon
             // restart under a live fppd leaves behind -- the GStreamer PipeWire
             // plugin caches its daemon connection process-wide, so every later
-            // pipewiresink reuses a dead one.  Process()'s preroll watchdog
-            // catches this for playlist media, but a standalone Play Media never
-            // runs Process() (only PlaylistEntryMedia calls it), so without this
-            // the failure is completely invisible.
+            // pipewiresink reuses a dead one.  Process()'s preroll watchdog,
+            // which the playlist and the slot pump (Play Media) both run, has
+            // the same timeout and usually gets there first: it stops the
+            // output, which cancels this wait, so it raises the same warning.
             if (!cancel->load()) {
                 GstState startedState = GST_STATE_NULL;
                 GstStateChangeReturn scr = gst_element_get_state(pipeline, &startedState, nullptr,
@@ -2639,8 +2646,7 @@ int GStreamerOutput::Start(int msTime) {
                                    "be silent. A PipeWire restart under a running fppd does this; fppd must be "
                                    "restarted to reconnect.\n",
                                    PREROLL_TIMEOUT_MS, gst_element_state_get_name(startedState));
-                            WarningHolder::AddWarningTimeout(60, 30,
-                                                            "Media playback did not start (audio backend connection lost — restart FPPD)");
+                            WarningHolder::AddWarningTimeout(60, 30, kMediaDidNotStartWarning);
                         }
                     }
                 }
@@ -3866,7 +3872,15 @@ int GStreamerOutput::Process(void) {
                 LogWarn(VB_MEDIAOUT, "GStreamer pipeline failed to preroll within %dms "
                         "(stuck in PAUSED — HW decoder may have wedged, see issue #2695). "
                         "Forcing stop so the playlist advances.\n", PREROLL_TIMEOUT_MS);
-                RecordWedgeEventAndMaybeRestart("pipeline failed to preroll", PipelineHasHwVideoDecoder(m_pipeline));
+                bool hwDecoder = PipelineHasHwVideoDecoder(m_pipeline);
+                RecordWedgeEventAndMaybeRestart("pipeline failed to preroll", hwDecoder);
+                // Stopping cancels the start thread's wait for PLAYING, which
+                // was the only place this reached the UI: tell the user here.
+                // A wedged hardware decoder has its own restart and reboot
+                // rungs above.
+                if (!hwDecoder) {
+                    WarningHolder::AddWarningTimeout(60, 30, kMediaDidNotStartWarning);
+                }
                 m_playing = false;
                 if (m_mediaOutputStatus) {
                     m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
