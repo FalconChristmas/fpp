@@ -1,5 +1,7 @@
 <?
 
+require_once __DIR__ . '/../../common/audioNormalize.inc.php';
+
 /**
  * Maps a filename to its media directory based on file extension.
  * Falls back to plugin-registered extension mappings in `pluginInfo.json` if no built-in match is found.
@@ -139,6 +141,7 @@ function files_copy()
 
     if (copy($srcPath, $dstPath)) {
         $result['status'] = 'success';
+        AN_FileMoved($srcPath, $dstPath, true);
     } else {
         $result['status'] = 'failure';
     }
@@ -185,6 +188,7 @@ function files_rename()
 
     if (rename($srcPath, $dstPath)) {
         $result['status'] = 'success';
+        AN_FileMoved($srcPath, $dstPath);
     } else {
         $result['status'] = 'failure';
     }
@@ -1344,9 +1348,11 @@ function DeleteFile()
     } else if (is_dir($fullPath)) {
         removeDir($fullPath);
         $status = "OK";
+        AN_FileDeleted($fullPath);
     } else {
         if (unlink($fullPath)) {
             $status = "OK";
+            AN_FileDeleted($fullPath);
         } else {
             $errorDetails = error_get_last();
             $status = "Unable to delete file: " . ($errorDetails['message'] ?? 'Unknown');

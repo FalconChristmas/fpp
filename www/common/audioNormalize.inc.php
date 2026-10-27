@@ -235,6 +235,11 @@ function AN_R1($n)
 
 // The gain for this song: to the target (or the speaker match), never so far
 // up that the true peak would pass the ceiling.
+//
+// 'reach' is the highest target this song could be normalized to without being
+// held back. The gain before the ceiling is the target plus a per-song offset
+// (both the LUFS and the speaker gain move one for one with the target), so it
+// is the ceiling's headroom less that offset.
 function AN_Gain($m, $opts)
 {
     $plain = $opts['target'] - $m['i'];
@@ -245,6 +250,7 @@ function AN_Gain($m, $opts)
         $gain = max($plain - AN_SPEAKER_MAX_DEV_DB, min($plain + AN_SPEAKER_MAX_DEV_DB, $want));
         $matched = 'speakers';
     }
+    $reach = min($opts['peak'] - $m['tp'], AN_MAX_GAIN_DB) - ($gain - $opts['target']);
     $held = '';
     if ($m['tp'] + $gain > $opts['peak']) {
         $gain = $opts['peak'] - $m['tp'];
@@ -255,7 +261,7 @@ function AN_Gain($m, $opts)
         $held = 'limited to +' . AN_MAX_GAIN_DB . ' dB';
     }
     $gain = max(AN_MIN_GAIN_DB, $gain);
-    return array('gain' => AN_R1($gain), 'matched' => $matched, 'held' => $held);
+    return array('gain' => AN_R1($gain), 'matched' => $matched, 'held' => $held, 'reach' => $reach);
 }
 
 // ------------------------------------------------------------------
@@ -272,6 +278,34 @@ function AN_LoadGains()
     $f = AN_GainFile();
     $j = is_file($f) ? json_decode(@file_get_contents($f), true) : null;
     return is_array($j) ? $j : array();
+}
+
+// Load, change and save media_gain.json under a lock, so a rename or delete in
+// the File Manager can't race a Normalize run's write and lose an entry.
+// $fn(&$all) returns true if it changed anything. Nothing is created when the
+// file doesn't exist yet and $create is false.
+function AN_UpdateGains($fn, $create = true)
+{
+    if (!$create && !is_file(AN_GainFile())) {
+        return;
+    }
+    $tmpDir = GetDirSetting('tmp');
+    @mkdir($tmpDir, 0775, true);
+    $lock = @fopen($tmpDir . '/media_gain.lock', 'c');
+    if ($lock !== false) {
+        flock($lock, LOCK_EX);
+    }
+    try {
+        $all = AN_LoadGains();
+        if ($fn($all)) {
+            AN_SaveGains($all);
+        }
+    } finally {
+        if ($lock !== false) {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
+    }
 }
 
 function AN_SaveGains($g)
@@ -327,12 +361,12 @@ function AN_Process($baseDir, $name, $key, $opts, $tools, $say)
     if ($opts['match'] === 'speakers' && $g['matched'] !== 'speakers') {
         $say('  too short to judge on speakers -- matched by LUFS');
     }
+    clearstatcache(true, $path);
     if (filesize($path) !== $size) {
         throw new Exception('the file changed while it was being measured');
     }
 
-    $all = AN_LoadGains();
-    $all[$key] = array(
+    $entry = array(
         'gainDb' => $g['gain'],
         'size' => $size,
         'lufs' => AN_R1($m['i']),
@@ -342,24 +376,107 @@ function AN_Process($baseDir, $name, $key, $opts, $tools, $say)
         'match' => $g['matched'],
         'measured' => date('c'),
     );
-    AN_SaveGains($all);
+    AN_UpdateGains(function (&$all) use ($key, $entry) {
+        $all[$key] = $entry;
+        return true;
+    });
 
-    return sprintf('plays at %+.1f dB -> %.1f LUFS, peak %.1f dBTP%s', $g['gain'], $m['i'] + $g['gain'],
-        $m['tp'] + $g['gain'], $g['held'] !== '' ? ' (' . $g['held'] . ')' : '');
+    return array(
+        'text' => sprintf('plays at %+.1f dB -> %.1f LUFS, peak %.1f dBTP%s', $g['gain'], $m['i'] + $g['gain'],
+            $m['tp'] + $g['gain'], $g['held'] !== '' ? ' (' . $g['held'] . ')' : ''),
+        'held' => $g['held'] !== '',
+        'reach' => $g['reach'],
+    );
 }
 
 function AN_Remove($names)
 {
-    $all = AN_LoadGains();
     $removed = array();
-    foreach ($names as $n) {
-        if (isset($all[$n])) {
-            unset($all[$n]);
-            $removed[] = $n;
+    AN_UpdateGains(function (&$all) use ($names, &$removed) {
+        foreach ($names as $n) {
+            if (isset($all[$n])) {
+                unset($all[$n]);
+                $removed[] = $n;
+            }
+        }
+        return count($removed) > 0;
+    }, false);
+    return $removed;
+}
+
+// ------------------------------------------------------------------
+// Keeping media_gain.json in step with the File Manager's rename, copy and
+// delete (api/controllers/files.php). An entry is keyed by the file's name, so
+// without this a renamed song played un-normalized and a deleted one left an
+// entry behind. Each takes absolute paths and does nothing for a file outside
+// the music and videos folders. They never fail the file operation itself.
+// ------------------------------------------------------------------
+
+// The media_gain.json key for an absolute path, or null.
+function AN_KeyForPath($path)
+{
+    foreach (array('music' => '', 'videos' => AN_VIDEO_PREFIX) as $dir => $prefix) {
+        $base = realpath(GetDirSetting($dir));
+        if ($base !== false && strpos($path, $base . '/') === 0) {
+            $rel = substr($path, strlen($base) + 1);
+            return $rel === '' ? null : $prefix . $rel;
         }
     }
-    if (count($removed)) {
-        AN_SaveGains($all);
+    return null;
+}
+
+// $src was renamed (or copied, when $copy) to $dst: its entry goes with it.
+// Whatever entry $dst had described the file it replaced, so it goes too.
+function AN_FileMoved($src, $dst, $copy = false)
+{
+    $from = AN_KeyForPath($src);
+    $to = AN_KeyForPath($dst);
+    if ($from === null && $to === null) {
+        return;
     }
-    return $removed;
+    try {
+        AN_UpdateGains(function (&$all) use ($from, $to, $copy) {
+            $entry = ($from !== null && isset($all[$from])) ? $all[$from] : null;
+            $changed = false;
+            if ($to !== null && isset($all[$to])) {
+                unset($all[$to]);
+                $changed = true;
+            }
+            if ($entry !== null) {
+                if (!$copy) {
+                    unset($all[$from]);
+                }
+                if ($to !== null) {
+                    $all[$to] = $entry;
+                }
+                $changed = true;
+            }
+            return $changed;
+        }, false);
+    } catch (Exception $e) {
+        error_log('media_gain.json not updated for ' . $src . ': ' . $e->getMessage());
+    }
+}
+
+// $path (a file, or a folder and everything in it) was deleted.
+function AN_FileDeleted($path)
+{
+    $key = AN_KeyForPath($path);
+    if ($key === null) {
+        return;
+    }
+    try {
+        AN_UpdateGains(function (&$all) use ($key) {
+            $changed = false;
+            foreach (array_keys($all) as $k) {
+                if ($k === $key || strpos($k, $key . '/') === 0) {
+                    unset($all[$k]);
+                    $changed = true;
+                }
+            }
+            return $changed;
+        }, false);
+    } catch (Exception $e) {
+        error_log('media_gain.json not updated for ' . $path . ': ' . $e->getMessage());
+    }
 }

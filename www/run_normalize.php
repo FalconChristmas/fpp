@@ -70,6 +70,9 @@ foreach ($req['files'] as $f) {
 
 $ok = 0;
 $held = 0;
+// The highest target every file in this run could reach, and the one that sets it.
+$reach = null;
+$reachBy = '';
 $skipped = 0;
 $failed = 0;
 if ($action === 'remove') {
@@ -100,10 +103,14 @@ if ($action === 'remove') {
         Say(sprintf("[%d/%d] %s", $i + 1, count($names), $n));
         try {
             $result = AN_Process($dir, $n, AN_Key($tab, $n), $opts, $tools, 'Say');
-            Say("  " . $result);
+            Say("  " . $result['text']);
             $ok++;
-            if (strpos($result, 'held back by peaks') !== false) {
+            if ($result['held']) {
                 $held++;
+            }
+            if ($reach === null || $result['reach'] < $reach) {
+                $reach = $result['reach'];
+                $reachBy = $n;
             }
         } catch (AN_NoAudio $e) {
             Say("  skipped: no audio track");
@@ -114,8 +121,30 @@ if ($action === 'remove') {
         }
     }
     if ($held) {
-        Say(sprintf("\n%d file(s) could not be turned up all the way without clipping, so they will play quieter than the rest. " .
-            "Normalize all your songs and videos again at a lower loudness (e.g. %d LUFS) to match them.", $held, $opts['target'] - 2));
+        Say(sprintf("\n%d file(s) could not be turned up all the way without clipping, so they will play quieter than the rest.", $held));
+    }
+    // How loud this set can go: the target the most limited file can still
+    // reach, and the loudest of the dialog's levels at or under it.
+    if ($reach !== null && ($ok > 1 || $held)) {
+        if ($ok > 1) {
+            $line = sprintf("All %d files can be normalized to %.1f LUFS without clipping (%s sets the limit).", $ok, $reach, $reachBy);
+        } else {
+            $line = sprintf("This file can be normalized to at most %.1f LUFS without clipping.", $reach);
+        }
+        $fits = null;
+        foreach (array(-14, -16, -18, -20, -23) as $t) {
+            if ($t <= $reach + 0.05) {
+                $fits = $t;
+                break;
+            }
+        }
+        if ($fits === null) {
+            $line .= " That is below the dialog's lowest level (-23 LUFS).";
+        } else {
+            $line .= sprintf(" The loudest level in the dialog that fits is %d LUFS%s.", $fits,
+                $fits == $opts['target'] ? ', the one used' : '');
+        }
+        Say("\n" . $line . " Use one level for all your songs and videos so they match.");
     }
     if ($ok) {
         Say("\nThe files were not changed. The volume change is applied when a song plays; it takes effect the next time each song starts.");
