@@ -464,6 +464,149 @@ static void safeWriteCodeAtFault(int fd, void* ctx) {
 #endif
 }
 
+#ifndef PLATFORM_OSX
+// Appends s at p and returns the new end.  No terminator.
+static char* safeAppend(char* p, const char* s) {
+    while (*s) {
+        *p++ = *s++;
+    }
+    return p;
+}
+
+// Appends the decimal digits of v at p and returns the new end.  No terminator.
+static char* safeAppendDec(char* p, unsigned long v) {
+    char tmp[24];
+    int n = 0;
+    do {
+        tmp[n++] = (char)('0' + v % 10);
+        v /= 10;
+    } while (v);
+    while (n) {
+        *p++ = tmp[--n];
+    }
+    return p;
+}
+
+// A sysfs attribute into buf, trailing whitespace dropped.  Only open, read
+// and close, so the crash handler can call it.
+static bool safeReadAttr(const char* path, char* buf, size_t len) {
+    int f = open(path, O_RDONLY | O_CLOEXEC);
+    if (f < 0) {
+        return false;
+    }
+    ssize_t n = read(f, buf, len - 1);
+    close(f);
+    if (n < 0) {
+        n = 0;
+    }
+    while (n > 0 && (buf[n - 1] == '\n' || buf[n - 1] == ' ')) {
+        n--;
+    }
+    buf[n] = '\0';
+    return n > 0;
+}
+
+// Every thermal zone's temperature and every cpufreq policy's clock, read at
+// the fault.
+//
+// A SIGILL at a valid instruction, or a pointer with one stray bit set, can be
+// a part running too hot or clocked too fast for its supply rather than a bug.
+// The statistics snapshot that rides along in some reports was taken minutes
+// after fppd started, and the CPU cools within seconds of the load stopping,
+// so only a reading taken here says how hot the part was when it failed.
+//
+// Thermal zones are on-chip sensors on every platform FPP runs on.  Values are
+// written in decimal with no "=0x", because the report side reads every
+// name=0x... pair after the registers header as a register.
+static void safeWriteThermal(int fd) {
+    safeWrite(fd, "\n=== thermal at fault ===\n");
+    char path[96];
+    char val[64];
+    bool any = false;
+    for (unsigned i = 0; i < 32; i++) {
+        char* base = safeAppendDec(safeAppend(path, "/sys/class/thermal/thermal_zone"), i);
+        *safeAppend(base, "/temp") = '\0';
+        char temp[24];
+        if (!safeReadAttr(path, temp, sizeof(temp))) {
+            continue;
+        }
+        any = true;
+        *safeAppend(base, "/type") = '\0';
+        safeWrite(fd, "thermal_zone");
+        char num[24];
+        *safeAppendDec(num, i) = '\0';
+        safeWrite(fd, num);
+        safeWrite(fd, " ");
+        safeWrite(fd, safeReadAttr(path, val, sizeof(val)) ? val : "?");
+        safeWrite(fd, ": ");
+        // Millidegrees C, possibly negative, written as degrees.
+        const char* t = temp;
+        bool neg = *t == '-';
+        if (neg) {
+            t++;
+        }
+        unsigned long mc = 0;
+        bool digits = *t != '\0';
+        for (; *t; t++) {
+            if (*t < '0' || *t > '9') {
+                digits = false;
+                break;
+            }
+            mc = mc * 10 + (unsigned long)(*t - '0');
+        }
+        if (!digits) {
+            safeWrite(fd, temp);
+            safeWrite(fd, " (unparsed)\n");
+            continue;
+        }
+        char* p = val;
+        if (neg) {
+            *p++ = '-';
+        }
+        p = safeAppendDec(p, mc / 1000);
+        *p++ = '.';
+        unsigned long frac = mc % 1000;
+        *p++ = (char)('0' + frac / 100);
+        *p++ = (char)('0' + frac / 10 % 10);
+        *p++ = (char)('0' + frac % 10);
+        *safeAppend(p, " C\n") = '\0';
+        safeWrite(fd, val);
+    }
+    if (!any) {
+        safeWrite(fd, "(no thermal zones)\n");
+    }
+    for (unsigned i = 0; i < 32; i++) {
+        char* base = safeAppendDec(safeAppend(path, "/sys/devices/system/cpu/cpufreq/policy"), i);
+        *safeAppend(base, "/scaling_cur_freq") = '\0';
+        char freq[24];
+        if (!safeReadAttr(path, freq, sizeof(freq))) {
+            continue;
+        }
+        safeWrite(fd, "cpufreq policy");
+        char num[24];
+        *safeAppendDec(num, i) = '\0';
+        safeWrite(fd, num);
+        safeWrite(fd, ": ");
+        safeWrite(fd, freq);
+        safeWrite(fd, " kHz");
+        *safeAppend(base, "/scaling_max_freq") = '\0';
+        if (safeReadAttr(path, val, sizeof(val))) {
+            safeWrite(fd, " (max ");
+            safeWrite(fd, val);
+            safeWrite(fd, ")");
+        }
+        *safeAppend(base, "/scaling_governor") = '\0';
+        if (safeReadAttr(path, val, sizeof(val))) {
+            safeWrite(fd, " ");
+            safeWrite(fd, val);
+        }
+        safeWrite(fd, "\n");
+    }
+}
+#else
+static void safeWriteThermal(int) {}
+#endif
+
 // Copy /proc/self/maps verbatim.  Without the load address of each module, the
 // raw frame addresses below are meaningless off-box: the report side needs
 // (address - module base) to run addr2line against a stashed build.
@@ -673,6 +816,7 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
             safeWriteFaultRegisters(cfd, ctx);
             // Before the module map, which parsers read to the end of file.
             safeWriteCodeAtFault(cfd, ctx);
+            safeWriteThermal(cfd);
             // Also written even when gdb succeeded, and this is the half that
             // was missing: gdb resolves what it can and leaves everything else
             // as a bare address, and a frame it fails to unwind past is simply
