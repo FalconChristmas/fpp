@@ -1418,6 +1418,12 @@ int GStreamerOutput::Start(int msTime) {
     // Stream identity: use slot number for PipeWire node naming
     std::string streamNodeName = StreamSlotManager::GetNodeName(m_streamSlot);
     std::string streamNodeDesc = StreamSlotManager::GetNodeDescription(m_streamSlot);
+    // The slot's persistent output stream carries the same node.name, so a
+    // pipewiresink of this pipeline's own is also tagged with an id of its
+    // own, by which ApplyRate() finds its node.
+    static std::atomic<uint64_t> nextStreamId{ 1 };
+    const std::string pwSinkStreamId = std::to_string(nextStreamId++);
+    m_pwSinkStreamId.clear();
 
     std::string sinkStr;
     if (!pipelineSinkName.empty()) {
@@ -1510,8 +1516,10 @@ int GStreamerOutput::Start(int msTime) {
             GstStructure* props = gst_structure_new("props",
                 "node.name", G_TYPE_STRING, streamNodeName.c_str(),
                 "node.description", G_TYPE_STRING, streamNodeDesc.c_str(),
+                "fpp.stream.id", G_TYPE_STRING, pwSinkStreamId.c_str(),
                 NULL);
             g_object_set(sink, "stream-properties", props, NULL);
+            m_pwSinkStreamId = pwSinkStreamId;
             gst_structure_free(props);
         } else {
             // Prefer alsasink directly — avoids autoaudiosink probe delay.
@@ -1717,8 +1725,10 @@ int GStreamerOutput::Start(int msTime) {
             GstStructure* props = gst_structure_new("props",
                 "node.name", G_TYPE_STRING, streamNodeName.c_str(),
                 "node.description", G_TYPE_STRING, streamNodeDesc.c_str(),
+                "fpp.stream.id", G_TYPE_STRING, pwSinkStreamId.c_str(),
                 NULL);
             g_object_set(sink, "stream-properties", props, NULL);
+            m_pwSinkStreamId = pwSinkStreamId;
             gst_structure_free(props);
         } else {
             // Prefer alsasink directly — avoids autoaudiosink probe delay.
@@ -2291,8 +2301,10 @@ int GStreamerOutput::Start(int msTime) {
                 GstStructure* props = gst_structure_new("props",
                     "node.name", G_TYPE_STRING, streamNodeName.c_str(),
                     "node.description", G_TYPE_STRING, streamNodeDesc.c_str(),
+                    "fpp.stream.id", G_TYPE_STRING, pwSinkStreamId.c_str(),
                     NULL);
                 g_object_set(pwsink, "stream-properties", props, NULL);
+                m_pwSinkStreamId = pwSinkStreamId;
                 gst_structure_free(props);
                 gst_object_unref(pwsink);
             }
@@ -2425,7 +2437,10 @@ int GStreamerOutput::Start(int msTime) {
         gst_object_unref(cardClock);
         LogDebug(VB_MEDIAOUT, "GStreamer: pipeline clock is the output stream's card clock\n");
     } else if (wantVideo || wantHDMI) {
-        GstClock* sysClock = gst_system_clock_obtain();
+        // A monotonic system clock of its own, not the process-wide one:
+        // ApplyRate() recalibrates the pipeline's clock.
+        GstClock* sysClock = GST_CLOCK(gst_object_ref_sink(
+            g_object_new(GST_TYPE_SYSTEM_CLOCK, "clock-type", GST_CLOCK_TYPE_MONOTONIC, NULL)));
         gst_pipeline_use_clock(GST_PIPELINE(m_pipeline), sysClock);
         gst_object_unref(sysClock);
         LogDebug(VB_MEDIAOUT, "GStreamer: forced pipeline clock to GstSystemClock\n");
@@ -4516,6 +4531,10 @@ int GStreamerOutput::AdjustSpeed(float masterMediaPosition) {
         gint64 pos_ns = (gint64)(masterMediaPosition * GST_SECOND);
         LogDebug(VB_MEDIAOUT, "GStreamer Diff: %d\tVery far, jumping to: %0.3f\t(currently at %0.3f)\n",
                  rawdiff, masterMediaPosition, m_mediaOutputStatus->mediaSeconds);
+        if (!m_pwSinkStreamId.empty() && m_currentRate != 1.0f) {
+            // The seek's rate of 1 doesn't reach the clock or the stream.
+            ApplyRate(1.0f);
+        }
         gst_element_seek(m_pipeline, 1.0, GST_FORMAT_TIME,
                          (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE),
                          GST_SEEK_TYPE_SET, pos_ns, GST_SEEK_TYPE_NONE, 0);
@@ -4744,6 +4763,30 @@ bool GStreamerOutput::SeekTo(float seconds) {
 void GStreamerOutput::ApplyRate(float rate) {
     if (!m_pipeline)
         return;
+
+    // A pipewiresink of the pipeline's own is drained by PipeWire at the
+    // graph's rate whatever the pipeline's, and the rate seek below changed
+    // nothing that could be heard or seen: a remote playing more than two
+    // channels fell behind a fast master at the full difference.  Two things
+    // move it instead.  The stream's adapter resamples by its rate prop, so
+    // it takes the media that much faster or slower; but a sink that syncs
+    // hands buffers over only as its clock reaches them, so on its own that
+    // starves the stream rather than speeding it up.  So the pipeline's
+    // clock is run at the same rate, as the persistent stream's feed clock is
+    // (AdjustFeedSpeed()): the sink delivers at the speed the stream takes,
+    // and the position -- read off that clock -- moves with the sound.
+    if (!m_pwSinkStreamId.empty()) {
+        if (GstClock* clock = gst_pipeline_get_clock(GST_PIPELINE(m_pipeline))) {
+            GstClockTime cInt, cExt, num, den;
+            gst_clock_get_calibration(clock, &cInt, &cExt, &num, &den);
+            GstClockTime internal = gst_clock_get_internal_time(clock);
+            GstClockTime external = gst_clock_adjust_with_calibration(clock, internal, cInt, cExt, num, den);
+            gst_clock_set_calibration(clock, internal, external, (GstClockTime)llround(rate * 1e9), 1000000000ULL);
+            gst_object_unref(clock);
+        }
+        SetPipeWireStreamRate(m_pwSinkStreamId, rate);
+        return;
+    }
 
     // Use instant-rate-change (GStreamer >= 1.18) for glitch-free rate adjustment.
     // Falls back to a flush seek if instant-rate-change fails.
@@ -5511,6 +5554,52 @@ static void SetPipeWireNodeProps(int nodeId, const std::string& props) {
     std::string cmd = std::string(kPipeWireEnv) + " timeout 3 pw-cli set-param " + std::to_string(nodeId) +
                       " Props '" + props + "' >/dev/null 2>&1";
     system(cmd.c_str());
+}
+
+// Sets the adapter rate of the stream tagged fpp.stream.id = `streamId`.
+// Detached, since AdjustSpeed() runs on the main loop with mediaOutputLock
+// held, and serialized: of the requests queued behind one in flight only the
+// newest is sent.
+void GStreamerOutput::SetPipeWireStreamRate(const std::string& streamId, float rate) {
+    static std::mutex lock;
+    static std::mutex sendLock;
+    static std::map<std::string, uint64_t> latest;
+    uint64_t seq;
+    {
+        std::lock_guard<std::mutex> l(lock);
+        seq = ++latest[streamId];
+    }
+    std::thread([streamId, rate, seq]() {
+        SetThreadName("FPP-PWRate");
+        std::lock_guard<std::mutex> sending(sendLock);
+        {
+            std::lock_guard<std::mutex> l(lock);
+            auto it = latest.find(streamId);
+            if (it == latest.end() || it->second != seq) {
+                return;
+            }
+        }
+        int nodeId = FindPipeWireNodeId("fpp.stream.id", streamId);
+        if (nodeId < 0) {
+            LogDebug(VB_MEDIAOUT, "GStreamer: no PipeWire node for stream %s, rate %0.3f not set\n",
+                     streamId.c_str(), rate);
+            std::lock_guard<std::mutex> l(lock);
+            auto it = latest.find(streamId);
+            if (it != latest.end() && it->second == seq) {
+                latest.erase(it);
+            }
+            return;
+        }
+        char props[64];
+        snprintf(props, sizeof(props), "{ rate = %.6f }", rate);
+        SetPipeWireNodeProps(nodeId, props);
+        LogDebug(VB_MEDIAOUT, "GStreamer: PipeWire stream rate %0.3f (node %d)\n", rate, nodeId);
+        std::lock_guard<std::mutex> l(lock);
+        auto it = latest.find(streamId);
+        if (it != latest.end() && it->second == seq) {
+            latest.erase(it);  // one id per track: don't keep them all
+        }
+    }).detach();
 }
 
 void GStreamerOutput::FlushPipeWireDelayBuffers() {

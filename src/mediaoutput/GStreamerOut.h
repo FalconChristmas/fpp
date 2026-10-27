@@ -404,6 +404,7 @@ private:
     // Flush PipeWire filter-chain delay buffers between songs
     static void FlushPipeWireDelayBuffers();
     static int FindPipeWireNodeId(const std::string& key, const std::string& value);
+    static void SetPipeWireStreamRate(const std::string& streamId, float rate);
 
     // ── Phase 5: MultiSync rate adjustment (ported from VLCOut) ──
     bool m_allowSpeedAdjust = true;
@@ -429,6 +430,8 @@ private:
 
     // Apply playback rate change via GStreamer instant-rate-change seek
     void ApplyRate(float rate);
+    // fpp.stream.id of this pipeline's own pipewiresink, if it has one
+    std::string m_pwSinkStreamId;
 
     // A video whose sound feeds the output stream: its picture is held back by
     // the card's queue (AlignPictureToSound()), and a video that turns out to
