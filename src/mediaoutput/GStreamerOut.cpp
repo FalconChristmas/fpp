@@ -31,6 +31,8 @@
 #include <algorithm>
 #include <fstream>
 #include <map>
+#include <memory>
+#include <mutex>
 #include <unistd.h>
 #include <vector>
 #include <sstream>
@@ -67,6 +69,7 @@
 #include "Timers.h"
 #include "channeloutput/channeloutputthread.h"
 #include "../MultiSync.h"
+#include "../FileMonitor.h"
 #include "overlays/PixelOverlay.h"
 #include "overlays/PixelOverlayModel.h"
 
@@ -109,6 +112,45 @@ static constexpr int PIPELINE_TEARDOWN_TIMEOUT_MS = 10000;
 // Applied at playback instead of rewriting the file, so timing, quality and
 // format never change.  An entry whose size no longer matches the file (the
 // song was replaced) is ignored.  Returns a linear factor; 1.0 = none.
+//
+// The file is parsed once and again whenever FileMonitor says it changed
+// (inotify, or a timestamp poll where there is none; the PHP side replaces it
+// by rename, which FileMonitor follows), not at every song start.  Slots start
+// on different threads, so the parsed copy is shared under a lock and handed
+// out as a snapshot.
+static std::mutex s_normalizeGainsLock;
+static std::shared_ptr<const Json::Value> s_normalizeGains;
+
+static void LoadNormalizeGains(const std::string& gainFile) {
+    std::shared_ptr<Json::Value> root;
+    if (FileExists(gainFile)) {
+        root = std::make_shared<Json::Value>();
+        if (!LoadJsonFromFile(gainFile, *root) || !root->isObject()) {
+            // An empty one restored from a backup is "[]": PHP's json_encode
+            // of an empty array.
+            if (!(root->isArray() && root->empty())) {
+                LogWarn(VB_MEDIAOUT, "GStreamer: %s is not a JSON object; normalize gains not applied\n", gainFile.c_str());
+            }
+            root.reset();
+        }
+    }
+    std::unique_lock<std::mutex> l(s_normalizeGainsLock);
+    s_normalizeGains = root;
+}
+
+static std::shared_ptr<const Json::Value> NormalizeGains() {
+    static std::once_flag watching;
+    std::call_once(watching, []() {
+        const std::string gainFile = FPP_DIR_CONFIG("/media_gain.json");
+        FileMonitor::INSTANCE.AddFile("GStreamer:media_gain", gainFile, [gainFile]() {
+            LoadNormalizeGains(gainFile);
+        });
+        LoadNormalizeGains(gainFile);
+    });
+    std::unique_lock<std::mutex> l(s_normalizeGainsLock);
+    return s_normalizeGains;
+}
+
 static double LookupNormalizeGain(const std::string& fullPath) {
     const std::string musicDir = FPP_DIR_MUSIC("/");
     const std::string videoDir = FPP_DIR_VIDEO("/");
@@ -120,15 +162,11 @@ static double LookupNormalizeGain(const std::string& fullPath) {
     } else {
         return 1.0;
     }
-    const std::string gainFile = FPP_DIR_CONFIG("/media_gain.json");
-    if (!FileExists(gainFile)) {
+    std::shared_ptr<const Json::Value> root = NormalizeGains();
+    if (!root) {
         return 1.0;
     }
-    Json::Value root;
-    if (!LoadJsonFromFile(gainFile, root) || !root.isObject()) {
-        return 1.0;
-    }
-    const Json::Value& e = root[name];
+    const Json::Value& e = (*root)[name];
     if (!e.isObject() || !e["gainDb"].isNumeric() || !e["size"].isNumeric()) {
         return 1.0;
     }
