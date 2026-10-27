@@ -187,8 +187,10 @@ static std::atomic<uint32_t> ddpErrors{0};
 
 static uint32_t ddpLastSequence = 0;
 static uint32_t ddpLastChannel = 0;
-static uint32_t ddpMinChannel = 0xFFFFFFF;
-static uint32_t ddpMaxChannel = 0;
+// The channel range DDP has covered.  Written only by the main loop's packet
+// handler, read by the stats endpoint from the HTTP threads.
+static std::atomic<uint32_t> ddpMinChannel{0xFFFFFFF};
+static std::atomic<uint32_t> ddpMaxChannel{0};
 
 static std::atomic<uint32_t> e131Errors{0};
 static std::atomic<uint32_t> e131SyncPackets{0};
@@ -1251,8 +1253,10 @@ bool Bridge_StoreDDPData(uint8_t* bridgeBuffer, long long packetTime, int msgLen
             ddpLastChannel = chan + len;
         }
 
-        ddpMinChannel = std::min(ddpMinChannel, chan + 1);
-        ddpMaxChannel = std::max(ddpMaxChannel, chan + len);
+        ddpMinChannel.store(std::min(ddpMinChannel.load(std::memory_order_relaxed), chan + 1),
+                            std::memory_order_relaxed);
+        ddpMaxChannel.store(std::max(ddpMaxChannel.load(std::memory_order_relaxed), chan + len),
+                            std::memory_order_relaxed);
 
         SetBridgeData(&bridgeBuffer[ddpOffset],
                       chan,
@@ -1339,9 +1343,11 @@ Json::Value GetE131UniverseBytesReceived() {
         Json::Value ddpUniverse;
         ddpUniverse["id"] = "DDP";
 
-        if (ddpMaxChannel > ddpMinChannel) {
+        uint32_t minChannel = ddpMinChannel.load(std::memory_order_relaxed);
+        uint32_t maxChannel = ddpMaxChannel.load(std::memory_order_relaxed);
+        if (maxChannel > minChannel) {
             std::stringstream ss;
-            ss << ddpMinChannel << "-" << ddpMaxChannel;
+            ss << minChannel << "-" << maxChannel;
             std::string chanRange = ss.str();
             ddpUniverse["startChannel"] = chanRange;
         } else {
