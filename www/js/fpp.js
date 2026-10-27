@@ -9604,8 +9604,56 @@ function GetGitOriginLog () {
 	});
 }
 
+// Listen (Music) / View (Videos) in the File Manager: play the file in a
+// dialog on this page instead of a new tab. The file is served with range
+// support (api/file/...?play=1), so playback starts as soon as the first
+// bytes arrive and the seek bar works. Closing the dialog stops playback and
+// drops the download.
 function PlayFileInBrowser (dir, file) {
-	window.open('api/file/' + dir + '/' + encodeURIComponent(file) + '?play=1');
+	var url = 'api/file/' + dir + '/' + encodeURIComponent(file).replaceAll('%2F', '/') + '?play=1';
+	var isVideo = dir == 'Videos';
+	var media = $(isVideo ? '<video playsinline></video>' : '<audio></audio>')
+		.attr({ controls: '', autoplay: '', preload: 'auto' })
+		.css({ width: '100%', 'max-height': isVideo ? '70vh' : '' })
+		.attr('src', url);
+	var note = $('<div class="text-muted small mt-2"></div>');
+	var downloadLink = $('<a></a>')
+		.attr('href', url.replace(/\?play=1$/, ''))
+		.text('download it');
+	media.on('error', function () {
+		// Formats the browser can't decode (e.g. some MKV/AVI) still play on
+		// FPP itself; say so rather than showing a dead player.
+		note.empty().append('This browser can\'t play this file (FPP can still play it). You can ', downloadLink, ' to play it on this computer.');
+	});
+	var body = $('<div></div>').append(media, note);
+
+	var stop = function () {
+		$('#playInBrowserDialog')
+			.find('audio,video')
+			.each(function () {
+				this.pause();
+				this.removeAttribute('src');
+				this.load();
+			});
+	};
+	if ($('#playInBrowserDialog').length) {
+		stop();
+		$('#playInBrowserDialog .modal-body').empty().append(body);
+	}
+	DoModalDialog({
+		id: 'playInBrowserDialog',
+		title: EscapeHtml(file),
+		class: isVideo ? 'modal-lg' : 'modal-m',
+		backdrop: true,
+		keyboard: true,
+		body: body,
+		close: stop,
+		buttons: {
+			Close: function () {
+				CloseModalDialog('playInBrowserDialog');
+			}
+		}
+	});
 }
 
 function CopyFile (dir, file) {

@@ -744,32 +744,16 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
     header('Content-Security-Policy: sandbox');
 
     if ($play) {
-        header('Content-type: application/octet-stream');
-        if (preg_match('/mp3$/i', $filename)) {
-            header('Content-type: audio/mp3');
-        } else if (preg_match('/ogg$/i', $filename)) {
-            header('Content-type: audio/ogg');
-        } else if (preg_match('/flac$/i', $filename)) {
-            header('Content-type: audio/flac');
-        } else if (preg_match('/m4a$/i', $filename)) {
-            header('Content-type: audio/mp4');
-        } else if (preg_match('/mov$/i', $filename)) {
-            header('Content-type: video/mov');
-        } else if (preg_match('/mp4$/i', $filename)) {
-            header('Content-type: video/mp4');
-        } else if (preg_match('/wav$/i', $filename)) {
-            header('Content-type: audio/wav');
-        } else if (preg_match('/aac$/i', $filename)) {
-            header('Content-type: audio/aac');
-        } else if (preg_match('/mpg$/i', $filename)) {
-            header('Content-type: video/mpg');
-        } else if (preg_match('/mpg$/i', $filename)) {
-            header('Content-type: video/mpeg');
-        } else if (preg_match('/mkv$/i', $filename)) {
-            header('Content-type: video/mkv');
-        } else if (preg_match('/avi$/i', $filename)) {
-            header('Content-type: video/avi');
-        }
+        // Standard types, so every browser's <audio>/<video> accepts them
+        // (was audio/mp3, video/mov, video/mkv, video/avi, and a second
+        // "mpg" test that made video/mpeg unreachable).
+        static $playTypes = array(
+            'mp3' => 'audio/mpeg', 'ogg' => 'audio/ogg', 'oga' => 'audio/ogg', 'opus' => 'audio/ogg',
+            'flac' => 'audio/flac', 'm4a' => 'audio/mp4', 'aac' => 'audio/aac', 'wav' => 'audio/wav',
+            'mp4' => 'video/mp4', 'm4v' => 'video/mp4', 'mov' => 'video/quicktime', 'webm' => 'video/webm',
+            'mkv' => 'video/x-matroska', 'avi' => 'video/x-msvideo', 'mpg' => 'video/mpeg', 'mpeg' => 'video/mpeg');
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        header('Content-type: ' . ($playTypes[$ext] ?? 'application/octet-stream'));
 
     } else if ($isImage) {
         static $imageTypes = array(
@@ -830,6 +814,9 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
             }
         }
 
+        if ($play && ServeFileRange($fullPath)) {
+            exit;
+        }
         flush();
         passthru($SUDO . " cat " . escapeshellarg($fullPath));
     } else {
@@ -837,6 +824,91 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
         passthru($SUDO . ' tail -' . $lines . ' ' . escapeshellarg($fullPath));
     }
     exit;
+}
+
+/**
+ * Serve a media file for playback with HTTP range support (RFC 9110 single
+ * ranges): "Accept-Ranges: bytes", 206 Partial Content for "Range: bytes=a-b",
+ * "a-" and "-n", 416 for a range past the end.  Browsers' <audio>/<video>
+ * request ranges to start playing straight away and to seek; without them they
+ * may wait for the whole file, which over Wi-Fi to a Pi took minutes.
+ *
+ * Returns false, sending nothing, when the file can't be read directly or is
+ * too big for this PHP's file offsets (32-bit images, over 2 GB); the caller
+ * then falls back to sending the whole file as before.
+ *
+ * @param string $fullPath Absolute, already validated path.
+ * @return bool True when the response was sent.
+ */
+function ServeFileRange($fullPath)
+{
+    if (!is_readable($fullPath)) {
+        return false;
+    }
+    $size = real_filesize($fullPath);
+    if (!is_int($size) || $size < 0 || (PHP_INT_SIZE === 4 && $size > 0x7FFFFFFF)) {
+        return false;
+    }
+    $fh = @fopen($fullPath, 'rb');
+    if ($fh === false) {
+        return false;
+    }
+
+    $start = 0;
+    $end = $size - 1;
+    $partial = false;
+    $range = $_SERVER['HTTP_RANGE'] ?? '';
+    // Only a single range is honoured; anything else gets the whole file,
+    // which the RFC allows.
+    if ($size > 0 && preg_match('/^bytes=(\d*)-(\d*)$/', trim($range), $m) && ($m[1] !== '' || $m[2] !== '')) {
+        if ($m[1] === '') {
+            // Suffix: the last n bytes.
+            $n = intval($m[2]);
+            $start = max(0, $size - $n);
+        } else {
+            $start = intval($m[1]);
+            if ($m[2] !== '') {
+                $end = min(intval($m[2]), $size - 1);
+            }
+        }
+        if ($start > $end || $start >= $size) {
+            fclose($fh);
+            http_response_code(416);
+            header('Content-Range: bytes */' . $size);
+            header('Content-Length: 0');
+            return true;
+        }
+        $partial = true;
+    }
+
+    header('Accept-Ranges: bytes');
+    if ($partial) {
+        http_response_code(206);
+        header('Content-Range: bytes ' . $start . '-' . $end . '/' . $size);
+    }
+    $length = $size > 0 ? $end - $start + 1 : 0;
+    header('Content-Length: ' . $length);
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'HEAD') {
+        fclose($fh);
+        return true;
+    }
+
+    if ($start > 0) {
+        fseek($fh, $start);
+    }
+    // Media players drop a connection as soon as they have enough; stop
+    // reading then instead of pushing the rest of the file into a dead socket.
+    while ($length > 0 && !feof($fh) && !connection_aborted()) {
+        $chunk = fread($fh, min(65536, $length));
+        if ($chunk === false || $chunk === '') {
+            break;
+        }
+        echo $chunk;
+        flush();
+        $length -= strlen($chunk);
+    }
+    fclose($fh);
+    return true;
 }
 
 /**
