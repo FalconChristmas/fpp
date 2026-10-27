@@ -4253,11 +4253,9 @@ int GStreamerOutput::Close(void) {
     DetachCallbacks();
 
     if (m_pipeline) {
-        // Flush PipeWire filter-chain delay buffers.  Each audio group member
-        // has a builtin delay node whose internal ring-buffer retains old
-        // audio.  Setting the delay to 0 empties it; restoring the original
-        // value afterwards starts accumulating from scratch with silence.
-        // Spawned as a detached thread so we don't block Close().
+        // Flush PipeWire filter-chain delay buffers: a delayed group
+        // member's chain still holds the end of this track (see
+        // FlushPipeWireDelayBuffers()).  Detached, so Close() doesn't wait.
         FlushPipeWireDelayBuffers();
 
         // Flush AES67 send pipelines — drop a few buffers to discard
@@ -5449,11 +5447,72 @@ void GStreamerOutput::DetachAES67Branches() {
 // ──────────────────────────────────────────────────────────────────────────────
 // PipeWire filter-chain delay buffer flush
 // ──────────────────────────────────────────────────────────────────────────────
-// When media stops, PipeWire's builtin delay nodes retain old audio in their
-// ring-buffers.  If the next song starts before that audio drains naturally,
-// the listener hears a burst of the previous track.  This function resets all
-// delay controls to 0 (clearing the ring-buffers) and then immediately
-// restores the original values so they begin accumulating from silence.
+// A delayed group member plays through a filter-chain of builtin delay nodes,
+// and their ring buffers hold the last delaySec of whatever went in.  When a
+// track stops, that tail would play on for the length of the delay, and
+// after an idle spell a stalled chain plays it ahead of the next track.
+//
+// Nothing in PipeWire empties a delay node's ring buffer: it has no reset,
+// and changing its "Delay (s)" only moves the read point, so zeroing the
+// delay and restoring it reads the same old samples back.  Instead the
+// chain's output (<fx>_out, a stream FPP itself never mutes -- a member's
+// mute is on the chain's sink) is muted for the length of the delay: by then
+// everything in the buffer came in after the flush, and the next track,
+// itself delayed that long, has not come through yet.
+
+static const char* const kPipeWireEnv =
+    "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp";
+
+// The id of the newest PipeWire node whose property `key` is `value`, or -1.
+// From pw-dump: pw-cli ls lists only a few properties of each node, and a
+// grep -B1 on its node.name line found the "=" of the node.description line
+// above it.  Newest by object.serial: a pipeline still closing can hold a
+// node of the same name.
+int GStreamerOutput::FindPipeWireNodeId(const std::string& key, const std::string& value) {
+    std::string cmd = std::string(kPipeWireEnv) + " timeout 3 pw-dump 2>/dev/null";
+    FILE* fp = popen(cmd.c_str(), "r");
+    if (!fp) {
+        return -1;
+    }
+    std::string out;
+    char buf[8192];
+    size_t r;
+    while ((r = fread(buf, 1, sizeof(buf), fp)) > 0) {
+        out.append(buf, r);
+    }
+    pclose(fp);
+    Json::Value dump;
+    if (!LoadJsonFromString(out, dump) || !dump.isArray()) {
+        return -1;
+    }
+    int best = -1;
+    Json::Int64 bestSerial = -1;
+    for (const auto& obj : dump) {
+        if (!obj.isObject() || obj.get("type", "").asString() != "PipeWire:Interface:Node") {
+            continue;
+        }
+        const Json::Value& props = obj["info"]["props"];
+        if (!props.isObject() || !props.isMember(key) || props[key].asString() != value) {
+            continue;
+        }
+        const Json::Value& serial = props["object.serial"];
+        Json::Int64 n = serial.isIntegral() ? serial.asInt64() : 0;
+        if (n >= bestSerial && obj["id"].isIntegral()) {
+            best = obj["id"].asInt();
+            bestSerial = n;
+        }
+    }
+    return best;
+}
+
+// No result: fppd reaps its children itself (SA_NOCLDWAIT), so system()
+// returns -1 whatever pw-cli did.
+static void SetPipeWireNodeProps(int nodeId, const std::string& props) {
+    std::string cmd = std::string(kPipeWireEnv) + " timeout 3 pw-cli set-param " + std::to_string(nodeId) +
+                      " Props '" + props + "' >/dev/null 2>&1";
+    system(cmd.c_str());
+}
+
 void GStreamerOutput::FlushPipeWireDelayBuffers() {
     // Read audio groups config to find delay values
     std::string configPath = FPP_DIR_CONFIG("/pipewire-audio-groups.json");
@@ -5466,12 +5525,8 @@ void GStreamerOutput::FlushPipeWireDelayBuffers() {
         return;
     }
 
-    // Channel labels matching the PHP filter-chain generator
-    static const char* channelLabels[] = { "l", "r", "c", "lfe", "rl", "rr", "sl", "sr" };
-
     struct DelayInfo {
-        std::string fxNodeName; // e.g. fpp_fx_g1_s3
-        int channels;
+        std::string fxOutName; // e.g. fpp_fx_g1_s3_out
         double delaySec;
     };
     std::vector<DelayInfo> delays;
@@ -5486,7 +5541,6 @@ void GStreamerOutput::FlushPipeWireDelayBuffers() {
             for (const auto& member : group["members"]) {
                 std::string cardId = member.get("cardId", "").asString();
                 double delayMs = member.get("delayMs", 0.0).asDouble();
-                int channels = member.get("channels", 2).asInt();
                 if (cardId.empty() || delayMs <= 0)
                     continue; // no delay buffer to flush
 
@@ -5499,7 +5553,7 @@ void GStreamerOutput::FlushPipeWireDelayBuffers() {
                         cardIdNorm += '_';
                 }
                 std::string fxNodeName = "fpp_fx_g" + std::to_string(groupId) + "_" + cardIdNorm;
-                delays.push_back({fxNodeName, std::min(channels, 8), delayMs / 1000.0});
+                delays.push_back({ fxNodeName + "_out", delayMs / 1000.0 });
             }
         }
     } catch (const std::exception& e) {
@@ -5509,64 +5563,43 @@ void GStreamerOutput::FlushPipeWireDelayBuffers() {
     if (delays.empty())
         return;
 
-    // Fire-and-forget thread: set delays to 0, wait a quantum, restore.
-    std::thread([delays]() {
-        const char* env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp";
-
-        // Phase 1: set all delays to 0 (clears ring-buffers)
-        for (const auto& d : delays) {
-            // Find node ID (timeout prevents pw-cli hangs)
-            std::string findCmd = std::string(env) + " timeout 3 pw-cli ls Node 2>/dev/null | grep -B1 'node.name = \"" + d.fxNodeName + "\"' | head -1 | awk '{print $2}'";
-            FILE* fp = popen(findCmd.c_str(), "r");
-            if (!fp) continue;
-            char buf[64] = {};
-            if (!fgets(buf, sizeof(buf), fp)) { pclose(fp); continue; }
-            pclose(fp);
-            int nodeId = atoi(buf);
-            if (nodeId <= 0) continue;
-
-            // Build params string: "delay_l:Delay (s)" 0 "delay_r:Delay (s)" 0 ...
-            std::string params;
-            for (int ch = 0; ch < d.channels; ch++) {
-                if (!params.empty()) params += " ";
-                params += "\"delay_";
-                params += channelLabels[ch];
-                params += ":Delay (s)\" 0";
-            }
-            std::string cmd = std::string(env) + " timeout 3 pw-cli set-param " + std::to_string(nodeId)
-                + " Props '{ params = [ " + params + " ] }' 2>/dev/null";
-            system(cmd.c_str());
+    // Start() and Close() both flush, often within a few ms of each other:
+    // only the newest flush of a chain unmutes it.
+    static std::mutex flushLock;
+    static std::map<std::string, uint64_t> flushGeneration;
+    for (const auto& d : delays) {
+        uint64_t generation;
+        {
+            std::lock_guard<std::mutex> lock(flushLock);
+            generation = ++flushGeneration[d.fxOutName];
         }
-
-        // Wait two PipeWire quanta (~42ms) for the zero-delay to take effect
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-        // Phase 2: restore original delay values
-        for (const auto& d : delays) {
-            std::string findCmd = std::string(env) + " timeout 3 pw-cli ls Node 2>/dev/null | grep -B1 'node.name = \"" + d.fxNodeName + "\"' | head -1 | awk '{print $2}'";
-            FILE* fp = popen(findCmd.c_str(), "r");
-            if (!fp) continue;
-            char buf[64] = {};
-            if (!fgets(buf, sizeof(buf), fp)) { pclose(fp); continue; }
-            pclose(fp);
-            int nodeId = atoi(buf);
-            if (nodeId <= 0) continue;
-
-            std::string params;
-            for (int ch = 0; ch < d.channels; ch++) {
-                if (!params.empty()) params += " ";
-                params += "\"delay_";
-                params += channelLabels[ch];
-                params += ":Delay (s)\" ";
-                params += std::to_string(d.delaySec);
+        // Detached: pw-cli takes ~100 ms, and this runs from Start() and
+        // Close() with media locks held.
+        uint64_t unmuteAt = GetMonotonicTimeMS() + (uint64_t)(d.delaySec * 1000.0);
+        std::thread([d, generation, unmuteAt]() {
+            SetThreadName("FPP-PWFlush");
+            int nodeId = FindPipeWireNodeId("node.name", d.fxOutName);
+            if (nodeId < 0) {
+                LogDebug(VB_MEDIAOUT, "PipeWire delay flush: no node %s\n", d.fxOutName.c_str());
+                return;
             }
-            std::string cmd = std::string(env) + " timeout 3 pw-cli set-param " + std::to_string(nodeId)
-                + " Props '{ params = [ " + params + " ] }' 2>/dev/null";
-            system(cmd.c_str());
-        }
-
-        LogDebug(VB_MEDIAOUT, "PipeWire delay buffers flushed and restored\n");
-    }).detach();
+            SetPipeWireNodeProps(nodeId, "{ mute = true }");
+            LogDebug(VB_MEDIAOUT, "PipeWire delay flush: muted %s (node %d)\n", d.fxOutName.c_str(), nodeId);
+            uint64_t now = GetMonotonicTimeMS();
+            if (unmuteAt > now) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(unmuteAt - now));
+            }
+            {
+                std::lock_guard<std::mutex> lock(flushLock);
+                if (flushGeneration[d.fxOutName] != generation) {
+                    return; // a later flush holds the mute now
+                }
+            }
+            SetPipeWireNodeProps(nodeId, "{ mute = false }");
+            LogDebug(VB_MEDIAOUT, "PipeWire delay buffer of %s flushed (%.0f ms)\n", d.fxOutName.c_str(),
+                     d.delaySec * 1000.0);
+        }).detach();
+    }
 }
 
 #endif // HAS_GSTREAMER

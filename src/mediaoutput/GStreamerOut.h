@@ -403,6 +403,7 @@ private:
 
     // Flush PipeWire filter-chain delay buffers between songs
     static void FlushPipeWireDelayBuffers();
+    static int FindPipeWireNodeId(const std::string& key, const std::string& value);
 
     // ── Phase 5: MultiSync rate adjustment (ported from VLCOut) ──
     bool m_allowSpeedAdjust = true;
