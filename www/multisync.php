@@ -3911,7 +3911,8 @@
 
         async function reloadBranchSelect() {
             var remote = $("#branchRemoteSelect").length ? $("#branchRemoteSelect").val() : 'origin';
-            const r = await fetch("api/git/branches?remote=" + encodeURIComponent(remote));
+            // Only runs when the user picks a remote: fetch it fresh.
+            const r = await fetch("api/git/branches?remote=" + encodeURIComponent(remote) + "&refresh=1");
             const data = await r.json();
             $('#branchSelect').empty();
             data.forEach(function (item) {

@@ -205,14 +205,16 @@ function PrintGitBranchOptions()
         });
     }
 
-    function reloadGitBranches(remote) {
+    // refresh: the user picked this remote, so fetch it fresh rather than reuse
+    // the player's recent (up to 15 minute old) fetch.
+    function reloadGitBranches(remote, refresh) {
         if (remote === 'pull-requests') {
             reloadPullRequests();
             return;
         }
         $('#gitBranch').empty().append('<option value="" selected>Loading branches…</option>');
         $.ajax({
-            url: 'api/git/branches?remote=' + encodeURIComponent(remote),
+            url: 'api/git/branches?remote=' + encodeURIComponent(remote) + (refresh ? '&refresh=1' : ''),
             type: 'GET',
             success: function (branches) {
                 if (Array.isArray(branches) && branches.length > 0) {
@@ -431,7 +433,7 @@ function PrintGitBranchOptions()
                     remote = 'origin';
                 }
             }
-            reloadGitBranches(remote);
+            reloadGitBranches(remote, true);
         });
 
         // Reload fork option when GitHub credentials change (saved via SetSetting)

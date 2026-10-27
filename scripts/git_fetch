@@ -24,48 +24,80 @@ BINDIR=$(cd $(dirname $0) && pwd)
 # git-remote-http does TLS and unpacks.  Before this, each page view queued its own
 # full fetch behind the last one (runGitLocked waits up to 300 s), so a page left
 # open across a reboot could keep a small board saturated.  So:
-#   * a fetch that finished in the last ${MIN_AGE} s is not repeated;
+#   * a fetch that succeeded in the last ${MIN_AGE} s is not repeated;
+#   * a failed attempt (GitHub unreachable, e.g. DNS not up yet after a boot, or
+#     the fetch itself failed) is retried by page loads after ${FAIL_RETRY_AGE} s,
+#     not ${MIN_AGE} s;
 #   * only one runs at a time -- a second caller returns at once instead of queueing
 #     (the callers read whatever has been fetched so far);
-#   * it runs at the lowest CPU and disk priority, so it yields to a show.
+#   * it runs at the lowest CPU priority and the lowest best-effort disk priority,
+#     so it yields to a show.  Not the idle I/O class: the fetch holds the shared
+#     git repo lock, and an idle-class fetch starved by show I/O would hold up an
+#     upgrade or branch switch waiting on that lock.
 # `git_fetch --force` (an explicit user action, e.g. the pending-changes view)
-# skips the age check and waits for a fetch already running rather than starting
-# another; it still will not repeat one that finished in the last ${FORCE_MIN_AGE} s.
+# skips the age checks and waits up to ${FORCE_LOCK_WAIT} s for a fetch already
+# running rather than starting another; it still will not repeat one that
+# succeeded in the last ${FORCE_MIN_AGE} s.  The wait is kept short because
+# runGitLocked can add its own 300 s on top, and the web request is waiting on both.
 FORCE=0
 [ "x$1" = "x--force" ] && FORCE=1
 MIN_AGE=${FPP_GIT_FETCH_MIN_AGE:-900}
+case "${MIN_AGE}" in
+	''|*[!0-9]*) MIN_AGE=900 ;;
+esac
+FAIL_RETRY_AGE=60
 FORCE_MIN_AGE=30
-STAMP="${MEDIADIR}/tmp/git_fetch_last"
+FORCE_LOCK_WAIT=120
+STAMP="${MEDIADIR}/tmp/git_fetch_last"        # touched when a fetch succeeds
+FAIL_STAMP="${MEDIADIR}/tmp/git_fetch_failed" # touched when an attempt fails
 LOCK="${MEDIADIR}/tmp/git_fetch.lock"
 
-fetchAge() {
-	# seconds since the last fetch attempt finished; a huge number if there was none
-	local m
-	m=$(stat -c %Y "${STAMP}" 2>/dev/null || stat -f %m "${STAMP}" 2>/dev/null) || { echo 999999; return; }
-	echo $(( $(date +%s) - m ))
+stampAge() {
+	# seconds since file $1 was last touched; a huge number if it does not exist,
+	# or if the clock has stepped back past it (an unset RTC, an NTP correction):
+	# a stamp from the "future" says nothing about how recent the fetch was.
+	local m age
+	m=$(stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null) || { echo 999999; return; }
+	age=$(( $(date +%s) - m ))
+	[ "${age}" -lt 0 ] && age=999999
+	echo ${age}
 }
 
-if [ "${FORCE}" != "1" ] && [ "$(fetchAge)" -lt "${MIN_AGE}" ]; then
+touchStamp() {
+	# If someone ran this script as root by hand, the file may be root-owned and
+	# not writable by the web user; replace it (tmp/ belongs to the fpp user).
+	touch "$1" 2>/dev/null || { rm -f "$1" && touch "$1"; } 2>/dev/null
+}
+
+recentEnough() {
+	# true when page loads have nothing to do yet
+	[ "$(stampAge "${STAMP}")" -lt "${MIN_AGE}" ] || [ "$(stampAge "${FAIL_STAMP}")" -lt "${FAIL_RETRY_AGE}" ]
+}
+
+if [ "${FORCE}" != "1" ] && recentEnough; then
 	exit 0
 fi
 
 mkdir -p "${MEDIADIR}/tmp" 2>/dev/null
+# Same root-owned-file case as touchStamp: without this the web user cannot open
+# the lock and the script silently runs without single-flight.
+[ -e "${LOCK}" ] && [ ! -w "${LOCK}" ] && rm -f "${LOCK}" 2>/dev/null
 if command -v flock >/dev/null 2>&1 && ( : >> "${LOCK}" ) 2>/dev/null; then
 	exec 9>> "${LOCK}"
 	if [ "${FORCE}" = "1" ]; then
-		flock -w 300 9 || exit 0
-		# somebody else just fetched while we waited: that is fresh enough
-		[ "$(fetchAge)" -lt "${FORCE_MIN_AGE}" ] && exit 0
+		flock -w ${FORCE_LOCK_WAIT} 9 || exit 0
+		# somebody else just fetched successfully while we waited: fresh enough
+		[ "$(stampAge "${STAMP}")" -lt "${FORCE_MIN_AGE}" ] && exit 0
 	else
 		flock -n 9 || exit 0
-		# the age may have changed while we raced for the lock
-		[ "$(fetchAge)" -lt "${MIN_AGE}" ] && exit 0
+		# the stamps may have changed while we raced for the lock
+		recentEnough && exit 0
 	fi
 fi
 
-# Lowest CPU and disk priority for everything below.
+# Lowest CPU priority and lowest best-effort disk priority for everything below.
 NICE="nice -n 19"
-command -v ionice >/dev/null 2>&1 && NICE="ionice -c3 nice -n 19"
+command -v ionice >/dev/null 2>&1 && NICE="ionice -c2 -n7 nice -n 19"
 
 # Ensure newfeatures remote exists
 cd ${FPPDIR}
@@ -89,8 +121,16 @@ if curl --silent --head https://github.com | grep -i "Content-Type: text/html; c
 	else
 		runGitLocked "cd ${FPPDIR} && ${NICE} sudo -u ${FPPUSER} git fetch -p -P && ${NICE} sudo -u ${FPPUSER} git submodule foreach git fetch -p -P"
 	fi
+	FETCH_RC=$?
 
-	touch "${STAMP}" 2>/dev/null
+	# Only a fetch that worked counts as fresh.  One that failed, or gave up
+	# waiting for the repo lock behind an upgrade, is retried soon.
+	if [ ${FETCH_RC} -eq 0 ]; then
+		touchStamp "${STAMP}"
+		rm -f "${FAIL_STAMP}" 2>/dev/null
+	else
+		touchStamp "${FAIL_STAMP}"
+	fi
 
 	# Reachable again: only say so if we previously said it was not.
 	if [ -f "${MEDIADIR}/tmp/git_fetch_unreachable" ]
@@ -100,9 +140,9 @@ if curl --silent --head https://github.com | grep -i "Content-Type: text/html; c
 	fi
 else
 	echo "Can not access github, unable to fetch git updates"
-	# An unreachable GitHub counts as an attempt too, so every page view does not
-	# wait on the connection check again; --force retries at once.
-	touch "${STAMP}" 2>/dev/null
+	# A failed attempt, so page views do not repeat the connection check for
+	# ${FAIL_RETRY_AGE} s; --force ignores it and retries at once.
+	touchStamp "${FAIL_STAMP}"
 	# Breadcrumb into the fppd.log timeline: this is the answer to the most common
 	# "why does my box say there are no updates?" question, and it is the only
 	# part of this script's output anyone ever needed.

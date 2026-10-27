@@ -362,6 +362,13 @@
             });
         }
 
+        function setGitCommitCount(count) {
+            $('#commitCount').text(count);
+            $('#commitCountStandard').text(count);
+            $('#fppVersionIndicator .fpp-version-indicator__label')
+                .html('<i class="fas fa-search"></i> ' + count + ' changes behind');
+        }
+
         // Helper: Show a loading modal with spinner
         function ShowLoadingModal(id, title, modalClass) {
             DoModalDialog({
@@ -616,6 +623,12 @@
                 });
 
                 $('#gitOriginLogModal .modal-body').html(html);
+
+                // The header's count came from a page-load fetch that may be a few
+                // minutes old; keep it in step with what the dialog just listed.
+                if (data.rows && data.rows.length > 0) {
+                    setGitCommitCount(data.rows.length);
+                }
             }, true); // force refresh
         }
 
@@ -904,10 +917,7 @@
                 // Fetch commit count and update label
                 getGitCommitCount(function (count) {
                     if (count > 0) {
-                        $('#commitCount').text(count);
-                        $('#commitCountStandard').text(count);
-                        $('#fppVersionIndicator .fpp-version-indicator__label')
-                            .html('<i class="fas fa-search"></i> ' + count + ' changes behind');
+                        setGitCommitCount(count);
                     }
                 });
 

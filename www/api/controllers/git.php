@@ -34,7 +34,7 @@ function GetGitOriginLog()
     // Page loads reuse a recent fetch (scripts/git_fetch throttles them); an
     // explicit request for fresh data, such as opening the pending changes view,
     // passes ?refresh=1.
-    exec("$fppDir/scripts/git_fetch" . (isset($_GET['refresh']) ? ' --force' : ''), $log);
+    exec("$fppDir/scripts/git_fetch" . (!empty($_GET['refresh']) ? ' --force' : ''), $log);
     unset($log);
     exec("$fppDir/scripts/git_origin_log", $log);
 
@@ -493,7 +493,9 @@ function GitBranches()
         unset($forkFetchOut);
     }
 
-    exec("$fppDir/scripts/git_fetch", $log);
+    // Like originLog: page loads reuse a recent fetch, ?refresh=1 (the user
+    // picking a remote) forces a fresh one so a just-pushed branch shows up.
+    exec("$fppDir/scripts/git_fetch" . (!empty($_GET['refresh']) ? ' --force' : ''), $log);
     unset($log);
     exec("git -C " . escapeshellarg($fppDir) . " branch -l --remotes", $log);
 
