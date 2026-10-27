@@ -676,8 +676,6 @@ bool PipeWireOutputStream::OpenLocked(std::unique_lock<std::mutex>& lock) {
         GstStructure* props = gst_structure_new("props",
                                                 "node.name", G_TYPE_STRING, nodeName.c_str(),
                                                 "node.description", G_TYPE_STRING, nodeDesc.c_str(),
-                                                "stream.dont-remix", G_TYPE_BOOLEAN, TRUE,
-                                                "channelmix.disable", G_TYPE_BOOLEAN, TRUE,
                                                 NULL);
         g_object_set(pwsink, "stream-properties", props, NULL);
         gst_structure_free(props);
