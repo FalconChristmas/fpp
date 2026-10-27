@@ -275,9 +275,13 @@ void FileMonitor::fileChangedEvent() {
                     inotify_rm_watch(inotify_fd_, it->second.inotify_watch_fd);
                     fileMapping_.erase(it->second.inotify_watch_fd);
                     it->second.inotify_watch_fd = -1; // Reset watch descriptor
-                    for (const auto& callback : it->second.callbacks) {
-                        pendingCallbacks.push_back(callback.second);
-                    }
+                }
+                // Notify whether or not the file's own watch is still here:
+                // the unlink frees the inode first, so that watch's IN_IGNORED
+                // is usually queued ahead of this and has already cleared it.
+                // Gating on it meant a deleted file was never reported.
+                for (const auto& callback : it->second.callbacks) {
+                    pendingCallbacks.push_back(callback.second);
                 }
             }
         } else if (pevent->mask & IN_CLOSE_WRITE) {
