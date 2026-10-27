@@ -165,6 +165,16 @@ ServerTokens Prod
     Options FollowSymLinks
     AllowOverride None
 
+    # Since 2.4.59 (the CVE-2024-24795 fix), mod_proxy_fcgi drops the
+    # Content-Length a FastCGI reply sets unless this is set, and sends the
+    # body chunked.  The File Manager's player (api/file/...?play=1, served by
+    # ServeFileRange()) needs it: Safari and iOS won't play or seek a 206
+    # without a length.  Matched on THE_REQUEST, which the rewrite to
+    # index.php below leaves alone.
+    <If "%{THE_REQUEST} =~ m#^(GET|HEAD) /api/file/[^? ]*\?([^ ]*&)?play=1(&| )#">
+        SetEnv ap_trust_cgilike_cl 1
+    </If>
+
     # Enable mod_rewrite
     RewriteEngine On
     RewriteBase /api/

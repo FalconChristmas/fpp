@@ -817,9 +817,6 @@ function DoModalDialog (options) {
 	if (isNewDialog) {
 		dlg = $('#modalDialogBase').clone();
 		dlg.attr('id', options.id);
-		if (options.hasOwnProperty('class')) {
-			dlg.addClass(options.class);
-		}
 		$('#modalDialogBase').parent().append(dlg);
 
 		if (options.open && typeof options.open === 'function') {
@@ -840,6 +837,15 @@ function DoModalDialog (options) {
 		if (typeof options.title !== 'string') {
 			dlg.find('.modal-title').append(options.title);
 		}
+	}
+
+	// The size/extra class follows each call, as the footer below does: a
+	// dialog reused under the same id with a different class (the media player
+	// is modal-m for audio, modal-lg for video) kept the first call's.
+	if (options.hasOwnProperty('class')) {
+		dlg.removeClass(dlg.data('fppModalClass') || '')
+			.addClass(options.class)
+			.data('fppModalClass', options.class);
 	}
 
 	// (Re)build the footer whenever the caller supplies buttons/footer. This runs
@@ -9614,16 +9620,46 @@ function PlayFileInBrowser (dir, file) {
 	var isVideo = dir == 'Videos';
 	var media = $(isVideo ? '<video playsinline></video>' : '<audio></audio>')
 		.attr({ controls: '', autoplay: '', preload: 'auto' })
-		.css({ width: '100%', 'max-height': isVideo ? '70vh' : '' })
+		.addClass('w-100')
+		.css({ 'max-height': isVideo ? '70vh' : '' })
 		.attr('src', url);
 	var note = $('<div class="text-muted small mt-2"></div>');
 	var downloadLink = $('<a></a>')
 		.attr('href', url.replace(/\?play=1$/, ''))
 		.text('download it');
-	media.on('error', function () {
+	var cantDecode = function () {
 		// Formats the browser can't decode (e.g. some MKV/AVI) still play on
 		// FPP itself; say so rather than showing a dead player.
 		note.empty().append('This browser can\'t play this file (FPP can still play it). You can ', downloadLink, ' to play it on this computer.');
+	};
+	var cantLoad = function (why) {
+		note.empty().text('The file could not be loaded from FPP (' + why + ').');
+	};
+	media.on('error', function () {
+		var err = this.error;
+		if (!err || err.code == MediaError.MEDIA_ERR_ABORTED) {
+			return;
+		}
+		if (err.code == MediaError.MEDIA_ERR_NETWORK) {
+			cantLoad('the connection was lost');
+		} else if (err.code == MediaError.MEDIA_ERR_DECODE) {
+			cantDecode();
+		} else {
+			// MEDIA_ERR_SRC_NOT_SUPPORTED is also what a browser reports for an
+			// HTTP error (a file deleted since the list loaded), so ask the
+			// server before blaming the format.
+			fetch(url, { method: 'HEAD' })
+				.then(function (r) {
+					if (r.ok) {
+						cantDecode();
+					} else {
+						cantLoad('HTTP ' + r.status);
+					}
+				})
+				.catch(function () {
+					cantLoad('the connection was lost');
+				});
+		}
 	});
 	var body = $('<div></div>').append(media, note);
 

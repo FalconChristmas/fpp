@@ -749,7 +749,7 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
         // "mpg" test that made video/mpeg unreachable).
         static $playTypes = array(
             'mp3' => 'audio/mpeg', 'ogg' => 'audio/ogg', 'oga' => 'audio/ogg', 'opus' => 'audio/ogg',
-            'flac' => 'audio/flac', 'm4a' => 'audio/mp4', 'aac' => 'audio/aac', 'wav' => 'audio/wav',
+            'flac' => 'audio/flac', 'm4a' => 'audio/mp4', 'm4p' => 'audio/mp4', 'aac' => 'audio/aac', 'wav' => 'audio/wav',
             'mp4' => 'video/mp4', 'm4v' => 'video/mp4', 'mov' => 'video/quicktime', 'webm' => 'video/webm',
             'mkv' => 'video/x-matroska', 'avi' => 'video/x-msvideo', 'mpg' => 'video/mpeg', 'mpeg' => 'video/mpeg');
         $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
@@ -780,6 +780,8 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
     //and http_response_code() change nothing.  No Content-Length: Apache
     //2.4.59 and later (mod_proxy_fcgi, the CVE-2024-24795 fix) drops the one
     //a FastCGI reply sets, so a download goes out chunked whatever PHP says.
+    //Playback (ServeFileRange) is the exception: apache2.site lets its
+    //Content-Length through, which a 206 needs.
     if ($lines == -1) {
         //A configuration backup keeps its large, unchanged areas in a shared blob
         //store instead of a copy per backup (see InlineBackupBlobs).  Anything
@@ -833,6 +835,11 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
  * request ranges to start playing straight away and to seek; without them they
  * may wait for the whole file, which over Wi-Fi to a Pi took minutes.
  *
+ * The response carries the file's ETag and Last-Modified, and an If-Range that
+ * matches neither gets the whole file instead of the range.  A song replaced
+ * while it plays (a re-upload, a MultiSync push) then can't have bytes of the
+ * new file spliced onto the player's copy of the old one.
+ *
  * Returns false, sending nothing, when the file can't be read directly or is
  * too big for this PHP's file offsets (32-bit images, over 2 GB); the caller
  * then falls back to sending the whole file as before.
@@ -842,9 +849,6 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
  */
 function ServeFileRange($fullPath)
 {
-    if (!is_readable($fullPath)) {
-        return false;
-    }
     $size = real_filesize($fullPath);
     if (!is_int($size) || $size < 0 || (PHP_INT_SIZE === 4 && $size > 0x7FFFFFFF)) {
         return false;
@@ -854,24 +858,48 @@ function ServeFileRange($fullPath)
         return false;
     }
 
+    header('Accept-Ranges: bytes');
+    if (fppSendFileCacheValidators($fullPath)) {
+        fclose($fh);
+        return true;
+    }
+
+    $range = $_SERVER['HTTP_RANGE'] ?? '';
+    $ifRange = trim($_SERVER['HTTP_IF_RANGE'] ?? '');
+    if ($range !== '' && $ifRange !== '') {
+        // Exact match against the validators just sent: an ETag, or a date
+        // equal to Last-Modified.  A file with neither (one rewritten within
+        // the last second) never matches, which is the safe answer.
+        $validators = array();
+        foreach (headers_list() as $h) {
+            if (preg_match('/^(ETag|Last-Modified):\s*(.*)$/i', $h, $v)) {
+                $validators[] = trim($v[2]);
+            }
+        }
+        if (!in_array($ifRange, $validators, true)) {
+            $range = '';
+        }
+    }
+
     $start = 0;
     $end = $size - 1;
     $partial = false;
-    $range = $_SERVER['HTTP_RANGE'] ?? '';
-    // Only a single range is honoured; anything else gets the whole file,
-    // which the RFC allows.
-    if ($size > 0 && preg_match('/^bytes=(\d*)-(\d*)$/', trim($range), $m) && ($m[1] !== '' || $m[2] !== '')) {
+    // Only a single range is honoured; anything else, including one whose
+    // last byte comes before its first, is not a valid range and gets the
+    // whole file, as the RFC asks.
+    if ($size > 0 && preg_match('/^bytes=(\d*)-(\d*)$/', trim($range), $m) && ($m[1] !== '' || $m[2] !== '') &&
+        ($m[1] === '' || $m[2] === '' || intval($m[2]) >= intval($m[1]))) {
         if ($m[1] === '') {
             // Suffix: the last n bytes.
-            $n = intval($m[2]);
-            $start = max(0, $size - $n);
+            $start = max(0, $size - intval($m[2]));
         } else {
             $start = intval($m[1]);
             if ($m[2] !== '') {
                 $end = min(intval($m[2]), $size - 1);
             }
         }
-        if ($start > $end || $start >= $size) {
+        // Past the end, or a zero-length suffix ("-0").
+        if ($start >= $size || $start > $end) {
             fclose($fh);
             http_response_code(416);
             header('Content-Range: bytes */' . $size);
@@ -881,7 +909,6 @@ function ServeFileRange($fullPath)
         $partial = true;
     }
 
-    header('Accept-Ranges: bytes');
     if ($partial) {
         http_response_code(206);
         header('Content-Range: bytes ' . $start . '-' . $end . '/' . $size);
