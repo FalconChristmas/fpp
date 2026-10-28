@@ -28,7 +28,7 @@
     <li><b>Play</b> (Player mode, single file) — Starts the sequence immediately on this Player (and synced Remotes).</li>
     <li><b>Play Here</b> (Player mode, single file) — Plays the sequence locally for testing without broadcasting MultiSync to Remotes.</li>
     <li><b>Sequence Info</b> (single) — Shows header details such as channel count, frame count and timing.</li>
-    <li><b>Add To Playlist</b> — Adds the selected sequence(s) to a playlist you pick.</li>
+    <li><b>Add To Playlist</b> — Opens a Bulk Add dialog that adds the selected sequence(s) to a playlist and section you pick. A sequence whose header names an audio or video file that is on this device becomes a Sequence+Media entry. The dialog has a <b>Don't automatch media files</b> checkbox under Section (Advanced UI level and above; off by default; the choice is remembered) that makes the playlist FSEQ-only; changing it refreshes the list.</li>
     <li><b>Download</b> — Saves copies to your computer. Works on multiple selections.</li>
     <li><b>Rename</b> (single) — Changes the filename on the device.</li>
     <li><b>Delete</b> — Permanently removes the selected files after a confirmation dialog lists what will be deleted.</li>
@@ -39,7 +39,8 @@
 <ul>
     <li><b>Listen</b> (single) — Plays the audio in a player on this page for a quick preview, with a working seek bar. Closing the player stops it.</li>
     <li><b>Normalize</b> (single or multiple) — Makes the selected songs play equally loud. Each song's loudness and true peak are measured (LUFS, ITU-R BS.1770) and a volume change for it is stored in <code>config/media_gain.json</code>; fppd applies it whenever that song plays. The files themselves are never changed, so quality, timing and sync are untouched, and any format FPP plays works. <i>Show speakers / FM</i> matching also allows for deep bass that outdoor speakers barely reproduce. A song is never turned up past the point where its peaks would exceed -1.5 dBTP, nor by more than +20 dB. <b>Remove Normalization</b> in the same dialog makes a song play as recorded again. Renaming, copying or deleting a song here carries its setting along. If a song is replaced by a new upload, its old setting is ignored until it is measured again. When several songs are normalized together, the summary says the loudest level all of them can reach without clipping; use one level for every song and video.</li>
-    <li><b>Add To Playlist, Download, Rename, Delete</b> — As above, with the same single/multi rules.</li>
+    <li><b>Add To Playlist</b> — Adds the selected audio file(s) as Media entries. A file that has a sequence with the same name (<i>song.mp3</i> and <i>song.fseq</i>) becomes a Sequence+Media entry. The Bulk Add dialog has a <b>Don't automatch sequence files</b> checkbox under Section (Advanced UI level and above; off by default; the choice is remembered) that makes the playlist audio-only.</li>
+    <li><b>Download, Rename, Delete</b> — As above, with the same single/multi rules.</li>
 </ul>
 
 <h5>Video — .mp4 / .mkv / .avi / .mpg / .mov</h5>
@@ -48,7 +49,8 @@
     <li><b>View</b> (single) — Plays the video in a player on this page. Formats the browser can't decode (some MKV/AVI) still play on FPP; the player offers a download instead.</li>
     <li><b>Video Info</b> (single) — Shows codec, resolution and duration.</li>
     <li><b>Normalize</b> (single or multiple) — Measures the sound of the selected videos and stores a volume change fppd applies when they play, the same way as for audio files, so a video's sound matches your normalized songs. The video files are never changed. Videos without sound are skipped. <b>Remove Normalization</b> in the same dialog undoes it.</li>
-    <li><b>Add To Playlist, Download, Rename, Delete</b> — As above.</li>
+    <li><b>Add To Playlist</b> — Adds the selected video(s) as Media entries, paired with a same-named sequence the same way as Audio. The Bulk Add dialog has a <b>Don't automatch sequence files</b> checkbox under Section (Advanced UI level and above; off by default; the choice is remembered) that makes the playlist video-only.</li>
+    <li><b>Download, Rename, Delete</b> — As above.</li>
 </ul>
 
 <h5>Images</h5>

@@ -1306,108 +1306,148 @@ function AddFilesToPlaylist (type, files) {
 			'</option>';
 	}
 
-	var sequenceFiles = {};
-	var mediaFiles = {};
+	// Each lookup below is a request, so keep the answers across a re-render.
+	var infoCache = {};
+	var CachedGet = function (url) {
+		if (!infoCache.hasOwnProperty(url)) {
+			infoCache[url] = Get(url, false);
+		}
+		return infoCache[url];
+	};
+	var inputFiles = files.slice();
+	var settingInfo = {
+		Sequences: {
+			label: "Don't automatch media files",
+			tip: 'Select this to create a FSEQ only playlist.'
+		},
+		Music: {
+			label: "Don't automatch sequence files",
+			tip: 'Select this to create an audio only playlist.'
+		},
+		Videos: {
+			label: "Don't automatch sequence files",
+			tip: 'Select this to create a video only playlist.'
+		}
+	};
 
-	if (type == 'Sequences') {
-		$('#tblMusic tr').each(function () {
-			mediaFiles[$(this).find('td:first').text()] = 1;
-		});
-		$('#tblVideos tr').each(function () {
-			mediaFiles[$(this).find('td:first').text()] = 1;
-		});
-	} else if (type == 'Music' || type == 'Videos') {
-		$('#tblSequences tr').each(function () {
-			sequenceFiles[$(this).find('td:first').text()] = 1;
-		});
-	}
+	// Builds the dialog's rows.  The pairing rewrites file names, so start from
+	// the names that were selected each time.
+	var BuildRows = function (noAutomatch) {
+		var files = inputFiles.slice();
+		var sequenceFiles = {};
+		var mediaFiles = {};
 
-	var etype = '';
-	var tbody = '';
-	var duration = 0.0;
-	var mediaFile = '';
-
-	for (var i = 0; i < files.length; i++) {
-		duration = 0.0;
-		mediaFile = '';
-
-		if (type == 'Sequences') {
-			etype = 'sequence';
-
-			var seqInfo = Get('api/sequence/' + files[i] + '/meta', false);
-			if (seqInfo.hasOwnProperty('NumFrames')) {
-				duration += (1.0 * seqInfo.NumFrames * seqInfo.StepTime) / 1000;
-			}
-
-			if (
-				seqInfo.hasOwnProperty('variableHeaders') &&
-				seqInfo.variableHeaders.hasOwnProperty('mf')
-			) {
-				var mf = seqInfo.variableHeaders.mf.split(/[\\/]/).pop();
-				if (mediaFiles.hasOwnProperty(mf)) {
-					mediaFile = mf;
-				} else {
-					mf = mf.replace(/\.[^/.]+$/, '');
-					if (mediaFiles.hasOwnProperty(mf + '.mp3')) {
-						mediaFile = mf + '.mp3';
-					} else if (mediaFiles.hasOwnProperty(mf + '.MP3')) {
-						mediaFile = mf + '.MP3';
-					} else if (mediaFiles.hasOwnProperty(mf + '.mp4')) {
-						mediaFile = mf + '.mp4';
-					} else if (mediaFiles.hasOwnProperty(mf + '.MP4')) {
-						mediaFile = mf + '.MP4';
-					}
-				}
-
-				if (mediaFile != '') etype = 'both';
-			}
+		if (noAutomatch) {
+			// Leave both lists empty so every file stays a single-type entry.
+		} else if (type == 'Sequences') {
+			$('#tblMusic tr').each(function () {
+				mediaFiles[$(this).find('td:first').text()] = 1;
+			});
+			$('#tblVideos tr').each(function () {
+				mediaFiles[$(this).find('td:first').text()] = 1;
+			});
 		} else if (type == 'Music' || type == 'Videos') {
-			etype = 'media';
-
-			var mediaInfo = Get('api/media/' + files[i] + '/duration', false);
-			if (mediaInfo.hasOwnProperty(files[i])) {
-				duration = mediaInfo[files[i]].duration;
-			}
-
-			var sf = files[i].replace(/\.[^/.]+$/, '.fseq');
-			if (sequenceFiles.hasOwnProperty(sf)) {
-				etype = 'both';
-				mediaFile = files[i];
-				files[i] = sf;
-			}
-		} else if (type == 'Scripts') {
-			etype = 'command';
+			$('#tblSequences tr').each(function () {
+				sequenceFiles[$(this).find('td:first').text()] = 1;
+			});
 		}
 
-		var fileStr = files[i];
-		if (mediaFile != '') fileStr += ' (' + mediaFile + ')';
+		var etype = '';
+		var tbody = '';
+		var duration = 0.0;
+		var mediaFile = '';
 
-		let trElem = document.createElement('tr');
-		trElem.className = 'fppTableRow';
+		for (var i = 0; i < files.length; i++) {
+			duration = 0.0;
+			mediaFile = '';
 
-		let tdFile = document.createElement('td');
-		tdFile.className = 'file';
-		tdFile.setAttribute('file', files[i]);
-		tdFile.setAttribute('media', mediaFile);
-		tdFile.setAttribute('duration', duration);
-		tdFile.textContent = fileStr;
+			if (type == 'Sequences') {
+				etype = 'sequence';
 
-		let tdType = document.createElement('td');
-		tdType.className = 'type';
-		tdType.setAttribute('etype', etype);
-		tdType.textContent =
-			PlaylistEntryTypeToString(etype) +
-			(etype == 'command' ? ' (Run Script)' : '');
+				var seqInfo = CachedGet('api/sequence/' + files[i] + '/meta');
+				if (seqInfo.hasOwnProperty('NumFrames')) {
+					duration += (1.0 * seqInfo.NumFrames * seqInfo.StepTime) / 1000;
+				}
 
-		let tdDuration = document.createElement('td');
-		tdDuration.textContent = SecondsToHuman(duration, true);
+				if (
+					seqInfo.hasOwnProperty('variableHeaders') &&
+					seqInfo.variableHeaders.hasOwnProperty('mf')
+				) {
+					var mf = seqInfo.variableHeaders.mf.split(/[\\/]/).pop();
+					if (mediaFiles.hasOwnProperty(mf)) {
+						mediaFile = mf;
+					} else {
+						mf = mf.replace(/\.[^/.]+$/, '');
+						if (mediaFiles.hasOwnProperty(mf + '.mp3')) {
+							mediaFile = mf + '.mp3';
+						} else if (mediaFiles.hasOwnProperty(mf + '.MP3')) {
+							mediaFile = mf + '.MP3';
+						} else if (mediaFiles.hasOwnProperty(mf + '.mp4')) {
+							mediaFile = mf + '.mp4';
+						} else if (mediaFiles.hasOwnProperty(mf + '.MP4')) {
+							mediaFile = mf + '.MP4';
+						}
+					}
 
-		trElem.appendChild(tdFile);
-		trElem.appendChild(tdType);
-		trElem.appendChild(tdDuration);
+					if (mediaFile != '') etype = 'both';
+				}
+			} else if (type == 'Music' || type == 'Videos') {
+				etype = 'media';
 
-		tbody += trElem.outerHTML;
-	}
+				var mediaInfo = CachedGet('api/media/' + files[i] + '/duration');
+				if (mediaInfo.hasOwnProperty(files[i])) {
+					duration = mediaInfo[files[i]].duration;
+				}
+
+				var sf = files[i].replace(/\.[^/.]+$/, '.fseq');
+				if (sequenceFiles.hasOwnProperty(sf)) {
+					etype = 'both';
+					mediaFile = files[i];
+					files[i] = sf;
+				}
+			} else if (type == 'Scripts') {
+				etype = 'command';
+			}
+
+			var fileStr = files[i];
+			if (mediaFile != '') fileStr += ' (' + mediaFile + ')';
+
+			let trElem = document.createElement('tr');
+			trElem.className = 'fppTableRow';
+
+			let tdFile = document.createElement('td');
+			tdFile.className = 'file';
+			tdFile.setAttribute('file', files[i]);
+			tdFile.setAttribute('media', mediaFile);
+			tdFile.setAttribute('duration', duration);
+			tdFile.textContent = fileStr;
+
+			let tdType = document.createElement('td');
+			tdType.className = 'type';
+			tdType.setAttribute('etype', etype);
+			tdType.textContent =
+				PlaylistEntryTypeToString(etype) +
+				(etype == 'command' ? ' (Run Script)' : '');
+
+			let tdDuration = document.createElement('td');
+			tdDuration.textContent = SecondsToHuman(duration, true);
+
+			trElem.appendChild(tdFile);
+			trElem.appendChild(tdType);
+			trElem.appendChild(tdDuration);
+
+			tbody += trElem.outerHTML;
+		}
+
+		return tbody;
+	};
+
+	// The checkbox is an Advanced (level 1) setting.  Below that level it is
+	// hidden, so a value saved earlier must not change the pairing either.
+	var showNoAutomatch = settings['uiLevel'] >= 1;
+	var settingName = 'fileManagerNoAutomatch' + type;
+	var noAutomatch = showNoAutomatch && settings[settingName] == '1';
+	var tbody = BuildRows(noAutomatch);
 
 	var options = {
 		id: 'bulkAdd',
@@ -1439,6 +1479,23 @@ function AddFilesToPlaylist (type, files) {
 	$('#bulkAddPlaylistSection').val('mainPlaylist');
 	$('#bulkAddType').html(type);
 	$('#bulkAddList').html(tbody);
+
+	// Scripts have nothing to pair, so the checkbox only applies to the file tabs.
+	// Basic level hides it as well.
+	if (!showNoAutomatch || !settingInfo.hasOwnProperty(type)) {
+		$('#bulkAddNoAutomatchRow').remove();
+	} else {
+		$('#bulkAddNoAutomatchLabel').text(settingInfo[type].label);
+		$('#bulkAddNoAutomatchTip').attr('data-bs-title', settingInfo[type].tip);
+		new bootstrap.Tooltip($('#bulkAddNoAutomatchTip')[0]);
+		$('#bulkAddNoAutomatch')
+			.prop('checked', noAutomatch)
+			.on('change', function () {
+				var checked = $(this).is(':checked');
+				$('#bulkAddList').html(BuildRows(checked));
+				SetSetting(settingName, checked ? '1' : '0', 0, 0, false, checked);
+			});
+	}
 }
 
 function BulkAddPlaylist () {
