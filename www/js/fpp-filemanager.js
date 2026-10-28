@@ -1493,8 +1493,7 @@ function AddFilesToPlaylist (type, files) {
 			.on('change', function () {
 				var checked = $(this).is(':checked');
 				$('#bulkAddList').html(BuildRows(checked));
-				// The dialog already shows the new state, so skip the "<key> Enabled" toast.
-				SetSetting(settingName, checked ? '1' : '0', 0, 0, true, checked);
+				SetSetting(settingName, checked ? '1' : '0', 0, 0, false, checked);
 			});
 	}
 }
