@@ -385,6 +385,25 @@ __attribute__((constructor(101))) static void OpenStandardDescriptors() {
     }
 }
 
+// A descriptor CloseOpenFiles() and MarkOpenFilesCloseOnExec() act on: a
+// file, unix domain socket or similar, or a TCP/UDP socket.  Anything else is
+// left alone: on OSX it may be a "NPOLICY" descriptor which, if closed,
+// terminates the process immediately.
+static bool isOpenFileOrSocket(int fd) {
+    if (fcntl(fd, F_GETFD) == -1) {
+        return false;
+    }
+    struct stat statBuf;
+    if (fstat(fd, &statBuf) == 0) {
+        return true;
+    }
+    struct sockaddr_in address;
+    memset(&address, 0, sizeof(address));
+    socklen_t addrLen = sizeof(address);
+    getsockname(fd, (struct sockaddr*)&address, &addrLen);
+    return address.sin_family != 0;
+}
+
 /*
  * Close all open file descriptors (used after fork())
  *
@@ -395,26 +414,26 @@ __attribute__((constructor(101))) static void OpenStandardDescriptors() {
 void CloseOpenFiles(int daemonMode) {
     int maxfd = sysconf(_SC_OPEN_MAX);
     for (int fd = 3; fd < maxfd; fd++) {
-        if (fcntl(fd, F_GETFD) != -1) {
-            bool doClose = false;
-            struct stat statBuf;
-            if (fstat(fd, &statBuf) == 0) {
-                // it's a file or unix domain socket or similar
-                doClose = true;
-            }
-            struct sockaddr_in address;
-            memset(&address, 0, sizeof(address));
-            socklen_t addrLen = sizeof(address);
-            getsockname(fd, (struct sockaddr*)&address, &addrLen);
-            if (address.sin_family) {
-                // its a tcp/udp socket of some sort
-                doClose = true;
-            }
-            if (doClose) {
-                // if it's not a file or socket, we cannot close it
-                // On OSX, that may be a "NPOLICY" descriptor which
-                // if closed will terminate the process immediately
-                close(fd);
+        if (isOpenFileOrSocket(fd)) {
+            close(fd);
+        }
+    }
+}
+
+/*
+ * The same descriptors as CloseOpenFiles(), marked close-on-exec instead of
+ * closed: for a process that is about to exec or _exit() while other threads
+ * of its own may still be using them, which closing would pull out from under
+ * them (a detached media teardown, GStreamer's and PipeWire's threads), and a
+ * descriptor number then reused would take their writes.
+ */
+void MarkOpenFilesCloseOnExec() {
+    int maxfd = sysconf(_SC_OPEN_MAX);
+    for (int fd = 3; fd < maxfd; fd++) {
+        if (isOpenFileOrSocket(fd)) {
+            int flags = fcntl(fd, F_GETFD);
+            if (flags != -1 && !(flags & FD_CLOEXEC)) {
+                fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
             }
         }
     }

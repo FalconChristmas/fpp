@@ -1718,7 +1718,10 @@ int main(int argc, char* argv[]) {
     }
 
     CloseCommand();
-    CloseOpenFiles(getSettingInt("daemonize"));
+    // Not closed here: threads still running (a media teardown, GStreamer's
+    // and PipeWire's) use them until the exec or _exit() below, which close
+    // them; the restarted fppd must just not inherit them.
+    MarkOpenFilesCloseOnExec();
 
     WarningHolder::ClearWarningsFile();
 

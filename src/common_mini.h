@@ -72,6 +72,7 @@ int CurrentDateInRange(int startDate, int endDate);
 int DateInRange(time_t when, int startDate, int endDate);
 int DateInRange(int currentDate, int startDate, int endDate);
 void CloseOpenFiles(int daemonMode = 0);
+void MarkOpenFilesCloseOnExec();
 std::string secondsToTime(int i);
 
 // Tee this process's stdout (and that of everything it forks) into `log`, one
