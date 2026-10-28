@@ -39,7 +39,7 @@
     <li><b>Serial Port</b> (device name) — e.g. <code>ttyUSB0</code>, <code>ttyACM0</code>, or a cape label.</li>
     <li><b>Start Channel</b> (number, 1–8388608, default 1) — First FPP channel driven by DMX starting at this port.</li>
     <li><b>Num Channels</b> (number, 1–512, default 512) — How many DMX channels to map from this port.</li>
-    <li><b>Save</b> (green, top right) — Posts <code>{channelInputs: [{device, enabled, startAddress, channelCount, type:"dmx"}]}</code> to <code>api/channel/output/dmxInputs</code>. Data is loaded on entry via <code>GET</code> of the same endpoint and row fields are pre-filled.</li>
+    <li><b>Save</b> (green, top right) — Posts <code>{channelInputs: [{device, enabled, startAddress, channelCount, type:"dmx"}]}</code> to <code>api/channel/output/dmxInputs</code>. Data is loaded on entry via <code>GET</code> of the same endpoint and row fields are pre-filled. Save stays greyed out until the saved inputs have loaded, so the defaults shown while it loads can't be saved over them; if they can't be loaded, an error is shown and Save stays off until you reload the page. With no DMX inputs saved yet, Save is available as soon as the page has loaded.</li>
 </ul>
 
 <h4>Tips</h4>

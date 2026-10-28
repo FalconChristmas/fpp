@@ -143,11 +143,25 @@
 
         }
         function LoadDMX() {
+            // Until the saved inputs arrive every port shows its defaults (off,
+            // start 1, 512 channels), and saving those wipes them (as #3124 did
+            // to Pixel Strings), so Save stays off until then.
+            $('#btnSaveDMX').prop('disabled', true);
             $.get('api/channel/output/dmxInputs')
+                .fail(function (jqXHR) {
+                    if (jqXHR.status == 404) {
+                        // Nothing saved yet: the defaults are the config.
+                        $('#btnSaveDMX').prop('disabled', false);
+                        return;
+                    }
+                    $.jGrowl('Unable to load the DMX input configuration, so Save is disabled to keep it from being overwritten.  Reload the page to try again.', { themeState: 'danger', sticky: true });
+                })
                 .done(function (data) {
                     if (data.hasOwnProperty("channelInputs")) {
                         data.channelInputs.forEach(function (dmx) {
-                            var row = $('#' + dmx.device);
+                            // By element, not '#' + name: a cape tty label can
+                            // hold characters a selector would choke on.
+                            var row = $(document.getElementById(dmx.device));
                             if (row.length) {
                                 row.find('input[type="checkbox"]').prop('checked', dmx.enabled);
                                 row.find('input[type="number"]').eq(0).val(dmx.startAddress);
@@ -155,6 +169,8 @@
                             }
                         });
                     }
+                    // Only once every row is filled in.
+                    $('#btnSaveDMX').prop('disabled', false);
                 });
         }
         /////////////////////////////////////////////////////////////////////////////
@@ -314,8 +330,9 @@
                                     </div>
                                     <div class="col-md-auto ms-lg-auto">
                                         <div class="form-actions">
-                                            <input id="btnSaveUniverses" class="buttons btn-success ms-1" type="button"
-                                                value="Save" onClick="SaveDMX()" />
+                                            <!-- Off until LoadDMX() has the saved inputs. -->
+                                            <input id="btnSaveDMX" class="buttons btn-success ms-1" type="button"
+                                                value="Save" onClick="SaveDMX()" disabled />
                                         </div>
                                     </div>
                                 </div>
@@ -332,7 +349,7 @@
                                                     <th>Num Channels</th>
                                                 </tr>
                                             </thead>
-                                            <tbody id='tblUniversesBody'>
+                                            <tbody id='tblDMXsBody'>
                                                 <script>
                                                     Object.keys(SerialDevices).forEach(function (device) {
                                                         var row = "<tr id='" + device + "'>";

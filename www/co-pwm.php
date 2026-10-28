@@ -236,10 +236,22 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
     }
 
     function loadPWMOutputs() {
+        // Until the saved config arrives the page shows its defaults (output
+        // disabled, every port blank), and saving those wipes it (as #3124 did
+        // to Pixel Strings), so Save stays off until then.
+        $('#savePWMButton').prop('disabled', true);
         $.getJSON("api/channel/output/co-pwm", function (data) {
-            if (typeof data.channelOutputs !== 'undefined') {
+            if (data.channelOutputs && data.channelOutputs.length) {
                 populatePWMOutputs(data.channelOutputs[0])
             }
+            $('#savePWMButton').prop('disabled', false);
+        }).fail(function (jqXHR) {
+            if (jqXHR.status == 404) {
+                // Nothing saved yet: the defaults are the config.
+                $('#savePWMButton').prop('disabled', false);
+                return;
+            }
+            $.jGrowl("Unable to load the PWM configuration, so Save is disabled to keep it from being overwritten.  Click Revert to try again.", { themeState: 'danger', sticky: true });
         });
     }
 
@@ -343,7 +355,8 @@ if (is_dir($mediaDirectory . "/tmp/pwm/")) {
             <div class="col-md-auto ml-lg-auto">
                 <div class="form-actions">
                     <input type='button' class='buttons' onClick='loadPWMOutputs();' value='Revert' />
-                    <input type='button' class='buttons btn-success ml-1' onClick='savePWMOutputs();' value='Save' />
+                    <!-- Off until loadPWMOutputs() has the saved config. -->
+                    <input type='button' id='savePWMButton' class='buttons btn-success ms-1' onClick='savePWMOutputs();' value='Save' disabled />
                 </div>
             </div>
         </div>

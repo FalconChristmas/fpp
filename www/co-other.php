@@ -682,7 +682,8 @@
             'data-btn-enabled-class="btn-outline-danger" onClick="DeleteOutputFromCategory(\'' + category + '\');">' +
             '<button class="buttons btn-outline-success" type="button" ' +
             'onClick="AddOutputToCategory(\'' + category + '\');"><i class="fas fa-plus"></i> Add</button>' +
-            '<input class="buttons btn-success ms-1" type="button" value="Save" ' +
+            '<input class="buttons btn-success ms-1 otherOutputsSave" type="button" value="Save" ' +
+            (otherOutputsLoaded ? '' : 'disabled ') +
             'onClick="SaveOtherChannelOutputs();">' +
             '</div>' +
             '</div>' +
@@ -840,6 +841,8 @@
 
         if (!data || !("channelOutputs" in data) || data.channelOutputs.length == 0) {
             UpdateVirtualDisplayMenu(data);
+            // The tabs just removed go back on the Add Output Group menu.
+            PopulateAddOutputMenu();
             return;
         }
 
@@ -865,13 +868,34 @@
         PopulateAddOutputMenu();
     }
 
+    // A Save before the saved outputs are on the page writes only what its
+    // tab holds over every saved output (as #3124 did to Pixel Strings), so
+    // Save, and Add Output Group, which builds such a tab, stay off until
+    // then.  The button markup and SaveOtherChannelOutputs() check this too.
+    var otherOutputsLoaded = false;
+
     function GetChannelOutputs() {
         $.getJSON("api/channel/output/co-other", function (data) {
+            // Set only once every tab is built: an output module that throws
+            // part way would otherwise leave live Saves on the tabs before it.
             PopulateChannelOutputTable(data);
+            otherOutputsLoaded = true;
+            $('.otherOutputsSave, #addOutputDropdown').prop('disabled', false);
+        }).fail(function (jqXHR) {
+            if (jqXHR.status == 404) {
+                // Nothing saved yet: there is nothing to overwrite.
+                otherOutputsLoaded = true;
+                $('.otherOutputsSave, #addOutputDropdown').prop('disabled', false);
+                return;
+            }
+            $.jGrowl("Unable to load the Other output configuration, so Save and Add Output Group are disabled to keep it from being overwritten.  Reload the page to try again.", { themeState: 'danger', sticky: true });
         });
     }
 
     function SaveOtherChannelOutputs() {
+        if (!otherOutputsLoaded) {
+            return;
+        }
         var postData = {};
         var dataError = 0;
         var rowNumber = 1;

@@ -550,8 +550,10 @@
                         </ul>
                         <div class="dropdown ms-auto" style="padding-bottom: 0.85em"
                             id="tab-add-output-LI">
+                            <!-- Off until co-other.php's GetChannelOutputs() has the saved
+                                 outputs: a group added before then is thrown away when they land. -->
                             <button class="btn btn-outline-success dropdown-toggle" type="button"
-                                data-bs-toggle="dropdown" aria-expanded="false" id="addOutputDropdown">
+                                data-bs-toggle="dropdown" aria-expanded="false" id="addOutputDropdown" disabled>
                                 <i class="fas fa-plus"></i> Add Output Group
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end" id="addOutputCategoryMenu">
