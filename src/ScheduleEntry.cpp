@@ -16,6 +16,7 @@
 
 #include "Warnings.h" // WarningHolder -- needed directly for NOPCH builds
 
+#include <algorithm>
 #include <cerrno>
 #include <cmath>
 #include <ctime>
@@ -705,7 +706,7 @@ void ScheduleEntry::pushStartEndTimes(int dow, int& delta, time_t deltaThreshold
     // check.  Ending a second early let a lower entry start in the gap (#3141).
     if ((repeatInterval > 0) && (startTime != endTime)) {
         time_t horizon = now + SCHEDULE_REPEAT_HORIZON_S;
-        time_t newEnd = startTime + repeatInterval;
+        time_t newEnd = std::min(startTime + repeatInterval, endTime);
         while ((startTime < endTime) && (startTime < horizon)) {
             if (newEnd >= cutoff) {
                 startEndTimes.emplace_back(startTime, newEnd);
@@ -863,7 +864,7 @@ void ScheduleEntry::GetOccurrencesOnDate(int year, int month, int mday,
 
     // Occurrences end where the next starts, as in pushStartEndTimes().
     if ((repeatInterval > 0) && (startTime != endTime)) {
-        time_t newEnd = startTime + repeatInterval;
+        time_t newEnd = std::min(startTime + repeatInterval, endTime);
         while (startTime < endTime) {
             occurrences.push_back(std::pair<time_t, time_t>(startTime, newEnd));
             newEnd += repeatInterval;
