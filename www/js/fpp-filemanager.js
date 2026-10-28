@@ -1493,7 +1493,23 @@ function AddFilesToPlaylist (type, files) {
 			.on('change', function () {
 				var checked = $(this).is(':checked');
 				$('#bulkAddList').html(BuildRows(checked));
-				SetSetting(settingName, checked ? '1' : '0', 0, 0, false, checked);
+				// The setting is "don't automatch", so say what the user got: the
+				// stock toast would name the raw key.
+				SetSetting(
+					settingName,
+					checked ? '1' : '0',
+					0,
+					0,
+					true,
+					checked,
+					function () {
+						if (checked) {
+							$.jGrowl('Automatch Disabled', { themeState: 'detract' });
+						} else {
+							$.jGrowl('Automatch Enabled', { themeState: 'success' });
+						}
+					}
+				);
 			});
 	}
 }
