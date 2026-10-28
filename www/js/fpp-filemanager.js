@@ -1317,15 +1317,15 @@ function AddFilesToPlaylist (type, files) {
 	var inputFiles = files.slice();
 	var settingInfo = {
 		Sequences: {
-			label: "Don't automatch media files",
+			label: "Don't automatch media files:",
 			tip: 'Select this to create a FSEQ only playlist.'
 		},
 		Music: {
-			label: "Don't automatch sequence files",
+			label: "Don't automatch sequence files:",
 			tip: 'Select this to create an audio only playlist.'
 		},
 		Videos: {
-			label: "Don't automatch sequence files",
+			label: "Don't automatch sequence files:",
 			tip: 'Select this to create a video only playlist.'
 		}
 	};
@@ -1493,7 +1493,8 @@ function AddFilesToPlaylist (type, files) {
 			.on('change', function () {
 				var checked = $(this).is(':checked');
 				$('#bulkAddList').html(BuildRows(checked));
-				SetSetting(settingName, checked ? '1' : '0', 0, 0, false, checked);
+				// The dialog already shows the new state, so skip the "<key> Enabled" toast.
+				SetSetting(settingName, checked ? '1' : '0', 0, 0, true, checked);
 			});
 	}
 }

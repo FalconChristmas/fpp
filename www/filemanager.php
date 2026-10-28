@@ -892,7 +892,7 @@
                         </select></td>
                 </tr>
                 <tr id='bulkAddNoAutomatchRowTemplate'>
-                    <td><label for='bulkAddNoAutomatchTemplate' id='bulkAddNoAutomatchLabelTemplate'></label></td>
+                    <td><label for='bulkAddNoAutomatchTemplate'><b id='bulkAddNoAutomatchLabelTemplate'></b></label></td>
                     <td><input type='checkbox' id='bulkAddNoAutomatchTemplate'>
                         <span id='bulkAddNoAutomatchTipTemplate' data-bs-toggle='tooltip' data-bs-html='true'
                             data-bs-placement='auto'><img src='images/redesign/help-icon.svg' class='icon-help'
