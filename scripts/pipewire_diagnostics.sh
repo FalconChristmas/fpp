@@ -2086,6 +2086,30 @@ section_video() {
 }
 
 #############################################################################
+# One condition from `vcgencmd get_throttled`: bit $2 of $1 is set while it
+# holds now, bit $2+16 if it has held at any time since boot.  Now is a
+# warning; since boot only is history, so info, unless $4 is "warn" (an
+# under-voltage since boot still means the supply cannot keep up).  The
+# remaining arguments are the advice notes.
+throttle_flag() {
+    local bits=$1 bit=$2 what=$3 past=$4 n
+    shift 4
+    if (( bits & (1 << bit) )); then
+        warn "${what} now"
+    elif (( bits & (1 << (bit + 16)) )); then
+        if [ "${past}" = "warn" ]; then
+            warn "${what} since boot (not now)"
+        else
+            info "${what} since boot (not now)"
+        fi
+    else
+        return 1
+    fi
+    for n in "$@"; do
+        note "${n}"
+    done
+}
+
 section_performance() {
     echo "=== Latency, Clocking & Dropouts ==="
 
@@ -2205,13 +2229,36 @@ section_performance() {
     if have vcgencmd; then
         thr=$(vcgencmd get_throttled 2>/dev/null)
         info "Throttling: ${thr}"
-        case "${thr}" in
-            *=0x0) pass "No throttling or under-voltage recorded" ;;
-            "")    ;;
-            *)     warn "The Pi has thrown a throttling/under-voltage flag: ${thr}"
-                   note "Under-voltage causes USB audio dropouts and card resets."
-                   note "Use a supply that can hold 5V under load." ;;
-        esac
+        # Decoded bit by bit: only the under-voltage bits point at the power
+        # supply.  The others are about the clock and heat, and telling
+        # someone with a hot Pi to change a good supply sends them the wrong
+        # way (issue #3135: 0x80000 was only the soft temperature limit).
+        bits=${thr#*=}
+        if [ -z "${thr}" ]; then
+            :
+        elif [[ ! "${bits}" =~ ^0x[0-9a-fA-F]+$ ]]; then
+            info "Could not read the throttling flags: ${thr}"
+        elif (( bits == 0 )); then
+            pass "No throttling or under-voltage recorded"
+        else
+            throttle_flag "${bits}" 0 "Under-voltage" warn \
+                "Under-voltage causes USB audio dropouts and card resets." \
+                "Use a supply that can hold 5V under load."
+            throttle_flag "${bits}" 1 "ARM frequency capped" info \
+                "The firmware lowers the CPU clock for heat or low voltage; see the other flags and the temperature below."
+            throttle_flag "${bits}" 2 "CPU throttled" info \
+                "A throttled CPU can cause audio underruns and late frames; see the other flags for why."
+            throttle_flag "${bits}" 3 "Soft temperature limit reached" info \
+                "This is heat, not power: improve cooling (heatsink, fan, airflow round the case)."
+            # Capped or throttled with no under-voltage or soft-limit bit is the
+            # hard temperature limit: a Pi 4/5 sets only bits 1 and 2 there.
+            if (( (bits & 0x60006) && !(bits & 0x90009) )); then
+                note "No under-voltage or soft-limit flag, so this is the hard temperature limit (about 80-85'C): improve cooling."
+            fi
+            if (( (bits & 0xF000F) == 0 )); then
+                info "Only unknown throttling bits are set (${thr})"
+            fi
+        fi
         info "SoC temperature: $(vcgencmd measure_temp 2>/dev/null)"
     fi
     gov=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null)
