@@ -1504,6 +1504,7 @@ Json::Value Scheduler::GetScheduleRange(time_t rangeStart, time_t rangeEnd,
     Json::Value entries(Json::arrayValue);
     Json::Value items(Json::arrayValue);
     std::vector<Occurrence> expanded;
+    std::vector<Occurrence> playlistWindows;
 
     // The walk below steps a day at a time from rangeStart; a start whose
     // year doesn't fit in a struct tm makes localtime_r fail and leaves the
@@ -1584,28 +1585,36 @@ Json::Value Scheduler::GetScheduleRange(time_t rangeStart, time_t rangeEnd,
                 if (entry.playlist.empty())
                     occurrence.second = occurrence.first;
 
-                if ((occurrence.second < rangeStart) || (occurrence.first > rangeEnd))
+                // A playlist's end is exclusive, as everywhere else: one that
+                // ends at the start of the range (an entry ending at midnight)
+                // belongs to the previous day, not this range.
+                bool span = occurrence.second > occurrence.first;
+                Occurrence o{ .entryIndex = i,
+                              .dayKey = dayKey,
+                              .start = occurrence.first,
+                              .end = occurrence.second,
+                              .overridden = false };
+
+                // Only playlists can override, and a schedule of repeating
+                // commands can run to tens of thousands of occurrences, so
+                // collect the playlist windows once rather than rescanning
+                // everything for every occurrence.  Collect them before the
+                // range test: one from before the range (the day-early walk
+                // finds it) can still override an occurrence inside it.
+                if (!entry.playlist.empty())
+                    playlistWindows.push_back(o);
+
+                if ((span ? (occurrence.second <= rangeStart) : (occurrence.second < rangeStart)) ||
+                    (occurrence.first > rangeEnd))
                     continue;
 
-                expanded.push_back({ .entryIndex = i,
-                                     .dayKey = dayKey,
-                                     .start = occurrence.first,
-                                     .end = occurrence.second,
-                                     .overridden = false });
+                expanded.push_back(o);
             }
         }
     }
 
     // Flag playlist occurrences the scheduler would skip because a
     // higher-priority (lower index) playlist is already running at that point.
-    // Only playlists can override, and a schedule of repeating commands can run
-    // to tens of thousands of occurrences, so collect the playlist windows once
-    // rather than rescanning everything for every occurrence.
-    std::vector<Occurrence> playlistWindows;
-    for (const auto& occurrence : expanded) {
-        if (!schedule[occurrence.entryIndex].playlist.empty())
-            playlistWindows.push_back(occurrence);
-    }
 
     for (auto& occurrence : expanded) {
         if (schedule[occurrence.entryIndex].playlist.empty())
