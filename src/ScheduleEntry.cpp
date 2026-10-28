@@ -701,9 +701,11 @@ void ScheduleEntry::pushStartEndTimes(int dow, int& delta, time_t deltaThreshold
         }
     }
 
+    // Occurrences end where the next one starts, half-open like every endTime
+    // check.  Ending a second early let a lower entry start in the gap (#3141).
     if ((repeatInterval > 0) && (startTime != endTime)) {
         time_t horizon = now + SCHEDULE_REPEAT_HORIZON_S;
-        time_t newEnd = startTime + repeatInterval - 1;
+        time_t newEnd = startTime + repeatInterval;
         while ((startTime < endTime) && (startTime < horizon)) {
             if (newEnd >= cutoff) {
                 startEndTimes.emplace_back(startTime, newEnd);
@@ -859,8 +861,9 @@ void ScheduleEntry::GetOccurrencesOnDate(int year, int month, int mday,
     if (!DateInRange(startTime, sDate, eDate))
         return;
 
+    // Occurrences end where the next starts, as in pushStartEndTimes().
     if ((repeatInterval > 0) && (startTime != endTime)) {
-        time_t newEnd = startTime + repeatInterval - 1;
+        time_t newEnd = startTime + repeatInterval;
         while (startTime < endTime) {
             occurrences.push_back(std::pair<time_t, time_t>(startTime, newEnd));
             newEnd += repeatInterval;

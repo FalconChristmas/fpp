@@ -248,8 +248,8 @@ foreach ($data["schedule"]["items"] as $item) {
     $deleteEnds = array();
 
     foreach ($endTimes as $eTime => $endItems) {
-        if ($eTime < $item["startTime"]) {
-            $depth--;
+        if ($eTime <= $item["startTime"]) { // ends are exclusive, as in showPlaylistEnds()
+            $depth -= count($endItems); // every playlist ending then, not one per end time
             array_push($deleteEnds, $eTime);
         }
     }

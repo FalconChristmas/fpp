@@ -30,8 +30,14 @@
         <b>Everyday</b> (7), <b>Sunday</b> (0) through <b>Saturday</b> (6), <b>Mon-Fri</b> (8), <b>Sat/Sun</b> (9), <b>Mon/Wed/Fri</b> (10), <b>Tues/Thurs</b> (11), <b>Sun-Thurs</b> (12), <b>Fri/Sat</b> (13), <b>Odd</b> (14), <b>Even</b> (15), or <b>Day Mask</b> (65536) which reveals seven individual <b>S M T W T F S</b> checkboxes underneath. Day Mask encodes Sunday as <code>0x4000</code> down to Saturday as <code>0x0100</code> on top of the base value.</li>
     <li><b>Start Time</b> / <b>End Time</b> (time picker) — Time of day the entry starts and stops. Also accepts the special values <b>Dawn</b>, <b>SunRise</b>, <b>SunSet</b>, <b>Dusk</b> (stored internally as <code>25:00:00</code> for sunrise and <code>26:00:00</code> for sunset). Format follows Settings → Localization → Time Format (12h or 24h) and includes seconds when <code>ScheduleSeconds = 1</code>. When either time is a dawn/sunset value, its adjacent <b>Offset</b> field appears; otherwise it hides. For Command entries with Repeat = 0, End Time is hidden and forced to Start Time. Times are converted through <code>Convert24HToUIFormat</code> / <code>Convert24HFromUIFormat</code>.</li>
     <li><b>Start Offset / End Offset</b> (number, shown only for dawn/sunset) — Minutes to shift the astronomical time earlier (negative) or later (positive).</li>
-    <li><b>Repeat</b> (dropdown) — <b>Immediate</b> (loop without pause) and <b>Once</b> etc. For Command entries the Immediate option is removed and Repeat is forced to 0 (run once). Changing Repeat for a Command hides/shows the End Time column via <code>ScheduleEntryRepeatChanged</code>.</li>
-    <li><b>Stop Type</b> (dropdown) — How the entry stops: <b>Graceful</b> (0, finish current sequence), <b>Graceful After Loop</b> etc., vs hard stop. The exact labels mirror the scheduler’s stop semantics.</li>
+    <li><b>Repeat</b> (dropdown) — <b>None</b> plays the playlist once when the window opens. <b>Immediate</b> starts it again as soon as it ends, until the End Time. <b>5 Min.</b> to <b>60 Min.</b> start it again on that interval from the Start Time (19:00, 20:00, 21:00 … for 60 Min.). Each interval runs until the next one starts, so a playlist longer than the interval is stopped at the next start, the way its Stop Type says. For Command entries the Immediate option is removed and Repeat is forced to 0 (run once). Changing Repeat for a Command hides/shows the End Time column via <code>ScheduleEntryRepeatChanged</code>.</li>
+    <li><b>Stop Type</b> (dropdown) — How the entry stops, both when its window closes and when an entry higher in the list comes due while it is playing:
+        <ul>
+            <li><b>Graceful</b> — Finishes the sequence or song that is playing, then stops.</li>
+            <li><b>Graceful Loop</b> — Finishes the current pass through the playlist, then stops.</li>
+            <li><b>Hard Stop</b> — Stops at once.</li>
+        </ul>
+        An entry higher in the list waits for the lower entry's current sequence or song to finish (Graceful), or its current pass through the playlist (Graceful Loop), so it can start a few minutes after its Start Time. If you use a lower entry to fill the gaps between shows and want the show to start on time, give the lower entry <b>Hard Stop</b>.</li>
 </ul>
 
 <h4>Selection and keyboard</h4>
