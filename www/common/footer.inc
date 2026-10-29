@@ -49,7 +49,7 @@
     <button name="btnRestartFPPD" type="button" onClick="ClearRestartFlag(); RestartFPPD();"
       class="buttons btn-outline-light"><i class='fas fa-fw fa-sync fa-nbsp'></i>Restart FPPD</button>
     <button type="button" id="btnDaemonControl" value="" class="buttons btn-outline-light hidden"
-      onClick="ControlFPPD();" aria-label="DaemonControl"></button>
+      onClick="ControlFPPD();"></button>
 
 
 
