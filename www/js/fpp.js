@@ -2399,6 +2399,21 @@ function SetupToolTips (delay = 100) {
 
 	titles.forEach(value => {
 		var title = value.title;
+		// Bootstrap takes the title away and names only an element with no
+		// text, and a select's options are text: a form control whose title
+		// was its only name lost it. Give it the title as its label (and
+		// keep that label following the title when the page retitles it).
+		if (
+			title &&
+			/^(SELECT|INPUT|TEXTAREA)$/.test(value.tagName) &&
+			(value.dataset.fppTitleLabel ||
+				(!value.hasAttribute('aria-label') &&
+					!value.hasAttribute('aria-labelledby') &&
+					!(value.labels && value.labels.length)))
+		) {
+			value.setAttribute('aria-label', title);
+			value.dataset.fppTitleLabel = '1';
+		}
 		value.setAttribute('data-bs-tooltip-title', title);
 		value.setAttribute('data-bs-toggle', 'tooltip');
 		value.setAttribute('data-bs-placement', 'auto');
