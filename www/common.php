@@ -2322,15 +2322,19 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
         PrintSettingChildrenFunction($setting, $conditions, $preamble);
     }
 
+    // A class-identified input has no id, and the class may be on several
+    // inputs: read the one that changed.
+    $selector = ($identType === "class" ? "." : "#") . $escSetting;
+
     echo "
-    function " . $changedFunction . "() {
-        var value = $('#$escSetting').val();
+    function " . $changedFunction . "(el) {
+        var value = $(el || '$selector').val();
 ";
 
     if (isset($sData['regex']) && isset($sData['regexDesc'])) {
         echo "
         if (!RegexCheckData(\"" . $sData['regex'] . "\", value, \"" . $sData['regexDesc'] . "\", '$inputType' == 'password')) {
-            $('#" . $escSetting . "').on(\"focus\");
+            $(el || '$selector').trigger(\"focus\");
             return;
         }
 ";
@@ -2374,7 +2378,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     if (isset($sData['onChange'])) {
         echo "onChange='" . $sData['onChange'] . "();' value=\"";
     } else {
-        echo "onChange='" . $changedFunction . "();' value=\"";
+        echo "onChange='" . $changedFunction . "(this);' value=\"";
     }
 
     $curValue = "";
