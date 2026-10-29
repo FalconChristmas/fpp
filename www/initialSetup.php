@@ -463,7 +463,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['restoreFile'])) {
                 }
                 storageLocation = host;
             } else {
-                storageLocation = settings['mediaDirectory'] + '/backups';
+                storageLocation = <?= json_encode($settings['mediaDirectory'] . '/backups') ?>;
             }
 
             url += '&path=' + path;
