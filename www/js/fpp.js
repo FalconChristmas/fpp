@@ -10529,8 +10529,17 @@ function DialogOK (title, message) {
 			$('.modal-backdrop').last().css('z-index', 1059);
 		},
 		close: function () {
-			$('.modal-backdrop').remove(); // Remove lingering backdrop
-			$('body').removeClass('modal-open').css('padding-right', ''); // Reset body state
+			// An error is often shown over another dialog (Add Playlist):
+			// that one keeps its backdrop and the body stays locked. Only
+			// with nothing else open is a lingering backdrop cleaned up.
+			$('#dialogOKPopup').one('hidden.bs.modal', function () {
+				if ($('.modal.show').length) {
+					$('body').addClass('modal-open');
+				} else {
+					$('.modal-backdrop').remove();
+					$('body').removeClass('modal-open').css('padding-right', '');
+				}
+			});
 		}
 	});
 }
