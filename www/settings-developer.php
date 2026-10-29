@@ -170,6 +170,12 @@ function PrintGitBranchOptions()
         }
     }
 
+    // As populateBranchSelect() does: with the current branch not in the
+    // list, the browser showed the first branch as chosen, and picking it
+    // fired no change.
+    if (!in_array($git_branch, $branches)) {
+        echo "<option value='' selected>-- Select Branch --</option>\n";
+    }
     foreach ($branches as $branch) {
         if ($branch == $git_branch) {
             echo "<option value='$branch' selected>$branch</option>\n";
