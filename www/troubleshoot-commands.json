@@ -573,7 +573,7 @@
                     "title": "Display EDID",
                     "description": "What each connected display reports about itself: its modes and physical screen size. The hex dump can be loaded on another Pi to reproduce a display problem. Diagnostic Reports leave out the hex dump, the display's serial numbers and its other unique IDs.",
                     "cmd": "command -v edid-decode >/dev/null || echo \"edid-decode is not installed\"; for d in /sys/class/drm/card*-*/; do [ \"$(cat $d/status 2>/dev/null)\" = connected ] || continue; echo \"=== $(basename $d) ===\"; edid-decode $d/edid 2>&1; echo; done",
-                    "manualCrashReportCmd": "command -v edid-decode >/dev/null || echo \"edid-decode is not installed\"; for d in /sys/class/drm/card*-*/; do [ \"$(cat $d/status 2>/dev/null)\" = connected ] || continue; echo \"=== $(basename $d) ===\"; edid-decode -s --replace-unique-ids $d/edid 2>&1 | grep -v -i -E \"serial|alphanumeric|container id\"; echo; done",
+                    "manualCrashReportCmd": "command -v edid-decode >/dev/null || echo \"edid-decode is not installed\"; u=; edid-decode --help 2>&1 | grep -q -- --replace-unique-ids && u=--replace-unique-ids; for d in /sys/class/drm/card*-*/; do [ \"$(cat $d/status 2>/dev/null)\" = connected ] || continue; echo \"=== $(basename $d) ===\"; edid-decode -s $u $d/edid 2>&1 | grep -v -i -E \"serial|alphanumeric|container id|made in|model year|manufactur\"; echo; done",
                     "pii": true,
                     "platforms": [
                         "Raspberry Pi"
