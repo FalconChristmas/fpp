@@ -2312,19 +2312,19 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
         $sizeTag = 'min';
     }
 
+    // A class-identified input has no id, and the class may be on several
+    // inputs: the change handler reads the one that changed.
+    $selector = ($identType === "class" ? "." : "#") . $escSetting;
+
     echo "<script>\n";
     if (isset($sData['children'])) {
-        $preamble = "    var val = $('#$escSetting').val();\n";
+        $preamble = "    var val = $('$selector').val();\n";
         $conditions = array();
         foreach ($sData['children'] as $k => $v) {
             $conditions["val != ''"] = array_merge(isset($conditions["val != ''"]) ? $conditions["val != ''"] : array(), $v);
         }
         PrintSettingChildrenFunction($setting, $conditions, $preamble);
     }
-
-    // A class-identified input has no id, and the class may be on several
-    // inputs: read the one that changed.
-    $selector = ($identType === "class" ? "." : "#") . $escSetting;
 
     echo "
     function " . $changedFunction . "(el) {
@@ -2376,7 +2376,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     }
 
     if (isset($sData['onChange'])) {
-        echo "onChange='" . $sData['onChange'] . "();' value=\"";
+        echo "onChange='" . $sData['onChange'] . "(this);' value=\"";
     } else {
         echo "onChange='" . $changedFunction . "(this);' value=\"";
     }
