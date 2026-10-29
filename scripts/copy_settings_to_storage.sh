@@ -272,22 +272,25 @@ for action in "$@"; do
         rsync $EXTRA_ARGS -- "$SOURCE/videos" "$DEST" 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
         ;;
     "EEPROM")
-        if [ ! -d "$DEST/config" ]
+        if [ "$DIRECTION" == "FROMREMOTE" ] || [ "$DIRECTION" == "TOREMOTE" ]
         then
-            mkdir -- "$DEST/config" 2> /dev/null
-            chown fpp:fpp -- "$DEST/config" 2> /dev/null
-            chmod 775 -- "$DEST/config" 2> /dev/null
-        fi
-        if [ -f "$SOURCE/config/cape-eeprom.bin" ]
+            # One side is host::path, which neither [ -f ] nor mkdir can see:
+            # the test always said "nothing to copy" on a restore, and the
+            # mkdir made nothing on the other player, so a backup saved the
+            # EEPROM as a file named config.  rsync makes config/ (the
+            # trailing slash) and takes a missing EEPROM as nothing to copy.
+            rsync $EXTRA_ARGS $REMOTE_COMPRESS --ignore-missing-args -- "$SOURCE/config/cape-eeprom.bin" "$DEST/config/" 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
+        elif [ -f "$SOURCE/config/cape-eeprom.bin" ]
         then
-            if [ "$DIRECTION" == "FROMREMOTE" ] || [ "$DIRECTION" == "TOREMOTE" ]
+            if [ ! -d "$DEST/config" ]
             then
-              rsync $EXTRA_ARGS $REMOTE_COMPRESS -- "$SOURCE/config/cape-eeprom.bin" "$DEST/config" 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
-            else
-              cp -v -- "$SOURCE/config/cape-eeprom.bin" "$DEST/config/" 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
-              chown fpp:fpp -- "$DEST/config/cape-eeprom.bin" 2> /dev/null
-              chmod 664 -- "$DEST/config/cape-eeprom.bin" 2> /dev/null
+                mkdir -- "$DEST/config" 2> /dev/null
+                chown fpp:fpp -- "$DEST/config" 2> /dev/null
+                chmod 775 -- "$DEST/config" 2> /dev/null
             fi
+            cp -v -- "$SOURCE/config/cape-eeprom.bin" "$DEST/config/" 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
+            chown fpp:fpp -- "$DEST/config/cape-eeprom.bin" 2> /dev/null
+            chmod 664 -- "$DEST/config/cape-eeprom.bin" 2> /dev/null
         else
             echo "$SOURCE/config/cape-eeprom.bin does not exist, nothing to copy."
         fi
