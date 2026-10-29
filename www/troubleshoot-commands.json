@@ -568,6 +568,32 @@
                     "platforms": [
                         "Raspberry Pi"
                     ]
+                },
+                "displayEDID": {
+                    "title": "Display EDID",
+                    "description": "What each connected display reports about itself: its modes and physical screen size. The hex dump can be loaded on another Pi to reproduce a display problem. Diagnostic Reports leave out the hex dump, the display's serial numbers and its other unique IDs.",
+                    "cmd": "command -v edid-decode >/dev/null || echo \"edid-decode is not installed\"; for d in /sys/class/drm/card*-*/; do [ \"$(cat $d/status 2>/dev/null)\" = connected ] || continue; echo \"=== $(basename $d) ===\"; edid-decode $d/edid 2>&1; echo; done",
+                    "manualCrashReportCmd": "command -v edid-decode >/dev/null || echo \"edid-decode is not installed\"; for d in /sys/class/drm/card*-*/; do [ \"$(cat $d/status 2>/dev/null)\" = connected ] || continue; echo \"=== $(basename $d) ===\"; edid-decode -s --replace-unique-ids $d/edid 2>&1 | grep -v -i -E \"serial|alphanumeric|container id\"; echo; done",
+                    "pii": true,
+                    "platforms": [
+                        "Raspberry Pi"
+                    ]
+                },
+                "drmState": {
+                    "title": "DRM State",
+                    "description": "The kernel's display state: every plane, what is on it and where, and the mode on each output.",
+                    "cmd": "for d in /sys/kernel/debug/dri/[0-9]/ /sys/kernel/debug/dri/[0-9][0-9]/; do [ -e $d/state ] || continue; echo \"=== $(cat $d/name) ===\"; cat $d/state; echo; done",
+                    "platforms": [
+                        "Raspberry Pi"
+                    ]
+                },
+                "hvsLoad": {
+                    "title": "Display Engine Load",
+                    "description": "On a Pi 0-3, whether the kernel's display load limit is on (it refuses video it thinks the display can't keep up with), and how often the display has run short of time to draw a line.",
+                    "cmd": "for d in /sys/kernel/debug/dri/[0-9]/ /sys/kernel/debug/dri/[0-9][0-9]/; do [ -e $d/hvs_underrun ] || continue; echo \"=== $(cat $d/name) ===\"; [ -e $d/hvs_load_tracker ] && echo \"load limit: $(cat $d/hvs_load_tracker)\"; echo \"underruns: $(cat $d/hvs_underrun)\"; cat $d/hvs_dlist_allocs 2>/dev/null; echo; done; true",
+                    "platforms": [
+                        "Raspberry Pi"
+                    ]
                 }
             }
         },
