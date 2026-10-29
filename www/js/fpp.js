@@ -3080,13 +3080,13 @@ function GetPlaylistRowHTML (ID, entry, editMode, entryIssues = []) {
 
 	HTML += "<div class='psiDataSimple'";
 	if (editMode && typeof entry.note == 'string' && entry.note != '')
-		HTML += " title='" + entry.note + "'";
+		HTML += " title='" + EscapeHtmlAttr(entry.note) + "'";
 	HTML += '>';
 
 	// Determine display mode (default to argsOnly for backward compatibility)
 	var displayMode = entry.displayMode || 'argsOnly';
 	var noteText =
-		typeof entry.note == 'string' && entry.note != '' ? entry.note : '';
+		typeof entry.note == 'string' && entry.note != '' ? EscapeHtml(entry.note) : '';
 
 	if (displayMode === 'justNote' && noteText) {
 		// Display only the note
