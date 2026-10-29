@@ -251,11 +251,11 @@ generate_csp() {
         combined_values[$key]="${DEFAULT_VALUES[$key]}"
     done
 
-    # Read current CSP values from JSON file and combine them with default values
-    while IFS= read -r entry; do
-        key=$(echo "$entry" | awk '{print $1}')
-        value=$(echo "$entry" | awk '{$1=""; print $0}' | xargs)
-        
+    # Read current CSP values from JSON file and combine them with default values.
+    # read splits off the key and trims the rest; the values are taken verbatim,
+    # since CSP keywords and hashes ('wasm-unsafe-eval', 'sha256-...') carry
+    # quotes that must reach the header.
+    while read -r key value; do
         if [ -n "${combined_values[$key]}" ]; then
             combined_values[$key]="${combined_values[$key]} $value"
         else
