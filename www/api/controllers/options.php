@@ -533,6 +533,20 @@ function GetOptions_BBBLeds()
         $options["SD Card Activity"] = "mmc0";
         $options["eMMC Activity"] = "mmc1";
     }
+    // Only what the kernel offers: an original PocketBeagle has no eMMC, so
+    // no mmc1, and an LED set to it keeps its old trigger.
+    foreach (array("usr0", "usr1") as $led) {
+        $offered = @file_get_contents("/sys/class/leds/beaglebone:green:$led/trigger");
+        if ($offered !== false) {
+            $offered = preg_split('/\s+/', str_replace(array('[', ']'), '', trim($offered)));
+            $options = array_filter($options, function ($v) use ($offered) {
+                // fppinit writes "cpu" as "activity" on a PocketBeagle2.
+                return $v == "none" || in_array($v, $offered) ||
+                    ($v == "cpu" && in_array("activity", $offered));
+            });
+            break;
+        }
+    }
     return json($options);
 }
 

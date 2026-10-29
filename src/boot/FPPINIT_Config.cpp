@@ -288,6 +288,27 @@ inline const std::string& mapBBBLedValue(const std::string& v) {
     return v;
 }
 
+#if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
+// User LED <index>'s trigger: its BBBLeds<index> setting, or the board default
+// when that is unset.  A default the kernel doesn't offer is left alone: an
+// original PocketBeagle has no eMMC and so no mmc1 trigger, and the kernel
+// refuses the write anyway.
+static void setBBBLed(int index, int offset, const std::string& def) {
+    std::string path = "/sys/class/leds/beaglebone:green:usr" + std::to_string(index + offset) + "/trigger";
+    std::string led;
+    if (getRawSetting("BBBLeds" + std::to_string(index), led) && !led.empty()) {
+        PutFileContents(path, mapBBBLedValue(led));
+        return;
+    }
+    const std::string& value = mapBBBLedValue(def);
+    std::string offered = " " + GetFileContents(path) + " ";
+    std::replace(offered.begin(), offered.end(), '\n', ' ');
+    if (offered.find(" " + value + " ") != std::string::npos || offered.find(" [" + value + "] ") != std::string::npos) {
+        PutFileContents(path, value);
+    }
+}
+#endif
+
 #ifdef PLATFORM_BB64
 //
 // The PocketBeagle2's identity lives in an on-board EEPROM that u-boot reads to
@@ -414,28 +435,11 @@ void configureBBB() {
     checkPB2EEPROM();
 #endif
 #if defined(PLATFORM_BBB) || defined(PLATFORM_BB64)
-    std::string led;
     int offset = FileExists("/sys/class/leds/beaglebone:green:usr0/trigger") ? 0 : 1;
-    if (getRawSetting("BBBLeds0", led) && !led.empty()) {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr" + std::to_string(offset) + "/trigger", mapBBBLedValue(led));
-    } else {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr" + std::to_string(offset) + "/trigger", "heartbeat");
-    }
-    if (getRawSetting("BBBLeds1", led) && !led.empty()) {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr" + std::to_string(1 + offset) + "/trigger", mapBBBLedValue(led));
-    } else {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr" + std::to_string(1 + offset) + "/trigger", "mmc0");
-    }
-    if (getRawSetting("BBBLeds2", led) && !led.empty()) {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr" + std::to_string(2 + offset) + "/trigger", mapBBBLedValue(led));
-    } else {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr" + std::to_string(2 + offset) + "/trigger", mapBBBLedValue("cpu"));
-    }
-    if (getRawSetting("BBBLeds3", led) && !led.empty()) {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr" + std::to_string(3 + offset) + "/trigger", led);
-    } else {
-        PutFileContents("/sys/class/leds/beaglebone:green:usr" + std::to_string(3 + offset) + "/trigger", "mmc1");
-    }
+    setBBBLed(0, offset, "heartbeat");
+    setBBBLed(1, offset, "mmc0");
+    setBBBLed(2, offset, "cpu");
+    setBBBLed(3, offset, "mmc1");
 #endif
 }
 
