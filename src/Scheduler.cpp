@@ -194,6 +194,13 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat, int forceStopped) {
 
     LogDebug(VB_SCHEDULE, "CheckIfShouldBePlayingNow(%d, %d)\n", ignoreRepeat, forceStopped);
 
+    // A reload asked for (the API's, after saving the schedule) waits for
+    // ScheduleProc's next pass, up to a second away. A decision made in that
+    // gap -- a playlist stopped just after the save -- started what the new
+    // schedule had removed.
+    if (m_loadSchedule)
+        LoadScheduleFromFile();
+
     std::time_t now = time(nullptr);
     {
         std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
@@ -246,6 +253,10 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat, int forceStopped) {
 std::string Scheduler::GetPlaylistThatShouldBePlaying(int& repeat) {
     if (m_schedulerDisabled)
         return "";
+
+    // As in CheckIfShouldBePlayingNow(): answer from the schedule asked for.
+    if (m_loadSchedule)
+        LoadScheduleFromFile();
 
     std::time_t now = time(nullptr);
     std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
