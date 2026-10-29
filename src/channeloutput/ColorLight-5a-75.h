@@ -158,7 +158,6 @@ private:
     struct ether_header* m_eh;
 
     std::string m_autoCreatedModelName;
-    std::list<std::string> m_warnings;
 
     struct sockaddr_ll m_sock_addr;
 };

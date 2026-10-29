@@ -184,6 +184,7 @@
 #include "../log.h"
 #include "../settings.h"
 
+#include "ChannelOutputSetup.h"
 #include "ColorLight-5a-75.h"
 #include "GammaLUT.h"
 #include "overlays/PixelOverlay.h"
@@ -455,7 +456,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
 
     if (ifstate != "up") {
         LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s does not have link %s\n", m_ifName.c_str(), FPPstrerror(errno));
-        WarningHolder::AddWarning(7, "ColorLight: Configured interface " + m_ifName + " does not have link");
+        AddOutputConfigWarning(7, "ColorLight: Configured interface " + m_ifName + " does not have link");
         if (m_colorlightDisable) {
             return 0;
         }
@@ -474,7 +475,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
 
     if (ifspeed > 0 && ifspeed < 1000) {
         LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s is not 1000Mbps Capable: %s\n", m_ifName.c_str(), FPPstrerror(errno));
-        WarningHolder::AddWarning(8, "ColorLight: Configured interface " + m_ifName + " is not 1000Mbps Capable");
+        AddOutputConfigWarning(8, "ColorLight: Configured interface " + m_ifName + " is not 1000Mbps Capable");
         if (m_colorlightDisable) {
             return 0;
         }
@@ -778,9 +779,6 @@ int ColorLight5a75Output::Close(void) {
     if (!m_autoCreatedModelName.empty()) {
         PixelOverlayManager::INSTANCE.removeAutoOverlayModel(m_autoCreatedModelName);
         m_autoCreatedModelName.clear();
-    }
-    for (auto& m : m_warnings) {
-        WarningHolder::RemoveWarning(9, m);
     }
     ClearSendErrorWarning();
     return ChannelOutput::Close();
@@ -1221,9 +1219,8 @@ void ColorLight5a75Output::GetReceiverInfo() {
         LogInfo(VB_CHANNELOUT, "Found %d ColorLight receiver(s)\n", m_receivers.size());
     } else {
         std::string warning = "ColorLight: No receiver cards were detected on interface " + m_ifName;
-        WarningHolder::AddWarning(9, warning);
+        AddOutputConfigWarning(9, warning);
         LogWarn(VB_CHANNELOUT, "WARNING: %s\n", warning.c_str());
-        m_warnings.push_front(warning);
     }
 
     close(sockfd);
