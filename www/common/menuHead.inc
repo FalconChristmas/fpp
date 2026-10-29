@@ -49,11 +49,12 @@ if ($fppNeedsSetup && (basename($_SERVER['PHP_SELF']) != "initialSetup.php")) {
 <script type="text/javascript" src="js/jquery-ui.min.js?ref=<?= filemtime('js/jquery-ui.min.js'); ?>"></script>
 <script type="text/javascript" src="js/jquery.ui.touch-punch.js?ref=<?= filemtime('js/jquery.ui.touch-punch.js'); ?>"></script>
 <?
-if ((!isset($settings['disableUIPopoverAlerts'])) || ($settings['disableUIPopoverAlerts'] == '0')) {
+// One of the two always loads: every page calls $.jGrowl.
+if (($settings['disableUIPopoverAlerts'] ?? '0') == '1') {
+    echo "<script type='text/javascript' src='js/jquery.jgrowl.disabled.js?ref=" . filemtime('js/jquery.jgrowl.disabled.js') . "'></script>";
+} else {
     // Enable popover alerts
     echo "<script type='text/javascript' src='js/jquery.jgrowl.min.js?ref=" . filemtime('js/jquery.jgrowl.min.js') . "'></script>";
-} elseif (isset($settings['disableUIPopoverAlerts']) && ($settings['disableUIPopoverAlerts'] == '1')) {
-    echo "<script type='text/javascript' src='js/jquery.jgrowl.disabled.js?ref=" . filemtime('js/jquery.jgrowl.disabled.js') . "'></script>";
 }
 ?>
 
