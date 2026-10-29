@@ -6889,7 +6889,8 @@ function modeToString (mode) {
 function updateVolumeUI (Volume) {
 	//only update UI if no current change in progress
 	if (VolumeChangeInProgress !== true) {
-		if ($('#volume').html() !== Volume) {
+		// Callers pass a number; .html() is a string.
+		if ($('#volume').html() !== String(Volume)) {
 			// Update the volume display only if changed
 			$('#volume').html(Volume);
 			$('#remoteVolume').html(Volume);
