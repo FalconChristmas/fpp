@@ -124,7 +124,7 @@ if ($return_val === 0 || $buildFailed || $unreachableRebuilt) {
 
   system($SUDO . " $fppDir/scripts/fppd_restart");
 
-  system($SUDO . " $fppDir/scripts/ManageApacheContentPolicy regenerate");
+  system($SUDO . " $fppDir/scripts/ManageApacheContentPolicy.sh regenerate");
 
   if (file_exists($settings['statsFile'])) {
     unlink($settings['statsFile']);
