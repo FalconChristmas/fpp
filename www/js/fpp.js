@@ -10540,8 +10540,13 @@ function DialogOK (title, message) {
 			}
 		},
 		open: function () {
-			$('#dialogOKPopup').css('z-index', 1060);
-			$('.modal-backdrop').last().css('z-index', 1059);
+			// Its own backdrop doesn't exist yet at show; raising the last
+			// one now would lift the dialog underneath's over that dialog.
+			$('#dialogOKPopup')
+				.css('z-index', 1060)
+				.one('shown.bs.modal', function () {
+					$('.modal-backdrop').last().css('z-index', 1059);
+				});
 		},
 		close: function () {
 			// An error is often shown over another dialog (Add Playlist):
