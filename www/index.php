@@ -325,7 +325,7 @@
         }
     </script>
 
-    <title><?= htmlspecialchars($pageTitle) ?></title>
+    <title><?= $pageTitle ?></title>
 </head>
 
 <body class="is-loading" onLoad="PageSetup();GetFPPDmode();PopulatePlaylists(true);OnSystemStatusChange(GetFPPStatus);">
