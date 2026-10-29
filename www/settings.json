@@ -2733,10 +2733,7 @@
 			"type": "password",
 			"size": 32,
 			"maxlength": 32,
-			"onChange": "CheckPassword",
-			"exposedAsJSToPages": [
-				"initialSetup"
-			]
+			"onChange": "CheckPassword"
 		},
 		"passwordEnable": {
 			"name": "passwordEnable",

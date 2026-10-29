@@ -825,6 +825,39 @@ if (file_exists($pluginDirectory)) {
 
 /////////////////////////////////////////////////////////////////////////////
 
+// A setting the browser must never be sent: a declared password field, and
+// the two credentials settings.json doesn't declare.  The settings API's
+// read and every page's JS settings array go by this one test.
+function IsSecretSetting($key)
+{
+    global $settingInfos;
+    LoadSettingInfos();
+    return (isset($settingInfos[$key]['type']) && $settingInfos[$key]['type'] === 'password') ||
+        in_array($key, array('emailgpass', 'secret'), true);
+}
+
+// Print a page's JS settings array: what settings.json exposes to the page
+// (or to "all"), and, until every setting is declared, the undeclared ones.
+// Never a secret, whatever its declaration says.
+function PrintJSSettings($pageName)
+{
+    global $settings, $settingInfos;
+    foreach ($settings as $key => $value) {
+        if (IsSecretSetting($key)) {
+            continue;
+        }
+        $note = "";
+        if (!isset($settingInfos[$key])) {
+            $note = " // Needs proper defintion in JSON";
+        } else if (!isset($settingInfos[$key]["exposedAsJSToPages"]) ||
+            !(in_array($pageName, $settingInfos[$key]["exposedAsJSToPages"]) || in_array("all", $settingInfos[$key]["exposedAsJSToPages"]))) {
+            continue;
+        }
+        $js = is_array($value) ? json_encode($value) : json_encode((string) $value);
+        printf("\tsettings[%s] = %s;%s\n", json_encode((string) $key), $js, $note);
+    }
+}
+
 // $skipJSsettings is set in a few places
 // to prevent this JavaScript from being printed
 //
@@ -871,34 +904,7 @@ if (!isset($skipJSsettings)) {
         // Dynamic JS Settings Array with settings which need to be exposed on a page by page basis to browser
         var settings = new Array();
         <?
-
-        foreach ($settings as $key => $value) {
-
-            //Print Out settings which haven't been defined at all in www/settings.json
-            if (!isset($settingInfos[$key])) {
-                //Print out settings that need to be exposed to the browser in JS settings array - this is temporary until all settings properly defined in json file
-                if (!is_array($value)) {
-                    printf("	settings[%s] = %s; // Needs proper defintion in JSON\n", json_encode((string) $key), json_encode((string) $value));
-                } else {
-                    $js_array = json_encode($value);
-                    printf("    settings[%s] = %s; // Needs proper defintion in JSON\n", json_encode((string) $key), $js_array);
-                }
-                // printf("	console.log(\"%s\");\n", $key);     //Debugging
-            }
-
-            //Print out settings that are marked to be exposed to the browser via the config flag in www/settings.json
-            if (isset($settingInfos[$key]["exposedAsJSToPages"])) {
-                if (in_array($pageName, $settingInfos[$key]["exposedAsJSToPages"]) || in_array("all", $settingInfos[$key]["exposedAsJSToPages"])) {
-                    //Print out settings to browser
-                    if (!is_array($value)) {
-                        printf("	settings[%s] = %s;\n", json_encode((string) $key), json_encode((string) $value));
-                    } else {
-                        $js_array = json_encode($value);
-                        printf("    settings[%s] = %s;\n", json_encode((string) $key), $js_array);
-                    }
-                }
-            }
-        }
+        PrintJSSettings($pageName);
         ?>
 
 

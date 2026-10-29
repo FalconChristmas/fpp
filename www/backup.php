@@ -2639,18 +2639,9 @@ if ($skipHTMLCodeOutput === false) {
                 $settings['restartFlag'] = ReadSettingFromFile('restartFlag');
                 $settings['rebootFlag'] = ReadSettingFromFile('rebootFlag');
 
-                foreach ($settings as $key => $value) {
-                    if (!is_array($value)) {
-                        if (preg_match('/\n/', $value)) {
-                            continue;
-                        }
-
-                        printf("	settings[%s] = %s;\n", json_encode((string) $key), json_encode((string) $value));
-                    } else {
-                        $js_array = json_encode($value);
-                        printf("    settings[%s] = %s;\n", json_encode((string) $key), $js_array);
-                    }
-                }
+                // The same array every other page gets: this page printed every
+                // setting, passwords and tokens included.
+                PrintJSSettings('backup');
 
                 ?>
             var pageName = <?= json_encode(str_ireplace('.php', '', basename($_SERVER['PHP_SELF']))) ?>;
@@ -2838,7 +2829,7 @@ if ($skipHTMLCodeOutput === false) {
 
                     storageLocation = host;
                 } else {
-                    storageLocation = settings['mediaDirectory'] + "/backups";
+                    storageLocation = <?= json_encode($settings['mediaDirectory'] . "/backups") ?>;
                 }
 
                 //Add in the specified backup path
