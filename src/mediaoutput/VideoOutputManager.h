@@ -143,6 +143,12 @@ public:
     /// same reason: the primary display is a configured output too.
     std::string GetHdmiScalingForConnector(int streamSlot, int connectorId) const;
 
+    /// The warning text naming the resolution to set when a kmssink on
+    /// `display` ("HDMI-A-1") failed with `reason` because of the display's
+    /// screen shape (DrmCards::CheckAspectMismatch), else "".  On failure only.
+    static std::string AspectMismatchWarning(const std::string& display, const std::string& cardPath,
+                                             int connectorId, const std::string& reason);
+
 #ifdef HAS_GSTREAMER_VIDEO_OUTPUT
     /// Build a videocrop element that resolves `crop` against the negotiated
     /// caps at runtime.  Returns nullptr when the whole frame is selected (no

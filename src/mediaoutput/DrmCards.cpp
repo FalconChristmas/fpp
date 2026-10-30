@@ -15,6 +15,7 @@
 #include "DrmCards.h"
 
 #include <atomic>
+#include <cmath> // fabs -- CheckAspectMismatch (needed directly for NOPCH builds)
 #include <chrono>
 #include <condition_variable>
 #include <map>
@@ -420,6 +421,79 @@ void ReleaseLease(Lease& lease) {
     lease = Lease();
 }
 
+// kmssink's private gst_video_calculate_device_ratio() (gstkmsutils.c), kept
+// identical: the question is what kmssink will do, not what the PAR should be.
+static bool IsSquarePixelMode(uint32_t width, uint32_t height, uint32_t mmWidth, uint32_t mmHeight) {
+    static const int parMap[][2] = { { 1, 1 }, { 16, 15 }, { 11, 10 }, { 54, 59 }, { 64, 45 }, { 5, 3 }, { 4, 3 } };
+    if (width == 0 || height == 0 || mmWidth == 0 || mmHeight == 0) {
+        return true;
+    }
+    double ratio = (double)(mmWidth * height) / (double)(mmHeight * width);
+    auto delta = [ratio](int idx, int w) { return std::fabs(ratio - (double)parMap[idx][w] / parMap[idx][!w]); };
+    double best = delta(0, 0);
+    int index = 0;
+    for (int i = 1; i < (int)(sizeof(parMap) / sizeof(parMap[0])); i++) {
+        for (int j = 0; j < 2; j++) {
+            if (delta(i, j) < best) {
+                best = delta(i, j);
+                index = i;
+            }
+        }
+    }
+    return index == 0;
+}
+
+AspectMismatch CheckAspectMismatch(const std::string& cardPath, int connectorId) {
+    AspectMismatch r;
+    if (cardPath.empty() || connectorId <= 0) {
+        return r;
+    }
+    int fd = Acquire(cardPath);
+    if (fd < 0) {
+        return r;
+    }
+    // Cached: a probe would read the EDID over DDC on the sink's streaming thread.
+    drmModeConnectorPtr conn = drmModeGetConnectorCurrent(fd, connectorId);
+    if (conn && conn->mmWidth && conn->mmHeight) {
+        // The CRTC's mode, which kmssink read at start.  With none, kmssink
+        // sets the mode itself and never calls SetPlane: nothing to blame.
+        drmModeModeInfo mode = {};
+        bool haveMode = false;
+        if (conn->encoder_id) {
+            if (drmModeEncoderPtr enc = drmModeGetEncoder(fd, conn->encoder_id)) {
+                if (enc->crtc_id) {
+                    if (drmModeCrtcPtr crtc = drmModeGetCrtc(fd, enc->crtc_id)) {
+                        if (crtc->mode_valid) {
+                            mode = crtc->mode;
+                            haveMode = true;
+                        }
+                        drmModeFreeCrtc(crtc);
+                    }
+                }
+                drmModeFreeEncoder(enc);
+            }
+        }
+        if (haveMode && !IsSquarePixelMode(mode.hdisplay, mode.vdisplay, conn->mmWidth, conn->mmHeight)) {
+            r.found = true;
+            r.mmWidth = conn->mmWidth;
+            r.mmHeight = conn->mmHeight;
+            r.current = { mode.hdisplay, mode.vdisplay, (int)mode.vrefresh };
+            for (int i = 0; i < conn->count_modes; i++) {
+                const drmModeModeInfo& m = conn->modes[i];
+                if (!(m.flags & (DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_DBLSCAN)) &&
+                    IsSquarePixelMode(m.hdisplay, m.vdisplay, conn->mmWidth, conn->mmHeight)) {
+                    r.squareModes.push_back({ m.hdisplay, m.vdisplay, (int)m.vrefresh });
+                }
+            }
+        }
+    }
+    if (conn) {
+        drmModeFreeConnector(conn);
+    }
+    Release(cardPath);
+    return r;
+}
+
 } // namespace DrmCards
 
 #else // no libdrm (macOS)
@@ -440,6 +514,7 @@ Lease AcquireLease(const std::string& cardPath, int) {
 }
 void RetireLease(Lease&) {}
 void ReleaseLease(Lease& lease) { lease = Lease(); }
+AspectMismatch CheckAspectMismatch(const std::string&, int) { return AspectMismatch(); }
 } // namespace DrmCards
 
 #endif

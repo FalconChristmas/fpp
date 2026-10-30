@@ -28,6 +28,7 @@
 #include <cmath> // lround -- crop fractions to pixels (needed directly for NOPCH builds)
 #include <fstream>
 #include <cctype>
+#include <cstdlib> // abs, labs -- AspectMismatchWarning (needed directly for NOPCH builds)
 #include <cstring>
 #include <thread>
 #include <arpa/inet.h>
@@ -237,6 +238,107 @@ std::vector<GstElement*> VideoOutputManager::CreateScaleElements(
     return elems;
 }
 #endif
+
+// The name people give a screen of this shape ("16:9"), or "" for an unusual one.
+static std::string ScreenShapeName(uint32_t width, uint32_t height) {
+    static const struct {
+        int w, h;
+        const char* name;
+    } kShapes[] = { { 16, 9, "16:9" }, { 16, 10, "16:10" }, { 4, 3, "4:3" }, { 5, 4, "5:4" }, { 21, 9, "21:9" } };
+    double ratio = (double)width / height;
+    for (const auto& s : kShapes) {
+        if (std::fabs(ratio / ((double)s.w / s.h) - 1.0) < 0.03) {
+            return s.name;
+        }
+    }
+    return "";
+}
+
+// The Force HDMI Resolution values this board's dropdown offers: the list
+// hdmi_table.json.php builds from hdmi_modes.json, with its Pi 4/5 test.
+static std::set<std::string> OfferedHdmiModes() {
+    std::set<std::string> offered;
+    Json::Value modes;
+    if (!LoadJsonFromFile(getFPPDDir("/www/hdmi_modes.json"), modes) || !modes.isObject()) {
+        return offered;
+    }
+    std::vector<std::string> lists = { "all" };
+    std::string model;
+    std::getline(std::ifstream("/sys/firmware/devicetree/base/model"), model, '\0');
+    if (model.find("Raspberry Pi 4") != std::string::npos || model.find("Raspberry Pi 5") != std::string::npos ||
+        model.find("Raspberry Pi Compute Module 5") != std::string::npos) {
+        lists.push_back("pi4pi5");
+    }
+    for (const auto& name : lists) {
+        for (const auto& m : modes[name]) {
+            offered.insert(m.asString());
+        }
+    }
+    return offered;
+}
+
+std::string VideoOutputManager::AspectMismatchWarning(const std::string& display, const std::string& cardPath,
+                                                      int connectorId, const std::string& reason) {
+    // kmssink's "drmModeSetPlane failed: <translated strerror> (28)".  Revisit
+    // once FPPOS ships GStreamer MR !5944: an ENOSPC here would then have
+    // another cause (the Pi 0-3 display load limit) this banner would hide.
+    if (reason.find("drmModeSetPlane failed") == std::string::npos || reason.find("(28)") == std::string::npos) {
+        return "";
+    }
+    DrmCards::AspectMismatch m = DrmCards::CheckAspectMismatch(cardPath, connectorId);
+    if (!m.found) {
+        return "";
+    }
+    LogWarn(VB_MEDIAOUT, "%s reports a %ux%u mm screen but runs %dx%d@%d; kmssink treats that as non-square "
+            "pixels and the display refuses the frame (FPP issue #3135)\n",
+            display.c_str(), m.mmWidth, m.mmHeight, m.current.width, m.current.height, m.current.refresh);
+
+    // The setting exists on a Pi and a BeagleBone Black (not BB64); Port 2 on a Pi only.
+    std::string setting;
+#if defined(PLATFORM_PI) || defined(PLATFORM_BBB)
+    if (display == "HDMI-A-1") {
+        setting = "Force HDMI Resolution";
+    }
+#endif
+#if defined(PLATFORM_PI)
+    if (display == "HDMI-A-2") {
+        setting = "Force Port 2 HDMI Resolution";
+    }
+#endif
+    // A square-pixel mode the dropdown offers: same refresh first (30 Hz is no
+    // fix for a show), then nearest size.
+    std::string fix;
+    {
+        std::set<std::string> offered;
+        if (!setting.empty()) {
+            offered = OfferedHdmiModes();
+        }
+        long area = (long)m.current.width * m.current.height;
+        std::pair<int, long> best = { -1, -1 };
+        for (const auto& mode : m.squareModes) {
+            std::string name = std::to_string(mode.width) + "x" + std::to_string(mode.height) + "@" + std::to_string(mode.refresh);
+            if (!setting.empty() && !offered.count(name)) {
+                continue;
+            }
+            std::pair<int, long> key = { std::abs(mode.refresh - m.current.refresh),
+                                         std::labs((long)mode.width * mode.height - area) };
+            if (best.first < 0 || key < best) {
+                best = key;
+                fix = name;
+            }
+        }
+    }
+
+    std::string shape = ScreenShapeName(m.mmWidth, m.mmHeight);
+    std::string text = "Video output to " + display + " failed: this display's reported screen shape" +
+                       (shape.empty() ? "" : " (" + shape + ")") + " doesn't match its " +
+                       std::to_string(m.current.width) + "x" + std::to_string(m.current.height) + " resolution. ";
+    std::string target = !fix.empty() ? fix : shape.empty() ? "a resolution of the same shape" : "a " + shape + " resolution";
+    if (setting.empty()) {
+        return text + "Run the display at " + target + ".";
+    }
+    return text + "Set Status/Control > FPP Settings > Audio/Video > " + setting + " to " + target + " and reboot.";
+}
 
 VideoOutputManager& VideoOutputManager::Instance() {
     static VideoOutputManager instance;

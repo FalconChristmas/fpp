@@ -1264,6 +1264,7 @@ int GStreamerOutput::Start(int msTime) {
     m_reportedNoAudio = false;
     m_sawAudioPad = false;
     m_dkmsConnectorNames.clear();
+    m_dkmsCardPaths.clear();
     // Before anything below writes the slot's status.
     StreamSlotManager::Instance().ClaimSlot(m_streamSlot, this);
 
@@ -2103,6 +2104,7 @@ int GStreamerOutput::Start(int msTime) {
                     std::string cardForDkms = !resolvedCard.empty() ? resolvedCard
                                             : !hc.cardPath.empty() ? hc.cardPath
                                             : m_hdmiCardPath;
+                    m_dkmsCardPaths[resolvedConnId] = cardForDkms;
                     DrmCards::Lease lease;
                     if (!cardForDkms.empty()) {
                         VideoOutputManager::Instance().ClaimConnectorForMedia(resolvedConnId);
@@ -4083,7 +4085,7 @@ static const char* MediaFileFault(GstMessage* msg, const GError* err, bool audio
 }
 
 // A sink's message is often just "general resource error"; the reason is the
-// last line of its debug text ("drmModeSetPlane failed: No space left on device (-28)").
+// last line of its debug text ("drmModeSetPlane failed: No space left on device (28)").
 static std::string ErrorReason(const GError* err, const gchar* debug) {
     std::string d = debug ? debug : "";
     while (!d.empty() && isspace((unsigned char)d.back())) {
@@ -4111,23 +4113,33 @@ void GStreamerOutput::ReportVideoOutputFailure(const char* sinkName, const std::
         return;
     }
     std::string display;
+    std::string warning;
 #ifdef PLATFORM_OSX
     display = "the video window";
 #else
+    std::string cardPath = m_hdmiCardPath;
+    int connectorId = m_hdmiConnectorId;
     if (strncmp(sinkName, "dkms_", 5) == 0) {
         int connId = atoi(sinkName + 5);
         auto it = m_dkmsConnectorNames.find(connId);
         display = (it != m_dkmsConnectorNames.end() && !it->second.empty()) ? it->second
                                                                              : "display connector " + std::to_string(connId);
+        auto card = m_dkmsCardPaths.find(connId);
+        cardPath = card != m_dkmsCardPaths.end() ? card->second : "";
+        connectorId = connId;
     } else {
         display = m_videoOut;
         if (display == "--HDMI--" || display == "--hdmi--" || display == "HDMI") {
             display = "HDMI-A-1";
         }
     }
+    // One cause of ENOSPC that FPP can name, with the setting that avoids it.
+    warning = VideoOutputManager::AspectMismatchWarning(display, cardPath, connectorId, reason);
 #endif
-    WarningHolder::AddWarningTimeout(MEDIA_FAILURE_WARNING_SECONDS, 74, // Display Refused Video
-                                    "Video output to " + display + " failed (" + reason + ")");
+    if (warning.empty()) {
+        warning = "Video output to " + display + " failed (" + reason + ")";
+    }
+    WarningHolder::AddWarningTimeout(MEDIA_FAILURE_WARNING_SECONDS, 74, warning); // Display Refused Video
 }
 
 GstBusSyncReply GStreamerOutput::BusSyncHandler(GstBus* bus, GstMessage* msg, gpointer userData) {

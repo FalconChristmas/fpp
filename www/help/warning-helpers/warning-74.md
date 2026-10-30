@@ -1,6 +1,7 @@
 # Display Refused Video
 A video started but the display refused to show it, so the video may stop. Audio and pixel output are unaffected. The message names the display, and the reason:
 
+- **this display's reported screen shape doesn't match its … resolution** — the display reports a screen shape (from its EDID, for example 16:9) that doesn't match the resolution it is running (for example 1280x800, which is 16:10). The video player then sizes the picture for pixels that aren't square, and the display rejects the frame. This is common with projectors. Go to **Status/Control > FPP Settings > [Audio/Video](../../settings.php#settings-av)**, set **Force HDMI Resolution** to the resolution the message names (on a Raspberry Pi 4/5, **Force Port 2 HDMI Resolution** for a display on the second port), and reboot. On other devices the message says "Run the display at …": set the display, or the system's display settings, to that resolution. If the message names no resolution, run the display at one with the screen shape it gives.
 - **No space left on device**, on a Raspberry Pi 0–3 — the display hardware can't keep up with this video on this display, often because the video has to be scaled down to a smaller screen or shares the port with a Virtual Matrix output. Encode the video at the display's resolution, or turn a Virtual Matrix on that port off while videos play.
 - **Anything else in brackets** — the reason the display gave; check `fppd.log` for more.
 

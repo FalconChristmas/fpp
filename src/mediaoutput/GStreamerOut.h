@@ -397,6 +397,8 @@ private:
     void ReportVideoOutputFailure(const char* sinkName, const std::string& reason);
     // dkms_<id> -> its connector's name, for that banner.  Built before the pipeline runs.
     std::map<int, std::string> m_dkmsConnectorNames;
+    // dkms_<id> -> the card it drives, for AspectMismatchWarning().
+    std::map<int, std::string> m_dkmsCardPaths;
 
 #ifdef HAS_AES67_GSTREAMER
     // Zero-hop AES67 RTP branches attached to the audio tee (Phase 7.9)

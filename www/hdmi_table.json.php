@@ -1,78 +1,15 @@
 <?php
 $skipJSsettings = 1;
 require_once "common.php";
-?>
-[
-"Default",
-"640x480@60",
-"640x480@75",
-"720x400@70",
-"800x600@60",
-"800x600@75",
-"1024x768@60",
-"1024x768@75",
-"1152x864@60",
-"1152x864@75",
-"1280x720@60",
-"1280x768@60",
-"1280x768@75",
-"1280x800@60",
-"1280x1024@60",
-"1280x1024@75",
-"1324x768@60",
-"1600x1200@60",
-"1920x1080@24",
-"1920x1080@30"
-<?
-if ((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi Compute Module 5") !== false)) {
-    ?>
-    ,
-    "1920x1080@60",
-    "1680x720@24",
-    "1680x720@25",
-    "1680x720@30",
-    "1680x720@50",
-    "1680x720@60",
-    "1680x720@100",
-    "1680x720@120",
-    "1680x1050@60",
-    "1680x1050@75",
-    "1680x1050@80",
-    "1920x1200@60",
-    "1920x1200@75",
-    "1920x1200@85",
-    "1920x1200@120",
-    "1920x1440@60",
-    "1920x1440@75",
-    "1920x1440@120",
-    "2560x720@24",
-    "2560x720@25",
-    "2560x720@30",
-    "2560x720@50",
-    "2560x720@60",
-    "2560x720@100",
-    "2560x720@12",
-    "2560x1600@60",
-    "2560x1600@75",
-    "2560x1600@85",
-    "2560x1600@120",
-    "3840x2160@24",
-    "3840x2160@25",
-    "3840x2160@30",
-    "3840x2160@50",
-    "3840x2160@60",
-    "4096x2160@24",
-    "4096x2160@25",
-    "4096x2160@30",
-    "4096x2160@50",
-    "4096x2160@60",
-    "1024x600@60",
-    "1600x900@60",
-    "1366x768@60",
-    "2048x1152@60",
-    "1600x900@60"
 
-    <?
+// The Force HDMI Resolution choices, from hdmi_modes.json, which fppd also
+// reads (VideoOutputManager.cpp, OfferedHdmiModes()) for its #3135 banner.
+$modes = json_decode(@file_get_contents(__DIR__ . "/hdmi_modes.json"), true);
+if (!is_array($modes)) {
+    $modes = [];
 }
-?>
-]
+$table = array_merge(["Default"], $modes["all"] ?? []);
+if ((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi Compute Module 5") !== false)) {
+    $table = array_merge($table, $modes["pi4pi5"] ?? []);
+}
+echo json_encode($table);

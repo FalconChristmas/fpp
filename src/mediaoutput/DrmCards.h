@@ -13,6 +13,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 // One fd per DRM card for all of fppd, held as DRM master for as long as
 // anything uses it.
@@ -90,5 +91,20 @@ void ReleaseLease(Lease& lease);
 // the same connector waits for that release (for a couple of seconds at
 // most), rather than find the connector held and fall back to the shared fd.
 void RetireLease(Lease& lease);
+
+// Whether a display's EDID screen size has a different shape from its mode
+// (a projector claiming 16:9 mm at 1280x800), which makes kmssink source the
+// plane from a size bigger than the frame: ENOSPC, no video (GStreamer #1555,
+// FPP #3135).  Facts only; VideoOutputManager::AspectMismatchWarning() words it.
+struct DisplayMode {
+    int width = 0, height = 0, refresh = 0;
+};
+struct AspectMismatch {
+    bool found = false;
+    uint32_t mmWidth = 0, mmHeight = 0;  // as the EDID reports them
+    DisplayMode current;                 // the mode kmssink reads: the CRTC's
+    std::vector<DisplayMode> squareModes; // the display's progressive modes kmssink sees as square
+};
+AspectMismatch CheckAspectMismatch(const std::string& cardPath, int connectorId);
 
 } // namespace DrmCards
