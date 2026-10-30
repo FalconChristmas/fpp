@@ -1045,7 +1045,7 @@
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
 
         //mirror the panel orientation
-        $(`#panelMatrix${panelMatrixID} [class^="LEDPanelOrientation_"]`).each(function () {
+        $(`#panelMatrix${panelMatrixID} [class*="LEDPanelOrientation_"]`).each(function () {
             var orientation = GetLEDPanelOrientationValue(this);
             if (orientation === 'L') {
                 SetLEDPanelOrientationIcon(this, 'R');
