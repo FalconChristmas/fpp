@@ -3065,10 +3065,11 @@
         }
         var txt = $(`#panelMatrix${panelMatrixID} .LEDPanelsInterface`).find(":selected").text();
         var NicSpeed = 1000;
-        if (txt != "") {
-            parseInt(txt.split('(')[1].split('M')[0]);
+        var m = txt.match(/\((\d+)Mbps\)/);
+        if (m) {
+            NicSpeed = parseInt(m[1]);
         }
-        if (NicSpeed < 1000 && $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`).find(":selected").text() == "ColorLight" && $(`#panelMatrix${panelMatrixID} .LEDPanelsEnabled`).is(":checked") == true) {
+        if (NicSpeed < 1000 && $(`#panelMatrix${panelMatrixID} .LEDPanelsConnectionSelect`).val() === "ColorLight5a75" && $(`#panelMatrix${panelMatrixID} .LEDPanelsEnabled`).is(":checked") == true) {
             $(`#panelMatrix${panelMatrixID} .divLEDPanelWarnings`).html(`<div class="alert alert-danger">Selected interface for Panel Matrix ${panelMatrixID} does not support 1000+ Mbps, which is the Colorlight minimum</div>`);
         } else {
             $(`#panelMatrix${panelMatrixID} .divLEDPanelWarnings`).html("");
