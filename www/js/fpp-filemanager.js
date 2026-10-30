@@ -809,7 +809,13 @@ function FileManagerFilterToggled () {
 				var currentVisible =
 					$bt.bootstrapTable('getOptions').filterControlVisible;
 				if (currentVisible !== value) {
-					$bt.bootstrapTable('toggleFilterControl');
+					if (!value) {
+						// a filter left applied with its boxes hidden can't be cleared
+						$bt.bootstrapTable('clearFilterControl');
+					}
+					// Rebuilt rather than toggleFilterControl, which leaves the
+					// copy of the filter row in the fixed header on screen
+					$bt.bootstrapTable('refreshOptions', { filterControlVisible: value });
 				}
 			}
 		}
