@@ -585,12 +585,17 @@ function UpdateFileCount ($dir) {
 
 	var $table = $('#tbl' + $dir);
 	var visibleRows;
+	var totalRows;
 
 	// Use different logic for Bootstrap Table vs Tablesorter
-	// Bootstrap Table hides rows with display:none when filtering
 	if ($table.closest('.bootstrap-table').length) {
-		// For Bootstrap Table: count all rows that aren't hidden
-		visibleRows = $table.find('tbody tr:visible').not('.unselectableRow');
+		// Bootstrap Table renders only the rows that pass the filter, so the
+		// total has to come from its data rather than the DOM
+		visibleRows = $table
+			.find('tbody tr:visible')
+			.not('.unselectableRow')
+			.not('.no-records-found');
+		totalRows = $table.bootstrapTable('getData', { unfiltered: true }).length;
 	} else {
 		// For Tablesorter: count rows without .filtered class
 		visibleRows = $table
@@ -625,7 +630,9 @@ function UpdateFileCount ($dir) {
 	}
 
 	// Check if filtered by comparing total rows to visible rows
-	const totalRows = $table.find('tbody tr').not('.unselectableRow').length;
+	if (totalRows === undefined) {
+		totalRows = $table.find('tbody tr').not('.unselectableRow').length;
+	}
 	if (visibleRows.length < totalRows) {
 		// is filtered
 		var headingEl = $('#div' + $dir + ' .fileCountlabelHeading')[0];

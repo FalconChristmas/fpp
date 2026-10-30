@@ -103,7 +103,15 @@ const bootstrapTableOptions_Sequences = {
 	classes: 'table table-hover table-sm',
 
 	// Locale
-	locale: 'en-US'
+	locale: 'en-US',
+
+	// Event handlers for Bootstrap Table
+	onPostBody: function () {
+		UpdateFileCount('Sequences');
+	},
+	onPostFilter: function () {
+		UpdateFileCount('Sequences');
+	}
 };
 
 // Bootstrap Table options for Music table
