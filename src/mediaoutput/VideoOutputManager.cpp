@@ -1827,6 +1827,9 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer, const std::string
     // fd must be set BEFORE driver-name (kmssink rejects fd if devname is set).
     // When fd is available, driver-name is unnecessary (derived from the fd).
     // When fd is unavailable, fall back to driver-name=vc4.
+    // The display the kmssink drives, for AspectMismatchWarning() if it fails.
+    std::string kmsDisplay, kmsCard;
+    int kmsConnId = -1;
     if (consumer.type == "hdmi") {
         // The crop element (if the description asked for one) needs its
         // fractional region bound before the pipeline sees any caps.
@@ -1851,6 +1854,10 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer, const std::string
             if (!cardForFd.empty()) {
                 consumer.drmLease = DrmCards::AcquireLease(cardForFd, resolvedConnId);
             }
+            kmsDisplay = !consumer.connector.empty() ? consumer.connector
+                                                     : "display connector " + std::to_string(resolvedConnId);
+            kmsCard = cardForFd;
+            kmsConnId = resolvedConnId;
             int drmFd = consumer.drmLease.fd;
             if (drmFd >= 0) {
                 g_object_set(sink, "fd", drmFd, NULL);
@@ -1923,7 +1930,7 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer, const std::string
     std::shared_ptr<std::mutex> stateLock = consumer.stateLock;
 
     consumer.startThread = std::thread([pipeline, consumerName, shutdownFlag, pipelineDead, sourceNode,
-                                        playing, stateLock]() {
+                                        playing, stateLock, kmsDisplay, kmsCard, kmsConnId]() {
         // A persistent consumer that dies while its source runs gets no
         // producer-ready notification to bring it back.
         auto scheduleRestart = [&sourceNode]() {
@@ -1997,6 +2004,16 @@ bool VideoOutputManager::StartConsumer(ConsumerInfo& consumer, const std::string
                     if (!shutdownFlag->load()) {
                         LogWarn(VB_MEDIAOUT, "VideoOutputManager: Consumer '%s' error: %s (%s)\n",
                                 consumerName.c_str(), err ? err->message : "?", debug ? debug : "");
+                        // #3135: name the resolution that avoids it.  Each
+                        // restart (<= 60 s apart) re-raises it; it ages out once fixed.
+                        if (!kmsDisplay.empty() && GST_MESSAGE_SRC(msg) &&
+                            strcmp(GST_OBJECT_NAME(GST_MESSAGE_SRC(msg)), "sink") == 0) {
+                            std::string w = VideoOutputManager::AspectMismatchWarning(kmsDisplay, kmsCard, kmsConnId,
+                                                                                      debug ? debug : "");
+                            if (!w.empty()) {
+                                WarningHolder::AddWarningTimeout(300, 74, w); // Display Refused Video
+                            }
+                        }
                         // Pipeline died on its own (not via StopConsumer) —
                         // see pipelineDead comment on the ConsumerInfo field.
                         pipelineDead->store(true);
