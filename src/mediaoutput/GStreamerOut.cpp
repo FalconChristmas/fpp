@@ -4126,7 +4126,7 @@ void GStreamerOutput::ReportVideoOutputFailure(const char* sinkName, const std::
         }
     }
 #endif
-    WarningHolder::AddWarningTimeout(MEDIA_FAILURE_WARNING_SECONDS, 31,
+    WarningHolder::AddWarningTimeout(MEDIA_FAILURE_WARNING_SECONDS, 74, // Display Refused Video
                                     "Video output to " + display + " failed (" + reason + ")");
 }
 

@@ -526,6 +526,13 @@
             "HelpTxt": "An entry in a configuration file has a value of the wrong type and was skipped; the message names the file. Correct or re-save that entry. The warning clears after an hour unless the entry is still found to be bad.",
             "HelpPageType": "",
             "WarningGroup": "FPPD_Warnings"
+        },
+        {
+            "id": 74,
+            "Title": "Display Refused Video",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Output_Warnings"
         }
     ]
 }
