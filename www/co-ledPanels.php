@@ -1863,6 +1863,9 @@
         if (verboseDebug) {
             console.trace("LEDPanelsConnectionChanged called for panelMatrixID: " + panelMatrixID);
         }
+        if (panelMatrixID == "0") {
+            return Promise.resolve();
+        }
         return new Promise((resolve) => {
 
             const mp = channelOutputsLookup.LEDPanelMatrices?.["panelMatrix" + panelMatrixID];
@@ -2601,9 +2604,11 @@
             console.trace("GetCurrentActiveMatrixPanelID called");
         }
         let element = $("[id^=panelMatrix].tab-pane.active")[0];
+        // An empty tab holds only the "No Panels Defined" note, not the ID
+        let idDiv = element ? element.querySelector(":scope > .divPanelMatrixID") : null;
 
-        return element && element.firstElementChild
-            ? element.firstElementChild.innerText
+        return idDiv && idDiv.textContent
+            ? idDiv.textContent
             : "0"; // Default value if element not found
     }
 
@@ -3047,6 +3052,9 @@
         if (verboseDebug) {
             console.trace("WarnIfSlowNIC called with panelMatrixID: " + panelMatrixID);
         }
+        if (panelMatrixID == "0") {
+            return;
+        }
         var txt = $(`#panelMatrix${panelMatrixID} .LEDPanelsInterface`).find(":selected").text();
         var NicSpeed = 1000;
         var m = txt.match(/\((\d+)Mbps\)/);
@@ -3169,7 +3177,7 @@
         //get currently visible panelMatrixID
         const panelMatrixID = GetCurrentActiveMatrixPanelID();
 
-        if (panelMatrixID === 0) {
+        if (panelMatrixID == "0") {
             // Handle case for panelMatrixID 0
             return false;
         }
@@ -3236,6 +3244,9 @@
     function HandleChangesInUIValues(panelMatrixID = GetCurrentActiveMatrixPanelID()) {
         if (verboseDebug) {
             console.trace("HandleChangesInUIValues called with panelMatrixID: " + panelMatrixID);
+        }
+        if (panelMatrixID == "0") {
+            return;
         }
         // const panelMatrixID = GetCurrentActiveMatrixPanelID();
         //Update the channelOutputsLookup with the new values from UI screen
