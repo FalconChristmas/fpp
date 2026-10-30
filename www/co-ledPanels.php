@@ -285,9 +285,9 @@
         global $matricesArray;
 
         //find element matching panelMatrixID
-        $matrixOfInterest = array_filter($matricesArray, function ($matrix) use ($panelMatrixID) {
+        $matrixOfInterest = array_values(array_filter($matricesArray, function ($matrix) use ($panelMatrixID) {
             return isset($matrix["panelMatrixID"]) && $matrix["panelMatrixID"] == $panelMatrixID;
-        });
+        }));
 
 
         if (isset($matrixOfInterest[0][$key])) {
