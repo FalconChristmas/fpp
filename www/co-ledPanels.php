@@ -2605,8 +2605,8 @@
         var h = co.panelHeight;
         var s = co.panelScan;
         var singlePanelSize = [w, h, s].join('x');
-        if ("panelAddressing" in channelOutputsLookup) {
-            singlePanelSize = [singlePanelSize, channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].panelAddressing].join('x');
+        if (co.panelAddressing) {
+            singlePanelSize = [singlePanelSize, co.panelAddressing].join('x');
         }
         $(`#panelMatrix${panelMatrixID} .LEDPanelsSize`).val(singlePanelSize.toString());
         channelOutputsLookup["LEDPanelMatrices"]["panelMatrix" + panelMatrixID].ledPanelsSize = singlePanelSize;
