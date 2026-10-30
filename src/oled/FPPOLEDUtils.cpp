@@ -164,12 +164,8 @@ FPPOLEDUtils::InputAction* FPPOLEDUtils::configureGPIOPin(const std::string& pin
         return nullptr;
     }
 
-    std::string nameDesc = "FPPOLED";
-    if (!name.empty()) {
-        nameDesc += "-" + name;
-    }
-
-    pin.configPin(mode, false, nameDesc);
+    // configPin() puts the process name ("FPPOLED-") in front of it
+    pin.configPin(mode, false, name);
 
     // configPin() warns and carries on when the line request fails, which it does
     // for a pin the kernel has handed to a peripheral -- under strict pinmux that

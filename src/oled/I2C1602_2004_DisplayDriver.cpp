@@ -182,7 +182,7 @@ bool I2C1602_2004_DisplayDriver::initialize(int& i2cBus) {
         const PinCapabilities& p = PinCapabilities::getPinByName(pn);
         if (p.ptr()) {
             LINES.push_back(p.ptr());
-            p.configPin("gpio", true, "FPPOLED - LCD Data");
+            p.configPin("gpio", true, "LCD Data");
             p.setValue(0);
         }
     }
@@ -190,7 +190,7 @@ bool I2C1602_2004_DisplayDriver::initialize(int& i2cBus) {
         std::string pn = deviceType + "-" + std::to_string(a);
         const PinCapabilities& p = PinCapabilities::getPinByName(pn);
         if (p.ptr()) {
-            p.configPin("gpio", true, "FPPOLED - LCD Backlight");
+            p.configPin("gpio", true, "LCD Backlight");
             p.setValue(BACKLIGHTONVALUE ? 0 : 1);
             BACKLIGHT.push_back(p.ptr());
         }
