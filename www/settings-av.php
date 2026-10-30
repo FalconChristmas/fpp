@@ -120,3 +120,8 @@ PrintSettingGroup('generalAudio');
 <div id="simplePipeWireVideoSection" <?= ($mediaBackend === 'pipewire') ? ' style="display:none;"' : '' ?>>
     <? PrintSettingGroup('simplePipeWireVideo'); ?>
 </div>
+
+<?
+// Both modes: boot-time HDMI settings (cmdline.txt / uEnv.txt), not the backend's.
+PrintSettingGroup('hdmiDisplay');
+?>

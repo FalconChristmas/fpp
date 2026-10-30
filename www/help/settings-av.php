@@ -56,11 +56,15 @@
 <h4>Simple Video (shown when Media Backend = Simple)</h4>
 <ul>
     <li><b>Default Video Output Device</b> (dropdown) — Where playlist videos play: a Pixel Overlay model on any platform, or HDMI/composite on Raspberry Pi.</li>
-    <li><b>Force HDMI Display</b> (checkbox, Raspberry Pi) — Force HDMI as default display. Needed if HDMI is not detected at boot or was dark when the Pi started. When on, composite output is unavailable until disabled. <i>Reboot required.</i></li>
-    <li><b>Enable HDMI Display</b> (checkbox, BeagleBone Black variants) — Enables the BeagleBone HDMI port. <b>Warning:</b> when enabled, many GPIO pins used by capes are disabled.</li>
-    <li><b>Force HDMI Resolution</b> (dropdown) — Lock HDMI to a specific resolution from <code>hdmi_table.json.php</code>. Default = monitor-reported. Shows only when the related HDMI toggle above is active. <i>Reboot required.</i></li>
-    <li><b>Force Port 2 HDMI Resolution</b> (dropdown, Pi 4 / Pi 5) — Same for the Pi 4/5’s second HDMI port.</li>
     <li><b>Hardware Decoding</b> (checkbox) — Use the hardware decoder for video. On is faster; off uses more CPU but can give finer control.</li>
     <li><b>Local Media/Sequence Offset</b> (number, ms) — Shifts media vs. sequence on this device only. Positive moves media ahead. For per-file fixes, edit the file instead. <i>Requires restart.</i></li>
     <li><b>Ignore Media Sync Packets</b> (checkbox, Remote only) — Remote starts/stops video with the Player but does not chase sync during playback. Smoother but may drift.</li>
+</ul>
+
+<h4>HDMI Display (Raspberry Pi and BeagleBone, both modes)</h4>
+<ul>
+    <li><b>Force HDMI Display</b> (checkbox, Raspberry Pi) — Force HDMI as default display. Needed if HDMI is not detected at boot or was dark when the Pi started. When on, composite output is unavailable until disabled. <i>Reboot required.</i></li>
+    <li><b>Enable HDMI Display</b> (checkbox, BeagleBone Black variants) — Enables the BeagleBone HDMI port. <b>Warning:</b> when enabled, many GPIO pins used by capes are disabled.</li>
+    <li><b>Force HDMI Resolution</b> (dropdown) — Lock HDMI to a specific resolution. Default = whatever the display reports as its preferred mode at boot. Useful when a display or projector picks a mode that doesn’t suit it, such as one whose shape doesn’t match the screen size it reports. On a BeagleBone it shows once <b>Enable HDMI Display</b> is on. <i>Reboot required.</i></li>
+    <li><b>Force Port 2 HDMI Resolution</b> (dropdown, Pi 4 / Pi 5) — Same for the second HDMI port. <i>Reboot required.</i></li>
 </ul>

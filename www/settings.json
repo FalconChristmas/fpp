@@ -179,14 +179,23 @@
 				"PipeWireGraph"
 			]
 		},
+		"hdmiDisplay": {
+			"description": "HDMI Display",
+			"platforms": [
+				"Raspberry Pi",
+				"BeagleBone Black"
+			],
+			"settings": [
+				"ForceHDMI",
+				"EnableBBBHDMI",
+				"ForceHDMIResolution",
+				"ForceHDMIResolutionPort2"
+			]
+		},
 		"simplePipeWireVideo": {
 			"description": "Simple Video",
 			"settings": [
 				"VideoOutput",
-				"ForceHDMI",
-				"EnableBBBHDMI",
-				"ForceHDMIResolution",
-				"ForceHDMIResolutionPort2",
 				"HardwareDecoding",
 				"mediaOffset",
 				"remoteIgnoreSync"
@@ -792,10 +801,6 @@
 					"PipeWireOpusRTPConfig",
 					"PipeWireVBANConfig",
 					"PipeWireGraph"
-				],
-				"pipewire-simple": [
-					"ForceHDMIResolution",
-					"ForceHDMIResolutionPort2"
 				]
 			},
 			"platforms": [
