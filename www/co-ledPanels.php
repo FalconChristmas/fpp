@@ -75,28 +75,12 @@
     }
 
     if ($settings['Platform'] == "Raspberry Pi") {
-        switch ($settings['SubPlatform']) {
-            case "Raspberry Pi 5":
+        // SubPlatform is the full device-tree model ("Raspberry Pi 4 Model B
+        // Rev 1.4"); the older and Zero models keep the default of 0
+        foreach (array("Raspberry Pi 5 ", "Raspberry Pi 4 ", "Raspberry Pi 3 ") as $model) {
+            if (strpos($settings['SubPlatform'] . " ", $model) === 0) {
                 $LEDPanelDefaults["gpioSlowdown"] = 1;
-                break;
-            case "Raspberry Pi 4":
-                $LEDPanelDefaults["gpioSlowdown"] = 1;
-                break;
-            case "Raspberry Pi 3":
-                $LEDPanelDefaults["gpioSlowdown"] = 1;
-                break;
-            case "Raspberry Pi 2":
-                $LEDPanelDefaults["gpioSlowdown"] = 0;
-                break;
-            case "Raspberry Pi Zero":
-                $LEDPanelDefaults["gpioSlowdown"] = 0;
-                break;
-            case "Raspberry Pi Zero 2":
-                $LEDPanelDefaults["gpioSlowdown"] = 0;
-                break;
-            case "Raspberry Pi 1":
-                $LEDPanelDefaults["gpioSlowdown"] = 0;
-                break;
+            }
         }
     }
 
