@@ -137,8 +137,9 @@
                 $matricesArray[$z]["gpioSlowdown"] = $settings["gpioSlowdown"];
             }
 
-            if (isset($matricesArray[$z]["brightness"]) && $settings['Platform'] == "Raspberry Pi") {
-                $matricesArray[$z]["brightness"] = round($matricesArray[$z]["brightness"] / 5) * 5; //round to selectable value
+            // ColorLight takes a percentage on every platform, as the Pi outputs do
+            if (isset($matricesArray[$z]["brightness"]) && ($settings['Platform'] == "Raspberry Pi" || ($matricesArray[$z]["subType"] ?? "") == "ColorLight5a75")) {
+                $matricesArray[$z]["brightness"] = min(100, max(5, round($matricesArray[$z]["brightness"] / 5) * 5)); //round to selectable value
             }
 
             ////////////////////////////////////
@@ -207,7 +208,8 @@
             $matrix["channelCount"] = 1;
         }
         if (!isset($matrix["brightness"])) {
-            $matrix["brightness"] = $LEDPanelDefaults["brightness"];
+            // fppd drives a ColorLight card at full brightness when none is saved
+            $matrix["brightness"] = ($matrix["subType"] ?? "") == "ColorLight5a75" ? 100 : $LEDPanelDefaults["brightness"];
         }
         if (!isset($matrix["gpioSlowdown"])) {
             $matrix["gpioSlowdown"] = $LEDPanelDefaults["gpioSlowdown"];
@@ -1531,6 +1533,9 @@
             }
 
 
+            // before the values go in, so a saved brightness finds its option
+            SetLEDPanelBrightnessScale(panelMatrixID, mp.subType);
+
             selectors.forEach(([selector, key, transform = val => val]) => {
                 if (mp[key] != null) {
                     const $element = $(`#panelMatrix${panelMatrixID} .${selector}`);
@@ -1665,6 +1670,12 @@
             ?>
             config.wiringPinout = matrixDiv.find('.LEDPanelsWiringPinout').val();
             config.brightness = parseInt(matrixDiv.find('.LEDPanelsBrightness').val());
+            <?
+        } else {
+            ?>
+            if (config.subType === "ColorLight5a75") {
+                config.brightness = parseInt(matrixDiv.find('.LEDPanelsBrightness').val());
+            }
             <?
         }
 
@@ -1858,6 +1869,28 @@
         }
     }
     ?>
+
+    // ColorLight's receiver card and the Pi outputs take brightness as a
+    // percentage; BBShiftPanel and BBBMatrix take a 1-10 level.  Gives the
+    // Brightness select the scale the matrix's connection type uses.
+    function SetLEDPanelBrightnessScale(panelMatrixID, connectionType) {
+        const percent = <?= $settings['Platform'] == "Raspberry Pi" ? "true" : "false" ?> || connectionType === "ColorLight5a75";
+        const $select = $(`#panelMatrix${panelMatrixID} .LEDPanelsBrightness`);
+        if ($select.length == 0 || ($select.find("option[value='100']").length > 0) === percent) {
+            return;
+        }
+        let html = "";
+        if (percent) {
+            for (let x = 100; x >= 5; x -= 5) {
+                html += `<option value='${x}'>${x}%</option>`;
+            }
+        } else {
+            for (let x = 10; x >= 1; x--) {
+                html += `<option value='${x}'>${x}</option>`;
+            }
+        }
+        $select.html(html);
+    }
 
     function LEDPanelsConnectionChanged(panelMatrixID = GetCurrentActiveMatrixPanelID()) {
         if (verboseDebug) {
