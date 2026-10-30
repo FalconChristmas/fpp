@@ -27,7 +27,8 @@ runPluginPostPullScript() {
 	echo "Running ${script}"
 	# FPP_RELOADS_PLUGIN is named here because sudo passes on only what it is
 	# handed: the plugin's script reads it to leave reloading to FPP.
-	$SUDO FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src FPP_RELOADS_PLUGIN=${FPP_RELOADS_PLUGIN:-0} ${script}
+	# env: with SUDO empty (macOS) a leading VAR=x would be run as the command.
+	$SUDO env FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src FPP_RELOADS_PLUGIN=${FPP_RELOADS_PLUGIN:-0} ${script}
 	local rc=$?
 	if [ $rc -ne 0 ]; then
 		echo "ERROR: the code of ${PLUGIN} was updated to $(cd "${PLUGINPATH}" && $SUDO git rev-parse --short HEAD 2>/dev/null), but its $(basename "${script}") failed (rc=${rc}); see above"

@@ -45,10 +45,11 @@ runPluginInstallScript() {
 	# SUDO="sudo" (www/config.php), which overrides common's "sudo -E" default and
 	# strips the exported FPPDIR/SRCDIR, so scripts ran with both empty and failed
 	# ("/scripts/common: No such file or directory"). That went unnoticed because
-	# the output was never logged. upgrade_plugin already uses the env form, which
-	# is why upgrades ran install scripts correctly while installs did not. The
-	# trailing args stay for plugins that parse them.
-	$SUDO FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src ${script} FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
+	# the output was never logged. upgrade_plugin already uses the
+	# env-assignment form, which is why upgrades ran install scripts correctly
+	# while installs did not. The trailing args stay for plugins that parse them.
+	# env: with SUDO empty (macOS) a leading VAR=x would be run as the command.
+	$SUDO env FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src ${script} FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
 }
 
 # --run-install-script <plugin>
