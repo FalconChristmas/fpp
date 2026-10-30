@@ -1924,7 +1924,7 @@
                 // disclosure was declined is really being uninstalled.
                 urlFor: function (plugin) {
                     return 'api/plugin/' + plugin + '?stream=true'
-                        + (reinstallAttempted.indexOf(plugin) !== -1 ? '&keepPackages=1' : '');
+                        + (reinstallAttempted.indexOf(plugin) !== -1 ? '&reinstall=1' : '');
                 },
                 method: 'DELETE',
                 onDone: function () { RunReinstallInstallPhase(installQueue, label); }

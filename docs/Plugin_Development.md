@@ -34,6 +34,13 @@ FPP `git clone`s the `srcURL` from `pluginInfo.json` into the plugin's directory
 then runs `scripts/fpp_install.sh` to set it up. On uninstall it runs
 `scripts/fpp_uninstall.sh`.
 
+Reinstall is an uninstall then an install. Its uninstall runs
+`fpp_uninstall.sh` with `FPP_PLUGIN_REINSTALL=1` (`0` on any other uninstall,
+unset on older FPP), so a plugin can keep state it holds in
+`config/plugin.<repoName>` or `plugindata/<repoName>/` instead of deleting it;
+the plugin directory itself is always removed. See `PLUGIN_GUIDELINES.md`
+§2.12 in the template repo.
+
 ## Plugin types
 
 - **Script plugin** — PHP or bash scripts invoked by FPP commands, wired up via

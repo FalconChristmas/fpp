@@ -26,16 +26,18 @@ startPluginLog uninstall "$1"
 # -- and one running under `set -u` (fpp-live-follow) aborted outright with
 # "FPPDIR: unbound variable" before removing its service/proxy config. The
 # trailing args stay for plugins that parse them.
+# FPP_PLUGIN_REINSTALL=1 on the uninstall half of a Reinstall, 0 otherwise.
 # env: with SUDO empty (macOS) a leading VAR=x would be run as the command.
+case "${FPP_PLUGIN_REINSTALL:-}" in 1) REINSTALL=1 ;; *) REINSTALL=0 ;; esac
 if [ -x "${PLUGINDIR}/$1/scripts/fpp_uninstall.sh" ]
 then
 	echo "Running fpp_uninstall.sh script for $1"
-	$SUDO env FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src "${PLUGINDIR}/$1/scripts/fpp_uninstall.sh" FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
+	$SUDO env FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src FPP_PLUGIN_REINSTALL=${REINSTALL} "${PLUGINDIR}/$1/scripts/fpp_uninstall.sh" FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
 else
 	if [ -x "${PLUGINDIR}/$1/fpp_uninstall.sh" ]
 	then
 		echo "Running fpp_uninstall.sh script for $1"
-		$SUDO env FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src "${PLUGINDIR}/$1/fpp_uninstall.sh" FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
+		$SUDO env FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src FPP_PLUGIN_REINSTALL=${REINSTALL} "${PLUGINDIR}/$1/fpp_uninstall.sh" FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
 	fi
 fi
 

@@ -1679,7 +1679,7 @@ function InstallPluginFromInfo($pluginInfo, &$visited, $stream, $depth = 0, $dep
 		return false;
 	}
 
-	// A reinstall that kept its packages (keepPackages=1 on the uninstall
+	// A reinstall that kept its packages (reinstall=1 on the uninstall
 	// half) still holds claims from the previous version; release the ones
 	// this version no longer declares. A fresh install has none, so no
 	// snapshot either.
@@ -2359,11 +2359,13 @@ function PluginServeIcon()
  * Uninstall plugin {RepoName}. Releases the plugin's claims on its apt
  * package dependencies -- the packages it declared and the ones their install
  * pulled in -- and apt-removes whatever nothing else still needs, unless
- * `keepPackages=1`, which the reinstall flow passes so the install that
- * follows can reuse them.
+ * `reinstall=1`, which the reinstall flow passes so the install that
+ * follows can reuse them. Also exported to the plugin's `fpp_uninstall.sh`
+ * as `FPP_PLUGIN_REINSTALL=1`.
  *
  * @route DELETE /api/plugin/{RepoName}
- * @param '1' keepPackages Leave the plugin's package claims in place (reinstall flow).
+ * @param '1' reinstall This is the uninstall half of a Reinstall: keep the plugin's package claims, and tell its fpp_uninstall.sh (FPP_PLUGIN_REINSTALL=1).
+ * @param '1' keepPackages Older name for reinstall=1; ignored when reinstall is given.
  * @param string stream When set (and not "false"), progress is streamed as text instead of a JSON reply.
  * @response 200 Plugin uninstalled
  * ```json
@@ -2495,11 +2497,15 @@ function UninstallPlugin()
 		$unloaded = FPPDPluginLifecycle($plugin, 'unload');
 		$uninstalledSha = PluginInstalledSha($plugin);
 
+		// reinstall=1: the uninstall half of a Reinstall.
+		$reinstall = (isset($_REQUEST['reinstall']) ? $_REQUEST['reinstall'] : ($_REQUEST['keepPackages'] ?? '')) === '1';
+
 		// PLUGINDIR/SUDO exported on both paths so the wrapper resolves the same
 		// directory PHP does (the streaming path used to rely on scripts/common's
 		// defaults).
 		$uninstallCmd = 'export SUDO=' . escapeshellarg($SUDO)
 			. '; export PLUGINDIR=' . escapeshellarg($settings['pluginDirectory'])
+			. '; export FPP_PLUGIN_REINSTALL=' . ($reinstall ? '1' : '0')
 			. '; ' . escapeshellarg($fppDir . '/scripts/uninstall_plugin') . ' ' . escapeshellarg($plugin);
 		// Before releasing its claims below: FPP's own removals are not the
 		// plugin's.
@@ -2518,15 +2524,14 @@ function UninstallPlugin()
 		// once nothing else (the user or another plugin) still requires it.
 		// Done AFTER the plugin's own fpp_uninstall.sh has run: that script may
 		// well use one of the packages the plugin declared.
-		// The reinstall flow passes keepPackages=1: the install that
+		// The reinstall flow passes reinstall=1: the install that
 		// follows leaves already-present packages alone and releases any
 		// claim the new version no longer declares, so nothing is removed
 		// and re-downloaded for no reason.
 		// Only once the plugin is really gone: a wrapper failure leaves it on
 		// disk, and it still needs its packages.
-		$keepPackages = isset($_REQUEST['keepPackages']) && $_REQUEST['keepPackages'] == '1';
 		$fppPkgChanges = null;
-		if (!$keepPackages && $return_val == 0) {
+		if (!$reinstall && $return_val == 0) {
 			$claimed = PackagesClaimedBy($plugin);
 			if (count($claimed)) {
 				if (PluginStreaming($stream)) {
@@ -2540,9 +2545,9 @@ function UninstallPlugin()
 
 
 		// Recorded even when it failed: what its script changed still happened.
-		// keepPackages is the first half of a Reinstall; its install follows.
+		// reinstall is the first half of a Reinstall; its install follows.
 		$entry = array('startedAt' => $startedAt, 'sha' => $uninstalledSha);
-		if ($keepPackages) {
+		if ($reinstall) {
 			$entry['reinstall'] = true;
 		}
 		if ($fppPkgChanges) {

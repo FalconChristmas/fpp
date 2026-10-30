@@ -7764,8 +7764,20 @@
           "plugin"
         ],
         "summary": "Uninstall plugin",
-        "description": "Uninstall plugin {RepoName}. Releases the plugin's claims on its apt package dependencies -- the packages it declared and the ones their install pulled in -- and apt-removes whatever nothing else still needs, unless `keepPackages=1`, which the reinstall flow passes so the install that follows can reuse them.",
+        "description": "Uninstall plugin {RepoName}. Releases the plugin's claims on its apt package dependencies -- the packages it declared and the ones their install pulled in -- and apt-removes whatever nothing else still needs, unless `reinstall=1`, which the reinstall flow passes so the install that follows can reuse them. Also exported to the plugin's `fpp_uninstall.sh` as `FPP_PLUGIN_REINSTALL=1`.",
         "parameters": [
+          {
+            "name": "reinstall",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "description": "This is the uninstall half of a Reinstall: keep the plugin's package claims, and tell its fpp_uninstall.sh (FPP_PLUGIN_REINSTALL=1)."
+          },
           {
             "name": "keepPackages",
             "in": "query",
@@ -7776,7 +7788,7 @@
                 "1"
               ]
             },
-            "description": "Leave the plugin's package claims in place (reinstall flow)."
+            "description": "Older name for reinstall=1; ignored when reinstall is given."
           },
           {
             "name": "stream",
