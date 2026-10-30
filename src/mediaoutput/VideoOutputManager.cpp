@@ -21,6 +21,7 @@
 #include "common.h"
 #include "settings.h"
 #include "log.h"
+#include "MultiSync.h"
 #include "overlays/PixelOverlay.h"
 #include "overlays/PixelOverlayModel.h"
 
@@ -263,10 +264,9 @@ static std::set<std::string> OfferedHdmiModes() {
         return offered;
     }
     std::vector<std::string> lists = { "all" };
-    std::string model;
-    std::getline(std::ifstream("/sys/firmware/devicetree/base/model"), model, '\0');
-    if (model.find("Raspberry Pi 4") != std::string::npos || model.find("Raspberry Pi 5") != std::string::npos ||
-        model.find("Raspberry Pi Compute Module 5") != std::string::npos) {
+    // FPP's own board type, so a Pi 400, CM4 or CM5 counts as its Pi.
+    MultiSyncSystemType board = MultiSync::ModelStringToType(GetFileContents("/proc/device-tree/model"));
+    if (board == kSysTypeFPPRaspberryPi4 || board == kSysTypeFPPRaspberryPi5) {
         lists.push_back("pi4pi5");
     }
     for (const auto& name : lists) {

@@ -9,7 +9,7 @@ if (!is_array($modes)) {
     $modes = [];
 }
 $table = array_merge(["Default"], $modes["all"] ?? []);
-if ((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi Compute Module 5") !== false)) {
+if ((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi Compute Module 4") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi Compute Module 5") !== false)) {
     $table = array_merge($table, $modes["pi4pi5"] ?? []);
 }
 echo json_encode($table);
