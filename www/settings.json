@@ -1620,6 +1620,45 @@
 				"filemanager"
 			]
 		},
+		"fileManagerNoAutomatchSequences": {
+			"name": "fileManagerNoAutomatchSequences",
+			"description": "Don't automatch media files",
+			"tip": "Select this to create a FSEQ only playlist.",
+			"level": 1,
+			"default": "0",
+			"type": "checkbox",
+			"checkedValue": "1",
+			"uncheckedValue": "0",
+			"exposedAsJSToPages": [
+				"filemanager"
+			]
+		},
+		"fileManagerNoAutomatchMusic": {
+			"name": "fileManagerNoAutomatchMusic",
+			"description": "Don't automatch sequence files",
+			"tip": "Select this to create an audio only playlist.",
+			"level": 1,
+			"default": "0",
+			"type": "checkbox",
+			"checkedValue": "1",
+			"uncheckedValue": "0",
+			"exposedAsJSToPages": [
+				"filemanager"
+			]
+		},
+		"fileManagerNoAutomatchVideos": {
+			"name": "fileManagerNoAutomatchVideos",
+			"description": "Don't automatch sequence files",
+			"tip": "Select this to create a video only playlist.",
+			"level": 1,
+			"default": "0",
+			"type": "checkbox",
+			"checkedValue": "1",
+			"uncheckedValue": "0",
+			"exposedAsJSToPages": [
+				"filemanager"
+			]
+		},
 		"gpioHideCapePins": {
 			"name": "gpioHideCapePins",
 			"description": "Hide Cape Controlled GPIO Pins",

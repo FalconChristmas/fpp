@@ -891,6 +891,14 @@
                             <option value='leadOut'>Lead Out</option>
                         </select></td>
                 </tr>
+                <tr id='bulkAddNoAutomatchRowTemplate'>
+                    <td><label for='bulkAddNoAutomatchTemplate'><b id='bulkAddNoAutomatchLabelTemplate'></b></label></td>
+                    <td><input type='checkbox' id='bulkAddNoAutomatchTemplate'>
+                        <span id='bulkAddNoAutomatchTipTemplate' data-bs-toggle='tooltip' data-bs-html='true'
+                            data-bs-placement='auto'><img src='images/redesign/help-icon.svg' class='icon-help'
+                                alt='help icon'></span>
+                    </td>
+                </tr>
             </table>
             <br>
             <table class='fppSelectableRowTable'>
