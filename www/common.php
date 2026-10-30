@@ -1866,6 +1866,20 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
             (in_array('ALL', $g['platforms'])) ||
             (in_array($settings['Platform'], $g['platforms'])))
     ) {
+        // Nothing in the group applies to this board: no heading over an empty box.
+        if ($plugin == "" && $prependData == "" && $appendData == "") {
+            global $settingInfos;
+            $printable = false;
+            foreach ($g['settings'] as $setting) {
+                if (!isset($settingInfos[$setting]) || ShouldPrintSetting($settingInfos[$setting])) {
+                    $printable = true;
+                    break;
+                }
+            }
+            if (!$printable) {
+                return;
+            }
+        }
         if ($heading == true) {
             echo "<h2>" . $g['description'] . "</h2>\n";
         }
