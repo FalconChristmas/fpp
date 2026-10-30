@@ -89,7 +89,7 @@ int GPIOOutput::Init(Json::Value config) {
 
     if (m_pwm) {
         if (!m_GPIOPin->supportPWM()) {
-            LogErr(VB_CHANNELOUT, "GPIO Pin does now support PWM\n");
+            LogErr(VB_CHANNELOUT, "GPIO Pin does not support PWM\n");
             return 0;
         }
         m_GPIOPin->setupPWM(25500);
