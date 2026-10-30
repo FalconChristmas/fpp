@@ -239,8 +239,10 @@ public:
         resetMode = mode;
         return *this;
     }
-    PiGPIODCapabilities& setPwm(int p, int sub) {
+    // sub is the PWM0 channel the pin carries when muxed to alt
+    PiGPIODCapabilities& setPwm(int p, int sub, const std::string& alt) {
         GPIODCapabilities::setPwm(p, sub);
+        pwmMode = alt;
         return *this;
     }
     PiGPIODCapabilities& setUART(const std::string& u, const std::string& um) {
@@ -312,9 +314,8 @@ public:
         }
 
         if (mode == "pwm" && pwm != -1) {
-            // alt3 is pwm
             char buf[256];
-            snprintf(buf, 256, "/usr/bin/pinctrl set %d a3", gpio);
+            snprintf(buf, 256, "/usr/bin/pinctrl set %d %s", gpio, pwmMode.c_str());
             system(buf);
             return 0;
         }
@@ -504,6 +505,7 @@ public:
     std::string uartMode;
     int spiBus = -1; // logical SPI bus this pin is a data line of, -1 if none
     std::string spiMode;
+    std::string pwmMode; // the alt function that puts the pin on its PWM channel
 };
 int PiGPIODCapabilities::pinctrlRpiChip = -1;
 std::string PiGPIODCapabilities::pinctrlRpiChipName;
@@ -514,14 +516,20 @@ void PiGPIOPinProvider::Init() {
     std::string i2c = isPi5() ? "a3" : "a0";
     // SPI1 sits on the I2S pins; RP1 puts it on alt0 where the older SoCs use alt4
     std::string spi1 = isPi5() ? "a0" : "a4";
+    // PWM0 on the header: GPIO12/13 carry channels 0/1 on alt0 on every Pi.
+    // GPIO18/19 carry RP1's channels 2/3 on alt3 on a Pi 5, but the BCM2711/
+    // BCM2835's channels 0/1 on alt5 (their alt3 is SPI6/SPI1)
+    int pwm18 = isPi5() ? 2 : 0;
+    int pwm19 = isPi5() ? 3 : 1;
+    std::string pwmAlt1819 = isPi5() ? "a3" : "a5";
     PI_PINS.push_back(PiGPIODCapabilities("P1-3", 2).setResetMode(i2c));
     PI_PINS.push_back(PiGPIODCapabilities("P1-5", 3).setResetMode(i2c));
     PI_PINS.push_back(PiGPIODCapabilities("P1-7", 4));
     PI_PINS.push_back(PiGPIODCapabilities("P1-8", 14).setUART("ttyAMA0-tx", isPi5() ? "a4" : "a0"));
     PI_PINS.push_back(PiGPIODCapabilities("P1-10", 15).setUART("ttyAMA0-rx", isPi5() ? "a4" : "a0"));
     PI_PINS.push_back(PiGPIODCapabilities("P1-11", 17).setResetMode(ipOrNo));
-    PI_PINS.push_back(PiGPIODCapabilities("P1-12", 18).setPwm(0, 0).setResetMode(ipOrNo));
-    PI_PINS.push_back(PiGPIODCapabilities("P1-13", 27).setPwm(0, 1).setResetMode(ipOrNo));
+    PI_PINS.push_back(PiGPIODCapabilities("P1-12", 18).setPwm(0, pwm18, pwmAlt1819).setResetMode(ipOrNo));
+    PI_PINS.push_back(PiGPIODCapabilities("P1-13", 27).setResetMode(ipOrNo));
     PI_PINS.push_back(PiGPIODCapabilities("P1-15", 22).setResetMode(ipOrNo));
     PI_PINS.push_back(PiGPIODCapabilities("P1-16", 23).setResetMode(ipOrNo));
     PI_PINS.push_back(PiGPIODCapabilities("P1-18", 24).setResetMode(ipOrNo));
@@ -535,9 +543,9 @@ void PiGPIOPinProvider::Init() {
     PI_PINS.push_back(PiGPIODCapabilities("P1-28", 1).setResetMode("ip"));
     PI_PINS.push_back(PiGPIODCapabilities("P1-29", 5).setResetMode("ip"));
     PI_PINS.push_back(PiGPIODCapabilities("P1-31", 6).setResetMode("ip"));
-    PI_PINS.push_back(PiGPIODCapabilities("P1-32", 12).setResetMode("ip").setPwm(0, 0));
-    PI_PINS.push_back(PiGPIODCapabilities("P1-33", 13).setResetMode("ip"));
-    PI_PINS.push_back(PiGPIODCapabilities("P1-35", 19).setResetMode(ipOrNo).setPwm(0, 1).setSPI(1, spi1));
+    PI_PINS.push_back(PiGPIODCapabilities("P1-32", 12).setResetMode("ip").setPwm(0, 0, "a0"));
+    PI_PINS.push_back(PiGPIODCapabilities("P1-33", 13).setResetMode("ip").setPwm(0, 1, "a0"));
+    PI_PINS.push_back(PiGPIODCapabilities("P1-35", 19).setResetMode(ipOrNo).setPwm(0, pwm19, pwmAlt1819).setSPI(1, spi1));
     PI_PINS.push_back(PiGPIODCapabilities("P1-36", 16).setResetMode(ipOrNo));
     PI_PINS.push_back(PiGPIODCapabilities("P1-37", 26).setResetMode("ip"));
     PI_PINS.push_back(PiGPIODCapabilities("P1-38", 20).setResetMode(ipOrNo).setSPI(1, spi1));
