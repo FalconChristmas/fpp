@@ -92,10 +92,9 @@ PrintItemFoot() {
         if [ ${STATUS} -eq 0 ]
         then
             STATUSTEXT="Fail"
-            if [ ${STATUS} -eq 2 ]
-            then
-                STATUSTEXT="Warning"
-            fi
+        elif [ ${STATUS} -eq 2 ]
+        then
+            STATUSTEXT="Warning"
         fi
 
         printf "%s - %s\n" "${STATUSTEXT}" "${STATUSSTR}"
