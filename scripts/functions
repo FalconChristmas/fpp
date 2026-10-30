@@ -119,6 +119,16 @@ populateCCACHE() {
         echo "populateCCACHE: ${PAGESIZE}-byte kernel pages, the published 4K-page cache can't help, skipping cache download"
     fi
 
+    # A nocc build replaces ccache as the compiler launcher (CCACHE=nocc in
+    # src/makefiles) and is NOPCH, so the downloaded cache would never be read.
+    # SetupBuildEnv must run first: it only exports NOCC_SERVERS once helpers
+    # are actually found, so a nocc setting that falls back to a local build
+    # still gets the cache.
+    if [ -n "${PLAT}" ] && { [ -n "${NOCC_SERVERS}" ] || [ -n "${NOCC_DISCOVER_MDNS}" ]; }; then
+        PLAT=""
+        echo "populateCCACHE: building with nocc, skipping cache download"
+    fi
+
     # The ccache tarballs are GitHub release assets attached to each release
     # tag (and to the rolling "nightly" pre-release). A custom UpgradeSource
     # mirror has no such assets, so only fetch when pulling from github.com.
@@ -487,6 +497,15 @@ function SetupBuildEnv() {
 compileBinaries() {
 
     cleanCompiledBinaries
+
+    # Honor the distcc developer settings: SetupBuildEnv exports DISTCC_HOSTS
+    # (which ${SUDO} == "sudo -E" then passes to make) and sizes -j; the
+    # makefiles switch to ccache distcc + NOPCH + the triplet compiler. No-op
+    # when distcc is disabled (BUILD_CPUS == ComputeMakeParallelism). Runs
+    # before populateCCACHE, which skips the cache download for nocc builds.
+    SetupBuildEnv
+    CPUS=${BUILD_CPUS}
+
     if [ "${FPPPLATFORM}" != "MacOS" ]; then
         populateCCACHE
     fi
@@ -494,13 +513,6 @@ compileBinaries() {
     # export CCACHE_LOGFILE=/tmp/cache.debug
     export LANG=en_US.UTF-8
     export TERM=linux
-
-    # Honor the distcc developer settings: SetupBuildEnv exports DISTCC_HOSTS
-    # (which ${SUDO} == "sudo -E" then passes to make) and sizes -j; the
-    # makefiles switch to ccache distcc + NOPCH + the triplet compiler. No-op
-    # when distcc is disabled (BUILD_CPUS == ComputeMakeParallelism).
-    SetupBuildEnv
-    CPUS=${BUILD_CPUS}
 
     # Need to unset HOME so that ccache will user /root instead of /home/fpp
     unset HOME
