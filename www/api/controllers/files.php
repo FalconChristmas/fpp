@@ -2091,17 +2091,24 @@ function TailFollowFile()
 
         $now = microtime(true);
 
-        // Send buffered data every 100ms or if buffer is large
+        // Send buffered data every 100ms or if buffer is large, whole lines
+        // only: the page shows each event's data as lines of its own, so a
+        // line split across two sends showed as two. A last line with no
+        // newline yet goes once the file has been quiet for a second.
         if ((strlen($buffer) > 0 && ($now - $lastSend) > 0.1) || strlen($buffer) > 4096) {
-            // SSE format: each line must be prefixed with "data: "
-            $lines = explode("\n", $buffer);
-            foreach ($lines as $line) {
-                echo "data: " . $line . "\n";
+            $end = strrpos($buffer, "\n");
+            if ($end !== false || ($now - $lastActivity) > 1) {
+                $send = ($end === false) ? $buffer : substr($buffer, 0, $end);
+                $buffer = ($end === false) ? '' : substr($buffer, $end + 1);
+                // SSE format: each line must be prefixed with "data: "
+                $lines = explode("\n", $send);
+                foreach ($lines as $line) {
+                    echo "data: " . $line . "\n";
+                }
+                echo "\n";
+                flush();
+                $lastSend = $now;
             }
-            echo "\n";
-            flush();
-            $buffer = '';
-            $lastSend = $now;
         }
 
         // Send periodic heartbeat to keep connection alive and detect disconnects
