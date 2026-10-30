@@ -3183,7 +3183,11 @@
         }
         else {
             // Find the matching object from saved config
-            let resultObject = structuredClone(channelOutputs.channelOutputs.find(obj => obj.panelMatrixID === panelMatrixID) || {});
+            let resultObject = structuredClone(channelOutputs.channelOutputs.find(obj => String(obj.panelMatrixID) === String(panelMatrixID)) || {});
+            // the legacy conversion saves the ID as a number; the page keeps the tab's string
+            if ("panelMatrixID" in resultObject) {
+                resultObject.panelMatrixID = String(resultObject.panelMatrixID);
+            }
 
             // Sort object keys alphabetically
             const sortedSavedObj = sortJson(resultObject);
