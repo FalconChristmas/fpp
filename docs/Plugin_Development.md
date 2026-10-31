@@ -25,8 +25,9 @@ Plugin Manager, see the
 — it covers the submission process, the `pluginList.json` entry format, and how to
 request removal.
 
-Keep those as the source of truth; this page only covers the two things that are
-about *FPP itself* rather than about writing a plugin.
+Keep those as the source of truth; this page only covers what is about *FPP
+itself* rather than about writing a plugin: how FPP installs and rebuilds a
+plugin, and the core services a C++ plugin can hook into.
 
 ## How FPP installs a plugin
 
@@ -128,3 +129,80 @@ Things that bite:
   source — worth a `LogWarn` so the user knows why their node went nowhere.
 - **Guard the include** so your plugin still builds against older cores:
   `#if __has_include("mediaoutput/AudioSourceRegistry.h")`.
+
+## Pushing to clients over a WebSocket (FPP 10.4+)
+
+A C++ plugin can serve its own WebSocket endpoint, for pushing state to a page
+or an app instead of having it poll an HTTP route. Register it with
+`FPPPlugins::registerPluginWebSocket()` from `PluginWebSocket.h`; clients connect
+to
+
+```
+ws://<host>/fppdws/plugin?name=<name>
+```
+
+Apache already proxies `/fppdws` and everything under it to fppd, so nothing
+needs configuring. Any other query parameters are the plugin's own to read in
+`onConnect`. Name the endpoint after the plugin, `<repoName>/<endpoint>` by
+convention; matching ignores case and leading/trailing `/`.
+
+```cpp
+#if __has_include("PluginWebSocket.h")
+#include "PluginWebSocket.h"
+#endif
+
+// in the constructor, or wherever the plugin turns its listeners on
+#ifdef FPP_HAS_PLUGIN_WEBSOCKET
+if (FPPPlugins::pluginWebSocketsSupported()) {
+    FPPPlugins::PluginWebSocketHandlers h;
+    h.onConnect = [this](const HttpRequestPtr& req, const drogon::WebSocketConnectionPtr& conn) {
+        addClient(conn, req->getParameter("who"));
+        conn->send(currentStateJson());
+    };
+    h.onMessage = [](const drogon::WebSocketConnectionPtr& conn, std::string&& msg,
+                     const drogon::WebSocketMessageType& type) { /* optional */ };
+    h.onClose = [this](const drogon::WebSocketConnectionPtr& conn) { removeClient(conn); };
+    FPPPlugins::registerPluginWebSocket("fpp-myplugin/status", std::move(h));
+}
+#endif
+
+// in shutdown()
+#ifdef FPP_HAS_PLUGIN_WEBSOCKET
+if (FPPPlugins::pluginWebSocketsSupported()) {
+    FPPPlugins::unregisterPluginWebSocket("fpp-myplugin/status");
+}
+#endif
+dropAllClients();
+```
+
+A browser page served by the same player connects with
+`new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/fppdws/plugin?name=fpp-myplugin/status")`.
+
+How it behaves:
+
+- **Unregistering is safe to unload after.** It waits for any handler call
+  already running, destroys the handlers, and closes every connection opened
+  through that name (close code 1001) before it returns. Registering the same
+  name again, from a rebuilt copy of the plugin, puts it back to work. This is
+  the same contract as `registerPluginApi()`; plugins must not register a
+  Drogon `WebSocketController` of their own, which can never be removed.
+- **Clients can tell a missing endpoint from a failed connection.** A
+  handshake for a name nobody registered is refused with 404, and one for a
+  name whose plugin has unregistered with 410.
+- **Handlers run on Drogon I/O threads.** Keep them short, and never call
+  `unregisterPluginWebSocket()` from inside one — it waits for the handler to
+  return, so it would wait on itself.
+- **The connections are the plugin's.** It may keep them, `send()` to them from
+  any thread and close them, but it must drop them in `shutdown()`. `onClose`
+  runs for connections the client or the plugin closed; those closed by
+  `unregisterPluginWebSocket()` are closed after the handlers are gone and are
+  not reported.
+- **Anyone who can reach the player can connect,** as with the rest of FPP's
+  API. Check whatever the plugin needs in `onConnect` and close the connection
+  if it fails. For the `privacy` block in `pluginInfo.json` an endpoint counts
+  like a `registerPluginApi()` route: disclosed by what it hands out and what
+  it changes (`PLUGIN_GUIDELINES.md` §14.12 in the template repo).
+- **Guard it for older cores.** `__has_include` keeps the plugin building
+  against headers from before 10.4. The functions are declared weak, so a
+  plugin built against 10.4 still loads on an older fppd, where
+  `pluginWebSocketsSupported()` returns false.

@@ -12,7 +12,7 @@
  */
 
 // WebSocket endpoints for plugins, the push counterpart of registerPluginApi()
-// in fpphttp.h.
+// in fpphttp.h.  New in FPP 10.4; see docs/Plugin_Development.md.
 //
 // A plugin endpoint registered as "<name>" is reached at
 // ws://<host>/fppdws/plugin?name=<name>; any other query parameters are the
