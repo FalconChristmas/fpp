@@ -1432,10 +1432,14 @@ int main(int argc, char* argv[]) {
         logVersionInfo();
     }
 
+    // Not modificationsOnly: the media directory is watched too, so a
+    // settings file replaced by a rename (sed -i, an editor's save, a
+    // restore) re-arms the watch. On the file alone, the rename dropped the
+    // kernel's watch and no later change reached fppd until a restart.
     FileMonitor::INSTANCE.AddFile(
         "FPPD:Settings", FPP_DIR_MEDIA("/settings"), [argv]() {
         LogDebug(VB_SETTING, "Settings file changed, reloading settings\n");
-        LoadSettings(argv[0], true); }, true);
+        LoadSettings(argv[0], true); });
 
     // Start functioning
     if (getSettingInt("daemonize")) {
