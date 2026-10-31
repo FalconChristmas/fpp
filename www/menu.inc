@@ -552,7 +552,8 @@ function list_plugin_entries($menu)
                                     Check</a>
                                 <a class="dropdown-item" href="troubleshooting.php"><i class="fas fa-code"></i>
                                     Troubleshooting Commands</a>
-<?                                $baseLink = $_SERVER['HTTP_HOST'];
+<?                                // HTTP_HOST carries the port the browser used when it is not 80
+                                $baseLink = preg_replace('/:\d+$/', '', $_SERVER['HTTP_HOST']);
                                 if (isset($_SERVER['HTTP_X_FORWARDED_HOST'])) {
                                     $baseLink = $_SERVER['HTTP_X_FORWARDED_HOST'] . '/proxy/' . $_SERVER['SERVER_ADDR'];
                                 }
