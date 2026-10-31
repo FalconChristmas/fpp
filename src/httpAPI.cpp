@@ -39,6 +39,7 @@ extern std::atomic_int runMainFPPDLoop;
 #include <sys/sysinfo.h>
 #endif
 
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -102,6 +103,31 @@ extern std::atomic_int runMainFPPDLoop;
 // Monotonic, so the reported uptime survives a wall-clock step (NTP, an RTC
 // that boots in the past) instead of going negative or jumping by hours.
 static long long startupTimeMS = GetMonotonicTimeMS();
+
+// Trantor aborts fppd if a listener can't be bound, so only ask drogon to
+// listen on [::1] when that address is actually bindable. A kernel built
+// without IPv6 fails socket() with EAFNOSUPPORT; one with IPv6 disabled
+// (ipv6.disable=1, or disable_ipv6 on lo) has no ::1 and fails bind() with
+// EADDRNOTAVAIL. Port 0 keeps the probe from touching the real port.
+static bool canBindIPv6Loopback() {
+    int fd = socket(AF_INET6, SOCK_STREAM, 0);
+    if (fd < 0) {
+        LogInfo(VB_HTTP, "IPv6 unavailable (%s); HTTP API listening on IPv4 loopback only\n", strerror(errno));
+        return false;
+    }
+    int on = 1;
+    setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on));
+    struct sockaddr_in6 addr = {};
+    addr.sin6_family = AF_INET6;
+    addr.sin6_addr = in6addr_loopback;
+    addr.sin6_port = 0;
+    bool ok = bind(fd, (struct sockaddr*)&addr, sizeof(addr)) == 0;
+    if (!ok) {
+        LogInfo(VB_HTTP, "Cannot bind [::1] (%s); HTTP API listening on IPv4 loopback only\n", strerror(errno));
+    }
+    close(fd);
+    return ok;
+}
 // Read by status requests on the HTTP threads, written by periodicWork() on
 // the main loop.
 static std::atomic<bool> piPowerBad{ false };
@@ -1058,9 +1084,12 @@ void APIServer::Init(void) {
     // Configure and start drogon in a separate thread (since app().run() blocks).
     // Bind both v4 and v6 loopback so Apache's reverse-proxy works no
     // matter how libc resolves "localhost" (modern glibc returns ::1
-    // first per RFC 6724).
+    // first per RFC 6724). Without IPv6, "localhost" can only resolve to
+    // 127.0.0.1, so the v4 listener alone is enough.
     app.addListener(FPP_BIND_ADDRESS, FPP_HTTP_PORT);
-    app.addListener("::1", FPP_HTTP_PORT);
+    if (canBindIPv6Loopback()) {
+        app.addListener("::1", FPP_HTTP_PORT);
+    }
     app.setThreadNum(10);
     app.disableSession();
 
