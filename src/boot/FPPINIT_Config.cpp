@@ -702,7 +702,8 @@ bool checkUnpartitionedSpace() {
             fs = execAndReturn("/usr/sbin/sfdisk -F " + SD_CARD_DEVICE + " | tail -n 1");
             TrimWhiteSpace(fs);
             auto splits = split(fs, ' ');
-            fs = splits.back();
+            // sfdisk missing or failing prints nothing; back() of an empty vector is undefined
+            fs = splits.empty() ? "0" : splits.back();
             if (endsWith(fs, "G")) {
                 fs = fs.substr(0, fs.size() - 1);
             } else {
