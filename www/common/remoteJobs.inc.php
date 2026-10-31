@@ -606,7 +606,10 @@ function RemoteJobCopyFiles(array $job, callable $out)
         $src = escapeshellarg($fppHome . "/media/" . $dir . "/");
         // rsync resolves a name itself; give it the address that was judged.
         $dest = escapeshellarg(RemotePeerConnectHost($ip) . "::media/" . $dir . "/");
-        $command = "rsync -rtDlv --modify-window=1 $compress --stats $src $dest 2>&1";
+        // --contimeout: a remote that is down or dropping packets would
+        // otherwise hold the job for the whole TCP connect timeout (about two
+        // minutes on Linux) per directory before rsync gave up.
+        $command = "rsync -rtDlv --modify-window=1 --contimeout=15 $compress --stats $src $dest 2>&1";
         $out("Command: $command\n");
         $out("----------------------------------------------------------------------------------\n");
         $r = yield new RemoteJobCommand($command);

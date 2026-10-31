@@ -48,6 +48,14 @@ fi
 
 BASEDIRECTION=$(echo "$DIRECTION" | cut -c1-4)
 REMOTE_COMPRESS=""
+# rsync to or from the remote's daemon: give up on a remote that is down or
+# dropping packets after 15 s, not the TCP connect timeout (about two minutes
+# on Linux) for every one of the rsyncs below.  rsync refuses the option for a
+# local copy, so it is only set for the remote directions.
+CONTIMEOUT=""
+if [[ "$DIRECTION" == "TOREMOTE" || "$DIRECTION" == "FROMREMOTE" ]]; then
+    CONTIMEOUT="--contimeout=15"
+fi
 OVERALL_RC=0
 
 IgnoreWarnings() {
@@ -185,11 +193,11 @@ elif [ "$DIRECTION" == "TOREMOTE" ]; then
         # Remote storage device will be mounted to /mnt/remote_filecopy (at the destination), so adjust the destination to accommodate this.
         DEST="${DEVICE}::remote_filecopy/$DPATH"
         # Going to a different storage device so modify the directory and copy over the base directory structure
-        rsync -a -- "/home/fpp/media/tmp/backups"/* "${DEVICE}::remote_filecopy" 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
+        rsync -a $CONTIMEOUT -- "/home/fpp/media/tmp/backups"/* "${DEVICE}::remote_filecopy" 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
         rm -rf -- /home/fpp/media/tmp/backups
     else
         # Not going to a different storage device so copy over the new directory structure as normal (this will go into the specified default FPP Storage)
-        rsync -a -- "/home/fpp/media/tmp/backups"/* "${DEVICE}::media/backups/" 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
+        rsync -a $CONTIMEOUT -- "/home/fpp/media/tmp/backups"/* "${DEVICE}::media/backups/" 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
         rm -rf -- /home/fpp/media/tmp/backups
     fi
 
@@ -214,7 +222,7 @@ elif [ "$DIRECTION" == "FROMREMOTE" ]; then
 
 fi
 
-EXTRA_ARGS="-av --progress --info=name0 --human-readable --modify-window=1 $EXTRA_ARGS"
+EXTRA_ARGS="-av --progress --info=name0 --human-readable --modify-window=1 $CONTIMEOUT $EXTRA_ARGS"
 
 if [ "$COMPRESS" == "yes" ]; then
         REMOTE_COMPRESS=" -Dz "
