@@ -62,6 +62,7 @@ OBJECTS_fpp_so += \
 	gpio.o \
 	httpAPI.o \
 	StatusWebSocket.o \
+	PluginWebSocket.o \
 	fpphttp_compat.o \
 	log.o \
 	FPPLocale.o \
