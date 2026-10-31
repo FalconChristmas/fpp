@@ -6088,10 +6088,12 @@ function validateIPaddress (id, allowHostnames = false) {
 	// or number
 	var isHostnameRegex =
 		/^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/;
-	var rc = false;
+	// only digits and dots is an IPv4 address, never a hostname: fppd sends to
+	// it as one, and reads an octet with a leading zero as octal
+	var isNumeric = /^[0-9.]+$/.test(ip);
 	if (
 		ip == '' ||
-		(allowHostnames && isHostnameRegex.test(ip)) ||
+		(allowHostnames && !isNumeric && isHostnameRegex.test(ip)) ||
 		isIpRegex.test(ip)
 	) {
 		ipb.style.border = '#D2D2D2 1px solid';
