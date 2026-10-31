@@ -111,6 +111,8 @@ var _savedCommandListJSON = '';
 var zebraPinSubContentTop = 0;
 var VolumeChangeInProgress = false;
 var VolumeChangeAPIInProgress = false;
+// The value asked for while a request was already out, sent when it returns.
+var VolumeChangePending = null;
 var currentWarnings = [];
 var warningDefinitions = [];
 
@@ -8884,22 +8886,31 @@ function PopulatePlaylistDetailsEntries (playselected, playList) {
 }
 
 function SetVolume (value) {
-	var obj = { volume: value };
-	if (VolumeChangeAPIInProgress == false) {
-		VolumeChangeAPIInProgress = true;
-		$.post({ url: 'api/system/volume', data: JSON.stringify(obj) })
-			.done(function (data) {
-				// Unblock volume UI updates
-				settings['volume'] = String(value);
-				VolumeChangeInProgress = false;
-				VolumeChangeAPIInProgress = false;
-			})
-			.fail(function () {
-				DialogError('ERROR', 'Failed to set volume to ' + value);
-				VolumeChangeInProgress = false;
-				VolumeChangeAPIInProgress = false;
-			});
+	if (VolumeChangeAPIInProgress) {
+		// Only the latest value matters: send it when this one returns.
+		VolumeChangePending = value;
+		return;
 	}
+	VolumeChangeAPIInProgress = true;
+	var obj = { volume: value };
+	$.post({ url: 'api/system/volume', data: JSON.stringify(obj) })
+		.done(function (data) {
+			settings['volume'] = String(value);
+		})
+		.fail(function () {
+			DialogError('ERROR', 'Failed to set volume to ' + value);
+		})
+		.always(function () {
+			VolumeChangeAPIInProgress = false;
+			var next = VolumeChangePending;
+			VolumeChangePending = null;
+			if (next !== null && String(next) !== String(value)) {
+				SetVolume(next);
+			} else {
+				// Unblock volume UI updates
+				VolumeChangeInProgress = false;
+			}
+		});
 }
 
 respondToVisibility = function (element, callback) {
