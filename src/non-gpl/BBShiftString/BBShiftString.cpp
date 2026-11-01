@@ -640,7 +640,7 @@ int BBShiftStringOutput::Init(Json::Value config) {
                         a.pixelCount = pixels;
                     }
                     pixels -= a.pixelCount;
-                    chanCount += a.pixelCount * a.channelsPerNode();
+                    chanCount += a.channelCount();
                 }
                 if (m_strings[x]->m_isSmartReceiver) {
                     chanCount = 0;

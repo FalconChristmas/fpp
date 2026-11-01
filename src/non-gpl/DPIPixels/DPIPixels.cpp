@@ -333,7 +333,7 @@ int DPIPixelsOutput::Init(Json::Value config) {
                     outputList += std::to_string(i + 1);
                 }
                 pixels -= a.pixelCount;
-                chanCount += a.pixelCount * a.channelsPerNode();
+                chanCount += a.channelCount();
             }
             if (newString->m_isSmartReceiver) {
                 chanCount = 0;

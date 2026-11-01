@@ -57,6 +57,9 @@ public:
     ~VirtualString() {};
 
     int channelsPerNode() const;
+    // Every channel the string occupies on the wire: its null nodes count,
+    // they are in the output map the same as pixels are.
+    int channelCount() const;
 
     bool isSmartReceiver() const;
     bool isFalconV5SmartReceiver() const;

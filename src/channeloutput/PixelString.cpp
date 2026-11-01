@@ -231,6 +231,10 @@ int VirtualString::channelsPerNode() const {
     return colorOrder.channelCount();
 }
 
+int VirtualString::channelCount() const {
+    return (startNulls + pixelCount + endNulls) * channelsPerNode();
+}
+
 /*
  *
  */

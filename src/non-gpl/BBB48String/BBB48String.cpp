@@ -492,7 +492,7 @@ int BBB48StringOutput::Init(Json::Value config) {
                         outputList += std::to_string(x + 1);
                     }
                     pixels -= a.pixelCount;
-                    chanCount += a.pixelCount * a.channelsPerNode();
+                    chanCount += a.channelCount();
                 }
                 if (m_strings[x]->m_isSmartReceiver) {
                     chanCount = 0;
