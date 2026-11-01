@@ -2337,7 +2337,7 @@ section_smoke() {
     # links into it via node.target -- deliberately NOT target-object (see the
     # comment at AES67Manager.cpp:2078).  A probe that cannot resolve a target
     # therefore says nothing about whether those senders work.
-    capNode=$(pw_setting default.audio.source | sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+    capNode=$(pw_default default.audio.source | sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
     if [ -z "${capNode}" ] && have jq && pw_dump; then
         capNode=$(jq -r '[.[] | select(.type=="PipeWire:Interface:Node")
                           | .info.props | select(.["media.class"] == "Audio/Source")
