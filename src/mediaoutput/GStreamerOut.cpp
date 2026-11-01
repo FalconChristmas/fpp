@@ -613,10 +613,16 @@ static void GuardVideoConvert(GstElement* element) {
 
 // decodebin's "autoplug-select", asked before it makes each element: note a
 // hardware video decoder on the decodebin (see PipelineHasHwVideoDecoder) and
-// let it go ahead.  0 is GST_AUTOPLUG_SELECT_TRY, whose enum is not public.
+// let it go ahead, unless the HardwareDecoding setting is off: then skip it
+// and decodebin moves on to the next decoder for the stream (the software
+// one).  The values are GST_AUTOPLUG_SELECT_TRY (0) and _SKIP (2), whose enum
+// is not public.
 static gint OnAutoplugSelect(GstElement* decodebin, GstPad*, GstCaps*, GstElementFactory* factory, gpointer) {
     const gchar* klass = gst_element_factory_get_metadata(factory, GST_ELEMENT_METADATA_KLASS);
     if (klass && strstr(klass, "Decoder") && strstr(klass, "Video") && strstr(klass, "Hardware")) {
+        if (getSettingInt("HardwareDecoding", 1) == 0) {
+            return 2;
+        }
         g_object_set_data(G_OBJECT(decodebin), HW_DECODER_CHOSEN_KEY, GINT_TO_POINTER(1));
     }
     return 0;
