@@ -611,13 +611,50 @@ static void GuardVideoConvert(GstElement* element) {
     }
 }
 
+// The stateless V4L2 H.265 decoder is skipped for a stream software decode can
+// keep up with.  GStreamer 1.26.2 (what Pi OS ships) dereferences a NULL
+// request in v4l2slh265dec once the driver refuses a stream's bitstream
+// parameters ("Driver did not accept the bitstream parameters"), which aborts
+// fppd -- and when it happens on a MultiSync remote's mid-song start, every
+// restart rejoins the same song and crashes again.  Fixed upstream in 1.26.10.
+// The refusal depends on the stream, so it can't be told ahead of time; what
+// software costs can: a Pi 4 decodes 1080p30 several times faster than real
+// time.  Streams past 1080p60 keep the hardware decoder, which software could
+// not play.
+static constexpr int SOFTWARE_HEVC_MAX_PIXELS_PER_SECOND = 1920 * 1080 * 60;
+
+static bool SkipStatelessHevcDecoder(GstCaps* caps, GstElementFactory* factory) {
+    const gchar* name = gst_plugin_feature_get_name(GST_PLUGIN_FEATURE(factory));
+    if (!name || strcmp(name, "v4l2slh265dec") != 0 || !caps || gst_caps_is_empty(caps)) {
+        return false;
+    }
+    const GstStructure* st = gst_caps_get_structure(caps, 0);
+    gint w = 0, h = 0, fpsN = 0, fpsD = 1;
+    if (!gst_structure_get_int(st, "width", &w) || !gst_structure_get_int(st, "height", &h) || w <= 0 || h <= 0) {
+        return false;  // size unknown: leave the choice as it was
+    }
+    gst_structure_get_fraction(st, "framerate", &fpsN, &fpsD);
+    double fps = (fpsN > 0 && fpsD > 0) ? (double)fpsN / fpsD : 30.0;
+    if ((double)w * h * fps > SOFTWARE_HEVC_MAX_PIXELS_PER_SECOND) {
+        return false;
+    }
+    LogInfo(VB_MEDIAOUT, "GStreamer: decoding %dx%d H.265 in software, not with %s (it can abort fppd when the driver refuses a stream)\n",
+            w, h, name);
+    return true;
+}
+
 // decodebin's "autoplug-select", asked before it makes each element: note a
 // hardware video decoder on the decodebin (see PipelineHasHwVideoDecoder) and
 // let it go ahead, unless the HardwareDecoding setting is off: then skip it
 // and decodebin moves on to the next decoder for the stream (the software
 // one).  The values are GST_AUTOPLUG_SELECT_TRY (0) and _SKIP (2), whose enum
 // is not public.
-static gint OnAutoplugSelect(GstElement* decodebin, GstPad*, GstCaps*, GstElementFactory* factory, gpointer) {
+// A stream software decode can keep up with also skips the stateless H.265
+// decoder (SkipStatelessHevcDecoder()).
+static gint OnAutoplugSelect(GstElement* decodebin, GstPad*, GstCaps* caps, GstElementFactory* factory, gpointer) {
+    if (SkipStatelessHevcDecoder(caps, factory)) {
+        return 2;  // GST_AUTOPLUG_SELECT_SKIP, whose enum is not public either
+    }
     const gchar* klass = gst_element_factory_get_metadata(factory, GST_ELEMENT_METADATA_KLASS);
     if (klass && strstr(klass, "Decoder") && strstr(klass, "Video") && strstr(klass, "Hardware")) {
         if (getSettingInt("HardwareDecoding", 1) == 0) {
