@@ -345,7 +345,12 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
 
     size_t bytesRead = 0;
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
-    m_endedSeqFilename.clear();
+    // Only opening the same file again forgets that it ended or was stopped:
+    // the master opens the next item right after stopping this one, and a sync
+    // packet for this one still in flight must not find the record gone.
+    if (m_endedSeqFilename == filename) {
+        m_endedSeqFilename.clear();
+    }
     const uint64_t openGeneration = ++m_openGeneration;
     // A pending frame skip counts from the old file's position (see
     // SkipFrames()).
@@ -1206,8 +1211,24 @@ void Sequence::SendBlankingData(void) {
 
 void Sequence::CloseIfOpen(const std::string& filename) {
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
-    if ((m_seqFilename == filename) || (m_seqSyncName == filename))
+    if ((m_seqFilename == filename) || (m_seqSyncName == filename)) {
+        // The master has stopped this sequence.  A sync packet for it that was
+        // already in flight arrives after the close; without a record it looks
+        // like a join mid-stream and reopens what was just stopped (or closes
+        // the next sequence to make room).  Ignore syncs from about a second
+        // before where we stopped: a repeat's syncs start near frame 0.
+        std::string stopped = m_seqSyncName.empty() ? m_seqFilename : m_seqSyncName;
+        int stepTime = m_seqStepTime;
+        int ignoreFrom = 0;
+        if (stepTime > 0 && m_seqFile.load()) {
+            ignoreFrom = std::max(1, m_seqMSElapsed.load() / stepTime - 1000 / stepTime);
+        }
         CloseSequenceFile();
+        if (ignoreFrom > 0) {
+            m_endedSeqFilename = stopped;
+            m_endedSeqIgnoreFrom = ignoreFrom;
+        }
+    }
 }
 
 void Sequence::CloseSequenceFile(void) {
