@@ -55,7 +55,8 @@ PlaylistEntryMedia::PlaylistEntryMedia(Playlist* playlist, PlaylistEntryBase* pa
         m_openStartDelay = getSettingInt("openStartDelay");
     }
     m_type = "media";
-    m_fileSeed = (unsigned int)time(NULL);
+    // entries made in the same second must not draw the same "random" file
+    m_fileSeed = (unsigned int)(time(NULL) + ((long long)this & 0xFFFFFFFF));
 }
 
 /*
