@@ -151,8 +151,11 @@
                 "<td>" + (currentRows + 1) + "</td>" +
                 "<td>&nbsp;&nbsp;&nbsp;" + host + "</td>" +
                 "<td id='" + descCellId + "'>&nbsp;&nbsp;&nbsp;" + description + "</td>" +
-                "<td><a target='_blank' href='proxy/" + host + "/'>" + host + "</a></td>" +
-                "</tr>"
+                "<td>" +
+                <? if (!$settings['hideExternalURLs']) { ?>
+                    "<a target='_blank' href='proxy/" + host + "/'>" + host + "</a>" +
+                <? } ?>
+                "</td></tr>"
             );
         }
 
