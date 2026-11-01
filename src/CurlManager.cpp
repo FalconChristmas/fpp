@@ -319,6 +319,22 @@ int CurlManager::cancelRequests(const std::string& owner) {
     if (owner.empty()) {
         return 0; // "" is FPP's own traffic; cancelling all of it is never wanted
     }
+    return cancelMatching(&owner);
+}
+
+int CurlManager::cancelAll() {
+    int n = cancelMatching(nullptr);
+    std::unique_lock<std::mutex> l(lock);
+    if (curlMulti && numCurls == 0) {
+        curl_multi_cleanup(curlMulti);
+        curlMulti = nullptr;
+    }
+    return n;
+}
+
+// `owner` null cancels every asynchronous request (cleanCurl: the handle is
+// ours; a handle the caller keeps is being waited on by it).
+int CurlManager::cancelMatching(const std::string* owner) {
     // The callbacks are moved out and destroyed after the lock is dropped: they
     // belong to a plugin, and a captured object's destructor that touched
     // CurlManager again would deadlock on this non-recursive mutex.
@@ -327,7 +343,7 @@ int CurlManager::cancelRequests(const std::string& owner) {
         std::unique_lock<std::mutex> l(lock);
         for (size_t x = 0; x < curls.size(); x++) {
             CurlInfo* ci = curls[x];
-            if (!ci || ci->owner != owner) {
+            if (!ci || (owner ? ci->owner != *owner : !ci->cleanCurl)) {
                 continue;
             }
             curls[x] = nullptr;
@@ -345,7 +361,7 @@ int CurlManager::cancelRequests(const std::string& owner) {
             delete ci;
         }
     }
-    LogDebug(VB_GENERAL, "CurlManager cancelled %d request(s) for %s\n", (int)doomed.size(), owner.c_str());
+    LogDebug(VB_GENERAL, "CurlManager cancelled %d request(s) for %s\n", (int)doomed.size(), owner ? owner->c_str() : "(everyone)");
     return (int)doomed.size();
 }
 

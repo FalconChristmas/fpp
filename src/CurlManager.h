@@ -103,6 +103,16 @@ public:
     // callback is executing.
     int cancelRequests(const std::string& owner);
 
+    // Shutdown: abandons every outstanding asynchronous request, whatever its
+    // owner, the way cancelRequests() does, and frees the multi handle once
+    // nothing is left on it.  fppd ends in _exit(), so no destructor does this:
+    // a request still in flight keeps its easy handle, and with it libcurl's
+    // resolver thread, which is never joined (ThreadSanitizer reports it as a
+    // thread leak).  Requests a thread is waiting on in doGet()/doPost()/doPut()
+    // are left to that thread, which would otherwise wait for a callback that
+    // is never called.  Main loop only, once nothing will add another.
+    int cancelAll();
+
     // Ends a cookie session created via a `cookieSession` token and frees its
     // CURLSH. The caller MUST guarantee no handle still references the share:
     // cancel this session's owner (cancelRequests) or let its requests finish
@@ -129,6 +139,7 @@ private:
     ~CurlManager();
 
     bool doProcessCurls();
+    int cancelMatching(const std::string* owner);
     std::string getHost(const std::string& url);
 
     // Finds or creates the CURLSH backing a cookie session token. The share has

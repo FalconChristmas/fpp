@@ -1651,6 +1651,9 @@ int main(int argc, char* argv[]) {
     PluginManager::INSTANCE.Cleanup();
     CommandManager::INSTANCE.Cleanup();
     MultiSync::INSTANCE.ShutdownSync();
+    // After everything that adds a request: what is still in flight (a probe
+    // of an output's host, say) holds a resolver thread nobody would join.
+    CurlManager::INSTANCE.cancelAll();
     GPIOManager::INSTANCE.Cleanup();
 
     // Stop the notify thread before the deletes below, not after: its listeners
