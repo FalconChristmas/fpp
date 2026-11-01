@@ -4468,6 +4468,9 @@ int GStreamerOutput::Close(void) {
                 (unsigned long)m_videoFramesReceived, (unsigned long)m_videoFramesDelivered);
     }
     m_hasVideoStream = false;
+    m_feedVideoLeadS = 0.06;
+    m_feedSeekTimesMs.clear();
+    m_feedSeekGaveUp = false;
     m_videoFrameReady = false;
     m_videoFramesReceived = 0;
     m_videoFramesDelivered = 0;
@@ -4773,6 +4776,18 @@ int GStreamerOutput::AdjustFeedSpeed(float masterMediaPosition) {
     constexpr double kKp = 0.1;               // per second of error
     constexpr double kKi = kKp * kKp / 4;     // critically damped
     constexpr uint64_t kResyncSettleMs = 2000;
+    // Video (see m_feedVideoLeadS): a seek costs the picture up to seconds and
+    // lands within a few hundred ms at best, so seek only for a real error,
+    // let the servo take a wider range to close the rest, and stop seeking
+    // after kMaxSeeks in kSeekWindowMs.
+    constexpr double kVideoResyncS = 0.300;
+    constexpr double kVideoMaxSpeedOffset = 0.02; // +-2% while far off
+    constexpr double kVideoMaxLeadS = 0.5;
+    constexpr double kDefaultLeadS = 0.06;
+    constexpr size_t kMaxSeeks = 3;
+    constexpr uint64_t kSeekWindowMs = 20000;
+    const bool video = m_hasVideoStream;
+    double& leadS = video ? m_feedVideoLeadS : s_feedResyncLeadS;
 
     uint64_t now = GetMonotonicTimeMS();
     // Where the sound is now, as Process() reports it (what the feed has
@@ -4798,13 +4813,31 @@ int GStreamerOutput::AdjustFeedSpeed(float masterMediaPosition) {
         // the next one needs.
         m_feedResyncLanding = false;
         if (std::fabs(err) < 1.0) {
-            s_feedResyncLeadS = std::clamp(s_feedResyncLeadS - 0.8 * err, 0.0, 2.0);
+            leadS = std::clamp(leadS - 0.8 * err, 0.0, video ? kVideoMaxLeadS : 2.0);
+        } else if (video) {
+            leadS = kDefaultLeadS;  // a landing that far off teaches nothing
         }
         LogDebug(VB_MEDIAOUT, "GStreamer feed sync: resync landed %+.1f ms from the master; seeks now aim %.0f ms ahead\n",
-                 err * 1000.0, s_feedResyncLeadS * 1000.0);
+                 err * 1000.0, leadS * 1000.0);
     }
-    if (agreed && std::fabs(err) > kResyncS) {
-        double target = masterMediaPosition + s_feedResyncLeadS;
+    if (video) {
+        while (!m_feedSeekTimesMs.empty() && now - m_feedSeekTimesMs.front() > kSeekWindowMs) {
+            m_feedSeekTimesMs.pop_front();
+        }
+    }
+    if (agreed && std::fabs(err) > (video ? kVideoResyncS : kResyncS) && !m_feedSeekGaveUp) {
+        if (video) {
+            m_feedSeekTimesMs.push_back(now);
+            if (m_feedSeekTimesMs.size() > kMaxSeeks) {
+                m_feedSeekGaveUp = true;
+                LogWarn(VB_MEDIAOUT, "GStreamer feed sync: %zu resync seeks in %d s did not hold this video to the master "
+                                     "(keyframes too far apart?); steering its speed only from here\n",
+                        m_feedSeekTimesMs.size(), (int)(kSeekWindowMs / 1000));
+            }
+        }
+    }
+    if (agreed && std::fabs(err) > (video ? kVideoResyncS : kResyncS) && !m_feedSeekGaveUp) {
+        double target = masterMediaPosition + leadS;
         LogInfo(VB_MEDIAOUT, "GStreamer feed sync: %+.0f ms from the master (%.3f vs %.3f), seeking to %.3f\n",
                 err * 1000.0, local, masterMediaPosition, target);
         m_pwStream->SetFeedSpeed(m_pwFeed, 1.0);
@@ -4823,7 +4856,8 @@ int GStreamerOutput::AdjustFeedSpeed(float masterMediaPosition) {
     double dt = m_feedSpeedLastMs ? std::clamp((double)(now - m_feedSpeedLastMs) / 1000.0, 0.0, 1.0) : 0.0;
     m_feedSpeedLastMs = now;
     m_feedSpeedErrInt = std::clamp(m_feedSpeedErrInt + err * dt, -kMaxSpeedOffset / kKi, kMaxSpeedOffset / kKi);
-    double speed = 1.0 - std::clamp(kKp * err + kKi * m_feedSpeedErrInt, -kMaxSpeedOffset, kMaxSpeedOffset);
+    const double maxOffset = (video && std::fabs(err) > kResyncS) ? kVideoMaxSpeedOffset : kMaxSpeedOffset;
+    double speed = 1.0 - std::clamp(kKp * err + kKi * m_feedSpeedErrInt, -maxOffset, maxOffset);
     m_pwStream->SetFeedSpeed(m_pwFeed, speed);
     // `error` is what the servo steered by; `this packet` its own reading,
     // larger when it arrived late.

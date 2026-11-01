@@ -20,6 +20,7 @@
 #include <gst/app/gstappsink.h>
 #include <array>
 #include <atomic>
+#include <deque>
 #include <condition_variable>
 #include <list>
 #include <map>
@@ -457,6 +458,14 @@ private:
     // How far ahead of the master a resync seek aims: what a flushing seek
     // takes to be heard again.  Learnt from each landing, for the whole run.
     static double s_feedResyncLeadS;
+    // A video's seeks are not alike: an accurate seek decodes from the
+    // previous keyframe, so what one takes depends on where its target falls
+    // and no single lead fits.  Its lead is learnt per media (a lead learnt on
+    // one file carried into the next and kept it seeking), and a media that
+    // keeps missing stops seeking and is steered by speed alone.
+    double m_feedVideoLeadS = 0.06;
+    std::deque<uint64_t> m_feedSeekTimesMs;  // this media's recent resync seeks
+    bool m_feedSeekGaveUp = false;
 
     int m_streamSlot = 1;  // stream slot number (1-5), determines PipeWire node name
 
