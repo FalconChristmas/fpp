@@ -10848,7 +10848,7 @@ function UpdateChildVisibility () {
 				for (var x = 0; x < a.children[ckeys[c]].length; x++) {
 					if (val == ckeys[c]) {
 						if (!hidden.includes(a.name)) {
-							$('.arg_row_' + a.children[ckeys[c]][x]).show();
+							$('.arg_row_' + a.children[ckeys[c]][x]).css('visibility', '').show();
 							shown.push(a.children[ckeys[c]][x]);
 						} else {
 							$('.arg_row_' + a.children[ckeys[c]][x]).hide();
