@@ -2,9 +2,8 @@
 
 FPP's Plugin Manager reads its list from
 [`FalconChristmas/fpp-data/pluginList.json`](https://github.com/FalconChristmas/fpp-data/blob/master/pluginList.json).
-Each entry is `[displayName, pluginInfoURL, category]`; `pluginInfoURL` points at a
-`pluginInfo.json` in the plugin's own repository, which FPP fetches directly to list,
-version-check, and install the plugin.
+Each entry points at a `pluginInfo.json` in the plugin's own repository, which FPP
+fetches directly to list, version-check, and install the plugin.
 
 **Everything about building a plugin lives in the
 [fpp-plugin-Template](https://github.com/FalconChristmas/fpp-plugin-Template)
@@ -17,13 +16,17 @@ repository, not here:**
   — rules and conventions for a well-behaved plugin: logging, the install/uninstall
   lifecycle, talking to FPP through its API instead of its internals, dependency
   installation, and UI conventions.
+- [`PLUGIN_SELF_REVIEW.md`](https://github.com/FalconChristmas/fpp-plugin-Template/blob/master/PLUGIN_SELF_REVIEW.md)
+  — how to review your own plugin before submitting it: the problems the rules
+  don't name, which show up once it's installed on someone else's FPP.
 - the template plugin itself — a working skeleton to fork.
 
 For getting your finished plugin **listed** (or later de-listed/retired) in FPP's
-Plugin Manager, see the
-[fpp-data README](https://github.com/FalconChristmas/fpp-data/blob/master/README.md)
-— it covers the submission process, the `pluginList.json` entry format, and how to
-request removal.
+Plugin Manager, see
+[`PLUGINS.md`](https://github.com/FalconChristmas/fpp-data/blob/master/PLUGINS.md)
+in fpp-data (the submission process and what the automated plugin check covers)
+and the [fpp-data README](https://github.com/FalconChristmas/fpp-data/blob/master/README.md)
+(where to submit a plugin or request its removal).
 
 Keep those as the source of truth; this page only covers what is about *FPP
 itself* rather than about writing a plugin: how FPP installs and rebuilds a
@@ -35,17 +38,19 @@ FPP `git clone`s the `srcURL` from `pluginInfo.json` into the plugin's directory
 then runs `scripts/fpp_install.sh` to set it up. On uninstall it runs
 `scripts/fpp_uninstall.sh`.
 
-Reinstall is an uninstall then an install. Its uninstall runs
+Reinstall is an uninstall then an install. From FPP 10.4 its uninstall runs
 `fpp_uninstall.sh` with `FPP_PLUGIN_REINSTALL=1` (`0` on any other uninstall,
-unset on older FPP), so a plugin can keep state it holds in
+unset on 10.3 and earlier), so a plugin can keep state it holds in
 `config/plugin.<repoName>` or `plugindata/<repoName>/` instead of deleting it;
 the plugin directory itself is always removed. See `PLUGIN_GUIDELINES.md`
 §2.12 in the template repo.
 
 ## Plugin types
 
-- **Script plugin** — PHP or bash scripts invoked by FPP commands, wired up via
-  `commands/descriptions.json`. See the
+- **Script plugin** — PHP pages, shell scripts for the install/uninstall and
+  fppd start/stop hooks, FPP Commands declared in `commands/descriptions.json`,
+  and optionally a `callbacks` script that fppd runs on playlist and media
+  events. See the
   [template plugin](https://github.com/FalconChristmas/fpp-plugin-Template/) for a
   working example.
 - **C++ plugin** — a shared library (`.so`) linked into the `fppd` daemon at
@@ -74,7 +79,7 @@ could otherwise happen:
 Because of this, a `make`/`cmake`/`g++` step in `preStart.sh` or `postStart.sh` is
 almost never necessary — those hooks run synchronously on **every** `fppd`
 start/stop, so a build step there repeats work already done and just delays
-startup every boot for no benefit. See `PLUGIN_GUIDELINES.md` §2.8 in the template
+startup every boot for no benefit. See `PLUGIN_GUIDELINES.md` §2.7 in the template
 repo for the recommended pattern.
 
 ## Publishing a PipeWire audio source from a plugin
