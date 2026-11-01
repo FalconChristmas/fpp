@@ -1627,14 +1627,18 @@ body.is-loading.show-loading-skeleton #schedulerInfo .labelValue:before {
 	padding-right: 5px;
 	vertical-align: top;
 	white-space: nowrap;
-	width: 10%;
+	/* Grow with the label: a fixed 10% box lets a bold label ("Command:") spill
+	   into the data column at larger font sizes or zoom. */
+	flex: 0 0 auto;
+	width: auto;
 	min-width: 100px;
 }
 
 .psiDuration {
 	padding: 0px;
 	vertical-align: top;
-	width: 10%;
+	flex: 0 0 auto;
+	width: auto;
 	min-width: 100px;
 }
 
