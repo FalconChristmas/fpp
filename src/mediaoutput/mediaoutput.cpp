@@ -62,6 +62,21 @@ std::mutex drmMasterLock;
 
 static bool firstOutCreate = true;
 
+// The last media a remote closed, when, and where the master was in it.  A SYNC
+// packet that was already in flight when the media stopped (or when the master
+// moved on to the next item) reaches us after the close; taken at face value it
+// would reopen the file just closed -- or close the media that just started to
+// make room for it.  See UpdateMasterMediaPosition().
+static std::mutex lastClosedMediaLock;
+static std::string lastClosedMediaName;
+static uint64_t lastClosedMediaMS = 0;
+static float lastClosedMediaPos = 0.0f;
+// How long after a close a SYNC that still points at the end of that media is
+// treated as stale.  Packets arrive every ~1s at most; a repeat of the same
+// item restarts at the beginning, which this does not match.
+static const uint64_t STALE_SYNC_WINDOW_MS = 1500;
+static const float STALE_SYNC_SLACK_SEC = 1.0f;
+
 // AudioOutput is persisted as a stable ALSA card ID string (e.g. "S3",
 // "bcm2835ALSA"); setupAudio() in boot/FPPINIT_Audio.cpp migrates legacy numeric
 // values on boot. Resolve it to the current card number for amixer. Read
@@ -1098,6 +1113,14 @@ void CloseMediaOutput() {
     mediaOutput = nullptr;
     lock.unlock();
 
+    if (getFPPmode() == REMOTE_MODE) {
+        std::unique_lock<std::mutex> closedLock(lastClosedMediaLock);
+        lastClosedMediaName = out->m_mediaFilename;
+        lastClosedMediaMS = GetTimeMS();
+        lastClosedMediaPos = masterMediaPosition;
+        masterMediaPosition = 0.0f; // the next media starts from its own syncs
+    }
+
     if (out->IsPlaying()) {
         out->Stop();
     }
@@ -1137,6 +1160,32 @@ void UpdateMasterMediaPosition(const std::string& filename, float seconds) {
         mediaOutput->AdjustSpeed(seconds);
         return;
     } else {
+        {
+            // A SYNC for media we just closed, still positioned where the
+            // master was when it stopped, is a straggler.  Joining mid-stream
+            // on it would reopen stopped media or tear down what replaced it.
+            std::unique_lock<std::mutex> closedLock(lastClosedMediaLock);
+            // The output keeps the resolved path; a packet carries the name
+            // the master played.
+            std::string resolved = filename;
+            bool sameFile = filename == lastClosedMediaName;
+            if (!sameFile && HasAudioForMedia(resolved)) {
+                sameFile = resolved == lastClosedMediaName;
+            }
+            if (!sameFile) {
+                resolved = filename;
+                if (HasVideoForMedia(resolved)) {
+                    sameFile = resolved == lastClosedMediaName;
+                }
+            }
+            if (sameFile && lastClosedMediaMS != 0 && lastClosedMediaPos > 0.0f &&
+                (GetTimeMS() - lastClosedMediaMS) < STALE_SYNC_WINDOW_MS &&
+                seconds >= lastClosedMediaPos - STALE_SYNC_SLACK_SEC) {
+                LogDebug(VB_SYNC, "Ignoring stale sync for just-closed media %s (%.2f, stopped at %.2f)\n",
+                         filename.c_str(), seconds, lastClosedMediaPos);
+                return;
+            }
+        }
         OpenMediaOutput(filename);
         int msTime = (seconds > 0.0f) ? (int)(seconds * 1000.0f) : 0;
         StartMediaOutput(filename, msTime);
