@@ -14540,11 +14540,13 @@ function ReloadContentList (baseUrl, inp) {
 	var items = new Map();
 	hosts.forEach(function (burl) {
 		let requestUrl;
+		// The page's own origin keeps its port (and scheme): buildHttpURL() builds
+		// http://host with no port, which is another origin when the UI is not on 80.
 		if (burl !== currentHost) {
 			// Rewrite to proxy path
-			requestUrl = buildHttpURL(currentHost, '/proxy/' + burl + '/' + url);
+			requestUrl = window.location.origin + '/proxy/' + burl + '/' + url;
 		} else {
-			requestUrl = buildHttpURL(burl, '/' + url);
+			requestUrl = window.location.origin + '/' + url;
 		}
 		$.ajax({
 			dataType: 'json',
