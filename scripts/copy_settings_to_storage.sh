@@ -259,13 +259,17 @@ for action in "$@"; do
         rsync $EXTRA_ARGS $REMOTE_COMPRESS -- "$SOURCE/scripts" "$DEST" 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
         ;;
     "Plugins")
-        # "plugin"* via shell glob works for local SOURCE but fails for daemon "host::path" (no local expansion).
-        # Use rsync include filters for daemon sources so plugins/plugindata are matched remotely.
-        if [[ "$SOURCE" == *"::"* ]]; then
-            rsync $EXTRA_ARGS $REMOTE_COMPRESS --include='plugin*' --include='plugin*/**' --exclude='*' -- "$SOURCE"/ "$DEST" 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
-        else
-            rsync $EXTRA_ARGS $REMOTE_COMPRESS -- "$SOURCE"/plugin* "$DEST" 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
-        fi
+        # The plugins, their data, and each one's settings in
+        # config/plugin.<name>[.json] -- which Configuration leaves out (its
+        # unanchored --exclude=plugin* matches them too), so before this no
+        # flag copied a plugin's settings.  Filters rather than a shell glob:
+        # "host::path"/plugin* is never expanded here.  pluginHistory.jsonl
+        # and pluginPrivacyAccepted.json have no "." after "plugin", so this
+        # box leaves them alone (Configuration copies pluginPrivacyAccepted.json;
+        # its System Settings area restores it only from this player's own
+        # backup).
+        rsync $EXTRA_ARGS $REMOTE_COMPRESS --include='/plugin*/***' --include='/config/' --include='/config/plugin.*' \
+            --include='/config/plugin.*/***' --exclude='*' -- "$SOURCE"/ "$DEST" 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
         ;;
     "Images")
         rsync $EXTRA_ARGS -- "$SOURCE/images" "$DEST" 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
@@ -319,7 +323,9 @@ for action in "$@"; do
         rsync $EXTRA_ARGS $REMOTE_COMPRESS -- "$SOURCE/config/backups" "$DEST/config" 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
         ;;
     "Configuration")
-        rsync $EXTRA_ARGS --exclude=music/* --exclude=sequences/* --exclude=videos/*  --exclude=config/cape-eeprom.bin --exclude=effects/*  --exclude=events/*  --exclude=logs/*  --exclude=scripts/*  --exclude=plugin*  --exclude=playlists/*   --exclude=images/* --exclude=cache/* --exclude=backups/* --exclude=lost+found --exclude=fpp-info.json -- "$SOURCE"/ "$DEST" 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
+        # crashes/, upload/ and tmp/ are this player's crash reports, upload
+        # leftovers and scratch space, not configuration.
+        rsync $EXTRA_ARGS --exclude=/crashes/* --exclude=/upload/* --exclude=/tmp/* --exclude=music/* --exclude=sequences/* --exclude=videos/*  --exclude=config/cape-eeprom.bin --exclude=effects/*  --exclude=events/*  --exclude=logs/*  --exclude=scripts/*  --exclude=plugin*  --exclude=playlists/*   --exclude=images/* --exclude=cache/* --exclude=backups/* --exclude=lost+found --exclude=fpp-info.json -- "$SOURCE"/ "$DEST" 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
         ;;
     *)
         echo -n "Unknown action $action"
