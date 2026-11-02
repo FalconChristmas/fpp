@@ -1645,12 +1645,28 @@ function ReadTimeZone()
  *
  * @return array
  */
-function BackupConfigFolderConfigs()
+function BackupConfigFolderConfigs($configDir = null)
 {
     global $settings, $system_config_areas;
 
+    //This player's config folder, or a File Copy backup's (ConfigAreasForFolder())
+    $fromFolder = ($configDir !== null);
+    if ($configDir === null) {
+        $configDir = $settings['configDirectory'];
+    }
+
     //Get a list of files in the config directory
-    $json_config_files = read_directory_files($settings['configDirectory'], false);
+    $json_config_files = read_directory_files($configDir, false);
+
+    //A folder's plugin configs are its plugins area's (retrievePluginList()),
+    //not this player's, so the area list below doesn't name them.
+    if ($fromFolder) {
+        foreach (array_keys($json_config_files) as $filename) {
+            if (stripos($filename, 'plugin.') === 0) {
+                unset($json_config_files[$filename]);
+            }
+        }
+    }
 
     //Loop over the files we have found and weed out the non .json files
     foreach ($json_config_files as $filename => $fn_bool) {
@@ -1761,7 +1777,7 @@ function BackupConfigFolderConfigs()
     foreach ($json_config_files as $filename => $fn_bool) {
         if (is_string($filename)) {
             //Read in the config file
-            $file_data = file_get_contents($settings['configDirectory'] . '/' . $filename);
+            $file_data = file_get_contents($configDir . '/' . $filename);
             //Attempt json_decode on the string, if there is a error then can the data and the filename (json file should have json data)
             $json_result = json_decode($file_data);
             //
@@ -1820,6 +1836,188 @@ function RestoreConfigFolderConfigs($restore_data)
 }
 
 /**
+ * Reads one file for a backup, in the form the backup stores it: parsed for the
+ * known ini and JSON files, base64 for a binary area, otherwise its lines.
+ *
+ * @param string $key The file's key in its area (or the area's, for a one-file area).
+ * @param string $path Where to read it.
+ * @param bool $binary Whether the area is binary.
+ * @return mixed
+ */
+function ReadBackupFile($key, $path, $binary)
+{
+    global $known_json_config_files, $known_ini_config_files;
+
+    if (in_array($key, $known_ini_config_files)) {
+        return ParseIniConfigForBackup($path);
+    } else if (in_array($key, $known_json_config_files)) {
+        //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
+        return json_decode(@file_get_contents($path), true);
+    } else if ($binary) {
+        return base64_encode(@file_get_contents($path));
+    }
+    //all other files are std flat files, process them into an array by splitting at line breaks
+    return explode("\n", @file_get_contents($path));
+}
+
+/**
+ * Reads one backup area, as performBackup() stores it in a JSON backup.
+ *
+ * Reads wherever the area's locations point: this player's files for a
+ * backup, or a File Copy backup's for an area restore from one (see
+ * ConfigAreasForFolder()).  $configDir is passed on to function-type sub-areas
+ * that read the config folder themselves.
+ *
+ * @param string $config_key The area's key in $system_config_areas.
+ * @param array $config_data The area's entry.
+ * @param string|null $configDir Config folder for function sub-areas; null for this player's.
+ * @return mixed The area's data, or null when there is nothing to back up for it.
+ */
+function CollectBackupArea($config_key, $config_data, $configDir = null)
+{
+    $setting_file_to_backup = $config_data['file'];
+    $binary = isset($config_data['binary']) && $config_data['binary'];
+
+    //A one-file area: the file, if it exists
+    if (!is_array($setting_file_to_backup)) {
+        if ($setting_file_to_backup !== false && file_exists($setting_file_to_backup)) {
+            return ReadBackupFile($config_key, $setting_file_to_backup, $binary);
+        }
+        return null;
+    }
+
+    //Areas with sub-areas: one entry each, read even when missing (as they always were)
+    $area_data = null;
+    foreach ($setting_file_to_backup as $sfi => $sfd) {
+        $file_data = array();
+        if ($sfd['type'] == "dir") {
+            //read all files in directory and read data
+            $file_data = read_directory_files($sfd['location']);
+        } else if ($sfd['type'] == "file") {
+            //Several locations (plugins: plugin.X and plugin.X.json) are keyed by filename
+            if (is_array($sfd['location'])) {
+                foreach ($sfd['location'] as $location_filename => $location_path) {
+                    $file_data[$location_filename] = array(ReadBackupFile($sfi, $location_path, $binary));
+                }
+            } else {
+                $file_data = array(ReadBackupFile($sfi, $sfd['location'], $binary));
+            }
+        } else if ($sfd['type'] == "function") {
+            //The function named under the backup location returns the data
+            $backup_function = $sfd['location']['backup'];
+            $backup_file_data = array();
+            if (function_exists($backup_function)) {
+                $backup_file_data = ($configDir === null) ? $backup_function() : $backup_function($configDir);
+            }
+            $file_data = array($backup_file_data);
+        }
+        $area_data[$sfi] = $file_data;
+    }
+    return $area_data;
+}
+
+/**
+ * The backup areas, read from a File Copy backup folder instead of this player.
+ *
+ * A File Copy backup holds the media directory's files as they were (settings,
+ * config/, playlists/, scripts/), so each location under this player's media
+ * directory is moved under $root.  The plugins and the extra network interfaces
+ * are found in the folder's config/, not this player's.  The timezone is the
+ * system's, not a file a folder holds, so it is left out, as is any location
+ * outside the media directory (the folder can't hold it).
+ *
+ * Only for reading: restores still write to $system_config_areas' locations.
+ *
+ * @param string $root The backup folder (or a staged copy of it).
+ * @return array Areas keyed as $system_config_areas, without 'all'.
+ */
+function ConfigAreasForFolder($root)
+{
+    global $system_config_areas, $settings;
+
+    $media = rtrim($settings['mediaDirectory'], '/');
+    $root = rtrim($root, '/');
+    $configDir = $root . '/config';
+
+    $areas = $system_config_areas;
+    unset($areas['all']);
+    //Not staged (the EEPROM box restores it): read here, the missing file
+    //would restore as an empty EEPROM
+    unset($areas['virtualEEPROM']);
+    unset($areas['settings']['file']['email']);
+    unset($areas['settings']['file']['timezone']);
+    $areas['plugins']['file'] = retrievePluginList($configDir);
+    foreach (array_keys(ListExtraNetworkInterfaceFiles($settings['configDirectory'])) as $iface) {
+        unset($areas['network']['file'][$iface]);
+    }
+    foreach (array_keys(ListExtraNetworkInterfaceFiles($configDir)) as $iface) {
+        $areas['network']['file'][$iface] = array('type' => 'file', 'location' => $configDir . '/' . $iface);
+    }
+
+    //null for a location outside the media directory: the folder can't hold it
+    $rebase = function ($location) use ($media, $root) {
+        if (strpos($location, $media . '/') === 0) {
+            return $root . substr($location, strlen($media));
+        }
+        return null;
+    };
+    foreach ($areas as $key => $area) {
+        if (!is_array($area['file'])) {
+            if (is_string($area['file'])) {
+                $areas[$key]['file'] = $rebase($area['file']);
+                if ($areas[$key]['file'] === null) {
+                    unset($areas[$key]);
+                }
+            }
+            continue;
+        }
+        foreach ($area['file'] as $sub => $sub_data) {
+            if ($sub_data['type'] == 'function' || $key == 'plugins' ||
+                ($key == 'network' && strpos((string) $sub_data['location'], $configDir . '/') === 0)) {
+                continue; //a function reads $configDir itself; these were found in the folder
+            }
+            if (!is_string($sub_data['location']) || $rebase($sub_data['location']) === null) {
+                unset($areas[$key]['file'][$sub]);
+            } else {
+                $areas[$key]['file'][$sub]['location'] = $rebase($sub_data['location']);
+            }
+        }
+    }
+    return $areas;
+}
+
+/**
+ * Reads a File Copy backup folder into the form of a JSON settings backup of
+ * every area, so doRestore() can restore any area of it: the same areas, the
+ * same Keep Network / Keep Player-Remote choices and the same rules for what a
+ * restore carries from another player (see GetSettingsNotCarriedByRestore()).
+ *
+ * @param string $root The backup folder (or a staged copy of it).
+ * @param string $comment Recorded as the backup's comment.
+ * @return array Backup data, as doRestore() takes it.
+ */
+function CollectBackupFromFolder($root, $comment)
+{
+    global $fpp_backup_format_version;
+
+    $configDir = rtrim($root, '/') . '/config';
+    $backup_data = array();
+    foreach (ConfigAreasForFolder($root) as $config_key => $config_data) {
+        $area_data = CollectBackupArea($config_key, $config_data, $configDir);
+        if ($area_data !== null) {
+            $backup_data[$config_key] = $area_data;
+        }
+    }
+    $backup_data['backup_comment'] = $comment;
+    $backup_data['fpp_backup_version'] = $fpp_backup_format_version;
+    $backup_data['backup_taken'] = time();
+    //The files as they were, never redacted: an empty password in them is one
+    //that player had, not one a backup blanked (see doRestore()'s 'protected').
+    $backup_data['protected'] = false;
+    return $backup_data;
+}
+
+/**
  * Performs all the work to gather files to be backed up for the specified backup area
  * optionally $allowDownload can be set to false in order to prevent the backup being sent to the users browser and just have the file backed up to the config/backups folder
  *
@@ -1846,204 +2044,18 @@ function performBackup($area = "all", $allowDownload = true, $backupComment = "U
         //remove email as its in the general settings file and not a separate section (no actual file to backup)
         unset($tmp_config_areas['settings']['file']['email']);
 
-        //Generate backup for selected area
-        //AREA - ALL
+        //Generate backup for selected area: all of them, or the one chosen
         if (strtolower($area) == "all") {
-            //combine all backup areas into a single file
-
-            //remove the 'all' key and do some processing of areas array
             unset($tmp_config_areas['all']);
-
-            //loop over the areas and process them
-            foreach ($tmp_config_areas as $config_key => $config_data) {
-                $setting_file_to_backup = $config_data['file'];
-                $file_data = array();
-                $backup_file_data = '';
-                //if setting file value is an array then there are one or more setting files related to this backup
-                if (is_array($setting_file_to_backup)) {
-                    //loop over the array
-                    foreach ($setting_file_to_backup as $sfi => $sfd) {
-                        $file_data = array();
-                        //           'events' => array('type' => 'dir', 'location' => $eventDirectory),
-
-                        //File or directory, read data accordingly
-                        if ($sfd['type'] == "dir") {
-                            //read all files in directory and read data
-                            $file_data = read_directory_files($sfd['location']);
-                        } else if ($sfd['type'] == "file") {
-                            //read setting file as normal
-
-                            //Check if the file location(s) is an array, if so there will likely be more than 1 file location to read
-                            //All other times location should just be a simple string for the file location
-                            if (is_array($sfd['location'])) {
-                                //loop over the locations to read them all in
-                                foreach ($sfd['location'] as $location_filename => $location_path) {
-                                    //Check if the file to be backed up is one of a known type
-                                    if (in_array($sfi, $known_ini_config_files)) {
-                                        //INI
-                                        //parse ini properly
-                                        $backup_file_data = ParseIniConfigForBackup($location_path);
-                                    } else if (in_array($sfi, $known_json_config_files)) {
-                                        //JSON
-                                        //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
-                                        $backup_file_data = json_decode(@file_get_contents($location_path), true);
-                                    } else if (isset($config_data['binary']) && $config_data['binary']) {
-                                        $backup_file_data = base64_encode(@file_get_contents($location_path));
-                                    } else {
-                                        //all other files are std flat files, process them into an array by splitting at line breaks
-                                        $backup_file_data = explode("\n", @file_get_contents($location_path));
-                                    }
-
-                                    //Collect the backup data
-                                    $file_data[$location_filename] = array($backup_file_data);
-                                } //end loop
-                            } else {
-                                //Not an array so just a single file or filepath
-
-                                //Check if the file to be backed up is one of a known type
-                                if (in_array($sfi, $known_ini_config_files)) {
-                                    //INI
-                                    //parse ini properly
-                                    $backup_file_data = ParseIniConfigForBackup($sfd['location']);
-                                } else if (in_array($sfi, $known_json_config_files)) {
-                                    //JSON
-                                    //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
-                                    $backup_file_data = json_decode(@file_get_contents($sfd['location']), true);
-                                } else if (isset($config_data['binary']) && $config_data['binary']) {
-                                    $backup_file_data = base64_encode(@file_get_contents($sfd['location']));
-                                } else {
-                                    //all other files are std flat files, process them into an array by splitting at line breaks
-                                    $backup_file_data = explode("\n", @file_get_contents($sfd['location']));
-                                }
-
-                                //Collect the backup data
-                                $file_data = array($backup_file_data);
-                            } //end else
-
-                        } else if ($sfd['type'] == "function") {
-                            //If the type is function, call the function defined under the backup location
-                            //this function will return the necessary data
-                            $backup_function = $sfd['location']['backup'];
-                            if (function_exists($backup_function)) {
-                                $backup_file_data = $backup_function();
-                            }
-                            $file_data = array($backup_file_data);
-                        }
-
-                        $tmp_settings_data[$config_key][$sfi] = $file_data;
-                    }
-                } else {
-                    if ($setting_file_to_backup !== false && file_exists($setting_file_to_backup)) {
-                        //what type of file are we dealing with? json, ini, csv, flatfile?
-                        //ultimately the data should be returned as an array
-                        //it will later be json_encoded
-
-                        if (in_array($config_key, $known_ini_config_files)) {
-                            //INI
-                            //parse ini properly
-                            $file_data = ParseIniConfigForBackup($setting_file_to_backup);
-                        } else if (in_array($config_key, $known_json_config_files)) {
-                            //JSON
-                            //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
-                            $file_data = json_decode(file_get_contents($setting_file_to_backup), true);
-                        } else if (isset($config_data['binary']) && $config_data['binary']) {
-                            $file_data = base64_encode(file_get_contents($setting_file_to_backup));
-                        } else {
-                            //all other files are std flat files, process them into an array by splitting at line breaks
-                            $file_data = explode("\n", file_get_contents($setting_file_to_backup));
-                        }
-                        $tmp_settings_data[$config_key] = $file_data;
-                    }
-                }
-                //End for loop processing each individual "area" in order to get all areas
-            }
-            //End processing "ALL" backup areas
+            $areas_to_backup = $tmp_config_areas;
         } else {
-            //AREA - Individual Backup section selections will arrive here
-            //All other backup areas for individual selections
-            $setting_file_to_backup = $tmp_config_areas[$area]['file'];
-
-            //if setting file value is an array then there are one or more setting files related to this backup
-            if (is_array($setting_file_to_backup)) {
-                //loop over the array
-                foreach ($setting_file_to_backup as $sfi => $sfd) {
-                    $file_data = array();
-                    if ($sfd['type'] == "dir") {
-                        $file_data = read_directory_files($sfd['location']);
-                    } else if ($sfd['type'] == "file") {
-
-                        //Check if the file location(s) is an array, if so there will likely be more than 1 file location to read
-                        //All other times location should just be a simple string for the file location
-                        if (is_array($sfd['location'])) {
-                            //loop over the locations to read them all in
-                            foreach ($sfd['location'] as $location_filename => $location_path) {
-                                //Check if the file to be backed up is one of a known type
-                                if (in_array($sfi, $known_ini_config_files)) {
-                                    //INI
-                                    //parse ini properly
-                                    $backup_file_data = ParseIniConfigForBackup($location_path);
-                                } else if (in_array($sfi, $known_json_config_files)) {
-                                    //JSON
-                                    //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
-                                    $backup_file_data = json_decode(file_get_contents($location_path), true);
-                                } else if (isset($tmp_config_areas[$area]['binary']) && $tmp_config_areas[$area]['binary']) {
-                                    $backup_file_data = base64_encode(file_get_contents($location_path));
-                                } else {
-                                    //all other files are std flat files, process them into an array by splitting at line breaks
-                                    $backup_file_data = explode("\n", file_get_contents($location_path));
-                                }
-
-                                //Collect the backup data
-                                $file_data[$location_filename] = array($backup_file_data);
-                            } //end loop
-                        } else {
-                            //Not an array so just a single file or filepath
-
-                            //Check if the file to be backed up is one of a known type
-                            if (in_array($sfi, $known_ini_config_files)) {
-                                //INI
-                                //parse ini properly
-                                $backup_file_data = ParseIniConfigForBackup($sfd['location']);
-                            } else if (in_array($sfi, $known_json_config_files)) {
-                                //JSON
-                                //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
-                                $backup_file_data = json_decode(file_get_contents($sfd['location']), true);
-                            } else if (isset($tmp_config_areas[$area]['binary']) && $tmp_config_areas[$area]['binary']) {
-                                $backup_file_data = base64_encode(file_get_contents($sfd['location']));
-                            } else {
-                                //all other files are std flat files, process them into an array by splitting at line breaks
-                                $backup_file_data = explode("\n", file_get_contents($sfd['location']));
-                            }
-
-                            //Collect the backup data
-                            $file_data = array($backup_file_data);
-                        } //end else
-
-                    } else if ($sfd['type'] == "function") {
-                        $backup_function = $sfd['location']['backup'];
-                        $backup_file_data = array();
-                        if (function_exists($backup_function)) {
-                            $backup_file_data = $backup_function();
-                        }
-                        $file_data = array($backup_file_data);
-                    }
-                    $tmp_settings_data[$area][$sfi] = $file_data;
-                }
-            } else {
-                if ($setting_file_to_backup !== false && file_exists($setting_file_to_backup)) {
-                    if (in_array($area, $known_ini_config_files)) {
-                        $file_data = ParseIniConfigForBackup($setting_file_to_backup);
-                    } else if (in_array($area, $known_json_config_files)) {
-                        $file_data = json_decode(file_get_contents($setting_file_to_backup), true);
-                    } else if (isset($tmp_config_areas[$area]['binary']) && $tmp_config_areas[$area]['binary']) {
-                        $file_data = base64_encode(file_get_contents($setting_file_to_backup));
-                    } else {
-                        $file_data = explode("\n", file_get_contents($setting_file_to_backup));
-                    }
-                    $tmp_settings_data[$area] = $file_data;
-                }
+            $areas_to_backup = array($area => $tmp_config_areas[$area]);
+        }
+        foreach ($areas_to_backup as $config_key => $config_data) {
+            $area_data = CollectBackupArea($config_key, $config_data);
+            if ($area_data !== null) {
+                $tmp_settings_data[$config_key] = $area_data;
             }
-            //End individual / specific backup area processing
         }
 
         //Add the backup comment into settings data that has been gathered
@@ -2244,8 +2256,31 @@ function retrieveNetworkInterfaces()
 {
     global $system_config_areas, $settings;
 
+    $network_interfaces = ListExtraNetworkInterfaceFiles($settings['configDirectory']);
+
+    //Loop over the array, put the filenames into the network area so they can be backed up
+    foreach ($network_interfaces as $intername_name => $interface_bool) {
+        $system_config_areas['network']['file'][$intername_name] = array('type' => 'file', 'location' => $settings['configDirectory'] . '/' . $intername_name);
+
+        //Add into the array that tracks what interface & settings are restored
+        $network_settings_restored_post_apply[$intername_name] = "";
+        $network_settings_restored_applied_ips[$intername_name] = array();
+    }
+
+    return $network_interfaces;
+}
+
+/**
+ * The extra interface configs (beyond eth0 and wlan0) and DHCP lease files in a
+ * config folder: this player's, or a File Copy backup's.
+ *
+ * @param string $configDir The config folder.
+ * @return array Filename => true.
+ */
+function ListExtraNetworkInterfaceFiles($configDir)
+{
     //Get a list of files in the config directory
-    $network_interfaces = read_directory_files($settings['configDirectory'], false);
+    $network_interfaces = read_directory_files($configDir, false);
 
     //Loop over the files we have found and weed out the non .json files
     foreach ($network_interfaces as $filename => $fn_bool) {
@@ -2266,15 +2301,6 @@ function retrieveNetworkInterfaces()
     }
     if (is_array($network_interfaces) && array_key_exists('interface.wlan0', $network_interfaces)) {
         unset($network_interfaces['interface.wlan0']);
-    }
-
-    //Loop over the array, put the filenames into the network area so they can be backed up
-    foreach ($network_interfaces as $intername_name => $interface_bool) {
-        $system_config_areas['network']['file'][$intername_name] = array('type' => 'file', 'location' => $settings['configDirectory'] . '/' . $intername_name);
-
-        //Add into the array that tracks what interface & settings are restored
-        $network_settings_restored_post_apply[$intername_name] = "";
-        $network_settings_restored_applied_ips[$intername_name] = array();
     }
 
     return $network_interfaces;
@@ -2303,11 +2329,16 @@ function isTextMimeType($mimeType)
  *
  * @return array Array of plugins and respective config file data
  */
-function retrievePluginList()
+function retrievePluginList($configDir = null)
 {
     global $settings;
 
-    $config_files = read_directory_files($settings['configDirectory'], false);
+    //This player's config folder, or a File Copy backup's (ConfigAreasForFolder())
+    if ($configDir === null) {
+        $configDir = $settings['configDirectory'];
+    }
+
+    $config_files = read_directory_files($configDir, false);
     $plugin_names = array();
 
     //find the plugin configs which are prepended with "plugin.", ignore normal JSON files
@@ -2316,7 +2347,7 @@ function retrievePluginList()
         if ((stripos(strtolower($fname), "plugin.") !== false)) {
             //Fine out the MINE type of the file we're backing up
             $finfo_open_handle = finfo_open(FILEINFO_MIME_TYPE);
-            $fileInfo = finfo_file($finfo_open_handle, $settings['configDirectory'] . "/" . $fname);
+            $fileInfo = finfo_file($finfo_open_handle, $configDir . "/" . $fname);
 
             //If it's a plain text file (incl. JSON/XML/empty) then we can back it up, things like databases are skipped
             if (isTextMimeType($fileInfo)) {
@@ -2329,7 +2360,7 @@ function retrievePluginList()
                 //it: replacing kept whichever file readdir returned last.
                 $locations = isset($plugin_names[$plugin_name]) ? $plugin_names[$plugin_name]['location'] : array();
                 //Normal Plugin config file location
-                $locations[$fname] = ($settings['configDirectory'] . "/" . $fname);
+                $locations[$fname] = ($configDir . "/" . $fname);
                 //                //Check the extra backup locations where the plugin name matches this plugin and extra the extra path
                 //                if (isset($extra_backup_locations['plugins'][$plugin_name]) && !empty($extra_backup_locations['plugins'][$plugin_name]))
                 //                {
