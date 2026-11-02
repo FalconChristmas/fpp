@@ -6350,7 +6350,7 @@ function show_details (args) {
 		}
 		retval.push(typeof arg + ': ' + js);
 	});
-	console.log(arg);
+	console.log(args);
 	return retval.join('<br/>');
 }
 
