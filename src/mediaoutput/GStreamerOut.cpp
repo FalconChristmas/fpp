@@ -4500,17 +4500,31 @@ int GStreamerOutput::Close(void) {
     m_mediaConnectors.clear();
 
     // Clean up video overlay state
-    if (m_videoFramesReceived > 0 || m_videoFramesDelivered > 0) {
+    // The frame state is shared with the sample callback (m_videoFrameMutex)
+    // and the channel output thread's overlay push (m_videoFrameMutex for the
+    // frame, m_videoOverlayModelLock for the delivery count), so it is reset
+    // under the same locks, one at a time.
+    uint64_t framesReceived;
+    uint64_t framesDelivered;
+    {
+        std::lock_guard<std::mutex> lock(m_videoFrameMutex);
+        framesReceived = m_videoFramesReceived;
+        m_videoFrameReady = false;
+        m_videoFramesReceived = 0;
+    }
+    {
+        std::lock_guard<std::mutex> lock(m_videoOverlayModelLock);
+        framesDelivered = m_videoFramesDelivered;
+        m_videoFramesDelivered = 0;
+    }
+    if (framesReceived > 0 || framesDelivered > 0) {
         LogDebug(VB_MEDIAOUT, "GStreamer video overlay stats: %lu frames received, %lu delivered\n",
-                (unsigned long)m_videoFramesReceived, (unsigned long)m_videoFramesDelivered);
+                (unsigned long)framesReceived, (unsigned long)framesDelivered);
     }
     m_hasVideoStream = false;
     m_feedVideoLeadS = 0.06;
     m_feedSeekTimesMs.clear();
     m_feedSeekGaveUp = false;
-    m_videoFrameReady = false;
-    m_videoFramesReceived = 0;
-    m_videoFramesDelivered = 0;
     m_audioChain = nullptr;
     m_videoChain = nullptr;
     m_kmssink = nullptr;     // owned by pipeline bin, already freed
@@ -4851,8 +4865,11 @@ int GStreamerOutput::AdjustFeedSpeed(float masterMediaPosition) {
         m_feedResyncLanding = false;
         if (std::fabs(err) < 1.0) {
             leadS = std::clamp(leadS - 0.8 * err, 0.0, video ? kVideoMaxLeadS : 2.0);
-        } else if (video) {
-            leadS = kDefaultLeadS;  // a landing that far off teaches nothing
+        } else {
+            // A landing that far off teaches nothing, and the lead is never
+            // corrected from it: left alone, a lead that overshoots by a second
+            // lands every seek that far ahead and seeks again, for good.
+            leadS = kDefaultLeadS;
         }
         LogDebug(VB_MEDIAOUT, "GStreamer feed sync: resync landed %+.1f ms from the master; seeks now aim %.0f ms ahead\n",
                  err * 1000.0, leadS * 1000.0);
