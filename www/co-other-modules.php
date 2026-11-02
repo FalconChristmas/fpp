@@ -423,7 +423,7 @@
     class SPIws2801Device extends OtherBaseDevice {
 
         constructor() {
-            super("SPIws2801", "SPI-WS2801", 1530, false, SPIDevices, { pi36: 0 });
+            super("SPIws2801", "SPI-WS2801", 1530, false, false, SPIDevices, { pi36: 0 });
         }
 
         PopulateHTMLRow(config) {
