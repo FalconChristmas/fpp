@@ -1,4 +1,29 @@
 #!/bin/bash
+
+# The end banner.  copystorage.php prints it with --banner <rc> after a
+# settings-area restore (Stage), which goes on after this script has ended.
+PrintBanner() {
+    echo " "
+    echo "========================================="
+    if [ "$1" -ne 0 ]; then
+        echo "BACKUP FAILED (rc=$1)"
+        echo "One or more items failed to copy - see errors above."
+        echo "This output is also saved in logs/fppd.log."
+    else
+        echo "BACKUP COMPLETE"
+        echo "All selected items have been successfully copied."
+    fi
+    echo "You may now close this window."
+    echo "Safe to remove storage device if applicable."
+    echo "========================================="
+    echo " "
+}
+if [ "$1" = "--banner" ]; then
+    [[ "$2" =~ ^[0-9]+$ ]] || exit 1
+    PrintBanner "$2"
+    exit 0
+fi
+
 DEVICE=$1
 DPATH=$2 # Folder For backups
 DIRECTION=$3
@@ -322,6 +347,30 @@ for action in "$@"; do
         fi
         rsync $EXTRA_ARGS $REMOTE_COMPRESS -- "$SOURCE/config/backups" "$DEST/config" 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
         ;;
+    Stage:*)
+        # A restore of chosen settings areas (copystorage.php's configArea):
+        # the files those areas read -- settings, config/ (not its JSON
+        # backups, nor the cape EEPROM: the EEPROM item is what restores
+        # that, as with a plain Configuration copy), playlists/, scripts/ --
+        # into the run's stage, Stage:<folder>, a tmp/filecopy-stage-<id>
+        # folder copystorage.php names.
+        # Nothing is put in place here: backup.php reads the areas from the
+        # stage and restores them as a JSON settings restore would.
+        STAGE="${action#Stage:}"
+        if [ "$BASEDIRECTION" != "FROM" ]; then
+            echo "Stage is only for a restore."
+            OVERALL_RC=1
+        elif ! [[ "$STAGE" =~ ^/[A-Za-z0-9._/-]+/tmp/filecopy-stage-[A-Za-z0-9]+$ ]] || [[ "$STAGE" == *".."* ]]; then
+            echo "Invalid stage folder: $STAGE"
+            OVERALL_RC=1
+        else
+            rm -rf -- "$STAGE"
+            mkdir -p -- "$STAGE"
+            rsync $EXTRA_ARGS $REMOTE_COMPRESS --include='/settings' --include='/channelmemorymaps' --exclude='/config/backups/' --exclude='/config/cape-eeprom.bin' \
+                --include='/config/***' --include='/playlists/***' --include='/scripts/***' --exclude='*' -- "$SOURCE"/ "$STAGE"/ 2>&1 | IgnoreWarnings; rc=${PIPESTATUS[0]}; (( rc != 0 )) && OVERALL_RC=$rc
+            STAGED=1
+        fi
+        ;;
     "Configuration")
         # crashes/, upload/ and tmp/ are this player's crash reports, upload
         # leftovers and scratch space, not configuration.
@@ -359,18 +408,14 @@ if [ "$BASEDIRECTION" = "FROM" ]; then
     chown -R fpp:fpp -- /home/fpp/media
 fi
 
-echo " "
-echo "========================================="
-if [ "$OVERALL_RC" -ne 0 ]; then
-    echo "BACKUP FAILED (rc=$OVERALL_RC)"
-    echo "One or more items failed to copy - see errors above."
-    echo "This output is also saved in logs/fppd.log."
-else
-    echo "BACKUP COMPLETE"
-    echo "All selected items have been successfully copied."
+# The settings areas are restored from the stage after this, so the run isn't
+# over: copystorage.php prints the banner (--banner) when it has.  A failed
+# copy still ends here.
+if [ "$STAGED" = "1" ] && [ "$OVERALL_RC" -eq 0 ]; then
+    echo " "
+    echo "Files copied; restoring the chosen settings areas next."
+    exit 0
 fi
-echo "You may now close this window."
-echo "Safe to remove storage device if applicable."
-echo "========================================="
-echo " "
+
+PrintBanner "$OVERALL_RC"
 exit $OVERALL_RC

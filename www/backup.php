@@ -1987,6 +1987,31 @@ function ConfigAreasForFolder($root)
 }
 
 /**
+ * What a File Copy restore by settings area does not offer (fnmatch() patterns
+ * of an area, or area/sub-area): the cape EEPROM (the Virtual EEPROM box
+ * restores it), one plugin alone (Plugin Settings restores every plugin's,
+ * whichever is named), the timezone (not a file a folder holds) and this
+ * player's own extra interfaces (a backup need not have them).  The list on
+ * the page and copystorage.php's check both use it.
+ */
+$file_copy_area_omit = array('virtualEEPROM', 'plugins/*', 'settings/timezone', 'network/interface.*');
+
+/**
+ * True if $area ('name' or 'name/sub') matches one of the $omit patterns; a
+ * pattern naming an area covers its sub-areas too.
+ */
+function ConfigAreaOmitted($area, $omit)
+{
+    $main = explode('/', $area, 2)[0];
+    foreach ($omit as $pattern) {
+        if (fnmatch($pattern, $area) || fnmatch($pattern, $main)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * Reads a File Copy backup folder into the form of a JSON settings backup of
  * every area, so doRestore() can restore any area of it: the same areas, the
  * same Keep Network / Keep Player-Remote choices and the same rules for what a
@@ -2219,21 +2244,36 @@ function doBackupDownload($settings_data, $area)
  * @param $area_name String Either 'backuparea' or 'restorearea' for either respective section
  * @return string HTML code for a dropdown selection list
  */
-function genSelectList($area_name = "backuparea")
+function genSelectList($area_name = "backuparea", $mode = null, $leading_options = array(), $labels = array(), $omit = array())
 {
     global $system_config_areas;
 
+    //'restore' lists the sub-areas too; by default the mode follows the JSON form's names
+    if ($mode === null) {
+        $mode = ($area_name == "restorearea") ? "restore" : "backup";
+    }
+
     $select_html = "<select name=\"$area_name\" id=\"$area_name\">";
+    foreach ($leading_options as $value => $label) {
+        $select_html .= "<option value=\"" . htmlspecialchars($value) . "\">" . htmlspecialchars($label) . "</option>";
+    }
     foreach ($system_config_areas as $item => $item_options) {
+        if (ConfigAreaOmitted($item, $omit)) {
+            continue;
+        }
         //print the main key first
-        $select_html .= "<option value=" . $item . ">" . $item_options['friendly_name'] . "</option>";
+        $label = isset($labels[$item]) ? htmlspecialchars($labels[$item]) : $item_options['friendly_name'];
+        $select_html .= "<option value=" . $item . ">" . $label . "</option>";
         //If we're restoring and there is a sub array of files, print them out as such they are nested
-        if (($area_name == "restorearea" && array_key_exists('file', $item_options)) || ($area_name == "backuparea" && $item == 'plugins')) {
+        if (($mode == "restore" && array_key_exists('file', $item_options)) || ($mode == "backup" && $item == 'plugins')) {
             //make sure file option is an array, meaning this section has sub-areas
             if (is_array($item_options['file'])) {
                 foreach ($item_options['file'] as $sub_index => $sub_data) {
+                    if (ConfigAreaOmitted($item . '/' . $sub_index, $omit)) {
+                        continue;
+                    }
                     $disabled = '';
-                    if ($area_name == "backuparea") {
+                    if ($mode == "backup") {
                         $disabled = "disabled='disabled'";
                     }
                     $select_html .= "<option value=" . $item . "/" . $sub_index . " " . $disabled . " >--" . ucwords(str_replace("_", " ", $sub_index)) . "</option>";
@@ -2710,7 +2750,21 @@ if ($skipHTMLCodeOutput === false) {
 
             function BackupDirectionChanged() {
                 fppFileCopy.directionChanged();
+                UpdateConfigAreaRow();
             }
+
+            // Which part of Configuration to restore: only for a restore with
+            // Configuration ticked.  The keep choices only mean something for
+            // a settings area.
+            function UpdateConfigAreaRow() {
+                var restoring = $('#backup\\.Direction').val().substring(0, 4) == 'FROM';
+                $('.copyConfigArea').toggle(restoring && $('#backup\\.Configuration').is(':checked'));
+                $('.copyConfigAreaKeep').toggle($('#backup\\.ConfigArea').val() !== 'everything');
+            }
+
+            $(function () {
+                $('#backup\\.Configuration, #backup\\.ConfigArea').on('change', UpdateConfigAreaRow);
+            });
 
             function GetBackupDevices() {
                 $('#jsonConfigbackup\\.USBDevice').parent().closest('div').addClass('fpp-backup-action-loading');
@@ -2885,6 +2939,21 @@ if ($skipHTMLCodeOutput === false) {
                 url += '&flags=' + flags;
 
                 var warningMsg = "Confirm File restore of '" + flags + "' from " + storageLocation + "?\n\nWARNING: This will overwrite any current files with the copies being restored";
+
+                // A restore of Configuration can take one settings area of it,
+                // the way a JSON settings restore does.
+                var configArea = $('#backup\\.ConfigArea').val();
+                if (direction.substring(0, 4) == 'FROM' && document.getElementById("backup.Configuration").checked &&
+                    configArea && configArea != 'everything') {
+                    url += '&configArea=' + encodeURIComponent(configArea);
+                    url += '&keepNetwork=' + (document.getElementById("backup.KeepNetwork").checked ? 'yes' : 'no');
+                    url += '&keepPlayerRemote=' + (document.getElementById("backup.KeepPlayerRemote").checked ? 'yes' : 'no');
+                    warningMsg = "Confirm restore of '" + flags + "' from " + storageLocation + ", with Configuration's settings area '" +
+                        $('#backup\\.ConfigArea option:selected').text().replace(/^-+/, '') + "' only?\n\nWARNING: This will overwrite the current settings and files being restored";
+                    if (!document.getElementById("backup.KeepNetwork").checked && (configArea == 'all' || configArea.split('/')[0] == 'network')) {
+                        warningMsg = warningMsg.replace("\n\nWARNING:", "\n\nWARNING: This player takes the backup's network settings (IP address, WiFi) at the next reboot, and may then only be reachable at that address.\n\nWARNING:");
+                    }
+                }
 
                 if (document.getElementById("backup.DeleteExtra").checked) {
                     url += '&delete=yes';
@@ -3458,7 +3527,8 @@ if ($skipHTMLCodeOutput === false) {
                                                         $success_messages = "";
 
                                                         //If the ATTEMPT and SUCCESS keys don't exist in the array, then try to process the internals which will be a sub areas and possibly have them.
-                                                        if (!array_key_exists('ATTEMPT', $success) && !array_key_exists('SUCCESS', $success) && !empty($success)) {
+                                                        //(Settings, Plugins and Network keep a top-level SUCCESS beside their sub-areas.)
+                                                        if (!array_key_exists('ATTEMPT', $success) && !empty(array_filter($success, 'is_array'))) {
                                                             //process internal array for areas with sub areas
                                                             foreach ($success as $success_area_idx => $success_area_data) {
                                                                 if (is_array($success_area_data) && array_key_exists('ATTEMPT', $success_area_data) && array_key_exists('SUCCESS', $success_area_data)) {
@@ -3835,6 +3905,20 @@ if ($skipHTMLCodeOutput === false) {
                                                     </table>
                                                 </td>
                                             </tr>
+                                            <tr class='copyConfigArea' style='display: none;'>
+                                                <td>Configuration:</td>
+                                                <td>
+                                                    <?php echo genSelectList('backup.ConfigArea', 'restore',
+                                                        array('everything' => 'Everything (all its files, as copied)'),
+                                                        array('all' => 'All settings areas'), $file_copy_area_omit); ?>
+                                                    <span class='copyConfigAreaKeep' style='display: none;'>
+                                                        <br><input type='checkbox' id='backup.KeepNetwork' checked> Keep this
+                                                        player's network settings
+                                                        <br><input type='checkbox' id='backup.KeepPlayerRemote' checked> Keep this
+                                                        player's player/remote settings
+                                                    </span>
+                                                </td>
+                                            </tr>
                                             <tr>
                                                 <td>Delete extras:</td>
                                                 <td><input type='checkbox' id='backup.DeleteExtra'> (Delete extra files on
@@ -3855,6 +3939,7 @@ if ($skipHTMLCodeOutput === false) {
                                                     configurations of the two systems do not match.</li>
                                                 <li class='copyBackups'>*Backing up Backups will copy all local backups to
                                                     the USB device.</li>
+                                                <li><b>Plugins</b> copies the plugins together with their settings.</li>
                                                 <li>Copying <b>Configuration</b> includes the settings file and the
                                                     network configuration as they are, with passwords, the WiFi
                                                     passphrase and access tokens in plain text. A USB stick is not

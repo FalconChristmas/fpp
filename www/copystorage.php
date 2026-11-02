@@ -63,13 +63,67 @@ $remote_storage = (isset($_GET['remoteStorage']) && is_string($_GET['remoteStora
 // quote each word instead of the whole string. The case *) branch stays the
 // semantic validator for unknown tokens.
 $flagWords = preg_split('/\s+/', $getStr('flags'), -1, PREG_SPLIT_NO_EMPTY);
+
+// A restore can take Configuration's settings areas one at a time, as the JSON
+// settings restore does: configArea is 'all', an area or an area/sub-area of
+// backup.php's $system_config_areas ('everything', or none, is the plain copy
+// of all the files).  The script then only stages the files ("Stage"), and
+// backup.php reads the chosen areas from the stage and restores them, with the
+// same Keep Network / Keep Player-Remote choices.
+$configArea = $getStr('configArea');
+$areaRestore = ($configArea !== '' && $configArea !== 'everything' && stripos($direction, 'FROM') === 0 &&
+    in_array('Configuration', (array) $flagWords, true));
+if ($areaRestore) {
+    require_once __DIR__ . '/backup.php';
+    // The areas the page lists: this player's, less $file_copy_area_omit.
+    $areaParts = explode('/', $configArea, 2);
+    $areaMain = $areaParts[0];
+    $areaSub = isset($areaParts[1]) ? $areaParts[1] : null;
+    if (!preg_match('/^[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.:-]+)?$/', $configArea) ||
+        !array_key_exists($areaMain, $system_config_areas) || ConfigAreaOmitted($configArea, $file_copy_area_omit) ||
+        ($areaSub !== null && (!is_array($system_config_areas[$areaMain]['file']) ||
+            !array_key_exists($areaSub, $system_config_areas[$areaMain]['file'])))) {
+        echo "Invalid settings area\n";
+        exit(1);
+    }
+    // All copies the whole media directory, the stage under tmp/ included
+    // (with Delete extras, it removes it): one or the other.
+    if (in_array('All', (array) $flagWords, true)) {
+        echo "A settings area can't be restored together with All\n";
+        exit(1);
+    }
+    // Its own stage, as each run has its own progress feed (below), so two
+    // runs can't remove each other's.  Made here and passed to the script, so
+    // the two can't disagree on where it is.
+    $feedId = $getStr('feed');
+    if (!preg_match('/^[A-Za-z0-9]{1,32}$/', $feedId)) {
+        $feedId = bin2hex(random_bytes(6));
+    }
+    $stage = rtrim($settings['mediaDirectory'], '/') . '/tmp/filecopy-stage-' . $feedId;
+    // Stages left by runs that were killed before they could remove theirs.
+    // The change time: rsync gives a stage the backup folder's mtime, so a
+    // live run's could look a day old.
+    foreach (glob(rtrim($settings['mediaDirectory'], '/') . '/tmp/filecopy-stage*', GLOB_ONLYDIR) as $oldStage) {
+        $mtime = @filectime($oldStage);
+        if ($oldStage != $stage && $mtime !== false && $mtime < time() - 86400) {
+            exec('sudo rm -rf -- ' . escapeshellarg($oldStage));
+        }
+    }
+    $flagWords = array_map(function ($w) use ($stage) {
+        return ($w === 'Configuration') ? 'Stage:' . $stage : $w;
+    }, $flagWords);
+}
+$keepNetworkChoice = ($getStr('keepNetwork') !== 'no');
+$keepPlayerRemoteChoice = ($getStr('keepPlayerRemote') !== 'no');
 $flagsEscaped = implode(' ', array_map('escapeshellarg', (array)$flagWords));
 
 // Each run has its own progress feed, so overlapping runs can't delete or mix
 // each other's. The id comes from the dialog that polls it, else is random.
-$feedId = $getStr('feed');
-if (!preg_match('/^[A-Za-z0-9]{1,32}$/', $feedId)) {
-    $feedId = bin2hex(random_bytes(6));
+if (!isset($feedId)) {
+    $feedId = $getStr('feed');
+    if (!preg_match('/^[A-Za-z0-9]{1,32}$/', $feedId)) {
+        $feedId = bin2hex(random_bytes(6));
+    }
 }
 $tee_log_file = $logDirectory . "/fpp_backup_filecopy_" . $feedId . ".log";
 // Feeds left by runs that were killed before they could remove theirs (and the
@@ -119,11 +173,92 @@ echo "\n";
 
 sleep(2);
 
+// The chosen settings areas, from the files the script staged.  Only from a
+// copy that succeeded: a stage missing files would restore a partial area.
+// The script leaves its end banner to this when it staged, and prints it.
+if ($areaRestore) {
+    $say = function ($text) use ($tee_log_file, $wrapped) {
+        //Unwrapped, the page is HTML, and area names come from the backup's files
+        echo $wrapped ? $text : htmlspecialchars($text);
+        file_put_contents($tee_log_file, $text, FILE_APPEND);
+    };
+    if ($backupRc == 0) {
+        $areaRc = 0;
+        $say("\nRestoring settings area '" . $configArea . "' (keep network settings: " . ($keepNetworkChoice ? 'yes' : 'no') .
+            ", keep player/remote settings: " . ($keepPlayerRemoteChoice ? 'yes' : 'no') . ")...\n");
+        $restoreData = CollectBackupFromFolder($stage, 'File Copy restore of ' . $getStr('path'));
+        doRestore($configArea, $restoreData, 'File Copy ' . $getStr('path'), $keepNetworkChoice, $keepPlayerRemoteChoice, 'filecopy');
+
+        //One line per area (or sub-area) doRestore() tried, from its record.  An
+        //area with sub-areas keeps their results one level down, and some such
+        //areas also have a top-level SUCCESS, so look for the sub-areas first.
+        $lines = array();
+        $restored = array();
+        //A failure is an attempt with a SUCCESS of false, as the page's result
+        //box has it: an attempt with no SUCCESS had nothing to write (an
+        //interface the backup has no config for).  ATTEMPT false is a record
+        //kept as this player's own (another player's plugin privacy answers).
+        $describe = function ($name, $info) use (&$lines, &$areaRc, &$restored) {
+            if (!empty($info['SUCCESS'])) {
+                $lines[] = "  " . $name . ": restored";
+                $restored[] = $name;
+            } else if (array_key_exists('ATTEMPT', $info) && $info['ATTEMPT'] === false) {
+                $lines[] = "  " . $name . ": not restored (another player's; this player's own kept)";
+            } else if (!empty($info['ATTEMPT']) && array_key_exists('SUCCESS', $info)) {
+                $lines[] = "  " . $name . ": FAILED";
+                $areaRc = 1;
+            }
+        };
+        foreach ((array) $settings_restored as $area_key => $info) {
+            if (!is_array($info)) {
+                continue;
+            }
+            $subs = array_filter($info, 'is_array');
+            if (!empty($subs)) {
+                foreach ($subs as $sub_key => $sub_info) {
+                    $describe($area_key . '/' . $sub_key, $sub_info);
+                }
+            } else if (array_key_exists('ATTEMPT', $info)) {
+                $describe($area_key, $info);
+            }
+        }
+        foreach ((array) $backup_errors as $error) {
+            $lines[] = "  " . $error;
+            $areaRc = 1;
+        }
+        //Nothing restored is not a failure: say why
+        if (empty($lines)) {
+            $lines[] = ($areaMain == 'network' && $keepNetworkChoice) ?
+                "  Nothing restored: this player's network settings were kept (Keep this player's network settings is ticked)." :
+                "  Nothing restored: the backup has nothing for that area, or it was made by an older FPP (choose Everything to copy its files as they are).";
+        }
+        $say(implode("\n", $lines) . "\n");
+
+        //fppd runs the schedule it loaded; the other areas take the reboot doRestore() asks for
+        $showSetupRestored = !empty(array_filter($restored, function ($name) {
+            return strpos($name, 'show_setup/') === 0;
+        }));
+        if ($showSetupRestored) {
+            SendCommand('R');
+        }
+        $backupRc = $areaRc;
+
+        //The script's end banner, for how the restore ended (a failed copy
+        //ended with it already)
+        $banner = array();
+        exec('/bin/bash ' . escapeshellarg(__DIR__ . '/../scripts/copy_settings_to_storage.sh') . ' --banner ' . escapeshellarg((string) $backupRc), $banner);
+        $say(implode("\n", $banner) . "\n");
+    }
+    exec('sudo rm -rf -- ' . escapeshellarg($stage));
+}
+
 // $direction is the validated enum from above (re-reading raw $_GET here
 // would fatal inside stripos on array input); $flags recoerced the same way.
 $flags = $getStr('flags');
 $isRestore = stripos($direction, 'FROM') === 0;
-$hasConfig = stripos($flags, 'Configuration') !== false;
+// From the flags the script ran with: a settings-area restore staged instead
+// ("Stage"), and doRestore() sets these markers itself when it restores.
+$hasConfig = in_array('Configuration', (array) $flagWords, true);
 $hasPlugins = stripos($flags, 'Plugins') !== false;
 $hasEeprom = stripos($flags, 'EEPROM') !== false;
 
@@ -167,7 +302,8 @@ if ($isRestore && !$nothingCopied && $hasPlugins) {
 // fppd keeps the schedule it loaded: without this it ran the old one until the
 // reboot a Configuration restore asks for.  Command presets reload themselves
 // (a FileMonitor), and the holidays are rebuilt when user-holidays.json
-// changes.  A stopped fppd reads the file when it starts.
+// changes.  A stopped fppd reads the file when it starts.  (An area restore
+// reloads it above, from the areas restored.)
 if ($isRestore && !$nothingCopied && !empty(array_intersect(array('Configuration', 'All'), (array) $flagWords))) {
     require_once __DIR__ . '/commandsocket.php';
     SendCommand('R');
