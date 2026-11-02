@@ -164,6 +164,15 @@ if ($isRestore && !$nothingCopied && $hasPlugins) {
     WriteSettingToFile('pluginReinstallNeededAfterOS', '1');
 }
 
+// fppd keeps the schedule it loaded: without this it ran the old one until the
+// reboot a Configuration restore asks for.  Command presets reload themselves
+// (a FileMonitor), and the holidays are rebuilt when user-holidays.json
+// changes.  A stopped fppd reads the file when it starts.
+if ($isRestore && !$nothingCopied && !empty(array_intersect(array('Configuration', 'All'), (array) $flagWords))) {
+    require_once __DIR__ . '/commandsocket.php';
+    SendCommand('R');
+}
+
 // Recorded in the plugin install history. An "All" restore replaces that file
 // with the source's, so this entry, written after it, marks where the copy
 // ends; "Plugins" brings in plugins outside the Plugin Manager, and
