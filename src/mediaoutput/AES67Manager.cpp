@@ -3151,6 +3151,11 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
             gint64 anchorNs;  // RTP time ahead of PTP at the first packet
             bool anchored;    // rtpShift taken from the first packet
             guint32 rtpShift; // added to every RTP timestamp from then on
+            // Set once the struct is filled in, just before the probe is
+            // installed: the probe's first read pairs with it. The pad's own
+            // lock orders the hand-off, but inside GStreamer where
+            // ThreadSanitizer can't see it.
+            std::atomic<bool> published{false};
         };
         GstElement* sinkEl = gst_bin_get_by_name(GST_BIN(pipeline), "usink");
         GstPad* sinkPad = sinkEl ? gst_element_get_static_pad(sinkEl, "sink") : nullptr;
@@ -3161,10 +3166,12 @@ bool AES67Manager::CreateSendPipeline(const AES67Instance& inst) {
                                       0, inst.id, false, -1,
                                       (gint64)m_config.sinkPacingMs * GST_MSECOND,
                                       false, 0 };
+            sv->published.store(true, std::memory_order_release);
             gst_pad_add_probe(
                 sinkPad, GST_PAD_PROBE_TYPE_BUFFER,
                 [](GstPad* pad, GstPadProbeInfo* info, gpointer user) -> GstPadProbeReturn {
                     auto* v = static_cast<LeadServo*>(user);
+                    (void)v->published.load(std::memory_order_acquire);
                     // Valid for the call: the pad's element is the one running it.
                     GstElement* sink = GST_ELEMENT(GST_OBJECT_PARENT(pad));
                     if (!sink) {
