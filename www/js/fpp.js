@@ -16729,7 +16729,9 @@ function CreateSelect (
 		}
 	}
 
-	if (currentValue != '' && found == 0) {
+	// No current value at all (a new row's default config has none) is not a value
+	// to keep selected: it would add an <option value='undefined'> and select it.
+	if (currentValue !== undefined && currentValue !== null && currentValue != '' && found == 0) {
 		result +=
 			"<option value='" +
 			currentValue +
