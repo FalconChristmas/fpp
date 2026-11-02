@@ -893,6 +893,13 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*>& strin
                         }
                     }
                 }
+                // AddNullPixelString() placeholders (an empty receiver between
+                // populated ones) have no channels; a model for one would sit
+                // at FPPD_OFF_CHANNEL and push the output past the channel limit.
+                // Skipped after naming so the numbering of real strings is unchanged.
+                if (strings[s]->m_virtualStrings[vs].startChannel >= FPPD_OFF_CHANNEL) {
+                    continue;
+                }
                 // xLights will name the individual strings of a matrix/prop/model with a -str-# postfix
                 // so we will try and detect this and recreate the original model.
                 // Anything that is not a modest non-negative number (free-form
