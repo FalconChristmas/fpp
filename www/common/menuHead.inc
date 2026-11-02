@@ -157,7 +157,7 @@ unset($_fpp_status_raw, $ctx);
 if (isset($themeInfo["themeJS"])) {
     foreach ($themeInfo["themeJS"] as $js) {
         if ($js != "") {
-            echo "<script type='text/javascript' src='" . $js . "' />";
+            echo "<script type='text/javascript' src='" . $js . "'></script>";
         }
     }
 }
