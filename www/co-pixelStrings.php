@@ -524,7 +524,8 @@ function readCapes($cd, $capes)
         if (groupCount == 0) {
             groupCount = 1;
         }
-        result += "<td align='center' class='vsEndChannel'>" + (startChannel + (pixelCount * (colorOrder || "RGB").length) / groupCount - 1) + "</td>";
+        // The same whole-node count updateRowEndChannel() gives once the row is edited.
+        result += "<td align='center' class='vsEndChannel'>" + (pixelCount == 0 ? 0 : startChannel + (colorOrder || "RGB").length * Math.ceil(pixelCount / groupCount) - 1) + "</td>";
         result += pixelOutputTableInputDirection(reverse);
         result += pixelOutputTableInputOrder(colorOrder);
         result += "<td><input type='number' class='vsStartNulls' size='2' value='" + startNulls + "' min='0' max='100' onkeypress='preventNonNumericalInput(event)'></td>";
@@ -632,7 +633,7 @@ function readCapes($cd, $capes)
             for (; ;) //add all strings on this port
             {
                 const sPixelCount = parseInt(row.find('.vsPixelCount').val()) || 0;
-                const sNullNodes = parseInt(row.find('.vsNullNodes').val()) || 0;
+                const sNullNodes = parseInt(row.find('.vsStartNulls').val()) || 0;
                 const sEndNulls = parseInt(row.find('.vsEndNulls').val()) || 0;
                 const sBrightness = parseInt(row.find('.vsBrightness').val()) || 100;
                 numpx += sPixelCount + sNullNodes + sEndNulls;
