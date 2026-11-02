@@ -342,6 +342,15 @@ fppFileCopy.copyTimeoutError = function () {
                     fppFileCopy.copyDone();
                 }
             }
+        }).fail(function (xhr) {
+            // copystorage.php removes the feed when the run ends, and the file
+            // API answers a missing file with a 404 (and its full path in the
+            // text), so a 404 is the copy having finished. Other failures are
+            // a poll that did not get through: try again next second.
+            if (xhr && xhr.status === 404) {
+                clearInterval(tailInterval);
+                fppFileCopy.copyDone();
+            }
         });
     }, 1000);
 };
