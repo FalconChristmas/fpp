@@ -279,6 +279,15 @@ constexpr int PTP_LOCK_POLL_MS           = 250;
 // it can make trips this.
 constexpr int64_t PTP_STEP_DETECT_NS     = 100000000;  // 100ms
 
+// The send path's source-gap and silence-fill lines are per buffer, and a
+// source starved of CPU gaps on nearly every one: ~85 lines a second on a
+// PocketBeagle 2, a 260MB fppd.log in a day, and log writes competing for the
+// CPU whose shortage caused the gaps.  The first GAP_LOG_IN_FULL of each kind
+// are logged in full, which is what the onset diagnostics read; after that
+// they are totalled and logged once per GAP_LOG_SUMMARY_MS.
+constexpr unsigned GAP_LOG_IN_FULL       = 20;
+constexpr int GAP_LOG_SUMMARY_MS         = 10000;
+
 // PTP Announce listener.  No PTP management response carries the
 // grandmaster's IP address -- TIME_STATUS_NP names it only by clock identity
 // -- so the address is read off the source of the Announce messages ptp4l is

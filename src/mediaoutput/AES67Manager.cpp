@@ -2097,6 +2097,52 @@ void AES67Manager::ReleaseMediaClock() {
 // drift -- N with always-copy, which frees the slot a wrapped buffer would
 // hold through the chain -- and from then on the source skips one graph cycle
 // per rotation.  Both the onset and the spacing are read off these lines.
+
+// Holds back the per-buffer gap lines past the first few; see
+// AES67::GAP_LOG_IN_FULL.  Only ever touched from one pad's streaming thread.
+struct GapLogLimit {
+    guint64 heldBack = 0;
+    double heldBackMs = 0.0;
+    std::chrono::steady_clock::time_point since{};
+
+    // Whether the n-th event (counting from 1) is logged in full.  If not, it
+    // goes into the next summary.
+    bool InFull(guint64 n, double ms) {
+        if (n <= AES67::GAP_LOG_IN_FULL) {
+            return true;
+        }
+        if (heldBack == 0) {
+            since = std::chrono::steady_clock::now();
+        }
+        heldBack++;
+        heldBackMs += ms;
+        return false;
+    }
+
+    // Whether a summary is due (always, with force, if anything is held
+    // back).  If it is, hands over the totals and starts again.
+    bool Due(guint64& count, double& ms, double& seconds, bool force = false) {
+        if (heldBack == 0) {
+            return false;
+        }
+        const auto now = std::chrono::steady_clock::now();
+        if (!force && now - since < std::chrono::milliseconds(AES67::GAP_LOG_SUMMARY_MS)) {
+            return false;
+        }
+        count = heldBack;
+        ms = heldBackMs;
+        seconds = std::chrono::duration<double>(now - since).count();
+        heldBack = 0;
+        heldBackMs = 0.0;
+        return true;
+    }
+};
+
+// Appended to the last line logged in full, so the log says why they stop.
+static const char* GapLogSuffix(guint64 n) {
+    return n == AES67::GAP_LOG_IN_FULL ? ", further ones are summarised every 10 s" : "";
+}
+
 struct SourceGapState {
     int instanceId = 0;
     int rate = AES67::AUDIO_RATE;
@@ -2105,10 +2151,26 @@ struct SourceGapState {
     bool have = false;
     guint64 seen = 0;
     guint64 gaps = 0;
+    GapLogLimit gapLog;
 };
 
+static void LogSourceGapSummary(SourceGapState* st, bool force) {
+    guint64 count = 0;
+    double ms = 0.0;
+    double seconds = 0.0;
+    if (st->gapLog.Due(count, ms, seconds, force)) {
+        LogInfo(VB_MEDIAOUT,
+                "AES67 source [%d]: %llu more gaps (%.1f ms in all) in %.1f s, "
+                "%llu so far\n",
+                st->instanceId, (unsigned long long)count, ms, seconds,
+                (unsigned long long)st->gaps);
+    }
+}
+
 static void DestroySourceGapState(gpointer data) {
-    delete static_cast<SourceGapState*>(data);
+    auto* st = static_cast<SourceGapState*>(data);
+    LogSourceGapSummary(st, true);
+    delete st;
 }
 
 static GstPadProbeReturn SourceGapProbe(GstPad* pad, GstPadProbeInfo* info,
@@ -2125,14 +2187,18 @@ static GstPadProbeReturn SourceGapProbe(GstPad* pad, GstPadProbeInfo* info,
             const gint64 jump = (gint64)(pts - st->lastPts) - (gint64)st->lastDur;
             if (jump > (gint64)GST_MSECOND) {
                 st->gaps++;
-                LogInfo(VB_MEDIAOUT,
-                        "AES67 source [%d]: gap %+.2f ms at buffer %llu "
-                        "(gap #%llu)\n",
-                        st->instanceId, (double)jump / (double)GST_MSECOND,
-                        (unsigned long long)st->seen,
-                        (unsigned long long)st->gaps);
+                const double ms = (double)jump / (double)GST_MSECOND;
+                if (st->gapLog.InFull(st->gaps, ms)) {
+                    LogInfo(VB_MEDIAOUT,
+                            "AES67 source [%d]: gap %+.2f ms at buffer %llu "
+                            "(gap #%llu%s)\n",
+                            st->instanceId, ms,
+                            (unsigned long long)st->seen,
+                            (unsigned long long)st->gaps, GapLogSuffix(st->gaps));
+                }
             }
         }
+        LogSourceGapSummary(st, false);
         st->lastPts = pts;
         st->lastDur = GST_BUFFER_DURATION_IS_VALID(buf)
                           ? GST_BUFFER_DURATION(buf)
@@ -2220,6 +2286,10 @@ struct DriftResampleState {
     // See AES67Config::sourceSilenceFloor.
     bool fillGaps = false;
     guint64 fillFrames = 0;
+    guint64 fills = 0;
+
+    GapLogLimit gapLog;
+    GapLogLimit fillLog;
 
     // Rate estimate that survives a re-anchor.  The card's rate against PTP is
     // a property of two crystals: it does not change because a track did.  The
@@ -2243,8 +2313,29 @@ struct DriftResampleState {
     std::deque<Sample> window;
 };
 
+static void LogDriftGapSummaries(DriftResampleState* st, bool force) {
+    guint64 count = 0;
+    double ms = 0.0;
+    double seconds = 0.0;
+    if (st->gapLog.Due(count, ms, seconds, force)) {
+        LogInfo(VB_MEDIAOUT,
+                "AES67 drift [%d]: %llu more source gaps (%.1f ms in all) in "
+                "%.1f s, %llu so far\n",
+                st->instanceId, (unsigned long long)count, ms, seconds,
+                (unsigned long long)st->gapsSeen);
+    }
+    if (st->fillLog.Due(count, ms, seconds, force)) {
+        LogInfo(VB_MEDIAOUT,
+                "AES67 drift [%d]: filled %llu more source gaps with %.1f ms of "
+                "silence in %.1f s, %llu so far\n",
+                st->instanceId, (unsigned long long)count, ms, seconds,
+                (unsigned long long)st->fills);
+    }
+}
+
 static void DestroyDriftResampleState(gpointer data) {
     auto* st = static_cast<DriftResampleState*>(data);
+    LogDriftGapSummaries(st, true);
     if (st->src) {
         src_delete(st->src);
     }
@@ -2316,12 +2407,16 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
                     st->fillFrames = (guint64)std::min<gint64>(
                         f, (gint64)AES67::AUDIO_RATE);   // <= 1 second
                 }
-                LogInfo(VB_MEDIAOUT,
-                        "AES67 drift [%d]: source gap %+.2f ms at buffer %llu "
-                        "(gap #%llu)\n",
-                        st->instanceId, (double)jump / (double)GST_MSECOND,
-                        (unsigned long long)st->seen,
-                        (unsigned long long)st->gapsSeen);
+                const double ms = (double)jump / (double)GST_MSECOND;
+                if (st->gapLog.InFull(st->gapsSeen, ms)) {
+                    LogInfo(VB_MEDIAOUT,
+                            "AES67 drift [%d]: source gap %+.2f ms at buffer %llu "
+                            "(gap #%llu%s)\n",
+                            st->instanceId, ms,
+                            (unsigned long long)st->seen,
+                            (unsigned long long)st->gapsSeen,
+                            GapLogSuffix(st->gapsSeen));
+                }
             }
         }
         st->lastPts = pts;
@@ -2554,12 +2649,16 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
     }
     if (fill) {
         gst_buffer_memset(out, 0, 0, fillBytes);
-        LogInfo(VB_MEDIAOUT,
-                "AES67 drift [%d]: filled %.1f ms of source gap with silence\n",
-                st->instanceId,
-                (double)fill * 1000.0 / (double)AES67::AUDIO_RATE);
+        st->fills++;
+        const double ms = (double)fill * 1000.0 / (double)AES67::AUDIO_RATE;
+        if (st->fillLog.InFull(st->fills, ms)) {
+            LogInfo(VB_MEDIAOUT,
+                    "AES67 drift [%d]: filled %.1f ms of source gap with silence%s\n",
+                    st->instanceId, ms, GapLogSuffix(st->fills));
+        }
         st->fillFrames = 0;
     }
+    LogDriftGapSummaries(st, false);
     gst_buffer_fill(out, fillBytes, st->out.data(), bytes);
 
     // Timestamp from the output sample count, so the timeline downstream
