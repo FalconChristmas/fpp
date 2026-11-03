@@ -93,6 +93,16 @@ constexpr const char* WARNING_PTP_SPAWN_FAILED =
 constexpr const char* WARNING_PTP_START_FAILED =
     "AES67: PTP clock sync (ptp4l) could not start on the configured interface";
 
+// The PTP interface has no hardware clock, so ptp4l runs free_running and
+// does not follow the grandmaster it has selected (see WritePtpConf()).
+// Polled: re-raised with a timeout on each watchdog pass while it holds,
+// removed once it does not -- this box becomes the grandmaster, the
+// grandmaster goes, or PTP stops.
+constexpr const char* WARNING_PTP_FREE_RUNNING =
+    "AES67: the PTP interface has no hardware clock, so this player is not synced "
+    "to the PTP grandmaster (following it would reset the system clock) — "
+    "streams are timed from NTP instead";
+
 // AES67 allows up to 8 channels per stream and FPP now carries all of them.
 //
 // This sat at 2 for a while because anything above stereo produced "Internal
@@ -1073,6 +1083,7 @@ public:
         // field here read healthy while the wire was not.  True when the
         // clock was settled, and also when nothing is anchored to PTP.
         bool ptpLockedAtStart = false;
+        bool ptpFreeRunning = false;
         // Copied out of m_config under m_configMutex so the HTTP handler can
         // render them without touching shared config itself.
         bool ptpEnabled = false;
@@ -1209,6 +1220,7 @@ private:
         Grandmaster,       // we hold the role -- the PHC is the domain's time
         SlaveLocked,       // measured against the GM, correction already applied
         NoGrandmasterYet,  // LISTENING and gmPresent actually read false
+        FreeRunning,       // software timestamping: ptp4l never moves the clock
     };
 
     // One poll of the above.  Factored out of WaitForPtpLock() so the watchdog
@@ -1247,6 +1259,14 @@ private:
     // reviews one that is not.  (The baseline is seeded separately, by
     // ResetPtpStepReference() -- see there.)
     void RaisePtpNoLockWarning();
+
+    // Raise WARNING_PTP_FREE_RUNNING while ptp4l is free-running and has
+    // selected a grandmaster other than this box, and take it down otherwise.
+    // Called once the streams are anchored and on every watchdog pass.
+    void ReviewPtpFreeRunningWarning();
+
+    // ptp4l is running with software timestamping, and so free_running.
+    bool PtpFreeRunning() const;
     void ClearPtpNoLockWarning();
 
     // Step detector state: (PTP - CLOCK_MONOTONIC) as it stood at the last

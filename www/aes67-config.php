@@ -254,7 +254,7 @@
                                     </select>
                                     <img src="images/redesign/help-icon.svg" class="icon-help" data-bs-toggle="tooltip"
                                         data-bs-html="true" data-bs-placement="auto"
-                                        title="Who provides the PTP clock.  This is unrelated to FPP's Master/Remote player mode.<br><br><b>Auto</b> &mdash; join the BMCA election at a low priority: FPP still becomes the clock when it is the only device on the domain, but yields to a console or DSP that wants the role.<br><b>Master</b> &mdash; prefer to win the election.  Only use this if FPP is intended to be the clock for the network.<br><b>Slave</b> &mdash; always follow another grandmaster, never become the clock.">
+                                        title="Who provides the PTP clock.  This is unrelated to FPP's Master/Remote player mode.<br><br><b>Auto</b> &mdash; join the BMCA election at a low priority: FPP still becomes the clock when it is the only device on the domain, but yields to a console or DSP that wants the role.<br><b>Master</b> &mdash; prefer to win the election.  Only use this if FPP is intended to be the clock for the network.<br><b>Slave</b> &mdash; always follow another grandmaster, never become the clock.<br><br>Following needs an interface with a hardware PTP clock.  Without one (most USB Ethernet adapters, a Raspberry Pi 4) FPP does not follow another grandmaster, because that would reset the system clock to the grandmaster's time; its streams are timed from NTP instead.">
                                 </div>
                             </div>
                             <!-- Live PTP state, next to the control that sets it:
@@ -427,6 +427,12 @@
                         var ptp = data.ptp || {};
                         if (ptp.enabled === false) {
                             parts.push('PTP disabled');
+                        } else if (ptp.freeRunning && !ptp.isGrandmaster && ptp.grandmasterId) {
+                            // No hardware clock on the interface: ptp4l stays
+                            // in the domain but leaves the system clock alone,
+                            // so the streams are on NTP time, not the GM's.
+                            parts.push('<span class="status-indicator status-idle"></span>PTP not following ' +
+                                EscapeHtml(ptp.grandmasterId) + ' (no hardware PTP clock on this interface)');
                         } else if (ptp.synced) {
                             var label = ptp.isGrandmaster
                                 ? 'PTP master (this device)'
@@ -486,6 +492,8 @@
                 var state = ptp.portState || 'unknown';
                 if (ptp.synced)
                     state += ptp.isGrandmaster ? ' — this device is the clock' : ' — locked';
+                else if (ptp.freeRunning && ptp.grandmasterId)
+                    state += ' — not following (no hardware PTP clock, timed from NTP)';
                 $('#ptpDetailState').html('<span class="status-indicator ' +
                     (ptp.synced ? 'status-running' : 'status-stopped') + '"></span>' +
                     EscapeHtml(state));

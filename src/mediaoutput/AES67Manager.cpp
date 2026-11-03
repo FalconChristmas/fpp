@@ -961,6 +961,20 @@ bool AES67Manager::WritePtpConf(const std::string& path, bool hwTimestamping, bo
          << "delay_mechanism\t\tE2E\n"
          << "time_stamping\t\t" << (hwTimestamping ? "hardware" : "software") << "\n";
 
+    // Without a PHC, ptp4l's clock is CLOCK_REALTIME, and as a follower it
+    // steps the system clock to the grandmaster's time.  That is chrony's
+    // clock, and the grandmaster's time is often not wall time: a Q-SYS Core
+    // distributes an arbitrary epoch near 0, so a K32-Max on a USB NIC went
+    // to January 1970 every few minutes and back each time chrony stepped it
+    // forward.  phc2sys was dropped for the same reason (see InitPTP()).
+    // free_running keeps ptp4l in the domain -- it still answers, still
+    // elects, still grandmasters when alone -- but it never adjusts the
+    // clock, so a follower's streams are timed from NTP rather than locked
+    // to the grandmaster.  RaisePtpFreeRunningWarning() says so.
+    if (!hwTimestamping) {
+        conf << "free_running\t\t1\n";
+    }
+
     if (includeDscp) {
         conf << "dscp_event\t\t" << AES67::PTP_DSCP << "\n"   // EF (46) -- Sync/Delay_Req
              << "dscp_general\t\t" << AES67::PTP_DSCP << "\n"; // EF (46) -- Announce/Follow_Up/etc.
@@ -1191,6 +1205,8 @@ void AES67Manager::AnchorToPtpLock() {
     // With ptpMediaClock off nothing is anchored to PTP at all, so there is
     // no anchor for a late lock to invalidate and the question does not apply.
     m_ptpLockedAtStart.store(locked || !m_config.ptpMediaClock);
+
+    ReviewPtpFreeRunningWarning();
 }
 
 // SIGTERM then SIGKILL, polling until the process is really gone.
@@ -1291,6 +1307,7 @@ void AES67Manager::ShutdownPTP() {
     // start failures, which cannot be true of a daemon we have just stopped.
     ClearPtpNoLockWarning();
     ClearAES67PtpStartWarnings();
+    WarningHolder::RemoveWarning(AES67::WARNING_ID_PTP, AES67::WARNING_PTP_FREE_RUNNING);
 
     {
         std::lock_guard<std::mutex> lock(m_ptpStepMutex);
@@ -1533,6 +1550,11 @@ AES67Manager::PtpSettleState AES67Manager::PtpSettledNow(std::string* portStateO
     if (IsGrandmasterPortState(portState)) {
         return PtpSettleState::Grandmaster;
     }
+    // free_running: whatever ptp4l measures, it never applies, so there is
+    // nothing to wait for and nothing that will step the clock later.
+    if (PtpFreeRunning()) {
+        return PtpSettleState::FreeRunning;
+    }
     // Missing/malformed management data is not a zero offset. Compare
     // signed bounds directly so INT64_MIN cannot overflow on negation.
     if (portState == "SLAVE" && gmPresentValid && gmPresent && offsetValid &&
@@ -1603,6 +1625,12 @@ bool AES67Manager::WaitForPtpLock(int timeoutMs) {
             LogInfo(VB_MEDIAOUT,
                     "AES67Manager: PTP settled after %.1fs — SLAVE, offset "
                     "%+lldns\n", waitedS, (long long)offsetNs);
+            return true;
+        }
+        if (settled == PtpSettleState::FreeRunning) {
+            LogInfo(VB_MEDIAOUT,
+                    "AES67Manager: PTP is free-running (software timestamping) — "
+                    "it will not move the clock, so not waiting for a lock\n");
             return true;
         }
 
@@ -1907,8 +1935,11 @@ std::string AES67Manager::GetPTPClockId() {
 //       read the PHC.
 //
 //   software timestamping -- there is no PHC; ptp4l uses CLOCK_REALTIME as its
-//       clock, disciplining it as a follower and distributing it as
-//       grandmaster.  So CLOCK_REALTIME is the domain's time.
+//       clock and runs free_running, so it never adjusts it (see
+//       WritePtpConf()).  As grandmaster CLOCK_REALTIME is the domain's time.
+//       As a follower it is not: the streams run on NTP time, unlocked from
+//       the grandmaster, which is the price of not letting PTP set the
+//       system clock.
 //
 // Note what we deliberately do NOT use:
 //
@@ -2028,7 +2059,7 @@ GstClock* AES67Manager::GetOrCreateMediaClock() {
     std::string iface = GetPtpInterface();
     // The PHC is the domain's time only while ptp4l disciplines it.  A NIC
     // that has one but rejected hardware timestamping leaves ptp4l on
-    // software timestamping (it steers CLOCK_REALTIME), and with ptp4l not
+    // software timestamping (CLOCK_REALTIME, left alone), and with ptp4l not
     // running at all CLOCK_REALTIME is at least NTP-steered -- a free-running
     // PHC is neither, and every box would drift on its own crystal.
     int phcIndex = m_ptpHwTimestamping.load() ? PhcIndexForInterface(iface) : -1;
@@ -2062,8 +2093,9 @@ GstClock* AES67Manager::GetOrCreateMediaClock() {
         }
     }
 
-    // Software-timestamping path: ptp4l has no PHC and uses CLOCK_REALTIME as
-    // its own clock, so that is the domain's time in both roles.
+        // Software-timestamping path: ptp4l has no PHC and runs free_running on
+    // CLOCK_REALTIME (see WritePtpConf()).  As grandmaster that is the
+    // domain's time; as a follower it is NTP time, not the grandmaster's.
     clock->clkid = CLOCK_REALTIME;
     LogInfo(VB_MEDIAOUT, "AES67 media clock: using CLOCK_REALTIME "
             "(no disciplined PHC on %s — software timestamping)\n", iface.c_str());
@@ -4393,6 +4425,28 @@ void AES67Manager::ClearPtpNoLockWarning() {
     WarningHolder::RemoveWarning(AES67::WARNING_ID_PTP, AES67::WARNING_PTP_NO_LOCK);
 }
 
+bool AES67Manager::PtpFreeRunning() const {
+    return !m_ptpHwTimestamping.load() && IsPtp4lRunning();
+}
+
+void AES67Manager::ReviewPtpFreeRunningWarning() {
+    bool following = false;
+    if (PtpFreeRunning()) {
+        RefreshPtpCache();
+        std::lock_guard<std::mutex> lock(m_ptpCacheMutex);
+        following = m_ptpCache.gmPresentValid && m_ptpCache.gmPresent &&
+                    !IsGrandmasterPortState(m_ptpCache.portState);
+    }
+    if (following) {
+        // Three watchdog passes, so one slow pass does not drop it.
+        WarningHolder::AddWarningTimeout(3 * AES67::SAP_ANNOUNCE_INTERVAL_S,
+                                         AES67::WARNING_ID_PTP,
+                                         AES67::WARNING_PTP_FREE_RUNNING);
+    } else {
+        WarningHolder::RemoveWarning(AES67::WARNING_ID_PTP, AES67::WARNING_PTP_FREE_RUNNING);
+    }
+}
+
 // WARNING_PTP_NO_LOCK says the RTP timelines were anchored to a clock that had
 // not settled yet.  That stops being true on its own: ptp4l commonly reaches
 // SLAVE with a usable offset a few seconds after ptpLockWaitMs ran out.
@@ -4507,6 +4561,8 @@ bool AES67Manager::CheckPtpWatchdog() {
         ResetPtpStepReference();
         return false;
     }
+
+    ReviewPtpFreeRunningWarning();
 
     // A clock that locks *after* the pipelines were built breaks them exactly
     // as the cold-boot race did (issue #2848): the grandmaster that boots
@@ -5628,9 +5684,12 @@ AES67Manager::Status AES67Manager::GetStatus() {
         status.ptpPortState = IsPtp4lRunning() ? GetPtp4lState() : "not running";
         status.ptpIsGrandmaster = IsGrandmasterPortState(status.ptpPortState);
         status.ptpLockedAtStart = m_ptpLockedAtStart.load();
+        status.ptpFreeRunning = PtpFreeRunning();
 
         if (QueryPtp4lTimeStatus(gmPresent, gmId, offsetNs, &offsetValid) && gmPresent && !gmId.empty()) {
-            status.ptpSynced = true;
+            // A free-running follower has a grandmaster but does not follow
+            // it: its offset is how far apart the two clocks are, not a lock.
+            status.ptpSynced = !status.ptpFreeRunning;
             status.ptpGrandmasterId = gmId;
             status.ptpOffsetNs = offsetValid ? offsetNs : 0;
             status.ptpOffsetValid = offsetValid;
@@ -6003,6 +6062,7 @@ HttpResponsePtr AES67Manager::render_GET(const HttpRequestPtr& req) {
         ptp["portState"] = st.ptpPortState;
         ptp["isGrandmaster"] = st.ptpIsGrandmaster;
         ptp["lockedAtStart"] = st.ptpLockedAtStart;
+        ptp["freeRunning"] = st.ptpFreeRunning;
         ptp["enabled"] = st.ptpEnabled;
         ptp["domain"] = st.ptpDomain;
         ptp["role"] = st.ptpRole;
