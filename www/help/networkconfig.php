@@ -26,7 +26,7 @@
 
 <p><b>DNS Server 2</b> — Optional secondary in the same format, used if the first is unavailable.</p>
 
-<p><b>Update DNS</b> — Writes the DNS/hostname settings. A <b>Restart DNS</b> button then appears to restart the DNS resolver without a full reboot.</p>
+<p><b>Update DNS</b> — Saves the DNS server settings (nothing is written if they have not changed). They take effect when the network restarts, so the same <b>Restart Network</b> prompt as <b>Update Interface</b> appears; restart the network then, or reboot later.</p>
 
 <h4>WiFi Configuration</h4>
 
