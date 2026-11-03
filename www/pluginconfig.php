@@ -4,7 +4,6 @@ $pluginSettings = array();
 $pluginName = htmlspecialchars($_GET['plugin'], ENT_QUOTES, 'UTF-8');
 
 $pluginConfigFile = $settings['configDirectory'] . "/plugin." . $pluginName;
-echo ($pluginConfigFile);
 if (file_exists($pluginConfigFile)) {
     $fd = @fopen($pluginConfigFile, "c+");
     flock($fd, LOCK_SH);
