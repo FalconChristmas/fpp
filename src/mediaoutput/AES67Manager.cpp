@@ -2175,6 +2175,20 @@ static const char* GapLogSuffix(guint64 n) {
     return n == AES67::GAP_LOG_IN_FULL ? ", further ones are summarised every 10 s" : "";
 }
 
+// Bytes in one sample of a raw audio format named as GStreamer spells it
+// ("S16LE", "S24LE" packed in 3, "S24_32LE" in 4, "F32LE"...); 0 if unknown.
+// gst-audio is not linked, and this is all the probe below needs of it.
+static int RawSampleBytes(const char* format) {
+    if (!format || !format[0] || !format[1]) {
+        return 0;
+    }
+    if (strstr(format, "_32")) {
+        return 4;
+    }
+    const int bits = atoi(format + 1);
+    return (bits >= 8 && bits % 8 == 0 && bits <= 64) ? bits / 8 : 0;
+}
+
 struct SourceGapState {
     int instanceId = 0;
     int rate = AES67::AUDIO_RATE;
@@ -2184,6 +2198,12 @@ struct SourceGapState {
     guint64 seen = 0;
     guint64 gaps = 0;
     GapLogLimit gapLog;
+
+    // The source's negotiated caps, as bytes per frame and frames per second,
+    // so a buffer's duration can be worked out from what it holds.
+    GstCaps* caps = nullptr;
+    int bytesPerFrame = 0;
+    int capsRate = 0;
 };
 
 static void LogSourceGapSummary(SourceGapState* st, bool force) {
@@ -2202,6 +2222,9 @@ static void LogSourceGapSummary(SourceGapState* st, bool force) {
 static void DestroySourceGapState(gpointer data) {
     auto* st = static_cast<SourceGapState*>(data);
     LogSourceGapSummary(st, true);
+    if (st->caps) {
+        gst_caps_unref(st->caps);
+    }
     delete st;
 }
 
@@ -2213,6 +2236,44 @@ static GstPadProbeReturn SourceGapProbe(GstPad* pad, GstPadProbeInfo* info,
         return GST_PAD_PROBE_OK;
     }
     st->seen++;
+
+    // How long this buffer's audio lasts, from what it holds and the rate it
+    // was negotiated at.  GST_BUFFER_DURATION is not used because pipewiresrc
+    // fills it in from the graph's clock rate rather than the stream's: with
+    // the graph at 88.2 kHz and the stream at 48 kHz every 557-frame buffer
+    // (11.6 ms, and its PTS step says so) carries a duration of 6.3 ms, which
+    // read as a 5.3 ms gap on every buffer -- about 85 a second, with the
+    // audio intact.
+    GstCaps* cur = gst_pad_get_current_caps(pad);
+    if (cur) {
+        if (cur != st->caps) {
+            if (st->caps) {
+                gst_caps_unref(st->caps);
+            }
+            st->caps = cur;   // keeps the reference
+            st->bytesPerFrame = 0;
+            st->capsRate = 0;
+            const GstStructure* cs = gst_caps_get_structure(cur, 0);
+            gint channels = 0;
+            gint rate = 0;
+            if (cs && gst_structure_get_int(cs, "rate", &rate) &&
+                gst_structure_get_int(cs, "channels", &channels) && rate > 0 && channels > 0) {
+                const int sb = RawSampleBytes(gst_structure_get_string(cs, "format"));
+                if (sb > 0) {
+                    st->bytesPerFrame = sb * channels;
+                    st->capsRate = rate;
+                }
+            }
+        } else {
+            gst_caps_unref(cur);
+        }
+    }
+    const bool known = st->bytesPerFrame > 0 && st->capsRate > 0;
+    const guint64 thisDur = known ? gst_util_uint64_scale(gst_buffer_get_size(buf) / st->bytesPerFrame,
+                                                          GST_SECOND, st->capsRate)
+                                  : (GST_BUFFER_DURATION_IS_VALID(buf) ? GST_BUFFER_DURATION(buf) : 0);
+    const bool durKnown = known || GST_BUFFER_DURATION_IS_VALID(buf);
+
     if (GST_BUFFER_PTS_IS_VALID(buf)) {
         const GstClockTime pts = GST_BUFFER_PTS(buf);
         if (st->have && pts > st->lastPts) {
@@ -2232,10 +2293,8 @@ static GstPadProbeReturn SourceGapProbe(GstPad* pad, GstPadProbeInfo* info,
         }
         LogSourceGapSummary(st, false);
         st->lastPts = pts;
-        st->lastDur = GST_BUFFER_DURATION_IS_VALID(buf)
-                          ? GST_BUFFER_DURATION(buf)
-                          : 0;
-        st->have = GST_BUFFER_DURATION_IS_VALID(buf);
+        st->lastDur = thisDur;
+        st->have = durKnown;
     }
     return GST_PAD_PROBE_OK;
 }
