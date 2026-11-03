@@ -387,11 +387,19 @@ FalconV5Support::ReceiverChain* FalconV5Support::addReceiverChain(PixelString* p
     }
     queryData[m][group].push_back(rc);
 
+    // A round of queries needs as many frames as the receivers of ONE listener
+    // group, not of all groups together: every group's front chain is queried
+    // in the same frame and all replies land in the one listen window (the
+    // listener captures every group's pin).  Summing the groups made n blocks
+    // of one receiver cost n query frames per rest frame and asked each chain
+    // n times per round.  Take the largest group instead.
     int newM = 0;
     for (auto& g : queryData[m]) {
+        int inGroup = 0;
         for (auto& rc : g.second) {
-            newM += rc->getReceiverCount();
+            inGroup += rc->getReceiverCount();
         }
+        newM = std::max(newM, inGroup);
     }
     maxCount[m] = std::max(maxCount[m], newM);
     return rc;
