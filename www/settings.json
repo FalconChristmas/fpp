@@ -175,6 +175,7 @@
 			"description": "General PipeWire",
 			"settings": [
 				"PipeWirePassiveSinks",
+				"AES67GraphClockPriority",
 				"PipeWireRoutingMatrix",
 				"PipeWireGraph"
 			]
@@ -1376,6 +1377,20 @@
 			"type": "checkbox",
 			"restart": 0,
 			"reboot": 1,
+			"platforms": [
+				"!MacOS"
+			]
+		},
+		"AES67GraphClockPriority": {
+			"name": "AES67GraphClockPriority",
+			"description": "AES67 Sets the Audio Clock Rate",
+			"gatherStats": true,
+			"tip": "Run the audio graph at the 48 kHz AES67 uses even when a sound card shares an output group with an AES67 send. The card then converts to its own clock rate, which costs the card path a little CPU and some added latency, but the AES67 stream no longer needs PipeWire to convert it and runs much cheaper. This matters on a cape whose sound card is fixed at 88.2 kHz. Leave this off to keep the card's clock, which is best for the local sound. Output groups that hold only AES67 sends already run at 48 kHz regardless. Takes effect the next time the Output Audio Groups are applied.",
+			"level": 1,
+			"default": "0",
+			"type": "checkbox",
+			"restart": 0,
+			"reboot": 0,
 			"platforms": [
 				"!MacOS"
 			]

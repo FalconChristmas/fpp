@@ -516,7 +516,8 @@ function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
     }
     // ...and so does the graph clock, which follows whether anything is
     // playing to a sound card at all.
-    if (SyncBootGraphClock($data['groups'], $SUDO)) {
+    if (SyncBootGraphClock($data['groups'], $SUDO,
+        isset($settings['AES67GraphClockPriority']) && $settings['AES67GraphClockPriority'] == '1')) {
         $graphUnchanged = false;
     }
 
@@ -5412,7 +5413,10 @@ function SyncBootAdapterUsbHeadroom($groups, $SUDO)
 // rate conversion causes.
 //
 // So when every member of every enabled group is an AES67 sender, run the
-// graph at 48000.  The card's own rate is recorded on a marker line the first
+// graph at 48000.  With AES67GraphClockPriority set, do so whenever any enabled
+// group holds an AES67 sender, even beside a card: the card's adapter then
+// resamples 48 kHz up to its own clock instead of PipeWire converting every
+// AES67 buffer down.  The card's own rate is recorded on a marker line the first
 // time it is overridden, and put back as soon as a card rejoins a group.
 // fppinit's cache check does not compare default.clock.rate, so the override
 // survives a reboot; a full re-probe (a card added or removed) rewrites the
@@ -5420,7 +5424,7 @@ function SyncBootAdapterUsbHeadroom($groups, $SUDO)
 // next time the groups are applied.
 //
 // Returns true if the file changed, i.e. the stack needs a restart to pick it up.
-function SyncBootGraphClock($groups, $SUDO)
+function SyncBootGraphClock($groups, $SUDO, $aes67Priority = false)
 {
     $confPath = "/etc/pipewire/pipewire.conf.d/95-fpp-alsa-sink.conf";
     $conf = @file_get_contents($confPath);
@@ -5447,7 +5451,10 @@ function SyncBootGraphClock($groups, $SUDO)
                 $sawOther = true;
         }
     }
-    $aes67Only = $sawAes67 && !$sawOther;
+    // $aes67Priority is the AES67GraphClockPriority setting: the stream's rate
+    // wins even when a card shares a group with it, and the card's adapter
+    // converts up to its own clock.
+    $aes67Only = $sawAes67 && ($aes67Priority || !$sawOther);
 
     $marker = '/^# card clock rate: (\d+)\s*$/m';
     $cardRate = preg_match($marker, $conf, $mm) ? intval($mm[1]) : $current;

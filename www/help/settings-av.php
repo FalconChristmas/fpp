@@ -29,6 +29,7 @@
 <h4>General PipeWire (Advanced only)</h4>
 <ul>
     <li><b>Suspend Audio Device When Idle</b> (checkbox) — Lets PipeWire suspend the card when nothing plays. Saves ~4–5% CPU on single-core boards when idle. Turn off only if a card fails to wake correctly.</li>
+    <li><b>AES67 Sets the Audio Clock Rate</b> (checkbox) — Run the audio graph at 48 kHz, the rate AES67 uses, even when a sound card shares an output group with an AES67 send. The card then converts to its own clock rate, which adds a little CPU and latency on the card path but lets the AES67 stream run much cheaper. Matters most on a cape whose card is fixed at 88.2 kHz. Leave it off to keep the card's clock and the best local sound. Takes effect the next time the Output Audio Groups are applied.</li>
     <li><b>Configure Routing Matrix</b> (button) — Grid of input-group → output-group connections with per-path volume, mute, effects and presets.</li>
     <li><b>Visualise Current Pipeline</b> (link) — Opens <code>pipewire-graph.php</code>, a live graph of sources, sinks and processing nodes for troubleshooting.</li>
 </ul>
