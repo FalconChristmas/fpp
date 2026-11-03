@@ -2631,11 +2631,16 @@ static GstPadProbeReturn DriftResampleProbe(GstPad* pad, GstPadProbeInfo* info,
         target = ff * (1.0 + fbPpm * 1e-6);
     }
 
-    // Hard clamp, then slew limit.  300ppm is far beyond any real crystal pair
-    // (the reference hardware needs 56ppm), so hitting the clamp means the
-    // estimate is wrong and the right response is to refuse to act on it
-    // rather than to pitch-shift the audio chasing it.
-    constexpr double MAX_TRIM = 0.0003;   // +/-300ppm
+    // Hard clamp, then slew limit.  The clamp is what refuses to act on a
+    // wrong estimate rather than pitch-shift the audio chasing it, so it has to
+    // sit above the largest rate error a real card can have.  300ppm was set
+    // against hardware that needs 56ppm, and is too low for a fixed-clock cape:
+    // an AM62x PCM5102A derives 88200 from 96 MHz / 1088, which is really
+    // 88235.3 Hz -- +400ppm, measured as a +450ppm card rate.  Clamped at 300 the
+    // trim pinned, the offset grew without bound (+9 ms in 38 s) until the 50 ms
+    // absorb re-anchored it.  1200ppm is 2 cents, still inaudible, and still far
+    // below anything that is not a bad estimate.
+    constexpr double MAX_TRIM = 0.0012;   // +/-1200ppm
     constexpr double MAX_STEP = 0.000002; // 2ppm per buffer
     target = std::clamp(target, 1.0 - MAX_TRIM, 1.0 + MAX_TRIM);
     st->ratio = std::clamp(target, st->ratio - MAX_STEP, st->ratio + MAX_STEP);
