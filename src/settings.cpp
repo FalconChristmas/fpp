@@ -581,6 +581,9 @@ char* modeToString(int mode) {
 }
 
 int SettingsConfig::LoadSettings(const std::string& base, bool logChanges) {
+    // A reload between setSetting(persist)'s memory update and its file write
+    // would read the old value back and re-apply it.
+    std::unique_lock<std::mutex> persistLock(persistMutex);
     std::unique_lock<std::shared_mutex> lock(settingsMutex);
     Init();
 
@@ -641,6 +644,8 @@ int SettingsConfig::LoadSettings(const std::string& base, bool logChanges) {
         return -1;
     }
     lock.unlock();
+    // Before the listeners: one that calls setSetting(persist) takes it.
+    persistLock.unlock();
     notifyListeners(changed);
     return 0;
 }

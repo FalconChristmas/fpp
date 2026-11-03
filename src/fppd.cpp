@@ -1439,7 +1439,9 @@ int main(int argc, char* argv[]) {
     FileMonitor::INSTANCE.AddFile(
         "FPPD:Settings", FPP_DIR_MEDIA("/settings"), [argv]() {
         LogDebug(VB_SETTING, "Settings file changed, reloading settings\n");
-        LoadSettings(argv[0], true); });
+        LoadSettings(argv[0], true);
+        // A reload can change LogLevel_* (a hand edit, a restore, the PHP side).
+        WarningHolder::UpdateLogLevelWarnings(); });
 
     // Start functioning
     if (getSettingInt("daemonize")) {

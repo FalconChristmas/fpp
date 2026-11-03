@@ -229,9 +229,17 @@ void WarningHolder::RemoveWarning(int id, const std::string& w, const std::strin
     }
 }
 void WarningHolder::UpdateLogLevelWarnings() {
-    RemoveWarning(2, EXCESSIVE_LOG_LEVEL_WARNING);
-    RemoveWarning(3, DEBUG_LOG_LEVEL_WARNING);
+    // Called from the API, the command socket and settings reloads; crossed
+    // Remove/Add pairs could leave a stale level's warning up.
+    static std::mutex updateLock;
+    std::lock_guard<std::mutex> lock(updateLock);
+    // Only touch the warning that changed: an unchanged one is not removed
+    // and re-added, so a reload doesn't blink it or wake the listeners.
     int lowestLogLevel = FPPLogger::INSTANCE.MinimumLogLevel();
+    if (lowestLogLevel != LOG_EXCESSIVE)
+        RemoveWarning(2, EXCESSIVE_LOG_LEVEL_WARNING);
+    if (lowestLogLevel != LOG_DEBUG)
+        RemoveWarning(3, DEBUG_LOG_LEVEL_WARNING);
     if (lowestLogLevel == LOG_EXCESSIVE)
         AddWarning(2, EXCESSIVE_LOG_LEVEL_WARNING);
     else if (lowestLogLevel == LOG_DEBUG)
