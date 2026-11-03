@@ -514,6 +514,11 @@ function ApplyPipeWireAudioGroups($overrideData = null, $skipRestart = false)
     if (SyncBootAdapterUsbHeadroom($data['groups'], $SUDO)) {
         $graphUnchanged = false;
     }
+    // ...and so does the graph clock, which follows whether anything is
+    // playing to a sound card at all.
+    if (SyncBootGraphClock($data['groups'], $SUDO)) {
+        $graphUnchanged = false;
+    }
 
     // Write via temp file + sudo cp (directory is root-owned)
     $confPath = "/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf";
@@ -5380,6 +5385,83 @@ function SyncBootAdapterUsbHeadroom($groups, $SUDO)
     }
 
     if ($updated === $conf)
+        return false;
+
+    $tmpFile = tempnam(sys_get_temp_dir(), 'fpp_pw_sink_');
+    file_put_contents($tmpFile, $updated);
+    exec($SUDO . " cp " . escapeshellarg($tmpFile) . " " . escapeshellarg($confPath));
+    exec($SUDO . " chmod 644 " . escapeshellarg($confPath));
+    unlink($tmpFile);
+    return true;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Keep the graph clock in the boot-time 95-fpp-alsa-sink.conf in step with
+// where the audio is going.
+//
+// fppinit pins default.clock.rate to whatever the selected sound card ends up
+// clocked at, because a graph at any other rate makes that card's adapter
+// resample on every cycle.  A fixed-clock cape (an AM62x PCM5102A cannot do
+// better than 88200) therefore puts the whole graph at 88.2 kHz.  That is the
+// right answer while the card is being played to -- and the wrong one when the
+// only output is an AES67 sender, which is 48 kHz on the wire: nothing is
+// listening to the card, yet PipeWire resamples every AES67 buffer down from
+// 88.2 kHz.  Measured on such a board (2 channels, 1 ms packets): the graph
+// clock at 48 kHz instead of 88.2 cut combined fppd + pipewire CPU from 57.6%
+// to 41.7% of a core, and removed the per-buffer source-gap reports the
+// rate conversion causes.
+//
+// So when every member of every enabled group is an AES67 sender, run the
+// graph at 48000.  The card's own rate is recorded on a marker line the first
+// time it is overridden, and put back as soon as a card rejoins a group.
+// fppinit's cache check does not compare default.clock.rate, so the override
+// survives a reboot; a full re-probe (a card added or removed) rewrites the
+// file with the card's rate, which is correct and merely unoptimised until the
+// next time the groups are applied.
+//
+// Returns true if the file changed, i.e. the stack needs a restart to pick it up.
+function SyncBootGraphClock($groups, $SUDO)
+{
+    $confPath = "/etc/pipewire/pipewire.conf.d/95-fpp-alsa-sink.conf";
+    $conf = @file_get_contents($confPath);
+    if ($conf === false || $conf === '')
+        return false;
+    if (!preg_match('/^(\s*default\.clock\.rate\s*=\s*)(\d+)\s*$/m', $conf, $m))
+        return false;
+    $current = intval($m[2]);
+
+    $sawAes67 = false;
+    $sawOther = false;
+    foreach ($groups as $group) {
+        if (!isset($group['enabled']) || !$group['enabled'])
+            continue;
+        if (!isset($group['members']))
+            continue;
+        foreach ($group['members'] as $member) {
+            $cardId = isset($member['cardId']) ? trim(strval($member['cardId'])) : '';
+            if ($cardId === '')
+                continue;
+            if (strpos($cardId, 'aes67_') === 0)
+                $sawAes67 = true;
+            else
+                $sawOther = true;
+        }
+    }
+    $aes67Only = $sawAes67 && !$sawOther;
+
+    $marker = '/^# card clock rate: (\d+)\s*$/m';
+    $cardRate = preg_match($marker, $conf, $mm) ? intval($mm[1]) : $current;
+    $target = $aes67Only ? 48000 : $cardRate;
+
+    $updated = preg_replace('/^(\s*default\.clock\.rate\s*=\s*)\d+/m', '${1}' . $target, $conf, 1);
+    $updated = preg_replace('/^# card clock rate: \d+[ \t]*\n?/m', '', $updated, 1);
+    if ($aes67Only && $cardRate != 48000) {
+        // Record the card's rate, ahead of context.properties so a generated
+        // file's header stays intact.
+        $updated = preg_replace('/^context\.properties\s*=/m',
+            "# card clock rate: " . $cardRate . "\ncontext.properties =", $updated, 1);
+    }
+    if ($updated === null || $updated === $conf)
         return false;
 
     $tmpFile = tempnam(sys_get_temp_dir(), 'fpp_pw_sink_');

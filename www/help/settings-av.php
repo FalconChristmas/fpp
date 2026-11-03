@@ -36,7 +36,7 @@
 <h4>PipeWire Audio (Advanced only)</h4>
 <ul>
     <li><b>Configure Input Mixing (Mix Buses)</b> (button) — Mix multiple sources (FPP streams, ALSA line-in, AES67, Opus RTP and VBAN receives) into input groups before routing.</li>
-    <li><b>Configure Output Audio Groups</b> (button) — Combine multiple sound cards into virtual sinks with per-card volume/EQ/channel mapping.</li>
+    <li><b>Configure Output Audio Groups</b> (button) — Combine multiple sound cards into virtual sinks with per-card volume/EQ/channel mapping. When every enabled group contains only AES67 sends and no sound card, the audio graph runs at 48 kHz instead of the card's clock, which is a good deal cheaper on a cape whose fixed clock is 88.2 kHz; adding a card to a group puts the card's clock back. Applying the groups restarts PipeWire.</li>
 </ul>
 
 <h4>PipeWire Audio Network Streams (Advanced only)</h4>
