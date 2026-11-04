@@ -732,6 +732,10 @@ static std::string alsaSinkConfUsbHeadroomTag(const std::set<std::string>& share
 // inferred from a daemon that will not start.
 static constexpr const char* kNoFailFlag = "flags = [ nofail ]";
 
+// priority.session for the Simple-mode sink fppd plays to.  KEEP IN SYNC with
+// FPPD_SINK_SESSION_PRIORITY in www/api/controllers/pipewire.php.
+static constexpr int kFppdSinkSessionPriority = 2000;
+
 // Build the contents of 97-fpp-audio-groups.conf for the Simple-mode synthetic
 // group: a single 2-channel "Default" group whose one member is the selected
 // sound card.  This reproduces, byte-for-byte for the simple case, what
@@ -918,6 +922,11 @@ static std::string buildSimplePipeWireGroupsConf(int card, const std::string& cI
     c << "      combine.latency-compensate = false\n";
     c << "      combine.props = {\n";
     c << "        audio.position = [ FL FR ]\n";
+    // Outranks every other sink (WirePlumber's own ALSA nodes reach ~1000;
+    // FPP's adapters carry none), so WirePlumber picks fppd's sink as the
+    // default itself when it has no stored choice -- see
+    // syncPipeWireDefaultSink().  A stored choice still wins (20000+).
+    c << "        priority.session = " << kFppdSinkSessionPriority << "\n";
     c << "      }\n";
     c << "      stream.props = {\n";
     if (passiveSinks) {
@@ -1036,8 +1045,22 @@ static void setPipeWireSinkVolume(const std::string& node, int volPct) {
 // is not in the graph, so a name that never came up leaves the old default
 // rather than pointing everything at nothing.
 //
+// It has to wait for WirePlumber.  The "default" metadata belongs to it, and
+// pipewire and wireplumber start together: a set made as WirePlumber starts
+// (the same second, measured on a Pi 3B+) is overwritten by its own pick and
+// never reaches its state file, so the default fell back to card 0 within
+// minutes of the log saying it was set.  WirePlumber publishing
+// default.audio.sink is the sign its default-nodes logic is running.  A set
+// made after that is stored (wireplumber/default-nodes) and restored by every
+// later restart of the stack, so it holds without being re-run.
+//
 // KEEP IN SYNC with the pactl set-default-sink calls in
 // www/api/controllers/pipewire.php, which choose the same sink.
+static std::string pipeWireDefaultMetadata(const std::string& key) {
+    return execAndReturn("PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp "
+                         "timeout 2 /usr/bin/pw-metadata -n default 0 " + key + " 2>/dev/null");
+}
+
 static void syncPipeWireDefaultSink() {
     std::string target;
     getRawSetting("PipeWireSinkName", target);
@@ -1049,9 +1072,30 @@ static void syncPipeWireDefaultSink() {
     }
     const std::string env = "PIPEWIRE_RUNTIME_DIR=/run/pipewire-fpp XDG_RUNTIME_DIR=/run/pipewire-fpp "
                             "PULSE_RUNTIME_PATH=/run/pipewire-fpp/pulse ";
-    std::string current = execAndReturn(env + "/usr/bin/pactl get-default-sink 2>/dev/null");
-    TrimWhiteSpace(current);
-    if (current == target) {
+
+    int waited = 0;
+    while (pipeWireDefaultMetadata("default.audio.sink").find("value:") == std::string::npos && waited < 40) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        ++waited;
+    }
+    if (waited >= 40) {
+        printf("FPP - WirePlumber published no default sink within 10s; setting %s anyway\n", target.c_str());
+    }
+
+    // What WirePlumber stores, as well as what is in effect: an effective
+    // default that matches only by WirePlumber's own pick is not stored, and
+    // the next restart can pick differently.
+    const std::string storedValue = "{\"name\":\"" + target + "\"}";
+    auto isStored = [&]() {
+        return pipeWireDefaultMetadata("default.configured.audio.sink").find(storedValue) != std::string::npos;
+    };
+    auto effective = [&]() {
+        std::string s = execAndReturn(env + "/usr/bin/pactl get-default-sink 2>/dev/null");
+        TrimWhiteSpace(s);
+        return s;
+    };
+    std::string current = effective();
+    if (current == target && isStored()) {
         return;
     }
     // "<id>\t<name>\t..." -- match the whole name, not a prefix of a longer one.
@@ -1061,7 +1105,16 @@ static void syncPipeWireDefaultSink() {
         return;
     }
     printf("FPP - PipeWire default sink: %s (was '%s')\n", target.c_str(), current.c_str());
-    exec(env + "/usr/bin/pactl set-default-sink '" + target + "' 2>/dev/null");
+    // Re-checked rather than trusted: WirePlumber can still be settling its
+    // first pick when the metadata appears.
+    for (int attempt = 0; attempt < 5; attempt++) {
+        exec(env + "/usr/bin/pactl set-default-sink '" + target + "' 2>/dev/null");
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        if (isStored() && effective() == target) {
+            return;
+        }
+    }
+    printf("FPP - PipeWire default sink did not hold at %s (now '%s')\n", target.c_str(), effective().c_str());
 }
 
 // A playback stream's level, as a linear gain set on the running node with

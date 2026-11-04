@@ -41,6 +41,11 @@ require_once '../commandsocket.php';
 // the same confs at boot.
 define('PW_NOFAIL_FLAG', 'flags = [ nofail ]');
 
+// priority.session for the Simple-mode sink fppd plays to (the group marked
+// activeGroup).  KEEP IN SYNC with kFppdSinkSessionPriority in
+// src/boot/FPPINIT_Audio.cpp.
+define('FPPD_SINK_SESSION_PRIORITY', 2000);
+
 /////////////////////////////////////////////////////////////////////////////
 // Helper: the request body for a volume setter.
 // Normally these are reached as HTTP routes and read php://input, but they are
@@ -6470,7 +6475,14 @@ function GeneratePipeWireGroupsConfig($groups, $returnCardMap = false)
         $conf .= "      combine.latency-compensate = $latencyCompensate\n";
         $conf .= "      combine.props = {\n";
         $conf .= "        audio.position = $groupPos\n";
-        $conf .= "";
+        // Outranks every other sink so WirePlumber picks fppd's sink as the
+        // default itself when it has no stored choice, and a plugin's player
+        // (anything naming no target) plays where show audio does (#3063).
+        // Only Simple mode marks a group activeGroup; Advanced mode's target is
+        // often an input group's bus, so it relies on the stored default.
+        if (!empty($group['activeGroup'])) {
+            $conf .= "        priority.session = " . FPPD_SINK_SESSION_PRIORITY . "\n";
+        }
         $conf .= "      }\n";
         $conf .= "      stream.props = {\n";
         $conf .= $passiveLine;
