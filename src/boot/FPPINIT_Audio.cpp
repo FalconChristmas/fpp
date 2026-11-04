@@ -145,6 +145,12 @@ static int countRealAlsaCards() {
     return count;
 }
 
+// True if ALSA card <num> is a USB audio device.  snd-usb-audio, and only it,
+// gives each card a /proc/asound/cardN/usbid entry.
+static bool alsaCardIsUsb(int num) {
+    return num >= 0 && FileExists("/proc/asound/card" + std::to_string(num) + "/usbid");
+}
+
 // True if the device tree declares a sound card -- i.e. this board is *expected*
 // to have audio, whether or not the driver has bound yet. Used to decide whether
 // "no cards yet" means "still coming" or "there is genuinely no audio here", so
@@ -1556,10 +1562,22 @@ static void runAudioSetup(bool recoveryPass) {
     bool cppGeneratedSimpleConfig = false;
     std::map<std::string, bool> hdmiStatus;
     bool hasNonHDMI = false;
+    // An onboard HDMI audio device: its aplay line names HDMI and it is not a
+    // USB card.  Only the SoC's HDMI ports answer to the DRM connector status
+    // read below; a USB adapter with HDMI in its name (a DisplayLink "USB3 to
+    // HDMI", whose line is "card 0: HDMI [USB3 to HDMI]") is an ordinary sound
+    // card.  Judged by its name alone it counted as no real card, so snd-dummy
+    // was loaded, and with no display on the Pi's own port it was ruled a dead
+    // HDMI output: the selection fell to Dummy and Simple mode played into
+    // "FPP Audio (no sound card)", silently (issue #3159).
     auto lineHasHDMI = [](const std::string& l) {
         std::string lc = l;
         std::transform(lc.begin(), lc.end(), lc.begin(), ::tolower);
-        return lc.find("hdmi") != std::string::npos;
+        if (lc.find("hdmi") == std::string::npos) {
+            return false;
+        }
+        // "card N: ..."
+        return !(l.starts_with("card ") && alsaCardIsUsb(atoi(l.c_str() + 5)));
     };
     // Snapshot the cards "aplay -l" can see. Wrapped so it can be re-run after
     // waiting for a late-binding card below.
