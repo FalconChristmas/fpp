@@ -3776,7 +3776,10 @@ function AddPlaylistEntry (mode) {
 		} else if (a.type == 'string' || a.type == 'file') {
 			var inp = PlaylistEntryArgScope().find('.arg_' + a.name);
 			var val = inp.val();
-			if (val !== undefined) {
+			// null is a select with nothing selected, e.g. its list failed to
+			// load: the row would store it as the text "null", which then saves
+			// as a real value. Leave it out; an arg with a default then gets it.
+			if (val !== undefined && val !== null) {
 				pe[a.name] = val;
 			}
 		} else {
@@ -4737,11 +4740,24 @@ function EditPlaylistEntry () {
 				// tier and we're viewing in a lower UI level, the option won't
 				// exist yet and .val() silently leaves nothing selected. Add it
 				// back so the saved selection is preserved instead of dropping.
-				if (a.name == 'command' && savedVal !== '' && $('.arg_command').val() !== savedVal) {
-					$('.arg_command').append(
-						"<option value='" + savedVal + "'>" + savedVal + '</option>'
-					);
-					$('.arg_command').val(savedVal).trigger('change');
+				// The same for a list fetched from the API: its fetch can fail,
+				// and a video output can be a display or model that is gone for
+				// now. Saving must not change what the user did not touch, so only
+				// a command fires change here: it has to build its args, whereas
+				// a media name's handler would pick a sequence to match it. The
+				// text "null" is what an empty select used to save, not a choice:
+				// left unselected, it is dropped from the entry on save.
+				var argInp = PlaylistEntryArgScope().find('.arg_' + a.name);
+				if (
+					(a.name == 'command' ||
+						(a.type == 'string' && typeof a.contentListUrl != 'undefined')) &&
+					savedVal !== '' &&
+					savedVal !== 'null' &&
+					argInp.val() !== savedVal
+				) {
+					argInp.append($('<option>').val(savedVal).text(savedVal));
+					argInp.val(savedVal);
+					if (a.name == 'command') argInp.trigger('change');
 				}
 			}
 		}
