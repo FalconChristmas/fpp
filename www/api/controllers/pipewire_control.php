@@ -985,7 +985,9 @@ function PWCtl_GetStreams()
     global $SUDO;
 
     $ctx = stream_context_create(array('http' => array('timeout' => 3)));
-    $raw = @file_get_contents('http://127.0.0.1:32322/api/fppd/status', false, $ctx);
+    // No /api prefix: Apache adds that for the PHP API, and it is a 404 on
+    // fppd's own server.
+    $raw = @file_get_contents('http://127.0.0.1:32322/fppd/status', false, $ctx);
     $fpp = (!empty($raw)) ? json_decode($raw, true) : array();
 
     $liveNodes = pwctl_live_node_names();
@@ -1000,9 +1002,10 @@ function PWCtl_GetStreams()
             "status" => $running ? "playing" : "idle",
             "mediaFilename" => "",
         );
-        if ($slot === 1 && is_array($fpp) && !empty($fpp['media_filename'])) {
+        // current_song, not media_filename: a playing playlist reports only that.
+        if ($slot === 1 && is_array($fpp) && !empty($fpp['current_song'])) {
             $info['status'] = 'playing';
-            $info['mediaFilename'] = $fpp['media_filename'];
+            $info['mediaFilename'] = $fpp['current_song'];
             if (isset($fpp['seconds_elapsed']))
                 $info['secondsElapsed'] = intval($fpp['seconds_elapsed']);
             if (isset($fpp['seconds_remaining']))
@@ -1051,8 +1054,8 @@ function PWCtl_SetStreamVolume()
             'content' => json_encode(array('command' => 'Volume Set', 'args' => array(strval($vol)))),
             'timeout' => 3,
         )));
-        @file_get_contents('http://127.0.0.1:32322/api/command', false, $ctx);
-        return json(array("status" => "OK", "slot" => 1, "volume" => $vol, "applied" => true, "control" => "fppd"));
+        $applied = @file_get_contents('http://127.0.0.1:32322/command', false, $ctx) !== false;
+        return json(array("status" => $applied ? "OK" : "ERROR", "slot" => 1, "volume" => $vol, "applied" => $applied, "control" => "fppd"));
     }
 
     $linear = round($vol / 100.0, 3);
