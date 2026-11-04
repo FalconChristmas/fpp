@@ -927,7 +927,7 @@ HttpResponsePtr CommandManager::render_GET(const HttpRequestPtr& req) {
             }
         } else {
             if (getRequestArg(req, "names") == "true") {
-                Json::Value names;
+                Json::Value names(Json::arrayValue);
                 if (allCommands.isMember("commands")) {
                     for (int x = 0; x < allCommands["commands"].size(); x++) {
                         names.append(allCommands["commands"][x]["name"].asString());
