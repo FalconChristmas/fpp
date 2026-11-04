@@ -229,7 +229,7 @@ int StartEffect(FSEQFile* fseq, const std::string& effectName, int loop, bool bg
     if (!sequence->IsSequenceRunning() && tmpec == 1) {
         // first effect running, no sequence running, set the refresh rate
         // to the rate of the effect
-        SetChannelOutputRefreshRate(1000 / frameTime);
+        SetChannelOutputRefreshRate(1000.0f / frameTime);
     }
 
     return effectID;
