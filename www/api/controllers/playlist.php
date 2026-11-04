@@ -116,6 +116,50 @@ function validatePlaylistReference($name, $what, &$ctx)
 }
 
 /**
+ * Whether a media entry's video output is one this system has.  Answers yes
+ * whenever it can't tell, so that a healthy entry is never reported: an
+ * unplugged display is still a connector in sysfs, and with fppd down, or no
+ * DRM at all, there is nothing to compare a name with.
+ *
+ * @param string $name Video output name.
+ * @param array  $ctx  Validation context; fppd's models are read once per pass.
+ * @return bool False only when the output is known to be missing.
+ */
+function validationVideoOutputExists($name, &$ctx)
+{
+    if (in_array($name, array('', '--Default--', 'Disabled', '--Disabled--', '--HDMI--', '--hdmi--', 'HDMI'), true)) {
+        return true;
+    }
+    if (preg_match('/^(HDMI|DSI|Composite)-/', $name)) {
+        $connectors = @scandir('/sys/class/drm/');
+        if ($connectors === false) {
+            return true;
+        }
+        foreach ($connectors as $c) {
+            if (str_ends_with($c, '-' . $name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    if (!array_key_exists('videoOutputModels', $ctx)) {
+        $ctx['videoOutputModels'] = null;
+        $curl = curl_init('http://localhost:32322/models');
+        curl_setopt($curl, CURLOPT_FAILONERROR, true);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
+        curl_setopt($curl, CURLOPT_TIMEOUT_MS, 1000);
+        $reply = curl_exec($curl);
+        curl_close($curl);
+        $models = ($reply === false) ? null : json_decode($reply, true);
+        if (is_array($models)) {
+            $ctx['videoOutputModels'] = array_column($models, 'Name');
+        }
+    }
+    return $ctx['videoOutputModels'] === null || in_array($name, $ctx['videoOutputModels'], true);
+}
+
+/**
  * Checks one playlist entry against what fppd needs to play it.
  *
  * @param array $e   Playlist entry (decoded as an associative array).
@@ -178,6 +222,19 @@ function validatePlaylistEntry($e, &$ctx)
             foreach ($extra as $m) {
                 if (!validationMediaExists($m)) {
                     $rc[] = "Extra media '$m' not found";
+                }
+            }
+            $outputs = array($str('videoOut'), $str('extraMediaOut'));
+            if (isset($e['extraMedia']) && is_array($e['extraMedia'])) {
+                foreach ($e['extraMedia'] as $x) {
+                    if (is_array($x) && isset($x['videoOut']) && is_scalar($x['videoOut'])) {
+                        $outputs[] = (string) $x['videoOut'];
+                    }
+                }
+            }
+            foreach (array_unique($outputs) as $out) {
+                if (!validationVideoOutputExists($out, $ctx)) {
+                    $rc[] = "Video output '$out' not found";
                 }
             }
             break;
