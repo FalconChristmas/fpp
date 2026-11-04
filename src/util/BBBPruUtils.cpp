@@ -176,6 +176,12 @@ constexpr size_t DDR_SIZE = 0x00400000;
 
 constexpr std::string FIRMWARE_PREFIX = "am335x";
 constexpr bool FAKE_PRU = false;
+// run() clears the PRU memories only after it has enabled the core.  The
+// PRUSS is clocked once a core runs, but with both cores stopped it may not
+// be: a board whose PRU was never brought up, or whose cores an earlier run
+// stopped, takes a bus abort on the write (crash bucket e80ad9caf7, SIGBUS in
+// the clear before enable()).
+constexpr bool CLEAR_BEFORE_ENABLE = false;
 
 static uint8_t* PRUSS_SRAM_BASE = 0x00000000;
 constexpr uint32_t PRUSS_SRAM_GLOBAL = 0x00000000;
@@ -211,6 +217,10 @@ constexpr uint32_t PRUSS_M4RAM_GLOBAL = 0x05040000;
 constexpr size_t PRUSS_M4RAM_SIZE = 256 * 1024; // 256K;
 
 constexpr std::string FIRMWARE_PREFIX = "am62x";
+// With both cores stopped the AM62x PRUSS still takes the writes, and the
+// outputs that use the SMEM ring need a restart to see none of the previous
+// run's handshake words (see run()).
+constexpr bool CLEAR_BEFORE_ENABLE = true;
 
 static bool FAKE_PRU = !FileExists("/sys/class/remoteproc/remoteproc0/state");
 #endif
@@ -498,13 +508,17 @@ bool BBBPru::run(const std::string& program, bool clearSharedMems, bool clearMem
             LogErr(VB_CHANNELOUT, "BBBPru[%d]: could not install PRU program %s\n", pru_num, program.c_str());
             return false;
         }
-        // Clear before the core starts as well as after.  Firmware loading
-        // does not clear data RAM, so on a restart the previous run's
-        // handshake words (the SMEM ring config in particular) are still
-        // there: the new firmware passes its wait on them at once and reads
-        // config the ARM has not written yet.  The clear after enable() stays
-        // for a PRUSS that was powered down, where these writes are dropped.
-        clearPRUMems();
+        // Clear before the core starts as well as after, where the PRUSS
+        // takes writes with its cores stopped (CLEAR_BEFORE_ENABLE).
+        // Firmware loading does not clear data RAM, so on a restart the
+        // previous run's handshake words (the SMEM ring config in
+        // particular) are still there: the new firmware passes its wait on
+        // them at once and reads config the ARM has not written yet.  The
+        // clear after enable() stays for a PRUSS that was powered down,
+        // where these writes are dropped.
+        if (CLEAR_BEFORE_ENABLE) {
+            clearPRUMems();
+        }
         enabled = prus[pru_num].enable();
         if (!enabled) {
             return false;

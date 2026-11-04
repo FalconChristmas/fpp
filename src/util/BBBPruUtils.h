@@ -36,6 +36,9 @@ public:
     // core starts, for firmware that zeroes its own handshake words before
     // reading them and only reads data the ARM wrote ahead of the command
     // that releases it.  run() then does not touch PRU memory at all.
+    // Otherwise the memories are cleared once the core runs, and also before
+    // it where the PRUSS takes writes with its cores stopped (the AM62x, not
+    // the AM335x: BBBPruUtils.cpp CLEAR_BEFORE_ENABLE).
     bool run(const std::string& program, bool clearSharedMems = true, bool clearMems = true);
     void stop();
 
