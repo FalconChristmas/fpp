@@ -3,6 +3,7 @@
 BINDIR=$(cd $(dirname $0) && pwd)
 
 . ${BINDIR}/common
+. ${BINDIR}/fpp_tree_guard
 
 if [ "x$1" = "x" ]
 then
@@ -29,6 +30,7 @@ startPluginLog uninstall "$1"
 # FPP_PLUGIN_REINSTALL=1 on the uninstall half of a Reinstall, 0 otherwise.
 # env: with SUDO empty (macOS) a leading VAR=x would be run as the command.
 case "${FPP_PLUGIN_REINSTALL:-}" in 1) REINSTALL=1 ;; *) REINSTALL=0 ;; esac
+fppTreeGuardBegin
 if [ -x "${PLUGINDIR}/$1/scripts/fpp_uninstall.sh" ]
 then
 	echo "Running fpp_uninstall.sh script for $1"
@@ -40,6 +42,7 @@ else
 		$SUDO env FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src FPP_PLUGIN_REINSTALL=${REINSTALL} "${PLUGINDIR}/$1/fpp_uninstall.sh" FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
 	fi
 fi
+fppTreeGuardEnd uninstall "$1"
 
 echo "Uninstalling plugin $1"
 cd "${PLUGINDIR}" || exit 1

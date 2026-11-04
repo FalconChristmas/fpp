@@ -47,6 +47,7 @@
 #include <iostream>
 #include <map>
 #include <set>
+#include <sstream>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
@@ -1143,6 +1144,40 @@ static void initCape() {
     initCapeFromFile(FPP_DIR_MEDIA("/tmp/cape-sensors.json"));
 }
 
+constexpr int WARNING_ID_PLUGIN_EDITED_FPP = 75;
+
+// Raise the "a plugin edited FPP itself" banner while
+// logs/fpp_tree_modified.txt ("<plugin>\t<file>" lines) exists.
+static void CheckPluginTreeEdits() {
+    const std::string path = getFPPMediaDir("/logs/fpp_tree_modified.txt");
+    if (!FileExists(path)) {
+        return;
+    }
+    std::set<std::string> plugins;
+    int files = 0;
+    std::istringstream in(GetFileContents(path));
+    std::string line;
+    while (std::getline(in, line)) {
+        auto tab = line.find('\t');
+        if (tab == std::string::npos || tab == 0) {
+            continue;
+        }
+        plugins.insert(line.substr(0, tab));
+        ++files;
+    }
+    if (files == 0) {
+        return;
+    }
+    std::string names;
+    for (const auto& p : plugins) {
+        names += (names.empty() ? "" : ", ") + p;
+    }
+    WarningHolder::AddWarningTimeout(120, WARNING_ID_PLUGIN_EDITED_FPP,
+                                     "Plugin " + names + " modified " + std::to_string(files) +
+                                         " of FPP's own files. This blocks FPP updates and makes crash reports unreliable. Run an FPP update to set the changes aside, and report this to the plugin's author.",
+                                     { { "fixUrl", "about.php" }, { "fixText", "Update FPP" } });
+}
+
 // Leave without running the global/static destructors, as main()'s normal
 // exit and the crash handler already do (see the end of main()). An early
 // failure that called exit() ran them with fppd half started: the warnings
@@ -1505,6 +1540,17 @@ int main(int argc, char* argv[]) {
     Events::AddCallback("/system/restart", system_callback);
 
     WarningHolder::StartNotifyThread();
+
+    // Plugin edits to FPP's own files. scripts/fpp_tree_guard writes
+    // logs/fpp_tree_modified.txt while such edits sit in the tree and removes it
+    // when the next FPP update sets them aside. The warning is deliberately
+    // timeout-based: re-added every poll while the file exists, so it ages out
+    // ~2 minutes after the file goes away and there is no removal text to keep
+    // in step with the message.
+    Timers::INSTANCE.addPeriodicTimer("PluginTreeEditsWarning", 30000, []() {
+        CheckPluginTreeEdits();
+    });
+    CheckPluginTreeEdits();
 
     // Check if boot delay is in progress and add warning
     if (FileExists(getFPPMediaDir("/tmp/boot_delay"))) {

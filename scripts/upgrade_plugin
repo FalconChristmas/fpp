@@ -3,6 +3,7 @@
 BINDIR=$(cd $(dirname $0) && pwd)
 
 . ${BINDIR}/common
+. ${BINDIR}/fpp_tree_guard
 
 # Run the plugin's optional post-pull script (upgrade first, then install), same
 # resolution order the PHP controller used. Returns the script's rc; 0 if the
@@ -28,8 +29,10 @@ runPluginPostPullScript() {
 	# FPP_RELOADS_PLUGIN is named here because sudo passes on only what it is
 	# handed: the plugin's script reads it to leave reloading to FPP.
 	# env: with SUDO empty (macOS) a leading VAR=x would be run as the command.
+	fppTreeGuardBegin
 	$SUDO env FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src FPP_RELOADS_PLUGIN=${FPP_RELOADS_PLUGIN:-0} ${script}
 	local rc=$?
+	fppTreeGuardEnd upgrade "${PLUGIN}"
 	if [ $rc -ne 0 ]; then
 		echo "ERROR: the code of ${PLUGIN} was updated to $(cd "${PLUGINPATH}" && $SUDO git rev-parse --short HEAD 2>/dev/null), but its $(basename "${script}") failed (rc=${rc}); see above"
 	fi

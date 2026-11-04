@@ -4,6 +4,7 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 . ${BINDIR}/common
 . ${BINDIR}/functions
+. ${BINDIR}/fpp_tree_guard
 
 
 if [ "x$1" = "x" ]
@@ -49,6 +50,7 @@ if ! git remote get-url newfeatures > /dev/null 2>&1; then
     fi
 fi
 
+fppTreeStashLocalChanges
 echo "Switching git branch to $1"
 # Fetch first, then checkout the target branch and rebase onto its tracking
 # ref (@{u}) rather than a bare "git pull" -- the latter rebases off

@@ -1,0 +1,173 @@
+#!/bin/bash
+# Sourced library (not run directly): keep plugins honest about ${FPPDIR}.
+#
+# A plugin's install/upgrade/uninstall script runs as root, so nothing can stop
+# it from editing the FPP checkout, and some do (sed -i on a www/ file, a patched
+# script, a swapped binary). That breaks 'git rebase' during every later FPP
+# update, and it leaves crash reports describing code that is not the code we
+# shipped. We cannot prevent it, so this library makes it visible and survivable:
+#
+#   fppTreeGuardBegin / fppTreeGuardEnd <op> <plugin>
+#       Fingerprint the modified tracked files around a plugin script. Anything
+#       that changed is named in the operation's log (so the Plugin Manager
+#       shows it), recorded in logs/fpp_tree_changes.log (which crash reports
+#       include), and saved as a patch under logs/fpp_tree_patches/.
+#
+#   fppTreeStashLocalChanges
+#       Run before an FPP update. Saves every locally modified tracked file as a
+#       patch, records which plugin last touched it, and stashes it so the
+#       update's rebase can proceed. Nothing is lost: the patch file and the
+#       git stash (git stash list) both hold the edits.
+#
+# Only tracked files count. Build output and plugin data are untracked or
+# ignored, and submodules are skipped (their pointers move during a normal build).
+# Needs common sourced first (FPPDIR, LOGDIR, SUDO, FPPUSER).
+
+FPP_TREE_CHANGES_LOG="${LOGDIR}/fpp_tree_changes.log"
+FPP_TREE_PATCH_DIR="${LOGDIR}/fpp_tree_patches"
+# Edits that are in the tree right now ("<plugin>\t<file>" per line). This, not
+# the history log above, drives the fppd warning banner (src/TreeModifiedWarning.cpp):
+# the file exists exactly while plugin edits are sitting in the tree, and the
+# update's stash removes it, which is what brings the banner down.
+FPP_TREE_PENDING="${LOGDIR}/fpp_tree_modified.txt"
+
+# Run git against the FPP checkout as the user that owns it.
+_fppTreeGit() {
+    if [ "x${FPPDIR}" = "x/opt/fpp" ] || [ "${FPPPLATFORM}" = "MacOS" ]; then
+        ${SUDO} git -C "${FPPDIR}" "$@"
+    else
+        sudo -u "${FPPUSER}" git -C "${FPPDIR}" "$@"
+    fi
+}
+
+# Tab-separated "<content hash><x if executable>\t<path>" for every modified
+# tracked file, sorted. A deleted file hashes as "deleted". The executable flag
+# is in the hash so a chmod-only change is noticed too.
+fppTreeFingerprint() {
+    _fppTreeGit diff --name-only --ignore-submodules=all HEAD 2>/dev/null | while IFS= read -r f; do
+        if [ -e "${FPPDIR}/${f}" ]; then
+            h=$(_fppTreeGit hash-object -- "${f}" 2>/dev/null)
+            [ -x "${FPPDIR}/${f}" ] && h="${h}x"
+        else
+            h="deleted"
+        fi
+        printf '%s\t%s\n' "${h}" "${f}"
+    done | LC_ALL=C sort
+}
+
+_fppTreeRecord() { # op plugin file...
+    local op="$1" plugin="$2" f ts
+    shift 2
+    ts=$(date '+%Y-%m-%d %H:%M:%S')
+    mkdir -p "${LOGDIR}" 2>/dev/null
+    for f in "$@"; do
+        printf '%s\t%s\t%s\t%s\n' "${ts}" "${op}" "${plugin}" "${f}" >> "${FPP_TREE_CHANGES_LOG}" 2>/dev/null
+    done
+}
+
+_fppTreeAddPending() { # plugin file...
+    local plugin="$1" f
+    shift
+    mkdir -p "${LOGDIR}" 2>/dev/null
+    for f in "$@"; do
+        printf '%s\t%s\n' "${plugin}" "${f}" >> "${FPP_TREE_PENDING}" 2>/dev/null
+    done
+    LC_ALL=C sort -u -o "${FPP_TREE_PENDING}" "${FPP_TREE_PENDING}" 2>/dev/null
+    chmod a+r "${FPP_TREE_PENDING}" 2>/dev/null
+}
+
+# The plugin that most recently changed <file>, or empty.
+_fppTreeLastToucher() {
+    [ -f "${FPP_TREE_CHANGES_LOG}" ] || return 0
+    awk -F'\t' -v f="$1" '$4 == f && $2 != "update-stash" { p = $3 } END { print p }' "${FPP_TREE_CHANGES_LOG}"
+}
+
+# Write a patch of <files> (paths relative to FPPDIR) to the patch dir; echo its path.
+_fppTreeSavePatch() { # tag file...
+    local tag="$1" out
+    shift
+    mkdir -p "${FPP_TREE_PATCH_DIR}" 2>/dev/null || return 1
+    out="${FPP_TREE_PATCH_DIR}/$(date '+%Y%m%d-%H%M%S')-${tag}.patch"
+    _fppTreeGit diff --binary --ignore-submodules=all HEAD -- "$@" > "${out}" 2>/dev/null
+    echo "${out}"
+}
+
+fppTreeGuardBegin() {
+    FPP_TREE_BEFORE=$(mktemp 2>/dev/null) || return 0
+    FPP_TREE_HEAD_BEFORE=$(_fppTreeGit rev-parse HEAD 2>/dev/null)
+    fppTreeFingerprint > "${FPP_TREE_BEFORE}"
+}
+
+# fppTreeGuardEnd <op> <plugin>
+fppTreeGuardEnd() {
+    local op="$1" plugin="$2" after changed head patch
+    [ -n "${FPP_TREE_BEFORE}" ] && [ -f "${FPP_TREE_BEFORE}" ] || return 0
+    after=$(mktemp 2>/dev/null) || { rm -f "${FPP_TREE_BEFORE}"; return 0; }
+    fppTreeFingerprint > "${after}"
+    # Lines present now that were not there before: newly modified files, or
+    # files that were already modified and changed again.
+    changed=$(LC_ALL=C comm -13 "${FPP_TREE_BEFORE}" "${after}" | cut -f2)
+    rm -f "${FPP_TREE_BEFORE}" "${after}"
+    FPP_TREE_BEFORE=""
+
+    head=$(_fppTreeGit rev-parse HEAD 2>/dev/null)
+    if [ -n "${FPP_TREE_HEAD_BEFORE}" ] && [ -n "${head}" ] && [ "${head}" != "${FPP_TREE_HEAD_BEFORE}" ]; then
+        echo ""
+        echo "WARNING: plugin ${plugin} moved the FPP checkout (${FPP_TREE_HEAD_BEFORE:0:10} -> ${head:0:10}) during ${op}."
+        echo "         Plugins must not run git commands against ${FPPDIR}."
+        _fppTreeRecord "${op}" "${plugin}" "(HEAD moved ${FPP_TREE_HEAD_BEFORE:0:10}..${head:0:10})"
+    fi
+    [ -z "${changed}" ] && return 0
+
+    local files=()
+    while IFS= read -r f; do files+=("${f}"); done <<< "${changed}"
+    patch=$(_fppTreeSavePatch "${plugin}-${op}" "${files[@]}")
+
+    echo ""
+    echo "======================================================================="
+    echo "WARNING: plugin ${plugin} modified files inside the FPP installation"
+    echo "(${FPPDIR}) while running its ${op} script:"
+    for f in "${files[@]}"; do echo "    ${f}"; done
+    echo ""
+    echo "Plugins must not edit FPP's own files. It breaks FPP updates and makes"
+    echo "crash reports describe code that is not what FPP shipped. FPP will set"
+    echo "these edits aside at the next update (the changes are kept as a patch)."
+    echo "Please report this to the author of ${plugin}."
+    [ -n "${patch}" ] && echo "A copy of the changes is in ${patch}"
+    echo "======================================================================="
+    _fppTreeRecord "${op}" "${plugin}" "${files[@]}"
+    _fppTreeAddPending "${plugin}" "${files[@]}"
+    return 0
+}
+
+# Move local edits to tracked FPP files out of the way of an update.
+fppTreeStashLocalChanges() {
+    local changed f files=() patch plugin who ts msg
+    changed=$(_fppTreeGit diff --name-only --ignore-submodules=all HEAD 2>/dev/null)
+    if [ -z "${changed}" ]; then
+        rm -f "${FPP_TREE_PENDING}"   # nothing left to warn about
+        return 0
+    fi
+    while IFS= read -r f; do files+=("${f}"); done <<< "${changed}"
+
+    echo "Local modifications to FPP's own files would block the update:"
+    for f in "${files[@]}"; do
+        who=$(_fppTreeLastToucher "${f}")
+        echo "    ${f}${who:+   (last changed by plugin ${who})}"
+    done
+
+    patch=$(_fppTreeSavePatch "update-stash" "${files[@]}")
+    ts=$(date '+%Y-%m-%d %H:%M:%S')
+    msg="fpp auto-stash before update ${ts}"
+    if _fppTreeGit -c user.name=FPP -c user.email=fpp@localhost stash push -m "${msg}" -- "${files[@]}" >/dev/null 2>&1; then
+        echo "These changes were set aside, not applied by the update."
+        [ -n "${patch}" ] && echo "    Patch : ${patch}"
+        echo "    Stash : git -C ${FPPDIR} stash list   (\"${msg}\")"
+        _fppTreeRecord "update-stash" "-" "${files[@]}"
+        rm -f "${FPP_TREE_PENDING}"
+    else
+        echo "WARNING: could not set the changes aside; the update may fail."
+        [ -n "${patch}" ] && echo "    A copy is in ${patch}"
+    fi
+    return 0
+}

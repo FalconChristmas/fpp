@@ -4,6 +4,7 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 . ${BINDIR}/common
 . ${BINDIR}/functions
+. ${BINDIR}/fpp_tree_guard
 
 # Ensure git's "dubious ownership" guard doesn't trip when running git as
 # root via sudo against /opt/fpp (owned by fpp:fpp). FPP_Install.sh sets
@@ -66,6 +67,10 @@ if curl --silent --head "${HTTPURL}" | grep -i "Content-Type: text/html; charset
             runGitLocked "cd ${FPPDIR} && sudo -u ${FPPUSER} git fetch origin +pull/${PR_NUM}/head:refs/remotes/origin/pull/${PR_NUM}/head 2>&1 | head -20" || true
         fi
     fi
+
+    # Edits to FPP's own files (usually a plugin's install script) make the
+    # rebase below abort. Set them aside, with a patch, instead.
+    fppTreeStashLocalChanges
 
     logStage "Fetching updates from branch ${GITBRANCH}"
 

@@ -638,7 +638,7 @@ with open(sys.argv[2], "w") as f:
         # fppd.log records only that an upgrade or a plugin build failed and
         # with what rc; why is only in these.  A crash right after an upgrade
         # is common enough that crash reports need them, not just manual ones.
-        for log in fpp_plugin_manager.log fpp_system_upgrades.log; do
+        for log in fpp_plugin_manager.log fpp_system_upgrades.log fpp_tree_changes.log; do
             [ -f "logs/$log" ] || continue
             if [ "$(wc -c < "logs/$log")" -gt 1048576 ]; then
                 tail -c 1048576 "logs/$log" | tail -n +2 | redact_stream > "$TEMP_DIR/logs/$log"

@@ -4,6 +4,7 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 . ${BINDIR}/common
 . ${BINDIR}/functions
+. ${BINDIR}/fpp_tree_guard
 
 # normalizePluginScriptModes <plugin>
 #   git preserves mode bits, so a plugin whose author committed its scripts at
@@ -49,7 +50,12 @@ runPluginInstallScript() {
 	# env-assignment form, which is why upgrades ran install scripts correctly
 	# while installs did not. The trailing args stay for plugins that parse them.
 	# env: with SUDO empty (macOS) a leading VAR=x would be run as the command.
+	# fppTreeGuard*: name any FPP file the script edits (see scripts/fpp_tree_guard).
+	fppTreeGuardBegin
 	$SUDO env FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src ${script} FPPDIR=${FPPDIR} SRCDIR=${FPPDIR}/src
+	local rc=$?
+	fppTreeGuardEnd install "$1"
+	return $rc
 }
 
 # --run-install-script <plugin>
