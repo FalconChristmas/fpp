@@ -14832,21 +14832,26 @@ function fppCommandColorPicker () {
 }
 
 function FileChooser (dir, target) {
-	if ($('#fileChooser').length == 0) {
+	if ($('#fileChooserPopup').length == 0) {
 		var dialogHTML =
 			"<div id='fileChooserPopup'><div id='fileChooserDiv'></div></div>";
 		$(dialogHTML).appendTo('body');
 	}
 
+	// The list comes after the show transition: picking a file closes the
+	// dialog, and Bootstrap drops a hide asked for during that transition,
+	// which left the dialog open over the entry with the file already chosen.
+	$('#fileChooserDiv').empty();
+	$('#fileChooserPopup').one('shown.bs.modal', function () {
+		$('#fileChooserDiv').load('fileChooser.php', function () {
+			SetupFileChooser(dir, target);
+		});
+	});
 	$('#fileChooserPopup').fppDialog({
 		height: 440,
 		width: 600,
 		title: 'File Chooser',
 		modal: true
-	});
-	$('#fileChooserPopup').fppDialog('moveToTop');
-	$('#fileChooserDiv').load('fileChooser.php', function () {
-		SetupFileChooser(dir, target);
 	});
 }
 
