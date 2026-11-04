@@ -480,7 +480,7 @@ function GetOptions_VideoOutput($playlist)
         $VideoOutputModels['--Default--'] = "--Default--";
     }
     $path = "/sys/class/drm/";
-    $files = array_diff(scandir($path), array('.', '..'));
+    $files = array_diff(@scandir($path) ?: array(), array('.', '..'));
     foreach ($files as $file) {
         if (str_contains($file, "HDMI")) {
             $file = substr($file, stripos($file, "HDMI"));
