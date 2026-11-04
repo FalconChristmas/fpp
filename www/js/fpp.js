@@ -3768,7 +3768,8 @@ function AddPlaylistEntry (mode) {
 			} else {
 				for (x = 1; x <= 20; x++) {
 					if ($('#playlistEntryCommandOptions_arg_' + x).length) {
-						arr.push($('#playlistEntryCommandOptions_arg_' + x).val());
+						// By position, so a select with nothing selected stays in its slot.
+						arr.push($('#playlistEntryCommandOptions_arg_' + x).val() ?? '');
 					}
 				}
 			}
@@ -10737,7 +10738,9 @@ function CommandToJSON (commandSelect, tblCommand, json, addArgTypes = false) {
 					argTypes.push(inp.data('arg-type'));
 				}
 			} else if (typeof val != 'undefined') {
-				args.push(val);
+				// null is a select with nothing selected. Args go by position, so
+				// it keeps its slot, and '' is what fppd read a JSON null as.
+				args.push(val === null ? '' : val);
 				if (addArgTypes) {
 					argTypes.push(inp.data('arg-type'));
 				}
@@ -14728,6 +14731,18 @@ function PopulateExistingCommand (
 						inp.css('background-color', v);
 					} else {
 						inp.val(v).change();
+						// A saved value its list doesn't offer: the fetch failed, or
+						// it names a display or model that is gone for now. Keep it,
+						// but not the text "null", which an empty select used to save.
+						if (
+							inp.data('contentlisturl') != null &&
+							v !== '' &&
+							v !== 'null' &&
+							inp.val() !== String(v)
+						) {
+							inp.append($('<option>').val(v).text(v));
+							inp.val(v).change();
+						}
 					}
 				}
 
