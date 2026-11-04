@@ -1182,6 +1182,14 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 			UpdateSelectionButtons(this.id.substring(3));
 		});
 
+	// The buttons that need a selection start out with only the disableButtons
+	// class (the look, not the state). Nothing else turns them off until a
+	// table redraws or a row is clicked, so with nothing selected a button such
+	// as Rename was greyed out but still worked, whenever the first render of
+	// its table came before the handler above was bound. Put them in step with
+	// the (empty) selection now.
+	['Sequences', 'Music', 'Videos', 'Images', 'Effects', 'Scripts', 'Logs', 'Uploads', 'Crashes', 'Backups', 'Config'].forEach(UpdateSelectionButtons);
+
 	$('#tblSequences').on('mousedown', 'tbody tr', function (event, ui) {
 		HandleMouseClick(event, $(this), 'Sequences');
 	});
