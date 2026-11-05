@@ -1406,11 +1406,15 @@ public:
         V2CompressedHandler(f),
         m_cctx(nullptr),
         m_dctx(nullptr) {
+        // No output buffer yet: a reader sizes it to the block it is reading
+        // in getFrame(), and only a writer needs the V2OutBufferSize() staging
+        // buffer (allocated by its first addFrame()).  Allocating that up front
+        // cost every open compressed sequence 32 MB it never used: one per FSEQ
+        // effect, so a 32 bit player running a few dozen at once ran out of
+        // address space.
         m_outBuffer.pos = 0;
-
-        m_outBuffer.size = V2OutBufferSize();
-        m_outBuffer.dst = malloc(m_outBuffer.size);
-        m_outBufferCapacity = m_outBuffer.dst ? m_outBuffer.size : 0;
+        m_outBuffer.size = 0;
+        m_outBuffer.dst = nullptr;
         m_inBuffer.src = nullptr;
         m_inBuffer.size = 0;
         m_inBuffer.pos = 0;
@@ -1848,6 +1852,16 @@ public:
     virtual void addFrame(uint32_t frame, const uint8_t* data) override {
         if (m_cctx == nullptr) {
             m_cctx = ZSTD_createCStream();
+        }
+        if (m_outBuffer.dst == nullptr) {
+            m_outBuffer.dst = malloc(V2OutBufferSize());
+            if (m_outBuffer.dst == nullptr) {
+                LogErr(VB_SEQUENCE, "Could not allocate the %d byte zstd output buffer\n", V2OutBufferSize());
+                return;
+            }
+            m_outBuffer.size = V2OutBufferSize();
+            m_outBufferCapacity = m_outBuffer.size;
+            m_outBuffer.pos = 0;
         }
         if (m_curFrameInBlock == 0) {
             uint64_t offset = tell();

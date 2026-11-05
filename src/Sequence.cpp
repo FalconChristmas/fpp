@@ -395,7 +395,19 @@ int Sequence::OpenSequenceFile(const std::string& filename, int startFrame, int 
     m_seqMSRemaining = 0;
     SetChannelOutputFrameNumber(m_lastFrameRead + 1);
     if (m_readThread == nullptr) {
-        m_readThread = new std::thread(ReadSequenceDataThread, this);
+        // Started by the first open fppd makes, which can come long after
+        // start: on a remote, the first sync packet.  A process already out of
+        // threads or (32 bit) address space by then - dozens of FSEQ effects
+        // running - makes the constructor throw; fail this open, as a missing
+        // file does, rather than abort, and let the next open try again.
+        try {
+            m_readThread = new std::thread(ReadSequenceDataThread, this);
+        } catch (const std::system_error& e) {
+            LogErr(VB_SEQUENCE, "Could not start the sequence read thread (%s), not opening %s\n", e.what(), filename.c_str());
+            m_readThread = nullptr;
+            m_seqStarting = 0;
+            return 0;
+        }
     }
 
     {
