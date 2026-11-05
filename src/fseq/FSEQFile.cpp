@@ -16,6 +16,8 @@
 #include <mutex>
 #include <thread>
 
+#include <pthread.h>
+
 #include <chrono>
 using namespace std::literals;
 using namespace std::chrono_literals;
@@ -1115,17 +1117,16 @@ public:
         m_curBlock(99999),
         m_framesPerBlock(0),
         m_curFrameInBlock(0),
-        m_readThread(nullptr) {
+        m_haveReadThread(false) {
         if (!m_file->m_frameOffsets.empty()) {
             m_maxBlocks = m_file->m_frameOffsets.size() - 1;
         }
     }
     virtual ~V2CompressedHandler() {
-        if (m_readThread) {
+        if (m_haveReadThread) {
             m_readThreadRunning = false;
             m_readSignal.notify_all();
-            m_readThread->join();
-            delete m_readThread;
+            pthread_join(m_readThread, nullptr);
         }
         for (auto& a : m_blockMap) {
             if (a.second) {
@@ -1246,37 +1247,60 @@ public:
         m_blocksToRead.push_back(block + 2);
         m_blocksToRead.push_back(block + 3);
         m_firstBlock = block;
-        if (m_readThread) {
-            // Already reading ahead for this file.  Overwriting the pointer
-            // here would leak the previous thread, which stays joinable and
+        if (m_haveReadThread) {
+            // Already reading ahead for this file.  Starting another here
+            // would leak the previous thread, which stays joinable and
             // spinning for the life of the daemon; the blocks queued above are
             // all the existing thread needs.
             m_readSignal.notify_all();
             return;
         }
         m_readThreadRunning = true;
-        try {
-            m_readThread = new std::thread([this]() {
-                SetThreadName("FSEQReadThread");
-                while (m_readThreadRunning) {
-                    std::unique_lock<std::mutex> readerlock(m_readMutex);
-                    if (!m_blocksToRead.empty()) {
-                        readQueuedBlock(readerlock);
-                    } else {
-                        m_readSignal.wait_for(readerlock, 25ms);
-                    }
-                }
-            });
-        } catch (const std::system_error& e) {
+        int rc = startReadThread();
+        if (rc != 0) {
             // Every open compressed FSEQ gets its own read-ahead thread, so a
             // box running a lot of FSEQ overlay effects at once can run the
-            // process out of threads or (on 32 bit) address space, and the
-            // thread constructor throws.  The read-ahead is an optimization,
-            // not a requirement - getBlock() reads inline when this is null -
-            // so degrade rather than let the exception abort fppd.
-            m_readThread = nullptr;
+            // process out of threads or (on 32 bit) address space.  The
+            // read-ahead is an optimization, not a requirement - getBlock()
+            // reads inline without it - so degrade rather than fail the read.
             m_readThreadRunning = false;
-            LogWarn(VB_SEQUENCE, "Could not start FSEQ read ahead thread (%s), reading blocks inline\n", e.what());
+            LogWarn(VB_SEQUENCE, "Could not start FSEQ read ahead thread (%s), reading blocks inline\n", strerror(rc));
+        }
+    }
+
+    // The read-ahead thread only reads and frees blocks, so it gets a small
+    // stack rather than the 8 MB default.  On a 32 bit player each open
+    // compressed sequence - every FSEQ effect is one - otherwise reserved
+    // 8 MB of address space for a thread that uses a few KB of it.
+    static constexpr size_t READ_AHEAD_STACK_SIZE = 256 * 1024;
+
+    int startReadThread() {
+        pthread_attr_t attr;
+        pthread_attr_init(&attr);
+        pthread_attr_setstacksize(&attr, READ_AHEAD_STACK_SIZE);
+        int rc = pthread_create(&m_readThread, &attr, readAheadMain, this);
+        pthread_attr_destroy(&attr);
+        if (rc == EINVAL) {
+            // glibc carves static TLS out of the stack, and refuses a stack
+            // too small to hold it; the default size always fits.
+            rc = pthread_create(&m_readThread, nullptr, readAheadMain, this);
+        }
+        m_haveReadThread = (rc == 0);
+        return rc;
+    }
+    static void* readAheadMain(void* arg) {
+        static_cast<V2CompressedHandler*>(arg)->readAheadLoop();
+        return nullptr;
+    }
+    void readAheadLoop() {
+        SetThreadName("FSEQReadThread");
+        while (m_readThreadRunning) {
+            std::unique_lock<std::mutex> readerlock(m_readMutex);
+            if (!m_blocksToRead.empty()) {
+                readQueuedBlock(readerlock);
+            } else {
+                m_readSignal.wait_for(readerlock, 25ms);
+            }
         }
     }
 
@@ -1353,7 +1377,7 @@ public:
         std::unique_lock<std::mutex> readerlock(m_readMutex);
         uint8_t* data = m_blockMap[block];
         while (data == nullptr) {
-            if (m_readThread && (block > (m_firstBlock + 3)) && m_firstBlock) {
+            if (m_haveReadThread && (block > (m_firstBlock + 3)) && m_firstBlock) {
                 // if not one of the first few blocks and it's not already
                 // available, then something is really slow
                 AddSlowStorageWarning();
@@ -1361,7 +1385,7 @@ public:
                 LogWarn(VB_SEQUENCE, "Blocks: %d     First: %d\n", m_blocksToRead.size(), m_blocksToRead.empty() ? -1 : m_blocksToRead.front());
             }
             m_blocksToRead.push_front(block);
-            if (m_readThread) {
+            if (m_haveReadThread) {
                 m_readSignal.wait_for(readerlock, 10s);
             } else {
                 // No read ahead thread, so nothing else will service the queue
@@ -1391,7 +1415,8 @@ public:
     uint32_t m_maxBlocks;
 
     std::atomic_bool m_readThreadRunning;
-    std::thread* m_readThread;
+    pthread_t m_readThread;
+    std::atomic_bool m_haveReadThread;
     std::mutex m_readMutex;
     std::map<int, uint8_t*> m_blockMap;
     std::list<int> m_blocksToRead;
