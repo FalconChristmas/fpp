@@ -25,6 +25,13 @@
 	}
 	echo "var pixelSize = " . $pixelSize . ";\n";
 
+	// Dots are drawn centred on their cell corner, so the edge column and row
+	// hang half off a canvas that exactly fits the model.  Grow the canvas by
+	// one dot diameter and centre each dot inside its cell.
+	$pad = 2 * $pixelSize;
+	$modelWidth = $canvasWidth;
+	$modelHeight = $canvasHeight;
+
 	$f = fopen($settings['configDirectory'] . '/virtualdisplaymap', "r");
 	if ($f) {
 		$line = fgets($f);
@@ -35,15 +42,17 @@
 		$previewWidth = $parts[0];
 		$previewHeight = $parts[1];
 
-		if (($previewWidth / $previewHeight) > ($canvasWidth / $canvasHeight))
-			$canvasHeight = (int) ($canvasWidth * $previewHeight / $previewWidth);
+		if (($previewWidth / $previewHeight) > ($modelWidth / $modelHeight))
+			$modelHeight = (int) ($modelWidth * $previewHeight / $previewWidth);
 		else
-			$canvasWidth = (int) ($canvasHeight * $previewWidth / $previewHeight);
+			$modelWidth = (int) ($modelHeight * $previewWidth / $previewHeight);
 
 		echo "var previewWidth = " . $previewWidth . ";\n";
 		echo "var previewHeight = " . $previewHeight . ";\n";
 
-		$scale = 1.0 * $canvasWidth / $previewWidth;
+		$scale = 1.0 * $modelWidth / $previewWidth;
+		$canvasWidth = $modelWidth + $pad;
+		$canvasHeight = $modelHeight + $pad;
 
 		$scaleMap = array();
 
@@ -58,8 +67,11 @@
 			$ox = $entry[0];
 			$oy = $previewHeight - $entry[1];
 			$oz = $entry[2];
-			$x = (int) ($ox * $scale);
-			$y = (int) ($oy * $scale);
+			$x = (int) ($ox * $scale + $scale / 2) + $pad;
+			// $oy is a 1-based flip (previewHeight - y), so the top row sits one
+			// cell above the bottom of the model area; subtracting half a cell
+			// centres each dot in its row and keeps the bottom row on-canvas.
+			$y = (int) ($oy * $scale - $scale / 2) + $pad;
 			$z = (int) ($oz * $scale);
 			$ch = $entry[3];
 			$colors = $entry[4];
@@ -98,6 +110,7 @@
 
 	var canvasWidth = <? echo $canvasWidth; ?>;
 	var canvasHeight = <? echo $canvasHeight; ?>;
+	var pad = <? echo isset($pad) ? $pad : 0; ?>;
 	var evtSource;
 	var ctx;
 	var buffer;
@@ -135,7 +148,7 @@
 				imgWidth = canvasWidth;
 				imgHeight = newh;
 			}
-			ctx.drawImage(img, 0, 0, imgWidth, imgHeight);
+			ctx.drawImage(img, pad, pad, imgWidth, imgHeight);
 		});
 		img.src = 'api/file/Images/virtualdisplaybackground.jpg';
 
@@ -204,7 +217,7 @@
 		}
 
 		// Clear the display after 6 seconds if no more events.  Max update time in test mode is 5 seconds.
-		clearTimer = setTimeout(function () { ctx.drawImage(img, 0, 0, imgWidth, imgHeight); }, 6000);
+		clearTimer = setTimeout(function () { ctx.drawImage(img, pad, pad, imgWidth, imgHeight); }, 6000);
 	}
 
 	// Apply one frame's worth of changed pixels to the off-screen buffer
