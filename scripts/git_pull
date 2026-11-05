@@ -82,7 +82,11 @@ if curl --silent --head "${HTTPURL}" | grep -i "Content-Type: text/html; charset
 		# branch tracks (origin, newfeatures, a custom mirror) and, unlike a
 		# rebasing pull, never consults FETCH_HEAD -- so it can't hit
 		# "Cannot rebase onto multiple branches." See scripts/functions.
-		runGitLocked "cd ${FPPDIR} && git fetch && git rebase @{u}"
+		# A rebase that stops part-way (a local commit that conflicts with
+		# upstream) is aborted: left as it was, the checkout is detached with
+		# conflict markers in FPP's files, and every later update fails on
+		# the leftover rebase.
+		runGitLocked "cd ${FPPDIR} && git fetch && { git rebase @{u} || { git rebase --abort 2>/dev/null; false; }; }"
 		if [ $? -ne 0 ]; then
 		  exit 1
 		fi
@@ -109,7 +113,7 @@ if curl --silent --head "${HTTPURL}" | grep -i "Content-Type: text/html; charset
         fi
     else
         cd ${FPPDIR}
-		runGitLocked "cd ${FPPDIR} && sudo -u ${FPPUSER} git fetch && sudo -u ${FPPUSER} git rebase @{u}"
+		runGitLocked "cd ${FPPDIR} && sudo -u ${FPPUSER} git fetch && { sudo -u ${FPPUSER} git rebase @{u} || { sudo -u ${FPPUSER} git rebase --abort 2>/dev/null; false; }; }"
 		if [ $? -ne 0 ]; then
 		  exit 1
 		fi
