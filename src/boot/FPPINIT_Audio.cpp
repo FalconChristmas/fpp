@@ -2620,6 +2620,24 @@ static void runAudioSetup(bool recoveryPass) {
                selCid.c_str());
         simpleConfigStale = true;
     }
+    // Upgrade case for #3063: fppd's sink (fpp_group_default) carries
+    // priority.session so WirePlumber picks it as the default when it has no
+    // stored choice.  Only a regenerated conf has that line, and a box that
+    // already had working audio is updated and rebooted with its old conf,
+    // which every test above passes (right card, present, targeted).  It then
+    // has only syncPipeWireDefaultSink() and no ranking behind it.  Force one
+    // regeneration.  The null-sink form (no sound card) has nothing to rank.
+    //
+    // Self-limiting: both generators emit the line for the Simple group, so
+    // the regenerated conf passes this on the following run.
+    if (!simpleConfigStale && usePipeWireBackend && mediaBackendLower == "pipewire-simple" &&
+        selCid != "Dummy" && FileExists("/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf")) {
+        const std::string conf = GetFileContents("/etc/pipewire/pipewire.conf.d/97-fpp-audio-groups.conf");
+        if (contains(conf, "node.name = \"fpp_group_default\"") && !contains(conf, "priority.session")) {
+            printf("FPP - Simple audio config predates the default-sink ranking; regenerating\n");
+            simpleConfigStale = true;
+        }
+    }
     if (usePipeWireBackend && !runningInDocker && mediaBackendLower == "pipewire-simple"
         && simpleConfigStale) {
         // The simple config is missing or points at an absent card (fresh flash,
