@@ -194,6 +194,30 @@ teeOutput() {
 	fi
 }
 
+# fppLogStamp / fppLogStampSec
+#   Set FPP_LOG_STAMP to "YYYY-mm-dd HH:MM:SS.mmm" (fppd's line shape) or, for
+#   the Sec variant, "YYYY-mm-dd HH:MM:SS". On bash 5 this is printf's '%(...)T'
+#   builtin plus EPOCHREALTIME and forks nothing. macOS ships bash 3.2, which has
+#   neither ("printf: `(': invalid format character"), so there it forks date(1)
+#   and the milliseconds read .000 -- BSD date has no sub-second field.
+if [ "${BASH_VERSINFO[0]:-0}" -ge 5 ]; then
+	fppLogStamp() {
+		local __now=${EPOCHREALTIME}
+		local __usec=${__now#*.}
+		printf -v FPP_LOG_STAMP '%(%Y-%m-%d %H:%M:%S)T.%s' "${__now%.*}" "${__usec:0:3}"
+	}
+	fppLogStampSec() {
+		printf -v FPP_LOG_STAMP '%(%Y-%m-%d %H:%M:%S)T' -1
+	}
+else
+	fppLogStamp() {
+		FPP_LOG_STAMP=$(date '+%Y-%m-%d %H:%M:%S').000
+	}
+	fppLogStampSec() {
+		FPP_LOG_STAMP=$(date '+%Y-%m-%d %H:%M:%S')
+	}
+fi
+
 # fppdLogLine <facility> <message...>
 #   Append ONE line to logs/fppd.log in fppd's own line shape. This is the
 #   breadcrumb writer: fppd.log is the timeline/spine ("something happened at
@@ -208,11 +232,11 @@ teeOutput() {
 fppdLogLine() {
 	local __fac="$1"
 	shift
-	local __now=${EPOCHREALTIME}
-	local __usec=${__now#*.}
+	local FPP_LOG_STAMP
+	fppLogStamp
 	makeLogDir
 	ensureLogFile "${LOGDIR}/fppd.log"
-	printf '%(%Y-%m-%d %H:%M:%S)T.%s %s(%s) [%s] %s\n' "${__now%.*}" "${__usec:0:3}" \
+	printf '%s %s(%s) [%s] %s\n' "${FPP_LOG_STAMP}" \
 		"$(basename $0)" "$$" "${__fac}" "$*" >> "${LOGDIR}/fppd.log"
 }
 
@@ -230,7 +254,8 @@ fppdLogLine() {
 #
 #   Only tee's own stdout is left unprefixed (that is what reaches the browser);
 #   the copy piped into the prefixer loop is timestamped and lands in the log.
-#   printf '%(...)T' is a bash builtin, so the per-line timestamp forks nothing.
+#   fppLogStampSec is a bash builtin on bash 5, so the per-line timestamp forks
+#   nothing there (macOS bash 3.2 forks date(1) per line).
 #
 #   The prefixer appends per line rather than holding the log open for the whole
 #   operation: logrotate rotates by rename with no copytruncate and no signal, so
@@ -272,7 +297,7 @@ startOpLog() {
 		# output flows through the PARENT's tee into the PARENT's file, so this
 		# is what the detail pointer below has to name.
 		export FPP_OPLOG_ACTIVE="${FPP_OP_LOG}"
-		exec > >(tee >(while IFS= read -r __line || [ -n "${__line}" ]; do printf '%(%Y-%m-%d %H:%M:%S)T [%s %s] %s\n' -1 "${FPP_OP}" "${FPP_OP_TARGET}" "${__line}" >> "${LOGDIR}/${FPP_OP_LOG}"; done))
+		exec > >(tee >(while IFS= read -r __line || [ -n "${__line}" ]; do fppLogStampSec; printf '%s [%s %s] %s\n' "${FPP_LOG_STAMP}" "${FPP_OP}" "${FPP_OP_TARGET}" "${__line}" >> "${LOGDIR}/${FPP_OP_LOG}"; done))
 		exec 2>&1
 	fi
 	# Breadcrumbs into fppd.log, deliberately OUTSIDE the guard above so they fire
@@ -330,8 +355,8 @@ startUpgradeLog() {
 #   case. fppd's own high-rate path instead keeps a persistent FD and stat()s for
 #   an inode change once a second (src/log.cpp:75-99); both end up correct.
 #
-#   EPOCHREALTIME (bash 5) supplies real milliseconds -- seconds and ms are taken
-#   from the same read so they cannot disagree -- and forks nothing.
+#   fppLogStamp: EPOCHREALTIME (bash 5) supplies real milliseconds -- seconds and
+#   ms are taken from the same read so they cannot disagree -- and forks nothing.
 #
 #   `|| [ -n "${__line}" ]` is load-bearing, not defensive noise: read returns
 #   false at EOF, so a final line with no trailing newline would otherwise be
@@ -349,9 +374,8 @@ startDaemonLog() {
 		ensureLogFile "${LOGDIR}/fppd.log"
 
 		exec > >(while IFS= read -r __line || [ -n "${__line}" ]; do
-			__now=${EPOCHREALTIME}
-			__usec=${__now#*.}
-			printf '%(%Y-%m-%d %H:%M:%S)T.%s %s(%s) [%s] %s\n' "${__now%.*}" "${__usec:0:3}" \
+			fppLogStamp
+			printf '%s %s(%s) [%s] %s\n' "${FPP_LOG_STAMP}" \
 				"${FPP_PROG}" "${FPP_PROG_PID}" "${FPP_PROG_FACILITY}" "${__line}" \
 				>> "${LOGDIR}/fppd.log"
 		done)
