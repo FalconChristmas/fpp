@@ -675,14 +675,25 @@ int BBShiftStringOutput::Init(Json::Value config) {
         // on a K32-Max at two cells: ws281x 1120 -> 1245-1252ns achieved,
         // ucs1903 2500 -> 2619ns achieved.
         //
-        // Every frame pays the firmware's fixed 300us reset.  A Falcon
-        // receiver chain also pays the packet phase: with one attached the
-        // measured overhead was ~1700us (#2855), so the other 1400us applies
-        // only then.  Without one the reset is all there is - the next frame
-        // is staged while the reset runs, and 300 px at 100fps measured a
-        // 110fps ceiling, where charging 1700us here warned at 93.
+        // Every frame pays the firmware's fixed 300us reset.  A bidirectional
+        // (V5) receiver chain also pays the packet phase: with one attached
+        // the measured overhead was ~1700us (#2855), so the other 1400us
+        // applies only then.  A send-only (V4) chain gets just the config
+        // packet, and only on one frame in twelve: 69us of lead-in plus 57
+        // bytes of 10 cells, ~770us at the ~1235ns cell measured on the
+        // AM335x.  The pending frame slot absorbs that one long frame, so it
+        // is charged as its average, as the V5 queries are below.  Without a
+        // receiver the reset is all there is - the next frame is staged
+        // while the reset runs, and 300 px at 100fps measured a 110fps
+        // ceiling, where charging 1700us here warned at 93.
+        int falconUs = 0;
+        if (m_hasBidirSR) {
+            falconUs = 1400;
+        } else if (hasFalconSR) {
+            falconUs = 770 / 12;
+        }
         int bitNs = m_lowNs + 130;
-        m_frameTimeUs = (int)((maxLen * 8LL * bitNs) / 1000) + 300 + (hasFalconSR ? 1400 : 0);
+        m_frameTimeUs = (int)((maxLen * 8LL * bitNs) / 1000) + 300 + falconUs;
         LogInfo(VB_CHANNELOUT, "BBShiftString: longest string %d bytes at %dns/bit -> %.1fms/frame, sustainable ceiling ~%.4g fps\n",
                 maxLen, bitNs, m_frameTimeUs / 1000.0, 1000000.0 / m_frameTimeUs);
     }
