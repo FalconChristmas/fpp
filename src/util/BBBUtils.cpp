@@ -752,6 +752,14 @@ void BBBPinProvider::Init() {
             BBB_PINS.emplace_back("P2-34", 2, 60).setPRU(1, 14).setPRU(0, 5);
             BBB_PINS.emplace_back("P2-35", 2, 54).setUART("ttyS2-tx").setPRU(1, 8).setPRU(0, 16);
             BBB_PINS.emplace_back("P2-36", 3, 16);
+
+            // The BOOT button.  It drives the bootmode pads, so after boot it
+            // reads as a plain input: GPIO0_28 is 0 when idle and 1 while held
+            // (GPIO0_26 does the same).  GPIO0_18 also follows it, inverted,
+            // but only on the Industrial.  The bootmode resistors set the idle
+            // level, and the name keeps configPin() from running pinctrl, so a
+            // pull-up/down mode can't remux the pad against them.
+            BBB_PINS.emplace_back("BOOT", 2, 28);
         } else {
             printf("Unknown type: %d\n", getBeagleBoneType());
         }

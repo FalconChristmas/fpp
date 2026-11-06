@@ -64,6 +64,8 @@ void InitPocketBeagle2() {
 
     Pin::addPin("NRST").addBall("C20").modesFromBall();
     Pin::addPin("BSL_Invoke").addBall("B8").modesFromBall();
+    // BOOT button: GPMC0_AD13 / GPIO0_28, a bootmode pad, high while pressed
+    Pin::addPin("BOOT").addBall("T24").modesFromBall();
     /*
         Pin::addPin("I2C0_SCL").addBall("B16");
         Pin::addPin("I2C0_SDA").addBall("A16");
