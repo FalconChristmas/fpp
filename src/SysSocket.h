@@ -37,8 +37,9 @@ inline int AcceptSocket(int s, struct sockaddr* addr, socklen_t* len) {
 #ifdef PLATFORM_OSX
 
 #ifndef SOCK_NONBLOCK
-#include <fcntl.h>
-//# define SOCK_NONBLOCK O_NONBLOCK
+// A no-op here: macOS has no such socket() flag, and plugins pass this to a raw
+// socket(), so a private bit would fail with EINVAL. A socket opened with it is
+// still BLOCKING on macOS, so a reader on the main loop must use MSG_DONTWAIT.
 #define SOCK_NONBLOCK 0
 #endif
 

@@ -1507,7 +1507,7 @@ bool AddWarningForProtocol(int sock, const std::string& protocol) {
     std::erase_if(seen.raisedAt, [now](const auto& e) {
         return now - e.second > FAKE_BRIDGE_WARNING_SECONDS * 1000;
     });
-    int msgcnt = recvmmsg(sock, msgs, MAX_MSG, 0, nullptr);
+    int msgcnt = recvmmsg(sock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     int batches = 1;
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
@@ -1544,7 +1544,7 @@ bool AddWarningForProtocol(int sock, const std::string& protocol) {
             LogDebug(VB_E131BRIDGE, "%s\n", ne.c_str());
             WarningHolder::AddWarningTimeout(ne, FAKE_BRIDGE_WARNING_SECONDS);
         }
-        msgcnt = ++batches > MAX_BATCHES_PER_WAKEUP ? 0 : recvmmsg(sock, msgs, MAX_MSG, 0, nullptr);
+        msgcnt = ++batches > MAX_BATCHES_PER_WAKEUP ? 0 : recvmmsg(sock, msgs, MAX_MSG, MSG_DONTWAIT, nullptr);
     }
     return false;
 }
