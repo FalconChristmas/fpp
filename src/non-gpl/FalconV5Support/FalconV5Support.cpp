@@ -22,6 +22,7 @@
 #include "OutputMonitor.h"
 #include "Warnings.h"
 #include "common.h"
+#include "settings.h"
 #include "channeloutput/PixelString.h"
 #include "channeloutput/serialutil.h"
 #include "util/GPIOUtils.h"
@@ -36,6 +37,12 @@ extern "C" {
 bool encodeFalconV5Packet(const Json::Value& description, uint8_t* packet);
 bool decodeFalconV5Packet(uint8_t* packet, Json::Value& result);
 }
+
+// FalconV5QueryRestFrames: extra rest frames after every round of queries
+// (0 = one rest frame, the previous behaviour; 10000 = one poll per ~4 min at
+// 40 fps, anything higher is a typo).  Read once per output init in the
+// constructor, used by generateDynamicPacket and queryFrameShare.
+static int s_queryRestFrames = 0;
 
 class FalconV5Listener {
 public:
@@ -112,6 +119,10 @@ public:
 };
 
 FalconV5Support::FalconV5Support() {
+    // one object per output init, so a config reload re-reads the setting
+    s_queryRestFrames = std::clamp(getSettingInt("FalconV5QueryRestFrames", 0), 0, 10000);
+    LogInfo(VB_CHANNELOUT, "FalconV5: FalconV5QueryRestFrames = %d (%s)\n", s_queryRestFrames,
+            s_queryRestFrames == 0 ? "one rest frame per round" : "extra rest frames per round");
     OutputMonitor::INSTANCE.setSmartReceiverEventCallback([this](int port, int index, const std::string& cmd) {
         PendingToggle pt;
         pt.port = (int16_t)port;
@@ -233,7 +244,7 @@ float FalconV5Support::queryFrameShare() const {
     if (receivers == 0) {
         return 0.0f;
     }
-    return (float)receivers / (float)(receivers + maxCount.size());
+    return (float)receivers / (float)(receivers + maxCount.size() * (1 + s_queryRestFrames));
 }
 
 void FalconV5Support::stageListenerData() {
@@ -523,11 +534,13 @@ bool FalconV5Support::generateDynamicPacket(std::vector<std::array<uint8_t, 64>>
     if (maxCount.empty()) {
         return false;
     }
-    if (curCount == maxCount[curMux]) {
+    // extra rest frames after every round (0 = exactly one rest frame)
+    const int rest = s_queryRestFrames;
+    if (curCount >= maxCount[curMux] && curCount <= maxCount[curMux] + rest) {
         // finished this mux, but we need to wait a frame before changing muxes
         ++curCount;
         return false;
-    } else if (curCount > maxCount[curMux]) {
+    } else if (curCount > maxCount[curMux] + rest) {
         curCount = 0;
         int newMux = curMux + 1;
         if (newMux >= maxCount.size()) {
