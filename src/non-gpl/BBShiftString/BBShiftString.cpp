@@ -1366,7 +1366,16 @@ void BBShiftStringOutput::PrepData(unsigned char* channelData) {
     prepData(m_pru1, channelData);
     m_testCycle = -1;
 
-    if (m_pru1.curV5ConfigPacket > FIRST_LOOPING_CONFIG_PACKET && falconV5Support && m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket] == nullptr) {
+    // PrepData runs for every offered frame, but the cursor only moves for a
+    // frame SendData's back-pressure gate accepts.  A dynamic packet parks in
+    // the slot, so a declined frame finds it there and asks for nothing; a
+    // "no packet" answer leaves the slot empty, so it is remembered in
+    // m_v5RestPending instead.  Asking again would get the next query, and
+    // over budget every rest frame went that way: one V5 chain measured 45%
+    // query frames under budget and 89% over it, each ~2.85ms long, so
+    // going over budget pushed it further over.
+    if (m_pru1.curV5ConfigPacket > FIRST_LOOPING_CONFIG_PACKET && falconV5Support && !m_v5RestPending &&
+        m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket] == nullptr) {
         std::vector<std::array<uint8_t, 64>> packets;
         packets.resize(m_strings.size());
         for (auto& p : packets) {
@@ -1387,6 +1396,8 @@ void BBShiftStringOutput::PrepData(unsigned char* channelData) {
             m_pru1.dynamicPacketInfo->listen = listen;
             m_pru0.v5_config_packets[m_pru0.curV5ConfigPacket] = m_pru0.dynamicPacketInfo;
             m_pru1.v5_config_packets[m_pru1.curV5ConfigPacket] = m_pru1.dynamicPacketInfo;
+        } else {
+            m_v5RestPending = true;
         }
     }
 
@@ -1668,6 +1679,7 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
             c |= 0x10000; // flag that the output len is custom and ignore the off config
         }
         m_pru1.curV5ConfigPacket++;
+        m_v5RestPending = false;
         if (m_pru1.curV5ConfigPacket == NUM_CONFIG_PACKETS) {
             m_pru1.curV5ConfigPacket = FIRST_LOOPING_CONFIG_PACKET;
         }
@@ -1828,6 +1840,7 @@ void BBShiftStringOutput::DumpConfig(void) {
 void BBShiftStringOutput::StartingOutput() {
     m_pru1.curV5ConfigPacket = 0;
     m_pru0.curV5ConfigPacket = 0;
+    m_v5RestPending = false;
 }
 void BBShiftStringOutput::StoppingOutput() {
     for (int y = 0; y < NUM_CONFIG_PACKETS; ++y) {
@@ -1840,6 +1853,7 @@ void BBShiftStringOutput::StoppingOutput() {
     }
     m_pru1.curV5ConfigPacket = 0;
     m_pru0.curV5ConfigPacket = 0;
+    m_v5RestPending = false;
 }
 constexpr int numPacketTypes = 12;
 // No inversion pass here: config packets only exist for a chain's first port,

@@ -251,6 +251,11 @@ private:
     float m_testPercent = 0.0f;
 
     FalconV5Support* falconV5Support = nullptr;
+    // The FalconV5 scheduler said "no packet" for the slot the packet cursor
+    // is on.  Held until a frame is accepted and the cursor moves, so a frame
+    // the back-pressure gate declines cannot ask again and turn the rest
+    // frame into a query.
+    bool m_v5RestPending = false;
     std::list<std::string> m_autoCreatedModelNames;
     bool supportsV5Listeners = false;
     // any configured Falcon V5 (bidirectional) receivers after the
