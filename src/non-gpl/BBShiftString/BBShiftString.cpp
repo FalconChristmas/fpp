@@ -675,23 +675,16 @@ int BBShiftStringOutput::Init(Json::Value config) {
         // on a K32-Max at two cells: ws281x 1120 -> 1245-1252ns achieved,
         // ucs1903 2500 -> 2619ns achieved.
         //
-        // Every frame pays the firmware's fixed 300us reset.  A bidirectional
-        // (V5) receiver chain also pays the packet phase: with one attached
-        // the measured overhead was ~1700us (#2855), so the other 1400us
-        // applies only then.  A send-only (V4) chain gets just the config
-        // packet, and only on one frame in twelve: 69us of lead-in plus 57
-        // bytes of 10 cells, ~770us at the ~1235ns cell measured on the
-        // AM335x.  The pending frame slot absorbs that one long frame, so it
-        // is charged as its average, as the V5 queries are below.  Without a
-        // receiver the reset is all there is - the next frame is staged
-        // while the reset runs, and 300 px at 100fps measured a 110fps
-        // ceiling, where charging 1700us here warned at 93.
-        int falconUs = 0;
-        if (m_hasBidirSR) {
-            falconUs = 1400;
-        } else if (hasFalconSR) {
-            falconUs = 770 / 12;
-        }
+        // Every frame pays the firmware's fixed 300us reset.  Any Falcon
+        // receiver chain, V4 or V5, also gets a config packet on one frame in
+        // twelve: 69us of lead-in plus 57 bytes of 10 cells, measured +0.70ms
+        // on the AM62x and ~770us at the ~1235ns cell measured on the AM335x.
+        // The pending frame slot absorbs that one long frame, so it is
+        // charged as its average; V5 queries are added below the same way.
+        // Without a receiver the reset is all there is - the next frame is
+        // staged while the reset runs, and 300 px at 100fps measured a
+        // 110fps ceiling, where charging a flat 1700us here warned at 93.
+        int falconUs = hasFalconSR ? 770 / 12 : 0;
         int bitNs = m_lowNs + 130;
         m_frameTimeUs = (int)((maxLen * 8LL * bitNs) / 1000) + 300 + falconUs;
         LogInfo(VB_CHANNELOUT, "BBShiftString: longest string %d bytes at %dns/bit -> %.1fms/frame, sustainable ceiling ~%.4g fps\n",
@@ -764,14 +757,18 @@ int BBShiftStringOutput::Init(Json::Value config) {
         // A query frame costs every pin the packet phase and the listen
         // window on top of the pixel data: 69us of lead-in, 57 bytes of 10
         // cells at 1130ns, 35us of listener lead-in and a window of 500us,
-        // extended by 1.7ms when the receiver answers - about 2.9ms with a
-        // receiver on the chain.  Spread over the frames that carry one so
-        // the ceiling (and the warning) is honest for a receiver config: at
+        // extended by 1.6ms when the receiver answers.  Measured on a K8-Max
+        // from the PRU's frame counter: +2.85ms answered, +1.2ms when no
+        // receiver answers.  Spread over the frames that carry one so the
+        // ceiling (and the warning) is honest for a receiver config: at
         // 768px per port and 40fps the string data alone fits, the queries
         // do not, and without this term the drops came with no warning.
+        // This used to sit on top of a flat 1400us for any receiver, which
+        // counted the queries twice: one chain at 300px predicted 82fps
+        // against 98 measured.
         float share = falconV5Support->queryFrameShare();
         if (share > 0.0f) {
-            m_frameTimeUs += (int)(2900.0f * share);
+            m_frameTimeUs += (int)(2850.0f * share);
             LogInfo(VB_CHANNELOUT, "BBShiftString: FalconV5 queries on %.0f%% of frames -> %.1fms/frame, sustainable ceiling ~%.4g fps\n",
                     share * 100.0f, m_frameTimeUs / 1000.0, 1000000.0 / m_frameTimeUs);
         }
