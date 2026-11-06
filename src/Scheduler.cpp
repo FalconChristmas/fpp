@@ -741,7 +741,9 @@ bool Scheduler::doScheduledPlaylist(const std::time_t now, const std::time_t ite
                 break;
             case 1:
             default:
-                actions.push_back({ .type = PlayerAction::Type::StopNow,
+                // Every level: a single StopNow ends only a playlist inserted
+                // into the running one, which then resumes.
+                actions.push_back({ .type = PlayerAction::Type::StopUntilIdle,
                                     .forceStop = forceStop });
                 break;
             }
@@ -1722,7 +1724,7 @@ bool Scheduler::StartNextScheduledItemNow() {
 
         if (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
             LogDebug(VB_SCHEDULE, "Force-Stopping running playlist\n");
-            actions.push_back({ .type = PlayerAction::Type::StopNow,
+            actions.push_back({ .type = PlayerAction::Type::StopUntilIdle,
                                 .forceStop = 1 });
         }
 

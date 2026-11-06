@@ -122,11 +122,13 @@ std::unique_ptr<Command::Result> StartPlaylistCommand::run(const std::vector<std
                 args[0].c_str(), Player::INSTANCE.GetPlaylistName().c_str(), Player::INSTANCE.GetStatus());
         
         // Always stop if not idle to avoid deferred start mechanism
+        // Every level: a single StopNow ends only a playlist inserted into the
+        // running one, which then resumes until the start stops it as well.
         if (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
             LogInfo(VB_COMMAND, "StartPlaylistCommand: Stopping current playlist\n");
             // Clear force-stopped flag to allow scheduler to work if needed
             Player::INSTANCE.ClearForceStopped();
-            Player::INSTANCE.StopNow(1);
+            Player::INSTANCE.StopNowAllLevels(1);
             // Brief wait to let stop complete - don't wait too long to avoid scheduler interference
             std::this_thread::sleep_for(std::chrono::milliseconds(150));
             LogInfo(VB_COMMAND, "StartPlaylistCommand: After stop wait, status=%d\n", Player::INSTANCE.GetStatus());
@@ -159,7 +161,7 @@ std::unique_ptr<Command::Result> TogglePlaylistCommand::run(const std::vector<st
     }
     if (Player::INSTANCE.IsPlaying() && Player::INSTANCE.GetPlaylistName() == args[0]) {
         if (stopType == "Now") {
-            Player::INSTANCE.StopNow(1);
+            Player::INSTANCE.StopNowAllLevels(1);
         } else if (stopType == "After Loop") {
             Player::INSTANCE.StopGracefully(true, true);
         } else {
@@ -249,7 +251,7 @@ std::unique_ptr<Command::Result> StartPlaylistAtCommand::run(const std::vector<s
                 (Player::INSTANCE.GetPlaylistName() != args[0])) {
                 LogInfo(VB_COMMAND, "StartPlaylistAtCommand: Stopping current playlist '%s' before starting '%s'\n",
                          Player::INSTANCE.GetPlaylistName().c_str(), args[0].c_str());
-                Player::INSTANCE.StopNow(1);
+                Player::INSTANCE.StopNowAllLevels(1);
             }
             
             LogInfo(VB_COMMAND, "StartPlaylistAtCommand: Starting playlist '%s'\n", args[0].c_str());
@@ -291,7 +293,7 @@ std::unique_ptr<Command::Result> StartPlaylistAtRandomCommand::run(const std::ve
             LogInfo(VB_COMMAND, "StartPlaylistAtRandomCommand: Stopping current playlist\n");
             // Clear force-stopped flag to allow scheduler to work if needed
             Player::INSTANCE.ClearForceStopped();
-            Player::INSTANCE.StopNow(1);
+            Player::INSTANCE.StopNowAllLevels(1);
             // Brief wait to let stop complete - don't wait too long to avoid scheduler interference
             std::this_thread::sleep_for(std::chrono::milliseconds(150));
             LogInfo(VB_COMMAND, "StartPlaylistAtRandomCommand: After stop wait, status=%d\n", Player::INSTANCE.GetStatus());

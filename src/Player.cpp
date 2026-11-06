@@ -213,7 +213,7 @@ void Player::Init() {
                 // after the new playlist has started, undoing its lead-in.
                 Player::SwitchScope switching;
                 if (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
-                    Player::INSTANCE.StopNow(1);
+                    Player::INSTANCE.StopNowAllLevels(1);
                 }
                 Player::INSTANCE.StartPlaylist(newPlaylistName, -1, pos);
                 LogDebug(VB_CONTROL, "Call to Player::INSTANCE.StartPlaylist complete\n");
@@ -385,10 +385,12 @@ int Player::StopGracefully(int forceStop, int afterCurrentLoop) {
 }
 
 void Player::StopNowAllLevels(int forceStop) {
-    int levels = PlaylistSnapshot()->GetLevelCount();
-    for (int i = 0; i < levels && GetStatus() != FPP_STATUS_IDLE; i++) {
-        StopNow(forceStop);
+    if (InHandedBackStoppedPreset()) {
+        LogInfo(VB_PLAYLIST, "Ignoring Stop Now from the PLAYLIST_STOPPED preset of an inserted playlist: it has already stopped, and the playlist it interrupted carries on\n");
+        return;
     }
+    RecordForceStop(forceStop);
+    Playlist::StopNowAllLevels(forceStop);
 }
 
 std::time_t Player::GetOrigStartTime() {

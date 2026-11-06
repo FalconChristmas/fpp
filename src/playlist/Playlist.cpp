@@ -185,6 +185,10 @@ void PlaylistDumpCrashState(int fd) {
 // ──────────────────────────────────────────────────────────────────────────
 static thread_local int tl_transitionDepth = 0;
 static thread_local bool tl_drainingNotifications = false;
+// Set while StopNowAllLevelsImpl() unwinds an inserted-playlist stack: each
+// level's SetIdle() still hands the player back to its parent, but doesn't
+// resume it, because the parent is stopped next.
+static thread_local bool tl_stoppingAllLevels = false;
 static thread_local std::vector<std::function<void()>> tl_pendingNotifications;
 // One drain may legitimately fire a handful of chained events (playlist A's
 // STOPPED preset starts B, etc.).  Each start/stop cycle queues ~4-5
@@ -1208,6 +1212,37 @@ int Playlist::StopNowImpl(int forceStop) {
     return 1;
 }
 
+void Playlist::StopNowAllLevels(int forceStop) {
+    PlaylistTransitionGuard guard;
+    if (tl_transitionDepth > 1) {
+        // Re-entrant, as in StopNow(): the outermost transition drains it.
+        QueuePlaylistNotification([forceStop]() {
+            StopNowAllLevelsImpl(forceStop);
+        });
+        return;
+    }
+    StopNowAllLevelsImpl(forceStop);
+}
+
+// Stopping the levels one StopNow() at a time handed back to each parent
+// between them: SetIdle() resumed the parent's paused entry and published
+// it as playing, and only the next StopNow() stopped it, so a hard stop of
+// an inserted playlist briefly restarted the playlist it was inserted
+// into.  Here the levels stop inside one transition, no parent is resumed,
+// and the presets and callbacks of every level run once the stack is idle.
+void Playlist::StopNowAllLevelsImpl(int forceStop) {
+    PlaylistTransitionGuard guard;
+    bool wasStopping = tl_stoppingAllLevels;
+    tl_stoppingAllLevels = true;
+    std::shared_ptr<Playlist> cur = Player::INSTANCE.PlaylistSnapshot();
+    int levels = cur ? cur->GetLevelCount() : 0;
+    for (int i = 0; i < levels && cur && cur->getPlaylistStatus() != FPP_STATUS_IDLE; i++) {
+        cur->StopNowImpl(forceStop);
+        cur = Player::INSTANCE.PlaylistSnapshot();
+    }
+    tl_stoppingAllLevels = wasStopping;
+}
+
 /*
  *
  */
@@ -1915,6 +1950,9 @@ void Playlist::SetIdle(bool exit) {
         }
     }
     bool handingBack = par && exit;
+    // A stop of every level hands back without resuming: the parent is the
+    // next level to stop, not a playlist that carries on.
+    bool resumeParent = handingBack && !tl_stoppingAllLevels;
 
     // Both deferred (see PlaylistTransitionGuard): a PLAYLIST_STOPPED preset
     // that starts another playlist used to run here, mid-SetIdle — the rest
@@ -1924,8 +1962,8 @@ void Playlist::SetIdle(bool exit) {
     // playlist's info, which is what the plugin is being told stopped.
     if (!keywords.empty()) {
         if (CommandManager::INSTANCE.HasPreset("PLAYLIST_STOPPED")) {
-            QueuePlaylistNotification([keywords, handingBack]() mutable {
-                HandedBackStoppedPresetScope scope(handingBack);
+            QueuePlaylistNotification([keywords, resumeParent]() mutable {
+                HandedBackStoppedPresetScope scope(resumeParent);
                 CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPED", keywords);
             });
         }
@@ -1944,17 +1982,19 @@ void Playlist::SetIdle(bool exit) {
         // par is still owned: it is on the parent chain and not condemned, so
         // the player has never released it.
         Player::INSTANCE.SetCurrentPlaylist(par.get());
-        // Unconditional: Resume() is a no-op unless par is paused, and par
-        // may be STOPPING_* over a paused entry (stopped while we played).
-        par->Resume();
-        // Resume() only republishes when par was paused (Insert Immediate).
-        // After an Insert After Current par never paused, so the MQTT name and
-        // status topics would still describe the finished insert.
-        if (par->IsPlaying()) {
-            Events::Publish("playlist/name/status", par->m_name);
-            Events::Publish("status", PlaylistStatusToString(par->m_status));
-            Events::Publish("playlist/section/status", par->m_currentSectionStr);
-            Events::Publish("playlist/sectionPosition/status", par->m_sectionPosition);
+        if (resumeParent) {
+            // Unconditional: Resume() is a no-op unless par is paused, and par
+            // may be STOPPING_* over a paused entry (stopped while we played).
+            par->Resume();
+            // Resume() only republishes when par was paused (Insert Immediate).
+            // After an Insert After Current par never paused, so the MQTT name and
+            // status topics would still describe the finished insert.
+            if (par->IsPlaying()) {
+                Events::Publish("playlist/name/status", par->m_name);
+                Events::Publish("status", PlaylistStatusToString(par->m_status));
+                Events::Publish("playlist/section/status", par->m_currentSectionStr);
+                Events::Publish("playlist/sectionPosition/status", par->m_sectionPosition);
+            }
         }
         {
             std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
@@ -2188,21 +2228,22 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
         } else if (m_currentSection) {
             // Re-entrant callers (command/script entries, plugin callbacks)
             // never reach here — Play() deferred them — so it is safe to
-            // stop the current playlist and load the new one directly.
-            StopNowImpl(1);
+            // stop the current playlist and load the new one directly.  Every
+            // level: stopped one at a time, each parent resumed in between,
+            // for the 100 ms below, before the next pass stopped it.
+            StopNowAllLevelsImpl(1);
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             std::shared_ptr<Playlist> cur = Player::INSTANCE.PlaylistSnapshot();
             if (cur.get() != this) {
-                // This was an inserted (nested) playlist: StopNow's SetIdle
-                // unwound ONE level — the current playlist is now our parent
-                // (resumed), and `this` is already queued on PL_CLEANUPS.
+                // This was an inserted (nested) playlist: the stop unwound the
+                // stack -- the current playlist is now the outermost one (idle),
+                // and `this` is already queued on PL_CLEANUPS.
                 // Loading the new playlist into `this` would start it on a
                 // condemned object the player never processes and the next
                 // Process() tick releases (the historical "started a playlist
                 // from inside nested playlists and it blipped and vanished
                 // while the outer playlist resumed" bug).  Delegate to the
-                // now-active level instead; this repeats per level until the
-                // stack is flat and the resident object performs the load.
+                // now-active level instead, which performs the load.
                 return cur->PlayImpl(filename, position, repeat, scheduleEntry, endPosition);
             }
         }

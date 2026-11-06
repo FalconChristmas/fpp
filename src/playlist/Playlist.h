@@ -53,6 +53,9 @@ public:
 
     int Start(void);
     int StopNow(int forceStop = 0);
+    // Stops the current playlist and every playlist it was inserted into,
+    // without resuming any of them on the way out.
+    static void StopNowAllLevels(int forceStop = 0);
     int StopGracefully(int forceStop = 0, int afterCurrentLoop = 0);
     void SetIdle(bool exit = true);
 
@@ -259,6 +262,7 @@ private:
     int PlayImpl(const std::string& filename, const int position, const int repeat, const int scheduleEntry, const int endPosition);
     // The body of StopNow(); same public-defers / Impl-executes split.
     int StopNowImpl(int forceStop = 0);
+    static void StopNowAllLevelsImpl(int forceStop);
 
     std::recursive_mutex m_playlistMutex;
 
