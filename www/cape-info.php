@@ -328,6 +328,85 @@ if ($printSigningUI) {
         // upgrade dropdowns can default to it.  See issue #2564.
         var currentCapeName = "<?= htmlspecialchars($currentCapeInfo['name'] ?? '', ENT_QUOTES) ?>";
         var currentCapeVendor = "<?= htmlspecialchars($currentCapeInfo['vendor']['name'] ?? '', ENT_QUOTES) ?>";
+        var currentCapeHWVersion = "<?= htmlspecialchars($currentCapeInfo['version'] ?? '', ENT_QUOTES) ?>";
+        var currentCapeEEPROMVersion = "<?= htmlspecialchars($currentCapeInfo['eepromVersion'] ?? '', ENT_QUOTES) ?>";
+
+        // The vendor lists name each image with a free-form label.  The shapes in use are
+        //   "Hardware Version 4.1 / EEPROM 4.1.2"         -- hardware and EEPROM version
+        //   "1.1 (White)", "3.0 (PocketBeagle2)", "3.0.1" -- hardware version (+ variant)
+        //   "2.0/2.1 (White)", "1.0-1.2 (White)", "1.x"   -- a set/range of hardware versions
+        // Returns {hw, eeprom, suffix}; hw is '' when the label can't be read.
+        function parseEEPROMVersionLabel(label) {
+            label = (label || '').toString().trim();
+            var m = label.match(/^Hardware\s+Version\s+(\S+)\s*\/\s*EEPROM\s+(\S+)\s*(.*)$/i);
+            if (m) {
+                return { hw: m[1], eeprom: m[2], suffix: m[3].trim() };
+            }
+            m = label.match(/^v?(\d[\d.x\/-]*)\s*(.*)$/i);
+            if (m) {
+                return { hw: m[1], eeprom: '', suffix: m[2].trim() };
+            }
+            return { hw: '', eeprom: '', suffix: label };
+        }
+        function versionParts(v) {
+            return v.split('.').map(function (p) { return parseInt(p, 10) || 0; });
+        }
+        // Compare a against b over b's number of components ("3.0.1" vs "3.0" is 0).
+        function compareVersionPrefix(a, b) {
+            var pa = versionParts(a), pb = versionParts(b);
+            for (var i = 0; i < pb.length; i++) {
+                var x = pa[i] || 0;
+                if (x != pb[i]) {
+                    return x < pb[i] ? -1 : 1;
+                }
+            }
+            return 0;
+        }
+        // Does a label's hardware spec ("1.x", "2.0/2.1", "1.0-1.2", "4.1") cover version hw?
+        function eepromHWSpecMatches(spec, hw) {
+            if (spec == '' || hw == '') {
+                return false;
+            }
+            var alts = spec.split('/');
+            for (var i = 0; i < alts.length; i++) {
+                var alt = alts[i];
+                if (alt == '') {
+                    continue;
+                }
+                var range = alt.split('-');
+                if (range.length == 2) {
+                    if (compareVersionPrefix(hw, range[0]) >= 0 && compareVersionPrefix(hw, range[1]) <= 0) {
+                        return true;
+                    }
+                } else if (/\.x$/i.test(alt)) {
+                    var prefix = alt.slice(0, -2);
+                    if (hw == prefix || hw.indexOf(prefix + '.') === 0) {
+                        return true;
+                    }
+                } else if (compareVersionPrefix(alt, hw) == 0) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        // Colour variants (OLED type) that the cape info can't tell apart.
+        function isEEPROMColorSuffix(suffix) {
+            return /white|blue|yellow/i.test(suffix);
+        }
+        function eepromSuffixNamesPlatform(suffix) {
+            var s = normalizeEEPROMVendorName(suffix);
+            if (s == '') {
+                return false;
+            }
+            var names = [settings["Variant"], settings["CapeVariant"], settings["Platform"]];
+            for (var i = 0; i < names.length; i++) {
+                var n = normalizeEEPROMVendorName(names[i]);
+                if (n != '' && s.indexOf(n) >= 0) {
+                    return true;
+                }
+            }
+            return false;
+        }
         // In Basic UI Level the hardware (vendor/cape) is locked to the installed cape; only the
         // firmware version may be changed.  Advanced+ (uiLevel >= 1) allows changing the hardware.
         var eepromHardwareLocked = (parseInt(settings['uiLevel']) || 0) < 1;
@@ -526,7 +605,9 @@ if ($printSigningUI) {
                 var capeName = $('#eepromVendorCapes').val();
                 var eepromVendorCapeVersions = $('#eepromVendorCapeVersions');
                 eepromVendorCapeVersions.empty();
+                $('#eepromVersionMatchNote').hide().text('');
                 if (capeName in eepromList[vendor]) {
+                    var entries = [];
                     for (v in eepromList[vendor][capeName]["versions"]) {
                         let ver = eepromList[vendor][capeName]["versions"][v];
                         var valid = true;
@@ -538,11 +619,11 @@ if ($printSigningUI) {
                             }
                         }
                         if (valid) {
-                            var option = "<option value='" + ver.url + "'>" + v + "</option>";
-                            eepromVendorCapeVersions.append(option);
-                            eepromVendorCapeVersions.removeAttr('disabled');
+                            entries.push({ label: v, url: ver.url, parsed: parseEEPROMVersionLabel(v) });
                         }
                     }
+                    PopulateEEPROMVersions(eepromVendorCapeVersions, entries,
+                        currentCapeName != '' && capeName == currentCapeName && vendor == eepromAutoVendor);
                 } else {
                     $('#eepromVendorCapeVersions').append("<option value=''>-- Select Vendor/Cape --</option>");
                     $('#eepromVendorCapeVersions').prop('disabled', true);
@@ -553,6 +634,84 @@ if ($printSigningUI) {
                 $('#eepromVendorCapeVersions').prop('disabled', true);
             }
             eepromVendorCapeVersionChanged();
+        }
+        // Fill the Version dropdown.  For the installed cape, the images whose label covers the
+        // installed hardware version are grouped first and the newest of them is pre-selected;
+        // the rest stay available (a cape flashed with the wrong image reports the wrong
+        // hardware version, and has to be able to get back).
+        function PopulateEEPROMVersions(select, entries, isInstalledCape) {
+            var matches = [];
+            var others = [];
+            var installedEntry = null;
+            for (var i = 0; i < entries.length; i++) {
+                var e = entries[i];
+                if (isInstalledCape && eepromHWSpecMatches(e.parsed.hw, currentCapeHWVersion)) {
+                    matches.push(e);
+                    if (currentCapeEEPROMVersion != '' && e.parsed.eeprom == currentCapeEEPROMVersion) {
+                        installedEntry = e;
+                    }
+                } else {
+                    others.push(e);
+                }
+            }
+            function makeOption(e) {
+                var text = e.label + (e === installedEntry ? ' (installed)' : '');
+                e.option = $('<option>').val(e.url).text(text);
+                return e.option;
+            }
+            if (entries.length) {
+                select.removeAttr('disabled');
+            }
+            if (matches.length == 0) {
+                for (var i = 0; i < entries.length; i++) {
+                    select.append(makeOption(entries[i]));
+                }
+                return;
+            }
+
+            // Narrow to the most likely image: the platform's own build if there is one, then
+            // the installed image's variant, or failing that one without a colour variant.
+            var cands = matches;
+            var plat = cands.filter(function (e) { return eepromSuffixNamesPlatform(e.parsed.suffix); });
+            if (plat.length) {
+                cands = plat;
+            }
+            if (installedEntry && cands.indexOf(installedEntry) >= 0) {
+                cands = cands.filter(function (e) { return e.parsed.suffix == installedEntry.parsed.suffix; });
+            } else {
+                var noColor = cands.filter(function (e) { return !isEEPROMColorSuffix(e.parsed.suffix); });
+                if (noColor.length) {
+                    cands = noColor;
+                }
+            }
+            var suffixes = {};
+            cands.forEach(function (e) { suffixes[e.parsed.suffix] = true; });
+            var ambiguous = Object.keys(suffixes).length > 1;
+
+            if (ambiguous) {
+                select.append($('<option>').val('').text('-- Select Version --'));
+            }
+            var hwLabel = 'hardware ' + currentCapeHWVersion;
+            var group = $('<optgroup>').attr('label', 'Matches installed ' + hwLabel);
+            matches.forEach(function (e) { group.append(makeOption(e)); });
+            select.append(group);
+            if (others.length) {
+                group = $('<optgroup>').attr('label', 'Other versions');
+                others.forEach(function (e) { group.append(makeOption(e)); });
+                select.append(group);
+            }
+
+            var note;
+            if (ambiguous) {
+                select.val('');
+                note = 'More than one image matches ' + hwLabel + '; pick the one for your cape (e.g. its display colour).';
+            } else {
+                cands[cands.length - 1].option.prop('selected', true);
+                note = matches.length == 1
+                    ? 'Selected the image for the installed ' + hwLabel + '.'
+                    : 'Selected the newest of the ' + matches.length + ' images for the installed ' + hwLabel + '.';
+            }
+            $('#eepromVersionMatchNote').text(note).show();
         }
         function eepromVendorCapeVersionChanged() {
             var notes = '';
@@ -1433,6 +1592,28 @@ if ($printSigningUI) {
                                                         <div>
                                                             <table>
                                                                 <tbody>
+                                                                    <?php
+                                                                    // The installed versions, so picking the matching image
+                                                                    // doesn't mean flipping back to the About tab.
+                                                                    $installedParts = array();
+                                                                    if (isset($currentCapeInfo['version'])) {
+                                                                        $installedParts[] = "Hardware " . htmlspecialchars($currentCapeInfo['version'], ENT_QUOTES, 'UTF-8');
+                                                                    }
+                                                                    if (isset($currentCapeInfo['eepromVersion'])) {
+                                                                        $installedParts[] = "EEPROM " . htmlspecialchars($currentCapeInfo['eepromVersion'], ENT_QUOTES, 'UTF-8');
+                                                                    }
+                                                                    if (isset($currentCapeInfo['name'])) {
+                                                                        ?>
+                                                                        <tr>
+                                                                            <td><b>Installed:</b></td>
+                                                                            <td id='eepromInstalledVersion'>
+                                                                                <?= htmlspecialchars($currentCapeInfo['name'], ENT_QUOTES, 'UTF-8') ?>
+                                                                                <?= count($installedParts) ? " &mdash; " . implode(", ", $installedParts) : "" ?>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <?php
+                                                                    }
+                                                                    ?>
                                                                     <tr>
                                                                         <td><b>Vendor:</b></td>
                                                                         <td><select id='eepromVendorList' disabled
@@ -1461,6 +1642,9 @@ if ($printSigningUI) {
                                                                                 <option value=''>-- Select Version --
                                                                                 </option>
                                                                             </select>
+                                                                            <div id='eepromVersionMatchNote'
+                                                                                style='display: none; font-style: italic;'>
+                                                                            </div>
                                                                         </td>
                                                                     </tr>
                                                                     <tr>
