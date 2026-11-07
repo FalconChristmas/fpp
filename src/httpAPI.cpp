@@ -754,9 +754,24 @@ void APIServer::Init(void) {
     app.registerHandler("/internal/pluginApiRoutes", copyHandler(handlePluginApiRoutes), {drogon::Get, drogon::Head});
 
     // Builds a -manual crash report for POST /api/crashes/report.  The build
-    // runs off the event loop.
+    // runs off the event loop, and the answer is made and sent back on the
+    // request's own IO loop: the build's thread touches no drogon object.  It
+    // used to call the callback itself, which hands the response to the loop
+    // through libtrantor's lock-free queue, where a TSan build can't see the
+    // ordering, so every field of the response looked raced.  Here the thread
+    // passes only the result, under a lock; the callback never leaves the
+    // loop.  The queued task holds a bare pointer, which std::function keeps
+    // inline: a closure it allocated would cross through that queue too.
     app.registerHandler("/internal/crashReport", [](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& callback) {
-        std::thread([callback = std::move(callback)]() {
+        struct Pending {
+            std::mutex lock;
+            Json::Value result;
+            std::function<void(const HttpResponsePtr&)> callback;
+        };
+        Pending* pending = new Pending;
+        pending->callback = std::move(callback);
+        trantor::EventLoop* loop = trantor::EventLoop::getEventLoopOfCurrentThread();
+        std::thread([loop, pending]() {
             Json::Value result;
             std::string error;
             std::string file = BuildManualCrashReport(error);
@@ -767,10 +782,27 @@ void APIServer::Init(void) {
                 result["Status"] = "OK";
                 result["File"] = file;
             }
-            // fppd may have stopped drogon while the report was building
-            if (drogon::app().isRunning()) {
-                callback(makeStringResponse(SaveJsonToString(result), 200, "application/json"));
+            {
+                std::lock_guard<std::mutex> l(pending->lock);
+                pending->result = std::move(result);
             }
+            // fppd may have stopped drogon while the report was building
+            if (!loop || !drogon::app().isRunning()) {
+                delete pending;
+                return;
+            }
+            // The loop owns pending from here
+            loop->queueInLoop([pending]() {
+                std::function<void(const HttpResponsePtr&)> answer;
+                Json::Value result;
+                {
+                    std::lock_guard<std::mutex> l(pending->lock);
+                    answer = std::move(pending->callback);
+                    result = std::move(pending->result);
+                }
+                delete pending;
+                answer(makeStringResponse(SaveJsonToString(result), 200, "application/json"));
+            });
         }).detach();
     }, {drogon::Post});
 
