@@ -492,6 +492,17 @@ bool AES67Manager::LoadConfig() {
                 "it, so receivers see bursts rather than one packet per ptime. "
                 "Set sinkPacing too.\n");
     }
+#ifdef FPP_HAVE_SAMPLERATE
+    // The rate trim (pitch) and driftResample correct the same drift, and the
+    // send pipeline can't be built with both.  driftResample is the one that
+    // works (see AES67Config::adaptiveResample), so keep it.
+    if (cfg.adaptiveResample && cfg.driftResample) {
+        LogWarn(VB_MEDIAOUT,
+                "AES67Manager: adaptiveResample and driftResample are both set; "
+                "driftResample already corrects the rate, so adaptiveResample is ignored\n");
+        cfg.adaptiveResample = false;
+    }
+#endif
 
     LogInfo(VB_MEDIAOUT, "AES67Manager: Loaded config with %d instances, PTP=%s interface=%s domain=%d role=%s\n",
             (int)cfg.instances.size(),
