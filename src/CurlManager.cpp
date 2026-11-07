@@ -487,7 +487,10 @@ std::string CurlManager::doPut(const std::string& furl, const std::string& conte
 
     curl_easy_setopt(curl, CURLOPT_READDATA, &dta);
     curl_easy_setopt(curl, CURLOPT_READFUNCTION, read_callback);
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)data.size());
+    // An upload's size is INFILESIZE; POSTFIELDSIZE is ignored for one, and
+    // without a size curl chunks the body under the Content-Length above --
+    // both framings at once, which RFC 9112 forbids.
+    curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, (curl_off_t)data.size());
 
     CURLcode result = runToCompletion(*this, furl, curl);
 
