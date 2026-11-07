@@ -1513,7 +1513,10 @@ void MultiSync::PerformHTTPDiscovery() {
                         continue;
                     }
                     int ips = 1 << (32 - prefix);
-                    unsigned long firstIP = htonl(inet_addr(parts[0].c_str()));
+                    // From the network address, whatever host in it was written:
+                    // 10.88.0.5/29 is 10.88.0.0/29.
+                    uint32_t mask = 0xFFFFFFFFu << (32 - prefix);
+                    unsigned long firstIP = htonl(inet_addr(parts[0].c_str())) & mask;
                     // If prefix is a /31 or /32, we scan all IPs, otherwise skip network
                     // and broadcast
                     if (prefix <= 30) {
