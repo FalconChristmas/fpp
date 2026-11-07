@@ -942,14 +942,11 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
 #endif
             WarningHolder::AddWarning(1, "Video thread crashed (SIGBUS). Video output may be unavailable.");
             WarningHolder::WriteWarningsFile();
-            // Restore default SIGBUS handler for this thread so the
-            // pthread_exit cleanup doesn't loop back here if it touches
-            // the same bad mapping.
-            struct sigaction sa;
-            sa.sa_handler = SIG_DFL;
-            sigemptyset(&sa.sa_mask);
-            sa.sa_flags = 0;
-            sigaction(SIGBUS, &sa, NULL);
+            // The handler stays installed: sigaction() is process-wide, so
+            // putting back SIG_DFL here would make the next SIGBUS on any
+            // thread fatal.  SIGBUS stays blocked on this thread until it
+            // exits (no SA_NODEFER), so a fault in its exit cleanup takes the
+            // default action without coming back here.
             // The process survives this path — disarm the crash watchdog.
             alarm(0);
             inCrashHandler = false;
