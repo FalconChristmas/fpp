@@ -1488,9 +1488,14 @@ int GStreamerOutput::Start(int msTime) {
                 std::lock_guard<std::mutex> lock(m_videoOverlayModelLock);
                 m_videoOverlayModel = m;
             });
-        m_videoOverlayModel = PixelOverlayManager::INSTANCE.getModel(m_videoOut);
-        if (m_videoOverlayModel) {
-            m_videoOverlayModel->getSize(m_videoOverlayWidth, m_videoOverlayHeight);
+        PixelOverlayModel* model = PixelOverlayManager::INSTANCE.getModel(m_videoOut);
+        {
+            // The listener above and the channel output thread use it too.
+            std::lock_guard<std::mutex> lock(m_videoOverlayModelLock);
+            m_videoOverlayModel = model;
+        }
+        if (model) {
+            model->getSize(m_videoOverlayWidth, m_videoOverlayHeight);
             LogDebug(VB_MEDIAOUT, "GStreamer video overlay: model=%s size=%dx%d\n",
                     m_videoOut.c_str(), m_videoOverlayWidth, m_videoOverlayHeight);
             {
@@ -2911,7 +2916,12 @@ int GStreamerOutput::Start(int msTime) {
 
     // Ensure channel output thread is running so ProcessVideoOverlay gets called
     // (same as SDLOutput behavior)
-    if (m_videoOverlayModel) {
+    bool haveModel;
+    {
+        std::lock_guard<std::mutex> lock(m_videoOverlayModelLock);
+        haveModel = m_videoOverlayModel != nullptr;
+    }
+    if (haveModel) {
         StartChannelOutputThread();
     }
 
@@ -5208,7 +5218,13 @@ void GStreamerOutput::SetVolumeAdjustment(int volAdj) {
 bool GStreamerOutput::IsOverlayingVideo() {
     std::lock_guard<std::mutex> lock(m_overlayOutputsLock);
     for (GStreamerOutput* o : m_overlayOutputs) {
-        if (o->m_hasVideoStream && o->m_playing && o->m_videoOverlayModel)
+        if (!o->m_hasVideoStream || !o->m_playing)
+            continue;
+        // The model listener swaps the pointer under this lock on an output
+        // reload.  Taken inside m_overlayOutputsLock, the order
+        // ProcessVideoOverlay() uses.
+        std::lock_guard<std::mutex> modelLock(o->m_videoOverlayModelLock);
+        if (o->m_videoOverlayModel)
             return true;
     }
     return false;

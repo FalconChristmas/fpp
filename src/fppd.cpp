@@ -91,6 +91,7 @@
 #include "commands/Commands.h"
 #include "mediaoutput/AES67Manager.h"
 #include "mediaoutput/AudioLevelMonitor.h"
+#include "mediaoutput/GStreamerOut.h"
 #include "mediaoutput/OpusRTPManager.h"
 #include "mediaoutput/RTSPOutputManager.h"
 #include "mediaoutput/MediaOutputBase.h"
@@ -2466,10 +2467,17 @@ void MainLoop(void) {
         }
         // Check to see if we need to start up the output thread.
         MAIN_LOOP_PHASE("channel output thread check");
+        // A video playing onto an overlay model counts too: its frames only
+        // reach the model through this thread, and the model does not show as
+        // active until one has, so after an output reload stopped the thread
+        // nothing else would start it again.
         if ((!ChannelOutputThreadIsRunning()) &&
             ((PixelOverlayManager::INSTANCE.hasActiveOverlays()) ||
              (ChannelTester::INSTANCE.Testing()) ||
              (alwaysTransmit) || sequence->hasBridgeData() ||
+#ifdef HAS_GSTREAMER
+             GStreamerOutput::IsOverlayingVideo() ||
+#endif
              pushBridgeData)) {
             StartChannelOutputThread();
         }
