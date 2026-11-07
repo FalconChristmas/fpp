@@ -20,8 +20,23 @@
 
 #include "../Warnings.h"
 #include "../common.h"
+#include "../log.h"
 
 #include "IIOSensorSource.h"
+
+// A driver whose buffer is filled by an IIO trigger (ad799x, most I2C/SPI
+// ADCs) exposes trigger/current_trigger.  Until a trigger is assigned there,
+// the kernel refuses to enable the buffer.  Drivers that fill the buffer from
+// their own hardware timer (ti_am335x_adc) have no trigger directory.
+static bool BufferNeedsTrigger(int iioDevNumber) {
+    std::string path = "/sys/bus/iio/devices/iio:device" + std::to_string(iioDevNumber) + "/trigger/current_trigger";
+    if (!FileExists(path)) {
+        return false;
+    }
+    std::string trig = GetFileContents(path);
+    TrimWhiteSpace(trig);
+    return trig.empty();
+}
 
 IIOSensorSource::IIOSensorSource(Json::Value& config) :
     SensorSource(config) {
@@ -44,7 +59,7 @@ IIOSensorSource::IIOSensorSource(Json::Value& config) :
     if (config.isMember("useBuffers")) {
         usingBuffers = config["useBuffers"].asBool();
     } else {
-        usingBuffers = FileExists("/sys/bus/iio/devices/iio:device" + std::to_string(iioDevNumber) + "/buffer/enable") && FileExists("/dev/iio:device" + std::to_string(iioDevNumber));
+        usingBuffers = FileExists("/sys/bus/iio/devices/iio:device" + std::to_string(iioDevNumber) + "/buffer/enable") && FileExists("/dev/iio:device" + std::to_string(iioDevNumber)) && !BufferNeedsTrigger(iioDevNumber);
     }
 
     if (config.isMember("vScale")) {
@@ -126,8 +141,31 @@ void IIOSensorSource::Init(std::map<int, std::function<bool(int)>>& callbacks) {
 
         snprintf(buf, 256, "/sys/bus/iio/devices/iio:device%d/buffer/enable", iioDevNumber);
         f = open(buf, O_WRONLY);
-        write(f, "1\n", 2);
-        close(f);
+        bool bufferOn = (f >= 0) && (write(f, "1\n", 2) == 2);
+        if (f >= 0) {
+            close(f);
+        }
+        if (!bufferOn) {
+            // The kernel refused the buffer (for example a triggered buffer
+            // with no trigger, or "useBuffers" forced on).  Read the channels
+            // one at a time through sysfs instead, starting with the ones
+            // already enabled for the buffer.
+            LogWarn(VB_GENERAL, "IIOSensorSource: could not enable the buffer of iio:device%d, reading channels directly\n", iioDevNumber);
+            usingBuffers = false;
+            for (int x = 0; x < channelMapping.size(); x++) {
+                snprintf(buf, 256, "/sys/bus/iio/devices/iio:device%d/scan_elements/in_voltage%d_en", iioDevNumber, x);
+                std::string en = GetFileContents(buf);
+                if (!en.empty() && en[0] == '1') {
+                    f = open(buf, O_WRONLY);
+                    if (f >= 0) {
+                        write(f, "0\n", 2);
+                        close(f);
+                    }
+                    enable(x);
+                }
+            }
+            return;
+        }
 
         snprintf(buf, 256, "/dev/iio:device%d", iioDevNumber);
         iioDevFile = open(buf, O_RDONLY | O_NONBLOCK);
