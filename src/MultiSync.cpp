@@ -4146,9 +4146,24 @@ void MultiSync::SyncPlaylistToMS(uint64_t ms, int pos, const std::string& pl, bo
         }
         if (med != "") {
             if (mediaOutput && !MatchesRunningMediaFilename(med.c_str())) {
-                StopSyncedMedia(med.c_str());
-                if (sendSyncPackets)
-                    SendMediaSyncStopPacket(med);
+                // Stop the media that is playing, by its own name, as the
+                // sequence branch above does.
+                std::string running;
+                {
+                    std::unique_lock<std::mutex> lock(mediaOutputLock);
+                    if (mediaOutput) {
+                        running = mediaOutput->m_mediaFilename;
+                    }
+                }
+                if (!running.empty()) {
+                    StopSyncedMedia(running);
+                    // StopSyncedMedia() matches by media name and can miss
+                    // the output's own; this is a no-op once it has closed it.
+                    CloseMediaOutput();
+                    // CloseMediaOutput() sends the stop when MultiSync is on.
+                    if (sendSyncPackets && !isMultiSyncEnabled())
+                        SendMediaSyncStopPacket(running);
+                }
             }
             if (!mediaOutput) {
                 OpenSyncedMedia(med.c_str());
