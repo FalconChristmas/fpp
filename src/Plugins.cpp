@@ -580,6 +580,15 @@ void PluginManager::Cleanup() {
             a->shutdown();
         }
     }
+    // A request still in flight holds a callback whose code - the
+    // std::function manager that destroys it - lives in the plugin library
+    // that issued it, and the libraries are dlclose()d below. Destroying such a
+    // callback afterwards (fppd's own cancelAll() later in shutdown) jumps into
+    // unmapped memory. Drop them all now, while every library is still mapped,
+    // as unloadPlugin() does for one plugin. Every request, not just the ones
+    // tagged with a plugin's name: an untagged one is just as much the
+    // plugin's, and nothing of FPP's own still needs a reply this late.
+    CurlManager::INSTANCE.cancelAll();
     while (!mPlugins.empty()) {
         if (!busy.count(mPlugins.back())) {
             delete mPlugins.back();
