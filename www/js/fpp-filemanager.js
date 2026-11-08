@@ -1654,13 +1654,15 @@ function EditScript (scriptName) {
 	$.get('api/Scripts/' + scriptName, function (text) {
 		var ext = scriptName.split('.').pop();
 		if (ext != 'html') {
-			var html =
-				"<textarea style='width: 100%' rows='25' id='scriptText'>" +
-				text +
-				'</textarea></center></div></fieldset>';
-			$('#fileEditText').html(html);
-			$('#scriptText').data('scriptName', scriptName);
+			// The text goes in with .val(), never as markup: a script holding
+			// "&amp;" or "</textarea>" must come back exactly as it is.
+			$('#fileEditText').html(
+				"<textarea style='width: 100%' rows='25' id='scriptText'></textarea>"
+			);
+			$('#scriptText').val(text).data('scriptName', scriptName);
 		}
+	}).fail(function () {
+		$('#fileEditText').text('Could not load ' + scriptName + '.');
 	});
 }
 
