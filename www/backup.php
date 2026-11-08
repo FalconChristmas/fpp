@@ -2324,11 +2324,9 @@ function ListExtraNetworkInterfaceFiles($configDir)
 
     //Loop over the files we have found and weed out the non .json files
     foreach ($network_interfaces as $filename => $fn_bool) {
-        //If the filename contains 'interface.' or 'leases.', then we want to keep it, discard anything else
-        if (
-            (stripos(strtolower($filename), "interface") === false) &&
-            (stripos(strtolower($filename), "leases") === false)
-        ) {
+        //Keep interface.<if> and leases.<if>, discard anything else -- including
+        //a save's leftover .interface.<if>.*.tmp, which may hold a WiFi key
+        if (!preg_match('/^(interface|leases)\./i', $filename)) {
             unset($network_interfaces[$filename]);
         }
         //else true so we keep the file since it's a interface

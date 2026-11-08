@@ -1311,6 +1311,28 @@ function network_delete_interface()
 }
 
 /**
+ * Replace $path with $content through a temp file in the same directory and a
+ * rename, so a reader (fppinit at boot) never finds it empty or half-written
+ * after a failed write, such as a full card. The temp name starts with a dot
+ * and is unique to this request, so two saves at once can't mix their writes.
+ * The result is mode 0644, as the files these replace were.
+ */
+function network_write_file_atomically($path, $content)
+{
+    $tmp = dirname($path) . "/." . basename($path) . "." . getmypid() . "." . uniqid() . ".tmp";
+    if (@file_put_contents($tmp, $content) !== strlen($content)) {
+        @unlink($tmp);
+        return false;
+    }
+    @chmod($tmp, 0644);
+    if (!@rename($tmp, $path)) {
+        @unlink($tmp);
+        return false;
+    }
+    return true;
+}
+
+/**
  * Set network interface configuration
  *
  * Updates the saved configuration for the specified `{interface}` but does
@@ -1331,7 +1353,6 @@ function network_set_interface()
     $raw = file_get_contents('php://input');
     $data = json_decode($raw, true);
     if (!isset($data['INTERFACE'])) {
-        echo ("WTF");
         return json(array("status" => "Invalid Name is required", "debug" => $raw));
     }
 
@@ -1359,8 +1380,7 @@ function network_set_interface()
     }
 
     // GETs never return WiFi keys (network_redact_interface_config()), so a
-    // request without one keeps the key already saved.  Read before the file
-    // is truncated below.
+    // request without one keeps the key already saved.
     if (!array_key_exists('PSK', $data) || !array_key_exists('BACKUPPSK', $data)) {
         // RAW: the default mode expands ${...} inside values, which would
         // rewrite a kept passphrase that happens to contain one.
@@ -1372,21 +1392,19 @@ function network_set_interface()
         }
     }
 
-    $f = fopen($cfgFile, "w");
-    if ($f == false) {
-        return json(array("status" => "Unable to create file for interface"));
-    }
+    // Nothing is written until every check has passed: the file is built
+    // here and put in place at the end, so a refused save leaves the saved
+    // settings (and the leases) as they were.
+    $out = "";
 
     if ($data['PROTO'] == "static") {
         $address = isset($data['ADDRESS']) ? $data['ADDRESS'] : '';
         $netmask = isset($data['NETMASK']) ? $data['NETMASK'] : '';
         if (($address !== '' && !network_is_valid_ipv4($address)) ||
             ($netmask !== '' && !network_is_valid_ipv4($netmask))) {
-            fclose($f);
             return json(array("status" => "ERROR: invalid static address or netmask"));
         }
-        fprintf(
-            $f,
+        $out .= sprintf(
             "INTERFACE=\"%s\"\n" .
             "PROTO=\"static\"\n" .
             "ADDRESS=\"%s\"\n" .
@@ -1397,8 +1415,7 @@ function network_set_interface()
         );
 
     } else if ($data['PROTO'] == "dhcp") {
-        fprintf(
-            $f,
+        $out .= sprintf(
             "INTERFACE=%s\n" .
             "PROTO=dhcp\n",
             $data['INTERFACE']
@@ -1412,24 +1429,21 @@ function network_set_interface()
         // from the UI and are written verbatim below -- anything else is.
         foreach (array('SSID', 'PSK', 'BACKUPSSID', 'BACKUPPSK') as $k) {
             if (isset($data[$k]) && !network_is_safe_config_string($data[$k])) {
-                fclose($f);
                 return json(array("status" => "ERROR: invalid characters in " . $k));
             }
         }
         foreach (array('HIDDEN', 'WPA3', 'BACKUPHIDDEN', 'BACKUPWPA3') as $k) {
-            // Booleans from the UI pass through verbatim (fprintf %s renders
+            // Booleans from the UI pass through verbatim (sprintf %s renders
             // true as "1", false as ""); the loose scalars below cover API
             // clients. Anything else (notably strings with newlines/quotes)
             // would inject file lines.
             if (isset($data[$k]) && !is_bool($data[$k]) && $data[$k] !== 0 && $data[$k] !== 1 &&
                 $data[$k] !== "0" && $data[$k] !== "1" && $data[$k] !== "" &&
                 strcasecmp((string)$data[$k], "true") !== 0 && strcasecmp((string)$data[$k], "false") !== 0) {
-                fclose($f);
                 return json(array("status" => "ERROR: invalid value for " . $k));
             }
         }
-        fprintf(
-            $f,
+        $out .= sprintf(
             "SSID=\"%s\"\n" .
             "PSK=\"%s\"\n" .
             "HIDDEN=%s\n" .
@@ -1439,8 +1453,7 @@ function network_set_interface()
             $data['HIDDEN'],
             $data['WPA3']
         );
-        fprintf(
-            $f,
+        $out .= sprintf(
             "BACKUPSSID=\"%s\"\n" .
             "BACKUPPSK=\"%s\"\n" .
             "BACKUPHIDDEN=%s\n" .
@@ -1452,44 +1465,50 @@ function network_set_interface()
         );
     }
     if (isset($data['DHCPSERVER'])) {
-        fprintf($f, "DHCPSERVER=%d\n", $data['DHCPSERVER'] ? "1" : 0);
-        if ($data['DHCPSERVER']) {
-            if (isset($data['Leases'])) {
-                // Entries validated above; non-array input rejected there too.
-                $lf = fopen($leasesFile, "w");
-                foreach ($data['Leases'] as $ip => $mac) {
-                    fprintf($lf, "[DHCPServerStaticLease]\n");
-                    fprintf($lf, "MACAddress=%s\n", $mac);
-                    fprintf($lf, "Address=%s\n\n", $ip);
-                }
-                fclose($lf);
-            } else if (file_exists($leasesFile)) {
-                unlink($leasesFile);
-            }
-        }
+        $out .= sprintf("DHCPSERVER=%d\n", $data['DHCPSERVER'] ? "1" : 0);
     }
     // Numeric options render through %d below, where array input would fatal
-    // mid-save (leaving a truncated file). Empty string keeps its historical
-    // meaning (writes 0, as before); UI numeric fields send numbers.
+    // mid-save. Empty string keeps its historical meaning (writes 0, as
+    // before); UI numeric fields send numbers.
     foreach (array('DHCPOFFSET', 'DHCPPOOLSIZE', 'ROUTEMETRIC', 'IPFORWARDING') as $k) {
         if (isset($data[$k]) && $data[$k] !== "" && !is_numeric($data[$k])) {
-            fclose($f);
             return json(array("status" => "ERROR: invalid value for " . $k));
         }
     }
     if (isset($data['DHCPOFFSET'])) {
-        fprintf($f, "DHCPOFFSET=%d\n", $data['DHCPOFFSET']);
+        $out .= sprintf("DHCPOFFSET=%d\n", $data['DHCPOFFSET']);
     }
     if (isset($data['DHCPPOOLSIZE'])) {
-        fprintf($f, "DHCPPOOLSIZE=%d\n", $data['DHCPPOOLSIZE']);
+        $out .= sprintf("DHCPPOOLSIZE=%d\n", $data['DHCPPOOLSIZE']);
     }
     if (isset($data['ROUTEMETRIC'])) {
-        fprintf($f, "ROUTEMETRIC=%d\n", $data['ROUTEMETRIC']);
+        $out .= sprintf("ROUTEMETRIC=%d\n", $data['ROUTEMETRIC']);
     }
     if (isset($data['IPFORWARDING'])) {
-        fprintf($f, "IPFORWARDING=%d\n", $data['IPFORWARDING']);
+        $out .= sprintf("IPFORWARDING=%d\n", $data['IPFORWARDING']);
     }
-    fclose($f);
+    if (!network_write_file_atomically($cfgFile, $out)) {
+        return json(array("status" => "Unable to create file for interface"));
+    }
+    // The leases follow the interface file, so a save that couldn't write
+    // the interface leaves them as they were too.
+    if (isset($data['DHCPSERVER']) && $data['DHCPSERVER']) {
+        if (isset($data['Leases'])) {
+            // Entries validated above; non-array input rejected there too.
+            $leases = "";
+            foreach ($data['Leases'] as $ip => $mac) {
+                $leases .= "[DHCPServerStaticLease]\n";
+                $leases .= sprintf("MACAddress=%s\n", $mac);
+                $leases .= sprintf("Address=%s\n\n", $ip);
+            }
+            if (!network_write_file_atomically($leasesFile, $leases)) {
+                // The interface file is saved by now; say that only the leases aren't.
+                return json(array("status" => "ERROR: the interface settings were saved, but its static leases could not be"));
+            }
+        } else if (file_exists($leasesFile)) {
+            unlink($leasesFile);
+        }
+    }
 
     return json(array("status" => "OK"));
 
