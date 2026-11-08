@@ -391,11 +391,17 @@
             });
         }
 
+        // Set when recurringtasks.json is there but can't be read: the table
+        // is empty then, and a Save would write [] over every task in it.
+        var tasksUnreadable = false;
+
         function LoadTasks () {
             $.ajax({
                 dataType: 'json',
                 url: 'api/configfile/recurringtasks.json',
                 success: function (data) {
+                    tasksUnreadable = false;
+                    $('#tasksLoadError').addClass('d-none');
                     $('#tblTasksBody').empty();
                     if (Array.isArray(data)) {
                         $.each(data, function (i, t) {
@@ -404,9 +410,14 @@
                     }
                     LoadTaskStatus();
                 },
-                error: function () {
-                    // No recurringtasks.json saved yet - start with an empty table.
+                error: function (xhr) {
                     $('#tblTasksBody').empty();
+                    if (xhr.status == 404) {
+                        // No recurringtasks.json saved yet - start with an empty table.
+                        return;
+                    }
+                    tasksUnreadable = true;
+                    $('#tasksLoadError').removeClass('d-none');
                 }
             });
         }
@@ -456,6 +467,12 @@
         }
 
         function SaveTasks () {
+            if (tasksUnreadable) {
+                alert('config/recurringtasks.json could not be read, so Save is off: it would replace every task in it. ' +
+                    'Fix or remove the file, then reload this page.');
+                return;
+            }
+
             var tasks = [];
             var errors = [];
             var names = {};
@@ -464,6 +481,11 @@
                 var task = GetTaskRowData($(this));
                 if (task.name === '') {
                     errors.push('A task is missing a Name and will not be saved.');
+                    return;
+                }
+                var sec = parseInt($(this).find('.ptTmplIntervalSec').val(), 10);
+                if (isNaN(sec) || sec < MIN_TASK_INTERVAL_SEC) {
+                    errors.push('Task "' + task.name + '" needs an interval of at least ' + MIN_TASK_INTERVAL_SEC + ' seconds.');
                     return;
                 }
                 if (names.hasOwnProperty(task.name)) {
@@ -503,8 +525,16 @@
                 url: 'api/fppd/recurringtasks',
                 contentType: 'application/json',
                 data: JSON.stringify({ command: 'reload' }),
-                complete: function () {
+                success: function () {
                     $.jGrowl('Recurring tasks saved and reloaded.', { themeState: 'success' });
+                },
+                error: function (xhr) {
+                    DialogError('Recurring Tasks Not Reloaded',
+                        'The tasks were saved, but fppd did not reload them (' +
+                        EscapeHtml(xhr.status ? xhr.status + ' ' + xhr.statusText : 'no answer') +
+                        '), so it is still running the ones it had. They take effect when fppd restarts.');
+                },
+                complete: function () {
                     LoadTaskStatus();
                 }
             });
@@ -643,6 +673,10 @@
                             color: var(--bs-danger-text-emphasis);
                         }
                     </style>
+                    <div id='tasksLoadError' class='alert alert-danger d-none'>
+                        <b>config/recurringtasks.json could not be read.</b> The tasks in it are not shown, and Save is
+                        off so they are not overwritten. Fix or remove the file, then reload this page.
+                    </div>
                     <div class='fppTableWrapper fppTableWrapperAsTable'>
                         <div class='fppTableContents' role="region" aria-labelledby="tblTasksHead" tabindex="0">
                             <table class='fppTableRowTemplate template-tblTasksBody'>

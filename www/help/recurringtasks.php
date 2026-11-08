@@ -6,14 +6,14 @@
 <ul>
     <li><b>Delete</b> (top right, disabled until a row is selected) — Removes the selected task rows from the table. Requires <b>Save</b> to make permanent. Selection is via the row-click handler (<code>HandleTableRowMouseClick</code>) which toggles <code>selectedEntry</code> and enables/disables this button.</li>
     <li><b>Add</b> (green +) — Appends a default row: Enabled, Name empty, Interval 60 sec, Type Command Preset, no preset/command, no result variable, Filter None, no multisync. The new row is created via <code>AddTask({})</code> → <code>AddTableRowFromTemplate('tblTasksBody')</code> → <code>FillInTaskRow</code>.</li>
-    <li><b>Save</b> (green) — Validates every row (missing Name, duplicate names, empty preset/command), then writes <code>api/configfile/recurringtasks.json</code> via <code>Post</code> and immediately POSTs <code>api/fppd/recurringtasks</code> with <code>{command:'reload'}</code> so the timer schedule is rebuilt without restarting <code>fppd</code>. Shows “Recurring tasks saved and reloaded.” and refreshes status via <code>LoadTaskStatus</code>.</li>
+    <li><b>Save</b> (green) — Validates every row (missing Name, duplicate names, an interval under 30 s, empty preset/command) and saves nothing if any fails, then writes <code>api/configfile/recurringtasks.json</code> via <code>Post</code> and immediately POSTs <code>api/fppd/recurringtasks</code> with <code>{command:'reload'}</code> so the timer schedule is rebuilt without restarting <code>fppd</code>. Shows “Recurring tasks saved and reloaded.”, or, if fppd does not take the reload, a dialog saying the tasks were saved but run only after fppd restarts; then refreshes status via <code>LoadTaskStatus</code>. If <code>recurringtasks.json</code> is there but cannot be read (a syntax error from a hand edit), the page says so above the table and Save is off, so the tasks in it are not overwritten.</li>
 </ul>
 
 <h4>Table columns (each row)</h4>
 <ul>
     <li><b>Enabled</b> (checkbox, checked by default) — Unchecked tasks are ignored by the scheduler daemon until re-enabled.</li>
     <li><b>Name</b> (text, size 14, max 64) — Unique identifier. Used as the task’s key in <code>api/fppd/recurringtasks</code> status and for de-duplication on save; duplicate names are rejected with an alert.</li>
-    <li><b>Interval (sec)</b> (number, min 30, step 1) — How often the task runs, in seconds. Minimum enforced is 30 s; values below are rejected and the field fills with a subtle danger background (<code>intervalInvalid</code> using <code>var(--bs-danger-bg-subtle)</code>) rather than a plain border so it reads clearly. Internally stored as <code>intervalMS = sec*1000</code> (default 60000 ms). The red highlight appears both immediately on load (for bad saved values) and live as you type via the <code>input</code> listener calling <code>UpdateIntervalField</code>.</li>
+    <li><b>Interval (sec)</b> (number, min 30, step 1) — How often the task runs, in seconds. Minimum enforced is 30 s; Save refuses a value below that (or none), and the field fills with a subtle danger background (<code>intervalInvalid</code> using <code>var(--bs-danger-bg-subtle)</code>) rather than a plain border so it reads clearly. Internally stored as <code>intervalMS = sec*1000</code> (default 60000 ms). The red highlight appears both immediately on load (for bad saved values) and live as you type via the <code>input</code> listener calling <code>UpdateIntervalField</code>.</li>
     <li><b>Type</b> (dropdown) — <b>Command Preset</b> vs <b>FPP Command</b>. Switching toggles which cell is visible (<code>ptTmplPresetCell</code> vs <code>ptTmplCommandCell</code>). Command Preset tasks hide Test Run and View icons because a preset can run many commands with no single result to show; FPP Command tasks restore them.</li>
     <li><b>Preset / Command</b> —
         <ul>
@@ -49,7 +49,7 @@
 
 <h4>Tips</h4>
 <ul>
-    <li>Keep intervals at or above 30 s; shorter values are flagged red and coerced to 60 s on save. Polling every minute is a good default for weather/sensor APIs.</li>
+    <li>Keep intervals at or above 30 s; shorter values are flagged red and Save refuses them. Polling every minute is a good default for weather/sensor APIs.</li>
     <li>Prefer a Recurring Task + Variable over fetching inside a playlist <code>If</code> — the playlist path is time-critical and should read a pre-fetched Variable instantly.</li>
     <li>Use <b>Test Run</b> to confirm both the raw fetch and the filtered value before saving, then check the eye icon’s <b>Last updated</b> to confirm the Variable actually changed.</li>
 </ul>
