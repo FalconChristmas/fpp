@@ -28,17 +28,18 @@ ARCH="${ARCH:-armhf}"                        # armhf => Pi, arm64 => Pi64
 VERSION="${VERSION:-}"                       # FPP version, e.g. 10.0
 OSVERSION="${OSVERSION:-$(date +%Y-%m)}"     # Tag embedded in .fppos name
 FPPBRANCH="${FPPBRANCH:-master}"
-# Raspberry Pi OS "Trixie" Lite base image. As of the 2026-06 release the
-# image ships Linux 6.18 LTS out of the box (kernel 6.18.34), which meets the
-# kernel FPP10 requires, but the rpi-update kernel step below still runs by
-# default to pick up newer GPU/media fixes (see SKIP_KERNEL_UPDATE).
+# Raspberry Pi OS "Trixie" Lite base image. The 2026-10-06 release ships
+# Linux 6.18 LTS out of the box (kernel 6.18.50), which meets the kernel FPP10
+# requires, but the rpi-update kernel step below still runs by default to pick
+# up newer GPU/media fixes (see SKIP_KERNEL_UPDATE). A newer base also means
+# far fewer packages for FPP_Install.sh's apt upgrade to pull in.
 #
-# Two dates are involved: Raspberry Pi dated the 2026-06 release's *directory*
-# (raspios_lite_*-2026-06-19) one day later than the date embedded in the
-# image *filename* (2026-06-18-raspios-trixie-...). Every prior release used
-# the same date for both, so BASE_IMAGE_DIR_DATE defaults to BASE_IMAGE_DATE
-# and only needs overriding when the two diverge (as they do here).
-BASE_IMAGE_DATE="${BASE_IMAGE_DATE:-2026-06-18}"      # date embedded in the filename
+# Two dates can be involved: the release's download *directory*
+# (raspios_lite_*-YYYY-MM-DD) and the date embedded in the image *filename*.
+# They usually match, so BASE_IMAGE_DIR_DATE defaults to BASE_IMAGE_DATE and
+# only needs overriding when they diverge (the 2026-06 release put its
+# 2026-06-18 image in a 2026-06-19 directory).
+BASE_IMAGE_DATE="${BASE_IMAGE_DATE:-2026-10-06}"      # date embedded in the filename
 BASE_IMAGE_DIR_DATE="${BASE_IMAGE_DIR_DATE:-}"        # date in the directory name (blank => same as file)
 BASE_IMAGE_URL="${BASE_IMAGE_URL:-}"
 BASE_IMAGE_SHA256="${BASE_IMAGE_SHA256:-}"
@@ -66,17 +67,17 @@ Options:
   --branch BRANCH          FPP git branch to install (default: master)
   --base-image-url URL     Override base image URL
   --base-image-date DATE   Raspbian release date embedded in the image
-                           FILENAME (default: 2026-06-18)
+                           FILENAME (default: 2026-10-06)
   --base-image-dir-date DATE  Date in the download DIRECTORY name, if it
                            differs from --base-image-date (default: same as
                            --base-image-date)
   --base-image-sha256 HEX  Optional sha256 of the .img.xz to verify (defaults
-                           to the known sum for the default 2026-06-18 image)
+                           to the known sum for the default 2026-10-06 image)
   --img-size-mb N          Raw output image size in MiB (default: 7200)
   --work-dir DIR           Scratch dir (default: ./build)
   --output-dir DIR         Artifact dir (default: ./output)
   --skip-kernel-update     Skip rpi-update of the kernel and ship the base
-                           image's stock kernel. The 2026-06 Trixie base
+                           image's stock kernel. The 2026-10 Trixie base
                            already ships Linux 6.18 LTS, the kernel FPP10
                            requires, so this produces a working image -- it
                            just misses newer GPU/media fixes.
@@ -137,10 +138,10 @@ case "$ARCH" in
     *) echo "ARCH must be armhf or arm64 (got: $ARCH)" >&2; exit 2 ;;
 esac
 
-# Directory date. For most releases it equals the filename date, but the default
-# 2026-06-18 image lives under a 2026-06-19 directory (RPi dated the dir a day
-# after the image), so special-case that. Any other date falls back to assuming
-# dir == file date unless --base-image-dir-date overrides it.
+# Directory date. For most releases it equals the filename date. The 2026-06-18
+# image lives under a 2026-06-19 directory (RPi dated the dir a day after the
+# image), so keep that special case for anyone still pinning it. Any other date
+# falls back to dir == file date unless --base-image-dir-date overrides it.
 if [ -z "$BASE_IMAGE_DIR_DATE" ]; then
     if [ "$BASE_IMAGE_DATE" = "2026-06-18" ]; then
         BASE_IMAGE_DIR_DATE="2026-06-19"
@@ -149,14 +150,14 @@ if [ -z "$BASE_IMAGE_DIR_DATE" ]; then
     fi
 fi
 
-# Known sha256 of the default 2026-06-18 Trixie Lite images. Used only when the
+# Known sha256 of the default 2026-10-06 Trixie Lite images. Used only when the
 # caller neither supplied a sha nor overrode the URL (a custom image won't match
 # these). Bump these whenever BASE_IMAGE_DATE changes.
 if [ -z "$BASE_IMAGE_SHA256" ] && [ -z "$BASE_IMAGE_URL" ] \
-        && [ "$BASE_IMAGE_DATE" = "2026-06-18" ]; then
+        && [ "$BASE_IMAGE_DATE" = "2026-10-06" ]; then
     case "$ARCH" in
-        arm64) BASE_IMAGE_SHA256="acff736ca7945e3b305f07cda4abdb870910e12634991da69783611756e381b3" ;;
-        armhf) BASE_IMAGE_SHA256="ea4e84c501d6dd4f4b1d04eb84df133a03f90a05ee2e8ab849185c17c2b0707b" ;;
+        arm64) BASE_IMAGE_SHA256="483db18a48da399b5b7022ffae9a07bc6d99daab30e593aedac09b69ff422843" ;;
+        armhf) BASE_IMAGE_SHA256="2c302771f34c67a0b7ae7aa2e0dcdd3eac660504be59193c011ba79d412e1632" ;;
     esac
 fi
 
@@ -417,7 +418,7 @@ if [ "$USE_LOCAL_SRC" = "1" ]; then
 fi
 
 # NOTE: This entire rpi-update kernel block (host pre-stage here + the in-chroot
-# step further down) runs by default: the 2026-06 Trixie base ships Linux 6.18
+# step further down) runs by default: the 2026-10 Trixie base ships Linux 6.18
 # LTS, which is new enough for FPP10, but we want the latest kernel/firmware for
 # various GPU/media fixes. Pass --skip-kernel-update to gate all of it off and
 # ship the base image's stock kernel instead.

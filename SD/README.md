@@ -78,8 +78,8 @@ Output lands in `output/`:
 | `--output-dir DIR` | `./output` | Where the final `.img.zip` and `.fppos` land. |
 | `--skip-fppos` | off | Skip the squashfs generation. Saves 10–30 min per iteration when you only care about the `.img`. |
 | `--skip-zip` | off | Skip the final `zip -9` of the raw `.img`. Saves a few minutes when you're flashing the raw image directly to an SD card for local testing. |
-| `--skip-kernel-update` | **on** (Pi), off (BBB) | Skip the kernel update step (`rpi-update` on Pi, FPP-patched kernel `.deb` on BBB). On Pi this is now the default — the 2026-06 Trixie base already ships Linux 6.18 LTS — so the flag is mostly informational there. On BBB, skipping boots whatever kernel the base image shipped with; do NOT use for BBB release builds. |
-| `--kernel-update` | — | Pi only. Force the `rpi-update` kernel step back on (the path is retained but disabled by default). Needed if a future RPi base image lags behind the LTS kernel FPP requires. |
+| `--skip-kernel-update` | off | Skip the kernel update step (`rpi-update` on Pi, FPP-patched kernel `.deb` on BBB). On Pi the 2026-10 Trixie base already ships Linux 6.18 LTS, so skipping still produces a working image, just without the newer GPU/media fixes. On BBB, skipping boots whatever kernel the base image shipped with; do NOT use for BBB release builds. |
+| `--kernel-update` | — | Pi only. Run the `rpi-update` kernel step. This is the default; the flag is kept for explicitness. |
 | `--keep-work` | off | Don't delete the work image on success (useful for inspecting the output before zipping). |
 | `-h`, `--help` | — | Show full per-script help. |
 
@@ -87,7 +87,7 @@ Output lands in `output/`:
 
 - **`build-image-pi.sh`** also takes `--arch {armhf|arm64}` (required-ish; default `armhf`).
 - **`build-image-bbb.sh`** also takes `--fpp-kernel-ver VER` and `--fpp-kernel-url URL` to override the FPP-patched kernel `.deb` (default pulled from `FalconChristmas/fpp-linux-kernel`).
-- **`build-image-pi.sh`** skips the `rpi-update` kernel step by default — the 2026-06 Raspberry Pi OS Trixie base already ships Linux 6.18 LTS. Pass `--kernel-update` to force it back on (e.g. when a future base image lags the required LTS kernel).
+- **`build-image-pi.sh`** builds on the 2026-10-06 Raspberry Pi OS Trixie Lite base (Linux 6.18.50) and still runs the `rpi-update` kernel step by default for the latest GPU/media fixes. Pass `--skip-kernel-update` to ship the base image's stock kernel instead.
 - **`build-image-bb64.sh`** has no kernel-update flag — the rcn-ee base image already ships a 6.18 kernel.
 - **BB builds auto-discover the base image.** rcn-ee keeps only the ~5 most recent dated builds online (rolling window), so `build-image-bb64.sh` / `build-image-bbb.sh` parse the rcn-ee directory listing at run time, select the newest build, and verify its published `.sha256sum`. Pin a specific one with `--base-image-date`, or override fully with `--base-image-url`. The resolved filename is recorded in `/etc/fpp/base_image_name` on the device.
 
