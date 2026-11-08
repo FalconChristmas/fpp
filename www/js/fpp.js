@@ -709,7 +709,24 @@ function getManualLink () {
 }
 
 function CloseModalDialog (id) {
-	const myModal = bootstrap.Modal.getInstance(document.getElementById(id));
+	const el = document.getElementById(id);
+	const myModal = el ? bootstrap.Modal.getInstance(el) : null;
+	if (!myModal) return;
+	// Bootstrap ignores hide() while a dialog is still fading in, so a dialog
+	// whose work finished inside the fade (a quick save) used to stay open.
+	// _isShown with _isTransitioning is that fade, and is exactly what
+	// Bootstrap's hide() checks (5.3).  Hide it once it has been shown, if
+	// it is still the same dialog then: DoModalDialog() makes a new instance
+	// for each open of an id, and a reopened dialog must stay open.
+	if (myModal._isShown === true && myModal._isTransitioning === true) {
+		const whenShown = function (e) {
+			if (e.target !== el) return;
+			el.removeEventListener('shown.bs.modal', whenShown);
+			if (bootstrap.Modal.getInstance(el) === myModal) myModal.hide();
+		};
+		el.addEventListener('shown.bs.modal', whenShown);
+		return;
+	}
 	myModal.hide();
 }
 /**
