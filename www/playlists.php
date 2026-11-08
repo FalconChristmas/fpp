@@ -806,7 +806,7 @@
             var options = '<option value="">-- Select target playlist --</option>';
             for (var i = 0; i < playListArray.length; i++) {
                 if (playListArray[i].name == currentName) continue;
-                options += '<option value="' + playListArray[i].name + '">' + playListArray[i].name + ' (' + playListArray[i].total_items + ' items)</option>';
+                options += '<option value="' + EscapeHtmlAttr(playListArray[i].name) + '">' + EscapeHtml(playListArray[i].name) + ' (' + playListArray[i].total_items + ' items)</option>';
             }
 
             DoModalDialog({

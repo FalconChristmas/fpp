@@ -7852,7 +7852,7 @@ function ReloadSettingOptions (settingName) {
 			var options = '';
 			if (typeof data != 'object') {
 				for (var i = 0; i < data.length; i++) {
-					options += "<option value='" + data[i] + "'";
+					options += "<option value='" + EscapeHtmlAttr(data[i]) + "'";
 
 					if (
 						settings.hasOwnProperty(settingName) &&
@@ -7860,12 +7860,12 @@ function ReloadSettingOptions (settingName) {
 					)
 						options += ' selected';
 
-					options += '>' + data[i] + '</option>';
+					options += '>' + EscapeHtml(data[i]) + '</option>';
 				}
 			} else {
 				var keys = Object.keys(data);
 				for (var i = 0; i < keys.length; i++) {
-					options += "<option value='" + data[keys[i]] + "'";
+					options += "<option value='" + EscapeHtmlAttr(data[keys[i]]) + "'";
 
 					if (
 						settings.hasOwnProperty(settingName) &&
@@ -7873,7 +7873,7 @@ function ReloadSettingOptions (settingName) {
 					)
 						options += ' selected';
 
-					options += '>' + keys[i] + '</option>';
+					options += '>' + EscapeHtml(keys[i]) + '</option>';
 				}
 			}
 
@@ -16754,6 +16754,8 @@ function CreateSelect (
 	selectClass,
 	onselect = ''
 ) {
+	// Values and labels are names (models, devices, pins) and go in as
+	// text; selectTitle and dropDownTitle are the caller's own markup.
 	var result = selectTitle != '' ? selectTitle + ':&nbsp;' : '';
 
 	result += "<select class='" + selectClass + "'";
@@ -16768,25 +16770,25 @@ function CreateSelect (
 	var found = 0;
 	if (optionArray instanceof Map) {
 		optionArray.forEach((key, value) => {
-			result += "<option value='" + value + "'";
+			result += "<option value='" + EscapeHtmlAttr(value) + "'";
 
 			if (currentValue == value) {
 				result += ' selected';
 				found = 1;
 			}
 
-			result += '>' + key + '</option>';
+			result += '>' + EscapeHtml(key) + '</option>';
 		});
 	} else {
 		for (var key in optionArray) {
-			result += "<option value='" + key + "'";
+			result += "<option value='" + EscapeHtmlAttr(key) + "'";
 
 			if (currentValue == key) {
 				result += ' selected';
 				found = 1;
 			}
 
-			result += '>' + optionArray[key] + '</option>';
+			result += '>' + EscapeHtml(optionArray[key]) + '</option>';
 		}
 	}
 
@@ -16795,9 +16797,9 @@ function CreateSelect (
 	if (currentValue !== undefined && currentValue !== null && currentValue != '' && found == 0) {
 		result +=
 			"<option value='" +
-			currentValue +
+			EscapeHtmlAttr(currentValue) +
 			"' selected>" +
-			currentValue +
+			EscapeHtml(currentValue) +
 			'</option>';
 	}
 	result += '</select>';

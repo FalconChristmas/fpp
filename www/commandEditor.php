@@ -48,7 +48,7 @@
             PopulateCommandListCache();
             var cmds = args["validCommands"];
             for (i = 0; i < cmds.length; i++) {
-                $("#editorCommand").append("<option value='" + cmds[i] + "'>" + cmds[i] + "</option>");
+                $("#editorCommand").append($('<option>').val(cmds[i]).text(cmds[i]));
             }
         } else {
             LoadCommandList($('#editorCommand'), data['command']);

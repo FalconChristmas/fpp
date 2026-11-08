@@ -1331,9 +1331,9 @@ function AddFilesToPlaylist (type, files) {
 	for (var i = 0; i < playListArray.length; i++) {
 		plOptions +=
 			"<option value='" +
-			playListArray[i].name +
+			EscapeHtmlAttr(playListArray[i].name) +
 			"'>" +
-			playListArray[i].name +
+			EscapeHtml(playListArray[i].name) +
 			'</option>';
 	}
 
