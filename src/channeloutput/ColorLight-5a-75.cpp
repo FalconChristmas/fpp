@@ -179,6 +179,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "../Timers.h"
 #include "../Warnings.h"
 #include "../common.h"
 #include "../log.h"
@@ -454,14 +455,29 @@ int ColorLight5a75Output::Init(Json::Value config) {
         m_highestFirmwareVersion = config["firmwareVersion"].asInt();
     }
 
+    std::string linkWarning = "ColorLight: Configured interface " + m_ifName + " does not have link";
     if (ifstate != "up") {
-        LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s does not have link %s\n", m_ifName.c_str(), FPPstrerror(errno));
-        AddOutputConfigWarning(7, "ColorLight: Configured interface " + m_ifName + " does not have link");
+        LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s does not have link\n", m_ifName.c_str());
         if (m_colorlightDisable) {
+            AddOutputConfigWarning(7, linkWarning + " (output disabled until the output is re-saved or fppd restarts)");
             return 0;
         }
+        AddOutputConfigWarning(7, linkWarning);
+        // FIXME FPP 11: boot race, port may still be negotiating, check once more
+        // (safe after the .so unloads only because fppd exits via _exit())
+        Timers::INSTANCE.addTimer("ColorLightLinkRetry-" + m_ifName, GetTimeMS() + 10000,
+                                  [ifName = m_ifName, linkWarning]() {
+                                      std::string state = GetFileContents("/sys/class/net/" + ifName + "/operstate");
+                                      TrimWhiteSpace(state);
+                                      if (state == "up") {
+                                          LogInfo(VB_CHANNELOUT, "ColorLight: Interface %s now has link\n", ifName.c_str());
+                                          WarningHolder::RemoveWarning(7, linkWarning);
+                                      } else {
+                                          LogWarn(VB_CHANNELOUT, "ColorLight: Interface %s still has no link after 10s\n", ifName.c_str());
+                                      }
+                                  });
     } else {
-        WarningHolder::RemoveWarning(7, "ColorLight: Configured interface " + m_ifName + " does not have link");
+        WarningHolder::RemoveWarning(7, linkWarning);
     }
 
     // Check interface is 1000Mbps capable and display error if not
@@ -474,7 +490,7 @@ int ColorLight5a75Output::Init(Json::Value config) {
     }
 
     if (ifspeed > 0 && ifspeed < 1000) {
-        LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s is not 1000Mbps Capable: %s\n", m_ifName.c_str(), FPPstrerror(errno));
+        LogErr(VB_CHANNELOUT, "Error ColorLight: Configured interface %s is not 1000Mbps Capable\n", m_ifName.c_str());
         AddOutputConfigWarning(8, "ColorLight: Configured interface " + m_ifName + " is not 1000Mbps Capable");
         if (m_colorlightDisable) {
             return 0;
