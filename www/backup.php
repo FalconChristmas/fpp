@@ -3306,7 +3306,7 @@ if ($skipHTMLCodeOutput === false) {
 
                     //all the API backend to do the restore
                     $.ajax({
-                        url: 'api/backups/configuration/restore/' + directory + '/' + filename,
+                        url: 'api/backups/configuration/restore/' + encodeURIComponent(directory) + '/' + encodeURIComponent(filename),
                         type: 'POST',
                         data: selected_restore_area,
                         processData: false,

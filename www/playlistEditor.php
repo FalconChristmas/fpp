@@ -176,7 +176,7 @@ if (!isset($simplifiedPlaylist)) {
 
         $.ajax({
             dataType: "json",
-            url: "api/sequence/" + val + "/meta",
+            url: "api/sequence/" + encodeURIComponent(val) + "/meta",
             async: true,
             success: function (data) {
                 var media = document.getElementsByClassName("arg_mediaName")[0];

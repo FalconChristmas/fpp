@@ -130,7 +130,7 @@
             var postDataString = "";
             $.ajax({
                 dataType: "json",
-                url: "api/playlist/" + name,
+                url: "api/playlist/" + encodeURIComponent(name),
                 type: "DELETE",
                 async: false,
                 success: function (data) {
@@ -168,7 +168,7 @@
 
                         $.ajax({
                             dataType: "json",
-                            url: "api/playlist/" + name,
+                            url: "api/playlist/" + encodeURIComponent(name),
                             type: "GET",
                             success: function (data) {
                                 var content = "";
@@ -500,7 +500,7 @@
                         var playlistName = $('#txtPlaylistName').val();
                         if (playlistName) {
                             // Get current playlist data and populate the form
-                            $.get('api/playlist/' + playlistName)
+                            $.get('api/playlist/' + encodeURIComponent(playlistName))
                                 .done(function (data) {
                                     // Restore original values
                                     $('#txtPlaylistName').val(data.name || '');
@@ -840,7 +840,7 @@
 
                             // Fetch target playlist, append, and save
                             $.ajax({
-                                url: 'api/playlist/' + targetName,
+                                url: 'api/playlist/' + encodeURIComponent(targetName),
                                 type: 'GET',
                                 dataType: 'json',
                                 async: false,
@@ -858,7 +858,7 @@
                                     }
 
                                     $.ajax({
-                                        url: 'api/playlist/' + targetName,
+                                        url: 'api/playlist/' + encodeURIComponent(targetName),
                                         type: 'POST',
                                         contentType: 'application/json',
                                         data: JSON.stringify(data),

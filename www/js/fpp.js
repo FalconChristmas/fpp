@@ -3277,7 +3277,7 @@ function RefreshPlaylistRowWarnings (name) {
 }
 
 function LoadPlaylistDetails (name) {
-	$.get('api/playlist/' + name)
+	$.get('api/playlist/' + encodeURIComponent(name))
 		.done(function (data) {
 			// The editor now shows what is on disk; any earlier edits are gone.
 			markCurrentPlaylistModified(false);
@@ -3624,7 +3624,7 @@ function SetPlaylistItemMetaData (row) {
 	} else if (type == 'playlist') {
 		let playlistName = row.find('.field_name').text();
 		$.ajax({
-			url: 'api/playlist/' + playlistName,
+			url: 'api/playlist/' + encodeURIComponent(playlistName),
 			type: 'GET',
 			async: false,
 			dataType: 'json',
@@ -4222,7 +4222,7 @@ function SavePlaylistAs (name, options, callback) {
 
 	var str = JSON.stringify(pl, true);
 	$.ajax({
-		url: 'api/playlist/' + name,
+		url: 'api/playlist/' + encodeURIComponent(name),
 		type: 'POST',
 		contentType: 'application/json',
 		data: str,
@@ -8886,7 +8886,7 @@ function PopulatePlaylistDetailsEntries (playselected, playList) {
 			return;
 		}
 		pl = $('#playlistSelect :selected').text();
-		url = 'api/playlist/' + pl + '?mergeSubs=1';
+		url = 'api/playlist/' + encodeURIComponent(pl) + '?mergeSubs=1';
 	} else {
 		pl = playList;
 		url = 'api/fppd/playlist/config/'; // In Memory URL
@@ -9741,7 +9741,13 @@ function PlayFileInBrowser (dir, file) {
 function CopyFile (dir, file) {
 	var newFile = prompt('New Filename:', file);
 	if (newFile != null) {
-		var url = 'api/file/' + dir + '/copy/' + file + '/' + newFile;
+		var url =
+			'api/file/' +
+			dir +
+			'/copy/' +
+			encodeURIComponent(file) +
+			'/' +
+			encodeURIComponent(newFile);
 
 		$.post(url, '')
 			.done(function (data) {
@@ -9757,7 +9763,13 @@ function CopyFile (dir, file) {
 function RenameFile (dir, file) {
 	var newFile = prompt('New Filename:', file);
 	if (newFile != null) {
-		var url = 'api/file/' + dir + '/rename/' + file + '/' + newFile;
+		var url =
+			'api/file/' +
+			dir +
+			'/rename/' +
+			encodeURIComponent(file) +
+			'/' +
+			encodeURIComponent(newFile);
 
 		$.post(url, '')
 			.done(function (data) {

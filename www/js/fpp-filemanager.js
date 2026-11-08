@@ -552,7 +552,7 @@ function LoadSequenceFPS () {
 function GetSequenceInfo (file) {
 	$('#fileText').html('Getting Sequence Info.');
 
-	$.get('api/sequence/' + file + '/meta', function (data) {
+	$.get('api/sequence/' + encodeURIComponent(file) + '/meta', function (data) {
 		DoModalDialog({
 			id: 'SequenceViewer',
 			title: 'Sequence Info',
@@ -566,6 +566,11 @@ function GetSequenceInfo (file) {
 				}
 			}
 		});
+	}).fail(function () {
+		DialogError(
+			'Sequence Info',
+			'Could not read the sequence info for ' + EscapeHtml(file) + '.'
+		);
 	});
 }
 
@@ -825,7 +830,7 @@ function FileManagerFilterToggled () {
 function GetVideoInfo (file) {
 	$('#fileText').html('Getting Video Info.');
 
-	$.get('api/media/' + file + '/meta', function (data) {
+	$.get('api/media/' + encodeURIComponent(file) + '/meta', function (data) {
 		DoModalDialog({
 			id: 'VideoViewer',
 			title: 'Video Info',
@@ -839,6 +844,11 @@ function GetVideoInfo (file) {
 				}
 			}
 		});
+	}).fail(function () {
+		DialogError(
+			'Video Info',
+			'Could not read the video info for ' + EscapeHtml(file) + '.'
+		);
 	});
 }
 function ButtonHandler (table, button) {
@@ -1385,7 +1395,9 @@ function AddFilesToPlaylist (type, files) {
 			if (type == 'Sequences') {
 				etype = 'sequence';
 
-				var seqInfo = CachedGet('api/sequence/' + files[i] + '/meta');
+				var seqInfo = CachedGet(
+					'api/sequence/' + encodeURIComponent(files[i]) + '/meta'
+				);
 				if (seqInfo.hasOwnProperty('NumFrames')) {
 					duration += (1.0 * seqInfo.NumFrames * seqInfo.StepTime) / 1000;
 				}
@@ -1415,7 +1427,9 @@ function AddFilesToPlaylist (type, files) {
 			} else if (type == 'Music' || type == 'Videos') {
 				etype = 'media';
 
-				var mediaInfo = CachedGet('api/media/' + files[i] + '/duration');
+				var mediaInfo = CachedGet(
+					'api/media/' + encodeURIComponent(files[i]) + '/duration'
+				);
 				if (mediaInfo.hasOwnProperty(files[i])) {
 					duration = mediaInfo[files[i]].duration;
 				}
@@ -1537,7 +1551,7 @@ function AddFilesToPlaylist (type, files) {
 
 function BulkAddPlaylist () {
 	var playlistName = $('#bulkAddPlaylist').val();
-	var pl = Get('api/playlist/' + playlistName, false);
+	var pl = Get('api/playlist/' + encodeURIComponent(playlistName), false);
 	if (!pl.hasOwnProperty('name')) {
 		// Get() has already reported the failure
 		return;
@@ -1576,7 +1590,11 @@ function BulkAddPlaylist () {
 	// Mark playlist as non-empty since we're adding items to it
 	pl.empty = false;
 
-	var result = Post('api/playlist/' + playlistName, false, JSON.stringify(pl));
+	var result = Post(
+		'api/playlist/' + encodeURIComponent(playlistName),
+		false,
+		JSON.stringify(pl)
+	);
 	if (result.hasOwnProperty('Status') && result.Status == 'Error') {
 		$.jGrowl('Error Saving Playlist: ' + result.Message, {
 			themeState: 'danger'
@@ -1651,7 +1669,7 @@ function EditScript (scriptName) {
 		}
 	};
 	DoModalDialog(options);
-	$.get('api/Scripts/' + scriptName, function (text) {
+	$.get('api/Scripts/' + encodeURIComponent(scriptName), function (text) {
 		var ext = scriptName.split('.').pop();
 		if (ext != 'html') {
 			// The text goes in with .val(), never as markup: a script holding
@@ -1668,7 +1686,7 @@ function EditScript (scriptName) {
 
 function SaveScript (scriptName) {
 	var contents = $('#scriptText').val();
-	var url = 'api/scripts/' + scriptName;
+	var url = 'api/scripts/' + encodeURIComponent(scriptName);
 	var postData = JSON.stringify(contents);
 
 	$.post(url, postData)
