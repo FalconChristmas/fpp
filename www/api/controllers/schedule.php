@@ -104,9 +104,16 @@ function SaveSchedule() {
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
+ * @response 503 fppd did not answer within a second: the saved schedule may not be running yet
+ * ```json
+ * {"Status": "Error", "Message": "fppd did not answer"}
+ * ```
  */
 function ReloadSchedule() {
-    SendCommand('R');
+    if (SendCommand('R') === false) {
+        http_response_code(503);
+        return json(array('Status' => 'Error', 'Message' => 'fppd did not answer'));
+    }
 
     $result = Array();
     $result['Status'] = 'OK';

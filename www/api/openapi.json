@@ -8701,6 +8701,20 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "fppd did not answer within a second: the saved schedule may not be running yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "Error",
+                  "Message": "fppd did not answer"
+                }
+              }
+            }
           }
         }
       }

@@ -955,6 +955,13 @@ error_reporting(E_ALL);
                         contentType: 'application/json',
                         success: function (response) {
                             $.jGrowl('Schedule reloaded', { themeState: 'success' });
+                        },
+                        error: function (xhr) {
+                            DialogError('Schedule Not Reloaded',
+                                'The schedule was saved, but fppd did not confirm the reload (' +
+                                EscapeHtml(xhr.status ? xhr.status + ' ' + xhr.statusText : 'no answer') +
+                                '). If fppd is running it may still pick it up; if not, the new schedule ' +
+                                'takes effect when fppd starts.');
                         }
                     });
                 },
