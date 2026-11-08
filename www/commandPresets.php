@@ -77,25 +77,7 @@
                     }
                 }
 
-                // Show warning if invalid commands were found
-                if (invalidCommands.length > 0) {
-                    var warningHtml = '<div class="commandPresetInvalidWarning">' +
-                        '<strong><i class="fas fa-exclamation-triangle"></i> Warning:</strong> ' +
-                        'Some command presets reference commands that are not currently available. ' +
-                        'These presets rows are highlighted in orange and will not execute until the required commands become available ' +
-                        '(e.g., by installing a plugin or configuring MQTT).<br><br>' +
-                        '<strong>Affected Presets:</strong><ul>';
-                    
-                    for (var i = 0; i < invalidCommands.length; i++) {
-                        warningHtml += '<li><strong>' + invalidCommands[i].name + '</strong> - Command: ' + invalidCommands[i].command + '</li>';
-                    }
-                    
-                    warningHtml += '</ul></div>';
-                    
-                    $('#commandPresetsWarning').html(warningHtml);
-                } else {
-                    $('#commandPresetsWarning').html('');
-                }
+                ShowInvalidCommandsWarning(invalidCommands);
             });
         }
 
@@ -113,25 +95,31 @@
                 }
             });
 
-            // Show or hide warning based on validation
-            if (invalidCommands.length > 0) {
-                var warningHtml = '<div class="commandPresetInvalidWarning">' +
-                    '<strong><i class="fas fa-exclamation-triangle"></i> Warning:</strong> ' +
-                    'Some command presets reference commands that are not currently available. ' +
-                    'These presets rows are highlighted in orange and will not execute until the required commands become available ' +
-                    '(e.g., by installing a plugin or configuring MQTT).<br><br>' +
-                    '<strong>Affected Presets:</strong><ul>';
-                
-                for (var i = 0; i < invalidCommands.length; i++) {
-                    warningHtml += '<li><strong>' + invalidCommands[i].name + '</strong> - Command: ' + invalidCommands[i].command + '</li>';
-                }
-                
-                warningHtml += '</ul></div>';
-                
-                $('#commandPresetsWarning').html(warningHtml);
-            } else {
+            ShowInvalidCommandsWarning(invalidCommands);
+        }
+
+        // Lists the presets whose command this player doesn't have.  Names
+        // and commands are user data, so they go in as text.
+        function ShowInvalidCommandsWarning(invalidCommands) {
+            if (!invalidCommands.length) {
                 $('#commandPresetsWarning').html('');
+                return;
             }
+            var warningHtml = '<div class="commandPresetInvalidWarning">' +
+                '<strong><i class="fas fa-exclamation-triangle"></i> Warning:</strong> ' +
+                'Some command presets reference commands that are not currently available. ' +
+                'These presets rows are highlighted in orange and will not execute until the required commands become available ' +
+                '(e.g., by installing a plugin or configuring MQTT).<br><br>' +
+                '<strong>Affected Presets:</strong><ul>';
+
+            for (var i = 0; i < invalidCommands.length; i++) {
+                warningHtml += '<li><strong>' + EscapeHtml(invalidCommands[i].name) + '</strong> - Command: ' +
+                    EscapeHtml(invalidCommands[i].command) + '</li>';
+            }
+
+            warningHtml += '</ul></div>';
+
+            $('#commandPresetsWarning').html(warningHtml);
         }
 
         function SaveCommands() {

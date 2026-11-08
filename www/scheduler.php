@@ -872,7 +872,7 @@ error_reporting(E_ALL);
                     cmd.command = $(item).find('.cmdTmplCommand').val() || '';
                     cmd.args = [];
                     json = JSON.stringify(cmd);
-                    $(item).find('.cmdTmplJSON').html(json);
+                    $(item).find('.cmdTmplJSON').text(json);
                 }
 
                 // Just in case, FPP Commands can't immediately repeat so disable

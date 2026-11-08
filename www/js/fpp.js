@@ -14976,13 +14976,11 @@ function FillInCommandTemplate (row, data) {
 		var $select = row.find('.cmdTmplCommand');
 		// Remove any previously added invalid option to avoid duplicates
 		$select.find('option.invalidCommandOption').remove();
-		// Add the invalid command as a disabled option
+		// Add the invalid command as a disabled option, as text.
 		$select.prepend(
-			'<option class="invalidCommandOption" value="' +
-				data.command +
-				'" disabled>' +
-				data.command +
-				' (unavailable)</option>'
+			$('<option class="invalidCommandOption" disabled></option>')
+				.val(data.command)
+				.text(data.command + ' (unavailable)')
 		);
 	}
 
@@ -15003,8 +15001,9 @@ function FillInCommandTemplate (row, data) {
 	if (data.args.length) {
 		var args = '';
 		if (data.command == 'Run Script') {
-			if (data.args.length > 1) args = data.args[0] + ' | ' + data.args[1];
-			else args = data.args[0];
+			if (data.args.length > 1)
+				args = EscapeHtml(data.args[0]) + ' | ' + EscapeHtml(data.args[1]);
+			else args = EscapeHtml(data.args[0]);
 		} else if (data.command == 'If') {
 			// args are [conditions, thenCommands, thenMode, elseCommands,
 			// elseMode] - showing that raw (the generic branch below) is
@@ -15017,19 +15016,20 @@ function FillInCommandTemplate (row, data) {
 			try {
 				var condTree = BackendJSONToRootTree(JSON.parse(data.args[0] || '{}'));
 				var formula = condTree.items.length ? BuildConditionFormula(condTree) : 'No conditions configured';
+				// CommandListSummary() is plain text; BuildConditionFormula() escapes its own.
 				var summarizeCmdList = function (jsonStr) {
 					var cmds = JSON.parse(jsonStr || '[]');
-					return cmds.length ? cmds.map(CommandListSummary).join(', ') : '(none)';
+					return cmds.length ? EscapeHtml(cmds.map(CommandListSummary).join(', ')) : '(none)';
 				};
 				args =
 					'If ' + formula +
 					' → Then: ' + summarizeCmdList(data.args[1]) +
 					' | Otherwise: ' + summarizeCmdList(data.args[3]);
 			} catch (e) {
-				args = data.args.join(' | ');
+				args = EscapeHtml(data.args.join(' | '));
 			}
 		} else {
-			args = data.args.join(' | ');
+			args = EscapeHtml(data.args.join(' | '));
 		}
 
 		row.find('.cmdTmplArgs').html(args);
@@ -15042,24 +15042,15 @@ function FillInCommandTemplate (row, data) {
 	var command = {};
 	command.command = data.command;
 	command.args = data.args;
-	var mInfo = '';
 	if (data.hasOwnProperty('multisyncCommand')) {
-		if (data.multisyncCommand) {
-			mInfo = 'Yes';
-		} else {
-			mInfo = 'No';
-		}
-
 		command.multisyncCommand = data.multisyncCommand;
 		if (data.multisyncCommand && data.hasOwnProperty('multisyncHosts')) {
-			mInfo += '<br>' + data.multisyncHosts;
 			command.multisyncHosts = data.multisyncHosts;
 		}
-	} else {
-		mInfo = 'No';
 	}
 
-	row.find('.cmdTmplJSON').html(JSON.stringify(command));
+	// Text, not HTML: Save reads it back with .text().
+	row.find('.cmdTmplJSON').text(JSON.stringify(command));
 
 	// Surface the multisync target hosts in the row preview (the
 	// .cmdTmplMulticastInfo span was previously left empty). An empty host
@@ -15069,7 +15060,7 @@ function FillInCommandTemplate (row, data) {
 			data.hasOwnProperty('multisyncHosts') && data.multisyncHosts != ''
 				? data.multisyncHosts
 				: 'All hosts';
-		row.find('.cmdTmplMulticastInfo').html('<b>Multisync:</b> ' + hostsText);
+		row.find('.cmdTmplMulticastInfo').html('<b>Multisync:</b> ' + EscapeHtml(hostsText));
 	} else {
 		row.find('.cmdTmplMulticastInfo').html('');
 	}
@@ -15084,14 +15075,14 @@ function FillInCommandTemplate (row, data) {
 				tip =
 					"<span class='tooltipSpan' style='display: block; text-align: left; color: red;'><b>WARNING: Command not available</b><br>" +
 					'<b>Command: </b>' +
-					data.command +
+					EscapeHtml(data.command) +
 					'<br>' +
 					'This command is not currently available. It may be from a disabled plugin or require additional configuration (e.g., MQTT).' +
 					'</span>';
 			} else {
 				tip =
 					"<span class='tooltipSpan' style='display: block; text-align: left;'><b>Command: </b>" +
-					data.command +
+					EscapeHtml(data.command) +
 					'<br>';
 
 				if (data.hasOwnProperty('multisyncCommand')) {
@@ -15102,14 +15093,14 @@ function FillInCommandTemplate (row, data) {
 					tip += '<br>';
 
 					if (data.hasOwnProperty('multisyncHosts')) {
-						tip += '<b>Multisync Hosts: </b>' + data.multisyncHosts + '<br>';
+						tip += '<b>Multisync Hosts: </b>' + EscapeHtml(data.multisyncHosts) + '<br>';
 					}
 				}
 				var args = commandListByName[data.command]['args'];
 				if (data.args.length) {
 					for (var j = 0; j < args.length; j++) {
 						tip +=
-							'<b>' + args[j]['description'] + ': </b>' + data.args[j] + '<br>';
+							'<b>' + EscapeHtml(args[j]['description']) + ': </b>' + EscapeHtml(data.args[j]) + '<br>';
 					}
 				}
 				tip += '</span>';

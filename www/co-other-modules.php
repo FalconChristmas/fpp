@@ -1276,7 +1276,7 @@
         var commands = commandPresets.commands;
         for (var a in commands) {
             var n = commands[a].name;
-            rest += "<option value='" + n + "' " + (config.preset == n ? "selected" : "") + ">" + n + "</option>";
+            rest += "<option value='" + EscapeHtmlAttr(n) + "' " + (config.preset == n ? "selected" : "") + ">" + EscapeHtml(n) + "</option>";
         }
         rest += "</select></div>";
         rest += "<div class='col-sm-2 remove-row'><input class='buttons btn-outline-danger' type='button' value='Remove Row' data-btn-enabled-class='btn-outline-danger' onClick='RemovePresetRow(this)' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto' data-bs-title='Remove Preset Row'></div>";
