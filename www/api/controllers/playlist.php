@@ -513,9 +513,9 @@ function playlist_playable()
  */
 /**
  * The file a playlist name refers to, or false if the name is not a single
- * path component.  Names arrive from request bodies and from URL segments that
- * are decoded twice (limonade, then rawurldecode() below), so a separator can
- * reach here even though the router never saw one.
+ * path component.  A name from the URL is one path segment (Apache decodes a
+ * "%2F" into a real "/" before routing), but one from a request body can hold
+ * anything, so this is still checked here.
  */
 function PlaylistFilePath($playlistName)
 {
@@ -764,7 +764,7 @@ function playlist_get()
 {
     global $settings;
 
-    $playlistName = rawurldecode(params('PlaylistName'));
+    $playlistName = params('PlaylistName');
     $mergeSubs = 0;
     if ((isset($_GET['mergeSubs'])) && ($_GET['mergeSubs'] == 1)) {
         $mergeSubs = 1;
@@ -813,7 +813,7 @@ function playlist_update()
     global $settings;
 
     $playlist = $GLOBALS['_POST'];
-    $playlistName = rawurldecode(params('PlaylistName'));
+    $playlistName = params('PlaylistName');
     $filename = PlaylistFilePath($playlistName);
     if ($filename === false) {
         http_response_code(400);
@@ -885,7 +885,7 @@ function playlist_delete()
 {
     global $settings;
 
-    $playlistName = rawurldecode(params('PlaylistName'));
+    $playlistName = params('PlaylistName');
     $resp = array();
 
     $filename = PlaylistFilePath($playlistName);
@@ -929,7 +929,7 @@ function PlaylistSectionInsertItem()
 {
     global $settings;
 
-    $playlistName = rawurldecode(params('PlaylistName'));
+    $playlistName = params('PlaylistName');
     $sectionName = urldecode(params('SectionName'));
     $entry = $GLOBALS['_POST'];
     $resp = array();
@@ -1058,7 +1058,7 @@ function playlist_start()
 {
     global $settings;
 
-    $playlistName = rawurldecode(params('PlaylistName'));
+    $playlistName = params('PlaylistName');
     $scheduleProtected = isset($_GET['scheduleProtected']) ? $_GET['scheduleProtected'] : 'false';
 
     $request_content = FppdCommand('Start Playlist', array($playlistName, 'false', 'false', $scheduleProtected));
@@ -1085,7 +1085,7 @@ function playlist_start_repeat()
 {
     global $settings;
 
-    $playlistName = rawurldecode(params('PlaylistName'));
+    $playlistName = params('PlaylistName');
     $repeat = urldecode(params('Repeat'));
     $scheduleProtected = isset($_GET['scheduleProtected']) ? $_GET['scheduleProtected'] : 'false';
 
@@ -1112,7 +1112,7 @@ function playlist_start_repeat_protected()
 {
     global $settings;
 
-    $playlistName = rawurldecode(params('PlaylistName'));
+    $playlistName = params('PlaylistName');
     $repeat = urldecode(params('Repeat'));
     $scheduleProtected = urldecode(params('ScheduleProtected'));
 

@@ -976,6 +976,11 @@ function request_uri($env = null)
     $env = env();
   }
 
+  // FPP: a uri from $_GET or PATH_INFO is decoded already (Apache decodes
+  // the path, its [B] rewrite escapes it into ?uri=, PHP decodes that), so
+  // only the raw QUERY_STRING and REQUEST_URI below are decoded here.
+  // Decoding twice turned a name's own "%41" into "A".
+  $decoded = true;
   if(array_key_exists('uri', $env['GET']))
   {
     $uri = $env['GET']['uri'];
@@ -1019,6 +1024,7 @@ function request_uri($env = null)
     // No PATH_INFO?... What about QUERY_STRING?
     elseif (trim($query_string, '/') != '' && $query_string[0] == '/')
     {
+      $decoded = false;
       $uri = $query_string;
       $get = $env['GET'];
       if(count($get) > 0)
@@ -1031,6 +1037,7 @@ function request_uri($env = null)
     }
     elseif(array_key_exists('REQUEST_URI', $env['SERVER']) && !empty($env['SERVER']['REQUEST_URI']))
     {
+      $decoded = false;
       $request_uri = rtrim($env['SERVER']['REQUEST_URI'], '?/').'/';
       $base_path = $env['SERVER']['SCRIPT_NAME'];
 
@@ -1058,7 +1065,7 @@ function request_uri($env = null)
   {
     $uri = '/' . $uri; # add a leading slash
   }
-  return rawurldecode($uri);
+  return $decoded ? $uri : rawurldecode($uri);
 }
 
 
