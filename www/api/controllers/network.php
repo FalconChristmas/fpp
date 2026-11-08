@@ -105,12 +105,46 @@ function network_parse_iw_scan($output)
 {
     $networks = array();
     $current = array();
+    // The security elements (RSN, WPA) in the order iw printed them, each
+    // with the authentication suites listed under it.
+    $elements = array();
+    $privacy = false;
 
-    $flush = function () use (&$networks, &$current) {
+    $flush = function () use (&$networks, &$current, &$elements, &$privacy) {
+        $security = array();
+        foreach ($elements as $e) {
+            if ($e['type'] == 'WPA') {
+                $security[] = 'WPA';
+                continue;
+            }
+            // RSN: SAE is WPA3, PSK or 802.1X is WPA2, and a transition-mode
+            // AP lists both.  OWE ("Enhanced Open") is neither: it's encrypted
+            // but asks for no key, as wpa_supplicant's own scan results say.
+            // An RSN element with no suites line is WPA2, as it always was.
+            $suites = trim($e['suites']);
+            if (preg_match('/\bSAE\b/', $suites)) {
+                $security[] = 'WPA3';
+            }
+            if ($suites === '' || preg_match('/PSK|802\.1X/i', $suites)) {
+                $security[] = 'WPA2';
+            }
+        }
+        if (count($security)) {
+            $current['encrypted'] = true;
+            $current['security'] = implode(' ', array_unique($security));
+        } else if (count($elements)) {
+            $current['encrypted'] = true;
+        } else if ($privacy) {
+            // Privacy with no RSN or WPA element is WEP.
+            $current['encrypted'] = true;
+            $current['security'] = 'WEP';
+        }
         if (isset($current['SSID']) || isset($current['bssid'])) {
             array_push($networks, $current);
         }
         $current = array();
+        $elements = array();
+        $privacy = false;
     };
 
     foreach ($output as $row) {
@@ -126,22 +160,19 @@ function network_parse_iw_scan($output)
         } else if (preg_match('/signal: (.*)/', $row, $matches)) {
             $current['signal'] = $matches[1];
         } else if (preg_match('/capability:.*Privacy/', $row)) {
-            // Basic encryption detection (WEP or WPA/WPA2)
-            $current['encrypted'] = true;
-        } else if (preg_match('/RSN:/', $row)) {
-            // WPA2/WPA3 detected
-            $current['encrypted'] = true;
-            $current['security'] = isset($current['security']) ? $current['security'] . ' WPA2' : 'WPA2';
-        } else if (preg_match('/WPA:/', $row)) {
-            // WPA detected
-            $current['encrypted'] = true;
-            $current['security'] = isset($current['security']) ? $current['security'] . ' WPA' : 'WPA';
-        } else if (preg_match('/Authentication suites:.*PSK/', $row)) {
-            // Personal/PSK authentication
-            $current['auth'] = 'PSK';
-        } else if (preg_match('/Authentication suites:.*802\.1x/', $row)) {
-            // Enterprise authentication
-            $current['auth'] = 'Enterprise';
+            $privacy = true;
+        } else if (preg_match('/^\s*(RSN|WPA):/', $row, $matches)) {
+            $elements[] = array('type' => $matches[1], 'suites' => '');
+        } else if (preg_match('/Authentication suites: (.*)/', $row, $matches)) {
+            if (count($elements)) {
+                $elements[count($elements) - 1]['suites'] .= ' ' . $matches[1];
+            }
+            // iw prints WPA3's suite as "SAE" and Enterprise's as "IEEE 802.1X".
+            if (preg_match('/PSK|\bSAE\b/', $matches[1])) {
+                $current['auth'] = 'PSK';
+            } else if (preg_match('/802\.1X/i', $matches[1])) {
+                $current['auth'] = 'Enterprise';
+            }
         } else if (preg_match('/Group cipher: (.*)/', $row, $matches)) {
             $current['cipher'] = trim($matches[1]);
         }
