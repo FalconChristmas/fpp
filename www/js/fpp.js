@@ -2666,7 +2666,9 @@ function psiDetailsForEntrySimpleBranch (entry, editMode) {
 
 	result += psiDetailsBranchDestination(entry);
 
-	return result;
+	// Plain text with user data (topics, playlist names) in it, going into
+	// HTML.  psiDetailsForEntryBranch() escapes the same text in psiDetailsData().
+	return EscapeHtml(result);
 }
 
 function psiDetailsForEntrySimple (entry, editMode) {
@@ -2687,25 +2689,27 @@ function psiDetailsForEntrySimple (entry, editMode) {
 		if (!a.optional || (entry.hasOwnProperty(a.name) && entry[a.name] != '')) {
 			var partialResult = '';
 
+			// Values are user data and the result is HTML, so each is escaped
+			// (parseFloat('1<b>') is 1, so a "number" is escaped too).
 			if (a.type == 'args') {
 				if (entry[a.name].length == 1 && !isNaN(parseFloat(entry[a.name][0]))) {
-					partialResult += entry[a.name][0];
+					partialResult += EscapeHtml(entry[a.name][0]);
 				} else {
 					for (var x = 0; x < entry[a.name].length; x++) {
 						if (partialResult != '') partialResult += ' ';
 
-						partialResult += '"' + entry[a.name][x] + '"';
+						partialResult += '"' + EscapeHtml(entry[a.name][x]) + '"';
 					}
 				}
 			} else if (a.type == 'array') {
 				var akeys = Object.keys(entry[a.name]);
 				if (akeys.length == 1 && !isNaN(parseFloat(entry[a.name][akeys[0]]))) {
-					partialResult += entry[a.name][akeys[0]];
+					partialResult += EscapeHtml(entry[a.name][akeys[0]]);
 				} else {
 					for (var x = 0; x < akeys.length; x++) {
 						if (partialResult != '') partialResult += ' ';
 
-						partialResult += '"' + entry[a.name][akeys[x]] + '"';
+						partialResult += '"' + EscapeHtml(entry[a.name][akeys[x]]) + '"';
 					}
 				}
 			} else {
@@ -2720,9 +2724,7 @@ function psiDetailsForEntrySimple (entry, editMode) {
 					typeof entry[a.name] === 'string' ||
 					entry[a.name] instanceof String
 				) {
-					partialResult += entry[a.name]
-						.replace(/&/g, '&amp;')
-						.replace(/</g, '&lt;');
+					partialResult += EscapeHtml(entry[a.name]);
 				} else {
 					partialResult += entry[a.name];
 				}
@@ -2924,7 +2926,7 @@ function psiDetailsForEntryBranch (entry, editMode) {
 					"<span style='display:none;' class='field_compInfo_" +
 					akeys[x] +
 					"'>" +
-					aa +
+					EscapeHtml(aa) +
 					'</span>';
 			}
 		} else {
@@ -2932,7 +2934,7 @@ function psiDetailsForEntryBranch (entry, editMode) {
 				"<span style='display:none;' class='field_" +
 				keys[i] +
 				"'>" +
-				a +
+				EscapeHtml(a) +
 				'</span>';
 		}
 	}
@@ -15615,10 +15617,11 @@ function ScheduleCalendarItemInfo (item) {
 		info += '<b>End:</b> ' + item.endTimeStr + '<br>';
 	}
 
-	info += '<b>Action:</b> ' + item.command + '<br>';
+	// The entry's command, args and hosts are user data: the tooltip is HTML.
+	info += '<b>Action:</b> ' + EscapeHtml(item.command) + '<br>';
 
 	if (item.args && item.args.length && item.command != 'Start Playlist')
-		info += '<b>Args:</b> ' + item.args.join(' | ') + '<br>';
+		info += '<b>Args:</b> ' + EscapeHtml(item.args.join(' | ')) + '<br>';
 
 	if (item.command == 'Start Playlist') {
 		info += '<b>Stop:</b> ' + item.stopTypeStr + '<br>';
@@ -15630,7 +15633,9 @@ function ScheduleCalendarItemInfo (item) {
 
 	if (item.multisyncCommand)
 		info +=
-			'<b>Multisync:</b> ' + (item.multisyncHosts || 'all remotes') + '<br>';
+			'<b>Multisync:</b> ' +
+			EscapeHtml(item.multisyncHosts || 'all remotes') +
+			'<br>';
 
 	if (item.overridden)
 		info +=

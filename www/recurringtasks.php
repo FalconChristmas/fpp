@@ -570,7 +570,7 @@
                     var names = Object.keys(data || {}).sort();
                     var $list = $('#ptResultVariableNames').empty();
                     $.each(names, function (i, name) {
-                        $list.append("<option value='" + $('<div>').text(name).html() + "'>");
+                        $list.append("<option value='" + EscapeHtmlAttr(name) + "'>");
                     });
                 }
             });

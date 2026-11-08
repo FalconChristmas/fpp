@@ -211,14 +211,14 @@ error_reporting(E_ALL);
 
                 var options = "";
                 for (j = 0; j < playListArray.length; j++) {
-                    options += "<option value=\"" + playListArray[j].name + "\">" + playListArray[j].name + "</option>";
+                    options += "<option value=\"" + EscapeHtmlAttr(playListArray[j].name) + "\">" + EscapeHtml(playListArray[j].name) + "</option>";
                 }
                 $('.fppTableRowTemplate').find('.schPlaylist').html(options);
 
                 GetSequenceArray();
                 options = "";
                 for (j = 0; j < sequenceArray.length; j++) {
-                    options += "<option value=\"" + sequenceArray[j] + ".fseq\">" + sequenceArray[j] + "</option>";
+                    options += "<option value=\"" + EscapeHtmlAttr(sequenceArray[j]) + ".fseq\">" + EscapeHtml(sequenceArray[j]) + "</option>";
                 }
                 $('.fppTableRowTemplate').find('.schSequence').html(options);
 

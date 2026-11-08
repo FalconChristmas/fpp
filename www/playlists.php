@@ -385,9 +385,9 @@
                 var $playlistClass = playList.valid ? 'class="card-title"' :
                     'class="card-title playlist-warning" title="' +
                     EscapeHtml(playList.messages.join('\n')).replace(/"/g, '&quot;').replace(/\n/g, '&#10;') + '"';
-                var $playlistCardHeading = $('<h3 ' + $playlistClass + '>' + $playlistName + '</h3>');
+                var $playlistCardHeading = $('<h3 ' + $playlistClass + '>' + EscapeHtml($playlistName) + '</h3>');
                 var $playlistCardDescription = $('<div class="text-center"/><p class="card-text mb-2 text-muted">' +
-                    $playlistDescription + '</p></div>');
+                    EscapeHtml($playlistDescription) + '</p></div>');
                 var $playlistCardDuration = $('<div class="text-start"/><p class="card-text mb-2 text-muted"><span class="fw-bold">Total Duration: </span>' + $playlistDuration + '</p></div>');
                 var $playlistCardItems = $('<div class="text-start"/><p class="card-text mb-2 text-muted"><span class="fw-bold">Total Items: </span>' + $playlistItems + '</p></div>');
                 var $playlistActions = $("<div class='buttonActions' />");
@@ -420,7 +420,7 @@
 
         $(function () {
             $('#playlistSelect').on('change', function () {
-                $('.playlistEditorHeaderTitle').html($(this).val());
+                $('.playlistEditorHeaderTitle').text($(this).val());
             })
 
             $('.playlistAddNewBtn').on("click", function () {
@@ -468,7 +468,7 @@
                                         // reload the list, so it has no option for the new name yet.
                                         EditPlaylist($("#txtAddPlaylistName").val());
                                         //Set Page header to new playlist name
-                                        $('.playlistEditorHeaderTitle').html($("#txtAddPlaylistName").val());
+                                        $('.playlistEditorHeaderTitle').text($("#txtAddPlaylistName").val());
 
                                         CloseModalDialog("AddPlaylistDialog");
                                     }
