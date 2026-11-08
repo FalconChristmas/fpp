@@ -1613,8 +1613,10 @@ Json::Value Scheduler::GetScheduleRange(time_t rangeStart, time_t rangeEnd,
                 // collect the playlist windows once rather than rescanning
                 // everything for every occurrence.  Collect them before the
                 // range test: one from before the range (the day-early walk
-                // finds it) can still override an occurrence inside it.
-                if (!entry.playlist.empty())
+                // finds it) can still override an occurrence inside it.  A
+                // disabled entry is only here to be shown: the scheduler never
+                // runs it (AddScheduledItems()), so it overrides nothing.
+                if (!entry.playlist.empty() && entry.enabled)
                     playlistWindows.push_back(o);
 
                 if ((span ? (occurrence.second <= rangeStart) : (occurrence.second < rangeStart)) ||
