@@ -687,7 +687,13 @@ function network_wifi_status()
 
     // Recent wpa_supplicant log lines for failure reason codes
     $jout = array();
-    exec("sudo journalctl -u wpa_supplicant@$iface -n 40 --no-pager 2>/dev/null", $jout);
+    // Only lines since the interface config was last saved: a WRONG_KEY from
+    // before a new key was saved says nothing about the new one.
+    // Not when the clock is behind the file (a player with no RTC that can't
+    // reach NTP until WiFi works): every line would be "before" it.
+    $mtime = file_exists($cfgFile) ? filemtime($cfgFile) : false;
+    $since = ($mtime !== false && $mtime <= time()) ? " --since @" . $mtime : "";
+    exec("sudo journalctl -u wpa_supplicant@$iface$since -n 40 --no-pager 2>/dev/null", $jout);
     $journal = implode("\n", $jout);
     $wrongKey = (stripos($journal, "WRONG_KEY") !== false) ||
         (stripos($journal, "4-Way Handshake failed") !== false) ||
@@ -720,18 +726,31 @@ function network_wifi_status()
         $reason = "No wireless network is configured.";
     } else if ($wpaState === "COMPLETED") {
         $reason = "Associated - waiting for an IP address (DHCP).";
-    } else if ($wrongKey || $wpaState === "4WAY_HANDSHAKE") {
+    } else if ($wpaState === "") {
+        // Neither wpa_supplicant nor the kernel says anything is happening.
+        $reason = "The WiFi connection service is not running for this interface. Try 'Restart Network'; if that doesn't help, reboot the device.";
+    } else if ($wrongKey) {
         $reason = "Authentication failed - the WiFi password is likely incorrect.";
+    } else if ($wpaState === "4WAY_HANDSHAKE") {
+        // Every WPA2 join passes through here in a moment; a wrong key waits
+        // here a few seconds, then logs WRONG_KEY (above).  So this alone
+        // can't say which.
+        $reason = "Checking the password with '" . $configuredSSID . "'... (" . $wpaState . ")";
+    } else if (in_array($wpaState, array("AUTHENTICATING", "ASSOCIATING", "ASSOCIATED", "GROUP_HANDSHAKE"))) {
+        // Joining right now: the scan dump may not have caught up with it yet.
+        $reason = "Connecting to '" . $configuredSSID . "'... (" . $wpaState . ")";
+    } else if ($wpaState === "INTERFACE_DISABLED") {
+        $reason = "The WiFi interface is disabled (the radio may be blocked, or the interface is down). Try 'Restart Network'.";
     } else if ($ssidVisible === false) {
         $reason = "Network '" . $configuredSSID . "' not found in range (or it is hidden).";
     } else if ($authTimeout) {
         $reason = "The access point did not respond (out of range or busy).";
-    } else if ($ssidVisible === true) {
-        $reason = "Found '" . $configuredSSID . "' but could not connect - check the password and security type.";
     } else if ($wpaState === "INACTIVE") {
         $reason = "WiFi is inactive - no configured network is available.";
-    } else if ($wpaState === "" ) {
-        $reason = "The WiFi connection service is not running for this interface. Try 'Restart Network'; if that doesn't help, reboot the device.";
+    } else if ($wpaState === "DISCONNECTED" || $wpaState === "SCANNING") {
+        // In range, yet not joining: a wrong key, or a security type (WPA3)
+        // the AP doesn't offer, which wpa_supplicant doesn't log.
+        $reason = "Found '" . $configuredSSID . "' but could not connect - check the password and security type.";
     } else {
         $reason = "Connecting to '" . $configuredSSID . "'... (" . $wpaState . ")";
     }
