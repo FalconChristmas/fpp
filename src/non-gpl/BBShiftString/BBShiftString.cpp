@@ -766,12 +766,11 @@ int BBShiftStringOutput::Init(Json::Value config) {
         // This used to sit on top of a flat 1400us for any receiver, which
         // counted the queries twice: one chain at 300px predicted 82fps
         // against 98 measured.
-        float share = falconV5Support->queryFrameShare();
-        if (share > 0.0f) {
-            m_frameTimeUs += (int)(2850.0f * share);
-            LogInfo(VB_CHANNELOUT, "BBShiftString: FalconV5 queries on %.0f%% of frames -> %.1fms/frame, sustainable ceiling ~%.4g fps\n",
-                    share * 100.0f, m_frameTimeUs / 1000.0, 1000000.0 / m_frameTimeUs);
-        }
+        // How often a query goes out depends on the frame rate (see
+        // FalconV5Support::setFrameBudget), so the base estimate is kept and
+        // the query term is added again whenever the spacing changes.
+        m_frameTimeBaseUs = m_frameTimeUs;
+        applyV5QueryCost();
     }
 
     // flag the virtual strings whose channel map is a plain run so prepData
@@ -1459,6 +1458,10 @@ void BBShiftStringOutput::sendData(FrameData& d) {
     }
 }
 
+// Extra time of one answered FalconV5 query frame on top of the pixel data,
+// see the estimate in Init()
+static constexpr float V5_QUERY_FRAME_US = 2850.0f;
+
 // Persistent UI warning for "the sequence rate is past what these strings can
 // clock out".  The flag is per output so Close() can retract it; a warning left
 // behind by an output that no longer exists has nothing left to clear it.
@@ -1476,6 +1479,19 @@ void BBShiftStringOutput::setFrameRateWarning(bool on) {
     m_bpWarned = on;
 }
 
+// The frame-time estimate: the base from Init() plus the FalconV5 query frames
+// at the share the scheduler runs with.  Rebuilt whenever the query spacing
+// changes.
+void BBShiftStringOutput::applyV5QueryCost() {
+    m_frameTimeUs = m_frameTimeBaseUs;
+    float share = falconV5Support->queryFrameShare();
+    if (share > 0.0f) {
+        m_frameTimeUs += (int)(V5_QUERY_FRAME_US * share);
+        LogInfo(VB_CHANNELOUT, "BBShiftString: FalconV5 queries on %.0f%% of frames (%d extra rest frames per round) -> %.1fms/frame, sustainable ceiling ~%.4g fps\n",
+                share * 100.0f, falconV5Support->getQueryRestFrames(), m_frameTimeUs / 1000.0, 1000000.0 / m_frameTimeUs);
+    }
+}
+
 // Predictive companion to the measured warning above, run whenever the
 // refresh rate changes.  Sequence.cpp publishes the sequence's rate before the
 // first frame reaches SendData(), so an over-budget configuration is flagged
@@ -1485,6 +1501,12 @@ void BBShiftStringOutput::setFrameRateWarning(bool on) {
 void BBShiftStringOutput::checkFrameRateBudget(float rate) {
     if (m_frameTimeUs <= 0) {
         return;
+    }
+    // the query spacing follows the frame rate's slack; the ceiling below has
+    // to use the share the scheduler will actually run with
+    if (falconV5Support && m_frameTimeBaseUs > 0 &&
+        falconV5Support->setFrameBudget(rate, m_frameTimeBaseUs, (int)V5_QUERY_FRAME_US)) {
+        applyV5QueryCost();
     }
     float ceiling = 1000000.0f / m_frameTimeUs;
     // 5% grace: covers the overhead constants' own uncertainty and keeps a
