@@ -830,30 +830,41 @@ void KMSFrameBuffer::PageFlipHandler(int fd, unsigned int frame, unsigned int se
     }
 }
 
-void KMSFrameBuffer::WaitForPendingFlip(int timeoutMs) {
+void KMSFrameBuffer::WaitForPendingFlip(int timeoutMs, std::unique_lock<std::mutex>* lock) {
     if (!m_flipPending) {
         return;
     }
-    struct pollfd pfd = {};
-    pfd.fd = m_cardFd;
-    pfd.events = POLLIN;
-
     drmEventContext evctx = {};
     evctx.version = 2;
     evctx.page_flip_handler = &KMSFrameBuffer::PageFlipHandler;
+    evctx.vblank_handler = &KMSFrameBuffer::VBlankHandler;
 
-    // Normally the vblank event is already queued (or arrives within one refresh
-    // interval) so poll() returns almost immediately.  The timeout is only a
-    // safety net so a dropped/lost event can never wedge the output thread.
-    int r = poll(&pfd, 1, timeoutMs);
-    if (r > 0 && (pfd.revents & POLLIN)) {
-        drmHandleEvent(m_cardFd, &evctx);
-    } else {
-        m_flipWaitTimeouts++;
+    // Outputs on a card share its fd, so an event may be another output's
+    // (drmHandleEvent routes it by token): keep waiting for ours (#3171).
+    // With `lock`, sleep unlocked in short slices, read events only under the
+    // lock, and look once more after the deadline before giving up.
+    static constexpr int SLICE_MS = 4;
+    long long deadline = GetMonotonicTimeMS() + timeoutMs;
+    while (m_flipPending) {
+        long long remaining = deadline - GetMonotonicTimeMS();
+        struct pollfd pfd = {};
+        pfd.fd = m_cardFd;
+        pfd.events = POLLIN;
+        if (lock && remaining > 0) {
+            lock->unlock();
+            poll(&pfd, 1, (int)std::min<long long>(remaining, SLICE_MS));
+            lock->lock();
+        }
+        pfd.revents = 0;
+        int r = poll(&pfd, 1, lock ? 0 : (int)std::max<long long>(remaining, 0));
+        bool ok = (r == 0) || (r < 0 && errno == EINTR) ||
+                  (r > 0 && (pfd.revents & POLLIN) && drmHandleEvent(m_cardFd, &evctx) == 0);
+        if (m_flipPending && (!ok || remaining <= 0)) {
+            // Fd error, or nothing in time: give up so a lost event can't wedge us.
+            m_flipWaitTimeouts++;
+            m_flipPending = false;
+        }
     }
-    // If we timed out (or errored) give up on this flip so the next frame can
-    // proceed rather than blocking forever.
-    m_flipPending = false;
 }
 
 void KMSFrameBuffer::WaitForPageFree() {
@@ -864,8 +875,10 @@ void KMSFrameBuffer::WaitForPageFree() {
     if (m_flipPending) {
         int vr = m_mode.vrefresh > 0 ? m_mode.vrefresh : 60;
         uint32_t timeoutsBefore = m_flipWaitTimeouts;
-        WaitForPendingFlip((1000 / vr) + 20);
+        WaitForPendingFlip((1000 / vr) + 20, &lock);
         if (m_flipWaitTimeouts != timeoutsBefore) {
+            // TODO: any event on the card's shared fd ends this wait, not just our
+            // vblank, and the poll holds drmMasterLock (up to 70 ms at 20 Hz).
             // The completion event never came, so it is unknown whether the
             // hardware has switched pages yet.  A queued flip lands at the next
             // vblank at the latest, so wait one out before the caller writes
@@ -920,11 +933,12 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
             // completion event instead of letting this flip return EBUSY and
             // fall into the expensive SetPlane/SetCrtc modeset path.  poll()
             // sleeps until the flip completes, so this paces us to the panel's
-            // refresh with no busy-waiting.
+            // refresh with no busy-waiting.  This wait and the alignment sleep
+            // release drmMasterLock, shared by every KMS output (#3171).
             if (m_flipPending) {
                 int vr = m_mode.vrefresh > 0 ? m_mode.vrefresh : 60;
                 int timeoutMs = (1000 / vr) + 20; // one refresh interval + slack
-                WaitForPendingFlip(timeoutMs);
+                WaitForPendingFlip(timeoutMs, &lock);
             }
 
             // Phase alignment: fppd's software frame clock and the panel's
@@ -967,10 +981,19 @@ void KMSFrameBuffer::SyncDisplay(bool pageChanged) {
                     if (sleepUS > 0 && sleepUS < periodUS - 2000) {
                         m_phaseNudges++;
                         alignSleepUS = sleepUS;
+                        lock.unlock();
                         std::this_thread::sleep_for(std::chrono::microseconds(sleepUS));
+                        lock.lock();
                     }
                 }
             }
+
+            // Media may have taken or released the connector while unlocked.
+            if (MediaHoldsConnector()) {
+                BlankForMediaLocked();
+                return;
+            }
+            ShowAfterMediaLocked();
 
             bool wasEnabled = m_displayEnabled;
             int ret = -1;

@@ -84,10 +84,9 @@ private:
     // clamped to the minimum vertical blanking (i.e. the maximum rate).
     void ApplyVerticalTiming(drmModeModeInfo& mode, int vactive, int fps);
 
-    // Drain the completion event of an outstanding (m_flipPending) page flip.
-    // Blocks in poll() until the flip retires at vblank (or timeoutMs elapses),
-    // so it costs no CPU while waiting.
-    void WaitForPendingFlip(int timeoutMs);
+    // Wait for this output's flip (m_flipPending) to retire, or timeoutMs.
+    // Caller holds drmMasterLock; given `lock`, the wait sleeps with it released.
+    void WaitForPendingFlip(int timeoutMs, std::unique_lock<std::mutex>* lock = nullptr);
     static void PageFlipHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void* data);
     static void VBlankHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void* data);
 
@@ -101,8 +100,8 @@ private:
     static uint32_t NEXT_FLIP_TOKEN;                          // guarded by drmMasterLock
 
     // True while a drmModePageFlip has been queued but its vblank completion
-    // event has not yet been drained.  Guarded by drmMasterLock (only touched
-    // from SyncDisplay / WaitForPendingFlip, both of which hold that lock).
+    // event has not yet been drained.  Guarded by drmMasterLock.  Any output
+    // on the card may clear it, when it reads our event.
     bool m_flipPending = false;
 
     // Flip-path health counters (guarded by drmMasterLock like m_flipPending).
