@@ -129,6 +129,10 @@ pid_t pid, sid;
 // lock-free atomic, and read by the main loop and its watchdog thread.
 std::atomic_int runMainFPPDLoop{ 1 };
 static_assert(std::atomic_int::is_always_lock_free, "the signal handler stores to runMainFPPDLoop");
+// Set by the same handler. A stop that arrives while a restart tears down
+// finds runMainFPPDLoop already 0; this is what keeps the restart from
+// re-exec'ing a process that was asked to stop.
+std::atomic_int fppdStopSignalled{ 0 };
 volatile bool restartFPPD = 0;
 
 /* Prototypes for functions below */
@@ -1778,6 +1782,21 @@ int main(int argc, char* argv[]) {
 
     WarningHolder::ClearWarningsFile();
 
+    if (restartFPPD) {
+        // SIGINT/SIGTERM during the teardown above (systemd stopping fppd,
+        // say) means stop, not restart. Block them before the check so one
+        // arriving after it is not lost either: the mask and the pending
+        // signal survive execlp(), and the new image unblocks them once its
+        // handler is installed (APIServer::Init).
+        sigset_t stopSigs;
+        sigemptyset(&stopSigs);
+        sigaddset(&stopSigs, SIGINT);
+        sigaddset(&stopSigs, SIGTERM);
+        pthread_sigmask(SIG_BLOCK, &stopSigs, nullptr);
+        if (fppdStopSignalled) {
+            restartFPPD = false;
+        }
+    }
     if (restartFPPD) {
         remove(FPP_DIR_MEDIA("/fpp-info.json").c_str());
 

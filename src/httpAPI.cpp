@@ -31,6 +31,7 @@
 // Defined in fppd.cpp; setting it to 0 breaks the main loop and triggers
 // FPP's normal shutdown sequence, same as SIGQUIT or a graceful stop.
 extern std::atomic_int runMainFPPDLoop;
+extern std::atomic_int fppdStopSignalled;
 
 #ifdef PLATFORM_OSX
 #include <sys/sysctl.h>
@@ -1158,13 +1159,26 @@ void APIServer::Init(void) {
     // handler: a signal landing in malloc could deadlock the shutdown. This
     // handler only clears runMainFPPDLoop, a lock-free atomic. The main loop
     // sees it and runs FPP's normal shutdown, which stops drogon from
-    // ~APIServer().
+    // ~APIServer(). It also sets fppdStopSignalled, so a stop that lands
+    // while a restart is tearing down ends the process instead of being
+    // lost to the execlp().
     app.disableSigtermHandling();
     struct sigaction stopAct = {};
-    stopAct.sa_handler = [](int) { runMainFPPDLoop = 0; };
+    stopAct.sa_handler = [](int) {
+        fppdStopSignalled = 1;
+        runMainFPPDLoop = 0;
+    };
     sigemptyset(&stopAct.sa_mask);
     sigaction(SIGINT, &stopAct, nullptr);
     sigaction(SIGTERM, &stopAct, nullptr);
+    // A restart execs with both blocked (see the end of fppd's main()), so
+    // a stop sent after its last check is still pending here: take it now
+    // that the handler is in place.
+    sigset_t stopSigs;
+    sigemptyset(&stopSigs);
+    sigaddset(&stopSigs, SIGINT);
+    sigaddset(&stopSigs, SIGTERM);
+    pthread_sigmask(SIG_UNBLOCK, &stopSigs, nullptr);
 
     // Register the /fppdws status push endpoint and its 1s change-poll timer.
     // The explicit call also keeps StatusWebSocket.o's controller
