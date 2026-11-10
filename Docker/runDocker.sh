@@ -17,6 +17,15 @@ then
 	rm /etc/fpp/container
 fi
 
+# No systemd in the container, so start the system bus and Avahi here.
+# fppd's mDNS backend talks to avahi-daemon over D-Bus (warning 43 without it).
+if [ -x /usr/bin/dbus-daemon ] && [ -x /usr/sbin/avahi-daemon ]; then
+    mkdir -p /run/dbus
+    rm -f /run/dbus/pid
+    dbus-daemon --system --fork
+    avahi-daemon --no-rlimits -D
+fi
+
 /opt/fpp/src/fppinit start
 /opt/fpp/scripts/fppd_start
 
