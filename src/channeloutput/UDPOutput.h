@@ -137,6 +137,11 @@ protected:
     bool deDuplicate = false;
     int skippedFrames;
     unsigned char* lastData;
+    // Bytes allocated in lastData, and bytes written by the last SaveFrame().
+    // The buffer is grown when a frame needs more than lastDataSize; a range
+    // beyond lastDataLen is never compared against older contents.
+    int lastDataSize = 0;
+    int lastDataLen = 0;
 };
 
 class UDPOutput : public ChannelOutput {

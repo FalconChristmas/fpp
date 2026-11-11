@@ -439,8 +439,10 @@ UDPOutputData::UDPOutputData(const Json::Value& config) :
     valid(true),
     type(0),
     monitor(true),
+    skippedFrames(0),
     lastData(nullptr),
-    skippedFrames(0) {
+    lastDataSize(0),
+    lastDataLen(0) {
     if (config.isMember("description")) {
         description = config["description"].asString();
     }
@@ -506,22 +508,43 @@ in_addr_t UDPOutputData::toInetAddr(const std::string& ipAddress, bool& valid) {
 }
 
 void UDPOutputData::SaveFrame(unsigned char* channelData, int len) {
-    if (deDuplicate) {
-        if (lastData == nullptr) {
-            lastData = (unsigned char*)calloc(1, len);
+    if (deDuplicate && len >= 0) {
+        if (lastData == nullptr || len > lastDataSize) {
+            // The output's layout is normally constant, but a reused object can
+            // hand us a longer frame (channelCount/universeCount reconfigured).
+            // Grow the buffer instead of overrunning the old allocation.  On
+            // failure keep the old buffer and lastDataLen: NeedToOutputFrame()
+            // then treats the uncovered range as changed, which is slow but safe.
+            // Zero-length frames still allocate one byte so they record a
+            // saved frame, as the old calloc(1, 0) did.
+            int alloc = len > 0 ? len : 1;
+            unsigned char* grown = (unsigned char*)realloc(lastData, alloc);
+            if (grown == nullptr) {
+                return;
+            }
+            lastData = grown;
+            lastDataSize = alloc;
         }
         /*
         printf("Saving: %d   %2X%2X%2X %2X%2X%2X %2X%2X%2X %2X%2X%2X\n", len,
                channelData[0], channelData[1], channelData[2], channelData[3], channelData[4], channelData[5],
                channelData[6], channelData[7], channelData[8], channelData[9], channelData[10], channelData[11]);
          */
-        memcpy(lastData, channelData, len);
+        if (len > 0) {
+            memcpy(lastData, channelData, len);
+        }
+        lastDataLen = len;
     }
 }
 
 bool UDPOutputData::NeedToOutputFrame(unsigned char* channelData, int startChannel, int savedIdx, int count) {
     if (deDuplicate && skippedFrames < 10) {
-        if (lastData == nullptr) {
+        // Not saved yet, or the caller wants a range the saved frame does not
+        // cover (a reused output with a larger layout).  Report it as changed
+        // so it is sent and SaveFrame() can grow the buffer; never compare
+        // against bytes outside the allocation.
+        if (lastData == nullptr || savedIdx < 0 || count < 0 ||
+            savedIdx > lastDataLen || count > lastDataLen - savedIdx) {
             return true;
         }
         for (int x = 0; x < count; x++) {
