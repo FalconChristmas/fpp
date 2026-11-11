@@ -440,9 +440,7 @@ UDPOutputData::UDPOutputData(const Json::Value& config) :
     type(0),
     monitor(true),
     skippedFrames(0),
-    lastData(nullptr),
-    lastDataSize(0),
-    lastDataLen(0) {
+    lastData(nullptr) {
     if (config.isMember("description")) {
         description = config["description"].asString();
     }
@@ -513,13 +511,16 @@ void UDPOutputData::SaveFrame(unsigned char* channelData, int len) {
             // The output's layout is normally constant, but a reused object can
             // hand us a longer frame (channelCount/universeCount reconfigured).
             // Grow the buffer instead of overrunning the old allocation.  On
-            // failure keep the old buffer and lastDataLen: NeedToOutputFrame()
-            // then treats the uncovered range as changed, which is slow but safe.
+            // failure nothing was saved, so invalidate the saved length too:
+            // NeedToOutputFrame() must treat every range as changed instead of
+            // matching it against the stale copy.  Keep the old buffer and its
+            // capacity for the next attempt.
             // Zero-length frames still allocate one byte so they record a
             // saved frame, as the old calloc(1, 0) did.
             int alloc = len > 0 ? len : 1;
             unsigned char* grown = (unsigned char*)realloc(lastData, alloc);
             if (grown == nullptr) {
+                lastDataLen = 0;
                 return;
             }
             lastData = grown;
