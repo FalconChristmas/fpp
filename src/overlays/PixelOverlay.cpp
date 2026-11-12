@@ -375,10 +375,11 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
         result["models"].append(model);
     }
     fclose(fp);
-    remove(filename.c_str());
 
-    filename = FPP_DIR_CONFIG("/model-overlays.json");
-    SaveJsonToFile(result, filename);
+    // Only once the models are saved, or a failed save loses them.
+    if (SaveJsonToFile(result, FPP_DIR_CONFIG("/model-overlays.json"))) {
+        remove(filename.c_str());
+    }
 }
 
 // Holds output running for a moment after the last overlay goes away, so the

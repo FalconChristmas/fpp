@@ -126,3 +126,26 @@ still call these routes by GET from a browser.
 
 **Removal condition:** FPP 11. Until then, keep rule 2's route list in step with
 any GET route that changes state.
+
+## Pixel Overlay Models: the old Channel Memory Maps file (`media/channelmemorymaps`)
+
+**Status:** planned for removal in FPP 11.
+
+FPP 2.7 (`e500f795c`, 2019-03) moved the models to `config/model-overlays.json`.
+FPP's UI no longer creates the old CSV file. fppd converts one it finds when it
+loads the models, and deletes it once the JSON is saved.
+
+**Still here:**
+- **fppd:** `PixelOverlayManager::ConvertCMMFileToJSON()` (`src/overlays/PixelOverlay.cpp`).
+  It replaces `model-overlays.json` with the converted models; it does not merge.
+- **fppd API:** `POST /api/models/raw` (`PixelOverlayManager::render_POST`, and its
+  entry in `www/api/openapi.json`) writes the raw file and sets the restart flag.
+  xLights used it from 2019-01 (`b43088349`) to 2020-03 (`16b2bd6f5`), then moved
+  to `POST /api/models`. Nothing in `www/` calls it.
+- **Backup:** the "Pixel Overlay Models Old(Channel Memory Maps)" area in
+  `www/backup.php`. Only backups made on FPP 2.6 or older carry it.
+- **Config copies:** `ZipConfigs()` in `www/api/controllers/files.php` (two
+  entries), and `scripts/copy_settings_to_storage.sh` (`--include='/channelmemorymaps'`).
+
+**Removal condition:** FPP 11. Remove the route (a C++ change) with its OpenAPI
+entry, the backup area, the zip and rsync entries, and the conversion, together.
