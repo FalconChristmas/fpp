@@ -617,8 +617,15 @@ function playlist_insert()
  * @param object $plentry  Playlist entry object containing the sub-playlist name.
  * @return void
  */
-function LoadSubPlaylist(&$playlist, &$i, $plentry)
+function LoadSubPlaylist(&$playlist, &$i, $plentry, $depth = 1)
 {
+    // Sub-playlists 5 deep are left out, as fppd does (and a loop ends).
+    if ($depth >= 5) {
+        array_splice($playlist, $i, 1);
+        $i--;
+        return;
+    }
+
     $data = GetPlaylist($plentry->name);
 
     $subPlaylist = array();
@@ -638,7 +645,7 @@ function LoadSubPlaylist(&$playlist, &$i, $plentry)
     $li = 0;
     foreach ($subPlaylist as $entry) {
         if ($entry->type == "playlist") {
-            LoadSubPlaylist($subPlaylist, $li, $entry);
+            LoadSubPlaylist($subPlaylist, $li, $entry, $depth + 1);
         }
 
         $li++;
