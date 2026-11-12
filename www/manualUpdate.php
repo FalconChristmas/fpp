@@ -5,9 +5,6 @@ $wrapped = 0;
 if (isset($_GET['wrapped']))
   $wrapped = 1;
 
-if (!$wrapped)
-  echo "<html>\n";
-
 $skipJSsettings = 1;
 require_once("common.php");
 // Shared operation logging -> logs/fpp_system_upgrades.log, the same file the scripts
@@ -18,16 +15,18 @@ require_once("common/oplog.inc.php");
 // unavailable. Held for the whole request (auto-released on kill).
 require_once("common/updateLock.inc.php");
 
+// Serialize concurrent starters; before any output so a refusal is a 409.
+UpdateLockAcquireOrConflict('fpp-update', 'manual');
+
+if (!$wrapped)
+  echo "<html>\n";
+
 DisableOutputBuffering();
 
 // Finish once started, even if the browser goes away: a closed tab must not stop
 // PHP at the next echo.  git_pull survives behind its tee, but the fppd restart
 // and the Apache/CSP updates after it would be skipped.
 ignore_user_abort(true);
-
-// Serialize concurrent starters (two browsers / direct calls can both pass
-// the client-side busy guard before either poll observes the other).
-UpdateLockAcquireOrConflict('fpp-update', 'manual');
 
 // Label this page's log lines with the branch, matching how scripts/git_pull
 // tags the run it is about to start, so the PHP-side phases and the script-side

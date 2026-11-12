@@ -13,9 +13,6 @@ $version = $rawVersion;
 if (isset($_GET['wrapped']))
     $wrapped = 1;
 
-if (!$wrapped)
-    echo "<html>\n";
-
 $skipJSsettings = 1;
 require_once("common.php");
 // Record the outcome in logs/fpp_system_upgrades.log (the script's own output
@@ -26,6 +23,12 @@ require_once("common/oplog.inc.php");
 // with 409 when another update already holds it. Fail-open otherwise.
 require_once("common/updateLock.inc.php");
 
+// Serialize concurrent starters; before any output so a refusal is a 409.
+UpdateLockAcquireOrConflict('fpp-upgrade', $version);
+
+if (!$wrapped)
+    echo "<html>\n";
+
 DisableOutputBuffering();
 
 // Finish once started, even if the browser goes away: a closed tab must not
@@ -33,9 +36,6 @@ DisableOutputBuffering();
 // script survives behind its tee, but without this the terminal UpgradeLog
 // verdict below would be skipped, leaving a stale open run.
 ignore_user_abort(true);
-
-// Serialize concurrent starters; held for the whole request.
-UpdateLockAcquireOrConflict('fpp-upgrade', $version);
 
 if (!$wrapped) {
 ?>

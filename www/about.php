@@ -1324,7 +1324,7 @@
 
             var url = osAssetMap[os].url;
             DisplayProgressDialog('osDownload', 'FPP Download OS Image');
-            StreamURL('upgradeOS.php?wrapped=1&downloadOnly=1&os=' + url, 'osDownloadText', 'OSDownloadDone', '', 'POST');
+            StreamURL('upgradeOS.php?wrapped=1&downloadOnly=1&os=' + url, 'osDownloadText', 'OSDownloadDone', 'OSDownloadDone', 'POST');
         }
 
         function OSDownloadDone() {

@@ -457,20 +457,21 @@ define('REMOTE_JOB_NO_RESPONSE', 2);
 
 /**
  * Whether a line of a remote upgrade page's output reports that the upgrade
- * failed.  The page itself always answers HTTP 200, so this is the only place
- * the outcome shows.  Matches what every FPP since 9.5 prints, so an older
- * remote is judged correctly too:
+ * failed: once streaming the page answers 200, so a failure shows only in the
+ * text.  Matches what every FPP since 9.5 prints:
  *   "Upgrade FAILED." / "===== Upgrade Failed ====="  manualUpdate.php
  *   "FPP UPGRADE FAILED"                              upgradeOS.php
  *   "Can not access ..., unable to pull git updates"  scripts/git_pull, which
  *       before this version exited 0 there and so ended "Upgrade Complete"
  *       without having updated anything.
+ *   "Another FPP update is already running"           update lock (older FPP: 200)
  */
 function RemoteJobIsFailureLine($line)
 {
     $line = trim($line);
     return preg_match('/^(=====\s*)?(FPP\s+)?Upgrade\s+Failed\b/i', $line)
-        || strpos($line, 'unable to pull git updates') !== false;
+        || strpos($line, 'unable to pull git updates') !== false
+        || preg_match('/^Another FPP update is already running\b/', $line);
 }
 
 /**

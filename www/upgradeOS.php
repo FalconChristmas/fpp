@@ -27,9 +27,16 @@ if (isset($_GET['keepOptFPP'])) {
     $keepOptFPP = 1;
 }
 
-if (!$wrapped) {
-    echo "<html>\n";
-    echo "<head>\n";
+// Validated before the lock, so a bad URL never takes it.
+$osIsUrl = isset($_GET['os']) && preg_match('/^https?:/', $_GET['os']);
+if ($osIsUrl) {
+    // Defense in depth: reject non-http(s) / malformed URLs before wget
+    if (!filter_var($_GET['os'], FILTER_VALIDATE_URL) || !preg_match('#^https?://#i', $_GET['os'])) {
+        echo "Invalid OS URL\n";
+        exit(1);
+    }
+    $baseFile = basename($_GET['os']);
+    if (!preg_match('/^[a-zA-Z0-9._-]+$/', $baseFile)) { echo 'Invalid filename'; exit(1); }
 }
 
 $skipJSsettings = 1;
@@ -41,10 +48,18 @@ require_once "common.php";
 // the media tree, which upgradeOS-part2.sh's rsync never touches (it copies only
 // bin etc lib opt root sbin usr var), so this log survives the image swap.
 require_once "common/oplog.inc.php";
-// Atomic server-side update lock (see common/updateLock.inc.php). Required
-// at the mutation points below, not here, so validation exits never take it.
-// downloadOnly takes it too: it writes the same upload/<file> an apply reads.
+// Atomic server-side update lock (see common/updateLock.inc.php).
 require_once "common/updateLock.inc.php";
+
+// Before any output so a refusal is a 409 (downloadOnly too: it writes upload/<file>).
+if ($osIsUrl || (isset($_GET['os']) && !isset($_GET['downloadOnly']))) {
+    UpdateLockAcquireOrConflict('os-upgrade', $baseFile);
+}
+
+if (!$wrapped) {
+    echo "<html>\n";
+    echo "<head>\n";
+}
 
 DisableOutputBuffering();
 
@@ -118,15 +133,7 @@ if (!$wrapped) {
     echo "Image: " . htmlspecialchars($_GET['os'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "\n";
 }
 
-if (isset($_GET['os']) && preg_match('/^https?:/', $_GET['os'])) {
-    // Defense in depth: reject non-http(s) / malformed URLs before wget
-    if (!filter_var($_GET['os'], FILTER_VALIDATE_URL) || !preg_match('#^https?://#i', $_GET['os'])) {
-        echo "Invalid OS URL\n";
-        exit(1);
-    }
-    $baseFile = basename($_GET['os']);
-    if (!preg_match('/^[a-zA-Z0-9._-]+$/', $baseFile)) { echo 'Invalid filename'; exit(1); }
-
+if ($osIsUrl) {
 
     // For now, we'll fork wget to get the file.   There is an issue with OpenSSL combined with the cURL built into PHP
     // on certain versions of debian (which includes what was shipped with FPP 8.5) which is causing very
@@ -146,11 +153,6 @@ if (isset($_GET['os']) && preg_match('/^https?:/', $_GET['os'])) {
         array_unshift($urls, "http://" . fppUrlHost($upgradeSource) . "/api/file/uploads/" . $baseFile);
     }
 
-    // Serialize concurrent starters before any mutating work. The lock is
-    // held for the whole request, including downloadOnly: a pure fetch still
-    // writes the same upload/<file> an in-flight apply reads, so it must not
-    // run alongside one.
-    UpdateLockAcquireOrConflict('os-upgrade', $baseFile);
     // Open the persistent run BEFORE the (potentially very long) image
     // download so other browsers report the update for its full lifetime,
     // and before the first stage so the stage is never empty mid-download.
@@ -234,9 +236,6 @@ $full_fppos_path = "/home/fpp/media/upload/$baseFile";
 // as do direct hits with no ?os= (no upgrade intent: avoids START/Failed
 // noise flipping the banner for a mere page load).
 if ((!isset($osUpgradeActivityStarted) || !$osUpgradeActivityStarted) && !isset($_GET['downloadOnly']) && isset($_GET['os'])) {
-    // Local-image path: same lock before the apply phase (no-op when the
-    // download path above already holds it in this request).
-    UpdateLockAcquireOrConflict('os-upgrade', $baseFile);
     UpgradeLog('os-upgrade', $baseFile, "===== os-upgrade START: " . $baseFile . " =====");
     $osUpgradeActivityStarted = true;
 }
