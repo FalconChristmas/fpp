@@ -12535,11 +12535,10 @@ function RenderConditionFields ($container, cond, onChange) {
 	// Source's Name field is either absent (Time) or a fixed picker (Sun)/
 	// lookup key that isn't meaningfully "insert a variable into" (GPIO
 	// Pin), so those still just get Value's own single-target helper, same
-	// as before. Inserting always wraps in "%%...%%" (see
-	// RenderSharedExpressionValueHelper) - correct regardless of whether the
-	// field ends up being just that one variable's name (an exact-match
-	// %%wrapped%% name still resolves via template-mode substitution, same
-	// result as an unwrapped exact match) or part of a larger formula.
+	// as before. Inserting puts the variable's name in bare, not wrapped in
+	// "%%...%%" (see insertPendingValue in RenderSharedExpressionValueHelper):
+	// Condition.cpp finds a bare name or formula itself, and "%%" would force
+	// template mode and break a formula.
 	if (cond.source === 'Expression') {
 		RenderSharedExpressionValueHelper($container, nameInp, valInp, fieldId, valueFieldId, 'Expression');
 	} else {
