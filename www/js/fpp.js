@@ -709,7 +709,11 @@ function getManualLink () {
 }
 
 function CloseModalDialog (id) {
-	const el = document.getElementById(id);
+	HideModalElement(document.getElementById(id));
+}
+// Hide a Bootstrap modal by its element, also when it is still fading in.
+// Shared by CloseModalDialog() and $.fn.fppDialog('close').
+function HideModalElement (el) {
 	const myModal = el ? bootstrap.Modal.getInstance(el) : null;
 	if (!myModal) return;
 	// Bootstrap ignores hide() while a dialog is still fading in, so a dialog
@@ -1008,7 +1012,7 @@ function DisplayConfirmationDialog (id, title, body, yesFunction, yesClass) {
 	$.fn.fppDialog = function (options) {
 		if (options == 'close') {
 			this.each(function () {
-				$(this).modal('hide');
+				HideModalElement(this);
 			});
 			return this;
 		}
