@@ -65,6 +65,8 @@ function script_get()
  * Update script
  *
  * Writes the `POST` request body to the file specified by `{scriptName}`.
+ * A body that is a JSON string (as the bundled script editor sends) is decoded
+ * first; any other body is written as-is.
  *
  * @route POST /api/scripts/{scriptName}
  * @response 200 Script saved
@@ -84,8 +86,20 @@ function script_save()
         http_response_code(400);
         return json(array("status" => "Invalid scriptName"));
     }
-    $json = strval(file_get_contents('php://input'));
-    $content = json_decode($json, true);
+    $body = file_get_contents('php://input');
+    if (!is_string($body)) {
+        $body = '';
+    }
+    // The bundled editor POSTs the script JSON-encoded (JSON.stringify), and
+    // clients following the docblock POST it as the raw body.  Only unwrap a
+    // body that decodes to a JSON string; anything else is the script itself.
+    // Decoding a raw body yields null, which used to truncate the file to
+    // zero bytes.
+    $content = $body;
+    $decoded = json_decode($body, true);
+    if (is_string($decoded)) {
+        $content = $decoded;
+    }
     $filename = $settings['scriptDirectory'] . '/' . $scriptName;
     $result = array();
 
@@ -114,7 +128,9 @@ function script_save()
         error_log("SaveScript: Error, file does not exist - " . $scriptName . " -> " . $filename);
     }
 
-    return json($result);
+    // scriptBody can hold arbitrary bytes from a raw request body; without the
+    // substitute flag json_encode() would fail and the reply would be empty.
+    return json($result, JSON_INVALID_UTF8_SUBSTITUTE);
 }
 
 /**

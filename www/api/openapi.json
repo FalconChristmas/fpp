@@ -8780,7 +8780,7 @@
           "scripts"
         ],
         "summary": "Update script",
-        "description": "Writes the `POST` request body to the file specified by `{scriptName}`.",
+        "description": "Writes the `POST` request body to the file specified by `{scriptName}`. A body that is a JSON string (as the bundled script editor sends) is decoded first; any other body is written as-is.",
         "responses": {
           "200": {
             "description": "Script saved",
