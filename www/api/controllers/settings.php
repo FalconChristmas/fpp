@@ -218,7 +218,8 @@ function PutSetting()
             $rootDevice = $output[0];
             unset($output);
         }
-        if ($value == "--none--") {
+        $mediaOnRoot = ($value == "--none--");
+        if ($mediaOnRoot) {
             $value = $rootDevice;
         } else {
             // Restrict the device name to alphanumerics so it cannot break out
@@ -258,7 +259,7 @@ function PutSetting()
                 $fsckOrder = "2";
             }
         }
-        if (preg_match("/$rootDevice/", $value)) {
+        if ($mediaOnRoot || ($rootDevice !== "" && $value === $rootDevice)) {
             exec($SUDO . " sed -i 's/.*home\/fpp\/media/#\/dev\/sda1    \/home\/fpp\/media/' /etc/fstab", $output, $return_val);
         } else {
             exec($SUDO . " sed -i 's/.*home\/fpp\/media.*/\/dev\/$value	\/home\/fpp\/media	auto	$options	0	$fsckOrder /' /etc/fstab", $output, $return_val);
