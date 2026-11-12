@@ -508,9 +508,9 @@ in_addr_t UDPOutputData::toInetAddr(const std::string& ipAddress, bool& valid) {
 void UDPOutputData::SaveFrame(unsigned char* channelData, int len) {
     if (deDuplicate && len >= 0) {
         if (lastData == nullptr || len > lastDataSize) {
-            // The output's layout is normally constant, but a reused object can
-            // hand us a longer frame (channelCount/universeCount reconfigured).
-            // Grow the buffer instead of overrunning the old allocation.  On
+            // Frame length is constant for a given output object today; this
+            // path is defensive, for a subclass or future caller that passes a
+            // longer frame.  Grow rather than overrun the old allocation.  On
             // failure nothing was saved, so invalidate the saved length too:
             // NeedToOutputFrame() must treat every range as changed instead of
             // matching it against the stale copy.  Keep the old buffer and its
@@ -540,10 +540,10 @@ void UDPOutputData::SaveFrame(unsigned char* channelData, int len) {
 
 bool UDPOutputData::NeedToOutputFrame(unsigned char* channelData, int startChannel, int savedIdx, int count) {
     if (deDuplicate && skippedFrames < 10) {
-        // Not saved yet, or the caller wants a range the saved frame does not
-        // cover (a reused output with a larger layout).  Report it as changed
-        // so it is sent and SaveFrame() can grow the buffer; never compare
-        // against bytes outside the allocation.
+        // Not saved yet, or (defensively) the caller wants a range the saved
+        // frame does not cover.  Report it as changed so it is sent and
+        // SaveFrame() can grow the buffer; never compare against bytes outside
+        // the allocation.
         if (lastData == nullptr || savedIdx < 0 || count < 0 ||
             savedIdx > lastDataLen || count > lastDataLen - savedIdx) {
             return true;
