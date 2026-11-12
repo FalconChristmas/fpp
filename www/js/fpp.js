@@ -8720,18 +8720,28 @@ function UpgradePlaylist (data, editMode) {
 					n.command = 'Overlay Model Effect';
 					n.multisyncCommand = false;
 
+					// As fppd's TextOverlayCommand: 9 args have AutoEnable at [7]
+					// and the text at [8], otherwise the text is at [7].
+					var oldArgs = o.args || [];
+					var hasAutoEnable = oldArgs.length == 9;
+					var autoEnable = 'Enabled';
+					if (hasAutoEnable) {
+						// A bool arg; fppd's PixelOverlayState reads anything else as Disabled.
+						var ae = String(oldArgs[7]);
+						autoEnable = (ae === 'true' || ae === 'True' || ae === '1' || ae === 'Enabled') ? 'Enabled' : 'False';
+					}
 					var args = [];
-					args.push(o.args[0]);
-					args.push('Enabled');
+					args.push(oldArgs[0]);
+					args.push(autoEnable);
 					args.push('Text');
-					args.push(o.args[1]);
-					args.push(o.args[2]);
-					args.push(o.args[3]);
-					args.push(o.args[4]);
-					args.push(o.args[5]);
-					args.push(o.args[6]);
+					args.push(oldArgs[1]);
+					args.push(oldArgs[2]);
+					args.push(oldArgs[3]);
+					args.push(oldArgs[4]);
+					args.push(oldArgs[5]);
+					args.push(oldArgs[6]);
 					args.push('0');
-					args.push(o.args[8]);
+					args.push(hasAutoEnable ? oldArgs[8] : oldArgs[7]);
 
 					n.args = args;
 
