@@ -862,35 +862,40 @@ function PWMixerCurrentMute(t) {
 		var grp = d.groups[t.groupIndex];
 		return !!(grp && grp.members && grp.members[t.memberIndex] && grp.members[t.memberIndex].mute);
 	}
-	if (t.kind === 'inputgroup') {
-		for (var b = 0; b < d.inputGroups.length; b++) {
+	if (t.kind === 'inputgroup' || t.kind === 'input' || t.kind === 'route') {
+		var entry = PWMixerInputEntry(t);
+		return !!(entry && entry.mute);
+	}
+	return false;
+}
+
+// The model entry (input bus, input source or routing path) a control of
+// kind inputgroup / input / route stands for, or null.
+function PWMixerInputEntry(t) {
+	var d = pwMixer.data;
+	if (t.kind === 'inputgroup' || t.kind === 'input') {
+		for (var b = 0; b < (d.inputGroups || []).length; b++) {
 			if (d.inputGroups[b].id === t.groupId) {
-				return !!d.inputGroups[b].mute;
+				if (t.kind === 'inputgroup') {
+					return d.inputGroups[b];
+				}
+				return (d.inputGroups[b].members || [])[t.memberIndex] || null;
 			}
 		}
-	}
-	if (t.kind === 'input') {
-		for (var i = 0; i < d.inputGroups.length; i++) {
-			if (d.inputGroups[i].id === t.groupId) {
-				var m = (d.inputGroups[i].members || [])[t.memberIndex];
-				return !!(m && m.mute);
-			}
-		}
-	}
-	if (t.kind === 'route') {
-		for (var r = 0; r < d.routing.length; r++) {
+	} else if (t.kind === 'route') {
+		for (var r = 0; r < (d.routing || []).length; r++) {
 			if (d.routing[r].inputGroupId !== t.inputGroupId) {
 				continue;
 			}
 			var paths = d.routing[r].paths || [];
 			for (var p = 0; p < paths.length; p++) {
 				if (paths[p].outputGroupId === t.outputGroupId) {
-					return !!paths[p].mute;
+					return paths[p];
 				}
 			}
 		}
 	}
-	return false;
+	return null;
 }
 
 // volume === null means "mute toggle only"; mute === null means "volume only".
@@ -984,6 +989,19 @@ function PWMixerSend(id, volume, mute) {
 
 	if (!url) {
 		return;
+	}
+
+	if (t.kind === 'inputgroup' || t.kind === 'input' || t.kind === 'route') {
+		// Into the model, as the group branch does, so the re-render shows it.
+		var entry = PWMixerInputEntry(t);
+		if (entry) {
+			if (volume !== null) {
+				entry.volume = volume;
+			}
+			if (mute !== null) {
+				entry.mute = mute;
+			}
+		}
 	}
 
 	$.ajax({
