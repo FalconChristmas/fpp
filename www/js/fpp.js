@@ -7503,7 +7503,7 @@ function GetUniverseBytesReceived () {
 	$.get('api/channel/input/stats')
 		.done(function (data) {
 			if (data.status == 'OK') {
-				var maxRows = data.universes.length / 3;
+				var maxRows = Math.ceil(data.universes.length / 3);
 				if (maxRows < 32) {
 					maxRows = 32;
 				}
