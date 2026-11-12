@@ -186,9 +186,13 @@ if ($osIsUrl) {
         // new line per update. dot:giga instead emits real \n-terminated summary
         // lines at large (1GB-per-row) intervals, which suits both the streamed
         // dialog and an OS-image-sized download.
-        $command = "sudo wget -c --quiet --show-progress --progress=dot:giga " . escapeshellarg($url) . " -O " . escapeshellarg("/home/fpp/media/upload/$baseFile") . " 2>&1";
+        // The LAN mirror gets two quick tries, GitHub its 20.
+        $isMirror = (count($urls) > 1 && $idx == 0);
+        $maxTries = $isMirror ? 2 : 20;
+        $mirrorOpts = $isMirror ? "--tries=1 --connect-timeout=10 --read-timeout=30 " : "";
+        $command = "sudo wget -c --quiet --show-progress --progress=dot:giga " . $mirrorOpts . escapeshellarg($url) . " -O " . escapeshellarg("/home/fpp/media/upload/$baseFile") . " 2>&1";
         $retryCount = 0;
-        while ($retryCount < 20 && $rc != 0) {
+        while ($retryCount < $maxTries && $rc != 0) {
             // The command carries the caller's URL, and some viewers render this
             // stream as HTML (the page itself, About's upgrade dialog): no tags.
             echo "Running command: " . str_replace(array('<', '>'), array('&lt;', '&gt;'), $command) . "\n";
@@ -196,7 +200,7 @@ if ($osIsUrl) {
             // browser) is what matters on disk: which mirror was used, and how many
             // attempts it took. A 20-deep retry loop silently burning through
             // attempts was previously indistinguishable from a first-try success.
-            UpgradeLog('os-upgrade', $baseFile, "Downloading " . $url . " (attempt " . ($retryCount + 1) . " of 20)");
+            UpgradeLog('os-upgrade', $baseFile, "Downloading " . $url . " (attempt " . ($retryCount + 1) . " of " . $maxTries . ")");
             passthru($command, $rc);
             $retryCount++;
         }
