@@ -139,7 +139,7 @@ static std::atomic<bool> piPowerBad{ false };
 void GetCurrentFPPDStatus(Json::Value& result) {
     std::string UUID = getSetting("SystemUUID");
     static std::string host_name = getSetting("HostName");
-    static std::string host_description = getSetting("HostDescription");
+    std::string host_description = getSetting("HostDescription");
     static std::string fpp_version = getFPPVersion();
     static std::string fppd_branch = getFPPBranch();
     static std::string platform = getPlatform();
