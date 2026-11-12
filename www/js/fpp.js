@@ -5718,11 +5718,22 @@ function DeleteUniverse (input) {
 
 function CloneUniverses (cloneNumber) {
 	var selectIndex = UniverseSelected;
-	if (isNaN(cloneNumber)) {
+	if (!Number.isInteger(cloneNumber) || cloneNumber < 0) {
 		DialogError('Clone Universe', 'Error, invalid number');
 		return;
 	}
-	if (UniverseSelected + cloneNumber - 1 >= UniverseCount) {
+	if (UniverseSelected < 0 || cloneNumber == 0) {
+		return;
+	}
+	// The last row written is UniverseSelected + cloneNumber.
+	if (UniverseSelected + cloneNumber >= UniverseCount) {
+		var following = UniverseCount - UniverseSelected - 1;
+		DialogError(
+			'Clone Universe',
+			'Only ' + following + ' row' + (following == 1 ? '' : 's') +
+				' follow the selected universe, so at most ' + following +
+				' can be cloned. Add rows first.'
+		);
 		return;
 	}
 
@@ -5766,6 +5777,10 @@ function CloneUniverses (cloneNumber) {
 	}
 }
 function CloneUniverse () {
+	if (UniverseSelected < 0) {
+		DialogError('Clone Universe', 'Select the universe to clone first.');
+		return;
+	}
 	var answer = prompt(
 		'How many universes to clone from selected universe?',
 		'1'
