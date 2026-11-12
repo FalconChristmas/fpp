@@ -592,10 +592,13 @@ function ListNetworkLinkNames()
  * @param string $url              http://<peer>/api/...
  * @param int    $connectTimeoutMs
  * @param int    $httpCode         set to the answer's HTTP status, 0 for none
+ * @param bool   $connected        set to whether the peer took the connection
+ *                                 (false: unreachable, so a 0 is not "acting")
  * @return string|false            the body, or false on no answer or an HTTP error
  */
-function RemotePlayerAction($url, $connectTimeoutMs, &$httpCode = null)
+function RemotePlayerAction($url, $connectTimeoutMs, &$httpCode = null, &$connected = null)
 {
+    $connected = false;
     foreach (array('POST', 'GET') as $method) {
         $curl = curl_init($url);
         if (!RemotePeerPinCurl($curl, $url)) {
@@ -607,18 +610,43 @@ function RemotePlayerAction($url, $connectTimeoutMs, &$httpCode = null)
         curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, $connectTimeoutMs);
+        curl_setopt($curl, CURLOPT_TIMEOUT, 15);
         if ($method == 'POST') {
             curl_setopt($curl, CURLOPT_POST, true);
             curl_setopt($curl, CURLOPT_POSTFIELDS, '');
         }
         $body = curl_exec($curl);
         $httpCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+        $connected = curl_getinfo($curl, CURLINFO_CONNECT_TIME) > 0;
         curl_close($curl);
         if ($httpCode != 404 && $httpCode != 405) {
             break;
         }
     }
     return $body;
+}
+
+/**
+ * The ERROR line for a RemotePlayerAction() the peer did not take, or '' when
+ * it did (2xx), or may have (connected, then no reply: a box going down often
+ * drops the connection before answering).
+ */
+function RemotePlayerActionError($ip, $what, $rc, $connected)
+{
+    $h = htmlspecialchars((string) $ip);
+    if ($rc == 0) {
+        return $connected ? '' : "ERROR: $h did not answer the $what request\n";
+    }
+    if ($rc >= 200 && $rc < 300) {
+        return '';
+    }
+    if ($rc == 404 || $rc == 405) {
+        return "ERROR: $h does not take a remote $what (HTTP $rc; older than FPP 5.0?)\n";
+    }
+    if ($rc >= 300 && $rc < 400) {
+        return "ERROR: $h redirected the $what request (HTTP $rc)\n";
+    }
+    return "ERROR: $h refused the $what (HTTP $rc)\n";
 }
 
 /**

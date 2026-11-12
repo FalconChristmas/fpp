@@ -3,9 +3,8 @@
 $skipJSsettings = 1;
 require_once "common.php";
 
-DisableOutputBuffering();
-
 if (!isset($_GET['ip'])) {
+    http_response_code(400);
     echo "ERROR: No IP given\n";
     exit(0);
 }
@@ -14,14 +13,27 @@ $ip = $_GET['ip'];
 
 // Any LAN/VPN peer or (mDNS) name, never this device (see IsRemotePeerHost()).
 if (!IsRemotePeerHost($ip)) {
+    http_response_code(400);
     echo "ERROR: Invalid IP '" . htmlspecialchars((string) $ip, ENT_QUOTES, 'UTF-8') . "'\n";
     exit(0);
 }
 
-echo "Rebooting FPP system @ " . htmlspecialchars($ip) . "\n";
-
 // FPP 5.0+
-$request_content = RemotePlayerAction('http://' . $ip . '/api/system/reboot', 200, $rc);
+RemotePlayerAction('http://' . $ip . '/api/system/reboot', 200, $rc, $connected);
+// Before any output, so a refusal answers an HTTP error (the row shows failed).
+$err = RemotePlayerActionError($ip, 'reboot', $rc, $connected);
+if ($err != '') {
+    http_response_code(502);
+    echo $err;
+    exit(0);
+}
+
+DisableOutputBuffering();
+
+echo "Rebooting FPP system @ " . htmlspecialchars($ip) . "\n";
+if ($rc == 0) {
+    echo "No reply from " . htmlspecialchars($ip) . "; it may already be going down.\n";
+}
 
 echo "Waiting for system to come back up:\n";
 for ($x = 0; $x < 20; $x++) {
