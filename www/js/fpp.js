@@ -11958,7 +11958,7 @@ function RenderConditionTree ($container, tree, onChange, depth) {
 	$.each(tree.items, function (i, item) {
 		var row = (item.type === 'group')
 			? RenderConditionGroupRow($container, tree, item, i, onChange, depth + 1)
-			: RenderConditionLeafRow($container, tree, item, i, onChange);
+			: RenderConditionLeafRow($container, tree, item, i, onChange, depth);
 		$container.append(row);
 	});
 
@@ -12078,7 +12078,8 @@ function RenderConditionGroupRow ($parentContainer, parentTree, group, i, onChan
 // A leaf condition's row - unchanged from before this redesign: a collapsed
 // one-line summary + Edit/Up/Down/Delete, Edit opening the existing small
 // ShowConditionSubEditor modal with RenderConditionFields inside.
-function RenderConditionLeafRow ($container, tree, item, i, onChange) {
+// depth: the enclosing group's depth.
+function RenderConditionLeafRow ($container, tree, item, i, onChange, depth) {
 	var row = $("<div class='condListRow border rounded p-2 mb-2 d-flex align-items-center gap-1'></div>");
 	var label = $("<span class='flex-fill'></span>").text(SummarizeConditionItem(item));
 	var edit = $(
@@ -12102,7 +12103,7 @@ function RenderConditionLeafRow ($container, tree, item, i, onChange) {
 		var tmp = tree.items[i - 1];
 		tree.items[i - 1] = tree.items[i];
 		tree.items[i] = tmp;
-		RenderConditionTree($container, tree, onChange);
+		RenderConditionTree($container, tree, onChange, depth);
 		onChange();
 	});
 	var down = $(
@@ -12116,14 +12117,14 @@ function RenderConditionLeafRow ($container, tree, item, i, onChange) {
 		var tmp = tree.items[i + 1];
 		tree.items[i + 1] = tree.items[i];
 		tree.items[i] = tmp;
-		RenderConditionTree($container, tree, onChange);
+		RenderConditionTree($container, tree, onChange, depth);
 		onChange();
 	});
 	var del = $(
 		"<button type='button' class='buttons btn-sm' title='Remove'><i class='fas fa-trash'></i></button>"
 	).on('click', function () {
 		tree.items.splice(i, 1);
-		RenderConditionTree($container, tree, onChange);
+		RenderConditionTree($container, tree, onChange, depth);
 		onChange();
 	});
 	row.append(label, edit, up, down, del);
