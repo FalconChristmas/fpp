@@ -62,9 +62,8 @@ function remoteAction()
         curl_close($curl);
     }
     if ($http_code !== 200) {
-        http_response_code($http_code);
-        $details = $request_content ? $request_content : 'No response content';
-        http_response_code(400);
+        // The remote's failure, not a bad request to this player.
+        http_response_code(502);
         return json(['error' => 'HTTP Error: ' . $http_code, 'details' => $request_content]);
     }
 
