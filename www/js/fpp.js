@@ -2165,7 +2165,9 @@ function StreamURL (
 			// WHY it never started instead of hanging on "Starting…".
 			// Guarded: error display must never break the callback chain.
 			try {
+				// Only what onprogress has not already shown (an error body streams too).
 				var failMsg = (jqXHR && jqXHR.responseText) ? String(jqXHR.responseText) : '';
+				failMsg = failMsg.substring(last_response_len === false ? 0 : last_response_len).replace(/\n$/, '');
 				if (failMsg !== '' && outputArea) {
 					if (typeof outputArea.value === 'string') {
 						outputArea.value += failMsg + '\n';
