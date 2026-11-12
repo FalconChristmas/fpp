@@ -557,6 +557,33 @@ function RemotePeerResolve($host)
 }
 
 /**
+ * Interface names from `ip -o link show`, without ip's "@<link>" suffix or the loopback.
+ *
+ * @return string[]
+ */
+function ListNetworkLinkNames()
+{
+    $names = array();
+    $output = array();
+    exec("ip -o link show | awk -F': ' '{print \$2}'", $output, $rc);
+    if ($rc != 0) {
+        return $names;
+    }
+    foreach ($output as $iface) {
+        $iface = trim($iface);
+        $at = strpos($iface, '@');
+        if ($at !== false) {
+            $iface = substr($iface, 0, $at);
+        }
+        if ($iface === '' || $iface === 'lo' || in_array($iface, $names, true)) {
+            continue;
+        }
+        $names[] = $iface;
+    }
+    return $names;
+}
+
+/**
  * Ask another player to act through one of the API routes that change state
  * (docs/DEPRECATED.md): by POST, which FPP 11 will require, and by GET when
  * the player is older than 10.3 and answers the POST 404 or 405.  Redirects

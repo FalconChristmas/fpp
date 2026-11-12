@@ -7064,15 +7064,7 @@ function GetAES67SDPFile()
 function GetAES67NetworkInterfaces()
 {
     $interfaces = array();
-    exec("ip -o link show | awk -F': ' '{print \$2}'", $output);
-    foreach ($output as $iface) {
-        $iface = trim($iface);
-        // veth-style names come back as "eth0@if12"
-        $at = strpos($iface, '@');
-        if ($at !== false)
-            $iface = substr($iface, 0, $at);
-        if ($iface == '' || $iface == 'lo')
-            continue;
+    foreach (ListNetworkLinkNames() as $iface) {
         if (preg_match('/^(SoftAp|tether|can)/', $iface))
             continue;
         // sysfs is the reliable wireless test: cfg80211 drivers expose
@@ -7323,16 +7315,7 @@ function GetOpusRTPStatus()
 // GET /api/pipewire/opusrtp/interfaces
 function GetOpusRTPNetworkInterfaces()
 {
-    $interfaces = array();
-    exec("ip -o link show | awk -F': ' '{print \$2}' | grep -v lo", $output);
-    if (!empty($output)) {
-        foreach ($output as $iface) {
-            $iface = trim($iface);
-            if (!empty($iface))
-                $interfaces[] = $iface;
-        }
-    }
-    return json($interfaces);
+    return json(ListNetworkLinkNames());
 }
 
 // Opus RTP audio streaming is managed by OpusRTPManager in fppd (GStreamer-based).
@@ -7875,16 +7858,7 @@ function GetPipeWireNodeMap()
 // GET /api/pipewire/vban/interfaces
 function GetVBANNetworkInterfaces()
 {
-    $interfaces = array();
-    exec("ip -o link show | awk -F': ' '{print \$2}' | grep -v lo", $output);
-    if (!empty($output)) {
-        foreach ($output as $iface) {
-            $iface = trim($iface);
-            if (!empty($iface))
-                $interfaces[] = $iface;
-        }
-    }
-    return json($interfaces);
+    return json(ListNetworkLinkNames());
 }
 
 /////////////////////////////////////////////////////////////////////////////

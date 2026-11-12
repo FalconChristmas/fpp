@@ -608,14 +608,8 @@ function GetOptions_AES67Interface()
 {
     $interfaces = array();
     $interfaces['(Default)'] = '';
-    exec("ip -o link show | awk -F': ' '{print \$2}' | grep -v lo", $output, $return_val);
-    if (!$return_val && !empty($output)) {
-        foreach ($output as $iface) {
-            $iface = trim($iface);
-            if (!empty($iface)) {
-                $interfaces[$iface] = $iface;
-            }
-        }
+    foreach (ListNetworkLinkNames() as $iface) {
+        $interfaces[$iface] = $iface;
     }
     return json($interfaces);
 }
