@@ -502,6 +502,19 @@ function SignEEPROMHelper($data)
     exec("sudo dd bs=32K if=" . escapeshellarg($eepromFile) . " of=" . escapeshellarg($backup) . " && sudo chown fpp:fpp " . escapeshellarg($backup));
 
     if (file_exists($backup)) {
+        # Refuse a reply that is no EEPROM, or not this cape's (same format and name).
+        $eepromData = isset($data['eeprom']) && is_string($data['eeprom']) ? base64_decode($data['eeprom'], true) : false;
+        $current = @file_get_contents($backup);
+        if ($eepromData === false || strlen($eepromData) < 58 ||
+            $current === false || strlen($current) < 58 ||
+            substr($eepromData, 0, 6) !== substr($current, 0, 6) ||
+            rtrim(substr($eepromData, 6, 26), "\0 ") !== rtrim(substr($current, 6, 26), "\0 ")) {
+            @unlink($backup);
+            $result['Status'] = 'ERROR';
+            $result['Message'] = 'The signed EEPROM is missing or is not for this cape. The EEPROM was not changed.';
+            return json($result);
+        }
+
         # Write out new eeprom
         if (!$fh = fopen($newFile, 'w+b')) {
             $result['Status'] = 'ERROR';
@@ -509,15 +522,19 @@ function SignEEPROMHelper($data)
             return json($result);
         }
 
-        $eepromData = base64_decode($data['eeprom']);
-
         fwrite($fh, $eepromData);
         fclose($fh);
 
         # Copy the new EEPROM data into place
-        exec("sudo dd bs=32K if=" . escapeshellarg($newFile) . " of=" . escapeshellarg($eepromFile));
+        exec("sudo dd bs=32K if=" . escapeshellarg($newFile) . " of=" . escapeshellarg($eepromFile), $ddOutput, $ddRc);
 
         unlink($newFile);
+
+        if ($ddRc != 0) {
+            $result['Status'] = 'ERROR';
+            $result['Message'] = "Could not write the signed EEPROM (dd exit $ddRc). The previous EEPROM is in $backup.";
+            return json($result);
+        }
 
         exec('sudo /opt/fpp/scripts/detect_cape');
 
