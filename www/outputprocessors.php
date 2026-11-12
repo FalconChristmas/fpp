@@ -27,11 +27,11 @@
             if (type != "Fold") {
                 html += "Model: <select class='model'>";
                 models.forEach(function (model) {
-                    html += "<option value='" + model + "'";
+                    html += "<option value='" + EscapeHtmlAttr(model) + "'";
                     if (output.model === model) {
                         html += " selected";
                     }
-                    html += ">" + model + "</option>";
+                    html += ">" + EscapeHtmlAttr(model) + "</option>";
                 });
                 html += "</select>&nbsp;";
             }
@@ -539,13 +539,13 @@
                 method: "GET",
                 dataType: "json",
                 success: function (data) {
-                    data.unshift("&lt;Use Start Channel&gt;");
+                    data.unshift("<Use Start Channel>");
                     models = data;
                     SetupSelectableTableRow(tableInfo);
                     GetOutputProcessors(models);
                 },
                 error: function () {
-                    models.unshift("&lt;Use Start Channel&gt;");
+                    models.unshift("<Use Start Channel>");
                     SetupSelectableTableRow(tableInfo);
                     GetOutputProcessors(models);
                 }
