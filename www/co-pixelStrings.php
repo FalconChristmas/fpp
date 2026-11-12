@@ -1537,6 +1537,19 @@ function readCapes($cd, $capes)
         }
         return false;
     }
+    // Ports in the expansion group starting at port s (0-based), 16 if not given.
+    function ExpansionGroupCount(s) {
+        var num = 16;
+        var val = KNOWN_CAPES[GetPixelStringCapeFileName()];
+        if (val) {
+            for (var instance of val["groups"]) {
+                if ((s + 1) == instance["start"] && instance["type"] == "expansion" && instance.hasOwnProperty("count")) {
+                    num = instance["count"];
+                }
+            }
+        }
+        return num;
+    }
     function IsDifferentialExpansion(isExpansion, expansionType, s) {
         if (isExpansion && expansionType == 1) {
             return (s % 4) == 0;
@@ -1652,16 +1665,8 @@ function readCapes($cd, $capes)
         return postData;
     }
     function PixelStringExpansionTypeChanged(port) {
-        var num = 16;
+        var num = ExpansionGroupCount(port);
         var subType = GetPixelStringCapeFileName();
-        var val = KNOWN_CAPES[subType];
-        for (instance of val["groups"]) {
-            if ((port + 1) == instance["start"]) {
-                if (instance["type"] == "expansion") {
-                    num = instance["count"];
-                }
-            }
-        }
         var dt = $('#ExpansionType' + port);
         var val = parseInt(dt.val());
         var type = MapPixelStringType($('#PixelStringSubType').val());
@@ -1919,6 +1924,7 @@ function readCapes($cd, $capes)
                     var expansions = [];
                     var expansionType = 0;
                     var inExpansion = false;
+                    var expansionEnd = 0;
 
                     $('#PixelString').attr('type', output.subType);
                     $('#PixelString').attr('ports', outputCount);
@@ -1930,6 +1936,9 @@ function readCapes($cd, $capes)
                         var loops = 1;
                         if (o < sourceOutputCount) {
                             port = output.outputs[o];
+                        }
+                        if (inExpansion && o >= expansionEnd) {
+                            inExpansion = false;
                         }
                         var needsABreak = ShouldAddBreak(subType, o);
                         if (needsABreak || (o == 0 && IsDifferential(subType, o)) || IsDifferentialExpansion(inExpansion, expansionType, o) || IsExpansion(subType, o)) {
@@ -1960,6 +1969,7 @@ function readCapes($cd, $capes)
                                     expansions.push(o);
                                 }
                                 inExpansion = true;
+                                expansionEnd = o + ExpansionGroupCount(o);
                             }
                             if (IsDifferential(subType, o) || IsDifferentialExpansion(inExpansion, expansionType, o)) {
                                 str += "<tr id='ROW_RULER_DIFFERENTIAL_" + o + "'><td colSpan='15'>";
