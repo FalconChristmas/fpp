@@ -1297,31 +1297,51 @@ function pageSpecific_PageLoad_PostDOMLoad_ActionsSetup () {
 	});
 
 	$('#fileManager').tabs({
-		activate: function (event, ui) {
-			var $t = ui.newPanel.find('table');
-			if (!$t.length || !$t[0].id) return;
-			var $tableName = $t[0].id;
-
-			if ($t.length && $t.find('tbody').length) {
-				// Never destroy here: destroy() restores the init-time HTML
-				// snapshot, which still holds rows deleted via 'remove' and
-				// would resurrect them as ghosts on every tab switch. The
-				// table body is already current (GetFiles rebuilds it, delete
-				// patches it in place), so re-initialize only a tab that was
-				// never set up (hidden tabs cannot measure columns), and
-				// just re-fit the header when it already is.
-				var initialized = !!(
-					$t.closest('.bootstrap-table').length ||
-					$t.data('bootstrap.table')
-				);
-				if (initialized) {
-					$t.bootstrapTable('resetView');
-				} else {
-					InitializeBootstrapTable($tableName);
-				}
+		// The tab the page opens on (filemanager.php#tab-audio) is shown by
+		// the widget's creation, which fires no activate. A listing applied
+		// while that tab was still hidden, before the tabs were built, left
+		// its table for activate to set up, so without this it never was:
+		// no sorting, no filter row, and clicking the already open tab
+		// fires nothing either. Only a table whose listing is already in:
+		// one still to come sets itself up when it arrives (the tab is
+		// visible by then), and setting it up empty first leaves it unable
+		// to keep its selection across a redraw.
+		create: function (event, ui) {
+			var $t = ui.panel.find('table');
+			if ($t.length && $t[0].id && fileListApplied[$t[0].id.substring(3)]) {
+				SetUpShownFileManagerTable(ui.panel);
 			}
+		},
+		activate: function (event, ui) {
+			SetUpShownFileManagerTable(ui.newPanel);
 		}
 	});
+}
+
+// Set up the table of a tab that has just been shown.
+function SetUpShownFileManagerTable ($panel) {
+	var $t = $panel.find('table');
+	if (!$t.length || !$t[0].id) return;
+	var $tableName = $t[0].id;
+
+	if ($t.find('tbody').length) {
+		// Never destroy here: destroy() restores the init-time HTML
+		// snapshot, which still holds rows deleted via 'remove' and
+		// would resurrect them as ghosts on every tab switch. The
+		// table body is already current (GetFiles rebuilds it, delete
+		// patches it in place), so re-initialize only a tab that was
+		// never set up (hidden tabs cannot measure columns), and
+		// just re-fit the header when it already is.
+		var initialized = !!(
+			$t.closest('.bootstrap-table').length ||
+			$t.data('bootstrap.table')
+		);
+		if (initialized) {
+			$t.bootstrapTable('resetView');
+		} else {
+			InitializeBootstrapTable($tableName);
+		}
+	}
 }
 
 function AddFilesToPlaylist (type, files) {
