@@ -2147,10 +2147,15 @@
             unicastRemotes = {};
             if ((settings['MultiSyncEnabled'] == '1') &&
                 (settings['fppMode'] == 'player')) {
+                var legacyRemotes = 0;
                 if (typeof settings['MultiSyncRemotes'] === 'string') {
                     var tarr = settings['MultiSyncRemotes'].split(',');
                     for (var i = 0; i < tarr.length; i++) {
-                        remotes[tarr[i]] = 1;
+                        if (tarr[i] == '255.255.255.255' || tarr[i] == '239.70.80.80') {
+                            legacyRemotes++;
+                        } else {
+                            remotes[tarr[i]] = 1;
+                        }
                         if (tarr[i] != '' &&
                             tarr[i] != '255.255.255.255' &&
                             tarr[i] != '239.70.80.80') {
@@ -2165,6 +2170,10 @@
                             (!$('#MultiSyncMulticast').is(":checked")))
                             $('#MultiSyncMulticast').prop('checked', true).trigger('change');
                     }
+                }
+                // A lone legacy broadcast/multicast entry is its checkbox now (both: kept).
+                if (legacyRemotes == 1) {
+                    updateMultiSyncRemotes(false, true);
                 }
 
                 $('.masterOptions').show();
@@ -2490,9 +2499,15 @@
             var origExtra = "";
             if (typeof settings['MultiSyncExtraRemotes'] === 'string') {
                 origExtra = settings['MultiSyncExtraRemotes'];
-                extraRemotes = origExtra.split(',');
+                // Also drops legacy addresses an older version of this fold put here.
+                extraRemotes = origExtra.split(',').filter(function (e) {
+                    return e !== '' && e !== '255.255.255.255' && e !== '239.70.80.80';
+                });
             }
             for (var x in remotes) {
+                if (x === '') {
+                    continue;
+                }
                 if (!extraRemotes.includes(x)) {
                     extraRemotes.push(x);
                 }
@@ -2501,7 +2516,7 @@
             var extras = extraRemotes.join(',');
             settings['MultiSyncExtraRemotes'] = extras;
 
-            if (extras != '' && origExtra != extras) {
+            if (origExtra != extras) {
                 if (fppConfig.uiLevel >= 1) {
                     var inp = document.getElementById("MultiSyncExtraRemotes");
                     if (inp) {
@@ -4243,7 +4258,7 @@
             return true;
         }
 
-        async function updateMultiSyncRemotes(verbose = false) {
+        async function updateMultiSyncRemotes(verbose = false, quiet = false) {
             var remotes = "";
 
             // Built from the state map rather than a DOM scan: the table may be
@@ -4280,8 +4295,12 @@
                     }
                 }
                 validateMultiSyncSettings();
-            } catch {
-                DialogError("Save Remotes", "Save Failed");
+            } catch (e) {
+                if (quiet) {
+                    console.warn('MultiSync: saving MultiSyncRemotes failed', e);
+                } else {
+                    DialogError("Save Remotes", "Save Failed");
+                }
             }
         }
 
