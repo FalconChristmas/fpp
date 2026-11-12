@@ -769,16 +769,7 @@ function processRestoreData($restore_area, $restore_area_data, $backup_version)
         } else {
             $save_result = true;
         }
-
-        $overlays_json_filepath = $system_config_areas['model-overlays']['file'];
-        //PrettyPrint the JSON data and save it
-        $outputProcessors_data = prettyPrintJSON(json_encode($restore_area_data));
-
-        if (file_put_contents($overlays_json_filepath, $outputProcessors_data) === false) {
-            $save_result = false;
-        } else {
-            $save_result = true;
-        }
+        // fppd converts this to model-overlays.json on its next start.
         $settings_restored[$restore_area_key]['SUCCESS'] = $save_result;
 
         //Set FPPD restart flag
