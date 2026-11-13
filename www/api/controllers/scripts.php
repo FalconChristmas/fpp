@@ -64,7 +64,8 @@ function script_get()
 /**
  * Update script
  *
- * Writes the `POST` request body to the file specified by `{scriptName}`.
+ * Writes the `POST` request body, the script as a JSON string, to the file
+ * specified by `{scriptName}`.
  *
  * @route POST /api/scripts/{scriptName}
  * @response 200 Script saved
@@ -75,6 +76,7 @@ function script_get()
  *   "scriptBody": "#!/usr/bin/python\n\nprint(\"hi There Matt!\");\n"
  * }
  * ```
+ * @response 400 The body is not the script as a JSON string
  */
 function script_save()
 {
@@ -86,6 +88,12 @@ function script_save()
     }
     $json = strval(file_get_contents('php://input'));
     $content = json_decode($json, true);
+    if (!is_string($content)) {
+        // an empty, cut-off or plain-text body decodes to null, which
+        // would be written as an empty script
+        http_response_code(400);
+        return json(array("status" => "Error, the body must be the script as a JSON string"));
+    }
     $filename = $settings['scriptDirectory'] . '/' . $scriptName;
     $result = array();
 
