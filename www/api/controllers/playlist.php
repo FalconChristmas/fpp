@@ -29,6 +29,24 @@ function playlist_list()
 }
 
 /**
+ * Why a posted playlist must not be written, or null if it can be. An empty,
+ * cut-off or non-object body arrives as an empty array, and writing it would
+ * empty the playlist.
+ */
+function PlaylistBodyError($playlist)
+{
+    if (!is_array($playlist) || empty($playlist) || array_is_list($playlist)) {
+        return 'The request did not contain a playlist.';
+    }
+    foreach (array('leadIn', 'mainPlaylist', 'leadOut') as $section) {
+        if (isset($playlist[$section]) && !is_array($playlist[$section])) {
+            return "The playlist's $section is not a list of entries.";
+        }
+    }
+    return null;
+}
+
+/**
  * Updates the `playlistInfo` array with section-level item counts and durations
  * in v4 format. Handles both v3 (backwards compatible) and v4 formats.
  *
@@ -576,12 +594,17 @@ function cleanMedialNamesInPlaylist(&$playlistObj, $section)
  *   }
  * }
  * ```
+ * @response 400 The request did not contain a playlist, or a section is not a list
  */
 function playlist_insert()
 {
     global $settings;
 
     $playlist = $GLOBALS['_POST'];
+    if (($error = PlaylistBodyError($playlist)) !== null) {
+        http_response_code(400);
+        return json(array('Status' => 'Error', 'Message' => $error));
+    }
     $playlistName = isset($playlist['name']) ? $playlist['name'] : '';
     $filename = PlaylistFilePath($playlistName);
     if ($filename === false) {
@@ -815,12 +838,17 @@ function playlist_get()
  *   }
  * }
  * ```
+ * @response 400 The request did not contain a playlist, or a section is not a list
  */
 function playlist_update()
 {
     global $settings;
 
     $playlist = $GLOBALS['_POST'];
+    if (($error = PlaylistBodyError($playlist)) !== null) {
+        http_response_code(400);
+        return json(array('Status' => 'Error', 'Message' => $error));
+    }
     $playlistName = params('PlaylistName');
     $filename = PlaylistFilePath($playlistName);
     if ($filename === false) {
