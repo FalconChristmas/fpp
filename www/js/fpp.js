@@ -15506,6 +15506,9 @@ function InitScheduleCalendar () {
 		// Playlists that run past midnight are one occurrence, not two, so keep
 		// them as a single bar rather than letting the month grid split them.
 		displayEventEnd: true,
+		// A command has no length; drawn as the default hour, one late in the
+		// evening would run into the next day and be listed there again.
+		defaultTimedEventDuration: '00:00:01',
 		// Day numbers become links through to the detail views, which is the
 		// natural way out of the summarised month grid.
 		navLinks: true,
@@ -15662,21 +15665,36 @@ function ScheduleCalendarItemClasses (item) {
 	return classes;
 }
 
+// The calendar is drawn in the browser's time zone, so its hover text is too;
+// fppd's startTimeStr/endTimeStr are in the player's.
+function ScheduleCalendarTime (seconds) {
+	return new Date(seconds * 1000).toLocaleString([], {
+		weekday: 'short',
+		month: 'short',
+		day: 'numeric',
+		hour: 'numeric',
+		minute: '2-digit',
+		hour12: !settings.hasOwnProperty('TimeFormat') || settings['TimeFormat'] != '%H:%M'
+	});
+}
+
 function ScheduleCalendarItemInfo (item) {
 	var info = '';
+	var start = ScheduleCalendarTime(item.startTime);
+	var end = ScheduleCalendarTime(item.endTime);
 
 	if (item.summary && item.count > 1) {
 		info +=
 			'<b>' +
 			item.count +
 			' occurrences</b> this day, ' +
-			item.startTimeStr +
+			start +
 			' to ' +
-			item.endTimeStr +
+			end +
 			'.<br>Open the day or week view for each one.<br>';
 	} else {
-		info += '<b>Start:</b> ' + item.startTimeStr + '<br>';
-		info += '<b>End:</b> ' + item.endTimeStr + '<br>';
+		info += '<b>Start:</b> ' + start + '<br>';
+		info += '<b>End:</b> ' + end + '<br>';
 	}
 
 	// The entry's command, args and hosts are user data: the tooltip is HTML.
