@@ -207,6 +207,10 @@ fi
 echo "Saving system ssh keys"
 mkdir tmp/ssh
 cp -a mnt/etc/ssh/*key* tmp/ssh
+# The Pi image does not enable sshd (a new card turns it on from the boot
+# partition's "ssh" flag), so the copy below would delete this box's enable
+# link. (The BB images ship the link; there this just re-creates it.)
+SSH_UNIT=$(readlink mnt/etc/systemd/system/multi-user.target.wants/ssh.service 2>/dev/null)
 echo
 
 echo "Saving hostname"
@@ -410,6 +414,11 @@ sed -i 's|tmpfs\s*/var/tmp\s*tmpfs.*||g' mnt/etc/fstab
 #restore the ssh keys
 echo "Restoring system ssh keys"
 cp -a tmp/ssh/* mnt/etc/ssh
+if [ -n "${SSH_UNIT}" ] && [ -e "mnt${SSH_UNIT}" ]; then
+    echo "Keeping SSH enabled"
+    ln -sfn "${SSH_UNIT}" mnt/etc/systemd/system/multi-user.target.wants/ssh.service
+    ln -sfn "${SSH_UNIT}" mnt/etc/systemd/system/sshd.service
+fi
 echo
 
 # Neutralize the incoming image's FIRST-BOOT identity setup.
