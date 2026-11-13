@@ -1304,7 +1304,16 @@
             var stage = ParseLastStageMarker(response);
             if (stage != '')
                 SetProgressDialogStatus('osUpgrade', 'FPP OS Upgrade — ' + stage);
+            // Closable once rebooting, without the reload: the box is going down.
+            if (stage == 'Rebooting' && !osUpgradeRebooting) {
+                osUpgradeRebooting = true;
+                $('#osUpgradeCloseButton').off('click').on('click', function () {
+                    CloseModalDialog('osUpgrade');
+                });
+                EnableModalDialogCloseButton('osUpgrade');
+            }
         }
+        var osUpgradeRebooting = false;
 
         function OSUpgradeDone() {
             EnableModalDialogCloseButton("osUpgrade");
