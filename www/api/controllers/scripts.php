@@ -92,13 +92,19 @@ function script_save()
     }
     // The bundled editor POSTs the script JSON-encoded (JSON.stringify), and
     // clients following the docblock POST it as the raw body.  Only unwrap a
-    // body that decodes to a JSON string; anything else is the script itself.
-    // Decoding a raw body yields null, which used to truncate the file to
-    // zero bytes.
+    // body that decodes to a JSON string; any other body is the script itself.
+    // A raw body decodes to null and is now written verbatim; an empty body
+    // intentionally writes an empty file (clearing the script).  A body that
+    // is fully quoted but undecodable is the editor's format gone bad (for
+    // example a lone surrogate), so reject it rather than save the escaped
+    // text over the script.
     $content = $body;
     $decoded = json_decode($body, true);
     if (is_string($decoded)) {
         $content = $decoded;
+    } elseif ($body !== '' && $body[0] === '"' && substr($body, -1) === '"') {
+        http_response_code(400);
+        return json(array("status" => "Invalid JSON string body"));
     }
     $filename = $settings['scriptDirectory'] . '/' . $scriptName;
     $result = array();
