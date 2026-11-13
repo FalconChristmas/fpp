@@ -167,7 +167,7 @@ if ($showOSSecurity) {
     <b>SSH Keys</b> (root and fpp users)
     <img id="ssh_img" title="Add optional SSH key(s) for passwordless SSH authentication." src="images/redesign/help-icon.svg" width=22 height=22>
     <span id="ssh_tip" class="tooltip d-none">Add optional SSH key(s) for passwordless SSH authentication.</span><br>
-    <textarea  id='sshKeys' style='width: 100%;' rows='10'><?echo shell_exec('sudo cat /root/.ssh/authorized_keys'); ?></textarea>
+    <textarea  id='sshKeys' style='width: 100%;' rows='10'><?echo htmlspecialchars((string) shell_exec('sudo cat /root/.ssh/authorized_keys 2>/dev/null'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></textarea>
     <input type='button' class='buttons' value='Save Keys' onClick='SaveSSHKeys();'>&nbsp;&nbsp;<b>OR</b>&nbsp;&nbsp;
     <input id='UploadAuthorizedKeys' type='button' class='buttons' value='Upload authorized_keys' onClick='UploadAuthorizedKeys();' disabled> <input type="file" id="authorized_keys" style='padding-left: 0px;' onChange="$('#UploadAuthorizedKeys').prop('disabled', false);"><br>
     <br>
