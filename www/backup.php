@@ -1677,85 +1677,10 @@ function BackupConfigFolderConfigs($configDir = null)
         //else true so we keep the filename
     }
 
-    //One we have the list, we need to remove any that other areas, e.g co-universes.json etc
-    $system_config_areas_local = $system_config_areas;
-    unset($system_config_areas_local['all']);
-    unset($system_config_areas_local['network']);
-    unset($system_config_areas_local['misc_configs']); //to avoid something weird happening
-    //remove email as its in the general settings file and not a separate section
-    unset($system_config_areas_local['settings']['file']['email']);
-
-    //loop over the preconfigured areas and process them
-    //This loop will remove any files we picked up in the config folder which may already be known about and mapped to a existing area (e.g co-universes.json)
-    //any files left after this are extra config files we need to backup
-    foreach ($system_config_areas_local as $config_key => $config_data) {
-        $setting_file_to_backup = $config_data['file'];
-
-        //if setting file value is an array then there are one or more setting files related to this backup
-        if (is_array($setting_file_to_backup)) {
-            //loop over the array
-            foreach ($setting_file_to_backup as $settings_file => $settings_file_data) {
-                //We only want files, so check the type first and only process files further
-                if ($settings_file_data['type'] == "file") {
-                    //Check if the file location(s) is an array, if so there will likely be more than 1 file location to read
-                    //All other times location should just be a simple string for the file location
-                    if (is_array($settings_file_data['location'])) {
-                        //loop over the locations to read them all in
-                        foreach ($settings_file_data['location'] as $location_filename => $location_path) {
-                            //Get just the filename from the path
-                            $path_parts = pathinfo($location_path);
-                            if (!empty($path_parts['extension'])) {
-                                $path_parts_filename = $path_parts['filename'] . '.' . $path_parts['extension'];
-                            } else {
-                                $path_parts_filename = $path_parts['filename'];
-                            }
-                            //Check if the file is in our misc/extra json config files list
-                            if (array_key_exists($path_parts_filename, $json_config_files)) {
-                                //remove it from the list of misc json config files as it will get backed up in another area
-                                unset($json_config_files[$path_parts_filename]);
-                                //                                echo "Excluding file from Extra Config backup" . $path_parts_filename;
-                            }
-                        } //end loop
-                    } else {
-                        //Not an array so just a single file or filepath
-                        //Do the same as above, check if the file is in our misc/extra json config files list
-
-                        //Get just the filename from the path
-                        $path_parts = pathinfo($settings_file_data['location']);
-                        if (!empty($path_parts['extension'])) {
-                            $path_parts_filename = $path_parts['filename'] . '.' . $path_parts['extension'];
-                        } else {
-                            $path_parts_filename = $path_parts['filename'];
-                        }
-
-                        if (array_key_exists($path_parts_filename, $json_config_files)) {
-                            //remove it from the list of misc json config files as it will get backed up in another area
-                            unset($json_config_files[$path_parts_filename]);
-                            //                            echo "Excluding file from Extra Config backup" . $path_parts_filename;
-                        }
-                    } //end else
-                }
-            }
-        } else {
-            //Location is not an array, so likely just holds the filename,
-            //check if the file is in our misc/extra json config files list
-            if ($setting_file_to_backup !== false) {
-                $path_parts = pathinfo($setting_file_to_backup);
-
-                if (!empty($path_parts['extension'])) {
-                    $path_parts_filename = $path_parts['filename'] . '.' . $path_parts['extension'];
-                } else {
-                    $path_parts_filename = $path_parts['filename'];
-                }
-
-                if (!empty($path_parts['filename'])) {
-                    if (array_key_exists($path_parts_filename, $json_config_files)) {
-                        unset($json_config_files[$path_parts_filename]);
-                        //                        echo "Excluding file from Extra Config backup" . $path_parts_filename;
-                    }
-                }
-            }
-        }
+    //Leave out the files other areas own, e.g co-universes.json; any left
+    //after this are extra config files we need to backup
+    foreach (array_keys(MiscConfigsOtherAreaFileNames()) as $other_area_file) {
+        unset($json_config_files[$other_area_file]);
     }
 
     //Once we have our final list of extra config files, read them in
@@ -1789,6 +1714,55 @@ function BackupConfigFolderConfigs($configDir = null)
 }
 
 /**
+ * The names (as keys) of the config files other areas own, e.g. gpio.json:
+ * the Miscellaneous area neither backs them up nor restores them.
+ *
+ * @return array
+ */
+function MiscConfigsOtherAreaFileNames()
+{
+    global $system_config_areas;
+
+    $areas = $system_config_areas;
+    unset($areas['all']);
+    unset($areas['network']);
+    unset($areas['misc_configs']); //to avoid something weird happening
+    //remove email as its in the general settings file and not a separate section
+    unset($areas['settings']['file']['email']);
+
+    $names = array();
+    $add = function ($location) use (&$names) {
+        $path_parts = pathinfo($location);
+        $name = !empty($path_parts['extension']) ? $path_parts['filename'] . '.' . $path_parts['extension'] : $path_parts['filename'];
+        if ($name !== '') {
+            $names[$name] = true;
+        }
+    };
+    foreach ($areas as $config_data) {
+        $area_file = $config_data['file'];
+        //an array holds one or more setting files related to this area
+        if (is_array($area_file)) {
+            foreach ($area_file as $settings_file_data) {
+                //We only want files, so check the type first
+                if ($settings_file_data['type'] == "file") {
+                    if (is_array($settings_file_data['location'])) {
+                        foreach ($settings_file_data['location'] as $location_path) {
+                            $add($location_path);
+                        }
+                    } else {
+                        $add($settings_file_data['location']);
+                    }
+                }
+            }
+        } else if ($area_file !== false) {
+            //likely just holds the filename
+            $add($area_file);
+        }
+    }
+    return $names;
+}
+
+/**
  * Takes the file-named keyed array generated by backup_config_folder_configs and basically loops through
  * restoring data into each of the files
  *
@@ -1803,11 +1777,21 @@ function RestoreConfigFolderConfigs($restore_data)
     $save_result = false;
     //make sure data is supplied before doing anything, just in case
     if (!empty($restore_data)) {
+        $save_result = true;
+        //lower case: a case-insensitive filesystem (macOS) folds it
+        $other_area_files = array_change_key_case(MiscConfigsOtherAreaFileNames(), CASE_LOWER);
         //Loop over the data to restore, the array key is the filename e.g joysticks.json, it's value is a array representing the file contents
         foreach ($restore_data as $restore_filename => $restore_file_data) {
             // Traversal guard: the filename comes from inside the uploaded
             // backup. Legitimate backups only contain bare names.
             if (!IsSafeRestoreFilename($restore_filename)) {
+                continue;
+            }
+            // Only what the backup puts here: a .json file no other area owns
+            $restore_filename = (string) $restore_filename;
+            if (!str_ends_with(strtolower($restore_filename), ".json") ||
+                str_starts_with($restore_filename, ".") ||
+                isset($other_area_files[strtolower($restore_filename)])) {
                 continue;
             }
             //Generate the filepath for the config file to be restored
@@ -1817,8 +1801,6 @@ function RestoreConfigFolderConfigs($restore_data)
             $misc_data_restore = prettyPrintJSON(json_encode($restore_file_data));
             if (file_put_contents($misc_data_rest_filepath, $misc_data_restore) === false) {
                 $save_result = false;
-            } else {
-                $save_result = true;
             }
         }
     }
