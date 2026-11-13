@@ -6228,18 +6228,16 @@ function ExtendSchedulePopup () {
 		return;
 	}
 
+	var empty = minutes.trim() === '';
 	minutes = Number(minutes);
 
 	var minimum = -3 * 60;
 	var maximum = 12 * 60;
 
-	if (minutes > maximum || minutes < minimum) {
+	if (empty || !Number.isFinite(minutes) || minutes > maximum || minutes < minimum) {
 		DialogError(
 			'Extend Schedule',
-			'Error: Minutes is not between the minimum ' +
-				minimum +
-				' and maximum ' +
-				maximum
+			'Minutes must be a number between ' + minimum + ' and ' + maximum + '.'
 		);
 	} else {
 		ExtendSchedule(minutes);
