@@ -3,6 +3,11 @@
 . /opt/fpp/scripts/common
 . /opt/fpp/scripts/functions
 
+# common and functions come from the image, which may be older than this script
+# (part1 runs the box's copy on some downgrades, and with keepOptFPP). Images
+# before FPP 10.0 have no logStage.
+type logStage >/dev/null 2>&1 || logStage() { echo "===== $1 ====="; }
+
 cd /
 
 # Refuse an image built for a different CPU architecture, before anything is
