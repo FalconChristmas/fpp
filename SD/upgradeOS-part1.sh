@@ -81,7 +81,8 @@ trap '__rc=$?; if [ "${LOGGING}" = "true" ]; then printf "%(%Y-%m-%d %H:%M:%S)T 
 logStage "Verifying image"
 
 FPPOS=`/usr/bin/basename -- "$1"`
-GITHUBSIZE=`curl -fsSL http://127.0.0.1/api/git/releases/sizes | grep -F -- "${FPPOS}" | awk -F, '{print $2}'`
+# Matched on the whole image name; without an answer (offline) the upgrade goes ahead.
+GITHUBSIZE=`curl -fsSL --max-time 45 http://127.0.0.1/api/git/releases/sizes | awk -F, -v n="${FPPOS}" '$1 == n { print $2; exit }'`
 OURSIZE=`/usr/bin/stat -c %s -- "$1"`
 
 # Locate the boot partition, if there is a separate one.  `mount -o bind /` below
