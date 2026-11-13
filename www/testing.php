@@ -777,7 +777,9 @@ if (file_exists($mediaDirectory . "/fpp-info.json")) {
 		/////////////////////////////////////////////////////////////////////////////
 		function PlaySequence() {
 			var sequence = $('#selSequence').val();
-			var startSecond = $('#startSecond').val();
+			// empty (or not a number) is the start of the sequence
+			var startSecond = parseInt($('#startSecond').val(), 10);
+			if (!(startSecond > 0)) startSecond = 0;
 
 			$.post("api/sequence/" + encodeURIComponent(sequence) + "/start/" + startSecond
 			).done(function () {
