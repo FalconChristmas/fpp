@@ -336,12 +336,13 @@
             if (data && data.rows && data.rows.length > 0) {
                 data.rows.forEach(function (row) {
                     html += '<tr>';
-                    html += '<td><code>' + row.hash.substring(0, 8) + '</code></td>';
-                    html += '<td>' + row.author + '</td>';
+                    // Text from whoever pushed to the tracked branch, shown before updating.
+                    html += '<td><code>' + EscapeHtml(String(row.hash).substring(0, 8)) + '</code></td>';
+                    html += '<td>' + EscapeHtml(row.author) + '</td>';
                     if (showDate) {
-                        html += '<td class="fpp-text-date">' + (row.date || '') + '</td>';
+                        html += '<td class="fpp-text-date">' + EscapeHtml(row.date || '') + '</td>';
                     }
-                    html += '<td>' + row.msg + '</td>';
+                    html += '<td>' + EscapeHtml(row.msg) + '</td>';
                     html += '</tr>';
                 });
             } else {

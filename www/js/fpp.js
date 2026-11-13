@@ -9706,13 +9706,13 @@ function GetGitOriginLog () {
 					html.push(
 						'<tr><td><a href="https://github.com/FalconChristmas/fpp/commit/'
 					);
-					html.push(r.hash);
+					html.push(EscapeHtmlAttr(r.hash));
 					html.push('">');
-					html.push(r.hash.substring(0, 8));
+					html.push(EscapeHtml(String(r.hash).substring(0, 8)));
 					html.push('</a></td><td> - </td><td>');
-					html.push(r.author);
+					html.push(EscapeHtml(r.author));
 					html.push('</td><td> - </td><td>');
-					html.push(r.msg);
+					html.push(EscapeHtml(r.msg));
 					html.push('</td></tr>');
 				});
 				html.push('</table>');
