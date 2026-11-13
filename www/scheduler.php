@@ -798,7 +798,7 @@ error_reporting(E_ALL);
                                 if (callback) callback();
                             },
                             error: function () {
-                                $.jGrowl('Warning: Could not update schedule entries', { themeState: 'error' });
+                                renameNotSaved();
                                 if (callback) callback();
                             }
                         });
@@ -806,8 +806,16 @@ error_reporting(E_ALL);
                         if (callback) callback();
                     }
                 }).fail(function () {
+                    renameNotSaved();
                     if (callback) callback();
                 });
+            }
+
+            // The page reloads next; the notice is shown once it is back.
+            function renameNotSaved() {
+                try {
+                    sessionStorage.setItem('schedulerNotice', 'Holidays saved, but could not update schedule entries using a renamed holiday. Re-select their dates.');
+                } catch (e) { }
             }
 
             $.ajax({
@@ -988,6 +996,13 @@ error_reporting(E_ALL);
     </script>
     <script>
         $(document).ready(function () {
+            try {
+                var notice = sessionStorage.getItem('schedulerNotice');
+                if (notice) {
+                    sessionStorage.removeItem('schedulerNotice');
+                    $.jGrowl(EscapeHtml(notice), { themeState: 'danger', sticky: true });
+                }
+            } catch (e) { }
             var sortableOptions = {
                 start: function (event, ui) {
                     start_pos = ui.item.index();
