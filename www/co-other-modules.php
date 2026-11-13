@@ -648,7 +648,7 @@
                     if (config.ports[x].hysteresisUpper != undefined) {
                         hysteresisUpper = config.ports[x].hysteresisUpper;
                     }
-                    if (config.ports[x].hystersisLower != undefined) {
+                    if (config.ports[x].hysteresisLower != undefined) {
                         hysteresisLower = config.ports[x].hysteresisLower;
                     }
                 }
