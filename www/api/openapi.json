@@ -4664,7 +4664,7 @@
           "network"
         ],
         "summary": "Set network interface configuration",
-        "description": "Updates the saved configuration for the specified `{interface}` but does not restart the network.",
+        "description": "Updates the saved configuration for the specified `{interface}` but does not restart the network. ROUTEMETRIC, IPFORWARDING, PSK and BACKUPPSK left out of the body keep their saved values, as do DHCPSERVER, DHCPOFFSET and DHCPPOOLSIZE for a static interface. The static leases are rewritten only when DHCPSERVER is sent.",
         "requestBody": {
           "content": {
             "application/json": {

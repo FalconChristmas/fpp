@@ -1388,6 +1388,11 @@ function network_write_file_atomically($path, $content)
  * Updates the saved configuration for the specified `{interface}` but does
  * not restart the network.
  *
+ * ROUTEMETRIC, IPFORWARDING, PSK and BACKUPPSK left out of the body keep
+ * their saved values, as do DHCPSERVER, DHCPOFFSET and DHCPPOOLSIZE for a
+ * static interface. The static leases are rewritten only when DHCPSERVER is
+ * sent.
+ *
  * @route POST /api/network/interface/{interface}
  * @body {"INTERFACE": "eth0", "PROTO": "static", "ADDRESS": "192.168.1.149", "NETMASK": "255.255.255.0", "GATEWAY": "192.168.1.1"}
  * @response 200 Interface configuration saved
@@ -1429,16 +1434,31 @@ function network_set_interface()
         }
     }
 
+    // RAW: the default mode expands ${...} inside values, which would
+    // rewrite a kept passphrase that happens to contain one.
+    $saved = file_exists($cfgFile) ? @parse_ini_file($cfgFile, false, INI_SCANNER_RAW) : array();
+    if (!is_array($saved)) {
+        $saved = array();
+    }
+
     // GETs never return WiFi keys (network_redact_interface_config()), so a
     // request without one keeps the key already saved.
-    if (!array_key_exists('PSK', $data) || !array_key_exists('BACKUPPSK', $data)) {
-        // RAW: the default mode expands ${...} inside values, which would
-        // rewrite a kept passphrase that happens to contain one.
-        $saved = file_exists($cfgFile) ? @parse_ini_file($cfgFile, false, INI_SCANNER_RAW) : array();
-        foreach (array('PSK', 'BACKUPPSK') as $k) {
-            if (!array_key_exists($k, $data)) {
-                $data[$k] = (is_array($saved) && isset($saved[$k])) ? $saved[$k] : '';
-            }
+    foreach (array('PSK', 'BACKUPPSK') as $k) {
+        if (!array_key_exists($k, $data)) {
+            $data[$k] = isset($saved[$k]) ? $saved[$k] : '';
+        }
+    }
+
+    // The page sends these only at Advanced UI level: keep the saved ones.
+    // A DHCP server only serves from a static address.
+    $dhcpServerSent = isset($data['DHCPSERVER']);
+    $keep = array('ROUTEMETRIC', 'IPFORWARDING');
+    if (isset($data['PROTO']) && $data['PROTO'] == 'static') {
+        $keep = array_merge($keep, array('DHCPSERVER', 'DHCPOFFSET', 'DHCPPOOLSIZE'));
+    }
+    foreach ($keep as $k) {
+        if (!array_key_exists($k, $data) && isset($saved[$k]) && is_numeric($saved[$k])) {
+            $data[$k] = $saved[$k];
         }
     }
 
@@ -1542,7 +1562,7 @@ function network_set_interface()
     }
     // The leases follow the interface file, so a save that couldn't write
     // the interface leaves them as they were too.
-    if (isset($data['DHCPSERVER']) && $data['DHCPSERVER']) {
+    if ($dhcpServerSent && $data['DHCPSERVER']) {
         if (isset($data['Leases'])) {
             // Entries validated above; non-array input rejected there too.
             $leases = "";
