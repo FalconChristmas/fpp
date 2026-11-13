@@ -3288,16 +3288,16 @@ if ($skipHTMLCodeOutput === false) {
                             $(row + ' .restoreJsonConfigActionButton > i').removeClass('fpp-backup-action-loading');
 
                             if (data.Success === true) {
-                                $.jGrowl('Successfully restored selected backup: ', { themeState: 'success' });
+                                $.jGrowl('Successfully restored selected backup: ' + EscapeHtml(filename), { themeState: 'success' });
                             } else {
-                                $.jGrowl('Error occurred restoring selected backup: ', { themeState: 'danger' });
+                                $.jGrowl('Error occurred restoring selected backup: ' + EscapeHtml(filename) + (data.Message && data.Message.length ? ' (' + EscapeHtml(data.Message) + ')' : ''), { themeState: 'danger' });
                             }
                         },
-                        error: function (data) {
+                        error: function (...args) {
                             //Remove the loading spinner also if we fail
                             $(row + ' .restoreJsonConfigActionButton > i').removeClass('fpp-backup-action-loading');
 
-                            DialogError('Error occurred attempting to restore data', data.Message);
+                            DialogError('Error occurred attempting to restore data', 'The restore request for ' + EscapeHtml(filename) + ' failed.' + show_details(args));
                         }
                     });
                 }
