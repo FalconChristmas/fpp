@@ -353,7 +353,7 @@ void setupNetwork(bool fullReload) {
                 int ROUTEMETRIC = getIntFromMap(interfaceSettings, "ROUTEMETRIC", 0);
                 int IPFORWARDING = getIntFromMap(interfaceSettings, "IPFORWARDING", 0);
 
-                if (DHCPSERVER == 1) {
+                if (DHCPSERVER == 1 && interfaceSettings["PROTO"] != "dhcp") {
                     std::string address = interfaceSettings["ADDRESS"];
                     address = address.substr(0, address.find_last_of("."));
                     dhcpProxies += "RewriteRule ^" + address + ".([0-9:]*)$  http://" + address + ".$1/  [P,L]\n";
