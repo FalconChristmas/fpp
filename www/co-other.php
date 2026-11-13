@@ -153,8 +153,8 @@
 
         result += USBDeviceConfig(config);
         result += GenericSerialSpeedSelect(config.speed);
-        result += " Header: <input type='text' size=10 maxlength=20 class='serialheader' value='" + config.header + "'>";
-        result += " Footer: <input type='text' size=10 maxlength=20 class='serialfooter' value='" + config.footer + "'>";
+        result += " Header: <input type='text' size=10 maxlength=20 class='serialheader' value='" + EscapeHtmlAttr(config.header) + "'>";
+        result += " Footer: <input type='text' size=10 maxlength=20 class='serialfooter' value='" + EscapeHtmlAttr(config.footer) + "'>";
 
         return result;
     }

@@ -1228,8 +1228,8 @@
             }
             var result = super.PopulateHTMLRow(config);
 
-            result += "Topic: <input type='text' name='topic' class='topic' value='" + config.topic + "'>&nbsp;";
-            result += "Payload: <input type='text' class='payload' name='payload' value='" + config.payload + "'><br>";
+            result += "Topic: <input type='text' name='topic' class='topic' value='" + EscapeHtmlAttr(config.topic) + "'>&nbsp;";
+            result += "Payload: <input type='text' class='payload' name='payload' value='" + EscapeHtmlAttr(config.payload) + "'><br>";
             result += CreateSelect(datatypes, inType, "Channel Type", "Channel Type", "channelType", "MQTTOutputTypeChanged(this)");
             result += "</td></tr>"
 
