@@ -35,6 +35,33 @@ if [ -n "${IMAGEARCH}" ] && [ -n "${SYSTEMARCH}" ] && [ "${IMAGEARCH}" != "${SYS
     exit 1
 fi
 
+# A failed copy must not end in a reboot into a half-written OS: finish, then exit 2.
+# Each rsync is grouped in { } so the "wait $!" after it waits for its tee.
+COPY_FAILED=""
+
+# What rsync prints when something was not copied; what a FAT boot copy prints anyway.
+COPY_ERR_LINES='^rsync: |could not make way|cannot delete|failed verification'
+COPY_FAT_NOISE='^rsync: (\[[A-Za-z]+\] )?((chown|lchown|chgrp|symlink) ".*failed|failed to set (permissions|times) on ".*): Operation not permitted \(1\)$|^rsync: (\[[A-Za-z]+\] )?((rsync_xal_set: )?lsetxattr|set_acl: sys_acl_set_file)\(.*Operation not supported \(95\)$'
+
+# A mount point (USB stick under /opt) the image lacks: rsync cannot delete it, rightly.
+COPY_BUSY_MOUNT='^rsync: (\[[A-Za-z]+\] )?delete_file: rmdir\(.*\) failed: Device or resource busy \(16\)$'
+
+# checkCopy <what> <rsync rc> <error file> [strict]: rc 0/24 pass; rc 23 passes
+# only if every error line is a busy mount point or (unless strict) FAT noise.
+checkCopy() {
+    local what="$1" rc="$2" errs="$3" strict="$4" harmless="${COPY_FAT_NOISE}|${COPY_BUSY_MOUNT}"
+    [ -n "${strict}" ] && harmless="${COPY_BUSY_MOUNT}"
+    [ "${rc}" -eq 0 ] || [ "${rc}" -eq 24 ] && return 0
+    if [ "${rc}" -eq 23 ] && \
+       grep -qE "${COPY_ERR_LINES}" "${errs}" 2>/dev/null && \
+       ! grep -E "${COPY_ERR_LINES}" "${errs}" | grep -qvE "${harmless}"; then
+        grep -E "${COPY_BUSY_MOUNT}" "${errs}" | sed -E 's/.*rmdir\((.*)\) failed.*/NOTE: \1 is a mount point; left as it is/'
+        return 0
+    fi
+    echo "ERROR: copying the ${what} failed (rsync rc=${rc})"
+    COPY_FAILED="${COPY_FAILED:+${COPY_FAILED}, }${what}"
+}
+
 logStage "Updating boot filesystem"
 echo "Running rsync to update boot file system:"
 
@@ -98,7 +125,10 @@ case "${FPPPLATFORM}" in
         #
         # The source side does not need -x: /boot inside the mounted image
         # has no submounts.
-        rsync --outbuf=N -aAXvc /boot/ /mnt/boot/ --delete-before "${BOOT_KEEP[@]}"
+        { rsync --outbuf=N -aAXvc /boot/ /mnt/boot/ --delete-before "${BOOT_KEEP[@]}"; } 2> >(tee /tmp/rsync-boot.err >&2)
+        BOOTRC=$?
+        wait $!
+        checkCopy "boot partition" ${BOOTRC} /tmp/rsync-boot.err
 
         if $OLD_BOOT_AT_ROOT; then
             echo "Adjusting /etc/fstab: /boot -> /boot/firmware"
@@ -142,16 +172,24 @@ case "${FPPPLATFORM}" in
         # user's fpp_boot.sh and fpp/ on every OS upgrade. On the newer images
         # fppinit resolves bootDir to /boot/firmware (it only checks that the
         # directory exists), so there it is the /firmware/ spelling that is live.
-        rsync -aAXvc /boot/ /mnt/boot/ --delete-during "${BOOT_KEEP[@]}"
+        { rsync -aAXvc /boot/ /mnt/boot/ --delete-during "${BOOT_KEEP[@]}"; } 2> >(tee /tmp/rsync-boot.err >&2)
+        BOOTRC=$?
+        wait $!
+        checkCopy "boot partition" ${BOOTRC} /tmp/rsync-boot.err
         ;;
 esac
 
 echo
 
 if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
-    # need to install the bootloader that goes with this version of the os
-    echo "Updating Beagle boot loader:"
-    /opt/fpp/bin.bbb/bootloader/install.sh
+    # need to install the bootloader that goes with this version of the os,
+    # unless the boot files it has to match were not copied
+    if [[ "${COPY_FAILED}" == *"boot partition"* ]]; then
+        echo "Not updating the Beagle boot loader: the boot partition copy failed"
+    else
+        echo "Updating Beagle boot loader:"
+        /opt/fpp/bin.bbb/bootloader/install.sh
+    fi
     echo
 fi
 
@@ -326,7 +364,10 @@ fi
 #copy everything other than fstab and the persistent net names
 logStage "Updating root filesystem (longest step, please wait)"
 echo "Running rsync to update / (root) file system:"
-stdbuf --output=L --error=L rsync --outbuf=N -aAXxv bin etc lib opt root sbin usr var /mnt --delete-during --exclude=var/lib/php/sessions --exclude=etc/fstab --exclude=etc/systemd/network/10-*.network --exclude=etc/systemd/network/*-fpp-* --exclude=root/.ssh ${SKIPFPP}
+{ stdbuf --output=L --error=L rsync --outbuf=N -aAXxv bin etc lib opt root sbin usr var /mnt --delete-during --exclude=var/lib/php/sessions --exclude=etc/fstab --exclude=etc/systemd/network/10-*.network --exclude=etc/systemd/network/*-fpp-* --exclude=root/.ssh ${SKIPFPP}; } 2> >(tee /tmp/rsync-root.err >&2)
+ROOTRC=$?
+wait $!
+checkCopy "root filesystem" ${ROOTRC} /tmp/rsync-root.err strict
 echo
 
 # force copy a few libs that rsync won't replace cleanly (same size/mtime
@@ -440,7 +481,8 @@ else
     echo "WARNING: SSH host keys were not restored - clients will see a changed host key"
 fi
 
-if [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
+# The EEPROM is not on the disk: leave it alone when the copy failed.
+if [ "${FPPPLATFORM}" = "Raspberry Pi" ] && [ -z "${COPY_FAILED}" ]; then
     logStage "Updating boot loader"
     echo "Updating Raspberry Pi boot loader:"
     # This script runs chrooted into the read-only .fppos image mount, so the
@@ -476,4 +518,24 @@ sync
 echo "Sync complete"
 sleep 3
 
-exit
+if [ -n "${COPY_FAILED}" ]; then
+    echo
+    echo "ERROR: the OS copy is INCOMPLETE (${COPY_FAILED}). What was not copied, first:"
+    # The root's errors as rsync wrote them, then the boot's less its FAT noise.
+    {
+        [[ "${COPY_FAILED}" == *"root filesystem"* ]] && cat /tmp/rsync-root.err
+        [[ "${COPY_FAILED}" == *"boot partition"* ]] && grep -vE "${COPY_FAT_NOISE}" /tmp/rsync-boot.err
+    } 2>/dev/null | head -n 10 | sed 's/^/    /'
+    echo "ERROR: do NOT reboot or power off: it may not boot. Run the OS upgrade again."
+    echo "ERROR: If it fails again, or will not start, copy a backup off the box first,"
+    echo "ERROR: then reflash the card."
+    # A part1 from FPP 10.2 or older ignores this exit code and reboots anyway.
+    # Our parent is part1's bash, which holds its script open on fd 255.
+    if ! grep -qs PART2RC "/proc/${PPID}/fd/255"; then
+        echo "ERROR: This FPP version reboots by itself now anyway: if it does not come"
+        echo "ERROR: back up, reflash the card."
+    fi
+    exit 2
+fi
+
+exit 0

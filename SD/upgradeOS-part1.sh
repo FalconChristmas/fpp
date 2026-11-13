@@ -262,6 +262,8 @@ if [ -n "${BOOTMOUNT}" ]; then
     umount /mnt/mnt${BOOTMOUNT}
 fi
 umount /mnt/mnt
+# Lazily if need be: a re-run would otherwise mount a second image over it.
+umount /mnt || umount -l /mnt
 
 sync
 
@@ -279,6 +281,12 @@ if [ "${PART2RC}" -ne 0 ]; then
         echo "ERROR: upgradeOS-part2.sh failed (rc=${PART2RC}); see its output above."
         echo "ERROR: unless it says nothing was copied, the OS copy may be incomplete;"
         echo "ERROR: check logs/fpp_system_upgrades.log before rebooting."
+        if [ "${PART2RC}" -eq 2 ]; then
+            # part2's "copy incomplete": say what to do last, where it is seen.
+            echo "ERROR: the OS copy is INCOMPLETE. Do NOT reboot or power off: it may not boot."
+            echo "ERROR: Run the OS upgrade again. If it fails again, or will not start, copy"
+            echo "ERROR: a backup off the box first, then reflash the card."
+        fi
     fi
     exit ${PART2RC}
 fi
