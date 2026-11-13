@@ -3538,14 +3538,14 @@ function GetSequenceDuration (sequence, updateUI, row) {
 				.find('.psiDataSimple')
 				.append(
 					'<span style="color: #FF0000; font-weight: bold;">ERROR: Sequence "' +
-						sequence +
+						EscapeHtml(sequence) +
 						'" Not Found</span><br>'
 				);
 			row
 				.find('.psiData')
 				.append(
 					'<div style="color: #FF0000; font-weight: bold;">ERROR: Sequence "' +
-						sequence +
+						EscapeHtml(sequence) +
 						'" Not Found</div>'
 				);
 		}
@@ -3597,14 +3597,14 @@ function SetPlaylistItemMetaData (row) {
 				.find('.psiDataSimple')
 				.append(
 					'<span style="color: #FF0000; font-weight: bold;">ERROR: Media File "' +
-						file +
+						EscapeHtml(file) +
 						'" Not Found</span><br>'
 				);
 			row
 				.find('.psiData')
 				.append(
 					'<div style="color: #FF0000; font-weight: bold;">ERROR: Media File "' +
-						file +
+						EscapeHtml(file) +
 						'" Not Found</div>'
 				);
 
@@ -3659,7 +3659,7 @@ function SetPlaylistItemMetaData (row) {
 						.find('.psiDataSimple')
 						.append(
 							'<span style="color: #FF0000; font-weight: bold;">ERROR: Playlist "' +
-								playlistName +
+								EscapeHtml(playlistName) +
 								'" Not Found</span><br>'
 						);
 				}
@@ -3679,8 +3679,8 @@ function SetPlaylistItemMetaData (row) {
 					.append(
 						'<span style="color: #FF0000; font-weight: bold;">ERROR: ' +
 							(xhr.status == 404
-								? 'Playlist "' + playlistName + '" Not Found'
-								: 'Loading Playlist "' + playlistName + '" ') +
+								? 'Playlist "' + EscapeHtml(playlistName) + '" Not Found'
+								: 'Loading Playlist "' + EscapeHtml(playlistName) + '" ') +
 							'</span><br>'
 					);
 			}
