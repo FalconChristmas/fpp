@@ -78,7 +78,10 @@ echo "Running rsync to update boot file system:"
 # Black, where the boot files themselves still live in /boot. Paths are
 # anchored with a leading / so they match at the transfer root (/boot/) only.
 BOOT_KEEP=(--exclude=/fpp/ --exclude=/fpp_boot.sh
-           --exclude=/firmware/fpp/ --exclude=/firmware/fpp_boot.sh)
+           --exclude=/firmware/fpp/ --exclude=/firmware/fpp_boot.sh
+           # The image's first-boot "grow the root partition" marker: on an
+           # upgrade, fppinit would re-partition the card the next boot.
+           --exclude=/fpp_expand_rootfs --exclude=/firmware/fpp_expand_rootfs)
 
 case "${FPPPLATFORM}" in
     "Raspberry Pi"|"BeagleBone 64")
@@ -172,7 +175,14 @@ case "${FPPPLATFORM}" in
         # user's fpp_boot.sh and fpp/ on every OS upgrade. On the newer images
         # fppinit resolves bootDir to /boot/firmware (it only checks that the
         # directory exists), so there it is the /firmware/ spelling that is live.
-        { rsync -aAXvc /boot/ /mnt/boot/ --delete-during "${BOOT_KEEP[@]}"; } 2> >(tee /tmp/rsync-boot.err >&2)
+        #
+        # An image with no /boot/firmware at all (9.x, on a downgrade) would
+        # have --delete empty the box's FAT partition: leave it alone instead.
+        BBB_KEEP=()
+        if [ ! -d /boot/firmware ]; then
+            BBB_KEEP=(--exclude=/firmware/)
+        fi
+        { rsync -aAXvc /boot/ /mnt/boot/ --delete-during "${BOOT_KEEP[@]}" "${BBB_KEEP[@]}"; } 2> >(tee /tmp/rsync-boot.err >&2)
         BOOTRC=$?
         wait $!
         checkCopy "boot partition" ${BOOTRC} /tmp/rsync-boot.err
@@ -364,7 +374,7 @@ fi
 #copy everything other than fstab and the persistent net names
 logStage "Updating root filesystem (longest step, please wait)"
 echo "Running rsync to update / (root) file system:"
-{ stdbuf --output=L --error=L rsync --outbuf=N -aAXxv bin etc lib opt root sbin usr var /mnt --delete-during --exclude=var/lib/php/sessions --exclude=etc/fstab --exclude=etc/systemd/network/10-*.network --exclude=etc/systemd/network/*-fpp-* --exclude=root/.ssh ${SKIPFPP}; } 2> >(tee /tmp/rsync-root.err >&2)
+{ stdbuf --output=L --error=L rsync --outbuf=N -aAXxv bin etc lib opt root sbin usr var /mnt --delete-during --exclude=var/lib/php/sessions --exclude=etc/fstab --exclude=etc/systemd/network/10-*.network --exclude=etc/systemd/network/*-fpp-* --exclude=root/.ssh --exclude=etc/systemd/system/sysinit.target.wants/fpp-expand-rootfs.service ${SKIPFPP}; } 2> >(tee /tmp/rsync-root.err >&2)
 ROOTRC=$?
 wait $!
 checkCopy "root filesystem" ${ROOTRC} /tmp/rsync-root.err strict

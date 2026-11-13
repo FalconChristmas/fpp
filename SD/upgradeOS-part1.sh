@@ -234,9 +234,9 @@ then
     PART2RC=$?
 elif [ "${BOOTMOUNT}" = "/boot/firmware" -a ! -d "/mnt/boot/firmware" ]
 then
-    # Downgrading from Raspbian 12 or higher to a pre-12 version without /boot/firmware.
-    # Keyed off BOOTMOUNT rather than `-d /boot/firmware` so the BBB -- which has that
-    # directory but boots from /boot -- never lands here.
+    # Downgrading to an image without /boot/firmware (pre-12 Raspbian, BBB 9.x).
+    # Keyed off BOOTMOUNT, not `-d /boot/firmware`: a BBB whose /boot/firmware is
+    # a mount (its FAT partition) does land here, one with only the stub directory does not.
     echo "Downgrading to OS version without /boot/firmware."
     echo "Passing control to upgradeOS-part2.sh from current version."
     cp /opt/fpp/SD/upgradeOS-part2.sh /home/fpp/media/tmp/upgradeOS-part2.sh
