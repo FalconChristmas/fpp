@@ -7629,22 +7629,29 @@ function UpdateCurrentEntryPlaying (index, lastIndex) {
 
 function SetIconForCurrentPlayingEntry (index) {}
 
+// A player button press that didn't land says so; the show would play on.
+function PlayerControlFailed (what) {
+	$.jGrowl('Unable to ' + what + '. The player may be busy or unreachable; try again.', {
+		themeState: 'danger'
+	});
+}
+
 function StopGracefully () {
-	$.post('api/playlists/stopgracefully')
-		.done(function () {})
-		.fail(function () {});
+	$.post('api/playlists/stopgracefully').fail(function () {
+		PlayerControlFailed('stop the playlist gracefully');
+	});
 }
 
 function StopGracefullyAfterLoop () {
-	$.post('api/playlists/stopgracefullyafterloop')
-		.done(function () {})
-		.fail(function () {});
+	$.post('api/playlists/stopgracefullyafterloop').fail(function () {
+		PlayerControlFailed('stop the playlist after this loop');
+	});
 }
 
 function StopNow () {
-	$.post('api/playlists/stop')
-		.done(function () {})
-		.fail(function () {});
+	$.post('api/playlists/stop').fail(function () {
+		PlayerControlFailed('stop the playlist');
+	});
 }
 
 function ToggleSequencePause () {

@@ -313,15 +313,15 @@
         }
 
         function PreviousPlaylistEntry() {
-            PostCommand('Prev Playlist Item')
-                .done(function () { })
-                .fail(function () { });
+            PostCommand('Prev Playlist Item').fail(function () {
+                PlayerControlFailed('go to the previous entry');
+            });
         }
 
         function NextPlaylistEntry() {
-            PostCommand('Next Playlist Item')
-                .done(function () { })
-                .fail(function () { });
+            PostCommand('Next Playlist Item').fail(function () {
+                PlayerControlFailed('go to the next entry');
+            });
         }
     </script>
 
