@@ -2675,7 +2675,7 @@
 		},
 		"MultiSyncHTTPSubnets": {
 			"name": "MultiSyncHTTPSubnets",
-			"description": "HTTP Discovery IPs &amp; subnets (CSV list)",
+			"description": "HTTP Discovery IPs & subnets (CSV list)",
 			"tip": "List of comma separated subnets or IPs to scan looking for network attached pixel controllers.  Individual IPs may be listed as either A.B.C.D/32 or just A.B.C.D.  Subnets are listed as A.B.C.D/X.  FPP will attempt to discover these controllers using the HTTP protocol over port 80.",
 			"type": "text",
 			"level": 1,

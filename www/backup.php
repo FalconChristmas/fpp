@@ -3116,29 +3116,29 @@ if ($skipHTMLCodeOutput === false) {
                                 var location_icon = '<span><i class="fas fa-sd-card"></i></span>';
                                 //
                                 //Build the onclick command for downloading the backuo
-                                var onclick_download_command = "DownloadJsonBackupFile('JsonBackups', ['" + backup_filename + "']);";
+                                var onclick_download_command = "DownloadJsonBackupFile('JsonBackups', [" + JSON.stringify(backup_filename) + "]);";
                                 //Build the onclick command for deleting the backup
-                                var onclick_delete_command = "DeleteJsonBackupFile('JsonBackups', '." + backup_filename_id + "', ['" + backup_filename + "']);";
+                                var onclick_delete_command = "DeleteJsonBackupFile('JsonBackups', '." + backup_filename_id + "', [" + JSON.stringify(backup_filename) + "]);";
 
                                 if (backup_is_in_location === true) {
                                     location_icon = '<span><i class="fas fa-hdd"></i></span>';
 
-                                    onclick_download_command = "DownloadJsonBackupFile('JsonBackupsAlternate', ['" + backup_filename + "']);";
-                                    onclick_delete_command = "DeleteJsonBackupFile('JsonBackupsAlternate', '." + backup_filename_id + "', ['" + backup_filename + "']);";
+                                    onclick_download_command = "DownloadJsonBackupFile('JsonBackupsAlternate', [" + JSON.stringify(backup_filename) + "]);";
+                                    onclick_delete_command = "DeleteJsonBackupFile('JsonBackupsAlternate', '." + backup_filename_id + "', [" + JSON.stringify(backup_filename) + "]);";
                                 }
 
                                 var backup_file_data_row = '<tr id="backup-file-id" class="' + backup_filename_id + '" > ' +
-                                    '<td  id="backup-file-date">' + location_icon + ' ' + backup_filename_meta.backup_time + '</td>' +
-                                    '<td  id="backup-file-configuration-change">' + backup_filename_meta.backup_comment + '</td>' +
+                                    '<td  id="backup-file-date">' + location_icon + ' ' + EscapeHtml(backup_filename_meta.backup_time) + '</td>' +
+                                    '<td  id="backup-file-configuration-change">' + EscapeHtml(backup_filename_meta.backup_comment) + '</td>' +
                                     '<td id="backup-file-configuration-actions">' +
 
                                     //Button to Download the Backup
-                                    '<button name="btnDownloadConfig_' + backup_filename_id + '" type="button" class="buttons downloadConfigButton" value="Download Backup" onClick="' + onclick_download_command + '"> ' +
+                                    '<button name="btnDownloadConfig_' + backup_filename_id + '" type="button" class="buttons downloadConfigButton" value="Download Backup" onClick="' + EscapeHtmlAttr(onclick_download_command) + '"> ' +
                                     '<i class="fas fa-fw fa-download"></i> ' +
                                     '</button>' +
 
                                     //Button to delete the backup
-                                    '<button name="btnDeleteConfig_' + backup_filename_id + '" type="button" class="buttons deleteConfigButton" value="Delete Backup" onclick="' + onclick_delete_command + '"> ' +
+                                    '<button name="btnDeleteConfig_' + backup_filename_id + '" type="button" class="buttons deleteConfigButton" value="Delete Backup" onclick="' + EscapeHtmlAttr(onclick_delete_command) + '"> ' +
                                     '<i class="fas fa-fw fa-trash"></i> ' +
                                     '</button>' +
 
@@ -3190,23 +3190,23 @@ if ($skipHTMLCodeOutput === false) {
                         //By default
                         var location_icon = '<span><i class="fas fa-sd-card"></i></span>';
                         //
-                        var onclick_restore_command = "RestoreJsonBackup('JsonBackups', ['" + backup_filename + "'], '." + backup_filename_id + "');";
+                        var onclick_restore_command = "RestoreJsonBackup('JsonBackups', [" + JSON.stringify(backup_filename) + "], '." + backup_filename_id + "');";
 
                         //Build the onclick command for restoreing the backuo
                         if (backup_is_in_location === true) {
                             location_icon = '<span><i class="fas fa-hdd"></i></span>';
-                            onclick_restore_command = "RestoreJsonBackup('JsonBackupsAlternate', ['" + backup_filename + "'], '." + backup_filename_id + "');";
+                            onclick_restore_command = "RestoreJsonBackup('JsonBackupsAlternate', [" + JSON.stringify(backup_filename) + "], '." + backup_filename_id + "');";
                         }
                         //Build the onclick command for deleting the backup
                         // var onclick_delete_command = "DeleteFile('JsonBackups', '." + backup_filename_id + "', ['" + backup_filename + "']);"
 
                         var backup_file_data_row = '<tr id="backup-file-id" class="' + backup_filename_id + '" > ' +
-                            '<td  id="backup-file-date">' + location_icon + ' ' + backup_filename_meta.backup_time + '</td>' +
-                            '<td  id="backup-file-configuration-change">' + backup_filename_meta.backup_comment + '</td>' +
+                            '<td  id="backup-file-date">' + location_icon + ' ' + EscapeHtml(backup_filename_meta.backup_time) + '</td>' +
+                            '<td  id="backup-file-configuration-change">' + EscapeHtml(backup_filename_meta.backup_comment) + '</td>' +
                             '<td id="backup-file-configuration-actions">' +
 
                             //Button to restore the Backup
-                            '<button name="btnrestoreConfig_' + backup_filename_id + '" type="button" class="buttons restoreJsonConfigActionButton" value="Restore Backup" onClick="' + onclick_restore_command + '"> ' +
+                            '<button name="btnrestoreConfig_' + backup_filename_id + '" type="button" class="buttons restoreJsonConfigActionButton" value="Restore Backup" onClick="' + EscapeHtmlAttr(onclick_restore_command) + '"> ' +
                             '<i class="fas fa-fw fa-undo"></i> ' +
                             '</button>' +
 
