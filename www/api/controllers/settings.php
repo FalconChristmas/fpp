@@ -211,13 +211,14 @@ function PutSetting()
     } else if ($setting == "storageDevice") {
         if ($settings['BeaglePlatform']) {
             exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
-            $rootDevice = $output[0];
-            unset($output);
         } else {
             exec('lsblk -l | grep " /$" | cut -f1 -d" "', $output, $return_val);
-            $rootDevice = $output[0];
-            unset($output);
         }
+        // exec() leaves $output empty when the command fails, so $output[0] is
+        // not a safe read.  Trim the answer too: some platforms pad it or end
+        // it with a carriage return, which would defeat the comparison below.
+        $rootDevice = isset($output[0]) ? trim($output[0]) : '';
+        unset($output);
         $mediaOnRoot = ($value == "--none--");
         if ($mediaOnRoot) {
             $value = $rootDevice;
@@ -228,14 +229,14 @@ function PutSetting()
             $value = preg_replace('/[^A-Za-z0-9]/', '', $value);
             $fsckOrder = "0";
             exec($SUDO . " file -sL /dev/$value | grep FAT", $output, $return_val);
-            if ($output[0] == "") {
+            if (($output[0] ?? '') === '') {
                 unset($output);
                 exec($SUDO . " file -sL /dev/$value | grep BTRFS", $output, $return_val);
 
-                if ($output[0] == "") {
+                if (($output[0] ?? '') === '') {
                     unset($output);
                     exec($SUDO . " file -sL /dev/$value | grep DOS", $output, $return_val);
-                    if ($output[0] == "") {
+                    if (($output[0] ?? '') === '') {
                         # probably ext4
                         $options = "defaults,noatime,nodiratime,nofail";
                         $fsckOrder = "2";
@@ -261,6 +262,10 @@ function PutSetting()
         }
         if ($mediaOnRoot || ($rootDevice !== "" && $value === $rootDevice)) {
             exec($SUDO . " sed -i 's/.*home\/fpp\/media/#\/dev\/sda1    \/home\/fpp\/media/' /etc/fstab", $output, $return_val);
+        } else if ($value === '') {
+            // The name sanitized to nothing; /dev/ is not a device and would
+            // replace the media mount with a line the kernel cannot mount.
+            error_log('PutSetting: empty storage device; leaving /etc/fstab unchanged');
         } else {
             exec($SUDO . " sed -i 's/.*home\/fpp\/media.*/\/dev\/$value	\/home\/fpp\/media	auto	$options	0	$fsckOrder /' /etc/fstab", $output, $return_val);
         }
