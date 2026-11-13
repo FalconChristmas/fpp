@@ -355,6 +355,11 @@ flush();
 session_write_close();
 
 if ($applyUpdate && ($return_code == 0)) {
+    # End the response now: the sysrq reboot below never closes it.
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+    }
+
     sleep(3);
 
     # Flush the log (and anything else still dirty) before the sysrq reboot

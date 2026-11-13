@@ -478,8 +478,8 @@ function RemoteJobIsFailureLine($line)
  * Stream a remote "wrapped" page (manualUpdate.php, upgradeOS.php) into the
  * job's output, failing the job if the page reports a failure.  A connection
  * that drops after the page started answering is not a failure: an upgrade
- * can restart the remote's web server, and an OS upgrade reboots before it
- * closes the response.
+ * can restart the remote's web server, and an older FPP's OS upgrade
+ * reboots before it closes the response.
  */
 function RemoteJobStreamPage($host, $path, callable $out)
 {
