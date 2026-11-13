@@ -599,10 +599,15 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
             }
         }
 
+        // Save would write the table over the saved models, so it stays off
+        // until they are on the page.
+        var memMapsLoaded = false;
+
         function GetChannelMemMaps() {
             $.get("api/overlays/models", function (data) {
                 updateOverlayEffectMap(data);
                 PopulateChannelMemMapTable(data);
+                memMapsLoaded = true;
             }).fail(function () {
                 DialogError("Load Pixel Overlay Models", "Load Failed, is fppd running?");
             });
@@ -621,6 +626,10 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
         }
 
         function SetChannelMemMaps() {
+            if (!memMapsLoaded) {
+                DialogError("Save Pixel Overlay Models", "Models were not loaded; reload the page once fppd is running before saving.");
+                return;
+            }
             var postData = "";
             var dataError = 0;
             var data = {};
@@ -666,7 +675,7 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                                 } else {
                                     dataError = 1;
                                     // FIXME, put in some more info here, highlight bad field, etc.
-                                    alert("MemMap '" + model.BlockName + "' starting at channel '" + model.StartChannel + "' containing '" + model.ChannelCount + "' channel(s) is not valid.");
+                                    alert("MemMap '" + model.Name + "' starting at channel '" + model.StartChannel + "' containing '" + model.ChannelCount + "' channel(s) is not valid.");
                                     return;
                                 }
                             }
@@ -697,7 +706,7 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
                 } else {
                     dataError = 1;
                     // FIXME, put in some more info here, highlight bad field, etc.
-                    alert("MemMap '" + model.BlockName + "' starting at channel '" + model.StartChannel + "' containing '" + model.ChannelCount + "' channel(s) is not valid.");
+                    alert("MemMap '" + model.Name + "' starting at channel '" + model.StartChannel + "' containing '" + model.ChannelCount + "' channel(s) is not valid.");
                     return;
                 }
             });
