@@ -1150,9 +1150,9 @@
 
         PopulateHTMLRow(config) {
             var result = super.PopulateHTMLRow(config);
-            var clock = GPIOPins[0];
-            var data = GPIOPins[0];
-            var latch = GPIOPins[0];
+            var clock = GPIOPins.keys().next().value;
+            var data = clock;
+            var latch = clock;
             var description = "";
             if (config.clockPin != undefined) {
                 clock = config.clockPin;
@@ -1178,9 +1178,9 @@
 
         GetOutputConfig(result, cell) {
             result = super.GetOutputConfig(result, cell);
-            result.clockPin = parseInt(cell.find("select.clock").val());
-            result.dataPin = parseInt(cell.find("select.data").val());
-            result.latchPin = parseInt(cell.find("select.latch").val());
+            result.clockPin = cell.find("select.clock").val();
+            result.dataPin = cell.find("select.data").val();
+            result.latchPin = cell.find("select.latch").val();
             result.description = cell.find("input.description").val();
             return result;
         }
