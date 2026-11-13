@@ -961,6 +961,7 @@ function playlist_delete()
  * ```json
  * {"Status": "OK", "Message": ""}
  * ```
+ * @response 500 The playlist file is not valid JSON; it is left as it is
  */
 function PlaylistSectionInsertItem()
 {
@@ -979,6 +980,11 @@ function PlaylistSectionInsertItem()
     if (file_exists($filename)) {
         $json = file_get_contents($filename, LOCK_SH);
         $playlist = json_decode($json, true);
+        if (!is_array($playlist)) {
+            // a file cut short: leave what is there rather than replace it with this one item
+            http_response_code(500);
+            return json(array('Status' => 'Error', 'Message' => 'Could not read playlist ' . $playlistName . '.'));
+        }
 
         if (!isset($playlist[$sectionName])) {
             $section = array();
