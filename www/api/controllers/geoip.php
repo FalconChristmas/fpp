@@ -113,6 +113,12 @@ function GetGeoIP()
     if ($tzHint !== '') {
         $j['timezone'] = $tzHint;
     }
+    // Browsers report legacy names (Asia/Calcutta) that the Time Zone list
+    // lacks without tzdata-legacy; answer with the name they link to.
+    if (isset($j['timezone']) && is_string($j['timezone']) && $j['timezone'] !== '' &&
+        strpos($j['timezone'], '..') === false && !is_file('/usr/share/zoneinfo/' . $j['timezone'])) {
+        $j['timezone'] = CanonicalTimeZone($j['timezone']);
+    }
 
     $j['fpp'] = GeoIPSuggestedSettingsWithCoords($j);
     if (isset($j['fpp']['Latitude']) && !isset($j['latitude'])) {
@@ -306,6 +312,32 @@ function GeoIPSuggestedSettingsWithCoords($j)
 }
 
 /**
+ * The canonical name of a time zone tzdata keeps as a link
+ * ("Asia/Calcutta" -> "Asia/Kolkata"), from tzdata.zi's "L <target> <name>"
+ * lines, or the name as given.
+ *
+ * @param string $tz IANA zone name.
+ * @return string
+ */
+function CanonicalTimeZone($tz)
+{
+    static $links = null;
+    if ($links === null) {
+        $links = array();
+        $zi = '/usr/share/zoneinfo/tzdata.zi';
+        if (is_readable($zi)) {
+            foreach (file($zi, FILE_IGNORE_NEW_LINES) as $line) {
+                $cols = explode(' ', $line);
+                if (count($cols) === 3 && $cols[0] === 'L') {
+                    $links[$cols[2]] = $cols[1];
+                }
+            }
+        }
+    }
+    return isset($links[$tz]) ? $links[$tz] : $tz;
+}
+
+/**
  * Approximate coordinates for an IANA time zone, from tzdata's own zone.tab.
  *
  * This is the offline half of the location lookup: the file ships with the
@@ -332,6 +364,18 @@ function TimeZoneCoordinates($tz)
     if (!is_readable($f)) {
         return array();
     }
+    // zone.tab has rows for some link names (Arctic/Longyearbyen), with their
+    // own coordinates: the name as given first, then the zone it links to.
+    $c = ZoneTabCoordinates($f, $tz);
+    $canonical = CanonicalTimeZone($tz);
+    if (empty($c) && $canonical !== $tz) {
+        $c = ZoneTabCoordinates($f, $canonical);
+    }
+    return $c;
+}
+
+function ZoneTabCoordinates($f, $tz)
+{
     foreach (file($f) as $line) {
         if ($line === '' || $line[0] === '#') {
             continue;

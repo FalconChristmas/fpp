@@ -4365,7 +4365,14 @@ function SetFromGeoIP (selector, value) {
 	if (value === undefined || value === null || value === '') {
 		return;
 	}
-	$(selector).val(value).change();
+	var $el = $(selector);
+	// .val() of a missing option empties a select, and its change saves "null".
+	if ($el.is('select') && !$el.find('option').filter(function () {
+		return this.value === String(value);
+	}).length) {
+		return;
+	}
+	$el.val(value).change();
 }
 
 /**
@@ -4536,7 +4543,6 @@ function FlagApproximateCoords () {
 
 function GeoIPLocalFallback (label, wantCoords) {
 	var hints = BrowserLocaleHints();
-	SetFromGeoIP('#TimeZone', hints.timezone);
 
 	if (!hints.country && !hints.timezone) {
 		DialogError(label, 'Lookup failed, and this browser could not tell us anything about where it is either.');
@@ -4553,6 +4559,8 @@ function GeoIPLocalFallback (label, wantCoords) {
 
 	$.get(q)
 		.done(function (data) {
+			// data.timezone is the name the list has (Asia/Calcutta -> Asia/Kolkata)
+			SetFromGeoIP('#TimeZone', data.timezone || hints.timezone);
 			ApplyGeoIPSettings(data);
 			// This succeeded, so say so plainly rather than through the error
 			// dialog. What the user needs to know is WHERE the answer came from,
@@ -4579,6 +4587,7 @@ function GeoIPLocalFallback (label, wantCoords) {
 			DialogOK(label, note);
 		})
 		.fail(function () {
+			SetFromGeoIP('#TimeZone', hints.timezone);
 			DialogError(label, 'Lookup failed and the fallback could not be applied.');
 		});
 }
