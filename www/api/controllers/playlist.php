@@ -601,6 +601,7 @@ function playlist_insert()
         //Trigger a JSON Configuration Backup
         GenerateBackupViaAPI('Playlist ' . $playlistName . ' was created.');
     } else {
+        http_response_code(500);
         $playlist['Status'] = 'Error';
         $playlist['Message'] = 'Unable to open file for writing';
     }
@@ -870,6 +871,7 @@ function playlist_update()
         //Trigger a JSON Configuration Backup
         GenerateBackupViaAPI('Playlist ' . $playlistName . ' was updated.');
     } else {
+        http_response_code(500);
         $playlist['Status'] = 'Error';
         $playlist['Message'] = 'Unable to open file for writing';
     }

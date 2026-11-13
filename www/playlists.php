@@ -27,6 +27,16 @@
 
     <script>
         console.log('Playlists.php loaded - version 2025-12-29-v2');
+        // Without case: a FAT/exFAT or macOS media drive folds it.
+        function PlaylistNameInUse(newName) {
+            var n = newName.toLowerCase();
+            for (var i = 0; i < playListArray.length; i++) {
+                if (playListArray[i].name.toLowerCase() === n)
+                    return true;
+            }
+            return false;
+        }
+
         function CopyPlaylist() {
             var name = $('#txtPlaylistName').val();
 
@@ -48,6 +58,11 @@
 
                         if (name == new_playlist_name) {
                             DialogError('Error, same name given', 'Identical name given.');
+                            return;
+                        }
+
+                        if (PlaylistNameInUse(new_playlist_name)) {
+                            DialogError('Playlist Name in Use', 'A playlist named "' + EscapeHtml(new_playlist_name) + '" already exists. Delete it first to copy over it.');
                             return;
                         }
 
@@ -91,8 +106,25 @@
                     "Rename": function () {
                         var new_playlist_name = $("#RenamePlaylistDialog").find(".newPlaylistName").val();
 
+                        if (new_playlist_name === "") {
+                            DialogError('No name given', 'The playlist name cannot be empty.');
+                            return;
+                        }
+
                         if (name == new_playlist_name) {
                             DialogError('Error, same name given', 'Identical name given.');
+                            return;
+                        }
+
+                        // A change of case only would save over the same file
+                        // on a case-folding drive, then delete it.
+                        if (new_playlist_name.toLowerCase() === name.toLowerCase()) {
+                            DialogError('Name differs only in case', 'A rename that changes only upper/lower case is not supported.');
+                            return;
+                        }
+
+                        if (PlaylistNameInUse(new_playlist_name)) {
+                            DialogError('Playlist Name in Use', 'A playlist named "' + EscapeHtml(new_playlist_name) + '" already exists. Delete it first to rename onto it.');
                             return;
                         }
 
@@ -440,16 +472,7 @@
                                     DialogError('No name given', 'The playlist name cannot be empty.');
                                     return;
                                 }
-                                //check if playlist name already in use
-                                var playlistName = $("#txtAddPlaylistName").val();
-                                var existingPlaylist = null;
-                                for (var i = 0; i < playListArray.length; i++) {
-                                    if (playListArray[i].name === playlistName) {
-                                        existingPlaylist = playListArray[i];
-                                        break;
-                                    }
-                                }
-                                if (existingPlaylist) {
+                                if (PlaylistNameInUse($("#txtAddPlaylistName").val())) {
                                     DialogError('Playlist Name in Use', 'The playlist name already exists.');
                                     return;
                                 }

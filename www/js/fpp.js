@@ -4246,6 +4246,7 @@ function SavePlaylistAs (name, options, callback) {
 	pl.playlistInfo = playlistInfo;
 
 	var str = JSON.stringify(pl, true);
+	var saved = false;
 	$.ajax({
 		url: 'api/playlist/' + encodeURIComponent(name),
 		type: 'POST',
@@ -4254,6 +4255,12 @@ function SavePlaylistAs (name, options, callback) {
 		async: false,
 		dataType: 'json',
 		success: function (data) {
+			// Older players answer a failed write with 200 and Status Error.
+			if (data && data.Status === 'Error') {
+				DialogError('Unable to save playlist', 'Error: ' + EscapeHtml(data.Message || 'Unable to save playlist.'));
+				return;
+			}
+			saved = true;
 			var rowSelected = $('#tblPlaylistDetails').find(
 				'.playlistSelectedEntry'
 			).length;
@@ -4290,7 +4297,7 @@ function SavePlaylistAs (name, options, callback) {
 		}
 	});
 
-	return 1;
+	return saved ? 1 : 0;
 }
 
 function RandomizePlaylistEntries () {
