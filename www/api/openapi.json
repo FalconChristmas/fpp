@@ -2535,6 +2535,21 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "A file named `:dest` already exists; nothing was changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "File exists",
+                  "original": "test.py",
+                  "new": "test2.py"
+                }
+              }
+            }
           }
         }
       }
@@ -2582,6 +2597,21 @@
                 },
                 "example": {
                   "status": "success",
+                  "original": "test.py",
+                  "new": "test2.py"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A file named `:dest` already exists; nothing was changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "status": "File exists",
                   "original": "test.py",
                   "new": "test2.py"
                 }

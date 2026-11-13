@@ -118,6 +118,10 @@ function FilesValidatePathOrFail($baseDir, $requested, $allowMissingParent = fal
  *   "new": "test2.py"
  * }
  * ```
+ * @response 409 A file named `:dest` already exists; nothing was changed
+ * ```json
+ * {"status": "File exists", "original": "test.py", "new": "test2.py"}
+ * ```
  */
 function files_copy()
 {
@@ -136,6 +140,11 @@ function files_copy()
     }
     $srcPath = FilesValidatePathOrFail($dir, $filename);
     $dstPath = FilesValidatePathOrFail($dir, $newfilename, true);
+
+    if (file_exists($dstPath)) {
+        http_response_code(409);
+        return json(array("status" => "File exists", "original" => $filename, "new" => $newfilename));
+    }
 
     $result = array();
 
@@ -166,6 +175,10 @@ function files_copy()
  *   "new": "test2.py"
  * }
  * ```
+ * @response 409 A file named `:dest` already exists; nothing was changed
+ * ```json
+ * {"status": "File exists", "original": "test.py", "new": "test2.py"}
+ * ```
  */
 function files_rename()
 {
@@ -183,6 +196,13 @@ function files_rename()
     }
     $srcPath = FilesValidatePathOrFail($dir, $filename);
     $dstPath = FilesValidatePathOrFail($dir, $newfilename, true);
+
+    // Allowed only when it is the source itself: a change of case on a
+    // case-folding drive (FAT/exFAT, macOS).
+    if (file_exists($dstPath) && @fileinode($dstPath) !== @fileinode($srcPath)) {
+        http_response_code(409);
+        return json(array("status" => "File exists", "original" => $filename, "new" => $newfilename));
+    }
 
     $result = array();
 

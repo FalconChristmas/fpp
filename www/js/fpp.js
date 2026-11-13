@@ -9804,6 +9804,14 @@ function PlayFileInBrowser (dir, file) {
 	});
 }
 
+function FileCopyRenameError (data, newFile) {
+	if (data && data.status == 'File exists')
+		return 'A file named "' + EscapeHtml(newFile) + '" already exists. Delete or rename it first.';
+	if (data && data.status && data.status != 'failure')
+		return 'Error: ' + EscapeHtml(data.status);
+	return 'Error: the file could not be written.';
+}
+
 function CopyFile (dir, file) {
 	var newFile = prompt('New Filename:', file);
 	if (newFile != null) {
@@ -9818,10 +9826,10 @@ function CopyFile (dir, file) {
 		$.post(url, '')
 			.done(function (data) {
 				if (data.status == 'success') GetFiles(dir);
-				else DialogError('File Copy Failed', 'Error: File Copy failed.');
+				else DialogError('File Copy Failed', FileCopyRenameError(data, newFile));
 			})
-			.fail(function () {
-				DialogError('File Copy Failed', 'Error: File Copy failed.');
+			.fail(function (xhr) {
+				DialogError('File Copy Failed', FileCopyRenameError(xhr.responseJSON, newFile));
 			});
 	}
 }
@@ -9840,10 +9848,10 @@ function RenameFile (dir, file) {
 		$.post(url, '')
 			.done(function (data) {
 				if (data.status == 'success') GetFiles(dir);
-				else DialogError('File Rename Failed', 'Error: File Rename failed.');
+				else DialogError('File Rename Failed', FileCopyRenameError(data, newFile));
 			})
-			.fail(function () {
-				DialogError('File Rename Failed', 'Error: File Rename failed.');
+			.fail(function (xhr) {
+				DialogError('File Rename Failed', FileCopyRenameError(xhr.responseJSON, newFile));
 			});
 	}
 }
