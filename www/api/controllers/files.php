@@ -1048,6 +1048,8 @@ function MoveFile()
                 $status = "ERROR: Couldn't move sequence file";
                 return json(array("status" => $status));
             }
+            // older than this upload: fppd would swap it in on the next open
+            @unlink($sequenceDirectory . '/' . $file . '.replace');
         } else if (preg_match("/\.(fseq.gz)$/i", $file)) {
             if (!rename($uploadDirectory . "/" . $file, $sequenceDirectory . '/' . $file)) {
                 $status = "ERROR: Couldn't move sequence file";
@@ -1055,6 +1057,7 @@ function MoveFile()
             }
             $nfile = $file;
             exec("$SUDO gunzip -f " . escapeshellarg($sequenceDirectory . "/" . $nfile));
+            @unlink($sequenceDirectory . '/' . preg_replace('/\.gz$/i', '', $file) . '.replace');
         } else if (preg_match("/\.(eseq)$/i", $file)) {
             if (!rename($uploadDirectory . "/" . $file, $effectDirectory . '/' . $file)) {
                 $status = "ERROR: Couldn't move effect file";
@@ -1784,6 +1787,10 @@ function PatchFileAssemble($fullPath, $offsets, $length)
     if ($error !== null && $outPath !== $fullPath) {
         // never leave a partial replacement for fppd to swap in
         @unlink($outPath);
+    }
+    if ($error === null && $outPath === $fullPath) {
+        // one left by an earlier upload is older than this one
+        @unlink($fullPath . '.replace');
     }
     return $error;
 }

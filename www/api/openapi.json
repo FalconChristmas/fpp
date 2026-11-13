@@ -9143,7 +9143,7 @@
           "sequence"
         ],
         "summary": "Uploads sequence file",
-        "description": "Uploads a new `*.fseq` sequence file.",
+        "description": "Uploads a new `*.fseq` sequence file. It replaces a sequence of the same name only once all of it has arrived; one that is playing carries on with the old version until it is next opened.",
         "requestBody": {
           "content": {
             "text/plain": {
@@ -9165,6 +9165,48 @@
                 "example": {
                   "Status": "OK",
                   "Message": ""
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request was empty or cut off, or the name is invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "Error",
+                  "Message": "The request held no sequence data."
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A directory of that name is in the way",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "Error",
+                  "Message": "A directory of that name is in the way."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The sequence could not be written",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "Status": "Error",
+                  "Message": "Could not store the sequence."
                 }
               }
             }

@@ -132,13 +132,27 @@ function GetSequenceMetaData()
 /**
  * Uploads sequence file
  *
- * Uploads a new `*.fseq` sequence file.
+ * Uploads a new `*.fseq` sequence file. It replaces a sequence of the same
+ * name only once all of it has arrived; one that is playing carries on with
+ * the old version until it is next opened.
  *
  * @route POST /api/sequence/{SequenceName}
  * @body "(Raw FSEQ file data)"
  * @response 200 Sequence uploaded
  * ```json
  * {"Status": "OK", "Message": ""}
+ * ```
+ * @response 400 The request was empty or cut off, or the name is invalid
+ * ```json
+ * {"Status": "Error", "Message": "The request held no sequence data."}
+ * ```
+ * @response 409 A directory of that name is in the way
+ * ```json
+ * {"Status": "Error", "Message": "A directory of that name is in the way."}
+ * ```
+ * @response 500 The sequence could not be written
+ * ```json
+ * {"Status": "Error", "Message": "Could not store the sequence."}
  * ```
  */
 function PostSequence()
@@ -155,20 +169,83 @@ function PostSequence()
         return json(array('Status' => 'Error', 'Message' => 'Invalid sequence name.'));
     }
     $file = $dir . '/' . $name;
-
-    $putdata = fopen("php://input", "r");
-    $fp = fopen($file, "w");
-    while ($data = fread($putdata, 1024 * 16)) {
-        fwrite($fp, $data);
+    if (is_dir($file)) {
+        return PostSequenceError(409, 'A directory of that name is in the way.');
     }
-    fclose($fp);
-    fclose($putdata);
 
-    $resp = array();
-    $resp['Status'] = 'OK';
-    $resp['Message'] = '';
+    // fppd and the chunked upload look for <name>.replace beside the name.
+    $replacement = $file . '.replace';
 
-    return json($resp);
+    // A sequence linked in from elsewhere (USB media) is replaced where it lives.
+    if (is_link($file) && ($real = realpath($file)) !== false) {
+        $file = $real;
+    }
+
+    // Written beside the target and renamed over it, so a request that is
+    // empty, cut off or can't be written leaves the existing file alone, and
+    // fppd keeps reading the old file if it has it open.
+    $tmp = dirname($file) . '/.' . basename($file) . '.upload.' . getmypid();
+    register_shutdown_function(function () use ($tmp) {
+        @unlink($tmp);
+    });
+    $in = fopen("php://input", "rb");
+    $out = @fopen($tmp, "wb");
+    if ($in === false || $out === false) {
+        return PostSequenceError(500, 'Could not open the sequence for writing.');
+    }
+    $size = 0;
+    $ok = true;
+    while (!feof($in)) {
+        $data = fread($in, 1024 * 64);
+        if ($data === false || ($data !== '' && fwrite($out, $data) !== strlen($data))) {
+            $ok = false;
+            break;
+        }
+        $size += strlen($data);
+    }
+    fclose($in);
+    if ($ok && function_exists('fsync')) {
+        $ok = fsync($out);
+    }
+    if (!fclose($out) || !$ok) {
+        @unlink($tmp);
+        return PostSequenceError(500, 'Could not write the sequence: the disk may be full (an upload needs room for a second copy until it replaces the old one).');
+    }
+    $expected = isset($_SERVER['CONTENT_LENGTH']) && $_SERVER['CONTENT_LENGTH'] !== '' ? (int) $_SERVER['CONTENT_LENGTH'] : -1;
+    if ($expected > 0 && $size != $expected) {
+        @unlink($tmp);
+        if ($size > 0) {
+            return PostSequenceError(400, "The upload was cut off ($size of $expected bytes arrived).");
+        }
+        if (stripos($_SERVER['CONTENT_TYPE'] ?? '', 'multipart/') === 0) {
+            return PostSequenceError(400, 'Send the sequence file itself as the request body, not as a form.');
+        }
+        return PostSequenceError(400, 'No sequence data arrived; it may be larger than the upload limit (' . ini_get('post_max_size') . ').');
+    }
+    if ($size == 0) {
+        @unlink($tmp);
+        return PostSequenceError(400, 'The request held no sequence data.');
+    }
+
+    if (file_exists($file)) {
+        @chmod($tmp, fileperms($file) & 0777);
+    }
+    if (!rename($tmp, $file)) {
+        @unlink($tmp);
+        return PostSequenceError(500, 'Could not store the sequence.');
+    }
+    // fppd swaps a <name>.replace in when it next opens the sequence; one left
+    // by an earlier upload is older than this one.
+    @unlink($replacement);
+    @unlink($file . '.replace');
+
+    return json(array('Status' => 'OK', 'Message' => ''));
+}
+
+function PostSequenceError($code, $message)
+{
+    http_response_code($code);
+    return json(array('Status' => 'Error', 'Message' => $message));
 }
 
 /**
