@@ -1719,8 +1719,9 @@ function PatchFileAddChunk($dir, $dirName, $fileName, $fullPath, $partPath, $off
 
 /**
  * Concatenates the patches (sorted offsets) into the target. A sequence that
- * fppd has locked is written to <name>.replace, which fppd swaps in when it
- * next opens the file. Returns null on success or an error message.
+ * fppd has locked is assembled as <name>.replace.part and renamed to
+ * <name>.replace, which fppd swaps in when it next opens or closes the
+ * sequence. Returns null on success or an error message.
  */
 function PatchFileAssemble($fullPath, $offsets, $length)
 {
@@ -1738,7 +1739,9 @@ function PatchFileAssemble($fullPath, $offsets, $length)
             if (!str_ends_with($fullPath, ".fseq")) {
                 return "Could not lock file for writing";
             }
-            $outPath = $fullPath . '.replace';
+            // fppd swaps <name>.replace in as soon as it sees one, so it is
+            // written under another name and renamed once it is complete
+            $outPath = $fullPath . '.replace.part';
             $out = fopen($outPath, 'w+b');
             if ($out === false) {
                 return "Could not open file for writing";
@@ -1783,6 +1786,9 @@ function PatchFileAssemble($fullPath, $offsets, $length)
     flock($out, LOCK_UN);
     if (!fclose($out) && $error === null) {
         $error = "Could not write file (disk full?)";
+    }
+    if ($error === null && $outPath !== $fullPath && !rename($outPath, $fullPath . '.replace')) {
+        $error = "Could not store the file";
     }
     if ($error !== null && $outPath !== $fullPath) {
         // never leave a partial replacement for fppd to swap in
