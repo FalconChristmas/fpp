@@ -34,6 +34,8 @@ public:
     virtual int Init(Json::Value config) override;
     virtual int Close(void) override;
 
+    virtual void StoppingOutput() override;
+
     virtual void PrepData(unsigned char* channelData) override;
     virtual int SendData(unsigned char* channelData) override;
 
@@ -53,6 +55,7 @@ private:
 
     bool InitializeWS281x(void);
     void CopyShadowToAllPages(void);
+    void SendBlankFrame(void);
     int IdleFpsFromSetting(void);
 
     std::string device = "DPI-1";
@@ -101,6 +104,10 @@ private:
     int m_currentFps = 0;       // last rate applied to the framebuffer
     int m_idleFps = 20;         // 1000 / E131BridgingInterval, kept current by a settings listener
     bool m_initialized = false; // gates runtime rate control (off during Init/Close)
+    // True while the shadow page holds a deliberate shutdown blank.  Lets
+    // StoppingOutput() and Close() both ask for a blank without scanning and
+    // sleeping for it twice when they run back to back.
+    bool m_blankLatched = false;
     // GetTime() when output went idle, for the settle window in PrepData().
     // 0 means "a sequence is running, or none has stopped yet".
     long long m_idleSinceUS = 0;

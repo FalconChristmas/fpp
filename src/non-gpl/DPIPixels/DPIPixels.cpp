@@ -694,22 +694,12 @@ int DPIPixelsOutput::Close(void) {
     // trigger a modeset while we're tearing down.
     m_initialized = false;
 
-    // Send blank WS281x data to clear latched pixels before shutdown
-    if (fb && pixelStrings.size() > 0 && protocol == "ws2811") {
-        std::vector<unsigned char> blankData(FPPD_MAX_CHANNELS, 0);
-        PrepData(blankData.data());
-        // Deliberately write both pages, the live one included: at shutdown
-        // there is no flip coming, so the blank reaches the wire only by
-        // overwriting whatever the DPI is scanning.  Tearing is harmless here
-        // (both halves of a torn frame are dark or about to be), and this is
-        // the one place the "never write the page being scanned" rule is
-        // waived - see CopyShadowToAllPages().  Then wait two full scans at
-        // the live rate so the last frame out is entirely the blank one.
-        CopyShadowToAllPages();
-        fbPage = 0;
-        int periodMS = m_currentFps > 0 ? (1000 / m_currentFps) : 50;
-        std::this_thread::sleep_for(std::chrono::milliseconds(2 * periodMS + 10));
-    }
+    // Send blank WS281x data to clear latched pixels before shutdown.  Usually
+    // StoppingOutput() already did this when the output thread stopped; that
+    // call is what covers a shutdown slow enough for fppd_stop to kill.  This
+    // second one covers the paths where the thread never ran (or never sent a
+    // frame), so the pins are still released on a dark frame.
+    SendBlankFrame();
 
     // Reconfigure DPI pins back to GPIO input
     for (const auto& pinName : m_configuredDPIPins) {
@@ -725,6 +715,52 @@ int DPIPixelsOutput::Close(void) {
         PixelOverlayManager::INSTANCE.removeAutoOverlayModel(n);
     }
     return ChannelOutput::Close();
+}
+
+void DPIPixelsOutput::StoppingOutput() {
+    // The output thread has sent its last frame and is about to exit.  A
+    // WS281x string latches its last data until the next frame, and the
+    // teardown that follows StopChannelOutputThread() (FPPD_STOPPED presets,
+    // scheduled commands, media shutdown, then CloseChannelOutputs()) can take
+    // seconds.  A shutdown killed in that window used to leave the DPI stream
+    // scanning the last lit frame for the rest of shutdown and the whole next
+    // boot (issue #2895).  Blank here, on the output thread before it exits,
+    // so the strings are dark as soon as playback stops.  This runs under
+    // outputThreadLock and before Cleanup(), so PrepData() is still safe.
+    SendBlankFrame();
+}
+
+void DPIPixelsOutput::SendBlankFrame(void) {
+    if (!fb || pixelStrings.empty() || protocol != "ws2811") {
+        return;
+    }
+    if (m_blankLatched) {
+        return;
+    }
+
+    // PrepData() computes the running rate and can modeset.  Teardown must not
+    // change modes, so suppress that while the blank is built, then restore it:
+    // StoppingOutput() can be followed by a replacement output thread (an
+    // OUTPUTS_DISABLED preset that restarts), which must keep rate control.
+    bool wasInitialized = m_initialized;
+    m_initialized = false;
+
+    std::vector<unsigned char> blankData(FPPD_MAX_CHANNELS, 0);
+    PrepData(blankData.data());
+    // Deliberately write both pages, the live one included: at shutdown there
+    // is no flip coming, so the blank reaches the wire only by overwriting
+    // whatever the DPI is scanning.  Tearing is harmless here (both halves of
+    // a torn frame are dark or about to be), and this is the one place the
+    // "never write the page being scanned" rule is waived - see
+    // CopyShadowToAllPages().  Then wait two full scans at the live rate so
+    // the last frame out is entirely the blank one.
+    CopyShadowToAllPages();
+    fbPage = 0;
+    int periodMS = m_currentFps > 0 ? (1000 / m_currentFps) : 50;
+    std::this_thread::sleep_for(std::chrono::milliseconds(2 * periodMS + 10));
+
+    m_initialized = wasInitialized;
+    m_blankLatched = true;
 }
 
 void DPIPixelsOutput::GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) {
@@ -759,6 +795,10 @@ void DPIPixelsOutput::OverlayTestData(unsigned char* channelData, int cycleNum, 
 }
 
 void DPIPixelsOutput::PrepData(unsigned char* channelData) {
+    // Any frame prepared here is real data, not the deliberate shutdown blank
+    // that SendBlankFrame() latches.
+    m_blankLatched = false;
+
     // Match the DPI output rate to the running sequence, capped by what the
     // longest string physically allows.  A change only happens when a sequence
     // with a different frame rate starts, so the (brief) modeset is rare.
