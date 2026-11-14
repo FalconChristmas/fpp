@@ -246,6 +246,8 @@ bool DPIPixelsOutput::LoadStringConfig(const std::string& subType, Json::Value& 
 int DPIPixelsOutput::Init(Json::Value config) {
     LogDebug(VB_CHANNELOUT, "DPIPixelsOutput::Init(JSON)\n");
 
+    m_blankLatched = false;
+
     std::string subType = config["subType"].asString();
     if (subType == "") {
         subType = "DPIPixels";

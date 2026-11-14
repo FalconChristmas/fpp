@@ -14,6 +14,7 @@
 #include <chrono>
 #include "fpp-json.h"
 #include <cctype>
+#include <cerrno>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -2167,6 +2168,62 @@ static std::string trimConfigTxt(const std::string& s) {
     return s.substr(b, e - b);
 }
 
+// Write file contents atomically via temp file + rename in the same directory.
+// Avoids leaving a truncated config.txt if power is lost mid-write.
+static bool atomicWriteConfigTxt(const std::string& filename, const std::string& str) {
+    const std::string tmp = filename + ".fpp-tmp";
+    int fd = open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    if (fd == -1) {
+        fprintf(stderr, "ERROR: Unable to open %s for writing.\n", tmp.c_str());
+        return false;
+    }
+
+    struct stat st;
+    if (stat(filename.c_str(), &st) == 0) {
+        fchmod(fd, st.st_mode & 07777);
+    }
+
+    bool ok = true;
+    int err = 0;
+    const char* p = str.data();
+    size_t left = str.size();
+    while (ok && left > 0) {
+        ssize_t n = write(fd, p, left);
+        if (n < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            ok = false;
+            err = errno;
+        } else if (n == 0) {
+            ok = false;
+            err = EIO;
+        } else {
+            p += n;
+            left -= n;
+        }
+    }
+    if (ok && fsync(fd) != 0) {
+        ok = false;
+        err = errno;
+    }
+    if (close(fd) != 0 && ok) {
+        ok = false;
+        err = errno;
+    }
+    if (!ok) {
+        fprintf(stderr, "ERROR: Unable to write %s: %s\n", tmp.c_str(), strerror(err));
+        unlink(tmp.c_str());
+        return false;
+    }
+    if (rename(tmp.c_str(), filename.c_str()) != 0) {
+        fprintf(stderr, "ERROR: Unable to rename %s to %s: %s\n", tmp.c_str(), filename.c_str(), strerror(errno));
+        unlink(tmp.c_str());
+        return false;
+    }
+    return true;
+}
+
 // Keep the firmware hold in config.txt under a managed block.  A managed
 // block (rather than a bare marker line) makes a truncated or hand-edited
 // block removable, and the [all] inside it makes the lines apply whatever
@@ -2420,7 +2477,7 @@ void setupChannelOutputs() {
         const bool physical = dpiCapeIsPhysical();
         const std::vector<int> dpiBcms = hasDPI ? resolveDpiBcmPins(v, physical) : std::vector<int>();
         if (applyDpiPinHoldBlock(content, dpiBcms)) {
-            if (PutFileContents("/boot/firmware/config.txt", content)) {
+            if (atomicWriteConfigTxt("/boot/firmware/config.txt", content)) {
                 printf("FPP - DPI pixel pin hold updated in config.txt\n");
                 changed = true;
             } else {

@@ -12,6 +12,7 @@
  * personal use, but modified copies MAY NOT be redistributed in any form.
  */
 
+#include <atomic>
 #include <string>
 #include "fpp-json-fwd.h"
 #include <vector>
@@ -103,7 +104,7 @@ private:
     int m_configuredMaxFps = 0; // highest rate the longest string allows
     int m_currentFps = 0;       // last rate applied to the framebuffer
     int m_idleFps = 20;         // 1000 / E131BridgingInterval, kept current by a settings listener
-    bool m_initialized = false; // gates runtime rate control (off during Init/Close)
+    std::atomic<bool> m_initialized{false}; // gates runtime rate control (off during Init/Close)
     // True while the shadow page holds a deliberate shutdown blank.  Lets
     // StoppingOutput() and Close() both ask for a blank without scanning and
     // sleeping for it twice when they run back to back.
