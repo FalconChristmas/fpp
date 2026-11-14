@@ -14,6 +14,7 @@
 #include <chrono>
 #include "fpp-json.h"
 #include <cctype>
+#include <cerrno>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -1861,6 +1862,494 @@ void setup16KPageKernel(bool rebootIfChanged) {
 #endif
 }
 
+#ifdef PLATFORM_PI
+// --- BEGIN DPI pin hold helpers ---
+//
+// Issue #2895: a WS281x string latches whatever it last received, and a
+// floating data line is amplified by the cape's output buffer into random
+// colours.  On a reboot the SoC resets its pins to inputs a fraction of a
+// second before the firmware has read config.txt, so the strings see noise
+// for the whole time the box is booting.  Hold the data (and latch) pins the
+// DPIPixels output will use driven low from the firmware, before any
+// userspace runs.  fppd muxes them to DPI only after staging a blank frame,
+// and parks them low again when it closes, so the hold only has to cover
+// boot.  Power loss and a forced reset still go through the floating window;
+// no software can run there.
+
+// P1 header pin -> BCM GPIO number for the DPI data bits.  Mirrors
+// DPIPixelsOutput::GetDPIPinBitPosition(); -1 for a pin DPI cannot drive.
+static const struct {
+    const char* pin;
+    int bcm;
+} DPI_PIN_BCM[] = {
+    { "P1-7", 4 },   { "P1-29", 5 },  { "P1-31", 6 },  { "P1-26", 7 },
+    { "P1-24", 8 },  { "P1-21", 9 },  { "P1-19", 10 }, { "P1-23", 11 },
+    { "P1-32", 12 }, { "P1-33", 13 }, { "P1-8", 14 },  { "P1-10", 15 },
+    { "P1-36", 16 }, { "P1-11", 17 }, { "P1-12", 18 }, { "P1-35", 19 },
+    { "P1-38", 20 }, { "P1-40", 21 }, { "P1-15", 22 }, { "P1-16", 23 },
+    { "P1-18", 24 }, { "P1-22", 25 }, { "P1-37", 26 }, { "P1-13", 27 },
+};
+
+static int dpiP1ToBcm(const std::string& pin) {
+    for (const auto& p : DPI_PIN_BCM) {
+        if (pin == p.pin) {
+            return p.bcm;
+        }
+    }
+    return -1;
+}
+
+// True for a cape with a physical EEPROM, whose pins are all wired to output
+// buffers.  This is the same test DPIPixelsOutput::Init() makes; a virtual
+// (hand-wired) setup, or one whose cape has not been detected, has no
+// eepromLocation on the i2c bus and must not have spare pins held down.
+static bool dpiCapeIsPhysical() {
+    const std::string path = FPP_MEDIA_DIR + "/tmp/cape-info.json";
+    if (!FileExists(path)) {
+        return false;
+    }
+    Json::Value ci;
+    if (!LoadJsonFromString(GetFileContents(path), ci, JsonRoot::Object)) {
+        return false;
+    }
+    return JsonString(ci, "eepromLocation").find("sys/bus/i2c") != std::string::npos;
+}
+
+// Load the pin map for a DPIPixels subType, using the same lookup order as
+// DPIPixelsOutput::LoadStringConfig().  The EEPROM-extracted copies land in
+// media/tmp/strings; the packaged tree is the fallback when detection has not
+// run yet.
+static bool loadDpiStringConfig(const std::string& subType, Json::Value& strings) {
+    // DPIPixelsOutput::Init() treats an empty subtype as "DPIPixels".
+    const std::string type = subType.empty() ? "DPIPixels" : subType;
+    std::vector<std::string> candidates;
+    auto addCandidate = [&candidates](const std::string& c) {
+        if (std::find(candidates.begin(), candidates.end(), c) == candidates.end()) {
+            candidates.push_back(c);
+        }
+    };
+    if (type == "PiHat") {
+        addCandidate("PiHat-DPIPixels");
+    } else if (type == "rPi-MFC") {
+        addCandidate("rPi-MFC-DPIPixels");
+    } else if (type == "rPi-28D") {
+        addCandidate("rPi-28D-DPIPixels-4");
+    }
+    if (!endsWith(type, "-DPIPixels")) {
+        addCandidate(type + "-DPIPixels");
+    }
+    addCandidate(type);
+
+    const std::string dirs[] = {
+        FPP_MEDIA_DIR + "/tmp/strings/",
+        "/opt/fpp/capes/pi/strings/",
+    };
+    // Match CapeUtils::getStringConfig(): an extracted copy is authoritative
+    // for its candidate even if it does not parse, and the packaged tree is
+    // only consulted when the extracted copy is absent.  A failed candidate
+    // still lets the next name be tried.
+    for (const auto& cand : candidates) {
+        std::string fn;
+        for (const auto& dir : dirs) {
+            const std::string path = dir + cand + ".json";
+            if (FileExists(path)) {
+                fn = path;
+                break;
+            }
+        }
+        if (!fn.empty() && LoadJsonFromString(GetFileContents(fn), strings, JsonRoot::Object)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Whether a configured port sends anything.  This follows the m_outputBytes
+// test DPIPixelsOutput::Init() uses to decide a virtual EEPROM port claims its
+// pin: a pixel or null node in one of the port's active strings means the port
+// is in use.  PixelString::Init() only reads the virtualStringsB..F receiver
+// arrays when differentialType selects a smart receiver, and it resets an
+// all-empty smart-receiver port to zero output bytes (marker pixels included),
+// so neither the arrays nor differentialType alone can make a port in use.
+static bool dpiOutputHasPixels(const Json::Value& out) {
+    if (!out.isObject()) {
+        return false;
+    }
+    static const char* kStringArrays[] = {
+        "virtualStrings", "virtualStringsB", "virtualStringsC",
+        "virtualStringsD", "virtualStringsE", "virtualStringsF",
+    };
+    constexpr int kMaxSmartReceivers = 6;
+    // Mirror the receiverCount PixelString::Init() derives from differentialType.
+    int receiverCount = 1;
+    if (JsonHas(out, "differentialType")) {
+        const int rt = JsonInt(out, "differentialType");
+        if (rt > 0) {
+            if (rt <= 3) {
+                receiverCount = rt; // v1
+            } else if (rt > 15) {
+                receiverCount = rt - 15; // Falcon v4
+            } else if (rt > 9) {
+                receiverCount = rt - 9; // Falcon v5
+            } else {
+                receiverCount = rt - 3; // v2
+            }
+            receiverCount = std::min(receiverCount, kMaxSmartReceivers);
+        }
+    }
+    for (int p = 0; p < receiverCount; p++) {
+        const Json::Value& arr = out[kStringArrays[p]];
+        if (!arr.isArray()) {
+            continue;
+        }
+        for (const auto& vs : arr) {
+            if (!vs.isObject()) {
+                continue;
+            }
+            if (JsonInt(vs, "pixelCount") > 0 || JsonInt(vs, "nullNodes") > 0 ||
+                JsonInt(vs, "endNulls") > 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static void addDpiBcm(std::vector<int>& bcms, int bcm) {
+    if (bcm >= 0 && std::find(bcms.begin(), bcms.end(), bcm) == bcms.end()) {
+        bcms.push_back(bcm);
+    }
+}
+
+// Add the pins a single enabled DPIPixels output will claim.  pinMap follows
+// the strings file's outputs in order and resolves sharedOutput references the
+// way DPIPixelsOutput::Init() builds its outputPinMap.
+static void appendDpiPinsForOutput(const Json::Value& co, const Json::Value& strings,
+                                   bool physical, std::vector<int>& bcms) {
+    std::vector<std::string> pinMap;
+    const Json::Value& rootOutputs = strings["outputs"];
+    for (Json::ArrayIndex j = 0; rootOutputs.isArray() && j < rootOutputs.size(); j++) {
+        const Json::Value& so = rootOutputs[j];
+        std::string pin;
+        if (so.isObject()) {
+            if (JsonHas(so, "pin")) {
+                pin = JsonString(so, "pin");
+            } else if (JsonHas(so, "sharedOutput")) {
+                const int shared = JsonInt(so, "sharedOutput", -1);
+                if (shared >= 0 && (size_t)shared < pinMap.size()) {
+                    pin = pinMap[shared];
+                }
+            }
+        }
+        pinMap.push_back(pin);
+    }
+
+    const Json::Value& cfgOutputs = co["outputs"];
+    if (physical) {
+        // Every pin on a physical cape is hard-wired to an output buffer, so
+        // hold them all even where a port is left unconfigured: otherwise
+        // that buffer's input floats.
+        for (const auto& pin : pinMap) {
+            addDpiBcm(bcms, dpiP1ToBcm(pin));
+        }
+    } else if (cfgOutputs.isArray()) {
+        // A virtual/hand-wired setup leaves unused header pins available for
+        // other uses, so claim exactly the pins DPIPixels claims: those of
+        // ports with string data configured.
+        for (Json::ArrayIndex i = 0; i < cfgOutputs.size() && i < pinMap.size(); i++) {
+            if (dpiOutputHasPixels(cfgOutputs[i])) {
+                addDpiBcm(bcms, dpiP1ToBcm(pinMap[i]));
+            }
+        }
+    }
+
+    // Latch pins are always claimed by DPIPixels when a cape defines them.
+    const Json::Value& latches = strings["latches"];
+    if (latches.isArray()) {
+        for (const auto& latch : latches) {
+            if (latch.isString()) {
+                addDpiBcm(bcms, dpiP1ToBcm(latch.asString()));
+            }
+        }
+    }
+}
+
+// BCM pins to hold low for the enabled DPIPixels outputs.
+static std::vector<int> resolveDpiBcmPins(const Json::Value& coPixelStrings, bool physical) {
+    std::vector<int> bcms;
+    const Json::Value& cos = coPixelStrings["channelOutputs"];
+    if (!cos.isArray()) {
+        return bcms;
+    }
+    for (const auto& co : cos) {
+        if (!co.isObject() || JsonString(co, "type") != "DPIPixels" || JsonInt(co, "enabled") != 1) {
+            continue;
+        }
+        const std::string subType = JsonString(co, "subType");
+        Json::Value strings;
+        if (loadDpiStringConfig(subType, strings)) {
+            appendDpiPinsForOutput(co, strings, physical, bcms);
+            continue;
+        }
+        // On a first boot the cape's strings bundle may not have been
+        // unpacked yet.  The PiHat pinout is fixed (P1-12/P1-35 = BCM 18/19),
+        // so fall back to it rather than parking nothing while a PiHat comes
+        // up.  Any other subtype parks nothing instead of guessing.
+        if (subType == "PiHat" || subType == "PiHat-DPIPixels") {
+            if (physical) {
+                addDpiBcm(bcms, 18);
+                addDpiBcm(bcms, 19);
+            } else {
+                const Json::Value& cfgOutputs = co["outputs"];
+                for (Json::ArrayIndex i = 0; cfgOutputs.isArray() && i < cfgOutputs.size() && i < 2; i++) {
+                    if (dpiOutputHasPixels(cfgOutputs[i])) {
+                        addDpiBcm(bcms, 18 + (int)i);
+                    }
+                }
+            }
+        }
+    }
+    return bcms;
+}
+
+// A config.txt line, with its original terminator, so a rewrite preserves
+// CRLF files as CRLF.
+struct ConfigTxtLine {
+    std::string text;
+    std::string eol;
+};
+
+static std::vector<ConfigTxtLine> splitConfigTxt(const std::string& content) {
+    std::vector<ConfigTxtLine> lines;
+    size_t pos = 0;
+    while (pos < content.size()) {
+        const size_t nl = content.find('\n', pos);
+        if (nl == std::string::npos) {
+            lines.push_back({ content.substr(pos), "" });
+            break;
+        }
+        std::string text = content.substr(pos, nl - pos);
+        std::string eol = "\n";
+        if (!text.empty() && text.back() == '\r') {
+            text.pop_back();
+            eol = "\r\n";
+        }
+        lines.push_back({ text, eol });
+        pos = nl + 1;
+    }
+    return lines;
+}
+
+static std::string joinConfigTxt(const std::vector<ConfigTxtLine>& lines) {
+    std::string eol = "\n";
+    for (const auto& line : lines) {
+        if (!line.eol.empty()) {
+            eol = line.eol;
+            break;
+        }
+    }
+    std::string out;
+    for (const auto& line : lines) {
+        out += line.text;
+        out += line.eol.empty() ? eol : line.eol;
+    }
+    return out;
+}
+
+static std::string trimConfigTxt(const std::string& s) {
+    size_t b = 0;
+    size_t e = s.size();
+    while (b < e && (s[b] == ' ' || s[b] == '\t')) {
+        b++;
+    }
+    while (e > b && (s[e - 1] == ' ' || s[e - 1] == '\t')) {
+        e--;
+    }
+    return s.substr(b, e - b);
+}
+
+// Write file contents atomically via temp file + rename in the same directory.
+// Avoids leaving a truncated config.txt if power is lost mid-write.
+static bool atomicWriteConfigTxt(const std::string& filename, const std::string& str) {
+    const std::string tmp = filename + ".fpp-tmp";
+    int fd = open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    if (fd == -1) {
+        fprintf(stderr, "ERROR: Unable to open %s for writing.\n", tmp.c_str());
+        return false;
+    }
+
+    struct stat st;
+    if (stat(filename.c_str(), &st) == 0) {
+        fchmod(fd, st.st_mode & 07777);
+    }
+
+    bool ok = true;
+    int err = 0;
+    const char* p = str.data();
+    size_t left = str.size();
+    while (ok && left > 0) {
+        ssize_t n = write(fd, p, left);
+        if (n < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            ok = false;
+            err = errno;
+        } else if (n == 0) {
+            ok = false;
+            err = EIO;
+        } else {
+            p += n;
+            left -= n;
+        }
+    }
+    if (ok && fsync(fd) != 0) {
+        ok = false;
+        err = errno;
+    }
+    if (close(fd) != 0 && ok) {
+        ok = false;
+        err = errno;
+    }
+    if (!ok) {
+        fprintf(stderr, "ERROR: Unable to write %s: %s\n", tmp.c_str(), strerror(err));
+        unlink(tmp.c_str());
+        return false;
+    }
+    if (rename(tmp.c_str(), filename.c_str()) != 0) {
+        fprintf(stderr, "ERROR: Unable to rename %s to %s: %s\n", tmp.c_str(), filename.c_str(), strerror(errno));
+        unlink(tmp.c_str());
+        return false;
+    }
+    return true;
+}
+
+// Keep the firmware hold in config.txt under a managed block.  A managed
+// block (rather than a bare marker line) makes a truncated or hand-edited
+// block removable, and the [all] inside it makes the lines apply whatever
+// [board] filter happened to be active where they are appended.  The block
+// written by the #3068 test builds (a single marker plus one gpio= line) is
+// migrated away so testers do not keep a stale pin list.
+static bool applyDpiPinHoldBlock(std::string& content, const std::vector<int>& bcms) {
+    const std::string orig = content;
+    const std::string legacy = "# FPP DPI pixel pins (issue #2895)";
+    const std::string begin = legacy + " - BEGIN (managed by fppinit, do not edit)";
+    const std::string end = legacy + " - END";
+
+    std::vector<ConfigTxtLine> lines = splitConfigTxt(content);
+    bool foundLegacy = false;
+    bool foundBegin = false;
+    for (const auto& line : lines) {
+        const std::string t = trimConfigTxt(line.text);
+        if (t == legacy) {
+            foundLegacy = true;
+        } else if (t == begin) {
+            foundBegin = true;
+        }
+    }
+    if (!foundLegacy && !foundBegin && bcms.empty()) {
+        return false;
+    }
+
+    // Remove the old single-marker form written by the superseded PR.
+    for (size_t i = 0; i < lines.size();) {
+        if (trimConfigTxt(lines[i].text) != legacy) {
+            i++;
+            continue;
+        }
+        lines.erase(lines.begin() + i);
+        if (i < lines.size() && startsWith(trimConfigTxt(lines[i].text), "gpio=")) {
+            lines.erase(lines.begin() + i);
+        }
+    }
+
+    std::vector<std::string> block;
+    if (!bcms.empty()) {
+        std::vector<int> sorted = bcms;
+        std::sort(sorted.begin(), sorted.end());
+        std::string gpio = "gpio=";
+        for (size_t i = 0; i < sorted.size(); i++) {
+            if (i) {
+                gpio += ",";
+            }
+            gpio += std::to_string(sorted[i]);
+        }
+        gpio += "=op,dl";
+        block = { begin, "[all]", gpio, end };
+    }
+
+    size_t firstAt = lines.size();
+    for (size_t i = 0; i < lines.size();) {
+        if (trimConfigTxt(lines[i].text) != begin) {
+            i++;
+            continue;
+        }
+        if (firstAt == lines.size()) {
+            firstAt = i;
+        }
+        size_t endAt = i;
+        for (size_t j = i + 1; j < lines.size(); j++) {
+            const std::string t = trimConfigTxt(lines[j].text);
+            if (t == end) {
+                endAt = j;
+                break;
+            }
+            if (t != "[all]" && !startsWith(t, "gpio=")) {
+                break;
+            }
+            endAt = j;
+        }
+        // Lines after the block inherited its [all]; keep that scope unless the
+        // block is about to go back at this same position.
+        bool hasFollowing = false;
+        for (size_t j = endAt + 1; j < lines.size(); j++) {
+            if (!trimConfigTxt(lines[j].text).empty()) {
+                hasFollowing = true;
+                break;
+            }
+        }
+        std::vector<ConfigTxtLine> replacement;
+        if (hasFollowing && (block.empty() || firstAt != i)) {
+            replacement.push_back({ "[all]", "" });
+        }
+        lines.erase(lines.begin() + i, lines.begin() + endAt + 1);
+        lines.insert(lines.begin() + i, replacement.begin(), replacement.end());
+        i += replacement.size();
+    }
+
+    if (!block.empty()) {
+        size_t insertAt = firstAt;
+        std::vector<ConfigTxtLine> added;
+        for (const auto& text : block) {
+            added.push_back({ text, "" });
+        }
+        if (insertAt == lines.size()) {
+            // No block of ours yet.  Insert ahead of the cape overlay variants
+            // block when it is present: fppcapedetect strips that block and
+            // re-appends it at EOF, so a block of ours written after it would
+            // make the next boot reorder the two and reboot a second time.
+            // Leave the blank line fppcapedetect keeps before its block where
+            // it is, and add one after ours, so its strip and re-append
+            // reproduces exactly the bytes written here.
+            for (size_t i = 0; i < lines.size(); i++) {
+                if (startsWith(trimConfigTxt(lines[i].text), CAPE_VARIANT_BLOCK_BEGIN)) {
+                    insertAt = i;
+                    break;
+                }
+            }
+            if (insertAt < lines.size()) {
+                added.push_back({ "", "" });
+            }
+        }
+        lines.insert(lines.begin() + insertAt, added.begin(), added.end());
+    }
+
+    content = joinConfigTxt(lines);
+    return content != orig;
+}
+// --- END DPI pin hold helpers ---
+#endif
+
 void setupChannelOutputs() {
 #ifdef PLATFORM_PI
     bool hasDPI = false;
@@ -1978,6 +2467,23 @@ void setupChannelOutputs() {
         content.erase(idx, idx2 - idx);
         PutFileContents("/boot/firmware/config.txt", content);
         changed = true;
+    }
+    {
+        // Hold the DPI pixel pins low from firmware through kernel probe so
+        // the cape's output buffers never see a floating input while the box
+        // boots (issue #2895).  Resolved from the same configs DPIPixels uses
+        // at runtime.  Removed (with a reboot to undo the hold) when DPI is
+        // not in use.
+        const bool physical = dpiCapeIsPhysical();
+        const std::vector<int> dpiBcms = hasDPI ? resolveDpiBcmPins(v, physical) : std::vector<int>();
+        if (applyDpiPinHoldBlock(content, dpiBcms)) {
+            if (atomicWriteConfigTxt("/boot/firmware/config.txt", content)) {
+                printf("FPP - DPI pixel pin hold updated in config.txt\n");
+                changed = true;
+            } else {
+                printf("FPP - Failed to write DPI pixel pin hold to config.txt\n");
+            }
+        }
     }
     if (changed) {
         printf("\n\nRebooting to load new settings.\n\n");

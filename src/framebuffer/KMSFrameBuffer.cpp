@@ -246,6 +246,13 @@ bool KMSFrameBuffer::CreateDumbBuffer(int fd, uint32_t width, uint32_t height, u
     buf.format = format;
     buf.size = creq.size;
     buf.mapped = mapped;
+    // CMA is recycled, so a fresh dumb buffer can still hold a previous
+    // frame, the boot splash or console text.  A DPI pixel output scans
+    // whatever is mapped here as WS281x data until DPIPixels stages its blank
+    // frame, and on a restart after a crash the pins can still be muxed to
+    // DPI at that point, latching the stale words as random colours on the
+    // strings (issue #2895).  Start every allocation black.
+    memset(mapped, 0, creq.size);
     return true;
 }
 
