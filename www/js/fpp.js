@@ -585,16 +585,18 @@ function float_fppModalStickyThead () {
 	// Fix Table Headers on scroll
 	var $previewTable = $('table.schedulePreviewTable');
 
+	// The preview's rows scroll inside their own box (schedulePreview.php's
+	// .schedulePreviewScroll), so float the headings in that box.  Floated
+	// against the window, the headings were placed once, where the table was
+	// when shown.bs.modal fired -- with the dialog still sliding in, anything
+	// up to ~40 px above the box -- and stayed there, as floatThead never saw
+	// the box scroll; a resize then moved them up onto the title bar.
 	$previewTable.floatThead({
-		top:
-			($('.header').css('position') == 'fixed'
-				? $('.header').outerHeight(true)
-				: 0) +
-			$('#schedulePreview .modal-content .modal-header').outerHeight(true),
+		position: 'absolute',
 		zIndex: 99999,
 		debug: false,
-		responsiveContainer: function ($previewTable) {
-			return $previewTable.closest('.modal-body');
+		scrollContainer: function ($table) {
+			return $table.closest('.schedulePreviewScroll');
 		}
 	});
 	//TO-DO - currently only working for the one named table, need to change to class based selection for future alternative table use

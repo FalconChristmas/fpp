@@ -309,7 +309,7 @@ if (count($data["schedule"]["items"]) == 0) {
     exit;
 }
 
-echo "<div style='max-height: 60vh; overflow-y: auto; position: relative;'>\n";
+echo "<div class='schedulePreviewScroll' style='max-height: 60vh; overflow-y: auto; position: relative;'>\n";
 echo "<table class='fppSelectableRowTable schedulePreviewTable fppStickyModalTheadTable' border=0 cellpadding=0 cellspacing=0 style='color: #000000;'>\n";
 echo "<thead><tr>";
 for ($j = -1; $j < $maxDepth; $j++) {
