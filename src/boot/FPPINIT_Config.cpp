@@ -2230,12 +2230,17 @@ static bool applyDpiPinHoldBlock(std::string& content, const std::vector<int>& b
         if (firstAt == lines.size()) {
             firstAt = i;
         }
-        size_t endAt = lines.size() - 1;
+        size_t endAt = i;
         for (size_t j = i + 1; j < lines.size(); j++) {
-            if (trimConfigTxt(lines[j].text) == end) {
+            const std::string t = trimConfigTxt(lines[j].text);
+            if (t == end) {
                 endAt = j;
                 break;
             }
+            if (t != "[all]" && !startsWith(t, "gpio=")) {
+                break;
+            }
+            endAt = j;
         }
         // Lines after the block inherited its [all]; keep that scope unless the
         // block is about to go back at this same position.
@@ -2415,9 +2420,12 @@ void setupChannelOutputs() {
         const bool physical = dpiCapeIsPhysical();
         const std::vector<int> dpiBcms = hasDPI ? resolveDpiBcmPins(v, physical) : std::vector<int>();
         if (applyDpiPinHoldBlock(content, dpiBcms)) {
-            PutFileContents("/boot/firmware/config.txt", content);
-            printf("FPP - DPI pixel pin hold updated in config.txt\n");
-            changed = true;
+            if (PutFileContents("/boot/firmware/config.txt", content)) {
+                printf("FPP - DPI pixel pin hold updated in config.txt\n");
+                changed = true;
+            } else {
+                printf("FPP - Failed to write DPI pixel pin hold to config.txt\n");
+            }
         }
     }
     if (changed) {
