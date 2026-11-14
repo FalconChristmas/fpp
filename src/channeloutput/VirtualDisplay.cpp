@@ -26,6 +26,7 @@
 #include "VirtualDisplay.h"
 #include "ChannelOutputSetup.h"
 #include "overlays/PixelOverlay.h"
+#include "overlays/PixelOverlayModelSub.h"
 
 #include "Plugin.h"
 class VirtualDisplayPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
@@ -268,9 +269,16 @@ int VirtualDisplayOutput::SendData(unsigned char* channelData) {
     }
     m_model->setBufferIsDirty(true);
     if (m_model->getState() == 0) {
-        if (m_model->getType() != "FB") {
+        PixelOverlayModelSub* sub = dynamic_cast<PixelOverlayModelSub*>(m_model);
+        if (sub) {
             // a submodel's parent writes at its own absolute channels, so it
-            // needs the whole sequence buffer, not a display-sized one
+            // needs the whole sequence buffer, not a display-sized one; and
+            // only a framebuffer parent draws here, after the outputs ahead
+            // of this one have sent theirs (as FBMatrix::SendData())
+            if (sub->readyForPassThrough()) {
+                m_model->doOverlay(channelData - m_startChannel);
+            }
+        } else if (m_model->getType() != "FB") {
             m_model->doOverlay(channelData - m_startChannel);
         } else if (uint8_t* buf = m_model->getOverlayBuffer()) {
             m_model->doOverlay(buf);

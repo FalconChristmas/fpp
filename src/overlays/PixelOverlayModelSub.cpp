@@ -162,8 +162,9 @@ PixelOverlayModelSub::~PixelOverlayModelSub() {
 // doOverlay() from PixelOverlayManager::doOverlays() with activeModelsLock
 // already held, and every HTTP handler takes modelsLock before
 // activeModelsLock (via setState() -> modelStateChanged()), so a lookup from
-// that side would invert them. Callers are setState() below and
-// readyForPolarJoin() (effect start), and the resolution itself only
+// that side would invert them. Callers are setState() below, and
+// resolveParent() from the manager when this model or its parent is added
+// and from getPolarMap() (effect start). The resolution itself only
 // try-locks modelsLock: setState() can also run on the effect update threads
 // (an effect stopping calls model->setState() under this model's
 // effectLock), where BLOCKING on modelsLock is the reverse of the
@@ -208,6 +209,8 @@ bool PixelOverlayModelSub::foundParent() {
         }
         a = mgr.getModelLocked(s->config["Parent"].asString());
     }
+    // Where the chain ends; a grid submodel there ends it at no framebuffer.
+    bool toFB = a && a->getType() == "FB";
 
     if (p) {
         // Under modelsLock, so a reload can't retire it (and resetParent()
@@ -215,6 +218,7 @@ bool PixelOverlayModelSub::foundParent() {
         std::lock_guard<std::mutex> l(parentLock);
         parent = p;
         parentRef = mgr.models[p->getName()].owner;
+        fbRoot = toFB;
         return true;
     }
 
@@ -264,10 +268,38 @@ void PixelOverlayModelSub::resetParent() {
     // Disable first: that takes this model out of the active list under
     // activeModelsLock, which waits out a doOverlay() already reading
     // `parent` on the channel output thread. Only then is it safe to clear.
+    // useLock then waits out one from a VirtualMatrix's SendData(), which
+    // the active list does not cover, so the parent is never freed (or its
+    // display handed to a replacement) under a draw.
     PixelOverlayModel::setState(PixelOverlayState(PixelOverlayState::Disabled));
+    std::lock_guard<std::mutex> use(useLock);
     std::lock_guard<std::mutex> l(parentLock);
     parent = nullptr;
     parentRef.reset();
+    fbRoot = false;
+}
+bool PixelOverlayModelSub::readyForPassThrough() {
+    if (fbRoot) {
+        passThroughWarned = false;
+        return true;
+    }
+    if (!passThroughWarned.exchange(true)) {
+        bool found;
+        {
+            std::lock_guard<std::mutex> l(parentLock);
+            found = parent != nullptr;
+        }
+        // Not found is also the moment of an output reload, between the old
+        // parent going and its replacement arriving, so only that is quiet.
+        if (found) {
+            LogWarn(VB_CHANNELOUT, "Submodel \"%s\" is not drawn: its parent \"%s\" is not a framebuffer\n",
+                    name.c_str(), getParentName().c_str());
+        } else {
+            LogInfo(VB_CHANNELOUT, "Submodel \"%s\" is not drawn: its parent \"%s\" has not been found\n",
+                    name.c_str(), getParentName().c_str());
+        }
+    }
+    return false;
 }
 std::string PixelOverlayModelSub::getParentName() const {
     return config["Parent"].asString();
@@ -312,28 +344,30 @@ void PixelOverlayModelSub::doOverlay(uint8_t* channels) {
         return;
     }
 
-    // Deliberately the cached pointer, NOT foundParent(): this runs on the
-    // channel output thread with activeModelsLock held, where taking modelsLock
-    // deadlocks (see foundParent()). setState() has already resolved it by the
-    // time we can be reached. Null here means the parent genuinely does not
-    // exist -- a submodel left pointing at a renamed or deleted model -- and
-    // retrying every frame would both spam the log and hold that deadlock
-    // window open permanently rather than for a single lookup. setState()
-    // reports the failure once instead.
-    if (!parent)
+    // The parent already resolved, NOT foundParent(): this runs on the channel
+    // output thread, where the lookup inverts the locks (see foundParent()),
+    // and retrying every frame would spam the log. None means it does not
+    // exist (yet); setState() or the VirtualMatrix reports that once.
+    std::lock_guard<std::mutex> use(useLock);
+    PixelOverlayModel* p;
+    {
+        std::lock_guard<std::mutex> l(parentLock);
+        p = parent;
+    }
+    if (!p)
         return;
     // A submodel that no longer fits its parent (the parent's geometry changed
     // after the submodel was saved) can't be drawn: setChildState() warned
     // about it once.  Asking the parent anyway logged "region is out of
     // bounds" on every frame an effect touched it.
     if (xOffset < 0 || yOffset < 0 ||
-        (int64_t)xOffset + width > parent->getWidth() ||
-        (int64_t)yOffset + height > parent->getHeight()) {
+        (int64_t)xOffset + width > p->getWidth() ||
+        (int64_t)yOffset + height > p->getHeight()) {
         dirtyBuffer = false;
         return;
     }
 
-    dirtyBuffer = dirtyBuffer | parent->needRefresh();
+    dirtyBuffer = dirtyBuffer | p->needRefresh();
     if (!dirtyBuffer)
         return;
 
@@ -343,19 +377,19 @@ void PixelOverlayModelSub::doOverlay(uint8_t* channels) {
     // channelData (and shifted every colour). Repack when they differ; this
     // runs only on the channel output thread, hence the thread_local.
     const uint8_t* data = channelData;
-    const int pb = parent->getBytesPerPixel();
+    const int pb = p->getBytesPerPixel();
     if (pb != channelsPerNode) {
         static thread_local std::vector<uint8_t> repacked;
         const size_t px = (size_t)width * height;
         const int n = std::min(pb, channelsPerNode);
         repacked.assign(px * pb, 0);
-        for (size_t p = 0; p < px; p++) {
-            memcpy(&repacked[p * pb], &channelData[p * channelsPerNode], n);
+        for (size_t i = 0; i < px; i++) {
+            memcpy(&repacked[i * pb], &channelData[i * channelsPerNode], n);
         }
         data = repacked.data();
     }
-    parent->setData(data, xOffset, yOffset, width, height, state);
-    parent->doOverlay(channels);
+    p->setData(data, xOffset, yOffset, width, height, state);
+    p->doOverlay(channels);
     dirtyBuffer = false;
 }
 

@@ -11,6 +11,7 @@
  * included LICENSE.LGPL file.
  */
 
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -30,9 +31,16 @@ public:
 
     void resetParent();
     std::string getParentName() const;
-    // For getPolarMap(): a rectangle submodel needs its parent to place its
-    // cells. Not from the channel output thread, as foundParent().
-    bool readyForPolarJoin() { return gridMode || foundParent(); }
+    // Looks the parent up now if it has not been yet (a grid submodel needs
+    // none). Not from the channel output thread, as foundParent().
+    bool resolveParent() { return gridMode || foundParent(); }
+    bool isGridMode() const { return gridMode; }
+    // The parent is resolved and its chain ends at a framebuffer, the only
+    // kind of model a VirtualMatrix can draw from its own SendData().
+    bool drawsToFramebuffer() const { return fbRoot; }
+    // For a VirtualMatrix or VirtualDisplay drawing this model from its
+    // SendData(): drawsToFramebuffer(), saying once why not when it is not.
+    bool readyForPassThrough();
 
 protected:
     // Grid submodels and groups SCATTER: a buffer cell lands on an arbitrary
@@ -44,14 +52,22 @@ protected:
 private:
     bool foundParent();
 
-    // `parent` is the raw pointer doOverlay() uses on the output thread (made
-    // safe there by the active list, see resetParent()); `parentRef` owns a
-    // share of the same model, so setState() can call into the parent from
-    // any thread without modelsLock.  Both are set and cleared together under
+    // `parent` is what doOverlay() draws through; `parentRef` owns a share
+    // of the same model, so setState() can call into it from any thread
+    // without modelsLock.  Both are set and cleared together under
     // parentLock (a leaf lock), always with modelsLock held as well.
     PixelOverlayModel* parent = nullptr;
     std::weak_ptr<PixelOverlayModel> parentRef;
     std::mutex parentLock;
+    // Held across doOverlay()'s use of the parent, and taken by
+    // resetParent(): a VirtualMatrix in pass-through calls doOverlay() outside
+    // the active list, so disabling this model does not wait it out.  An
+    // output reload closes outputs with the output thread held off anyway;
+    // this covers a parent removed any other way (a VirtualMatrix's Init()
+    // replacing its model while other outputs keep sending).
+    std::mutex useLock;
+    std::atomic<bool> fbRoot = false;
+    std::atomic<bool> passThroughWarned = false;
 
     int xOffset = 0;
     int yOffset = 0;

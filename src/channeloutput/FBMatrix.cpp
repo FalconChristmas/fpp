@@ -20,6 +20,7 @@
 #include "FBMatrix.h"
 #include "ChannelOutputSetup.h"
 #include "overlays/PixelOverlay.h"
+#include "overlays/PixelOverlayModelSub.h"
 
 #include "../Plugin.h"
 
@@ -163,6 +164,37 @@ int FBMatrixOutput::Init(Json::Value config) {
         return 0;
     }
 
+    // A submodel draws through its parent, and only a framebuffer draws from
+    // SendData(): any other parent, or a grid submodel (which scatters to
+    // channels), would write sequence channels after the outputs ahead of
+    // this one had sent them.  A parent not loaded yet is checked when it
+    // arrives (PixelOverlayModelSub::readyForPassThrough()).
+    if (model->getType() == "Sub") {
+        std::string why;
+        PixelOverlayModel* root = model;
+        for (int depth = 0; root && root->getType() == "Sub"; depth++) {
+            PixelOverlayModelSub* s = static_cast<PixelOverlayModelSub*>(root);
+            if (s->isGridMode()) {
+                why = "is an xLights submodel, which a Virtual Matrix cannot draw";
+                break;
+            }
+            if (depth >= 16) {
+                why = "has a parent chain that leads back to it";
+                break;
+            }
+            root = PixelOverlayManager::INSTANCE.getModel(s->getParentName());
+        }
+        if (why.empty() && root && root->getType() != "FB") {
+            why = "is a submodel of '" + root->getName() + "', which is not a framebuffer";
+        }
+        if (!why.empty()) {
+            LogErr(VB_CHANNELOUT, "Pixel Overlay Model '%s' %s\n", modelName.c_str(), why.c_str());
+            AddOutputConfigWarning(35, "VirtualMatrix: model " + modelName + " " + why);
+            model = nullptr;
+            return 0;
+        }
+    }
+
     // buffer is 3 byte RGB and SendData() hands it to setData(), which reads
     // the model's own bytes per pixel (4 for an RGBW submodel)
     if (model->getBytesPerPixel() != 3) {
@@ -279,8 +311,12 @@ int FBMatrixOutput::SendData(unsigned char* channelData) {
         // doOverlay() takes the whole sequence buffer: a submodel's parent
         // writes at its own absolute channels, and channelData here is this
         // output's slice, starting m_startChannel in.  (A framebuffer model
-        // ignores the argument and draws its own data.)
-        model->doOverlay(channelData - m_startChannel);
+        // ignores the argument and draws its own data.)  A submodel only
+        // once its parent, found since Init() or re-created, is a framebuffer.
+        PixelOverlayModelSub* sub = dynamic_cast<PixelOverlayModelSub*>(model);
+        if (!sub || sub->readyForPassThrough()) {
+            model->doOverlay(channelData - m_startChannel);
+        }
     }
     // else: the model is acting as an overlay (e.g., a Pixel Overlay
     // effect is writing into channelData via flushOverlayBuffer). Don't

@@ -846,7 +846,7 @@ const PolarBufferMap* PixelOverlayModel::getPolarMap(PolarMode mode) {
         return nullptr;
     }
     PixelOverlayModelSub* sub = dynamic_cast<PixelOverlayModelSub*>(this);
-    if (sub && !sub->readyForPolarJoin()) {
+    if (sub && !sub->resolveParent()) {
         return nullptr;
     }
     // Rebuild when the layout has been re-uploaded since the map was built.

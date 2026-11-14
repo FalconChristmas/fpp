@@ -126,6 +126,23 @@ T+Nms   update() returns EFFECT_DONE(0) -> effect deleted
 | `threadLock` (mutex) | `updates` map, `afterOverlayModels` list |
 | `activeModelsLock` (recursive_mutex) | `activeModels` list during doOverlays phases 1-4 |
 
+### Pass-through outside doOverlays()
+
+A VirtualMatrix (`FBMatrix.cpp`) or VirtualDisplay whose model is not enabled
+draws it from its own `SendData()`, after doOverlays(), and so outside the
+active list and `activeModelsLock`. Such a model must draw only to a display:
+
+- A submodel's chain must end at an `FB` model. FBMatrix::Init() refuses any
+  other parent or an xLights (grid) submodel (warning 35), and both outputs
+  check `PixelOverlayModelSub::readyForPassThrough()` every frame, since the
+  parent may be loaded or re-created after Init().
+- Disabling a submodel does not wait out such a draw, so `resetParent()` takes
+  the submodel's `useLock`, which doOverlay() holds while it uses the parent.
+  An output reload's Close() calls already run with the output thread held off
+  (`LockOutputThread()`); a parent removed from an output's Init() does not.
+- The manager resolves submodel parents in `addModel()`, because nothing in
+  pass-through calls the submodel's setState().
+
 ## Key Details
 
 - All transforms happen **in-place** on the single `m_seqData` buffer.

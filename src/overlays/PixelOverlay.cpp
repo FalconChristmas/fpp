@@ -230,7 +230,22 @@ void PixelOverlayManager::addModel(Json::Value config) {
         models[pmodel->getName()].model = pmodel;
         modelNames.push_back(pmodel->getName());
         ++modelsGeneration;
-        for (auto& l : models[pmodel->getName()].listeners) {
+        // Resolve submodel parents as models arrive, not at a first
+        // setState() that a VirtualMatrix in pass-through never makes: a new
+        // submodel whose parent is here, and every submodel of a new model.
+        const std::string& name = pmodel->getName();
+        for (auto& m : models) {
+            PixelOverlayModelSub* sub = dynamic_cast<PixelOverlayModelSub*>(m.second.model);
+            if (!sub) {
+                continue;
+            }
+            auto p = models.find(sub->getParentName());
+            if ((sub == pmodel && p != models.end() && p->second.model) ||
+                (sub != pmodel && sub->getParentName() == name)) {
+                sub->resolveParent();
+            }
+        }
+        for (auto& l : models[name].listeners) {
             l.second(pmodel);
         }
     }
