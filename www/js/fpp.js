@@ -16407,12 +16407,23 @@ function RefreshHeaderBar () {
 		// and into the header spans below.
 		data.sensors.forEach(function (e) {
 			var tv = EscapeHtml(e.formatted);
-			if (
+			if (e.valueType === 'FanSpeed') {
+				// RPM is a whole number; drop the fractional part the sensor
+				// formatter adds (e.g. "1200.0 RPM" -> "1200 RPM").
+				var rpm = parseFloat(e.value);
+				if (Number.isFinite(rpm)) {
+					tv = EscapeHtml(
+						(e.prefix || '') + rpm.toFixed(0) + (e.postfix || '')
+					);
+				}
+			} else if (
 				e.valueType === 'Temperature' &&
 				typeof temperatureUnit !== 'undefined' &&
 				temperatureUnit
 			) {
 				tv = (parseFloat(e.value) * 1.8 + 32).toFixed(2) + '&deg;F';
+			} else if (e.valueType === 'Temperature') {
+				tv += '&deg;C';
 			}
 			tooltip += '<b>' + EscapeHtml(e.label) + '</b>' + tv + '<br/>';
 		});
