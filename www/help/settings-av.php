@@ -69,4 +69,16 @@
     <li><b>Force HDMI Resolution</b> (dropdown) — Lock HDMI to a specific resolution. Default = whatever the display reports as its preferred mode at boot. Useful when a display or projector picks a mode that doesn’t suit it, such as one whose shape doesn’t match the screen size it reports. On a BeagleBone it shows once <b>Enable HDMI Display</b> is on. <i>Reboot required.</i></li>
     <li><b>Force Port 2 HDMI Resolution</b> (dropdown, Pi 4 / Pi 5) — Same for the second HDMI port. <i>Reboot required.</i></li>
 </ul>
-<p>A resolution saved through the API that is not in the resolution list is still shown, at the end, so loading this page does not change it.</p>
+<p>The resolution lists are sorted by size and then refresh rate. A Pi 4 or Pi 5 also offers the larger and faster modes. A resolution saved through the API that is not in the list is still shown, at the end, so loading this page does not change it.</p>
+<p><b>Choosing a refresh rate for an LED wall sender.</b> A show plays at its sequence’s frame rate, and the display shows each frame for a whole number of refreshes. When the refresh rate is a whole multiple of the frame rate, every frame gets the same number of refreshes and movement is even. Otherwise frames alternate between longer and shorter, which shows up as judder on scrolling text. FPP’s frame timing is not locked to the display, so expect an occasional uneven frame even then.</p>
+<table class="table table-sm w-auto">
+    <thead><tr><th>Show frame rate</th><th>Even refresh rates</th></tr></thead>
+    <tbody>
+        <tr><td>20 fps (50 ms)</td><td>60, 80, 100, 120 Hz</td></tr>
+        <tr><td>25 fps (40 ms)</td><td>50, 75, 100 Hz</td></tr>
+        <tr><td>30 fps</td><td>60, 120 Hz</td></tr>
+        <tr><td>40 fps (25 ms)</td><td>80, 120 Hz</td></tr>
+        <tr><td>50 fps (20 ms)</td><td>50, 100 Hz</td></tr>
+    </tbody>
+</table>
+<p>Check that the sender accepts the mode.</p>

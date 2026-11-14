@@ -1818,7 +1818,7 @@
 			"name": "ForceHDMIResolution",
 			"description": "Force HDMI Resolution",
 			"gatherStats": true,
-			"tip": "Force the HDMI output to the given resolution.  The default is whatever settings the monitor reports at bootup time.",
+			"tip": "Force the HDMI output to the given resolution.  The default is whatever settings the monitor reports at bootup time.  For an LED wall sender, a refresh rate that is a whole multiple of the show's frame rate moves most smoothly; the help page lists them.",
 			"reboot": 1,
 			"platforms": [
 				"Raspberry Pi",
