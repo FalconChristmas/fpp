@@ -1081,6 +1081,19 @@ function network_is_safe_config_string($v)
 }
 
 /**
+ * A WiFi key wpa_supplicant takes: empty (an open network), an 8-63
+ * character passphrase, or a 64 hex digit raw PSK.
+ */
+function network_is_valid_wpa_key($v)
+{
+    if (!is_string($v)) {
+        return $v === null;
+    }
+    $n = strlen($v);
+    return $n == 0 || ($n >= 8 && $n <= 63) || ($n == 64 && ctype_xdigit($v));
+}
+
+/**
  * Strict MAC check for static lease entries (colon or dash separators, as the
  * UI accepts both styles).
  */
@@ -1443,8 +1456,11 @@ function network_set_interface()
 
     // GETs never return WiFi keys (network_redact_interface_config()), so a
     // request without one keeps the key already saved.
+    $keysSent = array();
     foreach (array('PSK', 'BACKUPPSK') as $k) {
-        if (!array_key_exists($k, $data)) {
+        if (array_key_exists($k, $data)) {
+            $keysSent[] = $k;
+        } else {
             $data[$k] = isset($saved[$k]) ? $saved[$k] : '';
         }
     }
@@ -1500,6 +1516,14 @@ function network_set_interface()
         foreach (array('SSID', 'PSK', 'BACKUPSSID', 'BACKUPPSK') as $k) {
             if (isset($data[$k]) && !network_is_safe_config_string($data[$k])) {
                 return json(array("status" => "ERROR: invalid characters in " . $k));
+            }
+        }
+        // wpa_supplicant refuses the whole file, the other network included,
+        // over one key that is neither an 8-63 character passphrase nor 64 hex
+        // digits. Empty is an open network.
+        foreach ($keysSent as $k) {
+            if (!network_is_valid_wpa_key($data[$k])) {
+                return json(array("status" => "ERROR: " . $k . " must be an 8-63 character passphrase or 64 hex digits"));
             }
         }
         foreach (array('HIDDEN', 'WPA3', 'BACKUPHIDDEN', 'BACKUPWPA3') as $k) {

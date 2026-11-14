@@ -1707,8 +1707,12 @@
 
             // Show/hide appropriate password fields based on security type
             if (security === 'Open') {
+                // No key: clear a typed one and the saved-key marker, or the
+                // save would send or keep a key and an open network would be
+                // written as WPA-PSK.
                 $('#pskRow_' + safeName).hide();
                 $('#keyRow_' + safeName).hide();
+                $('#eth_psk_' + safeName).val('').removeAttr('data-saved-ssid').removeAttr('placeholder');
             } else if (security === 'WEP') {
                 $('#pskRow_' + safeName).hide();
                 $('#keyRow_' + safeName).show();

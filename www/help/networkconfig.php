@@ -30,7 +30,7 @@
 
 <h4>WiFi Configuration</h4>
 
-<p><b>WiFi password (PSK)</b> and <b>Backup WiFi password</b> — A saved password is never shown again; the field stays empty and reads <i>Saved - leave blank to keep</i>. Leave it blank to keep the saved password, or type a new one to replace it. If you change the network name (SSID) and leave the password blank, the saved password is cleared, which is what an open network needs.</p>
+<p><b>WiFi password (PSK)</b> and <b>Backup WiFi password</b> — An 8-63 character passphrase, or the 64 hex digit key that some routers show instead (a WPA3-only network needs the passphrase). For an open network, one with no password, leave it empty (picking an open network from the scan list clears it). A saved password is never shown again; the field stays empty and reads <i>Saved - leave blank to keep</i>. Leave it blank to keep the saved password, or type a new one to replace it. If you change the network name (SSID) and leave the password blank, the saved password is cleared, which is what an open network needs.</p>
 
 <p><b>WIFI Regulatory Domain</b> — The country this player is operating in. It controls which WiFi frequencies and channels the adapter is allowed to use, so set it to where the player actually is. <i>Reboot required.</i></p>
 

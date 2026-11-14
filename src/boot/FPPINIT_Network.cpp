@@ -88,6 +88,28 @@ static bool settingEnabled(const std::map<std::string, std::string>& m, const st
     }
     return !it->second.empty() && it->second != "0" && it->second != "false";
 }
+// One wpa_supplicant network={} block. The network page takes a key as an
+// 8-63 character passphrase or a 64 hex digit raw PSK; wpa_supplicant reads
+// the raw PSK only unquoted (quoted, it is an over-long passphrase and the
+// whole config fails to parse). SAE has no raw form, so such a key is WPA2
+// only. No key at all is an open network.
+static std::string wpaNetworkBlock(const std::string& ssid, const std::string& key, bool wpa3, bool hidden, int priority) {
+    bool rawPSK = key.size() == 64 && key.find_first_not_of("0123456789abcdefABCDEF") == std::string::npos;
+    std::string block = "\nnetwork={\n  ssid=\"" + ssid + "\"\n";
+    if (key.empty()) {
+        block += "  key_mgmt=NONE\n";
+    } else if (rawPSK) {
+        block += "  psk=" + key + "\n  key_mgmt=WPA-PSK\n";
+    } else if (wpa3) {
+        block += "  psk=\"" + key + "\"\n  key_mgmt=SAE WPA-PSK\n  sae_password=\"" + key + "\"\n";
+    } else {
+        block += "  psk=\"" + key + "\"\n  key_mgmt=WPA-PSK\n";
+    }
+    if (hidden) {
+        block += "  scan_ssid=1\n";
+    }
+    return block + "  priority=" + std::to_string(priority) + "\n}\n\n";
+}
 static std::string netmaskToSubnet(const std::string& nm) {
     const std::map<std::string, std::string> NETMASK2SUBNET = {
         { "255.255.255.252", "30" },
@@ -415,35 +437,11 @@ void setupNetwork(bool fullReload) {
                             // checkbox could never connect to such an AP on any board.
                             wpa.append("sae_pwe=2\n");
                         }
-                        wpa.append("\nnetwork={\n  ssid=\"").append(interfaceSettings["SSID"]);
-                        if (!interfaceSettings["PSK"].empty()) {
-                            wpa.append("\"\n  psk=\"").append(interfaceSettings["PSK"]);
-                        }
-                        wpa.append("\"\n  key_mgmt=");
-                        if (wpa3) {
-                            wpa.append("SAE WPA-PSK\n  sae_password=\"").append(interfaceSettings["PSK"]).append("\"");
-                        } else {
-                            wpa.append("WPA-PSK");
-                        }
-                        if (settingEnabled(interfaceSettings, "HIDDEN")) {
-                            wpa.append("\n  scan_ssid=1");
-                        }
-                        wpa.append("\n  priority=100\n}\n\n");
+                        wpa.append(wpaNetworkBlock(interfaceSettings["SSID"], interfaceSettings["PSK"], wpa3,
+                                                   settingEnabled(interfaceSettings, "HIDDEN"), 100));
                         if (!interfaceSettings["BACKUPSSID"].empty() && interfaceSettings["BACKUPSSID"] != "\"\"") {
-                            wpa.append("\nnetwork={\n  ssid=\"").append(interfaceSettings["BACKUPSSID"]);
-                            if (!interfaceSettings["BACKUPPSK"].empty()) {
-                                wpa.append("\"\n  psk=\"").append(interfaceSettings["BACKUPPSK"]);
-                            }
-                            wpa.append("\"\n  key_mgmt=");
-                            if (backupWpa3) {
-                                wpa.append("SAE WPA-PSK\n  sae_password=\"").append(interfaceSettings["BACKUPPSK"]).append("\"");
-                            } else {
-                                wpa.append("WPA-PSK");
-                            }
-                            if (settingEnabled(interfaceSettings, "BACKUPHIDDEN")) {
-                                wpa.append("\n  scan_ssid=1");
-                            }
-                            wpa.append("\n  priority=90\n}\n\n");
+                            wpa.append(wpaNetworkBlock(interfaceSettings["BACKUPSSID"], interfaceSettings["BACKUPPSK"], backupWpa3,
+                                                       settingEnabled(interfaceSettings, "BACKUPHIDDEN"), 90));
                         }
                         filesNeeded["/etc/wpa_supplicant/wpa_supplicant-" + interface + ".conf"] = wpa;
                         // Queue these unconditionally rather than gating them on
