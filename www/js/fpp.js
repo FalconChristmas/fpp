@@ -2402,6 +2402,16 @@ function HideAllToolTips () {
 // status poll, which leaked a whole table every couple of seconds.
 var fppToolTipElements = new Set();
 
+// Release the instances of elements that have since left the page.
+function ReleaseDetachedToolTips () {
+	fppToolTipElements.forEach(el => {
+		if (!el.isConnected) {
+			bootstrap.Tooltip.getInstance(el)?.dispose();
+			fppToolTipElements.delete(el);
+		}
+	});
+}
+
 function SetupToolTips (delay = 100) {
 	// Delegated on document so it covers dialogs built long after this sweep,
 	// and namespaced + rebound because several pages call SetupToolTips again
@@ -2412,13 +2422,7 @@ function SetupToolTips (delay = 100) {
 		.off('show.bs.modal.fppTooltips')
 		.on('show.bs.modal.fppTooltips', HideAllToolTips);
 
-	// Release the instances of elements that have since left the page.
-	fppToolTipElements.forEach(el => {
-		if (!el.isConnected) {
-			bootstrap.Tooltip.getInstance(el)?.dispose();
-			fppToolTipElements.delete(el);
-		}
-	});
+	ReleaseDetachedToolTips();
 
 	var titles = document.querySelectorAll('[title]');
 
@@ -2448,49 +2452,52 @@ function SetupToolTips (delay = 100) {
 	const tooltipTriggerList = document.querySelectorAll(
 		'[data-bs-toggle="tooltip"]'
 	);
-	const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => {
-		let tooltipInstance = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
-		if (tooltipInstance) {
-			// Already set up by an earlier call.  A new title attribute means
-			// the page retitled it, so rebuild it to pick that up; otherwise a
-			// second instance would only orphan the first one's listeners.
-			if (!tooltipTriggerEl.hasAttribute('title')) {
-				return tooltipInstance;
-			}
-			tooltipInstance.dispose();
+	tooltipTriggerList.forEach(InitToolTip);
+}
+// Gives one element its tooltip, once: an element already set up keeps its
+// instance unless the page has given it a new title since.
+function InitToolTip (tooltipTriggerEl) {
+	let tooltipInstance = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+	if (tooltipInstance) {
+		// Already set up by an earlier call.  A new title attribute means
+		// the page retitled it, so rebuild it to pick that up; otherwise a
+		// second instance would only orphan the first one's listeners.
+		if (!tooltipTriggerEl.hasAttribute('title')) {
+			return tooltipInstance;
 		}
-		try {
-			// Bootstrap treats an empty data-bs-title attribute as null and
-			// throws while type-checking the config. A single bad tooltip
-			// must not abort the loop (and with it the rest of page setup,
-			// such as binding the mobile nav menu), so guard each one.
-			tooltipInstance = new bootstrap.Tooltip(tooltipTriggerEl);
-		} catch (e) {
-			console.warn('Skipping invalid tooltip', tooltipTriggerEl, e);
-			return null;
-		}
-		fppToolTipElements.add(tooltipTriggerEl);
+		tooltipInstance.dispose();
+	}
+	try {
+		// Bootstrap treats an empty data-bs-title attribute as null and
+		// throws while type-checking the config. A single bad tooltip
+		// must not abort the loop (and with it the rest of page setup,
+		// such as binding the mobile nav menu), so guard each one.
+		tooltipInstance = new bootstrap.Tooltip(tooltipTriggerEl);
+	} catch (e) {
+		console.warn('Skipping invalid tooltip', tooltipTriggerEl, e);
+		return null;
+	}
+	fppToolTipElements.add(tooltipTriggerEl);
 
-		// Auto-hide tooltip after 3 seconds if mouse is not hovering.  Bound
-		// once per element, looking the instance up when it fires, because a
-		// retitled element gets a new instance above.
-		if (!tooltipTriggerEl.fppToolTipAutoHide) {
-			tooltipTriggerEl.fppToolTipAutoHide = true;
-			tooltipTriggerEl.addEventListener('mouseenter', () => {
-				clearTimeout(tooltipTriggerEl.tooltipTimeout);
-			});
+	// Auto-hide tooltip after 3 seconds if mouse is not hovering.  Bound
+	// once per element, looking the instance up when it fires, because a
+	// retitled element gets a new instance above.
+	if (!tooltipTriggerEl.fppToolTipAutoHide) {
+		tooltipTriggerEl.fppToolTipAutoHide = true;
+		tooltipTriggerEl.addEventListener('mouseenter', () => {
+			clearTimeout(tooltipTriggerEl.tooltipTimeout);
+		});
 
-			tooltipTriggerEl.addEventListener('mouseleave', () => {
-				tooltipTriggerEl.tooltipTimeout = setTimeout(() => {
-					if (!tooltipTriggerEl.matches(':hover')) {
-						bootstrap.Tooltip.getInstance(tooltipTriggerEl)?.hide();
-					}
-				}, 3000);
-			});
-		}
+		tooltipTriggerEl.addEventListener('mouseleave', () => {
+			tooltipTriggerEl.tooltipTimeout = setTimeout(() => {
+				if (!tooltipTriggerEl.matches(':hover')) {
+					bootstrap.Tooltip.getInstance(tooltipTriggerEl)?.hide();
+				}
+			}, 3000);
+		});
+	}
 
-		return tooltipInstance;
-	});
+	return tooltipInstance;
 }
 function SetHomepageStatusRowWidthForMobile () {
 	if ($('.statusDivTopRow').length > 0) {
@@ -3038,27 +3045,18 @@ function GetPlaylistRowHTML (ID, entry, editMode, entryIssues = []) {
 
 	// entryIssues: problems /api/playlists/validate found with this entry
 	var warningClass = '';
-	var warningTitle = '';
 	if (entryIssues.length) {
 		warningClass = ' playlistRowWarning';
-		warningTitle =
-			' title="' +
-			entryIssues
-				.map(function (m) {
-					return EscapeHtml(m).replace(/"/g, '&quot;');
-				})
-				.join('&#10;') +
-			'"';
 	}
 
 	if (editMode) {
-		HTML += "<tr class='playlistRow" + warningClass + "'" + warningTitle + ">";
+		HTML += "<tr class='playlistRow" + warningClass + "'>";
 		HTML +=
 			"<td class='playlistRowCheckCell'><input type='checkbox' class='playlistEntryCheckbox' onchange='UpdatePlaylistSelectCount()' /></td>";
 		HTML +=
 			"<td class='center' valign='middle'> <div class='rowGrip'><i class='rowGripIcon fpp-icon-grip'></i></div></td>";
 	} else {
-		HTML += "<tr id='playlistRow" + rowNum + "' class='playlistRow" + warningClass + "'" + warningTitle + ">";
+		HTML += "<tr id='playlistRow" + rowNum + "' class='playlistRow" + warningClass + "'>";
 	}
 
 	HTML += "<td class='colPlaylistNumber";
@@ -3087,7 +3085,9 @@ function GetPlaylistRowHTML (ID, entry, editMode, entryIssues = []) {
 		PlaylistEntryTypeToString(entry.type) +
 		':' +
 		deprecated +
-		(warningClass ? "<span class='playlistEntryWarningIcon'>&#x26a0;</span>" : "") +
+		(entryIssues.length
+			? WarningIcon(entryIssues, null, 'playlistEntryWarningIcon')[0].outerHTML
+			: '') +
 		"<span style='display: none;' class='entryType'>" +
 		entry.type +
 		"</span></div><div class='psiData'>";
@@ -3290,14 +3290,29 @@ function RefreshPlaylistRowWarnings (name) {
 				var entryIssues = issues[section + ':' + i] || [];
 				$(row).find('.playlistEntryWarningIcon').remove();
 				if (entryIssues.length) {
-					$(row).addClass('playlistRowWarning').attr('title', entryIssues.join('\n'));
+					$(row).addClass('playlistRowWarning');
 					$(row)
 						.find('.psiHeader .entryType')
-						.before("<span class='playlistEntryWarningIcon'>&#x26a0;</span>");
+						.before(WarningIcon(entryIssues, null, 'playlistEntryWarningIcon'));
 				} else {
-					$(row).removeClass('playlistRowWarning').removeAttr('title');
+					$(row).removeClass('playlistRowWarning');
 				}
 			});
+	});
+	SetupPlaylistWarningToolTips();
+}
+
+// The playlist editor runs SetupToolTips() only at page load, before its
+// entries exist (its own later call was commented out in 3fd1a65df), so the
+// entries' titles stay plain browser titles. A full sweep now would turn
+// those into Bootstrap tooltips too; only the ⚠ icons are set up here.
+function SetupPlaylistWarningToolTips () {
+	if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) {
+		return;
+	}
+	ReleaseDetachedToolTips();
+	$('.playlistEntryWarningIcon').each(function () {
+		InitToolTip(this);
 	});
 }
 
@@ -8866,6 +8881,7 @@ function PopulatePlaylistDetails (data, editMode, name = '', issues = {}) {
 	RenumberPlaylistEditorEntries();
 	UpdatePlaylistDurations();
 	VerbosePlaylistItemDetailsToggled();
+	SetupPlaylistWarningToolTips();
 
 	// Don't fetch durations on load - they're already in the JSON data
 	// Only fetch when explicitly needed (like when adding new items)
@@ -15229,6 +15245,7 @@ function QueueCommandTemplateValidation (row) {
 							SetCommandTemplateWarning(r, results[i] || []);
 						}
 					});
+					SetupToolTips();
 				}
 			);
 		}, 0);
@@ -15242,12 +15259,34 @@ function QueueCommandTemplateValidation (row) {
 	}
 }
 
+// A ⚠ whose tooltip lists the problems: the first 8, and a count of the rest.
+// It is an ordinary FPP tooltip, so run SetupToolTips() once icons have been
+// added, or taken away (which also clears a tooltip left showing).
+function WarningIcon (problems, heading, iconClass = 'cmdTmplWarning') {
+	var lines = problems.slice(0, 8).map(EscapeHtml);
+	if (problems.length > 8) {
+		lines.push('<i>and ' + (problems.length - 8) + ' more</i>');
+	}
+	if (heading) {
+		lines.unshift('<b>' + EscapeHtml(heading) + '</b>');
+	}
+	return $(
+		"<span tabindex='0' role='img' data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto'>&#x26a0;</span>"
+	)
+		.addClass(iconClass)
+		.attr('data-bs-title', lines.join('<br>'))
+		.attr(
+			'aria-label',
+			heading || problems.length + (problems.length == 1 ? ' problem' : ' problems')
+		);
+}
+
 function SetCommandTemplateWarning (row, problems) {
 	row.find('.cmdTmplWarning').remove();
 	if (problems.length) {
-		$("<span class='cmdTmplWarning'>&#x26a0;</span>")
-			.attr('title', problems.join('\n'))
-			.insertAfter(row.find('.cmdTmplCommand').first());
+		WarningIcon(problems, 'This command would fail:').insertAfter(
+			row.find('.cmdTmplCommand').first()
+		);
 	}
 }
 

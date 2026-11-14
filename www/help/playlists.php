@@ -25,7 +25,7 @@
     <li><b>Main Playlist</b> — The repeating body. When <b>Randomize</b> is on or the playlist is set to repeat on the Status page, this section loops.</li>
     <li><b>Lead Out</b> — Plays once at the very end. Drag rows between sections or reorder within a section by dragging the grip handle (touch devices drag via the grip). Double-click a row or click its pencil to edit.</li>
 </ul>
-<p>Each row shows <b>#</b>, <b>Type</b>, <b>Name/Details</b>, <b>Duration</b>, and row actions <b>Edit</b> / <b>Delete</b>. Durations are summed at the bottom of each section and as a grand total. A row highlighted with &#x26a0; has a problem; hover it to see what. The highlight reflects the last saved version and refreshes when you save.</p>
+<p>Each row shows <b>#</b>, <b>Type</b>, <b>Name/Details</b>, <b>Duration</b>, and row actions <b>Edit</b> / <b>Delete</b>. Durations are summed at the bottom of each section and as a grand total. A row highlighted with &#x26a0; has a problem; hover over or tap the &#x26a0; to see what. The highlight reflects the last saved version and refreshes when you save.</p>
 
 <h4>Add a Sequence / Entry</h4>
 <p>The large <b>Add a Sequence/Entry</b> button opens <b>New Entry</b> (800 px dialog). Footer offers <b>Add</b> (append), <b>Insert → Before Selection</b> and <b>Insert → After Selection</b>. Inside:</p>

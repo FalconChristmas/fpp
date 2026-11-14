@@ -405,7 +405,7 @@ error_reporting(E_ALL);
             var isValid = true;
 
             // Remove previous warnings
-            $(row).find('.schPlaylistWarning').remove();
+            var hadWarning = $(row).find('.schPlaylistWarning').remove().length > 0;
             $(row).find('.schPlaylist').removeClass('inputWarning');
             $(row).find('.schSequence').removeClass('inputWarning');
             $(row).find('.cmdTmplCommand').removeClass('inputWarning');
@@ -421,8 +421,9 @@ error_reporting(E_ALL);
                     var pl = playListArray.find(function (p) { return p.name == playlistVal; });
                     if (pl && !pl.valid) {
                         $(row).find('.schPlaylist').addClass('inputWarning');
-                        $("<span class='schPlaylistWarning cmdTmplWarning'>&#x26a0;</span>")
-                            .attr('title', 'This playlist has problems:\n' + pl.messages.join('\n'))
+                        var n = pl.messages.length;
+                        WarningIcon(pl.messages, 'This playlist has ' + n + ' problem' + (n == 1 ? '' : 's') +
+                            ' (see the Playlists page):', 'schPlaylistWarning')
                             .insertAfter($(row).find('.schPlaylist'));
                     }
                 }
@@ -440,7 +441,23 @@ error_reporting(E_ALL);
                 }
             }
 
+            if (hadWarning || $(row).find('.schPlaylistWarning').length)
+                QueueScheduleWarningToolTips();
+
             return isValid;
+        }
+
+        // Loading or saving the schedule validates every row: one sweep of
+        // the page for the ⚠ icons of the whole pass, not one per row.
+        var scheduleWarningToolTipsQueued = false;
+        function QueueScheduleWarningToolTips() {
+            if (scheduleWarningToolTipsQueued)
+                return;
+            scheduleWarningToolTipsQueued = true;
+            setTimeout(function () {
+                scheduleWarningToolTipsQueued = false;
+                SetupToolTips();
+            }, 0);
         }
 
         function ScheduleEntryRepeatChanged(item) {

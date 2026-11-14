@@ -467,6 +467,7 @@ if (is_dir($stringsDir)) {
             var c = $('#gpioTriggerList').empty();
             if (!gpioTriggers.length) {
                 c.html('<div class="text-muted fst-italic p-3">No GPIO triggers configured. Click <strong>Add GPIO Trigger</strong> to get started.</div>');
+                SetupToolTips(); // drops the tooltips of the ⚠ icons just removed
                 return;
             }
             $.each(gpioTriggers, function (i, t) { c.append(buildTriggerCard(i, t)); });
@@ -495,8 +496,9 @@ if (is_dir($stringsDir)) {
                 $.each(results, function (k, problems) {
                     if (!problems.length) return;
                     $('#gpioTriggerList [data-cmd-key="' + keys[k] + '"]').append(
-                        $("<span class='cmdTmplWarning'>&#x26a0;</span>").attr('title', problems.join('\n')));
+                        WarningIcon(problems, 'This command would fail:'));
                 });
+                SetupToolTips();
             });
         }
 

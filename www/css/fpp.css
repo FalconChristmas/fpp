@@ -1901,7 +1901,9 @@ body.is-loading.show-loading-skeleton #schedulerInfo .labelValue:before {
 	background-color: var(--bs-warning-bg-subtle) !important;
 }
 .playlistEntryWarningIcon,
+.schPlaylistWarning,
 .cmdTmplWarning {
+	cursor: help;
 	color: var(--bs-warning);
 	font-family: 'Font Awesome 5 Free';
 	font-weight: 900;
