@@ -712,6 +712,7 @@ void Sensors::DetectFanSensors() {
                     label += " " + std::to_string(fan);
                 v["label"] = label + ": ";
                 v["postfix"] = " RPM";
+                v["precision"] = 0;
 
                 std::string probeKey = deviceName + ":" + std::to_string(fan);
                 if (fanProbe.isMember(probeKey) && !fanProbe[probeKey]["present"].asBool()) {

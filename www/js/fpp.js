@@ -16454,6 +16454,8 @@ function RefreshHeaderBar () {
 				temperatureUnit
 			) {
 				tv = (parseFloat(e.value) * 1.8 + 32).toFixed(2) + '&deg;F';
+			} else if (e.valueType === 'Temperature') {
+				tv += '&deg;C';
 			}
 			tooltip += '<b>' + EscapeHtml(e.label) + '</b>' + tv + '<br/>';
 		});
