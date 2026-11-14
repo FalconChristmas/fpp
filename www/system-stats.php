@@ -621,10 +621,9 @@ if (isset($_GET['cpu'])) {
             $('#fan-monitoring-row').removeClass('d-none');
             var html = '';
             fans.forEach(function (fan) {
-                var rpm = parseFloat(fan.value).toFixed(0);
                 html += '<div class="fan-entry">' +
                     '<span class="fan-label">' + fan.label + '</span>' +
-                    '<span class="fan-value">' + rpm + ' RPM</span>' +
+                    '<span class="fan-value">' + fan.value + ' RPM</span>' +
                     '</div>';
             });
             $('#fan-data').html(html);
