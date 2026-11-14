@@ -2423,6 +2423,12 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "The path resolves outside the directory"
+          },
+          "404": {
+            "description": "No such file"
           }
         }
       },
@@ -3324,7 +3330,7 @@
           "fppd"
         ],
         "summary": "fppd/ports/stop",
-        "description": "Stop any running port test, then return current port status.",
+        "description": "Stop a running pixel-count test, then return current port status. Any other test is left running.",
         "responses": {
           "200": {
             "description": "Array of port status objects."
@@ -6721,6 +6727,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "The request did not contain a playlist, or a section is not a list"
           }
         }
       }
@@ -7038,6 +7047,9 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "The playlist file is not valid JSON; it is left as it is"
           }
         }
       }
@@ -7124,6 +7136,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "The request did not contain a playlist, or a section is not a list"
           }
         }
       }
@@ -7759,7 +7774,7 @@
           "plugin"
         ],
         "summary": "Check every plugin for updates now",
-        "description": "Starts the background check of every installed plugin (the same one that runs off page loads, but every plugin regardless of age) and returns at once. Poll `GET /api/plugin/updateStatus` until `sweep.result` is no longer `in-progress`. `started` is false when one was already running.",
+        "description": "Starts the background check of every installed plugin (the same one that runs off page loads, but every plugin regardless of age) and returns at once. Poll `GET /api/plugin/updateStatus` until `sweep.result` is no longer `in-progress`. `started` is false when one was already running; that one then checks every plugin again before it finishes, so the answer polled for still comes from a check made after this request.",
         "responses": {
           "200": {
             "description": "Started, or already running",
@@ -8810,7 +8825,7 @@
           "scripts"
         ],
         "summary": "Update script",
-        "description": "Writes the `POST` request body to the file specified by `{scriptName}`.",
+        "description": "Writes the `POST` request body, the script as a JSON string, to the file specified by `{scriptName}`.",
         "responses": {
           "200": {
             "description": "Script saved",
@@ -8826,6 +8841,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "The body is not the script as a JSON string"
           }
         }
       }
