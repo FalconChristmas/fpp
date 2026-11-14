@@ -69,3 +69,4 @@
     <li><b>Force HDMI Resolution</b> (dropdown) — Lock HDMI to a specific resolution. Default = whatever the display reports as its preferred mode at boot. Useful when a display or projector picks a mode that doesn’t suit it, such as one whose shape doesn’t match the screen size it reports. On a BeagleBone it shows once <b>Enable HDMI Display</b> is on. <i>Reboot required.</i></li>
     <li><b>Force Port 2 HDMI Resolution</b> (dropdown, Pi 4 / Pi 5) — Same for the second HDMI port. <i>Reboot required.</i></li>
 </ul>
+<p>A resolution saved through the API that is not in the resolution list is still shown, at the end, so loading this page does not change it.</p>
