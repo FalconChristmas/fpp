@@ -190,7 +190,9 @@
 				"ForceHDMI",
 				"EnableBBBHDMI",
 				"ForceHDMIResolution",
-				"ForceHDMIResolutionPort2"
+				"ForceHDMITiming",
+				"ForceHDMIResolutionPort2",
+				"ForceHDMITimingPort2"
 			]
 		},
 		"simplePipeWireVideo": {
@@ -1809,7 +1811,8 @@
 			},
 			"children": {
 				"1": [
-					"ForceHDMIResolution"
+					"ForceHDMIResolution",
+					"ForceHDMITiming"
 				]
 			},
 			"type": "checkbox"
@@ -1834,6 +1837,32 @@
 			"type": "select",
 			"optionsURL": "hdmi_table.json.php"
 		},
+		"ForceHDMITiming": {
+			"name": "ForceHDMITiming",
+			"description": "Force HDMI Mode Timing",
+			"gatherStats": true,
+			"level": 1,
+			"tip": "How the timings of a forced resolution are made when the display doesn't list that mode itself, as LED wall senders often don't above 60 Hz.  Auto: the display's own timings when it lists the mode, otherwise the kernel's (GTF).  Standard VESA (CVT): try this first when a forced mode gives no picture.  CVT Reduced Blanking: for a high refresh rate at a large resolution; some displays refuse it.  No effect when Force HDMI Resolution is Default.",
+			"reboot": 1,
+			"platforms": [
+				"Raspberry Pi",
+				"BeagleBone Black"
+			],
+			"variants": {
+				"BeagleBone Black": [
+					"BeagleBone Black",
+					"BeagleBone Black Wireless",
+					"SanCloud BeagleBone Enhanced"
+				]
+			},
+			"type": "select",
+			"default": "",
+			"options": {
+				"Auto": "",
+				"Standard VESA (CVT)": "M",
+				"CVT Reduced Blanking": "MR"
+			}
+		},
 		"ForceHDMIResolutionPort2": {
 			"name": "ForceHDMIResolutionPort2",
 			"gatherStats": true,
@@ -1851,6 +1880,30 @@
 			},
 			"type": "select",
 			"optionsURL": "hdmi_table.json.php"
+		},
+		"ForceHDMITimingPort2": {
+			"name": "ForceHDMITimingPort2",
+			"description": "Force Port 2 HDMI Mode Timing",
+			"gatherStats": true,
+			"level": 1,
+			"tip": "The same as Force HDMI Mode Timing, for the second HDMI port.  No effect when Force Port 2 HDMI Resolution is Default.",
+			"reboot": 1,
+			"platforms": [
+				"Raspberry Pi"
+			],
+			"variants": {
+				"Raspberry Pi": [
+					"Pi 4",
+					"Pi 5"
+				]
+			},
+			"type": "select",
+			"default": "",
+			"options": {
+				"Auto": "",
+				"Standard VESA (CVT)": "M",
+				"CVT Reduced Blanking": "MR"
+			}
 		},
 		"gitRemote": {
 			"name": "gitRemote",

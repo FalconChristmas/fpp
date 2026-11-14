@@ -730,6 +730,9 @@ function IsValidSettingValue($name, $value)
         case 'ForceHDMIResolution':
         case 'ForceHDMIResolutionPort2':
             return preg_match('/^[A-Za-z0-9@]+$/', $value) === 1;
+        case 'ForceHDMITiming':
+        case 'ForceHDMITimingPort2':
+            return in_array($value, ['', 'M', 'MR'], true);
         case 'InstalledCape':
             return preg_match('/^[A-Za-z0-9][A-Za-z0-9._+-]*$/', $value) === 1 || $value === '--None--';
         case 'screensaverTimeout':

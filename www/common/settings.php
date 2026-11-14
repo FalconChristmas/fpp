@@ -294,6 +294,17 @@ function SetForceHDMIResolution($value, $postfix)
         return;
     }
 
+    // Force HDMI Mode Timing: the kernel's video= suffix for how a mode's
+    // timings are made when the display does not list that mode itself
+    // ("M" = VESA CVT, "MR" = CVT reduced blanking; none = the kernel's
+    // fallback).  Only a plain WxH@R value takes it; a value that already
+    // carries its own suffix (e.g. 1024x768M@80, set before this setting
+    // existed) is used as is.
+    $timing = $settings[$postfix == "1" ? "ForceHDMITiming" : "ForceHDMITimingPort2"] ?? "";
+    if (($timing == "M" || $timing == "MR") && preg_match('/^([0-9]+x[0-9]+)(@[0-9]+)$/', $value, $m)) {
+        $value = $m[1] . $timing . $m[2];
+    }
+
     if ($settings["Platform"] == "BeagleBone Black") {
         exec("sudo sed -i -e 's/^cmdline\(.*\) video=HDMI-A-1:\([A-Za-z@0-9]*\)\(.*\)/cmdline\\1 \\3/' " . GetDirSetting('boot') . "/uEnv.txt", $output, $return_val);
         exec("sudo sed -i 's/[ \\t]*$//' " . GetDirSetting('boot') . "/uEnv.txt", $output, $return_val);
@@ -533,6 +544,16 @@ function ApplySetting($setting, $value)
             break;
         case 'ForceHDMIResolutionPort2':
             SetForceHDMIResolution($value, "2");
+            break;
+        case 'ForceHDMITiming':
+        case 'ForceHDMITimingPort2':
+            // The timing is part of the resolution's video= entry; rewrite it.
+            // Not with no resolution ever saved: that writes Default, which
+            // takes away a video= entry added to the boot files by hand.
+            $res = ($setting == 'ForceHDMITiming') ? 'ForceHDMIResolution' : 'ForceHDMIResolutionPort2';
+            if (($settings[$res] ?? '') != '') {
+                SetForceHDMIResolution($settings[$res], $setting == 'ForceHDMITiming' ? "1" : "2");
+            }
             break;
         case 'InstalledCape':
             SetInstalledCape($value);

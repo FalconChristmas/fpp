@@ -67,7 +67,9 @@
     <li><b>Force HDMI Display</b> (checkbox, Raspberry Pi) — Force HDMI as default display. Needed if HDMI is not detected at boot or was dark when the Pi started. When on, composite output is unavailable until disabled. <i>Reboot required.</i></li>
     <li><b>Enable HDMI Display</b> (checkbox, BeagleBone Black variants) — Enables the BeagleBone HDMI port. <b>Warning:</b> when enabled, many GPIO pins used by capes are disabled.</li>
     <li><b>Force HDMI Resolution</b> (dropdown) — Lock HDMI to a specific resolution. Default = whatever the display reports as its preferred mode at boot. Useful when a display or projector picks a mode that doesn’t suit it, such as one whose shape doesn’t match the screen size it reports. On a BeagleBone it shows once <b>Enable HDMI Display</b> is on. <i>Reboot required.</i></li>
+    <li><b>Force HDMI Mode Timing</b> (dropdown) — How the timings of a forced resolution are made when the display does not list that mode itself, as LED wall senders often don’t above 60 Hz. <b>Auto</b> uses the display’s own timings when it lists the mode, and otherwise the kernel’s (GTF). <b>Standard VESA (CVT)</b> uses computed VESA timings: try it first when a forced mode gives no picture. <b>CVT Reduced Blanking</b> uses shorter blanking and a lower pixel clock, for a high refresh rate at a large resolution; some displays refuse it. A mode the display does list always uses its own timings. No effect when Force HDMI Resolution is Default, or for a resolution saved with its own timing letter (such as <code>1024x768M@80</code>). Shown under Force HDMI Resolution at the Advanced UI level. <i>Reboot required.</i></li>
     <li><b>Force Port 2 HDMI Resolution</b> (dropdown, Pi 4 / Pi 5) — Same for the second HDMI port. <i>Reboot required.</i></li>
+    <li><b>Force Port 2 HDMI Mode Timing</b> (dropdown, Pi 4 / Pi 5) — Same as Force HDMI Mode Timing, for the second HDMI port. Shown under Force Port 2 HDMI Resolution at the Advanced UI level. <i>Reboot required.</i></li>
 </ul>
 <p>The resolution lists are sorted by size and then refresh rate. A Pi 4 or Pi 5 also offers the larger and faster modes. A resolution saved through the API that is not in the list is still shown, at the end, so loading this page does not change it.</p>
 <p><b>Choosing a refresh rate for an LED wall sender.</b> A show plays at its sequence’s frame rate, and the display shows each frame for a whole number of refreshes. When the refresh rate is a whole multiple of the frame rate, every frame gets the same number of refreshes and movement is even. Otherwise frames alternate between longer and shorter, which shows up as judder on scrolling text. FPP’s frame timing is not locked to the display, so expect an occasional uneven frame even then.</p>
@@ -81,4 +83,4 @@
         <tr><td>50 fps (20 ms)</td><td>50, 100 Hz</td></tr>
     </tbody>
 </table>
-<p>Check that the sender accepts the mode.</p>
+<p>Check that the sender accepts the mode, and set Force HDMI Mode Timing (Advanced level) if it gives no picture.</p>
