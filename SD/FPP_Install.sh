@@ -67,7 +67,7 @@ FPPBRANCH=${FPPBRANCH:-"master"}
 # user-supplied --os-version so the .img / .fppos filenames match what's
 # baked into the image itself).
 FPPIMAGEVER=${FPPIMAGEVER:-"2026-09"}
-FPPCFGVER="163"
+FPPCFGVER="164"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -1248,6 +1248,16 @@ EOF
 
         echo "FPP - Disabling fancy network interface names"
         sed -i -e 's/rootwait/rootwait net.ifnames=0 /' ${BOOTDIR}/cmdline.txt
+
+        # cloud-init applies Raspberry Pi Imager's OS customisation, but only to
+        # system files and through netplan/NetworkManager, which FPP replaces
+        # with its own systemd-networkd setup: its WiFi never comes up and FPP's
+        # settings never see its hostname. The base image's seed files on the
+        # boot partition make it run on every boot regardless, holding up
+        # sysinit.target (~70s on a Pi Zero), and with it basic.target and
+        # every service ordered after it (issue #3178).
+        echo "FPP - Removing cloud-init"
+        apt_purge_installed cloud-init rpi-cloud-init-mods
 
         echo "FPP - Freeing up more space by removing unnecessary packages"
         apt_purge_installed \
