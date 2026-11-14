@@ -984,10 +984,34 @@ void handleTimeSyncWait() {
     unlink(skipFile.c_str());
 }
 
+// Restart the supplicant of every WiFi client that is enabled but not running.
+// Its boot-time start job can give up before it could run (JobTimeoutSec in
+// etc/systemd/wpa_supplicant@.service.d counts from when it was queued, and a
+// slow boot used it all up: issue #3178), and nothing else retries it. Each
+// client has a wpa_supplicant-<if>.conf; the tether AP has none.
 void checkWLANInterface() {
-    if (contains(execAndReturn("/usr/bin/systemctl is-enabled wpa_supplicant@wlan0"), "enabled") && contains(execAndReturn("/usr/bin/systemctl is-active wpa_supplicant@wlan0"), "inactive")) {
-        printf("Need to restart wpa_supplicant@wlan0\n");
-        execbg("systemctl restart \"wpa_supplicant@wlan0.service\" &");
+    std::error_code ec;
+    for (const auto& entry : std::filesystem::directory_iterator("/etc/wpa_supplicant", ec)) {
+        std::string name = entry.path().filename();
+        if (!startsWith(name, "wpa_supplicant-wl") || !endsWith(name, ".conf")) {
+            continue;
+        }
+        std::string intf = name.substr(15, name.size() - 15 - 5);
+        if (!isShellSafeWord(intf)) {
+            continue;
+        }
+        if (!FileExists("/sys/class/net/" + intf)) {
+            // Not plugged in: a restart would only time out again, and the
+            // udev rule starts it if the adapter turns up.
+            continue;
+        }
+        std::string unit = "wpa_supplicant@" + intf;
+        std::string state = execAndReturn("/usr/bin/systemctl is-active " + unit);
+        if ((contains(state, "inactive") || contains(state, "failed")) &&
+            contains(execAndReturn("/usr/bin/systemctl is-enabled " + unit), "enabled")) {
+            printf("Need to restart %s\n", unit.c_str());
+            execbg("systemctl restart \"" + unit + ".service\" &");
+        }
     }
 }
 
