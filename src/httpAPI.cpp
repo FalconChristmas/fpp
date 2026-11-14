@@ -1141,6 +1141,12 @@ void APIServer::Init(void) {
     app.setClientMaxBodySize(32 * 1024 * 1024);
     app.setClientMaxMemoryBodySize(4 * 1024 * 1024);
 
+    // Drogon drops a connection after 60s without reads or writes, even while
+    // its request is still being answered. A Diagnostic Report
+    // (/internal/crashReport) takes minutes to build on a Pi Zero or
+    // BeagleBone; outlast its 240s build and PHP's 270s wait.
+    app.setIdleConnectionTimeout(300);
+
     // A sync advice runs before any router, for plain requests and WebSocket
     // upgrades alike; see QuiesceHttpServer().
     app.registerSyncAdvice([](const drogon::HttpRequestPtr&) -> drogon::HttpResponsePtr {
