@@ -8,7 +8,13 @@ $modes = json_decode(@file_get_contents(__DIR__ . "/hdmi_modes.json"), true);
 if (!is_array($modes)) {
     $modes = [];
 }
+// "all" is what every board's HDMI output can drive (a BeagleBone Black's
+// display controller stops at 126 MHz, about 1280x1024@60), "pi" what every
+// Pi's can (162 MHz on a Pi 0-3), and "pi4pi5" the rest, up to 600 MHz.
 $table = $modes["all"] ?? [];
+if (($settings['Platform'] ?? '') == "Raspberry Pi") {
+    $table = array_merge($table, $modes["pi"] ?? []);
+}
 if ((strpos($settings['SubPlatform'], "Raspberry Pi 4") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi Compute Module 4") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi 5") !== false) || (strpos($settings['SubPlatform'], "Raspberry Pi Compute Module 5") !== false)) {
     $table = array_merge($table, $modes["pi4pi5"] ?? []);
 }

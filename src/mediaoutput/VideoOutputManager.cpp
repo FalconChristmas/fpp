@@ -256,16 +256,21 @@ static std::string ScreenShapeName(uint32_t width, uint32_t height) {
 }
 
 // The Force HDMI Resolution values this board's dropdown offers: the list
-// hdmi_table.json.php builds from hdmi_modes.json, with its Pi 4/5 test.
+// hdmi_table.json.php builds from hdmi_modes.json, with its Pi and Pi 4/5 tests.
 static std::set<std::string> OfferedHdmiModes() {
     std::set<std::string> offered;
     Json::Value modes;
     if (!LoadJsonFromFile(getFPPDDir("/www/hdmi_modes.json"), modes) || !modes.isObject()) {
         return offered;
     }
+    // Both from the board's model: "Raspberry Pi ..." for every Pi, and FPP's
+    // own board type, so a Pi 400, CM4 or CM5 counts as its Pi.
     std::vector<std::string> lists = { "all" };
-    // FPP's own board type, so a Pi 400, CM4 or CM5 counts as its Pi.
-    MultiSyncSystemType board = MultiSync::ModelStringToType(GetFileContents("/proc/device-tree/model"));
+    std::string model = GetFileContents("/proc/device-tree/model");
+    if (model.find("Raspberry Pi") != std::string::npos) {
+        lists.push_back("pi");
+    }
+    MultiSyncSystemType board = MultiSync::ModelStringToType(model);
     if (board == kSysTypeFPPRaspberryPi4 || board == kSysTypeFPPRaspberryPi5) {
         lists.push_back("pi4pi5");
     }

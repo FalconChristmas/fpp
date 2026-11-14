@@ -71,7 +71,7 @@
     <li><b>Force Port 2 HDMI Resolution</b> (dropdown, Pi 4 / Pi 5) — Same for the second HDMI port. <i>Reboot required.</i></li>
     <li><b>Force Port 2 HDMI Mode Timing</b> (dropdown, Pi 4 / Pi 5) — Same as Force HDMI Mode Timing, for the second HDMI port. Shown under Force Port 2 HDMI Resolution at the Advanced UI level. <i>Reboot required.</i></li>
 </ul>
-<p>The resolution lists are sorted by size and then refresh rate. A Pi 4 or Pi 5 also offers the larger and faster modes. A resolution saved through the API that is not in the list is still shown, at the end, so loading this page does not change it.</p>
+<p>The resolution lists are sorted by size and then refresh rate. Each board lists the modes its HDMI output can drive: a Pi 4 or Pi 5 up to 4096x2160 and 1920x1080 at 120 Hz, a Pi 0–3 up to 1600x1200 and 1920x1080 at 50 Hz, and a BeagleBone Black up to 1280x1024 at 60 Hz and 1920x1080 at 30 Hz. A resolution saved through the API that is not in the list is still shown, at the end, so loading this page does not change it.</p>
 <p><b>Choosing a refresh rate for an LED wall sender.</b> A show plays at its sequence’s frame rate, and the display shows each frame for a whole number of refreshes. When the refresh rate is a whole multiple of the frame rate, every frame gets the same number of refreshes and movement is even. Otherwise frames alternate between longer and shorter, which shows up as judder on scrolling text. FPP’s frame timing is not locked to the display, so expect an occasional uneven frame even then.</p>
 <table class="table table-sm w-auto">
     <thead><tr><th>Show frame rate</th><th>Even refresh rates</th></tr></thead>
