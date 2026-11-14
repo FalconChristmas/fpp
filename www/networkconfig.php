@@ -421,6 +421,9 @@
 
             // --- Wireless (Basic+ primary; Advanced+ backup) ---
             if (iface.substr(0, 2) == "wl") {
+                if ($('#wepRow_' + safeName).is(':visible')) {
+                    return fail("WEP networks are not supported. Switch the router to WPA2 or WPA3.");
+                }
                 var psk = $('#eth_psk_' + safeName).val();
                 if (psk != "" && !validWpaKey(psk)) {
                     return fail("WiFi password (WPA) must be an 8-63 character passphrase or a 64 character hex key.");
@@ -777,7 +780,6 @@
                     if (data.PSK === '' && $('#eth_psk_' + safeName).attr('data-saved-ssid') === data.SSID) {
                         delete data.PSK;
                     }
-                    data.KEY = $('#eth_key_' + safeName).val();
                     data.HIDDEN = $('#eth_hidden_' + safeName).is(':checked');
                     data.WPA3 = $('#eth_wpa3_' + safeName).is(':checked');
                     data.BACKUPSSID = $('#backupeth_ssid_' + safeName).val();
@@ -1247,13 +1249,8 @@
             if (data.SSID) {
                 var ssidElement = contentDiv.find('#eth_ssid_' + safeName);
                 ssidElement.val(data.SSID);
-                // Show the appropriate password field based on the network type
                 if (data.PSKSet) {
                     contentDiv.find('#pskRow_' + safeName).show();
-                    contentDiv.find('#keyRow_' + safeName).hide();
-                } else if (data.KEY) {
-                    contentDiv.find('#keyRow_' + safeName).show();
-                    contentDiv.find('#pskRow_' + safeName).hide();
                 }
             }
             // Saved keys are not sent to the browser (see the save handler).
@@ -1263,9 +1260,6 @@
                 pskField.attr('data-saved-ssid', data.SSID || '').attr('placeholder', 'Saved - leave blank to keep');
             } else {
                 pskField.removeAttr('data-saved-ssid').removeAttr('placeholder');
-            }
-            if (data.KEY) {
-                contentDiv.find('#eth_key_' + safeName).val(data.KEY);
             }
             if (data.HIDDEN) {
                 contentDiv.find('#eth_hidden_' + safeName).prop('checked', data.HIDDEN == "1");
@@ -1438,31 +1432,27 @@
             // Reveal the PSK field as soon as the user types a manual SSID.
             // Selecting a scanned network (selectWifiNetworkForInterface) or
             // loading a saved config sets the value via .val() and manages the
-            // PSK/WEP rows itself, neither of which fires this 'input' handler,
-            // so this only affects hand-typed / hidden-network SSIDs. Show the
-            // PSK row whenever there is an SSID, unless the WEP key row is the
-            // one currently in use. An empty PSK is still valid (open network).
+            // PSK row itself, neither of which fires this 'input' handler,
+            // so this only affects hand-typed / hidden-network SSIDs. A typed
+            // SSID is not the WEP network picked earlier, so the WEP notice
+            // goes and the PSK row shows. An empty PSK is still valid (open
+            // network).
             contentDiv.find('#eth_ssid_' + safeName).on('input', function () {
-                var hasSsid = $(this).val().trim() !== "";
-                var wepVisible = contentDiv.find('#keyRow_' + safeName).is(':visible');
-                if (hasSsid && !wepVisible) {
-                    contentDiv.find('#pskRow_' + safeName).show();
-                } else if (!hasSsid) {
-                    contentDiv.find('#pskRow_' + safeName).hide();
-                }
+                contentDiv.find('#wepRow_' + safeName).hide();
+                contentDiv.find('#pskRow_' + safeName).toggle($(this).val().trim() !== "");
             });
 
             // Hidden networks don't broadcast their SSID and are effectively
             // always typed by hand, so make sure the PSK field is available.
             contentDiv.find('#eth_hidden_' + safeName).on('change', function () {
                 if ($(this).is(':checked') &&
-                    !contentDiv.find('#keyRow_' + safeName).is(':visible')) {
+                    !contentDiv.find('#wepRow_' + safeName).is(':visible')) {
                     contentDiv.find('#pskRow_' + safeName).show();
                 }
             });
 
             // Same reveal-on-type behavior for the backup network (advanced
-            // level only). The backup section has no scan table or WEP row, so
+            // level only). The backup section has no scan table, so
             // it is always typed by hand - show its PSK field once an SSID is
             // entered, and hide it again when the SSID is cleared.
             contentDiv.find('#backupeth_ssid_' + safeName).on('input', function () {
@@ -1706,20 +1696,18 @@
             $('#eth_wpa3_' + safeName).prop('checked', security === 'WPA3');
 
             // Show/hide appropriate password fields based on security type
-            if (security === 'Open') {
+            // WEP is not supported (wpa_supplicant builds are dropping it, and
+            // no router of the last decade needs it), so say so instead of
+            // asking for a key; the save refuses while this notice shows.
+            $('#wepRow_' + safeName).toggle(security === 'WEP');
+            if (security === 'Open' || security === 'WEP') {
                 // No key: clear a typed one and the saved-key marker, or the
                 // save would send or keep a key and an open network would be
                 // written as WPA-PSK.
                 $('#pskRow_' + safeName).hide();
-                $('#keyRow_' + safeName).hide();
                 $('#eth_psk_' + safeName).val('').removeAttr('data-saved-ssid').removeAttr('placeholder');
-            } else if (security === 'WEP') {
-                $('#pskRow_' + safeName).hide();
-                $('#keyRow_' + safeName).show();
-                $('#eth_key_' + safeName).focus();
             } else {
                 // WPA, WPA2, WPA3
-                $('#keyRow_' + safeName).hide();
                 $('#pskRow_' + safeName).show();
                 $('#eth_psk_' + safeName).focus();
             }
@@ -2002,14 +1990,10 @@
                                                     onClick='TogglePasswordHideShow("eth_psk");'></i>
                                             </div>
                                         </div>
-                                        <div class="row" id="keyRow" style="display: none;">
-                                            <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
-                                                <div class="description">WEP Key</div>
+                                        <div class="row" id="wepRow" style="display: none;">
+                                            <div class="col-md">
+                                                <div class="callout callout-warning">This is a WEP network, which FPP does not support. Switch the router to WPA2 or WPA3, or use a wired connection.</div>
                                             </div>
-                                            <div class="printSettingFieldCol col-md"><input type="password"
-                                                    name="eth_key" id="eth_key" size="26">&nbsp;<i class='fas fa-eye'
-                                                    id='eth_keyHideShow'
-                                                    onClick='TogglePasswordHideShow("eth_key");'></i></div>
                                         </div>
                                         <? if ($settings['uiLevel'] >= 1) { ?>
                                             <div class="row" id="backupessidRow">
