@@ -14,6 +14,7 @@
 #include <chrono>
 #include "fpp-json.h"
 #include <cctype>
+#include <cerrno>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -219,7 +220,14 @@ void createDirectories() {
         std::string dir = FPP_MEDIA_DIR + "/" + d;
         if (!DirectoryExists(dir)) {
             printf("    Creating directory %s\n", dir.c_str());
-            mkdir(dir.c_str(), 0775);
+            if (mkdir(dir.c_str(), 0775) != 0) {
+                // A media directory that cannot be created leaves the web UI
+                // unable to save anything; say why here, since this goes to
+                // the journal (journalctl -u fppinit) as well as to
+                // media/logs, which is exactly what is missing.
+                printf("    Could not create %s: %s\n", dir.c_str(), strerror(errno));
+                continue;
+            }
             if (haveFppUser) {
                 chown(dir.c_str(), fppUid, fppGid);
             }
