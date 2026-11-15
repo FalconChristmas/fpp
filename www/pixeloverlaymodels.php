@@ -714,6 +714,24 @@ if (($settings['Platform'] == "Linux") && (file_exists('/usr/include/X11/Xlib.h'
             if (dataError != 0)
                 return;
 
+            // fppd keys models by exact name (with '/' made '_') and ignores a
+            // second model of a name it already has, so refuse to save a pair.
+            // (A model named like one made from the outputs is fine: it is
+            // loaded first, and the output's model gives way to it.)
+            var names = Object.create(null);
+            for (var i = 0; i < models.length; i++) {
+                var key = models[i].Name.replace(/\//g, '_');
+                if (key in names) {
+                    if (names[key] == models[i].Name) {
+                        alert("More than one model is named '" + models[i].Name + "'. Rename one, then Save again.");
+                    } else {
+                        alert("'" + names[key] + "' and '" + models[i].Name + "' are the same name to FPP (a '/' counts as '_'). Rename one, then Save again.");
+                    }
+                    return;
+                }
+                names[key] = models[i].Name;
+            }
+
             data.models = models;
             data.autoCreate = $("#AutoCreatePixelOverlays").is(':checked');
             postData = JSON.stringify(data, null, 2);
