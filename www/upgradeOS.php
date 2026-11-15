@@ -377,7 +377,17 @@ if ($applyUpdate && ($return_code == 0)) {
     # it goes through the same trigger: sync is sysrq bit 16 and reboot is bit 128,
     # both set in Debian's default kernel.sysrq of 438 -- if one is unavailable the
     # reboot itself would not work either. Do NOT "simplify" this back to sync(1).
+    # sysrq "s" only queues the sync, so fsync the logs in-process first and give
+    # the queued sync time before "b" (#3187: the log tail came back as NULs).
+    foreach (array('fpp_system_upgrades.log', 'fppd.log') as $logName) {
+        $logFh = @fopen(OpLogDir() . '/' . $logName, 'r');
+        if ($logFh) {
+            @fsync($logFh);
+            fclose($logFh);
+        }
+    }
     system("echo s > /proc/sysrq-trigger");
+    sleep(3);
 
     # Force reboot the system, try a variety of methods
     # to see if one will properly trigger
