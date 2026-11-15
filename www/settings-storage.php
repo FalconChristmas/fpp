@@ -195,6 +195,21 @@ function PrintStorageDeviceSelect($platform)
         }
     }
 
+    // A media drive that /etc/fstab names but that is not attached.  Without
+    // this the setting shows what the media folder is on now -- the boot
+    // device, since the folder underneath the missing mount is what is in
+    // use -- so the boot device cannot be chosen (it is already selected)
+    // and the stale line can never be taken out of /etc/fstab from here.
+    foreach (@file("/etc/fstab") ?: array() as $fsLine) {
+        $f = preg_split('/\s+/', trim($fsLine));
+        if (count($f) >= 2 && preg_match('#^/dev/([A-Za-z0-9]+)$#', $f[0], $m) &&
+            rtrim($f[1], '/') == '/home/fpp/media' && !file_exists($f[0])) {
+            $values[$m[1] . " - (in /etc/fstab, not attached)"] = $m[1];
+            $storageDevice = $m[1];
+            $found = 1;
+        }
+    }
+
     if (!$found) {
         $arr = array_reverse($values, true);
         $values = $arr;

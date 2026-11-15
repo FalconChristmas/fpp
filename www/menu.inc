@@ -218,34 +218,38 @@ function list_plugin_entries($menu)
         <div class="fppMenuContainer">
             <?
             require_once(dirname(__FILE__) . "/common/mediaDiagnose.inc.php");
-            if (file_exists("/etc/fpp/rfs_version") && exec('grep "^[^#].*/home/pi/media" /etc/fstab')) {
-                $mounted = 0;
-                $needToMount = 0;
-                $mountPoints = file("/etc/fstab");
-                foreach ($mountPoints as $mountPoint) {
-                    if (preg_match("/^[^#].*\/home\/[a-z]*\/media/", $mountPoint)) {
-                        $needToMount = 1;
-                        $mounts = file("/proc/mounts");
-                        $mounted = 0;
-                        foreach ($mounts as $mount) {
-                            if (preg_match("/\/home\/[a-z]*\/media/", $mount)) {
-                                $mounted = 1;
-                                break;
-                            }
-                        }
-
-                        break;
+            // A drive /etc/fstab mounts as the media directory (set by Storage
+            // Device under Settings > Storage) that is not mounted: everything
+            // is being saved to the empty folder underneath it instead.  An
+            // exact match on the mount point, so a share mounted somewhere
+            // inside media neither raises this nor hides it.
+            if (file_exists("/etc/fpp/rfs_version")) {
+                $mediaMount = rtrim($mediaDirectory, '/');
+                $mediaDevice = "";
+                foreach (MediaDiagnoseMountTable("/etc/fstab") as $f) {
+                    if (rtrim($f[1], '/') == $mediaMount && !in_array("noauto", explode(",", $f[3] ?? ""))) {
+                        $mediaDevice = $f[0];
                     }
                 }
-
-
-                if ($needToMount && !$mounted) {
-                    ?>
-                    <div class="alert danger">
-                        WARNING: <?= $fppHome; ?>/media is not mounted, is a USB flash drive inserted?
-                    </div>
-                    <?
+                if ($mediaDevice != "") {
+                    $mediaMounted = false;
+                    foreach (MediaDiagnoseMountTable("/proc/mounts") as $f) {
+                        if (rtrim($f[1], '/') == $mediaMount && ($f[2] ?? "") != "autofs") {
+                            $mediaMounted = true;
+                        }
+                    }
+                    if (!$mediaMounted) {
+                        ?>
+                        <div class="alert alert-danger"><b>WARNING:</b> /etc/fstab mounts
+                            <?= htmlspecialchars(MediaDiagnoseShow($mediaDevice)) ?> at <?= htmlspecialchars(MediaDiagnoseShow($mediaMount)) ?>
+                            but it is not mounted, so settings and uploads are going to the folder underneath it.
+                            <?= !str_starts_with($mediaDevice, "/dev/") ? "" :
+                                (file_exists($mediaDevice) ? "The device is present." : "There is no " . htmlspecialchars(MediaDiagnoseShow($mediaDevice)) . " on this system.") ?>
+                        </div>
+                        <?
+                    }
                 }
+                unset($mediaMount, $mediaDevice, $mediaMounted, $f);
             }
             // A media directory that is not there is not the same as one that is
             // nearly full, and it used to be reported as one: disk_free_space()
