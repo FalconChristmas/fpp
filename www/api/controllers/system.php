@@ -613,6 +613,31 @@ function UpdateActivityWorkersActive($empty, $holder, $mtime, $logSize, $withLog
 }
 
 /**
+ * True when the log was written in the last 15 minutes. A write "from the
+ * future" is not fresh: after a reset a box with no RTC can come up with its
+ * clock hours behind the log's last write (#3187).
+ */
+function UpdateActivityLogFresh($mtime)
+{
+    $age = time() - $mtime;
+    return $mtime > 0 && $age >= 0 && $age < 900;
+}
+
+/**
+ * True when fppinit's once-per-boot "[fpp-boot <boot_id>] System booted"
+ * line is among $lines: a run opened before it cannot still be running.
+ */
+function UpdateActivityBootAfter($lines)
+{
+    foreach ($lines as $line) {
+        if (preg_match('/\[fpp-boot [0-9a-f-]+\] System booted/', $line)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * True when any liveness signal says an update is running: a worker process
  * is alive OR the update lock is held. The lock probe is cheap (no fork);
  * the ps probe forks, so callers on the hot path should check the lock
@@ -901,7 +926,7 @@ function GetUpdateActivityInternal($withLogTail = false)
         // is alive or the log was written recently). This keeps runIds stable
         // and preserves completion reporting for multi-MB logs.
         $aliveProbe = UpdateActivityAnyAlive();
-        $recentProbe = ($tail['mtime'] > 0) && ((time() - $tail['mtime']) < 900);
+        $recentProbe = UpdateActivityLogFresh($tail['mtime']);
         if ($aliveProbe || $recentProbe) {
             $ext = UpdateActivityReadTail(30000, 4194304);
             if (!empty($ext['lines'])) {
@@ -960,6 +985,10 @@ function GetUpdateActivityInternal($withLogTail = false)
             break;
         }
         if (preg_match('/^.*?=====\s*(Upgrade Complete|Upgrade Failed|Rebooting|Rebuild Complete|Upgrade complete[^=]*)\s*=====\s*$/i', $lines[$j])) {
+            break;
+        }
+        // A boot in between: a re-run after a power loss is a new run.
+        if (UpdateActivityBootAfter(array($lines[$j]))) {
             break;
         }
     }
@@ -1102,8 +1131,16 @@ function GetUpdateActivityInternal($withLogTail = false)
     // Run is open in the log: live when a worker is alive, the update lock
     // is held (long OS download under php-fpm, rebuild), or the log is
     // fresh; stale (crashed/killed, power loss) otherwise.
-    $alive = UpdateActivityAnyAlive();
-    $recent = ($tail['mtime'] > 0) && ((time() - $tail['mtime']) < 900);
+    // The lock only vouches for this run when its holder is this op: a
+    // Rebuild (fpp-rebuild) must not revive an old run whose FINISH was lost.
+    $holder = UpdateActivityLockHolder();
+    if ($holder !== false && isset($holder['op']) && $holder['op'] !== '' && $holder['op'] !== $startOp) {
+        return UpdateActivityWorkersActive($empty, $holder, $tail['mtime'], $logStatSize, $withLogTail);
+    }
+    $alive = ($holder !== false) || UpdateActivityProcessAlive();
+    // A boot since the run's START ends it even when its closing lines were
+    // lost to the reset (an upgrade from an older FPP still loses them, #3187).
+    $recent = UpdateActivityLogFresh($tail['mtime']) && !UpdateActivityBootAfter($after);
     if ($alive || $recent) {
         $base['inProgress'] = true;
         return $base;

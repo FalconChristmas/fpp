@@ -19,6 +19,7 @@
 #include <cstring>
 #include <ctime>
 #include <dirent.h>
+#include <fcntl.h>
 #include <memory>
 #include <pwd.h>
 #include <sys/stat.h>
@@ -174,6 +175,40 @@ void modprobe(const char* mod) {
     exec(cmd);
 }
 
+// Once per boot (or a manual "fppinit start"), not from bootPre, which every
+// fppd restart runs: lets the update-activity API end a run opened before this
+// boot without trusting the clock (#3187). Never creates the log.
+static void logBootToUpgradeLog() {
+    std::string bootId = GetFileContents("/proc/sys/kernel/random/boot_id");
+    TrimWhiteSpace(bootId);
+    std::string logFile = FPP_MEDIA_DIR + "/logs/fpp_system_upgrades.log";
+    if (bootId.empty()) {
+        return;
+    }
+    // O_NOFOLLOW/O_NONBLOCK + S_ISREG: a symlink or FIFO there must not hang boot.
+    int fd = open(logFile.c_str(), O_WRONLY | O_APPEND | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
+    if (fd < 0) {
+        return;
+    }
+    struct stat st;
+    if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
+        close(fd);
+        return;
+    }
+    char stamp[32];
+    time_t now = time(nullptr);
+    strftime(stamp, sizeof(stamp), "%Y-%m-%d %H:%M:%S", localtime(&now));
+    std::string line = std::string(stamp) + " [fpp-boot " + bootId + "] System booted (clock may not be synced yet)\n";
+    if (write(fd, line.c_str(), line.size()) == (ssize_t)line.size() && st.st_mtime > now) {
+        // A clock that came up behind (no RTC) would move the mtime backwards, and
+        // an open browser tab drops payloads older than the last one it applied.
+        struct timespec times[2] = { { 0, UTIME_OMIT }, { st.st_mtime + 1, 0 } };
+        futimens(fd, times);
+    }
+    close(fd);
+    printf("FPP - Logged boot to the upgrade log\n");
+}
+
 int main(int argc, char* argv[]) {
     // Everything fppinit runs, it runs to parse: aplay, arecord, amixer and
     // the network tools all translate their output, and systemd hands every
@@ -301,6 +336,7 @@ int main(int argc, char* argv[]) {
         setupApache();
         DetectCape();
         setupTimezone();
+        logBootToUpgradeLog();
         // After DetectCape() above, so a cape shipping DisablePiRTC in its
         // defaultSettings is honoured on the boot it is first detected on.
         setupPiRTCConfig();
