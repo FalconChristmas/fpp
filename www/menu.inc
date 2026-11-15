@@ -269,15 +269,24 @@ function list_plugin_entries($menu)
                 unset($mediaWhy);
             } else if (!is_writable($mediaDirectory)) {
                 ?>
-                <div class="alert alert-danger"><b>WARNING:</b> the media directory <?= $mediaDirectory ?> is not
-                    writable. Settings, playlists and uploads will fail to save.</div>
+                <div class="alert alert-danger"><b>WARNING:</b> the media directory <?= htmlspecialchars(MediaDiagnoseShow($mediaDirectory)) ?> is not
+                    writable. Settings, playlists and uploads will fail to save.
+                    <br><b>Details:</b> <?= htmlspecialchars(implode("; ", MediaNotWritableDetails($mediaDirectory))) ?>.</div>
                 <?
-            } else if (disk_free_space($mediaDirectory) < 50000000) {
-                ?>
-                <div class="alert alert-danger"><b>WARNING:</b> <?= $mediaDirectory ?> is running low on space. Problems may
-                    occur
-                    with saving settings or uploading content.</div>
-                <?
+            } else {
+                $mediaSpace = MediaSpaceProblem($mediaDirectory);
+                if ($mediaSpace['kind'] != "") {
+                    ?>
+                    <div class="alert alert-danger"><b>WARNING:</b> <?= htmlspecialchars(MediaDiagnoseShow($mediaDirectory)) ?>
+                        <?= array(
+                            "low" => "is running low on space. Problems may occur with saving settings or uploading content.",
+                            "inodes" => "is running out of inodes, so new files and folders cannot be created even though space is free.",
+                            "unknown" => "is there, but the free space on it cannot be read.",
+                        )[$mediaSpace['kind']] ?>
+                        <br><b>Details:</b> <?= htmlspecialchars(implode("; ", array_merge(array($mediaSpace['summary']), $mediaSpace['details']))) ?>.</div>
+                    <?
+                }
+                unset($mediaSpace);
             }
             ?>
             <div id='upgradeFlag' class="alert detract" style="display: none;">
